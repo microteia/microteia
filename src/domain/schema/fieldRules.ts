@@ -106,6 +106,56 @@ export const AGGREGATION_OP_LABELS: Record<AggregationOp, string> = {
   max: 'Maior valor',
 };
 
+// ─── Campo de arquivo ─────────────────────────────────────────────────────────
+
+/**
+ * O que um campo `file` ACEITA. Fica aqui, e não no `FieldUiSpec`, porque extensão aceita e teto de
+ * tamanho são restrição do dado — não a forma de desenhá-lo.
+ */
+export interface FieldFileConfig {
+  /** Extensões aceitas, sem ponto e em minúsculas (`['png','jpg']`). Ausente/vazia = qualquer uma. */
+  extensions?: string[];
+  /** Tamanho máximo em MEGABYTES. Ausente = `DEFAULT_FILE_MAX_SIZE_MB`. */
+  maxSizeMb?: number;
+}
+
+/**
+ * O teto que a regra do Storage já cobra (`request.resource.size < 20 * 1024 * 1024`). Um default
+ * maior seria promessa que o Storage quebra no momento do upload.
+ */
+export const DEFAULT_FILE_MAX_SIZE_MB = 20;
+
+const IMAGE_FILE_EXTENSIONS = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'avif'];
+
+/**
+ * A única leitura da config: o input, a validação de autoria e uma futura checagem no backend não
+ * podem discordar sobre o que `['.PNG']` ou `maxSizeMb: 0` significam.
+ */
+export const resolveFileConfig = (
+  config?: FieldFileConfig | null,
+): { extensions: string[]; maxSizeMb: number } => {
+  const extensions = (config?.extensions ?? [])
+    .map((extension) => extension.trim().toLowerCase().replace(/^\./, ''))
+    .filter((extension) => extension.length > 0);
+  const size = config?.maxSizeMb;
+  return {
+    extensions: [...new Set(extensions)],
+    maxSizeMb:
+      typeof size === 'number' && Number.isFinite(size) && size > 0 && size <= DEFAULT_FILE_MAX_SIZE_MB
+        ? size
+        : DEFAULT_FILE_MAX_SIZE_MB,
+  };
+};
+
+/**
+ * A prévia é DERIVADA do que o campo aceita, e não configurada à parte: um campo que só aceita
+ * imagem mostra a imagem, e um que aceita qualquer arquivo mostra o nome.
+ */
+export const fileConfigIsImageOnly = (config?: FieldFileConfig | null): boolean => {
+  const { extensions } = resolveFileConfig(config);
+  return extensions.length > 0 && extensions.every((extension) => IMAGE_FILE_EXTENSIONS.includes(extension));
+};
+
 // ─── Tipos de controle de campo (compartilhados form/list/custom) ─────────────
 
 export type CustomFieldType =
@@ -119,7 +169,8 @@ export type CustomFieldType =
   | 'select'
   | 'masked'
   | 'reference'
-  | 'markdown';
+  | 'markdown'
+  | 'file';
 
 export type CustomFieldMask = string;
 

@@ -77,7 +77,7 @@ describe('a superfície publicada do SDK', () => {
 
   /**
    * O SDK viaja junto com o pacote do kernel, e é o `KERNEL_VERSION` que amarra os dois: um autor que
-   * escreveu contra `^1.3.0` precisa saber se o que ele usa continua valendo.
+   * escreveu contra `^1.4.0` precisa saber se o que ele usa continua valendo.
    */
   it('publica a versão do contrato Kernel↔plugins', () => {
     expect(sdk.KERNEL_VERSION).toBe(KERNEL_VERSION);

@@ -24,6 +24,7 @@ vi.mock('../../../stores/useRecords', () => ({
     allRecords: state.records,
     isLoading: false,
     createRecord: vi.fn(),
+    newRecordId: vi.fn(),
     updateRecord: vi.fn(),
     deleteRecord: vi.fn(),
   }),

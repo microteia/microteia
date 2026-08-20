@@ -342,6 +342,7 @@ const ensureTargetCollectionScreen = async (
     authorCanDelete: input.authorCanDelete ?? null,
     titleFieldKey: input.titleFieldKey,
     subtitleFieldKey: input.subtitleFieldKey ?? null,
+    imageFieldKey: input.imageFieldKey ?? null,
   };
   const existing = existingScreens.find((screen) => screen.id === target);
   if (existing) {
@@ -352,6 +353,7 @@ const ensureTargetCollectionScreen = async (
       authorCanDelete: declared.authorCanDelete,
       titleFieldKey: existing.titleFieldKey || declared.titleFieldKey,
       subtitleFieldKey: existing.subtitleFieldKey ?? declared.subtitleFieldKey,
+      imageFieldKey: existing.imageFieldKey ?? declared.imageFieldKey,
     };
     if (JSON.stringify(merged) === JSON.stringify(screenToInput(existing))) return;
     await deps.screenRepository.upsert(tenantId, target, merged);

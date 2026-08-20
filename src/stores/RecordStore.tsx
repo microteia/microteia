@@ -68,17 +68,30 @@ export const RecordStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
    * o que uma listagem precisa para mostrar quem escreveu. Um valor explícito em `data` ainda vence,
    * para o caso em que quem cria não é quem está logado.
    */
-  const createRecord = useCallback(async (collection: string, data: EntityRecordValues) => {
+  const createRecord = useCallback(async (
+    collection: string,
+    data: EntityRecordValues,
+    recordId?: string,
+  ) => {
     if (!currentTenant) throw new Error('No tenant selected');
     const item = await uc.create.execute(currentTenant.id, collection, {
       createdBy: user?.id ?? '',
       createdByName: effectiveName,
       createdByPhotoURL: user?.photoURL ?? '',
       ...data,
-    });
+    }, recordId);
     storeEvents.emit(StoreEvents.RECORDS_UPDATED);
     return item;
   }, [currentTenant, uc.create, user, effectiveName]);
+
+  /**
+   * O id de um registro que AINDA não existe, para que um arquivo escolhido antes do save já suba
+   * para o caminho definitivo dele. Quem chama guarda o valor e o devolve ao `createRecord`.
+   */
+  const newRecordId = useCallback((collection: string) => {
+    if (!currentTenant) throw new Error('No tenant selected');
+    return recordRepository.newId(currentTenant.id, collection);
+  }, [currentTenant, recordRepository]);
 
   const updateRecord = useCallback(async (
     collection: string,
@@ -111,6 +124,7 @@ export const RecordStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
       allRecords,
       isLoading,
       createRecord,
+      newRecordId,
       updateRecord,
       deleteRecord,
     }}>

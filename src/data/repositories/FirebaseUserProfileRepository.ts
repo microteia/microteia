@@ -1,5 +1,5 @@
 import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { httpsCallable } from 'firebase/functions';
 import { db, storage, functions } from '../../infrastructure/firebase/config';
 import type { UserProfile, Gender, NicknameCheckResult } from '../../domain/entities';
@@ -36,18 +36,17 @@ export class FirebaseUserProfileRepository implements IUserProfileRepository {
     return { id: userId, userId, ...data };
   }
 
+  /**
+   * `userPhotos/{userId}/…` é o ÚNICO prefixo que o `storage.rules` libera para a foto de perfil (dono
+   * escreve, até 5 MB, `image/*`). Enquanto isto gravava em `users/{userId}/profile-photos/`, nenhuma
+   * regra casava o caminho e o upload caía no `allow read, write: if false` do curinga final — a troca
+   * de foto falhava com `storage/unauthorized`. As fotos já gravadas no caminho antigo continuam
+   * abrindo: o que fica em `photoURL` é a URL de download, que carrega o próprio token.
+   */
   async uploadPhoto(userId: string, blob: Blob, fileName: string): Promise<string> {
-    const storageRef = ref(storage, `users/${userId}/profile-photos/${fileName}`);
+    const storageRef = ref(storage, `userPhotos/${userId}/${fileName}`);
     await uploadBytes(storageRef, blob, { contentType: 'image/jpeg' });
     return getDownloadURL(storageRef);
-  }
-
-  async deletePhoto(storagePath: string): Promise<void> {
-    try {
-      await deleteObject(ref(storage, storagePath));
-    } catch {
-      // ignore — path may be external (Google auth photo URL)
-    }
   }
 
   async checkNicknameAvailability(nickname: string): Promise<NicknameCheckResult> {

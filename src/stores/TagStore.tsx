@@ -65,16 +65,25 @@ export const TagStoreProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const screenTagLists = useMemo<SchemaTagList[]>(() => screenTagCollections(screens), [screens]);
 
+  /**
+   * O rótulo DERIVADO vence o persistido, e a ordem é o que decide: o último a entrar no mapa fica.
+   *
+   * O persistido é uma foto de um instante, num idioma — enquanto ele vinha por último, uma lista
+   * declarada pelo Form Design aparecia como "Etiquetas: Consultas" em qualquer idioma, e renomear a
+   * tela não a atualizava. O derivado é uma REFERÊNCIA com o nome da tela em `labelParams`: traduz e
+   * acompanha o nome. O persistido segue valendo para a lista a que nenhuma tela aponta — é o caso da
+   * declaração que sobrevive à exclusão da tela.
+   */
   const availableTagLists = useMemo<SchemaTagList[]>(
     () => {
       const byCollection = new Map<string, SchemaTagList>();
       for (const tagList of [
-        ...BUILTIN_TAG_LISTS,
-        ...screenTagLists,
         ...definitions.map((definition) => ({
           collection: definition.collection,
           label: definition.label,
         })),
+        ...BUILTIN_TAG_LISTS,
+        ...screenTagLists,
       ]) {
         byCollection.set(tagList.collection, tagList);
       }

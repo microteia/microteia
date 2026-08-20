@@ -14,7 +14,7 @@ import type { ActionParameterPromptController } from './useActionParameterPrompt
 import { useCustomFieldListing } from '../../hooks/useCustomFieldListing';
 import type { CustomFieldCardItem } from '../../hooks/useCustomFieldListing';
 import { buildNewTabKey, buildViewTabKey, buildCloneTabKey, buildChildNewTabKey, recordTabKeyOf } from '../../../shared/constants/dynamicScreenKeys';
-import { resolveRecordTitle, sortFieldsByOrder } from '../../../domain/services/customFieldValues';
+import { resolveRecordImageUrl, resolveRecordTitle, sortFieldsByOrder } from '../../../domain/services/customFieldValues';
 import { isBoundScreen, isOwnedByParentScreen, screenDataCollection } from '../../../domain/services/screenDataCollection';
 import { screenForDisplay, useEntityFormFields, useResolvedFields } from '../useEntityFormFields';
 import { useExprViewer } from '../useExprViewer';
@@ -92,6 +92,11 @@ export interface RecordListViewModel {
   getCardSubtitle: (record: EntityRecord) => string;
   /** Ícone da linha de subtítulo do card, quando o campo declara um. */
   cardSubtitleIconKey: string | null;
+  /**
+   * A imagem do registro (`imageFieldKey`), que substitui o ícone da tela no avatar do card. Nada
+   * declarado, campo vazio ou campo que deixou de ser de arquivo → `null`, e o card volta ao ícone.
+   */
+  getCardImageUrl: (record: EntityRecord) => string | null;
   getCardActions: (record: EntityRecord) => RecordCardAction[];
   /** O pedido de parâmetros de uma ação que pergunta antes de executar. Renderizado pelos modais. */
   parameterPrompt: ActionParameterPromptController;
@@ -213,13 +218,7 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
     const searchQ = (tokenMap['search']?.[0] ?? '').toLowerCase();
     const tagFilter = tokenMap['tag'] ?? [];
     const matched = records.filter((record) => {
-      if (searchQ) {
-        const haystack = Object.values(record)
-          .filter((v): v is string => typeof v === 'string')
-          .join(' ')
-          .toLowerCase();
-        if (!haystack.includes(searchQ)) return false;
-      }
+      if (searchQ && !listing.searchText(record).includes(searchQ)) return false;
       if (tagFilter.length > 0 && !tagFilter.some((tid) => record.tagIds?.includes(tid))) return false;
       return listing.matchesFilters(record, tokenMap);
     });
@@ -260,6 +259,12 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
       return value === '—' ? '' : value;
     },
     [subtitleField, listing],
+  );
+
+  const getCardImageUrl = useCallback(
+    (record: EntityRecord): string | null =>
+      resolveRecordImageUrl(record, sortedFields, definition?.imageFieldKey),
+    [sortedFields, definition],
   );
 
   const openNewRecord = useCallback(
@@ -441,7 +446,7 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
       notify(t('record.deleted'), 'success');
       setRecordToDelete(null);
     } catch {
-      notify('Erro ao excluir o registro.', 'error');
+      notify(t('record.delete-failed'), 'error');
     } finally {
       setIsDeleting(false);
     }
@@ -465,6 +470,7 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
     getCardTitle,
     getCardSubtitle,
     cardSubtitleIconKey: subtitleField?.listIcon ?? null,
+    getCardImageUrl,
     getCardActions,
     parameterPrompt,
     tagAdapter,

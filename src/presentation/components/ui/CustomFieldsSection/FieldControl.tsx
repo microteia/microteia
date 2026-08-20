@@ -9,6 +9,7 @@ import { SearchSelect } from '../SearchSelect';
 import { MultiSearchSelect } from '../MultiSearchSelect';
 import { MarkdownEditor } from '../MarkdownEditor';
 import { Checkbox } from '../Checkbox';
+import { FileInput } from '../FileInput';
 import type { FieldDefinition } from '../../../../domain/entities';
 import type { CustomFieldsSectionViewModel } from './CustomFieldsSection.viewmodel';
 
@@ -21,6 +22,7 @@ import { useT } from '../../../shared/i18n/useT';
  */
 export const FieldControl: React.FC<{ field: FieldDefinition; vm: CustomFieldsSectionViewModel }> = ({ field, vm }) => {
   const isDisabled = vm.isFieldDisabled(field);
+  const fileUpload = vm.fileUpload;
   const t = useT('core.ui');
   switch (field.type) {
     case 'textarea':
@@ -121,6 +123,16 @@ export const FieldControl: React.FC<{ field: FieldDefinition; vm: CustomFieldsSe
           value={vm.getString(field.key)}
           onChange={(value) => vm.setValue(field.key, value)}
           placeholder={field.placeholder ?? t('action.select')}
+          disabled={isDisabled}
+        />
+      );
+    case 'file':
+      return (
+        <FileInput
+          value={vm.getString(field.key)}
+          onChange={(value) => vm.setValue(field.key, value)}
+          upload={fileUpload ? (file) => fileUpload.upload(field.key, file) : undefined}
+          config={field.file}
           disabled={isDisabled}
         />
       );

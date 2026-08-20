@@ -7,6 +7,11 @@ export interface UserAvatarProps {
   size?: number;
   showBorder?: boolean;
   referrerPolicy?: React.ImgHTMLAttributes<HTMLImageElement>['referrerPolicy'];
+  /**
+   * O que aparece sem imagem (ou quando ela falha). Ausente = a inicial do nome, que é o certo para
+   * uma pessoa; um REGISTRO cai no ícone da tela dele, que não é letra nenhuma.
+   */
+  fallback?: React.ReactNode;
 }
 
 export interface UserAvatarViewModel {

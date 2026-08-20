@@ -631,18 +631,58 @@ const UI_MODULE_DEFS = `declare module '@microteia/ui' {
   export function Checkbox(props: CheckboxProps): JSX.Element;
 
   /** Props of EntityListCard. */
+  export interface EntityCardAction {
+    key: string;
+    icon: React.ReactNode;
+    title: string;
+    onClick: () => void;
+    danger?: boolean;
+    disabled?: boolean;
+  }
+  export interface EntityCardMetaRow {
+    key: string;
+    icon?: React.ReactNode;
+    value: React.ReactNode;
+  }
+  export interface EntityCardTag {
+    id: string;
+    name: string;
+    color: string;
+  }
+
+  /**
+   * The card takes rendered SLOTS, not a record: it knows nothing about screens or fields, which is
+   * what lets a screen put anything in the avatar, the title or the rows. Get the values from
+   * useEntityList(...) — getCardTitle, getCardSubtitle, getCardImageUrl, getCardActions.
+   */
   export interface EntityListCardProps {
-    record: any;
-    screenKey: string;
-    actions?: any[];
+    avatar: React.ReactNode;
+    title: React.ReactNode;
+    subtitle?: React.ReactNode;
+    actions?: EntityCardAction[];
+    metaRows: EntityCardMetaRow[];
+    tags?: EntityCardTag[];
+    /** Below the header, before the meta rows (e.g. status badges). */
+    belowHeader?: React.ReactNode;
+    /** After the meta rows (e.g. extra fields). */
+    extra?: React.ReactNode;
+    /** In the footer, after the tags (e.g. an amount). */
+    footer?: React.ReactNode;
+    /** Colored stripe at the top of the card — severity at a glance. */
+    accentColor?: string;
     onClick?: () => void;
   }
   export function EntityListCard(props: EntityListCardProps): JSX.Element;
 
-  /** Props of CustomFieldMetaRows. */
+  /** Props of CustomFieldMetaRows. Build the items with useEntityList(...).getCardItems(record). */
   export interface CustomFieldMetaRowsProps {
-    record: any;
-    fields: any[];
+    items: {
+      key: string;
+      label?: string;
+      value: string;
+      badges?: { label: string; color?: string }[];
+      type: 'text' | 'markdown';
+    }[];
   }
   export function CustomFieldMetaRows(props: CustomFieldMetaRowsProps): JSX.Element;
 
@@ -663,10 +703,12 @@ const UI_MODULE_DEFS = `declare module '@microteia/ui' {
 
   /** The user's photo, falling back to their initials when the image is missing or fails. */
   export interface UserAvatarProps {
-    src: string | null;
+    src?: string | null;
     name: string;
     size?: number;
     showBorder?: boolean;
+    /** Shown when there is no image, or it fails to load. Defaults to the name's initial. */
+    fallback?: React.ReactNode;
   }
   export function UserAvatar(props: UserAvatarProps): JSX.Element;
 
@@ -677,13 +719,25 @@ const UI_MODULE_DEFS = `declare module '@microteia/ui' {
   }
   export function DocumentsPanel(props: DocumentsPanelProps): JSX.Element;
 
+  /**
+   * Uploads a 'file' field's content and returns the download URL to store in the field.
+   * Get it from useEntityForm(...).fileUpload. Without it, 'file' fields render read-only.
+   */
+  export interface FieldFileUpload {
+    upload: (fieldKey: string, file: File) => Promise<string>;
+  }
+
   /** Props of CustomFieldsSection. */
   export interface CustomFieldsSectionProps {
     fields: any[];
     values: Record<string, any>;
-    errors: Record<string, string>;
-    getValue: (key: string) => any;
-    setValue: (key: string, value: any) => void;
+    onChange: (fieldKey: string, value: any) => void;
+    errors?: Record<string, string>;
+    disabled?: boolean;
+    /** Merges several fields at once — powers the onChange field effects. */
+    onMergeValues?: (patch: Record<string, any>) => void;
+    /** Required for 'file' fields to accept uploads. */
+    fileUpload?: FieldFileUpload;
   }
   export function CustomFieldsSection(props: CustomFieldsSectionProps): JSX.Element;
   
@@ -695,7 +749,11 @@ const UI_MODULE_DEFS = `declare module '@microteia/ui' {
     field: any;
     value: any;
     onChange: (value: any) => void;
+    disabled?: boolean;
     error?: string;
+    showLabel?: boolean;
+    /** Required for a 'file' field to accept uploads. */
+    fileUpload?: FieldFileUpload;
   }
   export function FieldInput(props: FieldInputProps): JSX.Element;
 
@@ -938,6 +996,8 @@ const DATA_MODULE_DEFS = `declare module '@microteia/data' {
     /** Saves the record (creating or updating). Returns { id }, or null when invalid. */
     save: () => Promise<{ id: string } | null>;
     isSaving: boolean;
+    /** Pass to FieldInput/EntityForm so 'file' fields can upload. */
+    fileUpload: FieldFileUpload | null;
   }
   /**
    * A form for creating or editing a dynamic entity.

@@ -46,7 +46,11 @@ export interface EntityDetailConfig<TRecord extends { id: string }> {
   resolveTabTitle: (record: TRecord | null, isNew: boolean) => string | null;
   resolveTitleFromValues: (values: Values) => string;
   validate: (values: Values) => EntityValidationResult | null;
-  create: (values: Values) => Promise<{ id: string; title: string }>;
+  /**
+   * `recordId` vem preenchido quando um arquivo já foi enviado para o caminho desse id — o registro
+   * tem de nascer NELE, e não num sorteado pelo Firestore. Ausente, a criação é a de sempre.
+   */
+  create: (values: Values, recordId: string | null) => Promise<{ id: string; title: string }>;
   update: (recordId: string, values: Values) => Promise<void>;
   messages: { created: string; updated: string; error: string };
   deepLinkKey: (id: string) => string;
@@ -66,6 +70,11 @@ export interface EntityDetailConfig<TRecord extends { id: string }> {
   documentsPort: DocumentsPort;
   hasNotes: boolean;
   hasDocuments: boolean;
+  /**
+   * Cunha um id para um registro que ainda não existe. Ausente = a tela não precisa de id antes do
+   * save, e `ensureRecordId` devolve `null`.
+   */
+  newId?: () => string;
 }
 
 export interface EntityDetail<TRecord extends { id: string }> {
@@ -79,6 +88,11 @@ export interface EntityDetail<TRecord extends { id: string }> {
   fieldErrors: Record<string, string>;
   isSaving: boolean;
   handleSave: () => Promise<void>;
+  /**
+   * O id deste registro, cunhando um se ele ainda não existe — é o que permite a um arquivo escolhido
+   * antes do save já subir para o caminho definitivo. Só de handler: cunhar id é impuro.
+   */
+  ensureRecordId: () => string | null;
   activeTab: EntityDetailTab;
   setActiveTab: (tab: EntityDetailTab) => void;
   copyLinkDone: boolean;
@@ -106,7 +120,7 @@ export function useEntityDetail<TRecord extends { id: string }>(
   const {
     tabKey, entityKey, configScreenKey, parse, findInStore, getById, recordToValues, resolveTabTitle, resolveTitleFromValues,
     validate, create, update, messages, deepLinkKey, cloneKey, remove, removedMessage,
-    removeErrorMessage, notesPort, documentsPort, hasNotes, hasDocuments,
+    removeErrorMessage, notesPort, documentsPort, hasNotes, hasDocuments, newId,
     afterCreate = 'reopen', returnTabKey,
   } = config;
 
@@ -204,6 +218,22 @@ export function useEntityDetail<TRecord extends { id: string }>(
   const [isSaving, setIsSaving] = useState(false);
 
   /**
+   * O rascunho carrega a aba a que pertence: aba nova é registro novo, e ler o par em vez de zerar o
+   * id num efeito mantém a derivação pura.
+   */
+  const [draft, setDraft] = useState<{ tabKey: string; id: string } | null>(null);
+  const draftRecordId = draft?.tabKey === tabKey ? draft.id : null;
+
+  const ensureRecordId = useCallback((): string | null => {
+    if (record) return record.id;
+    if (draftRecordId) return draftRecordId;
+    if (!newId) return null;
+    const id = newId();
+    setDraft({ tabKey, id });
+    return id;
+  }, [record, draftRecordId, newId, tabKey]);
+
+  /**
    * `override` existe para o despacho de Actions: um `merge` seguido de `save` precisa gravar os
    * valores recém-mesclados, que ainda não passaram por um render quando o `save` é chamado.
    */
@@ -216,7 +246,7 @@ export function useEntityDetail<TRecord extends { id: string }>(
     setIsSaving(true);
     try {
       if (isNew) {
-        const created = await create(saved);
+        const created = await create(saved, draftRecordId);
         notify(messages.created, 'success');
         if (returnTabKey) {
           closeTab(tabKey, activePanelId);
@@ -245,7 +275,7 @@ export function useEntityDetail<TRecord extends { id: string }>(
     } finally {
       setIsSaving(false);
     }
-  }, [validate, values, currentTenant, isNew, record, create, update, messages, deepLinkKey, resolveTitleFromValues, tabKey, activePanelId, closeTab, openTab, setTabTitle, notify, afterCreate, returnTabKey]);
+  }, [validate, values, currentTenant, isNew, record, create, update, messages, deepLinkKey, resolveTitleFromValues, tabKey, activePanelId, closeTab, openTab, setTabTitle, notify, afterCreate, returnTabKey, draftRecordId]);
 
   const refetch = useCallback(async () => {
     const targetId = record?.id ?? null;
@@ -315,6 +345,7 @@ export function useEntityDetail<TRecord extends { id: string }>(
     fieldErrors,
     isSaving,
     handleSave,
+    ensureRecordId,
     activeTab: chrome.activeTab,
     setActiveTab: chrome.setActiveTab,
     copyLinkDone: chrome.copyLinkDone,

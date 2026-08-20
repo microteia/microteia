@@ -1,5 +1,6 @@
 import React from 'react';
 import { CustomFieldsSection } from '../../ui/CustomFieldsSection';
+import { UserAvatar } from '../../ui/UserAvatar';
 import { ConfirmModal } from '../../ui/ConfirmModal';
 import { TagManager } from '../../ui/TagManager';
 import { InfoBanner } from '../../ui/InfoBanner';
@@ -8,7 +9,7 @@ import { EntityDetailView } from '../EntityDetailView';
 import type { EntityDetailExtraTab, EntityDetailTab } from '../EntityDetailView';
 import { getScreenIcon } from '../../../shared/screenIcons';
 import type { ScreenActions } from '../../../shared/entityScreen/useScreenActions';
-import type { EntityDocumentsController, EntityNotesController } from '../../../shared/entityScreen/types';
+import type { EntityDocumentsController, EntityNotesController, FieldFileUpload } from '../../../shared/entityScreen/types';
 import type { TagStoreAdapter } from '../../ui/TagManager';
 import type { CustomFieldValue, EntityRecord, FieldDefinition, ScreenDefinition } from '../../../../domain/entities';
 
@@ -35,6 +36,10 @@ export interface RecordDetailViewModel {
   recordTitle: string;
   /** Subtítulo do registro (`subtitleFieldKey`), abaixo do título. Vazio → sem subtítulo. */
   recordSubtitle: string;
+  /** Imagem do registro (`imageFieldKey`), no lugar do ícone da tela. Ausente = o ícone. */
+  recordImageUrl: string | null;
+  /** Envio dos campos `file`. Ausente = campos de arquivo somente-leitura. */
+  fileUpload: FieldFileUpload | null;
   sortedFields: FieldDefinition[];
   formValues: Record<string, CustomFieldValue>;
   setFieldValue: (fieldKey: string, value: CustomFieldValue) => void;
@@ -100,6 +105,7 @@ export const RecordDetailSurface: React.FC<RecordDetailSurfaceProps> = ({ vm, re
       onChange={vm.setFieldValue}
       onMergeValues={vm.mergeValues}
       errors={vm.fieldErrors}
+      fileUpload={vm.fileUpload ?? undefined}
     />
   );
 
@@ -126,7 +132,9 @@ export const RecordDetailSurface: React.FC<RecordDetailSurfaceProps> = ({ vm, re
       isNew={vm.isNew}
       screenActions={vm.screenActions}
       isAdmin={vm.isAdmin}
-      avatar={getScreenIcon(definition.icon, 22)}
+      avatar={vm.recordImageUrl
+        ? <UserAvatar src={vm.recordImageUrl} name={vm.recordTitle} size={48} fallback={getScreenIcon(definition.icon, 22)} />
+        : getScreenIcon(definition.icon, 22)}
       title={vm.isNew
         ? t('core.records/record.new.title', { entity: label(definition.titleSingular) })
         : (vm.recordTitle || label(definition.titleSingular))}

@@ -42,6 +42,16 @@ export interface DocumentsPort {
   remove: (recordId: string, doc: EntityDocument) => Promise<void>;
 }
 
+/**
+ * O que um campo `file` precisa para enviar. Um objeto só, e não `collection` + `recordId`, porque o
+ * id de um registro novo é cunhado no momento da escolha do arquivo — o formulário não deve saber
+ * disso, e a coleção fica presa no closure como nos outros ports.
+ */
+export interface FieldFileUpload {
+  /** Devolve a URL de download já gravável no campo. */
+  upload: (fieldKey: string, file: File) => Promise<string>;
+}
+
 // ─── Retorno dos hooks (consumido pelos painéis) ──────────────────────────────
 
 export interface EntityNotesController {

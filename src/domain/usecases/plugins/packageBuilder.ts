@@ -109,6 +109,7 @@ const screenToTemplate = (screen: ScreenDefinition): ScreenModuleTemplate =>
     fields: screen.fields.map((field) => omit(field, ['ownerPluginId'])) as unknown as ScreenModuleTemplate['fields'],
     titleFieldKey: screen.titleFieldKey,
     subtitleFieldKey: screen.subtitleFieldKey ?? undefined,
+    imageFieldKey: screen.imageFieldKey ?? undefined,
     hasNotes: screen.hasNotes,
     hasDocuments: screen.hasDocuments,
     hasTags: screen.hasTags,

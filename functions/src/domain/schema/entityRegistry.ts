@@ -9,6 +9,7 @@ import type {
   CustomFieldOption,
   CustomFieldType,
   FieldAggregation,
+  FieldFileConfig,
   FieldLogic,
   FieldOrigin,
   FieldRules,
@@ -75,6 +76,8 @@ export interface NativeFieldSpec {
   rules?: FieldRules;
   logic?: FieldLogic;
   aggregation?: FieldAggregation;
+  /** O que um campo `file` aceita. Ver `FieldDefinition.file`. */
+  file?: FieldFileConfig;
   /** Ausente nos campos deste registro, onde é sempre `builtin` por definição. */
   origin?: FieldOrigin;
   ui?: FieldUiSpec;

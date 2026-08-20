@@ -13,7 +13,18 @@ export interface IRecordRepository {
     onUpdate: (records: EntityRecord[]) => void,
   ): () => void;
   getById(tenantId: string, collection: string, recordId: string): Promise<EntityRecord | null>;
-  create(tenantId: string, collection: string, data: EntityRecordValues): Promise<EntityRecord>;
+  /**
+   * Id de registro gerado no CLIENTE, para que um arquivo enviado ANTES do save já caia no caminho
+   * final — `tenants/{t}/{coleção}/{id}/…`. Sem ele, o arquivo de um registro novo teria de nascer
+   * num caminho provisório e ser movido depois, e o Storage não move objetos.
+   */
+  newId(tenantId: string, collection: string): string;
+  create(
+    tenantId: string,
+    collection: string,
+    data: EntityRecordValues,
+    recordId?: string,
+  ): Promise<EntityRecord>;
   update(
     tenantId: string,
     collection: string,
@@ -58,4 +69,19 @@ export interface IRecordDocumentRepository {
     storagePath: string,
     actor: DeletionActor,
   ): Promise<void>;
+}
+
+/**
+ * Arquivo de um CAMPO, e não da aba Documentos. A distinção é o que justifica o port próprio: um
+ * anexo da aba tem documento no Firestore (com nome, tipo, autor e data), enquanto a identidade de um
+ * arquivo de campo É o valor do campo — a URL de download gravada no registro.
+ */
+export interface IRecordFileRepository {
+  upload(
+    tenantId: string,
+    collection: string,
+    recordId: string,
+    fieldKey: string,
+    file: File,
+  ): Promise<string>;
 }

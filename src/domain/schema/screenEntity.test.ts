@@ -145,6 +145,26 @@ describe('conversão FieldDefinition ⇄ NativeFieldSpec', () => {
     expect(spec).toMatchObject({ type: 'stringArray', refEntity: 'persons', multi: true });
   });
 
+  it('campo de arquivo é escalar string e leva a config de ida e volta', () => {
+    const original = field({
+      key: 'foto',
+      type: 'file',
+      file: { extensions: ['png', 'jpg'], maxSizeMb: 3 },
+    });
+    const spec = fieldDefinitionToNativeSpec(original);
+    expect(spec).toMatchObject({ type: 'string', file: { extensions: ['png', 'jpg'], maxSizeMb: 3 } });
+    expect(nativeSpecToFieldDefinition(spec, 'foto', 0)).toMatchObject({
+      type: 'file',
+      file: { extensions: ['png', 'jpg'], maxSizeMb: 3 },
+    });
+  });
+
+  it('campo de arquivo sem config volta com `file: null`', () => {
+    const spec = fieldDefinitionToNativeSpec(field({ key: 'anexo', type: 'file' }));
+    expect(spec.file).toBeUndefined();
+    expect(nativeSpecToFieldDefinition(spec, 'anexo', 0).file).toBeNull();
+  });
+
   it('campo oculto no formulário vira `ui.form: false`, o mesmo sinal do registro', () => {
     const spec = fieldDefinitionToNativeSpec(field({ key: 'interno', hiddenInForm: true }));
     expect(spec.ui?.form).toBe(false);

@@ -15,6 +15,7 @@ import type {
   CustomFieldOption,
   CustomFieldType,
   FieldAggregation,
+  FieldFileConfig,
   FieldLogic,
   FieldOrigin,
   FieldRules,
@@ -95,6 +96,14 @@ export interface FieldDefinition {
   logic?: FieldLogic | null;
   aggregation?: FieldAggregation | null;
   /**
+   * O que um campo `file` aceita — extensões e tamanho máximo. Só o campo `file` a usa.
+   *
+   * O valor GRAVADO é a URL de download, uma string: o campo continua escalar, e a restrição é o que
+   * o formulário cobra antes de escrever. O teto é cobrado no cliente porque a regra do Storage não
+   * lê o schema da tela — a mesma postura de `rules.validate`.
+   */
+  file?: FieldFileConfig | null;
+  /**
    * Onde o campo foi declarado. `builtin` e `plugin` não podem ser EXCLUÍDOS pelo usuário; todas as
    * demais propriedades são livremente editáveis em qualquer origem.
    *
@@ -155,6 +164,19 @@ export interface ScreenDefinition {
    * é o mesmo nome que a listagem, a busca e uma menção mostram.
    */
   subtitleFieldKey?: string | null;
+  /**
+   * Campo de arquivo cuja IMAGEM substitui o ícone da tela nos dois lugares onde ele representa UM
+   * registro: o avatar do cartão da listagem e o do cabeçalho do detalhe. Ausente (o normal) = o
+   * ícone da tela, como sempre.
+   *
+   * Uma declaração, dois lugares — o mesmo racional de `subtitleFieldKey`. Menu lateral, abas e
+   * busca continuam com o ícone da TELA: ali o que se identifica é a tela, não o registro, e a foto
+   * de um cliente no menu não diria nada.
+   *
+   * Vale só para campo `file`: o valor gravado é a URL de download, e um campo de outro tipo
+   * alimentaria um `<img>` com texto qualquer. Declaração que deixou de casar cai no ícone.
+   */
+  imageFieldKey?: string | null;
   hasNotes: boolean;
   hasDocuments: boolean;
   hasTags: boolean;

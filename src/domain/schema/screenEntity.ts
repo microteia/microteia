@@ -155,6 +155,8 @@ export const CUSTOM_FIELD_SCALAR_TYPES: Record<Exclude<CustomFieldType, 'referen
   // faria o mesmo "09:00" mudar de valor conforme quem lê. Ver "Um DIA vira instante ao MEIO-DIA".
   time: 'string',
   checkbox: 'boolean',
+  // O que se grava de um arquivo é a URL de download — o campo é escalar como qualquer texto.
+  file: 'string',
 };
 
 const undefinedIfNull = <T>(value: T | null | undefined): T | undefined =>
@@ -210,6 +212,7 @@ export const fieldDefinitionToNativeSpec = (field: FieldDefinition): NativeField
   if (undefinedIfNull(field.aggregation)) {
     spec.aggregation = field.aggregation as NonNullable<FieldDefinition['aggregation']>;
   }
+  if (undefinedIfNull(field.file)) spec.file = field.file as NonNullable<FieldDefinition['file']>;
   return spec;
 };
 
@@ -256,6 +259,7 @@ export const nativeSpecToFieldDefinition = (
   rules: spec.rules ?? null,
   logic: spec.logic ?? null,
   aggregation: spec.aggregation ?? null,
+  file: spec.file ?? null,
   showInList: spec.ui?.list !== undefined,
   listIcon: spec.ui?.list?.icon ?? null,
   listOrder: spec.ui?.list?.order ?? null,

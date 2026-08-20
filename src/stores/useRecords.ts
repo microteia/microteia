@@ -6,7 +6,13 @@ export interface RecordStoreState {
   recordsByCollection: Record<string, EntityRecord[]>;
   allRecords: EntityRecord[];
   isLoading: boolean;
-  createRecord: (collection: string, data: EntityRecordValues) => Promise<EntityRecord>;
+  createRecord: (
+    collection: string,
+    data: EntityRecordValues,
+    recordId?: string,
+  ) => Promise<EntityRecord>;
+  /** Id gerado no cliente para um registro que ainda não existe. Ver `IRecordRepository.newId`. */
+  newRecordId: (collection: string) => string;
   updateRecord: (collection: string, recordId: string, data: EntityRecordValues) => Promise<void>;
   deleteRecord: (collection: string, recordId: string) => Promise<void>;
 }

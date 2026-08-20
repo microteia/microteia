@@ -18,6 +18,7 @@ import { FirebaseTagRepository } from '../../data/repositories/FirebaseTagReposi
 import { FirebaseTagDefinitionRepository } from '../../data/repositories/FirebaseTagDefinitionRepository';
 import { FirebaseRecordNoteRepository } from '../../data/repositories/FirebaseRecordNoteRepository';
 import { FirebaseRecordDocumentRepository } from '../../data/repositories/FirebaseRecordDocumentRepository';
+import { FirebaseRecordFileRepository } from '../../data/repositories/FirebaseRecordFileRepository';
 import { FirebaseWorkflowDefinitionRepository } from '../../data/repositories/FirebaseWorkflowDefinitionRepository';
 import { FirebaseWorkflowExecutionRepository } from '../../data/repositories/FirebaseWorkflowExecutionRepository';
 import { FirebaseScriptRepository } from '../../data/repositories/FirebaseScriptRepository';
@@ -58,6 +59,7 @@ export const DIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
     tagDefinitionRepository:  new FirebaseTagDefinitionRepository(),
     recordNoteRepository:     new FirebaseRecordNoteRepository(),
     recordDocumentRepository: new FirebaseRecordDocumentRepository(),
+    recordFileRepository:     new FirebaseRecordFileRepository(),
     workflowDefinitionRepository: new FirebaseWorkflowDefinitionRepository(),
     workflowExecutionRepository: new FirebaseWorkflowExecutionRepository(),
     scriptRepository:         new FirebaseScriptRepository(),

@@ -107,3 +107,48 @@ describe('filtro de lista de opções', () => {
     expect(statusListing().displayValue({ status: 'pending' }, status)).toBe('Pendente');
   });
 });
+
+const photo: FieldDefinition = {
+  key: 'photo',
+  label: 'Foto',
+  type: 'file',
+  required: false,
+  order: 0,
+  // Marcado como filtrável de propósito: é o que um pacote ou um documento editado à mão pode trazer.
+  filterable: true,
+  showInList: true,
+} as FieldDefinition;
+
+const DOWNLOAD_URL = 'https://firebasestorage.googleapis.com/v0/b/x.appspot.com/o/'
+  + 'tenants%2Ft1%2Fpersons%2Fr9%2Ffields%2Fphoto%2F1723000000000_retrato.png'
+  + '?alt=media&token=abc-123';
+
+/**
+ * As duas exclusões do campo de arquivo, e as duas são silenciosas quando faltam: o `default` de
+ * `filterDefs` viraria um filtro de texto sobre URLs, e a busca livre passaria a casar "png" ou
+ * "token" em todo registro que tenha imagem.
+ */
+describe('campo de arquivo na listagem', () => {
+  const fileListing = () => renderHook(() => useCustomFieldListing([photo])).result.current;
+
+  it('não vira filtro, mesmo declarado como filtrável', () => {
+    expect(fileListing().filterDefs).toEqual([]);
+    expect(fileListing().matchesFilters({ photo: DOWNLOAD_URL }, {})).toBe(true);
+  });
+
+  it('a URL fica fora do texto varrido pela busca livre', () => {
+    const text = fileListing().searchText({ photo: DOWNLOAD_URL, name: 'Maria' });
+    expect(text).toContain('maria');
+    expect(text).not.toContain('firebasestorage');
+    expect(text).not.toContain('token');
+  });
+
+  it('o cartão mostra o NOME do arquivo, não a URL', () => {
+    expect(fileListing().displayValue({ photo: DOWNLOAD_URL }, photo)).toBe('retrato.png');
+    expect(fileListing().cardItems({ photo: DOWNLOAD_URL })[0]).toMatchObject({
+      key: 'photo',
+      value: 'retrato.png',
+      type: 'text',
+    });
+  });
+});

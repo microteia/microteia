@@ -55,6 +55,7 @@ export const mapScreenDefinition = (
   fields: mapFields(d.fields, screenOrigin(id, d)),
   titleFieldKey: (d.titleFieldKey as string | undefined) ?? '',
   subtitleFieldKey: (d.subtitleFieldKey as string | null | undefined) ?? null,
+  imageFieldKey: (d.imageFieldKey as string | null | undefined) ?? null,
   hasNotes: (d.hasNotes as boolean | undefined) ?? false,
   hasDocuments: (d.hasDocuments as boolean | undefined) ?? false,
   hasTags: (d.hasTags as boolean | undefined) ?? false,

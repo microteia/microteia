@@ -2060,8 +2060,9 @@ useEffect(() => {
 
 ## Cascata de Exclusão
 
-**Regra atual: não há cascata entre entidades de negócio.** Excluir `Person`, `Case`, `Contract`,
-um registro de tela apaga **apenas** o documento alvo. Filhos/relacionados podem ficar órfãos
+**Regra atual: não há cascata entre entidades de negócio.** Excluir `Person`, `Case`, `Contract` ou
+um registro de tela não toca em nenhuma OUTRA entidade — mas leva consigo o que é subordinado ao
+próprio registro (anotações e documentos, ver a tabela). Filhos/relacionados podem ficar órfãos
 (ex.: prazos de um processo excluído continuam existindo, apontando para um `caseId` inexistente) — é
 uma decisão consciente: a complexidade de manter cascata consistente não compensava. Vincular por FK
 não implica exclusão em cascata; um registro órfão simplesmente deixa de resolver o nome/objeto da
@@ -2070,7 +2071,7 @@ referência na tela.
 | Entidade excluída | O use case remove |
 |---|---|
 | `Tenant` | Toda a subárvore do tenant (operação de nível de conta, não coberta pelos `Delete*UseCase` de entidade) |
-| Registro de qualquer tela (Pessoa, Processo, Contrato, Prazo, Lançamento…) | — (apenas o próprio documento) |
+| Registro de qualquer tela (Pessoa, Processo, Contrato, Prazo, Lançamento…) | O documento, as `notes` e os `documents` dele — inclusive os arquivos no Storage, por `storagePath` (`DeleteRecordUseCase`) |
 
 `makeDeletePersonUseCase`/`makeDeleteCaseUseCase`/`makeDeleteContractUseCase`
 (`domain/usecases/{persons,cases,contracts}/Delete*UseCase.ts`) são hoje factories de **um único
@@ -2176,7 +2177,7 @@ Um único doc `ScreenDefinition` em `tenants/{tenantId}/screenDefinitions/{scree
 - **Tela dinâmica:** `builtin: false`. O doc id (`screenKey`) é o slug do título plural, gerado na criação e imutável. Possui `titleSingular/titlePlural`, `icon` (chave do set curado em `presentation/shared/screenIcons.tsx`), `fields`, `titleFieldKey` (campo texto obrigatório usado como título do registro na aba e no ⌘K), `hasNotes`/`hasDocuments`/`hasTags` (recursos opcionais), `sidebarOrder` e `enabled` (desativa sem excluir).
 - **Campos das telas padrão:** `builtin: true` com doc id fixo igual à coleção da entidade. Criado lazy no primeiro save. Somente `fields` é relevante. **Nenhuma entidade do kernel está mais nessa situação** — Prazo foi a última a sair —, então hoje toda tela do Form Design é de extensão ou do próprio escritório; o mecanismo continua para o dia em que o kernel voltar a ter uma tela fixa.
 
-`FieldDefinition`: `key` (slug do label na criação; **imutável** — renomear o label não altera a key, preservando dados e histórico de auditoria), `label`, `type` (`text | textarea | number | currency | date | checkbox | select | masked | reference` — **type também é imutável** após criação), `required`, `order`, `section`, `options` (estáticas, para `select`), `optionsAllowUserAdd`, `multi`, `mask` (`cpf | cnpj | phone | cep`), `refEntity` (coleção padrão ou screenKey dinâmico), `placeholder`, `showInList`, `filterable`.
+`FieldDefinition`: `key` (slug do label na criação; **imutável** — renomear o label não altera a key, preservando dados e histórico de auditoria), `label`, `type` (`text | textarea | number | currency | date | time | checkbox | select | masked | reference | markdown | file` — **type também é imutável** após criação), `required`, `order`, `section`, `options` (estáticas, para `select`), `optionsAllowUserAdd`, `multi`, `mask` (`cpf | cnpj | phone | cep`), `refEntity` (coleção padrão ou screenKey dinâmico), `placeholder`, `showInList`, `filterable`, `file` (só para `file` — ver "Campo de arquivo" abaixo).
 
 **Opções de selects vivem numa COLEÇÃO própria do tenant**, apontada por `FieldDefinition.lookupCollection` — `tenants/{tid}/caseCourts/{id}` para um campo do kernel, `tenants/{tid}/medico_especialidade/{id}` para um do Form Design ou de extensão. A forma do documento é a mesma nos dois casos (`{ key, label, color? }`), e é isso que permite migrar uma tela fixa para plugin sem mover dado: a identidade da lista é o NOME da coleção.
 
@@ -2208,9 +2209,10 @@ denormalizado (o nome de exibição sai de `titleFieldKey`, como as fixas usam `
 Quem abre um documento no Firestore não distingue o que veio do kernel, de uma extensão ou do
 próprio escritório.
 
-Convenção de tipos gravados: text/textarea/masked → `string` (masked guarda formatado);
-number/currency → `number | null`; date → `string 'YYYY-MM-DD'`; checkbox → `boolean`;
-select/reference single → `string | null`; multi → `string[]`.
+Convenção de tipos gravados: text/textarea/masked/markdown → `string` (masked guarda formatado);
+number/currency → `number | null`; date → `string 'YYYY-MM-DD'`; time → `string 'HH:mm'`;
+checkbox → `boolean`; select/reference single → `string | null`; multi → `string[]`;
+file → `string | null`, a **URL de download** do Firebase Storage.
 
 A listagem consulta `orderBy('createdAt','desc') + limit(500)` — sem filtro implícito e, portanto,
 **sem índice composto**. Filtro e ordenação continuam em memória, como antes.
@@ -2263,11 +2265,80 @@ Nota: as coleções de lista (`caseCourts`, `medico_especialidade`…) **não** 
 ### Navegação e renderização
 
 - **tabKeys** (builders/parser em `shared/constants/dynamicScreenKeys.ts`): `dyn:{screenKey}` (listagem), `new-dyn:{screenKey}`, `new-dyn:{screenKey}:clone:{recordId}` e `view-dyn:{screenKey}:{recordId}`. Os três prefixos estão registrados no `pageRegistry` apontando para `DynamicRecordList` e `ViewDynamicRecord`; o título real da aba é definido em runtime via `setTabTitle` (o ícone da aba é o genérico — o ícone escolhido pelo admin aparece no Sidebar).
-- **Motor de renderização:** `ui/CustomFieldsSection` renderiza qualquer `FieldDefinition[]` (agrupado por `section`) a partir de `values` + `onChange(fieldKey, value)`. Mapa de tipo→componente: text/number→`Input`, textarea→`Textarea`, currency→`CurrencyInput`, date→`DateInput`, time→`TimeInput`, checkbox nativo estilizado, select→`DynamicSelect` (opções fixas — as declaradas no campo mais as `isStatic` da lista — e as cadastradas pelo escritório, com `onAdd`/`onDelete`, todas resolvidas por `lookupCollection`), masked→`ui/MaskedInput` (novo wrapper das máscaras de `utils/formatters.ts`), reference→`SearchSelect`/`MultiSearchSelect` com opções de `presentation/hooks/useReferenceOptions.ts` (mapeia `refEntity` → registros do store correspondente, incluindo outras telas dinâmicas).
-- **Listagem (dinâmica e padrão) — hook `useCustomFieldListing`:** a lógica de `showInList`/`filterable` vive em `presentation/hooks/useCustomFieldListing.ts`. O hook recebe `(screenKey, fields, filterKeyPrefix)` e devolve: `filterDefs` do `CompositeFilter` a partir dos campos `filterable` (select/reference→multiselect, checkbox→Sim/Não, date→date com igualdade exata, demais→texto), o matcher `matchesFilters(values, tokenMap)`, e `cardItems(values)` (pares label/valor dos campos `showInList`, formatados por tipo) renderizados pelo componente `ui/CustomFieldMetaRows`.
+- **Motor de renderização:** `ui/CustomFieldsSection` renderiza qualquer `FieldDefinition[]` (agrupado por `section`) a partir de `values` + `onChange(fieldKey, value)`. Mapa de tipo→componente: text/number→`Input`, textarea→`Textarea`, currency→`CurrencyInput`, date→`DateInput`, time→`TimeInput`, checkbox nativo estilizado, select→`DynamicSelect` (opções fixas — as declaradas no campo mais as `isStatic` da lista — e as cadastradas pelo escritório, com `onAdd`/`onDelete`, todas resolvidas por `lookupCollection`), masked→`ui/MaskedInput` (novo wrapper das máscaras de `utils/formatters.ts`), reference→`SearchSelect`/`MultiSearchSelect` com opções de `presentation/hooks/useReferenceOptions.ts` (mapeia `refEntity` → registros do store correspondente, incluindo outras telas dinâmicas), markdown→`ui/MarkdownEditor`, file→`ui/FileInput` (ver "Campo de arquivo").
+- **Listagem (dinâmica e padrão) — hook `useCustomFieldListing`:** a lógica de `showInList`/`filterable` vive em `presentation/hooks/useCustomFieldListing.ts`. O hook recebe `(screenKey, fields, filterKeyPrefix)` e devolve: `filterDefs` do `CompositeFilter` a partir dos campos `filterable` (select/reference→multiselect, checkbox→Sim/Não, date→date com igualdade exata, demais→texto), o matcher `matchesFilters(values, tokenMap)`, `cardItems(values)` (pares label/valor dos campos `showInList`, formatados por tipo) renderizados pelo componente `ui/CustomFieldMetaRows`, e `searchText(values)` — o texto que a busca livre varre. **Campo `file` fica fora dos dois últimos pontos por decisão:** é excluído de `filterableFields` (o `default` de `filterDefs` cai em texto, e um filtro sobre URL de download nunca casa nada que alguém digite) e do `searchText` (a URL carrega `token` e `alt=media`, então buscar "png" trazia todo registro com imagem).
 - **Listagem dinâmica:** `DynamicRecordList` usa o hook sem prefixo de chave e com `savedFiltersScreenKey = tabKey`; exclui o `titleFieldKey` dos `cardItems`. Tela desativada/excluída renderiza `InfoBanner`, nunca quebra.
 - **Listagens padrão:** as cinco listagens builtin (Pessoas, Processos, Contratos, Financeiro, Prazos) obtêm os campos via `getScreenFieldsFor(collection)` e usam o hook com `CUSTOM_FIELD_FILTER_PREFIX` (`cf-`) nas chaves dos `FilterDef` — o prefixo evita colisão com os filtros nativos (`status`, `type`, `city`…). Cada ViewModel anexa `...customListing.filterDefs` aos defs nativos, encerra o predicado de filtragem com `customListing.matchesFilters(entidade, tokenMap)` e expõe `getCustomFieldItems(entidade)`; a View renderiza `<CustomFieldMetaRows items={...} />` no cartão, após o bloco de metadados nativo.
 - **Deeplink de registro fora das 500 carregadas:** `ViewDynamicRecord` faz fallback de busca por id (`GetRecordByIdUseCase`).
+
+### Campo de arquivo
+
+`type: 'file'` é um campo escalar como qualquer outro: o que se grava é a **URL de download** do
+Firebase Storage, uma `string`. `CustomFieldValue` não mudou, e por isso automação, expressão, `upsert`
+de workflow e Script continuam gravando e lendo uma string — sem forma nova para ninguém aprender.
+
+**A config (`FieldDefinition.file`)** é `{ extensions?: string[]; maxSizeMb?: number }`, lida sempre por
+`resolveFileConfig` (`domain/schema/fieldRules.ts`, sincronizado para `functions/`). Fica no
+`NativeFieldSpec` e **não** no `FieldUiSpec`: extensão aceita e teto de tamanho são restrição do dado,
+não a forma de desenhá-lo — e é ali que o backend vai cobrá-las quando o fizer. O default de
+`maxSizeMb` é `DEFAULT_FILE_MAX_SIZE_MB = 20`, o mesmo teto que a regra do Storage já cobra: um default
+maior seria promessa que o Storage quebra no upload. A prévia de imagem é **derivada**
+(`fileConfigIsImageOnly`) e não configurada — um campo que só aceita imagem mostra a imagem, um que
+aceita qualquer arquivo mostra o nome.
+
+**Caminho no Storage:** `tenants/{tid}/{colecao}/{recordId}/fields/{campo}/{ts}_{arquivo}`, gravado por
+`FirebaseRecordFileRepository` (port `IRecordFileRepository`). O `storage.rules` **não muda**: o
+`{allPaths=**}` da regra de documentos de registro casa múltiplos segmentos, então o arquivo de campo
+cai na mesma regra do anexo da aba Documentos — leitura para membro do tenant, `create` até 20 MB,
+`delete` só para admin.
+
+**O `maxSizeMb` por campo é cobrado só no cliente** — a regra do Storage não lê o schema da tela.
+Mesma postura de `FieldRules.validate`. E a URL de download carrega o próprio token, logo qualquer
+imagem é legível por quem tiver o link, fora das regras do tenant: já era verdade para o `url` da aba
+Documentos, e é o custo de gravar a URL em vez do caminho.
+
+**O id do registro é cunhado no CLIENTE** (`IRecordRepository.newId` → `create(..., recordId)` com
+`setDoc`), na primeira escolha de arquivo e não na montagem do formulário — cunhar id é impuro, e o
+handler é o único lugar onde isso pode acontecer. É o que faz o arquivo de um registro **novo** nascer
+no caminho definitivo dele; o Storage não move objetos. `useEntityDetail.ensureRecordId` guarda o
+rascunho pareado com a aba (aba nova é registro novo, sem efeito para zerar), e `useEntityForm` faz o
+mesmo pareado com a tela.
+
+**Nada é apagado do Storage** — trocar o arquivo, limpar o campo ou excluir o registro deixam o objeto
+no bucket, e o valor do campo é a única verdade. É débito consciente: a ação "Duplicar" copia todo
+valor, inclusive a URL, então duas fichas podem apontar para o mesmo objeto e qualquer exclusão
+automática furaria a imagem da outra. A faxina, quando vier, é uma Cloud Function com Admin SDK — que
+ignora a regra do Storage e é o único lugar onde o "só admin apaga" desaparece.
+
+**O seam com o formulário** é `FieldFileUpload` (`shared/entityScreen/types.ts`), um objeto com
+`upload(fieldKey, file)`, montado por `useRecordFileUpload(collection, ensureRecordId)`. Um objeto, e
+não `collection` + `recordId`, precisamente porque o id é cunhado tarde. Ele chega ao `FieldControl`
+pelo `CustomFieldsSectionViewModel`; **ausente**, o campo renderiza somente-leitura com a dica
+`core.ui/file.upload-blocked` — nunca um no-op silencioso. É o caso do formulário de configuração do
+escritório (`OfficeTab`, que não é registro em coleção) e de uma extensão que montou `FieldInput` sem
+ligar o `fileUpload` que `useEntityForm` devolve.
+
+**`FileInput` não expõe `ref`.** O botão é um `<label htmlFor>` sobre um input escondido, com
+`useId()`. Um ViewModel que devolva `ref` contamina o objeto INTEIRO para o React Compiler, e a view
+deixa de poder ler dele até uma string durante o render — foi o que a regra `react-hooks/refs`
+apontou. O `<label>` dispensa o `ref` e o `.click()`.
+
+**A imagem do registro no lugar do ícone:** `ScreenDefinition.imageFieldKey` aponta para um campo
+`file`, e a imagem substitui `definition.icon` em **dois** lugares — o avatar do `EntityListCard` e o do
+cabeçalho do detalhe (`RecordDetailSurface` e `ViewDynamicRecord`). Uma declaração, dois lugares, o
+mesmo racional de `subtitleFieldKey`. Menu lateral, abas e busca ⌘K seguem com o ícone da tela: ali o
+que se identifica é a tela, não o registro. `resolveRecordImageUrl` confere o **tipo** do campo, e não
+só a chave: retipar o campo no Form Design cai no ícone em vez de alimentar um `<img>` com texto que
+sobrou. O componente é o `UserAvatar`, com a prop `fallback` nova — reuso e não cópia porque o
+`imageCache` dele é estado de MÓDULO: dois componentes seriam dois caches, e a imagem carregada no
+cartão shimmerava outra vez no cabeçalho do mesmo registro.
+
+**Fora do escopo, deliberadamente:** miniatura no cartão (o `CustomFieldCardItem` só tem
+`text | markdown`, e uma miniatura está errada para a metade não-imagem do caso — `pdf`, `zip`; o card
+mostra o **nome**, via `fileNameFromUrl`); recorte de imagem (um campo `file` aceita qualquer arquivo, e
+forçar corte quadrado num documento digitalizado está errado); `multi: true`; cobrança de
+`extensions`/`maxSizeMb` no backend — `resolveFileConfig` está de propósito no arquivo sincronizado
+para que a checagem entre no `formatAndValidateRecord` depois sem mover nada.
 
 ### Expressões por campo (validação, desabilitar, ocultar, valor calculado, ao alterar)
 
@@ -4009,7 +4080,7 @@ Arquivos **compartilhados**: fonte única em `src/domain/schema/plugin/`, cópia
 | `contribution.ts` | `Contribution`, `ImplRef` e a **ordenação determinística** |
 | `pluginManifest.ts` | `PluginManifest` + `validatePluginManifest` |
 | `backendRequirement.ts` | `PluginBackendRequirement` — o que a extensão exige do projeto Firebase (function, índice, parâmetro, passo manual), o `backendFingerprint` e a validação. Ver "Artefatos de backend por extensão" |
-| `kernelVersion.ts` | `KERNEL_VERSION` — versão do contrato Kernel↔plugins. Em `1.1.0`: o ponto `i18n.messages` foi **acrescentado**, e adição é minor. Em `1.2.0`: idem para `theme.definition` e `theme.tokens`. Em `1.3.0`: o campo `manifest.backend` |
+| `kernelVersion.ts` | `KERNEL_VERSION` — versão do contrato Kernel↔plugins. Em `1.1.0`: o ponto `i18n.messages` foi **acrescentado**, e adição é minor. Em `1.2.0`: idem para `theme.definition` e `theme.tokens`. Em `1.3.0`: o campo `manifest.backend`. Em `1.4.0`: o tipo de campo `file` (com a config `FieldDefinition.file`) e a declaração `ScreenModuleTemplate.imageFieldKey` — um pacote passa a poder declarar os dois, e num kernel 1.3.0 o `FieldControl` cairia no `default` desenhando uma caixa de texto com a URL, sem erro em lugar nenhum |
 
 ### Versionamento em três eixos — não confundir
 
@@ -6583,7 +6654,9 @@ O `storage.rules` tem o curinga equivalente para os arquivos dos documentos, com
 
 **As regras de segurança do Storage ficam no arquivo `storage.rules` (raiz do projeto).**
 
-O `firebase.json` aponta para esse arquivo. Deploy: `firebase deploy --only storage`
+O `firebase.json` aponta para esse arquivo. Deploy: `npm run deploy:rules` — que publica
+`firestore:rules` e `storage` juntos, com o `--project` do ambiente. Publicar só um dos dois
+deixa as regras em versões diferentes daquilo que o código espera.
 
 Não documente as regras neste arquivo — a fonte de verdade é `storage.rules`.
 

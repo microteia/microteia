@@ -12,6 +12,7 @@ import type { IAuditLogService } from '../../domain/repositories/IAuditLogServic
 import type { IScreenDefinitionRepository } from '../../domain/repositories/IScreenDefinitionRepository';
 import type {
   IRecordDocumentRepository,
+  IRecordFileRepository,
   IRecordNoteRepository,
   IRecordRepository,
 } from '../../domain/repositories/IRecordRepository';
@@ -56,6 +57,7 @@ export interface DIContainer {
   tagDefinitionRepository: ITagDefinitionRepository;
   recordNoteRepository: IRecordNoteRepository;
   recordDocumentRepository: IRecordDocumentRepository;
+  recordFileRepository: IRecordFileRepository;
   workflowDefinitionRepository: IWorkflowDefinitionRepository;
   workflowExecutionRepository: IWorkflowExecutionRepository;
   scriptRepository: IScriptRepository;

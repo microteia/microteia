@@ -186,6 +186,26 @@ export const formValuesToStoredValues = (
   return stored;
 };
 
+/**
+ * O nome ORIGINAL do arquivo, lido da própria URL de download. O caminho vem `%2F`-escapado e o
+ * arquivo carrega o carimbo de tempo que o torna único no Storage — nenhum dos dois interessa a quem
+ * lê a tela.
+ *
+ * Puro e no domínio porque os dois caminhos de exibição do card e o controle do formulário precisam
+ * do mesmo resultado, e nenhum deles deveria injetar um repositório para conseguir um nome.
+ */
+export const fileNameFromUrl = (value: string): string => {
+  const withoutQuery = value.split('?')[0];
+  let decoded = withoutQuery;
+  try {
+    decoded = decodeURIComponent(withoutQuery);
+  } catch {
+    // URL malformada continua legível como veio — o nome é informação, não contrato.
+  }
+  const name = decoded.split('/').pop() ?? '';
+  return name.replace(/^\d+_/, '') || value;
+};
+
 const hasFormValue = (field: FieldDefinition, value: CustomFieldValue | undefined): boolean => {
   switch (field.type) {
     case 'checkbox':
@@ -260,6 +280,24 @@ export const readRecordText = (values: object, fieldKey: string): string => {
   if (!fieldKey) return '';
   const value = readValueByPath(values, fieldKey);
   return typeof value === 'string' ? value.trim() : '';
+};
+
+/**
+ * A IMAGEM do registro — o valor do campo eleito como imagem na tela, ou nada.
+ *
+ * O tipo do campo é conferido, e não só a chave: retipar o campo no Form Design tem de cair no ícone
+ * da tela em vez de alimentar um `<img>` com um texto qualquer que sobrou ali.
+ */
+export const resolveRecordImageUrl = (
+  values: object | null,
+  fields: FieldDefinition[],
+  imageFieldKey: string | null | undefined,
+): string | null => {
+  if (!values || !imageFieldKey) return null;
+  const field = fields.find((f) => f.key === imageFieldKey);
+  if (field?.type !== 'file') return null;
+  const value = readValueByPath(values, imageFieldKey);
+  return typeof value === 'string' && value.trim() !== '' ? value : null;
 };
 
 /** Nome de exibição do registro — o valor do campo eleito como título na tela. */

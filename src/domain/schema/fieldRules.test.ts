@@ -4,7 +4,15 @@ import { BR_FIELD_RULE_PRESETS } from '../../plugins/marketplace/brasil';
 
 /** CPF e CNPJ vêm da extensão do Brasil; o catálogo abaixo é o de um escritório que a instalou. */
 const br = buildFieldRulePresetCatalog(BR_FIELD_RULE_PRESETS);
-import { applyFormat, checkValue, formatAndValidate, isEmptyRuleValue } from './fieldRules';
+import {
+  applyFormat,
+  checkValue,
+  DEFAULT_FILE_MAX_SIZE_MB,
+  fileConfigIsImageOnly,
+  formatAndValidate,
+  isEmptyRuleValue,
+  resolveFileConfig,
+} from './fieldRules';
 
 describe('applyFormat', () => {
   it('aplica um preset', () => {
@@ -101,5 +109,31 @@ describe('isEmptyRuleValue', () => {
     expect(isEmptyRuleValue('')).toBe(true);
     expect(isEmptyRuleValue(0)).toBe(false);
     expect(isEmptyRuleValue(false)).toBe(false);
+  });
+});
+
+describe('config de campo de arquivo', () => {
+  it('sem config, aceita qualquer extensão até o teto do Storage', () => {
+    expect(resolveFileConfig()).toEqual({ extensions: [], maxSizeMb: DEFAULT_FILE_MAX_SIZE_MB });
+    expect(resolveFileConfig(null)).toEqual({ extensions: [], maxSizeMb: DEFAULT_FILE_MAX_SIZE_MB });
+  });
+
+  it('normaliza a extensão como o usuário a digita — ponto, caixa, espaço e repetição', () => {
+    expect(resolveFileConfig({ extensions: ['.PNG', ' jpg ', '', 'png'] }).extensions)
+      .toEqual(['png', 'jpg']);
+  });
+
+  it('tamanho fora do intervalo cai no teto, e não numa promessa que o Storage quebra', () => {
+    expect(resolveFileConfig({ maxSizeMb: 0 }).maxSizeMb).toBe(DEFAULT_FILE_MAX_SIZE_MB);
+    expect(resolveFileConfig({ maxSizeMb: -1 }).maxSizeMb).toBe(DEFAULT_FILE_MAX_SIZE_MB);
+    expect(resolveFileConfig({ maxSizeMb: 999 }).maxSizeMb).toBe(DEFAULT_FILE_MAX_SIZE_MB);
+    expect(resolveFileConfig({ maxSizeMb: 3 }).maxSizeMb).toBe(3);
+  });
+
+  it('a prévia de imagem é derivada do que o campo aceita', () => {
+    expect(fileConfigIsImageOnly({ extensions: ['png', 'JPG'] })).toBe(true);
+    expect(fileConfigIsImageOnly({ extensions: ['png', 'pdf'] })).toBe(false);
+    expect(fileConfigIsImageOnly({ extensions: [] })).toBe(false);
+    expect(fileConfigIsImageOnly()).toBe(false);
   });
 });

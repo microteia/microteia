@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { format } from 'date-fns';
-import { readValueByPath } from '../../domain/services/customFieldValues';
+import { fileNameFromUrl, readValueByPath } from '../../domain/services/customFieldValues';
 import { useReferenceOptions } from '../hooks/useReferenceOptions';
 import { formatCurrencyBRL } from '../../utils/formatters';
 import type { DerivedListRow } from './deriveEntitySchema';
@@ -9,6 +9,9 @@ import type { DerivedListRow } from './deriveEntitySchema';
 export const formatListValue = (raw: unknown, type: DerivedListRow['type']): string => {
   if (raw === null || raw === undefined || raw === '') return '';
   if (type === 'currency') return typeof raw === 'number' ? formatCurrencyBRL(raw) : '';
+  // Uma linha de card com a URL crua seriam duzentos caracteres de bucket e token; o nome é o que
+  // alguém lê.
+  if (type === 'file') return fileNameFromUrl(String(raw));
   if (raw instanceof Date) return format(raw, 'dd/MM/yyyy');
   if (Array.isArray(raw)) return raw.map((item) => String(item)).join(' · ');
   return String(raw);

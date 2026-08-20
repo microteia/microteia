@@ -62,13 +62,13 @@ export const useEntityDocuments = ({ enabled, recordId, port }: UseEntityDocumen
       setDocuments((prev) => [addedDoc, ...prev]);
       setPendingFile(null);
       setPendingType('');
-      notify('Documento enviado com sucesso.', 'success');
+      notify(t('documents.uploaded'), 'success');
     } catch {
-      notify('Erro ao enviar documento.', 'error');
+      notify(t('documents.upload-failed'), 'error');
     } finally {
       setIsUploadingDoc(false);
     }
-  }, [pendingFile, pendingType, recordId, port, notify]);
+  }, [pendingFile, pendingType, recordId, port, notify, t]);
 
   const requestDeleteDoc = useCallback((doc: EntityDocument) => setDocToDelete(doc), []);
   const cancelDeleteDoc = useCallback(() => setDocToDelete(null), []);
@@ -79,7 +79,7 @@ export const useEntityDocuments = ({ enabled, recordId, port }: UseEntityDocumen
       setDocuments((prev) => prev.filter((d) => d.id !== docToDelete.id));
       notify(t('document.deleted'), 'success');
     } catch {
-      notify('Erro ao excluir documento.', 'error');
+      notify(t('documents.delete-failed'), 'error');
     } finally {
       setDocToDelete(null);
     }

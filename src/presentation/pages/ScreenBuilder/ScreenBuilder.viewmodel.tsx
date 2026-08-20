@@ -12,8 +12,8 @@ import { useRecordActions } from '../../shared/recordActions/useRecordActions';
 import type { ResolvedRecordAction } from '../../shared/recordActions/useRecordActions';
 import { resolveListActions, supportedListActions } from '../../shared/listActionCapabilities';
 import type { CustomFieldMask, CustomFieldType, FieldDefinition, ScreenDefinition, ScreenListAction } from '../../../domain/entities';
-import type { AggregationOp, FieldAggregation, FieldLookupBinding, FieldLogic, FieldRules, FormatPreset, FormatRule, ValidateCheck, ValidateRule } from '../../../domain/schema/fieldRules';
-import { AGGREGATION_OP_LABELS } from '../../../domain/schema/fieldRules';
+import type { AggregationOp, FieldAggregation, FieldFileConfig, FieldLookupBinding, FieldLogic, FieldRules, FormatPreset, FormatRule, ValidateCheck, ValidateRule } from '../../../domain/schema/fieldRules';
+import { AGGREGATION_OP_LABELS, DEFAULT_FILE_MAX_SIZE_MB } from '../../../domain/schema/fieldRules';
 import {
   formatPresetOptions as buildFormatPresetOptions,
   maskPresetOptions as buildMaskPresetOptions,
@@ -86,6 +86,7 @@ export interface ScreenFormState {
   enabled: boolean;
   titleFieldKey: string;
   subtitleFieldKey: string;
+  imageFieldKey: string;
 }
 
 /**
@@ -159,6 +160,10 @@ export interface FieldFormState {
   aggregationOp: AggregationOp | '';
   aggregationField: string;
   aggregationFilter: string;
+  /** Extensões separadas por vírgula, como o usuário digita. Vazio = qualquer uma. */
+  fileExtensions: string;
+  /** Tamanho máximo em MB, como texto: vazio é "usa o limite", e `0` não é vazio. */
+  fileMaxSizeMb: string;
 }
 
 export type ScreenModalTab = 'general' | 'list' | 'actions' | 'children';
@@ -232,6 +237,12 @@ export interface ScreenBuilderViewModel {
   formatPresetOptions: SearchSelectOption[];
   validateCheckOptions: SearchSelectOption[];
   fieldSupportsRules: boolean;
+  /** Campo `file` não filtra: não há URL que alguém digite num filtro. */
+  fieldSupportsFilter: boolean;
+  /** Campos de arquivo oferecidos como imagem do registro. Só o vazio = a tela não tem nenhum. */
+  imageFieldOptions: SearchSelectOption[];
+  /** O teto de tamanho de arquivo, para o placeholder e a dica. */
+  fileMaxSizeDefault: string;
   refEntityOptions: SearchSelectOption[];
   /** Listas do tenant que o campo pode reaproveitar — é assim que duas telas compartilham opções. */
   lookupOptions: SearchSelectOption[];
@@ -294,6 +305,7 @@ const FIELD_TYPE_KEYS: Record<CustomFieldType, string> = {
   masked: 'field.type.masked',
   reference: 'field.type.reference',
   markdown: 'field.type.markdown',
+  file: 'field.type.file',
 };
 
 const EMPTY_SCREEN_FORM: ScreenFormState = {
@@ -311,6 +323,7 @@ const EMPTY_SCREEN_FORM: ScreenFormState = {
   enabled: true,
   titleFieldKey: '',
   subtitleFieldKey: '',
+  imageFieldKey: '',
 };
 
 const EMPTY_FIELD_FORM: FieldFormState = {
@@ -350,6 +363,8 @@ const EMPTY_FIELD_FORM: FieldFormState = {
   aggregationOp: '',
   aggregationField: '',
   aggregationFilter: '',
+  fileExtensions: '',
+  fileMaxSizeMb: '',
 };
 
 export const RULES_SUPPORTED_FIELD_TYPES: CustomFieldType[] = [
@@ -457,6 +472,29 @@ const fieldAggregationToForm = (aggregation: FieldAggregation | null | undefined
   aggregationFilter: aggregation?.filter ?? '',
 });
 
+const buildFieldFileConfig = (form: FieldFormState): FieldFileConfig | null => {
+  if (form.type !== 'file') return null;
+  const extensions = form.fileExtensions
+    .split(',')
+    .map((extension) => extension.trim().toLowerCase().replace(/^\./, ''))
+    .filter((extension) => extension !== '');
+  const size = Number(form.fileMaxSizeMb.trim());
+  const maxSizeMb = form.fileMaxSizeMb.trim() !== '' && Number.isFinite(size) ? size : undefined;
+  if (extensions.length === 0 && maxSizeMb === undefined) return null;
+  return {
+    ...(extensions.length > 0 ? { extensions: [...new Set(extensions)] } : {}),
+    ...(maxSizeMb !== undefined ? { maxSizeMb } : {}),
+  };
+};
+
+const fieldFileToForm = (file: FieldFileConfig | null | undefined): Pick<
+  FieldFormState,
+  'fileExtensions' | 'fileMaxSizeMb'
+> => ({
+  fileExtensions: (file?.extensions ?? []).join(', '),
+  fileMaxSizeMb: file?.maxSizeMb === undefined ? '' : String(file.maxSizeMb),
+});
+
 /**
  * Um campo calculado que dependa (direta ou indiretamente) de si mesmo nunca seria avaliado: o
  * motor descarta os campos em ciclo. Recusar na autoria evita a expressão que "não faz nada".
@@ -501,38 +539,27 @@ const fieldLogicToForm = (logic: FieldLogic | null | undefined): Pick<
   lookupTargetPrefix: logic?.onChangeLookup?.targetPrefix ?? '',
 });
 
-const toSaveInput = (def: ScreenDefinition): ScreenDefinitionSaveInput => ({
-  origin: def.origin,
-  titleSingular: def.titleSingular,
-  titlePlural: def.titlePlural,
-  icon: def.icon,
-  fields: def.fields,
-  titleFieldKey: def.titleFieldKey,
-  subtitleFieldKey: def.subtitleFieldKey ?? null,
-  hasNotes: def.hasNotes,
-  hasDocuments: def.hasDocuments,
-  hasTags: def.hasTags,
-  tagCollection: def.tagCollection ?? '',
-  // Sem isto, salvar qualquer outra coisa na tela desfaria o vínculo com a coleção alvo.
-  dataCollection: def.dataCollection ?? null,
-  eventPrefix: def.eventPrefix ?? null,
-  writeRoles: def.writeRoles ?? null,
-  memberWritableFields: def.memberWritableFields ?? null,
-  authorCanDelete: def.authorCanDelete ?? null,
-  listActions: def.listActions,
-  viewActionIds: def.viewActionIds,
-  cardActionIds: def.cardActionIds,
-  parentEntity: def.parentEntity ?? null,
-  parentFieldKey: def.parentFieldKey ?? null,
-  sidebarOrder: def.sidebarOrder,
-  enabled: def.enabled,
-  // Precisa viajar em TODO save: sem isso, salvar qualquer outra coisa na tela apagaria a marca
-  // de qual extensão é dona dela.
-  ownerPluginId: def.ownerPluginId ?? null,
-  managed: def.managed ?? null,
-  hideFromSidebar: def.hideFromSidebar ?? null,
-  hideFromParentTabs: def.hideFromParentTabs ?? null,
-});
+/**
+ * O que se GRAVA de uma tela: tudo o que ela carrega, menos identidade e carimbo de autoria.
+ *
+ * Derivado por SUBTRAÇÃO, e não enumerado à mão — enumerar ERA o defeito. `recordTabPrefix`,
+ * `parentRelation`, `ownerPluginIds`, `sourceId` e `sourceRev` tinham ficado de fora da lista, então
+ * salvar qualquer coisa numa tela de extensão apagava o prefixo de aba dela, a relação com o pai e a
+ * identidade pela qual o upgrade a reconhece. Aqui uma propriedade nova entra sozinha, e retirar por
+ * engano uma que é persistida não compila: `rest` é conferido contra `ScreenDefinitionSaveInput` sem
+ * nenhum cast pelo caminho.
+ */
+const toSaveInput = (def: ScreenDefinition): ScreenDefinitionSaveInput => {
+  const {
+    id, tenantId, createdAt, createdBy, updatedAt, updatedBy, updatedByName, updatedByPhotoURL,
+    deletedBy, deletedByName, deletedByPhotoURL,
+    ...rest
+  } = def;
+  void id; void tenantId; void createdAt; void createdBy; void updatedAt; void updatedBy;
+  void updatedByName; void updatedByPhotoURL; void deletedBy; void deletedByName;
+  void deletedByPhotoURL;
+  return rest;
+};
 
 const buildDynamicMeta = (t: TranslateFn, def: ScreenDefinition, fieldCount: number): string => {
   const parts = [t('screen.meta.fields', { count: fieldCount })];
@@ -888,6 +915,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       enabled: def.enabled,
       titleFieldKey: def.titleFieldKey,
       subtitleFieldKey: def.subtitleFieldKey ?? '',
+      imageFieldKey: def.imageFieldKey ?? '',
     });
     setScreenModal({ screenKey });
   }, [getDefinitionByKey, dynamicDefinitions, tagDependentSlots]);
@@ -973,7 +1001,8 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
    */
   const subtitleFieldOptions = useMemo<SearchSelectOption[]>(() => {
     const fits = (field: FieldDefinition) =>
-      field.type !== 'textarea' && field.type !== 'markdown' && field.type !== 'checkbox';
+      field.type !== 'textarea' && field.type !== 'markdown' && field.type !== 'checkbox'
+      && field.type !== 'file';
     const current = screenForm.subtitleFieldKey;
     return [
       { value: '', label: t('screen.subtitle-field.placeholder') },
@@ -982,6 +1011,21 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
         .map((f) => ({ value: f.key, label: label(f.label) })),
     ];
   }, [modalScreenFields, screenForm.subtitleFieldKey, t, label]);
+
+  /**
+   * A imagem do registro só pode vir de um campo de ARQUIVO: é ele que guarda uma URL. O valor já
+   * gravado entra na lista mesmo que o campo tenha sido retipado depois, pelo mesmo motivo do
+   * subtítulo — dizer que um campo existente não existe convida a "consertar" o que não quebrou.
+   */
+  const imageFieldOptions = useMemo<SearchSelectOption[]>(() => {
+    const current = screenForm.imageFieldKey;
+    return [
+      { value: '', label: t('screen.image-field.placeholder') },
+      ...modalScreenFields
+        .filter((f) => f.type === 'file' || f.key === current)
+        .map((f) => ({ value: f.key, label: label(f.label) })),
+    ];
+  }, [modalScreenFields, screenForm.imageFieldKey, t, label]);
 
   // O rótulo é resolvido AQUI, e não na View: a caixa lista ações nativas (referência) e de
   // extensão (texto do autor) lado a lado, e um caminho só de rótulo é o que impede a referência de
@@ -1067,7 +1111,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
           cardActionIds: screenForm.cardActionIds,
         });
         await persistChildLinks(screenModal.screenKey);
-        notify('Registros filhos atualizados!', 'success');
+        notify(t('screen.children-updated'), 'success');
         setScreenModal(null);
         return;
       }
@@ -1093,7 +1137,10 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       }
 
       if (isNewTagList) {
-        await declareTagList(tagCollection as string, `Etiquetas: ${screenForm.titlePlural.trim()}`);
+        // Só o que o escritório digitou: a palavra "Etiquetas" viria de nós e ficaria presa em
+        // português dentro de um dado do tenant. Quem a compõe é o rótulo DERIVADO
+        // (`screenTagCollections` → `@core.records/tag-list.of`), que traduz e acompanha o nome da tela.
+        await declareTagList(tagCollection as string, screenForm.titlePlural.trim());
       }
 
       if (screenModal?.screenKey) {
@@ -1101,6 +1148,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
         if (!def) return;
         const titleFieldKey = def.origin === 'builtin' ? '' : (screenForm.titleFieldKey || def.titleFieldKey);
         const subtitleFieldKey = def.origin === 'builtin' ? null : (screenForm.subtitleFieldKey || null);
+        const imageFieldKey = def.origin === 'builtin' ? null : (screenForm.imageFieldKey || null);
         await saveDefinition(def.id, {
           ...toSaveInput(def),
           titleSingular: screenForm.titleSingular.trim(),
@@ -1116,11 +1164,12 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
           enabled: screenForm.enabled,
           titleFieldKey,
           subtitleFieldKey,
+          imageFieldKey,
         });
 
         await persistChildLinks(def.id);
 
-        notify('Tela atualizada com sucesso!', 'success');
+        notify(t('screen.updated'), 'success');
       } else {
         // A chave da tela É o nome da coleção no Firestore: não pode colidir com outra tela nem
         // com uma coleção de sistema.
@@ -1171,7 +1220,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       setScreenModal(null);
     } catch (err) {
       console.error('[ScreenBuilder handleSaveScreen]', err);
-      notify('Erro ao salvar a tela.', 'error');
+      notify(t('screen.save-failed'), 'error');
     } finally {
       setSavingScreen(false);
     }
@@ -1182,11 +1231,11 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     if (!def) return;
     try {
       await saveDefinition(def.id, { ...toSaveInput(def), enabled: !def.enabled });
-      notify(def.enabled ? 'Tela desativada.' : 'Tela ativada.', 'success');
+      notify(t(def.enabled ? 'screen.deactivated' : 'screen.activated'), 'success');
     } catch {
-      notify('Erro ao alterar o estado da tela.', 'error');
+      notify(t('screen.toggle-failed'), 'error');
     }
-  }, [getDefinitionByKey, saveDefinition, notify]);
+  }, [getDefinitionByKey, saveDefinition, notify, t]);
 
   const moveScreen = useCallback(async (screenKey: string, direction: -1 | 1) => {
     const ordered = [...dynamicDefinitions];
@@ -1203,9 +1252,9 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
           .map(({ def, idx }) => saveDefinition(def.id, { ...toSaveInput(def), sidebarOrder: idx })),
       );
     } catch {
-      notify('Erro ao reordenar as telas.', 'error');
+      notify(t('screen.reorder-failed'), 'error');
     }
-  }, [dynamicDefinitions, saveDefinition, notify]);
+  }, [dynamicDefinitions, saveDefinition, notify, t]);
 
   const requestDeleteScreen = useCallback((screenKey: string) => {
     if (isManagedScreen(screenKey)) {
@@ -1226,7 +1275,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       notify(t('screen.deleted'), 'success');
       setDeleteScreenTarget(null);
     } catch (err) {
-      notify(err instanceof Error ? err.message : 'Erro ao excluir a tela.', 'error');
+      notify(err instanceof Error ? err.message : t('screen.delete-failed'), 'error');
     } finally {
       setDeletingScreen(false);
     }
@@ -1266,6 +1315,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       ...fieldRulesToForm(field.rules),
       ...fieldLogicToForm(field.logic),
       ...fieldAggregationToForm(field.aggregation),
+      ...fieldFileToForm(field.file),
     });
     setFieldModal({ screenKey, fieldKey });
   }, [defaultTagColor, resolvedField]);
@@ -1305,6 +1355,8 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     () => RULES_SUPPORTED_FIELD_TYPES.includes(fieldForm.type),
     [fieldForm.type],
   );
+
+  const fieldSupportsFilter = fieldForm.type !== 'file';
 
   /**
    * As telas que um campo de referência pode apontar. O valor é a COLEÇÃO, nunca a chave da tela: é
@@ -1492,7 +1544,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     };
     const fieldLabel = fieldForm.label.trim();
     if (!fieldLabel) {
-      reject('general', 'Informe o nome do campo.');
+      reject('general', t('field.error.label-required'));
       return;
     }
 
@@ -1538,8 +1590,21 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       return;
     }
     if (fieldForm.type === 'reference' && !fieldForm.refEntity) {
-      reject('general', 'Escolha a tela vinculada ao campo.');
+      reject('general', t('field.error.linked-screen-required'));
       return;
+    }
+    if (fieldForm.type === 'file') {
+      const extensions = fieldForm.fileExtensions.trim();
+      if (extensions && !/^[A-Za-z0-9]+(\s*,\s*[A-Za-z0-9]+)*$/.test(extensions)) {
+        reject('general', t('field.error.file-extensions'));
+        return;
+      }
+      const size = fieldForm.fileMaxSizeMb.trim();
+      const parsed = Number(size);
+      if (size && (!Number.isFinite(parsed) || parsed <= 0 || parsed > DEFAULT_FILE_MAX_SIZE_MB)) {
+        reject('general', t('field.error.file-max-size', { max: String(DEFAULT_FILE_MAX_SIZE_MB) }));
+        return;
+      }
     }
     if (isInvalidRegex(fieldForm.ruleValidatePattern)) {
       reject('advanced', t('field.error.validate-regex'));
@@ -1570,6 +1635,10 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     }
     const rules = buildFieldRules(fieldForm);
     const logic = buildFieldLogic(fieldForm);
+    const file = buildFieldFileConfig(fieldForm);
+    // Um campo de arquivo não filtra, e o `filterable` é zerado no dado e não só escondido na tela:
+    // um pacote — ou um documento editado à mão — ainda pode trazê-lo verdadeiro.
+    const filterable = fieldForm.type === 'file' ? false : fieldForm.filterable;
     setSavingField(true);
     try {
       const existing = getDefinitionByKey(fieldModal.screenKey);
@@ -1604,10 +1673,11 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
               : [],
             showInList: fieldForm.showInList,
             listLabel: fieldForm.showInList ? (fieldForm.listLabel.trim() || null) : null,
-            filterable: fieldForm.filterable,
+            filterable,
             rules,
             logic,
             aggregation,
+            file,
           };
         });
       } else {
@@ -1640,10 +1710,11 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
             : [],
           showInList: fieldForm.showInList,
           listLabel: fieldForm.showInList ? (fieldForm.listLabel.trim() || null) : null,
-          filterable: fieldForm.filterable,
+          filterable,
           rules,
           aggregation,
           logic,
+          file,
         }];
       }
       // A declaração vem ANTES do campo: é ela que as Security Rules consultam para autorizar a
@@ -1652,10 +1723,10 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
         await declareLookup(lookupCollection as string, fieldLabel);
       }
       await saveDefinition(fieldModal.screenKey, { ...baseInput, fields: nextFields });
-      notify(fieldModal.fieldKey ? 'Campo atualizado com sucesso!' : 'Campo adicionado com sucesso!', 'success');
+      notify(t(fieldModal.fieldKey ? 'field.updated' : 'field.created'), 'success');
       setFieldModal(null);
     } catch {
-      notify('Erro ao salvar o campo.', 'error');
+      notify(t('field.save-failed'), 'error');
     } finally {
       setSavingField(false);
     }
@@ -1686,9 +1757,9 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     try {
       await saveDefinition(screenKey, { ...baseInput, fields: [...reordered, ...untouched] });
     } catch {
-      notify('Erro ao reordenar os campos.', 'error');
+      notify(t('field.reorder-failed'), 'error');
     }
-  }, [getDefinitionByKey, saveDefinition, notify]);
+  }, [getDefinitionByKey, saveDefinition, notify, t]);
 
   const visibleFieldsOf = useCallback(
     (screenKey: string): FieldDefinition[] => resolvedFieldsByScreen[screenKey] ?? [],
@@ -1763,7 +1834,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       await saveDefinition(screenKey, { ...toSaveInput(def), fields: rest });
       notify(t('field.restored'), 'success');
     } catch {
-      notify('Erro ao restaurar o campo.', 'error');
+      notify(t('field.restore-failed'), 'error');
     }
   }, [getDefinitionByKey, saveDefinition, notify, t]);
 
@@ -1780,7 +1851,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       notify(t('field.deleted'), 'success');
       setDeleteFieldTarget(null);
     } catch {
-      notify('Erro ao excluir o campo.', 'error');
+      notify(t('field.delete-failed'), 'error');
     } finally {
       setDeletingField(false);
     }
@@ -1825,6 +1896,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     toggleListAction,
     titleFieldOptions,
     subtitleFieldOptions,
+    imageFieldOptions,
     childCandidates,
     toggleChildScreen,
     setChildLinkField,
@@ -1855,6 +1927,8 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     formatPresetOptions,
     validateCheckOptions,
     fieldSupportsRules,
+    fieldSupportsFilter,
+    fileMaxSizeDefault: String(DEFAULT_FILE_MAX_SIZE_MB),
     refEntityOptions,
     lookupOptions,
     tagListOptions,

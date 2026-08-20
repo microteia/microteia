@@ -2,6 +2,7 @@ import React from 'react';
 import { RiApps2Line } from 'react-icons/ri';
 import { CustomFieldMetaRows } from '../../ui/CustomFieldMetaRows';
 import { EntityListCard } from '../../ui/EntityListCard';
+import { UserAvatar } from '../../ui/UserAvatar';
 import { EntityListView } from '../EntityListView';
 import { EntityListModals } from './EntityListModals';
 import { cardActionIcon } from './cardActionIcon';
@@ -80,6 +81,16 @@ export const RecordListSurface: React.FC<RecordListSurfaceProps> = ({ vm, defini
   // cartão, como já vale entre as meta-linhas e o bloco de campos adicionais.
   const listRows = deriveListRows(schemaContext, vm.collection)
     .filter((row) => row.key !== definition.subtitleFieldKey);
+  // O ícone da TELA é o piso do avatar: um registro sem imagem, ou uma tela que não declarou campo
+  // de imagem, segue com ele. `UserAvatar` cuida do carregamento, da falha e do cache — dois
+  // componentes de imagem seriam dois caches, e o mesmo registro shimmeraria de novo no detalhe.
+  const screenIcon = getScreenIcon(definition.icon, 22);
+  const recordAvatar = (record: EntityRecord): React.ReactNode => {
+    const url = vm.getCardImageUrl(record);
+    if (!url) return screenIcon;
+    return <UserAvatar src={url} name={vm.getCardTitle(record)} size={44} fallback={screenIcon} />;
+  };
+
   // O campo declarado como subtítulo serve ao cartão como já serve ao cabeçalho do detalhe e ao
   // rótulo da aba: uma declaração, três lugares. Sem ela, o cartão segue só com título e linhas.
   const declaredSubtitle = (record: EntityRecord): React.ReactNode => {
@@ -129,7 +140,7 @@ export const RecordListSurface: React.FC<RecordListSurfaceProps> = ({ vm, defini
             key={record.id}
             onClick={() => openRecord(record)}
             accentColor={accentColor?.(record)}
-            avatar={getScreenIcon(definition.icon, 22)}
+            avatar={recordAvatar(record)}
             title={vm.getCardTitle(record)}
             subtitle={renderSubtitle ? renderSubtitle(record) : declaredSubtitle(record)}
             belowHeader={renderBelowHeader?.(record)}

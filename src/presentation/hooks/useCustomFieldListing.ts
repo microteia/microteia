@@ -3,7 +3,7 @@ import { useTheme } from 'styled-components';
 import { useLookups } from '../../stores/useLookups';
 import { useReferenceOptions } from './useReferenceOptions';
 import { formatCurrencyBRL } from '../../utils/formatters';
-import { readValueByPath, toDateFieldInput } from '../../domain/services/customFieldValues';
+import { fileNameFromUrl, readValueByPath, toDateFieldInput } from '../../domain/services/customFieldValues';
 import { resolveColor, resolveFieldOptionColor } from '../../shared/styles/colorUtils';
 import type { CustomFieldValue, FieldDefinition } from '../../domain/entities';
 import type { FilterDef, FilterOption } from '../components/ui/CompositeFilter';
@@ -54,6 +54,8 @@ export interface CustomFieldListing {
   matchesFilters: (values: RecordValues | undefined, tokenMap: Record<string, string[]>) => boolean;
   displayValue: (values: RecordValues | undefined, field: FieldDefinition) => string;
   cardItems: (values: RecordValues | undefined) => CustomFieldCardItem[];
+  /** Texto varrido pela busca livre — sem as URLs dos campos de arquivo. */
+  searchText: (values: RecordValues | undefined) => string;
 }
 
 const formatDateBR = (value: unknown): string => {
@@ -73,7 +75,33 @@ export const useCustomFieldListing = (
   const theme = useTheme();
 
   const listFields = useMemo(() => fields.filter((f) => f.showInList), [fields]);
-  const filterableFields = useMemo(() => fields.filter((f) => f.filterable), [fields]);
+  // Campo `file` NÃO filtra, e a exclusão é aqui e não no `switch`: o `default` de `filterDefs` cai
+  // em `type: 'text'`, então um campo de arquivo viraria — em silêncio — um filtro de texto sobre
+  // URLs de download, que ninguém digita. Excluído na origem, `filterDefs` e `matchesFilters` já
+  // nascem certos, porque os dois iteram esta lista.
+  const filterableFields = useMemo(
+    () => fields.filter((f) => f.filterable && f.type !== 'file'),
+    [fields],
+  );
+
+  /**
+   * O texto do registro que a BUSCA livre varre. A junção crua de todos os valores string incluía a
+   * URL de download de um arquivo, e com ela o token e o `alt=media` — bastava digitar "png" para
+   * casar todo registro que tivesse imagem.
+   */
+  const fileFieldKeys = useMemo(
+    () => new Set(fields.filter((f) => f.type === 'file').map((f) => f.key)),
+    [fields],
+  );
+
+  const searchText = useCallback((values: RecordValues | undefined): string => {
+    if (!values) return '';
+    return Object.entries(values)
+      .filter(([key, value]) => typeof value === 'string' && !fileFieldKeys.has(key))
+      .map(([, value]) => value as string)
+      .join(' ')
+      .toLowerCase();
+  }, [fileFieldKeys]);
 
   /**
    * O valor de uma opção é a CHAVE, tanto na lista declarada no campo quanto na lista de opções —
@@ -206,6 +234,8 @@ export const useCustomFieldListing = (
         if (Array.isArray(value)) return value.map((v) => labels.get(v) ?? v).join(', ') || '—';
         return typeof value === 'string' ? (labels.get(value) ?? value) : '—';
       }
+      case 'file':
+        return fileNameFromUrl(String(value)) || '—';
       case 'reference': {
         const options = referenceOptionsByEntity[field.refEntity ?? ''] ?? [];
         const labels = new Map(options.map((o) => [o.value, o.label]));
@@ -247,5 +277,6 @@ export const useCustomFieldListing = (
     matchesFilters,
     displayValue,
     cardItems,
-  }), [listFields, filterDefs, matchesFilters, displayValue, cardItems]);
+    searchText,
+  }), [listFields, filterDefs, matchesFilters, displayValue, cardItems, searchText]);
 };

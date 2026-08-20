@@ -3,6 +3,7 @@ import { InputGroup, Label, ErrorMessage } from '../Input';
 import { FieldControl } from '../CustomFieldsSection/FieldControl';
 import { useCustomFieldsSectionViewModel } from '../CustomFieldsSection/CustomFieldsSection.viewmodel';
 import type { CustomFieldValue, FieldDefinition } from '../../../../domain/entities';
+import type { FieldFileUpload } from '../../../shared/entityScreen/types';
 
 export interface FieldInputProps {
   field: FieldDefinition;
@@ -12,6 +13,11 @@ export interface FieldInputProps {
   disabled?: boolean;
   error?: string;
   showLabel?: boolean;
+  /**
+   * Envio de arquivo de um campo `file` — o `fileUpload` que `useEntityForm` devolve. Ausente, um
+   * campo de arquivo fica somente-leitura em vez de falhar em silêncio.
+   */
+  fileUpload?: FieldFileUpload;
 }
 
 /**
@@ -29,6 +35,7 @@ export const FieldInput: React.FC<FieldInputProps> = ({
   disabled,
   error,
   showLabel = true,
+  fileUpload,
 }) => {
   const vm = useCustomFieldsSectionViewModel({
     fields: [field],
@@ -36,6 +43,7 @@ export const FieldInput: React.FC<FieldInputProps> = ({
     onChange: (_key, next) => onChange(next),
     disabled,
     errors: error ? { [field.key]: error } : undefined,
+    fileUpload,
   });
   const shownError = vm.fieldError(field);
   return (

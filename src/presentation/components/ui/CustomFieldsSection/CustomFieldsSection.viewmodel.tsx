@@ -13,6 +13,7 @@ import { nextLookupOptionColor, resolveColor, resolveFieldOptionColor } from '..
 import type { CustomFieldValue, FieldDefinition } from '../../../../domain/entities';
 import type { DynamicSelectOption } from '../DynamicSelect';
 import type { ReferenceOption } from '../../../hooks/useReferenceOptions';
+import type { FieldFileUpload } from '../../../shared/entityScreen/types';
 
 export interface LookupOptionSet {
   staticOptions: DynamicSelectOption[];
@@ -29,6 +30,11 @@ export interface CustomFieldsSectionProps {
   errors?: Record<string, string>;
   /** Habilita os efeitos de `onChange` (preencher vários campos). Ausente = comportamento anterior. */
   onMergeValues?: (patch: Record<string, unknown>) => void;
+  /**
+   * Envio de arquivo dos campos `file`. Ausente, esses campos ficam somente-leitura — é o caso de um
+   * formulário que não é de registro numa coleção, e portanto não tem caminho onde gravar.
+   */
+  fileUpload?: FieldFileUpload;
 }
 
 export interface FieldGroup {
@@ -55,6 +61,7 @@ export interface CustomFieldsSectionViewModel {
   fieldError: (field: FieldDefinition) => string | null;
   /** Campo aguardando uma busca externa (ex.: endereço pelo CEP). */
   isFieldLoading: (fieldKey: string) => boolean;
+  fileUpload: FieldFileUpload | null;
 }
 
 export const useCustomFieldsSectionViewModel = (props: CustomFieldsSectionProps): CustomFieldsSectionViewModel => {
@@ -254,5 +261,6 @@ export const useCustomFieldsSectionViewModel = (props: CustomFieldsSectionProps)
     isFieldDisabled,
     fieldError,
     isFieldLoading,
+    fileUpload: props.fileUpload ?? null,
   };
 };

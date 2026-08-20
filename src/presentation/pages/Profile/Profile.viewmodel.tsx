@@ -117,9 +117,9 @@ export const useProfileViewModel = (): ProfileViewModel => {
           });
         }
       })
-      .catch(() => setProfileError('Erro ao carregar perfil.'))
+      .catch(() => setProfileError(t('profile.load-failed')))
       .finally(() => setProfileLoading(false));
-  }, [user, getProfileUC]);
+  }, [user, getProfileUC, t]);
 
   useEffect(() => {
     if (nicknameStatus !== 'checking' || nicknameInput.length < 3) return;
@@ -167,13 +167,13 @@ export const useProfileViewModel = (): ProfileViewModel => {
       };
       await saveProfileUC.execute(user.id, data);
       await reloadUserProfile();
-      notify('Perfil salvo com sucesso.', 'success');
+      notify(t('profile.saved'), 'success');
     } catch {
-      setProfileError('Erro ao salvar perfil.');
+      setProfileError(t('profile.save-failed'));
     } finally {
       setProfileSaving(false);
     }
-  }, [user, form, profilePhotoURL, saveProfileUC, reloadUserProfile, notify]);
+  }, [user, form, profilePhotoURL, saveProfileUC, reloadUserProfile, notify, t]);
 
   const handleNicknameChange = useCallback((value: string) => {
     setNicknameInput(value);
@@ -243,11 +243,11 @@ export const useProfileViewModel = (): ProfileViewModel => {
       setProfilePhotoURL(url);
       await reloadUserProfile();
     } catch {
-      setPhotoError('Erro ao fazer upload da foto.');
+      setPhotoError(t('profile.photo.upload-failed'));
     } finally {
       setIsUploadingPhoto(false);
     }
-  }, [user, uploadPhotoUC, saveProfileUC, reloadUserProfile]);
+  }, [user, uploadPhotoUC, saveProfileUC, reloadUserProfile, t]);
 
   const handleCropCancel = useCallback(() => setCropSrc(null), []);
 
@@ -258,9 +258,9 @@ export const useProfileViewModel = (): ProfileViewModel => {
       setProfilePhotoURL(null);
       await reloadUserProfile();
     } catch {
-      setPhotoError('Erro ao remover a foto.');
+      setPhotoError(t('profile.photo.remove-failed'));
     }
-  }, [user, saveProfileUC, reloadUserProfile]);
+  }, [user, saveProfileUC, reloadUserProfile, t]);
 
   return {
     effectivePhotoURL,

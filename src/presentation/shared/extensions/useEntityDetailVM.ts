@@ -10,6 +10,7 @@ import {
   collectRequiredErrors,
   formValuesToStoredValues,
   readRecordText,
+  resolveRecordImageUrl,
   resolveRecordTabTitle,
   resolveRecordTitle,
   sortFieldsByOrder,
@@ -18,6 +19,7 @@ import {
 import { describeRuleIssues } from '../../../domain/schema/fieldRules';
 import { validateRecordRules } from '../../../data/utils/recordRulesGate';
 import { useEntityDetail, type EntityValidationResult } from '../entityScreen/useEntityDetail';
+import { useRecordFileUpload } from '../entityScreen/useRecordFilePort';
 import { useRecordDocumentsPort, useRecordNotesPort } from '../entityScreen/useRecordPorts';
 import type { RecordDetailViewModel } from '../../components/layout/RecordDetailSurface';
 import type { CustomFieldValue, EntityRecord } from '../../../domain/entities';
@@ -49,7 +51,7 @@ export const useEntityDetailVM = (
   const t = useT('core.records');
   const label = useLabel();
   const { dynamicScreens, isLoading: isLoadingDefinition } = useScreenDefinitions();
-  const { recordsByCollection, createRecord, updateRecord, deleteRecord } = useRecords();
+  const { recordsByCollection, createRecord, newRecordId, updateRecord, deleteRecord } = useRecords();
   const { currentTenant, tenantRole } = useTenant();
   const { user, effectiveName } = useAuth();
   const { recordRepository } = useDI();
@@ -136,13 +138,15 @@ export const useEntityDetailVM = (
   );
 
   const create = useCallback(
-    async (values: Values) => {
+    async (values: Values, recordId: string | null) => {
       const stored = formValuesToStoredValues(sortedFields, values);
-      const created = await createRecord(collection, stored);
+      const created = await createRecord(collection, stored, recordId ?? undefined);
       return { id: created.id, title: resolveRecordTitle(created, titleFieldKey) };
     },
     [sortedFields, titleFieldKey, createRecord, collection],
   );
+
+  const newId = useCallback(() => newRecordId(collection), [newRecordId, collection]);
 
   const update = useCallback(
     async (id: string, values: Values) => {
@@ -195,13 +199,17 @@ export const useEntityDetailVM = (
     documentsPort,
     hasNotes: !!definition?.hasNotes,
     hasDocuments: !!definition?.hasDocuments,
+    newId,
   });
+
+  const fileUpload = useRecordFileUpload(collection, detail.ensureRecordId);
 
     const sourceRecord = detail.record;
 
   // Cabeçalho: título e subtítulo do REGISTRO, como nas telas fixas.
   const recordTitle = sourceRecord ? readRecordText(sourceRecord, titleFieldKey) : '';
   const recordSubtitle = sourceRecord ? readRecordText(sourceRecord, subtitleFieldKey) : '';
+  const recordImageUrl = resolveRecordImageUrl(sourceRecord, sortedFields, definition?.imageFieldKey);
 
   const tagIdsOf = useCallback(() => sourceRecord?.tagIds ?? [], [sourceRecord]);
   const setRecordTags = useCallback(
@@ -226,6 +234,8 @@ export const useEntityDetailVM = (
     recordNotFound: detail.recordNotFound,
     recordTitle,
     recordSubtitle,
+    recordImageUrl,
+    fileUpload,
     sortedFields,
     formValues: detail.values,
     setFieldValue: detail.setFieldValue,

@@ -11,6 +11,15 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [7.60.0] — 2026-08-20
+
+- Novo tipo de campo: **Arquivo**. Ao montar uma tela, agora é possível criar um campo que recebe um anexo — uma foto, um documento digitalizado, um PDF — definindo quais extensões ele aceita e o tamanho máximo. O arquivo pode ser escolhido antes mesmo de o registro ser salvo, e a prévia da imagem aparece na hora.
+- A imagem de um desses campos pode ocupar o lugar do ícone da tela: basta escolher, na configuração da tela, qual campo de arquivo é a **imagem** dela. A foto passa a aparecer no cartão da listagem e no cabeçalho do registro, e quem ainda não tem foto continua com o ícone de sempre.
+- Corrigido: trocar a foto de perfil não funcionava — o envio era recusado sem explicação. As fotos já existentes continuam aparecendo normalmente.
+- Corrigido: no Form Design, salvar qualquer ajuste numa tela trazida por extensão apagava, em silêncio, informações internas dela — o endereço da aba do registro, o vínculo com a tela pai e a identidade pela qual a atualização da extensão a reconhece. Telas afetadas voltam ao normal na próxima atualização da extensão.
+- Corrigido: os avisos do Form Design, da aba de Documentos e da tela de Perfil apareciam sempre em português, mesmo com outro idioma escolhido.
+- Corrigido: um conjunto de etiquetas criado junto com uma tela ficava com o nome preso em português e não acompanhava o nome da tela quando ela era renomeada.
+
 #### [7.59.4] — 2026-08-20
 
 - Corrigido: na tela de Extensões, as extensões ainda não instaladas apareciam com o código interno no lugar do nome, do resumo e da descrição — os textos delas só passavam a existir depois de instaladas, justamente quando já não era preciso escolher. Agora cada extensão é apresentada nas próprias palavras desde a lista, e um pacote de tradução instalado continua tendo a última palavra sobre elas.

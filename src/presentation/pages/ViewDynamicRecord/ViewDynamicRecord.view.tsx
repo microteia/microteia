@@ -5,6 +5,7 @@ import { Spinner } from '../../components/ui/Spinner';
 import { InfoBanner } from '../../components/ui/InfoBanner';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { CustomFieldsSection } from '../../components/ui/CustomFieldsSection';
+import { UserAvatar } from '../../components/ui/UserAvatar';
 import { TagManager } from '../../components/ui/TagManager';
 import { EntityDetailView } from '../../components/layout/EntityDetailView';
 import { getScreenIcon } from '../../shared/screenIcons';
@@ -57,8 +58,9 @@ export const ViewDynamicRecordView: React.FC<{ tabKey: string }> = ({ tabKey }) 
         fields={vm.sortedFields}
         values={vm.formValues}
         onChange={vm.setFieldValue}
-          onMergeValues={vm.mergeValues}
+        onMergeValues={vm.mergeValues}
         errors={vm.fieldErrors}
+        fileUpload={vm.fileUpload ?? undefined}
       />
     </S.FormWrapper>
   );
@@ -86,7 +88,9 @@ export const ViewDynamicRecordView: React.FC<{ tabKey: string }> = ({ tabKey }) 
       isNew={vm.isNew}
       screenActions={vm.screenActions}
       isAdmin={vm.isAdmin}
-      avatar={getScreenIcon(definition.icon, 22)}
+      avatar={vm.recordImageUrl
+        ? <UserAvatar src={vm.recordImageUrl} name={vm.recordTitle} size={48} fallback={getScreenIcon(definition.icon, 22)} />
+        : getScreenIcon(definition.icon, 22)}
       title={vm.isNew
         ? t('record.new.title', { entity: label(definition.titleSingular) })
         : (vm.recordTitle || label(definition.titleSingular))}

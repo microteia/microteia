@@ -34,6 +34,8 @@ export interface ScreenModuleTemplate {
   titleFieldKey: string;
   /** Campo do subtítulo do detalhe e do cartão. Ver `ScreenDefinition.subtitleFieldKey`. */
   subtitleFieldKey?: string | null;
+  /** Campo de arquivo cuja imagem substitui o ícone. Ver `ScreenDefinition.imageFieldKey`. */
+  imageFieldKey?: string | null;
   hasNotes?: boolean;
   hasDocuments?: boolean;
   hasTags?: boolean;

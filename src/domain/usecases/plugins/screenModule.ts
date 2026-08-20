@@ -145,6 +145,7 @@ export const materializeScreen = (
     fields,
     titleFieldKey: template.titleFieldKey,
     subtitleFieldKey: template.subtitleFieldKey ?? null,
+    imageFieldKey: template.imageFieldKey ?? null,
     hasNotes: template.hasNotes ?? false,
     hasDocuments: template.hasDocuments ?? false,
     hasTags: template.hasTags ?? false,

@@ -16,6 +16,7 @@ import {
   collectRequiredErrors,
   formValuesToStoredValues,
   readRecordText,
+  resolveRecordImageUrl,
   resolveRecordTabTitle,
   resolveRecordTitle,
   sortFieldsByOrder,
@@ -26,9 +27,11 @@ import { validateRecordRules } from '../../../data/utils/recordRulesGate';
 import { useEntityDetail, type EntityValidationResult } from '../../shared/entityScreen/useEntityDetail';
 import type { ScreenActions } from '../../shared/entityScreen/useScreenActions';
 import { useRecordDocumentsPort, useRecordNotesPort } from '../../shared/entityScreen/useRecordPorts';
+import { useRecordFileUpload } from '../../shared/entityScreen/useRecordFilePort';
 import type {
   EntityDocumentsController,
   EntityNotesController,
+  FieldFileUpload,
 } from '../../shared/entityScreen/types';
 import type { TagStoreAdapter } from '../../components/ui/TagManager';
 import type { EntityDetailExtraTab, EntityDetailTab } from '../../components/layout/EntityDetailView';
@@ -79,6 +82,10 @@ export interface ViewDynamicRecordViewModel {
   recordTitle: string;
   /** Subtítulo do registro (`subtitleFieldKey`), abaixo do título. Vazio → sem subtítulo. */
   recordSubtitle: string;
+  /** Imagem do registro (`imageFieldKey`), no lugar do ícone da tela. Ausente = o ícone. */
+  recordImageUrl: string | null;
+  /** Envio dos campos `file`. Ausente = campos de arquivo somente-leitura. */
+  fileUpload: FieldFileUpload | null;
   notesController: EntityNotesController;
   docsController: EntityDocumentsController;
   childTabs: EntityDetailExtraTab[];
@@ -94,7 +101,7 @@ export const useViewDynamicRecordViewModel = (tabKey: string): ViewDynamicRecord
   const t = useT('core.records');
   const label = useLabel();
   const { getDefinition, isLoading: isLoadingDefinition } = useScreenDefinitions();
-  const { recordsByCollection, createRecord, updateRecord, deleteRecord } = useRecords();
+  const { recordsByCollection, createRecord, newRecordId, updateRecord, deleteRecord } = useRecords();
   const { currentTenant, tenantRole } = useTenant();
   const { user, effectiveName } = useAuth();
   const { recordRepository } = useDI();
@@ -198,13 +205,15 @@ export const useViewDynamicRecordViewModel = (tabKey: string): ViewDynamicRecord
   );
 
   const create = useCallback(
-    async (values: Values) => {
+    async (values: Values, recordId: string | null) => {
       const stored = formValuesToStoredValues(sortedFields, values);
-      const created = await createRecord(collection, stored);
+      const created = await createRecord(collection, stored, recordId ?? undefined);
       return { id: created.id, title: resolveRecordTitle(created, titleFieldKey) };
     },
     [sortedFields, titleFieldKey, createRecord, collection],
   );
+
+  const newId = useCallback(() => newRecordId(collection), [newRecordId, collection]);
 
   const update = useCallback(
     async (id: string, values: Values) => {
@@ -279,13 +288,16 @@ export const useViewDynamicRecordViewModel = (tabKey: string): ViewDynamicRecord
     cloneKey,
     remove,
     removedMessage: t('record.deleted'),
-    removeErrorMessage: 'Erro ao excluir o registro.',
+    removeErrorMessage: t('record.delete-failed'),
     notesPort,
     documentsPort,
     hasNotes: !!definition?.hasNotes,
     hasDocuments: !!definition?.hasDocuments,
     returnTabKey,
+    newId,
   });
+
+  const fileUpload = useRecordFileUpload(collection, detail.ensureRecordId);
 
   const sourceRecord = detail.record;
   const { setFieldValue } = detail;
@@ -314,6 +326,7 @@ export const useViewDynamicRecordViewModel = (tabKey: string): ViewDynamicRecord
   // Cabeçalho: título e subtítulo do REGISTRO, como nas telas fixas.
   const recordTitle = sourceRecord ? readRecordText(sourceRecord, titleFieldKey) : '';
   const recordSubtitle = sourceRecord ? readRecordText(sourceRecord, subtitleFieldKey) : '';
+  const recordImageUrl = resolveRecordImageUrl(sourceRecord, sortedFields, definition?.imageFieldKey);
 
   const tagIdsOf = useCallback(() => sourceRecord?.tagIds ?? [], [sourceRecord]);
   const setRecordTags = useCallback(
@@ -356,6 +369,8 @@ export const useViewDynamicRecordViewModel = (tabKey: string): ViewDynamicRecord
     recordNotFound: detail.recordNotFound,
     recordTitle,
     recordSubtitle,
+    recordImageUrl,
+    fileUpload,
     notesController: detail.notesController,
     docsController: detail.docsController,
     childTabs: detail.childTabs,

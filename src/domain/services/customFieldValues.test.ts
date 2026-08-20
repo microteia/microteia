@@ -1,5 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { buildInitialFormValues, readRecordText, resolveRecordTabTitle, resolveRecordTitle, setValueByPath, toDateFieldInput } from './customFieldValues';
+import {
+  buildInitialFormValues,
+  fileNameFromUrl,
+  formValuesToStoredValues,
+  readRecordText,
+  resolveRecordImageUrl,
+  resolveRecordTabTitle,
+  resolveRecordTitle,
+  setValueByPath,
+  toDateFieldInput,
+  validateRequiredFields,
+} from './customFieldValues';
 import type { CustomFieldValue, FieldDefinition } from '../entities/entitySchemas';
 
 type Values = Record<string, CustomFieldValue>;
@@ -134,5 +145,70 @@ describe('toDateFieldInput', () => {
     expect(toDateFieldInput(1755216000000)).toBe('');
     expect(toDateFieldInput(null)).toBe('');
     expect(toDateFieldInput(new Date('x'))).toBe('');
+  });
+});
+
+const fileField: FieldDefinition = {
+  key: 'photo',
+  label: 'Foto',
+  type: 'file',
+  required: false,
+  order: 0,
+  origin: 'design',
+};
+
+const DOWNLOAD_URL = 'https://firebasestorage.googleapis.com/v0/b/x.appspot.com/o/'
+  + 'tenants%2Ft1%2Fpersons%2Fr9%2Ffields%2Fphoto%2F1723000000000_minha_foto.png'
+  + '?alt=media&token=abc-123';
+
+/**
+ * O campo `file` grava uma URL, logo atravessa os três `default:` da conversão de valor. Estes testes
+ * PRENDEM esse comportamento: um refactor de `default:` quebraria o tipo em silêncio.
+ */
+describe('campo de arquivo na conversão de valor', () => {
+  it('a URL gravada volta para o formulário, e a ausência vira vazio', () => {
+    expect(buildInitialFormValues([fileField], { photo: DOWNLOAD_URL }).photo).toBe(DOWNLOAD_URL);
+    expect(buildInitialFormValues([fileField], {}).photo).toBe('');
+  });
+
+  it('vazio grava nulo; a URL grava como está', () => {
+    expect(formValuesToStoredValues([fileField], { photo: '' }).photo).toBeNull();
+    expect(formValuesToStoredValues([fileField], { photo: DOWNLOAD_URL }).photo).toBe(DOWNLOAD_URL);
+  });
+
+  it('obrigatório só passa com arquivo', () => {
+    const required = { ...fileField, required: true };
+    const t = ((key: string) => key) as unknown as Parameters<typeof validateRequiredFields>[0];
+    expect(validateRequiredFields(t, [required], { photo: '' })).not.toBeNull();
+    expect(validateRequiredFields(t, [required], { photo: DOWNLOAD_URL })).toBeNull();
+  });
+});
+
+describe('fileNameFromUrl', () => {
+  it('lê o nome original de uma URL de download, sem o carimbo de tempo', () => {
+    expect(fileNameFromUrl(DOWNLOAD_URL)).toBe('minha_foto.png');
+  });
+
+  it('serve a um caminho cru e degrada para a entrada quando não há nome', () => {
+    expect(fileNameFromUrl('tenants/t1/persons/r9/fields/photo/1723000000000_a.pdf')).toBe('a.pdf');
+    expect(fileNameFromUrl('qualquer-coisa')).toBe('qualquer-coisa');
+    expect(fileNameFromUrl('')).toBe('');
+  });
+});
+
+describe('resolveRecordImageUrl', () => {
+  it('devolve a URL quando a tela declara o campo e ele é de arquivo', () => {
+    expect(resolveRecordImageUrl({ photo: DOWNLOAD_URL }, [fileField], 'photo')).toBe(DOWNLOAD_URL);
+  });
+
+  it('campo retipado NÃO alimenta a imagem — o cartão volta ao ícone da tela', () => {
+    const retyped: FieldDefinition = { ...fileField, type: 'text' };
+    expect(resolveRecordImageUrl({ photo: 'um texto qualquer' }, [retyped], 'photo')).toBeNull();
+  });
+
+  it('sem declaração, sem valor ou sem registro, não há imagem', () => {
+    expect(resolveRecordImageUrl({ photo: DOWNLOAD_URL }, [fileField], null)).toBeNull();
+    expect(resolveRecordImageUrl({ photo: '  ' }, [fileField], 'photo')).toBeNull();
+    expect(resolveRecordImageUrl(null, [fileField], 'photo')).toBeNull();
   });
 });

@@ -10,6 +10,7 @@ import {
   orderBy,
   query,
   serverTimestamp,
+  setDoc,
   Timestamp,
   updateDoc,
 } from 'firebase/firestore';
@@ -108,12 +109,30 @@ export class FirebaseRecordRepository implements IRecordRepository {
     return mapRecord(snap.id, snap.data(), tenantId, collection);
   }
 
-  async create(tenantId: string, collection: string, data: EntityRecordValues): Promise<EntityRecord> {
-    const ref = await addDoc(recordsRef(tenantId, collection), {
+  newId(tenantId: string, collection: string): string {
+    return doc(recordsRef(tenantId, collection)).id;
+  }
+
+  async create(
+    tenantId: string,
+    collection: string,
+    data: EntityRecordValues,
+    recordId?: string,
+  ): Promise<EntityRecord> {
+    const payload = {
       ...applyRecordRules(collection, stripIdentity(data)),
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
-    });
+    };
+    // Com id em mãos o documento nasce onde os arquivos dele já foram gravados; sem, o Firestore
+    // sorteia como sempre.
+    let ref;
+    if (recordId) {
+      ref = doc(recordsRef(tenantId, collection), recordId);
+      await setDoc(ref, payload);
+    } else {
+      ref = await addDoc(recordsRef(tenantId, collection), payload);
+    }
     const snap = await getDoc(ref);
     return mapRecord(ref.id, snap.data() as Record<string, unknown>, tenantId, collection);
   }

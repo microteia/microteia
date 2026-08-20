@@ -20,6 +20,7 @@ const persisted: PersistedKeys = {
   fields: [{ key: 'apelido', label: 'Apelido', type: 'text', required: false, order: 0, origin: 'design' }],
   titleFieldKey: 'name',
   subtitleFieldKey: 'document',
+  imageFieldKey: 'photo',
   dataCollection: 'cases',
   eventPrefix: 'case',
   recordTabPrefix: 'processo-edit:',

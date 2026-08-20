@@ -12,6 +12,8 @@ import type { CustomFieldValue, FieldDefinition, ScreenDefinition } from '../../
 
 import { useLabel, useT } from '../i18n/useT';
 import { screenForDisplay, useResolvedFields } from '../useEntityFormFields';
+import { useRecordFileUpload } from '../entityScreen/useRecordFilePort';
+import type { FieldFileUpload } from '../entityScreen/types';
 type Values = Record<string, CustomFieldValue>;
 
 export interface EntityForm {
@@ -26,6 +28,11 @@ export interface EntityForm {
   validate: () => boolean;
   save: () => Promise<{ id: string } | null>;
   isSaving: boolean;
+  /**
+   * Envio dos campos `file`, para repassar a `FieldInput`/`EntityForm`. Sem ele, um campo de arquivo
+   * disposto por uma extensão ficaria somente-leitura.
+   */
+  fileUpload: FieldFileUpload | null;
 }
 
 /**
@@ -38,7 +45,7 @@ export interface EntityForm {
 export const useEntityForm = (sourceId: string, recordId?: string | null): EntityForm => {
   const t = useT('core.records');
   const { dynamicScreens } = useScreenDefinitions();
-  const { recordsByCollection, createRecord, updateRecord } = useRecords();
+  const { recordsByCollection, createRecord, newRecordId, updateRecord } = useRecords();
 
   const label = useLabel();
   const stored = useMemo(
@@ -82,6 +89,24 @@ export const useEntityForm = (sourceId: string, recordId?: string | null): Entit
     });
   }, []);
 
+  /**
+   * O rascunho carrega a tela a que pertence, para que trocar de `sourceId` não reaproveite o id de
+   * uma coleção em outra. Ver `useEntityDetail`.
+   */
+  const [draft, setDraft] = useState<{ screenKey: string; id: string } | null>(null);
+  const draftRecordId = draft?.screenKey === screenKey ? draft.id : null;
+
+  const ensureRecordId = useCallback((): string | null => {
+    if (record) return record.id;
+    if (draftRecordId) return draftRecordId;
+    if (!screenKey) return null;
+    const id = newRecordId(screenKey);
+    setDraft({ screenKey, id });
+    return id;
+  }, [record, draftRecordId, screenKey, newRecordId]);
+
+  const fileUpload = useRecordFileUpload(screenKey, ensureRecordId);
+
   const validate = useCallback(() => {
     const found = collectRequiredErrors(t, fields, values);
     setErrors(found);
@@ -100,7 +125,7 @@ export const useEntityForm = (sourceId: string, recordId?: string | null): Entit
     setIsSaving(true);
     try {
       if (isNew) {
-        const created = await createRecord(screenKey, stored);
+        const created = await createRecord(screenKey, stored, draftRecordId ?? undefined);
         setIsDirty(false);
         return { id: created.id };
       }
@@ -113,7 +138,10 @@ export const useEntityForm = (sourceId: string, recordId?: string | null): Entit
     } finally {
       setIsSaving(false);
     }
-  }, [fields, values, screenKey, isNew, record, createRecord, updateRecord, t]);
+  }, [fields, values, screenKey, isNew, record, createRecord, updateRecord, t, draftRecordId]);
 
-  return { screen, screenKey, fields, isNew, values, getValue, setValue, errors, validate, save, isSaving };
+  return {
+    screen, screenKey, fields, isNew, values, getValue, setValue, errors, validate, save, isSaving,
+    fileUpload,
+  };
 };

@@ -346,6 +346,18 @@ export const ScreenBuilderView: React.FC = () => {
                         placeholder={t('screen.subtitle-field.placeholder')}
                       />
                     </InputGroup>
+                    {vm.imageFieldOptions.length > 1 && (
+                      <InputGroup>
+                        <Label>{t('screen.image-field')}</Label>
+                        <SearchSelect
+                          options={vm.imageFieldOptions}
+                          value={vm.screenForm.imageFieldKey}
+                          onChange={(value) => vm.updateScreenForm({ imageFieldKey: value })}
+                          placeholder={t('screen.image-field.placeholder')}
+                        />
+                        <S.FieldHint>{t('screen.image-field.hint')}</S.FieldHint>
+                      </InputGroup>
+                    )}
                   </>
                 )}
                 <S.RulesDivider>{t('screen.tabs')}</S.RulesDivider>
@@ -574,6 +586,29 @@ export const ScreenBuilderView: React.FC = () => {
                 )}
               </>
             )}
+            {vm.fieldForm.type === 'file' && (
+              <>
+                <InputGroup>
+                  <Label>{t('field.file.extensions')}</Label>
+                  <Input
+                    value={vm.fieldForm.fileExtensions}
+                    onChange={(e) => vm.updateFieldForm({ fileExtensions: e.target.value })}
+                    placeholder={t('field.file.extensions.placeholder')}
+                  />
+                  <S.FieldHint>{t('field.file.extensions.hint')}</S.FieldHint>
+                </InputGroup>
+                <InputGroup>
+                  <Label>{t('field.file.max-size')}</Label>
+                  <Input
+                    type="number"
+                    value={vm.fieldForm.fileMaxSizeMb}
+                    onChange={(e) => vm.updateFieldForm({ fileMaxSizeMb: e.target.value })}
+                    placeholder={vm.fileMaxSizeDefault}
+                  />
+                  <S.FieldHint>{t('field.file.max-size.hint', { max: vm.fileMaxSizeDefault })}</S.FieldHint>
+                </InputGroup>
+              </>
+            )}
             {vm.fieldForm.type === 'select' && (
               <>
                 <S.CheckboxRow>
@@ -689,13 +724,15 @@ export const ScreenBuilderView: React.FC = () => {
                 onChange={(next) => vm.updateFieldForm({ required: next })}
               />
             </S.CheckboxCell>
-            <S.CheckboxCell>
-              <Checkbox
-                label={t('field.filterable')}
-                checked={vm.fieldForm.filterable}
-                onChange={(next) => vm.updateFieldForm({ filterable: next })}
-              />
-            </S.CheckboxCell>
+            {vm.fieldSupportsFilter && (
+              <S.CheckboxCell>
+                <Checkbox
+                  label={t('field.filterable')}
+                  checked={vm.fieldForm.filterable}
+                  onChange={(next) => vm.updateFieldForm({ filterable: next })}
+                />
+              </S.CheckboxCell>
+            )}
             <S.CheckboxCell>
               <Checkbox
                 label={t('field.show-in-list')}
