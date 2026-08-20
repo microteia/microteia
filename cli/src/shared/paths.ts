@@ -15,9 +15,14 @@ export const repoRoot = resolve(here, '..', '..', '..');
  * pacote novo pode exigir um Console mais novo sem que o número do produto signifique nada aqui.
  *
  * Semver do lado da FERRAMENTA: major quando um comando muda de contrato, minor quando ganha
- * capacidade. Em `2.0.0`: o `deploy` deixou de aceitar `--kernel` (o pacote passa a chegar pelo
- * `unpack`), e as configurações de backend saíram de `.microteia/` para a raiz da instalação — um
- * Console anterior gravaria a credencial no lugar que o upgrade apaga. `unpack` e `plugin-init` são
- * aditivos e sozinhos pediriam só o minor.
+ * capacidade, patch quando muda o que ele escreve sem que o pacote passe a depender disso. Em
+ * `2.0.0`: o `deploy` deixou de aceitar `--kernel` (o pacote passa a chegar pelo `unpack`), e as
+ * configurações de backend saíram de `.microteia/` para a raiz da instalação — um Console anterior
+ * gravaria a credencial no lugar que o upgrade apaga. `unpack` e `plugin-init` são aditivos e
+ * sozinhos pediriam só o minor. Em `2.0.1`: o `.gitignore` da instalação passa a descartar os
+ * `examples/`, que o `unpack` reescreve e ninguém versiona.
+ *
+ * Ela NÃO acompanha o `version` do produto, e não é obrigada a andar junto do `MINIMUM_CLI_VERSION`:
+ * este último só se move quando o PACOTE passa a depender de algo que o Console faz.
  */
-export const CLI_VERSION = '2.0.0';
+export const CLI_VERSION = '2.0.1';

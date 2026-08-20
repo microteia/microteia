@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { repoRoot } from '../shared/paths.js';
+import { compareVersions } from '../kernel/manifest.js';
 
 /**
  * `unpack` e `deploy` são comandos separados, e a separação é o contrato — não uma organização interna.
@@ -90,15 +91,20 @@ describe('a fronteira entre unpack e deploy', () => {
    * `1.0.0` enquanto o `deploy` perdia o `--kernel` e a configuração mudava de lugar — um Console
    * anterior teria gravado a credencial exatamente onde o upgrade a apaga, e nada o recusaria.
    *
-   * O par é o contrato: um pacote montado hoje exige um Console que saiba `unpack`, então os dois números
-   * andam juntos enquanto a mudança for do tipo que o pacote passa a DEPENDER.
+   * Os dois números NÃO são o mesmo número, e exigir igualdade aqui era o erro: toda alteração do
+   * Console move o `CLI_VERSION`, e a maioria delas não faz pacote nenhum passar a depender de nada.
+   * O `MINIMUM_CLI_VERSION` se move só quando o PACOTE passa a exigir algo que o Console faz — foi o
+   * caso da configuração de backend na raiz, e é por isso que ele está em `2.0.0`.
+   *
+   * O que tem de valer sempre é a ORDEM: um Console que exigisse de si mesmo uma versão maior do que
+   * a sua recusaria o próprio pacote que acabou de montar.
    */
-  it('a versão do Console acompanha a mudança de contrato, e o pacote exige essa versão', () => {
+  it('o Console nunca exige de si mesmo uma versão maior do que a sua', () => {
     const consoleVersion = /CLI_VERSION = '([^']+)'/.exec(source('shared/paths.ts'))?.[1];
     const required = /MINIMUM_CLI_VERSION = '([^']+)'/.exec(source('kernel/manifest.ts'))?.[1];
 
-    expect(consoleVersion).toBe('2.0.0');
-    expect(required).toBe(consoleVersion);
+    expect(required).toBe('2.0.0');
+    expect(compareVersions(consoleVersion ?? '0.0.0', required ?? '0.0.0')).toBeGreaterThanOrEqual(0);
   });
 
   /**

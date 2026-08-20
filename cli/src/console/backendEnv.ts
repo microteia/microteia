@@ -115,6 +115,8 @@ const GITIGNORE_LINES = [
   '',
   '# Backend settings. These are credentials — never commit them.',
   '.env.*',
+  '# Ignore examples, which are not part of the installation and are not meant to be committed.',
+  'examples/',
 ];
 
 /** Um padrão que cubra `.env.<projectId>`. Não tenta ser um matcher de gitignore: reconhece os usuais. */

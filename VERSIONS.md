@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [7.60.2] — 2026-08-20
+
+- Na instalação da Microteia no Firebase do escritório, a pasta de exemplos de extensão passou a ser descartada do controle de versão: ela é reescrita a cada atualização do sistema e não é conteúdo do escritório.
+
 #### [7.60.1] — 2026-08-20
 
 - Corrigido: um punhado de avisos e rótulos das telas de Automações, Roteiros, Membros e Escritórios aparecia sempre em português, mesmo com outro idioma escolhido — os avisos de erro ao salvar, mover, reordenar ou excluir um passo, os de criar e excluir um roteiro, os de adicionar e remover um membro e o de atualizar o limite de membros, além dos rótulos "Verdadeiro" e "Falso" das condições, do resumo da repetição e das etiquetas de origem ("Cadastro", "Personalizada", "Lista") nos seletores de registro.
