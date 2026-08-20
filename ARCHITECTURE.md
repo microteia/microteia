@@ -1673,6 +1673,20 @@ Toda pergunta aceita ser respondida por FLAG (`--entity yes`), e sem terminal el
 que o mantém usável em CI, num script, ou por uma IA. `create function` acrescenta uma function a uma
 extensão que já existe e atualiza o barril dela.
 
+**O `VERSIONS.md` da extensão nasce junto**, com a entrada da `1.0.0` já escrita e datada. Não é
+formalidade: um histórico que só começa na segunda versão nunca começa — quando alguém sente falta
+dele, a primeira mudança já foi publicada sem registro. O formato é o deste repositório (mais recente
+no topo, `#### [versão] — data`), e a entrada é escrita para quem USA a extensão, nunca para quem a
+escreveu. A regra que fecha o par mora no `AGENTS.md`: **toda alteração sobe `manifest.version` e
+acrescenta uma entrada**, na mesma alteração, e a única exceção é o autor pedir que não suba. Sem
+versão nova, a extensão alterada não é reconhecida como atualização e não chega a quem já a tem
+instalada.
+
+Junto dessa regra, o `AGENTS.md` diz mais duas coisas a quem escreve — pessoa ou IA: **escrever teste
+sempre que der** (o molde já entrega `plugin.test.ts`, que valida o pacote CONSTRUÍDO com a validação
+da plataforma) e **não dar tarefa por concluída com teste vermelho**. O gate do diretório do escritório
+é `tsc --noEmit`, `microteia-plugin check` e `npm test` — os três, não dois.
+
 #### A documentação que viaja
 
 `microteia plugin-init` escreve `extensions/` com `AUTHORING.md` (o manual do autor), `AGENTS.md` e

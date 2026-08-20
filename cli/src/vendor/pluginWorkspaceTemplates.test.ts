@@ -152,6 +152,41 @@ describe('o workspace de autoria de extensões', () => {
     it('exige que texto de usuário nasça como referência de mensagem', () => {
       expect(agents).toContain('@com.example.hello/field.title');
     });
+
+    /**
+     * A regra que uma IA mais deixa passar: mudar a extensão e não subir a versão. Sem versão nova, a
+     * extensão alterada não é reconhecida como atualização e não chega a quem já a tem instalada — o
+     * trabalho fica feito no diretório e ausente no escritório.
+     */
+    it('manda subir a versão e escrever a entrada do VERSIONS.md na mesma alteração', () => {
+      expect(agents).toContain('manifest.version');
+      expect(agents).toContain('VERSIONS.md');
+      expect(agents).toMatch(/semver/i);
+    });
+
+    it('diz que a entrada é para quem USA a extensão, e não é a mensagem de commit', () => {
+      expect(agents).toContain('not the commit message');
+    });
+
+    /** Subir a versão é parte da alteração; a única saída é o próprio autor pedir que não suba. */
+    it('deixa a exceção explícita: só não sobe a versão se pedirem que não suba', () => {
+      expect(agents).toContain('The only exception is being');
+    });
+
+    it('manda escrever teste sempre que der, e nomeia o comando', () => {
+      expect(agents).toContain('## Tests');
+      expect(agents).toContain('npm test');
+      expect(agents).toContain('plugin.test.ts');
+    });
+
+    /**
+     * "Pronto, só falta um teste" é o relatório que este parágrafo existe para proibir: o gate não é
+     * um conselho, e teste vermelho não é ressalva de entrega.
+     */
+    it('proíbe dar a tarefa por concluída com teste falhando', () => {
+      expect(agents).toContain('A failing test means the task is not done.');
+      expect(agents).toContain('all three of these pass');
+    });
   });
 
   describe('o manual de autoria', () => {
@@ -185,6 +220,11 @@ describe('o workspace de autoria de extensões', () => {
       expect(guide).toContain('Code trust');
     });
 
+    it('registra a rotina de versão junto da identidade, que é onde se procura por ela', () => {
+      expect(guide).toContain('VERSIONS.md');
+      expect(guide).toContain('raises `manifest.version`');
+    });
+
     it('explica os limites de tamanho, que decidem o desenho antes de qualquer código', () => {
       expect(guide).toContain('400 KiB');
       expect(guide).toContain('800 KiB');
@@ -203,5 +243,11 @@ describe('o workspace de autoria de extensões', () => {
 
   it('o README manda rodar npm install depois de cada deploy — é o que casa SDK e instalação', () => {
     expect(workspaceReadme('Acme', '1.3.0')).toContain('npm install');
+  });
+
+  it('o README descreve a pasta de uma extensão COM o VERSIONS.md', () => {
+    const readme = workspaceReadme('Acme', '1.3.0');
+    expect(readme).toContain('VERSIONS.md');
+    expect(readme).toContain('manifest.version');
   });
 });

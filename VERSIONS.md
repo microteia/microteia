@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [7.61.0] — 2026-08-20
+
+- Toda extensão criada pelo assistente de criação nasce agora com o próprio arquivo de notas de versão, já com a primeira entrada escrita e datada — o histórico de uma extensão passa a existir desde a primeira versão, e não a partir do dia em que alguém sente falta dele.
+- As instruções entregues a quem escreve extensões (inclusive a um assistente de IA) passaram a exigir três coisas: subir a versão da extensão e registrar o que mudou a cada alteração, escrever testes sempre que possível, e não dar uma tarefa por concluída enquanto houver teste falhando.
+
 #### [7.60.2] — 2026-08-20
 
 - Na instalação da Microteia no Firebase do escritório, a pasta de exemplos de extensão passou a ser descartada do controle de versão: ela é reescrita a cada atualização do sistema e não é conteúdo do escritório.

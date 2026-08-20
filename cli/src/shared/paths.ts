@@ -20,9 +20,11 @@ export const repoRoot = resolve(here, '..', '..', '..');
  * configurações de backend saíram de `.microteia/` para a raiz da instalação — um Console anterior
  * gravaria a credencial no lugar que o upgrade apaga. `unpack` e `plugin-init` são aditivos e
  * sozinhos pediriam só o minor. Em `2.0.1`: o `.gitignore` da instalação passa a descartar os
- * `examples/`, que o `unpack` reescreve e ninguém versiona.
+ * `examples/`, que o `unpack` reescreve e ninguém versiona. Em `2.0.2`: o `AGENTS.md` e o
+ * `AUTHORING.md` que ele escreve passam a cobrar versão, entrada de histórico e teste a cada
+ * alteração de extensão.
  *
  * Ela NÃO acompanha o `version` do produto, e não é obrigada a andar junto do `MINIMUM_CLI_VERSION`:
  * este último só se move quando o PACOTE passa a depender de algo que o Console faz.
  */
-export const CLI_VERSION = '2.0.1';
+export const CLI_VERSION = '2.0.2';

@@ -297,6 +297,36 @@ const functionsIndexTs = (names: string[]): string =>
 ${names.map((name) => `export { ${name} } from './${name}';`).join('\n')}
 `;
 
+/**
+ * O `VERSIONS.md` da extensão. Mesma separação que vale no repositório do kernel: a mensagem de commit
+ * é para quem escreve o código, e esta entrada é para quem USA a extensão — uma frase sobre o que
+ * mudou, sem nome de arquivo, de campo interno ou de função.
+ *
+ * Nasce junto com a extensão porque um histórico que começa na segunda versão nunca começa: quando
+ * alguém percebe que faz falta, a primeira mudança já foi publicada sem registro.
+ */
+const versionsMd = (spec: PluginSpec, date: string): string => `# Release notes — ${spec.name}
+
+> What changed in this extension, in the words of someone who uses it. The technical history is in
+> your commits; this file is not.
+
+Each entry matches \`manifest.version\` in \`plugin.ts\`. The newest one goes on top.
+
+<!-- A new entry goes here, above the previous ones:
+
+#### [1.0.1] — YYYY-MM-DD
+
+- What a person will notice, in one plain sentence.
+-->
+
+#### [1.0.0] — ${date}
+
+- First version.
+`;
+
+/** A data de hoje, em ISO. Fora do molde para que o teste possa carimbar a sua. */
+const todayIso = (): string => new Date().toISOString().slice(0, 10);
+
 const readmeMd = (spec: PluginSpec): string => `# ${spec.id}
 
     npx tsc --noEmit                              # types
@@ -318,6 +348,14 @@ Add another with:
 
     npx microteia-plugin create function --plugin ${folderOf(spec.id)}
 ` : ''}
+## Every change raises the version
+
+Raise \`manifest.version\` in \`plugin.ts\` and add an entry at the top of \`VERSIONS.md\`, in the same
+change. That entry is written for whoever *uses* the extension — what they will notice, in one plain
+sentence — and is not the commit message.
+
+    npm test        # nothing is finished while a test fails
+
 See \`../AUTHORING.md\` for the full contract.
 `;
 
@@ -374,6 +412,7 @@ export const scaffoldPlugin = (
   write('messages.ts', messagesTs(spec));
   write('plugin.test.ts', testTs(spec));
   write('README.md', readmeMd(spec));
+  write('VERSIONS.md', versionsMd(spec, todayIso()));
   if (spec.view) write('views/Summary.view.tsx', viewTsx(spec));
 
   const result: ScaffoldResult = { directory, files };

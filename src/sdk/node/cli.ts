@@ -209,7 +209,11 @@ const createPlugin = async (args: Args): Promise<number> => {
     say('Next:');
     say(`  ${DIM}npx tsc --noEmit${RESET}`);
     say(`  ${DIM}npx microteia-plugin check ${folder}/plugin.ts${RESET}`);
+    say(`  ${DIM}npm test${RESET}`);
     say(`  ${DIM}npx microteia-plugin build ${folder}/plugin.ts${RESET}`);
+    say();
+    say(`  ${DIM}Every change from here raises manifest.version and adds an entry on top of${RESET}`);
+    say(`  ${DIM}${folder}/VERSIONS.md — that is how an installed extension recognises an update.${RESET}`);
 
     if (functions) {
       say();

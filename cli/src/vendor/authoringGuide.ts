@@ -95,6 +95,12 @@ view carries its \`source\` inline. The compiler turns the first into the second
 a domain you control. \`manifest.version\` is semver. \`manifest.kernel\` is the range of platform
 contracts you work against — \`^${kernelVersion}\` for what is installed here.
 
+Every change to an extension raises \`manifest.version\`, and records itself as one entry at the top of
+that extension's \`VERSIONS.md\` — the file \`create\` generates next to \`plugin.ts\`. The entry is
+written for whoever *uses* the extension: what they will notice, in one plain sentence, never the file
+or the field you touched. An extension changed without a new version is an extension that never reaches
+the organizations that already have it: the version is the whole of how an update is recognised.
+
 ### References between your own artifacts
 
 Inside the package, artifacts point at each other by \`templateId\` (automations, actions, scripts) or
