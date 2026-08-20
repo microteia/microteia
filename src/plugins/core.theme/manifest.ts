@@ -19,6 +19,7 @@ export const coreThemePlugin: PluginRecord = {
     id: 'core.theme',
     version: '1.0.0',
     kernel: '^1.0.0',
+    // eslint-disable-next-line no-restricted-syntax -- metadado do plugin do NÚCLEO: não é renderizado.
     name: 'Appearance Core',
     description:
       // eslint-disable-next-line no-restricted-syntax -- metadado do plugin do NÚCLEO: não é renderizado.

@@ -167,6 +167,7 @@ export const CORE_UI: Record<string, string> = {
   'field.option.delete.title': 'Excluir opção',
   'field.option.delete.message':
     'Tem certeza que deseja excluir esta opção? Registros que a utilizam manterão o valor salvo.',
+  'dynamic-select.option.delete.title': 'Excluir item',
   'dynamic-select.option.delete.message': 'Deseja excluir "{label}"? Esta ação não pode ser desfeita.',
   'filter.search': 'Busca',
   'filter.category': 'Categoria',
@@ -215,6 +216,7 @@ export const CORE_UI: Record<string, string> = {
   'filter.none-selected': 'Nenhum selecionado',
   'filter.selected.one': '{count} selecionado',
   'filter.selected.other': '{count} selecionados',
+  'filter.edit': 'Editar filtro {field}',
   'filter.value.remove': 'Remover este valor',
   'filter.type.multiselect': 'múltiplos',
   'filter.type.text': 'texto',

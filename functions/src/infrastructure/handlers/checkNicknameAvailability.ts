@@ -29,7 +29,7 @@ export const checkNicknameAvailability = onCall(
       };
     } catch (err) {
       if (err instanceof HttpsError) throw err;
-      const message = err instanceof Error ? err.message : 'Erro ao verificar disponibilidade do apelido.';
+      const message = err instanceof Error ? err.message : '@core.workspace/profile.nickname.check-failed';
       throw new HttpsError('internal', message);
     }
   },

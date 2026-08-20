@@ -1,4 +1,6 @@
 import type { PluginRecord } from '../../kernel';
+import { messageBundleContribution } from '../../domain/schema/i18n/extensionPoints';
+import { coreMessage, CORE_DATA_MESSAGES } from '../coreMessages';
 import {
   DATA_EXTENSION_POINTS,
   ENTITY_CONTRIBUTIONS,
@@ -19,12 +21,14 @@ export const coreDataPlugin: PluginRecord = {
     id: 'core.data',
     version: '1.0.0',
     kernel: '^1.0.0',
+    // eslint-disable-next-line no-restricted-syntax -- metadado do plugin do NÚCLEO: não é renderizado.
     name: 'Entities and Lists',
     description:
       // eslint-disable-next-line no-restricted-syntax -- metadado do plugin do NÚCLEO: não é renderizado.
       'Declares the data extension points and exposes the native entities, lookups, ready-made masks/formats/validations and external data lookups.',
     extensionPoints: DATA_EXTENSION_POINTS,
     contributes: [
+      messageBundleContribution(coreMessage('core.data', CORE_DATA_MESSAGES)),
       ...ENTITY_CONTRIBUTIONS,
       ...LOOKUP_CONTRIBUTIONS,
       ...FIELD_RULE_PRESET_CONTRIBUTIONS,

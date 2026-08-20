@@ -14,6 +14,7 @@ export const coreAdminPlugin: PluginRecord = {
     id: 'core.admin',
     version: '1.0.0',
     kernel: '^1.0.0',
+    // eslint-disable-next-line no-restricted-syntax -- metadado do plugin do NÚCLEO: não é renderizado.
     name: 'Organization Administration',
     dependencies: { 'core.ui': '^1.0.0' },
     contributes: [

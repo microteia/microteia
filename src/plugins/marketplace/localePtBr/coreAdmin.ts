@@ -83,6 +83,7 @@ export const CORE_ADMIN: Record<string, string> = {
   'access.users.role-update-failed': 'Erro ao atualizar o perfil do usuário.',
   'processor.ai.label': 'IA a utilizar',
   'processor.ai.none': 'Nenhuma inteligência artificial cadastrada neste escritório.',
+  'processor.ai.none-selected': 'Nenhuma IA selecionada para extrair os dados.',
   'processor.ai.placeholder': 'Selecione a IA',
   'processor.ai.register': 'Cadastrar uma IA nas configurações →',
   'processor.back': 'Voltar',

@@ -1,9 +1,15 @@
 import type { InputMapping, WorkflowEvent } from './Workflow';
 
+/**
+ * O `message` do logger do MOTOR é uma REFERÊNCIA (`@core.automation/…`), e `params` traz o que a
+ * frase interpola — a linha é gravada em `execution.logs` e lida na tela, no idioma de quem lê.
+ * O `console.log` que o Script do escritório emite entra pelo mesmo método como texto cru: quem
+ * resolve trata o que não começa com `@` como já pronto, então as duas naturezas convivem.
+ */
 export interface WorkflowLogger {
-  info(message: string): void;
-  warn(message: string): void;
-  error(message: string): void;
+  info(message: string, params?: Record<string, string>): void;
+  warn(message: string, params?: Record<string, string>): void;
+  error(message: string, params?: Record<string, string>): void;
 }
 
 export interface WorkflowServices {

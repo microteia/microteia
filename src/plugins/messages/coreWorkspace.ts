@@ -100,6 +100,8 @@ export const CORE_WORKSPACE_MESSAGES: Record<string, string> = {
   'tenant.none-found':
     'No organization found for this user. Reload the page; if the problem persists, contact support.',
   'user.not-a-member': 'The user does not belong to this organization.',
+  'profile.nickname.check-failed': 'Could not check whether the nickname is available.',
+  'profile.nickname.claim-failed': 'Could not register the nickname.',
   'profile.nickname.bad-format': 'Invalid nickname format.',
   'profile.nickname.not-allowed': 'This nickname is not allowed.',
   'google.exchange-failed': 'Could not exchange the code: {detail}',
@@ -112,6 +114,8 @@ export const CORE_WORKSPACE_MESSAGES: Record<string, string> = {
   'gmail.admin-only': 'Only administrators can see the organization Gmail accounts.',
   'gmail.connection-not-found': 'Connection not found in this organization.',
   'gmail.exchange-error': 'Could not exchange the OAuth code.',
+  'gmail.list-failed': 'Could not list the Gmail accounts.',
+  'gmail.revoke-failed': 'Could not revoke the Gmail account.',
   'gmail.oauth-missing': 'OAuth credentials are not configured in the backend.',
   'gmail.setup-failed': 'Could not finish setting up the Gmail integration: {detail}',
   'gmail.topic-missing': 'The Gmail topic is not configured in the backend.',

@@ -27,7 +27,7 @@ export const claimNickname = onCall(
       return { success: true };
     } catch (err) {
       if (err instanceof HttpsError) throw err;
-      const message = err instanceof Error ? err.message : 'Erro ao reivindicar apelido.';
+      const message = err instanceof Error ? err.message : '@core.workspace/profile.nickname.claim-failed';
       
       throw new HttpsError(domainErrorCode(err) ?? 'internal', message);
     }

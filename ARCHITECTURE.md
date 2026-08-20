@@ -5690,6 +5690,85 @@ chave (`command.system.theme.keywords`, valores separados por vírgula). Sem iss
 português procuraria por "aparência" e não acharia o item de tema, por mais bem traduzido que o rótulo
 estivesse.
 
+### O que o BACKEND traduz — e por qual caminho
+
+O backend não tem catálogo carregado e não sabe quem vai ler. Por isso ele nunca formata uma frase:
+ele devolve a **referência** e os **valores**, e quem resolve é a tela, com o catálogo de quem lê. São
+três portas, e a diferença entre elas é apenas *onde a linha desemboca*:
+
+| Porta | Forma | Exemplo |
+|---|---|---|
+| `HttpsError` de um handler | a mensagem É a referência | `new HttpsError('internal', '@core.tenant/member.add-failed')` |
+| Resultado de Step / mutação | `{ message, messageParams }` | `{ success: false, message: '@core.automation/mutation.upsert.invalid', ... }` |
+| Log de execução (`context.logger`) | `warn(ref, params)` | `context.logger.warn('@core.automation/condition.field.eval-failed', { detail })` |
+
+A terceira porta não existia: `WorkflowLogger` só aceitava `message: string`, e toda mensagem do motor
+interpolava valor — não havia como traduzi-la sem perder o valor. Os três métodos passaram a aceitar
+`params?: Record<string, string>`, e o `captureLogger` do `WorkflowExecutor` os grava no
+`WorkflowExecutionLogEntry.messageParams`, que a aba de Execuções e o modal de Run já resolviam.
+
+> **O mesmo método carrega as duas naturezas, de propósito.** O `console.log` que o Script do
+> escritório emite entra por `context.logger.info` como texto **cru** — é frase dele, não nossa, e não
+> se traduz. Quem resolve trata o que não começa com `@` como já pronto, então uma porta só basta e
+> não há decisão a tomar no ponto de emissão.
+
+**`services.logger` não é `context.logger`.** O primeiro vai só para o Cloud Logging e é lido por
+quem opera o sistema — ali o português continua, pelo mesmo motivo que `console.*` continua. O segundo
+é o `captureLogger`, e o que passa por ele **aparece na tela**. `WorkflowContextHydrator`,
+`RunWorkflowsForEventUseCase` e a falha de boot de `loadWorkflowPlugins` usam o primeiro; foi por isso
+que ficaram de fora da migração, e não por esquecimento.
+
+### O metadado de plugin do NÚCLEO não é referência — e o ESLint agora sabe disso
+
+`manifest.name` de um plugin do kernel nunca chega a uma tela: quem renderiza nome de pacote é a tela
+de Extensões, e ela lê `MarketplacePlugin`, não `PluginRecord`. Por isso ele fica no **idioma-fonte**,
+como literal, com `eslint-disable-next-line no-restricted-syntax` e a razão escrita — o mesmo
+tratamento que `description` já recebia nos quinze manifests.
+
+O que **não** é metadado inerte é a metadata de **contribuição**. `workflowStep({ name: … })` declarava
+os nove nomes de Step em português — *Notificar*, *Buscar Registros*, *Encerrar Workflow* — enquanto o
+catálogo já tinha as onze chaves e cada `StepDefinition` já apontava para a sua. Duas verdades, e elas
+já haviam divergido. A regra que o vizinho `expressionFunction` documenta ("a metadata é DERIVADA do
+próprio objeto; duplicá-la só criaria duas verdades") vale igual aqui, com a diferença de que o
+`StepDefinition` só existe depois que a fábrica recebe as dependências — então o manifest repete a
+**referência**, não a frase.
+
+O gate passou a cobrar isto: `Property[key.name='manifest'] Property[key.name='name']`. A ancestralidade
+não é decoração — fora de um manifest, `name` é IDENTIFICADOR (nome de função de expressão, símbolo de
+operador, chave de provedor), e vigiá-la em todo lugar produzia sessenta acusações das quais quarenta e
+duas eram ruído. `publisher.name` fica de fora: editora é marca.
+
+### O gate de referências não olhava o backend
+
+`verify-messages` já conferia toda referência `@ns/chave` — mas só dentro de `src/`. O backend ficava
+de fora justamente por ser onde a referência é a única forma possível: ele não tem `useT`, devolve a
+referência e deixa a resolução para a tela. Resultado: era o único lugar do projeto onde uma
+referência podia apontar para o vazio indefinidamente, e apontava.
+
+Duas apontavam para o namespace errado (`@core.admin/member.limit-reached-error` e
+`@core.admin/member.already-member`, ambas moradoras de `core.tenant`), e seis categorias de função de
+expressão declaradas em `EXPRESSION_CATEGORIES` nunca existiram no catálogo — `logic`, `validation`,
+`object`, `list`, `conversion`, `context`. As seis eram membros MORTOS da união: nenhuma função as
+usava, e o comentário do próprio arquivo prometia que `verify-messages` as conferia. Foram removidas,
+e agora a promessa é verdadeira — a união volta a barrar a categoria escrita errado, que é a única
+razão de ela ser fechada.
+
+O que a resolução tolerante faz com uma referência órfã é mostrá-la crua: quem lia a tela via
+`@core.admin/member.limit-reached-error`. Tolerar é correto em runtime — o texto do escritório passa
+pelo mesmo caminho — e é exatamente por isso que a checagem tem de ser estática.
+
+### Traduzir nos dois sentidos — o namespace que ninguém publicava
+
+`localePilot.test.ts` exigia que toda chave publicada em `en` tivesse par em `pt-BR`. A direção
+contrária não era exigida, e o buraco custou um namespace inteiro: **`core.data` publicava vinte e uma
+chaves em português e nenhuma em inglês** — `CORE_DATA_MESSAGES` existia, completo, e
+`core.data/manifest.ts` simplesmente nunca contribuía o bundle. Com o pacote de idioma instalado tudo
+parecia certo; sem ele, `@core.data/lookup.field.label` aparecia cru na tela.
+
+O teste novo — *"não traduz chave que o núcleo não publica no idioma-fonte"* — fecha a simetria. Ele
+não é elegância: traduzir uma chave que não tem fonte é traduzir para ninguém, e o defeito é invisível
+para exatamente quem tem mais chance de encontrá-lo primeiro.
+
 ### A extensão AGNÓSTICA de negócio nasce no idioma-fonte
 
 Três das extensões de primeira parte não pertencem a ramo nenhum: **Calendário**, **Painel** e

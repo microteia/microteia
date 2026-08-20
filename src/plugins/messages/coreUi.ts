@@ -168,6 +168,7 @@ export const CORE_UI_MESSAGES: Record<string, string> = {
   'field.option.delete.title': 'Delete option',
   'field.option.delete.message':
     'Are you sure you want to delete this option? Records using it will keep the saved value.',
+  'dynamic-select.option.delete.title': 'Delete item',
   'dynamic-select.option.delete.message': 'Delete "{label}"? This action cannot be undone.',
   'filter.search': 'Search',
   'filter.category': 'Category',
@@ -216,6 +217,7 @@ export const CORE_UI_MESSAGES: Record<string, string> = {
   'filter.none-selected': 'None selected',
   'filter.selected.one': '{count} selected',
   'filter.selected.other': '{count} selected',
+  'filter.edit': 'Edit filter {field}',
   'filter.value.remove': 'Remove this value',
   'filter.type.multiselect': 'multiple',
   'filter.type.text': 'text',

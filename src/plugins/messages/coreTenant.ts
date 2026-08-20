@@ -55,6 +55,7 @@ export const CORE_TENANT_MESSAGES: Record<string, string> = {
   'ai.api-key.hint.existing': 'The current key stays stored in a restricted area. Leave it blank to keep it.',
   'ai.api-key.hint.new': 'The key is stored in a restricted area and never comes back to the browser.',
   'ai.api-key.placeholder': 'Key on file — fill in to replace it',
+  'ai.call-failed': 'Could not reach the AI.',
   'ai.default': 'Default',
   'ai.delete-failed': 'Could not delete the connection.',
   'ai.delete.message': 'Do you want to remove the connection "{name}"? This cannot be undone.',

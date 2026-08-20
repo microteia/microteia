@@ -70,7 +70,7 @@ export class FirebaseTenantRepository implements ITenantRepository {
       }
       const memberSnap = await tx.get(memberRef);
       if (memberSnap.exists) {
-        throw alreadyExists('@core.admin/member.already-member');
+        throw alreadyExists('@core.tenant/member.already-member');
       }
 
       const data = tenantSnap.data()!;

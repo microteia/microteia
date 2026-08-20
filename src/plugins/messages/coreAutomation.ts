@@ -805,6 +805,8 @@ export const CORE_AUTOMATION_MESSAGES: Record<string, string> = {
   'step.validate.invalid-object': 'Invalid object: {detail}',
   'step.validate.invalid-source': 'The validation source is not a valid object',
   'step.validate.not-configured': 'The validation is not configured',
+  'condition.field.eval-failed': 'Could not evaluate the field condition: {detail}',
+  'condition.expression.eval-failed': 'Could not evaluate the expression condition: {detail}',
   'condition.kind.unsupported': 'Unsupported condition kind: "{kind}"',
   'condition.operator.unsupported': 'Unsupported comparison operator: "{operator}"',
   'expr.error.arithmetic':
@@ -878,6 +880,8 @@ export const CORE_AUTOMATION_MESSAGES: Record<string, string> = {
   'input.required': 'The required input "{label}" was not provided',
   'mutation.remove.invalid': 'Invalid deletion: {detail}',
   'mutation.upsert.invalid': 'Invalid write: {detail}',
+  'mutation.upsert.unwritable-ignored':
+    'Write to "{table}": {count} field(s) that cannot be written were ignored — {fields}',
   'query.invalid': 'Invalid query: {detail}',
   'script.mutation-limit': 'The Script write/delete limit was exceeded.',
   'script.no-output-object': 'The Script must return an object with the output fields.',

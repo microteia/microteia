@@ -24,6 +24,7 @@ export const coreI18nPlugin: PluginRecord = {
     id: 'core.i18n',
     version: '1.0.0',
     kernel: '^1.0.0',
+    // eslint-disable-next-line no-restricted-syntax -- metadado do plugin do NÚCLEO: não é renderizado.
     name: 'Language Core',
     description:
       // eslint-disable-next-line no-restricted-syntax -- metadado do plugin do NÚCLEO: não é renderizado.

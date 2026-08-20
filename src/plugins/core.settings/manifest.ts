@@ -17,6 +17,7 @@ export const coreSettingsPlugin: PluginRecord = {
     id: 'core.settings',
     version: '1.0.0',
     kernel: '^1.0.0',
+    // eslint-disable-next-line no-restricted-syntax -- metadado do plugin do NÚCLEO: não é renderizado.
     name: 'Settings',
     // eslint-disable-next-line no-restricted-syntax -- metadado do plugin do NÚCLEO: não é renderizado.
     description: 'The screen where plugins register what they accept configuring, per organization and per user.',

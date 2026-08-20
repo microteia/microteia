@@ -84,6 +84,7 @@ export const CORE_ADMIN_MESSAGES: Record<string, string> = {
   'access.users.role-update-failed': 'Could not update the user role.',
   'processor.ai.label': 'AI to use',
   'processor.ai.none': 'No artificial intelligence registered in this organization.',
+  'processor.ai.none-selected': 'No AI selected to extract the data.',
   'processor.ai.placeholder': 'Select the AI',
   'processor.ai.register': 'Register an AI in the settings →',
   'processor.back': 'Back',

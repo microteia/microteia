@@ -7,7 +7,8 @@ export const coreCapabilitiesPlugin: PluginRecord = {
     id: 'core.capabilities',
     version: '1.0.0',
     kernel: '^1.0.0',
-    name: 'Capacidades',
+    // eslint-disable-next-line no-restricted-syntax -- metadado do plugin do NÚCLEO: não é renderizado.
+    name: 'Capabilities',
     description:
       '@core.marketplace/plugin.capabilities.description',
     extensionPoints: CAPABILITY_EXTENSION_POINTS,

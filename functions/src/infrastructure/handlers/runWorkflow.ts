@@ -234,7 +234,7 @@ export const runWorkflow = onCall(
 
       if (text && text.trim() && params.length > 0) {
         if (!connectionId) {
-          throw new HttpsError('invalid-argument', 'Nenhuma IA selecionada para extrair os dados.');
+          throw new HttpsError('invalid-argument', '@core.admin/processor.ai.none-selected');
         }
         const credentials = await di.getAIConnectionRepository().getCredentialsById(tenantId, connectionId);
         const schemaJson = buildSchemaForPrompt(params);

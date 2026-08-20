@@ -13,6 +13,17 @@ const ROOT = path.resolve(__dirname, '..');
 const SRC = path.join(ROOT, 'src');
 
 /**
+ * O BACKEND entra na conferência de referências, e não entrava.
+ *
+ * Ele não tem `useT` — devolve a REFERÊNCIA e quem resolve é a tela —, então era o único lugar onde
+ * uma referência podia apontar para o vazio sem ninguém notar. Foi o que aconteceu com
+ * `@core.admin/member.limit-reached-error` (a chave mora em `core.tenant`) e com seis categorias de
+ * função de expressão que nunca existiram no catálogo: o que a pessoa lia na tela era o texto cru
+ * "@core.admin/member.limit-reached-error".
+ */
+const FUNCTIONS_SRC = path.join(ROOT, 'functions', 'src');
+
+/**
  * Os namespaces do NÚCLEO, cujo catálogo de origem mora em `src/plugins/messages/`.
  *
  * Uma EXTENSÃO não entra aqui: o catálogo dela viaja dentro do pacote, e é `PLUGIN_CATALOG_BY_NS`
@@ -178,6 +189,10 @@ const checkMessageBuilder = (file, source) => {
     }
   }
 };
+
+for (const file of walk(FUNCTIONS_SRC)) {
+  checkReferences(file, fs.readFileSync(file, 'utf8').replace(/\/\*[\s\S]*?\*\//g, ''));
+}
 
 for (const file of walk(SRC)) {
   const source = fs.readFileSync(file, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');

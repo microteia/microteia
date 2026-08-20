@@ -100,6 +100,8 @@ export const CORE_WORKSPACE: Record<string, string> = {
   'tenant.none-found':
     'Nenhum escritório encontrado para este usuário. Recarregue a página; se o problema persistir, contate o suporte.',
   'user.not-a-member': 'Usuário não pertence a este escritório.',
+  'profile.nickname.check-failed': 'Não foi possível verificar a disponibilidade do apelido.',
+  'profile.nickname.claim-failed': 'Não foi possível registrar o apelido.',
   'profile.nickname.bad-format': 'Formato de apelido inválido.',
   'profile.nickname.not-allowed': 'Este apelido não é permitido.',
   'google.exchange-failed': 'Erro ao trocar código: {detail}',
@@ -112,6 +114,8 @@ export const CORE_WORKSPACE: Record<string, string> = {
   'gmail.admin-only': 'Apenas administradores podem ver as contas Gmail do escritório.',
   'gmail.connection-not-found': 'Conexão não encontrada neste escritório.',
   'gmail.exchange-error': 'Erro ao trocar código OAuth.',
+  'gmail.list-failed': 'Não foi possível listar as contas do Gmail.',
+  'gmail.revoke-failed': 'Não foi possível revogar a conta do Gmail.',
   'gmail.oauth-missing': 'Credenciais OAuth não configuradas no backend.',
   'gmail.setup-failed': 'Falha ao configurar integração Gmail completa: {detail}',
   'gmail.topic-missing': 'Tópico Gmail não configurado no backend.',

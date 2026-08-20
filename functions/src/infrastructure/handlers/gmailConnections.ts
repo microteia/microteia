@@ -44,7 +44,7 @@ export const listGmailConnections = onCall(
         scope: GMAIL_READONLY_SCOPE,
       };
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Erro ao listar contas Gmail.';
+      const message = err instanceof Error ? err.message : '@core.workspace/gmail.list-failed';
       throw new HttpsError(domainErrorCode(err) ?? 'internal', message);
     }
   },
@@ -70,7 +70,7 @@ export const revokeGmailConnection = onCall(
       await getDI().getRevokeGmailConnectionUseCase().execute(tenantId, request.auth.uid, connectionId);
       return { revoked: true };
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Erro ao revogar conta Gmail.';
+      const message = err instanceof Error ? err.message : '@core.workspace/gmail.revoke-failed';
       throw new HttpsError(domainErrorCode(err) ?? 'internal', message);
     }
   },

@@ -66,6 +66,7 @@ const CORE_TENANT_PT_BR: Record<string, string> = {
     'A chave atual permanece guardada em área restrita. Deixe em branco para mantê-la.',
   'ai.api-key.hint.new': 'A chave fica guardada em área restrita e nunca volta para o navegador.',
   'ai.api-key.placeholder': 'Chave cadastrada — preencha para substituir',
+  'ai.call-failed': 'Não foi possível contactar a IA.',
   'ai.default': 'Padrão',
   'ai.delete-failed': 'Erro ao excluir conexão.',
   'ai.delete.message': 'Deseja remover a conexão "{name}"? Esta ação não pode ser desfeita.',

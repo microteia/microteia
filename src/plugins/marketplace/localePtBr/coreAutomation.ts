@@ -808,6 +808,8 @@ export const CORE_AUTOMATION: Record<string, string> = {
   'step.validate.invalid-object': 'Objeto inválido: {detail}',
   'step.validate.invalid-source': 'Origem da validação não é um objeto válido',
   'step.validate.not-configured': 'Validação não configurada',
+  'condition.field.eval-failed': 'Erro ao avaliar condição de campo: {detail}',
+  'condition.expression.eval-failed': 'Erro ao avaliar condição de expressão: {detail}',
   'condition.kind.unsupported': 'Tipo de condição não suportado: "{kind}"',
   'condition.operator.unsupported': 'Operador de comparação não suportado: "{operator}"',
   'expr.error.arithmetic':
@@ -883,6 +885,8 @@ export const CORE_AUTOMATION: Record<string, string> = {
   'input.required': 'Entrada obrigatória "{label}" não foi informada',
   'mutation.remove.invalid': 'Exclusão inválida: {detail}',
   'mutation.upsert.invalid': 'Gravação inválida: {detail}',
+  'mutation.upsert.unwritable-ignored':
+    'Gravação em "{table}": {count} campo(s) não gravável(is) foram ignorados — {fields}',
   'query.invalid': 'Consulta inválida: {detail}',
   'script.mutation-limit': 'Limite de gravações/exclusões do Script excedido.',
   'script.no-output-object': 'O Script deve retornar um objeto com os campos de saída.',

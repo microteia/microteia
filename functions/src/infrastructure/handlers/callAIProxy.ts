@@ -30,7 +30,7 @@ export const callAIProxy = onCall(
       return { analysis };
     } catch (err) {
       if (err instanceof HttpsError) throw err;
-      const message = err instanceof Error ? err.message : 'Erro ao contactar a IA.';
+      const message = err instanceof Error ? err.message : '@core.tenant/ai.call-failed';
       throw new HttpsError('internal', message);
     }
   },

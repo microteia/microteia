@@ -9,18 +9,12 @@ export const EXPRESSION_CATEGORIES = [
   '@core.automation/expr.category.date',
   '@core.automation/expr.category.text',
   '@core.automation/expr.category.math',
-  '@core.automation/expr.category.logic',
-  '@core.automation/expr.category.validation',
   '@core.automation/expr.category.conditional',
   '@core.automation/expr.category.variable',
   '@core.automation/expr.category.operator',
   '@core.automation/expr.category.arithmetic',
   '@core.automation/expr.category.comparison',
   '@core.automation/expr.category.logical',
-  '@core.automation/expr.category.object',
-  '@core.automation/expr.category.list',
-  '@core.automation/expr.category.conversion',
-  '@core.automation/expr.category.context',
 ] as const;
 
 export type ExpressionCategory = (typeof EXPRESSION_CATEGORIES)[number];

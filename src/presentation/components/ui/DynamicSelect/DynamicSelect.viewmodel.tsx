@@ -78,11 +78,11 @@ export const useDynamicSelectViewModel = (props: DynamicSelectProps): DynamicSel
     onChange,
     values = [],
     onChangeMulti,
-    placeholder = 'Selecione...',
+    placeholder = t('select.placeholder'),
     disabled = false,
     onAdd,
     onDelete,
-    deleteConfirmTitle = 'Excluir item',
+    deleteConfirmTitle = t('dynamic-select.option.delete.title'),
     deleteConfirmMessage: deleteConfirmMessageProp,
   } = props;
 

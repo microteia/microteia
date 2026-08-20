@@ -36,10 +36,10 @@ export const addTenantMember = onCall(
       return { success: true };
     } catch (err) {
       if (err instanceof HttpsError) throw err;
-      const message = err instanceof Error ? err.message : 'Erro ao adicionar membro.';
+      const message = err instanceof Error ? err.message : '@core.tenant/member.add-failed';
 
       if (message === 'MEMBER_LIMIT_REACHED') {
-        throw new HttpsError('resource-exhausted', '@core.admin/member.limit-reached-error');
+        throw new HttpsError('resource-exhausted', '@core.tenant/member.limit-reached-error');
       }
       throw new HttpsError(domainErrorCode(err) ?? 'internal', message);
     }

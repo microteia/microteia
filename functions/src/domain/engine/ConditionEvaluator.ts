@@ -80,7 +80,9 @@ export const evaluateCondition = (condition: Condition, context: WorkflowContext
         return evaluateFieldComparison(condition, context);
       } catch (error) {
         // Log de debug mas não quebra a execução
-        context.logger.warn(`Erro ao avaliar condição de campo: ${error instanceof Error ? error.message : String(error)}`);
+        context.logger.warn('@core.automation/condition.field.eval-failed', {
+          detail: error instanceof Error ? error.message : String(error),
+        });
         return false;
       }
 
@@ -88,7 +90,9 @@ export const evaluateCondition = (condition: Condition, context: WorkflowContext
       try {
         return Boolean(expressionEngine.evaluate(condition.expression, context));
       } catch (error) {
-        context.logger.warn(`Erro ao avaliar condição de expressão: ${error instanceof Error ? error.message : String(error)}`);
+        context.logger.warn('@core.automation/condition.expression.eval-failed', {
+          detail: error instanceof Error ? error.message : String(error),
+        });
         return false;
       }
 

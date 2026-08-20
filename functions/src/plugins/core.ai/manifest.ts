@@ -22,7 +22,8 @@ export const coreAiPlugin: PluginRecord = {
     id: 'core.ai',
     version: '1.0.0',
     kernel: '^1.0.0',
-    name: 'Provedores de IA',
+    // eslint-disable-next-line no-restricted-syntax -- metadado do plugin do NÚCLEO: não é renderizado.
+    name: 'AI Providers',
     dependencies: { 'core.capabilities': '^1.0.0' },
     provides: [{ capability: AI_COMPLETION, version: VERSION, label: '@core.marketplace/capability.ai-completion' }],
     contributes: [

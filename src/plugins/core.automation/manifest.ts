@@ -22,6 +22,7 @@ export const coreAutomationPlugin: PluginRecord = {
     id: 'core.automation',
     version: '1.0.0',
     kernel: '^1.0.0',
+    // eslint-disable-next-line no-restricted-syntax -- metadado do plugin do NÚCLEO: não é renderizado.
     name: 'Automations',
     dependencies: { 'core.ui': '^1.0.0' },
     contributes: [

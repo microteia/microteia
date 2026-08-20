@@ -221,6 +221,18 @@ export default defineConfig([
           selector: "Property[key.name=/^(label|title|subtitle|description|message|placeholder|hint|summary|meta)$/] > Literal[value=/[A-Za-zÀ-ÿ]{2}/][value!=/^(@|[a-z][a-z0-9.-]*$)/]",
           message: 'Texto de usuário como literal numa propriedade. Passe t(\'chave\'): a propriedade é lida por quem usa o sistema, então ela traduz.',
         },
+        // `name` DENTRO de um manifest de plugin. Fora dele a propriedade é IDENTIFICADOR — nome de
+        // função de expressão, símbolo de operador, chave de provedor —, e vigiá-la só daria ruído;
+        // dentro dele ela é o rótulo do plugin, do ponto de extensão ou da contribuição. Foi por
+        // esta porta que os NOVE nomes de Step em português atravessaram a migração inteira: o
+        // catálogo já tinha as onze chaves, o manifest continuava dizendo "Buscar Registros", e
+        // nenhum dos nove tem acento para o gatilho ver. O metadado que comprovadamente não é
+        // renderizado se declara com um `eslint-disable-next-line` e a razão, como o `description`
+        // ao lado já faz. `publisher.name` fica de fora: editora é marca, e marca não se traduz.
+        {
+          selector: "Property[key.name='manifest'] Property[key.name='name'] > Literal[value=/[A-Za-zÀ-ÿ]{2}/][value!=/^(@|[a-z][a-z0-9.-]*$)/]:not(Property[key.name='publisher'] Literal)",
+          message: 'Nome de plugin, ponto ou contribuição como literal. Passe a referência \'@namespace/chave\': o manifest é declarativo, e quem o lê traduz.',
+        },
         // A MESMA propriedade, quando o valor é template literal. Sem isto, `message: \`Objeto
         // "${name}" montado\`` passava: o gatilho por acento não vê "Objeto montado", e o seletor
         // acima só olha `Literal`. Foi assim que duas mensagens de Step atravessaram a migração.

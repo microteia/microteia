@@ -228,9 +228,13 @@ describe('runWorkflowUpsert', () => {
   it('avisa no log quais campos foram descartados por ignoreUnwritableFields', async () => {
     const repo = new FakeMutationRepository();
     repo.seed('persons', 'p1', { name: 'Antigo' });
-    const warnings: string[] = [];
+    const warnings: { message: string; params?: Record<string, string> }[] = [];
     const capturing = context();
-    capturing.logger = { info: () => {}, warn: (m: string) => warnings.push(m), error: () => {} };
+    capturing.logger = {
+      info: () => {},
+      warn: (message: string, params?: Record<string, string>) => warnings.push({ message, params }),
+      error: () => {},
+    };
 
     await runWorkflowUpsert(
       { table: 'persons', id: 'p1', data: { name: 'Novo', createdBy: 'alguém', naoExiste: 'w' } },
@@ -239,10 +243,15 @@ describe('runWorkflowUpsert', () => {
       { ignoreUnwritableFields: true },
     );
 
+    // A mensagem é REFERÊNCIA; o que muda por execução viaja nos params, e é neles que os campos
+    // descartados são conferidos.
     expect(warnings).toHaveLength(1);
-    expect(warnings[0]).toContain('createdBy');
-    expect(warnings[0]).toContain('naoExiste');
-    expect(warnings[0]).not.toContain('name');
+    expect(warnings[0].message).toBe('@core.automation/mutation.upsert.unwritable-ignored');
+    expect(warnings[0].params?.table).toBe('persons');
+    expect(warnings[0].params?.count).toBe('2');
+    expect(warnings[0].params?.fields).toContain('createdBy');
+    expect(warnings[0].params?.fields).toContain('naoExiste');
+    expect(warnings[0].params?.fields).not.toContain('name');
   });
 
   it('não avisa quando todos os campos são graváveis', async () => {

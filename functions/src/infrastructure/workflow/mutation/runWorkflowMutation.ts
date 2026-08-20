@@ -97,9 +97,11 @@ export async function runWorkflowUpsert(
     const kept = keepWritableLeaves(spec, ctx);
     effectiveSpec = kept.spec;
     if (kept.discarded.length > 0) {
-      context.logger.warn(
-        `Gravação em "${spec.table}": ${kept.discarded.length} campo(s) não gravável(is) foram ignorados — ${kept.discarded.join('; ')}`,
-      );
+      context.logger.warn('@core.automation/mutation.upsert.unwritable-ignored', {
+        table: spec.table,
+        count: String(kept.discarded.length),
+        fields: kept.discarded.join('; '),
+      });
     }
   }
 

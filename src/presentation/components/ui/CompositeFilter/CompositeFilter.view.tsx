@@ -250,7 +250,7 @@ export const CompositeFilter: React.FC<CompositeFilterProps> = ({
             return (
               <S.Chip key={token.key} onClick={(e) => e.stopPropagation()}>
                 <S.ChipBody
-                  title={`Editar filtro ${def.label}`}
+                  title={t('filter.edit', { field: def.label })}
                   onClick={() => vm.onEditToken(token.key)}
                 >
                   <S.ChipKey>{def.label}:</S.ChipKey>
@@ -281,7 +281,7 @@ export const CompositeFilter: React.FC<CompositeFilterProps> = ({
           return (
             <S.Chip key={token.key}>
               <S.ChipBody
-                title={`Editar filtro ${def.label}`}
+                title={t('filter.edit', { field: def.label })}
                 onClick={(e) => { e.stopPropagation(); vm.onEditToken(token.key); }}
               >
                 {color && <S.ChipColorDot $color={color} />}

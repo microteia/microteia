@@ -11,6 +11,15 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [7.62.0] — 2026-08-20
+
+- Os nomes dos passos de automação — Notificar, Buscar Registros, Gravar Registro, Encerrar Fluxo e os demais — passaram a acompanhar o idioma escolhido no escritório. Antes ficavam sempre em português, mesmo para quem usa o sistema em inglês.
+- Os avisos que aparecem no histórico de execução de uma automação também passaram a ser traduzidos: quando uma condição não pode ser avaliada, ou quando a gravação de um registro ignora campos que não podem ser escritos, a explicação vem no idioma de quem lê.
+- Vários avisos de erro vindos do servidor passaram a ser traduzidos: ao adicionar ou remover uma pessoa do escritório, ao escolher um apelido, ao consultar ou desconectar uma conta do Gmail, ao acionar a inteligência artificial e ao pedir extração de dados sem escolher uma IA.
+- Corrigidos dois avisos do cadastro de membros que apareciam como um código interno em vez do texto: o de limite de membros atingido e o de pessoa já pertencente ao escritório.
+- Corrigidos vários rótulos que apareciam como código para quem usa o sistema em inglês — os nomes dos campos de membro, das colunas de listas e dos tipos de dado exibidos nas telas de configuração.
+- Traduzidos o rótulo de edição de um filtro salvo e o título da confirmação de exclusão nas listas de opções.
+
 #### [7.61.0] — 2026-08-20
 
 - Toda extensão criada pelo assistente de criação nasce agora com o próprio arquivo de notas de versão, já com a primeira entrada escrita e datada — o histórico de uma extensão passa a existir desde a primeira versão, e não a partir do dia em que alguém sente falta dele.

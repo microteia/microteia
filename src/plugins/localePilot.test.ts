@@ -159,4 +159,27 @@ describe('o pacote Português (Brasil)', () => {
     const missing = Array.from(source).filter((key) => !translated.has(key));
     expect(missing).toEqual([]);
   });
+
+  /**
+   * A DIREÇÃO CONTRÁRIA, e ela não é simétrica por elegância: foi por falta dela que o namespace
+   * `core.data` inteiro — vinte e uma chaves, traduzidas — ficou sem fonte em inglês. O catálogo
+   * existia, o pacote pt-BR o publicava, e `core.data/manifest.ts` nunca contribuía o bundle `en`.
+   * Quem lia em português via tudo certo; quem lia em inglês via `@core.data/lookup.field.label` na
+   * tela. Traduzir uma chave que não existe no idioma-fonte é traduzir para ninguém.
+   */
+  it('não traduz chave que o núcleo não publica no idioma-fonte', () => {
+    const { host } = hostWith([asRecord()]);
+    const bundles = messageBundlesOf(host.contributions.query(I18N_MESSAGES_POINT));
+
+    const keysOf = (locale: string) =>
+      new Set(
+        bundles
+          .filter((bundle) => bundle.locale === locale)
+          .flatMap((bundle) => Object.keys(bundle.messages).map((key) => `${bundle.namespace}/${key}`)),
+      );
+
+    const source = keysOf('en');
+    const orphans = Array.from(keysOf('pt-BR')).filter((key) => !source.has(key));
+    expect(orphans).toEqual([]);
+  });
 });

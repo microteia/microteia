@@ -59,17 +59,17 @@ export const runWorkflow = async ({ definition, event, registry, services }: Run
   // Logger encaminhado aos steps: além de ir para os logs do Cloud Functions (services.logger),
   // grava a mensagem em execution.logs para que apareça na tela (Execuções e no modal de Run).
   const captureLogger: WorkflowLogger = {
-    info: (message) => {
-      services.logger.info(message);
-      log('INFO', message, currentLogStepId, currentLogStepDefinitionId);
+    info: (message, params) => {
+      services.logger.info(message, params);
+      log('INFO', message, currentLogStepId, currentLogStepDefinitionId, undefined, undefined, undefined, params);
     },
-    warn: (message) => {
-      services.logger.warn(message);
-      log('WARN', message, currentLogStepId, currentLogStepDefinitionId);
+    warn: (message, params) => {
+      services.logger.warn(message, params);
+      log('WARN', message, currentLogStepId, currentLogStepDefinitionId, undefined, undefined, undefined, params);
     },
-    error: (message) => {
-      services.logger.error(message);
-      log('ERROR', message, currentLogStepId, currentLogStepDefinitionId);
+    error: (message, params) => {
+      services.logger.error(message, params);
+      log('ERROR', message, currentLogStepId, currentLogStepDefinitionId, undefined, undefined, undefined, params);
     },
   };
 

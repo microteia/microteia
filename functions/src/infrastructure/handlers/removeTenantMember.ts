@@ -28,7 +28,7 @@ export const removeTenantMember = onCall(
       return { success: true };
     } catch (err) {
       if (err instanceof HttpsError) throw err;
-      const message = err instanceof Error ? err.message : 'Erro ao remover membro.';
+      const message = err instanceof Error ? err.message : '@core.tenant/member.remove-failed';
 
       throw new HttpsError(domainErrorCode(err) ?? 'internal', message);
     }
