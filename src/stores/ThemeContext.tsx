@@ -76,11 +76,17 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const bundles: ThemeTokenBundle[] = source?.bundles ?? bundledBundles;
 
   /**
-   * A configuração do escritório vence; sem nada gravado nela, vale o que ficou no navegador — que é
-   * a escolha feita antes de entrar, na tela de login. Sem essa segunda chance, atravessar a porta
-   * do escritório desfaria em silêncio o tema que a pessoa acabou de escolher.
+   * Quando a configuração do escritório já respondeu, é ela quem manda — INCLUSIVE quando a resposta
+   * é "nada gravado". O que ficou no navegador vale onde não há configuração para consultar: as
+   * telas públicas, e o intervalo em que a configuração ainda está a caminho.
+   *
+   * A diferença entre `null` e ausente é o que faz "Restaurar padrão" funcionar. O valor guardado no
+   * navegador é ESPELHO da configuração — quem escreve lá é o `TenantThemeBridge` —, então tratá-lo
+   * como segunda opinião dentro do escritório fazia o espelho sobreviver ao que ele espelhava:
+   * apagar o tema da configuração devolvia a tela ao mesmo tema, e o campo passava a mostrar um
+   * padrão que a interface não obedecia.
    */
-  const requested = source ? source.preferred ?? chosen : chosen;
+  const requested = source && source.preferred !== undefined ? source.preferred : chosen;
 
   const active = useMemo(
     () => negotiateTheme(requested, specs, base),

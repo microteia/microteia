@@ -30,7 +30,7 @@ const THEME_SETTING_KEY = 'theme.selected';
 export const TenantThemeBridge: React.FC = () => {
   const themeContributions = useContributions(THEME_DEFINITION_POINT);
   const tokenContributions = useContributions(THEME_TOKENS_POINT);
-  const { values, setValue } = useSettings();
+  const { values, setValue, isLoading } = useSettings();
   const source = useThemeSource();
 
   const specs = useMemo(() => themeSpecsOf(themeContributions, RESERVED_THEME_IDS), [themeContributions]);
@@ -55,9 +55,9 @@ export const TenantThemeBridge: React.FC = () => {
 
   useEffect(() => {
     if (!publish) return;
-    publish({ specs, bundles, preferred, save });
+    publish({ specs, bundles, preferred: isLoading ? undefined : preferred, save });
     return () => publish(null);
-  }, [publish, specs, bundles, preferred, save]);
+  }, [publish, specs, bundles, preferred, isLoading, save]);
 
   /**
    * O espelho no navegador é o que faz `/license` e `/login` obedecerem à escolha de quem configurou:
@@ -70,9 +70,10 @@ export const TenantThemeBridge: React.FC = () => {
    * O sentido é só um: configuração → navegador. O `localStorage` é memória, não fonte de verdade.
    */
   useEffect(() => {
+    if (isLoading) return;
     if (preferred === null || preferred === AUTOMATIC_THEME) localStorage.removeItem(STORAGE_KEY);
     else localStorage.setItem(STORAGE_KEY, preferred);
-  }, [preferred]);
+  }, [preferred, isLoading]);
 
   return null;
 };

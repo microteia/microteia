@@ -13,8 +13,14 @@ import type { ThemeSpec, ThemeTokenBundle } from '../domain/schema/theme';
 export interface ThemeSource {
   specs: ThemeSpec[];
   bundles: ThemeTokenBundle[];
-  /** `null` = nada gravado em escopo nenhum; `automatic` = escolheu seguir o aparelho. */
-  preferred: string | null;
+  /**
+   * `null` = nada gravado em escopo nenhum; `automatic` = escolheu seguir o aparelho;
+   * `undefined` = a configuração ainda não chegou do servidor e não tem opinião NENHUMA — nem a de
+   * que nada foi gravado. Os três estados são distintos: só o terceiro deixa o valor guardado no
+   * navegador continuar valendo, e é ele que evita a tela abrir no tema padrão para depois pular
+   * para o configurado a cada recarga.
+   */
+  preferred: string | null | undefined;
   /**
    * Onde uma escolha nova é gravada dentro do escritório: a configuração pessoal.
    *

@@ -5373,6 +5373,34 @@ produz um sintoma que não corresponde a nenhuma configuração visível.
 > última que abriu o workspace vence nas telas públicas. É o melhor sinal disponível fora da sessão,
 > e ele nunca contradiz o workspace de quem está logado.
 
+#### O espelho nunca vence a configuração — `undefined` não é `null`
+
+O espelho existe para as telas que não têm configuração para consultar. Dentro do escritório ele não
+é uma segunda opinião: quando a configuração já respondeu, é ela quem manda — **inclusive quando a
+resposta é "nada gravado"**.
+
+Por isso a propriedade `preferred` de `LocaleProvider` (e o `preferred` de `ThemeSource`) tem TRÊS
+estados, e não dois:
+
+| Valor | Significado | Quem manda |
+|---|---|---|
+| ausente / `undefined` | não há configuração para consultar — tela pública, ou a configuração ainda a caminho | o `localStorage` |
+| `null` | a configuração respondeu: nada gravado em escopo nenhum | a negociação com o navegador (`navigator.languages`) / o aparelho, no tema |
+| `'pt-BR'`, `'ocean'`, `'automatic'` | a configuração respondeu com um valor | ela |
+
+Confundir `null` com ausente é o que quebrava **"Restaurar padrão"** em Configurações. Limpar a
+configuração devolvia o campo ao padrão declarado e, no mesmo instante, o valor ESPELHADO no
+navegador — escrito pela própria configuração, e não por alguém numa tela pública — assumia o lugar
+dela: o campo dizia "English" e a interface seguia em português, e só escolher OUTRO idioma na mão
+saía daquele estado. O espelho é memória da configuração; ele não pode sobreviver ao que espelha.
+
+O estado ausente também é o que evita o pisca a cada recarga: enquanto `useSettings().isLoading`, o
+provedor recebe `undefined` e o espelho vale — a tela abre já no idioma e no tema configurados, em
+vez de abrir no padrão e pular. Pelo mesmo motivo o efeito que ESCREVE o espelho não roda durante o
+carregamento: `preferred` ainda é `null` ali, e gravar por ele apagaria a chave a cada abertura.
+
+`LocaleContext.test.tsx` é o teste-guarda dessa distinção.
+
 ### O idioma implícito vem do navegador — `negotiateFromCandidates`
 
 Sem escolha explícita, o idioma sai de `navigator.languages`, na ordem de preferência de quem está
@@ -6142,9 +6170,12 @@ diferente: ela *segue* o aparelho (`prefers-color-scheme`, com `matchMedia` assi
 sozinha quando o sistema troca). Sem ela não haveria caminho de volta depois do primeiro clique em
 "Escuro".
 
-Precedência: `theme.selected` do usuário → do escritório → `localStorage` → aparelho. O
-`localStorage` é espelho, nunca fonte de verdade, e é espelho **fiel** — sem configuração gravada, a
-chave é removida.
+Precedência: `theme.selected` do usuário → do escritório → aparelho. O `localStorage` NÃO entra
+nessa fila: ele é espelho, nunca fonte de verdade, e vale só onde não há configuração para consultar
+— as telas públicas e o intervalo em que a configuração ainda está a caminho. É por isso que
+`ThemeSource.preferred` distingue `undefined` (ninguém respondeu) de `null` (respondeu: nada
+gravado); ver "O espelho nunca vence a configuração". O espelho é **fiel** também ao apagar: sem
+configuração gravada — ou com `automatic` escolhido —, a chave é removida.
 
 ### Por que um BRIDGE, e não um provedor aninhado
 

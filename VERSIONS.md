@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [7.59.3] — 2026-08-20
+
+- Corrigido: em Configurações, "Restaurar padrão" no idioma e na aparência devolvia o campo ao padrão sem mudar a tela — os textos continuavam no idioma anterior e as cores no tema anterior, e só um novo clique numa outra opção fazia efeito. Agora restaurar o padrão vale na hora, como qualquer outra troca.
+
 #### [7.59.2] — 2026-08-20
 
 - Corrigido: no Form Design, as telas trazidas por extensões apareciam com o código interno no lugar do nome, enquanto as telas do sistema apareciam traduzidas — no mesmo painel. O mesmo acontecia na seção do campo, nos seletores de campo título e subtítulo e na escolha de registros filhos.

@@ -66,7 +66,18 @@ export const LocaleProvider: React.FC<LocaleProviderProps> = ({ children, prefer
     return Array.from(locales).sort();
   }, [bundles]);
 
-  const requested = preferred ?? chosen;
+  /**
+   * Quando existe configuração, é ela quem manda — INCLUSIVE quando ela não diz nada. O valor do
+   * navegador só entra onde não há configuração para consultar: as telas públicas, que recebem este
+   * provedor sem a propriedade.
+   *
+   * A diferença é entre `null` e ausente, e é ela que faz "Restaurar padrão" funcionar. O que estava
+   * gravado no navegador é ESPELHO da configuração — quem escreve lá é o `TenantLocaleProvider` —,
+   * então tratá-lo como segunda opinião dentro do escritório fazia o espelho sobreviver ao que ele
+   * espelhava: apagar o idioma da configuração devolvia a tela ao mesmo idioma, e o campo passava a
+   * mostrar um padrão que a interface não obedecia.
+   */
+  const requested = preferred === undefined ? chosen : preferred;
 
   /**
    * Escolha explícita vence; sem ela, negocia-se com o idioma do NAVEGADOR e, em último caso, com o
@@ -127,7 +138,7 @@ export const LocaleProvider: React.FC<LocaleProviderProps> = ({ children, prefer
  * continua valendo, que é o que mantém a coerência com o que a pessoa viu antes de entrar.
  */
 export const TenantLocaleProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { values } = useSettings();
+  const { values, isLoading } = useSettings();
 
   const preferred = useMemo(() => {
     const stored = values.user[LOCALE_SETTING_KEY] ?? values.tenant[LOCALE_SETTING_KEY];
@@ -153,9 +164,19 @@ export const TenantLocaleProvider: React.FC<{ children: React.ReactNode }> = ({ 
    * de verdade; quem manda é a configuração do usuário e do escritório.
    */
   useEffect(() => {
+    if (isLoading) return;
     if (preferred === null) localStorage.removeItem(STORAGE_KEY);
     else localStorage.setItem(STORAGE_KEY, preferred);
-  }, [preferred]);
+  }, [preferred, isLoading]);
 
-  return <LocaleProvider preferred={preferred}>{children}</LocaleProvider>;
+  /**
+   * Enquanto a configuração não chegou do servidor ela não tem opinião nenhuma — nem "nada gravado".
+   * Passar `undefined` ali deixa o espelho valendo por esses instantes, e é o que evita a interface
+   * abrir no idioma do navegador para depois pular para o configurado a cada recarga.
+   */
+  return (
+    <LocaleProvider preferred={isLoading ? undefined : preferred}>
+      {children}
+    </LocaleProvider>
+  );
 };

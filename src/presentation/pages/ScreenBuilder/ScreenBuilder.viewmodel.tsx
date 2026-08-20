@@ -780,7 +780,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       };
     }
     return null;
-  }, [selectedKey, dynamicDefinitions, builtinRows, fieldsByScreen, t, forDisplay, extraFieldCount]);
+  }, [selectedKey, dynamicDefinitions, builtinRows, fieldsByScreen, t, label, forDisplay, extraFieldCount]);
 
   const getDefinitionByKey = useCallback(
     (screenKey: string) => definitions.find((def) => def.id === screenKey),
