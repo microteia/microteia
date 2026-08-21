@@ -65,6 +65,17 @@ describe('as fontes de extensão continuam sendo checadas', () => {
     expect(extsrc).toContain('"jsx": "react-jsx"');
   });
 
+  /**
+   * `skipLibCheck: false`, e é a única razão de este projeto existir: aqui a API curada NÃO é uma
+   * biblioteca de terceiro, é o nosso contrato — e o erro que ela pode ter é justamente o que
+   * `skipLibCheck` cala. Um `React.HTMLAttributes` sem namespace importado dentro do bloco de
+   * `styled-components` não reprovava nada: o tipo virava `any`, e com ele o `theme` de todo arquivo
+   * de estilos que um autor escreve. Ver `extensionTypeDefs.test.ts`, que cobra o efeito.
+   */
+  it('e CHECA a declaração curada, em vez de confiar nela', () => {
+    expect(config('tsconfig.extsrc.json')).toContain('"skipLibCheck": false');
+  });
+
   /** Sem excluir os testes, o `tsc` deste projeto tropeça em `import.meta.glob`, que é do Vite. */
   it('e deixa os testes de fora — eles não são fonte de extensão', () => {
     expect(config('tsconfig.extsrc.json')).toContain('*.test.ts');

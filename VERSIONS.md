@@ -11,6 +11,15 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [8.3.1] — 2026-08-21
+
+- Corrigida a assistência do editor a quem escreve uma extensão: ao escrever os estilos de uma tela, as
+  cores, espaçamentos, fontes e cantos do tema voltam a ser sugeridos enquanto se digita, e um nome que
+  não existe no tema passa a ser apontado na hora, em vez de virar um estilo que simplesmente não
+  aparece. Valia tanto para o editor de extensões da própria plataforma quanto para quem escreve num
+  editor de código instalado no computador. Quem escreve extensões neste computador recebe a correção
+  ao atualizar a plataforma da pasta de extensões.
+
 #### [8.3.0] — 2026-08-21
 
 - Removida a extensão de demonstração "Vendas", que acompanhava o código como amostra de autoria. Ela

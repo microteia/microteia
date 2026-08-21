@@ -1570,6 +1570,7 @@ o caminho que sempre existiu, e nenhum pacote muda de resultado por causa desta 
 | `tsconfig.app.json` | EXCLUI o mesmo diretório — senão o build do app tenta resolver `@microteia/ui` de verdade e quebra |
 | `eslint.config.js` | as regras de Hooks e do React Compiler valem; a checagem de literal de i18n não, porque o vocabulário é do domínio da extensão |
 | `viewSources.test.ts` | tranca as três coisas acima, e prova que nenhum plugin voltou ao template literal |
+| `extensionTypeDefs.test.ts` | compila a API curada com `skipLibCheck: false` e cobra o efeito num arquivo `.styles.tsx` |
 
 O `noImplicitAny` fica desligado nesse projeto: essas fontes nasceram como JavaScript em string, e
 anotar 26 arquivos não é o que se ganha aqui. O que se ganha é resolução e forma — e foi isso que a
@@ -1588,6 +1589,41 @@ migração encontrou, em código que rodava em produção:
 - **Interpolação de styled sem tipo:** `...rest: any[]` deixava `({ theme })` implícito. Tipada, o
   `theme` completa e um token que não existe é acusado.
 - **Um `useLookup('financialTypes')` morto** no Financeiro — assinava uma coleção que ninguém lia.
+
+#### O `skipLibCheck` calava a API curada — e com ela o `theme`
+
+A linha acima sobre a interpolação tipada era VERDADE no papel e mentira na tela, e por um ano: a
+declaração de cada `styled.<tag>` era `ThemedStyledFunction<React.HTMLAttributes<...>>`, e dentro do
+bloco `declare module 'styled-components'` **não havia namespace `React` nenhum**. Um bloco
+`declare module` não vê o que outro declara — `HTMLAttributes` e seus irmãos são membros do namespace
+`React` dentro do bloco de `react`, e alcançá-los exige `import { React } from 'react'` no bloco que os
+usa. Sem essa linha o argumento de tipo era um tipo de ERRO: o parâmetro das interpolações virava
+`any`, e `theme.` deixava de completar em qualquer arquivo de estilos que um autor escrevesse.
+
+Nada reprovava, e a razão é uma só: **`skipLibCheck` estava ligado em todo projeto que consome o
+`.d.ts`** — no `tsconfig.extsrc.json` daqui e no `tsconfig.json` do workspace do escritório. Um nome que
+não resolve dentro de um `.d.ts` não é erro de sintaxe nem erro de uso: é um tipo que silenciosamente
+vira `any`, e `skipLibCheck` existe justamente para não olhar ali.
+
+A correção tem duas partes, e a segunda é a que importa:
+
+| | |
+|---|---|
+| O defeito | `import { React } from 'react'` nos blocos que escrevem `React.*` (`styled-components`, `react/jsx-*`, `@microteia/ui`); os tipos que eram só de módulo (`ReactNode`, `ComponentType`, `Context`, …) passam a morar NO namespace e são reexportados; as sete `*HTMLAttributes` que o `StyledInterface` pedia e ninguém declarava (`Anchor`, `Li`, `Td`, `Th`, `Img`, `Select`, `Form`); `RecordCardAction` e `FieldFileUpload`, que atravessavam de um bloco para o outro sem import |
+| A porta | `tsconfig.extsrc.json` roda com **`skipLibCheck: false`**. Aqui a API curada não é biblioteca de terceiro — é o nosso contrato, e é o único arquivo cuja checagem interna interessa |
+
+`StyledComponent` passou a devolver `JSX.Element` em vez de `React.ReactNode` no mesmo movimento: com o
+namespace resolvendo de verdade, `ReactNode` inclui `string`, e o TypeScript recusa como componente JSX
+uma função que possa devolver texto. Enquanto o tipo era `any`, isso também não aparecia.
+
+O guarda-chuva do `skipLibCheck: false` cobre a classe inteira, mas não cobre o EFEITO — um `theme`
+frouxo por outra razão passaria. Por isso `extensionTypeDefs.test.ts` compila um `.styles.tsx` como o
+autor escreve e cobra as duas metades: um token de tema que não existe tem de ser reprovado, e uma cor
+que uma extensão contribui não pode ser (a paleta é aberta por declaração).
+
+**O autor recebe a correção com o kernel, não com o Console:** o `.d.ts` viaja no `@microteia/sdk`, e é
+`npm run sdk:refresh` em `extensions/` que o traz — um `npm install` diz "up to date" e mantém o
+anterior.
 
 A lista de exceções do teste está VAZIA: nenhum plugin declara mais fonte em template literal. As três
 que sobravam (`prazo`, `processo`, `push`) tinham fonte COMPOSTA — blocos de helpers e de estilo

@@ -7,7 +7,12 @@
     "jsx": "react-jsx",
     "types": [],
     "noEmit": true,
-    "skipLibCheck": true,
+
+    // `false`, e é o ponto do arquivo: a API curada É a biblioteca aqui, e com `skipLibCheck` um nome
+    // que não resolve DENTRO dela não reprova nada — só faz o tipo virar `any`. Foi assim que o
+    // `React.HTMLAttributes` de `styled-components` ficou sem namespace e o `theme` parou de completar
+    // no editor do autor, sem uma única linha vermelha em lugar nenhum.
+    "skipLibCheck": false,
 
     "strict": true,
     "noFallthroughCasesInSwitch": true,

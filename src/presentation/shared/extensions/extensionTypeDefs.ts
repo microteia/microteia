@@ -94,19 +94,31 @@ const REACT_DEFS = `declare module 'react' {
   export function createElement(type: any, props?: any, ...children: any[]): JSX.Element;
   export function Fragment(props: { children?: any }): JSX.Element;
 
-  export type FC<P = Record<string, unknown>> = (props: P) => JSX.Element | null;
-  export type ComponentType<P = Record<string, unknown>> = FC<P>;
-  export type ReactNode = JSX.Element | string | number | boolean | null | undefined | ReactNode[];
-  export type CSSProperties = Record<string, string | number>;
-  export type ReactElement = JSX.Element;
-
-  export interface Context<T> {
-    Provider: React.Provider<T>;
-    Consumer: React.Consumer<T>;
-  }
+  /**
+   * These live in the 'React' namespace below and are re-exported here, rather than the other way
+   * round: a declaration inside 'declare module' is NOT visible to another module's block, so a type
+   * written as 'React.ReactNode' - which is how most of this file writes it - only resolves if the
+   * name is a member of that namespace. Declaring it at module level and referring to it as
+   * 'React.ReactNode' elsewhere silently produced 'any', and 'skipLibCheck' hid the error.
+   */
+  export type FC<P = Record<string, unknown>> = React.FC<P>;
+  export type ComponentType<P = Record<string, unknown>> = React.ComponentType<P>;
+  export type ReactNode = React.ReactNode;
+  export type CSSProperties = React.CSSProperties;
+  export type ReactElement = React.ReactElement;
+  export type Context<T> = React.Context<T>;
 
   export namespace React {
     export function createElement(type: any, props?: any, ...children: any[]): JSX.Element;
+    export type FC<P = Record<string, unknown>> = (props: P) => JSX.Element | null;
+    export type ComponentType<P = Record<string, unknown>> = FC<P>;
+    export type ReactNode = JSX.Element | string | number | boolean | null | undefined | ReactNode[];
+    export type CSSProperties = Record<string, string | number>;
+    export type ReactElement = JSX.Element;
+    export interface Context<T> {
+      Provider: Provider<T>;
+      Consumer: Consumer<T>;
+    }
     export type Provider<T> = ComponentType<{ value: T; children?: ReactNode }>;
     export type Consumer<T> = ComponentType<{ children: (value: T) => ReactNode }>;
     export type Reducer<S, A> = (prevState: S, action: A) => S;
@@ -164,22 +176,76 @@ const REACT_DEFS = `declare module 'react' {
     export interface LabelHTMLAttributes<T = HTMLLabelElement> extends HTMLAttributes<T> {
       htmlFor?: string;
     }
+    export interface SelectHTMLAttributes<T = HTMLSelectElement> extends HTMLAttributes<T> {
+      value?: string | number;
+      disabled?: boolean;
+      multiple?: boolean;
+      required?: boolean;
+      name?: string;
+    }
+    export interface FormHTMLAttributes<T = HTMLFormElement> extends HTMLAttributes<T> {
+      action?: string;
+      method?: string;
+      noValidate?: boolean;
+      onSubmit?: (event: FormEvent<T>) => void;
+    }
+    export interface AnchorHTMLAttributes<T = HTMLAnchorElement> extends HTMLAttributes<T> {
+      href?: string;
+      target?: string;
+      rel?: string;
+      download?: string | boolean;
+    }
+    export interface ImgHTMLAttributes<T = HTMLImageElement> extends HTMLAttributes<T> {
+      src?: string;
+      alt?: string;
+      width?: string | number;
+      height?: string | number;
+      loading?: 'eager' | 'lazy';
+    }
+    export interface LiHTMLAttributes<T = HTMLLIElement> extends HTMLAttributes<T> {
+      value?: string | number;
+    }
+    export interface TdHTMLAttributes<T = HTMLTableCellElement> extends HTMLAttributes<T> {
+      colSpan?: number;
+      rowSpan?: number;
+      headers?: string;
+      scope?: string;
+    }
+    export interface ThHTMLAttributes<T = HTMLTableCellElement> extends HTMLAttributes<T> {
+      colSpan?: number;
+      rowSpan?: number;
+      scope?: string;
+      abbr?: string;
+    }
   }
 }
 `;
 
 const JSX_RUNTIME_DEFS = `declare module 'react/jsx-runtime' {
+  import { React } from 'react';
+
   export function jsx(type: any, props: any, key?: any): JSX.Element;
   export function jsxs(type: any, props: any, key?: any): JSX.Element;
   export const Fragment: React.ComponentType<{ children?: React.ReactNode }>;
 }
 
 declare module 'react/jsx-dev-runtime' {
+  import { React } from 'react';
+
   export function jsxDEV(type: any, props: any, key?: any): JSX.Element;
   export const Fragment: React.ComponentType<{ children?: React.ReactNode }>;
 }`;
 
 const STYLED_COMPONENTS_DEFS = `declare module 'styled-components' {
+  /**
+   * Imports the NAMESPACE, not the module: 'HTMLAttributes' and its siblings are members of
+   * 'React' inside the 'react' block, so 'import * as React' resolves none of them. Without this
+   * line every 'styled.<tag>' takes an error type, the props of an interpolation collapse to 'any'
+   * and 'theme' stops completing - which is exactly what happened, unseen, because 'skipLibCheck'
+   * silences a broken declaration file.
+   */
+  import { React } from 'react';
+
   export interface Theme {
     /** Which theme is in effect, and which side it comes from - useful for choosing opacity. */
     id: string;
@@ -288,7 +354,7 @@ const STYLED_COMPONENTS_DEFS = `declare module 'styled-components' {
    */
   export type StyledComponent<P = Record<string, unknown>> = (
     props: P & { children?: React.ReactNode; key?: string | number } & Record<string, any>,
-  ) => React.ReactNode;
+  ) => JSX.Element;
 
   /**
    * A value that may appear in a styled template: a literal, or a function of the props.
@@ -352,7 +418,8 @@ const STYLED_COMPONENTS_DEFS = `declare module 'styled-components' {
 }`;
 
 const UI_MODULE_DEFS = `declare module '@microteia/ui' {
-  import * as React from 'react';
+  import { React } from 'react';
+  import { RecordCardAction } from '@microteia/data';
 
   /**
    * The attributes every STYLED component accepts, because each one wraps a real element: a Card is a
@@ -855,6 +922,7 @@ const UI_MODULE_DEFS = `declare module '@microteia/ui' {
 }`;
 
 const DATA_MODULE_DEFS = `declare module '@microteia/data' {
+  import { FieldFileUpload } from '@microteia/ui';
 
   /** Records of any collection described by a screen in the organization. */
   export function useCollection(collection: string): any[];
