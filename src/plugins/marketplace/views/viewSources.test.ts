@@ -77,6 +77,11 @@ describe('as fontes de extensão continuam sendo checadas', () => {
   /**
    * O runtime avalia UM módulo por view, com um `require` que só resolve a API curada: um import
    * relativo entre duas fontes de view não tem como ser resolvido, e falharia só ao abrir a tela.
+   *
+   * O compilador do SDK sabe FUNDIR várias fontes numa só — por caminho (`sourceFile`) ou por texto
+   * (`source`) —, e ali o import relativo entre elas é apagado na junção. Mas cada fonte daqui viaja
+   * como UM `?raw`, não como lista, e nada as funde: para elas a regra vale como sempre valeu. A
+   * primeira view daqui escrita em várias partes tem de afrouxar esta guarda junto, e explicando.
    */
   it.each(sourceFiles)('%s não importa outra fonte de view', (path) => {
     const relative = [...SOURCES[path].matchAll(/from\s+'(\.[^']*)'/g)].map((match) => match[1]);
@@ -103,8 +108,8 @@ describe('as fontes de extensão continuam sendo checadas', () => {
    *
    * A lista fica aqui, vazia, em vez de o caso virar um `toEqual([])` solto: ela é o registro da
    * exceção, e a próxima fonte composta que aparecer terá de ser escrita nela por alguém que explique
-   * o motivo. A saída certa continua sendo o compilador EMPACOTAR a view a partir de vários arquivos,
-   * que é decisão de escopo próprio.
+   * o motivo. A saída que era só uma intenção quando isto foi escrito — o compilador EMPACOTAR a view a
+   * partir de vários arquivos — hoje existe: é a lista de `sourceFile`.
    */
   const COMPOSED: string[] = [];
 

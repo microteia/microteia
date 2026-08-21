@@ -58,4 +58,30 @@ describe('evaluateExtensionView', () => {
     const changed = evaluateExtensionView('t::memo', 'export default function V() { return null; }');
     expect(changed).not.toBe(a);
   });
+  /**
+   * O compilador do SDK aceita uma LISTA de arquivos por view e os funde num módulo só, para que a
+   * extensão possa ser escrita em MVVM. Quem tem de aceitar o resultado é este avaliador: a fusão
+   * repete o import de `react` (um por arquivo) e junta escopos que nasceram separados. Este caso é a
+   * forma exata do que a fusão produz — se ele parar de renderizar, o pacote fundido não abre a tela.
+   */
+  it('renderiza a fonte FUNDIDA de uma view escrita em vários arquivos', () => {
+    const source = [
+      '// --- ./Panel.view.tsx ---',
+      "import { useMemo } from 'react';",
+      'export default function Panel() {',
+      '  const total = useTally();',
+      '  return <Wrap>{useMemo(() => total, [total])}</Wrap>;',
+      '}',
+      '// --- ./Panel.viewmodel.tsx ---',
+      "import { useMemo } from 'react';",
+      'export const useTally = () => useMemo(() => 7, []);',
+      '// --- ./Panel.styles.tsx ---',
+      "import { styled } from 'styled-components';",
+      'export const Wrap = styled.div`padding: 8px;`;',
+    ].join('\n');
+
+    const Component = evaluateExtensionView('t::merged', source);
+    const { getByText } = renderThemed(<Component tabKey="t" />);
+    expect(getByText('7')).toBeTruthy();
+  });
 });

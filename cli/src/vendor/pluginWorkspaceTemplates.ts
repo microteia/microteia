@@ -245,6 +245,16 @@ MCP server (\`describe_host_module\`) rather than guessing what a module exports
 Write views as real \`.tsx\` files and point at them with \`sourceFile\`. Never paste code into a string:
 a string is not type-checked, and that is where mistakes hide.
 
+\`sourceFile\` also takes a **list**, merged in the order given, so a view can be written the way the
+platform writes its own — the component, the state and the styles in separate files:
+
+    sourceFile: ['./views/Panel.view.tsx', './views/Panel.viewmodel.tsx', './views/Panel.styles.tsx']
+
+Import across those files normally: the relative import is what makes \`tsc\` and your editor connect
+them, and the compiler removes it once they are one module. That module has **one scope**, so every
+top-level name has to be unique across the list, and exactly one file exports \`default\`. Anything
+else is refused at build time, not on the screen. \`startupFile\` takes a list for the same reason.
+
 **Code does not run until a human trusts it.** A package carrying \`views\` or \`startup\` installs
 inert; an administrator opens the source, reads it and trusts it, and the trust is bound to that exact
 code by hash. Changing one character un-trusts it. This is deliberate — do not look for a way around it.

@@ -122,7 +122,8 @@ const FIELDS: TemplateField[] = [
   const views = spec.view
     ? `
   // Views travel as SOURCE and are compiled by the browser at runtime. Authored as a real .tsx file so
-  // tsc and your editor check it: "sourceFile" is replaced by its contents at build time.
+  // tsc and your editor check it: "sourceFile" is replaced by its contents at build time. It also takes
+  // a LIST of files, merged in order, for when one file stops being the right shape for the view.
   views: [
     { key: '${folder}-summary', title: label('page.summary'), icon: 'chart', sourceFile: './views/Summary.view.tsx' },
   ],

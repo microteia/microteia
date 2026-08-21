@@ -1421,6 +1421,53 @@ views: [{ key: 'summary', title: '…', icon: 'chart', sourceFile: './views/Summ
 `source` e `sourceFile` para a mesma view é erro, não precedência — um pacote em que os dois divergem
 instala um deles e o autor nunca sabe qual.
 
+#### Uma view em VÁRIOS arquivos — a fusão
+
+`sourceFile` aceita uma LISTA, fundida na ordem dada. `startupFile` também, pelo mesmo motivo: os dois
+são código.
+
+```ts
+sourceFile: ['./views/Panel.view.tsx', './views/Panel.viewmodel.tsx', './views/Panel.styles.tsx']
+```
+
+O campo `source` — a fonte que chega já como TEXTO, que é como os plugins deste repositório a declaram
+(`?raw`) — aceita a lista pelas MESMAS regras, e `startup` também:
+
+```ts
+source: [PANEL_VIEW, PANEL_VIEWMODEL, PANEL_STYLES]
+```
+
+O que a plataforma instala não muda: continua UM texto por view, porque o runtime avalia um módulo por
+view e o `require` dele só resolve a API curada. A lista é comodidade de autoria — e a razão de existir
+é que um arquivo só empurrava o autor a escrever a view, o estado e o estilo juntos, exatamente o
+contrário do que este repositório exige de si mesmo.
+
+A fusão é TEXTUAL, e não há bundler nela. Isso é possível porque o `sucrase` funde imports repetidos do
+mesmo módulo — dois arquivos importando `useMemo` de `react` viram um `require` só. O que a fusão faz
+além de concatenar:
+
+| O quê | Por quê |
+|---|---|
+| Apaga os imports RELATIVOS entre os arquivos da lista | Depois da junção os nomes já estão no mesmo escopo; o import existe para o `tsc` e para o editor |
+| Preserva as quebras de linha do import apagado | Sem isso a numeração de linha de cada arquivo não sobrevive à fusão |
+| Marca no texto onde cada arquivo começa | É um administrador do escritório que LÊ essa fonte antes de confiar nela |
+| Recusa import relativo para fora do conjunto | O runtime não resolve import nenhum — antes isso só aparecia ao abrir a tela |
+| Recusa dois `export default`, e a falta de um | O módulo fundido tem um componente, não dois nem nenhum |
+| Recusa o mesmo nome de topo declarado em dois arquivos | Escopo único é o preço da fusão, e o `tsc` de cada arquivo não tem como ver a colisão |
+| Compila o resultado (sem executar) antes de gravar | Dois arquivos válidos podem formar um módulo inválido: é o único defeito que a fusão INVENTA |
+
+Importar a MESMA coisa do MESMO módulo em vários arquivos não é colisão — é o caso normal, e o
+compilador distingue os dois pela ORIGEM do nome, não pelo nome.
+
+**"Para fora do conjunto" é conferido de duas formas, porque as duas fontes sabem coisas diferentes.**
+Vindo de ARQUIVO, pelo CAMINHO: o import tem de resolver para um arquivo da lista. Vindo de TEXTO,
+pelos NOMES: uma string crua não sabe de onde veio, então o que se cobra é que alguma parte do conjunto
+DECLARE cada nome que o import traz. É a checagem que pega exatamente o esquecimento que o `?raw`
+convida a cometer — importar o `?raw` da view e deixar o do viewmodel fora da lista.
+
+Uma fonte com valor ÚNICO (string, seja caminho ou texto) continua passando verbatim, sem nada disso: é
+o caminho que sempre existiu, e nenhum pacote muda de resultado por causa desta capacidade.
+
 **A configuração é o ponto frágil, e são quatro arquivos que precisam concordar:**
 
 | Arquivo | Papel |
@@ -1448,11 +1495,11 @@ migração encontrou, em código que rodava em produção:
   `theme` completa e um token que não existe é acusado.
 - **Um `useLookup('financialTypes')` morto** no Financeiro — assinava uma coleção que ninguém lia.
 
-Três plugins (`prazo`, `processo`, `push`) **continuam** com fonte em template literal, e a lista é
-fechada no teste. Neles a fonte é COMPOSTA: blocos de helpers e de estilo interpolados em vários widgets
-(`${WIDGET_HELPERS}${WIDGET_CARD}`). Como o runtime avalia um módulo por view e não resolve import entre
-fontes de view, extraí-las hoje exigiria duplicar os blocos em cada arquivo. A saída certa é o
-compilador EMPACOTAR a view a partir de vários arquivos — decisão de escopo próprio, ainda não tomada.
+A lista de exceções do teste está VAZIA: nenhum plugin declara mais fonte em template literal. As três
+que sobravam (`prazo`, `processo`, `push`) tinham fonte COMPOSTA — blocos de helpers e de estilo
+interpolados em vários widgets (`${WIDGET_HELPERS}${WIDGET_CARD}`) — e saíram deste repositório junto
+com as extensões de domínio a que pertenciam. O que faltava para elas era o compilador empacotar a view
+a partir de vários arquivos, que é o que a fusão de `sourceFile` faz.
 
 ### O que esta etapa NÃO faz
 

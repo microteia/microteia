@@ -47,4 +47,4 @@ export const repoRoot = resolve(here, '..', '..', '..');
  * Ela NÃO acompanha o `version` do produto, e não é obrigada a andar junto do `MINIMUM_CLI_VERSION`:
  * este último só se move quando o PACOTE passa a depender de algo que o Console faz.
  */
-export const CLI_VERSION = '2.1.5';
+export const CLI_VERSION = '2.2.0';

@@ -184,6 +184,34 @@ views: [{ key: 'summary', title: label('page.summary'), icon: 'chart', sourceFil
 code in a real \`.tsx\` is what lets \`tsc\` and your editor check the part of the extension most likely
 to be wrong.
 
+A view does not have to be one file. \`sourceFile\` also takes a list, merged in the order given:
+
+\`\`\`ts
+views: [{
+  key: 'summary',
+  title: label('page.summary'),
+  icon: 'chart',
+  sourceFile: ['./views/Summary.view.tsx', './views/Summary.viewmodel.tsx', './views/Summary.styles.tsx'],
+}]
+\`\`\`
+
+The package still carries one source per view — the runtime evaluates one module per view, and its
+\`require\` resolves nothing but the curated API. The list is an authoring convenience, and it changes
+three things you have to know:
+
+- **Import across the listed files normally.** The relative import is what makes \`tsc\` and your editor
+  connect them; the compiler erases it, because after the merge the names are already in scope. A
+  relative import pointing outside the list is refused at build time — the runtime could never resolve it.
+- **The merged module has one scope.** A top-level name declared in two of the files collides, and the
+  build says which name and which files. Importing the same thing from the same module in several files
+  is not a collision: those imports fold into one.
+- **Exactly one of the files exports \`default\`** — it is the view's component.
+
+\`startupFile\` takes a list for the same reason, and so do \`source\` and \`startup\` when the code
+reaches the package as text rather than as a path (a \`?raw\` import). There the merge cannot check a
+path, so it checks names: every name a relative import brings has to be declared by one of the merged
+sources, which is what catches merging the view and forgetting its view model.
+
 \`startup\` receives a \`host\` and may return a teardown function:
 
 \`\`\`ts

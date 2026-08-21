@@ -11,6 +11,14 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [8.1.0] — 2026-08-21
+
+- Uma tela entregue por extensão pode agora ser escrita em várias partes, em vez de caber num arquivo
+  só. Quem escreve a extensão separa a tela, o comportamento e a aparência como faz no resto do
+  sistema, e a plataforma junta as partes na hora de empacotar — o que é instalado continua sendo
+  exatamente o mesmo. Erros de junção, como um nome usado duas vezes ou uma parte esquecida de fora,
+  passam a ser apontados no momento em que a extensão é construída, e não quando alguém abre a tela.
+
 #### [8.0.1] — 2026-08-21
 
 - Corrigido o botão de atualizar uma extensão no Marketplace, que não fazia nada — sem mensagem, sem
