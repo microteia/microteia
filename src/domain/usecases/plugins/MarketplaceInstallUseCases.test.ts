@@ -662,21 +662,6 @@ describe('Dedup + refcount — extensões que compartilham artefatos', () => {
   });
 });
 
-describe('pacote Vendas do catálogo (com action + workflow)', () => {
-  it('materializa telas + action + workflow, com a action da venda ligada ao workflow real', async () => {
-    const { vendasPlugin: vendas } = await import('../../../plugins/marketplace/catalog');
-
-    await makeInstallMarketplacePluginUseCase(deps()).execute(vendas, actor);
-
-    const venda = (await screens.getAll('t1')).find((s) => s.id === 'venda')!;
-    const action = (await actions.getAll('t1'))[0];
-    const wf = (await workflows.getWorkflowDefinitions('t1'))[0];
-    expect(venda.viewActionIds).toEqual([action.id]);
-    expect(action.workflowId).toBe(wf.id);
-    expect(wf.ownerPluginId).toBe('com.microteia.vendas');
-  });
-});
-
 describe('applyPackageArtifacts / releasePackageArtifacts — fluxo de extensões instaladas', () => {
   const dataPlugin: MarketplacePlugin = {
     summary: 'Extensão com dados',

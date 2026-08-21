@@ -4574,10 +4574,6 @@ relacionamentos, cálculos, master-detail — reusando **inteiramente** o sistem
   Editar preserva o `ownerPluginId` (o spread do campo e o `toSaveInput` o carregam em todo save);
   adicionar campos próprios continua liberado. Etiqueta "Extensão" no card e na meta do campo.
 
-Plugin de exemplo `com.microteia.vendas` (produto, venda, item): validação por regex, currency,
-select, relação com pessoa[core], preço do item vindo do produto (`onChange`), total do item
-calculado (`compute`), total da venda agregado, e master-detail venda→itens.
-
 **Pacote completo (actions, scripts, workflows).** `MarketplacePlugin` carrega `screens`, `workflows`,
 `actions` e `scripts` — um plugin é qualquer subconjunto. Telas usam a `screenKey` declarada (resolvida
 por `installedScreenKey`); actions/scripts/workflows têm **id de template** e recebem id gerado na
@@ -4612,7 +4608,7 @@ checagem compara a coleção, não só o nome.
 
 `splitEntityEventName` reconhece o evento de FILHO (`person_note.saved`) por composição — prefixo de
 entidade do registro mais `_note`/`_document` —, e não por "tem underscore": chave com underscore é
-o normal de uma tela trazida por dependência (`com-microteia-vendas__produto`), e barrá-la fazia o
+o normal de uma tela trazida por dependência (`com-acme-vendas__produto`), e barrá-la fazia o
 gatilho dela passar despercebido no empacotamento.
 
 **Escopo desta fase:** materialização/instalação. A autoria ("Criar Plugin": marcar artefatos +
@@ -5126,7 +5122,6 @@ clicando "Atualizar" ao mesmo tempo se encontram. A reserva **expira** (`MIGRATI
 | `domain/usecases/plugins/extensionMigrationState.ts` | pendente/erro por cópia instalada |
 | `data/repositories/FirebaseExtensionMigrationRepository.ts` | o histórico, com a reserva transacional |
 | `stores/InstalledExtensionStore.tsx` | a sequência: `before` → artefatos → `after`, sob a trava |
-| `plugins/marketplace/vendas.ts` | a migração de exemplo, com as três propriedades à vista |
 
 ---
 

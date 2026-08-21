@@ -11,6 +11,14 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [8.3.0] — 2026-08-21
+
+- Removida a extensão de demonstração "Vendas", que acompanhava o código como amostra de autoria. Ela
+  não aparecia na lista de extensões e não podia ser instalada, mas descrevia um cadastro de produtos e
+  pedidos ligado a um cadastro de pessoas que já não faz parte da plataforma — uma amostra que ensinava
+  o caminho errado a quem a lesse. Os exemplos que continuam disponíveis são os que não pressupõem
+  nenhum tipo de negócio em particular.
+
 #### [8.2.0] — 2026-08-21
 
 - O material de apoio de quem escreve extensões — o manual, as regras de trabalho e a configuração do
