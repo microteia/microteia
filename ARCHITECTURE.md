@@ -1013,7 +1013,7 @@ seria tornar a coleção somente-servidor e perder instalar/desinstalar pela apl
 | `microteia unpack --kernel <tgz>` | põe o pacote em `.microteia/install` e escreve no `.env.<projectId>` o que faltar. Não toca no Firebase |
 | `microteia deploy [--only ...]` | carimba e aplica rules → índices → functions → hosting do que está no lugar, e provisiona no fim |
 | `microteia provision [--prune]` | dá às extensões instaladas as functions e os índices que elas exigem |
-| `microteia plugin-init` | prepara `extensions/`, para escrever extensão em TypeScript |
+| `microteia plugin-init` | prepara `extensions/`, para escrever extensão em TypeScript (o `unpack` o mantém em dia) |
 
 O `provision` existe separado do `deploy` porque instalar uma extensão é um gesto de dentro da
 aplicação, e não um deploy: depois dele, o que falta é aplicar os artefatos — sem reenviar o kernel nem
@@ -1275,7 +1275,7 @@ LADO MICROTEIA (repositório)                LADO ESCRITÓRIO
   tsconfig.sdk.json    -> sdk/lib/**          package.json  @microteia/sdk (file:)
   export-host-types.mjs-> sdk/types/**        tsconfig.json paths @microteia/* -> types/
   microteia pack       -> sdk/microteia-sdk.tgz
-                                              npx microteia-plugin new|check|build|mcp
+                                              npx microteia-plugin create|check|build|sync|mcp
 ```
 
 `extensions/` fica ao lado do `microteia.yaml`, **fora** de `.microteia/` — a mesma regra de
@@ -1292,7 +1292,9 @@ compilando contra o SDK antigo em silêncio.
 | Porta única de validação | `src/sdk/validate.ts` | `validatePluginPackage` — o trio manifest + integridade referencial + tamanho/migrações |
 | Construtores de contribuição | `src/sdk/contributions.ts` | `page`, `nav`, `command`… (sem `lazyView`, que precisa de React) |
 | Compilador | `src/sdk/node/compile.ts` | `.ts` → `.json`, com `sucrase` — o MESMO transpilador do runtime do browser |
-| Ferramenta de terminal | `src/sdk/node/cli.ts` | `microteia-plugin new \| check \| build \| mcp` |
+| Ferramenta de terminal | `src/sdk/node/cli.ts` | `microteia-plugin create \| check \| build \| sync \| mcp` |
+| Documentos do workspace | `src/sdk/node/workspace/` | `AGENTS.md`, `AUTHORING.md`, `tsconfig.json`, `.mcp.json` — e o `sync` que os reescreve |
+| API curada, lida do `.d.ts` | `src/sdk/node/hostTypes.ts` | fonte única da lista de módulos para o MCP e para os documentos |
 | Servidor MCP | `src/sdk/node/mcp.ts` | JSON-RPC sobre stdio, escrito à mão — sem dependência nova |
 | Tipos da API curada | `scripts/export-host-types.mjs` | emite `sdk/types/microteia-host.d.ts` de `buildExtensionTypeDefs()` |
 
@@ -1368,17 +1370,109 @@ sempre que der** (o molde já entrega `plugin.test.ts`, que valida o pacote CONS
 da plataforma) e **não dar tarefa por concluída com teste vermelho**. O gate do diretório do escritório
 é `tsc --noEmit`, `microteia-plugin check` e `npm test` — os três, não dois.
 
-#### A documentação que viaja
+#### A documentação que viaja — e por que ela mora no SDK, não no Console
 
-`microteia plugin-init` escreve `extensions/` com `AUTHORING.md` (o manual do autor), `AGENTS.md` e
-`CLAUDE.md` (as regras operacionais, para pessoa ou IA), `.mcp.json`, e os doze
-`extension-templates/*.json` como `examples/`. Os dois primeiros são **em inglês**: a regra de idioma
-deste repositório diz que o produto fala inglês porque tem de poder falar qualquer idioma, e o
-português é a nossa comunicação interna — um manual entregue a escritórios em qualquer lugar é produto.
+O que `extensions/` carrega além das extensões do escritório é **documentação do que o kernel sabe
+fazer**: `AUTHORING.md` (o manual do autor), `AGENTS.md` (as regras operacionais, para pessoa ou IA),
+`tsconfig.json` e `.mcp.json`. Ela é **em inglês**: a regra de idioma deste repositório diz que o
+produto fala inglês porque tem de poder falar qualquer idioma, e o português é a nossa comunicação
+interna — um manual entregue a escritórios em qualquer lugar é produto.
 
-O manual é gerado com a lista de pontos de extensão e de módulos do SDK **instalado** (lidos de
-`sdk/lib` e `sdk/types` na hora), não com uma cópia: um texto que descreve contrato diferente do que
-está na máquina é pior que texto nenhum.
+Esses arquivos moraram no Console (`cli/src/vendor/`) e era o lado errado, por duas razões que se
+somavam:
+
+- **O Console é versionado e distribuído SEPARADAMENTE do kernel.** `CLI_VERSION` não acompanha o
+  pacote; um Console de duas versões atrás ao lado de uma instalação nova escrevia, em silêncio, a
+  documentação de outro contrato. Nada comparava as duas pontas.
+- **Só havia um gatilho, e ele roda uma vez.** O `plugin-init` recusa rodar de novo; não existia
+  `plugin-sync`, e `npm run sdk:refresh` trocava `node_modules` sem tocar em nenhum `.md`. Depois do
+  primeiro dia, aqueles textos ficavam parados para sempre — inclusive para a IA que os lê como
+  instrução.
+
+Hoje eles vivem em `src/sdk/node/workspace/`, viajam no MESMO `.tgz` que os pontos de extensão que
+descrevem, e são postos em dia por `microteia-plugin sync`.
+
+##### Três políticas, e a diferença entre elas é DE QUEM é o arquivo
+
+| Política | Arquivos | Por quê |
+|---|---|---|
+| **Sobreposto** | `AGENTS.md`, `AUTHORING.md`, `examples/` | prosa e referência nossas, inteiras — não há o que preservar dentro |
+| **Conciliado** | `tsconfig.json`, `.mcp.json`, `.gitignore`, `package.json` | **o autor escreve dentro deles** |
+| **Semeado** | `CLAUDE.md`, `README.md` | são dele; nascem uma vez e nada os reescreve |
+
+A do meio é a que exige critério, e a regra dela é única, sem exceção (`src/sdk/node/workspace/reconcile.ts`):
+
+| Estado | O que o `sync` faz |
+|---|---|
+| o requisito não está lá | **acrescenta** — não há o que atrapalhar, não havia nada |
+| está lá e é o que precisa | nada |
+| está lá e é OUTRA coisa | **não toca, e avisa** — quem decide é quem escreveu |
+
+Sobrepor esses quatro seria desfazer trabalho em silêncio, que é o pior dos dois erros possíveis:
+apagaria o `path` que o autor acrescentou para uma biblioteca dele, **os outros servidores MCP que ele
+registrou** (registrar outro servidor é a primeira coisa que se faz num diretório com `.mcp.json`), e as
+linhas dele no `.gitignore`. O aviso nomeia o arquivo, a chave, o que se espera e o que se achou —
+um aviso que não diz o que ajustar transfere o trabalho sem transferir a informação.
+
+Os requisitos de cada arquivo são deliberadamente poucos, e são o mínimo que faz uma view `.tsx` ser
+checada: os seis `paths` (os módulos curados não existem em `node_modules`), a entrada de `files` com a
+declaração ambiente do `?raw`, ter algum `jsx`, e a entrada `microteia` do `.mcp.json`. `strict`,
+`target`, `lib` e `exclude` são ESCOLHA nossa na semente, e o autor pode mudá-las — `exclude` alargado
+rende só um aviso, porque um arquivo fora de todo projeto não resolve nada no editor.
+
+A única coisa que o módulo posiciona sem ser pedido é a ORDEM, e só quando acrescenta: o curinga
+`@microteia/*` engole `@microteia/sdk` se vier antes dele, então acrescentar no fim não acrescentaria
+nada. Uma ordem errada que já estava no arquivo é avisada, não corrigida.
+
+**No `package.json` a tentação é grande e é errada.** Um script NOSSO que mudou de forma — foi o caso do
+`sdk:refresh`, que carregava um `--no-save` que desfazia o próprio refresh — não é atualizado sozinho,
+porque daqui não há como distinguir "o autor customizou" de "nós escrevemos isto numa versão anterior".
+Entre desfazer trabalho dele em silêncio e pedir um ajuste com o valor certo na mão, só a segunda não
+perde nada. Uma `devDependency` que já existe também não é rebaixada, e essa não gera aviso: um range
+diferente do nosso normalmente o SATISFAZ.
+
+O `CLAUDE.md` era cópia byte a byte do `AGENTS.md`, e assim não servia a nenhum dos dois propósitos:
+o escritório não tinha onde escrever nada — o `--force` apagaria — e o arquivo não era atualizado por
+ninguém. Agora ele nasce com `@AGENTS.md` e `@AUTHORING.md` e uma seção vazia: a regra gerada continua
+chegando ao assistente, e o espaço abaixo dela é do escritório.
+
+**O que o texto afirma sobre o kernel vem do kernel.** A tabela de pontos sai dos mesmos arrays que o
+kernel valida contra; a lista de módulos curados sai de `sdk/types/microteia-host.d.ts` (que
+`hostApiTypeDefs.test.ts` cobra símbolo por símbolo contra `HOST_MODULES`, então lê-lo é ler o kernel
+com um teste no meio); os limites de tamanho saem de `PACKAGE_MAX_BYTES` e `PACKAGE_ADVISORY_BYTES`.
+As três eram prosa escrita à mão em três arquivos, e acrescentar um `@microteia/*` deixava as três
+incompletas sem reprovar em nada — a lista de módulos escrita à mão tinha nove entradas, e o allowlist
+real tem onze.
+
+#### Os dois consoles, e onde fica a fronteira
+
+Há duas ferramentas, e a separação é legítima — o que estava errado era o que cada uma sabia:
+
+| | `microteia` (Console) | `microteia-plugin` (SDK) |
+|---|---|---|
+| Onde vive | pasta do operador, de `pack-console` | `extensions/node_modules/@microteia/sdk` |
+| Público | quem **instala** a plataforma | quem **escreve** extensão |
+| Faz | `init`/`connect`/`unpack`/`deploy`/`provision` — fala com Firebase | `create`/`check`/`build`/`sync`/`mcp` — offline |
+| Versão | `CLI_VERSION` | versão do produto + `KERNEL_VERSION` |
+| Distribuição | **separada** do kernel | **dentro** do `.tgz` do kernel |
+
+Do Console sobrou o que só ele tem como saber: onde está o tarball do SDK dentro do pacote e o nome do
+escritório. O `plugin-init` semeia um `package.json` mínimo, chama o `npm` e delega — não escreve
+documento nenhum, e `pluginWorkspaceTemplates.test.ts` guarda isso.
+
+`plugin-init` e `unpack` passam pelo MESMO caminho (`syncAuthoringWorkspace`), e são três passos cuja
+ordem é o que faz cada um valer:
+
+1. `npm install --no-save <tarball>` **pelo caminho**. Um `npm install` puro diria "up to date": o
+   caminho não leva versão e o lock guarda a impressão digital do anterior.
+2. `microteia-plugin sync`, do SDK que acabou de chegar — é ele que sabe o que o kernel faz.
+3. `npm install`, porque o passo 2 pode ter acrescentado uma `devDependency` que o kernel novo exige.
+
+O `unpack` chama isso sozinho quando `extensions/` existe, e **antes** do retorno de instalação não
+conectada: escrever extensão não depende de haver projeto Firebase. A falha ali **avisa e não derruba**
+a troca de kernel — um `npm` sem rede não pode deixar a instalação pela metade por causa da
+documentação de um diretório opcional. O `sync` é idempotente por desenho, e é isso que permite ao
+`unpack` chamá-lo sem perguntar nada: um upgrade que pergunta é um upgrade que alguém deixa para depois.
 
 #### O servidor MCP
 

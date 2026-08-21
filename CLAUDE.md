@@ -349,6 +349,11 @@ artefato. Três regras seguem daí:
   que só serve à AUTORIA — `AuthoredPlugin`, `sourceFile`, um construtor novo — não move o
   `KERNEL_VERSION`, porque não chega ao pacote instalado.
 
+- **Afirmação sobre o kernel num documento gerado é DERIVADA, nunca escrita à mão.** Lista de módulos
+  curados vem de `microteia-host.d.ts`, pontos de extensão vêm dos arrays, limite de tamanho vem de
+  `PACKAGE_MAX_BYTES`. Três listas eram prosa em três arquivos, e acrescentar um `@microteia/*` deixava
+  as três incompletas sem reprovar em nada.
+
 Validação de pacote tem **uma porta**: `validatePluginPackage` (`src/sdk/validate.ts`). Nunca monte o
 trio `validatePluginManifest` + `validatePackage` + `packageIssues` à mão — era o que havia em quatro
 lugares, e uma checagem nova num deles não chegava aos outros.
@@ -384,7 +389,19 @@ Três regras que valem para toda alteração:
   dentro de `install/` é CÓPIA, montada no deploy.
 - **Documento gerado é sobreposto; documento do escritório nasce e não se toca.** `MICROTEIA.md` é
   reescrito a cada `unpack` (e por isso pode carregar versão, caminhos e contagens); `README.md` é criado
-  se não existir e nunca mais. Um documento que promete estar atualizado não pode ser editável.
+  se não existir e nunca mais. Um documento que promete estar atualizado não pode ser editável. Em
+  `extensions/` há TRÊS políticas, e a diferença é de quem é o arquivo: `AGENTS.md` e `AUTHORING.md` são
+  prosa nossa e são sobrepostos; `CLAUDE.md` e `README.md` são do escritório e nascem uma vez; e
+  `tsconfig.json`, `.mcp.json`, `.gitignore` e `package.json` são **conciliados** — o autor escreve
+  dentro deles.
+- **Arquivo em que o autor escreve nunca é sobreposto — é CONCILIADO.** Acrescenta o requisito que
+  falta, não altera o que divergir, e avisa dizendo o que se espera e o que se achou. Sobrepor um
+  `tsconfig.json` apaga o `path` dele; um `.mcp.json`, os outros servidores MCP que ele registrou.
+  Acertar sozinho é desfazer trabalho em silêncio, que é pior que pedir o ajuste.
+- **Texto que descreve o que o KERNEL sabe fazer mora no SDK, nunca no Console.** O Console é versionado
+  e distribuído SEPARADAMENTE do kernel: enquanto os guias de `extensions/` saíam de `cli/src/vendor/`,
+  um Console de duas versões atrás escrevia a documentação de outro contrato, em silêncio. Eles vivem em
+  `src/sdk/node/workspace/`, e `microteia-plugin sync` os reescreve — chamado sozinho pelo `unpack`.
 
 Detalhes: seção "Distribuição — a Microteia instalável no Firebase do cliente" no `ARCHITECTURE.md`.
 
@@ -436,6 +453,8 @@ O `ARCHITECTURE.md` **não** guarda cópia das regras; a tabela de índices que 
 - [ ] **Mexeu em `hostApi.ts`?** `extensionTypeDefs.ts` atualizado na mesma alteração, **em inglês** — é o que o autor de extensão lê como API
 - [ ] **Fonte de view/startup nova?** Arquivo `.tsx` em `src/plugins/marketplace/views/<plugin>/` + import `?raw`. Nunca template literal
 - [ ] **Símbolo novo (ou a menos) em `src/sdk/index.ts`?** As DUAS listas de `sdkSurface.test.ts` atualizadas; `KERNEL_VERSION` só se o pacote INSTALADO muda de forma (ver "SDK de autoria")
+- [ ] **Texto novo em `extensions/`?** Mora em `src/sdk/node/workspace/`, nunca em `cli/`; se ele afirma algo sobre o kernel, o número ou a lista é DERIVADA do código, com teste
+- [ ] **Mexeu em `cli/`?** `CLI_VERSION` incrementado em `cli/src/shared/paths.ts`, com a entrada em prosa no JSDoc dele
 - [ ] **Nova coleção Firestore ou permissão alterada:** editar `firestore.rules` (raiz) e avisar que precisa de `npm run deploy:rules`
 - [ ] **Novo path no Storage:** editar `storage.rules` (raiz) e avisar que precisa de `npm run deploy:rules`
 - [ ] **Nova query Firestore:** `where` máximo + `orderBy` no servidor + `limit()` + índice em `firestore.indexes.json` (raiz) e na tabela do `ARCHITECTURE.md`, com aviso de `npm run deploy:indexes`; coleções de crescimento ilimitado exigem paginação por cursor

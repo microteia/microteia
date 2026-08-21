@@ -1,0 +1,402 @@
+/**
+ * O que é GERADO dentro de `extensions/` — o diretório em que o escritório escreve extensão.
+ *
+ * Moravam no Console, e era o lado errado. O Console é versionado (`CLI_VERSION`) e distribuído
+ * SEPARADAMENTE do kernel: um Console de duas versões atrás ao lado de uma instalação nova escrevia,
+ * em silêncio, a documentação de outro contrato. Aqui o texto viaja no mesmo `.tgz` que os pontos de
+ * extensão que ele descreve, e a versão que o carimba é a do SDK que de fato está instalado.
+ *
+ * A segunda razão é o gatilho. Enquanto isto era do Console, só o `plugin-init` escrevia — e ele se
+ * recusa a rodar duas vezes. Estando no SDK, `microteia-plugin sync` reescreve o que é gerado a cada
+ * troca de kernel, e o `unpack` o chama sozinho. É a mesma regra que a raiz da instalação já seguia:
+ * `MICROTEIA.md` é sobreposto porque promete estar atual, `README.md` nasce e não se toca.
+ *
+ * Tudo aqui é escrito em inglês. O `ARCHITECTURE.md` e o `CLAUDE.md` deste repositório são em
+ * português porque são comunicação nossa; isto é SUPERFÍCIE DE PRODUTO, entregue a um escritório que
+ * pode estar em qualquer lugar — a mesma razão por que o idioma-fonte do produto é o inglês.
+ */
+
+const kib = (bytes: number): string => `${Math.round(bytes / 1024)} KiB`;
+
+/**
+ * `tsconfig.json`, `.mcp.json` e `.gitignore` NÃO estão aqui: eles vivem em `reconcile.ts`, porque o
+ * autor escreve dentro deles e por isso não podem ser sobrepostos. A prosa deste arquivo pode — o lugar
+ * do autor é o `CLAUDE.md`. Ver a tabela no cabeçalho daquele módulo.
+ */
+
+/**
+ * Os scripts do workspace. Ficam aqui, e não no `package.json` que o Console semeia, porque são nomes
+ * de comando DESTA ferramenta: quem sabe como o SDK se chama é o SDK.
+ */
+export const workspaceScripts = (sdkPath: string): Record<string, string> => ({
+  // `create` é o guia: pergunta o que a extensão vai ser e gera só o que ela precisa.
+  create: 'microteia-plugin create',
+  'create:function': 'microteia-plugin create function',
+  check: 'microteia-plugin check',
+  build: 'microteia-plugin build',
+  typecheck: 'tsc --noEmit',
+  test: 'vitest run',
+  /**
+   * Reescreve os arquivos gerados deste diretório a partir do SDK instalado. O `microteia unpack` o
+   * chama sozinho depois de trocar de kernel; isto é para quando alguém sincroniza numa máquina e
+   * compila noutra, ou para depois de um `sdk:refresh` manual.
+   */
+  sync: 'microteia-plugin sync',
+  /**
+   * Depois de trocar de kernel, é ISTO que traz o SDK novo — e não um `npm install`.
+   *
+   * O caminho do tarball não leva versão (ver `dependencies`), e o `package-lock.json` guarda a VERSÃO
+   * e a impressão digital do que foi instalado. Um tarball novo no mesmo caminho não muda nem uma nem
+   * outra do ponto de vista do npm, então `npm install` diz "up to date" e mantém o SDK anterior — em
+   * silêncio, com o escritório escrevendo extensão contra um contrato que não é mais o da instalação.
+   * Instalar pelo caminho explícito força a resolução.
+   *
+   * E SEM `--no-save`, que é o que ele tinha. Com `--no-save` o pacote novo é extraído e o lock fica no
+   * anterior — então o `npm install` seguinte, aqui ou meses depois na mão de alguém, reinstala o antigo
+   * e desfaz tudo sem dizer nada. Salvar é o que casa lock e `node_modules`; o caminho é relativo, então
+   * a linha da dependência sai idêntica à que já estava no arquivo.
+   */
+  'sdk:refresh': `npm install ${sdkPath} && microteia-plugin sync && npm install`,
+});
+
+/**
+ * Acrescentadas se faltarem, NUNCA sobrescritas: o escritório pode ter subido uma versão de propósito,
+ * e um `sync` que a rebaixasse transformaria manutenção de documento em quebra de build.
+ */
+export const workspaceDevDependencies = (): Record<string, string> => ({
+  '@types/node': '^24.0.0',
+  // O MESMO transpilador que a plataforma usa para avaliar uma view ou um `startup`. Está aqui para
+  // que um teste possa compilar a fonte de verdade: o `tsc` cobre o arquivo `.tsx`, mas não cobre uma
+  // fonte que ainda more num template literal, e é justamente ali que o erro se esconde.
+  sucrase: '^3.35.0',
+  typescript: '^5.9.0',
+  vitest: '^4.0.0',
+});
+
+export interface AgentsMdInput {
+  kernelVersion: string;
+  hostModules: string[];
+  advisoryBytes: number;
+  maxBytes: number;
+}
+
+/**
+ * O `AGENTS.md` é GERADO e sobreposto a todo `sync`. As notas do escritório vão no `CLAUDE.md`, que
+ * nasce uma vez e importa este — antes os dois eram o mesmo texto byte a byte, e o efeito era que o
+ * escritório não tinha onde escrever nada e este arquivo não tinha como ser atualizado.
+ *
+ * A lista de módulos e os dois limites de tamanho VÊM do código. Estavam escritos à mão aqui, e
+ * acrescentar um `@microteia/*` ou mexer num limite deixava o texto desatualizado sem reprovar em nada.
+ */
+export const workspaceAgentsMd = (input: AgentsMdInput): string => `# Working in this directory
+
+You are authoring **Microteia extensions**. Read this before writing or changing anything here.
+
+> Generated by Microteia — rewritten whole every time this installation takes a new platform version.
+> Do not edit it; anything you want to keep goes in \`CLAUDE.md\`, which is yours. (The config files are
+> different: \`sync\` only adds what is missing there, so your own settings survive.)
+
+## The one rule that explains all the others
+
+An extension is a **declaration**, not a patch. You never modify the platform; you declare what you
+want, and the platform installs it. Everything below follows from that.
+
+## The gate — non-negotiable
+
+Nothing is finished until all three of these pass:
+
+    npx tsc --noEmit
+    npx microteia-plugin check <folder>/plugin.ts
+    npm test
+
+\`check\` runs the *exact* validation the platform runs on install. If it passes, the package installs;
+if it fails, the package would be refused. Do not hand over work that has not passed it.
+
+**A failing test means the task is not done.** Never report work as finished — not as "done except
+for", not as "done, one test still red" — while any of the three commands above fails. Either the code
+is wrong and you fix it, or the test is wrong and you say so and fix *it*; a red test is never
+something to hand over and explain.
+
+## What you may and may not touch
+
+| Path | |
+|---|---|
+| \`<folder>/plugin.ts\` and its files | yours — this is the source |
+| \`<folder>/VERSIONS.md\` | its release notes — one new entry per version, never skipped |
+| \`<folder>/<id>.json\` | **generated.** Never hand-edit it; run \`build\` |
+| \`<folder>/functions/\` | that extension's own Cloud Functions — deployed where it is installed |
+| \`../functions/\` | Cloud Functions shared by several extensions — deployed always |
+| \`CLAUDE.md\`, \`README.md\` | yours. Nothing rewrites them — write what is specific to this organization here |
+| \`AGENTS.md\`, \`AUTHORING.md\` | **generated.** Rewritten whole on the next platform version, so edits are lost — write in \`CLAUDE.md\` instead |
+| \`tsconfig.json\`, \`.mcp.json\`, \`.gitignore\`, \`package.json\` | yours to edit. \`npm run sync\` only ADDS what the platform needs and warns about anything that disagrees — it never overwrites your settings |
+| \`examples/\` | first-party extensions, as reference. Read them; do not edit them |
+| \`node_modules/@microteia/sdk\` | the SDK. Read it, never change it |
+| \`../.microteia/\` | the installation. Never touch it — it is replaced on every upgrade |
+
+## Creating one
+
+    npm run create              # guided; asks what the extension should carry
+    npm run create:function     # adds a Cloud Function to an existing extension
+
+Use it rather than copying a folder by hand: it generates only what was asked for, and what it generates
+already passes the gate.
+
+## Changing an extension that already exists
+
+Every change to an extension raises its version. Two steps, in the same change, always:
+
+1. Raise \`manifest.version\` in \`plugin.ts\` — semver: *patch* for a fix, *minor* for something new,
+   *major* for anything that breaks what an earlier version wrote.
+2. Add an entry at the top of that extension's \`VERSIONS.md\`:
+
+       #### [1.2.0] — YYYY-MM-DD
+
+       - What a person will notice, in one plain sentence.
+
+The entry is written for whoever **uses** the extension, not for whoever wrote it: the change they
+will see, never the file, the field or the function you touched. It is not the commit message, and it
+is never the same text as one.
+
+Do this without being asked — it is part of the change, not a follow-up. The only exception is being
+told not to: if the person you are working for says to leave the version alone, leave it alone.
+
+The version is how an installed extension recognises an update. An extension changed without a new
+version is an extension that never reaches the organizations that already have it.
+
+## Tests
+
+Write them whenever the thing can be tested — which is nearly always, because the source is TypeScript
+and the built package can be validated in a second:
+
+    npm test                    # vitest, over every <folder>/*.test.ts
+
+\`create\` already generates \`<folder>/plugin.test.ts\`, which validates the *built* package with the
+platform's own validation. Extend it as the extension grows: a test per screen field that must stay
+translatable, per message key a view reads, per rule a function enforces. Pure logic you write for a
+view or a Cloud Function belongs in its own test.
+
+A test exists so the next change fails **here**, in a second, instead of in someone's organization.
+That is the whole reason this directory is TypeScript and not hand-written JSON.
+
+## Text
+
+Every label a person reads is a **message reference**, never a literal:
+
+    label: '@com.example.hello/field.title'      // right
+    label: 'Title'                                // wrong
+
+The references resolve against the bundles the extension declares in \`manifest.contributes\`, via
+\`messageBundleContribution\`. Ship \`en\` always; add other locales as extra bundles. The platform does
+not translate an extension's vocabulary — the extension that declares a word answers for it.
+
+What the organization *typed* (a screen name, a field label they created) is data, not product text,
+and is never translated.
+
+## Code
+
+A view or \`startup\` may import **only** from the curated API:
+
+${input.hostModules.map((name) => `- \`${name}\``).join('\n')}
+
+Any other import throws at runtime. Ask the MCP server (\`describe_host_module\`) rather than guessing
+what a module exports.
+
+Write views as real \`.tsx\` files and point at them with \`sourceFile\`. Never paste code into a string:
+a string is not type-checked, and that is where mistakes hide.
+
+\`sourceFile\` also takes a **list**, merged in the order given, so a view can be written the way the
+platform writes its own — the component, the state and the styles in separate files:
+
+    sourceFile: ['./views/Panel.view.tsx', './views/Panel.viewmodel.tsx', './views/Panel.styles.tsx']
+
+Import across those files normally: the relative import is what makes \`tsc\` and your editor connect
+them, and the compiler removes it once they are one module. That module has **one scope**, so every
+top-level name has to be unique across the list, and exactly one file exports \`default\`. Anything
+else is refused at build time, not on the screen. \`startupFile\` takes a list for the same reason.
+
+**Code does not run until a human trusts it.** A package carrying \`views\` or \`startup\` installs
+inert; an administrator opens the source, reads it and trusts it, and the trust is bound to that exact
+code by hash. Changing one character un-trusts it. This is deliberate — do not look for a way around it.
+
+## Before you write
+
+Ask the MCP server. It answers from this installation, not from a snapshot of documentation:
+
+- \`read_authoring_guide\` — the manual (\`AUTHORING.md\`)
+- \`list_extension_points\` — every point, its API version, and which impl kinds it accepts
+- \`describe_host_module\` — what a curated module actually exports
+- \`validate_plugin\` — after every edit; this is the short feedback loop
+- \`workspace_info\` — what this workspace is bound to
+
+## Limits worth knowing before designing
+
+- A package must stay under **${kib(input.maxBytes)}** (it is stored as one document). A warning starts at ${kib(input.advisoryBytes)}.
+- Every reference out of the package must be **in** the package or covered by a declared
+  \`dependency\`. \`check\` refuses a dangling one.
+- Changing the **shape of data already written** by an earlier version of your extension requires a
+  \`migration\` — see the guide.
+
+Kernel contract: ${input.kernelVersion}.
+`;
+
+/**
+ * O `CLAUDE.md` é DO ESCRITÓRIO: nasce uma vez e nada o reescreve. Era cópia byte a byte do
+ * `AGENTS.md`, e assim não servia a nenhum dos dois propósitos — não podia receber uma linha do
+ * escritório (o `--force` a apagaria) nem ser atualizado (ninguém o reescrevia).
+ *
+ * O que ele traz de nascença são os dois imports: a regra gerada continua chegando ao assistente, e o
+ * espaço abaixo dela é onde ficam as decisões deste escritório.
+ */
+export const workspaceClaudeMd = (officeName: string): string => `# Extensions — ${officeName}
+
+<!--
+  This file is yours. Nothing rewrites it, not even taking a new platform version.
+  The two imports below pull in the generated rules; keep them, and write your own notes underneath.
+-->
+
+@AGENTS.md
+@AUTHORING.md
+
+## About this organization
+
+<!--
+  Write what an assistant cannot work out from the code. For example:
+    - the naming convention your extension ids follow
+    - which extensions are in production and must not break
+    - vocabulary of this business, and how it should be worded on screen
+    - people to ask about what
+-->
+`;
+
+export interface WorkspaceReadmeInput {
+  officeName: string;
+  kernelVersion: string;
+  examples: string[];
+}
+
+/**
+ * O `README.md` também é do escritório — nasce uma vez. É por isso que ele não carrega nada que
+ * envelheça sozinho: a lista de exemplos e a versão são o retrato do dia em que o diretório foi criado,
+ * e quem promete estar atual é o `AUTHORING.md`, que é reescrito.
+ */
+export const workspaceReadme = (input: WorkspaceReadmeInput): string => {
+  const first = input.examples[0] ?? 'hello';
+  return `# Extensions — ${input.officeName}
+
+The extensions this organization writes. Each one is a folder.
+
+    npm run create                               # guided: asks what the extension should carry
+    npx tsc --noEmit                             # types
+    npx microteia-plugin check <folder>/plugin.ts    # the gate
+    npx microteia-plugin build <folder>/plugin.ts    # writes <folder>/<id>.json
+
+Then import the \`.json\` on the **Extensions** screen of your Microteia.
+
+## Why TypeScript, when the platform reads JSON
+
+The \`.json\` is the artifact; this directory is the source. Writing the source in TypeScript is what
+gives you types, autocomplete and unit tests — and it lets an AI assistant do the work and be *checked*
+before anything is installed. Hand-editing a generated \`.json\` still works: it is the final result.
+
+## One folder per extension
+
+    <folder>/
+      plugin.ts        the declaration — this is the source
+      messages.ts      every label it shows, so all of them can be translated
+      VERSIONS.md      what changed in each version, for whoever uses the extension
+      plugin.test.ts   runs the platform's own validation against the built package
+      views/*.tsx      its pages, as real files the compiler checks
+      functions/       its own Cloud Functions (optional)
+      <id>.json        GENERATED by build. Do not hand-edit; do not commit
+
+## Every change raises the version
+
+Raise \`manifest.version\` in \`plugin.ts\` and add an entry at the top of that extension's
+\`VERSIONS.md\`, in the same change — semver, and the entry written for whoever *uses* the extension.
+The version is how an installed extension recognises an update: changed without one, it never reaches
+the people who already have it.
+
+Run the tests before calling anything finished:
+
+    npm test
+
+## Cloud Functions
+
+A function that belongs to one extension goes in \`<folder>/functions/\`. One shared by several goes in
+\`../functions/\`, next to \`microteia.yaml\`. Either way the directory is read through its \`index.ts\`,
+and what it exports is what gets deployed.
+
+    npm run create:function        # adds one to an extension that already exists
+
+Where it goes decides WHEN it is deployed, and that is the whole difference:
+
+| | |
+|---|---|
+| \`<folder>/functions/\` | it has an owner. Name it in \`manifest.backend.functions\`, and \`microteia provision\` deploys it only where that extension is installed |
+| \`../functions/\` | nobody owns it, so nothing can claim it. It goes up with every \`microteia deploy\` |
+
+An npm package the platform does not carry goes in \`dependencies\` in that directory's own
+\`package.json\`. Two extensions asking for different ranges of the same package is refused — one
+installation has one \`node_modules\` — and a range the platform already pins is kept.
+
+A credential or setting is a \`defineString('NAME')\` plus \`'NAME'\` in \`manifest.backend.parameters\`.
+Every one found is written into \`.env.<projectId>\`, empty, for whoever installs to fill in: a
+\`defineString\` with no value refuses the deploy of *every* function in the project, not only yours.
+
+They compile against \`firebase-functions\`, which is not installed here by default. For types while
+you write them:
+
+    npm i -D firebase-functions firebase-admin
+
+## examples/
+
+Every extension that ships with Microteia, in **source** form — one folder each, exactly as you would
+write your own. This is the most useful reference here: build any of them and you get the same \`.json\`
+the platform installs.
+
+    npx microteia-plugin build examples/${first}/plugin.ts
+
+${input.examples.length === 0
+    ? 'This installation carries no examples.'
+    : `Present when this directory was created:\n\n${input.examples.map((id) => `- \`examples/${id}/\``).join('\n')}\n\nThey are replaced whenever the installation takes a new platform version, so read them there rather\nthan from this list.`}
+
+## Which files are yours
+
+| | Policy |
+|---|---|
+| \`CLAUDE.md\`, \`README.md\` | **yours.** Created once, never rewritten — notes about this organization go here |
+| \`AUTHORING.md\` — the contract: package anatomy, extension points, the curated API, code trust | **rewritten whole** |
+| \`AGENTS.md\` — the operating rules, for you and for an AI assistant | **rewritten whole** |
+| \`examples/\` — the first-party extensions, as reference | **replaced** |
+| \`tsconfig.json\`, \`.mcp.json\`, \`.gitignore\`, \`package.json\` | **yours to edit**, and completed |
+
+The two documents are rewritten whole, because the platform's capabilities change with each version and
+the text has to follow — so write in \`CLAUDE.md\`, not in them.
+
+The config files are different: you are meant to edit them. Add a \`path\` for a library of your own,
+register another MCP server, ignore another file — all of it survives. \`sync\` only **adds** what the
+platform needs and is missing, and when a setting disagrees with what the platform needs it says so and
+**leaves it alone**: the choice is yours to make, and a tool that silently corrected it would be
+undoing your work.
+
+## After taking a new platform version
+
+    microteia unpack --kernel <package>.tgz
+
+refreshes the SDK here and rewrites the generated files above, so they describe the platform you now
+have. If you ever need to do it by hand — you synchronised on one machine and are compiling on
+another — it is:
+
+    npm run sdk:refresh
+
+Not \`npm install\`: that one keeps the SDK you already have. The tarball path carries no version number
+(so a new platform version never makes you edit \`package.json\`), and \`package-lock.json\` records the
+version and checksum of what was installed; to npm, a new tarball at the same path looks like nothing
+changed. \`sdk:refresh\` installs it by path, which forces the resolution, and then syncs.
+
+The symptom of skipping it is silence: your extensions keep compiling, against a contract the
+installation no longer has.
+
+Extension contract when this directory was created: ${input.kernelVersion}.
+`;
+};

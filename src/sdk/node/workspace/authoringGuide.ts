@@ -1,3 +1,9 @@
+import { UI_EXTENSION_POINTS } from '../../../domain/schema/ui/uiExtensionPoints';
+import { DATA_EXTENSION_POINTS } from '../../../domain/schema/dataExtensionPoints';
+import { I18N_EXTENSION_POINTS } from '../../../domain/schema/i18n/extensionPoints';
+import { THEME_EXTENSION_POINTS } from '../../../domain/schema/theme/extensionPoints';
+import type { ExtensionPointDefinition } from '../../../domain/schema/plugin/extensionPoint';
+
 /**
  * `AUTHORING.md` — o manual de quem escreve extensão, e o contraponto do `ARCHITECTURE.md`: aquele
  * explica o kernel a quem o altera, este explica o CONTRATO a quem nunca vai vê-lo.
@@ -6,19 +12,22 @@
  * A regra de idioma do repositório é exatamente essa — o produto fala inglês porque tem de poder falar
  * qualquer idioma; o português é a nossa comunicação interna.
  *
- * Mora no Console (e não como arquivo `.md` solto) para que a versão do kernel e a lista de pontos de
- * extensão sejam CARIMBADAS no texto: um manual que fala de um contrato diferente do instalado é pior
- * que manual nenhum.
+ * Mora no SDK, e não no Console, porque é aqui que estão os pontos de extensão que ele descreve: a
+ * tabela da §4 sai dos MESMOS arrays que o kernel valida contra, e não de uma cópia deles. Enquanto
+ * morava no Console, o texto podia falar de um contrato e a instalação ter outro — as duas ferramentas
+ * são versionadas e distribuídas em separado.
  */
 
-export interface ExtensionPointRow {
-  id: string;
-  apiVersion: string;
-  allowedImplKinds: string[];
-  multiple: boolean;
-}
+const ALL_POINTS: ExtensionPointDefinition[] = [
+  ...UI_EXTENSION_POINTS,
+  ...DATA_EXTENSION_POINTS,
+  ...I18N_EXTENSION_POINTS,
+  ...THEME_EXTENSION_POINTS,
+];
 
-const pointsTable = (points: ExtensionPointRow[]): string => [
+const kib = (bytes: number): string => `${Math.round(bytes / 1024)} KiB`;
+
+const pointsTable = (points: ExtensionPointDefinition[]): string => [
   '| Point | API | Accepts | Many? |',
   '|---|---|---|---|',
   ...points.map((point) => `| \`${point.id}\` | ${point.apiVersion} | ${
@@ -26,13 +35,16 @@ const pointsTable = (points: ExtensionPointRow[]): string => [
   } | ${point.multiple ? 'yes' : 'no'} |`),
 ].join('\n');
 
-export const authoringGuide = (
-  kernelVersion: string,
-  points: ExtensionPointRow[],
-  hostModules: string[],
-): string => `# Authoring Microteia extensions
+export interface AuthoringGuideInput {
+  kernelVersion: string;
+  hostModules: string[];
+  advisoryBytes: number;
+  maxBytes: number;
+}
 
-Kernel contract **${kernelVersion}**. Everything here describes the platform installed next to this
+export const authoringGuide = (input: AuthoringGuideInput): string => `# Authoring Microteia extensions
+
+Kernel contract **${input.kernelVersion}**. Everything here describes the platform installed next to this
 directory, not a general idea of it.
 
 ## 1. What an extension is
@@ -93,7 +105,7 @@ view carries its \`source\` inline. The compiler turns the first into the second
 
 \`manifest.id\` is reverse-DNS and permanent: it is how an update recognises the thing it updates. Use
 a domain you control. \`manifest.version\` is semver. \`manifest.kernel\` is the range of platform
-contracts you work against — \`^${kernelVersion}\` for what is installed here.
+contracts you work against — \`^${input.kernelVersion}\` for what is installed here.
 
 Every change to an extension raises \`manifest.version\`, and records itself as one entry at the top of
 that extension's \`VERSIONS.md\` — the file \`create\` generates next to \`plugin.ts\`. The entry is
@@ -115,7 +127,7 @@ dependencies: { 'com.example.projects': { version: '^2.0.0', collections: ['proj
 
 ## 4. Extension points
 
-${pointsTable(points)}
+${pointsTable(ALL_POINTS)}
 
 The \`Accepts\` column is the important one. Four kinds of implementation exist:
 
@@ -164,7 +176,7 @@ passes through untranslated, always.
 A \`view\` travels as **source**. The browser compiles it and evaluates it against a fixed allowlist of
 modules:
 
-${hostModules.map((name) => `- \`${name}\``).join('\n')}
+${input.hostModules.map((name) => `- \`${name}\``).join('\n')}
 
 Any other import throws. This is an import allowlist, not a sandbox: the code runs in the page, so it
 can reach \`fetch\` and the DOM like any script. The real containment is **provenance**.
@@ -277,8 +289,8 @@ Nobody owns it, so nothing can claim it, and it is deployed with every \`microte
 
 | | |
 |---|---|
-| Warning | 400 KiB |
-| Refused | 800 KiB |
+| Warning | ${kib(input.advisoryBytes)} |
+| Refused | ${kib(input.maxBytes)} |
 
 A package is stored as a single document. If you are near the limit, the usual cause is code that
 should be several extensions, or a seed list that should be data.

@@ -42,9 +42,20 @@ export const repoRoot = resolve(here, '..', '..', '..');
  * uma dependência. A cópia nunca teve para que existir: a origem é apagada em seguida. Em `2.1.5`: o carimbo
  * `backendState.appliedAt` passou a ser gravado como DATA (`timestampValue`) e não como texto — o
  * `stringValue` chegava à tela como string com o tipo de `Date`, e derrubava o botão de atualizar a
- * extensão na gravação seguinte.
+ * extensão na gravação seguinte. Em `2.2.0`: o `sourceFile` de uma view passa a aceitar LISTA, e o
+ * `AUTHORING.md` que este Console escrevia ganhou a seção que explica a fusão. Em `2.3.0`: ele deixa de
+ * escrever documento nenhum em `extensions/`. `AGENTS.md`, `AUTHORING.md`, `tsconfig.json` e `.mcp.json`
+ * descrevem o que o KERNEL sabe fazer, e passaram para o SDK, que viaja no mesmo pacote daquelas
+ * capacidades — enquanto saíam daqui, um Console de duas versões atrás escrevia, em silêncio, a
+ * documentação de outro contrato. O `plugin-init` semeia e delega; o `unpack` traz o SDK novo e manda
+ * ele reescrever, que é o gatilho que não existia: aqueles arquivos eram escritos UMA vez e nunca mais.
+ * O refresh do SDK perdeu o `--no-save` que tinha: com ele o pacote novo é extraído e o
+ * `package-lock.json` fica no anterior, então o `npm install` seguinte reinstala o antigo e desfaz o
+ * refresh — em silêncio, que é justamente o que ele existe para evitar. E instala pelo caminho RELATIVO
+ * ao diretório, porque o npm reescreve a dependência com o caminho que recebe, e um absoluto no
+ * `package.json` mataria a portabilidade que o relativo existe para dar.
  *
  * Ela NÃO acompanha o `version` do produto, e não é obrigada a andar junto do `MINIMUM_CLI_VERSION`:
  * este último só se move quando o PACOTE passa a depender de algo que o Console faz.
  */
-export const CLI_VERSION = '2.2.0';
+export const CLI_VERSION = '2.3.0';

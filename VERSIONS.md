@@ -11,6 +11,24 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [8.2.0] — 2026-08-21
+
+- O material de apoio de quem escreve extensões — o manual, as regras de trabalho e a configuração do
+  editor — passa a ser atualizado junto com a plataforma. Antes ele era escrito uma única vez, quando a
+  pasta de extensões era criada, e depois disso continuava descrevendo a versão daquele dia: recursos
+  novos não apareciam ali, e quem seguia o manual à risca podia estar seguindo instruções antigas sem
+  ter como perceber. Agora cada atualização da plataforma reescreve esse material, e ele reflete o que
+  o sistema realmente é capaz de fazer naquele momento — inclusive os limites e a lista de recursos
+  disponíveis, que passaram a ser lidos do próprio sistema em vez de copiados à mão.
+- A pasta de extensões ganhou um lugar que é do escritório e que nada sobrescreve, para anotar as
+  decisões, os nomes e as combinações do próprio negócio. Antes esse arquivo era uma cópia do material
+  de apoio: qualquer anotação feita nele se perdia na próxima atualização.
+- Os arquivos de configuração dessa pasta passaram a ser respeitados. A atualização apenas acrescenta o
+  que faltar para a plataforma funcionar e não altera mais nada — ajustes feitos ali, como outra
+  ferramenta registrada ou um atalho próprio, sobrevivem. Quando alguma configuração conflita com o que
+  a plataforma precisa, ela é mantida como está e o conflito é apontado, com os dois valores, para que a
+  decisão seja de quem escreveu.
+
 #### [8.1.0] — 2026-08-21
 
 - Uma tela entregue por extensão pode agora ser escrita em várias partes, em vez de caber num arquivo

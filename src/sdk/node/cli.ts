@@ -8,6 +8,7 @@ import { describeMessage, describeWith } from './messages';
 import { installationRegion, scaffoldFunction, scaffoldPlugin } from './scaffold';
 import { askerFor } from './prompt';
 import { serveMcp } from './mcp';
+import { syncWorkspace } from './workspace/sync';
 
 /**
  * `microteia-plugin` — a ferramenta de quem escreve extensão fora deste repositório.
@@ -362,6 +363,50 @@ const pluginIdOf = (directory: string): string | null => {
 const create = async (args: Args): Promise<number> =>
   args.positional[1] === 'function' ? createFunction(args) : createPlugin(args);
 
+/**
+ * Reescreve o que é gerado neste diretório a partir do SDK instalado. O que o escritório escreveu —
+ * `CLAUDE.md`, `README.md` e toda pasta de extensão — não é tocado; as duas sementes nascem se
+ * faltarem. Idempotente: rodar duas vezes produz os mesmos bytes.
+ */
+const sync = (args: Args): number => {
+  const root = resolve(args.values.get('root') ?? process.cwd());
+  const install = args.values.get('install');
+  const report = syncWorkspace({
+    root,
+    install: install === undefined ? undefined : resolve(install),
+    officeName: args.values.get('office'),
+  });
+
+  say(`${BOLD}Microteia extensions${RESET} ${DIM}(kernel contract ${report.kernelVersion})${RESET}`);
+  say();
+  say(`  rewrote    ${report.rewritten.join(', ')}`);
+  if (report.reconciled.length > 0) {
+    say(`  completed  ${report.reconciled.join(', ')} ${DIM}— added what was missing, changed nothing else${RESET}`);
+  }
+  if (report.seeded.length > 0) {
+    say(`  created    ${report.seeded.join(', ')} ${DIM}— yours, nothing rewrites them${RESET}`);
+  }
+  if (report.examples > 0) say(`  examples   ${report.examples} first-party extension(s), as source`);
+
+  /**
+   * As divergências saem por último e uma por linha, porque cada uma é uma decisão de quem escreveu o
+   * arquivo. O `sync` não as resolve de propósito: acertar sozinho seria desfazer trabalho em silêncio.
+   */
+  if (report.warnings.length > 0) {
+    say();
+    say(`${YELLOW}Left alone, because the file says something else:${RESET}`);
+    for (const warning of report.warnings) say(`  ${YELLOW}!${RESET} ${warning}`);
+  }
+
+  if (report.packageJson === 'missing') {
+    say();
+    problem('No package.json here. Run "microteia plugin-init" to create this directory.');
+    return 1;
+  }
+  say();
+  return 0;
+};
+
 interface Command {
   name: string;
   usage: string;
@@ -389,6 +434,12 @@ const COMMANDS: Command[] = [
     usage: 'microteia-plugin build [plugin.ts] [--out <dir>] [--export <name>] [--force]',
     summary: 'Compile to the .json the platform installs.',
     run: (args) => build(args, true),
+  },
+  {
+    name: 'sync',
+    usage: 'microteia-plugin sync [--root <path>] [--install <path>] [--office <name>]',
+    summary: 'Rewrite the generated files here from the installed SDK. Your own files are never touched.',
+    run: (args) => sync(args),
   },
   {
     name: 'mcp',

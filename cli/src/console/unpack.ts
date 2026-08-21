@@ -8,6 +8,7 @@ import { blank, bullets, heading, info, success, warn } from '../shared/ui.js';
 import { compareVersions } from '../kernel/manifest.js';
 import type { KernelManifest } from '../kernel/manifest.js';
 import { ENVIRONMENT_FILE, readEnvironment } from './environment.js';
+import { refreshAuthoringWorkspace } from './pluginWorkspace.js';
 import { workspacePath } from './workspace.js';
 import { ensureOfficeEnv, ensureRootGitignore, officeEnvName } from './backendEnv.js';
 import { readOfficeFunctions } from './customFunctions.js';
@@ -183,6 +184,17 @@ export const unpack = async (args: ParsedArgs): Promise<void> => {
     await writeFile(join(root, INSTALLATION_README), installationReadme(environment.project.name));
     success(`created ${INSTALLATION_README} — it is yours, and nothing rewrites it`);
   }
+
+  /**
+   * E o diretório de autoria, se ele existir — pela MESMA razão que o `MICROTEIA.md` é reescrito aqui.
+   *
+   * O que há em `extensions/` além das extensões do escritório é documentação do que o kernel sabe
+   * fazer, e ela era escrita uma única vez, pelo `plugin-init`. Trocava-se de kernel e ela continuava
+   * descrevendo o contrato anterior — para o autor e para a IA que a lê como instrução —, sem nada
+   * reprovar, porque nada comparava. Vem antes do retorno de instalação não conectada de propósito:
+   * escrever extensão não depende de haver projeto Firebase.
+   */
+  await refreshAuthoringWorkspace(root, environment.project.name);
 
   blank();
 

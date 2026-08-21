@@ -9,6 +9,7 @@ import { THIRD_PARTY_IMPL_KINDS } from '../../domain/schema/plugin/extensionPoin
 import { parsePackage } from '../../domain/usecases/plugins/packageSerialization';
 import { validatePluginPackage } from '../validate';
 import { buildPlugin } from './compile';
+import { hostModuleBlock, hostModuleNames, hostTypesPath, readHostTypes } from './hostTypes';
 import { describeMessage } from './messages';
 
 /**
@@ -42,28 +43,6 @@ const asString = (value: unknown, name: string): string => {
 };
 
 const pretty = (value: unknown): string => JSON.stringify(value, null, 2);
-
-/** O `.d.ts` da API curada, tal como o pacote o carrega. */
-const hostTypesPath = (root: string): string | null => {
-  const candidates = [
-    // O caso normal: o workspace do escritório, com o SDK instalado.
-    join(root, 'node_modules/@microteia/sdk/types/microteia-host.d.ts'),
-    join(root, '../.microteia/install/sdk/types/microteia-host.d.ts'),
-    join(root, 'types/microteia-host.d.ts'),
-    // Relativo a ESTE módulo. Os dois porque o caminho difere entre o compilado
-    // (`sdk/lib/sdk/node/` -> três níveis chegam à raiz do pacote) e a fonte
-    // (`src/sdk/node/` -> três níveis chegam à raiz do repositório, onde `sdk/` é um diretório).
-    resolve(__dirname, '../../..', 'types/microteia-host.d.ts'),
-    resolve(__dirname, '../../..', 'sdk/types/microteia-host.d.ts'),
-  ];
-  return candidates.find((candidate) => existsSync(candidate)) ?? null;
-};
-
-const readHostTypes = (root: string): string => {
-  const path = hostTypesPath(root);
-  if (path === null) throw new Error('Could not find microteia-host.d.ts in this workspace.');
-  return readFileSync(path, 'utf8');
-};
 
 const ALL_POINTS = [
   ...UI_EXTENSION_POINTS,
@@ -165,27 +144,24 @@ const TOOLS: ToolDefinition[] = [
   {
     name: 'describe_host_module',
     description:
-      'The TypeScript declarations of a module that extension CODE (a view or startup) may import: '
-      + '@microteia/ui, @microteia/data, @microteia/format, @microteia/i18n, @microteia/theme, '
-      + '@microteia/settings, @microteia/functions, react, styled-components. Nothing else is '
-      + 'reachable — the runtime resolves imports against a fixed allowlist. Call with no name to '
-      + 'list the modules.',
+      'The TypeScript declarations of a module that extension CODE (a view or startup) may import. '
+      + 'Nothing outside this set is reachable — the runtime resolves imports against a fixed '
+      + 'allowlist. Call with no name to list every module in it.',
     inputSchema: {
       type: 'object',
       properties: { name: { type: 'string', description: "e.g. '@microteia/data'" } },
     },
     run: (input, root) => {
       const types = readHostTypes(root);
-      const names = [...types.matchAll(/declare module '([^']+)'/g)].map((match) => match[1]);
+      const names = hostModuleNames(types);
       if (typeof input.name !== 'string' || input.name === '') {
         return `Available modules:\n${names.map((name) => `- ${name}`).join('\n')}`;
       }
-      const start = types.indexOf(`declare module '${input.name}' {`);
-      if (start < 0) {
+      const block = hostModuleBlock(types, input.name);
+      if (block === null) {
         return `"${input.name}" is not available to extensions. Available:\n${names.map((n) => `- ${n}`).join('\n')}`;
       }
-      const end = types.indexOf('\n}', start);
-      return types.slice(start, end < 0 ? undefined : end + 2);
+      return block;
     },
   },
   {

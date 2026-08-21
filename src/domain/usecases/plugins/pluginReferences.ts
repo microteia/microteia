@@ -265,9 +265,9 @@ const eventPrefixIssues = (screens: ScreenModuleTemplate[]): PackageValidationIs
  * capaz de chegar: um idioma completo do sistema são milhares de pares chave/texto. Daí a guarda —
  * o limite vira um recado em português, antes de gravar, com a saída ("divida por idioma") junto.
  */
-const PACKAGE_ADVISORY_BYTES = 400 * 1024;
+export const PACKAGE_ADVISORY_BYTES = 400 * 1024;
 
-const PACKAGE_MAX_BYTES = 800 * 1024;
+export const PACKAGE_MAX_BYTES = 800 * 1024;
 
 const packageBytes = (pkg: MarketplacePlugin): number => {
   const json = JSON.stringify(pkg);
