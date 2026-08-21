@@ -19,8 +19,9 @@ import { compareVersions } from '../kernel/manifest.js';
 const source = (relative: string): string =>
   readFileSync(join(repoRoot, 'cli/src', relative), 'utf8');
 
+const unpack = source('console/unpack.ts');
+
 describe('a fronteira entre unpack e deploy', () => {
-  const unpack = source('console/unpack.ts');
   const deploy = source('console/deploy.ts');
   const index = source('index.ts');
 
@@ -94,7 +95,9 @@ describe('a fronteira entre unpack e deploy', () => {
    * Os dois números NÃO são o mesmo número, e exigir igualdade aqui era o erro: toda alteração do
    * Console move o `CLI_VERSION`, e a maioria delas não faz pacote nenhum passar a depender de nada.
    * O `MINIMUM_CLI_VERSION` se move só quando o PACOTE passa a exigir algo que o Console faz — foi o
-   * caso da configuração de backend na raiz, e é por isso que ele está em `2.0.0`.
+   * caso da configuração de backend na raiz (`2.0.0`) e o das Cloud Functions do escritório (`2.1.0`):
+   * um Console anterior a este último monta a function da extensão dentro do pacote e nunca a deploya,
+   * deixando a extensão "Backend pendente" para sempre com a mensagem apontando para o lugar errado.
    *
    * O que tem de valer sempre é a ORDEM: um Console que exigisse de si mesmo uma versão maior do que
    * a sua recusaria o próprio pacote que acabou de montar.
@@ -103,7 +106,7 @@ describe('a fronteira entre unpack e deploy', () => {
     const consoleVersion = /CLI_VERSION = '([^']+)'/.exec(source('shared/paths.ts'))?.[1];
     const required = /MINIMUM_CLI_VERSION = '([^']+)'/.exec(source('kernel/manifest.ts'))?.[1];
 
-    expect(required).toBe('2.0.0');
+    expect(required).toBe('2.1.0');
     expect(compareVersions(consoleVersion ?? '0.0.0', required ?? '0.0.0')).toBeGreaterThanOrEqual(0);
   });
 
@@ -125,5 +128,135 @@ describe('a fronteira entre unpack e deploy', () => {
     expect(offenders, 'deixe o caminho para o Console').toEqual([]);
 
     expect(source('console/provision.ts')).toContain('Backend settings go in ${officeEnvPath(');
+  });
+});
+
+/**
+ * As Cloud Functions do escritório eram montadas e esquecidas.
+ *
+ * O `gatherCustomFunctions` copiava `extensions/<plugin>/functions/` para dentro do pacote e o
+ * `predeploy` as compilava — e então o deploy mandava ao `firebase` apenas os nomes da BASELINE. O
+ * `provision`, que é quem deveria subir as de extensão, conferia a reivindicação contra
+ * `manifest.functions` (só o que o pacote exporta) e rejeitava a extensão inteira com "this kernel
+ * package does not contain" — recusando exatamente o pacote que o `microteia-plugin create function`
+ * gera, que declara a própria function em `manifest.backend.functions`.
+ *
+ * O teste lê a fonte porque o que ele guarda é a decisão de QUAIS nomes cada comando envia: o efeito
+ * real só aparece contra um projeto Firebase.
+ */
+describe('as functions que o escritório escreve chegam ao deploy', () => {
+  const deploy = source('console/deploy.ts');
+  const provision = source('console/provision.ts');
+
+  it('o deploy sobe a baseline MAIS as comuns, não só a baseline', () => {
+    expect(deploy).toContain('const own = [...baseline, ...gathered.shared];');
+    expect(deploy).toContain('deployFunctionsOneByOne(own');
+    expect(deploy).not.toContain('deployFunctionsOneByOne(baseline');
+  });
+
+  it('o provision confere e escolhe contra o pacote MAIS o que o escritório escreveu', () => {
+    expect(provision).toContain('const deployable = [...manifest.functions, ...office.all];');
+    expect(provision).toContain('functionClaimProblems(claims, deployable)');
+    expect(provision).toContain('deployable.filter(');
+    expect(provision).not.toContain('functionClaimProblems(claims, manifest.functions)');
+  });
+
+  /**
+   * O `provision` roda sozinho depois de alguém instalar uma extensão pela aplicação, e nesse caminho
+   * ninguém passou pelo `deploy` que monta as fontes. Sem remontar, ele deployaria a montagem anterior.
+   */
+  it('o provision remonta as fontes quando alguma delas está na fila', () => {
+    expect(provision).toContain('gatherCustomFunctions');
+  });
+
+  /** Sem ela, a aplicação abre e a chamada falha no navegador parecendo erro de CORS. */
+  it('a callable do escritório entra na mesma conferência de alcance que a do kernel', () => {
+    expect(deploy).toContain('...gathered.callables');
+    expect(provision).toContain('...office.callables');
+  });
+
+  /**
+   * O `firebase-functions` valida os `defineString` GLOBALMENTE: um parâmetro sem linha no arquivo
+   * recusa o deploy de TODAS as functions, e não só das que o leem.
+   */
+  it('os parâmetros do escritório entram no .env, nos dois comandos que o escrevem', () => {
+    for (const [name, text] of [['unpack', unpack], ['deploy', deploy]] as const) {
+      expect(text, name).toContain('...office.parameters');
+      expect(text, name).not.toMatch(/ensureOfficeEnv\(\s*root,\s*projectId,\s*manifest\.backendParameters/);
+    }
+  });
+});
+
+/**
+ * O gate de versão do Console — e o defeito que ele deixou passar.
+ *
+ * Um `microteia` de PATH linkado a um Console 2.0.2 provisionou uma instalação montada por um Console
+ * 2.1.1. Ele desempacotou o pacote sem reclamar (o `minimumCliVersion` ainda era `2.0.0`), montou as
+ * cinco functions da extensão dentro do pacote, não deployou nenhuma, e recusou a extensão com "this
+ * kernel package does not contain" — apontando para o pacote, quando o problema era a ferramenta.
+ *
+ * Nada no relato dizia isso. O gate existe exatamente para essa situação e não disparou porque ninguém
+ * o moveu junto com a capacidade nova.
+ */
+describe('o Console mínimo que o pacote exige', () => {
+  const manifest = source('kernel/manifest.ts');
+
+  it('exige o Console que sabe deployar a function do escritório', () => {
+    expect(manifest).toContain("MINIMUM_CLI_VERSION = '2.1.0'");
+  });
+
+  /**
+   * A regra que o caso ensinou: o pacote carrega o SDK, e o `create function` do SDK gera uma extensão
+   * que declara a própria function. A partir daí o pacote DEPENDE de um Console que a deploye — e a
+   * dependência tem de estar escrita no lugar que a confere.
+   */
+  it('e a razão está escrita junto do número, não só no histórico', () => {
+    const bloco = manifest.slice(0, manifest.indexOf('MINIMUM_CLI_VERSION ='));
+    expect(bloco).toContain('2.1.0');
+    expect(bloco).toMatch(/Cloud Functions do ESCRITÓRIO/);
+  });
+
+  /**
+   * A recusa não pode nomear só o pacote: das duas origens possíveis de uma function, a outra é o
+   * diretório do escritório — e é a que mais aparece, porque o autor declara a function e esquece de
+   * exportá-la do `index.ts`.
+   */
+  it('a recusa nomeia as DUAS origens possíveis de uma function', () => {
+    const provision = source('console/provision.ts');
+    expect(source('kernel/backendShape.ts')).toContain('is not available to deploy');
+    expect(source('kernel/backendShape.ts')).not.toContain('this kernel package does not contain');
+    expect(provision).toContain('extensions/<folder>/functions/index.ts');
+    expect(provision).toContain('this Microteia package');
+  });
+});
+
+/**
+ * O `unpack` preserva `functions/node_modules` MOVENDO, e não copiando.
+ *
+ * Copiar falhava de forma intermitente e ilegível: são ~250 pacotes e dezenas de milhares de arquivos,
+ * o `cp` recursivo abre muitos descritores ao mesmo tempo, e o macOS respondia
+ * `ENFILE: file table overflow` apontando um diretório qualquer dentro do `@google-cloud/firestore`.
+ * O mesmo comando passava na tentativa seguinte — o pior tipo de defeito para quem instala.
+ *
+ * E a cópia nunca teve para que existir: a origem é apagada três linhas abaixo.
+ */
+describe('como o unpack preserva o cache entre versões', () => {
+  const unpackSource = source('console/unpack.ts');
+
+  it('move, e o `cp` fica só para o caso em que mover não pode funcionar', () => {
+    expect(unpackSource).toContain('await preserve(previous, join(staging, relative));');
+    expect(unpackSource).toContain('await rename(from, to);');
+    // `EXDEV` é a única razão para o `cp` — e o comentário tem de dizer que é caminho morto aqui.
+    expect(unpackSource).toContain("!== 'EXDEV'");
+    expect(unpackSource).not.toContain('await cp(previous, join(staging, relative)');
+  });
+
+  /** Um erro que não seja `EXDEV` tem de subir: cair no `cp` calado esconderia o defeito de novo. */
+  it('e qualquer outro erro sobe, em vez de cair no caminho lento em silêncio', () => {
+    const bloco = unpackSource.slice(
+      unpackSource.indexOf('const preserve ='),
+      unpackSource.indexOf('export const installPath'),
+    );
+    expect(bloco).toContain('throw error;');
   });
 });

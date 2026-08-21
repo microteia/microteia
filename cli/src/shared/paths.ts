@@ -22,9 +22,26 @@ export const repoRoot = resolve(here, '..', '..', '..');
  * sozinhos pediriam só o minor. Em `2.0.1`: o `.gitignore` da instalação passa a descartar os
  * `examples/`, que o `unpack` reescreve e ninguém versiona. Em `2.0.2`: o `AGENTS.md` e o
  * `AUTHORING.md` que ele escreve passam a cobrar versão, entrada de histórico e teste a cada
- * alteração de extensão.
+ * alteração de extensão. Em `2.1.0`: as Cloud Functions que o ESCRITÓRIO escreve deixam de ser
+ * montadas e esquecidas — as de `functions/` sobem no `deploy`, as de `extensions/<plugin>/functions/`
+ * sobem pelo provisionamento (e `manifest.backend.functions` pode nomeá-las, que era o que o
+ * `create function` já mandava escrever e o `provision` recusava), cada diretório pode declarar as
+ * próprias dependências npm, e os `defineString` delas entram no `.env.<projectId>`. Em `2.1.1`: o
+ * `extensions/` gerado ganha `npm run sdk:refresh`, porque `npm install` NÃO traz o SDK novo — o
+ * caminho do tarball não leva versão e o lock guarda a impressão digital do anterior, então o npm diz
+ * "up to date" e o escritório segue escrevendo contra um contrato que a instalação não tem mais. Em
+ * `2.1.2`: a recusa de uma function reivindicada passa a nomear as DUAS origens possíveis — o pacote e
+ * o `extensions/<pasta>/functions/` do escritório —, porque dizer só "o pacote não a contém" manda
+ * procurar no lugar errado justamente no caso mais comum. Em `2.1.3`: a montagem deixa os arquivos de
+ * TESTE fora do artefato. O `predeploy` do pacote compila `custom/` com o `tsc`, e um `import` de
+ * `vitest` ali é `Cannot find module` — a compilação falha e leva embora o deploy de TODAS as functions,
+ * não só das da extensão que trouxe o teste. O `AGENTS.md` manda escrever teste ao lado da function;
+ * era este lado que faltava. Em `2.1.4`: o `unpack` preserva `functions/node_modules` MOVENDO em vez de
+ * copiando — o `cp` recursivo de ~250 pacotes estourava o limite de descritores do processo no macOS
+ * (`ENFILE: file table overflow`), de forma intermitente e apontando um diretório qualquer de dentro de
+ * uma dependência. A cópia nunca teve para que existir: a origem é apagada em seguida.
  *
  * Ela NÃO acompanha o `version` do produto, e não é obrigada a andar junto do `MINIMUM_CLI_VERSION`:
  * este último só se move quando o PACOTE passa a depender de algo que o Console faz.
  */
-export const CLI_VERSION = '2.0.2';
+export const CLI_VERSION = '2.1.4';

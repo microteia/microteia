@@ -251,3 +251,44 @@ describe('o workspace de autoria de extensões', () => {
     expect(readme).toContain('manifest.version');
   });
 });
+
+/**
+ * Trocar de kernel e continuar com o SDK anterior é o defeito mais silencioso deste diretório: as
+ * extensões seguem compilando, contra um contrato que a instalação não tem mais.
+ *
+ * A causa é a soma de duas decisões corretas. O caminho do tarball não leva versão, para que um kernel
+ * novo não obrigue ninguém a editar o `package.json`; e o `package-lock.json` guarda a VERSÃO e a
+ * impressão digital do que foi instalado, para que dois computadores do mesmo escritório instalem o
+ * mesmo. Juntas, elas fazem um tarball NOVO no MESMO caminho parecer "nada mudou" para o npm — que diz
+ * "up to date" e mantém o SDK anterior.
+ */
+describe('trazer o SDK novo depois de trocar de kernel', () => {
+  const parsed = (): {
+    scripts: Record<string, string>;
+    dependencies: Record<string, string>;
+  } => JSON.parse(workspacePackageJson('acme', '../.microteia/install/sdk/microteia-sdk.tgz', '1.5.0')) as {
+    scripts: Record<string, string>;
+    dependencies: Record<string, string>;
+  };
+
+  it('há um script que instala o tarball PELO CAMINHO, forçando a resolução', () => {
+    expect(parsed().scripts['sdk:refresh'])
+      .toBe('npm install --no-save ../.microteia/install/sdk/microteia-sdk.tgz');
+  });
+
+  /** Sem versão no caminho, um kernel novo não obriga ninguém a editar este arquivo. */
+  it('e a dependência continua apontando para o caminho SEM versão', () => {
+    expect(parsed().dependencies['@microteia/sdk'])
+      .toBe('file:../.microteia/install/sdk/microteia-sdk.tgz');
+  });
+
+  /**
+   * O texto tem de dizer o que NÃO fazer, e não só o que fazer: `npm install` é o comando que qualquer
+   * pessoa tentaria, é o que este README mandava, e é o que não funciona.
+   */
+  it('o README manda rodar o script e diz por que "npm install" não serve', () => {
+    const readme = workspaceReadme('Acme', '1.5.0');
+    expect(readme).toContain('npm run sdk:refresh');
+    expect(readme).toMatch(/Not `npm install`/);
+  });
+});

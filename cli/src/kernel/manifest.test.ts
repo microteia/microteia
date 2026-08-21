@@ -55,22 +55,21 @@ describe('manifesto do kernel', () => {
  */
 describe('pré-requisitos manuais', () => {
   /**
-   * O passo do Gmail SAIU daqui, e é preciso provar que ele foi MOVIDO e não perdido: quem instala não
-   * tem o ARCHITECTURE.md, então um pré-requisito que desaparece leva com ele a única explicação de por
-   * que a ingestão não funciona.
+   * O que está aqui é o que TODA instalação precisa, sem exceção — e é por isso que a lista é fechada.
+   *
+   * O passo do Gmail já esteve nela. Ele saiu para o `manifest.backend.prerequisites` da extensão que o
+   * exige, e depois saiu deste repositório junto com ela. Quem instala não tem o `ARCHITECTURE.md`, e um
+   * pré-requisito no lugar errado é a única explicação de por que algo não funciona chegando à pessoa
+   * errada: aqui ele apareceria para quem nunca vai receber intimação por e-mail.
    */
-  it('o passo do Gmail não é mais do kernel — ele é da extensão que o exige', () => {
-    expect(MANUAL_PREREQUISITES.map((prerequisite) => prerequisite.id)).not.toContain('gmail-integration');
-
-    const push = JSON.parse(
-      readFileSync(join(repoRoot, 'extension-templates/push.json'), 'utf8'),
-    ) as { manifest: { backend?: { prerequisites?: { id: string; detail: string }[] } } };
-    const moved = push.manifest.backend?.prerequisites ?? [];
-
-    expect(moved.map((prerequisite) => prerequisite.id)).toContain('gmail-integration');
-    // E continua carregando o que fazer, não só o nome do problema.
-    expect(moved.find((prerequisite) => prerequisite.id === 'gmail-integration')?.detail)
-      .toMatch(/GOOGLE_CLIENT_ID/);
+  it('nenhum pré-requisito do kernel é de um caso de uso particular', () => {
+    const ids = MANUAL_PREREQUISITES.map((prerequisite) => prerequisite.id);
+    expect(ids).not.toContain('gmail-integration');
+    // A conferência é sobre o TEXTO também: um passo genérico que citasse uma credencial de terceiro
+    // seria o mesmo defeito com outro nome.
+    for (const prerequisite of MANUAL_PREREQUISITES) {
+      expect(`${prerequisite.title} ${prerequisite.detail}`, prerequisite.id).not.toMatch(/GOOGLE_|Gmail/);
+    }
   });
 
   it('o que sobrou é do kernel de verdade — o que toda instalação precisa', () => {
@@ -164,10 +163,16 @@ describe('parâmetros do backend', () => {
     ]);
   });
 
-  it('encontra os parâmetros reais do backend', () => {
-    const names = declared().map((parameter) => parameter.name);
-    expect(names).toContain('GOOGLE_GMAIL_TOPIC');
-    expect(names.length).toBeGreaterThan(0);
+  /**
+   * O kernel não declara parâmetro nenhum, e isso é o estado CERTO — não uma lacuna. Os quatro que
+   * existiam eram do Gmail, portanto da extensão de Pushes do Tribunal, e saíram junto com ela.
+   *
+   * O caso fica aqui em vez de ser apagado porque ele é a fronteira: um parâmetro que reaparecer neste
+   * repositório é uma credencial que TODA instalação passa a ter de preencher, inclusive quem não usa a
+   * feature. Se for mesmo do kernel, atualize esta lista e o `.env.example` na mesma alteração.
+   */
+  it('o kernel não declara parâmetro de backend — os que existiam eram de extensão', () => {
+    expect(declared()).toEqual([]);
   });
 
   it('o .env.example do repositório cobre todo parâmetro obrigatório', () => {

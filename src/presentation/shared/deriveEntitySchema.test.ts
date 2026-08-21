@@ -4,8 +4,6 @@ import { createSchemaContext } from '../../domain/schema/pathResolver';
 import { deriveFormFields, deriveListRows } from './deriveEntitySchema';
 import { SCREEN_ICON_KEYS } from './screenIcons';
 import { MARKETPLACE_CATALOG } from '../../plugins/marketplace/catalog';
-import { pessoaPlugin } from '../../plugins/marketplace/pessoa';
-import { prazoPlugin } from '../../plugins/marketplace/prazo';
 
 const CONTROL_TYPES: CustomFieldType[] = [
   'text', 'textarea', 'number', 'currency', 'date', 'checkbox', 'select', 'masked', 'reference', 'markdown',
@@ -14,35 +12,93 @@ const CONTROL_TYPES: CustomFieldType[] = [
 const emptyCtx = createSchemaContext();
 
 /**
- * Pessoa saiu do kernel: o formulário e o card dela nascem da TELA que a extensão declara. O
- * contexto abaixo é o pacote real — é o que prova que a extensão reproduz o que o registro fazia.
+ * Duas telas declaradas à mão, no lugar dos pacotes de extensão que este arquivo usava como fixture e
+ * que hoje são mantidos fora deste repositório.
+ *
+ * A troca é uma melhora, não um remendo: o que se testa aqui é a DERIVAÇÃO — uma tela declarada virar
+ * `FieldDefinition` e meta-linha de cartão —, e amarrá-la ao esquema de um negócio específico fazia o
+ * teste falhar quando aquele negócio mudasse de campo, por um motivo que nada tem a ver com a
+ * derivação. Cada declaração abaixo existe por um caso: máscara com regra de exibição, chave com
+ * ponto (objeto achatado) com seção e opções literais, textarea, data, lista do escritório, relação, e
+ * a ordem do cartão diferente da do formulário.
  */
-const pessoaScreen = pessoaPlugin.screens![0];
-const pessoaCtx = createSchemaContext([{
-  id: pessoaScreen.key,
-  collection: pessoaScreen.dataCollection,
-  titleSingular: pessoaScreen.titleSingular,
-  titlePlural: pessoaScreen.titlePlural,
-  titleFieldKey: pessoaScreen.titleFieldKey,
-  fields: pessoaScreen.fields.map((field) => ({ ...field, origin: 'plugin' as const })),
+const CADASTRO_FIELDS: FieldDefinition[] = [
+  {
+    key: 'kind', label: 'Tipo', type: 'select', required: true, order: 0, origin: 'plugin',
+    lookupCollection: 'exampleKinds', optionsAllowUserAdd: true, filterable: true, listIcon: 'user',
+  },
+  { key: 'name', label: 'Nome', type: 'text', required: true, order: 1, origin: 'plugin' },
+  {
+    key: 'document', label: 'Documento', type: 'masked', required: false, order: 2, origin: 'plugin',
+    mask: 'cpf', logic: { hiddenWhen: 'kind != "individual"' },
+    showInList: true, listIcon: 'contacts', listOrder: 0,
+  },
+  {
+    key: 'email', label: 'E-mail', type: 'text', required: false, order: 3, origin: 'plugin',
+    showInList: true, listIcon: 'mail', listOrder: 1,
+  },
+  { key: 'birthDate', label: 'Nascimento', type: 'date', required: false, order: 4, origin: 'plugin' },
+  {
+    key: 'address.zipCode', label: 'CEP', type: 'masked', required: false, order: 5, origin: 'plugin',
+    section: 'Endereço', mask: 'cep',
+  },
+  {
+    key: 'address.city', label: 'Cidade', type: 'select', required: false, order: 6, origin: 'plugin',
+    section: 'Endereço', lookupCollection: 'exampleCities',
+    showInList: true, listIcon: 'map', listOrder: 2,
+  },
+  {
+    key: 'address.state', label: 'Estado', type: 'select', required: false, order: 7, origin: 'plugin',
+    section: 'Endereço',
+    options: [{ key: 'BA', label: 'BA' }, { key: 'MA', label: 'MA' }, { key: 'SP', label: 'SP' }],
+  },
+  { key: 'notes', label: 'Observações', type: 'textarea', required: false, order: 8, origin: 'plugin' },
+];
+
+const cadastroCtx = createSchemaContext([{
+  id: 'cadastros',
+  collection: 'cadastros',
+  titleSingular: 'Cadastro',
+  titlePlural: 'Cadastros',
+  titleFieldKey: 'name',
+  fields: CADASTRO_FIELDS,
 }]);
 
-/** Prazo saiu do kernel junto com Pessoa — e é ele que traz relações (processo, advogado). */
-const prazoScreen = prazoPlugin.screens![0];
-const prazoCtx = createSchemaContext([{
-  id: prazoScreen.key,
-  collection: prazoScreen.dataCollection,
-  titleSingular: prazoScreen.titleSingular,
-  titlePlural: prazoScreen.titlePlural,
-  titleFieldKey: prazoScreen.titleFieldKey,
-  fields: prazoScreen.fields.map((field) => ({ ...field, origin: 'plugin' as const })),
+/** A tela que traz RELAÇÕES — e cujo cartão está em ordem diferente da do formulário. */
+const TAREFA_FIELDS: FieldDefinition[] = [
+  { key: 'title', label: 'Assunto', type: 'text', required: true, order: 0, origin: 'plugin' },
+  {
+    key: 'state', label: 'Situação', type: 'select', required: false, order: 1, origin: 'plugin',
+    lookupCollection: 'exampleStates', filterable: true,
+  },
+  {
+    key: 'parentId', label: 'Cadastro', type: 'reference', required: true, order: 2, origin: 'plugin',
+    refEntity: 'cadastros',
+  },
+  {
+    key: 'dueDate', label: 'Vencimento', type: 'date', required: false, order: 3, origin: 'plugin',
+    filterable: true, showInList: true, listIcon: 'calendar', listOrder: 1,
+  },
+  {
+    key: 'ownerId', label: 'Responsável', type: 'reference', required: false, order: 4, origin: 'plugin',
+    refEntity: 'cadastros', showInList: true, listIcon: 'user', listOrder: 0,
+  },
+];
+
+const tarefaCtx = createSchemaContext([{
+  id: 'tarefas',
+  collection: 'tarefas',
+  titleSingular: 'Tarefa',
+  titlePlural: 'Tarefas',
+  titleFieldKey: 'title',
+  fields: TAREFA_FIELDS,
 }]);
 
 const byKey = (fields: FieldDefinition[]): Map<string, FieldDefinition> =>
   new Map(fields.map((field) => [field.key, field]));
 
 describe('deriveFormFields — a tela declarada vira FieldDefinition, como os campos fixos', () => {
-  const fields = deriveFormFields(pessoaCtx, 'persons');
+  const fields = deriveFormFields(cadastroCtx, 'cadastros');
   const map = byKey(fields);
 
   it('todo campo derivado é um FieldDefinition válido (mesmo modelo dos campos dinâmicos)', () => {
@@ -55,21 +111,21 @@ describe('deriveFormFields — a tela declarada vira FieldDefinition, como os ca
     }
   });
 
-  it('control derivado do tipo/negócio; regras de negócio vindas do NativeFieldSpec', () => {
-    expect(map.get('type')).toMatchObject({ type: 'select', required: true, optionsAllowUserAdd: true, lookupCollection: 'personTypes' });
+  it('o controle sai do tipo declarado, e a regra de exibição atravessa junto', () => {
+    expect(map.get('kind')).toMatchObject({ type: 'select', required: true, optionsAllowUserAdd: true, lookupCollection: 'exampleKinds' });
     expect(map.get('name')).toMatchObject({ type: 'text', required: true });
-    expect(map.get('cpf')?.type).toBe('masked');
-    expect(map.get('cpf')?.mask).toBe('cpf');
-    expect(map.get('cpf')?.logic?.hiddenWhen).toBeTruthy();
+    expect(map.get('document')?.type).toBe('masked');
+    expect(map.get('document')?.mask).toBe('cpf');
+    expect(map.get('document')?.logic?.hiddenWhen).toBeTruthy();
     expect(map.get('email')?.type).toBe('text');
     expect(map.get('birthDate')?.type).toBe('date');
     expect(map.get('notes')?.type).toBe('textarea');
   });
 
-  it('achata objeto em chaves-com-ponto e preserva lookup/opções', () => {
-    expect(map.get('address.city')).toMatchObject({ type: 'select', lookupCollection: 'personCities', section: 'Endereço' });
+  it('achata objeto em chaves-com-ponto e preserva seção, lookup e opções literais', () => {
+    expect(map.get('address.city')).toMatchObject({ type: 'select', lookupCollection: 'exampleCities', section: 'Endereço' });
     expect(map.get('address.state')?.type).toBe('select');
-    expect(map.get('address.state')?.options).toHaveLength(27);
+    expect(map.get('address.state')?.options).toHaveLength(3);
     expect(map.get('address.zipCode')?.mask).toBe('cep');
   });
 
@@ -79,20 +135,19 @@ describe('deriveFormFields — a tela declarada vira FieldDefinition, como os ca
 });
 
 describe('deriveFormFields — a relação declarada vira campo reference', () => {
-  const map = byKey(deriveFormFields(prazoCtx, 'deadlines'));
+  const map = byKey(deriveFormFields(tarefaCtx, 'tarefas'));
 
   it('a relação aponta para a coleção alvo', () => {
-    expect(map.get('caseId')).toMatchObject({ type: 'reference', refEntity: 'cases', required: true });
-    expect(map.get('responsibleLawyerId')).toMatchObject({ type: 'reference', refEntity: 'persons' });
+    expect(map.get('parentId')).toMatchObject({ type: 'reference', refEntity: 'cadastros', required: true });
+    expect(map.get('ownerId')).toMatchObject({ type: 'reference', refEntity: 'cadastros' });
   });
 
   it('mantém os campos na ordem declarada', () => {
-    const fields = deriveFormFields(prazoCtx, 'deadlines');
-    const orders = fields.map((f) => f.order);
+    const fields = deriveFormFields(tarefaCtx, 'tarefas');
+    const orders = fields.map((field) => field.order);
     expect(orders).toEqual([...orders].sort((a, b) => a - b));
-    expect(fields.map((f) => f.key)).toEqual(
-      ['type', 'priority', 'status', 'caseId', 'dueDate', 'completedAt', 'responsibleLawyerId', 'description'],
-    );
+    expect(fields.map((field) => field.key))
+      .toEqual(['title', 'state', 'parentId', 'dueDate', 'ownerId']);
   });
 });
 
@@ -113,27 +168,28 @@ describe('todo ícone de listagem declarado por uma extensão existe no catálog
 
 describe('deriveListRows — linhas do card derivam de ui.list, ordenadas', () => {
   it('retorna as linhas na ordem configurada, com ícone', () => {
-    const rows = deriveListRows(pessoaCtx, 'persons').filter((row) => row.key !== 'type');
-    expect(rows.map((r) => r.key)).toEqual(['cpf', 'cnpj', 'email', 'phone', 'occupation', 'address.city']);
+    const rows = deriveListRows(cadastroCtx, 'cadastros').filter((row) => row.key !== 'kind');
+    expect(rows.map((row) => row.key)).toEqual(['document', 'email', 'address.city']);
     for (const row of rows) expect(row.icon).toBeTruthy();
   });
 
   it('carrega o controle do campo, para o card formatar moeda/data', () => {
-    const rows = deriveListRows(prazoCtx, 'deadlines');
-    expect(rows.find((r) => r.key === 'dueDate')?.type).toBe('date');
+    const rows = deriveListRows(tarefaCtx, 'tarefas');
+    expect(rows.find((row) => row.key === 'dueDate')?.type).toBe('date');
   });
 
   it('deriva também as relações, marcando a entidade alvo para resolver o rótulo', () => {
-    const rows = deriveListRows(prazoCtx, 'deadlines');
-    expect(rows.find((r) => r.key === 'responsibleLawyerId')).toMatchObject({
+    const rows = deriveListRows(tarefaCtx, 'tarefas');
+    expect(rows.find((row) => row.key === 'ownerId')).toMatchObject({
       type: 'reference',
-      refEntity: 'persons',
+      refEntity: 'cadastros',
     });
   });
 
-  it('ordena campos e relações juntos pelo ui.list.order', () => {
-    const keys = deriveListRows(pessoaCtx, 'persons').filter((row) => row.key !== 'type').map((r) => r.key);
-    expect(keys).toStrictEqual(['cpf', 'cnpj', 'email', 'phone', 'occupation', 'address.city']);
+  /** A ordem do CARTÃO é a de `listOrder`, e não a do formulário — aqui as duas divergem de propósito. */
+  it('ordena campos e relações juntos pela ordem do cartão, não pela do formulário', () => {
+    expect(deriveListRows(tarefaCtx, 'tarefas').map((row) => row.key))
+      .toStrictEqual(['ownerId', 'dueDate']);
   });
 });
 

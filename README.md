@@ -222,7 +222,7 @@ Na mesma ordem em que o `connect` os imprime:
 | **Authentication → Google** habilitado | sem ele ninguém entra |
 | Invocação das callables por `allUsers` — *só se a organização bloquear* | o deploy concede e depois verifica; política de organização pode recusar |
 | **TTL** do Firestore em `auditLogs.expiresAt` | não se declara em código nem em rules |
-| OAuth do Google e tópicos Pub/Sub — *só se usar a entrada por Gmail* | credencial nunca é compartilhada entre instalações |
+| O que uma extensão instalada pedir (credencial de terceiro, tópico Pub/Sub) | o próprio `provision` imprime a lista, por extensão; credencial nunca é compartilhada entre instalações |
 
 ### 3. Instalar (lado escritório)
 
@@ -266,8 +266,12 @@ extensão ficam de fora até que a extensão seja instalada — ver o passo a se
 ### 3.1. Extensões que precisam de recursos de servidor
 
 Algumas extensões exigem do projeto Firebase o que nenhuma tela declara: Cloud Function, índice
-composto, credencial. A de **Pushes do Tribunal** é o caso — ela recebe intimações por e-mail, e isso
-mora no servidor.
+composto, credencial. Uma que receba e-mail, fale com uma API de terceiro ou consulte por dois campos
+ao mesmo tempo é o caso — isso mora no servidor.
+
+A extensão pode trazer as próprias Cloud Functions (em `extensions/<plugin>/functions/`) ou reivindicar
+uma que o pacote da plataforma já traz. Nos dois casos a declaração é a mesma, e o efeito é o mesmo:
+o artefato só existe no projeto do escritório que instalou a extensão.
 
 Instalar uma dessas pela aplicação não basta: ela aparece na tela de Extensões com o aviso
 **"Backend pendente"** e **não** entra no menu. Quem cuida do projeto aplica o que falta:
@@ -277,9 +281,8 @@ microteia provision
 ```
 
 Ele lê o que os escritórios instalaram, cria os índices, deploya as functions que faltam, avisa dos
-parâmetros ainda vazios em `functions/.env.<projectId>` e imprime os passos manuais de cada extensão
-(no caso do Gmail, o cliente OAuth e os tópicos do Pub/Sub). Recarregue a aplicação e a extensão está
-no ar.
+parâmetros ainda vazios em `.env.<projectId>` e imprime os passos manuais que cada extensão declara —
+criar um cliente OAuth, um tópico do Pub/Sub, o que for. Recarregue a aplicação e a extensão está no ar.
 
 Isto exige o `gcloud` autenticado (`gcloud auth login`): é por ele que o Console lê o que está
 instalado. Ele não guarda credencial nenhuma — pede o token a cada execução.
@@ -308,16 +311,19 @@ e é isso que os torna imunes ao `unpack`.
 
 ### 4.1. Configurações de backend
 
-Algumas extensões pedem uma credencial ou um identificador do lado do servidor (a caixa de
-intimações pede as do Gmail, por exemplo). Elas ficam em **`.env.<projectId>`, ao lado do
-`microteia.yaml`** — nunca dentro de `.microteia/`:
+Algumas extensões pedem uma credencial ou um identificador do lado do servidor. Elas ficam em
+**`.env.<projectId>`, ao lado do `microteia.yaml`** — nunca dentro de `.microteia/`:
 
 ```bash
 # .env.acme-microteia
 GOOGLE_CLIENT_ID=123-abc.apps.googleusercontent.com
 GOOGLE_CLIENT_SECRET=...
-GOOGLE_GMAIL_TOPIC=
 ```
+
+O `unpack` descobre esses nomes de duas fontes: os `defineString` do pacote da plataforma e os das Cloud
+Functions que o próprio escritório escreveu. A linha tem de existir mesmo vazia — o `firebase-functions`
+valida os parâmetros globalmente, então um deles sem valor recusa o deploy de **todas** as functions do
+projeto, inclusive as que nada têm a ver com ele.
 
 O `unpack` cria o arquivo e acrescenta o que um pacote novo passou a pedir, sem tocar no que você já
 preencheu. O `init` cria o `.gitignore` que o cobre — são credenciais.
@@ -414,9 +420,11 @@ O núcleo entrega **capacidades genéricas** — nenhum domínio de negócio:
 | **Auditoria** | Trilha de alterações com expiração por TTL |
 | **Idiomas e temas** | Ambos como contribuição: o inglês é o idioma-fonte, o resto é pacote |
 
-Os domínios vêm do catálogo, como extensões — e é a prova de que o núcleo não depende deles:
-Pessoa, Processo, Prazo, Financeiro, Notícias, Calendário, Dashboard, Kanban de Processos, Contrato,
-Vendas, Push do Tribunal, dados do Brasil e a tradução pt-BR.
+Os domínios vêm do catálogo, como extensões — e a prova de que o núcleo não depende deles é que a
+maioria já não está neste repositório: as sete extensões de escritório de advocacia (Pessoas, Contratos,
+Processos, Prazos, Financeiro, Pushes do Tribunal e Kanban de Processos) são mantidas fora dele, pelo
+escritório, e nada aqui as nomeia. Ficaram como exemplo de autoria as agnósticas de negócio: Notícias,
+Calendário, Dashboard, dados do Brasil e a tradução pt-BR.
 
 ## Multi-tenant
 

@@ -10,6 +10,16 @@
 
 **Este projeto é uma plataforma declarativa capaz de criar aplicações de negócio sem alterar o kernel.**
 
+**Nenhum nome de negócio entra neste repositório.** Não há `persons`, `cases`, `deadlines`,
+`financials`, `pushes`, `contracts` — as sete extensões de escritório de advocacia saíram daqui em
+20/08/2026 e são mantidas em `office/extensions/`. Ficaram como exemplo de autoria só as agnósticas:
+`brasil`, `calendar`, `dashboard`, `news` e `locale-pt-br`.
+
+Quando algo do kernel PARECER precisar do nome de uma coleção de negócio, a pergunta certa não é qual
+nome escrever: é **qual capacidade declarativa está faltando**. Foi assim que `auditActions` nasceu —
+`auditableEntities.ts` tinha `pushes` com a lista de ações a auditar, e a saída não era mudar a lista,
+era a tela declarar. Ver "As entidades de ESCRITÓRIO não moram aqui" no `ARCHITECTURE.md`.
+
 Toda alteração, toda funcionalidade, todo pensamento sobre o código deve respeitar este princípio fundamental. O kernel é imutável e extensível apenas por meio de declarações (plugins, extensões, contribuições). Nunca modifique o kernel para adicionar regras de negócio específicas de um domínio.
 
 As mudanças no kernel devem ser obrigatoriamente voltadas para prover essa capacidade declarativa e JAMAIS para amarrar o projeto a um caso específico.
@@ -294,8 +304,8 @@ traduz, que é uma extensão contribuindo apenas nesse ponto.
 
 ## Multi-tenant — regras da Microteia
 
-- **Tenant selecionado vive em `useTenant().currentTenant`** — todos os stores de dados (Pessoas, Processos, Prazos, Financeiro, etc.) só carregam dados quando `currentTenant` não é `null`.
-- **Estrutura Firestore:** `tenants/{tenantId}/persons`, `tenants/{tenantId}/cases`, `tenants/{tenantId}/deadlines`, `tenants/{tenantId}/financials`.
+- **Tenant selecionado vive em `useTenant().currentTenant`** — todo store de dados só carrega quando `currentTenant` não é `null`.
+- **Estrutura Firestore:** `tenants/{tenantId}/{coleção}/{docId}`. O nome da coleção é da TELA que a declara, e o kernel não conhece nenhum: `FirebaseRecordRepository` e `RecordStore` servem qualquer uma.
 - **Roles por tenant:** `admin`, `lawyer`, `secretary`, `user`. Role global: `SYSTEM` | `SUPPORT` | `USER`.
 - **Novo usuário:** ao fazer login pela primeira vez, um tenant padrão `[displayName]([email])` é criado automaticamente com o usuário como `admin`. O nome é montado só com o que o usuário trouxe — sem palavra nossa, não há idioma preso num dado que ele pode renomear.
 - **Seleção de tenant:** após login (ou ao criar conta), o usuário vê o `TenantSelector`. O último tenant escolhido é salvo em `localStorage` com chave `'microteia:lastTenantId'`.

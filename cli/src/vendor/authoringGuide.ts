@@ -110,7 +110,7 @@ organization. \`check\` refuses a reference that leads nowhere.
 To point at something *another* extension installs, declare it:
 
 \`\`\`ts
-dependencies: { 'com.microteia.processo': { version: '^2.0.0', collections: ['cases'] } }
+dependencies: { 'com.example.projects': { version: '^2.0.0', collections: ['projects'] } }
 \`\`\`
 
 ## 4. Extension points
@@ -218,6 +218,32 @@ composite indexes, configuration parameters, manual prerequisites. The extension
 and does not load, until an administrator runs \`microteia provision\`. Failing closed is deliberate: a
 menu whose backend is missing produces the most expensive kind of defect, where the app opens and
 every call fails looking like something else entirely.
+
+### You can write those functions yourself
+
+Put them in \`<folder>/functions/\`, read through its \`index.ts\`, and name each one in
+\`manifest.backend.functions\`. Then they behave exactly like the platform's own: deployed only where
+the extension is installed, removed by \`microteia provision --prune\` when nothing needs them.
+
+    npx microteia-plugin create function --plugin <folder>
+
+| What it needs | Where you declare it |
+|---|---|
+| an npm package the platform does not carry | \`dependencies\` in \`<folder>/functions/package.json\` |
+| a credential or setting | \`defineString('NAME')\`, and \`'NAME'\` in \`manifest.backend.parameters\` |
+| something a person must do by hand first | \`manifest.backend.prerequisites\` |
+
+Two rules follow from how a Firebase project works, and both are refusals rather than warnings:
+
+- **A \`defineString\` with no value refuses the deploy of *every* function in the project**, not just
+  yours — \`firebase-functions\` validates parameters globally. The Console lists every one it finds in
+  \`.env.<projectId>\`, empty, so filling it in is the only step left.
+- **One installation, one \`node_modules\`.** Two extensions asking for different ranges of the same
+  package is refused, because nothing decides between them. A range the platform already pins is kept:
+  the runtime is the platform's choice, and one extension may not move it for the others.
+
+A function shared by several extensions goes in \`../functions/\` instead, next to \`microteia.yaml\`.
+Nobody owns it, so nothing can claim it, and it is deployed with every \`microteia deploy\`.
 
 ## 9. Size
 

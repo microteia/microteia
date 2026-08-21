@@ -11,6 +11,36 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [8.0.0] — 2026-08-20
+
+- As telas de Pessoas, Contratos, Processos, Prazos, Financeiro, Pushes do Tribunal e o Kanban de
+  Processos passaram a ser mantidas pelo próprio escritório, e não mais junto com o sistema. Para quem
+  usa, nada muda: as telas, os campos, os filtros, as automações e os registros continuam exatamente
+  iguais. O que muda é a velocidade — uma alteração numa dessas telas deixa de esperar uma versão nova
+  do sistema.
+- Quem cuida da instalação passou a poder escrever Cloud Functions próprias e vê-las publicadas de
+  verdade: até aqui elas eram preparadas e nunca subiam. Cada uma pode declarar as bibliotecas de que
+  precisa, e as credenciais que ela pede aparecem sozinhas no arquivo de configurações, prontas para
+  serem preenchidas.
+- Uma tela passou a poder dizer quais alterações dela entram na Auditoria. Serve para a tela cujos
+  registros chegam de fora, por integração: sem isso, cada registro recebido gerava um lançamento na
+  Auditoria e escondia o que as pessoas de fato fizeram.
+- O sistema deixou de pedir as credenciais de e-mail do Google a todo escritório. Elas passaram a ser
+  pedidas somente por quem instala o recebimento de intimações, no momento em que o instala.
+
+> **Para quem mantém a instalação:** as sete telas acima agora se instalam como extensão, pela tela de
+> Extensões. Depois de instalar o recebimento de intimações, rode o comando de aplicação uma vez — ele
+> publica as funções de servidor e cria os índices que ela pede. Até então ela aparece como "Backend
+> pendente" e fica fora do menu.
+>
+> Esta versão **exige a ferramenta de instalação 2.1.0 ou mais nova**, e recusa começar com uma anterior.
+> Uma ferramenta antiga preparava as funções de servidor de uma extensão e nunca as publicava, deixando a
+> extensão pendente para sempre e culpando o sistema pelo que era um problema da própria ferramenta.
+>
+> Use a **2.1.4**: nela, os arquivos de teste de uma extensão deixam de entrar no pacote publicado (eles
+> derrubavam a publicação de todas as funções, não só das dela), e a troca de versão deixa de falhar de
+> vez em quando com um erro de "tabela de arquivos cheia" no meio da cópia.
+
 #### [7.62.0] — 2026-08-20
 
 - Os nomes dos passos de automação — Notificar, Buscar Registros, Gravar Registro, Encerrar Fluxo e os demais — passaram a acompanhar o idioma escolhido no escritório. Antes ficavam sempre em português, mesmo para quem usa o sistema em inglês.

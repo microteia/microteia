@@ -10,6 +10,7 @@ import type { KernelManifest } from '../kernel/manifest.js';
 import { ENVIRONMENT_FILE, readEnvironment } from './environment.js';
 import { workspacePath } from './workspace.js';
 import { ensureOfficeEnv, ensureRootGitignore, officeEnvName } from './backendEnv.js';
+import { readOfficeFunctions } from './customFunctions.js';
 import {
   INSTALLATION_GUIDE,
   INSTALLATION_README,
@@ -49,6 +50,32 @@ const exists = async (path: string): Promise<boolean> => {
     return true;
   } catch {
     return false;
+  }
+};
+
+/**
+ * Leva o que sobrevive ao upgrade para o staging — MOVENDO, não copiando.
+ *
+ * Copiar estourava o limite de descritores do processo no macOS: o único item preservado é
+ * `functions/node_modules`, que são ~250 pacotes e dezenas de milhares de arquivos, e o `cp` recursivo
+ * abre muitos ao mesmo tempo. O sintoma era intermitente e ilegível — `ENFILE: file table overflow`
+ * apontando um diretório qualquer de dentro do `@google-cloud/firestore` —, e o mesmo comando passava
+ * na tentativa seguinte.
+ *
+ * Mover é estritamente melhor, e não só por causa disso: a origem é apagada três linhas abaixo, então
+ * a cópia nunca teve para que existir. O que era proporcional ao tamanho do `node_modules` passou a ser
+ * uma operação só.
+ *
+ * O `cp` fica como recurso para o único caso em que `rename` não pode funcionar: origem e destino em
+ * sistemas de arquivos diferentes (`EXDEV`). Aqui os dois estão sob `.microteia/`, então é caminho
+ * morto — e é justamente por isso que ele não pode ser a via normal.
+ */
+const preserve = async (from: string, to: string): Promise<void> => {
+  try {
+    await rename(from, to);
+  } catch (error) {
+    if ((error as { code?: string }).code !== 'EXDEV') throw error;
+    await cp(from, to, { recursive: true });
   }
 };
 
@@ -96,7 +123,7 @@ const extract = async (tarball: string, root: string): Promise<string> => {
     if (!await exists(previous)) continue;
 
     await rm(join(staging, relative), { recursive: true, force: true });
-    await cp(previous, join(staging, relative), { recursive: true });
+    await preserve(previous, join(staging, relative));
     info(`  kept ${relative} from the previous install`);
   }
 
@@ -170,7 +197,26 @@ export const unpack = async (args: ParsedArgs): Promise<void> => {
   if (gitignore === 'created') success('created .gitignore');
   else if (gitignore === 'appended') success('added ".env.*" to .gitignore — the settings file is a credential');
 
-  const settings = await ensureOfficeEnv(root, projectId, manifest.backendParameters);
+  /**
+   * Os parâmetros do PACOTE mais os que as functions do escritório declaram. A união importa porque o
+   * `firebase-functions` valida os `defineString` globalmente: um parâmetro sem linha no arquivo recusa
+   * o deploy de todas as functions, e não só das que o leem.
+   *
+   * A leitura é tolerante de propósito. Este comando é o que troca de kernel, e um diretório de function
+   * pela metade — ninguém escreve o `index.ts` primeiro — não pode impedir um upgrade que nada tem com
+   * ele. Quem RECUSA por isso é o `deploy`, no momento em que a montagem de fato importa.
+   */
+  const office = await readOfficeFunctions(root).catch((error: unknown) => {
+    warn(`could not read your own Cloud Functions: ${error instanceof Error ? error.message.split('\n')[0] : String(error)}`);
+    info('  their settings are not listed below. "microteia deploy" refuses until this is fixed.');
+    return { parameters: [] as typeof manifest.backendParameters };
+  });
+
+  const settings = await ensureOfficeEnv(
+    root,
+    projectId,
+    [...manifest.backendParameters, ...office.parameters],
+  );
 
   if (settings.created) {
     success(`created ${officeEnvName(projectId)} with ${settings.added.length} setting(s), all empty`);

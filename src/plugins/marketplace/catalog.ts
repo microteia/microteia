@@ -1,15 +1,8 @@
 import type { MarketplacePlugin } from '../../domain/entities/MarketplacePlugin';
 import { nav, widgetPage } from '../contributionBuilders';
 import { vendasPlugin } from './vendas';
-import { kanbanCasesPlugin } from './kanbanCases';
 import { brasilPlugin } from './brasil';
-import { contratoPlugin } from './contrato';
-import { financeiroPlugin } from './financeiro';
-import { pessoaPlugin } from './pessoa';
-import { prazoPlugin } from './prazo';
-import { processoPlugin } from './processo';
 import { newsPlugin } from './news';
-import { pushPlugin } from './push';
 import { dashboardPlugin } from './dashboard';
 import { calendarPlugin } from './calendar';
 import { localePtBrPlugin } from './localePtBr';
@@ -180,7 +173,7 @@ export const guiaPlugin: MarketplacePlugin =
     workflows: [],
   };
 
-export { vendasPlugin, kanbanCasesPlugin, brasilPlugin, pessoaPlugin, contratoPlugin, processoPlugin, financeiroPlugin, prazoPlugin, pushPlugin, newsPlugin, dashboardPlugin, calendarPlugin, localePtBrPlugin };
+export { vendasPlugin, brasilPlugin, newsPlugin, dashboardPlugin, calendarPlugin, localePtBrPlugin };
 
 /**
  * Catálogo do Marketplace EMBUTIDO: extensões de PRIMEIRA PARTE que viajam no bundle da aplicação.
@@ -200,13 +193,6 @@ export const MARKETPLACE_CATALOG: MarketplacePlugin[] = [
   brasilPlugin,
   dashboardPlugin,
   calendarPlugin,
-  pessoaPlugin,
-  contratoPlugin,
-  processoPlugin,
-  prazoPlugin,
-  pushPlugin,
-  financeiroPlugin,
   newsPlugin,
-  kanbanCasesPlugin,
   ...THEME_MARKETPLACE_PLUGINS,
 ];

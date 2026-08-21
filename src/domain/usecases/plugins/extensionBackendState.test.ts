@@ -9,7 +9,7 @@ import { backendFingerprint } from '../../schema/plugin/backendRequirement';
 import type { PluginBackendRequirement } from '../../schema/plugin/backendRequirement';
 import type { InstalledExtension } from '../../entities/InstalledExtension';
 
-const NEEDS: PluginBackendRequirement = { functions: ['gmailPush'] };
+const NEEDS: PluginBackendRequirement = { functions: ['integracaoSync'] };
 
 const extension = (
   id: string,
@@ -64,7 +64,7 @@ describe('estado de backend de uma extensão instalada', () => {
       'com.acme.push',
       {
         backendState: {
-          fingerprint: backendFingerprint({ functions: ['gmailPush', 'renewGmailWatches'] }),
+          fingerprint: backendFingerprint({ functions: ['integracaoSync', 'integracaoRenew'] }),
           appliedAt: new Date(),
         },
       },

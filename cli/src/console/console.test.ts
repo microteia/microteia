@@ -12,7 +12,7 @@ const sample: Environment = {
   environment: { id: 'acao-cia', name: 'Ação & Cia — Produção' },
   firebase: { projectId: 'acme-microteia', region: 'southamerica-east1' },
   kernel: { version: '7.47.0' },
-  backend: { functions: 'gmailPush,renewGmailWatches', parameters: 'GOOGLE_CLIENT_ID:0011223344aa' },
+  backend: { functions: 'integracaoSync,integracaoRenew', parameters: 'EXAMPLE_CLIENT_ID:0011223344aa' },
 };
 
 describe('arquivo de ambiente', () => {

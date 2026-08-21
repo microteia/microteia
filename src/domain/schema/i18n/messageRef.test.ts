@@ -6,7 +6,7 @@ const catalog = buildMessageCatalog(
   [
     {
       locale: 'pt-BR',
-      namespace: 'com.microteia.processo',
+      namespace: 'com.example.projetos',
       messages: { 'screen.title': 'Processo' },
     },
   ],
@@ -15,7 +15,7 @@ const catalog = buildMessageCatalog(
 
 describe('isMessageRef', () => {
   it('reconhece a referência', () => {
-    expect(isMessageRef('@com.microteia.processo/screen.title')).toBe(true);
+    expect(isMessageRef('@com.example.projetos/screen.title')).toBe(true);
   });
 
   it('não confunde e-mail com referência', () => {
@@ -32,10 +32,10 @@ describe('isMessageRef', () => {
 
 describe('parseMessageRef', () => {
   it('separa namespace, chave e a chave plena', () => {
-    expect(parseMessageRef('@com.microteia.processo/screen.title')).toEqual({
-      namespace: 'com.microteia.processo',
+    expect(parseMessageRef('@com.example.projetos/screen.title')).toEqual({
+      namespace: 'com.example.projetos',
       key: 'screen.title',
-      full: 'com.microteia.processo/screen.title',
+      full: 'com.example.projetos/screen.title',
     });
   });
 
@@ -46,7 +46,7 @@ describe('parseMessageRef', () => {
 
 describe('resolveLabel', () => {
   it('traduz o que a EXTENSÃO declarou', () => {
-    expect(resolveLabel(catalog, '@com.microteia.processo/screen.title')).toBe('Processo');
+    expect(resolveLabel(catalog, '@com.example.projetos/screen.title')).toBe('Processo');
   });
 
   /**
@@ -71,6 +71,6 @@ describe('resolveOptionalLabel', () => {
   it('preserva a ausência em vez de virar string vazia', () => {
     expect(resolveOptionalLabel(catalog, null)).toBeNull();
     expect(resolveOptionalLabel(catalog, undefined)).toBeUndefined();
-    expect(resolveOptionalLabel(catalog, '@com.microteia.processo/screen.title')).toBe('Processo');
+    expect(resolveOptionalLabel(catalog, '@com.example.projetos/screen.title')).toBe('Processo');
   });
 });

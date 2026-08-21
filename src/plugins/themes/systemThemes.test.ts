@@ -4,11 +4,9 @@ import { CORE_PLUGINS } from '../index';
 import { THEME_MARKETPLACE_PLUGINS } from '../marketplace/themes';
 import { RESERVED_THEME_IDS, SYSTEM_THEME_PACKAGES } from './systemThemes';
 import { baseDarkTheme, baseLightTheme } from '../../shared/styles/theme';
-import { brasilPlugin } from '../marketplace/brasil';
-import { pessoaPlugin } from '../marketplace/pessoa';
-import { contratoPlugin } from '../marketplace/contrato';
-import { processoPlugin } from '../marketplace/processo';
 import { THEME_BASES } from '../../shared/styles/theme';
+import { themeTokensContribution } from '../../domain/schema/theme';
+import type { PluginManifest } from '../../domain/schema/plugin/pluginManifest';
 import type { QualifiedContribution } from '../../domain/schema/plugin/contribution';
 import {
   THEME_DEFINITION_POINT,
@@ -20,6 +18,30 @@ import {
   themeTokenBundlesOf,
   resolveThemeTokens,
 } from '../../domain/schema/theme';
+
+/**
+ * Uma extensão de exemplo que contribui UMA cor de vocabulário. Ela substitui as extensões de domínio
+ * que este arquivo usava como fixture e que hoje são mantidas fora deste repositório — e é melhor
+ * assim: o que o kernel garante é a MECÂNICA da resolução, não o tom que um negócio escolheu.
+ */
+const TOKEN_PLUGIN: PluginManifest = {
+  id: 'com.example.vocabulario',
+  version: '1.0.0',
+  kernel: '^1.0.0',
+  name: 'Vocabulário de exemplo',
+  description: 'Contribui uma cor de vocabulário, com piso por base e ajuste por tema.',
+  publisher: { name: 'Example' },
+  contributes: [
+    themeTokensContribution('vocabulario', {
+      dark: { vocabularyDone: '#10b981' },
+      light: { vocabularyDone: '#34d399' },
+      themes: {
+        themis: { vocabularyDone: '#2F6B4F' },
+        'themis-night': { vocabularyDone: '#5FA37F' },
+      },
+    }),
+  ],
+};
 
 const hostWithCore = () => {
   const host = createPluginHost();
@@ -68,27 +90,26 @@ describe('temas do sistema', () => {
   });
 
   /**
-   * O ponto inteiro da mudança: o núcleo não conhece "processo procedente". A cor só existe porque
-   * a extensão de Processos a contribui — e o kernel sozinho não a tem.
+   * O ponto inteiro da mudança: o núcleo não conhece o vocabulário de nenhum negócio. Uma cor de
+   * vocabulário só existe porque a extensão que traz a palavra a contribui — e o kernel sozinho não a
+   * tem. A extensão do exemplo é sintética de propósito: as reais são mantidas fora daqui.
    */
-  it('sem a extensão de Processos, o tema do sistema não tem cor de status de processo', () => {
+  it('sem a extensão que a contribui, o tema do sistema não tem a cor de vocabulário', () => {
     // A leitura passa por um Record de propósito: o tipo do tema do kernel lista só os tokens DELE,
     // e é isso que impede um erro de digitação em `theme.colors.primry` de passar batido. Token de
     // extensão é lido pelo nome, como `resolveColor` faz.
     const colors: Record<string, string | undefined> = themeById('dark').colors;
-    expect(colors.caseStatusWon).toBeUndefined();
+    expect(colors.vocabularyDone).toBeUndefined();
   });
 
-  it('com Processos carregado, a cor aparece em ambos os temas do sistema', () => {
+  it('com uma extensão que contribui a cor, ela aparece em ambos os temas do sistema', () => {
     const host = createPluginHost();
-    host.load([
-      ...CORE_PLUGINS,
-      ...[brasilPlugin, pessoaPlugin, contratoPlugin, processoPlugin]
-        .map((plugin) => ({ manifest: plugin.manifest })),
-    ]);
+    host.load([...CORE_PLUGINS, { manifest: TOKEN_PLUGIN }]);
+
     const bundles = themeTokenBundlesOf(host.contributions.query(THEME_TOKENS_POINT));
-    expect(resolveThemeTokens(bundles, 'dark', 'dark').caseStatusWon).toBe('#10b981');
-    expect(resolveThemeTokens(bundles, 'light', 'white').caseStatusWon).toBe('#10b981');
+    // Cada base recebe o piso DELA: a extensão declara os dois, e é o kernel que escolhe.
+    expect(resolveThemeTokens(bundles, 'dark', 'dark').vocabularyDone).toBe('#10b981');
+    expect(resolveThemeTokens(bundles, 'light', 'white').vocabularyDone).toBe('#34d399');
   });
 });
 
@@ -170,19 +191,19 @@ describe('nenhum pacote de tema opina sobre vocabulário alheio', () => {
   );
 });
 
-describe('as cores de domínio sob cada tema', () => {
-  const hostWithDomains = () => {
+describe('a cor de vocabulário sob cada tema', () => {
+  const hostWithTokens = () => {
     const host = createPluginHost();
     host.load([
       ...CORE_PLUGINS,
-      ...[brasilPlugin, pessoaPlugin, contratoPlugin, processoPlugin, ...THEME_MARKETPLACE_PLUGINS]
-        .map((plugin) => ({ manifest: plugin.manifest })),
+      { manifest: TOKEN_PLUGIN },
+      ...THEME_MARKETPLACE_PLUGINS.map((plugin) => ({ manifest: plugin.manifest })),
     ]);
     return host;
   };
 
   const tokensUnder = (themeId: string) => {
-    const host = hostWithDomains();
+    const host = hostWithTokens();
     const specs = themeSpecsOf(host.contributions.query(THEME_DEFINITION_POINT), RESERVED_THEME_IDS);
     const bundles = themeTokenBundlesOf(host.contributions.query(THEME_TOKENS_POINT));
     const spec = specs.find((candidate) => candidate.id === themeId);
@@ -191,31 +212,30 @@ describe('as cores de domínio sob cada tema', () => {
   };
 
   /**
-   * A prova de que tirar as cores de dentro dos pacotes de tema não mudou a tela: estes são os tons
-   * que cada paleta mostrava quando os declarava por conta própria.
+   * A anatomia inteira em três casos. Uma extensão declara um PISO por base (claro e escuro) e,
+   * opcionalmente, um ajuste POR TEMA. Quem resolve é o kernel:
+   *
+   * 1. tema que a extensão afinou → o valor afinado;
+   * 2. tema que ela não conhece → o piso da base daquele tema;
+   * 3. base oposta → o piso da outra base.
+   *
+   * Sem o passo 2 uma paleta nova nasceria sem as cores de vocabulário, e é justamente aí que ninguém
+   * olha: o tema é do escritório, a cor é da extensão, e nenhum dos dois sabe do outro.
    */
-  it.each([
-    ['dark', 'casePhaseSentence', '#F56B3A'],
-    ['white', 'casePhaseSentence', '#5B7ED6'],
-    ['claude', 'casePhaseSentence', '#DA7756'],
-    ['teams', 'casePhaseSentence', '#6264A7'],
-    ['kindle', 'casePhaseSentence', '#8B6040'],
-    ['themis', 'casePhaseSentence', '#6D2233'],
-    ['themis', 'caseStatusWon', '#2F6B4F'],
-    ['themis', 'contractStatusTerminated', '#96382B'],
-    ['themis', 'relationshipSocio', '#6D2233'],
-    ['themis-night', 'casePhaseSentence', '#B85C6E'],
-    ['themis-night', 'caseStatusWon', '#5FA37F'],
-    ['themis-night', 'contractStatusTerminated', '#C25445'],
-    ['themis-night', 'relationshipSocio', '#B85C6E'],
-  ])('sob %s, %s é %s', (themeId, token, expected) => {
-    expect(tokensUnder(themeId)[token]).toBe(expected);
+  it('sob um tema que a extensão AFINOU, vale o valor afinado', () => {
+    expect(tokensUnder('themis').vocabularyDone).toBe('#2F6B4F');
+    expect(tokensUnder('themis-night').vocabularyDone).toBe('#5FA37F');
   });
 
-  /** Um tema que ninguém afinou recebe o piso — e o piso é o mesmo dos dois lados nestas cores. */
-  it('Indigo, que nenhum plugin conhece pelo nome, recebe o piso', () => {
-    expect(tokensUnder('indigo').casePhaseSentence).toBe('#6c63ff');
-    expect(tokensUnder('indigo-light').caseStatusWon).toBe('#10b981');
+  it('sob um tema que ela NÃO conhece, vale o piso da base daquele tema', () => {
+    // `indigo` estende a base escura; `indigo-light`, a clara. Nenhum dos dois é afinado por ela.
+    expect(tokensUnder('indigo').vocabularyDone).toBe('#10b981');
+    expect(tokensUnder('indigo-light').vocabularyDone).toBe('#34d399');
+  });
+
+  it('e o piso de cada base é o da base, não o da outra', () => {
+    expect(tokensUnder('dark').vocabularyDone).toBe('#10b981');
+    expect(tokensUnder('white').vocabularyDone).toBe('#34d399');
   });
 });
 

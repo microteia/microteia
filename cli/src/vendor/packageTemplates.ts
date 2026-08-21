@@ -84,6 +84,11 @@ const custom = require('./custom/lib/index.js');
 module.exports = { ...kernel, ...custom };
 `;
 
+/**
+ * O `exclude` é cinto de segurança, não redundância: o `gatherCustomFunctions` já não copia teste para
+ * cá, mas ele reconhece as duas convenções usuais (`*.test.ts`, `__tests__/`) e um arquivo fora delas
+ * chegaria. Aqui ele chega e não compila — o que é um upload maior, e não um deploy quebrado.
+ */
 export const packageCustomTsconfig = (): string => JSON.stringify({
   compilerOptions: {
     module: 'commonjs',
@@ -100,6 +105,7 @@ export const packageCustomTsconfig = (): string => JSON.stringify({
     noImplicitReturns: true,
   },
   include: ['src'],
+  exclude: ['**/*.test.ts', '**/*.test.tsx', '**/*.spec.ts', '**/*.spec.tsx', '**/__tests__/**'],
 }, null, 2) + '\n';
 
 export const packageCustomIndexTs = (): string => `// Cloud Functions belonging to this installation.

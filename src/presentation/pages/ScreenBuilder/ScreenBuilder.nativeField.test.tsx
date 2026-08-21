@@ -100,7 +100,7 @@ describe('ScreenBuilder — telas fixas vêm do registro', () => {
  */
 describe('ScreenBuilder — tela ligada a outra coleção', () => {
   const boundScreen = (overrides: Partial<ScreenDefinition> = {}): ScreenDefinition => ({
-    id: 'pessoas', tenantId: 't1', origin: 'plugin', ownerPluginId: 'com.microteia.pessoa',
+    id: 'pessoas', tenantId: 't1', origin: 'plugin', ownerPluginId: 'com.example.cadastro',
     titleSingular: 'Pessoa', titlePlural: 'Pessoas', icon: 'team',
     dataCollection: 'persons', titleFieldKey: 'name',
     fields: [
@@ -136,7 +136,7 @@ describe('ScreenBuilder — tela ligada a outra coleção', () => {
  */
 describe('ScreenBuilder — campos oferecidos no modal da tela', () => {
   const pessoas = (): ScreenDefinition => ({
-    id: 'pessoas', tenantId: 't1', origin: 'plugin', ownerPluginId: 'com.microteia.pessoa',
+    id: 'pessoas', tenantId: 't1', origin: 'plugin', ownerPluginId: 'com.example.cadastro',
     titleSingular: 'Pessoa', titlePlural: 'Pessoas', icon: 'team',
     dataCollection: 'persons', titleFieldKey: 'name', subtitleFieldKey: 'type',
     fields: [

@@ -1,3 +1,4 @@
+import type { AuditAction } from '../entities/AuditLog';
 import type {
   CustomFieldMask,
   CustomFieldOption,
@@ -107,6 +108,11 @@ export interface EntityMetadata {
   /** A entidade pode receber uma `ScreenDefinition` — aparece no Form Design. */
   supportsCustomFields: boolean;
   referenceable: boolean;
+  /**
+   * Quais ações geram registro de auditoria. Ausente = todas. Ver `SchemaScreen.auditActions`: quem
+   * declara é a tela que traz a coleção, e o backend só lê.
+   */
+  auditActions?: AuditAction[] | null;
 }
 
 

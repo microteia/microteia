@@ -107,7 +107,7 @@ export const functionClaimProblems = (
   for (const claim of claims) {
     for (const name of claim.backend.functions ?? []) {
       if (!packaged.has(name)) {
-        problems.push(`${claim.pluginId} claims function "${name}", which this kernel package does not contain`);
+        problems.push(`${claim.pluginId} claims function "${name}", which is not available to deploy`);
       }
       const previous = owner.get(name);
       if (previous !== undefined && previous !== claim.pluginId) {

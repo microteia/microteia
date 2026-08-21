@@ -1,3 +1,4 @@
+import type { AuditAction } from './AuditLog';
 import type { PluginManifest } from '../schema/plugin/pluginManifest';
 import type { PluginMigration } from '../schema/plugin/migration';
 import type { WorkflowDefinition } from './Workflow';
@@ -53,6 +54,14 @@ export interface ScreenModuleTemplate {
   dataCollection?: string;
   /** Prefixo dos eventos da coleção. Ver `ScreenDefinition.eventPrefix`. */
   eventPrefix?: string | null;
+  /**
+   * Quais ações desta coleção geram registro de auditoria. Ausente = todas.
+   *
+   * É a declaração de quem traz uma coleção que a MÁQUINA escreve: uma ingestão que grava por conta
+   * própria produziria um log por documento recebido, e afogaria a Auditoria justamente onde ela
+   * serve — o gesto humano depois. Ver `ScreenDefinition.auditActions`.
+   */
+  auditActions?: AuditAction[] | null;
   /** Prefixo da aba que abre um registro. Ver `ScreenDefinition.recordTabPrefix`. */
   recordTabPrefix?: string | null;
   /** Papéis que podem gravar. Ver `ScreenDefinition.writeRoles`. */

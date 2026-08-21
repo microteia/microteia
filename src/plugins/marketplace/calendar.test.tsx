@@ -8,13 +8,10 @@ import { materializePluginScreens } from '../../domain/usecases/plugins/screenMo
 import { evaluateExtensionView } from '../../presentation/shared/extensions/evaluateExtensionView';
 import { UI_PAGE_POINT, UI_SETTINGS_POINT } from '../../domain/schema/ui/uiExtensionPoints';
 import { validateSettingValue, type SettingsSection } from '../../domain/schema/settings';
+import type { MarketplacePlugin } from '../../domain/entities/MarketplacePlugin';
 import type { PluginInstallation } from '../../domain/entities/PluginInstallation';
-import { brasilPlugin } from './brasil';
+import { pointContribution } from '../contributionBuilders';
 import { calendarPlugin } from './calendar';
-import { contratoPlugin } from './contrato';
-import { pessoaPlugin } from './pessoa';
-import { prazoPlugin } from './prazo';
-import { processoPlugin } from './processo';
 
 const installation = (pluginId: string): PluginInstallation => ({
   pluginId,
@@ -28,9 +25,7 @@ const installation = (pluginId: string): PluginInstallation => ({
   updatedAt: new Date(),
 });
 
-const CADEIA = [brasilPlugin, pessoaPlugin, contratoPlugin, processoPlugin, calendarPlugin, prazoPlugin];
-
-const loadHost = (plugins = CADEIA) => {
+const loadHost = (plugins: MarketplacePlugin[]) => {
   const host = createPluginHost();
   const result = host.load([
     ...CORE_PLUGINS,
@@ -154,144 +149,120 @@ describe('calendarPlugin', () => {
   });
 });
 
-describe('prazoPlugin na agenda', () => {
-  it('acrescenta ao item do calendário o processo e o advogado, como filtros', () => {
-    const [patch] = prazoPlugin.screenPatches ?? [];
+/**
+ * A agenda COMO ALVO. Substitui um caso que exercitava isto com a extensão de Prazos, hoje mantida
+ * fora deste repositório — e é melhor assim: o que o kernel tem de garantir é que os dois caminhos de
+ * consumo EXISTEM e funcionam para qualquer extensão, não que uma extensão específica os usa.
+ *
+ * São dois, e a distinção entre eles é a decisão que o Calendário registra:
+ *
+ * - **complemento de tela** (`screenPatches`): campos acrescentados ao item da agenda, com chave
+ *   própria. É por isso que duas extensões podem se mostrar na mesma agenda sem se apagarem.
+ * - **ponto de extensão** (`calendar.moveaction`): o gesto de ARRASTAR, que é da agenda e precisa
+ *   saber a qual origem se aplica. O gesto do CARTÃO não tem ponto: ele sai da lista de ações da
+ *   tela, que é onde o escritório já mexe.
+ */
+const CONSUMIDOR: MarketplacePlugin = {
+  manifest: {
+    id: 'com.example.consumidor',
+    version: '1.0.0',
+    kernel: '^1.0.0',
+    name: 'Consumidor da agenda',
+    description: 'Uma extensão de exemplo que se mostra na agenda.',
+    publisher: { name: 'Example' },
+    dependencies: { 'com.microteia.calendar': { version: '^1.0.0', collections: ['calendar'] } },
+    // Nem menu nem página: esta extensão de exemplo existe SÓ para se mostrar na agenda. É o caso
+    // mínimo, e o que ele prova é que os dois caminhos de consumo bastam sozinhos.
+    contributes: [
+      pointContribution('calendar.moveaction', 'mover-coisa', {
+        key: 'coisa.mover',
+        title: 'Mover a coisa',
+        icon: 'arrowRight',
+        order: 0,
+        origem: 'things',
+        actionSourceId: 'act-mover-coisa',
+      }),
+    ],
+  },
+  summary: 'Exemplo.',
+  overview: { type: 'stack', children: [] },
+  workflows: [],
+  screenPatches: [
+    {
+      target: 'microteia:calendar',
+      targetKind: 'sourceId',
+      fields: [
+        { key: 'thingState', label: 'Situação da coisa', type: 'select', required: false, order: 100, filterable: true },
+      ],
+      cardActionIds: ['act-mover-coisa'],
+    },
+  ],
+  actions: [
+    {
+      templateId: 'act-mover-coisa',
+      key: 'coisa_mover',
+      title: 'Mover a coisa',
+      icon: 'arrowRight',
+      workflowId: 'wf-mover-coisa',
+      hiddenWhen: 'origem != "things"',
+      order: 0,
+      enabled: true,
+      danger: false,
+    },
+  ],
+};
 
-    expect(patch.target).toBe('microteia:calendar');
-    expect(patch.targetKind).toBe('sourceId');
-    expect(patch.fields.map((field) => [field.key, field.refEntity, field.filterable])).toEqual([
-      ['caseId', 'cases', true],
-      ['personId', 'persons', true],
-    ]);
+describe('a agenda como alvo de outra extensão', () => {
+  it('aceita um consumidor sem que nada dela mude', () => {
+    const { host, result } = loadHost([calendarPlugin, CONSUMIDOR]);
+
+    expect(result.diagnostics.filter((d) => d.severity === 'error')).toEqual([]);
+    expect(host.isLoaded(CONSUMIDOR.manifest.id)).toBe(true);
   });
 
   /**
-   * O espelho grava no PRAZO, nunca no item: quem atualiza a agenda é o workflow de `deadline.saved`
-   * na sequência. Escrever direto no item deixaria a agenda dizendo "concluído" sobre um prazo que
-   * continua pendente.
+   * O complemento traz chave PRÓPRIA (`thingState`, não `status`) porque ele SUBSTITUI na tela alvo o
+   * campo de mesma chave, e a desinstalação leva embora o que é dele. Duas extensões disputando a mesma
+   * chave na agenda fariam a saída de uma apagar o filtro da outra.
    */
-  it('as duas ações da agenda gravam no prazo, e o espelho reage', () => {
-    const workflows = new Map(prazoPlugin.workflows.map((workflow) => [workflow.templateId, workflow]));
-    const tabelasGravadas = (templateId: string): string[] => {
-      const found: string[] = [];
-      const walk = (steps: unknown[]): void => {
-        for (const step of steps as Array<Record<string, unknown>>) {
-          const config = (step.configuration ?? {}) as Record<string, { value?: { table?: string } }>;
-          if (config.upsert?.value?.table) found.push(config.upsert.value.table);
-          if (config.remove?.value?.table) found.push(config.remove.value.table);
-          const branches = step.branches as Record<string, unknown[]> | undefined;
-          if (branches) walk([...(branches.whenTrue ?? []), ...(branches.whenFalse ?? [])]);
-        }
-      };
-      walk(workflows.get(templateId)?.steps ?? []);
-      return found;
-    };
-
-    expect(tabelasGravadas('wf-prazo-calendar-concluir')).toEqual(['deadlines']);
-    expect(tabelasGravadas('wf-prazo-calendar-mover')).toEqual(['deadlines']);
-    expect(tabelasGravadas('wf-prazo-calendar-sync')).toEqual(['calendar']);
-    expect(tabelasGravadas('wf-prazo-calendar-remover')).toEqual(['calendar']);
-
-    expect(workflows.get('wf-prazo-calendar-sync')?.eventName).toBe('deadline.saved');
-    expect(workflows.get('wf-prazo-calendar-remover')?.eventName).toBe('deadline.deleted');
-  });
-
-  /**
-   * O gesto do cartão chega pela lista de ações da tela alvo — o mesmo lugar que o Form Design
-   * edita. Instalar já o deixa no cartão; sem isso, a ação ficaria no escritório sem aparecer em
-   * lugar nenhum até um admin ligá-la à mão.
-   */
-  it('o gesto de concluir entra pela lista de ações da tela, não por contribuição', () => {
-    const [patch] = prazoPlugin.screenPatches ?? [];
-    const templateIds = new Set((prazoPlugin.actions ?? []).map((action) => action.templateId));
-
-    expect(patch.cardActionIds).toEqual(['act-prazo-calendar-concluir']);
-    expect(templateIds.has(patch.cardActionIds![0])).toBe(true);
-
-    const concluir = (prazoPlugin.actions ?? [])
-      .find((action) => action.templateId === 'act-prazo-calendar-concluir')!;
-    // A expressão é avaliada sobre o ITEM DA AGENDA: a origem restringe o gesto aos itens de prazo
-    // (a lista serve a agenda inteira), e a situação usa a CHAVE da agenda, não o rótulo do prazo.
-    expect(concluir.hiddenWhen).toBe('origem != "deadlines" or status == "closed"');
-  });
-
-  /**
-   * A contribuição endereça a Action pelo `templateId` do pacote (`sourceId` depois de instalada) —
-   * o id real só nasce na instalação, e um manifest não tem como conhecê-lo.
-   */
-  it('a contribuição do arrasto aponta para uma Action que o próprio pacote instala', () => {
-    const contribuicoes = (prazoPlugin.manifest.contributes ?? [])
-      .filter((contribution) => contribution.point.startsWith('calendar.'));
-    const templateIds = new Set((prazoPlugin.actions ?? []).map((action) => action.templateId));
-    const workflowIds = new Set(prazoPlugin.workflows.map((workflow) => workflow.templateId));
-
-    expect(contribuicoes.map((contribution) => contribution.point)).toEqual(['calendar.moveaction']);
-
-    const metadata = contribuicoes[0].metadata as { origem?: string; actionSourceId?: string };
-    // Sem a origem, o arrasto de qualquer item cairia no prazo.
-    expect(metadata.origem).toBe('deadlines');
-    expect(templateIds.has(metadata.actionSourceId ?? '')).toBe(true);
-
-    for (const action of prazoPlugin.actions ?? []) {
-      expect(workflowIds.has(action.workflowId ?? '')).toBe(true);
+  it('o complemento não colide com nenhum campo da própria agenda', () => {
+    const daAgenda = new Set(calendarPlugin.screens![0].fields.map((field) => field.key));
+    for (const field of CONSUMIDOR.screenPatches![0].fields) {
+      expect(daAgenda.has(field.key), field.key).toBe(false);
     }
   });
 
   /**
-   * O mutirão é o espelho aplicado a quem já existia — e a garantia de "rodar de novo não duplica"
-   * é ESTRUTURAL: cada volta da repetição faz a mesma pergunta do gatilho (existe item com este
-   * `origemId`?) antes de gravar, e o Gravar Registro inclui quando `input.itemId` é nulo e
-   * atualiza quando não é.
+   * A contribuição do arrasto endereça a Action pelo `templateId` do pacote (`sourceId` depois de
+   * instalada): o id real só nasce na instalação, e um manifest não tem como conhecê-lo. E ela carrega a
+   * ORIGEM — sem isso, arrastar qualquer item da agenda cairia nesta extensão.
    */
-  it('o mutirão pergunta pelo item antes de gravar, como o espelho faz', () => {
-    const workflows = new Map(prazoPlugin.workflows.map((workflow) => [workflow.templateId, workflow]));
-    const mutirao = workflows.get('wf-prazo-calendar-sincronizar')!;
+  it('o arrasto chega ao ponto declarado, com origem e ação do próprio pacote', () => {
+    const { host } = loadHost([calendarPlugin, CONSUMIDOR]);
+    const [contribuicao] = host.contributions.query('calendar.moveaction');
 
-    expect(mutirao.eventName).toBe('workflow.called');
-    expect(mutirao.parameters?.map((parameter) => parameter.key)).toEqual(['status']);
+    expect(contribuicao.pluginId).toBe(CONSUMIDOR.manifest.id);
 
-    const [buscarPrazos, repeticao] = mutirao.steps;
-    expect(repeticao.type).toBe('Loop');
-    // A consulta filtra por IGUALDADE, o único operador que o motor resolve no servidor: é o que
-    // faz a varredura acontecer dentro da fatia escolhida, e não nos primeiros prazos do escritório.
-    const consulta = (buscarPrazos.configuration.query as { value: { where: Array<{ op: string }> } }).value;
-    expect(consulta.where.map((predicate) => predicate.op)).toEqual(['eq']);
-
-    const corpo = repeticao.loop?.body ?? [];
-    expect(corpo.map((step) => step.stepDefinitionId)).toEqual(['query', '', 'map', 'upsert']);
-    // A pergunta que garante a idempotência: item com este `origemId` já existe?
-    const busca = (corpo[0].configuration.query as { value: { table: string; where: Array<{ path: string }> } }).value;
-    expect(busca.table).toBe('calendar');
-    expect(busca.where[0].path).toBe('origemId');
+    const metadata = contribuicao.metadata as { origem?: string; actionSourceId?: string };
+    expect(metadata.origem).toBe('things');
+    expect(new Set((CONSUMIDOR.actions ?? []).map((action) => action.templateId)))
+      .toContain(metadata.actionSourceId);
   });
 
-  /**
-   * O gatilho e o mutirão montam o item pelo MESMO construtor, mudando só de onde o prazo vem
-   * (`event` ou o item da repetição). Sem isso, um campo acrescentado a um dos caminhos sumiria do
-   * outro em silêncio — e a agenda mostraria itens diferentes conforme a porta que os criou.
-   */
-  it('as duas portas montam o item com os mesmos campos', () => {
-    const workflows = new Map(prazoPlugin.workflows.map((workflow) => [workflow.templateId, workflow]));
-    const camposDe = (step: (typeof workflows extends Map<string, infer W> ? W : never)['steps'][number]): string[] =>
-      ((step.configuration.map as { value: { fields: Array<{ name: string }> } }).value.fields).map((field) => field.name);
+  /** O gesto do cartão entra pela lista de ações da tela alvo — o mesmo lugar que o Form Design edita. */
+  it('o gesto do cartão entra pela lista de ações da tela, não por contribuição', () => {
+    const [patch] = CONSUMIDOR.screenPatches ?? [];
+    const templateIds = new Set((CONSUMIDOR.actions ?? []).map((action) => action.templateId));
 
-    const espelho = workflows.get('wf-prazo-calendar-sync')!.steps.find((step) => step.id === 'montarItem')!;
-    const mutirao = (workflows.get('wf-prazo-calendar-sincronizar')!.steps[1].loop?.body ?? [])
-      .find((step) => step.id === 'montarItem')!;
-
-    expect(camposDe(espelho)).toEqual([
-      'id', 'title', 'status', 'priority', 'date', 'finishDate',
-      'description', 'origem', 'origemId', 'caseId', 'personId',
-    ]);
-    expect(camposDe(mutirao)).toEqual(camposDe(espelho));
+    expect(patch.cardActionIds).toEqual(['act-mover-coisa']);
+    expect(templateIds.has(patch.cardActionIds![0])).toBe(true);
   });
 
-  it('o host recusa carregar Prazos sem a agenda instalada', () => {
-    const semAgenda = CADEIA.filter((plugin) => plugin !== calendarPlugin);
-    const { host, result } = loadHost(semAgenda);
+  /** Sem a agenda instalada, a coleção `calendar` não existe e o consumidor gravaria no vazio. */
+  it('sem a agenda instalada, o host recusa carregar o consumidor', () => {
+    const { host, result } = loadHost([CONSUMIDOR]);
 
-    expect(host.isLoaded(prazoPlugin.manifest.id)).toBe(false);
+    expect(host.isLoaded(CONSUMIDOR.manifest.id)).toBe(false);
     expect(result.diagnostics.map((d) => d.code)).toContain('dependency.missing');
   });
 });

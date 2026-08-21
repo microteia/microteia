@@ -83,23 +83,6 @@ npm run deploy:workflow
 
 ---
 
-### 📧 GMAIL — Integração Gmail
-Ingestão de intimações por e-mail e as contas autorizadas.
-
-**Functions:**
-- `gmailPush` — de `com.microteia.push`
-- `renewGmailWatches` — de `com.microteia.push`
-- `exchangeGmailCode` — de `com.microteia.push`
-- `listGmailConnections` — de `com.microteia.push`
-- `revokeGmailConnection` — de `com.microteia.push`
-
-**Deploy:**
-```bash
-npm run deploy:gmail
-```
-
----
-
 ### 🛠️ UTIL — Utilitários Gerais
 Proxy de IA e registro de falhas do frontend.
 

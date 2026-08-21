@@ -82,7 +82,7 @@ describe('mapScreenDefinition', () => {
    */
   it('sem entidade fixa que a reivindique, vale o origin gravado', () => {
     expect(mapScreenDefinition('deadlines', { origin: 'plugin' }, 'tenant-1').origin).toBe('plugin');
-    expect(mapScreenDefinition('deadlines', { ownerPluginId: 'com.microteia.prazo' }, 'tenant-1').origin).toBe('plugin');
+    expect(mapScreenDefinition('deadlines', { ownerPluginId: 'com.example.tarefas' }, 'tenant-1').origin).toBe('plugin');
     expect(mapScreenDefinition('deadlines', {}, 'tenant-1').origin).toBe('design');
   });
 

@@ -214,6 +214,8 @@ export const pluginInit = async (args: ParsedArgs): Promise<void> => {
   info('Read AUTHORING.md first. An AI assistant in this directory reads AGENTS.md and can query');
   info('this installation through the MCP server registered in .mcp.json.');
   blank();
-  info('After every "microteia deploy", run "npm install" here to pick up the matching SDK.');
+  info('After taking a new platform version, run "npm run sdk:refresh" here — not "npm install",');
+  info('which keeps the SDK you already have (the tarball path carries no version, so npm sees no');
+  info('change). Skipping it is silent: your extensions keep compiling, against the wrong contract.');
   blank();
 };

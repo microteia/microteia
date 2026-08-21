@@ -41,22 +41,22 @@ describe('paridade do fingerprint entre o kernel e o Console', () => {
     const cases = [
       undefined,
       {},
-      { functions: ['gmailPush', 'exchangeGmailCode'] },
-      { parameters: ['GOOGLE_CLIENT_SECRET', 'GOOGLE_CLIENT_ID'] },
+      { functions: ['integracaoSync', 'integracaoAuth'] },
+      { parameters: ['EXAMPLE_CLIENT_SECRET', 'EXAMPLE_CLIENT_ID'] },
       {
         functions: ['b', 'a'],
         parameters: ['Z', 'A'],
         indexes: [
           {
-            collectionGroup: 'pushes',
+            collectionGroup: 'entradas',
             queryScope: 'COLLECTION' as const,
             fields: [
-              { fieldPath: 'emailId', order: 'ASCENDING' as const },
-              { fieldPath: 'processNumber', order: 'ASCENDING' as const },
+              { fieldPath: 'origemId', order: 'ASCENDING' as const },
+              { fieldPath: 'chave', order: 'ASCENDING' as const },
             ],
           },
           {
-            collectionGroup: 'deadlines',
+            collectionGroup: 'tarefas',
             queryScope: 'COLLECTION_GROUP' as const,
             fields: [{ fieldPath: 'tags', arrayConfig: 'CONTAINS' as const }, { fieldPath: 'dueDate' }],
           },
@@ -108,19 +108,40 @@ describe('baseline e reivindicado — as contas do pacote', () => {
     expect(baseline.length + claimedKeys.size).toBe(root.length);
   });
 
-  it('o Push é o caso que motivou tudo isto: as 5 functions do Gmail saem da baseline', () => {
-    const claims = claimsFromTemplates(templates());
-    const push = claims.find((claim) => claim.pluginId === 'com.microteia.push');
-    expect(push, 'com.microteia.push deve declarar manifest.backend').toBeDefined();
-    expect([...(push?.backend.functions ?? [])].sort()).toEqual([
-      'exchangeGmailCode', 'gmailPush', 'listGmailConnections', 'renewGmailWatches', 'revokeGmailConnection',
-    ]);
+  /**
+   * A subtração, que é o mecanismo inteiro: o que uma extensão reivindica SAI da baseline, e o resto
+   * continua subindo sempre.
+   *
+   * O caso que motivou tudo isto eram as cinco functions do Gmail, de `com.microteia.push` — hoje
+   * mantida fora deste repositório, junto com as functions dela. É por isso que a reivindicação aqui é
+   * SINTÉTICA: nenhuma extensão de primeira parte reivindica function do kernel neste momento, e
+   * amarrar o teste a uma que reivindicasse o faria falhar no dia em que ela saísse — que é justamente
+   * o dia em que se quer saber que o mecanismo continua de pé.
+   */
+  it('o que uma extensão reivindica sai da baseline; o do kernel continua nela', () => {
+    const claim: BackendClaim = {
+      pluginId: 'com.example.integracao',
+      name: 'Integração de exemplo',
+      version: '1.0.0',
+      backend: { functions: ['runScript'] },
+    };
 
-    const baseline = baselineFunctionsOf(allFunctions(), claims);
-    expect(baseline).not.toContain('gmailPush');
+    const baseline = baselineFunctionsOf(allFunctions(), [claim]);
+    expect(baseline).not.toContain('runScript');
     // O que é do kernel continua na baseline, ou uma instalação nova subiria sem motor de automações.
     expect(baseline).toContain('onWorkflowEventCreated');
     expect(baseline).toContain('callAIProxy');
+    // E a conta fecha: baseline ∪ reivindicado continua sendo tudo o que o pacote exporta.
+    expect([...baseline, ...claimedFunctions([claim])].sort()).toEqual([...allFunctions()].sort());
+  });
+
+  /**
+   * Nenhuma extensão de primeira parte reivindica backend hoje, e o teste registra isso em vez de
+   * passar por vazio: se uma passar a reivindicar, os casos acima deixam de ser sintéticos e este
+   * caso é o que avisa.
+   */
+  it('nenhuma extensão de primeira parte reivindica backend neste momento', () => {
+    expect(claimsFromTemplates(templates())).toEqual([]);
   });
 
   it('reivindicação inválida é NOMEADA, e não silenciada', () => {
@@ -138,7 +159,7 @@ describe('baseline e reivindicado — as contas do pacote', () => {
 
   it('duas extensões donas da mesma function é problema, e o relato nomeia as duas', () => {
     const claim = (pluginId: string): BackendClaim => ({
-      pluginId, name: pluginId, version: '1.0.0', backend: { functions: ['gmailPush'] },
+      pluginId, name: pluginId, version: '1.0.0', backend: { functions: ['runScript'] },
     });
     const problems = functionClaimProblems([claim('com.acme.a'), claim('com.acme.b')], allFunctions());
     expect(problems).toHaveLength(1);

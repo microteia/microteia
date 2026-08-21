@@ -29,21 +29,6 @@ const FLAT_ENTITY_CONFIG: Record<string, AuditableEntityConfig> = {
     entityKey: 'TenantMember',
     getDisplayName: (d) => asString(d.displayName ?? d.email),
   },
-  personTags: {
-    entityKey: 'PersonTag',
-    getDisplayName: (d) => asString(d.name),
-  },
-  caseTags: {
-    entityKey: 'CaseTag',
-    getDisplayName: (d) => asString(d.name),
-  },
-  pushes: {
-    entityKey: 'Push',
-    getDisplayName: (d) => asString(d.subject ?? d.processNumber, 'Push'),
-    // Criação é automática (Cloud Function do webhook do Gmail) — só interessa auditar
-    // a triagem manual (mudança de status) e a exclusão.
-    auditActions: ['UPDATE', 'DELETE'],
-  },
   screenDefinitions: {
     entityKey: 'ScreenDefinition',
     getDisplayName: (d) => asString(d.titlePlural ?? d.titleSingular),
@@ -100,6 +85,10 @@ const screenRecordConfig = (collection: string, entity?: EntityMetadata): Audita
   entityKey: collection,
   getDisplayName: (d) => declaredName(d, entity) ?? heuristicName(d),
   getEntityLink: (_tenantId, docId) => `view-dyn:${collection}:${docId}`,
+  // Quais ações auditar é DECLARAÇÃO da tela, e chega aqui pela mesma resolução que dá o nome. Este
+  // arquivo já teve o nome de uma coleção de extensão escrito dentro dele, com a lista de ações ao
+  // lado; era a única forma de dizer "não audite a inclusão" e custava o kernel conhecer a extensão.
+  ...(entity?.auditActions ? { auditActions: entity.auditActions } : {}),
 });
 
 /** As subcoleções que ganham identidade própria: `contracts#notes` em vez de só `contracts`. */

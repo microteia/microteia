@@ -71,7 +71,7 @@ describe('as fontes de extensão continuam sendo checadas', () => {
   });
 
   it('há fonte para checar — um diretório vazio faria os casos acima passarem por nada', () => {
-    expect(sourceFiles.length).toBeGreaterThanOrEqual(18);
+    expect(sourceFiles.length).toBeGreaterThanOrEqual(5);
   });
 
   /**
@@ -96,23 +96,19 @@ describe('as fontes de extensão continuam sendo checadas', () => {
   /**
    * O `?raw` é o que faz a fonte viajar como DADO e ao mesmo tempo morar num arquivo checado. Um
    * plugin que voltasse a declarar a fonte num template literal sairia da checagem sem quebrar nada.
-   */
-  /**
-   * As três que sobraram, e por quê: nesses plugins a fonte é COMPOSTA — um bloco de helpers e um de
-   * estilos de cartão são interpolados em vários widgets (`${WIDGET_HELPERS}${WIDGET_CARD}`). Como o
-   * runtime avalia um módulo por view e não resolve import entre fontes de view, extraí-las hoje
-   * exigiria duplicar os blocos em cada arquivo. A saída certa é o compilador EMPACOTAR a view a partir
-   * de vários arquivos, e isso é uma decisão de escopo próprio.
    *
-   * A lista é fechada de propósito: um plugin novo que declare fonte em template literal reprova aqui.
+   * A lista de exceções está VAZIA, e é a primeira vez. As três que sobravam — `prazo`, `processo` e `push` —
+   * tinham fonte COMPOSTA (blocos de helpers e de estilo de cartão interpolados em vários widgets), e
+   * saíram deste repositório junto com as extensões de domínio a que pertenciam.
+   *
+   * A lista fica aqui, vazia, em vez de o caso virar um `toEqual([])` solto: ela é o registro da
+   * exceção, e a próxima fonte composta que aparecer terá de ser escrita nela por alguém que explique
+   * o motivo. A saída certa continua sendo o compilador EMPACOTAR a view a partir de vários arquivos,
+   * que é decisão de escopo próprio.
    */
-  const COMPOSED = [
-    '/src/plugins/marketplace/prazo.ts',
-    '/src/plugins/marketplace/processo.ts',
-    '/src/plugins/marketplace/push.ts',
-  ];
+  const COMPOSED: string[] = [];
 
-  it('só os plugins de fonte COMPOSTA ainda declaram view em template literal', () => {
+  it('nenhum plugin declara view em template literal', () => {
     const offenders = Object.entries(PLUGINS)
       .filter(([, source]) => /const [A-Z_]*SOURCE = `\n\s*import /.test(source))
       .map(([path]) => path)

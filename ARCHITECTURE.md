@@ -92,30 +92,9 @@ npm run verify          # typecheck + lint + verify-schemas
 | `UserProfile` | `userProfiles/{uid}` | Não |
 | `AIConnection` | `tenants/{tenantId}/aiConnections/{id}` | Sim |
 | `AIConnectionSecret` | `tenants/{tenantId}/aiConnections/{id}/secrets/current` | Sim (chave de API — nunca trafega para o frontend) |
-| `GmailConnection` | `gmailConnections/{id}` | **Não** (mas possui campo `tenantId`) |
-| `GmailToken` | `gmailConnections/{connectionId}/tokens/current` | **Não** (mas possui campo `tenantId`) |
 | `Tenant` | `tenants/{tenantId}` | — |
 | `TenantMember` | `tenants/{tenantId}/members/{uid}` | Sim |
-| `Person` | `tenants/{tenantId}/persons/{id}` | Sim |
-| `PersonTag` | `tenants/{tenantId}/personTags/{id}` | Sim |
-| `PersonNote` | `tenants/{tenantId}/persons/{personId}/notes/{id}` | Sim |
-| `PersonDocument` | `tenants/{tenantId}/persons/{personId}/documents/{id}` | Sim |
-| `Case` | `tenants/{tenantId}/cases/{id}` | Sim |
-| `CaseTag` | `tenants/{tenantId}/caseTags/{id}` | Sim |
-| `CaseLookupItem` | `tenants/{tenantId}/caseAreas/{id}`, `casePhases`, `caseStatuses`, `caseInstances`, `caseActionTypes`, `caseCourts`, `caseDistricts`, `caseJudges` | Sim |
-| `CaseNote` | `tenants/{tenantId}/cases/{caseId}/notes/{id}` | Sim |
-| `CaseDocument` | `tenants/{tenantId}/cases/{caseId}/documents/{id}` | Sim |
-| `Contract` | `tenants/{tenantId}/contracts/{id}` | Sim |
-| `ContractTag` | `tenants/{tenantId}/contractTags/{id}` | Sim |
-| `ContractLookupConfig` | `tenants/{tenantId}/contractTypes/{id}`, `contractCategories`, `contractStatuses`, `contractObjects`, `contractAdjustmentIndexes`, `contractAdjustmentPeriodicities`, `contractCurrencies`, `contractPaymentMethods`, `contractBanks`, `contractCostCenters` | Sim |
-| `ContractNote` | `tenants/{tenantId}/contracts/{contractId}/notes/{id}` | Sim |
-| `ContractDocument` | `tenants/{tenantId}/contracts/{contractId}/documents/{id}` | Sim |
-| `Financial` | `tenants/{tenantId}/financials/{id}` | Sim |
-| `FinancialTag` | `tenants/{tenantId}/financialTags/{id}` | Sim |
-| `FinancialDocument` | `tenants/{tenantId}/financials/{financialId}/documents/{id}` | Sim |
-| `FinancialLookupConfig` | `tenants/{tenantId}/financialCategories/{id}`, `financialStatuses` | Sim |
-| `DocumentTypeConfig` (compartilhado) | `tenants/{tenantId}/documentTypes/{id}` | Sim |
-| `Push` (extensão `com.microteia.push`; escrito pela ingestão do Gmail) | `tenants/{tenantId}/pushes/{id}` | Sim |
+| `DocumentTypeConfig` (compartilhado por todas as telas que anexam documento) | `tenants/{tenantId}/documentTypes/{id}` | Sim |
 | `Notícia` (extensão `com.microteia.news`) | `tenants/{tenantId}/news/{id}` | Sim |
 | `Comentário` (extensão `com.microteia.news`) | `tenants/{tenantId}/newsComments/{id}` | Sim |
 | `SavedFilter` | `savedFilters/{uid}_{screenKey}` | Não |
@@ -125,6 +104,17 @@ npm run verify          # typecheck + lint + verify-schemas
 | `WorkflowExecution` | `tenants/{tenantId}/workflow_executions/{id}` (somente leitura pelo cliente) | Sim |
 | `StepDefinition` (catálogo, espelho somente-leitura) | `workflow_step_catalog/{id}` | Não |
 | `Script` (código reutilizável do Step "Script") | `tenants/{tenantId}/scripts/{id}` | Sim |
+
+**A tabela é curta de propósito, e ficou curta por conquista.** Ela já listava `persons`, `cases`,
+`contracts`, `financials`, `deadlines`, `pushes`, as etiquetas e as dezenas de listas de opções de cada
+uma — e nenhuma delas era do kernel: eram de uma solução de escritório de advocacia que vivia nesta
+árvore. Hoje quem declara essas coleções são as extensões que o escritório mantém, e o nome delas não
+aparece em lugar nenhum daqui. Ver "As entidades de ESCRITÓRIO não moram aqui".
+
+Uma coleção de extensão não precisa de linha nesta tabela nem de entrada no `entityRegistry.ts`: ela
+passa pelo curinga `match /{screenCollection}/{recordId}` das rules, é descrita pela tela que a declara
+e é servida pelos repositórios e stores genéricos. É essa a propriedade que faz a plataforma valer para
+qualquer negócio.
 
 ### Tipos-chave
 
@@ -144,121 +134,13 @@ O tema NÃO tem tipo fechado: ele é uma contribuição, identificada por um `id
 
 Conexões de IA do escritório (`tenants/{tenantId}/aiConnections/{id}`). Somente administradores do tenant leem e escrevem.
 
-A **chave de API nunca fica no documento da conexão** — ela vive na subcoleção `secrets/current` (campo `apiKey`), no mesmo padrão de `gmailConnections/{id}/tokens/current`:
+A **chave de API nunca fica no documento da conexão** — ela vive na subcoleção `secrets/current` (campo `apiKey`). O padrão é o de qualquer credencial: o documento que a tela lê e a credencial que só o servidor lê são DOIS documentos, e o de dentro é fechado por regra.
 
 - O documento da conexão guarda apenas `name`, `provider`, `model`, `temperature`, `maxTokens`, `isDefault` e o booleano `hasApiKey` (indica ao frontend que já existe chave cadastrada, sem revelá-la).
 - O frontend **escreve** a chave (cadastro e troca) e **nunca a lê** — a regra do Firestore em `secrets/{secretId}` é `allow read: if false`.
 - As Cloud Functions leem a chave pelo Admin SDK (`FirebaseAIConnectionRepository` em `functions/src`, método privado `readApiKey`), que ignora as Security Rules. Enquanto houver conexões antigas, `readApiKey` cai de volta no campo legado `apiKey` do documento da conexão; ao editar a conexão e informar uma chave nova, o frontend grava o segredo e remove o campo legado (`deleteField()`).
 - Ao editar sem preencher o campo de chave, a chave atual é mantida. Excluir a conexão apaga primeiro `secrets/current`.
 
-### Entidade GmailConnection
-
-Conexões OAuth do Gmail para monitoramento Push de e-mails do escritório. **Armazenadas no nível raiz (não subcoleção de tenant)** para permitir que Cloud Functions busquem conexões por email sem varrer todos os tenants. Somente administradores do tenant podem gerenciar.
-
-```typescript
-interface GmailConnection {
-  id: string;
-  tenantId: string;            // tenant dono desta conexão
-  email: string;               // conta Gmail autorizada
-  scopes: string[];            // escopos OAuth concedidos
-  authorizedBy: string;        // userId que autorizou
-  authorizedByName: string;    // nome de exibição
-  authorizedAt: Date;
-  historyId?: string;          // último historyId processado (Gmail Push)
-  expiration?: string;         // data de expiração da watch (Gmail Push)
-}
-```
-
-Coleção Firestore: `gmailConnections/{id}` (raiz). **Fechada para o cliente** — ver "Fluxo OAuth do
-Gmail" abaixo: a tela que a administra é da extensão `com.microteia.push`, e fala com ela por
-callables.
-
-**Motivação da estrutura:**
-Quando o Gmail envia notificação Pub/Sub com `{ emailAddress, historyId }`, a Cloud Function precisa descobrir **qual(is) tenant(s)** possui esse email. Com a coleção no nível raiz, basta fazer:
-```javascript
-db.collection('gmailConnections').where('email', '==', emailAddress).get()
-```
-Com subcoleção por tenant seria necessário varrer **todos** os tenants, o que é impraticável.
-
-**Índice composto necessário:**
-```
-Coleção: gmailConnections
-Campos indexados: email (Ascending), tenantId (Ascending)
-```
-Deploy: `firebase deploy --only firestore:indexes` (configurado em `firestore.indexes.json`).
-
-### Entidade GmailToken
-
-Tokens de acesso OAuth armazenados em subcoleção protegida. **Não retornam na listagem** — acessados apenas por Cloud Functions para renovação e uso.
-
-```typescript
-interface GmailToken {
-  id: string;
-  connectionId: string;
-  tenantId: string;
-  accessToken: string;
-  refreshToken: string;
-  expiresAt: Date;
-}
-```
-
-Coleção Firestore: `gmailConnections/{connectionId}/tokens/current` (subcoleção de gmailConnections)
-
-**Fluxo OAuth do Gmail (Authorization Code Flow com Cloud Function):**
-
-O Microteia implementa o **Authorization Code Flow** do Google OAuth para obter tokens de acesso offline (com `refresh_token`). Este é o fluxo correto para SaaS que precisam acessar APIs em background sem o usuário presente.
-
-**Por que NÃO usar `initTokenClient`:**
-- `initTokenClient` implementa o **Implicit Flow** (tokens na memória do navegador)
-- **Nunca retorna `refresh_token`**, mesmo com `access_type: 'offline'` ou `prompt: 'consent'`
-- Inadequado para acesso offline — tokens expiram em 1 hora e não podem ser renovados
-
-**Solução: `initCodeClient` + Cloud Function**
-
-1. **Tela da extensão** (`initCodeClient`, na view `push-settings` de `com.microteia.push`):
-   - Carrega o script do Google **sob demanda** (não está mais no `index.html`)
-   - Abre o popup OAuth e recebe um **código de autorização** (`response.code`)
-   - Envia o código para a callable `exchangeGmailCode`, com o `tenantId`
-
-2. **Backend** (`exchangeGmailCode` → `ExchangeGmailCodeUseCase`), que faz a autorização INTEIRA:
-   - Confere que quem pediu é **admin do tenant** (papel lido do documento de membro)
-   - Usa o **Client Secret** (seguro no backend) para trocar o código por tokens
-   - Registra o `watch` da caixa (`GmailWatchService`) e obtém `historyId`/`expiration`
-   - **Grava** a conexão e o token (`saveConnection`, upsert por `tenantId + email`)
-   - Devolve à tela apenas a conexão: `{ id, email, authorizedByName, authorizedAt, expiration }`
-
-3. **O navegador nunca vê credencial.** Nem o Client Secret, nem o `refresh_token`: a partir daqui,
-   `gmailConnections` é `allow read, write: if false` nas regras — listar e revogar também são
-   callables (`listGmailConnections`, `revokeGmailConnection`), com a mesma conferência de papel e
-   de **dono** (o id da conexão precisa pertencer ao tenant que pergunta).
-
-4. **Cloud Functions renovam tokens**:
-   - Leem tokens usando Admin SDK (ignora Security Rules)
-   - Quando `access_token` expira, usam `refresh_token` para obter novo
-   - Atualizam subcoleção `tokens/current` automaticamente
-
-**Configuração necessária** — só no backend. O `VITE_GOOGLE_CLIENT_ID` deixou de existir: o
-`clientId` (que é público) volta na resposta de `listGmailConnections`, junto com o escopo pedido,
-para que a tela não guarde configuração de Google em lugar nenhum.
-
-```bash
-# Firebase Functions (não commitar!)
-firebase functions:config:set \
-  google.client_id="..." \
-  google.client_secret="..." \
-  google.redirect_uri="postmessage"
-```
-
-**Segurança:**
-- ✅ `refresh_token` **sempre** retornado (Authorization Code Flow) — e só ao servidor
-- ✅ Client Secret protegido no backend
-- ✅ Nenhum token trafega para o frontend, nem na autorização
-- ✅ Cloud Functions gerenciam renovação sem interação do usuário
-- ✅ `gmailConnections` e `tokens/` fechados para o cliente (só Admin SDK)
-
-**Prevenção de duplicatas:** `saveConnection` procura a conexão por `tenantId + email` antes de
-criar. Reautorizar a mesma conta atualiza a conexão e o token existentes — a deduplicação é do
-servidor, e não mais do frontend.
 ### Entidade Tenant
 
 ```typescript
@@ -303,193 +185,32 @@ Registros gravados antes dessa correção guardam um `userId` de membro nesses c
 
 Rodar a lógica no Admin SDK (em vez de `runTransaction` do client + Security Rules) é o que garante que **duas adições concorrentes** (ex: dois admins em computadores diferentes clicando "Adicionar" para a última vaga) nunca ultrapassem o limite: o protocolo de transação do Firestore serializa as duas chamadas no servidor, e não existe nenhuma escrita direta que um client possa fazer para bypassar a checagem. `updateMemberRole` continua sendo escrita direta do client (não mexe no contador, sem risco de corrida).
 
-Client: `src/data/repositories/FirebaseTenantRepository.ts` chama as duas functions via `httpsCallable` (mesmo padrão de `claimNickname`, ver "Fluxo OAuth do Gmail" para outro exemplo de Cloud Function callable); `resource-exhausted` é convertido em `TenantMemberLimitReachedError` (`src/domain/errors/index.ts`) para o ViewModel de `TenantSettings/MembersTab` mostrar uma mensagem específica e desabilitar o formulário quando `memberCount >= memberLimit`.
+Client: `src/data/repositories/FirebaseTenantRepository.ts` chama as duas functions via `httpsCallable` (mesmo padrão de `claimNickname`); `resource-exhausted` é convertido em `TenantMemberLimitReachedError` (`src/domain/errors/index.ts`) para o ViewModel de `TenantSettings/MembersTab` mostrar uma mensagem específica e desabilitar o formulário quando `memberCount >= memberLimit`.
 
-### Entidade Person
+### As entidades de ESCRITÓRIO não moram aqui
 
-```typescript
-interface Person {
-  id: string;
-  tenantId: string;
-  type: 'Pessoa Física' | 'Pessoa Jurídica';
-  name: string;
-  cpf?: string | null;
-  cnpj?: string | null;
-  email?: string | null;
-  phone?: string | null;
-  secondaryPhone?: string | null;
-  address?: PersonAddress | null;
-  occupation?: string | null;
-  nationality?: string | null;
-  maritalStatus?: string | null;
-  birthDate?: Date | null;
-  notes?: string | null;
-  tagIds?: string[];           // IDs das PersonTags aplicadas
-  status: 'Ativo' | 'Inativo';
-  createdAt: Date;
-  createdBy: string;
-  updatedAt: Date;
-}
-```
+Sete extensões saíram deste repositório em 20/08/2026 e passaram a ser mantidas pelo escritório, em
+`office/extensions/`: **Pessoas**, **Contratos**, **Processos**, **Prazos**, **Financeiro**, **Pushes
+do Tribunal** e **Kanban de Processos**. Com elas foram as coleções (`persons`, `contracts`, `cases`,
+`deadlines`, `financials`, `pushes`), as etiquetas e os documentos de cada uma, as cinco Cloud
+Functions do Gmail com os parsers de tribunal, e os quatro parâmetros `GOOGLE_*`.
 
-### Entidade PersonTag
+**Elas nunca estiveram no `entityRegistry.ts`** — a saída de cada uma foi o que produziu a capacidade
+declarativa que ela precisava, e é isso que as seções "X sai do kernel" mais abaixo registram. O que
+mudou agora não é a arquitetura: é o REPOSITÓRIO. Elas eram uma solução de escritório de advocacia no
+Brasil vivendo na árvore da plataforma, e por isso toda alteração nelas exigia um release do produto.
 
-Tags de tenant para classificação de pessoas. Visíveis a todos os membros do tenant.
+O que ficou aqui, como exemplo de autoria e como fixture da máquina de instalação: `brasil` (CPF,
+CNPJ, CEP), `calendar`, `dashboard`, `news` e `locale-pt-br` — cinco extensões agnósticas de negócio.
+`pessoa`, `prazo` e `financeiro` dependem de `brasil` e de `calendar`, e continuam declarando isso em
+`manifest.dependencies`: a plataforma recusa carregar uma extensão cuja dependência falta, em vez de
+carregá-la meio funcionando.
 
-```typescript
-interface PersonTag {
-  id: string;
-  tenantId: string;
-  name: string;
-  color: string;
-  createdAt: Date;
-  createdBy: string;
-}
-```
-
-Coleção Firestore: `tenants/{tenantId}/personTags/{id}`
-
-### Entidade PersonNote
-
-Anotações vinculadas a uma pessoa. Visíveis a todos os membros. Exclusão restrita a admin.
-
-```typescript
-interface PersonNote {
-  id: string;
-  personId: string;
-  tenantId: string;
-  text: string;
-  createdBy: string;     // userId
-  createdByName: string;
-  createdAt: Date;
-}
-```
-
-Coleção Firestore: `tenants/{tenantId}/persons/{personId}/notes/{id}`
-
-### Entidade PersonDocument
-
-Documentos anexados a uma pessoa. Upload vai ao Storage; só o URL é salvo no Firestore. Exclusão restrita a admin.
-
-```typescript
-interface PersonDocument {
-  id: string;
-  personId: string;
-  tenantId: string;
-  name: string;          // nome original do arquivo
-  url: string;           // download URL do Storage
-  storagePath: string;   // path no Storage para exclusão
-  createdBy: string;
-  createdByName: string;
-  createdAt: Date;
-}
-```
-
-Coleção Firestore: `tenants/{tenantId}/persons/{personId}/documents/{id}`
-Storage path: `tenants/{tenantId}/persons/{personId}/{timestamp}_{filename}`
-
-### Entidade Case (Processo)
-
-```typescript
-interface Case {
-  id: string;
-  tenantId: string;
-  number?: string;         // Número CNJ ou interno
-  title: string;
-  personId: string;
-  personName: string;
-  status: 'active' | 'archived' | 'won' | 'lost' | 'settled' | 'suspended';
-  area: CaseArea;          // 'civil' | 'criminal' | 'trabalhista' | ...
-  phase?: CasePhase;
-  court?: string;
-  judge?: string;
-  opposingParty?: string;
-  responsibleLawyerId?: string | null; // FK para Pessoa; nome resolvido em tempo de renderização via usePersonStore()
-  contractId?: string | null;      // Contrato vinculado — Contract (único; um Processo pertence a no máximo 1 Contrato); número resolvido via useContractStore()
-  parties: CaseParty[];
-  description?: string;
-  openedAt?: Date;
-  closedAt?: Date;
-  createdAt: Date;
-  updatedAt: Date;
-}
-```
-
-### Entidade Contract (Contrato)
-
-```typescript
-type ContractLookupKind =
-  | 'types' | 'categories' | 'statuses' | 'objects'
-  | 'adjustmentIndexes' | 'adjustmentPeriodicities'
-  | 'currencies' | 'paymentMethods' | 'banks' | 'costCenters';
-
-interface ContractLookupConfig {
-  key: string;
-  label: string;
-  color?: string;  // usado por 'statuses'
-  isStatic?: boolean;
-}
-
-interface Contract {
-  id: string;
-  tenantId: string;
-  number: string;                 // "AB1234" — sugerido automaticamente, editável, único por tenant
-  title: string;
-  type: string;                   // lookup 'types'
-  category: string;               // lookup 'categories'
-  status: string;                 // lookup 'statuses' (com cor)
-  object?: string | null;         // lookup 'objects' (só dinâmico)
-  contractorIds: string[];        // Contratante — Pessoa[]
-  contracteeIds: string[];        // Contratado — Pessoa[]
-  witnessIds: string[];           // Testemunhas — Pessoa[]
-  contractorLawyerIds: string[];  // Advogado do Contratante — Pessoa[]
-  contracteeLawyerIds: string[];  // Advogado do Contratado — Pessoa[]
-  clientId?: string | null;       // Cliente — Pessoa (única)
-  responsibleId?: string | null;  // Responsável — Pessoa (única)
-  draftedAt?: Date | null;
-  signedAt?: Date | null;
-  effectiveStart?: Date | null;
-  effectiveEnd?: Date | null;
-  autoRenewal: boolean;
-  renewalDate?: Date | null;
-  terminationDate?: Date | null;
-  initialValue?: number | null;
-  monthlyValue?: number | null;
-  totalValue?: number | null;
-  adjustmentIndex?: string | null;        // lookup
-  adjustmentPeriodicity?: string | null;  // lookup
-  currency?: string | null;               // lookup
-  paymentMethod?: string | null;          // lookup
-  dueDay?: number | null;         // 1-31
-  installments?: number | null;
-  bank?: string | null;           // lookup (só dinâmico)
-  bankAccount?: string | null;    // texto livre "agência / número"
-  pixKey?: string | null;
-  costCenter?: string | null;     // lookup (só dinâmico)
-  tagIds?: string[];
-  createdAt: Date;
-  createdBy: string;
-  updatedAt: Date;
-}
-```
-
-**Padrão de lookups:** ao contrário de `Case` (um repositório Firebase por kind), `Contract` usa o **padrão genérico de `Person`**: uma única `IContractLookupRepository`/`FirebaseContractLookupRepository` parametrizada por `ContractLookupKind`, com `COLLECTION_NAMES` e `STATIC_DEFAULTS` mapeados por kind. Motivo: `Contract` tem 10 kinds de lookup — replicar o padrão de `Case` geraria 10 pares de interface/implementação redundantes. `ContractLookupStore` guarda os 10 arrays num único `useState<Record<ContractLookupKind, ContractLookupConfig[]>>` internamente, mas expõe getters nomeados individualmente (`typeConfigs`, `categoryConfigs`, etc.) para manter a mesma ergonomia de uso nos ViewModels.
-
-**Valores estáticos por kind:** `types` (13 valores: Prestação de serviços, Compra e venda, Locação, ...), `categories` (15 valores: Cível, Empresarial, ...), `statuses` (8 valores com cor: Em elaboração, Em revisão, Aguardando assinatura, Vigente, Suspenso, Encerrado, Cancelado, Rescindido), `adjustmentIndexes` (INPC, IPCA), `adjustmentPeriodicities` (Anual), `currencies` (Real), `paymentMethods` (À vista, À prazo, Boleto, Cartão de Crédito). `objects`, `banks` e `costCenters` não têm valores estáticos — são só dinâmicos por tenant.
-
-**Cores de status:** tokens `contractStatus*` contribuídos pela PRÓPRIA extensão de Contratos ao ponto `theme.tokens` (mesmo padrão de `caseStatus*` em Processos). Não vivem no tema do kernel — ver "Aparência — tema como contribuição".
-
-Coleções Firestore: `tenants/{tenantId}/contracts/{id}`, `tenants/{tenantId}/contractTags/{id}`, `tenants/{tenantId}/contractTypes`, `contractCategories`, `contractStatuses`, `contractObjects`, `contractAdjustmentIndexes`, `contractAdjustmentPeriodicities`, `contractCurrencies`, `contractPaymentMethods`, `contractBanks`, `contractCostCenters`.
-
-**Relação Processo ↔ Contrato:** um `Contract` pode ter vários `Case` vinculados, mas cada `Case` pertence a no máximo 1 `Contract`. A chave estrangeira vive no lado "muitos" (`Case.contractId`, sem espelho de número — o número do contrato é resolvido em tempo de renderização via `useContractStore()`, mesmo padrão de `responsibleLawyerId`) — não existe array `caseIds` em `Contract`. A aba "Processos" de `ViewContract` deriva a lista de processos vinculados filtrando `useCaseStore().cases` por `contractId` em memória (via `useMemo`), sem query Firestore adicional nem índice composto, já que `CaseStore` carrega a lista de `cases` do tenant inteira. Vincular/desvincular é um `updateCase(caseId, { contractId })` comum. Ao excluir um `Contract`, os `cases` vinculados **não** são alterados — o `contractId` fica apontando para um contrato inexistente (órfão) e simplesmente deixa de resolver o número na tela (ver "Cascata de Exclusão").
-
-### Entidade ContractNote
-
-Anotações vinculadas a um contrato. Mesmo padrão de `PersonNote`/`CaseNote`. Coleção: `tenants/{tenantId}/contracts/{contractId}/notes/{id}`.
-
-### Entidade ContractDocument
-
-Documentos anexados a um contrato. Mesmo padrão de `PersonDocument`/`CaseDocument`. Coleção: `tenants/{tenantId}/contracts/{contractId}/documents/{id}`. Storage path: `tenants/{tenantId}/contracts/{contractId}/{timestamp}_{filename}`.
+**Nada aqui deve voltar a nomeá-las.** Uma coleção de negócio escrita no kernel é o defeito que este
+projeto existe para não ter: `auditableEntities.ts` tinha `pushes` com a lista de ações a auditar, e
+a saída certa não era mudar a lista — era a TELA declarar `auditActions`, que é o que ela faz hoje.
+Quando algo do kernel parecer precisar do nome de uma dessas coleções, a pergunta é qual capacidade
+declarativa está faltando.
 
 ### Componente CurrencyInput — máscara monetária PT-BR
 
@@ -525,106 +246,6 @@ Documentos anexados a um contrato. Mesmo padrão de `PersonDocument`/`CaseDocume
 - Puro átomo de apresentação (sem `useState`/efeitos) — não tem `.viewmodel.tsx`, só `.view.tsx` + `.styles.tsx`, no padrão de `TagIconButton`.
 - Ao adicionar uma nova legenda de gráfico com toggle de série, use `<MarkerChip color={...} active={...} onClick={...}>{label}</MarkerChip>` em vez de criar um styled-component de badge ad-hoc.
 
-### Prazos — declarado por extensão
-
-`deadlines` não está no `entityRegistry.ts`. Quem descreve a coleção é a extensão **Prazos**
-(`com.microteia.prazo`, `dataCollection: 'deadlines'`, `eventPrefix: 'deadline'`), com 8 campos em 3
-seções e três listas de opções (`deadlineTypes`, `deadlinePriorities`, `deadlineStatuses`) com as
-opções de partida. Ver "Prazos sai do kernel".
-
-### Financeiro — declarado por extensão
-
-`financials` não está no `entityRegistry.ts`. Quem descreve a coleção é a extensão **Financeiro**
-(`com.microteia.financeiro`, `dataCollection: 'financials'`, `eventPrefix: 'financial'`,
-`tagCollection: 'financialTags'`, `writeRoles: ['admin', 'lawyer']`), com 14 campos em 4 seções e
-quatro listas de opções com as opções de partida. Ver "Financeiro sai do kernel".
-
-### Etiquetas e documentos do Financeiro
-
-As etiquetas vivem em `tenants/{tenantId}/financialTags/{id}` e os documentos em
-`tenants/{tenantId}/financials/{financialId}/documents/{id}` (Storage:
-`tenants/{tenantId}/financials/{financialId}/{timestamp}_{filename}`) — as duas coleções são
-DECLARADAS pela extensão (`tagCollection`, `hasDocuments`), e servidas pelo repositório e pelo store
-genéricos, como os de qualquer tela.
-
-`type` de um documento referencia a `key` de um `DocumentTypeConfig` — o catálogo de tipos (coleção
-`tenants/{tenantId}/documentTypes`) é **compartilhado por tenant** entre todas as telas que anexam
-documentos: um tipo criado em qualquer uma aparece nas demais.
-
-### Entidade Push
-
-Notificações de e-mail recebidas de tribunais (PJe) processadas automaticamente pela Cloud Function `gmailPush`. Armazenadas por tenant para isolamento de dados. Contém dados processuais extraídos via regex ou IA.
-
-> **A tela é da extensão `com.microteia.push`; o gravador é o backend.** O Push saiu do kernel do
-> frontend — não há mais `Push` em `domain/entities`, `PushStore`, `IPushRepository` nem página
-> `Pushes/`. Quem descreve os campos, a listagem, os filtros e as ações é o pacote (`plugins/marketplace/push.ts`),
-> lendo `tenants/{tenantId}/pushes` pelo `RecordStore` genérico. O tipo `Push` **continua existindo
-> em `functions/src`**, porque a ingestão é quem escreve esses documentos e ela é do servidor: a
-> forma abaixo é a forma que o backend grava.
->
-> O estado **lido/não-lido por usuário** (`pushInteractions`) foi REMOVIDO junto com a migração. Ele
-> não tinha forma declarativa, e o que ele alimentava — o contador no menu — passou a ser uma
-> contagem declarada (`badge` da contribuição `ui.nav`, ver "Contador no item de menu"). A triagem
-> agora é só a situação do próprio push: Pendente → Revisado → Arquivado.
-
-```typescript
-interface Push {
-  id: string;
-  tenantId: string;
-  emailId: string;              // ID único do email no Gmail (evita duplicatas)
-  from: string;
-  to: string;
-  subject: string;
-  receivedAt: Date;
-  emailBodyHtml?: string;
-  emailBodyText?: string;
-  // Dados processuais extraídos
-  processNumber?: string;       // Número CNJ do processo
-  court?: string;               // TJBA, TJMA, etc.
-  activeParty?: string;         // Polo ativo
-  passiveParty?: string;        // Polo passivo
-  legalClass?: string;          // Classe processual
-  filingDate?: Date;            // Data de distribuição
-  distributionType?: string;    // Tipo de distribuição
-  processSubject?: string;      // Assunto do processo
-  movements?: PushMovement[];   // Movimentações do processo
-  status: 'pending' | 'reviewed' | 'archived';
-  parsedByAI: boolean;          // true se foi parseado por IA (fallback)
-  parsingError?: string;        // Erro de parsing se houver
-  createdAt: Date;
-  createdBy: string;            // 'system' para pushes criados pela Cloud Function
-}
-
-interface PushMovement {
-  date: Date;
-  type: string;
-  description: string;
-  documentUrl?: string;
-}
-```
-
-Coleção Firestore: `tenants/{tenantId}/pushes/{id}`
-
-**Índice composto necessário:**
-```
-Coleção: pushes (subcoleção de tenants)
-Campos indexados: emailId (Ascending), processNumber (Ascending)
-```
-Deploy: `firebase deploy --only firestore:indexes` (configurado em `firestore.indexes.json`).
-
-**Motivo:** Um único email pode conter múltiplas intimações. A query de deduplicação (`getByEmailIdAndProcessNumber`) usa `emailId + processNumber` e precisa deste índice. **Um mesmo processo pode aparecer várias vezes no mesmo e-mail** (publicações/documentos diferentes) — por isso a query retorna **todos** os candidatos e o `CreateOrUpdatePushUseCase` desempata por uma `notificationKey` por intimação (URL do documento; na falta dela, composição de `court`/`processSubject`/`activeParty`/data). Assim cada intimação vira um push próprio, mantendo a idempotência no reprocessamento.
-
-**Cloud Function:** `gmailPush` (Pub/Sub trigger) processa notificações do Gmail, extrai dados via parsers específicos por formato e cria registros de Push. Um único e-mail pode conter várias intimações (uma por processo) — cada parser retorna um array e a Cloud Function cria um Push por item.
-
-**Pipeline de extração (`functions/src/data/services/`):**
-
-1. **Decodificação do corpo (`GmailService`).** Cada parte MIME é decodificada respeitando o `charset` declarado (`iso-8859-1`/`windows-1252` → `latin1`; senão `utf-8`) e o percurso é recursivo (cobre `multipart/alternative` dentro de `multipart/mixed`). Isso evita mojibake em e-mails Latin-1 (Projudi, PJe).
-2. **Utilitário compartilhado (`parsers/emailParsingUtils.ts`).** Fonte única para: `decodeHtmlEntities` (entidades nomeadas + numéricas), `htmlToText`, `labeledValue` (rótulo→valor, mesma linha ou linha seguinte, tolerante a acento/mojibake e ancorado ao início da linha), `formatCNJ`/`findCNJ`/`hasCNJ` e parsing de datas (BR e por extenso). Todo parser reutiliza esses helpers — não há mais `cleanHtml` duplicado por parser.
-3. **Parsers por formato (`parsers/*.ts`).** `ProjudiTJBAEmailParser` (texto, 1 intimação), `TJBAEmailParser` (PJe Push, 1 processo + tabela de movimentações), `PublicacoesOnlineParser` e `RecorteDigitalEmailParser` (agregadores do DJEN/TJBA, **N** intimações por e-mail, com formatos textuais distintos), além de `TJMAEmailParser`, `TRTEmailParser` e o genérico `CNJEmailParser`. Cada parser se auto-filtra por assinatura de conteúdo.
-4. **Detecção (`EmailParserService`).** Primeiro por remetente (`parserByEmail`/`parserByPattern`); se não casar, por **conteúdo** (percorre os parsers e aceita o primeiro que extrair dados — vários remetentes compartilham o mesmo formato de tribunal). O `CNJEmailParser` genérico fica por último para não sequestrar e-mails.
-5. **Fallback de IA (com portão de CNJ).** Só é acionado se nenhum parser extraiu dados **e** o conteúdo contém ao menos um número CNJ (`hasCNJ`) — evita chamadas (e custo) de IA em e-mails sem informação jurídica. A IA é provider-agnóstica (credenciais do tenant) e retorna **todos** os processos do e-mail (não só o primeiro). Sem CNJ, gera um Push `status: 'fault'` com a mensagem "Sem número de processo (CNJ) — IA não acionada".
-
----
 
 ## Módulo de Auditoria (Audit Logs)
 
@@ -673,7 +294,16 @@ Em vez de uma Cloud Function por coleção monitorada (o que exigiria ~17 deploy
 
 O que o log GRAVA em `entity` é a **coleção** (`contracts`, `contracts#notes` para a subcoleção), nunca o título: a coleção é o que o filtro casa e não muda quando a tela é renomeada. O rótulo é resolvido a cada exibição por `entityLabel(entity, dynamicScreens)` (`presentation/pages/AuditLogs/auditLogLabels.ts`), que também alimenta as opções do filtro por entidade (`entityFilterOptions`); `ENTITY_LABELS` continua no arquivo para os logs anteriores à migração, que guardam `Person`/`Case`/`Contract`.
 
-Uma entrada de `auditableEntities.ts` pode restringir quais ações geram log via `auditActions?: AuditAction[]`. Único caso hoje: `pushes` audita só `['UPDATE', 'DELETE']` — a criação é automática (Cloud Function do webhook do Gmail), então não é um evento administrativo digno de log; a triagem manual do status e a exclusão são.
+Uma coleção pode restringir quais ações geram log, e quem diz isso é a **TELA** que a declara:
+`auditActions?: AuditAction[]` em `ScreenModuleTemplate`/`ScreenDefinition`, que chega ao backend pela
+mesma resolução que dá o nome da entidade (`screenRecordConfig`). Ausente = audita `CREATE`, `UPDATE` e
+`DELETE`, que é o certo para o que uma pessoa cadastra.
+
+Existe pela coleção cujo registro **nasce de máquina**: uma ingestão que grava por conta própria
+produziria um log por documento recebido, e afogaria a Auditoria justamente onde ela serve — o gesto
+humano depois. Isso já esteve escrito em `auditableEntities.ts`, com o nome da coleção de uma extensão
+dentro do kernel e a lista de ações ao lado. A saída certa não era mudar a lista: era o kernel não
+conhecer a coleção. `KERNEL_VERSION` foi a `1.5.0` (aditivo).
 
 **Diff e Markdown** (`functions/src/domain/services/auditDiff.ts`): `computeChangedFields` retorna um `FieldDiff { before, after }` com os valores **antigos e novos** de cada campo alterado (UPDATE); `normalizeAllFields` retorna todos os campos do documento (DELETE). Ambos normalizam `Timestamp`/`Date` para o formato brasileiro `dd/mm/aaaa` (ou `dd/mm/aaaa HH:mm` quando o horário não é meia-noite), para o JSON ficar legível em português. `buildAuditText` monta a frase + bloco **Antes:** (UPDATE e DELETE) + bloco **Depois:** (só UPDATE) em \`\`\`json\`\`\`; CREATE não inclui bloco (nada "mudou" ainda).
 
@@ -801,72 +431,41 @@ setCurrentTenant(tenant)
 ```
 src/
 ├── domain/
-│   ├── entities/
-│   │   └── index.ts               # Todas as entidades e tipos da Microteia
-│   ├── repositories/
-│   │   ├── IAuthRepository.ts
-│   │   ├── IUserProfileRepository.ts
-│   │   ├── IAIConnectionRepository.ts
-│   │   ├── ITenantRepository.ts
-│   │   ├── IPersonRepository.ts
-│   │   ├── ICaseRepository.ts
-│   │   ├── IContractRepository.ts
-│   │   ├── IContractTagRepository.ts
-│   │   ├── IContractNoteRepository.ts
-│   │   ├── IContractDocumentRepository.ts
-│   │   ├── IContractLookupRepository.ts   # genérico, parametrizado por ContractLookupKind
-│   │   ├── IFinancialRepository.ts
-│   │   ├── IFinancialTagRepository.ts
-│   │   ├── ISavedFilterRepository.ts
-│   │   ├── IWorkflowDefinitionRepository.ts
-│   │   ├── IWorkflowExecutionRepository.ts
-│   │   └── IStepCatalogRepository.ts
+│   ├── entities/                  # entitySchemas, MarketplacePlugin, Action, Script, AuditLog, ...
+│   ├── schema/                    # o CONTRATO compartilhado com functions/ (ver "Schema Compartilhado")
+│   │   ├── plugin/                # manifest, contribuição, ponto de extensão, backend, migração
+│   │   ├── i18n/                  # catálogo, referência de mensagem, negociação de locale
+│   │   ├── theme/                 # tema e tokens como contribuição
+│   │   ├── ui/                    # pontos de UI, Widget DSL
+│   │   ├── entityRegistry.ts      # as entidades que sobraram no kernel: members
+│   │   ├── screenEntity.ts        # QUALQUER coleção resolvida a partir da tela que a declara
+│   │   └── querySpec, mutationSpec, fieldExpression, recordRules, ...
+│   ├── repositories/              # interfaces GENÉRICAS: IRecordRepository, ITagRepository, ...
+│   ├── services/
 │   └── usecases/
-│       ├── auth/
-│       ├── userprofile/
-│       ├── aiconnections/
-│       ├── tenants/
-│       ├── persons/
-│       ├── cases/
-│       ├── contracts/
-│       ├── contracttags/
-│       ├── contractnotes/
-│       ├── contractdocuments/
-│       ├── financials/
-│       ├── financialtags/
-│       ├── workflows/
-│       ├── workflowexecutions/
-│       └── stepcatalog/
+│       ├── records/               # Create/Update/Delete/Get — parametrizados pela COLEÇÃO
+│       ├── plugins/               # instalar, materializar, validar, migrar
+│       ├── screendefinitions/, lookups/, tags/, actions/, scripts/, settings/
+│       ├── auth/, users/, profile/, tenants/, aiconnections/, auditlogs/
+│       └── workflows/, workflowexecutions/, annotations/, savedfilters/, i18n/
 │
 ├── data/
-│   ├── repositories/
-│   │   ├── FirebaseAuthRepository.ts
-│   │   ├── FirebaseUserProfileRepository.ts
-│   │   ├── FirebaseAIConnectionRepository.ts
-│   │   ├── FirebaseTenantRepository.ts
-│   │   ├── FirebasePersonRepository.ts
-│   │   ├── FirebaseCaseRepository.ts
-│   │   ├── FirebaseContractRepository.ts
-│   │   ├── FirebaseContractTagRepository.ts
-│   │   ├── FirebaseContractNoteRepository.ts
-│   │   ├── FirebaseContractDocumentRepository.ts
-│   │   ├── FirebaseContractLookupRepository.ts
-│   │   ├── FirebaseFinancialRepository.ts
-│   │   ├── FirebaseFinancialTagRepository.ts
-│   │   └── FirebaseSavedFilterRepository.ts
-│   └── storage/
-│       └── FirebaseStorageRepository.ts
+│   ├── repositories/              # implementações Firebase das interfaces genéricas
+│   │   ├── FirebaseRecordRepository.ts        # QUALQUER coleção de tela
+│   │   ├── FirebaseRecordNoteRepository.ts, FirebaseRecordDocumentRepository.ts
+│   │   ├── FirebaseInstalledExtensionRepository.ts, FirebasePluginRegistryRepository.ts
+│   │   └── FirebaseTenantRepository.ts, FirebaseUserRepository.ts, ...
+│   ├── services/                  # DeclarativeLookupService, ...
+│   └── utils/
 │
-├── infrastructure/
-│   ├── firebase/
-│   │   └── config.ts              # Inicialização do Firebase (lê .env)
-│   ├── di/
-│   │   ├── DIContainer.tsx        # Cria instâncias dos repositórios
-│   │   └── useDI.ts               # Hook para consumir o DI
-│   ├── events/
-│   │   └── StoreEventEmitter.ts   # Pub/sub entre stores
-│   └── deeplink/
-│       └── deepLinkUtils.ts
+├── kernel/                        # PluginHost, ContributionRegistry, CapabilityRegistry
+├── plugins/                       # os plugins do PRÓPRIO kernel (core.*) e o catálogo embutido
+│   ├── core.ui/, core.data/, core.records/, core.admin/, core.settings/, ...
+│   ├── messages/                  # o catálogo `en` — idioma-fonte do produto
+│   ├── themes/                    # os temas do sistema
+│   └── marketplace/               # as extensões de exemplo e o pacote pt-BR
+│
+├── sdk/                           # o SDK de autoria (só depende de domain/); ver "SDK de autoria"
 │
 ├── shared/
 │   ├── types/index.ts             # Re-exporta aliases de domain/entities
@@ -875,38 +474,38 @@ src/
 │       ├── GlobalStyles.ts
 │       └── styled.d.ts
 │
-├── stores/
+├── stores/                        # um arquivo de Provider + um de hook, por contexto
 │   ├── AuthContext.tsx + useAuth.ts
-│   ├── ThemeContext.tsx + useTheme.ts
 │   ├── TenantStore.tsx + useTenant.ts
-│   ├── PersonStore.tsx + usePersonStore.ts
-│   ├── CaseStore.tsx + useCaseStore.ts
-│   ├── ContractStore.tsx + useContractStore.ts
-│   ├── ContractTagStore.tsx + useContractTagStore.ts
-│   ├── ContractLookupStore.tsx + useContractLookup.ts
-│   ├── FinancialStore.tsx + useFinancialStore.ts
-│   ├── FinancialTagStore.tsx + useFinancialTagStore.ts
-│   ├── SavedFilterStore.tsx + useSavedFilter.ts
-│   ├── WorkspaceStore.tsx + useWorkspace.ts
-│   ├── CommandPaletteContext.tsx + useCommandPalette.ts
-│   └── NotificationContext.tsx + useNotification.ts
+│   ├── RecordStore.tsx + useRecords.ts        # os registros de QUALQUER coleção de tela
+│   ├── ScreenDefinitionStore.tsx, LookupStore.tsx, TagStore.tsx
+│   ├── KernelContext.tsx + useKernel.ts       # o host de plugins ligado ao React
+│   ├── InstalledExtensionStore.tsx, PluginStore.tsx, PublicExtensionStore.tsx
+│   ├── LocaleContext.tsx, ThemeContext.tsx, SettingsStore.tsx
+│   ├── WorkflowStore.tsx, ActionStore.tsx, ScriptStore.tsx, StepCatalogStore.tsx
+│   └── WorkspaceStore.tsx, CommandPaletteContext.tsx, NotificationContext.tsx
 │
 └── presentation/
     ├── pages/
-    │   ├── Login/
-    │   ├── TenantSelector/
-    │   ├── Settings/
-    │   ├── Calendar/
-    │   ├── Contracts/
-    │   ├── ViewContract/
-    │   ├── Financials/
-    │   ├── TenantSettings/
-    │   ├── AccessManagement/
-    │   └── Profile/
+    │   ├── Login/, Profile/, Settings/, TenantSettings/, AccessManagement/
+    │   ├── Marketplace/, PluginAuthor/, Translations/, License/
+    │   ├── ScreenBuilder/                     # o Form Design
+    │   ├── DynamicRecordList/, ViewDynamicRecord/   # a listagem e o detalhe GENÉRICOS
+    │   ├── Workflows/, ViewWorkflow/, EditWorkflowStep/, Actions/, ViewAction/
+    │   ├── Scripts/, ViewScript/, DataProcessor/, AuditLogs/
+    │   └── FunctionReference/, DataFunctionReference/
+    ├── shared/                    # hooks e helpers de tela; a API curada das extensões
     └── components/
-        ├── ui/          # Átomos: Button, Badge, Modal, SearchSelect, ...
+        ├── ui/          # Átomos: Button, Badge, Modal, SearchSelect, DateInput, ...
         └── layout/      # WorkspaceShell, WorkspaceSidebar, TabBar, ...
 ```
+
+**Nenhuma pasta de negócio.** Não há `pages/Persons/`, `ContractStore`, `IFinancialRepository` nem
+`usecases/cases/` — havia, e a lista era três vezes maior que esta. Cada entidade de escritório que saiu
+levou consigo a página, o store, o repositório, a interface e os use cases dela, e o que ficou no lugar
+foi UM caminho genérico: `FirebaseRecordRepository` serve qualquer coleção, `RecordStore` guarda
+qualquer registro, `DynamicRecordList`/`ViewDynamicRecord` desenham qualquer tela. É a forma da árvore
+que diz se a plataforma é declarativa de verdade.
 
 ---
 
@@ -924,7 +523,6 @@ functions/
 │           ├── getUserInfo.ts
 │           ├── onUserCreated.ts
 │           ├── addTenantMember.ts
-│           ├── gmailPush.ts
 │           ├── auditFlatEntityChange.ts
 │           ├── onWorkflowEventCreated.ts
 │           └── workflow/
@@ -936,7 +534,7 @@ functions/
 
 ### Grupos Funcionais
 
-As Cloud Functions são organizadas em **6 grupos** para facilitar deploys seletivos:
+As Cloud Functions são organizadas em **5 grupos** para facilitar deploys seletivos:
 
 | Grupo | Funções | Quando alterar |
 |---|---|---|
@@ -944,8 +542,12 @@ As Cloud Functions são organizadas em **6 grupos** para facilitar deploys selet
 | **audit** | Sistema de auditoria | Quando adicionar nova entidade auditada |
 | **auth** | Autenticação e usuários | Raras alterações |
 | **tenant** | Gestão de membros | Raras alterações |
-| **gmail** | Integração Gmail | Quando alterar push notifications |
 | **util** | Utilitários gerais | Proxy AI, logs de erro, cascata |
+
+Havia um sexto — **gmail**, com as cinco functions da ingestão de intimações. Ele saiu junto com a
+extensão que as usava: hoje elas vivem em `office/extensions/push/functions/`, são deployadas pelo
+`microteia provision` só onde a extensão está instalada, e este repositório não as conhece. Ver "As
+entidades de ESCRITÓRIO não moram aqui".
 
 ### Regras para Adicionar Nova Cloud Function
 
@@ -957,7 +559,7 @@ As Cloud Functions são organizadas em **6 grupos** para facilitar deploys selet
    export { minhaNovaFuncao } from './infrastructure/handlers/minhaNovaFuncao';
    ```
 3. **Adicionar ao grupo correto no `package.json` raiz:**
-   - Identificar o grupo funcional (workflow, audit, auth, tenant, gmail ou util)
+   - Identificar o grupo funcional (workflow, audit, auth, tenant ou util)
    - Adicionar a função no script `deploy:[grupo]` correspondente
    - Nome EXATO como exportado no `index.ts` (sem prefixos `auth_`, `workflow_`, etc)
 4. **Documentar no `functions/DEPLOY.md`:**
@@ -1094,19 +696,23 @@ o bucket de tanto tempo que ninguém lembrava do passo.
 A localização do Firestore precisa bater com a região das functions — gatilhos do Firestore não
 funcionam entre regiões diferentes.
 
-Regras, índices e código são os mesmos arquivos versionados dos dois lados — só o projeto de
-destino muda. O que **não** é replicado: dados, usuários e as credenciais OAuth do Google
-(`GOOGLE_CLIENT_ID` e `GOOGLE_CLIENT_SECRET`, parâmetros das functions, precisam ser criados no
-Console do Google Cloud do projeto de dev; usar os de produção faria o desenvolvimento ler caixas
-de e-mail reais).
+Regras, índices e código são os mesmos arquivos versionados dos dois lados — só o projeto de destino
+muda. O que **não** é replicado: dados, usuários e credenciais. O kernel não declara parâmetro de backend
+nenhum hoje (`functions/.env.example` está vazio e explica por quê); credencial pertence à extensão que a
+pede, e é por projeto — usar a de produção em desenvolvimento faria o ambiente de teste falar com o
+serviço real.
 
 ### Checklist ao Criar Cloud Function
 
+- [ ] **Antes de tudo: a function é do KERNEL?** Se ela serve uma extensão, ela não entra aqui — nasce
+  em `extensions/<plugin>/functions/` do escritório, é nomeada no `manifest.backend.functions` dela, e o
+  `microteia provision` a deploya só onde a extensão está instalada. Ver "Artefatos de backend por
+  extensão"
 - [ ] Handler criado em `functions/src/infrastructure/handlers/`
 - [ ] Exportado em `functions/src/index.ts` **sem prefixo**
 - [ ] Adicionado ao script `deploy:[grupo]` correto no `package.json` raiz
 - [ ] Nome no `package.json` idêntico à exportação do `index.ts`
-- [ ] **Documentado em `functions/DEPLOY.md`** na seção do grupo correspondente (workflow, audit, auth, tenant, gmail, util)
+- [ ] **Documentado em `functions/DEPLOY.md`** na seção do grupo correspondente (workflow, audit, auth, tenant, util)
 - [ ] Se usa triggers Firestore, índices compostos documentados (se necessário)
 - [ ] Se altera Security Rules, atualizar seção "Firestore Security Rules" deste arquivo
 
@@ -1227,22 +833,62 @@ antes de tudo, App Engine antes das functions, região do Firestore igual à das
 Storage iniciado pelo console, provedor de login, TTL da auditoria, e o condicional da invocação das
 callables por `allUsers`. Elas viajam no manifesto porque **quem instala não tem o `ARCHITECTURE.md`**.
 
-As credenciais do Gmail **saíram desta lista**: elas são pré-requisito de `com.microteia.push`, e
-aparecem quando ele é provisionado — ver "Artefatos de backend por extensão" abaixo. Pedir a todo
-escritório que crie um cliente OAuth do Google para uma extensão que ele talvez nunca instale é
-exatamente o que essa separação desfaz.
+Credencial de terceiro **não entra nesta lista**, e `cli/src/kernel/manifest.test.ts` reprova o passo
+genérico que citasse uma: pedir a todo escritório que crie um cliente OAuth para uma feature que ele
+talvez nunca use é exatamente o que a separação por extensão desfaz. Quem precisa de credencial declara
+`prerequisites` no `manifest.backend` dela, e o texto aparece quando ELA é provisionada.
 
 ### Artefatos de backend por extensão — empacotar não é deployar
 
-O pacote leva o código de TODAS as extensões, e isso é de propósito. O que ele não pode fazer é
-**instalar no projeto do escritório o que só uma extensão usa**: as cinco Cloud Functions do Gmail
-(`exchangeGmailCode`, `listGmailConnections`, `revokeGmailConnection`, `gmailPush`,
-`renewGmailWatches`) são de `com.microteia.push`, e um escritório que nunca vai receber intimação por
-e-mail não tem por que tê-las — nem por que criar um cliente OAuth do Google para elas.
+Uma Cloud Function, um índice composto ou uma credencial que só UMA extensão usa não pode ser instalada
+em todo escritório: quem nunca vai usar aquela feature não tem por que ter a function rodando nem por
+que criar a credencial que ela pede.
+
+O caso que produziu este mecanismo foram as cinco functions da ingestão de intimações por e-mail,
+`com.microteia.push`. Elas viajavam no pacote do kernel e a extensão as REIVINDICAVA; hoje a extensão é
+mantida fora deste repositório e as functions foram com ela — o pacote do kernel não as contém, e a
+declaração é a mesma. É a prova de que a separação vale: uma extensão que traz o próprio backend usa
+exatamente o caminho que uma extensão que reivindica o do kernel usa.
 
 **A declaração:** `manifest.backend`, em `domain/schema/plugin/backendRequirement.ts` (sincronizado).
 Quatro campos, todos opcionais: `functions`, `indexes`, `parameters` e `prerequisites`. Adicionar o
 campo é aditivo, então `KERNEL_VERSION` foi a `1.3.0`.
+
+#### O que `parameters` é, e por que ele existe
+
+Uma Cloud Function que precisa de credencial não a lê de um arquivo nem a recebe como argumento: ela a
+declara, com `defineString('NOME')` do `firebase-functions`, e o valor é **carimbado nela no deploy** —
+o `firebase-functions` o resolve e o grava como variável de ambiente daquela function. Duas
+consequências decorrem disso, e as duas são a razão de `manifest.backend.parameters` existir:
+
+```ts
+// Na function, o nome e nada mais — o valor nunca aparece em código nenhum.
+const clientId = defineString('GOOGLE_CLIENT_ID');
+const clientSecret = defineString('GOOGLE_CLIENT_SECRET');
+
+// No manifest da extensão que a traz:
+backend: {
+  functions: ['minhaFunction'],
+  parameters: ['GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET'],
+}
+```
+
+**Primeira: um parâmetro sem valor recusa o deploy de TODAS as functions do projeto.** O
+`firebase-functions` valida os `defineString` GLOBALMENTE, e não por function — inclusive as que nada
+têm a ver com aquele parâmetro. Foi assim que um parâmetro ausente derrubou o deploy de `callAIProxy`
+numa instalação nova. Por isso o Console escreve cada parâmetro declarado no `.env.<projectId>` da
+instalação, vazio: o valor é do escritório, mas a LINHA é obrigação de quem empacota.
+
+**Segunda: preencher o arquivo não alcança function nenhuma.** O valor entra na function no deploy DELA,
+e o caso normal é preencher depois da instalação — a credencial só existe depois que alguém a cria no
+console do provedor. É o que `backend.parameters` no `microteia.yaml` resolve: um digest salgado por
+parâmetro aplicado, comparado a cada execução, que devolve à fila as functions que ainda carregam o
+valor antigo. Ver "Parâmetro preenchido depois do deploy" abaixo.
+
+O nome é contrato entre a declaração e o código: `defineString('X')` sem `'X'` em `parameters` deixa a
+credencial sem quem a peça a quem instala; `'X'` em `parameters` sem `defineString('X')` pede uma
+credencial que ninguém lê. Nenhum dos dois falha em lugar visível, e é por isso que a extensão que os
+declara é o lugar certo para o teste que os confere.
 
 | Comando | O que faz com isso |
 |---|---|
@@ -1326,9 +972,9 @@ já preenchidos redeploya as functions daquela extensão uma vez — que é exat
 
 **O que fica de fora, e é intencional:** parâmetro da baseline. O manifesto lista os `backendParameters`
 que o `pack` varreu de `functions/src`, mas não sabe qual function lê qual — e inventar esse mapa para um
-caso que hoje não existe (todo `defineString` do kernel é do Gmail, portanto de `com.microteia.push`)
-seria declarar o que ninguém consulta. Se um dia uma function da baseline passar a ler parâmetro, quem
-aplica é `microteia deploy --only functions`, que redeploya a baseline inteira.
+caso que hoje NÃO EXISTE (o kernel não declara `defineString` nenhum) seria declarar o que ninguém
+consulta. Se uma function da baseline passar a ler parâmetro, quem aplica é
+`microteia deploy --only functions`, que redeploya a baseline inteira.
 
 **O estado é uma propriedade da própria extensão instalada**, não um documento novo:
 `installed_extensions/{id}.backendState = { fingerprint, appliedAt }`. Quem grava é o Console; quem lê é
@@ -1412,6 +1058,41 @@ falha, simplesmente deixa de acontecer.
 
 Com a fonte fora, `functions/custom` **saiu** do `PRESERVED`: sobrou só `functions/node_modules`, que é
 cache. Uma exceção a menos naquela lista é uma coisa a menos que depende de alguém não mexer nela.
+
+#### Montadas e esquecidas — as quatro coisas que faltavam (Console `2.1.0`)
+
+O parágrafo acima descrevia o desenho pretendido, e o `microteia-plugin create function` já mandava o
+autor declarar a function em `manifest.backend.functions`. Nada disso funcionava, e o defeito só apareceu
+quando uma extensão de verdade passou a trazer o próprio backend:
+
+| O que faltava | O sintoma |
+|---|---|
+| o `deploy` mandava ao `firebase` só os nomes da BASELINE — `gathered.functions` era usado numa mensagem e descartado | a function do escritório era copiada para dentro do pacote, compilada pelo `predeploy`, e nunca deployada |
+| o `provision` conferia a reivindicação contra `manifest.functions` (só o que o PACOTE exporta) | `com.example.x claims function "xHello", which this kernel package does not contain` — a extensão inteira rejeitada, exatamente o pacote que o `create function` gera |
+| as `dependencies` do pacote eram copiadas intactas do `functions/package.json` do kernel | uma function do escritório que precisasse de um pacote npm não tinha como pedi-lo |
+| o `.env.<projectId>` era escrito só com os `backendParameters` do manifesto | um `defineString` numa function do escritório ficava sem linha no arquivo — e o `firebase-functions` valida os parâmetros GLOBALMENTE, então ele recusava o deploy de TODAS as functions, inclusive as do kernel |
+
+O conserto tem uma regra só: **onde se lia "o que o pacote traz", passa a valer a UNIÃO com o que o
+escritório escreveu.** `readOfficeFunctions` (`console/customFunctions.ts`) é a porta única — os três
+comandos leem a mesma resposta, porque três leituras divergiriam no ponto em que ninguém olha.
+
+Duas decisões dentro disso, e as duas saem do LUGAR do arquivo:
+
+- **`functions/` sobe no `deploy`; `extensions/<plugin>/functions/` sobe no `provision`.** A comum não
+  tem dono que possa reivindicá-la (duas extensões não podem declarar o mesmo nome), então ela sobe
+  sempre. A de extensão tem dono, e sobe só onde a extensão está instalada — o mesmo "empacotar não é
+  deployar" das functions do kernel reivindicadas. E o `provision` REMONTA as fontes quando alguma delas
+  está na fila: ele roda sozinho depois de alguém instalar uma extensão pela aplicação, e nesse caminho
+  ninguém passou pelo `deploy` que as monta.
+- **Dependência npm divergente é RECUSA, não escolha.** Uma instalação tem um `node_modules` só; duas
+  extensões pedindo faixas diferentes do mesmo pacote não têm quem decida, e eleger uma em silêncio é a
+  mesma classe de defeito do nome de function repetido. Contra o KERNEL a regra se inverte de propósito:
+  a faixa do pacote VENCE e o fato é relatado — o runtime é escolha de quem publica a plataforma, e uma
+  extensão não pode movê-lo por baixo das outras.
+
+O `package-lock.json` que viaja no pacote deixa de cobrir tudo quando uma dependência nova é declarada,
+e o `npm install` do deploy a resolve e reescreve o lock. É por isso que a primeira instalação depois de
+declarar uma dependência demora mais que as seguintes.
 
 ### As configurações de backend são do escritório, e por isso ficam FORA de `.microteia/`
 
@@ -2176,13 +1857,19 @@ VITE_FIREBASE_MESSAGING_SENDER_ID=
 VITE_FIREBASE_APP_ID=
 ```
 
-Nunca commite `.env`. O arquivo `.env.example` documenta as chaves sem valores.
+Nunca commite `.env`. O `.env.example` de cada lado documenta as chaves sem valores — e o de
+`functions/` está VAZIO de propósito: o kernel não declara parâmetro de backend nenhum, porque os quatro
+que existiam eram de uma extensão. Ver "O que `parameters` é, e por que ele existe".
 
 ---
 
 ## Telas Dinâmicas e Campos Customizados (Personalização)
 
-Recurso que permite ao **admin do tenant** criar telas próprias em runtime e adicionar campos personalizados às telas padrão (Pessoas, Processos, Contratos, Financeiro, Prazos). Página de configuração: `presentation/pages/ScreenBuilder` (chave `screen-builder`, visível só para admin do tenant).
+Recurso que permite ao **admin do tenant** criar telas próprias em runtime e ajustar as telas que as extensões instaladas trouxeram — acrescentar campo, renomear rótulo, configurar as ações do cartão. Página de configuração: `presentation/pages/ScreenBuilder` (chave `screen-builder`, visível só para admin do tenant).
+
+Não há mais "tela padrão": toda tela de negócio chega por extensão, e o Form Design a trata igual — é o
+mesmo documento `ScreenDefinition` para a tela que o escritório criou do zero e para o ajuste sobre a que
+uma extensão declarou.
 
 ### Modelo de metadados
 
@@ -2282,7 +1969,13 @@ Nota: as coleções de lista (`caseCourts`, `medico_especialidade`…) **não** 
 - **Motor de renderização:** `ui/CustomFieldsSection` renderiza qualquer `FieldDefinition[]` (agrupado por `section`) a partir de `values` + `onChange(fieldKey, value)`. Mapa de tipo→componente: text/number→`Input`, textarea→`Textarea`, currency→`CurrencyInput`, date→`DateInput`, time→`TimeInput`, checkbox nativo estilizado, select→`DynamicSelect` (opções fixas — as declaradas no campo mais as `isStatic` da lista — e as cadastradas pelo escritório, com `onAdd`/`onDelete`, todas resolvidas por `lookupCollection`), masked→`ui/MaskedInput` (novo wrapper das máscaras de `utils/formatters.ts`), reference→`SearchSelect`/`MultiSearchSelect` com opções de `presentation/hooks/useReferenceOptions.ts` (mapeia `refEntity` → registros do store correspondente, incluindo outras telas dinâmicas), markdown→`ui/MarkdownEditor`, file→`ui/FileInput` (ver "Campo de arquivo").
 - **Listagem (dinâmica e padrão) — hook `useCustomFieldListing`:** a lógica de `showInList`/`filterable` vive em `presentation/hooks/useCustomFieldListing.ts`. O hook recebe `(screenKey, fields, filterKeyPrefix)` e devolve: `filterDefs` do `CompositeFilter` a partir dos campos `filterable` (select/reference→multiselect, checkbox→Sim/Não, date→date com igualdade exata, demais→texto), o matcher `matchesFilters(values, tokenMap)`, `cardItems(values)` (pares label/valor dos campos `showInList`, formatados por tipo) renderizados pelo componente `ui/CustomFieldMetaRows`, e `searchText(values)` — o texto que a busca livre varre. **Campo `file` fica fora dos dois últimos pontos por decisão:** é excluído de `filterableFields` (o `default` de `filterDefs` cai em texto, e um filtro sobre URL de download nunca casa nada que alguém digite) e do `searchText` (a URL carrega `token` e `alt=media`, então buscar "png" trazia todo registro com imagem).
 - **Listagem dinâmica:** `DynamicRecordList` usa o hook sem prefixo de chave e com `savedFiltersScreenKey = tabKey`; exclui o `titleFieldKey` dos `cardItems`. Tela desativada/excluída renderiza `InfoBanner`, nunca quebra.
-- **Listagens padrão:** as cinco listagens builtin (Pessoas, Processos, Contratos, Financeiro, Prazos) obtêm os campos via `getScreenFieldsFor(collection)` e usam o hook com `CUSTOM_FIELD_FILTER_PREFIX` (`cf-`) nas chaves dos `FilterDef` — o prefixo evita colisão com os filtros nativos (`status`, `type`, `city`…). Cada ViewModel anexa `...customListing.filterDefs` aos defs nativos, encerra o predicado de filtragem com `customListing.matchesFilters(entidade, tokenMap)` e expõe `getCustomFieldItems(entidade)`; a View renderiza `<CustomFieldMetaRows items={...} />` no cartão, após o bloco de metadados nativo.
+- **Listagem de extensão:** a view em código de uma extensão usa o hook pelo mesmo caminho, com
+  `CUSTOM_FIELD_FILTER_PREFIX` (`cf-`) nas chaves dos `FilterDef` — o prefixo evita colisão com os
+  filtros que a própria tela declara (`status`, `type`, …). O ViewModel anexa
+  `...customListing.filterDefs` aos defs declarados, encerra o predicado com
+  `customListing.matchesFilters(registro, tokenMap)` e expõe `getCustomFieldItems(registro)`; a view
+  renderiza `<CustomFieldMetaRows items={...} />` no cartão. É o que permite ao escritório acrescentar
+  um campo à tela que uma extensão trouxe, e ver esse campo no filtro e no cartão.
 - **Deeplink de registro fora das 500 carregadas:** `ViewDynamicRecord` faz fallback de busca por id (`GetRecordByIdUseCase`).
 
 ### Campo de arquivo
@@ -2650,6 +2343,21 @@ Consequência prática: `ScreenDefinitionStoreProvider` subiu na árvore de prov
 registro —, então o vínculo segue válido e some quando essas duas entidades migrarem pelo mesmo
 caminho.
 
+### As seis extrações — o que cada uma ENSINOU ao kernel
+
+As seis seções seguintes contam, uma por entidade, como o kernel deixou de conhecer negócio. Elas são o
+registro da razão de existir de mais de uma dúzia de capacidades declarativas: `dataCollection`,
+`screenPatches`, `hideFromSidebar`, o selo do item de menu, `promptParameters`, `settingsSection`,
+`manifest.backend`, `auditActions`, e as demais. Cada uma nasceu porque uma entidade não conseguia sair
+sem ela.
+
+**As seis extensões não estão mais neste repositório**, e nem as fontes que estas seções citam
+(`plugins/marketplace/pessoa.ts`, `views/prazo/`, `functions/src/.../gmailPush.ts`). Elas foram para
+`office/extensions/`, em 20/08/2026, onde o escritório as mantém — ver "As entidades de ESCRITÓRIO não
+moram aqui". O que segue continua valendo palavra por palavra sobre o KERNEL: a capacidade que cada
+extração produziu está aqui, é ela que a próxima extensão vai usar, e é ela que não pode ser removida
+por parecer que ninguém usa.
+
 ### Pessoa sai do kernel — a entidade mais referenciada do escritório
 
 A segunda migração pelo mesmo caminho: `persons` não está mais em `entityRegistry.ts`, e quem
@@ -2959,10 +2667,11 @@ declaração, sobre os MESMOS documentos: `dataCollection: 'pushes'`, `eventPref
 automações que escutam `push.saved` seguem valendo), 15 campos em 3 seções e a lista de situações
 como lookup do escritório.
 
-A entidade é diferente das cinco anteriores num ponto que muda tudo: **ninguém a cria pela tela**.
-Quem escreve os documentos é a ingestão do Gmail, no servidor (`functions/src/.../gmailPush.ts`, que
-NÃO saiu — ver "Entidade Push"). Isso quebrou três coisas que o kernel só sabia fazer para entidade
-que nasce de formulário, e as três viraram capacidade declarada.
+A entidade é diferente das cinco anteriores num ponto que muda tudo: **ninguém a cria pela tela**. Quem
+escreve os documentos é a ingestão de e-mail, no servidor — e essa ingestão saiu deste repositório
+depois, junto com a extensão inteira, para `office/extensions/push/functions/`. Isso quebrou três coisas
+que o kernel só sabia fazer para entidade que nasce de formulário, e as três viraram capacidade
+declarada.
 
 **1. Contador no item de menu (`badge`).** A contribuição `ui.nav` passa a aceitar
 `badge: { collection, when? }` — uma contagem dos registros de uma coleção que satisfazem uma
@@ -4396,8 +4105,9 @@ O Dashboard era a última tela do núcleo a importar `useCaseRecords`, `useDeadl
 `useFinancialRecords` — três domínios que já haviam saído do kernel como extensão. Hoje a extensão
 **Dashboard** entrega só o LUGAR: a página, o item de menu e a seção de Configurações que ordena a
 superfície `dashboard`. Ela não declara widget nenhum (há teste): os cartões são das extensões que
-conhecem cada assunto — Pessoas, Processos, Prazos e Financeiro. Instalar uma delas faz o cartão
-aparecer; remover, sumir.
+conhecem cada assunto. Instalar uma delas faz o cartão aparecer; remover, sumir — e hoje o catálogo
+embutido não contribui widget nenhum, porque as extensões que os traziam são mantidas fora deste
+repositório. O painel de um escritório é exatamente o que ele instalou.
 
 **A primitiva de gráfico ficou; o gráfico de prazos foi junto com Prazos.** `DeadlineCharts` sabia o
 que era vencimento, conclusão e prioridade — conhecimento de domínio dentro de `components/ui/`. Foi
@@ -6790,29 +6500,31 @@ Um índice composto `(campo ASC, ordenação ASC)` também atende à mesma query
 A tabela abaixo é **derivada** do `firestore.indexes.json` e existe só para registrar o "porquê" de cada índice. Em caso de divergência, o arquivo é a fonte de verdade.
 
 A coluna **Dono** diz quem responde pelo índice. Índice de extensão é declarado no `manifest.backend`
-dela e **sai da baseline do pacote**: ele só é criado no projeto do escritório quando a extensão é
-instalada, pelo `microteia provision`. Ver "Artefatos de backend por extensão". A raiz continua listando
-todos, porque a raiz é o que roda em `microteia-dev` e `curatino`.
+dela e **não fica aqui**: ele é criado no projeto do escritório quando a extensão é instalada, pelo
+`microteia provision`. Ver "Artefatos de backend por extensão".
 
 | Coleção | Campos | Dono | Query que o exige |
 |---|---|---|---|
 | `auditLogs` | `tenantId` ASC, `createdAt` DESC | kernel | `getPage` — auditoria por escritório, mais recente primeiro |
 | `auditLogs` | `tenantId` ASC, `severity` ASC, `createdAt` ASC | kernel | `countUnreadCritical` — badge de falhas CRITICAL não lidas |
-| `tenants/{id}/deadlines` | `status` ASC, `dueDate` DESC | `com.microteia.prazo` | o passo "Buscar Registros" da automação de prazos |
-| `tenants/{id}/financials` | `status` ASC, `dueDate` DESC | `com.microteia.financeiro` | o passo "Buscar Registros" da automação de lançamentos |
-| `tenants/{id}/pushes` | `emailId` ASC, `processNumber` ASC | `com.microteia.push` | `getByEmailIdAndProcessNumber` — deduplicação de intimações |
 | `tenants/{id}/workflow_definitions` | `eventName` ASC, `enabled` ASC | kernel | `findEnabledByEvent` — o gatilho do motor localiza workflows por evento |
 | `tenants/{id}/workflow_executions` | `workflowDefinitionId` ASC, `startedAt` DESC | kernel | Aba "Execuções" de um workflow, mais recente primeiro |
 
-**Três índices de `financials` foram REMOVIDOS** (`caseId+dueDate`, `personId+dueDate`,
-`type+dueDate`): eles serviam aos repositórios do Financeiro de quando ele era do kernel. Hoje a leitura
-é a genérica da coleção (`FirebaseRecordRepository`, `orderBy('createdAt','desc')` e nada mais), e
-nenhuma query os usava — pagávamos escrita por índice morto.
+**Quatro índices de negócio saíram deste arquivo.** Três (`deadlines status+dueDate`,
+`financials status+dueDate`, `pushes emailId+processNumber`) eram declarados pelas extensões que os
+exigem e viviam aqui em duplicidade — o `pack` SUBTRAÍA o reivindicado da baseline, e a raiz mantinha a
+lista completa por ser o que rodava em `microteia-dev` e `curatino`. Com as extensões mantidas fora
+deste repositório, a duplicidade perdeu a razão: quem os cria é o `provision`, no projeto que as
+instalou. Antes deles, três índices de `financials` (`caseId+dueDate`, `personId+dueDate`,
+`type+dueDate`) já haviam sido removidos por não servirem query nenhuma — pagávamos escrita por índice
+morto.
 
-**E dois índices FALTAVAM.** As automações do Prazo e do Financeiro fazem `where status ==` com
-`orderBy dueDate desc`, que no Firestore exige índice composto e nunca teve um. As duas quebrariam em
-runtime na primeira execução. Foi a separação por dono que os encontrou: perguntar "de quem é cada
-índice?" obrigou a olhar cada query.
+**Fica o achado, que é do kernel.** Dois desses índices FALTAVAM: as automações faziam
+`where status ==` com `orderBy dueDate desc`, que no Firestore exige índice composto, e quebrariam em
+runtime na primeira execução. Foi a separação por dono que os encontrou — perguntar "de quem é cada
+índice?" obrigou a olhar cada query. Toda extensão que declare um passo "Buscar Registros" com `where` e
+`orderBy` em campos diferentes tem de declarar o índice no `manifest.backend.indexes` dela; sem isso ela
+instala, aparece no menu e falha na primeira execução.
 
 Além dos compostos, o arquivo declara dois `fieldOverrides`:
 

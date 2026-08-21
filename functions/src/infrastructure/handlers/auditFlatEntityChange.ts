@@ -6,12 +6,14 @@ import { logAuditError } from './shared/logAuditError';
 import type { AuditAction } from '../../domain/entities/AuditLog';
 
 /**
- * Escuta qualquer escrita em `tenants/{tenantId}/{collection}/{docId}` e gera um AuditLog para as
- * coleções fixas do kernel (deadlines, financials, members, *Tags, pushes) e para toda coleção de
- * tela declarada — que se identifica pela declaração do tenant, ver `resolveFlatEntityConfig`.
- * Coleções de infraestrutura (lookups, aiConnections, etc.) são ignoradas. Uma coleção fixa pode
- * restringir quais ações audita via `auditActions` (ex: pushes só audita UPDATE/DELETE, pois a
- * criação é automática).
+ * Escuta qualquer escrita em `tenants/{tenantId}/{collection}/{docId}` e gera um AuditLog para as duas
+ * coleções fixas que restam (`members` e `screenDefinitions`) e para toda coleção de TELA declarada —
+ * que se identifica pela declaração do tenant, ver `resolveFlatEntityConfig`. Coleções de
+ * infraestrutura (lookups, aiConnections, etc.) são ignoradas.
+ *
+ * Uma coleção pode restringir quais ações audita, e quem diz isso é a própria tela
+ * (`auditActions`): é a saída para a coleção cujo registro NASCE de máquina, em que auditar a
+ * inclusão significaria um log por documento recebido.
  */
 export const auditFlatEntityChange = onDocumentWritten(
   { document: 'tenants/{tenantId}/{collection}/{docId}', region: 'southamerica-east1' },

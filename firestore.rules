@@ -83,10 +83,11 @@ service cloud.firestore {
         && resource.data.userId == request.auth.uid;
     }
 
-    // `gmailConnections` (raiz) NÃO tem bloco aqui, e é de propósito: o Firestore nega o que nenhuma
-    // regra libera, então `allow read, write: if false` não acrescentava nada — só dava a impressão de
-    // que a proteção morava aqui. Quem escreve e lê essas conexões é a extensão de Pushes, pelo Admin
-    // SDK, nas callables que ela declara em `manifest.backend`. Não há acesso pelo cliente.
+    // Uma coleção de RAIZ que só o servidor toca não ganha bloco aqui, e é de propósito: o Firestore
+    // nega o que nenhuma regra libera, então `allow read, write: if false` não acrescenta nada — só dá a
+    // impressão de que a proteção mora aqui. Este arquivo já teve um bloco assim, nomeando uma coleção
+    // de extensão; quem escrevia e lia era o Admin SDK, nas callables da própria extensão. Extensão que
+    // precise de coleção só-servidor não precisa de regra: precisa de nenhuma.
 
     // ─── Tenants (escritórios) ────────────────────────────────────────────────  
 

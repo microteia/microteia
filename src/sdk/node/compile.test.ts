@@ -18,17 +18,10 @@ const CATALOG = join(ROOT, 'src/plugins/marketplace/catalog.ts');
 /** Arquivo distribuído -> export do catálogo que o origina, como em `scripts/export-extensions.mjs`. */
 const TEMPLATES: [string, string][] = [
   ['brasil.json', 'brasilPlugin'],
-  ['pessoa.json', 'pessoaPlugin'],
-  ['processo.json', 'processoPlugin'],
-  ['push.json', 'pushPlugin'],
-  ['kanban-processos.json', 'kanbanCasesPlugin'],
   ['locale-pt-br.json', 'localePtBrPlugin'],
   ['calendar.json', 'calendarPlugin'],
-  ['contrato.json', 'contratoPlugin'],
   ['dashboard.json', 'dashboardPlugin'],
-  ['financeiro.json', 'financeiroPlugin'],
   ['news.json', 'newsPlugin'],
-  ['prazo.json', 'prazoPlugin'],
 ];
 
 describe('o compilador do SDK e os artefatos deste repositório', () => {

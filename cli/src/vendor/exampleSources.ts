@@ -20,16 +20,9 @@ import { join } from 'node:path';
 export const EXAMPLE_SOURCES: Record<string, string> = {
   brasil: 'brasil.ts',
   calendar: 'calendar.ts',
-  contrato: 'contrato.ts',
   dashboard: 'dashboard.ts',
-  financeiro: 'financeiro.ts',
-  'kanban-processos': 'kanbanCases.ts',
   'locale-pt-br': 'localePtBr',
   news: 'news.ts',
-  pessoa: 'pessoa.ts',
-  prazo: 'prazo.ts',
-  processo: 'processo.ts',
-  push: 'push.ts',
 };
 
 /**

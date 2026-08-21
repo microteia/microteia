@@ -70,11 +70,20 @@ export interface KernelSdk {
 export const KERNEL_DISTRIBUTION_ID = 'com.microteia.kernel';
 /**
  * O Console mínimo que consegue instalar um pacote montado hoje. Sobe junto com uma mudança que o
- * pacote PASSA A DEPENDER: em `2.0.0`, o arquivo de configuração de backend na raiz da instalação. Um
- * Console `1.0.0` desempacotaria este pacote e escreveria a credencial em
- * `.microteia/install/functions/`, que o upgrade seguinte apaga — recusar é mais barato que isso.
+ * pacote PASSA A DEPENDER.
+ *
+ * Em `2.0.0`: o arquivo de configuração de backend na raiz da instalação. Um Console `1.0.0`
+ * desempacotaria este pacote e escreveria a credencial em `.microteia/install/functions/`, que o upgrade
+ * seguinte apaga — recusar é mais barato que isso.
+ *
+ * Em `2.1.0`: as Cloud Functions do ESCRITÓRIO. O pacote carrega o SDK cujo `create function` gera uma
+ * extensão que declara a própria function em `manifest.backend.functions`, e um Console anterior monta
+ * essa function dentro do pacote e nunca a deploya — a extensão fica "Backend pendente" para sempre,
+ * com a mensagem errada ("this kernel package does not contain"), apontando para o lugar errado. Foi
+ * exatamente o que aconteceu quando um `microteia` de PATH, linkado a um Console antigo, provisionou uma
+ * instalação montada por um Console novo: nada no relato dizia que o problema era a ferramenta.
  */
-export const MINIMUM_CLI_VERSION = '2.0.0';
+export const MINIMUM_CLI_VERSION = '2.1.0';
 export const DEFAULT_FUNCTIONS_REGION = 'southamerica-east1';
 /**
  * A região padrão do Google, que NÃO é a nossa. Uma instalação fora dela chama as callables por um

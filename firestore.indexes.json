@@ -33,48 +33,6 @@
       ]
     },
     {
-      "collectionGroup": "deadlines",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "status",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "dueDate",
-          "order": "DESCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "financials",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "status",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "dueDate",
-          "order": "DESCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "pushes",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "emailId",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "processNumber",
-          "order": "ASCENDING"
-        }
-      ]
-    },
-    {
       "collectionGroup": "workflow_definitions",
       "queryScope": "COLLECTION",
       "fields": [

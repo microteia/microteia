@@ -66,6 +66,16 @@ const comparisonsOf = (workflow: WorkflowModuleTemplate) =>
 const workflowsOf = (plugin: MarketplacePlugin) =>
   plugin.workflows.map((workflow) => [plugin.manifest.name, workflow.name, workflow] as const);
 
+/**
+ * As automações que o catálogo embutido instala. A lista está VAZIA neste momento: as extensões que
+ * traziam automação — Prazos, Financeiro, Pushes do Tribunal — são mantidas fora deste repositório.
+ *
+ * As regras abaixo continuam armadas, e é de propósito: elas valem para QUALQUER declaração, e a
+ * primeira automação de primeira parte que voltar já nasce conferida. O que mudou é a forma: cada
+ * regra virou UM caso que percorre a lista, em vez de um `it.each` sobre ela — um `it.each` de lista
+ * vazia não passa, ele falha com "No test found in suite", e um que passasse por vazio seria pior:
+ * diria que está tudo conferido sem ter olhado nada.
+ */
 const CASOS = MARKETPLACE_CATALOG.flatMap(workflowsOf);
 
 /** O contexto de esquema que o construtor teria: todas as telas que o catálogo instala. */
@@ -74,8 +84,17 @@ const schemaContext = createSchemaContext(
 );
 
 describe('automações das extensões — a autoria consegue reabri-las', () => {
-  it.each(CASOS)('%s / "%s" — filtros vêm de uma origem que o construtor de consulta oferece', (_plugin, _nome, workflow) => {
-    for (const spec of querySpecsOf(workflow)) {
+  /**
+   * O estado atual, registrado em vez de suposto: nenhuma extensão do catálogo embutido traz automação.
+   * Quando uma voltar a trazer, este caso falha — e é o aviso de que os de baixo passaram a ter
+   * assunto, e que vale reler o que eles cobram.
+   */
+  it('nenhuma extensão do catálogo embutido traz automação neste momento', () => {
+    expect(CASOS.map(([plugin, nome]) => `${plugin} / ${nome}`)).toEqual([]);
+  });
+
+  it('os filtros vêm de uma origem que o construtor de consulta oferece', () => {
+    for (const [, , workflow] of CASOS) for (const spec of querySpecsOf(workflow)) {
       for (const predicate of spec.where) {
         if (!predicate.value) continue;
         expect(
@@ -86,7 +105,8 @@ describe('automações das extensões — a autoria consegue reabri-las', () => 
     }
   });
 
-  it.each(CASOS)('%s / "%s" — cada comparação aponta para um campo que o seletor oferece', (_plugin, _nome, workflow) => {
+  it('cada comparação aponta para um campo que o seletor oferece', () => {
+    for (const [, , workflow] of CASOS) {
     const oferecidos = new Set(
       buildConditionEventFields(workflow.eventName, schemaContext, workflow.parameters)
         .map((field) => `${EVENT_FIELD_PATH_PREFIX}${field.path}`),
@@ -99,6 +119,7 @@ describe('automações das extensões — a autoria consegue reabri-las', () => 
         `a comparação lê "${condition.fieldPath}", que o seletor de campo não oferece — use um nó de Expressão`,
       ).toContain(condition.fieldPath);
     }
+    }
   });
 
   /**
@@ -106,7 +127,8 @@ describe('automações das extensões — a autoria consegue reabri-las', () => 
    * publicado para ela (`output`, singular) — e é o singular que o autocomplete oferece. Escrever o
    * plural numa expressão devolve indefinido em silêncio, e a condição vira sempre falsa.
    */
-  it.each(CASOS)('%s / "%s" — expressões leem as saídas por "output.", como o autocomplete ensina', (_plugin, _nome, workflow) => {
+  it('as expressões leem as saídas por "output.", como o autocomplete ensina', () => {
+    for (const [, , workflow] of CASOS) {
     const expressoes = [
       ...allConditions(workflow.condition),
       ...allSteps(workflow.steps ?? []).flatMap((step) => allConditions(step.condition)),
@@ -117,11 +139,12 @@ describe('automações das extensões — a autoria consegue reabri-las', () => 
     for (const expressao of expressoes) {
       expect(expressao, `a expressão "${expressao}" usa "outputs." (plural)`).not.toMatch(/\boutputs\./);
     }
+    }
   });
 
   /** Um step só existe se o motor souber resolvê-lo — e um id vazio só vale nos nós de controle. */
-  it.each(CASOS)('%s / "%s" — todo step de ação declara um passo do catálogo', (_plugin, _nome, workflow) => {
-    for (const step of allSteps(workflow.steps ?? [])) {
+  it('todo step de ação declara um passo do catálogo', () => {
+    for (const [, , workflow] of CASOS) for (const step of allSteps(workflow.steps ?? [])) {
       if (step.type === 'Condition' || step.type === 'Loop') {
         expect(step.stepDefinitionId, `nó de controle "${step.id}"`).toBe('');
         continue;

@@ -22,36 +22,36 @@ describe('exigência de backend de uma extensão', () => {
     expect(hasBackendRequirement(undefined)).toBe(false);
     expect(hasBackendRequirement({})).toBe(false);
     expect(hasBackendRequirement({ prerequisites: [{ id: 'a', title: 'b', detail: 'c' }] })).toBe(false);
-    expect(hasBackendRequirement({ functions: ['gmailPush'] })).toBe(true);
-    expect(hasBackendRequirement({ indexes: [index('pushes')] })).toBe(true);
-    expect(hasBackendRequirement({ parameters: ['GOOGLE_CLIENT_ID'] })).toBe(true);
+    expect(hasBackendRequirement({ functions: ['integracaoSync'] })).toBe(true);
+    expect(hasBackendRequirement({ indexes: [index('entradas')] })).toBe(true);
+    expect(hasBackendRequirement({ parameters: ['EXAMPLE_CLIENT_ID'] })).toBe(true);
   });
 
   it('o fingerprint não muda com a ordem — a mesma exigência escrita de outro jeito é a mesma', () => {
     const a: PluginBackendRequirement = {
-      functions: ['gmailPush', 'exchangeGmailCode'],
-      parameters: ['GOOGLE_CLIENT_SECRET', 'GOOGLE_CLIENT_ID'],
-      indexes: [index('pushes'), index('deadlines')],
+      functions: ['integracaoSync', 'integracaoAuth'],
+      parameters: ['EXAMPLE_CLIENT_SECRET', 'EXAMPLE_CLIENT_ID'],
+      indexes: [index('entradas'), index('tarefas')],
     };
     const b: PluginBackendRequirement = {
-      functions: ['exchangeGmailCode', 'gmailPush'],
-      parameters: ['GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET'],
-      indexes: [index('deadlines'), index('pushes')],
+      functions: ['integracaoAuth', 'integracaoSync'],
+      parameters: ['EXAMPLE_CLIENT_ID', 'EXAMPLE_CLIENT_SECRET'],
+      indexes: [index('tarefas'), index('entradas')],
     };
     expect(backendFingerprint(a)).toBe(backendFingerprint(b));
   });
 
   it('o fingerprint IGNORA os pré-requisitos: corrigir um texto não re-pendura o que funciona', () => {
-    const base = { functions: ['gmailPush'] };
+    const base = { functions: ['integracaoSync'] };
     expect(backendFingerprint({ ...base, prerequisites: [{ id: 'x', title: 'antes', detail: 'a' }] }))
       .toBe(backendFingerprint({ ...base, prerequisites: [{ id: 'x', title: 'depois', detail: 'b' }] }));
   });
 
   it('o fingerprint MUDA quando a exigência muda — é o que devolve a extensão para pendente', () => {
-    expect(backendFingerprint({ functions: ['gmailPush'] }))
-      .not.toBe(backendFingerprint({ functions: ['gmailPush', 'renewGmailWatches'] }));
-    expect(backendFingerprint({ indexes: [index('pushes')] }))
-      .not.toBe(backendFingerprint({ indexes: [index('deadlines')] }));
+    expect(backendFingerprint({ functions: ['integracaoSync'] }))
+      .not.toBe(backendFingerprint({ functions: ['integracaoSync', 'integracaoRenew'] }));
+    expect(backendFingerprint({ indexes: [index('entradas')] }))
+      .not.toBe(backendFingerprint({ indexes: [index('tarefas')] }));
   });
 
   it('sem exigência, o fingerprint de nada é igual ao de um objeto vazio', () => {
@@ -61,15 +61,15 @@ describe('exigência de backend de uma extensão', () => {
   it('nunca lança: toda forma inválida vira diagnóstico', () => {
     const cases: unknown[] = [
       'texto', 42, [], null,
-      { functions: 'gmailPush' },
+      { functions: 'integracaoSync' },
       { functions: ['2invalido'] },
       { parameters: ['minusculo'] },
-      { parameters: 'GOOGLE_CLIENT_ID' },
+      { parameters: 'EXAMPLE_CLIENT_ID' },
       { indexes: {} },
       { indexes: [{ queryScope: 'COLLECTION', fields: [] }] },
-      { indexes: [{ collectionGroup: 'pushes', queryScope: 'OUTRO', fields: [] }] },
-      { indexes: [{ collectionGroup: 'pushes', queryScope: 'COLLECTION', fields: [{ fieldPath: 'a' }] }] },
-      { indexes: [{ collectionGroup: 'pushes', queryScope: 'COLLECTION', fields: [{}, {}] }] },
+      { indexes: [{ collectionGroup: 'entradas', queryScope: 'OUTRO', fields: [] }] },
+      { indexes: [{ collectionGroup: 'entradas', queryScope: 'COLLECTION', fields: [{ fieldPath: 'a' }] }] },
+      { indexes: [{ collectionGroup: 'entradas', queryScope: 'COLLECTION', fields: [{}, {}] }] },
     ];
     for (const value of cases) {
       const diagnostics = validateBackendRequirement(value as PluginBackendRequirement, 'com.acme.x');
@@ -81,7 +81,7 @@ describe('exigência de backend de uma extensão', () => {
 
   it('um índice de UM campo é recusado: o Firestore já o indexa sozinho', () => {
     const diagnostics = validateBackendRequirement(
-      { indexes: [{ collectionGroup: 'pushes', queryScope: 'COLLECTION', fields: [{ fieldPath: 'status' }] }] },
+      { indexes: [{ collectionGroup: 'entradas', queryScope: 'COLLECTION', fields: [{ fieldPath: 'status' }] }] },
       'com.acme.x',
     );
     expect(diagnostics).toHaveLength(1);

@@ -12,7 +12,7 @@ import { translate } from './messages';
  *
  * Uma extensão embarca `titleSingular: 'Processo'` — texto cru, gravado no escritório na instalação.
  * Para traduzir isso sem inventar um campo paralelo em cada tipo de template, qualquer rótulo passa a
- * aceitar uma referência: `'@com.microteia.processo/screen.title'`.
+ * aceitar uma referência: `'@com.example.projetos/screen.title'`.
  *
  * A regra única resolve os DOIS lados do problema de uma vez:
  *

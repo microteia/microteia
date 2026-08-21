@@ -16,6 +16,7 @@ import { LOOKUP_REGISTRY_LIST } from './lookupRegistry';
 import type { FieldRulePreset, FieldRulePresetCatalog } from './fieldRulePresets';
 import { buildFieldRulePresetCatalog } from './fieldRulePresets';
 
+import type { AuditAction } from '../entities/AuditLog';
 import type { LocalizedMessage } from './i18n/localizedMessage';
 /**
  * A tela como o schema a enxerga. O `id` é, por definição, o nome da COLEÇÃO no Firestore — para as
@@ -36,6 +37,16 @@ export interface SchemaScreen {
   tagCollection?: string | null;
   /** Prefixo declarado dos eventos da coleção. Ausente = o nome da coleção. */
   eventPrefix?: string | null;
+  /**
+   * Quais ações desta coleção geram registro de auditoria. Ausente = todas (`CREATE`, `UPDATE`,
+   * `DELETE`), que é o padrão certo para o que uma pessoa cadastra.
+   *
+   * Existe porque há coleção cujo registro NASCE de máquina: uma ingestão que grava por conta própria
+   * produziria um log por documento recebido, e afogaria a Auditoria justamente onde ela serve — o
+   * gesto humano depois. Isso já esteve escrito no kernel, com o nome da coleção de uma extensão
+   * dentro dele; agora é declaração de quem traz a coleção.
+   */
+  auditActions?: AuditAction[] | null;
 }
 
 /** A lista de opções como o schema a enxerga. `collection` é o nome da coleção sob o tenant. */
@@ -112,6 +123,9 @@ const mergeSchemaScreens = (base: SchemaScreen, next: SchemaScreen, collection: 
     // trouxe a entidade para fora do kernel, enquanto a dona do nome é um documento de baseline que
     // nada sabe de eventos. Deixar a dona prevalecer aqui renomearia os eventos do escritório.
     eventPrefix: owner.eventPrefix ?? base.eventPrefix ?? next.eventPrefix,
+    // Pela MESMA razão do prefixo de evento: quem sabe que a coleção é escrita por máquina é a
+    // extensão que a trouxe, não o documento de baseline que leva o nome dela.
+    auditActions: owner.auditActions ?? base.auditActions ?? next.auditActions,
   };
 };
 
@@ -336,6 +350,7 @@ const screenEntityMetadata = (screen: SchemaScreen, fields: NativeFieldSpec[]): 
   key: screenCollection(screen),
   collection: screenCollection(screen),
   ...(screen.tagCollection ? { tagCollection: screen.tagCollection } : {}),
+  ...(screen.auditActions ? { auditActions: screen.auditActions } : {}),
   eventPrefix: screen.eventPrefix ?? screenCollection(screen),
   labelSingular: screen.titleSingular,
   labelPlural: screen.titlePlural ?? screen.titleSingular,
@@ -370,8 +385,9 @@ export const resolveEntity = (ctx: SchemaContext, collection: string): EntityMet
     labelSingular: ownsName ? screen.titleSingular : entity.labelSingular,
     labelPlural: ownsName ? (screen.titlePlural ?? entity.labelPlural) : entity.labelPlural,
     // A tela do tenant pode redirecionar as etiquetas da entidade fixa para outra coleção — é assim
-    // que Processos e uma tela nova passam a compartilhar as mesmas etiquetas.
+    // que duas telas passam a compartilhar as mesmas etiquetas.
     ...(screen.tagCollection ? { tagCollection: screen.tagCollection } : {}),
+    ...(screen.auditActions ? { auditActions: screen.auditActions } : {}),
   };
 };
 

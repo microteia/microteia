@@ -29,14 +29,28 @@ export const workspacePackageJson = (
     build: 'microteia-plugin build',
     typecheck: 'tsc --noEmit',
     test: 'vitest run',
+    /**
+     * Depois de trocar de kernel, é ISTO que traz o SDK novo — e não um `npm install`.
+     *
+     * O caminho do tarball não leva versão (ver abaixo), e o `package-lock.json` guarda a VERSÃO e a
+     * impressão digital do que foi instalado. Um tarball novo no mesmo caminho não muda nem uma nem
+     * outra do ponto de vista do npm, então `npm install` diz "up to date" e mantém o SDK anterior —
+     * em silêncio, com o escritório escrevendo extensão contra um contrato que não é mais o da
+     * instalação. Instalar pelo caminho explícito força a resolução.
+     */
+    'sdk:refresh': `npm install --no-save ${sdkPath}`,
   },
   dependencies: {
-    // Caminho SEM versão de propósito: depois de "microteia deploy" trazer um kernel novo, um
-    // `npm install` aqui pega o SDK novo sem ninguém editar este arquivo.
+    // Caminho SEM versão de propósito: um kernel novo não obriga ninguém a editar este arquivo. O que
+    // traz o SDK novo é `npm run sdk:refresh` — ver a nota no script.
     '@microteia/sdk': `file:${sdkPath}`,
   },
   devDependencies: {
     '@types/node': '^24.0.0',
+    // O MESMO transpilador que a plataforma usa para avaliar uma view ou um `startup`. Está aqui para
+    // que um teste possa compilar a fonte de verdade: o `tsc` cobre o arquivo `.tsx`, mas não cobre uma
+    // fonte que ainda more num template literal, e é justamente ali que o erro se esconde.
+    sucrase: '^3.35.0',
     typescript: '^5.9.0',
     vitest: '^4.0.0',
   },
@@ -156,8 +170,8 @@ something to hand over and explain.
 | \`<folder>/plugin.ts\` and its files | yours — this is the source |
 | \`<folder>/VERSIONS.md\` | its release notes — one new entry per version, never skipped |
 | \`<folder>/<id>.json\` | **generated.** Never hand-edit it; run \`build\` |
-| \`<folder>/functions/\` | that extension's own Cloud Functions |
-| \`../functions/\` | Cloud Functions shared by several extensions |
+| \`<folder>/functions/\` | that extension's own Cloud Functions — deployed where it is installed |
+| \`../functions/\` | Cloud Functions shared by several extensions — deployed always |
 | \`examples/\` | first-party extensions, as reference. Read them; do not edit them |
 | \`node_modules/@microteia/sdk\` | the SDK. Read it, never change it |
 | \`../.microteia/\` | the installation. Never touch it — it is replaced on every upgrade |
@@ -299,10 +313,25 @@ Run the tests before calling anything finished:
 ## Cloud Functions
 
 A function that belongs to one extension goes in \`<folder>/functions/\`. One shared by several goes in
-\`../functions/\`, next to \`microteia.yaml\`. Either way, \`microteia deploy\` gathers them, and the
-directory is read through its \`index.ts\`.
+\`../functions/\`, next to \`microteia.yaml\`. Either way the directory is read through its \`index.ts\`,
+and what it exports is what gets deployed.
 
     npm run create:function        # adds one to an extension that already exists
+
+Where it goes decides WHEN it is deployed, and that is the whole difference:
+
+| | |
+|---|---|
+| \`<folder>/functions/\` | it has an owner. Name it in \`manifest.backend.functions\`, and \`microteia provision\` deploys it only where that extension is installed |
+| \`../functions/\` | nobody owns it, so nothing can claim it. It goes up with every \`microteia deploy\` |
+
+An npm package the platform does not carry goes in \`dependencies\` in that directory's own
+\`package.json\`. Two extensions asking for different ranges of the same package is refused — one
+installation has one \`node_modules\` — and a range the platform already pins is kept.
+
+A credential or setting is a \`defineString('NAME')\` plus \`'NAME'\` in \`manifest.backend.parameters\`.
+Every one found is written into \`.env.<projectId>\`, empty, for whoever installs to fill in: a
+\`defineString\` with no value refuses the deploy of *every* function in the project, not only yours.
 
 They are excluded from this project's \`tsconfig.json\`, because they compile against
 \`firebase-functions\` — which is not installed here by default. For types while you write them:
@@ -330,6 +359,17 @@ a page written entirely in code.
     CLAUDE.md       the same rules, where Claude Code looks for them
     .mcp.json       registers the MCP server, so an assistant can query this installation
 
-Extension contract: ${version}. After every \`microteia unpack\`, run \`npm install\` here so
-\`@microteia/sdk\` matches the platform version you just took.
+Extension contract: ${version}.
+
+## After taking a new platform version
+
+    npm run sdk:refresh
+
+Not \`npm install\` — that one keeps the SDK you already have. The tarball path carries no version
+number (so a new platform version never makes you edit \`package.json\`), and \`package-lock.json\`
+records the version and checksum of what was installed; to npm, a new tarball at the same path looks
+like nothing changed. \`sdk:refresh\` installs it by path, which forces the resolution.
+
+The symptom of skipping it is silence: your extensions keep compiling, against a contract the
+installation no longer has.
 `;

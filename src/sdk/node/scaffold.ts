@@ -290,9 +290,13 @@ export const ${name} = onCall({ region: '${region}', cors: true }, (request) => 
 `;
 
 const functionsIndexTs = (names: string[]): string =>
-  `// The Cloud Functions of this extension. "microteia deploy" gathers this directory into the package
-// and deploys what is exported here — declare each one in "manifest.backend.functions" too, so the
-// installation only deploys it where the extension is installed.
+  `// The Cloud Functions of this extension, read through this file: what is exported here is what gets
+// deployed. Declare each one in "manifest.backend.functions" too — that is what makes it go up only
+// where this extension is installed, by "microteia provision".
+//
+// Needs an npm package the platform does not carry? Declare it in "dependencies" in a package.json
+// next to this file. Needs a credential? defineString('NAME') here, and 'NAME' in
+// "manifest.backend.parameters".
 
 ${names.map((name) => `export { ${name} } from './${name}';`).join('\n')}
 `;
@@ -340,13 +344,17 @@ trust it before the view runs — see \`../AUTHORING.md\`, "Code trust".
 ` : ''}${spec.functions ? `
 ## Cloud Functions
 
-\`functions/\` holds this extension's own Cloud Functions. \`microteia deploy\` gathers them into the
-package and deploys them; \`manifest.backend.functions\` is what makes the installation deploy them only
-where this extension is installed.
+\`functions/\` holds this extension's own Cloud Functions. \`manifest.backend.functions\` names them, and
+that is what makes \`microteia provision\` deploy them only where this extension is installed — and
+remove them, with \`--prune\`, when nothing needs them any more.
 
 Add another with:
 
     npx microteia-plugin create function --plugin ${folderOf(spec.id)}
+
+An npm package the platform does not carry goes in \`dependencies\` in \`functions/package.json\`. A
+credential or setting is a \`defineString('NAME')\` plus \`'NAME'\` in \`manifest.backend.parameters\`; the
+Console writes every one it finds into \`.env.<projectId>\`, empty, for whoever installs to fill in.
 ` : ''}
 ## Every change raises the version
 

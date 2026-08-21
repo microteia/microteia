@@ -12,7 +12,7 @@ import { checkHostingServed, htmlIsRevalidated } from './hostingCheck.js';
 import { provisionBackend } from './provision.js';
 import { installPath, readInstalledManifest } from './unpack.js';
 import { ensureOfficeEnv, ensureRootGitignore, officeEnvName, stageOfficeEnv } from './backendEnv.js';
-import { gatherCustomFunctions } from './customFunctions.js';
+import { gatherCustomFunctions, readOfficeFunctions } from './customFunctions.js';
 import {
   readResolvedConfig,
   stampedConfigJs,
@@ -86,7 +86,15 @@ export const deploy = async (args: ParsedArgs): Promise<void> => {
   // `install/functions/`, e por isso é uma cópia escrita agora. Antes a fonte era a cópia, e o deploy
   // seguinte a apagava junto com o pacote.
   await ensureRootGitignore(root);
-  const settings = await ensureOfficeEnv(root, projectId, manifest.backendParameters);
+  // A união, e não só o que o pacote declara: o `firebase-functions` valida os `defineString`
+  // GLOBALMENTE, então um parâmetro declarado por uma function do escritório e sem linha no arquivo
+  // recusa o deploy de TODAS elas — inclusive as que não têm relação com ele.
+  const office = await readOfficeFunctions(root);
+  const settings = await ensureOfficeEnv(
+    root,
+    projectId,
+    [...manifest.backendParameters, ...office.parameters],
+  );
   if (settings.created) {
     warn(`created ${officeEnvName(projectId)} with ${settings.added.length} setting(s), all empty —`);
     warn('  features that need one stay off until it is filled in and "microteia provision" runs again.');
@@ -119,17 +127,36 @@ export const deploy = async (args: ParsedArgs): Promise<void> => {
       // A BASELINE, e não tudo o que foi empacotado: function de extensão sobe quando a extensão for
       // instalada, pelo provisionamento no fim deste comando.
       const baseline = manifest.baselineFunctions ?? manifest.functions;
-      step(current, total, `Cloud Functions (${baseline.length} baseline, one at a time)`);
 
       // As functions do escritório são montadas AGORA, a partir de onde ele as escreve: `functions/` (as
       // comuns) e `extensions/<plugin>/functions/` (as de cada extensão). O `predeploy` do pacote compila
       // só o `custom/`, então o que não estiver aqui não sobe.
       const gathered = await gatherCustomFunctions(root, install, manifest.functions);
+
+      // O que sobe aqui é a baseline MAIS as functions comuns do escritório (`functions/`). As de
+      // `extensions/<plugin>/functions/` têm dono e sobem pelo provisionamento, no fim deste comando:
+      // é o mesmo "empacotar não é deployar" que vale para as do kernel reivindicadas por extensão.
+      const own = [...baseline, ...gathered.shared];
+      step(current, total, `Cloud Functions (${own.length}, one at a time)`);
+
       if (gathered.sources.length > 0) {
         success(
           `${gathered.functions.length} function(s) of your own, from `
           + `${gathered.sources.map((source) => `${source.label}/`).join(', ')}`,
         );
+        const owned = gathered.all.length - gathered.shared.length;
+        if (owned > 0) info(`  ${owned} of them belong to an extension and go up with "provision"`);
+      }
+      if (Object.keys(gathered.dependencies.added).length > 0) {
+        success(
+          `${Object.keys(gathered.dependencies.added).length} npm dependency(ies) your functions declare: `
+          + `${Object.keys(gathered.dependencies.added).join(', ')}`,
+        );
+        info('  the packaged lockfile does not cover them, so this npm install resolves them and takes');
+        info('  longer than the following ones.');
+      }
+      for (const line of gathered.dependencies.overridden) {
+        warn(`${line} — the package's range wins; the runtime is the kernel's choice`);
       }
 
       info('  installing function dependencies… (~250 packages, a few seconds)');
@@ -141,7 +168,7 @@ export const deploy = async (args: ParsedArgs): Promise<void> => {
       info('  "engines" names the Cloud Functions runtime, and the notices come from Firebase\'s deps.');
       await run('npm', ['install', '--no-audit', '--no-fund'], { cwd: join(install, 'functions') });
 
-      const report = await deployFunctionsOneByOne(baseline, {
+      const report = await deployFunctionsOneByOne(own, {
         projectId,
         cwd: install,
         delaySeconds,
@@ -159,7 +186,8 @@ export const deploy = async (args: ParsedArgs): Promise<void> => {
       // Deployada não quer dizer alcançável: a concessão de invocação pública pode ter sido
       // recusada, e o `firebase deploy` termina bem do mesmo jeito. Quem paga a conta é o escritório,
       // com uma aplicação que abre e não consegue falar com o servidor.
-      const callables = (manifest.callables ?? []).filter((name) => baseline.includes(name));
+      const callables = [...(manifest.callables ?? []), ...gathered.callables]
+        .filter((name) => own.includes(name));
 
       if (callables.length > 0) {
         info(`  checking that the browser can reach the ${callables.length} callable(s)…`);

@@ -91,6 +91,14 @@ describe('widgets do Dashboard — o catálogo inteiro', () => {
     }
   });
 
+  /**
+   * A chave de um widget é o endereço dele na grade: repetida, uma extensão passa a mostrar o painel da
+   * outra sem erro em lugar nenhum.
+   *
+   * A lista está VAZIA neste momento — os widgets de primeira parte vinham das extensões de domínio,
+   * mantidas fora deste repositório. O caso registra isso em vez de passar por vazio: a asserção de
+   * unicidade continua armada, e a primeira chave que voltar já nasce conferida.
+   */
   it('nenhuma chave de widget se repete entre extensões', () => {
     const keys = MARKETPLACE_CATALOG.flatMap((plugin) =>
       (plugin.manifest.contributes ?? [])
@@ -98,7 +106,7 @@ describe('widgets do Dashboard — o catálogo inteiro', () => {
         .map((contribution) => (contribution.metadata as { key?: string }).key ?? ''),
     );
 
-    expect(keys.length).toBeGreaterThan(0);
+    expect(keys).toEqual([]);
     expect(new Set(keys).size).toBe(keys.length);
   });
 

@@ -30,6 +30,7 @@ import { FIREBASE_BIN } from './firebaseCli.js';
 import { deployFunctionsOneByOne } from './deployFunctions.js';
 import { checkCallables, invokerGrantCommand } from './callableAccess.js';
 import { decodeFields, documentId, listDocuments, patchStringMapField } from './firestoreRest.js';
+import { gatherCustomFunctions, readOfficeFunctions } from './customFunctions.js';
 
 /** Uma exigência, o escritório que a instalou e o documento que carrega o estado dela. */
 export interface InstalledClaim extends BackendClaim {
@@ -120,14 +121,37 @@ export interface ProvisionOutcome {
  */
 export const provisionBackend = async (options: ProvisionOptions): Promise<ProvisionOutcome> => {
   const { projectId, region, install, manifest, delaySeconds } = options;
+  const root = dirname(options.environmentFile);
   const outcome: ProvisionOutcome = { deployed: [], failed: [], orphans: [], pending: [] };
 
+  /**
+   * O que uma extensão pode reivindicar é o que EXISTE para ser deployado: o que o pacote traz mais o
+   * que o escritório escreveu em `extensions/<plugin>/functions/` e em `functions/`.
+   *
+   * Conferir só contra o pacote recusava justamente o caso que o `microteia-plugin create function`
+   * gera — a extensão declarava a própria function em `manifest.backend.functions`, o nome não estava no
+   * pacote (nem poderia: o kernel não sabe o que o escritório vai escrever), e a extensão inteira era
+   * rejeitada com "this kernel package does not contain".
+   */
+  const office = await readOfficeFunctions(root);
+  const deployable = [...manifest.functions, ...office.all];
+
   const claims = await readInstalledClaims(projectId);
-  const problems = functionClaimProblems(claims, manifest.functions);
+  const problems = functionClaimProblems(claims, deployable);
   const rejected = new Set<string>();
   if (problems.length > 0) {
-    warn('some extensions ask for backend artifacts this package cannot provide:');
+    warn('some extensions ask for backend artifacts that are nowhere to be found:');
     bullets(problems);
+    // A mensagem sozinha é um beco sem saída: ela diz que o nome não existe, e não onde ele deveria
+    // existir. As duas respostas possíveis são estas, e a segunda é a que mais acontece — a function é
+    // da extensão, o autor a declarou, e ninguém a exportou do `index.ts` do diretório dela.
+    info('  a function comes from ONE of two places, and it has to be in one of them:');
+    bullets([
+      'this Microteia package — the extension claims a function the platform ships',
+      `extensions/<folder>/functions/index.ts of this installation — the extension brings its own`,
+    ]);
+    info(`  this installation currently exports ${office.all.length} function(s) of its own`
+      + `${office.all.length === 0 ? '' : `: ${office.all.join(', ')}`}`);
     for (const claim of claims) {
       if (problems.some((problem) => problem.includes(claim.pluginId))) rejected.add(claim.pluginId);
     }
@@ -148,7 +172,7 @@ export const provisionBackend = async (options: ProvisionOptions): Promise<Provi
   info(`  ${valid.length} extension(s) ask for backend artifacts:`);
   bullets(valid.map((claim) => `${claim.name} ${claim.version} (${claim.pluginId})`));
 
-  const wantedFunctions = manifest.functions.filter(
+  const wantedFunctions = deployable.filter(
     (name) => valid.some((claim) => (claim.backend.functions ?? []).includes(name)),
   );
   const wantedIndexes = claimedIndexes(valid);
@@ -215,6 +239,15 @@ export const provisionBackend = async (options: ProvisionOptions): Promise<Provi
     // velha carimbaria nela justamente o valor que se acabou de trocar.
     await stageOfficeEnv(dirname(options.environmentFile), projectId, install);
 
+    // As fontes do escritório são remontadas AGORA quando alguma delas está na fila: este comando roda
+    // sozinho depois de instalar uma extensão, e nesse caminho ninguém passou pelo `deploy` que as
+    // monta. Subir sem isso deployaria o `custom/` da montagem anterior — ou nenhum.
+    if (toDeploy.some((name) => office.all.includes(name))) {
+      await gatherCustomFunctions(root, install, manifest.functions);
+      info('  installing function dependencies…');
+      await run('npm', ['install', '--no-audit', '--no-fund'], { cwd: join(install, 'functions') });
+    }
+
     info(`  deploying ${toDeploy.length} function(s), one at a time…`);
     const report = await deployFunctionsOneByOne(toDeploy, {
       projectId, cwd: install, delaySeconds, force: false,
@@ -225,7 +258,12 @@ export const provisionBackend = async (options: ProvisionOptions): Promise<Provi
       failure(entry.name);
       info(entry.output.split('\n').slice(-12).map((line) => `      ${line}`).join('\n'));
     }
-    await checkNewCallables(manifest, report.deployed, projectId, region);
+    await checkNewCallables(
+      [...(manifest.callables ?? []), ...office.callables],
+      report.deployed,
+      projectId,
+      region,
+    );
   }
 
   const deployedNow = new Set([...alreadyApplied, ...outcome.deployed]);
@@ -304,12 +342,12 @@ const applyIndexes = async (
 };
 
 const checkNewCallables = async (
-  manifest: KernelManifest,
+  known: string[],
   deployed: string[],
   projectId: string,
   region: string,
 ): Promise<void> => {
-  const callables = (manifest.callables ?? []).filter((name) => deployed.includes(name));
+  const callables = known.filter((name) => deployed.includes(name));
   if (callables.length === 0) return;
 
   const origin = `https://${projectId}.web.app`;

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import type { AuditAction } from '../entities/AuditLog';
 import type { FieldDefinition } from '../entities/entitySchemas';
 import {
   createSchemaContext,
@@ -9,6 +10,7 @@ import {
   resolveEntityFields,
   screenIdIssue,
 } from './screenEntity';
+import type { SchemaScreen } from './screenEntity';
 
 const field = (overrides: Partial<FieldDefinition> & Pick<FieldDefinition, 'key'>): FieldDefinition => ({
   label: overrides.key,
@@ -185,5 +187,45 @@ describe('nomes de coleção reservados', () => {
   it('aceita um nome livre', () => {
     expect(screenIdIssue('medico')).toBeUndefined();
     expect(screenIdIssue('vendas__produto')).toBeUndefined();
+  });
+});
+
+/**
+ * Quais ações de uma coleção geram registro de auditoria é DECLARAÇÃO da tela.
+ *
+ * A pergunta existe porque há coleção cujo registro nasce de máquina: uma ingestão que grava por conta
+ * própria produziria um log por documento recebido, e afogaria a Auditoria justamente onde ela serve —
+ * o gesto humano depois. A resposta esteve escrita no kernel, com o nome da coleção de uma extensão
+ * dentro dele; o defeito não era o comportamento, era o núcleo conhecer a coleção.
+ */
+describe('quais ações a coleção audita', () => {
+  const screen = (auditActions?: AuditAction[]): SchemaScreen => ({
+    id: 'entradas',
+    titleSingular: 'Entrada',
+    titleFieldKey: 'title',
+    fields: [{ key: 'title', label: 'Título', type: 'text', required: true, order: 0, origin: 'plugin' }],
+    ...(auditActions ? { auditActions } : {}),
+  });
+
+  it('sem declaração, a entidade não restringe nada — audita tudo', () => {
+    const ctx = createSchemaContext([screen()]);
+    expect(resolveEntity(ctx, 'entradas')?.auditActions).toBeUndefined();
+  });
+
+  it('a declaração da tela atravessa até a entidade resolvida', () => {
+    const ctx = createSchemaContext([screen(['UPDATE', 'DELETE'])]);
+    expect(resolveEntity(ctx, 'entradas')?.auditActions).toEqual(['UPDATE', 'DELETE']);
+  });
+
+  /**
+   * Duas telas sobre a MESMA coleção: quem sabe que ela é escrita por máquina é a extensão que a
+   * trouxe, e não o documento de baseline que leva o nome dela. Mesma razão do prefixo de evento.
+   */
+  it('entre duas telas da mesma coleção, a declaração não se perde na que leva o nome', () => {
+    const daExtensao: SchemaScreen = { ...screen(['UPDATE', 'DELETE']), id: 'ingestao', collection: 'entradas' };
+    const doEscritorio: SchemaScreen = { ...screen(), id: 'entradas' };
+
+    const ctx = createSchemaContext([daExtensao, doEscritorio]);
+    expect(resolveEntity(ctx, 'entradas')?.auditActions).toEqual(['UPDATE', 'DELETE']);
   });
 });

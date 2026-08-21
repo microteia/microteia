@@ -87,7 +87,7 @@ describe('cada exemplo compila no artefato versionado', () => {
   });
 
   it('o cabeçalho diz como construir o exemplo', async () => {
-    const source = await readFile(join(staged, 'pessoa/plugin.ts'), 'utf8');
-    expect(source).toContain('npx microteia-plugin build pessoa/plugin.ts');
+    const source = await readFile(join(staged, 'news/plugin.ts'), 'utf8');
+    expect(source).toContain('npx microteia-plugin build news/plugin.ts');
   });
 });

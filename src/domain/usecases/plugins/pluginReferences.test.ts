@@ -175,7 +175,7 @@ describe('validatePackage', () => {
     const pkg = base({
       manifest: {
         id: 'com.acme.processos', version: '1.0.0', kernel: '^1.0.0', name: 'Processos',
-        dependencies: { 'com.microteia.pessoa': { version: '^1.0.0', collections: ['persons'] } },
+        dependencies: { 'com.example.cadastro': { version: '^1.0.0', collections: ['persons'] } },
       },
       screens: [{ key: 'processo', titleSingular: 'P', titlePlural: 'P', icon: 'apps', titleFieldKey: 'n', fields: [
         { key: 'n', label: 'N', type: 'text', required: true, order: 0 },

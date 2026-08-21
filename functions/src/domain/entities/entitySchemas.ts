@@ -9,6 +9,7 @@
 // GERADA por scripts/sync-schemas.cjs (npm run sync-schemas). Nunca edite a cópia.
 // ═══════════════════════════════════════════════════════════════════════════════
 
+import type { AuditAction } from './AuditLog';
 import { ENTITY_REGISTRY_LIST } from '../schema/entityRegistry';
 import type {
   CustomFieldMask,
@@ -216,6 +217,12 @@ export interface ScreenDefinition {
    * declarada por uma extensão — sem renomear os eventos que as automações do escritório escutam.
    */
   eventPrefix?: string | null;
+  /**
+   * Quais ações desta coleção geram registro de auditoria. Ausente = todas. Serve à coleção cujo
+   * registro NASCE de máquina: uma ingestão que grava por conta própria produziria um log por
+   * documento recebido. Ver `SchemaScreen.auditActions`.
+   */
+  auditActions?: AuditAction[] | null;
   /**
    * Papéis do tenant que podem CRIAR e EDITAR registros desta coleção. Ausente = a permissão padrão
    * do escritório (`admin`, `lawyer`, `secretary`). Declarada, a lista é a AUTORIDADE — e por isso

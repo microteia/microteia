@@ -13,26 +13,14 @@ import { FirebaseAIConnectionRepository } from '../../data/repositories/Firebase
 import { FirebaseTenantMemberRepository } from '../../data/repositories/FirebaseTenantMemberRepository';
 import { FirebaseUserRepository } from '../../data/repositories/FirebaseUserRepository';
 import { FirebaseNicknameRepository } from '../../data/repositories/FirebaseNicknameRepository';
-import { FirebaseGmailConnectionRepository } from '../../data/repositories/FirebaseGmailConnectionRepository';
-import { FirebasePushRepository } from '../../data/repositories/FirebasePushRepository';
 import { FirebaseTenantRepository } from '../../data/repositories/FirebaseTenantRepository';
 import { FirebaseTenantSettingsRepository } from '../../data/repositories/FirebaseTenantSettingsRepository';
-import { GoogleAuthService } from '../../data/services/GoogleAuthService';
-import { GmailWatchService } from '../../data/services/GmailWatchService';
-import { GmailService } from '../../data/services/GmailService';
-import { EmailParserService } from '../../data/services/EmailParserService';
 import { makeGetDefaultAICredentialsUseCase } from '../../domain/usecases/GetDefaultAICredentialsUseCase';
 import { makeCallAIAnalysisUseCase } from '../../domain/usecases/CallAIAnalysisUseCase';
 import { makeCallAIUseCase } from '../../domain/usecases/CallAIUseCase';
 import { makeGetUserInfoUseCase } from '../../domain/usecases/GetUserInfoUseCase';
 import { makeCheckNicknameAvailabilityUseCase } from '../../domain/usecases/CheckNicknameAvailabilityUseCase';
 import { makeClaimNicknameUseCase } from '../../domain/usecases/ClaimNicknameUseCase';
-import { makeExchangeGmailCodeUseCase } from '../../domain/usecases/ExchangeGmailCodeUseCase';
-import { makeGetGmailConnectionsUseCase } from '../../domain/usecases/GetGmailConnectionsUseCase';
-import { makeRevokeGmailConnectionUseCase } from '../../domain/usecases/RevokeGmailConnectionUseCase';
-import { makeCreatePushUseCase } from '../../domain/usecases/CreatePushUseCase';
-import { makeUpdatePushUseCase } from '../../domain/usecases/UpdatePushUseCase';
-import { makeCreateOrUpdatePushUseCase } from '../../domain/usecases/CreateOrUpdatePushUseCase';
 import { makeAddTenantMemberUseCase } from '../../domain/usecases/AddTenantMemberUseCase';
 import { makeRemoveTenantMemberUseCase } from '../../domain/usecases/RemoveTenantMemberUseCase';
 import { makeBootstrapUserUseCase } from '../../domain/usecases/BootstrapUserUseCase';
@@ -42,27 +30,15 @@ import type { CallAIUseCase } from '../../domain/usecases/CallAIUseCase';
 import type { GetUserInfoUseCase } from '../../domain/usecases/GetUserInfoUseCase';
 import type { CheckNicknameAvailabilityUseCase } from '../../domain/usecases/CheckNicknameAvailabilityUseCase';
 import type { ClaimNicknameUseCase } from '../../domain/usecases/ClaimNicknameUseCase';
-import type { ExchangeGmailCodeUseCase } from '../../domain/usecases/ExchangeGmailCodeUseCase';
-import type { GetGmailConnectionsUseCase } from '../../domain/usecases/GetGmailConnectionsUseCase';
-import type { RevokeGmailConnectionUseCase } from '../../domain/usecases/RevokeGmailConnectionUseCase';
-import type { CreatePushUseCase } from '../../domain/usecases/CreatePushUseCase';
-import type { UpdatePushUseCase } from '../../domain/usecases/UpdatePushUseCase';
-import type { CreateOrUpdatePushUseCase } from '../../domain/usecases/CreateOrUpdatePushUseCase';
 import type { AddTenantMemberUseCase } from '../../domain/usecases/AddTenantMemberUseCase';
 import type { RemoveTenantMemberUseCase } from '../../domain/usecases/RemoveTenantMemberUseCase';
 import type { BootstrapUserUseCase } from '../../domain/usecases/BootstrapUserUseCase';
 import type { IAIProviderService } from '../../domain/repositories/IAIProviderService';
 import type { IAIConnectionRepository } from '../../domain/repositories/IAIConnectionRepository';
-import type { IGmailConnectionRepository } from '../../domain/repositories/IGmailConnectionRepository';
-import type { IPushRepository } from '../../domain/repositories/IPushRepository';
 import type { ITenantRepository } from '../../domain/repositories/ITenantRepository';
 import type { ITenantSettingsRepository } from '../../domain/repositories/ITenantSettingsRepository';
 import type { ITenantMemberRepository } from '../../domain/repositories/ITenantMemberRepository';
 import type { IUserRepository } from '../../domain/repositories/IUserRepository';
-import type { IGmailService } from '../../data/services/GmailService';
-import type { IEmailParserService } from '../../data/services/EmailParserService';
-import type { IGmailAuthService } from '../../domain/repositories/IGmailAuthService';
-import type { IGmailWatchService } from '../../domain/repositories/IGmailWatchService';
 import { FirebaseWorkflowDefinitionRepository } from '../../data/repositories/FirebaseWorkflowDefinitionRepository';
 import { FirebaseWorkflowExecutionRepository } from '../../data/repositories/FirebaseWorkflowExecutionRepository';
 import type { IWorkflowDefinitionRepository } from '../../domain/repositories/IWorkflowDefinitionRepository';
@@ -87,14 +63,8 @@ class DIContainer {
 
   private aiProviders: IAIProviderService[];
   private aiConnectionRepo?: IAIConnectionRepository;
-  private gmailConnectionRepo?: IGmailConnectionRepository;
-  private pushRepo?: IPushRepository;
   private tenantRepo?: ITenantRepository;
   private tenantSettingsRepo?: ITenantSettingsRepository;
-  private gmailService?: IGmailService;
-  private emailParserService?: IEmailParserService;
-  private googleAuthService?: IGmailAuthService;
-  private gmailWatchService?: IGmailWatchService;
   private auditLogRepo?: IAuditLogRepository;
   private userProfileLookupService?: IUserProfileLookupService;
   private fkNameEnricherService?: IFkNameEnricherService;
@@ -106,12 +76,6 @@ class DIContainer {
   private getUserInfoUC?: GetUserInfoUseCase;
   private checkNicknameAvailabilityUC?: CheckNicknameAvailabilityUseCase;
   private claimNicknameUC?: ClaimNicknameUseCase;
-  private exchangeGmailCodeUC?: ExchangeGmailCodeUseCase;
-  private getGmailConnectionsUC?: GetGmailConnectionsUseCase;
-  private revokeGmailConnectionUC?: RevokeGmailConnectionUseCase;
-  private createPushUC?: CreatePushUseCase;
-  private updatePushUC?: UpdatePushUseCase;
-  private createOrUpdatePushUC?: CreateOrUpdatePushUseCase;
   private tenantMemberRepo?: ITenantMemberRepository;
   private addTenantMemberUC?: AddTenantMemberUseCase;
   private removeTenantMemberUC?: RemoveTenantMemberUseCase;
@@ -200,106 +164,12 @@ class DIContainer {
     return this.claimNicknameUC;
   }
 
-  getExchangeGmailCodeUseCase(): ExchangeGmailCodeUseCase {
-    if (!this.exchangeGmailCodeUC) {
-      const gmailAuthService = new GoogleAuthService();
-      const gmailWatchService = new GmailWatchService();
-      this.exchangeGmailCodeUC = makeExchangeGmailCodeUseCase(
-        gmailAuthService,
-        gmailWatchService,
-        this.getTenantMemberRepository(),
-        this.getGmailConnectionRepository(),
-      );
-    }
-    return this.exchangeGmailCodeUC;
-  }
-
-  getGetGmailConnectionsUseCase(): GetGmailConnectionsUseCase {
-    if (!this.getGmailConnectionsUC) {
-      this.getGmailConnectionsUC = makeGetGmailConnectionsUseCase(
-        this.getGmailConnectionRepository(),
-        this.getTenantMemberRepository(),
-      );
-    }
-    return this.getGmailConnectionsUC;
-  }
-
-  getRevokeGmailConnectionUseCase(): RevokeGmailConnectionUseCase {
-    if (!this.revokeGmailConnectionUC) {
-      this.revokeGmailConnectionUC = makeRevokeGmailConnectionUseCase(
-        this.getGmailConnectionRepository(),
-        this.getTenantMemberRepository(),
-      );
-    }
-    return this.revokeGmailConnectionUC;
-  }
-
-  getGmailConnectionRepository(): IGmailConnectionRepository {
-    if (!this.gmailConnectionRepo) {
-      this.gmailConnectionRepo = new FirebaseGmailConnectionRepository();
-    }
-    return this.gmailConnectionRepo;
-  }
-
-  getPushRepository(): IPushRepository {
-    if (!this.pushRepo) {
-      this.pushRepo = new FirebasePushRepository();
-    }
-    return this.pushRepo;
-  }
-
-  getGmailService(): IGmailService {
-    if (!this.gmailService) {
-      this.gmailService = new GmailService();
-    }
-    return this.gmailService;
-  }
-
-  getEmailParserService(): IEmailParserService {
-    if (!this.emailParserService) {
-      const aiConnectionRepo = this.getAIConnectionRepository();
-      this.emailParserService = new EmailParserService(this.aiProviders, aiConnectionRepo);
-    }
-    return this.emailParserService;
-  }
-
   getAIConnectionRepository(): IAIConnectionRepository {
     if (!this.aiConnectionRepo) {
       const db = getDb();
       this.aiConnectionRepo = new FirebaseAIConnectionRepository(db);
     }
     return this.aiConnectionRepo;
-  }
-
-  getCreatePushUseCase(): CreatePushUseCase {
-    if (!this.createPushUC) {
-      const pushRepo = this.getPushRepository();
-      this.createPushUC = makeCreatePushUseCase(pushRepo);
-    }
-    return this.createPushUC;
-  }
-
-  getUpdatePushUseCase(): UpdatePushUseCase {
-    if (!this.updatePushUC) {
-      const pushRepo = this.getPushRepository();
-      this.updatePushUC = makeUpdatePushUseCase(pushRepo);
-    }
-    return this.updatePushUC;
-  }
-
-  getCreateOrUpdatePushUseCase(): CreateOrUpdatePushUseCase {
-    if (!this.createOrUpdatePushUC) {
-      const pushRepo = this.getPushRepository();
-      this.createOrUpdatePushUC = makeCreateOrUpdatePushUseCase(pushRepo);
-    }
-    return this.createOrUpdatePushUC;
-  }
-
-  getGoogleAuthService(): IGmailAuthService {
-    if (!this.googleAuthService) {
-      this.googleAuthService = new GoogleAuthService();
-    }
-    return this.googleAuthService;
   }
 
   getTenantRepository(): ITenantRepository {
@@ -343,13 +213,6 @@ class DIContainer {
       );
     }
     return this.removeTenantMemberUC;
-  }
-
-  getGmailWatchService(): IGmailWatchService {
-    if (!this.gmailWatchService) {
-      this.gmailWatchService = new GmailWatchService();
-    }
-    return this.gmailWatchService;
   }
 
   getAuditLogRepository(): IAuditLogRepository {

@@ -1,3 +1,4 @@
+import type { AuditAction } from '../../domain/entities/AuditLog';
 import { Timestamp } from 'firebase/firestore';
 import type { FieldDefinition, FieldOrigin, ScreenDefinition } from '../../domain/entities';
 import { CUSTOM_FIELD_ENABLED_ENTITIES } from '../../domain/entities/entitySchemas';
@@ -62,6 +63,7 @@ export const mapScreenDefinition = (
   tagCollection: (d.tagCollection as string | null | undefined) ?? null,
   dataCollection: (d.dataCollection as string | null | undefined) ?? null,
   eventPrefix: (d.eventPrefix as string | null | undefined) ?? null,
+  auditActions: (d.auditActions as AuditAction[] | null | undefined) ?? null,
   recordTabPrefix: (d.recordTabPrefix as string | null | undefined) ?? null,
   writeRoles: (d.writeRoles as string[] | null | undefined) ?? null,
   memberWritableFields: (d.memberWritableFields as string[] | null | undefined) ?? null,
