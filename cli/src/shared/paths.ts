@@ -39,9 +39,12 @@ export const repoRoot = resolve(here, '..', '..', '..');
  * era este lado que faltava. Em `2.1.4`: o `unpack` preserva `functions/node_modules` MOVENDO em vez de
  * copiando — o `cp` recursivo de ~250 pacotes estourava o limite de descritores do processo no macOS
  * (`ENFILE: file table overflow`), de forma intermitente e apontando um diretório qualquer de dentro de
- * uma dependência. A cópia nunca teve para que existir: a origem é apagada em seguida.
+ * uma dependência. A cópia nunca teve para que existir: a origem é apagada em seguida. Em `2.1.5`: o carimbo
+ * `backendState.appliedAt` passou a ser gravado como DATA (`timestampValue`) e não como texto — o
+ * `stringValue` chegava à tela como string com o tipo de `Date`, e derrubava o botão de atualizar a
+ * extensão na gravação seguinte.
  *
  * Ela NÃO acompanha o `version` do produto, e não é obrigada a andar junto do `MINIMUM_CLI_VERSION`:
  * este último só se move quando o PACOTE passa a depender de algo que o Console faz.
  */
-export const CLI_VERSION = '2.1.4';
+export const CLI_VERSION = '2.1.5';

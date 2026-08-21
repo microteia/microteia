@@ -1,9 +1,7 @@
-import { Timestamp } from 'firebase/firestore';
 import { pruneUndefined } from '../utils/pruneUndefined';
 import type { PublishedPlugin } from '../../domain/repositories/IPluginRegistryRepository';
 import type { MarketplacePlugin } from '../../domain/entities/MarketplacePlugin';
-
-const toDate = (v: unknown): Date => (v instanceof Timestamp ? v.toDate() : (v as Date) ?? new Date());
+import { toDateValueOrNow as toDate } from '../utils/toDateValue';
 
 /**
  * Corpo do documento de `plugin_registry` a partir de um pacote — o pacote INTEIRO, não só

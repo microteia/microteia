@@ -1,10 +1,8 @@
-import { Timestamp } from 'firebase/firestore';
 import { pruneUndefined } from '../utils/pruneUndefined';
 import type { PublicExtension, PublicExtensionStatus } from '../../domain/entities/PublicExtension';
 import type { MarketplacePlugin } from '../../domain/entities/MarketplacePlugin';
 import type { PublishPublicExtensionInput } from '../../domain/repositories/IPublicExtensionRepository';
-
-const toDate = (v: unknown): Date => (v instanceof Timestamp ? v.toDate() : (v as Date) ?? new Date());
+import { toDateValueOrNow as toDate } from '../utils/toDateValue';
 
 /** Corpo do documento `public_extensions/{domain}` a partir do input de publicação (sem publishedAt,
  *  que o repositório acrescenta com serverTimestamp). Só o `package` passa por pruneUndefined. */

@@ -29,7 +29,7 @@ import type { Environment } from './environment.js';
 import { FIREBASE_BIN } from './firebaseCli.js';
 import { deployFunctionsOneByOne } from './deployFunctions.js';
 import { checkCallables, invokerGrantCommand } from './callableAccess.js';
-import { decodeFields, documentId, listDocuments, patchStringMapField } from './firestoreRest.js';
+import { asString, asTimestamp, decodeFields, documentId, listDocuments, patchMapField } from './firestoreRest.js';
 import { gatherCustomFunctions, readOfficeFunctions } from './customFunctions.js';
 
 /** Uma exigência, o escritório que a instalou e o documento que carrega o estado dela. */
@@ -376,10 +376,13 @@ const stampApplied = async (
   claim: InstalledClaim,
 ): Promise<void> => {
   const fingerprint = backendFingerprint(claim.backend);
-  const appliedAt = new Date().toISOString();
+  const appliedAt = new Date();
   for (const copy of all.filter((entry) => entry.pluginId === claim.pluginId)) {
     if (backendFingerprint(copy.backend) !== fingerprint) continue;
-    await patchStringMapField(projectId, copy.documentPath, 'backendState', { fingerprint, appliedAt });
+    await patchMapField(projectId, copy.documentPath, 'backendState', {
+      fingerprint: asString(fingerprint),
+      appliedAt: asTimestamp(appliedAt),
+    });
   }
   success(`${claim.name} is ready in ${projectId}`);
 };

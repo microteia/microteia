@@ -13,8 +13,7 @@ import { pruneUndefined } from '../utils/pruneUndefined';
 import type { ITenantExtensionRepository } from '../../domain/repositories/ITenantExtensionRepository';
 import type { TenantExtension } from '../../domain/entities/TenantExtension';
 import type { MarketplacePlugin } from '../../domain/entities/MarketplacePlugin';
-
-const toDate = (v: unknown): Date => (v instanceof Timestamp ? v.toDate() : (v as Date) ?? new Date());
+import { toDateValueOrNow as toDate } from '../utils/toDateValue';
 
 const extensionsRef = (tenantId: string) => collection(db, 'tenants', tenantId, 'extensions');
 

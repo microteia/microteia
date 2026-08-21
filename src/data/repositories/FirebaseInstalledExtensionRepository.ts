@@ -18,8 +18,7 @@ import type {
   InstalledExtensionSource,
 } from '../../domain/entities/InstalledExtension';
 import type { MarketplacePlugin } from '../../domain/entities/MarketplacePlugin';
-
-const toDate = (v: unknown): Date => (v instanceof Timestamp ? v.toDate() : (v as Date) ?? new Date());
+import { toDateValueOrNow as toDate } from '../utils/toDateValue';
 
 const mapCodeTrust = (raw: unknown): ExtensionCodeTrust | null => {
   if (!raw || typeof raw !== 'object') return null;
@@ -35,8 +34,13 @@ const mapCodeTrust = (raw: unknown): ExtensionCodeTrust | null => {
 
 /**
  * O `backendState` é escrito pelo Microteia Console, pela REST do Firestore — então `appliedAt` chega
- * como string ISO, e não como `Timestamp`. O `toDate` acima trata as duas formas, e é por isso que ele
- * é usado aqui em vez de um cast.
+ * como string ISO, e não como `Timestamp`.
+ *
+ * A conversão é `toDateValueOrNow`, e não um `toDate` local, porque o local NÃO tratava esse caso: o
+ * cast `(v as Date)` deixava a string passar inteira, com o tipo de `Date` e nenhum dos métodos dela.
+ * Nada acusava na leitura — o erro só aparecia na gravação seguinte, no `Timestamp.fromDate` do
+ * `upsert`, como `t.getTime is not a function`, sem dizer o campo nem quem o havia gravado. Era
+ * preciso ter provisionado o backend uma vez para conseguir reproduzir.
  */
 const mapBackendState = (raw: unknown): ExtensionBackendState | null => {
   if (!raw || typeof raw !== 'object') return null;

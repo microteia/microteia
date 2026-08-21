@@ -127,29 +127,35 @@ export const listDocuments = async (
 export const documentId = (document: FirestoreDocument): string =>
   document.name.slice(document.name.lastIndexOf('/') + 1);
 
+/** Um valor com o tipo que a REST espera, montado por quem sabe o que o campo é. */
+export type FirestoreTypedValue = { stringValue: string } | { timestampValue: string };
+
+export const asString = (value: string): FirestoreTypedValue => ({ stringValue: value });
+
 /**
- * Grava UM campo, com `updateMask` — o resto do documento não é tocado. É o que permite o Console
- * carimbar o estado sem conhecer (nem arriscar reescrever) o pacote inteiro que vive ao lado.
+ * Data como DATA, e não como texto que se parece com uma.
+ *
+ * O tipo do valor gravado é escolhido aqui e lido do outro lado do produto, meses depois, por quem não
+ * viu esta linha. Gravar uma data como `stringValue` custou um botão que não funcionava: a tela lia o
+ * texto, exibia certo, e só falhava ao gravar de volta. O `timestampValue` fecha essa porta — e é
+ * também o que permite ordenar e comparar o campo no banco. A REST exige RFC 3339 em UTC, que é
+ * exatamente o que `toISOString` devolve.
  */
-export const patchStringMapField = async (
+export const asTimestamp = (value: Date): FirestoreTypedValue => ({ timestampValue: value.toISOString() });
+
+/**
+ * Grava UM campo de mapa, com `updateMask` — o resto do documento não é tocado. É o que permite o
+ * Console carimbar o estado sem conhecer (nem arriscar reescrever) o pacote inteiro que vive ao lado.
+ */
+export const patchMapField = async (
   projectId: string,
   path: string,
   field: string,
-  entries: Record<string, string>,
+  entries: Record<string, FirestoreTypedValue>,
 ): Promise<void> => {
   await request(projectId, path, {
     method: 'PATCH',
     query: { 'updateMask.fieldPaths': field },
-    body: {
-      fields: {
-        [field]: {
-          mapValue: {
-            fields: Object.fromEntries(
-              Object.entries(entries).map(([key, value]) => [key, { stringValue: value }]),
-            ),
-          },
-        },
-      },
-    },
+    body: { fields: { [field]: { mapValue: { fields: entries } } } },
   });
 };

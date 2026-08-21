@@ -7,13 +7,11 @@ import {
   onSnapshot,
   serverTimestamp,
   setDoc,
-  Timestamp,
 } from 'firebase/firestore';
 import { db } from '../../infrastructure/firebase/config';
 import type { IPluginInstallationRepository } from '../../domain/repositories/IPluginInstallationRepository';
 import type { PluginInstallation } from '../../domain/entities/PluginInstallation';
-
-const toDate = (v: unknown): Date => (v instanceof Timestamp ? v.toDate() : (v as Date) ?? new Date());
+import { toDateValueOrNow as toDate } from '../utils/toDateValue';
 
 const installationsRef = (tenantId: string) =>
   collection(db, 'tenants', tenantId, 'plugin_installations');

@@ -11,6 +11,16 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [8.0.1] — 2026-08-21
+
+- Corrigido o botão de atualizar uma extensão no Marketplace, que não fazia nada — sem mensagem, sem
+  aviso, sem sinal de que algo havia falhado. Acontecia depois de a instalação provisionar as funções
+  de servidor de uma extensão pela primeira vez: o registro de que o servidor já estava pronto ficava
+  gravado num formato que a tela lia, mostrava corretamente e depois não conseguia gravar de volta.
+
+> Quem cuida da instalação: use a **ferramenta de instalação 2.1.5**. A partir dela esse registro é
+> gravado no formato correto na origem, e não só tolerado na leitura.
+
 #### [8.0.0] — 2026-08-20
 
 - As telas de Pessoas, Contratos, Processos, Prazos, Financeiro, Pushes do Tribunal e o Kanban de
