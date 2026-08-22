@@ -54,6 +54,7 @@ export interface CustomFieldsSectionViewModel {
   staticSelectOptions: (field: FieldDefinition) => DynamicSelectOption[];
   dynamicSelectOptions: (field: FieldDefinition) => DynamicSelectOption[];
   handleAddOption: (field: FieldDefinition, label: string) => Promise<void>;
+  handleRecolorOption: (field: FieldDefinition, optionKey: string, color: string) => Promise<void>;
   handleDeleteOption: (field: FieldDefinition, optionKey: string) => Promise<void>;
   referenceOptions: (field: FieldDefinition) => ReferenceOption[];
   isFieldHidden: (field: FieldDefinition) => boolean;
@@ -73,7 +74,7 @@ export const useCustomFieldsSectionViewModel = (props: CustomFieldsSectionProps)
     errors,
     onMergeValues,
   } = props;
-  const { getOptions, addOption, removeOption } = useLookups();
+  const { getOptions, addOption, recolorOption, removeOption } = useLookups();
   const { tenantRole } = useTenant();
   const referenceOptionsByEntity = useReferenceOptions();
   const theme = useTheme();
@@ -194,6 +195,18 @@ export const useCustomFieldsSectionViewModel = (props: CustomFieldsSectionProps)
     [addOption, getOptions, theme],
   );
 
+  /**
+   * A cor sorteada na criação deixa de ser definitiva. A troca vale só para a opção CADASTRADA — a
+   * fixa vem em código, e regravá-la aqui não teria onde. Nada mais do documento é tocado: o rótulo
+   * é o texto do escritório e a chave é o que os registros já gravaram.
+   */
+  const handleRecolorOption = useCallback(
+    async (field: FieldDefinition, optionKey: string, color: string): Promise<void> => {
+      if (field.lookupCollection) await recolorOption(field.lookupCollection, optionKey, color);
+    },
+    [recolorOption],
+  );
+
   const handleDeleteOption = useCallback(
     async (field: FieldDefinition, optionKey: string): Promise<void> => {
       if (field.lookupCollection) await removeOption(field.lookupCollection, optionKey);
@@ -255,6 +268,7 @@ export const useCustomFieldsSectionViewModel = (props: CustomFieldsSectionProps)
     staticSelectOptions,
     dynamicSelectOptions,
     handleAddOption,
+    handleRecolorOption,
     handleDeleteOption,
     referenceOptions,
     isFieldHidden,

@@ -101,6 +101,9 @@ export const FieldControl: React.FC<{ field: FieldDefinition; vm: CustomFieldsSe
           placeholder={field.placeholder ?? t('action.select')}
           disabled={isDisabled}
           onAdd={field.optionsAllowUserAdd ? (label) => vm.handleAddOption(field, label) : undefined}
+          onRecolor={field.optionsAllowUserAdd
+            ? (optionKey, color) => vm.handleRecolorOption(field, optionKey, color)
+            : undefined}
           onDelete={field.optionsAllowUserAdd && vm.canDeleteOption
             ? (optionKey) => vm.handleDeleteOption(field, optionKey)
             : undefined}

@@ -181,6 +181,26 @@ export const RestoreBtn = styled.button`
   }
 `;
 
+export const RecolorBtn = styled.button<{ $open: boolean }>`
+  display: flex;
+  align-items: center;
+  padding: 2px 4px;
+  border-radius: ${({ theme }) => theme.borderRadius.sm};
+  color: ${({ theme, $open }) => $open ? theme.colors.primary : theme.colors.textMuted};
+  background: ${({ theme, $open }) => $open ? theme.colors.primaryLight : 'transparent'};
+  opacity: ${({ $open }) => $open ? 1 : 0};
+  transition:
+    opacity 150ms ease,
+    color 150ms ease,
+    background 150ms ease;
+  flex-shrink: 0;
+
+  &:hover {
+    color: ${({ theme }) => theme.colors.primary};
+    background: ${({ theme }) => theme.colors.surfaceHover};
+  }
+`;
+
 export const DeleteBtn = styled.button`
   display: flex;
   align-items: center;
@@ -218,9 +238,24 @@ export const OptionItem = styled.li<{ $active: boolean; $selected: boolean }>`
     background: ${({ theme }) => theme.colors.surfaceHover};
   }
 
-  &:hover ${DeleteBtn} {
+  &:hover ${DeleteBtn},
+  &:hover ${RecolorBtn} {
     opacity: 1;
   }
+`;
+
+/**
+ * A paleta abre como LINHA da própria lista, abaixo da opção — e não como um segundo flutuante. O
+ * dropdown já é um portal posicionado à mão; um popover dentro dele repetiria a conta de posição
+ * para ganhar treze bolinhas.
+ */
+export const PaletteRow = styled.li`
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 10px 14px 12px 34px;
+  background: ${({ theme }) => theme.colors.surfaceHover};
+  border-bottom: 1px solid ${({ theme }) => theme.colors.border};
 `;
 
 export const OptionText = styled.div`

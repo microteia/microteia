@@ -110,6 +110,7 @@ export const CORE_UI: Record<string, string> = {
   'dynamic-select.orphan.title':
     'Este valor não está mais na lista de opções — pode ter sido excluído. O conteúdo foi mantido no registro.',
   'dynamic-select.orphan.restore': 'Adicionar "{label}" à lista de opções',
+  'dynamic-select.option.recolor': 'Alterar a cor de {label}',
   'dynamic-select.option.delete': 'Excluir {label}',
 
   'expression.valid': 'Expressão válida ✓',

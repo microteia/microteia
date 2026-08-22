@@ -22,6 +22,14 @@ export const makeAddLookupOptionUseCase = (repo: ILookupRepository): AddLookupOp
   execute: (tenantId, collection, option, createdBy) => repo.create(tenantId, collection, option, createdBy),
 });
 
+export type RecolorLookupOptionUseCase = {
+  execute: (tenantId: string, collection: string, key: string, color: string) => Promise<void>;
+};
+
+export const makeRecolorLookupOptionUseCase = (repo: ILookupRepository): RecolorLookupOptionUseCase => ({
+  execute: (tenantId, collection, key, color) => repo.recolor(tenantId, collection, key, color),
+});
+
 export type RemoveLookupOptionUseCase = {
   execute: (tenantId: string, collection: string, key: string) => Promise<void>;
 };

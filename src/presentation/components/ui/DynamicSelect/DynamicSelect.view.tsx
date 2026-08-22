@@ -9,7 +9,9 @@ import {
   RiAddLine,
   RiErrorWarningLine,
   RiAddCircleLine,
+  RiPaletteLine,
 } from 'react-icons/ri';
+import { ColorSwatchPicker } from '../ColorSwatchPicker';
 import { ConfirmModal } from '../ConfirmModal';
 import { type DynamicSelectProps, useDynamicSelectViewModel } from './DynamicSelect.viewmodel';
 import * as S from './DynamicSelect.styles';
@@ -27,6 +29,8 @@ export const DynamicSelect: React.FC<DynamicSelectProps> = (props) => {
     pendingDelete,
     deleteLoading,
     addLoading,
+    recoloring,
+    palette,
     filtered,
     selectedOption,
     selectedOptions,
@@ -43,6 +47,8 @@ export const DynamicSelect: React.FC<DynamicSelectProps> = (props) => {
     handleClearAll,
     onQueryChange,
     handleKeyDown,
+    handleRecolorClick,
+    handlePickColor,
     handleDeleteClick,
     handleRestoreClick,
     handleConfirmDelete,
@@ -53,6 +59,7 @@ export const DynamicSelect: React.FC<DynamicSelectProps> = (props) => {
     disabled,
     multiSelect,
     hasOnAdd,
+    hasOnRecolor,
     hasOnDelete,
   } = useDynamicSelectViewModel(props);
 
@@ -149,46 +156,66 @@ export const DynamicSelect: React.FC<DynamicSelectProps> = (props) => {
               <S.EmptyMsg>{t('dynamic-select.no-results')}</S.EmptyMsg>
             ) : (
               filtered.map((opt, idx) => (
-                <S.OptionItem
-                  key={opt.value}
-                  $active={idx === activeIdx}
-                  $selected={isSelected(opt.value)}
-                  onMouseDown={() => handleSelect(opt.value)}
-                  onMouseEnter={() => setActiveIdx(idx)}
-                >
-                  {opt.isOrphan
-                    ? <S.OrphanIcon><RiErrorWarningLine size={13} /></S.OrphanIcon>
-                    : opt.color && <S.ColorDot $color={opt.color} />}
-                  <S.OptionText>
-                    <S.OptionLabel $orphan={opt.isOrphan}>{opt.label}</S.OptionLabel>
+                <React.Fragment key={opt.value}>
+                  <S.OptionItem
+                    $active={idx === activeIdx}
+                    $selected={isSelected(opt.value)}
+                    onMouseDown={() => handleSelect(opt.value)}
+                    onMouseEnter={() => setActiveIdx(idx)}
+                  >
                     {opt.isOrphan
-                      ? <S.OptionMeta>{t('dynamic-select.orphan.meta')}</S.OptionMeta>
-                      : opt.meta && <S.OptionMeta>{opt.meta}</S.OptionMeta>}
-                  </S.OptionText>
-                  {hasOnAdd && opt.isOrphan && (
-                    <S.RestoreBtn
-                      type="button"
-                      title={t('dynamic-select.orphan.restore', { label: opt.label })}
-                      onMouseDown={e => void handleRestoreClick(e, opt)}
-                    >
-                      <RiAddCircleLine size={15} />
-                    </S.RestoreBtn>
+                      ? <S.OrphanIcon><RiErrorWarningLine size={13} /></S.OrphanIcon>
+                      : opt.color && <S.ColorDot $color={opt.color} />}
+                    <S.OptionText>
+                      <S.OptionLabel $orphan={opt.isOrphan}>{opt.label}</S.OptionLabel>
+                      {opt.isOrphan
+                        ? <S.OptionMeta>{t('dynamic-select.orphan.meta')}</S.OptionMeta>
+                        : opt.meta && <S.OptionMeta>{opt.meta}</S.OptionMeta>}
+                    </S.OptionText>
+                    {hasOnAdd && opt.isOrphan && (
+                      <S.RestoreBtn
+                        type="button"
+                        title={t('dynamic-select.orphan.restore', { label: opt.label })}
+                        onMouseDown={e => void handleRestoreClick(e, opt)}
+                      >
+                        <RiAddCircleLine size={15} />
+                      </S.RestoreBtn>
+                    )}
+                    {hasOnRecolor && opt.isDynamic && opt.color && (
+                      <S.RecolorBtn
+                        type="button"
+                        $open={recoloring === opt.value}
+                        title={t('dynamic-select.option.recolor', { label: opt.label })}
+                        onMouseDown={e => handleRecolorClick(e, opt)}
+                      >
+                        <RiPaletteLine size={14} />
+                      </S.RecolorBtn>
+                    )}
+                    {hasOnDelete && opt.isDynamic && (
+                      <S.DeleteBtn
+                        type="button"
+                        title={t('dynamic-select.option.delete', { label: opt.label })}
+                        onMouseDown={e => handleDeleteClick(e, opt)}
+                      >
+                        <RiDeleteBin6Line size={13} />
+                      </S.DeleteBtn>
+                    )}
+                    {isSelected(opt.value) && (
+                      <S.CheckIcon>
+                        <RiCheckLine size={16} />
+                      </S.CheckIcon>
+                    )}
+                  </S.OptionItem>
+                  {recoloring === opt.value && (
+                    <S.PaletteRow onMouseDown={e => e.preventDefault()}>
+                      <ColorSwatchPicker
+                        colors={palette}
+                        value={opt.color ?? ''}
+                        onChange={color => void handlePickColor(opt.value, color)}
+                      />
+                    </S.PaletteRow>
                   )}
-                  {hasOnDelete && opt.isDynamic && (
-                    <S.DeleteBtn
-                      type="button"
-                      title={t('dynamic-select.option.delete', { label: opt.label })}
-                      onMouseDown={e => handleDeleteClick(e, opt)}
-                    >
-                      <RiDeleteBin6Line size={13} />
-                    </S.DeleteBtn>
-                  )}
-                  {isSelected(opt.value) && (
-                    <S.CheckIcon>
-                      <RiCheckLine size={16} />
-                    </S.CheckIcon>
-                  )}
-                </S.OptionItem>
+                </React.Fragment>
               ))
             )}
 

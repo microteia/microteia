@@ -23,6 +23,7 @@ export const LiteralOptionsControl: React.FC<LiteralOptionsControlProps> = ({ in
         value={value}
         onChange={onChange}
         onAdd={vm.onAdd}
+        onRecolor={vm.onRecolor}
         onDelete={vm.onDelete}
         placeholder={t('select.placeholder')}
       />

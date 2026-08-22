@@ -3,7 +3,7 @@
   "workflows": [],
   "manifest": {
     "id": "com.microteia.locale-pt-br",
-    "version": "1.11.0",
+    "version": "1.12.0",
     "kernel": "^1.0.0",
     "name": "Português (Brasil)",
     "description": "Tradução da Microteia para português do Brasil.",
@@ -127,6 +127,7 @@
             "dynamic-select.orphan.meta": "Fora da lista de opções",
             "dynamic-select.orphan.title": "Este valor não está mais na lista de opções — pode ter sido excluído. O conteúdo foi mantido no registro.",
             "dynamic-select.orphan.restore": "Adicionar \"{label}\" à lista de opções",
+            "dynamic-select.option.recolor": "Alterar a cor de {label}",
             "dynamic-select.option.delete": "Excluir {label}",
             "expression.valid": "Expressão válida ✓",
             "expression.error.unclosed-paren.one": "Falta fechar {count} parêntese",

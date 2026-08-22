@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [8.6.0] — 2026-08-22
+
+- Nas listas de opções coloridas, a cor de uma opção cadastrada no escritório passa a poder ser alterada. Ao abrir a lista, ao lado do botão de excluir aparece o de cor: um clique abre a mesma paleta usada nas etiquetas, e a escolha vale na hora, em todos os registros que usam aquela opção. Antes a cor era sorteada na criação e só mudava excluindo a opção e cadastrando outra.
+- A tradução para português acompanha o novo botão.
+
 #### [8.5.0] — 2026-08-22
 
 - A publicação passa a avisar quando uma função do servidor ficou para trás numa região antiga. Ao mudar a região, a cópia anterior continua existindo — e, além de impedir a publicação da nova, ela dispara em paralelo: cada gravação era registrada duas vezes na auditoria e contada duas vezes nos totais. A publicação agora identifica essas cópias antes de começar, explica o que está acontecendo e remove as antigas quando solicitado.

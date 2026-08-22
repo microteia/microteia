@@ -3283,6 +3283,34 @@ fecha o ciclo — a opção criada pelo usuário nasce colorida quando o campo d
 sai da paleta do tema a partir do azul, parando na primeira ainda não usada naquela lista, para que
 duas opções seguidas não saiam iguais.
 
+### A cor sorteada não é definitiva
+
+`nextLookupOptionColor` resolve o NASCIMENTO, e o sorteio acertar não era garantido: a opção criada
+ficava com a cor que sobrou na paleta, e o único jeito de mudá-la era excluir e cadastrar de novo —
+o que arrasta os registros que já gravaram aquela chave.
+
+O `DynamicSelect` ganhou `onRecolor?: (value, color) => Promise<void>`, ao lado do `onDelete` que já
+existia, e o botão nasce das MESMAS três condições que o de excluir mais uma: a opção é cadastrada
+(`isDynamic`), quem renderiza oferece a troca, **e a opção já TEM cor**. A última é o que preserva a
+lista sem cor: oferecer paleta ali pintaria o que ninguém pediu — a mesma frase que
+`nextLookupOptionColor` diz na criação, agora na edição.
+
+- **A paleta é a do tema** (`theme.tagColors`), lida no viewmodel do próprio `DynamicSelect`: é a
+  mesma do modal de etiquetas, e o rótulo de cada cor continua sendo a referência de mensagem
+  (`@core.ui/color.blue`) resolvida por `useLabel()` dentro do `ColorSwatchPicker`. Nada é passado
+  por prop — cor de produto não se recebe de fora.
+- **Abre como LINHA da lista** (`S.PaletteRow`, um `<li>` irmão da opção), não como segundo
+  flutuante: o dropdown já é um portal posicionado à mão, e um popover dentro dele repetiria a conta
+  de posição para ganhar treze bolinhas. Uma paleta por vez; `Escape` fecha a paleta antes do
+  dropdown, e pedir exclusão fecha a paleta — as duas ocupam o mesmo lugar.
+- **A gravação toca só `color`.** `ILookupRepository.recolor` endereça a opção pela CHAVE (o que o
+  `DynamicSelect` conhece, o mesmo caminho de `delete`) e não reescreve o rótulo: ele é o texto que o
+  escritório digitou.
+- **Permissão:** trocar a cor é o ato de quem cadastrou, e por isso acompanha `onAdd` —
+  `field.optionsAllowUserAdd`, sem o `canDeleteOption`. Excluir continua sendo de admin, porque é a
+  única das três que tira algo da lista. Nas regras, `documentTypes` ganhou `allow update` para
+  `canWriteInTenant`; as listas do Form Design já passavam pelo curinga de coleção declarada.
+
 ### Telas fixas por Schema — piloto (Pessoas)
 
 Primeiro passo de unificação: o formulário "Dados" de `ViewPerson` é renderizado pelo `CustomFieldsSection` a partir de um layout de código `presentation/pages/ViewPerson/personFormSchema.ts` (`PERSON_FORM_FIELDS: FieldDefinition[]`), em vez de campos escritos à mão. A visibilidade PF/PJ (antes `if type === ...` no JSX) agora é `logic.hiddenWhen` por campo.

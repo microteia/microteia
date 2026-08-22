@@ -111,6 +111,7 @@ export const CORE_UI_MESSAGES: Record<string, string> = {
   'dynamic-select.orphan.title':
     'This value is no longer in the option list — it may have been deleted. The content was kept on the record.',
   'dynamic-select.orphan.restore': 'Add "{label}" to the option list',
+  'dynamic-select.option.recolor': 'Change the color of {label}',
   'dynamic-select.option.delete': 'Delete {label}',
 
   'expression.valid': 'Valid expression ✓',

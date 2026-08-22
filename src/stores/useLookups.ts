@@ -13,6 +13,8 @@ export interface LookupStoreState {
   loading: boolean;
   getOptions: (collection: string) => LookupOption[];
   addOption: (collection: string, label: string, color?: string) => Promise<void>;
+  /** Troca a cor de uma opção CADASTRADA no escritório. As fixas (`isStatic`) vêm em código. */
+  recolorOption: (collection: string, key: string, color: string) => Promise<void>;
   removeOption: (collection: string, key: string) => Promise<void>;
   declareLookup: (collection: string, label: string) => Promise<void>;
 }

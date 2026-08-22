@@ -139,6 +139,9 @@ service cloud.firestore {
       match /documentTypes/{id} {
         allow read: if isMember(tenantId);
         allow create: if canWriteInTenant(tenantId);
+        // Trocar a cor de uma opção é o mesmo ato de quem a cadastrou, e não de gestão: quem cria
+        // edita. A exclusão continua sendo de admin, porque ela é a única que tira algo da lista.
+        allow update: if canWriteInTenant(tenantId);
         allow delete: if isTenantAdmin(tenantId);
       }
 

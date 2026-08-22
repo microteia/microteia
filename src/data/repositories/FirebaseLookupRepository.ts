@@ -7,6 +7,7 @@ import {
   orderBy,
   query,
   serverTimestamp,
+  updateDoc,
   where,
 } from 'firebase/firestore';
 import { db } from '../../infrastructure/firebase/config';
@@ -69,6 +70,17 @@ export class FirebaseLookupRepository implements ILookupRepository {
       createdAt: serverTimestamp(),
     });
     return { key: option.key, label: option.label, color: option.color, isStatic: false };
+  }
+
+  /**
+   * A opção é endereçada pela CHAVE, não pelo id do documento — é o que o `DynamicSelect` conhece,
+   * e é o mesmo caminho que `delete` percorre. A gravação toca só `color`: o rótulo é o que o
+   * escritório digitou, e uma troca de cor não pode reescrevê-lo.
+   */
+  async recolor(tenantId: string, collection: string, key: string, color: string): Promise<void> {
+    const ref = optionsRef(tenantId, collection);
+    const snap = await getDocs(query(ref, where('key', '==', key)));
+    await Promise.all(snap.docs.map((d) => updateDoc(doc(ref, d.id), { color })));
   }
 
   async delete(tenantId: string, collection: string, key: string): Promise<void> {

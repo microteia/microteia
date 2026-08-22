@@ -161,6 +161,7 @@ class FakeLookupOptions implements ILookupRepository {
     this.options[collection] = [...(this.options[collection] ?? []), option];
     return option;
   }
+  async recolor(): Promise<void> {}
   async delete(): Promise<void> {}
 }
 

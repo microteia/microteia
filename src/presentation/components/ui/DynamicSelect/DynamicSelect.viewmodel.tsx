@@ -1,6 +1,8 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import type React from 'react';
+import { useTheme } from 'styled-components';
 import { useAnchoredDropdown, type AnchoredDropdownPosition } from '../../../hooks/useAnchoredDropdown';
+import type { ColorSwatchOption } from '../ColorSwatchPicker';
 
 import { useT } from '../../../shared/i18n/useT';
 export interface DynamicSelectOption {
@@ -26,6 +28,11 @@ export interface DynamicSelectProps {
   placeholder?: string;
   disabled?: boolean;
   onAdd?: (label: string) => Promise<void>;
+  /**
+   * Troca a cor de uma opção CADASTRADA. Ausente, nada muda na lista — e mesmo presente o botão só
+   * aparece na opção que já TEM cor: oferecer paleta numa lista sem cor pintaria o que ninguém pediu.
+   */
+  onRecolor?: (value: string, color: string) => Promise<void>;
   onDelete?: (value: string) => Promise<void>;
   deleteConfirmTitle?: string;
   deleteConfirmMessage?: string;
@@ -39,6 +46,9 @@ export interface DynamicSelectViewModel {
   pendingDelete: InternalOption | null;
   deleteLoading: boolean;
   addLoading: boolean;
+  /** Valor da opção com a paleta aberta, ou `null`. Uma de cada vez. */
+  recoloring: string | null;
+  palette: ColorSwatchOption[];
   filtered: InternalOption[];
   selectedOption: InternalOption | undefined;
   selectedOptions: InternalOption[];
@@ -55,6 +65,8 @@ export interface DynamicSelectViewModel {
   handleClearAll: (e: React.MouseEvent) => void;
   onQueryChange: (q: string) => void;
   handleKeyDown: (e: React.KeyboardEvent) => void;
+  handleRecolorClick: (e: React.MouseEvent, item: InternalOption) => void;
+  handlePickColor: (value: string, color: string) => Promise<void>;
   handleDeleteClick: (e: React.MouseEvent, item: InternalOption) => void;
   handleRestoreClick: (e: React.MouseEvent, item: InternalOption) => Promise<void>;
   handleConfirmDelete: () => Promise<void>;
@@ -65,11 +77,13 @@ export interface DynamicSelectViewModel {
   disabled: boolean;
   multiSelect: boolean;
   hasOnAdd: boolean;
+  hasOnRecolor: boolean;
   hasOnDelete: boolean;
 }
 
 export const useDynamicSelectViewModel = (props: DynamicSelectProps): DynamicSelectViewModel => {
   const t = useT('core.ui');
+  const theme = useTheme();
   const {
     staticOptions = [],
     dynamicOptions = [],
@@ -81,6 +95,7 @@ export const useDynamicSelectViewModel = (props: DynamicSelectProps): DynamicSel
     placeholder = t('select.placeholder'),
     disabled = false,
     onAdd,
+    onRecolor,
     onDelete,
     deleteConfirmTitle = t('dynamic-select.option.delete.title'),
     deleteConfirmMessage: deleteConfirmMessageProp,
@@ -92,6 +107,7 @@ export const useDynamicSelectViewModel = (props: DynamicSelectProps): DynamicSel
   const [pendingDelete, setPendingDelete] = useState<InternalOption | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [addLoading, setAddLoading] = useState(false);
+  const [recoloring, setRecoloring] = useState<string | null>(null);
 
   const wrapperRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -154,11 +170,14 @@ export const useDynamicSelectViewModel = (props: DynamicSelectProps): DynamicSel
     [deleteConfirmMessageProp, pendingDelete, t]
   );
 
+  const palette = useMemo<ColorSwatchOption[]>(() => theme.tagColors, [theme]);
+
   const handleOpen = useCallback(() => {
     if (disabled) return;
     reposition();
     setQuery('');
     setActiveIdx(0);
+    setRecoloring(null);
     setOpen(true);
     setTimeout(() => searchRef.current?.focus(), 50);
   }, [disabled, reposition]);
@@ -200,6 +219,21 @@ export const useDynamicSelectViewModel = (props: DynamicSelectProps): DynamicSel
     }
   }, [onAdd, query]);
 
+  /**
+   * A paleta é UMA por vez, e o segundo clique no mesmo botão a fecha: a linha ocupa o lugar da
+   * lista, e deixar várias abertas empurraria as opções para fora do dropdown.
+   */
+  const handleRecolorClick = useCallback((e: React.MouseEvent, item: InternalOption) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setRecoloring((current) => (current === item.value ? null : item.value));
+  }, []);
+
+  const handlePickColor = useCallback(async (value: string, color: string) => {
+    setRecoloring(null);
+    await onRecolor?.(value, color);
+  }, [onRecolor]);
+
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     const maxIdx = filtered.length - 1 + (canAdd ? 1 : 0);
     if (e.key === 'ArrowDown') { e.preventDefault(); setActiveIdx(i => Math.min(i + 1, maxIdx)); }
@@ -212,8 +246,12 @@ export const useDynamicSelectViewModel = (props: DynamicSelectProps): DynamicSel
         handleSelect(filtered[activeIdx].value);
       }
     }
-    if (e.key === 'Escape') setOpen(false);
-  }, [filtered, canAdd, activeIdx, handleAdd, handleSelect]);
+    // A paleta aberta é a camada de cima: o Escape a fecha antes de fechar o dropdown inteiro.
+    if (e.key === 'Escape') {
+      if (recoloring) setRecoloring(null);
+      else setOpen(false);
+    }
+  }, [filtered, canAdd, activeIdx, handleAdd, handleSelect, recoloring]);
 
   const handleRestoreClick = useCallback(async (e: React.MouseEvent, item: InternalOption) => {
     e.stopPropagation();
@@ -231,6 +269,7 @@ export const useDynamicSelectViewModel = (props: DynamicSelectProps): DynamicSel
     e.stopPropagation();
     e.preventDefault();
     setOpen(false);
+    setRecoloring(null);
     setPendingDelete(item);
   }, []);
 
@@ -270,6 +309,8 @@ export const useDynamicSelectViewModel = (props: DynamicSelectProps): DynamicSel
     pendingDelete,
     deleteLoading,
     addLoading,
+    recoloring,
+    palette,
     filtered,
     selectedOption,
     selectedOptions,
@@ -286,6 +327,8 @@ export const useDynamicSelectViewModel = (props: DynamicSelectProps): DynamicSel
     handleClearAll,
     onQueryChange,
     handleKeyDown,
+    handleRecolorClick,
+    handlePickColor,
     handleDeleteClick,
     handleRestoreClick,
     handleConfirmDelete,
@@ -296,6 +339,7 @@ export const useDynamicSelectViewModel = (props: DynamicSelectProps): DynamicSel
     disabled,
     multiSelect,
     hasOnAdd: !!onAdd,
+    hasOnRecolor: !!onRecolor,
     hasOnDelete: !!onDelete,
   };
 };

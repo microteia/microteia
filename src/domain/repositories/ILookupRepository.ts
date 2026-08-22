@@ -12,5 +12,6 @@ export interface ILookupRepository {
   ): () => void;
   getAll(tenantId: string, collection: string): Promise<LookupOption[]>;
   create(tenantId: string, collection: string, option: LookupOption, createdBy: string): Promise<LookupOption>;
+  recolor(tenantId: string, collection: string, key: string, color: string): Promise<void>;
   delete(tenantId: string, collection: string, key: string): Promise<void>;
 }

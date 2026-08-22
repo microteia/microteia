@@ -18,6 +18,7 @@ export type LiteralOptionsViewModel =
       staticOptions: DynamicSelectOption[];
       dynamicOptions: DynamicSelectOption[];
       onAdd: (label: string) => Promise<void>;
+      onRecolor: (value: string, color: string) => Promise<void>;
       onDelete: (value: string) => Promise<void>;
     }
   | { mode: 'none' };
@@ -28,7 +29,7 @@ export type LiteralOptionsViewModel =
  */
 export const useLiteralOptionsViewModel = (input: InputDefinition): LiteralOptionsViewModel => {
   const theme = useTheme();
-  const { getOptions, addOption, removeOption } = useLookups();
+  const { getOptions, addOption, recolorOption, removeOption } = useLookups();
 
   if (input.options?.kind === 'Static') {
     return {
@@ -53,6 +54,7 @@ export const useLiteralOptionsViewModel = (input: InputDefinition): LiteralOptio
         .filter((option) => !option.isStatic)
         .map((option) => ({ value: option.key, label: option.label, color: resolveColor(option.color, theme, false) })),
       onAdd: (label: string) => addOption(collection, label),
+      onRecolor: (key: string, color: string) => recolorOption(collection, key, color),
       onDelete: (key: string) => removeOption(collection, key),
     };
   }

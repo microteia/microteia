@@ -7,6 +7,7 @@ import { useDI } from '../infrastructure/di/useDI';
 import {
   makeAddLookupOptionUseCase,
   makeDeclareLookupUseCase,
+  makeRecolorLookupOptionUseCase,
   makeRemoveLookupOptionUseCase,
   makeSubscribeLookupDefinitionsUseCase,
   makeSubscribeLookupOptionsUseCase,
@@ -45,6 +46,7 @@ export const LookupStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const uc = useMemo(() => ({
     subscribeOptions: makeSubscribeLookupOptionsUseCase(lookupRepository),
     addOption: makeAddLookupOptionUseCase(lookupRepository),
+    recolorOption: makeRecolorLookupOptionUseCase(lookupRepository),
     removeOption: makeRemoveLookupOptionUseCase(lookupRepository),
     subscribeDefinitions: makeSubscribeLookupDefinitionsUseCase(lookupDefinitionRepository),
     declare: makeDeclareLookupUseCase(lookupDefinitionRepository),
@@ -127,6 +129,12 @@ export const LookupStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
     await uc.addOption.execute(currentTenant.id, collection, { key: trimmed, label: trimmed, color }, user.id);
   }, [currentTenant, user, uc.addOption]);
 
+  const recolorOption = useCallback(async (collection: string, key: string, color: string) => {
+    if (!currentTenant) throw new Error('No tenant');
+    if (!collection) throw new LocalizedError('@core.records/field.no-lookup');
+    await uc.recolorOption.execute(currentTenant.id, collection, key, color);
+  }, [currentTenant, uc.recolorOption]);
+
   const removeOption = useCallback(async (collection: string, key: string) => {
     if (!currentTenant) throw new Error('No tenant');
     if (!collection) throw new LocalizedError('@core.records/field.no-lookup');
@@ -149,9 +157,10 @@ export const LookupStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
     loading,
     getOptions,
     addOption,
+    recolorOption,
     removeOption,
     declareLookup,
-  }), [optionsByCollection, definitions, availableLookups, loading, getOptions, addOption, removeOption, declareLookup]);
+  }), [optionsByCollection, definitions, availableLookups, loading, getOptions, addOption, recolorOption, removeOption, declareLookup]);
 
   return <LookupContext.Provider value={value}>{children}</LookupContext.Provider>;
 };
