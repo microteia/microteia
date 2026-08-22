@@ -11,6 +11,23 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [8.4.0] — 2026-08-21
+
+- Atualizar a plataforma deixou de pôr em risco a agilidade das telas trazidas por extensões. Ao trocar
+  de versão, a instalação perguntava se podia apagar do banco os atalhos de busca criados para as
+  extensões instaladas — inclusive de extensões apenas desativadas, que voltariam a ser usadas. Aceitar
+  aquela pergunta tornava lentas as telas dessas extensões. A instalação agora se lembra desses
+  atalhos e os preserva sozinha, sem perguntar nada.
+- Um atalho que sobrou de uma extensão removida passou a ser sempre informado ao fim da manutenção, com
+  o comando exato para descartá-lo quando se quiser. Antes ele deixava de ser mencionado justamente nos
+  dois momentos em que mais importava: depois de uma atualização da plataforma e quando era a última
+  extensão a sair.
+- O registro da instalação passou a dizer a verdade sobre qual versão está em uso: ele guardava a
+  anterior no intervalo entre receber uma versão nova e publicá-la, e agora mostra as duas — a que está
+  pronta e a que está no ar.
+- Ao perguntar a versão pela linha de comando, a resposta passou a incluir a versão da Microteia
+  instalada, e não apenas a da ferramenta de instalação.
+
 #### [8.3.1] — 2026-08-21
 
 - Corrigida a assistência do editor a quem escreve uma extensão: ao escrever os estilos de uma tela, as

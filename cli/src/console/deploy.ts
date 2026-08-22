@@ -5,6 +5,7 @@ import type { ParsedArgs } from '../shared/args.js';
 import { run } from '../shared/run.js';
 import { blank, bullets, failure, heading, info, step, success, warn } from '../shared/ui.js';
 import { ENVIRONMENT_FILE, readEnvironment, writeEnvironment } from './environment.js';
+import type { Environment } from './environment.js';
 import { FIREBASE_BIN } from './firebaseCli.js';
 import { deployFunctionsOneByOne } from './deployFunctions.js';
 import { checkCallables, invokerGrantCommand } from './callableAccess.js';
@@ -244,11 +245,17 @@ export const deploy = async (args: ParsedArgs): Promise<void> => {
     }
   }
 
-  await writeEnvironment(file, {
+  /**
+   * O que o `deploy` carimba é o `deployed`: o `version` já foi gravado pelo `unpack`, que é quem põe o
+   * pacote no lugar. Um número só mentia numa das duas pontas — entre desempacotar e publicar, o
+   * `MICROTEIA.md` anunciava a versão nova e o `microteia.yaml` ao lado dele, a anterior.
+   */
+  const applied: Environment = {
     ...environment,
     firebase: { ...environment.firebase, region },
-    kernel: { version: manifest.version },
-  });
+    kernel: { version: manifest.version, deployed: manifest.version },
+  };
+  await writeEnvironment(file, applied);
 
   // Um motor só: o que as extensões instaladas exigem é aplicado aqui, no fim do deploy, e pelo
   // `microteia provision` quando alguém instala uma extensão depois. Numa instalação nova não há nada
@@ -264,7 +271,7 @@ export const deploy = async (args: ParsedArgs): Promise<void> => {
       delaySeconds,
       prune: hasFlag(args, 'prune'),
       environmentFile: file,
-      environment: { ...environment, firebase: { ...environment.firebase, region }, kernel: { version: manifest.version } },
+      environment: applied,
     });
     if (provisioned.failed.length > 0) {
       failures.push(`${provisioned.failed.length} extension function(s): ${provisioned.failed.join(', ')}`);

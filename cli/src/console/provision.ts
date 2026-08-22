@@ -1,4 +1,3 @@
-import { readFile, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { hasFlag, requiredFlag, flagValue } from '../shared/args.js';
 import type { ParsedArgs } from '../shared/args.js';
@@ -14,6 +13,14 @@ import {
   indexKey,
 } from '../kernel/backendShape.js';
 import type { BackendClaim, FirestoreIndexSpec, PluginBackendRequirement } from '../kernel/backendShape.js';
+import {
+  convergeIndexes,
+  describeIndex,
+  parseIndexState,
+  readIndexFile,
+  serializeIndexState,
+  writeIndexFile,
+} from './backendIndexes.js';
 import { officeEnvPath, stageOfficeEnv } from './backendEnv.js';
 import { installPath, readInstalledManifest } from './unpack.js';
 import {
@@ -37,11 +44,6 @@ export interface InstalledClaim extends BackendClaim {
   tenantId: string;
   documentPath: string;
   applied: boolean;
-}
-
-interface IndexesFile {
-  indexes: FirestoreIndexSpec[];
-  fieldOverrides?: unknown[];
 }
 
 /**
@@ -159,27 +161,36 @@ export const provisionBackend = async (options: ProvisionOptions): Promise<Provi
 
   const valid = uniqueByPlugin(claims.filter((claim) => !rejected.has(claim.pluginId)));
 
+  /**
+   * Os índices são resolvidos ANTES do desvio de "nenhuma extensão exige nada" — e não depois, onde
+   * estavam. Desinstalar a única extensão com backend caía justamente naquele desvio, então o índice
+   * dela não era relatado por ninguém: o aviso existia para o caso de sobrar um órfão entre outras
+   * extensões, e faltava no caso de sobrar sozinho.
+   */
   if (valid.length === 0) {
     info('  no installed extension asks for backend artifacts');
+  } else {
+    info(`  ${valid.length} extension(s) ask for backend artifacts:`);
+    bullets(valid.map((claim) => `${claim.name} ${claim.version} (${claim.pluginId})`));
+  }
+
+  const settled = await settleIndexes(options, valid);
+
+  if (valid.length === 0) {
     await recordBackendState(
       options,
       parseAppliedFunctions(options.environment.backend.functions),
       parseParameterState(options.environment.backend.parameters),
+      settled.declared,
     );
+    reportOrphanIndexes(projectId, settled.orphans, options.prune);
     return outcome;
   }
-
-  info(`  ${valid.length} extension(s) ask for backend artifacts:`);
-  bullets(valid.map((claim) => `${claim.name} ${claim.version} (${claim.pluginId})`));
 
   const wantedFunctions = deployable.filter(
     (name) => valid.some((claim) => (claim.backend.functions ?? []).includes(name)),
   );
-  const wantedIndexes = claimedIndexes(valid);
   const alreadyApplied = parseAppliedFunctions(options.environment.backend.functions);
-
-  const previouslyDeclared = await declaredIndexes(install);
-  await applyIndexes(install, projectId, manifest.baselineIndexes ?? [], wantedIndexes);
 
   const trackedParameters = claimedParameters(valid);
   // A raiz, e não o `install/`: a fonte é o arquivo que o escritório edita ao lado do `microteia.yaml`.
@@ -295,50 +306,70 @@ export const provisionBackend = async (options: ProvisionOptions): Promise<Provi
       failed: outcome.failed,
       claims: valid,
     }),
+    settled.declared,
   );
-  reportOrphanIndexes(projectId, manifest.baselineIndexes ?? [], previouslyDeclared, wantedIndexes);
+  reportOrphanIndexes(projectId, settled.orphans, options.prune);
 
   return outcome;
 };
 
 /**
- * O arquivo do pacote é a BASELINE, e este passo faz o arquivo instalado CONVERGIR para
- * `baseline ∪ exigido` — reescrever a partir da baseline, em vez de acrescentar ao que está lá, é o que
- * faz o índice de uma extensão desinstalada desaparecer do arquivo em vez de acumular para sempre.
+ * O que o projeto tem de declarar de índice composto, e o que sobrou de uma extensão que saiu.
  *
- * `firebase deploy --only firestore:indexes` cria o que falta e nunca apaga o que sobra, então o deploy
- * é seguro e a remoção de verdade é assunto de `--prune`.
+ * A memória vem da RAIZ (`backend.indexes` do `microteia.yaml`), não do arquivo instalado: é o `unpack`
+ * que apaga `.microteia/install/` inteiro, e o pacote traz apenas a baseline. Enquanto o único registro
+ * era o arquivo de lá, trocar de kernel apagava a memória — e o `firebase deploy` seguinte oferecia
+ * apagar do PROJETO o índice de toda extensão instalada, o que é uma consulta em produção por resposta
+ * errada a uma pergunta feita no meio de um upgrade.
+ *
+ * O arquivo instalado entra na leitura só para ADOTAR o que uma execução anterior a este campo havia
+ * declarado. Passada essa vez, ele é derivado daqui.
  */
-const applyIndexes = async (
-  install: string,
-  projectId: string,
-  baseline: FirestoreIndexSpec[],
-  wanted: FirestoreIndexSpec[],
-): Promise<void> => {
-  const path = join(install, 'firestore.indexes.json');
-  const file = JSON.parse(await readFile(path, 'utf8')) as IndexesFile;
+const settleIndexes = async (
+  options: ProvisionOptions,
+  valid: InstalledClaim[],
+): Promise<{ declared: FirestoreIndexSpec[]; orphans: FirestoreIndexSpec[] }> => {
+  const baseline = options.manifest.baselineIndexes ?? [];
+  const baselineKeys = new Set(baseline.map(indexKey));
+  const file = await readIndexFile(options.install);
 
-  const desired = [...baseline];
-  const present = new Set(desired.map(indexKey));
-  for (const index of wanted) {
-    if (present.has(indexKey(index))) continue;
-    present.add(indexKey(index));
-    desired.push(index);
+  const remembered = new Map<string, FirestoreIndexSpec>();
+  for (const index of parseIndexState(options.environment.backend.indexes)) {
+    remembered.set(indexKey(index), index);
+  }
+  for (const index of file.indexes) {
+    if (!baselineKeys.has(indexKey(index))) remembered.set(indexKey(index), index);
   }
 
-  const current = new Set(file.indexes.map(indexKey));
-  const missing = desired.filter((index) => !current.has(indexKey(index)));
-  const changed = missing.length > 0 || file.indexes.length !== desired.length;
+  const wanted = claimedIndexes(valid);
+  const wantedKeys = new Set(wanted.map(indexKey));
+  const orphans = [...remembered.values()].filter((index) => !wantedKeys.has(indexKey(index)));
 
-  if (!changed) {
+  /**
+   * O órfão CONTINUA declarado, a não ser que se peça `--prune`. Deixá-lo cair fora do arquivo é o que
+   * fazia o `firebase` oferecer a exclusão dele; mantê-lo declarado custa nada (o índice já existe) e
+   * torna a remoção um ato explícito. Com `--prune` ele sai do arquivo e da memória — e é a próxima
+   * publicação de índices que oferece apagá-lo do projeto, com a pergunta feita na hora certa.
+   */
+  const declared = options.prune ? wanted : [...wanted, ...orphans];
+  const convergence = convergeIndexes(file.indexes, baseline, declared);
+
+  if (!convergence.changed) {
     if (wanted.length > 0) success('the composite indexes these extensions need are already declared');
-    return;
+    return { declared, orphans };
   }
 
-  await writeFile(path, `${JSON.stringify({ ...file, indexes: desired }, null, 2)}\n`);
-  if (missing.length === 0) return;
-  info(`  creating ${missing.length} composite index(es)…`);
-  await run(FIREBASE_BIN, ['deploy', '--only', 'firestore:indexes', '--project', projectId], { cwd: install });
+  await writeIndexFile(options.install, { ...file, indexes: convergence.desired });
+
+  if (convergence.missing.length === 0) return { declared, orphans };
+
+  info(`  creating ${convergence.missing.length} composite index(es)…`);
+  await run(
+    FIREBASE_BIN,
+    ['deploy', '--only', 'firestore:indexes', '--project', options.projectId],
+    { cwd: options.install },
+  );
+  return { declared, orphans };
 };
 
 const checkNewCallables = async (
@@ -423,33 +454,41 @@ const settleOrphans = async (options: ProvisionOptions, orphans: string[]): Prom
 };
 
 /**
- * Índice órfão é RELATADO com o comando, nunca apagado: `firebase deploy` não remove índice, e a API
- * que remove pede o id GERADO do índice — apagar às cegas o índice errado custa uma consulta em
- * produção, e listá-lo custa três linhas de saída.
+ * Índice órfão é RELATADO, nunca apagado às cegas: o `firebase deploy` não remove índice por conta, e a
+ * API que remove pede o id GERADO do índice — apagar o errado custa uma consulta em produção, e listá-lo
+ * custa três linhas de saída.
+ *
+ * O que mudou é que ele segue DECLARADO enquanto ninguém pedir o contrário. Antes ele caía fora do
+ * arquivo, e a exclusão acabava sendo oferecida pelo `firebase` na publicação seguinte — uma pergunta
+ * sobre a coleção de uma extensão, feita no meio de um upgrade, a quem está lendo saída de deploy.
  */
-const declaredIndexes = async (install: string): Promise<FirestoreIndexSpec[]> => {
-  const file = JSON.parse(
-    await readFile(join(install, 'firestore.indexes.json'), 'utf8'),
-  ) as IndexesFile;
-  return file.indexes;
-};
-
 const reportOrphanIndexes = (
   projectId: string,
-  baseline: FirestoreIndexSpec[],
-  previouslyDeclared: FirestoreIndexSpec[],
-  wanted: FirestoreIndexSpec[],
+  orphans: FirestoreIndexSpec[],
+  prune: boolean,
 ): void => {
-  const keep = new Set([...baseline, ...wanted].map(indexKey));
-  const orphans = previouslyDeclared.filter((index) => !keep.has(indexKey(index)));
   if (orphans.length === 0) return;
 
   blank();
   warn(`${orphans.length} composite index(es) belong to extensions that are no longer installed:`);
-  bullets(orphans.map((index) => `${index.collectionGroup} (${index.fields.map((f) => f.fieldPath).join(', ')})`));
-  warn('  a deploy never deletes an index. Remove them in the Firebase console (Firestore, Indexes),');
-  warn('  or list the generated ids with:');
-  bullets([`gcloud firestore indexes composite list --project=${projectId}`]);
+  bullets(orphans.map(describeIndex));
+
+  if (!prune) {
+    info('  they stay declared, so no deploy offers to delete them, and they cost only writes on the');
+    info('  collections they cover. To let them go:');
+    bullets(['microteia provision --prune']);
+    blank();
+    return;
+  }
+
+  warn('  --prune removed them from this installation, and nothing deleted them from the project:');
+  info('  the delete API needs each index\'s generated id, and guessing wrong costs a query in');
+  info('  production. The next index publish offers to delete them, and you answer it deliberately:');
+  bullets([
+    'microteia deploy --only indexes',
+    `gcloud firestore indexes composite list --project=${projectId}`,
+  ]);
+  blank();
 };
 
 /**
@@ -503,12 +542,29 @@ const recordBackendState = async (
   options: ProvisionOptions,
   names: string[],
   parameters: Map<string, string>,
+  indexes: FirestoreIndexSpec[],
 ): Promise<void> => {
+  const state = serializeIndexState(indexes);
+
+  /**
+   * Índice que a codificação não representa sem ambiguidade fica de fora COM AVISO, em vez de voltar do
+   * arquivo virado noutro índice. Só acontece com nome de coleção ou de campo que contenha um dos
+   * separadores, o que exigiria acento grave no caminho do campo — e "só aconteceria" é como um defeito
+   * silencioso começa.
+   */
+  if (state.skipped.length > 0) {
+    warn(`${state.skipped.length} composite index(es) cannot be remembered across a kernel upgrade:`);
+    bullets(state.skipped.map(describeIndex));
+    info('  a collection or field name uses one of the separators. Rename it, or a future');
+    info('  "microteia deploy" will offer to delete the index.');
+  }
+
   await writeEnvironment(options.environmentFile, {
     ...options.environment,
     backend: {
       functions: names.length === 0 ? null : names.join(','),
       parameters: serializeParameterState(parameters),
+      indexes: state.value,
     },
   });
 };
@@ -524,10 +580,19 @@ export const provision = async (args: ParsedArgs): Promise<void> => {
   if (projectId === null) {
     throw new Error('This installation is not connected yet. Run "microteia connect --project <id>".');
   }
-  if (environment.kernel.version === null) {
-    throw new Error(
-      'No kernel is deployed yet. Run "microteia unpack --kernel <package>.tgz" and then "microteia deploy".',
-    );
+  /**
+   * Quem recusa não haver pacote no lugar é o `readInstalledManifest` abaixo, e com o comando que falta.
+   * A pergunta aqui é outra: houve deploy? Provisionar sobe a function de uma EXTENSÃO, e fazer isso
+   * contra um projeto que nunca recebeu o kernel entrega uma extensão pendurada num backend que não
+   * existe.
+   *
+   * É aviso e não recusa porque uma instalação anterior ao campo `deployed` não tem como provar que foi
+   * publicada — e recusar por falta de prova impediria de provisionar uma instalação que está no ar.
+   */
+  if (environment.kernel.deployed === null) {
+    warn('there is no record of a kernel deploy in this installation.');
+    info('  if this project has never had one, run "microteia deploy" first: provisioning gives the');
+    info('  installed extensions their backend, not the platform itself.');
   }
 
   // Pela mesma porta que o `deploy` usa: ela recusa com o comando que falta, e confere a versão mínima

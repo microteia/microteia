@@ -55,7 +55,18 @@ export const repoRoot = resolve(here, '..', '..', '..');
  * ao diretório, porque o npm reescreve a dependência com o caminho que recebe, e um absoluto no
  * `package.json` mataria a portabilidade que o relativo existe para dar.
  *
+ * Em `2.4.0`: o índice composto de uma extensão passa a sobreviver à troca de kernel. Ele era registrado
+ * só no `firestore.indexes.json` de dentro de `.microteia/install/`, que o `unpack` apaga inteiro — e o
+ * pacote traz apenas a baseline, porque o que uma extensão reivindica sai dela para não viajar até quem
+ * não a instalou. O resultado era o `microteia deploy` PERGUNTANDO, no meio de um upgrade, se podia
+ * apagar do projeto o índice de toda extensão instalada; e o aviso de índice órfão, que lia a mesma
+ * memória, emudecia justamente ali. A memória mudou para `backend.indexes` do `microteia.yaml`, na raiz,
+ * e o `unpack` devolve ao arquivo o que ela lembra antes de qualquer comando poder publicá-lo. No mesmo
+ * passo, o `kernel.version` do `microteia.yaml` deixa de mentir entre desempacotar e publicar: ele é
+ * gravado pelo `unpack`, e `kernel.deployed` — novo — é o que o `deploy` carimba. E `--version` responde
+ * as três, porque quem pergunta a versão quase nunca quer a da ferramenta.
+ *
  * Ela NÃO acompanha o `version` do produto, e não é obrigada a andar junto do `MINIMUM_CLI_VERSION`:
  * este último só se move quando o PACOTE passa a depender de algo que o Console faz.
  */
-export const CLI_VERSION = '2.3.0';
+export const CLI_VERSION = '2.4.0';

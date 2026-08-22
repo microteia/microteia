@@ -9,7 +9,16 @@ export interface Environment {
   project: { name: string };
   environment: { id: string; name: string };
   firebase: { projectId: string | null; region: string };
-  kernel: { version: string | null };
+  /**
+   * `version` é o kernel EM VIGOR nesta instalação — quem o grava é o `unpack`, que é o comando que o
+   * põe no lugar. `deployed` é o que já foi publicado no projeto, gravado pelo `deploy`.
+   *
+   * São dois porque a separação entre `unpack` e `deploy` é o contrato: existe um intervalo legítimo em
+   * que o pacote está no lugar e não foi publicado. Um campo só mentia numa das duas pontas — e mentia
+   * na que se olha, porque o `MICROTEIA.md` reescrito pelo `unpack` já anunciava a versão nova enquanto
+   * o `microteia.yaml` ao lado dele seguia na anterior.
+   */
+  kernel: { version: string | null; deployed: string | null };
   /**
    * Quais Cloud Functions de EXTENSÃO já foram deployadas neste projeto. Fica aqui, e não no banco,
    * porque é estado da instalação e não do escritório — e é o que permite ao `provision` deployar só o
@@ -28,6 +37,12 @@ export interface Environment {
      * comando repara nisso.
      */
     parameters: string | null;
+    /**
+     * Os índices compostos declarados por causa de uma extensão — ver `backendIndexes.ts`. Fica na
+     * RAIZ porque tem de sobreviver ao `unpack`, que apaga `.microteia/install/` inteiro e devolve o
+     * `firestore.indexes.json` do pacote, que é só a baseline.
+     */
+    indexes: string | null;
   };
 }
 
@@ -116,10 +131,14 @@ export const parseEnvironment = (source: string): Environment => {
       projectId: optional('firebase', 'projectId'),
       region: required('firebase', 'region'),
     },
-    kernel: { version: optional('kernel', 'version') },
+    kernel: {
+      version: optional('kernel', 'version'),
+      deployed: optional('kernel', 'deployed'),
+    },
     backend: {
       functions: optional('backend', 'functions'),
       parameters: optional('backend', 'parameters'),
+      indexes: optional('backend', 'indexes'),
     },
   };
 };
@@ -145,18 +164,28 @@ firebase:
   region: ${quote(environment.firebase.region)}
 
 kernel:
+  # The version in place in this installation, written by "microteia unpack".
   version: ${quote(environment.kernel.version)}
+  # The version already published to the Firebase project, written by "microteia deploy". It trails
+  # the one above between taking a package and publishing it, which is what those two commands are
+  # separate for.
+  deployed: ${quote(environment.kernel.deployed)}
 
 backend:
   # Cloud Functions deployed because an installed extension asked for them. Managed by
   # "microteia provision" — editing it by hand only makes the next run deploy or keep the wrong set.
   functions: ${quote(environment.backend.functions)}
   # A fingerprint of each backend setting already applied from .env.<projectId> (next to this file).
-  # It is how
-  # "microteia provision" notices a setting filled in after the deploy and redeploys the functions
-  # that carry it. It holds no value, only a salted digest of each one — editing it by hand only makes
+  # It is how "microteia provision" notices a setting filled in after the deploy and redeploys the
+  # functions that carry it. It holds no value, only a salted digest of each one — editing it by hand only makes
   # the next run redeploy, or skip, the wrong set.
   parameters: ${quote(environment.backend.parameters)}
+  # Composite indexes declared because an installed extension asked for them. It has to live here,
+  # and not only in the unpacked package, because "microteia unpack" replaces that whole directory
+  # and the package carries only the kernel's own indexes. Without it, a kernel upgrade made
+  # "firebase deploy" offer to delete the indexes of every extension. Managed by
+  # "microteia provision".
+  indexes: ${quote(environment.backend.indexes)}
 `;
 
 export const readEnvironment = async (path: string): Promise<Environment> => {

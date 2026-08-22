@@ -929,16 +929,56 @@ isso que `functionClaimProblems` a confere contra `manifest.functions` antes de 
 fora do pacote é recusado com explicação. Não há injeção possível — o código executado é sempre o do
 pacote — e índice não tem efeito de segurança.
 
-O provisionamento converge: reescreve `firestore.indexes.json` como `baseline ∪ exigido` (em vez de
-acrescentar ao que está lá, o que acumularia índice de extensão desinstalada para sempre), deploya as
-functions que faltam uma a uma, confere o alcance das callables novas e imprime os `prerequisites` das
-extensões envolvidas e os `parameters` ainda vazios — o `ensureBackendEnv` grava `NOME=` em silêncio,
-que é o certo para o deploy e insuficiente para quem precisa preencher.
+O provisionamento converge: reescreve `firestore.indexes.json` como `baseline ∪ exigido ∪ lembrado`,
+deploya as functions que faltam uma a uma, confere o alcance das callables novas e imprime os
+`prerequisites` das extensões envolvidas e os `parameters` ainda vazios — o `ensureBackendEnv` grava
+`NOME=` em silêncio, que é o certo para o deploy e insuficiente para quem precisa preencher.
 
 A lista de functions aplicadas em `microteia.yaml` também converge, e por acréscimo e não por
 substituição: `(aplicado ∩ exigido) ∪ subido agora ∪ órfão que sobrou` (`appliedAfterRun`). Reescrevê-la
 só com o que subiu **nesta** execução a esvaziava na segunda passada — e a terceira redeployava as cinco
 functions do Gmail achando que nenhuma existia.
+
+#### Índice de extensão que sobrevive à troca de kernel — `backend.indexes` no `microteia.yaml`
+
+O `lembrado` da frase acima é o que faltava, e a falta tinha um caminho exato: provisiona-se (o índice da
+extensão entra no `firestore.indexes.json` de dentro de `install/` e é criado no projeto), desativa-se a
+extensão — o índice fica, e é o certo —, troca-se de kernel, e o `microteia deploy` **pergunta se pode
+apagar índices**.
+
+Ele pergunta porque as duas pontas se somam. O `unpack` apaga `.microteia/install/` inteiro, de propósito:
+é o que faz o upgrade ser confiável. E o pacote traz **só a baseline** — o índice reivindicado por uma
+extensão sai dela no `pack`, para não viajar até quem não a instalou. O arquivo volta incompleto, o
+`firebase deploy --only firestore:indexes` acha no projeto o que o arquivo não declara, e oferece a
+exclusão. Responder "sim" a uma pergunta feita no meio de um upgrade custa uma consulta em produção.
+
+O agravante era o mesmo de sempre: `reportOrphanIndexes` lia a MESMA memória apagada, então o aviso que
+existe para o índice órfão não passar em branco emudecia exatamente ali.
+
+**O que fecha:** `backend.indexes` no `microteia.yaml` (`console/backendIndexes.ts`), pelo mesmo motivo
+que `backend.functions` está lá — a raiz sobrevive ao `unpack`, `.microteia/` não. E quem apaga é quem
+repara: o `unpack` devolve ao arquivo recém-trocado o que a raiz lembra, **antes** de qualquer comando
+poder publicá-lo. Não pode ser o provisionamento a fazer isso: no `deploy`, o passo de índices vem antes
+dele, e a pergunta aconteceria de qualquer forma.
+
+| Decisão | Por quê |
+|---|---|
+| a memória fica na RAIZ, não no arquivo instalado | `.microteia/` é descartável por contrato; guardar estado ali é guardá-lo no que o upgrade apaga. Era a assimetria com `backend.functions`, que já morava na raiz |
+| quem repara o arquivo é o `unpack`, não o `provision` | o passo `indexes` do `deploy` roda antes do provisionamento, que é no fim. Reparar só no provisionamento deixaria a pergunta acontecer |
+| índice órfão **continua declarado** até alguém pedir `--prune` | era ele cair fora do arquivo que fazia o `firebase` oferecer a exclusão. Mantê-lo custa nada — o índice já existe — e torna a remoção um ato explícito |
+| com `--prune` ele sai do arquivo e **não** é apagado do projeto | a API que remove pede o id GERADO do índice, e apagar o errado custa uma consulta em produção. A publicação seguinte oferece apagá-lo, e aí a pergunta é a resposta a um pedido |
+| codificação legível (`auditLogs:tenantId+,createdAt-`), não um blob | o arquivo fica ao lado das Cloud Functions do escritório e é lido por quem instala. `;` separa índices, `,` separa campos, `/group` marca `COLLECTION_GROUP` (o `/` é ilegal em id de coleção), e a marca de ordenação é o ÚLTIMO caractere do campo — é o que permite um campo chamado `order-date` |
+| nome com separador é **recusado com aviso**, não deturpado | um caminho de campo com `;` ou `:` exigiria acento grave, mas "só aconteceria" é como um defeito silencioso começa. Fica de fora da memória, dizendo qual e por quê |
+| entrada que não decodifica é **descartada**, não fatal | o pior caso de descartar é perder a memória de um índice, que é o comportamento anterior a este mecanismo; o pior caso de lançar é um `microteia.yaml` editado à mão impedir um upgrade — e o arquivo É editado à mão |
+
+Na primeira execução depois desta versão não há nada lembrado, então um upgrade feito AGORA numa
+instalação que já tem índice de extensão ainda vê a pergunta uma vez: não há de onde recuperar a memória
+que nunca foi gravada. Responder "não" a ela é o que a preserva, e o `provision` seguinte a registra.
+
+O relato de órfão também mudou de lugar: ele era emitido depois do desvio de "nenhuma extensão exige
+nada", então desinstalar a ÚNICA extensão com backend caía justamente naquele desvio e o índice dela não
+era relatado por ninguém. O aviso existia para o órfão que sobra entre outras extensões, e faltava no
+caso de ele sobrar sozinho.
 
 #### Parâmetro preenchido depois do deploy — a impressão digital em `microteia.yaml`
 
@@ -995,9 +1035,10 @@ mostra o selo "Backend pendente" e o comando a rodar, porque quem lê aquela tel
 necessariamente quem tem acesso ao projeto.
 
 **Remover é opt-in.** Function que nenhuma extensão instalada reivindica mais é **relatada**; só
-`microteia provision --prune` a apaga. Índice órfão é sempre apenas relatado, com o comando: o
-`firebase deploy` não remove índice, e a API que remove pede o id gerado — apagar o índice errado às
-cegas custa uma consulta em produção, e listá-lo custa três linhas de saída.
+`microteia provision --prune` a apaga. Índice órfão nunca é apagado por comando nenhum: a API que remove
+pede o id GERADO do índice, e apagar o errado às cegas custa uma consulta em produção. Ele segue
+**declarado** e relatado — o que é o que impede o `firebase` de oferecer a exclusão por conta —, e
+`--prune` o solta do arquivo, deixando a próxima publicação de índices fazer a pergunta a quem a pediu.
 
 **Um admin do escritório pode forjar o `backendState`** (a regra de `installed_extensions` permite
 escrita de admin). O efeito é ele carregar no próprio navegador uma extensão cujas functions não
@@ -1010,10 +1051,11 @@ seria tornar a coleção somente-servidor e perder instalar/desinstalar pela apl
 |---|---|
 | `microteia init` | grava o `microteia.yaml` e o `.gitignore` — UMA instalação ligada a UM projeto Firebase |
 | `microteia connect --project <id>` | acha ou cria o app web, lê o `apps:sdkconfig`, guarda em `.microteia/` |
-| `microteia unpack --kernel <tgz>` | põe o pacote em `.microteia/install` e escreve no `.env.<projectId>` o que faltar. Não toca no Firebase |
+| `microteia unpack --kernel <tgz>` | põe o pacote em `.microteia/install`, grava `kernel.version` no `microteia.yaml`, devolve ao `firestore.indexes.json` os índices lembrados e escreve no `.env.<projectId>` o que faltar. Não toca no Firebase |
 | `microteia deploy [--only ...]` | carimba e aplica rules → índices → functions → hosting do que está no lugar, e provisiona no fim |
 | `microteia provision [--prune]` | dá às extensões instaladas as functions e os índices que elas exigem |
 | `microteia plugin-init` | prepara `extensions/`, para escrever extensão em TypeScript (o `unpack` o mantém em dia) |
+| `microteia --version` | a versão do Console, a do kernel que está no lugar e a que o projeto roda |
 
 O `provision` existe separado do `deploy` porque instalar uma extensão é um gesto de dentro da
 aplicação, e não um deploy: depois dele, o que falta é aplicar os artefatos — sem reenviar o kernel nem
@@ -1134,6 +1176,14 @@ cada atualização do CLI do cliente — que não é uma versão que possamos fi
 O `microteia.yaml` é lido por um subconjunto declarado de YAML (mapas de dois níveis, escalares), e
 não por uma dependência nova. O que ele não entende ele **rejeita com o número da linha**, em vez de
 adivinhar.
+
+As DUAS versões de kernel que ele guarda são um par de propósito: `kernel.version` é o que está no lugar
+(gravado pelo `unpack`) e `kernel.deployed` é o que o projeto roda (gravado pelo `deploy`). Um número só
+mentia numa das duas pontas — e mentia na que se olha, porque o `MICROTEIA.md`, reescrito pelo `unpack`,
+já anunciava a versão nova enquanto o `microteia.yaml` ao lado dele seguia na anterior. O intervalo entre
+os dois não é anomalia: é o que os dois comandos existem para permitir. Numa instalação anterior ao campo
+`deployed`, o `unpack` adota como publicado o `version` que estava lá — aquele número foi gravado por um
+`deploy`.
 
 O Console redeclara a forma da configuração de runtime (`cli/src/console/runtimeConfigShape.ts`)
 porque precisa poder ser publicado sem o `src/` do kernel junto. Para que as duas pontas não se
@@ -6673,7 +6723,8 @@ A tabela abaixo é **derivada** do `firestore.indexes.json` e existe só para re
 
 A coluna **Dono** diz quem responde pelo índice. Índice de extensão é declarado no `manifest.backend`
 dela e **não fica aqui**: ele é criado no projeto do escritório quando a extensão é instalada, pelo
-`microteia provision`. Ver "Artefatos de backend por extensão".
+`microteia provision`, e quem o lembra entre trocas de kernel é o `backend.indexes` do `microteia.yaml`
+daquela instalação. Ver "Artefatos de backend por extensão".
 
 | Coleção | Campos | Dono | Query que o exige |
 |---|---|---|---|

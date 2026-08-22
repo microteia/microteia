@@ -11,6 +11,7 @@ import { unpack } from './console/unpack.js';
 import { deploy } from './console/deploy.js';
 import { provision } from './console/provision.js';
 import { pluginInit } from './console/pluginWorkspace.js';
+import { versionReport } from './console/versions.js';
 
 interface Command {
   name: string;
@@ -115,7 +116,7 @@ const main = async (): Promise<number> => {
   }
 
   if (name === '--version' || name === '-v') {
-    info(CLI_VERSION);
+    for (const line of await versionReport(process.cwd())) info(line);
     return 0;
   }
 

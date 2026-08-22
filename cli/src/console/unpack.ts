@@ -7,7 +7,8 @@ import { run } from '../shared/run.js';
 import { blank, bullets, heading, info, success, warn } from '../shared/ui.js';
 import { compareVersions } from '../kernel/manifest.js';
 import type { KernelManifest } from '../kernel/manifest.js';
-import { ENVIRONMENT_FILE, readEnvironment } from './environment.js';
+import { ENVIRONMENT_FILE, readEnvironment, writeEnvironment } from './environment.js';
+import { describeIndex, parseIndexState, restoreDeclaredIndexes } from './backendIndexes.js';
 import { refreshAuthoringWorkspace } from './pluginWorkspace.js';
 import { workspacePath } from './workspace.js';
 import { ensureOfficeEnv, ensureRootGitignore, officeEnvName } from './backendEnv.js';
@@ -164,6 +165,47 @@ export const unpack = async (args: ParsedArgs): Promise<void> => {
 
   if (manifest.sdk !== undefined) {
     info(`  authoring SDK ${manifest.sdk.version} included — see "microteia plugin-init"`);
+  }
+
+  /**
+   * O `microteia.yaml` passa a dizer o que está no lugar, e é AQUI que ele é gravado. Ele só era
+   * escrito no fim do `deploy`, então entre desempacotar e publicar o arquivo anunciava a versão
+   * anterior — e o `MICROTEIA.md`, reescrito três linhas abaixo, já anunciava a nova. Duas fontes
+   * no mesmo diretório discordando é o tipo de coisa que se descobre pela dúvida de alguém.
+   *
+   * `deployed` fica para o `deploy`. Numa instalação anterior a este campo ele nasce do `version` que
+   * estava lá: aquele número foi gravado por um `deploy`, então é o que já foi publicado — sem isso, o
+   * `provision` diria "nenhum kernel publicado" a uma instalação que está no ar.
+   */
+  const deployed = environment.kernel.deployed ?? environment.kernel.version;
+  await writeEnvironment(file, {
+    ...environment,
+    kernel: { version: manifest.version, deployed },
+  });
+  success(`recorded kernel ${manifest.version} in ${ENVIRONMENT_FILE}`);
+  if (deployed !== null && deployed !== manifest.version) {
+    info(`  ${deployed} is still what the project runs — "microteia deploy" is what changes that`);
+  }
+
+  /**
+   * E os índices das extensões voltam ao arquivo que acabou de ser substituído.
+   *
+   * O pacote traz só a baseline: o que uma extensão reivindica sai dela no `pack`, para não viajar até
+   * quem não instalou a extensão. Como este comando apaga `install/` inteiro, sem este passo o arquivo
+   * volta à baseline e a publicação de índices seguinte acha no projeto índices que o arquivo não
+   * declara — e PERGUNTA se pode apagá-los, no meio de um upgrade.
+   *
+   * Quem apaga é quem repara, e antes de qualquer comando poder publicar o arquivo incompleto.
+   */
+  const recorded = parseIndexState(environment.backend.indexes);
+  if (recorded.length > 0) {
+    const restored = await restoreDeclaredIndexes(install, manifest.baselineIndexes ?? [], recorded);
+    success(`kept ${recorded.length} composite index(es) of installed extensions in firestore.indexes.json`);
+    if (restored.length > 0) {
+      info('  this package does not declare them, and publishing indexes would have offered to');
+      info('  delete them from the project:');
+      bullets(restored.map(describeIndex));
+    }
   }
 
   // A região é do PACOTE, não do arquivo: as Cloud Functions são compiladas com ela fixa.

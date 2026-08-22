@@ -260,3 +260,102 @@ describe('como o unpack preserva o cache entre versões', () => {
     expect(bloco).toContain('throw error;');
   });
 });
+
+/**
+ * O índice de extensão sobrevivia ao `unpack` por acidente, e deixou de sobreviver quando ninguém olhava.
+ *
+ * O relato: provisiona-se (o índice da extensão entra no `firestore.indexes.json` de dentro de
+ * `install/` e é criado no projeto), desativa-se a extensão — o índice fica, e é o certo —, troca-se de
+ * kernel, e o `microteia deploy` pergunta se pode apagar índices. Ele pergunta porque o `unpack` apagou
+ * `install/` inteiro e o pacote traz só a BASELINE: o que uma extensão reivindica sai dela no `pack`,
+ * para não viajar até quem não a instalou. O arquivo voltou incompleto, e o `firebase` acha no projeto
+ * o que o arquivo não declara.
+ *
+ * Duas coisas faltavam, e as duas estão aqui: a memória tem de morar na RAIZ, que sobrevive ao `unpack`,
+ * e quem apaga tem de reparar antes de qualquer comando poder publicar o arquivo incompleto.
+ */
+describe('a memória dos índices de extensão entre versões do kernel', () => {
+  const provision = source('console/provision.ts');
+  const environment = source('console/environment.ts');
+  const deploy = source('console/deploy.ts');
+
+  /** O mesmo motivo de `backend.functions` estar lá: `.microteia/` é descartável, a raiz não. */
+  it('mora no microteia.yaml da raiz, ao lado do estado das functions', () => {
+    expect(environment).toContain('indexes: optional(\'backend\', \'indexes\')');
+    expect(environment).toContain('indexes: ${quote(environment.backend.indexes)}');
+    expect(provision).toContain('serializeIndexState(indexes)');
+  });
+
+  it('quem apaga o install é quem devolve os índices a ele', () => {
+    expect(unpack).toContain('restoreDeclaredIndexes');
+    expect(unpack).toContain('parseIndexState(environment.backend.indexes)');
+  });
+
+  /**
+   * O passo de índices do `deploy` roda ANTES do provisionamento, que é no fim. Reparar o arquivo só no
+   * provisionamento deixaria a pergunta acontecer de qualquer forma — por isso é o `unpack`.
+   */
+  it('e devolve antes, porque o deploy publica índices antes de provisionar', () => {
+    expect(unpack.indexOf('restoreDeclaredIndexes'))
+      .toBeLessThan(unpack.indexOf("info('Next:')"));
+    expect(deploy.indexOf("'firestore:indexes'")).toBeLessThan(deploy.indexOf('await provisionBackend({'));
+    expect(deploy).not.toContain('restoreDeclaredIndexes');
+  });
+
+  /**
+   * O órfão CONTINUA declarado. Deixá-lo cair fora do arquivo é o que fazia o `firebase` oferecer a
+   * exclusão; mantê-lo custa nada, porque o índice já existe no projeto.
+   */
+  it('o índice órfão segue declarado até alguém pedir --prune', () => {
+    expect(provision).toContain('const declared = options.prune ? wanted : [...wanted, ...orphans];');
+  });
+
+  /**
+   * Desinstalar a ÚNICA extensão com backend caía no desvio de "nenhuma extensão exige nada", e o índice
+   * dela não era relatado por ninguém — o aviso existia para o órfão que sobra entre outras extensões, e
+   * faltava justamente no caso de ele sobrar sozinho.
+   */
+  it('o órfão é relatado mesmo quando não sobrou extensão nenhuma', () => {
+    const earlyReturn = provision.indexOf('reportOrphanIndexes(projectId, settled.orphans, options.prune);');
+    expect(provision.indexOf('const settled = await settleIndexes(')).toBeLessThan(earlyReturn);
+    expect(provision.match(/reportOrphanIndexes\(projectId, settled\.orphans, options\.prune\)/g))
+      .toHaveLength(2);
+  });
+
+  /** Nem o `provision` nem o `unpack` remontam o caminho do arquivo à mão: há uma porta só. */
+  it('o arquivo de índices é lido e escrito por um módulo só', () => {
+    for (const [name, text] of [['provision', provision], ['unpack', unpack]] as const) {
+      expect(text, name).not.toContain("join(install, 'firestore.indexes.json')");
+    }
+    expect(source('console/backendIndexes.ts')).toContain("join(install, 'firestore.indexes.json')");
+  });
+});
+
+/**
+ * O `microteia.yaml` dizia a versão anterior enquanto o `MICROTEIA.md` ao lado dele — reescrito pelo
+ * mesmo comando — já dizia a nova. O campo só era gravado no fim do `deploy`, então entre desempacotar e
+ * publicar as duas fontes no mesmo diretório discordavam.
+ */
+describe('qual versão do kernel o arquivo de ambiente diz', () => {
+  const deploy = source('console/deploy.ts');
+
+  it('o unpack grava o que está no lugar; o deploy, o que foi publicado', () => {
+    expect(unpack).toContain('kernel: { version: manifest.version, deployed }');
+    expect(deploy).toContain('kernel: { version: manifest.version, deployed: manifest.version }');
+  });
+
+  /**
+   * Numa instalação anterior ao campo `deployed`, o `version` que estava lá foi gravado por um `deploy`
+   * — então é o que já foi publicado. Sem essa adoção, o `provision` diria "nenhum kernel publicado" a
+   * uma instalação que está no ar.
+   */
+  it('adota como publicado o número que um deploy anterior havia gravado', () => {
+    expect(unpack).toContain('const deployed = environment.kernel.deployed ?? environment.kernel.version;');
+  });
+
+  it('e --version responde as duas, além da do Console', () => {
+    const index = source('index.ts');
+    expect(index).toContain('versionReport(process.cwd())');
+    expect(index).not.toContain('info(CLI_VERSION);');
+  });
+});

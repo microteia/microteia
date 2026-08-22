@@ -11,8 +11,12 @@ const sample: Environment = {
   project: { name: 'Escritório Ação & Cia: Matriz' },
   environment: { id: 'acao-cia', name: 'Ação & Cia — Produção' },
   firebase: { projectId: 'acme-microteia', region: 'southamerica-east1' },
-  kernel: { version: '7.47.0' },
-  backend: { functions: 'integracaoSync,integracaoRenew', parameters: 'EXAMPLE_CLIENT_ID:0011223344aa' },
+  kernel: { version: '7.47.0', deployed: '7.46.0' },
+  backend: {
+    functions: 'integracaoSync,integracaoRenew',
+    parameters: 'EXAMPLE_CLIENT_ID:0011223344aa',
+    indexes: 'auditLogs:tenantId+,createdAt-;records/group:labels*,at-',
+  },
 };
 
 describe('arquivo de ambiente', () => {
@@ -24,8 +28,8 @@ describe('arquivo de ambiente', () => {
     const fresh: Environment = {
       ...sample,
       firebase: { ...sample.firebase, projectId: null },
-      kernel: { version: null },
-      backend: { functions: null, parameters: null },
+      kernel: { version: null, deployed: null },
+      backend: { functions: null, parameters: null, indexes: null },
     };
     expect(parseEnvironment(serializeEnvironment(fresh))).toEqual(fresh);
   });

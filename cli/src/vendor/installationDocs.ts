@@ -145,6 +145,21 @@ ${commandRows()}
 \`unpack\` and \`deploy\` are separate so that taking a new version does not oblige you to publish
 everything, and so that there is a moment between the two to fill in a setting the new version asks for.
 
+Between the two, \`microteia.yaml\` says both: \`kernel.version\` is what is in place, \`kernel.deployed\`
+is what the project runs. \`microteia --version\` prints them next to the Console's own.
+
+\`unpack\` replaces \`.microteia/install/\` whole, and a package carries only the platform's own composite
+indexes — an index an extension asks for is not in it, so that it does not travel to installations that
+never install that extension. So \`unpack\` puts back what this installation had already declared, from
+\`backend.indexes\` in \`microteia.yaml\`. Without that, publishing indexes after an upgrade would find
+indexes in the project that the file no longer declares, and **offer to delete them** — for extensions
+that are merely turned off, and whose indexes are the reason their screens are fast.
+
+An index of an extension you removed stays declared and is reported on every \`provision\`. It costs only
+writes on the collection it covers. \`microteia provision --prune\` lets it go: it drops out of this
+installation, and the next \`microteia deploy --only indexes\` offers to delete it from the project —
+deliberately, because you asked.
+
 ## 3. Backend settings
 
 They live in \`.env.<projectId>\`, next to \`microteia.yaml\`. \`unpack\` creates the file and adds any
