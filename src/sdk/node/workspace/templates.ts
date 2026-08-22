@@ -101,6 +101,40 @@ You are authoring **Microteia extensions**. Read this before writing or changing
 An extension is a **declaration**, not a patch. You never modify the platform; you declare what you
 want, and the platform installs it. Everything below follows from that.
 
+## When the platform is missing something — ask before working around it
+
+Sooner or later you will need something the platform does not offer, and there will always be a way to
+fake it: a hidden field that mirrors state, a workflow that writes what an expression cannot read, a
+value recomputed on every save because nothing exposes it. Those tricks work. Each one is also a
+capability the platform was missing, buried somewhere nobody will ever find it again.
+
+Before writing one, decide which of the two gaps you are looking at:
+
+| The gap | What to do |
+|---|---|
+| Specific to this extension, this organization or this screen | Work around it and move on. Nothing anticipates everything, and not every absence is a defect |
+| **Agnostic** — it can be named without naming this business — and another extension would plausibly need it for the same reason | **Stop and ask.** Write nothing until the person you are working for has decided |
+
+The test for the second row is the one the platform applies to itself: could the missing thing be named
+without naming this business? *Whether the record is being created or is being edited* is agnostic —
+every extension with a form reaches for it sooner or later, and a field expression that cannot see it
+has to be tricked. *Whether the client has signed the contract* is not: that one belongs to the
+extension, and working around it is the correct answer.
+
+When it is the second kind, say so **before** you write anything, and say four things:
+
+1. **What is missing** — the capability, named the way the platform would name it, not the symptom you
+   hit.
+2. **How the platform could supply it** — where the declaration would live and what it would look like
+   to whoever writes an extension.
+3. **Why it matters** — who else runs into this, and what they are forced to do today without it.
+4. **What the workaround costs** — what you would write instead, and what has to be undone when the
+   platform later grows the real thing.
+
+Then wait. Being told to work around it is a legitimate answer and may well be the right one today —
+but it is their decision, not yours. The one outcome that must not happen is the workaround going in
+silently: the platform never learns what it is missing, and the next extension pays for it again.
+
 ## The gate — non-negotiable
 
 Nothing is finished until all three of these pass:

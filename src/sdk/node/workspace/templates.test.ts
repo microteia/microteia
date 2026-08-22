@@ -212,6 +212,38 @@ describe('o que é gerado em extensions/', () => {
     });
 
     /**
+     * A extensão que precisa de algo que o kernel não tem sempre tem como fingir — e a IA finge, porque
+     * fingir destrava a tarefa. Aconteceu com `isNew` na expressão de campo: agnóstico, necessário a
+     * qualquer formulário, contornado em silêncio. O contorno some no código de uma extensão e o kernel
+     * nunca fica sabendo o que lhe falta.
+     */
+    describe('a limitação do kernel que vale interromper', () => {
+      it('manda parar e pedir autorização antes de contornar', () => {
+        expect(agents).toContain('## When the platform is missing something');
+        expect(agents).toContain('**Stop and ask.**');
+      });
+
+      /** Sem os dois lados, a regra vira "pergunte sempre" — e quem pergunta sempre é ignorado. */
+      it('separa a lacuna agnóstica da que é só desta extensão', () => {
+        expect(agents).toContain('Work around it and move on');
+        expect(agents).toContain('**Agnostic**');
+        expect(agents).toContain('is being edited');
+      });
+
+      /** Avisar não basta: o valor está em dizer COMO o kernel supriria e por que importa. */
+      it('exige dizer o que falta, como o kernel supriria, por que importa e o que o contorno custa', () => {
+        expect(agents).toContain('**What is missing**');
+        expect(agents).toContain('**How the platform could supply it**');
+        expect(agents).toContain('**Why it matters**');
+        expect(agents).toContain('**What the workaround costs**');
+      });
+
+      it('deixa a decisão com o escritório, não com quem escreve', () => {
+        expect(agents).toContain('their decision, not yours');
+      });
+    });
+
+    /**
      * Ele é reescrito a cada troca de kernel, e antes disso era cópia byte a byte do `CLAUDE.md`. Quem
      * escrevesse uma linha ali a perdia — e nem sabia que perderia. O aviso é o que separa os dois.
      */

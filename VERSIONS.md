@@ -11,6 +11,12 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [8.8.0] — 2026-08-22
+
+- O guia que a Microteia instala junto com a área de extensões passa a orientar o assistente de IA a **parar e pedir autorização** quando encontrar algo que a plataforma não faz, mas que deveria fazer: um recurso que não tem nada de específico do seu negócio e que qualquer outra extensão precisaria do mesmo jeito.
+- Nesse aviso ele diz o que está faltando, como a plataforma poderia oferecer o recurso, por que ele importa e o que o contorno custaria — e só escreve o contorno depois que você decidir. Foi assim que a leitura da situação do formulário numa expressão de campo quase virou um remendo escondido dentro de uma extensão, em vez de virar um recurso da plataforma.
+- Para limitações pequenas ou próprias de uma extensão, nada muda: o contorno continua sendo o caminho normal, sem interromper o trabalho.
+
 #### [8.7.0] — 2026-08-22
 
 - No Form Design, as expressões de Ocultar, Desabilitar e Ao alterar de um campo passam a saber em que situação o formulário está aberto. Escreva `isNew` para dizer "só na edição" e `not isNew` para dizer "só na criação" — é assim que um campo de conferência aparece no cadastro e desaparece depois, ou o contrário. Antes a mesma expressão era aceita sem reclamar e simplesmente nunca valia: o campo aparecia sempre.
