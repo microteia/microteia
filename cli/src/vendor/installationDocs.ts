@@ -83,7 +83,7 @@ const commandRows = (): string => [
   '| Command | What it does |',
   '|---|---|',
   '| `microteia unpack --kernel <pkg>.tgz` | Puts a platform version in place. Touches no Firebase — safe any time |',
-  '| `microteia deploy [--only …]` | Publishes what is in place: `rules`, `indexes`, `functions`, `hosting` |',
+  '| `microteia deploy [--only …] [--prune]` | Publishes what is in place: `rules`, `indexes`, `functions`, `hosting`. `--prune` also deletes functions left behind in a region this version no longer uses |',
   '| `microteia provision [--prune]` | Gives installed extensions the functions and indexes they ask for |',
   '| `microteia connect --project <id>` | Binds this installation to a Firebase project you own |',
   '| `microteia plugin-init` | Prepares `extensions/` for authoring in TypeScript |',

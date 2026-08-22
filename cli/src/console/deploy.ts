@@ -7,7 +7,8 @@ import { blank, bullets, failure, heading, info, step, success, warn } from '../
 import { ENVIRONMENT_FILE, readEnvironment, writeEnvironment } from './environment.js';
 import type { Environment } from './environment.js';
 import { FIREBASE_BIN } from './firebaseCli.js';
-import { deployFunctionsOneByOne } from './deployFunctions.js';
+import { deployFunctionsOneByOne, reportFailures, reportNotices } from './deployFunctions.js';
+import { clearRegionOrphans } from './regionOrphans.js';
 import { checkCallables, invokerGrantCommand } from './callableAccess.js';
 import { checkHostingServed, htmlIsRevalidated } from './hostingCheck.js';
 import { provisionBackend } from './provision.js';
@@ -169,6 +170,11 @@ export const deploy = async (args: ParsedArgs): Promise<void> => {
       info('  "engines" names the Cloud Functions runtime, and the notices come from Firebase\'s deps.');
       await run('npm', ['install', '--no-audit', '--no-fund'], { cwd: join(install, 'functions') });
 
+      // ANTES de deployar: uma cópia da mesma function numa região que o pacote abandonou faz o
+      // `firebase` recusar o deploy dela, tentativa após tentativa, e faz um gatilho de Firestore
+      // disparar duas vezes por gravação enquanto ninguém percebe.
+      await clearRegionOrphans(projectId, own, region, hasFlag(args, 'prune'));
+
       const report = await deployFunctionsOneByOne(own, {
         projectId,
         cwd: install,
@@ -179,11 +185,9 @@ export const deploy = async (args: ParsedArgs): Promise<void> => {
       if (report.failed.length > 0) {
         failures.push(`${report.failed.length} function(s): ${report.failed.map((entry) => entry.name).join(', ')}`);
         blank();
-        for (const entry of report.failed) {
-          failure(entry.name);
-          info(entry.output.split('\n').slice(-12).map((line) => `      ${line}`).join('\n'));
-        }
+        reportFailures(report.failed);
       }
+      reportNotices(report.notices);
       // Deployada não quer dizer alcançável: a concessão de invocação pública pode ter sido
       // recusada, e o `firebase deploy` termina bem do mesmo jeito. Quem paga a conta é o escritório,
       // com uma aplicação que abre e não consegue falar com o servidor.

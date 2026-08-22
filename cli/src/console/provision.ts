@@ -34,7 +34,8 @@ import {
 import { ENVIRONMENT_FILE, readEnvironment, writeEnvironment } from './environment.js';
 import type { Environment } from './environment.js';
 import { FIREBASE_BIN } from './firebaseCli.js';
-import { deployFunctionsOneByOne } from './deployFunctions.js';
+import { deployFunctionsOneByOne, reportFailures, reportNotices } from './deployFunctions.js';
+import { clearRegionOrphans } from './regionOrphans.js';
 import { checkCallables, invokerGrantCommand } from './callableAccess.js';
 import { asString, asTimestamp, decodeFields, documentId, listDocuments, patchMapField } from './firestoreRest.js';
 import { gatherCustomFunctions, readOfficeFunctions } from './customFunctions.js';
@@ -259,16 +260,18 @@ export const provisionBackend = async (options: ProvisionOptions): Promise<Provi
       await run('npm', ['install', '--no-audit', '--no-fund'], { cwd: join(install, 'functions') });
     }
 
+    // A extensão que mudou de região deixa a cópia antiga para trás igual ao kernel, e ali o efeito
+    // é o mesmo: deploy recusado em toda tentativa, e gatilho disparando em duas regiões.
+    await clearRegionOrphans(projectId, toDeploy, region, options.prune);
+
     info(`  deploying ${toDeploy.length} function(s), one at a time…`);
     const report = await deployFunctionsOneByOne(toDeploy, {
       projectId, cwd: install, delaySeconds, force: false,
     });
     outcome.deployed = report.deployed;
     outcome.failed = report.failed.map((entry) => entry.name);
-    for (const entry of report.failed) {
-      failure(entry.name);
-      info(entry.output.split('\n').slice(-12).map((line) => `      ${line}`).join('\n'));
-    }
+    reportFailures(report.failed);
+    reportNotices(report.notices);
     await checkNewCallables(
       [...(manifest.callables ?? []), ...office.callables],
       report.deployed,

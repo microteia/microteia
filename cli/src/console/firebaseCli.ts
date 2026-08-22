@@ -12,7 +12,7 @@ export interface WebAppSummary {
   displayName: string;
 }
 
-const parseJson = (raw: string): unknown => {
+export const parseJson = (raw: string): unknown => {
   // O `firebase --json` às vezes imprime aviso antes do JSON; o objeto começa na primeira chave.
   const start = raw.indexOf('{');
   if (start === -1) throw new Error(`Expected JSON from the Firebase CLI, got:\n${raw.trim()}`);

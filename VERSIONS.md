@@ -11,6 +11,12 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [8.5.0] — 2026-08-22
+
+- A publicação passa a avisar quando uma função do servidor ficou para trás numa região antiga. Ao mudar a região, a cópia anterior continua existindo — e, além de impedir a publicação da nova, ela dispara em paralelo: cada gravação era registrada duas vezes na auditoria e contada duas vezes nos totais. A publicação agora identifica essas cópias antes de começar, explica o que está acontecendo e remove as antigas quando solicitado.
+- Quando algo falha ao publicar, a mensagem exibida passa a ser o motivo da falha. Antes aparecia sempre um alerta técnico do Firebase sobre um recurso que será descontinuado, sem relação com o problema — e a causa real não chegava à tela.
+- A publicação deixa de repetir uma tentativa quando repetir não muda o resultado, encerrando em minutos o que antes levava o dobro do tempo para terminar com o mesmo aviso.
+
 #### [8.4.0] — 2026-08-21
 
 - Atualizar a plataforma deixou de pôr em risco a agilidade das telas trazidas por extensões. Ao trocar

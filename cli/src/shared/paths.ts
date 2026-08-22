@@ -66,7 +66,19 @@ export const repoRoot = resolve(here, '..', '..', '..');
  * gravado pelo `unpack`, e `kernel.deployed` — novo — é o que o `deploy` carimba. E `--version` responde
  * as três, porque quem pergunta a versão quase nunca quer a da ferramenta.
  *
+ * Em `2.5.0`: a function que ficou para trás numa região abandonada deixa de travar o deploy em
+ * silêncio. Trocar a região de uma Cloud Function não move nada — o Firebase cria a nova e deixa a
+ * antiga —, e a partir dali o `firebase deploy --only functions:<nome>` recusa: o filtro `--only`
+ * casa por id e ignora região, então a cópia velha entra no plano como algo a apagar, e apagar exige
+ * uma confirmação que um deploy sem terminal não tem como dar. O `deploy` e o `provision` agora
+ * conferem isso ANTES de subir, e `--prune` remove as cópias. Junto vieram as duas razões de o
+ * defeito ter levado tanto tempo para ser lido: o motivo impresso era o aviso de descontinuação do
+ * Runtime Config — a única coisa que o `firebase` manda pelo stderr, enquanto o erro sai pelo stdout,
+ * e a busca era pela última linha casada —, e a segunda passada repetia as oito functions para
+ * receber palavra por palavra a mesma recusa. O aviso virou UMA nota no fim, o motivo passou a ser
+ * escolhido por quanto informa, e a repetição ficou só para a falha que repetir pode consertar.
+ *
  * Ela NÃO acompanha o `version` do produto, e não é obrigada a andar junto do `MINIMUM_CLI_VERSION`:
  * este último só se move quando o PACOTE passa a depender de algo que o Console faz.
  */
-export const CLI_VERSION = '2.4.0';
+export const CLI_VERSION = '2.5.0';
