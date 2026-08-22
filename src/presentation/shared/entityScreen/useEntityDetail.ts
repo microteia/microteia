@@ -79,6 +79,8 @@ export interface EntityDetailConfig<TRecord extends { id: string }> {
 
 export interface EntityDetail<TRecord extends { id: string }> {
   isNew: boolean;
+  /** Algum campo foi alterado e ainda não foi salvo — o `isDirty` das expressões e das Actions. */
+  isDirty: boolean;
   record: TRecord | null;
   recordNotFound: boolean;
   values: Values;
@@ -337,6 +339,7 @@ export function useEntityDetail<TRecord extends { id: string }>(
 
   return {
     isNew,
+    isDirty,
     record,
     recordNotFound,
     values,

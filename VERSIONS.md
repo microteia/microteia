@@ -11,6 +11,13 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [8.7.0] — 2026-08-22
+
+- No Form Design, as expressões de Ocultar, Desabilitar e Ao alterar de um campo passam a saber em que situação o formulário está aberto. Escreva `isNew` para dizer "só na edição" e `not isNew` para dizer "só na criação" — é assim que um campo de conferência aparece no cadastro e desaparece depois, ou o contrário. Antes a mesma expressão era aceita sem reclamar e simplesmente nunca valia: o campo aparecia sempre.
+- Também passa a valer `isDirty`, que diz se algum campo foi alterado e ainda não foi salvo — útil para travar um campo depois da primeira alteração. As duas são as mesmas já disponíveis nas expressões de um botão de ação, com o mesmo significado: quem aprendeu a escrever uma não precisa aprender outra.
+- As duas aparecem como sugestão ao digitar, e apenas nos três lugares onde existem de verdade. Em Validação e Valor calculado continuam fora, porque essas duas também são conferidas no servidor.
+- A tradução para português acompanha a mudança.
+
 #### [8.6.0] — 2026-08-22
 
 - Nas listas de opções coloridas, a cor de uma opção cadastrada no escritório passa a poder ser alterada. Ao abrir a lista, ao lado do botão de excluir aparece o de cor: um clique abre a mesma paleta usada nas etiquetas, e a escolha vale na hora, em todos os registros que usam aquela opção. Antes a cor era sorteada na criação e só mudava excluindo a opção e cadastrando outra.

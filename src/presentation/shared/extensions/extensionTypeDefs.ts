@@ -805,6 +805,18 @@ const UI_MODULE_DEFS = `declare module '@microteia/ui' {
     onMergeValues?: (patch: Record<string, any>) => void;
     /** Required for 'file' fields to accept uploads. */
     fileUpload?: FieldFileUpload;
+    /**
+     * The record does not exist on the server yet. Exposed to the front-only field expressions
+     * ('hiddenWhen', 'disabledWhen', 'onChange') as 'isNew', so a field can show up only while the
+     * record is being created — or only while editing one that already exists. Pass the 'isNew' of
+     * useEntityForm(...). Missing = an existing record.
+     */
+    isNew?: boolean;
+    /**
+     * Some field was changed and not saved yet. Exposed to the same front-only field expressions as
+     * 'isDirty'. Pass the 'isDirty' of useEntityForm(...). Missing = an untouched form.
+     */
+    isDirty?: boolean;
   }
   export function CustomFieldsSection(props: CustomFieldsSectionProps): JSX.Element;
   
@@ -1053,6 +1065,8 @@ const DATA_MODULE_DEFS = `declare module '@microteia/data' {
     screenKey: string;
     fields: any[];
     isNew: boolean;
+    /** Some field was changed and not saved yet. Pass to EntityForm so its expressions see it. */
+    isDirty: boolean;
     values: Record<string, any>;
     /** The value of a field, by key. */
     getValue: (fieldKey: string) => any;

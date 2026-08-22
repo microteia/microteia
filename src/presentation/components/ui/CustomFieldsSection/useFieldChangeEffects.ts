@@ -12,6 +12,8 @@ export interface FieldChangeEffectsInput {
   values: Record<string, unknown>;
   resolveRecord: RecordResolver;
   onMergeValues?: (patch: Record<string, unknown>) => void;
+  /** Situação do formulário, exposta à expressão `onChange` como `isNew`. */
+  isNew: boolean;
 }
 
 export interface FieldChangeEffects {
@@ -24,7 +26,7 @@ export interface FieldChangeEffects {
  * `onChangeLookup` (assíncrona). Ambas produzem um objeto, mesclado pelo mesmo caminho.
  */
 export const useFieldChangeEffects = (input: FieldChangeEffectsInput): FieldChangeEffects => {
-  const { fields, values, resolveRecord, onMergeValues } = input;
+  const { fields, values, resolveRecord, onMergeValues, isNew } = input;
   const externalLookupServices = useExternalLookupProviders();
   const { notify } = useNotification();
 
@@ -89,7 +91,13 @@ export const useFieldChangeEffects = (input: FieldChangeEffectsInput): FieldChan
       const field = fields.find((candidate) => candidate.key === fieldKey);
       if (!field?.logic || !onMergeValues) return;
 
-      const patch = resolveOnChangePatch(field, fields, values, value, resolveRecord);
+      // `isDirty` é `true` por construção: a expressão `onChange` só roda porque o usuário ACABOU
+      // de alterar um campo. Ler o estado do formulário aqui devolveria o valor de ANTES da mudança
+      // (o React ainda não re-renderizou), e daria `false` na primeira alteração de todo formulário.
+      const patch = resolveOnChangePatch(field, fields, values, value, resolveRecord, {
+        isNew,
+        isDirty: true,
+      });
       if (Object.keys(patch).length > 0) onMergeValues(patch);
 
       if (field.logic.onChangeLookup?.provider) {
@@ -104,7 +112,7 @@ export const useFieldChangeEffects = (input: FieldChangeEffectsInput): FieldChan
         );
       }
     },
-    [fields, values, resolveRecord, onMergeValues, runLookup],
+    [fields, values, resolveRecord, onMergeValues, isNew, runLookup],
   );
 
   const isFieldLoading = useCallback((fieldKey: string) => loadingKeys.has(fieldKey), [loadingKeys]);

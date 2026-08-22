@@ -130,8 +130,10 @@ export const CORE_RECORDS: Record<string, string> = {
   'field.aggregation.operation.placeholder': 'Escolha a operação',
   'field.expression-behaviour': 'Comportamento por expressão',
   'field.expression.banner':
-    'Nas expressões, referencie os campos da tela pela chave (ex.: status, valor) — comece a digitar para ver as sugestões. Use value para o valor do próprio campo. Em Ocultar, Desabilitar e Ao alterar, um campo de vínculo pode ser navegado (ex.: produto.preco); em Validação e Valor calculado ele vale como identificador, pois essas duas também são conferidas no servidor.',
+    'Nas expressões, referencie os campos da tela pela chave (ex.: status, valor) — comece a digitar para ver as sugestões. Use value para o valor do próprio campo. Em Ocultar, Desabilitar e Ao alterar, um campo de vínculo pode ser navegado (ex.: produto.preco), isNew diz se o registro está sendo criado e isDirty se algo foi alterado e ainda não salvo; em Validação e Valor calculado nenhum dos três existe, pois essas duas também são conferidas no servidor.',
   'field.expression.own-value': 'Valor do próprio campo',
+  'field.expression.is-new': 'O registro está sendo criado (ainda não existe)',
+  'field.expression.is-dirty': 'Algum campo foi alterado e ainda não foi salvo',
   'field.expression.compute': 'Valor calculado (preenche o campo automaticamente)',
   'field.expression.validate': 'Validação (retorna a mensagem de erro, ou vazio/null se válido)',
   'field.expression.validate.placeholder': "Ex: if(isEmpty(value) and status == 'ativo', 'Obrigatório para ativos', null)",

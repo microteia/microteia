@@ -7,6 +7,7 @@ import { readValueByPath, sortFieldsByOrder } from '../../../../domain/services/
 import { evaluateFieldBoolean, evaluateFieldValidation } from '../../../../domain/schema/fieldExpression';
 import { computeFieldValues } from '../../../../domain/schema/recordRules';
 import { buildHydratedFieldScope } from '../../../../domain/schema/referenceScope';
+import { buildFieldUiScope } from '../../../../domain/schema/fieldUiScope';
 import { useRecordResolver } from '../../../shared/useRecordResolver';
 import { useFieldChangeEffects } from './useFieldChangeEffects';
 import { nextLookupOptionColor, resolveColor, resolveFieldOptionColor } from '../../../../shared/styles/colorUtils';
@@ -35,6 +36,16 @@ export interface CustomFieldsSectionProps {
    * formulário que não é de registro numa coleção, e portanto não tem caminho onde gravar.
    */
   fileUpload?: FieldFileUpload;
+  /**
+   * O registro ainda não existe no servidor. Exposto às expressões front-only como `isNew`, para que
+   * um campo possa aparecer só na criação (ou só na edição). Ausente = registro já existente.
+   */
+  isNew?: boolean;
+  /**
+   * O usuário já alterou algum campo e ainda não salvou. Exposto às expressões front-only como
+   * `isDirty`. Ausente = formulário intocado.
+   */
+  isDirty?: boolean;
 }
 
 export interface FieldGroup {
@@ -73,6 +84,8 @@ export const useCustomFieldsSectionViewModel = (props: CustomFieldsSectionProps)
     disabled = false,
     errors,
     onMergeValues,
+    isNew = false,
+    isDirty = false,
   } = props;
   const { getOptions, addOption, recolorOption, removeOption } = useLookups();
   const { tenantRole } = useTenant();
@@ -88,6 +101,7 @@ export const useCustomFieldsSectionViewModel = (props: CustomFieldsSectionProps)
     values: rawValues,
     resolveRecord,
     onMergeValues,
+    isNew,
   });
 
   // Os campos calculados são derivados aqui apenas para exibição: quem os persiste é
@@ -228,13 +242,21 @@ export const useCustomFieldsSectionViewModel = (props: CustomFieldsSectionProps)
     [fields, values, resolveRecord],
   );
 
+  // A SITUAÇÃO em que o formulário está aberto, ao lado do registro: é o que permite a um campo
+  // aparecer só na criação (`hiddenWhen: 'not isNew'`) ou só na edição (`hiddenWhen: 'isNew'`), e a
+  // outro travar depois da primeira alteração (`disabledWhen: 'isDirty'`).
+  const uiScope = useMemo(
+    () => buildFieldUiScope(hydratedScope, { isNew, isDirty }),
+    [hydratedScope, isNew, isDirty],
+  );
+
   const isFieldHidden = useCallback(
     (field: FieldDefinition): boolean =>
       evaluateFieldBoolean(field.logic?.hiddenWhen, {
         value: hydratedScope[field.key],
-        data: hydratedScope,
+        data: uiScope,
       }),
-    [hydratedScope],
+    [hydratedScope, uiScope],
   );
 
   const isFieldDisabled = useCallback(
@@ -244,9 +266,9 @@ export const useCustomFieldsSectionViewModel = (props: CustomFieldsSectionProps)
       Boolean(field.aggregation) ||
       evaluateFieldBoolean(field.logic?.disabledWhen, {
         value: hydratedScope[field.key],
-        data: hydratedScope,
+        data: uiScope,
       }),
-    [disabled, hydratedScope],
+    [disabled, hydratedScope, uiScope],
   );
 
   const fieldError = useCallback(

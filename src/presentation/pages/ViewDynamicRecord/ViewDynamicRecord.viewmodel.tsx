@@ -54,6 +54,8 @@ export interface ViewDynamicRecordViewModel {
   isAvailable: boolean;
   isLoadingDefinition: boolean;
   isNew: boolean;
+  /** Algum campo foi alterado e ainda não foi salvo — exposto às expressões como `isDirty`. */
+  isDirty: boolean;
   screenActions: ScreenActions;
   isAdmin: boolean;
   /** Excluir é de admin — ou do autor, quando a tela declara `authorCanDelete`. */
@@ -344,6 +346,7 @@ export const useViewDynamicRecordViewModel = (tabKey: string): ViewDynamicRecord
     isAvailable,
     isLoadingDefinition,
     isNew: detail.isNew,
+    isDirty: detail.isDirty,
     screenActions: detail.screenActions,
     isAdmin,
     canDelete,

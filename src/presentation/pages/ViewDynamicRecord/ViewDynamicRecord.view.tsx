@@ -61,6 +61,8 @@ export const ViewDynamicRecordView: React.FC<{ tabKey: string }> = ({ tabKey }) 
         onMergeValues={vm.mergeValues}
         errors={vm.fieldErrors}
         fileUpload={vm.fileUpload ?? undefined}
+        isNew={vm.isNew}
+        isDirty={vm.isDirty}
       />
     </S.FormWrapper>
   );

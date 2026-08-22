@@ -26,6 +26,8 @@ export interface RecordDetailViewModel {
   isAvailable: boolean;
   isLoadingDefinition: boolean;
   isNew: boolean;
+  /** Algum campo foi alterado e ainda não foi salvo — exposto às expressões como `isDirty`. */
+  isDirty: boolean;
   isAdmin: boolean;
   /** Excluir é de admin — ou do autor, quando a tela declara `authorCanDelete`. */
   canDelete: boolean;
@@ -106,6 +108,8 @@ export const RecordDetailSurface: React.FC<RecordDetailSurfaceProps> = ({ vm, re
       onMergeValues={vm.mergeValues}
       errors={vm.fieldErrors}
       fileUpload={vm.fileUpload ?? undefined}
+      isNew={vm.isNew}
+      isDirty={vm.isDirty}
     />
   );
 

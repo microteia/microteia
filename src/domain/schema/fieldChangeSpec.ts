@@ -2,6 +2,8 @@ import type { FieldDefinition } from '../entities/entitySchemas';
 import { evaluateFieldExpression } from './fieldExpression';
 import { buildHydratedFieldScope } from './referenceScope';
 import type { RecordResolver } from './referenceScope';
+import { buildFieldUiScope } from './fieldUiScope';
+import type { FieldUiState } from './fieldUiScope';
 
 /**
  * Núcleo puro dos efeitos de `onChange`. Front-only, como o `referenceScope` de que depende — fica
@@ -12,8 +14,9 @@ import type { RecordResolver } from './referenceScope';
  * Avalia a expressão `onChange` do campo e devolve o objeto a mesclar no formulário.
  *
  * O escopo já reflete o valor recém-escolhido (a expressão precisa enxergar o que o usuário acabou
- * de fazer, não o estado anterior) e vem hidratado, para que `produto.preco` funcione. A chave do
- * próprio campo é removida do resultado: reescrevê-la brigaria com a digitação.
+ * de fazer, não o estado anterior), vem hidratado, para que `produto.preco` funcione, e enxerga a
+ * situação do formulário (`isNew`) como os outros dois slots front-only. A chave do próprio campo é
+ * removida do resultado: reescrevê-la brigaria com a digitação.
  */
 export const resolveOnChangePatch = (
   field: FieldDefinition,
@@ -21,14 +24,16 @@ export const resolveOnChangePatch = (
   values: Record<string, unknown>,
   value: unknown,
   resolve: RecordResolver,
+  ui: FieldUiState,
 ): Record<string, unknown> => {
   const expression = field.logic?.onChange?.trim();
   if (!expression) return {};
 
-  const scope = buildHydratedFieldScope(fields, { ...values, [field.key]: value }, resolve);
+  const hydrated = buildHydratedFieldScope(fields, { ...values, [field.key]: value }, resolve);
+  const scope = buildFieldUiScope(hydrated, ui);
 
   try {
-    const result = evaluateFieldExpression(expression, { value: scope[field.key], data: scope });
+    const result = evaluateFieldExpression(expression, { value: hydrated[field.key], data: scope });
     if (result === null || typeof result !== 'object' || Array.isArray(result)) return {};
 
     return Object.fromEntries(

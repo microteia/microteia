@@ -21,6 +21,8 @@ export interface EntityForm {
   screenKey: string;
   fields: FieldDefinition[];
   isNew: boolean;
+  /** Algum campo foi alterado e ainda não foi salvo — para repassar a `EntityForm`. */
+  isDirty: boolean;
   values: Values;
   getValue: (fieldKey: string) => CustomFieldValue;
   setValue: (fieldKey: string, value: CustomFieldValue) => void;
@@ -141,7 +143,7 @@ export const useEntityForm = (sourceId: string, recordId?: string | null): Entit
   }, [fields, values, screenKey, isNew, record, createRecord, updateRecord, t, draftRecordId]);
 
   return {
-    screen, screenKey, fields, isNew, values, getValue, setValue, errors, validate, save, isSaving,
+    screen, screenKey, fields, isNew, isDirty, values, getValue, setValue, errors, validate, save, isSaving,
     fileUpload,
   };
 };

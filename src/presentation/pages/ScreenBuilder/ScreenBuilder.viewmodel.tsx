@@ -23,6 +23,7 @@ import {
 import type { ExternalLookupProviderOption } from '../../shared/useExternalLookupProviders';
 import { useExternalLookupOptions } from '../../shared/useExternalLookupProviders';
 import { extractFieldExpressionDependencies } from '../../../domain/schema/fieldExpression';
+import { FIELD_UI_RESERVED_VARIABLES } from '../../../domain/schema/fieldUiScope';
 import { aggregationCreatesCycle } from '../../../domain/schema/aggregationSpec';
 import { useSchemaContext } from '../../shared/useSchemaContext';
 import { useLookups } from '../../../stores/useLookups';
@@ -232,6 +233,11 @@ export interface ScreenBuilderViewModel {
   fieldForm: FieldFormState;
   updateFieldForm: (patch: Partial<FieldFormState>) => void;
   fieldExpressionVariables: WorkflowVariable[];
+  /**
+   * O mesmo conjunto mais as variáveis de SITUAÇÃO (`isNew`), que só existem nos slots front-only.
+   * Oferecê-las em `validate`/`compute` sugeriria um nome que o backend não resolve.
+   */
+  fieldUiExpressionVariables: WorkflowVariable[];
   typeOptions: SearchSelectOption[];
   maskOptions: SearchSelectOption[];
   formatPresetOptions: SearchSelectOption[];
@@ -1534,6 +1540,21 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     return vars;
   }, [fieldModal, getDefinitionByKey, t]);
 
+  // O nome reservado VENCE um campo de mesma chave no escopo, então ele também substitui a entrada
+  // do campo aqui — duas sugestões `isNew` diriam que existem duas coisas com esse nome.
+  const fieldUiExpressionVariables = useMemo<WorkflowVariable[]>(() => {
+    if (fieldExpressionVariables.length === 0) return [];
+    const definedBy: Record<(typeof FIELD_UI_RESERVED_VARIABLES)[number], string> = {
+      isNew: t('field.expression.is-new'),
+      isDirty: t('field.expression.is-dirty'),
+    };
+    const reserved = new Set<string>(FIELD_UI_RESERVED_VARIABLES);
+    return [
+      ...fieldExpressionVariables.filter((variable) => !reserved.has(variable.name)),
+      ...FIELD_UI_RESERVED_VARIABLES.map((name) => ({ name, definedBy: definedBy[name] })),
+    ];
+  }, [fieldExpressionVariables, t]);
+
   const handleSaveField = useCallback(async () => {
     if (!fieldModal) return;
     // Abre a aba dona do campo recusado: com o formulário em abas, avisar sem trazer o
@@ -1922,6 +1943,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     fieldForm,
     updateFieldForm,
     fieldExpressionVariables,
+    fieldUiExpressionVariables,
     typeOptions,
     maskOptions,
     formatPresetOptions,

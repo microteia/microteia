@@ -131,8 +131,10 @@ export const CORE_RECORDS_MESSAGES: Record<string, string> = {
   'field.aggregation.operation.placeholder': 'Choose the operation',
   'field.expression-behaviour': 'Behaviour by expression',
   'field.expression.banner':
-    'In the expressions, reference the screen fields by key (e.g.: status, amount) — start typing to see the suggestions. Use value for the value of the field itself. In Hide, Disable and On change, a link field can be navigated (e.g.: product.price); in Validation and Computed value it counts as an identifier, because those two are also checked on the server.',
+    'In the expressions, reference the screen fields by key (e.g.: status, amount) — start typing to see the suggestions. Use value for the value of the field itself. In Hide, Disable and On change, a link field can be navigated (e.g.: product.price), isNew tells whether the record is being created and isDirty whether something was changed and not saved yet; in Validation and Computed value none of those is available, because those two are also checked on the server.',
   'field.expression.own-value': 'Value of the field itself',
+  'field.expression.is-new': 'The record is being created (it does not exist yet)',
+  'field.expression.is-dirty': 'Some field was changed and not saved yet',
   'field.expression.compute': 'Computed value (fills the field automatically)',
   'field.expression.validate': 'Validation (returns the error message, or empty/null if valid)',
   'field.expression.validate.placeholder': "Ex: if(isEmpty(value) and status == 'active', 'Required for active ones', null)",

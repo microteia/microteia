@@ -227,6 +227,7 @@ export const useEntityDetailVM = (
     isAvailable,
     isLoadingDefinition,
     isNew: detail.isNew,
+    isDirty: detail.isDirty,
     isAdmin,
     canDelete,
     screenKey,

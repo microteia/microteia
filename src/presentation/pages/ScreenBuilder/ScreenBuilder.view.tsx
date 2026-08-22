@@ -904,7 +904,7 @@ export const ScreenBuilderView: React.FC = () => {
                   <ExpressionEditor
                     value={vm.fieldForm.logicDisabledWhen}
                     onChange={(value) => vm.updateFieldForm({ logicDisabledWhen: value })}
-                    workflowVariables={vm.fieldExpressionVariables}
+                    workflowVariables={vm.fieldUiExpressionVariables}
                     placeholder={t('field.expression.disabled.placeholder')}
                   />
                 </InputGroup>
@@ -914,7 +914,7 @@ export const ScreenBuilderView: React.FC = () => {
                     <ExpressionEditor
                       value={vm.fieldForm.logicOnChange}
                       onChange={(value) => vm.updateFieldForm({ logicOnChange: value })}
-                      workflowVariables={vm.fieldExpressionVariables}
+                      workflowVariables={vm.fieldUiExpressionVariables}
                       placeholder={t('field.expression.on-change.placeholder')}
                     />
                   </InputGroup>
@@ -951,7 +951,7 @@ export const ScreenBuilderView: React.FC = () => {
                   <ExpressionEditor
                     value={vm.fieldForm.logicHiddenWhen}
                     onChange={(value) => vm.updateFieldForm({ logicHiddenWhen: value })}
-                    workflowVariables={vm.fieldExpressionVariables}
+                    workflowVariables={vm.fieldUiExpressionVariables}
                     placeholder={t('field.expression.hidden.placeholder')}
                   />
                 </InputGroup>
