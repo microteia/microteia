@@ -11,6 +11,12 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.0.3] — 2026-08-23
+
+- Na tela de Perfis de Acesso, a permissão que vem junto com outra já aparece travada de saída. Antes ela parecia disponível, o clique não a desmarcava — a dependência a mantém — e só então ela ficava cinza: o estado aparecia como resultado do clique, e não antes dele.
+- A lista de permissões ganhou um campo de busca. Digitar o nome de uma tela mostra as quatro ações dela; digitar o nome de uma permissão mostra só ela.
+- As caixas de seleção da tela passaram a ser as mesmas do resto do sistema.
+
 #### [9.0.2] — 2026-08-23
 
 - **Criar, editar e excluir agora exigem visualizar.** Um perfil com "Criar" e sem "Visualizar" era um perfil que não abria a tela: quem grava precisa poder ler. A dependência passou a ser automática, como as demais — marcar "Criar" traz "Visualizar" junto, assinalado e travado.

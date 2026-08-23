@@ -93,6 +93,8 @@ export const CORE_ACCESS_MESSAGES: Record<string, string> = {
   'role.qualified-name': '{action} — {resource}',
   'role.save-failed': 'Could not save the access profile.',
   'role.saved': 'Access profile saved.',
+  'role.search.none': 'No permission matches this search.',
+  'role.search.placeholder': 'Filter permissions…',
   'role.summary': '{explicit} chosen, {effective} in effect',
   'role.sync': 'Recalculate permissions',
   'role.sync.done': 'Permissions recalculated. {count} members updated.',

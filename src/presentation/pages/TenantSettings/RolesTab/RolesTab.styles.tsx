@@ -107,13 +107,12 @@ const GroupTitle = styled.span`
   color: ${({ theme }) => theme.colors.textSecondary};
 `;
 
-const PermissionRow = styled.label<{ $implied?: boolean }>`
+const PermissionRow = styled.div<{ $implied?: boolean }>`
   display: flex;
-  align-items: flex-start;
-  gap: ${({ theme }) => theme.spacing.sm};
+  flex-direction: column;
+  gap: 2px;
   padding: ${({ theme }) => theme.spacing.sm};
   border-radius: ${({ theme }) => theme.borderRadius.sm};
-  cursor: ${({ $implied }) => ($implied ? 'not-allowed' : 'pointer')};
   opacity: ${({ $implied }) => ($implied ? 0.75 : 1)};
 
   &:hover {
@@ -121,20 +120,16 @@ const PermissionRow = styled.label<{ $implied?: boolean }>`
   }
 `;
 
-const PermissionText = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-`;
-
-const PermissionName = styled.span`
-  font-size: ${({ theme }) => theme.fontSizes.sm};
-  color: ${({ theme }) => theme.colors.text};
-`;
-
+/** Alinhada ao TEXTO do checkbox, não à borda da linha: 18px da caixa mais o `gap` dela. */
 const PermissionHint = styled.span`
   font-size: ${({ theme }) => theme.fontSizes.xs};
   color: ${({ theme }) => theme.colors.textSecondary};
+  padding-left: calc(18px + ${({ theme }) => theme.spacing.sm});
+`;
+
+const SearchWrapper = styled.div`
+  max-width: 520px;
+  width: 100%;
 `;
 
 const Footer = styled.div`
@@ -175,9 +170,8 @@ export const S = {
   Group,
   GroupTitle,
   PermissionRow,
-  PermissionText,
-  PermissionName,
   PermissionHint,
+  SearchWrapper,
   Footer,
   Summary,
   EmptyState,

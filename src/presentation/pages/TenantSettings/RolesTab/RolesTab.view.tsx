@@ -4,6 +4,7 @@ import { useRolesTabViewModel } from './RolesTab.viewmodel';
 import { S } from './RolesTab.styles';
 import { Button } from '../../../components/ui/Button';
 import { Input, Label } from '../../../components/ui/Input';
+import { Checkbox } from '../../../components/ui/Checkbox';
 import { ConfirmModal } from '../../../components/ui/ConfirmModal';
 import { InfoBanner } from '../../../components/ui/InfoBanner';
 import { Spinner } from '../../../components/ui/Spinner';
@@ -104,34 +105,41 @@ export const RolesTabView: React.FC = () => {
             </S.Field>
           </S.Fields>
 
+          <S.SearchWrapper>
+            <Input
+              value={vm.permissionQuery}
+              onChange={(event) => vm.setPermissionQuery(event.target.value)}
+              placeholder={t('role.search.placeholder')}
+            />
+          </S.SearchWrapper>
+
           <S.Groups>
-            {vm.groups.map((group) => (
+            {vm.noMatches ? (
+              <S.EmptyState>{t('role.search.none')}</S.EmptyState>
+            ) : vm.groups.map((group) => (
               <S.Group key={group.resource}>
                 <S.GroupTitle>{group.name}</S.GroupTitle>
                 {group.permissions.map((permission) => (
                   <S.PermissionRow key={permission.id} $implied={permission.implied}>
-                    <input
-                      type="checkbox"
+                    <Checkbox
                       checked={permission.checked}
                       disabled={permission.implied || vm.selectedRole?.system}
                       onChange={() => vm.togglePermission(permission.id)}
+                      label={permission.name}
                     />
-                    <S.PermissionText>
-                      <S.PermissionName>{permission.name}</S.PermissionName>
-                      {permission.implied && (
-                        <S.PermissionHint>
-                          {t('role.included-by', { names: permission.impliedBy.join(', ') })}
-                        </S.PermissionHint>
-                      )}
-                      {!permission.implied && permission.checked && permission.includes.length > 0 && (
-                        <S.PermissionHint>
-                          {t('role.includes', { names: permission.includes.join(', ') })}
-                        </S.PermissionHint>
-                      )}
-                      {!permission.checked && permission.description && (
-                        <S.PermissionHint>{permission.description}</S.PermissionHint>
-                      )}
-                    </S.PermissionText>
+                    {permission.implied && (
+                      <S.PermissionHint>
+                        {t('role.included-by', { names: permission.impliedBy.join(', ') })}
+                      </S.PermissionHint>
+                    )}
+                    {!permission.implied && permission.checked && permission.includes.length > 0 && (
+                      <S.PermissionHint>
+                        {t('role.includes', { names: permission.includes.join(', ') })}
+                      </S.PermissionHint>
+                    )}
+                    {!permission.checked && permission.description && (
+                      <S.PermissionHint>{permission.description}</S.PermissionHint>
+                    )}
                   </S.PermissionRow>
                 ))}
               </S.Group>

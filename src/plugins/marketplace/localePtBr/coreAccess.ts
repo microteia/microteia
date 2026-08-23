@@ -92,6 +92,8 @@ export const CORE_ACCESS: Record<string, string> = {
   'role.qualified-name': '{action} — {resource}',
   'role.save-failed': 'Não foi possível salvar o perfil de acesso.',
   'role.saved': 'Perfil de acesso salvo.',
+  'role.search.none': 'Nenhuma permissão corresponde a esta busca.',
+  'role.search.placeholder': 'Filtrar permissões…',
   'role.summary': '{explicit} escolhidas, {effective} em vigor',
   'role.sync': 'Recalcular permissões',
   'role.sync.done': 'Permissões recalculadas. {count} membros atualizados.',

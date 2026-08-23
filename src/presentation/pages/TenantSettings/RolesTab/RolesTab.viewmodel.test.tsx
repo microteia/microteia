@@ -115,13 +115,45 @@ describe('RolesTabViewModel — as dependências na tela', () => {
     expect(result.current.effectiveCount).toBe(0);
   });
 
-  it('a dependência que TAMBÉM foi escolhida à mão continua destravada', () => {
+  it('a dependência escolhida à mão TAMBÉM trava — o estado é visível antes do clique', () => {
     const { result } = renderHook(() => useRolesTabViewModel());
     act(() => result.current.startCreate());
     act(() => result.current.togglePermission('finance.read'));
     act(() => result.current.togglePermission('finance.write'));
 
+    expect(rowOf(result.current, 'finance.read')).toMatchObject({ checked: true, implied: true });
+  });
+
+  it('tirar quem a arrastava devolve a escolhida à mão ao estado destravado', () => {
+    const { result } = renderHook(() => useRolesTabViewModel());
+    act(() => result.current.startCreate());
+    act(() => result.current.togglePermission('finance.read'));
+    act(() => result.current.togglePermission('finance.write'));
+    act(() => result.current.togglePermission('finance.write'));
+
     expect(rowOf(result.current, 'finance.read')).toMatchObject({ checked: true, implied: false });
+  });
+
+  it('a busca casa pelo RECURSO e mantém o grupo inteiro', () => {
+    const { result } = renderHook(() => useRolesTabViewModel());
+    act(() => result.current.setPermissionQuery('people'));
+
+    expect(result.current.groups.map((group) => group.name)).toEqual(['People']);
+    expect(result.current.groups[0].permissions).toHaveLength(4);
+  });
+
+  it('a busca casa pela PERMISSÃO e reduz o grupo às que casaram', () => {
+    const { result } = renderHook(() => useRolesTabViewModel());
+    act(() => result.current.setPermissionQuery('coisa que não existe'));
+    expect(result.current.noMatches).toBe(true);
+
+    act(() => result.current.setPermissionQuery('delete finance'));
+    expect(result.current.groups).toEqual([
+      expect.objectContaining({
+        name: 'Finance',
+        permissions: [expect.objectContaining({ id: 'finance.delete' })],
+      }),
+    ]);
   });
 
   it('grava só as EXPLÍCITAS — as arrastadas nunca entram na Role', async () => {
