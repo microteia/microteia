@@ -15,6 +15,9 @@ import type { KernelManifest } from '../kernel/manifest.js';
  * - `MICROTEIA.md` é nosso. É SOBREPOSTO a cada `unpack`, e é onde vai o detalhe que acompanha a versão:
  *   a lista de comandos, os números do pacote, os caminhos. Um documento que promete estar atualizado
  *   não pode ser editável, e um documento que a pessoa edita não pode prometer isso.
+ *
+ * Ao lado deles ficam os dois históricos técnicos, que seguem a política do `MICROTEIA.md` e moram em
+ * `changelogs.ts` — cada um viaja no artefato que descreve, e não neste módulo.
  */
 
 export const INSTALLATION_README = 'README.md';
@@ -35,12 +38,16 @@ platform itself is never modified.
 
 It is yours. Rename it, describe your business in it, delete what you do not use. Nothing rewrites this
 file. The reference that has to stay current lives in **[MICROTEIA.md](./MICROTEIA.md)**, which is
-replaced on every \`microteia unpack\` — read that one for commands, paths and version detail.
+replaced on every \`microteia unpack\` — read that one for commands, paths and version detail. Beside it,
+**[KERNEL-VERSIONS.md](./KERNEL-VERSIONS.md)** and **[CONSOLE-VERSIONS.md](./CONSOLE-VERSIONS.md)** say
+what changed in each version of the platform and of the Console.
 
 ## The shape of this directory
 
     microteia.yaml         this installation: name, Firebase project, region, kernel version
     .env.<projectId>       your backend settings. Credentials — gitignored
+    KERNEL-VERSIONS.md     what changed in each version of the platform
+    CONSOLE-VERSIONS.md    what changed in each version of the Console that installs it
     extensions/            the extensions you write
     functions/             Cloud Functions shared by more than one extension
     .microteia/            the unpacked platform. DISPOSABLE — nothing of yours lives here
@@ -122,6 +129,8 @@ ${manifest.sdk === undefined ? '' : `| Authoring SDK | ${manifest.sdk.version} |
     .gitignore                  covers the two above
     README.md                   yours, never rewritten
     MICROTEIA.md                this file, replaced on every unpack
+    KERNEL-VERSIONS.md          the platform's technical history, replaced on every unpack
+    CONSOLE-VERSIONS.md         the Console's own, replaced on every unpack
     extensions/                 the extensions you write
       <plugin>/plugin.ts        the source of one extension
       <plugin>/views/*.tsx      its pages, as real type-checked files
@@ -146,7 +155,11 @@ ${commandRows()}
 everything, and so that there is a moment between the two to fill in a setting the new version asks for.
 
 Between the two, \`microteia.yaml\` says both: \`kernel.version\` is what is in place, \`kernel.deployed\`
-is what the project runs. \`microteia --version\` prints them next to the Console's own.
+is what the project runs. \`microteia --version\` prints them next to the Console's own. What changed between
+two versions is in \`KERNEL-VERSIONS.md\` and \`CONSOLE-VERSIONS.md\`. Each is written by the artifact it
+describes — the first travels inside the package, the second with the Console — which is what keeps
+either from describing a version that is not installed here. Both are replaced on every unpack, so put
+nothing of yours in them.
 
 \`unpack\` replaces \`.microteia/install/\` whole, and a package carries only the platform's own composite
 indexes — an index an extension asks for is not in it, so that it does not travel to installations that

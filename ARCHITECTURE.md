@@ -1521,6 +1521,51 @@ inteiro. O `MICROTEIA.md` carrega o que acompanha a versão (comandos, caminhos,
 pré-requisitos manuais), carimbado do manifesto INSTALADO — um documento que promete estar atualizado não
 pode ser editável, e um que a pessoa edita não pode prometer isso.
 
+Ao lado deles ficam os dois históricos técnicos, `KERNEL-VERSIONS.md` e `CONSOLE-VERSIONS.md`, que seguem
+a política do `MICROTEIA.md` e vêm de outro lugar — ver "O histórico técnico viaja com o pacote".
+
+### O histórico técnico viaja com o pacote — `KERNEL-VERSIONS.md` e `CONSOLE-VERSIONS.md`
+
+O escritório recebe DUAS peças, versionadas e distribuídas separadamente: o pacote da plataforma e o
+Console que o instala. Cada uma carrega o próprio histórico técnico, e o `unpack` põe os dois na raiz da
+instalação, ao lado do `microteia.yaml`:
+
+| Arquivo | Fonte no repositório | Viaja em | No `unpack` |
+|---|---|---|---|
+| `KERNEL-VERSIONS.md` | `KERNEL-VERSIONS.md` (raiz) | dentro do tarball do kernel | **sobreposto sempre**, copiado de `install/` |
+| `CONSOLE-VERSIONS.md` | `cli/CONSOLE-VERSIONS.md` | com o binário do Console (`pack-console`) | **sobreposto sempre**, lido de `consoleRoot` |
+
+**Os dois são em inglês**, pela mesma regra que já valia para o `AUTHORING.md` e o `AGENTS.md`: o que é
+entregue a um escritório que pode estar em qualquer lugar é superfície de produto, e o produto fala
+inglês. O `VERSIONS.md` da raiz é outro documento, com outro leitor — o usuário do escritório —, é em
+português e **não viaja no pacote**. Um commit que sobe a `version` escreve nos dois: o benefício
+percebido em português, a alteração técnica em inglês.
+
+**Cada histórico sai do artefato que ele descreve, e essa é a decisão inteira.** Não é organização: é o
+que impede qualquer um dos dois de descrever uma versão que não está ali. O Console é distribuído
+separadamente do kernel, então um Console de duas versões atrás carregando o histórico do kernel
+escreveria na instalação o histórico de outro pacote — em silêncio, e sem nada comparando as duas pontas.
+É o mesmo defeito que tirou os guias de `extensions/` de dentro do `cli/`, e o custo dele foi pago uma
+vez.
+
+**Por que na RAIZ, e não em `extensions/`.** Aquele diretório é opcional (uma instalação que não escreve
+extensão não o tem, e o `--dir` pode tê-lo criado em qualquer lugar dentro da instalação), é escrito pelo
+SDK, e já tem um `VERSIONS.md` por extensão dentro dele — um segundo arquivo com o mesmo nome, um nível
+acima, significando outra coisa. Na raiz os dois ficam onde o `microteia --version` aponta, e o que ele
+responde ganha onde ser lido.
+
+Os dois são **sobrepostos** pela mesma razão do `MICROTEIA.md`: um documento que promete estar atual não
+pode ser editável. A ausência do histórico do kernel — um pacote anterior a esta capacidade — avisa e não
+interrompe: trocar de kernel não pode falhar por causa de um documento.
+
+**A cobrança é dupla, e nenhuma das duas é opcional.** `changelogs.test.ts` reprova a versão sem entrada,
+a entrada fora do topo, a duplicada e a ordem invertida; e `microteia pack` / `pack-console` **recusam
+empacotar** uma versão que o histórico não menciona — a conferência roda ANTES do `verify` e dos três
+builds, porque uma entrada que falta se escreve em um minuto e descobri-la dez minutos depois é como uma
+conferência passa a ser contornada com `--skip-verify`. O formato é o dos outros históricos do produto
+(`#### [versão] — AAAA-MM-DD`, mais recente no topo); o molde dentro do comentário HTML do topo é ignorado
+pelo parser, senão ele seria lido como a entrada mais recente do arquivo.
+
 ### SDK de autoria — escrever extensão em TypeScript, sem o source do kernel
 
 O sistema lê extensão por `.json`, e isso está certo: é o artefato. Mas as extensões de primeira parte
@@ -4289,7 +4334,7 @@ Arquivos **compartilhados**: fonte única em `src/domain/schema/plugin/`, cópia
 
 | Eixo | Onde | Sobe quando |
 |---|---|---|
-| Versão do produto | `package.json` / `VERSIONS.md` | Toda release, pela regra de commit |
+| Versão do produto | `package.json` / `VERSIONS.md` / `KERNEL-VERSIONS.md` | Toda release, pela regra de commit |
 | `KERNEL_VERSION` | `kernelVersion.ts` | Major: um Extension Point muda de forma incompatível. Minor: algo é adicionado |
 | `apiVersion` do ponto | cada `ExtensionPointDefinition` | Contrato daquele ponto específico |
 

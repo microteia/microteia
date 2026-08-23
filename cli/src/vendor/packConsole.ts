@@ -2,8 +2,9 @@ import { access, chmod, cp, mkdir, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { flagValue } from '../shared/args.js';
 import type { ParsedArgs } from '../shared/args.js';
-import { CLI_VERSION, repoRoot } from '../shared/paths.js';
+import { CLI_VERSION, consoleRoot, repoRoot } from '../shared/paths.js';
 import { blank, bullets, heading, info, step, success } from '../shared/ui.js';
+import { CONSOLE_CHANGELOG, readChangelog } from './changelogs.js';
 import { consolePackageJson, consoleReadme } from './packageTemplates.js';
 import { assertInsideRepository } from './repository.js';
 
@@ -27,7 +28,7 @@ export const packConsole = async (args: ParsedArgs): Promise<void> => {
 
   heading(`Packaging Microteia Console ${CLI_VERSION}`);
 
-  const total = 2;
+  const total = 3;
 
   step(1, total, 'Checking the compiled Console');
   try {
@@ -40,12 +41,22 @@ export const packConsole = async (args: ParsedArgs): Promise<void> => {
   }
   success(`${compiled}/index.js`);
 
-  step(2, total, 'Assembling the folder');
+  /**
+   * O histórico do Console viaja COM o Console, e não com o pacote do kernel: é o único jeito de ele não
+   * poder descrever uma versão que não está ali. A conferência vem antes de montar a pasta, porque uma
+   * entrada que falta se escreve em um minuto e nada mais depende dela.
+   */
+  step(2, total, 'Checking the changelog');
+  const changelog = await readChangelog(consoleRoot, CONSOLE_CHANGELOG, CLI_VERSION);
+  success(`${CONSOLE_CHANGELOG} covers ${CLI_VERSION}`);
+
+  step(3, total, 'Assembling the folder');
   await rm(outputDir, { recursive: true, force: true });
   await mkdir(outputDir, { recursive: true });
   await cp(compiled, join(outputDir, 'lib'), { recursive: true });
   await writeFile(join(outputDir, 'package.json'), consolePackageJson(CLI_VERSION));
   await writeFile(join(outputDir, 'README.md'), consoleReadme(CLI_VERSION));
+  await writeFile(join(outputDir, CONSOLE_CHANGELOG), changelog);
   // Executável com o shebang que o entrypoint já tem: é o que permite apontar um link para ele em
   // qualquer diretório do PATH, sem npm e sem sudo. O `tsc` não carimba a permissão, e no repositório
   // ela vem do `npm install` (que a aplica no alvo do `bin`) — o que não existe numa pasta copiada.

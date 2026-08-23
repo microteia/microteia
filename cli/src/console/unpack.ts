@@ -19,6 +19,7 @@ import {
   installationGuide,
   installationReadme,
 } from '../vendor/installationDocs.js';
+import { refreshChangelogs } from '../vendor/changelogs.js';
 
 /**
  * `microteia unpack` — põe o pacote em `.microteia/install`, e nada mais.
@@ -225,6 +226,23 @@ export const unpack = async (args: ParsedArgs): Promise<void> => {
   if (!await exists(join(root, INSTALLATION_README))) {
     await writeFile(join(root, INSTALLATION_README), installationReadme(environment.project.name));
     success(`created ${INSTALLATION_README} — it is yours, and nothing rewrites it`);
+  }
+
+  /**
+   * E os dois históricos técnicos, sobrepostos pela mesma razão que o `MICROTEIA.md`: eles prometem
+   * estar atuais.
+   *
+   * Cada um vem do artefato que ele descreve — o do kernel de dentro do pacote, o do Console do binário
+   * que está rodando. É o que impede qualquer um dos dois de falar de uma versão que não está aqui, e
+   * era exatamente o que acontecia com os guias de `extensions/` enquanto o Console os escrevia.
+   *
+   * A ausência avisa e não interrompe: num pacote anterior a esta capacidade o do kernel não existe, e
+   * trocar de kernel não pode falhar por causa de um documento.
+   */
+  const changelogs = await refreshChangelogs(root, install);
+  if (changelogs.written.length > 0) success(`wrote ${changelogs.written.join(' and ')}`);
+  for (const name of changelogs.missing) {
+    warn(`this package carries no ${name}, so the previous one was left in place`);
   }
 
   /**

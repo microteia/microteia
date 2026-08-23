@@ -10,6 +10,17 @@ const here = dirname(fileURLToPath(import.meta.url));
 export const repoRoot = resolve(here, '..', '..', '..');
 
 /**
+ * A raiz do CONSOLE: `cli/` dentro do repositório, e a própria pasta do pacote quando ela é montada por
+ * `pack-console`. Vale nos dois porque a profundidade de `shared/` até ela é a mesma (`cli/lib/shared`,
+ * `cli/src/shared` em teste, `<pasta>/lib/shared` no pacote) — o mesmo motivo do cálculo acima.
+ *
+ * É por aqui que o `unpack` acha o `CONSOLE-VERSIONS.md`: o histórico do Console viaja com o binário do
+ * Console, e não com o pacote do kernel. Ao contrário de `repoRoot`, este caminho continua verdadeiro
+ * fora do repositório.
+ */
+export const consoleRoot = resolve(here, '..', '..');
+
+/**
  * A versão do CONSOLE, deliberadamente independente do `version` do produto: ela diz o que a
  * ferramenta sabe fazer, e é contra ela que o `minimumCliVersion` do manifesto é conferido. Um
  * pacote novo pode exigir um Console mais novo sem que o número do produto signifique nada aqui.
@@ -80,5 +91,11 @@ export const repoRoot = resolve(here, '..', '..', '..');
  *
  * Ela NÃO acompanha o `version` do produto, e não é obrigada a andar junto do `MINIMUM_CLI_VERSION`:
  * este último só se move quando o PACOTE passa a depender de algo que o Console faz.
+ *
+ * **A narrativa acima para na `2.5.0`, e é de propósito.** De `2.6.0` em diante a entrada de cada
+ * versão é escrita em `cli/CONSOLE-VERSIONS.md` — em inglês, no modelo do git —, porque aquele arquivo
+ * viaja com o Console e chega à raiz da instalação a cada `unpack`. Um histórico dentro de um comentário
+ * de código nunca chegou a quem instala. Este bloco fica sendo o que ele já era antes de crescer: a
+ * política de semver da ferramenta, mais o registro do que motivou as versões até a `2.5.0`.
  */
-export const CLI_VERSION = '2.5.0';
+export const CLI_VERSION = '2.6.0';

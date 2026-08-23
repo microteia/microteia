@@ -169,7 +169,8 @@ does work — writes root-owned files into the global prefix, which then need su
 
     microteia init --name "<office>"
     microteia connect --project <your-firebase-project-id>
-    microteia deploy --kernel <microteia-kernel-x.y.z>.tgz
+    microteia unpack --kernel <microteia-kernel-x.y.z>.tgz
+    microteia deploy
 
 \`connect\` prints everything that has to be prepared in the Firebase project first — start with the
 Blaze plan, since nothing else can be created without it.
@@ -191,5 +192,10 @@ The extension shows "Backend pending" in the application until you do, and stays
 
 The kernel package itself is built from the Microteia repository (\`npm run pack:kernel\`) and handed
 to you as a \`.tgz\`. The \`pack\` command in here only works inside that repository.
+
+## What changed in this Console
+
+\`CONSOLE-VERSIONS.md\`, in this folder. \`unpack\` copies it into the installation it manages, beside the
+platform's own \`KERNEL-VERSIONS.md\` — each history travels with the artifact it describes.
 `;
 

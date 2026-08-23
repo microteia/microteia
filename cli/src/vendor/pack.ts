@@ -26,6 +26,7 @@ import {
 } from '../kernel/backendShape.js';
 import type { BackendClaim, FirestoreIndexSpec } from '../kernel/backendShape.js';
 import { declarationsWithComments, environmentSecrets, findBundleLeaks } from './bundleAudit.js';
+import { KERNEL_CHANGELOG, readChangelog } from './changelogs.js';
 import { assertInsideRepository } from './repository.js';
 import { SDK_TARBALL } from './pluginWorkspaceTemplates.js';
 import { stageExamples } from './exampleSources.js';
@@ -177,6 +178,13 @@ export const pack = async (args: ParsedArgs): Promise<void> => {
 
   const pkg = await readJson<{ version: string }>(join(root, 'package.json'));
   const version = pkg.version;
+
+  /**
+   * O histórico técnico é conferido AQUI, antes de qualquer build. Uma entrada que falta é um minuto de
+   * conserto; descobri-la depois do `verify` e dos três builds custa dez, e é assim que a conferência
+   * passa a ser contornada com `--skip-verify`.
+   */
+  const changelog = await readChangelog(root, KERNEL_CHANGELOG, version);
   const kernelVersion = parseKernelVersion(
     await readFile(join(root, 'src/domain/schema/plugin/kernelVersion.ts'), 'utf8'),
   );
@@ -271,6 +279,10 @@ export const pack = async (args: ParsedArgs): Promise<void> => {
   for (const file of ['firestore.rules', 'storage.rules']) {
     await cp(join(root, file), join(stageDir, file));
   }
+
+  // O histórico do kernel viaja DENTRO do pacote, e é de lá que o `unpack` o copia para a raiz da
+  // instalação. Escrito do conteúdo já conferido, para não ler o arquivo duas vezes.
+  await writeFile(join(stageDir, KERNEL_CHANGELOG), changelog);
 
   // O `firestore.indexes.json` do pacote é ESCRITO, não copiado: a raiz é o conjunto completo (é o que
   // roda em `microteia-dev` e `curatino`), e o que uma extensão reivindica sai daqui para ser criado

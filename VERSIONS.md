@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.5.0] — 2026-08-23
+
+- A instalação passou a receber, ao lado do arquivo de configuração, o histórico de alterações de cada uma das duas peças que ela usa: a plataforma e o programa que a instala. Os dois são reescritos a cada troca de versão, e cada um vem junto com a peça que ele descreve — então nenhum dos dois pode descrever uma versão que não é a que está ali.
+- O guia da instalação e o texto de apresentação da pasta passaram a apontar esses dois arquivos, e a instrução de instalação do programa deixou de citar um comando que não existe mais.
+
 #### [9.4.0] — 2026-08-23
 
 - As regras de segurança do banco passaram a ter testes automatizados: 35 verificações que exercitam as regras de verdade, num banco de mentira, provando que ninguém lê nem grava o que não pode — inclusive tentando burlar. Era a última parte do controle de acesso sem rede de proteção.
