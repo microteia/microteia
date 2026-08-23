@@ -11,6 +11,13 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.2.0] — 2026-08-23
+
+- **A tela agora tem um identificador visível, e você o escolhe.** Ao criar uma tela no Form Design, o campo "Identificador" aparece ao lado dos títulos — é ele que nomeia a coleção e as permissões dela (`pet1.read`, `pet1.create`). Ele acompanha o título no plural até você mexer nele, e não muda depois de criada.
+- **A lista de permissões mostra o identificador de cada uma**, ao lado do nome legível. É o texto que se escreve dentro de uma expressão.
+- **`hasPermission` aceita curingas.** `<entity>.delete` vira a permissão da tela em que a expressão está sendo avaliada — o que faz a mesma ação servir a qualquer cadastro. Também aceita `*.delete` (qualquer recurso), `pet1.*` (qualquer ação) e `pet%.read` (todo recurso começando por "pet").
+- Quando "Recalcular permissões" falha, a tela passa a dizer o motivo em vez de uma mensagem genérica.
+
 #### [9.1.0] — 2026-08-23
 
 - **Os botões somem para quem não pode.** Quem só tem "Visualizar" numa tela deixa de ver o botão de novo registro e o de salvar. Antes eles apareciam, e a recusa só chegava depois do clique.

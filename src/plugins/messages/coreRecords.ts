@@ -273,4 +273,9 @@ export const CORE_RECORDS_MESSAGES: Record<string, string> = {
   'tag-list.of': 'Tags: {name}',
   'command.open': 'Open {name}',
   'tag-list.option': '{name} ({collection})',
+  'screen.key': 'Identifier',
+  'screen.key.hint': 'The name of the collection and the root of the permissions of this screen (identifier.read, identifier.create). Chosen once: it cannot change later.',
+  'screen.key.locked': 'The identifier cannot change: it is where the records of this screen live.',
+  'screen.key.placeholder': 'pets, invoices...',
+  'screen.error.key-taken': 'The identifier "{key}" is already taken by another screen.',
 };

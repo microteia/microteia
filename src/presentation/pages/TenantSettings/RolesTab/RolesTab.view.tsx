@@ -127,6 +127,7 @@ export const RolesTabView: React.FC = () => {
                       onChange={() => vm.togglePermission(permission.id)}
                       label={permission.name}
                     />
+                    <S.PermissionId title={t('role.identifier.hint')}>{permission.id}</S.PermissionId>
                     {permission.implied && (
                       <S.PermissionHint>
                         {t('role.included-by', { names: permission.impliedBy.join(', ') })}

@@ -248,12 +248,14 @@ export const useRolesTabViewModel = (): RolesTabViewModel => {
     try {
       const updated = await syncPermissions();
       notify(t('role.sync.done', { count: String(updated) }), 'success');
-    } catch {
-      notify(t('role.sync.failed'), 'error');
+    } catch (err) {
+      // A causa vai para a tela. Engolir a mensagem do servidor aqui foi o que transformou uma
+      // partida a frio da Cloud Function em "não funciona", sem dizer que bastava tentar de novo.
+      notify(label(err instanceof Error ? err.message : t('role.sync.failed'), errorParamsOf(err)), 'error');
     } finally {
       setIsSyncing(false);
     }
-  }, [syncPermissions, notify, t]);
+  }, [syncPermissions, notify, t, label]);
 
   return {
     roles,

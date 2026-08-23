@@ -7,6 +7,8 @@ export type ActionGate = (
   hiddenWhen: string | null | undefined,
   record: Record<string, unknown>,
   surface?: string,
+  /** A coleção sobre a qual a ação age — o que `<entity>` vira em `hasPermission`. */
+  entity?: string,
 ) => boolean;
 
 /**
@@ -21,12 +23,13 @@ export const useActionGate = (): ActionGate => {
   const { effectivePermissions } = useAuthorization();
   const viewer = useExprViewer();
 
-  return useCallback((hiddenWhen, record, surface = 'list') => !isActionHidden(hiddenWhen, {
+  return useCallback((hiddenWhen, record, surface = 'list', entity = '') => !isActionHidden(hiddenWhen, {
     values: record,
     record,
     isNew: false,
     isDirty: false,
     permissions: effectivePermissions,
+    entity,
     surface,
     relation: 'none',
     user: viewer,

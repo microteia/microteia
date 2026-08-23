@@ -318,6 +318,18 @@ export const ScreenBuilderView: React.FC = () => {
                   />
                 </InputGroup>
                 <InputGroup>
+                  <Label>{t('screen.key')}</Label>
+                  <Input
+                    value={vm.screenForm.screenKey}
+                    onChange={(e) => vm.updateScreenForm({ screenKey: e.target.value })}
+                    placeholder={t('screen.key.placeholder')}
+                    disabled={vm.screenModalIsEdit}
+                  />
+                  <S.FieldHint>
+                    {t(vm.screenModalIsEdit ? 'screen.key.locked' : 'screen.key.hint')}
+                  </S.FieldHint>
+                </InputGroup>
+                <InputGroup>
                   <Label>{t('screen.icon')}</Label>
                   <SearchSelect
                     options={vm.iconOptions}

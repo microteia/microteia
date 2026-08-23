@@ -36,6 +36,8 @@ export interface ScreenActionTarget extends ActionCommandTarget {
    */
   runRecordCommand?: (command: string) => void | Promise<void>;
   screenKey: string;
+  /** A COLEÇÃO dos registros. Ausente, vale a chave da tela — só diferem em tela ligada a outra. */
+  collection?: string;
   actionIds: string[];
   values: Record<string, unknown>;
   record: Record<string, unknown> | null;
@@ -152,7 +154,7 @@ export const dispatchActionOutcome = async (
 
 export const useScreenActions = (target: ScreenActionTarget): ScreenActions => {
   const {
-    screenKey, actionIds, values, record, recordId, isNew, isDirty,
+    screenKey, collection: targetCollection, actionIds, values, record, recordId, isNew, isDirty,
     applyValues, setFieldErrors, save, clone, remove, refresh, close, runRecordCommand,
   } = target;
 
@@ -173,10 +175,11 @@ export const useScreenActions = (target: ScreenActionTarget): ScreenActions => {
     isNew,
     isDirty,
     permissions: effectivePermissions,
+    entity: targetCollection ?? screenKey,
     // O cabeçalho do registro aberto — a superfície em que uma ação sempre coube.
     surface: 'detail' as const,
     user: viewer,
-  }), [values, record, isNew, isDirty, effectivePermissions, viewer]);
+  }), [values, record, isNew, isDirty, effectivePermissions, targetCollection, screenKey, viewer]);
 
   const execute = useCallback(async (
     action: ActionDefinition,

@@ -270,4 +270,9 @@ export const CORE_RECORDS: Record<string, string> = {
   'tag-list.of': 'Etiquetas: {name}',
   'command.open': 'Abrir {name}',
   'tag-list.option': '{name} ({collection})',
+  'screen.key': 'Identificador',
+  'screen.key.hint': 'O nome da coleção e a raiz das permissões desta tela (identificador.read, identificador.create). Escolhido uma vez: depois não muda.',
+  'screen.key.locked': 'O identificador não muda: é onde os registros desta tela vivem.',
+  'screen.key.placeholder': 'pets, faturas...',
+  'screen.error.key-taken': 'O identificador "{key}" já está em uso por outra tela.',
 };

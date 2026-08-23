@@ -127,6 +127,20 @@ const PermissionHint = styled.span`
   padding-left: calc(18px + ${({ theme }) => theme.spacing.sm});
 `;
 
+/**
+ * O IDENTIFICADOR da permissão, ao lado do nome legível.
+ *
+ * Ele não é enfeite: é o que se escreve em `hasPermission("...")` numa expressão, e sem ele a tela
+ * mostrava "Excluir" sem dizer que a string é `pet1.delete` — a pessoa tinha de adivinhar.
+ */
+const PermissionId = styled.code`
+  font-family: ${({ theme }) => theme.fonts.mono};
+  font-size: ${({ theme }) => theme.fontSizes.xs};
+  color: ${({ theme }) => theme.colors.textMuted};
+  padding-left: calc(18px + ${({ theme }) => theme.spacing.sm});
+  user-select: all;
+`;
+
 const SearchWrapper = styled.div`
   max-width: 520px;
   width: 100%;
@@ -171,6 +185,7 @@ export const S = {
   GroupTitle,
   PermissionRow,
   PermissionHint,
+  PermissionId,
   SearchWrapper,
   Footer,
   Summary,

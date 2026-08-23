@@ -83,6 +83,7 @@ export const CORE_ACCESS_MESSAGES: Record<string, string> = {
   'role.description.placeholder': 'What this profile is for…',
   'role.empty': 'No access profile yet. Create the first one to start granting access.',
   'role.included-by': 'Included by: {names}',
+  'role.identifier.hint': 'The identifier to use in hasPermission(\'…\') inside an expression',
   'role.includes': 'Includes automatically: {names}',
   'role.manage-only': 'Only who manages access profiles can open this tab.',
   'role.name': 'Name',

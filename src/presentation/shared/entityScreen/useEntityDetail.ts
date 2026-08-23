@@ -322,6 +322,7 @@ export function useEntityDetail<TRecord extends { id: string }>(
   const screenActions = useScreenActions({
     runRecordCommand,
     screenKey: entityKey,
+    collection: entityKey,
     actionIds: viewActionIds,
     values,
     record: (record as Record<string, unknown> | null) ?? null,

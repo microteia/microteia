@@ -82,6 +82,7 @@ export const CORE_ACCESS: Record<string, string> = {
   'role.description.placeholder': 'Para que serve este perfil…',
   'role.empty': 'Nenhum perfil de acesso ainda. Crie o primeiro para começar a conceder acesso.',
   'role.included-by': 'Incluída por: {names}',
+  'role.identifier.hint': 'O identificador para usar em hasPermission(\'…\') dentro de uma expressão',
   'role.includes': 'Inclui automaticamente: {names}',
   'role.manage-only': 'Só quem gerencia perfis de acesso pode abrir esta aba.',
   'role.name': 'Nome',

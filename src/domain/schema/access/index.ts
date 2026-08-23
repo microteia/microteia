@@ -58,7 +58,11 @@ export {
 } from './memberPermissions';
 
 export {
+  ambientEntity,
   ambientPermissions,
   resetAmbientPermissions,
+  setAmbientEntity,
   setAmbientPermissions,
 } from './permissionGate';
+
+export { ENTITY_PLACEHOLDER, matchesPermission } from './permissionPattern';

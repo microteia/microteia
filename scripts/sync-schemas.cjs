@@ -66,6 +66,7 @@ const SHARED_FILES = [
   'domain/schema/access/kernelPermissions.ts',
   'domain/schema/access/memberPermissions.ts',
   'domain/schema/access/permissionGate.ts',
+  'domain/schema/access/permissionPattern.ts',
   'domain/schema/access/index.ts',
   'kernel/ExtensionPointRegistry.ts',
   'kernel/ContributionRegistry.ts',

@@ -386,6 +386,7 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
       isNew: false,
       isDirty: false,
       permissions: effectivePermissions,
+      entity: collection,
       // Onde a ação está sendo desenhada, e o que o registro é para o pai da aba. É o que permite
       // uma extensão esconder a própria ação dentro da aba de outro registro.
       surface: (parent ? 'parentTab' : 'list') as ActionSurface,

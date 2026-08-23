@@ -6,13 +6,15 @@
 import { Parser } from 'expr-eval';
 import { isEmptyRuleValue, isValidCnpj, isValidCpf, onlyDigits } from './fieldRulePresets';
 import { ambientLocale } from './i18n/localeGate';
-import { ambientPermissions } from './access/permissionGate';
-import { grants } from './access/memberPermissions';
+import { ambientEntity, ambientPermissions, setAmbientEntity } from './access/permissionGate';
+import { matchesPermission } from './access/permissionPattern';
 import { currencyForLocale, formatMoneyFor } from './i18n/localeFormat';
 
 export interface FieldExprContext {
   value: unknown;
   data: Record<string, unknown>;
+  /** A entidade em cujo contexto a expressão vale — o que `<entity>` vira em `hasPermission`. */
+  entity?: string;
 }
 
 const EXPRESSION_OPERATORS = {
@@ -306,12 +308,7 @@ const FIELD_EXPRESSION_FUNCTIONS: Record<string, (...args: unknown[]) => unknown
    * O conjunto vem do gate de módulo porque o `expr-eval` não entrega o escopo às funções — ver
    * `access/permissionGate.ts`.
    */
-  hasPermission: (permission) => {
-    // A checagem de vazio vem ANTES: o curinga do dono concede qualquer identificador, e sem esta
-    // guarda `hasPermission("")` — um erro de digitação na declaração — passaria para ele.
-    const id = asText(permission).trim();
-    return id !== '' && grants(ambientPermissions(), id);
-  },
+  hasPermission: (permission) => matchesPermission(ambientPermissions(), asText(permission), ambientEntity()),
   map: (array, path, compact) => {
     if (!Array.isArray(array)) return [];
     const keys = splitPath(path);
@@ -344,8 +341,18 @@ const buildScope = (ctx: FieldExprContext): Record<string, unknown> => ({
   self: ctx.value,
 });
 
-export const evaluateFieldExpression = (expr: string, ctx: FieldExprContext): unknown =>
-  fieldParser.parse(expr).evaluate(buildScope(ctx) as never);
+export const evaluateFieldExpression = (expr: string, ctx: FieldExprContext): unknown => {
+  // A entidade é empurrada e DEVOLVIDA ao valor anterior: a avaliação é síncrona, então nada se
+  // intercala, mas expressões aninhadas (um campo dentro de uma aba de outra tela) precisam
+  // encontrar o contexto delas de volta.
+  const previous = ambientEntity();
+  setAmbientEntity(ctx.entity ?? '');
+  try {
+    return fieldParser.parse(expr).evaluate(buildScope(ctx) as never);
+  } finally {
+    setAmbientEntity(previous);
+  }
+};
 
 const SCOPE_RESERVED_VARIABLES = new Set(['null', 'true', 'false', 'value', 'self']);
 

@@ -59,6 +59,11 @@ export interface ActionExprContext {
   relation?: ActionRelation;
   /** Quem está olhando. Ausente, vale o usuário vazio — nenhuma expressão sobre ele acerta. */
   user?: ExprViewer;
+  /**
+   * A COLEÇÃO sobre a qual a ação age. É o que `<entity>` vira em `hasPermission("<entity>.delete")`,
+   * e é o que permite a mesma ação servir a qualquer tela em vez de nomear uma.
+   */
+  entity?: string;
 }
 
 /**
@@ -90,11 +95,17 @@ const buildScope = (ctx: ActionExprContext): Record<string, unknown> => ({
   user: ctx.user ?? EMPTY_VIEWER,
 });
 
+const asFieldContext = (ctx: ActionExprContext) => ({
+  value: null,
+  data: buildScope(ctx),
+  ...(ctx.entity ? { entity: ctx.entity } : {}),
+});
+
 export const isActionHidden = (expr: string | null | undefined, ctx: ActionExprContext): boolean =>
-  evaluateFieldBoolean(expr, { value: null, data: buildScope(ctx) });
+  evaluateFieldBoolean(expr, asFieldContext(ctx));
 
 export const isActionDisabled = (expr: string | null | undefined, ctx: ActionExprContext): boolean =>
-  evaluateFieldBoolean(expr, { value: null, data: buildScope(ctx) });
+  evaluateFieldBoolean(expr, asFieldContext(ctx));
 
 /**
  * A ação está LIGADA? Só faz sentido quando ela declara `activeWhen`; sem declaração, `undefined`
@@ -104,4 +115,4 @@ export const actionActiveState = (
   expr: string | null | undefined,
   ctx: ActionExprContext,
 ): boolean | undefined =>
-  expr?.trim() ? evaluateFieldBoolean(expr, { value: null, data: buildScope(ctx) }) : undefined;
+  expr?.trim() ? evaluateFieldBoolean(expr, asFieldContext(ctx)) : undefined;

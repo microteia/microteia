@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { useTheme } from 'styled-components';
 import { useAuthorization } from '../../../stores/useAuthorization';
 import { PERMISSION_SCREENS_MANAGE } from '../../../domain/schema/access';
@@ -73,6 +73,15 @@ export interface ChildCandidate {
 }
 
 export interface ScreenFormState {
+  /**
+   * O IDENTIFICADOR da tela — que é o nome da coleção no Firestore e a raiz das permissões dela
+   * (`pet1.read`, `pet1.create`). Só é escolhido na CRIAÇÃO: mudá-lo depois mudaria o lugar onde os
+   * registros vivem.
+   *
+   * Ele era derivado do título no plural e nunca aparecia; quem precisava escrever
+   * `hasPermission("pet1.delete")` numa expressão tinha de adivinhá-lo.
+   */
+  screenKey: string;
   titleSingular: string;
   titlePlural: string;
   icon: string;
@@ -316,6 +325,7 @@ const FIELD_TYPE_KEYS: Record<CustomFieldType, string> = {
 };
 
 const EMPTY_SCREEN_FORM: ScreenFormState = {
+  screenKey: '',
   titleSingular: '',
   titlePlural: '',
   icon: 'apps',
@@ -614,6 +624,8 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
   const [fieldModalTab, setFieldModalTab] = useState<FieldModalTab>('general');
   const [screenForm, setScreenForm] = useState<ScreenFormState>(EMPTY_SCREEN_FORM);
   const [savingScreen, setSavingScreen] = useState(false);
+  /** Se o usuário já editou o identificador à mão — a partir daí ele para de seguir o título. */
+  const screenKeyTouchedRef = useRef(false);
   const [deleteScreenTarget, setDeleteScreenTarget] = useState<ScreenDefinition | null>(null);
   const [deletingScreen, setDeletingScreen] = useState(false);
 
@@ -833,6 +845,12 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
   const updateScreenForm = useCallback((patch: Partial<ScreenFormState>) => {
     setScreenForm((prev) => {
       const next = { ...prev, ...patch };
+      // Numa tela NOVA o identificador acompanha o título no plural até alguém encostar nele. Depois
+      // disso ele é do usuário: sobrescrevê-lo apagaria a escolha a cada letra digitada no título.
+      if (patch.titlePlural !== undefined && patch.screenKey === undefined && !screenKeyTouchedRef.current) {
+        next.screenKey = slugifyFieldKey(patch.titlePlural);
+      }
+      if (patch.screenKey !== undefined) screenKeyTouchedRef.current = true;
       if (screenModalIsBuiltin || next.hasTags) return next;
       return { ...next, listActions: next.listActions.filter((a) => !tagDependentSlots.has(a)) };
     });
@@ -880,12 +898,14 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
   }, [fieldModal]);
 
   const openCreateScreen = useCallback(() => {
+    screenKeyTouchedRef.current = false;
     setScreenForm(EMPTY_SCREEN_FORM);
     setScreenModalTab('general');
     setScreenModal({ screenKey: null });
   }, []);
 
   const openEditScreen = useCallback((screenKey: string) => {
+    screenKeyTouchedRef.current = true;
     setScreenModalTab('general');
     const def = getDefinitionByKey(screenKey);
     const childLinks = Object.fromEntries(
@@ -899,6 +919,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     if (BUILTIN_SCREENS.some((b) => b.key === screenKey) || !def) {
       setScreenForm({
         ...EMPTY_SCREEN_FORM,
+        screenKey,
         childLinks,
         listActions: resolveListActions(screenKey, def?.listActions),
         viewActionIds: def?.viewActionIds ?? [],
@@ -908,6 +929,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       return;
     }
     setScreenForm({
+      screenKey: def.id,
       titleSingular: def.titleSingular,
       titlePlural: def.titlePlural,
       icon: def.icon,
@@ -1126,11 +1148,12 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       // apontam em comum para compartilhá-las. Na criação, o nome sai da chave que a tela vai
       // receber — a mesma derivação do ramo de baixo.
       const screenKeyForTags = screenModal?.screenKey
-        ?? ensureUniqueKey(slugifyFieldKey(screenForm.titlePlural), new Set([
+        ?? (slugifyFieldKey(screenForm.screenKey.trim())
+        || ensureUniqueKey(slugifyFieldKey(screenForm.titlePlural), new Set([
           ...definitions.map((def) => def.id),
           ...BUILTIN_SCREENS.map((b) => b.key),
           ...RESERVED_COLLECTIONS,
-        ]));
+        ])));
       const tagCollection = screenForm.hasTags
         ? (screenForm.tagCollection.trim() || derivedTagCollection(screenKeyForTags))
         : (screenForm.tagCollection.trim() || null);
@@ -1185,9 +1208,19 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
           ...BUILTIN_SCREENS.map((b) => b.key),
           ...RESERVED_COLLECTIONS,
         ]);
-        const screenKey = ensureUniqueKey(slugifyFieldKey(screenForm.titlePlural), existingKeys);
+        // O identificador é do USUÁRIO quando ele o informa: colidir com uma tela existente é
+        // recusado em vez de silenciosamente virar `pet1_2` — quem escolheu o nome precisa saber
+        // que ele já estava tomado.
+        const chosenKey = slugifyFieldKey(screenForm.screenKey.trim());
+        if (chosenKey && existingKeys.has(chosenKey)) {
+          setScreenModalTab('general');
+          notify(t('screen.error.key-taken', { key: chosenKey }), 'error');
+          return;
+        }
+        const screenKey = chosenKey || ensureUniqueKey(slugifyFieldKey(screenForm.titlePlural), existingKeys);
         const keyIssue = screenIdIssue(screenKey, schemaContext);
         if (keyIssue) {
+          setScreenModalTab('general');
           notify(label(keyIssue.message, keyIssue.messageParams), 'error');
           return;
         }

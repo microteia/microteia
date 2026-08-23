@@ -3,7 +3,8 @@ import { evaluateFieldBoolean } from '../fieldExpression';
 import { UNRESTRICTED_PERMISSION } from './memberPermissions';
 import { resetAmbientPermissions, setAmbientPermissions } from './permissionGate';
 
-const evaluate = (expr: string): boolean => evaluateFieldBoolean(expr, { value: null, data: {} });
+const evaluate = (expr: string, entity?: string): boolean =>
+  evaluateFieldBoolean(expr, { value: null, data: {}, ...(entity ? { entity } : {}) });
 
 describe('hasPermission dentro de uma expressão', () => {
   afterEach(() => resetAmbientPermissions());
@@ -40,6 +41,31 @@ describe('hasPermission dentro de uma expressão', () => {
     setAmbientPermissions([UNRESTRICTED_PERMISSION]);
     expect(evaluate('hasPermission("")')).toBe(false);
     expect(evaluate('hasPermission(null)')).toBe(false);
+  });
+
+  it('<entity> vira a coleção do contexto da avaliação', () => {
+    setAmbientPermissions(['pet1.delete']);
+    expect(evaluate('hasPermission("<entity>.delete")', 'pet1')).toBe(true);
+    expect(evaluate('hasPermission("<entity>.delete")', 'pet2')).toBe(false);
+  });
+
+  it('sem entidade no contexto, <entity> não casa com nada', () => {
+    setAmbientPermissions(['pet1.delete']);
+    expect(evaluate('hasPermission("<entity>.delete")')).toBe(false);
+  });
+
+  it('a entidade é devolvida ao valor anterior — uma avaliação não contamina a seguinte', () => {
+    setAmbientPermissions(['pet1.delete']);
+    expect(evaluate('hasPermission("<entity>.delete")', 'pet1')).toBe(true);
+    expect(evaluate('hasPermission("<entity>.delete")')).toBe(false);
+  });
+
+  it('aceita curinga de segmento e de pedaço', () => {
+    setAmbientPermissions(['pet1.delete', 'finance.write']);
+    expect(evaluate('hasPermission("*.delete")')).toBe(true);
+    expect(evaluate('hasPermission("pet%.delete")')).toBe(true);
+    expect(evaluate('hasPermission("pet1.*")')).toBe(true);
+    expect(evaluate('hasPermission("*.update")')).toBe(false);
   });
 
   it('resetar o gate tira o acesso — um caso de teste não vaza para o outro', () => {

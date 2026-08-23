@@ -3,7 +3,7 @@
   "workflows": [],
   "manifest": {
     "id": "com.microteia.locale-pt-br",
-    "version": "1.17.0",
+    "version": "1.18.0",
     "kernel": "^2.0.0",
     "name": "Português (Brasil)",
     "description": "Tradução da Microteia para português do Brasil.",
@@ -86,6 +86,7 @@
             "role.description.placeholder": "Para que serve este perfil…",
             "role.empty": "Nenhum perfil de acesso ainda. Crie o primeiro para começar a conceder acesso.",
             "role.included-by": "Incluída por: {names}",
+            "role.identifier.hint": "O identificador para usar em hasPermission('…') dentro de uma expressão",
             "role.includes": "Inclui automaticamente: {names}",
             "role.manage-only": "Só quem gerencia perfis de acesso pode abrir esta aba.",
             "role.name": "Nome",
@@ -1470,7 +1471,12 @@
             "filter.range-from": "{field} (de)",
             "tag-list.of": "Etiquetas: {name}",
             "command.open": "Abrir {name}",
-            "tag-list.option": "{name} ({collection})"
+            "tag-list.option": "{name} ({collection})",
+            "screen.key": "Identificador",
+            "screen.key.hint": "O nome da coleção e a raiz das permissões desta tela (identificador.read, identificador.create). Escolhido uma vez: depois não muda.",
+            "screen.key.locked": "O identificador não muda: é onde os registros desta tela vivem.",
+            "screen.key.placeholder": "pets, faturas...",
+            "screen.error.key-taken": "O identificador \"{key}\" já está em uso por outra tela."
           }
         }
       },
