@@ -3,7 +3,7 @@
   "workflows": [],
   "manifest": {
     "id": "com.microteia.locale-pt-br",
-    "version": "1.21.0",
+    "version": "1.21.1",
     "kernel": "^2.0.0",
     "name": "Português (Brasil)",
     "description": "Tradução da Microteia para português do Brasil.",
@@ -1621,6 +1621,7 @@
             "settings.empty": "Nenhuma configuração registrada. Extensões que aceitam configuração aparecem aqui.",
             "settings.json.discard": "Descartar",
             "settings.json.invalid": "JSON inválido: {detail}",
+            "settings.json.not-object": "O documento precisa ser um objeto JSON.",
             "settings.json.lead.tenant": "O documento inteiro de configurações do escritório. Chave de uma extensão desativada é preservada; valor fora do que a configuração aceita é recusado.",
             "settings.json.lead.user": "O documento inteiro de suas preferências. Chave de uma extensão desativada é preservada; valor fora do que a configuração aceita é recusado.",
             "settings.list.hint": "Pressione Enter para adicionar. Clique no × para remover.",

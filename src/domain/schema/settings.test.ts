@@ -128,6 +128,32 @@ describe('parseSettingsJson — o documento escrito à mão', () => {
     expect(parsed.values).toEqual({});
   });
 
+  /**
+   * O problema de sintaxe é CHAVE, e não frase. Aqui morava um `'O documento precisa ser um objeto
+   * JSON.'` que chegava à tela sem passar por catálogo nenhum: quem não tem tradução instalada lia
+   * português no meio de uma interface em inglês, e ninguém percebia porque só aparece quando alguém
+   * cola um documento errado.
+   */
+  it('o problema de sintaxe é uma referência de mensagem, nunca a frase pronta', () => {
+    for (const text of ['{ isto não é json', '[1, 2, 3]', '"só um texto"']) {
+      const issue = parseSettingsJson(sections([booleanProperty]), text, 'user').syntaxError;
+      expect(issue, text).not.toBeNull();
+      expect(issue?.message, text).toMatch(/^[a-z][a-z0-9.-]*$/);
+    }
+  });
+
+  it('o documento que não é objeto é recusado pela chave própria', () => {
+    const parsed = parseSettingsJson(sections([booleanProperty]), '[1, 2, 3]', 'user');
+    expect(parsed.syntaxError).toEqual({ message: 'settings.json.not-object' });
+  });
+
+  /** O texto do motor de JSON entra como PARÂMETRO, não no lugar da chave. */
+  it('a falha de leitura carrega o detalhe do motor sem virar o texto todo', () => {
+    const parsed = parseSettingsJson(sections([booleanProperty]), '{ isto não é json', 'user');
+    expect(parsed.syntaxError?.message).toBe('settings.json.invalid');
+    expect(parsed.syntaxError?.messageParams?.detail).toBeTruthy();
+  });
+
   it('recusa a chave conhecida com valor inválido e mantém as demais', () => {
     const text = JSON.stringify({ 'agenda.compacta': 'sim', outra: 1 });
     const parsed = parseSettingsJson(sections([booleanProperty]), text, 'user');

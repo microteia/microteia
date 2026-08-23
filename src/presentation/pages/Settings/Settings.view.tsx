@@ -85,7 +85,10 @@ export const SettingsView: React.FC = () => {
               minHeight="360px"
             />
             {vm.jsonSyntaxError && (
-              <InfoBanner message={t('settings.json.invalid', { detail: vm.jsonSyntaxError })} variant="warning" />
+              <InfoBanner
+                message={t(vm.jsonSyntaxError.message, vm.jsonSyntaxError.messageParams)}
+                variant="warning"
+              />
             )}
             {vm.jsonIssues.length > 0 && (
               <S.JsonIssues>

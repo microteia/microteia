@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.6.1] — 2026-08-23
+
+- Corrigido o aviso da tela de Configurações no modo JSON: quando o documento colado não era um objeto, a explicação aparecia sempre em português, mesmo para quem usa o sistema em outro idioma. Agora ela é traduzida como qualquer outro texto da tela.
+
 #### [9.6.0] — 2026-08-23
 
 - Uma extensão que acrescenta um campo à tela de outra extensão passou a poder dizer o que ler aquela tela exige ler junto. Antes, quem via a agenda sem poder ver processos encontrava o compromisso sem o número do processo ao lado — e não havia como a extensão de Prazos declarar essa ligação sem tomar a permissão da Agenda para si. Agora duas extensões podem complementar a mesma tela, cada uma somando o que traz, sem atropelar a outra nem a dona da tela.

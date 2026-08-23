@@ -18,6 +18,18 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.6.1] — 2026-08-23
+
+- fix(settings): `SettingsJsonParse.syntaxError` is a `SettingsValueIssue` instead of a string. It
+  carried a ready-made Portuguese sentence for the not-an-object case, straight from the domain to the
+  screen without passing through a catalogue — so anyone without the translation installed read
+  Portuguese in the middle of an English interface. The validation also runs on the backend, which has
+  no locale, which is why every other issue in this file was already a reference. The JSON engine's own
+  text stays untranslated on purpose, but as a `detail` parameter rather than the whole message.
+- test(settings): the shape is pinned — a syntax problem must look like a message key, never a
+  sentence. The old literal only ever surfaced when someone pasted a malformed document, which is why
+  it lived there for so long.
+
 #### [9.6.0] — 2026-08-23
 
 - feat(access): new extension point `access.requirement` (KERNEL 2.1.0), the additive way to add a

@@ -6,6 +6,7 @@ export const CORE_SETTINGS_MESSAGES: Record<string, string> = {
   'settings.empty': 'No setting registered. Extensions that accept configuration show up here.',
   'settings.json.discard': 'Discard',
   'settings.json.invalid': 'Invalid JSON: {detail}',
+  'settings.json.not-object': 'The document has to be a JSON object.',
   'settings.json.lead.tenant':
     'The whole document of organization settings. A key of a disabled extension is preserved; a value outside what the setting accepts is refused.',
   'settings.json.lead.user':

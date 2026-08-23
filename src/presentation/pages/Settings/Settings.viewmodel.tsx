@@ -8,7 +8,7 @@ import { useSettingsSections } from '../../shared/settings/useSettingsCatalog';
 import { visibleSettingsSections } from '../../shared/resolveUiContributions';
 import type { ExtensionSettingsSection } from '../../shared/extensions/extensionServices';
 import { useT } from '../../shared/i18n/useT';
-import type { SettingsJsonParse } from '../../../domain/schema/settings';
+import type { SettingsJsonParse, SettingsValueIssue } from '../../../domain/schema/settings';
 import {
   matchesSettingsQuery,
   parseSettingsJson,
@@ -55,7 +55,7 @@ export interface SettingsViewModel {
   resetValue: (property: SettingsProperty) => void;
   jsonText: string;
   changeJson: (text: string) => void;
-  jsonSyntaxError: string | null;
+  jsonSyntaxError: SettingsValueIssue | null;
   jsonIssues: SettingsJsonParse['errors'];
   isJsonDirty: boolean;
   canSaveJson: boolean;

@@ -5,6 +5,7 @@ export const CORE_SETTINGS: Record<string, string> = {
   'settings.empty': 'Nenhuma configuração registrada. Extensões que aceitam configuração aparecem aqui.',
   'settings.json.discard': 'Descartar',
   'settings.json.invalid': 'JSON inválido: {detail}',
+  'settings.json.not-object': 'O documento precisa ser um objeto JSON.',
   'settings.json.lead.tenant':
     'O documento inteiro de configurações do escritório. Chave de uma extensão desativada é preservada; valor fora do que a configuração aceita é recusado.',
   'settings.json.lead.user':

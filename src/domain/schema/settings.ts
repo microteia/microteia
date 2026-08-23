@@ -358,8 +358,12 @@ export interface SettingsJsonParse {
   values: SettingsValues;
   /** Uma mensagem por chave recusada, como REFERÊNCIA. O restante do documento é aproveitado. */
   errors: Array<{ key: string } & SettingsValueIssue>;
-  /** Erro de sintaxe: nada é aproveitado. */
-  syntaxError: string | null;
+  /**
+   * Erro de sintaxe: nada é aproveitado. É um `SettingsValueIssue` como os de `errors`, e pelo mesmo
+   * motivo — a validação roda também no backend, que não conhece idioma, e quem exibe resolve. Já foi
+   * uma frase pronta em português, que chegava à tela sem passar por catálogo nenhum.
+   */
+  syntaxError: SettingsValueIssue | null;
 }
 
 /**
@@ -376,10 +380,17 @@ export const parseSettingsJson = (
   try {
     parsed = JSON.parse(text.trim() === '' ? '{}' : text);
   } catch (error) {
-    return { values: {}, errors: [], syntaxError: (error as Error).message };
+    // O `detail` é o texto que o motor de JSON produziu ("Unexpected token ..."), e ele não passa
+    // pelo catálogo de propósito: é diagnóstico de runtime, como um stack trace, e não texto do
+    // produto. O que a pessoa lê em volta dele é que é traduzido.
+    return {
+      values: {},
+      errors: [],
+      syntaxError: { message: 'settings.json.invalid', messageParams: { detail: (error as Error).message } },
+    };
   }
   if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
-    return { values: {}, errors: [], syntaxError: 'O documento precisa ser um objeto JSON.' };
+    return { values: {}, errors: [], syntaxError: { message: 'settings.json.not-object' } };
   }
 
   const values: SettingsValues = {};
