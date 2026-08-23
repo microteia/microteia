@@ -13,6 +13,16 @@ const isSystemAdmin = async (userId: string): Promise<boolean> =>
   (await getDI().getUserRepository().getUserRole(userId)) === 'SYSTEM';
 
 /**
+ * O DONO do escritório, lido do próprio escritório — a mesma frase que o `firestore.rules` diz.
+ *
+ * Ele é consultado só depois de a permissão materializada já ter falhado, e por isso não custa nada
+ * a quem tem acesso. Precisa existir porque o dono não pode depender de a materialização já ter
+ * rodado: as regras o deixavam passar e a callable não, o que dava duas respostas à mesma pergunta.
+ */
+const isTenantOwner = async (tenantId: string, userId: string): Promise<boolean> =>
+  (await getDI().getTenantRepository().getById(tenantId))?.ownerId === userId;
+
+/**
  * Devolve o conjunto CONCEDIDO, e não `void`: quem acabou de autorizar quase sempre precisa dele em
  * seguida para montar o ator da execução (`WorkflowContext.actor`), e uma segunda leitura do mesmo
  * documento seria só desperdício. O administrador global recebe o curinga, que é o que ele de fato
@@ -26,6 +36,7 @@ export const requirePermission = async (
   const granted = await getDI().getTenantMemberRepository().getMemberPermissions(tenantId, userId);
   if (grants(granted, permission)) return granted;
   if (await isSystemAdmin(userId)) return [UNRESTRICTED_PERMISSION];
+  if (await isTenantOwner(tenantId, userId)) return [UNRESTRICTED_PERMISSION];
   throw new HttpsError('permission-denied', '@core.access/permission.denied', { permission });
 };
 
@@ -38,6 +49,7 @@ export const requireAnyPermission = async (
   const granted = await getDI().getTenantMemberRepository().getMemberPermissions(tenantId, userId);
   if (grantsAny(granted, permissions)) return;
   if (await isSystemAdmin(userId)) return;
+  if (await isTenantOwner(tenantId, userId)) return;
   throw new HttpsError('permission-denied', '@core.access/permission.denied', {
     permission: permissions.join(', '),
   });

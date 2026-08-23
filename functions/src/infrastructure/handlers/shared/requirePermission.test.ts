@@ -4,6 +4,7 @@ import { requireAnyPermission, requirePermission } from './requirePermission';
 
 const permissionsByUser: Record<string, string[]> = {};
 const roleByUser: Record<string, string | null> = {};
+const tenantOwner: { id: string | null } = { id: null };
 
 vi.mock('../../di/container', () => ({
   getDI: () => ({
@@ -12,6 +13,9 @@ vi.mock('../../di/container', () => ({
     }),
     getUserRepository: () => ({
       getUserRole: async (userId: string) => roleByUser[userId] ?? null,
+    }),
+    getTenantRepository: () => ({
+      getById: async () => (tenantOwner.id ? { ownerId: tenantOwner.id } : null),
     }),
   }),
 }));
@@ -31,6 +35,7 @@ describe('requirePermission', () => {
   beforeEach(() => {
     for (const key of Object.keys(permissionsByUser)) delete permissionsByUser[key];
     for (const key of Object.keys(roleByUser)) delete roleByUser[key];
+    tenantOwner.id = null;
   });
 
   it('deixa passar quem tem a permissão, devolvendo o conjunto concedido', async () => {
@@ -61,6 +66,22 @@ describe('requirePermission', () => {
     await expect(requirePermission('t1', 'sys', 'automation.manage')).resolves.toEqual(['*']);
   });
 
+  /**
+   * O DONO passa mesmo SEM permissão materializada — é o caso em que ele mais precisa passar, porque
+   * é o de um escritório que acabou de chegar ao modelo. Sem isto, as regras o deixavam entrar e a
+   * callable o barrava: a mesma pergunta com duas respostas.
+   */
+  it('o DONO do escritório passa mesmo sem nada materializado', async () => {
+    tenantOwner.id = 'dono';
+    await expect(requirePermission('t1', 'dono', 'automation.manage')).resolves.toEqual(['*']);
+  });
+
+  it('quem não é o dono continua barrado', async () => {
+    tenantOwner.id = 'outro';
+    const error = await denied(requirePermission('t1', 'ana', 'automation.manage'));
+    expect(error.code).toBe('permission-denied');
+  });
+
   it('papel global comum NÃO passa por cima da permissão', async () => {
     roleByUser.ana = 'USER';
     const error = await denied(requirePermission('t1', 'ana', 'automation.manage'));
@@ -72,6 +93,7 @@ describe('requireAnyPermission', () => {
   beforeEach(() => {
     for (const key of Object.keys(permissionsByUser)) delete permissionsByUser[key];
     for (const key of Object.keys(roleByUser)) delete roleByUser[key];
+    tenantOwner.id = null;
   });
 
   it('basta UMA das permissões', async () => {
@@ -79,6 +101,11 @@ describe('requireAnyPermission', () => {
     await expect(
       requireAnyPermission('t1', 'ana', ['automation.manage', 'automation.run']),
     ).resolves.toBeUndefined();
+  });
+
+  it('o DONO do escritório passa em requireAnyPermission também', async () => {
+    tenantOwner.id = 'dono';
+    await expect(requireAnyPermission('t1', 'dono', ['a.read'])).resolves.toBeUndefined();
   });
 
   it('recusa quando não tem nenhuma, listando as que faltaram', async () => {

@@ -84,16 +84,32 @@ export const AuthorizationStoreProvider: React.FC<{ children: React.ReactNode }>
     [catalog, roles, member],
   );
 
-  const effectiveSet = useMemo(() => new Set(resolved.effective), [resolved]);
+  /**
+   * O conjunto EFETIVO inclui o curinga de quem não tem limite — o administrador global e o DONO do
+   * escritório. Ele é o que de fato vale, e é o que sai daqui para todo lugar que não passa por
+   * `can()`: a expressão de uma ação (`hasPermission`), o `ExtensionViewer` de uma extensão, o
+   * escopo de um campo.
+   *
+   * Sem isso, `can()` deixava o dono passar e `hasPermission("<entity>.delete")` na mesma tela dizia
+   * que não — a mesma pergunta com duas respostas, conforme por onde se perguntasse. O backend já
+   * materializava `*` para o dono; faltava o front dizer a mesma coisa.
+   */
+  const effectivePermissions = useMemo(
+    () => (isUnrestricted ? [UNRESTRICTED_PERMISSION] : resolved.effective),
+    [isUnrestricted, resolved],
+  );
+
+  const effectiveSet = useMemo(() => new Set(effectivePermissions), [effectivePermissions]);
 
   /**
-   * Empurra o conjunto para o gate de módulo, que é de onde `hasPermission(...)` o lê dentro de uma
-   * expressão — o `expr-eval` não entrega o escopo às funções registradas nele. Mesmo mecanismo do
-   * idioma (`setAmbientLocale`), e seguro aqui porque o navegador avalia uma expressão por vez.
+   * O gate de módulo é o CAMINHO DE RESERVA de `hasPermission(...)`: quem avalia uma expressão de
+   * tela passa o conjunto pelo contexto, que é o que a torna uma dependência de render. Este efeito
+   * atende quem avalia fora de uma tela — e nunca deve ser o caminho principal, porque efeito roda
+   * depois do render e não provoca recálculo nenhum.
    */
   useEffect(() => {
-    setAmbientPermissions(isUnrestricted ? [UNRESTRICTED_PERMISSION] : resolved.effective);
-  }, [isUnrestricted, resolved]);
+    setAmbientPermissions(effectivePermissions);
+  }, [effectivePermissions]);
 
   const can = useCallback(
     (permission: string) => isUnrestricted || effectiveSet.has(permission),
@@ -116,7 +132,7 @@ export const AuthorizationStoreProvider: React.FC<{ children: React.ReactNode }>
       canAny,
       canAll,
       explicitPermissions: resolved.explicit,
-      effectivePermissions: resolved.effective,
+      effectivePermissions,
       catalog,
       isUnrestricted,
       isLoading: Boolean(currentTenant) && (tenantLoading || rolesLoading || screensLoading),
@@ -126,6 +142,7 @@ export const AuthorizationStoreProvider: React.FC<{ children: React.ReactNode }>
       canAny,
       canAll,
       resolved,
+      effectivePermissions,
       catalog,
       isUnrestricted,
       currentTenant,

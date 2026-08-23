@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.3.2] — 2026-08-23
+
+- **O dono do escritório volta a poder tudo também dentro das expressões.** Uma ação escrita como `!hasPermission("<entity>.delete")` ficava escondida para o próprio dono: o sistema o deixava passar em toda parte, menos ali. Ele agora carrega o curinga que já tinha no servidor, e a mesma pergunta passa a ter a mesma resposta em qualquer lugar — sem precisar criar um perfil só para ele.
+- Pelo mesmo motivo, o dono também deixa de ser barrado ao disparar uma automação ou um script num escritório em que as permissões ainda não foram calculadas.
+
 #### [9.3.1] — 2026-08-23
 
 - **`!` passa a significar "não" nas expressões.** Ele era lido como fatorial: `!hasPermission("...")` valia sempre verdadeiro, o editor aceitava a expressão e ela dizia o contrário do que estava escrito — uma ação escondida sem que nada acusasse o motivo.

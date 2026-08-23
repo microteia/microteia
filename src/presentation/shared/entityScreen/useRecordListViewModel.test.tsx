@@ -303,6 +303,21 @@ describe('useRecordListViewModel — ações customizadas do cartão', () => {
     expect(result.current.pendingCardAction).toBeNull();
   });
 
+  /**
+   * O DONO do escritório não tem perfil nenhum: o que ele tem é o curinga. Enquanto o conjunto
+   * efetivo saía sem ele, `can()` deixava o dono passar e `hasPermission` na mesma tela dizia que
+   * não — a mesma pergunta com duas respostas conforme por onde se perguntasse.
+   */
+  it('o curinga do dono responde SIM a qualquer padrão na expressão', () => {
+    auth.effectivePermissions = ['*'];
+    actionStore.actions = [acao({ hiddenWhen: '!hasPermission("<entity>.delete")' })];
+    state.definition = { ...definition(), cardActionIds: ['a1'] } as ScreenDefinition;
+
+    const { result } = listar({ screenKey: 'prazos', savedFiltersKey: 'prazos' });
+    expect(result.current.getCardActions(record('r1', 'Prazo', 'Pendente', 1)).map((a) => a.key))
+      .toContain('a1');
+  });
+
   it('sem a permissão, a mesma expressão esconde a ação do cartão', () => {
     auth.effectivePermissions = ['deadlines.read'];
     actionStore.actions = [acao({ hiddenWhen: '!hasPermission("<entity>.delete")' })];
