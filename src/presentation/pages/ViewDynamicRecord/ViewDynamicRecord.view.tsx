@@ -55,6 +55,7 @@ export const ViewDynamicRecordView: React.FC<{ tabKey: string }> = ({ tabKey }) 
   const dataContent = (
     <S.FormWrapper>
       <CustomFieldsSection
+        entity={vm.collection}
         fields={vm.sortedFields}
         values={vm.formValues}
         onChange={vm.setFieldValue}

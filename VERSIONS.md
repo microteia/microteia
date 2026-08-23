@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.3.4] — 2026-08-23
+
+- `hasPermission` passa a valer também nas expressões de CAMPO — "Ocultar quando" e "Desabilitar quando" de um campo do formulário —, com o mesmo `<entity>` das ações.
+
 #### [9.3.3] — 2026-08-23
 
 - O guia de autoria de extensões passou a explicar como uma extensão declara as capacidades que traz e como pergunta por elas — inclusive os curingas aceitos. Quem escreve extensão declara o que se pode fazer; quem instala decide quem faz.

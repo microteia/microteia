@@ -237,6 +237,7 @@ export const useEntityDetailVM = (
     isLoadingDefinition,
     isNew: detail.isNew,
     isDirty: detail.isDirty,
+    collection,
     canSave,
     canDeleteRecordParts: canDeleteRecords,
     canManageDocumentTypes,

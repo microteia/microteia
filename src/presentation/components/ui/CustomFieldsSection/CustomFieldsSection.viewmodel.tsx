@@ -47,6 +47,12 @@ export interface CustomFieldsSectionProps {
    * `isDirty`. Ausente = formulário intocado.
    */
   isDirty?: boolean;
+  /**
+   * A COLEÇÃO do registro em edição — o que `<entity>` vira em `hasPermission` dentro de um
+   * `hiddenWhen`/`disabledWhen` de campo. Ausente, o marcador não resolve e o padrão que o usa não
+   * casa; o identificador escrito por extenso continua valendo.
+   */
+  entity?: string;
 }
 
 export interface FieldGroup {
@@ -87,9 +93,10 @@ export const useCustomFieldsSectionViewModel = (props: CustomFieldsSectionProps)
     onMergeValues,
     isNew = false,
     isDirty = false,
+    entity,
   } = props;
   const { getOptions, addOption, recolorOption, removeOption } = useLookups();
-  const { can } = useAuthorization();
+  const { can, effectivePermissions } = useAuthorization();
   const referenceOptionsByEntity = useReferenceOptions();
   const theme = useTheme();
 
@@ -251,13 +258,24 @@ export const useCustomFieldsSectionViewModel = (props: CustomFieldsSectionProps)
     [hydratedScope, isNew, isDirty],
   );
 
+  /**
+   * As permissões e a coleção seguem para a avaliação da MESMA forma que nas ações: pelo contexto.
+   * Sem isso, `hasPermission(...)` num `hiddenWhen` de campo dependeria do gate de módulo — que é
+   * empurrado por efeito e não provoca recálculo, então erraria na primeira pintura do formulário.
+   */
+  const exprExtras = useMemo(
+    () => ({ permissions: effectivePermissions, ...(entity ? { entity } : {}) }),
+    [effectivePermissions, entity],
+  );
+
   const isFieldHidden = useCallback(
     (field: FieldDefinition): boolean =>
       evaluateFieldBoolean(field.logic?.hiddenWhen, {
         value: hydratedScope[field.key],
         data: uiScope,
+        ...exprExtras,
       }),
-    [hydratedScope, uiScope],
+    [hydratedScope, uiScope, exprExtras],
   );
 
   const isFieldDisabled = useCallback(
@@ -268,8 +286,9 @@ export const useCustomFieldsSectionViewModel = (props: CustomFieldsSectionProps)
       evaluateFieldBoolean(field.logic?.disabledWhen, {
         value: hydratedScope[field.key],
         data: uiScope,
+        ...exprExtras,
       }),
-    [disabled, hydratedScope, uiScope],
+    [disabled, hydratedScope, uiScope, exprExtras],
   );
 
   const fieldError = useCallback(

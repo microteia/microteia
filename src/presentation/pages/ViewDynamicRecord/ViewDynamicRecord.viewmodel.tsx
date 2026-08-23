@@ -59,6 +59,8 @@ export interface ViewDynamicRecordViewModel {
   /** Algum campo foi alterado e ainda não foi salvo — exposto às expressões como `isDirty`. */
   isDirty: boolean;
   screenActions: ScreenActions;
+  /** A COLEÇÃO do registro — o que `<entity>` vira nas expressões dos campos. */
+  collection: string;
   canSave: boolean;
   canDeleteRecordParts: boolean;
   canManageDocumentTypes: boolean;
@@ -359,6 +361,7 @@ export const useViewDynamicRecordViewModel = (tabKey: string): ViewDynamicRecord
     isNew: detail.isNew,
     isDirty: detail.isDirty,
     screenActions: detail.screenActions,
+    collection,
     canSave,
     canDeleteRecordParts: canDeleteRecords,
     canManageDocumentTypes,

@@ -486,18 +486,32 @@ extensão instalada (os dois últimos mudam o catálogo). Ela **não grava quand
 o que a torna idempotente e, sobretudo, impede o laço: gravar no documento de membro dispara o
 gatilho de membro, e a segunda passada não grava.
 
+Os gatilhos acordam com escrita no BANCO, e não cobrem o que muda no CÓDIGO: uma versão nova do
+kernel pode alterar de que uma permissão depende — foi o que aconteceu quando criar, editar e excluir
+passaram a exigir ver — sem que nenhuma escrita aconteça. Para isso existe a callable
+`syncTenantPermissions`, e a ação **"Recalcular permissões"** na aba de perfis. Ela é idempotente
+pela mesma razão que a rotina é.
+
 ### `SYSTEM` e o DONO — as duas exceções, e por que não são perfis
 
 | Exceção | O que é | Onde |
 |---|---|---|
 | `UserRole = 'SYSTEM'` | administrador GLOBAL: vê e administra todos os escritórios | `users/{uid}.role` |
-| Dono do escritório | curinga `*` nas permissões materializadas | `Tenant.ownerId` → `members/{uid}.permissions` |
+| Dono do escritório | curinga `*` no conjunto EFETIVO | `Tenant.ownerId` |
 
 Nenhum dos dois é um perfil, e não poderia ser: `SYSTEM` é atribuído **antes de existir escritório
 algum** — o PRIMEIRO usuário a autenticar no sistema nasce com ele (transação sobre `system/bootstrap`
 em `FirebaseUserRepository.createUserIfMissing`), e só outro `SYSTEM` o concede depois. O dono é fato
 do escritório, não papel concedido: sem o curinga, um escritório recém-criado nasceria sem ninguém
 capaz de criar o primeiro perfil.
+
+**O curinga entra no conjunto EFETIVO, e não só no atalho de `can()`.** Enquanto ficou de fora,
+`can()` deixava o dono passar e `hasPermission("<entity>.delete")` na mesma tela dizia que não — a
+mesma pergunta com duas respostas conforme por onde se perguntasse, e a saída seria criar um perfil
+só para o dono, que é o que o curinga existe para dispensar. Por isso ele é lido de `Tenant.ownerId`
+em TRÊS lugares que não podem divergir: `AuthorizationStore` (a tela), `firestore.rules`
+(`isTenantOwner`, último termo do `||`, para não custar leitura a quem já tem a permissão) e
+`requirePermission` (as callables). Nenhum deles depende de a materialização já ter rodado.
 
 O papel `SUPPORT` **deixou de existir**.
 
@@ -509,28 +523,8 @@ O papel `SUPPORT` **deixou de existir**.
 | ViewModel | `const { can } = useAuthorization()` — nunca uma comparação de papel |
 | Extensão | `useCan()` da API curada; o `ExtensionViewer` traz `permissions`, e não papel nenhum |
 | Security Rules | `can(tenantId, permission)`, uma leitura — a mesma que `memberData()` já fazia |
-| Callable | `requirePermission(tenantId, uid, permission)` |
-| Expressão | `hasPermission("medico.delete")` — em campo, ação, condição de passo e Script (`fn.hasPermission`) |
-
-### `hasPermission` — a mesma pergunta dentro de uma declaração
-
-`hasPermission("finance.write")` está disponível onde já se escreve condição: `hiddenWhen` de uma
-ação, `disabledWhen` de um campo, condição de um passo e, no Script, como `fn.hasPermission(...)`. O
-argumento é o identificador da PERMISSÃO, nunca o de um perfil — é o que permite a uma extensão
-escrever `hasPermission("push.recheck")` sem saber que perfis existem no escritório que a instalou.
-
-De onde ela lê o conjunto muda conforme a ponta, e a diferença não é acidental:
-
-| Ponta | Fonte | Por quê |
-|---|---|---|
-| Navegador | gate de módulo (`access/permissionGate.ts`), empurrado pelo `AuthorizationStore` | o `expr-eval` não entrega o escopo às funções registradas nele; o navegador avalia uma por vez |
-| Backend | `WorkflowContext.actor`, por execução | uma instância de Cloud Function atende requisições CONCORRENTES — gate de módulo vazaria o acesso de uma execução para outra |
-
-**Sem ator, a resposta é NÃO.** A automação que nasce de um gatilho não tem pessoa, e conceder por
-ausência de pessoa transformaria "ninguém disparou isto" em "pode tudo". Hoje há ator em `runAction`
-e no Step "Script" (execução em processo); `runWorkflow` PUBLICA um evento e a execução acontece
-noutra invocação — levar as permissões no payload seria persistir um retrato do acesso de alguém
-dentro do barramento, e por isso ali não há ator.
+| Callable | `requirePermission(tenantId, uid, permission)`, que DEVOLVE o conjunto para montar o ator |
+| Expressão | `hasPermission("<entity>.delete")` — em campo, ação, condição de passo e Script (`fn.hasPermission`) |
 
 O curinga `match /{screenCollection}/{recordId}` monta o nome a partir da própria coleção
 (`canOnCollection(name, 'create')`). Ali morava `writeRoles`, a lista de papéis que a tela declarava:
@@ -538,6 +532,70 @@ ela resolvia o problema certo — a tela decidindo quem grava nela — com o voc
 alargar o acesso de um mural exigia nomear `user`, um papel que o produto impunha ao escritório.
 `memberWritableFields` e `authorCanDelete` continuam como estavam: falam de campo e de autoria, não
 de papel.
+
+**Lista de opções e conjunto de etiquetas são VOCABULÁRIO:** todo membro os LÊ, sem permissão
+própria. Exigi-la produzia a tela meio carregada de quem tem acesso ao registro mas não à lista que
+ele cita. Gravar neles continua permissionado, pelas quatro derivadas da coleção.
+
+### `hasPermission` — a mesma pergunta dentro de uma declaração
+
+Disponível onde já se escreve condição: `hiddenWhen` de uma ação, `disabledWhen` de um campo,
+condição de um passo e, no Script, como `fn.hasPermission(...)`. O argumento é um PADRÃO sobre o
+identificador da permissão, nunca o de um perfil — é o que permite a uma extensão escrever
+`hasPermission("push.recheck")` sem saber que perfis existem no escritório que a instalou.
+
+| Padrão | Casa com |
+|---|---|
+| `pet1.delete` | exatamente essa permissão |
+| `<entity>.delete` | a exclusão da tela em que a expressão está sendo avaliada |
+| `*.delete` | a exclusão de QUALQUER recurso |
+| `pet1.*` | qualquer ação sobre `pet1` |
+| `pet%.delete` | a exclusão de todo recurso começando por `pet` |
+
+Curinga nunca atravessa o ponto — `*` é um segmento inteiro e `%` é um pedaço DENTRO de um segmento —,
+e o casamento é SENSÍVEL a maiúsculas: `Pet1` e `pet1` são coleções diferentes no Firestore, e
+casá-las concederia acesso de uma pela outra. Quem precisa acertar o identificador o encontra escrito
+ao lado de cada permissão na tela de perfis e no campo "Identificador" do Form Design.
+
+#### De onde vem o conjunto, e por que a resposta muda de lugar
+
+| Ponta | Fonte | Por quê |
+|---|---|---|
+| Navegador | o **contexto da avaliação** (`FieldExprContext.permissions` / `.entity`) | é o que faz o valor ser uma dependência de render |
+| Navegador, fora de uma tela | gate de módulo (`access/permissionGate.ts`) — reserva | o `expr-eval` não entrega o escopo às funções registradas nele |
+| Backend | `WorkflowContext.actor`, por execução | uma instância de Cloud Function atende requisições CONCORRENTES — gate de módulo vazaria o acesso de uma execução para outra |
+
+**O gate de módulo não pode ser o caminho principal, e essa é a lição de um defeito real.** Ele era
+empurrado por um `useEffect` do `AuthorizationStore`; efeito roda DEPOIS do render dos filhos e não
+provoca recálculo nenhum, então a primeira pintura da listagem avaliava com o conjunto vazio e ficava
+assim — a ação sumia do cartão e aparecia numa tela aberta depois. Quem avalia dentro de uma tela
+passa o conjunto pelo contexto; o gate ficou para quem avalia fora dela.
+
+**Sem ator, a resposta é NÃO.** A automação que nasce de um gatilho não tem pessoa, e conceder por
+ausência de pessoa transformaria "ninguém disparou isto" em "pode tudo". Há ator em `runAction` e no
+Step "Script" (execução em processo); `runWorkflow` PUBLICA um evento e a execução acontece noutra
+invocação — levar as permissões no payload seria persistir um retrato do acesso de alguém dentro do
+barramento, e por isso ali não há ator. `<entity>` também não resolve no backend: uma automação não
+está presa a uma coleção.
+
+#### `!` é NEGAÇÃO, e não era
+
+No `expr-eval`, `!` é o FATORIAL. `!hasPermission("x")` avaliava para `1` — verdadeiro: a expressão
+passava no validador, parecia dizer "quando NÃO puder" e dizia "sempre". `buildParser` sobrescreve o
+operador unário (`parser.unaryOps['!']`) para que ele signifique o que qualquer pessoa escreve por
+reflexo. Fatorial não é perda — numa linguagem de regra de negócio ele nunca teve uso.
+
+### A tela — por PERMISSÃO, não por perfil
+
+A aba "Perfis de Acesso" (`presentation/pages/TenantSettings/RolesTab/`) lista as PERMISSÕES,
+agrupadas por recurso, com o identificador ao lado. Cada linha mostra em chips os perfis que a
+concedem — inclusive por dependência —, e clicar abre o painel com todos os perfis, onde o vínculo é
+um clique. A busca casa com recurso, permissão e NOME DE PERFIL, o que responde "o que este perfil
+concede?" sem uma segunda tela.
+
+Foi feita nessa direção porque é a direção da pergunta: "quais perfis concedem `pet1.create`?" exigia
+abrir perfil por perfil. Criar, renomear e excluir perfil ficam num modal à parte, e **um perfil nasce
+vazio** — perfil é nome, permissão é escolha, cada uma no lugar onde a pergunta acontece.
 
 ### Nada é semeado
 
@@ -548,13 +606,14 @@ dono continua podendo tudo dentro do dele.
 
 ### Arquivos-chave
 
-`domain/schema/access/{permission,extensionPoints,resolvePermissions,memberPermissions,kernelPermissions}.ts` ·
+`domain/schema/access/{permission,extensionPoints,resolvePermissions,memberPermissions,kernelPermissions,permissionPattern,permissionGate}.ts` ·
 `domain/entities/Role.ts` · `domain/usecases/roles/RoleUseCases.ts` ·
 `stores/{RoleStore,AuthorizationStore}.tsx` · `plugins/core.access/manifest.ts` ·
 `presentation/pages/TenantSettings/RolesTab/` ·
 `functions/src/data/services/PermissionCatalogCache.ts` ·
 `functions/src/domain/usecases/MaterializeMemberPermissionsUseCase.ts` ·
-`functions/src/infrastructure/handlers/{materializeMemberPermissions,shared/requirePermission}.ts`
+`functions/src/infrastructure/handlers/{materializeMemberPermissions,syncTenantPermissions,shared/requirePermission}.ts` ·
+`functions/src/domain/engine/expression/builtins/accessFns.ts`
 
 ---
 

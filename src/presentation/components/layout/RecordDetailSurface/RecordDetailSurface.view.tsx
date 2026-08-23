@@ -32,6 +32,8 @@ export interface RecordDetailViewModel {
   canManageDocumentTypes: boolean;
   /** Excluir é de admin — ou do autor, quando a tela declara `authorCanDelete`. */
   canDelete: boolean;
+  /** A COLEÇÃO do registro — o que `<entity>` vira nas expressões dos campos. */
+  collection: string;
   canSave: boolean;
   screenKey: string;
   recordId: string | null;
@@ -104,6 +106,7 @@ export const RecordDetailSurface: React.FC<RecordDetailSurfaceProps> = ({ vm, re
 
   const dataContent = renderData ? renderData(vm) : (
     <CustomFieldsSection
+      entity={vm.collection}
       fields={vm.sortedFields}
       values={vm.formValues}
       onChange={vm.setFieldValue}
