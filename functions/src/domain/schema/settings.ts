@@ -88,6 +88,16 @@ export interface SettingsSection {
   /** Chave do conjunto curado de ícones (`screenIcons`) — nunca um componente. */
   icon?: string;
   order?: number;
+  /**
+   * As PERMISSÕES exigidas para a seção aparecer em Configurações — basta uma, como em toda
+   * contribuição de UI (`UiPageMetadata.requiredPermissions`). Ausente = aparece para todo membro.
+   *
+   * É VISIBILIDADE, e não fronteira: o catálogo continua inteiro, porque é dele que sai o valor
+   * PADRÃO de cada propriedade, e uma seção escondida cujas propriedades deixassem de resolver
+   * mudaria o comportamento do produto para quem não pode configurá-lo. Quem barra a gravação
+   * continua sendo o escopo da propriedade e a regra do Firestore.
+   */
+  requiredPermissions?: string[];
   properties: SettingsProperty[];
 }
 

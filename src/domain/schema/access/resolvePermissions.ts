@@ -1,11 +1,12 @@
 import type { PluginDiagnostic } from '../plugin/diagnostics';
 import { error } from '../plugin/diagnostics';
-import type { AccessPermission, CrudAction } from './permission';
+import type { AccessPermission, AccessRequirement, CrudAction } from './permission';
 import {
   CRUD_ACTIONS,
   collectionPermissionId,
   parseAccessPermission,
   validateAccessPermission,
+  validateAccessRequirement,
 } from './permission';
 
 /** Uma permissão do catálogo já resolvida: o que foi declarado mais o que se deriva do `id`. */
@@ -33,6 +34,12 @@ export interface PermissionCatalog {
 export interface DeclaredPermission {
   permission: AccessPermission;
   /** `pluginId` de quem declarou — não é campo da permissão, é de onde ela veio. */
+  source: string;
+}
+
+export interface DeclaredRequirement {
+  requirement: AccessRequirement;
+  /** `pluginId` de quem somou — pelo mesmo motivo de `DeclaredPermission.source`. */
   source: string;
 }
 
@@ -76,12 +83,16 @@ const DERIVED_ACTION_NAMES: Record<CrudAction, string> = {
  * O catálogo unificado: o que as telas dão de graça mais o que os plugins declaram.
  *
  * A declaração SOBREPÕE a derivada de mesmo id — é assim que `finance.write` ganha
- * `requires: ['finance.read', 'person.read']` sem o plugin ter de repetir as outras três, e é a
- * única forma de uma dependência entrar no catálogo (a derivação nunca inventa dependência).
+ * `requires: ['finance.read', 'person.read']` sem o plugin ter de repetir as outras três.
+ *
+ * `requirements` é a outra forma de uma dependência entrar no catálogo, e a única disponível a quem
+ * não é dono da permissão: sobrepor exige declará-la inteira, e só um pacote pode fazer isso. Ver
+ * `mergeRequirements`. A derivação, em si, nunca inventa dependência.
  */
 export const buildPermissionCatalog = (
   declared: DeclaredPermission[],
   resources: PermissionResource[],
+  requirements: DeclaredRequirement[] = [],
 ): PermissionCatalog => {
   const diagnostics: PluginDiagnostic[] = [];
   const byId = new Map<string, CatalogPermission>();
@@ -145,10 +156,113 @@ export const buildPermissionCatalog = (
     if (!resourceNames.has(parsed.resource)) resourceNames.set(parsed.resource, parsed.resource);
   }
 
+  diagnostics.push(...mergeRequirements(byId, requirements));
+
   const list = [...byId.values()].sort(compareCatalog);
   diagnostics.push(...catalogIntegrityDiagnostics(byId));
 
   return { byId, list, resourceNames, diagnostics };
+};
+
+/** `required` alcança `id` seguindo as arestas de `requires`? É o que detecta o ciclo antes de criá-lo. */
+const reaches = (
+  from: string,
+  target: string,
+  byId: ReadonlyMap<string, CatalogPermission>,
+): boolean => {
+  const seen = new Set<string>();
+  const pending = [from];
+  while (pending.length > 0) {
+    const current = pending.pop() as string;
+    if (current === target) return true;
+    if (seen.has(current)) continue;
+    seen.add(current);
+    pending.push(...(byId.get(current)?.requires ?? []));
+  }
+  return false;
+};
+
+/**
+ * Soma ao fecho das permissões o que os pacotes acrescentaram por `access.requirement`.
+ *
+ * Duas decisões moram aqui, e as duas são o oposto do que o resto deste arquivo faz.
+ *
+ * A primeira: uma soma que não resolve é DESCARTADA, e não faz a permissão inteira falhar. O
+ * fail-closed de `closureOf` vale para quem DECLARA: uma permissão cuja dependência ninguém explica
+ * não deve ser concedida. Aqui quem falha é um terceiro somando à permissão de outro — se isso
+ * negasse `calendar.read`, uma extensão trancaria a tela de outra ao ser instalada com um id errado.
+ * Descartar é seguro por construção: a soma só AMPLIA o que é concedido, então tirá-la só estreita,
+ * e o que sobra é exatamente o catálogo de antes de o pacote existir.
+ *
+ * A segunda: a soma é verificada contra o grafo ANTES de entrar nele, e não depois. Uma aresta que
+ * criasse ciclo derrubaria as duas permissões envolvidas pelo caminho do `catalogIntegrityDiagnostics`
+ * — de novo, uma delas de quem não pediu nada. Perguntar se o alvo já é alcançável a partir da
+ * dependência é o que garante que nenhuma soma jamais feche um ciclo.
+ *
+ * A ordem é determinística de propósito: a união não depende dela, mas a recusa de ciclo sim, e um
+ * catálogo que muda conforme a ordem de carregamento dos pacotes seria impossível de explicar.
+ */
+const mergeRequirements = (
+  byId: Map<string, CatalogPermission>,
+  requirements: DeclaredRequirement[],
+): PluginDiagnostic[] => {
+  const diagnostics: PluginDiagnostic[] = [];
+
+  const sorted = [...requirements].sort(
+    (a, b) => a.requirement.id.localeCompare(b.requirement.id) || a.source.localeCompare(b.source),
+  );
+
+  for (const { requirement, source } of sorted) {
+    const issues = validateAccessRequirement(requirement, { pluginId: source });
+    if (issues.length > 0) {
+      diagnostics.push(...issues);
+      continue;
+    }
+
+    const target = byId.get(requirement.id);
+    if (!target) {
+      diagnostics.push(
+        error({
+          code: 'access.requirement.unknown',
+          message: '@core.access/diagnostic.requirement.target.unknown',
+          messageParams: { id: requirement.id },
+          pluginId: source,
+        }),
+      );
+      continue;
+    }
+
+    const merged = new Set(target.requires);
+    for (const required of [...new Set(requirement.requires)].sort()) {
+      if (!byId.has(required)) {
+        diagnostics.push(
+          error({
+            code: 'access.requirement.unknown',
+            message: '@core.access/diagnostic.requirement.unknown',
+            messageParams: { id: requirement.id, required },
+            pluginId: source,
+          }),
+        );
+        continue;
+      }
+      if (reaches(required, requirement.id, byId)) {
+        diagnostics.push(
+          error({
+            code: 'access.requirement.cycle',
+            message: '@core.access/diagnostic.requirement.cycle',
+            messageParams: { id: requirement.id, required },
+            pluginId: source,
+          }),
+        );
+        continue;
+      }
+      merged.add(required);
+    }
+
+    byId.set(requirement.id, { ...target, requires: [...merged] });
+  }
+
+  return diagnostics;
 };
 
 const unknownDependency = (id: string, required: string, source: string): PluginDiagnostic =>

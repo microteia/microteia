@@ -43,6 +43,12 @@ export interface SurfaceTabDescriptor extends UiTabMetadata {
   spec?: WidgetSpec;
 }
 
+/** `requiredPermissions` chega de metadata solta (um `.json` de terceiro): só entra se for lista de texto. */
+const asPermissionList = (value: unknown): string[] | undefined =>
+  Array.isArray(value) && value.every((entry) => typeof entry === 'string')
+    ? (value as string[])
+    : undefined;
+
 const asSection = (metadata: Record<string, unknown>): SettingsSection | null => {
   const key = metadata.key;
   const title = metadata.title;
@@ -54,18 +60,13 @@ const asSection = (metadata: Record<string, unknown>): SettingsSection | null =>
     description: typeof metadata.description === 'string' ? metadata.description : undefined,
     icon: typeof metadata.icon === 'string' ? metadata.icon : undefined,
     order: typeof metadata.order === 'number' ? metadata.order : undefined,
+    requiredPermissions: asPermissionList(metadata.requiredPermissions),
     properties: properties.filter((property): property is SettingsProperty => {
       const candidate = property as Partial<SettingsProperty>;
       return typeof candidate?.key === 'string' && typeof candidate?.type === 'string' && Array.isArray(candidate?.scopes);
     }),
   };
 };
-
-/** `requiredPermissions` chega de metadata solta (um `.json` de terceiro): só entra se for lista de texto. */
-const asPermissionList = (value: unknown): string[] | undefined =>
-  Array.isArray(value) && value.every((entry) => typeof entry === 'string')
-    ? (value as string[])
-    : undefined;
 
 const asWidgetMetadata = (metadata: Record<string, unknown>): UiWidgetMetadata | null => {
   const { surface, key, title } = metadata;

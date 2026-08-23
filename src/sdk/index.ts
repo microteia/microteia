@@ -90,9 +90,11 @@ export {
 
 export type {
   AccessPermission,
+  AccessRequirement,
   CatalogPermission,
   CrudAction,
   DeclaredPermission,
+  DeclaredRequirement,
   ParsedAccessPermission,
   PermissionCatalog,
   PermissionResource,
@@ -103,20 +105,24 @@ export {
   ACCESS_API_VERSION,
   ACCESS_EXTENSION_POINTS,
   ACCESS_PERMISSION_POINT,
+  ACCESS_REQUIREMENT_POINT,
   ACCESS_RESOURCE_POINT,
   CRUD_ACTIONS,
   accessPermissionContribution,
   accessPermissionOf,
+  accessRequirementContribution,
   accessResourceContribution,
   buildPermissionCatalog,
   collectionPermissionId,
   declaredPermissionsOf,
+  declaredRequirementsOf,
   declaredResourcesOf,
   dependenciesOf,
   isValidAccessPermissionId,
   parseAccessPermission,
   resolveEffective,
   validateAccessPermission,
+  validateAccessRequirement,
 } from '../domain/schema/access';
 
 // ─── Pontos de extensão do produto — a lista que o autor consulta ─────────────

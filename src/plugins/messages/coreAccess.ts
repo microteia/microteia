@@ -20,6 +20,21 @@ export const CORE_ACCESS_MESSAGES: Record<string, string> = {
   'diagnostic.permission.requires.unknown':
     'The permission "{id}" depends on "{required}", which does not exist.',
   'diagnostic.permission.unknown': 'The permission "{id}" does not exist.',
+  'diagnostic.requirement.cycle':
+    'The added dependency of "{id}" on "{required}" was ignored, because "{required}" already depends on "{id}".',
+  'diagnostic.requirement.id.invalid':
+    'The added dependency points at "{id}", which is not a valid permission identifier.',
+  'diagnostic.requirement.not-object': 'The added dependency is not an object.',
+  'diagnostic.requirement.requires.invalid':
+    'The dependencies added to the permission "{id}" must be a non-empty list of permission identifiers.',
+  'diagnostic.requirement.requires.malformed':
+    'The dependency "{required}" added to the permission "{id}" is not a valid identifier.',
+  'diagnostic.requirement.requires.self':
+    'The permission "{id}" cannot be given a dependency on itself.',
+  'diagnostic.requirement.target.unknown':
+    'A dependency was added to the permission "{id}", which does not exist. The addition was ignored.',
+  'diagnostic.requirement.unknown':
+    'The dependency "{required}" added to the permission "{id}" does not exist, so it was ignored — "{id}" keeps working as it did before.',
   'permission.ai.manage': 'Manage AI connections',
   'permission.ai.manage.description':
     'Register, edit and remove the artificial intelligence connections of the organization.',
@@ -60,6 +75,9 @@ export const CORE_ACCESS_MESSAGES: Record<string, string> = {
   'point.permission.title': 'Permission',
   'point.resource.description':
     'The label of a resource that permissions act on, when it is not a screen collection.',
+  'point.requirement.description':
+    'A dependency added to a permission declared elsewhere, or derived from a screen, so that reading it also grants what a complementary extension needs.',
+  'point.requirement.title': 'Added permission dependency',
   'point.resource.title': 'Permission resource',
   'resource.ai': 'Artificial intelligence',
   'resource.audit': 'Audit trail',

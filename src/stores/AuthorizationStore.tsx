@@ -10,9 +10,11 @@ import { useContributions } from './useKernel';
 import type { PermissionResource } from '../domain/schema/access';
 import {
   ACCESS_PERMISSION_POINT,
+  ACCESS_REQUIREMENT_POINT,
   ACCESS_RESOURCE_POINT,
   buildPermissionCatalog,
   declaredPermissionsOf,
+  declaredRequirementsOf,
   declaredResourcesOf,
   UNRESTRICTED_PERMISSION,
   isUnrestricted as grantsEverything,
@@ -39,6 +41,7 @@ export const AuthorizationStoreProvider: React.FC<{ children: React.ReactNode }>
   const { availableTagLists } = useTags();
   const permissionContributions = useContributions(ACCESS_PERMISSION_POINT);
   const resourceContributions = useContributions(ACCESS_RESOURCE_POINT);
+  const requirementContributions = useContributions(ACCESS_REQUIREMENT_POINT);
 
   /**
    * O catálogo deriva de TODA coleção que o escritório tem: as telas, as listas de opções e os
@@ -60,8 +63,16 @@ export const AuthorizationStoreProvider: React.FC<{ children: React.ReactNode }>
     return buildPermissionCatalog(
       declaredPermissionsOf(permissionContributions),
       [...declaredResourcesOf(resourceContributions), ...listResources, ...screenResources],
+      declaredRequirementsOf(requirementContributions),
     );
-  }, [permissionContributions, resourceContributions, definitions, availableLookups, availableTagLists]);
+  }, [
+    permissionContributions,
+    resourceContributions,
+    requirementContributions,
+    definitions,
+    availableLookups,
+    availableTagLists,
+  ]);
 
   const member = useMemo(
     () => members.find((candidate) => candidate.userId === user?.id) ?? null,

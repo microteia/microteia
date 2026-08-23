@@ -32,7 +32,10 @@ export type DiagnosticCode =
   | 'access.permission.invalid'
   | 'access.permission.unknown'
   | 'access.permission.cycle'
-  | 'access.permission.duplicate';
+  | 'access.permission.duplicate'
+  | 'access.requirement.invalid'
+  | 'access.requirement.unknown'
+  | 'access.requirement.cycle';
 
 export interface PluginDiagnostic {
   severity: DiagnosticSeverity;

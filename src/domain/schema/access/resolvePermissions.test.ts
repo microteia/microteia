@@ -1,10 +1,17 @@
 import { describe, it, expect } from 'vitest';
-import type { AccessPermission } from './permission';
-import type { DeclaredPermission, PermissionResource } from './resolvePermissions';
+import type { AccessPermission, AccessRequirement } from './permission';
+import type {
+  DeclaredPermission,
+  DeclaredRequirement,
+  PermissionResource,
+} from './resolvePermissions';
 import { buildPermissionCatalog, dependenciesOf, resolveEffective } from './resolvePermissions';
 
 const declare = (source: string, ...permissions: AccessPermission[]): DeclaredPermission[] =>
   permissions.map((permission) => ({ permission, source }));
+
+const add = (source: string, ...requirements: AccessRequirement[]): DeclaredRequirement[] =>
+  requirements.map((requirement) => ({ requirement, source }));
 
 const screens: PermissionResource[] = [
   { id: 'finance', name: 'Finance', deriveCrud: true, source: 'com.acme.finance' },
@@ -273,5 +280,122 @@ describe('dependenciesOf', () => {
       [],
     );
     expect(dependenciesOf(catalog, 'a.use')).toEqual([]);
+  });
+});
+
+/**
+ * A soma ao fecho de uma permissão ALHEIA. Ela existe porque `requires` é privilégio de quem declara,
+ * e a permissão de uma coleção normalmente não é declarada por ninguém — o catálogo a deriva da tela.
+ * Duas extensões que complementam a mesma tela não tinham como dizer, as duas, de que ler aquela tela
+ * passou a depender: a segunda a substituir a derivada era recusada como duplicada.
+ */
+describe('a dependência acrescentada a uma permissão alheia', () => {
+  const agenda: PermissionResource[] = [
+    { id: 'calendar', name: 'Calendar', deriveCrud: true, source: 'com.acme.calendar' },
+    { id: 'cases', name: 'Cases', deriveCrud: true, source: 'com.acme.cases' },
+    { id: 'persons', name: 'People', deriveCrud: true, source: 'com.acme.people' },
+  ];
+
+  it('entra no fecho de uma permissão DERIVADA, que ninguém declarou', () => {
+    const catalog = buildPermissionCatalog(
+      [],
+      agenda,
+      add('com.acme.deadlines', { id: 'calendar.read', requires: ['cases.read'] }),
+    );
+    expect(dependenciesOf(catalog, 'calendar.read')).toEqual(['cases.read']);
+    expect(resolveEffective(catalog, ['calendar.read']).effective).toEqual([
+      'calendar.read',
+      'cases.read',
+    ]);
+  });
+
+  it('soma de DOIS pacotes ao mesmo id, que é o que a declaração recusava', () => {
+    const catalog = buildPermissionCatalog(
+      [],
+      agenda,
+      [
+        ...add('com.acme.deadlines', { id: 'calendar.read', requires: ['cases.read'] }),
+        ...add('com.acme.finance', { id: 'calendar.read', requires: ['persons.read'] }),
+      ],
+    );
+    expect(dependenciesOf(catalog, 'calendar.read')).toEqual(['cases.read', 'persons.read']);
+    expect(catalog.diagnostics).toEqual([]);
+  });
+
+  it('soma ao fecho que a permissão DECLARADA já trazia, sem apagá-lo', () => {
+    const catalog = buildPermissionCatalog(
+      declare('com.acme.calendar', {
+        id: 'calendar.read',
+        name: 'View the calendar',
+        requires: ['persons.read'],
+      }),
+      agenda,
+      add('com.acme.deadlines', { id: 'calendar.read', requires: ['cases.read'] }),
+    );
+    expect(dependenciesOf(catalog, 'calendar.read')).toEqual(['cases.read', 'persons.read']);
+  });
+
+  /**
+   * A diferença central em relação ao `requires` de quem declara. Ali a dependência que não resolve
+   * NEGA a permissão, e deve negar: quem a declarou não consegue explicá-la. Aqui quem errou é um
+   * terceiro somando à permissão de outro, e negar deixaria uma extensão trancar a tela de outra só
+   * por ser instalada. Descartar é seguro por construção — a soma só amplia, então tirá-la só estreita.
+   */
+  it('descarta a soma que não resolve, e a permissão de quem não errou continua valendo', () => {
+    const catalog = buildPermissionCatalog(
+      [],
+      agenda,
+      add('com.acme.deadlines', { id: 'calendar.read', requires: ['inexistente.read'] }),
+    );
+    expect(catalog.diagnostics.map((d) => d.code)).toEqual(['access.requirement.unknown']);
+    expect(catalog.diagnostics[0].pluginId).toBe('com.acme.deadlines');
+    expect(resolveEffective(catalog, ['calendar.read']).effective).toEqual(['calendar.read']);
+  });
+
+  it('descarta a soma cujo ALVO não existe, sem inventar a permissão', () => {
+    const catalog = buildPermissionCatalog(
+      [],
+      agenda,
+      add('com.acme.deadlines', { id: 'inexistente.read', requires: ['cases.read'] }),
+    );
+    expect(catalog.diagnostics.map((d) => d.code)).toEqual(['access.requirement.unknown']);
+    expect(catalog.byId.has('inexistente.read')).toBe(false);
+  });
+
+  /** Uma aresta que fechasse ciclo derrubaria as DUAS permissões, e uma delas é de quem não pediu nada. */
+  it('recusa a soma que fecharia um ciclo, em vez de deixá-la entrar no grafo', () => {
+    const catalog = buildPermissionCatalog(
+      declare('com.acme.cases', {
+        id: 'cases.read',
+        name: 'View cases',
+        requires: ['calendar.read'],
+      }),
+      agenda,
+      add('com.acme.deadlines', { id: 'calendar.read', requires: ['cases.read'] }),
+    );
+    expect(catalog.diagnostics.map((d) => d.code)).toEqual(['access.requirement.cycle']);
+    expect(resolveEffective(catalog, ['cases.read']).effective).toEqual([
+      'calendar.read',
+      'cases.read',
+    ]);
+  });
+
+  it('recusa a soma malformada sem tocar no resto do catálogo', () => {
+    const catalog = buildPermissionCatalog(
+      [],
+      agenda,
+      add('com.acme.deadlines', { id: 'calendar.read', requires: [] }),
+    );
+    expect(catalog.diagnostics.map((d) => d.code)).toEqual(['access.requirement.invalid']);
+    expect(dependenciesOf(catalog, 'calendar.read')).toEqual([]);
+  });
+
+  /** A ordem de carregamento dos pacotes não pode mudar o catálogo que sai daqui. */
+  it('não depende da ordem em que os pacotes chegam', () => {
+    const first = add('com.acme.a', { id: 'calendar.read', requires: ['cases.read'] });
+    const second = add('com.acme.b', { id: 'calendar.read', requires: ['persons.read'] });
+    const one = buildPermissionCatalog([], agenda, [...first, ...second]);
+    const other = buildPermissionCatalog([], agenda, [...second, ...first]);
+    expect(dependenciesOf(one, 'calendar.read')).toEqual(dependenciesOf(other, 'calendar.read'));
   });
 });

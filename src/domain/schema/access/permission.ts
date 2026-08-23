@@ -143,3 +143,87 @@ export const validateAccessPermission = (
 
   return diagnostics;
 };
+
+/**
+ * O que uma extensão ACRESCENTA ao fecho de uma permissão que não é dela.
+ *
+ * Existe porque `requires` só pode ser dito por quem DECLARA a permissão, e a permissão de uma
+ * coleção normalmente não é declarada por ninguém — o catálogo a deriva da tela. Um pacote que
+ * complementa a tela de outro (um `screenPatch` que acrescenta uma relação ao registro) precisava
+ * substituir a derivada para dizer de que ela passou a depender, e substituir é privilégio de um
+ * plugin só: o segundo a tentar era recusado como declaração duplicada, e o campo acrescentado
+ * ficava em branco para quem lê a tela hospedeira sem ler a coleção referenciada.
+ *
+ * É ADITIVO por natureza, e é isso que o separa de uma declaração: não tem nome nem descrição, não
+ * substitui nada, e vários pacotes somam ao mesmo `id` sem se atropelarem — o fecho é a união.
+ */
+export interface AccessRequirement {
+  /** A permissão cujo fecho cresce. Pode ser declarada por outro pacote ou derivada de uma tela. */
+  id: string;
+  requires: string[];
+}
+
+/** Nunca lança, pelo mesmo motivo de `validateAccessPermission`: metadata de terceiro. */
+export const validateAccessRequirement = (
+  requirement: AccessRequirement,
+  options: ValidateAccessPermissionOptions = {},
+): PluginDiagnostic[] => {
+  const { pluginId, path } = options;
+  const at = (field: string) => (path ? `${path}.${field}` : field);
+
+  if (!isPlainObject(requirement)) {
+    return [
+      error({
+        code: 'access.requirement.invalid',
+        message: '@core.access/diagnostic.requirement.not-object',
+        pluginId,
+        path,
+      }),
+    ];
+  }
+
+  const diagnostics: PluginDiagnostic[] = [];
+
+  if (!isValidAccessPermissionId(requirement.id)) {
+    diagnostics.push(
+      error({
+        code: 'access.requirement.invalid',
+        message: '@core.access/diagnostic.requirement.id.invalid',
+        messageParams: { id: String(requirement.id) },
+        pluginId,
+        path: at('id'),
+      }),
+    );
+  }
+
+  if (!Array.isArray(requirement.requires) || requirement.requires.length === 0) {
+    diagnostics.push(
+      error({
+        code: 'access.requirement.invalid',
+        message: '@core.access/diagnostic.requirement.requires.invalid',
+        messageParams: { id: String(requirement.id) },
+        pluginId,
+        path: at('requires'),
+      }),
+    );
+    return diagnostics;
+  }
+
+  requirement.requires.forEach((required, index) => {
+    if (isValidAccessPermissionId(required) && required !== requirement.id) return;
+    diagnostics.push(
+      error({
+        code: 'access.requirement.invalid',
+        message:
+          required === requirement.id
+            ? '@core.access/diagnostic.requirement.requires.self'
+            : '@core.access/diagnostic.requirement.requires.malformed',
+        messageParams: { id: String(requirement.id), required: String(required) },
+        pluginId,
+        path: at(`requires[${index}]`),
+      }),
+    );
+  });
+
+  return diagnostics;
+};

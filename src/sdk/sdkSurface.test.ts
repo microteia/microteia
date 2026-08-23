@@ -14,7 +14,7 @@ import { KERNEL_VERSION } from '../domain/schema/plugin/kernelVersion';
  * defeito que ela pega não tem sintoma local nenhum.
  */
 const PUBLISHED = [
-  'ACCESS_API_VERSION', 'ACCESS_EXTENSION_POINTS', 'ACCESS_PERMISSION_POINT', 'ACCESS_RESOURCE_POINT', 'CRUD_ACTIONS', 'accessPermissionContribution', 'accessPermissionOf', 'accessResourceContribution', 'buildPermissionCatalog', 'collectionPermissionId', 'declaredPermissionsOf', 'declaredResourcesOf', 'dependenciesOf', 'isValidAccessPermissionId', 'parseAccessPermission', 'resolveEffective', 'validateAccessPermission',
+  'ACCESS_API_VERSION', 'ACCESS_EXTENSION_POINTS', 'ACCESS_PERMISSION_POINT', 'ACCESS_REQUIREMENT_POINT', 'ACCESS_RESOURCE_POINT', 'CRUD_ACTIONS', 'accessPermissionContribution', 'accessRequirementContribution', 'accessPermissionOf', 'accessResourceContribution', 'buildPermissionCatalog', 'collectionPermissionId', 'declaredPermissionsOf', 'declaredRequirementsOf', 'declaredResourcesOf', 'dependenciesOf', 'isValidAccessPermissionId', 'parseAccessPermission', 'resolveEffective', 'validateAccessPermission', 'validateAccessRequirement',
   'DATA_API_VERSION', 'DATA_ENTITY_POINT', 'DATA_EXTENSION_POINTS', 'DATA_EXTERNAL_LOOKUP_POINT',
   'DATA_FIELD_RULE_PRESET_POINT', 'DATA_LOOKUP_POINT', 'DATA_SERVICE_POINT',
   'DEFAULT_CONTRIBUTION_PRIORITY', 'DEFAULT_LOCALE', 'I18N_API_VERSION', 'I18N_EXTENSION_POINTS',
@@ -43,7 +43,7 @@ const PUBLISHED = [
  * `plugin.ts` de quem já escreveu contra ele.
  */
 const PUBLISHED_TYPES = [
-  'AccessPermission', 'CatalogPermission', 'CrudAction', 'DeclaredPermission', 'ParsedAccessPermission', 'PermissionCatalog', 'PermissionResource', 'ResolvedPermissions',
+  'AccessPermission', 'AccessRequirement', 'CatalogPermission', 'CrudAction', 'DeclaredPermission', 'DeclaredRequirement', 'ParsedAccessPermission', 'PermissionCatalog', 'PermissionResource', 'ResolvedPermissions',
   'ActionDefinition', 'ActionLocalCommand', 'ActionModuleTemplate', 'ActionOutcome', 'AuthoredPlugin',
   'AuthoredView', 'BackendPrerequisite', 'CapabilityProvision', 'CapabilityRequirement', 'Condition',
   'Contribution', 'CustomFieldMask', 'CustomFieldOption', 'CustomFieldType', 'DiagnosticCode',

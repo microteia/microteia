@@ -5,6 +5,7 @@ import { useAuthorization } from '../../../stores/useAuthorization';
 import { PERMISSION_SETTINGS_MANAGE } from '../../../domain/schema/access';
 import { useNotification } from '../../../stores/useNotification';
 import { useSettingsSections } from '../../shared/settings/useSettingsCatalog';
+import { visibleSettingsSections } from '../../shared/resolveUiContributions';
 import type { ExtensionSettingsSection } from '../../shared/extensions/extensionServices';
 import { useT } from '../../shared/i18n/useT';
 import type { SettingsJsonParse } from '../../../domain/schema/settings';
@@ -65,10 +66,17 @@ export interface SettingsViewModel {
 export const useSettingsViewModel = (): SettingsViewModel => {
   const t = useT('core.settings');
   const { values, isLoading, setValue, clearValue, replaceScope } = useSettings();
-  const { can } = useAuthorization();
+  const { can, canAny } = useAuthorization();
   const canEditTenant = can(PERMISSION_SETTINGS_MANAGE);
   const { notify } = useNotification();
-  const sections = useSettingsSections();
+  const catalog = useSettingsSections();
+
+  /**
+   * O que esta pessoa VÊ. A validação do modo JSON continua sobre o catálogo INTEIRO: ela existe para
+   * explicar o que já está gravado, e um valor deixar de ser validado porque quem olha não vê a seção
+   * seria mentira sobre o dado, não discrição sobre a tela.
+   */
+  const sections = useMemo(() => visibleSettingsSections(catalog, canAny), [catalog, canAny]);
 
   const [query, setQuery] = useState('');
   const [scope, setScope] = useState<SettingsScope>('user');
@@ -131,8 +139,8 @@ export const useSettingsViewModel = (): SettingsViewModel => {
   const isJsonDirty = jsonText !== storedJson;
 
   const parsed = useMemo(
-    () => parseSettingsJson(sections, jsonText, scope),
-    [sections, jsonText, scope],
+    () => parseSettingsJson(catalog, jsonText, scope),
+    [catalog, jsonText, scope],
   );
 
   const changeJson = useCallback((text: string) => {

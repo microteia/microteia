@@ -198,6 +198,28 @@ const reconcilePackageJson = (path: string, kernelVersion: string): Reconciliati
     : { action: 'updated', contents: after, warnings };
 };
 
+/**
+ * O `CLAUDE.md` já foi cópia byte a byte do `AGENTS.md`, e as instalações daquela época carregam essa
+ * cópia até hoje: ele é SEMEADO, então nada o reescreve, e ficou descrevendo o contrato do kernel de
+ * quando o diretório nasceu — dentro do arquivo que um assistente lê como instrução, ao lado de um
+ * `AGENTS.md` reescrito que diz outra coisa.
+ *
+ * Não há como consertá-lo daqui, e é justo que não haja: é arquivo do escritório, e uma linha dele
+ * pode ser dele. Mas dá para dizer, porque a versão do kernel dentro dele é uma afirmação que só o
+ * `AGENTS.md` tem direito de fazer — quem o vê ali está vendo prosa nossa que envelheceu.
+ */
+const staleClaudeMdWarning = (root: string): string[] => {
+  const path = join(root, 'CLAUDE.md');
+  if (!existsSync(path)) return [];
+  if (!readFileSync(path, 'utf8').includes('Kernel contract')) return [];
+  return [
+    'CLAUDE.md states a kernel contract version, which means it is a copy of an old AGENTS.md from '
+    + 'before the two were split. Nothing rewrites CLAUDE.md, so that copy is now describing a '
+    + 'platform you no longer have. Keep whatever you wrote in it, delete the rest, and run '
+    + '"npm run sync" again to get the current CLAUDE.md — it imports AGENTS.md instead of copying it.',
+  ];
+};
+
 export const syncWorkspace = (options: SyncOptions = {}): SyncReport => {
   const root = resolve(options.root ?? process.cwd());
   const packagePath = join(root, 'package.json');
@@ -247,6 +269,7 @@ export const syncWorkspace = (options: SyncOptions = {}): SyncReport => {
   if (pkg !== null) reconcile('package.json', () => reconcilePackageJson(packagePath, KERNEL_VERSION));
 
   seed('CLAUDE.md', workspaceClaudeMd(officeName));
+  warnings.push(...staleClaudeMdWarning(root));
   seed('README.md', workspaceReadme({
     officeName,
     kernelVersion: KERNEL_VERSION,

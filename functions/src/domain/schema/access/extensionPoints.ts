@@ -6,12 +6,17 @@
 
 import type { Contribution, QualifiedContribution } from '../plugin/contribution';
 import type { ExtensionPointDefinition } from '../plugin/extensionPoint';
-import type { AccessPermission } from './permission';
+import type { AccessPermission, AccessRequirement } from './permission';
 import { isValidAccessPermissionId } from './permission';
-import type { DeclaredPermission, PermissionResource } from './resolvePermissions';
+import type {
+  DeclaredPermission,
+  DeclaredRequirement,
+  PermissionResource,
+} from './resolvePermissions';
 
 export const ACCESS_PERMISSION_POINT = 'access.permission';
 export const ACCESS_RESOURCE_POINT = 'access.resource';
+export const ACCESS_REQUIREMENT_POINT = 'access.requirement';
 
 export const ACCESS_API_VERSION = '1.0.0';
 
@@ -42,6 +47,24 @@ export const ACCESS_EXTENSION_POINTS: ExtensionPointDefinition[] = [
     apiVersion: ACCESS_API_VERSION,
     title: '@core.access/point.resource.title',
     description: '@core.access/point.resource.description',
+    ownerPluginId: 'core.access',
+    allowedImplKinds: [],
+    implRequired: false,
+    multiple: true,
+  },
+  /**
+   * O ponto pelo qual um pacote soma ao fecho de uma permissão que não é dele.
+   *
+   * `multiple: true` é o que ele existe para resolver: `access.permission` recusa o mesmo id duas
+   * vezes — e deve recusar, porque quem declara também dá nome —, e por isso duas extensões que
+   * complementam a mesma tela não tinham como dizer, as duas, de que ler aquela tela passou a
+   * depender. Aqui a soma não tem nome, não substitui nada e o fecho é a união.
+   */
+  {
+    id: ACCESS_REQUIREMENT_POINT,
+    apiVersion: ACCESS_API_VERSION,
+    title: '@core.access/point.requirement.title',
+    description: '@core.access/point.requirement.description',
     ownerPluginId: 'core.access',
     allowedImplKinds: [],
     implRequired: false,
@@ -100,6 +123,40 @@ export const accessResourceContribution = (
   ...(priority === undefined ? {} : { priority }),
   metadata: { ...resource },
 });
+
+/**
+ * A soma ao fecho de uma permissão alheia. O `id` da contribuição sai da permissão ALVO, então um
+ * mesmo pacote não soma duas vezes à mesma permissão — se ele precisa de duas dependências, elas
+ * cabem na mesma lista. Dois pacotes diferentes somando à mesma permissão não colidem: a checagem de
+ * contribuição duplicada é por pacote, e o ponto é `multiple`.
+ */
+export const accessRequirementContribution = (
+  requirement: AccessRequirement,
+  priority?: number,
+): Contribution => ({
+  point: ACCESS_REQUIREMENT_POINT,
+  id: contributionId(requirement.id),
+  apiVersion: ACCESS_API_VERSION,
+  ...(priority === undefined ? {} : { priority }),
+  metadata: requirement as unknown as Record<string, unknown>,
+});
+
+/** As somas declaradas, com a origem de cada uma — mesmo desenho de `declaredPermissionsOf`. */
+export const declaredRequirementsOf = (
+  contributions: QualifiedContribution[],
+): DeclaredRequirement[] => {
+  const declared: DeclaredRequirement[] = [];
+  for (const contribution of contributions) {
+    const metadata = contribution?.metadata as Partial<AccessRequirement> | undefined;
+    if (!metadata || !isValidAccessPermissionId(metadata.id ?? '')) continue;
+    if (!Array.isArray(metadata.requires)) continue;
+    declared.push({
+      requirement: { id: metadata.id as string, requires: metadata.requires },
+      source: contribution.pluginId,
+    });
+  }
+  return declared;
+};
 
 const RESOURCE_ID_PATTERN = /^[A-Za-z][A-Za-z0-9_-]*$/;
 

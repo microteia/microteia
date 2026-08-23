@@ -3,11 +3,13 @@ import type { Contribution, QualifiedContribution } from '../../domain/schema/pl
 import type { PermissionCatalog, PermissionResource } from '../../domain/schema/access';
 import {
   ACCESS_PERMISSION_POINT,
+  ACCESS_REQUIREMENT_POINT,
   ACCESS_RESOURCE_POINT,
   KERNEL_PERMISSIONS,
   KERNEL_PERMISSION_RESOURCES,
   buildPermissionCatalog,
   declaredPermissionsOf,
+  declaredRequirementsOf,
   declaredResourcesOf,
 } from '../../domain/schema/access';
 
@@ -92,6 +94,12 @@ export class PermissionCatalogCache {
         ...listResources,
         ...screenResources,
       ],
+      // A soma ao fecho tem de entrar aqui TAMBÉM, e não é simetria: o que sai deste catálogo é o
+      // campo materializado que as Security Rules leem. Somar só no navegador daria a tela que
+      // oferece o que a regra recusa — exatamente a divergência que esta classe existe para evitar.
+      declaredRequirementsOf(
+        extensionContributions.filter((c) => c.point === ACCESS_REQUIREMENT_POINT),
+      ),
     );
 
     this.entries.set(tenantId, { catalog, loadedAt: Date.now() });

@@ -264,10 +264,10 @@ Every screen collection you install gets four permissions for free:
 \`read\`. Declare a permission only for a capability that is not one of those, or to add a dependency:
 
 \`\`\`ts
-import { accessPermission } from '@microteia/sdk';
+import { accessPermissionContribution } from '@microteia/sdk';
 
 contributes: [
-  accessPermission({
+  accessPermissionContribution({
     id: 'invoices.approve',
     name: label('perm.approve'),
     description: label('perm.approve.description'),
@@ -279,6 +279,29 @@ contributes: [
 \`requires\` is the whole trick. When an administrator ticks *Approve*, the platform resolves the
 closure and grants what it needs — they never learn the dependency exists. Change the list in a later
 version and every profile follows, because a profile stores only what was ticked.
+
+**Adding a dependency to someone else's permission.** Declaring a permission also names it, so only
+one package may declare a given id — the second is refused. That leaves out the common case: you
+\`screenPatch\` a screen another extension installed, and the field you added cannot be read without
+reading the collection it points at. The permission you would have to change is not yours, and it was
+probably never declared at all — a screen collection's four permissions are derived.
+
+\`accessRequirementContribution\` is the additive form. It carries no name, replaces nothing, reaches a derived
+permission, and several packages may add to the same id — the closure is the union:
+
+\`\`\`ts
+import { accessRequirementContribution } from '@microteia/sdk';
+
+contributes: [
+  // whoever can read the calendar can now read the case the patched field points at
+  accessRequirementContribution({ id: 'calendar.read', requires: ['cases.read'] }),
+]
+\`\`\`
+
+An addition that cannot be resolved — the target does not exist, the dependency does not exist, or it
+would close a cycle — is **dropped**, with a diagnostic, and the permission goes on working as it did
+before you were installed. That is deliberate: an addition only ever widens what is granted, so
+dropping one can only narrow, and no extension can lock another one's screen by being installed.
 
 **Asking.** In a screen you wrote, \`useCan()\` from \`@microteia/data\`:
 

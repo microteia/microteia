@@ -1,4 +1,5 @@
 import type { QualifiedContribution } from '../../domain/schema/plugin/contribution';
+import type { SettingsSection } from '../../domain/schema/settings';
 import type { UiNavMetadata, UiPageMetadata } from '../../domain/schema/ui/uiExtensionPoints';
 
 export const pageMetadataOf = (contribution: QualifiedContribution): UiPageMetadata =>
@@ -64,3 +65,17 @@ export const visibleNavItems = (
     .map(navMetadataOf)
     .filter((metadata) => isPermitted(canAny, metadata.requiredPermissions))
     .sort((a, b) => a.order - b.order);
+
+/**
+ * As seções de Configurações que esta pessoa VÊ. Mesmo predicado de `visibleNavItems`, e é o ponto:
+ * uma seção era a única contribuição de UI sem `requiredPermissions`, então o que uma extensão
+ * expunha ali ficava sob a permissão de configurar o escritório inteiro ou sob nenhuma.
+ *
+ * O que ela NÃO faz é filtrar o catálogo. Quem consome esta lista é a tela; quem resolve o valor de
+ * uma propriedade continua vendo tudo, porque é do catálogo que sai o padrão declarado — esconder a
+ * seção de quem não a configura não pode mudar o comportamento que ela configura.
+ */
+export const visibleSettingsSections = <T extends SettingsSection>(
+  sections: T[],
+  canAny: CanAny,
+): T[] => sections.filter((section) => isPermitted(canAny, section.requiredPermissions));

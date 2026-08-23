@@ -331,6 +331,33 @@ describe('sincronizar o diretório de autoria', () => {
   });
 
   /** O nome só aparece nas duas sementes, e um `sync` manual não tem como saber — o `package.json` sabe. */
+  /**
+   * O `CLAUDE.md` já foi cópia byte a byte do `AGENTS.md`. Como ele é semeado, aquelas instalações
+   * carregam a cópia até hoje — descrevendo o contrato do kernel de quando nasceram, dentro do arquivo
+   * que um assistente lê como instrução. Não é nosso para consertar; é nosso para dizer.
+   */
+  describe('o CLAUDE.md que ficou sendo cópia de um AGENTS.md antigo', () => {
+    it('é apontado no relatório, e continua intacto', () => {
+      const root = seed();
+      writeFileSync(join(root, 'CLAUDE.md'), '# Extensions\n\nKernel contract: 1.4.0.\n');
+
+      const report = syncWorkspace({ root, install: null });
+
+      expect(report.seeded).not.toContain('CLAUDE.md');
+      expect(read(root, 'CLAUDE.md')).toContain('Kernel contract: 1.4.0.');
+      expect(report.warnings.join(' ')).toContain('CLAUDE.md');
+    });
+
+    it('e o CLAUDE.md atual, que só importa o AGENTS.md, não gera aviso nenhum', () => {
+      const root = seed();
+      const report = syncWorkspace({ root, install: null });
+
+      expect(report.seeded).toContain('CLAUDE.md');
+      expect(syncWorkspace({ root, install: null }).warnings).toEqual([]);
+      expect(report.warnings).toEqual([]);
+    });
+  });
+
   it('deduz o nome do escritório quando ninguém o informa', () => {
     const root = seed();
     syncWorkspace({ root, install: null });

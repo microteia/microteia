@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { PACKAGE_ADVISORY_BYTES, PACKAGE_MAX_BYTES } from '../../../domain/usecases/plugins/pluginReferences';
 import { UI_EXTENSION_POINTS } from '../../../domain/schema/ui/uiExtensionPoints';
+import { ACCESS_EXTENSION_POINTS } from '../../../domain/schema/access';
+import * as SDK from '../../index';
 import { authoringGuide } from './authoringGuide';
 import {
   workspaceGitignore,
@@ -417,8 +419,29 @@ describe('o que o texto afirma sobre o kernel vem do kernel', () => {
    */
   it('a tabela de pontos de extensão sai dos arrays do kernel', () => {
     const guide = authoringGuide(AGENTS);
-    for (const point of UI_EXTENSION_POINTS) {
+    for (const point of [...UI_EXTENSION_POINTS, ...ACCESS_EXTENSION_POINTS]) {
       expect(guide, point.id).toContain(`\`${point.id}\``);
     }
+  });
+
+  /**
+   * O manual ENSINA a importar do `@microteia/sdk`, e o exemplo que ele mostra é copiado direto pelo
+   * autor — humano ou IA. Nada ligava aquele nome ao barril: a §8 ensinava `accessPermission` por
+   * versões, um símbolo que o SDK nunca exportou, e quem seguia o manual não compilava. O erro não
+   * aparece em teste nenhum do kernel porque o texto é uma string, e não código.
+   */
+  it('todo símbolo que o manual manda importar do SDK existe no barril', () => {
+    const guide = authoringGuide(AGENTS);
+    const imported = [...guide.matchAll(/import \{([^}]+)\} from '@microteia\/sdk'/g)]
+      .flatMap((match) => match[1].split(','))
+      .map((name) => name.trim())
+      .filter(Boolean);
+
+    expect(imported.length).toBeGreaterThan(0);
+    const exported = new Set(Object.keys(SDK));
+    expect(
+      imported.filter((name) => !exported.has(name)),
+      'símbolos que o manual ensina e o SDK não exporta',
+    ).toEqual([]);
   });
 });

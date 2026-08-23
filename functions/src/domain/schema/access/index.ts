@@ -4,24 +4,33 @@
 // Para alterar, edite a fonte e rode: npm run sync-schemas
 // ═══════════════════════════════════════════════════════════════════════════
 
-export type { AccessPermission, CrudAction, ParsedAccessPermission } from './permission';
+export type {
+  AccessPermission,
+  AccessRequirement,
+  CrudAction,
+  ParsedAccessPermission,
+} from './permission';
 export {
   CRUD_ACTIONS,
   collectionPermissionId,
   isValidAccessPermissionId,
   parseAccessPermission,
   validateAccessPermission,
+  validateAccessRequirement,
 } from './permission';
 
 export {
   ACCESS_API_VERSION,
   ACCESS_EXTENSION_POINTS,
   ACCESS_PERMISSION_POINT,
+  ACCESS_REQUIREMENT_POINT,
   ACCESS_RESOURCE_POINT,
   accessPermissionContribution,
   accessPermissionOf,
+  accessRequirementContribution,
   accessResourceContribution,
   declaredPermissionsOf,
+  declaredRequirementsOf,
   declaredResourcesOf,
 } from './extensionPoints';
 
@@ -46,6 +55,7 @@ export {
 export type {
   CatalogPermission,
   DeclaredPermission,
+  DeclaredRequirement,
   PermissionCatalog,
   PermissionResource,
   ResolvedPermissions,

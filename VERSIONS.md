@@ -11,6 +11,13 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.6.0] — 2026-08-23
+
+- Uma extensão que acrescenta um campo à tela de outra extensão passou a poder dizer o que ler aquela tela exige ler junto. Antes, quem via a agenda sem poder ver processos encontrava o compromisso sem o número do processo ao lado — e não havia como a extensão de Prazos declarar essa ligação sem tomar a permissão da Agenda para si. Agora duas extensões podem complementar a mesma tela, cada uma somando o que traz, sem atropelar a outra nem a dona da tela.
+- Uma seção da tela de Configurações passou a poder ficar visível só para quem tem a permissão que ela pede, como já acontecia com telas, itens de menu, painéis e abas. Antes, o que uma extensão colocava em Configurações só podia ficar sob a permissão de configurar o escritório inteiro, ou aberto para todo mundo.
+- Corrigido um problema no autocomplete de quem escreve extensões: ele oferecia, nos comandos da busca rápida, uma informação de perfil que o sistema deixou de fornecer quando o controle de acesso passou a ser por permissão — e não oferecia a pergunta de permissão, que é a que vale. Quem seguia o autocomplete escrevia uma comparação que nunca dava certo, sem nenhum aviso.
+- Corrigido o manual de autoria de extensões, que ensinava a usar um nome que não existe — quem o seguia à risca não conseguia compilar a extensão.
+
 #### [9.5.0] — 2026-08-23
 
 - A instalação passou a receber, ao lado do arquivo de configuração, o histórico de alterações de cada uma das duas peças que ela usa: a plataforma e o programa que a instala. Os dois são reescritos a cada troca de versão, e cada um vem junto com a peça que ele descreve — então nenhum dos dois pode descrever uma versão que não é a que está ali.

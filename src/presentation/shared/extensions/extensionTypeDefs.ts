@@ -1349,8 +1349,15 @@ interface MicroteiaCommandContext {
    * nothing.
    */
   label: (value: string | null | undefined, params?: Record<string, unknown>) => string;
-  userRole: string | null;
-  tenantRole: string | null;
+  /**
+   * 'Can this person?' - the only authorization question a command asks. Offer the command to whoever
+   * may use it, and the command palette stops listing what the screen behind it would refuse.
+   *
+   * Ask by PERMISSION, never by profile. Here lived 'userRole' and 'tenantRole', and they left for the
+   * reason the viewer object has no role either: which profiles exist is decided by the organization
+   * that installed you, and an extension that compared against one was reading a name it invented.
+   */
+  can: (permission: string) => boolean;
 }
 
 interface MicroteiaCommandProvider {
@@ -1392,6 +1399,8 @@ interface MicroteiaSettingsSection {
   description?: string;
   icon?: string;
   order?: number;
+  /** Permissions that reveal the section in Settings; one of them is enough. Absent = everyone. */
+  requiredPermissions?: string[];
   properties?: any[];
   editor?: any;
 }

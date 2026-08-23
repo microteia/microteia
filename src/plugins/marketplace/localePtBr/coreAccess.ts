@@ -19,6 +19,21 @@ export const CORE_ACCESS: Record<string, string> = {
   'diagnostic.permission.requires.unknown':
     'A permissão "{id}" depende de "{required}", que não existe.',
   'diagnostic.permission.unknown': 'A permissão "{id}" não existe.',
+  'diagnostic.requirement.cycle':
+    'A dependência acrescentada de "{id}" em "{required}" foi ignorada, porque "{required}" já depende de "{id}".',
+  'diagnostic.requirement.id.invalid':
+    'A dependência acrescentada aponta para "{id}", que não é um identificador de permissão válido.',
+  'diagnostic.requirement.not-object': 'A dependência acrescentada não é um objeto.',
+  'diagnostic.requirement.requires.invalid':
+    'As dependências acrescentadas à permissão "{id}" precisam ser uma lista não vazia de identificadores de permissão.',
+  'diagnostic.requirement.requires.malformed':
+    'A dependência "{required}" acrescentada à permissão "{id}" não é um identificador válido.',
+  'diagnostic.requirement.requires.self':
+    'A permissão "{id}" não pode receber uma dependência de si mesma.',
+  'diagnostic.requirement.target.unknown':
+    'Uma dependência foi acrescentada à permissão "{id}", que não existe. O acréscimo foi ignorado.',
+  'diagnostic.requirement.unknown':
+    'A dependência "{required}" acrescentada à permissão "{id}" não existe, então ela foi ignorada — "{id}" continua funcionando como antes.',
   'permission.ai.manage': 'Gerenciar conexões de IA',
   'permission.ai.manage.description':
     'Cadastrar, editar e remover as conexões de inteligência artificial do escritório.',
@@ -59,6 +74,9 @@ export const CORE_ACCESS: Record<string, string> = {
   'point.permission.title': 'Permissão',
   'point.resource.description':
     'O rótulo de um recurso sobre o qual as permissões falam, quando ele não é uma coleção de tela.',
+  'point.requirement.description':
+    'Uma dependência acrescentada a uma permissão declarada por outro pacote, ou derivada de uma tela, para que lê-la também conceda o que uma extensão complementar precisa.',
+  'point.requirement.title': 'Dependência acrescentada de permissão',
   'point.resource.title': 'Recurso de permissão',
   'resource.ai': 'Inteligência artificial',
   'resource.audit': 'Auditoria',

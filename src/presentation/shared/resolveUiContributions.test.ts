@@ -1,6 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import type { QualifiedContribution } from '../../domain/schema/plugin/contribution';
-import { navigablePages, resolvePageContribution, visibleNavItems } from './resolveUiContributions';
+import {
+  navigablePages,
+  resolvePageContribution,
+  visibleNavItems,
+  visibleSettingsSections,
+} from './resolveUiContributions';
+import type { SettingsSection } from '../../domain/schema/settings';
 import type { UiNavMetadata, UiPageMetadata } from '../../domain/schema/ui/uiExtensionPoints';
 
 const pageContribution = (id: string, metadata: Partial<UiPageMetadata>): QualifiedContribution => ({
@@ -110,5 +116,48 @@ describe('visibleNavItems', () => {
 
   it('quem tem a permissão enxerga o item restrito', () => {
     expect(visibleNavItems(items, canOnly('audit.read')).map((item) => item.key)).toContain('audit');
+  });
+});
+
+/**
+ * Uma seção de Configurações era a ÚNICA contribuição de UI sem `requiredPermissions`: tela, menu,
+ * widget e aba a tinham. O que a extensão expunha ali só podia ficar sob a permissão de configurar o
+ * escritório inteiro, ou sob nenhuma.
+ */
+describe('visibleSettingsSections', () => {
+  const section = (key: string, requiredPermissions?: string[]): SettingsSection => ({
+    key,
+    title: key,
+    properties: [],
+    ...(requiredPermissions ? { requiredPermissions } : {}),
+  });
+
+  const sections = [
+    section('appearance'),
+    section('push', ['pushes.manage-inbox']),
+    section('billing', ['billing.read', 'billing.manage']),
+  ];
+
+  it('a seção sem exigência aparece para todo mundo', () => {
+    expect(visibleSettingsSections(sections, canNothing).map((s) => s.key)).toEqual(['appearance']);
+  });
+
+  it('basta UMA das permissões exigidas, como em toda contribuição de UI', () => {
+    expect(visibleSettingsSections(sections, canOnly('billing.manage')).map((s) => s.key)).toEqual([
+      'appearance',
+      'billing',
+    ]);
+  });
+
+  it('quem tem tudo vê tudo, e a ordem recebida é preservada', () => {
+    expect(visibleSettingsSections(sections, canAll).map((s) => s.key)).toEqual([
+      'appearance',
+      'push',
+      'billing',
+    ]);
+  });
+
+  it('lista vazia de exigências é o mesmo que não exigir nada', () => {
+    expect(visibleSettingsSections([section('x', [])], canNothing).map((s) => s.key)).toEqual(['x']);
   });
 });

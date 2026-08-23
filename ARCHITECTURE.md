@@ -436,8 +436,8 @@ etiquetas) rende **quatro permissões de graça**: `<coleção>.read`, `.create`
 É o que faz o RBAC valer para a tela que alguém criou cinco minutos atrás, sem plugin nenhum atrás
 dela.
 
-Uma declaração explícita **sobrepõe** a derivada de mesmo id, e é o único caminho para uma
-dependência entrar no catálogo:
+Uma declaração explícita **sobrepõe** a derivada de mesmo id, e é assim que uma dependência entra no
+catálogo pela mão de quem é dono da permissão:
 
 ```ts
 contributes: [
@@ -449,6 +449,46 @@ contributes: [
 
 O plugin **não conhece perfil nenhum** — nem precisa. Ele declara capacidades; quem as agrupa é o
 escritório.
+
+### Somar ao fecho de uma permissão que não é sua — `access.requirement`
+
+Sobrepor exige declarar a permissão INTEIRA, com nome e descrição, e por isso só um pacote pode fazê-lo:
+o segundo a declarar o mesmo id é recusado (`access.permission.duplicate`), e deve ser — quem declara
+também batiza. Isso deixava sem caminho o caso mais comum de composição entre extensões.
+
+O caso concreto: a Agenda declara a tela `calendar`, então `calendar.read` é **derivada** e ninguém a
+declarou. Prazos acrescenta a ela, por `screenPatch`, uma referência ao processo; Financeiro acrescenta
+uma referência à pessoa. Para o número do processo aparecer no item da agenda, quem lê a agenda precisa
+ler processo — mas nem Prazos nem Financeiro podem dizer isso: declarar `calendar.read` seria tomar a
+permissão de outro, e o segundo a tentar seria recusado. O resultado era o campo em branco, sem erro
+em lugar nenhum.
+
+`access.requirement` é a forma ADITIVA disso. Ela não tem nome, não substitui nada, alcança permissão
+derivada, e o fecho é a **união** de quantos pacotes somarem ao mesmo id:
+
+```ts
+// prazo/plugin.ts
+accessRequirementContribution({ id: 'calendar.read', requires: ['cases.read'] }),
+
+// financeiro/plugin.ts — mesmo id, sem colidir
+accessRequirementContribution({ id: 'calendar.read', requires: ['persons.read'] }),
+
+// fecho de calendar.read = { calendar.read, cases.read, persons.read }
+```
+
+Duas regras aqui são o **oposto** do "falha fechada" da seção abaixo, e a diferença é de quem errou:
+
+| Situação | O que acontece | Por quê |
+|---|---|---|
+| A soma aponta para um id que não existe (alvo ou dependência) | a soma é **descartada**, com diagnóstico; a permissão segue valendo como antes | quem errou é um terceiro somando à permissão de outro. Negar deixaria uma extensão trancar a tela de outra só por ser instalada — e descartar é seguro por construção, porque a soma só AMPLIA o que é concedido, então tirá-la só estreita |
+| A soma fecharia um ciclo | é recusada **antes** de entrar no grafo | um ciclo derruba as duas permissões envolvidas, e uma delas é de quem não pediu nada. `mergeRequirements` pergunta se o alvo já é alcançável a partir da dependência, e é o que garante que nenhuma soma jamais feche um ciclo |
+
+A ordem de chegada dos pacotes não muda o resultado: as somas são ordenadas antes de aplicadas. A união
+não dependeria da ordem, mas a recusa de ciclo dependeria — e um catálogo que muda conforme a ordem de
+carregamento seria impossível de explicar.
+
+A soma entra **nas duas contas** (`AuthorizationStore` e `PermissionCatalogCache`). Somar só no
+navegador daria a tela que oferece o que a regra recusa.
 
 ### Não confundir com `manifest.permissions`
 
