@@ -47,6 +47,7 @@ const repo = (): IRoleRepository => ({
   update: vi.fn(async () => undefined),
   delete: vi.fn(async () => undefined),
   detachFromMembers: vi.fn(async () => undefined),
+  syncPermissions: vi.fn(async () => 0),
 });
 
 const actor = { uid: 'u1' };

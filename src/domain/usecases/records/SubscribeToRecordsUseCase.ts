@@ -6,9 +6,11 @@ export type SubscribeToRecordsUseCase = {
     tenantId: string,
     collection: string,
     onUpdate: (records: EntityRecord[]) => void,
+    onError?: (collection: string, error: Error) => void,
   ) => () => void;
 };
 
 export const makeSubscribeToRecordsUseCase = (repo: IRecordRepository): SubscribeToRecordsUseCase => ({
-  execute: (tenantId, collection, onUpdate) => repo.subscribe(tenantId, collection, onUpdate),
+  execute: (tenantId, collection, onUpdate, onError) =>
+    repo.subscribe(tenantId, collection, onUpdate, onError),
 });

@@ -94,9 +94,14 @@ export const RoleStoreProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     storeEvents.emit(StoreEvents.ROLES_UPDATED);
   }, [requireContext, uc.delete]);
 
+  const syncPermissions = useCallback(async () => {
+    const { tenantId } = requireContext();
+    return roleRepository.syncPermissions(tenantId);
+  }, [requireContext, roleRepository]);
+
   const value = useMemo(
-    () => ({ roles, isLoading, getRole, createRole, updateRole, deleteRole, refresh }),
-    [roles, isLoading, getRole, createRole, updateRole, deleteRole, refresh],
+    () => ({ roles, isLoading, getRole, createRole, updateRole, deleteRole, syncPermissions, refresh }),
+    [roles, isLoading, getRole, createRole, updateRole, deleteRole, syncPermissions, refresh],
   );
 
   return <RoleContext.Provider value={value}>{children}</RoleContext.Provider>;

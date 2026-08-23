@@ -46,6 +46,8 @@ export interface RolesTabViewModel {
   explicitCount: number;
   effectiveCount: number;
   roleToDelete: Role | null;
+  isSyncing: boolean;
+  syncMemberPermissions: () => Promise<void>;
   setDraftName: (value: string) => void;
   setDraftDescription: (value: string) => void;
   togglePermission: (permissionId: string) => void;
@@ -64,7 +66,7 @@ export const useRolesTabViewModel = (): RolesTabViewModel => {
   const t = useT('core.access');
   const label = useLabel();
   const { notify } = useNotification();
-  const { roles, isLoading, createRole, updateRole, deleteRole } = useRoles();
+  const { roles, isLoading, createRole, updateRole, deleteRole, syncPermissions } = useRoles();
   const { catalog, can } = useAuthorization();
 
   const [editing, setEditing] = useState<Role | typeof NEW_ROLE | null>(null);
@@ -73,6 +75,7 @@ export const useRolesTabViewModel = (): RolesTabViewModel => {
   const [explicit, setExplicit] = useState<string[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [roleToDelete, setRoleToDelete] = useState<Role | null>(null);
+  const [isSyncing, setIsSyncing] = useState(false);
 
   const canManage = can(PERMISSION_ROLES_MANAGE);
   const selectedRole = editing && editing !== NEW_ROLE ? editing : null;
@@ -204,6 +207,22 @@ export const useRolesTabViewModel = (): RolesTabViewModel => {
 
   const cancelDelete = useCallback(() => setRoleToDelete(null), []);
 
+  /**
+   * O que os gatilhos do banco não alcançam: uma versão nova do kernel pode mudar de que uma
+   * permissão depende, e nenhuma escrita acontece para acordá-los.
+   */
+  const syncMemberPermissions = useCallback(async () => {
+    setIsSyncing(true);
+    try {
+      const updated = await syncPermissions();
+      notify(t('role.sync.done', { count: String(updated) }), 'success');
+    } catch {
+      notify(t('role.sync.failed'), 'error');
+    } finally {
+      setIsSyncing(false);
+    }
+  }, [syncPermissions, notify, t]);
+
   return {
     roles,
     isLoading,
@@ -217,6 +236,8 @@ export const useRolesTabViewModel = (): RolesTabViewModel => {
     explicitCount: explicit.length,
     effectiveCount,
     roleToDelete,
+    isSyncing,
+    syncMemberPermissions,
     setDraftName,
     setDraftDescription,
     togglePermission,

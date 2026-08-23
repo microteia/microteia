@@ -11,6 +11,14 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.0.2] — 2026-08-23
+
+- **Criar, editar e excluir agora exigem visualizar.** Um perfil com "Criar" e sem "Visualizar" era um perfil que não abria a tela: quem grava precisa poder ler. A dependência passou a ser automática, como as demais — marcar "Criar" traz "Visualizar" junto, assinalado e travado.
+- **A tela não fica mais girando quando falta permissão.** Uma listagem sem permissão de leitura carregava para sempre; agora ela responde de imediato, vazia.
+- **O dono do escritório volta a poder tudo dentro dele desde o primeiro instante**, sem depender de nenhum cálculo em segundo plano ter rodado antes.
+- **As listas de opções e os conjuntos de etiquetas são lidos por qualquer membro.** Eles são o vocabulário que as telas mostram: exigir permissão própria deixava a tela meio carregada para quem tinha acesso ao registro mas não à lista que ele cita. Alterá-los continua exigindo permissão.
+- Nova ação **Recalcular permissões**, na aba Perfis de Acesso, para reaplicar os perfis a todos os membros depois de uma atualização do sistema.
+
 #### [9.0.1] — 2026-08-23
 
 - Na tela de Perfis de Acesso, as permissões que vêm junto com a escolhida passam a aparecer com o nome do recurso ao lado. Antes, marcar "Editar financeiro" mostrava "Inclui automaticamente: Visualizar, Visualizar" — duas linhas idênticas que não diziam de quê.

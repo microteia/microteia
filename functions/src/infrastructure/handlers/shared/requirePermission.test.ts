@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { HttpsError } from 'firebase-functions/v2/https';
+import { requireAnyPermission, requirePermission } from './requirePermission';
 
 const permissionsByUser: Record<string, string[]> = {};
 const roleByUser: Record<string, string | null> = {};
@@ -15,7 +16,7 @@ vi.mock('../../di/container', () => ({
   }),
 }));
 
-const { requireAnyPermission, requirePermission } = await import('./requirePermission');
+
 
 const denied = async (promise: Promise<void>): Promise<HttpsError> => {
   try {

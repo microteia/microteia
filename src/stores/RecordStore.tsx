@@ -47,12 +47,26 @@ export const RecordStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
     setIsLoading(true);
     let pending = collections.length;
     if (pending === 0) setIsLoading(false);
+    // Uma coleção que RESPONDE — com dados ou com recusa — deixa de ser esperada. Contar só as
+    // respostas de sucesso é o que prendia a tela girando quando a regra negava a leitura: o erro
+    // ia para o console e o contador nunca chegava a zero.
+    const settle = () => {
+      pending -= 1;
+      if (pending <= 0) setIsLoading(false);
+    };
     const unsubscribers = collections.map((collection) =>
-      uc.subscribe.execute(currentTenant.id, collection, (records) => {
-        setRecordsByCollection((prev) => ({ ...prev, [collection]: records }));
-        pending -= 1;
-        if (pending <= 0) setIsLoading(false);
-      }),
+      uc.subscribe.execute(
+        currentTenant.id,
+        collection,
+        (records) => {
+          setRecordsByCollection((prev) => ({ ...prev, [collection]: records }));
+          settle();
+        },
+        (deniedCollection) => {
+          setRecordsByCollection((prev) => ({ ...prev, [deniedCollection]: [] }));
+          settle();
+        },
+      ),
     );
     return () => unsubscribers.forEach((unsub) => unsub());
   }, [currentTenant, collections, uc.subscribe]);

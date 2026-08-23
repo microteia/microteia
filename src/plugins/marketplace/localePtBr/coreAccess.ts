@@ -93,6 +93,11 @@ export const CORE_ACCESS: Record<string, string> = {
   'role.save-failed': 'Não foi possível salvar o perfil de acesso.',
   'role.saved': 'Perfil de acesso salvo.',
   'role.summary': '{explicit} escolhidas, {effective} em vigor',
+  'role.sync': 'Recalcular permissões',
+  'role.sync.done': 'Permissões recalculadas. {count} membros atualizados.',
+  'role.sync.failed': 'Não foi possível recalcular as permissões.',
+  'role.sync.hint': 'Reaplica os perfis a todos os membros. Necessário depois de uma atualização do sistema que mude do que uma permissão depende.',
+  'role.sync.running': 'Recalculando…',
   'role.system.locked': 'Este perfil é controlado pelo sistema e não pode ser alterado aqui.',
   'role.system.protected':
     'Este perfil de acesso é controlado pelo sistema e não pode ser alterado nem excluído.',

@@ -1,5 +1,5 @@
 import React from 'react';
-import { RiAddLine, RiDeleteBinLine, RiLockLine } from 'react-icons/ri';
+import { RiAddLine, RiDeleteBinLine, RiLockLine, RiRefreshLine } from 'react-icons/ri';
 import { useRolesTabViewModel } from './RolesTab.viewmodel';
 import { S } from './RolesTab.styles';
 import { Button } from '../../../components/ui/Button';
@@ -23,10 +23,21 @@ export const RolesTabView: React.FC = () => {
     <S.Container>
       <S.Toolbar>
         <S.Summary>{t('role.count', { count: String(vm.roles.length) })}</S.Summary>
-        <Button onClick={vm.startCreate} disabled={isEditing}>
-          <RiAddLine size={16} />
-          {t('role.new')}
-        </Button>
+        <S.RoleActions>
+          <Button
+            variant="secondary"
+            onClick={() => void vm.syncMemberPermissions()}
+            disabled={vm.isSyncing}
+            title={t('role.sync.hint')}
+          >
+            <RiRefreshLine size={16} />
+            {t(vm.isSyncing ? 'role.sync.running' : 'role.sync')}
+          </Button>
+          <Button onClick={vm.startCreate} disabled={isEditing}>
+            <RiAddLine size={16} />
+            {t('role.new')}
+          </Button>
+        </S.RoleActions>
       </S.Toolbar>
 
       {vm.isLoading ? (

@@ -19,6 +19,7 @@ export {
   materializePermissionsOnRoleChange,
   materializePermissionsOnScreenChange,
 } from './infrastructure/handlers/materializeMemberPermissions';
+export { syncTenantPermissions } from './infrastructure/handlers/syncTenantPermissions';
 export { auditFlatEntityChange } from './infrastructure/handlers/auditFlatEntityChange';
 export { auditNestedEntityChange } from './infrastructure/handlers/auditNestedEntityChange';
 export { auditTenantDeleted } from './infrastructure/handlers/auditTenantDeleted';

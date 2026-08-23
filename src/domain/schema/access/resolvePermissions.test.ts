@@ -34,6 +34,22 @@ describe('buildPermissionCatalog', () => {
     expect(catalog.list.every((p) => p.derived)).toBe(true);
   });
 
+  it('criar, editar e excluir dependem de VER — ninguém grava no que não pode ler', () => {
+    const catalog = buildPermissionCatalog([], [{ id: 'medico', name: 'Doctors', deriveCrud: true }]);
+    expect(catalog.byId.get('medico.read')?.requires).toEqual([]);
+    for (const action of ['create', 'update', 'delete']) {
+      expect(catalog.byId.get(`medico.${action}`)?.requires).toEqual(['medico.read']);
+    }
+  });
+
+  it('marcar só "criar" concede ver junto', () => {
+    const catalog = buildPermissionCatalog([], [{ id: 'medico', name: 'Doctors', deriveCrud: true }]);
+    expect(resolveEffective(catalog, ['medico.create']).effective).toEqual([
+      'medico.create',
+      'medico.read',
+    ]);
+  });
+
   it('a declaração explícita sobrepõe a derivada de mesmo id, trazendo as dependências', () => {
     const catalog = financeCatalog();
     const write = catalog.byId.get('finance.write');

@@ -13,7 +13,8 @@ import {
   where,
   arrayRemove,
 } from 'firebase/firestore';
-import { db } from '../../infrastructure/firebase/config';
+import { httpsCallable } from 'firebase/functions';
+import { db, functions } from '../../infrastructure/firebase/config';
 import type { IRoleRepository, RoleActor } from '../../domain/repositories/IRoleRepository';
 import type { Role, RoleInput } from '../../domain/entities/Role';
 
@@ -91,6 +92,12 @@ export class FirebaseRoleRepository implements IRoleRepository {
 
   async delete(tenantId: string, roleId: string): Promise<void> {
     await deleteDoc(doc(rolesRef(tenantId), roleId));
+  }
+
+  async syncPermissions(tenantId: string): Promise<number> {
+    const call = httpsCallable<{ tenantId: string }, { updated: number }>(functions, 'syncTenantPermissions');
+    const result = await call({ tenantId });
+    return result.data.updated;
   }
 
   async detachFromMembers(tenantId: string, roleId: string): Promise<void> {

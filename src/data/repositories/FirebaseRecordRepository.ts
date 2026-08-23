@@ -90,6 +90,7 @@ export class FirebaseRecordRepository implements IRecordRepository {
     tenantId: string,
     collection: string,
     onUpdate: (records: EntityRecord[]) => void,
+    onError?: (collection: string, error: Error) => void,
   ): () => void {
     const q = query(recordsRef(tenantId, collection), orderBy('createdAt', 'desc'), limit(RECORDS_PAGE_LIMIT));
     return onSnapshot(
@@ -99,6 +100,7 @@ export class FirebaseRecordRepository implements IRecordRepository {
       },
       (error) => {
         console.error(`[RecordRepository] subscribe ${collection}:`, error.message);
+        onError?.(collection, error);
       },
     );
   }

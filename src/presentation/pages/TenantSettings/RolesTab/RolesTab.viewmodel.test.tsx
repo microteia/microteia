@@ -37,6 +37,7 @@ vi.mock('../../../../stores/useRoles', () => ({
     createRole,
     updateRole,
     deleteRole,
+    syncPermissions: vi.fn(async () => 0),
     refresh: vi.fn(),
   }),
 }));

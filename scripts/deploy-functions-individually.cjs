@@ -46,6 +46,7 @@ const ALL_FUNCTIONS = [
   'materializePermissionsOnRoleChange',
   'materializePermissionsOnScreenChange',
   'materializePermissionsOnExtensionChange',
+  'syncTenantPermissions',
 ];
 
 // Mesmo seletor dos demais scripts de deploy: `dev` por padrão, produção só se pedida. Este script

@@ -7,10 +7,16 @@ import type { EntityRecord, EntityRecordValues, RecordDocument, RecordNote } fro
  */
 export interface IRecordRepository {
   getAll(tenantId: string, collection: string): Promise<EntityRecord[]>;
+  /**
+   * `onError` não é opcional por preciosismo: sem ele, uma assinatura recusada pela regra do
+   * Firestore some num `console.error` e quem espera continua esperando. Foi o que deixou a tela de
+   * uma coleção sem permissão de leitura girando para sempre.
+   */
   subscribe(
     tenantId: string,
     collection: string,
     onUpdate: (records: EntityRecord[]) => void,
+    onError?: (collection: string, error: Error) => void,
   ): () => void;
   getById(tenantId: string, collection: string, recordId: string): Promise<EntityRecord | null>;
   /**

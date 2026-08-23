@@ -43,9 +43,20 @@ service cloud.firestore {
     function memberPermissions(tenantId) {
       return memberData(tenantId).get('permissions', []);
     }
+    // O DONO do escritório, lido do próprio escritório e não do documento de membro.
+    //
+    // Ele é o último termo de propósito: para quem TEM a permissão, o `||` já respondeu e esta
+    // leitura não acontece. E é lido de `Tenant.ownerId` — e não do curinga materializado — porque o
+    // dono não pode depender de a Cloud Function de materialização já ter rodado: era exatamente
+    // isso que deixava um escritório sem ninguém capaz de criar o primeiro perfil.
+    function isTenantOwner(tenantId) {
+      return request.auth != null
+        && get(/databases/$(database)/documents/tenants/$(tenantId)).data.ownerId == request.auth.uid;
+    }
     function can(tenantId, permission) {
       return isSystemAdmin()
-        || (isTenantMember(tenantId) && memberPermissions(tenantId).hasAny([permission, '*']));
+        || (isTenantMember(tenantId) && memberPermissions(tenantId).hasAny([permission, '*']))
+        || isTenantOwner(tenantId);
     }
 
     // ─── Usuários ─────────────────────────────────────────────────────────────
@@ -360,10 +371,18 @@ service cloud.firestore {
         return resource.data.get('createdBy', '') == request.auth.uid;
       }
 
+      // Uma LISTA DE OPÇÕES e um CONJUNTO DE ETIQUETAS são vocabulário, não dado: toda tela que os
+      // referencia precisa deles para desenhar um `select` ou um chip, e exigir permissão de leitura
+      // própria só produziria a tela meio carregada de quem tem acesso ao registro mas não à lista
+      // que ele cita. GRAVAR neles continua exigindo a permissão da coleção, como em tudo o mais.
+      function isDeclaredVocabulary(name) {
+        return isDeclaredLookup(name) || isDeclaredTagList(name);
+      }
+
       match /{screenCollection}/{recordId} {
         allow read: if !isReservedCollection(screenCollection)
           && isMember(tenantId)
-          && canOnCollection(screenCollection, 'read');
+          && (canOnCollection(screenCollection, 'read') || isDeclaredVocabulary(screenCollection));
         allow create: if isWritableScreen(screenCollection)
           && canOnCollection(screenCollection, 'create');
         allow update: if isWritableScreen(screenCollection)

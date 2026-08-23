@@ -66,7 +66,16 @@ export const AuthorizationStoreProvider: React.FC<{ children: React.ReactNode }>
     [members, user],
   );
 
-  const isUnrestricted = userRole === 'SYSTEM' || grantsEverything(member?.permissions ?? []);
+  /**
+   * O DONO do escritório é lido de `Tenant.ownerId`, e não só do curinga materializado — a mesma
+   * frase que o `firestore.rules` diz. Depender do curinga faria a tela do dono ficar vazia até a
+   * Cloud Function de materialização rodar pela primeira vez, enquanto o servidor já o deixava
+   * passar: a UI esconderia o que a regra aceita, que é o pior dos dois erros possíveis aqui.
+   */
+  const isUnrestricted =
+    userRole === 'SYSTEM'
+    || grantsEverything(member?.permissions ?? [])
+    || (!!user && !!currentTenant && currentTenant.ownerId === user.id);
 
   const resolved = useMemo(
     () => memberPermissions(catalog, roles, member?.roleIds ?? []),

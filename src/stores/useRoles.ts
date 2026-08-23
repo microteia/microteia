@@ -10,6 +10,8 @@ export interface RoleStoreState {
   createRole: (catalog: PermissionCatalog, draft: RoleDraft) => Promise<Role>;
   updateRole: (role: Role, catalog: PermissionCatalog, draft: RoleDraft) => Promise<void>;
   deleteRole: (role: Role) => Promise<void>;
+  /** Recalcula as permissões efetivas de todos os membros. Devolve quantos mudaram. */
+  syncPermissions: () => Promise<number>;
   refresh: () => Promise<void>;
 }
 

@@ -97,12 +97,17 @@ export const buildPermissionCatalog = (
     if (!parseAccessPermission(collectionPermissionId(resource.id, 'read'))) continue;
     resourceNames.set(resource.id, resource.name);
     if (resource.deriveCrud !== true) continue;
+    // Criar, editar e excluir EXIGEM ver. Não é conveniência: quem grava num registro que não pode
+    // ler grava às cegas, e a tela que ele abriria para isso não tem como carregar. A dependência é
+    // da PERMISSÃO, então o administrador nunca precisa saber que ela existe — marcar "Criar" traz
+    // "Visualizar" junto, travado, como qualquer outra dependência.
+    const readId = collectionPermissionId(resource.id, 'read');
     for (const action of CRUD_ACTIONS) {
       const id = collectionPermissionId(resource.id, action);
       byId.set(id, {
         id,
         name: DERIVED_ACTION_NAMES[action],
-        requires: [],
+        requires: action === 'read' ? [] : [readId],
         resource: resource.id,
         action,
         source: resource.source ?? '',
