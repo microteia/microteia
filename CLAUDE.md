@@ -59,6 +59,11 @@ O erro frequente **"Cannot access refs during render"** é a regra `react-hooks/
 Use o atalho do `package.json` quando existir: `npm run verify` (= `typecheck` + `lint` +
 `verify-schemas` + `build:host-types` + `build:sdk` + `verify-extensions` + `verify-messages`).
 
+> **Mexeu no `firestore.rules`?** Rode **também** `npm run test:rules`. Ele sobe o emulador do
+> Firestore, exercita o arquivo REAL de regras e o derruba. Fica FORA do `npm test` de propósito:
+> exige um JDK, e um teste que não roda na máquina de quem o herda vira ruído até alguém apagá-lo.
+> Sem JDK: `brew install --cask temurin`.
+
 > **A ordem do `verify` não é arbitrária.** `build:sdk` vem ANTES de `verify-extensions` porque o
 > compilador de extensão agora É o do SDK (`sdk/lib/sdk/node/compile.js`): sem ele construído, não há
 > como gerar os `extension-templates/*.json`. Numa árvore recém-clonada, `sdk/` não existe — ele é

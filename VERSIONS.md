@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.4.0] — 2026-08-23
+
+- As regras de segurança do banco passaram a ter testes automatizados: 35 verificações que exercitam as regras de verdade, num banco de mentira, provando que ninguém lê nem grava o que não pode — inclusive tentando burlar. Era a última parte do controle de acesso sem rede de proteção.
+- Duas bibliotecas antigas de editor de texto que ninguém mais usava saíram do projeto. Além de peso morto, elas impediam qualquer instalação de dependência de concluir.
+
 #### [9.3.4] — 2026-08-23
 
 - `hasPermission` passa a valer também nas expressões de CAMPO — "Ocultar quando" e "Desabilitar quando" de um campo do formulário —, com o mesmo `<entity>` das ações.

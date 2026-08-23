@@ -1,7 +1,7 @@
 {
   "name": "microteia",
   "private": true,
-  "version": "9.3.4",
+  "version": "9.4.0",
   "type": "module",
   "bin": {
     "microteia": "cli/lib/index.js"
@@ -29,6 +29,7 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:rules": "firebase emulators:exec --only firestore --project demo-microteia 'vitest run --config vitest.rules.config.ts'",
     "build:functions": "npm run sync-schemas && tsc -b functions",
     "deploy:prod": "TARGET=prod npm run deploy",
     "deploy:hosting:prod": "TARGET=prod npm run deploy:hosting",
@@ -54,13 +55,11 @@
     "firebase": "^12.14.0",
     "monaco-editor": "^0.55.1",
     "pdfjs-dist": "^6.0.227",
-    "quill": "^2.0.3",
     "react": "^19.2.6",
     "react-big-calendar": "^1.20.0",
     "react-dom": "^19.2.6",
     "react-icons": "^5.6.0",
     "react-markdown": "^10.1.0",
-    "react-quill": "^2.0.0",
     "react-router-dom": "^7.17.0",
     "recharts": "^3.8.1",
     "rehype-raw": "^7.0.0",
@@ -71,6 +70,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@firebase/rules-unit-testing": "^5.0.2",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/react": "^16.3.2",
     "@types/node": "^24.12.3",
@@ -82,6 +82,7 @@
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.2",
     "firebase-admin": "^14.0.0",
+    "firebase-tools": "^15.28.1",
     "globals": "^17.6.0",
     "jsdom": "^29.1.1",
     "typescript": "~6.0.2",

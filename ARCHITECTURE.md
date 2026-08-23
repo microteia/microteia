@@ -597,6 +597,23 @@ Foi feita nessa direção porque é a direção da pergunta: "quais perfis conce
 abrir perfil por perfil. Criar, renomear e excluir perfil ficam num modal à parte, e **um perfil nasce
 vazio** — perfil é nome, permissão é escolha, cada uma no lugar onde a pergunta acontece.
 
+### As regras são exercitadas, não só lidas — `rules-tests/`
+
+`npm run test:rules` sobe o emulador do Firestore, roda a suíte contra o **arquivo real** de regras
+(lido do disco: um teste que carregasse uma cópia provaria coisa nenhuma) e o derruba. Trinta e cinco
+verificações em três arquivos:
+
+| Arquivo | O que prova |
+|---|---|
+| `screenRecords.test.ts` | o curinga por permissão derivada; coleção não declarada e reservada recusadas; isolamento entre escritórios; o DONO sem materialização e o `SYSTEM` sem ser membro |
+| `rolesAndMembers.test.ts` | perfil lido por todo membro e escrito só por `roles.manage`; o protegido que não nasce nem vira protegido pelo cliente; e `members.permissions` que NINGUÉM escreve — nem escondido no meio de uma alteração legítima |
+| `screenDeclarations.test.ts` | `authorCanDelete`, `memberWritableFields` e o vocabulário (lista de opções lida por todos, gravada com permissão) |
+
+Ela fica **fora do `npm test`**, com configuração própria (`vitest.rules.config.ts`), porque exige um
+JDK — e um teste que não roda na máquina de quem o herda vira ruído até alguém apagá-lo. A semeadura
+usa `withSecurityRulesDisabled`: o que se testa é o acesso do CLIENTE, e escrever a semente pelas
+regras exigiria uma regra que as afrouxasse.
+
 ### Nada é semeado
 
 Não há Role criada automaticamente, nem no escritório novo nem no que já existia. Semear um perfil
