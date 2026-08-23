@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.3.3] — 2026-08-23
+
+- O guia de autoria de extensões passou a explicar como uma extensão declara as capacidades que traz e como pergunta por elas — inclusive os curingas aceitos. Quem escreve extensão declara o que se pode fazer; quem instala decide quem faz.
+
 #### [9.3.2] — 2026-08-23
 
 - **O dono do escritório volta a poder tudo também dentro das expressões.** Uma ação escrita como `!hasPermission("<entity>.delete")` ficava escondida para o próprio dono: o sistema o deixava passar em toda parte, menos ali. Ele agora carrega o curinga que já tinha no servidor, e a mesma pergunta passa a ter a mesma resposta em qualquer lugar — sem precisar criar um perfil só para ele.

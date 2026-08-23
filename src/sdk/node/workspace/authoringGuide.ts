@@ -253,7 +253,58 @@ That needs a \`migration\`: code that runs once per organization, in the server 
 what an earlier version of *your* extension wrote. Never hard-code a collection name — read it from
 \`input.collections\`, because the name can differ. Write it to be safely re-runnable: it may resume.
 
-## 8. When your extension needs the server
+## 8. Access — declare capabilities, never roles
+
+Your extension declares what people can *do*; the organization decides *who* does it. You never see
+a role, and that is the point: the profiles of the organization that installs you are theirs to
+invent, and your code keeps working when they invent another one.
+
+Every screen collection you install gets four permissions for free:
+\`<collection>.read\`, \`.create\`, \`.update\`, \`.delete\` — and the three writing ones already depend on
+\`read\`. Declare a permission only for a capability that is not one of those, or to add a dependency:
+
+\`\`\`ts
+import { accessPermission } from '@microteia/sdk';
+
+contributes: [
+  accessPermission({
+    id: 'invoices.approve',
+    name: label('perm.approve'),
+    description: label('perm.approve.description'),
+    requires: ['invoices.update', 'people.read'],
+  }),
+]
+\`\`\`
+
+\`requires\` is the whole trick. When an administrator ticks *Approve*, the platform resolves the
+closure and grants what it needs — they never learn the dependency exists. Change the list in a later
+version and every profile follows, because a profile stores only what was ticked.
+
+**Asking.** In a screen you wrote, \`useCan()\` from \`@microteia/data\`:
+
+\`\`\`tsx
+const can = useCan();
+{can('invoices.approve') && <Button onClick={approve}>{t('approve')}</Button>}
+\`\`\`
+
+In anything declarative — an action's *Hide when*, a field's *Disable when*, a step condition, a
+script — the expression function:
+
+| Pattern | Matches |
+|---|---|
+| \`hasPermission("invoices.approve")\` | that exact permission |
+| \`hasPermission("<entity>.delete")\` | the delete of the screen the expression is being evaluated in |
+| \`hasPermission("*.delete")\` | the delete of any resource |
+| \`hasPermission("invoices.*")\` | any action on \`invoices\` |
+| \`hasPermission("invoice%.read")\` | the read of every resource starting with \`invoice\` |
+
+Prefer \`<entity>\`: it is what lets one action serve every screen instead of naming one.
+
+**What the answer is for.** Drawing. Show the button to whoever can press it. What actually blocks a
+write is the server rule, and it is not negotiable from your side — an extension that decided access
+by this answer would be deciding in the wrong place.
+
+## 9. When your extension needs the server
 
 \`manifest.backend\` declares what the organization's Firebase project must provide — Cloud Functions,
 composite indexes, configuration parameters, manual prerequisites. The extension stays **pending**,
@@ -287,7 +338,7 @@ Two rules follow from how a Firebase project works, and both are refusals rather
 A function shared by several extensions goes in \`../functions/\` instead, next to \`microteia.yaml\`.
 Nobody owns it, so nothing can claim it, and it is deployed with every \`microteia deploy\`.
 
-## 9. Size
+## 10. Size
 
 | | |
 |---|---|
@@ -297,7 +348,7 @@ Nobody owns it, so nothing can claim it, and it is deployed with every \`microte
 A package is stored as a single document. If you are near the limit, the usual cause is code that
 should be several extensions, or a seed list that should be data.
 
-## 10. Testing
+## 11. Testing
 
 \`validatePluginPackage\` is exported from \`@microteia/sdk\` — the same function \`check\` calls. Keeping
 it in a test means a broken package fails in a second, on your machine:
