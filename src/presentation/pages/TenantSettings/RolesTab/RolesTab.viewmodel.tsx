@@ -8,26 +8,31 @@ import { PERMISSION_ROLES_MANAGE, dependenciesOf } from '../../../../domain/sche
 import { errorParamsOf } from '../../../../domain/errors/LocalizedError';
 import { useLabel, useT } from '../../../shared/i18n/useT';
 
-/** Uma permissão como a tela a desenha: marcada, arrastada por outra, ou disponível. */
+/** O estado de UMA permissão dentro de UM perfil — a caixa que o painel lateral desenha. */
+export interface RoleBinding {
+  roleId: string;
+  roleName: string;
+  /** Está no conjunto EFETIVO do perfil (marcada à mão ou arrastada por outra). */
+  granted: boolean;
+  /**
+   * Travada. Ou porque outra permissão do perfil a exige, ou porque o perfil é do sistema. A trava
+   * aparece ANTES do clique: uma caixa que parece disponível e não obedece é pior que uma travada.
+   */
+  locked: boolean;
+  /** Quem a arrasta dentro deste perfil, pelo nome. Vazio quando ela foi marcada à mão. */
+  impliedBy: string[];
+}
+
 export interface PermissionRow {
   id: string;
   name: string;
   description?: string;
-  /** Está no conjunto EFETIVO do rascunho. */
-  checked: boolean;
-  /**
-   * OUTRA permissão marcada a exige, e por isso a caixa está travada.
-   *
-   * Vale mesmo quando ela TAMBÉM foi marcada à mão. A alternativa — deixá-la clicável enquanto for
-   * explícita — produzia o pior dos mundos: a caixa parecia disponível, o clique não a desmarcava
-   * (a dependência a mantém) e ela só então ficava cinza. O estado tem de ser visível ANTES do
-   * clique, não como resultado dele.
-   */
-  implied: boolean;
-  /** Quem a arrasta, pelo nome — o "incluída por" da tela. */
-  impliedBy: string[];
-  /** O que ELA arrasta consigo, pelo nome — o "inclui automaticamente" da tela. */
+  /** O que ela arrasta consigo, pelo nome. */
   includes: string[];
+  /** Todos os perfis do escritório, com o estado desta permissão em cada um. */
+  roles: RoleBinding[];
+  /** Só os nomes dos que a concedem — a coluna da lista. */
+  grantedBy: string[];
 }
 
 export interface PermissionGroup {
@@ -36,38 +41,50 @@ export interface PermissionGroup {
   permissions: PermissionRow[];
 }
 
-export interface RolesTabViewModel {
-  roles: Role[];
-  isLoading: boolean;
-  canManage: boolean;
-  selectedRole: Role | null;
-  isCreating: boolean;
-  isSaving: boolean;
-  draftName: string;
-  draftDescription: string;
-  groups: PermissionGroup[];
-  permissionQuery: string;
-  setPermissionQuery: (value: string) => void;
-  /** Nenhum grupo casou com a busca — a tela precisa dizer isso em vez de ficar vazia. */
-  noMatches: boolean;
-  explicitCount: number;
-  effectiveCount: number;
-  roleToDelete: Role | null;
-  isSyncing: boolean;
-  syncMemberPermissions: () => Promise<void>;
-  setDraftName: (value: string) => void;
-  setDraftDescription: (value: string) => void;
-  togglePermission: (permissionId: string) => void;
-  startCreate: () => void;
-  selectRole: (role: Role) => void;
-  cancelEdit: () => void;
-  save: () => Promise<void>;
-  requestDelete: (role: Role) => void;
-  confirmDelete: () => Promise<void>;
-  cancelDelete: () => void;
+export interface RoleDraft {
+  name: string;
+  description: string;
 }
 
-const NEW_ROLE = Symbol('new-role');
+export interface RolesTabViewModel {
+  canManage: boolean;
+  isLoading: boolean;
+  groups: PermissionGroup[];
+  query: string;
+  setQuery: (value: string) => void;
+  noMatches: boolean;
+
+  /** A permissão aberta no painel lateral. */
+  selected: PermissionRow | null;
+  selectPermission: (permissionId: string) => void;
+  closePanel: () => void;
+  toggleRole: (permissionId: string, roleId: string) => Promise<void>;
+  pendingBinding: string | null;
+
+  roles: Role[];
+  isRolesOpen: boolean;
+  openRoles: () => void;
+  closeRoles: () => void;
+
+  roleModal: { role: Role | null } | null;
+  roleDraft: RoleDraft;
+  isSavingRole: boolean;
+  setRoleDraft: (patch: Partial<RoleDraft>) => void;
+  startCreateRole: () => void;
+  startEditRole: (role: Role) => void;
+  cancelRoleModal: () => void;
+  saveRole: () => Promise<void>;
+
+  roleToDelete: Role | null;
+  requestDeleteRole: (role: Role) => void;
+  confirmDeleteRole: () => Promise<void>;
+  cancelDeleteRole: () => void;
+
+  isSyncing: boolean;
+  syncMemberPermissions: () => Promise<void>;
+}
+
+const EMPTY_DRAFT: RoleDraft = { name: '', description: '' };
 
 export const useRolesTabViewModel = (): RolesTabViewModel => {
   const t = useT('core.access');
@@ -76,41 +93,18 @@ export const useRolesTabViewModel = (): RolesTabViewModel => {
   const { roles, isLoading, createRole, updateRole, deleteRole, syncPermissions } = useRoles();
   const { catalog, can } = useAuthorization();
 
-  const [editing, setEditing] = useState<Role | typeof NEW_ROLE | null>(null);
-  const [draftName, setDraftName] = useState('');
-  const [draftDescription, setDraftDescription] = useState('');
-  const [explicit, setExplicit] = useState<string[]>([]);
-  const [isSaving, setIsSaving] = useState(false);
+  const [query, setQuery] = useState('');
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [pendingBinding, setPendingBinding] = useState<string | null>(null);
+  const [isRolesOpen, setRolesOpen] = useState(false);
+  const [roleModal, setRoleModal] = useState<{ role: Role | null } | null>(null);
+  const [roleDraft, setRoleDraftState] = useState<RoleDraft>(EMPTY_DRAFT);
+  const [isSavingRole, setSavingRole] = useState(false);
   const [roleToDelete, setRoleToDelete] = useState<Role | null>(null);
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [permissionQuery, setPermissionQuery] = useState('');
+  const [isSyncing, setSyncing] = useState(false);
 
   const canManage = can(PERMISSION_ROLES_MANAGE);
-  const selectedRole = editing && editing !== NEW_ROLE ? editing : null;
 
-  /**
-   * O que cada permissão marcada arrasta, calculado UMA vez por rascunho. É daqui que saem as duas
-   * afirmações da tela — "inclui automaticamente" e "incluída por" — e a trava da caixa.
-   */
-  const impliedBy = useMemo(() => {
-    const map = new Map<string, string[]>();
-    for (const id of explicit) {
-      for (const dependency of dependenciesOf(catalog, id)) {
-        map.set(dependency, [...(map.get(dependency) ?? []), id]);
-      }
-    }
-    return map;
-  }, [catalog, explicit]);
-
-  /**
-   * O nome de uma permissão como ela é CITADA fora do grupo dela — no "inclui automaticamente" e no
-   * "incluída por".
-   *
-   * A DERIVADA precisa do recurso junto: dentro do grupo "Financeiro" a linha "Visualizar" basta,
-   * mas numa lista solta duas derivadas de recursos diferentes viram "Visualizar, Visualizar" e não
-   * dizem nada. A declarada já traz um nome que se sustenta sozinho ("Editar financeiro") e passa
-   * intacta.
-   */
   const nameOf = useCallback(
     (id: string): string => {
       const permission = catalog.byId.get(id);
@@ -123,20 +117,47 @@ export const useRolesTabViewModel = (): RolesTabViewModel => {
     [catalog, label, t],
   );
 
+  /**
+   * O que cada perfil ARRASTA, calculado uma vez por perfil. É daqui que sai a trava: dentro de um
+   * perfil, uma permissão exigida por outra não pode ser desmarcada isoladamente.
+   */
+  const impliedByRole = useMemo(() => {
+    const map = new Map<string, Map<string, string[]>>();
+    for (const role of roles) {
+      const implied = new Map<string, string[]>();
+      for (const explicit of role.permissions) {
+        for (const dependency of dependenciesOf(catalog, explicit)) {
+          implied.set(dependency, [...(implied.get(dependency) ?? []), nameOf(explicit)]);
+        }
+      }
+      map.set(role.id, implied);
+    }
+    return map;
+  }, [roles, catalog, nameOf]);
+
   const rowOf = useCallback(
     (permission: CatalogPermission): PermissionRow => {
-      const implied = impliedBy.has(permission.id);
+      const bindings = roles.map<RoleBinding>((role) => {
+        const impliedBy = impliedByRole.get(role.id)?.get(permission.id) ?? [];
+        const explicit = role.permissions.includes(permission.id);
+        return {
+          roleId: role.id,
+          roleName: label(role.name),
+          granted: explicit || impliedBy.length > 0,
+          locked: impliedBy.length > 0 || role.system || !canManage,
+          impliedBy,
+        };
+      });
       return {
         id: permission.id,
         name: label(permission.name),
         ...(permission.description ? { description: label(permission.description) } : {}),
-        checked: explicit.includes(permission.id) || implied,
-        implied,
-        impliedBy: (impliedBy.get(permission.id) ?? []).map(nameOf),
         includes: dependenciesOf(catalog, permission.id).map(nameOf),
+        roles: bindings,
+        grantedBy: bindings.filter((binding) => binding.granted).map((binding) => binding.roleName),
       };
     },
-    [catalog, explicit, impliedBy, label, nameOf],
+    [roles, impliedByRole, catalog, label, nameOf, canManage],
   );
 
   const allGroups = useMemo<PermissionGroup[]>(() => {
@@ -154,136 +175,160 @@ export const useRolesTabViewModel = (): RolesTabViewModel => {
   }, [catalog, rowOf, label]);
 
   /**
-   * A busca casa com o RECURSO e com a permissão. Casando o recurso, o grupo inteiro fica — é o que
-   * a pessoa espera ao digitar o nome de uma tela: ver as quatro ações dela, não uma.
-   *
-   * Sem isso, um escritório com duzentas telas dava oitocentas linhas para rolar.
+   * A busca casa com o RECURSO, com a permissão e com o nome de um PERFIL. O último importa: é o que
+   * responde "o que este perfil concede?" sem precisar de uma segunda tela.
    */
   const groups = useMemo<PermissionGroup[]>(() => {
-    const query = permissionQuery.trim().toLowerCase();
-    if (!query) return allGroups;
-    const matches = (value: string | undefined) => !!value && value.toLowerCase().includes(query);
+    const term = query.trim().toLowerCase();
+    if (!term) return allGroups;
+    const matches = (value: string | undefined) => !!value && value.toLowerCase().includes(term);
+    const rowMatches = (row: PermissionRow) =>
+      matches(row.name) || matches(row.id) || matches(row.description) || row.grantedBy.some(matches);
     return allGroups
-      .map((group) => (matches(group.name)
+      .map((group) => (matches(group.name) || matches(group.resource)
         ? group
-        : {
-            ...group,
-            permissions: group.permissions.filter(
-              (permission) => matches(permission.name) || matches(permission.description) || matches(permission.id),
-            ),
-          }))
+        : { ...group, permissions: group.permissions.filter(rowMatches) }))
       .filter((group) => group.permissions.length > 0);
-  }, [allGroups, permissionQuery]);
+  }, [allGroups, query]);
 
-  const effectiveCount = useMemo(
-    () => new Set([...explicit, ...impliedBy.keys()]).size,
-    [explicit, impliedBy],
+  const selected = useMemo(
+    () => allGroups.flatMap((group) => group.permissions).find((row) => row.id === selectedId) ?? null,
+    [allGroups, selectedId],
   );
 
-  const togglePermission = useCallback((permissionId: string) => {
-    setExplicit((prev) =>
-      prev.includes(permissionId)
-        ? prev.filter((id) => id !== permissionId)
-        : [...prev, permissionId],
-    );
-  }, []);
+  const selectPermission = useCallback((permissionId: string) => setSelectedId(permissionId), []);
+  const closePanel = useCallback(() => setSelectedId(null), []);
 
-  const startCreate = useCallback(() => {
-    setPermissionQuery('');
-    setEditing(NEW_ROLE);
-    setDraftName('');
-    setDraftDescription('');
-    setExplicit([]);
-  }, []);
+  const report = useCallback(
+    (err: unknown, fallback: string) =>
+      notify(label(err instanceof Error ? err.message : t(fallback), errorParamsOf(err)), 'error'),
+    [notify, label, t],
+  );
 
-  const selectRole = useCallback((role: Role) => {
-    setPermissionQuery('');
-    setEditing(role);
-    setDraftName(role.name);
-    setDraftDescription(role.description ?? '');
-    setExplicit(role.permissions);
-  }, []);
+  const toggleRole = useCallback(async (permissionId: string, roleId: string) => {
+    const role = roles.find((candidate) => candidate.id === roleId);
+    if (!role) return;
+    const next = role.permissions.includes(permissionId)
+      ? role.permissions.filter((id) => id !== permissionId)
+      : [...role.permissions, permissionId];
 
-  const cancelEdit = useCallback(() => setEditing(null), []);
-
-  const save = useCallback(async () => {
-    if (!editing) return;
-    setIsSaving(true);
+    setPendingBinding(`${permissionId}:${roleId}`);
     try {
-      const draft = { name: draftName, description: draftDescription || null, permissions: explicit };
-      if (editing === NEW_ROLE) await createRole(catalog, draft);
-      else await updateRole(editing, catalog, draft);
-      notify(t('role.saved'), 'success');
-      setEditing(null);
+      await updateRole(role, catalog, {
+        name: role.name,
+        description: role.description ?? null,
+        permissions: next,
+      });
     } catch (err) {
-      notify(label(err instanceof Error ? err.message : t('role.save-failed'), errorParamsOf(err)), 'error');
+      report(err, 'role.save-failed');
     } finally {
-      setIsSaving(false);
+      setPendingBinding(null);
     }
-  }, [editing, draftName, draftDescription, explicit, catalog, createRole, updateRole, notify, t, label]);
+  }, [roles, updateRole, catalog, report]);
 
-  const requestDelete = useCallback((role: Role) => setRoleToDelete(role), []);
+  const openRoles = useCallback(() => setRolesOpen(true), []);
+  const closeRoles = useCallback(() => setRolesOpen(false), []);
 
-  const confirmDelete = useCallback(async () => {
+  const setRoleDraft = useCallback(
+    (patch: Partial<RoleDraft>) => setRoleDraftState((prev) => ({ ...prev, ...patch })),
+    [],
+  );
+
+  const startCreateRole = useCallback(() => {
+    setRoleDraftState(EMPTY_DRAFT);
+    setRoleModal({ role: null });
+  }, []);
+
+  const startEditRole = useCallback((role: Role) => {
+    setRoleDraftState({ name: role.name, description: role.description ?? '' });
+    setRoleModal({ role });
+  }, []);
+
+  const cancelRoleModal = useCallback(() => setRoleModal(null), []);
+
+  const saveRole = useCallback(async () => {
+    if (!roleModal) return;
+    setSavingRole(true);
+    try {
+      const description = roleDraft.description.trim() || null;
+      if (roleModal.role) {
+        await updateRole(roleModal.role, catalog, {
+          name: roleDraft.name,
+          description,
+          permissions: roleModal.role.permissions,
+        });
+      } else {
+        await createRole(catalog, { name: roleDraft.name, description, permissions: [] });
+      }
+      notify(t('role.saved'), 'success');
+      setRoleModal(null);
+    } catch (err) {
+      report(err, 'role.save-failed');
+    } finally {
+      setSavingRole(false);
+    }
+  }, [roleModal, roleDraft, updateRole, createRole, catalog, notify, t, report]);
+
+  const requestDeleteRole = useCallback((role: Role) => setRoleToDelete(role), []);
+  const cancelDeleteRole = useCallback(() => setRoleToDelete(null), []);
+
+  const confirmDeleteRole = useCallback(async () => {
     if (!roleToDelete) return;
     try {
       await deleteRole(roleToDelete);
       notify(t('role.deleted'), 'success');
-      setEditing((prev) => (prev !== NEW_ROLE && prev?.id === roleToDelete.id ? null : prev));
     } catch (err) {
-      notify(label(err instanceof Error ? err.message : t('role.delete-failed'), errorParamsOf(err)), 'error');
+      report(err, 'role.delete-failed');
     } finally {
       setRoleToDelete(null);
     }
-  }, [roleToDelete, deleteRole, notify, t, label]);
-
-  const cancelDelete = useCallback(() => setRoleToDelete(null), []);
+  }, [roleToDelete, deleteRole, notify, t, report]);
 
   /**
    * O que os gatilhos do banco não alcançam: uma versão nova do kernel pode mudar de que uma
    * permissão depende, e nenhuma escrita acontece para acordá-los.
    */
   const syncMemberPermissions = useCallback(async () => {
-    setIsSyncing(true);
+    setSyncing(true);
     try {
       const updated = await syncPermissions();
       notify(t('role.sync.done', { count: String(updated) }), 'success');
     } catch (err) {
-      // A causa vai para a tela. Engolir a mensagem do servidor aqui foi o que transformou uma
-      // partida a frio da Cloud Function em "não funciona", sem dizer que bastava tentar de novo.
-      notify(label(err instanceof Error ? err.message : t('role.sync.failed'), errorParamsOf(err)), 'error');
+      report(err, 'role.sync.failed');
     } finally {
-      setIsSyncing(false);
+      setSyncing(false);
     }
-  }, [syncPermissions, notify, t, label]);
+  }, [syncPermissions, notify, t, report]);
 
   return {
-    roles,
-    isLoading,
     canManage,
-    selectedRole,
-    isCreating: editing === NEW_ROLE,
-    isSaving,
-    draftName,
-    draftDescription,
+    isLoading,
     groups,
-    permissionQuery,
-    setPermissionQuery,
-    noMatches: groups.length === 0 && permissionQuery.trim() !== '',
-    explicitCount: explicit.length,
-    effectiveCount,
+    query,
+    setQuery,
+    noMatches: groups.length === 0 && query.trim() !== '',
+    selected,
+    selectPermission,
+    closePanel,
+    toggleRole,
+    pendingBinding,
+    roles,
+    isRolesOpen,
+    openRoles,
+    closeRoles,
+    roleModal,
+    roleDraft,
+    isSavingRole,
+    setRoleDraft,
+    startCreateRole,
+    startEditRole,
+    cancelRoleModal,
+    saveRole,
     roleToDelete,
+    requestDeleteRole,
+    confirmDeleteRole,
+    cancelDeleteRole,
     isSyncing,
     syncMemberPermissions,
-    setDraftName,
-    setDraftDescription,
-    togglePermission,
-    startCreate,
-    selectRole,
-    cancelEdit,
-    save,
-    requestDelete,
-    confirmDelete,
-    cancelDelete,
   };
 };

@@ -11,6 +11,13 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.3.0] — 2026-08-23
+
+- **A tela de Perfis de Acesso passou a ser uma tela de permissões.** Em vez de abrir perfil por perfil para descobrir quem concede o quê, a lista mostra todas as permissões — agrupadas por recurso, com o identificador ao lado — e, em cada linha, os perfis que a concedem.
+- **Clicar numa permissão abre um painel** com todos os perfis do escritório, onde se vincula e desvincula com um clique. A permissão que outra exige aparece marcada e travada, dizendo quem a exige.
+- **A busca encontra por recurso, por permissão e por nome de perfil.** Digitar "Financeiro" mostra tudo o que aquele perfil concede.
+- **Criar, renomear e excluir perfis** ficam no botão de perfis, no topo. Um perfil nasce vazio: as permissões dele vêm da lista.
+
 #### [9.2.0] — 2026-08-23
 
 - **A tela agora tem um identificador visível, e você o escolhe.** Ao criar uma tela no Form Design, o campo "Identificador" aparece ao lado dos títulos — é ele que nomeia a coleção e as permissões dela (`pet1.read`, `pet1.create`). Ele acompanha o título no plural até você mexer nele, e não muda depois de criada.

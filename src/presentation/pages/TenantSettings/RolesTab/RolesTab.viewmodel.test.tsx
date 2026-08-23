@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
+import { renderHook, act, waitFor } from '@testing-library/react';
 import { buildPermissionCatalog } from '../../../../domain/schema/access';
+import type { Role } from '../../../../domain/entities/Role';
 import { useRolesTabViewModel } from './RolesTab.viewmodel';
 
 const catalog = buildPermissionCatalog(
@@ -14,10 +15,6 @@ const catalog = buildPermissionCatalog(
         requires: ['finance.read', 'person.read'],
       },
     },
-    {
-      source: 'com.acme.finance',
-      permission: { id: 'finance.delete', name: 'Delete finance', requires: ['finance.write'] },
-    },
   ],
   [
     { id: 'finance', name: 'Finance', deriveCrud: true },
@@ -25,13 +22,28 @@ const catalog = buildPermissionCatalog(
   ],
 );
 
-const createRole = vi.fn(async () => undefined);
+const role = (over: Partial<Role>): Role => ({
+  id: 'r1',
+  tenantId: 't1',
+  name: 'Financeiro',
+  description: null,
+  permissions: [],
+  system: false,
+  createdAt: new Date(),
+  createdBy: 'u1',
+  updatedAt: new Date(),
+  updatedBy: 'u1',
+  ...over,
+});
+
+let roles: Role[] = [];
 const updateRole = vi.fn(async () => undefined);
+const createRole = vi.fn(async () => undefined);
 const deleteRole = vi.fn(async () => undefined);
 
 vi.mock('../../../../stores/useRoles', () => ({
   useRoles: () => ({
-    roles: [],
+    roles,
     isLoading: false,
     getRole: vi.fn(),
     createRole,
@@ -60,113 +72,115 @@ vi.mock('../../../shared/i18n/useT', () => ({
 const rowOf = (vm: ReturnType<typeof useRolesTabViewModel>, id: string) =>
   vm.groups.flatMap((group) => group.permissions).find((permission) => permission.id === id)!;
 
-describe('RolesTabViewModel — as dependências na tela', () => {
+describe('RolesTabViewModel — a tela por PERMISSÃO', () => {
   beforeEach(() => {
-    createRole.mockClear();
     updateRole.mockClear();
+    createRole.mockClear();
+    roles = [
+      role({ id: 'r-fin', name: 'Financeiro', permissions: ['finance.write'] }),
+      role({ id: 'r-rec', name: 'Recepção', permissions: [] }),
+      role({ id: 'r-sys', name: 'Sistema', permissions: [], system: true }),
+    ];
   });
 
-  it('agrupa por recurso, com o rótulo do recurso e não o identificador cru', () => {
+  it('agrupa por recurso e mostra o identificador de cada permissão', () => {
     const { result } = renderHook(() => useRolesTabViewModel());
     expect(result.current.groups.map((group) => group.name)).toEqual(['Finance', 'People']);
+    expect(rowOf(result.current, 'finance.read').id).toBe('finance.read');
   });
 
-  it('marcar uma permissão traz as dependências dela marcadas e TRAVADAS', () => {
+  it('a coluna diz em quais perfis a permissão está — inclusive por dependência', () => {
     const { result } = renderHook(() => useRolesTabViewModel());
-    act(() => result.current.startCreate());
-    act(() => result.current.togglePermission('finance.write'));
-
-    expect(rowOf(result.current, 'finance.write')).toMatchObject({ checked: true, implied: false });
-    expect(rowOf(result.current, 'finance.read')).toMatchObject({ checked: true, implied: true });
-    expect(rowOf(result.current, 'person.read')).toMatchObject({ checked: true, implied: true });
+    expect(rowOf(result.current, 'finance.write').grantedBy).toEqual(['Financeiro']);
+    // Arrastada por finance.write, então o perfil a concede sem tê-la marcado.
+    expect(rowOf(result.current, 'person.read').grantedBy).toEqual(['Financeiro']);
+    expect(rowOf(result.current, 'person.delete').grantedBy).toEqual([]);
   });
 
-  it('a dependência diz QUEM a arrastou, e a escolhida diz o que arrasta', () => {
+  it('a permissão exigida por outra fica TRAVADA naquele perfil, dizendo quem a exige', () => {
     const { result } = renderHook(() => useRolesTabViewModel());
-    act(() => result.current.startCreate());
-    act(() => result.current.togglePermission('finance.write'));
-
-    expect(rowOf(result.current, 'person.read').impliedBy).toEqual(['Edit finance']);
-    // A derivada é citada COM o recurso: sem isso as duas apareceriam como "Visualizar, Visualizar".
-    expect(rowOf(result.current, 'finance.write').includes).toEqual([
-      'Visualizar — Finance',
-      'Visualizar — People',
-    ]);
+    const binding = rowOf(result.current, 'person.read').roles.find((r) => r.roleId === 'r-fin')!;
+    expect(binding).toMatchObject({ granted: true, locked: true });
+    expect(binding.impliedBy).toEqual(['Edit finance']);
   });
 
-  it('resolve a dependência TRANSITIVA', () => {
+  it('o perfil do SISTEMA fica travado em qualquer permissão', () => {
     const { result } = renderHook(() => useRolesTabViewModel());
-    act(() => result.current.startCreate());
-    act(() => result.current.togglePermission('finance.delete'));
-
-    expect(rowOf(result.current, 'finance.write').implied).toBe(true);
-    expect(rowOf(result.current, 'person.read').implied).toBe(true);
-    expect(result.current.explicitCount).toBe(1);
-    expect(result.current.effectiveCount).toBe(4);
+    const binding = rowOf(result.current, 'finance.read').roles.find((r) => r.roleId === 'r-sys')!;
+    expect(binding.locked).toBe(true);
   });
 
-  it('desmarcar a permissão que arrastava libera as dependências', () => {
+  it('vincular grava a permissão como EXPLÍCITA no perfil escolhido', async () => {
     const { result } = renderHook(() => useRolesTabViewModel());
-    act(() => result.current.startCreate());
-    act(() => result.current.togglePermission('finance.write'));
-    act(() => result.current.togglePermission('finance.write'));
+    await act(() => result.current.toggleRole('finance.read', 'r-rec'));
 
-    expect(rowOf(result.current, 'person.read')).toMatchObject({ checked: false, implied: false });
-    expect(result.current.effectiveCount).toBe(0);
+    expect(updateRole).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'r-rec' }),
+      catalog,
+      expect.objectContaining({ permissions: ['finance.read'] }),
+    );
   });
 
-  it('a dependência escolhida à mão TAMBÉM trava — o estado é visível antes do clique', () => {
+  it('desvincular tira só aquela permissão, preservando as demais do perfil', async () => {
+    roles = [role({ id: 'r-fin', name: 'Financeiro', permissions: ['finance.write', 'person.delete'] })];
     const { result } = renderHook(() => useRolesTabViewModel());
-    act(() => result.current.startCreate());
-    act(() => result.current.togglePermission('finance.read'));
-    act(() => result.current.togglePermission('finance.write'));
+    await act(() => result.current.toggleRole('person.delete', 'r-fin'));
 
-    expect(rowOf(result.current, 'finance.read')).toMatchObject({ checked: true, implied: true });
+    expect(updateRole).toHaveBeenCalledWith(
+      expect.anything(),
+      catalog,
+      expect.objectContaining({ permissions: ['finance.write'] }),
+    );
   });
 
-  it('tirar quem a arrastava devolve a escolhida à mão ao estado destravado', () => {
+  it('a busca casa com o recurso, com a permissão e com o NOME DE UM PERFIL', () => {
     const { result } = renderHook(() => useRolesTabViewModel());
-    act(() => result.current.startCreate());
-    act(() => result.current.togglePermission('finance.read'));
-    act(() => result.current.togglePermission('finance.write'));
-    act(() => result.current.togglePermission('finance.write'));
 
-    expect(rowOf(result.current, 'finance.read')).toMatchObject({ checked: true, implied: false });
-  });
+    act(() => result.current.setQuery('people'));
+    expect(result.current.groups.map((g) => g.name)).toEqual(['People']);
 
-  it('a busca casa pelo RECURSO e mantém o grupo inteiro', () => {
-    const { result } = renderHook(() => useRolesTabViewModel());
-    act(() => result.current.setPermissionQuery('people'));
+    act(() => result.current.setQuery('Financeiro'));
+    const ids = result.current.groups.flatMap((g) => g.permissions).map((p) => p.id);
+    expect(ids).toContain('finance.write');
+    expect(ids).not.toContain('person.delete');
 
-    expect(result.current.groups.map((group) => group.name)).toEqual(['People']);
-    expect(result.current.groups[0].permissions).toHaveLength(4);
-  });
-
-  it('a busca casa pela PERMISSÃO e reduz o grupo às que casaram', () => {
-    const { result } = renderHook(() => useRolesTabViewModel());
-    act(() => result.current.setPermissionQuery('coisa que não existe'));
+    act(() => result.current.setQuery('coisa que não existe'));
     expect(result.current.noMatches).toBe(true);
-
-    act(() => result.current.setPermissionQuery('delete finance'));
-    expect(result.current.groups).toEqual([
-      expect.objectContaining({
-        name: 'Finance',
-        permissions: [expect.objectContaining({ id: 'finance.delete' })],
-      }),
-    ]);
   });
 
-  it('grava só as EXPLÍCITAS — as arrastadas nunca entram na Role', async () => {
+  it('o painel lateral abre na permissão escolhida e fecha', () => {
     const { result } = renderHook(() => useRolesTabViewModel());
-    act(() => result.current.startCreate());
-    act(() => result.current.setDraftName('Financeiro'));
-    act(() => result.current.togglePermission('finance.write'));
-    await act(() => result.current.save());
+    act(() => result.current.selectPermission('finance.write'));
+    expect(result.current.selected?.id).toBe('finance.write');
+
+    act(() => result.current.closePanel());
+    expect(result.current.selected).toBeNull();
+  });
+
+  it('criar um perfil nasce sem permissão nenhuma — elas vêm da lista', async () => {
+    const { result } = renderHook(() => useRolesTabViewModel());
+    act(() => result.current.startCreateRole());
+    act(() => result.current.setRoleDraft({ name: 'Contador' }));
+    await act(() => result.current.saveRole());
 
     expect(createRole).toHaveBeenCalledWith(catalog, {
-      name: 'Financeiro',
+      name: 'Contador',
       description: null,
-      permissions: ['finance.write'],
+      permissions: [],
     });
+  });
+
+  it('editar um perfil não mexe nas permissões dele', async () => {
+    const { result } = renderHook(() => useRolesTabViewModel());
+    act(() => result.current.startEditRole(roles[0]));
+    act(() => result.current.setRoleDraft({ name: 'Financeiro Sênior' }));
+    await act(() => result.current.saveRole());
+
+    expect(updateRole).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'r-fin' }),
+      catalog,
+      expect.objectContaining({ name: 'Financeiro Sênior', permissions: ['finance.write'] }),
+    );
+    await waitFor(() => expect(result.current.roleModal).toBeNull());
   });
 });

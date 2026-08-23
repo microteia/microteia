@@ -105,4 +105,10 @@ export const CORE_ACCESS_MESSAGES: Record<string, string> = {
   'role.system.locked': 'This profile is controlled by the system and cannot be changed here.',
   'role.system.protected':
     'This access profile is controlled by the system and cannot be changed or deleted.',
+  'role.edit': 'Edit access profile',
+  'role.granted.more': '+{count}',
+  'role.granted.none': 'No profile',
+  'role.panel.manage': 'Access profiles',
+  'role.panel.roles': 'Profiles that grant it',
+  'role.permissions.hint': 'The permissions of a profile are chosen in the list, by clicking a permission.',
 };

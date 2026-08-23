@@ -3,7 +3,7 @@
   "workflows": [],
   "manifest": {
     "id": "com.microteia.locale-pt-br",
-    "version": "1.18.0",
+    "version": "1.19.0",
     "kernel": "^2.0.0",
     "name": "Português (Brasil)",
     "description": "Tradução da Microteia para português do Brasil.",
@@ -106,7 +106,13 @@
             "role.sync.hint": "Reaplica os perfis a todos os membros. Necessário depois de uma atualização do sistema que mude do que uma permissão depende.",
             "role.sync.running": "Recalculando…",
             "role.system.locked": "Este perfil é controlado pelo sistema e não pode ser alterado aqui.",
-            "role.system.protected": "Este perfil de acesso é controlado pelo sistema e não pode ser alterado nem excluído."
+            "role.system.protected": "Este perfil de acesso é controlado pelo sistema e não pode ser alterado nem excluído.",
+            "role.edit": "Editar perfil de acesso",
+            "role.granted.more": "+{count}",
+            "role.granted.none": "Nenhum perfil",
+            "role.panel.manage": "Perfis de acesso",
+            "role.panel.roles": "Perfis que a concedem",
+            "role.permissions.hint": "As permissões de um perfil são escolhidas na lista, clicando numa permissão."
           }
         }
       },

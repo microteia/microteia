@@ -104,4 +104,10 @@ export const CORE_ACCESS: Record<string, string> = {
   'role.system.locked': 'Este perfil é controlado pelo sistema e não pode ser alterado aqui.',
   'role.system.protected':
     'Este perfil de acesso é controlado pelo sistema e não pode ser alterado nem excluído.',
+  'role.edit': 'Editar perfil de acesso',
+  'role.granted.more': '+{count}',
+  'role.granted.none': 'Nenhum perfil',
+  'role.panel.manage': 'Perfis de acesso',
+  'role.panel.roles': 'Perfis que a concedem',
+  'role.permissions.hint': 'As permissões de um perfil são escolhidas na lista, clicando numa permissão.',
 };
