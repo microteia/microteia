@@ -16,6 +16,7 @@ import { getScreenIcon } from '../../../shared/screenIcons';
 import { useNavContributions } from '../../../shared/useUiContributions';
 import { useNavBadgeCount } from '../../../shared/useNavBadgeCount';
 import { visibleNavItems } from '../../../shared/resolveUiContributions';
+import { screenReadPermission } from '../../../../domain/services/screenDataCollection';
 import { DYNAMIC_SCREEN_NAV_ORDER } from '../../../../domain/schema/ui/uiExtensionPoints';
 import { useAuditLogAlert } from '../../../../stores/useAuditLogAlert';
 import type { User } from '../../../../domain/entities';
@@ -123,7 +124,11 @@ export const useWorkspaceSidebarViewModel = (): WorkspaceSidebarViewModel => {
       badge: item.badge ? badgeCount(item.badge) : kernelBadge(item.key),
     }));
 
-    const dynamicItems = sidebarScreens.map((def) => ({
+    // Ver a tela é ler a coleção dela. O item aparecia para quem não tinha `<coleção>.read`, e o
+    // que a pessoa encontrava ao clicar era uma lista permanentemente vazia — a regra do servidor
+    // negava tudo, mas o menu prometia. Aqui não há `canAny` porque não há alternativa: é UMA
+    // permissão, a mesma que o catálogo derivou da tela.
+    const dynamicItems = sidebarScreens.filter((def) => can(screenReadPermission(def))).map((def) => ({
       key: buildListTabKey(def.id),
       // Tela do escritório: `titlePlural` é texto digitado por ele, nunca referência — `label` o
       // devolve intacto. Passa pela mesma função só para haver UM caminho de rótulo, não dois.
@@ -136,7 +141,7 @@ export const useWorkspaceSidebarViewModel = (): WorkspaceSidebarViewModel => {
     return [...contributed, ...dynamicItems]
       .sort((a, b) => a.order - b.order)
       .map(({ key, label, icon, badge }): NavItem => ({ key, label, icon, badge }));
-  }, [navContributions, canAny, sidebarScreens, badgeCount, kernelBadge, label]);
+  }, [navContributions, canAny, can, sidebarScreens, badgeCount, kernelBadge, label]);
 
   const toggleCollapse = useCallback(() => setCollapsed(c => !c), []);
 

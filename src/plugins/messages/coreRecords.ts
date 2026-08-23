@@ -248,6 +248,8 @@ export const CORE_RECORDS_MESSAGES: Record<string, string> = {
   'screen.custom': 'Custom screen',
   'screen.unavailable':
     'This custom screen is no longer available. It may have been disabled or deleted by the administrator.',
+  'screen.no-read-permission':
+    'You do not have permission to view the records of this screen. Ask an administrator for access.',
   'aggregation.avg': 'Average',
   'field.invalid-format': 'Field "{label}" is in an invalid format',
   'field.invalid-value': 'Invalid value',

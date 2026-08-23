@@ -18,6 +18,31 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.6.2] — 2026-08-23
+
+- fix(nav): every path to a dynamic screen now asks whether the viewer can READ its collection.
+  `sidebarScreens` went to the menu unfiltered while every contributed nav item passed through
+  `visibleNavItems`, so a Form Design screen was offered to everyone: the tab opened, the Security
+  Rules denied every read, and the person got a permanently empty list with nothing saying why. Four
+  doors were open and are closed by one predicate — the sidebar, the `⌘K`
+  `DynamicRecordCommandProvider`, the child tabs of a parent record (`useChildScreenTabs`), and
+  `useOpenScreenList`, which the curated host API hands to extensions and which is now as silent for
+  an unreadable collection as it already was for one no installed screen describes.
+  `screenReadPermission` in `domain/services/screenDataCollection.ts` is the single point that names
+  the permission — the read of the screen's DATA collection, so a bound screen (`dataCollection`)
+  asks for the target rather than for a collection named after the tab.
+- fix(records): `RecordListViewModel` answers `canRead`, and `DynamicRecordList` renders
+  `screen.no-read-permission` in place of the list. Hiding the screen from the menu does not unopen a
+  saved tab or a pasted link, and the empty list those still reached explained nothing; the notice now
+  distinguishes "the screen is gone" from "the screen is not yours". The other three CRUD answers move
+  from inlined `${collection}.create` template strings to `collectionPermissionId`.
+- fix(access): `AuthorizationStore` derives the screen resource id through `screenDataCollection`
+  instead of `definition.dataCollection ?? definition.id`. A whitespace-only `dataCollection` made
+  the catalog emit a permission under `''` while every reader resolved the screen key, and the new
+  menu filter would have hidden such a screen from everyone, owner included.
+- chore(locale-pt-br): package `1.21.2`, carrying the pt-BR entry for the new
+  `core.records/screen.no-read-permission` key and the catalog fingerprint it forces.
+
 #### [9.6.1] — 2026-08-23
 
 - fix(settings): `SettingsJsonParse.syntaxError` is a `SettingsValueIssue` instead of a string. It

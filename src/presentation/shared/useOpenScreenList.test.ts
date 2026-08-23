@@ -5,7 +5,11 @@ import { consumeNavigationIntent } from '../../infrastructure/navigation/navigat
 import type { ScreenDefinition } from '../../domain/entities';
 
 const openTab = vi.fn();
-const state: { screens: ScreenDefinition[]; pageKeys: string[] } = { screens: [], pageKeys: [] };
+const state: { screens: ScreenDefinition[]; pageKeys: string[]; granted: string[] } = {
+  screens: [],
+  pageKeys: [],
+  granted: [],
+};
 
 vi.mock('../../stores/useScreenDefinitions', () => ({
   useScreenDefinitions: () => ({ dynamicScreens: state.screens }),
@@ -15,6 +19,9 @@ vi.mock('../../stores/useWorkspace', () => ({
 }));
 vi.mock('./useUiContributions', () => ({
   usePageContributions: () => state.pageKeys.map((key) => ({ metadata: { key } })),
+}));
+vi.mock('../../stores/useAuthorization', () => ({
+  useAuthorization: () => ({ can: (permission: string) => state.granted.includes(permission) }),
 }));
 
 const { useOpenScreenList } = await import('./useOpenScreenList');
@@ -52,6 +59,7 @@ beforeEach(() => {
   openTab.mockClear();
   state.screens = [screen({})];
   state.pageKeys = [];
+  state.granted = ['deadlines.read'];
   consumeNavigationIntent('prazos');
 });
 
@@ -74,6 +82,20 @@ describe('useOpenScreenList', () => {
 
   it('coleção que nenhuma tela descreve não abre nada — extensão desinstalada não vira aba morta', () => {
     open('produtos');
+    expect(openTab).not.toHaveBeenCalled();
+  });
+
+  it('sem permissão de ler a coleção, não abre nada — nem deixa o filtro para trás', () => {
+    state.granted = [];
+    open('deadlines', [{ key: 'status', values: ['Vencido'] }]);
+
+    expect(openTab).not.toHaveBeenCalled();
+    expect(consumeNavigationIntent('prazos')).toBeUndefined();
+  });
+
+  it('a permissão cobrada é da COLEÇÃO da tela, não da chave dela', () => {
+    state.granted = ['prazos.read'];
+    open('deadlines');
     expect(openTab).not.toHaveBeenCalled();
   });
 

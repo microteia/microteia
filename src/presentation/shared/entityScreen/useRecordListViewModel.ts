@@ -17,6 +17,7 @@ import type { CustomFieldCardItem } from '../../hooks/useCustomFieldListing';
 import { buildNewTabKey, buildViewTabKey, buildCloneTabKey, buildChildNewTabKey, recordTabKeyOf } from '../../../shared/constants/dynamicScreenKeys';
 import { resolveRecordImageUrl, resolveRecordTitle, sortFieldsByOrder } from '../../../domain/services/customFieldValues';
 import { isBoundScreen, isOwnedByParentScreen, screenDataCollection } from '../../../domain/services/screenDataCollection';
+import { collectionPermissionId } from '../../../domain/schema/access';
 import { screenForDisplay, useEntityFormFields, useResolvedFields } from '../useEntityFormFields';
 import { useExprViewer } from '../useExprViewer';
 import { useSchemaContext } from '../useSchemaContext';
@@ -89,7 +90,12 @@ export interface RecordListViewModel {
    * O que esta pessoa pode fazer NESTA coleção. A listagem esconde o que a regra recusaria: oferecer
    * o botão e deixar o servidor negar depois é pedir que alguém descubra o próprio acesso por
    * tentativa e erro.
+   *
+   * `canRead` é o de fora: sem ele não há lista, e a superfície diz isso em vez de mostrar o vazio
+   * que a regra do servidor produz — o menu já não oferece a tela, mas a aba salva e o link ainda a
+   * alcançam, e chegar a uma lista vazia sem explicação é o mesmo defeito por outra porta.
    */
+  canRead: boolean;
   canCreate: boolean;
   canUpdate: boolean;
   canDeleteRecords: boolean;
@@ -510,9 +516,10 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
     savedFiltersScreenKey: savedFiltersKey,
     tags,
     setFilterTokens,
-    canCreate: can(`${collection}.create`),
-    canUpdate: can(`${collection}.update`),
-    canDeleteRecords: can(`${collection}.delete`),
+    canRead: can(collectionPermissionId(collection, 'read')),
+    canCreate: can(collectionPermissionId(collection, 'create')),
+    canUpdate: can(collectionPermissionId(collection, 'update')),
+    canDeleteRecords: can(collectionPermissionId(collection, 'delete')),
     openNewRecord,
     openRecord,
     getCardItems,

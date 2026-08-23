@@ -21,6 +21,7 @@ import {
   memberPermissions,
   setAmbientPermissions,
 } from '../domain/schema/access';
+import { screenDataCollection } from '../domain/services/screenDataCollection';
 
 /**
  * Quem responde "pode?" — e a razão de o resto do sistema nunca precisar saber quem é quem.
@@ -50,7 +51,7 @@ export const AuthorizationStoreProvider: React.FC<{ children: React.ReactNode }>
    */
   const catalog = useMemo(() => {
     const screenResources: PermissionResource[] = definitions.map((definition) => ({
-      id: definition.dataCollection ?? definition.id,
+      id: screenDataCollection(definition),
       name: definition.titlePlural || definition.titleSingular || definition.id,
       deriveCrud: true,
       ...(definition.ownerPluginId ? { source: definition.ownerPluginId } : {}),

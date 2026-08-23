@@ -1137,6 +1137,9 @@ const DATA_MODULE_DEFS = `declare module '@microteia/data' {
   /**
    * Opens the LIST of a collection by name, without knowing which screen presents it. The filters are
    * the message to the destination screen ("open showing only the overdue ones").
+   *
+   * Opens nothing when the viewer cannot READ the collection - the same silence as a collection no
+   * installed screen describes. Ask useCan() for "<collection>.read" to decide what to offer.
    */
   export function useOpenScreenList(): (collection: string, filterTokens?: Array<{ key: string; values: string[] }>) => void;
 

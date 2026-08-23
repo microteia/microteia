@@ -3,7 +3,7 @@
   "workflows": [],
   "manifest": {
     "id": "com.microteia.locale-pt-br",
-    "version": "1.21.1",
+    "version": "1.21.2",
     "kernel": "^2.0.0",
     "name": "Português (Brasil)",
     "description": "Tradução da Microteia para português do Brasil.",
@@ -1464,6 +1464,7 @@
             "record.save-failed": "Erro ao salvar o registro.",
             "screen.custom": "Tela personalizada",
             "screen.unavailable": "Esta tela personalizada não está mais disponível. Ela pode ter sido desativada ou excluída pelo administrador.",
+            "screen.no-read-permission": "Você não tem permissão para ver os registros desta tela. Peça acesso a um administrador.",
             "aggregation.avg": "Média",
             "field.invalid-format": "O campo \"{label}\" está em um formato inválido",
             "field.invalid-value": "Valor inválido",

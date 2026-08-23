@@ -1,4 +1,5 @@
 import type { ScreenDefinition } from '../entities';
+import { collectionPermissionId } from '../schema/access/permission';
 
 export type ScreenCollectionSource = Pick<ScreenDefinition, 'id' | 'dataCollection'>;
 
@@ -20,6 +21,17 @@ export const screenDataCollection = (screen: ScreenCollectionSource): string =>
  */
 export const isBoundScreen = (screen: ScreenCollectionSource): boolean =>
   screenDataCollection(screen) !== screen.id;
+
+/**
+ * A permissão que ver esta tela EXIGE — a de ler a coleção dela, não a chave da tela.
+ *
+ * O menu e o ⌘K precisam da mesma frase que o catálogo derivou em `buildPermissionCatalog` e que o
+ * `firestore.rules` cobra: uma tela vinculada (`dataCollection`) é vista por quem lê a coleção de
+ * destino, e não por quem lê uma coleção com o nome da aba. Sem este ponto único, um menu podia
+ * perguntar por uma permissão que o catálogo nunca emitiu — e ficar escondido para todo mundo.
+ */
+export const screenReadPermission = (screen: ScreenCollectionSource): string =>
+  collectionPermissionId(screenDataCollection(screen), 'read');
 
 export type ScreenParentSource = Pick<ScreenDefinition, 'parentEntity' | 'parentRelation'>;
 

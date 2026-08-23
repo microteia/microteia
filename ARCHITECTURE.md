@@ -566,6 +566,30 @@ O papel `SUPPORT` **deixou de existir**.
 | Callable | `requirePermission(tenantId, uid, permission)`, que DEVOLVE o conjunto para montar o ator |
 | Expressão | `hasPermission("<entity>.delete")` — em campo, ação, condição de passo e Script (`fn.hasPermission`) |
 
+**A TELA do escritório é gated pela mesma permissão que os dados dela** — não há
+`requiredPermissions` numa tela do Form Design, porque não haveria o que escrever nele que já não
+esteja dito: ver a tela é ler a coleção dela. Quem traduz "tela" em "qual permissão" é
+`screenReadPermission` (`domain/services/screenDataCollection.ts`), e é ponto único de propósito: uma
+tela vinculada (`dataCollection`) exige o `read` da coleção de DESTINO, nunca um `<chave-da-aba>.read`
+que o catálogo nunca emitiu — é a mesma frase que `buildPermissionCatalog` derivou de
+`definition.dataCollection`, e divergir dela esconderia a tela de todo mundo em vez de de ninguém.
+
+São QUATRO as portas para a mesma tela, e enquanto o filtro morava em nenhuma delas a tela era
+oferecida a todo mundo — o servidor negava a leitura e só a interface prometia:
+
+| Porta | Onde | Sem a permissão |
+|---|---|---|
+| Menu lateral | `WorkspaceSidebar` | o item não existe |
+| Busca ⌘K | `DynamicRecordCommandProvider` | a tela não é sugerida |
+| Aba de filhos do registro pai | `useChildScreenTabs` | a aba não existe |
+| Navegação de fora (API curada) | `useOpenScreenList` | não abre nada, como para coleção sem tela |
+
+Esconder a tela das quatro não desfaz a aba salva de ontem nem o link já colado, e é por isso que a
+SUPERFÍCIE também responde: `RecordListViewModel` expõe `canRead` e `DynamicRecordList` põe
+`screen.no-read-permission` no lugar da lista. As duas negativas dizem coisas diferentes — "a tela não
+está mais lá" manda perguntar o que houve; "a tela não é sua" manda pedir acesso — e uma lista vazia
+não dizia nenhuma das duas.
+
 O curinga `match /{screenCollection}/{recordId}` monta o nome a partir da própria coleção
 (`canOnCollection(name, 'create')`). Ali morava `writeRoles`, a lista de papéis que a tela declarava:
 ela resolvia o problema certo — a tela decidindo quem grava nela — com o vocabulário errado, porque

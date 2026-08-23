@@ -245,6 +245,8 @@ export const CORE_RECORDS: Record<string, string> = {
   'screen.custom': 'Tela personalizada',
   'screen.unavailable':
     'Esta tela personalizada não está mais disponível. Ela pode ter sido desativada ou excluída pelo administrador.',
+  'screen.no-read-permission':
+    'Você não tem permissão para ver os registros desta tela. Peça acesso a um administrador.',
   'aggregation.avg': 'Média',
   'field.invalid-format': 'O campo "{label}" está em um formato inválido',
   'field.invalid-value': 'Valor inválido',

@@ -3,6 +3,7 @@ import {
   isBoundScreen,
   isOwnedByParentScreen,
   screenDataCollection,
+  screenReadPermission,
   screenLookupCollections,
   screenTagCollections,
   type ScreenCollectionDeclaration,
@@ -91,5 +92,24 @@ describe('coleções que as telas declaram', () => {
       { collection: 'caseAreas', label: 'Processo: Área' },
       { collection: 'casePhases', label: 'Processo: Fase' },
     ]);
+  });
+});
+
+/**
+ * O menu prometia uma tela cuja lista o servidor devolvia vazia. A permissão perguntada tem de ser a
+ * MESMA que `buildPermissionCatalog` derivou da tela — e para a tela vinculada isso é a coleção de
+ * destino, nunca a chave da aba.
+ */
+describe('screenReadPermission', () => {
+  it('ver a tela é ler a coleção dela', () => {
+    expect(screenReadPermission({ id: 'medico', dataCollection: null })).toBe('medico.read');
+  });
+
+  it('na tela vinculada, a permissão é da coleção de destino', () => {
+    expect(screenReadPermission({ id: 'processos', dataCollection: 'cases' })).toBe('cases.read');
+  });
+
+  it('espaço em branco não desloca a permissão', () => {
+    expect(screenReadPermission({ id: 'medico', dataCollection: '  ' })).toBe('medico.read');
   });
 });

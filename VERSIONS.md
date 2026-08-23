@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.6.2] — 2026-08-23
+
+- Uma tela criada no Form Design aparecia para todo mundo — no menu lateral, na busca rápida e como aba dentro do registro pai —, inclusive para quem não tem permissão de visualizar os registros dela. Quem clicava chegava a uma lista permanentemente vazia, sem explicação. Agora a tela só é oferecida a quem pode ver o que há dentro dela.
+- Quem chega a uma dessas telas por um link recebido ou por uma aba que ficou aberta de ontem, e não tem mais acesso a ela, passa a ler o motivo em vez de encontrar uma lista vazia: um aviso dizendo que falta permissão e que ela pode ser pedida a um administrador.
+
 #### [9.6.1] — 2026-08-23
 
 - Corrigido o aviso da tela de Configurações no modo JSON: quando o documento colado não era um objeto, a explicação aparecia sempre em português, mesmo para quem usa o sistema em outro idioma. Agora ela é traduzida como qualquer outro texto da tela.

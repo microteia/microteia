@@ -3,7 +3,7 @@ import type { ICommandPaletteProvider, CommandPaletteAppContext, CommandPaletteI
 import { buildListTabKey, buildViewTabKey } from '../../../../../shared/constants/dynamicScreenKeys';
 import { getScreenIcon } from '../../../../shared/screenIcons';
 import { resolveRecordTitle } from '../../../../../domain/services/customFieldValues';
-import { isOwnedByParentScreen } from '../../../../../domain/services/screenDataCollection';
+import { isOwnedByParentScreen, screenReadPermission } from '../../../../../domain/services/screenDataCollection';
 
 const contains = (text: string | null | undefined, query: string) =>
   !!text && text.toLowerCase().includes(query.toLowerCase());
@@ -11,13 +11,19 @@ const contains = (text: string | null | undefined, query: string) =>
 export const DynamicRecordCommandProvider: ICommandPaletteProvider = {
   group: '@core.records/command.group',
 
-  getItems(query: string, { screenDefinitions, records, openTab, close, label }: CommandPaletteAppContext): CommandPaletteItem[] {
+  getItems(query: string, { screenDefinitions, records, openTab, close, label, can }: CommandPaletteAppContext): CommandPaletteItem[] {
     if (!query) return [];
 
     // Telas filhas existem só dentro do registro-pai: ficam fora do ⌘K, e como `screenByKey`
     // limita os registros, os filhos também não aparecem na busca.
+    //
+    // Sem permissão de LER a coleção a tela também sai daqui, pelo mesmo motivo que sai do menu: o
+    // ⌘K é o outro caminho de descoberta, e esconder a tela num só deixava a promessa vazia de pé.
     const enabledScreens = screenDefinitions.filter(
-      (def) => def.origin !== 'builtin' && def.enabled && !isOwnedByParentScreen(def),
+      (def) => def.origin !== 'builtin'
+        && def.enabled
+        && !isOwnedByParentScreen(def)
+        && can(screenReadPermission(def)),
     );
     const screenByKey = new Map(enabledScreens.map((def) => [def.id, def]));
 

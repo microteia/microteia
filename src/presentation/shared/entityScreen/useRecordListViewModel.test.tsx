@@ -31,10 +31,12 @@ vi.mock('../../../stores/useRecords', () => ({
 }));
 vi.mock('../../../stores/useWorkspace', () => ({ useWorkspace: () => ({ openTab: vi.fn() }) }));
 vi.mock('../../../stores/useTenant', () => ({ useTenant: () => ({ members: [] }) }));
-const auth = { effectivePermissions: [] as string[] };
+// `granted: null` é "pode tudo", que é o que quase todo teste daqui pressupõe; a lista fecha o cerco
+// só onde a permissão É o assunto.
+const auth = { effectivePermissions: [] as string[], granted: null as string[] | null };
 vi.mock('../../../stores/useAuthorization', () => ({
   useAuthorization: () => ({
-    can: () => true,
+    can: (permission: string) => auth.granted === null || auth.granted.includes(permission),
     canAny: () => true,
     canAll: () => true,
     explicitPermissions: [],
@@ -102,6 +104,7 @@ const listar = (source: Parameters<typeof useRecordListViewModel>[0]) =>
 beforeEach(() => {
   actionStore.actions = [];
   auth.effectivePermissions = [];
+  auth.granted = null;
   state.definition = definition();
   state.records = [
     record('a', 'Recurso', 'Pendente', 20),
@@ -114,6 +117,29 @@ const source = (extra: Partial<Parameters<typeof useRecordListViewModel>[0]> = {
   screenKey: 'prazos',
   savedFiltersKey: 'dyn:prazos',
   ...extra,
+});
+
+/**
+ * Ver a tela é ler a coleção dela, e a coleção pode não levar o nome da tela. Enquanto a listagem não
+ * respondia isso, a aba salva de quem perdeu o acesso abria uma lista que o servidor mantinha vazia —
+ * o menu já não oferecia a tela, mas o link ainda a alcançava.
+ */
+describe('useRecordListViewModel — permissão de ler', () => {
+  it('a permissão cobrada é da COLEÇÃO da tela, não da chave dela', () => {
+    auth.granted = ['deadlines.read'];
+    expect(listar(source()).result.current.canRead).toBe(true);
+
+    auth.granted = ['prazos.read'];
+    expect(listar(source()).result.current.canRead).toBe(false);
+  });
+
+  it('sem a permissão, as quatro respostas são NÃO — não só a de ler', () => {
+    auth.granted = [];
+    const vm = listar(source()).result.current;
+
+    expect([vm.canRead, vm.canCreate, vm.canUpdate, vm.canDeleteRecords])
+      .toEqual([false, false, false, false]);
+  });
 });
 
 /**
