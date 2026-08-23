@@ -6,6 +6,7 @@ import { useAuthorization } from '../../../stores/useAuthorization';
 import { useNotification } from '../../../stores/useNotification';
 import { useActions } from '../../../stores/useActions';
 import { storeEvents, StoreEvents } from '../../../infrastructure/events/StoreEventEmitter';
+import type { ActionExprContext } from '../../../domain/schema/actionExpression';
 import { isActionDisabled, isActionHidden } from '../../../domain/schema/actionExpression';
 import type { ActionRelation, ActionSurface } from '../../../domain/schema/actionExpression';
 import { dispatchActionOutcome } from './useScreenActions';
@@ -108,6 +109,13 @@ export interface RecordListViewModel {
   getCardActions: (record: EntityRecord) => RecordCardAction[];
   /** O pedido de parâmetros de uma ação que pergunta antes de executar. Renderizado pelos modais. */
   parameterPrompt: ActionParameterPromptController;
+  /**
+   * A ação do cartão que PEDE CONFIRMAÇÃO, esperando resposta. O detalhe já honrava
+   * `confirmMessage`; o cartão disparava direto — a mesma ação perguntava num lugar e não no outro.
+   */
+  pendingCardAction: { action: ActionDefinition; record: EntityRecord } | null;
+  confirmPendingCardAction: () => void;
+  cancelPendingCardAction: () => void;
   tagAdapter: TagStoreAdapter;
   tagManagerRecord: EntityRecord | null;
   closeTagManager: () => void;
@@ -150,6 +158,7 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
   );
   const [tagManagerRecord, setTagManagerRecord] = useState<EntityRecord | null>(null);
   const [recordToDelete, setRecordToDelete] = useState<EntityRecord | null>(null);
+  const [pendingCardAction, setPendingCardAction] = useState<{ action: ActionDefinition; record: EntityRecord } | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [runningActionId, setRunningActionId] = useState<string | null>(null);
 
@@ -379,20 +388,48 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
     }
   }, [runAction, collection, notify, updateRecord, onClone, recordActions, buildActionHost, t]);
 
+  /**
+   * Pergunta os parâmetros, se a ação os declara, e dispara. Extraído porque agora DOIS caminhos
+   * chegam aqui: o clique direto e a confirmação.
+   */
+  const askAndRunCardAction = useCallback((
+    action: ActionDefinition,
+    record: EntityRecord,
+    exprContext: ActionExprContext,
+  ) => {
+    const asked = parameterPrompt.request(
+      action,
+      exprContext,
+      (params) => void runCardAction(action, record, params),
+    );
+    if (!asked) void runCardAction(action, record);
+  }, [parameterPrompt, runCardAction]);
+
+  const cardExprContext = useCallback((record: EntityRecord): ActionExprContext => ({
+    values: record,
+    record,
+    isNew: false,
+    isDirty: false,
+    permissions: effectivePermissions,
+    entity: collection,
+    // Onde a ação está sendo desenhada, e o que o registro é para o pai da aba. É o que permite
+    // uma extensão esconder a própria ação dentro da aba de outro registro.
+    surface: (parent ? 'parentTab' : 'list') as ActionSurface,
+    relation,
+    user: viewer,
+  }), [effectivePermissions, collection, parent, relation, viewer]);
+
+  const confirmPendingCardAction = useCallback(() => {
+    if (!pendingCardAction) return;
+    const { action, record } = pendingCardAction;
+    setPendingCardAction(null);
+    askAndRunCardAction(action, record, cardExprContext(record));
+  }, [pendingCardAction, askAndRunCardAction, cardExprContext]);
+
+  const cancelPendingCardAction = useCallback(() => setPendingCardAction(null), []);
+
   const getCardActions = useCallback((record: EntityRecord): RecordCardAction[] => {
-    const exprContext = {
-      values: record,
-      record,
-      isNew: false,
-      isDirty: false,
-      permissions: effectivePermissions,
-      entity: collection,
-      // Onde a ação está sendo desenhada, e o que o registro é para o pai da aba. É o que permite
-      // uma extensão esconder a própria ação dentro da aba de outro registro.
-      surface: (parent ? 'parentTab' : 'list') as ActionSurface,
-      relation,
-      user: viewer,
-    };
+    const exprContext = cardExprContext(record);
 
     // As ações que a tela habilitou, resolvidas pelo SLOT: `delete` traz excluir e desvincular, e
     // o `hiddenWhen` de cada uma decide qual o usuário vê. O kernel não conhece nenhuma pelo nome.
@@ -423,20 +460,19 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
         danger: action.danger,
         iconKey: action.icon,
         disabled: runningActionId !== null || isActionDisabled(action.disabledWhen, exprContext),
-        // A ação que PERGUNTA abre o formulário e só dispara depois; o pedido leva consigo sobre qual
-        // registro age, e o disparo que sai dali é o mesmo de sempre.
+        // Confirmar vem ANTES de perguntar parâmetro: a pergunta "tem certeza?" é sobre o gesto, e
+        // abrir um formulário para só depois perguntar se era para fazer inverte a ordem do diálogo.
         onClick: () => {
-          const asked = parameterPrompt.request(
-            action,
-            exprContext,
-            (params) => void runCardAction(action, record, params),
-          );
-          if (!asked) void runCardAction(action, record);
+          if (action.confirmMessage?.trim()) {
+            setPendingCardAction({ action, record });
+            return;
+          }
+          askAndRunCardAction(action, record, exprContext);
         },
       }));
 
     return [...native, ...custom];
-  }, [definition, collection, can, effectivePermissions, parent, relation, recordActions, buildActionHost, cardActionDefs, viewer, runningActionId, runCardAction, parameterPrompt, label]);
+  }, [definition, collection, can, cardExprContext, recordActions, buildActionHost, cardActionDefs, viewer, runningActionId, askAndRunCardAction, label]);
 
   const tagIdsOf = useCallback((entityId: string) => records.find((r) => r.id === entityId)?.tagIds ?? [], [records]);
   const setRecordTags = useCallback(
@@ -486,6 +522,9 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
     getCardImageUrl,
     getCardActions,
     parameterPrompt,
+    pendingCardAction,
+    confirmPendingCardAction,
+    cancelPendingCardAction,
     tagAdapter,
     tagManagerRecord,
     closeTagManager,

@@ -11,6 +11,12 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.3.1] — 2026-08-23
+
+- **`!` passa a significar "não" nas expressões.** Ele era lido como fatorial: `!hasPermission("...")` valia sempre verdadeiro, o editor aceitava a expressão e ela dizia o contrário do que estava escrito — uma ação escondida sem que nada acusasse o motivo.
+- **A mensagem de confirmação de uma ação passa a valer também no cartão da listagem.** Ela só era respeitada no cabeçalho do registro; no cartão a ação disparava direto.
+- O texto de ajuda e o exemplo das expressões de ação deixaram de citar o antigo "papel do usuário", que não existe mais, e passam a mostrar `hasPermission("<entity>.update")`.
+
 #### [9.3.0] — 2026-08-23
 
 - **A tela de Perfis de Acesso passou a ser uma tela de permissões.** Em vez de abrir perfil por perfil para descobrir quem concede o quê, a lista mostra todas as permissões — agrupadas por recurso, com o identificador ao lado — e, em cada linha, os perfis que a concedem.

@@ -7,8 +7,10 @@ import { useT } from '../../../shared/i18n/useT';
 
 /**
  * Os modais governados pela configuração de uma listagem de registros: o gerenciador de etiquetas e a
- * confirmação de exclusão. Vive num componente próprio para ser montado UMA vez tanto pela lista
- * padrão (`RecordListSurface`) quanto por uma tela de código de extensão que reaproveite as ações
+ * confirmação de exclusão e a confirmação de uma ação que pergunta antes de agir.
+ *
+ * Vive num componente próprio para ser montado UMA vez tanto pela lista padrão
+ * (`RecordListSurface`) quanto por uma tela de código de extensão que reaproveite as ações
  * (`useEntityList().getCardActions`) fora da lista — ex.: no cabeçalho da tela de edição.
  */
 export const EntityListModals: React.FC<{ vm: RecordListViewModel }> = ({ vm }) => {
@@ -28,6 +30,16 @@ export const EntityListModals: React.FC<{ vm: RecordListViewModel }> = ({ vm }) 
       loading={vm.isDeleting}
       onConfirm={() => void vm.confirmDelete()}
       onCancel={vm.cancelDelete}
+    />
+    {/* A confirmação da ação do CARTÃO. O detalhe já a tinha; aqui a mesma ação disparava direto. */}
+    <ConfirmModal
+      isOpen={vm.pendingCardAction !== null}
+      title={vm.pendingCardAction?.action.title ?? ''}
+      message={vm.pendingCardAction?.action.confirmMessage ?? ''}
+      variant={vm.pendingCardAction?.action.danger ? 'danger' : 'default'}
+      confirmLabel={t('action.run')}
+      onConfirm={vm.confirmPendingCardAction}
+      onCancel={vm.cancelPendingCardAction}
     />
     <ActionParametersModal controller={vm.parameterPrompt} />
   </>

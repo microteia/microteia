@@ -99,6 +99,7 @@ const asFieldContext = (ctx: ActionExprContext) => ({
   value: null,
   data: buildScope(ctx),
   ...(ctx.entity ? { entity: ctx.entity } : {}),
+  permissions: ctx.permissions,
 });
 
 export const isActionHidden = (expr: string | null | undefined, ctx: ActionExprContext): boolean =>

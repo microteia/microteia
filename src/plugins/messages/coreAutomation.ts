@@ -303,9 +303,9 @@ export const CORE_AUTOMATION_MESSAGES: Record<string, string> = {
   'action.prompt.defaults.hint':
     'What each field OPENS filled with, by expression over the record on screen. Left empty, the field opens with the value of the field of the SAME NAME, if there is one — the map is for when the names differ (the screen holds "processNumber", the workflow asks for "caseNumber").',
   'action.expression.hint':
-    'Re-evaluated when the screen opens and on every field change. Besides the screen fields, use "record", "isNew", "isDirty", "role" and "surface" — where the action is being drawn: "detail" (record header), "list" (list card) or "parentTab" (card inside another record\u2019s tab).',
+    'Re-evaluated when the screen opens and on every field change. Besides the screen fields, use "record", "isNew", "isDirty", "permissions" and "surface" - where the action is being drawn: "detail" (record header), "list" (list card) or "parentTab" (card inside another record tab). To ask about access use hasPermission("<entity>.delete"), where <entity> is the collection of the screen.',
   'action.hidden-when': 'Hide when',
-  'action.hidden-when.placeholder': 'ex: isNew or role != "admin"',
+  'action.hidden-when.placeholder': 'ex: isNew or !hasPermission("<entity>.update")',
   'action.disabled-when': 'Disable when',
   'action.disabled-when.placeholder': 'ex: isEmpty(email)',
   'action.active-when': 'On when (switch)',
@@ -318,7 +318,7 @@ export const CORE_AUTOMATION_MESSAGES: Record<string, string> = {
   'action.var.record': 'The record as it is stored',
   'action.var.is-new': 'Record not saved yet',
   'action.var.is-dirty': 'There are unsaved changes',
-  'action.var.role': "The user's role in the organization",
+  'action.var.permissions': 'The EFFECTIVE permissions of the user',
   'action.var.surface': 'Where the action appears: detail, list or parentTab',
   'action.var.relation': "The record inside the parent's tab: none, owned or related",
   'artifact.id.required': 'Enter the identifier',

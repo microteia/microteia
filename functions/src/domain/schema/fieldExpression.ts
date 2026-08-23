@@ -12,7 +12,12 @@
 import { Parser } from 'expr-eval';
 import { isEmptyRuleValue, isValidCnpj, isValidCpf, onlyDigits } from './fieldRulePresets';
 import { ambientLocale } from './i18n/localeGate';
-import { ambientEntity, ambientPermissions, setAmbientEntity } from './access/permissionGate';
+import {
+  ambientEntity,
+  ambientPermissions,
+  setAmbientEntity,
+  setAmbientPermissions,
+} from './access/permissionGate';
 import { matchesPermission } from './access/permissionPattern';
 import { currencyForLocale, formatMoneyFor } from './i18n/localeFormat';
 
@@ -21,6 +26,16 @@ export interface FieldExprContext {
   data: Record<string, unknown>;
   /** A entidade em cujo contexto a expressão vale — o que `<entity>` vira em `hasPermission`. */
   entity?: string;
+  /**
+   * As permissões EFETIVAS de quem olha.
+   *
+   * Vêm pelo CONTEXTO, e não só do gate de módulo, porque o gate não é estado do React: quem o
+   * empurrava era um efeito, que roda DEPOIS do render dos filhos e não provoca recálculo nenhum. A
+   * primeira pintura da listagem avaliava com o conjunto vazio e ficava assim — a ação sumia do
+   * cartão e reaparecia só numa tela aberta depois. Pelo contexto, o valor entra como qualquer outra
+   * dependência de render.
+   */
+  permissions?: readonly string[];
 }
 
 const EXPRESSION_OPERATORS = {
@@ -329,6 +344,18 @@ const buildParser = (): Parser => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- expr-eval não tipa parser.functions
     (parser.functions as any)[name] = fn;
   }
+  /**
+   * `!` passa a ser NEGAÇÃO LÓGICA.
+   *
+   * No `expr-eval` ele é o FATORIAL, e `!hasPermission("x")` avaliava para `1` — verdadeiro. A
+   * expressão era aceita pelo validador, parecia dizer "quando NÃO puder" e dizia "sempre". Um
+   * defeito assim não tem sintoma: a ação some da tela e nada acusa.
+   *
+   * Fatorial não é perda: numa linguagem de regra de negócio ele nunca teve uso, e `!` significar
+   * outra coisa que não negação contraria o que qualquer pessoa escreve por reflexo.
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- expr-eval não tipa parser.unaryOps
+  (parser.unaryOps as any)['!'] = (value: unknown) => !value;
   return parser;
 };
 
@@ -348,15 +375,19 @@ const buildScope = (ctx: FieldExprContext): Record<string, unknown> => ({
 });
 
 export const evaluateFieldExpression = (expr: string, ctx: FieldExprContext): unknown => {
-  // A entidade é empurrada e DEVOLVIDA ao valor anterior: a avaliação é síncrona, então nada se
-  // intercala, mas expressões aninhadas (um campo dentro de uma aba de outra tela) precisam
-  // encontrar o contexto delas de volta.
-  const previous = ambientEntity();
+  // Empurrado e DEVOLVIDO ao valor anterior: a avaliação é síncrona, então nada se intercala, mas
+  // expressões aninhadas (um campo dentro da aba de outra tela) precisam reencontrar o contexto
+  // delas. Sem permissões no contexto vale o que o gate tiver — é o caminho de quem avalia fora de
+  // uma tela.
+  const previousEntity = ambientEntity();
+  const previousPermissions = ambientPermissions();
   setAmbientEntity(ctx.entity ?? '');
+  if (ctx.permissions) setAmbientPermissions(ctx.permissions);
   try {
     return fieldParser.parse(expr).evaluate(buildScope(ctx) as never);
   } finally {
-    setAmbientEntity(previous);
+    setAmbientEntity(previousEntity);
+    setAmbientPermissions(previousPermissions);
   }
 };
 

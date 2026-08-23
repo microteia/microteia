@@ -171,7 +171,7 @@ export const useViewActionViewModel = (tabKey: string): ViewActionViewModel => {
     { name: 'record', definedBy: t('action.var.record') },
     { name: 'isNew', definedBy: t('action.var.is-new') },
     { name: 'isDirty', definedBy: t('action.var.is-dirty') },
-    { name: 'role', definedBy: t('action.var.role') },
+    { name: 'permissions', definedBy: t('action.var.permissions') },
     { name: 'surface', definedBy: t('action.var.surface') },
     { name: 'relation', definedBy: t('action.var.relation') },
   ], [t]);

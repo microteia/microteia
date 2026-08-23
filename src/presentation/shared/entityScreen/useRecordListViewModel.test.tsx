@@ -31,17 +31,25 @@ vi.mock('../../../stores/useRecords', () => ({
 }));
 vi.mock('../../../stores/useWorkspace', () => ({ useWorkspace: () => ({ openTab: vi.fn() }) }));
 vi.mock('../../../stores/useTenant', () => ({ useTenant: () => ({ members: [] }) }));
+const auth = { effectivePermissions: [] as string[] };
 vi.mock('../../../stores/useAuthorization', () => ({
   useAuthorization: () => ({
     can: () => true,
     canAny: () => true,
     canAll: () => true,
     explicitPermissions: [],
-    effectivePermissions: [],
+    effectivePermissions: auth.effectivePermissions,
   }),
 }));
 vi.mock('../../../stores/useNotification', () => ({ useNotification: () => ({ notify: vi.fn() }) }));
-vi.mock('../../../stores/useActions', () => ({ useActions: () => ({ getActionsByIds: () => [], runAction: vi.fn() }) }));
+const actionStore: { actions: Record<string, unknown>[] } = { actions: [] };
+vi.mock('../../../stores/useActions', () => ({
+  useActions: () => ({
+    getActionsByIds: (ids: string[]) =>
+      ids.map((id) => actionStore.actions.find((a) => (a as { id: string }).id === id)).filter(Boolean),
+    runAction: vi.fn(),
+  }),
+}));
 vi.mock('../../../stores/useLookups', () => ({ useLookups: () => ({ getOptions: () => [], availableLookups: [] }) }));
 vi.mock('../../../stores/useTags', () => ({ useTags: () => ({ getTags: () => [], availableTagLists: [], declareTagList: vi.fn(), setTags: vi.fn() }) }));
 vi.mock('../../../stores/useWorkflowStore', () => ({ useWorkflowStore: () => ({ workflows: [] }) }));
@@ -92,6 +100,8 @@ const listar = (source: Parameters<typeof useRecordListViewModel>[0]) =>
   renderHook(() => useRecordListViewModel(source));
 
 beforeEach(() => {
+  actionStore.actions = [];
+  auth.effectivePermissions = [];
   state.definition = definition();
   state.records = [
     record('a', 'Recurso', 'Pendente', 20),
@@ -195,5 +205,110 @@ describe('useRecordListViewModel — endereço do registro', () => {
 
     result.current.getCardActions(state.records[0]).find((a) => a.key === 'copyLink')!.onClick();
     expect(copiado).toBe('proprio:a');
+  });
+});
+
+/**
+ * A ação CUSTOMIZADA no cartão da listagem. O teste nasceu de um relato: a mesma ação, habilitada
+ * nos dois lugares do Form Design, aparecia no cabeçalho do registro e não no cartão.
+ */
+describe('useRecordListViewModel — ações customizadas do cartão', () => {
+  const acao = (over: Record<string, unknown> = {}) => ({
+    id: 'a1',
+    tenantId: 't1',
+    key: 'teste',
+    title: 'teste permission',
+    icon: 'apps',
+    workflowId: 'w1',
+    enabled: true,
+    danger: false,
+    order: 0,
+    hiddenWhen: null,
+    disabledWhen: null,
+    ...over,
+  });
+
+  it('a ação habilitada em `cardActionIds` aparece no cartão', () => {
+    actionStore.actions = [acao()];
+    state.definition = { ...definition(), cardActionIds: ['a1'] } as ScreenDefinition;
+
+    const { result } = listar({ screenKey: 'prazos', savedFiltersKey: 'prazos' });
+    const acoes = result.current.getCardActions(record('r1', 'Prazo', 'Pendente', 1));
+    expect(acoes.map((a) => a.key)).toContain('a1');
+  });
+
+  it('`hiddenWhen` verdadeiro esconde a ação do cartão', () => {
+    actionStore.actions = [acao({ hiddenWhen: 'true' })];
+    state.definition = { ...definition(), cardActionIds: ['a1'] } as ScreenDefinition;
+
+    const { result } = listar({ screenKey: 'prazos', savedFiltersKey: 'prazos' });
+    expect(result.current.getCardActions(record('r1', 'Prazo', 'Pendente', 1))).toEqual([]);
+  });
+
+  it('`disabledWhen` verdadeiro mantém a ação VISÍVEL, apenas desabilitada', () => {
+    actionStore.actions = [acao({ disabledWhen: 'true' })];
+    state.definition = { ...definition(), cardActionIds: ['a1'] } as ScreenDefinition;
+
+    const { result } = listar({ screenKey: 'prazos', savedFiltersKey: 'prazos' });
+    const [acaoCartao] = result.current.getCardActions(record('r1', 'Prazo', 'Pendente', 1));
+    expect(acaoCartao).toMatchObject({ key: 'a1', disabled: true });
+  });
+
+  /**
+   * O teste que pegou o defeito: as permissões chegam pelo CONTEXTO da avaliação. Enquanto vinham de
+   * um gate de módulo empurrado por efeito, a primeira pintura da listagem avaliava com o conjunto
+   * vazio e a ação sumia do cartão para sempre.
+   */
+  it('hasPermission no cartão enxerga a coleção da tela e as permissões de quem olha', () => {
+    auth.effectivePermissions = ['deadlines.delete'];
+    actionStore.actions = [acao({ hiddenWhen: '!hasPermission("<entity>.delete")' })];
+    state.definition = { ...definition(), cardActionIds: ['a1'] } as ScreenDefinition;
+
+    const { result } = listar({ screenKey: 'prazos', savedFiltersKey: 'prazos' });
+    expect(result.current.getCardActions(record('r1', 'Prazo', 'Pendente', 1)).map((a) => a.key))
+      .toContain('a1');
+  });
+
+  /**
+   * O `confirmMessage` era honrado no cabeçalho do registro e ignorado no cartão: a mesma ação
+   * perguntava num lugar e disparava direto no outro.
+   */
+  it('a ação com `confirmMessage` PERGUNTA antes de disparar, também no cartão', () => {
+    actionStore.actions = [acao({ confirmMessage: 'Tem certeza?' })];
+    state.definition = { ...definition(), cardActionIds: ['a1'] } as ScreenDefinition;
+
+    const { result } = listar({ screenKey: 'prazos', savedFiltersKey: 'prazos' });
+    const registro = record('r1', 'Prazo', 'Pendente', 1);
+    const [acaoCartao] = result.current.getCardActions(registro);
+
+    expect(result.current.pendingCardAction).toBeNull();
+    act(() => acaoCartao.onClick());
+    expect(result.current.pendingCardAction).toMatchObject({
+      action: expect.objectContaining({ id: 'a1' }),
+      record: expect.objectContaining({ id: 'r1' }),
+    });
+
+    act(() => result.current.cancelPendingCardAction());
+    expect(result.current.pendingCardAction).toBeNull();
+  });
+
+  it('sem `confirmMessage`, o clique dispara direto', () => {
+    actionStore.actions = [acao()];
+    state.definition = { ...definition(), cardActionIds: ['a1'] } as ScreenDefinition;
+
+    const { result } = listar({ screenKey: 'prazos', savedFiltersKey: 'prazos' });
+    const [acaoCartao] = result.current.getCardActions(record('r1', 'Prazo', 'Pendente', 1));
+
+    act(() => acaoCartao.onClick());
+    expect(result.current.pendingCardAction).toBeNull();
+  });
+
+  it('sem a permissão, a mesma expressão esconde a ação do cartão', () => {
+    auth.effectivePermissions = ['deadlines.read'];
+    actionStore.actions = [acao({ hiddenWhen: '!hasPermission("<entity>.delete")' })];
+    state.definition = { ...definition(), cardActionIds: ['a1'] } as ScreenDefinition;
+
+    const { result } = listar({ screenKey: 'prazos', savedFiltersKey: 'prazos' });
+    expect(result.current.getCardActions(record('r1', 'Prazo', 'Pendente', 1))).toEqual([]);
   });
 });

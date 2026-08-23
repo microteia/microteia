@@ -302,9 +302,9 @@ export const CORE_AUTOMATION: Record<string, string> = {
   'action.prompt.defaults.hint':
     'Com o que cada campo ABRE preenchido, por expressão sobre o registro da tela. Em branco, o campo abre com o valor do campo de MESMO NOME, se existir — o mapa é para quando os nomes divergem (a tela guarda "processNumber", o fluxo pede "caseNumber").',
   'action.expression.hint':
-    'Reavaliadas ao abrir a tela e a cada alteração de campo. Além dos campos da tela, use "record", "isNew", "isDirty", "role" e "surface" — onde a ação está sendo desenhada: "detail" (cabeçalho do registro), "list" (cartão da listagem) ou "parentTab" (cartão dentro da aba de outro registro).',
+    'Reavaliadas ao abrir a tela e a cada alteração de campo. Além dos campos da tela, use "record", "isNew", "isDirty", "permissions" e "surface" — onde a ação está sendo desenhada: "detail" (cabeçalho do registro), "list" (cartão da listagem) ou "parentTab" (cartão dentro da aba de outro registro). Para perguntar por acesso use hasPermission("<entity>.delete"), em que <entity> é a coleção da tela.',
   'action.hidden-when': 'Ocultar quando',
-  'action.hidden-when.placeholder': 'ex: isNew or role != "admin"',
+  'action.hidden-when.placeholder': 'ex: isNew or !hasPermission("<entity>.update")',
   'action.disabled-when': 'Desabilitar quando',
   'action.disabled-when.placeholder': 'ex: isEmpty(email)',
   'action.active-when': 'Ligada quando (interruptor)',
@@ -317,7 +317,7 @@ export const CORE_AUTOMATION: Record<string, string> = {
   'action.var.record': 'Registro como está gravado',
   'action.var.is-new': 'Registro ainda não gravado',
   'action.var.is-dirty': 'Há alterações não gravadas',
-  'action.var.role': 'Papel do usuário no escritório',
+  'action.var.permissions': 'As permissões EFETIVAS do usuário',
   'action.var.surface': 'Onde a ação aparece: detail, list ou parentTab',
   'action.var.relation': 'O registro dentro da aba do pai: none, owned ou related',
   'artifact.id.required': 'Informe o identificador',
