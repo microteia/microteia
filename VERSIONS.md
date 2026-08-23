@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.0.1] — 2026-08-23
+
+- Na tela de Perfis de Acesso, as permissões que vêm junto com a escolhida passam a aparecer com o nome do recurso ao lado. Antes, marcar "Editar financeiro" mostrava "Inclui automaticamente: Visualizar, Visualizar" — duas linhas idênticas que não diziam de quê.
+
 #### [9.0.0] — 2026-08-23
 
 - **Os perfis de acesso agora são seus.** O escritório deixa de escolher entre quatro papéis fixos (Administrador, Advogado, Secretária e Usuário) e passa a criar os próprios: "Financeiro", "Recepção", "Advogado Sênior" — o nome e o conteúdo que fizerem sentido para o escritório. A nova aba **Perfis de Acesso**, em Configurações do Escritório, é onde eles nascem.

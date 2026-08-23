@@ -91,9 +91,25 @@ export const useRolesTabViewModel = (): RolesTabViewModel => {
     return map;
   }, [catalog, explicit]);
 
+  /**
+   * O nome de uma permissão como ela é CITADA fora do grupo dela — no "inclui automaticamente" e no
+   * "incluída por".
+   *
+   * A DERIVADA precisa do recurso junto: dentro do grupo "Financeiro" a linha "Visualizar" basta,
+   * mas numa lista solta duas derivadas de recursos diferentes viram "Visualizar, Visualizar" e não
+   * dizem nada. A declarada já traz um nome que se sustenta sozinho ("Editar financeiro") e passa
+   * intacta.
+   */
   const nameOf = useCallback(
-    (id: string): string => label(catalog.byId.get(id)?.name ?? id),
-    [catalog, label],
+    (id: string): string => {
+      const permission = catalog.byId.get(id);
+      if (!permission) return id;
+      const name = label(permission.name);
+      if (!permission.derived) return name;
+      const resource = label(catalog.resourceNames.get(permission.resource) ?? permission.resource);
+      return t('role.qualified-name', { action: name, resource });
+    },
+    [catalog, label, t],
   );
 
   const rowOf = useCallback(

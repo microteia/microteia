@@ -93,6 +93,7 @@
             "role.name.required": "O perfil de acesso precisa de um nome.",
             "role.new": "Novo perfil",
             "role.permission-count": "{count} permissões",
+            "role.qualified-name": "{action} — {resource}",
             "role.save-failed": "Não foi possível salvar o perfil de acesso.",
             "role.saved": "Perfil de acesso salvo.",
             "role.summary": "{explicit} escolhidas, {effective} em vigor",

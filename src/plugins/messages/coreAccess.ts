@@ -90,6 +90,7 @@ export const CORE_ACCESS_MESSAGES: Record<string, string> = {
   'role.name.required': 'The access profile needs a name.',
   'role.new': 'New profile',
   'role.permission-count': '{count} permissions',
+  'role.qualified-name': '{action} — {resource}',
   'role.save-failed': 'Could not save the access profile.',
   'role.saved': 'Access profile saved.',
   'role.summary': '{explicit} chosen, {effective} in effect',
