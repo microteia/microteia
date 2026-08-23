@@ -24,6 +24,7 @@ import { FirebaseWorkflowExecutionRepository } from '../../data/repositories/Fir
 import { FirebaseScriptRepository } from '../../data/repositories/FirebaseScriptRepository';
 import { FirebaseDataProcessorRepository } from '../../data/repositories/FirebaseDataProcessorRepository';
 import { FirebaseActionRepository } from '../../data/repositories/FirebaseActionRepository';
+import { FirebaseRoleRepository } from '../../data/repositories/FirebaseRoleRepository';
 import { FirebasePluginInstallationRepository } from '../../data/repositories/FirebasePluginInstallationRepository';
 import { FirebasePluginRegistryRepository } from '../../data/repositories/FirebasePluginRegistryRepository';
 import { FirebaseTenantExtensionRepository } from '../../data/repositories/FirebaseTenantExtensionRepository';
@@ -65,6 +66,7 @@ export const DIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
     scriptRepository:         new FirebaseScriptRepository(),
     dataProcessorRepository:  new FirebaseDataProcessorRepository(),
     actionRepository:         new FirebaseActionRepository(),
+    roleRepository:           new FirebaseRoleRepository(),
     pluginInstallationRepository: new FirebasePluginInstallationRepository(),
     pluginRegistryRepository: new FirebasePluginRegistryRepository(),
     tenantExtensionRepository: new FirebaseTenantExtensionRepository(),

@@ -3,6 +3,7 @@ import { I18N_EXTENSION_POINTS, messageBundleContribution } from '../../domain/s
 import { coreMessage, CORE_I18N_MESSAGES } from '../coreMessages';
 import { DEFAULT_LOCALE } from '../../domain/schema/i18n/localeNegotiation';
 import { lazyView, nav, page, settingsSection } from '../contributionBuilders';
+import { PERMISSION_TRANSLATIONS_MANAGE } from '../../domain/schema/access';
 
 /**
  * O núcleo do idioma. Declara o ponto onde as traduções chegam e as duas preferências que decidem
@@ -23,18 +24,18 @@ export const coreI18nPlugin: PluginRecord = {
   manifest: {
     id: 'core.i18n',
     version: '1.0.0',
-    kernel: '^1.0.0',
+    kernel: '^2.0.0',
     // eslint-disable-next-line no-restricted-syntax -- metadado do plugin do NÚCLEO: não é renderizado.
     name: 'Language Core',
     description:
       // eslint-disable-next-line no-restricted-syntax -- metadado do plugin do NÚCLEO: não é renderizado.
       'Declares the translation extension point and the organization language and time zone preferences.',
-    dependencies: { 'core.ui': '^1.0.0' },
+    dependencies: { 'core.ui': '^1.0.0', 'core.access': '^1.0.0' },
     extensionPoints: I18N_EXTENSION_POINTS,
     contributes: [
       messageBundleContribution(coreMessage('core.i18n', CORE_I18N_MESSAGES)),
       page({ key: 'translations', title: '@core.i18n/page.translations', icon: 'globe' }, 'TranslationsView'),
-      nav({ key: 'translations', label: '@core.i18n/nav.translations', icon: 'globe', order: 116, requiresTenantAdmin: true }),
+      nav({ key: 'translations', label: '@core.i18n/nav.translations', icon: 'globe', order: 116, requiredPermissions: [PERMISSION_TRANSLATIONS_MANAGE] }),
       settingsSection({
         key: 'i18n',
         title: '@core.i18n/section.title',

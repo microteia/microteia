@@ -19,7 +19,9 @@ const storeState = { definition: undefined as ScreenDefinition | undefined };
 vi.mock('styled-components', () => ({
   useTheme: () => ({ tagColors: [{ label: 'Azul', value: '#1e88e5' }] }),
 }));
-vi.mock('../../../stores/useTenant', () => ({ useTenant: () => ({ tenantRole: 'admin' }) }));
+vi.mock('../../../stores/useAuthorization', () => ({
+  useAuthorization: () => ({ can: () => true, canAny: () => true, canAll: () => true }),
+}));
 vi.mock('../../../stores/useNotification', () => ({ useNotification: () => ({ notify }) }));
 vi.mock('../../../stores/useActions', () => ({ useActions: () => ({ actions: [] }) }));
 vi.mock('../../../stores/useLookups', () => ({

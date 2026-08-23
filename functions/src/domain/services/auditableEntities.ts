@@ -29,6 +29,10 @@ const FLAT_ENTITY_CONFIG: Record<string, AuditableEntityConfig> = {
     entityKey: 'TenantMember',
     getDisplayName: (d) => asString(d.displayName ?? d.email),
   },
+  roles: {
+    entityKey: 'Role',
+    getDisplayName: (d) => asString(d.name),
+  },
   screenDefinitions: {
     entityKey: 'ScreenDefinition',
     getDisplayName: (d) => asString(d.titlePlural ?? d.titleSingular),

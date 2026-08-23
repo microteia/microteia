@@ -218,18 +218,7 @@ export interface ScreenDefinition {
    */
   auditActions?: AuditAction[] | null;
   /**
-   * Papéis do tenant que podem CRIAR e EDITAR registros desta coleção. Ausente = a permissão padrão
-   * do escritório (`admin`, `lawyer`, `secretary`). Declarada, a lista é a AUTORIDADE — e por isso
-   * serve tanto para estreitar ("só advogado ou admin mexe em processo") quanto para alargar ("no
-   * mural do escritório todo mundo comenta", incluindo o papel `user`, que é somente leitura no
-   * resto do sistema). A regra a lê do documento da tela, sem citar a coleção pelo nome.
-   *
-   * Exclusão: ver `authorCanDelete`. Gravação de campo isolado por quem não grava a tela inteira:
-   * ver `memberWritableFields`.
-   */
-  writeRoles?: string[] | null;
-  /**
-   * Campos que QUALQUER membro do escritório grava, mesmo sem permissão de escrita na tela. É o
+   * Campos que QUALQUER membro do escritório grava, mesmo sem a permissão de escrita da coleção. É o
    * "por usuário" de um mural: marcar como lida, curtir, guardar para depois — gravações no
    * documento que OUTRA pessoa criou, e que não são edição do conteúdo dela.
    *

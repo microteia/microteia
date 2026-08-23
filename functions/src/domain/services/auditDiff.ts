@@ -141,9 +141,14 @@ export const buildErrorText = (
   messageParams: { path: `${collection}/${docId}`, detail: message },
 });
 
-/** DELETE é sempre HIGH; mudança de role de membro é HIGH; demais casos ficam no default LOW. */
+/**
+ * DELETE é sempre HIGH. Também é HIGH tudo o que muda QUEM PODE O QUÊ: os perfis de um membro e as
+ * permissões de um perfil. São as duas escritas capazes de dar acesso a alguém, e ler o histórico
+ * delas depois é justamente o motivo de a auditoria existir.
+ */
 export const resolveSeverity = (action: AuditAction, collection: string, changedFieldKeys: EntityData): AuditSeverity => {
   if (action === 'DELETE') return 'HIGH';
-  if (collection === 'members' && 'role' in changedFieldKeys) return 'HIGH';
+  if (collection === 'members' && 'roleIds' in changedFieldKeys) return 'HIGH';
+  if (collection === 'roles' && 'permissions' in changedFieldKeys) return 'HIGH';
   return 'LOW';
 };

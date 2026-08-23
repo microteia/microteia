@@ -48,7 +48,7 @@ const buildScope = (context: ActionExprContext): Record<string, unknown> => ({
   record: context.record ?? {},
   isNew: context.isNew,
   isDirty: context.isDirty,
-  role: context.role,
+  permissions: context.permissions,
   surface: context.surface ?? 'detail',
   relation: context.relation ?? 'none',
 });

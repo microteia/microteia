@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { useTheme } from 'styled-components';
-import { useTenant } from '../../../../stores/useTenant';
+import { useAuthorization } from '../../../../stores/useAuthorization';
+import { PERMISSION_SCREENS_MANAGE } from '../../../../domain/schema/access';
 import { useNotification } from '../../../../stores/useNotification';
 import { DEFAULT_TAG_COLOR_LABEL } from '../../../../shared/styles/colorUtils';
 import { useT } from '../../../shared/i18n/useT';
@@ -55,9 +56,9 @@ export interface TagManagerViewModel {
 export const useTagManagerViewModel = (props: TagManagerProps): TagManagerViewModel => {
   const { adapter, entityId } = props;
   const { tags, getAppliedTags, setTags, createTag, updateTag, deleteTag } = adapter;
-  const { tenantRole } = useTenant();
+  const { can } = useAuthorization();
   const { notify } = useNotification();
-  const isAdmin = tenantRole === 'admin';
+  const isAdmin = can(PERMISSION_SCREENS_MANAGE);
   const theme = useTheme();
   const t = useT('core.ui');
   const tagColors = theme.tagColors;

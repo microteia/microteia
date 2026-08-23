@@ -31,6 +31,7 @@ const FUNCTIONS_SRC = path.join(ROOT, 'functions', 'src');
  * de carregar chave de plugin.
  */
 const MODULE_BY_NS = {
+  'core.access': 'coreAccess',
   'core.ui': 'coreUi',
   'core.admin': 'coreAdmin',
   'core.tenant': 'coreTenant',

@@ -1,9 +1,9 @@
 import { evaluateFieldBoolean } from './fieldExpression';
 
 /**
- * QUEM ESTÁ OLHANDO, no escopo de uma expressão de UI (`user.id`, `user.name`, `user.role`).
+ * QUEM ESTÁ OLHANDO, no escopo de uma expressão de UI (`user.id`, `user.name`, `user.permissions`).
  *
- * Existe porque `role` sozinho não distingue duas pessoas do mesmo papel, e há declaração que
+ * Existe porque a capacidade sozinha não distingue duas pessoas que a têm, e há declaração que
  * depende exatamente disso: "excluir só a MINHA notícia", "o que EU ainda não li". Sem o usuário no
  * escopo, esse tipo de regra só existia como código dentro de uma tela do kernel.
  *
@@ -13,10 +13,11 @@ import { evaluateFieldBoolean } from './fieldExpression';
 export interface ExprViewer {
   id: string;
   name: string;
-  role: string;
+  /** As permissões EFETIVAS de quem olha. `"finance.write" in permissions` numa expressão. */
+  permissions: string[];
 }
 
-export const EMPTY_VIEWER: ExprViewer = { id: '', name: '', role: '' };
+export const EMPTY_VIEWER: ExprViewer = { id: '', name: '', permissions: [] };
 
 /**
  * Contexto das expressões `hiddenWhen` / `disabledWhen` de uma Action. Puramente de UI — o backend não
@@ -29,8 +30,13 @@ export interface ActionExprContext {
   record: Record<string, unknown> | null;
   isNew: boolean;
   isDirty: boolean;
-  /** Papel do usuário no escritório: `admin`, `lawyer`, `secretary` ou `user`. */
-  role: string;
+  /**
+   * As permissões EFETIVAS de quem olha, na raiz do escopo: `"medico.delete" in permissions`.
+   *
+   * Aqui morava `role`, o papel fixo do escritório. Ele saiu porque não existe mais papel fixo — e
+   * porque a pergunta que uma declaração precisa fazer nunca foi "quem é", e sim "pode".
+   */
+  permissions: string[];
   /**
    * ONDE a ação está sendo desenhada. A mesma ação faz sentidos diferentes conforme a superfície:
    * dentro da aba de outro registro, uma ação destrutiva costuma ser lida como "tirar daqui" quando
@@ -71,14 +77,14 @@ export type ActionRelation = 'none' | 'owned' | 'related';
  * Nomes reservados sobrescrevem campos de mesma chave: um campo chamado `record` não fica acessível na
  * raiz do escopo, mas segue legível por `record.record`.
  */
-export const ACTION_RESERVED_VARIABLES = ['record', 'isNew', 'isDirty', 'role', 'surface', 'relation', 'user'] as const;
+export const ACTION_RESERVED_VARIABLES = ['record', 'isNew', 'isDirty', 'permissions', 'surface', 'relation', 'user'] as const;
 
 const buildScope = (ctx: ActionExprContext): Record<string, unknown> => ({
   ...ctx.values,
   record: ctx.record ?? {},
   isNew: ctx.isNew,
   isDirty: ctx.isDirty,
-  role: ctx.role,
+  permissions: ctx.permissions,
   surface: ctx.surface ?? 'detail',
   relation: ctx.relation ?? 'none',
   user: ctx.user ?? EMPTY_VIEWER,

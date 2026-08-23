@@ -40,7 +40,7 @@ export const coreStepsPlugin: PluginRecord = {
   manifest: {
     id: 'core.steps',
     version: '1.0.0',
-    kernel: '^1.0.0',
+    kernel: '^2.0.0',
     name: '@core.automation/plugin.steps.name',
     dependencies: { 'core.workflow': '^1.0.0' },
     contributes: [

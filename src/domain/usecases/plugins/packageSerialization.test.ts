@@ -3,7 +3,7 @@ import { packageFingerprint, parsePackage, serializePackage } from './packageSer
 import type { MarketplacePlugin } from '../../entities/MarketplacePlugin';
 
 const pkg: MarketplacePlugin = {
-  manifest: { id: 'com.acme.x', version: '1.0.0', kernel: '^1.0.0', name: 'X' },
+  manifest: { id: 'com.acme.x', version: '1.0.0', kernel: '^2.0.0', name: 'X' },
   summary: 'resumo',
   workflows: [],
 };
@@ -43,7 +43,7 @@ describe('serializePackage/parsePackage', () => {
  */
 describe('packageFingerprint', () => {
   const original: MarketplacePlugin = {
-    manifest: { id: 'com.acme.x', version: '1.0.0', kernel: '^1.0.0', name: 'X' },
+    manifest: { id: 'com.acme.x', version: '1.0.0', kernel: '^2.0.0', name: 'X' },
     summary: 'resumo',
     workflows: [],
     screens: [{
@@ -57,7 +57,7 @@ describe('packageFingerprint', () => {
       workflows: original.workflows,
       summary: original.summary,
       screens: original.screens?.map(({ icon, ...rest }) => ({ ...rest, icon })),
-      manifest: { name: 'X', kernel: '^1.0.0', version: '1.0.0', id: 'com.acme.x' },
+      manifest: { name: 'X', kernel: '^2.0.0', version: '1.0.0', id: 'com.acme.x' },
     })) as MarketplacePlugin;
     expect(packageFingerprint(reordered)).toBe(packageFingerprint(original));
   });

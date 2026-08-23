@@ -3,7 +3,8 @@ import { useInstalledExtensions } from '../../../stores/useInstalledExtensions';
 import { useLocale } from '../../../stores/useLocale';
 import { useNotification } from '../../../stores/useNotification';
 import { useAuth } from '../../../stores/useAuth';
-import { useTenant } from '../../../stores/useTenant';
+import { useAuthorization } from '../../../stores/useAuthorization';
+import { PERMISSION_TRANSLATIONS_MANAGE } from '../../../domain/schema/access';
 import { useContributions } from '../../../stores/useKernel';
 import { I18N_MESSAGES_POINT, messageBundlesOf } from '../../../domain/schema/i18n/extensionPoints';
 import { DEFAULT_LOCALE, isValidLocale, normalizeLocale } from '../../../domain/schema/i18n/localeNegotiation';
@@ -52,12 +53,12 @@ export const useTranslationsViewModel = (): TranslationsViewModel => {
   const { locale } = useLocale();
   const { notify } = useNotification();
   const { user, effectiveName } = useAuth();
-  const { tenantRole } = useTenant();
+  const { can } = useAuthorization();
 
   const [targetLocale, setTargetLocale] = useState('');
   const [busy, setBusy] = useState(false);
 
-  const canManage = tenantRole === 'admin';
+  const canManage = can(PERMISSION_TRANSLATIONS_MANAGE);
 
   const bundles = useMemo(() => messageBundlesOf(contributions), [contributions]);
 

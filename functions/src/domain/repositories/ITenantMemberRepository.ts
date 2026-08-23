@@ -8,4 +8,9 @@ export interface ITenantMemberRepository {
   getMemberRole(tenantId: string, userId: string): Promise<string | null>;
   /** O papel e o NOME de quem age — uma leitura só, para quem precisa dos dois. */
   getMember(tenantId: string, userId: string): Promise<TenantMemberInfo | null>;
+  /**
+   * As permissões EFETIVAS já materializadas no documento de membro — as mesmas que as Security
+   * Rules leem. Vazio quando o membro não existe: a ausência não concede nada.
+   */
+  getMemberPermissions(tenantId: string, userId: string): Promise<string[]>;
 }

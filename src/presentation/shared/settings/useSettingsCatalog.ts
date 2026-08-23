@@ -61,6 +61,12 @@ const asSection = (metadata: Record<string, unknown>): SettingsSection | null =>
   };
 };
 
+/** `requiredPermissions` chega de metadata solta (um `.json` de terceiro): só entra se for lista de texto. */
+const asPermissionList = (value: unknown): string[] | undefined =>
+  Array.isArray(value) && value.every((entry) => typeof entry === 'string')
+    ? (value as string[])
+    : undefined;
+
 const asWidgetMetadata = (metadata: Record<string, unknown>): UiWidgetMetadata | null => {
   const { surface, key, title } = metadata;
   if (typeof surface !== 'string' || typeof key !== 'string' || typeof title !== 'string') return null;
@@ -73,6 +79,7 @@ const asWidgetMetadata = (metadata: Record<string, unknown>): UiWidgetMetadata |
     defaultEnabled: typeof metadata.defaultEnabled === 'boolean' ? metadata.defaultEnabled : undefined,
     defaultSpan: typeof metadata.defaultSpan === 'number' ? metadata.defaultSpan : undefined,
     order: typeof metadata.order === 'number' ? metadata.order : undefined,
+    requiredPermissions: asPermissionList(metadata.requiredPermissions),
   };
 };
 
@@ -87,10 +94,7 @@ const asTabMetadata = (metadata: Record<string, unknown>): UiTabMetadata | null 
     icon: typeof metadata.icon === 'string' ? metadata.icon : undefined,
     defaultEnabled: typeof metadata.defaultEnabled === 'boolean' ? metadata.defaultEnabled : undefined,
     order: typeof metadata.order === 'number' ? metadata.order : undefined,
-    requiredRole: typeof metadata.requiredRole === 'string'
-      ? (metadata.requiredRole as UiTabMetadata['requiredRole'])
-      : undefined,
-    requiresTenantAdmin: metadata.requiresTenantAdmin === true,
+    requiredPermissions: asPermissionList(metadata.requiredPermissions),
   };
 };
 

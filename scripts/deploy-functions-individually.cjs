@@ -41,7 +41,11 @@ const ALL_FUNCTIONS = [
   'onDocumentChange',
   'getExpressionFunctions',
   'runScript',
-  'runAction'
+  'runAction',
+  'materializePermissionsOnMemberChange',
+  'materializePermissionsOnRoleChange',
+  'materializePermissionsOnScreenChange',
+  'materializePermissionsOnExtensionChange',
 ];
 
 // Mesmo seletor dos demais scripts de deploy: `dev` por padrão, produção só se pedida. Este script

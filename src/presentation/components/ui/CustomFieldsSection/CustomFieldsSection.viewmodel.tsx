@@ -1,7 +1,8 @@
 import { useCallback, useMemo } from 'react';
 import { useTheme } from 'styled-components';
 import { useLookups } from '../../../../stores/useLookups';
-import { useTenant } from '../../../../stores/useTenant';
+import { useAuthorization } from '../../../../stores/useAuthorization';
+import { PERMISSION_SCREENS_MANAGE } from '../../../../domain/schema/access';
 import { useReferenceOptions } from '../../../hooks/useReferenceOptions';
 import { readValueByPath, sortFieldsByOrder } from '../../../../domain/services/customFieldValues';
 import { evaluateFieldBoolean, evaluateFieldValidation } from '../../../../domain/schema/fieldExpression';
@@ -88,11 +89,11 @@ export const useCustomFieldsSectionViewModel = (props: CustomFieldsSectionProps)
     isDirty = false,
   } = props;
   const { getOptions, addOption, recolorOption, removeOption } = useLookups();
-  const { tenantRole } = useTenant();
+  const { can } = useAuthorization();
   const referenceOptionsByEntity = useReferenceOptions();
   const theme = useTheme();
 
-  const canDeleteOption = tenantRole === 'admin';
+  const canDeleteOption = can(PERMISSION_SCREENS_MANAGE);
 
   const resolveRecord = useRecordResolver();
 

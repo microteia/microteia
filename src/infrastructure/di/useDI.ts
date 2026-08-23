@@ -25,6 +25,7 @@ import type { IWorkflowExecutionRepository } from '../../domain/repositories/IWo
 import type { IScriptRepository } from '../../domain/repositories/IScriptRepository';
 import type { IDataProcessorRepository } from '../../domain/repositories/IDataProcessorRepository';
 import type { IActionRepository } from '../../domain/repositories/IActionRepository';
+import type { IRoleRepository } from '../../domain/repositories/IRoleRepository';
 import type { IPluginInstallationRepository } from '../../domain/repositories/IPluginInstallationRepository';
 import type { IPluginRegistryRepository } from '../../domain/repositories/IPluginRegistryRepository';
 import type { ITenantExtensionRepository } from '../../domain/repositories/ITenantExtensionRepository';
@@ -63,6 +64,7 @@ export interface DIContainer {
   scriptRepository: IScriptRepository;
   dataProcessorRepository: IDataProcessorRepository;
   actionRepository: IActionRepository;
+  roleRepository: IRoleRepository;
   pluginInstallationRepository: IPluginInstallationRepository;
   pluginRegistryRepository: IPluginRegistryRepository;
   tenantExtensionRepository: ITenantExtensionRepository;

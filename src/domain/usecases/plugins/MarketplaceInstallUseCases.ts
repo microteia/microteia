@@ -312,7 +312,7 @@ const upsertPluginScreens = async (
 /**
  * Uma tela que descreve OUTRA coleção (`dataCollection`) precisa que a coleção alvo tenha o próprio
  * documento em `screenDefinitions`: é ele que as Security Rules consultam para autorizar a escrita
- * (`isDeclaredScreen`) e para ler quem pode gravar (`writeRoles`). Sem isso, a permissão declarada
+ * (`isDeclaredScreen`) e para ler o que a tela declara sobre a gravação. Sem isso, a declaração
  * pela extensão não chegaria às rules, que não têm como procurar "a tela que aponta para esta
  * coleção".
  *
@@ -337,7 +337,6 @@ const ensureTargetCollectionScreen = async (
   // qualquer tela resolve o rótulo de um registro desta coleção (um campo de referência, uma
   // menção, a busca). Só preenche o que está vazio — ajuste do escritório não é sobrescrito.
   const declared = {
-    writeRoles: input.writeRoles ?? null,
     memberWritableFields: input.memberWritableFields ?? null,
     authorCanDelete: input.authorCanDelete ?? null,
     titleFieldKey: input.titleFieldKey,
@@ -348,7 +347,6 @@ const ensureTargetCollectionScreen = async (
   if (existing) {
     const merged = {
       ...screenToInput(existing),
-      writeRoles: declared.writeRoles,
       memberWritableFields: declared.memberWritableFields,
       authorCanDelete: declared.authorCanDelete,
       titleFieldKey: existing.titleFieldKey || declared.titleFieldKey,

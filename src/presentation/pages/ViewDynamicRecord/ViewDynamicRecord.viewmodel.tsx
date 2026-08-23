@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo } from 'react';
 import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
 import { useRecords } from '../../../stores/useRecords';
 import { useTenant } from '../../../stores/useTenant';
+import { useAuthorization } from '../../../stores/useAuthorization';
+import { PERMISSION_DOCUMENT_TYPES_MANAGE } from '../../../domain/schema/access';
 import { useAuth } from '../../../stores/useAuth';
 import { useDI } from '../../../infrastructure/di/useDI';
 import { makeGetRecordByIdUseCase } from '../../../domain/usecases/records/GetRecordByIdUseCase';
@@ -57,7 +59,8 @@ export interface ViewDynamicRecordViewModel {
   /** Algum campo foi alterado e ainda não foi salvo — exposto às expressões como `isDirty`. */
   isDirty: boolean;
   screenActions: ScreenActions;
-  isAdmin: boolean;
+  canDeleteRecordParts: boolean;
+  canManageDocumentTypes: boolean;
   /** Excluir é de admin — ou do autor, quando a tela declara `authorCanDelete`. */
   canDelete: boolean;
   screenKey: string;
@@ -104,7 +107,8 @@ export const useViewDynamicRecordViewModel = (tabKey: string): ViewDynamicRecord
   const label = useLabel();
   const { getDefinition, isLoading: isLoadingDefinition } = useScreenDefinitions();
   const { recordsByCollection, createRecord, newRecordId, updateRecord, deleteRecord } = useRecords();
-  const { currentTenant, tenantRole } = useTenant();
+  const { currentTenant } = useTenant();
+  const { can } = useAuthorization();
   const { user, effectiveName } = useAuth();
   const { recordRepository } = useDI();
 
@@ -124,10 +128,11 @@ export const useViewDynamicRecordViewModel = (tabKey: string): ViewDynamicRecord
       : null;
   }, [tabKey]);
   const isAvailable = !!definition && definition.origin !== 'builtin';
-  const isAdmin = tenantRole === 'admin';
+  const canManageDocumentTypes = can(PERMISSION_DOCUMENT_TYPES_MANAGE);
 
   // Tela que é VISÃO sobre outra coleção lê e grava lá, e herda os campos da entidade alvo.
   const collection = definition ? screenDataCollection(definition) : screenKey;
+  const canDeleteRecords = can(`${collection}.delete`);
   const isBound = !!definition && isBoundScreen(definition);
   const boundFields = useEntityFormFields(isBound ? collection : '');
 
@@ -337,8 +342,9 @@ export const useViewDynamicRecordViewModel = (tabKey: string): ViewDynamicRecord
   );
   const tagAdapter = useTagAdapter(collection, tagIdsOf, setRecordTags, definition?.tagCollection);
 
-  // Excluir é de admin, salvo onde a tela declara que a autoria É a posse. Espelha o `firestore.rules`.
-  const canDelete = isAdmin
+  // Excluir exige a permissão de exclusão DESTA coleção, salvo onde a tela declara que a autoria é a
+  // posse. Espelha o `firestore.rules`.
+  const canDelete = canDeleteRecords
     || (!!definition?.authorCanDelete && !!sourceRecord && sourceRecord.createdBy === user?.id);
 
   return {
@@ -348,7 +354,8 @@ export const useViewDynamicRecordViewModel = (tabKey: string): ViewDynamicRecord
     isNew: detail.isNew,
     isDirty: detail.isDirty,
     screenActions: detail.screenActions,
-    isAdmin,
+    canDeleteRecordParts: canDeleteRecords,
+    canManageDocumentTypes,
     canDelete,
     screenKey,
     recordId,

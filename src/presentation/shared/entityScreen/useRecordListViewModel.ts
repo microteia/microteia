@@ -2,7 +2,7 @@ import { useMemo, useState, useCallback, useEffect } from 'react';
 import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
 import { useRecords } from '../../../stores/useRecords';
 import { useWorkspace } from '../../../stores/useWorkspace';
-import { useTenant } from '../../../stores/useTenant';
+import { useAuthorization } from '../../../stores/useAuthorization';
 import { useNotification } from '../../../stores/useNotification';
 import { useActions } from '../../../stores/useActions';
 import { storeEvents, StoreEvents } from '../../../infrastructure/events/StoreEventEmitter';
@@ -119,7 +119,7 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
   const { getDefinition, isLoading: definitionsLoading } = useScreenDefinitions();
   const { recordsByCollection, isLoading: recordsLoading, updateRecord, deleteRecord } = useRecords();
   const { openTab } = useWorkspace();
-  const { tenantRole } = useTenant();
+  const { can, effectivePermissions } = useAuthorization();
   const { notify } = useNotification();
   const t = useT('core.records');
   const label = useLabel();
@@ -152,7 +152,6 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
     [screenKey],
   );
 
-  const isAdmin = tenantRole === 'admin';
   const stored = useMemo(() => getDefinition(screenKey) ?? null, [getDefinition, screenKey]);
   const definition = useMemo(() => screenForDisplay(stored, label), [stored, label]);
   const isAvailable = !!definition && definition.origin !== 'builtin' && definition.enabled;
@@ -378,7 +377,7 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
       record,
       isNew: false,
       isDirty: false,
-      role: tenantRole ?? '',
+      permissions: effectivePermissions,
       // Onde a ação está sendo desenhada, e o que o registro é para o pai da aba. É o que permite
       // uma extensão esconder a própria ação dentro da aba de outro registro.
       surface: (parent ? 'parentTab' : 'list') as ActionSurface,
@@ -395,7 +394,9 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
     const isAuthorOfRecord = !!definition?.authorCanDelete && record.createdBy === viewer.id;
     const native = recordActions
       .filter((action) => enabledSlots.has(action.slot))
-      .filter((action) => !action.metadata.requiresTenantAdmin || isAdmin || isAuthorOfRecord)
+      .filter((action) => !action.metadata.requiresRecordPermission
+        || can(`${collection}.${action.metadata.requiresRecordPermission}`)
+        || isAuthorOfRecord)
       .filter((action) => !action.metadata.requiresTags || !!definition?.hasTags)
       .filter((action) => !isActionHidden(action.metadata.hiddenWhen, exprContext))
       .map<RecordCardAction>((action) => ({
@@ -426,7 +427,7 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
       }));
 
     return [...native, ...custom];
-  }, [definition, isAdmin, parent, relation, recordActions, buildActionHost, cardActionDefs, tenantRole, viewer, runningActionId, runCardAction, parameterPrompt, label]);
+  }, [definition, collection, can, effectivePermissions, parent, relation, recordActions, buildActionHost, cardActionDefs, viewer, runningActionId, runCardAction, parameterPrompt, label]);
 
   const tagIdsOf = useCallback((entityId: string) => records.find((r) => r.id === entityId)?.tagIds ?? [], [records]);
   const setRecordTags = useCallback(

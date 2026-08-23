@@ -218,7 +218,7 @@ describe('capabilities — provedores de IA', () => {
       manifest: {
         id: 'com.acme.llama',
         version: '1.0.0',
-        kernel: '^1.0.0',
+        kernel: '^2.0.0',
         name: 'Llama',
         dependencies: { 'core.capabilities': '^1.0.0' },
         provides: [{ capability: 'ai.completion', version: '1.0.0' }],

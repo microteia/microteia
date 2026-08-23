@@ -27,7 +27,7 @@ import {
 const TOKEN_PLUGIN: PluginManifest = {
   id: 'com.example.vocabulario',
   version: '1.0.0',
-  kernel: '^1.0.0',
+  kernel: '^2.0.0',
   name: 'Vocabulário de exemplo',
   description: 'Contribui uma cor de vocabulário, com piso por base e ajuste por tema.',
   publisher: { name: 'Example' },

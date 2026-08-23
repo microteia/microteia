@@ -2,7 +2,8 @@ import type { Tenant } from '../entities/Tenant';
 
 export interface AddTenantMemberInput {
   userId: string;
-  role: string;
+  /** Os perfis de acesso do membro NESTE escritório. Vazio = entra sem poder nada até receber um. */
+  roleIds: string[];
   displayName: string;
   email: string;
   photoURL: string | null;

@@ -31,6 +31,18 @@ export class FirebaseTenantMemberRepository implements ITenantMemberRepository {
     return data.role ?? null;
   }
 
+  async getMemberPermissions(tenantId: string, userId: string): Promise<string[]> {
+    const memberSnap = await this.db
+      .collection('tenants')
+      .doc(tenantId)
+      .collection('members')
+      .doc(userId)
+      .get();
+
+    const permissions = memberSnap.data()?.permissions;
+    return Array.isArray(permissions) ? (permissions as string[]) : [];
+  }
+
   async getMember(tenantId: string, userId: string): Promise<TenantMemberInfo | null> {
     const memberSnap = await this.db
       .collection('tenants')

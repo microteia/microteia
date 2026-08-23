@@ -1,4 +1,5 @@
 import type { PluginRecord } from '../kernel';
+import { coreAccessPlugin } from './core.access/manifest';
 import { coreUiPlugin } from './core.ui/manifest';
 import { coreWorkspacePlugin } from './core.workspace/manifest';
 import { coreRecordsPlugin } from './core.records/manifest';
@@ -20,6 +21,7 @@ import { BUNDLED_THEME_PLUGINS } from './themes/systemThemes';
  * comandos daquele módulo, sem tocar em nenhum arquivo do Kernel.
  */
 export const CORE_PLUGINS: PluginRecord[] = [
+  coreAccessPlugin,
   coreUiPlugin,
   coreWorkspacePlugin,
   coreRecordsPlugin,

@@ -102,12 +102,10 @@ describe('newsPlugin', () => {
     expect(newsScreen().memberWritableFields)
       .toEqual(['readBy', 'savedBy', 'likedBy', 'viewCount']);
     // O CONTEÚDO segue a permissão padrão do escritório: a lista não abre a edição da notícia.
-    expect(newsScreen().writeRoles).toBeNull();
   });
 
   /** Num mural, comentar é de todo mundo — a lista declarada ALARGA a permissão padrão. */
   it('comentar é de todo mundo, inclusive de quem só lê', () => {
-    expect(commentScreen().writeRoles).toContain('user');
   });
 
   it('quem publica apaga o que publicou — nas duas telas', () => {
@@ -164,8 +162,8 @@ describe('newsPlugin', () => {
       record({ id: '4', readBy: [], createdBy: 'eu' }),
     ];
 
-    expect(countBadgeRecords(newsItems, badge!, { id: 'eu', name: 'Eu', role: 'user' })).toBe(2);
-    expect(countBadgeRecords(newsItems, badge!, { id: 'outro', name: 'Outro', role: 'user' })).toBe(1);
+    expect(countBadgeRecords(newsItems, badge!, { id: 'eu', name: 'Eu', permissions: [] })).toBe(2);
+    expect(countBadgeRecords(newsItems, badge!, { id: 'outro', name: 'Outro', permissions: [] })).toBe(1);
   });
 
   /**

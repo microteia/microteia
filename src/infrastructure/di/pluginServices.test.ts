@@ -16,7 +16,7 @@ const pointDeclarer: PluginRecord = {
   manifest: {
     id: 'core.data',
     version: '1.0.0',
-    kernel: '^1.0.0',
+    kernel: '^2.0.0',
     name: 'Dados',
     extensionPoints: [
       {
@@ -40,7 +40,7 @@ const geocoderPlugin: PluginRecord = {
   manifest: {
     id: 'com.acme.geo',
     version: '1.0.0',
-    kernel: '^1.0.0',
+    kernel: '^2.0.0',
     name: 'Geocoder Acme',
     dependencies: { 'core.data': '^1.0.0' },
     contributes: [serviceContribution('acme.geocoder', 'Geocoder', 'Geocodificação')],
@@ -88,7 +88,7 @@ describe('resolvePluginService', () => {
       manifest: {
         id: 'com.acme.i18n',
         version: '1.0.0',
-        kernel: '^1.0.0',
+        kernel: '^2.0.0',
         name: 'i18n',
         dependencies: { 'core.data': '^1.0.0' },
         contributes: [serviceContribution('acme.translator', 'Translator')],

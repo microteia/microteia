@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { useAuth } from '../../../../stores/useAuth';
+import { useAuthorization } from '../../../../stores/useAuthorization';
 import { useSurfaceWidgets, type SurfaceWidgetDescriptor } from '../../../shared/settings/useSettingsCatalog';
 import { useSurfaceLayout } from '../../../shared/settings/useSettingValue';
 
@@ -19,22 +19,22 @@ export interface WidgetSurfaceViewModel {
 export const useWidgetSurfaceViewModel = (surface: string): WidgetSurfaceViewModel => {
   const widgets = useSurfaceWidgets(surface);
   const { entries } = useSurfaceLayout(surface);
-  const { userRole } = useAuth();
+  const { canAny } = useAuthorization();
 
   const byKey = useMemo(
     () => new Map(widgets.map((widget) => [widget.key, widget])),
     [widgets],
   );
 
-  const slots = useMemo<SurfaceSlot[]>(() => {
-    const role = userRole;
-    return entries
+  const slots = useMemo<SurfaceSlot[]>(
+    () => entries
       .filter((entry) => entry.enabled)
       .map((entry) => ({ entry, widget: byKey.get(entry.key) }))
       .filter((item): item is { entry: typeof item.entry; widget: SurfaceWidgetDescriptor } => !!item.widget)
-      .filter(({ widget }) => !widget.requiredRole || role === widget.requiredRole || role === 'SYSTEM')
-      .map(({ entry, widget }) => ({ key: entry.key, span: entry.span, widget }));
-  }, [entries, byKey, userRole]);
+      .filter(({ widget }) => !widget.requiredPermissions?.length || canAny(widget.requiredPermissions))
+      .map(({ entry, widget }) => ({ key: entry.key, span: entry.span, widget })),
+    [entries, byKey, canAny],
+  );
 
   return {
     slots,

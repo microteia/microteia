@@ -6,7 +6,7 @@ export const coreWorkflowPlugin: PluginRecord = {
   manifest: {
     id: 'core.workflow',
     version: '1.0.0',
-    kernel: '^1.0.0',
+    kernel: '^2.0.0',
     name: '@core.automation/plugin.workflow.name',
     description:
       '@core.automation/plugin.workflow.description',

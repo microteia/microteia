@@ -52,7 +52,7 @@ export const coreExpressionsPlugin: PluginRecord = {
   manifest: {
     id: 'core.expressions',
     version: '1.0.0',
-    kernel: '^1.0.0',
+    kernel: '^2.0.0',
     name: '@core.automation/plugin.expressions.name',
     dependencies: { 'core.workflow': '^1.0.0' },
     contributes: BUILTIN_FUNCTIONS.map(expressionFunction),

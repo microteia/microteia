@@ -30,7 +30,7 @@ export const darkThemePackage: MarketplacePlugin = {
   manifest: {
     id: 'com.microteia.theme-dark',
     version: '1.0.0',
-    kernel: '^1.0.0',
+    kernel: '^2.0.0',
     name: 'Dark',
     description:
       'The dark theme that ships with Microteia.',
@@ -49,7 +49,7 @@ export const whiteThemePackage: MarketplacePlugin = {
   manifest: {
     id: 'com.microteia.theme-white',
     version: '1.0.0',
-    kernel: '^1.0.0',
+    kernel: '^2.0.0',
     name: 'White',
     description:
       'The light theme that ships with Microteia.',

@@ -1,5 +1,5 @@
 import type React from 'react';
-import type { EntityRecord, ScreenDefinition, TenantRole, UserRole } from '../../../../../domain/entities';
+import type { EntityRecord, ScreenDefinition, UserRole } from '../../../../../domain/entities';
 import type { PersonRecord } from '../../../../shared/useCollectionRecords';
 import type { WorkflowDefinition } from '../../../../../domain/entities/Workflow';
 import type { ThemeOption } from '../../../../../stores/useTheme';
@@ -34,7 +34,8 @@ export interface CommandPaletteAppContext {
   setTheme: (id: string) => void;
   signOut: () => Promise<void>;
   userRole: UserRole | null;
-  tenantRole: TenantRole | null;
+  /** A pergunta de autorização, não o papel: um provedor decide o que oferecer por capacidade. */
+  can: (permission: string) => boolean;
   /** Telas abríveis, já filtradas por papel — vêm das contribuições `ui.page` dos plugins. */
   navigablePages: UiPageMetadata[];
   /**

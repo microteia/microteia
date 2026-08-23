@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
+import { KERNEL_VERSION } from '../../schema/plugin/kernelVersion';
 import type { MarketplacePlugin } from '../../entities/MarketplacePlugin';
 import type { IPluginRegistryRepository, PublishedPlugin } from '../../repositories/IPluginRegistryRepository';
 import type { ExtensionPointDefinition } from '../../schema/plugin/extensionPoint';
@@ -15,7 +16,7 @@ const uiPage: ExtensionPointDefinition = {
 };
 
 const points = new Map<string, ExtensionPointDefinition>([[uiPage.id, uiPage]]);
-const context = { points, kernelVersion: '1.0.0' };
+const context = { points, kernelVersion: KERNEL_VERSION };
 
 class FakeRegistry implements IPluginRegistryRepository {
   published: MarketplacePlugin[] = [];
@@ -34,7 +35,7 @@ class FakeRegistry implements IPluginRegistryRepository {
 const plugin = (overrides: Partial<MarketplacePlugin['manifest']> = {}): MarketplacePlugin => ({
   summary: 'x',
   workflows: [],
-  manifest: { id: 'com.acme.x', version: '1.0.0', kernel: '^1.0.0', name: 'Acme', ...overrides },
+  manifest: { id: 'com.acme.x', version: '1.0.0', kernel: '^2.0.0', name: 'Acme', ...overrides },
 });
 
 let repo: FakeRegistry;
@@ -58,7 +59,7 @@ describe('PublishPluginUseCase', () => {
   });
 
   it('recusa plugin incompatível com a versão do kernel', async () => {
-    const result = await makePublishPluginUseCase(repo).execute(plugin({ kernel: '^2.0.0' }), 'sys', context);
+    const result = await makePublishPluginUseCase(repo).execute(plugin({ kernel: '^0.1.0' }), 'sys', context);
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.errors.some((e) => e.code === 'manifest.kernel.incompatible')).toBe(true);

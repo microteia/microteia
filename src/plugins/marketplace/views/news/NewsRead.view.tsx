@@ -5,7 +5,7 @@ import {
   MarkdownContent, MarkdownEditor, Spinner, UserAvatar, cardActionIcon,
 } from '@microteia/ui';
 import {
-  useCreateRecord, useCurrentUser, useDeleteRecord, useEntity, useEntityList,
+  useCan, useCreateRecord, useCurrentUser, useDeleteRecord, useEntity, useEntityList,
   useLookup, useNotify, useRecordDocuments, useUpdateRecord, useWorkspace,
 } from '@microteia/data';
 import { useLocaleFormat, useT } from '@microteia/i18n';
@@ -531,6 +531,7 @@ export default function NewsReadView({ tabKey }) {
   const newsId = String(tabKey || '').slice(READ_TAB_PREFIX.length);
   const me = useCurrentUser();
   const list = useEntityList(SOURCE_ID);
+  const can = useCan();
   const comments = useEntity(COMMENT_SOURCE_ID);
   const categories = useLookup('newsCategories');
   const createRecord = useCreateRecord();
@@ -611,7 +612,7 @@ export default function NewsReadView({ tabKey }) {
   const isSaved = has(record.savedBy, me.id);
   const hasLiked = has(record.likedBy, me.id);
   const isRead = has(record.readBy, me.id);
-  const canEdit = record.createdBy === me.id || me.tenantRole === 'admin';
+  const canEdit = record.createdBy === me.id || can('news.update');
   const likeCount = listOf(record.likedBy).length;
   const viewCount = record.viewCount || 0;
   const categoryOption = categories.find((item) => item.key === record.category);
@@ -701,7 +702,7 @@ export default function NewsReadView({ tabKey }) {
     const truncatable = content.length > TRUNCATE;
     const expanded = !!expandedIds[comment.id];
     const liked = has(comment.likedBy, me.id);
-    const canModify = comment.createdBy === me.id || me.role === 'SYSTEM' || me.tenantRole === 'admin';
+    const canModify = comment.createdBy === me.id || can('newsComments.delete');
 
     if (isConfirming) {
       return (
@@ -958,7 +959,11 @@ export default function NewsReadView({ tabKey }) {
             </CommentsCard>
           </>
         ) : (
-          <DocumentsPanel controller={docs} isAdmin={me.tenantRole === 'admin'} />
+          <DocumentsPanel
+            controller={docs}
+            canDelete={can('news.delete')}
+            canManageTypes={can('document-types.manage')}
+          />
         )}
       </Root>
 

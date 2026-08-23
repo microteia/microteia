@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { KERNEL_VERSION } from '../../schema/plugin/kernelVersion';
 import {
   I18N_EXTENSION_POINTS,
   I18N_MESSAGES_POINT,
@@ -12,14 +13,14 @@ import { createPluginHost } from '../../../kernel';
 import type { PluginRecord } from '../../../kernel';
 import { hasErrors } from '../plugin/diagnostics';
 
-const host = () => createPluginHost({ kernelVersion: '1.0.0' });
+const host = () => createPluginHost({ kernelVersion: KERNEL_VERSION });
 
 const i18nOwner: PluginRecord = {
   trusted: true,
   manifest: {
     id: 'core.i18n',
     version: '1.0.0',
-    kernel: '^1.0.0',
+    kernel: '^2.0.0',
     name: 'Núcleo de Idioma',
     extensionPoints: I18N_EXTENSION_POINTS,
   },
@@ -66,7 +67,7 @@ describe('um pacote SÓ de traduções', () => {
     manifest: {
       id: 'com.acme.locale-pt-br',
       version: '1.0.0',
-      kernel: '^1.0.0',
+      kernel: '^2.0.0',
       name: 'Português (Brasil)',
       dependencies: { 'core.i18n': '^1.0.0' },
       contributes: [
@@ -111,7 +112,7 @@ describe('um pacote SÓ de traduções', () => {
       manifest: {
         id: 'com.zzz.override',
         version: '1.0.0',
-        kernel: '^1.0.0',
+        kernel: '^2.0.0',
         name: 'Ajuste de termos',
         dependencies: { 'core.i18n': '^1.0.0' },
         contributes: [

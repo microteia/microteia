@@ -17,7 +17,12 @@ export interface DeletionActor {
 
 // ─── RBAC global ─────────────────────────────────────────────────────────────
 
-export type UserRole = 'SYSTEM' | 'USER' | 'SUPPORT';
+/**
+ * Papel GLOBAL. `SYSTEM` é o único acesso irrestrito do produto — vê e administra todos os
+ * escritórios, e só outro `SYSTEM` o concede. Ele NÃO é um perfil de acesso: perfil é dado do
+ * escritório, e não existiria escritório nenhum antes do primeiro `SYSTEM`.
+ */
+export type UserRole = 'SYSTEM' | 'USER';
 
 export interface AppUser {
   id: string;
@@ -74,8 +79,6 @@ export interface AIConnection {
 
 // ─── Tenant (Escritório) ──────────────────────────────────────────────────────
 
-export type TenantRole = 'admin' | 'lawyer' | 'secretary' | 'user';
-
 export type TenantPlan = 'solo' | 'office' | 'professional' | 'enterprise';
 
 export const TENANT_PLANS: TenantPlan[] = ['solo', 'office', 'professional', 'enterprise'];
@@ -127,7 +130,20 @@ export type TenantUpdate =
 export interface TenantMember {
   userId: string;
   tenantId: string;
-  role: TenantRole;
+  /** Os perfis de acesso do membro NESTE escritório. Ver `Role`. */
+  roleIds: string[];
+  /**
+   * As permissões EFETIVAS já resolvidas — cache, não fonte de verdade.
+   *
+   * Existe para as Security Rules, que não sabem resolver dependência e já leem este documento: um
+   * campo aqui custa zero leituras a mais que o `role` que elas liam antes. Quem o escreve é
+   * exclusivamente o Admin SDK (`materializeMemberPermissions`); o cliente tem escrita negada nele,
+   * e recalcula o conjunto por conta própria em vez de confiar no que está gravado.
+   *
+   * O curinga `*` aparece para o DONO do escritório, e só para ele: é o que impede que um escritório
+   * recém-criado nasça sem ninguém capaz de configurá-lo.
+   */
+  permissions: string[];
   displayName: string;
   email: string;
   photoURL: string | null;
@@ -309,3 +325,5 @@ export type {
 // ─── Audit Logs ───────────────────────────────────────────────────────────────
 
 export type { AuditLog, AuditAction, AuditSeverity, AuditType, AuditLogReadCursor } from './AuditLog';
+
+export type { Role, RoleInput } from './Role';

@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTenant } from '../../../../stores/useTenant';
+import { useAuthorization } from '../../../../stores/useAuthorization';
+import { PERMISSION_TENANT_UPDATE } from '../../../../domain/schema/access';
 import { useNotification } from '../../../../stores/useNotification';
 import { useEntityFormFields } from '../../../shared/useEntityFormFields';
 import { collectRequiredErrors, setValueByPath } from '../../../../domain/services/customFieldValues';
@@ -28,11 +30,12 @@ export interface OfficeTabViewModel {
  */
 export const useOfficeTabViewModel = (): OfficeTabViewModel => {
   const t = useT('core.tenant');
-  const { currentTenant, tenantRole, updateTenant } = useTenant();
+  const { currentTenant, updateTenant } = useTenant();
+  const { can } = useAuthorization();
   const { notify } = useNotification();
   const { fields } = useEntityFormFields('tenant');
 
-  const isAdmin = tenantRole === 'admin';
+  const isAdmin = can(PERMISSION_TENANT_UPDATE);
 
   const [values, setValues] = useState<OfficeValues>({});
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});

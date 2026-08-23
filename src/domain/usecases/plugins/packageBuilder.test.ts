@@ -10,7 +10,7 @@ import type { PluginManifest } from '../../schema/plugin/pluginManifest';
 const manifest: PluginManifest = {
   id: 'com.acme.vendas',
   version: '1.0.0',
-  kernel: '^1.0.0',
+  kernel: '^2.0.0',
   name: 'Vendas',
 };
 

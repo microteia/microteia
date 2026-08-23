@@ -38,9 +38,12 @@ export const makeBootstrapUserUseCase = (
       memberLimit: 1,
     });
 
+    // Sem perfil nenhum, e é de propósito: quem dá poder ao DONO é o curinga que
+    // `materializeMemberPermissions` carimba a partir de `Tenant.ownerId`. Semear um perfil aqui
+    // seria vocabulário nosso dentro do escritório — o defeito que este modelo existe para não ter.
     await tenantRepo.addMemberIfWithinLimit(tenant.id, {
       userId,
-      role: 'admin',
+      roleIds: [],
       displayName,
       email,
       photoURL,

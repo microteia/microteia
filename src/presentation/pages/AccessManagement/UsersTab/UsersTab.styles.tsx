@@ -119,17 +119,11 @@ export const S = {
     font-weight: 600;
     letter-spacing: 0.04em;
     background: ${({ theme, $role }) =>
-      $role === 'SYSTEM' ? theme.colors.dangerLight
-      : $role === 'SUPPORT' ? theme.colors.warningLight
-      : theme.colors.surfaceHover};
+      $role === 'SYSTEM' ? theme.colors.dangerLight : theme.colors.surfaceHover};
     color: ${({ theme, $role }) =>
-      $role === 'SYSTEM' ? theme.colors.danger
-      : $role === 'SUPPORT' ? theme.colors.warning
-      : theme.colors.textSecondary};
+      $role === 'SYSTEM' ? theme.colors.danger : theme.colors.textSecondary};
     border: 1px solid ${({ theme, $role }) =>
-      $role === 'SYSTEM' ? theme.colors.dangerLight
-      : $role === 'SUPPORT' ? theme.colors.warningLight
-      : theme.colors.border};
+      $role === 'SYSTEM' ? theme.colors.dangerLight : theme.colors.border};
   `,
 
   RoleSelectWrapper: styled.div`

@@ -39,14 +39,15 @@ describe('core.tenant — o escritório como plugin', () => {
    */
   it('entrega as abas como contribuição, não como código da tela', () => {
     const tabs = tabsOf(TENANT_SETTINGS_SURFACE);
-    expect(tabs.map((tab) => tab.key).sort()).toEqual(['ai', 'members', 'office']);
+    expect(tabs.map((tab) => tab.key).sort()).toEqual(['ai', 'members', 'office', 'roles']);
   });
 
-  it('deixa a aba de dados aberta a todo membro e as de gestão só ao administrador', () => {
+  it('deixa a aba de dados aberta a todo membro e as de gestão atrás de uma permissão', () => {
     const byKey = new Map(tabsOf(TENANT_SETTINGS_SURFACE).map((tab) => [tab.key, tab]));
-    expect(byKey.get('office')?.requiresTenantAdmin).toBeFalsy();
-    expect(byKey.get('members')?.requiresTenantAdmin).toBe(true);
-    expect(byKey.get('ai')?.requiresTenantAdmin).toBe(true);
+    expect(byKey.get('office')?.requiredPermissions).toBeUndefined();
+    expect(byKey.get('members')?.requiredPermissions).toEqual(['members.manage']);
+    expect(byKey.get('roles')?.requiredPermissions).toEqual(['roles.manage']);
+    expect(byKey.get('ai')?.requiredPermissions).toEqual(['ai.manage']);
   });
 
   it('toda aba resolve o componente que declara', () => {

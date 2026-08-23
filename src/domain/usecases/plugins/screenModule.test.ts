@@ -155,7 +155,7 @@ describe('materializePluginScreens', () => {
   it('materializa todas as telas do plugin', () => {
     const plugin: MarketplacePlugin = {
       summary: '',
-      manifest: { id: 'com.acme.vendas', version: '1.0.0', kernel: '^1.0.0', name: 'V' },
+      manifest: { id: 'com.acme.vendas', version: '1.0.0', kernel: '^2.0.0', name: 'V' },
       workflows: [],
       screens: [template, { ...template, key: 'item' }],
     };
@@ -166,7 +166,7 @@ describe('materializePluginScreens', () => {
   it('plugin sem telas devolve vazio', () => {
     const plugin: MarketplacePlugin = {
       summary: '',
-      manifest: { id: 'com.acme.x', version: '1.0.0', kernel: '^1.0.0', name: 'X' },
+      manifest: { id: 'com.acme.x', version: '1.0.0', kernel: '^2.0.0', name: 'X' },
       workflows: [],
     };
     expect(materializePluginScreens(plugin, 'u1')).toEqual([]);

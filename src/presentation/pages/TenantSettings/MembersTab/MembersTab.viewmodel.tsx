@@ -4,16 +4,11 @@ import { useAuth } from '../../../../stores/useAuth';
 import { useNotification } from '../../../../stores/useNotification';
 import { useDI } from '../../../../infrastructure/di/useDI';
 import { TenantMemberLimitReachedError } from '../../../../domain/errors';
-import type { TenantMember, TenantRole } from '../../../../domain/entities';
+import type { TenantMember } from '../../../../domain/entities';
+import type { Role } from '../../../../domain/entities/Role';
+import { useRoles } from '../../../../stores/useRoles';
 
 import { useT, useLabel } from '../../../shared/i18n/useT';
-/** O nome de cada perfil como CHAVE do namespace `core.tenant`; quem exibe resolve com `useT`. */
-export const TENANT_ROLE_KEYS: Record<TenantRole, string> = {
-  admin: 'role.admin',
-  lawyer: 'role.lawyer',
-  secretary: 'role.secretary',
-  user: 'role.user',
-};
 
 export interface MembersTabViewModel {
   members: TenantMember[];
@@ -21,16 +16,19 @@ export interface MembersTabViewModel {
   tenantOwnerId: string;
   currentUserId: string;
   addEmail: string;
-  addRole: TenantRole;
+  roles: Role[];
+  addRoleIds: string[];
   isAddingMember: boolean;
   memberToRemove: TenantMember | null;
   memberLimit: number | null;
   memberCount: number;
   canAddMore: boolean;
   setAddEmail: (v: string) => void;
-  setAddRole: (v: TenantRole) => void;
+  setAddRoleIds: (v: string[]) => void;
   handleAddMember: () => Promise<void>;
-  handleRoleChange: (member: TenantMember, role: TenantRole) => Promise<void>;
+  handleRolesChange: (member: TenantMember, roleIds: string[]) => Promise<void>;
+  /** Os nomes dos perfis de um membro, já resolvidos — para quem só exibe. */
+  memberRoleNames: (member: TenantMember) => string[];
   handleRemoveMember: (member: TenantMember) => void;
   confirmRemoveMember: () => Promise<void>;
   cancelRemoveMember: () => void;
@@ -39,13 +37,14 @@ export interface MembersTabViewModel {
 export const useMembersTabViewModel = (): MembersTabViewModel => {
   const t = useT('core.tenant');
   const label = useLabel();
-  const { currentTenant, members, isLoading, addMember, updateMemberRole, removeMember } = useTenant();
+  const { currentTenant, members, isLoading, addMember, updateMemberRoles, removeMember } = useTenant();
+  const { roles } = useRoles();
   const { user } = useAuth();
   const { notify } = useNotification();
   const { userRepository } = useDI();
 
   const [addEmail, setAddEmail] = useState('');
-  const [addRole, setAddRole] = useState<TenantRole>('user');
+  const [addRoleIds, setAddRoleIds] = useState<string[]>([]);
   const [isAddingMember, setIsAddingMember] = useState(false);
   const [memberToRemove, setMemberToRemove] = useState<TenantMember | null>(null);
 
@@ -84,7 +83,7 @@ export const useMembersTabViewModel = (): MembersTabViewModel => {
       await addMember({
         userId: found.id,
         tenantId: currentTenant?.id ?? '',
-        role: addRole,
+        roleIds: addRoleIds,
         displayName: found.displayName,
         email: found.email,
         photoURL: found.photoURL ?? null,
@@ -92,7 +91,7 @@ export const useMembersTabViewModel = (): MembersTabViewModel => {
       });
       notify(t('member.added'), 'success');
       setAddEmail('');
-      setAddRole('user');
+      setAddRoleIds([]);
     } catch (err) {
       notify(
         err instanceof TenantMemberLimitReachedError ? label(err.message) : t('member.add-failed'),
@@ -101,16 +100,25 @@ export const useMembersTabViewModel = (): MembersTabViewModel => {
     } finally {
       setIsAddingMember(false);
     }
-  }, [canAddMore, addEmail, addRole, addMember, currentTenant, user, members, userRepository, notify, t, label]);
+  }, [canAddMore, addEmail, addRoleIds, addMember, currentTenant, user, members, userRepository, notify, t, label]);
 
-  const handleRoleChange = useCallback(async (member: TenantMember, role: TenantRole) => {
+  const handleRolesChange = useCallback(async (member: TenantMember, roleIds: string[]) => {
     try {
-      await updateMemberRole(member.userId, role);
+      await updateMemberRoles(member.userId, roleIds);
       notify(t('member.role-updated'), 'success');
     } catch {
       notify(t('member.role-update-failed'), 'error');
     }
-  }, [updateMemberRole, notify, t]);
+  }, [updateMemberRoles, notify, t]);
+
+  const memberRoleNames = useCallback(
+    (member: TenantMember): string[] =>
+      member.roleIds
+        .map((roleId) => roles.find((role) => role.id === roleId))
+        .filter((role): role is Role => !!role)
+        .map((role) => label(role.name)),
+    [roles, label],
+  );
 
   const handleRemoveMember = useCallback((member: TenantMember) => {
     setMemberToRemove(member);
@@ -136,16 +144,18 @@ export const useMembersTabViewModel = (): MembersTabViewModel => {
     tenantOwnerId: currentTenant?.ownerId ?? '',
     currentUserId: user?.id ?? '',
     addEmail,
-    addRole,
+    roles,
+    addRoleIds,
     isAddingMember,
     memberToRemove,
     memberLimit,
     memberCount,
     canAddMore,
     setAddEmail,
-    setAddRole,
+    setAddRoleIds,
     handleAddMember,
-    handleRoleChange,
+    handleRolesChange,
+    memberRoleNames,
     handleRemoveMember,
     confirmRemoveMember,
     cancelRemoveMember,

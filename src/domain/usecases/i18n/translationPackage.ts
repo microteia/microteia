@@ -112,7 +112,7 @@ export const buildTranslationPackage = ({
     manifest: {
       id: pluginId ?? suggestedPluginId(locale),
       version,
-      kernel: '^1.0.0',
+      kernel: '^2.0.0',
       name: title,
       description: '@core.i18n/package.description',
       icon: 'globe',

@@ -18,10 +18,11 @@ import { useT, useLocaleFormat } from '../../../shared/i18n/useT';
 
 interface NotesPanelProps {
   controller: EntityNotesController;
-  isAdmin: boolean;
+  /** Pode excluir uma anotação — a permissão de exclusão da coleção do registro. */
+  canDelete: boolean;
 }
 
-export const NotesPanel: React.FC<NotesPanelProps> = ({ controller: vm, isAdmin }) => {
+export const NotesPanel: React.FC<NotesPanelProps> = ({ controller: vm, canDelete }) => {
   const t = useT('core.ui');
   const { formatLongDate } = useLocaleFormat();
 
@@ -93,7 +94,7 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ controller: vm, isAdmin 
                     <RiArrowDownSLine size={18} />
                   </S.NoteExpandIcon>
                 </S.NoteCardClickArea>
-                {isAdmin && (
+                {canDelete && (
                   <Button variant="ghost" size="sm" onClick={() => vm.requestDeleteNote(note)} title={t('notes.delete')}>
                     <RiDeleteBinLine size={13} />
                   </Button>

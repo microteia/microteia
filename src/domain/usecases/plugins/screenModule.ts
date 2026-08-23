@@ -156,7 +156,6 @@ export const materializeScreen = (
     eventPrefix: template.eventPrefix ?? null,
     auditActions: template.auditActions ?? null,
     recordTabPrefix: template.recordTabPrefix ?? null,
-    writeRoles: template.writeRoles ?? null,
     memberWritableFields: template.memberWritableFields ?? null,
     authorCanDelete: template.authorCanDelete ?? null,
     listActions: template.listActions ?? [],

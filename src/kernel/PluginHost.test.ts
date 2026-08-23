@@ -20,7 +20,7 @@ const kernelPlugin = (points: ExtensionPointDefinition[] = [uiPage]): PluginReco
   manifest: {
     id: 'core.ui',
     version: '1.0.0',
-    kernel: '^1.0.0',
+    kernel: '^2.0.0',
     name: 'Núcleo de UI',
     extensionPoints: points,
   },
@@ -29,7 +29,7 @@ const kernelPlugin = (points: ExtensionPointDefinition[] = [uiPage]): PluginReco
 const manifest = (overrides: Partial<PluginManifest> = {}): PluginManifest => ({
   id: 'com.acme.contratos',
   version: '1.0.0',
-  kernel: '^1.0.0',
+  kernel: '^2.0.0',
   name: 'Contratos Acme',
   ...overrides,
 });

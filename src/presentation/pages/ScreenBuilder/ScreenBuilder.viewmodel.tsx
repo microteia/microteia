@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useTheme } from 'styled-components';
-import { useTenant } from '../../../stores/useTenant';
+import { useAuthorization } from '../../../stores/useAuthorization';
+import { PERMISSION_SCREENS_MANAGE } from '../../../domain/schema/access';
 import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
 import type { ScreenDefinitionSaveInput } from '../../../stores/useScreenDefinitions';
 import { useNotification } from '../../../stores/useNotification';
@@ -580,7 +581,7 @@ const buildDynamicMeta = (t: TranslateFn, def: ScreenDefinition, fieldCount: num
 const builtinSaveInput = (key: string): ScreenDefinitionSaveInput => builtinScreenBaseline(key);
 
 export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
-  const { tenantRole } = useTenant();
+  const { can } = useAuthorization();
   const { definitions, dynamicScreens, isLoading, saveDefinition, deleteDefinition } = useScreenDefinitions();
   const recordActions = useRecordActions();
   const label = useLabel();
@@ -600,7 +601,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
   const { actions } = useActions();
   const theme = useTheme();
 
-  const isAdmin = tenantRole === 'admin';
+  const isAdmin = can(PERMISSION_SCREENS_MANAGE);
   const tagColors = theme.tagColors;
   const defaultTagColor = useMemo(() => getDefaultTagColor(theme), [theme]);
 

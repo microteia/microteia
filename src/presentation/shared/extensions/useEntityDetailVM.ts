@@ -2,6 +2,8 @@ import { useCallback, useMemo } from 'react';
 import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
 import { useRecords } from '../../../stores/useRecords';
 import { useTenant } from '../../../stores/useTenant';
+import { useAuthorization } from '../../../stores/useAuthorization';
+import { PERMISSION_DOCUMENT_TYPES_MANAGE } from '../../../domain/schema/access';
 import { useAuth } from '../../../stores/useAuth';
 import { useDI } from '../../../infrastructure/di/useDI';
 import { makeGetRecordByIdUseCase } from '../../../domain/usecases/records/GetRecordByIdUseCase';
@@ -52,7 +54,8 @@ export const useEntityDetailVM = (
   const label = useLabel();
   const { dynamicScreens, isLoading: isLoadingDefinition } = useScreenDefinitions();
   const { recordsByCollection, createRecord, newRecordId, updateRecord, deleteRecord } = useRecords();
-  const { currentTenant, tenantRole } = useTenant();
+  const { currentTenant } = useTenant();
+  const { can } = useAuthorization();
   const { user, effectiveName } = useAuth();
   const { recordRepository } = useDI();
 
@@ -63,11 +66,12 @@ export const useEntityDetailVM = (
   const definition = useMemo(() => screenForDisplay(stored, label), [stored, label]);
   const screenKey = definition?.id ?? '';
   const isAvailable = !!definition && definition.origin !== 'builtin';
-  const isAdmin = tenantRole === 'admin';
+  const canManageDocumentTypes = can(PERMISSION_DOCUMENT_TYPES_MANAGE);
 
   // Numa tela BOUND os registros (e as regras de gravação) são os da coleção alvo — ver
   // `screenDataCollection`. A chave da tela segue endereçando só as abas desta extensão.
   const collection = definition ? screenDataCollection(definition) : screenKey;
+  const canDeleteRecords = can(`${collection}.delete`);
   const isBound = !!definition && isBoundScreen(definition);
   const boundFields = useEntityFormFields(isBound ? collection : '');
 
@@ -218,8 +222,9 @@ export const useEntityDetailVM = (
   );
   const tagAdapter = useTagAdapter(collection, tagIdsOf, setRecordTags, definition?.tagCollection);
 
-  // Excluir é de admin, salvo onde a tela declara que a autoria É a posse. Espelha o `firestore.rules`.
-  const canDelete = isAdmin
+  // Excluir exige a permissão de exclusão DESTA coleção, salvo onde a tela declara que a autoria é a
+  // posse. Espelha o `firestore.rules`.
+  const canDelete = canDeleteRecords
     || (!!definition?.authorCanDelete && !!sourceRecord && sourceRecord.createdBy === user?.id);
 
   return {
@@ -228,7 +233,8 @@ export const useEntityDetailVM = (
     isLoadingDefinition,
     isNew: detail.isNew,
     isDirty: detail.isDirty,
-    isAdmin,
+    canDeleteRecordParts: canDeleteRecords,
+    canManageDocumentTypes,
     canDelete,
     screenKey,
     recordId,

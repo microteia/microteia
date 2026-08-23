@@ -6,7 +6,7 @@ const plugin: MarketplacePlugin = {
   manifest: {
     id: 'com.acme.kanban',
     version: '1.0.0',
-    kernel: '^1.0.0',
+    kernel: '^2.0.0',
     name: 'Kanban',
     contributes: [
       { point: 'ui.nav', id: 'kanban', apiVersion: '1.0.0', metadata: { key: 'kanban' } },

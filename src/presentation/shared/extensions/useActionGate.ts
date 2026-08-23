@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { useTenant } from '../../../stores/useTenant';
+import { useAuthorization } from '../../../stores/useAuthorization';
 import { useExprViewer } from '../useExprViewer';
 import { isActionHidden } from '../../../domain/schema/actionExpression';
 
@@ -18,7 +18,7 @@ export type ActionGate = (
  * mesma palavra. Sem expressão declarada, a ação aparece: ausência não é ocultação.
  */
 export const useActionGate = (): ActionGate => {
-  const { tenantRole } = useTenant();
+  const { effectivePermissions } = useAuthorization();
   const viewer = useExprViewer();
 
   return useCallback((hiddenWhen, record, surface = 'list') => !isActionHidden(hiddenWhen, {
@@ -26,9 +26,9 @@ export const useActionGate = (): ActionGate => {
     record,
     isNew: false,
     isDirty: false,
-    role: tenantRole ?? '',
+    permissions: effectivePermissions,
     surface,
     relation: 'none',
     user: viewer,
-  }), [tenantRole, viewer]);
+  }), [effectivePermissions, viewer]);
 };

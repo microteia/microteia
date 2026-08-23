@@ -5,13 +5,13 @@ import { mergeCatalog, pluginSourceOf } from './mergeCatalog';
 
 const builtin = (id: string): MarketplacePlugin => ({
   summary: `builtin ${id}`,
-  manifest: { id, version: '1.0.0', kernel: '^1.0.0', name: id },
+  manifest: { id, version: '1.0.0', kernel: '^2.0.0', name: id },
   workflows: [],
 });
 
 const published = (id: string, version = '2.0.0'): PublishedPlugin => ({
   summary: `published ${id}`,
-  manifest: { id, version, kernel: '^1.0.0', name: id },
+  manifest: { id, version, kernel: '^2.0.0', name: id },
   workflows: [],
   publishedAt: new Date(),
   publishedBy: 'sys',

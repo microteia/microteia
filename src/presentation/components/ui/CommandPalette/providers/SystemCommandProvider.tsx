@@ -9,6 +9,7 @@ import {
 } from 'react-icons/ri';
 import type { ICommandPaletteProvider, CommandPaletteAppContext, CommandPaletteItem } from './ICommandPaletteProvider';
 import type { TranslateFn } from '../../../../shared/i18n/useT';
+import { PERMISSION_AI_MANAGE, PERMISSION_MEMBERS_MANAGE } from '../../../../../domain/schema/access';
 
 const GROUP = '@core.workspace/command.group.system';
 
@@ -29,7 +30,7 @@ const matchesAny = (t: TranslateFn, key: string, query: string) =>
 export const SystemCommandProvider: ICommandPaletteProvider = {
   group: GROUP,
 
-  getItems(query: string, { themeId, themes, setTheme, signOut, openTab, close, tenantRole, t }: CommandPaletteAppContext): CommandPaletteItem[] {
+  getItems(query: string, { themeId, themes, setTheme, signOut, openTab, close, can, t }: CommandPaletteAppContext): CommandPaletteItem[] {
     const items: CommandPaletteItem[] = [];
     const isThemeQuery = (value: string) => matchesAny(t, 'command.system.theme.keywords', value);
 
@@ -43,7 +44,7 @@ export const SystemCommandProvider: ICommandPaletteProvider = {
       });
     }
 
-    if (tenantRole === 'admin' && (!query || matchesAny(t, 'command.system.members.keywords', query))) {
+    if (can(PERMISSION_MEMBERS_MANAGE) && (!query || matchesAny(t, 'command.system.members.keywords', query))) {
       items.push({
         id: 'sys:members',
         title: t('command.system.members'),
@@ -53,7 +54,7 @@ export const SystemCommandProvider: ICommandPaletteProvider = {
       });
     }
 
-    if (tenantRole === 'admin' && (!query || matchesAny(t, 'command.system.ai.keywords', query))) {
+    if (can(PERMISSION_AI_MANAGE) && (!query || matchesAny(t, 'command.system.ai.keywords', query))) {
       items.push({
         id: 'sys:ai',
         title: t('command.system.ai'),

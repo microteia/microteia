@@ -2,7 +2,7 @@
   "manifest": {
     "id": "com.microteia.calendar",
     "version": "1.1.0",
-    "kernel": "^1.0.0",
+    "kernel": "^2.0.0",
     "name": "@com.microteia.calendar/package.name",
     "description": "@com.microteia.calendar/package.description",
     "publisher": {
@@ -368,9 +368,6 @@
       "hasDocuments": false,
       "hasTags": false,
       "eventPrefix": "calendar",
-      "writeRoles": [
-        "admin"
-      ],
       "listActions": [],
       "sidebarOrder": 0,
       "hideFromSidebar": true

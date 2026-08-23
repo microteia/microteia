@@ -4,7 +4,7 @@ import { isCoreCollection, packageIssues, validatePackage, workflowOutRefs } fro
 
 const base = (overrides: Partial<MarketplacePlugin>): MarketplacePlugin => ({
   summary: '',
-  manifest: { id: 'com.acme.x', version: '1.0.0', kernel: '^1.0.0', name: 'X' },
+  manifest: { id: 'com.acme.x', version: '1.0.0', kernel: '^2.0.0', name: 'X' },
   workflows: [],
   ...overrides,
 });
@@ -158,7 +158,7 @@ describe('validatePackage', () => {
 
   it('referência a tela de outro plugin é satisfeita por dependência declarada', () => {
     const pkg = base({
-      manifest: { id: 'com.acme.pedidos', version: '1.0.0', kernel: '^1.0.0', name: 'Pedidos', dependencies: { 'com.microteia.vendas': '^1.0.0' } },
+      manifest: { id: 'com.acme.pedidos', version: '1.0.0', kernel: '^2.0.0', name: 'Pedidos', dependencies: { 'com.microteia.vendas': '^1.0.0' } },
       screens: [{ key: 'pedido', titleSingular: 'P', titlePlural: 'P', icon: 'apps', titleFieldKey: 'n', fields: [
         { key: 'n', label: 'N', type: 'text', required: true, order: 0 },
         { key: 'produto', label: 'Produto', type: 'reference', refEntity: 'com-microteia-vendas__produto', required: false, order: 1 },
@@ -174,7 +174,7 @@ describe('validatePackage', () => {
   it('coleção de uma dependência declarada satisfaz a referência', () => {
     const pkg = base({
       manifest: {
-        id: 'com.acme.processos', version: '1.0.0', kernel: '^1.0.0', name: 'Processos',
+        id: 'com.acme.processos', version: '1.0.0', kernel: '^2.0.0', name: 'Processos',
         dependencies: { 'com.example.cadastro': { version: '^1.0.0', collections: ['persons'] } },
       },
       screens: [{ key: 'processo', titleSingular: 'P', titlePlural: 'P', icon: 'apps', titleFieldKey: 'n', fields: [

@@ -88,7 +88,7 @@ export class FirebaseTenantRepository implements ITenantRepository {
       tx.set(memberRef, {
         userId: member.userId,
         tenantId,
-        role: member.role,
+        roleIds: member.roleIds,
         displayName: member.displayName,
         email: member.email,
         photoURL: member.photoURL,

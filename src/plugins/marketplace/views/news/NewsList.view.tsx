@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { styled } from 'styled-components';
 import { Dropdown, EntityListModals, EntityListView, Icon, InfoBanner, UserAvatar, cardActionIcon } from '@microteia/ui';
-import { useCurrentUser, useEntity, useEntityList, useLookup, useNotify, useUpdateRecord, useWorkspace } from '@microteia/data';
+import { useCan, useCurrentUser, useEntity, useEntityList, useLookup, useNotify, useUpdateRecord, useWorkspace } from '@microteia/data';
 import { useLocaleFormat, useT } from '@microteia/i18n';
 
 const SOURCE_ID = 'microteia:news';
@@ -258,6 +258,7 @@ export default function NewsListView() {
   const t = useT('com.microteia.news');
   const { formatDateTime } = useLocaleFormat();
   const me = useCurrentUser();
+  const can = useCan();
   const list = useEntityList(SOURCE_ID, { defaultFilterTokens: UNREAD_TOKENS });
   const comments = useEntity(COMMENT_SOURCE_ID);
   const categories = useLookup('newsCategories');
@@ -361,7 +362,7 @@ export default function NewsListView() {
     const hasLiked = has(record.likedBy, me.id);
     const tags = listOf(record.tagIds).map((id) => tagsById[id]).filter(Boolean);
     const actions = list.getCardActions(record);
-    const canEdit = record.createdBy === me.id || me.tenantRole === 'admin';
+    const canEdit = record.createdBy === me.id || can('news.update');
 
     const handleCardClick = (event) => {
       if (event.target.closest('button')) return;

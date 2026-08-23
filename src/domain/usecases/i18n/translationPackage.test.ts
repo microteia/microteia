@@ -108,7 +108,7 @@ describe('isTranslationOnlyPackage', () => {
   });
 
   it('recusa o pacote sem contribuição nenhuma', () => {
-    expect(isTranslationOnlyPackage({ summary: '', workflows: [], manifest: { id: 'a.b', version: '1.0.0', kernel: '^1.0.0', name: 'x' } })).toBe(false);
+    expect(isTranslationOnlyPackage({ summary: '', workflows: [], manifest: { id: 'a.b', version: '1.0.0', kernel: '^2.0.0', name: 'x' } })).toBe(false);
   });
 });
 
@@ -123,7 +123,7 @@ describe('translationOverwriteIssue', () => {
     summary: 'x',
     workflows: [],
     screens: [{ key: 'processos' } as never],
-    manifest: { id: 'locale.es', version: '1.0.0', kernel: '^1.0.0', name: 'Processos' },
+    manifest: { id: 'locale.es', version: '1.0.0', kernel: '^2.0.0', name: 'Processos' },
   });
 
   it('deixa passar quando não há nada instalado com o id', () => {

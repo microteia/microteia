@@ -30,7 +30,16 @@ vi.mock('../../../stores/useRecords', () => ({
   }),
 }));
 vi.mock('../../../stores/useWorkspace', () => ({ useWorkspace: () => ({ openTab: vi.fn() }) }));
-vi.mock('../../../stores/useTenant', () => ({ useTenant: () => ({ tenantRole: 'admin', members: [] }) }));
+vi.mock('../../../stores/useTenant', () => ({ useTenant: () => ({ members: [] }) }));
+vi.mock('../../../stores/useAuthorization', () => ({
+  useAuthorization: () => ({
+    can: () => true,
+    canAny: () => true,
+    canAll: () => true,
+    explicitPermissions: [],
+    effectivePermissions: [],
+  }),
+}));
 vi.mock('../../../stores/useNotification', () => ({ useNotification: () => ({ notify: vi.fn() }) }));
 vi.mock('../../../stores/useActions', () => ({ useActions: () => ({ getActionsByIds: () => [], runAction: vi.fn() }) }));
 vi.mock('../../../stores/useLookups', () => ({ useLookups: () => ({ getOptions: () => [], availableLookups: [] }) }));

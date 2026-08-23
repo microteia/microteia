@@ -56,27 +56,40 @@ describe('resolvePageContribution', () => {
   });
 });
 
+const canAll = () => true;
+const canNothing = () => false;
+const canOnly = (...granted: string[]) => (required: string[]) =>
+  required.some((permission) => granted.includes(permission));
+
 describe('navigablePages', () => {
   const pages = [
     pageContribution('a', { key: 'persons' }),
     pageContribution('b', { keyPrefix: 'view-person:' }),
-    pageContribution('c', { key: 'access-management', requiredRole: 'SYSTEM' }),
+    pageContribution('c', { key: 'audit-logs', requiredPermissions: ['audit.read'] }),
+    pageContribution('d', { key: 'access-management', requiresSystemAdmin: true }),
   ];
 
   it('exclui abas paramétricas e telas sem chave', () => {
-    expect(navigablePages(pages, 'SYSTEM').map((p) => p.key)).toEqual(['persons', 'access-management']);
+    expect(navigablePages(pages, canAll, true).map((p) => p.key)).toEqual([
+      'persons',
+      'audit-logs',
+      'access-management',
+    ]);
   });
 
-  it('esconde tela que exige papel que o usuário não tem', () => {
-    expect(navigablePages(pages, 'USER').map((p) => p.key)).toEqual(['persons']);
+  it('esconde tela cuja permissão o usuário não tem', () => {
+    expect(navigablePages(pages, canNothing, false).map((p) => p.key)).toEqual(['persons']);
   });
 
-  it('SYSTEM enxerga tudo', () => {
-    expect(navigablePages(pages, 'SYSTEM')).toHaveLength(2);
+  it('basta UMA das permissões exigidas', () => {
+    expect(navigablePages(pages, canOnly('audit.read'), false).map((p) => p.key)).toEqual([
+      'persons',
+      'audit-logs',
+    ]);
   });
 
-  it('trata papel nulo como sem permissão', () => {
-    expect(navigablePages(pages, null).map((p) => p.key)).toEqual(['persons']);
+  it('a tela do administrador GLOBAL não se abre por permissão de escritório', () => {
+    expect(navigablePages(pages, canAll, false).map((p) => p.key)).not.toContain('access-management');
   });
 });
 
@@ -84,26 +97,18 @@ describe('visibleNavItems', () => {
   const items = [
     navContribution({ key: 'b', order: 20 }),
     navContribution({ key: 'a', order: 10 }),
-    navContribution({ key: 'admin', order: 30, requiresTenantAdmin: true }),
+    navContribution({ key: 'audit', order: 30, requiredPermissions: ['audit.read'] }),
   ];
 
   it('ordena por order, não pela ordem das contribuições', () => {
-    const visible = visibleNavItems(items, { isSystemAdmin: true, isTenantAdmin: true });
-    expect(visible.map((item) => item.key)).toEqual(['a', 'b', 'admin']);
+    expect(visibleNavItems(items, canAll).map((item) => item.key)).toEqual(['a', 'b', 'audit']);
   });
 
-  it('esconde item de admin de usuário comum', () => {
-    const visible = visibleNavItems(items, { isSystemAdmin: false, isTenantAdmin: false });
-    expect(visible.map((item) => item.key)).toEqual(['a', 'b']);
+  it('esconde o item cuja permissão o usuário não tem', () => {
+    expect(visibleNavItems(items, canNothing).map((item) => item.key)).toEqual(['a', 'b']);
   });
 
-  it('admin do escritório enxerga o item restrito', () => {
-    const visible = visibleNavItems(items, { isSystemAdmin: false, isTenantAdmin: true });
-    expect(visible.map((item) => item.key)).toContain('admin');
-  });
-
-  it('admin do sistema enxerga o item restrito', () => {
-    const visible = visibleNavItems(items, { isSystemAdmin: true, isTenantAdmin: false });
-    expect(visible.map((item) => item.key)).toContain('admin');
+  it('quem tem a permissão enxerga o item restrito', () => {
+    expect(visibleNavItems(items, canOnly('audit.read')).map((item) => item.key)).toContain('audit');
   });
 });

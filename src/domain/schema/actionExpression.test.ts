@@ -7,7 +7,7 @@ const ctx = (values: Record<string, unknown>, overrides: Partial<ActionExprConte
   record: values,
   isNew: false,
   isDirty: false,
-  role: 'admin',
+  permissions: [],
   ...overrides,
 });
 

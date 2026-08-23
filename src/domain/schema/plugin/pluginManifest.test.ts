@@ -19,7 +19,7 @@ const points = new Map<string, ExtensionPointDefinition>([[uiPage.id, uiPage]]);
 const manifest = (overrides: Partial<PluginManifest> = {}): PluginManifest => ({
   id: 'com.acme.contratos',
   version: '1.0.0',
-  kernel: '^1.0.0',
+  kernel: '^2.0.0',
   name: 'Contratos Acme',
   ...overrides,
 });

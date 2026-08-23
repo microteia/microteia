@@ -12,7 +12,7 @@ import type { InstalledExtension } from '../../entities/InstalledExtension';
 
 const pkg = (overrides: Partial<MarketplacePlugin> = {}): MarketplacePlugin =>
   ({
-    manifest: { id: 'com.acme.x', version: '1.0.0', kernel: '^1.0.0', name: 'X' },
+    manifest: { id: 'com.acme.x', version: '1.0.0', kernel: '^2.0.0', name: 'X' },
     summary: '',
     workflows: [],
     ...overrides,

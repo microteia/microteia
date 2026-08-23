@@ -107,22 +107,16 @@ describe('core plugins — paridade com o registro anterior', () => {
 
   it('o menu preserva a ordem que tinha antes da migração', () => {
     const { host } = hostWith(CORE_PLUGINS);
-    const items = visibleNavItems(host.contributions.query(UI_NAV_POINT), {
-      isSystemAdmin: true,
-      isTenantAdmin: true,
-    });
+    const items = visibleNavItems(host.contributions.query(UI_NAV_POINT), () => true);
 
     expect(items.map((item) => item.key)).toEqual([
       'tenant-settings', 'settings', 'translations', 'audit-logs',
     ]);
   });
 
-  it('esconde Auditoria de quem não é admin', () => {
+  it('esconde Auditoria de quem não tem a permissão de leitura dela', () => {
     const { host } = hostWith(CORE_PLUGINS);
-    const items = visibleNavItems(host.contributions.query(UI_NAV_POINT), {
-      isSystemAdmin: false,
-      isTenantAdmin: false,
-    });
+    const items = visibleNavItems(host.contributions.query(UI_NAV_POINT), () => false);
     expect(items.map((item) => item.key)).not.toContain('audit-logs');
   });
 });
@@ -178,15 +172,15 @@ describe('core plugins — remoção limpa (critério de aceite da Etapa 2)', ()
   it('remover core.ui derruba todos os módulos de UI, porque ninguém declara os pontos', () => {
     const { host, result } = hostWith(without('core.ui'));
 
-    // Só core.data sobrevive: declara os próprios pontos e não depende de core.ui.
-    expect(result.loaded).toEqual(['core.data']);
+    // Só core.access e core.data sobrevivem: declaram os próprios pontos e não dependem de core.ui.
+    expect(result.loaded).toEqual(['core.access', 'core.data']);
     expect(host.contributions.query(UI_PAGE_POINT)).toEqual([]);
     // A cascata tem DOIS níveis desde que core.license passou a depender de core.i18n: quem depende
     // direto de core.ui cai com `dependency.missing`, e quem depende de um caído cai com
     // `dependency.disabled`. Aceitar os dois é o que prova que a queda é transitiva.
     expect(
       result.diagnostics
-        .filter((d) => d.pluginId !== 'core.data')
+        .filter((d) => d.pluginId !== 'core.data' && d.pluginId !== 'core.access')
         .every((d) => d.code === 'dependency.missing' || d.code === 'dependency.disabled'),
     ).toBe(true);
   });

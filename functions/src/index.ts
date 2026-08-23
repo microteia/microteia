@@ -13,6 +13,12 @@ export { claimNickname } from './infrastructure/handlers/claimNickname';
 export { addTenantMember } from './infrastructure/handlers/addTenantMember';
 export { removeTenantMember } from './infrastructure/handlers/removeTenantMember';
 export { onUserCreated } from './infrastructure/handlers/onUserCreated';
+export {
+  materializePermissionsOnExtensionChange,
+  materializePermissionsOnMemberChange,
+  materializePermissionsOnRoleChange,
+  materializePermissionsOnScreenChange,
+} from './infrastructure/handlers/materializeMemberPermissions';
 export { auditFlatEntityChange } from './infrastructure/handlers/auditFlatEntityChange';
 export { auditNestedEntityChange } from './infrastructure/handlers/auditNestedEntityChange';
 export { auditTenantDeleted } from './infrastructure/handlers/auditTenantDeleted';

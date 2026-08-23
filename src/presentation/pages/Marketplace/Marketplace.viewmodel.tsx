@@ -2,7 +2,8 @@ import { useCallback, useMemo, useState } from 'react';
 import { useTenantExtensions } from '../../../stores/useTenantExtensions';
 import { useInstalledExtensions, type InstallExtensionInput } from '../../../stores/useInstalledExtensions';
 import { usePublicExtensions } from '../../../stores/usePublicExtensions';
-import { useTenant } from '../../../stores/useTenant';
+import { useAuthorization } from '../../../stores/useAuthorization';
+import { PERMISSION_EXTENSIONS_MANAGE } from '../../../domain/schema/access';
 import { useAuth } from '../../../stores/useAuth';
 import { useNotification } from '../../../stores/useNotification';
 import { useWorkspace } from '../../../stores/useWorkspace';
@@ -183,7 +184,7 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
     runMigrations: runExtensionMigrations,
   } = useInstalledExtensions();
   const { publicExtensions, publish: publishPublic, approve: approvePublic, deprecate: deprecatePublic, unpublish, publicOf } = usePublicExtensions();
-  const { tenantRole } = useTenant();
+  const { can } = useAuthorization();
   const { user, userRole } = useAuth();
   const { notify } = useNotification();
   const { openTab } = useWorkspace();
@@ -252,7 +253,7 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
   );
 
   const canModerate = userRole === 'SYSTEM';
-  const canManage = canModerate || tenantRole === 'admin';
+  const canManage = can(PERMISSION_EXTENSIONS_MANAGE);
 
   const openAuthor = useCallback(() => openTab('plugin-author'), [openTab]);
 

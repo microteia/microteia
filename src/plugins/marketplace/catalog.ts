@@ -19,7 +19,7 @@ export const boasVindasPlugin: MarketplacePlugin =
     manifest: {
       id: 'com.microteia.boas-vindas',
       version: '1.0.0',
-      kernel: '^1.0.0',
+      kernel: '^2.0.0',
       name: 'Boas-vindas ao Cliente',
       description: 'Registra na auditoria toda vez que uma nova pessoa é cadastrada.',
       publisher: { name: 'Microteia' },
@@ -104,7 +104,7 @@ export const guiaPlugin: MarketplacePlugin =
     manifest: {
       id: 'com.microteia.guia',
       version: '1.0.0',
-      kernel: '^1.0.0',
+      kernel: '^2.0.0',
       name: 'Guia do Escritório',
       description: 'Adiciona uma página de guia rápido ao menu do escritório.',
       publisher: { name: 'Microteia' },

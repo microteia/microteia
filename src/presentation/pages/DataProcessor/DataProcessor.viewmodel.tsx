@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import * as pdfjsLib from 'pdfjs-dist';
 import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import { useTenant } from '../../../stores/useTenant';
+import { useAuthorization } from '../../../stores/useAuthorization';
+import { PERMISSION_DATA_PROCESSOR_USE } from '../../../domain/schema/access';
 import { useWorkspace } from '../../../stores/useWorkspace';
 import { useNotification } from '../../../stores/useNotification';
 import { useDI } from '../../../infrastructure/di/useDI';
@@ -148,13 +150,14 @@ const makeLog = (level: ProcessorLogLevel, message: string, workflowId?: string)
 
 export const useDataProcessorViewModel = (): DataProcessorViewModel => {
   const t = useT('core.admin');
-  const { currentTenant, tenantRole } = useTenant();
+  const { currentTenant } = useTenant();
+  const { can } = useAuthorization();
   const { openTab } = useWorkspace();
   const { notify } = useNotification();
   const { aiConnectionRepository, dataProcessorRepository, workflowExecutionRepository } = useDI();
   const { workflows } = useWorkflowStore();
 
-  const hasAccess = tenantRole === 'admin' || tenantRole === 'lawyer';
+  const hasAccess = can(PERMISSION_DATA_PROCESSOR_USE);
 
   const getConnectionsUC = useMemo(
     () => makeGetAIConnectionsUseCase(aiConnectionRepository),

@@ -10,6 +10,8 @@ import { TenantThemeBridge } from './stores/TenantThemeBridge';
 import { AuthProvider } from './stores/AuthContext';
 import { TenantStoreProvider } from './stores/TenantStore';
 import { TagStoreProvider } from './stores/TagStore';
+import { RoleStoreProvider } from './stores/RoleStore';
+import { AuthorizationStoreProvider } from './stores/AuthorizationStore';
 import { LookupStoreProvider } from './stores/LookupStore';
 import { SavedFilterStoreProvider } from './stores/SavedFilterStore';
 import { SettingsStoreProvider } from './stores/SettingsStore';
@@ -57,6 +59,7 @@ const App: React.FC = () => {
                   <ProtectedRoute>
                     <TenantStoreProvider>
                         <ScreenDefinitionStoreProvider>
+                        <RoleStoreProvider>
                         <TagStoreProvider>
                         <LookupStoreProvider>
                                         <SettingsStoreProvider>
@@ -70,7 +73,6 @@ const App: React.FC = () => {
                                           <PublicExtensionStoreProvider>
                                           <ActionStoreProvider>
                                           <AuditLogStoreProvider>
-                                          <AuditLogAlertStoreProvider>
                                           <WorkspaceStoreProvider>
                                             <NotificationProvider>
                                               <StepCatalogProvider>
@@ -78,12 +80,16 @@ const App: React.FC = () => {
                                                 <TextAnnotationStoreProvider>
                                                   <AppErrorBoundary>
                                                     <TenantKernelProvider>
+                                                      <AuthorizationStoreProvider>
+                                                      <AuditLogAlertStoreProvider>
                                                       <TenantLocaleProvider>
                                                         <TenantThemeBridge />
                                                         <FieldRulePresetBridge />
                                                         <ExtensionStartupHost />
                                                         <WorkspaceShell />
                                                       </TenantLocaleProvider>
+                                                      </AuditLogAlertStoreProvider>
+                                                      </AuthorizationStoreProvider>
                                                     </TenantKernelProvider>
                                                   </AppErrorBoundary>
                                                 </TextAnnotationStoreProvider>
@@ -91,7 +97,6 @@ const App: React.FC = () => {
                                               </StepCatalogProvider>
                                             </NotificationProvider>
                                           </WorkspaceStoreProvider>
-                                          </AuditLogAlertStoreProvider>
                                           </AuditLogStoreProvider>
                                           </ActionStoreProvider>
                                           </PublicExtensionStoreProvider>
@@ -105,6 +110,7 @@ const App: React.FC = () => {
                                         </SettingsStoreProvider>
                         </LookupStoreProvider>
                         </TagStoreProvider>
+                        </RoleStoreProvider>
                         </ScreenDefinitionStoreProvider>
                     </TenantStoreProvider>
                   </ProtectedRoute>

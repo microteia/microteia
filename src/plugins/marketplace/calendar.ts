@@ -120,11 +120,10 @@ const CALENDAR_SCREEN: ScreenModuleTemplate = {
    * create a parallel truth that the next write from the origin erases. That is why the card offers
    * no edit gesture and the raw list stays out of the menu.
    *
-   * `writeRoles: ['admin']` is the narrowest thing the wildcard rule can express — the real writer is
-   * the origin automation, on the server, which does not go through this list. Leaving the admin out
-   * would also remove the only way to fix an orphan item left by a broken sync.
+   * The wildcard rule guards it by the collection's own permission, and the real writer is the
+   * origin automation, on the server, which does not go through it. Someone still has to be able to
+   * clear an orphan item left by a broken sync, and that is what the delete permission is for.
    */
-  writeRoles: ['admin'],
   listActions: [],
   sidebarOrder: 0,
   hideFromSidebar: true,
@@ -156,7 +155,7 @@ export const calendarPlugin: MarketplacePlugin = {
   manifest: {
     id: 'com.microteia.calendar',
     version: '1.1.0',
-    kernel: '^1.0.0',
+    kernel: '^2.0.0',
     name: message('package.name'),
     description: message('package.description'),
     publisher: { name: 'Microteia' },

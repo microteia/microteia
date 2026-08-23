@@ -3,7 +3,7 @@ import { extensionHasCode, initialPublicStatus, isVersionGreater } from './publi
 import type { MarketplacePlugin } from '../../entities/MarketplacePlugin';
 
 const base: MarketplacePlugin = {
-  manifest: { id: 'com.acme.x', version: '1.0.0', kernel: '^1.0.0', name: 'X' },
+  manifest: { id: 'com.acme.x', version: '1.0.0', kernel: '^2.0.0', name: 'X' },
   summary: '', workflows: [],
 };
 

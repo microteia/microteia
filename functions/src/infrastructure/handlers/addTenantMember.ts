@@ -5,7 +5,7 @@ import { domainErrorCode } from '../../domain/errors/DomainError';
 interface AddTenantMemberRequest {
   tenantId?: string;
   userId?: string;
-  role?: string;
+  roleIds?: string[];
   displayName?: string;
   email?: string;
   photoURL?: string | null;
@@ -18,9 +18,9 @@ export const addTenantMember = onCall(
       throw new HttpsError('unauthenticated', '@core.automation/handler.unauthenticated');
     }
 
-    const { tenantId, userId, role, displayName, email, photoURL } = request.data as AddTenantMemberRequest;
+    const { tenantId, userId, roleIds, displayName, email, photoURL } = request.data as AddTenantMemberRequest;
 
-    if (!tenantId || !userId || !role || !displayName || !email) {
+    if (!tenantId || !userId || !displayName || !email) {
       throw new HttpsError('invalid-argument', 'Dados do membro incompletos.');
     }
 
@@ -29,7 +29,7 @@ export const addTenantMember = onCall(
       const useCase = di.getAddTenantMemberUseCase();
       await useCase.execute(
         tenantId,
-        { userId, role, displayName, email, photoURL: photoURL ?? null },
+        { userId, roleIds: Array.isArray(roleIds) ? roleIds : [], displayName, email, photoURL: photoURL ?? null },
         request.auth.uid,
       );
 

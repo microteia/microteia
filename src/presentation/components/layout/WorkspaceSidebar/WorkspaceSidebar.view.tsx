@@ -98,43 +98,43 @@ export const WorkspaceSidebar: React.FC = () => {
                   <RiUserLine size={16} />
                   {t('core.workspace/page.profile')}
                 </S.MenuItem>
-                {vm.isAdmin && (
+                {vm.isSystemAdmin && (
                   <S.MenuItem onClick={vm.handleAccessManagementClick}>
                     <RiShieldUserLine size={16} />
                     {t('core.admin/page.access-management')}
                   </S.MenuItem>
                 )}
-                {vm.canAccessScreenBuilder && (
+                {vm.canManageScreens && (
                   <S.MenuItem onClick={vm.handleScreenBuilderClick}>
                     <RiLayoutGridLine size={16} />
                     {t('core.records/page.screen-builder')}
                   </S.MenuItem>
                 )}
-                {vm.canAccessScreenBuilder && (
+                {vm.canManageAutomation && (
                   <S.MenuItem onClick={vm.handleWorkflowsClick}>
                     <RiFlowChart size={16} />
                     {t('core.automation/page.workflows')}
                   </S.MenuItem>
                 )}
-                {vm.canAccessScreenBuilder && (
+                {vm.canManageAutomation && (
                   <S.MenuItem onClick={vm.handleScriptsClick}>
                     <RiCodeBoxLine size={16} />
                     {t('core.automation/page.scripts')}
                   </S.MenuItem>
                 )}
-                {vm.canAccessScreenBuilder && (
+                {vm.canManageAutomation && (
                   <S.MenuItem onClick={vm.handleActionsClick}>
                     <RiCursorLine size={16} />
                     {t('core.automation/page.actions')}
                   </S.MenuItem>
                 )}
-                {vm.canAccessDataProcessor && (
+                {vm.canUseDataProcessor && (
                   <S.MenuItem onClick={vm.handleDataProcessorClick}>
                     <RiSparkling2Line size={16} />
                     {t('core.admin/page.data-processor')}
                   </S.MenuItem>
                 )}
-                {vm.canAccessScreenBuilder && (
+                {vm.canManageExtensions && (
                   <S.MenuItem onClick={vm.handleMarketplaceClick}>
                     <RiStoreLine size={16} />
                     {t('core.marketplace/page.marketplace')}

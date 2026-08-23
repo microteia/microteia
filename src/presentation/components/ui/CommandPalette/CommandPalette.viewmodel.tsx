@@ -8,7 +8,7 @@ import { useScreenDefinitions } from '../../../../stores/useScreenDefinitions';
 import { useWorkflowStore } from '../../../../stores/useWorkflowStore';
 import { useTheme } from '../../../../stores/useTheme';
 import { useAuth } from '../../../../stores/useAuth';
-import { useTenant } from '../../../../stores/useTenant';
+import { useAuthorization } from '../../../../stores/useAuthorization';
 import { useCommandProviders, usePageContributions } from '../../../shared/useUiContributions';
 import { navigablePages as selectNavigablePages } from '../../../shared/resolveUiContributions';
 import { useLabel, useT } from '../../../shared/i18n/useT';
@@ -41,7 +41,7 @@ export const useCommandPaletteViewModel = (): CommandPaletteViewModel => {
   const { workflows } = useWorkflowStore();
   const { themeId, available: installedThemes, setTheme } = useTheme();
   const { signOut, userRole } = useAuth();
-  const { tenantRole } = useTenant();
+  const { can, canAny } = useAuthorization();
   const providers = useCommandProviders();
   const pageContributions = usePageContributions();
   const label = useLabel();
@@ -50,9 +50,9 @@ export const useCommandPaletteViewModel = (): CommandPaletteViewModel => {
   // O ⌘K procura pelo TÍTULO — então ele precisa procurar pelo título que a pessoa lê, e não pela
   // referência declarada. Resolver aqui, e não na busca, mantém um caminho só para o rótulo.
   const navigablePages = useMemo(
-    () => selectNavigablePages(pageContributions, userRole)
+    () => selectNavigablePages(pageContributions, canAny, userRole === 'SYSTEM')
       .map((metadata) => ({ ...metadata, title: label(metadata.title) })),
-    [pageContributions, userRole, label],
+    [pageContributions, canAny, userRole, label],
   );
 
   // Mesmo motivo das telas: o ⌘K procura pelo nome que a pessoa lê, não pela referência declarada.
@@ -84,12 +84,12 @@ export const useCommandPaletteViewModel = (): CommandPaletteViewModel => {
       setTheme,
       signOut,
       userRole,
-      tenantRole,
+      can,
       navigablePages,
       t,
       label,
     }),
-    [openTab, close, persons, cases, contracts, allRecords, screenDefinitions, workflows, themeId, themes, setTheme, signOut, userRole, tenantRole, navigablePages, t, label],
+    [openTab, close, persons, cases, contracts, allRecords, screenDefinitions, workflows, themeId, themes, setTheme, signOut, userRole, can, navigablePages, t, label],
   );
 
   const groups = useMemo<CommandPaletteGroup[]>(() => {

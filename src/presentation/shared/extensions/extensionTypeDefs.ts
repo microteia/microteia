@@ -782,7 +782,10 @@ const UI_MODULE_DEFS = `declare module '@microteia/ui' {
   /** The whole "Documents" tab, fed by useRecordDocuments from '@microteia/data'. */
   export interface DocumentsPanelProps {
     controller: any;
-    isAdmin: boolean;
+    /** May delete an attached document - the delete permission of the record's collection. */
+    canDelete: boolean;
+    /** May remove a document TYPE from the organization's shared list. */
+    canManageTypes: boolean;
   }
   export function DocumentsPanel(props: DocumentsPanelProps): JSX.Element;
 
@@ -950,23 +953,35 @@ const DATA_MODULE_DEFS = `declare module '@microteia/data' {
 
   /**
    * WHO is using the system - what a screen needs in order to know what is MINE (what I have not read
-   * yet, the comment I may edit, the like that is already mine). This is identification, not
-   * permission: what blocks a write is the server rule.
+   * yet, the comment I may edit, the like that is already mine).
+   *
+   * 'permissions' is here so you can DRAW - show the delete button to whoever may delete. What blocks
+   * a write is still the server rule.
    */
   export interface ExtensionViewer {
     id: string;
     name: string;
     photoURL: string | null;
-    /** GLOBAL role: 'SYSTEM', 'SUPPORT' or 'USER'. */
-    role: string;
-    /** Role in the current organization: 'admin', 'lawyer', 'secretary' or 'user'. */
-    tenantRole: string;
+    /** The EFFECTIVE permissions of the viewer. To ask about one of them, use useCan(). */
+    permissions: string[];
     /** The current organization - what a server function receives to know where to act. */
     tenantId: string;
     /** The locale in effect for this person (BCP-47: 'en', 'pt-BR'). */
     locale: string;
   }
   export function useCurrentUser(): ExtensionViewer;
+
+  /**
+   * "May this person?" - the only authorization question an extension asks.
+   *
+   * It takes no role: your extension declares the permissions it brings (the 'access.permission'
+   * contribution point) and asks about them. Grouping permissions into access profiles is the
+   * organization's job, and you never need to know which profiles exist.
+   *
+   * Every screen collection gets four permissions for free: '<collection>.read', '.create',
+   * '.update' and '.delete'.
+   */
+  export function useCan(): (permission: string) => boolean;
 
   /**
    * The DOCUMENTS of a record, driven by the same controller as the native "Documents" tab. Handed to

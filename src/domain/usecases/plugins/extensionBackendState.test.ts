@@ -20,7 +20,7 @@ const extension = (
   tenantId: 't1',
   active: true,
   package: {
-    manifest: { id, version: '1.0.0', kernel: '^1.0.0', name: id, ...(backend ? { backend } : {}) },
+    manifest: { id, version: '1.0.0', kernel: '^2.0.0', name: id, ...(backend ? { backend } : {}) },
     summary: '',
     workflows: [],
   },

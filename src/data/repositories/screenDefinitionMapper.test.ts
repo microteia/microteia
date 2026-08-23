@@ -24,7 +24,6 @@ const persisted: PersistedKeys = {
   dataCollection: 'cases',
   eventPrefix: 'case',
   recordTabPrefix: 'processo-edit:',
-  writeRoles: ['admin', 'lawyer'],
   hasNotes: true,
   hasDocuments: true,
   hasTags: true,

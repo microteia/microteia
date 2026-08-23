@@ -2,6 +2,7 @@ import { UI_EXTENSION_POINTS } from '../../../domain/schema/ui/uiExtensionPoints
 import { DATA_EXTENSION_POINTS } from '../../../domain/schema/dataExtensionPoints';
 import { I18N_EXTENSION_POINTS } from '../../../domain/schema/i18n/extensionPoints';
 import { THEME_EXTENSION_POINTS } from '../../../domain/schema/theme/extensionPoints';
+import { ACCESS_EXTENSION_POINTS } from '../../../domain/schema/access';
 import type { ExtensionPointDefinition } from '../../../domain/schema/plugin/extensionPoint';
 
 /**
@@ -23,6 +24,7 @@ const ALL_POINTS: ExtensionPointDefinition[] = [
   ...DATA_EXTENSION_POINTS,
   ...I18N_EXTENSION_POINTS,
   ...THEME_EXTENSION_POINTS,
+  ...ACCESS_EXTENSION_POINTS,
 ];
 
 const kib = (bytes: number): string => `${Math.round(bytes / 1024)} KiB`;

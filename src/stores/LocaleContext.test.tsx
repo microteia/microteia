@@ -21,7 +21,7 @@ const records: PluginRecord[] = [
     manifest: {
       id: 'core.i18n',
       version: '1.0.0',
-      kernel: '^1.0.0',
+      kernel: '^2.0.0',
       name: 'i18n',
       extensionPoints: I18N_EXTENSION_POINTS,
     },
@@ -31,7 +31,7 @@ const records: PluginRecord[] = [
     manifest: {
       id: 'com.microteia.locale-pt-br',
       version: '1.0.0',
-      kernel: '^1.0.0',
+      kernel: '^2.0.0',
       name: 'Português',
       contributes: [
         messageBundleContribution({

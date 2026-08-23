@@ -1,5 +1,7 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { getDI } from '../di/container';
+import { requirePermission } from './shared/requirePermission';
+import { PERMISSION_AUTOMATION_RUN } from '../../domain/schema/access';
 import { getDb } from '../firebase/initFirebase';
 import { publishEvent } from '../workflow/publishEvent';
 import { WORKFLOW_CALLED_EVENT } from '../../domain/schema/eventCatalog';
@@ -206,10 +208,7 @@ export const runWorkflow = onCall(
 
     try {
       const di = getDI();
-      const role = await di.getTenantMemberRepository().getMemberRole(tenantId, request.auth.uid);
-      if (role !== 'admin' && role !== 'lawyer') {
-        throw new HttpsError('permission-denied', '@core.automation/handler.restricted');
-      }
+      await requirePermission(tenantId, request.auth.uid, PERMISSION_AUTOMATION_RUN);
 
       const definition = await di.getWorkflowDefinitionRepository().findById(tenantId, targetWorkflowId);
       if (!definition) {

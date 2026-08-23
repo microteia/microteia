@@ -32,7 +32,7 @@ const ctx = (overrides: Partial<ActionExprContext>): ActionExprContext => ({
   record: {},
   isNew: false,
   isDirty: false,
-  role: 'admin',
+  permissions: [],
   ...overrides,
 });
 

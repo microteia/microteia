@@ -4,6 +4,8 @@ import { useAuditLogStore } from '../../../stores/useAuditLogStore';
 import { useAuditLogAlert } from '../../../stores/useAuditLogAlert';
 import { useAuth } from '../../../stores/useAuth';
 import { useTenant } from '../../../stores/useTenant';
+import { useAuthorization } from '../../../stores/useAuthorization';
+import { PERMISSION_AUDIT_READ } from '../../../domain/schema/access';
 import { useWorkspace } from '../../../stores/useWorkspace';
 import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
 import { useDI } from '../../../infrastructure/di/useDI';
@@ -45,7 +47,8 @@ export const useAuditLogsViewModel = (): AuditLogsViewModel => {
   const t = useT('core.admin');
   const label = useLabel();
   const { userRole } = useAuth();
-  const { currentTenant, tenantRole } = useTenant();
+  const { currentTenant } = useTenant();
+  const { can } = useAuthorization();
   const { openTab } = useWorkspace();
   const { dynamicScreens } = useScreenDefinitions();
   const openRecord = useOpenRecord();
@@ -55,8 +58,8 @@ export const useAuditLogsViewModel = (): AuditLogsViewModel => {
   const theme = useTheme();
 
   const isSystem = userRole === 'SYSTEM';
-  const isTenantAdmin = tenantRole === 'admin';
-  const isUnauthorized = !isSystem && !isTenantAdmin;
+  const canReadAudit = can(PERMISSION_AUDIT_READ);
+  const isUnauthorized = !isSystem && !canReadAudit;
 
   const [allTenants, setAllTenants] = useState<Tenant[]>([]);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());

@@ -1,7 +1,13 @@
 import { useState, useCallback, useMemo } from 'react';
 import { useWorkspace } from '../../../../stores/useWorkspace';
 import { useAuth } from '../../../../stores/useAuth';
-import { useTenant } from '../../../../stores/useTenant';
+import { useAuthorization } from '../../../../stores/useAuthorization';
+import {
+  PERMISSION_AUTOMATION_MANAGE,
+  PERMISSION_DATA_PROCESSOR_USE,
+  PERMISSION_EXTENSIONS_MANAGE,
+  PERMISSION_SCREENS_MANAGE,
+} from '../../../../domain/schema/access';
 import { useTheme, AUTOMATIC_THEME } from '../../../../stores/useTheme';
 import { useCommandPalette } from '../../../../stores/useCommandPalette';
 import { useScreenDefinitions } from '../../../../stores/useScreenDefinitions';
@@ -43,9 +49,11 @@ export interface WorkspaceSidebarViewModel {
   activeKey: string | null;
   isMenuOpen: boolean;
   isThemeSubOpen: boolean;
-  isAdmin: boolean;
-  canAccessScreenBuilder: boolean;
-  canAccessDataProcessor: boolean;
+  isSystemAdmin: boolean;
+  canManageScreens: boolean;
+  canManageAutomation: boolean;
+  canManageExtensions: boolean;
+  canUseDataProcessor: boolean;
   user: User | null;
   effectivePhotoURL: string | null;
   effectiveName: string;
@@ -77,7 +85,7 @@ export const useWorkspaceSidebarViewModel = (): WorkspaceSidebarViewModel => {
 
   const { openTab, panels, activePanelId } = useWorkspace();
   const { userRole, user, effectivePhotoURL, effectiveName, signOut } = useAuth();
-  const { tenantRole } = useTenant();
+  const { can, canAny } = useAuthorization();
   const { themeId, preferred: preferredTheme, available: themes, setTheme } = useTheme();
   const { open: openCommandPalette } = useCommandPalette();
   const { unreadCriticalCount: unreadCriticalAuditCount } = useAuditLogAlert();
@@ -87,9 +95,11 @@ export const useWorkspaceSidebarViewModel = (): WorkspaceSidebarViewModel => {
   const searchShortcut = /Mac|iPhone|iPod|iPad/.test(navigator.platform) ? '⌘K' : 'Ctrl K';
 
   const activeKey = panels[activePanelId]?.activeTabKey ?? null;
-  const isAdmin = userRole === 'SYSTEM';
-  const canAccessScreenBuilder = isAdmin || tenantRole === 'admin';
-  const canAccessDataProcessor = isAdmin || tenantRole === 'admin' || tenantRole === 'lawyer';
+  const isSystemAdmin = userRole === 'SYSTEM';
+  const canManageScreens = can(PERMISSION_SCREENS_MANAGE);
+  const canManageAutomation = can(PERMISSION_AUTOMATION_MANAGE);
+  const canManageExtensions = can(PERMISSION_EXTENSIONS_MANAGE);
+  const canUseDataProcessor = can(PERMISSION_DATA_PROCESSOR_USE);
 
   /**
    * O selo de cada item. Duas origens: a DECLARADA (`badge` da contribuição), que é uma contagem de
@@ -105,10 +115,7 @@ export const useWorkspaceSidebarViewModel = (): WorkspaceSidebarViewModel => {
   const label = useLabel();
 
   const navItems = useMemo(() => {
-    const contributed = visibleNavItems(navContributions, {
-      isSystemAdmin: isAdmin,
-      isTenantAdmin: tenantRole === 'admin',
-    }).map((item) => ({
+    const contributed = visibleNavItems(navContributions, canAny).map((item) => ({
       key: item.key,
       label: label(item.label),
       icon: getScreenIcon(item.icon, 20),
@@ -129,7 +136,7 @@ export const useWorkspaceSidebarViewModel = (): WorkspaceSidebarViewModel => {
     return [...contributed, ...dynamicItems]
       .sort((a, b) => a.order - b.order)
       .map(({ key, label, icon, badge }): NavItem => ({ key, label, icon, badge }));
-  }, [navContributions, isAdmin, tenantRole, sidebarScreens, badgeCount, kernelBadge, label]);
+  }, [navContributions, canAny, sidebarScreens, badgeCount, kernelBadge, label]);
 
   const toggleCollapse = useCallback(() => setCollapsed(c => !c), []);
 
@@ -231,9 +238,11 @@ export const useWorkspaceSidebarViewModel = (): WorkspaceSidebarViewModel => {
     activeKey,
     isMenuOpen,
     isThemeSubOpen,
-    isAdmin,
-    canAccessScreenBuilder,
-    canAccessDataProcessor,
+    isSystemAdmin,
+    canManageScreens,
+    canManageAutomation,
+    canManageExtensions,
+    canUseDataProcessor,
     user,
     effectivePhotoURL,
     effectiveName,

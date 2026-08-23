@@ -1,17 +1,16 @@
 import { createContext, useContext } from 'react';
-import type { Tenant, TenantMember, TenantRole, TenantUpdate } from '../domain/entities';
+import type { Tenant, TenantMember, TenantUpdate } from '../domain/entities';
 
 export interface TenantContextValue {
   currentTenant: Tenant | null;
   availableTenants: Tenant[];
-  tenantRole: TenantRole | null;
   members: TenantMember[];
   isLoading: boolean;
   initError: string | null;
   selectTenant: (tenantId: string) => Promise<void>;
   updateTenant: (data: TenantUpdate) => Promise<void>;
-  addMember: (member: Omit<TenantMember, 'addedAt'>) => Promise<void>;
-  updateMemberRole: (userId: string, role: TenantRole) => Promise<void>;
+  addMember: (member: Omit<TenantMember, 'addedAt' | 'permissions'>) => Promise<void>;
+  updateMemberRoles: (userId: string, roleIds: string[]) => Promise<void>;
   removeMember: (userId: string) => Promise<void>;
   refreshMembers: () => Promise<void>;
 }

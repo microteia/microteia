@@ -9,7 +9,7 @@ import { installedPluginRecords } from './installedPluginRecords';
 
 const plugin = (id: string, contributes: unknown[] = []): MarketplacePlugin => ({
   summary: id,
-  manifest: { id, version: '1.0.0', kernel: '^1.0.0', name: id, contributes: contributes as never },
+  manifest: { id, version: '1.0.0', kernel: '^2.0.0', name: id, contributes: contributes as never },
   workflows: [],
 });
 

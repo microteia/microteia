@@ -166,7 +166,7 @@ const CONSUMIDOR: MarketplacePlugin = {
   manifest: {
     id: 'com.example.consumidor',
     version: '1.0.0',
-    kernel: '^1.0.0',
+    kernel: '^2.0.0',
     name: 'Consumidor da agenda',
     description: 'Uma extensão de exemplo que se mostra na agenda.',
     publisher: { name: 'Example' },

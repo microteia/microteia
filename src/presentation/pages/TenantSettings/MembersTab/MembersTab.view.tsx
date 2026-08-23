@@ -1,37 +1,31 @@
 import React from 'react';
 import { useTheme } from 'styled-components';
 import { RiDeleteBinLine } from 'react-icons/ri';
-import { useMembersTabViewModel, TENANT_ROLE_KEYS } from './MembersTab.viewmodel';
+import { useMembersTabViewModel } from './MembersTab.viewmodel';
 import { S } from './MembersTab.styles.tsx';
 import { Button } from '../../../components/ui/Button';
 import { Input, Label } from '../../../components/ui/Input';
 import { Badge } from '../../../components/ui/Badge';
 import { ConfirmModal } from '../../../components/ui/ConfirmModal';
 import { Spinner } from '../../../components/ui/Spinner';
-import { SearchSelect } from '../../../components/ui/SearchSelect';
-import type { SearchSelectOption } from '../../../components/ui/SearchSelect';
+import { MultiSearchSelect } from '../../../components/ui/MultiSearchSelect';
+import type { MultiSearchSelectOption } from '../../../components/ui/MultiSearchSelect';
 import { InfoBanner } from '../../../components/ui/InfoBanner';
-import type { TenantRole } from '../../../../domain/entities';
 
-import { useT } from '../../../shared/i18n/useT';
-const ROLES: TenantRole[] = ['admin', 'lawyer', 'secretary', 'user'];
+import { useT, useLabel } from '../../../shared/i18n/useT';
 
 export const MembersTabView: React.FC = () => {
   const t = useT('core.tenant');
+  const label = useLabel();
   const vm = useMembersTabViewModel();
   const theme = useTheme();
 
-  const roleColors: Record<TenantRole, string> = {
-    admin: theme.colors.danger,
-    lawyer: theme.colors.info,
-    secretary: theme.colors.primary,
-    user: theme.colors.textSecondary,
-  };
-
-  const roleOptions: SearchSelectOption[] = ROLES.map((r) => ({
-    value: r,
-    label: t(TENANT_ROLE_KEYS[r]),
-    color: roleColors[r],
+  // O nome do perfil é DADO do escritório: passa por `useLabel` só para haver um caminho de rótulo,
+  // e volta intacto quando não é referência.
+  const roleOptions: MultiSearchSelectOption[] = vm.roles.map((role) => ({
+    value: role.id,
+    label: label(role.name),
+    color: theme.colors.primary,
   }));
 
   return (
@@ -58,14 +52,12 @@ export const MembersTabView: React.FC = () => {
           />
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-          <Label>{t('member.role')}</Label>
-          <SearchSelect
+          <Label>{t('member.roles')}</Label>
+          <MultiSearchSelect
             options={roleOptions}
-            value={vm.addRole}
-            onChange={(val) => {
-              if (val) vm.setAddRole(val as TenantRole);
-            }}
-            placeholder={t('member.role.placeholder')}
+            values={vm.addRoleIds}
+            onChange={vm.setAddRoleIds}
+            placeholder={t('member.roles.placeholder')}
             disabled={!vm.canAddMore}
           />
         </div>
@@ -102,19 +94,19 @@ export const MembersTabView: React.FC = () => {
                   <S.MemberEmail>{member.email}</S.MemberEmail>
                 </S.MemberInfo>
                 <S.MemberActions>
-                  {isOwner || isCurrentUser ? (
-                    <Badge color={roleColors[member.role]}>
-                      {t(TENANT_ROLE_KEYS[member.role])}
+                  {isOwner ? (
+                    <Badge color={theme.colors.danger}>{t('member.owner')}</Badge>
+                  ) : isCurrentUser ? (
+                    <Badge color={theme.colors.textSecondary}>
+                      {vm.memberRoleNames(member).join(', ') || t('member.roles.none')}
                     </Badge>
                   ) : (
                     <>
-                      <SearchSelect
+                      <MultiSearchSelect
                         options={roleOptions}
-                        value={member.role}
-                        onChange={(val) => {
-                          if (val) void vm.handleRoleChange(member, val as TenantRole);
-                        }}
-                        placeholder={t('member.role.placeholder')}
+                        values={member.roleIds}
+                        onChange={(roleIds) => void vm.handleRolesChange(member, roleIds)}
+                        placeholder={t('member.roles.placeholder')}
                       />
                       <Button
                         variant="danger"

@@ -4,7 +4,7 @@ import type { PublishPublicExtensionInput } from '../../domain/repositories/IPub
 
 const input: PublishPublicExtensionInput = {
   package: {
-    manifest: { id: 'com.acme.kanban', version: '1.2.0', kernel: '^1.0.0', name: 'Kanban' },
+    manifest: { id: 'com.acme.kanban', version: '1.2.0', kernel: '^2.0.0', name: 'Kanban' },
     summary: 'Quadro',
     workflows: [],
     views: [{ key: 'kanban', title: 'Kanban', icon: 'layoutGrid', source: 'export default () => null;' }],

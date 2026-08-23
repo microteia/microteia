@@ -1,5 +1,7 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { getDI } from '../di/container';
+import { requirePermission } from './shared/requirePermission';
+import { PERMISSION_AUTOMATION_RUN } from '../../domain/schema/access';
 import { getDb } from '../firebase/initFirebase';
 import { normalizeActionOutcome } from '../../domain/entities/Action';
 import type { ActionOutcome } from '../../domain/entities/Action';
@@ -41,10 +43,7 @@ export const runAction = onCall(
     if (!actionId) throw new HttpsError('invalid-argument', '@core.automation/handler.action.missing');
 
     const di = getDI();
-    const role = await di.getTenantMemberRepository().getMemberRole(tenantId, request.auth.uid);
-    if (!role) {
-      throw new HttpsError('permission-denied', '@core.automation/handler.not-member');
-    }
+    await requirePermission(tenantId, request.auth.uid, PERMISSION_AUTOMATION_RUN);
 
     const snap = await getDb().doc(`tenants/${tenantId}/actions/${actionId}`).get();
     if (!snap.exists) return failure('@core.automation/handler.action.not-found');

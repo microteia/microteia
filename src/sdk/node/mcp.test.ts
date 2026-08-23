@@ -51,7 +51,7 @@ describe('o servidor MCP de autoria', () => {
 
   it('valida um pacote com o mesmo veredito que a instalação daria', () => {
     const bad = JSON.stringify({
-      manifest: { id: 'nope', version: '1.0.0', kernel: '^1.0.0', name: 'X' },
+      manifest: { id: 'nope', version: '1.0.0', kernel: '^2.0.0', name: 'X' },
       summary: '',
       workflows: [],
     });
@@ -63,7 +63,7 @@ describe('o servidor MCP de autoria', () => {
 
   it('reconhece um pacote válido', () => {
     const good = JSON.stringify({
-      manifest: { id: 'com.example.ok', version: '1.0.0', kernel: '^1.0.0', name: 'Ok' },
+      manifest: { id: 'com.example.ok', version: '1.0.0', kernel: '^2.0.0', name: 'Ok' },
       summary: 'Uma extensão mínima.',
       workflows: [],
     });

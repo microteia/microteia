@@ -9,6 +9,7 @@ import type { TranslateFn } from '../../shared/i18n/useT';
  * tela é renomeada, em vez de congelar o nome do dia da gravação.
  */
 export const ENTITY_KEYS: Record<string, string> = {
+  Role: 'audit.entity.role',
   TenantMember: 'audit.entity.tenant-member',
   PersonTag: 'audit.entity.person-tag',
   CaseTag: 'audit.entity.case-tag',

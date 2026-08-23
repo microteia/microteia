@@ -13,7 +13,7 @@ import {
 import { httpsCallable, FunctionsError } from 'firebase/functions';
 import { db, functions } from '../../infrastructure/firebase/config';
 import type { ITenantRepository, TenantMemberRoleActor } from '../../domain/repositories/ITenantRepository';
-import type { Tenant, TenantMember, TenantRole, TenantUpdate } from '../../domain/entities';
+import type { Tenant, TenantMember, TenantUpdate } from '../../domain/entities';
 import { TenantMemberLimitReachedError } from '../../domain/errors';
 
 const toDate = (v: unknown): Date =>
@@ -37,7 +37,8 @@ const mapTenant = (id: string, d: Record<string, unknown>): Tenant => ({
 const mapMember = (d: Record<string, unknown>): TenantMember => ({
   userId: d.userId as string,
   tenantId: d.tenantId as string,
-  role: d.role as TenantRole,
+  roleIds: Array.isArray(d.roleIds) ? (d.roleIds as string[]) : [],
+  permissions: Array.isArray(d.permissions) ? (d.permissions as string[]) : [],
   displayName: d.displayName as string,
   email: d.email as string,
   photoURL: (d.photoURL as string | null) ?? null,
@@ -60,16 +61,16 @@ export class FirebaseTenantRepository implements ITenantRepository {
     await updateDoc(doc(db, 'tenants', tenantId), { memberLimit, updatedAt: serverTimestamp() });
   }
 
-  async addMember(tenantId: string, member: Omit<TenantMember, 'addedAt'>): Promise<void> {
+  async addMember(tenantId: string, member: Omit<TenantMember, 'addedAt' | 'permissions'>): Promise<void> {
     const call = httpsCallable<
-      { tenantId: string; userId: string; role: TenantRole; displayName: string; email: string; photoURL: string | null },
+      { tenantId: string; userId: string; roleIds: string[]; displayName: string; email: string; photoURL: string | null },
       { success: boolean }
     >(functions, 'addTenantMember');
     try {
       await call({
         tenantId,
         userId: member.userId,
-        role: member.role,
+        roleIds: member.roleIds,
         displayName: member.displayName,
         email: member.email,
         photoURL: member.photoURL,
@@ -82,9 +83,9 @@ export class FirebaseTenantRepository implements ITenantRepository {
     }
   }
 
-  async updateMemberRole(tenantId: string, userId: string, role: TenantRole, actor: TenantMemberRoleActor): Promise<void> {
+  async updateMemberRoles(tenantId: string, userId: string, roleIds: string[], actor: TenantMemberRoleActor): Promise<void> {
     await updateDoc(doc(db, 'tenants', tenantId, 'members', userId), {
-      role,
+      roleIds,
       updatedAt: serverTimestamp(),
       updatedBy: actor.uid,
     });
@@ -98,12 +99,6 @@ export class FirebaseTenantRepository implements ITenantRepository {
   async getMembers(tenantId: string): Promise<TenantMember[]> {
     const snap = await getDocs(collection(db, 'tenants', tenantId, 'members'));
     return snap.docs.map((d) => mapMember(d.data()));
-  }
-
-  async getMemberRole(tenantId: string, userId: string): Promise<TenantRole | null> {
-    const snap = await getDoc(doc(db, 'tenants', tenantId, 'members', userId));
-    if (!snap.exists()) return null;
-    return (snap.data().role as TenantRole) ?? null;
   }
 
   async getTenantsForUser(userId: string): Promise<Tenant[]> {

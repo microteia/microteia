@@ -54,7 +54,7 @@ export const RECORD_ACTION_METADATA: Record<string, UiRecordActionMetadata> = {
     icon: 'deleteBin',
     order: 3,
     danger: true,
-    requiresTenantAdmin: true,
+    requiresRecordPermission: 'delete',
     // Dentro da aba de um pai RELACIONADO o registro é uma entidade de topo: apagá-lo dali destruiria
     // o registro inteiro quando o gesto é "tirar daqui". Ali quem aparece é desvincular.
     hiddenWhen: 'relation == "related"',

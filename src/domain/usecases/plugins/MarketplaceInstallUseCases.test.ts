@@ -227,7 +227,7 @@ const literalStep = (id: string, stepDefinitionId: string, inputId: string, valu
 
 const workflowPlugin: MarketplacePlugin = {
   summary: 'Automação',
-  manifest: { id: 'com.acme.aut', version: '1.0.0', kernel: '^1.0.0', name: 'Aut', permissions: ['workflow:run'] },
+  manifest: { id: 'com.acme.aut', version: '1.0.0', kernel: '^2.0.0', name: 'Aut', permissions: ['workflow:run'] },
   workflows: [
     { templateId: 'wf-1', name: 'W1', eventName: 'person.saved', version: 1, condition: { kind: 'AlwaysTrue' }, steps: [] },
   ],
@@ -254,7 +254,7 @@ describe('Install — workflows (compatibilidade)', () => {
 describe('Install — remapeamento de ids (scripts → workflows → actions → telas)', () => {
   const fullPlugin: MarketplacePlugin = {
     summary: 'Completo',
-    manifest: { id: 'com.acme.full', version: '1.0.0', kernel: '^1.0.0', name: 'Full' },
+    manifest: { id: 'com.acme.full', version: '1.0.0', kernel: '^2.0.0', name: 'Full' },
     scripts: [
       { templateId: 'scr-a', name: 'Script A', sourceTs: 'x', compiledJs: 'y', inputParams: [], outputParams: [] },
     ],
@@ -329,7 +329,7 @@ describe('Install — remapeamento de ids (scripts → workflows → actions →
 describe('Uninstall — cascata dos quatro tipos', () => {
   const fullPlugin: MarketplacePlugin = {
     summary: 'Completo',
-    manifest: { id: 'com.acme.full', version: '1.0.0', kernel: '^1.0.0', name: 'Full' },
+    manifest: { id: 'com.acme.full', version: '1.0.0', kernel: '^2.0.0', name: 'Full' },
     scripts: [{ templateId: 'scr-a', name: 'A', sourceTs: 'x', compiledJs: 'y', inputParams: [], outputParams: [] }],
     workflows: [{ templateId: 'wf-a', name: 'A', eventName: 'workflow.called', version: 1, condition: { kind: 'AlwaysTrue' }, steps: [] }],
     actions: [{ templateId: 'act-a', key: 'a', title: 'A', icon: 'apps', workflowId: 'wf-a', danger: false, enabled: true, order: 0 }],
@@ -363,7 +363,7 @@ describe('Uninstall — cascata dos quatro tipos', () => {
 describe('Uninstall — listas de opções sobrevivem', () => {
   const lookupPlugin = (id: string): MarketplacePlugin => ({
     summary: 'Com lista',
-    manifest: { id, version: '1.0.0', kernel: '^1.0.0', name: 'L' },
+    manifest: { id, version: '1.0.0', kernel: '^2.0.0', name: 'L' },
     workflows: [],
     lookups: [{ collection: 'medico_especialidade', label: 'Especialidade' }],
     screens: [{
@@ -460,7 +460,7 @@ describe('Uninstall — listas de opções sobrevivem', () => {
 describe('Uninstall — etiquetas sobrevivem', () => {
   const taggedPlugin = (id: string): MarketplacePlugin => ({
     summary: 'Com etiquetas',
-    manifest: { id, version: '1.0.0', kernel: '^1.0.0', name: 'T' },
+    manifest: { id, version: '1.0.0', kernel: '^2.0.0', name: 'T' },
     workflows: [],
     tagLists: [{ collection: 'medico_tags', label: 'Etiquetas: Médicos' }],
     screens: [{
@@ -520,7 +520,7 @@ describe('Upgrade — atualização de versão', () => {
 
   const version = (v: string, screenTemplates: ScreenModuleTemplate[]): MarketplacePlugin => ({
     summary: 'S',
-    manifest: { id: 'com.acme.up', version: v, kernel: '^1.0.0', name: 'Up' },
+    manifest: { id: 'com.acme.up', version: v, kernel: '^2.0.0', name: 'Up' },
     workflows: [{ templateId: 'wf-1', name: 'W', eventName: 'person.saved', version: 1, condition: { kind: 'AlwaysTrue' }, steps: [] }],
     actions: [{ templateId: 'act-1', key: 'a', title: 'A', icon: 'apps', workflowId: 'wf-1', danger: false, enabled: true, order: 0 }],
     screens: screenTemplates,
@@ -596,7 +596,7 @@ describe('Upgrade — atualização de versão', () => {
 describe('Dedup + refcount — extensões que compartilham artefatos', () => {
   const shared = (id: string): MarketplacePlugin => ({
     summary: 'S',
-    manifest: { id, version: '1.0.0', kernel: '^1.0.0', name: id },
+    manifest: { id, version: '1.0.0', kernel: '^2.0.0', name: id },
     scripts: [{ templateId: 'scr-shared', name: 'Sc', sourceTs: 'x', compiledJs: 'y', inputParams: [], outputParams: [] }],
     workflows: [{
       templateId: 'wf-shared', name: 'Wf', eventName: 'workflow.called', version: 1, condition: { kind: 'AlwaysTrue' },
@@ -666,7 +666,7 @@ describe('Dedup + refcount — extensões que compartilham artefatos', () => {
 describe('applyPackageArtifacts / releasePackageArtifacts — fluxo de extensões instaladas', () => {
   const dataPlugin: MarketplacePlugin = {
     summary: 'Extensão com dados',
-    manifest: { id: 'com.acme.data', version: '1.0.0', kernel: '^1.0.0', name: 'Data' },
+    manifest: { id: 'com.acme.data', version: '1.0.0', kernel: '^2.0.0', name: 'Data' },
     scripts: [{ templateId: 'scr-a', name: 'A', sourceTs: 'x', compiledJs: 'y', inputParams: [], outputParams: [] }],
     workflows: [{ templateId: 'wf-a', name: 'A', eventName: 'workflow.called', version: 1, condition: { kind: 'AlwaysTrue' }, steps: [] }],
     actions: [{ templateId: 'act-a', key: 'a', title: 'A', icon: 'apps', workflowId: 'wf-a', danger: false, enabled: true, order: 0 }],
@@ -712,7 +712,7 @@ describe('applyPackageArtifacts / releasePackageArtifacts — fluxo de extensõe
 describe('Identificador legível — o templateId do pacote vira o id do artefato', () => {
   const identificado = (id: string): MarketplacePlugin => ({
     summary: 'S',
-    manifest: { id, version: '1.0.0', kernel: '^1.0.0', name: id },
+    manifest: { id, version: '1.0.0', kernel: '^2.0.0', name: id },
     scripts: [{ templateId: 'scr-notificar', name: 'Notificar', sourceTs: 'x', compiledJs: 'y', inputParams: [], outputParams: [] }],
     workflows: [{
       templateId: 'wf-pessoa-status', name: 'Ativar/Inativar Pessoa', eventName: 'workflow.called',
@@ -773,7 +773,7 @@ describe('Identificador legível — o templateId do pacote vira o id do artefat
 describe('Atualização por sourceRev — reescrita in-place, sem duplicar nem regredir', () => {
   const rev = (id: string, sourceRev: number | undefined, name: string): MarketplacePlugin => ({
     summary: 'S',
-    manifest: { id, version: '1.0.0', kernel: '^1.0.0', name: id },
+    manifest: { id, version: '1.0.0', kernel: '^2.0.0', name: id },
     scripts: [{ templateId: 'scr-shared', sourceRev, name: `${name}-s`, sourceTs: 'x', compiledJs: 'y', inputParams: [], outputParams: [] }],
     workflows: [{
       templateId: 'wf-shared', sourceRev, name, eventName: 'workflow.called', version: 1, condition: { kind: 'AlwaysTrue' },
@@ -883,7 +883,7 @@ describe('Atualização por sourceRev — reescrita in-place, sem duplicar nem r
   it('artefato que sumiu da versão nova é liberado por refcount (dono único → apaga)', async () => {
     const d = deps();
     const twoWf: MarketplacePlugin = {
-      summary: 'S', manifest: { id: 'com.a', version: '1.0.0', kernel: '^1.0.0', name: 'A' },
+      summary: 'S', manifest: { id: 'com.a', version: '1.0.0', kernel: '^2.0.0', name: 'A' },
       workflows: [
         { templateId: 'wf-a', name: 'A', eventName: 'workflow.called', version: 1, condition: { kind: 'AlwaysTrue' }, steps: [] },
         { templateId: 'wf-b', name: 'B', eventName: 'workflow.called', version: 1, condition: { kind: 'AlwaysTrue' }, steps: [] },
@@ -929,7 +929,7 @@ describe('Adoção de tela do tenant (Form Design → extensão → desinstalar 
 
   const exported = (): MarketplacePlugin => ({
     summary: 'Produtos',
-    manifest: { id: 'com.microteia.produto', version: '1.0.0', kernel: '^1.0.0', name: 'Produtos' },
+    manifest: { id: 'com.microteia.produto', version: '1.0.0', kernel: '^2.0.0', name: 'Produtos' },
     workflows: [],
     screens: [{
       key: 'produtos', sourceId: SOURCE_ID, titleSingular: 'Produto', titlePlural: 'Produtos', icon: 'apps',
@@ -988,7 +988,7 @@ describe('Adoção de tela do tenant (Form Design → extensão → desinstalar 
 describe('Complementos — campos acrescentados a telas que já existem', () => {
   const patchPlugin = (id: string, fieldKeys: string[], target = 'pushes'): MarketplacePlugin => ({
     summary: 'S',
-    manifest: { id, version: '1.0.0', kernel: '^1.0.0', name: id },
+    manifest: { id, version: '1.0.0', kernel: '^2.0.0', name: id },
     workflows: [],
     screenPatches: [{
       target,
@@ -1087,7 +1087,7 @@ describe('Complementos — campos acrescentados a telas que já existem', () => 
    */
   const comAcao = (id: string): MarketplacePlugin => ({
     summary: 'S',
-    manifest: { id, version: '1.0.0', kernel: '^1.0.0', name: id },
+    manifest: { id, version: '1.0.0', kernel: '^2.0.0', name: id },
     workflows: [{
       templateId: 'wf-x', name: 'W', eventName: 'workflow.called', version: 1,
       condition: { kind: 'AlwaysTrue' }, steps: [],
@@ -1138,7 +1138,7 @@ describe('Complementos — campos acrescentados a telas que já existem', () => 
 describe('Complemento apontando para a tela do PRÓPRIO pacote (pacote legado)', () => {
   const pkg = (): MarketplacePlugin => ({
     summary: 'S',
-    manifest: { id: 'com.microteia.produto', version: '1.0.0', kernel: '^1.0.0', name: 'Produtos' },
+    manifest: { id: 'com.microteia.produto', version: '1.0.0', kernel: '^2.0.0', name: 'Produtos' },
     workflows: [],
     screens: [{
       key: 'produtos', sourceId: 'src-produtos', titleSingular: 'Produto', titlePlural: 'Produtos',
@@ -1171,7 +1171,7 @@ describe('Complemento apontando para a tela do PRÓPRIO pacote (pacote legado)',
 describe('Tela sobre uma coleção existente', () => {
   const boundPlugin: MarketplacePlugin = {
     summary: 'Sobre uma coleção que já existe',
-    manifest: { id: 'com.acme.proc', version: '1.0.0', kernel: '^1.0.0', name: 'P' },
+    manifest: { id: 'com.acme.proc', version: '1.0.0', kernel: '^2.0.0', name: 'P' },
     workflows: [],
     screens: [{
       key: 'processos',
@@ -1181,41 +1181,25 @@ describe('Tela sobre uma coleção existente', () => {
       titleFieldKey: 'title',
       dataCollection: 'cases',
       eventPrefix: 'case',
-      writeRoles: ['admin', 'lawyer'],
       fields: [{ key: 'title', label: 'Título', type: 'text', required: true, order: 0 }],
     }],
   };
 
-  it('grava a tela e o documento da coleção alvo, com a permissão declarada', async () => {
+  /**
+   * O documento da COLEÇÃO ALVO precisa existir mesmo quando a tela tem outro nome: é ele que o
+   * curinga das rules procura (`isDeclaredScreen`) antes de autorizar qualquer gravação.
+   */
+  it('grava a tela e o documento da coleção alvo', async () => {
     await makeInstallMarketplacePluginUseCase(deps()).execute(boundPlugin, actor);
 
     const screen = screens.store.get('processos');
-    expect(screen).toMatchObject({ dataCollection: 'cases', eventPrefix: 'case', writeRoles: ['admin', 'lawyer'] });
+    expect(screen).toMatchObject({ dataCollection: 'cases', eventPrefix: 'case' });
 
     const target = screens.store.get('cases');
-    expect(target?.writeRoles, 'as rules leem writeRoles no documento da COLEÇÃO').toEqual(['admin', 'lawyer']);
+    expect(target, 'as rules procuram o documento da COLEÇÃO').toBeTruthy();
   });
 
-  /**
-   * O pacote que NÃO restringe papéis (Pessoa, Prazo) grava `null`, e não a ausência do campo: é
-   * assim que uma reinstalação apaga uma restrição que existisse antes. As Security Rules precisam,
-   * portanto, tolerar o nulo — `.get(campo, padrão)` não o troca pelo padrão. Ver a guarda em
-   * `scripts/reservedCollections.test.ts`.
-   */
-  it('sem permissão declarada, a coleção alvo recebe writeRoles nulo — e não ausente', async () => {
-    const semPermissao: MarketplacePlugin = {
-      ...boundPlugin,
-      screens: [{ ...boundPlugin.screens![0], writeRoles: undefined }],
-    };
-
-    await makeInstallMarketplacePluginUseCase(deps()).execute(semPermissao, actor);
-
-    const target = screens.store.get('cases');
-    expect(target, 'o documento da coleção alvo continua sendo gravado').toBeTruthy();
-    expect(target?.writeRoles, 'nulo é o que as rules recebem, e o que elas têm de tolerar').toBeNull();
-  });
-
-  it('a coleção alvo que já tem documento é preservada — só a permissão é acertada', async () => {
+  it('a coleção alvo que já tem documento é preservada', async () => {
     const d = deps();
     await screens.upsert('t1', 'cases', {
       origin: 'builtin',
@@ -1238,7 +1222,6 @@ describe('Tela sobre uma coleção existente', () => {
 
     const target = screens.store.get('cases');
     expect(target?.fields.map((f) => f.key)).toEqual(['meu']);
-    expect(target?.writeRoles).toEqual(['admin', 'lawyer']);
   });
 });
 
@@ -1250,7 +1233,7 @@ describe('Tela sobre uma coleção existente', () => {
 describe('Tela cuja chave é a própria coleção', () => {
   const selfBound: MarketplacePlugin = {
     summary: 'A chave é a coleção',
-    manifest: { id: 'com.acme.push', version: '1.0.0', kernel: '^1.0.0', name: 'Push' },
+    manifest: { id: 'com.acme.push', version: '1.0.0', kernel: '^2.0.0', name: 'Push' },
     workflows: [],
     screens: [{
       key: 'pushes',
@@ -1261,7 +1244,6 @@ describe('Tela cuja chave é a própria coleção', () => {
       titleFieldKey: 'subject',
       dataCollection: 'pushes',
       eventPrefix: 'push',
-      writeRoles: ['admin', 'lawyer'],
       fields: [{ key: 'subject', label: 'Assunto', type: 'text', required: false, order: 0 }],
     }],
   };
@@ -1273,7 +1255,6 @@ describe('Tela cuja chave é a própria coleção', () => {
     expect(screen?.origin, 'a tela continua sendo do pacote').toBe('plugin');
     expect(screen?.fields.map((f) => f.key)).toEqual(['subject']);
     expect(screen?.titlePlural).toBe('Pushes');
-    expect(screen?.writeRoles, 'as rules leem writeRoles neste mesmo documento').toEqual(['admin', 'lawyer']);
   });
 
   it('a tela rebaixada a builtin por uma instalação antiga é retomada na reinstalação', async () => {
@@ -1343,7 +1324,7 @@ describe('Tela cuja chave é a própria coleção', () => {
 describe('atualização de extensão reescreve as propriedades da tela existente', () => {
   const comPrefixo = (recordTabPrefix: string | undefined, sourceRev: number): MarketplacePlugin => ({
     summary: 'S',
-    manifest: { id: 'com.acme.ficha', version: '1.0.0', kernel: '^1.0.0', name: 'Ficha' },
+    manifest: { id: 'com.acme.ficha', version: '1.0.0', kernel: '^2.0.0', name: 'Ficha' },
     workflows: [],
     screens: [{
       key: 'fichas',

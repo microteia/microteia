@@ -1,5 +1,4 @@
 import type { ExtensionPointDefinition } from '../plugin/extensionPoint';
-import type { UserRole } from '../../entities';
 
 export const UI_PAGE_POINT = 'ui.page';
 export const UI_NAV_POINT = 'ui.nav';
@@ -25,7 +24,23 @@ export interface UiPageMetadata {
   title: string;
   icon: string;
   fullBleed?: boolean;
-  requiredRole?: UserRole;
+/**
+ * As PERMISSÕES exigidas para esta contribuição aparecer. Ausente = aparece para todo membro.
+ *
+ * É uma lista, e basta UMA delas — a mesma pergunta que `canAny` faz. Aqui moravam `requiredRole`
+ * (papel global) e `requiresTenantAdmin` (booleano), e as duas obrigavam quem contribui a conhecer
+ * os papéis que o produto impunha: uma extensão que quisesse aparecer só para quem cuida do
+ * financeiro só tinha "é admin?" para dizer.
+ */
+  requiredPermissions?: string[];
+  /**
+   * A tela é do ADMINISTRADOR GLOBAL (`SYSTEM`), não do escritório.
+   *
+   * É um booleano, e não uma permissão, porque `SYSTEM` não é um perfil: ele existe acima de
+   * qualquer escritório — administra todos, e é atribuído antes de o primeiro existir. Uma permissão
+   * de escritório não teria onde ser concedida para a tela que gerencia os escritórios.
+   */
+  requiresSystemAdmin?: boolean;
 }
 
 /**
@@ -50,7 +65,8 @@ export interface UiNavMetadata {
   label: string;
   icon: string;
   order: number;
-  requiresTenantAdmin?: boolean;
+  /** Ver `UiPageMetadata.requiredPermissions`. */
+  requiredPermissions?: string[];
   badge?: UiNavBadge;
 }
 
@@ -80,8 +96,14 @@ export interface UiRecordActionMetadata {
   order: number;
   /** Expressão avaliada com o escopo das Actions (`surface`, `relation`, `role`, campos do registro). */
   hiddenWhen?: string;
-  /** A ação exige ser admin do escritório. */
-  requiresTenantAdmin?: boolean;
+  /** Ver `UiPageMetadata.requiredPermissions`. */
+  requiredPermissions?: string[];
+  /**
+   * A ação exige a permissão daquela AÇÃO sobre a coleção do registro — `medico.delete` para
+   * excluir, `medico.update` para editar. Não é uma permissão fixa porque a coleção só se conhece em
+   * runtime: a mesma ação "Excluir" aparece em toda tela, e cada tela é uma coleção diferente.
+   */
+  requiresRecordPermission?: 'read' | 'create' | 'update' | 'delete';
   /** A ação só faz sentido quando a tela tem etiquetas. */
   requiresTags?: boolean;
 }
@@ -106,7 +128,8 @@ export interface UiWidgetMetadata {
   /** Largura em colunas da grade da superfície (1 a 3). */
   defaultSpan?: number;
   order?: number;
-  requiredRole?: UserRole;
+  /** Ver `UiPageMetadata.requiredPermissions`. */
+  requiredPermissions?: string[];
 }
 
 /**
@@ -130,8 +153,8 @@ export interface UiTabMetadata {
   icon?: string;
   defaultEnabled?: boolean;
   order?: number;
-  requiredRole?: UserRole;
-  requiresTenantAdmin?: boolean;
+  /** Ver `UiPageMetadata.requiredPermissions`. */
+  requiredPermissions?: string[];
 }
 
 export const UI_WIDGET_POINT = 'ui.widget';

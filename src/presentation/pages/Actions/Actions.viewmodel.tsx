@@ -1,6 +1,7 @@
 import { useState, useMemo, useCallback } from 'react';
 import { useActions } from '../../../stores/useActions';
-import { useTenant } from '../../../stores/useTenant';
+import { useAuthorization } from '../../../stores/useAuthorization';
+import { PERMISSION_AUTOMATION_MANAGE } from '../../../domain/schema/access';
 import { useWorkspace } from '../../../stores/useWorkspace';
 import { useNotification } from '../../../stores/useNotification';
 import type { ActionDefinition } from '../../../domain/entities';
@@ -26,7 +27,7 @@ export interface ActionsViewModel {
 export const useActionsViewModel = (): ActionsViewModel => {
   const t = useT('core.automation');
   const { actions, isLoading, deleteAction } = useActions();
-  const { tenantRole } = useTenant();
+  const { can } = useAuthorization();
   const { openTab } = useWorkspace();
   const { notify } = useNotification();
 
@@ -71,7 +72,7 @@ export const useActionsViewModel = (): ActionsViewModel => {
   }, [actionToDelete, deleteAction, notify, t]);
 
   return {
-    isAdmin: tenantRole === 'admin',
+    isAdmin: can(PERMISSION_AUTOMATION_MANAGE),
     filteredActions,
     isLoading,
     filterTokens,

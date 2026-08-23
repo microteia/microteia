@@ -117,7 +117,7 @@ export const ptBrLicensePlugin: PluginRecord = {
   manifest: {
     id: 'locale.pt-br.license',
     version: '1.0.0',
-    kernel: '^1.0.0',
+    kernel: '^2.0.0',
     name: 'Terms and Privacy — Português (Brasil)',
     description: 'Translation of the Terms of Use and the Privacy Policy into Brazilian Portuguese.',
     dependencies: { 'core.i18n': '^1.0.0' },

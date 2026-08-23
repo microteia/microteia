@@ -94,6 +94,7 @@ npm run verify          # typecheck + lint + verify-schemas
 | `AIConnectionSecret` | `tenants/{tenantId}/aiConnections/{id}/secrets/current` | Sim (chave de API — nunca trafega para o frontend) |
 | `Tenant` | `tenants/{tenantId}` | — |
 | `TenantMember` | `tenants/{tenantId}/members/{uid}` | Sim |
+| `Role` (perfil de acesso) | `tenants/{tenantId}/roles/{roleId}` | Sim |
 | `DocumentTypeConfig` (compartilhado por todas as telas que anexam documento) | `tenants/{tenantId}/documentTypes/{id}` | Sim |
 | `Notícia` (extensão `com.microteia.news`) | `tenants/{tenantId}/news/{id}` | Sim |
 | `Comentário` (extensão `com.microteia.news`) | `tenants/{tenantId}/newsComments/{id}` | Sim |
@@ -119,13 +120,15 @@ qualquer negócio.
 ### Tipos-chave
 
 ```typescript
-// Papel global do usuário no sistema
+// Papel GLOBAL — a única união fechada que sobrou, e a única que precisa existir antes de haver
+// escritório algum. Ver "RBAC — Perfis do escritório, permissões do produto".
 type UserRole = 'SYSTEM' | 'USER';
-
-// Papel do usuário dentro de um escritório específico
-type TenantRole = 'admin' | 'lawyer' | 'secretary' | 'user';
-
 ```
+
+**Não há tipo de papel por escritório.** O que um membro pode fazer vem dos PERFIS que ele tem
+(`TenantMember.roleIds` → `Role`), e perfil é dado do escritório, não união no código. `TenantRole`
+existiu e listava `admin`, `lawyer`, `secretary` e `user` — quatro papéis de escritório de advocacia
+dentro do kernel, que nenhum outro negócio escolheu.
 
 O tema NÃO tem tipo fechado: ele é uma contribuição, identificada por um `id` de texto. Ver
 "Aparência — tema como contribuição".
@@ -399,32 +402,142 @@ setCurrentTenant(tenant)
 
 ---
 
-## RBAC — Controle de Acesso
+## RBAC — Perfis do escritório, permissões do produto
 
-### Papéis globais
+**A aplicação não pergunta QUEM é você; pergunta o que você PODE.** Essa inversão é o modelo inteiro,
+e é o que permite ao escritório inventar "Advogado Sênior" numa tarde sem que uma linha de código do
+produto mude.
 
-| Role | Descrição |
+```
+Plugin/Kernel ──declara──▶ Permission ──requires──▶ Permission        (catálogo, em código)
+                                 ▲
+Tenant ──configura──▶ Role ──permissions (explícitas)──┘              (dado do escritório)
+                        ▲
+Membro ──roleIds────────┘  ──▶ permissions (efetivas, materializadas)
+```
+
+### As três peças
+
+| Peça | Quem manda | Onde vive |
+|---|---|---|
+| **Permission** — uma capacidade (`finance.write`) | núcleo e extensões | contribuição `access.permission` |
+| **Role** — um agrupamento administrativo | o escritório | `tenants/{tid}/roles/{roleId}` |
+| **Membro** — quem recebe os perfis | quem tem `members.manage` | `tenants/{tid}/members/{uid}.roleIds` |
+
+`Role.permissions` guarda **só o que o administrador marcou**. O fecho transitivo é recalculado a
+cada leitura por `resolveEffective` (`domain/schema/access/`) — gravá-lo congelaria a dependência no
+dia em que ela mudasse, e é justamente o contrário do que se quer: `finance.write` pode passar a
+exigir `company.read` amanhã, e nenhuma Role gravada muda.
+
+### O catálogo — derivado e declarado
+
+Toda coleção do escritório (tela do Form Design, tela de extensão, lista de opções, conjunto de
+etiquetas) rende **quatro permissões de graça**: `<coleção>.read`, `.create`, `.update`, `.delete`.
+É o que faz o RBAC valer para a tela que alguém criou cinco minutos atrás, sem plugin nenhum atrás
+dela.
+
+Uma declaração explícita **sobrepõe** a derivada de mesmo id, e é o único caminho para uma
+dependência entrar no catálogo:
+
+```ts
+contributes: [
+  accessPermission({ id: 'finance.read',  name: '@com.acme.finance/perm.read' }),
+  accessPermission({ id: 'finance.write', name: '@com.acme.finance/perm.write',
+                     requires: ['finance.read', 'person.read'] }),
+]
+```
+
+O plugin **não conhece perfil nenhum** — nem precisa. Ele declara capacidades; quem as agrupa é o
+escritório.
+
+### Não confundir com `manifest.permissions`
+
+`manifest.permissions` (`data:cases:read`, `workflow:run`) continua existindo e é **outro eixo**: é o
+grant de SANDBOX, o que o CÓDIGO de uma extensão pode fazer, decidido na instalação
+(`domain/schema/plugin/permission.ts`). O RBAC de usuário vive em `domain/schema/access/`, com id no
+formato `recurso.acao`. Os dois nunca se cruzam, e é por isso que moram em arquivos diferentes.
+
+### Falha fechada, sempre
+
+O resolver recusa e **não concede** quando a dependência não existe, quando há ciclo (`a → b → c →
+a`) ou quando a permissão pedida não está no catálogo. Conceder o que se conseguiu resolver daria
+acesso parcial a partir de uma declaração que ninguém consegue explicar — e o erro apareceria como
+privilégio, não como falha. `CreateRoleUseCase`/`UpdateRoleUseCase` rodam a mesma checagem antes de
+gravar: um perfil nunca chega inconsistente ao Firestore.
+
+### As duas contas, e por que são duas
+
+| Onde | Quem calcula | Para quê |
+|---|---|---|
+| Navegador | `AuthorizationStore` recalcula de `roles` + catálogo | a tela acerta no instante em que o perfil é salvo |
+| `members/{uid}.permissions` | Cloud Function `materializeMemberPermissions` | as Security Rules, que não sabem resolver dependência |
+
+A materializada é **cache, não fonte de verdade**. Ela existe porque as rules já faziam `get()` no
+documento de membro para ler o papel: um campo ali custa **zero leituras a mais**. O cliente jamais a
+escreve (as rules negam `permissions` em `affectedKeys`), e recalcula por conta própria em vez de
+confiar nela. Divergir por alguns segundos é o comportamento correto: a tela oferece, a regra decide.
+
+**Custom claims estão fora, e é decisão registrada:** 1000 bytes de limite total, N escritórios por
+usuário, propagação só na renovação do token, revogação lenta. O documento de membro não tem nenhuma
+dessas restrições.
+
+A materialização é recalculada por quatro gatilhos — membro (quando `roleIds` muda), perfil, tela e
+extensão instalada (os dois últimos mudam o catálogo). Ela **não grava quando o resultado é igual**,
+o que a torna idempotente e, sobretudo, impede o laço: gravar no documento de membro dispara o
+gatilho de membro, e a segunda passada não grava.
+
+### `SYSTEM` e o DONO — as duas exceções, e por que não são perfis
+
+| Exceção | O que é | Onde |
+|---|---|---|
+| `UserRole = 'SYSTEM'` | administrador GLOBAL: vê e administra todos os escritórios | `users/{uid}.role` |
+| Dono do escritório | curinga `*` nas permissões materializadas | `Tenant.ownerId` → `members/{uid}.permissions` |
+
+Nenhum dos dois é um perfil, e não poderia ser: `SYSTEM` é atribuído **antes de existir escritório
+algum** — o PRIMEIRO usuário a autenticar no sistema nasce com ele (transação sobre `system/bootstrap`
+em `FirebaseUserRepository.createUserIfMissing`), e só outro `SYSTEM` o concede depois. O dono é fato
+do escritório, não papel concedido: sem o curinga, um escritório recém-criado nasceria sem ninguém
+capaz de criar o primeiro perfil.
+
+O papel `SUPPORT` **deixou de existir**.
+
+### Onde a regra é aplicada
+
+| Camada | Como |
 |---|---|
-| `SYSTEM` | Acesso total ao sistema. Gerencia usuários e escritórios na tela de Gestão de Acessos. Age como admin em qualquer tenant, mesmo sem ser membro (ver todos no seletor de tenant). Apenas outro `SYSTEM` pode atribuir esta role. |
-| `SUPPORT` | Age como admin em qualquer tenant, mesmo sem ser membro — vê todos os escritórios no seletor de tenant e pode operar seus dados para dar suporte. **Não** tem acesso à tela de Gestão de Acessos (não gerencia roles globais nem plano/limite de escritórios). Só `SYSTEM` atribui esta role. |
-| `USER` | Papel padrão atribuído no primeiro login. |
+| Contribuição de UI | `requiredPermissions?: string[]` em `ui.page`, `ui.nav`, `ui.tab`, `ui.widget`, `ui.record.action` — basta UMA |
+| ViewModel | `const { can } = useAuthorization()` — nunca uma comparação de papel |
+| Extensão | `useCan()` da API curada; o `ExtensionViewer` traz `permissions`, e não papel nenhum |
+| Security Rules | `can(tenantId, permission)`, uma leitura — a mesma que `memberData()` já fazia |
+| Callable | `requirePermission(tenantId, uid, permission)` |
+| Expressão de UI | `permissions` na raiz do escopo: `"medico.delete" in permissions` |
 
-### Papéis por tenant (`TenantRole`)
+O curinga `match /{screenCollection}/{recordId}` monta o nome a partir da própria coleção
+(`canOnCollection(name, 'create')`). Ali morava `writeRoles`, a lista de papéis que a tela declarava:
+ela resolvia o problema certo — a tela decidindo quem grava nela — com o vocabulário errado, porque
+alargar o acesso de um mural exigia nomear `user`, um papel que o produto impunha ao escritório.
+`memberWritableFields` e `authorCanDelete` continuam como estavam: falam de campo e de autoria, não
+de papel.
 
-| Role | Descrição |
-|---|---|
-| `admin` | Gerencia membros, configura o escritório, acessa tudo. |
-| `lawyer` | Cria e edita processos, prazos, financeiro. |
-| `secretary` | Cria pessoas e prazos, visualiza processos. |
-| `user` | Somente leitura dos dados do escritório. |
+### Nada é semeado
 
-### Proteção de telas
+Não há Role criada automaticamente, nem no escritório novo nem no que já existia. Semear um perfil
+seria vocabulário NOSSO dentro do escritório — exatamente o defeito que `admin`, `lawyer`,
+`secretary` e `user` eram. O `SYSTEM` entra em cada escritório e cria os perfis; enquanto isso, o
+dono continua podendo tudo dentro do dele.
 
-1. **Sidebar**: itens filtrados por role em `WorkspaceSidebar.viewmodel.tsx`
-2. **ViewModel**: verifica role antes de expor ações destrutivas
-3. **Firestore Security Rules**: enforce server-side (ver seção completa abaixo)
+### Arquivos-chave
+
+`domain/schema/access/{permission,extensionPoints,resolvePermissions,memberPermissions,kernelPermissions}.ts` ·
+`domain/entities/Role.ts` · `domain/usecases/roles/RoleUseCases.ts` ·
+`stores/{RoleStore,AuthorizationStore}.tsx` · `plugins/core.access/manifest.ts` ·
+`presentation/pages/TenantSettings/RolesTab/` ·
+`functions/src/data/services/PermissionCatalogCache.ts` ·
+`functions/src/domain/usecases/MaterializeMemberPermissionsUseCase.ts` ·
+`functions/src/infrastructure/handlers/{materializeMemberPermissions,shared/requirePermission}.ts`
 
 ---
+
 
 ## Estrutura de Pastas
 

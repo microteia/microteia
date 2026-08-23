@@ -14,34 +14,38 @@ service cloud.firestore {
       return request.auth != null && userData().role == 'SYSTEM';
     }
 
-    // Verifica se o usuário autenticado é SYSTEM ou SUPPORT — ambos agem como
-    // admin em QUALQUER tenant, mesmo sem um doc em members/{uid} daquele tenant
-    // (usado pela equipe para prestar suporte a um escritório sem precisar de convite).
-    function isSystemOrSupport() {
-      return request.auth != null && userData().role in ['SYSTEM', 'SUPPORT'];
-    }
-
     // Retorna os dados do membro do tenant
     function memberData(tenantId) {
       return get(/databases/$(database)/documents/tenants/$(tenantId)/members/$(request.auth.uid)).data;
     }
 
-    // Verifica se o usuário é membro do tenant (ou SYSTEM/SUPPORT, que contam como membro de todos)
-    function isMember(tenantId) {
+    // Tem documento em members/{uid} deste tenant. Separado de isMember() de propósito: é a condição
+    // que precisa ser verdadeira ANTES de ler o documento, e o SYSTEM pode não ter um.
+    function isTenantMember(tenantId) {
       return request.auth != null &&
-        (isSystemOrSupport() ||
-         exists(/databases/$(database)/documents/tenants/$(tenantId)/members/$(request.auth.uid)));
+        exists(/databases/$(database)/documents/tenants/$(tenantId)/members/$(request.auth.uid));
     }
 
-    // Verifica se o usuário tem role de admin no tenant (ou é SYSTEM/SUPPORT)
-    function isTenantAdmin(tenantId) {
-      return isSystemOrSupport() || (isMember(tenantId) && memberData(tenantId).role == 'admin');
+    // Verifica se o usuário é membro do tenant (ou SYSTEM, que conta como membro de todos)
+    function isMember(tenantId) {
+      return isSystemAdmin() || isTenantMember(tenantId);
     }
 
-    // Verifica se o usuário pode escrever dados no tenant (admin, lawyer, secretary, ou SYSTEM/SUPPORT)
-    function canWriteInTenant(tenantId) {
-      return isSystemOrSupport() ||
-        (isMember(tenantId) && memberData(tenantId).role in ['admin', 'lawyer', 'secretary']);
+    // ─── A pergunta que substituiu "quem é você?" ─────────────────────────────
+    //
+    // `permissions` é o conjunto EFETIVO do membro, já com as dependências resolvidas. Ele é escrito
+    // exclusivamente pelo Admin SDK (materializeMemberPermissions) e o cliente tem escrita negada
+    // nele — resolver dependência aqui seria impossível, e materializar não custa nenhuma leitura a
+    // mais: `memberData()` já era lido para saber o papel.
+    //
+    // `*` é o curinga do DONO do escritório. Ele não é um perfil e ninguém o atribui: sem ele um
+    // escritório recém-criado nasceria sem nenhuma pessoa capaz de criar o primeiro perfil.
+    function memberPermissions(tenantId) {
+      return memberData(tenantId).get('permissions', []);
+    }
+    function can(tenantId, permission) {
+      return isSystemAdmin()
+        || (isTenantMember(tenantId) && memberPermissions(tenantId).hasAny([permission, '*']));
     }
 
     // ─── Usuários ─────────────────────────────────────────────────────────────
@@ -94,32 +98,49 @@ service cloud.firestore {
     match /tenants/{tenantId} {
       // Qualquer membro pode ler o tenant
       allow get: if isMember(tenantId);
-      // list: SYSTEM e SUPPORT listam a coleção inteira — usado tanto pela aba "Escritórios"
-      // de Gestão de Acessos (SYSTEM) quanto pelo seletor de tenant no TopBar, que para esses
-      // dois roles exibe todos os escritórios em vez de só os que o usuário é membro.
+      // list: só o SYSTEM lista a coleção inteira — a aba "Escritórios" de Gestão de Acessos e o
+      // seletor de escritório do TopBar, que para ele exibe todos em vez de só os que é membro.
       // Sem esta regra, getDocs(collection('tenants')) é negado — "get" não cobre consultas de coleção.
-      allow list: if isSystemOrSupport();
-      // Admin do tenant atualiza os dados do escritório, mas nunca memberCount/memberLimit/ownerId/plan.
+      allow list: if isSystemAdmin();
+      // Quem tem `tenant.update` altera os dados do escritório, mas nunca memberCount/memberLimit/ownerId/plan.
       // memberCount só é escrito pelas Cloud Functions addTenantMember/removeTenantMember (Admin SDK,
       // ignora estas regras); memberLimit e plan só por admin global (SYSTEM), na aba "Escritórios" de Gestão de Acessos.
       allow update: if isSystemAdmin()
-        || (isTenantAdmin(tenantId)
+        || (can(tenantId, 'tenant.update')
             && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['memberCount', 'memberLimit', 'ownerId', 'plan']));
       // Tenant é criado pela Cloud Function onUserCreated (Admin SDK, trigger de Auth)
       // junto com o bootstrap do usuário — nunca pelo client.
       allow create: if false;
       allow delete: if false;
 
-      // Conexões de IA do escritório — somente admin lê e escreve
+      // Conexões de IA do escritório — quem tem `ai.manage` lê e escreve
       match /aiConnections/{connectionId} {
-        allow read, write: if isTenantAdmin(tenantId);
+        allow read, write: if can(tenantId, 'ai.manage');
 
-        // Chave de API: admin pode ESCREVER (cadastro/troca), mas NUNCA LER.
+        // Chave de API: pode ser ESCRITA (cadastro/troca), mas NUNCA LIDA.
         // Cloud Functions (Admin SDK) leem a chave, ignorando estas regras.
         match /secrets/{secretId} {
           allow read: if false;                  // Frontend NUNCA lê a chave
-          allow write: if isTenantAdmin(tenantId);
+          allow write: if can(tenantId, 'ai.manage');
         }
+      }
+
+      // ─── Perfis de acesso ────────────────────────────────────────────────────
+      // TODO membro lê, e isso não é frouxidão: cada navegador resolve as próprias permissões a
+      // partir daqui, e sem a leitura ninguém saberia o que pode fazer. O que é secreto não é a
+      // existência do perfil — é a capacidade de alterá-lo.
+      //
+      // `system` nunca é gravado pelo cliente: um perfil protegido não nasce nem se torna protegido
+      // por uma tela, e o protegido que existir não é alterável nem excluível por aqui.
+      match /roles/{roleId} {
+        allow read: if isMember(tenantId);
+        allow create: if can(tenantId, 'roles.manage')
+          && request.resource.data.get('system', false) == false;
+        allow update: if can(tenantId, 'roles.manage')
+          && resource.data.get('system', false) == false
+          && request.resource.data.get('system', false) == false;
+        allow delete: if can(tenantId, 'roles.manage')
+          && resource.data.get('system', false) == false;
       }
 
       // Membros do tenant
@@ -131,18 +152,17 @@ service cloud.firestore {
         // (memberLimit/memberCount) nunca seja ultrapassado, mesmo por escritas diretas do client
         // ou por duas adições concorrentes (dois admins, dois computadores, ao mesmo tempo).
         allow create, delete: if false;
-        // Alteração de role continua direta do client — não mexe no contador de membros.
-        allow update: if isTenantAdmin(tenantId);
+        // Atribuir perfis continua sendo escrita direta do client — não mexe no contador de membros.
+        // `permissions` é o conjunto materializado, e o cliente NUNCA o escreve: fosse editável aqui,
+        // bastaria uma escrita no próprio documento para se conceder qualquer coisa.
+        allow update: if can(tenantId, 'members.manage')
+          && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['permissions']);
       }
 
-      // Tipos de documento — compartilhado entre pessoas, processos e contratos
+      // Tipos de documento — a lista compartilhada por toda tela que anexa arquivo
       match /documentTypes/{id} {
         allow read: if isMember(tenantId);
-        allow create: if canWriteInTenant(tenantId);
-        // Trocar a cor de uma opção é o mesmo ato de quem a cadastrou, e não de gestão: quem cria
-        // edita. A exclusão continua sendo de admin, porque ela é a única que tira algo da lista.
-        allow update: if canWriteInTenant(tenantId);
-        allow delete: if isTenantAdmin(tenantId);
+        allow create, update, delete: if can(tenantId, 'document-types.manage');
       }
 
       // ─── Workflow Engine (Automações) ────────────────────────────────────────
@@ -153,14 +173,14 @@ service cloud.firestore {
       match /workflow_definitions/{workflowId} {
         allow read: if request.auth != null && 
         (isMember(tenantId) || resource.data.isPublic == true);
-        allow create, update, delete: if isTenantAdmin(tenantId);
+        allow create, update, delete: if can(tenantId, 'automation.manage');
       }
 
       // Scripts reutilizáveis executados pelo Step "Script" (sandbox QuickJS) — feature
       // administrativa; só admin cria/edita/exclui. Ver "Step Script" no corpo do doc.
       match /scripts/{scriptId} {
         allow read: if isMember(tenantId);
-        allow create, update, delete: if isTenantAdmin(tenantId);
+        allow create, update, delete: if can(tenantId, 'automation.manage');
       }
 
       // Ações customizadas exibidas nas telas de dados (botão -> workflow síncrono).
@@ -168,28 +188,28 @@ service cloud.firestore {
       // Ver "Actions Customizadas" no corpo do doc.
       match /actions/{actionId} {
         allow read: if isMember(tenantId);
-        allow create, update, delete: if isTenantAdmin(tenantId);
+        allow create, update, delete: if can(tenantId, 'automation.manage');
       }
 
       // Plugins instalados no escritório (Marketplace). Todo membro lê — o app precisa saber
       // quais extensões estão ativas para montar contribuições; só admin instala/atualiza/remove.
       match /plugin_installations/{pluginId} {
         allow read: if isMember(tenantId);
-        allow create, update, delete: if isTenantAdmin(tenantId);
+        allow create, update, delete: if can(tenantId, 'extensions.manage');
       }
 
       // Extensões PRIVADAS do escritório (criadas na tela "Criar extensão"). Todo membro lê —
       // as ativas contribuem telas/menu no Kernel do tenant; só admin cria/edita/remove.
       match /extensions/{extensionId} {
         allow read: if isMember(tenantId);
-        allow create, update, delete: if isTenantAdmin(tenantId);
+        allow create, update, delete: if can(tenantId, 'extensions.manage');
       }
 
       // Extensões INSTALADAS (cópias fiéis da área pública ou de uma privada). Todo membro lê — as
       // ativas contribuem no Kernel; só admin instala/atualiza/desinstala. Independentes da fonte.
       match /installed_extensions/{extensionId} {
         allow read: if isMember(tenantId);
-        allow create, update, delete: if isTenantAdmin(tenantId);
+        allow create, update, delete: if can(tenantId, 'extensions.manage');
       }
 
       // Histórico de MIGRAÇÃO DE DADOS das extensões: o que cada uma já converteu neste escritório.
@@ -199,7 +219,7 @@ service cloud.firestore {
       // propósito: o dado migrado sobrevive, então reinstalar não pode reexecutar tudo de novo.
       match /extension_migrations/{extensionId} {
         allow read: if isMember(tenantId);
-        allow create, update: if isTenantAdmin(tenantId);
+        allow create, update: if can(tenantId, 'extensions.manage');
         allow delete: if false;
       }
 
@@ -210,16 +230,16 @@ service cloud.firestore {
       match /settings/{settingsDocId} {
         allow read: if isMember(tenantId);
         allow create, update: if settingsDocId == 'tenant'
-          ? isTenantAdmin(tenantId)
+          ? can(tenantId, 'settings.manage')
           : settingsDocId == 'user_' + request.auth.uid && isMember(tenantId);
-        allow delete: if isTenantAdmin(tenantId);
+        allow delete: if can(tenantId, 'settings.manage');
       }
 
       // Event Bus do motor — qualquer membro com escrita pode publicar um evento;
       // coleção append-only, ninguém lê/edita/exclui pelo client (só a Cloud Function
       // onWorkflowEventCreated, via Admin SDK, que ignora estas regras).
       match /workflow_events/{eventId} {
-        allow create: if canWriteInTenant(tenantId);
+        allow create: if can(tenantId, 'automation.run');
         allow read, update, delete: if false;
       }
 
@@ -234,8 +254,10 @@ service cloud.firestore {
       // coleção onde as opções ficam, e é este `exists()` que autoriza a escrita nela lá embaixo.
       match /lookupDefinitions/{lookupCollection} {
         allow read: if isMember(tenantId);
-        allow create, update: if canWriteInTenant(tenantId);
-        allow delete: if isTenantAdmin(tenantId);
+        // Declarar uma lista é ato de Form Design; instalar uma extensão que traz uma também é —
+        // e as duas portas são legítimas, por isso as duas permissões valem.
+        allow create, update, delete: if can(tenantId, 'screens.manage')
+          || can(tenantId, 'extensions.manage');
       }
 
       // ─── Conjuntos de etiquetas declarados pelo tenant ───────────────────────
@@ -243,16 +265,18 @@ service cloud.firestore {
       // ficam, e é este `exists()` que autoriza a escrita nela lá embaixo.
       match /tagDefinitions/{tagCollection} {
         allow read: if isMember(tenantId);
-        allow create, update: if canWriteInTenant(tenantId);
-        allow delete: if isTenantAdmin(tenantId);
+        // Declarar uma lista é ato de Form Design; instalar uma extensão que traz uma também é —
+        // e as duas portas são legítimas, por isso as duas permissões valem.
+        allow create, update, delete: if can(tenantId, 'screens.manage')
+          || can(tenantId, 'extensions.manage');
       }
 
       // ─── Telas Dinâmicas (Personalização) ────────────────────────────────────
       // Definições de telas e campos customizados — membro lê; só admin configura
       match /screenDefinitions/{screenId} {
         allow read: if isMember(tenantId);
-        allow create, update, delete: if isTenantAdmin(tenantId);
-
+        allow create, update, delete: if can(tenantId, 'screens.manage')
+          || can(tenantId, 'extensions.manage');
       }
 
       // ─── Registros de qualquer tela ─────────────────────────────────────────
@@ -273,6 +297,7 @@ service cloud.firestore {
         'actions', 'aiConnections',
         'documentTypes', 'documents', 'extension_migrations', 'extensions',
         'installed_extensions', 'lookupDefinitions', 'members', 'notes',
+        'roles',
         'tagDefinitions', 'plugin_installations',
         'screenDefinitions', 'scripts', 'secrets', 'settings', 'tags', 'tenant', 'workflow_definitions',
         'workflow_events', 'workflow_executions'
@@ -293,35 +318,23 @@ service cloud.firestore {
         return !isReservedCollection(name)
           && (isDeclaredScreen(name) || isDeclaredLookup(name) || isDeclaredTagList(name));
       }
-      // A tela pode declarar QUEM grava nos seus registros (`writeRoles`). Declarada, a lista é a
-      // AUTORIDADE — serve tanto para ESTREITAR ("só advogado ou admin mexe em processo") quanto
-      // para ALARGAR ("no mural todo mundo comenta", incluindo o papel `user`, somente leitura no
-      // resto do sistema). Ausente (o normal), vale a permissão padrão do escritório. É o que
-      // permite uma entidade sair do kernel sem levar junto a regra nomeada que a protegia.
-      // `.get(campo, padrão)` só devolve o padrão quando o campo está AUSENTE. Um campo gravado como
-      // NULO passa por ele, e aí `.size()` estoura — e regra que estoura NEGA. É o que recusava toda
-      // gravação nas coleções descritas por extensão que NÃO restringe papéis (`persons`, `deadlines`,
-      // `news`: a instalação grava `writeRoles: null` para apagar um valor anterior), enquanto as que
-      // restringem (`cases`, `financials`) gravavam normalmente. Toda lista de tela passa por aqui.
+      // Quem grava numa coleção de tela é quem tem a PERMISSÃO dela — `medico.create`,
+      // `medico.update`, `medico.delete`. O nome não está escrito em lugar nenhum: ele é montado a
+      // partir da própria coleção, que é o que faz esta regra valer para uma tela criada no Form
+      // Design cinco minutos atrás.
+      //
+      // Aqui morava `writeRoles`, a lista de papéis que a tela declarava. Ela resolvia o problema
+      // certo — a tela decidindo quem grava nela — com o vocabulário errado: para alargar o acesso
+      // de um mural era preciso nomear `user`, um papel que o produto impunha ao escritório. A
+      // permissão derivada diz a mesma coisa sem nomear papel nenhum.
       function screenData(name) {
         return get(/databases/$(database)/documents/tenants/$(tenantId)/screenDefinitions/$(name)).data;
       }
       function screenList(name, field) {
         return screenData(name).get(field, []) is list ? screenData(name).get(field, []) : [];
       }
-      function screenWriteRoles(name) {
-        return screenList(name, 'writeRoles');
-      }
-      function declaresWriteRoles(name) {
-        return isDeclaredScreen(name) && screenWriteRoles(name).size() > 0;
-      }
-      // `isDeclaredScreen` primeiro: uma lista de opções ou um conjunto de etiquetas passa por este
-      // mesmo curinga e NÃO tem documento de tela — o `get` acima falharia e negaria a escrita.
-      function passesScreenWriteRoles(name) {
-        return isSystemOrSupport()
-          || (declaresWriteRoles(name)
-                ? (isMember(tenantId) && memberData(tenantId).role in screenWriteRoles(name))
-                : canWriteInTenant(tenantId));
+      function canOnCollection(name, action) {
+        return can(tenantId, name + '.' + action);
       }
       // Campos que QUALQUER membro grava, mesmo sem permissão de escrita na tela: o "por usuário" de
       // um mural — marcar como lida, curtir, guardar para depois. São gravações no documento que
@@ -336,10 +349,8 @@ service cloud.firestore {
           && request.resource.data.diff(resource.data).affectedKeys()
                .hasOnly(screenMemberWritableFields(name).concat(['updatedAt']));
       }
-      // Exclusão é ato de gestão, e por isso é de admin. A exceção é a tela que declara
-      // `authorCanDelete`: ali a autoria É a posse — um comentário, um recado —, e quem escreveu
-      // apaga o que escreveu. É a mesma frase que as regras nomeadas de `newsComments` diziam à mão,
-      // agora lida da declaração da tela e válida para qualquer uma.
+      // A tela que declara `authorCanDelete` deixa quem escreveu apagar o que escreveu, mesmo sem a
+      // permissão de exclusão da coleção: ali a autoria É a posse — um comentário, um recado.
       function screenAuthorCanDelete(name) {
         return isDeclaredScreen(name)
           && get(/databases/$(database)/documents/tenants/$(tenantId)/screenDefinitions/$(name))
@@ -350,37 +361,43 @@ service cloud.firestore {
       }
 
       match /{screenCollection}/{recordId} {
-        allow read: if !isReservedCollection(screenCollection) && isMember(tenantId);
+        allow read: if !isReservedCollection(screenCollection)
+          && isMember(tenantId)
+          && canOnCollection(screenCollection, 'read');
         allow create: if isWritableScreen(screenCollection)
-          && passesScreenWriteRoles(screenCollection);
+          && canOnCollection(screenCollection, 'create');
         allow update: if isWritableScreen(screenCollection)
-          && (passesScreenWriteRoles(screenCollection)
+          && (canOnCollection(screenCollection, 'update')
               || (isMember(tenantId) && touchesOnlyMemberWritableFields(screenCollection)));
         allow delete: if isWritableScreen(screenCollection)
-          && (isTenantAdmin(tenantId)
-              || (passesScreenWriteRoles(screenCollection)
+          && (canOnCollection(screenCollection, 'delete')
+              || (canOnCollection(screenCollection, 'update')
                   && screenAuthorCanDelete(screenCollection)
                   && isRecordAuthor()));
 
-        // Anotações do registro — mesmo modelo das entidades fixas: qualquer membro com escrita
-        // cria; update só carimba a autoria de exclusão; exclusão só admin.
+        // Anotações do registro: seguem a permissão da COLEÇÃO DO PAI — a nota é parte do registro,
+        // não uma entidade com acesso próprio. `update` só carimba a autoria de exclusão.
         match /notes/{noteId} {
-          allow read: if !isReservedCollection(screenCollection) && isMember(tenantId);
-          allow create: if isWritableScreen(screenCollection) && canWriteInTenant(tenantId);
-          allow update: if isWritableScreen(screenCollection) && isTenantAdmin(tenantId)
+          allow read: if !isReservedCollection(screenCollection)
+            && isMember(tenantId)
+            && canOnCollection(screenCollection, 'read');
+          allow create: if isWritableScreen(screenCollection) && canOnCollection(screenCollection, 'update');
+          allow update: if isWritableScreen(screenCollection) && canOnCollection(screenCollection, 'delete')
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deletedBy', 'deletedByName', 'deletedByPhotoURL'])
             && request.resource.data.deletedBy == request.auth.uid;
-          allow delete: if isWritableScreen(screenCollection) && isTenantAdmin(tenantId);
+          allow delete: if isWritableScreen(screenCollection) && canOnCollection(screenCollection, 'delete');
         }
 
         // Documentos do registro — mesmo modelo das anotações
         match /documents/{documentId} {
-          allow read: if !isReservedCollection(screenCollection) && isMember(tenantId);
-          allow create: if isWritableScreen(screenCollection) && canWriteInTenant(tenantId);
-          allow update: if isWritableScreen(screenCollection) && isTenantAdmin(tenantId)
+          allow read: if !isReservedCollection(screenCollection)
+            && isMember(tenantId)
+            && canOnCollection(screenCollection, 'read');
+          allow create: if isWritableScreen(screenCollection) && canOnCollection(screenCollection, 'update');
+          allow update: if isWritableScreen(screenCollection) && canOnCollection(screenCollection, 'delete')
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deletedBy', 'deletedByName', 'deletedByPhotoURL'])
             && request.resource.data.deletedBy == request.auth.uid;
-          allow delete: if isWritableScreen(screenCollection) && isTenantAdmin(tenantId);
+          allow delete: if isWritableScreen(screenCollection) && canOnCollection(screenCollection, 'delete');
         }
       }
     }
@@ -399,7 +416,7 @@ service cloud.firestore {
     // todos os clientes — somente Cloud Functions (Admin SDK) criam documentos.
 
     match /auditLogs/{logId} {
-      allow read: if request.auth != null && isTenantAdmin(resource.data.tenantId);
+      allow read: if request.auth != null && can(resource.data.tenantId, 'audit.read');
       allow write: if false;
     }
 
@@ -455,12 +472,12 @@ service cloud.firestore {
       }
       allow read: if request.auth != null;
       allow create: if isSystemAdmin()
-        || (isTenantAdmin(request.resource.data.ownerTenantId) && statusMatchesCode());
+        || (can(request.resource.data.ownerTenantId, 'extensions.manage') && statusMatchesCode());
       // Republicar = upsert: um identificador tem UM registro público. O dono sobrescreve seus
       // próprios dados (qualquer versão); o status volta a corresponder ao código (de código →
       // 'pending' de novo, re-aprovação). O SYSTEM aprova/obsoleta livremente.
       allow update: if isSystemAdmin()
-        || (isTenantAdmin(resource.data.ownerTenantId)
+        || (can(resource.data.ownerTenantId, 'extensions.manage')
             && request.resource.data.ownerTenantId == resource.data.ownerTenantId
             && statusMatchesCode());
       allow delete: if isSystemAdmin();

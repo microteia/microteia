@@ -27,19 +27,40 @@ export class FirebaseUserRepository implements IUserRepository {
     return (snap.data()?.role as string | undefined) ?? null;
   }
 
+  /**
+   * O PRIMEIRO usuário do sistema nasce `SYSTEM`; todos os demais nascem `USER`.
+   *
+   * Sem isso não haveria como começar: `SYSTEM` só é concedido por outro `SYSTEM`, e uma instalação
+   * nova não tem nenhum. A marca fica num documento próprio (`system/bootstrap`) e é reivindicada
+   * DENTRO da transação — contar usuários seria uma corrida entre dois primeiros logins simultâneos,
+   * e o preço de perdê-la seria dois donos do sistema.
+   *
+   * `system/` é coleção de raiz sem regra nenhuma: o Firestore nega o que ninguém libera, então só o
+   * Admin SDK a alcança.
+   */
   async createUserIfMissing(userId: string, data: CreateUserInput): Promise<boolean> {
-    const ref = this.db.collection('users').doc(userId);
-    const snap = await ref.get();
-    if (snap.exists) return false;
+    const userRef = this.db.collection('users').doc(userId);
+    const bootstrapRef = this.db.doc('system/bootstrap');
 
-    await ref.set({
-      email: data.email,
-      displayName: data.displayName,
-      photoURL: data.photoURL,
-      role: 'USER',
-      createdAt: FieldValue.serverTimestamp(),
+    return this.db.runTransaction(async (tx) => {
+      const userSnap = await tx.get(userRef);
+      if (userSnap.exists) return false;
+
+      const bootstrapSnap = await tx.get(bootstrapRef);
+      const isFirstUser = !bootstrapSnap.exists;
+      if (isFirstUser) {
+        tx.set(bootstrapRef, { claimedBy: userId, claimedAt: FieldValue.serverTimestamp() });
+      }
+
+      tx.set(userRef, {
+        email: data.email,
+        displayName: data.displayName,
+        photoURL: data.photoURL,
+        role: isFirstUser ? 'SYSTEM' : 'USER',
+        createdAt: FieldValue.serverTimestamp(),
+      });
+      return true;
     });
-    return true;
   }
 
   async createUserProfileIfMissing(userId: string): Promise<void> {

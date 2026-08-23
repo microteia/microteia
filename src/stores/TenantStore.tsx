@@ -6,12 +6,12 @@ import { makeGetTenantsForUserUseCase } from '../domain/usecases/tenants/GetTena
 import { makeGetAllTenantsUseCase } from '../domain/usecases/tenants/GetAllTenantsUseCase';
 import {
   makeAddTenantMemberUseCase,
-  makeUpdateTenantMemberRoleUseCase,
+  makeUpdateTenantMemberRolesUseCase,
   makeRemoveTenantMemberUseCase,
   makeGetTenantMembersUseCase,
 } from '../domain/usecases/tenants/ManageTenantMembersUseCase';
 import { makeUpdateTenantUseCase } from '../domain/usecases/tenants/UpdateTenantUseCase';
-import type { Tenant, TenantMember, TenantRole, TenantUpdate } from '../domain/entities';
+import type { Tenant, TenantMember, TenantUpdate } from '../domain/entities';
 import { LocalizedError } from '../domain/errors/LocalizedError';
 
 const TENANT_STORAGE_KEY = 'microteia:lastTenantId';
@@ -20,12 +20,11 @@ export const TenantStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const { user, userRole, effectiveName } = useAuth();
   const { tenantRepository } = useDI();
 
-  // SYSTEM e SUPPORT enxergam e administram todos os tenants, mesmo sem ser membro.
-  const isElevated = userRole === 'SYSTEM' || userRole === 'SUPPORT';
+  // SYSTEM enxerga e administra todos os escritórios, mesmo sem ser membro.
+  const isElevated = userRole === 'SYSTEM';
 
   const [availableTenants, setAvailableTenants] = useState<Tenant[]>([]);
   const [currentTenant, setCurrentTenant] = useState<Tenant | null>(null);
-  const [tenantRole, setTenantRole] = useState<TenantRole | null>(null);
   const [members, setMembers] = useState<TenantMember[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [initError, setInitError] = useState<string | null>(null);
@@ -35,7 +34,7 @@ export const TenantStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
     getAll: makeGetAllTenantsUseCase(tenantRepository),
     update: makeUpdateTenantUseCase(tenantRepository),
     addMember: makeAddTenantMemberUseCase(tenantRepository),
-    updateRole: makeUpdateTenantMemberRoleUseCase(tenantRepository),
+    updateRoles: makeUpdateTenantMemberRolesUseCase(tenantRepository),
     removeMember: makeRemoveTenantMemberUseCase(tenantRepository),
     getMembers: makeGetTenantMembersUseCase(tenantRepository),
   }), [tenantRepository]);
@@ -48,12 +47,10 @@ export const TenantStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const applyTenant = useCallback(async (tenant: Tenant) => {
     setCurrentTenant(tenant);
     localStorage.setItem(TENANT_STORAGE_KEY, tenant.id);
-    if (user) {
-      const role = isElevated ? 'admin' : await tenantRepository.getMemberRole(tenant.id, user.id);
-      setTenantRole(role);
-      await loadMembers(tenant.id);
-    }
-  }, [tenantRepository, user, loadMembers, isElevated]);
+    // Nenhum papel é lido aqui: quem responde o que esta pessoa pode é o `AuthorizationStore`, a
+    // partir dos perfis do escritório e do documento de membro que `loadMembers` traz.
+    if (user) await loadMembers(tenant.id);
+  }, [user, loadMembers]);
 
   const selectTenant = useCallback(async (tenantId: string) => {
     const tenant = availableTenants.find((t) => t.id === tenantId) ??
@@ -70,21 +67,21 @@ export const TenantStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
     );
   }, [currentTenant, uc.update]);
 
-  const addMember = useCallback(async (member: Omit<TenantMember, 'addedAt'>) => {
+  const addMember = useCallback(async (member: Omit<TenantMember, 'addedAt' | 'permissions'>) => {
     if (!currentTenant) return;
     await uc.addMember.execute(currentTenant.id, member);
     await loadMembers(currentTenant.id);
   }, [currentTenant, uc.addMember, loadMembers]);
 
-  const updateMemberRole = useCallback(async (userId: string, role: TenantRole) => {
+  const updateMemberRoles = useCallback(async (userId: string, roleIds: string[]) => {
     if (!currentTenant || !user) return;
-    await uc.updateRole.execute(currentTenant.id, userId, role, {
+    await uc.updateRoles.execute(currentTenant.id, userId, roleIds, {
       uid: user.id,
       name: effectiveName,
       photoURL: user.photoURL,
     });
-    setMembers((prev) => prev.map((m) => m.userId === userId ? { ...m, role } : m));
-  }, [currentTenant, user, effectiveName, uc.updateRole]);
+    setMembers((prev) => prev.map((m) => m.userId === userId ? { ...m, roleIds } : m));
+  }, [currentTenant, user, effectiveName, uc.updateRoles]);
 
   const removeMember = useCallback(async (userId: string) => {
     if (!currentTenant) return;
@@ -110,7 +107,6 @@ export const TenantStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
       // eslint-disable-next-line react-hooks/set-state-in-effect -- resetting all tenant state synchronously when user logs out is architecturally required
       setAvailableTenants([]);
       setCurrentTenant(null);
-      setTenantRole(null);
       setMembers([]);
       setIsLoading(false);
       return;
@@ -157,14 +153,13 @@ export const TenantStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
     <TenantContext.Provider value={{
       currentTenant,
       availableTenants,
-      tenantRole,
       members,
       isLoading,
       initError,
       selectTenant,
       updateTenant,
       addMember,
-      updateMemberRole,
+      updateMemberRoles,
       removeMember,
       refreshMembers,
     }}>

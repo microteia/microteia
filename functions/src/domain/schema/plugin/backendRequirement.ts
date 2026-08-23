@@ -17,7 +17,7 @@ import { error } from './diagnostics';
  * instalada.
  *
  * Por que NÃO há campo de rules: o `firestore.rules` já autoriza coleção de extensão pelo curinga
- * `match /{screenCollection}/{recordId}`, que lê `writeRoles` do próprio `screenDefinitions`. Um
+ * `match /{screenCollection}/{recordId}`, que exige a permissão derivada da própria coleção. Um
  * fragmento de texto mais frouxo que um bloco nomeado alargaria acesso em silêncio, porque o Firestore
  * UNE todas as regras que casam. Extensão que venha a precisar de regra nomeada é de primeira parte, e
  * a regra fica na baseline do kernel até a necessidade ser real.

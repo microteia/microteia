@@ -11,6 +11,17 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.0.0] — 2026-08-23
+
+- **Os perfis de acesso agora são seus.** O escritório deixa de escolher entre quatro papéis fixos (Administrador, Advogado, Secretária e Usuário) e passa a criar os próprios: "Financeiro", "Recepção", "Advogado Sênior" — o nome e o conteúdo que fizerem sentido para o escritório. A nova aba **Perfis de Acesso**, em Configurações do Escritório, é onde eles nascem.
+- **Ao marcar uma permissão, o que ela precisa vem junto.** Marcar "Editar financeiro" traz sozinho "Visualizar financeiro" e "Visualizar pessoas", já assinalados e explicados na tela. Ninguém precisa saber de cor o que depende do quê, e não há como salvar um perfil pela metade.
+- **Cada pessoa pode ter mais de um perfil.** Na aba Membros, os perfis de cada pessoa são escolhidos numa lista de seleção múltipla, e o que ela pode fazer é a soma de todos.
+- **Toda tela criada no escritório já vem com as quatro permissões dela** — visualizar, criar, editar e excluir —, sem precisar configurar nada. Extensões trazem as próprias permissões e as descrevem em português.
+- **A auditoria registra quem mexeu no acesso.** Criar, alterar e excluir um perfil, e mudar os perfis de uma pessoa, aparecem na Auditoria com severidade alta.
+- **O acesso de quem não é do escritório continua barrado no servidor.** Mudar a tela no navegador não abre porta nenhuma: quem decide é a regra do banco de dados, que passou a ler as mesmas permissões.
+- Ao instalar a Microteia num ambiente novo, o primeiro usuário que entrar recebe o acesso de sistema, e é ele quem concede esse acesso aos demais.
+- O perfil global de Suporte deixou de existir.
+
 #### [8.8.1] — 2026-08-22
 
 - Corrigido o erro que impedia o Form Design de abrir em escritórios que têm etiquetas configuradas em alguma tela. A lista de conjuntos de etiquetas montava o próprio nome em cima de si mesma e a tela caía antes de aparecer.

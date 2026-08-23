@@ -11,7 +11,6 @@ export interface SettingsContextValue {
   values: SettingsValuesByScope;
   isLoading: boolean;
   /** O usuário pode gravar no escopo do escritório (é administrador do tenant). */
-  canEditTenant: boolean;
   setValue: (scope: SettingsScope, key: string, value: unknown) => Promise<void>;
   /** Remove a chave daquele escopo, fazendo o valor voltar a ser herdado. */
   clearValue: (scope: SettingsScope, key: string) => Promise<void>;

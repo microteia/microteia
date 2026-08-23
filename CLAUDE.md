@@ -306,8 +306,13 @@ traduz, que é uma extensão contribuindo apenas nesse ponto.
 
 - **Tenant selecionado vive em `useTenant().currentTenant`** — todo store de dados só carrega quando `currentTenant` não é `null`.
 - **Estrutura Firestore:** `tenants/{tenantId}/{coleção}/{docId}`. O nome da coleção é da TELA que a declara, e o kernel não conhece nenhum: `FirebaseRecordRepository` e `RecordStore` servem qualquer uma.
-- **Roles por tenant:** `admin`, `lawyer`, `secretary`, `user`. Role global: `SYSTEM` | `SUPPORT` | `USER`.
-- **Novo usuário:** ao fazer login pela primeira vez, um tenant padrão `[displayName]([email])` é criado automaticamente com o usuário como `admin`. O nome é montado só com o que o usuário trouxe — sem palavra nossa, não há idioma preso num dado que ele pode renomear.
+- **Autorização é por PERMISSÃO, nunca por papel — NÃO-NEGOCIÁVEL.** Não existe papel por tenant: o
+  escritório cria os próprios perfis (`tenants/{id}/roles`) e o membro os recebe em `roleIds`. Todo
+  código pergunta `can('screens.manage')` (`useAuthorization()` no front, `requirePermission` na
+  callable, `can(tenantId, ...)` nas rules) — nunca `role === '...'`. Toda coleção rende
+  `<coleção>.read|create|update|delete` de graça; o resto é declarado em `access.permission`. Role
+  global: `SYSTEM` | `USER`, e `SYSTEM` é a única união fechada que resta. Ver "RBAC" no `ARCHITECTURE.md`.
+- **Novo usuário:** ao fazer login pela primeira vez, um tenant padrão `[displayName]([email])` é criado automaticamente, e o usuário é o `ownerId` dele — o que lhe dá acesso irrestrito DENTRO do próprio escritório, sem perfil nenhum semeado. O nome é montado só com o que o usuário trouxe — sem palavra nossa, não há idioma preso num dado que ele pode renomear. O PRIMEIRO usuário do sistema nasce `SYSTEM`.
 - **Seleção de tenant:** após login (ou ao criar conta), o usuário vê o `TenantSelector`. O último tenant escolhido é salvo em `localStorage` com chave `'microteia:lastTenantId'`.
 
 ---

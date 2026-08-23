@@ -1,6 +1,8 @@
 import type React from 'react';
 import { useCallback, useMemo, useState } from 'react';
 import { useSettings } from '../../../stores/useSettings';
+import { useAuthorization } from '../../../stores/useAuthorization';
+import { PERMISSION_SETTINGS_MANAGE } from '../../../domain/schema/access';
 import { useNotification } from '../../../stores/useNotification';
 import { useSettingsSections } from '../../shared/settings/useSettingsCatalog';
 import type { ExtensionSettingsSection } from '../../shared/extensions/extensionServices';
@@ -62,7 +64,9 @@ export interface SettingsViewModel {
 
 export const useSettingsViewModel = (): SettingsViewModel => {
   const t = useT('core.settings');
-  const { values, isLoading, canEditTenant, setValue, clearValue, replaceScope } = useSettings();
+  const { values, isLoading, setValue, clearValue, replaceScope } = useSettings();
+  const { can } = useAuthorization();
+  const canEditTenant = can(PERMISSION_SETTINGS_MANAGE);
   const { notify } = useNotification();
   const sections = useSettingsSections();
 

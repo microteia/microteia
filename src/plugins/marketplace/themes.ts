@@ -31,7 +31,7 @@ const themePackage = (
   manifest: {
     id: `com.microteia.theme-${id}`,
     version: '1.1.0',
-    kernel: '^1.0.0',
+    kernel: '^2.0.0',
     name,
     description:
       `The ${name} theme for Microteia.`,

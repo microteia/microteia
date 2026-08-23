@@ -24,7 +24,7 @@ const EMPTY_VALUES: SettingsValuesByScope = emptySettingsValues();
 export const SettingsStoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { settingsRepository } = useDI();
   const { user } = useAuth();
-  const { currentTenant, tenantRole } = useTenant();
+  const { currentTenant } = useTenant();
 
   const [loaded, setLoaded] = useState<{ owner: string; values: SettingsValuesByScope } | null>(null);
 
@@ -80,11 +80,10 @@ export const SettingsStoreProvider: React.FC<{ children: React.ReactNode }> = ({
   const value = useMemo(() => ({
     values,
     isLoading,
-    canEditTenant: tenantRole === 'admin',
     setValue,
     clearValue,
     replaceScope,
-  }), [values, isLoading, tenantRole, setValue, clearValue, replaceScope]);
+  }), [values, isLoading, setValue, clearValue, replaceScope]);
 
   return <SettingsContext.Provider value={value}>{children}</SettingsContext.Provider>;
 };

@@ -29,7 +29,7 @@ const pagina = () => 'render';
 const records: PluginRecord[] = [
   {
     trusted: true,
-    manifest: { id: 'core.ui', version: '1.0.0', kernel: '^1.0.0', name: 'UI', extensionPoints: [uiNav] },
+    manifest: { id: 'core.ui', version: '1.0.0', kernel: '^2.0.0', name: 'UI', extensionPoints: [uiNav] },
   },
   {
     trusted: true,
@@ -37,7 +37,7 @@ const records: PluginRecord[] = [
     manifest: {
       id: 'com.acme.contratos',
       version: '1.0.0',
-      kernel: '^1.0.0',
+      kernel: '^2.0.0',
       name: 'Contratos',
       provides: [{ capability: 'ai.completion', version: '1.2.0' }],
       contributes: [
@@ -148,7 +148,7 @@ describe('usePluginDiagnostics', () => {
   });
 
   it('reporta o plugin recusado sem quebrar a árvore React', () => {
-    const quebrado: PluginRecord[] = [...records, { manifest: { id: 'ruim', version: 'x', kernel: '^1.0.0', name: '' } }];
+    const quebrado: PluginRecord[] = [...records, { manifest: { id: 'ruim', version: 'x', kernel: '^2.0.0', name: '' } }];
     const { result } = renderHook(() => usePluginDiagnostics(), {
       wrapper: ({ children }) => <KernelProvider records={quebrado}>{children}</KernelProvider>,
     });

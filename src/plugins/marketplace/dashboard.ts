@@ -33,7 +33,7 @@ export const dashboardPlugin: MarketplacePlugin = {
   manifest: {
     id: 'com.microteia.dashboard',
     version: '1.1.0',
-    kernel: '^1.0.0',
+    kernel: '^2.0.0',
     name: message('package.name'),
     description: message('package.description'),
     publisher: { name: 'Microteia' },

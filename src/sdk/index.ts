@@ -86,6 +86,39 @@ export {
   validatePluginManifest,
 } from '../domain/schema/plugin';
 
+// ─── Controle de acesso: as permissões que a extensão declara e as Roles do escritório ────────
+
+export type {
+  AccessPermission,
+  CatalogPermission,
+  CrudAction,
+  DeclaredPermission,
+  ParsedAccessPermission,
+  PermissionCatalog,
+  PermissionResource,
+  ResolvedPermissions,
+} from '../domain/schema/access';
+
+export {
+  ACCESS_API_VERSION,
+  ACCESS_EXTENSION_POINTS,
+  ACCESS_PERMISSION_POINT,
+  ACCESS_RESOURCE_POINT,
+  CRUD_ACTIONS,
+  accessPermissionContribution,
+  accessPermissionOf,
+  accessResourceContribution,
+  buildPermissionCatalog,
+  collectionPermissionId,
+  declaredPermissionsOf,
+  declaredResourcesOf,
+  dependenciesOf,
+  isValidAccessPermissionId,
+  parseAccessPermission,
+  resolveEffective,
+  validateAccessPermission,
+} from '../domain/schema/access';
+
 // ─── Pontos de extensão do produto — a lista que o autor consulta ─────────────
 
 export type {

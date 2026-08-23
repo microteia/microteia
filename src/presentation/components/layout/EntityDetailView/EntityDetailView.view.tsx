@@ -35,7 +35,10 @@ export interface EntityDetailTag {
 
 export interface EntityDetailViewProps {
   isNew: boolean;
-  isAdmin: boolean;
+  /** Pode excluir anotação e documento do registro — a permissão de exclusão da coleção. */
+  canDeleteRecordParts: boolean;
+  /** Pode gerir a lista compartilhada de tipos de documento do escritório. */
+  canManageDocumentTypes: boolean;
 
   avatar: React.ReactNode;
   title: React.ReactNode;
@@ -73,7 +76,8 @@ export interface EntityDetailViewProps {
 
 export const EntityDetailView: React.FC<EntityDetailViewProps> = ({
   isNew,
-  isAdmin,
+  canDeleteRecordParts,
+  canManageDocumentTypes,
   avatar,
   title,
   subtitle,
@@ -195,10 +199,14 @@ export const EntityDetailView: React.FC<EntityDetailViewProps> = ({
     <S.Content>
       {(activeTab === 'data' || isNew) && dataContent}
       {activeTab === 'notes' && !isNew && showNotesTab && (
-        <NotesPanel controller={notesController} isAdmin={isAdmin} />
+        <NotesPanel controller={notesController} canDelete={canDeleteRecordParts} />
       )}
       {activeTab === 'documents' && !isNew && showDocsTab && (
-        <DocumentsPanel controller={docsController} isAdmin={isAdmin} />
+        <DocumentsPanel
+          controller={docsController}
+          canDelete={canDeleteRecordParts}
+          canManageTypes={canManageDocumentTypes}
+        />
       )}
       {!isNew && extraTabs?.find((tab) => tab.key === activeTab)?.content}
     </S.Content>

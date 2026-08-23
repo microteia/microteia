@@ -1,6 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
-import { useAuth } from '../../../../stores/useAuth';
-import { useTenant } from '../../../../stores/useTenant';
+import { useAuthorization } from '../../../../stores/useAuthorization';
 import { useSurfaceTabs, type SurfaceTabDescriptor } from '../../../shared/settings/useSettingsCatalog';
 import { useSurfaceTabLayout } from '../../../shared/settings/useSettingValue';
 
@@ -9,7 +8,7 @@ export interface TabSurfaceViewModel {
   activeTab: SurfaceTabDescriptor | null;
   activeKey: string;
   setActiveKey: (key: string) => void;
-  /** Há abas registradas, mas nenhuma visível — desligadas ou fora do papel de quem olha. */
+  /** Há abas registradas, mas nenhuma visível — desligadas ou fora do alcance de quem olha. */
   isAllHidden: boolean;
 }
 
@@ -23,24 +22,22 @@ export const useTabSurfaceViewModel = (options: TabSurfaceOptions): TabSurfaceVi
   const { surface, initialKey } = options;
   const registered = useSurfaceTabs(surface);
   const { entries } = useSurfaceTabLayout(surface);
-  const { userRole } = useAuth();
-  const { tenantRole } = useTenant();
+  const { canAny } = useAuthorization();
   const [selectedKey, setSelectedKey] = useState<string | null>(initialKey ?? null);
 
   const byKey = useMemo(() => new Map(registered.map((tab) => [tab.key, tab])), [registered]);
 
-  const tabs = useMemo<SurfaceTabDescriptor[]>(() => {
-    const isSystemAdmin = userRole === 'SYSTEM';
-    const isTenantAdmin = tenantRole === 'admin';
-    return entries
+  const tabs = useMemo<SurfaceTabDescriptor[]>(
+    () => entries
       .filter((entry) => entry.enabled)
       .map((entry) => byKey.get(entry.key))
       .filter((tab): tab is SurfaceTabDescriptor => !!tab)
-      .filter((tab) => !tab.requiredRole || userRole === tab.requiredRole || isSystemAdmin)
-      .filter((tab) => !tab.requiresTenantAdmin || isTenantAdmin || isSystemAdmin);
-  }, [entries, byKey, userRole, tenantRole]);
+      .filter((tab) => !tab.requiredPermissions?.length || canAny(tab.requiredPermissions)),
+    [entries, byKey, canAny],
+  );
 
-  // A aba escolhida pode ter sido desligada, perdida na troca de escritório ou vetada pelo papel;
+  // A aba escolhida pode ter sido desligada, perdida na troca de escritório ou vetada por falta de
+  // permissão;
   // derivar a ativa em vez de guardá-la em estado é o que evita a tela em branco nesses casos.
   const activeTab = useMemo(
     () => tabs.find((tab) => tab.key === selectedKey) ?? tabs[0] ?? null,

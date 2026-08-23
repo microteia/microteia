@@ -2,7 +2,7 @@
   "manifest": {
     "id": "com.microteia.dashboard",
     "version": "1.1.0",
-    "kernel": "^1.0.0",
+    "kernel": "^2.0.0",
     "name": "@com.microteia.dashboard/package.name",
     "description": "@com.microteia.dashboard/package.description",
     "publisher": {

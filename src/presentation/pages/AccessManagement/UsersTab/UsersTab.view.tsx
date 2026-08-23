@@ -12,7 +12,6 @@ import type { UserRole } from '../../../../domain/entities';
 import { useT, type TranslateFn } from '../../../shared/i18n/useT';
 const ROLE_KEYS: Record<UserRole, string> = {
   SYSTEM: 'access.role.system',
-  SUPPORT: 'access.role.support',
   USER: 'access.role.user',
 };
 
@@ -130,7 +129,6 @@ const RoleCellContent: React.FC<RoleCellContentProps> = ({
 
   const roleColors: Record<string, string> = {
     SYSTEM: theme.colors.danger,
-    SUPPORT: theme.colors.warning,
     USER: theme.colors.textSecondary,
   };
 

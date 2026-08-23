@@ -2,6 +2,8 @@ import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { useDI } from '../infrastructure/di/useDI';
 import { useAuth } from './useAuth';
 import { useTenant } from './useTenant';
+import { useAuthorization } from './useAuthorization';
+import { PERMISSION_AUDIT_READ } from '../domain/schema/access';
 import { makeGetAuditLogReadCursorUseCase } from '../domain/usecases/auditlogs/GetAuditLogReadCursorUseCase';
 import { makeMarkAllCriticalAuditLogsAsReadUseCase } from '../domain/usecases/auditlogs/MarkAllCriticalAuditLogsAsReadUseCase';
 import { makeSubscribeToCriticalUnreadUseCase } from '../domain/usecases/auditlogs/SubscribeToCriticalUnreadUseCase';
@@ -11,8 +13,9 @@ const EPOCH = new Date(0);
 
 export const AuditLogAlertStoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { auditLogRepository } = useDI();
-  const { user, userRole } = useAuth();
-  const { currentTenant, tenantRole } = useTenant();
+  const { user } = useAuth();
+  const { currentTenant } = useTenant();
+  const { can } = useAuthorization();
 
   const [unreadCriticalCount, setUnreadCriticalCount] = useState(0);
   const [lastReadAt, setLastReadAt] = useState<Date>(EPOCH);
@@ -23,7 +26,7 @@ export const AuditLogAlertStoreProvider: React.FC<{ children: React.ReactNode }>
     subscribe: makeSubscribeToCriticalUnreadUseCase(auditLogRepository),
   }), [auditLogRepository]);
 
-  const canMonitor = Boolean(user && currentTenant && (userRole === 'SYSTEM' || tenantRole === 'admin'));
+  const canMonitor = Boolean(user && currentTenant && can(PERMISSION_AUDIT_READ));
 
   useEffect(() => {
     if (!canMonitor || !user || !currentTenant) {

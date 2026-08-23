@@ -2,7 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useActions } from '../../../stores/useActions';
 import { artifactIdIssue, deriveArtifactId } from '../../../domain/services/artifactIdentity';
 import { useWorkflowStore } from '../../../stores/useWorkflowStore';
-import { useTenant } from '../../../stores/useTenant';
+import { useAuthorization } from '../../../stores/useAuthorization';
+import { PERMISSION_AUTOMATION_MANAGE } from '../../../domain/schema/access';
 import { useWorkspace } from '../../../stores/useWorkspace';
 import { useNotification } from '../../../stores/useNotification';
 import { WORKFLOW_CALLED_EVENT } from '../../../domain/schema/eventCatalog';
@@ -116,7 +117,7 @@ export const useViewActionViewModel = (tabKey: string): ViewActionViewModel => {
   const t = useT('core.automation');
   const { actions, createAction, updateAction, deleteAction } = useActions();
   const { workflows } = useWorkflowStore();
-  const { tenantRole } = useTenant();
+  const { can } = useAuthorization();
   const { closeTab, openTab, setTabTitle, activePanelId } = useWorkspace();
   const { notify } = useNotification();
   const recordActions = useRecordActions();
@@ -282,7 +283,7 @@ export const useViewActionViewModel = (tabKey: string): ViewActionViewModel => {
   }, [actionToDelete, deleteAction, notify, closeTab, tabKey, activePanelId, t]);
 
   return {
-    isAdmin: tenantRole === 'admin',
+    isAdmin: can(PERMISSION_AUTOMATION_MANAGE),
     isNew,
     suggestedActionId,
     actionIdError,

@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useActions } from '../../../stores/useActions';
 import { useNotification } from '../../../stores/useNotification';
-import { useTenant } from '../../../stores/useTenant';
+import { useAuthorization } from '../../../stores/useAuthorization';
 import { setValueByPath } from '../../../domain/services/customFieldValues';
 import { actionActiveState, isActionDisabled, isActionHidden } from '../../../domain/schema/actionExpression';
 import { useActionParameterPrompt } from './useActionParameterPrompt';
@@ -159,7 +159,7 @@ export const useScreenActions = (target: ScreenActionTarget): ScreenActions => {
   const { getActionsByIds, runAction } = useActions();
   const { notify } = useNotification();
   const t = useT('core.records');
-  const { tenantRole } = useTenant();
+  const { effectivePermissions } = useAuthorization();
   const viewer = useExprViewer();
 
   const [runningActionId, setRunningActionId] = useState<string | null>(null);
@@ -172,11 +172,11 @@ export const useScreenActions = (target: ScreenActionTarget): ScreenActions => {
     record,
     isNew,
     isDirty,
-    role: tenantRole ?? '',
+    permissions: effectivePermissions,
     // O cabeçalho do registro aberto — a superfície em que uma ação sempre coube.
     surface: 'detail' as const,
     user: viewer,
-  }), [values, record, isNew, isDirty, tenantRole, viewer]);
+  }), [values, record, isNew, isDirty, effectivePermissions, viewer]);
 
   const execute = useCallback(async (
     action: ActionDefinition,

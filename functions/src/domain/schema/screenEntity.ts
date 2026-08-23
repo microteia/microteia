@@ -424,6 +424,7 @@ export const RESERVED_COLLECTIONS: ReadonlySet<string> = new Set<string>([
   'scripts',
   'actions',
   'plugin_installations',
+  'roles',
   'extensions',
   'installed_extensions',
   'extension_migrations',

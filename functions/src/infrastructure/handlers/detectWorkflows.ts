@@ -1,5 +1,7 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { getDI } from '../di/container';
+import { requirePermission } from './shared/requirePermission';
+import { PERMISSION_AUTOMATION_MANAGE } from '../../domain/schema/access';
 
 interface WorkflowDescriptor {
   id: string;
@@ -59,10 +61,7 @@ export const detectWorkflows = onCall(
 
     try {
       const di = getDI();
-      const role = await di.getTenantMemberRepository().getMemberRole(tenantId, request.auth.uid);
-      if (role !== 'admin' && role !== 'lawyer') {
-        throw new HttpsError('permission-denied', '@core.automation/handler.restricted');
-      }
+      await requirePermission(tenantId, request.auth.uid, PERMISSION_AUTOMATION_MANAGE);
 
       const credentials = await di.getAIConnectionRepository().getCredentialsById(tenantId, connectionId);
 

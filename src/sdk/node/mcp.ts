@@ -4,6 +4,7 @@ import { UI_EXTENSION_POINTS } from '../../domain/schema/ui/uiExtensionPoints';
 import { DATA_EXTENSION_POINTS } from '../../domain/schema/dataExtensionPoints';
 import { I18N_EXTENSION_POINTS } from '../../domain/schema/i18n/extensionPoints';
 import { THEME_EXTENSION_POINTS } from '../../domain/schema/theme/extensionPoints';
+import { ACCESS_EXTENSION_POINTS } from '../../domain/schema/access';
 import { KERNEL_VERSION } from '../../domain/schema/plugin/kernelVersion';
 import { THIRD_PARTY_IMPL_KINDS } from '../../domain/schema/plugin/extensionPoint';
 import { parsePackage } from '../../domain/usecases/plugins/packageSerialization';
@@ -49,6 +50,7 @@ const ALL_POINTS = [
   ...DATA_EXTENSION_POINTS,
   ...I18N_EXTENSION_POINTS,
   ...THEME_EXTENSION_POINTS,
+  ...ACCESS_EXTENSION_POINTS,
 ];
 
 const describeIssues = (issues: ReturnType<typeof validatePluginPackage>): string =>

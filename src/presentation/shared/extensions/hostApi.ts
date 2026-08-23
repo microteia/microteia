@@ -55,6 +55,7 @@ import { useOpenRecord } from '../useOpenRecord';
 import { useOpenScreenList } from '../useOpenScreenList';
 import { useAuth } from '../../../stores/useAuth';
 import { useTenant } from '../../../stores/useTenant';
+import { useAuthorization } from '../../../stores/useAuthorization';
 import { useLocale } from '../../../stores/useLocale';
 import { useNotification } from '../../../stores/useNotification';
 import { useRecordDocumentsPort } from '../entityScreen/useRecordPorts';
@@ -121,17 +122,17 @@ const useDeleteRecord = (): ((collection: string, recordId: string) => Promise<v
  * não li, o comentário que eu posso editar, a curtida que já é minha. Sem isso, "por usuário" só
  * existia como código dentro do kernel.
  *
- * É identificação, não permissão: quem barra a gravação é a regra do Firestore, e uma extensão que
- * decidisse acesso por este objeto estaria decidindo no lugar errado.
+ * `permissions` está aqui para a extensão DESENHAR — mostrar o botão de excluir a quem pode excluir.
+ * Quem barra a gravação continua sendo a regra do Firestore: uma extensão que decidisse acesso por
+ * este objeto estaria decidindo no lugar errado. Aqui moravam `role` e `tenantRole`, e sair foi o
+ * ponto: nenhuma extensão precisa saber que perfis existem no escritório de quem a instalou.
  */
 export interface ExtensionViewer {
   id: string;
   name: string;
   photoURL: string | null;
-  /** Papel GLOBAL: `SYSTEM`, `SUPPORT` ou `USER`. */
-  role: string;
-  /** Papel no escritório corrente: `admin`, `lawyer`, `secretary` ou `user`. */
-  tenantRole: string;
+  /** As permissões EFETIVAS de quem olha. Para perguntar por uma delas, use `useCan()`. */
+  permissions: string[];
   /**
    * O escritório em que se está trabalhando. É o que uma extensão precisa para dizer ao backend
    * EM QUAL escritório ela age — a coleção de dados já vem endereçada pelos hooks, mas uma função
@@ -147,22 +148,31 @@ export interface ExtensionViewer {
 }
 
 const useCurrentUser = (): ExtensionViewer => {
-  const { user, userRole, effectiveName, effectivePhotoURL } = useAuth();
-  const { tenantRole, currentTenant } = useTenant();
+  const { user, effectiveName, effectivePhotoURL } = useAuth();
+  const { currentTenant } = useTenant();
+  const { effectivePermissions } = useAuthorization();
   const { locale } = useLocale();
   return useMemo(
     () => ({
       id: user?.id ?? '',
       name: effectiveName,
       photoURL: effectivePhotoURL,
-      role: userRole ?? '',
-      tenantRole: tenantRole ?? '',
+      permissions: effectivePermissions,
       tenantId: currentTenant?.id ?? '',
       locale,
     }),
-    [user, userRole, effectiveName, effectivePhotoURL, tenantRole, currentTenant, locale],
+    [user, effectiveName, effectivePhotoURL, effectivePermissions, currentTenant, locale],
   );
 };
+
+/**
+ * "Esta pessoa PODE?" — a única pergunta de autorização que uma extensão faz.
+ *
+ * Ela não recebe perfil nem papel, e é essa a inversão: a extensão declara as permissões que traz
+ * (`access.permission`) e pergunta por elas; quem as agrupa em perfis é o escritório, e o autor não
+ * precisa saber que perfis existem.
+ */
+const useCan = (): ((permission: string) => boolean) => useAuthorization().can;
 
 /**
  * Uma FUNÇÃO DO SERVIDOR, pelo nome. É a porta da extensão para o que só o backend pode fazer —
@@ -286,6 +296,7 @@ const dataModule = {
   useDeleteRecord,
   useRecordDocuments,
   useCurrentUser,
+  useCan,
   useLookup,
   useWorkspace,
   useOpenRecord,

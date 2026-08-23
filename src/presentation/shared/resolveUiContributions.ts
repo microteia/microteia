@@ -32,21 +32,35 @@ export const resolvePageContribution = (
   return best;
 };
 
+/**
+ * O predicado de autorização que estas funções recebem — `canAny` do `useAuthorization`.
+ *
+ * Ele chega por parâmetro, e não por hook, porque estas funções são puras e testáveis sem React; e
+ * chega como PERGUNTA, e não como conjunto de permissões, para que o curinga do dono do escritório e
+ * o administrador global sejam decididos num lugar só.
+ */
+export type CanAny = (permissions: string[]) => boolean;
+
+const isPermitted = (canAny: CanAny, required: string[] | undefined): boolean =>
+  !required || required.length === 0 || canAny(required);
+
 /** Telas abríveis pelo menu e pelo ⌘K: têm chave própria e não são abas paramétricas. */
 export const navigablePages = (
   contributions: QualifiedContribution[],
-  userRole: string | null,
+  canAny: CanAny,
+  isSystemAdmin: boolean,
 ): UiPageMetadata[] =>
   contributions
     .map(pageMetadataOf)
     .filter((metadata) => Boolean(metadata.key) && !metadata.keyPrefix)
-    .filter((metadata) => !metadata.requiredRole || userRole === metadata.requiredRole || userRole === 'SYSTEM');
+    .filter((metadata) => !metadata.requiresSystemAdmin || isSystemAdmin)
+    .filter((metadata) => isPermitted(canAny, metadata.requiredPermissions));
 
 export const visibleNavItems = (
   contributions: QualifiedContribution[],
-  { isSystemAdmin, isTenantAdmin }: { isSystemAdmin: boolean; isTenantAdmin: boolean },
+  canAny: CanAny,
 ): UiNavMetadata[] =>
   contributions
     .map(navMetadataOf)
-    .filter((metadata) => !metadata.requiresTenantAdmin || isSystemAdmin || isTenantAdmin)
+    .filter((metadata) => isPermitted(canAny, metadata.requiredPermissions))
     .sort((a, b) => a.order - b.order);

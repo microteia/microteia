@@ -1,5 +1,7 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { getDI } from '../di/container';
+import { requirePermission } from './shared/requirePermission';
+import { PERMISSION_AUTOMATION_RUN } from '../../domain/schema/access';
 import { getDb } from '../firebase/initFirebase';
 import { applyParameterDefaults } from '../../domain/schema/eventCatalog';
 import { describeRuleIssues } from '../../domain/schema/fieldRules';
@@ -95,10 +97,7 @@ export const runScript = onCall(
     }
 
     const di = getDI();
-    const role = await di.getTenantMemberRepository().getMemberRole(tenantId, request.auth.uid);
-    if (role !== 'admin' && role !== 'lawyer') {
-      throw new HttpsError('permission-denied', '@core.automation/handler.restricted');
-    }
+    await requirePermission(tenantId, request.auth.uid, PERMISSION_AUTOMATION_RUN);
 
     const params = inputParams ?? [];
     const coerced = coerceProvidedParams(params, providedParams ?? {});

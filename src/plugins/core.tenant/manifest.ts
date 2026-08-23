@@ -5,6 +5,7 @@ import { UI_TAB_POINT } from '../../domain/schema/ui/uiExtensionPoints';
 import { coreMessage, CORE_TENANT_MESSAGES } from '../coreMessages';
 import { coreTenantPtBrContribution } from './messagesPtBr';
 import { TENANT_SETTINGS_SURFACE } from './surface';
+import { PERMISSION_AI_MANAGE, PERMISSION_MEMBERS_MANAGE, PERMISSION_ROLES_MANAGE } from '../../domain/schema/access';
 
 /**
  * **O Escritório** — o cadastro da organização, os membros e as conexões de IA.
@@ -31,18 +32,19 @@ export const coreTenantPlugin: PluginRecord = {
     TenantSettingsView: lazyView(() => import('../../presentation/pages/TenantSettings/TenantSettings.view'), 'TenantSettingsView'),
     OfficeTabView: lazyView(() => import('../../presentation/pages/TenantSettings/OfficeTab/OfficeTab.view'), 'OfficeTabView'),
     MembersTabView: lazyView(() => import('../../presentation/pages/TenantSettings/MembersTab/MembersTab.view'), 'MembersTabView'),
+    RolesTabView: lazyView(() => import('../../presentation/pages/TenantSettings/RolesTab/RolesTab.view'), 'RolesTabView'),
     AITabView: lazyView(() => import('../../presentation/pages/TenantSettings/AITab/AITab.view'), 'AITabView'),
   },
   manifest: {
     id: 'core.tenant',
     version: '1.0.0',
-    kernel: '^1.0.0',
+    kernel: '^2.0.0',
     // eslint-disable-next-line no-restricted-syntax -- metadado do plugin do NÚCLEO: não é renderizado.
     name: 'Organization',
     description:
       // eslint-disable-next-line no-restricted-syntax -- metadado do plugin do NÚCLEO: não é renderizado.
       'The organization record, its members and its AI connections, on a tab surface any extension can join.',
-    dependencies: { 'core.ui': '^1.0.0' },
+    dependencies: { 'core.ui': '^1.0.0', 'core.access': '^1.0.0' },
     contributes: [
       messageBundleContribution(coreMessage('core.tenant', CORE_TENANT_MESSAGES)),
       coreTenantPtBrContribution(),
@@ -62,15 +64,23 @@ export const coreTenantPlugin: PluginRecord = {
         title: '@core.tenant/tenant.tab.members',
         icon: 'team',
         order: 20,
-        requiresTenantAdmin: true,
+        requiredPermissions: [PERMISSION_MEMBERS_MANAGE],
       }, 'MembersTabView'),
+      surfaceTab({
+        surface: TENANT_SETTINGS_SURFACE,
+        key: 'roles',
+        title: '@core.access/resource.roles',
+        icon: 'shieldUser',
+        order: 25,
+        requiredPermissions: [PERMISSION_ROLES_MANAGE],
+      }, 'RolesTabView'),
       surfaceTab({
         surface: TENANT_SETTINGS_SURFACE,
         key: 'ai',
         title: '@core.tenant/tenant.tab.ai',
         icon: 'sparkling',
         order: 30,
-        requiresTenantAdmin: true,
+        requiredPermissions: [PERMISSION_AI_MANAGE],
       }, 'AITabView'),
       settingsSection({
         key: 'tenant-settings',

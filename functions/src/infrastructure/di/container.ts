@@ -2,6 +2,9 @@ import { getDb } from '../firebase/initFirebase';
 import { FirebaseAuditLogRepository } from '../../data/repositories/FirebaseAuditLogRepository';
 import { UserProfileLookupService } from '../../data/services/UserProfileLookupService';
 import { FkNameEnricherService } from '../../data/services/FkNameEnricherService';
+import { PermissionCatalogCache } from '../../data/services/PermissionCatalogCache';
+import { makeMaterializeMemberPermissionsUseCase } from '../../domain/usecases/MaterializeMemberPermissionsUseCase';
+import type { MaterializeMemberPermissionsUseCase } from '../../domain/usecases/MaterializeMemberPermissionsUseCase';
 import { makeCreateAuditLogUseCase } from '../../domain/usecases/CreateAuditLogUseCase';
 import type { CreateAuditLogUseCase } from '../../domain/usecases/CreateAuditLogUseCase';
 import { makeLogClientErrorUseCase } from '../../domain/usecases/LogClientErrorUseCase';
@@ -63,6 +66,8 @@ class DIContainer {
 
   private aiProviders: IAIProviderService[];
   private aiConnectionRepo?: IAIConnectionRepository;
+  private permissionCatalogCache?: PermissionCatalogCache;
+  private materializeMemberPermissionsUC?: MaterializeMemberPermissionsUseCase;
   private tenantRepo?: ITenantRepository;
   private tenantSettingsRepo?: ITenantSettingsRepository;
   private auditLogRepo?: IAuditLogRepository;
@@ -277,6 +282,23 @@ class DIContainer {
       },
       now: () => new Date(),
     };
+  }
+
+  getPermissionCatalogCache(): PermissionCatalogCache {
+    if (!this.permissionCatalogCache) {
+      this.permissionCatalogCache = new PermissionCatalogCache(getDb());
+    }
+    return this.permissionCatalogCache;
+  }
+
+  getMaterializeMemberPermissionsUseCase(): MaterializeMemberPermissionsUseCase {
+    if (!this.materializeMemberPermissionsUC) {
+      this.materializeMemberPermissionsUC = makeMaterializeMemberPermissionsUseCase(
+        getDb(),
+        this.getPermissionCatalogCache(),
+      );
+    }
+    return this.materializeMemberPermissionsUC;
   }
 
   getScreenDefinitionCache(): ScreenDefinitionCache {

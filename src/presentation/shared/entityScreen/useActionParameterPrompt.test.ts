@@ -35,7 +35,7 @@ const context = (values: Record<string, unknown>): ActionExprContext => ({
   record: values,
   isNew: false,
   isDirty: false,
-  role: 'admin',
+  permissions: [],
   surface: 'list',
 });
 

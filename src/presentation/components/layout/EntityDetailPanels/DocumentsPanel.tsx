@@ -16,10 +16,13 @@ import { useT, useLocaleFormat } from '../../../shared/i18n/useT';
 
 interface DocumentsPanelProps {
   controller: EntityDocumentsController;
-  isAdmin: boolean;
+  /** Pode excluir um documento anexado — a permissão de exclusão da coleção do registro. */
+  canDelete: boolean;
+  /** Pode tirar um TIPO de documento da lista compartilhada do escritório. */
+  canManageTypes: boolean;
 }
 
-export const DocumentsPanel: React.FC<DocumentsPanelProps> = ({ controller: vm, isAdmin }) => {
+export const DocumentsPanel: React.FC<DocumentsPanelProps> = ({ controller: vm, canDelete, canManageTypes }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const t = useT('core.ui');
   const { formatLongDate } = useLocaleFormat();
@@ -52,7 +55,7 @@ export const DocumentsPanel: React.FC<DocumentsPanelProps> = ({ controller: vm, 
                 onChange={vm.setPendingType}
                 placeholder={t('documents.type.placeholder')}
                 onAdd={vm.handleAddDocumentType}
-                onDelete={isAdmin ? vm.handleDeleteDocumentType : undefined}
+                onDelete={canManageTypes ? vm.handleDeleteDocumentType : undefined}
                 deleteConfirmTitle={t('documents.type.delete.title')}
                 deleteConfirmMessage={t('documents.type.delete.message')}
                 disabled={vm.isUploadingDoc}
@@ -105,7 +108,7 @@ export const DocumentsPanel: React.FC<DocumentsPanelProps> = ({ controller: vm, 
                 <Button variant="ghost" size="sm" onClick={() => window.open(docItem.url, '_blank', 'noopener,noreferrer')} title={t('documents.open')}>
                   <RiExternalLinkLine size={14} />
                 </Button>
-                {isAdmin && (
+                {canDelete && (
                   <Button variant="ghost" size="sm" onClick={() => vm.requestDeleteDoc(docItem)} title={t('documents.delete')}>
                     <RiDeleteBinLine size={13} />
                   </Button>

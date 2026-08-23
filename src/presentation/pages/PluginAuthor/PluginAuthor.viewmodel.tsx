@@ -5,8 +5,8 @@ import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
 import { useActions } from '../../../stores/useActions';
 import { useWorkflowStore } from '../../../stores/useWorkflowStore';
 import { useScriptStore } from '../../../stores/useScriptStore';
-import { useTenant } from '../../../stores/useTenant';
-import { useAuth } from '../../../stores/useAuth';
+import { useAuthorization } from '../../../stores/useAuthorization';
+import { PERMISSION_EXTENSIONS_MANAGE } from '../../../domain/schema/access';
 import { useNotification } from '../../../stores/useNotification';
 import { buildPackage, type CarriedTemplates } from '../../../domain/usecases/plugins/packageBuilder';
 import {
@@ -44,7 +44,7 @@ const KIND_KEY: Record<RefKind, string> = {
   script: 'author.kind.script',
 };
 
-const STUB_MANIFEST: PluginManifest = { id: 'seu.plugin', version: '1.0.0', kernel: '^1.0.0', name: 'x' };
+const STUB_MANIFEST: PluginManifest = { id: 'seu.plugin', version: '1.0.0', kernel: '^2.0.0', name: 'x' };
 
 export type ArtifactKind = 'screens' | 'screenPatches' | 'actions' | 'workflows' | 'scripts';
 
@@ -164,12 +164,11 @@ export const usePluginAuthorViewModel = (tabKey?: string): PluginAuthorViewModel
   const { actions } = useActions();
   const { workflows } = useWorkflowStore();
   const { scripts } = useScriptStore();
-  const { tenantRole } = useTenant();
-  const { userRole } = useAuth();
+  const { can } = useAuthorization();
   const { notify } = useNotification();
   const t = useT('core.marketplace');
 
-  const canManage = userRole === 'SYSTEM' || tenantRole === 'admin';
+  const canManage = can(PERMISSION_EXTENSIONS_MANAGE);
   const editingId = tabKey && tabKey.startsWith(EDIT_PREFIX) ? tabKey.slice(EDIT_PREFIX.length) : null;
   // Editar = pré-carrega o formulário da extensão já em memória (a aba abre a partir de Minhas
   // Extensões, então ela está carregada). Inicialização preguiçosa, uma vez — sem efeito que copia
@@ -508,7 +507,7 @@ export const usePluginAuthorViewModel = (tabKey?: string): PluginAuthorViewModel
   const manifest = useMemo<PluginManifest>(() => ({
     id: form.id.trim(),
     version: form.version.trim(),
-    kernel: '^1.0.0',
+    kernel: '^2.0.0',
     name: form.name.trim(),
     ...(form.description.trim() ? { description: form.description.trim() } : {}),
     ...(codeContributions.length > 0

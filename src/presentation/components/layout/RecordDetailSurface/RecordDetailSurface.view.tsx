@@ -28,7 +28,8 @@ export interface RecordDetailViewModel {
   isNew: boolean;
   /** Algum campo foi alterado e ainda não foi salvo — exposto às expressões como `isDirty`. */
   isDirty: boolean;
-  isAdmin: boolean;
+  canDeleteRecordParts: boolean;
+  canManageDocumentTypes: boolean;
   /** Excluir é de admin — ou do autor, quando a tela declara `authorCanDelete`. */
   canDelete: boolean;
   screenKey: string;
@@ -135,7 +136,8 @@ export const RecordDetailSurface: React.FC<RecordDetailSurfaceProps> = ({ vm, re
     <EntityDetailView
       isNew={vm.isNew}
       screenActions={vm.screenActions}
-      isAdmin={vm.isAdmin}
+      canDeleteRecordParts={vm.canDeleteRecordParts}
+      canManageDocumentTypes={vm.canManageDocumentTypes}
       avatar={vm.recordImageUrl
         ? <UserAvatar src={vm.recordImageUrl} name={vm.recordTitle} size={48} fallback={getScreenIcon(definition.icon, 22)} />
         : getScreenIcon(definition.icon, 22)}

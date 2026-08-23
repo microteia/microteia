@@ -12,6 +12,7 @@ import {
 } from './dataExtensionPoints';
 import { coreDataPlugin } from '../../plugins/core.data/manifest';
 import { coreI18nPlugin } from '../../plugins/core.i18n/manifest';
+import { coreAccessPlugin } from '../../plugins/core.access/manifest';
 import { coreUiPlugin } from '../../plugins/core.ui/manifest';
 
 describe('contribuições de dados — cobertura', () => {
@@ -48,11 +49,11 @@ describe('contribuições de dados — cobertura', () => {
 
 describe('core.data — enumeração pelo Kernel', () => {
   // `core.i18n` entra junto porque `core.data` publica o catálogo dele: o ponto `i18n.messages` é
-  // declarado lá. `core.ui` vem atrás porque `core.i18n` depende dele — sem a dependência satisfeita
-  // o ponto não chega a ser registrado.
+  // declarado lá. `core.ui` e `core.access` vêm atrás porque `core.i18n` depende dos dois — sem as
+  // dependências satisfeitas o ponto não chega a ser registrado.
   const load = () => {
     const host = createPluginHost();
-    const result = host.load([coreUiPlugin, coreI18nPlugin, coreDataPlugin]);
+    const result = host.load([coreAccessPlugin, coreUiPlugin, coreI18nPlugin, coreDataPlugin]);
     return { host, result };
   };
 

@@ -13,7 +13,7 @@ import type { MarketplacePlugin } from '../domain/entities/MarketplacePlugin';
  * Estes casos fixam o que a porta responde. O caso final é o que impede a porta de voltar a ser quatro.
  */
 const valid: MarketplacePlugin = {
-  manifest: { id: 'com.example.ok', version: '1.0.0', kernel: '^1.0.0', name: 'Ok' },
+  manifest: { id: 'com.example.ok', version: '1.0.0', kernel: '^2.0.0', name: 'Ok' },
   summary: 'Uma extensão mínima que instala.',
   workflows: [],
 };

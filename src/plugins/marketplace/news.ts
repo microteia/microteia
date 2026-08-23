@@ -119,7 +119,6 @@ const NEWS_SCREEN: ScreenModuleTemplate = {
   // through another door: any member writes these four fields and nothing else. Without this, whoever
   // holds the `user` role (read only) could not even mark an item as read, and the menu badge stayed
   // stuck forever.
-  writeRoles: null,
   memberWritableFields: ['readBy', 'savedBy', 'likedBy', 'viewCount'],
   // Whoever published deletes what they published, without depending on an admin.
   authorCanDelete: true,
@@ -149,7 +148,6 @@ const COMMENTS_SCREEN: ScreenModuleTemplate = {
   // On a noticeboard, commenting belongs to EVERYONE — including whoever only reads the rest of the
   // office. That is what the named rule for `newsComments` said (any authenticated user creates their
   // own comment), and here the declared list WIDENS the default permission instead of narrowing it.
-  writeRoles: ['admin', 'lawyer', 'secretary', 'user'],
   authorCanDelete: true,
   hideFromSidebar: true,
 };
@@ -185,7 +183,7 @@ export const newsPlugin: MarketplacePlugin = {
   manifest: {
     id: 'com.microteia.news',
     version: '1.1.0',
-    kernel: '^1.0.0',
+    kernel: '^2.0.0',
     name: message('package.name'),
     description: message('package.description'),
     publisher: { name: 'Microteia' },
