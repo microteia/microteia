@@ -56,3 +56,9 @@ export {
   isUnrestricted,
   memberPermissions,
 } from './memberPermissions';
+
+export {
+  ambientPermissions,
+  resetAmbientPermissions,
+  setAmbientPermissions,
+} from './permissionGate';

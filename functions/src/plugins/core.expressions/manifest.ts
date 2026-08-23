@@ -11,6 +11,7 @@ import {
   splitFn, joinFn, interpolateFn, onlyNumberFn, formatMoneyFn,
 } from '../../domain/engine/expression/builtins/stringFns';
 import { getVarFn } from '../../domain/engine/expression/builtins/getVarFn';
+import { hasPermissionFn } from '../../domain/engine/expression/builtins/accessFns';
 import {
   roundFn, minFn, maxFn, sumFn, avgFn,
 } from '../../domain/engine/expression/builtins/mathFns';
@@ -36,6 +37,7 @@ const BUILTIN_FUNCTIONS: ExpressionFunction[] = [
   todayFn, nowFn, formatDateFn, dayOfWeekFn, isWeekendFn, dateDiffFn, yearFn, monthFn, dayFn,
   addDaysFn,
   ifFn,
+  hasPermissionFn,
   concatFn, lowerFn, upperFn, lengthFn, trimFn, replaceFn, substringFn, startsWithFn, endsWithFn,
   splitFn, joinFn, interpolateFn, onlyNumberFn, formatMoneyFn,
   getVarFn,

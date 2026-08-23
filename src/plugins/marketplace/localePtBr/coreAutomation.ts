@@ -633,6 +633,7 @@ export const CORE_AUTOMATION: Record<string, string> = {
   'expr.greaterOrEqual.description': 'Verifica se o primeiro valor é maior ou igual ao segundo',
   'expr.greaterThan.description': 'Verifica se o primeiro valor é maior que o segundo',
   'expr.greaterThan.name': 'Maior que',
+  'expr.has-permission.description': 'Diz se quem disparou a execução tem a permissão informada',
   'expr.if.description': 'Retorna um valor baseado em uma condição',
   'expr.in.description': 'Verifica se um valor está presente em um array',
   'expr.in.name': 'Pertence a',

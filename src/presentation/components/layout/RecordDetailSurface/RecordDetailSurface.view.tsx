@@ -32,6 +32,7 @@ export interface RecordDetailViewModel {
   canManageDocumentTypes: boolean;
   /** Excluir é de admin — ou do autor, quando a tela declara `authorCanDelete`. */
   canDelete: boolean;
+  canSave: boolean;
   screenKey: string;
   recordId: string | null;
   recordNotFound: boolean;
@@ -153,6 +154,7 @@ export const RecordDetailSurface: React.FC<RecordDetailSurfaceProps> = ({ vm, re
       showTagsAction={!vm.isNew && definition.hasTags}
       onManageTags={vm.openTagManager}
       onSave={() => void vm.handleSave()}
+      canSave={vm.canSave}
       isSaving={vm.isSaving}
       showDelete={!vm.isNew && vm.canDelete}
       onDelete={vm.requestDelete}

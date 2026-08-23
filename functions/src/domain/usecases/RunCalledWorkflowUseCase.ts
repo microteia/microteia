@@ -1,4 +1,5 @@
 import type { WorkflowEvent, WorkflowExecutionStatus } from '../entities/Workflow';
+import type { WorkflowContext } from '../entities/WorkflowContext';
 import type { WorkflowServices } from '../entities/WorkflowContext';
 import type { IWorkflowDefinitionRepository } from '../repositories/IWorkflowDefinitionRepository';
 import type { IWorkflowExecutionRepository } from '../repositories/IWorkflowExecutionRepository';
@@ -12,6 +13,8 @@ export interface RunCalledWorkflowParams {
   targetWorkflowId: string;
   params: Record<string, unknown>;
   callDepth: number;
+  /** Quem apertou o botão. Ausente na automação que nasce de um gatilho. */
+  actor?: WorkflowContext['actor'];
 }
 
 export type RunCalledWorkflowResult =
@@ -29,7 +32,7 @@ export const makeRunCalledWorkflowUseCase = (
   services: WorkflowServices,
   hydrator: WorkflowContextHydrator,
 ): RunCalledWorkflowUseCase => ({
-  execute: async ({ tenantId, targetWorkflowId, params, callDepth }) => {
+  execute: async ({ tenantId, targetWorkflowId, params, callDepth, actor }) => {
     const target = await definitionRepository.findById(tenantId, targetWorkflowId);
     if (!target || !target.enabled || target.eventName !== WORKFLOW_CALLED_EVENT) {
       return { found: false };
@@ -43,7 +46,7 @@ export const makeRunCalledWorkflowUseCase = (
       timestamp: services.now(),
     };
 
-    const execution = await hydrateAndRunWorkflow(target, event, { registry, services, hydrator });
+    const execution = await hydrateAndRunWorkflow(target, event, { registry, services, hydrator, ...(actor ? { actor } : {}) });
     await executionRepository.create(execution);
 
     return { found: true, status: execution.status, outputs: execution.outputs, executionId: execution.id };

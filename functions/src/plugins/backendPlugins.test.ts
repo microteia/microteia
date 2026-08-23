@@ -31,7 +31,7 @@ const STEPS_ANTES_DA_MIGRACAO = [
 const FUNCOES_ANTES_DA_MIGRACAO = [
   'abs', 'addDays', 'and', 'avg', 'ceil', 'coalesce', 'concat', 'contains', 'dateDiff', 'day',
   'dayOfWeek', 'delete', 'endsWith', 'first', 'floor', 'formatCNPJ', 'formatCPF', 'formatDate',
-  'formatMoney', 'getVar', 'if', 'indexOf', 'interpolate', 'isCNPJ', 'isCPF', 'isEmail',
+  'formatMoney', 'getVar', 'hasPermission', 'if', 'indexOf', 'interpolate', 'isCNPJ', 'isCPF', 'isEmail',
   'isEmpty', 'isNotNull', 'isNull', 'isWeekend', 'join', 'last', 'length', 'lower', 'map', 'max',
   'min', 'month', 'not', 'now', 'object', 'onlyNumber', 'or', 'replace', 'round', 'split',
   'startsWith', 'substring', 'sum', 'today', 'trim', 'upper', 'year',

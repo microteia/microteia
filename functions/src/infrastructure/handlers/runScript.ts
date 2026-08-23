@@ -97,7 +97,7 @@ export const runScript = onCall(
     }
 
     const di = getDI();
-    await requirePermission(tenantId, request.auth.uid, PERMISSION_AUTOMATION_RUN);
+    const actorPermissions = await requirePermission(tenantId, request.auth.uid, PERMISSION_AUTOMATION_RUN);
 
     const params = inputParams ?? [];
     const coerced = coerceProvidedParams(params, providedParams ?? {});
@@ -135,6 +135,7 @@ export const runScript = onCall(
       services: { logger, now: () => new Date() },
       logger,
       execution: { id: crypto.randomUUID(), workflowDefinitionId: '', tenantId },
+      actor: { userId: request.auth.uid, permissions: actorPermissions },
       input: ruled.data,
     };
 

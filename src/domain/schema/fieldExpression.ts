@@ -6,6 +6,8 @@
 import { Parser } from 'expr-eval';
 import { isEmptyRuleValue, isValidCnpj, isValidCpf, onlyDigits } from './fieldRulePresets';
 import { ambientLocale } from './i18n/localeGate';
+import { ambientPermissions } from './access/permissionGate';
+import { grants } from './access/memberPermissions';
 import { currencyForLocale, formatMoneyFor } from './i18n/localeFormat';
 
 export interface FieldExprContext {
@@ -293,6 +295,22 @@ const FIELD_EXPRESSION_FUNCTIONS: Record<string, (...args: unknown[]) => unknown
       if (key !== '' && !UNSAFE_PATH_KEYS.has(key)) result[key] = args[index + 1];
     }
     return result;
+  },
+  /**
+   * "Esta pessoa PODE?" dentro de uma expressão — o mesmo `can()` do código, disponível onde a
+   * declaração vive: `hiddenWhen` de uma ação, `disabledWhen` de um campo, condição de um passo.
+   *
+   * O identificador é o da permissão (`finance.write`), e não o de um papel: uma extensão declara
+   * `hasPermission("push.recheck")` sem saber que perfis existem no escritório que a instalou.
+   *
+   * O conjunto vem do gate de módulo porque o `expr-eval` não entrega o escopo às funções — ver
+   * `access/permissionGate.ts`.
+   */
+  hasPermission: (permission) => {
+    // A checagem de vazio vem ANTES: o curinga do dono concede qualquer identificador, e sem esta
+    // guarda `hasPermission("")` — um erro de digitação na declaração — passaria para ele.
+    const id = asText(permission).trim();
+    return id !== '' && grants(ambientPermissions(), id);
   },
   map: (array, path, compact) => {
     if (!Array.isArray(array)) return [];

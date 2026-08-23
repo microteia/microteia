@@ -631,6 +631,7 @@ export const CORE_AUTOMATION_MESSAGES: Record<string, string> = {
   'expr.greaterOrEqual.description': 'Checks whether the first value is greater than or equal to the second',
   'expr.greaterThan.description': 'Checks whether the first value is greater than the second',
   'expr.greaterThan.name': 'Greater than',
+  'expr.has-permission.description': 'Says whether whoever triggered the run has the given permission',
   'expr.if.description': 'Returns a value based on a condition',
   'expr.in.description': 'Checks whether a value is present in an array',
   'expr.in.name': 'In',

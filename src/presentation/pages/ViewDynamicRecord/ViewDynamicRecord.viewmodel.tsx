@@ -59,6 +59,7 @@ export interface ViewDynamicRecordViewModel {
   /** Algum campo foi alterado e ainda não foi salvo — exposto às expressões como `isDirty`. */
   isDirty: boolean;
   screenActions: ScreenActions;
+  canSave: boolean;
   canDeleteRecordParts: boolean;
   canManageDocumentTypes: boolean;
   /** Excluir é de admin — ou do autor, quando a tela declara `authorCanDelete`. */
@@ -344,6 +345,10 @@ export const useViewDynamicRecordViewModel = (tabKey: string): ViewDynamicRecord
 
   // Excluir exige a permissão de exclusão DESTA coleção, salvo onde a tela declara que a autoria é a
   // posse. Espelha o `firestore.rules`.
+  // Gravar um registro NOVO é criar; gravar um que já existe é alterar. São permissões diferentes, e
+  // a mesma tela serve às duas — é por isso que a conta é feita aqui, e não uma vez só.
+  const canSave = can(`${collection}.${detail.isNew ? 'create' : 'update'}`);
+
   const canDelete = canDeleteRecords
     || (!!definition?.authorCanDelete && !!sourceRecord && sourceRecord.createdBy === user?.id);
 
@@ -354,6 +359,7 @@ export const useViewDynamicRecordViewModel = (tabKey: string): ViewDynamicRecord
     isNew: detail.isNew,
     isDirty: detail.isDirty,
     screenActions: detail.screenActions,
+    canSave,
     canDeleteRecordParts: canDeleteRecords,
     canManageDocumentTypes,
     canDelete,

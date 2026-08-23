@@ -1,4 +1,5 @@
 import type { WorkflowDefinition, WorkflowEvent, WorkflowExecution } from '../entities/Workflow';
+import type { WorkflowContext } from '../entities/WorkflowContext';
 import type { WorkflowServices } from '../entities/WorkflowContext';
 import type { StepRegistry } from './StepRegistry';
 import { runWorkflow } from './WorkflowExecutor';
@@ -11,6 +12,8 @@ export interface HydrateAndRunWorkflowDeps {
   services: WorkflowServices;
   hydrator: WorkflowContextHydrator;
   cache?: HydrationCache;
+  /** Quem disparou, quando alguém disparou. Ver `WorkflowContext.actor`. */
+  actor?: WorkflowContext['actor'];
 }
 
 export const hydrateAndRunWorkflow = async (
@@ -38,5 +41,11 @@ export const hydrateAndRunWorkflow = async (
       `Payload hidratado (schema v${SCHEMA_VERSION}) para o workflow "${definition.id}" com ${referencedPaths.length} caminho(s)`,
     );
   }
-  return runWorkflow({ definition, event: hydratedEvent, registry: deps.registry, services: deps.services });
+  return runWorkflow({
+    definition,
+    event: hydratedEvent,
+    registry: deps.registry,
+    services: deps.services,
+    ...(deps.actor ? { actor: deps.actor } : {}),
+  });
 };

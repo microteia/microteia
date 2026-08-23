@@ -510,7 +510,27 @@ O papel `SUPPORT` **deixou de existir**.
 | Extensão | `useCan()` da API curada; o `ExtensionViewer` traz `permissions`, e não papel nenhum |
 | Security Rules | `can(tenantId, permission)`, uma leitura — a mesma que `memberData()` já fazia |
 | Callable | `requirePermission(tenantId, uid, permission)` |
-| Expressão de UI | `permissions` na raiz do escopo: `"medico.delete" in permissions` |
+| Expressão | `hasPermission("medico.delete")` — em campo, ação, condição de passo e Script (`fn.hasPermission`) |
+
+### `hasPermission` — a mesma pergunta dentro de uma declaração
+
+`hasPermission("finance.write")` está disponível onde já se escreve condição: `hiddenWhen` de uma
+ação, `disabledWhen` de um campo, condição de um passo e, no Script, como `fn.hasPermission(...)`. O
+argumento é o identificador da PERMISSÃO, nunca o de um perfil — é o que permite a uma extensão
+escrever `hasPermission("push.recheck")` sem saber que perfis existem no escritório que a instalou.
+
+De onde ela lê o conjunto muda conforme a ponta, e a diferença não é acidental:
+
+| Ponta | Fonte | Por quê |
+|---|---|---|
+| Navegador | gate de módulo (`access/permissionGate.ts`), empurrado pelo `AuthorizationStore` | o `expr-eval` não entrega o escopo às funções registradas nele; o navegador avalia uma por vez |
+| Backend | `WorkflowContext.actor`, por execução | uma instância de Cloud Function atende requisições CONCORRENTES — gate de módulo vazaria o acesso de uma execução para outra |
+
+**Sem ator, a resposta é NÃO.** A automação que nasce de um gatilho não tem pessoa, e conceder por
+ausência de pessoa transformaria "ninguém disparou isto" em "pode tudo". Hoje há ator em `runAction`
+e no Step "Script" (execução em processo); `runWorkflow` PUBLICA um evento e a execução acontece
+noutra invocação — levar as permissões no payload seria persistir um retrato do acesso de alguém
+dentro do barramento, e por isso ali não há ator.
 
 O curinga `match /{screenCollection}/{recordId}` monta o nome a partir da própria coleção
 (`canOnCollection(name, 'create')`). Ali morava `writeRoles`, a lista de papéis que a tela declarava:

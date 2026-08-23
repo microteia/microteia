@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo } from 'react';
 import { AuthorizationContext } from './useAuthorization';
 import { useAuth } from './useAuth';
 import { useTenant } from './useTenant';
@@ -14,8 +14,10 @@ import {
   buildPermissionCatalog,
   declaredPermissionsOf,
   declaredResourcesOf,
+  UNRESTRICTED_PERMISSION,
   isUnrestricted as grantsEverything,
   memberPermissions,
+  setAmbientPermissions,
 } from '../domain/schema/access';
 
 /**
@@ -83,6 +85,15 @@ export const AuthorizationStoreProvider: React.FC<{ children: React.ReactNode }>
   );
 
   const effectiveSet = useMemo(() => new Set(resolved.effective), [resolved]);
+
+  /**
+   * Empurra o conjunto para o gate de módulo, que é de onde `hasPermission(...)` o lê dentro de uma
+   * expressão — o `expr-eval` não entrega o escopo às funções registradas nele. Mesmo mecanismo do
+   * idioma (`setAmbientLocale`), e seguro aqui porque o navegador avalia uma expressão por vez.
+   */
+  useEffect(() => {
+    setAmbientPermissions(isUnrestricted ? [UNRESTRICTED_PERMISSION] : resolved.effective);
+  }, [isUnrestricted, resolved]);
 
   const can = useCallback(
     (permission: string) => isUnrestricted || effectiveSet.has(permission),

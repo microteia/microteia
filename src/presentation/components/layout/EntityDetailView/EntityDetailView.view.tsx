@@ -59,6 +59,11 @@ export interface EntityDetailViewProps {
   onManageTags: () => void;
   onSave: () => void;
   isSaving: boolean;
+  /**
+   * Pode GRAVAR este registro: criar, quando ele é novo; alterar, quando já existe. Sem isso o
+   * botão aparecia para quem só pode visualizar, e a recusa só chegava depois do clique.
+   */
+  canSave: boolean;
   showDelete: boolean;
   onDelete: () => void;
 
@@ -94,6 +99,7 @@ export const EntityDetailView: React.FC<EntityDetailViewProps> = ({
   onManageTags,
   onSave,
   isSaving,
+  canSave,
   showDelete,
   onDelete,
   activeTab,
@@ -166,7 +172,7 @@ export const EntityDetailView: React.FC<EntityDetailViewProps> = ({
             <RiPriceTag3Line size={14} />
           </Button>
         )}
-        {(activeTab === 'data' || isNew) && (
+        {canSave && (activeTab === 'data' || isNew) && (
           <S.SaveBtn onClick={onSave} disabled={isSaving} title={t(isSaving ? 'saving' : 'action.save')}>
             <RiSaveLine size={14} />
           </S.SaveBtn>

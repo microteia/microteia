@@ -21,9 +21,11 @@ export interface RunWorkflowParams {
   event: WorkflowEvent;
   registry: StepRegistry;
   services: WorkflowServices;
+  /** Quem disparou, quando alguém disparou. Ver `WorkflowContext.actor`. */
+  actor?: WorkflowContext['actor'];
 }
 
-export const runWorkflow = async ({ definition, event, registry, services }: RunWorkflowParams): Promise<WorkflowExecution> => {
+export const runWorkflow = async ({ definition, event, registry, services, actor }: RunWorkflowParams): Promise<WorkflowExecution> => {
   const executionId = crypto.randomUUID();
   const startedAt = services.now();
   const logs: WorkflowExecutionLogEntry[] = [];
@@ -93,6 +95,7 @@ export const runWorkflow = async ({ definition, event, registry, services }: Run
     services,
     logger: captureLogger,
     execution: { id: executionId, workflowDefinitionId: definition.id, tenantId: definition.tenantId },
+    ...(actor ? { actor } : {}),
   };
 
   let conditionResult: boolean;
@@ -147,6 +150,7 @@ export const runWorkflow = async ({ definition, event, registry, services }: Run
     services,
     logger: captureLogger,
     execution: { id: executionId, workflowDefinitionId: definition.id, tenantId: definition.tenantId },
+    ...(actor ? { actor } : {}),
   };
 
   // Monta context.input a partir do flatten das saídas acumuladas (só Steps já executados) —

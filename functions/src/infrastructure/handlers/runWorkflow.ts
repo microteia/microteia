@@ -208,6 +208,10 @@ export const runWorkflow = onCall(
 
     try {
       const di = getDI();
+      // Sem ator no contexto, de propósito: esta porta PUBLICA um evento, e a execução acontece
+      // depois, noutra invocação. Levar as permissões no payload seria persistir um retrato do
+      // acesso de alguém — que envelhece — dentro do barramento. `hasPermission(...)` responde NÃO
+      // aqui, e o gesto síncrono que precisa dele é a Action (`runAction`), que roda em processo.
       await requirePermission(tenantId, request.auth.uid, PERMISSION_AUTOMATION_RUN);
 
       const definition = await di.getWorkflowDefinitionRepository().findById(tenantId, targetWorkflowId);

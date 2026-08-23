@@ -11,6 +11,12 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.1.0] — 2026-08-23
+
+- **Os botões somem para quem não pode.** Quem só tem "Visualizar" numa tela deixa de ver o botão de novo registro e o de salvar. Antes eles apareciam, e a recusa só chegava depois do clique.
+- **Nova função `hasPermission` nas expressões.** Onde já se escreve uma condição — para esconder uma ação, desabilitar um campo ou ramificar uma automação — agora se pode perguntar `hasPermission("financeiro.create")`. A pergunta é pela permissão, nunca pelo perfil: uma extensão a usa sem saber quais perfis existem no escritório que a instalou.
+- A mesma função está disponível nos Scripts como `fn.hasPermission(...)`, e enxerga quem apertou o botão.
+
 #### [9.0.3] — 2026-08-23
 
 - Na tela de Perfis de Acesso, a permissão que vem junto com outra já aparece travada de saída. Antes ela parecia disponível, o clique não a desmarcava — a dependência a mantém — e só então ela ficava cinza: o estado aparecia como resultado do clique, e não antes dele.

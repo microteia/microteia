@@ -1,6 +1,6 @@
 import { HttpsError } from 'firebase-functions/v2/https';
 import { getDI } from '../../di/container';
-import { grants, grantsAny } from '../../../domain/schema/access';
+import { UNRESTRICTED_PERMISSION, grants, grantsAny } from '../../../domain/schema/access';
 
 /**
  * A mesma pergunta que as Security Rules fazem, do lado das callables.
@@ -12,14 +12,20 @@ import { grants, grantsAny } from '../../../domain/schema/access';
 const isSystemAdmin = async (userId: string): Promise<boolean> =>
   (await getDI().getUserRepository().getUserRole(userId)) === 'SYSTEM';
 
+/**
+ * Devolve o conjunto CONCEDIDO, e não `void`: quem acabou de autorizar quase sempre precisa dele em
+ * seguida para montar o ator da execução (`WorkflowContext.actor`), e uma segunda leitura do mesmo
+ * documento seria só desperdício. O administrador global recebe o curinga, que é o que ele de fato
+ * tem.
+ */
 export const requirePermission = async (
   tenantId: string,
   userId: string,
   permission: string,
-): Promise<void> => {
+): Promise<string[]> => {
   const granted = await getDI().getTenantMemberRepository().getMemberPermissions(tenantId, userId);
-  if (grants(granted, permission)) return;
-  if (await isSystemAdmin(userId)) return;
+  if (grants(granted, permission)) return granted;
+  if (await isSystemAdmin(userId)) return [UNRESTRICTED_PERMISSION];
   throw new HttpsError('permission-denied', '@core.access/permission.denied', { permission });
 };
 

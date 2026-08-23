@@ -18,7 +18,7 @@ vi.mock('../../di/container', () => ({
 
 
 
-const denied = async (promise: Promise<void>): Promise<HttpsError> => {
+const denied = async (promise: Promise<unknown>): Promise<HttpsError> => {
   try {
     await promise;
   } catch (error) {
@@ -33,9 +33,9 @@ describe('requirePermission', () => {
     for (const key of Object.keys(roleByUser)) delete roleByUser[key];
   });
 
-  it('deixa passar quem tem a permissão', async () => {
+  it('deixa passar quem tem a permissão, devolvendo o conjunto concedido', async () => {
     permissionsByUser.ana = ['automation.run'];
-    await expect(requirePermission('t1', 'ana', 'automation.run')).resolves.toBeUndefined();
+    await expect(requirePermission('t1', 'ana', 'automation.run')).resolves.toEqual(['automation.run']);
   });
 
   it('recusa quem não tem, dizendo qual permissão faltou', async () => {
@@ -52,12 +52,13 @@ describe('requirePermission', () => {
 
   it('o curinga do DONO do escritório passa por qualquer permissão', async () => {
     permissionsByUser.dono = ['*'];
-    await expect(requirePermission('t1', 'dono', 'automation.manage')).resolves.toBeUndefined();
+    await expect(requirePermission('t1', 'dono', 'automation.manage')).resolves.toEqual(['*']);
   });
 
   it('o administrador GLOBAL passa mesmo sem documento de membro', async () => {
     roleByUser.sys = 'SYSTEM';
-    await expect(requirePermission('t1', 'sys', 'automation.manage')).resolves.toBeUndefined();
+    // Recebe o curinga: é o que ele de fato tem, e é o que vai para o ator da execução.
+    await expect(requirePermission('t1', 'sys', 'automation.manage')).resolves.toEqual(['*']);
   });
 
   it('papel global comum NÃO passa por cima da permissão', async () => {

@@ -28,6 +28,17 @@ export interface WorkflowContext {
     workflowDefinitionId: string;
     tenantId: string;
   };
+  /**
+   * QUEM disparou esta execução, quando alguém disparou.
+   *
+   * Ausente na automação que nasce de um gatilho: ali não há pessoa, e `hasPermission(...)` responde
+   * NÃO — a pergunta "esta pessoa pode?" sem pessoa nenhuma só tem essa resposta segura.
+   *
+   * Vive no CONTEXTO, e não num gate de módulo como o idioma: uma instância de Cloud Function atende
+   * requisições concorrentes, e permissão vazada de uma execução para outra é o defeito que este
+   * modelo inteiro existe para não ter.
+   */
+  actor?: { userId: string; permissions: string[] };
   input?: Record<string, unknown>;
   // Configuração bruta do step em execução. Permite que um step com inputs dinâmicos (ex:
   // 'Chamar Workflow') resolva chaves de configuração que resolveInputsSafe não conhece.

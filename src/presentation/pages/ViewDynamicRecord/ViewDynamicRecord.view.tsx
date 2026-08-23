@@ -89,6 +89,7 @@ export const ViewDynamicRecordView: React.FC<{ tabKey: string }> = ({ tabKey }) 
     <EntityDetailView
       isNew={vm.isNew}
       screenActions={vm.screenActions}
+      canSave={vm.canSave}
       canDeleteRecordParts={vm.canDeleteRecordParts}
       canManageDocumentTypes={vm.canManageDocumentTypes}
       avatar={vm.recordImageUrl

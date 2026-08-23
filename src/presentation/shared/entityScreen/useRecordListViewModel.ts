@@ -84,6 +84,14 @@ export interface RecordListViewModel {
   savedFiltersScreenKey: string;
   tags: Tag[];
   setFilterTokens: (tokens: FilterToken[]) => void;
+  /**
+   * O que esta pessoa pode fazer NESTA coleção. A listagem esconde o que a regra recusaria: oferecer
+   * o botão e deixar o servidor negar depois é pedir que alguém descubra o próprio acesso por
+   * tentativa e erro.
+   */
+  canCreate: boolean;
+  canUpdate: boolean;
+  canDeleteRecords: boolean;
   openNewRecord: () => void;
   openRecord: (record: EntityRecord) => void;
   getCardItems: (record: EntityRecord) => CustomFieldCardItem[];
@@ -465,6 +473,9 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
     savedFiltersScreenKey: savedFiltersKey,
     tags,
     setFilterTokens,
+    canCreate: can(`${collection}.create`),
+    canUpdate: can(`${collection}.update`),
+    canDeleteRecords: can(`${collection}.delete`),
     openNewRecord,
     openRecord,
     getCardItems,

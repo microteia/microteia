@@ -10,7 +10,10 @@ import type { IScreenDefinitionProvider } from '../../../domain/repositories/ISc
 
 const logs: string[] = [];
 
-const makeContext = (input: Record<string, unknown>): WorkflowContext => ({
+const makeContext = (
+  input: Record<string, unknown>,
+  actor?: WorkflowContext['actor'],
+): WorkflowContext => ({
   event: {
     id: 'evt-1',
     tenantId: 'tenant-1',
@@ -30,6 +33,7 @@ const makeContext = (input: Record<string, unknown>): WorkflowContext => ({
     error: (m: string) => logs.push(m),
   },
   execution: { id: 'exec-1', workflowDefinitionId: 'wf-1', tenantId: 'tenant-1' },
+  ...(actor ? { actor } : {}),
   input,
 });
 
@@ -46,8 +50,8 @@ const mutationDeps: WorkflowMutationDeps = {
   screenProvider: {} as IScreenDefinitionProvider,
 };
 
-const run = (js: string, input: Record<string, unknown>) =>
-  runScriptSandbox(js, input, makeContext(input), deps, mutationDeps);
+const run = (js: string, input: Record<string, unknown>, actor?: WorkflowContext['actor']) =>
+  runScriptSandbox(js, input, makeContext(input, actor), deps, mutationDeps);
 
 const wrapMain = (body: string) => `async function main() {\n${body}\n}\nmain();`;
 
@@ -113,6 +117,29 @@ describe('runScriptSandbox — compatibilidade fn.* (Expression) com QuickJS', (
     );
     // "dd" e "yyyy" não são reconhecidos; só "MM" é substituído.
     expect(out.d).toBe('dd/07/yyyy');
+  });
+
+  it('fn.hasPermission enxerga o ATOR da execução através da ponte host<->VM', async () => {
+    const out = await run(
+      wrapMain('return { pode: fn.hasPermission("finance.write"), naoPode: fn.hasPermission("finance.delete") };'),
+      {},
+      { userId: 'u1', permissions: ['finance.read', 'finance.write'] },
+    );
+    expect(out).toEqual({ pode: true, naoPode: false });
+  });
+
+  it('fn.hasPermission responde NÃO quando a execução não tem ator — nasceu de um gatilho', async () => {
+    const out = await run(wrapMain('return { pode: fn.hasPermission("finance.write") };'), {});
+    expect(out).toEqual({ pode: false });
+  });
+
+  it('fn.hasPermission concede tudo ao curinga do dono do escritório', async () => {
+    const out = await run(
+      wrapMain('return { pode: fn.hasPermission("qualquer.coisa") };'),
+      {},
+      { userId: 'dono', permissions: ['*'] },
+    );
+    expect(out).toEqual({ pode: true });
   });
 
   it('fn.isCPF valida CPF', async () => {
