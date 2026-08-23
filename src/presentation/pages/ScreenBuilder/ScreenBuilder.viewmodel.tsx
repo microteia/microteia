@@ -1404,15 +1404,16 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
   const tagListOptions = useMemo<SearchSelectOption[]>(
     () => availableTagLists.map((tagList) => ({
       value: tagList.collection,
-      // O rótulo da lista é uma REFERÊNCIA; ela vai como parâmetro, não concatenada — dentro de uma
-      // frase ela não resolveria. Os parâmetros dela sobem junto, para a composição interpolar.
+      // O rótulo da lista é uma REFERÊNCIA, e ela resolve ANTES de entrar na composição, com os
+      // próprios parâmetros. Passá-la crua como parâmetro faria os irmãos descerem para dentro de uma
+      // mensagem de OUTRO namespace, cujos nomes de token não são nossos: `tag-list.of` também
+      // interpola `{name}`, e a resolução voltava à mesma chave até estourar a pilha.
       label: t('tag-list.option', {
-        ...tagList.labelParams,
-        name: tagList.label,
+        name: label(tagList.label, tagList.labelParams),
         collection: tagList.collection,
       }),
     })),
-    [availableTagLists, t],
+    [availableTagLists, t, label],
   );
 
   const suggestedTagCollection = useMemo(

@@ -115,6 +115,18 @@ export const buildMessageCatalog = (
 };
 
 /**
+ * A CORRENTE de chaves já abertas na resolução em curso. Ela existe porque a referência de parâmetro
+ * é recursiva e os parâmetros irmãos descem junto: basta um parâmetro apontar para uma mensagem que
+ * interpola o próprio nome dele — `tag-list.option` recebendo `{name}` = `@core.records/tag-list.of`,
+ * que por sua vez é `Tags: {name}` — para a resolução voltar à mesma chave para sempre.
+ *
+ * A saída é a mesma tolerância do resto do módulo: uma referência que REENTRA numa chave da corrente
+ * volta crua, e o texto aparece feio e diagnosticável em vez de derrubar a tela. Ciclo é dado
+ * quebrado, e dado quebrado nunca custa a página inteira aqui.
+ */
+const NO_CHAIN: ReadonlySet<string> = new Set<string>();
+
+/**
  * Um VALOR de parâmetro pode ser ele próprio uma referência de mensagem. Um diagnóstico que diz
  * `{kind} "{id}" não existe` precisa que `kind` — "a tela", "a automação" — também traduza, e quem o
  * produz é o domínio, que não conhece idioma. Resolver o parâmetro aqui evita que cada consumidor
@@ -123,15 +135,18 @@ export const buildMessageCatalog = (
 const resolveParam = (
   catalog: MessageCatalog,
   value: unknown,
-  siblings?: MessageParams,
+  siblings: MessageParams | undefined,
+  resolving: ReadonlySet<string>,
 ): string => {
   if (typeof value !== 'string' || !value.startsWith('@')) return String(value);
   const match = /^@([a-z0-9][a-z0-9.-]*)\/([a-z0-9][a-z0-9.-]*)$/i.exec(value);
   if (!match) return value;
+  const full = `${match[1]}/${match[2]}`;
+  if (resolving.has(full)) return value;
   // Os parâmetros IRMÃOS descem para a mensagem aninhada. Um erro embrulhado por outro
   // ("[Campo: {field}] {detail}") traz junto o que a frase de dentro precisa interpolar — sem isso,
   // ela apareceria com o próprio `{label}` cru no meio.
-  return translate(catalog, `${match[1]}/${match[2]}`, siblings);
+  return translateKey(catalog, full, siblings, resolving);
 };
 
 /**
@@ -142,13 +157,14 @@ const resolveParam = (
 const interpolate = (
   catalog: MessageCatalog,
   template: string,
-  params?: MessageParams,
+  params: MessageParams | undefined,
+  resolving: ReadonlySet<string>,
 ): string => {
   if (!params) return template;
   return template.replace(/\{([\w.]+)\}/g, (match, token: string) => {
     const value = params[token];
     if (value === null || value === undefined) return match;
-    return resolveParam(catalog, value, params);
+    return resolveParam(catalog, value, params, resolving);
   });
 };
 
@@ -175,10 +191,11 @@ const pluralKey = (key: string, count: unknown, locale: LocaleCode): string | nu
  * botões em branco não é nem uma coisa nem outra. Tolerância a falha é a mesma dos presets de campo:
  * um pacote de tradução desinstalado não pode deixar o sistema inutilizável.
  */
-export const translate = (
+const translateKey = (
   catalog: MessageCatalog,
   key: string,
-  params?: MessageParams,
+  params: MessageParams | undefined,
+  resolving: ReadonlySet<string>,
 ): string => {
   if (typeof key !== 'string' || key === '') return '';
 
@@ -186,8 +203,14 @@ export const translate = (
   const found =
     (plural === null ? undefined : catalog.messages[plural]) ?? catalog.messages[key];
 
-  return interpolate(catalog, found ?? key, params);
+  return interpolate(catalog, found ?? key, params, new Set(resolving).add(key));
 };
+
+export const translate = (
+  catalog: MessageCatalog,
+  key: string,
+  params?: MessageParams,
+): string => translateKey(catalog, key, params, NO_CHAIN);
 
 /**
  * Um catálogo com `fallback` DEBAIXO de `base`: toda chave que os dois tiverem fica com o valor de

@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [8.8.1] — 2026-08-22
+
+- Corrigido o erro que impedia o Form Design de abrir em escritórios que têm etiquetas configuradas em alguma tela. A lista de conjuntos de etiquetas montava o próprio nome em cima de si mesma e a tela caía antes de aparecer.
+- Como consequência, um texto do sistema que se referencie em círculo deixa de derrubar a tela: ele aparece por extenso, feio mas visível, e o restante da página continua funcionando.
+
 #### [8.8.0] — 2026-08-22
 
 - O guia que a Microteia instala junto com a área de extensões passa a orientar o assistente de IA a **parar e pedir autorização** quando encontrar algo que a plataforma não faz, mas que deveria fazer: um recurso que não tem nada de específico do seu negócio e que qualquer outra extensão precisaria do mesmo jeito.

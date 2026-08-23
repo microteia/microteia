@@ -148,6 +148,61 @@ describe('translate', () => {
   });
 });
 
+describe('parâmetro que é referência', () => {
+  const catalog = buildMessageCatalog(
+    [
+      bundle({
+        messages: {
+          'wrap.field': '[Campo: {field}] {detail}',
+          'input.invalid': 'value "{value}" is not valid',
+          'tag-list.option': '{name} ({collection})',
+          'tag-list.of': 'Tags: {name}',
+          'ping.a': 'A: {other}',
+          'ping.b': 'B: {other}',
+        },
+      }),
+    ],
+    'en',
+  );
+
+  it('resolve a referência e desce os parâmetros irmãos para a mensagem aninhada', () => {
+    expect(
+      translate(catalog, 'core.ui/wrap.field', {
+        field: 'due_at',
+        detail: '@core.ui/input.invalid',
+        value: '2026-13-40',
+      }),
+    ).toBe('[Campo: due_at] value "2026-13-40" is not valid');
+  });
+
+  /**
+   * O ciclo nasce do encontro de duas coisas legítimas: os parâmetros irmãos descem, e a mensagem de
+   * dentro é de OUTRO namespace, cujos nomes de token não são nossos. Bastava as duas usarem `{name}`
+   * — era o caso de `tag-list.option` com `tag-list.of` — para a pilha estourar e a tela inteira cair
+   * no ErrorBoundary. Degradar para a referência crua deixa o defeito visível sem custar a página.
+   */
+  it('não recursa para sempre quando a referência reentra na própria chave', () => {
+    expect(
+      translate(catalog, 'core.ui/tag-list.option', {
+        name: '@core.ui/tag-list.of',
+        collection: 'consultas_tags',
+      }),
+    ).toBe('Tags: @core.ui/tag-list.of (consultas_tags)');
+  });
+
+  it('corta também o ciclo entre duas chaves diferentes', () => {
+    expect(
+      translate(catalog, 'core.ui/ping.a', { other: '@core.ui/ping.b' }),
+    ).toBe('A: B: @core.ui/ping.b');
+  });
+
+  it('devolve a referência crua quando a chave apontada não existe', () => {
+    expect(
+      translate(catalog, 'core.ui/wrap.field', { field: 'x', detail: '@core.ui/nao.existe' }),
+    ).toBe('[Campo: x] core.ui/nao.existe');
+  });
+});
+
 describe('leitura auxiliar', () => {
   const bundles = [
     bundle({ locale: 'en', namespace: 'core.ui' }),
