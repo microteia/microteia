@@ -4623,7 +4623,8 @@ aparece como qualquer outra — o caminho está pronto.
 
 **Provado no app** pela tela **Extensões**: cada plugin com `overview` (um `WidgetSpec`) ganha um
 "Ver detalhes" que abre um modal renderizado pelo `WidgetRenderer`. Consumidor real, clicável, sem
-depender da carga por tenant.
+depender da carga por tenant. O segundo consumidor é `manifest.license` — ver "O termo de licença é
+da extensão, e soma ao da Microteia".
 
 **Falta para o Widget DSL completo:** ligação a dados (`source: query:/script:/field:`) e `when` por
 expressão — o que torna um widget dinâmico, não só descritivo.
@@ -6263,8 +6264,9 @@ por quem ainda não entrou.
 ### O contrato jurídico é um pacote à parte — `core.license`
 
 Os Termos de Uso e a Política de Privacidade ganharam **namespace próprio**, `core.license`, com um
-plugin de núcleo do mesmo nome como dono. O plugin não contribui tela (a rota `/license` é pública,
-fora do workspace); ele contribui **o texto**, e só.
+plugin de núcleo do mesmo nome como dono. A rota `/license` é pública, fora do workspace; a aba
+`license` que ele contribui é a mesma tela dentro do host do escritório, e existe pelo motivo da
+seção "O termo de licença é da extensão, e soma ao da Microteia".
 
 | | Pacote do sistema | Pacote do contrato |
 |---|---|---|
@@ -6292,6 +6294,71 @@ bundle.
 `localePilot.test.ts` trava os dois lados: o pacote do sistema **não pode** conter `core.license`,
 e o contrato tem de traduzir **sem nenhuma extensão instalada** — este segundo teste falha no dia
 em que alguém o transformar de volta em instalável.
+
+### Conteúdo alterado exige versão nova — e o gate cobra
+
+O Marketplace só oferece atualização quando a **versão sobe**. Alterar uma extensão embutida e deixar
+o `manifest.version` parado significa que todo escritório que já a instalou continua com a cópia
+velha no ar, sem um sintoma sequer: a tela não muda, nada falha, e o pacote novo fica no bundle
+esperando um clique que nunca é oferecido. Foi o que aconteceu com o Notícias ao ganhar termos de
+licença na `1.1.0`.
+
+> Extensão embutida tem um segundo caminho — `builtinUpdateOf` compara a IMPRESSÃO do pacote com a
+> da cópia instalada e oferece "Atualizar" mesmo com a versão parada, porque durante o
+> desenvolvimento ela costuma ficar parada de propósito. Isso ajuda **aqui**; não ajuda o escritório
+> que instala pelo `.json` distribuído, onde a versão é a única pergunta feita.
+
+Regerar `extension-templates/*.json` **não** cobre o buraco: o artefato passa a refletir a fonte, e
+as duas pontas concordam numa versão que mente. Só a impressão do conteúdo distingue "não mudou" de
+"mudou e ninguém avisou".
+
+`VERSAO_CONFERIDA` (`scripts/extensionTemplates.test.ts`) guarda, por extensão do catálogo embutido,
+o par (versão, impressão) de quando o pacote foi olhado pela última vez. Impressão igual exige versão
+igual; impressão diferente exige versão **maior**, e a mensagem de falha já traz a linha a colar. É o
+mesmo mecanismo de `PT_BR_MESSAGES_FINGERPRINT`, estendido às doze — o pacote de idioma tinha a trava
+e por isso foi pego na mesma alteração em que o Notícias passou batido.
+
+### O termo de licença é da extensão, e soma ao da Microteia
+
+`manifest.license` é um `WidgetSpec` opcional: os termos de quem escreveu a extensão, na mesma DSL
+declarativa da `overview` e traduzível pelas mesmas referências `@ns/chave`.
+
+Ele mora no **manifest**, e não ao lado da `overview` do pacote, por causa do segundo leitor. As
+duas perguntas não são feitas no mesmo lugar:
+
+| | `overview` (pacote) | `license` (manifest) |
+|---|---|---|
+| pergunta | o que esta extensão faz? | sob que condições eu a estou usando? |
+| lida em | tela de Extensões, com o pacote em mãos | página de Termos, onde só existe o que o Kernel carregou |
+| fonte | `MarketplacePlugin.overview` | `host.manifestOf(id).license` |
+
+`collectPluginLicenses` (`domain/usecases/plugins/pluginLicenses.ts`) recebe manifests e devolve
+quem declarou termo; `usePluginLicenses` a alimenta com `host.loadedIds().map(host.manifestOf)`.
+
+**A lista vem do que o Kernel CARREGOU, nunca do que está instalado.** Extensão desativada,
+reprovada por dependência ou com migração em dívida não está no ar, e um termo que não vale não pode
+aparecer num documento cuja função é dizer exatamente o que vale. Ler `installed` traria as três.
+
+**Por isso `core.license` passou a contribuir uma tela.** A rota `/license` continua pública e
+inalterada — quem ainda não tem conta precisa lê-la —, mas ali o host é o de base (`CORE_PLUGINS`) e
+a soma é vazia por definição. A aba `license`, contribuída ao `ui.page`, é a MESMA `LicenseView`
+hospedada pelo `TenantKernelProvider`, onde as extensões do escritório existem; a barra de status
+abre a aba em vez de uma janela nova. Nenhuma das duas sabe onde está: quem responde é o host.
+
+> Consequência de layout: `License.styles` trocou `min-height: 100vh` por `height: 100%` com
+> `overflow-y: auto`, e a contribuição declara `fullBleed`. Na rota pública o pai não tem altura, a
+> porcentagem não resolve e a página cresce com o conteúdo, como antes; dentro do painel ela recebe
+> a altura do `PanelContent` e rola por dentro.
+
+No cartão do Marketplace o mesmo termo aparece atrás do ícone de licença — antes de instalar,
+inclusive, que é quando ele mais importa. Ali o `WidgetRenderer` desce sob `PackageLocaleProvider`
+pela mesma razão da `overview`: o pacote pode não estar instalado, e sem o catálogo dele o termo
+apareceria como chave crua.
+
+O ícone só existe quando há o que mostrar, e a pergunta é `isWidgetSpec` (`licenseOf`), não
+"declarou alguma coisa?": um manifest com `license: {}` passa por qualquer teste de presença e abre
+um modal vazio, que ensina "esta extensão não tem licença" — o contrário de o autor ter escrito um
+termo malformado.
 
 ### O campo Idioma mostra o que VALE, não o `default` declarado
 

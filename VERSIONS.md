@@ -11,6 +11,13 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.8.0] — 2026-08-24
+
+- Cada extensão pode agora trazer os próprios termos de licença. Eles ficam atrás do ícone de licença no cartão da extensão, na tela de Extensões, e podem ser lidos antes de instalar — em português, sempre que quem a criou tiver traduzido.
+- Os termos das extensões instaladas e ativas passam a aparecer na própria página de Termos de Uso do escritório, logo abaixo dos termos do Microteia. Desinstalar ou desativar uma extensão a retira dali, porque os termos dela deixam de valer.
+- A página de Termos de Uso abre agora como uma aba, sem sair do sistema, e pode ser encontrada pela busca rápida.
+- A extensão Notícias já vem com os próprios termos de licença. Quem a tem instalada verá a atualização disponível na tela de Extensões.
+
 #### [9.7.1] — 2026-08-24
 
 - Os Termos de Uso deixaram de trazer o item sobre o monitor de e-mails, intimações e prazos, e os itens seguintes foram renumerados. Também saiu do rodapé o número de inscrição na OAB do responsável — o contato segue pelo nome e pelo e-mail.

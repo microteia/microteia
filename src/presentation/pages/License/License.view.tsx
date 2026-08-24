@@ -2,6 +2,7 @@ import React from 'react';
 import { RiArrowLeftLine } from 'react-icons/ri';
 import { useLicenseViewModel } from './License.viewmodel';
 import { InfoBanner } from '../../components/ui/InfoBanner';
+import { WidgetRenderer } from '../../components/ui/WidgetRenderer';
 import { S } from './License.styles';
 import { useT } from '../../shared/i18n/useT';
 
@@ -100,6 +101,25 @@ export const LicenseView: React.FC = () => {
           <S.SectionTitle>{t('law.title')}</S.SectionTitle>
           <S.Paragraph>{t('law.text')}</S.Paragraph>
         </S.Section>
+
+        {/* Os termos das extensões instaladas — cada uma responde pelo seu, e o contrato do
+            escritório é a soma. A árvore é Widget DSL, resolvida pelo catálogo em vigor: uma extensão
+            que traduza o próprio termo aparece aqui traduzida, sem que esta tela saiba dela. */}
+        {vm.extensionTerms.length > 0 && (
+          <>
+            <S.Divider />
+            <S.Section>
+              <S.SectionTitle>{t('extensions.title')}</S.SectionTitle>
+              <S.Paragraph>{t('extensions.text')}</S.Paragraph>
+              {vm.extensionTerms.map((term) => (
+                <S.ExtensionTerm key={term.pluginId}>
+                  <S.ExtensionName>{term.name}</S.ExtensionName>
+                  <WidgetRenderer spec={term.license} />
+                </S.ExtensionTerm>
+              ))}
+            </S.Section>
+          </>
+        )}
 
         <S.Divider />
 

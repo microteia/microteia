@@ -91,6 +91,10 @@ const CORE_LICENSE: Record<string, string> = {
   'law.text':
     'Estes termos são regidos pelas leis da República Federativa do Brasil, sendo eleito o foro do domicílio do responsável pelo sistema para dirimir eventuais controvérsias, ressalvada disposição legal em contrário.',
 
+  'extensions.title': 'Termos das extensões instaladas',
+  'extensions.text':
+    'Cada extensão instalada e ativa neste escritório pode trazer os próprios termos de licença, escritos por quem a criou. Eles são reproduzidos abaixo e se somam aos termos acima — nunca os substituem. Uma extensão desinstalada ou desativada deixa de aparecer aqui, porque os termos dela deixam de valer.',
+
   'contact.title': 'Direitos autorais e contato',
   'contact.text':
     'Todos os direitos autorais sobre o Microteia pertencem ao advogado responsável pelo seu desenvolvimento.',

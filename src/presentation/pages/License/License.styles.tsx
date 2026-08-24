@@ -2,9 +2,12 @@ import styled from 'styled-components';
 
 export const S = {
   Page: styled.div`
-    min-height: 100vh;
+    height: 100%;
+    min-height: 100%;
+    overflow-y: auto;
     display: flex;
     justify-content: center;
+    align-items: flex-start;
     background: ${({ theme }) => theme.colors.background};
     padding: ${({ theme }) => theme.spacing.xl} ${({ theme }) => theme.spacing.md};
   `,
@@ -106,6 +109,20 @@ export const S = {
     border: none;
     border-top: 1px solid ${({ theme }) => theme.colors.border};
     margin: ${({ theme }) => theme.spacing.xl} 0;
+  `,
+
+  ExtensionTerm: styled.section`
+    border: 1px solid ${({ theme }) => theme.colors.borderSubtle};
+    border-radius: ${({ theme }) => theme.borderRadius.md};
+    padding: ${({ theme }) => theme.spacing.lg};
+    margin-bottom: ${({ theme }) => theme.spacing.md};
+  `,
+
+  ExtensionName: styled.h3`
+    font-size: ${({ theme }) => theme.fontSizes.md};
+    font-weight: 700;
+    color: ${({ theme }) => theme.colors.text};
+    margin-bottom: ${({ theme }) => theme.spacing.sm};
   `,
 
   ContactCard: styled.div`

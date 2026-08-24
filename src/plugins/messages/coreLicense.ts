@@ -74,6 +74,10 @@ export const CORE_LICENSE_MESSAGES: Record<string, string> = {
   'law.text':
     'These terms are governed by the laws of the Federative Republic of Brazil, and the courts of the domicile of the person responsible for the system are elected to settle any disputes, save for any legal provision to the contrary.',
 
+  'extensions.title': 'Terms of the installed extensions',
+  'extensions.text':
+    'Each extension installed and active in this organization may carry its own licence terms, written by whoever authored it. They are reproduced below and add to — never replace — the terms above. An extension that is uninstalled or deactivated stops appearing here, because its terms stop applying.',
+
   'contact.title': 'Copyright and contact',
   'contact.text':
     'All copyright over Microteia belongs to the lawyer responsible for its development.',

@@ -55,6 +55,21 @@ export interface PluginManifest {
   icon?: string;
   homepage?: string;
   publisher?: PluginPublisher;
+  /**
+   * Os TERMOS DE LICENÇA da extensão, em Widget DSL — o contrato de quem a escreveu com o escritório
+   * que a instala.
+   *
+   * Mora no MANIFEST, e não ao lado da `overview` do pacote, por uma razão de leitor: a `overview`
+   * responde "o que esta extensão faz?" e só interessa a quem está na tela de Extensões; o termo
+   * responde "sob que condições eu a estou usando?", e essa pergunta é feita depois — na página de
+   * Termos do escritório, onde não há pacote em mãos, só o que o Kernel carregou. `manifestOf` é o
+   * que torna essa leitura possível sem que a página de Termos precise conhecer o Marketplace.
+   *
+   * `unknown` pela mesma razão que `impl.spec` é `Record<string, unknown>`: este arquivo é copiado
+   * para `functions/src` pelo `sync-schemas`, e o DSL de interface não tem o que fazer no backend.
+   * Quem valida é o `WidgetRenderer`, que ignora nó desconhecido em vez de derrubar a tela.
+   */
+  license?: unknown;
   dependencies?: Record<string, PluginDependency>;
   provides?: CapabilityProvision[];
   consumes?: CapabilityRequirement[];

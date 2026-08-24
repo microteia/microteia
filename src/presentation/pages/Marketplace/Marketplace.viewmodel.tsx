@@ -12,12 +12,14 @@ import { isVersionGreater } from '../../../domain/usecases/plugins/publicExtensi
 import { extensionCodeOf, extensionHasCode } from '../../../domain/usecases/plugins/extensionCodeTrust';
 import { isExtensionBackendPending } from '../../../domain/usecases/plugins/extensionBackendState';
 import { extensionMigrationError, isExtensionMigrationPending } from '../../../domain/usecases/plugins/extensionMigrationState';
+import { licenseOf } from '../../../domain/usecases/plugins/pluginLicenses';
 import { useExtensionCodeTrust } from '../../../stores/useExtensionCodeTrust';
 import { usePluginDiagnostics } from '../../../stores/useKernel';
 import { MARKETPLACE_CATALOG } from '../../../plugins/marketplace/catalog';
 import { SYSTEM_THEME_PACKAGES } from '../../../plugins/themes/systemThemes';
 import type { MarketplacePlugin } from '../../../domain/entities/MarketplacePlugin';
 import type { InstalledExtension } from '../../../domain/entities/InstalledExtension';
+import type { WidgetSpec } from '../../../domain/schema/ui/widgetSpec';
 
 import { useT } from '../../shared/i18n/useT';
 import { usePackageCatalog } from '../../shared/i18n/usePackageCatalog';
@@ -45,6 +47,10 @@ export interface ExtensionRow {
   hasCode: boolean;
   /** Descrição rica (Widget DSL) do pacote, exibida no modal de detalhes. */
   overview: unknown;
+  /**
+   * Os TERMOS DE LICENÇA do manifest, ou `null` em quem não tem nenhum que desenhe. Ver `licenseOf`.
+   */
+  license: WidgetSpec | null;
   description: string;
 
   installBadge: InstallBadge | null;
@@ -145,6 +151,10 @@ export interface MarketplaceViewModel {
   detailsRow: ExtensionRow | null;
   openDetails: (id: string) => void;
   closeDetails: () => void;
+  /** A extensão cujos termos de licença estão abertos — o modal do ícone de licença do cartão. */
+  licenseRow: ExtensionRow | null;
+  openLicense: (id: string) => void;
+  closeLicense: () => void;
   openReview: (id: string) => void;
   confirmReview: () => Promise<void>;
   cancelReview: () => void;
@@ -194,6 +204,7 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
   const [filter, setFilter] = useState<MarketplaceFilter>('all');
   const [reviewTarget, setReviewTarget] = useState<{ id: string; name: string; code: string } | null>(null);
   const [detailsId, setDetailsId] = useState<string | null>(null);
+  const [licenseId, setLicenseId] = useState<string | null>(null);
 
   const trustedIds = useExtensionCodeTrust(installed);
 
@@ -372,6 +383,7 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
         author: { name: pkg.manifest.publisher?.name ?? null, photoURL: null },
         hasCode: false,
         overview: pkg.overview ?? null,
+        license: licenseOf(pkg.manifest),
         description: label(pkg.manifest.description ?? ''),
         installBadge: 'active',
         statusBadge: 'system',
@@ -449,6 +461,7 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
         author,
         hasCode: hasCodeOf(pkg.views),
         overview: pkg.overview ?? null,
+        license: licenseOf(pkg.manifest),
         description: label(pkg.manifest.description ?? ''),
         installBadge: inst ? (inst.active ? 'active' : 'inactive') : null,
         statusBadge,
@@ -614,6 +627,14 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
     [rows, detailsId],
   );
 
+  const openLicense = useCallback((id: string) => setLicenseId(id), []);
+  const closeLicense = useCallback(() => setLicenseId(null), []);
+
+  const licenseRow = useMemo(
+    () => rows.find((row) => row.id === licenseId) ?? null,
+    [rows, licenseId],
+  );
+
   const confirmReview = useCallback(async () => {
     if (!reviewTarget) return;
     const { id } = reviewTarget;
@@ -658,6 +679,9 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
     detailsRow,
     openDetails,
     closeDetails,
+    licenseRow,
+    openLicense,
+    closeLicense,
     openReview,
     confirmReview,
     cancelReview,

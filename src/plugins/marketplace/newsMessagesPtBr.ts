@@ -55,6 +55,11 @@ const NEWS_PT_BR: Record<string, string> = {
   'overview.banner.uninstall':
     'Remover a extensão remove as telas, nunca as notícias: os registros continuam no escritório e voltam a aparecer se ela for instalada de novo.',
 
+  'license.body':
+    'Esta extensão é publicada pela Microteia como **exemplo de autoria**, e é distribuída junto com a plataforma. Você pode instalá-la, estudar a fonte dela, copiá-la e alterá-la dentro do seu próprio escritório, sem cobrança e sem prazo.\n\nO **conteúdo publicado através dela** — as notícias, os comentários e tudo o que as pessoas escrevem neles — é de quem o escreveu. Ele fica no banco de dados do próprio escritório, e desinstalar a extensão não o apaga.\n\nQuem alterar esta extensão e republicá-la com outro nome responde pela versão que publicou, e essa versão deixa de estar coberta por estes termos.',
+  'license.banner.warranty':
+    'Fornecida como está, sem garantia de espécie alguma. Nem o autor nem a Microteia respondem por danos decorrentes do uso.',
+
   'view.screen-missing': 'Tela "Notícias" não encontrada. Instale a extensão para ativá-la.',
   'view.write-denied': 'Não foi possível gravar. Verifique se você tem permissão neste escritório.',
   'view.author': 'Autor',

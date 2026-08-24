@@ -302,8 +302,34 @@ A tree of nodes the platform renders with its own components. It carries no Java
 about it needs reviewing, nothing about it can break the page, and it keeps working across platform
 upgrades without you republishing anything.
 
-It is used in four places: \`overview\` (the extension's own description in the Extensions screen),
-\`widgetPage\`, \`surfaceTabSpec\` and \`surfaceWidgetSpec\`.
+It is used in five places: \`overview\` (the extension's own description in the Extensions screen),
+\`manifest.license\` (your licence terms — see below), \`widgetPage\`, \`surfaceTabSpec\` and
+\`surfaceWidgetSpec\`.
+
+### \`manifest.license\` — the terms you set
+
+\`\`\`ts
+manifest: {
+  // ...
+  license: {
+    type: 'stack',
+    gap: 'md',
+    children: [
+      { type: 'markdown', content: label('license.body') },
+      { type: 'banner', message: label('license.warranty'), variant: 'warning' },
+    ],
+  },
+}
+\`\`\`
+
+Optional, and it reaches the reader in two places: behind the licence icon on the extension's card in
+the **Extensions** screen — where anyone can read it *before* installing — and, once the extension is
+installed and active, reproduced in full on the organization's **Terms** page, under the Microteia
+Terms of Use. Uninstalling or deactivating it takes the terms off that page, because they stop
+applying.
+
+Write it with references, like every other string: a licence the organization cannot read in its own
+language is the one document in the package where that matters most.
 
 ${describedTable('Node', WIDGET_NODE_TYPES, WIDGET_NODES)}
 

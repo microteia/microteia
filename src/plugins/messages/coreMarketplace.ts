@@ -97,6 +97,10 @@ export const CORE_MARKETPLACE_MESSAGES: Record<string, string> = {
   'status.builtin': 'From the system',
   'status.system': 'Part of the system',
   'extension.details': 'See details',
+  'extension.license': 'Licence terms',
+  'extension.license.title': 'Licence terms of "{name}"',
+  'extension.license.intro':
+    'Terms written by whoever authored this extension. They add to the Microteia Terms of Use, and are reproduced in the organization’s Terms page while the extension is installed and active.',
   'extension.badge.active': 'Active',
   'extension.badge.inactive': 'Inactive',
   'extension.badge.failed': 'Did not load',

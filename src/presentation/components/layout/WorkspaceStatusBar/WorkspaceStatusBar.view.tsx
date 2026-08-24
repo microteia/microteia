@@ -34,10 +34,10 @@ export const WorkspaceStatusBar: React.FC = () => {
           <RiKeyboardLine />
           {t('status.command-palette')}
         </S.Item>
-        <S.Link href="/license" target="_blank" rel="noopener noreferrer">
+        <S.LinkButton type="button" onClick={vm.openTerms}>
           <RiShieldCheckLine />
           {t('status.terms')}
-        </S.Link>
+        </S.LinkButton>
         <S.Item>v{vm.version}</S.Item>
       </S.Side>
     </S.Bar>

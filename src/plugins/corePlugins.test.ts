@@ -36,6 +36,7 @@ const PAGE_KEYS_ANTES_DA_MIGRACAO = [
   'workflows',
   // Adicionadas depois da migração (a lista é o guarda de "nenhuma tela some", não um congelamento):
   'marketplace', 'plugin-author', 'plugin-author:', 'settings', 'translations',
+  'license',
 ].sort();
 
 describe('core plugins — carga', () => {

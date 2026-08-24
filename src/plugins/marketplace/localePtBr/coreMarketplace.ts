@@ -96,6 +96,10 @@ export const CORE_MARKETPLACE: Record<string, string> = {
   'status.builtin': 'Do sistema',
   'status.system': 'Faz parte do sistema',
   'extension.details': 'Ver detalhes',
+  'extension.license': 'Termos de licença',
+  'extension.license.title': 'Termos de licença de "{name}"',
+  'extension.license.intro':
+    'Termos escritos por quem criou esta extensão. Eles se somam aos Termos de Uso do Microteia, e são reproduzidos na página de Termos do escritório enquanto a extensão estiver instalada e ativa.',
   'extension.badge.active': 'Ativa',
   'extension.badge.inactive': 'Inativa',
   'extension.badge.failed': 'Não carregou',

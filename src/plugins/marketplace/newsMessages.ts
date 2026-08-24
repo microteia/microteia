@@ -67,6 +67,11 @@ export const NEWS_MESSAGES: Record<string, string> = {
   'overview.banner.uninstall':
     'Removing the extension removes the screens, never the items: the records stay in the office and show up again if it is installed anew.',
 
+  'license.body':
+    'This extension is published by Microteia as an **authoring example**, and is distributed together with the platform. You may install it, study its source, copy it and change it inside your own organization, with no charge and no time limit.\n\nThe **content published through it** — the items, the comments and everything anyone writes in them — belongs to the organization that wrote it. It stays in the organization\'s own database, and uninstalling the extension does not delete it.\n\nWhoever changes this extension and republishes it under another name answers for the version they published, and that version is no longer covered by these terms.',
+  'license.banner.warranty':
+    'Provided as is, with no warranty of any kind. Neither the author nor Microteia is liable for damage arising from using it.',
+
   'view.screen-missing': 'The "News" screen was not found. Install the extension to enable it.',
   'view.write-denied': 'Could not save. Check whether you have permission in this office.',
   'view.author': 'Author',

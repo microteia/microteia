@@ -3,7 +3,7 @@
   "workflows": [],
   "manifest": {
     "id": "com.microteia.locale-pt-br",
-    "version": "1.21.2",
+    "version": "1.22.0",
     "kernel": "^2.0.0",
     "name": "Português (Brasil)",
     "description": "Tradução da Microteia para português do Brasil.",
@@ -1073,6 +1073,9 @@
             "status.builtin": "Do sistema",
             "status.system": "Faz parte do sistema",
             "extension.details": "Ver detalhes",
+            "extension.license": "Termos de licença",
+            "extension.license.title": "Termos de licença de \"{name}\"",
+            "extension.license.intro": "Termos escritos por quem criou esta extensão. Eles se somam aos Termos de Uso do Microteia, e são reproduzidos na página de Termos do escritório enquanto a extensão estiver instalada e ativa.",
             "extension.badge.active": "Ativa",
             "extension.badge.inactive": "Inativa",
             "extension.badge.failed": "Não carregou",

@@ -182,11 +182,26 @@ const COMMENTS_SCREEN: ScreenModuleTemplate = {
 export const newsPlugin: MarketplacePlugin = {
   manifest: {
     id: 'com.microteia.news',
-    version: '1.1.0',
+    version: '1.2.0',
     kernel: '^2.0.0',
     name: message('package.name'),
     description: message('package.description'),
     publisher: { name: 'Microteia' },
+    /**
+     * The LICENCE TERMS, which the Extensions screen shows behind the licence icon and the
+     * organization's Terms page reproduces while this extension is installed and active. Like every
+     * other string here it is a reference, so the terms are translated by the same catalogue that
+     * translates the labels — a legal document that only existed in one language would be the one
+     * place in the package where the office could not read what it agreed to.
+     */
+    license: {
+      type: 'stack',
+      gap: 'md',
+      children: [
+        { type: 'markdown', content: message('license.body') },
+        { type: 'banner', message: message('license.banner.warranty'), variant: 'warning' },
+      ],
+    },
     dependencies: { 'core.ui': '^1.0.0' },
     contributes: [
       newsMessagesContribution(),

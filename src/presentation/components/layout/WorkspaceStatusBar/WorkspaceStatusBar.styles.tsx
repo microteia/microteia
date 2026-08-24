@@ -58,7 +58,12 @@ export const S = {
     opacity: 0.75;
   `,
 
-  Link: styled.a`
+  LinkButton: styled.button`
+    background: none;
+    border: none;
+    padding: 0;
+    font: inherit;
+    cursor: pointer;
     display: flex;
     align-items: center;
     gap: 4px;

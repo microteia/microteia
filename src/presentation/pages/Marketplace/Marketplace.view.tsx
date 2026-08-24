@@ -16,6 +16,7 @@ import {
   RiPuzzle2Line,
   RiShieldCheckLine,
   RiInformationLine,
+  RiCopyrightLine,
   RiErrorWarningLine,
   RiDatabase2Line,
 } from 'react-icons/ri';
@@ -143,6 +144,12 @@ const RowView: React.FC<{ row: ExtensionRow; busy: boolean; vm: ReturnType<typeo
       <S.ActionButton title={t('extension.details')} onClick={() => vm.openDetails(row.id)}>
         <RiInformationLine size={17} />
       </S.ActionButton>
+      {/* Só quem tem termo que DESENHA oferece o gesto. Ver `licenseOf`. */}
+      {row.license !== null && (
+        <S.ActionButton title={t('extension.license')} onClick={() => vm.openLicense(row.id)}>
+          <RiCopyrightLine size={17} />
+        </S.ActionButton>
+      )}
       {row.canEdit && (
         <S.ActionButton title={t('core.ui/condition.edit')} disabled={busy} onClick={() => vm.edit(row.id)}>
           <RiPencilLine size={17} />
@@ -316,6 +323,29 @@ export const MarketplaceView: React.FC = () => {
               <>
                 <S.MetaSep>·</S.MetaSep>
                 <span>{vm.detailsRow.author.name}</span>
+              </>
+            )}
+          </S.DetailsMeta>
+        </Modal>
+      )}
+
+      {/* Os termos como o AUTOR os escreveu. O catálogo desta tela desce pelo contexto pela mesma
+          razão da descrição rica: o `WidgetRenderer` resolve os rótulos no ponto de render, e o
+          pacote pode nem estar instalado — sem isso o termo apareceria como chave crua. */}
+      {vm.licenseRow && (
+        <Modal title={t('extension.license.title', { name: vm.licenseRow.name })} size="large" onClose={vm.closeLicense}>
+          <S.DetailsIntro>{t('extension.license.intro')}</S.DetailsIntro>
+          <PackageLocaleProvider catalog={vm.catalog}>
+            <WidgetRenderer spec={vm.licenseRow.license} />
+          </PackageLocaleProvider>
+          <S.DetailsMeta>
+            <span>v{vm.licenseRow.version}</span>
+            <S.MetaSep>·</S.MetaSep>
+            <span>{vm.licenseRow.id}</span>
+            {vm.licenseRow.author.name && (
+              <>
+                <S.MetaSep>·</S.MetaSep>
+                <span>{vm.licenseRow.author.name}</span>
               </>
             )}
           </S.DetailsMeta>
