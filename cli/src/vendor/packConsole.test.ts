@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { consolePackageJson, consoleReadme, packageFunctionsPackageJson } from './packageTemplates.js';
+import {
+  CONSOLE_PACKAGE_NAME,
+  consolePackageJson,
+  consoleReadme,
+  packageFunctionsPackageJson,
+} from './packageTemplates.js';
 
 /**
  * O `package.json` é a razão de `pack-console` existir em vez de um `cp -R`: o Console compilado é
@@ -27,24 +32,51 @@ describe('Console empacotado para fora do repositório', () => {
     expect(parsed().version).toBe('1.2.3');
   });
 
-  it('o README diz como rodar a pasta e o que a máquina precisa ter', () => {
+  /**
+   * Ele deixou de ser `private`, e é o que resolve um ovo-e-galinha: enquanto o Console também tinha de
+   * ser baixado de algum lugar, alguém precisava baixar o baixador — o primeiro passo de quem instala
+   * era uma pasta recebida por e-mail e um `ln -s` escrito à mão.
+   */
+  it('é publicável: nome com escopo, e acesso público declarado', () => {
+    expect(parsed().name).toBe(CONSOLE_PACKAGE_NAME);
+    expect(parsed().private).toBeUndefined();
+    expect(parsed().publishConfig).toEqual({ access: 'public' });
+  });
+
+  /**
+   * O `CONSOLE-VERSIONS.md` está em `files` por um motivo que NÃO é documentação: o `unpack` lê aquele
+   * arquivo ao lado do binário que está rodando, para pô-lo na raiz da instalação. Fora de `files`, ele
+   * não existe numa instalação global — e o comando passa a avisar que o Console não carrega histórico,
+   * na máquina do escritório e só lá.
+   */
+  it('publica o compilado, o README e o histórico que o unpack vai ler', () => {
+    expect(parsed().files).toEqual(['lib', 'README.md', 'CONSOLE-VERSIONS.md']);
+  });
+
+  it('o README diz como instalar, como rodar a pasta, e o que a máquina precisa ter', () => {
     const readme = consoleReadme('1.2.3');
+    expect(readme).toContain(`npm i -g ${CONSOLE_PACKAGE_NAME}`);
+    expect(readme).toContain(`npx ${CONSOLE_PACKAGE_NAME}`);
     expect(readme).toContain('node lib/index.js --help');
     expect(readme).toContain('firebase login');
   });
 
   /**
-   * O `npm link` era a recomendação, e exige sudo onde o prefixo global do npm é de root — o caso do
-   * Node instalado em `/usr/local`, que é o instalador oficial no macOS. O link para o entrypoint não
-   * depende de npm nenhum, e é por isso que o `pack` carimba a permissão de execução.
+   * O `ln -s ~/.local/bin` e o `npm link` eram a recomendação enquanto a pasta era entregue à mão.
+   * Publicado o pacote, ensinar os dois é ensinar a instalar uma cópia que nada atualiza — e a que o
+   * `npm i -g` traz é a mesma pasta, com `npm outdated` de graça.
    */
-  it('o README oferece o caminho sem sudo antes do npm link', () => {
+  it('e não ensina mais a linkar a pasta à mão', () => {
     const readme = consoleReadme('1.2.3');
-    const link = readme.indexOf('ln -s');
-    const npmLink = readme.indexOf('npm link');
-    expect(link, 'o link direto tem de estar documentado').toBeGreaterThan(-1);
-    expect(link, 'e vir antes do npm link').toBeLessThan(npmLink);
-    expect(readme).toContain('no sudo');
+    expect(readme).not.toContain('ln -s');
+    expect(readme).not.toContain('npm link');
+  });
+
+  /** O caminho de quem não alcança o catálogo continua escrito, e continua sendo um caminho de arquivo. */
+  it('o README mostra as DUAS formas de trazer uma versão da plataforma', () => {
+    const readme = consoleReadme('1.2.3');
+    expect(readme).toContain('microteia unpack --version latest');
+    expect(readme).toContain('microteia unpack --kernel');
   });
 });
 

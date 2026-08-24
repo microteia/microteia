@@ -18,6 +18,8 @@ import {
   parseKernelVersion,
 } from '../kernel/manifest.js';
 import type { BackendParameter, KernelManifest, KernelSdk } from '../kernel/manifest.js';
+import { digestOfFile } from '../shared/digest.js';
+import { kernelTarballName } from '../kernel/channel.js';
 import {
   baselineFunctionsOf,
   baselineIndexesOf,
@@ -211,7 +213,7 @@ export const pack = async (args: ParsedArgs): Promise<void> => {
 
   const outputDir = flagValue(args, 'output') ?? join(root, 'distributions', 'kernel', version);
   const stageDir = join(outputDir, 'package');
-  const tarball = join(outputDir, `microteia-kernel-${version}.tgz`);
+  const tarball = join(outputDir, kernelTarballName(version));
 
   heading(`Packaging Microteia kernel ${version} (contract ${kernelVersion})`);
 
@@ -322,15 +324,26 @@ export const pack = async (args: ParsedArgs): Promise<void> => {
     sdk,
   };
 
-  const manifestJson = `${JSON.stringify(manifest, null, 2)}\n`;
-  await writeFile(join(stageDir, 'manifest.json'), manifestJson);
-  // Uma segunda cópia FORA do tarball, para que a versão e os pré-requisitos possam ser lidos sem
-  // desempacotar nada.
-  await writeFile(join(outputDir, 'manifest.json'), manifestJson);
+  await writeFile(join(stageDir, 'manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`);
 
   step(7, total, 'Writing the tarball');
   await run('tar', ['-czf', tarball, '-C', stageDir, '.'], { cwd: root });
   await rm(stageDir, { recursive: true, force: true });
+
+  /**
+   * A segunda cópia do manifesto, FORA do tarball, para que a versão e os pré-requisitos possam ser
+   * lidos sem desempacotar nada — e agora também para que o que foi BAIXADO possa ser conferido.
+   *
+   * Ela deixou de ser o mesmo JSON da de dentro, e vem depois do `tar` por causa disso: o `sha256` é do
+   * arquivo que acabou de ser escrito, e a cópia de dentro dele não teria como carregá-lo. É a única
+   * diferença entre as duas, e está declarada no tipo.
+   */
+  const digest = await digestOfFile(tarball);
+  const published: KernelManifest = {
+    ...manifest,
+    tarball: { name: basename(tarball), ...digest },
+  };
+  await writeFile(join(outputDir, 'manifest.json'), `${JSON.stringify(published, null, 2)}\n`);
 
   blank();
   info(`Kernel ${version} packaged.`);
@@ -343,9 +356,13 @@ export const pack = async (args: ParsedArgs): Promise<void> => {
       + `${rootIndexes.indexes.length - baselineIndexes.length} index(es), from ${claims.length} extension(s)`,
     `backend parameters: ${backendParameters.length}`,
     `authoring SDK: ${sdk.version} (kernel contract ${sdk.kernelVersion})`,
+    `size: ${(digest.bytes / 1_000_000).toFixed(1)} MB, sha256 ${digest.sha256.slice(0, 12)}…`,
   ]);
   blank();
-  info('Install it with:');
+  info('Publish it with:');
+  bullets(['microteia publish --dry-run   (says what would go up)', 'microteia publish']);
+  blank();
+  info('Or install this file directly, without publishing:');
   bullets([
     'microteia init --name <office>',
     'microteia connect --project <firebase-project-id>',

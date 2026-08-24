@@ -57,7 +57,7 @@ const locateSdk = async (root: string): Promise<KernelSdkInfo> => {
   const manifestPath = join(installDir, 'manifest.json');
 
   if (!await exists(manifestPath)) {
-    throw new Error('No installed Microteia package found. Run "microteia unpack --kernel <package>.tgz" first.');
+    throw new Error('No installed Microteia package found. Run "microteia unpack --version latest" first.');
   }
 
   const manifest = JSON.parse(await readFile(manifestPath, 'utf8')) as PackagedManifest;

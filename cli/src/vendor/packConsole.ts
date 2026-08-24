@@ -64,16 +64,10 @@ export const packConsole = async (args: ParsedArgs): Promise<void> => {
   success(outputDir);
 
   blank();
-  info('Run it from anywhere:');
-  bullets([
-    `node ${join(outputDir, 'lib', 'index.js')} --help`,
-  ]);
+  info('Publish it with:');
+  bullets(['microteia publish --console-only --dry-run', 'microteia publish --console-only']);
   blank();
-  info('For a "microteia" command on your PATH, link the entrypoint — no npm, no sudo:');
-  bullets([
-    `ln -s ${join(outputDir, 'lib', 'index.js')} ~/.local/bin/microteia`,
-  ]);
-  blank();
-  info('Copy that folder to any machine with Node 22 and the Firebase CLI. It needs nothing else.');
+  info('Or run this folder as it is, on any machine with Node 22 and the Firebase CLI:');
+  bullets([`node ${join(outputDir, 'lib', 'index.js')} --help`]);
   blank();
 };

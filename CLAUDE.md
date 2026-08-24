@@ -406,8 +406,9 @@ Detalhes: seção "SDK de autoria" no `ARCHITECTURE.md`.
 ### Instalação no Firebase do cliente — outro caminho, não este
 
 Os dois ambientes acima são **nossos**. A instalação que roda no projeto do escritório é montada por
-`microteia pack` e aplicada por `microteia init` / `connect` / `unpack` / `deploy` (`cli/`). Ela **não**
-passa por `TARGET`, **não** usa os scripts `deploy:*` e **não** leva `src/` nenhum — só compilado.
+`microteia pack`, posta no ar por `microteia publish` e aplicada por `microteia init` / `connect` /
+`unpack` / `deploy` (`cli/`). Ela **não** passa por `TARGET`, **não** usa os scripts `deploy:*` e **não**
+leva `src/` nenhum — só compilado.
 
 Três regras que valem para toda alteração:
 
@@ -445,6 +446,16 @@ Três regras que valem para toda alteração:
   e distribuído SEPARADAMENTE do kernel: enquanto os guias de `extensions/` saíam de `cli/src/vendor/`,
   um Console de duas versões atrás escrevia a documentação de outro contrato, em silêncio. Eles vivem em
   `src/sdk/node/workspace/`, e `microteia-plugin sync` os reescreve — chamado sozinho pelo `unpack`.
+
+- **O canal de distribuição tem UMA URL nossa, e o resto é dado.** O Console vem do npm
+  (`@microteia/console`); o kernel vem de releases; e o catálogo `kernel/index.json` é a única URL que o
+  Console conhece de cor — as URLs dos tarballs são dado absoluto dentro dele. É o que faz trocar de
+  hospedagem, ou fechar o download por escritório, reescrever o índice em vez de mudar comando nenhum.
+  Nunca monte URL de artefato no Console.
+- **Publicar é artefatos primeiro, catálogo depois** — e versão já publicada é recusa, não sobrescrita.
+- **Instalar é extrair, conferir, e só então trocar.** A ordem inversa apagava a instalação que
+  funcionava antes de recusar o pacote. Nada em `unpack` pode tocar `install/` antes de o manifesto do
+  staging ter sido validado.
 
 Detalhes: seção "Distribuição — a Microteia instalável no Firebase do cliente" no `ARCHITECTURE.md`.
 

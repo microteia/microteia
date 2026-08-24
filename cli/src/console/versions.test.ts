@@ -70,7 +70,7 @@ describe('o que --version responde', () => {
       kernel: { version: null, deployed: null },
     }));
     const report = (await versionReport(root)).join('\n');
-    expect(report).toContain('microteia unpack --kernel');
+    expect(report).toContain('microteia unpack --version latest');
     expect(report).toContain('Kernel deployed   none');
   });
 
@@ -80,5 +80,41 @@ describe('o que --version responde', () => {
     const report = await versionReport(root);
     expect(report[0]).toBe(`Microteia Console ${CLI_VERSION}`);
     expect(report.join('\n')).toContain('could not be read');
+  });
+});
+
+/**
+ * A linha do canal, e por que ela é INJETADA.
+ *
+ * `--version` é o primeiro comando que se roda quando algo está estranho, e a resposta que se cola num
+ * pedido de ajuda. Ele responde sobre a instalação, não sobre a rede: numa máquina sem acesso ao
+ * catálogo — ou dentro de um teste — tudo acima da última linha continua sendo a resposta inteira.
+ */
+describe('quando o canal oferece uma versão mais nova', () => {
+  it('sem consulta nenhuma, o relatório é exatamente o que era', async () => {
+    await install({ version: '7.47.0' });
+    expect((await versionReport(root)).join('\n')).not.toContain('is published');
+  });
+
+  it('com uma versão nova publicada, diz o comando que a traz', async () => {
+    await install({ version: '7.47.0' });
+    const report = await versionReport(root, async () => ({ version: '7.48.0' }));
+    expect(report.join('\n')).toContain('Kernel 7.48.0 is published');
+    expect(report.join('\n')).toContain('microteia unpack --version latest');
+  });
+
+  /** A consulta recebe o que está NO LUGAR, e não o que foi publicado: é dela que a comparação parte. */
+  it('a consulta recebe a versão que está em uso', async () => {
+    await install({ version: '7.47.0' });
+    let asked: string | null = 'não perguntou';
+    await versionReport(root, async (version) => { asked = version; return null; });
+    expect(asked).toBe('7.47.0');
+  });
+
+  /** Uma rede muda não pode mudar a resposta: o `newerThan` devolve `null` e o relatório segue igual. */
+  it('e uma consulta sem resposta não acrescenta linha nenhuma', async () => {
+    await install({ version: '7.47.0' });
+    const report = await versionReport(root, async () => null);
+    expect(report.join('\n')).not.toContain('is published');
   });
 });

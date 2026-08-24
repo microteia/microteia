@@ -5,6 +5,7 @@ import { CLI_VERSION } from './shared/paths.js';
 import { blank, failure, heading, info } from './shared/ui.js';
 import { pack } from './vendor/pack.js';
 import { packConsole } from './vendor/packConsole.js';
+import { publish } from './vendor/publish.js';
 import { init } from './console/init.js';
 import { connect } from './console/connect.js';
 import { unpack } from './console/unpack.js';
@@ -12,6 +13,7 @@ import { deploy } from './console/deploy.js';
 import { provision } from './console/provision.js';
 import { pluginInit } from './console/pluginWorkspace.js';
 import { versionReport } from './console/versions.js';
+import { newerThan } from './console/channel.js';
 
 interface Command {
   name: string;
@@ -38,8 +40,8 @@ const COMMANDS: Command[] = [
   },
   {
     name: 'unpack',
-    usage: 'microteia unpack --kernel <package.tgz>',
-    summary: 'Put a Microteia package in place, without publishing anything.',
+    usage: 'microteia unpack --version <latest|x.y.z> | --kernel <package.tgz>',
+    summary: 'Put a Microteia version in place, without publishing anything.',
     audience: 'office',
     execute: unpack,
   },
@@ -77,6 +79,13 @@ const COMMANDS: Command[] = [
     summary: 'Build a standalone copy of this Console, to run outside the repository.',
     audience: 'publisher',
     execute: packConsole,
+  },
+  {
+    name: 'publish',
+    usage: 'microteia publish [--kernel-only|--console-only] [--repo <owner/name>] [--otp <code>] [--dry-run]',
+    summary: 'Release what pack and pack-console built, so an office can download it.',
+    audience: 'publisher',
+    execute: publish,
   },
 ];
 
@@ -116,7 +125,7 @@ const main = async (): Promise<number> => {
   }
 
   if (name === '--version' || name === '-v') {
-    for (const line of await versionReport(process.cwd())) info(line);
+    for (const line of await versionReport(process.cwd(), newerThan)) info(line);
     return 0;
   }
 

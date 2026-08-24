@@ -452,10 +452,11 @@ undoing your work.
 
 ## After taking a new platform version
 
-    microteia unpack --kernel <package>.tgz
+    microteia unpack --version latest
 
 refreshes the SDK here and rewrites the generated files above, so they describe the platform you now
-have. If you ever need to do it by hand — you synchronised on one machine and are compiling on
+have. (\`--kernel <package>.tgz\` does the same from a file, on a machine that cannot reach the
+published catalog.) If you ever need to do it by hand — you synchronised on one machine and are compiling on
 another — it is:
 
     npm run sdk:refresh

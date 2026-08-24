@@ -111,8 +111,10 @@ São dois lados, e nenhum comando atravessa a fronteira entre eles:
 
 | Lado Microteia (este repositório) | Lado escritório (máquina de quem instala) |
 |---|---|
-| `microteia pack` → pacote versionado, **compilado** | `microteia init` → cria a instalação |
+| `microteia pack` → pacote versionado, **compilado** | `npm i -g @microteia/console` → o instalador |
+| `microteia publish` → release + catálogo + npm | `microteia init` → cria a instalação |
 | nunca vê o `projectId` do cliente | `microteia connect` → liga ao Firebase dele |
+| | `microteia unpack --version latest` → baixa e confere |
 | | `microteia deploy` → instala/atualiza |
 
 O `firebase login` é sempre do escritório: o Console não implementa autenticação própria e não guarda
@@ -132,38 +134,38 @@ npx microteia --help         # ou: node cli/lib/index.js --help
 |---|---|---|
 | `microteia pack [--output <dir>] [--skip-verify]` | Microteia | monta o pacote instalável do kernel |
 | `microteia pack-console [--output <dir>]` | Microteia | monta o próprio Console para rodar fora do repositório |
+| `microteia publish [--kernel-only\|--console-only] [--repo <owner/name>] [--dry-run]` | Microteia | põe no ar o que os dois acima produziram |
 | `microteia init [--name <escritório>] [--id <env>] [--force]` | escritório | cria a instalação no diretório atual |
 | `microteia connect --project <projectId> [--no-create-web-app]` | escritório | liga a instalação ao Firebase dele |
-| `microteia unpack --kernel <pacote.tgz>` | escritório | põe o pacote no lugar, sem publicar nada |
+| `microteia unpack --version <latest\|x.y.z>` | escritório | baixa a versão do catálogo, confere o `sha256` e a põe no lugar, sem publicar nada |
+| `microteia unpack --kernel <pacote.tgz>` | escritório | o mesmo, de um arquivo local — para quem não alcança o catálogo |
 | `microteia deploy [--only rules,indexes,functions,hosting] [--delay <s>] [--prune]` | escritório | publica o pacote que está no lugar |
 | `microteia provision [--prune] [--delay <s>]` | escritório | dá às extensões instaladas as functions e os índices que elas exigem |
 | `microteia plugin-init [--dir <path>] [--force]` | escritório | prepara `extensions/`, para escrever extensão em TypeScript |
 
-Para usá-lo fora daqui — outra pasta, outra máquina — não copie `cli/` à mão:
+Na máquina de quem instala ele vem do npm, e não daqui:
+
+```bash
+npm i -g @microteia/console     # ou: npx @microteia/console --help
+```
+
+Para gerar a pasta que é publicada — outra máquina, uma rede sem npm público, um teste antes de subir:
 
 ```bash
 npm run pack:console     # -> distributions/console/<versão do Console>/
 ```
 
-A pasta gerada tem `lib/`, um `package.json` e um README, pesa ~200 KB e **não instala nada**: o
-Console usa só módulos nativos do Node. Rode com `node lib/index.js --help`; para ter o comando
-`microteia` no PATH, aponte um link para o entrypoint, que sai do `pack` já executável e com shebang:
-
-```bash
-ln -s "$PWD/lib/index.js" ~/.local/bin/microteia
-```
-
-Sem npm e **sem sudo**. O `npm link` também serve, mas só onde o prefixo global do npm pertence ao
-usuário — com o Node instalado em `/usr/local` (de root) ele exige `sudo`, que funciona e deixa
-arquivos de root no prefixo global. `npm config set prefix ~/.npm-global` resolve pela raiz.
+A pasta tem `lib/`, um `package.json`, um README e o `CONSOLE-VERSIONS.md`, pesa ~500 KB e **não
+instala nada**: o Console usa só módulos nativos do Node. Ela roda como está (`node lib/index.js
+--help`) e é exatamente o que o `publish` manda ao registry.
 
 O `package.json` é a razão de existir um comando em vez de um `cp -R`: o compilado é ESM, e sem
 `type: module` o Node só o carrega por adivinhação de sintaxe — que existe a partir do 22.7 e falha
-antes dele. Nessa cópia, `init`, `connect` e `deploy` funcionam; `pack` e `pack-console` recusam com
-mensagem clara, porque construir exige o repositório.
+antes dele. E o `CONSOLE-VERSIONS.md` está no `files` por um motivo que não é documentação: o `unpack`
+lê aquele arquivo AO LADO do binário que está rodando, para pô-lo na raiz da instalação.
 
-> Publicar o Console (npm, binário) faz parte da entrega por URL/registry, que ainda não existe — ver
-> "O que esta etapa NÃO faz" no [ARCHITECTURE.md](./ARCHITECTURE.md).
+Nessa cópia, os comandos do escritório funcionam; `pack`, `pack-console` e `publish` recusam com
+mensagem clara, porque construir e publicar exigem o repositório.
 
 ### 1. Gerar uma versão do pacote (lado Microteia)
 
@@ -179,9 +181,13 @@ Ele compila o Console e executa, em ordem: `npm run verify`, o build do frontend
 
 ```
 distributions/kernel/<versão>/
-├── manifest.json                      # legível sem desempacotar
-└── microteia-kernel-<versão>.tgz      # ~6,5 MB
+├── manifest.json                      # legível sem desempacotar; carrega o sha256 do tarball
+└── microteia-kernel-<versão>.tgz      # ~7 MB
 ```
+
+O `manifest.json` de FORA é o único que carrega `tarball: { name, bytes, sha256 }`; o de dentro do
+tarball não — um manifesto não pode descrever o arquivo que o contém. É a única diferença entre as duas
+cópias, e é o que permite conferir o que foi baixado.
 
 Duas coisas que o `pack` garante, e que são o motivo de ele existir em vez de um `tar` à mão:
 
@@ -194,6 +200,21 @@ O `manifest.json` é derivado do código, não escrito à mão: functions, calla
 backend (`defineString`), região, versão do contrato do kernel e os pré-requisitos manuais.
 
 `--skip-verify` pula só o gate de qualidade (útil ao iterar); `--output <dir>` muda o destino.
+
+#### 1.1 Publicar
+
+```bash
+npm run pack:console          # o Console da versão que vai junto
+microteia publish --dry-run   # diz o que subiria, e como o catálogo ficaria
+microteia publish
+```
+
+Ele **não constrói** — quem roda o gate de qualidade é o `pack`. O que ele faz é subir os assets ao
+repositório de releases (`gh`), publicar o Console no npm, e escrever o catálogo `kernel/index.json`
+**por último**: um índice apontando para um arquivo que não subiu quebra a instalação de todo mundo que
+pedir `latest`, enquanto um arquivo que o índice ainda não menciona não quebra nada. Versão já publicada
+é recusa — release não se reescreve. Detalhes e o motivo de o catálogo morar numa URL nossa: "O canal de
+distribuição" no [ARCHITECTURE.md](./ARCHITECTURE.md).
 
 ### 2. Preparar o projeto Firebase do escritório
 
@@ -227,13 +248,21 @@ Na mesma ordem em que o `connect` os imprime:
 ### 3. Instalar (lado escritório)
 
 ```bash
+npm i -g @microteia/console
+
 mkdir acme && cd acme
 
 microteia init --name "Escritório Acme"
 microteia connect --project acme-microteia
-microteia unpack --kernel /caminho/microteia-kernel-<versão>.tgz
+microteia unpack --version latest
 microteia deploy
 ```
+
+O `unpack --version` lê o catálogo publicado, baixa, confere `bytes` e `sha256`, e **só então** troca o
+que está no lugar — uma recusa (por exemplo, um pacote que exige um Console mais novo) deixa a versão
+anterior intacta. Numa máquina sem acesso ao catálogo, nomeie o arquivo:
+`microteia unpack --kernel /caminho/microteia-kernel-<versão>.tgz`. O download fica em
+`~/.microteia/cache`, fora da instalação, porque `.microteia/` é apagado a cada troca de kernel.
 
 O que fica no diretório:
 
@@ -300,9 +329,13 @@ listado com o comando (um deploy não remove índice, e apagar o errado custa um
 ### 4. Atualizar uma instalação
 
 ```bash
-microteia unpack --kernel /caminho/microteia-kernel-<versão-nova>.tgz
+microteia --version              # diz se há versão nova publicada
+microteia unpack --version latest
 microteia deploy                 # ou --only hosting, --only functions, ...
 ```
+
+E o Console, que tem versão própria: `npm i -g @microteia/console` de novo, ou `npm outdated -g`. Um
+pacote que exija um Console mais novo é recusado pelo `unpack` **antes** de qualquer troca.
 
 O kernel é substituído por inteiro, e o que é do escritório é preservado. Dentro de `.microteia/`,
 só `functions/custom/` e `functions/node_modules` atravessam a troca. **Tudo o mais que é seu vive

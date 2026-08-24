@@ -107,6 +107,30 @@ export const readChangelog = async (
   return contents;
 };
 
+/**
+ * A entrada de UMA versão, para ser o corpo do release publicado.
+ *
+ * O texto do release não é escrito à mão em lugar nenhum: ele é o mesmo parágrafo que já foi conferido
+ * pelo `pack`, recortado daqui. Dois textos sobre a mesma versão divergem — e o que divergiria é
+ * justamente o que fica visível para quem procura o que mudou.
+ *
+ * Recorta do cabeçalho da versão até o próximo cabeçalho, e não até o fim: o que vem depois é o
+ * histórico anterior, e ele já está publicado nos releases dele.
+ */
+export const changelogEntry = (contents: string, version: string): string => {
+  const body = withoutTemplates(contents);
+  const headings = [...body.matchAll(ENTRY)];
+  const index = headings.findIndex((match) => match[1] === version);
+
+  if (index === -1) {
+    throw new Error(`The changelog has no entry for ${version}.`);
+  }
+
+  const start = headings[index].index;
+  const end = index + 1 < headings.length ? headings[index + 1].index : body.length;
+  return `${body.slice(start, end).trim()}\n`;
+};
+
 export interface ChangelogRefresh {
   written: string[];
   missing: string[];

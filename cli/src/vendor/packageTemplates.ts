@@ -125,55 +125,78 @@ export const packageCustomIndexTs = (): string => `// Cloud Functions belonging 
 export {};
 `;
 
+export const CONSOLE_PACKAGE_NAME = '@microteia/console';
+
 /**
- * O Console empacotado para rodar FORA do repositório. O `type: module` não é detalhe: o compilado é
- * ESM, e sem esta declaração o Node só o carrega por adivinhação de sintaxe — que existe a partir do
- * 22.7 e falha em silêncio nas versões anteriores, com "Cannot use import statement outside a module".
- * O `bin` é o que permite `npm link` e, daí, o comando `microteia` global.
+ * O Console empacotado para rodar FORA do repositório — e agora publicável.
+ *
+ * O `type: module` não é detalhe: o compilado é ESM, e sem esta declaração o Node só o carrega por
+ * adivinhação de sintaxe — que existe a partir do 22.7 e falha em silêncio nas versões anteriores, com
+ * "Cannot use import statement outside a module". O `bin` é o que dá o comando `microteia` global.
+ *
+ * Ele deixou de ser `private`, e isso resolve um ovo-e-galinha: enquanto o Console também tinha de ser
+ * baixado de algum lugar, alguém precisava baixar o baixador — e o primeiro passo de quem instala era
+ * uma pasta recebida por e-mail e um `ln -s` escrito à mão. Publicado, o registry já dá URL versionada,
+ * impressão digital no lock, CDN e `npm outdated`, que era tudo o que o canal precisaria reimplementar.
+ *
+ * `files` é a lista exata, e o `CONSOLE-VERSIONS.md` está nela por um motivo que não é documentação: o
+ * `unpack` lê aquele arquivo AO LADO do binário que está rodando para pô-lo na raiz da instalação. Fora
+ * de `files`, ele não existe numa instalação global, e o comando passa a avisar que o Console não carrega
+ * histórico — na máquina do escritório, e só lá.
  */
 export const consolePackageJson = (version: string): string => JSON.stringify({
-  name: 'microteia-console',
+  name: CONSOLE_PACKAGE_NAME,
   version,
-  private: true,
+  description: 'Install and update Microteia in a Firebase project you own.',
+  license: 'UNLICENSED',
   type: 'module',
   bin: { microteia: 'lib/index.js' },
+  files: ['lib', 'README.md', 'CONSOLE-VERSIONS.md'],
   engines: { node: '>=22' },
+  publishConfig: { access: 'public' },
 }, null, 2) + '\n';
 
 export const consoleReadme = (version: string): string => `# Microteia Console ${version}
 
-Installs and updates Microteia in a Firebase project you own. This directory is self-contained: it
-needs no Microteia repository and no npm dependencies.
+Installs and updates Microteia in a Firebase project you own. It has no npm dependencies of its own —
+what it needs are command-line tools that are already on the machine, listed at the bottom.
 
-    node lib/index.js --help
+## Installing it
 
-## Getting a "microteia" command
-
-Link the entrypoint into any directory already on your PATH. It is executable and carries its own
-shebang, so no npm and **no sudo** are involved:
-
-    mkdir -p ~/.local/bin
-    ln -s "$PWD/lib/index.js" ~/.local/bin/microteia
+    npm i -g ${CONSOLE_PACKAGE_NAME}
     microteia --help
 
-\`npm link\` also works, but only where npm's global prefix belongs to your user. With Node installed
-system-wide (prefix \`/usr/local\`, owned by root) it fails with EACCES, and \`sudo npm link\` — while it
-does work — writes root-owned files into the global prefix, which then need sudo to remove
-(\`sudo npm rm -g microteia-console\`). Pointing npm at a user-owned prefix avoids both:
+Or run it without installing anything:
+
+    npx ${CONSOLE_PACKAGE_NAME} --help
+
+Where npm's global prefix belongs to root — Node installed system-wide under \`/usr/local\` — the global
+install fails with EACCES. Point npm at a prefix of your own instead of reaching for sudo, which would
+write root-owned files that then need sudo to remove:
 
     npm config set prefix ~/.npm-global
     export PATH="$HOME/.npm-global/bin:$PATH"   # add to ~/.zshrc
-    npm link
+
+This folder also runs as it is, with no npm at all:
+
+    node lib/index.js --help
 
 ## Using it
 
     microteia init --name "<office>"
     microteia connect --project <your-firebase-project-id>
-    microteia unpack --kernel <microteia-kernel-x.y.z>.tgz
+    microteia unpack --version latest
     microteia deploy
 
 \`connect\` prints everything that has to be prepared in the Firebase project first — start with the
 Blaze plan, since nothing else can be created without it.
+
+\`unpack --version\` reads the published catalog, downloads the version and checks its sha256 before
+touching what is installed. On a machine that cannot reach the catalog, name a file you already have:
+
+    microteia unpack --kernel <microteia-kernel-x.y.z>.tgz
+
+\`microteia --version\` answers what is installed here, and says so when a newer kernel is published.
 
 Later, whenever an office installs an extension that needs server-side resources, run:
 
@@ -190,8 +213,8 @@ The extension shows "Backend pending" in the application until you do, and stays
 | \`npm\`, \`tar\` | installing the functions' dependencies and unpacking the kernel  |
 | \`gcloud\`      | creating the App Engine application, and reading which extensions an office installed (\`gcloud auth login\`) |
 
-The kernel package itself is built from the Microteia repository (\`npm run pack:kernel\`) and handed
-to you as a \`.tgz\`. The \`pack\` command in here only works inside that repository.
+The \`pack\` and \`publish\` commands in here build and release the platform itself, and only work inside
+the Microteia repository.
 
 ## What changed in this Console
 

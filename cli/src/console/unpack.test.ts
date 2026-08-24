@@ -36,9 +36,9 @@ describe('a fronteira entre unpack e deploy', () => {
   });
 
   it('o deploy não aceita mais --kernel: o pacote chega pelo unpack', () => {
-    expect(deploy).not.toContain("requiredFlag(args, 'kernel')");
-    expect(unpack).toContain("requiredFlag(args, 'kernel')");
-    expect(index).toContain('microteia unpack --kernel');
+    expect(deploy).not.toContain("flagValue(args, 'kernel')");
+    expect(unpack).toContain("flagValue(args, 'kernel')");
+    expect(index).toContain('microteia unpack --version');
     expect(index).not.toContain('microteia deploy --kernel');
   });
 
@@ -72,7 +72,7 @@ describe('a fronteira entre unpack e deploy', () => {
   });
 
   it('quem publicar sem ter desempacotado recebe o comando que falta, não um ENOENT', () => {
-    expect(unpack).toContain('microteia unpack --kernel <package>.tgz');
+    expect(unpack).toContain('microteia unpack --version latest');
   });
 
   /** A configuração é lida da RAIZ nos dois caminhos que a usam. */
@@ -355,7 +355,89 @@ describe('qual versão do kernel o arquivo de ambiente diz', () => {
 
   it('e --version responde as duas, além da do Console', () => {
     const index = source('index.ts');
-    expect(index).toContain('versionReport(process.cwd())');
+    expect(index).toContain('versionReport(process.cwd()');
     expect(index).not.toContain('info(CLI_VERSION);');
+  });
+
+  /**
+   * A checagem de versão nova é INJETADA no relatório, e não chamada de dentro dele: `--version` é o
+   * primeiro comando que se roda quando algo está estranho, e a resposta que se cola num pedido de
+   * ajuda. Ele responde sobre a instalação, e numa máquina sem rede tem de responder igual.
+   */
+  it('quem consulta o canal é o entrypoint, não o relatório', () => {
+    expect(source('index.ts')).toContain('versionReport(process.cwd(), newerThan)');
+    expect(source('console/versions.ts')).not.toContain('fetch(');
+    expect(source('console/versions.ts')).not.toContain("from './channel.js'");
+  });
+});
+
+
+/**
+ * A ordem que o canal obrigou a corrigir, e o estrago que ela causava.
+ *
+ * Extrair e trocar eram um passo só, e a troca vinha ANTES de o manifesto ser lido. Um pacote que exige
+ * um Console mais novo apagava o `install/` da versão que funcionava e só então recusava — a instalação
+ * ficava sem kernel nenhum, por causa de uma conferência que existe justamente para não deixar nada
+ * acontecer. Enquanto o tarball chegava à mão isso era raro; com o `--version` lendo o catálogo, um
+ * Console desatualizado encontra um pacote novo na PRIMEIRA tentativa.
+ *
+ * O teste lê a fonte porque o que ele guarda é a ordem entre três operações — e o efeito real só
+ * aparece contra uma instalação que já tinha algo no lugar.
+ */
+describe('a ordem entre extrair, conferir e trocar', () => {
+  const at = (needle: string): number => {
+    const index = unpack.indexOf(needle);
+    expect(index, `${needle} deveria estar no unpack`).toBeGreaterThan(-1);
+    return index;
+  };
+
+  it('confere o manifesto do staging ANTES de a instalação anterior ser tocada', () => {
+    expect(at('const staging = await stage(tarball, root)'))
+      .toBeLessThan(at('const manifest = await readStagedManifest(staging)'));
+    expect(at('const manifest = await readStagedManifest(staging)'))
+      .toBeLessThan(at('const install = await commit(root, staging)'));
+  });
+
+  /** O `rm(install)` mora no `commit`, que é o único ponto a partir do qual não há como voltar atrás. */
+  it('quem apaga o install é só o commit, e ele vem depois da conferência', () => {
+    const commitBlock = unpack.slice(at('const commit = async'), at('export const unpack ='));
+    expect(commitBlock).toContain('await rm(install');
+    const stageBlock = unpack.slice(at('const stage = async'), at('const readStagedManifest'));
+    expect(stageBlock).not.toContain('await rm(install');
+    expect(stageBlock).toContain("'tar', ['-xzf'");
+  });
+
+  /** A recusa é a MESMA nos dois caminhos: o que já está no lugar e o que acabou de ser extraído. */
+  it('a exigência de versão do Console vale para os dois, e mora num lugar só', () => {
+    expect(unpack.match(/assertConsoleCanInstall\(manifest\)/g)).toHaveLength(2);
+    expect(unpack).toContain('const assertConsoleCanInstall');
+  });
+
+  /** 7 MB extraídos que ninguém vai usar sugerem que algo foi instalado. */
+  it('e a recusa limpa o staging que ela abriu', () => {
+    expect(unpack).toContain('await rm(staging, { recursive: true, force: true });\n    throw error;');
+  });
+});
+
+/**
+ * O canal é OPCIONAL por construção, e isso não é compatibilidade com o passado: enquanto instalar
+ * depender de um download, uma máquina sem acesso ao catálogo não instala nada — e a instalação já
+ * depende de coisas demais que não são nossas.
+ */
+describe('de onde o pacote pode vir', () => {
+  it('as duas formas existem, e nomear as duas ao mesmo tempo recusa', () => {
+    expect(unpack).toContain("flagValue(args, 'version')");
+    expect(unpack).toContain('Pass either --version or --kernel, not both');
+  });
+
+  it('a bandeira sem valor recusa por si, em vez de dizer que ela falta', () => {
+    expect(unpack).toContain('--version needs a number, or the word "latest"');
+    expect(unpack).toContain('--kernel needs the path to a package file');
+  });
+
+  /** Baixar é do `channel`, e o `unpack` não monta URL nenhuma. */
+  it('o unpack não conhece host: ele pede o arquivo ao canal', () => {
+    expect(unpack).toContain('fetchKernel(source.version)');
+    expect(unpack).not.toContain('https://');
   });
 });

@@ -1000,10 +1000,11 @@ O desenho tem dois lados, e a fronteira entre eles é a razão de quase toda dec
 
 ```
 LADO MICROTEIA (este repositório)        LADO CLIENTE (máquina de quem instala)
-  microteia pack                           microteia init
-    -> pacote versionado, COMPILADO        microteia connect --project <id>
-                                           microteia unpack --kernel <pacote>.tgz
-                                           microteia deploy [--only ...]
+  microteia pack                           npm i -g @microteia/console
+    -> pacote versionado, COMPILADO        microteia init
+  microteia pack-console                   microteia connect --project <id>
+  microteia publish                        microteia unpack --version latest
+    -> release + catálogo + npm            microteia deploy [--only ...]
 ```
 
 Duas restrições fixam tudo o mais:
@@ -1324,11 +1325,13 @@ seria tornar a coleção somente-servidor e perder instalar/desinstalar pela apl
 |---|---|
 | `microteia init` | grava o `microteia.yaml` e o `.gitignore` — UMA instalação ligada a UM projeto Firebase |
 | `microteia connect --project <id>` | acha ou cria o app web, lê o `apps:sdkconfig`, guarda em `.microteia/` |
-| `microteia unpack --kernel <tgz>` | põe o pacote em `.microteia/install`, grava `kernel.version` no `microteia.yaml`, devolve ao `firestore.indexes.json` os índices lembrados e escreve no `.env.<projectId>` o que faltar. Não toca no Firebase |
+| `microteia unpack --version <latest\|x.y.z>` | baixa a versão do catálogo, confere o `sha256`, põe o pacote em `.microteia/install`, grava `kernel.version` no `microteia.yaml`, devolve ao `firestore.indexes.json` os índices lembrados e escreve no `.env.<projectId>` o que faltar. Não toca no Firebase |
+| `microteia unpack --kernel <tgz>` | o mesmo, a partir de um arquivo que já se tem — o caminho de quem não alcança o catálogo |
 | `microteia deploy [--only ...]` | carimba e aplica rules → índices → functions → hosting do que está no lugar, e provisiona no fim |
 | `microteia provision [--prune]` | dá às extensões instaladas as functions e os índices que elas exigem |
 | `microteia plugin-init` | prepara `extensions/`, para escrever extensão em TypeScript (o `unpack` o mantém em dia) |
-| `microteia --version` | a versão do Console, a do kernel que está no lugar e a que o projeto roda |
+| `microteia --version` | a versão do Console, a do kernel que está no lugar, a que o projeto roda — e, quando o catálogo responde, se há uma mais nova |
+| `microteia publish` | do NOSSO lado: põe no ar o que o `pack` e o `pack-console` produziram |
 
 O `provision` existe separado do `deploy` porque instalar uma extensão é um gesto de dentro da
 aplicação, e não um deploy: depois dele, o que falta é aplicar os artefatos — sem reenviar o kernel nem
@@ -1999,11 +2002,87 @@ interpolados em vários widgets (`${WIDGET_HELPERS}${WIDGET_CARD}`) — e saíra
 com as extensões de domínio a que pertenciam. O que faltava para elas era o compilador empacotar a view
 a partir de vários arquivos, que é o que a fusão de `sourceFile` faz.
 
+### O canal de distribuição
+
+Por muito tempo esta seção terminava dizendo que entrega era tarball local, sem URL versionada nem
+registry. Deixou de ser verdade, e o que a substituiu tem três peças.
+
+**O Console vai para o npm** (`@microteia/console`), e é ele que resolve um ovo-e-galinha: enquanto o
+próprio Console tinha de ser baixado de algum lugar, alguém precisava baixar o baixador — o primeiro
+passo de quem instalava era uma pasta recebida por e-mail e um `ln -s` escrito à mão. O registry já dá
+URL versionada, impressão digital no lock, CDN e `npm outdated`, que é tudo o que um canal nosso teria
+de reimplementar para ele. `CONSOLE-VERSIONS.md` está no `files` do pacote por um motivo que não é
+documentação: o `unpack` lê aquele arquivo AO LADO do binário que está rodando, e fora do `files` ele
+não existe numa instalação global.
+
+**O kernel vai para releases de um repositório só de releases**, sem uma linha de fonte. O que viaja
+continua sendo compilado; o que muda é que a distância entre "público" e "fonte pública" passou a ser
+estrutural em vez de uma configuração que alguém pode errar.
+
+**E o catálogo (`kernel/index.json`) mora numa URL NOSSA**, servida pelo Pages daquele repositório. Esta
+é a peça que parece cerimônia e não é. O host escolhido para os arquivos não tem caminho próprio para
+restringir download por escritório; a decisão foi publicar aberto agora e poder fechar depois, e o que
+compra esse "depois" é o catálogo ser a única URL que o Console conhece de cor, com as URLs dos tarballs
+como DADO absoluto dentro dele (`kernel/channel.ts`). Trocar de hospedagem — ou passar a emitir URL
+assinada por escritório — reescreve o índice e não muda comando nenhum que alguém digita.
+
+O catálogo é lido pela API de conteúdo do repositório na hora de publicar, e não pela URL que o Pages
+serve: o Pages responde de um cache que pode estar minutos atrás, e publicar contra ele perderia a
+entrada de quem publicou antes.
+
+#### Integridade, que o download tornou obrigatória
+
+O manifesto não carregava hash nenhum, e não precisava: enquanto o `.tgz` era entregue à mão, o
+transporte era confiável por construção. Baixado, não é — um download interrompido produz um arquivo
+que o `tar` recusa com uma mensagem sobre FORMATO, mandando procurar o defeito no pacote.
+
+Agora o manifesto **externo** — o que fica ao lado do tarball e é publicado com ele — carrega
+`tarball: { name, bytes, sha256 }`, e o de dentro do tarball não carrega. A assimetria não é descuido:
+um manifesto não pode descrever o arquivo que o contém. É a única diferença entre as duas cópias, está
+declarada no tipo (`KernelManifest.tarball`), e é por causa dela que o `pack` escreve a cópia externa
+DEPOIS do `tar`.
+
+O `publish` reconfere o `sha256` do arquivo em vez de aceitar o que o manifesto ao lado dele diz. Os
+dois saem do mesmo `pack`, então em teoria concordam — e é por isso que a conferência é barata: ela
+pega o caso em que alguém reconstruiu um dos dois e não o outro, que é o único jeito de um pacote
+publicado divergir do hash que o descreve.
+
+#### A ordem de publicar, e a de instalar
+
+**Publicar é artefatos primeiro, catálogo depois.** Um índice que aponta para um arquivo que não subiu
+quebra a instalação de todo mundo que pedir `latest`; um arquivo que subiu e que o índice ainda não
+menciona não quebra nada — ninguém o encontra até a publicação terminar. O estado que essa ordem produz
+quando algo falha no meio (release existe, catálogo não o menciona) é retomado pelo `publish` seguinte,
+e não recusado: recusar deixaria como única saída apagar o release à mão.
+
+Versão já publicada é RECUSA. Republicar não tem conserto depois: alguém conferiu um hash contra o
+download de ontem, e a partir dali duas instalações discordam sobre o que `9.8.2` significa.
+
+**Instalar é extrair, conferir, e só então trocar.** Isto é uma correção, e o defeito era antigo:
+extrair e trocar eram um passo só, e a troca vinha ANTES de o manifesto ser lido. Um pacote que exige um
+Console mais novo apagava o `install/` da versão que funcionava e só depois recusava — a instalação
+ficava sem kernel nenhum, por causa de uma conferência que existe justamente para não deixar nada
+acontecer. Enquanto o tarball chegava à mão isso era raro; com o `--version` lendo o catálogo, um
+Console desatualizado encontra um pacote novo na primeira tentativa.
+
+O cache dos downloads fica em `~/.microteia/cache`, FORA da instalação — `.microteia/` é apagado por
+inteiro a cada troca de kernel, e um cache ali seria descartado exatamente quando serve para algo. Não
+há bandeira para ignorá-lo: a entrada cujo digest não confere é apagada e baixada de novo ali mesmo, e
+uma bandeira só serviria para quem já desconfia, que é justamente quem não vai lembrar de passá-la.
+
+#### O `--kernel` não é legado
+
+`microteia unpack --kernel <arquivo>.tgz` continua, e continua sendo caminho de primeira classe: rede
+fechada de escritório, entrega por outro meio, um pacote que ainda não foi publicado. Enquanto instalar
+depender de um download, uma máquina sem acesso ao catálogo não instala nada — e a instalação já depende
+de coisas demais que não são nossas.
+
 ### O que esta etapa NÃO faz
 
-Entrega do pacote é tarball local; não há URL versionada, registry, nem atualização automática.
-Marketplace, licenciamento, assinatura de plugins, CI/CD e rollback continuam fora — a prioridade era
-uma fatia vertical que instala de verdade, não uma arquitetura que não deploya.
+Licenciamento e download restrito por escritório continuam fora: o canal publica aberto, e o desenho
+acima é o que faz fechá-lo depois custar reescrever o índice em vez de trocar de canal. Marketplace com
+versões por plugin, assinatura de plugins, CI/CD e rollback também continuam fora — publicar é um
+comando rodado à mão, e o `pack` que roda o gate de qualidade é a garantia.
 
 ---
 

@@ -61,7 +61,7 @@ export const init = async (args: ParsedArgs): Promise<void> => {
   info('Next:');
   bullets([
     'microteia connect --project <your-firebase-project-id>',
-    'microteia unpack --kernel <microteia-kernel-x.y.z.tgz>',
+    'microteia unpack --version latest',
     'microteia deploy',
   ]);
   blank();

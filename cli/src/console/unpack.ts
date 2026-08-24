@@ -1,6 +1,6 @@
 import { access, cp, mkdir, readFile, readdir, rename, rm, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
-import { hasFlag, requiredFlag } from '../shared/args.js';
+import { flagValue, hasFlag, requiredFlag } from '../shared/args.js';
 import type { ParsedArgs } from '../shared/args.js';
 import { CLI_VERSION } from '../shared/paths.js';
 import { run } from '../shared/run.js';
@@ -20,6 +20,7 @@ import {
   installationReadme,
 } from '../vendor/installationDocs.js';
 import { refreshChangelogs } from '../vendor/changelogs.js';
+import { fetchKernel } from './channel.js';
 
 /**
  * `microteia unpack` — põe o pacote em `.microteia/install`, e nada mais.
@@ -84,6 +85,21 @@ const preserve = async (from: string, to: string): Promise<void> => {
 
 export const installPath = (root: string): string => join(workspacePath(root), 'install');
 
+const stagingPath = (root: string): string => join(workspacePath(root), 'staging');
+
+/**
+ * O Console que o pacote exige. Vale para o pacote que ACABOU de ser extraído e para o que já está no
+ * lugar, e por isso não mora em nenhum dos dois.
+ */
+const assertConsoleCanInstall = (manifest: KernelManifest): void => {
+  if (compareVersions(CLI_VERSION, manifest.minimumCliVersion) < 0) {
+    throw new Error(
+      `This package needs Microteia Console ${manifest.minimumCliVersion} or newer; this is ${CLI_VERSION}.\n`
+      + 'Update it with "npm i -g @microteia/console".',
+    );
+  }
+};
+
 /**
  * Lê o manifesto do pacote já desempacotado, recusando com o comando que falta em vez do `ENOENT` cru.
  * É a porta pela qual o `deploy` descobre que não há o que publicar.
@@ -93,33 +109,56 @@ export const readInstalledManifest = async (root: string): Promise<KernelManifes
   if (!await exists(path)) {
     throw new Error(
       'No unpacked Microteia package found in this installation.\n'
-      + 'Run "microteia unpack --kernel <package>.tgz" first.',
+      + 'Run "microteia unpack --version latest" first.',
     );
   }
 
   const manifest = JSON.parse(await readFile(path, 'utf8')) as KernelManifest;
-
-  if (compareVersions(CLI_VERSION, manifest.minimumCliVersion) < 0) {
-    throw new Error(
-      `This package needs Microteia Console ${manifest.minimumCliVersion} or newer; this is ${CLI_VERSION}.`,
-    );
-  }
-
+  assertConsoleCanInstall(manifest);
   return manifest;
 };
 
 /**
- * Desempacota preservando o que é do escritório. O pacote é substituído por inteiro — é isso que faz o
- * upgrade ser confiável —, então o que não pode ser perdido é copiado de volta explicitamente, em vez
- * de o extrator "mesclar" por cima e deixar restos da versão anterior.
+ * Extrai para o `staging`, e só isso. A instalação anterior fica INTACTA.
+ *
+ * Extrair e trocar era um passo só, e a troca vinha antes de o manifesto ser lido — então um pacote que
+ * exige um Console mais novo apagava o `install/` da versão que funcionava e só depois recusava,
+ * deixando a instalação sem kernel nenhum. Enquanto o tarball chegava à mão isso era raro; com o
+ * `--version` lendo o canal, um Console desatualizado encontra um pacote novo na primeira tentativa.
  */
-const extract = async (tarball: string, root: string): Promise<string> => {
-  const install = installPath(root);
-  const staging = join(workspacePath(root), 'staging');
+const stage = async (tarball: string, root: string): Promise<string> => {
+  const staging = stagingPath(root);
 
   await rm(staging, { recursive: true, force: true });
   await mkdir(staging, { recursive: true });
   await run('tar', ['-xzf', tarball, '-C', staging]);
+
+  return staging;
+};
+
+/** O manifesto do que foi extraído, conferido ANTES de a instalação anterior ser tocada. */
+const readStagedManifest = async (staging: string): Promise<KernelManifest> => {
+  const path = join(staging, 'manifest.json');
+  if (!await exists(path)) {
+    throw new Error(
+      'This file does not look like a Microteia package: it carries no manifest.json.',
+    );
+  }
+
+  const manifest = JSON.parse(await readFile(path, 'utf8')) as KernelManifest;
+  assertConsoleCanInstall(manifest);
+  return manifest;
+};
+
+/**
+ * Troca o pacote, preservando o que é do escritório. O pacote é substituído por inteiro — é isso que faz
+ * o upgrade ser confiável —, então o que não pode ser perdido é movido de volta explicitamente, em vez
+ * de o extrator "mesclar" por cima e deixar restos da versão anterior.
+ *
+ * A partir daqui não há como voltar atrás, e é por isso que tudo o que pode recusar já recusou.
+ */
+const commit = async (root: string, staging: string): Promise<string> => {
+  const install = installPath(root);
 
   for (const relative of PRESERVED) {
     const previous = join(install, relative);
@@ -145,18 +184,67 @@ const exampleIds = async (install: string): Promise<string[]> => {
   }
 };
 
+/**
+ * De onde o pacote vem — e as duas formas existem por razões diferentes.
+ *
+ * `--version` é o caminho normal: o Console lê o catálogo, baixa e confere. `--kernel` é o caminho de
+ * quem tem o arquivo — rede fechada, entrega por outro meio, um pacote que ainda não foi publicado — e
+ * ele não é legado: enquanto instalar depender de um download, uma máquina sem acesso ao catálogo não
+ * consegue instalar nada, e isso é uma dependência que não vale a pena ter.
+ */
+type KernelSource = { kind: 'file'; path: string } | { kind: 'channel'; version: string };
+
+const kernelSource = (args: ParsedArgs): KernelSource => {
+  const path = flagValue(args, 'kernel');
+  const version = flagValue(args, 'version');
+
+  if (path !== undefined && version !== undefined) {
+    throw new Error('Pass either --version or --kernel, not both: they are two ways to name one package.');
+  }
+  if (path !== undefined) return { kind: 'file', path: resolve(path) };
+  if (version !== undefined) return { kind: 'channel', version };
+
+  // Uma bandeira sem valor é erro de digitação, e dizer "falta --version" a quem acabou de escrever
+  // `--version` manda a pessoa procurar o problema onde ele não está.
+  if (hasFlag(args, 'version')) {
+    throw new Error('--version needs a number, or the word "latest".');
+  }
+  if (hasFlag(args, 'kernel')) {
+    throw new Error('--kernel needs the path to a package file.');
+  }
+
+  throw new Error(
+    'Missing --version or --kernel.\n'
+    + '  microteia unpack --version latest        takes the newest published version\n'
+    + '  microteia unpack --version 9.8.2         takes one exact version\n'
+    + '  microteia unpack --kernel <package>.tgz  takes a file you already have',
+  );
+};
+
 export const unpack = async (args: ParsedArgs): Promise<void> => {
   const file = resolve(hasFlag(args, 'file') ? requiredFlag(args, 'file') : join(process.cwd(), ENVIRONMENT_FILE));
   const root = dirname(file);
-  const tarball = resolve(requiredFlag(args, 'kernel'));
+  const source = kernelSource(args);
 
   const environment = await readEnvironment(file);
   const projectId = environment.firebase.projectId;
 
   heading(`Unpacking Microteia into ${environment.project.name}`);
 
-  const install = await extract(tarball, root);
-  const manifest = await readInstalledManifest(root);
+  const tarball = source.kind === 'file'
+    ? source.path
+    : (await fetchKernel(source.version)).path;
+
+  /**
+   * Extrair, conferir, e só então trocar. A recusa limpa o `staging` que abriu: 7 MB extraídos que
+   * ninguém vai usar são lixo, e deixá-los sugere que algo foi instalado.
+   */
+  const staging = await stage(tarball, root);
+  const manifest = await readStagedManifest(staging).catch(async (error: unknown) => {
+    await rm(staging, { recursive: true, force: true });
+    throw error;
+  });
+  const install = await commit(root, staging);
 
   const baselineCount = (manifest.baselineFunctions ?? manifest.functions).length;
   success(

@@ -11,6 +11,13 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.9.0] — 2026-08-24
+
+- A Microteia passou a ser distribuída por download. Quem instala não precisa mais receber os arquivos por e-mail ou pen drive: o programa de instalação é obtido por um comando único e ele mesmo busca a versão da plataforma, confere se o arquivo chegou inteiro e só então a coloca no lugar.
+- Ao perguntar a versão instalada, o programa de instalação agora avisa quando existe uma versão mais nova disponível, e diz o comando que a traz.
+- Corrigido: uma versão da plataforma que exigisse um programa de instalação mais recente removia a versão anterior antes de recusar, e o escritório ficava sem nenhuma. Agora a recusa acontece antes, e o que estava funcionando continua no lugar.
+- Corrigido: depois de conectar a instalação ao projeto do escritório, o próximo comando sugerido na tela era um que já não existia — quem o seguia recebia uma recusa logo depois do passo que havia dado certo.
+
 #### [9.8.2] — 2026-08-24
 
 - Corrigido: o aviso de campos por preencher da conexão de IA ficava na tela do escritório depois de a janela ser cancelada. Ele agora aparece dentro da própria janela e sai junto com ela.

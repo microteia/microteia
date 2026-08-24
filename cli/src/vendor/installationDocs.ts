@@ -57,9 +57,13 @@ replaced whole on every upgrade. Everything of yours sits beside this file.
 
 ## Day to day
 
-    microteia unpack --kernel <package>.tgz   # take a new platform version
-    microteia deploy                          # publish it — or --only hosting, --only functions
-    microteia provision                       # apply what installed extensions need
+    microteia unpack --version latest   # take the newest published platform version
+    microteia deploy                    # publish it — or --only hosting, --only functions
+    microteia provision                 # apply what installed extensions need
+
+\`unpack --version\` reads the published catalog, downloads the version and checks its sha256 before
+touching what is installed here. On a machine that cannot reach the catalog, name a file instead:
+\`microteia unpack --kernel <package>.tgz\`. And \`microteia --version\` says when a newer one is out.
 
 ## Building your own extensions
 
@@ -89,7 +93,8 @@ installed, by the same validation the platform runs.
 const commandRows = (): string => [
   '| Command | What it does |',
   '|---|---|',
-  '| `microteia unpack --kernel <pkg>.tgz` | Puts a platform version in place. Touches no Firebase — safe any time |',
+  '| `microteia unpack --version <latest\\|x.y.z>` | Downloads a platform version, verifies it, and puts it in place. Touches no Firebase — safe any time |',
+  '| `microteia unpack --kernel <pkg>.tgz` | The same, from a file you already have — for a machine with no access to the catalog |',
   '| `microteia deploy [--only …] [--prune]` | Publishes what is in place: `rules`, `indexes`, `functions`, `hosting`. `--prune` also deletes functions left behind in a region this version no longer uses |',
   '| `microteia provision [--prune]` | Gives installed extensions the functions and indexes they ask for |',
   '| `microteia connect --project <id>` | Binds this installation to a Firebase project you own |',

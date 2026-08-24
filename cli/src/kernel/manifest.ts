@@ -57,6 +57,23 @@ export interface KernelManifest {
    * para um arquivo que não existe.
    */
   sdk?: KernelSdk;
+  /**
+   * O tamanho e a impressão digital do tarball, presentes SÓ na cópia externa do manifesto — a que fica
+   * ao lado do `.tgz` e é publicada com ele. A cópia de dentro do tarball não pode carregá-los: ela
+   * entra no arquivo cujo hash seria descrito, e nenhum dos dois números existiria ainda.
+   *
+   * É a única diferença entre as duas cópias, e é o que permite ao `unpack` conferir o que baixou.
+   * Ausente nos pacotes anteriores ao canal de distribuição, e ausente também quando o pacote chegou
+   * por caminho de arquivo — ali a conferência não tem contra o que ser feita.
+   */
+  tarball?: KernelTarball;
+}
+
+export interface KernelTarball {
+  /** O nome do arquivo, não um caminho: onde ele fica é decisão de quem publica. */
+  name: string;
+  bytes: number;
+  sha256: string;
 }
 
 export interface KernelSdk {

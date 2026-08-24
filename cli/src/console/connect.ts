@@ -85,7 +85,12 @@ export const connect = async (args: ParsedArgs): Promise<void> => {
     blank();
   }
 
+  /**
+   * A linha aqui dizia `microteia deploy --kernel <…>.tgz`, e aquela bandeira saiu do `deploy` na
+   * `2.0.0` — o pacote passou a chegar pelo `unpack`. Desde então ela mandava quem acabou de conectar
+   * direto para uma recusa, no primeiro comando depois do que funcionou.
+   */
   info('Then:');
-  bullets(['microteia deploy --kernel <microteia-kernel-x.y.z.tgz>']);
+  bullets(['microteia unpack --version latest', 'microteia deploy']);
   blank();
 };

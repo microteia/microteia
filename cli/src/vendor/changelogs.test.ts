@@ -2,12 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { CLI_VERSION, consoleRoot, repoRoot } from '../shared/paths.js';
-import {
-  CONSOLE_CHANGELOG,
-  KERNEL_CHANGELOG,
-  changelogProblems,
-  changelogVersions,
-} from './changelogs.js';
+import { CONSOLE_CHANGELOG, KERNEL_CHANGELOG, changelogEntry, changelogProblems, changelogVersions } from './changelogs.js';
 
 /**
  * Os dois artefatos que o escritório recebe — a plataforma e o Console — têm cada um o seu histórico
@@ -137,5 +132,45 @@ describe('cada histórico viaja no artefato que ele descreve', () => {
 
   it('uma instalação anterior a esta capacidade avisa, em vez de falhar o upgrade', () => {
     expect(source('console/unpack.ts')).toContain('changelogs.missing');
+  });
+});
+
+/**
+ * O corpo do release publicado é a entrada do histórico, recortada — e não um texto escrito à mão ao
+ * lado dela. Dois textos sobre a mesma versão divergem, e o que divergiria é justamente o que fica
+ * visível para quem procura o que mudou.
+ */
+describe('a entrada de uma versão, recortada para o release', () => {
+  const changelog = [
+    '<!-- #### [x.y.z] — AAAA-MM-DD -->',
+    '',
+    '#### [9.8.2] — 2026-08-24',
+    '',
+    '- feat(cli/publish): the channel exists.',
+    '',
+    '#### [9.8.1] — 2026-08-23',
+    '',
+    '- fix(core.tenant/ai): something else entirely.',
+    '',
+  ].join('\n');
+
+  it('recorta do cabeçalho até o próximo, e não até o fim do arquivo', () => {
+    const entry = changelogEntry(changelog, '9.8.2');
+    expect(entry).toContain('#### [9.8.2]');
+    expect(entry).toContain('the channel exists');
+    expect(entry).not.toContain('9.8.1');
+  });
+
+  it('a última entrada vai até o fim, porque não há próxima', () => {
+    expect(changelogEntry(changelog, '9.8.1')).toContain('something else entirely');
+  });
+
+  /** O molde do topo é comentário HTML, e ele não pode ser lido como a entrada mais recente. */
+  it('o molde do topo não é uma entrada', () => {
+    expect(changelogEntry(changelog, '9.8.2').startsWith('#### [9.8.2]')).toBe(true);
+  });
+
+  it('e uma versão que não está no arquivo recusa', () => {
+    expect(() => changelogEntry(changelog, '9.9.9')).toThrow(/no entry for 9\.9\.9/);
   });
 });

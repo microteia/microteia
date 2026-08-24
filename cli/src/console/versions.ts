@@ -25,7 +25,15 @@ const readJson = async <T>(path: string): Promise<T | null> => {
   }
 };
 
-export const versionReport = async (directory: string): Promise<string[]> => {
+/**
+ * Como o relatório descobre se há versão nova. É INJETADO, e não chamado daqui: `--version` é o primeiro
+ * comando que se roda quando algo está estranho, e a resposta que se cola num pedido de ajuda. Ele
+ * responde sobre a instalação, não sobre a rede — quem quiser a checagem passa o `newerThan`, e quem
+ * está testando ou offline não paga por ela.
+ */
+export type NewerLookup = (version: string | null) => Promise<{ version: string } | null>;
+
+export const versionReport = async (directory: string, newer?: NewerLookup): Promise<string[]> => {
   const lines = [`Microteia Console ${CLI_VERSION}`];
 
   const source = await readFile(join(directory, ENVIRONMENT_FILE), 'utf8').catch(() => null);
@@ -55,7 +63,7 @@ export const versionReport = async (directory: string): Promise<string[]> => {
 
   lines.push(`Installation      ${environment.project.name}`);
   lines.push(`Firebase project  ${environment.firebase.projectId ?? 'not connected'}`);
-  lines.push(`Kernel in place   ${inPlace ?? 'none — run "microteia unpack --kernel <package>.tgz"'}`);
+  lines.push(`Kernel in place   ${inPlace ?? 'none — run "microteia unpack --version latest"'}`);
   lines.push(`Kernel deployed   ${deployed ?? 'none — run "microteia deploy"'}`);
 
   if (manifest?.kernelVersion !== undefined) {
@@ -65,6 +73,16 @@ export const versionReport = async (directory: string): Promise<string[]> => {
   if (inPlace !== null && deployed !== null && inPlace !== deployed) {
     lines.push('');
     lines.push(`${inPlace} is in place and ${deployed} is what the project runs. "microteia deploy" publishes it.`);
+  }
+
+  /**
+   * E o que o canal oferece, quando há canal alcançável. Vem por último porque é a única linha que
+   * depende de rede: se ela faltar, tudo acima continua sendo a resposta inteira.
+   */
+  const available = newer === undefined ? null : await newer(inPlace);
+  if (available !== null) {
+    lines.push('');
+    lines.push(`Kernel ${available.version} is published. "microteia unpack --version latest" takes it.`);
   }
 
   return lines;
