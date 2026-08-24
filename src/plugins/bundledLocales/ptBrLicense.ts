@@ -53,26 +53,11 @@ const CORE_LICENSE: Record<string, string> = {
   'beta.item.parallel':
     'recomenda-se fortemente manter controles paralelos e conferência manual de prazos e informações críticas enquanto o sistema estiver em fase beta.',
 
-  'monitor.title': '4. Monitor de e-mails, intimações e prazos',
-  'monitor.text':
-    'O Microteia oferece um recurso de leitura automática de e-mails e documentos (intimações, pushes de tribunais, notificações) que utiliza inteligência artificial para identificar processos, extrair datas e sugerir prazos. Este recurso é uma ferramenta de apoio à organização do escritório e não uma garantia de acompanhamento processual.',
-  'monitor.responsibility': 'É de responsabilidade exclusiva do advogado e do escritório usuário:',
-  'monitor.item.check':
-    'conferir manualmente todas as intimações, prazos e movimentações identificadas pelo sistema junto aos autos e aos diários oficiais;',
-  'monitor.item.confirm':
-    'confirmar a exatidão de datas, prazos e informações extraídas automaticamente antes de tomar qualquer decisão processual com base nelas;',
-  'monitor.item.own-routines':
-    'manter rotinas próprias de controle de prazos, independentemente do uso do Microteia;',
-  'monitor.item.official-channels':
-    'verificar regularmente a caixa de e-mail e os canais oficiais de intimação, já que falhas de leitura, classificação incorreta ou indisponibilidade do serviço de e-mail ou de terceiros podem ocorrer.',
-  'monitor.disclaimer':
-    'O Microteia não se responsabiliza por perda de prazo, preclusão, revelia ou qualquer prejuízo processual decorrente de falha, atraso, erro de interpretação da inteligência artificial, indisponibilidade do sistema ou de serviços de terceiros (provedores de e-mail, tribunais, provedores de nuvem), ou pela ausência de conferência humana das informações apresentadas.',
-
-  'account.title': '5. Cadastro e responsabilidade pela conta',
+  'account.title': '4. Cadastro e responsabilidade pela conta',
   'account.text':
     'O usuário é responsável pela veracidade dos dados cadastrados, pela guarda de suas credenciais de acesso e por todas as atividades realizadas em sua conta. O escritório (tenant) é responsável por definir corretamente os papéis (admin, advogado, secretaria, usuário) de cada membro e pelas permissões concedidas.',
 
-  'privacy.title': '6. Privacidade e proteção de dados',
+  'privacy.title': '5. Privacidade e proteção de dados',
   'privacy.text':
     'Coletamos e tratamos dados pessoais em conformidade com a Lei Geral de Proteção de Dados (Lei nº 13.709/2018 — LGPD), incluindo:',
   'privacy.item.account': 'dados de cadastro do usuário (nome, e-mail, foto de perfil);',
@@ -86,23 +71,23 @@ const CORE_LICENSE: Record<string, string> = {
   'privacy.rights':
     'O titular dos dados pode, a qualquer momento, solicitar acesso, correção, portabilidade ou exclusão de seus dados pessoais, respeitadas as obrigações legais de guarda de informações processuais e fiscais, entrando em contato pelo e-mail indicado ao final destes termos.',
 
-  'security.title': '7. Segurança da informação',
+  'security.title': '6. Segurança da informação',
   'security.text':
     'Adotamos medidas técnicas e organizacionais razoáveis para proteger os dados armazenados, incluindo controle de acesso por perfil, isolamento entre escritórios e registro de auditoria. Nenhum sistema é totalmente livre de riscos, e o usuário reconhece que nenhuma medida de segurança garante proteção absoluta contra incidentes.',
 
-  'liability.title': '8. Limitação de responsabilidade',
+  'liability.title': '7. Limitação de responsabilidade',
   'liability.text':
     'Na máxima extensão permitida pela legislação aplicável, o Microteia e seu responsável não se responsabilizam por danos indiretos, lucros cessantes, perda de clientes, perda de prazos processuais ou quaisquer prejuízos decorrentes do uso ou da impossibilidade de uso do sistema, incluindo falhas técnicas, indisponibilidade, erros da inteligência artificial ou de serviços de terceiros. O uso do sistema não substitui o julgamento profissional, a diligência e a conferência manual exigidas do exercício da advocacia.',
 
-  'ip.title': '9. Propriedade intelectual',
+  'ip.title': '8. Propriedade intelectual',
   'ip.text':
     'Todo o código-fonte, design, marca e demais elementos do Microteia são protegidos por direitos autorais e pertencem ao seu autor, sendo vedadas a cópia, engenharia reversa, redistribuição ou exploração comercial não autorizada do sistema.',
 
-  'changes.title': '10. Alterações destes termos',
+  'changes.title': '9. Alterações destes termos',
   'changes.text':
     'Estes termos podem ser atualizados a qualquer momento, especialmente durante a fase beta do sistema. A data da última atualização é sempre exibida no topo desta página. O uso continuado do sistema após alterações implica concordância com os novos termos.',
 
-  'law.title': '11. Legislação aplicável',
+  'law.title': '10. Legislação aplicável',
   'law.text':
     'Estes termos são regidos pelas leis da República Federativa do Brasil, sendo eleito o foro do domicílio do responsável pelo sistema para dirimir eventuais controvérsias, ressalvada disposição legal em contrário.',
 
@@ -116,7 +101,7 @@ export const ptBrLicensePlugin: PluginRecord = {
   trusted: true,
   manifest: {
     id: 'locale.pt-br.license',
-    version: '1.0.0',
+    version: '1.0.1',
     kernel: '^2.0.0',
     name: 'Terms and Privacy — Português (Brasil)',
     description: 'Translation of the Terms of Use and the Privacy Policy into Brazilian Portuguese.',

@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.7.1] — 2026-08-24
+
+- Os Termos de Uso deixaram de trazer o item sobre o monitor de e-mails, intimações e prazos, e os itens seguintes foram renumerados. Também saiu do rodapé o número de inscrição na OAB do responsável — o contato segue pelo nome e pelo e-mail.
+
 #### [9.7.0] — 2026-08-24
 
 - O manual de autoria que acompanha a instalação passou a descrever tudo o que uma extensão pode declarar: os tipos de campo de uma tela, as relações entre telas, a linguagem das expressões e o que cada uma delas alcança, as automações, as ações e os scripts, e as páginas que se descrevem sem uma linha de programação. Antes ele explicava o formato do pacote e deixava o resto para quem já conhecesse o sistema por dentro — e quem escreve extensão não o conhece, nem tem como.

@@ -36,27 +36,11 @@ export const CORE_LICENSE_MESSAGES: Record<string, string> = {
   'beta.item.parallel':
     'keeping parallel controls and manually checking deadlines and critical information is strongly recommended while the system is in beta.',
 
-  'monitor.title': '4. E-mail monitor, court notices and deadlines',
-  'monitor.text':
-    'Microteia offers automatic reading of e-mails and documents (court notices, court push notifications, notifications) that uses artificial intelligence to identify cases, extract dates and suggest deadlines. This feature is a tool to support the organization of the office and not a guarantee of case tracking.',
-  'monitor.responsibility':
-    'It is the sole responsibility of the lawyer and of the user organization to:',
-  'monitor.item.check':
-    'manually check every court notice, deadline and case update identified by the system against the case records and the official gazettes;',
-  'monitor.item.confirm':
-    'confirm the accuracy of dates, deadlines and automatically extracted information before making any procedural decision based on them;',
-  'monitor.item.own-routines':
-    'maintain their own deadline-control routines, independently of using Microteia;',
-  'monitor.item.official-channels':
-    'regularly check the e-mail inbox and the official notification channels, since reading failures, incorrect classification or unavailability of the e-mail service or of third parties may occur.',
-  'monitor.disclaimer':
-    'Microteia is not liable for missed deadlines, preclusion, default judgment or any procedural harm arising from failure, delay, misinterpretation by the artificial intelligence, unavailability of the system or of third-party services (e-mail providers, courts, cloud providers), or from the absence of human review of the information presented.',
-
-  'account.title': '5. Registration and account responsibility',
+  'account.title': '4. Registration and account responsibility',
   'account.text':
     'The user is responsible for the accuracy of the registered data, for safeguarding their access credentials and for every activity carried out in their account. The organization (tenant) is responsible for correctly defining the roles (admin, lawyer, assistant, user) of each member and for the permissions granted.',
 
-  'privacy.title': '6. Privacy and data protection',
+  'privacy.title': '5. Privacy and data protection',
   'privacy.text':
     'We collect and process personal data in accordance with the Brazilian General Data Protection Law (Law No. 13,709/2018 — LGPD), including:',
   'privacy.item.account': 'user registration data (name, e-mail, profile picture);',
@@ -70,23 +54,23 @@ export const CORE_LICENSE_MESSAGES: Record<string, string> = {
   'privacy.rights':
     'The data subject may, at any time, request access to, correction of, portability of or deletion of their personal data — subject to the legal obligations to retain procedural and tax information — by contacting the e-mail address given at the end of these terms.',
 
-  'security.title': '7. Information security',
+  'security.title': '6. Information security',
   'security.text':
     'We adopt reasonable technical and organizational measures to protect the stored data, including role-based access control, isolation between organizations and audit logging. No system is entirely free of risk, and the user acknowledges that no security measure guarantees absolute protection against incidents.',
 
-  'liability.title': '8. Limitation of liability',
+  'liability.title': '7. Limitation of liability',
   'liability.text':
     'To the fullest extent permitted by applicable law, Microteia and the person responsible for it are not liable for indirect damages, lost profits, loss of clients, missed procedural deadlines or any harm arising from the use of, or the inability to use, the system, including technical failures, unavailability, errors of the artificial intelligence or of third-party services. Using the system does not replace the professional judgment, diligence and manual review required in the practice of law.',
 
-  'ip.title': '9. Intellectual property',
+  'ip.title': '8. Intellectual property',
   'ip.text':
     'All source code, design, trademark and other elements of Microteia are protected by copyright and belong to its author. Copying, reverse engineering, redistribution or unauthorized commercial exploitation of the system is prohibited.',
 
-  'changes.title': '10. Changes to these terms',
+  'changes.title': '9. Changes to these terms',
   'changes.text':
     'These terms may be updated at any time, especially during the beta stage of the system. The date of the last update is always shown at the top of this page. Continued use of the system after changes implies agreement with the new terms.',
 
-  'law.title': '11. Governing law',
+  'law.title': '10. Governing law',
   'law.text':
     'These terms are governed by the laws of the Federative Republic of Brazil, and the courts of the domicile of the person responsible for the system are elected to settle any disputes, save for any legal provision to the contrary.',
 

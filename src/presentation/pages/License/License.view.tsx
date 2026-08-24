@@ -59,19 +59,6 @@ export const LicenseView: React.FC = () => {
         </S.Section>
 
         <S.Section>
-          <S.SectionTitle>{t('monitor.title')}</S.SectionTitle>
-          <S.Paragraph>{t('monitor.text')}</S.Paragraph>
-          <S.Paragraph>{t('monitor.responsibility')}</S.Paragraph>
-          <S.List>
-            <S.ListItem>{t('monitor.item.check')}</S.ListItem>
-            <S.ListItem>{t('monitor.item.confirm')}</S.ListItem>
-            <S.ListItem>{t('monitor.item.own-routines')}</S.ListItem>
-            <S.ListItem>{t('monitor.item.official-channels')}</S.ListItem>
-          </S.List>
-          <S.Paragraph>{t('monitor.disclaimer')}</S.Paragraph>
-        </S.Section>
-
-        <S.Section>
           <S.SectionTitle>{t('account.title')}</S.SectionTitle>
           <S.Paragraph>{t('account.text')}</S.Paragraph>
         </S.Section>
@@ -121,7 +108,6 @@ export const LicenseView: React.FC = () => {
           <S.Paragraph>{t('contact.text')}</S.Paragraph>
           <S.ContactCard>
             <p><strong>{vm.authorName}</strong></p>
-            <p>{vm.authorRegistration}</p>
             <p>{t('contact.email-label')} {vm.authorEmail}</p>
           </S.ContactCard>
         </S.Section>

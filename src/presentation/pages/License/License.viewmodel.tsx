@@ -8,17 +8,15 @@ import { useLocaleFormat } from '../../shared/i18n/useT';
  *
  * Mexer nela é declarar que o documento mudou; ela não acompanha o deploy.
  */
-const LAST_UPDATED_AT = '2026-07-03';
+const LAST_UPDATED_AT = '2026-08-24';
 
 /** A identidade do autor é DADO, não texto: não traduz, e por isso não entra no catálogo. */
 const AUTHOR_NAME = 'Alexnaldo Carvalho dos Santos';
-const AUTHOR_REGISTRATION = 'OAB/BA 56.834';
 const AUTHOR_EMAIL = 'alexnaldo.santos@gmail.com';
 
 export interface LicenseViewModel {
   updatedAt: string;
   authorName: string;
-  authorRegistration: string;
   authorEmail: string;
   showBackButton: boolean;
   goBack: () => void;
@@ -38,7 +36,6 @@ export const useLicenseViewModel = (): LicenseViewModel => {
   return {
     updatedAt: formatLongDate(`${LAST_UPDATED_AT}T12:00:00`),
     authorName: AUTHOR_NAME,
-    authorRegistration: AUTHOR_REGISTRATION,
     authorEmail: AUTHOR_EMAIL,
     showBackButton,
     goBack,
