@@ -32,8 +32,6 @@ const CORE_LICENSE: Record<string, string> = {
 
   'banner.beta':
     'O Microteia está em fase beta. O sistema pode conter erros, instabilidades ou indisponibilidades temporárias. O uso é por conta e risco do escritório e dos usuários cadastrados.',
-  'banner.email-monitor':
-    'O monitor de e-mails é uma ferramenta de apoio que identifica e permite que você defina os prazos de forma personalizada. A conferência e a confirmação de todas as informações extraídas — datas, prazos e teor das intimações — são de responsabilidade exclusiva do advogado responsável pelo processo. O Microteia não substitui a conferência humana e não garante que nenhum prazo será perdido.',
 
   'acceptance.title': '1. Aceitação dos termos',
   'acceptance.text':
@@ -105,7 +103,7 @@ export const ptBrLicensePlugin: PluginRecord = {
   trusted: true,
   manifest: {
     id: 'locale.pt-br.license',
-    version: '1.0.1',
+    version: '1.0.2',
     kernel: '^2.0.0',
     name: 'Terms and Privacy — Português (Brasil)',
     description: 'Translation of the Terms of Use and the Privacy Policy into Brazilian Portuguese.',

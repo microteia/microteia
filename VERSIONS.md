@@ -18,6 +18,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - A página de Termos de Uso abre agora como uma aba, sem sair do sistema, e pode ser encontrada pela busca rápida.
 - A extensão Notícias já vem com os próprios termos de licença. Quem a tem instalada verá a atualização disponível na tela de Extensões.
 
+#### [9.7.2] — 2026-08-24
+
+- Saiu também do topo dos Termos de Uso a tarja que descrevia o monitor de e-mails e a conferência das intimações — o item correspondente do documento já havia sido removido.
+
 #### [9.7.1] — 2026-08-24
 
 - Os Termos de Uso deixaram de trazer o item sobre o monitor de e-mails, intimações e prazos, e os itens seguintes foram renumerados. Também saiu do rodapé o número de inscrição na OAB do responsável — o contato segue pelo nome e pelo e-mail.

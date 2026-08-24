@@ -35,7 +35,6 @@ export const LicenseView: React.FC = () => {
 
         <S.BannerGroup>
           <InfoBanner variant="warning" message={t('banner.beta')} />
-          <InfoBanner variant="warning" message={t('banner.email-monitor')} />
         </S.BannerGroup>
 
         <S.Section>

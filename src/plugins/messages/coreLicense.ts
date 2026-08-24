@@ -15,8 +15,6 @@ export const CORE_LICENSE_MESSAGES: Record<string, string> = {
 
   'banner.beta':
     'Microteia is in beta. The system may contain errors, instabilities or temporary outages. Use is at the risk of the organization and its registered users.',
-  'banner.email-monitor':
-    'The e-mail monitor is a support tool that identifies information and lets you set deadlines your own way. Checking and confirming everything it extracts — dates, deadlines and the content of court notices — is the sole responsibility of the lawyer in charge of the case. Microteia does not replace human review and does not guarantee that no deadline will be missed.',
 
   'acceptance.title': '1. Acceptance of the terms',
   'acceptance.text':
