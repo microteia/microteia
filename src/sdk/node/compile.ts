@@ -444,3 +444,16 @@ export const buildPlugin = (input: BuildPluginInput): BuildPluginResult => {
   const pkg = inlineAuthoredCode(authored, dirname(entry));
   return { package: pkg, json: `${serializePackage(pkg)}\n`, issues: validatePluginPackage(pkg), exportName };
 };
+
+/**
+ * O transpilador de SCRIPT, reexportado aqui — e não no barril isomórfico — porque ele é FERRAMENTA:
+ * arrasta o `sucrase`, e `@microteia/sdk` é a superfície que não arrasta nada além de `expr-eval`.
+ * É a mesma linha que separa `compile.ts` do resto do SDK.
+ *
+ * Existe porque um `Script` viaja com `sourceTs` E `compiledJs`, e nada preenche o segundo: o sandbox
+ * do servidor nunca transpila, de propósito. Sem esta porta, `scripts` era um campo do pacote que quem
+ * escreve de fora não tinha como preencher direito — a saída era colar JavaScript nos dois campos, ou
+ * arriscar um transpilador que não é o da plataforma.
+ */
+export type { TranspileScriptResult } from '../../domain/services/scriptSource';
+export { transpileScriptSource } from '../../domain/services/scriptSource';

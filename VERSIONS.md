@@ -11,6 +11,12 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.7.0] — 2026-08-24
+
+- O manual de autoria que acompanha a instalação passou a descrever tudo o que uma extensão pode declarar: os tipos de campo de uma tela, as relações entre telas, a linguagem das expressões e o que cada uma delas alcança, as automações, as ações e os scripts, e as páginas que se descrevem sem uma linha de programação. Antes ele explicava o formato do pacote e deixava o resto para quem já conhecesse o sistema por dentro — e quem escreve extensão não o conhece, nem tem como.
+- Quem escreve extensão com a ajuda de um assistente de IA passa a poder perguntar, ali mesmo, a forma exata de qualquer parte de uma extensão e a lista das funções de expressão que a instalação de fato entende. As respostas saem da instalação instalada, não de uma documentação à parte que pode estar velha.
+- O guia deixa claro, pela primeira vez, que uma página entregue como código só aparece depois de a extensão dizer onde ela entra — a causa mais comum de uma extensão instalar direito e a tela simplesmente não estar lá.
+
 #### [9.6.2] — 2026-08-23
 
 - Uma tela criada no Form Design aparecia para todo mundo — no menu lateral, na busca rápida e como aba dentro do registro pai —, inclusive para quem não tem permissão de visualizar os registros dela. Quem clicava chegava a uma lista permanentemente vazia, sem explicação. Agora a tela só é oferecida a quem pode ver o que há dentro dela.

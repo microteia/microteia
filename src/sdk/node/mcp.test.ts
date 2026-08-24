@@ -16,6 +16,8 @@ describe('o servidor MCP de autoria', () => {
     expect(mcpToolNames().sort()).toEqual([
       'build_plugin',
       'describe_host_module',
+      'describe_sdk_type',
+      'list_expression_functions',
       'list_extension_points',
       'list_workspace_plugins',
       'read_authoring_guide',
@@ -27,14 +29,75 @@ describe('o servidor MCP de autoria', () => {
   it('lista os pontos de extensão com a versão do contrato e o que cada um aceita', () => {
     const answer = JSON.parse(runMcpTool('list_extension_points', {}, ROOT)) as {
       kernelVersion: string;
-      implKindsAvailableToThirdParties: string[];
+      implKindsThatRunWithoutReview: string[];
+      codeImplNote: string;
       points: { id: string; allowedImplKinds: string[] }[];
     };
     expect(answer.kernelVersion).toMatch(/^\d+\.\d+\.\d+$/);
     expect(answer.points.map((point) => point.id)).toContain('ui.page');
     expect(answer.points.map((point) => point.id)).toContain('i18n.messages');
-    // `code` NÃO está aqui: um terceiro pode declará-lo, mas ele só roda depois de revisado.
-    expect(answer.implKindsAvailableToThirdParties).not.toContain('code');
+    expect(answer.implKindsThatRunWithoutReview).not.toContain('code');
+  });
+
+  /**
+   * O nome do campo ERA `implKindsAvailableToThirdParties`, e ele afirmava o contrário do contrato: um
+   * pacote de terceiro PODE entregar `code` — a validação não o recusa —, o que ele paga é revisão
+   * humana antes de executar. Um modelo que lesse o nome antigo concluiria que não pode entregar view
+   * nenhuma, e a conclusão bloquearia trabalho legítimo sem nada acusar.
+   */
+  it('não deixa a lista de kinds sugerir que uma view é proibida a terceiros', () => {
+    const answer = JSON.parse(runMcpTool('list_extension_points', {}, ROOT)) as { codeImplNote: string };
+    expect(answer.codeImplNote).toMatch(/may declare/);
+    expect(answer.codeImplNote).toMatch(/trusts it/);
+  });
+
+  /**
+   * O `.d.ts` do SDK é emitido com `removeComments`: quem escreve extensão recebe a FORMA de
+   * `TemplateField` e de `WidgetSpec` sem uma linha de explicação, e sem esta ferramenta não tinha como
+   * saber quais propriedades existem a não ser abrindo `node_modules` à mão.
+   */
+  it('descreve um tipo de autoria a partir do .d.ts que o pacote carrega', () => {
+    const answer = runMcpTool('describe_sdk_type', { name: 'WidgetSpec' }, ROOT);
+    expect(answer).toContain('export type WidgetSpec');
+    expect(answer).toContain("type: 'divider'");
+    // O caminho vai junto: é a prova de que a resposta saiu do pacote, e não da memória do modelo.
+    expect(answer).toContain('widgetSpec.d.ts');
+  });
+
+  /**
+   * `TemplateField` é `Omit<FieldDefinition, 'origin'>` e é o tipo mais usado de todos: devolvê-lo
+   * sozinho responde à pergunta com outra pergunta. Uma volta de expansão é o que torna a resposta
+   * útil em vez de apenas correta.
+   */
+  it('expande uma volta: quem pede um apelido recebe a forma que ele aponta', () => {
+    const answer = runMcpTool('describe_sdk_type', { name: 'TemplateField' }, ROOT);
+    expect(answer).toContain("Omit<FieldDefinition, 'origin'>");
+    expect(answer).toContain('referenced by it');
+    expect(answer).toContain('export interface FieldDefinition');
+    expect(answer).toContain('lookupCollection');
+  });
+
+  it('lista a superfície publicada quando não se diz o nome', () => {
+    const answer = runMcpTool('describe_sdk_type', {}, ROOT);
+    expect(answer).toContain('- AuthoredPlugin');
+    expect(answer).toContain('- TemplateField');
+  });
+
+  it('e aproxima em vez de só falhar quando o nome não existe', () => {
+    const answer = runMcpTool('describe_sdk_type', { name: 'Widget' }, ROOT);
+    expect(answer).toContain('Did you mean');
+    expect(answer).toContain('WidgetSpec');
+  });
+
+  /** As funções vêm do motor, não de uma cópia escrita à mão num texto. */
+  it('lista as funções de expressão que a instalação de fato resolve', () => {
+    const answer = JSON.parse(runMcpTool('list_expression_functions', {}, ROOT)) as {
+      functions: string[];
+      operators: string[];
+    };
+    expect(answer.functions).toContain('hasPermission');
+    expect(answer.functions).toContain('today');
+    expect(answer.operators).toContain('and');
   });
 
   it('descreve um módulo da API curada a partir do .d.ts gerado', () => {

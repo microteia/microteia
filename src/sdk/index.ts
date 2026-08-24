@@ -152,6 +152,8 @@ export {
 export type { WidgetNodeType, WidgetSpec } from '../domain/schema/ui/widgetSpec';
 export { WIDGET_NODE_TYPES, isWidgetSpec, widgetChildren } from '../domain/schema/ui/widgetSpec';
 
+export { STEP_TYPES } from '../domain/entities/Workflow';
+
 export {
   DATA_API_VERSION,
   DATA_ENTITY_POINT,
@@ -219,10 +221,35 @@ export type {
   CustomFieldMask,
   CustomFieldOption,
   CustomFieldType,
+  CustomFieldValue,
   FieldDefinition,
   FieldOrigin,
   ScreenListAction,
 } from '../domain/entities';
+
+/**
+ * O que `FieldDefinition` REFERENCIA — publicado porque a estrutura sem os nomes é um beco: um autor
+ * escreve `logic: { compute: '…' }` e o tipo funciona por estrutura, mas ele não tem como nomear a
+ * forma, guardá-la numa constante nem pedi-la ao `describe_sdk_type`. `logic` e `aggregation` são
+ * justamente o que substitui código numa tela declarada.
+ */
+export type {
+  AggregationOp,
+  FieldAggregation,
+  FieldFileConfig,
+  FieldLogic,
+  FieldLookupBinding,
+  FieldRules,
+  FormatRule,
+  ValidateRule,
+} from '../domain/schema/fieldRules';
+
+/**
+ * O VOCABULÁRIO como array, e não só como união: é o que permite a quem escreve extensão — e ao
+ * `AUTHORING.md` — enumerar o que existe em vez de descobrir um tipo por vez pelo erro do `tsc`.
+ */
+export { CUSTOM_FIELD_TYPES } from '../domain/schema/fieldRules';
+export { FIELD_EXPRESSION_FUNCTION_NAMES } from '../domain/schema/fieldExpression';
 
 export type {
   SettingsProperty,

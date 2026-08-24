@@ -11,6 +11,8 @@ import { parsePackage } from '../../domain/usecases/plugins/packageSerialization
 import { validatePluginPackage } from '../validate';
 import { buildPlugin } from './compile';
 import { hostModuleBlock, hostModuleNames, hostTypesPath, readHostTypes } from './hostTypes';
+import { referencedSymbols, sdkDeclaration, sdkSurfaceNames, sdkTypesRoot } from './sdkTypes';
+import { FIELD_EXPRESSION_FUNCTION_NAMES } from '../../domain/schema/fieldExpression';
 import { describeMessage } from './messages';
 
 /**
@@ -44,6 +46,13 @@ const asString = (value: unknown, name: string): string => {
 };
 
 const pretty = (value: unknown): string => JSON.stringify(value, null, 2);
+
+/**
+ * Quantas declarações VIZINHAS acompanham a pedida. Existe porque devolver `TemplateField` sozinho
+ * responde `Omit<FieldDefinition, 'origin'>` — correto e inútil; e porque o fechamento completo de
+ * `PluginManifest` seria o pacote inteiro.
+ */
+const REFERENCE_EXPANSION_LIMIT = 6;
 
 const ALL_POINTS = [
   ...UI_EXTENSION_POINTS,
@@ -131,7 +140,14 @@ const TOOLS: ToolDefinition[] = [
     inputSchema: { type: 'object', properties: {} },
     run: () => pretty({
       kernelVersion: KERNEL_VERSION,
-      implKindsAvailableToThirdParties: THIRD_PARTY_IMPL_KINDS,
+      implKindsThatRunWithoutReview: THIRD_PARTY_IMPL_KINDS,
+      // `code` NÃO está na lista acima, e a distinção é a que mais importa aqui: qualquer pacote pode
+      // declará-lo, e a validação não o recusa. O que ele paga é revisão humana antes de executar.
+      codeImplNote:
+        'A package may declare impl kind "code" (a view or a startup, delivered as source). It is not '
+        + 'refused by validation; it simply does not execute until an administrator of the organization '
+        + 'reads the source and trusts it, and the trust is bound to that exact code by hash. See '
+        + 'AUTHORING.md, "Code trust".',
       points: ALL_POINTS.map((point) => ({
         id: point.id,
         apiVersion: point.apiVersion,
@@ -183,6 +199,71 @@ const TOOLS: ToolDefinition[] = [
         }
       }).join('\n\n');
     },
+  },
+  {
+    name: 'describe_sdk_type',
+    description:
+      'The exact declaration of an AUTHORING type, read from the .d.ts this installation carries — '
+      + 'the shape a package must have for the platform to accept it. Ask for `AuthoredPlugin`, '
+      + '`PluginManifest`, `ScreenModuleTemplate`, `TemplateField`, `FieldDefinition`, `WidgetSpec`, '
+      + '`WorkflowDefinition`, `WorkflowStep`, `InputMapping`, `ActionDefinition`, `Script`, '
+      + '`PluginMigration`, `SettingsSection`, `QuerySpec`, or any other symbol the SDK publishes. '
+      + 'Call with no name to list the whole published surface. The declarations carry no comments — '
+      + 'they are emitted stripped, so read AUTHORING.md for what each property MEANS.',
+    inputSchema: {
+      type: 'object',
+      properties: { name: { type: 'string', description: "e.g. 'TemplateField'" } },
+    },
+    run: (input, root) => {
+      const dir = sdkTypesRoot(root);
+      if (dir === null) {
+        return 'Could not find the @microteia/sdk type declarations in this workspace. Run "npm run sdk:refresh".';
+      }
+      const names = sdkSurfaceNames(dir);
+      if (typeof input.name !== 'string' || input.name === '') {
+        return `The SDK publishes ${names.length} symbols:\n${names.map((name) => `- ${name}`).join('\n')}`;
+      }
+      // Amarrado a um local: o estreitamento de uma propriedade de índice não sobrevive à chamada
+      // seguinte, e o `tsconfig.sdk.json` — mais estrito que o gate da raiz — cobra isso.
+      const wanted = input.name;
+      const found = sdkDeclaration(dir, wanted);
+      if (found === null) {
+        const near = names.filter((name) => name.toLowerCase().includes(wanted.toLowerCase()));
+        return near.length > 0
+          ? `"${wanted}" is not a published symbol. Did you mean:\n${near.map((name) => `- ${name}`).join('\n')}`
+          : `"${wanted}" is not published by this SDK. Call this tool with no name to list what is.`;
+      }
+      // O caminho vem junto porque ele é a prova de que a resposta saiu do pacote instalado, e não
+      // de memória: quem lê pode abrir o arquivo.
+      const head = `// ${found.file}\n${found.declaration}`;
+      const referenced = referencedSymbols(found.declaration, names).slice(0, REFERENCE_EXPANSION_LIMIT);
+      const expanded = referenced
+        .map((name) => sdkDeclaration(dir, name))
+        .filter((entry): entry is NonNullable<typeof entry> => entry !== null)
+        .map((entry) => `// ${entry.file}\n${entry.declaration}`);
+      return expanded.length === 0
+        ? head
+        : `${head}\n\n// ─── referenced by it ───\n\n${expanded.join('\n\n')}`;
+    },
+  },
+  {
+    name: 'list_expression_functions',
+    description:
+      'The functions available to every declarative expression of this installation — a field\'s '
+      + '"compute" / "validate" / "hidden when", an action\'s "hidden when", a nav badge, a workflow '
+      + 'condition. Derived from the engine itself, not from documentation. AUTHORING.md, '
+      + '"Expressions", has the scope each slot sees, which is what decides whether an expression is '
+      + 'even able to answer.',
+    inputSchema: { type: 'object', properties: {} },
+    run: () => pretty({
+      kernelVersion: KERNEL_VERSION,
+      functions: [...FIELD_EXPRESSION_FUNCTION_NAMES].sort(),
+      operators: ['+', '-', '*', '/', '%', '^', '==', '!=', '>', '>=', '<', '<=', 'and', 'or', 'not', '!', '? :', 'in'],
+      note:
+        'A name resolved as an operator is not repeated as a function: "not", "abs", "ceil" and '
+        + '"floor" work through the operator form. "hasPermission" answers about whoever is looking, '
+        + 'and accepts the patterns "<entity>.delete", "*.delete", "invoices.*" and "invoice%.read".',
+    }),
   },
   {
     name: 'read_authoring_guide',

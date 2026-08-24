@@ -101,6 +101,23 @@ You are authoring **Microteia extensions**. Read this before writing or changing
 An extension is a **declaration**, not a patch. You never modify the platform; you declare what you
 want, and the platform installs it. Everything below follows from that.
 
+## Reach for the least powerful thing that works
+
+Each rung costs strictly more than the one above it, and the cost is permanent — not a matter of taste:
+
+| Rung | What it costs you, forever |
+|---|---|
+| A **screen** — its fields, rules and expressions | nothing. The platform draws the list, the detail, the form, the filters and the search |
+| A **Widget DSL** page, tab or widget | nothing. No review, nothing to break, survives platform upgrades untouched |
+| A **workflow**, **action** or **script** | runs in the platform's engine and sandbox: no review, but logic you now have to keep right |
+| A **view** or **startup** — real React | an administrator must read and trust the source, again on every change, and you own that code across upgrades |
+| A **Cloud Function** | the extension stays inert until someone provisions the organization's Firebase project |
+
+Most of what looks like it needs React needs a declaration. A field that computes itself, a button
+that hides for the wrong person, a badge counting what this person has not read, a value aggregated
+from child records — all of those are declared, and \`AUTHORING.md\` says how. Reaching for a view
+because it is the shape you know best is the single most expensive habit in this directory.
+
 ## When the platform is missing something — ask before working around it
 
 Sooner or later you will need something the platform does not offer, and there will always be a way to
@@ -238,6 +255,17 @@ what a module exports.
 Write views as real \`.tsx\` files and point at them with \`sourceFile\`. Never paste code into a string:
 a string is not type-checked, and that is where mistakes hide.
 
+**A view is not a page until a contribution points at it.** \`views\` is a registry keyed by
+\`views[].key\`; the screen only exists once \`manifest.contributes\` names that key:
+
+    nav({ key: 'summary', label: label('nav.summary'), icon: 'chart', order: 50 }),
+    page({ key: 'summary', title: label('page.summary'), icon: 'chart' }, 'summary'),
+    //                                                                     ^ views[].key
+
+Forgetting the \`page\` is the most common mistake there is, and nothing fails: the package validates,
+the extension installs, and the screen is simply not there. Same wiring for
+\`surfaceTab\`/\`surfaceWidget\`, and \`recordAction\`/\`command\` for a gesture rather than a screen.
+
 \`sourceFile\` also takes a **list**, merged in the order given, so a view can be written the way the
 platform writes its own — the component, the state and the styles in separate files:
 
@@ -256,11 +284,20 @@ code by hash. Changing one character un-trusts it. This is deliberate — do not
 
 Ask the MCP server. It answers from this installation, not from a snapshot of documentation:
 
-- \`read_authoring_guide\` — the manual (\`AUTHORING.md\`)
+- \`read_authoring_guide\` — the manual (\`AUTHORING.md\`), whole or by section
 - \`list_extension_points\` — every point, its API version, and which impl kinds it accepts
+- \`describe_sdk_type\` — the exact declaration of any authoring type (\`TemplateField\`,
+  \`WidgetSpec\`, \`WorkflowStep\`, \`PluginManifest\`…). The SDK ships its types with the comments
+  stripped, so this is how you learn what a package may contain without guessing
 - \`describe_host_module\` — what a curated module actually exports
+- \`list_expression_functions\` — the functions a declarative expression may call here
 - \`validate_plugin\` — after every edit; this is the short feedback loop
+- \`build_plugin\` — the \`.json\`, without writing it
 - \`workspace_info\` — what this workspace is bound to
+
+Two habits worth keeping: ask \`describe_sdk_type\` before inventing a property name, and read
+\`examples/\` before writing a mechanism for the first time — those are the same sources that produce
+the packages the platform itself installs, so nothing in them is a simplification.
 
 ## Limits worth knowing before designing
 

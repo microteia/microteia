@@ -164,19 +164,30 @@ export const fileConfigIsImageOnly = (config?: FieldFileConfig | null): boolean 
 
 // ─── Tipos de controle de campo (compartilhados form/list/custom) ─────────────
 
-export type CustomFieldType =
-  | 'text'
-  | 'textarea'
-  | 'number'
-  | 'currency'
-  | 'date'
-  | 'time'
-  | 'checkbox'
-  | 'select'
-  | 'masked'
-  | 'reference'
-  | 'markdown'
-  | 'file';
+/**
+ * Os tipos de campo, como ARRAY e não como união escrita à mão — a união sai dele.
+ *
+ * A ordem é a que o `AUTHORING.md` publica, e é por isso que o array existe: a tabela de tipos de
+ * campo do guia de autoria é DERIVADA daqui, e um tipo novo aparece nela sem ninguém se lembrar.
+ * Enquanto isto era só uma união, nada ligava o vocabulário do kernel ao texto entregue a quem
+ * escreve extensão — e quem escreve extensão não tem o código-fonte para conferir.
+ */
+export const CUSTOM_FIELD_TYPES = [
+  'text',
+  'textarea',
+  'number',
+  'currency',
+  'date',
+  'time',
+  'checkbox',
+  'select',
+  'masked',
+  'reference',
+  'markdown',
+  'file',
+] as const;
+
+export type CustomFieldType = typeof CUSTOM_FIELD_TYPES[number];
 
 export type CustomFieldMask = string;
 

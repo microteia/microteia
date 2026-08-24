@@ -1,6 +1,12 @@
 import type { FieldRules } from '../schema/fieldRules';
 
-export type StepType = 'Action' | 'Condition' | 'Delay' | 'Loop' | 'Script' | 'SubWorkflow';
+/**
+ * Os tipos de passo, como ARRAY — a união sai dele, pela mesma razão de `CUSTOM_FIELD_TYPES`: a
+ * tabela de passos do `AUTHORING.md` é derivada daqui, e um passo novo entra nela sozinho.
+ */
+export const STEP_TYPES = ['Action', 'Condition', 'Delay', 'Loop', 'Script', 'SubWorkflow'] as const;
+
+export type StepType = typeof STEP_TYPES[number];
 
 export interface LiteralInputMapping {
   kind: 'Literal';

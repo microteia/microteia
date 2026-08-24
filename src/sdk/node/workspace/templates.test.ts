@@ -3,6 +3,11 @@ import { PACKAGE_ADVISORY_BYTES, PACKAGE_MAX_BYTES } from '../../../domain/useca
 import { UI_EXTENSION_POINTS } from '../../../domain/schema/ui/uiExtensionPoints';
 import { ACCESS_EXTENSION_POINTS } from '../../../domain/schema/access';
 import * as SDK from '../../index';
+import * as SDK_NODE from '../compile';
+import { CUSTOM_FIELD_TYPES } from '../../../domain/schema/fieldRules';
+import { WIDGET_NODE_TYPES } from '../../../domain/schema/ui/widgetSpec';
+import { STEP_TYPES } from '../../../domain/entities/Workflow';
+import { FIELD_EXPRESSION_FUNCTION_NAMES } from '../../../domain/schema/fieldExpression';
 import { authoringGuide } from './authoringGuide';
 import {
   workspaceGitignore,
@@ -443,5 +448,47 @@ describe('o que o texto afirma sobre o kernel vem do kernel', () => {
       imported.filter((name) => !exported.has(name)),
       'símbolos que o manual ensina e o SDK não exporta',
     ).toEqual([]);
+  });
+
+  /**
+   * O manual ensina DUAS entradas, e a segunda não era conferida por nada. `@microteia/sdk/node` é a
+   * ferramenta — é dela que sai o transpilador de script, porque ele arrasta o `sucrase` e o barril
+   * isomórfico não arrasta nada além do `expr-eval`.
+   */
+  it('e o mesmo vale para o que ele manda importar de @microteia/sdk/node', () => {
+    const guide = authoringGuide(AGENTS);
+    const imported = [...guide.matchAll(/import \{([^}]+)\} from '@microteia\/sdk\/node'/g)]
+      .flatMap((match) => match[1].split(','))
+      .map((name) => name.trim())
+      .filter(Boolean);
+
+    expect(imported.length).toBeGreaterThan(0);
+    const exported = new Set(Object.keys(SDK_NODE));
+    expect(
+      imported.filter((name) => !exported.has(name)),
+      'símbolos que o manual ensina e a entrada /node não exporta',
+    ).toEqual([]);
+  });
+
+  /**
+   * O VOCABULÁRIO declarativo é a maior parte de uma extensão, e o `.d.ts` que viaja no SDK é emitido
+   * com `removeComments`: este manual é a ÚNICA explicação daquele vocabulário que chega ao escritório.
+   *
+   * As três primeiras listas são `Record` fechados por tipo no `authoringGuide.ts`, então um tipo novo
+   * no kernel nem compila até ganhar a linha dele — estes casos guardam a quarta, que não tem união
+   * para fechar, e provam que as três chegaram ao texto.
+   */
+  it('documenta todo tipo de campo, nó de widget e tipo de passo que o kernel conhece', () => {
+    const guide = authoringGuide(AGENTS);
+    for (const entry of [...CUSTOM_FIELD_TYPES, ...WIDGET_NODE_TYPES, ...STEP_TYPES]) {
+      expect(guide, entry).toContain(`| \`${entry}\` |`);
+    }
+  });
+
+  it('e toda função de expressão que a instalação resolve', () => {
+    const guide = authoringGuide(AGENTS);
+    for (const name of FIELD_EXPRESSION_FUNCTION_NAMES) {
+      expect(guide, name).toContain(`\`${name}\``);
+    }
   });
 });
