@@ -7,6 +7,7 @@ import { makeUpdateAIConnectionUseCase } from '../../../../domain/usecases/aicon
 import { makeDeleteAIConnectionUseCase } from '../../../../domain/usecases/aiconnections/DeleteAIConnectionUseCase';
 import { makeSetDefaultAIConnectionUseCase } from '../../../../domain/usecases/aiconnections/SetDefaultAIConnectionUseCase';
 import type { AIConnection, AIProvider } from '../../../../domain/entities';
+import type { SearchSelectOption } from '../../../components/ui/SearchSelect';
 
 import { useT } from '../../../shared/i18n/useT';
 export interface AIConnectionForm {
@@ -17,6 +18,8 @@ export interface AIConnectionForm {
   temperature: string;
   maxTokens: string;
 }
+
+export type AIFieldErrors = Partial<Record<keyof AIConnectionForm, string>>;
 
 const EMPTY_AI_FORM: AIConnectionForm = {
   name: '',
@@ -47,8 +50,10 @@ export interface AITabViewModel {
   saving: boolean;
   showApiKey: boolean;
   apiKeyRequired: boolean;
-  canSave: boolean;
-  modelSuggestions: string[];
+  formError: string | null;
+  fieldErrors: AIFieldErrors;
+  modelOptions: SearchSelectOption[];
+  modelIsFreeText: boolean;
   confirmDelete: { open: boolean; id: string; name: string };
   handleFormChange: (field: keyof AIConnectionForm, value: string) => void;
   handleOpenModal: (connection?: AIConnection) => void;
@@ -80,6 +85,8 @@ export const useAITabViewModel = (): AITabViewModel => {
   const [form, setForm] = useState<AIConnectionForm>(EMPTY_AI_FORM);
   const [saving, setSaving] = useState(false);
   const [showApiKey, setShowApiKey] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<AIFieldErrors>({});
   const [confirmDelete, setConfirmDelete] = useState({ open: false, id: '', name: '' });
 
   useEffect(() => {
@@ -104,22 +111,42 @@ export const useAITabViewModel = (): AITabViewModel => {
     void load();
   }, [currentTenant, getConnectionsUC, setDefaultConnectionUC, t]);
 
-  const modelSuggestions = useMemo(
-    () => MODEL_SUGGESTIONS[form.provider] ?? [],
+  const modelIsFreeText = useMemo(
+    () => (MODEL_SUGGESTIONS[form.provider] ?? []).length === 0,
     [form.provider],
   );
 
+  const modelOptions = useMemo(() => {
+    const known = MODEL_SUGGESTIONS[form.provider] ?? [];
+    const current = form.model && !known.includes(form.model) ? [form.model] : [];
+    return [...known, ...current].map((model) => ({ value: model, label: model }));
+  }, [form.provider, form.model]);
+
   const apiKeyRequired = useMemo(() => !modalEditing || !modalEditing.hasApiKey, [modalEditing]);
 
-  const canSave = useMemo(
-    () => Boolean(form.name.trim() && form.provider && (!apiKeyRequired || form.apiKey.trim())),
-    [form.name, form.provider, form.apiKey, apiKeyRequired],
-  );
+  const validate = useCallback((): AIFieldErrors => {
+    const required = t('ai.error.required');
+    const errors: AIFieldErrors = {};
+    if (!form.name.trim()) errors.name = required;
+    if (!form.provider) errors.provider = required;
+    if (apiKeyRequired && !form.apiKey.trim()) errors.apiKey = required;
+    if (!form.model.trim()) errors.model = required;
+    const maxTokens = Number(form.maxTokens);
+    if (!Number.isInteger(maxTokens) || maxTokens < 1) errors.maxTokens = t('ai.error.max-tokens');
+    return errors;
+  }, [form, apiKeyRequired, t]);
 
   const handleFormChange = useCallback((field: keyof AIConnectionForm, value: string) => {
     setForm((prev) => {
       const next = { ...prev, [field]: value };
       if (field === 'provider') next.model = '';
+      return next;
+    });
+    setFormError(null);
+    setFieldErrors((prev) => {
+      const next = { ...prev };
+      delete next[field];
+      if (field === 'provider') delete next.model;
       return next;
     });
   }, []);
@@ -139,6 +166,8 @@ export const useAITabViewModel = (): AITabViewModel => {
       setModalEditing(null);
       setForm(EMPTY_AI_FORM);
     }
+    setFormError(null);
+    setFieldErrors({});
     setShowApiKey(false);
     setShowModal(true);
   }, []);
@@ -146,20 +175,28 @@ export const useAITabViewModel = (): AITabViewModel => {
   const handleCloseModal = useCallback(() => {
     setShowModal(false);
     setModalEditing(null);
+    setFormError(null);
+    setFieldErrors({});
   }, []);
 
   const handleSave = useCallback(async () => {
-    if (!currentTenant || !canSave) return;
+    if (!currentTenant) return;
+    const errors = validate();
+    setFieldErrors(errors);
+    if (Object.keys(errors).length > 0) {
+      setFormError(t('ai.error.form'));
+      return;
+    }
     setSaving(true);
-    setError(null);
+    setFormError(null);
     try {
       const apiKey = form.apiKey.trim();
       const data = {
         name: form.name.trim(),
         provider: form.provider as AIProvider,
-        model: form.model,
+        model: form.model.trim(),
         temperature: parseFloat(form.temperature) || 0.7,
-        maxTokens: parseInt(form.maxTokens, 10) || 2048,
+        maxTokens: Number(form.maxTokens),
         isDefault: modalEditing ? modalEditing.isDefault : connections.length === 0,
       };
       if (modalEditing) {
@@ -175,11 +212,11 @@ export const useAITabViewModel = (): AITabViewModel => {
       }
       handleCloseModal();
     } catch {
-      setError(t('ai.save-failed'));
+      setFormError(t('ai.save-failed'));
     } finally {
       setSaving(false);
     }
-  }, [currentTenant, canSave, form, modalEditing, connections.length, updateConnectionUC, createConnectionUC, handleCloseModal, t]);
+  }, [currentTenant, validate, form, modalEditing, connections.length, updateConnectionUC, createConnectionUC, handleCloseModal, t]);
 
   const handleDelete = useCallback((id: string) => {
     const conn = connections.find((c) => c.id === id);
@@ -231,8 +268,10 @@ export const useAITabViewModel = (): AITabViewModel => {
     saving,
     showApiKey,
     apiKeyRequired,
-    canSave,
-    modelSuggestions,
+    formError,
+    fieldErrors,
+    modelOptions,
+    modelIsFreeText,
     confirmDelete,
     handleFormChange,
     handleOpenModal,

@@ -19,7 +19,7 @@ import { Spinner } from '../../../components/ui/Spinner';
 import { SearchSelect } from '../../../components/ui/SearchSelect';
 import type { SearchSelectOption } from '../../../components/ui/SearchSelect';
 import type { AIConnection } from '../../../../domain/entities';
-import type { AIConnectionForm } from './AITab.viewmodel';
+import type { AIConnectionForm, AIFieldErrors } from './AITab.viewmodel';
 
 import { useT, useLabel } from '../../../shared/i18n/useT';
 // Nome de PRODUTO é marca: "OpenAI" e "Anthropic (Claude)" se escrevem igual em qualquer idioma.
@@ -92,8 +92,10 @@ interface AIModalProps {
   saving: boolean;
   showApiKey: boolean;
   apiKeyRequired: boolean;
-  canSave: boolean;
-  modelSuggestions: string[];
+  formError: string | null;
+  fieldErrors: AIFieldErrors;
+  modelOptions: SearchSelectOption[];
+  modelIsFreeText: boolean;
   handleFormChange: (field: keyof AIConnectionForm, value: string) => void;
   handleCloseModal: () => void;
   handleSave: () => Promise<void>;
@@ -106,8 +108,10 @@ const AIConnectionModal: React.FC<AIModalProps> = ({
   saving,
   showApiKey,
   apiKeyRequired,
-  canSave,
-  modelSuggestions,
+  formError,
+  fieldErrors,
+  modelOptions,
+  modelIsFreeText,
   handleFormChange,
   handleCloseModal,
   handleSave,
@@ -142,6 +146,8 @@ const AIConnectionModal: React.FC<AIModalProps> = ({
         </S.ModalHeader>
 
         <S.ModalContent>
+          {formError && <S.Feedback $type="error">{formError}</S.Feedback>}
+
           <S.AIFormGroup>
             <S.AILabel htmlFor="ai-name">{t('ai.name')}</S.AILabel>
             <S.AIInput
@@ -150,6 +156,7 @@ const AIConnectionModal: React.FC<AIModalProps> = ({
               onChange={(e) => handleFormChange('name', e.target.value)}
               placeholder={t('ai.name.placeholder')}
             />
+            {fieldErrors.name && <S.AIFieldError>{fieldErrors.name}</S.AIFieldError>}
           </S.AIFormGroup>
 
           <S.AIFormGroup>
@@ -160,6 +167,7 @@ const AIConnectionModal: React.FC<AIModalProps> = ({
               onChange={(v) => handleFormChange('provider', v)}
               placeholder={t('ai.provider.placeholder')}
             />
+            {fieldErrors.provider && <S.AIFieldError>{fieldErrors.provider}</S.AIFieldError>}
           </S.AIFormGroup>
 
           <S.AIFormGroup>
@@ -179,27 +187,30 @@ const AIConnectionModal: React.FC<AIModalProps> = ({
                 {showApiKey ? <RiEyeOffLine size={16} /> : <RiEyeLine size={16} />}
               </S.PasswordToggle>
             </S.PasswordRow>
+            {fieldErrors.apiKey && <S.AIFieldError>{fieldErrors.apiKey}</S.AIFieldError>}
             <S.AIFieldHint>
               {t(apiKeyRequired ? 'ai.api-key.hint.new' : 'ai.api-key.hint.existing')}
             </S.AIFieldHint>
           </S.AIFormGroup>
 
           <S.AIFormGroup>
-            <S.AILabel htmlFor="ai-model">{t('ai.model')}</S.AILabel>
-            <S.AIInput
-              id="ai-model"
-              list="model-suggestions"
-              value={form.model}
-              onChange={(e) => handleFormChange('model', e.target.value)}
-              placeholder={t('ai.model.placeholder')}
-            />
-            {modelSuggestions.length > 0 && (
-              <datalist id="model-suggestions">
-                {modelSuggestions.map((m) => (
-                  <option key={m} value={m} />
-                ))}
-              </datalist>
+            <S.AILabel htmlFor={modelIsFreeText ? 'ai-model' : undefined}>{t('ai.model')}</S.AILabel>
+            {modelIsFreeText ? (
+              <S.AIInput
+                id="ai-model"
+                value={form.model}
+                onChange={(e) => handleFormChange('model', e.target.value)}
+                placeholder={t('ai.model.placeholder')}
+              />
+            ) : (
+              <SearchSelect
+                options={modelOptions}
+                value={form.model}
+                onChange={(v) => handleFormChange('model', v)}
+                placeholder={t('ai.model.select')}
+              />
             )}
+            {fieldErrors.model && <S.AIFieldError>{fieldErrors.model}</S.AIFieldError>}
           </S.AIFormGroup>
 
           <S.AIFormGroup>
@@ -229,6 +240,7 @@ const AIConnectionModal: React.FC<AIModalProps> = ({
               value={form.maxTokens}
               onChange={(e) => handleFormChange('maxTokens', e.target.value)}
             />
+            {fieldErrors.maxTokens && <S.AIFieldError>{fieldErrors.maxTokens}</S.AIFieldError>}
           </S.AIFormGroup>
         </S.ModalContent>
 
@@ -236,11 +248,7 @@ const AIConnectionModal: React.FC<AIModalProps> = ({
           <Button variant="secondary" onClick={handleCloseModal} disabled={saving}>
             {t('core.ui/action.cancel')}
           </Button>
-          <Button
-            onClick={() => void handleSave()}
-            $isLoading={saving}
-            disabled={saving || !canSave}
-          >
+          <Button onClick={() => void handleSave()} $isLoading={saving} disabled={saving}>
             {t(saving ? 'core.ui/action.saving' : modalEditing ? 'core.ui/action.save' : 'core.ui/action.add')}
           </Button>
         </S.ModalActions>
@@ -348,8 +356,10 @@ export const AITabView: React.FC = () => {
           saving={vm.saving}
           showApiKey={vm.showApiKey}
           apiKeyRequired={vm.apiKeyRequired}
-          canSave={vm.canSave}
-          modelSuggestions={vm.modelSuggestions}
+          formError={vm.formError}
+          fieldErrors={vm.fieldErrors}
+          modelOptions={vm.modelOptions}
+          modelIsFreeText={vm.modelIsFreeText}
           handleFormChange={vm.handleFormChange}
           handleCloseModal={vm.handleCloseModal}
           handleSave={vm.handleSave}

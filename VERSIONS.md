@@ -11,6 +11,15 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.8.2] — 2026-08-24
+
+- Corrigido: o aviso de campos por preencher da conexão de IA ficava na tela do escritório depois de a janela ser cancelada. Ele agora aparece dentro da própria janela e sai junto com ela.
+
+#### [9.8.1] — 2026-08-24
+
+- Na Conexão de IA, o modelo passou a ser escolhido numa lista de busca, como o provedor — antes era um campo de texto cujo exemplo ("Ex: gpt-4o") parecia um valor já preenchido, e a conexão era salva sem modelo nenhum. Provedores sem lista conhecida continuam aceitando o nome do modelo digitado.
+- Ao salvar uma conexão de IA, os campos obrigatórios que ficaram em branco são apontados um a um, embaixo de cada campo. Antes o botão de salvar apenas ficava desligado, sem dizer o que faltava.
+
 #### [9.8.0] — 2026-08-24
 
 - Cada extensão pode agora trazer os próprios termos de licença. Eles ficam atrás do ícone de licença no cartão da extensão, na tela de Extensões, e podem ser lidos antes de instalar — em português, sempre que quem a criou tiver traduzido.

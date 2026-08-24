@@ -177,6 +177,11 @@ const AIFieldHint = styled.span`
   color: ${({ theme }) => theme.colors.textSecondary};
 `;
 
+const AIFieldError = styled.span`
+  font-size: ${({ theme }) => theme.fontSizes.sm};
+  color: ${({ theme }) => theme.colors.danger};
+`;
+
 const AIInput = styled.input`
   padding: ${({ theme }) => theme.spacing.sm};
   border: 1px solid ${({ theme }) => theme.colors.border};
@@ -290,6 +295,7 @@ export const S = {
   AIFormGroup,
   AILabel,
   AIFieldHint,
+  AIFieldError,
   AIInput,
   PasswordRow,
   PasswordInput,
