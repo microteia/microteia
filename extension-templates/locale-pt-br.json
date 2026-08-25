@@ -3,7 +3,7 @@
   "workflows": [],
   "manifest": {
     "id": "com.microteia.locale-pt-br",
-    "version": "1.24.0",
+    "version": "1.24.1",
     "kernel": "^2.0.0",
     "name": "Português (Brasil)",
     "description": "Tradução da Microteia para português do Brasil.",
@@ -381,7 +381,7 @@
             "action.adding": "Adicionando...",
             "action.clear": "Limpar",
             "action.clear-all": "Limpar tudo",
-            "app.tagline": "Curador da Advocacia",
+            "app.tagline": "AI-First Application Platform",
             "sidebar.menu": "Menu",
             "status.command-palette": "⌘K Paleta de comandos",
             "status.terms": "Termos e Privacidade",

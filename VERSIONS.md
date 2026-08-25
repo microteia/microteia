@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.11.1] — 2026-08-25
+
+- Nova logomarca da Microteia, aplicada também nos ícones que aparecem na aba do navegador e no atalho instalado no celular ou na área de trabalho.
+- A frase que acompanha o nome do sistema passa a ser "AI-First Application Platform", que é o que a Microteia faz hoje: criar aplicações de negócio de qualquer área, e não só de advocacia.
+
 #### [9.11.0] — 2026-08-25
 
 - As automações criadas por extensão passam a ser conferidas antes de instalar. Antes, um fluxo com um passo escrito errado era aceito, instalado e simplesmente não rodava — sem aviso nenhum. Agora o problema aparece na hora, dizendo qual passo e o que falta nele.

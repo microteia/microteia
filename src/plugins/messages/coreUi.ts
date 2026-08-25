@@ -260,7 +260,7 @@ export const CORE_UI_MESSAGES: Record<string, string> = {
   'action.adding': 'Adding…',
   'action.clear': 'Clear',
   'action.clear-all': 'Clear all',
-  'app.tagline': 'Curator of Legal Practice',
+  'app.tagline': 'AI-First Application Platform',
   'sidebar.menu': 'Menu',
   'status.command-palette': '⌘K Command palette',
   'status.terms': 'Terms and Privacy',

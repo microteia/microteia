@@ -259,7 +259,7 @@ export const CORE_UI: Record<string, string> = {
   'action.adding': 'Adicionando...',
   'action.clear': 'Limpar',
   'action.clear-all': 'Limpar tudo',
-  'app.tagline': 'Curador da Advocacia',
+  'app.tagline': 'AI-First Application Platform',
   'sidebar.menu': 'Menu',
   'status.command-palette': '⌘K Paleta de comandos',
   'status.terms': 'Termos e Privacidade',
