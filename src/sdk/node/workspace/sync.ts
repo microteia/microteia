@@ -1,6 +1,8 @@
 import { cpSync, existsSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join, resolve } from 'node:path';
 import { KERNEL_VERSION } from '../../../domain/schema/plugin/kernelVersion';
+import { CORE_STEP_CATALOG } from '../../../domain/schema/workflowStepCatalog';
+import { RECORD_ACTION_COMMANDS } from '../../../domain/schema/ui/recordActionMetadata';
 import {
   PACKAGE_ADVISORY_BYTES,
   PACKAGE_MAX_BYTES,
@@ -259,6 +261,8 @@ export const syncWorkspace = (options: SyncOptions = {}): SyncReport => {
     hostModules,
     advisoryBytes: PACKAGE_ADVISORY_BYTES,
     maxBytes: PACKAGE_MAX_BYTES,
+    steps: CORE_STEP_CATALOG,
+    recordCommands: RECORD_ACTION_COMMANDS,
   };
   rewrite('AGENTS.md', workspaceAgentsMd(documentInput));
   rewrite('AUTHORING.md', authoringGuide(documentInput));

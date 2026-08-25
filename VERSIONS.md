@@ -11,6 +11,12 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.11.0] — 2026-08-25
+
+- As automações criadas por extensão passam a ser conferidas antes de instalar. Antes, um fluxo com um passo escrito errado era aceito, instalado e simplesmente não rodava — sem aviso nenhum. Agora o problema aparece na hora, dizendo qual passo e o que falta nele.
+- Adicionada uma extensão de exemplo, Automação pelo exemplo, que mostra uma automação completa funcionando: um fluxo que dispara ao salvar, uma decisão que separa dois caminhos, uma consulta, uma gravação que não duplica ao rodar de novo e um botão que pergunta antes de executar.
+- Corrigido o material de apoio de quem cria extensões: ele descrevia uma espera entre passos que a plataforma não executa, e trazia um exemplo de consulta que não encontrava nada.
+
 #### [9.10.0] — 2026-08-25
 
 - Um campo pode agora ter o valor calculado **no momento em que se olha**, e não no momento em que se salva. É o que faltava para responder "está atrasado?" sem mentir: um campo calculado guarda a resposta do dia em que o registro foi gravado, então algo salvo hoje como "em dia" continuaria "em dia" um ano depois. O valor derivado responde sempre sobre o presente.

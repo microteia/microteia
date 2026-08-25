@@ -246,6 +246,28 @@ export const CORE_MARKETPLACE_MESSAGES: Record<string, string> = {
   'issue.package.not-object': 'The content is not an extension object.',
   'issue.package.too-large':
     'The package is {size} and would not fit in the installation document (the practical limit is {limit}). Split it — one package per language, or one per set of screens.',
+  'issue.step.control-incomplete':
+    'step "{step}" is a {type} control node but has no `{missing}` — the flow has nothing to branch on.',
+  'issue.step.input-invalid':
+    'step "{step}" ({definition}) gives input "{input}" a value the step refuses: {reason}',
+  'issue.step.input-not-mapping':
+    'step "{step}" ({definition}) sets input "{input}" to a bare value — every step input is an InputMapping, one of Literal, Event, Expression, Output or Variable.',
+  'issue.step.mapping-kind':
+    'step "{step}" ({definition}) maps input "{input}" as {kind}, which that input does not accept. It takes: {allowed}.',
+  'issue.step.missing-input':
+    'step "{step}" ({definition}) is missing required input "{input}".',
+  'issue.step.no-definition':
+    'step "{step}" is of type {type} and names no step of the catalog — only Condition and Loop may leave `stepDefinitionId` empty.',
+  'issue.step.output-unknown-id':
+    'step "{step}" reads output "{output}" of step "{target}" through input "{input}", and that step does not publish it. It publishes: {expected}.',
+  'issue.step.output-unknown-step':
+    'step "{step}" reads, through input "{input}", the output of step "{target}", which does not exist in this workflow.',
+  'issue.step.type-unimplemented':
+    'step "{step}" is of type {type}, which this platform version does not run — the flow would stop there.',
+  'issue.step.unknown-definition':
+    'step "{step}" names step "{definition}", which is not in the catalog. The package declares no dependency, so it cannot come from another extension either.',
+  'issue.step.unknown-input':
+    'step "{step}" ({definition}) sets input "{input}", which that step does not have. It takes: {expected}.',
   'issue.patch.own-screen':
     'the patch points to "{target}", which is a screen of the package itself — declare the fields on the screen, not on a patch.',
   'issue.patch.unknown-target':

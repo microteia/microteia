@@ -1,0 +1,633 @@
+{
+  "manifest": {
+    "id": "com.microteia.automation-example",
+    "version": "1.0.0",
+    "kernel": "^2.0.0",
+    "name": "@com.microteia.automation-example/package.name",
+    "description": "@com.microteia.automation-example/package.description",
+    "publisher": {
+      "name": "Microteia"
+    },
+    "contributes": [
+      {
+        "point": "i18n.messages",
+        "id": "en.com.microteia.automation-example",
+        "apiVersion": "1.0.0",
+        "metadata": {
+          "locale": "en",
+          "namespace": "com.microteia.automation-example",
+          "messages": {
+            "package.name": "Automation, by example",
+            "package.description": "A worked automation: a workflow on save, a branch, a query, a write that does not duplicate, a script, and an action that asks for a value.",
+            "package.summary": "The mechanics of automation, with no business in the way. It installs one screen and every kind of automation the platform runs, so each can be read as source: a workflow that fires on save, a control node that branches, a query that asks whether a record already exists, a write that stays idempotent on a second run, a sandbox script, and a button that asks a person for a value before firing a flow.",
+            "screen.request": "Request",
+            "screen.request.plural": "Requests",
+            "section.request": "Request",
+            "section.handling": "Handling",
+            "field.title": "Title",
+            "field.title.placeholder": "What is being asked for",
+            "field.amount": "Amount",
+            "field.status": "Status",
+            "field.status.open": "Open",
+            "field.status.approved": "Approved",
+            "field.status.rejected": "Rejected",
+            "field.note": "Note",
+            "workflow.on-save": "On saving a request",
+            "workflow.on-save.description": "Fires whenever a request is written. Branches on whether it is new, and records what happened in the audit trail.",
+            "workflow.on-save.created.title": "Request opened",
+            "workflow.on-save.updated.title": "Request changed",
+            "workflow.review": "Review a request",
+            "workflow.review.description": "Called by the Review button. Receives the decision and the note as parameters, and writes them to the record.",
+            "workflow.review.done.title": "Request reviewed",
+            "workflow.mirror": "Keep the summary in step",
+            "workflow.mirror.description": "Called flow: asks whether the summary of this month already exists, then updates it or creates it. Running it twice does not duplicate anything.",
+            "workflow.mirror.audit.title": "Summary kept in step",
+            "action.review": "Review",
+            "action.review.confirm": "Record this review on the request?",
+            "action.mirror": "Recount summary",
+            "parameter.decision": "Decision",
+            "parameter.decision.approve": "Approve",
+            "parameter.decision.reject": "Reject",
+            "parameter.note": "Note",
+            "script.total": "Add up amounts",
+            "script.total.output.total": "Total of the amounts given",
+            "script.total.output.counted": "How many were counted",
+            "screen.summary": "Request summary",
+            "screen.summary.plural": "Request summaries",
+            "field.period": "Period",
+            "field.openTotal": "Open total",
+            "field.openCount": "Open requests"
+          }
+        }
+      },
+      {
+        "point": "i18n.messages",
+        "id": "pt-br.com.microteia.automation-example",
+        "apiVersion": "1.0.0",
+        "metadata": {
+          "locale": "pt-BR",
+          "namespace": "com.microteia.automation-example",
+          "messages": {
+            "package.name": "Automação, pelo exemplo",
+            "package.description": "Uma automação inteira: fluxo ao salvar, ramificação, consulta, gravação que não duplica, script e um botão que pede um valor.",
+            "package.summary": "A mecânica da automação, sem negócio no caminho. Instala uma tela e cada tipo de automação que a plataforma executa, para que todos possam ser lidos como fonte: um fluxo que dispara ao salvar, um nó de controle que ramifica, uma consulta que pergunta se o registro já existe, uma gravação que continua idempotente na segunda execução, um script no sandbox, e um botão que pede um valor a uma pessoa antes de disparar o fluxo.",
+            "screen.request": "Solicitação",
+            "screen.request.plural": "Solicitações",
+            "section.request": "Solicitação",
+            "section.handling": "Tratamento",
+            "field.title": "Título",
+            "field.title.placeholder": "O que está sendo pedido",
+            "field.amount": "Valor",
+            "field.status": "Situação",
+            "field.status.open": "Aberta",
+            "field.status.approved": "Aprovada",
+            "field.status.rejected": "Recusada",
+            "field.note": "Observação",
+            "workflow.on-save": "Ao salvar uma solicitação",
+            "workflow.on-save.description": "Dispara sempre que uma solicitação é gravada. Ramifica conforme ela ser nova ou não, e registra na auditoria o que aconteceu.",
+            "workflow.on-save.created.title": "Solicitação aberta",
+            "workflow.on-save.updated.title": "Solicitação alterada",
+            "workflow.review": "Analisar uma solicitação",
+            "workflow.review.description": "Chamado pelo botão Analisar. Recebe a decisão e a observação como parâmetros e as grava no registro.",
+            "workflow.review.done.title": "Solicitação analisada",
+            "workflow.mirror": "Manter o resumo em dia",
+            "workflow.mirror.description": "Fluxo chamado: pergunta se o resumo deste mês já existe e então o atualiza ou o cria. Rodar duas vezes não duplica nada.",
+            "workflow.mirror.audit.title": "Resumo posto em dia",
+            "action.review": "Analisar",
+            "action.review.confirm": "Registrar esta análise na solicitação?",
+            "action.mirror": "Recontar resumo",
+            "parameter.decision": "Decisão",
+            "parameter.decision.approve": "Aprovar",
+            "parameter.decision.reject": "Recusar",
+            "parameter.note": "Observação",
+            "script.total": "Somar os valores",
+            "script.total.output.total": "Total dos valores informados",
+            "script.total.output.counted": "Quantos foram somados",
+            "screen.summary": "Resumo de solicitações",
+            "screen.summary.plural": "Resumos de solicitações",
+            "field.period": "Período",
+            "field.openTotal": "Total em aberto",
+            "field.openCount": "Solicitações em aberto"
+          }
+        }
+      }
+    ]
+  },
+  "summary": "@com.microteia.automation-example/package.summary",
+  "workflows": [
+    {
+      "templateId": "wf-on-save",
+      "name": "@com.microteia.automation-example/workflow.on-save",
+      "description": "@com.microteia.automation-example/workflow.on-save.description",
+      "eventName": "automationRequest.saved",
+      "version": 1,
+      "condition": {
+        "kind": "AlwaysTrue"
+      },
+      "steps": [
+        {
+          "id": "isNew",
+          "stepDefinitionId": "",
+          "type": "Condition",
+          "order": 0,
+          "enabled": true,
+          "configuration": {},
+          "condition": {
+            "kind": "FieldComparison",
+            "fieldPath": "event.payload.changeType",
+            "operator": "==",
+            "value": "created",
+            "valueType": "literal"
+          },
+          "branches": {
+            "whenTrue": [
+              {
+                "id": "auditOpened",
+                "stepDefinitionId": "register-audit",
+                "type": "Action",
+                "order": 0,
+                "enabled": true,
+                "configuration": {
+                  "title": {
+                    "kind": "Literal",
+                    "value": "@com.microteia.automation-example/workflow.on-save.created.title"
+                  },
+                  "message": {
+                    "kind": "Expression",
+                    "expression": "concat(\"Opened: \", event.payload.title)"
+                  },
+                  "entity": {
+                    "kind": "Literal",
+                    "value": "automationRequest"
+                  },
+                  "entityId": {
+                    "kind": "Event",
+                    "path": "id"
+                  }
+                }
+              }
+            ],
+            "whenFalse": [
+              {
+                "id": "auditChanged",
+                "stepDefinitionId": "register-audit",
+                "type": "Action",
+                "order": 0,
+                "enabled": true,
+                "configuration": {
+                  "title": {
+                    "kind": "Literal",
+                    "value": "@com.microteia.automation-example/workflow.on-save.updated.title"
+                  },
+                  "message": {
+                    "kind": "Expression",
+                    "expression": "concat(\"Changed: \", event.payload.title)"
+                  },
+                  "entity": {
+                    "kind": "Literal",
+                    "value": "automationRequest"
+                  },
+                  "entityId": {
+                    "kind": "Event",
+                    "path": "id"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "templateId": "wf-review",
+      "name": "@com.microteia.automation-example/workflow.review",
+      "description": "@com.microteia.automation-example/workflow.review.description",
+      "eventName": "workflow.called",
+      "version": 1,
+      "condition": {
+        "kind": "AlwaysTrue"
+      },
+      "parameters": [
+        {
+          "key": "requestId",
+          "label": "@com.microteia.automation-example/field.title",
+          "type": "String",
+          "required": true
+        },
+        {
+          "key": "decision",
+          "label": "@com.microteia.automation-example/parameter.decision",
+          "type": "select",
+          "required": true,
+          "options": [
+            {
+              "value": "approved",
+              "label": "@com.microteia.automation-example/parameter.decision.approve"
+            },
+            {
+              "value": "rejected",
+              "label": "@com.microteia.automation-example/parameter.decision.reject"
+            }
+          ]
+        },
+        {
+          "key": "note",
+          "label": "@com.microteia.automation-example/parameter.note",
+          "type": "String"
+        }
+      ],
+      "steps": [
+        {
+          "id": "buildReview",
+          "stepDefinitionId": "map",
+          "type": "Action",
+          "order": 0,
+          "enabled": true,
+          "configuration": {
+            "map": {
+              "kind": "Literal",
+              "value": {
+                "name": "review",
+                "fields": [
+                  {
+                    "name": "id",
+                    "value": {
+                      "kind": "Event",
+                      "path": "requestId"
+                    }
+                  },
+                  {
+                    "name": "status",
+                    "value": {
+                      "kind": "Event",
+                      "path": "decision"
+                    }
+                  },
+                  {
+                    "name": "note",
+                    "value": {
+                      "kind": "Event",
+                      "path": "note"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "id": "writeReview",
+          "stepDefinitionId": "upsert",
+          "type": "Action",
+          "order": 1,
+          "enabled": true,
+          "configuration": {
+            "upsert": {
+              "kind": "Literal",
+              "value": {
+                "table": "automationRequest",
+                "source": "input",
+                "property": "review"
+              }
+            }
+          }
+        },
+        {
+          "id": "auditReview",
+          "stepDefinitionId": "register-audit",
+          "type": "Action",
+          "order": 2,
+          "enabled": true,
+          "configuration": {
+            "title": {
+              "kind": "Literal",
+              "value": "@com.microteia.automation-example/workflow.review.done.title"
+            },
+            "message": {
+              "kind": "Expression",
+              "expression": "concat(\"Decision: \", event.decision)"
+            },
+            "entity": {
+              "kind": "Literal",
+              "value": "automationRequest"
+            },
+            "entityId": {
+              "kind": "Output",
+              "stepId": "writeReview",
+              "outputId": "id"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "templateId": "wf-mirror",
+      "name": "@com.microteia.automation-example/workflow.mirror",
+      "description": "@com.microteia.automation-example/workflow.mirror.description",
+      "eventName": "workflow.called",
+      "version": 1,
+      "condition": {
+        "kind": "AlwaysTrue"
+      },
+      "parameters": [],
+      "steps": [
+        {
+          "id": "setPeriod",
+          "stepDefinitionId": "set-variable",
+          "type": "Action",
+          "order": 0,
+          "enabled": true,
+          "configuration": {
+            "name": {
+              "kind": "Literal",
+              "value": "period"
+            },
+            "value": {
+              "kind": "Expression",
+              "expression": "formatDate(today(), \"yyyy-MM\")"
+            }
+          }
+        },
+        {
+          "id": "countOpen",
+          "stepDefinitionId": "query",
+          "type": "Action",
+          "order": 1,
+          "enabled": true,
+          "configuration": {
+            "query": {
+              "kind": "Literal",
+              "value": {
+                "table": "automationRequest",
+                "where": [
+                  {
+                    "path": "status",
+                    "op": "eq",
+                    "value": {
+                      "kind": "Literal",
+                      "value": "open"
+                    }
+                  }
+                ],
+                "limit": 200,
+                "projections": [
+                  "id",
+                  "amount"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "id": "findSummary",
+          "stepDefinitionId": "query",
+          "type": "Action",
+          "order": 2,
+          "enabled": true,
+          "configuration": {
+            "query": {
+              "kind": "Literal",
+              "value": {
+                "table": "automationSummary",
+                "where": [
+                  {
+                    "path": "period",
+                    "op": "eq",
+                    "value": {
+                      "kind": "Variable",
+                      "name": "period"
+                    }
+                  }
+                ],
+                "limit": 1,
+                "projections": [
+                  "id",
+                  "openCount",
+                  "openTotal"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "id": "buildSummary",
+          "stepDefinitionId": "map",
+          "type": "Action",
+          "order": 3,
+          "enabled": true,
+          "configuration": {
+            "map": {
+              "kind": "Literal",
+              "value": {
+                "name": "summary",
+                "fields": [
+                  {
+                    "name": "id",
+                    "value": {
+                      "kind": "Expression",
+                      "expression": "output.findSummary.first.id"
+                    }
+                  },
+                  {
+                    "name": "period",
+                    "value": {
+                      "kind": "Variable",
+                      "name": "period"
+                    }
+                  },
+                  {
+                    "name": "openCount",
+                    "value": {
+                      "kind": "Expression",
+                      "expression": "output.countOpen.count"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "id": "writeSummary",
+          "stepDefinitionId": "upsert",
+          "type": "Action",
+          "order": 4,
+          "enabled": true,
+          "configuration": {
+            "upsert": {
+              "kind": "Literal",
+              "value": {
+                "table": "automationSummary",
+                "source": "input",
+                "property": "summary"
+              }
+            }
+          }
+        },
+        {
+          "id": "auditSummary",
+          "stepDefinitionId": "register-audit",
+          "type": "Action",
+          "order": 5,
+          "enabled": true,
+          "configuration": {
+            "title": {
+              "kind": "Literal",
+              "value": "@com.microteia.automation-example/workflow.mirror.audit.title"
+            },
+            "message": {
+              "kind": "Expression",
+              "expression": "concat(\"Open requests: \", output.countOpen.count)"
+            },
+            "entity": {
+              "kind": "Literal",
+              "value": "automationSummary"
+            },
+            "entityId": {
+              "kind": "Output",
+              "stepId": "writeSummary",
+              "outputId": "id"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "screens": [
+    {
+      "key": "automationRequest",
+      "sourceId": "microteia:automation-example:request",
+      "sourceRev": 1,
+      "titleSingular": "@com.microteia.automation-example/screen.request",
+      "titlePlural": "@com.microteia.automation-example/screen.request.plural",
+      "icon": "fileList",
+      "fields": [
+        {
+          "key": "title",
+          "label": "@com.microteia.automation-example/field.title",
+          "type": "text",
+          "required": true,
+          "order": 0,
+          "section": "@com.microteia.automation-example/section.request",
+          "placeholder": "@com.microteia.automation-example/field.title.placeholder"
+        },
+        {
+          "key": "amount",
+          "label": "@com.microteia.automation-example/field.amount",
+          "type": "currency",
+          "required": true,
+          "order": 1,
+          "section": "@com.microteia.automation-example/section.request",
+          "filterable": true
+        },
+        {
+          "key": "status",
+          "label": "@com.microteia.automation-example/field.status",
+          "type": "select",
+          "required": true,
+          "order": 2,
+          "section": "@com.microteia.automation-example/section.request",
+          "filterable": true,
+          "optionsColored": true,
+          "options": [
+            {
+              "key": "open",
+              "label": "@com.microteia.automation-example/field.status.open",
+              "color": "warning"
+            },
+            {
+              "key": "approved",
+              "label": "@com.microteia.automation-example/field.status.approved",
+              "color": "success"
+            },
+            {
+              "key": "rejected",
+              "label": "@com.microteia.automation-example/field.status.rejected",
+              "color": "danger"
+            }
+          ]
+        },
+        {
+          "key": "note",
+          "label": "@com.microteia.automation-example/field.note",
+          "type": "textarea",
+          "required": false,
+          "order": 3,
+          "section": "@com.microteia.automation-example/section.handling"
+        }
+      ],
+      "titleFieldKey": "title",
+      "subtitleFieldKey": "status",
+      "eventPrefix": "automationRequest",
+      "viewActionIds": [
+        "act-review"
+      ],
+      "cardActionIds": [
+        "act-review"
+      ]
+    },
+    {
+      "key": "automationSummary",
+      "sourceId": "microteia:automation-example:summary",
+      "sourceRev": 1,
+      "titleSingular": "@com.microteia.automation-example/screen.summary",
+      "titlePlural": "@com.microteia.automation-example/screen.summary.plural",
+      "icon": "barChart",
+      "fields": [
+        {
+          "key": "period",
+          "label": "@com.microteia.automation-example/field.period",
+          "type": "text",
+          "required": true,
+          "order": 0,
+          "filterable": true
+        },
+        {
+          "key": "openTotal",
+          "label": "@com.microteia.automation-example/field.openTotal",
+          "type": "currency",
+          "required": false,
+          "order": 1
+        },
+        {
+          "key": "openCount",
+          "label": "@com.microteia.automation-example/field.openCount",
+          "type": "number",
+          "required": false,
+          "order": 2
+        }
+      ],
+      "titleFieldKey": "period",
+      "eventPrefix": "automationSummary"
+    }
+  ],
+  "actions": [
+    {
+      "templateId": "act-review",
+      "key": "review",
+      "title": "@com.microteia.automation-example/action.review",
+      "icon": "checkboxCircle",
+      "workflowId": "wf-review",
+      "order": 0,
+      "enabled": true,
+      "danger": false,
+      "hiddenWhen": "not hasPermission(\"automationRequest.update\")",
+      "disabledWhen": "status != \"open\"",
+      "confirmMessage": "@com.microteia.automation-example/action.review.confirm",
+      "promptParameters": true,
+      "parameterDefaults": {
+        "requestId": "id"
+      }
+    },
+    {
+      "templateId": "act-mirror",
+      "key": "mirror",
+      "title": "@com.microteia.automation-example/action.mirror",
+      "icon": "refresh",
+      "workflowId": "wf-mirror",
+      "order": 1,
+      "enabled": true,
+      "danger": false
+    }
+  ]
+}

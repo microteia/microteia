@@ -1,33 +1,11 @@
 import type { StepDefinition, WorkflowStepExecutor } from '../../../domain/engine/StepDefinition';
+import { coreStepMetadata } from '../../../domain/engine/StepDefinition';
 import { resolveMapping } from '../../../domain/engine/InputMapping';
 import type { MapStepConfig } from '../../../domain/schema/mapSpec';
 
 import type { WorkflowResult } from '../../../domain/entities/WorkflowContext';
 export const makeMapStepDefinition = (): StepDefinition => ({
-  id: 'map',
-  version: 1,
-  name: '@core.automation/step.map.name',
-  description:
-    '@core.automation/step.map.description',
-  icon: 'RiBracketsLine',
-  category: 'Data',
-  type: 'Action',
-  configurable: true,
-  inputs: [
-    {
-      id: 'map',
-      label: '@core.automation/step.map.label.objeto',
-      required: true,
-      type: 'Map',
-      allowedMappingKinds: ['Literal'],
-    },
-  ],
-  outputDefinitions: [],
-  dynamicOutputs: {
-    kind: 'from-map-config',
-    sourceInputId: 'map',
-    description: '@core.automation/step.map.description',
-  },
+  ...coreStepMetadata('map'),
   createExecutor: (): WorkflowStepExecutor => ({
     execute: async (inputs, context): Promise<WorkflowResult> => {
       const config = inputs.map as MapStepConfig | undefined;

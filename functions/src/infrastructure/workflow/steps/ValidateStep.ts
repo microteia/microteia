@@ -1,4 +1,5 @@
 import type { StepDefinition, WorkflowStepExecutor } from '../../../domain/engine/StepDefinition';
+import { coreStepMetadata } from '../../../domain/engine/StepDefinition';
 import type { IScreenDefinitionProvider } from '../../../domain/repositories/IScreenDefinitionProvider';
 import { describeRuleIssues } from '../../../domain/schema/fieldRules';
 import { getValueAtPath, parsePath } from '../../../domain/schema/pathResolver';
@@ -10,30 +11,7 @@ const isPlainObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 
 export const makeValidateStepDefinition = (screenProvider: IScreenDefinitionProvider): StepDefinition => ({
-  id: 'validate-object',
-  version: 1,
-  name: '@core.automation/step.validate-object.name',
-  description:
-    '@core.automation/step.validate.description',
-  icon: 'RiShieldCheckLine',
-  category: 'Data',
-  type: 'Action',
-  configurable: true,
-  inputs: [
-    {
-      id: 'validate',
-      label: '@core.automation/step.validate-object.label.validacao',
-      required: true,
-      type: 'Validate',
-      allowedMappingKinds: ['Literal'],
-    },
-  ],
-  outputDefinitions: [],
-  dynamicOutputs: {
-    kind: 'from-validate-config',
-    sourceInputId: 'validate',
-    description: '@core.automation/step.validate-object.description',
-  },
+  ...coreStepMetadata('validate-object'),
   createExecutor: (): WorkflowStepExecutor => ({
     execute: async (inputs, context): Promise<WorkflowResult> => {
       const config = inputs.validate as ValidateStepConfig | undefined;

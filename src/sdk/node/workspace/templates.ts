@@ -286,6 +286,14 @@ Ask the MCP server. It answers from this installation, not from a snapshot of do
 
 - \`read_authoring_guide\` — the manual (\`AUTHORING.md\`), whole or by section
 - \`list_extension_points\` — every point, its API version, and which impl kinds it accepts
+- \`list_workflow_steps\` — the step catalog. **Call this before writing any automation:** a
+  \`stepDefinitionId\` is the one thing a declaration cannot invent, and an id that is not in the
+  catalog does not run
+- \`describe_workflow_step\` — one step's exact inputs, which mapping kinds each accepts, and the
+  outputs a later step can read. It also names the type a composite input needs, which is NOT the
+  \`…Spec\` its name suggests: \`upsert\` takes \`UpsertStepConfig\`, not \`UpsertSpec\`
+- \`list_workflow_events\` — the trigger names a workflow may declare, and what \`event.\` carries
+- \`list_record_commands\` — the record gestures an action may run through \`command\`
 - \`describe_sdk_type\` — the exact declaration of any authoring type (\`TemplateField\`,
   \`WidgetSpec\`, \`WorkflowStep\`, \`PluginManifest\`…). The SDK ships its types with the comments
   stripped, so this is how you learn what a package may contain without guessing
@@ -298,6 +306,12 @@ Ask the MCP server. It answers from this installation, not from a snapshot of do
 Two habits worth keeping: ask \`describe_sdk_type\` before inventing a property name, and read
 \`examples/\` before writing a mechanism for the first time — those are the same sources that produce
 the packages the platform itself installs, so nothing in them is a simplification.
+
+**Automation is the part where guessing costs most**, because a wrong step id, a wrong input name or a
+wrong composite shape used to install cleanly and simply not run. Two things fixed that, and both are
+worth using: \`check\` now refuses all three, and \`examples/automation-example/\` is a complete,
+validating automation — a workflow on save, a branch, a query, an idempotent write, a called flow with
+parameters, and an action that asks a person for a value.
 
 ## Limits worth knowing before designing
 

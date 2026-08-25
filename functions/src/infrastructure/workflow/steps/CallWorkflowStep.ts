@@ -1,4 +1,5 @@
 import type { StepDefinition, WorkflowStepExecutor } from '../../../domain/engine/StepDefinition';
+import { coreStepMetadata } from '../../../domain/engine/StepDefinition';
 import type { RunCalledWorkflowUseCase } from '../../../domain/usecases/RunCalledWorkflowUseCase';
 import { resolveMapping } from '../../../domain/engine/InputMapping';
 import { buildNestedParams } from '../../../domain/engine/nestedParams';
@@ -11,40 +12,7 @@ const MAX_CALL_DEPTH = 10;
 const PARAM_PREFIX = 'param.';
 
 export const makeCallWorkflowStepDefinition = (runCalledWorkflow: RunCalledWorkflowUseCase): StepDefinition => ({
-  id: 'call-workflow',
-  version: 1,
-  name: '@core.automation/step.call-workflow.name',
-  description: '@core.automation/step.call-workflow.description',
-  icon: 'RiFlowChart',
-  category: 'Action',
-  type: 'SubWorkflow',
-  configurable: true,
-  inputs: [
-    {
-      id: 'targetWorkflowId',
-      label: '@core.automation/step.call-workflow.label.workflow-a-chamar',
-      required: true,
-      type: 'String',
-      allowedMappingKinds: ['Literal'],
-    },
-    {
-      id: 'waitForResult',
-      label: '@core.automation/step.call-workflow.label.aguardar-retorno',
-      description:
-        '@core.automation/step.call-workflow.wait.description',
-      required: false,
-      type: 'Boolean',
-      defaultValue: false,
-      allowedMappingKinds: ['Literal'],
-    },
-  ],
-  outputDefinitions: [],
-  dynamicInputs: { kind: 'from-target-workflow-parameters', sourceInputId: 'targetWorkflowId' },
-  dynamicOutputs: {
-    kind: 'from-target-workflow-outputs',
-    sourceInputId: 'targetWorkflowId',
-    description: '@core.automation/step.call-workflow.description',
-  },
+  ...coreStepMetadata('call-workflow'),
   createExecutor: (): WorkflowStepExecutor => ({
     execute: async (inputs, context): Promise<WorkflowResult> => {
       const targetWorkflowId = inputs.targetWorkflowId ? String(inputs.targetWorkflowId) : '';

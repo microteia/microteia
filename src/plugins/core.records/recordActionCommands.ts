@@ -1,6 +1,7 @@
 import { generateDeepLink } from '../../infrastructure/deeplink/deepLinkUtils';
 import type { RecordActionCommand } from '../../presentation/shared/recordActions/recordActionHost';
-import type { UiRecordActionMetadata } from '../../domain/schema/ui/uiExtensionPoints';
+// A metadata dos gestos é declaração, e mora no domínio — ver `recordActionMetadata.ts`.
+export { RECORD_ACTION_COMMANDS, RECORD_ACTION_METADATA } from '../../domain/schema/ui/recordActionMetadata';
 
 /**
  * As ações que TODO registro oferece. Eram as únicas que o kernel sabia desenhar — escritas em
@@ -42,31 +43,4 @@ export const unlinkCommand: RecordActionCommand = async (host) => {
   } catch {
     host.notify(host.t('action.unlink.failed'), 'error');
   }
-};
-
-export const RECORD_ACTION_METADATA: Record<string, UiRecordActionMetadata> = {
-  copyLink: { key: 'copyLink', title: '@core.records/action.copy-link', icon: 'link', order: 0 },
-  clone: { key: 'clone', title: '@core.records/action.clone', icon: 'fileCopy', order: 1 },
-  manageTags: { key: 'manageTags', title: '@core.records/action.manage-tags', icon: 'priceTag3', order: 2, requiresTags: true },
-  delete: {
-    key: 'delete',
-    title: '@core.ui/action.delete',
-    icon: 'deleteBin',
-    order: 3,
-    danger: true,
-    requiresRecordPermission: 'delete',
-    // Dentro da aba de um pai RELACIONADO o registro é uma entidade de topo: apagá-lo dali destruiria
-    // o registro inteiro quando o gesto é "tirar daqui". Ali quem aparece é desvincular.
-    hiddenWhen: 'relation == "related"',
-  },
-  unlink: {
-    key: 'unlink',
-    // Divide o slot destrutivo com excluir: a tela habilita `delete`, e a relação decide qual das
-    // duas o usuário vê.
-    slot: 'delete',
-    title: '@core.records/action.unlink',
-    icon: 'linkUnlink',
-    order: 3,
-    hiddenWhen: 'relation != "related"',
-  },
 };

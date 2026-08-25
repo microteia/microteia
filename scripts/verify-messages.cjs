@@ -69,6 +69,7 @@ const PT_BR_CATALOG_BY_NS = {
  * tudo certo.
  */
 const PLUGIN_CATALOG_BY_NS = {
+  'com.microteia.automation-example': { dir: 'marketplace', source: 'automationMessages', ptBr: 'automationMessagesPtBr' },
   'com.microteia.calendar': { dir: 'marketplace', source: 'calendarMessages', ptBr: 'calendarMessagesPtBr' },
   'com.microteia.dashboard': { dir: 'marketplace', source: 'dashboardMessages', ptBr: 'dashboardMessagesPtBr' },
   'com.microteia.news': { dir: 'marketplace', source: 'newsMessages', ptBr: 'newsMessagesPtBr' },

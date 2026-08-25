@@ -4,6 +4,7 @@ import { KERNEL_VERSION } from '../domain/schema/plugin/kernelVersion';
 import { validatePluginManifest } from '../domain/schema/plugin/pluginManifest';
 import type { PackageRef } from '../domain/usecases/plugins/pluginReferences';
 import { packageIssues, validatePackage } from '../domain/usecases/plugins/pluginReferences';
+import { workflowStepIssues } from '../domain/usecases/plugins/workflowIntegrity';
 
 /**
  * De qual das três checagens o problema veio. Quem exibe usa isso para escolher a frase — a
@@ -78,5 +79,14 @@ export const validatePluginPackage = (
     source: 'package' as const,
     message: issue.message,
     messageParams: issue.messageParams,
+  })),
+  // A integridade do PASSO. Entra como `reference` porque é a mesma natureza: um nome que a
+  // declaração usa e que não resolve. Sem ela, um `stepDefinitionId` errado passava por todas as
+  // checagens e só falava no log do motor, com o fluxo já rodando.
+  ...workflowStepIssues(pkg).map((issue) => ({
+    source: 'reference' as const,
+    message: issue.message,
+    messageParams: issue.messageParams,
+    ref: issue.ref,
   })),
 ];

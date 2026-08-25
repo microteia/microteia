@@ -1,7 +1,19 @@
 import { buildMessageCatalog, translate } from '../../domain/schema/i18n/messages';
 import type { MessageBundle, MessageParams } from '../../domain/schema/i18n/messages';
 import { DEFAULT_LOCALE } from '../../domain/schema/i18n/localeNegotiation';
+import { CORE_ACCESS_MESSAGES } from '../../plugins/messages/coreAccess';
+import { CORE_ADMIN_MESSAGES } from '../../plugins/messages/coreAdmin';
+import { CORE_AUTOMATION_MESSAGES } from '../../plugins/messages/coreAutomation';
+import { CORE_DATA_MESSAGES } from '../../plugins/messages/coreData';
+import { CORE_I18N_MESSAGES } from '../../plugins/messages/coreI18n';
+import { CORE_LICENSE_MESSAGES } from '../../plugins/messages/coreLicense';
 import { CORE_MARKETPLACE_MESSAGES } from '../../plugins/messages/coreMarketplace';
+import { CORE_RECORDS_MESSAGES } from '../../plugins/messages/coreRecords';
+import { CORE_SETTINGS_MESSAGES } from '../../plugins/messages/coreSettings';
+import { CORE_TENANT_MESSAGES } from '../../plugins/messages/coreTenant';
+import { CORE_THEME_MESSAGES } from '../../plugins/messages/coreTheme';
+import { CORE_UI_MESSAGES } from '../../plugins/messages/coreUi';
+import { CORE_WORKSPACE_MESSAGES } from '../../plugins/messages/coreWorkspace';
 
 /**
  * O tradutor do terminal. Um problema de pacote nasce como REFERÊNCIA de mensagem
@@ -17,10 +29,35 @@ import { CORE_MARKETPLACE_MESSAGES } from '../../plugins/messages/coreMarketplac
  * exigiria carregar um pacote de idioma antes de haver instalação, e a mensagem que importa é a que
  * ele vai comparar com a documentação — que também é em inglês.
  */
-const CATALOG = buildMessageCatalog(
-  [{ locale: DEFAULT_LOCALE, namespace: 'core.marketplace', messages: CORE_MARKETPLACE_MESSAGES }],
-  DEFAULT_LOCALE,
-);
+/**
+ * TODOS os namespaces do núcleo, e não só o `core.marketplace`.
+ *
+ * Enquanto era um só, `list_extension_points` devolvia `@core.data/point.entity.title` no lugar de
+ * "Domain entity", e descartava a `description` — que é justamente o campo que diria ao autor PARA QUE
+ * SERVE cada ponto. A ferramenta que existia para ensinar os pontos de extensão respondia com uma
+ * lista de ids e chaves opacas.
+ */
+export const CORE_BUNDLES: MessageBundle[] = [
+  ['core.access', CORE_ACCESS_MESSAGES],
+  ['core.admin', CORE_ADMIN_MESSAGES],
+  ['core.automation', CORE_AUTOMATION_MESSAGES],
+  ['core.data', CORE_DATA_MESSAGES],
+  ['core.i18n', CORE_I18N_MESSAGES],
+  ['core.license', CORE_LICENSE_MESSAGES],
+  ['core.marketplace', CORE_MARKETPLACE_MESSAGES],
+  ['core.records', CORE_RECORDS_MESSAGES],
+  ['core.settings', CORE_SETTINGS_MESSAGES],
+  ['core.tenant', CORE_TENANT_MESSAGES],
+  ['core.theme', CORE_THEME_MESSAGES],
+  ['core.ui', CORE_UI_MESSAGES],
+  ['core.workspace', CORE_WORKSPACE_MESSAGES],
+].map(([namespace, messages]) => ({
+  locale: DEFAULT_LOCALE,
+  namespace: namespace as string,
+  messages: messages as Record<string, string>,
+}));
+
+const CATALOG = buildMessageCatalog(CORE_BUNDLES, DEFAULT_LOCALE);
 
 const REFERENCE = /^@([a-z0-9.-]+)\/(.+)$/;
 
@@ -40,13 +77,7 @@ export const describeMessage = (message: string, params?: MessageParams): string
  * vê a chave dela. Os bundles vêm de `manifest.contributes`, que é onde a extensão os declara.
  */
 export const describeWith = (bundles: MessageBundle[]) => {
-  const catalog = buildMessageCatalog(
-    [
-      ...bundles,
-      { locale: DEFAULT_LOCALE, namespace: 'core.marketplace', messages: CORE_MARKETPLACE_MESSAGES },
-    ],
-    DEFAULT_LOCALE,
-  );
+  const catalog = buildMessageCatalog([...bundles, ...CORE_BUNDLES], DEFAULT_LOCALE);
   return (message: string, params?: MessageParams): string => {
     const match = REFERENCE.exec(message);
     if (!match) return message;

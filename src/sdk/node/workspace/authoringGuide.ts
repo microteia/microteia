@@ -9,6 +9,7 @@ import type { CustomFieldType } from '../../../domain/schema/fieldRules';
 import { WIDGET_NODE_TYPES } from '../../../domain/schema/ui/widgetSpec';
 import type { WidgetNodeType } from '../../../domain/schema/ui/widgetSpec';
 import { STEP_TYPES } from '../../../domain/entities/Workflow';
+import type { WorkflowStepMetadata } from '../../../domain/schema/workflowStepCatalog';
 import type { StepType } from '../../../domain/entities/Workflow';
 import { FIELD_EXPRESSION_FUNCTION_NAMES } from '../../../domain/schema/fieldExpression';
 
@@ -90,7 +91,7 @@ const WIDGET_NODES: Record<WidgetNodeType, string> = {
 const STEP_KINDS: Record<StepType, string> = {
   Action: 'Runs one entry of the platform\'s step catalog, named by `stepDefinitionId`. Its inputs are `configuration`.',
   Condition: 'A control node: `condition` decides which of `branches.whenTrue` / `branches.whenFalse` runs, and the flow converges after. `stepDefinitionId` is empty.',
-  Delay: 'Waits before the steps that follow.',
+  Delay: '**Not implemented in this version.** It is in the union for compatibility, and a step declared with it stops the flow at that point — `validate_plugin` refuses it. To wait, schedule the work instead: a Cloud Function on a timer (§12) that fires a `workflow.called` flow.',
   Loop: 'A control node: `loop: { source, itemName, outputName, body }` runs `body` once per item and publishes the collected outputs under `outputName`. `stepDefinitionId` is empty.',
   Script: 'Runs one of your `scripts`, named by `configuration.scriptId` as a `Literal` — the `templateId`, which `check` resolves.',
   SubWorkflow: 'Calls another workflow, named by `configuration.targetWorkflowId` as a `Literal` — again a `templateId`.',
@@ -102,11 +103,56 @@ const describedTable = (header: string, entries: readonly string[], described: R
   ...entries.map((entry) => `| \`${entry}\` | ${described[entry]} |`),
 ].join('\n');
 
+/**
+ * A tabela do catálogo de passos, DERIVADA. Era um parágrafo dizendo que o catálogo "não pode ser
+ * enumerado a partir daqui" — a única capacidade grande do kernel sobre a qual este documento escrevia
+ * prosa em vez de tabela, e não por acaso a que os autores mais erravam.
+ */
+/** Uma lista de nomes em `code`, para prosa gerada. */
+const codeList = (names: readonly string[]): string => names.map((name) => `\`${name}\``).join(', ');
+
+const stepCatalogTable = (steps: readonly WorkflowStepMetadata[]): string => [
+  '| `stepDefinitionId` | What it does | Takes | Publishes |',
+  '|---|---|---|---|',
+  ...steps.map((step) => {
+    const takes = step.inputs.length === 0
+      ? '—'
+      : step.inputs.map((input) => `\`${input.id}${input.required ? '' : '?'}\`: ${input.type}`).join(', ');
+    const publishes = step.outputDefinitions.length === 0
+      ? (step.dynamicOutputs === undefined ? '—' : '_(named at runtime)_')
+      : step.outputDefinitions.map((output) => `\`${output.id}\``).join(', ');
+    return `| \`${step.id}\` | ${STEP_CATALOG_NOTES[step.id] ?? ''} | ${takes} | ${publishes} |`;
+  }),
+].join('\n');
+
+/**
+ * O que cada passo do catálogo faz, em uma linha. Fechado por `CORE_STEP_DEFINITION_IDS`: um passo
+ * novo no kernel sem a linha aqui reprova em `authoringGuideSteps.test.ts`, e é isso que impede a
+ * tabela de voltar a ficar incompleta em silêncio.
+ */
+const STEP_CATALOG_NOTES: Record<string, string> = {
+  notify: 'Shows a message to whoever is looking.',
+  'register-audit': 'Writes an entry in the audit trail. `severity` defaults to `LOW`.',
+  'set-variable': 'Names a value for the rest of the flow. Read it back with `{ kind: \'Variable\' }`.',
+  map: 'Assembles an object from other values — what a write step then writes.',
+  'validate-object': 'Checks an object against a screen\'s rules before anything is written.',
+  exit: 'Ends the flow here, successfully. Takes nothing.',
+  'call-workflow': 'Runs another workflow of this package. `waitForResult` decides whether this flow waits.',
+  script: 'Runs one of your `scripts` in the server sandbox.',
+  query: 'Asks the database. Publishes `count`, `results`, `first`, plus `first.<projection>`.',
+  upsert: 'Writes one record. An `id` in the object means update, no `id` means insert.',
+  remove: 'Deletes one record.',
+};
+
 export interface AuthoringGuideInput {
   kernelVersion: string;
   hostModules: string[];
   advisoryBytes: number;
   maxBytes: number;
+  /** O catálogo de passos. Vem por parâmetro, como tudo mais aqui, para que o guia não importe kernel. */
+  steps: readonly WorkflowStepMetadata[];
+  /** Os gestos de registro. Eram PROSA aqui — uma extensão nova de distância de ficar incompletos. */
+  recordCommands: readonly string[];
 }
 
 export const authoringGuide = (input: AuthoringGuideInput): string => `# Authoring Microteia extensions
@@ -714,9 +760,72 @@ the organization designed, for a collection that already exists. Also \`lookup.s
 
 ${describedTable('Step type', STEP_TYPES, STEP_KINDS)}
 
-\`stepDefinitionId\` names an entry of the platform's **step catalog**, which lives on the server and
-grows with the platform. It is the one part of a workflow you cannot enumerate from here: read it in
-the Automations screen of a running installation, or build the workflow there once and export it.
+\`stepDefinitionId\` names an entry of the platform's **step catalog**. These are the ones the kernel
+brings; an extension may contribute more to the \`workflow.step\` point, so a package that declares a
+dependency may name an id that is not listed here.
+
+${stepCatalogTable(input.steps)}
+
+**A composite input is a \`Literal\` wrapping a whole config object, and the type is not the one its
+name suggests.** \`query\` really does take a \`QuerySpec\`; the other four do NOT take a matching
+\`…Spec\`:
+
+| Input type | The type inside the \`Literal\` | |
+|---|---|---|
+| \`Query\` | \`QuerySpec\` | \`{ table, where, orderBy?, limit, projections }\` |
+| \`Upsert\` | \`UpsertStepConfig\` | \`{ table, source: 'input' \\| 'event', property? }\` — no \`data\`: the step reads the object from \`source\`, and an \`id\` in it means update |
+| \`Remove\` | \`RemoveStepConfig\` | \`{ table, id }\` |
+| \`Map\` | \`MapStepConfig\` | \`{ name?, type?, fields: { name, value }[] }\` |
+| \`Validate\` | \`ValidateStepConfig\` | ask \`describe_sdk_type\` |
+
+Writing \`UpsertSpec\` where \`UpsertStepConfig\` belongs is the single most common mistake in an
+automation, and it used to be invisible: the package validated and the flow silently wrote nothing.
+\`check\` now refuses it.
+
+**\`QuerySpec.where\` uses the operator NAMES**, not the symbols: \`eq\`, \`neq\`, \`lt\`, \`lte\`, \`gt\`,
+\`gte\`, \`in\`, \`contains\`, \`exists\`. An operator outside that set matches no rows at all — the query
+returns nothing and the flow carries on as if the records did not exist.
+
+Ask the MCP server rather than guessing any of this: \`list_workflow_steps\` for the catalog,
+\`describe_workflow_step\` for one step's exact inputs and outputs, \`list_workflow_events\` for the
+trigger names. All three are derived from this installation.
+
+### A workflow that only exists to be called
+
+\`eventName: 'workflow.called'\` is the flow with no trigger of its own — the one an **action** fires,
+and the one \`call-workflow\` calls. It is the most used shape there is, and the only one that
+declares \`parameters\`:
+
+\`\`\`ts
+{
+  templateId: 'wf-review',
+  name: label('workflow.review'),
+  eventName: 'workflow.called',
+  version: 1,
+  condition: { kind: 'AlwaysTrue' },
+  parameters: [
+    { key: 'recordId', label: label('param.record'), type: 'String', required: true },
+    {
+      key: 'decision', label: label('param.decision'), type: 'select', required: true,
+      options: [
+        { value: 'approved', label: label('param.approve') },
+        { value: 'rejected', label: label('param.reject') },
+      ],
+    },
+    { key: 'note', label: label('param.note'), type: 'String', rules: { validate: { maxLength: 500 } } },
+  ],
+  steps: [ /* … */ ],
+}
+\`\`\`
+
+**The parameters ARE the \`event.\` of that flow.** A step reads \`decision\` as
+\`{ kind: 'Event', path: 'decision' }\`, or as \`event.decision\` inside an expression — there is no
+\`payload\` level here, because nothing was saved.
+
+\`type\` is \`String\`, \`Number\`, \`Date\`, \`Boolean\`, \`select\`, \`lookup\`, \`EntityReference\` or
+\`Object\` (which nests through \`fields\`). \`rules\` applies the same formatting and validation a screen
+field gets, so the parameter form refuses a bad value before the flow starts rather than halfway
+through it. \`list: true\` makes it many.
 
 ### Actions
 
@@ -735,8 +844,10 @@ actions: [{
 }]
 \`\`\`
 
-\`command\` instead of \`workflowId\` runs one of the platform's own record gestures (\`copyLink\`, \`clone\`,
-\`manageTags\`, \`delete\`, \`unlink\`, or anything contributed to \`ui.record.action\`) — present, it wins.
+\`command\` instead of \`workflowId\` runs one of the platform's own record gestures — present, it wins.
+The ones the kernel brings are ${codeList(input.recordCommands)}, and anything contributed to
+\`ui.record.action\` joins them (\`list_record_commands\` on the MCP server answers for this
+installation). \`order\`, \`enabled\` and \`danger\` are REQUIRED on every action.
 \`activeWhen\` turns the button into a switch that shows the record's current state.
 \`promptParameters\` opens the workflow's parameter form before firing, and \`parameterDefaults\` maps
 each parameter to an expression, for when the field name on screen is not the parameter name in the
@@ -751,7 +862,7 @@ the server. The convention is a \`main\` that returns the outputs:
 async function main() {
   const open = await query({
     table: 'invoices',
-    where: [{ path: 'status', op: '==', value: 'OPEN' }],
+    where: [{ path: 'status', op: 'eq', value: 'OPEN' }],   // 'eq', never '=='
     orderBy: [{ path: 'dueDate', dir: 'asc' }],
     limit: 50,
     projections: ['id', 'total'],
@@ -921,14 +1032,23 @@ is why it is worth asking before writing:
 | \`describe_sdk_type\` | the exact declaration of any authoring type — \`TemplateField\`, \`WidgetSpec\`, \`WorkflowStep\`, \`PluginManifest\`, \`AuthoredPlugin\` |
 | \`describe_host_module\` | what a curated module really exports, for a view or a \`startup\` |
 | \`list_expression_functions\` | the expression functions the installed platform resolves |
+| \`list_workflow_steps\` | the step catalog — every \`stepDefinitionId\`, what it takes, what it publishes |
+| \`describe_workflow_step\` | one step in full: required inputs, accepted mapping kinds, composite shape, outputs |
+| \`list_workflow_events\` | the trigger names, and what \`event.\` carries in each |
+| \`list_record_commands\` | the record gestures an action may run through \`command\` |
 | \`validate_plugin\` | the platform's verdict, after every edit |
 | \`build_plugin\` | the \`.json\`, without writing it |
 | \`read_authoring_guide\` | this document, by section |
 | \`workspace_info\` | what this workspace is bound to |
 
 Read \`examples/\` for first-party extensions in source form — they are the very source that produces
-the \`.json\` the platform installs, so nothing in them is a simplification. What they cover well is
-screens, fields, lookups, patches, views wired to pages, \`startup\`, translation and themes. What they
-do not cover is automation: none of them carries a workflow, an action or a script, so for those this
-document is what you have, plus \`describe_sdk_type\` for the exact shape.
+the \`.json\` the platform installs, so nothing in them is a simplification. Between them they cover
+screens, fields, lookups, patches, views wired to pages, \`startup\`, translation and themes.
+
+For automation, read \`examples/automation-example/\` first. It exists for that reason and nothing
+else: a workflow triggered by a save, a \`Condition\` node that branches and converges, a \`query\`, a
+\`map\` feeding an \`upsert\` that stays idempotent on a second run, a \`workflow.called\` flow with
+parameters, and an action with \`promptParameters\` that asks a person before firing. Every id in it is
+one \`list_workflow_steps\` would give you, and the package validates — which is the whole point of
+reading an example instead of a snippet.
 `;

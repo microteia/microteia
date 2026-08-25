@@ -1,4 +1,5 @@
 import type { StepDefinition, WorkflowStepExecutor } from '../../../domain/engine/StepDefinition';
+import { coreStepMetadata } from '../../../domain/engine/StepDefinition';
 import { resolveMapping } from '../../../domain/engine/InputMapping';
 import type { RemoveSpec, RemoveStepConfig } from '../../../domain/schema/mutationSpec';
 import { runWorkflowRemove } from '../mutation/runWorkflowMutation';
@@ -6,28 +7,7 @@ import type { WorkflowMutationDeps } from '../mutation/runWorkflowMutation';
 
 import type { WorkflowResult } from '../../../domain/entities/WorkflowContext';
 export const makeRemoveStepDefinition = (deps: WorkflowMutationDeps): StepDefinition => ({
-  id: 'remove',
-  version: 1,
-  name: '@core.automation/step.remove.name',
-  description:
-    '@core.automation/step.remove.description',
-  icon: 'RiDeleteBin6Line',
-  category: 'Data',
-  type: 'Action',
-  configurable: true,
-  inputs: [
-    {
-      id: 'remove',
-      label: '@core.automation/step.remove.label.exclusao',
-      required: true,
-      type: 'Remove',
-      allowedMappingKinds: ['Literal'],
-    },
-  ],
-  outputDefinitions: [
-    { id: 'id', label: '@core.automation/step.remove.label.id-do-registro', type: 'String' },
-    { id: 'removed', label: '@core.automation/step.remove.label.foi-excluido', type: 'Boolean' },
-  ],
+  ...coreStepMetadata('remove'),
   createExecutor: (): WorkflowStepExecutor => ({
     execute: async (inputs, context): Promise<WorkflowResult> => {
       const config = inputs.remove as RemoveStepConfig | undefined;

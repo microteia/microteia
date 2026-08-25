@@ -1,4 +1,5 @@
 import type { StepDefinition, WorkflowStepExecutor } from '../../../domain/engine/StepDefinition';
+import { coreStepMetadata } from '../../../domain/engine/StepDefinition';
 import type { IScriptRepository } from '../../../domain/repositories/IScriptRepository';
 import { resolveMapping } from '../../../domain/engine/InputMapping';
 import { buildNestedParams } from '../../../domain/engine/nestedParams';
@@ -17,26 +18,7 @@ export const makeScriptStepDefinition = (
   queryDeps: WorkflowQueryDeps,
   mutationDeps: WorkflowMutationDeps,
 ): StepDefinition => ({
-  id: 'script',
-  version: 1,
-  name: '@core.automation/step.script.name',
-  description: '@core.automation/step.script.description',
-  icon: 'RiCodeBoxLine',
-  category: 'Integration',
-  type: 'Script',
-  configurable: true,
-  inputs: [
-    {
-      id: 'scriptId',
-      label: '@core.automation/step.script.label.script',
-      required: true,
-      type: 'String',
-      allowedMappingKinds: ['Literal'],
-    },
-  ],
-  outputDefinitions: [],
-  dynamicInputs: { kind: 'from-target-script-parameters', sourceInputId: 'scriptId' },
-  dynamicOutputs: { kind: 'from-target-script-outputs', sourceInputId: 'scriptId' },
+  ...coreStepMetadata('script'),
   createExecutor: (): WorkflowStepExecutor => ({
     execute: async (inputs, context): Promise<WorkflowResult> => {
       const scriptId = inputs.scriptId ? String(inputs.scriptId) : '';

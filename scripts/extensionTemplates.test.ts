@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { packageFingerprint, serializePackage } from '../src/domain/usecases/plugins/packageSerialization';
 import { isVersionGreater } from '../src/domain/usecases/plugins/publicExtension';
 import { validatePackage } from '../src/domain/usecases/plugins/pluginReferences';
-import { MARKETPLACE_CATALOG } from '../src/plugins/marketplace/catalog';
+import { MARKETPLACE_CATALOG, automationExamplePlugin } from '../src/plugins/marketplace/catalog';
 import type { MarketplacePlugin } from '../src/domain/entities/MarketplacePlugin';
 
 /**
@@ -21,8 +21,16 @@ import type { MarketplacePlugin } from '../src/domain/entities/MarketplacePlugin
  */
 const TEMPLATES_DIR = 'extension-templates';
 
+/**
+ * As extensões que VIAJAM como exemplo de autoria e não são oferecidas no Marketplace. Elas têm
+ * `.json` versionado pela mesma razão das outras — `exampleSources.test.ts` compila a fonte reescrita
+ * e exige o artefato byte a byte —, mas ficam fora do `MARKETPLACE_CATALOG` de propósito: são molde
+ * de leitura, não coisa que o escritório instala.
+ */
+const EXEMPLOS_QUE_VIAJAM: MarketplacePlugin[] = [automationExamplePlugin];
+
 const catalogById = new Map<string, MarketplacePlugin>(
-  MARKETPLACE_CATALOG.map((plugin) => [plugin.manifest.id, plugin]),
+  [...MARKETPLACE_CATALOG, ...EXEMPLOS_QUE_VIAJAM].map((plugin) => [plugin.manifest.id, plugin]),
 );
 
 interface Template {
@@ -78,7 +86,7 @@ describe('pacotes distribuíveis das extensões de primeira parte', () => {
  * avisou".
  */
 const VERSAO_CONFERIDA: Record<string, { version: string; fingerprint: string }> = {
-  'com.microteia.locale-pt-br': { version: '1.23.0', fingerprint: 'cc402bf2bc60' },
+  'com.microteia.locale-pt-br': { version: '1.24.0', fingerprint: 'a2b5402b9568' },
   'com.microteia.brasil': { version: '1.0.0', fingerprint: '576f69353711' },
   'com.microteia.dashboard': { version: '1.1.0', fingerprint: '8e32837f3528' },
   'com.microteia.calendar': { version: '1.1.0', fingerprint: '47caee110fdf' },

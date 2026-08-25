@@ -308,7 +308,7 @@ export const applyParameterDefaults = (
   return result;
 };
 
-const ENTITY_EVENT_ACTIONS = ['saved', 'deleted'] as const;
+export const ENTITY_EVENT_ACTIONS = ['saved', 'deleted'] as const;
 
 export type EntityEventAction = (typeof ENTITY_EVENT_ACTIONS)[number];
 
@@ -318,7 +318,7 @@ export type EntityEventAction = (typeof ENTITY_EVENT_ACTIONS)[number];
  * por "tem underscore": chave com underscore é o normal de uma tela trazida por dependência
  * (`vendas__produto`), e barrá-la fazia o gatilho dela passar despercebido no empacotamento.
  */
-const NESTED_EVENT_SUFFIXES = ['_note', '_document'] as const;
+export const NESTED_EVENT_SUFFIXES = ['_note', '_document'] as const;
 
 const isNestedEntityEvent = (prefix: string): boolean =>
   NESTED_EVENT_SUFFIXES.some(

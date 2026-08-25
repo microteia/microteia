@@ -1,4 +1,5 @@
 import type { StepDefinition, WorkflowStepExecutor } from '../../../domain/engine/StepDefinition';
+import { coreStepMetadata } from '../../../domain/engine/StepDefinition';
 import type { UpsertSpec, UpsertStepConfig } from '../../../domain/schema/mutationSpec';
 import { getValueAtPath, parsePath } from '../../../domain/schema/pathResolver';
 import { runWorkflowUpsert } from '../mutation/runWorkflowMutation';
@@ -9,29 +10,7 @@ const isPlainObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 
 export const makeUpsertStepDefinition = (deps: WorkflowMutationDeps): StepDefinition => ({
-  id: 'upsert',
-  version: 2,
-  name: '@core.automation/step.upsert.name',
-  description:
-    '@core.automation/step.upsert.description',
-  icon: 'RiSaveLine',
-  category: 'Data',
-  type: 'Action',
-  configurable: true,
-  inputs: [
-    {
-      id: 'upsert',
-      label: '@core.automation/step.upsert.label.gravacao',
-      required: true,
-      type: 'Upsert',
-      allowedMappingKinds: ['Literal'],
-    },
-  ],
-  outputDefinitions: [
-    { id: 'id', label: '@core.automation/step.upsert.label.id-do-registro-gravado', type: 'String' },
-    { id: 'created', label: '@core.automation/step.upsert.label.foi-incluido-novo', type: 'Boolean' },
-    { id: 'record', label: '@core.automation/step.upsert.label.registro-gravado', type: 'String' },
-  ],
+  ...coreStepMetadata('upsert'),
   createExecutor: (): WorkflowStepExecutor => ({
     execute: async (inputs, context): Promise<WorkflowResult> => {
       const config = inputs.upsert as UpsertStepConfig | undefined;

@@ -215,6 +215,37 @@ export type { ActionDefinition, ActionLocalCommand, ActionOutcome } from '../dom
 export type { Script, ScriptOutputParam } from '../domain/entities/Script';
 export type { QueryOperator, QueryOrderBy, QueryPredicate, QuerySpec } from '../domain/schema/querySpec';
 
+// Os quatro `*StepConfig` são a forma que os passos `upsert`, `remove`, `map` e `validate-object`
+// exigem em `configuration` — e não são `UpsertSpec`/`QuerySpec`. Ficaram anos fora daqui, e o efeito
+// era o pior possível: `QuerySpec` ERA publicado (e o passo `query` de fato o recebe), então quem
+// aprendia o `query` generalizava para o `upsert` e escrevia a forma errada, sem que nada reprovasse.
+export type { MapFieldMapping, MapStepConfig } from '../domain/schema/mapSpec';
+export type { RemoveStepConfig, UpsertSpec, UpsertStepConfig } from '../domain/schema/mutationSpec';
+export type { ValidateStepConfig } from '../domain/schema/validateSpec';
+
+// O catálogo de passos: a metadata que diz, para cada `stepDefinitionId`, o que ele recebe e o que
+// publica. Era a única capacidade grande do kernel que um autor não conseguia enumerar.
+export type {
+  CatalogStepType,
+  DynamicInputsMetadata,
+  DynamicOutputsMetadata,
+  InputDefinition,
+  InputMappingKind,
+  InputOptionsSource,
+  InputType,
+  OutputDefinition,
+  StepCategory,
+  WorkflowStepMetadata,
+} from '../domain/schema/workflowStepCatalog';
+export {
+  CONTROL_STEP_TYPES,
+  CORE_STEP_CATALOG,
+  CORE_STEP_DEFINITION_IDS,
+  UNIMPLEMENTED_STEP_TYPES,
+  coreStepMetadata,
+  isCoreStepDefinitionId,
+} from '../domain/schema/workflowStepCatalog';
+
 // ─── Dados: campos, telas e configuração ──────────────────────────────────────
 
 export type {

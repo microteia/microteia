@@ -8,6 +8,8 @@ import { CUSTOM_FIELD_TYPES } from '../../../domain/schema/fieldRules';
 import { WIDGET_NODE_TYPES } from '../../../domain/schema/ui/widgetSpec';
 import { STEP_TYPES } from '../../../domain/entities/Workflow';
 import { FIELD_EXPRESSION_FUNCTION_NAMES } from '../../../domain/schema/fieldExpression';
+import { CORE_STEP_CATALOG } from '../../../domain/schema/workflowStepCatalog';
+import { RECORD_ACTION_COMMANDS } from '../../../domain/schema/ui/recordActionMetadata';
 import { authoringGuide } from './authoringGuide';
 import {
   workspaceGitignore,
@@ -36,7 +38,60 @@ const AGENTS = {
   hostModules: ['@microteia/ui', 'react'],
   advisoryBytes: 400 * 1024,
   maxBytes: 800 * 1024,
+  steps: CORE_STEP_CATALOG,
+  recordCommands: RECORD_ACTION_COMMANDS,
 };
+
+/**
+ * A tabela do catálogo de passos é DERIVADA, e este teste é o que a mantém assim.
+ *
+ * Ela era um parágrafo dizendo que o catálogo "não pode ser enumerado a partir daqui" — a única
+ * capacidade grande do kernel sobre a qual o guia escrevia prosa em vez de tabela, e não por acaso a
+ * que os autores de extensão mais erravam. Uma tabela derivada sem teste voltaria a ficar incompleta
+ * do mesmo jeito: o passo entra no kernel, a linha não entra no guia, e nada acusa.
+ */
+describe('a tabela do catálogo de passos', () => {
+  it('nomeia todos os passos do kernel, e nenhum a mais', () => {
+    const guide = authoringGuide(AGENTS);
+    for (const step of CORE_STEP_CATALOG) {
+      expect(guide, `o passo "${step.id}" não está na tabela do guia`).toContain(`| \`${step.id}\` |`);
+    }
+  });
+
+  it('cada passo chega com uma linha explicando o que ele faz', () => {
+    const guide = authoringGuide(AGENTS);
+    for (const step of CORE_STEP_CATALOG) {
+      const linha = guide.split('\n').find((one) => one.startsWith(`| \`${step.id}\` |`)) ?? '';
+      const [, , descricao] = linha.split('|');
+      expect(descricao?.trim(), `o passo "${step.id}" está na tabela sem descrição`).not.toBe('');
+    }
+  });
+
+  /**
+   * `QuerySpec` era publicado pelo SDK e o passo `query` de fato o recebe, então quem aprendia o
+   * `query` generalizava para o `upsert` e escrevia `UpsertSpec` — que não é o que o passo lê. O guia
+   * tem de dizer os dois nomes, lado a lado.
+   */
+  it('diz que o input composto NÃO é o `Spec` de nome parecido', () => {
+    const guide = authoringGuide(AGENTS);
+    expect(guide).toContain('UpsertStepConfig');
+    expect(guide).toContain('RemoveStepConfig');
+    expect(guide).toContain('MapStepConfig');
+    expect(guide).toContain('ValidateStepConfig');
+  });
+
+  /** `op: '=='` cai no `switch` do motor sem `default` e a consulta devolve zero linhas, em silêncio. */
+  it('dá os operadores de consulta pelo NOME, não pelo símbolo', () => {
+    const guide = authoringGuide(AGENTS);
+    expect(guide).toMatch(/`eq`, `neq`/);
+    expect(guide).not.toMatch(/op: '=='/);
+  });
+
+  /** O guia prometia que `Delay` espera. Ele não é registrado no motor, e o fluxo para nele. */
+  it('não promete que Delay funciona', () => {
+    expect(authoringGuide(AGENTS)).toMatch(/`Delay` \| \*\*Not implemented in this version\.\*\*/);
+  });
+});
 
 describe('o que é gerado em extensions/', () => {
   /**

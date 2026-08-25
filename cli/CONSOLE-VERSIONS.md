@@ -22,6 +22,10 @@
 - fix(command): what was broken, and what it did to whoever hit it.
 -->
 
+#### [2.7.2] — 2026-08-25
+
+- feat(vendor/exampleSources): stages `automation-example` alongside the others, so the workspace ships a complete automation to read. Every example that travelled carried `workflows: []`, and automation was the one mechanism an author had only prose for.
+
 #### [2.7.1] — 2026-08-24
 
 - fix(unpack): the default catalog URL is `https://microteia.github.io/releases/kernel/index.json`.

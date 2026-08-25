@@ -18,6 +18,7 @@ import { join } from 'node:path';
 
 /** Arquivo distribuído → módulo de origem. O nome da pasta do exemplo é o do `.json`, sem extensão. */
 export const EXAMPLE_SOURCES: Record<string, string> = {
+  'automation-example': 'automation.ts',
   brasil: 'brasil.ts',
   calendar: 'calendar.ts',
   dashboard: 'dashboard.ts',

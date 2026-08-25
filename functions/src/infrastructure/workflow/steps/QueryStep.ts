@@ -1,4 +1,5 @@
 import type { StepDefinition, WorkflowStepExecutor } from '../../../domain/engine/StepDefinition';
+import { coreStepMetadata } from '../../../domain/engine/StepDefinition';
 import type { IWorkflowQueryRepository } from '../../../domain/repositories/IWorkflowQueryRepository';
 import type { IWorkflowRecordFetcher } from '../../../domain/repositories/IWorkflowRecordFetcher';
 import type { IScreenDefinitionProvider } from '../../../domain/repositories/IScreenDefinitionProvider';
@@ -11,33 +12,7 @@ export const makeQueryStepDefinition = (
   fetcher: IWorkflowRecordFetcher,
   screenProvider: IScreenDefinitionProvider,
 ): StepDefinition => ({
-  id: 'query',
-  version: 1,
-  name: '@core.automation/step.query.name',
-  description: '@core.automation/step.query.description',
-  icon: 'RiSearchLine',
-  category: 'Data',
-  type: 'Action',
-  configurable: true,
-  inputs: [
-    {
-      id: 'query',
-      label: '@core.automation/step.query.label.consulta',
-      required: true,
-      type: 'Query',
-      allowedMappingKinds: ['Literal'],
-    },
-  ],
-  outputDefinitions: [
-    { id: 'count', label: '@core.automation/step.query.label.quantidade-encontrada', type: 'Number' },
-    { id: 'results', label: '@core.automation/step.query.label.resultados-lista', type: 'String' },
-    { id: 'first', label: '@core.automation/step.query.label.primeiro-resultado', type: 'String' },
-  ],
-  dynamicOutputs: {
-    kind: 'from-query-projections',
-    sourceInputId: 'query',
-    description: '@core.automation/step.query.description',
-  },
+  ...coreStepMetadata('query'),
   createExecutor: (): WorkflowStepExecutor => ({
     execute: async (inputs, context): Promise<WorkflowResult> => {
       const spec = inputs.query as QuerySpec | undefined;

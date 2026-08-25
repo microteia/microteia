@@ -14,6 +14,20 @@ import { hostModuleBlock, hostModuleNames, hostTypesPath, readHostTypes } from '
 import { referencedSymbols, sdkDeclaration, sdkSurfaceNames, sdkTypesRoot } from './sdkTypes';
 import { FIELD_EXPRESSION_FUNCTION_NAMES } from '../../domain/schema/fieldExpression';
 import { describeMessage } from './messages';
+import {
+  CONTROL_STEP_TYPES,
+  CORE_STEP_CATALOG,
+  CORE_STEP_DEFINITION_IDS,
+  UNIMPLEMENTED_STEP_TYPES,
+  coreStepMetadata,
+  isCoreStepDefinitionId,
+} from '../../domain/schema/workflowStepCatalog';
+import { RECORD_ACTION_METADATA } from '../../domain/schema/ui/recordActionMetadata';
+import {
+  ENTITY_EVENT_ACTIONS,
+  NESTED_EVENT_SUFFIXES,
+  WORKFLOW_CALLED_EVENT,
+} from '../../domain/schema/eventCatalog';
 
 /**
  * O servidor MCP do diretório de extensões — o que faz uma IA no VSCode trabalhar com a VERDADE em vez
@@ -53,6 +67,22 @@ const pretty = (value: unknown): string => JSON.stringify(value, null, 2);
  * `PluginManifest` seria o pacote inteiro.
  */
 const REFERENCE_EXPANSION_LIMIT = 6;
+const ALL_MAPPING_KINDS = ['Literal', 'Event', 'Expression', 'Output', 'Variable'];
+
+/**
+ * Os cinco tipos de input COMPOSTO e o tipo que cada um exige dentro do `Literal`. É a distinção que
+ * mais custou a quem escrevia automação: o passo `query` recebe de fato um `QuerySpec` — e `QuerySpec`
+ * era publicado pelo SDK —, então quem aprendia o `query` generalizava para o `upsert` e escrevia
+ * `UpsertSpec`, que não é o que o passo lê.
+ */
+const COMPOSITE_INPUT_SHAPE: Record<string, string> = {
+  Query: 'QuerySpec',
+  Upsert: 'UpsertStepConfig',
+  Remove: 'RemoveStepConfig',
+  Map: 'MapStepConfig',
+  Validate: 'ValidateStepConfig',
+};
+
 
 const ALL_POINTS = [
   ...UI_EXTENSION_POINTS,
@@ -151,7 +181,11 @@ const TOOLS: ToolDefinition[] = [
       points: ALL_POINTS.map((point) => ({
         id: point.id,
         apiVersion: point.apiVersion,
-        title: point.title,
+        // Resolvidos, não crus: enquanto o tradutor do terminal carregava só `core.marketplace`, isto
+        // devolvia `@core.data/point.entity.title` — e a `description`, que é o campo que diz PARA QUE
+        // SERVE o ponto, era descartada de todo.
+        title: describeMessage(point.title),
+        description: point.description === undefined ? undefined : describeMessage(point.description),
         ownerPluginId: point.ownerPluginId,
         allowedImplKinds: point.allowedImplKinds,
         implRequired: point.implRequired,
@@ -263,6 +297,164 @@ const TOOLS: ToolDefinition[] = [
         'A name resolved as an operator is not repeated as a function: "not", "abs", "ceil" and '
         + '"floor" work through the operator form. "hasPermission" answers about whoever is looking, '
         + 'and accepts the patterns "<entity>.delete", "*.delete", "invoices.*" and "invoice%.read".',
+    }),
+  },
+  {
+    name: 'list_workflow_steps',
+    description:
+      'The step catalog: every `stepDefinitionId` a workflow may name, with its category, what it '
+      + 'receives and what it publishes. Derived from the kernel catalog, not from documentation. '
+      + 'THIS is the tool to call before writing a workflow — a step is the one thing a declaration '
+      + 'cannot invent, and an id that is not here does not run. Call `describe_workflow_step` for the '
+      + 'full input shape of one of them.',
+    inputSchema: { type: 'object', properties: {} },
+    run: () => pretty({
+      kernelVersion: KERNEL_VERSION,
+      steps: CORE_STEP_CATALOG.map((step) => ({
+        stepDefinitionId: step.id,
+        name: describeMessage(step.name),
+        description: describeMessage(step.description),
+        category: step.category,
+        stepType: step.type,
+        inputs: step.inputs.map((input) => `${input.id}${input.required ? '' : '?'}: ${input.type}`),
+        outputs: step.outputDefinitions.map((output) => `${output.id}: ${output.type}`),
+        dynamicOutputs: step.dynamicOutputs?.kind ?? null,
+      })),
+      controlStepTypes: CONTROL_STEP_TYPES,
+      unimplementedStepTypes: UNIMPLEMENTED_STEP_TYPES,
+      notes: [
+        'Every step of a workflow names one entry above through `stepDefinitionId`, EXCEPT the control '
+        + `nodes (${CONTROL_STEP_TYPES.join(', ')}), where it stays empty.`,
+        `Step types the engine does not run: ${UNIMPLEMENTED_STEP_TYPES.join(', ') || 'none'}. `
+        + 'Declaring one is refused by validate_plugin.',
+        'An extension may contribute its own steps to the "workflow.step" point, so a package that '
+        + 'declares a dependency may name an id that is not listed here.',
+      ],
+    }),
+  },
+  {
+    name: 'describe_workflow_step',
+    description:
+      'Everything one step of the catalog needs in `configuration`: each input, whether it is '
+      + 'required, its type, which InputMapping kinds it accepts, its options and its default — plus '
+      + 'the outputs later steps can read through `{ kind: "Output" }`. Call with no id to list the '
+      + 'ids. For a composite input (Query, Upsert, Remove, Map, Validate) the value is a '
+      + 'Literal wrapping the matching *StepConfig — ask `describe_sdk_type` for its shape.',
+    inputSchema: {
+      type: 'object',
+      properties: { stepDefinitionId: { type: 'string', description: "e.g. 'upsert'" } },
+    },
+    run: (input) => {
+      const wanted = typeof input.stepDefinitionId === 'string' ? input.stepDefinitionId : '';
+      if (wanted === '') {
+        return `The catalog has ${CORE_STEP_CATALOG.length} steps:\n${CORE_STEP_DEFINITION_IDS
+          .map((id) => `- ${id}`).join('\n')}`;
+      }
+      if (!isCoreStepDefinitionId(wanted)) {
+        return `"${wanted}" is not in the kernel catalog. It has:\n${CORE_STEP_DEFINITION_IDS
+          .map((id) => `- ${id}`).join('\n')}\nA step contributed by another extension is not listed `
+          + 'here — read that extension\'s own documentation.';
+      }
+      const step = coreStepMetadata(wanted);
+      return pretty({
+        stepDefinitionId: step.id,
+        name: describeMessage(step.name),
+        description: describeMessage(step.description),
+        category: step.category,
+        stepType: step.type,
+        configurable: step.configurable,
+        // O tipo composto é a armadilha que mais custou: o passo `query` recebe um `QuerySpec`, mas
+        // `upsert`, `remove`, `map` e `validate-object` NÃO recebem `UpsertSpec` — recebem o
+        // `*StepConfig` correspondente. Quem aprendia o primeiro generalizava errado para os outros.
+        inputs: step.inputs.map((one) => ({
+          id: one.id,
+          label: describeMessage(one.label),
+          description: one.description === undefined ? undefined : describeMessage(one.description),
+          required: one.required,
+          type: one.type,
+          shape: COMPOSITE_INPUT_SHAPE[one.type] ?? null,
+          acceptsMappingKinds: one.allowedMappingKinds ?? ALL_MAPPING_KINDS,
+          defaultValue: one.defaultValue,
+          pattern: one.pattern,
+          options: one.options?.kind === 'Static'
+            ? one.options.options.map((option) => ({
+              value: option.value,
+              label: describeMessage(option.label),
+            }))
+            : one.options ?? undefined,
+        })),
+        outputs: step.outputDefinitions.map((one) => ({
+          id: one.id,
+          label: describeMessage(one.label),
+          type: one.type,
+        })),
+        dynamicInputs: step.dynamicInputs ?? null,
+        dynamicOutputs: step.dynamicOutputs ?? null,
+      });
+    },
+  },
+  {
+    name: 'list_workflow_events',
+    description:
+      'The event names a workflow may declare in `eventName` — the GRAMMAR, derived from the engine, '
+      + 'because the collection half of the name is yours (your screen, a screen the organization '
+      + 'designed, a collection that already exists). Also says what `event.` carries in each case, '
+      + 'which is what decides whether a condition can even answer.',
+    inputSchema: { type: 'object', properties: {} },
+    run: () => pretty({
+      kernelVersion: KERNEL_VERSION,
+      forms: [
+        {
+          eventName: `<collection>.${ENTITY_EVENT_ACTIONS.join(' | <collection>.')}`,
+          fires: 'a record of that collection is written or deleted',
+          eventPayload: 'the record, plus "changeType" (created | updated) and "old" on a save',
+        },
+        ...NESTED_EVENT_SUFFIXES.map((suffix) => ({
+          eventName: `<parent>${suffix}.${ENTITY_EVENT_ACTIONS.join(` | <parent>${suffix}.`)}`,
+          fires: `a ${suffix.slice(1)} of a record of that parent collection changes`,
+          eventPayload: `the ${suffix.slice(1)}, and the id of the record it hangs from`,
+        })),
+        {
+          eventName: `lookup.${ENTITY_EVENT_ACTIONS.join(' | lookup.')}`,
+          fires: 'an entry of an option list the organization owns changes',
+          eventPayload: 'the entry; `lookupCollection` on the workflow names which list',
+        },
+        {
+          eventName: WORKFLOW_CALLED_EVENT,
+          fires: 'an action, or another workflow, invokes it — never on its own',
+          eventPayload: 'the `parameters` the workflow declares, which become its `event.`',
+        },
+      ],
+      notes: [
+        'The collection half is not enumerable from here on purpose: it is the collection of the '
+        + 'screen that declares it, and the kernel knows none by name. Use your own screen\'s '
+        + 'collection, or the `eventPrefix` it declares.',
+        `"${WORKFLOW_CALLED_EVENT}" is the trigger an action fires. That workflow declares `
+        + '`parameters`, and `promptParameters` on the action opens their form before firing.',
+        'In `condition` and in an Expression mapping the path is ABSOLUTE over the whole context '
+        + '(`event.payload.x`); in an `{ kind: "Event", path }` mapping it is RELATIVE to '
+        + 'event.payload (`x`). Mixing the two is the most common mistake in a workflow.',
+      ],
+    }),
+  },
+  {
+    name: 'list_record_commands',
+    description:
+      'The platform\'s own record gestures — what an action may run through `command` instead of '
+      + '`workflowId`. Derived from the kernel, so an extension that adds one shows up here.',
+    inputSchema: { type: 'object', properties: {} },
+    run: () => pretty({
+      kernelVersion: KERNEL_VERSION,
+      commands: Object.values(RECORD_ACTION_METADATA).map((action) => ({
+        command: action.key,
+        title: describeMessage(action.title),
+        danger: action.danger ?? false,
+        requiresRecordPermission: action.requiresRecordPermission ?? null,
+        requiresTags: action.requiresTags ?? false,
+      })),
+      note:
+        'In an action, `command` and `workflowId` are exclusive and `command` wins. A screen offers '
+        + 'the action by naming its templateId in `cardActionIds` or `viewActionIds`.',
     }),
   },
   {

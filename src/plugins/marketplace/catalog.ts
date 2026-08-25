@@ -5,6 +5,7 @@ import { newsPlugin } from './news';
 import { dashboardPlugin } from './dashboard';
 import { calendarPlugin } from './calendar';
 import { localePtBrPlugin } from './localePtBr';
+import { automationExamplePlugin } from './automation';
 import { THEME_MARKETPLACE_PLUGINS } from './themes';
 
 /**
@@ -13,6 +14,10 @@ import { THEME_MARKETPLACE_PLUGINS } from './themes';
  * primeira parte). Cada exemplo prova um mecanismo:
  * - `boasVindasPlugin` — só um workflow, materializado no tenant (o motor já o executa).
  * - `guiaPlugin` — só UI (item de menu + página em Widget DSL), carregada ao vivo pelo host; nada gravado.
+ *
+ * O `automationExamplePlugin` mora em `automation.ts` e VIAJA no pacote, em `examples/`: era a única
+ * coisa que os exemplos não cobriam, e o guia dizia isso em voz alta. Ele não entra no
+ * `MARKETPLACE_CATALOG` — é molde de leitura, não extensão que o escritório instala do Marketplace.
  */
 export const boasVindasPlugin: MarketplacePlugin =
   {
@@ -187,6 +192,8 @@ export { brasilPlugin, newsPlugin, dashboardPlugin, calendarPlugin, localePtBrPl
  * O mesmo pacote também é distribuível como `.json` (`extension-templates/`, gerado por
  * `npm run build:extensions`), para importar em escritórios que não rodam este bundle.
  */
+export { automationExamplePlugin };
+
 export const MARKETPLACE_CATALOG: MarketplacePlugin[] = [
   localePtBrPlugin,
   brasilPlugin,

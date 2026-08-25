@@ -37,6 +37,7 @@ const TEMPLATES = {
   'dashboard.json': 'dashboardPlugin',
   'calendar.json': 'calendarPlugin',
   'locale-pt-br.json': 'localePtBrPlugin',
+  'automation-example.json': 'automationExamplePlugin',
 };
 
 const check = process.argv.includes('--check');
