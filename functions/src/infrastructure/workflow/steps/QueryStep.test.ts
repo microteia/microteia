@@ -61,7 +61,34 @@ class FakeFetcher implements IWorkflowRecordFetcher {
   }
 }
 
-const screenProvider: IScreenDefinitionProvider = fakeScreenProvider([personsScreen, contractsScreen]);
+/**
+ * Tela com campo DERIVADO: `situacao` não existe no documento — é avaliada na leitura. As datas são
+ * absurdamente distantes de propósito, para que o veredito não dependa do dia em que o teste roda.
+ */
+const deadlinesScreen: SchemaScreen = {
+  id: 'prazos',
+  collection: 'deadlines',
+  titleSingular: 'Prazo',
+  titleFieldKey: 'title',
+  fields: [
+    { key: 'dueDate', label: 'Vencimento', type: 'date', required: false, order: 0, origin: 'plugin' },
+    {
+      key: 'situacao',
+      label: 'Situação',
+      type: 'text',
+      required: false,
+      order: 1,
+      origin: 'plugin',
+      logic: { derive: "if(dueDate < today(), 'atrasado', 'em dia')" },
+    },
+  ],
+};
+
+const screenProvider: IScreenDefinitionProvider = fakeScreenProvider([
+  personsScreen,
+  contractsScreen,
+  deadlinesScreen,
+]);
 
 const logger = { info: () => {}, warn: () => {}, error: () => {} };
 
@@ -160,5 +187,50 @@ describe('QueryStep', () => {
     expect(outcome.success).toBe(true);
     expect(repo.calls[0].collection).toBe('processos');
     expect(repo.calls[0].equalityFilters).toEqual([]);
+  });
+});
+
+describe('QueryStep — campo derivado na leitura', () => {
+  const rows = [
+    { id: 'd1', data: { dueDate: '2000-01-01' } },
+    { id: 'd2', data: { dueDate: '2999-01-01' } },
+  ];
+
+  it('o valor derivado chega ao resultado, mesmo sem existir no documento', async () => {
+    const { result } = run(baseSpec({ table: 'deadlines' }), rows);
+
+    const outcome = await result;
+    expect(outcome.success).toBe(true);
+    expect((outcome.outputs?.results as Record<string, unknown>[]).map((r) => r.situacao))
+      .toEqual(['atrasado', 'em dia']);
+  });
+
+  /**
+   * O ponto crítico: empurrado como igualdade, o filtro consultaria um campo que não está gravado e
+   * voltaria vazio — e vazio não se distingue de "nenhum registro atende".
+   */
+  it('não vira filtro de igualdade no servidor, e filtra em memória', async () => {
+    const { repo, result } = run(
+      baseSpec({
+        table: 'deadlines',
+        where: [{ path: 'situacao', op: 'eq', value: { kind: 'Literal', value: 'atrasado' } }],
+      }),
+      rows,
+    );
+
+    const outcome = await result;
+    expect(repo.calls[0].equalityFilters).toEqual([]);
+    expect(outcome.outputs?.count).toBe(1);
+    expect((outcome.outputs?.results as { id: string }[])[0].id).toBe('d1');
+  });
+
+  it('ordena pelo valor derivado, em memória', async () => {
+    const { result } = run(
+      baseSpec({ table: 'deadlines', orderBy: [{ path: 'situacao', dir: 'asc' }] }),
+      rows,
+    );
+
+    const outcome = await result;
+    expect((outcome.outputs?.results as { id: string }[]).map((r) => r.id)).toEqual(['d1', 'd2']);
   });
 });

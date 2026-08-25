@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { configuredInstant, resetAmbientInstant } from './clockGate';
 import { resetAmbientLocale, setAmbientLocale } from './i18n/localeGate';
 import { evaluateFieldBoolean, evaluateFieldExpression, evaluateFieldValidation, extractFieldExpressionDependencies } from './fieldExpression';
 
@@ -322,5 +323,32 @@ describe('demais funções trazidas do catálogo do Workflow', () => {
     setAmbientLocale('en-US');
     expect(evaluateFieldExpression("formatMoney(1234.5, 'pt-BR')", ctx)).toBe('R$ 1.234,50');
     resetAmbientLocale();
+  });
+});
+
+describe('instante da avaliação — o relógio como contexto', () => {
+  const dia = new Date('2026-08-01T09:00:00.000Z');
+
+  it('today() e now() respondem sobre o instante recebido', () => {
+    const ctx = { value: null, data: {}, at: dia };
+    expect(evaluateFieldExpression('today()', ctx)).toBe('2026-08-01');
+    expect(evaluateFieldExpression('now()', ctx)).toBe('2026-08-01T09:00:00.000Z');
+  });
+
+  it('sem instante no contexto, vale o relógio — que é o que a gravação sempre fez', () => {
+    const hoje = new Date().toISOString().slice(0, 10);
+    expect(evaluateFieldExpression('today()', { value: null, data: {} })).toBe(hoje);
+  });
+
+  /**
+   * O gate volta ao estado anterior, e "anterior" aqui é NENHUM instante. Restaurar o relógio lido
+   * na entrada o prenderia: a partir da primeira derivação, toda expressão do processo passaria a
+   * responder sobre aquele momento — e um valor de leitura envelheceria exatamente como o campo
+   * gravado que ele veio substituir.
+   */
+  it('devolve o gate ao estado anterior, sem prender o relógio', () => {
+    resetAmbientInstant();
+    evaluateFieldExpression('today()', { value: null, data: {}, at: dia });
+    expect(configuredInstant()).toBeNull();
   });
 });

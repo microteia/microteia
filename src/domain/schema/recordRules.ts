@@ -65,7 +65,7 @@ export const resolveFieldRules = (
   return field?.rules ? { rules: field.rules, label: field.label } : undefined;
 };
 
-export type FieldLogicSlot = 'validate' | 'compute';
+export type FieldLogicSlot = 'validate' | 'compute' | 'derive';
 
 export interface FieldLogicTarget {
   key: string;
@@ -93,7 +93,8 @@ const readLogicSlot = (
   logic: FieldLogic | null | undefined,
   slot: FieldLogicSlot,
 ): string | undefined => {
-  const expr = slot === 'validate' ? logic?.validate : logic?.compute;
+  const expr =
+    slot === 'validate' ? logic?.validate : slot === 'compute' ? logic?.compute : logic?.derive;
   return expr && expr.trim() ? expr : undefined;
 };
 
@@ -187,13 +188,18 @@ export const orderComputeTargets = (targets: FieldLogicTarget[]): FieldLogicTarg
 const evaluateComputeTargets = (
   targets: FieldLogicTarget[],
   scope: Record<string, unknown>,
+  at?: Date,
 ): Map<string, unknown> => {
   const resolved = new Map<string, unknown>();
   const working = { ...scope };
 
   for (const target of orderComputeTargets(targets)) {
     try {
-      const value = evaluateFieldExpression(target.expr, { value: working[target.key], data: working });
+      const value = evaluateFieldExpression(target.expr, {
+        value: working[target.key],
+        data: working,
+        at,
+      });
       if (value === undefined) continue;
       working[target.key] = value;
       resolved.set(target.key, value);
@@ -259,6 +265,73 @@ export const applyComputedFields = (
   return next;
 };
 
+/**
+ * As chaves dos campos DERIVADOS da tabela. Elas nunca são gravadas: o portão de escrita as
+ * descarta do payload, venha ele do formulário, de uma automação, de um Script ou de uma callable.
+ */
+export const collectDerivedFieldKeys = (
+  ctx: SchemaContext,
+  table: string,
+): ReadonlySet<string> =>
+  new Set(collectFieldLogicTargets(ctx, table, 'derive').map((target) => target.key));
+
+/**
+ * Avalia as expressões `logic.derive` sobre um registro JÁ LIDO e devolve a cópia com os valores no
+ * lugar. É a contrapartida de leitura do `applyComputedFields` — e o motivo de ela existir é que uma
+ * expressão que consulta o relógio não sobrevive à gravação: o valor certo é o do momento em que se
+ * olha, não o do momento em que se salvou.
+ *
+ * `at` é o instante que `today()`/`now()` respondem. Quem lê uma lista o captura UMA vez e o passa a
+ * todos os registros, para que a lista inteira fale do mesmo momento. Ausente, vale o relógio.
+ *
+ * Expressão que estoura deixa a chave ausente — campo derivado nunca impede uma leitura.
+ */
+export const applyDerivedFields = (
+  ctx: SchemaContext,
+  table: string,
+  record: Record<string, unknown>,
+  at?: Date,
+): Record<string, unknown> => {
+  const targets = collectFieldLogicTargets(ctx, table, 'derive');
+  if (targets.length === 0) return record;
+
+  const resolved = evaluateComputeTargets(targets, buildRecordFieldScope(ctx, table, record), at);
+  if (resolved.size === 0) return record;
+
+  const next = { ...record };
+  for (const target of targets) {
+    if (resolved.has(target.key)) setValueAtPath(next, target.path, resolved.get(target.key));
+  }
+
+  return next;
+};
+
+/**
+ * Versão plana, para o formulário: recebe os campos de uma tela e os valores por chave, devolvendo
+ * só os derivados. Mesma relação que `computeFieldValues` tem com `applyComputedFields`.
+ */
+export const deriveFieldValues = (
+  fields: { key: string; label?: string; logic?: FieldLogic | null }[],
+  values: Record<string, unknown>,
+  at?: Date,
+): Record<string, unknown> => {
+  const targets: FieldLogicTarget[] = [];
+  for (const field of fields) {
+    const expr = readLogicSlot(field.logic, 'derive');
+    if (!expr) continue;
+    targets.push({
+      key: field.key,
+      path: field.key,
+      label: field.label ?? field.key,
+      expr,
+      dependencies: extractFieldExpressionDependencies(expr),
+    });
+  }
+  if (targets.length === 0) return {};
+
+  return Object.fromEntries(evaluateComputeTargets(targets, values, at));
+};
+
 export interface RecordRulesOutcome {
   data: Record<string, unknown>;
   issues: RuleIssue[];
@@ -293,8 +366,13 @@ export const formatAndValidateRecord = (
 ): RecordRulesOutcome => {
   const next: Record<string, unknown> = {};
   const issues: RuleIssue[] = [];
+  // Campo derivado não se grava. A folha é descartada aqui — antes da coerção, do formato e da
+  // validação —, e é por isso que `compute` e `validate` não o enxergam no escopo: os dois rodam na
+  // gravação, e um valor de leitura ali seria o do instante do save, congelado no documento.
+  const derived = collectDerivedFieldKeys(ctx, table);
 
   for (const leaf of flattenDataLeaves(data)) {
+    if (derived.has(leaf.path.split('.')[0])) continue;
     const skipped = options.skipPaths?.has(leaf.path.split('.')[0]);
     const field = skipped ? undefined : resolveFieldSpec(ctx, table, leaf.path);
     const value = field ? coerceWriteValue(field.type, leaf.value) : leaf.value;

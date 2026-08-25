@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTheme } from 'styled-components';
 import { useLookups } from '../../../../stores/useLookups';
 import { useAuthorization } from '../../../../stores/useAuthorization';
@@ -6,7 +6,7 @@ import { PERMISSION_SCREENS_MANAGE } from '../../../../domain/schema/access';
 import { useReferenceOptions } from '../../../hooks/useReferenceOptions';
 import { readValueByPath, sortFieldsByOrder } from '../../../../domain/services/customFieldValues';
 import { evaluateFieldBoolean, evaluateFieldValidation } from '../../../../domain/schema/fieldExpression';
-import { computeFieldValues } from '../../../../domain/schema/recordRules';
+import { computeFieldValues, deriveFieldValues } from '../../../../domain/schema/recordRules';
 import { buildHydratedFieldScope } from '../../../../domain/schema/referenceScope';
 import { buildFieldUiScope } from '../../../../domain/schema/fieldUiScope';
 import { useRecordResolver } from '../../../shared/useRecordResolver';
@@ -23,6 +23,27 @@ export interface LookupOptionSet {
 }
 
 const readByPath = readValueByPath;
+
+/**
+ * O instante que os campos derivados (`logic.derive`) respondem, mantido em ESTADO — e não lido do
+ * relógio no corpo do render, que é função impura e o que a regra de pureza do React Compiler
+ * proíbe. Ele se renova quando a aba volta ao foco, pelo mesmo gesto que faz os Stores relerem: o
+ * valor derivado fala do momento em que se olha, então "voltar a olhar" é exatamente o evento que
+ * precisa refazê-lo.
+ */
+const useDerivationInstant = (): Date => {
+  const [at, setAt] = useState(() => new Date());
+
+  useEffect(() => {
+    const refresh = (): void => {
+      if (document.visibilityState === 'visible') setAt(new Date());
+    };
+    document.addEventListener('visibilitychange', refresh);
+    return () => document.removeEventListener('visibilitychange', refresh);
+  }, []);
+
+  return at;
+};
 
 export interface CustomFieldsSectionProps {
   fields: FieldDefinition[];
@@ -112,12 +133,22 @@ export const useCustomFieldsSectionViewModel = (props: CustomFieldsSectionProps)
     isNew,
   });
 
+  const derivationInstant = useDerivationInstant();
+
   // Os campos calculados são derivados aqui apenas para exibição: quem os persiste é
-  // formatAndValidateRecord, na gravação, com a mesma avaliação.
-  const values = useMemo<Record<string, CustomFieldValue>>(
-    () => ({ ...rawValues, ...(computeFieldValues(fields, rawValues) as Record<string, CustomFieldValue>) }),
-    [fields, rawValues],
-  );
+  // formatAndValidateRecord, na gravação, com a mesma avaliação. Os DERIVADOS são avaliados pela
+  // mesma razão de sempre — ninguém os persiste em lugar nenhum —, e um registro já lido chega com
+  // eles prontos; aqui eles se refazem enquanto se digita, e num registro novo é o único cálculo
+  // que existe.
+  const values = useMemo<Record<string, CustomFieldValue>>(() => {
+    // O derivado enxerga o calculado, e não o contrário: `compute` roda na gravação, onde campo
+    // derivado nenhum existe. Avaliar nesta ordem é o que faz a tela concordar com o servidor.
+    const computed = { ...rawValues, ...computeFieldValues(fields, rawValues) };
+    return {
+      ...computed,
+      ...deriveFieldValues(fields, computed, derivationInstant),
+    } as Record<string, CustomFieldValue>;
+  }, [fields, rawValues, derivationInstant]);
 
   const groups = useMemo<FieldGroup[]>(() => {
     const ordered = sortFieldsByOrder(fields);
@@ -282,6 +313,7 @@ export const useCustomFieldsSectionViewModel = (props: CustomFieldsSectionProps)
     (field: FieldDefinition): boolean =>
       disabled ||
       Boolean(field.logic?.compute) ||
+      Boolean(field.logic?.derive) ||
       Boolean(field.aggregation) ||
       evaluateFieldBoolean(field.logic?.disabledWhen, {
         value: hydratedScope[field.key],

@@ -5,6 +5,7 @@
 
 import { Parser } from 'expr-eval';
 import { isEmptyRuleValue, isValidCnpj, isValidCpf, onlyDigits } from './fieldRulePresets';
+import { ambientInstant, configuredInstant, setAmbientInstant } from './clockGate';
 import { ambientLocale } from './i18n/localeGate';
 import {
   ambientEntity,
@@ -30,6 +31,12 @@ export interface FieldExprContext {
    * dependência de render.
    */
   permissions?: readonly string[];
+  /**
+   * O instante que `today()` e `now()` devem responder. Ausente, vale o relógio — que é o que a
+   * gravação sempre fez. Quem o traz é a derivação na leitura (`logic.derive`), para que a lista
+   * inteira responda sobre o mesmo momento. Ver `clockGate.ts`.
+   */
+  at?: Date;
 }
 
 const EXPRESSION_OPERATORS = {
@@ -257,8 +264,8 @@ const FIELD_EXPRESSION_FUNCTIONS: Record<string, (...args: unknown[]) => unknown
     delete clone[asText(key)];
     return clone;
   },
-  today: () => new Date().toISOString().slice(0, 10),
-  now: () => new Date().toISOString(),
+  today: () => ambientInstant().toISOString().slice(0, 10),
+  now: () => ambientInstant().toISOString(),
   /**
    * O RESULTADO tem a forma da ENTRADA: dia entra, dia sai (`YYYY-MM-DD`, que é o que um campo de
    * data guarda e o que `today()` devolve); instante entra, instante sai. Assim
@@ -375,13 +382,16 @@ export const evaluateFieldExpression = (expr: string, ctx: FieldExprContext): un
   // uma tela.
   const previousEntity = ambientEntity();
   const previousPermissions = ambientPermissions();
+  const previousInstant = configuredInstant();
   setAmbientEntity(ctx.entity ?? '');
   if (ctx.permissions) setAmbientPermissions(ctx.permissions);
+  if (ctx.at) setAmbientInstant(ctx.at);
   try {
     return fieldParser.parse(expr).evaluate(buildScope(ctx) as never);
   } finally {
     setAmbientEntity(previousEntity);
     setAmbientPermissions(previousPermissions);
+    if (ctx.at) setAmbientInstant(previousInstant);
   }
 };
 

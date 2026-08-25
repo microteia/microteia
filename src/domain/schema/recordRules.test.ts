@@ -2,7 +2,13 @@ import { describe, expect, it } from 'vitest';
 import type { FieldDefinition } from '../entities/entitySchemas';
 import { createSchemaContext } from './pathResolver';
 import type { SchemaScreen } from './pathResolver';
-import { computeFieldValues, formatAndValidateRecord } from './recordRules';
+import {
+  applyDerivedFields,
+  collectDerivedFieldKeys,
+  computeFieldValues,
+  deriveFieldValues,
+  formatAndValidateRecord,
+} from './recordRules';
 import { BR_FIELD_RULE_PRESETS } from '../../plugins/marketplace/brasil';
 
 const field = (overrides: Partial<FieldDefinition> & Pick<FieldDefinition, 'key' | 'label'>): FieldDefinition => ({
@@ -313,6 +319,131 @@ describe('computeFieldValues — preview do formulário', () => {
 
   it('devolve objeto vazio quando nenhum campo é calculado', () => {
     expect(computeFieldValues([field({ key: 'nome', label: 'Nome' })], { nome: 'Ana' })).toEqual({});
+  });
+});
+
+/**
+ * O caso que originou o slot: um prazo cujo veredito depende do DIA EM QUE SE OLHA. Gravado por
+ * `compute`, ele guardaria a resposta do dia da gravação e mentiria a partir do dia seguinte.
+ */
+const deriveScreens: SchemaScreen[] = [
+  {
+    id: 'prazos',
+    collection: 'prazos',
+    titleSingular: 'Prazo',
+    titleFieldKey: 'titulo',
+    fields: [
+      field({ key: 'titulo', label: 'Título' }),
+      field({ key: 'vencimento', label: 'Vencimento', type: 'date' }),
+      field({ key: 'dias', label: 'Dias de folga', type: 'number' }),
+      field({
+        key: 'situacao',
+        label: 'Situação',
+        logic: { derive: "if(vencimento < today(), 'atrasado', 'em dia')" },
+      }),
+      field({
+        key: 'aviso',
+        label: 'Aviso',
+        logic: { derive: "concat(titulo, ': ', situacao)" },
+      }),
+      field({
+        key: 'limite',
+        label: 'Limite',
+        logic: { compute: 'addDays(vencimento, dias)' },
+      }),
+    ],
+  },
+];
+
+const deriveCtx = createSchemaContext(deriveScreens);
+
+const emJulho = new Date('2026-07-15T12:00:00.000Z');
+const emSetembro = new Date('2026-09-15T12:00:00.000Z');
+
+describe('applyDerivedFields — o valor derivado na leitura', () => {
+  it('responde sobre o instante recebido, e não sobre o da gravação', () => {
+    const gravado = { titulo: 'Entrega', vencimento: '2026-08-01' };
+
+    expect(applyDerivedFields(deriveCtx, 'prazos', gravado, emJulho).situacao).toBe('em dia');
+    expect(applyDerivedFields(deriveCtx, 'prazos', gravado, emSetembro).situacao).toBe('atrasado');
+  });
+
+  it('não altera o registro recebido — o valor derivado só existe na cópia lida', () => {
+    const gravado: Record<string, unknown> = { titulo: 'Entrega', vencimento: '2026-08-01' };
+    applyDerivedFields(deriveCtx, 'prazos', gravado, emSetembro);
+    expect(gravado).not.toHaveProperty('situacao');
+  });
+
+  it('encadeia derivados na ordem de dependência', () => {
+    const lido = applyDerivedFields(
+      deriveCtx,
+      'prazos',
+      { titulo: 'Entrega', vencimento: '2026-08-01' },
+      emSetembro,
+    );
+    expect(lido.aviso).toBe('Entrega: atrasado');
+  });
+
+  it('devolve o próprio registro quando a tabela não tem campo derivado', () => {
+    const gravado = { nome: 'Ana' };
+    expect(applyDerivedFields(computeCtx, 'itens', gravado, emJulho)).toBe(gravado);
+  });
+
+  it('expressão que estoura deixa a chave ausente, sem impedir a leitura', () => {
+    const ctxQuebrado = createSchemaContext([
+      {
+        id: 'prazos',
+        titleSingular: 'Prazo',
+        titleFieldKey: 'titulo',
+        fields: [
+          field({ key: 'titulo', label: 'Título' }),
+          field({ key: 'quebrado', label: 'Quebrado', logic: { derive: 'inexistente.campo' } }),
+        ],
+      },
+    ]);
+    const lido = applyDerivedFields(ctxQuebrado, 'prazos', { titulo: 'Entrega' }, emJulho);
+    expect(lido).not.toHaveProperty('quebrado');
+    expect(lido.titulo).toBe('Entrega');
+  });
+});
+
+describe('formatAndValidateRecord — campo derivado nunca é gravado', () => {
+  it('descarta a folha derivada do payload, venha ela de onde vier', () => {
+    const outcome = formatAndValidateRecord(deriveCtx, 'prazos', {
+      titulo: 'Entrega',
+      vencimento: '2026-08-01',
+      situacao: 'em dia',
+    });
+    expect(outcome.data).not.toHaveProperty('situacao');
+    expect(outcome.data.titulo).toBe('Entrega');
+    expect(outcome.issues).toHaveLength(0);
+  });
+
+  it('o campo calculado continua sendo gravado, ao lado do derivado que não é', () => {
+    const outcome = formatAndValidateRecord(deriveCtx, 'prazos', {
+      titulo: 'Entrega',
+      vencimento: '2026-08-01',
+      dias: 5,
+    });
+    expect(String(outcome.data.limite)).toContain('2026-08-06');
+    expect(outcome.data).not.toHaveProperty('situacao');
+  });
+
+  it('collectDerivedFieldKeys enumera as chaves que o portão de escrita descarta', () => {
+    expect([...collectDerivedFieldKeys(deriveCtx, 'prazos')].sort()).toEqual(['aviso', 'situacao']);
+    expect(collectDerivedFieldKeys(computeCtx, 'itens').size).toBe(0);
+  });
+});
+
+describe('deriveFieldValues — preview do formulário', () => {
+  it('devolve apenas os campos derivados, na ordem de dependência', () => {
+    expect(
+      deriveFieldValues(deriveScreens[0].fields, { titulo: 'Entrega', vencimento: '2026-08-01' }, emSetembro),
+    ).toEqual({ situacao: 'atrasado', aviso: 'Entrega: atrasado' });
+  });
+
+  it('devolve objeto vazio quando nenhum campo é derivado', () => {
+    expect(deriveFieldValues([field({ key: 'nome', label: 'Nome' })], { nome: 'Ana' })).toEqual({});
   });
 });
 

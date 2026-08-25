@@ -902,6 +902,16 @@ export const ScreenBuilderView: React.FC = () => {
                     />
                   </InputGroup>
                   <InputGroup>
+                    <Label>{t('field.expression.derive')}</Label>
+                    <ExpressionEditor
+                      value={vm.fieldForm.logicDerive}
+                      onChange={(value) => vm.updateFieldForm({ logicDerive: value })}
+                      workflowVariables={vm.fieldExpressionVariables}
+                      placeholder={t('field.expression.derive.placeholder')}
+                    />
+                    <S.FieldHint>{t('field.expression.derive.hint')}</S.FieldHint>
+                  </InputGroup>
+                  <InputGroup>
                     <Label>{t('field.expression.validate')}</Label>
                     <ExpressionEditor
                       value={vm.fieldForm.logicValidate}

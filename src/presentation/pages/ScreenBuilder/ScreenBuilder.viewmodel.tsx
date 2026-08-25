@@ -163,6 +163,7 @@ export interface FieldFormState {
   logicDisabledWhen: string;
   logicHiddenWhen: string;
   logicCompute: string;
+  logicDerive: string;
   logicOnChange: string;
   lookupProvider: string;
   lookupTargetPrefix: string;
@@ -372,6 +373,7 @@ const EMPTY_FIELD_FORM: FieldFormState = {
   logicDisabledWhen: '',
   logicHiddenWhen: '',
   logicCompute: '',
+  logicDerive: '',
   logicOnChange: '',
   lookupProvider: '',
   lookupTargetPrefix: '',
@@ -444,6 +446,7 @@ const buildFieldLogic = (form: FieldFormState): FieldLogic | null => {
   if (form.logicDisabledWhen.trim()) logic.disabledWhen = form.logicDisabledWhen.trim();
   if (form.logicHiddenWhen.trim()) logic.hiddenWhen = form.logicHiddenWhen.trim();
   if (form.logicCompute.trim()) logic.compute = form.logicCompute.trim();
+  if (form.logicDerive.trim()) logic.derive = form.logicDerive.trim();
   if (form.logicOnChange.trim()) logic.onChange = form.logicOnChange.trim();
   const lookup = buildFieldLookup(form);
   if (lookup) logic.onChangeLookup = lookup;
@@ -515,19 +518,23 @@ const fieldFileToForm = (file: FieldFileConfig | null | undefined): Pick<
 /**
  * Um campo calculado que dependa (direta ou indiretamente) de si mesmo nunca seria avaliado: o
  * motor descarta os campos em ciclo. Recusar na autoria evita a expressão que "não faz nada".
+ *
+ * O slot é parâmetro porque `compute` e `derive` formam grafos SEPARADOS: um roda na gravação e o
+ * outro na leitura, e um ciclo só existe dentro de um deles.
  */
-const findComputeCycle = (
+const findExpressionCycle = (
   fields: FieldDefinition[],
   editedKey: string,
-  editedCompute: string,
+  editedExpr: string,
+  slot: 'compute' | 'derive',
 ): boolean => {
   const dependenciesOf = new Map<string, string[]>();
   for (const field of fields) {
     if (field.key === editedKey) continue;
-    const expr = field.logic?.compute;
+    const expr = slot === 'compute' ? field.logic?.compute : field.logic?.derive;
     if (expr) dependenciesOf.set(field.key, extractFieldExpressionDependencies(expr));
   }
-  dependenciesOf.set(editedKey, extractFieldExpressionDependencies(editedCompute));
+  dependenciesOf.set(editedKey, extractFieldExpressionDependencies(editedExpr));
 
   const visiting = new Set<string>();
   const reachesEdited = (key: string): boolean => {
@@ -543,14 +550,26 @@ const findComputeCycle = (
   return reachesEdited(editedKey);
 };
 
+/**
+ * Um valor derivado é avaliado na LEITURA e não vai ao documento. Quem roda na GRAVAÇÃO — o campo
+ * calculado e o agregado do pai — não pode depender dele: no primeiro caso a expressão estouraria e
+ * o campo ficaria em silêncio; no segundo o total seria gravado, e voltaria a envelhecer exatamente
+ * como o campo que o derivado veio substituir.
+ */
+const derivedKeyIn = (fields: FieldDefinition[], dependencies: string[]): string | null =>
+  dependencies.find((dependency) =>
+    fields.some((field) => field.key === dependency && Boolean(field.logic?.derive)),
+  ) ?? null;
+
 const fieldLogicToForm = (logic: FieldLogic | null | undefined): Pick<
   FieldFormState,
-  'logicValidate' | 'logicDisabledWhen' | 'logicHiddenWhen' | 'logicCompute' | 'logicOnChange' | 'lookupProvider' | 'lookupTargetPrefix'
+  'logicValidate' | 'logicDisabledWhen' | 'logicHiddenWhen' | 'logicCompute' | 'logicDerive' | 'logicOnChange' | 'lookupProvider' | 'lookupTargetPrefix'
 > => ({
   logicValidate: logic?.validate ?? '',
   logicDisabledWhen: logic?.disabledWhen ?? '',
   logicHiddenWhen: logic?.hiddenWhen ?? '',
   logicCompute: logic?.compute ?? '',
+  logicDerive: logic?.derive ?? '',
   logicOnChange: logic?.onChange ?? '',
   lookupProvider: logic?.onChangeLookup?.provider ?? '',
   lookupTargetPrefix: logic?.onChangeLookup?.targetPrefix ?? '',
@@ -1670,13 +1689,32 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       reject('advanced', t('field.error.format-regex'));
       return;
     }
+    const editedKey = fieldModal.fieldKey ?? (fieldForm.fieldKey.trim() || slugifyFieldKey(fieldLabel));
+    const screenFields = getDefinitionByKey(fieldModal.screenKey)?.fields ?? [];
+    if (fieldForm.logicCompute.trim() && fieldForm.logicDerive.trim()) {
+      reject('advanced', t('field.error.derive-and-compute'));
+      return;
+    }
     if (fieldForm.logicCompute.trim()) {
-      const computeKey = fieldModal.fieldKey ?? (fieldForm.fieldKey.trim() || slugifyFieldKey(fieldLabel));
-      const screenFields = getDefinitionByKey(fieldModal.screenKey)?.fields ?? [];
-      if (findComputeCycle(screenFields, computeKey, fieldForm.logicCompute.trim())) {
+      if (findExpressionCycle(screenFields, editedKey, fieldForm.logicCompute.trim(), 'compute')) {
         reject('advanced', t('field.error.compute-cycle'));
         return;
       }
+      const derivedDependency = derivedKeyIn(
+        screenFields,
+        extractFieldExpressionDependencies(fieldForm.logicCompute.trim()),
+      );
+      if (derivedDependency) {
+        reject('advanced', t('field.error.compute-needs-stored', { field: derivedDependency }));
+        return;
+      }
+    }
+    if (
+      fieldForm.logicDerive.trim() &&
+      findExpressionCycle(screenFields, editedKey, fieldForm.logicDerive.trim(), 'derive')
+    ) {
+      reject('advanced', t('field.error.derive-cycle'));
+      return;
     }
     const aggregation = buildFieldAggregation(fieldForm);
     if (aggregation) {
@@ -1686,6 +1724,11 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       }
       if (aggregationCreatesCycle(schemaContext, fieldModal.screenKey, aggregation.from)) {
         reject('advanced', t('field.error.aggregation-cycle'));
+        return;
+      }
+      const childFields = getDefinitionByKey(aggregation.from)?.fields ?? [];
+      if (aggregation.field && derivedKeyIn(childFields, [aggregation.field])) {
+        reject('advanced', t('field.error.aggregation-needs-stored', { field: aggregation.field }));
         return;
       }
     }

@@ -8,7 +8,7 @@ import type { SchemaContext, SchemaScreen } from '../../domain/schema/pathResolv
 import { createSchemaContext } from '../../domain/schema/pathResolver';
 import type { SchemaLookup, SchemaTagList } from '../../domain/schema/screenEntity';
 import type { FieldRulePreset } from '../../domain/schema/fieldRulePresets';
-import { collectFieldLogicTargets, formatAndValidateRecord } from '../../domain/schema/recordRules';
+import { applyDerivedFields, collectFieldLogicTargets, formatAndValidateRecord } from '../../domain/schema/recordRules';
 
 export class RecordRulesError extends Error {
   readonly issues: RuleIssue[];
@@ -110,6 +110,27 @@ export const loadRecordBaseline = async (
   if (!tableHasComputedFields(table)) return undefined;
   const snap = await getDoc(ref);
   return snap.exists() ? (snap.data() as Record<string, unknown>) : undefined;
+};
+
+/**
+ * O portão de LEITURA, espelho do `applyRecordRules`: devolve a função que põe os campos derivados
+ * (`logic.derive`) em cada registro lido da coleção.
+ *
+ * É uma FÁBRICA, e não uma função por registro, por duas razões. Os alvos são resolvidos uma vez por
+ * leitura, em vez de uma vez por documento — uma listagem de 200 registros percorria o schema 200
+ * vezes. E o instante é capturado uma vez: todos os registros de uma mesma leitura respondem sobre o
+ * mesmo momento, senão dois vizinhos discordariam sobre que dia é hoje numa lista que atravessa a
+ * meia-noite.
+ *
+ * Sem nenhum campo derivado, devolve a identidade — nada é copiado e nada é avaliado.
+ */
+export const makeRecordDeriver = (table: string): (<T extends object>(record: T) => T) => {
+  if (collectFieldLogicTargets(schemaContext, table, 'derive').length === 0) {
+    return <T extends object>(record: T): T => record;
+  }
+  const at = new Date();
+  return <T extends object>(record: T): T =>
+    applyDerivedFields(schemaContext, table, record as Record<string, unknown>, at) as T;
 };
 
 export const validateRecordRules = (table: string, data: object): RuleIssue[] =>

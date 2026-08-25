@@ -568,7 +568,8 @@ no statements, no assignment, no side effects.
 
 | Where | What it decides |
 |---|---|
-| \`field.logic.compute\` | the field's value, derived from the record |
+| \`field.logic.compute\` | the field's value, derived from the record and stored on save |
+| \`field.logic.derive\` | the field's value, evaluated on every read and never stored |
 | \`field.logic.validate\` | whether the value is acceptable |
 | \`field.logic.hiddenWhen\`, \`disabledWhen\` | whether the field is shown, and whether it can be edited |
 | \`field.logic.onChange\` | an object merged into the form when this field changes — seeds values the person can still edit |
@@ -582,7 +583,7 @@ no statements, no assignment, no side effects.
 
 | Slot | What is in scope |
 |---|---|
-| \`compute\`, \`validate\` | the record's fields at the root, plus \`value\` (= \`self\`) — the field's own value. These two run on the client AND on the server, so they must not depend on anything else |
+| \`compute\`, \`validate\`, \`derive\` | the record's fields at the root, plus \`value\` (= \`self\`) — the field's own value. These three run on the client AND on the server, so they must not depend on anything else. A \`derive\` also sees the \`compute\` results; the reverse cannot happen, because \`compute\` runs on save and no derived value exists there |
 | \`hiddenWhen\`, \`disabledWhen\`, \`onChange\` of a field | the above, plus \`isNew\` and \`isDirty\`. Client only |
 | an action's expressions | the form's current values at the root, plus \`record\` (as stored, \`{}\` when new), \`isNew\`, \`isDirty\`, \`permissions\`, \`surface\` (\`detail\` / \`list\` / \`parentTab\`), \`relation\` (\`none\` / \`owned\` / \`related\`), \`user\` |
 | \`badge.when\` | each record's fields at the root, plus \`user\` |
@@ -590,6 +591,28 @@ no statements, no assignment, no side effects.
 
 \`user\` is \`{ id, name, permissions }\`. A reserved name wins over a field of the same key — a field
 called \`record\` is still reachable as \`record.record\`.
+
+### Computed or derived — the question is whether the expression asks the clock
+
+\`compute\` and \`derive\` both give a field its value from an expression. The difference is WHEN, and
+picking the wrong one produces a field that lies without ever failing.
+
+\`compute\` runs on save and the value is stored. That is what you want when the value depends only on
+the record: a total, a full name, a composed label. It sits in the document, so it is indexable,
+filterable and sortable on the server, and it cannot go stale — nothing outside the record moved.
+
+\`derive\` runs on every read and is never stored. Reach for it the moment the expression asks the
+clock — \`today()\`, \`now()\`, an age, a countdown, whether a due date has passed. Stored, that answer
+is the answer of the day it was saved: a record saved today as on time stays on time a year later,
+and nothing in the system ever comes back to correct it. Derived, it answers about the moment someone
+is looking.
+
+What you give up is storage, and everything that follows from it. A derived value does not exist in
+the document: it never becomes a Firestore index or an equality filter on the server, and a parent
+field cannot aggregate over it (the aggregate IS stored, so it would freeze the same way). Filtering
+and sorting still work — in memory, over the records already loaded, exactly as a filter across a
+link field does. It is read-only in the form, and it is stripped from every write, so \`compute\` and
+\`validate\` cannot see it: both of those run on save, where no derived value exists.
 
 ### Asking about permission
 

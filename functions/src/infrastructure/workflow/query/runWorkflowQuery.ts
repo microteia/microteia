@@ -9,6 +9,7 @@ import { buildHydrationPlan } from '../../../domain/schema/hydrationPlan';
 import { collectHopRecordRefs, materializeHops, recordKey } from '../../../domain/schema/materialize';
 import type { QueryOrderBy, QueryPredicate, QuerySpec } from '../../../domain/schema/querySpec';
 import { resolveQueryTable, validateQuerySpec } from '../../../domain/schema/querySpec';
+import { applyDerivedFields, collectDerivedFieldKeys } from '../../../domain/schema/recordRules';
 
 const MAX_SCAN = 300;
 const MAX_QUERY_LIMIT = 100;
@@ -183,6 +184,13 @@ export async function runWorkflowQuery(
     };
   }
 
+  // Campo derivado (`logic.derive`) não existe no documento: ele é avaliado na leitura, logo abaixo.
+  // Um predicado sobre ele NUNCA pode virar filtro de igualdade no Firestore — a consulta voltaria
+  // vazia, e vazio não se distingue de "nenhum registro atende". Ele fica em memória, como já ficam
+  // os predicados de caminho profundo.
+  const derivedKeys = collectDerivedFieldKeys(ctx, spec.table);
+  const isDerivedPath = (path: string): boolean => derivedKeys.has(path.split('.')[0]);
+
   const predicates: ResolvedPredicate[] = spec.where.map((predicate) => ({
     ...predicate,
     resolvedValue: predicate.value ? resolveMapping(predicate.value, context) : undefined,
@@ -192,7 +200,12 @@ export async function runWorkflowQuery(
   const memoryPredicates: ResolvedPredicate[] = [];
   for (const predicate of predicates) {
     const isDeep = resolvePath(ctx, resolved.root, parsePath(predicate.path)).hops.length > 0;
-    if (predicate.op === 'eq' && predicate.resolvedValue !== undefined && !isDeep) {
+    if (
+      predicate.op === 'eq' &&
+      predicate.resolvedValue !== undefined &&
+      !isDeep &&
+      !isDerivedPath(predicate.path)
+    ) {
       equalityFilters.push({ path: predicate.path, value: predicate.resolvedValue });
     } else {
       memoryPredicates.push(predicate);
@@ -209,7 +222,15 @@ export async function runWorkflowQuery(
     ]),
   ];
 
-  const materialized = await materializeRecords(rows, resolved.root, ctx, pathsToHydrate, tenantId, deps.fetcher);
+  const hydrated = await materializeRecords(rows, resolved.root, ctx, pathsToHydrate, tenantId, deps.fetcher);
+
+  // O instante é um só para a consulta inteira: dois registros da mesma resposta não podem discordar
+  // sobre que dia é hoje.
+  const at = new Date();
+  const materialized =
+    derivedKeys.size === 0
+      ? hydrated
+      : hydrated.map((record) => applyDerivedFields(ctx, spec.table, record, at));
 
   let results = materialized.filter((record) =>
     memoryPredicates.every((predicate) => evaluatePredicate(record, predicate)),

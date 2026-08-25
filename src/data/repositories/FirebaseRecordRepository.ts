@@ -19,7 +19,7 @@ import type { IRecordRepository } from '../../domain/repositories/IRecordReposit
 import type { EntityRecord, EntityRecordValues } from '../../domain/entities/EntityRecord';
 import type { DeletionActor } from '../../domain/entities';
 import { stampDeletionActor } from '../utils/stampDeletionActor';
-import { applyRecordRules, loadRecordBaseline } from '../utils/recordRulesGate';
+import { applyRecordRules, loadRecordBaseline, makeRecordDeriver } from '../utils/recordRulesGate';
 
 const RECORDS_PAGE_LIMIT = 500;
 
@@ -47,13 +47,19 @@ const recordsRef = (tenantId: string, collection: string) =>
 /**
  * Os campos vêm da raiz do documento, sem desempacotamento. `tenantId` e `collection` são de
  * memória — reconstruídos do caminho lido, nunca gravados.
+ *
+ * `derive` é o portão de LEITURA (`makeRecordDeriver`), montado uma vez por leitura e não por
+ * documento: é aqui que os campos `logic.derive` ganham valor. Sendo este o único ponto por onde um
+ * registro entra no front, tudo o que vem depois — lista, card, filtro, ordenação, expressão de
+ * ação — os enxerga como enxerga qualquer campo gravado.
  */
 const mapRecord = (
   id: string,
   d: Record<string, unknown>,
   tenantId: string,
   collection: string,
-): EntityRecord => ({
+  derive: <T extends object>(record: T) => T,
+): EntityRecord => derive({
   ...(toPlainValues(d) as Record<string, unknown>),
   id,
   tenantId,
@@ -83,7 +89,8 @@ export class FirebaseRecordRepository implements IRecordRepository {
   async getAll(tenantId: string, collection: string): Promise<EntityRecord[]> {
     const q = query(recordsRef(tenantId, collection), orderBy('createdAt', 'desc'), limit(RECORDS_PAGE_LIMIT));
     const snap = await getDocs(q);
-    return snap.docs.map((d) => mapRecord(d.id, d.data(), tenantId, collection));
+    const derive = makeRecordDeriver(collection);
+    return snap.docs.map((d) => mapRecord(d.id, d.data(), tenantId, collection, derive));
   }
 
   subscribe(
@@ -96,7 +103,10 @@ export class FirebaseRecordRepository implements IRecordRepository {
     return onSnapshot(
       q,
       (snap) => {
-        onUpdate(snap.docs.map((d) => mapRecord(d.id, d.data(), tenantId, collection)));
+        // O instante nasce a cada snapshot: a lista se refaz quando o dado muda e quando o Store
+        // relê ao voltar o foco, e é aí que o valor derivado volta a falar do momento presente.
+        const derive = makeRecordDeriver(collection);
+        onUpdate(snap.docs.map((d) => mapRecord(d.id, d.data(), tenantId, collection, derive)));
       },
       (error) => {
         console.error(`[RecordRepository] subscribe ${collection}:`, error.message);
@@ -108,7 +118,7 @@ export class FirebaseRecordRepository implements IRecordRepository {
   async getById(tenantId: string, collection: string, recordId: string): Promise<EntityRecord | null> {
     const snap = await getDoc(doc(recordsRef(tenantId, collection), recordId));
     if (!snap.exists()) return null;
-    return mapRecord(snap.id, snap.data(), tenantId, collection);
+    return mapRecord(snap.id, snap.data(), tenantId, collection, makeRecordDeriver(collection));
   }
 
   newId(tenantId: string, collection: string): string {
@@ -136,7 +146,13 @@ export class FirebaseRecordRepository implements IRecordRepository {
       ref = await addDoc(recordsRef(tenantId, collection), payload);
     }
     const snap = await getDoc(ref);
-    return mapRecord(ref.id, snap.data() as Record<string, unknown>, tenantId, collection);
+    return mapRecord(
+      ref.id,
+      snap.data() as Record<string, unknown>,
+      tenantId,
+      collection,
+      makeRecordDeriver(collection),
+    );
   }
 
   async update(

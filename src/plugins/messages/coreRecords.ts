@@ -131,11 +131,12 @@ export const CORE_RECORDS_MESSAGES: Record<string, string> = {
   'field.aggregation.operation.placeholder': 'Choose the operation',
   'field.expression-behaviour': 'Behaviour by expression',
   'field.expression.banner':
-    'In the expressions, reference the screen fields by key (e.g.: status, amount) — start typing to see the suggestions. Use value for the value of the field itself. In Hide, Disable and On change, a link field can be navigated (e.g.: product.price), isNew tells whether the record is being created and isDirty whether something was changed and not saved yet; in Validation and Computed value none of those is available, because those two are also checked on the server.',
+    'In the expressions, reference the screen fields by key (e.g.: status, amount) — start typing to see the suggestions. Use value for the value of the field itself. In Hide, Disable and On change, a link field can be navigated (e.g.: product.price), isNew tells whether the record is being created and isDirty whether something was changed and not saved yet; in Validation, Computed value and Value derived on read none of those is available, because those three are also evaluated on the server.',
   'field.expression.own-value': 'Value of the field itself',
   'field.expression.is-new': 'The record is being created (it does not exist yet)',
   'field.expression.is-dirty': 'Some field was changed and not saved yet',
   'field.expression.compute': 'Computed value (fills the field automatically)',
+  'field.expression.derive': 'Value derived on read (answers about the present, and is never stored)',
   'field.expression.validate': 'Validation (returns the error message, or empty/null if valid)',
   'field.expression.validate.placeholder': "Ex: if(isEmpty(value) and status == 'active', 'Required for active ones', null)",
   'field.expression.hidden.placeholder': 'Ex: electric == false (disappears when NOT electric)',
@@ -151,6 +152,14 @@ export const CORE_RECORDS_MESSAGES: Record<string, string> = {
   'field.error.format-regex': 'The formatting regular expression is invalid.',
   'field.error.compute-cycle':
     'The computed value depends on itself — review the expressions of the computed fields.',
+  'field.error.derive-cycle':
+    'The derived value depends on itself — review the expressions of the derived fields.',
+  'field.error.derive-and-compute':
+    'A field has a single source: use either the computed value, stored on save, or the derived value, evaluated on read — never both.',
+  'field.error.compute-needs-stored':
+    'The computed value cannot depend on "{field}": a derived value is evaluated on read and does not exist when the record is saved.',
+  'field.error.aggregation-needs-stored':
+    'The aggregate cannot measure "{field}": a derived value is not stored, and the aggregate is — the total would freeze at the moment it was calculated.',
   'field.error.aggregation-field': 'Choose the child field to be summed (only the count needs no field).',
   'field.error.file-extensions': 'Use only letters and digits in each extension, separated by commas.',
   'field.error.file-max-size': 'The maximum size must be a number between 1 and {max}.',
@@ -209,6 +218,10 @@ export const CORE_RECORDS_MESSAGES: Record<string, string> = {
   'field.aggregation.filter': 'Consider only the children that match (optional)',
   'field.aggregation.filter.placeholder': "Ex: status != 'cancelled'",
   'field.expression.compute.placeholder': "Ex: trim(concat(firstName, ' ', lastName))",
+  'field.expression.derive.placeholder':
+    "Ex: if(dueDate < today(), 'Overdue', 'On time')",
+  'field.expression.derive.hint':
+    'Use this one whenever the expression asks the clock (today, now): the computed value is stored at save time, so it would keep the answer of the day it was saved. A derived value is not stored — it does not enter an index, and it is filtered and sorted over the records already loaded.',
   'field.expression.disabled': 'Disable when (true/false)',
   'field.expression.disabled.placeholder': "Ex: status == 'closed'",
   'field.expression.on-change': 'On change, fill (returns the fields to fill)',

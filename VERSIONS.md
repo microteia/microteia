@@ -11,6 +11,12 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.10.0] — 2026-08-25
+
+- Um campo pode agora ter o valor calculado **no momento em que se olha**, e não no momento em que se salva. É o que faltava para responder "está atrasado?" sem mentir: um campo calculado guarda a resposta do dia em que o registro foi gravado, então algo salvo hoje como "em dia" continuaria "em dia" um ano depois. O valor derivado responde sempre sobre o presente.
+- Ao criar ou editar um campo no Form Design, o novo espaço "Valor derivado na leitura" fica ao lado do "Valor calculado", com a orientação de quando usar cada um: se a expressão consulta a data de hoje, é derivado.
+- O valor derivado aparece na listagem, no card e no formulário como qualquer outro campo, e pode ser usado em filtro e ordenação. Ele não é gravado — e por isso o Form Design recusa usá-lo onde o valor precisaria estar gravado para não envelhecer de novo, explicando o motivo.
+
 #### [9.9.0] — 2026-08-24
 
 - A Microteia passou a ser distribuída por download. Quem instala não precisa mais receber os arquivos por e-mail ou pen drive: o programa de instalação é obtido por um comando único e ele mesmo busca a versão da plataforma, confere se o arquivo chegou inteiro e só então a coloca no lugar.

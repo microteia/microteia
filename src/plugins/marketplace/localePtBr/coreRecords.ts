@@ -130,11 +130,12 @@ export const CORE_RECORDS: Record<string, string> = {
   'field.aggregation.operation.placeholder': 'Escolha a operação',
   'field.expression-behaviour': 'Comportamento por expressão',
   'field.expression.banner':
-    'Nas expressões, referencie os campos da tela pela chave (ex.: status, valor) — comece a digitar para ver as sugestões. Use value para o valor do próprio campo. Em Ocultar, Desabilitar e Ao alterar, um campo de vínculo pode ser navegado (ex.: produto.preco), isNew diz se o registro está sendo criado e isDirty se algo foi alterado e ainda não salvo; em Validação e Valor calculado nenhum dos três existe, pois essas duas também são conferidas no servidor.',
+    'Nas expressões, referencie os campos da tela pela chave (ex.: status, valor) — comece a digitar para ver as sugestões. Use value para o valor do próprio campo. Em Ocultar, Desabilitar e Ao alterar, um campo de vínculo pode ser navegado (ex.: produto.preco), isNew diz se o registro está sendo criado e isDirty se algo foi alterado e ainda não salvo; em Validação, Valor calculado e Valor derivado na leitura nenhum dos três existe, pois essas três também são avaliadas no servidor.',
   'field.expression.own-value': 'Valor do próprio campo',
   'field.expression.is-new': 'O registro está sendo criado (ainda não existe)',
   'field.expression.is-dirty': 'Algum campo foi alterado e ainda não foi salvo',
   'field.expression.compute': 'Valor calculado (preenche o campo automaticamente)',
+  'field.expression.derive': 'Valor derivado na leitura (responde sobre o presente, e nunca é gravado)',
   'field.expression.validate': 'Validação (retorna a mensagem de erro, ou vazio/null se válido)',
   'field.expression.validate.placeholder': "Ex: if(isEmpty(value) and status == 'ativo', 'Obrigatório para ativos', null)",
   'field.expression.hidden.placeholder': 'Ex: eletrico == false (some quando NÃO for elétrico)',
@@ -150,6 +151,14 @@ export const CORE_RECORDS: Record<string, string> = {
   'field.error.format-regex': 'A expressão regular de formatação é inválida.',
   'field.error.compute-cycle':
     'O valor calculado depende de si mesmo — reveja as expressões dos campos calculados.',
+  'field.error.derive-cycle':
+    'O valor derivado depende de si mesmo — revise as expressões dos campos derivados.',
+  'field.error.derive-and-compute':
+    'Um campo tem uma origem só: use o valor calculado, gravado no save, ou o derivado, avaliado na leitura — nunca os dois.',
+  'field.error.compute-needs-stored':
+    'O valor calculado não pode depender de "{field}": um valor derivado é avaliado na leitura e não existe na hora de gravar o registro.',
+  'field.error.aggregation-needs-stored':
+    'O agregado não pode medir "{field}": um valor derivado não é gravado, e o agregado é — o total congelaria no momento em que foi calculado.',
   'field.error.aggregation-field': 'Escolha o campo do filho a ser somado (só a contagem dispensa o campo).',
   'field.error.file-extensions': 'Use apenas letras e números em cada extensão, separadas por vírgula.',
   'field.error.file-max-size': 'O tamanho máximo deve ser um número entre 1 e {max}.',
@@ -208,6 +217,10 @@ export const CORE_RECORDS: Record<string, string> = {
   'field.aggregation.filter': 'Considerar apenas os filhos que atendam a (opcional)',
   'field.aggregation.filter.placeholder': "Ex: status != 'cancelado'",
   'field.expression.compute.placeholder': "Ex: trim(concat(nome, ' ', sobrenome))",
+  'field.expression.derive.placeholder':
+    "Ex: if(vencimento < today(), 'Atrasado', 'Em dia')",
+  'field.expression.derive.hint':
+    'Use este sempre que a expressão consultar o relógio (today, now): o valor calculado é gravado no save, então ele guardaria a resposta do dia em que foi salvo. O valor derivado não é gravado — não entra em índice, e é filtrado e ordenado sobre os registros já carregados.',
   'field.expression.disabled': 'Desabilitar quando (verdadeiro/falso)',
   'field.expression.disabled.placeholder': "Ex: status == 'encerrado'",
   'field.expression.on-change': 'Ao alterar, preencher (devolve os campos a preencher)',

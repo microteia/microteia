@@ -70,6 +70,27 @@ export interface FieldLogic {
   disabledWhen?: string | null;
   hiddenWhen?: string | null;
   compute?: string | null;
+  /**
+   * O valor do campo AVALIADO NA LEITURA, e jamais gravado — a contrapartida de `compute`, que
+   * deriva na gravação e persiste.
+   *
+   * A diferença é o que a expressão pode olhar. `compute` é a resposta certa quando o valor só
+   * depende do registro: ele fica no documento, filtrável e ordenável no servidor, e não envelhece
+   * porque nada fora do registro mudou. Uma expressão que consulta o RELÓGIO (`today()`, `now()`)
+   * não tem essa propriedade: o veredito é do dia em que foi salvo. Uma dose gravada hoje como "em
+   * dia" continuaria "em dia" um ano depois — e o campo passa a mentir sem sintoma nenhum, porque
+   * nada no sistema volta para desmenti-lo.
+   *
+   * `derive` responde no momento em que se olha. Em troca, o valor não existe no documento: ele não
+   * entra em índice, não é empurrado como filtro de igualdade para o Firestore e não pode ser
+   * agregado num campo do pai (o agregado é gravado, e voltaria a envelhecer). Filtro e ordenação
+   * continuam funcionando — em memória, sobre a janela já carregada, como qualquer caminho de FK.
+   *
+   * Um campo derivado é somente-leitura no formulário e é REMOVIDO do payload em todos os caminhos
+   * de escrita: não há como gravá-lo por engano nem referenciá-lo em `compute`/`validate`, que
+   * rodam na gravação e não o enxergam.
+   */
+  derive?: string | null;
   // Front-only: expressão que DEVOLVE um objeto, mesclado no formulário quando o campo muda.
   // Semeia valores que o usuário ainda pode editar — ao contrário de `compute`, que deriva sempre.
   onChange?: string | null;
