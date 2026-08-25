@@ -1491,6 +1491,71 @@ Ao contrário do script de origem, a saída de uma function que falhou é **rean
 descartada no `catch` — lá a falha vira só "❌ Falha no deploy de X", e descobrir o motivo exige rodar
 de novo.
 
+### Subir de novo o que não mudou — o carimbo que o próprio `firebase` grava
+
+Deployar uma a uma resolveu a quota de CPU e criou o problema desta seção: as 28 functions da baseline
+subiam a cada `microteia deploy`, mesmo quando a versão nova só trocou algo na tela. São dezenas de
+minutos, e quem instala não tem como saber o que mudou — depois de um `unpack` ele roda o `deploy`
+porque é o que há para rodar.
+
+**A plataforma sabe, e sempre soube — não éramos nós que sabíamos.** O `firebase` grava em cada
+function o label `firebase-functions-hash`: sha1 do diretório de fontes INTEIRO, mais as variáveis de
+ambiente resolvidas, mais as versões de segredo (`deploy/functions/cache/hash.js`). Num deploy em lote
+ele compara esse carimbo com o que o código atual produz e **pula** a function que não mudou
+(`calculateChangesets`, em `release/planner.js`). O que desliga esse pulo é justamente o nosso
+`--only functions:<nome>`: o predicado exige `!targetedByOnly`, e nomear a function no `--only` a marca.
+O mecanismo não estava faltando — estava desligado pela forma como chamamos o comando.
+
+**O que faltava era o outro lado da comparação**, e é aí que a decisão foi tomada. O carimbo que o
+código de AGORA produziria só existe dentro do `firebase`: calculá-lo aqui seria reimplementar o
+algoritmo dele — a lista de arquivos que ele arquiva, a ordem, a forma de compor `sourceHash`,
+`envHash` e `secretsHash` —, e uma reimplementação que envelhece em silêncio é exatamente o que não se
+quer num comando que decide **não** publicar. Um digest nosso também exigiria uma lista de insumos, e o
+preço de esquecer um deles é pular uma function que MUDOU.
+
+Então ele não é calculado: é **observado**. As functions são agrupadas pelo carimbo que carregam, UMA
+de cada grupo é deployada, e o carimbo que ela volta carregando é o carimbo do código de agora. Voltou
+igual, o grupo inteiro é byte a byte o que o projeto já roda; voltou diferente, o grupo inteiro sobe.
+
+| Decisão | Por quê |
+|---|---|
+| a sonda é MEMBRO do grupo, nunca de fora | duas functions com o mesmo carimbo antigo têm, além da mesma fonte e do mesmo ambiente, o mesmo conjunto de segredos — é a terceira parcela do hash. Uma sonda de fora não provaria isso, e segredo é o único insumo que muda sem nenhum arquivo local mudar |
+| a plataforma entra na chave do grupo | `gcfv1` e `gcfv2` empacotam fontes diferentes e carimbam hashes diferentes; o carimbo de uma nunca fala pela outra |
+| ausente, fora da região, não-`ACTIVE` ou sem carimbo **sobe** | não saber nunca vira pular. É a única assimetria que importa: pular errado deixa a function rodando código velho, sem erro em lugar nenhum |
+| nenhum estado guardado, em arquivo nenhum | o carimbo é lido do PROJETO a cada execução. Estado local diverge — e divergiria justamente quando alguém deployou por fora, que é quando a pergunta importa |
+| a primeira instalação cai sozinha no caminho de sempre | não há carimbo com que comparar. Não foi preciso um desvio para isso, e um desvio a menos é uma condição a menos para alguém quebrar |
+
+O custo do pior caso é o comportamento anterior: se tudo mudou, as sondas são functions que subiriam de
+qualquer forma. O do caso bom é uma function em vez de 28.
+
+**O que o carimbo NÃO enxerga**, e o `firebase deploy` em lote também não: configuração trocada por
+fora, pelo console do Google — memória, timeout, concorrência, política de invocação. Para isso existe
+`--all`, em `deploy` e em `provision`. O alcance das callables (`callableAccess`) continua conferido em
+TODAS a cada deploy, inclusive nas que não subiram, e é ele que acusa uma concessão de IAM removida por
+fora — que é o caso desta classe que realmente aparece.
+
+#### A function de extensão que ficou para trás
+
+O mesmo carimbo fechou uma lacuna que existia do outro lado. O provisionamento decidia por NOME: uma
+function de extensão já aplicada só voltava para a fila quando um `backend.parameters` dela mudava de
+valor. Editar o código em `extensions/<plugin>/functions/` não movia nada — a fonte mudava, o pacote era
+remontado no `deploy` seguinte, e a function seguia rodando a versão anterior sem que comando nenhum a
+alcançasse. O estado guardado era *quais* subiram, nunca *com qual código*.
+
+A function de extensão está no MESMO codebase da baseline, então o carimbo que as sondas do `deploy`
+acabaram de observar é o dela também. O `deploy` passa ao `provisionBackend` o mapa `carimbo antigo →
+carimbo de agora`, e `outdatedByStamp` devolve à fila a aplicada que ainda carrega o anterior — e também
+a que sumiu do projeto ou não está `ACTIVE`, porque "aplicada" era só um nome numa lista, e uma lista de
+nomes não sabe o que aconteceu com a function depois.
+
+O `provision` chamado **sozinho** — logo depois de alguém instalar uma extensão pela aplicação — não
+recebe o mapa e decide como sempre decidiu. Sondar ali custaria um deploy a cada instalação de extensão
+para responder uma pergunta que naquele momento é quase sempre "nada mudou".
+
+Arquivos-chave: `cli/src/console/functionsUpToDate.ts` (o mecanismo, com `planFunctionDeploy`,
+`deployFunctionsThatChanged` e `outdatedByStamp`), `cli/src/console/regionOrphans.ts`
+(`listDeployedFunctions` passa a guardar `hash`, `state` e `platform`), e os dois comandos.
+
 ### Alcance do hosting — publicada não é o mesmo que servida
 
 O irmão do problema abaixo, e ele custou uma versão inteira parecendo não ter sido instalada: o rodapé

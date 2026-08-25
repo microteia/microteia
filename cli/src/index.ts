@@ -47,14 +47,14 @@ const COMMANDS: Command[] = [
   },
   {
     name: 'deploy',
-    usage: 'microteia deploy [--only rules,indexes,functions,hosting] [--delay <seconds>] [--prune]',
+    usage: 'microteia deploy [--only rules,indexes,functions,hosting] [--delay <seconds>] [--prune] [--all]',
     summary: 'Publish the package that is in place to the connected Firebase project.',
     audience: 'office',
     execute: deploy,
   },
   {
     name: 'provision',
-    usage: 'microteia provision [--prune] [--delay <seconds>]',
+    usage: 'microteia provision [--prune] [--delay <seconds>] [--all]',
     summary: 'Give the installed extensions the Cloud Functions and indexes they ask for.',
     audience: 'office',
     execute: provision,

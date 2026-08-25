@@ -69,7 +69,7 @@ describe('a verificação acontece antes de deployar', () => {
   it('o deploy limpa a região antiga antes de subir qualquer function', () => {
     const deploy = source('console/deploy.ts');
     const cleared = deploy.indexOf('clearRegionOrphans(');
-    const deployed_ = deploy.indexOf('deployFunctionsOneByOne(own');
+    const deployed_ = deploy.indexOf('deployFunctionsThatChanged(own');
 
     expect(cleared).toBeGreaterThan(-1);
     expect(cleared).toBeLessThan(deployed_);

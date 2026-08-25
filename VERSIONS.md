@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.12.0] — 2026-08-25
+
+- A publicação da plataforma no Firebase do escritório deixou de reenviar as funções de servidor que não mudaram. Antes, toda publicação subia as vinte e oito, uma a uma, mesmo quando a versão nova só trocou algo na tela — e isso levava dezenas de minutos. Agora a plataforma pergunta ao projeto o que ele já roda e publica apenas o que ficou diferente; quando nada mudou no servidor, a publicação termina em minutos.
+- Corrigido um caso em que uma função de servidor escrita pelo escritório para uma extensão continuava rodando a versão antiga do código: ela só era republicada quando mudava de nome ou de configuração, nunca quando o código dela mudava.
+
 #### [9.11.1] — 2026-08-25
 
 - Nova logomarca da Microteia, aplicada também nos ícones que aparecem na aba do navegador e no atalho instalado no celular ou na área de trabalho.

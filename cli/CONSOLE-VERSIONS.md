@@ -22,6 +22,14 @@
 - fix(command): what was broken, and what it did to whoever hit it.
 -->
 
+#### [2.8.0] — 2026-08-25
+
+- feat(console/functionsUpToDate): new module. It reconstructs the skip that `firebase deploy` performs in bulk and that `--only functions:<name>` disables, WITHOUT reimplementing the hash: functions are grouped by the `firebase-functions-hash` label they carry, one member of each group is deployed, and the stamp it comes back with is the stamp of the current code. The probe being a MEMBER of its group is what makes the conclusion carry to the others — two functions with the same old stamp share source, environment and secret set, the three parcels of the hash. Absent, non-`ACTIVE`, unstamped or wrong-region always deploys: not knowing never becomes skipping.
+- feat(console/deploy): asks the project once (`functions:list --json`) and feeds both decisions from that one answer — the region orphan check and the up-to-date check. Two questions could disagree, and then the decision depends on which answer the code happened to read.
+- feat(console/provision): `outdatedByStamp` requeues an applied extension function that carries a stamp older than what this package builds, or that is missing from the project. The stamp comes from the probes the `deploy` step just ran — extension functions live in the same codebase, so it is their stamp too. Called on its own, provisioning decides as it always did: probing there would cost a deploy on every extension install to answer a question that is almost always "nothing".
+- feat(console): `--all` on `deploy` and `provision` deploys every function without asking the project what it runs.
+- fix(console/regionOrphans): `listDeployedFunctions` keeps `hash`, `state` and `platform` instead of discarding everything but id and region; `clearRegionOrphans` accepts an already-fetched listing.
+
 #### [2.7.2] — 2026-08-25
 
 - feat(vendor/exampleSources): stages `automation-example` alongside the others, so the workspace ships a complete automation to read. Every example that travelled carried `workflows: []`, and automation was the one mechanism an author had only prose for.

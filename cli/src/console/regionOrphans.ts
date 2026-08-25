@@ -6,6 +6,21 @@ import { failureReason } from './deployFunctions.js';
 export interface DeployedFunction {
   name: string;
   region: string;
+  /**
+   * O carimbo que o PRÓPRIO `firebase` grava na function, no label `firebase-functions-hash`:
+   * sha1 do diretório de fontes inteiro, mais as variáveis de ambiente resolvidas, mais as versões
+   * de segredo. É o valor que ele compara consigo mesmo para pular uma function que não mudou num
+   * deploy em lote (`calculateChangesets`), e é por isso que ele serve aqui: comparar por ele é
+   * tomar a MESMA decisão que o `firebase deploy` tomaria, não uma parecida.
+   *
+   * `null` quando a function foi deployada por uma versão do CLI que não gravava o label — nesse
+   * caso não há o que comparar, e ela sobe.
+   */
+  hash: string | null;
+  /** `ACTIVE` é a única resposta que autoriza comparar: o resto está no meio de alguma coisa. */
+  state: string;
+  /** `gcfv1` e `gcfv2` empacotam fontes diferentes, então carimbam hashes diferentes. */
+  platform: string;
 }
 
 /**
@@ -40,7 +55,13 @@ export const listDeployedFunctions = async (projectId: string): Promise<Deployed
 
     return parsed.result
       .filter((entry): entry is Record<string, unknown> => entry !== null && typeof entry === 'object')
-      .map((entry) => ({ name: String(entry.id ?? ''), region: String(entry.region ?? '') }))
+      .map((entry) => ({
+        name: String(entry.id ?? ''),
+        region: String(entry.region ?? ''),
+        hash: typeof entry.hash === 'string' && entry.hash !== '' ? entry.hash : null,
+        state: typeof entry.state === 'string' ? entry.state : '',
+        platform: typeof entry.platform === 'string' ? entry.platform : '',
+      }))
       .filter((entry) => entry.name !== '' && entry.region !== '');
   } catch {
     return null;
@@ -135,8 +156,14 @@ export const clearRegionOrphans = async (
   wanted: string[],
   region: string,
   prune: boolean,
+  /**
+   * A listagem já feita, quando quem chama vai usá-la para outra coisa também. Perguntar duas vezes
+   * a mesma coisa ao mesmo projeto não é caro, é ambíguo: as duas respostas podem divergir, e a
+   * decisão passa a depender de qual delas o código olhou.
+   */
+  listed?: DeployedFunction[] | null,
 ): Promise<boolean> => {
-  const deployed = await listDeployedFunctions(projectId);
+  const deployed = listed === undefined ? await listDeployedFunctions(projectId) : listed;
   if (deployed === null) return true;
   return settleRegionOrphans(projectId, regionOrphans(deployed, wanted, region), prune);
 };

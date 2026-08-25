@@ -95,8 +95,8 @@ const commandRows = (): string => [
   '|---|---|',
   '| `microteia unpack --version <latest\\|x.y.z>` | Downloads a platform version, verifies it, and puts it in place. Touches no Firebase — safe any time |',
   '| `microteia unpack --kernel <pkg>.tgz` | The same, from a file you already have — for a machine with no access to the catalog |',
-  '| `microteia deploy [--only …] [--prune]` | Publishes what is in place: `rules`, `indexes`, `functions`, `hosting`. `--prune` also deletes functions left behind in a region this version no longer uses |',
-  '| `microteia provision [--prune]` | Gives installed extensions the functions and indexes they ask for |',
+  '| `microteia deploy [--only …] [--prune] [--all]` | Publishes what is in place: `rules`, `indexes`, `functions`, `hosting`. A Cloud Function the project already runs with this exact code is not deployed again; `--all` deploys every one of them anyway. `--prune` also deletes functions left behind in a region this version no longer uses |',
+  '| `microteia provision [--prune] [--all]` | Gives installed extensions the functions and indexes they ask for |',
   '| `microteia connect --project <id>` | Binds this installation to a Firebase project you own |',
   '| `microteia plugin-init` | Prepares `extensions/` for authoring in TypeScript |',
 ].join('\n');
@@ -189,6 +189,19 @@ notices the change (by a salted digest in \`microteia.yaml\`) and requeues exact
 carry that setting.
 
 An empty line means "not configured". A feature that needs it stays off rather than failing halfway.
+
+## 3.1 Why a deploy is usually much faster than the first one
+
+Firebase stamps every Cloud Function with what it was built from — the whole source directory, the
+resolved environment variables, and the secret versions. \`microteia deploy\` reads those stamps, deploys
+one reference function, and compares: a function whose stamp comes back unchanged is byte-for-byte what
+the project already runs, and is left alone. It is the same comparison \`firebase deploy\` makes when it
+deploys in bulk, which is why a version that only changed the application's screens finishes in minutes
+instead of publishing every function again.
+
+What the stamp does not see is configuration changed **outside** this installation — memory, timeout,
+concurrency or invoker policy edited in the Google console. \`microteia deploy --all\` deploys everything
+regardless, and is the answer for that.
 
 ## 4. Your own Cloud Functions
 

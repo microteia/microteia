@@ -150,8 +150,8 @@ describe('as functions que o escritório escreve chegam ao deploy', () => {
 
   it('o deploy sobe a baseline MAIS as comuns, não só a baseline', () => {
     expect(deploy).toContain('const own = [...baseline, ...gathered.shared];');
-    expect(deploy).toContain('deployFunctionsOneByOne(own');
-    expect(deploy).not.toContain('deployFunctionsOneByOne(baseline');
+    expect(deploy).toContain('deployFunctionsThatChanged(own');
+    expect(deploy).not.toContain('deployFunctionsThatChanged(baseline');
   });
 
   it('o provision confere e escolhe contra o pacote MAIS o que o escritório escreveu', () => {

@@ -35,7 +35,8 @@ import { ENVIRONMENT_FILE, readEnvironment, writeEnvironment } from './environme
 import type { Environment } from './environment.js';
 import { FIREBASE_BIN } from './firebaseCli.js';
 import { deployFunctionsOneByOne, reportFailures, reportNotices } from './deployFunctions.js';
-import { clearRegionOrphans } from './regionOrphans.js';
+import { clearRegionOrphans, listDeployedFunctions } from './regionOrphans.js';
+import { outdatedByStamp } from './functionsUpToDate.js';
 import { checkCallables, invokerGrantCommand } from './callableAccess.js';
 import { asString, asTimestamp, decodeFields, documentId, listDocuments, patchMapField } from './firestoreRest.js';
 import { gatherCustomFunctions, readOfficeFunctions } from './customFunctions.js';
@@ -106,6 +107,18 @@ export interface ProvisionOptions {
   manifest: KernelManifest;
   delaySeconds: number;
   prune: boolean;
+  /** `--all`: ignora o carimbo e sobe toda function que as extensões instaladas exigem. */
+  all?: boolean;
+  /**
+   * O que as sondas do passo de functions do `deploy` observaram: carimbo antigo -> carimbo de
+   * agora. A function de extensão está no MESMO codebase da baseline, então esse carimbo vale para
+   * ela — e é por ele que uma cujo CÓDIGO mudou volta para a fila, coisa que o nome nunca disse.
+   *
+   * Sem ele — o `provision` chamado sozinho, logo depois de alguém instalar uma extensão pela
+   * aplicação — o comando decide como sempre decidiu. Sondar ali custaria um deploy a cada
+   * instalação de extensão para responder uma pergunta que naquele momento é quase sempre "nada".
+   */
+  refreshedStamps?: Map<string, string>;
   environmentFile: string;
   environment: Environment;
 }
@@ -216,6 +229,35 @@ export const provisionBackend = async (options: ProvisionOptions): Promise<Provi
       .filter((name) => wantedFunctions.includes(name) && alreadyApplied.includes(name)),
   );
 
+  // Uma pergunta só ao projeto, e duas decisões a partir dela: o que ele já roda, e qual cópia ficou
+  // numa região abandonada.
+  const deployedFunctions = await listDeployedFunctions(projectId);
+
+  // O que a lista de nomes nunca respondeu: a function aplicada que sumiu do projeto, e a que segue
+  // lá carregando o carimbo de um código anterior. As duas voltam para a fila.
+  const outdated = outdatedByStamp(
+    wantedFunctions.filter((name) => alreadyApplied.includes(name)),
+    deployedFunctions,
+    region,
+    options.refreshedStamps,
+  );
+  for (const name of [...outdated.absent, ...outdated.stale]) staleFunctions.add(name);
+
+  if (outdated.absent.length > 0) {
+    blank();
+    info(`  ${outdated.absent.length} function(s) recorded as applied are not running in this project:`);
+    bullets(outdated.absent);
+    info('  they are deployed again — the record is a list of names, and a name does not know what');
+    info('  happened to the function after it went up.');
+  }
+  if (outdated.stale.length > 0) {
+    blank();
+    info(`  ${outdated.stale.length} function(s) still carry the code of a previous package:`);
+    bullets(outdated.stale);
+    info('  Firebase stamps every function with what it was built from, and theirs no longer matches');
+    info('  what this package builds. They are deployed again.');
+  }
+
   if (changed.length > 0) {
     blank();
     info(`  ${changed.length} backend setting(s) changed since the last run: ${changed.join(', ')}`);
@@ -241,7 +283,7 @@ export const provisionBackend = async (options: ProvisionOptions): Promise<Provi
   }
 
   const toDeploy = wantedFunctions.filter(
-    (name) => !alreadyApplied.includes(name) || staleFunctions.has(name),
+    (name) => options.all === true || !alreadyApplied.includes(name) || staleFunctions.has(name),
   );
   if (toDeploy.length === 0) {
     success(`the ${wantedFunctions.length} function(s) these extensions need are already deployed`);
@@ -262,7 +304,7 @@ export const provisionBackend = async (options: ProvisionOptions): Promise<Provi
 
     // A extensão que mudou de região deixa a cópia antiga para trás igual ao kernel, e ali o efeito
     // é o mesmo: deploy recusado em toda tentativa, e gatilho disparando em duas regiões.
-    await clearRegionOrphans(projectId, toDeploy, region, options.prune);
+    await clearRegionOrphans(projectId, toDeploy, region, options.prune, deployedFunctions);
 
     info(`  deploying ${toDeploy.length} function(s), one at a time…`);
     const report = await deployFunctionsOneByOne(toDeploy, {
@@ -614,6 +656,7 @@ export const provision = async (args: ParsedArgs): Promise<void> => {
     manifest,
     delaySeconds,
     prune: hasFlag(args, 'prune'),
+    all: hasFlag(args, 'all'),
     environmentFile: file,
     environment,
   });

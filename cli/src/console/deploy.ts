@@ -7,8 +7,9 @@ import { blank, bullets, failure, heading, info, step, success, warn } from '../
 import { ENVIRONMENT_FILE, readEnvironment, writeEnvironment } from './environment.js';
 import type { Environment } from './environment.js';
 import { FIREBASE_BIN } from './firebaseCli.js';
-import { deployFunctionsOneByOne, reportFailures, reportNotices } from './deployFunctions.js';
-import { clearRegionOrphans } from './regionOrphans.js';
+import { reportFailures, reportNotices } from './deployFunctions.js';
+import { clearRegionOrphans, listDeployedFunctions } from './regionOrphans.js';
+import { deployFunctionsThatChanged } from './functionsUpToDate.js';
 import { checkCallables, invokerGrantCommand } from './callableAccess.js';
 import { checkHostingServed, htmlIsRevalidated } from './hostingCheck.js';
 import { provisionBackend } from './provision.js';
@@ -109,6 +110,12 @@ export const deploy = async (args: ParsedArgs): Promise<void> => {
   const failures: string[] = [];
   const unreachableCallables: string[] = [];
   let staleHosting = false;
+  let skippedFunctions = 0;
+  // O que as sondas do passo de functions descobriram: carimbo antigo -> carimbo de agora. O
+  // provisionamento está no MESMO codebase, então esse é o carimbo das functions de extensão também.
+  // Segue `undefined` quando o passo de functions não rodou: ali não há conclusão a tirar, e um mapa
+  // vazio diria a mesma coisa por acaso, e não por decisão.
+  let refreshedStamps: Map<string, string> | undefined;
 
   for (const component of components) {
     current += 1;
@@ -170,17 +177,27 @@ export const deploy = async (args: ParsedArgs): Promise<void> => {
       info('  "engines" names the Cloud Functions runtime, and the notices come from Firebase\'s deps.');
       await run('npm', ['install', '--no-audit', '--no-fund'], { cwd: join(install, 'functions') });
 
+      // Uma pergunta só ao projeto, e duas decisões a partir dela: qual cópia ficou numa região
+      // abandonada, e o que ele já roda. Perguntar duas vezes não é caro, é ambíguo — as duas
+      // respostas podem divergir, e aí a decisão passa a depender de qual delas o código olhou.
+      const deployedNow = await listDeployedFunctions(projectId);
+
       // ANTES de deployar: uma cópia da mesma function numa região que o pacote abandonou faz o
       // `firebase` recusar o deploy dela, tentativa após tentativa, e faz um gatilho de Firestore
       // disparar duas vezes por gravação enquanto ninguém percebe.
-      await clearRegionOrphans(projectId, own, region, hasFlag(args, 'prune'));
+      await clearRegionOrphans(projectId, own, region, hasFlag(args, 'prune'), deployedNow);
 
-      const report = await deployFunctionsOneByOne(own, {
+      // Numa instalação nova não há carimbo nenhum com que comparar, e o mecanismo cai sozinho no
+      // caminho de sempre — não é preciso um desvio para isso. `--all` é o pedido explícito de subir
+      // tudo, para a configuração trocada por fora, que carimbo nenhum enxerga.
+      const report = await deployFunctionsThatChanged(own, {
         projectId,
         cwd: install,
         delaySeconds,
         force: firstInstall,
-      });
+      }, { deployed: deployedNow, region, all: hasFlag(args, 'all') });
+      refreshedStamps = report.refreshed;
+      skippedFunctions = report.skipped.length;
 
       if (report.failed.length > 0) {
         failures.push(`${report.failed.length} function(s): ${report.failed.map((entry) => entry.name).join(', ')}`);
@@ -274,6 +291,8 @@ export const deploy = async (args: ParsedArgs): Promise<void> => {
       manifest,
       delaySeconds,
       prune: hasFlag(args, 'prune'),
+      all: hasFlag(args, 'all'),
+      refreshedStamps,
       environmentFile: file,
       environment: applied,
     });
@@ -290,6 +309,12 @@ export const deploy = async (args: ParsedArgs): Promise<void> => {
     bullets(['microteia deploy --only functions']);
     blank();
     throw new Error('Some components did not deploy.');
+  }
+
+  if (skippedFunctions > 0) {
+    info(`${skippedFunctions} Cloud Function(s) were already running this exact code and were left alone.`);
+    bullets(['microteia deploy --all', '  deploys every one of them, whatever the project already runs']);
+    blank();
   }
 
   info(`Microteia ${manifest.version} is installed in ${projectId}.`);
