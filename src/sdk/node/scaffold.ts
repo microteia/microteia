@@ -246,9 +246,9 @@ describe('upcoming', () => {
     'views/Summary.styles.tsx': `import { styled } from 'styled-components';
 
 /**
- * Every colour, size, space and radius comes from the theme. A hex or a hand-written pixel stops
- * matching the day the organization changes theme — and every organization eventually switches to the
- * dark one. Ask "describe_host_module styled-components" for the token names.
+ * Colour comes from a theme token, never from a hex: a literal stops matching the day the organization
+ * changes theme, and every organization eventually switches to the dark one. Spacing, type and radius
+ * come from a token whenever one means the same thing. Ask "describe_host_module" for the names.
  */
 const Page = styled.div\`
   display: flex;

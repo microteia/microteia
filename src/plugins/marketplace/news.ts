@@ -8,9 +8,39 @@ import type { CustomFieldOption } from '../../domain/entities';
 import { nav, page } from '../contributionBuilders';
 import { newsMessagesContribution } from './newsMessages';
 import { newsPtBrContribution } from './newsMessagesPtBr';
-import NEWS_LIST_SOURCE from './views/news/NewsList.view.tsx?raw';
-import NEWS_READ_SOURCE from './views/news/NewsRead.view.tsx?raw';
+import { mergeViewSources } from '../../sdk/mergeSources';
+import NEWS_LIST_VIEW from './views/news/NewsList.view.tsx?raw';
+import NEWS_LIST_VIEWMODEL from './views/news/NewsList.viewmodel.tsx?raw';
+import NEWS_LIST_STYLES from './views/news/NewsList.styles.tsx?raw';
+import NEWS_LIST_RULES from './views/news/NewsList.rules.ts?raw';
+import NEWS_READ_VIEW from './views/news/NewsRead.view.tsx?raw';
+import NEWS_READ_VIEWMODEL from './views/news/NewsRead.viewmodel.tsx?raw';
+import NEWS_READ_STYLES from './views/news/NewsRead.styles.tsx?raw';
+import NEWS_READ_RULES from './views/news/NewsRead.rules.ts?raw';
 import STARTUP_SOURCE from './views/news/startup.tsx?raw';
+
+/**
+ * As duas views em quatro arquivos cada, fundidas num módulo por view — a mesma fusão que o compilador
+ * do SDK faz por uma lista de `sourceFile`, aqui na declaração porque o catálogo embutido entrega o
+ * pacote direto ao runtime do browser.
+ *
+ * O que a divisão paga está em `*.rules.ts`: quem já leu um item, a ordem da discussão e o que conta
+ * como atrasado eram `useMemo` dentro do componente, e a resposta muda de pessoa para pessoa — olhar a
+ * tela de uma conta nunca provou nada sobre as outras.
+ */
+const NEWS_LIST_SOURCE = mergeViewSources({
+  'NewsList.view.tsx': NEWS_LIST_VIEW,
+  'NewsList.viewmodel.tsx': NEWS_LIST_VIEWMODEL,
+  'NewsList.styles.tsx': NEWS_LIST_STYLES,
+  'NewsList.rules.ts': NEWS_LIST_RULES,
+});
+
+const NEWS_READ_SOURCE = mergeViewSources({
+  'NewsRead.view.tsx': NEWS_READ_VIEW,
+  'NewsRead.viewmodel.tsx': NEWS_READ_VIEWMODEL,
+  'NewsRead.styles.tsx': NEWS_READ_STYLES,
+  'NewsRead.rules.ts': NEWS_READ_RULES,
+});
 
 /**
  * **News** — the office noticeboard declared as an extension: the announcement someone publishes, who
@@ -182,7 +212,7 @@ const COMMENTS_SCREEN: ScreenModuleTemplate = {
 export const newsPlugin: MarketplacePlugin = {
   manifest: {
     id: 'com.microteia.news',
-    version: '1.2.0',
+    version: '1.3.0',
     kernel: '^2.0.0',
     name: message('package.name'),
     description: message('package.description'),

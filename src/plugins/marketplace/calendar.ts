@@ -9,7 +9,27 @@ import type { ExtensionPointDefinition } from '../../domain/schema/plugin/extens
 import { nav, page, settingsSection } from '../contributionBuilders';
 import { calendarMessagesContribution } from './calendarMessages';
 import { calendarPtBrContribution } from './calendarMessagesPtBr';
-import CALENDAR_SOURCE from './views/calendar/Calendar.view.tsx?raw';
+import { mergeViewSources } from '../../sdk/mergeSources';
+import CALENDAR_VIEW from './views/calendar/Calendar.view.tsx?raw';
+import CALENDAR_VIEWMODEL from './views/calendar/Calendar.viewmodel.tsx?raw';
+import CALENDAR_STYLES from './views/calendar/Calendar.styles.tsx?raw';
+import CALENDAR_RULES from './views/calendar/Calendar.rules.ts?raw';
+
+/**
+ * A view em QUATRO arquivos, fundidos num módulo só — a mesma fusão que o compilador do SDK faz por uma
+ * lista de `sourceFile`, aqui feita na declaração porque o catálogo embutido entrega o pacote direto ao
+ * runtime do browser.
+ *
+ * A agenda cabia num arquivo de 784 linhas, e o que isso custava não era estética: a regra de que dia um
+ * cartão ocupa vivia dentro de um `useMemo`, e conferi-la exigia abrir a tela e olhar. Agora
+ * `Calendar.rules.ts` não importa nada, e `Calendar.rules.test.ts` a exercita em um segundo.
+ */
+const CALENDAR_SOURCE = mergeViewSources({
+  'Calendar.view.tsx': CALENDAR_VIEW,
+  'Calendar.viewmodel.tsx': CALENDAR_VIEWMODEL,
+  'Calendar.styles.tsx': CALENDAR_STYLES,
+  'Calendar.rules.ts': CALENDAR_RULES,
+});
 
 /**
  * **Calendar** — the office agenda, agnostic. It was the last screen of kernel code that knew a
@@ -154,7 +174,7 @@ const EXTENSION_POINTS: ExtensionPointDefinition[] = [
 export const calendarPlugin: MarketplacePlugin = {
   manifest: {
     id: 'com.microteia.calendar',
-    version: '1.1.0',
+    version: '1.2.0',
     kernel: '^2.0.0',
     name: message('package.name'),
     description: message('package.description'),

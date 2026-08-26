@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.14.0] — 2026-08-26
+
+- As extensões Calendário e Notícias aparecem com atualização disponível. Nada muda no que as telas fazem: o conteúdo delas foi reorganizado por dentro, e as contas que elas fazem — em que dia um compromisso aparece, quem já leu um aviso, a ordem de uma discussão — passaram a ser conferidas automaticamente a cada alteração, em vez de dependerem de alguém abrir a tela e olhar.
+- Quem escreve extensão no escritório passa a ter um exemplo que segue as próprias regras do manual: as duas telas vêm divididas em partes legíveis, com os testes ao lado, e o Painel continua num arquivo só — porque uma tela que só mostra o que já recebeu não tem o que dividir.
+
 #### [9.13.0] — 2026-08-25
 
 - O manual de autoria de extensões passa a dizer como escrever a parte que precisa mesmo de programação: quando dividir uma tela em arquivos separados, como deixar as regras de cálculo fora da tela para que possam ser testadas em um segundo, e por que cor, tamanho e espaçamento têm de vir do tema — senão a extensão deixa de combinar com o escritório no dia em que ele troca de aparência.

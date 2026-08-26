@@ -252,7 +252,7 @@ describe('o que é gerado em extensions/', () => {
     });
 
     it('proíbe cor e medida literais, e divide a Cloud Function do mesmo jeito', () => {
-      expect(agents).toContain('never a hex');
+      expect(agents).toContain('never from a hex');
       expect(agents).toContain('the handler refuses the unauthenticated call');
     });
 
@@ -400,6 +400,16 @@ describe('o que é gerado em extensions/', () => {
       expect(guide).toContain('Writing the code, once you are sure you need it');
       expect(guide).toContain('Take what can be wrong out of React');
       expect(guide).toContain('views/Summary.rules.ts');
+    });
+
+    /**
+     * O guia manda ler `examples/` antes de escrever um mecanismo pela primeira vez, e os exemplos
+     * declaram a fonte de outra forma que a do autor — por TEXTO, com a fusão na declaração. Sem esta
+     * linha, quem lê o exemplo conclui que `mergeViewSources` é o caminho, e ele não é.
+     */
+    it('a §7 explica por que o exemplo de primeira parte funde a fonte por conta própria', () => {
+      expect(guide).toContain('mergeViewSources');
+      expect(guide).toContain('only the door differs');
     });
 
     it('a §7 manda estilizar pelo tema, e não por um literal', () => {

@@ -36,7 +36,11 @@ export const EXAMPLE_SOURCES: Record<string, string> = {
 export const rewriteImports = (source: string): string => source.replace(
   /from '(\.[^']*)'/g,
   (match, specifier: string) => {
-    if (/(^|\/)contributionBuilders$/.test(specifier) || specifier.includes('domain/')) {
+    if (
+      /(^|\/)contributionBuilders$/.test(specifier)
+      || specifier.includes('domain/')
+      || specifier.includes('sdk/')
+    ) {
       return "from '@microteia/sdk'";
     }
     // `./views/<plugin>/Nome.tsx?raw` -> `./views/Nome.tsx?raw`
@@ -51,8 +55,10 @@ const HEADER = (id: string): string => `// Example: a Microteia first-party exte
 //
 //     npx microteia-plugin build ${id}/plugin.ts
 //
-// The only difference from how it is written inside Microteia is the import path: there it reaches into
-// the kernel tree, here everything comes from '@microteia/sdk'.
+// Two things differ from how you would write the same extension. The imports: inside Microteia they
+// reach into the kernel tree, here everything comes from '@microteia/sdk'. And the view sources: these
+// travel as TEXT and are merged by 'mergeViewSources', because the platform bundles them; you point at
+// the files with 'sourceFile' and the compiler merges them for you. See AUTHORING.md, section 7.
 
 `;
 

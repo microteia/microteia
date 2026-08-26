@@ -37,7 +37,7 @@ const PUBLISHED = [
   'surfaceTab', 'surfaceTabSpec', 'surfaceWidget', 'surfaceWidgetSpec', 'themeTokensContribution',
   'validateBackendRequirement', 'validateContribution', 'validateExtensionPoint',
   'validateMigrations', 'validatePackage', 'validatePermissions', 'validatePluginManifest',
-  'validatePluginPackage', 'widgetChildren', 'widgetPage',
+  'validatePluginPackage', 'widgetChildren', 'widgetPage', 'mergeViewSources',
 ].sort();
 
 /**

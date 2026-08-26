@@ -476,6 +476,13 @@ reaches the package as text rather than as a path (a \`?raw\` import). There the
 path, so it checks names: every name a relative import brings has to be declared by one of the merged
 sources, which is what catches merging the view and forgetting its view model.
 
+The first-party extensions in \`examples/\` are written this way, and it is worth knowing why they look
+slightly different from what you write: they travel inside the platform's own bundle, so their parts
+arrive as TEXT and the plugin merges them itself with \`mergeViewSources\`. You have the compiler, so
+you declare the list of paths and it does the merging. The split is the same; only the door differs.
+Two of them are worth reading side by side — \`calendar\` and \`news\` are four files each, and
+\`dashboard\` is one file, because a view that only renders what a hook returned has nothing to split.
+
 \`startup\` receives a \`host\` and may return a teardown function:
 
 \`\`\`ts
@@ -539,14 +546,23 @@ const Card = styled.div\`
 
 \`colors\`, \`fonts\`, \`fontSizes\`, \`spacing\`, \`borderRadius\`, \`transitions\` and \`highlights\` are the
 groups; \`describe_host_module\` gives the exact token names, and a token that does not exist fails to
-compile. A hex, an \`rgba(...)\` or a hand-written pixel is a value that stops matching the day the
-organization switches theme — and every organization eventually switches to the dark one. Inline
-\`style={{ }}\` has the same problem and is checked by nothing, so keep it for the rare dimension that
-genuinely comes from data.
+compile.
 
-Colour that **is** data is the one exception: the colour someone picked for an option, a phase or a tag
-arrives as a value, so pass it in as a \`$\`-prefixed prop and apply it as given — \`getConfigColor\` from
-\`@microteia/theme\` is what resolves it against the theme when the option carries only a name.
+**Colour is the part with no exceptions.** A hex or an \`rgba(...)\` written into a view stops matching the
+day the office switches theme — and every office eventually switches to the dark one, which is where a
+literal turns from wrong-ish into unreadable. Diluting a token colour with an alpha suffix
+(\`theme.colors.primary + '18'\`) is allowed and is not the same thing: it keeps the hue the office chose.
+Inline \`style={{ }}\` is checked by nothing, so it is the last place a colour should be.
+
+Spacing, type and radius come from a token **whenever a token means the same thing** — a 16px gap is
+\`spacing.md\`, and writing it out is how two screens drift apart. A genuinely one-off geometric value
+(a 34px circle, a 3px scrollbar, a 1px hairline) has no token, and inventing one nobody else shares is
+worse than writing it where it is used.
+
+Colour that **is** data is the other side of the same rule: the colour someone picked for an option, a
+phase or a tag arrives as a value, so pass it in as a \`$\`-prefixed prop and apply it as given —
+\`getConfigColor\` from \`@microteia/theme\` resolves it against the theme when the option carries only a
+name.
 
 And §5 still has no exception, least of all here: no string a person reads is written in a view.
 

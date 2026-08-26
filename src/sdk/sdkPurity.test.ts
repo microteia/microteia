@@ -19,7 +19,13 @@ const SOURCES = import.meta.glob('/src/**/*.{ts,tsx}', {
   eager: true,
 }) as Record<string, string>;
 
-const IMPORT_PATTERN = /(?:^|\n)\s*(?:import|export)[\s\S]*?from\s+['"]([^'"]+)['"]/g;
+/**
+ * O `[^;]*?` no meio é o que mantém a busca DENTRO da declaração. Com `[\s\S]*?` ela atravessava o
+ * arquivo: um `export interface` no topo casava com o primeiro `from "..."` que aparecesse depois — e
+ * `mergeSources.ts`, que não importa nada, foi acusado de depender de `${specifier}`, o trecho de uma
+ * mensagem de erro. Um import de verdade nunca tem `;` antes do `from`, nem quando ocupa várias linhas.
+ */
+const IMPORT_PATTERN = /(?:^|\n)\s*(?:import|export)[^;]*?from\s+['"]([^'"]+)['"]/g;
 
 const importsOf = (source: string): string[] =>
   [...source.matchAll(IMPORT_PATTERN)].map((match) => match[1]);

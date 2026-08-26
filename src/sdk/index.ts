@@ -326,5 +326,13 @@ export {
 
 export type { AuthoredPlugin, AuthoredView } from './authoring';
 
+/**
+ * A fusão de uma view escrita em várias partes. O autor não a chama — ele declara a lista em
+ * `sourceFile` e o compilador funde —, mas as extensões de primeira parte declaram a fonte já como
+ * TEXTO (`?raw`), e para essas a fusão é a chamada aqui. Sai no barril porque os exemplos que viajam
+ * no pacote são exatamente essas.
+ */
+export { mergeViewSources } from './mergeSources';
+
 export type { SdkIssue } from './validate';
 export { validatePluginPackage } from './validate';

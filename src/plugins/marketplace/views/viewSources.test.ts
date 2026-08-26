@@ -89,14 +89,107 @@ describe('as fontes de extensão continuam sendo checadas', () => {
    * O runtime avalia UM módulo por view, com um `require` que só resolve a API curada: um import
    * relativo entre duas fontes de view não tem como ser resolvido, e falharia só ao abrir a tela.
    *
-   * O compilador do SDK sabe FUNDIR várias fontes numa só — por caminho (`sourceFile`) ou por texto
-   * (`source`) —, e ali o import relativo entre elas é apagado na junção. Mas cada fonte daqui viaja
-   * como UM `?raw`, não como lista, e nada as funde: para elas a regra vale como sempre valeu. A
-   * primeira view daqui escrita em várias partes tem de afrouxar esta guarda junto, e explicando.
+   * O que o torna legítimo é a FUSÃO. Uma view escrita em várias partes é declarada por
+   * `mergeViewSources` (aqui) ou por uma lista de `sourceFile` (do lado do autor), e a fusão apaga o
+   * import relativo entre as partes — depois dela os nomes estão no mesmo escopo. Então a regra não é
+   * mais "nenhum import relativo": é que ele aponte para uma parte FUNDIDA JUNTO. Um import para fora
+   * do conjunto continua sendo o defeito que só aparecia ao abrir a tela.
+   *
+   * Os conjuntos saem dos arquivos de plugin, e não de uma lista escrita aqui: é o plugin que decide o
+   * que se funde com o quê, e uma lista paralela ficaria desatualizada na primeira view nova.
    */
-  it.each(sourceFiles)('%s não importa outra fonte de view', (path) => {
+  const MARKETPLACE = '/src/plugins/marketplace';
+
+  const rawBindings = (plugin: string): Map<string, string> => new Map(
+    [...plugin.matchAll(/import\s+(\w+)\s+from\s+'\.(\/views\/[^']+)\?raw'/g)]
+      .map(([, name, path]) => [name, MARKETPLACE + path]),
+  );
+
+  const mergedGroups = (): string[][] => Object.values(PLUGINS).flatMap((plugin) => {
+    const bindings = rawBindings(plugin);
+    return [...plugin.matchAll(/mergeViewSources\(\{([^}]*)\}/g)].map(([, body]) => (
+      [...body.matchAll(/:\s*(\w+),/g)]
+        .map(([, name]) => bindings.get(name))
+        .filter((path): path is string => path !== undefined)
+    ));
+  });
+
+  const GROUPS = mergedGroups();
+
+  const groupOf = (path: string): string[] | null => GROUPS.find((group) => group.includes(path)) ?? null;
+
+  /** `'./Calendar.viewmodel'` a partir de quem o importa — a extensão é o que o especificador omite. */
+  const resolveSibling = (from: string, specifier: string): string | null => {
+    const base = from.slice(0, from.lastIndexOf('/')) + specifier.slice(1);
+    return ['', '.ts', '.tsx'].map((extension) => base + extension).find((candidate) => candidate in SOURCES) ?? null;
+  };
+
+  it('há view composta para conferir — sem nenhuma, o caso abaixo passaria por nada', () => {
+    expect(GROUPS.length).toBeGreaterThanOrEqual(1);
+    for (const group of GROUPS) expect(group.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it.each(sourceFiles)('%s só importa parte fundida junto com ela', (path) => {
     const relative = [...SOURCES[path].matchAll(/from\s+'(\.[^']*)'/g)].map((match) => match[1]);
-    expect(relative, 'o runtime não resolve import relativo em fonte de extensão').toEqual([]);
+    if (relative.length === 0) return;
+
+    const group = groupOf(path);
+    expect(group, 'fonte não fundida não pode importar nada relativo — o runtime não resolve').not.toBeNull();
+    for (const specifier of relative) {
+      expect(resolveSibling(path, specifier), specifier).not.toBeNull();
+      expect(group, `${specifier} não é fundido junto`).toContain(resolveSibling(path, specifier));
+    }
+  });
+
+  /**
+   * A FORMA das views compostas de primeira parte. Elas viajam no pacote do SDK como exemplo de autoria,
+   * e o `AUTHORING.md` §7 manda ler `examples/` antes de escrever um mecanismo pela primeira vez — então
+   * um exemplo que contradiga o texto ensina o contrário dele, e ensina com mais autoridade.
+   *
+   * A Agenda tinha 784 linhas num arquivo, com a regra de que dia um cartão ocupa dentro de um `useMemo`.
+   * Estes casos são o que impede a próxima de voltar a ter.
+   */
+  describe('a forma das views compostas', () => {
+    const partOf = (group: string[], suffix: string): string | undefined =>
+      group.find((path) => path.endsWith(suffix));
+
+    it.each(GROUPS.map((group) => [group[0].slice(group[0].lastIndexOf('/') + 1), group] as const))(
+      '%s: a view só renderiza, o view model não tem JSX, e a regra não importa nada',
+      (_name, group) => {
+        const view = partOf(group, '.view.tsx');
+        const viewmodel = partOf(group, '.viewmodel.tsx');
+        const rules = group.find((path) => path.endsWith('.rules.ts'));
+
+        expect(view, 'toda view composta tem a parte que renderiza').toBeDefined();
+        expect(SOURCES[view as string]).not.toMatch(/\buseState\(|\buseEffect\(|\buseMemo\(|\buseCallback\(|\buseRef\(/);
+
+        expect(viewmodel, 'e a parte que guarda o estado').toBeDefined();
+        expect(SOURCES[viewmodel as string]).not.toContain('<S.');
+
+        expect(rules, 'e a regra, que é o que um teste alcança').toBeDefined();
+        expect(SOURCES[rules as string]).not.toContain('import ');
+      },
+    );
+
+    /** Cor literal é o defeito que só aparece quando o escritório troca de tema — e aí em toda a tela. */
+    it.each(GROUPS.map((group) => [group[0].slice(group[0].lastIndexOf('/') + 1), group] as const))(
+      '%s: o estilo não traz cor literal',
+      (_name, group) => {
+        const styles = partOf(group, '.styles.tsx');
+        expect(styles).toBeDefined();
+        expect(SOURCES[styles as string]).not.toMatch(/#[0-9a-fA-F]{3,8}\b|rgba?\(/);
+        expect(SOURCES[styles as string]).toContain('theme.colors');
+      },
+    );
+
+    /** E a regra existe para ser exercitada: sem o teste ao lado, ela é só um arquivo a mais. */
+    it.each(GROUPS.map((group) => [group[0].slice(group[0].lastIndexOf('/') + 1), group] as const))(
+      '%s: a regra tem teste ao lado dela',
+      (_name, group) => {
+        const rules = group.find((path) => path.endsWith('.rules.ts')) as string;
+        expect(rules.replace(/\.ts$/, '.test.ts') in SOURCES).toBe(true);
+      },
+    );
   });
 
   it.each(sourceFiles)('%s só importa a API curada do host', (path) => {
