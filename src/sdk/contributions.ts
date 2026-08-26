@@ -12,19 +12,23 @@ import type { WidgetSpec } from '../domain/schema/ui/widgetSpec';
 import type { SettingsSection } from '../domain/schema/settings';
 import type {
   UiCommandMetadata,
+  UiMenuItemMetadata,
   UiNavMetadata,
   UiPageMetadata,
   UiRecordActionMetadata,
+  UiSlotMetadata,
   UiTabMetadata,
   UiWidgetMetadata,
 } from '../domain/schema/ui/uiExtensionPoints';
 import {
   UI_API_VERSION,
   UI_COMMAND_POINT,
+  UI_MENU_POINT,
   UI_NAV_POINT,
   UI_PAGE_POINT,
   UI_RECORD_ACTION_POINT,
   UI_SETTINGS_POINT,
+  UI_SLOT_POINT,
   UI_TAB_POINT,
   UI_WIDGET_POINT,
 } from '../domain/schema/ui/uiExtensionPoints';
@@ -120,6 +124,39 @@ export const surfaceTabSpec = (metadata: UiTabMetadata, spec: WidgetSpec): Contr
   apiVersion: UI_API_VERSION,
   metadata: { ...metadata } as unknown as Record<string, unknown>,
   impl: { kind: 'widget', spec: spec as unknown as Record<string, unknown> },
+});
+
+/**
+ * Um TRECHO de uma região do shell, implementado em CÓDIGO (plugin interno). O `id` sai da superfície
+ * mais a chave, como nos widgets e nas abas: duas regiões podem hospedar um trecho de mesmo nome sem
+ * se atropelarem.
+ */
+export const surfaceSlot = (metadata: UiSlotMetadata, implKey: string): Contribution => ({
+  point: UI_SLOT_POINT,
+  id: slug(`${metadata.surface}-${metadata.key}`),
+  apiVersion: UI_API_VERSION,
+  metadata: { ...metadata } as unknown as Record<string, unknown>,
+  impl: { kind: 'code', key: implKey },
+});
+
+/** Um trecho DECLARATIVO (Widget DSL) — o caminho de quem não pode entregar código. */
+export const surfaceSlotSpec = (metadata: UiSlotMetadata, spec: WidgetSpec): Contribution => ({
+  point: UI_SLOT_POINT,
+  id: slug(`${metadata.surface}-${metadata.key}`),
+  apiVersion: UI_API_VERSION,
+  metadata: { ...metadata } as unknown as Record<string, unknown>,
+  impl: { kind: 'widget', spec: spec as unknown as Record<string, unknown> },
+});
+
+/**
+ * Um ITEM de menu. Não tem `impl`, e é o ponto: a declaração É a contribuição — o que o item faz sai
+ * da própria `action`, que o shell sabe executar. É o que põe o menu ao alcance de quem só declara.
+ */
+export const menuItem = (metadata: UiMenuItemMetadata): Contribution => ({
+  point: UI_MENU_POINT,
+  id: slug(`${metadata.surface}-${metadata.key}`),
+  apiVersion: UI_API_VERSION,
+  metadata: { ...metadata } as unknown as Record<string, unknown>,
 });
 
 /** Um widget DECLARATIVO (Widget DSL) — o caminho de quem não pode entregar código. */

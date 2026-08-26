@@ -8,6 +8,8 @@ import {
 } from 'react-icons/ri';
 import { useTopBarViewModel } from './TopBar.viewmodel';
 import { S } from './TopBar.styles';
+import { SlotSurface } from '../SlotSurface';
+import { WORKSPACE_SLOT_SURFACES } from '../../../../domain/schema/ui/uiExtensionPoints';
 
 import { useT } from '../../../shared/i18n/useT';
 export const TopBar: React.FC = () => {
@@ -86,6 +88,7 @@ export const TopBar: React.FC = () => {
             )}
           </>
         )}
+        <SlotSurface surface={WORKSPACE_SLOT_SURFACES.topBarLeft} />
       </S.Left>
 
       <S.Right>
@@ -102,6 +105,7 @@ export const TopBar: React.FC = () => {
             )}
           </S.IconButton>
         ))}
+        <SlotSurface surface={WORKSPACE_SLOT_SURFACES.topBarRight} />
       </S.Right>
     </S.Bar>
   );

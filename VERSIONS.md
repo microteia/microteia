@@ -11,6 +11,13 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.16.0] — 2026-08-26
+
+- O menu que se abre sob o seu nome, na barra lateral, deixou de ser uma lista fixa: cada item agora vem do módulo dono da tela que ele abre. Na prática, o menu passa a mostrar exatamente o que este escritório tem — e um módulo removido não deixa mais um item que não leva a lugar nenhum.
+- Uma extensão pode acrescentar itens a esse menu, apontando para uma tela dela ou para um endereço externo — o manual do escritório, o portal do cliente, o suporte.
+- Seis novas regiões do sistema passam a aceitar conteúdo de extensão: acima e abaixo do menu lateral, nos dois lados da barra do alto e nos dois lados da barra de status do rodapé. É por aí que a instalação ganha a cara do escritório — um aviso, um logotipo, um atalho, um indicador próprio.
+- Tudo o que aparece nessas regiões e no menu pode ser ligado, desligado e reordenado em Configurações, pelo escritório e por cada pessoa, como já acontecia com os cartões do painel e as abas das telas.
+
 #### [9.15.0] — 2026-08-26
 
 - Uma automação pode agora decidir sozinha qual outra automação atende um texto que chegou de fora — um e-mail, uma descrição escrita à mão — e executá-la já com os dados extraídos desse texto. É o que a tela de Extrator de Dados faz quando alguém cola o texto, clica em detectar e executa; agora isso cabe dentro de um fluxo, e o fluxo começa sozinho.

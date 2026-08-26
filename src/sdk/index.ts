@@ -129,10 +129,13 @@ export {
 
 export type {
   UiCommandMetadata,
+  UiMenuAction,
+  UiMenuItemMetadata,
   UiNavBadge,
   UiNavMetadata,
   UiPageMetadata,
   UiRecordActionMetadata,
+  UiSlotMetadata,
   UiTabMetadata,
   UiWidgetMetadata,
 } from '../domain/schema/ui/uiExtensionPoints';
@@ -141,12 +144,16 @@ export {
   UI_API_VERSION,
   UI_COMMAND_POINT,
   UI_EXTENSION_POINTS,
+  UI_MENU_POINT,
   UI_NAV_POINT,
   UI_PAGE_POINT,
   UI_RECORD_ACTION_POINT,
   UI_SETTINGS_POINT,
+  UI_SLOT_POINT,
   UI_TAB_POINT,
   UI_WIDGET_POINT,
+  USER_MENU_SURFACE,
+  WORKSPACE_SLOT_SURFACES,
 } from '../domain/schema/ui/uiExtensionPoints';
 
 export type { WidgetNodeType, WidgetSpec } from '../domain/schema/ui/widgetSpec';
@@ -295,11 +302,14 @@ export { SETTINGS_SCOPES } from '../domain/schema/settings';
 
 export {
   command,
+  menuItem,
   nav,
   page,
   pointContribution,
   recordAction,
   settingsSection,
+  surfaceSlot,
+  surfaceSlotSpec,
   surfaceTab,
   surfaceTabSpec,
   surfaceWidget,

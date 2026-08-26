@@ -1,4 +1,4 @@
-import { UI_EXTENSION_POINTS } from '../../../domain/schema/ui/uiExtensionPoints';
+import { UI_EXTENSION_POINTS, USER_MENU_SURFACE, WORKSPACE_SLOT_SURFACES } from '../../../domain/schema/ui/uiExtensionPoints';
 import { DATA_EXTENSION_POINTS } from '../../../domain/schema/dataExtensionPoints';
 import { I18N_EXTENSION_POINTS } from '../../../domain/schema/i18n/extensionPoints';
 import { THEME_EXTENSION_POINTS } from '../../../domain/schema/theme/extensionPoints';
@@ -43,6 +43,14 @@ const ALL_POINTS: ExtensionPointDefinition[] = [
 ];
 
 const kib = (bytes: number): string => `${Math.round(bytes / 1024)} KiB`;
+
+/**
+ * As regiões do shell, DERIVADAS da constante. Escritas à mão aqui, uma região nova no kernel deixaria
+ * o guia incompleto sem reprovar em nada — e quem lê o guia é justamente quem não tem como descobrir
+ * o nome de outro jeito.
+ */
+const shellSurfaces = (): string =>
+  Object.values(WORKSPACE_SLOT_SURFACES).map((surface) => `\`${surface}\``).join(' · ');
 
 const pointsTable = (points: ExtensionPointDefinition[]): string => [
   '| Point | API | Accepts | Many? |',
@@ -278,6 +286,20 @@ The \`Accepts\` column is the important one. Four kinds of implementation exist:
 Prefer \`widget\` when it is enough. A declarative page needs no review, cannot break, and survives
 platform upgrades without you touching it.
 
+### Making the shell your own
+
+Two points let an installation look like itself rather than like the platform, and neither asks for
+code. \`ui.slot\` puts content into a named region of the shell — ${shellSurfaces()} — and
+\`ui.menu\` adds an entry to a menu, today \`${USER_MENU_SURFACE}\`.
+
+A menu entry declares what it does through \`action\`: \`{ kind: 'openTab', tabKey }\` opens one of your
+screens, \`{ kind: 'url', href, newTab }\` opens an address. Nothing else runs — which is why the menu
+is open to a package that ships no JavaScript at all.
+
+Both are toggled and ordered by the organization, from Settings, under the region's own key
+(\`<surface>.slots\`, \`<surface>.items\`). Declare \`order\` and \`defaultEnabled\` and you have said
+where it starts; where it ends up is theirs to decide.
+
 ### How you contribute to one
 
 A contribution is one entry of \`manifest.contributes\`. Use the constructor for the point instead of
@@ -291,6 +313,8 @@ id is the whole of how an update recognises the same contribution across version
 | \`widgetPage(metadata, spec)\` | \`ui.page\` | a workspace screen declared in Widget DSL — no code, no review |
 | \`surfaceTab(metadata, viewKey)\` · \`surfaceTabSpec(metadata, spec)\` | \`ui.tab\` | a tab on a surface, as code or as Widget DSL |
 | \`surfaceWidget(metadata, viewKey)\` · \`surfaceWidgetSpec(metadata, spec)\` | \`ui.widget\` | a widget on a surface, as code or as Widget DSL |
+| \`surfaceSlot(metadata, viewKey)\` · \`surfaceSlotSpec(metadata, spec)\` | \`ui.slot\` | content in a named region of the shell, as code or as Widget DSL |
+| \`menuItem(metadata)\` | \`ui.menu\` | an entry in a menu — the \`action\` *is* the contribution, so no code is involved |
 | \`recordAction(metadata, viewKey)\` | \`ui.record.action\` | a gesture over one record, next to the platform's own |
 | \`command(id, metadata, viewKey)\` | \`ui.command\` | an entry in the command palette |
 | \`settingsSection(section)\` | \`ui.settings\` | a section of the Settings screen — the properties *are* the contribution |

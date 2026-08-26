@@ -18,6 +18,31 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.16.0] — 2026-08-26
+
+- feat(ui): two extension points open the shell to a package — `ui.slot` puts content into a named
+  region of it (`sidebar.header|footer`, `top-bar.left|right`, `status-bar.left|right`, listed in
+  `WORKSPACE_SLOT_SURFACES`), and `ui.menu` adds an entry to a menu. Until now an installation had
+  nowhere to put its own mark: nothing reached the top bar, the footer or the sidebar without a commit
+  in the kernel. `KERNEL_VERSION` goes to `2.6.0` — both points are additive.
+- feat(ui): a `ui.menu` entry carries no `impl` at all. What it does comes from a closed `action`
+  union — `{ kind: 'openTab', tabKey }` or `{ kind: 'url', href, newTab }` — so a package that ships
+  no JavaScript can still contribute to a menu. An unrecognised action drops the ITEM, never the menu.
+- refactor(shell): the eight hand-written entries of the user menu left
+  `WorkspaceSidebar.view.tsx` and became `menuItem(...)` contributions of the plugin that OWNS each
+  screen. The kernel knew `screen-builder`, `data-processor` and `marketplace` by name, so removing the
+  owning plugin left the row behind, opening a tab nobody can render.
+  `workspaceSurfaces.test.ts` asserts the order, the icons and the permissions are the ones that
+  already applied, and that no entry lives outside its owner.
+- refactor(settings): `surfaceTabsProperty`, `surfaceSlotsProperty` and `surfaceMenuProperty` are one
+  function with the point and key as parameters, and `useSurfaceTabs`/`useSurfaceSlots` are one
+  `useSurfaceItems(point, surface)`. Three copies of the same twenty lines would only have guaranteed
+  that a later fix reached one of them.
+- feat(sdk): `surfaceSlot`, `surfaceSlotSpec` and `menuItem` join the barrel, along with
+  `UI_SLOT_POINT`, `UI_MENU_POINT`, `USER_MENU_SURFACE`, `WORKSPACE_SLOT_SURFACES` and the three
+  metadata types. The authoring guide derives the region names from the constant instead of listing
+  them in prose.
+
 #### [9.15.0] — 2026-08-26
 
 - feat(workflow/steps): two AI steps, `ai-detect-workflow` and `ai-extract-parameters`, in a new backend plugin `core.ai.steps` (depends on `core.workflow` and `core.ai`, so the data steps do not inherit a dependency on a model). Detection reads the callable workflows' own descriptions and never returns an id outside the candidate list; it excludes the running workflow, which the model could otherwise pick with only the call-depth limit to stop it. No match is a SUCCESS with `found: false`, so a Condition can route what did not classify. Extraction builds the schema from the target's declared parameters and coerces the answer through the same `coerce` the Data Processor always used.

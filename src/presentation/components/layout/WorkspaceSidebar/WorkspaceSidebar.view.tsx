@@ -2,24 +2,18 @@ import React from 'react';
 import {
   RiSidebarFoldLine,
   RiSidebarUnfoldLine,
-  RiUserLine,
-  RiShieldUserLine,
   RiCheckLine,
   RiLogoutBoxLine,
   RiMoreLine,
   RiPaletteLine,
-  RiLayoutGridLine,
   RiArrowRightSLine,
   RiSearchLine,
-  RiFlowChart,
-  RiCodeBoxLine,
-  RiCursorLine,
-  RiSparkling2Line,
-  RiStoreLine,
 } from 'react-icons/ri';
 import { useWorkspaceSidebarViewModel } from './WorkspaceSidebar.viewmodel';
 import { S } from './WorkspaceSidebar.styles';
 import { UserAvatar } from '../../ui/UserAvatar';
+import { SlotSurface } from '../SlotSurface';
+import { WORKSPACE_SLOT_SURFACES } from '../../../../domain/schema/ui/uiExtensionPoints';
 
 import { useT } from '../../../shared/i18n/useT';
 export const WorkspaceSidebar: React.FC = () => {
@@ -52,6 +46,8 @@ export const WorkspaceSidebar: React.FC = () => {
           }
         </S.CollapseButton>
       </S.LogoArea>
+
+      {!vm.collapsed && <SlotSurface surface={WORKSPACE_SLOT_SURFACES.sidebarHeader} />}
 
       <S.SearchTrigger
         $collapsed={vm.collapsed}
@@ -88,61 +84,32 @@ export const WorkspaceSidebar: React.FC = () => {
         })}
       </S.Nav>
 
+      {!vm.collapsed && <SlotSurface surface={WORKSPACE_SLOT_SURFACES.sidebarFooter} />}
+
       <S.UserSection>
         {vm.isMenuOpen && (
           <>
             <S.MenuOverlay onClick={vm.closeMenu} />
             <S.UserMenu>
-              <S.MenuGroup>
-                <S.MenuItem onClick={vm.handleProfileClick}>
-                  <RiUserLine size={16} />
-                  {t('core.workspace/page.profile')}
-                </S.MenuItem>
-                {vm.isSystemAdmin && (
-                  <S.MenuItem onClick={vm.handleAccessManagementClick}>
-                    <RiShieldUserLine size={16} />
-                    {t('core.admin/page.access-management')}
-                  </S.MenuItem>
-                )}
-                {vm.canManageScreens && (
-                  <S.MenuItem onClick={vm.handleScreenBuilderClick}>
-                    <RiLayoutGridLine size={16} />
-                    {t('core.records/page.screen-builder')}
-                  </S.MenuItem>
-                )}
-                {vm.canManageAutomation && (
-                  <S.MenuItem onClick={vm.handleWorkflowsClick}>
-                    <RiFlowChart size={16} />
-                    {t('core.automation/page.workflows')}
-                  </S.MenuItem>
-                )}
-                {vm.canManageAutomation && (
-                  <S.MenuItem onClick={vm.handleScriptsClick}>
-                    <RiCodeBoxLine size={16} />
-                    {t('core.automation/page.scripts')}
-                  </S.MenuItem>
-                )}
-                {vm.canManageAutomation && (
-                  <S.MenuItem onClick={vm.handleActionsClick}>
-                    <RiCursorLine size={16} />
-                    {t('core.automation/page.actions')}
-                  </S.MenuItem>
-                )}
-                {vm.canUseDataProcessor && (
-                  <S.MenuItem onClick={vm.handleDataProcessorClick}>
-                    <RiSparkling2Line size={16} />
-                    {t('core.admin/page.data-processor')}
-                  </S.MenuItem>
-                )}
-                {vm.canManageExtensions && (
-                  <S.MenuItem onClick={vm.handleMarketplaceClick}>
-                    <RiStoreLine size={16} />
-                    {t('core.marketplace/page.marketplace')}
-                  </S.MenuItem>
-                )}
-              </S.MenuGroup>
+              {vm.menuGroups.map((group, index) => (
+                <React.Fragment key={group[0]?.key ?? index}>
+                  {index > 0 && <S.MenuDivider />}
+                  <S.MenuGroup>
+                    {group.map((item) => (
+                      <S.MenuItem
+                        key={item.key}
+                        $danger={item.danger}
+                        onClick={() => vm.handleMenuItemClick(item.key)}
+                      >
+                        {item.icon}
+                        {item.label}
+                      </S.MenuItem>
+                    ))}
+                  </S.MenuGroup>
+                </React.Fragment>
+              ))}
 
-              <S.MenuDivider />
+              {vm.menuGroups.length > 0 && <S.MenuDivider />}
 
               <S.MenuGroup>
                 <S.ThemeSubToggle onClick={vm.toggleThemeSub}>

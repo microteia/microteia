@@ -7123,6 +7123,90 @@ apontar para `@core.tenant/…` nas duas pontas.
 
 ---
 
+## O shell vira superfície — `ui.slot` e `ui.menu`
+
+O workspace tinha telas, menu principal, widgets e abas como contribuição — e **o shell em si**
+escrito à mão. Duas consequências, e a segunda é a que doía:
+
+1. Uma instalação não tinha onde pôr a própria marca. Nada entrava no alto da tela, no rodapé ou ao
+   lado do logotipo sem um commit no núcleo.
+2. **O kernel conhecia chave de página de outro plugin.** O menu do usuário eram oito linhas na
+   `WorkspaceSidebar.view.tsx`, cada uma com o `openTab('screen-builder')`, o `openTab('marketplace')`
+   e a permissão dela embutidos. Desinstalar o plugin dono deixava a linha lá, abrindo uma aba que
+   ninguém sabe renderizar — o sintoma que o CLAUDE.md descreve como a pergunta errada: não faltava
+   um nome a escrever, faltava a capacidade declarativa.
+
+### Dois pontos, porque são duas coisas
+
+| Ponto | Metadata | `impl` |
+|---|---|---|
+| `ui.slot` | `surface`, `key`, `title`, `icon`, `defaultEnabled`, `order`, `requiredPermissions` | `code` (interno/confiável) ou `widget` (Widget DSL) |
+| `ui.menu` | `surface`, `key`, `title`, `icon`, `group`, `order`, `danger`, `defaultEnabled`, `requiredPermissions`, `requiresSystemAdmin`, `action` | **nenhuma** |
+
+Um TRECHO é conteúdo; um ITEM é um rótulo com uma ação. É essa diferença que impediu de serem um
+ponto só: o trecho precisa renderizar algo, e por isso tem `impl`; o item precisa **fazer** algo, e
+por isso tem `action` — e ter `action` em vez de `impl` é o que o mantém ao alcance de um pacote que
+não entrega uma linha de JavaScript.
+
+**A `action` é uma união FECHADA:** `{ kind: 'openTab', tabKey }` e `{ kind: 'url', href, newTab }`.
+Fechada de propósito — um item que pudesse executar qualquer coisa exigiria `code`, e `code` é
+privilégio de primeira parte; o menu voltaria a ser inalcançável para quem só declara. Ação
+irreconhecível descarta o ITEM, não o menu: um item que não sabe o que faz é pior que um ausente,
+porque promete algo ao ser clicado.
+
+### A região é um NOME, e os nomes moram numa constante
+
+`<SlotSurface surface="top-bar.right" />` renderiza o que estiver registrado naquele nome. Os seis
+nomes vivem em `WORKSPACE_SLOT_SURFACES` (`domain/schema/ui/uiExtensionPoints.ts`), e não soltos em
+cada componente, porque são **contrato**: é por esse nome que uma extensão alcança o alto da tela, e
+um nome digitado errado nos dois lados não falha em lugar nenhum — simplesmente não aparece.
+
+| Nome | Onde |
+|---|---|
+| `sidebar.header` / `sidebar.footer` | barra lateral, abaixo do logotipo e acima do usuário |
+| `top-bar.left` / `top-bar.right` | barra do alto, ao lado do escritório e dos atalhos com selo |
+| `status-bar.left` / `status-bar.right` | barra de status, ao lado do plano e da versão |
+
+**Região vazia não desenha nada — nem um espaço.** É a regra, não a exceção: quase toda instalação
+não contribui trecho nenhum, e um vazio visível somaria seis buracos ao shell de todo mundo.
+
+**O núcleo declara as seis e não ocupa nenhuma** (há teste). Um trecho nosso ali seria vocabulário
+nosso no shell de todo escritório — a mesma razão pela qual a extensão do Painel não declara widget
+algum.
+
+### Nada de mecanismo novo: a configuração é a que já existia
+
+Ligar, desligar e reordenar é a propriedade `contributions`, que já servia `ui.tab` — agora com
+`point` valendo `ui.slot` ou `ui.menu`, e as chaves implícitas `<superfície>.slots` e
+`<superfície>.items`. `resolveContributionLayout` faz a mesma conciliação (o que chegou depois entra
+no fim, o que sumiu não deixa buraco), e o editor continua sendo o `ContributionListEditor`.
+
+`surfaceTabsProperty`, `surfaceSlotsProperty` e `surfaceMenuProperty` são a MESMA função com o ponto
+e a chave por parâmetro. Três cópias de vinte linhas garantiriam apenas que uma correção futura
+entrasse em uma delas.
+
+O mesmo valeu para a leitura: `useSurfaceTabs` e `useSurfaceSlots` são um `useSurfaceItems(point,
+surface)` só. Aba e trecho declaram a mesma forma e resolvem a implementação do mesmo jeito
+(componente do bundle, fonte de extensão confiável, ou Widget DSL); o que os separa é onde o
+resultado é desenhado, e isso é do hospedeiro.
+
+### O menu do usuário depois da mudança
+
+As oito linhas viraram oito `menuItem(...)`, cada uma **no plugin dono da tela que abre** —
+`core.workspace` (Perfil), `core.admin` (Gestão de Acesso, Processador de Dados), `core.records`
+(Construtor de Telas), `core.automation` (Automações, Scripts, Ações), `core.marketplace`
+(Extensões). Ordem, ícone e permissão são exatamente os que já valiam; o teste
+`workspaceSurfaces.test.ts` afirma os três, e afirma também que **nenhum item mora num plugin que não
+é dono da tela** — é essa última asserção que impede a regressão voltar por distração.
+
+O que ficou no shell foi só o que é dele: a aparência (o submenu de temas, que é lista viva de
+`useTheme`) e o sair. Os dois são do kernel — autenticação e tema não são tela de plugin.
+
+**A barra lateral não sabe mais quantos grupos existem.** `menuGroups` é uma lista de listas, e o
+divisor é o que aparece entre duas — quem contribui declara `group`, e o shell desenha.
+
+---
+
 ## Camada de Regras de Campo (validação e formatação)
 
 Camada declarativa, **compartilhada entre front e backend**, que formata e valida um valor **antes

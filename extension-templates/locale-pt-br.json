@@ -3,7 +3,7 @@
   "workflows": [],
   "manifest": {
     "id": "com.microteia.locale-pt-br",
-    "version": "1.25.0",
+    "version": "1.26.0",
     "kernel": "^2.0.0",
     "name": "Português (Brasil)",
     "description": "Tradução da Microteia para português do Brasil.",
@@ -370,6 +370,7 @@
             "mention.workflow.none-found": "Nenhuma automação encontrada.",
             "widget.render-failed": "Não foi possível exibir “{title}”.",
             "tab.render-failed": "Não foi possível exibir a aba “{title}”.",
+            "slot.render-failed": "Não foi possível exibir “{title}”.",
             "run.mode.form": "Formulário",
             "run.output": "Saída",
             "run.output.empty": "Nenhuma saída retornada.",
@@ -773,6 +774,10 @@
             "point.settings.description": "Declara uma seção da tela de Configurações, com as propriedades que o plugin aceita.",
             "point.tab": "Aba de superfície",
             "point.tab.description": "Acrescenta uma aba a uma superfície (as configurações do escritório, por exemplo), ligada e ordenada pela configuração.",
+            "point.slot": "Região do shell",
+            "point.slot.description": "Acrescenta conteúdo a uma região nomeada do shell (a barra do alto, a barra de status, a lateral), ligada e ordenada pela configuração.",
+            "point.menu": "Item de menu",
+            "point.menu.description": "Acrescenta um item a um menu, abrindo uma tela do workspace ou um endereço.",
             "note.added": "Anotação adicionada.",
             "note.add-failed": "Erro ao adicionar anotação.",
             "note.deleted": "Anotação excluída.",
@@ -797,7 +802,9 @@
             "action.edit": "Editar",
             "field.email": "E-mail",
             "settings.widgets": "Widgets da tela",
-            "settings.tabs": "Abas da tela"
+            "settings.tabs": "Abas da tela",
+            "settings.slots": "Conteúdo desta região",
+            "settings.menu": "Itens do menu"
           }
         }
       },

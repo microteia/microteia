@@ -2,6 +2,8 @@ import React from 'react';
 import { RiBuilding2Line, RiKeyboardLine, RiShieldCheckLine, RiVipCrownLine } from 'react-icons/ri';
 import { useWorkspaceStatusBarViewModel } from './WorkspaceStatusBar.viewmodel';
 import { S } from './WorkspaceStatusBar.styles';
+import { SlotSurface } from '../SlotSurface';
+import { WORKSPACE_SLOT_SURFACES } from '../../../../domain/schema/ui/uiExtensionPoints';
 
 import { useT } from '../../../shared/i18n/useT';
 
@@ -27,6 +29,7 @@ export const WorkspaceStatusBar: React.FC = () => {
             </S.PlanUsage>
           </S.PlanBadge>
         )}
+        <SlotSurface surface={WORKSPACE_SLOT_SURFACES.statusBarLeft} />
       </S.Side>
 
       <S.Side>
@@ -39,6 +42,7 @@ export const WorkspaceStatusBar: React.FC = () => {
           {t('status.terms')}
         </S.LinkButton>
         <S.Item>v{vm.version}</S.Item>
+        <SlotSurface surface={WORKSPACE_SLOT_SURFACES.statusBarRight} />
       </S.Side>
     </S.Bar>
   );

@@ -157,6 +157,93 @@ export interface UiTabMetadata {
   requiredPermissions?: string[];
 }
 
+/**
+ * Um TRECHO de conteúdo numa região nomeada do shell — o que entra no alto da tela, no rodapé, ao
+ * lado do logotipo. Mesma ideia do widget e da aba, com uma diferença que muda o desenho: aqui não
+ * há grade nem faixa, há uma FILA horizontal de trechos pequenos, e por isso não há largura.
+ *
+ * A superfície é um NOME (`top-bar.right`), não um componente: quem a hospeda declara o nome, e quem
+ * contribui não precisa conhecer nada além dele. É o que permite uma instalação pôr a própria marca,
+ * o próprio aviso ou o próprio atalho no shell sem que o shell saiba que eles existem.
+ *
+ * O `title` não aparece na tela — ele NOMEIA o trecho na configuração que o liga, desliga e ordena.
+ * Sem ele, o escritório veria uma lista de chaves ao decidir o que mostrar no alto da própria tela.
+ */
+export interface UiSlotMetadata {
+  surface: string;
+  key: string;
+  title: string;
+  description?: string;
+  /** Chave do conjunto curado de `screenIcons` — nunca um componente. */
+  icon?: string;
+  defaultEnabled?: boolean;
+  order?: number;
+  /** Ver `UiPageMetadata.requiredPermissions`. */
+  requiredPermissions?: string[];
+}
+
+/**
+ * O que um item de menu FAZ quando alguém o escolhe. É uma união fechada, e é fechada de propósito:
+ * um item de menu que pudesse executar qualquer coisa exigiria código, e código é privilégio de
+ * primeira parte — o menu deixaria de estar ao alcance de quem só declara.
+ *
+ * `openTab` abre uma tela do workspace pela chave dela; `url` abre um endereço, que é o que uma
+ * instalação precisa para ligar o próprio intranet, o próprio suporte, o próprio manual.
+ */
+export type UiMenuAction =
+  | { kind: 'openTab'; tabKey: string }
+  | { kind: 'url'; href: string; newTab?: boolean };
+
+/**
+ * Um ITEM de um menu — a linha que se escolhe no menu do usuário, e amanhã em qualquer outro menu
+ * que o shell hospede.
+ *
+ * Existe porque o menu do usuário era oito linhas escritas à mão no shell, cada uma com a permissão
+ * dela e a CHAVE DE PÁGINA DE OUTRO PLUGIN embutida: o kernel sabia que existiam `screen-builder`,
+ * `data-processor` e `marketplace`, e desinstalar qualquer um deles deixaria a linha lá, abrindo uma
+ * aba que ninguém sabe renderizar. Como contribuição, cada item vive no plugin que é dono da tela —
+ * e some junto com ele.
+ *
+ * `group` separa os itens por divisor. Ausente, o item entra no grupo padrão.
+ */
+export interface UiMenuItemMetadata {
+  surface: string;
+  key: string;
+  title: string;
+  /** Chave do conjunto curado de `screenIcons` — nunca um componente. */
+  icon?: string;
+  group?: string;
+  order?: number;
+  /** O item é destrutivo — sair, revogar, apagar. Muda só a cor. */
+  danger?: boolean;
+  defaultEnabled?: boolean;
+  /** Ver `UiPageMetadata.requiredPermissions`. */
+  requiredPermissions?: string[];
+  /** Ver `UiPageMetadata.requiresSystemAdmin`. */
+  requiresSystemAdmin?: boolean;
+  action: UiMenuAction;
+}
+
+/**
+ * As regiões do shell que hospedam trechos, pelo nome. Ficam em constante — e não soltas em cada
+ * componente — porque são CONTRATO: é por este nome que uma extensão alcança o alto da tela, e um
+ * nome digitado errado nos dois lados não falha em lugar nenhum, simplesmente não aparece.
+ */
+export const WORKSPACE_SLOT_SURFACES = {
+  sidebarHeader: 'sidebar.header',
+  sidebarFooter: 'sidebar.footer',
+  topBarLeft: 'top-bar.left',
+  topBarRight: 'top-bar.right',
+  statusBarLeft: 'status-bar.left',
+  statusBarRight: 'status-bar.right',
+} as const;
+
+/** O menu que se abre no rodapé da barra lateral, sob o nome de quem está conectado. */
+export const USER_MENU_SURFACE = 'user-menu';
+
+export const UI_SLOT_POINT = 'ui.slot';
+export const UI_MENU_POINT = 'ui.menu';
+
 export const UI_WIDGET_POINT = 'ui.widget';
 export const UI_SETTINGS_POINT = 'ui.settings';
 export const UI_TAB_POINT = 'ui.tab';
@@ -230,6 +317,26 @@ export const UI_EXTENSION_POINTS: ExtensionPointDefinition[] = [
     ownerPluginId: 'core.ui',
     allowedImplKinds: ['code', 'widget'],
     implRequired: true,
+    multiple: true,
+  },
+  {
+    id: UI_SLOT_POINT,
+    apiVersion: UI_API_VERSION,
+    title: '@core.ui/point.slot',
+    description: '@core.ui/point.slot.description',
+    ownerPluginId: 'core.ui',
+    allowedImplKinds: ['code', 'widget'],
+    implRequired: true,
+    multiple: true,
+  },
+  {
+    id: UI_MENU_POINT,
+    apiVersion: UI_API_VERSION,
+    title: '@core.ui/point.menu',
+    description: '@core.ui/point.menu.description',
+    ownerPluginId: 'core.ui',
+    allowedImplKinds: [],
+    implRequired: false,
     multiple: true,
   },
 ];

@@ -1,6 +1,8 @@
 import type { PluginRecord } from '../../kernel';
-import { command, lazyView, page } from '../contributionBuilders';
+import { command, lazyView, menuItem, page } from '../contributionBuilders';
 import { messageBundleContribution } from '../../domain/schema/i18n/extensionPoints';
+import { PERMISSION_AUTOMATION_MANAGE } from '../../domain/schema/access';
+import { USER_MENU_SURFACE } from '../../domain/schema/ui/uiExtensionPoints';
 import { coreMessage, CORE_AUTOMATION_MESSAGES } from '../coreMessages';
 import { WorkflowCommandProvider } from '../../presentation/components/ui/CommandPalette/providers/WorkflowCommandProvider';
 
@@ -41,6 +43,33 @@ export const coreAutomationPlugin: PluginRecord = {
       page({ key: 'function-reference', title: '@core.automation/page.function-reference', icon: 'bookSimple' }, 'FunctionReferenceView'),
       page({ key: 'data-function-reference', title: '@core.automation/page.data-function-reference', icon: 'database2' }, 'DataFunctionReferenceView'),
       command('workflow', { group: '@core.automation/command.group' }, 'WorkflowCommandProvider'),
+      menuItem({
+        surface: USER_MENU_SURFACE,
+        key: 'workflows',
+        title: '@core.automation/page.workflows',
+        icon: 'flowChart',
+        order: 40,
+        requiredPermissions: [PERMISSION_AUTOMATION_MANAGE],
+        action: { kind: 'openTab', tabKey: 'workflows' },
+      }),
+      menuItem({
+        surface: USER_MENU_SURFACE,
+        key: 'scripts',
+        title: '@core.automation/page.scripts',
+        icon: 'codeBox',
+        order: 50,
+        requiredPermissions: [PERMISSION_AUTOMATION_MANAGE],
+        action: { kind: 'openTab', tabKey: 'scripts' },
+      }),
+      menuItem({
+        surface: USER_MENU_SURFACE,
+        key: 'actions',
+        title: '@core.automation/page.actions',
+        icon: 'cursor',
+        order: 60,
+        requiredPermissions: [PERMISSION_AUTOMATION_MANAGE],
+        action: { kind: 'openTab', tabKey: 'actions' },
+      }),
     ],
   },
 };

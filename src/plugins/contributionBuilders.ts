@@ -20,11 +20,14 @@ export const lazyView = (
 
 export {
   command,
+  menuItem,
   nav,
   page,
   pointContribution,
   recordAction,
   settingsSection,
+  surfaceSlot,
+  surfaceSlotSpec,
   surfaceTab,
   surfaceTabSpec,
   surfaceWidget,

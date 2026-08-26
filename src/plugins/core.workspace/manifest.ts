@@ -1,8 +1,9 @@
 import type { PluginRecord } from '../../kernel';
-import { command, lazyView, page } from '../contributionBuilders';
+import { command, lazyView, menuItem, page } from '../contributionBuilders';
 import { NavigationCommandProvider } from '../../presentation/components/ui/CommandPalette/providers/NavigationCommandProvider';
 import { SystemCommandProvider } from '../../presentation/components/ui/CommandPalette/providers/SystemCommandProvider';
 import { messageBundleContribution } from '../../domain/schema/i18n/extensionPoints';
+import { USER_MENU_SURFACE } from '../../domain/schema/ui/uiExtensionPoints';
 import { coreMessage, CORE_WORKSPACE_MESSAGES } from '../coreMessages';
 
 export const coreWorkspacePlugin: PluginRecord = {
@@ -22,6 +23,14 @@ export const coreWorkspacePlugin: PluginRecord = {
     contributes: [
       messageBundleContribution(coreMessage('core.workspace', CORE_WORKSPACE_MESSAGES)),
       page({ key: 'profile', title: '@core.workspace/page.profile', icon: 'user' }, 'ProfileView'),
+      menuItem({
+        surface: USER_MENU_SURFACE,
+        key: 'profile',
+        title: '@core.workspace/page.profile',
+        icon: 'user',
+        order: 10,
+        action: { kind: 'openTab', tabKey: 'profile' },
+      }),
       command('navigation', { group: '@core.workspace/command.group.navigation' }, 'NavigationCommandProvider'),
       command('system', { group: '@core.workspace/command.group.system' }, 'SystemCommandProvider'),
     ],

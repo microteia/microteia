@@ -23,7 +23,8 @@ const PUBLISHED = [
   'SETTINGS_SCOPES', 'THEME_API_VERSION', 'THEME_DEFINITION_POINT', 'THEME_EXTENSION_POINTS',
   'THEME_TOKENS_POINT', 'THIRD_PARTY_IMPL_KINDS', 'UI_API_VERSION', 'UI_COMMAND_POINT',
   'UI_EXTENSION_POINTS', 'UI_NAV_POINT', 'UI_PAGE_POINT', 'UI_RECORD_ACTION_POINT',
-  'UI_SETTINGS_POINT', 'UI_TAB_POINT', 'UI_WIDGET_POINT', 'WIDGET_NODE_TYPES',
+  'UI_MENU_POINT', 'UI_SETTINGS_POINT', 'UI_SLOT_POINT', 'UI_TAB_POINT', 'UI_WIDGET_POINT',
+  'USER_MENU_SURFACE', 'WORKSPACE_SLOT_SURFACES', 'WIDGET_NODE_TYPES',
   'CUSTOM_FIELD_TYPES', 'FIELD_EXPRESSION_FUNCTION_NAMES', 'STEP_TYPES',
   'CONTROL_STEP_TYPES', 'CORE_STEP_CATALOG', 'CORE_STEP_DEFINITION_IDS',
   'UNIMPLEMENTED_STEP_TYPES', 'coreStepMetadata', 'isCoreStepDefinitionId',
@@ -31,10 +32,11 @@ const PUBLISHED = [
   'isApiVersionCompatible', 'isKernelCompatible', 'isMessageRef', 'isTrustedOnlyImplKind',
   'isValidContributionId', 'isValidExtensionPointId', 'isValidMessageKey', 'isValidPermission',
   'isValidPluginId', 'isValidRange', 'isValidSemVer', 'isWidgetSpec', 'lookupProviderContribution',
-  'messageBundleContribution', 'nav', 'packageFingerprint', 'packageIssues', 'packageOutRefs',
+  'menuItem', 'messageBundleContribution', 'nav', 'packageFingerprint', 'packageIssues', 'packageOutRefs',
   'packageSizeAdvisory', 'page', 'parsePackage', 'parseSemVer', 'pointContribution', 'qualifyKey',
   'recordAction', 'satisfiesRange', 'serializePackage', 'settingsSection', 'sortContributions',
-  'surfaceTab', 'surfaceTabSpec', 'surfaceWidget', 'surfaceWidgetSpec', 'themeTokensContribution',
+  'surfaceSlot', 'surfaceSlotSpec', 'surfaceTab', 'surfaceTabSpec', 'surfaceWidget',
+  'surfaceWidgetSpec', 'themeTokensContribution',
   'validateBackendRequirement', 'validateContribution', 'validateExtensionPoint',
   'validateMigrations', 'validatePackage', 'validatePermissions', 'validatePluginManifest',
   'validatePluginPackage', 'widgetChildren', 'widgetPage', 'mergeViewSources',
@@ -70,8 +72,10 @@ const PUBLISHED_TYPES = [
   'InputMappingKind', 'InputOptionsSource', 'InputType', 'OutputDefinition', 'StepCategory',
   'WorkflowStepMetadata', 'MapFieldMapping', 'MapStepConfig', 'RemoveStepConfig', 'UpsertSpec',
   'UpsertStepConfig', 'ValidateStepConfig',
-  'ThemeTagColor', 'ThemeTokenBundle', 'TranslateFn', 'UiCommandMetadata', 'UiNavBadge',
-  'UiNavMetadata', 'UiPageMetadata', 'UiRecordActionMetadata', 'UiTabMetadata', 'UiWidgetMetadata',
+  'ThemeTagColor', 'ThemeTokenBundle', 'TranslateFn', 'UiCommandMetadata', 'UiMenuAction',
+  'UiMenuItemMetadata', 'UiNavBadge',
+  'UiNavMetadata', 'UiPageMetadata', 'UiRecordActionMetadata', 'UiSlotMetadata', 'UiTabMetadata',
+  'UiWidgetMetadata',
   'ValidateManifestOptions', 'ValidateRule', 'VariableInputMapping', 'ViewModuleTemplate',
   'WidgetNodeType',
   'WidgetSpec', 'WorkflowDefinition', 'WorkflowLoopConfig', 'WorkflowModuleTemplate',
@@ -116,7 +120,8 @@ describe('a superfície publicada do SDK', () => {
   /** Um construtor de contribuição que não existisse tornaria o barril uma promessa vazia. */
   it('todo construtor de contribuição é chamável', () => {
     for (const name of ['page', 'nav', 'command', 'recordAction', 'settingsSection', 'widgetPage',
-      'surfaceTab', 'surfaceTabSpec', 'surfaceWidget', 'surfaceWidgetSpec', 'pointContribution']) {
+      'surfaceTab', 'surfaceTabSpec', 'surfaceWidget', 'surfaceWidgetSpec', 'surfaceSlot',
+      'surfaceSlotSpec', 'menuItem', 'pointContribution']) {
       expect(typeof (sdk as unknown as Record<string, unknown>)[name], name).toBe('function');
     }
   });

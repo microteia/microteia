@@ -11,8 +11,14 @@ import {
   type SettingsSection,
   type WidgetLayoutEntry,
 } from '../../../domain/schema/settings';
-import { UI_TAB_POINT } from '../../../domain/schema/ui/uiExtensionPoints';
-import { useSettingsSections, useSurfaceTabs, useSurfaceWidgets } from './useSettingsCatalog';
+import { UI_MENU_POINT, UI_SLOT_POINT, UI_TAB_POINT } from '../../../domain/schema/ui/uiExtensionPoints';
+import {
+  useSettingsSections,
+  useSurfaceMenuItems,
+  useSurfaceSlots,
+  useSurfaceTabs,
+  useSurfaceWidgets,
+} from './useSettingsCatalog';
 
 /**
  * A propriedade que ordena os widgets de uma superfície. Quem hospeda a superfície normalmente a
@@ -44,28 +50,54 @@ export const surfaceLayoutProperty = (
  * pelo mesmo motivo: quem hospeda a faixa normalmente a declara, e quando não declara a superfície
  * continua configurável por esta propriedade implícita.
  */
-export const surfaceTabsProperty = (
+const contributionsProperty = (
   sections: SettingsSection[],
+  point: string,
   surface: string,
+  key: string,
+  label: string,
 ): SettingsProperty => {
   for (const section of sections) {
     const declared = section.properties.find(
       (property) => property.type === 'contributions'
-        && property.point === UI_TAB_POINT
+        && property.point === point
         && property.surface === surface,
     );
     if (declared) return declared;
   }
   return {
-    key: `${surface}.tabs`,
-    label: '@core.ui/settings.tabs',
+    key,
+    label,
     type: 'contributions',
     default: [],
     scopes: ['tenant', 'user'],
-    point: UI_TAB_POINT,
+    point,
     surface,
   };
 };
+
+export const surfaceTabsProperty = (
+  sections: SettingsSection[],
+  surface: string,
+): SettingsProperty =>
+  contributionsProperty(sections, UI_TAB_POINT, surface, `${surface}.tabs`, '@core.ui/settings.tabs');
+
+/**
+ * A propriedade que liga/desliga e ordena os TRECHOS de uma região do shell. Mesma mecânica das abas
+ * — e é o que faz a instalação decidir o que aparece no alto da própria tela sem commit no núcleo.
+ */
+export const surfaceSlotsProperty = (
+  sections: SettingsSection[],
+  surface: string,
+): SettingsProperty =>
+  contributionsProperty(sections, UI_SLOT_POINT, surface, `${surface}.slots`, '@core.ui/settings.slots');
+
+/** A propriedade que liga/desliga e ordena os ITENS de um menu. */
+export const surfaceMenuProperty = (
+  sections: SettingsSection[],
+  surface: string,
+): SettingsProperty =>
+  contributionsProperty(sections, UI_MENU_POINT, surface, `${surface}.items`, '@core.ui/settings.menu');
 
 /** O valor em vigor de uma propriedade e de onde ele veio (padrão, escritório ou usuário). */
 export const useResolvedSetting = (property: SettingsProperty): {
@@ -134,6 +166,43 @@ export const useSurfaceTabLayout = (surface: string): SurfaceTabLayout => {
     const stored = resolveSetting(property, values).value;
     return resolveContributionLayout(stored, tabs);
   }, [property, values, tabs]);
+
+  return { entries, property };
+};
+
+export interface SurfaceContributionLayout {
+  entries: ContributionLayoutEntry[];
+  property: SettingsProperty;
+}
+
+/** O mesmo conciliar da faixa de abas, para os trechos de uma região do shell. */
+export const useSurfaceSlotLayout = (surface: string): SurfaceContributionLayout => {
+  const sections = useSettingsSections();
+  const slots = useSurfaceSlots(surface);
+  const { values } = useSettings();
+
+  const property = useMemo(() => surfaceSlotsProperty(sections, surface), [sections, surface]);
+
+  const entries = useMemo(
+    () => resolveContributionLayout(resolveSetting(property, values).value, slots),
+    [property, values, slots],
+  );
+
+  return { entries, property };
+};
+
+/** O mesmo conciliar, para os itens de um menu. */
+export const useSurfaceMenuLayout = (surface: string): SurfaceContributionLayout => {
+  const sections = useSettingsSections();
+  const items = useSurfaceMenuItems(surface);
+  const { values } = useSettings();
+
+  const property = useMemo(() => surfaceMenuProperty(sections, surface), [sections, surface]);
+
+  const entries = useMemo(
+    () => resolveContributionLayout(resolveSetting(property, values).value, items),
+    [property, values, items],
+  );
 
   return { entries, property };
 };

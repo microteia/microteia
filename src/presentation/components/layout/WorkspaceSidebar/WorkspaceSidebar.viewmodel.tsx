@@ -2,12 +2,6 @@ import { useState, useCallback, useMemo } from 'react';
 import { useWorkspace } from '../../../../stores/useWorkspace';
 import { useAuth } from '../../../../stores/useAuth';
 import { useAuthorization } from '../../../../stores/useAuthorization';
-import {
-  PERMISSION_AUTOMATION_MANAGE,
-  PERMISSION_DATA_PROCESSOR_USE,
-  PERMISSION_EXTENSIONS_MANAGE,
-  PERMISSION_SCREENS_MANAGE,
-} from '../../../../domain/schema/access';
 import { useTheme, AUTOMATIC_THEME } from '../../../../stores/useTheme';
 import { useCommandPalette } from '../../../../stores/useCommandPalette';
 import { useScreenDefinitions } from '../../../../stores/useScreenDefinitions';
@@ -17,7 +11,9 @@ import { useNavContributions } from '../../../shared/useUiContributions';
 import { useNavBadgeCount } from '../../../shared/useNavBadgeCount';
 import { visibleNavItems } from '../../../shared/resolveUiContributions';
 import { screenReadPermission } from '../../../../domain/services/screenDataCollection';
-import { DYNAMIC_SCREEN_NAV_ORDER } from '../../../../domain/schema/ui/uiExtensionPoints';
+import { DYNAMIC_SCREEN_NAV_ORDER, USER_MENU_SURFACE } from '../../../../domain/schema/ui/uiExtensionPoints';
+import { useSurfaceMenuItems, type SurfaceMenuItemDescriptor } from '../../../shared/settings/useSettingsCatalog';
+import { useSurfaceMenuLayout } from '../../../shared/settings/useSettingValue';
 import { useAuditLogAlert } from '../../../../stores/useAuditLogAlert';
 import type { User } from '../../../../domain/entities';
 import { useLabel } from '../../../shared/i18n/useT';
@@ -44,17 +40,28 @@ export interface SidebarThemeOption {
   bgColor: string;
 }
 
+/**
+ * Um item do menu do usuário, já resolvido: rótulo traduzido, ícone montado, permissão conferida. O
+ * que ele FAZ não vem daqui — vem da `action` da contribuição, executada por `handleMenuItemClick`.
+ */
+export interface SidebarMenuItem {
+  key: string;
+  label: string;
+  icon: React.ReactNode;
+  danger: boolean;
+}
+
 export interface WorkspaceSidebarViewModel {
   collapsed: boolean;
   navItems: NavItem[];
   activeKey: string | null;
   isMenuOpen: boolean;
   isThemeSubOpen: boolean;
-  isSystemAdmin: boolean;
-  canManageScreens: boolean;
-  canManageAutomation: boolean;
-  canManageExtensions: boolean;
-  canUseDataProcessor: boolean;
+  /**
+   * Os itens do menu, agrupados. Um grupo é o que aparece entre dois divisores; a barra lateral não
+   * sabe quantos são nem o que há em cada um.
+   */
+  menuGroups: SidebarMenuItem[][];
   user: User | null;
   effectivePhotoURL: string | null;
   effectiveName: string;
@@ -67,14 +74,7 @@ export interface WorkspaceSidebarViewModel {
   toggleMenu: () => void;
   closeMenu: () => void;
   toggleThemeSub: () => void;
-  handleProfileClick: () => void;
-  handleAccessManagementClick: () => void;
-  handleScreenBuilderClick: () => void;
-  handleWorkflowsClick: () => void;
-  handleScriptsClick: () => void;
-  handleActionsClick: () => void;
-  handleDataProcessorClick: () => void;
-  handleMarketplaceClick: () => void;
+  handleMenuItemClick: (key: string) => void;
   handleSetTheme: (id: string) => void;
   handleSignOut: () => void;
 }
@@ -92,15 +92,13 @@ export const useWorkspaceSidebarViewModel = (): WorkspaceSidebarViewModel => {
   const { unreadCriticalCount: unreadCriticalAuditCount } = useAuditLogAlert();
   const { sidebarScreens } = useScreenDefinitions();
   const navContributions = useNavContributions();
+  const registeredMenuItems = useSurfaceMenuItems(USER_MENU_SURFACE);
+  const { entries: menuEntries } = useSurfaceMenuLayout(USER_MENU_SURFACE);
 
   const searchShortcut = /Mac|iPhone|iPod|iPad/.test(navigator.platform) ? '⌘K' : 'Ctrl K';
 
   const activeKey = panels[activePanelId]?.activeTabKey ?? null;
   const isSystemAdmin = userRole === 'SYSTEM';
-  const canManageScreens = can(PERMISSION_SCREENS_MANAGE);
-  const canManageAutomation = can(PERMISSION_AUTOMATION_MANAGE);
-  const canManageExtensions = can(PERMISSION_EXTENSIONS_MANAGE);
-  const canUseDataProcessor = can(PERMISSION_DATA_PROCESSOR_USE);
 
   /**
    * O selo de cada item. Duas origens: a DECLARADA (`badge` da contribuição), que é uma contagem de
@@ -164,45 +162,52 @@ export const useWorkspaceSidebarViewModel = (): WorkspaceSidebarViewModel => {
     openTab(key);
   }, [openTab]);
 
-  const handleProfileClick = useCallback(() => {
-    openTab('profile');
-    closeMenu();
-  }, [openTab, closeMenu]);
+  /**
+   * Os itens que ESTA pessoa vê, na ordem que a configuração mandar, agrupados. O item que a extensão
+   * dona não trouxe simplesmente não está aqui — foi o que fez as oito linhas escritas à mão saírem
+   * daqui: elas prometiam abas (`screen-builder`, `marketplace`) que o kernel não sabe renderizar
+   * quando o plugin dono sai.
+   */
+  const visibleMenuItems = useMemo<SurfaceMenuItemDescriptor[]>(() => {
+    const byKey = new Map(registeredMenuItems.map((item) => [item.key, item]));
+    return menuEntries
+      .filter((entry) => entry.enabled)
+      .map((entry) => byKey.get(entry.key))
+      .filter((item): item is SurfaceMenuItemDescriptor => !!item)
+      .filter((item) => !item.requiresSystemAdmin || isSystemAdmin)
+      .filter((item) => !item.requiredPermissions?.length || canAny(item.requiredPermissions));
+  }, [registeredMenuItems, menuEntries, isSystemAdmin, canAny]);
 
-  const handleAccessManagementClick = useCallback(() => {
-    openTab('access-management');
-    closeMenu();
-  }, [openTab, closeMenu]);
+  const menuGroups = useMemo<SidebarMenuItem[][]>(() => {
+    const groups = new Map<string, SidebarMenuItem[]>();
+    for (const item of visibleMenuItems) {
+      const group = item.group ?? '';
+      const resolved: SidebarMenuItem = {
+        key: item.key,
+        label: item.title,
+        icon: item.icon ? getScreenIcon(item.icon, 16) : null,
+        danger: item.danger === true,
+      };
+      const existing = groups.get(group);
+      if (existing) existing.push(resolved);
+      else groups.set(group, [resolved]);
+    }
+    return Array.from(groups.values());
+  }, [visibleMenuItems]);
 
-  const handleScreenBuilderClick = useCallback(() => {
-    openTab('screen-builder');
+  const handleMenuItemClick = useCallback((key: string) => {
+    const item = visibleMenuItems.find((candidate) => candidate.key === key);
     closeMenu();
-  }, [openTab, closeMenu]);
-
-  const handleWorkflowsClick = useCallback(() => {
-    openTab('workflows');
-    closeMenu();
-  }, [openTab, closeMenu]);
-
-  const handleScriptsClick = useCallback(() => {
-    openTab('scripts');
-    closeMenu();
-  }, [openTab, closeMenu]);
-
-  const handleActionsClick = useCallback(() => {
-    openTab('actions');
-    closeMenu();
-  }, [openTab, closeMenu]);
-
-  const handleDataProcessorClick = useCallback(() => {
-    openTab('data-processor');
-    closeMenu();
-  }, [openTab, closeMenu]);
-
-  const handleMarketplaceClick = useCallback(() => {
-    openTab('marketplace');
-    closeMenu();
-  }, [openTab, closeMenu]);
+    if (!item) return;
+    if (item.action.kind === 'openTab') {
+      openTab(item.action.tabKey);
+      return;
+    }
+    // `noopener` sempre: o endereço é declarado por uma extensão, e a página aberta não pode alcançar
+    // esta pela `window.opener`.
+    if (item.action.newTab) window.open(item.action.href, '_blank', 'noopener,noreferrer');
+    else window.location.assign(item.action.href);
+  }, [visibleMenuItems, openTab, closeMenu]);
 
   const handleSetTheme = useCallback((id: string) => {
     setTheme(id);
@@ -243,11 +248,7 @@ export const useWorkspaceSidebarViewModel = (): WorkspaceSidebarViewModel => {
     activeKey,
     isMenuOpen,
     isThemeSubOpen,
-    isSystemAdmin,
-    canManageScreens,
-    canManageAutomation,
-    canManageExtensions,
-    canUseDataProcessor,
+    menuGroups,
     user,
     effectivePhotoURL,
     effectiveName,
@@ -260,14 +261,7 @@ export const useWorkspaceSidebarViewModel = (): WorkspaceSidebarViewModel => {
     toggleMenu,
     closeMenu,
     toggleThemeSub,
-    handleProfileClick,
-    handleAccessManagementClick,
-    handleScreenBuilderClick,
-    handleWorkflowsClick,
-    handleScriptsClick,
-    handleActionsClick,
-    handleDataProcessorClick,
-    handleMarketplaceClick,
+    handleMenuItemClick,
     handleSetTheme,
     handleSignOut,
   };
