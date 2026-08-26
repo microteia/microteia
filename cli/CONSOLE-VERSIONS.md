@@ -22,6 +22,29 @@
 - fix(command): what was broken, and what it did to whoever hit it.
 -->
 
+#### [2.9.0] — 2026-08-26
+
+- feat(deploy): `login.extensions` in `microteia.yaml` lists compiled extension packages that `deploy`
+  stamps into `hosting/microteia-extensions.js`, loaded before the bundle like `firebase-config.js`.
+  It is how a corporate SSO reaches the sign-in screen: that screen runs above the organization, so
+  nothing an organization installed can reach it, and until now the only way in was a commit in the
+  kernel.
+- feat(deploy): the stamp is written on EVERY deploy, empty list included. Skipping the write would
+  leave the previous deploy's stamp live, so removing a package from the list would not remove it from
+  the screen.
+- feat(deploy): a package that contributes to none of the points that work before sign-in is REFUSED,
+  not stamped. It would load with no effect, and whoever stamped it would believe it was live. The list
+  of those points comes from `preLoginPoints` in the installed package's manifest, never from a copy
+  here: the Console is versioned separately, and a copy would silently describe another version's
+  contract.
+- feat(deploy): the stamp is capped — a warning past 256 KiB, a refusal past 1 MiB. The file blocks the
+  page on every visit, including visits by people who never sign in.
+- feat(deploy): a duplicated package id is refused. The Kernel would ignore the second one, so the file
+  would say something the installation does not do. A missing path, broken JSON and a file that is not a
+  package each name themselves.
+- feat(deploy): a stamped package that ships views gets a warning saying its code does not run before
+  sign-in — stamping is not trusting, and that is what allows stamping without a code review.
+
 #### [2.8.0] — 2026-08-25
 
 - feat(console/functionsUpToDate): new module. It reconstructs the skip that `firebase deploy` performs in bulk and that `--only functions:<name>` disables, WITHOUT reimplementing the hash: functions are grouped by the `firebase-functions-hash` label they carry, one member of each group is deployed, and the stamp it comes back with is the stamp of the current code. The probe being a MEMBER of its group is what makes the conclusion carry to the others — two functions with the same old stamp share source, environment and secret set, the three parcels of the hash. Absent, non-`ACTIVE`, unstamped or wrong-region always deploys: not knowing never becomes skipping.

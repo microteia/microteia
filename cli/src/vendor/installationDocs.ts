@@ -156,6 +156,23 @@ it is what makes an upgrade trustworthy, and the reason your files are elsewhere
 
 ${commandRows()}
 
+### Signing in before there is an organization
+
+The sign-in screen runs above the organization: there is no tenant there, so nothing an organization
+installed can reach it. That is why \`login.extensions\` in \`microteia.yaml\` exists — it lists compiled
+extension packages that \`deploy\` stamps into the site itself, and it is how a corporate SSO, or your own
+mark on the sign-in screen, gets there.
+
+Two things follow, and both are deliberate:
+
+- **Nothing stamped runs JavaScript.** The packages load untrusted, so only declarations apply. That is
+  what lets you put an SSO live without anyone reviewing code.
+- **Stamping is not installing.** A stamped package applies before sign-in only; inside the organization
+  what applies is what the organization installed, from the Extensions screen. To have both, do both.
+
+\`deploy\` refuses a package that contributes to nothing which works before sign-in, rather than stamping
+it: it would load with no effect, and you would believe it was live.
+
 \`unpack\` and \`deploy\` are separate so that taking a new version does not oblige you to publish
 everything, and so that there is a moment between the two to fill in a setting the new version asks for.
 

@@ -21,6 +21,7 @@ import {
   stampedConfigJs,
   writeResolvedConfig,
 } from './workspace.js';
+import { STAMP_FILE, buildLoginExtensions, stampPath } from './loginExtensions.js';
 
 const COMPONENTS = ['rules', 'indexes', 'functions', 'hosting'] as const;
 type Component = (typeof COMPONENTS)[number];
@@ -84,6 +85,23 @@ export const deploy = async (args: ParsedArgs): Promise<void> => {
   await writeFile(join(install, 'hosting', 'firebase-config.js'), stampedConfigJs(stamped));
 
   success(`hosting/firebase-config.js → ${projectId}`);
+
+  // As extensões que valem ANTES do login. Carimbadas no mesmo passo da configuração porque são a
+  // mesma coisa: o que o navegador precisa saber antes de o bundle subir. Escrito sempre, mesmo vazio
+  // — pular a escrita deixaria o carimbo do deploy anterior no ar, e tirar um pacote da lista não o
+  // tiraria da tela.
+  const loginExtensions = await buildLoginExtensions(
+    root,
+    environment.login.extensions,
+    manifest.preLoginPoints,
+  );
+  await writeFile(stampPath(install), loginExtensions.contents);
+  if (loginExtensions.stamped.length === 0) {
+    success(`hosting/${STAMP_FILE} → no extensions before sign-in`);
+  } else {
+    success(`hosting/${STAMP_FILE} → ${loginExtensions.stamped.join(', ')}`);
+  }
+  for (const warning of loginExtensions.warnings) warn(warning);
 
   // O arquivo que o escritório edita é o da RAIZ; o que o `firebase-functions` lê tem de estar em
   // `install/functions/`, e por isso é uma cópia escrita agora. Antes a fonte era a cópia, e o deploy

@@ -19,6 +19,7 @@ const environment: Environment = {
   firebase: { projectId: 'acme-microteia', region: 'southamerica-east1' },
   kernel: { version: '7.47.0', deployed: '7.46.0' },
   backend: { functions: null, parameters: null, indexes: null },
+  login: { extensions: null },
 };
 
 let root = '';

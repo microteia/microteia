@@ -48,6 +48,16 @@ export interface KernelManifest {
   baselineIndexes: FirestoreIndexSpec[];
   /** Ausente nos pacotes anteriores a 7.51.0, que não conheciam a verificação de alcance. */
   callables?: string[];
+  /**
+   * Os pontos de extensão que fazem efeito ANTES do login. É contra esta lista que o `deploy` decide
+   * se um pacote carimbado tem o que fazer no boot — carimbar um que não contribua para nenhum deles
+   * o carregaria sem efeito, e quem o carimbou acreditaria que está no ar.
+   *
+   * Ela é DERIVADA do kernel e viaja no manifesto justamente para o Console não a conhecer de cor: o
+   * Console é versionado separadamente, e uma cópia aqui passaria a descrever o contrato de outra
+   * versão em silêncio. Ausente nos pacotes anteriores às extensões carimbadas.
+   */
+  preLoginPoints?: string[];
   backendParameters: BackendParameter[];
   manualPrerequisites: KernelPrerequisite[];
   /**
@@ -238,6 +248,23 @@ export const compareVersions = (left: string, right: string): number => {
   }
 
   return 0;
+};
+
+/**
+ * Os pontos que valem antes do login, lidos de `domain/schema/plugin/preLoginPoints.ts`. Lista vazia é
+ * recusada em vez de aceita: um pacote sem nenhum ponto pré-login recusaria todo carimbo, e a causa
+ * (o parser não achou nada) não teria nada a ver com o sintoma.
+ */
+export const parsePreLoginPoints = (source: string): string[] => {
+  const block = source.match(/PRE_LOGIN_POINTS[^=]*=\s*\[([^\]]*)\]/);
+  if (block === null) {
+    throw new Error('PRE_LOGIN_POINTS not found in domain/schema/plugin/preLoginPoints.ts');
+  }
+  const points = [...block[1].matchAll(/'([^']+)'/g)].map((match) => match[1]);
+  if (points.length === 0) {
+    throw new Error('PRE_LOGIN_POINTS is empty in domain/schema/plugin/preLoginPoints.ts');
+  }
+  return points;
 };
 
 export const parseKernelVersion = (source: string): string => {

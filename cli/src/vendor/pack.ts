@@ -16,6 +16,7 @@ import {
   declaredParametersIn,
   exportedFunctionNames,
   parseKernelVersion,
+  parsePreLoginPoints,
 } from '../kernel/manifest.js';
 import type { BackendParameter, KernelManifest, KernelSdk } from '../kernel/manifest.js';
 import { digestOfFile } from '../shared/digest.js';
@@ -190,6 +191,9 @@ export const pack = async (args: ParsedArgs): Promise<void> => {
   const kernelVersion = parseKernelVersion(
     await readFile(join(root, 'src/domain/schema/plugin/kernelVersion.ts'), 'utf8'),
   );
+  const preLoginPoints = parsePreLoginPoints(
+    await readFile(join(root, 'src/domain/schema/plugin/preLoginPoints.ts'), 'utf8'),
+  );
   const functionNames = exportedFunctionNames(
     await readFile(join(root, 'functions/src/index.ts'), 'utf8'),
   );
@@ -319,6 +323,7 @@ export const pack = async (args: ParsedArgs): Promise<void> => {
     baselineFunctions,
     baselineIndexes,
     callables,
+    preLoginPoints,
     backendParameters,
     manualPrerequisites: MANUAL_PREREQUISITES,
     sdk,

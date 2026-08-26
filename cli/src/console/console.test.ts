@@ -17,6 +17,7 @@ const sample: Environment = {
     parameters: 'EXAMPLE_CLIENT_ID:0011223344aa',
     indexes: 'auditLogs:tenantId+,createdAt-;records/group:labels*,at-',
   },
+  login: { extensions: 'extensions/dist/sso-acme.json,extensions/dist/marca.json' },
 };
 
 describe('arquivo de ambiente', () => {
@@ -30,6 +31,8 @@ describe('arquivo de ambiente', () => {
       firebase: { ...sample.firebase, projectId: null },
       kernel: { version: null, deployed: null },
       backend: { functions: null, parameters: null, indexes: null },
+      login: { extensions: null },
+  login: { extensions: null },
     };
     expect(parseEnvironment(serializeEnvironment(fresh))).toEqual(fresh);
   });

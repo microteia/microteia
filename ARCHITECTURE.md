@@ -7277,11 +7277,59 @@ plugin** (`plugins/core.auth/messagesPtBr.ts`), como no `core.tenant`. A marca d
 colorido do Google ali chamaria uma marca de "ícone". Em `oidc` e `saml` a marca é do escritório, e
 nós não a conhecemos: ali quem declara escolhe um ícone do conjunto curado.
 
-### O que ficou pendente
+### A origem pré-login — a extensão carimbada na instalação
 
-O host que serve `/login` é o **base** (`CORE_PLUGINS`), então hoje só um plugin do bundle contribui um
-meio de entrada. Para o SSO de um escritório chegar ali, falta a origem pré-login — a extensão
-carimbada na instalação, aplicada pelo `deploy` do Console.
+O host que serve `/login` é o **base**, e sozinho ele só conhece o bundle. Para o SSO de um escritório
+chegar ali, a extensão dele tem de ser **carimbada na instalação**: `login.extensions` no
+`microteia.yaml` lista os pacotes compilados, e `microteia deploy` os escreve em
+`hosting/microteia-extensions.js`, carregado antes do bundle como o `firebase-config.js`.
+
+**Por que carimbar, e não ler do banco.** As três alternativas foram consideradas e as duas outras
+custam mais: um documento de leitura pública no Firestore seria a primeira leitura sem autenticação
+das regras — superfície de segurança nova para um dado que já é público de fato; e ler do escritório é
+justamente o que não existe antes do login. O carimbo não acrescenta superfície nenhuma: é um arquivo
+estático ao lado de um que já existia, pelo mesmo caminho e com a mesma vida.
+
+**A lista é EXPLÍCITA, e varrer `extensions/` seria errado.** Aquele diretório é onde o escritório
+escreve — é rascunho de autoria, não o que roda. Carimbar é um ato, e escrever o caminho no
+`microteia.yaml` é o ato. É a mesma separação que já vale entre a área privada de autoria e instalar.
+
+**Carimbar não é instalar, e não é confiar.** Os pacotes entram como `trusted: false`: nada carimbado
+roda JavaScript, e o que passa é só declaração. Isso não é precaução — é a condição de o mecanismo ser
+útil, porque é o que permite a quem instala pôr um SSO no ar sem que ninguém revise código. E o efeito
+é só ANTES do login: dentro do escritório vale o que o escritório instalou. Misturar os dois faria uma
+extensão carimbada aparecer no menu de todo escritório da instalação sem ninguém tê-la instalado.
+
+| Peça | Onde | O que faz |
+|---|---|---|
+| `PRE_LOGIN_POINTS` | `domain/schema/plugin/preLoginPoints.ts` | os pontos que fazem efeito no boot |
+| `parseStampedExtensions` | `infrastructure/boot/stampedExtensions.ts` | lê o carimbo, desconfiado |
+| `BOOT_PLUGINS` | `plugins/bootPlugins.ts` | núcleo + carimbadas, sempre `trusted: false` |
+| `buildLoginExtensions` | `cli/src/console/loginExtensions.ts` | monta o carimbo, e recusa antes de escrever |
+| `preLoginPoints` | manifesto do pacote | a lista DERIVADA, para o Console não a saber de cor |
+
+**A lista de pontos viaja no manifesto do pacote, e isso não é detalhe.** O Console é versionado e
+distribuído separadamente do kernel: uma cópia dela em `cli/` passaria a descrever o contrato de outra
+versão em silêncio — o mesmo defeito que tirou os guias de `extensions/` de dentro do Console. `pack` a
+deriva de `preLoginPoints.ts`; pacote antigo não a declara, e ali a checagem é **pulada em vez de
+inventada**.
+
+**Cinco recusas, todas do mesmo tipo.** Um pacote que carrega e não faz nada é pior que um erro, porque
+quem o carimbou acredita que está no ar. Por isso o `deploy` para antes de escrever quando: o caminho
+não existe; o JSON está quebrado; o arquivo não é pacote; o mesmo id aparece duas vezes (o Kernel
+ignoraria o segundo, e o arquivo diria uma coisa e a instalação faria outra); ou o pacote **não
+contribui para nenhum ponto pré-login**.
+
+**O carimbo é escrito SEMPRE, inclusive vazio.** Pular a escrita com a lista vazia deixaria o carimbo do
+deploy anterior no ar: tirar um pacote de `login.extensions` não o tiraria da tela.
+
+**E ele é limitado em tamanho** — aviso passando de 256 KiB, recusa passando de 1 MiB. É um `<script>`
+no `<head>`, antes do bundle: custa em toda visita, inclusive na de quem nunca vai entrar.
+
+**A leitura no navegador é a mais desconfiada do repositório**, e por uma razão específica: é o primeiro
+código que roda na página. Um deploy interrompido, uma edição à mão ou um cache antigo produzem o mesmo
+arquivo pela metade — e ali uma exceção é a tela branca. Por isso ela descarta em vez de lançar, e por
+isso a decisão inteira está numa função pura (`parseStampedExtensions`), testável sem navegador.
 
 ---
 

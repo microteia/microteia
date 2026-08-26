@@ -11,6 +11,13 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.18.0] — 2026-08-26
+
+- O login corporativo (SSO) passa a ser possível de fato. Quem instala o sistema pode agora indicar extensões que carregam **antes** da tela de entrada — é por elas que o provedor de identidade da organização aparece ali, ao lado ou em lugar do e-mail e senha.
+- Pela mesma via, a tela de entrada pode receber a marca da instalação: um aviso, um logotipo, um texto no rodapé.
+- Nada indicado dessa forma executa programação própria: só o que é declarado vale. É o que permite pôr um login corporativo no ar sem que o código de ninguém precise ser revisado.
+- Indicar uma extensão para antes do login não é o mesmo que instalá-la para uso interno: são duas decisões, e quem quiser as duas coisas faz as duas.
+
 #### [9.17.0] — 2026-08-26
 
 - A tela de entrada deixou de ter os meios de entrada escritos dentro dela. Isso abre o caminho para o **login corporativo (SSO)**: uma instalação passa a poder oferecer a entrada pelo provedor de identidade da própria organização — Microsoft, Google Workspace, ou um servidor OIDC/SAML próprio — ao lado ou em lugar do e-mail e senha.

@@ -44,6 +44,19 @@ export interface Environment {
      */
     indexes: string | null;
   };
+  /**
+   * As extensões que a instalação carrega ANTES do login — os pacotes compilados que `deploy` carimba
+   * em `microteia-extensions.js`. É por aqui que um SSO chega à tela de entrada: ali não há escritório,
+   * logo não há como ler o que um escritório instalou.
+   *
+   * É uma lista de CAMINHOS, e é deliberado que seja explícita. Varrer `extensions/` poria no ar um
+   * rascunho de autoria — aquele diretório é onde se escreve, não o que roda. Carimbar é um ato, e
+   * escrever o caminho aqui é o ato.
+   *
+   * Escalar separado por vírgula, como `backend.functions`, pela mesma razão: o leitor de YAML daqui
+   * entende mapas de dois níveis e escalares.
+   */
+  login: { extensions: string | null };
 }
 
 export const ENVIRONMENT_FILE = 'microteia.yaml';
@@ -140,6 +153,7 @@ export const parseEnvironment = (source: string): Environment => {
       parameters: optional('backend', 'parameters'),
       indexes: optional('backend', 'indexes'),
     },
+    login: { extensions: optional('login', 'extensions') },
   };
 };
 
@@ -186,6 +200,16 @@ backend:
   # "firebase deploy" offer to delete the indexes of every extension. Managed by
   # "microteia provision".
   indexes: ${quote(environment.backend.indexes)}
+
+login:
+  # Compiled extension packages (.json) to load BEFORE anyone signs in — this is how a corporate SSO
+  # reaches the sign-in screen, since there is no organization to read it from yet. Comma-separated
+  # paths, relative to this file. "microteia deploy" stamps them into microteia-extensions.js and
+  # refuses a package that contributes to none of the points that work before sign-in.
+  #
+  # Nothing stamped here runs JavaScript: the packages load as untrusted, so only declarations apply.
+  # To USE an extension inside the organization, install it from the Extensions screen instead.
+  extensions: ${quote(environment.login.extensions)}
 `;
 
 export const readEnvironment = async (path: string): Promise<Environment> => {

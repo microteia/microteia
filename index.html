@@ -7,6 +7,11 @@
          de o módulo ser deferido — verdade hoje, mas invisível para quem lê o HTML gerado.
          Ver public/firebase-config.js e infrastructure/firebase/runtimeConfig.ts. -->
     <script src="/firebase-config.js"></script>
+    <!-- As extensões da instalação, carimbadas no deploy. Carregam ANTES do bundle pelo mesmo motivo
+         da configuração: a tela de entrada precisa delas para desenhar os meios de entrada, e não há
+         escritório de onde lê-las. Ver public/microteia-extensions.js e
+         infrastructure/boot/stampedExtensions.ts. -->
+    <script src="/microteia-extensions.js"></script>
     <link rel="icon" type="image/x-icon" href="/favicon.ico" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Microteia — An AI-First Business Application Platform</title>

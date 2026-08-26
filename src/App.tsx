@@ -3,7 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { DIProvider } from './infrastructure/di/DIContainer';
 import { KernelProvider } from './stores/KernelContext';
 import { TenantKernelProvider } from './stores/TenantKernelProvider';
-import { CORE_PLUGINS } from './plugins';
+import { BOOT_PLUGINS } from './plugins/bootPlugins';
 import { ThemeProvider } from './stores/ThemeContext';
 import { LocaleProvider, TenantLocaleProvider } from './stores/LocaleContext';
 import { TenantThemeBridge } from './stores/TenantThemeBridge';
@@ -42,7 +42,7 @@ import { AppErrorBoundary } from './presentation/components/layout/AppErrorBound
 
 const App: React.FC = () => {
   return (
-    <KernelProvider records={CORE_PLUGINS}>
+    <KernelProvider records={BOOT_PLUGINS}>
     <DIProvider>
       <ThemeProvider>
         <LocaleProvider>

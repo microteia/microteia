@@ -328,6 +328,16 @@ The sign-in screen runs ABOVE the organization: there is no tenant, no settings 
 permission there. So sign-in methods are decided by what is DECLARED, never by a setting — and the
 regions it hosts (\`login.header\`, \`login.footer\`) drop any slot that asks for a permission.
 
+**Which means installing your package is not enough.** An installed extension is read from the
+organization, and before sign-in there is no organization to read it from. A package that contributes
+before sign-in has to be STAMPED into the installation: list its built \`.json\` in \`login.extensions\`
+in \`microteia.yaml\`, and \`microteia deploy\` puts it in the site itself.
+
+Stamped packages load UNTRUSTED — only declarations apply, and \`views\` do not run. That is not a
+restriction to work around; it is what lets an installation put your SSO live without anyone reviewing
+your code. And stamping is not installing: to also work inside the organization, the package has to be
+installed there too.
+
 ### How you contribute to one
 
 A contribution is one entry of \`manifest.contributes\`. Use the constructor for the point instead of

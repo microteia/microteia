@@ -18,6 +18,29 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.18.0] — 2026-08-26
+
+- feat(boot): `BOOT_PLUGINS` is the base host: the core plugins plus the extensions STAMPED into the
+  installation, read from `window.__MICROTEIA_EXTENSIONS__`. It closes the gap the previous version
+  left open — the sign-in screen runs above the organization, so nothing an organization installed can
+  reach it, and `auth.provider` had no source but the bundle.
+- feat(boot): stamped packages are always `trusted: false`. Nothing stamped runs JavaScript, and that
+  is not caution: it is what allows an installation to put an SSO live without anyone reviewing code.
+  Their effect is BEFORE sign-in only — inside the organization what applies is what the organization
+  installed, or a stamped extension would appear in every organization's menu with nobody having
+  installed it.
+- feat(boot): `PRE_LOGIN_POINTS` names the points that take effect at boot — `auth.provider`,
+  `i18n.messages`, `theme.definition`, `theme.tokens`, `ui.slot`. `pack` derives it into the package
+  manifest so the Console never knows it by heart: the Console ships separately, and a copy there would
+  silently describe another version's contract.
+- feat(boot): `parseStampedExtensions` is a pure function, separate from the window read, and it
+  discards rather than throws. This is the first code that runs on the page: an interrupted deploy, a
+  hand edit or a stale cache all produce the same half-written file, and there an exception is a blank
+  screen.
+- feat(hosting): `index.html` loads `/microteia-extensions.js` beside `/firebase-config.js`, and
+  `public/microteia-extensions.js` is the empty placeholder — with no stamp, `npm run dev` and the
+  TARGET builds behave exactly as before.
+
 #### [9.17.0] — 2026-08-26
 
 - feat(auth): `auth.provider` is the sign-in screen's extension point, and it accepts NO
