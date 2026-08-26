@@ -11,6 +11,14 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.17.0] — 2026-08-26
+
+- A tela de entrada deixou de ter os meios de entrada escritos dentro dela. Isso abre o caminho para o **login corporativo (SSO)**: uma instalação passa a poder oferecer a entrada pelo provedor de identidade da própria organização — Microsoft, Google Workspace, ou um servidor OIDC/SAML próprio — ao lado ou em lugar do e-mail e senha.
+- Uma instalação que exige login único pode simplesmente não oferecer e-mail e senha. Quando isso acontece, o formulário, o link de criar conta e o de recuperar senha desaparecem juntos — não há mais senha a criar nem a recuperar.
+- A entrada pode agora sair da página e voltar, em vez de abrir uma janela. É o único caminho que funciona quando o navegador da organização bloqueia janelas, dentro de um aplicativo embutido ou de um site em moldura.
+- Quando a entrada falha, a tela passa a dizer o que aconteceu em mais casos: janela bloqueada pelo navegador, janela fechada antes de terminar, e-mail já cadastrado por outro meio, meio de entrada não habilitado. Antes, boa parte disso voltava para a tela sem uma palavra.
+- A tela de entrada também aceita conteúdo de extensão no topo e no rodapé, como o resto do sistema.
+
 #### [9.16.0] — 2026-08-26
 
 - O menu que se abre sob o seu nome, na barra lateral, deixou de ser uma lista fixa: cada item agora vem do módulo dono da tela que ele abre. Na prática, o menu passa a mostrar exatamente o que este escritório tem — e um módulo removido não deixa mais um item que não leva a lugar nenhum.

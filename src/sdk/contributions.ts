@@ -8,6 +8,8 @@
  * chave).
  */
 import type { Contribution } from '../domain/schema/plugin/contribution';
+import type { AuthProviderMetadata } from '../domain/schema/auth';
+import { AUTH_API_VERSION, AUTH_PROVIDER_POINT } from '../domain/schema/auth';
 import type { WidgetSpec } from '../domain/schema/ui/widgetSpec';
 import type { SettingsSection } from '../domain/schema/settings';
 import type {
@@ -166,6 +168,18 @@ export const surfaceWidgetSpec = (metadata: UiWidgetMetadata, spec: WidgetSpec):
   apiVersion: UI_API_VERSION,
   metadata: { ...metadata } as unknown as Record<string, unknown>,
   impl: { kind: 'widget', spec: spec as unknown as Record<string, unknown> },
+});
+
+/**
+ * Um MEIO DE ENTRAR. Não tem `impl`, e é o ponto: a declaração é a contribuição inteira — o Firebase
+ * Auth do projeto já sabe falar OIDC e SAML, e o que falta é o pacote dizer com quem. Exigir código
+ * aqui tornaria o SSO privilégio de primeira parte, que é justamente o oposto do que ele precisa ser.
+ */
+export const authProvider = (metadata: AuthProviderMetadata): Contribution => ({
+  point: AUTH_PROVIDER_POINT,
+  id: slug(metadata.key),
+  apiVersion: AUTH_API_VERSION,
+  metadata: { ...metadata } as unknown as Record<string, unknown>,
 });
 
 /**

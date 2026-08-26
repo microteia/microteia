@@ -57,6 +57,7 @@ const PT_BR_LOCALE_PACKAGE = { dir: path.join('marketplace', 'localePtBr') };
 
 const PT_BR_CATALOG_BY_NS = {
   'core.tenant': { dir: 'core.tenant', module: 'messagesPtBr' },
+  'core.auth': { dir: 'core.auth', module: 'messagesPtBr' },
 };
 
 /**

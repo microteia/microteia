@@ -29,3 +29,14 @@ export const useAuthorization = (): AuthorizationContextValue => {
   if (!ctx) throw new Error('useAuthorization must be used within AuthorizationStoreProvider');
   return ctx;
 };
+
+/**
+ * A autorização QUANDO ela pode não existir — a tela de entrada, os Termos, qualquer rota acima do
+ * escritório. Devolve `null` ali, e quem recebe `null` deve tratar como "não pode nada": não há
+ * usuário a quem conceder permissão, e assumir o contrário seria abrir por ausência de contexto.
+ *
+ * É uma porta separada de propósito. Se `useAuthorization` devolvesse `null` em vez de lançar, todo
+ * consumidor dentro do escritório passaria a poder esquecer a checagem sem que nada reclamasse.
+ */
+export const useOptionalAuthorization = (): AuthorizationContextValue | null =>
+  useContext(AuthorizationContext);

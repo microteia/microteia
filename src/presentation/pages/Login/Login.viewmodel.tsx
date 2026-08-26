@@ -1,6 +1,8 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../stores/useAuth';
+import { authErrorKey, authProviderSpecOf } from '../../../domain/schema/auth';
+import { useAuthProviders, type AuthProviderDescriptor } from '../../shared/auth/useAuthProviders';
 
 import { useT } from '../../shared/i18n/useT';
 
@@ -16,6 +18,19 @@ export interface LoginViewModel {
   displayNameField: string;
   confirmPasswordField: string;
   termsAccepted: boolean;
+  /**
+   * Os meios de entrada EXTERNOS — tudo que não é o formulário desta tela. Cada um vira um botão, e a
+   * tela não sabe se por trás dele há um Google, um Azure ou o servidor SAML do escritório.
+   */
+  externalProviders: AuthProviderDescriptor[];
+  /**
+   * O formulário de e-mail e senha aparece. É a contribuição `password` que decide: uma instalação de
+   * login único não a declara, e a tela deixa de oferecer formulário, cadastro e recuperação de senha
+   * — os três, porque os três só existem para quem tem senha aqui.
+   */
+  hasPasswordProvider: boolean;
+  /** Não há um único meio de entrada declarado: a tela diz isso, em vez de ficar em branco. */
+  hasNoProvider: boolean;
   handleEmailChange: (val: string) => void;
   handlePasswordChange: (val: string) => void;
   handleDisplayNameChange: (val: string) => void;
@@ -23,8 +38,7 @@ export interface LoginViewModel {
   handleTermsAcceptedChange: (val: boolean) => void;
   handleEmailLogin: () => Promise<void>;
   handleEmailSignUp: () => Promise<void>;
-  handleGoogleLogin: () => Promise<void>;
-  handleFacebookLogin: () => Promise<void>;
+  handleProviderLogin: (key: string) => Promise<void>;
   handleForgotPassword: () => Promise<void>;
   handleResendVerification: () => Promise<void>;
   handleCheckVerification: () => Promise<void>;
@@ -36,39 +50,15 @@ export interface LoginViewModel {
 
 const TERMS_NOT_ACCEPTED_ERROR = 'login.error.terms-required';
 
-/** O erro do Firebase vira CHAVE, não frase: quem exibe é que traduz. */
-const authErrorKey = (error: unknown): string => {
-  if (error && typeof error === 'object' && 'code' in error) {
-    switch ((error as { code: string }).code) {
-      case 'auth/invalid-credential':
-      case 'auth/user-not-found':
-      case 'auth/wrong-password':
-        return 'login.error.invalid-credentials';
-      case 'auth/email-already-in-use':
-        return 'login.error.email-in-use';
-      case 'auth/weak-password':
-        return 'login.error.weak-password';
-      case 'auth/invalid-email':
-        return 'login.error.invalid-email';
-      case 'auth/too-many-requests':
-        return 'login.error.too-many-requests';
-      case 'auth/user-disabled':
-        return 'login.error.user-disabled';
-      default:
-        return 'login.error.generic';
-    }
-  }
-  return 'login.error.generic';
-};
-
 export const useLoginViewModel = (): LoginViewModel => {
   const {
-    user, isEmailVerified,
-    signInWithGoogle, signInWithFacebook, signInWithEmail, signUpWithEmail,
+    user, isEmailVerified, redirectErrorKey, clearRedirectError,
+    signInWithProvider, signInWithEmail, signUpWithEmail,
     sendEmailVerification, sendPasswordResetEmail, checkEmailVerification, signOut,
   } = useAuth();
   const navigate = useNavigate();
   const t = useT('core.workspace');
+  const providers = useAuthProviders();
 
   const [mode, setMode] = useState<LoginMode>('login');
   const [loading, setLoading] = useState(false);
@@ -80,6 +70,12 @@ export const useLoginViewModel = (): LoginViewModel => {
   const [confirmPasswordField, setConfirmPasswordField] = useState('');
   const [termsAccepted, setTermsAccepted] = useState(false);
 
+  const externalProviders = useMemo(
+    () => providers.filter((provider) => provider.kind !== 'password'),
+    [providers],
+  );
+  const hasPasswordProvider = providers.some((provider) => provider.kind === 'password');
+
   useEffect(() => {
     if (user && isEmailVerified) navigate('/app', { replace: true });
   }, [user, isEmailVerified, navigate]);
@@ -89,34 +85,43 @@ export const useLoginViewModel = (): LoginViewModel => {
     if (user && !isEmailVerified) setMode('verify-email');
   }, [user, isEmailVerified]);
 
+  // O erro com que um fluxo `redirect` voltou aconteceu antes desta tela existir: ela é o único lugar
+  // onde ele pode ser lido, e é consumido para não sobreviver à próxima tentativa.
+  useEffect(() => {
+    if (!redirectErrorKey) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- o erro chega do boot, não de um evento desta tela
+    setError(t(redirectErrorKey));
+    clearRedirectError();
+  }, [redirectErrorKey, clearRedirectError, t]);
+
   const clearMessages = useCallback(() => {
     setError('');
     setSuccessMessage('');
   }, []);
 
-  const goToSignUp = useCallback(() => {
-    clearMessages();
+  const resetFields = useCallback(() => {
     setPasswordField('');
     setConfirmPasswordField('');
     setTermsAccepted(false);
+  }, []);
+
+  const goToSignUp = useCallback(() => {
+    clearMessages();
+    resetFields();
     setMode('signup');
-  }, [clearMessages]);
+  }, [clearMessages, resetFields]);
 
   const goToLogin = useCallback(() => {
     clearMessages();
-    setPasswordField('');
-    setConfirmPasswordField('');
-    setTermsAccepted(false);
+    resetFields();
     setMode('login');
-  }, [clearMessages]);
+  }, [clearMessages, resetFields]);
 
   const goToForgotPassword = useCallback(() => {
     clearMessages();
-    setPasswordField('');
-    setConfirmPasswordField('');
-    setTermsAccepted(false);
+    resetFields();
     setMode('forgot-password');
-  }, [clearMessages]);
+  }, [clearMessages, resetFields]);
 
   const handleEmailLogin = useCallback(async () => {
     setLoading(true);
@@ -158,7 +163,14 @@ export const useLoginViewModel = (): LoginViewModel => {
     }
   }, [signUpWithEmail, emailField, passwordField, confirmPasswordField, displayNameField, termsAccepted, t]);
 
-  const handleGoogleLogin = useCallback(async () => {
+  /**
+   * Um handler só para todo provedor externo. Os dois que havia (`handleGoogleLogin`,
+   * `handleFacebookLogin`) eram a mesma função com uma chave de erro diferente — e o segundo nem
+   * chegava à tela, o que é o sintoma de um caminho escrito à mão que ninguém percorre.
+   */
+  const handleProviderLogin = useCallback(async (key: string) => {
+    const provider = externalProviders.find((candidate) => candidate.key === key);
+    if (!provider) return;
     if (!termsAccepted) {
       setError(t(TERMS_NOT_ACCEPTED_ERROR));
       return;
@@ -166,29 +178,13 @@ export const useLoginViewModel = (): LoginViewModel => {
     setLoading(true);
     setError('');
     try {
-      await signInWithGoogle();
-    } catch {
-      setError(t('login.error.google'));
+      await signInWithProvider(authProviderSpecOf(provider));
+    } catch (err) {
+      setError(t(authErrorKey(err)));
     } finally {
       setLoading(false);
     }
-  }, [signInWithGoogle, termsAccepted, t]);
-
-  const handleFacebookLogin = useCallback(async () => {
-    if (!termsAccepted) {
-      setError(t(TERMS_NOT_ACCEPTED_ERROR));
-      return;
-    }
-    setLoading(true);
-    setError('');
-    try {
-      await signInWithFacebook();
-    } catch {
-      setError(t('login.error.facebook'));
-    } finally {
-      setLoading(false);
-    }
-  }, [signInWithFacebook, termsAccepted, t]);
+  }, [externalProviders, signInWithProvider, termsAccepted, t]);
 
   const handleForgotPassword = useCallback(async () => {
     if (!emailField.trim()) {
@@ -258,6 +254,9 @@ export const useLoginViewModel = (): LoginViewModel => {
     displayNameField,
     confirmPasswordField,
     termsAccepted,
+    externalProviders,
+    hasPasswordProvider,
+    hasNoProvider: providers.length === 0,
     handleEmailChange: setEmailField,
     handlePasswordChange: setPasswordField,
     handleDisplayNameChange: setDisplayNameField,
@@ -265,8 +264,7 @@ export const useLoginViewModel = (): LoginViewModel => {
     handleTermsAcceptedChange: setTermsAccepted,
     handleEmailLogin,
     handleEmailSignUp,
-    handleGoogleLogin,
-    handleFacebookLogin,
+    handleProviderLogin,
     handleForgotPassword,
     handleResendVerification,
     handleCheckVerification,

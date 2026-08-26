@@ -7207,6 +7207,84 @@ divisor é o que aparece entre duas — quem contribui declara `group`, e o shel
 
 ---
 
+## A entrada no sistema vira contribuição — `auth.provider`
+
+A tela de entrada era o último lugar do produto sem ponto de extensão. O formulário de e-mail e senha
+e o botão do Google estavam escritos nela; `IAuthRepository` tinha um método POR PROVEDOR
+(`signInWithGoogle`, `signInWithFacebook`), e um escritório que precisasse do SSO da própria casa não
+tinha caminho nenhum a não ser um commit no núcleo.
+
+### O ponto não aceita implementação — e é isso que o torna útil
+
+| Ponto | Metadata | `impl` |
+|---|---|---|
+| `auth.provider` | `key`, `label`, `kind`, `providerId`, `scopes`, `customParameters`, `flow`, `icon`, `order`, `defaultEnabled` | **nenhuma** |
+
+Um SSO corporativo cabe inteiro numa declaração, porque o Firebase Auth do projeto **já sabe** falar
+OIDC e SAML: o que falta é o pacote DIZER com quem. Aceitar `code` aqui tornaria o login único
+privilégio de primeira parte — exatamente o oposto do que ele precisa ser, já que é a integração que
+cada escritório acrescenta sem passar por nós.
+
+`AuthProviderKind` é uma união fechada (`password`, `google`, `facebook`, `microsoft`, `apple`,
+`github`, `oidc`, `saml`). `microsoft` e `apple` não têm classe própria no Firebase — são
+`OAuthProvider` com o id da casa —, e é o mesmo mecanismo que atende `oidc`: o que muda é só quem
+escolhe o id.
+
+**`password` está na mesma lista, e é a decisão mais consequente do desenho.** Ele não é provedor
+externo: é o formulário desta casa. Estar ali é o que permite a uma instalação de **login único
+obrigatório** simplesmente NÃO declará-lo — e então o formulário, o link de criar conta e o de
+recuperar senha desaparecem juntos, porque os três só existem para quem tem senha aqui.
+
+### Um caminho de entrada, não um por provedor
+
+`IAuthRepository` passou a ter `signInWithProvider(spec)` e `consumeRedirectResult()`. O `spec`
+(`AuthProviderSpec`) é a metadata **sem o que é da tela** — sem rótulo, sem ícone, sem ordem: a camada
+de dados não tem o que fazer com um texto de interface, e recebê-lo a convidaria a exibi-lo.
+
+**`flow: 'redirect'` não é capricho.** É o único caminho onde a janela é bloqueada — navegador
+corporativo endurecido, dentro de um iframe, aplicativo embutido. Ele devolve `null` em vez de um
+usuário: a página está saindo do ar, e mexer no estado ali só provocaria um render que ninguém vê.
+
+**Quem precisa de `getRedirectResult` é o ERRO, não o usuário.** O usuário chega pelo
+`onAuthStateChanged` de sempre; sem consumir o resultado, um SSO que recusou a entrada devolve a
+pessoa à tela de entrada sem uma palavra — e o sintoma ("cliquei e voltei") não aponta para nada. Por
+isso o `AuthProvider` o consome no boot e expõe `redirectErrorKey`, que a tela lê e limpa.
+
+`authErrorKey` **saiu da tela de entrada e foi para o domínio**: passou a ter dois leitores — a tela,
+no clique, e o boot, na volta do provedor. Duas cópias garantiriam que um código novo fosse tratado em
+uma delas.
+
+### A tela de entrada roda ACIMA do escritório
+
+Isto restringe tudo o que ela pode fazer, e é a razão de duas escolhas que de fora parecem omissões:
+
+- **Não há configuração de quais meios aparecem.** `/login` não tem tenant, logo não tem documento de
+  configuração. Quem decide é o que foi DECLARADO — e `defaultEnabled: false` é o único desligamento
+  possível. Uma caixa de seleção só existiria depois de alguém já ter entrado.
+- **`login.header` e `login.footer` descartam todo trecho que exige permissão.** Não há usuário a quem
+  concedê-la, e a ausência de contexto FECHA em vez de abrir.
+
+`useOptionalAuthorization` e `useOptionalSettings` são as portas dessa área. São separadas de
+propósito: se `useAuthorization` devolvesse `null` em vez de lançar, todo consumidor dentro do
+escritório passaria a poder esquecer a checagem sem que nada reclamasse.
+
+### O texto é do plugin
+
+O namespace `core.auth` nasce em inglês em `plugins/messages/coreAuth.ts`, e o **pt-BR viaja dentro do
+plugin** (`plugins/core.auth/messagesPtBr.ts`), como no `core.tenant`. A marca de cada provedor sai de
+`presentation/shared/auth/authProviderIcons.tsx`, indexada pela espécie: o conjunto curado de
+`screenIcons` é de ícones de TELA, monocromáticos e com rótulo traduzível cada — pôr o logotipo
+colorido do Google ali chamaria uma marca de "ícone". Em `oidc` e `saml` a marca é do escritório, e
+nós não a conhecemos: ali quem declara escolhe um ícone do conjunto curado.
+
+### O que ficou pendente
+
+O host que serve `/login` é o **base** (`CORE_PLUGINS`), então hoje só um plugin do bundle contribui um
+meio de entrada. Para o SSO de um escritório chegar ali, falta a origem pré-login — a extensão
+carimbada na instalação, aplicada pelo `deploy` do Console.
+
+---
+
 ## Camada de Regras de Campo (validação e formatação)
 
 Camada declarativa, **compartilhada entre front e backend**, que formata e valida um valor **antes

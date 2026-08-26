@@ -18,6 +18,37 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.17.0] — 2026-08-26
+
+- feat(auth): `auth.provider` is the sign-in screen's extension point, and it accepts NO
+  implementation. A corporate SSO fits entirely in a declaration — Firebase Auth already speaks OIDC
+  and SAML, and what the package adds is the id — so requiring `code` would have made single sign-on a
+  first-party privilege, which is the opposite of what it needs to be. `KERNEL_VERSION` goes to
+  `2.7.0`.
+- feat(auth): `IAuthRepository` has one entry path, `signInWithProvider(spec)`, in place of one method
+  per provider. `signInWithGoogle` and `signInWithFacebook` forced the repository to know every way of
+  signing in up front, and an organization's SSO has no way of being written there. The Facebook path
+  never reached the screen at all — the symptom of a hand-written path nobody walks.
+- feat(auth): `flow: 'redirect'` and `consumeRedirectResult()`. Redirect is the only path that works
+  where the popup is blocked — a hardened corporate browser, an iframe, an embedded app. What needs
+  `getRedirectResult` is the ERROR, not the user: without it a refused SSO returns the person to the
+  sign-in screen without a word.
+- refactor(auth): `authErrorKey` moved from `Login.viewmodel` to `domain/schema/auth`. It has two
+  readers now — the screen on click, the boot on the way back — and two copies would guarantee a new
+  code was handled in one of them. Four codes joined it: popup blocked, popup closed,
+  account-exists-with-different-credential, operation-not-allowed.
+- feat(auth): declaring `password` through the same point is what lets an installation that requires
+  single sign-on simply omit it — the form, the sign-up link and the password reset then disappear
+  together, because the three only exist for whoever has a password here.
+- feat(ui): `LOGIN_SLOT_SURFACES` (`login.header`, `login.footer`) host `ui.slot` on the sign-in
+  screen. `useOptionalAuthorization` and `useOptionalSettings` are the doors for that area: above the
+  organization there is no permission and no settings document, so a slot that asks for a permission is
+  dropped — absence closes rather than opens. They are separate doors on purpose; had
+  `useAuthorization` returned `null` instead of throwing, every consumer inside the organization could
+  forget the check with nothing complaining.
+- feat(sdk): `authProvider` and the `auth.provider` contract join the barrel. The authoring guide
+  derives the provider kinds from the union instead of listing them in prose.
+
 #### [9.16.0] — 2026-08-26
 
 - feat(ui): two extension points open the shell to a package — `ui.slot` puts content into a named

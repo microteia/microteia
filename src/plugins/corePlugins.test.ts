@@ -173,15 +173,17 @@ describe('core plugins — remoção limpa (critério de aceite da Etapa 2)', ()
   it('remover core.ui derruba todos os módulos de UI, porque ninguém declara os pontos', () => {
     const { host, result } = hostWith(without('core.ui'));
 
-    // Só core.access e core.data sobrevivem: declaram os próprios pontos e não dependem de core.ui.
-    expect(result.loaded).toEqual(['core.access', 'core.data']);
+    // Sobrevivem os que declaram os PRÓPRIOS pontos e não dependem de core.ui: o controle de acesso,
+    // os dados e a entrada no sistema. É a lista de quem não é interface — a tela de entrada é
+    // desenhada pela interface, mas o ponto que declara COMO se entra não depende dela.
+    expect(result.loaded).toEqual(['core.access', 'core.auth', 'core.data']);
     expect(host.contributions.query(UI_PAGE_POINT)).toEqual([]);
     // A cascata tem DOIS níveis desde que core.license passou a depender de core.i18n: quem depende
     // direto de core.ui cai com `dependency.missing`, e quem depende de um caído cai com
     // `dependency.disabled`. Aceitar os dois é o que prova que a queda é transitiva.
     expect(
       result.diagnostics
-        .filter((d) => d.pluginId !== 'core.data' && d.pluginId !== 'core.access')
+        .filter((d) => !['core.access', 'core.auth', 'core.data'].includes(d.pluginId ?? ''))
         .every((d) => d.code === 'dependency.missing' || d.code === 'dependency.disabled'),
     ).toBe(true);
   });

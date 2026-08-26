@@ -6,7 +6,6 @@ export const CORE_WORKSPACE: Record<string, string> = {
     'An AI-First Business Application Platform. Crie sistemas personalizados de forma declarativa e extensível.',
   'login.signin': 'Entrar',
   'login.signing-in': 'Entrando...',
-  'login.google': 'Continuar com Google',
   'login.divider': 'ou',
   'login.forgot-password': 'Esqueci minha senha',
   'login.signup.title': 'Criar conta',
@@ -43,8 +42,14 @@ export const CORE_WORKSPACE: Record<string, string> = {
   'login.error.name-required': 'Informe seu nome completo.',
   'login.error.email-required': 'Informe seu e-mail.',
   'login.error.password-mismatch': 'As senhas não coincidem.',
-  'login.error.google': 'Erro ao fazer login com Google. Tente novamente.',
-  'login.error.facebook': 'Erro ao fazer login com Facebook. Tente novamente.',
+  'login.error.account-exists':
+    'Este e-mail já está cadastrado por outro meio de entrada. Use aquele.',
+  'login.error.popup-blocked':
+    'O navegador bloqueou a janela de entrada. Libere pop-ups para este site, ou peça a quem '
+    + 'instalou o sistema para trocar este meio para redirecionamento.',
+  'login.error.popup-closed': 'A janela de entrada foi fechada antes de terminar.',
+  'login.error.provider-not-enabled':
+    'Este meio de entrada não está habilitado no projeto. Quem instalou o sistema precisa habilitá-lo.',
   'login.error.not-verified-yet':
     'Ainda não identificamos a verificação. Clique no link do e-mail e tente novamente.',
   'login.error.verify-failed': 'Não foi possível verificar agora. Tente novamente.',

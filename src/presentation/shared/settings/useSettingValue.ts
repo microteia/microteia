@@ -1,5 +1,5 @@
 import { useCallback, useMemo } from 'react';
-import { useSettings } from '../../../stores/useSettings';
+import { useOptionalSettings, useSettings } from '../../../stores/useSettings';
 import {
   findSettingsProperty,
   resolveContributionLayout,
@@ -175,17 +175,27 @@ export interface SurfaceContributionLayout {
   property: SettingsProperty;
 }
 
-/** O mesmo conciliar da faixa de abas, para os trechos de uma região do shell. */
+/**
+ * O mesmo conciliar da faixa de abas, para os trechos de uma região do shell — e o único que tolera
+ * NÃO haver configuração.
+ *
+ * A tolerância não é conveniência: a tela de entrada hospeda regiões, e ali não existe documento de
+ * configuração a ler porque não existe escritório. Sem configuração vale o que foi DECLARADO, que é o
+ * padrão de toda propriedade — a ausência é o estado inicial de qualquer instalação, não um erro.
+ */
 export const useSurfaceSlotLayout = (surface: string): SurfaceContributionLayout => {
   const sections = useSettingsSections();
   const slots = useSurfaceSlots(surface);
-  const { values } = useSettings();
+  const settings = useOptionalSettings();
 
   const property = useMemo(() => surfaceSlotsProperty(sections, surface), [sections, surface]);
 
   const entries = useMemo(
-    () => resolveContributionLayout(resolveSetting(property, values).value, slots),
-    [property, values, slots],
+    () => resolveContributionLayout(
+      settings ? resolveSetting(property, settings.values).value : undefined,
+      slots,
+    ),
+    [property, settings, slots],
   );
 
   return { entries, property };

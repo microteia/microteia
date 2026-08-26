@@ -1,16 +1,22 @@
 import { createContext, useContext } from 'react';
 import type { User, UserRole } from '../domain/entities';
+import type { AuthProviderSpec } from '../domain/schema/auth';
 
 export interface AuthContextValue {
   user: User | null;
   userRole: UserRole | null;
   loading: boolean;
   isEmailVerified: boolean;
+  /**
+   * O erro com que um fluxo `redirect` voltou, como CHAVE de mensagem. Vive aqui, e não na tela de
+   * entrada, porque acontece ANTES dela montar: a página inteira foi recarregada pelo provedor.
+   */
+  redirectErrorKey: string | null;
+  clearRedirectError: () => void;
   effectivePhotoURL: string | null;
   effectiveName: string;
   reloadUserProfile: () => Promise<void>;
-  signInWithGoogle: () => Promise<void>;
-  signInWithFacebook: () => Promise<void>;
+  signInWithProvider: (spec: AuthProviderSpec) => Promise<void>;
   signInWithEmail: (email: string, password: string) => Promise<void>;
   signUpWithEmail: (email: string, password: string, displayName: string) => Promise<void>;
   sendEmailVerification: () => Promise<void>;

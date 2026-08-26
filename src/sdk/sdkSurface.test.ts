@@ -17,12 +17,16 @@ const PUBLISHED = [
   'ACCESS_API_VERSION', 'ACCESS_EXTENSION_POINTS', 'ACCESS_PERMISSION_POINT', 'ACCESS_REQUIREMENT_POINT', 'ACCESS_RESOURCE_POINT', 'CRUD_ACTIONS', 'accessPermissionContribution', 'accessRequirementContribution', 'accessPermissionOf', 'accessResourceContribution', 'buildPermissionCatalog', 'collectionPermissionId', 'declaredPermissionsOf', 'declaredRequirementsOf', 'declaredResourcesOf', 'dependenciesOf', 'isValidAccessPermissionId', 'parseAccessPermission', 'resolveEffective', 'validateAccessPermission', 'validateAccessRequirement',
   'DATA_API_VERSION', 'DATA_ENTITY_POINT', 'DATA_EXTENSION_POINTS', 'DATA_EXTERNAL_LOOKUP_POINT',
   'DATA_FIELD_RULE_PRESET_POINT', 'DATA_LOOKUP_POINT', 'DATA_SERVICE_POINT',
+  'AUTH_API_VERSION', 'AUTH_EXTENSION_POINTS', 'AUTH_PROVIDER_KINDS',
+  'AUTH_PROVIDER_KINDS_REQUIRING_ID', 'AUTH_PROVIDER_POINT', 'asAuthProviderMetadata',
+  'authProvider', 'authProviderSpecOf',
   'DEFAULT_CONTRIBUTION_PRIORITY', 'DEFAULT_LOCALE', 'I18N_API_VERSION', 'I18N_EXTENSION_POINTS',
   'I18N_MESSAGES_POINT', 'IMPL_KINDS', 'KERNEL_PLUGIN_ID', 'KERNEL_VERSION', 'MESSAGE_REF_SIGIL',
   'MIGRATION_ID_MAX_LENGTH', 'MIGRATION_ID_PATTERN', 'MIGRATION_PHASES', 'PERMISSION_DOMAINS',
   'SETTINGS_SCOPES', 'THEME_API_VERSION', 'THEME_DEFINITION_POINT', 'THEME_EXTENSION_POINTS',
   'THEME_TOKENS_POINT', 'THIRD_PARTY_IMPL_KINDS', 'UI_API_VERSION', 'UI_COMMAND_POINT',
   'UI_EXTENSION_POINTS', 'UI_NAV_POINT', 'UI_PAGE_POINT', 'UI_RECORD_ACTION_POINT',
+  'LOGIN_SLOT_SURFACES',
   'UI_MENU_POINT', 'UI_SETTINGS_POINT', 'UI_SLOT_POINT', 'UI_TAB_POINT', 'UI_WIDGET_POINT',
   'USER_MENU_SURFACE', 'WORKSPACE_SLOT_SURFACES', 'WIDGET_NODE_TYPES',
   'CUSTOM_FIELD_TYPES', 'FIELD_EXPRESSION_FUNCTION_NAMES', 'STEP_TYPES',
@@ -48,6 +52,7 @@ const PUBLISHED = [
  * `plugin.ts` de quem já escreveu contra ele.
  */
 const PUBLISHED_TYPES = [
+  'AuthProviderFlow', 'AuthProviderKind', 'AuthProviderMetadata', 'AuthProviderSpec',
   'AccessPermission', 'AccessRequirement', 'CatalogPermission', 'CrudAction', 'DeclaredPermission', 'DeclaredRequirement', 'ParsedAccessPermission', 'PermissionCatalog', 'PermissionResource', 'ResolvedPermissions',
   'ActionDefinition', 'ActionLocalCommand', 'ActionModuleTemplate', 'ActionOutcome', 'AggregationOp',
   'AuthoredPlugin',
@@ -121,7 +126,7 @@ describe('a superfície publicada do SDK', () => {
   it('todo construtor de contribuição é chamável', () => {
     for (const name of ['page', 'nav', 'command', 'recordAction', 'settingsSection', 'widgetPage',
       'surfaceTab', 'surfaceTabSpec', 'surfaceWidget', 'surfaceWidgetSpec', 'surfaceSlot',
-      'surfaceSlotSpec', 'menuItem', 'pointContribution']) {
+      'surfaceSlotSpec', 'menuItem', 'authProvider', 'pointContribution']) {
       expect(typeof (sdk as unknown as Record<string, unknown>)[name], name).toBe('function');
     }
   });

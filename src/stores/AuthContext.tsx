@@ -1,13 +1,14 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useDI } from '../infrastructure/di/useDI';
-import { makeSignInWithGoogleUseCase } from '../domain/usecases/auth/SignInWithGoogleUseCase';
-import { makeSignInWithFacebookUseCase } from '../domain/usecases/auth/SignInWithFacebookUseCase';
+import { makeSignInWithProviderUseCase } from '../domain/usecases/auth/SignInWithProviderUseCase';
+import { makeConsumeRedirectResultUseCase } from '../domain/usecases/auth/ConsumeRedirectResultUseCase';
 import { makeSignInWithEmailUseCase } from '../domain/usecases/auth/SignInWithEmailUseCase';
 import { makeSignUpWithEmailUseCase } from '../domain/usecases/auth/SignUpWithEmailUseCase';
 import { makeSendEmailVerificationUseCase } from '../domain/usecases/auth/SendEmailVerificationUseCase';
 import { makeSendPasswordResetEmailUseCase } from '../domain/usecases/auth/SendPasswordResetEmailUseCase';
 import { makeSignOutUseCase } from '../domain/usecases/auth/SignOutUseCase';
 import type { User, UserRole } from '../domain/entities';
+import { authErrorKey, type AuthProviderSpec } from '../domain/schema/auth';
 import { AuthContext } from './useAuth';
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -19,9 +20,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [profilePhotoURL, setProfilePhotoURL] = useState<string | null>(null);
   const [profileNickname, setProfileNickname] = useState<string | null>(null);
   const [profileFullName, setProfileFullName] = useState<string | null>(null);
+  const [redirectErrorKey, setRedirectErrorKey] = useState<string | null>(null);
 
-  const signInWithGoogleUseCase = useMemo(() => makeSignInWithGoogleUseCase(authRepository), [authRepository]);
-  const signInWithFacebookUseCase = useMemo(() => makeSignInWithFacebookUseCase(authRepository), [authRepository]);
+  const signInWithProviderUseCase = useMemo(() => makeSignInWithProviderUseCase(authRepository), [authRepository]);
+  const consumeRedirectResultUseCase = useMemo(() => makeConsumeRedirectResultUseCase(authRepository), [authRepository]);
   const signInWithEmailUseCase = useMemo(() => makeSignInWithEmailUseCase(authRepository), [authRepository]);
   const signUpWithEmailUseCase = useMemo(() => makeSignUpWithEmailUseCase(authRepository), [authRepository]);
   const sendEmailVerificationUseCase = useMemo(() => makeSendEmailVerificationUseCase(authRepository), [authRepository]);
@@ -38,6 +40,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // fallback silencioso — valores do Google/email continuam sendo usados
     }
   }, [userProfileRepository]);
+
+  /**
+   * A volta de um fluxo `redirect`. O usuário em si chega pelo `onAuthStateChanged` abaixo — quem
+   * precisa desta chamada é o ERRO: sem ela, um SSO que recusou a entrada devolve a pessoa à tela
+   * de entrada sem uma palavra, e o sintoma ("cliquei e voltei") não aponta para nada.
+   *
+   * Roda uma vez por carga, e é o que o Firebase permite: a segunda chamada devolve `null`.
+   */
+  useEffect(() => {
+    let active = true;
+    consumeRedirectResultUseCase.execute()
+      .catch((error: unknown) => {
+        if (active) setRedirectErrorKey(authErrorKey(error));
+      });
+    return () => { active = false; };
+  }, [consumeRedirectResultUseCase]);
+
+  const clearRedirectError = useCallback(() => setRedirectErrorKey(null), []);
 
   useEffect(() => {
     return authRepository.onAuthStateChanged((u) => {
@@ -114,15 +134,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // preenchido e liberaria TenantStoreProvider antes da Cloud Function onUserCreated
   // terminar — só no primeiro login (usuário novo), já que o loading global some
   // relativamente rápido em contas já provisionadas.
-  const signInWithGoogle = async () => {
-    const u = await signInWithGoogleUseCase.execute();
-    setLoading(true);
-    setUser(u);
-    setIsEmailVerified(authRepository.isEmailVerified());
-  };
-
-  const signInWithFacebook = async () => {
-    const u = await signInWithFacebookUseCase.execute();
+  // `null` é o fluxo de REDIRECT: a página está saindo do ar, e mexer no estado aqui só provocaria
+  // um render que ninguém vê. Quem recebe esse usuário é o efeito de boot, na volta.
+  const signInWithProvider = async (spec: AuthProviderSpec) => {
+    const u = await signInWithProviderUseCase.execute(spec);
+    if (!u) return;
     setLoading(true);
     setUser(u);
     setIsEmailVerified(authRepository.isEmailVerified());
@@ -163,8 +179,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   return (
     <AuthContext.Provider value={{
       user, userRole, loading, isEmailVerified,
+      redirectErrorKey, clearRedirectError,
       effectivePhotoURL, effectiveName, reloadUserProfile,
-      signInWithGoogle, signInWithFacebook, signInWithEmail, signUpWithEmail,
+      signInWithProvider, signInWithEmail, signUpWithEmail,
       sendEmailVerification, sendPasswordResetEmail, checkEmailVerification,
       signOut,
     }}>

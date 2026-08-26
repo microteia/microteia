@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { useAuthorization } from '../../../../stores/useAuthorization';
+import { useOptionalAuthorization } from '../../../../stores/useAuthorization';
 import {
   useSurfaceSlots,
   type SurfaceSlotDescriptor,
@@ -13,7 +13,9 @@ export interface SlotSurfaceViewModel {
 export const useSlotSurfaceViewModel = (surface: string): SlotSurfaceViewModel => {
   const registered = useSurfaceSlots(surface);
   const { entries } = useSurfaceSlotLayout(surface);
-  const { canAny } = useAuthorization();
+  // Fora do escritório não há autorização, e a ausência FECHA: um trecho que exige permissão não
+  // aparece na tela de entrada, onde não há a quem concedê-la.
+  const authorization = useOptionalAuthorization();
 
   const byKey = useMemo(() => new Map(registered.map((slot) => [slot.key, slot])), [registered]);
 
@@ -22,8 +24,9 @@ export const useSlotSurfaceViewModel = (surface: string): SlotSurfaceViewModel =
       .filter((entry) => entry.enabled)
       .map((entry) => byKey.get(entry.key))
       .filter((slot): slot is SurfaceSlotDescriptor => !!slot)
-      .filter((slot) => !slot.requiredPermissions?.length || canAny(slot.requiredPermissions)),
-    [entries, byKey, canAny],
+      .filter((slot) => !slot.requiredPermissions?.length
+        || (!!authorization && authorization.canAny(slot.requiredPermissions))),
+    [entries, byKey, authorization],
   );
 
   return { slots };

@@ -1,5 +1,6 @@
 import type { PluginRecord } from '../kernel';
 import { coreAccessPlugin } from './core.access/manifest';
+import { coreAuthPlugin } from './core.auth/manifest';
 import { coreUiPlugin } from './core.ui/manifest';
 import { coreWorkspacePlugin } from './core.workspace/manifest';
 import { coreRecordsPlugin } from './core.records/manifest';
@@ -22,6 +23,7 @@ import { BUNDLED_THEME_PLUGINS } from './themes/systemThemes';
  */
 export const CORE_PLUGINS: PluginRecord[] = [
   coreAccessPlugin,
+  coreAuthPlugin,
   coreUiPlugin,
   coreWorkspacePlugin,
   coreRecordsPlugin,

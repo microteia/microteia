@@ -128,6 +128,23 @@ export {
 // ─── Pontos de extensão do produto — a lista que o autor consulta ─────────────
 
 export type {
+  AuthProviderFlow,
+  AuthProviderKind,
+  AuthProviderMetadata,
+  AuthProviderSpec,
+} from '../domain/schema/auth';
+
+export {
+  AUTH_API_VERSION,
+  AUTH_EXTENSION_POINTS,
+  AUTH_PROVIDER_KINDS,
+  AUTH_PROVIDER_KINDS_REQUIRING_ID,
+  AUTH_PROVIDER_POINT,
+  asAuthProviderMetadata,
+  authProviderSpecOf,
+} from '../domain/schema/auth';
+
+export type {
   UiCommandMetadata,
   UiMenuAction,
   UiMenuItemMetadata,
@@ -152,6 +169,7 @@ export {
   UI_SLOT_POINT,
   UI_TAB_POINT,
   UI_WIDGET_POINT,
+  LOGIN_SLOT_SURFACES,
   USER_MENU_SURFACE,
   WORKSPACE_SLOT_SURFACES,
 } from '../domain/schema/ui/uiExtensionPoints';
@@ -301,6 +319,7 @@ export { SETTINGS_SCOPES } from '../domain/schema/settings';
 // ─── Construtores de contribuição ─────────────────────────────────────────────
 
 export {
+  authProvider,
   command,
   menuItem,
   nav,

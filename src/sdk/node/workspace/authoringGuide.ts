@@ -3,6 +3,7 @@ import { DATA_EXTENSION_POINTS } from '../../../domain/schema/dataExtensionPoint
 import { I18N_EXTENSION_POINTS } from '../../../domain/schema/i18n/extensionPoints';
 import { THEME_EXTENSION_POINTS } from '../../../domain/schema/theme/extensionPoints';
 import { ACCESS_EXTENSION_POINTS } from '../../../domain/schema/access';
+import { AUTH_EXTENSION_POINTS, AUTH_PROVIDER_KINDS } from '../../../domain/schema/auth';
 import type { ExtensionPointDefinition } from '../../../domain/schema/plugin/extensionPoint';
 import { CUSTOM_FIELD_TYPES } from '../../../domain/schema/fieldRules';
 import type { CustomFieldType } from '../../../domain/schema/fieldRules';
@@ -40,6 +41,7 @@ const ALL_POINTS: ExtensionPointDefinition[] = [
   ...I18N_EXTENSION_POINTS,
   ...THEME_EXTENSION_POINTS,
   ...ACCESS_EXTENSION_POINTS,
+  ...AUTH_EXTENSION_POINTS,
 ];
 
 const kib = (bytes: number): string => `${Math.round(bytes / 1024)} KiB`;
@@ -51,6 +53,10 @@ const kib = (bytes: number): string => `${Math.round(bytes / 1024)} KiB`;
  */
 const shellSurfaces = (): string =>
   Object.values(WORKSPACE_SLOT_SURFACES).map((surface) => `\`${surface}\``).join(' · ');
+
+/** As espécies de provedor, DERIVADAS da união — uma nova no kernel entra no guia sozinha. */
+const providerKinds = (): string =>
+  AUTH_PROVIDER_KINDS.map((kind) => `\`${kind}\``).join(' · ');
 
 const pointsTable = (points: ExtensionPointDefinition[]): string => [
   '| Point | API | Accepts | Many? |',
@@ -300,6 +306,28 @@ Both are toggled and ordered by the organization, from Settings, under the regio
 (\`<surface>.slots\`, \`<surface>.items\`). Declare \`order\` and \`defaultEnabled\` and you have said
 where it starts; where it ends up is theirs to decide.
 
+### Signing in — including your own SSO
+
+\`auth.provider\` declares a way of signing in, and it takes no implementation at all. The protocol
+is already configured in the project's Firebase Authentication; what your package adds is the NAME of
+it. Kinds: ${providerKinds()}.
+
+\`oidc\` and \`saml\` are the two where you choose the provider, and both require \`providerId\` — the
+id as configured in Firebase (\`oidc.acme\`, \`saml.acme\`). Miss it and the contribution is dropped
+rather than drawn: a button that does not know whom to talk to locks out whoever clicks it.
+
+\`flow: 'redirect'\` leaves the page and comes back, instead of opening a window. Use it wherever the
+window is blocked — a hardened corporate browser, an iframe, an embedded app.
+
+\`password\` is the platform's own e-mail-and-password form, declared through the same point. An
+installation that requires single sign-on simply does not declare it, and the form, the sign-up link
+and the password reset all disappear — the three together, because the three only exist for whoever
+has a password here.
+
+The sign-in screen runs ABOVE the organization: there is no tenant, no settings document and no
+permission there. So sign-in methods are decided by what is DECLARED, never by a setting — and the
+regions it hosts (\`login.header\`, \`login.footer\`) drop any slot that asks for a permission.
+
 ### How you contribute to one
 
 A contribution is one entry of \`manifest.contributes\`. Use the constructor for the point instead of
@@ -315,6 +343,7 @@ id is the whole of how an update recognises the same contribution across version
 | \`surfaceWidget(metadata, viewKey)\` · \`surfaceWidgetSpec(metadata, spec)\` | \`ui.widget\` | a widget on a surface, as code or as Widget DSL |
 | \`surfaceSlot(metadata, viewKey)\` · \`surfaceSlotSpec(metadata, spec)\` | \`ui.slot\` | content in a named region of the shell, as code or as Widget DSL |
 | \`menuItem(metadata)\` | \`ui.menu\` | an entry in a menu — the \`action\` *is* the contribution, so no code is involved |
+| \`authProvider(metadata)\` | \`auth.provider\` | a way of signing in, corporate SSO included — declaration only |
 | \`recordAction(metadata, viewKey)\` | \`ui.record.action\` | a gesture over one record, next to the platform's own |
 | \`command(id, metadata, viewKey)\` | \`ui.command\` | an entry in the command palette |
 | \`settingsSection(section)\` | \`ui.settings\` | a section of the Settings screen — the properties *are* the contribution |

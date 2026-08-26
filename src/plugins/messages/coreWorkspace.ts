@@ -7,7 +7,6 @@ export const CORE_WORKSPACE_MESSAGES: Record<string, string> = {
     'An AI-First Business Application Platform. Build custom systems declaratively and extensibly.',
   'login.signin': 'Sign in',
   'login.signing-in': 'Signing in…',
-  'login.google': 'Continue with Google',
   'login.divider': 'or',
   'login.forgot-password': 'I forgot my password',
   'login.signup.title': 'Create account',
@@ -44,8 +43,14 @@ export const CORE_WORKSPACE_MESSAGES: Record<string, string> = {
   'login.error.name-required': 'Enter your full name.',
   'login.error.email-required': 'Enter your e-mail.',
   'login.error.password-mismatch': 'The passwords do not match.',
-  'login.error.google': 'Could not sign in with Google. Try again.',
-  'login.error.facebook': 'Could not sign in with Facebook. Try again.',
+  'login.error.account-exists':
+    'This e-mail is already registered through another sign-in method. Use that one.',
+  'login.error.popup-blocked':
+    'The browser blocked the sign-in window. Allow pop-ups for this site, or ask whoever installed '
+    + 'the system to switch this method to redirect.',
+  'login.error.popup-closed': 'The sign-in window was closed before finishing.',
+  'login.error.provider-not-enabled':
+    'This sign-in method is not enabled in the project. Whoever installed the system needs to enable it.',
   'login.error.not-verified-yet':
     'We have not seen the verification yet. Click the link in the e-mail and try again.',
   'login.error.verify-failed': 'Could not verify right now. Try again.',

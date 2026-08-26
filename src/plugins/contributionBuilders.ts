@@ -19,6 +19,7 @@ export const lazyView = (
   lazy(async () => ({ default: (await loader())[exportName] as PageComponent }));
 
 export {
+  authProvider,
   command,
   menuItem,
   nav,

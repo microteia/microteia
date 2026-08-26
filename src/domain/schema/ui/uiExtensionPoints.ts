@@ -238,6 +238,16 @@ export const WORKSPACE_SLOT_SURFACES = {
   statusBarRight: 'status-bar.right',
 } as const;
 
+/**
+ * As regiões da TELA DE ENTRADA. Estão separadas das do workspace porque vivem sob outra regra: ali
+ * não há escritório, não há configuração e não há permissão — o que aparece é o que foi declarado, e
+ * um trecho não pode depender de nada que só exista depois de alguém entrar.
+ */
+export const LOGIN_SLOT_SURFACES = {
+  header: 'login.header',
+  footer: 'login.footer',
+} as const;
+
 /** O menu que se abre no rodapé da barra lateral, sob o nome de quem está conectado. */
 export const USER_MENU_SURFACE = 'user-menu';
 

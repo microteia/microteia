@@ -25,3 +25,10 @@ export const useSettings = (): SettingsContextValue => {
   if (!ctx) throw new Error('useSettings must be used within SettingsStoreProvider');
   return ctx;
 };
+
+/**
+ * A configuração QUANDO ela pode não existir — acima do escritório não há documento a ler. Quem
+ * recebe `null` fica com o que foi DECLARADO, que é o padrão de toda propriedade: a ausência de
+ * configuração não é um estado de erro, é o estado inicial de qualquer instalação.
+ */
+export const useOptionalSettings = (): SettingsContextValue | null => useContext(SettingsContext);

@@ -1,10 +1,13 @@
 import React from 'react';
-import { FcGoogle } from 'react-icons/fc';
 import { RiMailSendLine, RiArrowLeftLine } from 'react-icons/ri';
 import { useLoginViewModel } from './Login.viewmodel';
 import { Button } from '../../components/ui/Button';
 import { Spinner } from '../../components/ui/Spinner';
 import { Input, Label } from '../../components/ui/Input';
+import { InfoBanner } from '../../components/ui/InfoBanner';
+import { SlotSurface } from '../../components/layout/SlotSurface';
+import { LOGIN_SLOT_SURFACES } from '../../../domain/schema/ui/uiExtensionPoints';
+import { getAuthProviderIcon } from '../../shared/auth/authProviderIcons';
 import { S } from './Login.styles';
 
 import { useT } from '../../shared/i18n/useT';
@@ -171,6 +174,8 @@ export const LoginView: React.FC = () => {
   return (
     <S.Page>
       <S.Card>
+        <SlotSurface surface={LOGIN_SLOT_SURFACES.header} />
+
         <S.Logo>
           {/* eslint-disable-next-line no-restricted-syntax -- "Microteia" é a MARCA: não traduz em idioma nenhum. */}
             <img src="/logo.png" alt="Microteia" style={{ width: '80px', height: '80px' }} />
@@ -178,73 +183,93 @@ export const LoginView: React.FC = () => {
         {/* eslint-disable-next-line no-restricted-syntax -- "Microteia" é a MARCA: não traduz em idioma nenhum. */}
         <S.Title>Microteia</S.Title>
         <S.Subtitle>{t('login.tagline')}</S.Subtitle>
-        <S.Form>
-          <S.InputGroup>
-            <Label htmlFor="login-email">{t('login.field.email')}</Label>
-            <Input
-              id="login-email"
-              type="email"
-              placeholder={t('login.field.email.placeholder')}
-              value={vm.emailField}
-              onChange={(e) => vm.handleEmailChange(e.target.value)}
-              disabled={vm.loading}
-            />
-          </S.InputGroup>
-          <S.InputGroup>
-            <Label htmlFor="login-password">{t('login.field.password')}</Label>
-            <Input
-              id="login-password"
-              type="password"
-              placeholder={t('login.field.password.your')}
-              value={vm.passwordField}
-              onChange={(e) => vm.handlePasswordChange(e.target.value)}
-              disabled={vm.loading}
-            />
-            <S.ForgotPasswordLink onClick={vm.goToForgotPassword}>
-              {t('login.forgot-password')}
-            </S.ForgotPasswordLink>
-          </S.InputGroup>
-          <Button $fullWidth size="lg" onClick={vm.handleEmailLogin} $isLoading={vm.loading} disabled={vm.loading}>
-            {vm.loading ? <Spinner size={18} /> : null}
-            {t('login.signin')}
-          </Button>
-        </S.Form>
 
-        <S.Divider>{t('login.divider')}</S.Divider>
+        {vm.hasNoProvider && <InfoBanner message={t('core.auth/error.no-provider')} />}
 
-        <S.TermsRow>
-          <S.TermsCheckbox
-            checked={vm.termsAccepted}
-            onChange={(e) => vm.handleTermsAcceptedChange(e.target.checked)}
-            disabled={vm.loading}
-          />
-          <S.TermsText>
-            {t('login.terms.prefix')}{' '}
-            <S.TermsLink href="/license?from=login" target="_blank" rel="noopener noreferrer">
-              {t('login.terms.link')}
-            </S.TermsLink>
-            .
-          </S.TermsText>
-        </S.TermsRow>
+        {vm.hasPasswordProvider && (
+          <S.Form>
+            <S.InputGroup>
+              <Label htmlFor="login-email">{t('login.field.email')}</Label>
+              <Input
+                id="login-email"
+                type="email"
+                placeholder={t('login.field.email.placeholder')}
+                value={vm.emailField}
+                onChange={(e) => vm.handleEmailChange(e.target.value)}
+                disabled={vm.loading}
+              />
+            </S.InputGroup>
+            <S.InputGroup>
+              <Label htmlFor="login-password">{t('login.field.password')}</Label>
+              <Input
+                id="login-password"
+                type="password"
+                placeholder={t('login.field.password.your')}
+                value={vm.passwordField}
+                onChange={(e) => vm.handlePasswordChange(e.target.value)}
+                disabled={vm.loading}
+              />
+              <S.ForgotPasswordLink onClick={vm.goToForgotPassword}>
+                {t('login.forgot-password')}
+              </S.ForgotPasswordLink>
+            </S.InputGroup>
+            <Button $fullWidth size="lg" onClick={vm.handleEmailLogin} $isLoading={vm.loading} disabled={vm.loading}>
+              {vm.loading ? <Spinner size={18} /> : null}
+              {t('login.signin')}
+            </Button>
+          </S.Form>
+        )}
 
-        <Button
-          $fullWidth
-          size="lg"
-          variant="secondary"
-          onClick={vm.handleGoogleLogin}
-          $isLoading={vm.loading}
-          disabled={vm.loading || !vm.termsAccepted}
-        >
-          {vm.loading ? <Spinner size={18} /> : <FcGoogle size={20} />}
-          {vm.loading ? t('login.signing-in') : t('login.google')}
-        </Button>
+        {vm.hasPasswordProvider && vm.externalProviders.length > 0 && (
+          <S.Divider>{t('login.divider')}</S.Divider>
+        )}
+
+        {vm.externalProviders.length > 0 && (
+          <>
+            <S.TermsRow>
+              <S.TermsCheckbox
+                checked={vm.termsAccepted}
+                onChange={(e) => vm.handleTermsAcceptedChange(e.target.checked)}
+                disabled={vm.loading}
+              />
+              <S.TermsText>
+                {t('login.terms.prefix')}{' '}
+                <S.TermsLink href="/license?from=login" target="_blank" rel="noopener noreferrer">
+                  {t('login.terms.link')}
+                </S.TermsLink>
+                .
+              </S.TermsText>
+            </S.TermsRow>
+
+            {vm.externalProviders.map((provider) => (
+              <Button
+                key={provider.key}
+                $fullWidth
+                size="lg"
+                variant="secondary"
+                onClick={() => vm.handleProviderLogin(provider.key)}
+                $isLoading={vm.loading}
+                disabled={vm.loading || !vm.termsAccepted}
+              >
+                {vm.loading
+                  ? <Spinner size={18} />
+                  : getAuthProviderIcon(provider.kind, provider.icon, 20)}
+                {vm.loading ? t('login.signing-in') : provider.label}
+              </Button>
+            ))}
+          </>
+        )}
 
         {vm.error && <S.ErrorMessage>{vm.error}</S.ErrorMessage>}
 
-        <S.SwitchModeText>
-          {t('login.switch.no-account')}{' '}
-          <S.SwitchModeLink onClick={vm.goToSignUp}>{t('login.signup.title')}</S.SwitchModeLink>
-        </S.SwitchModeText>
+        {vm.hasPasswordProvider && (
+          <S.SwitchModeText>
+            {t('login.switch.no-account')}{' '}
+            <S.SwitchModeLink onClick={vm.goToSignUp}>{t('login.signup.title')}</S.SwitchModeLink>
+          </S.SwitchModeText>
+        )}
+
+        <SlotSurface surface={LOGIN_SLOT_SURFACES.footer} />
       </S.Card>
     </S.Page>
   );
