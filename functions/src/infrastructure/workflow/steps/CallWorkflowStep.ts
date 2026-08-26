@@ -11,6 +11,9 @@ import type { WorkflowResult } from '../../../domain/entities/WorkflowContext';
 const MAX_CALL_DEPTH = 10;
 const PARAM_PREFIX = 'param.';
 
+const isPlainObject = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+
 export const makeCallWorkflowStepDefinition = (runCalledWorkflow: RunCalledWorkflowUseCase): StepDefinition => ({
   ...coreStepMetadata('call-workflow'),
   createExecutor: (): WorkflowStepExecutor => ({
@@ -34,7 +37,12 @@ export const makeCallWorkflowStepDefinition = (runCalledWorkflow: RunCalledWorkf
         if (!key.startsWith(PARAM_PREFIX)) continue;
         paramEntries.push([key.slice(PARAM_PREFIX.length), resolveMapping(mapping, context)]);
       }
-      const resolvedParams = buildNestedParams(paramEntries);
+
+      // Os parâmetros vindos EM BLOCO — um objeto pronto, tipicamente o que um passo anterior
+      // extraiu de um texto livre. Entram primeiro, e os `param.<chave>` declarados um a um os
+      // sobrescrevem: fixar um campo à mão é o gesto mais específico dos dois, e o específico manda.
+      const bulk = isPlainObject(inputs.params) ? inputs.params : {};
+      const resolvedParams = { ...bulk, ...buildNestedParams(paramEntries) };
 
       const waitForResult = inputs.waitForResult === true;
 

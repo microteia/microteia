@@ -3,7 +3,10 @@ import type { IWorkflowRecordFetcher } from '../../domain/repositories/IWorkflow
 import type { IWorkflowMutationRepository } from '../../domain/repositories/IWorkflowMutationRepository';
 import type { IScreenDefinitionProvider } from '../../domain/repositories/IScreenDefinitionProvider';
 import type { IScriptRepository } from '../../domain/repositories/IScriptRepository';
+import type { IAIConnectionRepository } from '../../domain/repositories/IAIConnectionRepository';
+import type { IWorkflowDefinitionRepository } from '../../domain/repositories/IWorkflowDefinitionRepository';
 import type { CreateAuditLogUseCase } from '../../domain/usecases/CreateAuditLogUseCase';
+import type { CallAIUseCase } from '../../domain/usecases/CallAIUseCase';
 import type { RunCalledWorkflowUseCase } from '../../domain/usecases/RunCalledWorkflowUseCase';
 
 /**
@@ -19,6 +22,20 @@ export interface RegisterStepsDeps {
   screenDefinitionProvider: IScreenDefinitionProvider;
   scriptRepository: IScriptRepository;
   runCalledWorkflowUseCase: RunCalledWorkflowUseCase;
+  workflowDefinitionRepository: IWorkflowDefinitionRepository;
+  aiConnectionRepository: IAIConnectionRepository;
+  callAIUseCase: CallAIUseCase;
+}
+
+/**
+ * O que um passo de IA precisa: o modelo, a credencial do escritório e as automações que ele pode
+ * ler. Os três andam juntos — quem detecta a automação e quem extrai os parâmetros dela usam
+ * exatamente o mesmo trio.
+ */
+export interface AIStepDeps {
+  workflowDefinitionRepository: IWorkflowDefinitionRepository;
+  aiConnectionRepository: IAIConnectionRepository;
+  callAIUseCase: CallAIUseCase;
 }
 
 export interface QueryStepDeps {
@@ -41,4 +58,10 @@ export const queryDepsOf = (deps: RegisterStepsDeps): QueryStepDeps => ({
 export const mutationDepsOf = (deps: RegisterStepsDeps): MutationStepDeps => ({
   mutationRepository: deps.workflowMutationRepository,
   screenProvider: deps.screenDefinitionProvider,
+});
+
+export const aiDepsOf = (deps: RegisterStepsDeps): AIStepDeps => ({
+  workflowDefinitionRepository: deps.workflowDefinitionRepository,
+  aiConnectionRepository: deps.aiConnectionRepository,
+  callAIUseCase: deps.callAIUseCase,
 });

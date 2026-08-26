@@ -448,7 +448,9 @@ export const CORE_AUTOMATION: Record<string, string> = {
   'step.no-prior-steps':
     "Não há steps anteriores neste workflow para usar como origem de 'Saída de outro step'.",
   'step.target.script': 'Selecione o script...',
-  'step.target.workflow': 'Selecione o workflow a chamar...',
+  'step.target.workflow': 'Selecione a automação...',
+  'step.target.ai-connection': 'Conexão padrão do escritório',
+  'step.ai-connection.default': 'Conexão padrão do escritório',
   'step.type': 'Tipo de Step',
   'step.type.placeholder': 'Selecione um tipo de step...',
   'loop.save-failed': 'Erro ao salvar repetição: {detail}',
@@ -706,7 +708,7 @@ export const CORE_AUTOMATION: Record<string, string> = {
   'step.call-workflow.description':
     'Cada "Saída do Workflow" do workflow-alvo vira uma saída deste passo (só quando "Aguardar retorno" está ativo).',
   'step.call-workflow.label.aguardar-retorno': 'Aguardar retorno',
-  'step.call-workflow.label.workflow-a-chamar': 'Workflow a chamar',
+  'step.call-workflow.label.target': 'Automação a chamar',
   'step.call-workflow.name': 'Chamar Workflow',
   'step.exit.name': 'Encerrar Workflow',
   'step.map.description': 'Objeto montado por este step',
@@ -754,6 +756,46 @@ export const CORE_AUTOMATION: Record<string, string> = {
   'step.validate-object.description': 'Objeto validado e formatado por este step',
   'step.validate-object.label.validacao': 'Validação',
   'step.validate-object.name': 'Validar Objeto',
+  'step.call-workflow.label.params': 'Parâmetros em bloco',
+  'step.call-workflow.params.description':
+    'Um objeto cujas chaves são os parâmetros da automação chamada — tipicamente o que um passo anterior extraiu de um texto livre. Os parâmetros preenchidos um a um abaixo vencem as chaves deste objeto.',
+  'step.ai.label.text': 'Texto a ler',
+  'step.ai.text.description':
+    'O texto que o modelo lê. Ele é tratado apenas como dado: instruções escritas dentro dele são ignoradas.',
+  'step.ai.label.connection': 'Conexão de IA',
+  'step.ai.connection.description':
+    'Deixe em branco para usar a conexão padrão do escritório. Escolha uma apenas para fixar este passo num modelo específico.',
+  'step.ai.no-text': 'O texto a ler chegou vazio',
+  'step.ai.response-truncated':
+    'A resposta do modelo foi cortada no limite de saída de {limit} tokens. Um texto menor, ou um limite maior na conexão, resolve.',
+  'step.ai.response-not-json': 'O modelo não respondeu no formato esperado',
+  'step.ai-detect-workflow.name': 'Detectar Automação',
+  'step.ai-detect-workflow.description':
+    'Decide qual automação chamável atende um texto livre, comparando-o com as descrições delas — de modo que a descrição de cada automação é o que a decisão lê. Não encontrar nenhuma é um resultado, não uma falha: o passo termina com sucesso e "Encontrou" em falso, para um nó de Condição decidir o caminho.',
+  'step.ai-detect-workflow.label.found': 'Encontrou',
+  'step.ai-detect-workflow.label.workflow-id': 'Id da automação detectada',
+  'step.ai-detect-workflow.label.workflow-name': 'Nome da automação detectada',
+  'step.ai-detect-workflow.label.candidates': 'Automações compatíveis (lista)',
+  'step.ai-detect-workflow.no-candidates':
+    'Nenhuma automação chamável tem descrição, e é a descrição que a decisão compara',
+  'step.ai-detect-workflow.none': 'Nenhuma automação corresponde ao texto',
+  'step.ai-detect-workflow.done': 'Automação "{name}" detectada, entre {count} compatíveis',
+  'step.ai-extract-parameters.name': 'Extrair Parâmetros',
+  'step.ai-extract-parameters.description':
+    'Transforma um texto livre nos parâmetros de uma automação, contra o esquema que ela declara. Cada parâmetro vira uma saída "params.<chave>", além do objeto "params" inteiro — que é o que os "Parâmetros em bloco" de Chamar Automação leem.',
+  'step.ai-extract-parameters.label.target': 'Automação cujos parâmetros preencher',
+  'step.ai-extract-parameters.target.description':
+    'Pode ser escolhida aqui, ou vir de um passo anterior — o de detecção, por exemplo.',
+  'step.ai-extract-parameters.label.params': 'Parâmetros extraídos',
+  'step.ai-extract-parameters.label.filled': 'Quantos foram preenchidos',
+  'step.ai-extract-parameters.no-target': 'Nenhuma automação de destino foi informada',
+  'step.ai-extract-parameters.target-missing':
+    'A automação de destino não foi encontrada, ou não é do tipo "Chamada por outra automação"',
+  'step.ai-extract-parameters.has-references':
+    'A automação de destino pede um registro que já existe, e um texto livre não tem como nomeá-lo',
+  'step.ai-extract-parameters.no-parameters': 'A automação de destino não recebe parâmetros',
+  'step.ai-extract-parameters.refused': 'O modelo não conseguiu extrair os parâmetros: {detail}',
+  'step.ai-extract-parameters.done': '{count} de {total} parâmetro(s) preenchidos a partir do texto',
   'point.expression-fn.description': 'Registra uma função disponível nas expressões e dentro do Step Script.',
   'point.expression-fn.title': 'Função de expressão',
   'point.step.description': 'Registra um passo configurável no construtor visual de Automações.',
@@ -908,6 +950,8 @@ export const CORE_AUTOMATION: Record<string, string> = {
     'Preenche um template: {0}, {1}… pegam os valores seguintes na ordem; {chave} pega o campo de um objeto passado como único valor',
   'plugin.expressions.name': 'Funções de Expressão',
   'plugin.steps.name': 'Passos Padrão',
+  'plugin.ai-steps.name': 'Passos de IA',
+  'ai.extraction-refused': 'O modelo informou que não conseguiu extrair os dados',
   'plugin.workflow.description': 'Declara os pontos de extensão do motor: passos e funções de expressão.',
   'plugin.workflow.name': 'Motor de Automações',
   'step.set-variable.short-name': 'Definir Variável',

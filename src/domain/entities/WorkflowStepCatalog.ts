@@ -20,6 +20,12 @@ export type InputOptionsSource =
   | { kind: 'Static'; options: { value: string; label: string; color?: string }[] }
   | { kind: 'Lookup'; lookup: string };
 
+/**
+ * O que um input NOMEIA, quando o valor dele é o id de outra coisa declarada no escritório. Faz o
+ * editor oferecer a lista em vez de pedir um id digitado, e só quando o mapping é `Literal`.
+ */
+export type InputPickerKind = 'workflow' | 'script' | 'ai-connection';
+
 export interface InputDefinition {
   id: string;
   /** REFERÊNCIA de mensagem, ou o rótulo que a extensão digitou; `labelParams` interpola. */
@@ -30,11 +36,14 @@ export interface InputDefinition {
   type: InputType;
   defaultValue?: unknown;
   options?: InputOptionsSource;
-  // Só relevante quando type === 'EntityReference'. Mesma chave de FieldDefinition.refEntity:
-  // 'cases' | 'persons' | 'contracts' | 'financials' | 'deadlines' | 'members' ou um screenKey de entidade customizada.
+  // Só relevante quando type === 'EntityReference'. É a COLEÇÃO apontada — mesma chave de
+  // FieldDefinition.refEntity: `members` (usuários do tenant) ou a coleção de uma tela do Form
+  // Design ou de uma extensão. O kernel não conhece nenhuma coleção de negócio pelo nome.
   entityType?: string;
   // Restringe os tipos de mapping permitidos. Se undefined, todos são permitidos.
   allowedMappingKinds?: Array<'Literal' | 'Event' | 'Expression' | 'Output' | 'Variable'>;
+  // O que o valor deste input nomeia, para o editor oferecer a lista. Ver `InputPickerKind`.
+  picker?: InputPickerKind;
   // Validação via regex (somente para Literal string). Mantido por compatibilidade: em runtime é
   // lido como um `rules.validate` equivalente.
   pattern?: string;
@@ -75,6 +84,12 @@ export type DynamicOutputsMetadata =
   | {
       kind: 'from-target-workflow-outputs';
       /** ID do input (Literal) que guarda o id do workflow-alvo cujas "Saída do Workflow" viram saídas. */
+      sourceInputId: string;
+      description?: string;
+    }
+  | {
+      kind: 'from-target-workflow-parameters';
+      /** ID do input que guarda o id do workflow-alvo cujos PARÂMETROS viram saídas `params.<chave>`. */
       sourceInputId: string;
       description?: string;
     }

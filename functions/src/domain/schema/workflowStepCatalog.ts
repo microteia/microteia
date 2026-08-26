@@ -53,6 +53,18 @@ export type InputOptionsSource =
   | { kind: 'Static'; options: { value: string; label: string; color?: string }[] }
   | { kind: 'Lookup'; lookup: string };
 
+/**
+ * O que um input NOMEIA, quando o valor dele é o id de outra coisa declarada no escritório. É o que
+ * faz o editor oferecer a lista em vez de pedir um id digitado — e é DECLARATIVO de propósito: antes
+ * o seletor de workflow aparecia porque o input era a fonte dos inputs dinâmicos (`dynamicInputs`),
+ * de modo que um alvo escolhido de outra forma (a saída de um passo anterior) ficava sem seletor
+ * nenhum e um input que só aponta um alvo não tinha como pedir um.
+ *
+ * O seletor só é oferecido quando o mapping é `Literal`: um alvo que só se conhece em runtime não
+ * tem lista a mostrar em design-time.
+ */
+export type InputPickerKind = 'workflow' | 'script' | 'ai-connection';
+
 export interface InputDefinition {
   id: string;
   label: string;
@@ -70,6 +82,8 @@ export interface InputDefinition {
   entityType?: string;
   /** Restringe os mappings aceitos. `undefined` aceita os cinco. */
   allowedMappingKinds?: InputMappingKind[];
+  /** O que o valor deste input nomeia, para o editor oferecer a lista. Ver `InputPickerKind`. */
+  picker?: InputPickerKind;
   /**
    * Validação por regex, só para `Literal` string. Mantido por compatibilidade: em runtime é lido
    * como um `rules.validate` equivalente (ver `toEffectiveRules` em `schema/fieldRules.ts`).
@@ -118,6 +132,12 @@ export type DynamicOutputsMetadata =
   | {
       kind: 'from-target-workflow-outputs';
       /** ID do input (Literal) que guarda o id do workflow-alvo cujas "Saída do Workflow" viram saídas. */
+      sourceInputId: string;
+      description?: string;
+    }
+  | {
+      kind: 'from-target-workflow-parameters';
+      /** ID do input que guarda o id do workflow-alvo cujos PARÂMETROS viram saídas deste passo. */
       sourceInputId: string;
       description?: string;
     }
@@ -364,7 +384,7 @@ export const CORE_STEP_CATALOG: readonly WorkflowStepMetadata[] = [
   },
   {
     id: 'call-workflow',
-    version: 1,
+    version: 2,
     name: '@core.automation/step.call-workflow.name',
     description: '@core.automation/step.call-workflow.description',
     icon: 'RiFlowChart',
@@ -373,11 +393,31 @@ export const CORE_STEP_CATALOG: readonly WorkflowStepMetadata[] = [
     configurable: true,
     inputs: [
       {
+        /**
+         * O alvo já não é obrigatoriamente escolhido em design-time: ele pode vir da saída de um
+         * passo anterior — é o que permite a um fluxo detectar a automação a partir de um texto e
+         * chamá-la. Quando o mapping é `Literal`, tudo segue como antes (seletor, `param.<chave>` e
+         * as saídas do alvo); quando não é, não há o que oferecer em design-time e quem carrega os
+         * parâmetros é o input `params`.
+         */
         id: 'targetWorkflowId',
-        label: '@core.automation/step.call-workflow.label.workflow-a-chamar',
+        label: '@core.automation/step.call-workflow.label.target',
         required: true,
         type: 'String',
-        allowedMappingKinds: ['Literal'],
+        picker: 'workflow',
+      },
+      {
+        /**
+         * Os parâmetros EM BLOCO, num objeto cujas chaves são as do workflow-alvo. Aplicado antes
+         * dos `param.<chave>` explícitos, que vencem chave por chave: quem extraiu tudo de um texto
+         * livre ainda pode fixar um campo à mão.
+         */
+        id: 'params',
+        label: '@core.automation/step.call-workflow.label.params',
+        description: '@core.automation/step.call-workflow.params.description',
+        required: false,
+        type: 'Expression',
+        allowedMappingKinds: ['Expression', 'Output', 'Variable', 'Event'],
       },
       {
         id: 'waitForResult',
@@ -413,11 +453,105 @@ export const CORE_STEP_CATALOG: readonly WorkflowStepMetadata[] = [
         required: true,
         type: 'String',
         allowedMappingKinds: ['Literal'],
+        picker: 'script',
       },
     ],
     outputDefinitions: [],
     dynamicInputs: { kind: 'from-target-script-parameters', sourceInputId: 'scriptId' },
     dynamicOutputs: { kind: 'from-target-script-outputs', sourceInputId: 'scriptId' },
+  },
+  {
+    /**
+     * A DECISÃO de qual automação atende um texto livre — o que a tela do Extrator de Dados faz
+     * quando alguém clica em "detectar", agora disponível como passo. É o que permite a um fluxo
+     * começar sozinho num e-mail em vez de alguém colar o texto e escolher a automação na mão.
+     *
+     * Não encontrar nada é um resultado, não um erro: o passo termina com SUCESSO e `found` em
+     * falso, para que quem declara decida com um nó de Condição o que fazer com o que não se
+     * classificou. Falhar aqui tiraria do autor justamente o caminho da triagem humana.
+     */
+    id: 'ai-detect-workflow',
+    version: 1,
+    name: '@core.automation/step.ai-detect-workflow.name',
+    description: '@core.automation/step.ai-detect-workflow.description',
+    icon: 'RiRobot2Line',
+    category: 'Integration',
+    type: 'Action',
+    configurable: true,
+    inputs: [
+      {
+        id: 'text',
+        label: '@core.automation/step.ai.label.text',
+        description: '@core.automation/step.ai.text.description',
+        required: true,
+        type: 'String',
+      },
+      {
+        id: 'connectionId',
+        label: '@core.automation/step.ai.label.connection',
+        description: '@core.automation/step.ai.connection.description',
+        required: false,
+        type: 'String',
+        allowedMappingKinds: ['Literal'],
+        picker: 'ai-connection',
+      },
+    ],
+    outputDefinitions: [
+      { id: 'found', label: '@core.automation/step.ai-detect-workflow.label.found', type: 'Boolean' },
+      { id: 'workflowId', label: '@core.automation/step.ai-detect-workflow.label.workflow-id', type: 'String' },
+      { id: 'workflowName', label: '@core.automation/step.ai-detect-workflow.label.workflow-name', type: 'String' },
+      { id: 'candidates', label: '@core.automation/step.ai-detect-workflow.label.candidates', type: 'String' },
+    ],
+  },
+  {
+    /**
+     * O TEXTO LIVRE virando os parâmetros de uma automação, contra o esquema que ela mesma declara.
+     * O alvo pode ser escolhido aqui ou vir da saída do passo de detecção — e é essa segunda forma
+     * que fecha o caminho "e-mail chega, o sistema decide, o sistema executa".
+     */
+    id: 'ai-extract-parameters',
+    version: 1,
+    name: '@core.automation/step.ai-extract-parameters.name',
+    description: '@core.automation/step.ai-extract-parameters.description',
+    icon: 'RiAiGenerate',
+    category: 'Integration',
+    type: 'Action',
+    configurable: true,
+    inputs: [
+      {
+        id: 'text',
+        label: '@core.automation/step.ai.label.text',
+        description: '@core.automation/step.ai.text.description',
+        required: true,
+        type: 'String',
+      },
+      {
+        id: 'targetWorkflowId',
+        label: '@core.automation/step.ai-extract-parameters.label.target',
+        description: '@core.automation/step.ai-extract-parameters.target.description',
+        required: true,
+        type: 'String',
+        picker: 'workflow',
+      },
+      {
+        id: 'connectionId',
+        label: '@core.automation/step.ai.label.connection',
+        description: '@core.automation/step.ai.connection.description',
+        required: false,
+        type: 'String',
+        allowedMappingKinds: ['Literal'],
+        picker: 'ai-connection',
+      },
+    ],
+    outputDefinitions: [
+      { id: 'params', label: '@core.automation/step.ai-extract-parameters.label.params', type: 'String' },
+      { id: 'filled', label: '@core.automation/step.ai-extract-parameters.label.filled', type: 'Number' },
+    ],
+    dynamicOutputs: {
+      kind: 'from-target-workflow-parameters',
+      sourceInputId: 'targetWorkflowId',
+      description: '@core.automation/step.ai-extract-parameters.description',
+    },
   },
   {
     id: 'query',

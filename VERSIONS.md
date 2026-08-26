@@ -11,6 +11,13 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.15.0] — 2026-08-26
+
+- Uma automação pode agora decidir sozinha qual outra automação atende um texto que chegou de fora — um e-mail, uma descrição escrita à mão — e executá-la já com os dados extraídos desse texto. É o que a tela de Extrator de Dados faz quando alguém cola o texto, clica em detectar e executa; agora isso cabe dentro de um fluxo, e o fluxo começa sozinho.
+- Dois passos novos no construtor de automações: **Detectar Automação**, que lê um texto livre e diz qual automação corresponde a ele, e **Extrair Parâmetros**, que transforma o mesmo texto nos campos que a automação escolhida pede. Não encontrar nenhuma automação não interrompe o fluxo: o passo informa que não achou, e quem montou o fluxo decide o caminho — inclusive mandar para conferência de uma pessoa.
+- O passo **Chamar Automação** deixa de exigir que a automação chamada seja escolhida na montagem: ela pode vir do resultado de um passo anterior. Os parâmetros também podem chegar em bloco, prontos, e ainda assim qualquer campo pode ser fixado à mão por cima.
+- Os passos de IA usam a conexão de IA padrão do escritório sem que nada precise ser informado. Escolher uma conexão específica continua possível, para quando um passo deve usar um modelo diferente dos outros.
+
 #### [9.14.0] — 2026-08-26
 
 - As extensões Calendário e Notícias aparecem com atualização disponível. Nada muda no que as telas fazem: o conteúdo delas foi reorganizado por dentro, e as contas que elas fazem — em que dia um compromisso aparece, quem já leu um aviso, a ordem de uma discussão — passaram a ser conferidas automaticamente a cada alteração, em vez de dependerem de alguém abrir a tela e olhar.

@@ -4478,6 +4478,80 @@ recebe `{ table, id?, data }` → `{ id, created, record }`; `remove` recebe `{ 
 (`presentation/pages/DataFunctionReference`, chave `data-function-reference`, aberta pelo botão no
 editor de Script) e no IntelliSense do editor (`scriptTypeDefs.ts`).
 
+### Passos de IA "Detectar Automação" e "Extrair Parâmetros" — o Extrator dentro do fluxo
+
+`functions/src/infrastructure/workflow/steps/AIDetectWorkflowStep.ts` e
+`AIExtractParametersStep.ts`, contribuídos pelo plugin `core.ai.steps`.
+
+Os dois fazem, como passo, o que a tela do **Extrator de Dados** faz com alguém na frente: ela recebe
+um texto livre, pede à IA qual automação corresponde a ele, pede os parâmetros dessa automação a
+partir do mesmo texto e executa. Enquanto isso só existia como tela, o fluxo tinha de começar num
+gesto humano — colar o texto, clicar em detectar, clicar em executar. Como passo, ele começa no
+evento: um e-mail chega, e a automação decide para onde ele vai.
+
+**A refatoração vem antes dos passos, e é a parte que importa.** O prompt de classificação, o prompt
+de extração, a montagem do ESQUEMA e a coerção de tipo eram constantes locais de duas callables
+(`handlers/detectWorkflows.ts` e `handlers/runWorkflow.ts`), inalcançáveis de dentro do motor. Agora
+vivem em `domain/services/aiWorkflowDetection.ts` e `domain/services/aiParameterExtraction.ts`, e
+callable e passo consomem os mesmos. Um segundo chamador que reescrevesse o prompt daria duas
+extrações que aceitam coisas diferentes do MESMO documento — e a diferença só apareceria com o fluxo
+já rodando.
+
+A coerção é a parte menos visível e a mais necessária: `formatAndValidateParameters` aplica as REGRAS
+de cada parâmetro e **não converte tipo**. Quem transforma `"2026-08-12"` em `Date` (por
+`parseDateOnly`, nunca por meia-noite UTC) e `"Ba"` no valor permitido `"BA"` é o `coerce` daquele
+serviço.
+
+| | `ai-detect-workflow` | `ai-extract-parameters` |
+|---|---|---|
+| Entra | `text`, `connectionId?` | `text`, `targetWorkflowId`, `connectionId?` |
+| Candidatos / alvo | os workflows `workflow.called` habilitados **com descrição**, menos o que está rodando | o alvo nomeado, que tem de ser `workflow.called` |
+| Sai | `found`, `workflowId`, `workflowName`, `candidates` | `params` (objeto) e `filled`; mais `params.<chave>` em design-time |
+| Recusa | nenhum candidato tem descrição | alvo ausente, não chamável, ou com `EntityReference` |
+
+Três decisões que não são detalhe de implementação:
+
+- **A descrição do workflow é o contrato de classificação.** É o único texto que a decisão lê, e um
+  workflow sem descrição não entra na lista — nem como candidato ruim.
+- **Não encontrar nada é SUCESSO com `found: false`.** Falhar o passo tiraria de quem declara
+  justamente o caminho da triagem humana; com um nó de Condição, o que não se classificou vira uma
+  notificação em vez de uma execução perdida.
+- **O fluxo que está rodando sai dos candidatos.** Nada no texto impede o modelo de escolhê-lo, e o
+  único freio seria o `MAX_CALL_DEPTH` — dez execuções depois.
+
+A conexão de IA é opcional: vazia, usa a **padrão do escritório** (`getDefaultCredentials`). Uma
+automação declarada numa extensão não pode carregar o id de uma conexão que quem instala nem criou.
+
+### `call-workflow` com alvo dinâmico e parâmetros em bloco
+
+Duas mudanças no passo "Chamar Automação" fecham o caminho acima:
+
+- **`targetWorkflowId` deixou de ser só `Literal`.** Ele pode vir da saída do passo de detecção.
+  Quando é `Literal`, tudo segue como antes — seletor, inputs `param.<chave>` do alvo
+  (`dynamicInputs`) e as saídas dele (`dynamicOutputs`); quando não é, não há o que oferecer em
+  design-time.
+- **Input `params`** (tipo `Expression`): os parâmetros em bloco, num objeto cujas chaves são as do
+  alvo — tipicamente o `params` do passo de extração. Aplicado ANTES dos `param.<chave>`, que vencem
+  chave por chave: fixar um campo à mão é o gesto mais específico dos dois.
+
+Nada disso afrouxa a validação: quem valida os parâmetros é o **workflow-alvo**, no `WorkflowExecutor`
+(`collectRequiredIssues` + `formatAndValidateParameters` antes do primeiro passo), e não quem chama.
+
+### `InputDefinition.picker` — o seletor é declarado, não inferido
+
+`picker?: 'workflow' | 'script' | 'ai-connection'` diz o que o valor de um input NOMEIA, e é o que faz
+o editor oferecer a lista em vez de pedir um id digitado. Só aparece enquanto o mapping é `Literal`.
+
+Antes, o seletor era renderizado porque o input era a fonte dos inputs dinâmicos
+(`input.id === dynamicInputsSourceId`) — "é seletor porque gera `param.*`". A consequência: um alvo
+escolhido de outra forma ficava sem seletor nenhum, e um input que só aponta um alvo (o do passo de
+extração) não tinha como pedir um. `setPickerValue` continua limpando os `param.*` ao trocar o alvo,
+mas só quando o input trocado É a fonte dos inputs dinâmicos.
+
+`dynamicOutputs.kind: 'from-target-workflow-parameters'` é o par disso do lado das saídas: publica
+`params.<chave>` a partir dos parâmetros do alvo, do mesmo modo que as projeções de uma consulta
+publicam `first.<projeção>`.
+
 ---
 
 > **Compartilhamento de workflows.** Não existe compartilhamento direto de workflow entre escritórios:

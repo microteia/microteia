@@ -448,7 +448,9 @@ export const CORE_AUTOMATION_MESSAGES: Record<string, string> = {
   'step.no-prior-steps':
     "There is no previous step in this workflow to use as the source of 'Output of another step'.",
   'step.target.script': 'Select the script…',
-  'step.target.workflow': 'Select the workflow to call…',
+  'step.target.workflow': 'Select the automation…',
+  'step.target.ai-connection': 'Default connection of the organization',
+  'step.ai-connection.default': 'Default connection of the organization',
   'step.type': 'Step type',
   'step.type.placeholder': 'Select a step type…',
   'loop.save-failed': 'Could not save the loop: {detail}',
@@ -704,7 +706,7 @@ export const CORE_AUTOMATION_MESSAGES: Record<string, string> = {
   'step.call-workflow.description':
     'Each "Workflow Output" of the target workflow becomes an output of this step (only when "Wait for the return" is on).',
   'step.call-workflow.label.aguardar-retorno': 'Wait for the return',
-  'step.call-workflow.label.workflow-a-chamar': 'Workflow to call',
+  'step.call-workflow.label.target': 'Automation to call',
   'step.call-workflow.name': 'Call Workflow',
   'step.exit.name': 'End Workflow',
   'step.map.description': 'The object built by this step',
@@ -751,6 +753,46 @@ export const CORE_AUTOMATION_MESSAGES: Record<string, string> = {
   'step.validate-object.description': 'The object validated and formatted by this step',
   'step.validate-object.label.validacao': 'Validation',
   'step.validate-object.name': 'Validate Object',
+  'step.call-workflow.label.params': 'Parameters in bulk',
+  'step.call-workflow.params.description':
+    'An object whose keys are the parameters of the target automation — typically what a previous step extracted from a free text. The parameters filled in one by one below win over the keys of this object.',
+  'step.ai.label.text': 'Text to read',
+  'step.ai.text.description':
+    'The text the model reads. It is treated as data only: instructions written inside it are ignored.',
+  'step.ai.label.connection': 'AI connection',
+  'step.ai.connection.description':
+    'Leave it empty to use the default connection of the organization. Choose one only to pin this step to a specific model.',
+  'step.ai.no-text': 'The text to read came in empty',
+  'step.ai.response-truncated':
+    'The model answer was cut off at the output limit of {limit} tokens. A shorter text, or a higher limit on the connection, solves it.',
+  'step.ai.response-not-json': 'The model did not answer in the expected format',
+  'step.ai-detect-workflow.name': 'Detect Automation',
+  'step.ai-detect-workflow.description':
+    'Decides which callable automation fits a free text, comparing it against their descriptions — so the description of each automation is what the decision reads. Matching none is a result, not a failure: the step succeeds with "Found" false, for a Condition to branch on.',
+  'step.ai-detect-workflow.label.found': 'Found one',
+  'step.ai-detect-workflow.label.workflow-id': 'Id of the detected automation',
+  'step.ai-detect-workflow.label.workflow-name': 'Name of the detected automation',
+  'step.ai-detect-workflow.label.candidates': 'Compatible automations (list)',
+  'step.ai-detect-workflow.no-candidates':
+    'No callable automation has a description, and the description is what the decision compares',
+  'step.ai-detect-workflow.none': 'No automation matched the text',
+  'step.ai-detect-workflow.done': 'Automation "{name}" detected, among {count} compatible',
+  'step.ai-extract-parameters.name': 'Extract Parameters',
+  'step.ai-extract-parameters.description':
+    'Turns a free text into the parameters of an automation, against the schema it declares. Each parameter becomes a "params.<key>" output, on top of the whole "params" object — which is what the "Parameters in bulk" of Call Automation reads.',
+  'step.ai-extract-parameters.label.target': 'Automation whose parameters to fill',
+  'step.ai-extract-parameters.target.description':
+    'It can be chosen here, or come from a previous step — the detection one, for instance.',
+  'step.ai-extract-parameters.label.params': 'Extracted parameters',
+  'step.ai-extract-parameters.label.filled': 'How many were filled',
+  'step.ai-extract-parameters.no-target': 'No target automation was given',
+  'step.ai-extract-parameters.target-missing':
+    'The target automation was not found, or is not of the "Called by another automation" kind',
+  'step.ai-extract-parameters.has-references':
+    'The target automation asks for a record that already exists, and a free text has no way to name one',
+  'step.ai-extract-parameters.no-parameters': 'The target automation takes no parameters',
+  'step.ai-extract-parameters.refused': 'The model could not extract the parameters: {detail}',
+  'step.ai-extract-parameters.done': '{count} of {total} parameter(s) filled from the text',
   'point.expression-fn.description':
     'Registers a function available in expressions and inside the Script Step.',
   'point.expression-fn.title': 'Expression function',
@@ -903,6 +945,8 @@ export const CORE_AUTOMATION_MESSAGES: Record<string, string> = {
     'Fills a template: {0}, {1}… take the following values in order; {key} takes the field of an object passed as the single value',
   'plugin.expressions.name': 'Expression Functions',
   'plugin.steps.name': 'Standard Steps',
+  'plugin.ai-steps.name': 'AI Steps',
+  'ai.extraction-refused': 'The model reported it could not extract the data',
   'plugin.workflow.description':
     'Declares the extension points of the engine: steps and expression functions.',
   'plugin.workflow.name': 'Automation Engine',

@@ -372,6 +372,9 @@ class DIContainer {
       screenDefinitionProvider: this.getScreenDefinitionCache(),
       scriptRepository: new FirebaseScriptRepository(getDb()),
       runCalledWorkflowUseCase: this.getRunCalledWorkflowUseCase(),
+      workflowDefinitionRepository: this.getWorkflowDefinitionRepository(),
+      aiConnectionRepository: this.getAIConnectionRepository(),
+      callAIUseCase: this.getCallAIUseCase(),
     });
     this.workflowStepsRegistered = true;
   }

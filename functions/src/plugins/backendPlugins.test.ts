@@ -7,6 +7,7 @@ import type { RegisterStepsDeps } from '../infrastructure/workflow/stepDeps';
 import type { StepFactory } from './workflowExtensionPoints';
 import { EXPRESSION_FUNCTION_POINT, WORKFLOW_STEP_POINT } from './workflowExtensionPoints';
 import { CAPABILITY_PROVIDER_POINT, capabilityProvider } from './capabilityExtensionPoints';
+import { CORE_STEP_DEFINITION_IDS } from '../domain/schema/workflowStepCatalog';
 import { BACKEND_PLUGINS } from './index';
 
 const hostWith = (records: PluginRecord[]) => {
@@ -26,6 +27,12 @@ const STEPS_ANTES_DA_MIGRACAO = [
   'call-workflow', 'exit', 'map', 'notify', 'query',
   'register-audit', 'remove', 'script', 'set-variable', 'upsert', 'validate-object',
 ].sort();
+
+/**
+ * Os passos que chamam um MODELO. Vivem em `core.ai.steps`, e não em `core.steps`, e é por isso que
+ * os testes de remoção abaixo distinguem "os passos" de "os passos daquele plugin".
+ */
+const PASSOS_DE_IA = ['ai-detect-workflow', 'ai-extract-parameters'].sort();
 
 /** As 53 funções que o `ExpressionEngine` registrava direto, antes da migração. */
 const FUNCOES_ANTES_DA_MIGRACAO = [
@@ -65,6 +72,8 @@ describe('plugins do backend — carga', () => {
     expect(posicao('core.workflow')).toBeLessThan(posicao('core.steps'));
     expect(posicao('core.workflow')).toBeLessThan(posicao('core.expressions'));
     expect(posicao('core.capabilities')).toBeLessThan(posicao('core.ai'));
+    expect(posicao('core.workflow')).toBeLessThan(posicao('core.ai.steps'));
+    expect(posicao('core.ai')).toBeLessThan(posicao('core.ai.steps'));
   });
 
   it('toda contribuição resolve uma implementação', () => {
@@ -90,7 +99,26 @@ describe('plugins do backend — paridade com o registro fixo', () => {
       .map((contribution) => (contribution.metadata as { stepDefinitionId: string }).stepDefinitionId)
       .sort();
 
-    expect(ids).toEqual(STEPS_ANTES_DA_MIGRACAO);
+    for (const id of STEPS_ANTES_DA_MIGRACAO) {
+      expect(ids, `o Step "${id}" existia antes da migração e não é mais contribuído`).toContain(id);
+    }
+  });
+
+  /**
+   * A contrapartida do teste acima, e a que cobra o passo NOVO: o catálogo — que é metadata, e vive
+   * em `src/` — e as contribuições — que trazem o executor, e vivem aqui — têm de nomear o mesmo
+   * conjunto. Uma entrada de catálogo sem contribuição aparece no construtor visual e só falha com o
+   * fluxo em execução ("StepDefinition desconhecida"); uma contribuição sem entrada de catálogo nem
+   * chega a ser oferecida.
+   */
+  it('o catálogo do kernel e as contribuições nomeiam exatamente os mesmos passos', () => {
+    const { host } = hostWith(BACKEND_PLUGINS);
+    const ids = host.contributions
+      .query(WORKFLOW_STEP_POINT)
+      .map((contribution) => (contribution.metadata as { stepDefinitionId: string }).stepDefinitionId)
+      .sort();
+
+    expect(ids).toEqual([...CORE_STEP_DEFINITION_IDS].sort());
   });
 
   it('nenhuma função de expressão se perdeu na migração, além das removidas por serem inalcançáveis', () => {
@@ -141,28 +169,45 @@ describe('plugins do backend — paridade com o registro fixo', () => {
 });
 
 describe('plugins do backend — remoção limpa', () => {
-  it('remover core.steps tira os passos e preserva as funções', () => {
+  it('remover core.steps tira os passos dele, preserva as funções e os passos de IA', () => {
     const { host, result } = hostWith(without('core.steps'));
+    const ids = host.contributions
+      .query(WORKFLOW_STEP_POINT)
+      .map((contribution) => (contribution.metadata as { stepDefinitionId: string }).stepDefinitionId)
+      .sort();
 
     expect(result.diagnostics).toEqual([]);
-    expect(host.contributions.query(WORKFLOW_STEP_POINT)).toEqual([]);
+    expect(ids).toEqual(PASSOS_DE_IA);
     expect(host.contributions.query(EXPRESSION_FUNCTION_POINT)).toHaveLength(
       FUNCOES_ESPERADAS.length,
     );
     expect(host.implementations.keysOf('core.steps')).toEqual([]);
   });
 
+  it('remover core.ai.steps tira só os passos de IA', () => {
+    const { host, result } = hostWith(without('core.ai.steps'));
+    const ids = host.contributions
+      .query(WORKFLOW_STEP_POINT)
+      .map((contribution) => (contribution.metadata as { stepDefinitionId: string }).stepDefinitionId)
+      .sort();
+
+    expect(result.diagnostics).toEqual([]);
+    expect(ids).toEqual(STEPS_ANTES_DA_MIGRACAO);
+  });
+
   it('remover core.expressions tira as funções e preserva os passos', () => {
     const { host } = hostWith(without('core.expressions'));
 
     expect(host.contributions.query(EXPRESSION_FUNCTION_POINT)).toEqual([]);
-    expect(host.contributions.query(WORKFLOW_STEP_POINT)).toHaveLength(STEPS_ANTES_DA_MIGRACAO.length);
+    expect(host.contributions.query(WORKFLOW_STEP_POINT)).toHaveLength(
+      CORE_STEP_DEFINITION_IDS.length,
+    );
   });
 
   it('remover core.workflow derruba passos e funções, mas não as capabilities', () => {
     const { host, result } = hostWith(without('core.workflow'));
 
-    expect(result.skipped).toEqual(['core.expressions', 'core.steps']);
+    expect([...result.skipped].sort()).toEqual(['core.ai.steps', 'core.expressions', 'core.steps']);
     expect(host.contributions.query(WORKFLOW_STEP_POINT)).toEqual([]);
     expect(host.contributions.query(EXPRESSION_FUNCTION_POINT)).toEqual([]);
     expect(result.diagnostics.every((d) => d.code === 'dependency.missing')).toBe(true);

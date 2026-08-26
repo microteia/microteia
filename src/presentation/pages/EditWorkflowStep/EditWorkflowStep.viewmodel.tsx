@@ -1,5 +1,9 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import type { IconType } from 'react-icons';
+import { useTenant } from '../../../stores/useTenant';
+import { useDI } from '../../../infrastructure/di/useDI';
+import { makeGetAIConnectionsUseCase } from '../../../domain/usecases/aiconnections/GetAIConnectionsUseCase';
+import type { AIConnection } from '../../../domain/entities';
 import { useWorkflowStore } from '../../../stores/useWorkflowStore';
 import { useScriptStore } from '../../../stores/useScriptStore';
 import { useWorkspace } from '../../../stores/useWorkspace';
@@ -29,7 +33,11 @@ import {
 import type { InsertTarget, BranchKey } from '../../shared/workflowHelpers';
 import type { WorkflowEventFieldOption } from '../../../domain/services/workflowEventCatalog';
 import type { Condition, InputMapping, WorkflowParameter, WorkflowStep } from '../../../domain/entities/Workflow';
-import type { InputDefinition, StepDefinitionSummary } from '../../../domain/entities/WorkflowStepCatalog';
+import type {
+  InputDefinition,
+  InputPickerKind,
+  StepDefinitionSummary,
+} from '../../../domain/entities/WorkflowStepCatalog';
 import type { QuerySpec } from '../../../domain/schema/querySpec';
 import type { MapStepConfig } from '../../../domain/schema/mapSpec';
 import type { ValidateStepConfig } from '../../../domain/schema/validateSpec';
@@ -51,6 +59,26 @@ const queryProjectionOutputs = (
       id: `first.${path}`,
       label: t('output.first-result', { path }),
     }));
+};
+
+/**
+ * As saídas `params.<chave>` de um passo que extrai os parâmetros de um workflow-alvo. O rótulo é o
+ * que o escritório digitou no parâmetro — dado do tenant, que não se traduz —, e só o sufixo de
+ * lista é texto nosso.
+ */
+const parameterOutputs = (
+  t: TranslateFn,
+  parameter: WorkflowParameter,
+  idPrefix: string,
+  labelPrefix = '',
+): { id: string; label: string }[] => {
+  const id = `${idPrefix}.${parameter.key}`;
+  const label = labelPrefix ? `${labelPrefix} › ${parameter.label}` : parameter.label;
+  if (parameter.list) return [{ id, label: t('output.list', { name: label }) }];
+  if (parameter.type === 'Object') {
+    return (parameter.fields ?? []).flatMap((child) => parameterOutputs(t, child, id, label));
+  }
+  return [{ id, label }];
 };
 
 const mapConfigOf = (
@@ -139,11 +167,11 @@ export interface EditWorkflowStepViewModel {
   isStepIdentifierLocked: boolean;
   configuration: Record<string, InputMapping>;
   effectiveInputs: InputDefinition[];
-  dynamicInputsSourceId: string | null;
-  dynamicTargetKind: 'workflow' | 'script' | null;
-  callableWorkflowOptions: { value: string; label: string }[];
-  callableScriptOptions: { value: string; label: string }[];
-  setTargetWorkflow: (sourceInputId: string, targetWorkflowId: string) => void;
+  /** O seletor que este input pede, ou `null` quando ele é preenchido por mapeamento comum. */
+  pickerFor: (input: InputDefinition) => InputPickerKind | null;
+  pickerOptions: (kind: InputPickerKind) => { value: string; label: string }[];
+  pickerPlaceholder: (kind: InputPickerKind) => string;
+  setPickerValue: (inputId: string, value: string) => void;
   setMappingKind: (inputId: string, kind: InputMapping['kind']) => void;
   setMapping: (inputId: string, mapping: InputMapping) => void;
   enabled: boolean;
@@ -184,6 +212,9 @@ export interface EditWorkflowStepViewModel {
 
 export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepViewModel => {
   const t = useT('core.automation');
+  const { currentTenant } = useTenant();
+  const { aiConnectionRepository } = useDI();
+  const [aiConnections, setAiConnections] = useState<AIConnection[]>([]);
   // Parse tabKey:
   //   "edit-workflow-step:{wfId}"                         → adicionar step na raiz
   //   "edit-workflow-step:{wfId}:{stepId}"                → editar step existente
@@ -355,16 +386,99 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
     [scripts],
   );
 
-  const setTargetWorkflow = useCallback((sourceInputId: string, targetWorkflowId: string) => {
-    setConfiguration((prev) => {
-      const next: Record<string, InputMapping> = {};
-      for (const [key, mapping] of Object.entries(prev)) {
-        if (!key.startsWith('param.')) next[key] = mapping;
-      }
-      next[sourceInputId] = { kind: 'Literal', value: targetWorkflowId };
-      return next;
-    });
-  }, []);
+  const needsAIConnections = useMemo(
+    () => (selectedDefinition?.inputs ?? []).some((input) => input.picker === 'ai-connection'),
+    [selectedDefinition],
+  );
+
+  const getAIConnectionsUC = useMemo(
+    () => makeGetAIConnectionsUseCase(aiConnectionRepository),
+    [aiConnectionRepository],
+  );
+
+  // Só carrega quando algum input pede o seletor de conexão. Ler `ai.manage` é permissão de outra
+  // tela: quem não a tem recebe lista vazia, vê só a opção "padrão do escritório" — que é
+  // exatamente o que vai acontecer em runtime — e o editor não quebra por isso.
+  useEffect(() => {
+    if (!needsAIConnections || !currentTenant) return;
+    let cancelled = false;
+    getAIConnectionsUC
+      .execute(currentTenant.id)
+      .then((result) => {
+        if (!cancelled) setAiConnections(result);
+      })
+      .catch(() => {
+        if (!cancelled) setAiConnections([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [needsAIConnections, currentTenant, getAIConnectionsUC]);
+
+  const aiConnectionOptions = useMemo(
+    () => [
+      { value: '', label: t('step.ai-connection.default') },
+      ...aiConnections.map((connection) => ({
+        value: connection.id,
+        label: `${connection.name} — ${connection.provider}/${connection.model}`,
+      })),
+    ],
+    [aiConnections, t],
+  );
+
+  /**
+   * O seletor aparece quando o input DECLARA um, e enquanto o valor dele for um `Literal`. Um alvo
+   * que só se conhece em runtime — a saída do passo que detectou a automação — não tem lista a
+   * mostrar em design-time, e ali o input volta a ser um mapeamento como qualquer outro.
+   */
+  const pickerFor = useCallback(
+    (input: InputDefinition): InputPickerKind | null => {
+      if (!input.picker) return null;
+      if (input.allowedMappingKinds && !input.allowedMappingKinds.includes('Literal')) return null;
+      const current = configuration[input.id];
+      if (current && current.kind !== 'Literal') return null;
+      return input.picker;
+    },
+    [configuration],
+  );
+
+  const pickerOptions = useCallback(
+    (kind: InputPickerKind): { value: string; label: string }[] => {
+      if (kind === 'script') return callableScriptOptions;
+      if (kind === 'ai-connection') return aiConnectionOptions;
+      return callableWorkflowOptions;
+    },
+    [callableScriptOptions, aiConnectionOptions, callableWorkflowOptions],
+  );
+
+  const pickerPlaceholder = useCallback(
+    (kind: InputPickerKind): string =>
+      t(
+        kind === 'script'
+          ? 'step.target.script'
+          : kind === 'ai-connection'
+            ? 'step.target.ai-connection'
+            : 'step.target.workflow',
+      ),
+    [t],
+  );
+
+  const setPickerValue = useCallback(
+    (inputId: string, value: string) => {
+      setConfiguration((prev) => {
+        const next: Record<string, InputMapping> = {};
+        for (const [key, mapping] of Object.entries(prev)) {
+          // Trocar o alvo dos inputs DINÂMICOS invalida os `param.<chave>` do alvo anterior — e só
+          // esse alvo: os outros seletores não geram input nenhum a limpar.
+          if (key.startsWith('param.') && inputId === dynamicInputsSourceId) continue;
+          next[key] = mapping;
+        }
+        next[inputId] = { kind: 'Literal', value };
+        return next;
+      });
+    },
+    [dynamicInputsSourceId],
+  );
 
   const stepOrder = useMemo(() => {
     if (editingStep) return editingStep.order + 1;
@@ -546,6 +660,26 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
     [workflows, localStepOutputs],
   );
 
+  /**
+   * As saídas `params.<chave>` de um passo que extrai os parâmetros de um workflow-alvo — o mesmo
+   * gesto das projeções de uma consulta. Só existem quando o alvo é escolhido em design-time: com o
+   * alvo vindo de um passo anterior, o que se sabe aqui é só o objeto `params` inteiro.
+   */
+  const workflowParameterOutputsFor = useCallback(
+    (step: WorkflowStep, definition: StepDefinitionSummary): { id: string; label: string }[] => {
+      if (definition.dynamicOutputs?.kind !== 'from-target-workflow-parameters') return [];
+      const mapping = step.configuration[definition.dynamicOutputs.sourceInputId];
+      const id = mapping?.kind === 'Literal' ? String(mapping.value ?? '') : '';
+      if (!id) return [];
+      const target = workflows.find((w) => w.id === id);
+      if (!target) return [];
+      return (target.parameters ?? []).flatMap((parameter) =>
+        parameterOutputs(t, parameter, 'params'),
+      );
+    },
+    [workflows, t],
+  );
+
   // Fonte única de verdade das saídas selecionáveis de um step (estáticas, dinâmicas,
   // projeções de query, saídas de Script/Workflow-alvo e objetos montados). Consumida tanto
   // pelo autocomplete (`stepOutputFields`/`input.`) quanto pelo seletor visual (`getStepOutputs`)
@@ -559,10 +693,13 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
       workflowOutputsFor(step, definition).forEach((output) => {
         outputs.push({ id: output.id, label: output.label });
       });
+      workflowParameterOutputsFor(step, definition).forEach((output) => {
+        outputs.push({ id: output.id, label: output.label });
+      });
 
       return outputs;
     },
-    [stepCatalog, localStepOutputs, workflowOutputsFor],
+    [stepCatalog, localStepOutputs, workflowOutputsFor, workflowParameterOutputsFor],
   );
 
   const stepOutputFields = useMemo(() => {
@@ -849,11 +986,10 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
     isStepIdentifierLocked: !!editingStep,
     configuration,
     effectiveInputs,
-    dynamicInputsSourceId,
-    dynamicTargetKind,
-    callableWorkflowOptions,
-    callableScriptOptions,
-    setTargetWorkflow,
+    pickerFor,
+    pickerOptions,
+    pickerPlaceholder,
+    setPickerValue,
     setMappingKind,
     setMapping,
     enabled,

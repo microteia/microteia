@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { resolve } from 'node:path';
 import { mcpToolNames, runMcpTool } from './mcp';
+import { CORE_STEP_DEFINITION_IDS } from '../../domain/schema/workflowStepCatalog';
 
 /**
  * O servidor MCP é o que faz uma IA no editor trabalhar com a VERDADE desta instalação em vez de um
@@ -44,7 +45,9 @@ describe('o servidor MCP de autoria', () => {
     const ids = answer.steps.map((step) => step.stepDefinitionId);
     expect(ids).toContain('upsert');
     expect(ids).toContain('notify');
-    expect(ids).toHaveLength(11);
+    // Contagem DERIVADA: um passo novo no kernel aparece aqui sem que ninguém precise lembrar de
+    // subir um número — e um passo que o MCP deixasse de servir reprova na mesma linha.
+    expect([...ids].sort()).toEqual([...CORE_STEP_DEFINITION_IDS].sort());
     expect(answer.controlStepTypes).toEqual(['Condition', 'Loop']);
     expect(answer.unimplementedStepTypes).toContain('Delay');
 

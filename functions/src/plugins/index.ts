@@ -1,6 +1,7 @@
 import type { PluginRecord } from '../kernel';
 import { coreWorkflowPlugin } from './core.workflow/manifest';
 import { coreStepsPlugin } from './core.steps/manifest';
+import { coreAiStepsPlugin } from './core.ai.steps/manifest';
 import { coreExpressionsPlugin } from './core.expressions/manifest';
 import { coreCapabilitiesPlugin } from './core.capabilities/manifest';
 import { coreAiPlugin } from './core.ai/manifest';
@@ -16,5 +17,6 @@ export const BACKEND_PLUGINS: PluginRecord[] = [
   coreExpressionsPlugin,
   coreCapabilitiesPlugin,
   coreAiPlugin,
+  coreAiStepsPlugin,
   coreDataPlugin,
 ];

@@ -18,7 +18,7 @@ import { MapBuilderControl } from '../ViewWorkflow/components/MapBuilderControl'
 import { ValidateBuilderControl } from '../ViewWorkflow/components/ValidateBuilderControl';
 import { S } from './EditWorkflowStep.styles';
 import { useEditWorkflowStepViewModel } from './EditWorkflowStep.viewmodel';
-import type { InputDefinition } from '../../../domain/entities/WorkflowStepCatalog';
+import type { InputDefinition, InputPickerKind } from '../../../domain/entities/WorkflowStepCatalog';
 import type { InputMapping } from '../../../domain/entities/Workflow';
 import type { QuerySpec } from '../../../domain/schema/querySpec';
 import type { RemoveStepConfig, UpsertStepConfig } from '../../../domain/schema/mutationSpec';
@@ -224,6 +224,27 @@ export const EditWorkflowStepView: React.FC<{ tabKey: string }> = ({ tabKey }) =
         inputRoot={vm.inputRoot}
         stepOutputFields={vm.stepOutputFields}
         workflowVariables={vm.workflowVariables}
+      />
+    );
+  };
+
+  /**
+   * A lista do que o input NOMEIA — automação, script ou conexão de IA. Só faz sentido com o valor
+   * em `Literal`: quem o declara é o catálogo (`InputDefinition.picker`), e é o ViewModel que decide
+   * quando ela cabe.
+   */
+  const renderPicker = (input: InputDefinition, kind: InputPickerKind) => {
+    const mapping = vm.configuration[input.id];
+    return (
+      <SearchSelect
+        options={vm.pickerOptions(kind)}
+        value={
+          mapping?.kind === 'Literal'
+            ? String((mapping as Extract<InputMapping, { kind: 'Literal' }>).value ?? '')
+            : ''
+        }
+        onChange={(value) => vm.setPickerValue(input.id, value)}
+        placeholder={vm.pickerPlaceholder(kind)}
       />
     );
   };
@@ -459,7 +480,7 @@ export const EditWorkflowStepView: React.FC<{ tabKey: string }> = ({ tabKey }) =
           {vm.effectiveInputs.map((input) => {
             const mappingKindOptions = getMappingKindOptions(input, t);
             const isMappingKindLocked = mappingKindOptions.length === 1;
-            const isTargetPicker = input.id === vm.dynamicInputsSourceId;
+            const pickerKind = vm.pickerFor(input);
 
             if (input.type === 'Boolean') {
               const booleanMapping = vm.configuration[input.id];
@@ -484,15 +505,21 @@ export const EditWorkflowStepView: React.FC<{ tabKey: string }> = ({ tabKey }) =
                   {input.required && <S.Required>*</S.Required>}
                 </S.FieldHeader>
                 {input.description && <S.HelpText>{label(input.description)}</S.HelpText>}
-                {isTargetPicker ? (
-                  <SearchSelect
-                    options={vm.dynamicTargetKind === 'script' ? vm.callableScriptOptions : vm.callableWorkflowOptions}
-                    value={vm.configuration[input.id]?.kind === 'Literal' ? String((vm.configuration[input.id] as Extract<InputMapping, { kind: 'Literal' }>).value ?? '') : ''}
-                    onChange={(value) => vm.setTargetWorkflow(input.id, value)}
-                    placeholder={t(
-                      vm.dynamicTargetKind === 'script' ? 'step.target.script' : 'step.target.workflow',
-                    )}
-                  />
+                {pickerKind && isMappingKindLocked ? (
+                  renderPicker(input, pickerKind)
+                ) : pickerKind ? (
+                  // O input aceita mais de uma origem: o seletor de origem fica visível ao lado da
+                  // lista, senão não haveria como trocar o alvo fixo pela saída de um passo anterior
+                  // — e é justamente essa troca que deixa um fluxo escolher a automação em runtime.
+                  <S.MappingRow>
+                    <SearchSelect
+                      options={mappingKindOptions}
+                      value={vm.configuration[input.id]?.kind ?? 'Literal'}
+                      onChange={(kind) => vm.setMappingKind(input.id, kind as InputMapping['kind'])}
+                      placeholder={t('mapping.source.placeholder')}
+                    />
+                    {renderPicker(input, pickerKind)}
+                  </S.MappingRow>
                 ) : input.type === 'Query' ? (
                   renderQueryControl(input)
                 ) : input.type === 'Upsert' ? (
