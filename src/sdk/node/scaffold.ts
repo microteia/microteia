@@ -121,11 +121,25 @@ const FIELDS: TemplateField[] = [
 
   const views = spec.view
     ? `
-  // Views travel as SOURCE and are compiled by the browser at runtime. Authored as a real .tsx file so
-  // tsc and your editor check it: "sourceFile" is replaced by its contents at build time. It also takes
-  // a LIST of files, merged in order, for when one file stops being the right shape for the view.
+  // Views travel as SOURCE and are compiled by the browser at runtime. Authored as real .tsx files so
+  // tsc and your editor check them: "sourceFile" is replaced by their contents at build time, merged in
+  // the order given into the one module the runtime evaluates.
+  //
+  // Three jobs, kept apart, plus the rule that can be tested on its own: the view renders, the view model
+  // keeps the state and the handlers, the styles read the theme, and Summary.rules.ts imports nothing so
+  // "npm test" can call it. One file is enough for a view that only renders what a hook returned.
   views: [
-    { key: '${folder}-summary', title: label('page.summary'), icon: 'chart', sourceFile: './views/Summary.view.tsx' },
+    {
+      key: '${folder}-summary',
+      title: label('page.summary'),
+      icon: 'chart',
+      sourceFile: [
+        './views/Summary.view.tsx',
+        './views/Summary.viewmodel.tsx',
+        './views/Summary.styles.tsx',
+        './views/Summary.rules.ts',
+      ],
+    },
   ],
 `
     : '';
@@ -177,57 +191,165 @@ export default ${name}Plugin;
 `;
 };
 
-const viewTsx = (spec: PluginSpec): string => {
+/**
+ * A view do molde vem em CINCO arquivos, e não num só, porque o molde é o que vira hábito: quem começa
+ * num arquivo monolítico só descobre a divisão quando ele já está grande demais para dividir. Três deles
+ * são a view (render, estado, estilo); o quarto é a REGRA — sem import nenhum, que é o que a torna
+ * chamável; e o quinto é o teste dela, que roda em um segundo em vez de exigir a extensão instalada.
+ */
+const viewFiles = (spec: PluginSpec): Record<string, string> => {
   const collection = `${camelOf(spec.id)}Items`;
   const reads = spec.screen ? collection : 'persons';
 
-  return `import { useMemo } from 'react';
-import { useTheme } from 'styled-components';
-import { Card } from '@microteia/ui';
+  return {
+    'views/Summary.rules.ts': `/**
+ * The rule, outside React: it imports nothing, so a test can call it. Anything that can be WRONG — an
+ * order, a total, a window of dates, which records count — belongs in a file like this one rather than
+ * inside a component, where the only way to exercise it is to install the extension and look.
+ */
+export interface SummaryItem {
+  id: string;
+  title?: unknown;
+  dueDate?: unknown;
+}
+
+export const upcoming = (items: SummaryItem[], limit: number): SummaryItem[] => items
+  .filter((item) => typeof item.dueDate === 'string')
+  .sort((left, right) => String(left.dueDate).localeCompare(String(right.dueDate)))
+  .slice(0, limit);
+`,
+
+    'views/Summary.rules.test.ts': `import { describe, expect, it } from 'vitest';
+import { upcoming } from './Summary.rules';
+
+/**
+ * This is the test the split pays for: the rule fails here, in a second, instead of on somebody's
+ * screen. Add one whenever the view learns to decide something new.
+ */
+describe('upcoming', () => {
+  it('puts the earliest due date first and stops at the limit', () => {
+    const items = [
+      { id: 'c', dueDate: '2026-03-01' },
+      { id: 'a', dueDate: '2026-01-01' },
+      { id: 'b', dueDate: '2026-02-01' },
+    ];
+
+    expect(upcoming(items, 2).map((item) => item.id)).toEqual(['a', 'b']);
+  });
+
+  it('leaves out a record with no due date', () => {
+    expect(upcoming([{ id: 'a' }], 10)).toEqual([]);
+  });
+});
+`,
+
+    'views/Summary.styles.tsx': `import { styled } from 'styled-components';
+
+/**
+ * Every colour, size, space and radius comes from the theme. A hex or a hand-written pixel stops
+ * matching the day the organization changes theme — and every organization eventually switches to the
+ * dark one. Ask "describe_host_module styled-components" for the token names.
+ */
+const Page = styled.div\`
+  display: flex;
+  flex-direction: column;
+  gap: \${({ theme }) => theme.spacing.md};
+  padding: \${({ theme }) => theme.spacing.lg};
+\`;
+
+const Title = styled.h2\`
+  margin: 0;
+  font-size: \${({ theme }) => theme.fontSizes.xl};
+  color: \${({ theme }) => theme.colors.text};
+\`;
+
+const Empty = styled.p\`
+  margin: 0;
+  color: \${({ theme }) => theme.colors.textSecondary};
+\`;
+
+const Row = styled.div\`
+  display: flex;
+  justify-content: space-between;
+  gap: \${({ theme }) => theme.spacing.sm};
+\`;
+
+const Name = styled.span\`
+  font-weight: 600;
+  color: \${({ theme }) => theme.colors.text};
+\`;
+
+const When = styled.span\`
+  color: \${({ theme }) => theme.colors.textSecondary};
+\`;
+
+export const S = { Page, Title, Empty, Row, Name, When };
+`,
+
+    'views/Summary.viewmodel.tsx': `import { useCallback, useMemo } from 'react';
 import { useCollection, useOpenRecord } from '@microteia/data';
 import { useT } from '@microteia/i18n';
+import { upcoming, type SummaryItem } from './Summary.rules';
+
+/**
+ * The state, the data and the handlers — and no JSX. The view renders what this returns, which is what
+ * lets the two be read apart.
+ */
+export interface SummaryViewModel {
+  total: number;
+  items: SummaryItem[];
+  label: (key: string, params?: Record<string, unknown>) => string;
+  open: (recordId: string) => void;
+}
+
+export const useSummaryViewModel = (): SummaryViewModel => {
+  const records = useCollection('${reads}') as SummaryItem[];
+  const openRecord = useOpenRecord();
+  const label = useT('${spec.id}');
+
+  const items = useMemo(() => upcoming(records, 10), [records]);
+  const open = useCallback((recordId: string) => openRecord('${reads}', recordId), [openRecord]);
+
+  return { total: records.length, items, label, open };
+};
+`,
+
+    'views/Summary.view.tsx': `import { Card } from '@microteia/ui';
+import { useSummaryViewModel } from './Summary.viewmodel';
+import { S } from './Summary.styles';
 
 /**
  * A page delivered as CODE. It may only import from the curated host API — '@microteia/*', 'react' and
  * 'styled-components'. Any other import is refused at runtime, by design.
  *
- * Because this is a real .tsx file, "npx tsc --noEmit" checks it and your editor completes it. The
- * compiler inlines it into the .json; the browser compiles and evaluates it there.
+ * Because these are real .tsx files, "npx tsc --noEmit" checks them and your editor completes them. The
+ * compiler merges the list declared in "sourceFile" into one module and inlines it into the .json; the
+ * browser compiles and evaluates it there. This file renders, and keeps no state of its own.
  */
 export default function SummaryView() {
-  const theme = useTheme();
-  const items = useCollection('${reads}');
-  const openRecord = useOpenRecord();
-  const t = useT('${spec.id}');
-
-  const upcoming = useMemo(
-    () => items
-      .filter((item) => typeof item.dueDate === 'string')
-      .sort((left, right) => String(left.dueDate).localeCompare(String(right.dueDate)))
-      .slice(0, 10),
-    [items],
-  );
+  const vm = useSummaryViewModel();
 
   return (
-    <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <h2 style={{ color: theme.colors.text, margin: 0 }}>{t('summary.total', { count: items.length })}</h2>
+    <S.Page>
+      <S.Title>{vm.label('summary.total', { count: vm.total })}</S.Title>
 
-      {upcoming.length === 0 ? (
-        <p style={{ color: theme.colors.textSecondary }}>{t('summary.empty')}</p>
+      {vm.items.length === 0 ? (
+        <S.Empty>{vm.label('summary.empty')}</S.Empty>
       ) : (
-        upcoming.map((item) => (
-          <Card key={item.id} onClick={() => openRecord('${reads}', item.id)}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
-              <strong style={{ color: theme.colors.text }}>{String(item.title ?? '')}</strong>
-              <span style={{ color: theme.colors.textSecondary }}>{String(item.dueDate ?? '')}</span>
-            </div>
+        vm.items.map((item) => (
+          <Card key={item.id} onClick={() => vm.open(item.id)}>
+            <S.Row>
+              <S.Name>{String(item.title ?? '')}</S.Name>
+              <S.When>{String(item.dueDate ?? '')}</S.When>
+            </S.Row>
           </Card>
         ))
       )}
-    </div>
+    </S.Page>
   );
 }
-`;
+`,
+  };
 };
 
 const testTs = (spec: PluginSpec): string => {
@@ -422,7 +544,9 @@ export const scaffoldPlugin = (
   write('plugin.test.ts', testTs(spec));
   write('README.md', readmeMd(spec));
   write('VERSIONS.md', versionsMd(spec, todayIso()));
-  if (spec.view) write('views/Summary.view.tsx', viewTsx(spec));
+  if (spec.view) {
+    for (const [relative, content] of Object.entries(viewFiles(spec))) write(relative, content);
+  }
 
   const result: ScaffoldResult = { directory, files };
 

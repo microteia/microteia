@@ -488,6 +488,68 @@ export default function startup(host: ExtensionHost) {
 It is how an extension gets into the command palette and into mentions — the things that have to
 exist before anyone opens its screen. Ask \`describe_host_module\` for what \`host\` offers; do not guess.
 
+### Writing the code, once you are sure you need it
+
+Everything else in a package is checked before anyone sees it: a screen is validated, a workflow is
+validated, an expression is validated. A view is a program, and the only thing between it and the
+organization is you. So write it in the shape the platform writes its own — three files, one view:
+
+| File | What it holds | What it may not hold |
+|---|---|---|
+| \`Summary.view.tsx\` | JSX, and nothing else: it renders what the view model returned | state, effects, computation, a \`ref.current\` read |
+| \`Summary.viewmodel.tsx\` | the state, the effects, the handlers and the derived values, returned as one plain object | JSX |
+| \`Summary.styles.tsx\` | the styled-components | anything a test would want to call |
+
+\`\`\`ts
+sourceFile: ['./views/Summary.view.tsx', './views/Summary.viewmodel.tsx', './views/Summary.styles.tsx']
+\`\`\`
+
+One file is enough while a view only renders what a hook already returned — do not split a component
+that has nothing to split. Split it the first time it keeps state of its own, derives a value, or grows
+a second screenful of styles. The reason is not tidiness: a component holding all three can only be read
+by reading all of it, and what is wrong is almost always the middle part.
+
+**Take what can be wrong out of React.** A sort order, a total, a window of dates, the decision about
+which records count — those are functions of their arguments, not of a component. Give each a file of
+its own, named in the list like the others, importing nothing, and a test beside it:
+
+\`\`\`ts
+// views/Summary.rules.ts — imports nothing, which is what makes it callable
+export const upcoming = (items: Item[], limit: number): Item[] => /* ... */;
+
+// views/Summary.rules.test.ts — runs in "npm test", in a second
+it('puts the earliest due date first', () => expect(upcoming(items, 3)).toEqual(/* ... */));
+\`\`\`
+
+A rule that lives inside a component can only be exercised by rendering the component, which here means
+installing the extension in an organization and looking at it. That distance is the whole reason to move
+the rule out — not the file count.
+
+**Style through the theme, never through a literal.** \`styled-components\` is curated, and the \`theme\`
+it hands you is the organization's, as it is at that moment:
+
+\`\`\`ts
+const Card = styled.div\`
+  padding: \${({ theme }) => theme.spacing.md};
+  background: \${({ theme }) => theme.colors.surface};
+  border: 1px solid \${({ theme }) => theme.colors.border};
+  border-radius: \${({ theme }) => theme.borderRadius.lg};
+\`;
+\`\`\`
+
+\`colors\`, \`fonts\`, \`fontSizes\`, \`spacing\`, \`borderRadius\`, \`transitions\` and \`highlights\` are the
+groups; \`describe_host_module\` gives the exact token names, and a token that does not exist fails to
+compile. A hex, an \`rgba(...)\` or a hand-written pixel is a value that stops matching the day the
+organization switches theme — and every organization eventually switches to the dark one. Inline
+\`style={{ }}\` has the same problem and is checked by nothing, so keep it for the rare dimension that
+genuinely comes from data.
+
+Colour that **is** data is the one exception: the colour someone picked for an option, a phase or a tag
+arrives as a value, so pass it in as a \`$\`-prefixed prop and apply it as given — \`getConfigColor\` from
+\`@microteia/theme\` is what resolves it against the theme when the option carries only a name.
+
+And §5 still has no exception, least of all here: no string a person reads is written in a view.
+
 ## 8. Screens — the data your extension owns
 
 A \`screen\` declares an entity: a collection, its fields, its title. The platform draws the list, the
@@ -997,6 +1059,30 @@ Two rules follow from how a Firebase project works, and both are refusals rather
 
 A function shared by several extensions goes in \`../functions/\` instead, next to \`microteia.yaml\`.
 Nobody owns it, so nothing can claim it, and it is deployed with every \`microteia deploy\`.
+
+### Write the handler thin
+
+A Cloud Function is the one part of an extension that cannot be tried in a second: it is deployed, not
+built, and it is deployed into somebody else's project. So keep the handler to what only a handler can
+do — refuse the unauthenticated call, read the payload, shape the answer — and put the decision the
+function exists to make in a plain function beside it (\`create function\` writes the \`onCall\` options,
+region included):
+
+\`\`\`ts
+// functions/quote.ts — imports nothing from firebase-functions, so a test can call it
+export const quoteFor = (input: QuoteInput): QuoteResult => /* ... */;
+
+// functions/index.ts
+export const helloQuote = onCall(options, (request) => {
+  if (request.auth === undefined) throw new Error('Sign-in required.');
+
+  return quoteFor(request.data as QuoteInput);
+});
+\`\`\`
+
+The handler is then a few lines that can only be wrong in obvious ways, and everything that can be wrong
+in subtle ways sits in a file \`npm test\` covers. It is the same division as a view and its rules (§7),
+for the same reason: the part with a name is the part that can be tested.
 
 ## 13. Size
 

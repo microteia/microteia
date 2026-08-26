@@ -74,6 +74,61 @@ describe('o molde de uma extensão', () => {
     expect(files).toContain('plugin.test.ts');
   });
 
+  /**
+   * O molde é o que vira hábito, e o que ele gerava era um `.view.tsx` único com estilo inline e
+   * medida em pixel escrita à mão — a forma exata que o `AUTHORING.md` §7 desaconselha. Quem começa
+   * num arquivo monolítico só descobre a divisão quando ele já está grande demais para dividir.
+   */
+  describe('a view que ele gera', () => {
+    const withView = (): { directory: string; files: string[] } => scaffold({ ...SPEC, view: true });
+
+    it('nasce dividida, e a lista do sourceFile nomeia os quatro arquivos', () => {
+      const { directory, files } = withView();
+
+      expect(files).toEqual(expect.arrayContaining([
+        'views/Summary.view.tsx',
+        'views/Summary.viewmodel.tsx',
+        'views/Summary.styles.tsx',
+        'views/Summary.rules.ts',
+      ]));
+
+      const plugin = fileOf(directory, 'plugin.ts');
+      for (const file of ['Summary.view.tsx', 'Summary.viewmodel.tsx', 'Summary.styles.tsx', 'Summary.rules.ts']) {
+        expect(plugin).toContain(`./views/${file}`);
+      }
+    });
+
+    it('a view só renderiza: o estado e os efeitos ficam no view model', () => {
+      const { directory } = withView();
+      const view = fileOf(directory, 'views/Summary.view.tsx');
+
+      expect(view).toContain('useSummaryViewModel()');
+      expect(view).not.toMatch(/useState|useEffect|useMemo|useCallback/);
+      expect(fileOf(directory, 'views/Summary.viewmodel.tsx')).not.toContain('<S.');
+    });
+
+    /** Cor e medida literais deixam de casar no dia em que o escritório troca de tema. */
+    it('o estilo sai do tema, e não de um hexadecimal ou de um pixel escrito à mão', () => {
+      const styles = fileOf(withView().directory, 'views/Summary.styles.tsx');
+
+      expect(styles).toContain('theme.spacing');
+      expect(styles).toContain('theme.colors');
+      expect(styles).not.toMatch(/#[0-9a-fA-F]{3,8}\b|rgba?\(|\d+px/);
+    });
+
+    /**
+     * A regra é a única parte que um teste alcança em um segundo — e ela só é alcançável enquanto não
+     * importar nada, porque `@microteia/*` não existe fora do runtime da plataforma.
+     */
+    it('a regra vem sem import nenhum, com o teste dela ao lado', () => {
+      const { directory, files } = withView();
+
+      expect(files).toContain('views/Summary.rules.test.ts');
+      expect(fileOf(directory, 'views/Summary.rules.ts')).not.toContain('import ');
+      expect(fileOf(directory, 'views/Summary.rules.test.ts')).toContain("from './Summary.rules'");
+    });
+  });
+
   /** O que muda com as respostas é o CONTEÚDO; estes quatro vêm sempre. */
   it.each([
     ['plugin.ts'],

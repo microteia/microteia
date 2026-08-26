@@ -276,6 +276,20 @@ them, and the compiler removes it once they are one module. That module has **on
 top-level name has to be unique across the list, and exactly one file exports \`default\`. Anything
 else is refused at build time, not on the screen. \`startupFile\` takes a list for the same reason.
 
+Once code is what is left, write it the way the platform writes its own, and keep the three jobs apart:
+the \`.view.tsx\` renders and keeps no state; the \`.viewmodel.tsx\` keeps the state, the effects and the
+handlers and returns one plain object, with no JSX; the \`.styles.tsx\` keeps the styled-components, and
+every colour, size, space and radius in them comes from the theme — never a hex, an \`rgba(...)\` or a
+hand-written pixel, because those stop matching the day the organization changes theme. One file is fine
+while the view only renders what a hook returned; split it the first time it keeps state of its own or
+derives a value.
+
+Whatever can be **wrong** — a sort order, a total, a window of dates, which records count — goes in a
+file of its own in the list, importing nothing, with a test beside it. A Cloud Function divides the same
+way: the handler refuses the unauthenticated call and shapes the answer, and the decision it exists to
+make sits in a plain function \`npm test\` can call. Logic reachable only by rendering a component or by
+deploying a function is logic first tried in someone's organization. \`AUTHORING.md\` §7 has the shapes.
+
 **Code does not run until a human trusts it.** A package carrying \`views\` or \`startup\` installs
 inert; an administrator opens the source, reads it and trusts it, and the trust is bound to that exact
 code by hash. Changing one character un-trusts it. This is deliberate — do not look for a way around it.

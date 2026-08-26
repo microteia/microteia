@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.13.0] — 2026-08-25
+
+- O manual de autoria de extensões passa a dizer como escrever a parte que precisa mesmo de programação: quando dividir uma tela em arquivos separados, como deixar as regras de cálculo fora da tela para que possam ser testadas em um segundo, e por que cor, tamanho e espaçamento têm de vir do tema — senão a extensão deixa de combinar com o escritório no dia em que ele troca de aparência.
+- Uma extensão nova já nasce nessa forma: o assistente que a cria agora entrega a tela dividida, com a regra separada e o teste dela pronto para rodar.
+
 #### [9.12.0] — 2026-08-25
 
 - A publicação da plataforma no Firebase do escritório deixou de reenviar as funções de servidor que não mudaram. Antes, toda publicação subia as vinte e oito, uma a uma, mesmo quando a versão nova só trocou algo na tela — e isso levava dezenas de minutos. Agora a plataforma pergunta ao projeto o que ele já roda e publica apenas o que ficou diferente; quando nada mudou no servidor, a publicação termina em minutos.

@@ -240,6 +240,23 @@ describe('o que é gerado em extensions/', () => {
     });
 
     /**
+     * A escada de custo dizia para NÃO escrever código, e o texto parava aí — então, na hora em que
+     * escrever era mesmo a resposta, a instrução calava e o que saía era um `.view.tsx` de oitocentas
+     * linhas com `useState`, cor em hexadecimal e regra nenhuma que um teste alcance.
+     */
+    it('diz a forma do código quando código é o que resta: os três arquivos e a regra fora do componente', () => {
+      expect(agents).toContain('`.view.tsx`');
+      expect(agents).toContain('`.viewmodel.tsx`');
+      expect(agents).toContain('`.styles.tsx`');
+      expect(agents).toContain('importing nothing, with a test beside it');
+    });
+
+    it('proíbe cor e medida literais, e divide a Cloud Function do mesmo jeito', () => {
+      expect(agents).toContain('never a hex');
+      expect(agents).toContain('the handler refuses the unauthenticated call');
+    });
+
+    /**
      * A regra que uma IA mais deixa passar: mudar a extensão e não subir a versão. Sem versão nova, a
      * extensão alterada não é reconhecida como atualização e não chega a quem já a tem instalada.
      */
@@ -372,6 +389,28 @@ describe('o que é gerado em extensions/', () => {
      */
     it('a seção de confiança de código se chama pelo termo que a CLI e o MCP usam', () => {
       expect(guide).toContain('Code trust');
+    });
+
+    /**
+     * A lista de `sourceFile` estava documentada como MECÂNICA — como os arquivos se fundem — e nunca
+     * como padrão: os nomes `.viewmodel.tsx` e `.styles.tsx` apareciam só como exemplo de sintaxe. O
+     * autor lia a capacidade e não lia o motivo dela existir.
+     */
+    it('a §7 dá a divisão dos três arquivos e manda tirar a regra de dentro do componente', () => {
+      expect(guide).toContain('Writing the code, once you are sure you need it');
+      expect(guide).toContain('Take what can be wrong out of React');
+      expect(guide).toContain('views/Summary.rules.ts');
+    });
+
+    it('a §7 manda estilizar pelo tema, e não por um literal', () => {
+      expect(guide).toContain('Style through the theme, never through a literal');
+      expect(guide).toContain('theme.spacing.md');
+    });
+
+    /** Uma function é a única parte de uma extensão que não dá para experimentar em um segundo. */
+    it('a §12 manda o handler fino, com a decisão numa função que o teste chama', () => {
+      expect(guide).toContain('Write the handler thin');
+      expect(guide).toContain('imports nothing from firebase-functions, so a test can call it');
     });
 
     it('registra a rotina de versão junto da identidade, que é onde se procura por ela', () => {
