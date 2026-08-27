@@ -18,6 +18,26 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.19.4] — 2026-08-26
+
+- fix(i18n): the note/document event labels were BUILT by concatenation —
+  `\`${labelPrefix} de ${parent.labelSingular}\`` and `\`Ao salvar: ${label}\`` — pinning two pieces of
+  interface text in code, with the preposition between them pinning the language too. They are now
+  references composed by the message engine: `event.nested-item` (`{item} of {parent}`) reached through
+  `labelParams`, with `event.note` and `event.document` as the item. Inert today (both parent arrays are
+  empty), which is exactly why it was a landmine: it would have produced Portuguese the day someone
+  filled them.
+- fix(i18n): `resolveEventCatalogLabel` resolved `labelParams.name` by hand and THREW THE SIBLINGS AWAY.
+  Enough for one turn, broken on the second: the nested message came out as
+  `Ao salvar: {item} de {parent}`. It now hands the params to the engine, which is what `resolveParam`
+  was built for — it resolves a reference inside a param and carries the siblings into the nested
+  message. Mutation-verified: the previous form fails the new test with exactly that string.
+- test(i18n): the event-catalog test uses the REAL resolver instead of a hand-rolled fake, because what
+  it guards is the engine's nesting — a fake that interpolates by hand would pass even if the engine
+  stopped doing it. Plus the rule that was missing: every catalog entry's label must BE a reference, not
+  built text. A concatenated label does not start with `@`, so the older "nothing reaches the screen
+  raw" assertion walked straight past the Portuguese.
+
 #### [9.19.3] — 2026-08-26
 
 - fix(i18n): `members` carried `labelSingular: 'Membro'` / `labelPlural: 'Membros'` — Portuguese

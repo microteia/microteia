@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.19.4] — 2026-08-26
+
+- Os gatilhos de automação para notas e documentos de um registro tinham o nome escrito em português dentro do programa — "Ao salvar: Nota de …" — e apareceriam assim para quem usasse o sistema em outro idioma. Passam a ser traduzidos como os demais gatilhos.
+
 #### [9.19.3] — 2026-08-26
 
 - "Membro" era a única entidade do sistema cujo nome estava escrito em português dentro do programa, e por isso aparecia em português mesmo para quem usasse o sistema em outro idioma. Passa a ser traduzida como todas as outras.

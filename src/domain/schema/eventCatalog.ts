@@ -27,16 +27,19 @@ export interface WorkflowEventCatalogEntry {
 
 /**
  * O rótulo de um evento, resolvido. Vive aqui — e não em cada tela que mostra um gatilho — porque a
- * composição tem duas voltas: a referência traz "Ao salvar: {name}", e `name` é por sua vez ou outra
- * referência (entidade nativa) ou o nome que o escritório digitou no Form Design.
+ * composição tem mais de uma volta: a referência traz "Ao salvar: {name}", e `name` é por sua vez ou
+ * outra referência (entidade nativa), ou o nome que o escritório digitou no Form Design, ou ainda uma
+ * terceira referência que se compõe com os parâmetros IRMÃOS ("{item} de {parent}").
+ *
+ * Quem desce essas voltas é o próprio motor de mensagens — `resolveParam` resolve referência em
+ * parâmetro e leva os irmãos para a mensagem aninhada. Resolver `name` à mão aqui, como se fazia,
+ * bastava para uma volta e quebrava na segunda: o `{item}` de dentro voltava cru na tela, porque a
+ * chamada de fora tinha jogado os irmãos fora.
  */
 export const resolveEventCatalogLabel = (
   label: (value: string, params?: Record<string, unknown>) => string,
   entry: Pick<WorkflowEventCatalogEntry, 'label' | 'labelParams'>,
-): string =>
-  (entry.labelParams
-    ? label(entry.label, { name: label(entry.labelParams.name) })
-    : label(entry.label));
+): string => label(entry.label, entry.labelParams);
 
 const ID_FIELD: WorkflowEventFieldOption = { path: 'id', label: '@core.automation/event-field.id' };
 const CHANGE_TYPE_FIELD: WorkflowEventFieldOption = { path: 'changeType', label: '@core.automation/event-field.change-type' };
@@ -189,21 +192,34 @@ const parentObjectField = (entity: EntityMetadata): NativeFieldSpec => ({
 const NOTE_PARENTS: EntityKey[] = [];
 const DOCUMENT_PARENTS: EntityKey[] = [];
 
+/**
+ * O evento de uma nota ou de um documento — "Ao salvar: Nota de Membro". O nome é composto em DOIS
+ * níveis, e é o motor de mensagens que os compõe: `name` é ele mesmo uma referência, e os parâmetros
+ * IRMÃOS (`item`, `parent`) descem para ela. Este módulo é compartilhado com o backend e não pode
+ * conhecer catálogo de idioma, então aqui só se declara a forma.
+ *
+ * A montagem por concatenação — `${prefix} de ${parent.labelSingular}` — é o que não pode voltar: ela
+ * prendia dois textos de interface no código, e a preposição do meio prendia o idioma junto.
+ */
 const nestedEntries = (
   parents: EntityKey[],
   suffix: 'note' | 'document',
-  labelPrefix: string,
+  itemLabel: string,
   baseFields: NativeFieldSpec[],
 ): WorkflowEventCatalogEntry[] =>
   parents.flatMap((parentKey) => {
     const parent = ENTITY_REGISTRY[parentKey];
     const fields: NativeFieldSpec[] = [...baseFields, parentObjectField(parent)];
     const root: PathRootBase = { kind: 'fields', fields };
-    const label = `${labelPrefix} de ${parent.labelSingular}`;
     const prefix = `${parent.eventPrefix}_${suffix}`;
+    const labelParams = {
+      name: '@core.automation/event.nested-item',
+      item: itemLabel,
+      parent: parent.labelSingular,
+    };
     return [
-      buildEntry(`${prefix}.saved`, `Ao salvar: ${label}`, true, flattenNativeFields(fields), root),
-      buildEntry(`${prefix}.deleted`, `Ao excluir: ${label}`, false, flattenNativeFields(fields), root),
+      buildEntry(`${prefix}.saved`, '@core.automation/event.on-save', true, flattenNativeFields(fields), root, labelParams),
+      buildEntry(`${prefix}.deleted`, '@core.automation/event.on-delete', false, flattenNativeFields(fields), root, labelParams),
     ];
   });
 
@@ -221,8 +237,8 @@ export const WORKFLOW_EVENT_CATALOG: WorkflowEventCatalogEntry[] = [
   lookupEntry('saved'),
   ...orderedEntities.map((entity) => entityEntry(entity, 'deleted')),
   lookupEntry('deleted'),
-  ...nestedEntries(NOTE_PARENTS, 'note', 'Nota', NOTE_FIELDS),
-  ...nestedEntries(DOCUMENT_PARENTS, 'document', 'Documento', DOCUMENT_FIELDS),
+  ...nestedEntries(NOTE_PARENTS, 'note', '@core.automation/event.note', NOTE_FIELDS),
+  ...nestedEntries(DOCUMENT_PARENTS, 'document', '@core.automation/event.document', DOCUMENT_FIELDS),
   workflowCalledEntry,
 ];
 

@@ -3,7 +3,7 @@
   "workflows": [],
   "manifest": {
     "id": "com.microteia.locale-pt-br",
-    "version": "1.29.0",
+    "version": "1.30.0",
     "kernel": "^2.0.0",
     "name": "Português (Brasil)",
     "description": "Tradução da Microteia para português do Brasil.",
@@ -2010,6 +2010,9 @@
             "event.on-delete": "Ao excluir: {name}",
             "event.called": "Chamado por outro workflow",
             "event.lookup-item": "Item de Lista",
+            "event.nested-item": "{item} de {parent}",
+            "event.note": "Nota",
+            "event.document": "Documento",
             "event-field.key": "Chave",
             "event-field.label": "Rótulo",
             "event-field.collection": "Coleção",

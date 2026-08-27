@@ -12,6 +12,8 @@ import {
   workflowParametersToFieldOptions,
 } from './eventCatalog';
 import { createSchemaContext, resolvePath, parsePath } from './pathResolver';
+import { resolveLabel } from './i18n/messageRef';
+import type { MessageCatalog, MessageParams } from './i18n/messages';
 import type { WorkflowParameter } from '../entities/Workflow';
 
 const entry = (name: string) => WORKFLOW_EVENT_CATALOG.find((e) => e.name === name);
@@ -298,19 +300,26 @@ describe('workflow.called — parâmetros dinâmicos', () => {
  * (entidade nativa) ou o nome que o escritório digitou no Form Design. As duas voltas moravam dentro
  * do seletor de gatilho; a tela de menção tinha só uma volta, e mostrava a chave.
  */
-describe('resolveEventCatalogLabel — as duas voltas da composição', () => {
-  const catalog: Record<string, string> = {
-    'core.automation/event.on-save': 'Ao salvar: {name}',
-    'core.automation/event.manual': 'Chamado por uma Ação',
-    'com.acme.auto/screen.request': 'Solicitação',
+describe('resolveEventCatalogLabel — as voltas da composição', () => {
+  /**
+   * O resolvedor é o REAL, e não um fake, de propósito: o que este teste guarda é a composição
+   * aninhada, e ela é feita por `resolveParam` — referência dentro de parâmetro, com os irmãos
+   * descendo para a mensagem de dentro. Um fake que interpola à mão passaria mesmo se o motor
+   * deixasse de fazer isso, que foi justamente o defeito.
+   */
+  const catalog: MessageCatalog = {
+    locale: 'pt-BR',
+    messages: {
+      'core.automation/event.on-save': 'Ao salvar: {name}',
+      'core.automation/event.manual': 'Chamado por uma Ação',
+      'core.automation/event.nested-item': '{item} de {parent}',
+      'core.automation/event.note': 'Nota',
+      'core.data/member.singular': 'Membro',
+      'com.acme.auto/screen.request': 'Solicitação',
+    },
   };
-  const label = (value: string, params?: Record<string, unknown>): string => {
-    const key = value.startsWith('@') ? value.slice(1) : value;
-    // Mesma tolerância do `translate` real: chave sem catálogo devolve a PRÓPRIA chave — sem o `@`.
-    const template = catalog[key] ?? key;
-    if (!params) return template;
-    return template.replace(/\{(\w+)\}/g, (_m, token: string) => String(params[token] ?? ''));
-  };
+  const label = (value: string, params?: Record<string, unknown>): string =>
+    resolveLabel(catalog, value, params as MessageParams | undefined);
 
   it('resolve a referência de dentro do parâmetro, e não só a de fora', () => {
     const resolved = resolveEventCatalogLabel(label, {
@@ -331,6 +340,29 @@ describe('resolveEventCatalogLabel — as duas voltas da composição', () => {
   it('sem parâmetro, resolve só o rótulo', () => {
     expect(resolveEventCatalogLabel(label, { label: '@core.automation/event.manual' }))
       .toBe('Chamado por uma Ação');
+  });
+
+  it('a volta de DENTRO também resolve: "{item} de {parent}" com os dois irmãos', () => {
+    const resolved = resolveEventCatalogLabel(label, {
+      label: '@core.automation/event.on-save',
+      labelParams: {
+        name: '@core.automation/event.nested-item',
+        item: '@core.automation/event.note',
+        parent: '@core.data/member.singular',
+      },
+    });
+    expect(resolved).toBe('Ao salvar: Nota de Membro');
+  });
+
+  /**
+   * A regra que faltava no dia em que o rótulo de nota e documento era montado por concatenação:
+   * `${prefix} de ${parent.labelSingular}`. Um rótulo montado assim não começa com `@`, então a
+   * asserção seguinte — a de que nada chega cru à tela — passava por ele sem ver o português.
+   */
+  it('o rótulo de toda entrada é REFERÊNCIA, nunca texto montado', () => {
+    WORKFLOW_EVENT_CATALOG.forEach((catalogEntry) => {
+      expect(catalogEntry.label.startsWith('@'), catalogEntry.name).toBe(true);
+    });
   });
 
   it('nenhuma entrada do catálogo fixo sobrevive com a referência na tela', () => {
