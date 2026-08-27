@@ -1,7 +1,7 @@
 {
   "name": "microteia",
   "private": true,
-  "version": "9.26.0",
+  "version": "9.26.1",
   "type": "module",
   "bin": {
     "microteia": "cli/lib/index.js"
@@ -10,6 +10,7 @@
     "build:cli": "tsc -b cli",
     "pack:kernel": "npm run build:cli && node cli/lib/index.js pack",
     "pack:console": "npm run build:cli && node cli/lib/index.js pack-console",
+    "publish:packages": "npm run build:cli && node cli/lib/index.js publish",
     "predev": "npm run sync-schemas",
     "dev": "vite --mode dev",
     "prebuild": "npm run sync-schemas",

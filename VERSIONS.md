@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.26.1] — 2026-08-27
+
+- Nada muda no sistema. A alteração é na ferramenta com que publicamos as versões: o comando que põe uma versão nova no ar passou a ter um atalho próprio, ao lado dos que montam os pacotes. Era a última etapa da publicação e a única sem atalho — quem a executava digitava o caminho do programa à mão, numa etapa que se roda de vez em quando e onde um caminho errado só aparece depois.
+
 #### [9.26.0] — 2026-08-27
 
 - O assistente que ajuda a escrever extensões passa a definir sozinho a identidade de cada tela que planeja — e essa era a escolha que mais custava errar. Ela é o que faz uma versão nova de uma extensão ATUALIZAR a tela que já está instalada, em vez de instalar uma segunda parecida ao lado dela e deixar os registros na primeira, sem tela nenhuma para abri-los. O erro não aparecia em lugar nenhum: a extensão instalava, funcionava, e o escritório só descobria ao ver duas telas iguais no menu.

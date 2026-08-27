@@ -18,6 +18,21 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.26.1] — 2026-08-27
+
+- chore(scripts): `publish:packages` joins `pack:kernel` and `pack:console` in `package.json`, running
+  `npm run build:cli && node cli/lib/index.js publish`. Releasing was the only step of the three without
+  a script, so the path to the compiled Console was typed by hand every time — and the step reads
+  `CLI_VERSION` from that COMPILED copy to find `distributions/console/<version>/`, so a bumped
+  `CLI_VERSION` against a stale `lib/` looks for a directory nobody built. Building first is the same
+  reason the two `pack:*` entries do it. One entry covers every variation, because the flags reach the
+  command through `npm run publish:packages -- --dry-run | --kernel-only | --console-only | --otp <code>`.
+- chore(scripts): the name is `publish:packages` and not `publish` because npm reserves `publish` as a
+  lifecycle script — `npm publish` in the repository root would fire it as a hook. The root package is
+  `"private": true`, so that call dies with `ENOPRIVATE` before any hook runs; but `npm publish` and
+  `npm run publish` differing by one word, on the command that releases to a registry, is an ambiguity
+  that costs nothing to remove and everything to hit once.
+
 #### [9.26.0] — 2026-08-27
 
 - feat(sdk/domain): `screenPlan.ts` now EMITS the universal `sourceId` of every screen it plans, and the precedence comes before the derivation (`SCREEN_SOURCE_ID_PRECEDENCE`): the ledger first, then whatever the `plugin.ts` or the installation catalog already declares, and only for a NEW screen the derivation `<extension id>:<collection>`. A sourceId that already exists is never recomputed — not by a renamed entity label, not by a rewritten rule, not by a future change of the derivation itself. It was the most consequential human decision left in the plan and it failed in silence: `buildScreenKeyMap` looks the screen up by that identity, so a value changed between two versions of the same package installs a SECOND screen beside the first, releases the first, and leaves the records in a collection with no screen over them — in every office at once, with nothing on screen saying so.
