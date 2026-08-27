@@ -52,7 +52,7 @@ export const WorkspaceSidebar: React.FC = () => {
       <S.SearchTrigger
         $collapsed={vm.collapsed}
         onClick={vm.openCommandPalette}
-        title={vm.collapsed ? `Pesquisar (${vm.searchShortcut})` : undefined}
+        title={vm.collapsed ? `${t('action.search')} (${vm.searchShortcut})` : undefined}
       >
         <RiSearchLine size={15} />
         {!vm.collapsed && (
