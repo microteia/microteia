@@ -1,5 +1,5 @@
 import type { EntityKey, EntityMetadata, NativeFieldSpec, NativeFieldType } from './entityRegistry';
-import { LOOKUP_REGISTRY, getLookupLabel } from './lookupRegistry';
+import { lookupLabelRef } from './lookupRegistry';
 import type { SchemaContext } from './screenEntity';
 import { resolveEntity } from './screenEntity';
 
@@ -59,9 +59,16 @@ export type PathSuggestionKind =
 
 export interface PathSuggestion {
   insertText: string;
+  /** REFERÊNCIA de mensagem, ou o rótulo que o escritório digitou. */
   label: string;
   kind: PathSuggestionKind;
+  /**
+   * O que a sugestão é — "Lista", "Objeto", a entidade apontada. REFERÊNCIA, como `label`, e com
+   * `detailParams` para o que é composto: os três eram texto em português escrito aqui, num módulo
+   * que o backend também compila e que não pode conhecer catálogo de idioma.
+   */
   detail?: string;
+  detailParams?: Record<string, string>;
   isLeaf: boolean;
 }
 
@@ -432,10 +439,19 @@ export const resolvePath = (
  * por extensão. Antes só o registro do kernel dava nome, e a lista de uma entidade instalada
  * aparecia pelo nome cru da coleção.
  */
-const scalarDetail = (ctx: SchemaContext, lookupCollection?: string): string | undefined => {
+const scalarDetail = (
+  ctx: SchemaContext,
+  lookupCollection?: string,
+): Pick<PathSuggestion, 'detail' | 'detailParams'> => {
   const lookup = lookupCollection ? ctx.lookups.get(lookupCollection) : undefined;
-  if (!lookup) return undefined;
-  return `Lista: ${LOOKUP_REGISTRY[lookup.collection] ? getLookupLabel(lookup.collection) : lookup.label}`;
+  if (!lookup) return {};
+  // A lista do kernel tem rótulo composto; a do escritório traz o próprio, que já pode ser referência
+  // com parâmetros. Nos dois casos o nome desce como parâmetro IRMÃO, e o motor resolve as duas voltas.
+  const kernel = lookupLabelRef(lookup.collection);
+  const inner = kernel.labelParams
+    ? { name: kernel.label, ...kernel.labelParams }
+    : { name: lookup.label, ...(lookup.labelParams ?? {}) };
+  return { detail: '@core.ui/expression.detail.lookup', detailParams: inner };
 };
 
 const nativeFieldSuggestion = (ctx: SchemaContext, field: NativeFieldSpec): PathSuggestion => {
@@ -450,13 +466,15 @@ const nativeFieldSuggestion = (ctx: SchemaContext, field: NativeFieldSpec): Path
     };
   }
   if (field.list) {
-    return { insertText: field.key, label: field.label, kind, detail: 'Lista', isLeaf: true };
+    return { insertText: field.key, label: field.label, kind, detail: '@core.ui/expression.detail.list', isLeaf: true };
   }
   return {
     insertText: field.key,
     label: field.label,
     kind,
-    detail: field.type === 'object' ? 'Objeto' : scalarDetail(ctx, field.lookupCollection),
+    ...(field.type === 'object'
+      ? { detail: '@core.ui/expression.detail.object' }
+      : scalarDetail(ctx, field.lookupCollection)),
     isLeaf: field.type !== 'object',
   };
 };

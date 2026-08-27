@@ -42,9 +42,13 @@ export const useEntityReferenceOptions = (): SearchSelectOption[] => {
  */
 export const useLookupCollectionOptions = (): SearchSelectOption[] => {
   const { availableLookups } = useLookups();
+  const label = useLabel();
 
   return useMemo(
-    () => availableLookups.map((lookup) => ({ value: lookup.collection, label: `${lookup.label} (${lookup.collection})` })),
-    [availableLookups],
+    () => availableLookups.map((lookup) => ({
+      value: lookup.collection,
+      label: `${label(lookup.label, lookup.labelParams)} (${lookup.collection})`,
+    })),
+    [availableLookups, label],
   );
 };

@@ -21,7 +21,8 @@ import type { LookupDefinition, LookupOption } from '../domain/entities';
 import { LocalizedError } from '../domain/errors/LocalizedError';
 const BUILTIN_LOOKUPS: SchemaLookup[] = LOOKUP_REGISTRY_LIST.map((lookup) => ({
   collection: lookup.collection,
-  label: `${lookup.screenLabel}: ${lookup.entityLabel}`,
+  label: '@core.data/lookup.qualified',
+  labelParams: { screen: lookup.screenLabel, entity: lookup.entityLabel },
 }));
 
 const EMPTY_OPTIONS: LookupOption[] = [];

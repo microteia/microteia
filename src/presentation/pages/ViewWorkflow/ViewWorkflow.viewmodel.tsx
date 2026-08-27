@@ -138,11 +138,19 @@ export const buildEventNameOptions = (
     icon: getWorkflowEventIcon(entry.name),
   }));
 
-export const LOOKUP_COLLECTION_OPTIONS = WORKFLOW_LOOKUP_COLLECTIONS.map((entry) => ({
-  value: entry.collection,
-  label: `${entry.screenLabel}:${entry.entityLabel}`,
-  icon: getWorkflowLookupGroupIcon(entry.group),
-}));
+/**
+ * Era uma const de MÓDULO, e por isso o rótulo tinha de ser texto pronto — não há hook fora do
+ * componente. Passou a ser função do resolvedor, e a tela a memoriza: é o que permite a lista do
+ * kernel ter rótulo composto por referência como qualquer outra.
+ */
+export const buildLookupCollectionOptions = (
+  label: (value: string, params?: Record<string, string>) => string,
+) =>
+  WORKFLOW_LOOKUP_COLLECTIONS.map((entry) => ({
+    value: entry.collection,
+    label: label('@core.data/lookup.qualified', { screen: entry.screenLabel, entity: entry.entityLabel }),
+    icon: getWorkflowLookupGroupIcon(entry.group),
+  }));
 
 export interface ViewWorkflowViewModel {
   isNew: boolean;
@@ -207,6 +215,7 @@ export interface ViewWorkflowViewModel {
   eventFields: WorkflowEventFieldOption[];
   isEventNameRecognized: boolean;
   eventNameOptions: { value: string; label: string; icon: IconType }[];
+  lookupCollectionOptions: { value: string; label: string; icon: IconType }[];
   isLookupEvent: boolean;
   isLookupCollectionRecognized: boolean;
   isCalledEvent: boolean;
@@ -422,6 +431,7 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
   // criada antes de uma renomeação de evento), os pickers de "Do evento" não têm o que listar
   // e caem para texto livre — este flag avisa o usuário na aba Geral para escolher de novo.
   const eventNameOptions = useMemo(() => buildEventNameOptions(label, ctx), [ctx, label]);
+  const lookupCollectionOptions = useMemo(() => buildLookupCollectionOptions(label), [label]);
 
   const isEventNameRecognized = useMemo(
     () => !workflow || eventNameOptions.some((option) => option.value === workflow.eventName),
@@ -1026,6 +1036,7 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
     eventFields,
     isEventNameRecognized,
     eventNameOptions,
+    lookupCollectionOptions,
     isLookupEvent,
     isLookupCollectionRecognized,
     isCalledEvent,

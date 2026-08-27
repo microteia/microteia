@@ -1452,8 +1452,11 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
   }, [dynamicScreens, fieldModal, getDefinitionByKey, label]);
 
   const lookupOptions = useMemo<SearchSelectOption[]>(
-    () => availableLookups.map((lookup) => ({ value: lookup.collection, label: `${lookup.label} (${lookup.collection})` })),
-    [availableLookups],
+    () => availableLookups.map((lookup) => ({
+      value: lookup.collection,
+      label: `${label(lookup.label, lookup.labelParams)} (${lookup.collection})`,
+    })),
+    [availableLookups, label],
   );
 
   const tagListOptions = useMemo<SearchSelectOption[]>(

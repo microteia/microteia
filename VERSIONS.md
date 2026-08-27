@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.20.0] — 2026-08-26
+
+- A lista de Tipos de Documento aparecia sempre como "Documentos: Tipo", em português, em qualquer idioma. Passa a ser traduzida — e o mesmo vale onde ela é oferecida: no gatilho de automação por lista, no seletor de lista de um campo e no de um parâmetro.
+- No assistente de expressões, o que descreve cada sugestão — "Lista", "Objeto", "Lista: …" — também estava em português dentro do programa. Agora acompanha o idioma do escritório.
+
 #### [9.19.5] — 2026-08-26
 
 - No assistente de expressões, o grupo das sugestões de campo aparecia sempre em português, e o nome de cada campo sugerido aparecia como código interno. Os dois passam a acompanhar o idioma do escritório.

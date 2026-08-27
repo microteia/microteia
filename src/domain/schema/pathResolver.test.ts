@@ -338,7 +338,12 @@ describe('suggestNextSegments', () => {
     expect(byText.observacao).toMatchObject({ isLeaf: true, kind: 'customField' });
     expect(byText.tarefa).toMatchObject({ isLeaf: false, kind: 'reference', detail: 'Tarefa' });
     expect(byText.old).toMatchObject({ isLeaf: false });
-    expect(byText.area.detail).toContain('Área do Direito');
+    // O detalhe da lista virou REFERÊNCIA com parâmetros: o nome da lista desce como parâmetro, e a
+    // composição ("Lista: {name}") é do catálogo — antes o "Lista: " era texto escrito aqui.
+    expect(byText.area).toMatchObject({
+      detail: '@core.ui/expression.detail.lookup',
+      detailParams: { name: 'Processo: Área do Direito' },
+    });
   });
 
   it('navega para os campos da entidade alvo da FK', () => {

@@ -45,7 +45,7 @@ export const buildPathAutocompleteItems = (
   ctx: SchemaContext,
   root: PathRoot,
   active: ActiveEventPath,
-  label: (value: string | null | undefined) => string,
+  label: (value: string | null | undefined, params?: Record<string, string>) => string,
 ): AutocompleteItem[] => {
   const suggestions = suggestNextSegments(ctx, root, parsePath(active.completedPath));
   const query = active.query.toLowerCase();
@@ -67,7 +67,7 @@ export const buildPathAutocompleteItems = (
       value: suggestion.isLeaf ? suggestion.insertText : `${suggestion.insertText}.`,
       label: suggestion.isLeaf ? suggestion.insertText : `${suggestion.insertText}…`,
       description: suggestion.detail
-        ? `${label(suggestion.label)} — ${label(suggestion.detail)}`
+        ? `${label(suggestion.label)} — ${label(suggestion.detail, suggestion.detailParams)}`
         : label(suggestion.label),
       category: label('@core.ui/expression.category.field'),
     }));

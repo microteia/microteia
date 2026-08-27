@@ -18,6 +18,31 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.20.0] — 2026-08-26
+
+- test(i18n): `declarativeCatalogs.test.ts` sweeps every DATA catalog of the kernel —
+  `ENTITY_REGISTRY`, `LOOKUP_REGISTRY`, `CORE_FIELD_RULE_PRESETS`, `CORE_STEP_CATALOG`,
+  `WORKFLOW_EVENT_CATALOG`, `KERNEL_PERMISSIONS` — and requires every label to BE a message
+  reference. It exists because the same failure came back from five different places through the same
+  gap: ESLint only sees a Portuguese literal when it has an accent or sits loose in JSX, and
+  `'Membro'`, `'Documentos'`, `'Tipo'`, `'Lista'`, `'Objeto'`, `'Campo'` have neither. Widening the
+  accent trigger would flag every identifier in the project; a guard on the SHAPE OF THE DATA is
+  language-agnostic by construction — mutation-verified with a Portuguese label AND an English one.
+  The check is `isMessageRef`, not `startsWith('@')`: `@core.data` without the slash is not a
+  reference and would pass the looser test until someone opened the screen.
+- fix(i18n): the sweep found `LOOKUP_REGISTRY` — the last one. `screenLabel: 'Documentos'`,
+  `entityLabel: 'Tipo'`, and `getLookupLabel` gluing them with `:`. Concatenation was the defect
+  twice over: it pinned both labels in code and pinned the separator with them, which is where the
+  language hides. `lookupLabelRef` now returns a reference plus params, and the composition
+  (`'{screen}: {entity}'`) lives in the catalog. Four display sites resolve it: the schema lookups,
+  the store's, the field's lookup selector and a parameter's.
+- fix(i18n): `PathSuggestion.detail` was Portuguese written in a module the BACKEND also compiles —
+  `'Lista'`, `'Objeto'`, and `` `Lista: ${…}` `` composed. It gains `detailParams`, and the three are
+  references now.
+- feat(automation): `LOOKUP_COLLECTION_OPTIONS` was a MODULE const, which is why its label had to be
+  ready-made text — there is no hook outside a component. It became `buildLookupCollectionOptions(label)`,
+  memoized by the screen.
+
 #### [9.19.5] — 2026-08-26
 
 - fix(i18n): `pathAutocomplete` had the last literal of the expression editor's seven groups —

@@ -8,6 +8,9 @@ export const CORE_DATA_MESSAGES: Record<string, string> = {
   'member.field.email': 'E-mail',
   'member.field.name': 'Name',
   'member.field.role': 'Role',
+  'lookup.qualified': '{screen}: {entity}',
+  'lookup.document-types.screen': 'Documents',
+  'lookup.document-types.entity': 'Type',
   'member.plural': 'Members',
   'member.singular': 'Member',
   'point.entity.description':

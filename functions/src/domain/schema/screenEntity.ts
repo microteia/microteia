@@ -87,7 +87,8 @@ export interface SchemaContext {
 
 const BUILTIN_LOOKUPS: SchemaLookup[] = LOOKUP_REGISTRY_LIST.map((lookup) => ({
   collection: lookup.collection,
-  label: `${lookup.screenLabel}: ${lookup.entityLabel}`,
+  label: '@core.data/lookup.qualified',
+  labelParams: { screen: lookup.screenLabel, entity: lookup.entityLabel },
 }));
 
 const BUILTIN_TAG_LISTS: SchemaTagList[] = Object.values(ENTITY_REGISTRY)

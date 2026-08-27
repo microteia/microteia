@@ -20,7 +20,7 @@ import {
   RiPlayLine,
 } from 'react-icons/ri';
 import { S } from './ViewWorkflow.styles';
-import { useViewWorkflowViewModel, LOOKUP_COLLECTION_OPTIONS } from './ViewWorkflow.viewmodel';
+import { useViewWorkflowViewModel } from './ViewWorkflow.viewmodel';
 import type { ViewWorkflowViewModel } from './ViewWorkflow.viewmodel';
 import type { WorkflowStep } from '../../../domain/entities/Workflow';
 import type { InsertTarget, BranchKey } from '../../shared/workflowHelpers';
@@ -435,7 +435,7 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                     />
                   )}
                   <SearchSelect
-                    options={LOOKUP_COLLECTION_OPTIONS}
+                    options={vm.lookupCollectionOptions}
                     value={vm.formData.lookupCollection}
                     onChange={(lookupCollection) => vm.setFormData({ lookupCollection })}
                     placeholder={t('parameter.lookup.placeholder')}
