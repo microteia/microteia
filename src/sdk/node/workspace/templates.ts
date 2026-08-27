@@ -16,6 +16,9 @@
  * pode estar em qualquer lugar — a mesma razão por que o idioma-fonte do produto é o inglês.
  */
 
+import { RULE_LEDGER_FILE, SCREEN_IS_NOT_AN_ENTITY_MODEL } from '../../domain';
+import { INSTALLED_CATALOG_FILE } from '../installedCatalog';
+
 const kib = (bytes: number): string => `${Math.round(bytes / 1024)} KiB`;
 
 /**
@@ -100,6 +103,87 @@ You are authoring **Microteia extensions**. Read this before writing or changing
 
 An extension is a **declaration**, not a patch. You never modify the platform; you declare what you
 want, and the platform installs it. Everything below follows from that.
+
+## ${SCREEN_IS_NOT_AN_ENTITY_MODEL}
+
+Before any of it: **model the domain, then generate.** A request arrives describing what someone will
+SEE — "a sales screen with the customer, the salesperson and the products" — and the fastest reading
+turns that sentence into one entity holding everybody else's data:
+
+    Sale { customerName, customerEmail, sellerName, productName, quantity, ... }
+
+That package validates. It installs. It runs. Nothing else in this platform will ever refuse it, and
+that is exactly why this step exists. What it costs is paid later and paid forever: the customer's
+name is now stored in every sale and drifts the day they correct it; there is no list of customers to
+search, and no way to know which sales are theirs; three product slots means there is never a fourth;
+and no total can be computed, because there are no line records to add up.
+
+The same sentence, modelled: **Customer**, **Employee**, **Product**, **Sale**, **SaleItem** — with
+Sale pointing at Customer and Employee, and SaleItem hanging from Sale and pointing at Product. The
+screen you were asked for is then something the platform draws from that model, which is the right
+order: a screen is a view of entities, never the shape of them.
+
+So the sequence, and it is not optional:
+
+0. **Write the rule down first**, as \`{ id, statement, actors, concepts, invariants, processes,
+   acceptance }\`, with \`statement\` in the words it arrived in. The \`model_business_rule\` prompt
+   conducts this and everything below. It is not paperwork: every "cannot", "must" and "only" in the
+   sentence is an invariant, and \`acceptance\` is the only part that says whether the work landed —
+   without it, "done" is an opinion. If the sentence does not answer one of them, ASK. A question now
+   costs one message; the wrong entity costs every record written into it.
+1. **Read \`microteia://entities\`** — what already exists here. A field called \`customerName\` is a
+   defect *because* Customer is a thing, and this is how you learn that it is. Every entity says where
+   it came from: \`kernel\`, \`workspace\` (a \`plugin.ts\` here, which you can edit) or \`installation\`
+   (a snapshot of what the organization runs, which you cannot). Read \`catalogSources\` in the answer
+   before trusting the list — if there is no snapshot, a screen somebody built in the Form Design and an
+   extension already installed there are both invisible, and asking beats assuming. Somebody with access
+   to the installation brings them in with \`microteia export-catalog --tenant <tenantId>\`; it writes
+   \`${INSTALLED_CATALOG_FILE}\` here, and the answer then says when it was taken.
+2. **Write the domain model** — entities, what each field MEANS, and the relationships. The shape is
+   \`microteia://domain-model/schema\`; every rule is \`microteia://domain-model/rules\`.
+3. **\`validate_domain_model\`** — a deterministic engine, not an opinion. It catches a field that
+   belongs to another entity, a group of fields reproducing one, a collection modelled as \`item1,
+   item2, item3\`, a many-to-many with attributes stored as an array of ids, and a copy declared as a
+   snapshot with no reason given.
+4. **\`generate_artifact_plan\`** — a model with an ERROR does not become a plan. What comes back is
+   what must exist, with each relationship already resolved to \`refEntity\` / \`parentEntity\` /
+   \`parentFieldKey\`. Read it from there rather than re-reading the model: two readings of the same
+   sentence is how they start to disagree. It also decides the SCREEN, by rule: which fields go to the
+   list, which filter, which sections, which fields are read-only, and one record action per
+   user-action transition with the \`disabledWhen\` the blocking invariant produced. Pass the \`rule\`
+   from step 0 and the plan becomes that rule's batch — a diff of what the rule generated last time.
+   What the plan does not decide it hands back, named: the icon, the menu order, and where an
+   ambiguous action appears. Do not fill those in silently.
+5. **Write the \`plugin.ts\`, then \`validate_plugin\`.** The plan says what must exist; that one says
+   whether what you wrote installs.
+6. **Save the model as \`<folder>/domain-model.json\`.** This is the step people skip, and it is the one
+   that stops the same argument happening every session. \`source\` and \`reason\` have nowhere to live in
+   an installed field — a snapshot ships as a plain text column — so without the file, tomorrow's
+   session reads the catalog, sees \`productName\` sitting on an invoice line, and raises it again. And
+   again. Keeping it there is what makes a declared exception cost one decision instead of one per
+   session; the checks read it back on their own.
+7. **Save the rule and what it produced as \`<folder>/${RULE_LEDGER_FILE}\`** — the plan hands it to you
+   ready to write, under \`trace.contents\`. Without it, the NEXT version of that rule proposes a second
+   batch of screens that look like the first, and "this replaces that" is left to whoever remembers.
+   And when the rule loses an entity, the plan proposes DISABLING what it created — never deleting,
+   because deleting a screen means deciding what happens to the records in it, and nothing here sees
+   the records.
+
+**The plan is a diff, not a creation.** It reconciles with what is already there, and it says what it
+cannot do instead of working around it: a field's key and type are immutable once records exist, a
+change to the shape of stored data needs a declared \`migration\`, and nothing is ever removed —
+deleting a screen that holds records is a decision for a person looking at those records.
+
+**Duplication is allowed; silent duplication is not.** The rule was never "never duplicate data". It
+is: data that is a source of truth stays normalized *unless there is an explicit semantic reason* to
+materialise or snapshot it. A line item's unit price is a correct snapshot — the price charged that
+day must not change when the catalogue does. Say so:
+
+    { key: 'unitPrice', semanticType: 'snapshot', source: 'Product.price',
+      reason: 'the price charged on the day; a later catalogue change must not rewrite past sales' }
+
+Undeclared, that same field is indistinguishable from an accident, and in six months nobody can tell
+which one it was.
 
 ## Reach for the least powerful thing that works
 
@@ -296,26 +380,55 @@ code by hash. Changing one character un-trusts it. This is deliberate — do not
 
 ## Before you write
 
-Ask the MCP server. It answers from this installation, not from a snapshot of documentation:
+Ask the MCP server. It answers from this installation, not from a snapshot of documentation. It has
+three surfaces: a **tool** takes an argument or changes something; a **resource** is a document you
+attach and read; a **prompt** is a named gesture you choose. Everything that was a parameterless listing is a
+resource now — a tool costs an input schema in the context window of every agent, in every session,
+including the one that opened the editor only to validate a package.
 
-- \`read_authoring_guide\` — the manual (\`AUTHORING.md\`), whole or by section
-- \`list_extension_points\` — every point, its API version, and which impl kinds it accepts
-- \`list_workflow_steps\` — the step catalog. **Call this before writing any automation:** a
-  \`stepDefinitionId\` is the one thing a declaration cannot invent, and an id that is not in the
-  catalog does not run
+**Tools — eight, and every one of them takes an argument or does something:**
+
+- \`validate_domain_model\` — the gate: the domain model, checked deterministically, before anything is
+  generated. An ERROR here stops the work
+- \`generate_artifact_plan\` — what must exist, reconciled against what is already here
+- \`validate_plugin\` — after every edit; this is the short feedback loop
+- \`build_plugin\` — the \`.json\`, without writing it
 - \`describe_workflow_step\` — one step's exact inputs, which mapping kinds each accepts, and the
   outputs a later step can read. It also names the type a composite input needs, which is NOT the
   \`…Spec\` its name suggests: \`upsert\` takes \`UpsertStepConfig\`, not \`UpsertSpec\`
-- \`list_workflow_events\` — the trigger names a workflow may declare, and what \`event.\` carries
-- \`list_record_commands\` — the record gestures an action may run through \`command\`
-- \`describe_sdk_type\` — the exact declaration of any authoring type (\`TemplateField\`,
-  \`WidgetSpec\`, \`WorkflowStep\`, \`PluginManifest\`…). The SDK ships its types with the comments
-  stripped, so this is how you learn what a package may contain without guessing
+- \`describe_sdk_type\` — the exact declaration of any authoring type (\`TemplateField\`, \`WidgetSpec\`,
+  \`WorkflowStep\`, \`PluginManifest\`…). The SDK ships its types with the comments stripped, so this is
+  how you learn what a package may contain without guessing
 - \`describe_host_module\` — what a curated module actually exports
-- \`list_expression_functions\` — the functions a declarative expression may call here
-- \`validate_plugin\` — after every edit; this is the short feedback loop
-- \`build_plugin\` — the \`.json\`, without writing it
-- \`workspace_info\` — what this workspace is bound to
+- \`read_authoring_guide\` — this manual, whole or by section
+
+**Resources — read them, they cost you nothing to have open:**
+
+- \`microteia://entities\` — the entities this workspace knows. **The first thing to read in any
+  modelling task.** With \`${INSTALLED_CATALOG_FILE}\` present it also knows what the organization runs,
+  and it always says which entity came from where and how old the snapshot is
+- \`microteia://domain-model/schema\` — the shape a domain model must have
+- \`microteia://domain-model/rules\` — every check, how each relationship storage is really stored, and
+  the rules that decide what each SCREEN looks like
+- \`microteia://domain-model/coverage\` — what the model canNOT say: the mechanisms this platform has
+  and the vocabulary does not reach, with what each one costs. Read it when a rule seems to need
+  something the model will not express
+- \`microteia://workflow/steps\` — the step catalog. **Read it before writing any automation:** a
+  \`stepDefinitionId\` is the one thing a declaration cannot invent, and an id that is not in the
+  catalog does not run
+- \`microteia://workflow/events\` — the trigger names a workflow may declare, and what \`event.\` carries
+- \`microteia://extension-points\` — every point, its API version, and which impl kinds it accepts
+- \`microteia://record-commands\` — the record gestures an action may run through \`command\`
+- \`microteia://expression-functions\` — the functions a declarative expression may call here
+- \`microteia://workspace/plugins\` — the extensions authored here, with their current problems
+- \`microteia://workspace/info\` — what this workspace is bound to
+
+**Prompt — one, and it is the step that gets skipped:**
+
+- \`model_business_rule\` — a business rule arrived (three lines from a conversation, not a model). It
+  conducts the order: understand, model, validate, plan. Choose it BEFORE writing anything, because the
+  fastest thing to do with three lines is write a screen, and that reading installs, runs, and costs
+  forever
 
 Two habits worth keeping: ask \`describe_sdk_type\` before inventing a property name, and read
 \`examples/\` before writing a mechanism for the first time — those are the same sources that produce

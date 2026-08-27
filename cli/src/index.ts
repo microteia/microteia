@@ -11,6 +11,7 @@ import { connect } from './console/connect.js';
 import { unpack } from './console/unpack.js';
 import { deploy } from './console/deploy.js';
 import { provision } from './console/provision.js';
+import { exportCatalog } from './console/exportCatalog.js';
 import { pluginInit } from './console/pluginWorkspace.js';
 import { versionReport } from './console/versions.js';
 import { newerThan } from './console/channel.js';
@@ -58,6 +59,13 @@ const COMMANDS: Command[] = [
     summary: 'Give the installed extensions the Cloud Functions and indexes they ask for.',
     audience: 'office',
     execute: provision,
+  },
+  {
+    name: 'export-catalog',
+    usage: 'microteia export-catalog --tenant <tenantId> [--output <path>]',
+    summary: 'Write what an office has — screens, lists, extensions — for the authoring tools to read.',
+    audience: 'office',
+    execute: exportCatalog,
   },
   {
     name: 'plugin-init',

@@ -99,6 +99,7 @@ const commandRows = (): string => [
   '| `microteia provision [--prune] [--all]` | Gives installed extensions the functions and indexes they ask for |',
   '| `microteia connect --project <id>` | Binds this installation to a Firebase project you own |',
   '| `microteia plugin-init` | Prepares `extensions/` for authoring in TypeScript |',
+  '| `microteia export-catalog --tenant <id>` | Writes what an office has — screens, lists, installed extensions — into `extensions/`, so the authoring tools can see it. Reads only; with no `--tenant` it lists the offices. The file is a snapshot and is git-ignored: it carries names the office typed |',
 ].join('\n');
 
 /**

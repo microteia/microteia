@@ -1,3 +1,5 @@
+import { INSTALLED_CATALOG_FILE } from '../installedCatalog';
+
 /**
  * A configuração de `extensions/` — e a regra que a governa, que NÃO é a dos documentos.
  *
@@ -74,6 +76,11 @@ export const MCP_SERVER = {
 /**
  * O `.json` de uma extensão é ARTEFATO — sai do `build` e não se versiona. A configuração e o lock,
  * sim: sem o lock, dois computadores do mesmo escritório instalam versões diferentes do SDK.
+ *
+ * O retrato da instalação é descartado por uma razão diferente das outras, e por isso está escrito
+ * mesmo já caindo no `*.json`: ele carrega nome de tela e de campo que o ESCRITÓRIO digitou. Isso é
+ * dado do tenant, não artefato do produto, e um repositório de extensão não é lugar para ele. A linha
+ * explícita é o que mantém a decisão de pé se alguém afrouxar o curinga.
  */
 export const REQUIRED_IGNORES = [
   'node_modules/',
@@ -82,6 +89,7 @@ export const REQUIRED_IGNORES = [
   '!package-lock.json',
   '!tsconfig.json',
   '!.mcp.json',
+  INSTALLED_CATALOG_FILE,
 ];
 
 const json = (value: unknown): string => `${JSON.stringify(value, null, 2)}\n`;

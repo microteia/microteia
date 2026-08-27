@@ -22,6 +22,31 @@
 - fix(command): what was broken, and what it did to whoever hit it.
 -->
 
+#### [2.10.0] — 2026-08-27
+
+- feat(export-catalog): a new command writes what an office HAS — its screens with their fields, its
+  lists of options, its tag lists and its installed extensions — into `extensions/installed-catalog.json`,
+  for the authoring tools to read. The MCP server's catalog knew only the `plugin.ts` files in that
+  directory plus the platform's own entities, so a screen built in the Form Design and an extension
+  already installed were invisible to it, and the check that catches a field belonging to another
+  entity could not fire against the entities that matter most. Closing it by giving the SDK a
+  credential was the wrong trade: `microteia-plugin` is offline by design. The Console already holds
+  the gcloud token, so the Console exports and the SDK only reads a file.
+- feat(export-catalog): `--tenant` is required, and without it the command LISTS the offices in the
+  project instead of guessing one. A Firebase project can hold several, and exporting the wrong one
+  would put another office's vocabulary inside somebody's extension work.
+- feat(export-catalog): the file is written beside `microteia.yaml`, in `extensions/` — never in
+  `.microteia/`, which `unpack` deletes whole on every kernel change. A snapshot that disappears on
+  upgrade is a snapshot nothing can depend on. `--output` overrides the path; without `extensions/`
+  the command refuses and names `microteia plugin-init`.
+- feat(export-catalog): it exports SHAPE, not content. Records, the values inside a list of options or
+  a tag list, members, permissions, workflows, scripts, actions, secrets and settings never leave the
+  office. A disabled screen is left out too: nothing draws it, and carrying it would assert that the
+  entity exists.
+- refactor(provision): reading what an office installed moved to `installedExtensions.ts`, and
+  `provision` now goes through it. Two paths to the same document are two chances to disagree about
+  what counts as installed.
+
 #### [2.9.0] — 2026-08-26
 
 - feat(deploy): `login.extensions` in `microteia.yaml` lists compiled extension packages that `deploy`

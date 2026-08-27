@@ -13,6 +13,27 @@ import { STEP_TYPES } from '../../../domain/entities/Workflow';
 import type { WorkflowStepMetadata } from '../../../domain/schema/workflowStepCatalog';
 import type { StepType } from '../../../domain/entities/Workflow';
 import { FIELD_EXPRESSION_FUNCTION_NAMES } from '../../../domain/schema/fieldExpression';
+import {
+  A_STATE_IS_A_KEY,
+  BEHAVIOR_MECHANISMS,
+  DESCRIPTION_REQUIRED_BECAUSE,
+  EMBEDDED_STRATEGY,
+  RULE_LEDGER_FILE,
+  SCREEN_IS_NOT_AN_ENTITY_MODEL,
+  SCREEN_PLAN_HUMAN_DECISIONS,
+  SCREEN_SOURCE_ID_PRECEDENCE,
+  SCREEN_PLAN_RULES,
+  STORAGE_MECHANISMS,
+  coverageGaps,
+  coverageSummary,
+  detectorList,
+  mechanismCoverage,
+} from '../../domain';
+import {
+  INSTALLED_CATALOG_FILE,
+  INSTALLED_CATALOG_OMITS,
+  INSTALLED_CATALOG_STALE_DAYS,
+} from '../installedCatalog';
 
 /**
  * `AUTHORING.md` — o manual de quem escreve extensão, e o contraponto do `ARCHITECTURE.md`: aquele
@@ -34,6 +55,51 @@ import { FIELD_EXPRESSION_FUNCTION_NAMES } from '../../../domain/schema/fieldExp
  * ao escritório — e um `Record<CustomFieldType, …>` reprova na compilação no dia em que o kernel
  * ganha um tipo de campo novo, que é o que impede o manual de envelhecer em silêncio.
  */
+
+/**
+ * A tabela de armazenamento de relacionamento, DERIVADA de `STORAGE_MECHANISMS`. Um armazenamento novo
+ * aparece aqui sozinho — e um que sumisse não deixaria uma linha de prosa afirmando que ele existe.
+ */
+const STORAGE_TABLE = STORAGE_MECHANISMS
+  .map((one) => `| \`${one.storage}\` | ${one.cardinalities.join(', ')} | ${one.declaration} | ${one.storedAs} |`)
+  .join('\n');
+
+/**
+ * A tabela de COMPORTAMENTO, derivada de `BEHAVIOR_MECHANISMS`. A coluna da recusa sai do próprio
+ * `supported`: no dia em que o kernel ganhar um gatilho de relógio, a linha deixa de dizer que ele
+ * não existe sem ninguém reescrever nada — que é o oposto de uma frase de documentação verdadeira
+ * até alguém acrescentar o mecanismo.
+ */
+const BEHAVIOR_TABLE = BEHAVIOR_MECHANISMS
+  .map((one) => `| \`${one.declares}\` | ${one.concern} | ${one.supported ? one.mechanism : `**NONE.** ${one.mechanism}`} | ${one.declaredAs} |`)
+  .join('\n');
+
+/** Idem para os detectores do modelo de domínio: a lista sai do registro, nunca de uma cópia. */
+const DETECTOR_TABLE = detectorList()
+  .map((one) => `| \`${one.code}\` | ${one.severity} | ${one.summary} |`)
+  .join('\n');
+
+/**
+ * A tabela do plano de TELAS, derivada de `SCREEN_PLAN_RULES`. Uma regra nova entra aqui sozinha, e —
+ * mais importante — o que o plano NÃO decide sai de `SCREEN_PLAN_HUMAN_DECISIONS`: a lista do que fica
+ * para a pessoa é a mesma que o plano devolve, e não uma segunda redação dela.
+ */
+const SCREEN_PLAN_TABLE = SCREEN_PLAN_RULES
+  .map((one) => `| ${one.subject} | ${one.decides} | ${one.declaredAs} |`)
+  .join('\n');
+
+const HUMAN_DECISIONS = SCREEN_PLAN_HUMAN_DECISIONS.map((one) => `- ${one}`).join('\n');
+const SOURCE_ID_PRECEDENCE = SCREEN_SOURCE_ID_PRECEDENCE.map((one) => `1. ${one}`).join('\n');
+
+/**
+ * As lacunas de mecanismo, contadas e resumidas do próprio relatório. Um número escrito à mão aqui
+ * envelheceria na primeira lacuna fechada — e afirmar que a lista está completa é exatamente o defeito
+ * que o relatório existe para não repetir.
+ */
+const COVERAGE_TABLE = coverageSummary()
+  .filter((one) => one.gaps > 0)
+  .map((one) => `| ${one.surface} | ${one.total} | ${one.gaps} |`)
+  .join('\n');
 
 const ALL_POINTS: ExtensionPointDefinition[] = [
   ...UI_EXTENSION_POINTS,
@@ -214,7 +280,32 @@ declarations.
 
 ## 2. The loop
 
-    npx microteia-plugin new com.example.hello    # scaffold
+Two loops, and the outer one comes first.
+
+**Model the domain, then generate.** ${SCREEN_IS_NOT_AN_ENTITY_MODEL} A business request describes what
+someone will SEE, and the fastest reading of it produces one entity holding everybody else's data —
+a sale carrying the customer's name, e-mail and phone, three numbered product slots, and no way to
+total anything. That package validates, installs and runs; nothing else here will refuse it. So the
+refusal happens earlier:
+
+    microteia://entities          # resource: what already exists here
+    validate_domain_model         # the gate: a model with an ERROR goes no further
+    generate_artifact_plan        # what must exist, reconciled against what is already here
+
+The model has two halves and one gate. The entities are the first; the second is \`behavior\` — the states a
+record moves through, what moves it, and who may (§8.0.1). Do not wait to be asked for "the automation": the
+lifecycle arrived in the same sentence as the structure.
+
+Read \`catalogSources\` in those answers before trusting the list of entities: without an exported
+snapshot of the installation, what the organization itself built is invisible to them (§14).
+
+Those three are MCP tools (§14). The model's shape is the resource \`microteia://domain-model/schema\`,
+and every check it runs is \`microteia://domain-model/rules\` — both derived from this installation.
+§8.0 below is the short version.
+
+**Then the package loop:**
+
+    npx microteia-plugin create                   # scaffold, guided
     npx tsc --noEmit                              # types
     npx microteia-plugin check hello/plugin.ts    # the gate
     npx microteia-plugin build hello/plugin.ts    # writes the .json
@@ -633,6 +724,163 @@ And §5 still has no exception, least of all here: no string a person reads is w
 
 ## 8. Screens — the data your extension owns
 
+### 8.0 Model before you declare
+
+A screen is a VIEW of entities, never the shape of them. Decide the entities first, then let the
+platform draw them.
+
+| Storage | Cardinality | What you declare | What is stored |
+|---|---|---|---|
+${STORAGE_TABLE}
+
+A relationship is declared from the side that STORES the link, so \`sourceField\` belongs to
+\`sourceEntity\`. The one exception is \`one-to-many\`, written from the "one" side because that is how
+the business sentence arrives ("a sale has many items"); it is inverted before anything reads it.
+
+Two things the platform does NOT have, and no declaration will fake:
+
+- **No cascade and no referential restriction between business entities.** Deleting a record removes
+  its own notes and documents, and nothing else. Children are left pointing at an id that no longer
+  resolves. When they really must go, that is a workflow on \`<collection>.deleted\` with a \`query\` step
+  and a \`remove\` step — declarable today, and it is what \`validate_domain_model\` will tell you.
+- **No nested object field, and no dotted field key.** An embedded value object is stored flat, with
+  the object's name as a prefix and a \`section\` grouping the leaves in the form (strategy
+  \`${EMBEDDED_STRATEGY}\`). That keeps them reachable from \`compute\`, \`validate\` and the list filter,
+  which a separate 1:1 child screen would not.
+
+**Duplication is allowed; silent duplication is not.** The rule is not "never duplicate data" — it is
+that data which is a source of truth stays normalized *unless there is an explicit semantic reason* to
+materialise or snapshot it. A line item's unit price is a correct snapshot: the price charged that day
+must not change when the catalogue does. Two ways to say it, and they mean different things:
+
+| | Follows the origin | Declared as |
+|---|---|---|
+| **Snapshot** | no — frozen on purpose | \`{ semanticType: 'snapshot', source: 'Product.price', reason: '...' }\` in the model |
+| **Denormalization** | yes | \`denormalize: { denormKey, fields, reason }\` on the relationship, which becomes the platform's \`refDenormKey\` |
+
+Undeclared, either one is indistinguishable from an accident.
+
+**And the one limit worth knowing before you draw a diagram:** an aggregation cannot walk a \`multi\`
+reference. The engine reads the parent id out of the child's reference field as a single value and
+queries children by one equality, so an array never matches — a total over a many-to-many is not slow,
+it is impossible. A many-to-many that carries attributes of its own (quantity, price, discount) is a
+junction ENTITY, declared \`kind: 'child'\`, never an array of ids.
+
+### 8.0.1 Model what HAPPENS, in the same breath
+
+The structure is half of what arrived. "A sale is born as a draft; confirming it reserves stock and freezes its
+items; invoicing it creates the financial entry; only the manager cancels an invoiced sale" describes four
+entities and four transitions in one sentence, and nobody will come back later to ask for "the automation" —
+they already asked. So the model has a \`behavior\` block, and it goes through the same gate.
+
+    behavior: { states, transitions, invariants }
+
+**${A_STATE_IS_A_KEY}** A state machine is a \`select\` served by a list, and the option keys are what the
+package SEEDS on install (once — from then on the options are the office's data, which is exactly why a
+renamed label must never break a transition). Every \`from\` and \`to\` names a key. \`initial\` says where a record
+is born; \`terminal\` says where it ends, because "this is the end" and "I forgot the way out" are written the
+same way.
+
+| declares | concern | mechanism | written as |
+|---|---|---|---|
+${BEHAVIOR_TABLE}
+
+Read the refusals as answers, not as gaps to route around:
+
+- **No clock.** Nothing in this installation is time-based, and the \`Delay\` step type was never registered — a
+  flow that uses it fails mid-execution. Almost every schedule in a business rule is really a question asked
+  when something is WRITTEN, or when a person opens a screen, and a filtered list does the rest.
+- **No uniqueness.** No layer enforces it: not the field rules, not the object validation, not the security
+  rules. The closest declarable thing is a check AFTER the fact — a workflow on \`<collection>.saved\` with a
+  \`query\` step — and it must be presented as one: it finds the duplicate that already exists, and two writes at
+  the same instant both pass. If a value must truly be unique, make it the document id.
+- **A guard reads ONE record.** It never queries. When the condition needs other records, the \`query\` step
+  publishes them and the condition node reads its outputs. That is the shape, and it costs one more step.
+- **A permission is only answerable when a person acts.** With no actor — an automation born from a save —
+  \`hasPermission\` answers \`false\`, always, because granting on the absence of a person would turn "nobody
+  triggered this" into "can do anything". A permission on an event trigger is a flow that never runs.
+- **A total is not a step.** Declare the field as derived from children with the aggregate and the kernel
+  recomputes it on every write to a child, whoever caused it — including edits made outside your flow.
+- **An invariant that must REFUSE the passage cannot live in the automation.** The event of a save is published by
+  an \`onDocumentWritten\` trigger: by the time it exists the document is committed, and the \`exit\` step halts the
+  flow, not the write. So \`scope: 'transition'\` also declares \`enforcement\`. \`blocks\` belongs on the write path —
+  a field rule, which the repository throws on before the document is written, plus, on a \`user-action\`, the
+  action's \`disabledWhen\` over \`record.<field>\`, which refuses the gesture before anything runs. \`reacts\` is the
+  condition plus \`exit\`, and its message has to read like one: "cannot" and "should not have" are not the same
+  sentence to whoever receives it.
+
+**And the \`from\` is checked, not decorated — but not in the same place on every trigger.** On \`<collection>.saved\`
+the payload carries the CURRENT value at the root, the previous one under \`old\` (absent on an insert) and
+\`changeType: 'created' | 'updated'\`, so \`from\` compares against the state the record is in and creation is
+distinguishable from update. On \`<collection>.deleted\` the payload is the before-image — the field reads the state
+it was in — and there is no \`old\` and no \`changeType\`; a passage triggered by a delete also writes nothing, because
+the document is gone. And \`workflow.called\` carries NONE of the three: its context is the parameters you declared.
+The state field only reaches it through an \`EntityReference\` parameter, which the hydrator resolves for you — the
+plan names the parameter it needs. What stops the person before that is the action's own \`disabledWhen\`.
+
+And the loop that has no mechanism to save you: an effect that writes back into the record that triggered it
+republishes the event. It stops when the flow's condition stops matching — which is what moving the state does
+for you — or when the second pass writes the same value, because the platform does not publish when the
+document did not change. That is the same property that makes recomputing an aggregate safe. If neither holds,
+the cascade is real, and it shows up as cost rather than as an error.
+
+**And two things that are easy to leave empty and expensive to leave empty:**
+
+- **Every \`user-action\` transition needs a \`description\`** — one business sentence about what the passage
+  does. It becomes the flow's own description, and ${DESCRIPTION_REQUIRED_BECAUSE}. There is no symptom: it
+  installs, it runs when somebody presses the button, and it is simply absent from the list that would have
+  found it. The gate warns; nothing else ever would.
+- **The notes, documents and tags tabs are OFF by default**, and turning one on is
+  \`entity.tabs: [{ kind, because }]\`. The \`because\` is required, for the reason a snapshot's \`reason\` is:
+  without it, "on purpose" and "out of habit" read exactly the same six months later.
+
+**Two things the gate cannot decide, and they are yours:**
+
+- **Which states the business actually has.** The sentence names one or two; the rest come from the rest of the
+  conversation, and a state nobody mentioned may still be required for the thing to work. No comparison
+  derives that. What the gate does check is that what you declared is coherent — that every state is reachable,
+  that every one has a way out or is declared final, and that no \`from\`/\`to\` names a label.
+- **Whether an actor named in the rule is a NEW permission or one that already exists.** "Only the manager
+  cancels" might be \`sales.cancel\`, which nothing offers yet and the package must declare, or \`sales.update\`,
+  which every collection yields for free. Choosing is a judgement about what the office means by the word.
+  What the gate checks is that naming an actor and asking nothing of them is a defect, and it tells you when
+  the identifier is neither derived from a collection nor one the kernel declares.
+
+### 8.0.2 The plan decides the SCREEN too, by rule
+
+\`generate_artifact_plan\` does not only say which collections must exist. It says what the screen IS — and
+those decisions are rules, not taste. Before this, the vacuum was filled session by session, with a different
+answer each time: a screen with no \`titleFieldKey\` lists records that all read the same, a child with a menu
+entry gives two doors to the same data, and a user-action transition with no record action is an automation
+nobody can trigger.
+
+| what arrives | what is decided, with no exception | declared as |
+|---|---|---|
+${SCREEN_PLAN_TABLE}
+
+The list columns are the title, the state field, every REQUIRED reference (a row with no customer has no
+context) and anything you asked for with \`showInList\`. A total does not go to the list on its own: a total is
+read in the detail, and putting every total in the list is a decision about the LIST. Filters are the state,
+references, option lists and yes/no — free text stays out, because the platform already has search and a text
+filter beside it is the same question in two places.
+
+And what the plan does NOT decide, it hands back, named:
+
+${HUMAN_DECISIONS}
+
+Plus, per action, WHERE it appears. On the card of the list and in the header of the detail the same gesture
+means different things, and only one half of that is derivable: a gesture disabled because of a field the card
+does not show is a greyed-out button with no visible reason, so it belongs in the detail. When the refusal
+reads only fields the card shows, both placements are legible and the choice is about how people work here —
+the plan says so instead of picking.
+
+**The \`disabledWhen\` of each action is not a suggestion.** It carries the transition's \`from\` plus every
+invariant you declared with \`enforcement: 'blocks'\`, negated and joined. That is the only place a blocking
+invariant can sit on a gesture, and writing the action without it gives a button that fires a flow whose
+condition silently discards it.
+
+### 8.1 Declaring one
+
 A \`screen\` declares an entity: a collection, its fields, its title. The platform draws the list, the
 detail, the form, the filters and the search. You write no UI for any of it.
 
@@ -654,7 +902,16 @@ screens: [{
 
 \`key\` is what your own artifacts use. \`sourceId\` is what *updates* use: it is universal, so the same
 screen arriving from a new version — or from a second extension — is recognised instead of duplicated.
-Declare it, and never change it.
+
+**You do not choose it, and you never change it.** \`generate_artifact_plan\` emits the \`sourceId\` of every
+screen it plans, in this order:
+
+${SOURCE_ID_PRECEDENCE}
+
+Copy it verbatim. A \`sourceId\` that changes between two versions of the same package fails nowhere: the
+update finds no screen with that identity, claims the declared key, finds it taken and installs a SECOND
+screen beside the first. The records stay in the old collection with no screen over them, in every
+organization that had the earlier version, and nothing on screen says that is what happened.
 
 ### Fields
 
@@ -929,7 +1186,7 @@ automation, and it used to be invisible: the package validated and the flow sile
 \`gte\`, \`in\`, \`contains\`, \`exists\`. An operator outside that set matches no rows at all — the query
 returns nothing and the flow carries on as if the records did not exist.
 
-Ask the MCP server rather than guessing any of this: \`list_workflow_steps\` for the catalog,
+Ask the MCP server rather than guessing any of this: \`microteia://workflow/steps\` for the catalog,
 \`describe_workflow_step\` for one step's exact inputs and outputs, \`list_workflow_events\` for the
 trigger names. All three are derived from this installation.
 
@@ -989,7 +1246,7 @@ actions: [{
 
 \`command\` instead of \`workflowId\` runs one of the platform's own record gestures — present, it wins.
 The ones the kernel brings are ${codeList(input.recordCommands)}, and anything contributed to
-\`ui.record.action\` joins them (\`list_record_commands\` on the MCP server answers for this
+\`ui.record.action\` joins them (\`microteia://record-commands\` on the MCP server answers for this
 installation). \`order\`, \`enabled\` and \`danger\` are REQUIRED on every action.
 \`activeWhen\` turns the button into a switch that shows the record's current state.
 \`promptParameters\` opens the workflow's parameter form before firing, and \`parameterDefaults\` maps
@@ -1195,18 +1452,152 @@ is why it is worth asking before writing:
 
 | | |
 |---|---|
-| \`list_extension_points\` | every point, its API version, the impl kinds it accepts |
-| \`describe_sdk_type\` | the exact declaration of any authoring type — \`TemplateField\`, \`WidgetSpec\`, \`WorkflowStep\`, \`PluginManifest\`, \`AuthoredPlugin\` |
-| \`describe_host_module\` | what a curated module really exports, for a view or a \`startup\` |
-| \`list_expression_functions\` | the expression functions the installed platform resolves |
-| \`list_workflow_steps\` | the step catalog — every \`stepDefinitionId\`, what it takes, what it publishes |
-| \`describe_workflow_step\` | one step in full: required inputs, accepted mapping kinds, composite shape, outputs |
-| \`list_workflow_events\` | the trigger names, and what \`event.\` carries in each |
-| \`list_record_commands\` | the record gestures an action may run through \`command\` |
+| \`validate_domain_model\` | the domain model, checked deterministically. An ERROR stops the work |
+| \`generate_artifact_plan\` | what must exist, reconciled against what is already here |
 | \`validate_plugin\` | the platform's verdict, after every edit |
 | \`build_plugin\` | the \`.json\`, without writing it |
+| \`describe_sdk_type\` | the exact declaration of any authoring type — \`TemplateField\`, \`WidgetSpec\`, \`WorkflowStep\`, \`PluginManifest\`, \`AuthoredPlugin\` |
+| \`describe_host_module\` | what a curated module really exports, for a view or a \`startup\` |
+| \`describe_workflow_step\` | one step in full: required inputs, accepted mapping kinds, composite shape, outputs |
 | \`read_authoring_guide\` | this document, by section |
-| \`workspace_info\` | what this workspace is bound to |
+
+And one **prompt**, which is the gesture rather than an answer:
+
+| | |
+|---|---|
+| \`model_business_rule\` | a business rule arrived. It conducts the order — understand, model, validate, plan — and it is the step people skip |
+
+The order is the point of it. A rule arrives as three lines in a conversation, and the fastest thing to do with
+three lines is write a screen. That reading installs and runs, and what it costs is paid later and paid forever.
+The prompt puts the sentence itself first: the rule becomes an artifact (\`{ id, statement, actors, concepts,
+invariants, processes, acceptance }\`) before any entity exists, and the \`statement\` keeps the words it arrived
+in — everything after it is a reading, and a reading with no original is traceable to nothing.
+
+Everything that took no argument is a **resource** instead — a document a client attaches and reads,
+rather than a tool costing an input schema in every agent's context, in every session:
+
+| | |
+|---|---|
+| \`microteia://entities\` | the entities this workspace knows. Read it first, in any modelling task |
+| \`microteia://domain-model/schema\` | the shape a domain model must have |
+| \`microteia://domain-model/rules\` | every check, how each relationship storage is really stored, and the screen rules |
+| \`microteia://domain-model/coverage\` | what the model canNOT say — the mechanisms this platform has and the vocabulary does not reach |
+| \`microteia://workflow/steps\` | the step catalog — every \`stepDefinitionId\`, what it takes, what it publishes |
+| \`microteia://workflow/events\` | the trigger names, and what \`event.\` carries in each |
+| \`microteia://extension-points\` | every point, its API version, the impl kinds it accepts |
+| \`microteia://record-commands\` | the record gestures an action may run through \`command\` |
+| \`microteia://expression-functions\` | the expression functions the installed platform resolves |
+| \`microteia://workspace/plugins\` | the extensions authored here, with their current problems |
+| \`microteia://workspace/info\` | what this workspace is bound to |
+
+None of them reads the organization's database: what they know is this directory plus the platform
+itself. The rule that decides which list something belongs to is worth keeping: **takes an argument or
+changes something, it is a tool; hands back a document, it is a resource.**
+
+### What the organization actually runs
+
+The catalog above is honest about a gap it cannot close on its own. A screen somebody built in the Form
+Design, and an extension already installed in the organization, are not in this directory — and a field
+called \`customerName\` is a defect only *because* Customer is a thing. Without them the check that
+matters most cannot fire against the entities that matter most.
+
+The server does not close it by talking to the database. \`microteia-plugin\` is offline by design, and
+putting a credential inside the authoring tool would trade a blind spot for something worse. What talks
+to the project is the Console, so the Console exports a **snapshot** and this directory reads it:
+
+    microteia export-catalog --tenant <tenantId>
+
+It writes \`${INSTALLED_CATALOG_FILE}\` here — screens with their fields, lists of options, tag lists,
+and which extensions are installed. Run it from the installation root (where \`microteia.yaml\` is); with
+no \`--tenant\` it lists the offices in the project rather than guessing one. It is **git-ignored**,
+because it carries screen and field names the organization typed: that is tenant data, not a product
+artifact.
+
+Three things follow, and they are the point:
+
+- **Every entity says where it came from** — \`kernel\`, \`workspace\` or \`installation\` — and every
+  answer that uses the catalog carries a \`catalogSources\` block saying when the snapshot was taken and
+  what it leaves out. A catalog presented as complete when it is not is worth less than none, because
+  the reader stops asking.
+- **It is a snapshot, and it ages.** Nothing keeps it in step with the organization. After
+  ${INSTALLED_CATALOG_STALE_DAYS} days the answer says so; anything created there since it was taken is
+  simply missing.
+- **The workspace wins.** An entity in both the snapshot and a \`plugin.ts\` here resolves to the one you
+  are editing, and the installed copy is dropped whole. That is reported as information, never as an
+  error — but it is reported, because what runs there may already have fields your \`plugin.ts\` does not.
+
+Without the file, everything works exactly as it did before: the catalog is this directory plus the
+platform, and it says so.
+
+What it deliberately leaves out, and will not carry — it describes what the entities ARE, and nothing an
+organization typed into them:
+
+${INSTALLED_CATALOG_OMITS.map((one) => `- ${one}`).join('\n')}
+
+### Keep the model on disk
+
+Save it as \`<folder>/domain-model.json\`. It is not decoration: \`source\` and \`reason\` on a snapshot
+have nowhere to live in an installed field — the artifact carries a plain column — so without the file
+the next session reads the catalog, finds \`productName\` sitting on an invoice line, and raises it
+again. The checks read the file back on their own, which is what makes a declared exception cost one
+decision instead of one per session.
+
+**And save the rule beside it, as \`<folder>/${RULE_LEDGER_FILE}\`.** The plan hands it to you ready to write,
+under \`trace.contents\`, when you pass the \`rule\`. It records which screens, lists, actions, flows and
+permissions that rule produced — and that is the whole traceability mechanism. What it buys is one thing, and
+it is large: when the rule CHANGES, the plan is a diff of what that rule generated. Without it, the changed
+rule proposes a second batch of screens that look like the first, and "this replaces that" is left to whoever
+remembers.
+
+It is a workspace file on purpose. Stamping the rule's id inside the installed artifact would need a new
+property on the screen, the action and the flow — the shape of the package changes, and the Kernel contract
+moves with it. The question "which screens did this rule create?" is an AUTHORING question: whoever asks it has
+the \`plugin.ts\` open. The organization never asks it, and for them the screen is a screen. It is the same
+verdict a declared snapshot exception got, and it has the same consequence: a fresh workspace does not have the
+link, which is fine, because a fresh workspace does not have the \`plugin.ts\` the rule generated either.
+
+The domain model can be tested the same way the package is, and for the same reason — the rule then
+fails here, in a second, instead of in someone's organization:
+
+\`\`\`ts
+import { buildDomainCatalog, validateDomainModel } from '@microteia/sdk';
+import MODEL from './domain-model.json';
+
+it('stays modelled', () => {
+  const issues = validateDomainModel(MODEL, buildDomainCatalog()).issues;
+  expect(issues.filter((one) => one.severity === 'error')).toEqual([]);
+});
+\`\`\`
+
+### The checks it runs
+
+| Code | Severity | What it catches |
+|---|---|---|
+${DETECTOR_TABLE}
+
+ERROR blocks the artifact plan; WARNING and INFO do not. Every problem carries a \`suggestion\` and a
+\`howToDeclareException\` — and where there is no exception, it says so, which is an answer too.
+
+### What the model cannot say, and why that is written down
+
+Of ${mechanismCoverage().length} mechanisms this platform has, the model's vocabulary reaches
+${mechanismCoverage().length - coverageGaps().length} and does not reach ${coverageGaps().length}. Read
+\`microteia://domain-model/coverage\` for the list, item by item, with what each one costs.
+
+| surface | mechanisms | out of reach |
+|---|---|---|
+${COVERAGE_TABLE}
+
+That list exists because of one defect and its whole family. A \`user-action\` transition produced a callable
+flow with no description, and without a description the flow is invisible to the step that picks a flow from a
+sentence. The model had no way to know — there was no description field — and nobody found out for three
+phases. A mechanism with no vocabulary is invisible until somebody trips over it, and the answer to that is not
+attention: it is a derived list, checked by a test, so the next one shows up as a failing build instead of as a
+surprise.
+
+So when a rule needs one of them — the \`query\` step, a clock, uniqueness, a page, which record an effect
+writes — say so and hand the decision back. Translating it into something that looks similar is the one failure
+mode this whole subsystem exists to prevent.
 
 Read \`examples/\` for first-party extensions in source form — they are the very source that produces
 the \`.json\` the platform installs, so nothing in them is a simplification. Between them they cover
@@ -1216,6 +1607,6 @@ For automation, read \`examples/automation-example/\` first. It exists for that 
 else: a workflow triggered by a save, a \`Condition\` node that branches and converges, a \`query\`, a
 \`map\` feeding an \`upsert\` that stays idempotent on a second run, a \`workflow.called\` flow with
 parameters, and an action with \`promptParameters\` that asks a person before firing. Every id in it is
-one \`list_workflow_steps\` would give you, and the package validates — which is the whole point of
+one \`microteia://workflow/steps\` would give you, and the package validates — which is the whole point of
 reading an example instead of a snippet.
 `;

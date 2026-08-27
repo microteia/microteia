@@ -11,6 +11,60 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.26.0] — 2026-08-27
+
+- O assistente que ajuda a escrever extensões passa a definir sozinho a identidade de cada tela que planeja — e essa era a escolha que mais custava errar. Ela é o que faz uma versão nova de uma extensão ATUALIZAR a tela que já está instalada, em vez de instalar uma segunda parecida ao lado dela e deixar os registros na primeira, sem tela nenhuma para abri-los. O erro não aparecia em lugar nenhum: a extensão instalava, funcionava, e o escritório só descobria ao ver duas telas iguais no menu.
+- Uma identidade que já existe nunca é recalculada. Renomear o cadastro, reescrever a regra de negócio ou trocar a forma de calcular a identidade no futuro passam a não mexer no que já foi instalado — e uma extensão que tente levar uma identidade diferente da registrada é recusada, dizendo qual é a correta.
+- O registro que guarda "o que esta regra de negócio gerou" passa a ser conferido contra o que existe de verdade, e as divergências são ditas em voz alta: um cadastro que a regra criou e o registro não menciona, ou um que o registro menciona e não existe mais. Era a peça de que a identidade das telas depende, e um registro desatualizado devolvia o mesmo defeito de antes na próxima alteração.
+
+#### [9.25.0] — 2026-08-27
+
+- O assistente que ajuda a escrever extensões passa a desenhar também as TELAS, e por regra em vez de por intuição. Antes ele dizia quais cadastros e campos precisavam existir e parava ali: quem decidia o que aparece na listagem, o que pode ser filtrado e qual campo dá nome ao registro era o assistente, de novo, a cada conversa — e a resposta saía diferente cada vez. Agora um cadastro principal rende listagem e ficha, um cadastro que só existe dentro de outro vira aba dele e nunca ganha entrada de menu, uma lista de opções nunca vira tela, o campo calculado nasce somente leitura e a situação do registro aparece na listagem e no filtro.
+- Cada ação que uma pessoa aperta passa a nascer junto com a regra que a desabilita: se a regra de negócio diz "não é possível aprovar sem itens", o botão já chega apagado, com o motivo, em vez de a pessoa apertar e receber a recusa depois.
+- E o que a regra NÃO decide passa a ser dito com todas as letras, em vez de sorteado: o ícone da tela, a posição dela no menu e, quando as duas colocações fazem sentido, onde a ação aparece. Um plano que escolhe sozinho parece completo, e o custo aparece quando o escritório recebe um ícone que não tem nada a ver com o negócio dele.
+- A regra de negócio que originou tudo passa a ser guardada junto do que ela gerou. É o que faz a próxima versão da mesma regra ser uma comparação com a leva anterior: a mesma regra duas vezes não propõe nada, uma regra alterada propõe só o que mudou, e uma regra que deixou de precisar de um cadastro propõe DESATIVÁ-LO — nunca apagar, porque apagar uma tela é decidir o que acontece com os registros dentro dela.
+- Colar uma regra de negócio no editor passa a ser um gesto próprio, com a ordem certa embutida: entender, modelar, conferir, planejar. Era a instrução mais importante do processo e vivia num parágrafo de manual — valia para quem tivesse lido o manual.
+- As abas de anotações, documentos e etiquetas passam a nascer desligadas, e ligar uma exige dizer por quê. Três abas ligadas por reflexo são três lugares onde se escreve dado que a regra não pediu, e que meses depois ninguém sabe se devia estar ali.
+- Uma automação disparada por botão passa a exigir a frase que a descreve. Sem ela a automação funciona quando alguém aperta o botão e fica invisível para a busca por linguagem natural — o único lugar que a escolheria por conta própria —, e nada na tela mostrava a falta.
+- Passou a existir uma lista do que o assistente AINDA NÃO sabe pedir à plataforma, conferida automaticamente. Antes uma capacidade sem vocabulário só era descoberta quando alguém tropeçava nela, meses depois; agora ela aparece na lista no dia em que passa a existir.
+
+#### [9.24.0] — 2026-08-27
+
+- Uma regra de negócio que precisa IMPEDIR alguma coisa passa a ser declarada como tal, e separada da que só precisa avisar. Antes as duas eram escritas do mesmo jeito, e a segunda era o que se instalava: "não é possível faturar sem itens" chegava à tela como um aviso depois do fato, porque a verificação acontecia quando o registro já estava gravado. Agora a que barra vive no caminho da gravação, a que avisa vive na automação, e declarar uma no lugar da outra é recusado com o motivo.
+- A situação por que um registro tem de estar passando para uma mudança valer volta a ser conferida de verdade em todos os casos, e não só em alguns — inclusive quando a mudança nasce de um botão, que era justamente onde a conferência não tinha como acontecer.
+- Uma exclusão deixa de tentar gravar a situação nova no registro que acabou de ser apagado.
+- A conferência para de reclamar de uma situação a que só se chega pelo efeito de outro processo — "ao encerrar a turma, toda matrícula dela fica concluída" era acusada de ser uma situação inalcançável, e é a mais comum que existe.
+
+#### [9.23.0] — 2026-08-27
+
+- O assistente que ajuda a escrever extensões passa a modelar também o que ACONTECE, e não só o que existe. Antes ele desenhava os cadastros e parava ali, esperando que alguém voltasse e pedisse "agora crie a automação" — o pedido que nunca chega, porque quem descreve o sistema já descreveu o comportamento na mesma frase: "a venda nasce em rascunho; ao confirmar, reserva estoque; só o gerente cancela venda faturada".
+- Cada situação por que um registro passa, o que o move de uma para outra, quem tem permissão e o que precisa continuar verdadeiro passam a ser declarados junto do cadastro e conferidos pela mesma verificação.
+- A conferência pega agora os defeitos que só apareciam meses depois, na tela: uma situação para a qual nada leva, uma de onde nada sai sem ser o fim, uma automação que se dispara em laço a cada gravação e uma regra que compara o NOME da situação em vez da identidade dela — esta última funciona no dia em que é escrita e para de funcionar na primeira vez que alguém renomeia a opção, sem nenhum sinal.
+- Uma regra que diga "só o gerente" e não diga o que se pergunta ao gerente deixa de passar. E uma restrição de quem-pode presa a uma automação que ninguém dispara — que nunca teria efeito nenhum — é recusada em vez de instalada.
+- O que a plataforma não tem passa a ser dito com o motivo, em vez de ser aceito e silenciosamente esquecido: não há agendamento por relógio, e não há como impedir dois registros com o mesmo código. Nos dois casos a resposta traz o caminho que existe de verdade, e diz o que ele não garante.
+- As situações que uma extensão traz passam a viajar com ela como ponto de partida: o escritório recebe a lista pronta, em vez de digitar as opções à mão e descobrir que a primeira letra diferente parou todas as automações.
+
+#### [9.22.0] — 2026-08-27
+
+- O assistente que ajuda a escrever extensões passa a poder enxergar o que o escritório realmente tem. Antes ele só conhecia as extensões em edição na pasta de trabalho e as poucas entidades do próprio sistema: uma tela criada no Form Design e uma extensão já instalada simplesmente não existiam para ele, e a conferência que aponta "este campo pertence a outro cadastro" não tinha como funcionar justamente para os cadastros que mais importam.
+- Um comando novo tira o retrato do escritório e o entrega ao assistente: ele lista as telas, as listas de opções, as listas de etiquetas e as extensões instaladas. O retrato fica na pasta de trabalho, não é enviado para lugar nenhum e não acompanha o repositório de código, porque carrega nomes de tela e de campo que o escritório digitou.
+- O retrato se anuncia como retrato. O assistente diz de onde veio cada cadastro — do sistema, do trabalho em edição ou do escritório —, quando o retrato foi tirado e o que ele deliberadamente não traz. Passado um tempo sem ser atualizado, ele avisa. Um catálogo apresentado como completo quando não é vale menos do que nenhum.
+- Um cadastro que exista dos dois lados resolve pelo que está sendo editado, e a diferença é apenas informada. Sem o retrato, tudo continua exatamente como antes.
+- O retrato traz a forma dos cadastros e nada do que foi digitado dentro deles: nenhum registro, nenhuma opção de lista, nenhum membro, nenhuma automação e nenhuma senha saem do escritório.
+
+#### [9.21.1] — 2026-08-27
+
+- A conferência do modelo de domínio reprovava modelos CORRETOS. Três sistemas completos — chamados, clínica e escola — foram escritos do zero e reprovados por quatro campos legítimos: o código do chamado no sistema do solicitante, a anotação que o atendente escreve no próprio chamado, a autorização que o convênio devolveu para aquele atendimento e o número de chamada do aluno naquela matrícula. Nos quatro o dado é de quem o declara, e a conferência confundia "fala sobre" com "pertence a". Ela deixou de reprovar por indício: um campo isolado agora é um aviso, e o que continua barrando é a evidência de verdade — dois ou mais dados de identidade de outro cadastro, ou uma chave de ligação guardada como texto solto.
+- Um endereço guardado em campos agrupados era acusado de ser "um conceito sem nome", justamente quando o nome estava declarado e o agrupamento tinha sido feito pela própria plataforma. Não é mais.
+- Uma duplicação aprovada com justificativa deixa de ser perguntada a cada conversa. O motivo declarado — "este é o preço cobrado no dia" — passa a ser guardado junto do trabalho e reconhecido depois, em vez de a mesma decisão ser tomada de novo toda vez que alguém retoma o assunto.
+- O assistente carrega menos coisa para responder o mesmo: metade do que ele mantinha aberto em toda conversa era consulta que não pergunta nada, e passou a ser material de leitura em vez de ferramenta.
+
+#### [9.21.0] — 2026-08-27
+
+- Quem escreve extensões para o escritório passa a ter uma etapa de modelagem antes da criação das telas. Ao pedir "um sistema de vendas com clientes, vendedores, produtos e vendas", o assistente é obrigado a reconhecer que ali há cinco cadastros que se relacionam — e não uma tela só com o nome do cliente escrito dentro de cada venda, que era o resultado mais provável até aqui e que ninguém percebia até a lista de clientes fazer falta.
+- O que sai dessa etapa é conferido por regras fixas, não por opinião: campo que pertence a outro cadastro, um cadastro inteiro copiado para dentro de outro, "Produto 1, Produto 2, Produto 3" no lugar de uma lista de itens, e cópia de valor sem justificativa declarada. Duplicar continua permitido quando há razão — o preço cobrado no dia da venda é o exemplo —, desde que a razão esteja escrita.
+- O plano que sai daí é comparado com o que o escritório já tem, e nunca propõe recriar o que existe: ele diz o que é novo, o que já está igual e o que não pode mudar. Excluir tela com registros, retipar um campo já preenchido e alterar o formato de um dado gravado passam a ser recusados com a explicação, em vez de acontecerem por engano.
+
 #### [9.20.0] — 2026-08-26
 
 - A lista de Tipos de Documento aparecia sempre como "Documentos: Tipo", em português, em qualquer idioma. Passa a ser traduzida — e o mesmo vale onde ela é oferecida: no gatilho de automação por lista, no seletor de lista de um campo e no de um parâmetro.

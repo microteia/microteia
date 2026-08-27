@@ -44,6 +44,40 @@ const PUBLISHED = [
   'validateBackendRequirement', 'validateContribution', 'validateExtensionPoint',
   'validateMigrations', 'validatePackage', 'validatePermissions', 'validatePluginManifest',
   'validatePluginPackage', 'widgetChildren', 'widgetPage', 'mergeViewSources',
+  // A camada de MODELO DE DOMÍNIO. Sai no barril para que a regra crítica possa ser cobrada no
+  // `npm test` do diretório de autoria, e não só no diálogo com o agente. NÃO move o
+  // `KERNEL_VERSION`: um modelo de domínio nunca viaja no `.json` instalado — é vocabulário de
+  // AUTORIA, como `AuthoredPlugin` e `sourceFile`.
+  'AGGREGATION_OPS', 'DELETE_SEMANTICS', 'DERIVED_FROM', 'DETECTORS', 'DOMAIN_ISSUE_CODES',
+  'DOMAIN_MODEL_VERSION', 'DOMAIN_SEVERITIES', 'EMBEDDED_STRATEGY', 'ENTITY_KINDS',
+  'OWNERSHIPS', 'RELATIONSHIP_STORAGES', 'RELATIONSHIP_TYPES', 'SCREEN_IS_NOT_AN_ENTITY_MODEL',
+  'SEMANTIC_TYPES', 'STORAGE_MECHANISMS', 'applyPlanToCatalog', 'buildArtifactPlan',
+  'buildDomainCatalog', 'canonicalRelationship', 'catalogEntity', 'collectionOfEntity',
+  'detectorList', 'domainModelJsonSchema', 'expandEmbedded', 'hasBlockingIssue',
+  'mapRelationship', 'parseDomainModel', 'relationshipSummary', 'sortIssues', 'validateDomainModel',
+  // O MODELO DE COMPORTAMENTO, pela mesma razão e com a mesma consequência: nada aqui viaja no
+  // `.json` instalado, então o `KERNEL_VERSION` não se move.
+  'A_STATE_IS_A_KEY', 'BEHAVIOR_CONCERNS', 'BEHAVIOR_MECHANISMS', 'EFFECT_KINDS', 'INVARIANT_ENFORCEMENTS',
+  'INVARIANT_SCOPES', 'enforcementOfScope', 'referenceParameterKey',
+  'SCHEDULE_TRIGGER_SUPPORTED', 'TRIGGER_KINDS', 'mapTransition', 'mechanismsFor',
+  'transitionSummary', 'validateBehaviorModel',
+  'DESCRIPTION_REQUIRED_BECAUSE', 'DESCRIPTION_REQUIRED_EVENTS',
+  // O FECHO DO PIPELINE: a regra como artefato, o plano de telas, a rastreabilidade e a cobertura de
+  // mecanismo. Mesma nota das duas listas acima — nada disto viaja no `.json` instalado, então o
+  // `KERNEL_VERSION` não se move. A rastreabilidade é o caso em que essa escolha foi DECIDIDA e não
+  // herdada: carimbar o `ruleId` dentro do artefato instalado teria mudado a forma do pacote, e o
+  // vínculo mora num arquivo de trabalho do workspace justamente para não fazer isso.
+  'COVERAGE_SURFACES', 'ENTITY_TAB_KINDS', 'RULE_LEDGER_FILE', 'RULE_LEDGER_VERSION',
+  'SCREEN_LIST_COLUMN_BUDGET', 'SCREEN_PLAN_HUMAN_DECISIONS', 'SCREEN_PLAN_RULES',
+  'buildScreenPlan', 'businessRuleSummary', 'checkBusinessRule', 'coverageGaps', 'coverageSummary',
+  'emptyRuleLedger', 'ledgerEntryOf', 'mechanismCoverage', 'parseBusinessRule', 'parseRuleLedger',
+  'ruleDelta', 'ruleFingerprint', 'ruleLedgerEntry', 'withRuleEntry',
+  // A IDENTIDADE UNIVERSAL DA TELA. Sai no barril porque é a regra que mais custa errar e a única
+  // defesa contra ela é poder cobrá-la no `npm test` do diretório de autoria: um `sourceId` trocado
+  // entre duas versões instala uma SEGUNDA tela em todo escritório, sem sintoma nenhum. Também não
+  // move o `KERNEL_VERSION` — o campo já existe no pacote instalado; o que é novo é quem o decide.
+  'SCREEN_SOURCE_ID_PRECEDENCE', 'declaredScreenSourceIds', 'deriveScreenSourceId', 'ledgerFindings',
+  'registeredScreenSourceIds',
 ].sort();
 
 /**
@@ -85,6 +119,27 @@ const PUBLISHED_TYPES = [
   'WidgetNodeType',
   'WidgetSpec', 'WorkflowDefinition', 'WorkflowLoopConfig', 'WorkflowModuleTemplate',
   'WorkflowParameter', 'WorkflowParameterType', 'WorkflowStep', 'WorkflowStepBranches',
+  // Modelo de domínio — ver a nota na lista de runtime.
+  'ArtifactPlan', 'CatalogEntity', 'CatalogField', 'CatalogList', 'CatalogScreenInput', 'DerivedFrom',
+  'DomainAggregation', 'DomainCatalog', 'DomainDenormalization', 'DomainEntity', 'DomainField',
+  'DomainIssue', 'DomainIssueCode', 'DomainModel', 'DomainRelationship', 'DomainSeverity',
+  'DomainValidation', 'EntityKind', 'MappedRelationship', 'Ownership', 'ParentRelation', 'ParseResult',
+  'PlanOperation', 'PlannedField', 'PlannedLookup', 'PlannedMigration', 'PlannedScreen',
+  'RelationshipStorage', 'RelationshipType', 'SemanticType', 'StorageMechanism',
+  // Modelo de comportamento — ver a nota na lista de runtime.
+  'BehaviorConcern', 'BehaviorEffect', 'BehaviorGuard', 'BehaviorInvariant', 'BehaviorMechanism',
+  'BehaviorModel', 'BehaviorState', 'BehaviorStateOption', 'BehaviorTransition', 'BehaviorTrigger',
+  'BehaviorValidation', 'EffectKind', 'InvariantEnforcement', 'InvariantScope', 'MappedTransition',
+  'TransitionFromCheck', 'TriggerKind',
+  // O fecho do pipeline — ver a nota na lista de runtime.
+  'ActionPlacement', 'ArtifactPlanOptions', 'BusinessRule', 'CoverageItem', 'CoverageSummary',
+  'CoverageSurface', 'EntityTab', 'EntityTabKind', 'LedgerProduced', 'NotAScreen',
+  'ParsedBusinessRule', 'PlanTrace', 'PlannedDeactivation', 'PlannedFormSection', 'PlannedListColumn',
+  'PlannedReadOnlyField', 'PlannedRecordAction', 'PlannedReferenceField', 'PlannedTab', 'RuleDelta',
+  'RuleLedger', 'RuleLedgerEntry', 'ScreenLayout', 'ScreenPlan', 'ScreenPlanInput', 'ScreenPlanRule',
+  'ScreenPresence',
+  // A identidade universal da tela — ver a nota na lista de runtime.
+  'LedgerIntegrity', 'LedgerReality', 'ScreenSourceIdOrigin',
 ].sort();
 
 const BARREL = import.meta.glob('/src/sdk/index.ts', {

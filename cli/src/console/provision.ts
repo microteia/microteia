@@ -38,7 +38,8 @@ import { deployFunctionsOneByOne, reportFailures, reportNotices } from './deploy
 import { clearRegionOrphans, listDeployedFunctions } from './regionOrphans.js';
 import { outdatedByStamp } from './functionsUpToDate.js';
 import { checkCallables, invokerGrantCommand } from './callableAccess.js';
-import { asString, asTimestamp, decodeFields, documentId, listDocuments, patchMapField } from './firestoreRest.js';
+import { asString, asTimestamp, patchMapField } from './firestoreRest.js';
+import { listTenants, readInstalledExtensions } from './installedExtensions.js';
 import { gatherCustomFunctions, readOfficeFunctions } from './customFunctions.js';
 
 /** Uma exigência, o escritório que a instalou e o documento que carrega o estado dela. */
@@ -56,29 +57,23 @@ export interface InstalledClaim extends BackendClaim {
  * explicação; não há injeção possível, porque o código é sempre o do pacote.
  */
 export const readInstalledClaims = async (projectId: string): Promise<InstalledClaim[]> => {
-  const tenants = await listDocuments(projectId, '/tenants');
+  const tenants = await listTenants(projectId);
   const claims: InstalledClaim[] = [];
 
   for (const tenant of tenants) {
-    const tenantId = documentId(tenant);
-    const extensions = await listDocuments(projectId, `/tenants/${tenantId}/installed_extensions`);
+    for (const extension of await readInstalledExtensions(projectId, tenant.id)) {
+      if (!extension.active) continue;
 
-    for (const document of extensions) {
-      const data = decodeFields(document.fields);
-      if (data.active === false) continue;
-
-      const pkg = data.package as Record<string, unknown> | undefined;
-      const manifest = pkg?.manifest as Record<string, unknown> | undefined;
-      const backend = manifest?.backend as PluginBackendRequirement | undefined;
+      const backend = extension.manifest?.backend as PluginBackendRequirement | undefined;
       if (!hasBackendRequirement(backend)) continue;
 
-      const state = data.backendState as { fingerprint?: string } | undefined;
+      const state = extension.data.backendState as { fingerprint?: string } | undefined;
       claims.push({
-        tenantId,
-        documentPath: `/tenants/${tenantId}/installed_extensions/${documentId(document)}`,
-        pluginId: String(manifest?.id ?? documentId(document)),
-        name: String(manifest?.name ?? manifest?.id ?? documentId(document)),
-        version: String(manifest?.version ?? '0.0.0'),
+        tenantId: extension.tenantId,
+        documentPath: extension.documentPath,
+        pluginId: extension.id,
+        name: extension.name,
+        version: extension.version,
         backend: backend as PluginBackendRequirement,
         applied: state?.fingerprint === backendFingerprint(backend),
       });

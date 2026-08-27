@@ -18,6 +18,210 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.26.0] — 2026-08-27
+
+- feat(sdk/domain): `screenPlan.ts` now EMITS the universal `sourceId` of every screen it plans, and the precedence comes before the derivation (`SCREEN_SOURCE_ID_PRECEDENCE`): the ledger first, then whatever the `plugin.ts` or the installation catalog already declares, and only for a NEW screen the derivation `<extension id>:<collection>`. A sourceId that already exists is never recomputed — not by a renamed entity label, not by a rewritten rule, not by a future change of the derivation itself. It was the most consequential human decision left in the plan and it failed in silence: `buildScreenKeyMap` looks the screen up by that identity, so a value changed between two versions of the same package installs a SECOND screen beside the first, releases the first, and leaves the records in a collection with no screen over them — in every office at once, with nothing on screen saying so.
+- feat(sdk/domain): the base is the extension id plus the COLLECTION, by elimination. What the identity must survive is exactly what a person rewrites — the entity label (which is the screen's `titleSingular`), the rule statement and the order of screens in the plan — and none of the three is in it. The extension id is globally unique by construction, so two extensions with same-named entities cannot collide; the collection is unique inside the extension, so two screens of one package cannot collide.
+- feat(sdk/domain): three ERROR detectors on what the plan emits — `domain.plan.screen-source-id-missing` (a planned screen with no identity), `...-divergent` (the package declares one value and the ledger records another; the plan keeps the RECORDED one and the message names it, because the fix is to use the recorded one and never the new one) and `...-duplicate` (two screens of one plan sharing an identity, which the installation reads as one screen).
+- feat(sdk/domain): `business-rules.json` records the identity of each screen (`screenSourceIds`), which turns it from a record of provenance into a dependency — and `ledgerFindings` now compares it with what exists: an artifact this rule produces that ALREADY existed here and the book does not mention (an earlier pass that never wrote the book, which is where the identity is lost), and an artifact the book names that is neither in the plan nor in the catalog. WARNING, not error: the book is written by hand and may legitimately be one write behind, and refusing the plan would block the very call that hands back the corrected book. `generate_artifact_plan` says it out loud in its own `ledgerIntegrity` field, not only among the issues.
+- feat(sdk): barrel adds `SCREEN_SOURCE_ID_PRECEDENCE`, `deriveScreenSourceId`, `declaredScreenSourceIds`, `registeredScreenSourceIds`, `ledgerFindings` and the types `ScreenSourceIdOrigin`, `LedgerIntegrity`, `LedgerReality`. `KERNEL_VERSION` does NOT move: `sourceId` already exists on `ScreenModuleTemplate` and the installed package keeps exactly the shape it had — what is new is who decides the value.
+- docs(sdk/workspace): §8.1 of `AUTHORING.md` stops telling the author to choose the `sourceId` and derives the precedence table from the code, with `templates.test.ts` guarding the derivation. `screen.sourceId` leaves the coverage gap list (135 mechanisms: 53 reached, 82 not).
+
+#### [9.25.0] — 2026-08-27
+
+- feat(sdk/domain): `screenPlan.ts` — the artifact plan now decides the SCREEN, by rule. Root entity to a list plus a detail; `kind: 'child'` to a tab of its parent and never a sidebar entry; `kind: 'lookup'` to an option list and never a screen; a flattened `valueObject` to a section of the owner's form; many-to-one to a reference field on the N side with the label resolved at render and never copied into a second field; a one-to-many that is not a child to nothing at all; a derived field read-only (by mechanism — the form disables anything carrying `logic.compute` or `aggregation`); the state field to the list and to the filters. `SCREEN_PLAN_RULES` is the single source, and `microteia://domain-model/rules`, the `AUTHORING.md` table and the plan's own answer all read it. What filled these gaps before was the language model, once per session, with a different answer each time.
+- feat(sdk/domain): every `user-action` transition yields one record action, and its `disabledWhen` is the transition's `from` joined with every invariant declared `enforcement: 'blocks'`, negated. That is the only place a blocking invariant can sit on a gesture; an action written without it fires a flow whose condition silently discards it. `hiddenWhen` comes from the permission, and the reference parameter the flow needs to resolve the state field is named.
+- feat(sdk/domain): the plan names what it does NOT decide — icon, `sidebarOrder`, `subtitleFieldKey`/`imageFieldKey`, the action's own title — and for action PLACEMENT it decides only the derivable half: when the refusal reads a field the list card does not show, the place is the detail header (on the card it would be a greyed-out button with no visible reason); when it reads only visible fields, both are legible and the choice is handed back.
+- feat(sdk/domain): `businessRule.ts` — the rule as an artifact (`{ id, statement, actors, concepts, invariants, processes, acceptance }`), with tolerant parsing (a bare pasted sentence becomes the statement) and six checks that report the DISTANCE between the rule and the model without blocking: a concept no entity carries, an actor no transition asks anything of, more invariants or processes than the behavior declares, and no acceptance criteria at all. Same standing the workflow description already has as the classification contract of the automation detector.
+- feat(sdk/domain): `traceability.ts` — `ruleId -> artifacts produced`, in `business-rules.json` beside the `plugin.ts`. The alternative was stamping the `ruleId` inside the installed artifact, which needs a new property on `ScreenModuleTemplate`, `ActionModuleTemplate` and `WorkflowModuleTemplate` — the shape of the package changes and `KERNEL_VERSION` moves with it. "Which screens did this rule create?" is an authoring question: whoever asks it has the `plugin.ts` open, and the organization never asks it. Same verdict `CatalogException` got, and the same consequence. `buildArtifactPlan` takes `{ rule, ledger }` and answers with the delta; `readWorkspaceCatalog` reads the ledger next to each package.
+- feat(sdk/domain): reconciliation gains the case the rule brought — the rule changed and a screen it created is no longer needed. `PlannedDeactivation` proposes DISABLING (`enabled: false`, `hideFromSidebar: true`), never deleting, with `domain.plan.deactivate-proposed` carrying the reason: deleting a screen means deciding what happens to the records in it, and this plan sees no records.
+- feat(sdk/node): the MCP server declares the `prompts` capability and serves `model_business_rule`, which conducts understand -> model -> validate -> plan. It was left out with the argument that "there is nothing here that is a text for the user to choose", and the argument was wrong: the ORDER of working a business rule is exactly that, and while it lived in a paragraph of `AGENTS.md` it applied to whoever had read `AGENTS.md`. The text is DERIVED — `STORAGE_MECHANISMS`, `BEHAVIOR_MECHANISMS`, `SCREEN_PLAN_RULES`, the gap count — and it cites tools by their real published names, saying so when one is missing.
+- feat(sdk/domain): `BehaviorTransition.description`, and `behavior.transition.without-description` for its absence where the mechanism requires it. `AIDetectWorkflowStep` builds its candidates with `findEnabledByEvent(tenantId, WORKFLOW_CALLED_EVENT)` and then drops every flow whose description is empty — the filter is in the step and again in `detectWorkflowIds` — so a callable flow with none installs, runs when somebody presses the button, and is absent from the only surface that would pick it on its own. `DESCRIPTION_REQUIRED_EVENTS` derives which events need it.
+- feat(sdk/domain): `coverage.ts` and `microteia://domain-model/coverage` — the mechanism surface walked and classified: registered steps, the required inputs of the steps the model reaches, event-catalog entries, contribution points, and the properties of `MarketplacePlugin`, `ScreenModuleTemplate`, `ActionModuleTemplate`, `WorkflowModuleTemplate` and `PluginManifest`. 134 mechanisms, 52 reached, 82 not. The four property maps are `Record<keyof …, string | null>`, so a property added to any of them does not compile until somebody says whether the model should be able to ask for it; `coverage.test.ts` stamps the gap list, so a new one fails the build instead of being discovered three phases later. Nothing it reveals is implemented — the list is the deliverable.
+- feat(sdk/domain): `DomainEntity.tabs: { kind, because }[]` — notes, documents and tags are OFF by default and turning one on carries the reason, for the same reason a snapshot carries `reason`. Without it, "on purpose" and "out of habit" read identically six months later.
+- fix(sdk/domain): `behavior.state.reachability-not-verifiable` (info) — an effect that writes the state field with an EXPRESSION counts as an entry to every key, which silences both `unreachable` and `dead-end` for that entity. That loosening is the safe direction and it was silent: a clean report read as "everything is verified" when the honest reading is "nothing here can be verified". It now says which transition did it and how many keys it covered.
+- test(sdk/domain): `pipeline.test.ts` — one rule sentence through model, validation and plan, with every screen rule asserted, plus reapplication: the same rule twice proposes nothing, a changed rule proposes only the delta, and a rule that lost an entity proposes disabling. The three false-positive corpora now assert the whole screen plan too, and the only fixture change since they were written is a `description` on each gesture transition — the vocabulary did not exist when they were.
+
+#### [9.24.0] — 2026-08-27
+
+- fix(sdk/domain): `BehaviorInvariant` now declares `enforcement: 'blocks' | 'reacts'`, required on `scope: 'transition'`. The single scope mapped to the workflow condition plus an `exit` step and the table read "refuses the passage" — which is false on an `entity-event` trigger: `publishWorkflowEventOnEntityChange` is an `onDocumentWritten`, so by the time the event exists the document is committed, and `exit` is `halt: true`, which halts the rest of the flow and nothing else. A rule someone wrote as a barrier was installed as an after-the-fact notice, and the plan said otherwise. `BEHAVIOR_MECHANISMS` now carries a row for each, and the `blocks` row names the only two mechanisms on the write path: the field rule the repository throws on, and the record action's `disabledWhen`.
+- feat(sdk/domain): three detectors for the rule declared in the wrong place — `behavior.invariant.transition-without-enforcement`, `behavior.invariant.blocks-after-the-fact` (a blocking rule on a save or clock trigger, or on `scope: 'record'`, whose only mechanism is the `validate-object` STEP) and `behavior.invariant.transition-unknown`, which nothing checked before.
+- fix(sdk/domain): `mapTransition` returns a `fromCheck` per trigger, and the workflow condition it emits now resolves. It emitted `<field> == "<from>"` for `workflow.called` too, whose catalog entry has `fields: []` and `hasOld: false` — the condition resolved against nothing, so the `from` was decoration on every user-action transition. It is now `<parameter>.<field>`, with the `EntityReference` parameter named, plus the action's `record.<field>` as what actually stops the person; on `.saved` the check reports `old.<field>` and `changeType == "created"`, both already published in the payload.
+- fix(sdk/domain): a transition triggered by a delete no longer maps to a state `upsert` — it would resurrect the document that was just removed, holding one field.
+- fix(sdk/domain): `behavior.state.unreachable` and `behavior.state.dead-end` count a cross-entity effect that writes the state field. The detector only looked at transitions of the state's own entity and refused the commonest shape there is ("finishing the class completes every enrollment in it"); a literal value counts as that key, an expression counts as all of them.
+- test(sdk/domain): the three false-positive corpora carry behavior now — states, transitions and invariants, written as a modeller would. The `unreachable` above was found by them, and no fixture was adjusted.
+
+
+#### [9.23.0] — 2026-08-27
+
+- feat(sdk/domain): the domain model gained its missing half. `DomainModel.behavior` declares
+  `states`, `transitions` and `invariants` — what happens to a record, when, and who may — and it is
+  read by the SAME gate: `validate_domain_model` validates structure and behavior together, because
+  they cannot be checked apart. A state lives in a field, an effect writes to a collection, a total is
+  a derived field; two gates would each answer about the half it does not hold, and the second one
+  would only ever be called by whoever remembered it existed. `A_STATE_IS_A_KEY` names the rule the
+  way `SCREEN_IS_NOT_AN_ENTITY_MODEL` names the other one.
+- feat(sdk/domain): `behaviorMapping.ts` is the translation table, sibling to `STORAGE_MECHANISMS` and
+  written for the same reason: every trigger, guard, effect, invariant and permission names a
+  mechanism that exists, by its real identifier, and every step it cites is checked against
+  `CORE_STEP_DEFINITION_IDS` / `CONTROL_STEP_TYPES` in the test. `entity-event` becomes a workflow on
+  `<eventPrefix ?? collection>.saved`; `user-action` becomes a `workflow.called` definition plus the
+  record action that invokes it; a guard becomes a `Condition` node and never a `script` step; an
+  effect becomes `upsert` / `remove` / `notify` / `call-workflow`; a total becomes NO step at all,
+  because it is a field `aggregation` the kernel recomputes. `SCHEDULE_TRIGGER_SUPPORTED` is derived
+  from `WORKFLOW_EVENT_CATALOG`, so the refusal disappears on its own the day a time-based event is
+  published — the alternative was a sentence in the docs that stays true until someone adds the
+  mechanism.
+- feat(sdk/domain): nineteen detectors, each with a positive and a negative test, registered in the
+  same `Record<DomainIssueCode, Detector>` the documentation and `AGENTS.md` already read from. The two
+  that had no way of being caught before: `behavior.effect.self-trigger-loop` — an effect writing back
+  into the record that triggered it, which converges only when the flow's condition stops matching
+  (the state moved) or the second pass writes the same value (the platform does not publish when the
+  document did not change, which is the same property that makes recomputing an aggregate safe); and
+  `behavior.transition.compares-label` — a `from`/`to` naming an option's LABEL, which works the day it
+  is written and stops at the first rename, silently, because the identity is the key.
+- feat(sdk/domain): `behavior.transition.permission-on-event-trigger` refuses a permission on a
+  trigger with no actor. `accessFns.ts` answers `false` when `context.actor` is absent — granting on
+  the absence of a person would turn "nobody triggered this" into "can do anything" — so such a flow
+  never runs, and nothing reported it. `behavior.transition.actor-without-permission` is the other
+  direction: the actor a rule names ("the manager") is declared so that its missing permission becomes
+  a comparison instead of a judgement.
+- feat(sdk/domain): two refusals with no mechanism behind them, each carrying the path that does
+  exist. `behavior.transition.schedule-unsupported`: no event here is time-based and `Delay` was never
+  registered, so a plan that accepted a clock would promise a charge nobody ever sends.
+  `behavior.invariant.cross-record`: no layer enforces uniqueness — not the field rules, not
+  `validate-object`, not the security rules — and the closest declarable thing is a check AFTER the
+  fact, which must be presented as one because two writes at the same instant both pass.
+  `behavior.guard.needs-other-records` points at the `query` step rather than working around it.
+- feat(sdk/domain): `PlannedLookup.options` carries the state keys as SEED options, which is the one
+  artifact the behavior half owns — `LookupModuleTemplate.options` is written only when the collection
+  is empty, and it is the only place an option key can live in a package. Without it an installed
+  state machine has no state to pick, and the first key the office typed differently would stop every
+  transition.
+- feat(sdk): the behavior vocabulary is published in the barrel, for the reason the domain half was: an
+  author tests their own `domain-model.json` in their own `npm test`, and a rule that exists only in
+  the dialogue with the agent is not a rule. `sdkSurface.test.ts` carries both new lists. It does NOT
+  move `KERNEL_VERSION`: nothing here reaches the installed `.json`, and the seed options are a
+  manifest property that already existed.
+- docs(sdk/node): `AGENTS.md` §8.0.1 and `microteia://domain-model/rules` are derived from
+  `BEHAVIOR_MECHANISMS`, including which rows are refusals, and they say what stays a JUDGEMENT: which
+  states the business actually has, and whether an actor named in a rule is a new permission or one a
+  collection already yields for free.
+
+#### [9.22.0] — 2026-08-27
+
+- feat(sdk/node): the MCP catalog can finally see what an office RUNS. It read the `plugin.ts` files
+  in the authoring directory plus the two entities `entityRegistry.ts` still declares, and that left
+  out the two things that matter most in a real installation — a screen built in the Form Design and a
+  third-party extension already installed. `domain.field.belongs-to-other-entity` could not fire
+  against the entities it exists for: `Sale.customerName` is a defect only BECAUSE Customer is a thing,
+  and Customer was invisible. `installedCatalog.ts` reads a snapshot the Console exports, when one is
+  present; `workspaceCatalog.ts` adds it to what it already read. Without the file nothing changes.
+- feat(sdk/domain): `CatalogScreenInput.source` and a third value on `CatalogEntity.source`,
+  `installation`. Precedence is settled in `buildDomainCatalog` and again where the two lists are
+  joined: a collection in both sources resolves to the WORKSPACE one — it is the copy being edited —
+  and the installed screen is dropped whole, never merged. The divergence is reported as information.
+- feat(sdk/node): every answer that uses the catalog carries `catalogSources` — which entity came from
+  where, when the snapshot was taken, how old it is, which collections only the installation has, which
+  are shadowed, and what the snapshot omits. `list_entities` already refused to present a partial list
+  as complete; that posture now covers `validate_domain_model` and `generate_artifact_plan`, whose
+  verdicts are only as complete as the catalog behind them.
+- feat(sdk/node/workspace): `installed-catalog.json` joins `REQUIRED_IGNORES`, through the existing
+  reconciliation policy — it adds the line, never rewrites what diverges. It is spelled out even though
+  `*.json` already covers it: it is dropped for a different reason from the others, being tenant data
+  and not a build artifact.
+- fix(sdk/domain): `domain.entity.collection-exists` now says WHERE the collection already exists.
+  "It exists" reads differently when it is in the `plugin.ts` you are editing and when it is already
+  running in the office.
+
+#### [9.21.1] — 2026-08-27
+
+- fix(sdk/domain): the validator refused GOOD models. Three complete, realistic models — a support
+  desk, a clinic, a school — written without any care for the checks produced four errors, all false:
+  `Ticket.requesterCode`, `Ticket.agentNotes`, `Appointment.insuranceCode` and
+  `Enrollment.studentNumber`. In all four the data belongs to whoever declares it, and the detector
+  was reading "talks about X" as "belongs to X". No fixture was adjusted; two detectors changed.
+- fix(sdk/domain): the suffix now decides the weight of the evidence. `name`, `email`, `phone`,
+  `document`, `address` describe the OTHER entity and nothing else; `code`, `number`, `status`,
+  `notes` describe the relation seen from this side just as well. An ambiguous suffix counts as
+  identity only when the target actually declares that field. `domain.field.prefix-group` needs two
+  identity hits and stays an error; a single hit is `domain.field.belongs-to-other-entity` and drops
+  to **warning** — one field is a smell, and a gate that blocks on a smell is a gate people learn to
+  route around, after which it protects nothing.
+- feat(sdk/domain): `domain.field.reference-without-relationship` now also refuses a foreign key held
+  as a plain scalar (`<knownEntity>Id`). It is not ambiguous in either direction, and it is what keeps
+  the gate load-bearing after the downgrade above.
+- fix(sdk/domain): `domain.field.prefix-group-unnamed` no longer fires on keys produced by embedding a
+  value object. The concept has a name — the platform itself flattened it — and the model says so.
+- feat(sdk/domain): a declared exception survives the cycle. `source` and `reason` on a snapshot have
+  nowhere to live in `FieldDefinition` (every candidate property is text a person reads), so the
+  artifact ships a plain column and the next session raised the same field again, forever.
+  `CatalogException` carries the declaration on the plan (`applyPlanToCatalog`) and, between sessions,
+  in `<folder>/domain-model.json` beside the `plugin.ts` — a workspace file, so the shape of the
+  installed package is untouched and `KERNEL_VERSION` does not move. It comes back as
+  `domain.field.exception-on-record`, an info that names the source, the reason and the file.
+  Making it survive into the INSTALLED artifact would need a new property on `FieldDefinition`; that
+  moves the kernel contract and is not this change.
+- refactor(sdk/node/mcp)!: eight of the sixteen tools took no argument and did nothing — they were
+  documents costing an input schema in every agent's context, in every session, including one opened
+  only to validate a package. `list_entities`, `list_extension_points`, `list_workflow_steps`,
+  `list_workflow_events`, `list_record_commands`, `list_expression_functions`,
+  `list_workspace_plugins` and `workspace_info` are now resources under `microteia://`. Their bodies
+  are unchanged. **Breaking for any client prompt that called them by name**; the guides that name
+  them travel with the kernel and `microteia-plugin sync` rewrites them. The rule from here: takes an
+  argument or changes something, it is a tool; hands back a document, it is a resource.
+- fix(sdk/domain): the multi-reference materialisation ceiling in the storage table comes from
+  `MULTI_FK_MATERIALIZE_LIMIT` instead of a hand-written "50", with a test that refuses a second
+  literal in the guide.
+- test(sdk/domain): `corpus.test.ts` — three complete models that must validate with zero errors AND
+  zero warnings, plus one case per false positive that actually happened, and proof that the real
+  defects are still caught inside those same models.
+
+#### [9.21.0] — 2026-08-27
+
+- feat(sdk/domain): a formal domain model layer, run BEFORE any artifact is generated. `src/sdk/domain/`
+  carries the model (entities of kind entity|child|lookup|valueObject, fields carrying a `semanticType`
+  of scalar|reference|snapshot|derived|embedded, and relationships), a deterministic validator, and an
+  artifact planner. Nothing of it reaches an installed package, so `KERNEL_VERSION` stays at 2.7.0; the
+  symbols are authoring-only, like `AuthoredPlugin`. The rule it exists to enforce is named in the code
+  and in both generated guides: "A screen is not an entity model." A request describing what someone
+  SEES used to become one entity holding everybody else's data — a package that validates, installs and
+  runs, which is why nothing else here ever refused it.
+- feat(sdk/domain): `validateDomainModel` refuses, with severity error|warning|info and a fixed issue
+  shape `{ code, severity, entity, field, message, suggestion, howToDeclareException }`: a scalar field
+  that is an attribute of another known entity; a group of fields reproducing one; a collection modelled
+  as numbered fields; a many-to-many with its own attributes stored as an array of ids; and a field
+  typed `snapshot` without both `source` and `reason`. Duplication is not forbidden — the rule is that
+  source-of-truth data stays normalized unless a semantic reason is declared, which is what makes a line
+  item's frozen unit price pass.
+- feat(sdk/domain): `derived` carries `derivedFrom: 'self' | 'children'` because the two are different
+  mechanisms here — a `compute` expression cannot see child records and would return zero forever, with
+  nothing reporting it. `domain.aggregation.multi-via` refuses an aggregation over a `multi` reference
+  for a checkable reason: the recompute reads the parent id out of the child's field as a single value
+  and queries by one equality, so an array never matches.
+- feat(sdk/domain): `STORAGE_MECHANISMS` maps each relationship storage (reference, child, association,
+  lookup) to the declaration the platform actually accepts, and refuses loudly where none exists —
+  `onDelete: 'cascade'` and `'restrict'` have no mechanism (there is no cascade between business
+  entities), so they are errors pointing at the workflow on `<collection>.deleted` that does exist.
+- feat(sdk/domain): `buildArtifactPlan` returns a DIFF against the existing catalog, never a creation.
+  Field key and type are immutable, a single/multi change is refused as needing a declared migration,
+  nothing is ever removed, and changing an extension raises its version. `applyPlanToCatalog` makes the
+  second-run-proposes-nothing property a test rather than a promise.
+- feat(sdk/domain): embedded value objects are flattened with a `section` (`EMBEDDED_STRATEGY`), the
+  platform having no object field and no dotted field key, and the leaves therefore staying reachable
+  from compute, validate and the list filter.
+- feat(sdk/node/mcp): `list_entities`, `validate_domain_model` and `generate_artifact_plan`, plus the
+  `resources` capability with `microteia://domain-model/schema`, `microteia://entities` and
+  `microteia://domain-model/rules`. Every enum and table in them is derived from the kernel. The
+  existing thirteen tools are untouched.
+- feat(sdk/node/workspaceCatalog): the catalog is read from the `plugin.ts` files of this workspace plus
+  `ENTITY_REGISTRY`, and says so — it does not read the organization's database, and a screen built in
+  the Form Design is not listed.
+- docs(sdk/workspace): AGENTS.md and AUTHORING.md carry the modelling step, with the storage table and
+  the detector list derived from the validator. `CLAUDE.md` and `README.md` of `extensions/` untouched.
+- fix(sdk/node/mcp): `list_workspace_plugins` pointed at `microteia-plugin new`, a command that does not
+  exist; the guide's loop did the same. Both now say `create`.
+
 #### [9.20.0] — 2026-08-26
 
 - test(i18n): `declarativeCatalogs.test.ts` sweeps every DATA catalog of the kernel —

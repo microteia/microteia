@@ -28,6 +28,33 @@ import {
   NESTED_EVENT_SUFFIXES,
   WORKFLOW_CALLED_EVENT,
 } from '../../domain/schema/eventCatalog';
+import type { DomainIssue, ParseResult } from '../domain';
+import {
+  A_STATE_IS_A_KEY,
+  BEHAVIOR_MECHANISMS,
+  EMBEDDED_STRATEGY,
+  RULE_LEDGER_FILE,
+  SCREEN_IS_NOT_AN_ENTITY_MODEL,
+  SCREEN_PLAN_HUMAN_DECISIONS,
+  SCREEN_PLAN_RULES,
+  STORAGE_MECHANISMS,
+  buildArtifactPlan,
+  coverageGaps,
+  coverageSummary,
+  detectorList,
+  domainModelJsonSchema,
+  mechanismCoverage,
+  parseBusinessRule,
+  parseDomainModel,
+  transitionSummary,
+  validateDomainModel,
+  withRuleEntry,
+} from '../domain';
+import type { BusinessRule } from '../domain';
+import { MCP_PROMPTS, renderMcpPrompt } from './prompts';
+import { readWorkspaceCatalog } from './workspaceCatalog';
+import type { WorkspaceCatalog } from './workspaceCatalog';
+import { INSTALLED_CATALOG_FILE, INSTALLED_CATALOG_OMITS } from './installedCatalog';
 
 /**
  * O servidor MCP do diretório de extensões — o que faz uma IA no VSCode trabalhar com a VERDADE em vez
@@ -109,6 +136,105 @@ const findFiles = (dir: string, name: string, depth = 3): string[] => {
   });
 };
 
+// ─── Modelo de domínio ────────────────────────────────────────────────────────
+
+/**
+ * Uma REFERÊNCIA de mensagem escondida dentro de uma frase inglesa.
+ *
+ * O validador de modelo chama `screenIdIssue` e `validateFieldKey` de verdade — são eles que sabem
+ * quais nomes de coleção o kernel recusa — e o que eles devolvem é `@core.records/...`, porque rodam
+ * onde não existe idioma. O texto do problema carrega a referência como veio, e quem imprime é quem
+ * resolve. Mesma divisão de `describeIssues`, só que a referência aqui está no meio da frase.
+ */
+const MESSAGE_REF_IN_TEXT = /@[a-z0-9.-]+\/[A-Za-z0-9._-]+/g;
+
+const resolveRefsInText = (text: string): string =>
+  text.replace(MESSAGE_REF_IN_TEXT, (reference) => describeMessage(reference));
+
+const describeIssue = (issue: DomainIssue): Record<string, unknown> => ({
+  code: issue.code,
+  severity: issue.severity,
+  ...(issue.entity === undefined ? {} : { entity: issue.entity }),
+  ...(issue.field === undefined ? {} : { field: issue.field }),
+  message: resolveRefsInText(issue.message),
+  suggestion: resolveRefsInText(issue.suggestion),
+  howToDeclareException: resolveRefsInText(issue.howToDeclareException),
+});
+
+/**
+ * O catálogo é lido a cada chamada, e não guardado: o autor edita um `plugin.ts` entre uma pergunta e
+ * a seguinte, e um catálogo em cache responderia sobre o diretório de dois minutos atrás — que é
+ * exatamente o tipo de resposta que este servidor existe para não dar.
+ */
+const readModel = (input: Record<string, unknown>): ParseResult => {
+  const raw = input.model;
+  if (raw === undefined || raw === null || raw === '') {
+    throw new Error(
+      'Send the domain model in "model", as a JSON object or a JSON string. '
+      + 'Read the resource microteia://domain-model/schema for its shape.',
+    );
+  }
+  return parseDomainModel(raw);
+};
+
+/**
+ * DE ONDE O CATÁLOGO VEIO, dito em toda resposta que o usa.
+ *
+ * Um catálogo apresentado como completo quando não é vale menos que nenhum: o agente para de
+ * perguntar, e passa a modelar contra uma lista que não tem o que mais importa. A tool sempre acertou
+ * nisso enquanto só havia o workspace, e continua acertando agora que há uma segunda fonte — a
+ * diferença é que agora ela também diz QUANDO o retrato foi tirado, e avisa quando ele envelheceu.
+ */
+const catalogProvenance = (read: WorkspaceCatalog): Record<string, unknown> => {
+  const installed = read.installed;
+
+  if (installed === null) {
+    return {
+      workspace: `${read.sources.length} plugin.ts compiled in this directory`,
+      installation: null,
+      caveats: [
+        ...read.installedProblems,
+        `No ${INSTALLED_CATALOG_FILE} here, so nothing this organization actually runs is in this list: a `
+        + 'screen somebody built in the Form Design, or an extension already installed there, is invisible. '
+        + 'ASK rather than assume the list is everything — or run "microteia export-catalog --tenant '
+        + '<tenantId>" in the installation to bring a snapshot of it in.',
+      ],
+    };
+  }
+
+  return {
+    workspace: `${read.sources.length} plugin.ts compiled in this directory`,
+    installation: {
+      file: installed.path,
+      projectId: installed.projectId,
+      office: `${installed.tenantName} (${installed.tenantId})`,
+      takenAt: installed.exportedAt,
+      ageDays: installed.ageDays,
+      stale: installed.stale,
+      staleAfterDays: installed.staleAfterDays,
+      kernelVersion: installed.kernelVersion,
+      consoleVersion: installed.consoleVersion,
+      extensions: installed.extensions.map((one) =>
+        `${one.name} ${one.version} (${one.id})${one.active ? '' : ' — switched off'}`),
+      collectionsOnlyThere: installed.addedCollections,
+      collectionsAlsoInWorkspace: installed.shadowedCollections,
+      listsAdded: installed.lookups,
+      tagListsAdded: installed.tagLists,
+      omits: INSTALLED_CATALOG_OMITS,
+    },
+    caveats: [
+      ...read.installedProblems,
+      ...(installed.shadowedCollections.length === 0 ? [] : [
+        `${installed.shadowedCollections.join(', ')} exist in BOTH sources. The workspace version won — it is `
+        + 'the one being edited — and the installed one was dropped whole. That is information, not a '
+        + 'problem: what runs there may already have fields this plugin.ts does not.',
+      ]),
+      'It is a SNAPSHOT. Nothing keeps it in step with the organization — anything created there since it '
+      + 'was taken is missing from this list.',
+    ],
+  };
+};
+
 const TOOLS: ToolDefinition[] = [
   {
     name: 'validate_plugin',
@@ -162,38 +288,6 @@ const TOOLS: ToolDefinition[] = [
     },
   },
   {
-    name: 'list_extension_points',
-    description:
-      'Every extension point a package may contribute to, with the API version and which '
-      + 'implementation kinds each accepts. "code" is restricted: a third-party package may declare '
-      + 'it, but the code only runs after an administrator reviews and trusts it.',
-    inputSchema: { type: 'object', properties: {} },
-    run: () => pretty({
-      kernelVersion: KERNEL_VERSION,
-      implKindsThatRunWithoutReview: THIRD_PARTY_IMPL_KINDS,
-      // `code` NÃO está na lista acima, e a distinção é a que mais importa aqui: qualquer pacote pode
-      // declará-lo, e a validação não o recusa. O que ele paga é revisão humana antes de executar.
-      codeImplNote:
-        'A package may declare impl kind "code" (a view or a startup, delivered as source). It is not '
-        + 'refused by validation; it simply does not execute until an administrator of the organization '
-        + 'reads the source and trusts it, and the trust is bound to that exact code by hash. See '
-        + 'AUTHORING.md, "Code trust".',
-      points: ALL_POINTS.map((point) => ({
-        id: point.id,
-        apiVersion: point.apiVersion,
-        // Resolvidos, não crus: enquanto o tradutor do terminal carregava só `core.marketplace`, isto
-        // devolvia `@core.data/point.entity.title` — e a `description`, que é o campo que diz PARA QUE
-        // SERVE o ponto, era descartada de todo.
-        title: describeMessage(point.title),
-        description: point.description === undefined ? undefined : describeMessage(point.description),
-        ownerPluginId: point.ownerPluginId,
-        allowedImplKinds: point.allowedImplKinds,
-        implRequired: point.implRequired,
-        multiple: point.multiple,
-      })),
-    }),
-  },
-  {
     name: 'describe_host_module',
     description:
       'The TypeScript declarations of a module that extension CODE (a view or startup) may import. '
@@ -214,24 +308,6 @@ const TOOLS: ToolDefinition[] = [
         return `"${input.name}" is not available to extensions. Available:\n${names.map((n) => `- ${n}`).join('\n')}`;
       }
       return block;
-    },
-  },
-  {
-    name: 'list_workspace_plugins',
-    description: 'The extensions authored in this workspace, with their id, version and current problems.',
-    inputSchema: { type: 'object', properties: {} },
-    run: (_input, root) => {
-      const entries = findFiles(root, 'plugin.ts');
-      if (entries.length === 0) return 'No plugin.ts found. Create one with "microteia-plugin new <id>".';
-      return entries.map((entry) => {
-        try {
-          const result = buildPlugin({ entry });
-          const { manifest } = result.package;
-          return `${relative(root, entry)}\n  ${manifest.id} v${manifest.version} — ${describeIssues(result.issues)}`;
-        } catch (error) {
-          return `${relative(root, entry)}\n  does not compile: ${error instanceof Error ? error.message : String(error)}`;
-        }
-      }).join('\n\n');
     },
   },
   {
@@ -279,58 +355,6 @@ const TOOLS: ToolDefinition[] = [
         ? head
         : `${head}\n\n// ─── referenced by it ───\n\n${expanded.join('\n\n')}`;
     },
-  },
-  {
-    name: 'list_expression_functions',
-    description:
-      'The functions available to every declarative expression of this installation — a field\'s '
-      + '"compute" / "validate" / "hidden when", an action\'s "hidden when", a nav badge, a workflow '
-      + 'condition. Derived from the engine itself, not from documentation. AUTHORING.md, '
-      + '"Expressions", has the scope each slot sees, which is what decides whether an expression is '
-      + 'even able to answer.',
-    inputSchema: { type: 'object', properties: {} },
-    run: () => pretty({
-      kernelVersion: KERNEL_VERSION,
-      functions: [...FIELD_EXPRESSION_FUNCTION_NAMES].sort(),
-      operators: ['+', '-', '*', '/', '%', '^', '==', '!=', '>', '>=', '<', '<=', 'and', 'or', 'not', '!', '? :', 'in'],
-      note:
-        'A name resolved as an operator is not repeated as a function: "not", "abs", "ceil" and '
-        + '"floor" work through the operator form. "hasPermission" answers about whoever is looking, '
-        + 'and accepts the patterns "<entity>.delete", "*.delete", "invoices.*" and "invoice%.read".',
-    }),
-  },
-  {
-    name: 'list_workflow_steps',
-    description:
-      'The step catalog: every `stepDefinitionId` a workflow may name, with its category, what it '
-      + 'receives and what it publishes. Derived from the kernel catalog, not from documentation. '
-      + 'THIS is the tool to call before writing a workflow — a step is the one thing a declaration '
-      + 'cannot invent, and an id that is not here does not run. Call `describe_workflow_step` for the '
-      + 'full input shape of one of them.',
-    inputSchema: { type: 'object', properties: {} },
-    run: () => pretty({
-      kernelVersion: KERNEL_VERSION,
-      steps: CORE_STEP_CATALOG.map((step) => ({
-        stepDefinitionId: step.id,
-        name: describeMessage(step.name),
-        description: describeMessage(step.description),
-        category: step.category,
-        stepType: step.type,
-        inputs: step.inputs.map((input) => `${input.id}${input.required ? '' : '?'}: ${input.type}`),
-        outputs: step.outputDefinitions.map((output) => `${output.id}: ${output.type}`),
-        dynamicOutputs: step.dynamicOutputs?.kind ?? null,
-      })),
-      controlStepTypes: CONTROL_STEP_TYPES,
-      unimplementedStepTypes: UNIMPLEMENTED_STEP_TYPES,
-      notes: [
-        'Every step of a workflow names one entry above through `stepDefinitionId`, EXCEPT the control '
-        + `nodes (${CONTROL_STEP_TYPES.join(', ')}), where it stays empty.`,
-        `Step types the engine does not run: ${UNIMPLEMENTED_STEP_TYPES.join(', ') || 'none'}. `
-        + 'Declaring one is refused by validate_plugin.',
-        'An extension may contribute its own steps to the "workflow.step" point, so a package that '
-        + 'declares a dependency may name an id that is not listed here.',
-      ],
-    }),
   },
   {
     name: 'describe_workflow_step',
@@ -392,6 +416,401 @@ const TOOLS: ToolDefinition[] = [
         dynamicOutputs: step.dynamicOutputs ?? null,
       });
     },
+  },
+  {
+    name: 'validate_domain_model',
+    description:
+      'THE GATE, and the first thing to call after a business request. Give it a domain model — entities, '
+      + 'what each field MEANS, and the relationships — and it answers with what is wrong, deterministically. '
+      + `"${SCREEN_IS_NOT_AN_ENTITY_MODEL}" A request arrives describing what someone SEES, and the naive reading `
+      + 'produces one entity with everybody else\'s data inside it. That reading validates, installs and runs; '
+      + 'nothing else in this platform refuses it. This does. A model with an ERROR does not become an artifact plan. '
+      + 'It does not forbid duplication: a copy is fine when it is DECLARED (semanticType "snapshot" with source and reason). '
+      + 'It is ALSO the gate for what HAPPENS: the optional `behavior` block declares the states a record moves through, '
+      + `what moves it, and what must stay true. ${A_STATE_IS_A_KEY} Declare it whenever the request describes a `
+      + 'lifecycle — it almost always does, in the same sentence as the structure ("a sale is born as a draft; only the '
+      + 'manager cancels an invoiced one"), and waiting to be asked for "the automation" is waiting for a request that '
+      + 'never comes. Every trigger, effect and invariant is translated to a mechanism that exists here, and the ones '
+      + 'that do not exist — a clock, a uniqueness constraint — are refused with the reason instead of something that '
+      + 'looks similar. '
+      + 'Read microteia://domain-model/schema for the shape and microteia://domain-model/rules for every check.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        model: { type: 'object', description: 'The domain model. A JSON string is accepted too.' },
+      },
+      required: ['model'],
+    },
+    run: (input, root) => {
+      const parsed = readModel(input);
+      if (!parsed.ok) {
+        return pretty({ ok: false, blocking: parsed.issues.length, issues: parsed.issues.map(describeIssue) });
+      }
+      const read = readWorkspaceCatalog(root);
+      const result = validateDomainModel(parsed.model, read.catalog);
+      const issues = [...parsed.issues, ...result.issues];
+      return pretty({
+        ok: result.ok && parsed.issues.length === 0,
+        rule: SCREEN_IS_NOT_AN_ENTITY_MODEL,
+        // O veredito é tão completo quanto o catálogo que o produziu, e quem lê tem de saber disso:
+        // um campo passa por "não pertence a outra entidade" apenas porque a entidade não está aqui.
+        catalogSources: catalogProvenance(read),
+        entities: result.expanded.model.entities.map((one) => `${one.name} (${one.kind})`),
+        relationships: result.relationships.map((one) => ({
+          reads: `${one.relationship.targetEntity} <- ${one.relationship.sourceEntity}.${one.fieldKey}`,
+          storage: one.mechanism.storage,
+          declaredAs: one.mechanism.declaration,
+          storedAs: one.mechanism.storedAs,
+        })),
+        // O comportamento traduzido, do mesmo jeito que os relacionamentos: o que precisa existir, pelo
+        // identificador do mecanismo real. Quem escreve o `plugin.ts` lê daqui e não relê o modelo —
+        // é assim que duas leituras deixam de poder discordar.
+        transitions: result.transitions.map((one) => ({
+          reads: transitionSummary(one),
+          eventName: one.eventName || undefined,
+          action: one.actionKey,
+          condition: one.workflowCondition,
+          steps: one.steps,
+          permission: one.permission,
+          // Onde o `from` é conferido em RUNTIME, e o que o gatilho traz para conferi-lo. Sem isto o
+          // `from` era prosa: quem lia o plano escrevia a automação sem condição nenhuma, e ela
+          // rodava em qualquer estado. `workflow.called` não carrega o registro — o campo do estado
+          // chega lá por um parâmetro de referência, e é o que `requiresParameter` nomeia.
+          fromCheck: one.fromCheck,
+          supported: one.supported || undefined,
+        })),
+        blocking: issues.filter((one) => one.severity === 'error').length,
+        issues: issues.map(describeIssue),
+        next: result.ok
+          ? 'Call generate_artifact_plan with the same model.'
+          : 'Fix the errors and call this again. There is no plan until they are gone.',
+      });
+    },
+  },
+  {
+    name: 'generate_artifact_plan',
+    description:
+      'Turns a VALIDATED domain model into a plan: which screens, fields, references and option lists must exist, '
+      + 'what each SCREEN looks like, and in which target (an extension package, or this organization\'s own screens). '
+      + 'It returns a PLAN, never files — you write the plugin.ts, and then validate_plugin checks it. The plan is a '
+      + 'DIFF against what already exists here, so running it twice proposes nothing the second time; it also says '
+      + 'what it cannot do, instead of working around it: a field type is immutable, a change to the shape of stored '
+      + 'data needs a declared migration, and nothing is ever removed. '
+      + 'The screen half is decided by RULE, not by taste — a root entity gets a list and a detail, a child gets a tab '
+      + 'of its parent and never a menu entry, an option list never gets a screen, a derived field is read-only, the '
+      + 'state field goes to the list, and every user-action transition gets one record action with the disabledWhen '
+      + 'the blocking invariant produced. What it does NOT decide it hands back, named: icon, menu order, and where '
+      + 'ambiguous actions appear. '
+      + `Pass the \`rule\` too, and the plan becomes that rule's BATCH: it reads the ${RULE_LEDGER_FILE} of this `
+      + 'workspace and answers with the delta — the same rule twice proposes nothing, a changed rule proposes only '
+      + 'what changed, and a rule that lost an entity proposes DISABLING what it no longer needs, never deleting.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        model: { type: 'object', description: 'The domain model, the same one validate_domain_model accepted.' },
+        rule: {
+          type: 'object',
+          description: 'Optional but recommended: the BusinessRule this model came from — { id, statement, actors, '
+            + 'concepts, invariants, processes, acceptance }. A bare sentence is accepted and read as the statement.',
+        },
+      },
+      required: ['model'],
+    },
+    run: (input, root) => {
+      const parsed = readModel(input);
+      if (!parsed.ok) {
+        return pretty({ ok: false, issues: parsed.issues.map(describeIssue) });
+      }
+      const read = readWorkspaceCatalog(root);
+      let rule: BusinessRule | undefined;
+      const ruleIssues: ReturnType<typeof describeIssue>[] = [];
+      if (input.rule !== undefined) {
+        const readRule = parseBusinessRule(input.rule);
+        if (readRule.rule === null) ruleIssues.push(...readRule.issues.map(describeIssue));
+        else rule = readRule.rule;
+      }
+      const plan = buildArtifactPlan(parsed.model, read.catalog, {
+        ...(rule === undefined ? {} : { rule }),
+        ledger: read.ruleLedger,
+      });
+      return pretty({
+        ok: plan.ok,
+        target: plan.target,
+        // O plano é um DIFF contra o que já existe, então de onde veio "o que já existe" é parte do
+        // resultado: uma coleção que só o retrato conhece muda o diff, e um retrato velho o desatualiza.
+        catalogSources: catalogProvenance(read),
+        extensionId: plan.extensionId,
+        relationships: plan.relationships,
+        screens: plan.screens.map((screen) => ({
+          operation: screen.operation,
+          entity: screen.entity,
+          kind: screen.kind,
+          collection: screen.collection,
+          titleFieldKey: screen.titleFieldKey,
+          parent: screen.parent,
+          retainedFields: screen.retainedFields.length > 0 ? screen.retainedFields : undefined,
+          fields: screen.fields.map((field) => ({
+            operation: field.operation,
+            key: field.key,
+            type: field.type,
+            required: field.required || undefined,
+            multi: field.multi || undefined,
+            refEntity: field.refEntity,
+            lookupCollection: field.lookupCollection,
+            aggregation: field.aggregation,
+            computeExpression: field.computeExpression,
+            section: field.section,
+            reason: field.reason,
+          })),
+        })),
+        lookups: plan.lookups,
+        // O PLANO DE TELAS. Ele vem por regra, e as regras viajam com ele: quem lê o plano tem de poder
+        // conferir a decisão contra a regra que a produziu, em vez de confiar nela.
+        screenPlan: {
+          rules: SCREEN_PLAN_RULES.map((one) => `${one.subject} -> ${one.decides} (${one.declaredAs})`),
+          screens: plan.screenPlan.screens.map((screen) => ({
+            entity: screen.entity,
+            collection: screen.collection,
+            // O id UNIVERSAL da tela. Ele vem daqui e é COPIADO como está: é por ele que a versão
+            // seguinte do pacote atualiza esta tela em vez de instalar uma segunda ao lado dela.
+            sourceId: screen.sourceId,
+            sourceIdFrom: screen.sourceIdFrom,
+            presence: screen.presence,
+            titleFieldKey: screen.titleFieldKey,
+            parent: screen.parent,
+            listColumns: screen.listColumns,
+            filterableFields: screen.filterableFields,
+            sections: screen.sections.length > 0 ? screen.sections : undefined,
+            readOnlyFields: screen.readOnlyFields.length > 0 ? screen.readOnlyFields : undefined,
+            referenceFields: screen.referenceFields.length > 0 ? screen.referenceFields : undefined,
+            actions: screen.actions.length > 0 ? screen.actions : undefined,
+            tabs: screen.tabs.length > 0 ? screen.tabs : undefined,
+            humanDecisions: screen.humanDecisions.length > 0 ? screen.humanDecisions : undefined,
+          })),
+          notScreens: plan.screenPlan.notScreens,
+          // Nomeado, e não omitido: um plano que não diz o que ele NÃO decidiu parece completo, e o
+          // custo aparece quando o escritório recebe um ícone que não tem nada a ver com o negócio dele.
+          humanDecisions: plan.screenPlan.humanDecisions,
+        },
+        // A regra mudou e algo que ela criou não é mais necessário. DESATIVAR, nunca excluir.
+        deactivations: plan.deactivations.length > 0 ? plan.deactivations : undefined,
+        // A INTEGRIDADE DO LIVRO, dita em voz alta e não só dentro dos problemas. Ele é escrito à mão e
+        // passou a ser a fonte da identidade das telas: uma linha que escorregou não tem sintoma hoje e
+        // instala uma segunda tela na próxima passada, em todo escritório de uma vez.
+        ledgerIntegrity: plan.ledgerIntegrity === null
+          ? undefined
+          : {
+            file: plan.ledgerIntegrity.file,
+            ok: plan.ledgerIntegrity.findings.length === 0,
+            findings: plan.ledgerIntegrity.findings,
+            because: plan.ledgerIntegrity.findings.length === 0
+              ? 'the ledger and what exists here say the same thing.'
+              : 'the ledger is the source of each screen\'s universal identity, and a book that slipped makes the '
+                + 'next pass derive a NEW identity for a screen that already exists — which installs a second screen '
+                + 'instead of updating it. Write `trace.contents` before writing the package.',
+          },
+        trace: plan.trace === null
+          ? undefined
+          : {
+            file: plan.trace.file,
+            unchanged: plan.trace.delta.unchanged,
+            added: plan.trace.delta.added,
+            dropped: plan.trace.delta.dropped,
+            // O arquivo pronto para gravar. Este servidor NÃO escreve em disco — quem grava é quem
+            // tem as ferramentas de arquivo, e é a mesma postura de `build_plugin`.
+            writeThisTo: plan.trace.file,
+            contents: withRuleEntry(read.ruleLedger, plan.trace.entry),
+          },
+        migrationsRequired: plan.migrationsRequired,
+        versionBump: plan.versionBump,
+        issues: [...ruleIssues, ...plan.issues.map(describeIssue)],
+        howToWriteIt: plan.ok
+          ? [
+            'Each planned screen with operation "create" or "update" is one entry of `screens` in the package '
+            + '(or a `screenPatch` when the collection belongs to another extension).',
+            'A field with operation "unchanged" is already installed: declare it exactly as it is, and the update will '
+            + 'recognise it instead of duplicating it.',
+            'The relationship is already resolved above — refEntity, parentEntity, parentFieldKey and parentRelation. '
+            + 'Do not read it again from the model; that is how two readings start to disagree.',
+            'Copy each screen\'s `sourceId` from the screen plan verbatim, and never recompute one: it is how an '
+            + 'update recognises the screen, and a value that changes between two versions installs a SECOND screen '
+            + 'beside the first, leaving the records in a collection with no screen over it.',
+            'The screen plan above already decided the list columns, the filters, the sections and the record actions. '
+            + 'The disabledWhen of each action is not a suggestion: it carries the transition\'s `from` plus every '
+            + 'invariant declared with enforcement "blocks", and that is the only place a blocking invariant can sit '
+            + 'on a gesture.',
+            ...(plan.trace === null
+              ? [`Pass the \`rule\` next time and write the ${RULE_LEDGER_FILE} the answer hands you: without it, the `
+                + 'next version of this rule cannot be a diff of what this one generated.']
+              : [`Write \`trace.contents\` to \`<folder>/${plan.trace.file}\`. That is the whole traceability `
+                + 'mechanism, and it is a workspace file on purpose — stamping the ruleId inside the installed '
+                + 'artifact would change the shape of the package.']),
+            'Then run validate_plugin. This plan says what must exist; that one says whether what you wrote installs.',
+          ]
+          : ['This plan is blocked. Read the issues above before writing anything.'],
+      });
+    },
+  },
+  {
+    name: 'read_authoring_guide',
+    description:
+      'The authoring manual for this platform: package anatomy, extension points, the curated API, '
+      + 'code trust, translation rules and size limits. Read it before writing an extension. Pass a '
+      + 'query to get only the matching sections.',
+    inputSchema: {
+      type: 'object',
+      properties: { query: { type: 'string', description: 'Optional: only sections matching this.' } },
+    },
+    run: (input, root) => {
+      const candidates = [
+        join(root, 'AUTHORING.md'),
+        join(root, '../AUTHORING.md'),
+        resolve(__dirname, '../../../AUTHORING.md'),
+      ];
+      const path = candidates.find((candidate) => existsSync(candidate));
+      if (path === undefined) return 'AUTHORING.md not found in this workspace.';
+      const guide = readFileSync(path, 'utf8');
+      if (typeof input.query !== 'string' || input.query.trim() === '') return guide;
+
+      const query = input.query.toLowerCase();
+      const sections = guide.split(/\n(?=## )/);
+      const matching = sections.filter((section) => section.toLowerCase().includes(query));
+      return matching.length > 0
+        ? matching.join('\n\n')
+        : `Nothing about "${input.query}". Sections:\n${sections
+          .map((section) => section.split('\n')[0])
+          .filter((heading) => heading.startsWith('#'))
+          .join('\n')}`;
+    },
+  },
+];
+
+
+/**
+ * LEITURAS PURAS — o que era ferramenta e virou recurso.
+ *
+ * Toda ferramenta é contexto que TODO agente carrega em TODA sessão, inclusive quem abriu o editor
+ * só para validar um pacote. Oito destas oito não recebiam argumento nenhum e não faziam nada: eram
+ * documentos, e um documento servido como ferramenta é um documento que custa um esquema de entrada
+ * na janela de todo mundo, o tempo inteiro.
+ *
+ * O corpo de cada uma está INTACTO abaixo — o que mudou foi a superfície, não a resposta. A regra que
+ * separa as duas listas é a mesma daqui para a frente: **recebe argumento ou muda alguma coisa, é
+ * ferramenta; devolve um documento, é recurso.**
+ */
+const PURE_READS: ToolDefinition[] = [
+  {
+    name: 'list_entities',
+    description:
+      'The entities this workspace knows: the two the kernel still declares, every collection the '
+      + 'plugin.ts files here describe, and — when a snapshot of the installation has been exported — '
+      + 'everything the organization actually runs. THIS is what you look at before modelling anything: '
+      + 'a field called "customerName" is a defect only because Customer is a thing, and this is how you '
+      + 'find out that it is. It never reads a database itself. Every entity says where it came from, '
+      + 'and the answer says when the snapshot was taken and what it leaves out, so you can tell a '
+      + 'complete list from a partial one instead of assuming.',
+    inputSchema: { type: 'object', properties: {} },
+    run: (_input, root) => {
+      const read = readWorkspaceCatalog(root);
+      const { catalog, sources, failures } = read;
+      return pretty({
+        kernelVersion: KERNEL_VERSION,
+        rule: SCREEN_IS_NOT_AN_ENTITY_MODEL,
+        catalogSources: catalogProvenance(read),
+        entities: catalog.entities.map((entity) => ({
+          collection: entity.collection,
+          screenKey: entity.screenKey === entity.collection ? undefined : entity.screenKey,
+          labelSingular: describeMessage(entity.labelSingular),
+          labelPlural: describeMessage(entity.labelPlural),
+          titleFieldKey: entity.titleFieldKey,
+          source: entity.source,
+          ownerPluginId: entity.ownerPluginId,
+          parent: entity.parent,
+          fields: entity.fields.map((field) => {
+            const suffix = field.refEntity
+              ? ` -> ${field.refEntity}${field.multi ? '[]' : ''}`
+              : field.lookupCollection ? ` (list ${field.lookupCollection})` : '';
+            return `${field.key}: ${field.type}${field.required ? '!' : ''}${suffix}`;
+          }),
+        })),
+        lookups: catalog.lookups.map((one) => ({ collection: one.collection, label: describeMessage(one.label) })),
+        tagLists: catalog.tagLists.map((one) => ({ collection: one.collection, label: describeMessage(one.label) })),
+        readFrom: sources,
+        couldNotCompile: failures,
+        notes: [
+          'source "kernel" = declared in the platform itself; source "workspace" = brought by a plugin.ts in this '
+          + 'directory, which is what you can edit; source "installation" = read from the exported snapshot, which is '
+          + 'what the organization already runs and which nothing here can change.',
+          'The kernel declares no business entity, and never will: a new one belongs to an extension package or to this '
+          + 'organization\'s own screens.',
+        ],
+      });
+    },
+  },
+  {
+    name: 'list_extension_points',
+    description:
+      'Every extension point a package may contribute to, with the API version and which '
+      + 'implementation kinds each accepts. "code" is restricted: a third-party package may declare '
+      + 'it, but the code only runs after an administrator reviews and trusts it.',
+    inputSchema: { type: 'object', properties: {} },
+    run: () => pretty({
+      kernelVersion: KERNEL_VERSION,
+      implKindsThatRunWithoutReview: THIRD_PARTY_IMPL_KINDS,
+      // `code` NÃO está na lista acima, e a distinção é a que mais importa aqui: qualquer pacote pode
+      // declará-lo, e a validação não o recusa. O que ele paga é revisão humana antes de executar.
+      codeImplNote:
+        'A package may declare impl kind "code" (a view or a startup, delivered as source). It is not '
+        + 'refused by validation; it simply does not execute until an administrator of the organization '
+        + 'reads the source and trusts it, and the trust is bound to that exact code by hash. See '
+        + 'AUTHORING.md, "Code trust".',
+      points: ALL_POINTS.map((point) => ({
+        id: point.id,
+        apiVersion: point.apiVersion,
+        // Resolvidos, não crus: enquanto o tradutor do terminal carregava só `core.marketplace`, isto
+        // devolvia `@core.data/point.entity.title` — e a `description`, que é o campo que diz PARA QUE
+        // SERVE o ponto, era descartada de todo.
+        title: describeMessage(point.title),
+        description: point.description === undefined ? undefined : describeMessage(point.description),
+        ownerPluginId: point.ownerPluginId,
+        allowedImplKinds: point.allowedImplKinds,
+        implRequired: point.implRequired,
+        multiple: point.multiple,
+      })),
+    }),
+  },
+  {
+    name: 'list_workflow_steps',
+    description:
+      'The step catalog: every `stepDefinitionId` a workflow may name, with its category, what it '
+      + 'receives and what it publishes. Derived from the kernel catalog, not from documentation. '
+      + 'THIS is the tool to call before writing a workflow — a step is the one thing a declaration '
+      + 'cannot invent, and an id that is not here does not run. Call `describe_workflow_step` for the '
+      + 'full input shape of one of them.',
+    inputSchema: { type: 'object', properties: {} },
+    run: () => pretty({
+      kernelVersion: KERNEL_VERSION,
+      steps: CORE_STEP_CATALOG.map((step) => ({
+        stepDefinitionId: step.id,
+        name: describeMessage(step.name),
+        description: describeMessage(step.description),
+        category: step.category,
+        stepType: step.type,
+        inputs: step.inputs.map((input) => `${input.id}${input.required ? '' : '?'}: ${input.type}`),
+        outputs: step.outputDefinitions.map((output) => `${output.id}: ${output.type}`),
+        dynamicOutputs: step.dynamicOutputs?.kind ?? null,
+      })),
+      controlStepTypes: CONTROL_STEP_TYPES,
+      unimplementedStepTypes: UNIMPLEMENTED_STEP_TYPES,
+      notes: [
+        'Every step of a workflow names one entry above through `stepDefinitionId`, EXCEPT the control '
+        + `nodes (${CONTROL_STEP_TYPES.join(', ')}), where it stays empty.`,
+        `Step types the engine does not run: ${UNIMPLEMENTED_STEP_TYPES.join(', ') || 'none'}. `
+        + 'Declaring one is refused by validate_plugin.',
+        'An extension may contribute its own steps to the "workflow.step" point, so a package that '
+        + 'declares a dependency may name an id that is not listed here.',
+      ],
+    }),
   },
   {
     name: 'list_workflow_events',
@@ -458,35 +877,40 @@ const TOOLS: ToolDefinition[] = [
     }),
   },
   {
-    name: 'read_authoring_guide',
+    name: 'list_expression_functions',
     description:
-      'The authoring manual for this platform: package anatomy, extension points, the curated API, '
-      + 'code trust, translation rules and size limits. Read it before writing an extension. Pass a '
-      + 'query to get only the matching sections.',
-    inputSchema: {
-      type: 'object',
-      properties: { query: { type: 'string', description: 'Optional: only sections matching this.' } },
-    },
-    run: (input, root) => {
-      const candidates = [
-        join(root, 'AUTHORING.md'),
-        join(root, '../AUTHORING.md'),
-        resolve(__dirname, '../../../AUTHORING.md'),
-      ];
-      const path = candidates.find((candidate) => existsSync(candidate));
-      if (path === undefined) return 'AUTHORING.md not found in this workspace.';
-      const guide = readFileSync(path, 'utf8');
-      if (typeof input.query !== 'string' || input.query.trim() === '') return guide;
-
-      const query = input.query.toLowerCase();
-      const sections = guide.split(/\n(?=## )/);
-      const matching = sections.filter((section) => section.toLowerCase().includes(query));
-      return matching.length > 0
-        ? matching.join('\n\n')
-        : `Nothing about "${input.query}". Sections:\n${sections
-          .map((section) => section.split('\n')[0])
-          .filter((heading) => heading.startsWith('#'))
-          .join('\n')}`;
+      'The functions available to every declarative expression of this installation — a field\'s '
+      + '"compute" / "validate" / "hidden when", an action\'s "hidden when", a nav badge, a workflow '
+      + 'condition. Derived from the engine itself, not from documentation. AUTHORING.md, '
+      + '"Expressions", has the scope each slot sees, which is what decides whether an expression is '
+      + 'even able to answer.',
+    inputSchema: { type: 'object', properties: {} },
+    run: () => pretty({
+      kernelVersion: KERNEL_VERSION,
+      functions: [...FIELD_EXPRESSION_FUNCTION_NAMES].sort(),
+      operators: ['+', '-', '*', '/', '%', '^', '==', '!=', '>', '>=', '<', '<=', 'and', 'or', 'not', '!', '? :', 'in'],
+      note:
+        'A name resolved as an operator is not repeated as a function: "not", "abs", "ceil" and '
+        + '"floor" work through the operator form. "hasPermission" answers about whoever is looking, '
+        + 'and accepts the patterns "<entity>.delete", "*.delete", "invoices.*" and "invoice%.read".',
+    }),
+  },
+  {
+    name: 'list_workspace_plugins',
+    description: 'The extensions authored in this workspace, with their id, version and current problems.',
+    inputSchema: { type: 'object', properties: {} },
+    run: (_input, root) => {
+      const entries = findFiles(root, 'plugin.ts');
+      if (entries.length === 0) return 'No plugin.ts found. Create one with "microteia-plugin create".';
+      return entries.map((entry) => {
+        try {
+          const result = buildPlugin({ entry });
+          const { manifest } = result.package;
+          return `${relative(root, entry)}\n  ${manifest.id} v${manifest.version} — ${describeIssues(result.issues)}`;
+        } catch (error) {
+          return `${relative(root, entry)}\n  does not compile: ${error instanceof Error ? error.message : String(error)}`;
+        }
+      }).join('\n\n');
     },
   },
   {
@@ -511,6 +935,212 @@ const TOOLS: ToolDefinition[] = [
       });
     },
   },
+];
+
+/**
+ * A URI de cada leitura pura. Ela é o que um cliente anexa ao contexto, então é contrato — mais
+ * frágil que o nome de uma ferramenta, porque renomeá-la quebra o anexo sem erro nenhum.
+ */
+const PURE_READ_URIS: Record<string, string> = {
+  list_entities: 'microteia://entities',
+  list_extension_points: 'microteia://extension-points',
+  list_workflow_steps: 'microteia://workflow/steps',
+  list_workflow_events: 'microteia://workflow/events',
+  list_record_commands: 'microteia://record-commands',
+  list_expression_functions: 'microteia://expression-functions',
+  list_workspace_plugins: 'microteia://workspace/plugins',
+  workspace_info: 'microteia://workspace/info',
+};
+
+const pureRead = (name: string, root: string): string => {
+  const entry = PURE_READS.find((one) => one.name === name);
+  if (entry === undefined) throw new Error(`Unknown read "${name}".`);
+  return entry.run({}, root);
+};
+
+// ─── Recursos ─────────────────────────────────────────────────────────────────
+
+interface ResourceDefinition {
+  uri: string;
+  name: string;
+  description: string;
+  mimeType: string;
+  read: (root: string) => string;
+}
+
+/**
+ * O que é RECURSO e o que é FERRAMENTA, e por que a distinção não é decorativa.
+ *
+ * Ferramenta é uma pergunta com resposta variável; recurso é um documento estável que o cliente pode
+ * anexar ao contexto sem gastar uma chamada. O schema do modelo e o catálogo de entidades são
+ * exatamente isso — o primeiro é a forma que o modelo tem de ter antes de a primeira linha ser
+ * escrita, o segundo é o que já existe. Servi-los só por tool obrigaria o agente a lembrar de
+ * perguntar, e o defeito que esta camada persegue nasce justamente de não perguntar.
+ */
+const RESOURCES: ResourceDefinition[] = [
+  {
+    uri: 'microteia://domain-model/schema',
+    name: 'Domain model schema',
+    description:
+      'The JSON Schema of the domain model this installation validates. Every enum in it is derived from the '
+      + 'kernel itself — the field types, the aggregation operators, the four ways a relationship can be stored — '
+      + 'so it never describes a contract other than the one installed here.',
+    mimeType: 'application/json',
+    read: () => pretty(domainModelJsonSchema()),
+  },
+  {
+    uri: 'microteia://entities',
+    name: 'Entities this workspace knows',
+    description:
+      'The entity catalog: the two the kernel declares, every collection the plugin.ts files here describe, and '
+      + 'everything the organization runs when a snapshot of the installation has been exported into this directory. '
+      + 'Read it BEFORE modelling: a field that belongs to another entity is a defect only if that entity exists, '
+      + 'and this is where you find out. It reads no database — the snapshot is a file the Console writes, and the '
+      + 'answer says when it was taken.',
+    mimeType: 'application/json',
+    read: (root) => pureRead('list_entities', root),
+  },
+  {
+    uri: 'microteia://domain-model/rules',
+    name: 'Domain model rules',
+    description:
+      'Every check the model is put through, and how each storage maps to a real mechanism. Derived from the '
+      + 'validator, not written beside it.',
+    mimeType: 'text/markdown',
+    read: () => [
+      '# Domain model rules',
+      '',
+      `> ${SCREEN_IS_NOT_AN_ENTITY_MODEL}`,
+      '',
+      'Model the domain before writing an artifact. The pipeline is: understand the request, name the entities, '
+      + 'declare the relationships, pass `validate_domain_model`, then `generate_artifact_plan`, then write the '
+      + 'package and run `validate_plugin`.',
+      '',
+      '## Duplication is allowed. Silent duplication is not.',
+      '',
+      'The rule is not "never duplicate". It is: data that is a source of truth stays normalized unless there is an '
+      + 'explicit semantic reason to materialise or snapshot it. A line item\'s unit price is a valid snapshot — '
+      + 'the price charged on the day must not change when the catalogue does. Declare it: '
+      + '`{ semanticType: "snapshot", source: "Product.price", reason: "..." }`, or use the relationship\'s '
+      + '`denormalize`, which is the platform\'s own mechanism and keeps the copy in step.',
+      '',
+      '## How a relationship is stored',
+      '',
+      '| storage | cardinality | what is declared | what is stored |',
+      '|---|---|---|---|',
+      ...STORAGE_MECHANISMS.map((one) =>
+        `| \`${one.storage}\` | ${one.cardinalities.join(', ')} | ${one.declaration} | ${one.storedAs} |`),
+      '',
+      'A relationship is declared from the side that STORES the link. `one-to-many` is the one exception — it is '
+      + 'written from the "one" side, the way the business sentence arrives, and inverted before anything reads it.',
+      '',
+      `Nested objects: this platform has no object field and no dotted field key, so an embedded value object is `
+      + `stored flat with a section (strategy \`${EMBEDDED_STRATEGY}\`), which keeps its leaves reachable from `
+      + '`compute`, `validate` and the list filter.',
+      '',
+      '## What HAPPENS, and how each part is really declared',
+      '',
+      `> ${A_STATE_IS_A_KEY}`,
+      '',
+      'The structure is half the request. The other half — what moves a record, when, and who may — arrives in the same '
+      + 'sentence, and it goes in the `behavior` block of the same model, checked by the same gate. A state machine is '
+      + 'a select served by a list; a transition is a workflow plus, when a person causes it, the record action that '
+      + 'invokes it.',
+      '',
+      '| declares | mechanism | written as |',
+      '|---|---|---|',
+      ...BEHAVIOR_MECHANISMS.map((one) =>
+        `| \`${one.declares}\` (${one.concern})${one.supported ? '' : ' — **REFUSED**'} | ${one.mechanism} | ${one.declaredAs} |`),
+      '',
+      'Two of them have no mechanism at all, and the plan says so instead of translating them into something that looks '
+      + 'similar: a CLOCK (nothing here is time-based, and the `Delay` step type was never registered) and UNIQUENESS '
+      + 'between records (no layer enforces it — not the field rules, not the object validation, not the security '
+      + 'rules; the one unique thing is the document id). A guard is a condition over the ONE record in hand: when it '
+      + 'needs to read others, the `query` step is the path, not a workaround.',
+      '',
+      'And a permission is only answerable when a person acts. With no actor — an automation born from a save — '
+      + '`hasPermission` answers false, always, so a permission on an event trigger is a flow that never runs.',
+      '',
+      '## Screens — decided by rule',
+      '',
+      'The plan does not only say which collections must exist; it says what the SCREEN is. Those decisions are rules, '
+      + 'not taste, and here they are. What the rules do NOT decide, the plan hands back named — an icon and a menu '
+      + 'order are statements about the business, and a plan that guesses them looks complete and is not.',
+      '',
+      '| what arrives | what is decided | declared as |',
+      '|---|---|---|',
+      ...SCREEN_PLAN_RULES.map((one) => `| ${one.subject} | ${one.decides} | ${one.declaredAs} |`),
+      '',
+      'Left to a person, every time:',
+      '',
+      ...SCREEN_PLAN_HUMAN_DECISIONS.map((one) => `- ${one}`),
+      '',
+      '## Checks',
+      '',
+      '| code | severity | what it catches |',
+      '|---|---|---|',
+      ...detectorList().map((one) => `| \`${one.code}\` | ${one.severity} | ${one.summary} |`),
+      '',
+      'ERROR blocks the artifact plan. WARNING and INFO do not. Every problem carries a `suggestion` and a '
+      + '`howToDeclareException` — when there is no exception, it says so, and that is an answer too.',
+      '',
+    ].join('\n'),
+  },
+  {
+    uri: 'microteia://domain-model/coverage',
+    name: 'What the domain model cannot say',
+    description:
+      'The mechanisms this platform HAS and the domain model has no vocabulary for — derived from the step catalog, '
+      + 'the event catalog, the extension points and the package types themselves. Read it when a rule seems to need '
+      + 'something the model will not express: the answer is probably here, with what it costs. It is a report, not a '
+      + 'roadmap.',
+    mimeType: 'text/markdown',
+    read: () => {
+      const summary = coverageSummary();
+      const gaps = coverageGaps();
+      return [
+        '# Mechanism coverage of the domain model',
+        '',
+        `Of ${mechanismCoverage().length} mechanisms on this platform, the model's vocabulary reaches `
+        + `${mechanismCoverage().length - gaps.length} and does NOT reach ${gaps.length}.`,
+        '',
+        'This list is DERIVED: the steps come from the step catalog, the events from the event catalog, the points '
+        + 'from the point arrays, and the properties from the package types — which are closed by `keyof`, so a '
+        + 'property added to a screen, an action, a workflow or the manifest does not compile until somebody says '
+        + 'whether the model should be able to ask for it.',
+        '',
+        'It exists because of one defect and its whole family: a `user-action` transition produced a callable flow '
+        + 'with no description, and without a description the flow is invisible to the step that picks a flow from a '
+        + 'sentence. The model had no way to know — there was no description field. Nobody found out for three '
+        + 'phases. A mechanism with no vocabulary is invisible until somebody trips over it, and the answer to that '
+        + 'is not attention: it is a derived list, with a test.',
+        '',
+        '| surface | total | reached | gaps |',
+        '|---|---|---|---|',
+        ...summary.map((one) => `| ${one.surface} | ${one.total} | ${one.reached} | ${one.gaps} |`),
+        '',
+        '## What is out of reach, and what it costs',
+        '',
+        ...summary.filter((one) => one.gaps > 0).flatMap((line) => [
+          `### ${line.surface}`,
+          '',
+          ...gaps.filter((one) => one.surface === line.surface)
+            .map((one) => `- \`${one.id}\` — ${one.note.replace('NO VOCABULARY: ', '')}`),
+          '',
+        ]),
+        'When a rule needs one of these, say so and hand the decision back. Translating it into something that looks '
+        + 'similar is the one failure mode this whole subsystem exists to prevent.',
+        '',
+      ].join('\n');
+    },
+  },
+  ...PURE_READS.map((one) => ({
+    uri: PURE_READ_URIS[one.name],
+    name: one.name.replace(/_/g, ' ').replace(/^./, (first) => first.toUpperCase()),
+    description: one.description,
+    mimeType: one.name === 'list_workspace_plugins' ? 'text/plain' : 'application/json',
+    read: (root: string) => one.run({}, root),
+  })).filter((one) => one.uri !== 'microteia://entities'),
 ];
 
 interface JsonRpcRequest {
@@ -538,7 +1168,16 @@ export const serveMcp = (root: string): Promise<number> => new Promise((resolveS
     if (method === 'initialize') {
       respond(id, {
         protocolVersion: PROTOCOL_VERSION,
-        capabilities: { tools: {} },
+        // As três declaradas, e cada uma porque um cliente correto NÃO chama o método de uma
+        // capability que o servidor não declarou. Sem `resources`, o schema do modelo e o catálogo de
+        // entidades ficariam servidos por um método que ninguém pergunta.
+        //
+        // `prompts` ficava de fora com o argumento de que "não há aqui texto para o usuário
+        // escolher", e o argumento estava errado: a ORDEM de trabalhar uma regra de negócio —
+        // entender, modelar, validar, planejar — é exatamente um texto para o usuário escolher, e
+        // enquanto ela vivia num parágrafo do AGENTS.md ela valia para quem tinha lido o AGENTS.md.
+        // Ver `prompts.ts`.
+        capabilities: { tools: {}, resources: {}, prompts: {} },
         serverInfo: { name: 'microteia-plugin', version: KERNEL_VERSION },
       });
       return;
@@ -550,6 +1189,54 @@ export const serveMcp = (root: string): Promise<number> => new Promise((resolveS
       respond(id, {
         tools: TOOLS.map(({ name, description, inputSchema }) => ({ name, description, inputSchema })),
       });
+      return;
+    }
+
+    if (method === 'resources/list') {
+      respond(id, {
+        resources: RESOURCES.map(({ uri, name, description, mimeType }) => ({ uri, name, description, mimeType })),
+      });
+      return;
+    }
+
+    if (method === 'prompts/list') {
+      respond(id, {
+        prompts: MCP_PROMPTS.map(({ name, description, arguments: args }) => ({
+          name,
+          description,
+          arguments: args,
+        })),
+      });
+      return;
+    }
+
+    if (method === 'prompts/get') {
+      const name = params.name as string;
+      try {
+        const { description, text } = renderMcpPrompt(
+          name,
+          (params.arguments as Record<string, string>) ?? {},
+          promptContext(),
+        );
+        respond(id, { description, messages: [{ role: 'user', content: { type: 'text', text } }] });
+      } catch (error) {
+        respondError(id, -32602, error instanceof Error ? error.message : String(error));
+      }
+      return;
+    }
+
+    if (method === 'resources/read') {
+      const uri = params.uri as string;
+      const resource = RESOURCES.find((candidate) => candidate.uri === uri);
+      if (resource === undefined) {
+        respondError(id, -32602, `Unknown resource "${uri}". Call resources/list.`);
+        return;
+      }
+      try {
+        respond(id, { contents: [{ uri: resource.uri, mimeType: resource.mimeType, text: resource.read(root) }] });
+      } catch (error) {
+        respondError(id, -32603, error instanceof Error ? error.message : String(error));
+      }
       return;
     }
 
@@ -598,8 +1285,41 @@ export const serveMcp = (root: string): Promise<number> => new Promise((resolveS
   process.stdin.on('end', () => resolveServer(0));
 });
 
+/**
+ * O que o prompt nomeado pode CITAR: as ferramentas e os recursos que este servidor de fato publica.
+ * Derivado, e não uma lista ao lado — um prompt que mandasse chamar uma ferramenta renomeada manda o
+ * agente contra uma parede, e é o tipo de erro que só aparece na máquina de quem instalou.
+ */
+const promptContext = (): { toolNames: string[]; resourceUris: string[] } => ({
+  toolNames: TOOLS.map((tool) => tool.name),
+  resourceUris: RESOURCES.map((resource) => resource.uri),
+});
+
 /** Exposto para teste: a lista de ferramentas é contrato com quem escreve o prompt do lado do cliente. */
 export const mcpToolNames = (): string[] => TOOLS.map((tool) => tool.name);
+
+/**
+ * Idem para os prompts: o NOME de um prompt é o que o autor escolhe no editor, e renomeá-lo quebra o
+ * gesto sem erro nenhum.
+ */
+export const mcpPrompts = (): { name: string; args: string[] }[] =>
+  MCP_PROMPTS.map((one) => ({ name: one.name, args: one.arguments.map((arg) => arg.name) }));
+
+export const readMcpPrompt = (name: string, args: Record<string, string> = {}): string =>
+  renderMcpPrompt(name, args, promptContext()).text;
+
+/** O esquema de entrada de cada ferramenta — é ele que prova que nenhuma delas é leitura pura. */
+export const mcpTools = (): { name: string; inputSchema: Record<string, unknown> }[] =>
+  TOOLS.map(({ name, inputSchema }) => ({ name, inputSchema }));
+
+/** Idem, para os recursos: a URI é o que um cliente anexa ao contexto, e renomeá-la quebra o anexo. */
+export const mcpResourceUris = (): string[] => RESOURCES.map((resource) => resource.uri);
+
+export const readMcpResource = (uri: string, root: string): string => {
+  const resource = RESOURCES.find((candidate) => candidate.uri === uri);
+  if (resource === undefined) throw new Error(`Unknown resource "${uri}".`);
+  return resource.read(root);
+};
 
 export const runMcpTool = (name: string, input: Record<string, unknown>, root: string): string => {
   const tool = TOOLS.find((candidate) => candidate.name === name);

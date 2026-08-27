@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { resolve } from 'node:path';
-import { mcpToolNames, runMcpTool } from './mcp';
+import { mcpPrompts, mcpResourceUris, mcpToolNames, mcpTools, readMcpPrompt, readMcpResource, runMcpTool } from './mcp';
 import { CORE_STEP_DEFINITION_IDS } from '../../domain/schema/workflowStepCatalog';
+import { CUSTOM_FIELD_TYPES } from '../../domain/schema/fieldRules';
+import { DOMAIN_ISSUE_CODES, RULE_LEDGER_FILE, SCREEN_PLAN_RULES, STORAGE_MECHANISMS, coverageGaps } from '../domain';
 
 /**
  * O servidor MCP é o que faz uma IA no editor trabalhar com a VERDADE desta instalação em vez de um
@@ -19,16 +21,51 @@ describe('o servidor MCP de autoria', () => {
       'describe_host_module',
       'describe_sdk_type',
       'describe_workflow_step',
-      'list_expression_functions',
-      'list_extension_points',
-      'list_record_commands',
-      'list_workflow_events',
-      'list_workflow_steps',
-      'list_workspace_plugins',
+      'generate_artifact_plan',
       'read_authoring_guide',
+      'validate_domain_model',
       'validate_plugin',
-      'workspace_info',
     ]);
+  });
+
+  /**
+   * A regra que separa as duas listas, e ela é verificável: **ferramenta recebe argumento ou muda
+   * alguma coisa; leitura pura é recurso.** Oito das dezesseis não recebiam nada e não faziam nada —
+   * eram documentos custando um esquema de entrada na janela de todo agente, em toda sessão,
+   * inclusive na de quem abriu o editor só para validar um pacote.
+   */
+  it('nenhuma ferramenta é leitura pura: toda uma recebe argumento ou age', () => {
+    const ACTIONS = ['validate_plugin', 'build_plugin', 'validate_domain_model', 'generate_artifact_plan'];
+    for (const tool of mcpTools()) {
+      const properties = (tool.inputSchema as { properties?: Record<string, unknown> }).properties ?? {};
+      const takesArgument = Object.keys(properties).length > 0;
+      expect(takesArgument || ACTIONS.includes(tool.name), `${tool.name} não recebe argumento e não age`).toBe(true);
+    }
+  });
+
+  /**
+   * Os RECURSOS são contrato do mesmo jeito que as ferramentas, e mais frágeis: uma URI é o que um
+   * cliente anexa ao contexto, e renomeá-la quebra o anexo em silêncio, sem erro nenhum.
+   */
+  it('publica exatamente os recursos declarados', () => {
+    expect(mcpResourceUris().sort()).toEqual([
+      'microteia://domain-model/coverage',
+      'microteia://domain-model/rules',
+      'microteia://domain-model/schema',
+      'microteia://entities',
+      'microteia://expression-functions',
+      'microteia://extension-points',
+      'microteia://record-commands',
+      'microteia://workflow/events',
+      'microteia://workflow/steps',
+      'microteia://workspace/info',
+      'microteia://workspace/plugins',
+    ]);
+  });
+
+  /** Todo recurso publicado tem de responder — uma URI listada e ilegível é pior que ausente. */
+  it('todo recurso publicado responde', () => {
+    for (const uri of mcpResourceUris()) expect(readMcpResource(uri, ROOT).length).toBeGreaterThan(0);
   });
 
   /**
@@ -37,7 +74,7 @@ describe('o servidor MCP de autoria', () => {
    * execução", e o construtor visual dentro do app sabia mais que o agente que escrevia a extensão.
    */
   it('enumera o catálogo de passos, com o que cada um recebe e publica', () => {
-    const answer = JSON.parse(runMcpTool('list_workflow_steps', {}, ROOT)) as {
+    const answer = JSON.parse(readMcpResource('microteia://workflow/steps', ROOT)) as {
       steps: { stepDefinitionId: string; name: string; inputs: string[]; outputs: string[] }[];
       controlStepTypes: string[];
       unimplementedStepTypes: string[];
@@ -85,7 +122,7 @@ describe('o servidor MCP de autoria', () => {
   });
 
   it('serve a gramática dos eventos, e a distinção de caminho que mais causa erro', () => {
-    const answer = JSON.parse(runMcpTool('list_workflow_events', {}, ROOT)) as {
+    const answer = JSON.parse(readMcpResource('microteia://workflow/events', ROOT)) as {
       forms: { eventName: string }[];
       notes: string[];
     };
@@ -101,7 +138,7 @@ describe('o servidor MCP de autoria', () => {
    * derivada.
    */
   it('deriva os gestos de registro do kernel', () => {
-    const answer = JSON.parse(runMcpTool('list_record_commands', {}, ROOT)) as {
+    const answer = JSON.parse(readMcpResource('microteia://record-commands', ROOT)) as {
       commands: { command: string; title: string }[];
     };
     const commands = answer.commands.map((one) => one.command).sort();
@@ -110,7 +147,7 @@ describe('o servidor MCP de autoria', () => {
   });
 
   it('lista os pontos de extensão com a versão do contrato e o que cada um aceita', () => {
-    const answer = JSON.parse(runMcpTool('list_extension_points', {}, ROOT)) as {
+    const answer = JSON.parse(readMcpResource('microteia://extension-points', ROOT)) as {
       kernelVersion: string;
       implKindsThatRunWithoutReview: string[];
       codeImplNote: string;
@@ -129,7 +166,7 @@ describe('o servidor MCP de autoria', () => {
    * nenhuma, e a conclusão bloquearia trabalho legítimo sem nada acusar.
    */
   it('não deixa a lista de kinds sugerir que uma view é proibida a terceiros', () => {
-    const answer = JSON.parse(runMcpTool('list_extension_points', {}, ROOT)) as { codeImplNote: string };
+    const answer = JSON.parse(readMcpResource('microteia://extension-points', ROOT)) as { codeImplNote: string };
     expect(answer.codeImplNote).toMatch(/may declare/);
     expect(answer.codeImplNote).toMatch(/trusts it/);
   });
@@ -174,7 +211,7 @@ describe('o servidor MCP de autoria', () => {
 
   /** As funções vêm do motor, não de uma cópia escrita à mão num texto. */
   it('lista as funções de expressão que a instalação de fato resolve', () => {
-    const answer = JSON.parse(runMcpTool('list_expression_functions', {}, ROOT)) as {
+    const answer = JSON.parse(readMcpResource('microteia://expression-functions', ROOT)) as {
       functions: string[];
       operators: string[];
     };
@@ -216,8 +253,285 @@ describe('o servidor MCP de autoria', () => {
     expect(runMcpTool('validate_plugin', { json: good }, ROOT)).toContain('would install');
   });
 
+
+  /**
+   * O MODELO DE DOMÍNIO pelo MCP. A regra que estas três ferramentas existem para impor tem nome — "A
+   * screen is not an entity model" — e o que se prova aqui é que ela chega ao agente como REPROVAÇÃO,
+   * e não como parágrafo de manual: o modelo achatado é recusado, e o recusado não vira plano.
+   */
+  describe('a camada de modelo de domínio', () => {
+    const flatSale = {
+      target: 'screenDefinitions',
+      entities: [
+        { name: 'Customer', kind: 'entity', collection: 'customers', titleField: 'name', fields: [{ key: 'name', label: 'Name', semanticType: 'scalar', type: 'text' }] },
+        {
+          name: 'Sale',
+          kind: 'entity',
+          collection: 'sales',
+          titleField: 'code',
+          fields: [
+            { key: 'code', label: 'Code', semanticType: 'scalar', type: 'text' },
+            { key: 'customerName', label: 'Customer name', semanticType: 'scalar', type: 'text' },
+            { key: 'customerEmail', label: 'Customer email', semanticType: 'scalar', type: 'text' },
+          ],
+        },
+      ],
+      relationships: [],
+    };
+
+    const modelled = {
+      target: 'screenDefinitions',
+      entities: [
+        { name: 'Customer', kind: 'entity', collection: 'customers', titleField: 'name', fields: [{ key: 'name', label: 'Name', semanticType: 'scalar', type: 'text' }] },
+        {
+          name: 'Sale',
+          kind: 'entity',
+          collection: 'sales',
+          titleField: 'code',
+          fields: [
+            { key: 'code', label: 'Code', semanticType: 'scalar', type: 'text' },
+            { key: 'customerId', label: 'Customer', semanticType: 'reference', target: 'Customer' },
+          ],
+        },
+      ],
+      relationships: [{
+        sourceEntity: 'Sale',
+        targetEntity: 'Customer',
+        sourceField: 'customerId',
+        type: 'many-to-one',
+        storage: 'reference',
+        ownership: 'association',
+      }],
+    };
+
+    it('lista as entidades que este workspace conhece, dizendo de onde cada uma veio', () => {
+      const answer = JSON.parse(readMcpResource('microteia://entities', ROOT)) as {
+        rule: string;
+        entities: { collection: string; source: string; labelSingular: string }[];
+      };
+      expect(answer.rule).toContain('A screen is not an entity model');
+      // As duas do kernel, e são só essas: nenhuma entidade de negócio mora aqui.
+      expect(answer.entities.map((one) => one.collection).sort()).toEqual(['members', 'tenant']);
+      expect(answer.entities.every((one) => one.source === 'kernel')).toBe(true);
+      // Rótulo RESOLVIDO: quem lê é um modelo, e `@core.data/member.singular` não diz o que é.
+      expect(answer.entities.every((one) => !one.labelSingular.startsWith('@'))).toBe(true);
+    });
+
+    it('reprova a venda que carrega o cliente dentro dela', () => {
+      const answer = JSON.parse(runMcpTool('validate_domain_model', { model: flatSale }, ROOT)) as {
+        ok: boolean;
+        blocking: number;
+        issues: { code: string; severity: string; howToDeclareException: string }[];
+      };
+      expect(answer.ok).toBe(false);
+      expect(answer.blocking).toBeGreaterThan(0);
+      const issue = answer.issues.find((one) => one.code === 'domain.field.prefix-group');
+      expect(issue?.severity).toBe('error');
+      // Toda regra tem porta de saída, e ela vai escrita no problema.
+      expect(issue?.howToDeclareException).toContain('snapshot');
+    });
+
+    it('aceita o mesmo pedido modelado como duas entidades e uma relação', () => {
+      const answer = JSON.parse(runMcpTool('validate_domain_model', { model: modelled }, ROOT)) as {
+        ok: boolean;
+        relationships: { storage: string; declaredAs: string }[];
+        next: string;
+      };
+      expect(answer.ok).toBe(true);
+      expect(answer.relationships[0].storage).toBe('reference');
+      expect(answer.relationships[0].declaredAs).toContain('refEntity');
+      expect(answer.next).toContain('generate_artifact_plan');
+    });
+
+    it('o modelo com erro NÃO vira plano — é o portão', () => {
+      const answer = JSON.parse(runMcpTool('generate_artifact_plan', { model: flatSale }, ROOT)) as {
+        ok: boolean;
+        screens: unknown[];
+        issues: { code: string }[];
+      };
+      expect(answer.ok).toBe(false);
+      expect(answer.screens).toEqual([]);
+      expect(answer.issues[0].code).toBe('domain.plan.blocked-by-model');
+    });
+
+    it('o plano diz o que deve existir, com a relação já resolvida, e não escreve arquivo nenhum', () => {
+      const answer = JSON.parse(runMcpTool('generate_artifact_plan', { model: modelled }, ROOT)) as {
+        ok: boolean;
+        screens: { operation: string; collection: string; fields: { key: string; refEntity?: string }[] }[];
+        howToWriteIt: string[];
+      };
+      expect(answer.ok).toBe(true);
+      expect(answer.screens.map((one) => one.collection).sort()).toEqual(['customers', 'sales']);
+      expect(answer.screens.every((one) => one.operation === 'create')).toBe(true);
+      expect(answer.screens.find((one) => one.collection === 'sales')?.fields.find((one) => one.key === 'customerId')?.refEntity)
+        .toBe('customers');
+      expect(answer.howToWriteIt.join(' ')).toContain('validate_plugin');
+    });
+
+    it('um modelo malformado volta como problema, nunca como exceção de protocolo', () => {
+      const answer = JSON.parse(runMcpTool('validate_domain_model', { model: '{ nope' }, ROOT)) as {
+        ok: boolean;
+        issues: { code: string }[];
+      };
+      expect(answer.ok).toBe(false);
+      expect(answer.issues[0].code).toBe('domain.model.malformed');
+    });
+
+    it('a referência de mensagem do kernel chega RESOLVIDA ao problema', () => {
+      const reserved = JSON.parse(JSON.stringify(modelled)) as typeof modelled;
+      reserved.entities[1].collection = 'workflow_definitions';
+      const answer = JSON.parse(runMcpTool('validate_domain_model', { model: reserved }, ROOT)) as {
+        issues: { code: string; message: string }[];
+      };
+      const issue = answer.issues.find((one) => one.code === 'domain.entity.collection-invalid');
+      expect(issue?.message).not.toMatch(/@core\.records\//);
+      expect(issue?.message).toMatch(/reserved/i);
+    });
+
+    it('o schema do modelo é DERIVADO do kernel, e não uma cópia em prosa', () => {
+      const schema = JSON.parse(readMcpResource('microteia://domain-model/schema', ROOT)) as {
+        $defs: { field: { properties: { type: { enum: string[] } } } };
+      };
+      expect(schema.$defs.field.properties.type.enum).toEqual([...CUSTOM_FIELD_TYPES]);
+    });
+
+    it('as regras publicadas cobrem todos os detectores, sem lista escrita à mão', () => {
+      const rules = readMcpResource('microteia://domain-model/rules', ROOT);
+      for (const code of DOMAIN_ISSUE_CODES) expect(rules).toContain(`\`${code}\``);
+      for (const mechanism of STORAGE_MECHANISMS) expect(rules).toContain(`\`${mechanism.storage}\``);
+      expect(rules).toContain('Duplication is allowed. Silent duplication is not.');
+    });
+
+    it('o catálogo de entidades é servido como recurso, e responde', () => {
+      const answer = JSON.parse(readMcpResource('microteia://entities', ROOT)) as { entities: unknown[] };
+      expect(answer.entities.length).toBeGreaterThan(0);
+    });
+
+    /**
+     * As regras do plano de TELAS chegam ao agente junto com a decisão que elas produziram. Um plano
+     * que dissesse "esta coluna vai na listagem" sem dizer por quê é indistinguível de um chute, e a
+     * pessoa que revisa não tem como conferir nada.
+     */
+    it('o plano diz as regras de tela que o produziram, e o que ele NÃO decidiu', () => {
+      const answer = JSON.parse(runMcpTool('generate_artifact_plan', { model: modelled }, ROOT)) as {
+        screenPlan: { rules: string[]; humanDecisions: string[]; screens: { collection: string; presence: string }[] };
+      };
+      for (const rule of SCREEN_PLAN_RULES) {
+        expect(answer.screenPlan.rules.some((one) => one.startsWith(rule.subject))).toBe(true);
+      }
+      expect(answer.screenPlan.humanDecisions.some((one) => one.includes('icon'))).toBe(true);
+      expect(answer.screenPlan.humanDecisions.some((one) => one.includes('sidebarOrder'))).toBe(true);
+      expect(answer.screenPlan.screens.map((one) => one.presence)).toEqual(['menu-and-detail', 'menu-and-detail']);
+    });
+
+    /**
+     * A identidade universal de cada tela chega na resposta, com a procedência dela. É o valor que
+     * quem escreve o `plugin.ts` copia como está: recalculá-lo instala uma SEGUNDA tela na versão
+     * seguinte, em todo escritório, sem sintoma nenhum.
+     */
+    it('o plano emite o sourceId de cada tela, e diz que ele é para copiar como está', () => {
+      const answer = JSON.parse(runMcpTool('generate_artifact_plan', { model: modelled }, ROOT)) as {
+        screenPlan: { screens: { collection: string; sourceId: string; sourceIdFrom: string }[] };
+        howToWriteIt: string[];
+      };
+      expect(answer.screenPlan.screens.map((one) => `${one.collection}=${one.sourceId}`)).toEqual([
+        'customers=screenDefinitions:customers',
+        'sales=screenDefinitions:sales',
+      ]);
+      expect(answer.screenPlan.screens.every((one) => one.sourceIdFrom === 'derived')).toBe(true);
+      expect(answer.howToWriteIt.some((one) => one.includes('verbatim, and never recompute one'))).toBe(true);
+    });
+
+    /** A regra vira leva: o plano devolve o arquivo pronto, e não escreve nada. */
+    it('com a regra, o plano devolve o vínculo pronto para gravar — e não grava', () => {
+      const answer = JSON.parse(runMcpTool('generate_artifact_plan', {
+        model: modelled,
+        rule: {
+          id: 'sale-belongs-to-a-customer',
+          statement: 'Every sale belongs to one customer.',
+          concepts: ['Sale', 'Customer'],
+          acceptance: ['a sale cannot be saved without a customer'],
+        },
+      }, ROOT)) as {
+        trace: { file: string; writeThisTo: string; contents: { rules: { ruleId: string; screens: string[] }[] } };
+      };
+      expect(answer.trace.file).toBe(RULE_LEDGER_FILE);
+      expect(answer.trace.writeThisTo).toBe(RULE_LEDGER_FILE);
+      const entry = answer.trace.contents.rules.find((one) => one.ruleId === 'sale-belongs-to-a-customer');
+      expect(entry?.screens).toEqual(['customers', 'sales']);
+    });
+
+    /**
+     * O relatório de cobertura é servido como RECURSO, e o número dele é derivado. Uma lacuna nova
+     * aparece nesta resposta sem ninguém reescrever o texto — que é o oposto de uma frase de
+     * documentação afirmando que a lista está completa.
+     */
+    it('publica o que o vocabulário do modelo NÃO alcança, derivado', () => {
+      const report = readMcpResource('microteia://domain-model/coverage', ROOT);
+      expect(report).toContain(`does NOT reach ${coverageGaps().length}`);
+      for (const gap of coverageGaps()) expect(report).toContain(`\`${gap.id}\``);
+    });
+  });
+
+  /**
+   * A CAPABILITY `prompts` — o gesto. O nome do prompt é contrato com o editor: renomeá-lo quebra a
+   * escolha do usuário sem erro nenhum, exatamente como uma URI de recurso.
+   */
+  describe('a capability prompts', () => {
+    it('publica exatamente o prompt nomeado, com os argumentos dele', () => {
+      expect(mcpPrompts()).toEqual([
+        { name: 'model_business_rule', args: ['statement', 'target', 'extensionId'] },
+      ]);
+    });
+
+    it('conduz as quatro etapas, na ordem, e cita o enunciado que recebeu', () => {
+      const text = readMcpPrompt('model_business_rule', {
+        statement: 'Only the manager cancels an invoiced sale.',
+        target: 'extension',
+        extensionId: 'com.example.sales',
+      });
+      const steps = ['1. Understand', '2. Model', '3. Validate', '4. Plan'];
+      const positions = steps.map((step) => text.indexOf(step));
+      expect(positions.every((one) => one >= 0)).toBe(true);
+      expect([...positions].sort((a, b) => a - b)).toEqual(positions);
+      expect(text).toContain('Only the manager cancels an invoiced sale.');
+      expect(text).toContain('com.example.sales');
+    });
+
+    /**
+     * O texto é DERIVADO. Uma segunda redação das mesmas regras é uma segunda fonte de verdade sobre o
+     * que a plataforma sabe fazer, e ela envelhece sozinha: no dia em que um armazenamento novo entra
+     * em `STORAGE_MECHANISMS`, a cópia em prosa fica incompleta sem reprovar em nada.
+     */
+    it('as tabelas dele saem do kernel, nunca de uma cópia em prosa', () => {
+      const text = readMcpPrompt('model_business_rule', { statement: 'x' });
+      for (const mechanism of STORAGE_MECHANISMS) expect(text).toContain(`\`${mechanism.storage}\``);
+      for (const rule of SCREEN_PLAN_RULES) expect(text).toContain(rule.subject);
+      expect(text).toContain(`${coverageGaps().length} are outside the model's vocabulary`);
+    });
+
+    /** E ele só manda chamar ferramenta que este servidor publica. */
+    it('cita as ferramentas pelo nome REAL, e avisa quando uma não existe', () => {
+      const text = readMcpPrompt('model_business_rule', { statement: 'x' });
+      expect(text).not.toContain('NOT PUBLISHED');
+      for (const name of ['validate_domain_model', 'generate_artifact_plan', 'validate_plugin']) {
+        expect(mcpToolNames()).toContain(name);
+        expect(text).toContain(`\`${name}\``);
+      }
+    });
+
+    it('sem enunciado, ele PEDE o enunciado em vez de seguir', () => {
+      const text = readMcpPrompt('model_business_rule', {});
+      expect(text).toContain('No statement was given');
+    });
+
+    it('um prompt que não existe volta como erro, nunca como texto inventado', () => {
+      expect(() => readMcpPrompt('nope')).toThrow('Unknown prompt "nope"');
+    });
+  });
+
   it('diz a que instalação está ligado, e nunca inventa um projeto', () => {
-    const answer = JSON.parse(runMcpTool('workspace_info', {}, ROOT)) as {
+    const answer = JSON.parse(readMcpResource('microteia://workspace/info', ROOT)) as {
       kernelVersion: string;
       installationConnected: boolean;
       firebaseProjectId: string | null;

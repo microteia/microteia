@@ -73,7 +73,16 @@ const closureOf = (entries: string[]): Closure => {
 
 const ALLOWED_EXTERNAL = new Set(['expr-eval']);
 
-const ENTRIES = ['/src/sdk/index.ts', '/src/sdk/validate.ts', '/src/sdk/contributions.ts'];
+const ENTRIES = [
+  '/src/sdk/index.ts',
+  '/src/sdk/validate.ts',
+  '/src/sdk/contributions.ts',
+  // A camada de modelo de domínio entra como ENTRADA própria, e não só pelo barril: ela lê o
+  // catálogo de entidades chamando `resolveEntity` e `aggregationCreatesCycle`, e a tentação de
+  // alcançar um store para "saber o que o escritório tem" é exatamente o import que este teste
+  // existe para reprovar antes de sair daqui.
+  '/src/sdk/domain/index.ts',
+];
 
 describe('o fechamento do SDK não sai do domínio', () => {
   const closure = closureOf(ENTRIES);

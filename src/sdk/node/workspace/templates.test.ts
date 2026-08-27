@@ -10,6 +10,19 @@ import { STEP_TYPES } from '../../../domain/entities/Workflow';
 import { FIELD_EXPRESSION_FUNCTION_NAMES } from '../../../domain/schema/fieldExpression';
 import { CORE_STEP_CATALOG } from '../../../domain/schema/workflowStepCatalog';
 import { RECORD_ACTION_COMMANDS } from '../../../domain/schema/ui/recordActionMetadata';
+import {
+  DOMAIN_ISSUE_CODES,
+  EMBEDDED_STRATEGY,
+  RULE_LEDGER_FILE,
+  SCREEN_IS_NOT_AN_ENTITY_MODEL,
+  SCREEN_PLAN_HUMAN_DECISIONS,
+  SCREEN_SOURCE_ID_PRECEDENCE,
+  SCREEN_PLAN_RULES,
+  STORAGE_MECHANISMS,
+  coverageGaps,
+  coverageSummary,
+} from '../../domain';
+import { MULTI_FK_MATERIALIZE_LIMIT } from '../../../domain/schema/materialize';
 import { authoringGuide } from './authoringGuide';
 import {
   workspaceGitignore,
@@ -523,6 +536,53 @@ describe('o que o texto afirma sobre o kernel vem do kernel', () => {
   });
 
   /**
+   * As regras que decidem a TELA são as mesmas que o plano aplica. Escritas à mão aqui, uma regra
+   * mudaria no código e o manual continuaria ensinando a antiga — que é o pior dos dois estados,
+   * porque o autor confere o plano contra o texto e conclui que o plano está errado.
+   */
+  it('as regras do plano de telas saem de SCREEN_PLAN_RULES, e o que fica para a pessoa também', () => {
+    const guide = authoringGuide(AGENTS);
+    for (const rule of SCREEN_PLAN_RULES) {
+      expect(guide, rule.subject).toContain(rule.subject);
+      expect(guide, rule.decides).toContain(rule.decides);
+    }
+    for (const decision of SCREEN_PLAN_HUMAN_DECISIONS) expect(guide).toContain(decision);
+  });
+
+  /**
+   * E a PRECEDÊNCIA da identidade da tela sai do código também. Ela é a instrução que mais custa
+   * errar — um `sourceId` recalculado instala uma segunda tela em todo escritório, sem sintoma — e uma
+   * cópia em prosa dela envelheceria em silêncio no dia em que a ordem das três fontes mudasse.
+   */
+  it('a precedência do sourceId da tela sai de SCREEN_SOURCE_ID_PRECEDENCE', () => {
+    const guide = authoringGuide(AGENTS);
+    for (const step of SCREEN_SOURCE_ID_PRECEDENCE) expect(guide).toContain(step);
+    expect(guide).toContain('You do not choose it, and you never change it');
+  });
+
+  /**
+   * O NÚMERO de lacunas é derivado. Escrito à mão, ele envelheceria na primeira lacuna fechada — e o
+   * manual passaria a afirmar uma contagem que nada mais confere, que é exatamente o defeito que o
+   * relatório de cobertura existe para não repetir.
+   */
+  it('a contagem de lacunas de mecanismo sai do relatório, nunca de um número digitado', () => {
+    const guide = authoringGuide(AGENTS);
+    expect(guide).toContain(`does not reach ${coverageGaps().length}`);
+    for (const line of coverageSummary().filter((one) => one.gaps > 0)) {
+      expect(guide, line.surface).toContain(`| ${line.surface} | ${line.total} | ${line.gaps} |`);
+    }
+  });
+
+  /** O gesto e o arquivo que o fecha: sem os dois nomeados, o autor não sabe que eles existem. */
+  it('o manual e o AGENTS.md nomeiam o prompt e o livro de rastreabilidade', () => {
+    for (const text of [authoringGuide(AGENTS), workspaceAgentsMd(AGENTS)]) {
+      expect(text).toContain('model_business_rule');
+      expect(text).toContain(RULE_LEDGER_FILE);
+      expect(text).toContain('microteia://domain-model/coverage');
+    }
+  });
+
+  /**
    * A tabela de pontos sai dos MESMOS arrays que o kernel valida contra — é o que o manual não tinha
    * como garantir enquanto morava no Console, que recebia uma cópia deles.
    */
@@ -594,5 +654,141 @@ describe('o que o texto afirma sobre o kernel vem do kernel', () => {
     for (const name of FIELD_EXPRESSION_FUNCTION_NAMES) {
       expect(guide, name).toContain(`\`${name}\``);
     }
+  });
+});
+
+/**
+ * A MODELAGEM ANTES DA GERAÇÃO nos dois documentos gerados.
+ *
+ * O que se guarda aqui é a mesma coisa que o resto deste arquivo guarda: afirmação sobre o kernel em
+ * documento gerado é DERIVADA. A tabela de armazenamento e a lista de detectores saem do código do
+ * validador — um armazenamento novo, ou um detector a menos, reprova aqui em vez de deixar o texto
+ * afirmando o que a instalação já não faz.
+ *
+ * E o texto não é a defesa: a regra crítica vive no validador, e estes casos só provam que ela CHEGA
+ * a quem escreve. Um agente que ignore o parágrafo esbarra em `validate_domain_model` do mesmo jeito.
+ */
+describe('modelar antes de gerar, nos documentos que o autor lê', () => {
+  const agents = workspaceAgentsMd(AGENTS);
+  const guide = authoringGuide(AGENTS);
+
+  it('o AGENTS.md nomeia a regra e a põe ANTES da escada de custo', () => {
+    expect(agents).toContain(SCREEN_IS_NOT_AN_ENTITY_MODEL);
+    expect(agents.indexOf(SCREEN_IS_NOT_AN_ENTITY_MODEL))
+      .toBeLessThan(agents.indexOf('Reach for the least powerful thing that works'));
+  });
+
+  it('e ensina a sequência inteira, na ordem, com o portão no meio', () => {
+    const order = ['microteia://entities', 'validate_domain_model', 'generate_artifact_plan', 'validate_plugin'];
+    const positions = order.map((step) => agents.indexOf(step));
+    expect(positions.every((one) => one >= 0)).toBe(true);
+    expect([...positions].sort((a, b) => a - b)).toStrictEqual(positions);
+  });
+
+  /**
+   * A frase que mais custa: a regra NÃO é "nunca duplique". Sem ela, o autor evita o snapshot certo —
+   * e o preço da venda passa a seguir o catálogo, reescrevendo o passado sem sintoma nenhum.
+   */
+  it('diz que duplicar é permitido, e que o que não é permitido é duplicar em silêncio', () => {
+    expect(agents).toContain('Duplication is allowed; silent duplication is not.');
+    expect(agents).toContain("semanticType: 'snapshot'");
+    expect(agents).toContain('reason');
+    expect(guide).toContain('Duplication is allowed; silent duplication is not.');
+  });
+
+  it('o guia deriva a tabela de armazenamento do validador, sem cópia em prosa', () => {
+    for (const mechanism of STORAGE_MECHANISMS) {
+      expect(guide).toContain(`| \`${mechanism.storage}\` | ${mechanism.cardinalities.join(', ')} |`);
+      expect(guide).toContain(mechanism.storedAs);
+    }
+  });
+
+  it('e a lista de checagens, código a código', () => {
+    for (const code of DOMAIN_ISSUE_CODES) expect(guide).toContain(`\`${code}\``);
+  });
+
+  /**
+   * O passo que as pessoas pulam, e o único que impede a mesma discussão de voltar toda sessão.
+   */
+  it('manda guardar o modelo em disco, e diz o que se perde sem isso', () => {
+    expect(agents).toContain('domain-model.json');
+    expect(agents).toContain('nowhere to live in');
+    expect(agents).toContain('one decision instead of one per');
+  });
+
+  /**
+   * Ferramenta custa esquema de entrada na janela de TODO agente, em toda sessão. A distinção entre
+   * as duas superfícies tem de chegar a quem escreve, senão ele procura por tool o que é documento.
+   */
+  it('separa ferramenta de recurso, e explica por que a distinção existe', () => {
+    expect(agents).toContain('a **tool** takes an argument or changes something');
+    expect(agents).toContain('input schema in the context window of every agent');
+    for (const uri of ['microteia://entities', 'microteia://workflow/steps', 'microteia://domain-model/rules']) {
+      expect(agents).toContain(uri);
+    }
+    // E o que virou recurso não pode continuar sendo pedido como ferramenta.
+    for (const gone of ['list_entities', 'list_workflow_steps', 'list_extension_points', 'workspace_info']) {
+      expect(agents).not.toContain(`\`${gone}\``);
+      expect(guide).not.toContain(`\`${gone}\``);
+    }
+  });
+
+  it('nomeia a tradução escolhida para objeto aninhado, em vez de deixá-la implícita', () => {
+    expect(guide).toContain(EMBEDDED_STRATEGY);
+    expect(guide).toContain('No nested object field, and no dotted field key');
+  });
+
+  /**
+   * As duas coisas que a plataforma NÃO faz e que uma declaração não finge. Estavam só no validador;
+   * quem lia o guia e desenhava o modelo antes de chamar a ferramenta não tinha como saber.
+   */
+  it('avisa que não existe cascata, e diz qual é o caminho que existe', () => {
+    expect(guide).toContain('No cascade and no referential restriction');
+    expect(guide).toContain('remove');
+    expect(guide).toContain('.deleted');
+  });
+
+  /**
+   * O teto de materialização era um "50" escrito à mão na tabela do guia. Número escrito à mão é uma
+   * promessa que ninguém revisa: no dia em que `MULTI_FK_MATERIALIZE_LIMIT` mudar, o autor desenha o
+   * modelo contra um limite que não é o da instalação dele — e nada reprova.
+   */
+  it('o teto de materialização do N:N vem da constante do kernel', () => {
+    expect(guide).toContain(`at most ${MULTI_FK_MATERIALIZE_LIMIT} are materialised per read`);
+    const association = STORAGE_MECHANISMS.find((one) => one.storage === 'association');
+    expect(association?.storedAs).toContain(String(MULTI_FK_MATERIALIZE_LIMIT));
+    // E o número não pode estar escrito no texto por fora da constante.
+    expect(guide.match(/at most \d+ are materialised/g)).toStrictEqual([`at most ${MULTI_FK_MATERIALIZE_LIMIT} are materialised`]);
+  });
+
+  it('separa ferramenta de recurso também no manual, e lista as URIs', () => {
+    expect(guide).toContain('changes something, it is a tool');
+    for (const uri of ['microteia://entities', 'microteia://workflow/steps', 'microteia://expression-functions']) {
+      expect(guide).toContain(uri);
+    }
+  });
+
+  it('manda guardar o modelo em disco, e diz o que se perde sem isso', () => {
+    expect(guide).toContain('domain-model.json');
+    expect(guide).toContain('decision instead of one per session');
+  });
+
+  it('avisa que agregado não atravessa referência múltipla', () => {
+    expect(guide).toContain('an aggregation cannot walk a');
+    expect(guide).toContain('it is impossible');
+  });
+
+  it('os três recursos MCP estão no guia pelas URIs que o servidor publica', () => {
+    for (const uri of ['microteia://domain-model/schema', 'microteia://entities', 'microteia://domain-model/rules']) {
+      expect(guide).toContain(uri);
+    }
+  });
+
+  /** O `CLAUDE.md` é do escritório: nada aqui pode ter encostado nele. */
+  it('não escreve uma linha do modelo de domínio no arquivo que é do escritório', () => {
+    const claude = workspaceClaudeMd('Acme');
+    expect(claude).not.toContain(SCREEN_IS_NOT_AN_ENTITY_MODEL);
+    expect(claude).not.toContain('validate_domain_model');
+    expect(claude).toContain('@AGENTS.md');
   });
 });

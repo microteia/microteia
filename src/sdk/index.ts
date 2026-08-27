@@ -365,3 +365,199 @@ export { mergeViewSources } from './mergeSources';
 
 export type { SdkIssue } from './validate';
 export { validatePluginPackage } from './validate';
+
+// ─── Modelo de domínio — a etapa ANTES de qualquer artefato ───────────────────
+
+/**
+ * A camada que impõe a ordem "entidades primeiro, tela depois". Sai no barril porque a regra
+ * crítica tem de poder falhar no `npm test` do diretório de autoria, e não só no diálogo com o
+ * agente: um `plugin.test.ts` pode guardar o modelo ao lado do pacote e cobrar que ele continue
+ * de pé a cada alteração — que é a mesma razão por que `validatePluginPackage` está aqui.
+ *
+ * Nada disto chega ao pacote INSTALADO: um modelo de domínio não viaja no `.json`, o kernel não o
+ * lê e nenhum ponto de extensão mudou de forma. É por isso que o `KERNEL_VERSION` não se move.
+ */
+export type {
+  ArtifactPlan,
+  CatalogEntity,
+  CatalogField,
+  CatalogList,
+  CatalogScreenInput,
+  DerivedFrom,
+  DomainAggregation,
+  DomainCatalog,
+  DomainDenormalization,
+  DomainEntity,
+  DomainField,
+  DomainIssue,
+  DomainIssueCode,
+  DomainModel,
+  DomainRelationship,
+  DomainSeverity,
+  DomainValidation,
+  EntityKind,
+  MappedRelationship,
+  Ownership,
+  ParentRelation,
+  ParseResult,
+  PlanOperation,
+  PlannedField,
+  PlannedLookup,
+  PlannedMigration,
+  PlannedScreen,
+  RelationshipStorage,
+  RelationshipType,
+  SemanticType,
+  StorageMechanism,
+} from './domain';
+
+/**
+ * O MODELO DE COMPORTAMENTO, publicado pela mesma razão que o de estrutura: o autor testa o
+ * `domain-model.json` dele no `npm test` do próprio diretório, e uma regra que só existe no diálogo
+ * com o agente não é uma regra. Também NÃO move o `KERNEL_VERSION` — é vocabulário de AUTORIA, e o
+ * único artefato que o comportamento produz (as opções semente de uma lista) já é uma propriedade
+ * que o manifest tem.
+ */
+export type {
+  BehaviorConcern,
+  BehaviorEffect,
+  BehaviorGuard,
+  BehaviorInvariant,
+  BehaviorMechanism,
+  BehaviorModel,
+  BehaviorState,
+  BehaviorStateOption,
+  BehaviorTransition,
+  BehaviorTrigger,
+  BehaviorValidation,
+  EffectKind,
+  InvariantEnforcement,
+  InvariantScope,
+  MappedTransition,
+  TransitionFromCheck,
+  TriggerKind,
+} from './domain';
+
+export type {
+  ActionPlacement,
+  ArtifactPlanOptions,
+  BusinessRule,
+  CoverageItem,
+  CoverageSummary,
+  CoverageSurface,
+  EntityTab,
+  EntityTabKind,
+  LedgerIntegrity,
+  LedgerProduced,
+  LedgerReality,
+  NotAScreen,
+  ParsedBusinessRule,
+  PlanTrace,
+  PlannedDeactivation,
+  PlannedFormSection,
+  PlannedListColumn,
+  PlannedReadOnlyField,
+  PlannedRecordAction,
+  PlannedReferenceField,
+  PlannedTab,
+  RuleDelta,
+  RuleLedger,
+  RuleLedgerEntry,
+  ScreenLayout,
+  ScreenPlan,
+  ScreenPlanInput,
+  ScreenPlanRule,
+  ScreenPresence,
+  ScreenSourceIdOrigin,
+} from './domain';
+
+export {
+  AGGREGATION_OPS,
+  DELETE_SEMANTICS,
+  DERIVED_FROM,
+  DETECTORS,
+  DOMAIN_ISSUE_CODES,
+  DOMAIN_MODEL_VERSION,
+  DOMAIN_SEVERITIES,
+  EMBEDDED_STRATEGY,
+  ENTITY_KINDS,
+  OWNERSHIPS,
+  RELATIONSHIP_STORAGES,
+  RELATIONSHIP_TYPES,
+  SCREEN_IS_NOT_AN_ENTITY_MODEL,
+  SEMANTIC_TYPES,
+  STORAGE_MECHANISMS,
+  applyPlanToCatalog,
+  buildArtifactPlan,
+  buildDomainCatalog,
+  canonicalRelationship,
+  catalogEntity,
+  collectionOfEntity,
+  detectorList,
+  domainModelJsonSchema,
+  expandEmbedded,
+  hasBlockingIssue,
+  mapRelationship,
+  parseDomainModel,
+  relationshipSummary,
+  sortIssues,
+  validateDomainModel,
+} from './domain';
+
+export {
+  A_STATE_IS_A_KEY,
+  BEHAVIOR_CONCERNS,
+  BEHAVIOR_MECHANISMS,
+  DESCRIPTION_REQUIRED_BECAUSE,
+  DESCRIPTION_REQUIRED_EVENTS,
+  EFFECT_KINDS,
+  INVARIANT_ENFORCEMENTS,
+  INVARIANT_SCOPES,
+  SCHEDULE_TRIGGER_SUPPORTED,
+  TRIGGER_KINDS,
+  enforcementOfScope,
+  mapTransition,
+  mechanismsFor,
+  referenceParameterKey,
+  transitionSummary,
+  validateBehaviorModel,
+} from './domain';
+
+/**
+ * O FECHO DO PIPELINE: a regra de negócio como artefato, o plano de TELAS decidido por regra, o vínculo
+ * regra -> artefatos, e o relatório de cobertura de mecanismo.
+ *
+ * Sai no barril pelo mesmo motivo que o resto da camada de modelo: a regra crítica tem de poder ser
+ * cobrada no `npm test` do diretório de autoria, e não só no diálogo com o agente. E pelo mesmo motivo
+ * NÃO move o `KERNEL_VERSION`: nada disto viaja no `.json` instalado. O vínculo regra -> artefatos, em
+ * particular, é uma decisão registrada — ele mora num arquivo de trabalho do workspace, e carimbá-lo
+ * dentro do artefato instalado é o que teria movido o contrato. Ver `traceability.ts`.
+ */
+export {
+  COVERAGE_SURFACES,
+  ENTITY_TAB_KINDS,
+  RULE_LEDGER_FILE,
+  RULE_LEDGER_VERSION,
+  SCREEN_LIST_COLUMN_BUDGET,
+  SCREEN_PLAN_HUMAN_DECISIONS,
+  SCREEN_PLAN_RULES,
+  SCREEN_SOURCE_ID_PRECEDENCE,
+  buildScreenPlan,
+  businessRuleSummary,
+  checkBusinessRule,
+  coverageGaps,
+  coverageSummary,
+  declaredScreenSourceIds,
+  deriveScreenSourceId,
+  emptyRuleLedger,
+  ledgerEntryOf,
+  ledgerFindings,
+  mechanismCoverage,
+  parseBusinessRule,
+  parseRuleLedger,
+  registeredScreenSourceIds,
+  ruleDelta,
+  ruleFingerprint,
+  ruleLedgerEntry,
+  withRuleEntry,
+} from './domain';

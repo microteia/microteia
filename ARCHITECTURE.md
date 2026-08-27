@@ -1924,9 +1924,240 @@ a validação é a mesma função que a instalação chama.
 | `list_workspace_plugins` | compila cada `plugin.ts` do diretório e devolve as pendências |
 | `read_authoring_guide` | `AUTHORING.md`, por seção |
 | `workspace_info` | contrato, tipos, e se a instalação está conectada |
+| `list_entities` | `entityRegistry.ts` + os `plugin.ts` daqui + o retrato da instalação, quando há um |
 
 `validate_plugin` é o laço mais curto que existe aqui: propor → validar → corrigir, sem deploy e sem
 escritório de cliente no meio.
+
+#### O retrato da instalação — o catálogo deixa de ser só o do workspace
+
+`readWorkspaceCatalog` montava o catálogo com os `plugin.ts` do diretório mais as duas entidades que
+`entityRegistry.ts` ainda declara. Numa instalação real isso deixava de fora exatamente as duas coisas
+que mais importam: a tela que o escritório criou no Form Design e a extensão de terceiro já instalada.
+
+O efeito não era teórico. `domain.field.belongs-to-other-entity` só existe porque
+`Sale.customerName` é defeito **quando** Customer é uma coisa — e Customer, numa instalação, quase
+sempre é uma tela do Form Design. O detector não podia disparar contra as entidades para as quais ele
+foi escrito.
+
+**A saída não foi dar credencial ao SDK.** `microteia-plugin` é offline por desenho
+(`create|check|build|sync|mcp`), e arrastar segredo do escritório para dentro da ferramenta de autoria
+trocaria uma cegueira por um problema pior. Quem já fala com o projeto é o Console — o token vem do
+`gcloud`, a cada execução, e nada é guardado. Então o Console EXPORTA e o SDK apenas LÊ.
+
+```
+microteia export-catalog --tenant <tenantId> [--output <path>]
+```
+
+| Peça | Onde | Papel |
+|---|---|---|
+| `cli/src/console/exportCatalog.ts` | Console | lê o Firestore do escritório e escreve o arquivo |
+| `cli/src/console/installedExtensions.ts` | Console | o caminho ÚNICO até `installed_extensions`; o `provision` passa por ele |
+| `src/sdk/node/installedCatalog.ts` | SDK | o formato, e o leitor que o confere |
+| `src/sdk/node/workspaceCatalog.ts` | SDK | soma o retrato ao que já lia |
+
+Cinco decisões, e nenhuma é preferência:
+
+- **O arquivo NÃO mora em `.microteia/`.** Aquele diretório é apagado por inteiro a cada `unpack`, e um
+  retrato que some na troca de kernel é um retrato do qual nada pode depender. Ele fica em
+  `extensions/`, ao lado do `microteia.yaml`, que é onde o autor trabalha e onde o servidor MCP roda.
+- **É gitignorado**, pela conciliação que o `sync` já faz (`REQUIRED_IGNORES` em `reconcile.ts`:
+  acrescenta o que falta, não altera o que divergir, avisa). Ele carrega nome de tela e de campo que o
+  escritório digitou — dado do tenant, não artefato do produto.
+- **`--tenant` é obrigatório.** Um projeto Firebase pode ter vários escritórios; sem a opção o comando
+  LISTA os que existem, em vez de escrever o vocabulário de um dentro do trabalho de outro.
+- **É ESQUEMA, nunca conteúdo.** Nome de tela, de campo e de lista viajam. Registro, valor de lista,
+  membro, permissão, automação, script, ação, segredo e configuração, não. `INSTALLED_CATALOG_OMITS` é
+  a lista, e é dela que sai o que as tools respondem e o que o `AUTHORING.md` imprime.
+- **Ele se ANUNCIA como retrato.** Carrega `projectId`, `tenantId`, `exportedAt`, `kernelVersion` e a
+  versão do Console. Toda resposta que usa o catálogo — `list_entities`, `validate_domain_model`,
+  `generate_artifact_plan` — carrega `catalogSources`: de onde veio cada entidade, quando o retrato foi
+  tirado, e o que ele não traz. Passados `INSTALLED_CATALOG_STALE_DAYS`, é avisado. Um catálogo
+  apresentado como completo quando não é vale menos que nenhum, porque quem lê deixa de perguntar.
+
+**Precedência: o WORKSPACE ganha.** Uma coleção que apareça nas duas fontes resolve para a do
+`plugin.ts` — é a que o autor está editando —, e a tela instalada é descartada INTEIRA, nunca fundida:
+fundir traria campo de volta pela porta dos fundos, e o autor passaria a ver um `plugin.ts` que não
+escreveu. A divergência vira INFORMAÇÃO (`shadowedCollections`), nunca erro, porque o que roda lá pode
+já ter campos que o pacote em edição ainda não tem. A regra está em dois lugares e é a mesma:
+`buildDomainCatalog` prefere `source: 'workspace'`, e `readWorkspaceCatalog` já descarta a tela
+sombreada antes de montar o `SchemaContext`.
+
+**Sem o arquivo, nada muda.** O caminho de quem nunca exportou continua sendo exatamente o de antes — e
+`catalogSources` diz isso, com o comando que fecha a lacuna.
+
+**As duas pontas do formato são compiladas SEPARADAMENTE.** O Console não alcança `src/`: ele é
+distribuído sozinho, e uma versão dele pode ser mais velha que o kernel instalado. Sobra um formato
+escrito de um lado e lido de outro, que é a forma de acoplamento que envelhece calada. Duas coisas
+seguram isso: o campo `version` do arquivo, que o leitor RECUSA quando não é o dele (com o comando que
+o refaz), e `cli/src/console/exportCatalog.test.ts`, que monta o documento com o exportador e o entrega
+ao leitor do kernel — o percurso real do arquivo, atravessado num teste.
+
+#### O plano de TELAS — regra em vez de julgamento, e o que fica com a pessoa
+
+`generate_artifact_plan` dizia quais coleções e campos precisavam existir e parava ali. A tela ficava em
+branco, e quem a preenchia era o modelo de linguagem, uma vez por sessão, com resposta diferente cada
+vez. A lacuna não era cosmética: `titleFieldKey` é obrigatório, uma listagem sem coluna lista registros
+indistinguíveis, um filho com entrada de menu dá duas portas para o mesmo dado, e uma transição de gesto
+sem ação de registro é uma automação que ninguém consegue disparar.
+
+`src/sdk/domain/screenPlan.ts` transforma isso em REGRA. As dez linhas vivem em `SCREEN_PLAN_RULES`, e
+`microteia://domain-model/rules`, a §8.0.2 do `AUTHORING.md` e a própria resposta do plano leem daquela
+lista — não de três cópias em prosa.
+
+Duas metades, e a segunda é a que impede o plano de mentir:
+
+- **O que a regra decide, decide sozinha.** Entidade raiz rende listagem e detalhe; `kind: 'child'` rende
+  aba do pai e NUNCA entrada de menu; `kind: 'lookup'` rende lista de opções e NUNCA tela; `valueObject`
+  achatado rende seção do formulário do dono; `many-to-one` rende campo de referência no lado N, com o
+  rótulo resolvido no render e jamais copiado para um segundo campo; `one-to-many` que não é filha rende
+  NADA; campo derivado é somente leitura — por mecanismo, porque o formulário desabilita o que carrega
+  `logic.compute` ou `aggregation`; o campo de estado vai para a listagem e para os filtros.
+- **O que a regra NÃO decide, ela declara que não decide.** Ícone, ordem de menu, subtítulo e imagem do
+  cartão, e o título de cada ação. Um plano que sorteia parece completo, e o custo aparece quando o
+  escritório recebe um ícone que não tem nada a ver com o negócio dele — sem ninguém saber se aquilo foi
+  decidido ou tirado da cartola.
+
+**Toda transição `user-action` rende uma ação, e o `disabledWhen` dela não é sugestão:** é o `from` da
+transição somado a cada invariante `enforcement: 'blocks'` daquela passagem, negados e unidos por `||`.
+É o único lugar onde `blocks` pode sentar num gesto de pessoa; uma ação escrita sem ele dá um botão que
+dispara um fluxo cuja condição o descarta em silêncio.
+
+**Onde a ação aparece é decidido só na parte derivável, que é LEGIBILIDADE.** Um gesto desabilitado por
+causa de um campo que o cartão da listagem não mostra é um botão apagado sem motivo visível: ali o lugar
+é o cabeçalho do detalhe. Quando a recusa lê apenas campos visíveis, as duas colocações são legíveis e a
+diferença é de fluxo de trabalho — e o plano devolve a escolha em vez de sortear.
+
+E as abas de anotações, documentos e etiquetas nascem DESLIGADAS. Ligar uma é
+`entity.tabs: [{ kind, because }]`, e o `because` é obrigatório pela mesma razão que o `reason` de um
+snapshot: sem ele, "ligado de propósito" e "ligado por hábito" se escrevem igual seis meses depois.
+
+#### A identidade universal da tela — a decisão que falha em SILÊNCIO
+
+O `sourceId` é por onde uma ATUALIZAÇÃO reconhece a tela. `buildScreenKeyMap` procura no escritório uma
+tela com o mesmo id universal e reusa a chave dela; não achando, reivindica a chave declarada e, se o nome
+já estiver ocupado, ganha sufixo (`produtos` → `produtos_2`). Então trocar o `sourceId` entre duas versões
+do MESMO pacote não reprova em lugar nenhum: instala uma SEGUNDA tela ao lado da primeira, a primeira sai
+da lista da versão nova e é liberada, e os registros ficam na coleção antiga sem tela nenhuma por cima —
+em todo escritório de uma vez, sem sintoma local. O pacote valida, instala e roda.
+
+Enquanto ele era escolha humana, era uma decisão sem defesa: quem escreve o `plugin.ts` da versão 2 não
+tem como saber o que a versão 1 escolheu. **Então o plano de telas passou a EMITI-LO** — e a parte que
+importa não é a derivação, é a precedência, que vem antes dela (`SCREEN_SOURCE_ID_PRECEDENCE`):
+
+| Ordem | Fonte | Por quê |
+|---|---|---|
+| 1 | o que o `business-rules.json` registra para aquela regra | um `sourceId` que já existe NUNCA é recalculado — nem por rótulo mudado, nem por regra reescrita, nem por derivação nova |
+| 2 | o que o `plugin.ts` (ou o retrato da instalação) já declara | a tela já tem identidade; derivar outra é o próprio defeito |
+| 3 | a derivação `<id da extensão>:<coleção>` | só para tela NOVA |
+
+**A base é o id da extensão mais a COLEÇÃO**, e é por eliminação: o que a identidade tem de sobreviver é
+justamente o que uma pessoa reescreve — o rótulo da entidade (que é o `titleSingular` da tela), o enunciado
+da regra e a ordem das telas no plano. Nenhum dos três entra na conta. O id da extensão é único no mundo
+por construção (reverso de domínio, validado no manifest), o que impede duas extensões de colidirem; a
+coleção é única dentro da extensão, o que impede duas telas da mesma extensão de colidirem. E é a coleção,
+não o nome de domínio da entidade, porque a coleção é a identidade que a plataforma reconhece: é onde o
+dado está, renomeá-la é migração, e é por ela que todo o resto do plano é endereçado. Renomear a entidade
+sem declarar `collection` renomeia a coleção junto — e aí o `sourceId` muda de propósito, porque para a
+instalação aquela é uma tela nova mesmo.
+
+Três detectores cobram o que o plano emite, e os três são ERRO: tela planejada sem identidade
+(`domain.plan.screen-source-id-missing`), pacote declarando um valor e o livro registrando outro
+(`...-divergent`, e a mensagem DIZ qual é o registrado, porque a correção é usar o registrado e nunca o
+novo), e duas telas do mesmo plano com o mesmo id (`...-duplicate`, em que a instalação lê as duas como
+uma).
+
+**E o livro deixou de ser só proveniência: ele é dependência.** `business-rules.json` é escrito pelo
+AGENTE, não por uma tool — aceitável enquanto ele só respondia "que telas esta regra gerou", e não mais,
+agora que ele é a fonte de uma chave de identidade. `ledgerFindings` compara o livro com o que existe nas
+duas direções que se pode conferir sem adivinhar: artefato que o plano produz, que JÁ EXISTIA aqui e que o
+livro não menciona (não é a regra crescendo — é uma passada anterior que não gravou, e é ali que a
+identidade se perde); e artefato que o livro menciona e que não está nem no plano nem no catálogo. É AVISO,
+não erro: o livro é escrito à mão, pode legitimamente estar uma gravação atrasado, e recusar o plano
+bloquearia justamente a chamada que devolve o livro corrigido (`trace.contents`) — mas a resposta da tool
+o diz em voz alta, num campo próprio (`ledgerIntegrity`), e não só entre os problemas. Ação, fluxo e
+permissão ficam de fora da conferência de propósito: o plano não vê action instalada, e uma verificação que
+adivinha vale menos que a ausência dela.
+
+#### A regra de negócio como ARTEFATO, e onde o vínculo dela mora
+
+A regra chega como três linhas colhidas numa conversa, decide quais entidades existem e o que acontece
+com elas, e desaparecia: o modelo ficava no disco, o plano ficava na resposta da tool, e a frase que
+originou os dois não ficava em lugar nenhum. Quando ela mudava, ninguém conseguia dizer o que ELA tinha
+gerado — e a sessão seguinte propunha uma segunda leva de telas parecidas com as primeiras.
+
+`BusinessRule` é `{ id, statement, actors, concepts, invariants, processes, acceptance }`, com `statement`
+nas palavras em que a regra chegou. O precedente é explícito: a `description` de um workflow é o contrato
+de classificação do detector de automação — é o único texto que a decisão lê, e por isso ela é artefato e
+não comentário. Seis checagens comparam a regra com o modelo e NENHUMA bloqueia: a regra é prosa, e
+comparar prosa com declaração dá falso positivo por construção. O que elas fazem é apontar a distância.
+
+**A rastreabilidade mora num arquivo de trabalho do workspace, e a decisão foi essa de propósito.**
+Havia duas saídas:
+
+| | Onde o vínculo fica | Custo |
+|---|---|---|
+| (a) | carimbado no artefato INSTALADO | propriedade nova em `ScreenModuleTemplate`, `ActionModuleTemplate` e `WorkflowModuleTemplate` — a forma do pacote muda, e o `KERNEL_VERSION` se move com ela |
+| (b) | `business-rules.json`, ao lado do `plugin.ts` | não toca kernel, pacote nem versão |
+
+**É (b).** O argumento é sobre de quem é a pergunta. "Que telas esta regra gerou?" é pergunta de AUTORIA:
+quem a faz está com o `plugin.ts` aberto, decidindo o que muda agora que a regra mudou. O escritório nunca
+a faz — para ele a tela é uma tela, e a origem dela não muda nada do que ele pode fazer com ela. Carimbar
+uma resposta de autoria dentro de todo documento de todo escritório, para sempre, e mover o contrato
+Kernel↔plugins para isso, quando o único leitor está no diretório de autoria, é caro do lado errado. É o
+mesmo veredito que `CatalogException` já recebeu, e a consequência é a mesma: um workspace novo não tem o
+vínculo — o que vale, porque um workspace novo também não tem o `plugin.ts` que a regra gerou.
+
+O que ela compra é uma coisa só, e é grande: **quando a regra muda, o plano é o DIFF daquilo que ela
+gerou.** A mesma regra duas vezes não propõe nada; a regra alterada propõe só o delta; e a regra que
+deixou de precisar de uma tela propõe DESATIVAR — `enabled: false` mais `hideFromSidebar: true` —, nunca
+excluir. Excluir uma tela é decidir o que acontece com os registros dentro dela, e este plano não vê
+registro nenhum.
+
+#### O relatório de cobertura de mecanismo — a lacuna aparece antes de alguém tropeçar nela
+
+Uma transição `user-action` produzia um fluxo chamável SEM descrição, e sem descrição ele é invisível para
+`AIDetectWorkflowStep`: o passo monta os candidatos com `findEnabledByEvent(tenantId, WORKFLOW_CALLED_EVENT)`
+e então descarta todo fluxo cuja `description` esteja vazia — o filtro está no passo e outra vez em
+`detectWorkflowIds`. O modelo não tinha como saber: não havia campo de descrição na transição. Ninguém
+soube por três fases.
+
+A lição não é "acrescente descrição" — é que **um mecanismo sem vocabulário é invisível até alguém
+tropeçar nele**, e a resposta a isso não é atenção. `src/sdk/domain/coverage.ts` percorre a superfície
+REAL e classifica cada item: passos registrados, os inputs OBRIGATÓRIOS dos passos que o modelo alcança,
+entradas do catálogo de eventos, pontos de contribuição, e as propriedades de `MarketplacePlugin`,
+`ScreenModuleTemplate`, `ActionModuleTemplate`, `WorkflowModuleTemplate` e `PluginManifest`. São 135
+mecanismos: 53 alcançados, 82 não — e a lacuna que fechou por último foi `screen.sourceId`, que era a mais
+consequente de todas (ver "A identidade universal da tela", acima).
+
+Duas coisas o mantêm honesto, e as duas são mecânicas:
+
+- **Os quatro mapas de propriedade são `Record<keyof …, string | null>`.** Uma propriedade nova em
+  qualquer um deles NÃO COMPILA até ganhar a linha — dizendo o que a alcança, ou dizendo que nada a
+  alcança. Mesma disciplina de `Record<DomainIssueCode, Detector>`.
+- **`coverage.test.ts` carimba a lista de lacunas.** Uma lacuna nova reprova o `npm test`, e quem a
+  criou decide se o modelo deve saber pedi-la. Mesma mecânica de `VERSAO_CONFERIDA` e de `PUBLISHED`.
+
+Nada do que ele revela é implementado: **a lista é a entrega.** As maiores são o passo `query` (a metade
+que falta a toda regra que compara um registro com os outros), o `upsert.upsert` (o efeito diz entidade,
+campo e valor, e nunca QUAL registro), o `title` da ação, e vinte dos vinte e um pontos de contribuição.
+O relatório é servido em `microteia://domain-model/coverage`, e a contagem do `AUTHORING.md` sai dele.
+
+#### A capability `prompts` — a ordem como gesto do editor
+
+Todo o resto do servidor MCP responde a uma pergunta que alguém já soube fazer. Nada respondia à primeira
+coisa que acontece de verdade: alguém cola três linhas de regra e não sabe que existe uma ORDEM — entender,
+modelar, validar, planejar — nem que pular a primeira etapa é o defeito mais caro deste subsistema.
+
+`prompts` ficava de fora com o argumento de que "não há aqui texto para o usuário escolher", e o argumento
+estava errado: aquela ordem é exatamente um texto para o usuário escolher. Enquanto ela vivia num parágrafo
+do `AGENTS.md`, ela valia para quem tinha lido o `AGENTS.md`.
+
+`model_business_rule` recebe o enunciado (mais `target` e `extensionId`, opcionais) e conduz as quatro
+etapas. O texto é DERIVADO — `STORAGE_MECHANISMS`, `BEHAVIOR_MECHANISMS`, `SCREEN_PLAN_RULES`,
+`SCREEN_PLAN_HUMAN_DECISIONS`, a contagem de lacunas — e cita ferramenta e recurso pelos nomes que o
+servidor de fato publica, dizendo em voz alta quando um deles não existe. Uma segunda redação das mesmas
+regras seria uma segunda fonte de verdade sobre o que a plataforma sabe fazer, e ela envelhece sozinha.
 
 ### View de extensão como ARQUIVO — o fim do código em template literal
 
