@@ -76,6 +76,8 @@ export interface ViewScriptViewModel {
   scriptIdError: string | undefined;
   script: Script | null;
   formData: ScriptFormData;
+  /** O nome como quem usa o sistema o lê: o campo guarda a referência, o cabeçalho mostra o texto. */
+  displayName: string;
   scriptTypeDefs: string;
   setFormData: (data: Partial<ScriptFormData>) => void;
   typeOptions: { value: WorkflowParameter['type']; label: string }[];
@@ -168,8 +170,8 @@ export const useViewScriptViewModel = (tabKey: string): ViewScriptViewModel => {
   }, [script, t]);
 
   useEffect(() => {
-    if (script) setTabTitle(tabKey, script.name || 'Script');
-  }, [script, tabKey, setTabTitle]);
+    if (script) setTabTitle(tabKey, label(script.name) || t('script.fallback-name'));
+  }, [script, tabKey, setTabTitle, label, t]);
 
   const setFormData = useCallback((data: Partial<ScriptFormData>) => {
     setFormDataState((prev) => ({ ...prev, ...data }));
@@ -362,6 +364,7 @@ export const useViewScriptViewModel = (tabKey: string): ViewScriptViewModel => {
     scriptIdError,
     script,
     formData,
+    displayName: label(formData.name),
     scriptTypeDefs,
     setFormData,
     typeOptions: scriptParameterTypeOptions(t),

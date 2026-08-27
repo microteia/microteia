@@ -18,6 +18,113 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.19.3] — 2026-08-26
+
+- fix(i18n): `members` carried `labelSingular: 'Membro'` / `labelPlural: 'Membros'` — Portuguese
+  literals in `ENTITY_REGISTRY`, the last entity not to use a reference, while its own FIELDS already
+  did. Neither rule saw it: not JSX, and neither word has an accent. Now `@core.data/member.singular`
+  and `@core.data/member.plural`.
+- fix(i18n): the ripple that made it worth doing. An entity label reaches the screen through
+  `pathAutocomplete` (the expression editor's suggestion detail) and `useEntityReferenceOptions` (a
+  parameter's entity selector), and neither resolved — so a screen an extension declared already showed
+  `@ns/screen.singular` in both, before `members` ever joined them. `buildPathAutocompleteItems` takes
+  the resolver as a parameter, since the module is pure and its caller already has one.
+
+#### [9.19.2] — 2026-08-26
+
+- feat(i18n): `LabelInput` accepts `as`, so a screen with its own styled field does not have to choose
+  between its shape and translating what it shows. Without it the only way into `PluginAuthor` — which
+  has its own `S.Input`/`S.Textarea` — would have been repeating the mechanism there, and a repeated
+  mechanism is the one that drifts.
+- fix(i18n): `PluginAuthor` uses it, and the argument for keeping it raw did not hold. The objection
+  was that there the person typing is the one CREATING the reference. But the authoring screen does not
+  package only what the author just wrote: it packages what the ORGANIZATION built, and whatever is
+  already carried from another extension arrives with that extension's reference. Name, version,
+  summary, description and a code view's title now use it; the IDENTIFIER stays a plain field, because
+  it is not a label — it is the package's address. On the version field the component is inert by
+  construction: a semver never matches `isMessageRef`.
+- fix(i18n): the "Content" tree resolved nothing — `@com.acme/screen.request.plural` on one line and
+  `Pet1`, an organization's own screen, on the next. Half a screen in text and half in keys is worse
+  than either one whole. Both the carried artifacts and the organization's own now resolve, and a
+  patch's target label with them.
+- test(i18n): `PluginAuthor.viewmodel.test.tsx` pins the mixed tree — carried resolves, office-typed
+  passes through, no row starts with `@`, and the FORM still holds the real value, which is what
+  reaches the manifest. `declarativeFields.test.ts` grows the five new fields. Both mutation-verified.
+
+#### [9.19.1] — 2026-08-26
+
+- fix(i18n): the Form Design's own fields still showed the raw reference. `LabelInput` was built in the
+  previous version but not applied where the rule had originally been WRITTEN — `ScreenBuilder`, whose
+  "labels stay raw" was a choice between two defects, not an answer. The five fields that hold a
+  declarative label there now use it: both screen titles, and a field's label, section and placeholder.
+- fix(i18n): the reflections inside `ScreenBuilder` — the field list rows, the delete-screen and
+  delete-field confirmations, and the chip of a static option — resolve. The option's chip TEXT resolves
+  while its identity stays raw, because the raw label is what `removeStaticOption` addresses.
+- test(i18n): `declarativeFields.test.ts` pins each declarative-label field to `LabelInput`. A source
+  test, like `viewSources.test.ts`, and for the same reason: what is being guarded is a writing
+  decision. Verified by mutation — putting one field back on `Input` fails it.
+- docs(i18n): the "where the label stays raw" paragraph is marked as superseded in part, instead of
+  being deleted. `PluginAuthor` stays raw, and the reason is now written down: there the person typing
+  is the one CREATING the reference, and the catalog it points at lives inside the package being
+  authored — possibly not installed, and possibly the very thing being changed.
+
+#### [9.19.0] — 2026-08-26
+
+- feat(i18n): `LabelInput` (`components/ui/LabelInput/`) is the field that edits a DECLARATIVE label.
+  At rest it shows the translation; on FOCUS it reveals the real value, which is what is about to
+  change. Outward, `value` and `onChange` are the real value on both sides — the translation exists
+  only on screen, and no other component can reach it, which is why none of them had to change. The
+  two halves of the problem looked mutually exclusive: showing the raw reference leaves text on screen
+  nobody reads, and showing the translation makes the next Save write over the reference. `isMessageRef`
+  decides whether there is anything to reveal, so office-typed text behaves as a plain `Input` instead
+  of swapping content under the reader's hand. Applied to the seven fields that hold one: workflow
+  name and description, action title and confirm message, script name and description, parameter label.
+- fix(i18n): three more raw reflections. The Form Design "Actions" tab labelled its options with the
+  ACTION's title, the Actions screen labelled each expression editor with the flow PARAMETER's label,
+  and the parameter accordion header showed the key. None of the three is the value being edited — the
+  "Form Design keeps labels raw" rule is about the screen it edits, and had been read one size too wide.
+- fix(i18n): the step editor derived input and output labels from a target flow's or script's
+  parameters without resolving them. `parameterForDisplay` moved out of `RunModal` into
+  `shared/parameterInputs.ts` — which already called itself the single bridge between what a workflow
+  ASKS and what a screen SHOWS — and now covers all four consumers from one place.
+- fix(i18n): `'registro filho'` was a Portuguese literal in `ScreenBuilder`, inside the migrated zone.
+  It is not JSX and has no accent, so no rule saw it; the non-accented non-JSX literal stays a known
+  blind spot, since widening the accent trigger would flag every identifier-shaped string.
+- test(i18n): the regression guards the reports asked for — `LabelInput`'s whole contract,
+  `parameterForDisplay` over label/options/nested fields plus idempotence, `resolveEventCatalogLabel`'s
+  two turns, and one guard per reported screen (`ScreenBuilder.actionOptions`,
+  `ViewAction.promptableParameters`, `WorkflowParametersEditor.headerTitleFor`). Each was verified by
+  mutation: dropping the `label()` call fails the test.
+
+#### [9.18.1] — 2026-08-26
+
+- fix(i18n): the automation admin screens resolved no declarative label. Workflow, Action and Script
+  names arrived from an extension as `@ns/key` and were rendered raw in the list, the tab title, the
+  page header, the delete confirmation, the ⌘K, the markdown mention and every selector that offers a
+  flow or a script. `useLabel()` now runs at each of those display points; the FORM fields stay raw,
+  because there the reference is the value being edited — the same rule that already held for
+  `ScreenBuilder` and `PluginAuthor`.
+- fix(i18n): searching is part of resolving, again. The three lists matched the query against the raw
+  name, so a flow an extension installed was reachable only by whoever typed its message key.
+- fix(i18n): record actions were half resolved. `useRecordListViewModel` translated a card action's
+  title while `useScreenActions` did not, and neither confirm dialog nor the parameter prompt did —
+  the same action read translated on a card and raw in the toolbar above it.
+- fix(i18n): parameter labels and their `select` options now resolve at the entry of `RunModal`, which
+  is the ONE modal that asks for parameters (manual flow run, script run, action that prompts). One
+  point covers the three, instead of three that each had to remember.
+- fix(i18n): `useStepCatalog` resolved a step input's label but not its STATIC options, so the
+  severity list of `register-audit` showed `@core.automation/step.register-audit.label.alta`.
+- fix(automation): `DataProcessor` sent the model each flow's description RAW. A message reference
+  describes nothing to a model — the flow it picked was chosen from a key, not from a description.
+- refactor(i18n): `resolveEventCatalogLabel` moves the two-turn composition of an event label
+  ("On save: {name}", where `name` is itself a reference or office-typed text) into
+  `domain/schema/eventCatalog.ts`, shared by the trigger selector and the mention modal.
+- feat(lint): `no-restricted-syntax` now catches user text as a literal inside JSX BRACES — plain,
+  ternary and logical — as a child of an element or fragment. `{w.enabled ? 'Habilitado' :
+  'Desabilitado'}` crossed the migrated zone untouched: not `JSXText`, not an attribute, no accent in
+  either word. Attribute values stay out on purpose: there the literal is almost always a technical
+  enum. The rule found one more, in `AuditLogs`.
+
 #### [9.18.0] — 2026-08-26
 
 - feat(boot): `BOOT_PLUGINS` is the base host: the core plugins plus the extensions STAMPED into the

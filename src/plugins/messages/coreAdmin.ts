@@ -33,6 +33,8 @@ export const CORE_ADMIN_MESSAGES: Record<string, string> = {
   'audit.filter.placeholder': 'Filter audit records…',
   'audit.filter.search.placeholder': 'Title or content…',
   'audit.filter.severity': 'Severity',
+  'audit.load-more': 'Load more',
+  'audit.loading': 'Loading…',
   'audit.filter.tenant': 'Organization',
   'audit.open-record': 'Go to the record',
   'audit.retention':

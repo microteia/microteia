@@ -7,6 +7,8 @@ export const CORE_DATA: Record<string, string> = {
   'member.field.email': 'E-mail',
   'member.field.name': 'Nome',
   'member.field.role': 'Papel',
+  'member.plural': 'Membros',
+  'member.singular': 'Membro',
   'point.entity.description': 'Declara uma entidade nativa (coleção, campos, FKs) para o schema e o motor.',
   'point.entity.title': 'Entidade de domínio',
   'point.field-preset.description':

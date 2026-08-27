@@ -4,6 +4,7 @@ import { useLookups } from '../../stores/useLookups';
 import { ENTITY_REGISTRY } from '../../domain/schema/entityRegistry';
 import { screenDataCollection } from '../../domain/services/screenDataCollection';
 import type { SearchSelectOption } from '../components/ui/SearchSelect';
+import { useLabel } from './i18n/useT';
 
 /**
  * As entidades que um parâmetro pode referenciar. O valor é a COLEÇÃO, nunca a chave da tela — é
@@ -16,22 +17,23 @@ import type { SearchSelectOption } from '../components/ui/SearchSelect';
  */
 export const useEntityReferenceOptions = (): SearchSelectOption[] => {
   const { dynamicScreens } = useScreenDefinitions();
+  const label = useLabel();
 
   return useMemo(() => {
     const byCollection = new Map<string, SearchSelectOption>();
     for (const definition of dynamicScreens) {
       const collection = screenDataCollection(definition);
       if (byCollection.has(collection) && definition.id !== collection) continue;
-      byCollection.set(collection, { value: collection, label: definition.titlePlural || collection });
+      byCollection.set(collection, { value: collection, label: label(definition.titlePlural) || collection });
     }
 
     return [
       ...Object.values(ENTITY_REGISTRY)
         .filter((entity) => entity.referenceable)
-        .map((entity) => ({ value: entity.collection, label: entity.labelPlural })),
+        .map((entity) => ({ value: entity.collection, label: label(entity.labelPlural) })),
       ...byCollection.values(),
     ];
-  }, [dynamicScreens]);
+  }, [dynamicScreens, label]);
 };
 
 /**

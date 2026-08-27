@@ -16,7 +16,7 @@ import { getScreenIcon } from '../../../shared/screenIcons';
 import type { EntityDocumentsController, EntityNotesController } from '../../../shared/entityScreen/types';
 import type { ScreenActions } from '../../../shared/entityScreen/useScreenActions';
 
-import { useT } from '../../../shared/i18n/useT';
+import { useT, useLabel } from '../../../shared/i18n/useT';
 /** `'data' | 'notes' | 'documents'` — ou a chave de uma aba extra declarada em `extraTabs`. */
 export type EntityDetailTab = string;
 
@@ -113,6 +113,7 @@ export const EntityDetailView: React.FC<EntityDetailViewProps> = ({
   modals,
 }) => {
   const t = useT('core.ui');
+  const label = useLabel();
 
   return (
   <S.Page>
@@ -222,8 +223,8 @@ export const EntityDetailView: React.FC<EntityDetailViewProps> = ({
     {screenActions && (
       <ConfirmModal
         isOpen={screenActions.pendingAction !== null}
-        title={screenActions.pendingAction?.title ?? ''}
-        message={screenActions.pendingAction?.confirmMessage ?? ''}
+        title={label(screenActions.pendingAction?.title)}
+        message={label(screenActions.pendingAction?.confirmMessage)}
         variant={screenActions.pendingAction?.danger ? 'danger' : 'default'}
         confirmLabel={t('action.run')}
         loading={screenActions.runningActionId !== null}

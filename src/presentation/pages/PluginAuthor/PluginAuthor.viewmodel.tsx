@@ -439,16 +439,16 @@ export const usePluginAuthorViewModel = (tabKey?: string): PluginAuthorViewModel
   const patchTargetLabel = useCallback((patch: ScreenPatchTemplate): { label: string; icon?: string } => {
     const bySourceId = (patch.targetKind ?? 'collection') === 'sourceId';
     const screen = definitions.find((d) => (bySourceId ? (d.sourceId ?? d.id) : d.id) === patch.target);
-    if (screen) return { label: screen.titlePlural || screen.titleSingular || screen.id, icon: screen.icon };
+    if (screen) return { label: label(screen.titlePlural || screen.titleSingular) || screen.id, icon: screen.icon };
     const entity = bySourceId ? undefined : getEntityByCollection(patch.target);
-    return { label: entity?.labelPlural ?? patch.target };
-  }, [definitions]);
+    return { label: label(entity?.labelPlural) || patch.target };
+  }, [definitions, label]);
 
   const carriedOptions = useMemo<Record<ArtifactKind, ArtifactOption[]>>(() => ({
-    screens: foreignCarried.screens.map((s) => ({ id: s.key, label: s.titlePlural || s.titleSingular || s.key, icon: s.icon, selected: true, locked: false, carried: true })),
-    actions: foreignCarried.actions.map((a) => ({ id: a.templateId, label: a.title || a.key, icon: a.icon, selected: true, locked: false, carried: true })),
-    workflows: foreignCarried.workflows.map((w) => ({ id: w.templateId, label: w.name, selected: true, locked: false, carried: true })),
-    scripts: foreignCarried.scripts.map((s) => ({ id: s.templateId, label: s.name, selected: true, locked: false, carried: true })),
+    screens: foreignCarried.screens.map((s) => ({ id: s.key, label: label(s.titlePlural || s.titleSingular) || s.key, icon: s.icon, selected: true, locked: false, carried: true })),
+    actions: foreignCarried.actions.map((a) => ({ id: a.templateId, label: label(a.title) || a.key, icon: a.icon, selected: true, locked: false, carried: true })),
+    workflows: foreignCarried.workflows.map((w) => ({ id: w.templateId, label: label(w.name), selected: true, locked: false, carried: true })),
+    scripts: foreignCarried.scripts.map((s) => ({ id: s.templateId, label: label(s.name), selected: true, locked: false, carried: true })),
     screenPatches: foreignCarried.screenPatches.map((p) => {
       const target = patchTargetLabel(p);
       return {
@@ -463,18 +463,18 @@ export const usePluginAuthorViewModel = (tabKey?: string): PluginAuthorViewModel
         carried: true,
       };
     }),
-  }), [foreignCarried, patchTargetLabel, t]);
+  }), [foreignCarried, patchTargetLabel, t, label]);
 
   const groups = useMemo<ArtifactGroup[]>(() => [
     {
       kind: 'screens', title: t('author.group.screens'),
-      options: [...carriedOptions.screens, ...ownScreens.map((d) => ({ id: d.id, label: d.titlePlural || d.id, icon: d.icon, selected: effective.screens.has(d.id), locked: required.screens.has(d.id) }))],
+      options: [...carriedOptions.screens, ...ownScreens.map((d) => ({ id: d.id, label: label(d.titlePlural) || d.id, icon: d.icon, selected: effective.screens.has(d.id), locked: required.screens.has(d.id) }))],
     },
     {
       kind: 'screenPatches', title: t('author.group.screen-patches'),
       options: [...carriedOptions.screenPatches, ...patchableScreens.map((d) => ({
         id: d.id,
-        label: `${d.titlePlural || d.id} (${patchSummaryOf(t, d, ownActionIds)})`,
+        label: `${label(d.titlePlural) || d.id} (${patchSummaryOf(t, d, ownActionIds)})`,
         icon: d.icon,
         selected: effective.screenPatches.has(d.id),
         locked: false,
@@ -482,17 +482,17 @@ export const usePluginAuthorViewModel = (tabKey?: string): PluginAuthorViewModel
     },
     {
       kind: 'actions', title: t('core.automation/page.actions'),
-      options: [...carriedOptions.actions, ...ownActions.map((a) => ({ id: a.id, label: a.title || a.key, icon: a.icon, selected: effective.actions.has(a.id), locked: required.actions.has(a.id) }))],
+      options: [...carriedOptions.actions, ...ownActions.map((a) => ({ id: a.id, label: label(a.title) || a.key, icon: a.icon, selected: effective.actions.has(a.id), locked: required.actions.has(a.id) }))],
     },
     {
       kind: 'workflows', title: t('core.automation/page.workflows'),
-      options: [...carriedOptions.workflows, ...ownWorkflows.map((w) => ({ id: w.id, label: w.name, selected: effective.workflows.has(w.id), locked: required.workflows.has(w.id) }))],
+      options: [...carriedOptions.workflows, ...ownWorkflows.map((w) => ({ id: w.id, label: label(w.name), selected: effective.workflows.has(w.id), locked: required.workflows.has(w.id) }))],
     },
     {
       kind: 'scripts', title: t('core.automation/page.scripts'),
-      options: [...carriedOptions.scripts, ...ownScripts.map((s) => ({ id: s.id, label: s.name, selected: effective.scripts.has(s.id), locked: required.scripts.has(s.id) }))],
+      options: [...carriedOptions.scripts, ...ownScripts.map((s) => ({ id: s.id, label: label(s.name), selected: effective.scripts.has(s.id), locked: required.scripts.has(s.id) }))],
     },
-  ], [carriedOptions, ownScreens, patchableScreens, ownActionIds, ownActions, ownWorkflows, ownScripts, effective, required, t]);
+  ], [carriedOptions, ownScreens, patchableScreens, ownActionIds, ownActions, ownWorkflows, ownScripts, effective, required, t, label]);
 
   const toggle = useCallback((kind: ArtifactKind, id: string) => {
     if (carriedOptions[kind].some((o) => o.id === id)) { removeCarried(kind, id); return; } // remove o embarcado

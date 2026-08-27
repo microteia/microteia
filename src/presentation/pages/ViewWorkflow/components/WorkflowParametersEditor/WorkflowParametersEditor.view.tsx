@@ -1,6 +1,7 @@
 import React from 'react';
 import { RiAddLine, RiDeleteBinLine, RiArrowDownSLine, RiArrowRightSLine, RiFileCopyLine } from 'react-icons/ri';
 import { Input, Label } from '../../../../components/ui/Input';
+import { LabelInput } from '../../../../components/ui/LabelInput';
 import { SearchSelect } from '../../../../components/ui/SearchSelect';
 import { DateInput } from '../../../../components/ui/DateInput';
 import { LiteralOptionsControl } from '../../../../components/ui/LiteralOptionsControl';
@@ -127,7 +128,7 @@ export const WorkflowParametersEditor: React.FC<WorkflowParametersEditorProps> =
                 {expanded ? <RiArrowDownSLine size={18} /> : <RiArrowRightSLine size={18} />}
               </S.CollapseBtn>
               {expanded ? (
-                <S.HeaderTitle>{parameter.label.trim() || parameter.key.trim() || t('parameter.new')}</S.HeaderTitle>
+                <S.HeaderTitle>{vm.headerTitleFor(parameter)}</S.HeaderTitle>
               ) : (
                 <S.Summary type="button" onClick={() => vm.toggle(index)}>
                   {vm.summaryFor(parameter)}
@@ -219,9 +220,9 @@ const ParameterFields: React.FC<{
     <S.Line>
       <S.Cell>
         <Label>{t('field.description')}</Label>
-        <Input
+        <LabelInput
           value={parameter.label}
-          onChange={(e) => onUpdate(index, { label: e.target.value })}
+          onChange={(label) => onUpdate(index, { label })}
           placeholder={t('parameter.label.placeholder')}
         />
       </S.Cell>

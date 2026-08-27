@@ -8,7 +8,7 @@ import { useNotification } from '../../../stores/useNotification';
 import { useDI } from '../../../infrastructure/di/useDI';
 import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
 import { useStepCatalog } from '../../../stores/useStepCatalog';
-import { WORKFLOW_CALLED_EVENT, buildWorkflowEventCatalog, getWorkflowEventFields, eventNameToEntityKey, workflowParametersToFieldOptions } from '../../../domain/services/workflowEventCatalog';
+import { WORKFLOW_CALLED_EVENT, buildWorkflowEventCatalog, getWorkflowEventFields, eventNameToEntityKey, resolveEventCatalogLabel, workflowParametersToFieldOptions } from '../../../domain/services/workflowEventCatalog';
 import type { SchemaContext } from '../../../domain/schema/pathResolver';
 import { useSchemaContext } from '../../shared/useSchemaContext';
 import { useT, useLabel } from '../../shared/i18n/useT';
@@ -134,11 +134,7 @@ export const buildEventNameOptions = (
 ) =>
   buildWorkflowEventCatalog(ctx).map((entry) => ({
     value: entry.name,
-    // O rótulo é composto: a referência traz "Ao salvar: {name}" e `name` pode, por sua vez, ser
-    // outra referência (entidade nativa) ou o nome que o escritório digitou.
-    label: entry.labelParams
-      ? label(entry.label, { name: label(entry.labelParams.name) })
-      : label(entry.label),
+    label: resolveEventCatalogLabel(label, entry),
     icon: getWorkflowEventIcon(entry.name),
   }));
 
@@ -229,6 +225,7 @@ export interface ViewWorkflowViewModel {
   handleClone: () => void;
   handleDeleteWorkflow: () => void;
   workflowToDelete: WorkflowDefinition | null;
+  nameOf: (workflow: WorkflowDefinition | null) => string;
   confirmDeleteWorkflow: () => Promise<void>;
   cancelDeleteWorkflow: () => void;
   pendingCondition: Condition;
@@ -288,6 +285,11 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
   const t = useT('core.automation');
   const { stepCatalog, loadCatalog } = useStepCatalog();
 
+  const nameOf = useCallback(
+    (candidate: WorkflowDefinition | null) => label(candidate?.name),
+    [label],
+  );
+
   const workflow = useMemo(
     () => (isNew ? null : (workflows.find((w) => w.id === workflowId) ?? null)),
     [isNew, workflows, workflowId],
@@ -334,8 +336,8 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
   }, [workflow]);
 
   useEffect(() => {
-    if (workflow) setTabTitle(tabKey, workflow.name || t('workflow.untitled'));
-  }, [workflow, tabKey, setTabTitle, t]);
+    if (workflow) setTabTitle(tabKey, label(workflow.name) || t('workflow.untitled'));
+  }, [workflow, tabKey, setTabTitle, t, label]);
 
   useEffect(() => {
     if (!currentTenant || isNew) return;
@@ -1043,6 +1045,7 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
     handleDeleteWorkflow,
     getStepLogStatus,
     workflowToDelete,
+    nameOf,
     confirmDeleteWorkflow,
     cancelDeleteWorkflow,
     pendingCondition,

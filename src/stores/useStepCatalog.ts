@@ -40,6 +40,12 @@ export const useStepCatalog = (): StepCatalogContextValue => {
         ...input,
         label: label(input.label, input.labelParams),
         description: input.description === undefined ? undefined : label(input.description),
+        options: input.options?.kind === 'Static'
+          ? {
+            ...input.options,
+            options: input.options.options.map((option) => ({ ...option, label: label(option.label) })),
+          }
+          : input.options,
       })),
       outputDefinitions: step.outputDefinitions.map((output) => ({
         ...output,

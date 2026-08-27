@@ -126,8 +126,8 @@ export const ENTITY_REGISTRY: Record<EntityKey, EntityMetadata> = {
   members: {
     key: 'members',
     collection: 'members',
-    labelSingular: 'Membro',
-    labelPlural: 'Membros',
+    labelSingular: '@core.data/member.singular',
+    labelPlural: '@core.data/member.plural',
     displayNameFields: ['name', 'displayName', 'email'],
     referenceDenormFields: ['name', 'email'],
     fields: [

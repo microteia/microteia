@@ -49,8 +49,8 @@ export const ScriptsView: React.FC = () => {
               <S.Row key={s.id} onClick={() => vm.openScript(s)}>
                 <S.RowIcon><RiCodeBoxLine size={18} /></S.RowIcon>
                 <S.RowInfo>
-                  <S.RowName>{s.name}</S.RowName>
-                  {s.description && <S.RowDescription>{s.description}</S.RowDescription>}
+                  <S.RowName>{vm.nameOf(s)}</S.RowName>
+                  {s.description && <S.RowDescription>{vm.descriptionOf(s)}</S.RowDescription>}
                 </S.RowInfo>
                 <S.DeleteBtn
                   title={t('script.delete')}
@@ -69,7 +69,7 @@ export const ScriptsView: React.FC = () => {
         onConfirm={() => void vm.confirmDelete()}
         onCancel={vm.cancelDelete}
         title={t('script.delete.title')}
-        message={t('scripts.delete.message', { name: vm.scriptToDelete?.name ?? '' })}
+        message={t('scripts.delete.message', { name: vm.nameOf(vm.scriptToDelete) })}
         confirmLabel={t('core.ui/action.delete')}
         variant="danger"
       />

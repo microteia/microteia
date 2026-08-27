@@ -11,6 +11,36 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.19.3] — 2026-08-26
+
+- "Membro" era a única entidade do sistema cujo nome estava escrito em português dentro do programa, e por isso aparecia em português mesmo para quem usasse o sistema em outro idioma. Passa a ser traduzida como todas as outras.
+- Com isso, o nome de uma entidade também deixa de aparecer como código interno no assistente de expressões e no seletor de entidade de um parâmetro — o que já valia para as telas trazidas por extensões.
+
+#### [9.19.2] — 2026-08-26
+
+- A tela de edição de extensão passa a se comportar como as demais: nome, versão, resumo, descrição e o título de uma view mostram o texto traduzido, e revelam o valor original ao serem editados. O identificador continua como está — ele não é um texto que se lê, é o endereço do pacote.
+- A árvore "Conteúdo" dessa tela também deixa de mostrar o código interno da tradução. Ela mistura o que o escritório fez com o que já vem embarcado de outra extensão, e metade dela estava ilegível justamente para quem precisa ler a lista inteira para decidir o que entra no pacote.
+
+#### [9.19.1] — 2026-08-26
+
+- Os campos do Form Design passam a se comportar como o resto do sistema: quando o texto de uma tela ou de um campo vem de uma extensão, o formulário mostra o texto traduzido, e revela o valor original só quando se clica para alterá-lo.
+- A lista de campos de uma tela, as confirmações de exclusão de tela e de campo e as etiquetas das opções de uma lista também deixam de mostrar o código interno da tradução.
+
+#### [9.19.0] — 2026-08-26
+
+- Os campos que guardam um texto vindo de uma extensão passam a mostrar o texto traduzido, e não mais o código interno da tradução. Ao clicar no campo para alterá-lo, aparece o valor original — é ele que se está mudando —, e ao sair, o texto volta a ser exibido no idioma do escritório. Assim é possível ler a tela e, ao mesmo tempo, renomear o que se quiser sem apagar sem perceber a tradução dos outros idiomas.
+- Vale para o nome e a descrição de uma Automação, o título e a pergunta de confirmação de uma Ação, o nome e a descrição de um Script e o nome de um parâmetro.
+- Corrigidos mais três lugares que mostravam o código interno da tradução: a aba Ações do Form Design, os nomes dos parâmetros na tela de Ações e o cabeçalho de cada parâmetro de uma Automação.
+- O editor de passos de uma Automação também passa a traduzir os campos e as saídas que vêm do fluxo ou do script chamado.
+
+#### [9.18.1] — 2026-08-26
+
+- Corrigidos os textos de Automações, Ações e Scripts que uma extensão traz traduzidos e que apareciam com o código interno da tradução no lugar do nome: a lista, o título da aba, o nome no topo da tela, a confirmação de exclusão, o ⌘K, a menção num texto e os seletores que oferecem um fluxo ou um script.
+- O mesmo valia para os botões de ação de um registro, para a pergunta de confirmação antes de agir e para os campos que uma ação pede antes de disparar — todos passam a mostrar o texto no idioma do escritório.
+- A busca dessas telas agora procura pelo nome que se lê na tela. Antes, um fluxo instalado por extensão só era encontrado por quem digitasse o código interno dele — ou seja, por ninguém.
+- O Processador de Dados passa a entregar ao modelo a descrição dos fluxos já traduzida. Sem isso, a escolha automática do fluxo era feita a partir de um código interno, e não de uma descrição.
+- A etiqueta de situação na lista de Automações e o botão "Carregar mais" da Auditoria voltam a acompanhar o idioma escolhido.
+
 #### [9.18.0] — 2026-08-26
 
 - O login corporativo (SSO) passa a ser possível de fato. Quem instala o sistema pode agora indicar extensões que carregam **antes** da tela de entrada — é por elas que o provedor de identidade da organização aparece ali, ao lado ou em lugar do e-mail e senha.

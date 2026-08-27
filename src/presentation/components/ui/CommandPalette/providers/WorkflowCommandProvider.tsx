@@ -7,10 +7,12 @@ const contains = (text: string | null | undefined, query: string) =>
 export const WorkflowCommandProvider: ICommandPaletteProvider = {
   group: '@core.automation/command.group',
 
-  getItems(query: string, { workflows, openTab, close }: CommandPaletteAppContext): CommandPaletteItem[] {
+  getItems(query: string, { workflows, openTab, close, label }: CommandPaletteAppContext): CommandPaletteItem[] {
     if (!query) return [];
     return workflows
-      .filter((w) => contains(w.name, query) || contains(w.eventName, query))
+      // A comparação é com o nome RESOLVIDO, pelo mesmo motivo da tela de extensão: o fluxo que a
+      // extensão instalou declara `@ns/chave`, e casar a query contra a chave o deixava inalcançável.
+      .filter((w) => contains(label(w.name), query) || contains(w.eventName, query))
       .slice(0, 8)
       .map((w) => {
         const Icon = getWorkflowEventIcon(w.eventName);

@@ -8,6 +8,8 @@ export const CORE_DATA_MESSAGES: Record<string, string> = {
   'member.field.email': 'E-mail',
   'member.field.name': 'Name',
   'member.field.role': 'Role',
+  'member.plural': 'Members',
+  'member.singular': 'Member',
   'point.entity.description':
     'Declares a native entity (collection, fields, FKs) for the schema and the engine.',
   'point.entity.title': 'Domain entity',

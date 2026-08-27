@@ -1,6 +1,7 @@
 import React from 'react';
 import { RunModal } from '../RunModal';
 import type { ActionParameterPromptController } from '../../../shared/entityScreen/useActionParameterPrompt';
+import { useLabel } from '../../../shared/i18n/useT';
 
 /**
  * O formulário de uma ação que PERGUNTA antes de executar. É o mesmo modal da execução manual de um
@@ -13,15 +14,17 @@ import type { ActionParameterPromptController } from '../../../shared/entityScre
 export const ActionParametersModal: React.FC<{ controller: ActionParameterPromptController }> = ({
   controller,
 }) => {
+  const label = useLabel();
   const { pending } = controller;
   if (!pending) return null;
+  const title = label(pending.action.title);
   return (
     <RunModal
-      title={pending.action.title}
+      title={title}
       parameters={pending.parameters}
       initialValues={pending.initialValues}
       collectOnly
-      runLabel={pending.action.title}
+      runLabel={title}
       onClose={controller.cancel}
       onRun={async (params) => { controller.confirm(params); }}
     />

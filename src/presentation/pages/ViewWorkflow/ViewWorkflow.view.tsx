@@ -25,7 +25,8 @@ import type { ViewWorkflowViewModel } from './ViewWorkflow.viewmodel';
 import type { WorkflowStep } from '../../../domain/entities/Workflow';
 import type { InsertTarget, BranchKey } from '../../shared/workflowHelpers';
 import { Button } from '../../components/ui/Button';
-import { InputGroup, Label, Input, Textarea } from '../../components/ui/Input';
+import { InputGroup, Label, Input } from '../../components/ui/Input';
+import { LabelInput } from '../../components/ui/LabelInput';
 import { SearchSelect } from '../../components/ui/SearchSelect';
 import { InfoBanner } from '../../components/ui/InfoBanner';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
@@ -300,7 +301,7 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
       <S.Header>
         <S.TitleRow>
           {vm.headerIcon && <vm.headerIcon size={22} />}
-          <S.Title>{vm.isNew ? t('page.new-workflow') : (vm.workflow?.name || t('workflow.untitled'))}</S.Title>
+          <S.Title>{vm.isNew ? t('page.new-workflow') : (vm.nameOf(vm.workflow) || t('workflow.untitled'))}</S.Title>
         </S.TitleRow>
         <S.HeaderActions>
           {!vm.isNew && vm.workflow && (
@@ -375,9 +376,9 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
             <S.Form>
               <InputGroup>
                 <Label>{t('core.marketplace/author.field.name')}</Label>
-                <Input
+                <LabelInput
                   value={vm.formData.name}
-                  onChange={(e) => vm.setFormData({ name: e.target.value })}
+                  onChange={(name) => vm.setFormData({ name })}
                   placeholder={t('workflow.name.placeholder')}
                 />
               </InputGroup>
@@ -400,9 +401,10 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
 
               <InputGroup>
                 <Label>{t('field.description')}</Label>
-                <Textarea
+                <LabelInput
+                  multiline
                   value={vm.formData.description}
-                  onChange={(e) => vm.setFormData({ description: e.target.value })}
+                  onChange={(description) => vm.setFormData({ description })}
                   rows={3}
                 />
               </InputGroup>
@@ -690,7 +692,7 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
 
       {vm.runModalOpen && (
         <RunModal
-          title={t('workflow.run.title', { name: vm.workflow?.name || t('workflow.untitled') })}
+          title={t('workflow.run.title', { name: vm.nameOf(vm.workflow) || t('workflow.untitled') })}
           parameters={vm.runModalParameters}
           runLabel={t('workflow.run.action')}
           onClose={vm.closeRunModal}
@@ -703,7 +705,7 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
         onConfirm={() => void vm.confirmDeleteWorkflow()}
         onCancel={vm.cancelDeleteWorkflow}
         title={t('workflow.delete')}
-        message={t('workflow.delete.message', { name: vm.workflowToDelete?.name ?? '' })}
+        message={t('workflow.delete.message', { name: vm.nameOf(vm.workflowToDelete) })}
         confirmLabel={t('core.ui/action.delete')}
         variant="danger"
       />

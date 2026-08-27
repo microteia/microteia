@@ -10,6 +10,7 @@ import { ErrorBoundary } from '../../../components/layout/ErrorBoundary/ErrorBou
 import { ExtensionPreviewHost } from '../../../shared/extensions/ExtensionPreviewHost';
 import { useCodeViewEditorModalViewModel, type CodeViewEditorModalProps } from './CodeViewEditorModal.viewmodel';
 import { S } from './CodeViewEditorModal.styles';
+import { LabelInput } from '../../../components/ui/LabelInput';
 
 import { useT } from '../../../shared/i18n/useT';
 
@@ -32,7 +33,7 @@ export const CodeViewEditorModal: React.FC<CodeViewEditorModalProps> = ({ isOpen
       <S.Fields>
         <S.Field>
           {t('author.view.title')}
-          <S.Input value={view.title} onChange={(e) => onChange({ title: e.target.value })} />
+          <LabelInput as={S.Input} value={view.title} onChange={(title) => onChange({ title })} />
         </S.Field>
         <S.Field>
           {t('author.view.key')}

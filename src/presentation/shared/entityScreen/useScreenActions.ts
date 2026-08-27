@@ -9,7 +9,7 @@ import type { ActionParameterPromptController } from './useActionParameterPrompt
 import { useExprViewer } from '../useExprViewer';
 import type { ActionDefinition, ActionOutcome, ActionStatusCode, CustomFieldValue } from '../../../domain/entities';
 
-import { useT } from '../i18n/useT';
+import { useT, useLabel } from '../i18n/useT';
 
 type Values = Record<string, CustomFieldValue>;
 
@@ -161,6 +161,7 @@ export const useScreenActions = (target: ScreenActionTarget): ScreenActions => {
   const { getActionsByIds, runAction } = useActions();
   const { notify } = useNotification();
   const t = useT('core.records');
+  const label = useLabel();
   const { effectivePermissions } = useAuthorization();
   const viewer = useExprViewer();
 
@@ -253,13 +254,13 @@ export const useScreenActions = (target: ScreenActionTarget): ScreenActions => {
       .map((action) => ({
         key: action.id,
         iconKey: action.icon,
-        title: action.title,
+        title: label(action.title),
         danger: action.danger,
         disabled: runningActionId !== null || isActionDisabled(action.disabledWhen, exprContext),
         active: actionActiveState(action.activeWhen, exprContext),
         onClick: () => requestRun(action),
       })),
-    [available, exprContext, runningActionId, requestRun, runRecordCommand],
+    [available, exprContext, runningActionId, requestRun, runRecordCommand, label],
   );
 
   return { buttons, runningActionId, pendingAction, confirmPendingAction, cancelPendingAction, parameterPrompt };

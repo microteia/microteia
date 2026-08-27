@@ -186,10 +186,10 @@ export const useMarkdownEditorViewModel = (
 
   const insertWorkflowLink = useCallback(
     (w: WorkflowDefinition) => {
-      insertLink(w.name, `/microteia/view-workflow:${w.id}`);
+      insertLink(label(w.name), `/microteia/view-workflow:${w.id}`);
       setWorkflowPickerOpen(false);
     },
-    [insertLink],
+    [insertLink, label],
   );
 
   const insertFormat = useCallback(

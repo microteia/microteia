@@ -6438,6 +6438,135 @@ VALOR que se está editando, e resolver antes de mostrar faria o próximo "Salva
 cima de `@com.microteia.news/screen.singular` — perdendo a tradução no gesto que parecia não mudar
 nada.
 
+> **Este parágrafo foi superado em parte.** Ele descrevia a escolha entre dois defeitos, não uma boa
+> resposta: o `ScreenBuilder` mostrava a referência crua no campo "Título (singular)", e quem lia a
+> tela não lia texto nenhum. `LabelInput` desfaz a escolha — o campo mostra o traduzido em repouso e
+> revela o valor real ao foco —, e o Form Design passou a usá-lo. Depois o `PluginAuthor` também: o
+> argumento de que ali a referência é o assunto valia para o que o autor escreve, e não para o que ele
+> apenas EMPACOTA. O que segue valendo é a razão de fundo: o valor gravado nunca é o traduzido. Ver
+> "`LabelInput`" adiante.
+
+#### As telas de automação não resolviam nada — e a mesma regra as separa
+
+Automações, Ações e Scripts repetiram o padrão inteiro. O nome que a extensão declara
+como `@ns/chave` chegava cru à lista, ao título da aba, ao cabeçalho da tela, à confirmação de
+exclusão, ao ⌘K, à menção dentro de um texto e a todo seletor que oferece um fluxo ou um script. Três
+arquivos já tinham `useLabel` importado sem aplicá-lo ali — o mesmo sintoma de antes: rótulo
+declarativo tratado como caso, não como regra.
+
+A fronteira é a de sempre, e ela corta DENTRO da mesma tela: o cabeçalho de `ViewWorkflow` mostra o
+nome resolvido, e o campo "Nome" logo abaixo é outra coisa — é onde a referência é o VALOR. Resolver o
+campo como se resolve o cabeçalho faria o primeiro "Salvar" gravar *Keep the summary in step* por cima
+de `@com.microteia.automation-example/workflow.mirror`, apagando a tradução de todos os outros idiomas
+num gesto que parecia não mudar nada. Vale igual para `ViewAction` e `ViewScript`, onde o cabeçalho
+espelha o formulário: ele mostra `displayTitle`/`displayName`, o campo mostra o valor.
+
+#### `LabelInput` — a tradução existe, e ninguém tem acesso a ela
+
+As duas metades do problema pareciam excluir-se. Mostrar a referência crua deixa na tela um texto que
+ninguém lê; mostrar o traduzido faz o "Salvar" apagar a tradução. Escolher uma era escolher qual dos
+dois defeitos ter.
+
+`LabelInput` (`components/ui/LabelInput/`) desfaz a escolha: em repouso o campo mostra o texto
+traduzido; ao receber o FOCO, revela o valor real, que é o que se vai alterar; e se a pessoa digitar, o
+que sai é o que ela digitou. Para fora, o componente nunca fala do traduzido — `value` e `onChange` são
+o valor real dos dois lados —, e é exatamente por isso que nenhum outro componente precisa saber que
+ele existe: quem lê o campo lê o que será gravado, como antes.
+
+`isMessageRef(value)` — e não "o traduzido é diferente do valor" — é o que decide se há algo a revelar.
+Texto que o escritório digitou não tem nada atrás dele, então ali o componente se comporta como um
+`Input` comum, sem foco que troca o conteúdo debaixo da mão de quem lê. Enquanto a tradução está na
+tela, o `title` do campo carrega a referência: ela não é frase, é identificador, e é assim que o autor
+descobre que aquele texto vem do catálogo de uma extensão.
+
+**Por que não foi uma propriedade do `Input`.** Foi a primeira ideia, e a forma do arquivo a recusa:
+`Input` é `styled.input`, num arquivo que é a camada de estilo (`InputGroup`, `Label`, `Textarea`,
+`Select`), usado em algumas dezenas de telas. Dar-lhe estado e idioma transforma um primitivo de estilo
+em componente com ciclo de vida — e, pela regra de MVVM deste projeto, num componente que passa a
+exigir ViewModel — para servir os sete campos que editam um rótulo declarativo. O componente à parte
+diz no ponto de uso o que aquele campo é, e deixa todos os outros exatamente como estavam.
+
+Onde ele é usado: nome e descrição do fluxo, título e pergunta de confirmação da Ação, nome e descrição
+do Script, o rótulo de um parâmetro e — no Form Design — os dois títulos da tela e o rótulo, a seção e o
+texto de exemplo de um campo. Em toda outra parte o campo continua sendo `Input`, porque em toda outra
+parte o valor não é rótulo declarativo.
+
+**`PluginAuthor` também usa, e o argumento contra ele não se sustentou.** A objeção era que ali quem
+digita é quem está CRIANDO a referência, e o catálogo a que ela aponta vive dentro do pacote que está
+sendo escrito. Mas a tela de autoria não empacota só o que o autor acabou de escrever: ela empacota o
+que o ESCRITÓRIO fez, e o que já vem embarcado de outra extensão chega com a referência dela. Quem monta
+um pacote lê aquela lista para decidir o que entra — e lia
+`@com.microteia.automation-example/screen.request.plural` ao lado de `Pet1`, que é uma tela do próprio
+escritório. Metade da tela em texto e metade em chave é pior que qualquer das duas inteiras.
+
+Ali o `LabelInput` cobre nome, versão, resumo, descrição e o título de uma view de código; o
+IDENTIFICADOR fica de fora porque não é rótulo — é o endereço do pacote, e não tem tradução a mostrar.
+No campo de versão o componente é inerte por construção: um semver nunca casa com `isMessageRef`.
+
+**Uma tela com campo próprio não precisa escolher entre o estilo dela e traduzir.** `LabelInput` aceita
+`as`: o comportamento é o mesmo e a forma é a que a tela já tinha. Foi o que permitiu levá-lo ao
+`PluginAuthor`, que tem os próprios `S.Input` e `S.Textarea` — sem isso, a alternativa era repetir a
+mecânica ali dentro, e mecânica repetida é a que sai de sincronia.
+
+**Os campos estão numa LISTA, com teste.** `declarativeFields.test.ts` guarda o vínculo de cada um deles
+com o `LabelInput`. É teste de FONTE, como `viewSources.test.ts`, pela mesma razão: o que se garante é
+uma decisão de escrita, e o comportamento já tem os testes dele ao lado. Ele não pega um campo NOVO que
+nasça errado — para esse, a defesa é a linha na tabela ser óbvia de acrescentar —, mas pega o retrocesso
+de qualquer um dos já resolvidos, que é o que aconteceu três rodadas seguidas.
+
+#### O reflexo traduz; o campo revela
+
+A terceira rodada de correções foi toda de REFLEXO — texto que espelha um campo sem ser o campo, e que
+por isso não tem nada a proteger:
+
+| Onde | O que mostrava | Por que resolve |
+|---|---|---|
+| Aba "Ações" do Form Design | `@ns/action.review` | o valor é o id da Ação; o rótulo é o título DELA, não o da tela que se edita |
+| Tela de Ações, sobre o editor de expressão | `@ns/parameter.decision` | rotula o parâmetro do fluxo; o que se edita ali é a expressão |
+| Cabeçalho e resumo do parâmetro | `@ns/field.title` | é reflexo do campo logo abaixo, que agora é `LabelInput` |
+| Inputs e saídas dinâmicas do Step | `@ns/field.title` | derivados do parâmetro do alvo, via `parameterForDisplay` |
+| Lista de campos do Form Design | `@ns/field.title` | as linhas espelham o que está gravado; edita-se no modal |
+| Confirmações de excluir tela/campo | `@ns/screen.plural` | nomeiam o que se vai apagar |
+| Etiqueta de uma opção de lista | `@ns/field.status.open` | o texto é reflexo; a identidade da opção segue crua |
+| Árvore "Conteúdo" da tela de autoria | `@ns/screen.request.plural` | lista o que o pacote leva, inclusive o embarcado de outra extensão |
+
+`parameterForDisplay` saiu do `RunModal` e passou a viver em `shared/parameterInputs.ts`, que já se
+declarava "a ponte única entre o que um workflow PEDE e o que a tela MOSTRA". Ali ele cobre os quatro
+consumidores de uma vez, em vez de quatro pontos que precisariam lembrar da mesma coisa — e dois não
+lembravam.
+
+**A distinção fina, escrita para não se perder:** o Form Design mostra rótulo cru de propósito, mas só
+o da tela que ele edita. Rótulo de OUTRA coisa — uma Ação, um fluxo, um parâmetro de fluxo — se lê
+traduzido mesmo dentro dele. Enquanto isso não estava escrito, "o Form Design não resolve" virou regra
+larga demais, e o seletor de Ações herdou uma decisão que não era sobre ele.
+
+**Buscar é parte de resolver, de novo.** As três listas comparavam a query com o nome cru, então um
+fluxo instalado por extensão só era achado por quem digitasse a chave de mensagem — ninguém. Mesma
+correção do ⌘K, mesmo motivo.
+
+**A ação do registro estava resolvida pela metade.** `useRecordListViewModel` traduzia o título da
+ação do cartão; `useScreenActions` não, e nenhum dos dois modais de confirmação nem a pergunta de
+parâmetros. A mesma ação lia traduzida no cartão e crua na barra acima dele.
+
+**O parâmetro resolve na ENTRADA do `RunModal`.** Ele é o único modal que pede parâmetro em todo o
+sistema — o "Executar" do fluxo, o do script e a ação que pergunta antes de disparar —, então
+`parameterForDisplay` ali cobre os três, em vez de três pontos que precisariam lembrar. Pela mesma
+razão, `useStepCatalog` passou a resolver também as opções ESTÁTICAS de um input, e não só o rótulo
+dele: a lista de severidade de `register-audit` mostrava a chave.
+
+**E uma que não era de tela.** O `DataProcessor` mandava ao modelo a descrição CRUA de cada fluxo.
+Referência de mensagem não descreve nada para um modelo: a escolha automática do fluxo era feita a
+partir de uma chave, não de uma descrição. É o caso que mostra que resolver não é assunto de
+apresentação — é de significado.
+
+**O gate tinha uma fresta, e ela era grande.** `{w.enabled ? 'Habilitado' : 'Desabilitado'}`
+atravessou a zona migrada inteira: não é `JSXText`, não é valor de atributo, e nenhuma das duas
+palavras tem acento — as três regras de literal passavam por ele. O `no-restricted-syntax` passou a
+cobrar literal de texto dentro de CHAVES no JSX (direto, ternário e lógico), como filho de elemento ou
+de fragmento. Valor de atributo fica de fora de propósito: ali o literal é quase sempre enum técnico
+(`variant={x ? 'danger' : 'default'}`), e o texto de atributo já tem regra própria. A regra nova achou
+mais um, no "Carregar mais" da Auditoria.
+
 #### O que NÃO foi traduzido, e é decisão
 
 A opção semeada numa lista (`Pendente`, `Concluído`, `Geral`, `Comunicado`) é referência **no pacote**.

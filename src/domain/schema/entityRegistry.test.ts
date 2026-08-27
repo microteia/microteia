@@ -67,9 +67,26 @@ describe('lookupRegistry — compatibilidade com LOOKUP_COLLECTIONS legado', () 
   });
 });
 
+/**
+ * Nenhuma entidade do registro pode ter o rótulo escrito em texto. `members` foi a última — `'Membro'`
+ * e `'Membros'` — e não havia regra que a visse: não é JSX, e nenhuma das duas palavras tem acento.
+ * O teste é a regra que faltava, e vale para a próxima entidade, não só para a que quebrou.
+ */
+describe('rótulo de entidade é referência, nunca texto', () => {
+  it.each(Object.values(ENTITY_REGISTRY).map((entity) => [entity.key, entity] as const))(
+    '%s',
+    (_key, entity) => {
+      expect(entity.labelSingular.startsWith('@')).toBe(true);
+      expect(entity.labelPlural.startsWith('@')).toBe(true);
+    },
+  );
+});
+
 describe('helpers do registry', () => {
   it('resolve entidade por coleção', () => {
-    expect(getEntityByCollection('members')?.labelSingular).toBe('Membro');
+    // O rótulo é REFERÊNCIA, não texto: era a última entidade do registro escrita em português, e
+    // quem a resolve é o ponto de render, como faz com o de qualquer tela de extensão.
+    expect(getEntityByCollection('members')?.labelSingular).toBe('@core.data/member.singular');
     // Contrato, Financeiro, Prazo, Push e Notícia saíram do kernel: quem descreve as coleções são as extensões.
     expect(getEntityByCollection('news')).toBeUndefined();
     expect(getEntityByCollection('contracts')).toBeUndefined();

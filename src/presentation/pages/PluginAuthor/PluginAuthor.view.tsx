@@ -11,7 +11,8 @@ import { CodeViewEditorModal } from './CodeViewEditorModal';
 import { usePluginAuthorViewModel, type ArtifactKind } from './PluginAuthor.viewmodel';
 import { S } from './PluginAuthor.styles';
 
-import { useT } from '../../shared/i18n/useT';
+import { useT, useLabel } from '../../shared/i18n/useT';
+import { LabelInput } from '../../components/ui/LabelInput';
 
 const GROUP_ICON: Record<ArtifactKind, string> = {
   screens: 'layoutGrid',
@@ -24,6 +25,7 @@ const GROUP_ICON: Record<ArtifactKind, string> = {
 export const PluginAuthorView: React.FC<{ tabKey?: string }> = ({ tabKey }) => {
   const vm = usePluginAuthorViewModel(tabKey);
   const t = useT('core.marketplace');
+  const label = useLabel();
 
   return (
     <S.Page>
@@ -63,19 +65,19 @@ export const PluginAuthorView: React.FC<{ tabKey?: string }> = ({ tabKey }) => {
               </S.Field>
               <S.Field>
                 {t('author.field.name')}
-                <S.Input placeholder={t('author.field.name.placeholder')} value={vm.form.name} onChange={(e) => vm.updateForm({ name: e.target.value })} />
+                <LabelInput as={S.Input} placeholder={t('author.field.name.placeholder')} value={vm.form.name} onChange={(name) => vm.updateForm({ name })} />
               </S.Field>
               <S.Field>
                 {t('author.field.version')}
-                <S.Input placeholder="1.0.0" value={vm.form.version} onChange={(e) => vm.updateForm({ version: e.target.value })} />
+                <LabelInput as={S.Input} placeholder="1.0.0" value={vm.form.version} onChange={(version) => vm.updateForm({ version })} />
               </S.Field>
               <S.FieldWide>
                 {t('author.field.summary')}
-                <S.Input placeholder={t('author.field.summary.placeholder')} value={vm.form.summary} onChange={(e) => vm.updateForm({ summary: e.target.value })} />
+                <LabelInput as={S.Input} placeholder={t('author.field.summary.placeholder')} value={vm.form.summary} onChange={(summary) => vm.updateForm({ summary })} />
               </S.FieldWide>
               <S.FieldWide>
                 {t('author.field.description')}
-                <S.Textarea value={vm.form.description} onChange={(e) => vm.updateForm({ description: e.target.value })} />
+                <LabelInput as={S.Textarea} multiline value={vm.form.description} onChange={(description) => vm.updateForm({ description })} />
               </S.FieldWide>
             </S.FormGrid>
           </S.Card>
@@ -181,7 +183,7 @@ export const PluginAuthorView: React.FC<{ tabKey?: string }> = ({ tabKey }) => {
                         onClick={() => vm.openView(view.id)}
                       >
                         <S.TreeItemIcon>{getScreenIcon(view.icon, 16)}</S.TreeItemIcon>
-                        <S.TreeItemLabel>{view.title}</S.TreeItemLabel>
+                        <S.TreeItemLabel>{label(view.title)}</S.TreeItemLabel>
                         {view.hasError && <S.ViewWarn title={t('author.compile-error')}><RiErrorWarningLine size={14} /></S.ViewWarn>}
                         <S.TreeItemAction
                           role="button"

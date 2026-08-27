@@ -5,6 +5,7 @@ export {
   buildWorkflowEventCatalog,
   findEventCatalogEntry,
   eventNameToRoot,
+  resolveEventCatalogLabel,
   eventNameToEntityKey,
   getWorkflowEventFields,
   workflowParametersToRoot,

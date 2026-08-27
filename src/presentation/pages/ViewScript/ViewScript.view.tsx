@@ -2,7 +2,8 @@ import React, { Suspense, lazy } from 'react';
 import { RiCodeBoxLine, RiSave3Line, RiDeleteBinLine, RiArrowRightSLine, RiDatabase2Line, RiPlayLine } from 'react-icons/ri';
 import { S } from './ViewScript.styles';
 import { useViewScriptViewModel } from './ViewScript.viewmodel';
-import { Input, Label, Textarea } from '../../components/ui/Input';
+import { Input, Label } from '../../components/ui/Input';
+import { LabelInput } from '../../components/ui/LabelInput';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { RunModal } from '../../components/ui/RunModal';
 import { InfoBanner } from '../../components/ui/InfoBanner';
@@ -24,7 +25,7 @@ export const ViewScriptView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
       <S.Header>
         <S.HeaderTitle>
           <RiCodeBoxLine size={20} />
-          {vm.isNew ? t('script.new') : vm.formData.name || t('script.fallback-name')}
+          {vm.isNew ? t('script.new') : vm.displayName || t('script.fallback-name')}
         </S.HeaderTitle>
         <S.HeaderActions>
           <S.RunBtn onClick={vm.openRunModal} title={t('script.run')}>
@@ -55,9 +56,9 @@ export const ViewScriptView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
             <S.SectionBody>
               <S.Field>
                 <Label>{t('core.ui/field.name')}</Label>
-                <Input
+                <LabelInput
                   value={vm.formData.name}
-                  onChange={(e) => vm.setFormData({ name: e.target.value })}
+                  onChange={(name) => vm.setFormData({ name })}
                   placeholder={t('script.name.placeholder')}
                 />
               </S.Field>
@@ -76,9 +77,10 @@ export const ViewScriptView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
               </S.Field>
               <S.Field>
                 <Label>{t('core.ui/field.description')}</Label>
-                <Textarea
+                <LabelInput
+                  multiline
                   value={vm.formData.description}
-                  onChange={(e) => vm.setFormData({ description: e.target.value })}
+                  onChange={(description) => vm.setFormData({ description })}
                   placeholder={t('script.description.placeholder')}
                   rows={2}
                 />

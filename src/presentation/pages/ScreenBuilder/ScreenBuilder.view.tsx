@@ -16,6 +16,7 @@ import type { ScreenBuilderViewModel, SelectedScreenState } from './ScreenBuilde
 import { Button } from '../../components/ui/Button';
 import { Checkbox } from '../../components/ui/Checkbox';
 import { Input, InputGroup, Label } from '../../components/ui/Input';
+import { LabelInput } from '../../components/ui/LabelInput';
 import { SearchSelect } from '../../components/ui/SearchSelect';
 import { MultiSearchSelect } from '../../components/ui/MultiSearchSelect';
 import { Modal } from '../../components/ui/Modal';
@@ -27,10 +28,11 @@ import { ColorDot } from '../../components/ui/Badge';
 import { getScreenIcon } from '../../shared/screenIcons';
 import type { FieldDefinition } from '../../../domain/entities';
 
-import { useT } from '../../shared/i18n/useT';
+import { useT, useLabel } from '../../shared/i18n/useT';
 
 const FieldRows: React.FC<{ vm: ScreenBuilderViewModel; screenKey: string; fields: FieldDefinition[] }> = ({ vm, screenKey, fields }) => {
   const t = useT('core.records');
+  const label = useLabel();
 
   return (
   <S.FieldList>
@@ -57,7 +59,7 @@ const FieldRows: React.FC<{ vm: ScreenBuilderViewModel; screenKey: string; field
         </S.DragHandle>
         <S.FieldInfo>
           <S.FieldName>
-            {field.label}
+            {label(field.label)}
             {field.required ? ' *' : ''}
             {vm.isTitleField(screenKey, field.key) ? ` (${t('field.title-marker')})` : ''}
           </S.FieldName>
@@ -68,7 +70,7 @@ const FieldRows: React.FC<{ vm: ScreenBuilderViewModel; screenKey: string; field
                 ? `${t('field.origin.plugin')} · `
                 : ''}
             {vm.fieldTypeLabel(field.type)}
-            {field.section ? ` · ${field.section}` : ''}
+            {field.section ? ` · ${label(field.section)}` : ''}
             {` · fieldName: ${field.key}`}
             {vm.hasNativeOverride(screenKey, field.key) ? ` · ${t('field.adjusted')}` : ''}
           </S.FieldMeta>
@@ -191,6 +193,7 @@ const ScreenDetailPane: React.FC<{ vm: ScreenBuilderViewModel; screen: SelectedS
 
 export const ScreenBuilderView: React.FC = () => {
   const t = useT('core.records');
+  const label = useLabel();
   const vm = useScreenBuilderViewModel();
 
   if (!vm.isAdmin) {
@@ -303,17 +306,17 @@ export const ScreenBuilderView: React.FC = () => {
               <>
                 <InputGroup>
                   <Label>{t('screen.title-singular')}</Label>
-                  <Input
+                  <LabelInput
                     value={vm.screenForm.titleSingular}
-                    onChange={(e) => vm.updateScreenForm({ titleSingular: e.target.value })}
+                    onChange={(titleSingular) => vm.updateScreenForm({ titleSingular })}
                     placeholder={t('screen.title-singular.placeholder')}
                   />
                 </InputGroup>
                 <InputGroup>
                   <Label>{t('screen.title-plural')}</Label>
-                  <Input
+                  <LabelInput
                     value={vm.screenForm.titlePlural}
-                    onChange={(e) => vm.updateScreenForm({ titlePlural: e.target.value })}
+                    onChange={(titlePlural) => vm.updateScreenForm({ titlePlural })}
                     placeholder={t('screen.title-plural.placeholder')}
                   />
                 </InputGroup>
@@ -533,9 +536,9 @@ export const ScreenBuilderView: React.FC = () => {
               <>
             <InputGroup>
               <Label>{t('field.label')}</Label>
-              <Input
+              <LabelInput
                 value={vm.fieldForm.label}
-                onChange={(e) => vm.updateFieldForm({ label: e.target.value })}
+                onChange={(label) => vm.updateFieldForm({ label })}
                 placeholder={t('field.label.placeholder')}
               />
             </InputGroup>
@@ -658,7 +661,7 @@ export const ScreenBuilderView: React.FC = () => {
                       {vm.fieldForm.staticOptions.map((option) => (
                         <S.Chip key={option.label}>
                           {option.color && <ColorDot color={option.color} />}
-                          {option.label}
+                          {label(option.label)}
                           <S.ChipRemove type="button" onClick={() => vm.removeStaticOption(option.label)}>×</S.ChipRemove>
                         </S.Chip>
                       ))}
@@ -713,17 +716,17 @@ export const ScreenBuilderView: React.FC = () => {
             )}
             <InputGroup>
               <Label>{t('field.section')}</Label>
-              <Input
+              <LabelInput
                 value={vm.fieldForm.section}
-                onChange={(e) => vm.updateFieldForm({ section: e.target.value })}
+                onChange={(section) => vm.updateFieldForm({ section })}
                 placeholder={t('field.section.placeholder')}
               />
             </InputGroup>
             <InputGroup>
               <Label>{t('field.placeholder')}</Label>
-              <Input
+              <LabelInput
                 value={vm.fieldForm.placeholder}
-                onChange={(e) => vm.updateFieldForm({ placeholder: e.target.value })}
+                onChange={(placeholder) => vm.updateFieldForm({ placeholder })}
                 placeholder={t('field.placeholder.placeholder')}
               />
             </InputGroup>
@@ -990,7 +993,7 @@ export const ScreenBuilderView: React.FC = () => {
       <ConfirmModal
         isOpen={vm.deleteScreenTarget !== null}
         title={t('screen.delete')}
-        message={t('screen.delete.message', { name: vm.deleteScreenTarget?.titlePlural ?? '' })}
+        message={t('screen.delete.message', { name: label(vm.deleteScreenTarget?.titlePlural) })}
         variant="danger"
         confirmLabel={t('core.ui/action.delete')}
         loading={vm.deletingScreen}
@@ -1001,7 +1004,7 @@ export const ScreenBuilderView: React.FC = () => {
       <ConfirmModal
         isOpen={vm.deleteFieldTarget !== null}
         title={t('field.delete')}
-        message={t('field.delete.message', { name: vm.deleteFieldTarget?.field.label ?? '' })}
+        message={t('field.delete.message', { name: label(vm.deleteFieldTarget?.field.label) })}
         variant="danger"
         confirmLabel={t('core.ui/action.delete')}
         loading={vm.deletingField}

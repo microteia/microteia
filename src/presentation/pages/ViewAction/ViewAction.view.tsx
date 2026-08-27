@@ -2,7 +2,8 @@ import React from 'react';
 import { RiCursorLine, RiSave3Line, RiDeleteBinLine } from 'react-icons/ri';
 import { S } from './ViewAction.styles';
 import { useViewActionViewModel } from './ViewAction.viewmodel';
-import { Input, Label, Textarea } from '../../components/ui/Input';
+import { Input, Label } from '../../components/ui/Input';
+import { LabelInput } from '../../components/ui/LabelInput';
 import { Checkbox } from '../../components/ui/Checkbox';
 import { SearchSelect } from '../../components/ui/SearchSelect';
 import { ExpressionEditor } from '../../components/ui/ExpressionEditor';
@@ -46,7 +47,7 @@ export const ViewActionView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
       <S.Header>
         <S.HeaderTitle>
           <RiCursorLine size={20} />
-          {vm.isNew ? t('page.new-action') : (vm.formData.title || t('page.view-action'))}
+          {vm.isNew ? t('page.new-action') : (vm.displayTitle || t('page.view-action'))}
         </S.HeaderTitle>
         <S.HeaderActions>
           <S.SaveBtn
@@ -92,9 +93,9 @@ export const ViewActionView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
             </S.Field>
             <S.Field>
               <Label>{t('action.title')}</Label>
-              <Input
+              <LabelInput
                 value={vm.formData.title}
-                onChange={(e) => vm.setFormData({ title: e.target.value })}
+                onChange={(title) => vm.setFormData({ title })}
                 placeholder={t('action.title.placeholder')}
               />
             </S.Field>
@@ -223,9 +224,10 @@ export const ViewActionView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
           <S.SectionBody>
             <S.Field>
               <Label>{t('action.confirm.label')}</Label>
-              <Textarea
+              <LabelInput
+                multiline
                 value={vm.formData.confirmMessage}
-                onChange={(e) => vm.setFormData({ confirmMessage: e.target.value })}
+                onChange={(confirmMessage) => vm.setFormData({ confirmMessage })}
                 placeholder={t('action.confirm.placeholder')}
                 rows={2}
               />

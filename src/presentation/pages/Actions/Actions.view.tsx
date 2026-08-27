@@ -68,7 +68,7 @@ export const ActionsView: React.FC = () => {
                 <S.RowIcon>{getScreenIcon(action.icon, 18)}</S.RowIcon>
                 <S.RowInfo>
                   <S.RowName>
-                    {action.title}
+                    {vm.titleOf(action)}
                     {!action.enabled && ` ${t('actions.disabled-suffix')}`}
                   </S.RowName>
                   <S.RowDescription>{action.key}</S.RowDescription>
@@ -90,7 +90,7 @@ export const ActionsView: React.FC = () => {
         onConfirm={() => void vm.confirmDelete()}
         onCancel={vm.cancelDelete}
         title={t('actions.delete.title')}
-        message={t('action.delete.message', { title: vm.actionToDelete?.title ?? '' })}
+        message={t('action.delete.message', { title: vm.titleOf(vm.actionToDelete) })}
         confirmLabel={t('core.ui/action.delete')}
         variant="danger"
       />

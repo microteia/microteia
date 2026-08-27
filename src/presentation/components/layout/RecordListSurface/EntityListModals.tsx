@@ -3,7 +3,7 @@ import { ActionParametersModal } from '../../ui/ActionParametersModal';
 import { ConfirmModal } from '../../ui/ConfirmModal';
 import { TagManager } from '../../ui/TagManager';
 import type { RecordListViewModel } from '../../../shared/entityScreen/useRecordListViewModel';
-import { useT } from '../../../shared/i18n/useT';
+import { useT, useLabel } from '../../../shared/i18n/useT';
 
 /**
  * Os modais governados pela configuração de uma listagem de registros: o gerenciador de etiquetas e a
@@ -15,6 +15,7 @@ import { useT } from '../../../shared/i18n/useT';
  */
 export const EntityListModals: React.FC<{ vm: RecordListViewModel }> = ({ vm }) => {
   const t = useT('core.ui');
+  const label = useLabel();
 
   return (
   <>
@@ -34,8 +35,8 @@ export const EntityListModals: React.FC<{ vm: RecordListViewModel }> = ({ vm }) 
     {/* A confirmação da ação do CARTÃO. O detalhe já a tinha; aqui a mesma ação disparava direto. */}
     <ConfirmModal
       isOpen={vm.pendingCardAction !== null}
-      title={vm.pendingCardAction?.action.title ?? ''}
-      message={vm.pendingCardAction?.action.confirmMessage ?? ''}
+      title={label(vm.pendingCardAction?.action.title)}
+      message={label(vm.pendingCardAction?.action.confirmMessage)}
       variant={vm.pendingCardAction?.action.danger ? 'danger' : 'default'}
       confirmLabel={t('action.run')}
       onConfirm={vm.confirmPendingCardAction}

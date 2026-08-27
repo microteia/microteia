@@ -31,6 +31,11 @@ export interface WorkflowParametersEditorViewModel {
   handleRemove: (index: number) => void;
   handleClone: (index: number) => void;
   summaryFor: (parameter: WorkflowParameter) => string;
+  /**
+   * O cabeçalho do parâmetro aberto. É REFLEXO do campo, não o campo: mostra o texto traduzido mesmo
+   * quando o valor gravado é a referência que a extensão declarou.
+   */
+  headerTitleFor: (parameter: WorkflowParameter) => string;
   formatOptions: FieldRulePresetOption[];
   validateOptions: FieldRulePresetOption[];
 }
@@ -84,9 +89,15 @@ export const useWorkflowParametersEditorViewModel = (
     });
   }, [onClone]);
 
+  const headerTitleFor = useCallback(
+    (parameter: WorkflowParameter): string =>
+      label(parameter.label).trim() || parameter.key.trim() || t('parameter.new'),
+    [label, t],
+  );
+
   const summaryFor = useCallback(
     (parameter: WorkflowParameter): string => {
-      const name = parameter.label.trim() || parameter.key.trim() || t('parameter.unnamed');
+      const name = label(parameter.label).trim() || parameter.key.trim() || t('parameter.unnamed');
       const parts = [typeOptions.find((option) => option.value === parameter.type)?.label ?? parameter.type];
       if (parameter.type === 'EntityReference' && parameter.entityType) {
         parts.push(entityOptions.find((option) => option.value === parameter.entityType)?.label ?? parameter.entityType);
@@ -98,7 +109,7 @@ export const useWorkflowParametersEditorViewModel = (
       if (parameter.required) parts.push(t('parameter.summary.required'));
       return `${name} — ${parts.join(' · ')}`;
     },
-    [typeOptions, entityOptions, lookupOptions, t],
+    [typeOptions, entityOptions, lookupOptions, t, label],
   );
 
   const presets = useFieldRulePresets();
@@ -114,6 +125,7 @@ export const useWorkflowParametersEditorViewModel = (
   );
 
   return {
+    headerTitleFor,
     isExpanded,
     toggle,
     handleAdd,

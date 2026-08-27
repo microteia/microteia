@@ -32,6 +32,8 @@ export const CORE_ADMIN: Record<string, string> = {
   'audit.filter.placeholder': 'Filtrar registros de auditoria...',
   'audit.filter.search.placeholder': 'Título ou conteúdo...',
   'audit.filter.severity': 'Severidade',
+  'audit.load-more': 'Carregar mais',
+  'audit.loading': 'Carregando...',
   'audit.filter.tenant': 'Escritório',
   'audit.open-record': 'Ir para o registro',
   'audit.retention':

@@ -185,6 +185,18 @@ export default defineConfig([
           selector: "JSXElement:not([openingElement.name.name='code']):not([openingElement.name.property.name=/^(Code|Pre|Signature|OpName|ParamName)$/]) > JSXText[value=/[A-Za-zÀ-ÿ]{2}/]",
           message: 'Texto solto no JSX. Todo texto de usuário vem do catálogo: renderize {t(\'chave\')} em vez de escrever a frase. Nome próprio (marca) precisa de eslint-disable-next-line com justificativa.',
         },
+        // O MESMO texto solto, quando ele está dentro de chaves em vez de escrito direto no JSX.
+        // `{w.enabled ? 'Habilitado' : 'Desabilitado'}` atravessou a zona inteira: não é `JSXText`,
+        // não é atributo, e as duas palavras não têm acento — as três regras acima passavam por ele.
+        // Era a badge da lista de automações, em português, na zona dada como migrada.
+        //
+        // Só FILHO de elemento conta. Valor de atributo fica de fora porque ali o literal é quase
+        // sempre enum técnico (`variant={x ? 'danger' : 'default'}`, `type={n ? 'number' : 'text'}`),
+        // que não traduz — e o texto de atributo já é cobrado pela regra dos nomes de atributo.
+        {
+          selector: 'JSXElement > JSXExpressionContainer > Literal[value=/[A-Za-zÀ-ÿ]{2}/], JSXElement > JSXExpressionContainer > ConditionalExpression > Literal[value=/[A-Za-zÀ-ÿ]{2}/], JSXElement > JSXExpressionContainer > LogicalExpression > Literal[value=/[A-Za-zÀ-ÿ]{2}/], JSXFragment > JSXExpressionContainer > Literal[value=/[A-Za-zÀ-ÿ]{2}/], JSXFragment > JSXExpressionContainer > ConditionalExpression > Literal[value=/[A-Za-zÀ-ÿ]{2}/], JSXFragment > JSXExpressionContainer > LogicalExpression > Literal[value=/[A-Za-zÀ-ÿ]{2}/]',
+          message: 'Texto de usuário como literal dentro de chaves no JSX. Renderize {t(\'chave\')}: o que se lê na tela vem do catálogo, e o ternário escolhe a CHAVE, não a frase.',
+        },
         {
           selector: 'JSXFragment > JSXText[value=/[A-Za-zÀ-ÿ]{2}/]',
           message: 'Texto solto no JSX. Todo texto de usuário vem do catálogo: renderize {t(\'chave\')} em vez de escrever a frase.',

@@ -1,7 +1,8 @@
 import { useState, useMemo, useCallback } from 'react';
 import { useWorkflowStore } from '../../../../stores/useWorkflowStore';
-import { WORKFLOW_EVENT_CATALOG } from '../../../../domain/services/workflowEventCatalog';
+import { WORKFLOW_EVENT_CATALOG, resolveEventCatalogLabel } from '../../../../domain/services/workflowEventCatalog';
 import type { WorkflowDefinition } from '../../../../domain/entities/Workflow';
+import { useLabel } from '../../../shared/i18n/useT';
 
 export interface WorkflowMentionModalProps {
   onSelect: (workflow: WorkflowDefinition) => void;
@@ -13,6 +14,7 @@ export interface WorkflowMentionModalViewModel {
   keyword: string;
   setKeyword: (v: string) => void;
   handleSelect: (workflow: WorkflowDefinition) => void;
+  nameOf: (workflow: WorkflowDefinition) => string;
   getEventLabel: (eventName: string) => string;
 }
 
@@ -20,17 +22,20 @@ export const useWorkflowMentionModalViewModel = (
   props: WorkflowMentionModalProps,
 ): WorkflowMentionModalViewModel => {
   const { workflows } = useWorkflowStore();
+  const label = useLabel();
   const [keyword, setKeyword] = useState('');
+
+  const nameOf = useCallback((w: WorkflowDefinition) => label(w.name), [label]);
 
   const items = useMemo(() => {
     const q = keyword.toLowerCase();
     if (!q) return workflows;
     return workflows.filter(
       (w) =>
-        w.name.toLowerCase().includes(q) ||
+        nameOf(w).toLowerCase().includes(q) ||
         w.eventName.toLowerCase().includes(q),
     );
-  }, [workflows, keyword]);
+  }, [workflows, keyword, nameOf]);
 
   const handleSelect = useCallback(
     (w: WorkflowDefinition) => { props.onSelect(w); },
@@ -38,9 +43,12 @@ export const useWorkflowMentionModalViewModel = (
   );
 
   const getEventLabel = useCallback(
-    (eventName: string) => WORKFLOW_EVENT_CATALOG.find((e) => e.name === eventName)?.label ?? eventName,
-    [],
+    (eventName: string) => {
+      const entry = WORKFLOW_EVENT_CATALOG.find((e) => e.name === eventName);
+      return entry ? resolveEventCatalogLabel(label, entry) : eventName;
+    },
+    [label],
   );
 
-  return { items, keyword, setKeyword, handleSelect, getEventLabel };
+  return { items, keyword, setKeyword, handleSelect, nameOf, getEventLabel };
 };

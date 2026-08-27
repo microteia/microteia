@@ -1,6 +1,28 @@
 import type { WorkflowParameter } from '../../domain/entities/Workflow';
 import type { InputDefinition } from '../../domain/entities/WorkflowStepCatalog';
 
+type LabelFn = (value: string | null | undefined) => string;
+
+/**
+ * O parâmetro com os RÓTULOS resolvidos — e nada mais tocado.
+ *
+ * Toda tela que pede um parâmetro o faz atravessar este módulo, então resolver aqui cobre as três de
+ * uma vez: o Step "Chamar Workflow", o "Executar" do fluxo e a ação que pergunta antes de disparar.
+ * A alternativa era três pontos que precisariam lembrar da mesma coisa — e dois deles não lembravam.
+ *
+ * Desce nos `fields` e nas `options` porque o rótulo declarativo não para na folha: um parâmetro de
+ * objeto tem filhos com rótulo próprio, e um `select` tem uma opção por rótulo.
+ *
+ * É IDEMPOTENTE, como `useResolvedFields`: `resolveLabel` devolve texto comum intacto, então aplicar
+ * duas vezes é seguro — o que permite um ponto de resolução em vez de ramos que precisam concordar.
+ */
+export const parameterForDisplay = (label: LabelFn, parameter: WorkflowParameter): WorkflowParameter => ({
+  ...parameter,
+  label: label(parameter.label),
+  options: parameter.options?.map((option) => ({ ...option, label: label(option.label) })),
+  fields: parameter.fields?.map((field) => parameterForDisplay(label, field)),
+});
+
 /**
  * O parâmetro declarado visto como um CONTROLE de entrada — a ponte única entre o que um workflow
  * (ou script) PEDE e o que a tela MOSTRA para preencher.

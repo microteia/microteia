@@ -5,7 +5,7 @@ import { useSchemaContext } from '../../../shared/useSchemaContext';
 import type { PathRoot } from '../../../../domain/schema/pathResolver';
 import { parsePath, suggestNextSegments } from '../../../../domain/schema/pathResolver';
 import { validateExpressionWithParser } from './expressionValidator';
-import { useT } from '../../../shared/i18n/useT';
+import { useT, useLabel } from '../../../shared/i18n/useT';
 import { buildAutocompleteItems, insertSnippet } from './autocompleteHelpers';
 import type { AutocompleteItem, ExpressionContextRoot, StepOutputField, WorkflowVariable } from './autocompleteHelpers';
 import { buildPathAutocompleteItems, extractActiveEventPath, extractActiveInputPath, findInvalidEventPath } from './pathAutocomplete';
@@ -104,6 +104,7 @@ export const useExpressionEditorViewModel = (
 
   const validationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const t = useT('core.ui');
+  const label = useLabel();
 
   const pathRoot = props.pathRoot ?? null;
   const inputRoot = props.inputRoot ?? null;
@@ -148,7 +149,7 @@ export const useExpressionEditorViewModel = (
         completedPath: autocompleteState.pathBase,
         query: autocompleteState.query,
         queryStart: autocompleteState.triggerStart,
-      });
+      }, label);
     }
     if (autocompleteState.mode === 'input-field' && inputRoot) {
       return buildPathAutocompleteItems(schemaContext, inputRoot, {
@@ -182,6 +183,7 @@ export const useExpressionEditorViewModel = (
     props.workflowVariables,
     functions,
     t,
+    label,
   ]);
 
   // Calcula posição do autocomplete quando ativa ou muda de contexto

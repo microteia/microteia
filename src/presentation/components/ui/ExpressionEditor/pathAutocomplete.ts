@@ -26,10 +26,16 @@ const buildActivePathExtractor =
 export const extractActiveEventPath = buildActivePathExtractor('event');
 export const extractActiveInputPath = buildActivePathExtractor('input');
 
+/**
+ * O `detail` de uma sugestão é o nome da ENTIDADE apontada, e entidade tem rótulo declarativo: a de
+ * uma extensão declara `@ns/screen.singular`, e o autocomplete mostrava a chave ao lado do campo.
+ * Por isso o resolvedor entra por parâmetro — este módulo é puro, e quem o chama já tem o dele.
+ */
 export const buildPathAutocompleteItems = (
   ctx: SchemaContext,
   root: PathRoot,
   active: ActiveEventPath,
+  label: (value: string | null | undefined) => string = (value) => value ?? '',
 ): AutocompleteItem[] => {
   const suggestions = suggestNextSegments(ctx, root, parsePath(active.completedPath));
   const query = active.query.toLowerCase();
@@ -50,7 +56,7 @@ export const buildPathAutocompleteItems = (
     .map((suggestion) => ({
       value: suggestion.isLeaf ? suggestion.insertText : `${suggestion.insertText}.`,
       label: suggestion.isLeaf ? suggestion.insertText : `${suggestion.insertText}…`,
-      description: suggestion.detail ? `${suggestion.label} — ${suggestion.detail}` : suggestion.label,
+      description: suggestion.detail ? `${suggestion.label} — ${label(suggestion.detail)}` : suggestion.label,
       category: 'Campo',
     }));
 };

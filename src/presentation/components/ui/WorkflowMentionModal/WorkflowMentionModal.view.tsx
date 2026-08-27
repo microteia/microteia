@@ -111,7 +111,7 @@ export const WorkflowMentionModal: React.FC<WorkflowMentionModalProps> = (props)
                   <S.PickerCard key={w.id} onClick={() => vm.handleSelect(w)}>
                     <S.PickerIcon><Icon size={18} /></S.PickerIcon>
                     <S.PickerInfo>
-                      <S.WorkflowName>{w.name}</S.WorkflowName>
+                      <S.WorkflowName>{vm.nameOf(w)}</S.WorkflowName>
                       <S.WorkflowEvent>{vm.getEventLabel(w.eventName)}</S.WorkflowEvent>
                     </S.PickerInfo>
                   </S.PickerCard>

@@ -13,7 +13,7 @@ import { WORKFLOW_CALLED_EVENT } from '../../../domain/schema/eventCatalog';
 import type { AIConnection } from '../../../domain/entities';
 import type { WorkflowDefinition, WorkflowExecution, WorkflowParameter } from '../../../domain/entities/Workflow';
 
-import { useT } from '../../shared/i18n/useT';
+import { useT, useLabel } from '../../shared/i18n/useT';
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 
 const EXECUTION_TIMEOUT_MS = 60000;
@@ -150,6 +150,7 @@ const makeLog = (level: ProcessorLogLevel, message: string, workflowId?: string)
 
 export const useDataProcessorViewModel = (): DataProcessorViewModel => {
   const t = useT('core.admin');
+  const label = useLabel();
   const { currentTenant } = useTenant();
   const { can } = useAuthorization();
   const { openTab } = useWorkspace();
@@ -329,8 +330,8 @@ export const useDataProcessorViewModel = (): DataProcessorViewModel => {
       const eligible = isEligible(w);
       return {
         id: w.id,
-        name: w.name,
-        description: w.description ?? '',
+        name: label(w.name),
+        description: label(w.description),
         eligible,
         reason: eligible ? undefined : t('processor.workflow.has-references'),
         ranked: detectedOrder.includes(w.id),
@@ -342,7 +343,7 @@ export const useDataProcessorViewModel = (): DataProcessorViewModel => {
       return idx === -1 ? Number.MAX_SAFE_INTEGER : idx;
     };
     return [...mapped].sort((a, b) => rank(a.id) - rank(b.id));
-  }, [callableWorkflows, detectedOrder, t]);
+  }, [callableWorkflows, detectedOrder, t, label]);
 
   const selectedWorkflow = useMemo(
     () => callableWorkflows.find((w) => w.id === selectedWorkflowId) ?? null,
@@ -450,7 +451,7 @@ export const useDataProcessorViewModel = (): DataProcessorViewModel => {
     const withoutDescription = eligible.filter((w) => !(w.description ?? '').trim());
 
     const newLogs: ProcessorLogEntry[] = withoutDescription.map((w) =>
-      makeLog('warn', t('processor.log.no-description', { name: w.name }), w.id),
+      makeLog('warn', t('processor.log.no-description', { name: label(w.name) }), w.id),
     );
 
     if (withDescription.length === 0) {
@@ -468,7 +469,9 @@ export const useDataProcessorViewModel = (): DataProcessorViewModel => {
         tenantId: currentTenant.id,
         connectionId: selectedConnectionId,
         text: trimmedText,
-        workflows: withDescription.map((w) => ({ id: w.id, description: (w.description ?? '').trim() })),
+        // A descrição vai RESOLVIDA: quem escolhe o fluxo aqui é o modelo, e uma referência de
+        // mensagem (`@ns/chave`) não descreve nada para ele.
+        workflows: withDescription.map((w) => ({ id: w.id, description: label(w.description).trim() })),
       });
 
       setDetectedOrder(orderedWorkflowIds);
@@ -477,7 +480,7 @@ export const useDataProcessorViewModel = (): DataProcessorViewModel => {
       } else {
         setSelectedWorkflowId(orderedWorkflowIds[0]);
         const names = orderedWorkflowIds
-          .map((id) => callableWorkflows.find((w) => w.id === id)?.name ?? id)
+          .map((id) => label(callableWorkflows.find((w) => w.id === id)?.name) || id)
           .join(' › ');
         setLogs((prev) => [...prev, makeLog('success', t('processor.log.matches', { names }))]);
       }
@@ -488,7 +491,7 @@ export const useDataProcessorViewModel = (): DataProcessorViewModel => {
     } finally {
       setDetecting(false);
     }
-  }, [currentTenant, selectedConnectionId, trimmedText, callableWorkflows, dataProcessorRepository, notify, t]);
+  }, [currentTenant, selectedConnectionId, trimmedText, callableWorkflows, dataProcessorRepository, notify, t, label]);
 
   const setStage = useCallback((key: string, status: StageStatus, detail?: string) => {
     setRunStages((prev) => prev.map((s) => (s.key === key ? { ...s, status, detail } : s)));

@@ -31,6 +31,19 @@ export interface WorkflowEventCatalogEntry {
   root: PathRoot;
 }
 
+/**
+ * O rótulo de um evento, resolvido. Vive aqui — e não em cada tela que mostra um gatilho — porque a
+ * composição tem duas voltas: a referência traz "Ao salvar: {name}", e `name` é por sua vez ou outra
+ * referência (entidade nativa) ou o nome que o escritório digitou no Form Design.
+ */
+export const resolveEventCatalogLabel = (
+  label: (value: string, params?: Record<string, unknown>) => string,
+  entry: Pick<WorkflowEventCatalogEntry, 'label' | 'labelParams'>,
+): string =>
+  (entry.labelParams
+    ? label(entry.label, { name: label(entry.labelParams.name) })
+    : label(entry.label));
+
 const ID_FIELD: WorkflowEventFieldOption = { path: 'id', label: '@core.automation/event-field.id' };
 const CHANGE_TYPE_FIELD: WorkflowEventFieldOption = { path: 'changeType', label: '@core.automation/event-field.change-type' };
 const OLD_FIELD: WorkflowEventFieldOption = { path: 'old', label: '@core.automation/event-field.old' };

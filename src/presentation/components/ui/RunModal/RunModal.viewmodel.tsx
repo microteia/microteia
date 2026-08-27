@@ -1,7 +1,8 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import type { WorkflowParameter } from '../../../../domain/entities/Workflow';
 
-import { useT, type TranslateFn } from '../../../shared/i18n/useT';
+import { useT, useLabel, type TranslateFn } from '../../../shared/i18n/useT';
+import { parameterForDisplay } from '../../../shared/parameterInputs';
 export type RunModalLogLevel = 'INFO' | 'WARN' | 'ERROR' | 'SUCCESS';
 
 export interface RunModalLog {
@@ -170,7 +171,13 @@ export interface RunModalViewModel {
 
 export const useRunModalViewModel = (props: RunModalProps): RunModalViewModel => {
   const t = useT('core.ui');
-  const { parameters, runLabel = t('run.execute'), initialValues, collectOnly = false, onClose, onRun } = props;
+  const label = useLabel();
+  const { parameters: declaredParameters, runLabel = t('run.execute'), initialValues, collectOnly = false, onClose, onRun } = props;
+
+  const parameters = useMemo(
+    () => declaredParameters.map((parameter) => parameterForDisplay(label, parameter)),
+    [declaredParameters, label],
+  );
 
   const [mode, setMode] = useState<'form' | 'json'>('form');
   const [values, setValues] = useState<Record<string, string>>(

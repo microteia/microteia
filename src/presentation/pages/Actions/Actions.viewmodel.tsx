@@ -6,11 +6,12 @@ import { useWorkspace } from '../../../stores/useWorkspace';
 import { useNotification } from '../../../stores/useNotification';
 import type { ActionDefinition } from '../../../domain/entities';
 import type { FilterDef, FilterToken } from '../../components/ui/CompositeFilter';
-import { useT } from '../../shared/i18n/useT';
+import { useT, useLabel } from '../../shared/i18n/useT';
 
 export interface ActionsViewModel {
   isAdmin: boolean;
   filteredActions: ActionDefinition[];
+  titleOf: (action: ActionDefinition | null) => string;
   isLoading: boolean;
   filterTokens: FilterToken[];
   filterDefs: FilterDef[];
@@ -26,6 +27,7 @@ export interface ActionsViewModel {
 
 export const useActionsViewModel = (): ActionsViewModel => {
   const t = useT('core.automation');
+  const label = useLabel();
   const { actions, isLoading, deleteAction } = useActions();
   const { can } = useAuthorization();
   const { openTab } = useWorkspace();
@@ -44,14 +46,19 @@ export const useActionsViewModel = (): ActionsViewModel => {
     return map;
   }, [filterTokens]);
 
+  const titleOf = useCallback(
+    (action: ActionDefinition | null) => label(action?.title),
+    [label],
+  );
+
   const filteredActions = useMemo(() => {
     const searchQ = (tokenMap['search']?.[0] ?? '').toLowerCase();
     return [...actions]
       .filter((action) => !searchQ
-        || action.title.toLowerCase().includes(searchQ)
+        || titleOf(action).toLowerCase().includes(searchQ)
         || action.key.toLowerCase().includes(searchQ))
-      .sort((a, b) => a.order - b.order || a.title.localeCompare(b.title));
-  }, [actions, tokenMap]);
+      .sort((a, b) => a.order - b.order || titleOf(a).localeCompare(titleOf(b)));
+  }, [actions, tokenMap, titleOf]);
 
   const openNewAction = useCallback(() => openTab('new-action'), [openTab]);
   const openAction = useCallback((action: ActionDefinition) => openTab(`view-action:${action.id}`), [openTab]);
@@ -74,6 +81,7 @@ export const useActionsViewModel = (): ActionsViewModel => {
   return {
     isAdmin: can(PERMISSION_AUTOMATION_MANAGE),
     filteredActions,
+    titleOf,
     isLoading,
     filterTokens,
     filterDefs,

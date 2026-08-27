@@ -6,7 +6,7 @@ import type { ActionExprContext } from '../../../domain/schema/actionExpression'
 import type { ActionDefinition } from '../../../domain/entities';
 import type { WorkflowParameter } from '../../../domain/entities/Workflow';
 
-import { useT, type TranslateFn } from '../i18n/useT';
+import { useT, useLabel, type TranslateFn } from '../i18n/useT';
 
 /**
  * Os cinco parâmetros que TODA action entrega ao fluxo. Não entram no formulário: são do sistema, e
@@ -129,6 +129,7 @@ export const buildPromptInitialValues = (
  */
 export const useActionParameterPrompt = (): ActionParameterPromptController => {
   const t = useT('core.records');
+  const label = useLabel();
   const { workflows } = useWorkflowStore();
   const { notify } = useNotification();
   const [pending, setPending] = useState<ActionParameterPrompt | null>(null);
@@ -148,11 +149,11 @@ export const useActionParameterPrompt = (): ActionParameterPromptController => {
     if (parameters.length === 0) return false;
     const { values, failures } = buildPromptInitialValues(t, action, parameters, context);
     for (const failure of failures) {
-      notify(t('action.prompt.compute-failed', { label: failure.label, message: failure.message }), 'warning');
+      notify(t('action.prompt.compute-failed', { label: label(failure.label), message: failure.message }), 'warning');
     }
     setPending({ action, parameters, initialValues: values, run });
     return true;
-  }, [parametersOf, notify, t]);
+  }, [parametersOf, notify, t, label]);
 
   const cancel = useCallback(() => setPending(null), []);
 

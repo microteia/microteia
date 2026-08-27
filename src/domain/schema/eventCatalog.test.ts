@@ -3,6 +3,7 @@ import {
   WORKFLOW_EVENT_CATALOG,
   WORKFLOW_CALLED_EVENT,
   buildWorkflowEventCatalog,
+  resolveEventCatalogLabel,
   splitEntityEventName,
   eventNameToEntityKey,
   eventNameToRoot,
@@ -289,5 +290,52 @@ describe('workflow.called — parâmetros dinâmicos', () => {
     expect(options).toContain('titulo');
     expect(options).toContain('processo');
     expect(options).toContain('processo.id');
+  });
+});
+
+/**
+ * O rótulo de evento é COMPOSTO — "Ao salvar: {name}" —, e `name` é ele mesmo ou outra referência
+ * (entidade nativa) ou o nome que o escritório digitou no Form Design. As duas voltas moravam dentro
+ * do seletor de gatilho; a tela de menção tinha só uma volta, e mostrava a chave.
+ */
+describe('resolveEventCatalogLabel — as duas voltas da composição', () => {
+  const catalog: Record<string, string> = {
+    'core.automation/event.on-save': 'Ao salvar: {name}',
+    'core.automation/event.manual': 'Chamado por uma Ação',
+    'com.acme.auto/screen.request': 'Solicitação',
+  };
+  const label = (value: string, params?: Record<string, unknown>): string => {
+    const key = value.startsWith('@') ? value.slice(1) : value;
+    // Mesma tolerância do `translate` real: chave sem catálogo devolve a PRÓPRIA chave — sem o `@`.
+    const template = catalog[key] ?? key;
+    if (!params) return template;
+    return template.replace(/\{(\w+)\}/g, (_m, token: string) => String(params[token] ?? ''));
+  };
+
+  it('resolve a referência de dentro do parâmetro, e não só a de fora', () => {
+    const resolved = resolveEventCatalogLabel(label, {
+      label: '@core.automation/event.on-save',
+      labelParams: { name: '@com.acme.auto/screen.request' },
+    });
+    expect(resolved).toBe('Ao salvar: Solicitação');
+  });
+
+  it('o nome que o escritório digitou entra como está', () => {
+    const resolved = resolveEventCatalogLabel(label, {
+      label: '@core.automation/event.on-save',
+      labelParams: { name: 'Contrato de Locação' },
+    });
+    expect(resolved).toBe('Ao salvar: Contrato de Locação');
+  });
+
+  it('sem parâmetro, resolve só o rótulo', () => {
+    expect(resolveEventCatalogLabel(label, { label: '@core.automation/event.manual' }))
+      .toBe('Chamado por uma Ação');
+  });
+
+  it('nenhuma entrada do catálogo fixo sobrevive com a referência na tela', () => {
+    WORKFLOW_EVENT_CATALOG.forEach((catalogEntry) => {
+      expect(resolveEventCatalogLabel(label, catalogEntry).startsWith('@')).toBe(false);
+    });
   });
 });

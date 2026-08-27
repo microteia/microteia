@@ -15,7 +15,7 @@ import { workflowParameterToNativeField } from '../../../domain/schema/eventCata
 import type { PathRoot } from '../../../domain/schema/pathResolver';
 import type { NativeFieldSpec } from '../../../domain/schema/entityRegistry';
 import { getStepIcon } from '../../shared/stepIcons';
-import { flattenParameterInputs } from '../../shared/parameterInputs';
+import { flattenParameterInputs, parameterForDisplay } from '../../shared/parameterInputs';
 import {
   getStepDisplayName,
   findStepInTree,
@@ -43,7 +43,7 @@ import type { MapStepConfig } from '../../../domain/schema/mapSpec';
 import type { ValidateStepConfig } from '../../../domain/schema/validateSpec';
 import type { StepOutputField, WorkflowVariable } from '../../components/ui/ExpressionEditor/autocompleteHelpers';
 
-import { useT, type TranslateFn } from '../../shared/i18n/useT';
+import { useT, useLabel, type TranslateFn } from '../../shared/i18n/useT';
 
 const queryProjectionOutputs = (
   t: TranslateFn,
@@ -212,6 +212,7 @@ export interface EditWorkflowStepViewModel {
 
 export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepViewModel => {
   const t = useT('core.automation');
+  const label = useLabel();
   const { currentTenant } = useTenant();
   const { aiConnectionRepository } = useDI();
   const [aiConnections, setAiConnections] = useState<AIConnection[]>([]);
@@ -369,21 +370,23 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
     const source = dynamicTargetKind === 'script'
       ? (targetScript?.inputParams ?? [])
       : (targetWorkflow?.parameters ?? []);
-    const paramInputs = source.flatMap((parameter) => flattenParameterInputs(parameter));
+    const paramInputs = source.flatMap(
+      (parameter) => flattenParameterInputs(parameterForDisplay(label, parameter)),
+    );
     return [...selectedDefinition.inputs, ...paramInputs];
-  }, [selectedDefinition, dynamicInputsSourceId, dynamicTargetKind, targetWorkflow, targetScript]);
+  }, [selectedDefinition, dynamicInputsSourceId, dynamicTargetKind, targetWorkflow, targetScript, label]);
 
   const callableWorkflowOptions = useMemo(
     () =>
       workflows
         .filter((w) => w.eventName === WORKFLOW_CALLED_EVENT && w.id !== workflowId)
-        .map((w) => ({ value: w.id, label: w.name })),
-    [workflows, workflowId],
+        .map((w) => ({ value: w.id, label: label(w.name) })),
+    [workflows, workflowId, label],
   );
 
   const callableScriptOptions = useMemo(
-    () => scripts.map((s) => ({ value: s.id, label: s.name })),
-    [scripts],
+    () => scripts.map((s) => ({ value: s.id, label: label(s.name) })),
+    [scripts, label],
   );
 
   const needsAIConnections = useMemo(
@@ -485,7 +488,7 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
     return existingSteps.length + 1;
   }, [editingStep, existingSteps]);
 
-  const workflowName = workflow?.name ?? t('workflow.fallback-name');
+  const workflowName = label(workflow?.name) || t('workflow.fallback-name');
 
   const eventFields = useMemo<WorkflowEventFieldOption[]>(() => {
     if (!workflow) return [];
@@ -579,9 +582,9 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
       const id = mapping?.kind === 'Literal' ? String(mapping.value ?? '') : '';
       if (!id) return [];
       const script = scripts.find((s) => s.id === id);
-      return (script?.outputParams ?? []).map((param) => ({ id: param.key, label: param.label || param.key }));
+      return (script?.outputParams ?? []).map((param) => ({ id: param.key, label: label(param.label) || param.key }));
     },
-    [scripts],
+    [scripts, label],
   );
 
   // Saídas de um Step desconsiderando chamadas a outro workflow. É a base compartilhada entre
@@ -674,10 +677,10 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
       const target = workflows.find((w) => w.id === id);
       if (!target) return [];
       return (target.parameters ?? []).flatMap((parameter) =>
-        parameterOutputs(t, parameter, 'params'),
+        parameterOutputs(t, parameterForDisplay(label, parameter), 'params'),
       );
     },
-    [workflows, t],
+    [workflows, t, label],
   );
 
   // Fonte única de verdade das saídas selecionáveis de um step (estáticas, dinâmicas,

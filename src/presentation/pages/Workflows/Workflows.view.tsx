@@ -56,14 +56,14 @@ export const WorkflowsView: React.FC = () => {
                 <S.Row key={`${w.tenantId}-${w.id}`} onClick={() => vm.openWorkflow(w)} $clickable>
                   <S.RowIcon><EventIcon size={18} /></S.RowIcon>
                   <S.RowInfo>
-                    <S.RowName>{w.name}</S.RowName>
+                    <S.RowName>{vm.nameOf(w)}</S.RowName>
                     <S.RowEvent>{w.eventName}</S.RowEvent>
                   </S.RowInfo>
                   <S.EnabledBadge
                     $enabled={w.enabled}
                     onClick={(e) => { e.stopPropagation(); vm.toggleEnabled(w); }}
                   >
-                    {w.enabled ? 'Habilitado' : 'Desabilitado'}
+                    {w.enabled ? t('workflow.active') : t('workflow.inactive')}
                   </S.EnabledBadge>
                   <S.DeleteBtn
                     title={t('workflow.delete')}
@@ -83,7 +83,7 @@ export const WorkflowsView: React.FC = () => {
         onConfirm={() => void vm.confirmDelete()}
         onCancel={vm.cancelDelete}
         title={t('workflow.delete')}
-        message={t('workflow.delete.message', { name: vm.workflowToDelete?.name ?? '' })}
+        message={t('workflow.delete.message', { name: vm.nameOf(vm.workflowToDelete) })}
         confirmLabel={t('core.ui/action.delete')}
         variant="danger"
       />

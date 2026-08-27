@@ -5,9 +5,11 @@ import { useNotification } from '../../../stores/useNotification';
 import type { Script } from '../../../domain/entities/Script';
 import type { FilterDef, FilterToken } from '../../components/ui/CompositeFilter';
 
-import { useT } from '../../shared/i18n/useT';
+import { useT, useLabel } from '../../shared/i18n/useT';
 export interface ScriptsViewModel {
   filteredScripts: Script[];
+  nameOf: (script: Script | null) => string;
+  descriptionOf: (script: Script) => string;
   isLoading: boolean;
   filterTokens: FilterToken[];
   filterDefs: FilterDef[];
@@ -23,6 +25,7 @@ export interface ScriptsViewModel {
 
 export const useScriptsViewModel = (): ScriptsViewModel => {
   const t = useT('core.automation');
+  const label = useLabel();
   const { scripts, isLoading, deleteScript } = useScriptStore();
   const { openTab } = useWorkspace();
   const { notify } = useNotification();
@@ -45,12 +48,15 @@ export const useScriptsViewModel = (): ScriptsViewModel => {
     return map;
   }, [filterTokens]);
 
+  const nameOf = useCallback((script: Script | null) => label(script?.name), [label]);
+  const descriptionOf = useCallback((script: Script) => label(script.description), [label]);
+
   const filteredScripts = useMemo(() => {
     const searchQ = (tokenMap['search']?.[0] ?? '').toLowerCase();
     return [...scripts]
-      .filter((s) => !searchQ || s.name.toLowerCase().includes(searchQ))
-      .sort((a, b) => a.name.localeCompare(b.name));
-  }, [scripts, tokenMap]);
+      .filter((s) => !searchQ || nameOf(s).toLowerCase().includes(searchQ))
+      .sort((a, b) => nameOf(a).localeCompare(nameOf(b)));
+  }, [scripts, tokenMap, nameOf]);
 
   const openNewScript = useCallback(() => openTab('new-script'), [openTab]);
   const openScript = useCallback((s: Script) => openTab(`view-script:${s.id}`), [openTab]);
@@ -72,6 +78,8 @@ export const useScriptsViewModel = (): ScriptsViewModel => {
 
   return {
     filteredScripts,
+    nameOf,
+    descriptionOf,
     isLoading,
     filterTokens,
     filterDefs,

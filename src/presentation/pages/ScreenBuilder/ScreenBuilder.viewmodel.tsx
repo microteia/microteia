@@ -875,9 +875,11 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     });
   }, [screenModalIsBuiltin, tagDependentSlots]);
 
+  // O valor é o id da Ação; o rótulo é o título DELA — não o desta tela. Por isso resolve, mesmo aqui:
+  // a regra do rótulo cru no Form Design vale para o que a tela edita, e uma Ação não é isso.
   const actionOptions = useMemo(
-    () => actions.filter((action) => action.enabled).map((action) => ({ value: action.id, label: action.title })),
-    [actions],
+    () => actions.filter((action) => action.enabled).map((action) => ({ value: action.id, label: label(action.title) })),
+    [actions, label],
   );
 
   const setScreenViewActionIds = useCallback(
@@ -1142,7 +1144,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     }
     const childMissingField = Object.entries(screenForm.childLinks).find(([, field]) => !field);
     if (childMissingField) {
-      const label = childCandidates.find((c) => c.key === childMissingField[0])?.label ?? 'registro filho';
+      const label = childCandidates.find((c) => c.key === childMissingField[0])?.label ?? t('screen.fallback');
       setScreenModalTab('children');
       notify(t('screen.error.link-field-required', { label }), 'error');
       return;

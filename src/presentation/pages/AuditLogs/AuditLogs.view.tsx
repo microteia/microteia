@@ -80,7 +80,7 @@ export const AuditLogsView: React.FC = () => {
             {vm.hasMore && (
               <S.LoadMoreWrapper>
                 <Button variant="secondary" onClick={vm.loadMore} disabled={vm.loading}>
-                  {vm.loading ? 'Carregando...' : 'Carregar mais'}
+                  {vm.loading ? t('audit.loading') : t('audit.load-more')}
                 </Button>
               </S.LoadMoreWrapper>
             )}

@@ -97,6 +97,8 @@ export interface ViewActionViewModel {
   notFound: boolean;
   formData: ActionFormState;
   setFormData: (patch: Partial<ActionFormState>) => void;
+  /** O título como quem usa o sistema o lê: o campo guarda a referência, o cabeçalho mostra o texto. */
+  displayTitle: string;
   iconOptions: SearchSelectOption[];
   workflowOptions: { value: string; label: string }[];
   expressionVariables: WorkflowVariable[];
@@ -141,8 +143,8 @@ export const useViewActionViewModel = (tabKey: string): ViewActionViewModel => {
   }, [action]);
 
   useEffect(() => {
-    if (action) setTabTitle(tabKey, action.title);
-  }, [action, tabKey, setTabTitle]);
+    if (action) setTabTitle(tabKey, label(action.title));
+  }, [action, tabKey, setTabTitle, label]);
 
   const setFormData = useCallback(
     (patch: Partial<ActionFormState>) => setForm((prev) => ({ ...prev, ...patch })),
@@ -162,9 +164,9 @@ export const useViewActionViewModel = (tabKey: string): ViewActionViewModel => {
   const workflowOptions = useMemo(
     () => workflows
       .filter((workflow) => workflow.eventName === WORKFLOW_CALLED_EVENT)
-      .map((workflow) => ({ value: workflow.id, label: workflow.name }))
+      .map((workflow) => ({ value: workflow.id, label: label(workflow.name) }))
       .sort((a, b) => a.label.localeCompare(b.label)),
-    [workflows],
+    [workflows, label],
   );
 
   const expressionVariables = useMemo<WorkflowVariable[]>(() => [
@@ -196,8 +198,8 @@ export const useViewActionViewModel = (tabKey: string): ViewActionViewModel => {
     const workflow = workflows.find((candidate) => candidate.id === formData.workflowId);
     return (workflow?.parameters ?? [])
       .filter((param) => !ACTION_SYSTEM_PARAMETERS.has(param.key))
-      .map((param) => ({ key: param.key, label: param.label || param.key, required: !!param.required }));
-  }, [workflows, formData.workflowId]);
+      .map((param) => ({ key: param.key, label: label(param.label) || param.key, required: !!param.required }));
+  }, [workflows, formData.workflowId, label]);
 
   const setParameterDefault = useCallback((key: string, expression: string) => {
     setForm((prev) => ({
@@ -291,6 +293,7 @@ export const useViewActionViewModel = (tabKey: string): ViewActionViewModel => {
     notFound: !isNew && !action,
     formData,
     setFormData,
+    displayTitle: label(formData.title),
     iconOptions,
     workflowOptions,
     expressionVariables,
