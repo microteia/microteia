@@ -156,7 +156,7 @@ export const useExpressionEditorViewModel = (
         completedPath: autocompleteState.pathBase,
         query: autocompleteState.query,
         queryStart: autocompleteState.triggerStart,
-      });
+      }, label);
     }
     return buildAutocompleteItems(
       t,

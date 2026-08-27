@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.19.5] — 2026-08-26
+
+- No assistente de expressões, o grupo das sugestões de campo aparecia sempre em português, e o nome de cada campo sugerido aparecia como código interno. Os dois passam a acompanhar o idioma do escritório.
+
 #### [9.19.4] — 2026-08-26
 
 - Os gatilhos de automação para notas e documentos de um registro tinham o nome escrito em português dentro do programa — "Ao salvar: Nota de …" — e apareceriam assim para quem usasse o sistema em outro idioma. Passam a ser traduzidos como os demais gatilhos.

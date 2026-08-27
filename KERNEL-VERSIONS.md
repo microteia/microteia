@@ -18,6 +18,24 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.19.5] — 2026-08-26
+
+- fix(i18n): `pathAutocomplete` had the last literal of the expression editor's seven groups —
+  `category: 'Campo'`, in Portuguese, in code, while the other six already came from
+  `t('expression.category.*')`. It is now the `@core.ui/expression.category.field` reference.
+- fix(i18n): writing the test for it surfaced a second one in the same object. A suggestion's
+  `description` is built from `suggestion.label`, which is the FIELD's declarative label — and the
+  kernel's own fields carry references: `changeType` declares
+  `@core.automation/event-field.change-type`, and that key was what the editor showed. Both `label`
+  and `detail` now resolve.
+- fix(i18n): the resolver parameter of `buildPathAutocompleteItems` lost its default. A default that
+  returns the text unchanged turns "the caller forgot the resolver" into "the key shows up on screen",
+  which is the silent failure this module already had — and the second call site (`input-field` mode)
+  was in fact not passing one.
+- test(i18n): the test catalog answers in ENGLISH on purpose. With `'Campo'` in it, the assertion
+  passed both with the resolved key and with the literal it replaced — a test that cannot tell the two
+  apart is not a test. Mutation-verified after the change: both fixes fail their assertion when undone.
+
 #### [9.19.4] — 2026-08-26
 
 - fix(i18n): the note/document event labels were BUILT by concatenation —

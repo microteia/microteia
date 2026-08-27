@@ -60,9 +60,23 @@ describe('extractActiveEventPath', () => {
   });
 });
 
+/**
+ * O catálogo do teste responde em INGLÊS de propósito. Com 'Campo' aqui, a asserção passava tanto com
+ * a chave resolvida quanto com o literal que ela veio substituir — o teste não distinguia as duas
+ * formas, que é o mesmo que não testar.
+ */
+const CATALOGO: Record<string, string> = {
+  '@core.ui/expression.category.field': 'Field',
+  '@com.acme.docs/screen.contract': 'Contract',
+};
+
+// Mesma tolerância do `translate` real: chave sem catálogo devolve a PRÓPRIA chave — sem o `@`.
+const label = (value: string | null | undefined): string =>
+  CATALOGO[value ?? ''] ?? (value ?? '').replace(/^@/, '');
+
 describe('buildPathAutocompleteItems', () => {
   it('sugere segmentos com ponto para nós navegáveis', () => {
-    const items = buildPathAutocompleteItems(ctx, casesRoot, { completedPath: '', query: 'contr', queryStart: 0 });
+    const items = buildPathAutocompleteItems(ctx, casesRoot, { completedPath: '', query: 'contr', queryStart: 0 }, label);
     // A relação aparece pelos dois nomes: o do registro apontado (navegável) e a chave que guarda
     // o id — esta também navegável, por ser um campo de referência.
     expect(items.find((i) => i.value === 'contract.')).toBeDefined();
@@ -70,8 +84,29 @@ describe('buildPathAutocompleteItems', () => {
   });
 
   it('navega FK e filtra por query', () => {
-    const items = buildPathAutocompleteItems(ctx, casesRoot, { completedPath: 'contract', query: 'num', queryStart: 0 });
+    const items = buildPathAutocompleteItems(ctx, casesRoot, { completedPath: 'contract', query: 'num', queryStart: 0 }, label);
     expect(items[0]?.value).toBe('number');
+  });
+
+  /**
+   * O grupo era o único literal entre os sete do editor de expressão — "Campo", em português, no
+   * código. Nenhuma regra o via: não é JSX e a palavra não tem acento.
+   */
+  it('o grupo da sugestão vem do catálogo, não do código', () => {
+    const items = buildPathAutocompleteItems(ctx, casesRoot, { completedPath: '', query: 'contr', queryStart: 0 }, label);
+
+    expect(items.length).toBeGreaterThan(0);
+    items.forEach((item) => expect(item.category).toBe('Field'));
+  });
+
+  it('nada que a sugestão mostra chega com a referência crua', () => {
+    const items = buildPathAutocompleteItems(ctx, casesRoot, { completedPath: '', query: '', queryStart: 0 }, label);
+
+    expect(items.length).toBeGreaterThan(0);
+    items.forEach((item) => {
+      expect(item.category?.startsWith('@'), item.value).toBe(false);
+      expect(item.description?.includes('@'), item.value).toBe(false);
+    });
   });
 });
 

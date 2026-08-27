@@ -27,15 +27,25 @@ export const extractActiveEventPath = buildActivePathExtractor('event');
 export const extractActiveInputPath = buildActivePathExtractor('input');
 
 /**
- * O `detail` de uma sugestão é o nome da ENTIDADE apontada, e entidade tem rótulo declarativo: a de
- * uma extensão declara `@ns/screen.singular`, e o autocomplete mostrava a chave ao lado do campo.
- * Por isso o resolvedor entra por parâmetro — este módulo é puro, e quem o chama já tem o dele.
+ * O resolvedor entra por PARÂMETRO, e é obrigatório. Duas coisas que a tela mostra passam por ele:
+ *
+ * - o `label` da sugestão, que é o nome do CAMPO. Vale para o campo de uma extensão e também para o
+ *   do kernel: `changeType` declara `@core.automation/event-field.change-type`, e era essa a chave
+ *   que aparecia na descrição da sugestão;
+ * - o `detail`, que é o nome da ENTIDADE apontada — a de uma extensão declara `@ns/screen.singular`,
+ *   e o autocomplete mostrava a chave ao lado do campo;
+ * - a `category` do grupo, que era o único literal entre os sete grupos do editor. Os outros seis
+ *   já saíam de `t('expression.category.*')`; este dizia "Campo", em português, no código.
+ *
+ * Obrigatório e sem valor padrão de propósito: um padrão que devolve o texto como está transforma
+ * "esqueci de passar o resolvedor" em "a chave aparece na tela", que é o defeito silencioso que este
+ * módulo já teve.
  */
 export const buildPathAutocompleteItems = (
   ctx: SchemaContext,
   root: PathRoot,
   active: ActiveEventPath,
-  label: (value: string | null | undefined) => string = (value) => value ?? '',
+  label: (value: string | null | undefined) => string,
 ): AutocompleteItem[] => {
   const suggestions = suggestNextSegments(ctx, root, parsePath(active.completedPath));
   const query = active.query.toLowerCase();
@@ -56,8 +66,10 @@ export const buildPathAutocompleteItems = (
     .map((suggestion) => ({
       value: suggestion.isLeaf ? suggestion.insertText : `${suggestion.insertText}.`,
       label: suggestion.isLeaf ? suggestion.insertText : `${suggestion.insertText}…`,
-      description: suggestion.detail ? `${suggestion.label} — ${label(suggestion.detail)}` : suggestion.label,
-      category: 'Campo',
+      description: suggestion.detail
+        ? `${label(suggestion.label)} — ${label(suggestion.detail)}`
+        : label(suggestion.label),
+      category: label('@core.ui/expression.category.field'),
     }));
 };
 
