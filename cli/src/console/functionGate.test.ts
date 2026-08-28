@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
+  callableDeclarations,
   describeMisgated,
   misgatedTriggers,
   singleClaimants,
   triggerDeclarations,
   ungatedTriggerProblems,
+  unguardedCallableProblems,
   unguardedSharedProblems,
   unscopedDeclarations,
   unscopedTriggerProblems,
@@ -51,6 +53,7 @@ const subject = (overrides: Partial<GateSubject> = {}): GateSubject => ({
   triggers: [{ name: 'acmeOnSave', trigger: 'onDocumentWritten', gatedFor: null, guards: [] }],
   unscoped: [],
   serves: {},
+  callableGuards: [],
   ...overrides,
 });
 
@@ -479,5 +482,120 @@ describe('o gatilho da function comum que declara quem serve', () => {
   it('lê os ids da chamada com a lista, que é a forma que a comum usa', () => {
     const source = "export const x = onDocumentWritten(o, forAnyInstalledExtension(['com.a.b', 'com.c.d'], h));";
     expect(triggerDeclarations(source)[0].guards).toEqual(['com.a.b', 'com.c.d']);
+  });
+});
+
+/**
+ * A callable de extensão.
+ *
+ * "Uma callable órfã é inerte" era verdade de INTERFACE, e não de segurança — e era a frase que o guia
+ * dizia. O deploy concede a `allUsers` o `roles/run.invoker` em cada callable, então o que sobra é a
+ * validação do token do Firebase: o endpoint responde a QUALQUER usuário do projeto, de qualquer
+ * escritório, tendo ou não a extensão. E o escritório chega no payload, porque `useCallable` manda só o
+ * que a tela passou.
+ */
+describe('a callable de extensão', () => {
+  const withCallable = (guard: string | null): GateSubject => subject({
+    exported: ['acmeQuote'],
+    triggers: [],
+    callableGuards: [{
+      name: 'acmeQuote',
+      trigger: 'onCall',
+      gatedFor: guard,
+      guards: guard === null ? [] : [guard],
+    }],
+  });
+
+  it('sem a guarda de instalação é recusada, dizendo quem mais alcança o endpoint', () => {
+    const problems = unguardedCallableProblems([withCallable(null)]);
+
+    expect(problems).toHaveLength(1);
+    expect(problems[0]).toContain('extensions/crm/functions exports "acmeQuote"');
+    expect(problems[0]).toContain('a callable with no installation check');
+    expect(problems[0]).toContain("requireInstalledExtension('<this extension's id>', tenantId, request)");
+    expect(problems[0]).toContain('any signed-in user of this project');
+  });
+
+  it('com a guarda, nada a dizer', () => {
+    expect(unguardedCallableProblems([withCallable('com.acme.crm')])).toEqual([]);
+  });
+
+  it('não reclama de uma callable que o index.ts não exporta', () => {
+    const hidden = withCallable(null);
+    expect(unguardedCallableProblems([{ ...hidden, exported: [] }])).toEqual([]);
+  });
+
+  /**
+   * `requireInstalledExtension` pede UM id, e a comum serve vários. É lacuna conhecida: a guarda "alguma
+   * das que eu sirvo" existe para gatilho, não para callable.
+   */
+  it('não cobra a guarda da callable comum, que serve mais de uma extensão', () => {
+    const shared = withCallable(null);
+    expect(unguardedCallableProblems([{ ...shared, label: 'functions', shared: true }])).toEqual([]);
+  });
+
+  it('a guarda com o id de outra extensão é apontada nomeando a guarda certa', () => {
+    const found = misgatedTriggers(
+      [withCallable('com.other.thing')],
+      new Map([['acmeQuote', 'com.acme.crm']]),
+    );
+
+    expect(found).toHaveLength(1);
+    expect(found[0].via).toBe('requireInstalledExtension');
+    expect(describeMisgated(found[0])).toContain('passes "com.other.thing" to requireInstalledExtension');
+  });
+});
+
+describe('as callables declaradas numa fonte', () => {
+  it('lê o nome e o id da guarda da callable que o molde escreve', () => {
+    const source = `import { onCall } from 'firebase-functions/v2/https';
+import { requireInstalledExtension } from 'microteia-functions/office';
+
+export const acmeQuote = onCall({ region: 'southamerica-east1', cors: true }, async (request) => {
+  const { tenantId } = request.data;
+  const uid = await requireInstalledExtension('com.acme.crm', tenantId, request);
+
+  return { ok: true, calledBy: uid };
+});`;
+
+    expect(callableDeclarations(source)).toEqual([
+      { name: 'acmeQuote', trigger: 'onCall', gatedFor: 'com.acme.crm', guards: ['com.acme.crm'] },
+    ]);
+  });
+
+  it('marca sem guarda a mesma callable que só confere se há autenticação', () => {
+    const source = `export const acmeQuote = onCall({ cors: true }, (request) => {
+  if (request.auth === undefined) throw new Error('Sign-in required.');
+
+  return { ok: true };
+});`;
+
+    expect(callableDeclarations(source)[0].gatedFor).toBeNull();
+  });
+
+  /**
+   * O alcance é o ARQUIVO: a guarda roda dentro do handler, e o guia manda manter o handler fino com a
+   * decisão num arquivo ao lado. Exigi-la nos parênteses recusaria o código que o guia pede.
+   */
+  it('acha a guarda num handler extraído para fora da chamada', () => {
+    const source = `const guarded = async (request: CallableRequest) => {
+  await requireInstalledExtension('com.acme.crm', request.data.tenantId, request);
+  return { ok: true };
+};
+
+export const acmeQuote = onCall({ cors: true }, guarded);`;
+
+    expect(callableDeclarations(source)[0].gatedFor).toBe('com.acme.crm');
+  });
+
+  it('um comentário que só cita a guarda não conta como guarda', () => {
+    const source = `/** Guard with requireInstalledExtension('com.acme.crm'). */
+export const acmeQuote = onCall(opts, handler);`;
+
+    expect(callableDeclarations(source)[0].gatedFor).toBeNull();
+  });
+
+  it('não confunde gatilho com callable', () => {
+    expect(callableDeclarations('export const x = onDocumentWritten(o, h);')).toEqual([]);
   });
 });

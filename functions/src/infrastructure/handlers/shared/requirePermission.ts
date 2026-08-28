@@ -54,3 +54,20 @@ export const requireAnyPermission = async (
     permission: permissions.join(', '),
   });
 };
+
+/**
+ * "Este usuário pode agir NESTE escritório?" — a pergunta sem permissão nenhuma no meio.
+ *
+ * Ela mora aqui, e não na superfície de servidor das extensões, para não haver uma segunda
+ * implementação de membro/dono/SYSTEM: são as MESMAS três frases que `requirePermission` diz e que o
+ * `firestore.rules` diz, e uma quarta cópia divergiria justamente na regra que decide quem entra.
+ *
+ * O conjunto de permissões vazio é a resposta de quem não é membro — é assim que o documento de membro
+ * responde por ausência —, então a leitura é a mesma que `requirePermission` já faz.
+ */
+export const isOfficeMember = async (tenantId: string, userId: string): Promise<boolean> => {
+  const granted = await getDI().getTenantMemberRepository().getMemberPermissions(tenantId, userId);
+  if (granted.length > 0) return true;
+  if (await isSystemAdmin(userId)) return true;
+  return isTenantOwner(tenantId, userId);
+};

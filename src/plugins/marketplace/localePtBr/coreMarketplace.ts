@@ -150,6 +150,9 @@ export const CORE_MARKETPLACE: Record<string, string> = {
   'extension.trusted': 'Código revisado e liberado para executar neste escritório.',
   'extension.installed': 'Instalada no escritório.',
   'extension.uninstalled': 'Extensão desinstalada.',
+  'extension.not-installed':
+    'A extensão "{extension}" não está instalada neste escritório, então as funções de servidor dela '
+    + 'não respondem aqui.',
   'extension.activated': 'Extensão ativada.',
   'extension.deactivated': 'Extensão desativada.',
   'extension.updated': 'Extensão atualizada.',

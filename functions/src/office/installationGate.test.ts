@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createInstallationGate } from './installationGate';
 import type {
+  CallerReader,
   GateOptions,
   InstallationGate,
   InstallationReader,
@@ -15,10 +16,15 @@ const event = (params: Record<string, string>): { params: Record<string, string>
  */
 const gateWith = (
   installed: InstallationReader,
-  extra: { offices?: OfficeReader } & GateOptions = {},
+  extra: { offices?: OfficeReader; caller?: CallerReader } & GateOptions = {},
 ): InstallationGate => {
-  const { offices, ...options } = extra;
-  return createInstallationGate({ installed, offices: offices ?? (async () => []) }, options);
+  const { offices, caller, ...options } = extra;
+  return createInstallationGate({
+    installed,
+    offices: offices ?? (async () => []),
+    // Membro por omissão: quase todo caso aqui é sobre a instalação, e não sobre quem chamou.
+    caller: caller ?? (async () => true),
+  }, options);
 };
 
 describe('o portão de instalação', () => {
@@ -253,5 +259,68 @@ describe('o portão da function comum a várias extensões', () => {
     const handler = vi.fn();
     await gateWith(async () => true).forAnyInstalledExtension([], handler)(event({ tenantId: 'a' }));
     expect(handler).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * As três recusas de uma callable de extensão.
+ *
+ * "Uma callable órfã é inerte" era verdade de INTERFACE, e não de segurança: o deploy concede a
+ * `allUsers` o papel `roles/run.invoker` em cada callable, e o que sobra é a validação do token do
+ * Firebase. A tela ir embora com a extensão não fecha nada — o endpoint segue aceitando o token de
+ * qualquer usuário do projeto, e o escritório vem no payload.
+ */
+describe('as recusas de uma callable de extensão', () => {
+  const request = (uid?: string) => (uid === undefined ? {} : { auth: { uid } });
+
+  it('devolve o uid de quem chamou quando as três respostas são sim', async () => {
+    const uid = await gateWith(async () => true)
+      .requireInstalledExtension('com.acme.crm', 'escritorio-a', request('u1'));
+
+    expect(uid).toBe('u1');
+  });
+
+  it('recusa a chamada sem autenticação', async () => {
+    await expect(
+      gateWith(async () => true).requireInstalledExtension('com.acme.crm', 'a', request()),
+    ).rejects.toThrow(/office\.unauthenticated/);
+  });
+
+  /**
+   * É a recusa que fecha o buraco de verdade: a callable aceita o token de qualquer usuário do projeto,
+   * e o escritório chega no payload. Sem ela, um usuário do escritório A aponta para o B.
+   */
+  it('recusa quem entrou mas não é do escritório apontado no payload', async () => {
+    await expect(
+      gateWith(async () => true, { caller: async () => false })
+        .requireInstalledExtension('com.acme.crm', 'escritorio-b', request('u1')),
+    ).rejects.toThrow(/office\.not-member/);
+  });
+
+  it('recusa o escritório que não tem a extensão, nomeando qual', async () => {
+    const call = gateWith(async () => false)
+      .requireInstalledExtension('com.acme.crm', 'escritorio-a', request('u1'));
+
+    await expect(call).rejects.toThrow(/extension\.not-installed/);
+  });
+
+  /** A ordem importa: não se diz a um estranho se a extensão está instalada naquele escritório. */
+  it('a recusa de escritório vem ANTES da pergunta sobre a instalação', async () => {
+    const read = vi.fn(async () => true);
+    const call = gateWith(read, { caller: async () => false })
+      .requireInstalledExtension('com.acme.crm', 'escritorio-b', request('u1'));
+
+    await expect(call).rejects.toThrow(/office\.not-member/);
+    expect(read).not.toHaveBeenCalled();
+  });
+
+  it('reusa o cache da instalação, como o gatilho e o laço', async () => {
+    const read = vi.fn(async () => true);
+    const gate = gateWith(read, { now: () => 1_000 });
+
+    await gate.requireInstalledExtension('com.acme.crm', 'a', request('u1'));
+    await gate.requireInstalledExtension('com.acme.crm', 'a', request('u1'));
+
+    expect(read).toHaveBeenCalledOnce();
   });
 });

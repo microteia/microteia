@@ -74,6 +74,7 @@ export const UNSCOPED_TRIGGER_CONSTRUCTORS = [
 const GATE = 'forInstalledExtension';
 const OFFICE_LOOP = 'forEachInstalledOffice';
 const ANY_GATE = 'forAnyInstalledExtension';
+const CALLABLE_GUARD = 'requireInstalledExtension';
 
 /** Onde uma string termina, a partir da abertura dela. Aspas não fechada não engole o resto do arquivo. */
 const stringEnd = (source: string, start: number, quote: string): number => {
@@ -270,6 +271,25 @@ export const unscopedDeclarations = (rawSource: string): TriggerDeclaration[] =>
 };
 
 /**
+ * As callables declaradas, e o id que a guarda delas recebeu no ARQUIVO.
+ *
+ * O alcance é o arquivo pela mesma razão do laço por escritório: a guarda roda DENTRO do handler (ela
+ * precisa do `request`), e o guia manda o autor manter o handler fino, com a decisão num arquivo ao
+ * lado. Exigi-la nos parênteses recusaria justamente o código que o guia pede.
+ */
+export const callableDeclarations = (rawSource: string): TriggerDeclaration[] => {
+  const source = withoutComments(rawSource);
+  const guard = source.match(new RegExp(String.raw`\b${CALLABLE_GUARD}\s*\(\s*['"]([^'"]*)['"]`));
+
+  return declarationsOf(source, ['onCall']).map((declaration) => ({
+    name: declaration.name,
+    trigger: declaration.trigger,
+    gatedFor: guard === null ? null : guard[1],
+    guards: guard === null ? [] : [guard[1]],
+  }));
+};
+
+/**
  * O que uma origem de functions precisa ter para ser conferida. É a forma de `FunctionSource`, declarada
  * aqui em vez de importada: assim este módulo se testa sozinho, sem montar diretório nenhum.
  */
@@ -283,6 +303,8 @@ export interface GateSubject {
   unscoped: TriggerDeclaration[];
   /** Quem cada function comum declara servir. Vazio numa origem de extensão. */
   serves: Record<string, string[]>;
+  /** As callables declaradas, com o estado da guarda de cada uma. */
+  callableGuards: TriggerDeclaration[];
 }
 
 /** Os gatilhos que o `index.ts` de fato exporta — um declarado e não exportado não é deployado. */
@@ -296,6 +318,9 @@ const exportedTriggers = (subject: GateSubject): TriggerDeclaration[] =>
 
 const exportedUnscoped = (subject: GateSubject): TriggerDeclaration[] =>
   exportedOnly(subject, subject.unscoped);
+
+const exportedCallables = (subject: GateSubject): TriggerDeclaration[] =>
+  exportedOnly(subject, subject.callableGuards);
 
 /**
  * Gatilho de extensão sem portão.
@@ -366,6 +391,32 @@ export const unguardedSharedProblems = (subjects: GateSubject[]): string[] => su
       + 'question, and one of them is wrong'];
   }));
 
+/**
+ * Callable de extensão sem a guarda de instalação.
+ *
+ * "Uma callable órfã é inerte" era verdade de INTERFACE, e não de segurança — e era a frase que o guia
+ * dizia. O deploy concede a `allUsers` o papel `roles/run.invoker` em cada callable; o que sobra depois é
+ * a validação do token do Firebase. Então a tela ir embora com a extensão não fecha nada: o endpoint
+ * segue no ar aceitando o token de QUALQUER usuário do projeto, de qualquer escritório, tendo ou não a
+ * extensão.
+ *
+ * E o escritório chega no PAYLOAD, porque `useCallable` manda só o que a tela passou. Sem a guarda, um
+ * usuário do escritório A chama a function apontando para o B — e o molde gerado conferia apenas se
+ * havia `request.auth`.
+ *
+ * A comum fica de fora: `requireInstalledExtension` pede UM id, e a comum serve vários. É lacuna
+ * conhecida e está registrada — a guarda "alguma das que eu sirvo" existe para gatilho, não para
+ * callable.
+ */
+export const unguardedCallableProblems = (subjects: GateSubject[]): string[] => subjects
+  .filter((subject) => !subject.shared)
+  .flatMap((subject) => exportedCallables(subject)
+    .filter((callable) => callable.gatedFor === null)
+    .map((callable) => `${subject.label} exports "${callable.name}", a callable with no installation `
+      + `check — call ${CALLABLE_GUARD}('<this extension's id>', tenantId, request) before you read the `
+      + 'payload. The deploy makes every callable publicly invocable, so it answers any signed-in user '
+      + 'of this project, from any office, whether or not they installed the extension'));
+
 export interface MisgatedTrigger {
   /** A origem, como as mensagens a citam. */
   label: string;
@@ -408,6 +459,7 @@ export const misgatedTriggers = (
     .flatMap((subject) => [
       ...wrong(subject, exportedTriggers(subject), GATE),
       ...wrong(subject, exportedUnscoped(subject), OFFICE_LOOP),
+      ...wrong(subject, exportedCallables(subject), CALLABLE_GUARD),
     ]);
 };
 

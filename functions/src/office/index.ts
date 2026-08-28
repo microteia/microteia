@@ -9,6 +9,7 @@
  * código: agir apenas no escritório que a instalou.
  */
 import { getDb } from '../infrastructure/firebase/initFirebase';
+import { isOfficeMember } from '../infrastructure/handlers/shared/requirePermission';
 import { createInstallationGate } from './installationGate';
 
 /**
@@ -17,6 +18,13 @@ import { createInstallationGate } from './installationGate';
  */
 export interface TenantScopedEvent {
   params: Record<string, string>;
+}
+
+/**
+ * The least a callable request has to carry: who is calling. Every `onCall` request satisfies it.
+ */
+export interface CallerRequest {
+  auth?: { uid: string };
 }
 
 const gate = createInstallationGate({
@@ -39,6 +47,13 @@ const gate = createInstallationGate({
     const refs = await getDb().collection('tenants').listDocuments();
     return refs.map((ref) => ref.id);
   },
+
+  /**
+   * A MESMA pergunta que `requirePermission` e o `firestore.rules` fazem — membro, dono ou SYSTEM —, e
+   * lida de lá em vez de repetida aqui: uma quarta cópia divergiria justamente na regra que decide quem
+   * entra num escritório.
+   */
+  caller: isOfficeMember,
 });
 
 /**
@@ -125,3 +140,33 @@ export const forAnyInstalledExtension: <E extends TenantScopedEvent>(
   pluginIds: string[],
   handler: (event: E) => Promise<void> | void,
 ) => (event: E) => Promise<void> = gate.forAnyInstalledExtension;
+
+/**
+ * The three refusals a callable of yours owes before it looks at the payload. Returns the caller's uid.
+ *
+ *     export const acmeQuote = onCall({ region, cors: true }, async (request) => {
+ *       const { tenantId, ...input } = request.data;
+ *       const uid = await requireInstalledExtension('com.acme.crm', tenantId, request);
+ *
+ *       return quoteFor(input);
+ *     });
+ *
+ * It refuses an unauthenticated call, a caller who is not a member of that organization, and an
+ * organization where your extension is not installed and active.
+ *
+ * The second one is the one that matters, and it is not obvious. "An orphan callable just sits there" is
+ * true of the interface, not of security: the deploy grants `allUsers` the `roles/run.invoker` role on
+ * every callable, and what is left after that is the Firebase token check. So your screen going away with
+ * your extension closes nothing — the endpoint stays up, accepting the token of ANY user in the project,
+ * from any organization, whether or not they have your extension. And the organization arrives in the
+ * payload, because `useCallable` sends only what your screen passed.
+ *
+ * It throws rather than returning a boolean, deliberately: a `false` invites being ignored, and the
+ * missing `if` leaves no symptom at all. The errors are `HttpsError`, so they reach your view as errors
+ * and not as a broken response.
+ */
+export const requireInstalledExtension: (
+  pluginId: string,
+  tenantId: string,
+  request: CallerRequest,
+) => Promise<string> = gate.requireInstalledExtension;

@@ -394,21 +394,32 @@ export const functionName = (pluginId: string, action: string): string => {
  * Uma Cloud Function do escritório. A REGIÃO é obrigatória e é a da instalação: uma function em outra
  * região não recebe os gatilhos do Firestore, e o deploy não acusa nada.
  */
-export const functionTs = (name: string, region: string): string =>
+export const functionTs = (name: string, pluginId: string, region: string): string =>
   `import { onCall } from 'firebase-functions/v2/https';
+import { requireInstalledExtension } from 'microteia-functions/office';
 
 /**
  * ${name}
  *
- * Pinned to ${region}: a function in another region does not receive this project's Firestore triggers,
- * and nothing in the deploy tells you so.
- *
  * Reachable from an extension view with useCallable('${name}') from '@microteia/functions'.
+ *
+ * requireInstalledExtension makes the three refusals this callable owes before it looks at the payload:
+ * the caller signed in, the caller belongs to that organization, and this extension is installed and
+ * active there. It returns the caller's uid.
+ *
+ * The middle one is the one that is not obvious. The deploy makes every callable publicly invocable, so
+ * what stands between this function and the internet is only the Firebase token check: it answers ANY
+ * signed-in user of this project, from any organization, whether or not they installed this extension.
+ * And the organization arrives in the payload, because useCallable sends only what your screen passed —
+ * so without the check, a user of one organization can point this at another.
+ *
+ * Pinned to ${region}: keep every function of an installation in one region.
  */
-export const ${name} = onCall({ region: '${region}', cors: true }, (request) => {
-  if (request.auth === undefined) throw new Error('Sign-in required.');
+export const ${name} = onCall({ region: '${region}', cors: true }, async (request) => {
+  const { tenantId } = (request.data ?? {}) as { tenantId?: string };
+  const uid = await requireInstalledExtension('${pluginId}', String(tenantId ?? ''), request);
 
-  return { ok: true, calledBy: request.auth.uid };
+  return { ok: true, calledBy: uid };
 });
 `;
 
@@ -639,7 +650,7 @@ export const scaffoldPlugin = (
 
   if (spec.functions) {
     const name = functionName(spec.id, 'hello');
-    write(`functions/${name}.ts`, functionTs(name, installationRegion(parentDir)));
+    write(`functions/${name}.ts`, functionTs(name, spec.id, installationRegion(parentDir)));
     write('functions/index.ts', functionsIndexTs([name]));
     result.functionName = name;
   }
@@ -671,7 +682,7 @@ const sourceFor = (
 ): string => {
   if (shape.kind === 'trigger') return triggerTs(name, pluginId, shape.collection, region);
   if (shape.kind === 'schedule') return scheduleTs(name, pluginId, shape.schedule, region);
-  return functionTs(name, region);
+  return functionTs(name, pluginId, region);
 };
 
 export const scaffoldFunction = (

@@ -22,6 +22,12 @@
 - fix(command): what was broken, and what it did to whoever hit it.
 -->
 
+#### [2.18.0] — 2026-08-28
+
+- feat(console/functionGate): an extension's callable without `requireInstalledExtension` is refused, and a guard naming another extension's id is rejected the way a misgated trigger is. The refusal exists because the deploy makes every callable publicly invocable — this Console's own `callableAccess.ts` is there to confirm that grant went through — so the callable answers any signed-in user of the project, from any organization, whether or not they installed the extension, with the organization arriving in the payload.
+- feat(console/functionGate): the scope of this check is the FILE, like the per-office loop and unlike the trigger guard. The guard runs inside the handler because it needs the `request`, and the authoring guide asks authors to keep the handler thin with the decision in a file beside it — demanding the call inside the parentheses would refuse exactly the code the guide asks for.
+- feat(console/functionGate): the SHARED callable is left out, and it is recorded rather than silently skipped: `requireInstalledExtension` takes one id and a shared function serves several. The "any of the ones I serve" guard exists for a trigger (`forAnyInstalledExtension`), not for a callable.
+
 #### [2.17.0] — 2026-08-28
 
 - feat(console/customFunctions): `microteia.serves` in `functions/package.json` — function name to the extension ids it serves. It closes the widest and quietest gap in the whole withdrawal mechanism. A function in `functions/` has no owner by construction (no extension may claim it), so it sat outside the mechanism ENTIRELY: never recorded as applied, never classified as an orphan, never reported, and out of `--prune`'s reach. It stayed deployed forever, put up by every deploy, with every extension it served long uninstalled — and the authoring guide was the thing telling authors to put shared functions there.

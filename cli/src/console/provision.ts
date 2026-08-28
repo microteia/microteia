@@ -51,6 +51,7 @@ import {
   misgatedTriggers,
   singleClaimants,
   ungatedTriggerProblems,
+  unguardedCallableProblems,
   unscopedTriggerProblems,
 } from './functionGate.js';
 import {
@@ -263,6 +264,7 @@ export const provisionBackend = async (options: ProvisionOptions): Promise<Provi
   const ungated = [
     ...ungatedTriggerProblems(office.sources),
     ...unscopedTriggerProblems(office.sources),
+    ...unguardedCallableProblems(office.sources),
   ];
   if (ungated.length > 0) {
     warn(`${ungated.length} function(s) written in this installation act outside any office's`

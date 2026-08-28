@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.34.0] — 2026-08-28
+
+- Uma função de servidor de extensão passa a recusar quem não é do escritório indicado, além de quem não entrou no sistema. Antes ela ficava acessível a qualquer pessoa com acesso ao sistema, mesmo de outro escritório e mesmo depois de a extensão ser desinstalada — a tela desaparecia, o endereço no servidor não. As funções que as extensões trazem agora nascem com essa verificação.
+
 #### [9.33.0] — 2026-08-28
 
 - Um recurso de servidor usado por várias extensões ao mesmo tempo agora pode dizer para quais delas ele existe. Com isso ele passa a funcionar apenas nos escritórios que têm alguma dessas extensões, e é retirado do ar quando nenhuma delas continua instalada — antes ele ficava ativo indefinidamente, mesmo depois de todas saírem, e nada indicava isso a quem cuida do sistema.

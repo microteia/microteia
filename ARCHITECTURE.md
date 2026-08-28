@@ -1257,10 +1257,10 @@ caso de ele sobrar sozinho.
 
 #### A retirada tem DUAS metades, e nenhuma das duas basta sozinha
 
-Quando uma extensão é desinstalada, o que sobra é uma Cloud Function no ar. Se ela for uma callable, a
-sobra é inerte — só uma tela daquela extensão a chamava, e a tela foi junto. Se for um gatilho de
+Quando uma extensão é desinstalada, o que sobra é uma Cloud Function no ar. Se for um gatilho de
 Firestore, ela **continua disparando a cada gravação**, rodando o código de uma extensão que ninguém tem
-mais. A retirada, então, é isto:
+mais. Se for uma callable, a sobra **não** é inerte — o deploy a torna publicamente invocável, e o que
+resta é a validação do token: ver "A callable de extensão" abaixo. A retirada, então, é isto:
 
 | Metade | Onde | O que ela alcança |
 |---|---|---|
@@ -1305,6 +1305,40 @@ documentação de API entregue, pela mesma regra de `extensionTypeDefs.ts`.
 
 `microteia-plugin create function` pergunta o que dispara a function e escreve o gatilho já com o portão:
 um exemplo gerado sem ele ensinaria o defeito.
+
+##### A callable de extensão: "órfã é inerte" era verdade de INTERFACE, não de segurança
+
+Era a frase que este próprio documento e o guia de autoria diziam: uma callable que sobra é inofensiva,
+porque só uma tela daquela extensão a chamava e a tela foi junto. O argumento é de alcance pela UI, e não
+de segurança — e a diferença é o defeito:
+
+**O deploy concede a `allUsers` o papel `roles/run.invoker` em cada callable** (`console/callableAccess.ts`
+existe justamente para conferir que a concessão passou). O que sobra entre a function e a internet é a
+validação do token do Firebase feita pelo protocolo da callable. Então a tela ir embora não fecha nada: o
+endpoint segue no ar respondendo ao token de QUALQUER usuário do projeto — de qualquer escritório, tendo
+ou não a extensão.
+
+E o escritório chega no **payload**: `useCallable` manda só o que a tela passou. O molde gerado conferia
+apenas `request.auth !== undefined`. Somando as duas coisas, um usuário do escritório A chamava a function
+de uma extensão apontando para o escritório B.
+
+**`requireInstalledExtension(pluginId, tenantId, request)`** faz as três recusas devidas e devolve o
+`uid`:
+
+| Recusa | Código | Por quê |
+|---|---|---|
+| não entrou | `unauthenticated` | a de sempre |
+| entrou e não é do escritório apontado | `permission-denied` | **é esta que fecha o buraco**: o token vale para o projeto, e o escritório vem no payload |
+| escritório sem a extensão instalada e ativa | `failed-precondition` | é a metade da retirada que age no instante do clique, do lado da callable |
+
+| Decisão | Por quê |
+|---|---|
+| RECUSA, e não um booleano | `isExtensionInstalled` devolvendo `false` convida a ser ignorado, e o `if` que falta não deixa sintoma nenhum |
+| a pergunta de membro vem de `isOfficeMember` (`handlers/shared/requirePermission.ts`) | são as MESMAS três frases que `requirePermission` e o `firestore.rules` dizem. Uma quarta cópia divergiria justamente na regra que decide quem entra num escritório |
+| escritório ANTES da instalação | não se diz a um estranho se uma extensão está instalada naquele escritório |
+| devolve o `uid` | quem acabou de autorizar quase sempre precisa dele em seguida |
+| o alcance da recusa do Console é o ARQUIVO | a guarda roda dentro do handler, e o guia manda manter o handler fino com a decisão num arquivo ao lado. Exigi-la nos parênteses recusaria o código que o guia pede |
+| a callable COMUM fica de fora | `requireInstalledExtension` pede UM id, e a comum serve vários. É lacuna conhecida e registrada: a guarda "alguma das que eu sirvo" existe para gatilho (`forAnyInstalledExtension`), não para callable |
 
 ##### O evento sem escritório: o portão não serve, e agora existe resposta
 

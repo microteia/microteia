@@ -151,6 +151,9 @@ export const CORE_MARKETPLACE_MESSAGES: Record<string, string> = {
   'extension.trusted': 'Code reviewed and released to run in this organization.',
   'extension.installed': 'Installed in the organization.',
   'extension.uninstalled': 'Extension uninstalled.',
+  'extension.not-installed':
+    'The extension "{extension}" is not installed in this organization, so its server functions do not '
+    + 'answer here.',
   'extension.activated': 'Extension activated.',
   'extension.deactivated': 'Extension deactivated.',
   'extension.updated': 'Extension updated.',

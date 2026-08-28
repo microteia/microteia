@@ -3,8 +3,10 @@ import { basename, join } from 'node:path';
 import { callableFunctionNames, declaredParametersIn } from '../kernel/manifest.js';
 import type { BackendParameter } from '../kernel/manifest.js';
 import {
+  callableDeclarations,
   triggerDeclarations,
   ungatedTriggerProblems,
+  unguardedCallableProblems,
   unguardedSharedProblems,
   unscopedDeclarations,
   unscopedTriggerProblems,
@@ -60,6 +62,11 @@ export interface FunctionSource {
   shared: boolean;
   /** As callables — as únicas que o navegador chama, e por isso as únicas com alcance a conferir. */
   callables: string[];
+  /**
+   * As callables com o estado da guarda de instalação de cada uma. Separado de `callables` porque
+   * responde a outra pergunta: aquela é "o navegador alcança?", esta é "quem mais alcança?".
+   */
+  callableGuards: TriggerDeclaration[];
   /**
    * Os gatilhos de Firestore declarados aqui, com o estado do portão de instalação de cada um. É o que
    * permite recusar um gatilho de extensão que dispararia para todos os escritórios do projeto.
@@ -186,6 +193,7 @@ const readSource = async (
   const callables = new Set<string>();
   const triggers: TriggerDeclaration[] = [];
   const unscoped: TriggerDeclaration[] = [];
+  const callableGuards: TriggerDeclaration[] = [];
   const parameters = new Map<string, BackendParameter>();
 
   for (const file of await sourceFiles(path)) {
@@ -195,6 +203,7 @@ const readSource = async (
     // então a varredura é a mesma das callables: todo `.ts`, e o `index.ts` decide o que conta.
     triggers.push(...triggerDeclarations(source));
     unscoped.push(...unscopedDeclarations(source));
+    callableGuards.push(...callableDeclarations(source));
     // Um nome declarado em vários lugares é UM parâmetro, e ele é exigido se ALGUMA declaração o pede
     // sem `default`: é essa que recusa o deploy quando o valor falta, e a conservadora é a que avisa.
     for (const parameter of declaredParametersIn(source)) {
@@ -217,6 +226,7 @@ const readSource = async (
     callables: exported.filter((name) => callables.has(name)),
     triggers,
     unscoped,
+    callableGuards,
     parameters: [...parameters.values()].sort((a, b) => a.name.localeCompare(b.name)),
     dependencies: await readDependencies(path, label),
     serves: await readServes(path, label),
@@ -397,6 +407,7 @@ export const functionProblems = (sources: FunctionSource[], kernelFunctions: str
   problems.push(...ungatedTriggerProblems(sources));
   problems.push(...unscopedTriggerProblems(sources));
   problems.push(...unguardedSharedProblems(sources));
+  problems.push(...unguardedCallableProblems(sources));
 
   return problems;
 };

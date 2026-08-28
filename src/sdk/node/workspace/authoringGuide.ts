@@ -1423,11 +1423,40 @@ that mentions it.
 when the answer is a saved record.
 
 It costs one cached document read per organization per minute, and it fails closed: an event whose path
-carries no \`{tenantId}\` is skipped and logged. **A callable does not need it** — only a screen of your
-extension calls one, so it becomes unreachable the moment your extension is gone.
+carries no \`{tenantId}\` is skipped and logged.
 
-\`isExtensionInstalled(tenantId, pluginId)\` is there too, for when you need the same answer inside a
-callable, where the organization comes from the request instead of from a path.
+\`isExtensionInstalled(tenantId, pluginId)\` is there too, for when you want the answer rather than a
+refusal.
+
+### A callable of yours owes three refusals
+
+\`\`\`ts
+import { onCall } from 'firebase-functions/v2/https';
+import { requireInstalledExtension } from 'microteia-functions/office';
+
+export const acmeQuote = onCall({ region, cors: true }, async (request) => {
+  const { tenantId, ...input } = request.data;
+  const uid = await requireInstalledExtension('com.acme.crm', tenantId, request);
+
+  return quoteFor(input);
+});
+\`\`\`
+
+The caller signed in, the caller belongs to that organization, and your extension is installed and active
+there. It returns the caller's uid.
+
+The middle one is the one that is not obvious, and it is why this is a refusal rather than advice. **The
+deploy makes every callable publicly invocable** — it grants \`allUsers\` the \`roles/run.invoker\` role
+on each one — so what stands between your function and the internet is the Firebase token check and
+nothing else. Your screen going away with your extension closes nothing: the endpoint answers ANY
+signed-in user of this project, from any organization, whether or not they installed your extension. And
+the organization arrives in the **payload**, because \`useCallable\` sends only what your screen passed —
+so without the check, a user of one organization can point your function at another.
+
+It throws rather than returning a boolean, deliberately: a \`false\` invites being ignored, and the
+missing \`if\` leaves no symptom at all. The errors are \`HttpsError\`, so they reach your view as errors
+and not as a broken response. The check reads the whole file, so the guard may sit in a handler you
+extracted — which is what §"Write the handler thin" asks you to do.
 
 ### A schedule of yours loops over the organizations instead
 

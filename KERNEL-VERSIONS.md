@@ -18,6 +18,14 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.34.0] — 2026-08-28
+
+- feat(functions/office): `requireInstalledExtension(pluginId, tenantId, request)` — the three refusals an extension's callable owes before it reads the payload: the caller signed in, the caller belongs to that organization, and the extension is installed and active there. Returns the caller's uid. "An orphan callable just sits there" was true of the INTERFACE and not of security, and it was the sentence this repo's own documents carried: the deploy grants `allUsers` the `roles/run.invoker` role on every callable, so what stands between the function and the internet is the Firebase token check alone. The screen leaving with the extension closed nothing — the endpoint answered any signed-in user of the project, from any organization.
+- feat(functions/office): the middle refusal is the one that mattered. `useCallable` sends only what the screen passed, so the organization arrives in the payload, and the scaffold checked nothing but `request.auth !== undefined`. Together that let a user of one organization point an extension's function at another. The membership question comes from `isOfficeMember`, extracted next to `requirePermission` so member/owner/SYSTEM has ONE implementation on the functions side rather than a fourth copy diverging on the rule that decides who gets in.
+- feat(functions/office): it throws rather than returning a boolean, and asks about the organization BEFORE the installation. A `false` invites being ignored and the missing `if` leaves no symptom; and a stranger is not told whether an extension is installed in an organization they have no business in.
+- feat(sdk/authoring): the callable scaffold is generated with the guard, and the guide's "a callable does not need it" is replaced by the reason it does. A generated example without it taught the defect.
+- chore(kernel): `KERNEL_VERSION` 2.11.0 — additive: an extension written against `requireInstalledExtension` needs a kernel that ships it.
+
 #### [9.33.0] — 2026-08-28
 
 - feat(functions/office): `forAnyInstalledExtension(pluginIds, handler)` — the guard for a function in the installation's own `functions/`, the directory for one that SEVERAL extensions need. `forInstalledExtension` cannot answer there, because the question is not "is this extension installed?" but "is any of the ones this function serves installed?". Any one of them is enough, and that is the only sensible rule: the function exists because more than one extension needs it, so requiring all of them would make uninstalling one switch off the others' behaviour. It stops at the first positive answer, and fails closed on an event with no `{tenantId}`.

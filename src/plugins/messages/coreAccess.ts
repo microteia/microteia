@@ -48,6 +48,13 @@ export const CORE_ACCESS_MESSAGES: Record<string, string> = {
   'permission.data-processor.use': 'Use the Data Processor',
   'permission.data-processor.use.description': 'Import and transform data in bulk.',
   'permission.denied': 'You do not have permission to do this ({permission}).',
+  /**
+   * As duas recusas que a superfície de servidor de uma extensão faz antes de qualquer coisa: quem
+   * chamou não entrou, ou entrou e não é deste escritório. A segunda é a que fecha o buraco de verdade —
+   * uma callable no ar aceita o token de QUALQUER usuário do projeto, e o escritório vem no payload.
+   */
+  'office.unauthenticated': 'Authentication required.',
+  'office.not-member': 'You are not a member of this organization.',
   'permission.document-types.manage': 'Manage document types',
   'permission.document-types.manage.description':
     'Create, edit and remove the document types that records can attach files under.',

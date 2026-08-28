@@ -47,6 +47,8 @@ export const CORE_ACCESS: Record<string, string> = {
   'permission.data-processor.use': 'Usar o Processador de Dados',
   'permission.data-processor.use.description': 'Importar e transformar dados em lote.',
   'permission.denied': 'Você não tem permissão para fazer isto ({permission}).',
+  'office.unauthenticated': 'É necessário entrar no sistema.',
+  'office.not-member': 'Você não é membro deste escritório.',
   'permission.document-types.manage': 'Gerenciar tipos de documento',
   'permission.document-types.manage.description':
     'Criar, editar e remover os tipos de documento sob os quais os registros anexam arquivos.',

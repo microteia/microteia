@@ -149,12 +149,20 @@ describe('o molde de uma extensão', () => {
       expect(source).toContain("document: 'tenants/{tenantId}/invoices/{id}'");
     });
 
-    /** A callable só é alcançada por uma tela desta extensão, então ela some junto — não há o que guardar. */
-    it('a callable segue sem ele', () => {
+    /**
+     * A callable NÃO segue sem guarda, e a frase que dizia o contrário era verdade de interface: o deploy
+     * concede a `allUsers` o `roles/run.invoker` em cada callable, então o que sobra é a validação do
+     * token — o endpoint responde a qualquer usuário do projeto, de qualquer escritório, tendo ou não a
+     * extensão. E o escritório chega no payload.
+     */
+    it('a callable nasce com as três recusas, e com o id da extensão nelas', () => {
       const source = intoPlugin();
 
       expect(source).toContain('onCall');
-      expect(source).not.toContain('forInstalledExtension');
+      expect(source).toContain("from 'microteia-functions/office'");
+      expect(source).toContain("requireInstalledExtension('com.example.hello-world', String(tenantId");
+      // O portão de gatilho não serve aqui: uma callable não tem evento com `{tenantId}` no caminho.
+      expect(source).not.toContain("forInstalledExtension('");
     });
 
     it('o barril exporta a que foi criada', () => {
