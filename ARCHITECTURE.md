@@ -1369,6 +1369,35 @@ Três decisões dentro disso, e as três saem de a verificação errada ser pior
   instalada. Cobrar deles um portão impossível trocaria um defeito por outro. São as duas lacunas
   conhecidas, e cada uma tem endereço próprio.
 
+##### A function COMUM declara quem ela serve — e é isso que a tira da invisibilidade
+
+Era a maior lacuna do mapa, e a mais silenciosa. A function de `functions/` não tem dono por construção:
+nenhuma extensão pode reivindicá-la (`sharedClaimProblems` recusa), então ela ficava fora do mecanismo de
+retirada **por inteiro** — nunca entrava em `backend.functions`, nunca era classificada como órfã, nunca
+era relatada, e o `--prune` não a alcançava. Ficava no ar para sempre, deployada a cada `deploy`, com
+todas as extensões que ela servia desinstaladas. E o guia mandava pôr a function comum ali.
+
+**O que fecha:** `microteia.serves` no `functions/package.json` — nome de function -> os ids que ela
+serve. Uma declaração, e três coisas passam a existir:
+
+| Antes | Com a declaração |
+|---|---|
+| `deploy` sobe sempre | sobe pelo **provisionamento**, enquanto ALGUMA das servidas estiver instalada |
+| nunca é órfã | vira órfã quando nenhuma estiver, com os donos no registro (`nome@a+b`) |
+| `--prune` não alcança | alcança, como qualquer outra |
+| gatilho sem guarda possível | `forAnyInstalledExtension([...ids], handler)`, e a guarda é **cobrada** |
+
+| Decisão | Por quê |
+|---|---|
+| **basta uma** das servidas | a function existe porque mais de uma extensão precisa dela. Exigir todas faria desinstalar uma desligar o backend das outras |
+| a pergunta usa `survey.installedIds`, e não as reivindicações | uma extensão sem `manifest.backend` nunca vira reivindicação, e pode muito bem ser uma das servidas. Decidir pela lista de reivindicações apagaria a function de quem está instalado |
+| o registro guarda a lista declarada, e não um dono eleito | é ela que explica, meses depois, por que aquela function estava ali — e por que deixou de estar |
+| sai do `own` do `deploy` | subi-la ali de qualquer forma faria o `--prune` apagá-la e o passo seguinte repô-la, indefinidamente. É o mesmo laço que a recusa de reivindicação evita |
+| a comum SEM declaração fica como era, e é **relatada** | mantê-la é o que impede esta versão de tirar do ar function de uma instalação que já existe; relatá-la é o que a tira da invisibilidade, que era o defeito |
+| a guarda é cobrada só de quem DECLARA | cobrar da comum sem declaração seria fechar a porta sem abrir nenhuma: não há id para dar à guarda |
+| guarda com id fora da `serves` é **recusa** | as duas listas respondem à mesma pergunta — `serves` decide a retirada, a guarda decide a execução —, e divergirem faz a function agir onde ela não pode ser retirada |
+| parâmetro do diretório comum marca todas as servidas como obsoletas | `functions/` declara os `defineString` num conjunto só, sem dizer qual function lê qual. Redeployar demais erra para o lado do devido; o inverso deixaria uma delas rodando com o valor antigo |
+
 ##### Reivindicar a function COMUM tem o mesmo desfecho, e por isso a mesma recusa
 
 A guarda contra reivindicar uma function da PLATAFORMA existia; a análoga contra reivindicar a function

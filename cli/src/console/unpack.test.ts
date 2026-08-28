@@ -149,9 +149,21 @@ describe('as functions que o escritório escreve chegam ao deploy', () => {
   const provision = source('console/provision.ts');
 
   it('o deploy sobe a baseline MAIS as comuns, não só a baseline', () => {
-    expect(deploy).toContain('const own = [...baseline, ...gathered.shared];');
     expect(deploy).toContain('deployFunctionsThatChanged(own');
     expect(deploy).not.toContain('deployFunctionsThatChanged(baseline');
+  });
+
+  /**
+   * A comum que DECLARA quem serve saiu daqui, e a decisão fica guardada porque o efeito de perdê-la é
+   * um laço: o `--prune` a apaga por não haver mais quem a sirva, e este passo a repõe no deploy
+   * seguinte, indefinidamente. A que NÃO declara continua subindo sempre — é o que impede a declaração
+   * nova de tirar do ar function de uma instalação que já existe.
+   */
+  it('a comum que declara quem serve sobe pelo provisionamento; a que não declara, sempre', () => {
+    expect(deploy).toContain('const own = [...baseline, ...gathered.unserved];');
+    expect(deploy).not.toContain('const own = [...baseline, ...gathered.shared];');
+    expect(provision).toContain('office.served.filter(');
+    expect(provision).toContain('survey.installedIds.has(id)');
   });
 
   it('o provision confere e escolhe contra o pacote MAIS o que o escritório escreveu', () => {

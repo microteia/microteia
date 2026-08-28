@@ -73,6 +73,7 @@ export const UNSCOPED_TRIGGER_CONSTRUCTORS = [
 
 const GATE = 'forInstalledExtension';
 const OFFICE_LOOP = 'forEachInstalledOffice';
+const ANY_GATE = 'forAnyInstalledExtension';
 
 /** Onde uma string termina, a partir da abertura dela. Aspas não fechada não engole o resto do arquivo. */
 const stringEnd = (source: string, start: number, quote: string): number => {
@@ -180,6 +181,27 @@ const gatedFor = (args: string, source: string): string | null => {
   return null;
 };
 
+/**
+ * Todos os ids que as guardas daquele gatilho recebem.
+ *
+ * A function COMUM usa `forAnyInstalledExtension(['a', 'b'], handler)`, cuja pergunta é outra — "alguma
+ * das que eu sirvo está instalada?" —, então ela devolve mais de um id. A de extensão continua respondida
+ * por `gatedFor`, que devolve um: ali um segundo id não significaria nada.
+ */
+const guardedIds = (args: string, source: string): string[] => {
+  const found = new Set<string>();
+
+  const any = args.match(new RegExp(String.raw`\b${ANY_GATE}\s*\(\s*\[([^\]]*)\]`));
+  if (any !== null) {
+    for (const id of any[1].matchAll(/['"]([^'"]+)['"]/g)) found.add(id[1]);
+  }
+
+  const single = gatedFor(args, source);
+  if (single !== null) found.add(single);
+
+  return [...found];
+};
+
 export interface TriggerDeclaration {
   /** O nome declarado — é por ele que se sabe se o `index.ts` o exporta. */
   name: string;
@@ -187,6 +209,8 @@ export interface TriggerDeclaration {
   trigger: string;
   /** O id que `forInstalledExtension` recebeu, ou `null` quando o portão não está lá. */
   gatedFor: string | null;
+  /** Todos os ids que as guardas daquele gatilho recebem — a comum guarda mais de um. */
+  guards: string[];
 }
 
 /** Onde cada `export const x = <construtor>(` começa, para os construtores pedidos. */
@@ -210,11 +234,15 @@ const declarationsOf = (
 /** Os gatilhos de Firestore declarados numa fonte, com o estado do portão de cada um. */
 export const triggerDeclarations = (rawSource: string): TriggerDeclaration[] => {
   const source = withoutComments(rawSource);
-  return declarationsOf(source, TENANT_TRIGGER_CONSTRUCTORS).map((declaration) => ({
-    name: declaration.name,
-    trigger: declaration.trigger,
-    gatedFor: gatedFor(callArguments(source, declaration.open), source),
-  }));
+  return declarationsOf(source, TENANT_TRIGGER_CONSTRUCTORS).map((declaration) => {
+    const args = callArguments(source, declaration.open);
+    return {
+      name: declaration.name,
+      trigger: declaration.trigger,
+      gatedFor: gatedFor(args, source),
+      guards: guardedIds(args, source),
+    };
+  });
 };
 
 /**
@@ -237,6 +265,7 @@ export const unscopedDeclarations = (rawSource: string): TriggerDeclaration[] =>
     name: declaration.name,
     trigger: declaration.trigger,
     gatedFor: loop === null ? null : loop[1],
+    guards: loop === null ? [] : [loop[1]],
   }));
 };
 
@@ -252,6 +281,8 @@ export interface GateSubject {
   triggers: TriggerDeclaration[];
   /** As functions cujo evento não carrega escritório: o agendado, a fila, o HTTP, o Storage. */
   unscoped: TriggerDeclaration[];
+  /** Quem cada function comum declara servir. Vazio numa origem de extensão. */
+  serves: Record<string, string[]>;
 }
 
 /** Os gatilhos que o `index.ts` de fato exporta — um declarado e não exportado não é deployado. */
@@ -299,6 +330,41 @@ export const unscopedTriggerProblems = (subjects: GateSubject[]): string[] => su
       + `event carries no {tenantId} — ${GATE} cannot gate it (it fails closed, so the function would `
       + `never run at all). Loop with ${OFFICE_LOOP}('<this extension's id>', …) inside the handler, or `
       + 'it acts on every office in the project, including the ones that never installed the extension'));
+
+/**
+ * Gatilho de uma function COMUM que declara quem serve, e não guarda ninguém.
+ *
+ * A comum ficava fora desta cobrança porque não havia id para dar à guarda: nenhuma extensão pode
+ * reivindicá-la. `microteia.serves` resolve exatamente isso — a partir dela existem ids, e a partir dos
+ * ids a cobrança passa a ser possível. Um gatilho comum sem guarda dispara para todo escritório do
+ * projeto, e é o mesmo defeito do gatilho de extensão sem portão, com um alcance maior.
+ *
+ * A comum SEM declaração continua de fora, e é deliberado: cobrar dela uma guarda sem ter ids a oferecer
+ * seria fechar a porta sem abrir nenhuma. O que ela recebe é o relato do provisionamento.
+ *
+ * A segunda recusa é a guarda que nomeia extensão que a function não declara servir: as duas listas
+ * respondem à mesma pergunta em dois lugares, e divergirem faz uma delas mentir — a `serves` decide a
+ * retirada, a guarda decide a execução, e a function passaria a agir onde não pode ser retirada.
+ */
+export const unguardedSharedProblems = (subjects: GateSubject[]): string[] => subjects
+  .filter((subject) => subject.shared)
+  .flatMap((subject) => exportedTriggers(subject).flatMap((trigger) => {
+    const serves = subject.serves[trigger.name];
+    if (serves === undefined || serves.length === 0) return [];
+
+    if (trigger.guards.length === 0) {
+      return [`${subject.label} exports "${trigger.name}", a ${trigger.trigger} trigger declared as `
+        + `serving ${serves.join(', ')} — guard it with ${ANY_GATE}([${serves.map((id) => `'${id}'`).join(', ')}], …) `
+        + 'or it fires for every office in the project, including the ones that installed none of them'];
+    }
+
+    const stranger = trigger.guards.filter((id) => !serves.includes(id));
+    if (stranger.length === 0) return [];
+
+    return [`${subject.label} guards "${trigger.name}" for ${stranger.join(', ')}, which it does not `
+      + `declare serving in microteia.serves (${serves.join(', ')}) — the two lists answer the same `
+      + 'question, and one of them is wrong'];
+  }));
 
 export interface MisgatedTrigger {
   /** A origem, como as mensagens a citam. */

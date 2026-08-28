@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.33.0] — 2026-08-28
+
+- Um recurso de servidor usado por várias extensões ao mesmo tempo agora pode dizer para quais delas ele existe. Com isso ele passa a funcionar apenas nos escritórios que têm alguma dessas extensões, e é retirado do ar quando nenhuma delas continua instalada — antes ele ficava ativo indefinidamente, mesmo depois de todas saírem, e nada indicava isso a quem cuida do sistema.
+
 #### [9.32.0] — 2026-08-28
 
 - Uma extensão já podia reagir ao salvamento de um registro apenas no escritório que a instalou; agora o mesmo vale para as rotinas que ela executa em horário marcado. Antes não havia forma correta de escrever uma dessas rotinas: ou ela agia em todos os escritórios do sistema, ou não agia em nenhum. O assistente de criação passa a oferecer essa terceira forma, já pronta.

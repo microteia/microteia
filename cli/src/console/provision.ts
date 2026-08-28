@@ -84,6 +84,15 @@ export interface InstalledSurvey {
   /** Cópias de extensão lidas, ativas ou não. */
   extensions: number;
   claims: InstalledClaim[];
+  /**
+   * Todo id instalado e ativo no projeto, exija ele backend ou não.
+   *
+   * `claims` não serve para esta pergunta, e a diferença é a que faz a function comum ser retirada pelo
+   * motivo certo: uma extensão sem `manifest.backend` nunca vira reivindicação, mas ela pode muito bem
+   * ser uma das que a function comum serve. Decidir pela lista de reivindicações apagaria a function de
+   * quem está instalado.
+   */
+  installedIds: Set<string>;
 }
 
 /**
@@ -96,12 +105,14 @@ export interface InstalledSurvey {
 export const surveyInstallations = async (projectId: string): Promise<InstalledSurvey> => {
   const tenants = await listTenants(projectId);
   const claims: InstalledClaim[] = [];
+  const installedIds = new Set<string>();
   let extensions = 0;
 
   for (const tenant of tenants) {
     for (const extension of await readInstalledExtensions(projectId, tenant.id)) {
       extensions += 1;
       if (!extension.active) continue;
+      installedIds.add(extension.id);
 
       const backend = extension.manifest?.backend as PluginBackendRequirement | undefined;
       if (!hasBackendRequirement(backend)) continue;
@@ -123,6 +134,7 @@ export const surveyInstallations = async (projectId: string): Promise<InstalledS
     tenants: tenants.length,
     extensions,
     claims: claims.sort((a, b) => (a.pluginId < b.pluginId ? -1 : a.pluginId > b.pluginId ? 1 : 0)),
+    installedIds,
   };
 };
 
@@ -237,8 +249,9 @@ export const provisionBackend = async (options: ProvisionOptions): Promise<Provi
     info('  nothing while the extension is installed — and the day it is uninstalled the function turns');
     info('  into an orphan, --prune deletes it, and the next deploy puts it back. Whoever else depended');
     info('  on it loses their backend in a window nothing explains. Move the function into');
-    info('  extensions/<folder>/functions/ if it is really this extension\'s, or drop the name from its');
-    info('  manifest.backend.functions.');
+    info('  extensions/<folder>/functions/ if it is really this extension\'s, drop the name from its');
+    info('  manifest.backend.functions, or — if several extensions need it — name them in "microteia" ->');
+    info('  "serves" in functions/package.json, which is how a shared function gets withdrawn.');
   }
 
   /**
@@ -257,6 +270,23 @@ export const provisionBackend = async (options: ProvisionOptions): Promise<Provi
     bullets(ungated);
     info('  they are refused the moment something tries to deploy them. Until then they keep acting on');
     info('  every office in this project.');
+  }
+
+  /**
+   * A comum SEM declaração de quem serve. Ela continua subindo no `deploy`, sempre, e nada a retira — é
+   * o comportamento anterior, mantido para não quebrar instalação nenhuma.
+   *
+   * O que muda é que ele deixa de ser invisível. Era esse o defeito: quem herdasse a instalação não tinha
+   * como saber que aquelas functions estavam fora do mecanismo de retirada, e a única forma de descobrir
+   * era um gatilho disparando anos depois de a última extensão que o usava ter saído.
+   */
+  if (office.unserved.length > 0) {
+    blank();
+    info(`  ${office.unserved.length} shared function(s) do not say which extensions they serve:`);
+    bullets(office.unserved);
+    info('  they go up with every "microteia deploy" and nothing here withdraws them — not even --prune.');
+    info('  Name the extensions each one exists for in "microteia" -> "serves" in functions/package.json,');
+    info('  and they are deployed only while one of those is installed, and removed when none is.');
   }
 
   if (misgated.length > 0) {
@@ -314,8 +344,25 @@ export const provisionBackend = async (options: ProvisionOptions): Promise<Provi
    * O que sobrou dele são duas guardas pontuais mais abaixo: não perguntar ao projeto o que ele roda
    * quando não há nada a conferir, e não anunciar que "as 0 functions já estão deployadas".
    */
+  /**
+   * A function COMUM que declara quem serve entra aqui, e é o que a tira da invisibilidade.
+   *
+   * Ela não tem dono que possa reivindicá-la — nenhuma extensão pode —, então ela ficava fora do
+   * mecanismo por inteiro: nunca entrava no registro de aplicadas, nunca virava órfã, nunca era
+   * relatada, e o `--prune` não a alcançava. Com a declaração, a pergunta passa a ter resposta: ela é
+   * devida enquanto ALGUMA das extensões que ela serve estiver instalada em algum escritório do projeto.
+   *
+   * "Basta uma" é a única regra possível: a function existe porque mais de uma extensão precisa dela.
+   * Exigir todas faria desinstalar uma desligar o backend das outras.
+   */
+  const sharedWanted = office.served.filter(
+    (entry) => entry.serves.some((id) => survey.installedIds.has(id)),
+  );
+  const sharedWantedNames = new Set(sharedWanted.map((entry) => entry.name));
+
   const wantedFunctions = deployable.filter(
-    (name) => valid.some((claim) => (claim.backend.functions ?? []).includes(name)),
+    (name) => sharedWantedNames.has(name)
+      || valid.some((claim) => (claim.backend.functions ?? []).includes(name)),
   );
 
   /** Quem reivindica cada nome AGORA — é com este dono que o registro é reconciliado. */
@@ -323,6 +370,9 @@ export const provisionBackend = async (options: ProvisionOptions): Promise<Provi
   for (const claim of valid) {
     for (const name of claim.backend.functions ?? []) owners.set(name, claim.pluginId);
   }
+  // A comum tem VÁRIOS donos, e o registro guarda a lista declarada em vez de eleger um deles: é ela que
+  // explica, meses depois, por que aquela function estava ali — e por que ela deixou de estar.
+  for (const entry of sharedWanted) owners.set(entry.name, entry.serves.join('+'));
 
   const applied = parseAppliedFunctions(options.environment.backend.functions);
   const appliedNames = new Set(applied.map((entry) => entry.name));
@@ -333,7 +383,12 @@ export const provisionBackend = async (options: ProvisionOptions): Promise<Provi
     unresolved,
   });
 
-  const trackedParameters = claimedParameters(valid);
+  // Os do diretório comum entram: são eles que as functions comuns servidas carregam, e um parâmetro
+  // que ninguém acompanha é um valor que nunca chega à function que o lê.
+  const trackedParameters = [...new Set([
+    ...claimedParameters(valid),
+    ...(office.sources.find((source) => source.shared)?.parameters ?? []).map((p) => p.name),
+  ])].sort();
   // A raiz, e não o `install/`: a fonte é o arquivo que o escritório edita ao lado do `microteia.yaml`.
   const filledParameters = await readBackendEnv(dirname(options.environmentFile), projectId);
   const recordedDigests = parseParameterState(options.environment.backend.parameters);
@@ -355,6 +410,23 @@ export const provisionBackend = async (options: ProvisionOptions): Promise<Provi
     functionsDeclaringParameters(valid, changed)
       .filter((name) => wantedFunctions.includes(name) && appliedNames.has(name)),
   );
+
+  /**
+   * A comum que agora sobe pelo provisionamento também precisa voltar à fila quando um parâmetro muda.
+   * Antes ela subia a cada `deploy`, e isso mascarava a pergunta.
+   *
+   * A granularidade é o DIRETÓRIO, e não a function: `functions/` declara os `defineString` num conjunto
+   * só, sem dizer qual function lê qual. Redeployar todas as comuns servidas quando um parâmetro do
+   * diretório muda erra para o lado de fazer o que é devido — o inverso deixaria uma delas rodando com o
+   * valor antigo, que é o defeito que este mecanismo existe para fechar.
+   */
+  const sharedSource = office.sources.find((source) => source.shared);
+  const sharedParameters = new Set((sharedSource?.parameters ?? []).map((parameter) => parameter.name));
+  if (changed.some((name) => sharedParameters.has(name))) {
+    for (const entry of sharedWanted) {
+      if (appliedNames.has(entry.name)) staleFunctions.add(entry.name);
+    }
+  }
 
   /**
    * Uma pergunta só ao projeto, e duas decisões a partir dela: o que ele já roda, e qual cópia ficou

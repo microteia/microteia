@@ -9,6 +9,7 @@ import {
   functionProblems,
   gatherCustomFunctions,
   readOfficeFunctions,
+  servesProblems,
 } from './customFunctions.js';
 
 /**
@@ -475,5 +476,114 @@ describe('o que de um diretório de functions vai para dentro do pacote', () => 
 
     const result = await gatherCustomFunctions(root, install(), KERNEL);
     expect(result.functions).toEqual(['gmailPush']);
+  });
+});
+
+/**
+ * `microteia.serves` — a declaração que tira `functions/` da invisibilidade.
+ *
+ * A function de extensão tem dono pelo LUGAR do arquivo; a comum não tinha nenhum, e por isso ficava
+ * fora do mecanismo de retirada por inteiro: nunca entrava no registro de aplicadas, nunca era
+ * classificada como órfã, nunca era relatada, e o `--prune` não a alcançava. Ficava no ar para sempre,
+ * com todas as extensões que ela servia desinstaladas.
+ */
+describe('quem cada function comum declara servir', () => {
+  const withPackage = async (relative: string, contents: unknown): Promise<void> => {
+    await mkdir(join(root, relative), { recursive: true });
+    await writeFile(join(root, relative, 'package.json'), JSON.stringify(contents, null, 2));
+  };
+
+  it('separa as que declaram das que não declaram, porque o destino delas é diferente', async () => {
+    await writeFunctions('functions', 'export const compartilhada = 1;\nexport const solta = 2;');
+    await withPackage('functions', { microteia: { serves: { compartilhada: ['com.a.b', 'com.c.d'] } } });
+
+    const office = await readOfficeFunctions(root);
+    expect(office.served).toEqual([{ name: 'compartilhada', serves: ['com.a.b', 'com.c.d'] }]);
+    expect(office.unserved).toEqual(['solta']);
+    expect(office.shared.sort()).toEqual(['compartilhada', 'solta']);
+  });
+
+  /** A ausência é o comportamento anterior, e mantê-lo é o que não tira function nenhuma do ar hoje. */
+  it('uma instalação que não declara nada continua com tudo em "unserved"', async () => {
+    await writeFunctions('functions', 'export const solta = 1;');
+    const office = await readOfficeFunctions(root);
+
+    expect(office.served).toEqual([]);
+    expect(office.unserved).toEqual(['solta']);
+  });
+
+  it('o mesmo id declarado duas vezes é um id, não dois', async () => {
+    await writeFunctions('functions', 'export const compartilhada = 1;');
+    await withPackage('functions', { microteia: { serves: { compartilhada: ['com.a.b', 'com.a.b'] } } });
+
+    expect((await readOfficeFunctions(root)).served).toEqual([
+      { name: 'compartilhada', serves: ['com.a.b'] },
+    ]);
+  });
+
+  /** A de extensão já tem dono, e ele vem do LUGAR do arquivo: duas autoridades sobre a mesma retirada. */
+  it('recusa a declaração num diretório de extensão, que já tem dono', async () => {
+    await writeFunctions('extensions/vendas/functions', 'export const vendasHook = 1;');
+    await withPackage('extensions/vendas/functions', { microteia: { serves: { vendasHook: ['com.a.b'] } } });
+
+    const problems = servesProblems(await findFunctionSources(root));
+    expect(problems.join()).toContain('declares "microteia.serves", which only functions/ uses');
+    expect(problems.join()).toContain('manifest.backend.functions');
+  });
+
+  it('recusa a declaração de um nome que o index.ts não exporta', async () => {
+    await writeFunctions('functions', 'export const compartilhada = 1;');
+    await withPackage('functions', { microteia: { serves: { errada: ['com.a.b'] } } });
+
+    expect(servesProblems(await findFunctionSources(root)).join())
+      .toContain('does not export it');
+  });
+
+  it('recusa a declaração vazia, que não autoriza retirar nem manter', async () => {
+    await writeFunctions('functions', 'export const compartilhada = 1;');
+    await withPackage('functions', { microteia: { serves: { compartilhada: [] } } });
+
+    expect(servesProblems(await findFunctionSources(root)).join())
+      .toContain('serving no extension at all');
+  });
+
+  it('recusa uma declaração que não é uma lista de ids, dizendo qual', async () => {
+    await writeFunctions('functions', 'export const compartilhada = 1;');
+    await withPackage('functions', { microteia: { serves: { compartilhada: 'com.a.b' } } });
+
+    await expect(findFunctionSources(root)).rejects.toThrow(/"microteia.serves.compartilhada"/);
+  });
+
+  it('não reclama de uma declaração que fecha', async () => {
+    await writeFunctions('functions', 'export const compartilhada = 1;');
+    await withPackage('functions', { microteia: { serves: { compartilhada: ['com.a.b'] } } });
+
+    expect(servesProblems(await findFunctionSources(root))).toEqual([]);
+    expect(functionProblems(await findFunctionSources(root), KERNEL)).toEqual([]);
+  });
+
+  /**
+   * O par das duas metades: a declaração autoriza a retirada, e a guarda no código impede a function de
+   * agir onde não deve. Uma sem a outra deixa metade do defeito de pé.
+   */
+  it('a comum declarada e sem guarda no gatilho é recusada pela montagem', async () => {
+    await writeFunctions(
+      'functions',
+      "export const compartilhada = onDocumentWritten({ document: 'tenants/{tenantId}/x/{id}' }, h);",
+    );
+    await withPackage('functions', { microteia: { serves: { compartilhada: ['com.a.b'] } } });
+
+    expect(functionProblems(await findFunctionSources(root), KERNEL).join())
+      .toContain("forAnyInstalledExtension(['com.a.b'], …)");
+  });
+
+  it('e passa com a guarda', async () => {
+    await writeFunctions(
+      'functions',
+      "export const compartilhada = onDocumentWritten(o, forAnyInstalledExtension(['com.a.b'], h));",
+    );
+    await withPackage('functions', { microteia: { serves: { compartilhada: ['com.a.b'] } } });
+
+    expect(functionProblems(await findFunctionSources(root), KERNEL)).toEqual([]);
   });
 });

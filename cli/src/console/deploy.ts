@@ -160,10 +160,19 @@ export const deploy = async (args: ParsedArgs): Promise<void> => {
       // só o `custom/`, então o que não estiver aqui não sobe.
       const gathered = await gatherCustomFunctions(root, install, manifest.functions);
 
-      // O que sobe aqui é a baseline MAIS as functions comuns do escritório (`functions/`). As de
-      // `extensions/<plugin>/functions/` têm dono e sobem pelo provisionamento, no fim deste comando:
-      // é o mesmo "empacotar não é deployar" que vale para as do kernel reivindicadas por extensão.
-      const own = [...baseline, ...gathered.shared];
+      /**
+       * O que sobe aqui é a baseline MAIS as functions comuns que NÃO dizem a quem servem.
+       *
+       * As de `extensions/<plugin>/functions/` têm dono e sobem pelo provisionamento, no fim deste
+       * comando — é o mesmo "empacotar não é deployar" que vale para as do kernel reivindicadas por
+       * extensão. E a comum que DECLARA quem serve passou a ter a mesma condição, pela mesma razão: ela
+       * é devida enquanto alguma das extensões servidas estiver instalada, e subi-la aqui de qualquer
+       * forma faria o `--prune` apagá-la e este passo repô-la, indefinidamente.
+       *
+       * A comum sem declaração continua subindo sempre. É o comportamento anterior, e mantê-lo é o que
+       * impede esta versão de tirar do ar function de uma instalação que já existe.
+       */
+      const own = [...baseline, ...gathered.unserved];
       step(current, total, `Cloud Functions (${own.length}, one at a time)`);
 
       if (gathered.sources.length > 0) {
@@ -171,8 +180,10 @@ export const deploy = async (args: ParsedArgs): Promise<void> => {
           `${gathered.functions.length} function(s) of your own, from `
           + `${gathered.sources.map((source) => `${source.label}/`).join(', ')}`,
         );
-        const owned = gathered.all.length - gathered.shared.length;
-        if (owned > 0) info(`  ${owned} of them belong to an extension and go up with "provision"`);
+        const provisioned = gathered.all.length - gathered.unserved.length;
+        if (provisioned > 0) {
+          info(`  ${provisioned} of them go up with "provision", only where they are needed`);
+        }
       }
       if (Object.keys(gathered.dependencies.added).length > 0) {
         success(

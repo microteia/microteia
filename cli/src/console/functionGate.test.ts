@@ -5,6 +5,7 @@ import {
   singleClaimants,
   triggerDeclarations,
   ungatedTriggerProblems,
+  unguardedSharedProblems,
   unscopedDeclarations,
   unscopedTriggerProblems,
   withoutComments,
@@ -47,8 +48,9 @@ const subject = (overrides: Partial<GateSubject> = {}): GateSubject => ({
   label: 'extensions/crm/functions',
   shared: false,
   exported: ['acmeOnSave'],
-  triggers: [{ name: 'acmeOnSave', trigger: 'onDocumentWritten', gatedFor: null }],
+  triggers: [{ name: 'acmeOnSave', trigger: 'onDocumentWritten', gatedFor: null, guards: [] }],
   unscoped: [],
+  serves: {},
   ...overrides,
 });
 
@@ -56,7 +58,7 @@ const subject = (overrides: Partial<GateSubject> = {}): GateSubject => ({
 const scheduled = (overrides: Partial<GateSubject> = {}): GateSubject => subject({
   exported: ['acmeNightly'],
   triggers: [],
-  unscoped: [{ name: 'acmeNightly', trigger: 'onSchedule', gatedFor: null }],
+  unscoped: [{ name: 'acmeNightly', trigger: 'onSchedule', gatedFor: null, guards: [] }],
   ...overrides,
 });
 
@@ -64,6 +66,7 @@ const trigger = (overrides: Partial<TriggerDeclaration> = {}): TriggerDeclaratio
   name: 'acmeOnSave',
   trigger: 'onDocumentWritten',
   gatedFor: 'com.acme.crm',
+  guards: ['com.acme.crm'],
   ...overrides,
 });
 
@@ -100,13 +103,18 @@ export const acmeOnSave = onDocumentWritten(opts, handler);`;
 describe('os gatilhos declarados numa fonte', () => {
   it('lê o nome, o construtor e o id do portão do gatilho que o molde escreve', () => {
     expect(triggerDeclarations(GATED)).toEqual([
-      { name: 'acmeOnSave', trigger: 'onDocumentWritten', gatedFor: 'com.acme.crm' },
+      {
+        name: 'acmeOnSave',
+        trigger: 'onDocumentWritten',
+        gatedFor: 'com.acme.crm',
+        guards: ['com.acme.crm'],
+      },
     ]);
   });
 
   it('marca sem portão o mesmo gatilho sem a chamada', () => {
     expect(triggerDeclarations(UNGATED)).toEqual([
-      { name: 'acmeOnSave', trigger: 'onDocumentWritten', gatedFor: null },
+      { name: 'acmeOnSave', trigger: 'onDocumentWritten', gatedFor: null, guards: [] },
     ]);
   });
 
@@ -117,7 +125,7 @@ describe('os gatilhos declarados numa fonte', () => {
     ]) {
       const source = `export const x = ${constructorName}(opts, handler);`;
       expect(triggerDeclarations(source), constructorName)
-        .toEqual([{ name: 'x', trigger: constructorName, gatedFor: null }]);
+        .toEqual([{ name: 'x', trigger: constructorName, gatedFor: null, guards: [] }]);
     }
   });
 
@@ -152,7 +160,7 @@ export const acmeOnSave = onDocumentWritten({ document: 'tenants/{tenantId}/x/{i
   it('lê o gatilho com anotação de tipo, sem confundir o tipo com a atribuição', () => {
     const source = "export const x: CloudFunction<Event> = onDocumentWritten(o, forInstalledExtension('com.a.b', h));";
     expect(triggerDeclarations(source)).toEqual([
-      { name: 'x', trigger: 'onDocumentWritten', gatedFor: 'com.a.b' },
+      { name: 'x', trigger: 'onDocumentWritten', gatedFor: 'com.a.b', guards: ['com.a.b'] },
     ]);
   });
 
@@ -286,7 +294,7 @@ describe('as functions sem escritório no evento', () => {
       'onTaskDispatched', 'onCustomEventPublished',
     ]) {
       expect(unscopedDeclarations(`export const x = ${constructorName}(opts, handler);`), constructorName)
-        .toEqual([{ name: 'x', trigger: constructorName, gatedFor: null }]);
+        .toEqual([{ name: 'x', trigger: constructorName, gatedFor: null, guards: [] }]);
     }
   });
 
@@ -340,7 +348,7 @@ describe('a function sem escritório no evento e sem o laço', () => {
 
   it('não reclama da que passa pelo laço', () => {
     expect(unscopedTriggerProblems([scheduled({
-      unscoped: [{ name: 'acmeNightly', trigger: 'onSchedule', gatedFor: 'com.acme.crm' }],
+      unscoped: [{ name: 'acmeNightly', trigger: 'onSchedule', gatedFor: 'com.acme.crm', guards: ['com.acme.crm'] }],
     })])).toEqual([]);
   });
 
@@ -360,7 +368,7 @@ describe('a function sem escritório no evento e sem o laço', () => {
   it('o gatilho de documento e o agendado são recusados por verificações diferentes', () => {
     const both = subject({
       exported: ['acmeOnSave', 'acmeNightly'],
-      unscoped: [{ name: 'acmeNightly', trigger: 'onSchedule', gatedFor: null }],
+      unscoped: [{ name: 'acmeNightly', trigger: 'onSchedule', gatedFor: null, guards: [] }],
     });
 
     expect(ungatedTriggerProblems([both])).toHaveLength(1);
@@ -373,7 +381,7 @@ describe('a function sem escritório no evento e sem o laço', () => {
 describe('o laço aberto para o id de outra extensão', () => {
   it('é apontado nomeando o laço, e não o portão — é ele que o autor tem de corrigir', () => {
     const found = misgatedTriggers(
-      [scheduled({ unscoped: [{ name: 'acmeNightly', trigger: 'onSchedule', gatedFor: 'com.other.thing' }] })],
+      [scheduled({ unscoped: [{ name: 'acmeNightly', trigger: 'onSchedule', gatedFor: 'com.other.thing', guards: ['com.other.thing'] }] })],
       new Map([['acmeNightly', 'com.acme.crm']]),
     );
 
@@ -381,5 +389,95 @@ describe('o laço aberto para o id de outra extensão', () => {
     expect(found[0].via).toBe('forEachInstalledOffice');
     expect(describeMisgated(found[0])).toContain('passes "com.other.thing" to forEachInstalledOffice');
     expect(describeMisgated(found[0])).toContain('nothing this function does ever happens');
+  });
+});
+
+/**
+ * O gatilho da function COMUM — a de `functions/`, que serve várias extensões.
+ *
+ * Ela ficava fora desta cobrança porque não havia id para dar à guarda: nenhuma extensão pode
+ * reivindicá-la. `microteia.serves` resolve exatamente isso, e a partir dela a cobrança passa a ser
+ * possível — um gatilho comum sem guarda dispara para todo escritório do projeto, que é o mesmo defeito
+ * do gatilho de extensão sem portão, com alcance maior.
+ */
+describe('o gatilho da function comum que declara quem serve', () => {
+  const SERVES = ['com.acme.crm', 'com.acme.billing'];
+
+  const sharedSubject = (overrides: Partial<GateSubject> = {}): GateSubject => subject({
+    label: 'functions',
+    shared: true,
+    exported: ['acmeRecalcTotals'],
+    triggers: [{
+      name: 'acmeRecalcTotals', trigger: 'onDocumentWritten', gatedFor: null, guards: [],
+    }],
+    serves: { acmeRecalcTotals: SERVES },
+    ...overrides,
+  });
+
+  it('sem guarda é recusado, e a mensagem já traz a chamada com a lista declarada', () => {
+    const problems = unguardedSharedProblems([sharedSubject()]);
+
+    expect(problems).toHaveLength(1);
+    expect(problems[0]).toContain('functions exports "acmeRecalcTotals"');
+    expect(problems[0]).toContain('declared as serving com.acme.crm, com.acme.billing');
+    expect(problems[0]).toContain("forAnyInstalledExtension(['com.acme.crm', 'com.acme.billing'], …)");
+    expect(problems[0]).toContain('installed none of them');
+  });
+
+  it('com a guarda das duas, nada a dizer', () => {
+    expect(unguardedSharedProblems([sharedSubject({
+      triggers: [{
+        name: 'acmeRecalcTotals', trigger: 'onDocumentWritten', gatedFor: null, guards: SERVES,
+      }],
+    })])).toEqual([]);
+  });
+
+  /** Guardar por UMA das servidas é escolha do autor, e ela é legítima: a lista é o teto, não o piso. */
+  it('guardar por uma só das servidas é aceito', () => {
+    expect(unguardedSharedProblems([sharedSubject({
+      triggers: [{
+        name: 'acmeRecalcTotals',
+        trigger: 'onDocumentWritten',
+        gatedFor: 'com.acme.crm',
+        guards: ['com.acme.crm'],
+      }],
+    })])).toEqual([]);
+  });
+
+  /**
+   * As duas listas respondem à MESMA pergunta em dois lugares: a `serves` decide a retirada, a guarda
+   * decide a execução. Divergirem faz a function agir onde ela não pode ser retirada.
+   */
+  it('guardar por extensão que ela não declara servir é recusado, nomeando as duas listas', () => {
+    const problems = unguardedSharedProblems([sharedSubject({
+      triggers: [{
+        name: 'acmeRecalcTotals',
+        trigger: 'onDocumentWritten',
+        gatedFor: 'com.other.thing',
+        guards: ['com.other.thing'],
+      }],
+    })]);
+
+    expect(problems).toHaveLength(1);
+    expect(problems[0]).toContain('guards "acmeRecalcTotals" for com.other.thing');
+    expect(problems[0]).toContain('microteia.serves (com.acme.crm, com.acme.billing)');
+  });
+
+  /**
+   * A comum SEM declaração continua de fora, e é deliberado: cobrar dela uma guarda sem ter ids a
+   * oferecer seria fechar a porta sem abrir nenhuma. O que ela recebe é o relato do provisionamento.
+   */
+  it('a comum sem declaração não é cobrada — não há id para dar à guarda', () => {
+    expect(unguardedSharedProblems([sharedSubject({ serves: {} })])).toEqual([]);
+  });
+
+  it('a de extensão não passa por esta verificação, e sim pela do portão', () => {
+    expect(unguardedSharedProblems([subject()])).toEqual([]);
+    expect(ungatedTriggerProblems([subject()])).toHaveLength(1);
+  });
+
+  it('lê os ids da chamada com a lista, que é a forma que a comum usa', () => {
+    const source = "export const x = onDocumentWritten(o, forAnyInstalledExtension(['com.a.b', 'com.c.d'], h));";
+    expect(triggerDeclarations(source)[0].guards).toEqual(['com.a.b', 'com.c.d']);
   });
 });

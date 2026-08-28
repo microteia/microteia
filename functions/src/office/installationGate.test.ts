@@ -190,3 +190,68 @@ describe('o laço por escritório instalado', () => {
     expect(read).toHaveBeenCalledTimes(3);
   });
 });
+
+/**
+ * O portão da function COMUM — a de `functions/`, que serve várias extensões. A pergunta ali não é "esta
+ * extensão está instalada?", é "ALGUMA das que esta function serve está?", e sem uma resposta na
+ * plataforma cada autor decidia sozinho a semântica — com a resposta errada sendo invisível: a function
+ * para de agir, ou passa a agir onde não devia.
+ */
+describe('o portão da function comum a várias extensões', () => {
+  const SERVES = ['com.acme.crm', 'com.acme.billing'];
+
+  it('roda quando qualquer uma das extensões que ela serve está instalada', async () => {
+    const handler = vi.fn();
+    const guarded = gateWith(async (_tenantId, pluginId) => pluginId === 'com.acme.billing')
+      .forAnyInstalledExtension(SERVES, handler);
+
+    await guarded(event({ tenantId: 'escritorio-a' }));
+    expect(handler).toHaveBeenCalledOnce();
+  });
+
+  /**
+   * "Basta uma" é a única regra que faz sentido: a function existe porque mais de uma extensão precisa
+   * dela. Exigir todas faria desinstalar UMA desligar o comportamento das outras.
+   */
+  it('roda uma vez só, mesmo com as duas instaladas', async () => {
+    const handler = vi.fn();
+    const guarded = gateWith(async () => true).forAnyInstalledExtension(SERVES, handler);
+
+    await guarded(event({ tenantId: 'escritorio-a' }));
+    expect(handler).toHaveBeenCalledOnce();
+  });
+
+  it('não roda no escritório que não tem nenhuma delas', async () => {
+    const handler = vi.fn();
+    const guarded = gateWith(async () => false).forAnyInstalledExtension(SERVES, handler);
+
+    await guarded(event({ tenantId: 'escritorio-c' }));
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  /** Para na primeira resposta positiva: a segunda leitura não responderia nada que mudasse a decisão. */
+  it('para de perguntar na primeira instalada', async () => {
+    const read = vi.fn(async () => true);
+    const guarded = gateWith(read).forAnyInstalledExtension(SERVES, vi.fn());
+
+    await guarded(event({ tenantId: 'escritorio-a' }));
+    expect(read).toHaveBeenCalledOnce();
+  });
+
+  it('falha fechada quando o evento não traz escritório, e diz por quê', async () => {
+    const handler = vi.fn();
+    const warn = vi.fn();
+    const guarded = gateWith(async () => true, { warn }).forAnyInstalledExtension(SERVES, handler);
+
+    await guarded(event({ id: 'abc' }));
+    expect(handler).not.toHaveBeenCalled();
+    expect(warn.mock.calls[0][0]).toContain('com.acme.crm, com.acme.billing');
+    expect(warn.mock.calls[0][0]).toContain('tenants/{tenantId}/');
+  });
+
+  it('uma lista vazia não roda em lugar nenhum, em vez de rodar em todos', async () => {
+    const handler = vi.fn();
+    await gateWith(async () => true).forAnyInstalledExtension([], handler)(event({ tenantId: 'a' }));
+    expect(handler).not.toHaveBeenCalled();
+  });
+});

@@ -1471,12 +1471,50 @@ Two rules follow from how a Firebase project works, and both are refusals rather
   package is refused, because nothing decides between them. A range the platform already pins is kept:
   the runtime is the platform's choice, and one extension may not move it for the others.
 
-A function shared by several extensions goes in \`../functions/\` instead, next to \`microteia.yaml\`.
-Nobody owns it, so it is deployed with every \`microteia deploy\` — and **naming one in your
-\`manifest.backend.functions\` is refused**. The claim would change nothing while your extension is
-installed, and the day it is uninstalled the function turns into an orphan: \`--prune\` deletes it, the
-next deploy puts it back, and whoever else depended on it loses their backend in a window nothing
-explains. If the function is really yours, move it into your own \`functions/\`.
+### A function several extensions share
+
+It goes in \`../functions/\` instead, next to \`microteia.yaml\`. No single extension owns it, so
+**naming one in your \`manifest.backend.functions\` is refused**: the claim would change nothing while
+your extension is installed, and the day it is uninstalled the function turns into an orphan — deleted by
+\`--prune\`, put back by the next deploy, with whoever else depended on it losing their backend in a
+window nothing explains. If the function is really yours, move it into your own \`functions/\`.
+
+What replaces the claim is a declaration of **who it serves**, in \`functions/package.json\`:
+
+\`\`\`json
+{
+  "microteia": {
+    "serves": {
+      "acmeRecalcTotals": ["com.acme.crm", "com.acme.billing"]
+    }
+  }
+}
+\`\`\`
+
+That single line is what lets the platform treat it like any other extension artifact: it is deployed
+while **any** of those extensions is installed somewhere in the project, and withdrawn once none of them
+is. Any one of them is enough, and that is the only sensible rule — the function exists because more than
+one extension needs it, so requiring all of them would make uninstalling one switch off the others.
+
+Guard the trigger with the same list:
+
+\`\`\`ts
+export const acmeRecalcTotals = onDocumentWritten(
+  { document: 'tenants/{tenantId}/invoices/{id}', region },
+  forAnyInstalledExtension(['com.acme.crm', 'com.acme.billing'], async (event) => { /* ... */ }),
+);
+\`\`\`
+
+**Declared and unguarded is refused**, and so is a guard naming an extension the function does not
+declare serving: the two lists answer the same question — \`serves\` decides the withdrawal, the guard
+decides the execution — and one of them being wrong makes the function act where it can no longer be
+withdrawn. Guarding by just one of the declared extensions is fine; the list is the ceiling, not the
+floor.
+
+A shared function with **no** \`serves\` still works exactly as before: deployed with every
+\`microteia deploy\`, and nothing withdraws it — not even \`--prune\`. Nothing is refused there either,
+because without ids there is no guard to ask for. The Console does list them on every \`provision\`, so
+whoever inherits the installation can see which functions sit outside the mechanism.
 
 ### Write the handler thin
 

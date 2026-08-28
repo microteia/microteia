@@ -98,3 +98,30 @@ export const forEachInstalledOffice: (
   pluginId: string,
   handler: (tenantId: string) => Promise<void> | void,
 ) => Promise<number> = gate.forEachInstalledOffice;
+
+/**
+ * Wraps a trigger handler of a SHARED function so it runs where any of the extensions it serves is
+ * installed.
+ *
+ *     export const acmeRecalcTotals = onDocumentWritten(
+ *       { document: 'tenants/{tenantId}/invoices/{id}', region },
+ *       forAnyInstalledExtension(['com.acme.crm', 'com.acme.billing'], async (event) => { ... }),
+ *     );
+ *
+ * This is for a function in the installation's own `functions/` directory — the place for one that
+ * SEVERAL extensions need. `forInstalledExtension` cannot answer there, because the question is not "is
+ * this extension installed?" but "is any of the ones this function serves installed?".
+ *
+ * Any one of them is enough, and that is the only sensible rule: the function exists because more than
+ * one extension needs it, so it is due while any of them is there. Requiring all of them would make
+ * uninstalling one extension switch off the others' behaviour.
+ *
+ * Declare the same list in `microteia.serves` in `functions/package.json`. That is what tells the Console
+ * the function may be withdrawn once none of them is installed anywhere in the project.
+ *
+ * Fails closed: an event whose path carries no {tenantId} is skipped and logged.
+ */
+export const forAnyInstalledExtension: <E extends TenantScopedEvent>(
+  pluginIds: string[],
+  handler: (event: E) => Promise<void> | void,
+) => (event: E) => Promise<void> = gate.forAnyInstalledExtension;

@@ -5,6 +5,7 @@ import type { BackendParameter } from '../kernel/manifest.js';
 import {
   triggerDeclarations,
   ungatedTriggerProblems,
+  unguardedSharedProblems,
   unscopedDeclarations,
   unscopedTriggerProblems,
 } from './functionGate.js';
@@ -73,6 +74,16 @@ export interface FunctionSource {
   parameters: BackendParameter[];
   /** As dependências npm que ela declara no `package.json` do próprio diretório. */
   dependencies: Record<string, string>;
+  /**
+   * Quem cada function COMUM serve, de `microteia.serves` no `package.json` do diretório.
+   *
+   * É a declaração que tira `functions/` da invisibilidade. A function de extensão tem dono pelo LUGAR
+   * do arquivo; a comum não tem nenhum — nenhuma extensão pode reivindicá-la —, e por isso ela ficava
+   * fora do mecanismo de retirada por inteiro: nunca entrava no registro de aplicadas, nunca era
+   * classificada como órfã, nunca era relatada, e o `--prune` não a alcançava. Ficava no ar para sempre,
+   * com todas as extensões que ela servia desinstaladas.
+   */
+  serves: Record<string, string[]>;
 }
 
 /**
@@ -122,6 +133,38 @@ const readDependencies = async (path: string, label: string): Promise<Record<str
     throw new Error(`${label}/package.json has a "dependencies" that is not an object.`);
   }
   return parsed.dependencies;
+};
+
+/**
+ * `microteia.serves` do `package.json` do diretório: nome de function -> os ids que ela serve.
+ *
+ * OPCIONAL, como as `dependencies` ao lado. A ausência dela é o comportamento anterior — a function comum
+ * sobe sempre e nunca é retirada —, e o provisionamento diz quais estão nessa situação em vez de calar.
+ */
+const readServes = async (path: string, label: string): Promise<Record<string, string[]>> => {
+  const manifest = join(path, 'package.json');
+  if (!await exists(manifest)) return {};
+
+  const parsed = JSON.parse(await readFile(manifest, 'utf8')) as {
+    microteia?: { serves?: Record<string, unknown> };
+  };
+  const declared = parsed.microteia?.serves;
+  if (declared === undefined) return {};
+  if (typeof declared !== 'object' || declared === null || Array.isArray(declared)) {
+    throw new Error(`${label}/package.json has a "microteia.serves" that is not an object.`);
+  }
+
+  const serves: Record<string, string[]> = {};
+  for (const [name, ids] of Object.entries(declared)) {
+    if (!Array.isArray(ids) || ids.some((id) => typeof id !== 'string')) {
+      throw new Error(
+        `${label}/package.json declares "microteia.serves.${name}" as something other than a list of `
+        + 'extension ids.',
+      );
+    }
+    serves[name] = [...new Set(ids as string[])];
+  }
+  return serves;
 };
 
 const readSource = async (
@@ -176,6 +219,7 @@ const readSource = async (
     unscoped,
     parameters: [...parameters.values()].sort((a, b) => a.name.localeCompare(b.name)),
     dependencies: await readDependencies(path, label),
+    serves: await readServes(path, label),
   };
 };
 
@@ -206,12 +250,29 @@ export const findFunctionSources = async (root: string): Promise<FunctionSource[
  * `shared` e `owned` respondem a perguntas diferentes, e é por isso que são duas listas: a comum sobe
  * no `deploy`, sempre; a de extensão sobe pelo provisionamento, e só onde a extensão está instalada.
  */
+/** Uma function comum e as extensões que ela declara servir. */
+export interface SharedRequirement {
+  name: string;
+  serves: string[];
+}
+
 export interface OfficeFunctions {
   sources: FunctionSource[];
   /** Todos os nomes, na ordem em que as origens são lidas. */
   all: string[];
-  /** As de `functions/` — sem dono, e por isso deployadas sempre. */
+  /** As de `functions/`, declarem ou não a quem servem. */
   shared: string[];
+  /**
+   * As comuns que DECLARAM quem servem. Elas entram no mecanismo de retirada: sobem pelo
+   * provisionamento enquanto alguma das extensões servidas estiver instalada, e viram órfãs quando
+   * nenhuma estiver.
+   */
+  served: SharedRequirement[];
+  /**
+   * As comuns SEM declaração. Sobem no `deploy`, sempre, e nada as retira — é o comportamento anterior,
+   * mantido para não quebrar instalação nenhuma, e relatado para não seguir invisível.
+   */
+  unserved: string[];
   callables: string[];
   parameters: BackendParameter[];
 }
@@ -228,10 +289,21 @@ export const officeFunctionsOf = (sources: FunctionSource[]): OfficeFunctions =>
     }
   }
 
+  const shared = sources.filter((source) => source.shared);
+  const declared = new Map<string, string[]>();
+  for (const source of shared) {
+    for (const [name, ids] of Object.entries(source.serves)) declared.set(name, ids);
+  }
+  const sharedNames = shared.flatMap((source) => source.exported);
+
   return {
     sources,
     all: sources.flatMap((source) => source.exported),
-    shared: sources.filter((source) => source.shared).flatMap((source) => source.exported),
+    shared: sharedNames,
+    served: sharedNames
+      .filter((name) => declared.has(name))
+      .map((name) => ({ name, serves: declared.get(name) ?? [] })),
+    unserved: sharedNames.filter((name) => !declared.has(name)),
     callables: sources.flatMap((source) => source.callables),
     parameters: [...parameters.values()].sort((a, b) => a.name.localeCompare(b.name)),
   };
@@ -250,6 +322,51 @@ export const readOfficeFunctions = async (root: string): Promise<OfficeFunctions
  * silêncio — e substituir um gatilho do kernel é o tipo de defeito que só aparece quando algo deixa de
  * acontecer, sem erro em lugar nenhum.
  */
+/**
+ * O que impede `microteia.serves` de ser levado a sério.
+ *
+ * As três recusas têm o mesmo motivo: a declaração é o que autoriza a plataforma a RETIRAR a function
+ * comum, e uma declaração que não fecha faria a retirada acontecer pelo motivo errado — ou não acontecer,
+ * e nada diria por quê.
+ */
+export const servesProblems = (sources: FunctionSource[]): string[] => {
+  const problems: string[] = [];
+
+  for (const source of sources) {
+    const declared = Object.entries(source.serves);
+    if (declared.length === 0) continue;
+
+    // A function de extensão já tem dono, e ele vem do LUGAR do arquivo. Declarar de novo, e num lugar
+    // que só a comum consulta, criaria duas autoridades sobre a mesma retirada.
+    if (!source.shared) {
+      problems.push(
+        `${source.label}/package.json declares "microteia.serves", which only ${FUNCTIONS_DIR}/ uses — a `
+        + "function of an extension is already owned by the folder it is in, and is declared in that "
+        + 'extension\'s manifest.backend.functions',
+      );
+      continue;
+    }
+
+    const exported = new Set(source.exported);
+    for (const [name, ids] of declared) {
+      if (!exported.has(name)) {
+        problems.push(
+          `${source.label}/package.json says "${name}" serves ${ids.join(', ') || 'nothing'}, but `
+          + `${source.label}/index.ts does not export it`,
+        );
+      }
+      if (ids.length === 0) {
+        problems.push(
+          `${source.label}/package.json declares "${name}" as serving no extension at all — name the `
+          + 'extensions it exists for, or leave it out of microteia.serves',
+        );
+      }
+    }
+  }
+
+  return problems;
+};
+
 export const functionProblems = (sources: FunctionSource[], kernelFunctions: string[]): string[] => {
   const problems: string[] = [];
   const kernel = new Set(kernelFunctions);
@@ -273,10 +390,13 @@ export const functionProblems = (sources: FunctionSource[], kernelFunctions: str
     }
   }
 
+  problems.push(...servesProblems(sources));
+
   // O portão de instalação entra aqui, e não numa verificação à parte, porque o momento é o mesmo: é
   // este o ponto em que a fonte do escritório passa a fazer parte do pacote que vai subir.
   problems.push(...ungatedTriggerProblems(sources));
   problems.push(...unscopedTriggerProblems(sources));
+  problems.push(...unguardedSharedProblems(sources));
 
   return problems;
 };

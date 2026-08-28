@@ -18,6 +18,12 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.33.0] — 2026-08-28
+
+- feat(functions/office): `forAnyInstalledExtension(pluginIds, handler)` — the guard for a function in the installation's own `functions/`, the directory for one that SEVERAL extensions need. `forInstalledExtension` cannot answer there, because the question is not "is this extension installed?" but "is any of the ones this function serves installed?". Any one of them is enough, and that is the only sensible rule: the function exists because more than one extension needs it, so requiring all of them would make uninstalling one switch off the others' behaviour. It stops at the first positive answer, and fails closed on an event with no `{tenantId}`.
+- feat(sdk/authoring): the guide documents `microteia.serves` and the guard together, because one without the other leaves half the defect standing — the declaration authorizes the withdrawal, the guard stops the function from acting where it should not. It also states what a shared function with no `serves` still does, so nobody has to infer it.
+- chore(kernel): `KERNEL_VERSION` 2.10.0 — additive: an extension written against `forAnyInstalledExtension` needs a kernel that ships it.
+
 #### [9.32.0] — 2026-08-28
 
 - feat(functions/office): `forEachInstalledOffice(pluginId, handler)` — runs an extension's handler once per organization that installed it, and returns how many. It answers the events that carry no `{tenantId}`: a scheduled run, a Pub/Sub message, an HTTP request, a Storage event. For those, both of the author's options were wrong — unguarded, the function acts on the whole project; wrapped in `forInstalledExtension`, it never runs at all, because that guard fails closed and never finds the `{tenantId}` that does not exist. An author following the generic "wrap the handler in the guard" produced a function that passed the deploy, reported nothing and did nothing.
