@@ -1439,7 +1439,11 @@ Two rules follow from how a Firebase project works, and both are refusals rather
   the runtime is the platform's choice, and one extension may not move it for the others.
 
 A function shared by several extensions goes in \`../functions/\` instead, next to \`microteia.yaml\`.
-Nobody owns it, so nothing can claim it, and it is deployed with every \`microteia deploy\`.
+Nobody owns it, so it is deployed with every \`microteia deploy\` — and **naming one in your
+\`manifest.backend.functions\` is refused**. The claim would change nothing while your extension is
+installed, and the day it is uninstalled the function turns into an orphan: \`--prune\` deletes it, the
+next deploy puts it back, and whoever else depended on it loses their backend in a window nothing
+explains. If the function is really yours, move it into your own \`functions/\`.
 
 ### Write the handler thin
 

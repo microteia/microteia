@@ -12,6 +12,7 @@ import {
   functionClaimProblems,
   hasBackendRequirement,
   indexKey,
+  sharedClaimProblems,
 } from '../kernel/backendShape.js';
 import type { BackendClaim, FirestoreIndexSpec, PluginBackendRequirement } from '../kernel/backendShape.js';
 import {
@@ -188,10 +189,18 @@ export const provisionBackend = async (options: ProvisionOptions): Promise<Provi
   const claims = survey.claims;
   const missing = functionClaimProblems(claims, deployable);
   const overlapping = baselineClaimProblems(claims, manifest.baselineFunctions ?? []);
+  // A comum do escritório tem o MESMO desfecho da function da plataforma, e por isso a mesma recusa: o
+  // `deploy` a sobe sempre, então reivindicá-la não muda nada — até o dia em que `--prune` a apaga.
+  const appropriated = sharedClaimProblems(claims, office.shared);
   // O portão aberto para o id de OUTRA extensão. Só aqui se pode perguntar: é a reivindicação que diz de
   // quem a function é, e ela vem do banco do escritório — o `deploy` não a tem.
   const misgated = misgatedTriggers(office.sources, singleClaimants(claims));
-  const problems = [...missing, ...overlapping, ...misgated.map(describeMisgated)];
+  const problems = [
+    ...missing,
+    ...overlapping,
+    ...appropriated,
+    ...misgated.map(describeMisgated),
+  ];
   const rejected = new Set<string>();
 
   if (missing.length > 0) {
@@ -215,6 +224,18 @@ export const provisionBackend = async (options: ProvisionOptions): Promise<Provi
     info('  every "microteia deploy" puts those up, extension or no extension, so claiming one changes');
     info('  nothing while it is installed — and takes a working trigger out of this project the day it');
     info('  is uninstalled. Rename the extension\'s own function, or drop the name from its');
+    info('  manifest.backend.functions.');
+  }
+
+  if (appropriated.length > 0) {
+    warn('some extensions claim a function that is shared by this whole installation:');
+    bullets(appropriated);
+    info('  functions/ next to microteia.yaml is the place for a function that serves SEVERAL');
+    info('  extensions, so it has no owner and every "microteia deploy" puts it up. Claiming one changes');
+    info('  nothing while the extension is installed — and the day it is uninstalled the function turns');
+    info('  into an orphan, --prune deletes it, and the next deploy puts it back. Whoever else depended');
+    info('  on it loses their backend in a window nothing explains. Move the function into');
+    info('  extensions/<folder>/functions/ if it is really this extension\'s, or drop the name from its');
     info('  manifest.backend.functions.');
   }
 

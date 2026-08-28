@@ -141,6 +141,32 @@ export const baselineClaimProblems = (
 };
 
 /**
+ * Reivindicar uma function COMUM do escritório — a que mora em `functions/`, ao lado do
+ * `microteia.yaml`.
+ *
+ * É o mesmo defeito de reivindicar uma function da plataforma, com o mesmo par de consequências
+ * invisíveis, e por isso é conferido no mesmo lugar. A comum não tem dono por construção: ela é o lugar
+ * de quem serve várias extensões, nenhuma pode declará-la (duas reivindicando o mesmo nome é recusa), e
+ * o `deploy` a sobe SEMPRE. Reivindicá-la, então, não muda nada enquanto a extensão está instalada — e
+ * no dia em que ela sai, a function vira órfã, `--prune` a apaga, e o `deploy` seguinte a repõe. As
+ * outras extensões que dependiam dela perdem o backend numa janela que nada explica, e a fonte continua
+ * intacta em `functions/`, sem nada na árvore que sequer sugira o que aconteceu.
+ *
+ * A assimetria com o `pack` é a mesma de `baselineClaimProblems`: o pacote do kernel não sabe o que o
+ * escritório vai escrever em `functions/`, então a pergunta só existe do lado de quem instala.
+ */
+export const sharedClaimProblems = (
+  claims: BackendClaim[],
+  sharedFunctions: string[],
+): string[] => {
+  const shared = new Set(sharedFunctions);
+  return claims.flatMap((claim) => (claim.backend.functions ?? [])
+    .filter((name) => shared.has(name))
+    .map((name) => `${claim.pluginId} claims function "${name}", which is a shared function of this `
+      + 'installation'));
+};
+
+/**
  * Índice reivindicado que não existe na raiz. É conferência de EMPACOTAMENTO, não de provisionamento:
  * a raiz é o que roda em `microteia-dev` e `curatino`, então uma declaração que não esteja lá deixaria
  * de criar o índice justamente nos nossos ambientes. Do lado de quem instala a pergunta não faz

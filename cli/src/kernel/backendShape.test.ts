@@ -10,6 +10,7 @@ import {
   claimsFromTemplates,
   baselineClaimProblems,
   functionClaimProblems,
+  sharedClaimProblems,
   indexDeclarationProblems,
   indexKey,
 } from './backendShape.js';
@@ -198,5 +199,60 @@ describe('baseline e reivindicado — as contas do pacote', () => {
       backend: { functions: ['acmeSync'] },
     };
     expect(baselineClaimProblems([claim], ['auditFlatEntityChange'])).toEqual([]);
+  });
+});
+
+/**
+ * A function COMUM do escritório — `functions/`, ao lado do `microteia.yaml` — tem o mesmo desfecho da
+ * function da plataforma, e por isso a mesma recusa. Ela não tem dono por construção: é o lugar de quem
+ * serve várias extensões, e o `deploy` a sobe sempre. Reivindicá-la não muda nada enquanto a extensão
+ * está instalada, e no dia em que ela sai a function vira órfã, o `--prune` a apaga e o `deploy` seguinte
+ * a repõe — com quem mais dependia dela perdendo o backend numa janela que nada explica.
+ */
+describe('reivindicar a function comum da instalação', () => {
+  const claim = (functions: string[]): BackendClaim => ({
+    pluginId: 'com.acme.x',
+    name: 'Acme',
+    version: '1.0.0',
+    backend: { functions },
+  });
+
+  /**
+   * Passava por tudo: `functionClaimProblems` confere contra o que EXISTE para deployar, e a comum
+   * existe. Era a guarda que faltava ao lado da da baseline.
+   */
+  it('é problema, mesmo sendo um nome que de fato existe para deployar', () => {
+    const deployable = [...allFunctions(), 'acmeRecalcTotals'];
+    expect(functionClaimProblems([claim(['acmeRecalcTotals'])], deployable)).toEqual([]);
+
+    const problems = sharedClaimProblems([claim(['acmeRecalcTotals'])], ['acmeRecalcTotals']);
+    expect(problems).toHaveLength(1);
+    expect(problems[0]).toContain('com.acme.x');
+    expect(problems[0]).toContain('acmeRecalcTotals');
+    expect(problems[0]).toContain('shared function of this installation');
+  });
+
+  /** A function que mora em `extensions/<folder>/functions/` é justamente a que DEVE ser reivindicada. */
+  it('a function da própria extensão não é reivindicação sobre a comum', () => {
+    expect(sharedClaimProblems([claim(['acmeSync'])], ['acmeRecalcTotals'])).toEqual([]);
+  });
+
+  it('uma instalação sem function comum nenhuma não tem o que reclamar', () => {
+    expect(sharedClaimProblems([claim(['acmeSync'])], [])).toEqual([]);
+  });
+
+  it('nomeia cada nome reivindicado, e não só o primeiro', () => {
+    const problems = sharedClaimProblems([claim(['a', 'b'])], ['a', 'b']);
+    expect(problems).toHaveLength(2);
+  });
+
+  it('não se importa com uma extensão que não declara function nenhuma', () => {
+    const backendless: BackendClaim = {
+      pluginId: 'com.acme.y',
+      name: 'Acme',
+      version: '1.0.0',
+      backend: { parameters: ['TOKEN'] },
+    };
+    expect(sharedClaimProblems([backendless], ['acmeRecalcTotals'])).toEqual([]);
   });
 });

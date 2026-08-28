@@ -18,6 +18,10 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.30.0] — 2026-08-28
+
+- docs(sdk/authoring): "nobody owns it, so nothing can claim it" is now a refusal the author can read as one. The sentence stated the shape of `functions/` and left the consequence of claiming one to be discovered — which is a deleted function, a deploy that puts it back, and other extensions losing their backend in between. The paragraph names all three, and says where to move the function if it really belongs to one extension.
+
 #### [9.29.0] — 2026-08-28
 
 - docs(sdk/authoring): the installation gate is stated as a refusal, not as advice. The guide told the author what `forInstalledExtension` prevented and left the impression that writing it was a matter of care; the Console now refuses an ungated trigger, so the paragraph that describes the contract had to say the same thing. It also names the two forms the check accepts — the call inside the trigger, and the guard declared in an identifier beside it — and the one it does not: a comment that only mentions it.

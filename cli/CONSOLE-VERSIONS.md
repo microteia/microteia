@@ -22,6 +22,10 @@
 - fix(command): what was broken, and what it did to whoever hit it.
 -->
 
+#### [2.14.0] — 2026-08-28
+
+- feat(console/provision): claiming a function that lives in `functions/` — the directory for a function SEVERAL extensions share — is refused. `baselineClaimProblems` already guarded the same defect against the platform's own functions, and the sentence is identical: the deploy puts it up regardless, so the claim changes nothing while the extension is installed, and the day it is uninstalled `--prune` deletes a function other extensions depended on. This case adds one turn of the screw — the next deploy puts it back, because the source is still sitting in `functions/` — so the symptom is an outage that closes by itself, repeating on every `provision --prune`, with nothing in the tree to suggest what happened. Rejecting the extension puts the name in `unresolved`, which is what keeps `--prune` off the shared function while the wrong declaration stands.
+
 #### [2.13.0] — 2026-08-28
 
 - feat(console/functionGate): an extension's Firestore trigger without `forInstalledExtension` is refused. The guard is the half of the withdrawal that acts at the moment somebody clicks Uninstall — `--prune` cannot reach the office that uninstalled while another still has the extension — and nothing cobbled it: `create function` wrote it into the scaffold, and no check in packing, deploying or provisioning ever read the source again. An ungated trigger went up and stayed up, and its symptom is not a failure: it is the code of an extension nobody has any more running over the data of offices that never asked for it, with no error anywhere.

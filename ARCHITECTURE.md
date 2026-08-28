@@ -1334,6 +1334,22 @@ Três decisões dentro disso, e as três saem de a verificação errada ser pior
   instalada. Cobrar deles um portão impossível trocaria um defeito por outro. São as duas lacunas
   conhecidas, e cada uma tem endereço próprio.
 
+##### Reivindicar a function COMUM tem o mesmo desfecho, e por isso a mesma recusa
+
+A guarda contra reivindicar uma function da PLATAFORMA existia; a análoga contra reivindicar a function
+comum do escritório — a de `functions/`, ao lado do `microteia.yaml` — não. E as duas frases são a mesma:
+o `deploy` a sobe sempre, então reivindicá-la não muda nada enquanto a extensão está instalada, e a
+desinstalação faz `--prune` apagar uma function de que outras extensões dependiam.
+
+O agravante é próprio deste caso: o `deploy` seguinte a **repõe**, porque a fonte continua intacta em
+`functions/`. O sintoma é uma janela de indisponibilidade que se fecha sozinha, sem nada na árvore que
+sequer sugira o que aconteceu — e ela se repete a cada `provision --prune`.
+
+`sharedClaimProblems` (`kernel/backendShape.ts`) fica ao lado de `baselineClaimProblems`, com a mesma
+assimetria: é conferência de PROVISIONAMENTO, porque o pacote do kernel não sabe o que o escritório vai
+escrever em `functions/`. A extensão é rejeitada, o que põe o nome em `unresolved` — e é isso que impede
+o `--prune` de apagar a comum enquanto a declaração errada estiver de pé.
+
 #### O que o `--prune` NÃO pode apagar
 
 "Ninguém exige mais" tem três causas, e só uma autoriza remover. `console/appliedFunctions.ts` as separa,
