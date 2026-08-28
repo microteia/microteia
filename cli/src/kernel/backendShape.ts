@@ -121,6 +121,26 @@ export const functionClaimProblems = (
 };
 
 /**
+ * Reivindicar uma function que a PLATAFORMA sobe sempre.
+ *
+ * É conferência de PROVISIONAMENTO, não de empacotamento, e a assimetria é da própria definição: no
+ * `pack` a baseline é DERIVADA (`todas − reivindicadas`), então reivindicar é o que tira o nome dela e
+ * a pergunta não existe. Do lado de quem instala a baseline já está decidida e viaja no manifesto, e
+ * aí a reivindicação de um nome dela é uma contradição com duas consequências, nenhuma visível: o
+ * `deploy` sobe a function de qualquer jeito, e a desinstalação da extensão faz `--prune` apagar um
+ * gatilho do produto num escritório que não fez nada.
+ */
+export const baselineClaimProblems = (
+  claims: BackendClaim[],
+  baselineFunctions: string[],
+): string[] => {
+  const baseline = new Set(baselineFunctions);
+  return claims.flatMap((claim) => (claim.backend.functions ?? [])
+    .filter((name) => baseline.has(name))
+    .map((name) => `${claim.pluginId} claims function "${name}", which the platform itself deploys`));
+};
+
+/**
  * Índice reivindicado que não existe na raiz. É conferência de EMPACOTAMENTO, não de provisionamento:
  * a raiz é o que roda em `microteia-dev` e `curatino`, então uma declaração que não esteja lá deixaria
  * de criar o índice justamente nos nossos ambientes. Do lado de quem instala a pergunta não faz

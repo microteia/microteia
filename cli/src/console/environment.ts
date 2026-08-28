@@ -20,13 +20,14 @@ export interface Environment {
    */
   kernel: { version: string | null; deployed: string | null };
   /**
-   * Quais Cloud Functions de EXTENSÃO já foram deployadas neste projeto. Fica aqui, e não no banco,
-   * porque é estado da instalação e não do escritório — e é o que permite ao `provision` deployar só o
-   * delta e reconhecer o que ficou órfão depois de uma desinstalação.
+   * Quais Cloud Functions de EXTENSÃO já foram deployadas neste projeto, e de QUEM. Fica aqui, e não no
+   * banco, porque é estado da instalação e não do escritório — e é o que permite ao `provision`
+   * deployar só o delta e reconhecer o que ficou órfão depois de uma desinstalação.
    *
-   * Uma lista num escalar separado por vírgula porque o leitor de YAML daqui entende mapas de dois
-   * níveis e escalares, e trazer sequências para guardar meia dúzia de nomes seria pagar caro pela
-   * generalidade.
+   * `nome@pluginId` separado por vírgula — ver `appliedFunctions.ts`, que o lê e o escreve. O escalar é
+   * porque o leitor de YAML daqui entende mapas de dois níveis e escalares, e trazer sequências para
+   * guardar meia dúzia de pares seria pagar caro pela generalidade. Uma entrada sem `@` é o que uma
+   * instalação anterior ao dono gravou, e continua valendo.
    */
   backend: {
     functions: string | null;

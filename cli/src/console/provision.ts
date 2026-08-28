@@ -6,6 +6,7 @@ import { blank, bullets, failure, heading, info, step, success, warn } from '../
 import type { KernelManifest } from '../kernel/manifest.js';
 import {
   backendFingerprint,
+  baselineClaimProblems,
   claimedIndexes,
   claimedParameters,
   functionClaimProblems,
@@ -36,11 +37,21 @@ import type { Environment } from './environment.js';
 import { FIREBASE_BIN } from './firebaseCli.js';
 import { deployFunctionsOneByOne, reportFailures, reportNotices } from './deployFunctions.js';
 import { clearRegionOrphans, listDeployedFunctions } from './regionOrphans.js';
+import type { DeployedFunction } from './regionOrphans.js';
 import { outdatedByStamp } from './functionsUpToDate.js';
+import type { OutdatedFunctions } from './functionsUpToDate.js';
 import { checkCallables, invokerGrantCommand } from './callableAccess.js';
 import { asString, asTimestamp, patchMapField } from './firestoreRest.js';
 import { listTenants, readInstalledExtensions } from './installedExtensions.js';
 import { gatherCustomFunctions, readOfficeFunctions } from './customFunctions.js';
+import {
+  appliedAfterRun,
+  classifyApplied,
+  describeApplied,
+  parseAppliedFunctions,
+  serializeAppliedFunctions,
+} from './appliedFunctions.js';
+import type { AppliedFunction, PreservedFunction } from './appliedFunctions.js';
 
 /** Uma exigência, o escritório que a instalou e o documento que carrega o estado dela. */
 export interface InstalledClaim extends BackendClaim {
@@ -50,18 +61,37 @@ export interface InstalledClaim extends BackendClaim {
 }
 
 /**
+ * A varredura inteira, e não só o que ela achou.
+ *
+ * As contagens estão aqui porque é delas que sai o direito de APAGAR: a Cloud Function é do PROJETO e a
+ * instalação é do ESCRITÓRIO, então "extensão nenhuma exige mais" é uma afirmação sobre todos os
+ * escritórios do projeto, não sobre o último que foi lido. A varredura é completa ou não existe —
+ * `listDocuments` pagina até o fim e qualquer leitura recusada derruba o comando —, e o que faltava era
+ * DIZER isso a quem lê a proposta de remoção.
+ */
+export interface InstalledSurvey {
+  /** Escritórios lidos. Todos os do projeto, ou nada abaixo teria acontecido. */
+  tenants: number;
+  /** Cópias de extensão lidas, ativas ou não. */
+  extensions: number;
+  claims: InstalledClaim[];
+}
+
+/**
  * O que cada escritório do projeto instalou e exige do backend.
  *
  * A exigência vem do banco, então ela é DADO e não código — é por isso que `claimProblems` a confere
  * contra `manifest.functions` antes de qualquer deploy. Nome de function fora do pacote é recusado com
  * explicação; não há injeção possível, porque o código é sempre o do pacote.
  */
-export const readInstalledClaims = async (projectId: string): Promise<InstalledClaim[]> => {
+export const surveyInstallations = async (projectId: string): Promise<InstalledSurvey> => {
   const tenants = await listTenants(projectId);
   const claims: InstalledClaim[] = [];
+  let extensions = 0;
 
   for (const tenant of tenants) {
     for (const extension of await readInstalledExtensions(projectId, tenant.id)) {
+      extensions += 1;
       if (!extension.active) continue;
 
       const backend = extension.manifest?.backend as PluginBackendRequirement | undefined;
@@ -80,7 +110,11 @@ export const readInstalledClaims = async (projectId: string): Promise<InstalledC
     }
   }
 
-  return claims.sort((a, b) => (a.pluginId < b.pluginId ? -1 : a.pluginId > b.pluginId ? 1 : 0));
+  return {
+    tenants: tenants.length,
+    extensions,
+    claims: claims.sort((a, b) => (a.pluginId < b.pluginId ? -1 : a.pluginId > b.pluginId ? 1 : 0)),
+  };
 };
 
 const uniqueByPlugin = (claims: InstalledClaim[]): InstalledClaim[] => {
@@ -91,9 +125,6 @@ const uniqueByPlugin = (claims: InstalledClaim[]): InstalledClaim[] => {
     return true;
   });
 };
-
-export const parseAppliedFunctions = (value: string | null): string[] =>
-  (value ?? '').split(',').map((name) => name.trim()).filter((name) => name !== '');
 
 export interface ProvisionOptions {
   projectId: string;
@@ -147,12 +178,16 @@ export const provisionBackend = async (options: ProvisionOptions): Promise<Provi
   const office = await readOfficeFunctions(root);
   const deployable = [...manifest.functions, ...office.all];
 
-  const claims = await readInstalledClaims(projectId);
-  const problems = functionClaimProblems(claims, deployable);
+  const survey = await surveyInstallations(projectId);
+  const claims = survey.claims;
+  const missing = functionClaimProblems(claims, deployable);
+  const overlapping = baselineClaimProblems(claims, manifest.baselineFunctions ?? []);
+  const problems = [...missing, ...overlapping];
   const rejected = new Set<string>();
-  if (problems.length > 0) {
+
+  if (missing.length > 0) {
     warn('some extensions ask for backend artifacts that are nowhere to be found:');
-    bullets(problems);
+    bullets(missing);
     // A mensagem sozinha é um beco sem saída: ela diz que o nome não existe, e não onde ele deveria
     // existir. As duas respostas possíveis são estas, e a segunda é a que mais acontece — a function é
     // da extensão, o autor a declarou, e ninguém a exportou do `index.ts` do diretório dela.
@@ -163,6 +198,18 @@ export const provisionBackend = async (options: ProvisionOptions): Promise<Provi
     ]);
     info(`  this installation currently exports ${office.all.length} function(s) of its own`
       + `${office.all.length === 0 ? '' : `: ${office.all.join(', ')}`}`);
+  }
+
+  if (overlapping.length > 0) {
+    warn('some extensions claim a function that belongs to the platform itself:');
+    bullets(overlapping);
+    info('  every "microteia deploy" puts those up, extension or no extension, so claiming one changes');
+    info('  nothing while it is installed — and takes a working trigger out of this project the day it');
+    info('  is uninstalled. Rename the extension\'s own function, or drop the name from its');
+    info('  manifest.backend.functions.');
+  }
+
+  if (problems.length > 0) {
     for (const claim of claims) {
       if (problems.some((problem) => problem.includes(claim.pluginId))) rejected.add(claim.pluginId);
     }
@@ -171,11 +218,17 @@ export const provisionBackend = async (options: ProvisionOptions): Promise<Provi
   const valid = uniqueByPlugin(claims.filter((claim) => !rejected.has(claim.pluginId)));
 
   /**
-   * Os índices são resolvidos ANTES do desvio de "nenhuma extensão exige nada" — e não depois, onde
-   * estavam. Desinstalar a única extensão com backend caía justamente naquele desvio, então o índice
-   * dela não era relatado por ninguém: o aviso existia para o caso de sobrar um órfão entre outras
-   * extensões, e faltava no caso de sobrar sozinho.
+   * O nome que uma reivindicação RECUSADA carrega. Ele não entra em `wantedFunctions` — não há como
+   * deployá-lo —, mas também não pode virar órfão: a extensão que o pede continua instalada, e o que
+   * falhou foi resolver a declaração dela. Sem esta lista, um export renomeado em
+   * `extensions/<x>/functions/index.ts` fazia `--prune` apagar a function de uma extensão viva.
    */
+  const unresolved = new Map<string, string>();
+  for (const claim of claims) {
+    if (!rejected.has(claim.pluginId)) continue;
+    for (const name of claim.backend.functions ?? []) unresolved.set(name, claim.pluginId);
+  }
+
   if (valid.length === 0) {
     info('  no installed extension asks for backend artifacts');
   } else {
@@ -185,21 +238,39 @@ export const provisionBackend = async (options: ProvisionOptions): Promise<Provi
 
   const settled = await settleIndexes(options, valid);
 
-  if (valid.length === 0) {
-    await recordBackendState(
-      options,
-      parseAppliedFunctions(options.environment.backend.functions),
-      parseParameterState(options.environment.backend.parameters),
-      settled.declared,
-    );
-    reportOrphanIndexes(projectId, settled.orphans, options.prune);
-    return outcome;
-  }
-
+  /**
+   * NÃO existe mais um desvio de "nenhuma extensão exige nada" aqui — e é a correção do defeito que
+   * este comando tinha justamente no caso mais comum. Desinstalar a ÚLTIMA extensão com backend caía
+   * naquele desvio, e o desvio devolvia antes do cálculo de órfã: a Cloud Function dela continuava no
+   * ar para sempre, `--prune` não a alcançava, e a lista de aplicadas era regravada intacta. O sintoma
+   * era um gatilho `onDocumentWritten` de uma extensão que ninguém tem mais, disparando sobre os dados
+   * do escritório a cada gravação.
+   *
+   * O índice já havia sido salvo dessa mesma armadilha — foi por isso que `settleIndexes` subiu para
+   * antes do desvio. A function ficou para trás, e a lição é que o desvio é que estava errado: o que
+   * ele pulava não era "trabalho inútil", era a retirada.
+   *
+   * O que sobrou dele são duas guardas pontuais mais abaixo: não perguntar ao projeto o que ele roda
+   * quando não há nada a conferir, e não anunciar que "as 0 functions já estão deployadas".
+   */
   const wantedFunctions = deployable.filter(
     (name) => valid.some((claim) => (claim.backend.functions ?? []).includes(name)),
   );
-  const alreadyApplied = parseAppliedFunctions(options.environment.backend.functions);
+
+  /** Quem reivindica cada nome AGORA — é com este dono que o registro é reconciliado. */
+  const owners = new Map<string, string>();
+  for (const claim of valid) {
+    for (const name of claim.backend.functions ?? []) owners.set(name, claim.pluginId);
+  }
+
+  const applied = parseAppliedFunctions(options.environment.backend.functions);
+  const appliedNames = new Set(applied.map((entry) => entry.name));
+  const classification = classifyApplied({
+    applied,
+    wanted: wantedFunctions,
+    baseline: manifest.baselineFunctions ?? [],
+    unresolved,
+  });
 
   const trackedParameters = claimedParameters(valid);
   // A raiz, e não o `install/`: a fonte é o arquivo que o escritório edita ao lado do `microteia.yaml`.
@@ -221,21 +292,31 @@ export const provisionBackend = async (options: ProvisionOptions): Promise<Provi
   const changed = changedParameters(recordedDigests, currentDigests, trackedParameters);
   const staleFunctions = new Set(
     functionsDeclaringParameters(valid, changed)
-      .filter((name) => wantedFunctions.includes(name) && alreadyApplied.includes(name)),
+      .filter((name) => wantedFunctions.includes(name) && appliedNames.has(name)),
   );
 
-  // Uma pergunta só ao projeto, e duas decisões a partir dela: o que ele já roda, e qual cópia ficou
-  // numa região abandonada.
-  const deployedFunctions = await listDeployedFunctions(projectId);
+  /**
+   * Uma pergunta só ao projeto, e duas decisões a partir dela: o que ele já roda, e qual cópia ficou
+   * numa região abandonada. Perguntar duas vezes não é caro, é ambíguo — as duas respostas podem
+   * divergir, e aí a decisão passa a depender de qual delas o código olhou.
+   *
+   * E ela é feita só quando há o que decidir. Sem o desvio lá em cima, este caminho passou a ser
+   * percorrido também pelo `provision` que roda quando não sobrou extensão nenhuma — e ali não há
+   * function para conferir nem para subir, então um `functions:list` seria pagar segundos por uma
+   * resposta que ninguém lê.
+   */
+  let asked: DeployedFunction[] | null | undefined;
+  const projectFunctions = async (): Promise<DeployedFunction[] | null> => {
+    if (asked === undefined) asked = await listDeployedFunctions(projectId);
+    return asked;
+  };
 
   // O que a lista de nomes nunca respondeu: a function aplicada que sumiu do projeto, e a que segue
   // lá carregando o carimbo de um código anterior. As duas voltam para a fila.
-  const outdated = outdatedByStamp(
-    wantedFunctions.filter((name) => alreadyApplied.includes(name)),
-    deployedFunctions,
-    region,
-    options.refreshedStamps,
-  );
+  const appliedAndWanted = wantedFunctions.filter((name) => appliedNames.has(name));
+  const outdated: OutdatedFunctions = appliedAndWanted.length === 0
+    ? { absent: [], stale: [] }
+    : outdatedByStamp(appliedAndWanted, await projectFunctions(), region, options.refreshedStamps);
   for (const name of [...outdated.absent, ...outdated.stale]) staleFunctions.add(name);
 
   if (outdated.absent.length > 0) {
@@ -278,10 +359,14 @@ export const provisionBackend = async (options: ProvisionOptions): Promise<Provi
   }
 
   const toDeploy = wantedFunctions.filter(
-    (name) => options.all === true || !alreadyApplied.includes(name) || staleFunctions.has(name),
+    (name) => options.all === true || !appliedNames.has(name) || staleFunctions.has(name),
   );
   if (toDeploy.length === 0) {
-    success(`the ${wantedFunctions.length} function(s) these extensions need are already deployed`);
+    // Anunciar "as 0 functions já estão deployadas" seria o preço de ter tirado o desvio, e não é
+    // preciso pagá-lo: quando não há exigência nenhuma, quem já falou foi a linha lá em cima.
+    if (wantedFunctions.length > 0) {
+      success(`the ${wantedFunctions.length} function(s) these extensions need are already deployed`);
+    }
   } else {
     // A cópia que o `firebase-functions` lê é atualizada AGORA, e não só no `deploy`: este comando é o
     // que aplica um parâmetro preenchido depois da instalação, e subir a function contra uma cópia
@@ -299,7 +384,7 @@ export const provisionBackend = async (options: ProvisionOptions): Promise<Provi
 
     // A extensão que mudou de região deixa a cópia antiga para trás igual ao kernel, e ali o efeito
     // é o mesmo: deploy recusado em toda tentativa, e gatilho disparando em duas regiões.
-    await clearRegionOrphans(projectId, toDeploy, region, options.prune, deployedFunctions);
+    await clearRegionOrphans(projectId, toDeploy, region, options.prune, await projectFunctions());
 
     info(`  deploying ${toDeploy.length} function(s), one at a time…`);
     const report = await deployFunctionsOneByOne(toDeploy, {
@@ -317,7 +402,7 @@ export const provisionBackend = async (options: ProvisionOptions): Promise<Provi
     );
   }
 
-  const deployedNow = new Set([...alreadyApplied, ...outcome.deployed]);
+  const deployedNow = new Set([...appliedNames, ...outcome.deployed]);
   for (const claim of valid) {
     const satisfied = (claim.backend.functions ?? []).every((name) => deployedNow.has(name));
     if (satisfied) {
@@ -327,17 +412,19 @@ export const provisionBackend = async (options: ProvisionOptions): Promise<Provi
     }
   }
 
-  const orphans = alreadyApplied.filter((name) => !wantedFunctions.includes(name));
-  outcome.orphans = orphans;
-  const remaining = await settleOrphans(options, orphans);
+  reportPreserved(classification.preserved);
+  outcome.orphans = classification.orphans.map((entry) => entry.name);
+  const remaining = await settleOrphans(options, classification.orphans, survey);
 
   await recordBackendState(
     options,
     appliedAfterRun({
-      alreadyApplied,
+      applied,
       wanted: wantedFunctions,
       deployed: outcome.deployed,
       keptOrphans: remaining,
+      preserved: classification.preserved.map((item) => item.entry),
+      owners,
     }),
     appliedParameterState({
       recorded: recordedDigests,
@@ -459,38 +546,86 @@ const stampApplied = async (
 };
 
 /**
- * Function que nenhuma extensão instalada exige mais. Apagar é destrutivo e irreversível, então o
- * padrão RELATA e só `--prune` remove — e o que foi removido sai da lista de aplicadas.
+ * O que ninguém exige e mesmo assim NÃO é órfã.
+ *
+ * Relatar é o ponto. As duas causas são configuração errada de um lado ou do outro, e o silêncio sobre
+ * elas faria a próxima pessoa a abrir o `microteia.yaml` concluir que a lista está suja — e apagar à
+ * mão exatamente o que estas linhas protegem.
  */
-const settleOrphans = async (options: ProvisionOptions, orphans: string[]): Promise<string[]> => {
+const reportPreserved = (preserved: PreservedFunction[]): void => {
+  const baseline = preserved.filter((item) => item.reason === 'baseline');
+  const unresolved = preserved.filter((item) => item.reason === 'unresolved');
+
+  if (baseline.length > 0) {
+    blank();
+    warn(`${baseline.length} function(s) in this installation's record belong to the platform:`);
+    bullets(baseline.map((item) => describeApplied(item.entry)));
+    info('  every "microteia deploy" puts them up, extension or no extension, so nothing here removes');
+    info('  them — not even --prune.');
+  }
+
+  if (unresolved.length > 0) {
+    blank();
+    warn(`${unresolved.length} function(s) belong to an extension whose declaration did not resolve:`);
+    bullets(unresolved.map((item) => `${item.entry.name} — claimed by ${item.claimant}`));
+    info('  the extension is still installed, so they are not orphans and nothing removes them.');
+    info('  Fix what is reported above and run "microteia provision" again.');
+  }
+};
+
+/**
+ * Function que nenhuma extensão instalada exige mais.
+ *
+ * A CERTEZA vem antes da remoção, e é dita em voz alta: a Cloud Function é do PROJETO e a instalação é
+ * do ESCRITÓRIO, então "ninguém mais exige" é uma afirmação sobre TODOS os escritórios do projeto, e
+ * não sobre o último que foi lido. A varredura é completa ou não existe — `listDocuments` pagina até o
+ * fim e qualquer leitura recusada derruba o comando lá em cima —, e é o número dito aqui que permite a
+ * quem lê conferir a afirmação em vez de acreditar nela.
+ *
+ * Apagar é destrutivo e irreversível, então o padrão RELATA e só `--prune` remove — e o que foi
+ * removido sai da lista de aplicadas.
+ */
+const settleOrphans = async (
+  options: ProvisionOptions,
+  orphans: AppliedFunction[],
+  survey: InstalledSurvey,
+): Promise<AppliedFunction[]> => {
   if (orphans.length === 0) return [];
 
   blank();
+  warn(`${orphans.length} function(s) are deployed and no installed extension needs them:`);
+  bullets(orphans.map(describeApplied));
+  info(`  read from every office in this project: ${survey.tenants} office(s), `
+    + `${survey.extensions} installed extension(s).`);
+
   if (!options.prune) {
-    warn(`${orphans.length} function(s) are deployed but no installed extension needs them:`);
-    bullets(orphans);
-    info('  they keep working and cost nothing while idle. To remove them:');
+    // O custo mudou de descrição porque a descrição estava errada. Uma callable ociosa não custa nada;
+    // um gatilho de Firestore não fica ocioso — ele segue disparando a cada gravação do escritório,
+    // rodando o código de uma extensão que ninguém tem mais, e é esse efeito que faz a remoção valer
+    // a pena antes de "algum dia".
+    info('  a callable just sits there. A Firestore trigger does not: it keeps firing on every write,');
+    info('  running the code of an extension nobody has any more. To remove them:');
     bullets(['microteia provision --prune']);
     blank();
     return orphans;
   }
 
   info(`  deleting ${orphans.length} orphan function(s)…`);
-  const deleted: string[] = [];
-  for (const name of orphans) {
+  const deleted = new Set<string>();
+  for (const orphan of orphans) {
     try {
       await run(
         FIREBASE_BIN,
-        ['functions:delete', name, '--project', options.projectId, '--region', options.region, '--force'],
+        ['functions:delete', orphan.name, '--project', options.projectId, '--region', options.region, '--force'],
         { cwd: options.install },
       );
-      deleted.push(name);
+      deleted.add(orphan.name);
     } catch {
-      warn(`could not delete ${name}; it stays recorded as deployed`);
+      warn(`could not delete ${orphan.name}; it stays recorded as deployed`);
     }
   }
-  success(`${deleted.length} orphan function(s) removed`);
-  return orphans.filter((name) => !deleted.includes(name));
+  success(`${deleted.size} orphan function(s) removed`);
+  return orphans.filter((orphan) => !deleted.has(orphan.name));
 };
 
 /**
@@ -532,22 +667,6 @@ const reportOrphanIndexes = (
 };
 
 /**
- * A lista aplicada CONVERGE para o que ainda é exigido: o que já estava e continua sendo pedido, mais
- * o que subiu agora, mais o órfão que não foi removido. Reescrevê-la só com o que subiu NESTA execução
- * a esvaziava na segunda passada — e a terceira redeployava tudo, achando que nada havia sido feito.
- */
-export const appliedAfterRun = (input: {
-  alreadyApplied: string[];
-  wanted: string[];
-  deployed: string[];
-  keptOrphans: string[];
-}): string[] => [...new Set([
-  ...input.alreadyApplied.filter((name) => input.wanted.includes(name)),
-  ...input.deployed,
-  ...input.keptOrphans,
-])].sort();
-
-/**
  * A impressão digital do parâmetro só avança quando TODAS as functions que o carregam subiram. Gravar
  * antes disso é o que transformaria uma falha de deploy em silêncio permanente: o valor novo ficaria
  * registrado como aplicado, e nenhuma execução seguinte tentaria de novo.
@@ -580,7 +699,7 @@ export const appliedParameterState = (input: {
 
 const recordBackendState = async (
   options: ProvisionOptions,
-  names: string[],
+  applied: AppliedFunction[],
   parameters: Map<string, string>,
   indexes: FirestoreIndexSpec[],
 ): Promise<void> => {
@@ -602,7 +721,7 @@ const recordBackendState = async (
   await writeEnvironment(options.environmentFile, {
     ...options.environment,
     backend: {
-      functions: names.length === 0 ? null : names.join(','),
+      functions: serializeAppliedFunctions(applied),
       parameters: serializeParameterState(parameters),
       indexes: state.value,
     },

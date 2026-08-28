@@ -11,6 +11,12 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.27.0] — 2026-08-27
+
+- Ao desinstalar uma extensão que trazia rotinas de servidor, essas rotinas passam a ser sempre relatadas como sobra, para que o administrador possa removê-las. Antes, quando a extensão desinstalada era a última do escritório a usar servidor, a sobra não era relatada por ninguém e as rotinas ficavam no ar indefinidamente — e uma rotina que reage a gravações continua reagindo, executando o código de uma extensão que ninguém mais tem.
+- O relatório dessas sobras passa a dizer de qual extensão cada rotina era, e quantos escritórios do projeto foram consultados para concluir que ninguém mais a usa. É a diferença entre um aviso que ninguém sabe responder e uma decisão que dá para tomar.
+- Nenhuma rotina da própria plataforma, nem de uma extensão que continua instalada, pode ser removida por engano nesse processo. Os dois casos existiam e são agora recusados, com o motivo dito na hora.
+
 #### [9.26.1] — 2026-08-27
 
 - Nada muda no sistema. A alteração é na ferramenta com que publicamos as versões: o comando que põe uma versão nova no ar passou a ter um atalho próprio, ao lado dos que montam os pacotes. Era a última etapa da publicação e a única sem atalho — quem a executava digitava o caminho do programa à mão, numa etapa que se roda de vez em quando e onde um caminho errado só aparece depois.

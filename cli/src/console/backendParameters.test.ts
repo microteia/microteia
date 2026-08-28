@@ -9,7 +9,7 @@ import {
   parseParameterState,
   serializeParameterState,
 } from './backendParameters.js';
-import { appliedAfterRun, appliedParameterState } from './provision.js';
+import { appliedParameterState } from './provision.js';
 
 /**
  * Uma extensão que exige function E parâmetro — a forma que este mecanismo existe para servir. Era a de
@@ -131,36 +131,6 @@ describe('quais functions carregam um parâmetro', () => {
       .toEqual(['integracaoRenew', 'integracaoSync']);
     expect(functionsDeclaringParameters([claimant, other], ['OUTRO_TOKEN'])).toEqual(['runAction']);
     expect(functionsDeclaringParameters([claimant, other], [])).toEqual([]);
-  });
-});
-
-describe('o que fica registrado como aplicado ao fim da execução', () => {
-  it('preserva o que já estava aplicado e continua exigido', () => {
-    const applied = appliedAfterRun({
-      alreadyApplied: ['integracaoSync', 'integracaoRenew'],
-      wanted: ['integracaoSync', 'integracaoRenew'],
-      deployed: [],
-      keptOrphans: [],
-    });
-    expect(applied).toEqual(['integracaoRenew', 'integracaoSync']);
-  });
-
-  it('soma o que subiu agora e o órfão que não foi removido, e descarta o que não é mais exigido', () => {
-    const applied = appliedAfterRun({
-      alreadyApplied: ['integracaoSync', 'antiga'],
-      wanted: ['integracaoSync', 'integracaoRenew'],
-      deployed: ['integracaoRenew'],
-      keptOrphans: [],
-    });
-    expect(applied).toEqual(['integracaoRenew', 'integracaoSync']);
-
-    const comOrfa = appliedAfterRun({
-      alreadyApplied: ['integracaoSync', 'antiga'],
-      wanted: ['integracaoSync'],
-      deployed: [],
-      keptOrphans: ['antiga'],
-    });
-    expect(comOrfa).toEqual(['antiga', 'integracaoSync']);
   });
 });
 

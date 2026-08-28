@@ -225,7 +225,7 @@ describe('a decisão fica onde ela é tomada', () => {
 
     expect(deploy).toContain('refreshedStamps = report.refreshed;');
     expect(deploy).toContain('refreshedStamps,');
-    expect(provision).toContain('options.refreshedStamps,');
+    expect(provision).toContain('options.refreshedStamps)');
   });
 
   it('a comparação continua sendo a do firebase, e não uma nossa', () => {

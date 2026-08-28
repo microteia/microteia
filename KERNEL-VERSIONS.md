@@ -18,6 +18,14 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.27.0] — 2026-08-27
+
+- fix(cli/provision): the "no installed extension asks for backend artifacts" shortcut returned before orphan functions were computed, so uninstalling the LAST backend-bearing extension left its Cloud Functions deployed with nothing reporting them and `--prune` unable to reach them. A Firestore trigger of an extension nobody has kept firing on every write. The shortcut is gone; the index side had already been rescued from it, the function side had not.
+- fix(cli/provision): a claim the run could not resolve (a renamed export in `extensions/<x>/functions/index.ts`, a name a kernel upgrade dropped) took the plugin out of `valid`, which turned its functions into orphans — `--prune` then deleted the function of an extension that was still installed. Unresolved claims are now preserved and named, never pruned.
+- feat(cli/backendShape): `baselineClaimProblems` refuses a claim over a function the platform deploys itself. Packaging cannot ask the question (the baseline is derived from the claims), the installation can — and claiming one changed nothing until the day it removed a working kernel trigger from the project.
+- feat(cli/appliedFunctions): `backend.functions` records `name@pluginId` instead of a bare name, so an orphan report can say whose it was. Entries written by earlier installations are still read.
+- feat(cli/provision): the orphan report states the survey it rests on — offices read, extensions read — because "no installed extension needs them" is a claim about every office in the project, not about the last one read.
+
 #### [9.26.1] — 2026-08-27
 
 - chore(scripts): `publish:packages` joins `pack:kernel` and `pack:console` in `package.json`, running

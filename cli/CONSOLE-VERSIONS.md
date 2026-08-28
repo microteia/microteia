@@ -22,6 +22,12 @@
 - fix(command): what was broken, and what it did to whoever hit it.
 -->
 
+#### [2.11.0] — 2026-08-27
+
+- fix(provision): orphan Cloud Functions are reported even when no installed extension asks for a backend at all — the case that mattered most, and the only one the previous shortcut skipped.
+- fix(provision --prune): a function claimed by an extension that is still installed, and one the platform deploys itself, are never deleted. Both were reachable before.
+- feat(provision): the record of applied functions carries the plugin that owns each one, and the orphan report names it along with how many offices were read to reach the conclusion.
+
 #### [2.10.0] — 2026-08-27
 
 - feat(export-catalog): a new command writes what an office HAS — its screens with their fields, its

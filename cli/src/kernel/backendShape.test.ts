@@ -8,6 +8,7 @@ import {
   baselineIndexesOf,
   claimedFunctions,
   claimsFromTemplates,
+  baselineClaimProblems,
   functionClaimProblems,
   indexDeclarationProblems,
   indexKey,
@@ -165,5 +166,37 @@ describe('baseline e reivindicado — as contas do pacote', () => {
     expect(problems).toHaveLength(1);
     expect(problems[0]).toContain('com.acme.a');
     expect(problems[0]).toContain('com.acme.b');
+  });
+
+  /**
+   * Reivindicar um nome da BASELINE passava por todas as conferências: ele está empacotado, e é só isso
+   * que `functionClaimProblems` pergunta. As duas consequências não apareciam em lugar nenhum — o
+   * `deploy` sobe a function de qualquer jeito, e desinstalar a extensão fazia `--prune` apagar um
+   * gatilho do produto num escritório que não fez nada.
+   */
+  it('reivindicar uma function da plataforma é problema, mesmo estando empacotada', () => {
+    const claim: BackendClaim = {
+      pluginId: 'com.acme.x',
+      name: 'Acme',
+      version: '1.0.0',
+      backend: { functions: ['auditFlatEntityChange'] },
+    };
+    expect(functionClaimProblems([claim], allFunctions())).toEqual([]);
+
+    const problems = baselineClaimProblems([claim], ['auditFlatEntityChange']);
+    expect(problems).toHaveLength(1);
+    expect(problems[0]).toContain('com.acme.x');
+    expect(problems[0]).toContain('auditFlatEntityChange');
+  });
+
+  /** E o que a extensão de fato traz continua passando: a pergunta é só sobre a baseline. */
+  it('a function da própria extensão não é reivindicação sobre a baseline', () => {
+    const claim: BackendClaim = {
+      pluginId: 'com.acme.x',
+      name: 'Acme',
+      version: '1.0.0',
+      backend: { functions: ['acmeSync'] },
+    };
+    expect(baselineClaimProblems([claim], ['auditFlatEntityChange'])).toEqual([]);
   });
 });

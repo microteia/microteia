@@ -314,12 +314,19 @@ describe('a memória dos índices de extensão entre versões do kernel', () => 
    * Desinstalar a ÚNICA extensão com backend caía no desvio de "nenhuma extensão exige nada", e o índice
    * dela não era relatado por ninguém — o aviso existia para o órfão que sobra entre outras extensões, e
    * faltava justamente no caso de ele sobrar sozinho.
+   *
+   * A correção de então foi mover `settleIndexes` para antes do desvio, e ela deixou o desvio em pé: a
+   * function de extensão caiu na mesma armadilha logo depois, e ficou no ar para sempre. Agora não há
+   * desvio nenhum, e é isso que este teste guarda — um `return` entre a resolução dos índices e o
+   * relatório deles reabriria as duas de uma vez.
    */
   it('o órfão é relatado mesmo quando não sobrou extensão nenhuma', () => {
-    const earlyReturn = provision.indexOf('reportOrphanIndexes(projectId, settled.orphans, options.prune);');
-    expect(provision.indexOf('const settled = await settleIndexes(')).toBeLessThan(earlyReturn);
+    const settle = provision.indexOf('const settled = await settleIndexes(');
+    const report = provision.indexOf('reportOrphanIndexes(projectId, settled.orphans, options.prune);');
+    expect(settle).toBeLessThan(report);
     expect(provision.match(/reportOrphanIndexes\(projectId, settled\.orphans, options\.prune\)/g))
-      .toHaveLength(2);
+      .toHaveLength(1);
+    expect(provision.slice(settle, report)).not.toContain('return outcome;');
   });
 
   /** Nem o `provision` nem o `unpack` remontam o caminho do arquivo à mão: há uma porta só. */
