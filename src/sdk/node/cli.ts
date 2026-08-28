@@ -279,14 +279,17 @@ const createFunction = async (args: Args): Promise<number> => {
      * callable só é alcançada por uma tela desta extensão, logo some com ela; o gatilho continua
      * disparando para todo escritório do projeto, e por isso nasce com o portão de instalação.
      */
-    const kind = args.values.get('trigger') !== undefined ? 'trigger' : await asker.choose(
-      { key: 'kind', text: 'what sets it off?' },
-      [
-        { value: 'callable', label: 'a screen of this extension calls it' },
-        { value: 'trigger', label: 'a record is saved or deleted' },
-      ],
-      'callable',
-    );
+    const kind = args.values.get('trigger') !== undefined ? 'trigger'
+      : args.values.get('schedule') !== undefined ? 'schedule'
+        : await asker.choose(
+          { key: 'kind', text: 'what sets it off?' },
+          [
+            { value: 'callable', label: 'a screen of this extension calls it' },
+            { value: 'trigger', label: 'a record is saved or deleted' },
+            { value: 'schedule', label: 'a clock — it runs on a schedule' },
+          ],
+          'callable',
+        );
 
     const collection = kind !== 'trigger' ? undefined : (args.values.get('trigger') ?? await asker.text({
       key: 'collection',
@@ -294,17 +297,35 @@ const createFunction = async (args: Args): Promise<number> => {
       hint: 'The name your screen stores its records in.',
     }, 'records'));
 
+    const schedule = kind !== 'schedule' ? undefined : (args.values.get('schedule') ?? await asker.text({
+      key: 'schedule',
+      text: 'how often does it run?',
+      hint: 'App Engine cron syntax, or unix-cron: "every day 03:00".',
+    }, 'every day 03:00'));
+
     const directory = join(workspace, folder);
     const id = pluginIdOf(directory) ?? `com.example.${folder}`;
     const region = installationRegion(workspace);
     await asker.close();
 
-    const name = scaffoldFunction(directory, id, action, region, collection);
+    const name = scaffoldFunction(
+      directory,
+      id,
+      action,
+      region,
+      collection !== undefined ? { kind: 'trigger', collection }
+        : schedule !== undefined ? { kind: 'schedule', schedule }
+          : { kind: 'callable' },
+    );
 
     done(`created ${folder}/functions/${name}.ts ${DIM}(region ${region})${RESET}`);
     if (collection !== undefined) {
       say(`  ${DIM}it watches tenants/{tenantId}/${collection}/{id}, and runs only where this${RESET}`);
       say(`  ${DIM}extension is installed — that guard is what a Cloud Function cannot do by itself.${RESET}`);
+    }
+    if (schedule !== undefined) {
+      say(`  ${DIM}it runs "${schedule}", once per office that installed this extension. A scheduled${RESET}`);
+      say(`  ${DIM}event carries no office, so that loop is the only thing that scopes it.${RESET}`);
     }
     say();
     warn(`declare it in ${folder}/plugin.ts, under manifest.backend.functions:`);
@@ -443,7 +464,8 @@ const COMMANDS: Command[] = [
     name: 'create',
     usage:
       'microteia-plugin create [<com.example.id>] [--dir <path>] [--force] [--yes]\n'
-      + '  microteia-plugin create function [--plugin <folder>] [--trigger <collection>] [--yes]',
+      + '  microteia-plugin create function [--plugin <folder>] [--trigger <collection>]\n'
+      + '                                   [--schedule "<cron>"] [--yes]',
     summary: 'Create an extension, guided by a few questions. "create function" adds a Cloud Function.',
     run: create,
   },

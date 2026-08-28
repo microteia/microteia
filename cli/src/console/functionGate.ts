@@ -41,7 +41,38 @@ export const TENANT_TRIGGER_CONSTRUCTORS = [
   'onDocumentDeletedWithAuthContext',
 ];
 
+/**
+ * Os construtores cujo evento NÃO carrega escritório no caminho.
+ *
+ * Para eles as duas saídas do autor eram erradas, e é isso que faz deles uma recusa e não um aviso: sem
+ * portão a function age sobre o projeto inteiro; COM portão ela nunca roda — nem enquanto a extensão está
+ * instalada —, porque `forInstalledExtension` falha FECHADO e nunca acha o `{tenantId}` que não existe.
+ * Um autor que seguisse a orientação genérica "envolva o handler no portão" produzia uma function que
+ * passava no deploy, não acusava nada e nunca fazia nada.
+ *
+ * A resposta é o laço por escritório (`forEachInstalledOffice`), e é por existir uma resposta que a
+ * recusa é honesta.
+ *
+ * A lista é EXPLÍCITA, e não "tudo o que não é gatilho de documento": o que não se conhece não se recusa.
+ * O RTDB fica de fora de propósito — o caminho dele TEM parâmetros, então um `{tenantId}` ali é possível
+ * —, e a plataforma não usa RTDB em lugar nenhum.
+ */
+export const UNSCOPED_TRIGGER_CONSTRUCTORS = [
+  'onSchedule',
+  'onMessagePublished',
+  'onRequest',
+  'onObjectFinalized',
+  'onObjectArchived',
+  'onObjectDeleted',
+  'onObjectMetadataUpdated',
+  'onCustomEventPublished',
+  'onTaskDispatched',
+  'beforeUserCreated',
+  'beforeUserSignedIn',
+];
+
 const GATE = 'forInstalledExtension';
+const OFFICE_LOOP = 'forEachInstalledOffice';
 
 /** Onde uma string termina, a partir da abertura dela. Aspas não fechada não engole o resto do arquivo. */
 const stringEnd = (source: string, start: number, quote: string): number => {
@@ -158,26 +189,55 @@ export interface TriggerDeclaration {
   gatedFor: string | null;
 }
 
-/** Os gatilhos de Firestore declarados numa fonte, com o estado do portão de cada um. */
-export const triggerDeclarations = (rawSource: string): TriggerDeclaration[] => {
-  const source = withoutComments(rawSource);
+/** Onde cada `export const x = <construtor>(` começa, para os construtores pedidos. */
+const declarationsOf = (
+  source: string,
+  constructors: string[],
+): { name: string; trigger: string; open: number }[] => {
   const pattern = new RegExp(
     String.raw`(?:export\s+)?(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*(?::[^=;\n]*)?=\s*(`
-    + `${TENANT_TRIGGER_CONSTRUCTORS.join('|')})\\s*(?:<[^>]*>)?\\s*\\(`,
+    + `${constructors.join('|')})\\s*(?:<[^>]*>)?\\s*\\(`,
     'g',
   );
 
-  const found: TriggerDeclaration[] = [];
-  for (const match of source.matchAll(pattern)) {
-    const open = (match.index ?? 0) + match[0].length - 1;
-    found.push({
-      name: match[1],
-      trigger: match[2],
-      gatedFor: gatedFor(callArguments(source, open), source),
-    });
-  }
+  return [...source.matchAll(pattern)].map((match) => ({
+    name: match[1],
+    trigger: match[2],
+    open: (match.index ?? 0) + match[0].length - 1,
+  }));
+};
 
-  return found;
+/** Os gatilhos de Firestore declarados numa fonte, com o estado do portão de cada um. */
+export const triggerDeclarations = (rawSource: string): TriggerDeclaration[] => {
+  const source = withoutComments(rawSource);
+  return declarationsOf(source, TENANT_TRIGGER_CONSTRUCTORS).map((declaration) => ({
+    name: declaration.name,
+    trigger: declaration.trigger,
+    gatedFor: gatedFor(callArguments(source, declaration.open), source),
+  }));
+};
+
+/**
+ * As functions sem escritório no evento, e o id que o laço por escritório recebeu no ARQUIVO.
+ *
+ * O alcance é o arquivo, e não os parênteses da chamada — a diferença é deliberada. O portão de um
+ * gatilho de documento embrulha AQUELE handler, então ele tem de estar ali; o laço, ao contrário, roda
+ * DENTRO do handler e pode estar algumas chamadas abaixo, num `syncOffice(tenantId)` que o próprio autor
+ * escreveu. Exigi-lo nos parênteses recusaria código correto, e a verificação que erra assim é a que
+ * ensina a próxima pessoa a desligá-la.
+ *
+ * O preço é conhecido: dois agendados no mesmo arquivo, um com laço e outro sem, passam os dois. É menos
+ * grave que o inverso, e está dito.
+ */
+export const unscopedDeclarations = (rawSource: string): TriggerDeclaration[] => {
+  const source = withoutComments(rawSource);
+  const loop = source.match(new RegExp(String.raw`\b${OFFICE_LOOP}\s*\(\s*['"]([^'"]*)['"]`));
+
+  return declarationsOf(source, UNSCOPED_TRIGGER_CONSTRUCTORS).map((declaration) => ({
+    name: declaration.name,
+    trigger: declaration.trigger,
+    gatedFor: loop === null ? null : loop[1],
+  }));
 };
 
 /**
@@ -190,13 +250,21 @@ export interface GateSubject {
   shared: boolean;
   exported: string[];
   triggers: TriggerDeclaration[];
+  /** As functions cujo evento não carrega escritório: o agendado, a fila, o HTTP, o Storage. */
+  unscoped: TriggerDeclaration[];
 }
 
 /** Os gatilhos que o `index.ts` de fato exporta — um declarado e não exportado não é deployado. */
-const exportedTriggers = (subject: GateSubject): TriggerDeclaration[] => {
+const exportedOnly = (subject: GateSubject, declarations: TriggerDeclaration[]): TriggerDeclaration[] => {
   const exported = new Set(subject.exported);
-  return subject.triggers.filter((trigger) => exported.has(trigger.name));
+  return declarations.filter((trigger) => exported.has(trigger.name));
 };
+
+const exportedTriggers = (subject: GateSubject): TriggerDeclaration[] =>
+  exportedOnly(subject, subject.triggers);
+
+const exportedUnscoped = (subject: GateSubject): TriggerDeclaration[] =>
+  exportedOnly(subject, subject.unscoped);
 
 /**
  * Gatilho de extensão sem portão.
@@ -214,14 +282,34 @@ export const ungatedTriggerProblems = (subjects: GateSubject[]): string[] => sub
       + `installation gate — wrap its handler in ${GATE}('<this extension's id>', …) or it fires for `
       + 'every office in the project, including the ones that never installed the extension'));
 
+/**
+ * Function de extensão cujo evento não tem escritório, e que não passa pelo laço.
+ *
+ * A recusa vem acompanhada do substituto porque sem ele ela seria só uma porta fechada: o laço por
+ * escritório (`forEachInstalledOffice`) existe justamente para este caso, e é ele que a mensagem nomeia.
+ *
+ * `functions/` fica de fora pelo mesmo motivo de sempre: a comum não tem um id de extensão para dar ao
+ * laço. Quem responde por ela é a declaração de quem ela serve.
+ */
+export const unscopedTriggerProblems = (subjects: GateSubject[]): string[] => subjects
+  .filter((subject) => !subject.shared)
+  .flatMap((subject) => exportedUnscoped(subject)
+    .filter((trigger) => trigger.gatedFor === null)
+    .map((trigger) => `${subject.label} exports "${trigger.name}", a ${trigger.trigger} function whose `
+      + `event carries no {tenantId} — ${GATE} cannot gate it (it fails closed, so the function would `
+      + `never run at all). Loop with ${OFFICE_LOOP}('<this extension's id>', …) inside the handler, or `
+      + 'it acts on every office in the project, including the ones that never installed the extension'));
+
 export interface MisgatedTrigger {
   /** A origem, como as mensagens a citam. */
   label: string;
   name: string;
-  /** O id que o portão recebeu. */
+  /** O id que a guarda recebeu. */
   gatedFor: string;
   /** O id da extensão que reivindica a function. */
   owner: string;
+  /** Qual guarda recebeu o id errado — é ela que o autor tem de corrigir. */
+  via: string;
 }
 
 /**
@@ -241,18 +329,26 @@ export interface MisgatedTrigger {
 export const misgatedTriggers = (
   subjects: GateSubject[],
   claimants: Map<string, string>,
-): MisgatedTrigger[] => subjects
-  .filter((subject) => !subject.shared)
-  .flatMap((subject) => exportedTriggers(subject).flatMap((trigger) => {
-    const owner = claimants.get(trigger.name);
-    if (trigger.gatedFor === null || owner === undefined || owner === trigger.gatedFor) return [];
-    return [{ label: subject.label, name: trigger.name, gatedFor: trigger.gatedFor, owner }];
-  }));
+): MisgatedTrigger[] => {
+  const wrong = (subject: GateSubject, declarations: TriggerDeclaration[], via: string) =>
+    declarations.flatMap((trigger): MisgatedTrigger[] => {
+      const owner = claimants.get(trigger.name);
+      if (trigger.gatedFor === null || owner === undefined || owner === trigger.gatedFor) return [];
+      return [{ label: subject.label, name: trigger.name, gatedFor: trigger.gatedFor, owner, via }];
+    });
 
-/** Como um portão de id errado aparece num relatório. */
+  return subjects
+    .filter((subject) => !subject.shared)
+    .flatMap((subject) => [
+      ...wrong(subject, exportedTriggers(subject), GATE),
+      ...wrong(subject, exportedUnscoped(subject), OFFICE_LOOP),
+    ]);
+};
+
+/** Como uma guarda de id errado aparece num relatório. */
 export const describeMisgated = (entry: MisgatedTrigger): string =>
-  `${entry.label} gates "${entry.name}" for "${entry.gatedFor}", but the extension that claims it is `
-  + `"${entry.owner}" — the gate never opens, so the trigger fires and the handler never runs`;
+  `${entry.label} passes "${entry.gatedFor}" to ${entry.via} for "${entry.name}", but the extension that `
+  + `claims it is "${entry.owner}" — the guard never opens, so nothing this function does ever happens`;
 
 /**
  * Quem reivindica cada nome, quando é um só. Duas extensões pedindo o mesmo nome é problema de outra

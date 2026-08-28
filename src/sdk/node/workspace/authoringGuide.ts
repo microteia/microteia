@@ -1429,6 +1429,39 @@ extension calls one, so it becomes unreachable the moment your extension is gone
 \`isExtensionInstalled(tenantId, pluginId)\` is there too, for when you need the same answer inside a
 callable, where the organization comes from the request instead of from a path.
 
+### A schedule of yours loops over the organizations instead
+
+A scheduled run, a Pub/Sub message, an HTTP request and a Storage event carry no \`{tenantId}\` in their
+path. There is no organization for \`forInstalledExtension\` to ask about, and because it fails closed,
+wrapping one of these in it leaves your function **inert even while your extension is installed** — it
+deploys, it fires, and nothing ever happens. Leaving it unguarded is the other wrong answer: the run acts
+on every organization in the project.
+
+\`\`\`ts
+import { onSchedule } from 'firebase-functions/v2/scheduler';
+import { forEachInstalledOffice } from 'microteia-functions/office';
+
+export const acmeNightly = onSchedule(
+  { schedule: 'every day 03:00', region },
+  async () => {
+    await forEachInstalledOffice('com.acme.crm', async (tenantId) => { /* ... */ });
+  },
+);
+\`\`\`
+
+It reads one document per organization, once per run, and asks exactly what the trigger guard asks — a
+deactivated extension counts as not installed. It returns how many organizations it ran in. One
+organization failing does not take the others' turn: every installed organization runs, and the function
+then fails naming the ones that did not, so a bad record in one place cannot silently suspend the routine
+everywhere else and a failure cannot pass unnoticed either.
+
+**This too is a refusal.** One of these functions in your \`functions/\` without the loop is refused
+before anything is deployed, and so is a loop that names another extension's id. The check reads the
+whole file, not just the call, because the loop legitimately sits inside the handler and may be a couple
+of calls deeper.
+
+\`npx microteia-plugin create function\` writes it for you when you answer "a clock".
+
 Two rules follow from how a Firebase project works, and both are refusals rather than warnings:
 
 - **A \`defineString\` with no value refuses the deploy of *every* function in the project**, not just

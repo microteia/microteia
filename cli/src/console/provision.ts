@@ -51,6 +51,7 @@ import {
   misgatedTriggers,
   singleClaimants,
   ungatedTriggerProblems,
+  unscopedTriggerProblems,
 } from './functionGate.js';
 import {
   appliedAfterRun,
@@ -246,11 +247,15 @@ export const provisionBackend = async (options: ProvisionOptions): Promise<Provi
    * `--prune` — o comando que apaga a órfã — por causa de uma fonte que ele não precisa ler. A recusa
    * acontece onde a fonte de fato entra no pacote, e aí ela não tranca a saída de ninguém.
    */
-  const ungated = ungatedTriggerProblems(office.sources);
+  const ungated = [
+    ...ungatedTriggerProblems(office.sources),
+    ...unscopedTriggerProblems(office.sources),
+  ];
   if (ungated.length > 0) {
-    warn(`${ungated.length} trigger(s) written in this installation have no installation gate:`);
+    warn(`${ungated.length} function(s) written in this installation act outside any office's`
+      + ' installation:');
     bullets(ungated);
-    info('  they are refused the moment something tries to deploy them. Until then they keep firing for');
+    info('  they are refused the moment something tries to deploy them. Until then they keep acting on');
     info('  every office in this project.');
   }
 

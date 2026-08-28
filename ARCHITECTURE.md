@@ -1306,6 +1306,40 @@ documentação de API entregue, pela mesma regra de `extensionTypeDefs.ts`.
 `microteia-plugin create function` pergunta o que dispara a function e escreve o gatilho já com o portão:
 um exemplo gerado sem ele ensinaria o defeito.
 
+##### O evento sem escritório: o portão não serve, e agora existe resposta
+
+`onSchedule`, `onMessagePublished`, `onRequest`, os gatilhos de Storage e os de bloqueio de login não
+carregam `{tenantId}` no caminho. Para eles as duas saídas do autor eram erradas, e é isso que fazia
+delas o pior caso do mapa:
+
+| O que ele escrevia | O que acontecia |
+|---|---|
+| sem guarda nenhuma | a function age sobre o projeto INTEIRO — todo escritório, inclusive quem nunca instalou |
+| envolvendo no portão | a function **nunca roda**, nem enquanto a extensão está instalada: o portão falha FECHADO e nunca acha o `{tenantId}` que não existe |
+
+Um autor que seguisse a orientação genérica "envolva o handler no portão" produzia uma function que
+passava no deploy, não acusava nada e nunca fazia nada.
+
+**A resposta é `forEachInstalledOffice(pluginId, handler)`**, em `@microteia/office`: ele lista os
+escritórios do projeto, pergunta pela instalação de cada um e chama o handler só nos que instalaram,
+devolvendo em quantos rodou.
+
+| Decisão | Por quê |
+|---|---|
+| lista os escritórios e pergunta um por um | o documento de instalação tem o id do plugin como id DELE e não como campo, então a consulta por grupo de coleção exigiria campo novo, índice e migração dos documentos já gravados — para uma function que roda num cron. Uma leitura por escritório, uma vez por execução, não vale essa dívida |
+| compartilha o CACHE do portão | duas implementações de "está instalada?" divergiriam exatamente na regra que decide se o código de uma extensão roda |
+| **sequencial** | um agendado abrindo uma rajada de escritas paralelas sobre todos os escritórios de uma vez é o tipo de coisa que só aparece na fatura |
+| o erro de um escritório não tira o turno dos outros — **e a function falha no fim** | parar no primeiro erro faria um dado ruim num escritório suspender a rotina de todos os demais, em silêncio; engolir o erro faria a rotina "passar" para sempre. As duas coisas juntas são o devido |
+
+A recusa correspondente é do Console, e o alcance dela é o **arquivo**, não os parênteses da chamada: o
+portão de um gatilho de documento embrulha AQUELE handler, então tem de estar ali; o laço roda DENTRO do
+handler e pode estar algumas chamadas abaixo, num helper do próprio autor. O preço está dito — dois
+agendados no mesmo arquivo, um com laço e outro sem, passam os dois —, e é menos grave que recusar código
+correto. O RTDB fica de fora da lista de propósito: o caminho dele TEM parâmetros, então um `{tenantId}`
+ali é possível, e a plataforma não usa RTDB em lugar nenhum. O que não se conhece não se recusa.
+
+`microteia-plugin create function` ganhou a terceira resposta — "a clock" — e ela nasce com o laço.
+
 ##### O portão é COBRADO, e não recomendado
 
 O molde escrevia o portão, e era só isso: nenhuma verificação olhava a fonte. Um gatilho sem portão

@@ -22,6 +22,12 @@
 - fix(command): what was broken, and what it did to whoever hit it.
 -->
 
+#### [2.16.0] — 2026-08-28
+
+- feat(console/functionGate): an extension's function whose event carries no `{tenantId}` — `onSchedule`, `onMessagePublished`, `onRequest`, the Storage object triggers, the login-blocking ones — is refused unless it loops with `forEachInstalledOffice`. The refusal only became honest once there was an answer to point at: before it, both of the author's options were wrong, and the worse one passed every check. A loop naming another extension's id is rejected the same way a misgated trigger is, and the report names WHICH guard got the wrong id, because the fix is in one string and the author should not have to guess which.
+- feat(console/functionGate): the scope of this check is the FILE, not the call's parentheses. A document trigger's guard wraps that handler, so it has to be there; the loop runs inside the handler and may sit a couple of calls deeper, in a helper the author wrote. Demanding it in the parentheses would refuse correct code, and the price is stated: two scheduled functions in one file, one looping and one not, both pass.
+- feat(console/functionGate): the list of constructors is explicit rather than "everything that is not a document trigger". RTDB is deliberately left out — its path HAS parameters, so a `{tenantId}` there is possible, and the platform uses no RTDB anywhere. What is not known is not refused.
+
 #### [2.15.0] — 2026-08-28
 
 - feat(console/backendResidue): provisioning writes what it found back to the database, at `backend_state/current`. It is the one place in the system that can say "this Cloud Function has no owner any more" — the answer needs a scan of every office in the project compared against the applied record — and it said so in the terminal and kept the conclusion in `microteia.yaml`, a file on one operator's machine. The application never learned anything, so the whole mechanism depended on somebody remembering. This is not a new path: the Console already writes to the database over REST, which is how `backendState` is stamped.

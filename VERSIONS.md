@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.32.0] — 2026-08-28
+
+- Uma extensão já podia reagir ao salvamento de um registro apenas no escritório que a instalou; agora o mesmo vale para as rotinas que ela executa em horário marcado. Antes não havia forma correta de escrever uma dessas rotinas: ou ela agia em todos os escritórios do sistema, ou não agia em nenhum. O assistente de criação passa a oferecer essa terceira forma, já pronta.
+
 #### [9.31.0] — 2026-08-28
 
 - A tela de Extensões passa a avisar quando sobrou algo no servidor de uma extensão que ninguém mais tem instalada. Até agora essa informação só aparecia para quem administra o projeto, num terminal — e quem desinstalava a extensão nunca ficava sabendo que ainda havia o que retirar. O aviso diz o que sobrou, quando a verificação foi feita e o que pedir a quem cuida do projeto.

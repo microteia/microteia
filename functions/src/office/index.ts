@@ -19,14 +19,26 @@ export interface TenantScopedEvent {
   params: Record<string, string>;
 }
 
-/**
- * O documento tem o id do plugin — é assim que a aplicação o grava e o apaga —, então a pergunta é uma
- * leitura pontual, e não uma consulta. Desativar a extensão conta como não instalada: o pacote continua
- * no escritório e nada dele está no ar, que é exatamente a promessa do interruptor.
- */
-const gate = createInstallationGate(async (tenantId: string, pluginId: string): Promise<boolean> => {
-  const snapshot = await getDb().doc(`tenants/${tenantId}/installed_extensions/${pluginId}`).get();
-  return snapshot.exists && snapshot.get('active') !== false;
+const gate = createInstallationGate({
+  /**
+   * O documento tem o id do plugin — é assim que a aplicação o grava e o apaga —, então a pergunta é
+   * uma leitura pontual, e não uma consulta. Desativar a extensão conta como não instalada: o pacote
+   * continua no escritório e nada dele está no ar, que é exatamente a promessa do interruptor.
+   */
+  installed: async (tenantId: string, pluginId: string): Promise<boolean> => {
+    const snapshot = await getDb().doc(`tenants/${tenantId}/installed_extensions/${pluginId}`).get();
+    return snapshot.exists && snapshot.get('active') !== false;
+  },
+
+  /**
+   * `listDocuments` e não `get`: ele devolve as referências sem ler os documentos, que é tudo o que se
+   * precisa aqui — só os ids. E ele enxerga o escritório que só tem subcoleções, o que uma consulta de
+   * coleção não garante.
+   */
+  offices: async (): Promise<string[]> => {
+    const refs = await getDb().collection('tenants').listDocuments();
+    return refs.map((ref) => ref.id);
+  },
 });
 
 /**
@@ -58,3 +70,31 @@ export const forInstalledExtension: <E extends TenantScopedEvent>(
   pluginId: string,
   handler: (event: E) => Promise<void> | void,
 ) => (event: E) => Promise<void> = gate.forInstalledExtension;
+
+/**
+ * Runs your handler once per organization that installed your extension, and returns how many.
+ *
+ *     export const acmeNightly = onSchedule(
+ *       { schedule: 'every day 03:00', region: 'southamerica-east1' },
+ *       async () => {
+ *         await forEachInstalledOffice('com.acme.crm', async (tenantId) => { ... });
+ *       },
+ *     );
+ *
+ * This is for the triggers `forInstalledExtension` cannot help with. A scheduled run, a Pub/Sub
+ * message, an HTTP request and a Storage event carry no {tenantId} in their path, so there is no
+ * organization for the guard to ask about — it fails closed, which would leave your function inert even
+ * while your extension IS installed. Without a guard it acts on the whole project instead: every
+ * organization, including the ones that never installed your extension.
+ *
+ * It reads one document per organization, once per run, and asks the same question the trigger guard
+ * asks — a deactivated extension counts as not installed.
+ *
+ * One organization failing does not take the others' turn: every installed organization runs, and the
+ * function then fails naming the ones that did not. So a bad record in one place cannot silently
+ * suspend the routine everywhere else, and a failure cannot pass unnoticed either.
+ */
+export const forEachInstalledOffice: (
+  pluginId: string,
+  handler: (tenantId: string) => Promise<void> | void,
+) => Promise<number> = gate.forEachInstalledOffice;

@@ -455,6 +455,50 @@ export const ${name} = onDocumentWritten(
 );
 `;
 
+/**
+ * Uma function AGENDADA — e ela nasce com o laço por escritório, que não é enfeite.
+ *
+ * O evento de um agendado não carrega `{tenantId}`: não há escritório de onde perguntar, então o portão
+ * de instalação não serve para ele. E ele falha FECHADO, o que significa que envolver um agendado nele o
+ * deixaria inerte até enquanto a extensão está instalada. As duas saídas do autor eram erradas, e o laço
+ * é a resposta: ele roda uma vez em cada escritório que instalou, e em nenhum outro.
+ */
+export const scheduleTs = (
+  name: string,
+  pluginId: string,
+  schedule: string,
+  region: string,
+): string =>
+  `import { onSchedule } from 'firebase-functions/v2/scheduler';
+import { forEachInstalledOffice } from 'microteia-functions/office';
+
+/**
+ * ${name}
+ *
+ * Runs on a schedule — and once per organization that installed this extension, never in any other.
+ *
+ * forEachInstalledOffice is what limits it to them. A scheduled event carries no {tenantId}, so there is
+ * no organization for forInstalledExtension to ask about: it fails closed, and wrapping a scheduled
+ * function in it would leave the function inert even while your extension IS installed. Without a guard,
+ * the run acts on the whole project — every organization, including the ones that never installed this.
+ *
+ * One organization failing does not take the others' turn: every installed organization runs, and the
+ * function then fails naming the ones that did not.
+ *
+ * Pinned to ${region}: keep every function of an installation in one region.
+ */
+export const ${name} = onSchedule(
+  { schedule: '${schedule}', region: '${region}' },
+  async () => {
+    const offices = await forEachInstalledOffice('${pluginId}', async (tenantId) => {
+      console.log('${name}', tenantId);
+    });
+
+    console.log('${name} ran in', offices, 'organization(s)');
+  },
+);
+`;
+
 const functionsIndexTs = (names: string[]): string =>
   `// The Cloud Functions of this extension, read through this file: what is exported here is what gets
 // deployed. Declare each one in "manifest.backend.functions" too — that is what makes it go up only
@@ -609,12 +653,33 @@ export const scaffoldPlugin = (
  * `collection` escolhe a FORMA: sem ela, uma callable — que uma tela chama, e por isso já é inalcançável
  * quando a extensão sai. Com ela, um gatilho de gravação, que é o caso que precisa do portão.
  */
+/**
+ * O que dispara a function. É a pergunta que decide o molde, e as três respostas têm guardas diferentes:
+ * a callable some com a tela que a chamava; o gatilho de documento pede o portão de instalação; e o
+ * agendado, cujo evento não tem escritório, pede o laço por escritório.
+ */
+export type FunctionShape =
+  | { kind: 'callable' }
+  | { kind: 'trigger'; collection: string }
+  | { kind: 'schedule'; schedule: string };
+
+const sourceFor = (
+  shape: FunctionShape,
+  name: string,
+  pluginId: string,
+  region: string,
+): string => {
+  if (shape.kind === 'trigger') return triggerTs(name, pluginId, shape.collection, region);
+  if (shape.kind === 'schedule') return scheduleTs(name, pluginId, shape.schedule, region);
+  return functionTs(name, region);
+};
+
 export const scaffoldFunction = (
   pluginDir: string,
   pluginId: string,
   action: string,
   region: string,
-  collection?: string,
+  shape: FunctionShape = { kind: 'callable' },
 ): string => {
   const name = functionName(pluginId, action);
   const functions = join(pluginDir, 'functions');
@@ -623,12 +688,7 @@ export const scaffoldFunction = (
   if (existsSync(target)) throw new Error(`${name} already exists in ${functions}.`);
 
   mkdirSync(functions, { recursive: true });
-  writeFileSync(
-    target,
-    collection === undefined || collection === ''
-      ? functionTs(name, region)
-      : triggerTs(name, pluginId, collection, region),
-  );
+  writeFileSync(target, sourceFor(shape, name, pluginId, region));
 
   const index = join(functions, 'index.ts');
   const existing = existsSync(index)

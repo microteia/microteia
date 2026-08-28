@@ -3,6 +3,7 @@ import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { scaffoldFunction, scaffoldPlugin } from './scaffold';
+import type { FunctionShape } from './scaffold';
 import type { PluginSpec } from './scaffold';
 
 /**
@@ -134,14 +135,14 @@ describe('o molde de uma extensão', () => {
    * ele ensinaria o defeito que a plataforma inteira gastou uma versão para fechar.
    */
   describe('a Cloud Function que ele acrescenta', () => {
-    const intoPlugin = (collection?: string): string => {
+    const intoPlugin = (shape?: FunctionShape): string => {
       const { directory } = scaffold();
-      const name = scaffoldFunction(directory, SPEC.id, 'sync', 'southamerica-east1', collection);
+      const name = scaffoldFunction(directory, SPEC.id, 'sync', 'southamerica-east1', shape);
       return fileOf(directory, `functions/${name}.ts`);
     };
 
     it('o gatilho nasce com o portão de instalação, e com o id da extensão nele', () => {
-      const source = intoPlugin('invoices');
+      const source = intoPlugin({ kind: 'trigger', collection: 'invoices' });
 
       expect(source).toContain("from 'microteia-functions/office'");
       expect(source).toContain("forInstalledExtension('com.example.hello-world'");
@@ -158,8 +159,29 @@ describe('o molde de uma extensão', () => {
 
     it('o barril exporta a que foi criada', () => {
       const { directory } = scaffold();
-      const name = scaffoldFunction(directory, SPEC.id, 'sync', 'southamerica-east1', 'invoices');
+      const name = scaffoldFunction(
+        directory,
+        SPEC.id,
+        'sync',
+        'southamerica-east1',
+        { kind: 'trigger', collection: 'invoices' },
+      );
       expect(fileOf(directory, 'functions/index.ts')).toContain(`export { ${name} }`);
+    });
+
+    /**
+     * O agendado é o caso em que as duas saídas do autor eram erradas: sem guarda ele age sobre o
+     * projeto inteiro, e com o PORTÃO ele nunca roda — o evento não tem `{tenantId}` e o portão falha
+     * fechado. O molde tem de ensinar o laço, que é a única resposta certa.
+     */
+    it('o agendado nasce com o laço por escritório, e nunca com o portão', () => {
+      const source = intoPlugin({ kind: 'schedule', schedule: 'every day 03:00' });
+
+      expect(source).toContain('onSchedule');
+      expect(source).toContain("forEachInstalledOffice('com.example.hello-world'");
+      expect(source).toContain("schedule: 'every day 03:00'");
+      // O texto EXPLICA por que o portão não serve aqui; o que não pode existir é a chamada dele.
+      expect(source).not.toContain("forInstalledExtension('");
     });
   });
 

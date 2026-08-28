@@ -18,6 +18,14 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.32.0] — 2026-08-28
+
+- feat(functions/office): `forEachInstalledOffice(pluginId, handler)` — runs an extension's handler once per organization that installed it, and returns how many. It answers the events that carry no `{tenantId}`: a scheduled run, a Pub/Sub message, an HTTP request, a Storage event. For those, both of the author's options were wrong — unguarded, the function acts on the whole project; wrapped in `forInstalledExtension`, it never runs at all, because that guard fails closed and never finds the `{tenantId}` that does not exist. An author following the generic "wrap the handler in the guard" produced a function that passed the deploy, reported nothing and did nothing.
+- feat(functions/office): it lists the organizations and asks one by one rather than querying a collection group. The installation document carries the plugin id as its own id and not as a field, so the query would need a new field, an index and a migration of documents already written — for a function that runs on a cron. It shares the guard's cache, because two implementations of "is it installed?" would diverge on exactly the rule that decides whether an extension's code runs. It is sequential on purpose: a scheduled run opening a burst of parallel writes across every organization at once is the kind of thing that only shows up on the invoice.
+- feat(functions/office): one organization failing does not take the others' turn, and the function still fails at the end. Stopping at the first error would let a bad record in one place silently suspend the routine everywhere else; swallowing it would make the routine "pass" forever.
+- feat(sdk/authoring): `create function` gained a third answer to "what sets it off?" — a clock — and it is scaffolded with the loop already in place. A generated example without it would teach the defect, which is the same reason the Firestore trigger is scaffolded with its guard.
+- chore(kernel): `KERNEL_VERSION` 2.9.0 — additive: an extension written against `forEachInstalledOffice` needs a kernel that ships it.
+
 #### [9.31.0] — 2026-08-28
 
 - feat(marketplace): the Extensions screen shows what provisioning left behind in the project. It is the other half of the "Backend pending" badge — that one is the installation that has not reached the project yet, this one is the withdrawal that has not happened — and it exists because the person who reads that screen is not necessarily the person with a terminal. `--prune` staying an explicit act is right; nobody being able to learn that it was needed was not.

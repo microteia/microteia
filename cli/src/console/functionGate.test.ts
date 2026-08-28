@@ -5,6 +5,8 @@ import {
   singleClaimants,
   triggerDeclarations,
   ungatedTriggerProblems,
+  unscopedDeclarations,
+  unscopedTriggerProblems,
   withoutComments,
 } from './functionGate.js';
 import type { GateSubject, TriggerDeclaration } from './functionGate.js';
@@ -46,6 +48,15 @@ const subject = (overrides: Partial<GateSubject> = {}): GateSubject => ({
   shared: false,
   exported: ['acmeOnSave'],
   triggers: [{ name: 'acmeOnSave', trigger: 'onDocumentWritten', gatedFor: null }],
+  unscoped: [],
+  ...overrides,
+});
+
+/** Uma origem cuja function não tem escritório no evento: o agendado, a fila, o HTTP, o Storage. */
+const scheduled = (overrides: Partial<GateSubject> = {}): GateSubject => subject({
+  exported: ['acmeNightly'],
+  triggers: [],
+  unscoped: [{ name: 'acmeNightly', trigger: 'onSchedule', gatedFor: null }],
   ...overrides,
 });
 
@@ -215,10 +226,11 @@ describe('o portão aberto para o id de outra extensão', () => {
       name: 'acmeOnSave',
       gatedFor: 'com.other.thing',
       owner: 'com.acme.crm',
+      via: 'forInstalledExtension',
     }]);
-    expect(describeMisgated(found[0])).toContain('gates "acmeOnSave" for "com.other.thing"');
+    expect(describeMisgated(found[0])).toContain('passes "com.other.thing" to forInstalledExtension');
     expect(describeMisgated(found[0])).toContain('the extension that claims it is "com.acme.crm"');
-    expect(describeMisgated(found[0])).toContain('the gate never opens');
+    expect(describeMisgated(found[0])).toContain('the guard never opens');
   });
 
   it('nada a dizer quando o id do portão é o de quem reivindica', () => {
@@ -256,5 +268,118 @@ describe('quem reivindica cada nome', () => {
 
   it('não se importa com uma extensão que não declara function nenhuma', () => {
     expect(singleClaimants([{ pluginId: 'com.a.b', backend: {} }])).toEqual(new Map());
+  });
+});
+
+/**
+ * As functions cujo evento NÃO carrega escritório — o agendado, a mensagem de fila, a requisição HTTP, o
+ * evento de Storage. É o caso em que as duas saídas do autor eram erradas: sem guarda a function age
+ * sobre o projeto inteiro, e COM o portão ela nunca roda — nem enquanto a extensão está instalada —,
+ * porque ele falha fechado e nunca acha o `{tenantId}` que não existe.
+ *
+ * A resposta é o laço por escritório, e é por existir uma resposta que a recusa é honesta.
+ */
+describe('as functions sem escritório no evento', () => {
+  it('reconhece o agendado, a fila, o HTTP, o Storage e o bloqueio de login', () => {
+    for (const constructorName of [
+      'onSchedule', 'onMessagePublished', 'onRequest', 'onObjectFinalized', 'beforeUserCreated',
+      'onTaskDispatched', 'onCustomEventPublished',
+    ]) {
+      expect(unscopedDeclarations(`export const x = ${constructorName}(opts, handler);`), constructorName)
+        .toEqual([{ name: 'x', trigger: constructorName, gatedFor: null }]);
+    }
+  });
+
+  it('não confunde o gatilho de documento com elas — aquele tem portão e outro endereço', () => {
+    expect(unscopedDeclarations('export const x = onDocumentWritten(o, h);')).toEqual([]);
+  });
+
+  /**
+   * O RTDB fica de fora de propósito: o caminho dele TEM parâmetros, então um `{tenantId}` ali é
+   * possível — e a plataforma não usa RTDB em lugar nenhum. O que não se conhece não se recusa.
+   */
+  it('deixa o RTDB de fora, cujo caminho pode carregar escritório', () => {
+    expect(unscopedDeclarations('export const x = onValueWritten(o, h);')).toEqual([]);
+  });
+
+  /**
+   * O alcance é o ARQUIVO, e não os parênteses: o laço roda DENTRO do handler e pode estar algumas
+   * chamadas abaixo, num helper que o próprio autor escreveu. Exigi-lo nos parênteses recusaria código
+   * correto.
+   */
+  it('acha o laço em qualquer lugar do arquivo, que é onde ele legitimamente pode estar', () => {
+    const source = `const syncOffice = async (tenantId: string) => {
+  await forEachInstalledOffice('com.acme.crm', async (office) => { console.log(office); });
+};
+
+export const acmeNightly = onSchedule({ schedule: 'every day 03:00' }, async () => {
+  await syncOffice('x');
+});`;
+
+    expect(unscopedDeclarations(source)[0].gatedFor).toBe('com.acme.crm');
+  });
+
+  it('um comentário que só cita o laço não conta como laço', () => {
+    const source = `/** Use forEachInstalledOffice('com.acme.crm') here. */
+export const acmeNightly = onSchedule(opts, handler);`;
+
+    expect(unscopedDeclarations(source)[0].gatedFor).toBeNull();
+  });
+});
+
+describe('a function sem escritório no evento e sem o laço', () => {
+  it('é recusada, e a mensagem nomeia o substituto em vez de só fechar a porta', () => {
+    const problems = unscopedTriggerProblems([scheduled()]);
+
+    expect(problems).toHaveLength(1);
+    expect(problems[0]).toContain('extensions/crm/functions exports "acmeNightly"');
+    expect(problems[0]).toContain('onSchedule function whose event carries no {tenantId}');
+    expect(problems[0]).toContain('it fails closed, so the function would never run at all');
+    expect(problems[0]).toContain('forEachInstalledOffice');
+  });
+
+  it('não reclama da que passa pelo laço', () => {
+    expect(unscopedTriggerProblems([scheduled({
+      unscoped: [{ name: 'acmeNightly', trigger: 'onSchedule', gatedFor: 'com.acme.crm' }],
+    })])).toEqual([]);
+  });
+
+  it('não reclama do que o index.ts não exporta', () => {
+    expect(unscopedTriggerProblems([scheduled({ exported: [] })])).toEqual([]);
+  });
+
+  /** A comum não tem um id de extensão para dar ao laço. Quem responde por ela é outra declaração. */
+  it('não cobra o laço da function comum', () => {
+    expect(unscopedTriggerProblems([scheduled({ label: 'functions', shared: true })])).toEqual([]);
+  });
+
+  /**
+   * O portão NÃO é o substituto aqui, e este caso é o que impede a mensagem de sugerir o contrário: uma
+   * function sem escritório no evento continua sendo problema mesmo com o portão escrito.
+   */
+  it('o gatilho de documento e o agendado são recusados por verificações diferentes', () => {
+    const both = subject({
+      exported: ['acmeOnSave', 'acmeNightly'],
+      unscoped: [{ name: 'acmeNightly', trigger: 'onSchedule', gatedFor: null }],
+    });
+
+    expect(ungatedTriggerProblems([both])).toHaveLength(1);
+    expect(ungatedTriggerProblems([both])[0]).toContain('acmeOnSave');
+    expect(unscopedTriggerProblems([both])).toHaveLength(1);
+    expect(unscopedTriggerProblems([both])[0]).toContain('acmeNightly');
+  });
+});
+
+describe('o laço aberto para o id de outra extensão', () => {
+  it('é apontado nomeando o laço, e não o portão — é ele que o autor tem de corrigir', () => {
+    const found = misgatedTriggers(
+      [scheduled({ unscoped: [{ name: 'acmeNightly', trigger: 'onSchedule', gatedFor: 'com.other.thing' }] })],
+      new Map([['acmeNightly', 'com.acme.crm']]),
+    );
+
+    expect(found).toHaveLength(1);
+    expect(found[0].via).toBe('forEachInstalledOffice');
+    expect(describeMisgated(found[0])).toContain('passes "com.other.thing" to forEachInstalledOffice');
+    expect(describeMisgated(found[0])).toContain('nothing this function does ever happens');
   });
 });
