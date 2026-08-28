@@ -1386,6 +1386,42 @@ the extension is installed, removed by \`microteia provision --prune\` when noth
 
 A view calls one through \`@microteia/functions\`; ask \`describe_host_module\` for the shape.
 
+### A trigger of yours MUST be gated to your extension
+
+A Cloud Function belongs to the **project**. An installation belongs to an **organization**. Nothing in
+Firebase reconciles the two, and that gap is not an edge case — it is every project with more than one
+organization in it:
+
+\`\`\`ts
+import { onDocumentWritten } from 'firebase-functions/v2/firestore';
+import { forInstalledExtension } from 'microteia-functions/office';
+
+export const acmeOnSave = onDocumentWritten(
+  { document: 'tenants/{tenantId}/invoices/{id}', region },
+  forInstalledExtension('com.acme.crm', async (event) => { /* ... */ }),
+);
+\`\`\`
+
+\`region\` is this installation's, and \`create function\` fills it in — a trigger declared in another
+region never fires, and nothing in the deploy says so.
+
+Without the wrapper that trigger fires for **every** organization in the project: the ones that never
+installed your extension, and the one that uninstalled it while another still has it. Uninstalling
+cannot save you there — the function has to stay deployed, because somebody else still needs it — and
+even when nobody does, it is removed by an administrator running \`microteia provision --prune\`, which
+happens minutes or days after the person clicked Uninstall. The guard is what makes the withdrawal
+take effect at the moment it is asked for.
+
+\`npx microteia-plugin create function\` asks what sets your function off, and writes the guard for you
+when the answer is a saved record.
+
+It costs one cached document read per organization per minute, and it fails closed: an event whose path
+carries no \`{tenantId}\` is skipped and logged. **A callable does not need it** — only a screen of your
+extension calls one, so it becomes unreachable the moment your extension is gone.
+
+\`isExtensionInstalled(tenantId, pluginId)\` is there too, for when you need the same answer inside a
+callable, where the organization comes from the request instead of from a path.
+
 Two rules follow from how a Firebase project works, and both are refusals rather than warnings:
 
 - **A \`defineString\` with no value refuses the deploy of *every* function in the project**, not just

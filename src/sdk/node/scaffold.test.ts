@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { scaffoldPlugin } from './scaffold';
+import { scaffoldFunction, scaffoldPlugin } from './scaffold';
 import type { PluginSpec } from './scaffold';
 
 /**
@@ -126,6 +126,40 @@ describe('o molde de uma extensão', () => {
       expect(files).toContain('views/Summary.rules.test.ts');
       expect(fileOf(directory, 'views/Summary.rules.ts')).not.toContain('import ');
       expect(fileOf(directory, 'views/Summary.rules.test.ts')).toContain("from './Summary.rules'");
+    });
+  });
+
+  /**
+   * O gatilho é a forma que precisa do portão, e o molde é onde ela se aprende. Um exemplo gerado sem
+   * ele ensinaria o defeito que a plataforma inteira gastou uma versão para fechar.
+   */
+  describe('a Cloud Function que ele acrescenta', () => {
+    const intoPlugin = (collection?: string): string => {
+      const { directory } = scaffold();
+      const name = scaffoldFunction(directory, SPEC.id, 'sync', 'southamerica-east1', collection);
+      return fileOf(directory, `functions/${name}.ts`);
+    };
+
+    it('o gatilho nasce com o portão de instalação, e com o id da extensão nele', () => {
+      const source = intoPlugin('invoices');
+
+      expect(source).toContain("from 'microteia-functions/office'");
+      expect(source).toContain("forInstalledExtension('com.example.hello-world'");
+      expect(source).toContain("document: 'tenants/{tenantId}/invoices/{id}'");
+    });
+
+    /** A callable só é alcançada por uma tela desta extensão, então ela some junto — não há o que guardar. */
+    it('a callable segue sem ele', () => {
+      const source = intoPlugin();
+
+      expect(source).toContain('onCall');
+      expect(source).not.toContain('forInstalledExtension');
+    });
+
+    it('o barril exporta a que foi criada', () => {
+      const { directory } = scaffold();
+      const name = scaffoldFunction(directory, SPEC.id, 'sync', 'southamerica-east1', 'invoices');
+      expect(fileOf(directory, 'functions/index.ts')).toContain(`export { ${name} }`);
     });
   });
 

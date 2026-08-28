@@ -18,6 +18,14 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.28.0] — 2026-08-27
+
+- feat(functions/office): `forInstalledExtension` and `isExtensionInstalled` — the curated server surface an extension's own Cloud Function imports as `microteia-functions/office`. A Cloud Function belongs to the project and an installation belongs to the organization, and nothing in Firebase reconciles the two: an extension's Firestore trigger ran for every organization in the project, including the ones that never installed it and the one that uninstalled it while another still had it. Pruning cannot reach that last case — the function is still needed by somebody — so the guard is the only thing that stops the side effect, and it is also what covers the gap between the uninstall and the next `microteia provision --prune`. It wraps the HANDLER, never the function: `firebase-functions` reads `__endpoint` off the exported symbol, and a wrapper outside would make the deploy stop seeing the function at all.
+- feat(cli/packageTemplates): the installed `functions/package.json` declares `exports`, so package self-reference resolves `microteia-functions/office` at runtime, and `custom/tsconfig.json` maps it for the deploy's compile. Neither costs a dependency, which is what keeps the packaged `package-lock.json` valid.
+- feat(sdk/workspace): `REQUIRED_PATHS` resolves the same specifier in the authoring workspace, against `sdk/types/microteia-office.d.ts` — derived by `tsc` from `functions/src/office/index.ts`, never hand-written. `officeModule.test.ts` ties the three ends together; separated in silence, each divergence has a different symptom and none of them names the cause.
+- feat(sdk/scaffold): `microteia-plugin create function` asks what sets the function off and writes the guard when the answer is a saved record. A generated example without it would teach the defect.
+- KERNEL_VERSION 2.7.0 -> 2.8.0: additive. An extension whose function imports the surface needs a kernel that ships it.
+
 #### [9.27.0] — 2026-08-27
 
 - fix(cli/provision): the "no installed extension asks for backend artifacts" shortcut returned before orphan functions were computed, so uninstalling the LAST backend-bearing extension left its Cloud Functions deployed with nothing reporting them and `--prune` unable to reach them. A Firestore trigger of an extension nobody has kept firing on every write. The shortcut is gone; the index side had already been rescued from it, the function side had not.

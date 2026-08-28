@@ -11,6 +11,12 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.28.0] — 2026-08-27
+
+- As rotinas de servidor que uma extensão traz passam a agir apenas nos escritórios que a instalaram. Antes, uma rotina que reage a gravações agia sobre os dados de todos os escritórios do projeto — inclusive os que nunca instalaram aquela extensão, e o que a desinstalou enquanto outro a mantinha. Nesse último caso a rotina não pode nem ser removida, porque alguém ainda depende dela, e não havia nada que impedisse o efeito.
+- A desinstalação passa a valer no ato. Antes, mesmo quando a remoção da rotina era possível, ela só acontecia quando um administrador rodava a manutenção no terminal — minutos ou dias depois de alguém ter clicado em Desinstalar.
+- Quem escreve extensões ganha o assistente já preparado para isso: ao criar uma rotina que reage a gravações, ela nasce restrita aos escritórios certos, e a documentação de autoria explica por quê.
+
 #### [9.27.0] — 2026-08-27
 
 - Ao desinstalar uma extensão que trazia rotinas de servidor, essas rotinas passam a ser sempre relatadas como sobra, para que o administrador possa removê-las. Antes, quando a extensão desinstalada era a última do escritório a usar servidor, a sobra não era relatada por ninguém e as rotinas ficavam no ar indefinidamente — e uma rotina que reage a gravações continua reagindo, executando o código de uma extensão que ninguém mais tem.

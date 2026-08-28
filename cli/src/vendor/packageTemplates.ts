@@ -39,9 +39,21 @@ export const packageFirebaseJson = (hosting: HostingConfig): string => JSON.stri
 }, null, 2) + '\n';
 
 /**
+ * O nome do pacote de functions da instalação, e o subcaminho da superfície curada que a Cloud Function
+ * do ESCRITÓRIO importa dele: `import { forInstalledExtension } from 'microteia-functions/office'`.
+ *
+ * O nome é parte do contrato de autoria a partir do momento em que alguém o escreve num import, e por
+ * isso ele deixou de ser uma string solta aqui dentro.
+ */
+export const FUNCTIONS_PACKAGE_NAME = 'microteia-functions';
+export const OFFICE_SUBPATH = 'office';
+export const OFFICE_MODULE = `${FUNCTIONS_PACKAGE_NAME}/${OFFICE_SUBPATH}`;
+
+/**
  * As dependências são copiadas INTACTAS do `functions/package.json` do repositório, para que o
  * `package-lock.json` que viaja junto continue válido. O que muda é só o entrypoint (passa a ser o
- * `index.js` que soma kernel e custom) e o `build`, que agora compila apenas `custom/`.
+ * `index.js` que soma kernel e custom), o `build`, que agora compila apenas `custom/`, e o `exports`,
+ * que abre a superfície curada para o `custom/` sem custar uma dependência.
  */
 /**
  * A `version` não é enfeite: sem ela o npm não consegue formar `nome@versão` e todo aviso dele sobre
@@ -57,10 +69,29 @@ export const packageFunctionsPackageJson = (
   source: RepoFunctionsPackage,
   version: string,
 ): string => JSON.stringify({
-  name: 'microteia-functions',
+  name: FUNCTIONS_PACKAGE_NAME,
   version,
   private: true,
   main: 'index.js',
+  /**
+   * O `exports` está aqui por UMA razão, e ela não é organização: é ele que faz a auto-referência de
+   * pacote funcionar. Sem ele, uma Cloud Function do escritório em `custom/` não tem como importar nada
+   * da plataforma — não há `node_modules` que a contenha, e um caminho relativo dependeria de onde o
+   * arquivo foi montado, que é justamente o que muda entre escrever e deployar.
+   *
+   * Com ele, `require('${FUNCTIONS_PACKAGE_NAME}/office')` resolve de dentro do próprio pacote. É por
+   * isso que não há dependência nova nem alteração no `package-lock.json` que viaja ao lado.
+   *
+   * O `.` continua sendo o `index.js`: é ele que o Firebase carrega, e restringir os subcaminhos sem
+   * declará-lo tiraria a plataforma do ar inteira.
+   */
+  exports: {
+    '.': './index.js',
+    [`./${OFFICE_SUBPATH}`]: {
+      types: `./lib/${OFFICE_SUBPATH}/index.d.ts`,
+      default: `./lib/${OFFICE_SUBPATH}/index.js`,
+    },
+  },
   engines: source.engines ?? { node: '22' },
   scripts: {
     build: 'tsc -p custom/tsconfig.json',
@@ -93,6 +124,16 @@ export const packageCustomTsconfig = (): string => JSON.stringify({
   compilerOptions: {
     module: 'commonjs',
     moduleResolution: 'node',
+    /**
+     * O `paths` só resolve TIPO; o `require` emitido continua sendo `microteia-functions/office`, e é o
+     * `exports` do pacote que o resolve em execução. Os dois lados são necessários porque o
+     * `moduleResolution: 'node'` é anterior ao `exports` e não o lê — e trocá-lo por `node16` mudaria,
+     * de quebra, como TODO import do escritório resolve.
+     *
+     * Sem `baseUrl` de propósito: o `paths` relativo ao tsconfig basta desde o TypeScript 4.1, e um
+     * `baseUrl` faria qualquer arquivo de `src/` virar um módulo de nome curto por acidente.
+     */
+    paths: { [OFFICE_MODULE]: [`../lib/${OFFICE_SUBPATH}/index.d.ts`] },
     target: 'es2022',
     lib: ['ES2022'],
     types: ['node'],

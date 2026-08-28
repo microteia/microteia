@@ -55,6 +55,7 @@ describe('conciliar o tsconfig.json', () => {
         paths: {
           '@microteia/sdk': ['./node_modules/@microteia/sdk/lib/sdk/index.d.ts'],
           '@microteia/sdk/node': ['./node_modules/@microteia/sdk/lib/sdk/node/compile.d.ts'],
+          'microteia-functions/office': ['./node_modules/@microteia/sdk/types/microteia-office.d.ts'],
           '@microteia/*': ['./node_modules/@microteia/sdk/types/microteia-host.d.ts'],
           react: ['./node_modules/@microteia/sdk/types/microteia-host.d.ts'],
           'react/jsx-runtime': ['./node_modules/@microteia/sdk/types/microteia-host.d.ts'],
@@ -138,6 +139,7 @@ describe('conciliar o tsconfig.json', () => {
           '@microteia/*': ['./node_modules/@microteia/sdk/types/microteia-host.d.ts'],
           '@microteia/sdk': ['./node_modules/@microteia/sdk/lib/sdk/index.d.ts'],
           '@microteia/sdk/node': ['./node_modules/@microteia/sdk/lib/sdk/node/compile.d.ts'],
+          'microteia-functions/office': ['./node_modules/@microteia/sdk/types/microteia-office.d.ts'],
           react: ['./node_modules/@microteia/sdk/types/microteia-host.d.ts'],
           'react/jsx-runtime': ['./node_modules/@microteia/sdk/types/microteia-host.d.ts'],
           'styled-components': ['./node_modules/@microteia/sdk/types/microteia-host.d.ts'],

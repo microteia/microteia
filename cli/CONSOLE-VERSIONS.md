@@ -22,6 +22,10 @@
 - fix(command): what was broken, and what it did to whoever hit it.
 -->
 
+#### [2.12.0] — 2026-08-27
+
+- feat(pack): the packaged `functions/package.json` gains an `exports` map and `custom/tsconfig.json` a `paths` entry, which is what lets a Cloud Function written by the organization import `microteia-functions/office` — the platform surface that keeps an extension's trigger from running in organizations that do not have it. No new dependency, so the packaged lockfile stays valid.
+
 #### [2.11.0] — 2026-08-27
 
 - fix(provision): orphan Cloud Functions are reported even when no installed extension asks for a backend at all — the case that mattered most, and the only one the previous shortcut skipped.

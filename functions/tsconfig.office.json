@@ -1,0 +1,14 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "sourceMap": false
+  },
+  "include": [
+    "src/office"
+  ],
+  "exclude": [
+    "**/*.test.ts"
+  ]
+}

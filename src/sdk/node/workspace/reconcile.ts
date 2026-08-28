@@ -48,6 +48,12 @@ const HOST_TYPES = './node_modules/@microteia/sdk/types/microteia-host.d.ts';
 export const REQUIRED_PATHS: [string, string][] = [
   ['@microteia/sdk', './node_modules/@microteia/sdk/lib/sdk/index.d.ts'],
   ['@microteia/sdk/node', './node_modules/@microteia/sdk/lib/sdk/node/compile.d.ts'],
+  /**
+   * O que uma Cloud Function DESTA extensão importa da plataforma. O nome do módulo é o do pacote de
+   * functions da instalação, e é o `exports` dele que o resolve em execução — aqui ele resolve só o
+   * TIPO, para o editor do autor não sublinhar de vermelho a linha que a plataforma manda escrever.
+   */
+  ['microteia-functions/office', './node_modules/@microteia/sdk/types/microteia-office.d.ts'],
   ['@microteia/*', HOST_TYPES],
   ['react', HOST_TYPES],
   ['react/jsx-runtime', HOST_TYPES],

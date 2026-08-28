@@ -1254,6 +1254,75 @@ nada", então desinstalar a ÚNICA extensão com backend caía justamente naquel
 era relatado por ninguém. O aviso existia para o órfão que sobra entre outras extensões, e faltava no
 caso de ele sobrar sozinho.
 
+#### A retirada tem DUAS metades, e nenhuma das duas basta sozinha
+
+Quando uma extensão é desinstalada, o que sobra é uma Cloud Function no ar. Se ela for uma callable, a
+sobra é inerte — só uma tela daquela extensão a chamava, e a tela foi junto. Se for um gatilho de
+Firestore, ela **continua disparando a cada gravação**, rodando o código de uma extensão que ninguém tem
+mais. A retirada, então, é isto:
+
+| Metade | Onde | O que ela alcança |
+|---|---|---|
+| tirar a function do projeto | `microteia provision --prune` | quando NENHUM escritório do projeto quer mais aquela extensão |
+| impedi-la de agir | `forInstalledExtension`, no runtime | o escritório que desinstalou enquanto outro mantém, o que nunca instalou, e a janela entre o clique e o comando |
+
+A segunda metade existe porque a primeira **não pode** cobrir esses casos, e não por preferência: a Cloud
+Function é do PROJETO e a instalação é do ESCRITÓRIO. Um `onDocumentWritten('tenants/{tenantId}/…')`
+declarado por uma extensão dispara para todos os escritórios do projeto. Quando um deles ainda a tem, a
+function tem de continuar no ar — apagá-la quebraria quem a usa —, e o efeito colateral no escritório que
+saiu acontece do mesmo jeito. E mesmo no projeto de um escritório só há o intervalo entre desinstalar,
+na aplicação, e alguém rodar o Console num terminal: ali não existe comando nenhum para rodar.
+
+**O portão:** `functions/src/office/` — `installationGate.ts` decide, `index.ts` liga a leitura real. A
+pergunta é uma leitura pontual de `tenants/{tenantId}/installed_extensions/{pluginId}` (o documento tem o
+id do plugin), cacheada por instância com TTL de um minuto. Desativada conta como não instalada. Falha
+FECHADA: evento sem `{tenantId}` no caminho é pulado e registrado.
+
+Ele envolve o **handler**, e nunca a function: o `firebase-functions` lê `__endpoint` do símbolo
+exportado, então embrulhar `onDocumentWritten(...)` por fora devolveria um objeto sem esses metadados e o
+deploy simplesmente deixaria de enxergar a function — sem erro nenhum.
+
+**Como o autor o alcança:** `import { forInstalledExtension } from 'microteia-functions/office'`. O
+especificador é auto-referência de pacote, e é o que ele custa que explica a escolha — nada:
+
+| Ponta | Como resolve | Por que não o caminho óbvio |
+|---|---|---|
+| runtime, na function deployada | `exports` do `functions/package.json` (`packageTemplates.ts`) | uma dependência `file:` invalidaria o `package-lock.json` que viaja no pacote, a cada instalação |
+| compilação do deploy (`custom/`) | `paths` do `custom/tsconfig.json` | `moduleResolution: 'node'` é anterior ao `exports` e não o lê; trocá-la por `node16` mudaria como TODO import do escritório resolve |
+| editor de quem escreve a extensão | `REQUIRED_PATHS` (`sdk/node/workspace/reconcile.ts`) → `sdk/types/microteia-office.d.ts` | o workspace de autoria não tem `.microteia/install/` como referência estável, e apontar para lá acoplaria o kernel a uma constante do Console |
+
+Os três são escritos em lugares que não podem se falar — o Console é versionado à parte e não importa o
+kernel —, e cada divergência tem um sintoma diferente que não aponta para a causa: vermelho no editor,
+falha ao compilar no deploy, ou tudo passando e a function estourando em produção com "Cannot find
+module". `cli/src/vendor/officeModule.test.ts` confere os três juntos.
+
+A declaração entregue ao autor é **derivada**: `sdk/types/microteia-office.d.ts` é o `.d.ts` que o próprio
+`tsc` emite de `functions/src/office/index.ts` (`tsconfig.office.json`, chamado por
+`scripts/export-host-types.mjs`). Por isso `index.ts` é auto-contido — os tipos públicos moram nele, e
+`installationGate.ts` os importa de volta com `import type` — e por isso o JSDoc dele é **em inglês**: é
+documentação de API entregue, pela mesma regra de `extensionTypeDefs.ts`.
+
+`microteia-plugin create function` pergunta o que dispara a function e escreve o gatilho já com o portão:
+um exemplo gerado sem ele ensinaria o defeito.
+
+#### O que o `--prune` NÃO pode apagar
+
+"Ninguém exige mais" tem três causas, e só uma autoriza remover. `console/appliedFunctions.ts` as separa,
+e as duas primeiras foram defeitos reais:
+
+| Causa | O que acontece | Por quê |
+|---|---|---|
+| a function é da BASELINE | preservada | o `deploy` a sobe sempre. Ela só chegou ao registro porque uma extensão reivindicou um nome do kernel — `baselineClaimProblems` agora recusa isso na origem —, e apagá-la derrubaria um gatilho do produto num escritório que não fez nada |
+| a reivindicação não RESOLVEU | preservada | export renomeado em `extensions/<x>/functions/index.ts`, nome que um upgrade tirou do pacote. A extensão continua instalada; a recusa a tirava de `wantedFunctions`, e o `--prune` apagava a function de uma extensão viva |
+| ninguém a reivindica | órfã | desinstalada de todos os escritórios do projeto |
+
+O registro em `backend.functions` passou a ser `nome@pluginId` (entrada sem `@` das instalações
+anteriores continua sendo lida), porque a lista de nomes nunca respondeu à pergunta que a remoção faz: de
+quem era esta function? E o relatório diz a varredura em que se apoia — quantos escritórios e quantas
+extensões foram lidos —, porque a afirmação é sobre TODOS os escritórios do projeto, não sobre o último
+que foi lido. A varredura é completa ou não existe: `listDocuments` pagina até o fim, e qualquer leitura
+recusada derruba o comando antes de qualquer decisão.
+
 #### Parâmetro preenchido depois do deploy — a impressão digital em `microteia.yaml`
 
 O valor de um `defineString` é carimbado no deploy de **cada** function: o `firebase-functions` o resolve

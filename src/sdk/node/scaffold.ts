@@ -412,6 +412,49 @@ export const ${name} = onCall({ region: '${region}', cors: true }, (request) => 
 });
 `;
 
+/**
+ * Um gatilho de Firestore — e ele nasce com o portão de instalação, que não é enfeite.
+ *
+ * A Cloud Function é do PROJETO e a instalação da extensão é do ESCRITÓRIO: sem o portão, o gatilho
+ * dispara também para quem nunca instalou a extensão, e para quem a desinstalou enquanto outro
+ * escritório a mantém — caso em que a function nem pode ser removida, porque alguém ainda precisa dela.
+ * Gerar o exemplo sem ele seria ensinar o defeito.
+ */
+export const triggerTs = (
+  name: string,
+  pluginId: string,
+  collection: string,
+  region: string,
+): string =>
+  `import { onDocumentWritten } from 'firebase-functions/v2/firestore';
+import { forInstalledExtension } from 'microteia-functions/office';
+
+/**
+ * ${name}
+ *
+ * Runs when a document in "${collection}" is written — and only in the organizations that installed
+ * this extension.
+ *
+ * forInstalledExtension is what limits it to them. A Cloud Function belongs to the PROJECT, while the
+ * installation belongs to the ORGANIZATION, and nothing in Firebase reconciles the two: without it
+ * this trigger also runs for organizations that never installed the extension, and for the one that
+ * uninstalled it while another still has it. In that last case the function cannot be removed either
+ * — somebody else still needs it — so the guard is the only thing that stops the side effect.
+ *
+ * Pinned to ${region}: a function in another region does not receive this project's Firestore triggers,
+ * and nothing in the deploy tells you so.
+ */
+export const ${name} = onDocumentWritten(
+  { document: 'tenants/{tenantId}/${collection}/{id}', region: '${region}' },
+  forInstalledExtension('${pluginId}', async (event) => {
+    const after = event.data?.after;
+    if (!after?.exists) return;
+
+    console.log('${name}', event.params.tenantId, event.params.id);
+  }),
+);
+`;
+
 const functionsIndexTs = (names: string[]): string =>
   `// The Cloud Functions of this extension, read through this file: what is exported here is what gets
 // deployed. Declare each one in "manifest.backend.functions" too — that is what makes it go up only
@@ -560,12 +603,18 @@ export const scaffoldPlugin = (
   return result;
 };
 
-/** Acrescenta uma Cloud Function a uma extensão que já existe, atualizando o barril dela. */
+/**
+ * Acrescenta uma Cloud Function a uma extensão que já existe, atualizando o barril dela.
+ *
+ * `collection` escolhe a FORMA: sem ela, uma callable — que uma tela chama, e por isso já é inalcançável
+ * quando a extensão sai. Com ela, um gatilho de gravação, que é o caso que precisa do portão.
+ */
 export const scaffoldFunction = (
   pluginDir: string,
   pluginId: string,
   action: string,
   region: string,
+  collection?: string,
 ): string => {
   const name = functionName(pluginId, action);
   const functions = join(pluginDir, 'functions');
@@ -574,7 +623,12 @@ export const scaffoldFunction = (
   if (existsSync(target)) throw new Error(`${name} already exists in ${functions}.`);
 
   mkdirSync(functions, { recursive: true });
-  writeFileSync(target, functionTs(name, region));
+  writeFileSync(
+    target,
+    collection === undefined || collection === ''
+      ? functionTs(name, region)
+      : triggerTs(name, pluginId, collection, region),
+  );
 
   const index = join(functions, 'index.ts');
   const existing = existsSync(index)

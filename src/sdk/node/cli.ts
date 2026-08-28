@@ -274,14 +274,38 @@ const createFunction = async (args: Args): Promise<number> => {
       hint: 'A short verb phrase; it becomes the function name.',
     }, 'sync');
 
+    /**
+     * A forma decide o que é gerado, e a diferença entre as duas é a razão de a pergunta existir: a
+     * callable só é alcançada por uma tela desta extensão, logo some com ela; o gatilho continua
+     * disparando para todo escritório do projeto, e por isso nasce com o portão de instalação.
+     */
+    const kind = args.values.get('trigger') !== undefined ? 'trigger' : await asker.choose(
+      { key: 'kind', text: 'what sets it off?' },
+      [
+        { value: 'callable', label: 'a screen of this extension calls it' },
+        { value: 'trigger', label: 'a record is saved or deleted' },
+      ],
+      'callable',
+    );
+
+    const collection = kind !== 'trigger' ? undefined : (args.values.get('trigger') ?? await asker.text({
+      key: 'collection',
+      text: 'which collection does it watch?',
+      hint: 'The name your screen stores its records in.',
+    }, 'records'));
+
     const directory = join(workspace, folder);
     const id = pluginIdOf(directory) ?? `com.example.${folder}`;
     const region = installationRegion(workspace);
     await asker.close();
 
-    const name = scaffoldFunction(directory, id, action, region);
+    const name = scaffoldFunction(directory, id, action, region, collection);
 
     done(`created ${folder}/functions/${name}.ts ${DIM}(region ${region})${RESET}`);
+    if (collection !== undefined) {
+      say(`  ${DIM}it watches tenants/{tenantId}/${collection}/{id}, and runs only where this${RESET}`);
+      say(`  ${DIM}extension is installed — that guard is what a Cloud Function cannot do by itself.${RESET}`);
+    }
     say();
     warn(`declare it in ${folder}/plugin.ts, under manifest.backend.functions:`);
     say(`  ${DIM}backend: { functions: ['${name}'] }${RESET}`);
@@ -419,7 +443,7 @@ const COMMANDS: Command[] = [
     name: 'create',
     usage:
       'microteia-plugin create [<com.example.id>] [--dir <path>] [--force] [--yes]\n'
-      + '  microteia-plugin create function [--plugin <folder>] [--yes]',
+      + '  microteia-plugin create function [--plugin <folder>] [--trigger <collection>] [--yes]',
     summary: 'Create an extension, guided by a few questions. "create function" adds a Cloud Function.',
     run: create,
   },

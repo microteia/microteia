@@ -547,6 +547,20 @@ Where it goes decides WHEN it is deployed, and that is the whole difference:
 | \`<folder>/functions/\` | it has an owner. Name it in \`manifest.backend.functions\`, and \`microteia provision\` deploys it only where that extension is installed |
 | \`../functions/\` | nobody owns it, so nothing can claim it. It goes up with every \`microteia deploy\` |
 
+**Deployed where the extension is installed is not the same as RUNNING only there.** A Cloud Function
+belongs to the project; an installation belongs to an organization. A Firestore trigger of yours fires
+for every organization in the project unless you wrap its handler:
+
+    import { forInstalledExtension } from 'microteia-functions/office';
+
+    export const acmeOnSave = onDocumentWritten(
+      { document: 'tenants/{tenantId}/invoices/{id}', region },
+      forInstalledExtension('com.acme.crm', async (event) => { /* ... */ }),
+    );
+
+\`npm run create:function\` writes that for you when you say the function reacts to a saved record. A
+callable does not need it — only a screen of your extension calls one. \`AUTHORING.md\` §12 has the why.
+
 An npm package the platform does not carry goes in \`dependencies\` in that directory's own
 \`package.json\`. Two extensions asking for different ranges of the same package is refused — one
 installation has one \`node_modules\` — and a range the platform already pins is kept.
