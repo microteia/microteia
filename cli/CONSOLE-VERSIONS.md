@@ -22,6 +22,13 @@
 - fix(command): what was broken, and what it did to whoever hit it.
 -->
 
+#### [2.13.0] — 2026-08-28
+
+- feat(console/functionGate): an extension's Firestore trigger without `forInstalledExtension` is refused. The guard is the half of the withdrawal that acts at the moment somebody clicks Uninstall — `--prune` cannot reach the office that uninstalled while another still has the extension — and nothing cobbled it: `create function` wrote it into the scaffold, and no check in packing, deploying or provisioning ever read the source again. An ungated trigger went up and stayed up, and its symptom is not a failure: it is the code of an extension nobody has any more running over the data of offices that never asked for it, with no error anywhere.
+- feat(console/provision): a guard that names ANOTHER extension's id rejects the extension that claims the function. It is what a copied function leaves behind, and its symptom is the opposite of the ungated one — the trigger deploys, fires on every write, and the handler never runs, because the gate asks about an extension nobody installed. Only provisioning can ask this: the claim comes from the office's database, and the deploy does not have it. The owner is rejected by identity and not by substring, because the message names two ids and matching on text would also reject the extension whose id was copied.
+- feat(console/provision): an ungated trigger already deployed is REPORTED rather than refused. Refusing here would lock `--prune` — the one command that removes the orphan — behind a source it does not need to read. The refusal belongs where the source enters the package, and there it blocks nobody's way out.
+- fix(console/functionGate): comments are stripped before the source is read, and strings are not. The scaffold's own JSDoc cites `forInstalledExtension` to explain it, so deleting the call and keeping the explanation would have passed the check — which is exactly what an author produces while editing generated code. A guard declared in an identifier beside the trigger is accepted, because that is correct code and a check that refuses correct code is the one that teaches the next person to switch it off.
+
 #### [2.12.0] — 2026-08-27
 
 - feat(pack): the packaged `functions/package.json` gains an `exports` map and `custom/tsconfig.json` a `paths` entry, which is what lets a Cloud Function written by the organization import `microteia-functions/office` — the platform surface that keeps an extension's trigger from running in organizations that do not have it. No new dependency, so the packaged lockfile stays valid.

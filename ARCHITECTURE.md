@@ -1305,6 +1305,35 @@ documentação de API entregue, pela mesma regra de `extensionTypeDefs.ts`.
 `microteia-plugin create function` pergunta o que dispara a function e escreve o gatilho já com o portão:
 um exemplo gerado sem ele ensinaria o defeito.
 
+##### O portão é COBRADO, e não recomendado
+
+O molde escrevia o portão, e era só isso: nenhuma verificação olhava a fonte. Um gatilho sem portão
+passava pelo empacotamento, pelo deploy e pelo provisionamento e ia para o ar — e o sintoma dele não é
+uma falha, é código de uma extensão que ninguém tem mais rodando sobre os dados de quem nunca a pediu,
+sem erro em lugar nenhum. O molde ensina; ele não cobra.
+
+`console/functionGate.ts` lê a fonte e devolve duas coisas, com dois endereços diferentes:
+
+| O que | Onde é cobrado | Por quê ali |
+|---|---|---|
+| gatilho de extensão **sem** portão | **recusa** em `functionProblems` (montagem do `deploy`, e do `provision` quando ele remonta) | é o instante em que a fonte entra no pacote que vai subir. Recusar no `provision` inteiro trancaria o `--prune`, que é o comando que APAGA a órfã |
+| portão com o id de **outra** extensão | **rejeita a extensão** no `provision` | só ali se sabe de quem a function é: a reivindicação vem do banco do escritório, e o `deploy` não a tem |
+| gatilho sem portão, já no ar | **relatado** pelo `provision` | ele não pode recusar, e calar deixaria o operador sem saber o que a próxima montagem vai recusar |
+
+Três decisões dentro disso, e as três saem de a verificação errada ser pior que a ausência dela:
+
+- **Comentário não conta.** O JSDoc do molde CITA `forInstalledExtension` — é ali que ele o explica.
+  Sem tirar os comentários, apagar a chamada e manter a explicação passaria, o que é exatamente a forma
+  que um autor produz ao mexer no código gerado.
+- **O portão declarado ao lado conta.** `onDocumentWritten(opts, gated)` com
+  `const gated = forInstalledExtension('id', handler)` é código correto, e é o que se escreve quando o
+  handler cresce. A verificação que dá falso positivo é a que ensina a próxima pessoa a desligá-la.
+- **`functions/` fica de fora, e `onSchedule` também.** A comum não tem instalação de onde perguntar
+  (nenhuma extensão a reivindica, e não há id para o portão receber); o agendado não tem `{tenantId}` no
+  caminho, e o portão falha FECHADO — envolvê-lo o deixaria inerte até enquanto a extensão está
+  instalada. Cobrar deles um portão impossível trocaria um defeito por outro. São as duas lacunas
+  conhecidas, e cada uma tem endereço próprio.
+
 #### O que o `--prune` NÃO pode apagar
 
 "Ninguém exige mais" tem três causas, e só uma autoriza remover. `console/appliedFunctions.ts` as separa,

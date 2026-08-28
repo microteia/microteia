@@ -18,6 +18,10 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.29.0] — 2026-08-28
+
+- docs(sdk/authoring): the installation gate is stated as a refusal, not as advice. The guide told the author what `forInstalledExtension` prevented and left the impression that writing it was a matter of care; the Console now refuses an ungated trigger, so the paragraph that describes the contract had to say the same thing. It also names the two forms the check accepts — the call inside the trigger, and the guard declared in an identifier beside it — and the one it does not: a comment that only mentions it.
+
 #### [9.28.0] — 2026-08-27
 
 - feat(functions/office): `forInstalledExtension` and `isExtensionInstalled` — the curated server surface an extension's own Cloud Function imports as `microteia-functions/office`. A Cloud Function belongs to the project and an installation belongs to the organization, and nothing in Firebase reconciles the two: an extension's Firestore trigger ran for every organization in the project, including the ones that never installed it and the one that uninstalled it while another still had it. Pruning cannot reach that last case — the function is still needed by somebody — so the guard is the only thing that stops the side effect, and it is also what covers the gap between the uninstall and the next `microteia provision --prune`. It wraps the HANDLER, never the function: `firebase-functions` reads `__endpoint` off the exported symbol, and a wrapper outside would make the deploy stop seeing the function at all.

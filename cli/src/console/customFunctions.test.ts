@@ -106,6 +106,52 @@ describe('o que impede montar o conjunto', () => {
     await writeFunctions('extensions/vendas/functions', 'export const vendasHook = 1;');
     expect(functionProblems(await findFunctionSources(root), KERNEL)).toEqual([]);
   });
+
+  /**
+   * O portão de instalação entra na MESMA porta que o nome repetido, e pelo mesmo motivo: é aqui que a
+   * fonte do escritório passa a fazer parte do pacote que vai subir. Um gatilho sem portão dispara para
+   * todos os escritórios do projeto, e o sintoma dele não é uma falha — é código de uma extensão que
+   * ninguém tem mais agindo sobre dados alheios.
+   */
+  it('recusa um gatilho de extensão sem o portão de instalação', async () => {
+    await writeFunctions(
+      'extensions/vendas/functions',
+      "export const vendasOnSave = onDocumentWritten({ document: 'tenants/{tenantId}/x/{id}' }, h);",
+    );
+
+    expect(functionProblems(await findFunctionSources(root), KERNEL).join())
+      .toContain('exports "vendasOnSave", a onDocumentWritten trigger with no installation gate');
+  });
+
+  it('não reclama do gatilho que passa pelo portão', async () => {
+    await writeFunctions(
+      'extensions/vendas/functions',
+      "export const vendasOnSave = onDocumentWritten(o, forInstalledExtension('com.acme.vendas', h));",
+    );
+
+    expect(functionProblems(await findFunctionSources(root), KERNEL)).toEqual([]);
+  });
+
+  /** O gatilho mora no arquivo dele e é reexportado pelo `index.ts` — é o que o molde escreve. */
+  it('acha o gatilho declarado fora do index.ts', async () => {
+    await writeFunctions('extensions/vendas/functions', "export { vendasOnSave } from './vendasOnSave';");
+    await writeFile(
+      join(root, 'extensions/vendas/functions/vendasOnSave.ts'),
+      "export const vendasOnSave = onDocumentWritten({ document: 'tenants/{tenantId}/x/{id}' }, h);",
+    );
+
+    expect(functionProblems(await findFunctionSources(root), KERNEL).join())
+      .toContain('with no installation gate');
+  });
+
+  it('não cobra portão da function comum, que não tem instalação de onde perguntar', async () => {
+    await writeFunctions(
+      'functions',
+      "export const sharedOnSave = onDocumentWritten({ document: 'tenants/{tenantId}/x/{id}' }, h);",
+    );
+
+    expect(functionProblems(await findFunctionSources(root), KERNEL)).toEqual([]);
+  });
 });
 
 describe('a montagem dentro de install/', () => {

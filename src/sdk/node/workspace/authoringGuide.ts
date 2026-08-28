@@ -1412,6 +1412,13 @@ even when nobody does, it is removed by an administrator running \`microteia pro
 happens minutes or days after the person clicked Uninstall. The guard is what makes the withdrawal
 take effect at the moment it is asked for.
 
+**This is a refusal, not advice.** A Firestore trigger exported from your \`functions/\` without the
+guard is refused before anything is deployed, and so is one whose guard names a different extension's id
+— the copy-and-paste case, where the trigger fires and the handler silently never runs. The check reads
+your source, so the guard may also sit in an identifier beside the trigger
+(\`const gated = forInstalledExtension('com.acme.crm', handler)\`); what it will not accept is a comment
+that mentions it.
+
 \`npx microteia-plugin create function\` asks what sets your function off, and writes the guard for you
 when the answer is a saved record.
 

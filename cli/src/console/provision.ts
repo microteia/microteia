@@ -45,6 +45,12 @@ import { asString, asTimestamp, patchMapField } from './firestoreRest.js';
 import { listTenants, readInstalledExtensions } from './installedExtensions.js';
 import { gatherCustomFunctions, readOfficeFunctions } from './customFunctions.js';
 import {
+  describeMisgated,
+  misgatedTriggers,
+  singleClaimants,
+  ungatedTriggerProblems,
+} from './functionGate.js';
+import {
   appliedAfterRun,
   classifyApplied,
   describeApplied,
@@ -182,7 +188,10 @@ export const provisionBackend = async (options: ProvisionOptions): Promise<Provi
   const claims = survey.claims;
   const missing = functionClaimProblems(claims, deployable);
   const overlapping = baselineClaimProblems(claims, manifest.baselineFunctions ?? []);
-  const problems = [...missing, ...overlapping];
+  // O portão aberto para o id de OUTRA extensão. Só aqui se pode perguntar: é a reivindicação que diz de
+  // quem a function é, e ela vem do banco do escritório — o `deploy` não a tem.
+  const misgated = misgatedTriggers(office.sources, singleClaimants(claims));
+  const problems = [...missing, ...overlapping, ...misgated.map(describeMisgated)];
   const rejected = new Set<string>();
 
   if (missing.length > 0) {
@@ -209,10 +218,35 @@ export const provisionBackend = async (options: ProvisionOptions): Promise<Provi
     info('  manifest.backend.functions.');
   }
 
+  /**
+   * O gatilho sem portão é RELATADO aqui e RECUSADO na montagem (`functionProblems`), e a assimetria é
+   * deliberada: este é o único comando capaz de RETIRAR uma function do projeto. Recusar aqui trancaria
+   * `--prune` — o comando que apaga a órfã — por causa de uma fonte que ele não precisa ler. A recusa
+   * acontece onde a fonte de fato entra no pacote, e aí ela não tranca a saída de ninguém.
+   */
+  const ungated = ungatedTriggerProblems(office.sources);
+  if (ungated.length > 0) {
+    warn(`${ungated.length} trigger(s) written in this installation have no installation gate:`);
+    bullets(ungated);
+    info('  they are refused the moment something tries to deploy them. Until then they keep firing for');
+    info('  every office in this project.');
+  }
+
+  if (misgated.length > 0) {
+    warn('some extensions gate a trigger for an extension id that is not their own:');
+    bullets(misgated.map(describeMisgated));
+    info('  it is what a copied function leaves behind. The trigger deploys, fires on every write, and');
+    info('  the handler never runs — the gate asks about an extension nobody installed. Fix the id in');
+    info('  the forInstalledExtension call.');
+  }
+
   if (problems.length > 0) {
     for (const claim of claims) {
       if (problems.some((problem) => problem.includes(claim.pluginId))) rejected.add(claim.pluginId);
     }
+    // O dono de um portão errado é pendurado por IDENTIDADE, e não por o id dele aparecer no texto: a
+    // mensagem cita DOIS ids, e casar por substring penduraria também a extensão cujo id foi copiado.
+    for (const entry of misgated) rejected.add(entry.owner);
   }
 
   const valid = uniqueByPlugin(claims.filter((claim) => !rejected.has(claim.pluginId)));

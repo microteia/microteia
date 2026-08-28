@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.29.0] — 2026-08-28
+
+- Uma extensão que reage ao salvamento de um registro agora só pode fazê-lo no escritório que a instalou. Antes era possível publicar uma extensão cuja reação acontecia em todos os escritórios do sistema, inclusive nos que nunca a instalaram, e nada avisava — o Console passa a recusar a publicação nesse caso, e a apontar a extensão em que o descuido está.
+
 #### [9.28.0] — 2026-08-27
 
 - As rotinas de servidor que uma extensão traz passam a agir apenas nos escritórios que a instalaram. Antes, uma rotina que reage a gravações agia sobre os dados de todos os escritórios do projeto — inclusive os que nunca instalaram aquela extensão, e o que a desinstalou enquanto outro a mantinha. Nesse último caso a rotina não pode nem ser removida, porque alguém ainda depende dela, e não havia nada que impedisse o efeito.

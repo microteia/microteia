@@ -2,6 +2,8 @@ import { access, cp, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/pro
 import { basename, join } from 'node:path';
 import { callableFunctionNames, declaredParametersIn } from '../kernel/manifest.js';
 import type { BackendParameter } from '../kernel/manifest.js';
+import { triggerDeclarations, ungatedTriggerProblems } from './functionGate.js';
+import type { TriggerDeclaration } from './functionGate.js';
 
 /**
  * As Cloud Functions do ESCRITÓRIO — as que ele escreve, não as do kernel.
@@ -52,6 +54,11 @@ export interface FunctionSource {
   shared: boolean;
   /** As callables — as únicas que o navegador chama, e por isso as únicas com alcance a conferir. */
   callables: string[];
+  /**
+   * Os gatilhos de Firestore declarados aqui, com o estado do portão de instalação de cada um. É o que
+   * permite recusar um gatilho de extensão que dispararia para todos os escritórios do projeto.
+   */
+  triggers: TriggerDeclaration[];
   /** Os `defineString` que ela declara. O `firebase-functions` os valida GLOBALMENTE (ver abaixo). */
   parameters: BackendParameter[];
   /** As dependências npm que ela declara no `package.json` do próprio diretório. */
@@ -124,11 +131,15 @@ const readSource = async (
 
   const exported = exportedNames(await readFile(entry, 'utf8'));
   const callables = new Set<string>();
+  const triggers: TriggerDeclaration[] = [];
   const parameters = new Map<string, BackendParameter>();
 
   for (const file of await sourceFiles(path)) {
     const source = await readFile(file, 'utf8');
     for (const name of callableFunctionNames(source)) callables.add(name);
+    // O gatilho é declarado no arquivo dele e reexportado pelo `index.ts` — é o que o molde escreve —,
+    // então a varredura é a mesma das callables: todo `.ts`, e o `index.ts` decide o que conta.
+    triggers.push(...triggerDeclarations(source));
     // Um nome declarado em vários lugares é UM parâmetro, e ele é exigido se ALGUMA declaração o pede
     // sem `default`: é essa que recusa o deploy quando o valor falta, e a conservadora é a que avisa.
     for (const parameter of declaredParametersIn(source)) {
@@ -149,6 +160,7 @@ const readSource = async (
     // Só as que o `index.ts` de fato exporta: uma callable escrita e não exportada não é deployada, e
     // conferir o alcance dela mandaria procurar um erro que não existe.
     callables: exported.filter((name) => callables.has(name)),
+    triggers,
     parameters: [...parameters.values()].sort((a, b) => a.name.localeCompare(b.name)),
     dependencies: await readDependencies(path, label),
   };
@@ -247,6 +259,10 @@ export const functionProblems = (sources: FunctionSource[], kernelFunctions: str
       }
     }
   }
+
+  // O portão de instalação entra aqui, e não numa verificação à parte, porque o momento é o mesmo: é
+  // este o ponto em que a fonte do escritório passa a fazer parte do pacote que vai subir.
+  problems.push(...ungatedTriggerProblems(sources));
 
   return problems;
 };
