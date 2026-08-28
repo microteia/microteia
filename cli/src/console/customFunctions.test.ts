@@ -1,4 +1,5 @@
 import { describe, expect, it, beforeEach } from 'vitest';
+import { gateProblemsFor } from './functionGate.js';
 import { mkdtemp, mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
@@ -109,19 +110,30 @@ describe('o que impede montar o conjunto', () => {
   });
 
   /**
-   * O portão de instalação entra na MESMA porta que o nome repetido, e pelo mesmo motivo: é aqui que a
-   * fonte do escritório passa a fazer parte do pacote que vai subir. Um gatilho sem portão dispara para
-   * todos os escritórios do projeto, e o sintoma dele não é uma falha — é código de uma extensão que
-   * ninguém tem mais agindo sobre dados alheios.
+   * O portão NÃO entra nesta porta, e a mudança é a correção de um defeito real: a fonte de uma extensão
+   * desinstalada continua no disco, é lida aqui, e trancava o `microteia deploy` inteiro — hosting,
+   * rules e índices junto — por causa de uma function que nenhum comando teria subido. Quem cobra o
+   * portão é `gateProblemsFor`, contra os nomes que vão de fato para o ar.
    */
-  it('recusa um gatilho de extensão sem o portão de instalação', async () => {
+  it('não tranca a montagem por causa de um gatilho sem portão que ninguém vai deployar', async () => {
     await writeFunctions(
       'extensions/vendas/functions',
       "export const vendasOnSave = onDocumentWritten({ document: 'tenants/{tenantId}/x/{id}' }, h);",
     );
 
-    expect(functionProblems(await findFunctionSources(root), KERNEL).join())
+    expect(functionProblems(await findFunctionSources(root), KERNEL)).toEqual([]);
+  });
+
+  it('recusa o mesmo gatilho quando ele é um dos que estão subindo', async () => {
+    await writeFunctions(
+      'extensions/vendas/functions',
+      "export const vendasOnSave = onDocumentWritten({ document: 'tenants/{tenantId}/x/{id}' }, h);",
+    );
+
+    const sources = await findFunctionSources(root);
+    expect(gateProblemsFor(sources, ['vendasOnSave']).join())
       .toContain('exports "vendasOnSave", a onDocumentWritten trigger with no installation gate');
+    expect(gateProblemsFor(sources, ['outraQualquer'])).toEqual([]);
   });
 
   it('não reclama do gatilho que passa pelo portão', async () => {
@@ -130,7 +142,7 @@ describe('o que impede montar o conjunto', () => {
       "export const vendasOnSave = onDocumentWritten(o, forInstalledExtension('com.acme.vendas', h));",
     );
 
-    expect(functionProblems(await findFunctionSources(root), KERNEL)).toEqual([]);
+    expect(gateProblemsFor(await findFunctionSources(root), ['vendasOnSave'])).toEqual([]);
   });
 
   /** O gatilho mora no arquivo dele e é reexportado pelo `index.ts` — é o que o molde escreve. */
@@ -141,7 +153,7 @@ describe('o que impede montar o conjunto', () => {
       "export const vendasOnSave = onDocumentWritten({ document: 'tenants/{tenantId}/x/{id}' }, h);",
     );
 
-    expect(functionProblems(await findFunctionSources(root), KERNEL).join())
+    expect(gateProblemsFor(await findFunctionSources(root), ['vendasOnSave']).join())
       .toContain('with no installation gate');
   });
 
@@ -151,7 +163,24 @@ describe('o que impede montar o conjunto', () => {
       "export const sharedOnSave = onDocumentWritten({ document: 'tenants/{tenantId}/x/{id}' }, h);",
     );
 
-    expect(functionProblems(await findFunctionSources(root), KERNEL)).toEqual([]);
+    expect(gateProblemsFor(await findFunctionSources(root), ['sharedOnSave'])).toEqual([]);
+  });
+
+  /**
+   * A callable é o caso que motivou a separação: a de uma extensão desinstalada fica no ar respondendo a
+   * qualquer usuário do projeto, e o `deploy` que tentava consertar isso recusava um comando que não
+   * subiria nada. Recusar quem não sobe não fecha endpoint nenhum — só impede de publicar o resto.
+   */
+  it('a callable de uma extensão que ninguém instalou não impede o deploy do resto', async () => {
+    await writeFunctions(
+      'extensions/sinistro/functions',
+      'export const sinistroConsultarFipe = onCall(o, async (request) => request.data);',
+    );
+
+    const sources = await findFunctionSources(root);
+    expect(functionProblems(sources, KERNEL)).toEqual([]);
+    expect(gateProblemsFor(sources, ['sinistroConsultarFipe']).join())
+      .toContain('a callable with no installation check');
   });
 });
 
@@ -566,14 +595,14 @@ describe('quem cada function comum declara servir', () => {
    * O par das duas metades: a declaração autoriza a retirada, e a guarda no código impede a function de
    * agir onde não deve. Uma sem a outra deixa metade do defeito de pé.
    */
-  it('a comum declarada e sem guarda no gatilho é recusada pela montagem', async () => {
+  it('a comum declarada e sem guarda no gatilho é recusada quando vai subir', async () => {
     await writeFunctions(
       'functions',
       "export const compartilhada = onDocumentWritten({ document: 'tenants/{tenantId}/x/{id}' }, h);",
     );
     await withPackage('functions', { microteia: { serves: { compartilhada: ['com.a.b'] } } });
 
-    expect(functionProblems(await findFunctionSources(root), KERNEL).join())
+    expect(gateProblemsFor(await findFunctionSources(root), ['compartilhada']).join())
       .toContain("forAnyInstalledExtension(['com.a.b'], …)");
   });
 
@@ -584,6 +613,6 @@ describe('quem cada function comum declara servir', () => {
     );
     await withPackage('functions', { microteia: { serves: { compartilhada: ['com.a.b'] } } });
 
-    expect(functionProblems(await findFunctionSources(root), KERNEL)).toEqual([]);
+    expect(gateProblemsFor(await findFunctionSources(root), ['compartilhada'])).toEqual([]);
   });
 });

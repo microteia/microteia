@@ -1385,9 +1385,21 @@ sem erro em lugar nenhum. O molde ensina; ele não cobra.
 
 | O que | Onde é cobrado | Por quê ali |
 |---|---|---|
-| gatilho de extensão **sem** portão | **recusa** em `functionProblems` (montagem do `deploy`, e do `provision` quando ele remonta) | é o instante em que a fonte entra no pacote que vai subir. Recusar no `provision` inteiro trancaria o `--prune`, que é o comando que APAGA a órfã |
+| function **sem** portão que está SUBINDO | **recusa** em `gateProblemsFor`, contra `own` no `deploy` e contra a fila no `provision` | é o instante em que ela vai para o ar. Antes disso não há nada a impedir |
 | portão com o id de **outra** extensão | **rejeita a extensão** no `provision` | só ali se sabe de quem a function é: a reivindicação vem do banco do escritório, e o `deploy` não a tem |
-| gatilho sem portão, já no ar | **relatado** pelo `provision` | ele não pode recusar, e calar deixaria o operador sem saber o que a próxima montagem vai recusar |
+| function sem portão que NÃO está subindo | **relatada** pelo `provision` | a fonte existe e um dia alguém vai instalar a extensão; descobrir o defeito naquele dia é tarde, e aqui ele custa uma linha |
+
+**A recusa é da function, não do comando — e isso é a correção de um defeito.** Ela morava em
+`functionProblems`, a porta que responde "dá para montar o conjunto?", e a resposta daquela porta vale
+para **toda fonte que existe no disco**. Só que o que existe no disco não é o que sobe:
+`extensions/<x>/functions/` de uma extensão desinstalada continua ali, é lida, é copiada para
+`install/functions/custom/src/` e nunca é deployada — nem pelo `deploy` (que sobe a baseline mais a
+comum sem declaração) nem pelo `provision` (que sobe o que as extensões INSTALADAS exigem). O efeito era
+um `microteia deploy` recusado por inteiro — hosting, rules e índices junto — por causa de uma callable
+que nenhum comando teria subido, numa instalação onde a extensão dona já tinha sido desinstalada e
+apagada. Hoje `gateProblems` devolve o problema COM o nome da function, e quem recusa filtra pelos nomes
+que estão subindo. No `provision` a function defeituosa sai da fila e o comando termina em erro por
+causa dela — depois de o resto ter acontecido, `--prune` incluído.
 
 Três decisões dentro disso, e as três saem de a verificação errada ser pior que a ausência dela:
 
@@ -1465,6 +1477,44 @@ quem era esta function? E o relatório diz a varredura em que se apoia — quant
 extensões foram lidos —, porque a afirmação é sobre TODOS os escritórios do projeto, não sobre o último
 que foi lido. A varredura é completa ou não existe: `listDocuments` pagina até o fim, e qualquer leitura
 recusada derruba o comando antes de qualquer decisão.
+
+##### O registro se perde — e a órfã não pode se perder com ele
+
+O parágrafo acima descreve o mecanismo **quando o registro existe**. Ele era a única verdade sobre o que
+havia sido deployado, e é uma verdade frágil: um `init` refeito, um `microteia.yaml` restaurado de um
+backup mais velho, um Console anterior ao campo, um deploy dado à mão. Perdido o registro,
+`classifyApplied` não tem o que classificar, `--prune` não tem o que apagar, e a Cloud Function segue no
+ar sem que comando nenhum a mencione. O caso real: `backend.functions: null` no `microteia.yaml`, todas
+as extensões desinstaladas e removidas pela tela, e a callable de uma delas ainda respondendo — a
+`allUsers`, a qualquer usuário autenticado do projeto, de qualquer escritório.
+
+Por isso o `provision` passou a perguntar ao **projeto** o que ele roda (`firebase functions:list`, já
+usado para o carimbo e para a cópia em região abandonada) e a cruzar a resposta com o que a instalação
+consegue justificar. `straysInProject` (`console/appliedFunctions.ts`) devolve duas listas, e o que as
+separa é o **limite que torna isto seguro**:
+
+| Roda no projeto e… | O que acontece | Por quê |
+|---|---|---|
+| esta instalação sabe produzi-la (`manifest.functions ∪ office.all`), e nada a justifica | **órfã** — relatada, e apagada com `--prune` | é o que a Microteia pôs ali, e a razão de estar ali acabou |
+| esta instalação **não** a conhece | relatada, **nunca** tocada | um projeto Firebase é compartilhável, e apagar o que não é nosso não é chamada deste comando |
+
+"Justificada" é a união de quatro coisas, e a terceira e a quarta são as que evitam um estrago: exigida
+por extensão instalada (`wantedFunctions`), **baseline do pacote**, comum sem declaração de quem serve
+(`office.unserved`, que o `deploy` sobe sempre), e nome de reivindicação não resolvida (`unresolved`). A
+baseline sai de `manifest.baselineFunctions ?? manifest.functions` — o mesmo fallback que o `deploy` usa
+para decidir o que subir. Um `?? []` aqui faria toda function da plataforma virar órfã num pacote sem o
+campo.
+
+A órfã achada assim **entra no registro** quando não é removida (ela vai para `keptOrphans`, e
+`appliedAfterRun` a grava). A partir da execução seguinte ela é conhecida com dono `null`, mesmo que o
+código-fonte dela saia do disco — o que é a diferença entre um buraco que se fecha e um que só some de
+vista.
+
+O preço é um `functions:list` por execução, inclusive quando não há nada a deployar. A versão anterior
+pulava a chamada justamente nesse caso, por economia — e era esse o caso que mais precisava dela: é a
+instalação sem extensão nenhuma que guarda a function da extensão que saiu. Quando a listagem não
+responde (conta sem permissão, projeto fora do ar), o comando **diz** que não comparou, em vez de deixar
+o silêncio parecer "não há nada".
 
 #### Parâmetro preenchido depois do deploy — a impressão digital em `microteia.yaml`
 

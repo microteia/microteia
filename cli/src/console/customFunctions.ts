@@ -5,11 +5,7 @@ import type { BackendParameter } from '../kernel/manifest.js';
 import {
   callableDeclarations,
   triggerDeclarations,
-  ungatedTriggerProblems,
-  unguardedCallableProblems,
-  unguardedSharedProblems,
   unscopedDeclarations,
-  unscopedTriggerProblems,
 } from './functionGate.js';
 import type { TriggerDeclaration } from './functionGate.js';
 
@@ -402,13 +398,11 @@ export const functionProblems = (sources: FunctionSource[], kernelFunctions: str
 
   problems.push(...servesProblems(sources));
 
-  // O portão de instalação entra aqui, e não numa verificação à parte, porque o momento é o mesmo: é
-  // este o ponto em que a fonte do escritório passa a fazer parte do pacote que vai subir.
-  problems.push(...ungatedTriggerProblems(sources));
-  problems.push(...unscopedTriggerProblems(sources));
-  problems.push(...unguardedSharedProblems(sources));
-  problems.push(...unguardedCallableProblems(sources));
-
+  // O portão de instalação NÃO entra aqui. Esta porta responde "dá para montar o conjunto?", e a
+  // resposta dela vale para toda fonte que existe no disco — inclusive a da extensão que foi
+  // desinstalada e cujo diretório ficou. O portão responde outra coisa: "esta function pode ir para o
+  // ar?", e ela só é devida de quem vai. Quem pergunta é `gateProblemsFor`, no ponto em que os nomes
+  // que sobem já estão decididos: `deploy` contra a baseline mais as comuns, `provision` contra a fila.
   return problems;
 };
 

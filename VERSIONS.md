@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.35.0] — 2026-08-28
+
+- A publicação deixou de ser interrompida por causa do código de uma extensão que já foi desinstalada. Antes, se a pasta de uma extensão removida continuasse no computador de quem publica, o comando parava por inteiro — e nada do sistema ia ao ar — mesmo que aquele código não fosse ser publicado. Agora só a parte com problema fica de fora, e o aviso diz qual é.
+- Uma função de servidor que ficou no ar depois de a extensão dona ser desinstalada passa a ser encontrada e removida, mesmo quando o registro dela se perdeu. Antes ela seguia respondendo indefinidamente, sem que nenhum comando a mencionasse.
+
 #### [9.34.0] — 2026-08-28
 
 - Uma função de servidor de extensão passa a recusar quem não é do escritório indicado, além de quem não entrou no sistema. Antes ela ficava acessível a qualquer pessoa com acesso ao sistema, mesmo de outro escritório e mesmo depois de a extensão ser desinstalada — a tela desaparecia, o endereço no servidor não. As funções que as extensões trazem agora nascem com essa verificação.

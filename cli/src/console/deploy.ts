@@ -9,6 +9,7 @@ import type { Environment } from './environment.js';
 import { FIREBASE_BIN } from './firebaseCli.js';
 import { reportFailures, reportNotices } from './deployFunctions.js';
 import { clearRegionOrphans, listDeployedFunctions } from './regionOrphans.js';
+import { gateProblemsFor } from './functionGate.js';
 import { deployFunctionsThatChanged } from './functionsUpToDate.js';
 import { checkCallables, invokerGrantCommand } from './callableAccess.js';
 import { checkHostingServed, htmlIsRevalidated } from './hostingCheck.js';
@@ -173,6 +174,23 @@ export const deploy = async (args: ParsedArgs): Promise<void> => {
        * impede esta versão de tirar do ar function de uma instalação que já existe.
        */
       const own = [...baseline, ...gathered.unserved];
+
+      /**
+       * O portão de instalação, cobrado do que ESTE passo sobe — e não de toda fonte que existe no
+       * disco.
+       *
+       * Na prática ele quase nunca tem o que dizer aqui, e isso é a confirmação de que o lugar é este:
+       * o que sobe no `deploy` é a baseline (do kernel) e a comum sem declaração (de quem não há id a
+       * cobrar). É no `provision` que a function de extensão entra na fila, e é lá que a recusa morde.
+       * Cobrar aqui mantém a regra atada ao ato — se um dia esta lista crescer, ela vem coberta.
+       */
+      const refused = gateProblemsFor(gathered.sources, own);
+      if (refused.length > 0) {
+        throw new Error(
+          `These Cloud Functions cannot go up as they are:\n${refused.map((line) => `  ${line}`).join('\n')}`,
+        );
+      }
+
       step(current, total, `Cloud Functions (${own.length}, one at a time)`);
 
       if (gathered.sources.length > 0) {

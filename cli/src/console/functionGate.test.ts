@@ -195,10 +195,10 @@ describe('o gatilho de extensão sem portão', () => {
     const problems = ungatedTriggerProblems([subject()]);
 
     expect(problems).toHaveLength(1);
-    expect(problems[0]).toContain('extensions/crm/functions exports "acmeOnSave"');
-    expect(problems[0]).toContain('onDocumentWritten trigger with no installation gate');
-    expect(problems[0]).toContain('forInstalledExtension');
-    expect(problems[0]).toContain('every office in the project');
+    expect(problems[0].message).toContain('extensions/crm/functions exports "acmeOnSave"');
+    expect(problems[0].message).toContain('onDocumentWritten trigger with no installation gate');
+    expect(problems[0].message).toContain('forInstalledExtension');
+    expect(problems[0].message).toContain('every office in the project');
   });
 
   it('não reclama do que está com o portão', () => {
@@ -343,10 +343,10 @@ describe('a function sem escritório no evento e sem o laço', () => {
     const problems = unscopedTriggerProblems([scheduled()]);
 
     expect(problems).toHaveLength(1);
-    expect(problems[0]).toContain('extensions/crm/functions exports "acmeNightly"');
-    expect(problems[0]).toContain('onSchedule function whose event carries no {tenantId}');
-    expect(problems[0]).toContain('it fails closed, so the function would never run at all');
-    expect(problems[0]).toContain('forEachInstalledOffice');
+    expect(problems[0].message).toContain('extensions/crm/functions exports "acmeNightly"');
+    expect(problems[0].message).toContain('onSchedule function whose event carries no {tenantId}');
+    expect(problems[0].message).toContain('it fails closed, so the function would never run at all');
+    expect(problems[0].message).toContain('forEachInstalledOffice');
   });
 
   it('não reclama da que passa pelo laço', () => {
@@ -375,9 +375,9 @@ describe('a function sem escritório no evento e sem o laço', () => {
     });
 
     expect(ungatedTriggerProblems([both])).toHaveLength(1);
-    expect(ungatedTriggerProblems([both])[0]).toContain('acmeOnSave');
+    expect(ungatedTriggerProblems([both])[0].message).toContain('acmeOnSave');
     expect(unscopedTriggerProblems([both])).toHaveLength(1);
-    expect(unscopedTriggerProblems([both])[0]).toContain('acmeNightly');
+    expect(unscopedTriggerProblems([both])[0].message).toContain('acmeNightly');
   });
 });
 
@@ -421,10 +421,10 @@ describe('o gatilho da function comum que declara quem serve', () => {
     const problems = unguardedSharedProblems([sharedSubject()]);
 
     expect(problems).toHaveLength(1);
-    expect(problems[0]).toContain('functions exports "acmeRecalcTotals"');
-    expect(problems[0]).toContain('declared as serving com.acme.crm, com.acme.billing');
-    expect(problems[0]).toContain("forAnyInstalledExtension(['com.acme.crm', 'com.acme.billing'], …)");
-    expect(problems[0]).toContain('installed none of them');
+    expect(problems[0].message).toContain('functions exports "acmeRecalcTotals"');
+    expect(problems[0].message).toContain('declared as serving com.acme.crm, com.acme.billing');
+    expect(problems[0].message).toContain("forAnyInstalledExtension(['com.acme.crm', 'com.acme.billing'], …)");
+    expect(problems[0].message).toContain('installed none of them');
   });
 
   it('com a guarda das duas, nada a dizer', () => {
@@ -462,8 +462,8 @@ describe('o gatilho da function comum que declara quem serve', () => {
     })]);
 
     expect(problems).toHaveLength(1);
-    expect(problems[0]).toContain('guards "acmeRecalcTotals" for com.other.thing');
-    expect(problems[0]).toContain('microteia.serves (com.acme.crm, com.acme.billing)');
+    expect(problems[0].message).toContain('guards "acmeRecalcTotals" for com.other.thing');
+    expect(problems[0].message).toContain('microteia.serves (com.acme.crm, com.acme.billing)');
   });
 
   /**
@@ -510,10 +510,10 @@ describe('a callable de extensão', () => {
     const problems = unguardedCallableProblems([withCallable(null)]);
 
     expect(problems).toHaveLength(1);
-    expect(problems[0]).toContain('extensions/crm/functions exports "acmeQuote"');
-    expect(problems[0]).toContain('a callable with no installation check');
-    expect(problems[0]).toContain("requireInstalledExtension('<this extension's id>', tenantId, request)");
-    expect(problems[0]).toContain('any signed-in user of this project');
+    expect(problems[0].message).toContain('extensions/crm/functions exports "acmeQuote"');
+    expect(problems[0].message).toContain('a callable with no installation check');
+    expect(problems[0].message).toContain("requireInstalledExtension('<this extension's id>', tenantId, request)");
+    expect(problems[0].message).toContain('any signed-in user of this project');
   });
 
   it('com a guarda, nada a dizer', () => {

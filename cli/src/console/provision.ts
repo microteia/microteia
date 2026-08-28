@@ -48,11 +48,9 @@ import { listTenants, readInstalledExtensions } from './installedExtensions.js';
 import { gatherCustomFunctions, readOfficeFunctions } from './customFunctions.js';
 import {
   describeMisgated,
+  gateProblems,
   misgatedTriggers,
   singleClaimants,
-  ungatedTriggerProblems,
-  unguardedCallableProblems,
-  unscopedTriggerProblems,
 } from './functionGate.js';
 import {
   appliedAfterRun,
@@ -60,8 +58,9 @@ import {
   describeApplied,
   parseAppliedFunctions,
   serializeAppliedFunctions,
+  straysInProject,
 } from './appliedFunctions.js';
-import type { AppliedFunction, PreservedFunction } from './appliedFunctions.js';
+import type { AppliedFunction, PreservedFunction, StrayFunctions } from './appliedFunctions.js';
 
 /** Uma exigência, o escritório que a instalou e o documento que carrega o estado dela. */
 export interface InstalledClaim extends BackendClaim {
@@ -256,22 +255,26 @@ export const provisionBackend = async (options: ProvisionOptions): Promise<Provi
   }
 
   /**
-   * O gatilho sem portão é RELATADO aqui e RECUSADO na montagem (`functionProblems`), e a assimetria é
-   * deliberada: este é o único comando capaz de RETIRAR uma function do projeto. Recusar aqui trancaria
-   * `--prune` — o comando que apaga a órfã — por causa de uma fonte que ele não precisa ler. A recusa
-   * acontece onde a fonte de fato entra no pacote, e aí ela não tranca a saída de ninguém.
+   * O portão é RELATADO por inteiro aqui, e COBRADO uma a uma na fila de deploy, mais abaixo.
+   *
+   * A assimetria é deliberada, e é o que este comando exige: ele é o único capaz de RETIRAR uma function
+   * do projeto. Recusar o comando inteiro trancaria `--prune` — que é justamente quem apaga a órfã — por
+   * causa de uma fonte que a órfã não tem nada a ver. Então a fonte defeituosa sai da fila, é dita em voz
+   * alta, o comando termina em erro por causa dela, e tudo o mais acontece.
+   *
+   * O relato é de TODAS, e não só das que estão subindo agora: uma fonte com portão faltando é uma
+   * function que ninguém vai conseguir deployar, e descobrir isso no dia da instalação da extensão é
+   * tarde. Aqui o que ela custa é uma linha.
    */
-  const ungated = [
-    ...ungatedTriggerProblems(office.sources),
-    ...unscopedTriggerProblems(office.sources),
-    ...unguardedCallableProblems(office.sources),
-  ];
-  if (ungated.length > 0) {
-    warn(`${ungated.length} function(s) written in this installation act outside any office's`
+  const gateFaults = gateProblems(office.sources);
+  const gateFaultBy = new Map(gateFaults.map((fault) => [fault.name, fault.message]));
+  if (gateFaults.length > 0) {
+    warn(`${gateFaults.length} function(s) written in this installation act outside any office's`
       + ' installation:');
-    bullets(ungated);
-    info('  they are refused the moment something tries to deploy them. Until then they keep acting on');
-    info('  every office in this project.');
+    bullets(gateFaults.map((fault) => fault.message));
+    info('  each one is refused the moment this command tries to deploy IT — the others go up as');
+    info('  usual, and a source sitting here for an extension nobody installed blocks nothing.');
+    info('  Whatever is already in the air keeps acting on every office in this project.');
   }
 
   /**
@@ -435,10 +438,11 @@ export const provisionBackend = async (options: ProvisionOptions): Promise<Provi
    * numa região abandonada. Perguntar duas vezes não é caro, é ambíguo — as duas respostas podem
    * divergir, e aí a decisão passa a depender de qual delas o código olhou.
    *
-   * E ela é feita só quando há o que decidir. Sem o desvio lá em cima, este caminho passou a ser
-   * percorrido também pelo `provision` que roda quando não sobrou extensão nenhuma — e ali não há
-   * function para conferir nem para subir, então um `functions:list` seria pagar segundos por uma
-   * resposta que ninguém lê.
+   * Ela é feita SEMPRE, e a versão anterior a pulava quando não havia function aplicada a conferir —
+   * economia que custava exatamente o caso que mais importa. É a instalação sem extensão nenhuma que
+   * precisa da pergunta: é ali que mora a function de uma extensão que saiu, e sem perguntar ao projeto
+   * a resposta é o silêncio. A ida vale segundos; a alternativa é uma callable órfã que nenhum comando
+   * menciona.
    */
   let asked: DeployedFunction[] | null | undefined;
   const projectFunctions = async (): Promise<DeployedFunction[] | null> => {
@@ -493,13 +497,33 @@ export const provisionBackend = async (options: ProvisionOptions): Promise<Provi
     blank();
   }
 
-  const toDeploy = wantedFunctions.filter(
+  const queued = wantedFunctions.filter(
     (name) => options.all === true || !appliedNames.has(name) || staleFunctions.has(name),
   );
+
+  /**
+   * A recusa do portão, cobrada de quem está na fila — e só dela.
+   *
+   * Ela sai da fila em vez de derrubar o comando, e as duas metades disso importam. Sair da fila é o que
+   * impede a function de ir para o ar agindo sobre escritório que não a instalou, que é o defeito
+   * inteiro. Não derrubar é o que deixa o resto acontecer: as outras extensões recebem o backend delas,
+   * os índices convergem, e `--prune` apaga a órfã. O comando termina em erro por causa dela, no fim,
+   * quando já não há nada a atrapalhar.
+   */
+  const refused = queued.filter((name) => gateFaultBy.has(name));
+  const toDeploy = queued.filter((name) => !gateFaultBy.has(name));
+  if (refused.length > 0) {
+    blank();
+    failure(`${refused.length} function(s) are needed by an installed extension and cannot go up:`);
+    bullets(refused.map((name) => gateFaultBy.get(name) ?? name));
+    info('  they are the only ones held back. Fix the guard and run "microteia provision" again.');
+    outcome.failed.push(...refused);
+  }
+
   if (toDeploy.length === 0) {
     // Anunciar "as 0 functions já estão deployadas" seria o preço de ter tirado o desvio, e não é
     // preciso pagá-lo: quando não há exigência nenhuma, quem já falou foi a linha lá em cima.
-    if (wantedFunctions.length > 0) {
+    if (wantedFunctions.length > 0 && refused.length === 0) {
       success(`the ${wantedFunctions.length} function(s) these extensions need are already deployed`);
     }
   } else {
@@ -526,7 +550,7 @@ export const provisionBackend = async (options: ProvisionOptions): Promise<Provi
       projectId, cwd: install, delaySeconds, force: false,
     });
     outcome.deployed = report.deployed;
-    outcome.failed = report.failed.map((entry) => entry.name);
+    outcome.failed.push(...report.failed.map((entry) => entry.name));
     reportFailures(report.failed);
     reportNotices(report.notices);
     await checkNewCallables(
@@ -547,9 +571,43 @@ export const provisionBackend = async (options: ProvisionOptions): Promise<Provi
     }
   }
 
+  /**
+   * O que o PROJETO roda, cruzado com o que esta instalação consegue justificar.
+   *
+   * O registro respondia sozinho por essa pergunta, e é um registro que se perde — e quando se perde,
+   * some com ele a única memória de que aquela function existe. Perguntar ao projeto é o que fecha o
+   * buraco: uma callable de extensão desinstalada, no ar, publicamente invocável, com o
+   * `backend.functions` do `microteia.yaml` vazio, não era mencionada por comando nenhum.
+   *
+   * O limite está em `straysInProject`, e é o que torna isto seguro: só vira órfã o nome que ESTA
+   * instalação sabe produzir. O que a órfã ganha aqui, além da remoção, é entrar no registro quando não
+   * for removida — a partir da próxima execução ela é conhecida mesmo que o código-fonte dela saia do
+   * disco.
+   */
+  const running = await projectFunctions();
+  const stray = straysInProject({
+    // A região é o filtro, e o ESTADO não é. Uma cópia em região abandonada tem endereço próprio
+    // (`clearRegionOrphans`); já o estado só decide se dá para comparar carimbo — para existir no
+    // projeto, basta estar na listagem. E o `functions:list` nem sempre traz o campo: exigir `ACTIVE`
+    // deixaria a varredura cega em silêncio no dia em que ele viesse vazio.
+    running: (running ?? []).filter((entry) => entry.region === region).map((entry) => entry.name),
+    known: [...manifest.functions, ...office.all],
+    justified: [
+      ...wantedFunctions,
+      // A baseline do PACOTE, com o mesmo fallback que o `deploy` usa para decidir o que subir. Um
+      // `?? []` aqui faria toda function da plataforma virar órfã num pacote sem o campo.
+      ...(manifest.baselineFunctions ?? manifest.functions),
+      ...office.unserved,
+      ...unresolved.keys(),
+    ],
+    recorded: applied.map((entry) => entry.name),
+  });
+  reportStrays(stray, running);
+
   reportPreserved(classification.preserved);
-  outcome.orphans = classification.orphans.map((entry) => entry.name);
-  const remaining = await settleOrphans(options, classification.orphans, survey);
+  const orphans = [...classification.orphans, ...stray.orphans];
+  outcome.orphans = orphans.map((entry) => entry.name);
+  const remaining = await settleOrphans(options, orphans, survey);
 
   await recordBackendState(
     options,
@@ -739,6 +797,45 @@ const reportPreserved = (preserved: PreservedFunction[]): void => {
     bullets(unresolved.map((item) => `${item.entry.name} — claimed by ${item.claimant}`));
     info('  the extension is still installed, so they are not orphans and nothing removes them.');
     info('  Fix what is reported above and run "microteia provision" again.');
+  }
+};
+
+/**
+ * O que a varredura do projeto achou, e que o registro não conhecia.
+ *
+ * As duas listas são ditas porque respondem a perguntas diferentes de quem lê. A órfã é uma decisão a
+ * tomar — ela vai para `settleOrphans` logo abaixo, e sai com `--prune`. O estranho não é decisão
+ * nenhuma: é um aviso de que o projeto Firebase tem inquilino que a Microteia não pôs ali, e dizer que
+ * nada o toca vale mais do que o silêncio, porque o silêncio aqui parece "não há mais nada".
+ */
+const reportStrays = (stray: StrayFunctions, running: DeployedFunction[] | null): void => {
+  if (running === null) {
+    blank();
+    warn('could not list what this project is running, so nothing was compared against it.');
+    info('  a function left behind by an extension that is gone would not be found this run. The');
+    info('  account needs permission to run "firebase functions:list".');
+    return;
+  }
+
+  if (stray.orphans.length > 0) {
+    blank();
+    info(`  ${stray.orphans.length} function(s) are running in this project and this installation's`);
+    info('  record does not mention them:');
+    bullets(stray.orphans.map((entry) => entry.name));
+    info('  this installation is what produces them, and nothing installed needs them — so they are');
+    info('  treated as orphans below. A record is lost by a re-init, a restored backup, or a Console');
+    info('  older than the field; the function it forgot stays in the air either way.');
+  }
+
+  if (stray.strangers.length > 0) {
+    blank();
+    info(`  ${stray.strangers.length} function(s) run in this project and did not come from this`);
+    info('  installation:');
+    bullets(stray.strangers);
+    info('  nothing here touches them — not even --prune. A Firebase project can be shared, and');
+    info('  deleting what Microteia did not put there is not this command\'s call.');
+    info('  A function of yours lands here once its source is gone from this installation: run');
+    info('  "microteia provision" BEFORE deleting extensions/<folder>/, and it is recognized.');
   }
 };
 

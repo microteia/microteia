@@ -5,6 +5,7 @@ import {
   describeApplied,
   parseAppliedFunctions,
   serializeAppliedFunctions,
+  straysInProject,
 } from './appliedFunctions.js';
 import type { AppliedFunction } from './appliedFunctions.js';
 
@@ -177,5 +178,59 @@ describe('o que fica registrado como aplicado ao fim da execução', () => {
       owners,
     });
     expect(applied).toEqual([entry('integracaoSync', 'com.example.integracao')]);
+  });
+});
+
+/**
+ * O caso que motivou a varredura: uma extensão desinstalada e removida, o código-fonte dela parado ao
+ * lado do `microteia.yaml`, a callable no ar, e `backend.functions` vazio no `microteia.yaml`. Nenhum
+ * comando a mencionava, e `--prune` não a alcançava.
+ */
+describe('a órfã que o registro não conhece', () => {
+  it('acha a function que a instalação produz, que roda, e que nada justifica', () => {
+    const stray = straysInProject({
+      running: ['runAction', 'sinistroConsultarFipe'],
+      known: ['runAction', 'sinistroConsultarFipe'],
+      justified: ['runAction'],
+      recorded: [],
+    });
+
+    expect(stray.orphans).toEqual([{ name: 'sinistroConsultarFipe', owner: null }]);
+    expect(stray.strangers).toEqual([]);
+  });
+
+  it('não toca no que a instalação não sabe produzir — um projeto Firebase é compartilhável', () => {
+    const stray = straysInProject({
+      running: ['algoDeOutraPessoa'],
+      known: ['runAction'],
+      justified: ['runAction'],
+      recorded: [],
+    });
+
+    expect(stray.orphans).toEqual([]);
+    expect(stray.strangers).toEqual(['algoDeOutraPessoa']);
+  });
+
+  it('deixa para o registro o que o registro já conhece, que sabe o dono e as preservações', () => {
+    const stray = straysInProject({
+      running: ['acmeSync'],
+      known: ['acmeSync'],
+      justified: [],
+      recorded: ['acmeSync'],
+    });
+
+    expect(stray.orphans).toEqual([]);
+  });
+
+  it('a baseline e a comum sem declaração são justificadas, e não viram órfãs', () => {
+    const stray = straysInProject({
+      running: ['runAction', 'escritorioUtil'],
+      known: ['runAction', 'escritorioUtil'],
+      justified: ['runAction', 'escritorioUtil'],
+      recorded: [],
+    });
+
+    expect(stray.orphans).toEqual([]);
+    expect(stray.strangers).toEqual([]);
   });
 });

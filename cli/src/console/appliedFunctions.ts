@@ -147,3 +147,56 @@ export const appliedAfterRun = (input: {
 /** Como uma function aplicada aparece num relatório: sem dono conhecido, só o nome. */
 export const describeApplied = (entry: AppliedFunction): string =>
   entry.owner === null ? entry.name : `${entry.name} (${entry.owner})`;
+
+export interface StrayFunctions {
+  /** Roda no projeto, esta instalação sabe produzi-la, e nada a justifica agora: órfã de verdade. */
+  orphans: AppliedFunction[];
+  /** Roda no projeto e esta instalação não a conhece. Relatada, nunca apagada. */
+  strangers: string[];
+}
+
+/**
+ * A órfã que o REGISTRO não conhece — e o limite que impede a varredura de virar um estrago.
+ *
+ * O registro (`backend.functions` do `microteia.yaml`) era a ÚNICA verdade sobre o que havia sido
+ * deployado, e é uma verdade que se perde: um Console anterior ao campo, um `init` refeito, um deploy
+ * dado à mão, um arquivo restaurado de um backup mais velho. Perdido o registro, `classifyApplied` não
+ * tinha o que classificar, `--prune` não tinha o que apagar, e a Cloud Function de uma extensão que
+ * ninguém tem mais ficava no ar para sempre, sem nenhum comando que a mencionasse. É o pior sintoma da
+ * família: uma callable publicamente invocável, de código que ninguém instalou, e silêncio.
+ *
+ * A resposta é perguntar ao PROJETO o que ele roda, em vez de só ao arquivo. E o limite é `known`: só é
+ * candidata a órfã a function que ESTA instalação sabe produzir — o que o pacote traz mais o que o
+ * escritório escreveu. O que o projeto roda e a instalação não conhece pode ser de qualquer um: um
+ * projeto Firebase é compartilhável, e apagar ali seria a Microteia decidir sobre o que não é dela.
+ * Esse caso é relatado e nunca tocado.
+ *
+ * `recorded` sai do resultado porque quem responde por ele é `classifyApplied`, que sabe mais: ele tem o
+ * dono e as duas razões de preservação. Contar duas vezes a mesma function proporia apagá-la duas vezes.
+ */
+export const straysInProject = (input: {
+  /** O que o projeto roda AGORA, na região do kernel. */
+  running: string[];
+  /** O que esta instalação sabe produzir: o pacote mais o que o escritório escreveu. */
+  known: string[];
+  /** O que tem razão de estar no ar agora: exigida, baseline, comum sem declaração, ou não resolvida. */
+  justified: string[];
+  /** O que o registro já conhece — respondido por `classifyApplied`. */
+  recorded: string[];
+}): StrayFunctions => {
+  const known = new Set(input.known);
+  const justified = new Set(input.justified);
+  const recorded = new Set(input.recorded);
+  const stray: StrayFunctions = { orphans: [], strangers: [] };
+
+  for (const name of [...new Set(input.running)].sort()) {
+    if (!known.has(name)) {
+      stray.strangers.push(name);
+      continue;
+    }
+    if (justified.has(name) || recorded.has(name)) continue;
+    stray.orphans.push({ name, owner: null });
+  }
+
+  return stray;
+};

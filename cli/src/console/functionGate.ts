@@ -13,8 +13,11 @@
  * código de uma extensão que ninguém tem mais rodando sobre os dados de quem nunca a pediu, sem erro em
  * lugar nenhum.
  *
- * É recusa e não aviso pelo mesmo motivo do nome de function repetido (`functionProblems`): o defeito é
- * invisível depois de instalado, e um aviso na saída de um deploy é lido uma vez.
+ * É recusa, e não aviso, pelo mesmo motivo do nome de function repetido: o defeito é invisível depois de
+ * instalado, e um aviso na saída de um deploy é lido uma vez. Mas ela é cobrada da function que VAI
+ * SUBIR, e não de toda fonte que existe no disco — ver `gateProblemsFor`. Toda origem é lida, sempre, e
+ * o que não vai subir é relatado pelo `provision`: quem tem a fonte parada ao lado do `microteia.yaml`
+ * fica sabendo dela, sem ter o comando trancado por ela.
  *
  * A análise é por texto, no idioma dos outros leitores de fonte do Console (`callableFunctionNames`,
  * `declaredParametersIn`). Ela erra para o lado ALTO — o que ela não entende ela recusa —, e é por isso
@@ -323,6 +326,23 @@ const exportedCallables = (subject: GateSubject): TriggerDeclaration[] =>
   exportedOnly(subject, subject.callableGuards);
 
 /**
+ * Um problema de portão, e a function a que ele pertence.
+ *
+ * O nome está aqui porque é ele que decide o PESO do problema. A verificação lê toda fonte que existe no
+ * disco — é assim que ela acha o que precisa achar —, mas o que existe no disco não é o que vai subir:
+ * `extensions/<x>/functions/` de uma extensão que ninguém instalou é lida, copiada e nunca deployada.
+ * Sem o nome, quem chama só tem a frase, e a única coisa que dá para fazer com uma frase é recusar tudo.
+ * Foi o que acontecia: uma extensão desinstalada, com a fonte parada ao lado do `microteia.yaml`,
+ * trancava o `deploy` inteiro — hosting, rules e índices junto — por causa de uma function que nenhum
+ * comando teria subido.
+ */
+export interface GateProblem {
+  /** A function a que o problema pertence. É por ela que se sabe se ela vai, de fato, subir. */
+  name: string;
+  message: string;
+}
+
+/**
  * Gatilho de extensão sem portão.
  *
  * `functions/` fica de fora porque ali a pergunta não tem resposta: a function é comum a várias
@@ -330,13 +350,16 @@ const exportedCallables = (subject: GateSubject): TriggerDeclaration[] =>
  * endereço próprio — enquanto ela não fechar, exigir aqui um portão impossível seria recusar a única
  * forma que a plataforma oferece para uma function compartilhada.
  */
-export const ungatedTriggerProblems = (subjects: GateSubject[]): string[] => subjects
+export const ungatedTriggerProblems = (subjects: GateSubject[]): GateProblem[] => subjects
   .filter((subject) => !subject.shared)
   .flatMap((subject) => exportedTriggers(subject)
     .filter((trigger) => trigger.gatedFor === null)
-    .map((trigger) => `${subject.label} exports "${trigger.name}", a ${trigger.trigger} trigger with no `
-      + `installation gate — wrap its handler in ${GATE}('<this extension's id>', …) or it fires for `
-      + 'every office in the project, including the ones that never installed the extension'));
+    .map((trigger) => ({
+      name: trigger.name,
+      message: `${subject.label} exports "${trigger.name}", a ${trigger.trigger} trigger with no `
+        + `installation gate — wrap its handler in ${GATE}('<this extension's id>', …) or it fires for `
+        + 'every office in the project, including the ones that never installed the extension',
+    })));
 
 /**
  * Function de extensão cujo evento não tem escritório, e que não passa pelo laço.
@@ -347,14 +370,17 @@ export const ungatedTriggerProblems = (subjects: GateSubject[]): string[] => sub
  * `functions/` fica de fora pelo mesmo motivo de sempre: a comum não tem um id de extensão para dar ao
  * laço. Quem responde por ela é a declaração de quem ela serve.
  */
-export const unscopedTriggerProblems = (subjects: GateSubject[]): string[] => subjects
+export const unscopedTriggerProblems = (subjects: GateSubject[]): GateProblem[] => subjects
   .filter((subject) => !subject.shared)
   .flatMap((subject) => exportedUnscoped(subject)
     .filter((trigger) => trigger.gatedFor === null)
-    .map((trigger) => `${subject.label} exports "${trigger.name}", a ${trigger.trigger} function whose `
-      + `event carries no {tenantId} — ${GATE} cannot gate it (it fails closed, so the function would `
-      + `never run at all). Loop with ${OFFICE_LOOP}('<this extension's id>', …) inside the handler, or `
-      + 'it acts on every office in the project, including the ones that never installed the extension'));
+    .map((trigger) => ({
+      name: trigger.name,
+      message: `${subject.label} exports "${trigger.name}", a ${trigger.trigger} function whose `
+        + `event carries no {tenantId} — ${GATE} cannot gate it (it fails closed, so the function would `
+        + `never run at all). Loop with ${OFFICE_LOOP}('<this extension's id>', …) inside the handler, or `
+        + 'it acts on every office in the project, including the ones that never installed the extension',
+    })));
 
 /**
  * Gatilho de uma function COMUM que declara quem serve, e não guarda ninguém.
@@ -371,24 +397,30 @@ export const unscopedTriggerProblems = (subjects: GateSubject[]): string[] => su
  * respondem à mesma pergunta em dois lugares, e divergirem faz uma delas mentir — a `serves` decide a
  * retirada, a guarda decide a execução, e a function passaria a agir onde não pode ser retirada.
  */
-export const unguardedSharedProblems = (subjects: GateSubject[]): string[] => subjects
+export const unguardedSharedProblems = (subjects: GateSubject[]): GateProblem[] => subjects
   .filter((subject) => subject.shared)
-  .flatMap((subject) => exportedTriggers(subject).flatMap((trigger) => {
+  .flatMap((subject) => exportedTriggers(subject).flatMap((trigger): GateProblem[] => {
     const serves = subject.serves[trigger.name];
     if (serves === undefined || serves.length === 0) return [];
 
     if (trigger.guards.length === 0) {
-      return [`${subject.label} exports "${trigger.name}", a ${trigger.trigger} trigger declared as `
-        + `serving ${serves.join(', ')} — guard it with ${ANY_GATE}([${serves.map((id) => `'${id}'`).join(', ')}], …) `
-        + 'or it fires for every office in the project, including the ones that installed none of them'];
+      return [{
+        name: trigger.name,
+        message: `${subject.label} exports "${trigger.name}", a ${trigger.trigger} trigger declared as `
+          + `serving ${serves.join(', ')} — guard it with ${ANY_GATE}([${serves.map((id) => `'${id}'`).join(', ')}], …) `
+          + 'or it fires for every office in the project, including the ones that installed none of them',
+      }];
     }
 
     const stranger = trigger.guards.filter((id) => !serves.includes(id));
     if (stranger.length === 0) return [];
 
-    return [`${subject.label} guards "${trigger.name}" for ${stranger.join(', ')}, which it does not `
-      + `declare serving in microteia.serves (${serves.join(', ')}) — the two lists answer the same `
-      + 'question, and one of them is wrong'];
+    return [{
+      name: trigger.name,
+      message: `${subject.label} guards "${trigger.name}" for ${stranger.join(', ')}, which it does not `
+        + `declare serving in microteia.serves (${serves.join(', ')}) — the two lists answer the same `
+        + 'question, and one of them is wrong',
+    }];
   }));
 
 /**
@@ -408,14 +440,38 @@ export const unguardedSharedProblems = (subjects: GateSubject[]): string[] => su
  * conhecida e está registrada — a guarda "alguma das que eu sirvo" existe para gatilho, não para
  * callable.
  */
-export const unguardedCallableProblems = (subjects: GateSubject[]): string[] => subjects
+export const unguardedCallableProblems = (subjects: GateSubject[]): GateProblem[] => subjects
   .filter((subject) => !subject.shared)
   .flatMap((subject) => exportedCallables(subject)
     .filter((callable) => callable.gatedFor === null)
-    .map((callable) => `${subject.label} exports "${callable.name}", a callable with no installation `
-      + `check — call ${CALLABLE_GUARD}('<this extension's id>', tenantId, request) before you read the `
-      + 'payload. The deploy makes every callable publicly invocable, so it answers any signed-in user '
-      + 'of this project, from any office, whether or not they installed the extension'));
+    .map((callable) => ({
+      name: callable.name,
+      message: `${subject.label} exports "${callable.name}", a callable with no installation `
+        + `check — call ${CALLABLE_GUARD}('<this extension's id>', tenantId, request) before you read the `
+        + 'payload. The deploy makes every callable publicly invocable, so it answers any signed-in user '
+        + 'of this project, from any office, whether or not they installed the extension',
+    })));
+
+/** Todo problema de portão de um conjunto de origens, na ordem em que as mensagens os citam. */
+export const gateProblems = (subjects: GateSubject[]): GateProblem[] => [
+  ...ungatedTriggerProblems(subjects),
+  ...unscopedTriggerProblems(subjects),
+  ...unguardedSharedProblems(subjects),
+  ...unguardedCallableProblems(subjects),
+];
+
+/**
+ * Os problemas das functions que ESTÃO subindo — a lista que autoriza uma recusa.
+ *
+ * É a diferença entre "a fonte foi lida" e "a function vai para o ar", e ela não é sutil: a primeira
+ * inclui toda extensão cujo diretório ficou no disco depois de desinstalada, e recusar por causa dela é
+ * recusar um comando que não faria nada de errado. A segunda é o momento em que a recusa tem
+ * consequência — e é o único em que ela é devida.
+ */
+export const gateProblemsFor = (subjects: GateSubject[], deploying: string[]): string[] => {
+  const going = new Set(deploying);
+  return gateProblems(subjects).filter((problem) => going.has(problem.name)).map((p) => p.message);
+};
 
 export interface MisgatedTrigger {
   /** A origem, como as mensagens a citam. */

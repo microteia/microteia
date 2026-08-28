@@ -18,6 +18,10 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.35.0] — 2026-08-28
+
+- docs(sdk/authoring): the installation-gate refusal is described as being of the FUNCTION, not of the command. An author reading "refused before anything is deployed" had no way to tell that a source left in the workspace for an uninstalled extension blocks nothing, and that the day it is installed is the day it is refused.
+
 #### [9.34.0] — 2026-08-28
 
 - feat(functions/office): `requireInstalledExtension(pluginId, tenantId, request)` — the three refusals an extension's callable owes before it reads the payload: the caller signed in, the caller belongs to that organization, and the extension is installed and active there. Returns the caller's uid. "An orphan callable just sits there" was true of the INTERFACE and not of security, and it was the sentence this repo's own documents carried: the deploy grants `allUsers` the `roles/run.invoker` role on every callable, so what stands between the function and the internet is the Firebase token check alone. The screen leaving with the extension closed nothing — the endpoint answered any signed-in user of the project, from any organization.

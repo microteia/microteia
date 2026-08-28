@@ -22,6 +22,14 @@
 - fix(command): what was broken, and what it did to whoever hit it.
 -->
 
+#### [2.19.0] — 2026-08-28
+
+- fix(cli/deploy): the installation gate is charged against the functions that are GOING UP, not against every source found on disk. It lived in `functionProblems` — the door that answers "can this set be assembled?" — and that door reads every `extensions/<x>/functions/` directory that exists, including one left behind by an extension that was uninstalled and removed. The result was `microteia deploy` refusing in full — hosting, rules and indexes with it — over a callable no command would have deployed. `gateProblems` now carries the function's name, and `gateProblemsFor` filters by what is being deployed.
+- fix(cli/provision): a gated function that fails the check leaves the deploy queue instead of taking the command down with it. Everything else provisions, `--prune` still removes the orphan, and the command ends in an error naming the function that was held back.
+- feat(cli/provision): orphan functions are found in the PROJECT, not only in the record. `backend.functions` in `microteia.yaml` was the single source of truth about what had been deployed, and it is a truth that gets lost — a redone `init`, a restored backup, a Console older than the field. Lost it, and the Cloud Function of an extension nobody has stayed in the air with no command mentioning it. `straysInProject` crosses `firebase functions:list` with what the installation can justify; only a name this installation knows how to produce can become an orphan, and what it does not know is reported and never touched.
+- feat(cli/provision): an orphan found that way enters the record when it is not removed, so it stays known from the next run on even if its source leaves the disk.
+- fix(cli/provision): `functions:list` is asked on every run. It was skipped when there was nothing applied to check — the exact case that needed it, since an installation with no extensions left is where the departed extension's function sits. When the listing cannot be read, the command says so instead of letting silence read as "nothing left over".
+
 #### [2.18.0] — 2026-08-28
 
 - feat(console/functionGate): an extension's callable without `requireInstalledExtension` is refused, and a guard naming another extension's id is rejected the way a misgated trigger is. The refusal exists because the deploy makes every callable publicly invocable — this Console's own `callableAccess.ts` is there to confirm that grant went through — so the callable answers any signed-in user of the project, from any organization, whether or not they installed the extension, with the organization arriving in the payload.

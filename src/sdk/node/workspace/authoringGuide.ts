@@ -1413,8 +1413,11 @@ happens minutes or days after the person clicked Uninstall. The guard is what ma
 take effect at the moment it is asked for.
 
 **This is a refusal, not advice.** A Firestore trigger exported from your \`functions/\` without the
-guard is refused before anything is deployed, and so is one whose guard names a different extension's id
-— the copy-and-paste case, where the trigger fires and the handler silently never runs. The check reads
+guard is refused before it goes up, and so is one whose guard names a different extension's id — the
+copy-and-paste case, where the trigger fires and the handler silently never runs. The refusal is of that
+one function: everything else deploys, and the command ends in an error naming it. So a source sitting
+in this workspace for an extension nobody has installed blocks nothing — the Console reports it on every
+\`provision\`, and refuses it the day somebody installs the extension and it is asked to go up. The check reads
 your source, so the guard may also sit in an identifier beside the trigger
 (\`const gated = forInstalledExtension('com.acme.crm', handler)\`); what it will not accept is a comment
 that mentions it.
@@ -1534,8 +1537,8 @@ export const acmeRecalcTotals = onDocumentWritten(
 );
 \`\`\`
 
-**Declared and unguarded is refused**, and so is a guard naming an extension the function does not
-declare serving: the two lists answer the same question — \`serves\` decides the withdrawal, the guard
+**Declared and unguarded is refused** the moment it is deployed, and so is a guard naming an extension
+the function does not declare serving: the two lists answer the same question — \`serves\` decides the withdrawal, the guard
 decides the execution — and one of them being wrong makes the function act where it can no longer be
 withdrawn. Guarding by just one of the declared extensions is fine; the list is the ceiling, not the
 floor.
