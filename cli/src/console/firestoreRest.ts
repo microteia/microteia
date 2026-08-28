@@ -128,9 +128,26 @@ export const documentId = (document: FirestoreDocument): string =>
   document.name.slice(document.name.lastIndexOf('/') + 1);
 
 /** Um valor com o tipo que a REST espera, montado por quem sabe o que o campo é. */
-export type FirestoreTypedValue = { stringValue: string } | { timestampValue: string };
+export type FirestoreTypedValue =
+  | { stringValue: string }
+  | { timestampValue: string }
+  | { integerValue: string }
+  | { arrayValue: { values: FirestoreTypedValue[] } }
+  | { mapValue: { fields: Record<string, FirestoreTypedValue> } };
 
 export const asString = (value: string): FirestoreTypedValue => ({ stringValue: value });
+
+/**
+ * Inteiro como INTEIRO. A REST o transporta em string — é assim que ela representa um int64 sem perder
+ * precisão em JSON —, mas o campo gravado é numérico, e é isso que faz o outro lado do produto poder
+ * compará-lo em vez de tentar convertê-lo.
+ */
+export const asInteger = (value: number): FirestoreTypedValue => ({ integerValue: String(value) });
+
+export const asArray = (values: FirestoreTypedValue[]): FirestoreTypedValue => ({ arrayValue: { values } });
+
+export const asMap = (fields: Record<string, FirestoreTypedValue>): FirestoreTypedValue =>
+  ({ mapValue: { fields } });
 
 /**
  * Data como DATA, e não como texto que se parece com uma.
@@ -157,5 +174,25 @@ export const patchMapField = async (
     method: 'PATCH',
     query: { 'updateMask.fieldPaths': field },
     body: { fields: { [field]: { mapValue: { fields: entries } } } },
+  });
+};
+
+/**
+ * Grava um documento inteiro, com `updateMask` listando cada campo escrito.
+ *
+ * A máscara é explícita e não omitida de propósito: sem ela o comportamento de um PATCH depende de o
+ * documento existir, e o que se quer aqui é convergência — o que é escrito passa a valer, e nada de uma
+ * execução anterior sobra. Como todos os campos são escritos a cada vez, a máscara completa é também o
+ * que apaga o que deixou de ser verdade.
+ */
+export const patchFields = async (
+  projectId: string,
+  path: string,
+  fields: Record<string, FirestoreTypedValue>,
+): Promise<void> => {
+  await request(projectId, path, {
+    method: 'PATCH',
+    query: { 'updateMask.fieldPaths': Object.keys(fields) },
+    body: { fields },
   });
 };

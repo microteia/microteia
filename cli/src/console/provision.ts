@@ -43,6 +43,7 @@ import { outdatedByStamp } from './functionsUpToDate.js';
 import type { OutdatedFunctions } from './functionsUpToDate.js';
 import { checkCallables, invokerGrantCommand } from './callableAccess.js';
 import { asString, asTimestamp, patchMapField } from './firestoreRest.js';
+import { writeBackendResidue } from './backendResidue.js';
 import { listTenants, readInstalledExtensions } from './installedExtensions.js';
 import { gatherCustomFunctions, readOfficeFunctions } from './customFunctions.js';
 import {
@@ -491,8 +492,42 @@ export const provisionBackend = async (options: ProvisionOptions): Promise<Provi
     settled.declared,
   );
   reportOrphanIndexes(projectId, settled.orphans, options.prune);
+  await publishResidue(projectId, remaining, settled.orphans, survey);
 
   return outcome;
+};
+
+/**
+ * O que sobrou, devolvido ao banco para a aplicação poder mostrá-lo.
+ *
+ * A lista é a que sobra DEPOIS do `--prune`: o que ele apagou saiu, e o que ele não conseguiu apagar
+ * fica — é o estado do projeto agora, e não o do começo da execução.
+ *
+ * Falhar aqui não derruba o comando, e a exceção é justificada: as functions e os índices já foram
+ * aplicados, e o que ficou de fazer era um RELATO. Recusar o `provision` inteiro por causa dele mandaria
+ * quem instala rodar de novo um comando que já terminou o trabalho. Mas o aviso é dito em voz alta —
+ * calar deixaria a tela silenciosa parecendo "não há resíduo", que é a afirmação oposta.
+ */
+const publishResidue = async (
+  projectId: string,
+  functions: AppliedFunction[],
+  indexes: FirestoreIndexSpec[],
+  survey: InstalledSurvey,
+): Promise<void> => {
+  try {
+    await writeBackendResidue(projectId, {
+      scannedAt: new Date(),
+      tenants: survey.tenants,
+      extensions: survey.extensions,
+      functions: functions.map((entry) => ({ name: entry.name, owner: entry.owner ?? '' })),
+      indexes: indexes.map(describeIndex),
+    });
+  } catch (error) {
+    warn('could not record what is left over where the application can show it:');
+    info(`  ${error instanceof Error ? error.message : String(error)}`);
+    info('  the artifacts above were applied. What did not happen is the Extensions screen learning');
+    info('  about the leftovers — it keeps showing what the previous run recorded.');
+  }
 };
 
 /**

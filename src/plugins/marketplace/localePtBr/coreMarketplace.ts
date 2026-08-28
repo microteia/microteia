@@ -82,6 +82,15 @@ export const CORE_MARKETPLACE: Record<string, string> = {
     'Crie e edite extensões na sua área privada, instale-as para usar no escritório e publique no catálogo para compartilhar com outros escritórios.',
   'marketplace.admin-only':
     'Somente administradores do escritório podem criar, instalar ou publicar extensões.',
+  'marketplace.residue':
+    '{count} artefato(s) de backend neste projeto Firebase pertencem a extensões que ninguém mais tem '
+    + 'instaladas: {functions} Cloud Function(s) e {indexes} índice(s) de banco. Uma chamada que sobra '
+    + 'fica só ali; um gatilho não — ele continua rodando a cada alteração, com o código de uma '
+    + 'extensão que ninguém tem. Quem cuida do projeto os retira com "microteia provision --prune", no '
+    + 'Microteia Console.',
+  'marketplace.residue.scanned':
+    'Lido de todos os escritórios deste projeto em {date}: {tenants} escritório(s), {extensions} '
+    + 'extensão(ões) instalada(s).',
   'marketplace.empty':
     'Nenhuma extensão ainda. Use "Criar extensão", importe um .json ou instale a partir do catálogo público.',
   'marketplace.empty.filtered': 'Nenhuma extensão nesta visão.',

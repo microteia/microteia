@@ -83,6 +83,15 @@ export const CORE_MARKETPLACE_MESSAGES: Record<string, string> = {
     'Create and edit extensions in your private area, install them to use in the organization, and publish them to the catalog to share with other organizations.',
   'marketplace.admin-only':
     'Only organization administrators can create, install or publish extensions.',
+  'marketplace.residue':
+    '{count} backend artifact(s) in this Firebase project belong to extensions that nobody has '
+    + 'installed any more: {functions} Cloud Function(s) and {indexes} database index(es). A callable '
+    + 'left behind just sits there; a trigger does not — it keeps running on every change, with the '
+    + 'code of an extension nobody has. Whoever maintains the project removes them with '
+    + '"microteia provision --prune" in the Microteia Console.',
+  'marketplace.residue.scanned':
+    'Read from every organization in this project on {date}: {tenants} organization(s), {extensions} '
+    + 'installed extension(s).',
   'marketplace.empty':
     'No extension yet. Use "Create extension", import a .json, or install one from the public catalog.',
   'marketplace.empty.filtered': 'No extension in this view.',

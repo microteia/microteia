@@ -460,6 +460,21 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // O que o provisionamento deixou para trás no projeto: Cloud Function e índice composto de
+    // extensão que nenhum escritório instalou mais. Coleção flat na raiz porque a órfã é um fato do
+    // PROJETO, não de um escritório — guardá-la por tenant seria a mesma resposta N vezes, com N
+    // maneiras de divergir. Escrita SÓ pelo Microteia Console (credencial de administrador, que não
+    // passa por estas regras); o cliente nunca escreve.
+    //
+    // Leitura para qualquer autenticado, como nas outras duas coleções globais. O documento é o
+    // inventário de backend do projeto — nome de function e id de extensão —, e não carrega dado de
+    // escritório nenhum. É ele que faz a tela de Extensões poder avisar quem não tem acesso ao projeto
+    // Firebase de que há artefato a retirar, que é o único motivo de ele existir.
+    match /backend_state/{documentId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
     // Registro global de plugins do Marketplace. Qualquer autenticado lê (é o catálogo mostrado
     // na tela Extensões); só a equipe global (SYSTEM) publica/despublica — marketplace curado.
     // Ver "Registro global do Marketplace" no ARCHITECTURE.md.

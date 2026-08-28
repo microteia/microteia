@@ -18,6 +18,12 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.31.0] — 2026-08-28
+
+- feat(marketplace): the Extensions screen shows what provisioning left behind in the project. It is the other half of the "Backend pending" badge — that one is the installation that has not reached the project yet, this one is the withdrawal that has not happened — and it exists because the person who reads that screen is not necessarily the person with a terminal. `--prune` staying an explicit act is right; nobody being able to learn that it was needed was not.
+- feat(domain/data): `BackendResidue` and `backend_state/current`, read-only for the client. The document is written by the Microteia Console with administrator credentials, so the repository has no write method and the rule denies the client one — not even SYSTEM. Write access would be worse than no document: an administrator could forge the orphan list and have whoever maintains the project run `--prune` against another extension's function. Reading is defensive field by field, because the Console is versioned separately and the document can come from an older version (missing a field) or a newer one (carrying fields this kernel does not know).
+- fix(firestore.rules): `backend_state/{documentId}` — read for any signed-in user, write for nobody. Read is open because the document is the PROJECT's backend inventory (function names and extension ids) and carries no office data; that openness is what lets the banner reach whoever lacks the terminal, which is the only reason the document exists.
+
 #### [9.30.0] — 2026-08-28
 
 - docs(sdk/authoring): "nobody owns it, so nothing can claim it" is now a refusal the author can read as one. The sentence stated the shape of `functions/` and left the consequence of claiming one to be discovered — which is a deleted function, a deploy that puts it back, and other extensions losing their backend in between. The paragraph names all three, and says where to move the function if it really belongs to one extension.

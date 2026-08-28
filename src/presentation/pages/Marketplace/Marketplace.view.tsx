@@ -272,6 +272,10 @@ export const MarketplaceView: React.FC = () => {
             />
           )}
 
+          {vm.residue !== null && (
+            <InfoBanner message={vm.residue.message} variant="warning" />
+          )}
+
           <S.Filters>
             {FILTERS.map((f) => (
               <S.Filter key={f.key} $active={vm.filter === f.key} onClick={() => vm.setFilter(f.key)}>

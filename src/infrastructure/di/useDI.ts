@@ -32,6 +32,7 @@ import type { ITenantExtensionRepository } from '../../domain/repositories/ITena
 import type { IInstalledExtensionRepository } from '../../domain/repositories/IInstalledExtensionRepository';
 import type { IExtensionMigrationRepository } from '../../domain/repositories/IExtensionMigrationRepository';
 import type { IPublicExtensionRepository } from '../../domain/repositories/IPublicExtensionRepository';
+import type { IBackendResidueRepository } from '../../domain/repositories/IBackendResidueRepository';
 
 export interface DIContainer {
   /**
@@ -71,6 +72,7 @@ export interface DIContainer {
   installedExtensionRepository: IInstalledExtensionRepository;
   extensionMigrationRepository: IExtensionMigrationRepository;
   publicExtensionRepository: IPublicExtensionRepository;
+  backendResidueRepository: IBackendResidueRepository;
 }
 
 export const DIContext = createContext<DIContainer | null>(null);

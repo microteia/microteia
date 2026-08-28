@@ -105,6 +105,7 @@ npm run verify          # typecheck + lint + verify-schemas
 | `WorkflowExecution` | `tenants/{tenantId}/workflow_executions/{id}` (somente leitura pelo cliente) | Sim |
 | `StepDefinition` (catálogo, espelho somente-leitura) | `workflow_step_catalog/{id}` | Não |
 | `Script` (código reutilizável do Step "Script") | `tenants/{tenantId}/scripts/{id}` | Sim |
+| `BackendResidue` (o que o provisionamento deixou no projeto) | `backend_state/current` | Não |
 
 **A tabela é curta de propósito, e ficou curta por conquista.** Ela já listava `persons`, `cases`,
 `contracts`, `financials`, `deadlines`, `pushes`, as etiquetas e as dezenas de listas de opções de cada
@@ -1427,6 +1428,40 @@ necessariamente quem tem acesso ao projeto.
 pede o id GERADO do índice, e apagar o errado às cegas custa uma consulta em produção. Ele segue
 **declarado** e relatado — o que é o que impede o `firebase` de oferecer a exclusão por conta —, e
 `--prune` o solta do arquivo, deixando a próxima publicação de índices fazer a pergunta a quem a pediu.
+
+#### A conclusão do `provision` volta para o banco, ou ela morre no terminal
+
+O `provision` é o único ponto do sistema capaz de dizer "esta Cloud Function não tem mais dono": a
+resposta exige varrer TODOS os escritórios do projeto e comparar com o registro de aplicadas. Ele dizia
+isso no terminal e guardava a conclusão no `microteia.yaml` — um arquivo na máquina de quem rodou o
+comando.
+
+Do outro lado, quem clicou em Desinstalar não ficava sabendo de nada. E quem lê a tela de Extensões não é
+necessariamente quem tem acesso ao projeto Firebase. O `--prune` continua sendo um ato explícito — apagar
+é destrutivo e irreversível, e isso está certo —, mas **ninguém tinha como saber que ele era
+necessário**: o mecanismo inteiro dependia de alguém lembrar.
+
+**O que fecha:** `backend_state/current`, escrito a cada provisionamento (`console/backendResidue.ts`).
+Não é caminho novo — o Console já escreve no banco pela REST (é assim que `backendState` é carimbado), e
+o produto já tem coleção global de espelho somente-leitura escrita só com credencial de administrador
+(`workflow_step_catalog`).
+
+| Decisão | Por quê |
+|---|---|
+| UM documento, de nome fixo, na raiz | a órfã é um fato do PROJETO, não de um escritório. Guardá-la por tenant seria a mesma resposta N vezes, com N maneiras de divergir |
+| escrito **sempre**, inclusive vazio | escrever só quando há órfã deixaria a tarja na tela depois de o `--prune` já ter resolvido, e uma tarja que não sai é uma tarja que se aprende a ignorar. A lista vazia é o que apaga a anterior |
+| a lista é a de DEPOIS do `--prune` | é o estado do projeto agora. O que ele apagou saiu; o que ele não conseguiu apagar fica |
+| leva `tenants` e `extensions` | a afirmação é sobre todos os escritórios do projeto. Sem a contagem, quem lê a tarja só pode acreditar nela — e é a mesma razão pela qual o relatório do terminal já a diz |
+| falhar ao gravar **não** derruba o comando | as functions e os índices já foram aplicados; o que faltou era o RELATO. Mas o aviso é dito: calar deixaria a tela silenciosa parecendo "não há resíduo", que é a afirmação oposta |
+| cliente **lê e nunca escreve** | escrita liberada seria pior que a ausência do documento: um admin poderia forjar a lista de órfãs e, com ela, mandar quem cuida do projeto rodar `--prune` contra a function de outra extensão. Nem o SYSTEM escreve (`rules-tests/backendState.test.ts`) |
+| leitura para qualquer autenticado | é o inventário de backend do PROJETO — nome de function e id de extensão —, e não carrega dado de escritório nenhum. É o que permite a tarja alcançar quem não tem o terminal, que é o único motivo de o documento existir |
+| a leitura no kernel é **defensiva** | o Console é versionado à parte: o documento pode vir de uma versão anterior (sem um campo) ou posterior (com campos que este kernel não conhece). O que falta vira vazio, o que sobra é ignorado — a alternativa é uma tela que estoura para mostrar um aviso |
+
+**Na tela:** a tarja da tela de Extensões, para quem tem `extensions.manage`. É o par do selo "Backend
+pendente" — aquele é a INSTALAÇÃO que ainda não chegou ao projeto, este é a RETIRADA que ainda não
+aconteceu — e ela diz o que sobrou, a varredura que sustenta a afirmação e o comando a rodar. A leitura é
+uma só, na montagem, e não uma assinatura: quem escreve o documento é um comando num terminal, e a tela é
+reaberta muito mais vezes do que isso.
 
 **Um admin do escritório pode forjar o `backendState`** (a regra de `installed_extensions` permite
 escrita de admin). O efeito é ele carregar no próprio navegador uma extensão cujas functions não

@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTenantExtensions } from '../../../stores/useTenantExtensions';
 import { useInstalledExtensions, type InstallExtensionInput } from '../../../stores/useInstalledExtensions';
 import { usePublicExtensions } from '../../../stores/usePublicExtensions';
@@ -11,6 +11,9 @@ import { packageFingerprint, serializePackage } from '../../../domain/usecases/p
 import { isVersionGreater } from '../../../domain/usecases/plugins/publicExtension';
 import { extensionCodeOf, extensionHasCode } from '../../../domain/usecases/plugins/extensionCodeTrust';
 import { isExtensionBackendPending } from '../../../domain/usecases/plugins/extensionBackendState';
+import { backendResidueCount } from '../../../domain/usecases/plugins/backendResidue';
+import { useDI } from '../../../infrastructure/di/useDI';
+import type { BackendResidue } from '../../../domain/entities/BackendResidue';
 import { extensionMigrationError, isExtensionMigrationPending } from '../../../domain/usecases/plugins/extensionMigrationState';
 import { licenseOf } from '../../../domain/usecases/plugins/pluginLicenses';
 import { useExtensionCodeTrust } from '../../../stores/useExtensionCodeTrust';
@@ -21,7 +24,7 @@ import type { MarketplacePlugin } from '../../../domain/entities/MarketplacePlug
 import type { InstalledExtension } from '../../../domain/entities/InstalledExtension';
 import type { WidgetSpec } from '../../../domain/schema/ui/widgetSpec';
 
-import { useT } from '../../shared/i18n/useT';
+import { useT, useLocaleFormat } from '../../shared/i18n/useT';
 import { usePackageCatalog } from '../../shared/i18n/usePackageCatalog';
 import { resolveLabel } from '../../../domain/schema/i18n/messageRef';
 import type { MessageCatalog, MessageParams } from '../../../domain/schema/i18n/messages';
@@ -133,8 +136,21 @@ const SYSTEM_BY_ID = new Map<string, MarketplacePlugin>(
   SYSTEM_THEME_PACKAGES.map((plugin) => [plugin.manifest.id, plugin]),
 );
 
+/** O resíduo de backend na forma em que a tela o mostra: quanto sobrou, e a tarja já resolvida. */
+export interface BackendResidueSummary {
+  /** Quantos artefatos sobraram. É o que decide se a tarja aparece. */
+  count: number;
+  message: string;
+}
+
 export interface MarketplaceViewModel {
   canManage: boolean;
+  /**
+   * O que o provisionamento deixou para trás no projeto, ou `null` quando não há nada a retirar (ou
+   * quando o Console nunca rodou aqui). É o par do selo "Backend pendente": aquele é a INSTALAÇÃO que
+   * ainda não chegou ao projeto, este é a RETIRADA que ainda não aconteceu.
+   */
+  residue: BackendResidueSummary | null;
   /**
    * O catálogo desta tela: o do escritório com os textos dos pacotes LISTADOS por baixo. Vai para a
    * subárvore que resolve rótulo por conta própria — a descrição rica do modal de detalhes.
@@ -182,6 +198,7 @@ const rankOf = (row: ExtensionRow): number => (row.installed ? 0 : row.mine ? 1 
 
 export const useMarketplaceViewModel = (): MarketplaceViewModel => {
   const t = useT('core.marketplace');
+  const { formatDateTime } = useLocaleFormat();
   const { extensions, importExtension, removeExtension } = useTenantExtensions();
   const {
     installed,
@@ -264,7 +281,50 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
   );
 
   const canModerate = userRole === 'SYSTEM';
+
   const canManage = can(PERMISSION_EXTENSIONS_MANAGE);
+  /**
+   * O resíduo é lido UMA vez, e só por quem pode agir sobre ele.
+   *
+   * Ele não é dado do escritório e não muda por nada que se faça nesta tela: quem o escreve é o
+   * Microteia Console, num terminal. Assinar o documento custaria uma conexão viva para observar algo
+   * que muda quando alguém roda um comando — e a tela é reaberta muito mais vezes que isso.
+   */
+  const { backendResidueRepository } = useDI();
+  const [residueState, setResidueState] = useState<BackendResidue | null>(null);
+
+  useEffect(() => {
+    if (!canManage) return undefined;
+    let cancelled = false;
+    void backendResidueRepository.get().then((found) => {
+      if (!cancelled) setResidueState(found);
+    });
+    return () => { cancelled = true; };
+  }, [canManage, backendResidueRepository]);
+
+  const residue = useMemo<BackendResidueSummary | null>(() => {
+    const count = backendResidueCount(residueState);
+    if (residueState === null || count === 0) return null;
+
+    // A contagem da varredura vai junto porque a afirmação é sobre TODOS os escritórios do projeto, e
+    // não sobre o último que foi lido. Sem ela, quem lê a tarja só pode acreditar nela.
+    const scanned = residueState.scannedAt === null
+      ? ''
+      : ` ${t('marketplace.residue.scanned', {
+        date: formatDateTime(residueState.scannedAt),
+        tenants: residueState.tenants,
+        extensions: residueState.extensions,
+      })}`;
+
+    return {
+      count,
+      message: t('marketplace.residue', {
+        count,
+        functions: residueState.orphanFunctions.length,
+        indexes: residueState.orphanIndexes.length,
+      }) + scanned,
+    };
+  }, [residueState, t, formatDateTime]);
 
   const openAuthor = useCallback(() => openTab('plugin-author'), [openTab]);
 
@@ -667,6 +727,7 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
 
   return {
     canManage,
+    residue,
     canModerate,
     catalog,
     rows: visibleRows,

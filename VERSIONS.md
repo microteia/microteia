@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.31.0] — 2026-08-28
+
+- A tela de Extensões passa a avisar quando sobrou algo no servidor de uma extensão que ninguém mais tem instalada. Até agora essa informação só aparecia para quem administra o projeto, num terminal — e quem desinstalava a extensão nunca ficava sabendo que ainda havia o que retirar. O aviso diz o que sobrou, quando a verificação foi feita e o que pedir a quem cuida do projeto.
+
 #### [9.30.0] — 2026-08-28
 
 - Corrigida uma falha que podia derrubar por alguns minutos um recurso comum a várias extensões. Quando uma extensão declarava como sua uma função que na verdade é compartilhada por toda a instalação, desinstalá-la retirava aquela função do ar — e com ela o funcionamento das outras extensões que dependiam dela. A situação passa a ser recusada, com a indicação do que ajustar.

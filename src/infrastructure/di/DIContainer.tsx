@@ -32,6 +32,7 @@ import { FirebaseInstalledExtensionRepository } from '../../data/repositories/Fi
 import { FirebaseExtensionMigrationRepository } from '../../data/repositories/FirebaseExtensionMigrationRepository';
 import { FirebasePublicExtensionRepository } from '../../data/repositories/FirebasePublicExtensionRepository';
 import { FirebaseSettingsRepository } from '../../data/repositories/FirebaseSettingsRepository';
+import { FirebaseBackendResidueRepository } from '../../data/repositories/FirebaseBackendResidueRepository';
 import { DIContext } from './useDI';
 import type { DIContainer } from './useDI';
 
@@ -73,6 +74,7 @@ export const DIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
     installedExtensionRepository: new FirebaseInstalledExtensionRepository(),
     extensionMigrationRepository: new FirebaseExtensionMigrationRepository(),
     publicExtensionRepository: new FirebasePublicExtensionRepository(),
+    backendResidueRepository: new FirebaseBackendResidueRepository(),
   }), [host]);
 
   return <DIContext.Provider value={container}>{children}</DIContext.Provider>;
