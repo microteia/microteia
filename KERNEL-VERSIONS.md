@@ -18,6 +18,29 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.36.2] — 2026-08-29
+
+- fix(records/validation): `requiredFieldError` asked `t` for `@core.automation/parameter.required`. The sigil marks a
+  message REFERENCE, which is `useLabel`'s road; `t` qualifies and looks up a key, misses, and returns the key it was
+  given — so every empty required field showed the raw reference under it.
+- fix(records/validation): a rule issue reached `fieldErrors` and the save toast raw. `RuleIssue.error` is a reference
+  with `errorParams` beside it, and the toast was built from `describeRuleIssues`, which is the LOG summary. Both now
+  resolve through the catalog, and `errorParams` — dropped until now — reaches the sentence that interpolates it.
+- refactor(records/validation): the two record screens kept a byte-identical `validate`; the copy is why one side could
+  be right and the other wrong without a symptom. Both now call `useRecordFormValidation`.
+- fix(ui/custom-fields): `fieldError` renders through `useLabel`, so a reference from a screen's own `logic.validate`
+  or from a workflow's `fieldErrors` resolves, while text the office wrote in the rule passes intact.
+
+#### [9.36.1] — 2026-08-29
+
+- fix(presentation/child-tabs): the child-screen tab label now goes through `useLabel`. `useChildScreenTabs` was the
+  only place a screen title reached the screen without the catalog — the sidebar, the command palette, the list
+  header and the screen definition itself all resolved it — so an extension whose child screen is visible as a tab
+  showed the raw `@plugin/key` reference instead of the translated title. No first-party child screen is a visible
+  tab (`newsComments` sets `hideFromParentTabs`), which is why the path was never exercised.
+- fix(presentation/dynamic-list): the workspace tab title of a dynamic screen opened on its own was set from the raw
+  `titlePlural`; the tab-title override bypasses `TabBar`'s resolution, so it reached the tab strip unresolved too.
+
 #### [9.36.0] — 2026-08-28
 
 - feat(schema/record-keys): a screen can declare what must not repeat in it — `ScreenDefinition.keys`, with

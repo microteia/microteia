@@ -227,7 +227,7 @@ const hasFormValue = (field: FieldDefinition, value: CustomFieldValue | undefine
  * caminho até o formulário, só para o erro atravessar um nível.
  */
 export const requiredFieldError = (t: TranslateFn, field: FieldDefinition): string =>
-  t('@core.automation/parameter.required', { label: field.label });
+  t('core.automation/parameter.required', { label: field.label });
 
 export const validateRequiredFields = (
   t: TranslateFn,

@@ -3,7 +3,11 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import type { ScreenDefinition } from '../../../domain/entities';
 
-const state: { screens: ScreenDefinition[]; granted: string[] } = { screens: [], granted: [] };
+const state: { screens: ScreenDefinition[]; granted: string[]; catalog: Record<string, string> } = {
+  screens: [],
+  granted: [],
+  catalog: {},
+};
 
 vi.mock('../../../stores/useScreenDefinitions', () => ({
   useScreenDefinitions: () => ({ dynamicScreens: state.screens }),
@@ -12,6 +16,9 @@ vi.mock('../../../stores/useAuthorization', () => ({
   useAuthorization: () => ({ can: (permission: string) => state.granted.includes(permission) }),
 }));
 vi.mock('../../components/layout/ChildRecordList', () => ({ ChildRecordList: () => null }));
+vi.mock('../i18n/useT', () => ({
+  useLabel: () => (value: string | null | undefined) => state.catalog[value ?? ''] ?? (value ?? ''),
+}));
 
 const { useChildScreenTabs } = await import('./useChildScreenTabs');
 
@@ -45,6 +52,7 @@ const abas = () => renderHook(() => useChildScreenTabs('processos', 'r1')).resul
 beforeEach(() => {
   state.screens = [screen({})];
   state.granted = ['anexos.read'];
+  state.catalog = {};
 });
 
 /**
@@ -59,6 +67,13 @@ describe('useChildScreenTabs', () => {
   it('sem a permissão de ler, a aba não existe', () => {
     state.granted = [];
     expect(abas()).toEqual([]);
+  });
+
+  it('o título da aba passa pelo catálogo, como o do menu e o do cabeçalho', () => {
+    state.screens = [screen({ titlePlural: '@com.acme.ext/screen.plural' })];
+    state.catalog = { '@com.acme.ext/screen.plural': 'Coberturas contratadas' };
+
+    expect(abas().map((tab) => tab.label)).toEqual(['Coberturas contratadas']);
   });
 
   it('a permissão cobrada é da COLEÇÃO da tela filha, não da chave dela', () => {

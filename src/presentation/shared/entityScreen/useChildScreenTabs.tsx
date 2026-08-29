@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
 import { useAuthorization } from '../../../stores/useAuthorization';
+import { useLabel } from '../i18n/useT';
 import { screenReadPermission } from '../../../domain/services/screenDataCollection';
 import { ChildRecordList } from '../../components/layout/ChildRecordList';
 import type { EntityDetailExtraTab } from '../../components/layout/EntityDetailView';
@@ -21,6 +22,7 @@ export const useChildScreenTabs = (
 ): EntityDetailExtraTab[] => {
   const { dynamicScreens } = useScreenDefinitions();
   const { can } = useAuthorization();
+  const label = useLabel();
 
   const childScreens = useMemo(
     () => dynamicScreens.filter(
@@ -36,7 +38,7 @@ export const useChildScreenTabs = (
     if (!recordId) return [];
     return childScreens.map((screen) => ({
       key: `child:${screen.id}`,
-      label: screen.titlePlural,
+      label: label(screen.titlePlural),
       content: (
         <ChildRecordList
           screenKey={screen.id}
@@ -46,5 +48,5 @@ export const useChildScreenTabs = (
         />
       ),
     }));
-  }, [childScreens, recordId, entityKey]);
+  }, [childScreens, recordId, entityKey, label]);
 };

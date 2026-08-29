@@ -9,18 +9,15 @@ import { useDI } from '../../../infrastructure/di/useDI';
 import { makeGetRecordByIdUseCase } from '../../../domain/usecases/records/GetRecordByIdUseCase';
 import {
   buildInitialFormValues,
-  collectRequiredErrors,
   formValuesToStoredValues,
   readRecordText,
   resolveRecordImageUrl,
   resolveRecordTabTitle,
   resolveRecordTitle,
   sortFieldsByOrder,
-  validateRequiredFields,
 } from '../../../domain/services/customFieldValues';
-import { describeRuleIssues } from '../../../domain/schema/fieldRules';
-import { validateRecordRules } from '../../../data/utils/recordRulesGate';
-import { useEntityDetail, type EntityValidationResult } from '../entityScreen/useEntityDetail';
+import { useRecordFormValidation } from '../entityScreen/useRecordFormValidation';
+import { useEntityDetail } from '../entityScreen/useEntityDetail';
 import { useRecordFileUpload } from '../entityScreen/useRecordFilePort';
 import { useRecordDocumentsPort, useRecordNotesPort } from '../entityScreen/useRecordPorts';
 import type { RecordDetailViewModel } from '../../components/layout/RecordDetailSurface';
@@ -127,19 +124,7 @@ export const useEntityDetailVM = (
     [sortedFields, titleFieldKey],
   );
 
-  const validate = useCallback(
-    (values: Values): EntityValidationResult | null => {
-      const fieldErrors = collectRequiredErrors(t, sortedFields, values);
-      const issues = validateRecordRules(collection, formValuesToStoredValues(sortedFields, values));
-      issues.forEach((issue) => {
-        if (!fieldErrors[issue.path]) fieldErrors[issue.path] = issue.error;
-      });
-      if (Object.keys(fieldErrors).length === 0) return null;
-      const message = validateRequiredFields(t, sortedFields, values) ?? describeRuleIssues(issues);
-      return { message, fieldErrors };
-    },
-    [sortedFields, collection, t],
-  );
+  const validate = useRecordFormValidation(collection, sortedFields);
 
   const create = useCallback(
     async (values: Values, recordId: string | null) => {

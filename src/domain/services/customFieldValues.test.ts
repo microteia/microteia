@@ -9,8 +9,10 @@ import {
   resolveRecordTitle,
   setValueByPath,
   toDateFieldInput,
+  requiredFieldError,
   validateRequiredFields,
 } from './customFieldValues';
+import { qualifyKey, translate } from '../schema/i18n/messages';
 import type { CustomFieldValue, FieldDefinition } from '../entities/entitySchemas';
 
 type Values = Record<string, CustomFieldValue>;
@@ -210,5 +212,24 @@ describe('resolveRecordImageUrl', () => {
     expect(resolveRecordImageUrl({ photo: DOWNLOAD_URL }, [fileField], null)).toBeNull();
     expect(resolveRecordImageUrl({ photo: '  ' }, [fileField], 'photo')).toBeNull();
     expect(resolveRecordImageUrl(null, [fileField], 'photo')).toBeNull();
+  });
+});
+
+/**
+ * O erro de campo obrigatório é a frase que mais aparece no produto, e ela pedia a chave com o sigilo
+ * de REFERÊNCIA (`@core.automation/…`). `t` qualifica e traduz uma chave; referência é outro caminho,
+ * o do `useLabel`. O catálogo não tem a chave com `@`, e `translate` devolve a própria chave quando
+ * não acha — era isso que chegava ao formulário, ao lado de cada campo vazio.
+ */
+describe('requiredFieldError', () => {
+  const catalog = {
+    locale: 'pt-BR' as const,
+    messages: { 'core.automation/parameter.required': 'Obrigatório' },
+  };
+  const t = (key: string, params?: Record<string, unknown>) =>
+    translate(catalog, qualifyKey('core.records', key), params);
+
+  it('pede ao catálogo a chave QUALIFICADA, e não a referência', () => {
+    expect(requiredFieldError(t, dateField)).toBe('Obrigatório');
   });
 });

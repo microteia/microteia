@@ -11,6 +11,16 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.36.2] — 2026-08-29
+
+- Corrigidas as mensagens de erro do formulário de um registro, que apareciam como código interno em vez do texto: o aviso de campo obrigatório e o de valor recusado por uma regra da tela.
+- O aviso que aparece ao tentar salvar passa a dizer o campo e o motivo em linguagem comum, no idioma escolhido.
+
+#### [9.36.1] — 2026-08-29
+
+- Corrigido o título das abas de registros filhos na tela de um registro: a aba mostrava o código interno do texto em vez do nome traduzido da tela.
+- A mesma correção vale para o título da janela quando uma dessas telas é aberta por conta própria.
+
 #### [9.36.0] — 2026-08-28
 
 - As telas passam a poder declarar o que NÃO pode se repetir nelas. Um campo ganhou a opção "Único", e com ela o sistema recusa o segundo registro com o mesmo CPF, o mesmo código ou o mesmo e-mail — na hora de salvar, e não depois, num relatório de conferência. Antes não havia como pedir isso: dois cadastros idênticos entravam sem qualquer aviso, e só apareciam quando alguém tropeçava neles.

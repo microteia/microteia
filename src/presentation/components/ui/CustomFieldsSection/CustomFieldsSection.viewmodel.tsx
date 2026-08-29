@@ -10,6 +10,7 @@ import { computeFieldValues, deriveFieldValues } from '../../../../domain/schema
 import { buildHydratedFieldScope } from '../../../../domain/schema/referenceScope';
 import { buildFieldUiScope } from '../../../../domain/schema/fieldUiScope';
 import { useRecordResolver } from '../../../shared/useRecordResolver';
+import { useLabel } from '../../../shared/i18n/useT';
 import { useFieldChangeEffects } from './useFieldChangeEffects';
 import { nextLookupOptionColor, resolveColor, resolveFieldOptionColor } from '../../../../shared/styles/colorUtils';
 import type { CustomFieldValue, FieldDefinition } from '../../../../domain/entities';
@@ -120,6 +121,7 @@ export const useCustomFieldsSectionViewModel = (props: CustomFieldsSectionProps)
   const { can, effectivePermissions } = useAuthorization();
   const referenceOptionsByEntity = useReferenceOptions();
   const theme = useTheme();
+  const label = useLabel();
 
   const canDeleteOption = can(PERMISSION_SCREENS_MANAGE);
 
@@ -324,10 +326,13 @@ export const useCustomFieldsSectionViewModel = (props: CustomFieldsSectionProps)
   );
 
   const fieldError = useCallback(
-    (field: FieldDefinition): string | null =>
-      errors?.[field.key] ??
-      evaluateFieldValidation(field.logic?.validate, { value: readByPath(values, field.key), data: values }),
-    [errors, values],
+    (field: FieldDefinition): string | null => {
+      const error =
+        errors?.[field.key] ??
+        evaluateFieldValidation(field.logic?.validate, { value: readByPath(values, field.key), data: values });
+      return error === null || error === undefined ? null : label(error);
+    },
+    [errors, values, label],
   );
 
   return {
