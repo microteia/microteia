@@ -548,6 +548,10 @@ const TOOLS: ToolDefinition[] = [
           collection: screen.collection,
           titleFieldKey: screen.titleFieldKey,
           parent: screen.parent,
+          // A chave é a única declaração cuja AUSÊNCIA não tem sintoma: sem ela a tela aceita a
+          // duplicata em silêncio. Por isso ela sai no plano mesmo vazia — o `[]` é uma afirmação.
+          keys: screen.keys,
+          retainedKeys: screen.retainedKeys.length > 0 ? screen.retainedKeys : undefined,
           retainedFields: screen.retainedFields.length > 0 ? screen.retainedFields : undefined,
           fields: screen.fields.map((field) => ({
             operation: field.operation,
@@ -585,6 +589,7 @@ const TOOLS: ToolDefinition[] = [
             referenceFields: screen.referenceFields.length > 0 ? screen.referenceFields : undefined,
             actions: screen.actions.length > 0 ? screen.actions : undefined,
             tabs: screen.tabs.length > 0 ? screen.tabs : undefined,
+            keys: screen.keys.length > 0 ? screen.keys : undefined,
             humanDecisions: screen.humanDecisions.length > 0 ? screen.humanDecisions : undefined,
           })),
           notScreens: plan.screenPlan.notScreens,
@@ -1052,11 +1057,55 @@ const RESOURCES: ResourceDefinition[] = [
       ...BEHAVIOR_MECHANISMS.map((one) =>
         `| \`${one.declares}\` (${one.concern})${one.supported ? '' : ' — **REFUSED**'} | ${one.mechanism} | ${one.declaredAs} |`),
       '',
-      'Two of them have no mechanism at all, and the plan says so instead of translating them into something that looks '
-      + 'similar: a CLOCK (nothing here is time-based, and the `Delay` step type was never registered) and UNIQUENESS '
-      + 'between records (no layer enforces it — not the field rules, not the object validation, not the security '
-      + 'rules; the one unique thing is the document id). A guard is a condition over the ONE record in hand: when it '
-      + 'needs to read others, the `query` step is the path, not a workaround.',
+      'One of them has no mechanism at all, and the plan says so instead of translating it into something that looks '
+      + 'similar: a CLOCK (nothing here is time-based, and the `Delay` step type was never registered). A guard is a '
+      + 'condition over the ONE record in hand: when it needs to read others, the `query` step is the path, not a '
+      + 'workaround.',
+      '',
+      '## What cannot repeat — the one rule that is declared, never computed',
+      '',
+      'Uniqueness is the single rule on this platform that compares one record against the others, and it is the '
+      + 'single one you must NOT write as an expression. A field `validate` and a `validate-object` step both see one '
+      + 'record and never query; a workflow on `<collection>.saved` finds the duplicate AFTER it exists, and two writes '
+      + 'at the same instant both pass. So it is declared:',
+      '',
+      '```json',
+      '{ "name": "Product", "kind": "entity", "titleField": "name",',
+      '  "keys": [',
+      '    { "name": "sku", "kind": "primary", "fields": ["sku"], "sparse": false },',
+      '    { "name": "line-name", "kind": "unique", "fields": ["line", "name"] }',
+      '  ],',
+      '  "fields": [{ "key": "email", "label": "Email", "semanticType": "scalar",',
+      '               "unique": true }] }',
+      '```',
+      '',
+      '`unique: true` on a field is the shorthand for a key over that one field, named `field:<key>`; reach for '
+      + '`keys` when the COMBINATION of several fields is what must not repeat, or when you need a scope, a '
+      + 'comparison, or a value that is required.',
+      '',
+      '| what you declare | what it means |',
+      '|---|---|',
+      '| `kind: "unique"` | forbids a second record with this value. |',
+      '| `kind: "primary"` | that, plus the key becomes an ADDRESS — an idempotent upsert by natural key, a stable '
+      + 'link. At most one per entity, and never optional. |',
+      '| `scope: "parent"` | unique WITHIN one parent record — the item numbered 1 of EACH order. Needs a '
+      + 'relationship with storage "child". |',
+      '| `normalize` | how two values count as the same: `trim` (on by default), `caseInsensitive`, and '
+      + '`formatPreset` — `digits` makes `123.456` and `123456` one value. |',
+      '| `sparse` | on by default: a record with no value reserves nothing, so forty records with an empty field do '
+      + 'not collide in the void. |',
+      '',
+      'How it holds, and what it costs: the value is written into a reservation document whose id derives from the '
+      + 'value itself, in the SAME batch as the record. Creating that document is the lock — the security rules allow '
+      + '`create` and not `update`, and `create` only fires when the document does not exist — so the batch fails '
+      + 'whole and no duplicate is ever committed. It needs no composite index.',
+      '',
+      'What it is NOT: the document id. That stays random, because a natural key changes — the CPF was typed wrong — '
+      + 'and moving a document would break every reference pointing at it.',
+      '',
+      'And a key declared on a collection that ALREADY has records does not hold on the day it is installed: it is '
+      + 'born pending, somebody sweeps what is stored, and it starts holding once nothing is duplicated. The plan says '
+      + 'which keys need that sweep.',
       '',
       'And a permission is only answerable when a person acts. With no actor — an automation born from a save — '
       + '`hasPermission` answers false, always, so a permission on an event trigger is a flow that never runs.',

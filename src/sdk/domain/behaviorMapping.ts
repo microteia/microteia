@@ -208,6 +208,18 @@ export const BEHAVIOR_MECHANISMS: BehaviorMechanism[] = [
     supported: true,
   },
   {
+    concern: 'invariant',
+    declares: "scope 'collection'",
+    mechanism: 'a declared KEY on the entity. The value is reserved in a document whose id derives from the value '
+      + 'itself, written in the same batch as the record — and creating that document is the lock, so two writes at '
+      + 'the same instant do not both pass',
+    declaredAs: "screen { keys: [{ name, kind: 'unique' | 'primary', fields, scope, normalize, sparse }] }, or "
+      + '`unique: true` on the field when one field is the whole key. NEVER an expression: a validate sees ONE record '
+      + 'and cannot query the others, and a workflow on `<collection>.saved` finds the duplicate after it exists',
+    stepIds: [],
+    supported: true,
+  },
+  {
     concern: 'permission',
     declares: 'transition.permission',
     mechanism: 'a declared capability, asked inside the declaration itself',

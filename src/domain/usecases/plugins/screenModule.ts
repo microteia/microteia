@@ -137,12 +137,17 @@ export const materializeScreen = (
     ownerPluginId: pluginId,
   }));
 
+  // A chave da extensão viaja com o dono carimbado, pela mesma razão do campo: é o que separa, na
+  // desinstalação, o que veio no pacote do que o escritório declarou depois.
+  const keys = (template.keys ?? []).map((key) => ({ ...key, ownerPluginId: pluginId }));
+
   const input: ScreenDefinitionInput = {
     origin: 'plugin',
     titleSingular: template.titleSingular,
     titlePlural: template.titlePlural,
     icon: template.icon,
     fields,
+    keys: keys.length > 0 ? keys : null,
     titleFieldKey: template.titleFieldKey,
     subtitleFieldKey: template.subtitleFieldKey ?? null,
     imageFieldKey: template.imageFieldKey ?? null,

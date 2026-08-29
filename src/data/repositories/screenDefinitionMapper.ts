@@ -54,6 +54,7 @@ export const mapScreenDefinition = (
   titlePlural: (d.titlePlural as string | undefined) ?? '',
   icon: (d.icon as string | undefined) ?? 'apps',
   fields: mapFields(d.fields, screenOrigin(id, d)),
+  keys: (d.keys as ScreenDefinition['keys']) ?? null,
   titleFieldKey: (d.titleFieldKey as string | undefined) ?? '',
   subtitleFieldKey: (d.subtitleFieldKey as string | null | undefined) ?? null,
   imageFieldKey: (d.imageFieldKey as string | null | undefined) ?? null,

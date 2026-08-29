@@ -15,6 +15,15 @@ import {
 import type { RemoveSpec, ResolvedWritableTable, UpsertSpec } from '../../../domain/schema/mutationSpec';
 import { describeRuleIssues } from '../../../domain/schema/fieldRules';
 import { formatAndValidateRecord } from '../../../domain/schema/recordRules';
+import {
+  diffRecordKeys,
+  planRecordKeys,
+  RECORD_KEY_REFS_FIELD,
+  storedRecordKeyRefs,
+} from '../../../domain/schema/recordKeys';
+import { resolveEntityKeys } from '../../../domain/schema/screenEntity';
+import { RecordKeyTakenError } from '../../../domain/repositories/IWorkflowMutationRepository';
+import type { RecordKeyMutation } from '../../../domain/repositories/IWorkflowMutationRepository';
 
 const WORKFLOW_ACTOR = 'workflow-engine';
 
@@ -140,20 +149,71 @@ export async function runWorkflowUpsert(
 
   const payload = buildFieldPayload(ruledSpec, target, ctx);
 
+  // A automação passa pelo MESMO planejamento do formulário, e sobre o registro inteiro: uma chave
+  // composta cujo upsert toca um campo só continua sendo a mesma chave. Sem isto, o caminho do
+  // backend furaria a chave que o front respeita — e uma unicidade que um dos dois caminhos ignora
+  // não é unicidade.
+  const declaredKeys = resolveEntityKeys(ctx, collection);
+  let keyMutation: RecordKeyMutation | undefined;
+  let keyRefs: Record<string, string> | undefined;
+  if (declaredKeys.length > 0) {
+    const merged = { ...(existing ?? {}), ...payload };
+    const plan = planRecordKeys(declaredKeys, merged, collection, ctx.fieldRulePresets);
+    if (plan.gaps.length > 0) {
+      return {
+        ok: false,
+        error: '@core.automation/mutation.upsert.key-required',
+        errorParams: {
+          key: plan.gaps[0].name,
+          fields: plan.gaps.map((gap) => gap.fields.join(', ')).join('; '),
+        },
+      };
+    }
+    const diff = diffRecordKeys(plan, storedRecordKeyRefs(existing));
+    keyMutation = {
+      create: diff.create.map((entry) => ({
+        keyId: entry.keyId,
+        keyName: entry.name,
+        values: entry.values,
+      })),
+      release: diff.release,
+    };
+    keyRefs = diff.refs;
+  }
+  const withKeys = keyRefs === undefined ? payload : { ...payload, [RECORD_KEY_REFS_FIELD]: keyRefs };
+
   let created: boolean;
   let finalId: string;
-  if (id && existing) {
-    await deps.mutationRepository.update(tenantId, collection, id, { ...payload, updatedBy: WORKFLOW_ACTOR });
-    created = false;
-    finalId = id;
-  } else {
-    finalId = await deps.mutationRepository.create(
-      tenantId,
-      collection,
-      { ...payload, createdBy: WORKFLOW_ACTOR, updatedBy: WORKFLOW_ACTOR },
-      id,
-    );
-    created = true;
+  try {
+    if (id && existing) {
+      await deps.mutationRepository.update(
+        tenantId,
+        collection,
+        id,
+        { ...withKeys, updatedBy: WORKFLOW_ACTOR },
+        keyMutation,
+      );
+      created = false;
+      finalId = id;
+    } else {
+      finalId = await deps.mutationRepository.create(
+        tenantId,
+        collection,
+        { ...withKeys, createdBy: WORKFLOW_ACTOR, updatedBy: WORKFLOW_ACTOR },
+        id,
+        keyMutation,
+      );
+      created = true;
+    }
+  } catch (error) {
+    if (error instanceof RecordKeyTakenError) {
+      return {
+        ok: false,
+        error: '@core.automation/mutation.upsert.key-conflict',
+        errorParams: { key: error.keyName, value: error.values.join(' + ') },
+      };
+    }
+    throw error;
   }
 
   const stored = await deps.mutationRepository.getById(tenantId, collection, finalId);
@@ -189,6 +249,13 @@ export async function runWorkflowRemove(
   if (!existing) {
     return { ok: true, value: { id, removed: false } };
   }
-  await deps.mutationRepository.delete(tenantId, collection, id);
+  // As reservas saem no mesmo gesto do registro — e são achadas pelo que o REGISTRO cita, nunca
+  // recomputadas: uma reserva feita sob a declaração anterior só existe em `keyRefs`.
+  await deps.mutationRepository.delete(
+    tenantId,
+    collection,
+    id,
+    Object.values(storedRecordKeyRefs(existing)),
+  );
   return { ok: true, value: { id, removed: true } };
 }

@@ -4,7 +4,7 @@ import type { PluginMigration } from '../schema/plugin/migration';
 import type { WorkflowDefinition } from './Workflow';
 import type { Script } from './Script';
 import type { ActionDefinition } from './Action';
-import type { CustomFieldOption, FieldDefinition, ScreenListAction } from './entitySchemas';
+import type { CustomFieldOption, FieldDefinition, RecordKeySpec, ScreenListAction } from './entitySchemas';
 
 /**
  * Uma tela (entidade) que a extensão instala no escritório. É uma ScreenDefinition autoral: a
@@ -32,6 +32,13 @@ export interface ScreenModuleTemplate {
   icon: string;
   /** Sem `origin`: a instalação carimba `plugin` em cada campo. */
   fields: TemplateField[];
+  /**
+   * O que não pode se repetir na coleção. Ver `ScreenDefinition.keys`; um campo só é o `unique` do
+   * próprio campo, que a resolução desaçucara. A instalação carimba o `ownerPluginId` em cada chave,
+   * e é ele que faz a desinstalação levar embora a chave que a extensão trouxe sem tocar nas que o
+   * escritório declarou por cima.
+   */
+  keys?: RecordKeySpec[];
   titleFieldKey: string;
   /** Campo do subtítulo do detalhe e do cartão. Ver `ScreenDefinition.subtitleFieldKey`. */
   subtitleFieldKey?: string | null;

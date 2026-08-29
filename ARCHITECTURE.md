@@ -53,6 +53,7 @@ Os metadados de entidades são **compartilhados** entre frontend e Cloud Functio
 | `domain/schema/hydrationPlan.ts` | Planner puro: caminhos → `FkHop[]` deduplicados em níveis BFS (propaga a chave FK do salto seguinte para os fields do hop pai). |
 | `domain/schema/materialize.ts` | Materializer puro: aplica cada `MaterializationMode` (`denormKey` para FKs fixas, `replaceValue` para references de campos customizados) sobre o payload. |
 | `domain/entities/entitySchemas.ts` | Tipos (`FieldDefinition`, `ScreenDefinition`, `CustomFieldType`…) e derivações do registry (`ENTITY_FK_SCHEMA`, `CUSTOM_FIELD_ENABLED_ENTITIES`, `BUILTIN_REF_ENTITIES`, `resolveRefEntityCollection`). |
+| `domain/schema/recordKeys.ts` | Chave primária e chave única de registro: `RecordKeySpec`, a normalização, `buildRecordKeyId` (o id da reserva — ponto único, e as três pontas precisam concordar sobre ele), o planejamento (`planRecordKeys`, `diffRecordKeys`) e a validação de autoria. Ver "Chave primária e chave única". |
 | `domain/schema/settings.ts` | Contrato de configuração (`SettingsSection`, `SettingsProperty`, `resolveSetting`). Compartilhado porque o backend precisa saber em que idioma falar — ver "Idioma". |
 | `domain/schema/i18n/*` | O motor de idioma inteiro: negociação, catálogo de mensagens, referência `@`, formatação por `Intl` e o gate do idioma ambiente. Ver "Idioma — tradução como contribuição". |
 
@@ -106,6 +107,7 @@ npm run verify          # typecheck + lint + verify-schemas
 | `StepDefinition` (catálogo, espelho somente-leitura) | `workflow_step_catalog/{id}` | Não |
 | `Script` (código reutilizável do Step "Script") | `tenants/{tenantId}/scripts/{id}` | Sim |
 | `BackendResidue` (o que o provisionamento deixou no projeto) | `backend_state/current` | Não |
+| Reserva de chave (unicidade de registro) | `tenants/{tenantId}/recordKeys/{keyId}` — o `keyId` deriva do valor, e criá-lo É a trava | Sim |
 
 **A tabela é curta de propósito, e ficou curta por conquista.** Ela já listava `persons`, `cases`,
 `contracts`, `financials`, `deadlines`, `pushes`, as etiquetas e as dezenas de listas de opções de cada
@@ -7986,6 +7988,157 @@ no `<head>`, antes do bundle: custa em toda visita, inclusive na de quem nunca v
 código que roda na página. Um deploy interrompido, uma edição à mão ou um cache antigo produzem o mesmo
 arquivo pela metade — e ali uma exceção é a tela branca. Por isso ela descarta em vez de lançar, e por
 isso a decisão inteira está numa função pura (`parseStampedExtensions`), testável sem navegador.
+
+---
+
+## Chave primária e chave única — o que não pode se repetir
+
+Uma tela sem chave aceita duplicata, e esse é o padrão de propósito: dois registros idênticos são dois
+registros válidos até alguém dizer o contrário. Quando o negócio diz o contrário, a tela **declara** —
+e é a única regra da plataforma que não se escreve como expressão.
+
+### O que existia antes, e por que não bastava
+
+| Mecanismo | Garantia sobre unicidade |
+|---|---|
+| `docId` do Firestore | identidade **física**, sorteada. Nada a ver com o dado |
+| `rules.validate` / `logic.validate` | a FORMA do valor. `formatAndValidateRecord` é pura e síncrona: nunca enxerga a coleção |
+| `autoValue` | nenhuma. O `taken` era só a janela carregada (`RECORDS_PAGE_LIMIT = 500`) |
+| `/nicknames` | a forma CERTA — reserva por `docId` + transação — escrita à mão, para uma entidade do kernel |
+
+O único precedente correto era o último, e a chave de registro é a generalização dele.
+
+### A declaração
+
+`ScreenDefinition.keys: RecordKeySpec[]`, espelhada em `EntityMetadata.keys` e resolvida por
+`resolveEntityKeys` (`domain/schema/screenEntity.ts`). `FieldDefinition.unique` é **açúcar** para a
+chave de um campo só, desaçucarado no mesmo ponto — nunca uma segunda verdade.
+
+```ts
+keys: [
+  { name: 'sku', kind: 'primary', fields: ['sku'], sparse: false },
+  { name: 'linha-nome', kind: 'unique', fields: ['linha', 'nome'] },
+  { name: 'email', kind: 'unique', fields: ['email'], normalize: { caseInsensitive: true } },
+]
+```
+
+**A chave é declaração de TELA, e não de campo**, por três razões que só aparecem juntas: chave
+composta é a regra e não a exceção; o escopo — no escritório ou dentro do pai — é propriedade da chave,
+não de nenhum dos campos; e uma lista num lugar só é o que a regra do Firestore, o Form Design e a
+varredura de adoção conseguem ler sem que cada um remonte a verdade a partir de campos espalhados.
+
+| propriedade | o que decide |
+|---|---|
+| `name` | estável: é por ele que a reserva JÁ GRAVADA é encontrada. Renomear é aposentar e declarar outra |
+| `kind: 'unique'` | proíbe o segundo registro com o valor |
+| `kind: 'primary'` | isso, e mais: a chave vira ENDEREÇO — `upsert` idempotente por chave natural, vínculo estável. No máximo uma, e nunca esparsa |
+| `fields` | campos da própria tela, na ORDEM — que é parte do valor |
+| `scope` | `tenant` (padrão) ou `parent` — o item nº 1 de CADA pedido; exige `parentFieldKey` |
+| `normalize` | `trim` (padrão ligado), `caseInsensitive`, `formatPreset` (`digits` iguala `123.456` e `123456`) |
+| `sparse` | padrão ligado: sem valor não reserva nada, e quarenta cadastros de CPF vazio não colidem no vazio |
+| `status` | `pending` até alguém varrer o que já está gravado — ver "Adoção" |
+
+`normalize` é deliberadamente pequeno: cada opção é uma forma de dois valores contarem como o mesmo, e
+cada uma precisa ser reproduzível **identicamente** no front, no backend e na varredura. Uma expressão
+livre ali não garantiria isso. CPF e CNPJ não são nomeados no kernel — quem traz o `formatPreset` é a
+extensão `brasil`.
+
+### A chave NÃO é o `docId`
+
+Foi a primeira ideia (unicidade de graça, dada pela própria coleção) e está errada aqui, por três razões
+deste repositório:
+
+1. o `docId` é **pré-alocado antes de o registro existir**, para receber os arquivos (`newId` +
+   `create(..., recordId)`);
+2. chave natural **muda** — o CPF foi digitado errado — e mover um documento obrigaria a reescrever toda
+   referência que aponta para ele, porque `refEntity` guarda `docId`;
+3. o valor viraria parte do **caminho**, que vaza em log, URL e regra.
+
+Chave natural é **índice**; `docId` continua sendo o endereço.
+
+### Onde mora a garantia
+
+`tenants/{tenantId}/recordKeys/{keyId}` — uma reserva por chave, cujo `keyId` deriva do valor
+normalizado (`buildRecordKeyId`, ponto único em `domain/schema/recordKeys.ts`). O registro e as reservas
+são gravados no **mesmo lote**, e o registro carrega `keyRefs` (nome da chave → id da reserva).
+
+**A trava é a regra, e é sutil:** o bloco `recordKeys` do `firestore.rules` libera `create` e **não**
+libera `update`. No Firestore, `create` só dispara quando o documento não existe — então escrever sobre
+uma reserva ocupada é negado, e a negação derruba o lote **inteiro**, atomicamente. Não há janela entre
+conferir e gravar: duas gravações no mesmo instante não passam as duas.
+
+Duas consequências que valem ser ditas:
+
+- **Nenhum índice composto.** A busca é por id de documento. É a vantagem decisiva sobre "consultar antes
+  de gravar", que além da corrida exigiria um índice por chave declarada — na raiz e em
+  `manifest.backend.indexes` de cada extensão.
+- **`keyRefs` existe por dois motivos**, e o segundo é o que o torna obrigatório: a regra consegue conferir
+  a reserva citada via `getAfter`, e a liberação no update e no delete sabe O QUE soltar **sem recomputar**
+  — inclusive quando a declaração mudou depois. Recomputar deixaria órfã toda reserva feita sob uma
+  normalização anterior.
+
+No backend o Admin SDK ignora as regras, então a trava vem de `tx.create` dentro de uma transação
+(`FirestoreWorkflowMutationRepository`), que falha com `ALREADY_EXISTS`. Mesmo efeito, pelo mecanismo que
+existe daquele lado.
+
+### Os caminhos de escrita, e por que os dois
+
+| Caminho | Onde a chave é planejada |
+|---|---|
+| Formulário / edição inline | `planRecordKeysFor` (`data/utils/recordRulesGate.ts`) → lote em `FirebaseRecordRepository` |
+| `UpsertStep` / `upsert()` de Script | `runWorkflowUpsert` → transação em `FirestoreWorkflowMutationRepository` |
+| Exclusão (inclusive cascata) | as reservas saem no mesmo lote do registro |
+
+O planejamento é sempre sobre o registro **completo** — payload mesclado com o que já está gravado. Um
+update parcial de chave composta continua sendo a mesma chave, e planejar sobre o payload sozinho
+reservaria metade dos valores vazios.
+
+### O limite, dito com todas as letras
+
+O `firestore.rules` é **estático**; as chaves são **dado de runtime**. Uma regra genérica não computa um
+`keyId` a partir de uma lista de campos que ela não conhece. Então ela garante que a reserva não se rouba,
+não se reusa e não se atualiza — o que já basta para que nenhuma duplicata seja aceita por qualquer
+caminho honesto. O que ela **não** confere é que o valor reservado é o valor gravado; essa polegada final
+é cobrada nos dois choke points acima.
+
+É o mesmo patamar em que `required`, máscara, teto de arquivo e `rules.validate` já estão neste
+repositório, por decisão registrada. Uma chave única não deve prometer mais do que o `required` ao lado
+dela promete.
+
+### Adoção sobre dados que já existem
+
+Chave que não pode ser ligada numa coleção com dado é chave que ninguém liga. Por isso o `status`:
+
+`pending` → varredura que reserva o que já existe e **devolve os conflitos** → `active`.
+
+Numa extensão isso é uma entrada em `package.migrations` (roda uma vez por escritório, no sandbox, sem
+escrever nome de coleção à mão). No Form Design, a tela mostra as duplicatas encontradas e não ativa em
+silêncio. `generate_artifact_plan` marca quais chaves precisam da varredura: uma chave que "já vale" e
+encontra duas duplicatas antigas trava a gravação seguinte por um motivo que ninguém mostrou.
+
+### O que a chave destrava
+
+- **`upsert` idempotente** por chave natural na automação, em vez de inventar `docId`.
+- **`autoValue` deixa de ser palpite**: o retry passa a bater na reserva, não na janela de 500.
+- **Relacionamento 1:1** passa a existir de verdade: ele é armazenado como um `many-to-one`, e o "um" só
+  vale se uma chave disser. `domain.relationship.one-to-one-not-enforced` agora aponta a chave a declarar.
+- **O erro chega pelo canal que já existe**: `RuleIssue` por campo da chave (`RecordKeyConflictError`),
+  com `@core.records/key.duplicate`. Nenhuma via nova de mensagem.
+
+### O vocabulário de modelagem (SDK/MCP)
+
+O modelo de domínio ganhou `DomainEntity.keys` e `DomainField.unique`, e o comportamento ganhou o escopo
+de invariante `collection` — o único que **não** carrega expressão: ele aponta, pelo nome, para uma chave
+que a entidade declara, e `behavior.invariant.uniqueness-undeclared` recusa quando ela não existe.
+
+Sete detectores `model.key.*` recusam chave sobre campo inexistente ou derivado, segunda primária, escopo
+de pai em quem não é filho, e nome ou combinação de campos repetidos.
+
+A frase "não há restrição de unicidade nesta plataforma" era **derivada** e aparecia em seis superfícies —
+`jsonSchema.ts`, `BEHAVIOR_MECHANISMS`, `storageMapping.ts`, o recurso `microteia://domain-model/rules`, o
+prompt de modelagem e o `AUTHORING.md`. Todas viraram a declaração da chave, cada uma no seu tom. Uma
+afirmação sobre o kernel num documento gerado é derivada, nunca escrita à mão — e este foi o teste dessa
+regra em escala.
 
 ---
 

@@ -4,12 +4,16 @@ import type { FieldDefinition } from '../entities/entitySchemas';
 import {
   createSchemaContext,
   fieldDefinitionToNativeSpec,
+  fieldUniqueKeyName,
   isEntityCollection,
   nativeSpecToFieldDefinition,
+  RESERVED_COLLECTIONS,
   resolveEntity,
   resolveEntityFields,
+  resolveEntityKeys,
   screenIdIssue,
 } from './screenEntity';
+import { RECORD_KEYS_COLLECTION } from './recordKeys';
 import type { SchemaScreen } from './screenEntity';
 
 const field = (overrides: Partial<FieldDefinition> & Pick<FieldDefinition, 'key'>): FieldDefinition => ({
@@ -227,5 +231,129 @@ describe('quais ações a coleção audita', () => {
 
     const ctx = createSchemaContext([daExtensao, doEscritorio]);
     expect(resolveEntity(ctx, 'entradas')?.auditActions).toEqual(['UPDATE', 'DELETE']);
+  });
+});
+
+describe('chaves da coleção', () => {
+  const withKeys = (screens: SchemaScreen[]) => createSchemaContext(screens);
+
+  it('sem declaração nenhuma, a coleção não tem chave — o que já funciona segue igual', () => {
+    expect(resolveEntityKeys(ctx, 'financials')).toEqual([]);
+    expect(resolveEntity(ctx, 'financials')?.keys).toBeUndefined();
+  });
+
+  it('a tela declara, e a entidade resolvida passa a carregar', () => {
+    const local = withKeys([{
+      id: 'produtos',
+      titleSingular: 'Produto',
+      titleFieldKey: 'nome',
+      fields: [field({ key: 'nome' }), field({ key: 'sku' })],
+      keys: [{ name: 'sku', kind: 'unique', fields: ['sku'] }],
+    }]);
+    expect(resolveEntity(local, 'produtos')?.keys).toEqual([
+      { name: 'sku', kind: 'unique', fields: ['sku'] },
+    ]);
+  });
+
+  it('o açúcar `unique` do campo desaçucara para uma chave, com nome derivado e reversível', () => {
+    const local = withKeys([{
+      id: 'produtos',
+      titleSingular: 'Produto',
+      titleFieldKey: 'nome',
+      fields: [field({ key: 'nome' }), field({ key: 'sku', unique: true })],
+    }]);
+    expect(resolveEntityKeys(local, 'produtos')).toEqual([
+      { name: fieldUniqueKeyName('sku'), kind: 'unique', fields: ['sku'] },
+    ]);
+  });
+
+  /**
+   * A chave açucarada NÃO carrega dono, e a ausência é a resposta: ela é derivada do CAMPO, e o campo
+   * já diz de quem é. A desinstalação leva o campo embora, e a chave some com ele — dar-lhe um dono
+   * próprio seria um segundo lugar a manter em dia, que discordaria do primeiro no dia em que o campo
+   * fosse adotado pelo escritório.
+   */
+  it('o açúcar não duplica o dono: a chave segue o campo, e some com ele', () => {
+    const local = withKeys([{
+      id: 'produtos',
+      titleSingular: 'Produto',
+      titleFieldKey: 'nome',
+      fields: [field({ key: 'sku', unique: true, ownerPluginId: 'com.acme.loja' })],
+    }]);
+    expect(resolveEntityKeys(local, 'produtos')).toEqual([
+      { name: fieldUniqueKeyName('sku'), kind: 'unique', fields: ['sku'] },
+    ]);
+
+    const semCampo = withKeys([{
+      id: 'produtos',
+      titleSingular: 'Produto',
+      titleFieldKey: 'nome',
+      fields: [field({ key: 'nome' })],
+    }]);
+    expect(resolveEntityKeys(semCampo, 'produtos')).toEqual([]);
+  });
+
+  it('o açúcar vale também para o campo que o REGISTRO declara, não só para o da tela', () => {
+    const local = withKeys([{
+      id: 'produtos',
+      titleSingular: 'Produto',
+      titleFieldKey: 'nome',
+      fields: [field({ key: 'sku', unique: true })],
+    }]);
+    // O ida-e-volta pela forma canônica não pode perder a marca: era por aqui que a chave declarada
+    // desaparecia na releitura seguinte, sem nada acusar.
+    const spec = fieldDefinitionToNativeSpec(field({ key: 'sku', unique: true }));
+    expect(spec.unique).toBe(true);
+    expect(nativeSpecToFieldDefinition(spec, 'sku', 0).unique).toBe(true);
+    expect(resolveEntityKeys(local, 'produtos')).toHaveLength(1);
+  });
+
+  it('a declaração explícita PREVALECE sobre o açúcar do mesmo campo', () => {
+    const explicit = {
+      name: fieldUniqueKeyName('sku'),
+      kind: 'unique' as const,
+      fields: ['sku'],
+      normalize: { caseInsensitive: true },
+    };
+    const local = withKeys([{
+      id: 'produtos',
+      titleSingular: 'Produto',
+      titleFieldKey: 'nome',
+      fields: [field({ key: 'sku', unique: true })],
+      keys: [explicit],
+    }]);
+    expect(resolveEntityKeys(local, 'produtos')).toEqual([explicit]);
+  });
+
+  it('duas telas sobre a MESMA coleção somam as chaves por nome, e a dona desempata', () => {
+    const local = withKeys([
+      {
+        id: 'extensao',
+        collection: 'produtos',
+        titleSingular: 'Produto da extensão',
+        titleFieldKey: 'nome',
+        fields: [field({ key: 'nome' }), field({ key: 'sku' })],
+        keys: [
+          { name: 'sku', kind: 'unique', fields: ['sku'] },
+          { name: 'nome', kind: 'unique', fields: ['nome'] },
+        ],
+      },
+      {
+        id: 'produtos',
+        titleSingular: 'Produto',
+        titleFieldKey: 'nome',
+        fields: [field({ key: 'nome' }), field({ key: 'sku' })],
+        keys: [{ name: 'sku', kind: 'primary', fields: ['sku'] }],
+      },
+    ]);
+    const keys = resolveEntityKeys(local, 'produtos');
+    expect(keys).toHaveLength(2);
+    expect(keys.find((one) => one.name === 'sku')?.kind).toBe('primary');
+    expect(keys.find((one) => one.name === 'nome')?.kind).toBe('unique');
+  });
+
+  it('a coleção das reservas é reservada — nenhuma tela pode se chamar assim', () => {
+    expect(RESERVED_COLLECTIONS.has(RECORD_KEYS_COLLECTION)).toBe(true);
+    expect(screenIdIssue(RECORD_KEYS_COLLECTION)?.message).toBe('@core.records/collection.key.reserved');
   });
 });

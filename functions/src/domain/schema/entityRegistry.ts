@@ -15,6 +15,7 @@ import type {
   FieldOrigin,
   FieldRules,
 } from './fieldRules';
+import type { RecordKeySpec } from './recordKeys';
 
 export const SCHEMA_VERSION = 1;
 
@@ -79,6 +80,14 @@ export interface NativeFieldSpec {
   aggregation?: FieldAggregation;
   /** O que um campo `file` aceita. Ver `FieldDefinition.file`. */
   file?: FieldFileConfig;
+  /**
+   * O campo é uma chave `unique` de um campo só. Ver `FieldDefinition.unique`.
+   *
+   * Está na forma canônica — e não só na de autoria — porque é ela que atravessa a resolução: sem
+   * isto o ida-e-volta `FieldDefinition` ⇄ `NativeFieldSpec` PERDIA o valor, e a chave declarada
+   * pelo escritório desaparecia na releitura seguinte sem nada acusar.
+   */
+  unique?: boolean;
   /** Ausente nos campos deste registro, onde é sempre `builtin` por definição. */
   origin?: FieldOrigin;
   ui?: FieldUiSpec;
@@ -119,6 +128,12 @@ export interface EntityMetadata {
    * declara é a tela que traz a coleção, e o backend só lê.
    */
   auditActions?: AuditAction[] | null;
+  /**
+   * As chaves da coleção — o que nela não pode se repetir. Forma canônica de `ScreenDefinition.keys`,
+   * e a razão de existir aqui é a mesma de `fields`: uma entidade do kernel precisa poder declarar a
+   * própria chave sem que a declaração dependa de alguém ter aberto o Form Design.
+   */
+  keys?: RecordKeySpec[];
 }
 
 

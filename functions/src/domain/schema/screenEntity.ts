@@ -15,6 +15,8 @@ import { BUILTIN_ENTITY_KEYS, ENTITY_REGISTRY, SCHEMA_VERSION } from './entityRe
 import { LOOKUP_REGISTRY_LIST } from './lookupRegistry';
 import type { FieldRulePreset, FieldRulePresetCatalog } from './fieldRulePresets';
 import { buildFieldRulePresetCatalog } from './fieldRulePresets';
+import type { RecordKeySpec } from './recordKeys';
+import { RECORD_KEYS_COLLECTION } from './recordKeys';
 
 import type { AuditAction } from '../entities/AuditLog';
 import type { LocalizedMessage } from './i18n/localizedMessage';
@@ -47,6 +49,8 @@ export interface SchemaScreen {
    * dentro dele; agora é declaração de quem traz a coleção.
    */
   auditActions?: AuditAction[] | null;
+  /** As chaves declaradas para a COLEÇÃO. Ver `ScreenDefinition.keys`. */
+  keys?: RecordKeySpec[] | null;
 }
 
 /** A lista de opções como o schema a enxerga. `collection` é o nome da coleção sob o tenant. */
@@ -115,10 +119,16 @@ const mergeSchemaScreens = (base: SchemaScreen, next: SchemaScreen, collection: 
   const owner = next.id === collection ? next : base;
   const byKey = new Map(base.fields.map((field) => [field.key, field]));
   for (const field of next.fields) byKey.set(field.key, field);
+  // As chaves se somam por NOME, pela mesma razão dos campos: enquanto a entidade do kernel e a
+  // extensão que a descreve convivem, as duas declarações valem, e a dona do nome é quem desempata.
+  const byKeyName = new Map((base.keys ?? []).map((key) => [key.name, key]));
+  for (const key of next.keys ?? []) byKeyName.set(key.name, key);
+  const keys = [...byKeyName.values()];
   return {
     ...owner,
     collection,
     fields: [...byKey.values()],
+    ...(keys.length > 0 ? { keys } : {}),
     tagCollection: owner.tagCollection ?? base.tagCollection ?? next.tagCollection,
     // O prefixo dos eventos é da COLEÇÃO, não da tela que o declarou: quem declara é a extensão que
     // trouxe a entidade para fora do kernel, enquanto a dona do nome é um documento de baseline que
@@ -234,6 +244,7 @@ export const fieldDefinitionToNativeSpec = (field: FieldDefinition): NativeField
     spec.aggregation = field.aggregation as NonNullable<FieldDefinition['aggregation']>;
   }
   if (undefinedIfNull(field.file)) spec.file = field.file as NonNullable<FieldDefinition['file']>;
+  if (field.unique === true) spec.unique = true;
   return spec;
 };
 
@@ -285,6 +296,7 @@ export const nativeSpecToFieldDefinition = (
   listIcon: spec.ui?.list?.icon ?? null,
   listOrder: spec.ui?.list?.order ?? null,
   filterable: spec.ui?.filter === true,
+  unique: spec.unique === true,
   hiddenInForm: spec.ui?.form === false,
 });
 
@@ -347,7 +359,55 @@ export const resolveEntityFields = (ctx: SchemaContext, collection: string): Nat
   return fields;
 };
 
-const screenEntityMetadata = (screen: SchemaScreen, fields: NativeFieldSpec[]): EntityMetadata => ({
+/**
+ * O açúcar `field.unique` desaçucarado: uma chave `unique` de um campo só, no escopo do escritório.
+ *
+ * O NOME é derivado da chave do campo, e é o que torna o açúcar reversível — desligar o `unique` e
+ * religá-lo volta à mesma chave, com a mesma reserva, em vez de criar uma segunda. Uma chave
+ * declarada explicitamente com este nome PREVALECE: quem escreveu a lista sabe mais do que o atalho.
+ */
+export const fieldUniqueKeyName = (fieldKey: string): string => `field:${fieldKey}`;
+
+const desugarFieldKeys = (fields: readonly NativeFieldSpec[], prefix = ''): RecordKeySpec[] =>
+  fields.flatMap((spec) => {
+    const key = `${prefix}${spec.key}`;
+    if (spec.type === 'object' && spec.objectFields) return desugarFieldKeys(spec.objectFields, `${key}.`);
+    if (spec.unique !== true) return [];
+    return [{ name: fieldUniqueKeyName(key), kind: 'unique' as const, fields: [key] }];
+  });
+
+/**
+ * Lista canônica de chaves de uma coleção — a contrapartida de `resolveEntityFields`, e pela mesma
+ * razão: o registro declara, a tela do tenant soma, e o resto da plataforma lê de um lugar só.
+ *
+ * A ordem de precedência é a do próprio problema: o açúcar é o mais fraco (é um atalho), a
+ * declaração explícita da tela vence, e a do registro é a base. Duas chaves com o mesmo nome são a
+ * mesma chave — é o nome que endereça a reserva já gravada.
+ */
+export const resolveEntityKeys = (
+  ctx: SchemaContext,
+  collection: string,
+  resolvedFields?: readonly NativeFieldSpec[],
+): RecordKeySpec[] => {
+  const byName = new Map<string, RecordKeySpec>();
+  for (const key of ctx.registry[collection]?.keys ?? []) byName.set(key.name, key);
+  // O açúcar sai dos campos RESOLVIDOS — registro e tela já fundidos —, e não da declaração da tela:
+  // um campo do registro marcado como único vale igual, e um campo aninhado é endereçado pelo
+  // caminho pontilhado, que é como todo o resto da plataforma o endereça.
+  const fields = resolvedFields ?? resolveEntityFields(ctx, collection);
+  for (const key of desugarFieldKeys(fields)) byName.set(key.name, key);
+  const owner = ctx.screens.get(collection);
+  if (owner) {
+    for (const key of owner.keys ?? []) byName.set(key.name, key);
+  }
+  return [...byName.values()];
+};
+
+const screenEntityMetadata = (
+  screen: SchemaScreen,
+  fields: NativeFieldSpec[],
+  keys: RecordKeySpec[],
+): EntityMetadata => ({
   key: screenCollection(screen),
   collection: screenCollection(screen),
   ...(screen.tagCollection ? { tagCollection: screen.tagCollection } : {}),
@@ -361,6 +421,7 @@ const screenEntityMetadata = (screen: SchemaScreen, fields: NativeFieldSpec[]): 
   fks: [],
   supportsCustomFields: true,
   referenceable: true,
+  ...(keys.length > 0 ? { keys } : {}),
 });
 
 /**
@@ -374,7 +435,8 @@ export const resolveEntity = (ctx: SchemaContext, collection: string): EntityMet
   if (!entity && !screen) return undefined;
 
   const fields = resolveEntityFields(ctx, collection);
-  if (!entity) return screenEntityMetadata(screen as SchemaScreen, fields);
+  const keys = resolveEntityKeys(ctx, collection, fields);
+  if (!entity) return screenEntityMetadata(screen as SchemaScreen, fields, keys);
   if (!screen) return entity;
 
   // Só a tela que leva o nome da coleção renomeia a entidade fixa (ver `mergeSchemaScreens`).
@@ -389,6 +451,7 @@ export const resolveEntity = (ctx: SchemaContext, collection: string): EntityMet
     // que duas telas passam a compartilhar as mesmas etiquetas.
     ...(screen.tagCollection ? { tagCollection: screen.tagCollection } : {}),
     ...(screen.auditActions ? { auditActions: screen.auditActions } : {}),
+    ...(keys.length > 0 ? { keys } : {}),
   };
 };
 
@@ -436,6 +499,7 @@ export const RESERVED_COLLECTIONS: ReadonlySet<string> = new Set<string>([
   'tagDefinitions',
   'secrets',
   'settings',
+  RECORD_KEYS_COLLECTION,
   ...LOOKUP_REGISTRY_LIST.map((lookup) => lookup.collection),
 ]);
 

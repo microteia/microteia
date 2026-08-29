@@ -790,10 +790,11 @@ Read the refusals as answers, not as gaps to route around:
 - **No clock.** Nothing in this installation is time-based, and the \`Delay\` step type was never registered — a
   flow that uses it fails mid-execution. Almost every schedule in a business rule is really a question asked
   when something is WRITTEN, or when a person opens a screen, and a filtered list does the rest.
-- **No uniqueness.** No layer enforces it: not the field rules, not the object validation, not the security
-  rules. The closest declarable thing is a check AFTER the fact — a workflow on \`<collection>.saved\` with a
-  \`query\` step — and it must be presented as one: it finds the duplicate that already exists, and two writes at
-  the same instant both pass. If a value must truly be unique, make it the document id.
+- **Uniqueness is DECLARED, never computed.** It is the one rule that compares a record against the others, and
+  the one you must not write as an expression: a field \`validate\` and a \`validate-object\` step both see a single
+  record and never query, and a workflow on \`<collection>.saved\` finds the duplicate only after it exists — two
+  writes at the same instant both pass. Declare it on the screen instead: \`keys: [{ name, kind, fields }]\`, or
+  \`unique: true\` on the field when one field is the whole key. See "Keys — what cannot repeat" below.
 - **A guard reads ONE record.** It never queries. When the condition needs other records, the \`query\` step
   publishes them and the condition node reads its outputs. That is the shape, and it costs one more step.
 - **A permission is only answerable when a person acts.** With no actor — an automation born from a save —
@@ -927,7 +928,7 @@ Beyond \`key\`, \`label\`, \`type\`, \`order\` and \`required\`, the properties 
 | \`lookupCollection\` | the \`select\` reads a list the organization owns. Declare the list in \`lookups\` |
 | \`refEntity\`, \`refDenormKey\` | a \`reference\`'s target, and the name expressions navigate it by |
 | \`defaultValue\` | what a new record is born with. Seeds only — the person can still change it |
-| \`autoValue: { pattern }\` | a generated code: \`A\` letter, \`0\` digit, \`*\` either, anything else literal (\`AA-0000\`). Unique among the records already loaded, and still editable |
+| \`autoValue: { pattern }\` | a generated code: \`A\` letter, \`0\` digit, \`*\` either, anything else literal (\`AA-0000\`). Not repeated among the records already loaded, and still editable. For a code that must truly not repeat, declare a key |
 | \`logic\` | the expressions: \`compute\`, \`validate\`, \`hiddenWhen\`, \`disabledWhen\`, \`onChange\` (§9) |
 | \`aggregation: { from, via, op, field?, filter? }\` | the value is a sum/count/avg/min/max over CHILD records. Declared, not inferred, so the engine knows exactly when to recompute |
 | \`rules\` | \`validate\` and \`format\` presets — bounds, required-if, formatting |
@@ -938,6 +939,62 @@ Beyond \`key\`, \`label\`, \`type\`, \`order\` and \`required\`, the properties 
 
 **Fields the organization adds** to your screen are theirs. An update of your extension preserves
 them, and uninstalling removes only yours.
+
+### Keys — what cannot repeat
+
+A screen with no key accepts duplicates, and that is the default on purpose: two identical rows are
+two valid rows until somebody says otherwise. When the business says otherwise, DECLARE it — it is
+the one rule here you must not write as an expression.
+
+\`\`\`ts
+screen({
+  key: 'produtos',
+  titleFieldKey: 'nome',
+  keys: [
+    { name: 'sku', kind: 'primary', fields: ['sku'], sparse: false },
+    { name: 'linha-nome', kind: 'unique', fields: ['linha', 'nome'] },
+    { name: 'email', kind: 'unique', fields: ['email'], normalize: { caseInsensitive: true } },
+  ],
+  fields: [...],
+})
+\`\`\`
+
+A key over ONE field can be written on the field itself — \`unique: true\` — which produces exactly
+the same key, named \`field:<key>\`. Reach for \`keys\` when the COMBINATION of several fields is what
+must not repeat, or when you need a scope, a comparison, or a value that is required.
+
+| | |
+|---|---|
+| \`name\` | stable, and it is what finds the reservation already written for existing records. Renaming a key retires it and declares another |
+| \`kind: 'unique'\` | forbids a second record with this value |
+| \`kind: 'primary'\` | that, plus the key is an ADDRESS: an idempotent \`upsert\` by natural key, a stable link. At most one per screen, and never optional |
+| \`fields\` | keys of fields of THIS screen, in order — and the order is part of the value |
+| \`scope: 'tenant' \\| 'parent'\` | \`tenant\` (default) is the whole organization; \`parent\` is unique WITHIN one parent record — the item numbered 1 of EACH order — and it needs \`parentFieldKey\` |
+| \`normalize\` | how two values count as the same: \`trim\` (on by default), \`caseInsensitive\`, and \`formatPreset\` — \`digits\` makes \`123.456\` and \`123456\` one value |
+| \`sparse\` | on by default: a record with no value reserves nothing, so forty records with an empty field do not collide in the void. \`false\` makes the value required |
+| \`message\` | the reference of what the person reads on the conflict |
+
+**How it holds.** The value is written into a reservation document whose id derives from the value
+itself, in the SAME batch as the record. Creating that document is the lock: the security rules
+allow \`create\` and not \`update\`, and \`create\` only fires when the document does not exist — so a
+second write with the same value fails the batch WHOLE, and no duplicate is ever committed. There is
+no window between checking and writing, and it needs no composite index.
+
+**What a key is not.** It is not the document id. The id stays random, because a natural key changes
+— the CPF was typed wrong — and moving a document would break every reference pointing at it. A key
+is an index, not an address.
+
+**On a collection that already has records**, a new key does not hold the day you install it: it is
+born \`status: 'pending'\`, somebody sweeps what is stored, and it starts holding once nothing is
+duplicated. Declare the sweep as a migration when your package adds a key to a screen it already
+shipped — see §"Changing the shape of data you already wrote".
+
+**Where the line is.** The reservation is what makes a duplicate impossible through every honest
+path: the form, an automation's \`upsert\`, an import, a migration. What the security rules cannot
+check generically is that the value reserved IS the value stored — the rules are static and keys are
+runtime data, so a rule cannot compute an id from a list of fields it does not know. That last inch
+is enforced at the two write paths, which is the same footing \`required\`, a mask and
+\`rules.validate\` already stand on.
 
 ### Relationships, and where a screen shows up
 
@@ -1745,7 +1802,7 @@ phases. A mechanism with no vocabulary is invisible until somebody trips over it
 attention: it is a derived list, checked by a test, so the next one shows up as a failing build instead of as a
 surprise.
 
-So when a rule needs one of them — the \`query\` step, a clock, uniqueness, a page, which record an effect
+So when a rule needs one of them — the \`query\` step, a clock, a page, which record an effect
 writes — say so and hand the decision back. Translating it into something that looks similar is the one failure
 mode this whole subsystem exists to prevent.
 

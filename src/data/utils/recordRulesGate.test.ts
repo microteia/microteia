@@ -45,3 +45,48 @@ describe('toSchemaScreens', () => {
     });
   });
 });
+
+/**
+ * As chaves atravessando a tradução — o defeito que este arquivo inteiro existe para pegar.
+ *
+ * A `ScreenDefinition` é traduzida para a forma que o schema consome, e enquanto essa tradução
+ * existia em DUAS cópias (aqui e no `useSchemaContext`), uma propriedade nova entrava numa e não na
+ * outra: a gravação enxergava a chave e a tela não, sem nada quebrar. Hoje há uma tradução só, e
+ * estes testes são o que impede a segunda de voltar.
+ */
+describe('toSchemaScreens — as chaves da coleção', () => {
+  it('leva as chaves declaradas na tela', () => {
+    const [screen] = toSchemaScreens([
+      {
+        id: 'produtos',
+        titleSingular: 'Produto',
+        titleFieldKey: 'nome',
+        fields,
+        keys: [{ name: 'sku', kind: 'unique', fields: ['sku'] }],
+      },
+    ]);
+    expect(screen.keys).toEqual([{ name: 'sku', kind: 'unique', fields: ['sku'] }]);
+  });
+
+  it('tela sem chave não inventa nenhuma — duplicata continua sendo o padrão', () => {
+    const [screen] = toSchemaScreens([
+      { id: 'produtos', titleSingular: 'Produto', titleFieldKey: 'nome', fields },
+    ]);
+    expect(screen.keys ?? null).toBeNull();
+  });
+
+  it('a chave viaja com a COLEÇÃO que a tela descreve, que é onde ela vale', () => {
+    const [screen] = toSchemaScreens([
+      {
+        id: 'processos',
+        titleSingular: 'Processo',
+        titleFieldKey: 'title',
+        fields,
+        dataCollection: 'cases',
+        keys: [{ name: 'numero', kind: 'primary', fields: ['numero'] }],
+      },
+    ]);
+    expect(screen.collection).toBe('cases');
+    expect(screen.keys?.[0]?.name).toBe('numero');
+  });
+});

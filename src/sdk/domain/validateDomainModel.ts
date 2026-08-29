@@ -5,7 +5,7 @@ import { screenIdIssue } from '../../domain/schema/screenEntity';
 import { validateFieldKey } from '../../domain/services/customFieldValues';
 import type { CatalogEntity, DomainCatalog } from './catalog';
 import { catalogSchemaContext, exceptionKey } from './catalog';
-import type { DomainEntity, DomainField, DomainIssue, DomainModel } from './domainModel';
+import type { DomainEntity, DomainField, DomainIssue, DomainKey, DomainModel } from './domainModel';
 import { SCREEN_IS_NOT_AN_ENTITY_MODEL, hasBlockingIssue, sortIssues } from './domainModel';
 import type { DomainIssueCode } from './detectors';
 import type { MappedRelationship } from './storageMapping';
@@ -779,6 +779,127 @@ const aggregationIssues = (
  * artefatos e um teste de autoria fazem a mesma chamada, pelo mesmo motivo que `validatePluginPackage`
  * é uma porta só: uma checagem nova acrescentada num caminho tem de chegar aos outros dois.
  */
+
+/**
+ * As chaves da entidade — o que não pode se repetir nela.
+ *
+ * Vale a pena dizer por que isto é validado AQUI e não só na plataforma: a chave é a única
+ * declaração do modelo cujo defeito não aparece no dia em que é escrita. Uma chave sobre um campo
+ * que não existe simplesmente nunca reserva nada, e a tela segue aceitando duplicata em silêncio —
+ * exatamente o estado que a chave foi declarada para acabar.
+ */
+const keyIssues = (model: DomainModel): DomainIssue[] => {
+  const issues: DomainIssue[] = [];
+  const childEntities = new Set(
+    model.relationships.filter((one) => one.storage === 'child').map((one) => one.sourceEntity),
+  );
+
+  for (const entity of model.entities) {
+    const declared = entity.keys ?? [];
+    const shorthand: DomainKey[] = entity.fields
+      .filter((field) => field.unique === true)
+      .map((field) => ({ name: `field:${field.key}`, kind: 'unique', fields: [field.key] }));
+    const keys = [...declared, ...shorthand];
+    if (keys.length === 0) continue;
+
+    const fieldByKey = new Map(entity.fields.map((field) => [field.key, field]));
+    const seenNames = new Set<string>();
+    const seenSignatures = new Map<string, string>();
+    let primaries = 0;
+
+    for (const key of keys) {
+      if (seenNames.has(key.name)) {
+        issues.push(make('model.key.duplicate-name', 'error', {
+          entity: entity.name,
+          message: `"${entity.name}" declares two keys named "${key.name}".`,
+          suggestion: 'The name is what addresses the reservation already written for existing records, so two keys '
+            + 'cannot share it. Rename one; do not renumber both.',
+          howToDeclareException: 'None.',
+        }));
+        continue;
+      }
+      seenNames.add(key.name);
+
+      for (const fieldKey of key.fields) {
+        const field = fieldByKey.get(fieldKey);
+        if (field === undefined) {
+          issues.push(make('model.key.unknown-field', 'error', {
+            entity: entity.name,
+            field: fieldKey,
+            message: `Key "${key.name}" of "${entity.name}" names "${fieldKey}", which is not a field of it.`,
+            suggestion: 'A key covers fields of its OWN entity. To be unique against another entity\'s value, '
+              + 'the value has to live here — through the relationship, or as a declared snapshot.',
+            howToDeclareException: 'None.',
+          }));
+          continue;
+        }
+        if (field.semanticType === 'derived') {
+          issues.push(make('model.key.derived-field', 'error', {
+            entity: entity.name,
+            field: fieldKey,
+            message: `Key "${key.name}" covers "${fieldKey}", which is derived and is not stored on the record.`,
+            suggestion: 'A key reserves the value it reads from the document. A derived value is computed on read, '
+              + 'so the reservation would point at a value the record does not carry. Use the fields the derivation '
+              + 'reads from.',
+            howToDeclareException: 'None.',
+          }));
+        }
+        if (key.kind === 'primary' && field.required !== true) {
+          issues.push(make('model.key.optional-primary', 'warning', {
+            entity: entity.name,
+            field: fieldKey,
+            message: `"${fieldKey}" carries the primary key of "${entity.name}" and is not required.`,
+            suggestion: 'A primary key is an ADDRESS — it is what an idempotent upsert and a stable link use. An '
+              + 'address that may be missing addresses nothing, so mark the field required.',
+            howToDeclareException: 'Make it a "unique" key instead: that one only forbids the second value, and it '
+              + 'is allowed to be absent.',
+          }));
+        }
+      }
+
+      const signature = `${key.scope ?? 'tenant'}::${[...key.fields].join(' ')}`;
+      const twin = seenSignatures.get(signature);
+      if (twin !== undefined) {
+        issues.push(make('model.key.duplicate-fields', 'warning', {
+          entity: entity.name,
+          message: `Keys "${twin}" and "${key.name}" of "${entity.name}" cover exactly the same fields.`,
+          suggestion: 'One of them says nothing the other does not. Keep the stronger one — a primary outranks a '
+            + 'unique — and drop the other.',
+          howToDeclareException: 'Two keys over the same fields in DIFFERENT scopes are two different rules, and '
+            + 'that is allowed.',
+        }));
+      } else {
+        seenSignatures.set(signature, key.name);
+      }
+
+      if (key.kind === 'primary') {
+        primaries += 1;
+        if (primaries > 1) {
+          issues.push(make('model.key.multiple-primary', 'error', {
+            entity: entity.name,
+            message: `"${entity.name}" declares more than one primary key.`,
+            suggestion: 'One entity has one primary key: it is the address of the record. Everything else that must '
+              + 'not repeat is a "unique" key.',
+            howToDeclareException: 'None.',
+          }));
+        }
+      }
+
+      if (key.scope === 'parent' && !childEntities.has(entity.name)) {
+        issues.push(make('model.key.scope-without-parent', 'error', {
+          entity: entity.name,
+          message: `Key "${key.name}" is scoped to the parent, and "${entity.name}" is nobody's child.`,
+          suggestion: 'Scope "parent" means unique WITHIN one parent record — the item numbered 1 of each order. It '
+            + 'needs a relationship with storage "child". Without one, the scope is "tenant".',
+          howToDeclareException: 'None.',
+        }));
+      }
+    }
+  }
+
+  return issues;
+};
+
 export const validateDomainModel = (model: DomainModel, catalog: DomainCatalog): DomainValidation => {
   const expanded = expandEmbedded(model);
   const working = expanded.model;
@@ -805,6 +926,7 @@ export const validateDomainModel = (model: DomainModel, catalog: DomainCatalog):
     })),
     ...entityIssues(working, catalog, existingCollections),
     ...fieldIssues(working, catalog, resolve),
+    ...keyIssues(working),
     ...couplingIssues(
       working,
       catalog,

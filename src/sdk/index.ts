@@ -280,6 +280,11 @@ export type {
   CustomFieldValue,
   FieldDefinition,
   FieldOrigin,
+  RecordKeyKind,
+  RecordKeyNormalization,
+  RecordKeyScope,
+  RecordKeySpec,
+  RecordKeyStatus,
   ScreenListAction,
 } from '../domain/entities';
 

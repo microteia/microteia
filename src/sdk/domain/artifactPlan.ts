@@ -1,13 +1,25 @@
 import type { FieldDefinition } from '../../domain/entities/entitySchemas';
+import type { RecordKeyKind, RecordKeySpec } from '../../domain/schema/recordKeys';
 import type { BusinessRule } from './businessRule';
 import { checkBusinessRule } from './businessRule';
 import type { CatalogEntity, CatalogException, CatalogScreenInput, DomainCatalog, ParentRelation } from './catalog';
 import { buildDomainCatalog, catalogEntity, collectionOfScreen, declaredScreenSourceIds, exceptionKey } from './catalog';
-import type { DomainIssue, DomainModel } from './domainModel';
+import type { DomainEntity, DomainIssue, DomainModel } from './domainModel';
 import { hasBlockingIssue, sortIssues } from './domainModel';
 import type { DomainIssueCode } from './detectors';
 import type { ScreenPlan } from './screenPlan';
 import { buildScreenPlan } from './screenPlan';
+
+/**
+ * As chaves da entidade, declaradas e açucaradas, na mesma lista. O plano fala de RESTRIÇÃO, não da
+ * sintaxe que a escreveu — quem lê quer saber o que não pode repetir.
+ */
+const screenKeysOf = (entity: DomainEntity): RecordKeySpec[] => [
+  ...(entity.keys ?? []).map((key) => ({ ...key })),
+  ...entity.fields
+    .filter((field) => field.unique === true)
+    .map((field) => ({ name: `field:${field.key}`, kind: 'unique' as RecordKeyKind, fields: [field.key] })),
+];
 import { relationshipSummary } from './storageMapping';
 import type { RuleDelta, RuleLedger, RuleLedgerEntry } from './traceability';
 import {
@@ -63,8 +75,32 @@ export interface PlannedScreen {
   parent?: { collection: string; fieldKey: string; relation: ParentRelation };
   ownerPluginId?: string;
   fields: PlannedField[];
+  /**
+   * As chaves que esta tela passa a ter, e as que ela já tinha.
+   *
+   * Uma chave NOVA sobre uma coleção que já tem registros não vale no dia em que é instalada: ela
+   * nasce `pending`, alguém varre o que está gravado, e só então passa a valer. Está no plano porque
+   * é o único jeito de quem lê saber que aquela varredura existe — uma chave que "já vale" e encontra
+   * duas duplicatas antigas travaria a gravação seguinte por um motivo que ninguém mostrou.
+   */
+  keys: PlannedScreenKey[];
   /** Campos que existem lá e que este modelo não descreve. O plano NUNCA os remove. */
   retainedFields: string[];
+  /** Chaves que existem lá e que este modelo não descreve. O plano NUNCA as remove. */
+  retainedKeys: string[];
+}
+
+export interface PlannedScreenKey {
+  operation: PlanOperation;
+  name: string;
+  kind: RecordKeyKind;
+  fields: string[];
+  /**
+   * A chave nova sobre uma coleção que PODE ter registros nasce pendente. O plano não vê registro
+   * nenhum — então ele não afirma que a coleção está vazia: ele diz que a varredura é parte de
+   * instalar a chave.
+   */
+  adoption: 'immediate' | 'sweep-existing-records';
 }
 
 export interface PlannedLookup {
@@ -369,7 +405,21 @@ export const buildArtifactPlan = (
       }));
     }
 
+    const existingKeyNames = new Set((existing?.keys ?? []).map((one) => one.name));
+    const plannedScreenKeys: PlannedScreenKey[] = screenKeysOf(entity).map((key) => ({
+      operation: existingKeyNames.has(key.name) ? 'unchanged' : 'create',
+      name: key.name,
+      kind: key.kind,
+      fields: [...key.fields],
+      // Só a tela que NASCE agora pode garantir que não há o que varrer. Sobre uma coleção que já
+      // existia, a única resposta honesta é que alguém tem de olhar o que está gravado.
+      adoption: existing === undefined ? 'immediate' : 'sweep-existing-records',
+    }));
+    const declaredKeyNames = new Set(plannedScreenKeys.map((one) => one.name));
+    const retainedKeys = [...existingKeyNames].filter((name) => !declaredKeyNames.has(name));
+
     const changed = fields.some((one) => one.operation !== 'unchanged')
+      || plannedScreenKeys.some((one) => one.operation !== 'unchanged')
       || (existing !== undefined && (!sameParent(parent, existing.parent) || existing.titleFieldKey !== input.titleFieldKey));
 
     screens.push({
@@ -381,7 +431,9 @@ export const buildArtifactPlan = (
       ...(parent === undefined ? {} : { parent }),
       ...(working.extensionId === undefined ? {} : { ownerPluginId: working.extensionId }),
       fields,
+      keys: plannedScreenKeys,
       retainedFields,
+      retainedKeys,
     });
   }
 

@@ -1,5 +1,11 @@
 import type { AggregationOp, CustomFieldType } from '../../domain/schema/fieldRules';
 import { CUSTOM_FIELD_TYPES } from '../../domain/schema/fieldRules';
+import type {
+  RecordKeyKind,
+  RecordKeyNormalization,
+  RecordKeyScope,
+} from '../../domain/schema/recordKeys';
+import { RECORD_KEY_KINDS, RECORD_KEY_SCOPES } from '../../domain/schema/recordKeys';
 import type { BehaviorModel } from './behaviorModel';
 import { parseBehaviorModel } from './behaviorModel';
 
@@ -140,6 +146,12 @@ export interface DomainField {
   embeddedOf?: string;
   /** Campo `select` servido por uma lista do escritório. */
   lookup?: string;
+  /**
+   * ATALHO: não há dois registros com este valor. Vira uma `DomainKey` de um campo, no escopo da
+   * organização. Para a combinação de vários campos, ou para mudar escopo, comparação ou
+   * obrigatoriedade, declare a chave em `entity.keys`.
+   */
+  unique?: boolean;
   /** Vira filtro e coluna da listagem. */
   filterable?: boolean;
   showInList?: boolean;
@@ -164,6 +176,38 @@ export interface EntityTab {
   because: string;
 }
 
+/**
+ * O que não pode se repetir na entidade — a chave natural do negócio.
+ *
+ * É declaração de ENTIDADE e não de campo, mesmo quando cobre um campo só, por três razões que só
+ * aparecem juntas: chave composta é a regra (o item nº 1 de CADA pedido); o escopo é propriedade da
+ * chave, não de nenhum dos campos; e uma lista num lugar só é o que a regra de segurança, a tela e a
+ * adoção sobre o dado que já existe conseguem ler sem remontar a verdade. `DomainField.unique` é o
+ * atalho para o caso de um campo, e vira uma destas.
+ *
+ * A chave NÃO é o id do documento. O id continua sorteado — uma chave natural muda (o CPF foi
+ * digitado errado), e mover o documento obrigaria a reescrever toda referência que aponta para ele.
+ */
+export interface DomainKey {
+  /** Estável: é por ele que a reserva já gravada é encontrada. Renomear é declarar outra chave. */
+  name: string;
+  /**
+   * `primary` identifica o registro — vira endereço para um upsert idempotente por chave natural, e
+   * é obrigatória (nunca esparsa). No máximo uma por entidade. `unique` apenas proíbe o segundo.
+   */
+  kind: RecordKeyKind;
+  /** Chaves de campo da PRÓPRIA entidade, na ordem. */
+  fields: string[];
+  /** `tenant` (padrão) = única na organização. `parent` = única dentro do registro-pai. */
+  scope?: RecordKeyScope;
+  /** Como dois valores contam como o mesmo antes de comparar. */
+  normalize?: RecordKeyNormalization;
+  /** `false` = o valor é obrigatório. Padrão `true`: sem valor, nada é reservado. */
+  sparse?: boolean;
+  /** O que a pessoa lê no conflito. */
+  message?: string;
+}
+
 export interface DomainEntity {
   /** O nome de DOMÍNIO. Nunca vira coleção sozinho — ver `collection`. */
   name: string;
@@ -178,6 +222,8 @@ export interface DomainEntity {
   titleField?: string;
   /** As abas opcionais da tela, cada uma com o motivo. Ausente = nenhuma, que é o padrão. */
   tabs?: EntityTab[];
+  /** O que não pode se repetir. Ausente = nada — duas linhas iguais são duas linhas válidas. */
+  keys?: DomainKey[];
   fields: DomainField[];
 }
 
@@ -373,10 +419,55 @@ const readField = (raw: unknown, entityName: string, issues: DomainIssue[]): Dom
   if (aggregation !== undefined) field.aggregation = aggregation;
   if (str(raw.embeddedOf) !== undefined) field.embeddedOf = str(raw.embeddedOf) as string;
   if (str(raw.lookup) !== undefined) field.lookup = str(raw.lookup) as string;
+  if (bool(raw.unique) !== undefined) field.unique = bool(raw.unique) as boolean;
   if (bool(raw.filterable) !== undefined) field.filterable = bool(raw.filterable) as boolean;
   if (bool(raw.showInList) !== undefined) field.showInList = bool(raw.showInList) as boolean;
   if (str(raw.section) !== undefined) field.section = str(raw.section) as string;
   return field;
+};
+
+const readNormalization = (raw: unknown): RecordKeyNormalization | undefined => {
+  if (!isRecord(raw)) return undefined;
+  const normalization: RecordKeyNormalization = {};
+  if (bool(raw.trim) !== undefined) normalization.trim = bool(raw.trim) as boolean;
+  if (bool(raw.caseInsensitive) !== undefined) {
+    normalization.caseInsensitive = bool(raw.caseInsensitive) as boolean;
+  }
+  if (str(raw.formatPreset) !== undefined) normalization.formatPreset = str(raw.formatPreset) as string;
+  return Object.keys(normalization).length > 0 ? normalization : undefined;
+};
+
+const readKey = (raw: unknown, entityName: string, issues: DomainIssue[]): DomainKey | null => {
+  if (!isRecord(raw)) {
+    issues.push(structural(
+      'A key must be an object.',
+      'Each entry of "keys" is { name, kind, fields }.',
+      entityName,
+    ));
+    return null;
+  }
+  const name = str(raw.name);
+  const kind = oneOf(raw.kind, RECORD_KEY_KINDS);
+  const fields = (Array.isArray(raw.fields) ? raw.fields : [])
+    .map((one) => str(one))
+    .filter((one): one is string => one !== undefined);
+  if (name === undefined || kind === undefined || fields.length === 0) {
+    issues.push(structural(
+      `A key of "${entityName}" is missing name, kind or fields.`,
+      `kind: ${RECORD_KEY_KINDS.join(' | ')}, and "fields" names the fields of THIS entity, in order. `
+      + 'A key over one field can be written as `unique: true` on the field instead.',
+      entityName,
+    ));
+    return null;
+  }
+  const key: DomainKey = { name, kind, fields };
+  const scope = oneOf(raw.scope, RECORD_KEY_SCOPES);
+  if (scope !== undefined) key.scope = scope;
+  const normalize = readNormalization(raw.normalize);
+  if (normalize !== undefined) key.normalize = normalize;
+  if (bool(raw.sparse) !== undefined) key.sparse = bool(raw.sparse) as boolean;
+  if (str(raw.message) !== undefined) key.message = str(raw.message) as string;
+  return key;
 };
 
 const readEntity = (raw: unknown, issues: DomainIssue[]): DomainEntity | null => {
@@ -407,6 +498,10 @@ const readEntity = (raw: unknown, issues: DomainIssue[]): DomainEntity | null =>
     kind,
     fields: rawFields.map((one) => readField(one, name, issues)).filter((one): one is DomainField => one !== null),
   };
+  const keys = (Array.isArray(raw.keys) ? raw.keys : [])
+    .map((one) => readKey(one, name, issues))
+    .filter((one): one is DomainKey => one !== null);
+  if (keys.length > 0) entity.keys = keys;
   if (str(raw.collection) !== undefined) entity.collection = str(raw.collection) as string;
   if (str(raw.description) !== undefined) entity.description = str(raw.description) as string;
   if (str(raw.titleField) !== undefined) entity.titleField = str(raw.titleField) as string;

@@ -1,5 +1,6 @@
 import type { FieldDefinition } from '../../domain/entities/entitySchemas';
 import type { EntityMetadata, NativeFieldSpec } from '../../domain/schema/entityRegistry';
+import type { RecordKeySpec } from '../../domain/schema/recordKeys';
 import type { SchemaContext, SchemaLookup, SchemaScreen, SchemaTagList } from '../../domain/schema/screenEntity';
 import { createSchemaContext, nativeSpecToFieldDefinition, resolveEntity } from '../../domain/schema/screenEntity';
 
@@ -35,6 +36,8 @@ export interface CatalogScreenInput {
   titleSingular: string;
   titlePlural?: string;
   titleFieldKey: string;
+  /** O que não pode se repetir na coleção. Ver `ScreenDefinition.keys`. */
+  keys?: RecordKeySpec[] | null;
   fields: FieldDefinition[];
   parentEntity?: string | null;
   parentFieldKey?: string | null;
@@ -82,6 +85,12 @@ export interface CatalogEntity {
   source: 'kernel' | 'workspace' | 'installation';
   ownerPluginId?: string;
   parent?: { collection: string; fieldKey: string; relation: ParentRelation };
+  /**
+   * O que JÁ não pode se repetir nesta coleção. Está no catálogo pelo mesmo motivo dos campos: quem
+   * modela precisa saber que a chave existe ANTES de propor outra — declarar uma segunda chave sobre
+   * o mesmo campo não é erro de sintaxe, é uma restrição a mais que ninguém pediu.
+   */
+  keys?: RecordKeySpec[];
   fields: CatalogField[];
 }
 
@@ -159,6 +168,7 @@ export const toSchemaScreen = (screen: CatalogScreenInput): SchemaScreen => ({
   ...(screen.titlePlural === undefined ? {} : { titlePlural: screen.titlePlural }),
   titleFieldKey: screen.titleFieldKey,
   fields: screen.fields,
+  ...(screen.keys === undefined || screen.keys === null ? {} : { keys: screen.keys }),
   ...(screen.tagCollection === undefined ? {} : { tagCollection: screen.tagCollection }),
   ...(screen.eventPrefix === undefined ? {} : { eventPrefix: screen.eventPrefix }),
 });
@@ -219,6 +229,7 @@ const entityFrom = (
     source,
     ...(screen?.ownerPluginId ? { ownerPluginId: screen.ownerPluginId } : {}),
     ...(parent === undefined ? {} : { parent }),
+    ...(metadata.keys && metadata.keys.length > 0 ? { keys: metadata.keys } : {}),
     fields: flatten(metadata.fields, '').map(({ spec, key }) => toCatalogField(spec, key)),
   };
 };

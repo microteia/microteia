@@ -153,6 +153,7 @@ export interface FieldFormState {
   showInList: boolean;
   listLabel: string;
   filterable: boolean;
+  unique: boolean;
   ruleFormatPreset: FormatPreset | '';
   ruleFormatPattern: string;
   ruleFormatReplacement: string;
@@ -256,6 +257,8 @@ export interface ScreenBuilderViewModel {
   fieldSupportsRules: boolean;
   /** Campo `file` não filtra: não há URL que alguém digite num filtro. */
   fieldSupportsFilter: boolean;
+  /** O campo pode ser chave? Ver `fieldSupportsUnique` — derivado e arquivo não podem. */
+  fieldSupportsUnique: boolean;
   /** Campos de arquivo oferecidos como imagem do registro. Só o vazio = a tela não tem nenhum. */
   imageFieldOptions: SearchSelectOption[];
   /** O teto de tamanho de arquivo, para o placeholder e a dica. */
@@ -363,6 +366,7 @@ const EMPTY_FIELD_FORM: FieldFormState = {
   showInList: false,
   listLabel: '',
   filterable: false,
+  unique: false,
   ruleFormatPreset: '',
   ruleFormatPattern: '',
   ruleFormatReplacement: '',
@@ -1373,6 +1377,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       showInList: field.showInList ?? false,
       listLabel: field.listLabel ?? '',
       filterable: field.filterable ?? false,
+      unique: field.unique === true,
       ...fieldRulesToForm(field.rules),
       ...fieldLogicToForm(field.logic),
       ...fieldAggregationToForm(field.aggregation),
@@ -1418,6 +1423,17 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
   );
 
   const fieldSupportsFilter = fieldForm.type !== 'file';
+
+  /**
+   * Chave sobre um campo cujo valor NÃO fica gravado é reserva órfã: `logic.derive` é avaliado na
+   * leitura e removido de todo caminho de escrita, e a agregação é recalculada pelo servidor a cada
+   * gravação de filho — uma unicidade sobre ela recusaria a gravação de um filho, num campo que a
+   * pessoa nem edita. Arquivo fica de fora porque o valor gravado é uma URL, diferente a cada upload
+   * do mesmo arquivo: a chave nunca acusaria a repetição que alguém espera dela.
+   */
+  const fieldSupportsUnique = fieldForm.type !== 'file'
+    && !fieldForm.logicDerive.trim()
+    && !(fieldForm.aggregationFrom.trim() && fieldForm.aggregationVia.trim());
 
   /**
    * As telas que um campo de referência pode apontar. O valor é a COLEÇÃO, nunca a chave da tela: é
@@ -1743,6 +1759,10 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     // Um campo de arquivo não filtra, e o `filterable` é zerado no dado e não só escondido na tela:
     // um pacote — ou um documento editado à mão — ainda pode trazê-lo verdadeiro.
     const filterable = fieldForm.type === 'file' ? false : fieldForm.filterable;
+    // Uma chave sobre um campo DERIVADO reservaria um valor que o registro não carrega — o derivado
+    // é avaliado na leitura e nunca gravado —, e a reserva ficaria órfã na leitura seguinte. O valor
+    // é zerado no dado, e não só escondido: o campo pode ter virado derivado depois de marcado.
+    const unique = fieldSupportsUnique ? fieldForm.unique : false;
     setSavingField(true);
     try {
       const existing = getDefinitionByKey(fieldModal.screenKey);
@@ -1778,6 +1798,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
             showInList: fieldForm.showInList,
             listLabel: fieldForm.showInList ? (fieldForm.listLabel.trim() || null) : null,
             filterable,
+            unique,
             rules,
             logic,
             aggregation,
@@ -1815,6 +1836,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
           showInList: fieldForm.showInList,
           listLabel: fieldForm.showInList ? (fieldForm.listLabel.trim() || null) : null,
           filterable,
+          unique,
           rules,
           aggregation,
           logic,
@@ -1834,7 +1856,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     } finally {
       setSavingField(false);
     }
-  }, [fieldModal, fieldForm, fieldModalIsTitleField, getDefinitionByKey, saveDefinition, notify, schemaContext, resolvedField, resolvedFieldsByScreen, declareLookup, t, label]);
+  }, [fieldModal, fieldForm, fieldModalIsTitleField, fieldSupportsUnique, getDefinitionByKey, saveDefinition, notify, schemaContext, resolvedField, resolvedFieldsByScreen, declareLookup, t, label]);
 
   /**
    * Grava a ordem da lista como posições absolutas em `fields[]`. Um campo já gravado viaja como
@@ -2033,6 +2055,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     validateCheckOptions,
     fieldSupportsRules,
     fieldSupportsFilter,
+    fieldSupportsUnique,
     fileMaxSizeDefault: String(DEFAULT_FILE_MAX_SIZE_MB),
     refEntityOptions,
     lookupOptions,

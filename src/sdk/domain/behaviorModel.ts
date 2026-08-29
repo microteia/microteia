@@ -63,12 +63,17 @@ export type EffectKind = (typeof EFFECT_KINDS)[number];
  * - `field`      — uma regra do campo, avaliada a cada digitação E no caminho de gravação.
  * - `record`     — o registro inteiro, avaliado num ponto do fluxo, depois da gravação.
  * - `transition` — a passagem. E aqui o escopo não basta: ver `INVARIANT_ENFORCEMENTS`.
+ * - `collection` — entre os registros da coleção: "não pode haver dois com o mesmo código". É o
+ *   único escopo cujo mecanismo NÃO é uma expressão: ele vira uma CHAVE declarada
+ *   (`entity.keys` / `field.unique`), porque uma expressão vê um registro e nunca consulta os
+ *   outros. Quem o declara diz quais campos, e o gate cobra que a chave exista.
  *
- * Não há escopo `collection`, e a ausência é a resposta: um invariante entre registros — "não pode
- * haver dois com o mesmo código" — não tem mecanismo nesta plataforma. Ver
- * `behavior.invariant.cross-record`.
+ * O escopo `collection` não existia, e a ausência era a resposta certa enquanto a plataforma não
+ * tinha restrição de unicidade em camada nenhuma. Passou a ter: a chave reserva o valor num
+ * documento cujo id vem do próprio valor, e a criação desse documento é a trava. Ver "Chave primária
+ * e chave única" no ARCHITECTURE.md.
  */
-export const INVARIANT_SCOPES = ['field', 'record', 'transition'] as const;
+export const INVARIANT_SCOPES = ['field', 'record', 'transition', 'collection'] as const;
 export type InvariantScope = (typeof INVARIANT_SCOPES)[number];
 
 /**
@@ -99,6 +104,9 @@ export type InvariantEnforcement = (typeof INVARIANT_ENFORCEMENTS)[number];
 export const enforcementOfScope = (scope: InvariantScope): InvariantEnforcement | undefined => {
   if (scope === 'field') return 'blocks';
   if (scope === 'record') return 'reacts';
+  // A chave bloqueia, e bloqueia mais cedo que qualquer regra: a gravação é recusada pelo próprio
+  // Firestore, no mesmo lote — não há instante em que o registro duplicado existiu.
+  if (scope === 'collection') return 'blocks';
   return undefined;
 };
 
@@ -202,6 +210,12 @@ export interface BehaviorInvariant {
   field?: string;
   /** Obrigatório em `scope: 'transition'`: o `name` da transição. */
   transition?: string;
+  /**
+   * Obrigatório em `scope: 'collection'`: o `name` da CHAVE que faz a regra valer. É a única
+   * invariante que não vira expressão — ela aponta para uma declaração, e o gate cobra que a
+   * declaração exista. Sem isso, "não pode haver dois com o mesmo código" voltaria a ser prosa.
+   */
+  key?: string;
   /**
    * Obrigatório em `scope: 'transition'`: recusa a passagem, ou reage a ela já feita. Nos outros
    * escopos o mecanismo já responde — ver `enforcementOfScope`.
@@ -416,19 +430,23 @@ const readInvariant = (raw: unknown, issues: DomainIssue[]): BehaviorInvariant |
   }
   const scope = oneOf(raw.scope, INVARIANT_SCOPES);
   const entity = str(raw.entity);
-  const expression = str(raw.expression);
+  // O escopo `collection` é o único sem expressão: o mecanismo dele é uma CHAVE declarada, e uma
+  // expressão ali seria decorativa — nada a avaliaria. Exigi-la faria quem declara escrever uma
+  // frase que o gate aceita e o runtime ignora, que é a pior combinação possível.
+  const expression = str(raw.expression) ?? (scope === 'collection' ? '' : undefined);
   if (scope === undefined || entity === undefined || expression === undefined) {
     issues.push(bad(
       `An invariant is missing scope, entity or expression (${entity ?? '?'}).`,
       `scope: ${INVARIANT_SCOPES.join(' | ')}, and scope "transition" also needs enforcement: `
-      + `${INVARIANT_ENFORCEMENTS.join(' | ')}. There is no "collection" scope, and the absence is the answer: `
-      + 'this platform has no uniqueness constraint.',
+      + `${INVARIANT_ENFORCEMENTS.join(' | ')}. Scope "collection" is the one that compares records — `
+      + 'it becomes a declared KEY on the entity, never an expression.',
       entity,
     ));
     return null;
   }
   const invariant: BehaviorInvariant = { scope, entity, expression, message: str(raw.message) ?? '' };
   if (str(raw.field) !== undefined) invariant.field = str(raw.field) as string;
+  if (str(raw.key) !== undefined) invariant.key = str(raw.key) as string;
   if (str(raw.transition) !== undefined) invariant.transition = str(raw.transition) as string;
   const enforcement = oneOf(raw.enforcement, INVARIANT_ENFORCEMENTS);
   if (enforcement !== undefined) invariant.enforcement = enforcement;

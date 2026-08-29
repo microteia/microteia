@@ -86,11 +86,17 @@ interface BehaviorEntityHandle {
   collection: string;
   fields: Map<string, { type?: string; lookup?: string; isAggregate: boolean; isDerived: boolean }>;
   denormKeys: Set<string>;
+  /** Os nomes das chaves declaradas — é a elas que uma invariante de coleção aponta. */
+  keyNames: Set<string>;
 }
 
 const handleOfModelEntity = (entity: DomainEntity, model: DomainModel): BehaviorEntityHandle => ({
   name: entity.name,
   collection: collectionOfEntity(entity),
+  keyNames: new Set([
+    ...(entity.keys ?? []).map((key) => key.name),
+    ...entity.fields.filter((field) => field.unique === true).map((field) => `field:${field.key}`),
+  ]),
   fields: new Map(entity.fields.map((field) => [field.key, {
     ...(field.type === undefined ? {} : { type: field.type }),
     ...(field.lookup === undefined ? {} : { lookup: field.lookup }),
@@ -123,6 +129,7 @@ const buildHandles = (model: DomainModel, catalog: DomainCatalog): Map<string, B
         isDerived: field.aggregation !== undefined || field.computeExpression !== undefined,
       }])),
       denormKeys: new Set(),
+      keyNames: new Set((entity.keys ?? []).map((key) => key.name)),
     });
   }
   return handles;
@@ -737,6 +744,30 @@ const invariantIssues = (
     const handle = handles.get(invariant.entity);
     issues.push(...enforcementIssues(invariant, behavior));
 
+    if (invariant.scope === 'collection') {
+      // A ÚNICA invariante cujo mecanismo não é expressão: ela aponta para uma chave declarada, e o
+      // que se cobra aqui é que a declaração exista. Sem essa cobrança, "não pode haver dois com o
+      // mesmo código" voltaria a ser uma frase que passa no gate e não vale em lugar nenhum.
+      const declared = handle?.keyNames ?? new Set<string>();
+      const named = invariant.key;
+      if (named === undefined || !declared.has(named)) {
+        issues.push(make('behavior.invariant.uniqueness-undeclared', 'error', {
+          entity: invariant.entity,
+          message: named === undefined
+            ? `An invariant over "${invariant.entity}" has scope "collection" and names no key.`
+            : `The invariant names key "${named}", and "${invariant.entity}" does not declare it.`
+              + (declared.size > 0 ? ` It declares: ${[...declared].join(', ')}.` : ' It declares none.'),
+          suggestion: 'Uniqueness is the one rule here that is DECLARED, never written as an expression: a validate '
+            + 'sees one record and cannot query the others. Declare it on the entity — '
+            + 'keys: [{ name, kind: "unique", fields: [...] }] — or, when one field is the whole key, `unique: true` '
+            + 'on the field, which becomes the key named `field:<key>`. Then point this invariant at that name.',
+          howToDeclareException: 'None. A rule that says "unique" and lets duplicates through is worse than no rule, '
+            + 'because whoever reads the screen stops checking.',
+        }));
+      }
+      continue;
+    }
+
     if (invariant.scope === 'field' && (invariant.field === undefined || !(handle?.fields.has(invariant.field) ?? true))) {
       issues.push(make('behavior.invariant.field-scope-without-field', 'error', {
         entity: invariant.entity,
@@ -766,21 +797,21 @@ const invariantIssues = (
       entity: invariant.entity,
       ...(invariant.field === undefined ? {} : { field: invariant.field }),
       message: aboutItself
-        ? `This invariant compares "${invariant.entity}" against its own other records — a uniqueness rule. There is no `
-          + 'uniqueness constraint in this platform, at any layer: not in the field rules, not in the object validation, '
-          + 'not in the security rules.'
+        ? `This invariant compares "${invariant.entity}" against its own other records — a uniqueness rule — and it is `
+          + 'written as an EXPRESSION. No expression here can do it: a field rule and an object validation both see one '
+          + 'record and never query.'
         : `This invariant reads ${foreign.map((one) => `"${one}"`).join(', ')}, which is a set of records. A field rule and `
           + 'an object validation both see one record and never query.',
       suggestion: aboutItself
-        ? 'The closest declarable thing is a CHECK AFTER THE FACT, and it must be presented as one: a workflow on '
-          + '"<collection>.saved" with a query step and a notify or exit. It finds the duplicate that already exists; it '
-          + 'does not prevent it, and two writes at the same instant both pass. If the value must be unique, make it the '
-          + 'document id — that the platform does enforce, and nothing else does.'
+        ? 'Declare it instead of computing it: keys: [{ name, kind: "unique", fields: [...] }] on the entity, or '
+          + '`unique: true` on the field when one field is the whole key — and then an invariant with '
+          + 'scope: "collection" pointing at that key name. The value is reserved in a document whose id derives from '
+          + 'the value, written in the same batch as the record, so two writes at the same instant do not both pass.'
         : 'Query first, then validate: a query step publishes the rows, and the condition or the validate-object step '
           + 'reads its outputs.',
       howToDeclareException: aboutItself
-        ? 'None. Do not simulate it — a rule that says "unique" and lets duplicates through is worse than no rule, '
-          + 'because whoever reads the screen stops checking.'
+        ? 'None. Do not simulate the comparison — a rule that says "unique" and lets duplicates through is worse than '
+          + 'no rule, because whoever reads the screen stops checking. The key is the declaration that holds.'
         : 'Denormalize the value onto the record if it is read this often, and the invariant becomes local.',
     }));
   }

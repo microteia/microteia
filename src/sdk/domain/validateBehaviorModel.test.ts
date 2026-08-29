@@ -3,7 +3,7 @@ import { buildDomainCatalog } from './catalog';
 import type { BehaviorInvariant, BehaviorModel, BehaviorTransition } from './behaviorModel';
 import { BEHAVIOR_MECHANISMS, SCHEDULE_TRIGGER_SUPPORTED } from './behaviorMapping';
 import { CONTROL_STEP_TYPES, CORE_STEP_DEFINITION_IDS } from '../../domain/schema/workflowStepCatalog';
-import type { DomainIssue, DomainModel } from './domainModel';
+import type { DomainEntity, DomainIssue, DomainModel } from './domainModel';
 import { parseDomainModel } from './domainModel';
 import { salesBehavior, salesBehaviorModel } from './fixtures.test-support';
 import { validateDomainModel } from './validateDomainModel';
@@ -18,6 +18,16 @@ const errors = (issues: readonly DomainIssue[]): DomainIssue[] => issues.filter(
 const withBehavior = (mutate: (behavior: BehaviorModel) => BehaviorModel): DomainModel => {
   const model = salesBehaviorModel();
   return { ...model, behavior: mutate(salesBehavior()) };
+};
+
+/** Venda com as chaves declaradas e UMA invariante de coleção — o par que se quer exercitar. */
+const withKeyedSale = (keys: DomainEntity['keys'], invariant: BehaviorInvariant): DomainModel => {
+  const model = salesBehaviorModel();
+  return {
+    ...model,
+    entities: model.entities.map((entity) => (entity.name === 'Sale' ? { ...entity, keys } : entity)),
+    behavior: { ...salesBehavior(), invariants: [invariant] },
+  };
 };
 
 const replaceTransition = (behavior: BehaviorModel, name: string, patch: Partial<BehaviorTransition>): BehaviorModel => ({
@@ -309,8 +319,8 @@ describe('o total não é um efeito de transição', () => {
   });
 });
 
-describe('o invariante entre registros — unicidade não existe aqui', () => {
-  it('pega a unicidade e diz que a plataforma não a tem, em vez de simulá-la', () => {
+describe('o invariante entre registros — unicidade é DECLARADA, nunca calculada', () => {
+  it('recusa a unicidade escrita como expressão e manda declarar a chave', () => {
     const result = check(withBehavior((behavior) => ({
       ...behavior,
       invariants: [
@@ -324,10 +334,63 @@ describe('o invariante entre registros — unicidade não existe aqui', () => {
       ],
     })));
     const issue = result.issues.find((one) => one.code === 'behavior.invariant.cross-record');
-    expect(issue?.message).toContain('no uniqueness constraint');
-    expect(issue?.suggestion).toContain('document id');
-    expect(issue?.howToDeclareException).toContain('Do not simulate it');
+    expect(issue?.message).toContain('written as an EXPRESSION');
+    expect(issue?.suggestion).toContain('kind: "unique"');
+    expect(issue?.suggestion).toContain('scope: "collection"');
+    expect(issue?.howToDeclareException).toContain('The key is the declaration that holds');
     expect(result.ok).toBe(false);
+  });
+
+  it('o escopo de coleção sem chave nenhuma declarada é recusado, com o que declarar', () => {
+    const result = check(withBehavior((behavior) => ({
+      ...behavior,
+      invariants: [
+        ...behavior.invariants,
+        { scope: 'collection', entity: 'Sale', expression: '', message: 'The code is unique.' },
+      ],
+    })));
+    const issue = result.issues.find((one) => one.code === 'behavior.invariant.uniqueness-undeclared');
+    expect(issue?.message).toContain('names no key');
+    expect(issue?.suggestion).toContain('keys: [{ name, kind: "unique", fields: [...] }]');
+    expect(result.ok).toBe(false);
+  });
+
+  it('o escopo de coleção que aponta para uma chave INEXISTENTE é recusado, dizendo quais existem', () => {
+    const result = check(withKeyedSale(
+      [{ name: 'code', kind: 'unique', fields: ['code'] }],
+      { scope: 'collection', entity: 'Sale', key: 'outra', expression: '', message: 'x' },
+    ));
+    const issue = result.issues.find((one) => one.code === 'behavior.invariant.uniqueness-undeclared');
+    expect(issue?.message).toContain('does not declare it');
+    expect(issue?.message).toContain('code');
+  });
+
+  it('o escopo de coleção que aponta para a chave DECLARADA passa', () => {
+    const result = check(withKeyedSale(
+      [{ name: 'code', kind: 'unique', fields: ['code'] }],
+      { scope: 'collection', entity: 'Sale', key: 'code', expression: '', message: 'x' },
+    ));
+    expect(codes(result.issues)).not.toContain('behavior.invariant.uniqueness-undeclared');
+  });
+
+  it('o atalho `unique: true` do campo também satisfaz a invariante, pelo nome derivado', () => {
+    const model = salesBehaviorModel();
+    const withShorthand: DomainModel = {
+      ...model,
+      entities: model.entities.map((entity) => (entity.name === 'Sale'
+        ? {
+          ...entity,
+          fields: entity.fields.map((field) => (field.key === 'code' ? { ...field, unique: true } : field)),
+        }
+        : entity)),
+      behavior: {
+        ...salesBehavior(),
+        invariants: [
+          { scope: 'collection', entity: 'Sale', key: 'field:code', expression: '', message: 'x' },
+        ],
+      },
+    };
+    expect(codes(check(withShorthand).issues)).not.toContain('behavior.invariant.uniqueness-undeclared');
   });
 
   it('pega o escopo de campo sem o campo', () => {

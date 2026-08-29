@@ -931,6 +931,9 @@ export const CORE_AUTOMATION: Record<string, string> = {
   'input.required': 'Entrada obrigatória "{label}" não foi informada',
   'mutation.remove.invalid': 'Exclusão inválida: {detail}',
   'mutation.upsert.invalid': 'Gravação inválida: {detail}',
+  'mutation.upsert.key-conflict':
+    'Outro registro já ocupa a chave "{key}" com o valor {value}.',
+  'mutation.upsert.key-required': 'A chave "{key}" precisa de valor: {fields}.',
   'mutation.upsert.unwritable-ignored':
     'Gravação em "{table}": {count} campo(s) não gravável(is) foram ignorados — {fields}',
   'query.invalid': 'Consulta inválida: {detail}',

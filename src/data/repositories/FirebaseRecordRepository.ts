@@ -13,13 +13,31 @@ import {
   setDoc,
   Timestamp,
   updateDoc,
+  writeBatch,
 } from 'firebase/firestore';
 import { db } from '../../infrastructure/firebase/config';
 import type { IRecordRepository } from '../../domain/repositories/IRecordRepository';
 import type { EntityRecord, EntityRecordValues } from '../../domain/entities/EntityRecord';
 import type { DeletionActor } from '../../domain/entities';
 import { stampDeletionActor } from '../utils/stampDeletionActor';
-import { applyRecordRules, loadRecordBaseline, makeRecordDeriver } from '../utils/recordRulesGate';
+import type { RecordKeyConflict } from '../utils/recordRulesGate';
+import {
+  applyRecordRules,
+  loadRecordBaseline,
+  makeRecordDeriver,
+  planRecordKeysFor,
+  RecordKeyConflictError,
+  RecordKeyMissingError,
+  tableHasRecordKeys,
+} from '../utils/recordRulesGate';
+import type { RecordKeyEntry } from '../../domain/schema/recordKeys';
+import {
+  diffRecordKeys,
+  recordKeyRefs,
+  RECORD_KEY_REFS_FIELD,
+  RECORD_KEYS_COLLECTION,
+  storedRecordKeyRefs,
+} from '../../domain/schema/recordKeys';
 
 const RECORDS_PAGE_LIMIT = 500;
 
@@ -43,6 +61,53 @@ const toPlainValues = (value: unknown): unknown => {
 
 const recordsRef = (tenantId: string, collection: string) =>
   firestoreCollection(db, 'tenants', tenantId, collection);
+
+const keysRef = (tenantId: string) => firestoreCollection(db, 'tenants', tenantId, RECORD_KEYS_COLLECTION);
+
+/**
+ * A GARANTIA está aqui, e ela não é um `read-then-write`.
+ *
+ * A reserva entra no lote com `setDoc`, e a regra da coleção `recordKeys` só libera `create` — que
+ * no Firestore só dispara quando o documento NÃO existe. Escrever sobre uma reserva ocupada é, para
+ * a regra, um `update`, e é negado: o lote inteiro falha, atomicamente. Não há janela entre conferir
+ * e gravar, e por isso duas gravações no mesmo instante não passam as duas. É o mesmo mecanismo de
+ * `/nicknames`, que já vivia no repositório para um caso só.
+ *
+ * Nada disso pede índice composto: a busca é por id de documento. Foi a razão de preferir a reserva
+ * a "consultar antes de gravar", que além de ter corrida obrigaria um índice por chave declarada.
+ */
+const keyDoc = (tenantId: string, keyId: string) => doc(keysRef(tenantId), keyId);
+
+/**
+ * A recusa do lote chega como `permission-denied`, e ela tem DUAS causas possíveis: a reserva já
+ * existe (duplicata) ou quem grava não tem a permissão da coleção. Traduzir a segunda como "valor
+ * repetido" mandaria a pessoa corrigir um campo que está certo, então a distinção é comprada com
+ * uma leitura — e só no caminho de falha, que é onde ela cabe.
+ */
+const describeDenial = async (
+  tenantId: string,
+  recordId: string | null,
+  entries: RecordKeyEntry[],
+  error: unknown,
+): Promise<never> => {
+  if ((error as { code?: string } | null)?.code !== 'permission-denied' || entries.length === 0) {
+    throw error as Error;
+  }
+  const taken: RecordKeyConflict[] = [];
+  for (const entry of entries) {
+    const snap = await getDoc(keyDoc(tenantId, entry.keyId));
+    if (!snap.exists()) continue;
+    if (recordId !== null && (snap.data() as { recordId?: string }).recordId === recordId) continue;
+    taken.push({
+      name: entry.name,
+      fields: entry.fields,
+      values: entry.values,
+      ...(entry.message ? { message: entry.message } : {}),
+    });
+  }
+  if (taken.length === 0) throw error as Error;
+  throw new RecordKeyConflictError(taken);
+};
 
 /**
  * Os campos vêm da raiz do documento, sem desempacotamento. `tenantId` e `collection` são de
@@ -131,23 +196,56 @@ export class FirebaseRecordRepository implements IRecordRepository {
     data: EntityRecordValues,
     recordId?: string,
   ): Promise<EntityRecord> {
+    const ruled = applyRecordRules(collection, stripIdentity(data));
+    const plan = planRecordKeysFor(collection, ruled);
+    if (plan.gaps.length > 0) throw new RecordKeyMissingError(plan.gaps);
+
     const payload = {
-      ...applyRecordRules(collection, stripIdentity(data)),
+      ...ruled,
+      ...(plan.entries.length > 0 ? { [RECORD_KEY_REFS_FIELD]: recordKeyRefs(plan.entries) } : {}),
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     };
+
     // Com id em mãos o documento nasce onde os arquivos dele já foram gravados; sem, o Firestore
-    // sorteia como sempre.
-    let ref;
-    if (recordId) {
-      ref = doc(recordsRef(tenantId, collection), recordId);
-      await setDoc(ref, payload);
-    } else {
-      ref = await addDoc(recordsRef(tenantId, collection), payload);
+    // sorteia como sempre. Uma coleção COM chave sempre tem id antes do lote: a reserva precisa
+    // apontar para o registro, e `addDoc` só devolve o id depois de gravar.
+    if (plan.entries.length === 0) {
+      let ref;
+      if (recordId) {
+        ref = doc(recordsRef(tenantId, collection), recordId);
+        await setDoc(ref, payload);
+      } else {
+        ref = await addDoc(recordsRef(tenantId, collection), payload);
+      }
+      return this.readBack(tenantId, collection, ref.id);
     }
+
+    const id = recordId ?? this.newId(tenantId, collection);
+    const batch = writeBatch(db);
+    batch.set(doc(recordsRef(tenantId, collection), id), payload);
+    for (const entry of plan.entries) {
+      batch.set(keyDoc(tenantId, entry.keyId), {
+        collection,
+        keyName: entry.name,
+        recordId: id,
+        values: entry.values,
+        createdAt: serverTimestamp(),
+      });
+    }
+    try {
+      await batch.commit();
+    } catch (error) {
+      await describeDenial(tenantId, id, plan.entries, error);
+    }
+    return this.readBack(tenantId, collection, id);
+  }
+
+  private async readBack(tenantId: string, collection: string, id: string): Promise<EntityRecord> {
+    const ref = doc(recordsRef(tenantId, collection), id);
     const snap = await getDoc(ref);
     return mapRecord(
-      ref.id,
+      id,
       snap.data() as Record<string, unknown>,
       tenantId,
       collection,
@@ -161,12 +259,60 @@ export class FirebaseRecordRepository implements IRecordRepository {
     recordId: string,
     data: EntityRecordValues,
   ): Promise<void> {
-    const ref = doc(recordsRef(tenantId, collection), recordId);
-    const baseline = await loadRecordBaseline(collection, ref);
-    await updateDoc(ref, {
-      ...applyRecordRules(collection, stripIdentity(data), baseline),
+    const hasKeys = tableHasRecordKeys(collection);
+    // A coleção com chave precisa do registro inteiro de qualquer jeito: uma chave composta cujo
+    // update toca um campo só continua sendo a mesma chave, e planejar sobre o payload parcial
+    // reservaria metade dos valores vazios.
+    const baseline = hasKeys
+      ? await this.readRaw(tenantId, collection, recordId)
+      : await loadRecordBaseline(collection, doc(recordsRef(tenantId, collection), recordId));
+    const ruled = applyRecordRules(collection, stripIdentity(data), baseline);
+
+    if (!hasKeys) {
+      await updateDoc(doc(recordsRef(tenantId, collection), recordId), {
+        ...ruled,
+        updatedAt: serverTimestamp(),
+      });
+      return;
+    }
+
+    const plan = planRecordKeysFor(collection, ruled, baseline);
+    if (plan.gaps.length > 0) throw new RecordKeyMissingError(plan.gaps);
+    const diff = diffRecordKeys(plan, storedRecordKeyRefs(baseline));
+
+    const batch = writeBatch(db);
+    batch.update(doc(recordsRef(tenantId, collection), recordId), {
+      ...ruled,
+      [RECORD_KEY_REFS_FIELD]: diff.refs,
       updatedAt: serverTimestamp(),
     });
+    // Soltar antes de criar é o que permite trocar o valor de uma chave e voltar atrás na mesma
+    // sessão. A reserva cujo valor NÃO mudou não é solta nem recriada: sair e voltar abriria uma
+    // janela em que o valor está livre para outro registro.
+    for (const keyId of diff.release) batch.delete(keyDoc(tenantId, keyId));
+    for (const entry of diff.create) {
+      batch.set(keyDoc(tenantId, entry.keyId), {
+        collection,
+        keyName: entry.name,
+        recordId,
+        values: entry.values,
+        createdAt: serverTimestamp(),
+      });
+    }
+    try {
+      await batch.commit();
+    } catch (error) {
+      await describeDenial(tenantId, recordId, diff.create, error);
+    }
+  }
+
+  private async readRaw(
+    tenantId: string,
+    collection: string,
+    recordId: string,
+  ): Promise<Record<string, unknown> | undefined> {
+    const snap = await getDoc(doc(recordsRef(tenantId, collection), recordId));
+    return snap.exists() ? (snap.data() as Record<string, unknown>) : undefined;
   }
 
   async delete(
@@ -177,7 +323,18 @@ export class FirebaseRecordRepository implements IRecordRepository {
   ): Promise<void> {
     const ref = doc(recordsRef(tenantId, collection), recordId);
     await stampDeletionActor(ref, actor);
-    await deleteDoc(ref);
+    if (!tableHasRecordKeys(collection)) {
+      await deleteDoc(ref);
+      return;
+    }
+    // As reservas saem no MESMO lote do registro: soltas antes, o valor ficaria livre enquanto o
+    // registro ainda existe; soltas depois, uma falha entre as duas escritas prenderia o valor para
+    // sempre num registro que não está mais lá.
+    const refs = storedRecordKeyRefs(await this.readRaw(tenantId, collection, recordId));
+    const batch = writeBatch(db);
+    batch.delete(ref);
+    for (const keyId of Object.values(refs)) batch.delete(keyDoc(tenantId, keyId));
+    await batch.commit();
   }
 
   async hasRecords(tenantId: string, collection: string): Promise<boolean> {

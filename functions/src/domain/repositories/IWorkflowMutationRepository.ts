@@ -1,20 +1,56 @@
+/**
+ * As reservas de chave que acompanham uma gravação — a metade do lote que não é o registro.
+ *
+ * No backend a garantia não vem da regra do Firestore (o Admin SDK a ignora): vem de `tx.create`
+ * dentro de uma transação, que falha se o documento já existe. É o mesmo efeito, obtido pelo
+ * mecanismo que existe deste lado.
+ */
+export interface RecordKeyReservation {
+  keyId: string;
+  keyName: string;
+  values: string[];
+}
+
+export interface RecordKeyMutation {
+  create: RecordKeyReservation[];
+  release: string[];
+}
+
+/** A reserva que já pertence a outro registro. É o que vira recusa do passo, com o valor à vista. */
+export class RecordKeyTakenError extends Error {
+  readonly keyName: string;
+
+  readonly values: string[];
+
+  constructor(keyName: string, values: string[]) {
+    super(`Record key "${keyName}" is already taken by another record.`);
+    this.name = 'RecordKeyTakenError';
+    this.keyName = keyName;
+    this.values = values;
+  }
+}
+
 export interface IWorkflowMutationRepository {
   getById: (
     tenantId: string,
     collection: string,
     id: string,
   ) => Promise<Record<string, unknown> | null>;
+  /** Um id vago da coleção, para que a reserva possa apontar para o registro antes de ele existir. */
+  newId: (tenantId: string, collection: string) => string;
   create: (
     tenantId: string,
     collection: string,
     data: Record<string, unknown>,
     id?: string,
+    keys?: RecordKeyMutation,
   ) => Promise<string>;
   update: (
     tenantId: string,
     collection: string,
     id: string,
     data: Record<string, unknown>,
+    keys?: RecordKeyMutation,
   ) => Promise<void>;
-  delete: (tenantId: string, collection: string, id: string) => Promise<void>;
+  delete: (tenantId: string, collection: string, id: string, releaseKeyIds?: string[]) => Promise<void>;
 }

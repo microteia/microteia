@@ -309,6 +309,7 @@ const SCREEN_REACH: Record<keyof ScreenModuleTemplate, string | null> = {
   titlePlural: 'idem',
   icon: null,
   fields: 'the entity\'s fields, translated',
+  keys: 'entity.keys — and field.unique, which is the one-field shorthand for the same thing',
   titleFieldKey: 'entity.titleField',
   subtitleFieldKey: null,
   imageFieldKey: null,

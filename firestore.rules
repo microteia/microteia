@@ -310,6 +310,7 @@ service cloud.firestore {
         'installed_extensions', 'lookupDefinitions', 'members', 'notes',
         'roles',
         'tagDefinitions', 'plugin_installations',
+        'recordKeys',
         'screenDefinitions', 'scripts', 'secrets', 'settings', 'tags', 'tenant', 'workflow_definitions',
         'workflow_events', 'workflow_executions'
         ];
@@ -377,6 +378,40 @@ service cloud.firestore {
       // que ele cita. GRAVAR neles continua exigindo a permissão da coleção, como em tudo o mais.
       function isDeclaredVocabulary(name) {
         return isDeclaredLookup(name) || isDeclaredTagList(name);
+      }
+
+      // ─── Reservas de chave (unicidade) ──────────────────────────────────────
+      //
+      // AQUI mora a garantia, e ela não é um "conferir antes de gravar".
+      //
+      // A gravação de um registro com chave é um LOTE: o documento mais uma reserva por chave, cujo
+      // ID é derivado do valor. Este bloco libera `create` e não libera `update` — e `create`, no
+      // Firestore, só dispara quando o documento NÃO existe. Escrever sobre uma reserva ocupada é um
+      // `update` para a regra, é negado, e o lote inteiro falha atomicamente. Não há janela entre
+      // conferir e gravar: duas gravações no mesmo instante não passam as duas.
+      //
+      // É a mesma forma de `/nicknames`, que já vivia neste arquivo para um caso só. E não pede
+      // índice nenhum: a busca é por id de documento — a razão de preferir a reserva a consultar
+      // antes de gravar, que além da corrida exigiria um índice por chave declarada.
+      //
+      // O que este arquivo NÃO consegue conferir: que o valor reservado é o valor gravado. A regra é
+      // estática e as chaves são dado de runtime — um `match` genérico não computa um id derivado de
+      // uma lista de campos que ele não conhece. Essa metade é cobrada nos dois pontos de gravação
+      // (`recordRulesGate` no front, `runWorkflowUpsert` no backend), que é o mesmo patamar de
+      // `required`, máscara e `rules.validate`. Ver "Chave primária e chave única" no ARCHITECTURE.md.
+      match /recordKeys/{keyId} {
+        // Ler a reserva é o que permite ao front dizer QUAL valor colidiu em vez de "acesso negado".
+        allow read: if isMember(tenantId);
+        allow create: if isWritableScreen(request.resource.data.get('collection', ''))
+          && (canOnCollection(request.resource.data.collection, 'create')
+              || canOnCollection(request.resource.data.collection, 'update'))
+          && request.resource.data.keys().hasOnly(['collection', 'keyName', 'recordId', 'values', 'createdAt'])
+          && request.resource.data.recordId is string
+          && request.resource.data.keyName is string
+          && request.resource.data.values is list;
+        // Sem `update`, de propósito: é a ausência dele que faz o `create` ser a trava.
+        allow delete: if canOnCollection(resource.data.get('collection', ''), 'update')
+          || canOnCollection(resource.data.get('collection', ''), 'delete');
       }
 
       match /{screenCollection}/{recordId} {

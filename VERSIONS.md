@@ -11,6 +11,14 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.36.0] — 2026-08-28
+
+- As telas passam a poder declarar o que NÃO pode se repetir nelas. Um campo ganhou a opção "Único", e com ela o sistema recusa o segundo registro com o mesmo CPF, o mesmo código ou o mesmo e-mail — na hora de salvar, e não depois, num relatório de conferência. Antes não havia como pedir isso: dois cadastros idênticos entravam sem qualquer aviso, e só apareciam quando alguém tropeçava neles.
+- A recusa aponta o campo e mostra o valor que já está em uso, para que a correção seja imediata.
+- A regra vale por igual em toda porta de entrada — o formulário, a importação e as automações —, inclusive quando duas pessoas salvam no mesmo instante.
+- Valores que só diferem na aparência podem contar como o mesmo: espaço sobrando, maiúsculas e minúsculas, ou a pontuação de um documento. A tela escolhe como comparar.
+- Uma tela pode exigir que a combinação de vários campos não se repita — o item nº 1 de cada pedido, por exemplo.
+
 #### [9.35.0] — 2026-08-28
 
 - A publicação deixou de ser interrompida por causa do código de uma extensão que já foi desinstalada. Antes, se a pasta de uma extensão removida continuasse no computador de quem publica, o comando parava por inteiro — e nada do sistema ia ao ar — mesmo que aquele código não fosse ser publicado. Agora só a parte com problema fica de fora, e o aviso diz qual é.

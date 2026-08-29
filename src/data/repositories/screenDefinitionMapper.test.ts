@@ -18,6 +18,10 @@ const persisted: PersistedKeys = {
   titlePlural: 'Pessoas',
   icon: 'user',
   fields: [{ key: 'apelido', label: 'Apelido', type: 'text', required: false, order: 0, origin: 'design' }],
+  keys: [
+    { name: 'numero', kind: 'primary', fields: ['numero'], sparse: false },
+    { name: 'orgao-numero', kind: 'unique', fields: ['orgao', 'numero'], normalize: { caseInsensitive: true } },
+  ],
   titleFieldKey: 'name',
   subtitleFieldKey: 'document',
   imageFieldKey: 'photo',

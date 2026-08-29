@@ -78,10 +78,19 @@ export const DOMAIN_ISSUE_CODES = [
   'behavior.effect.total-not-an-aggregation',
 
   'behavior.invariant.cross-record',
+  'behavior.invariant.uniqueness-undeclared',
   'behavior.invariant.field-scope-without-field',
   'behavior.invariant.transition-unknown',
   'behavior.invariant.transition-without-enforcement',
   'behavior.invariant.blocks-after-the-fact',
+
+  'model.key.unknown-field',
+  'model.key.duplicate-name',
+  'model.key.duplicate-fields',
+  'model.key.multiple-primary',
+  'model.key.derived-field',
+  'model.key.scope-without-parent',
+  'model.key.optional-primary',
 
   'domain.plan.field-type-immutable',
   'domain.plan.migration-required',
@@ -185,11 +194,20 @@ export const DETECTORS: Record<DomainIssueCode, Detector> = {
   'behavior.effect.self-trigger-loop': { severity: 'error', summary: 'An effect writing the field that fires its own trigger, with nothing to end the cascade.' },
   'behavior.effect.total-not-an-aggregation': { severity: 'error', summary: 'A total written by a step or an expression instead of declared as an aggregation.' },
 
-  'behavior.invariant.cross-record': { severity: 'error', summary: 'An invariant that has to compare records — uniqueness included. There is no such constraint here.' },
+  'behavior.invariant.cross-record': { severity: 'error', summary: 'An invariant that has to compare records by expression; only a declared key compares records here.' },
+  'behavior.invariant.uniqueness-undeclared': { severity: 'error', summary: 'scope "collection" naming no key: uniqueness is a declared key, not an expression.' },
   'behavior.invariant.field-scope-without-field': { severity: 'error', summary: 'scope "field" without the field it belongs to.' },
   'behavior.invariant.transition-unknown': { severity: 'error', summary: 'scope "transition" naming a transition nobody declares.' },
   'behavior.invariant.transition-without-enforcement': { severity: 'error', summary: 'scope "transition" without enforcement: refusing the passage and reacting to it are different mechanisms.' },
   'behavior.invariant.blocks-after-the-fact': { severity: 'error', summary: 'enforcement "blocks" where the write is already committed: nothing can refuse it.' },
+
+  'model.key.unknown-field': { severity: 'error', summary: 'A key names a field the entity does not have.' },
+  'model.key.duplicate-name': { severity: 'error', summary: 'Two keys of the same entity share a name; the name is what addresses the reservation.' },
+  'model.key.duplicate-fields': { severity: 'warning', summary: 'Two keys cover exactly the same fields in the same scope; one of them says nothing.' },
+  'model.key.multiple-primary': { severity: 'error', summary: 'More than one primary key on the same entity.' },
+  'model.key.derived-field': { severity: 'error', summary: 'A key over a derived field, whose value is never stored on the record.' },
+  'model.key.scope-without-parent': { severity: 'error', summary: 'scope "parent" on an entity that is nobody\'s child.' },
+  'model.key.optional-primary': { severity: 'warning', summary: 'A primary key over an optional field: an address that may be missing addresses nothing.' },
 
   'domain.plan.field-type-immutable': { severity: 'error', summary: 'A field key already exists with another type, and type is immutable.' },
   'domain.plan.migration-required': { severity: 'error', summary: 'The change alters data already written, so it needs a declared migration.' },

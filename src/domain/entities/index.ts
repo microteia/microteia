@@ -224,6 +224,11 @@ export type {
   CustomFieldOption,
   FieldDefinition,
   FieldOrigin,
+  RecordKeyKind,
+  RecordKeyNormalization,
+  RecordKeyScope,
+  RecordKeySpec,
+  RecordKeyStatus,
   ScreenDefinition,
   ScreenListAction,
 } from './entitySchemas';

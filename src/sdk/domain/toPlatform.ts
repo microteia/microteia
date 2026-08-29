@@ -155,6 +155,10 @@ export const fieldToDefinition = (
   if (field.multi === true) definition.multi = true;
   if (field.filterable === true) definition.filterable = true;
   if (field.showInList === true) definition.showInList = true;
+  // O atalho atravessa como atalho: `resolveScreenKeys` o desaçucara na plataforma, e traduzi-lo
+  // aqui para uma entrada em `keys` produziria a MESMA chave por dois caminhos — e a de cá venceria
+  // uma declaração explícita que o autor tenha escrito com o mesmo nome.
+  if (field.unique === true) definition.unique = true;
   if (field.lookup) definition.lookupCollection = field.lookup;
   if (field.semanticType === 'reference' && field.target) {
     definition.refEntity = resolve(field.target) ?? field.target;
@@ -206,6 +210,7 @@ export const entityToScreenInput = (
     titleSingular: entity.name,
     titlePlural: entity.name,
     titleFieldKey: entity.titleField ?? '',
+    ...(entity.keys && entity.keys.length > 0 ? { keys: entity.keys.map((key) => ({ ...key })) } : {}),
     fields: entity.fields.map((field, index) => {
       const definition = fieldToDefinition(field, index, origin, resolve);
       return requiredByField.has(field.key) ? { ...definition, required: true } : definition;

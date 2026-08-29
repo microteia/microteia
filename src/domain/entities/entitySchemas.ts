@@ -15,10 +15,18 @@ import type {
   FieldOrigin,
   FieldRules,
 } from '../schema/fieldRules';
+import type { RecordKeySpec } from '../schema/recordKeys';
 
 // ─── Tipos de Campos Customizados ─────────────────────────────────────────────
 
 export type { CustomFieldType, CustomFieldMask, CustomFieldOption, FieldOrigin } from '../schema/fieldRules';
+export type {
+  RecordKeyKind,
+  RecordKeyNormalization,
+  RecordKeyScope,
+  RecordKeySpec,
+  RecordKeyStatus,
+} from '../schema/recordKeys';
 
 export type CustomFieldValue = string | string[] | number | boolean | null;
 
@@ -116,6 +124,15 @@ export interface FieldDefinition {
    * de desinstalação.
    */
   ownerPluginId?: string | null;
+  /**
+   * AÇÚCAR de autoria: o campo é uma chave `unique` de um campo só, no escopo do escritório.
+   *
+   * Não é uma segunda verdade — quem declara é sempre `ScreenDefinition.keys`, e o Form Design, o
+   * compilador de extensão e `resolveScreenKeys` desaçucaram isto para uma entrada de lá. Existe
+   * porque a chave de um campo só é o caso dominante, e obrigar a escrever a lista inteira para
+   * dizer "este e-mail não se repete" faria a declaração mais rara do que o problema.
+   */
+  unique?: boolean | null;
 }
 
 // ─── Definição de Tela ────────────────────────────────────────────────────────
@@ -149,6 +166,16 @@ export interface ScreenDefinition {
   titlePlural: string;
   icon: string;
   fields: FieldDefinition[];
+  /**
+   * As CHAVES da coleção — o que não pode se repetir nela, e por qual combinação de campos.
+   *
+   * Fica na tela, e não no campo, por três razões que só aparecem juntas: chave composta é a regra e
+   * não a exceção (`(pedidoId, numero)`); o escopo — no escritório ou dentro do pai — é propriedade
+   * da chave, não de nenhum dos campos; e uma lista num lugar só é o que a regra do Firestore, o
+   * Form Design e a varredura de adoção conseguem ler sem que cada um remonte a verdade a partir de
+   * campos espalhados. `FieldDefinition.unique` é açúcar que desaçucara para cá.
+   */
+  keys?: RecordKeySpec[] | null;
   titleFieldKey: string;
   /**
    * Campo exibido como SUBTÍTULO no detalhe (abaixo do título, ao lado do ícone) e na linha sob o

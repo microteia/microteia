@@ -7,6 +7,9 @@ import { describeRuleIssues } from '../../domain/schema/fieldRules';
 import type { SchemaContext, SchemaScreen } from '../../domain/schema/pathResolver';
 import { createSchemaContext } from '../../domain/schema/pathResolver';
 import type { SchemaLookup, SchemaTagList } from '../../domain/schema/screenEntity';
+import { resolveEntityKeys } from '../../domain/schema/screenEntity';
+import type { RecordKeyPlan, RecordKeySpec } from '../../domain/schema/recordKeys';
+import { planRecordKeys } from '../../domain/schema/recordKeys';
 import type { FieldRulePreset } from '../../domain/schema/fieldRulePresets';
 import { applyDerivedFields, collectFieldLogicTargets, formatAndValidateRecord } from '../../domain/schema/recordRules';
 
@@ -17,6 +20,48 @@ export class RecordRulesError extends Error {
     super(describeRuleIssues(issues));
     this.name = 'RecordRulesError';
     this.issues = issues;
+  }
+}
+
+/** A chave que já pertence a outro registro, com o valor que colidiu. */
+export interface RecordKeyConflict {
+  name: string;
+  fields: string[];
+  values: string[];
+  /** REFERÊNCIA de mensagem declarada na chave; ausente = a do núcleo. */
+  message?: string;
+}
+
+/**
+ * O conflito de chave chega ao formulário pelo canal que já existe — `RuleIssue`, um por CAMPO da
+ * chave —, e não por uma via nova de erro. Foi a razão de `RecordKeyEntry` carregar `fields`: sem
+ * eles a mensagem apareceria solta no topo, longe do campo que a pessoa precisa corrigir.
+ */
+export class RecordKeyConflictError extends RecordRulesError {
+  readonly conflicts: RecordKeyConflict[];
+
+  constructor(conflicts: RecordKeyConflict[]) {
+    super(conflicts.flatMap((conflict) => conflict.fields.map((field) => ({
+      path: field,
+      label: field,
+      error: conflict.message ?? '@core.records/key.duplicate',
+      errorParams: { key: conflict.name, value: conflict.values.join(' + ') },
+    }))));
+    this.name = 'RecordKeyConflictError';
+    this.conflicts = conflicts;
+  }
+}
+
+/** A chave obrigatória cujo valor não veio — recusa antes da rede, como qualquer regra de campo. */
+export class RecordKeyMissingError extends RecordRulesError {
+  constructor(gaps: { name: string; fields: string[] }[]) {
+    super(gaps.flatMap((gap) => gap.fields.map((field) => ({
+      path: field,
+      label: field,
+      error: '@core.records/key.required',
+      errorParams: { key: gap.name },
+    }))));
+    this.name = 'RecordKeyMissingError';
   }
 }
 
@@ -79,6 +124,7 @@ export const toSchemaScreens = (
     titlePlural?: string;
     titleFieldKey: string;
     fields: FieldDefinition[];
+    keys?: RecordKeySpec[] | null;
     tagCollection?: string | null;
     dataCollection?: string | null;
     eventPrefix?: string | null;
@@ -91,6 +137,7 @@ export const toSchemaScreens = (
     titlePlural: definition.titlePlural,
     titleFieldKey: definition.titleFieldKey,
     fields: definition.fields,
+    keys: definition.keys,
     tagCollection: definition.tagCollection,
     eventPrefix: definition.eventPrefix,
   }));
@@ -132,6 +179,27 @@ export const makeRecordDeriver = (table: string): (<T extends object>(record: T)
   return <T extends object>(record: T): T =>
     applyDerivedFields(schemaContext, table, record as Record<string, unknown>, at) as T;
 };
+
+/**
+ * As reservas de chave que uma gravação precisa fazer, sobre o registro COMPLETO — o payload
+ * mesclado com o que já estava gravado. A mescla não é detalhe: um update que toca um campo só de
+ * uma chave composta continua sendo a mesma chave, e planejar sobre o payload parcial reservaria uma
+ * chave com metade dos valores vazios.
+ */
+export const planRecordKeysFor = (
+  table: string,
+  data: object,
+  baseline?: object,
+): RecordKeyPlan => {
+  const keys = resolveEntityKeys(schemaContext, table);
+  if (keys.length === 0) return { entries: [], gaps: [] };
+  const merged = { ...(baseline as Record<string, unknown> | undefined), ...(data as Record<string, unknown>) };
+  return planRecordKeys(keys, merged, table, schemaContext.fieldRulePresets);
+};
+
+/** A coleção declara alguma chave? É o que decide se a gravação precisa virar lote. */
+export const tableHasRecordKeys = (table: string): boolean =>
+  resolveEntityKeys(schemaContext, table).length > 0;
 
 export const validateRecordRules = (table: string, data: object): RuleIssue[] =>
   formatAndValidateRecord(schemaContext, table, data as Record<string, unknown>).issues;

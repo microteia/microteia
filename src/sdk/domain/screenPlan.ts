@@ -1,4 +1,5 @@
 import type { FieldDefinition } from '../../domain/entities/entitySchemas';
+import type { RecordKeyKind, RecordKeyScope } from '../../domain/schema/recordKeys';
 import type { CatalogScreenInput } from './catalog';
 import type { BehaviorInvariant, BehaviorModel } from './behaviorModel';
 import { stateOfEntity } from './behaviorModel';
@@ -89,6 +90,19 @@ export const SCREEN_PLAN_RULES: ScreenPlanRule[] = [
     subject: 'transition triggered by user-action',
     decides: 'one record action, disabled exactly where the blocking invariant says the passage is refused',
     declaredAs: "actions: [{ key, workflowId, disabledWhen, hiddenWhen }], listed in the screen's cardActionIds / viewActionIds",
+  },
+  {
+    subject: 'entity key (entity.keys, or a field with unique: true)',
+    decides: 'one declared key on the screen — and NOTHING is inferred: an entity with no key declared gets none, '
+      + 'because "these two records look alike" is a business statement, never a shape of the data',
+    declaredAs: "screen { keys: [{ name, kind, fields, scope, normalize, sparse }] }. The value is reserved in a "
+      + 'document whose id derives from the value, in the same batch as the record — creating it is the lock. It is '
+      + 'NOT the document id, which stays random so a corrected value does not have to move the document',
+  },
+  {
+    subject: 'relationship one-to-one WITHOUT a key on the reference field',
+    decides: 'a warning, not an artifact: stored, it is a many-to-one, and the "one" holds only if a key says so',
+    declaredAs: 'nothing is emitted. Declaring `unique: true` on the reference field is what makes it one-to-one',
   },
   {
     subject: 'notes, documents and tags tabs',
@@ -249,8 +263,29 @@ export interface ScreenLayout {
   referenceFields: PlannedReferenceField[];
   actions: PlannedRecordAction[];
   tabs: PlannedTab[];
+  /**
+   * O que não pode se repetir nesta tela, já na forma que o `plugin.ts` declara.
+   *
+   * Sai no plano porque a chave é a única declaração cuja AUSÊNCIA não produz sintoma nenhum: sem
+   * ela a tela aceita a duplicata em silêncio, e quem lê o plano não tem como notar a falta de algo
+   * que não está escrito. Estando aqui, ela é conferível junto com o resto.
+   */
+  keys: PlannedKey[];
   /** O que esta tela deixa para a pessoa, além do que `SCREEN_PLAN_HUMAN_DECISIONS` já nomeia. */
   humanDecisions: string[];
+}
+
+/** Uma chave da tela, com o campo que a compõe e o que ela promete. */
+export interface PlannedKey {
+  name: string;
+  kind: RecordKeyKind;
+  fields: string[];
+  scope: RecordKeyScope;
+  /** `false` quando o valor é obrigatório. */
+  sparse: boolean;
+  /** De onde ela veio: a lista da entidade, ou o atalho `unique` de um campo. */
+  declaredBy: 'entity.keys' | 'field.unique';
+  enforcedBy: string;
 }
 
 /** Uma entidade que o plano deliberadamente NÃO transforma em tela, e por quê. */
@@ -387,6 +422,35 @@ const filterableFields = (
   }
   return fields;
 };
+
+/**
+ * As chaves da entidade na forma do plano — as declaradas e as que o atalho `unique` produz, na mesma
+ * lista e distinguidas por `declaredBy`. Juntá-las é o ponto: quem lê o plano quer saber o que NÃO
+ * pode repetir, e não por qual das duas sintaxes isso foi dito.
+ */
+const plannedKeys = (entity: DomainEntity): PlannedKey[] => [
+  ...(entity.keys ?? []).map((key) => ({
+    name: key.name,
+    kind: key.kind,
+    fields: [...key.fields],
+    scope: key.scope ?? ('tenant' as RecordKeyScope),
+    sparse: key.kind === 'primary' ? false : key.sparse !== false,
+    declaredBy: 'entity.keys' as const,
+    enforcedBy: ENFORCED_BY,
+  })),
+  ...entity.fields.filter((field) => field.unique === true).map((field) => ({
+    name: `field:${field.key}`,
+    kind: 'unique' as RecordKeyKind,
+    fields: [field.key],
+    scope: 'tenant' as RecordKeyScope,
+    sparse: true,
+    declaredBy: 'field.unique' as const,
+    enforcedBy: ENFORCED_BY,
+  })),
+];
+
+const ENFORCED_BY = 'a reservation document whose id derives from the value, written in the same batch as the record: '
+  + 'creating it is the lock, so two writes at the same instant do not both pass';
 
 const sectionsOf = (screen: CatalogScreenInput, embeds: readonly ExpandedEmbed[]): PlannedFormSection[] => {
   const byName = new Map<string, PlannedFormSection>();
@@ -620,6 +684,7 @@ export const buildScreenPlan = (input: ScreenPlanInput): ScreenPlan => {
         })),
       actions,
       tabs: (entity.tabs ?? []).map((one) => ({ kind: one.kind, because: one.because })),
+      keys: plannedKeys(entity),
       humanDecisions,
     });
   }

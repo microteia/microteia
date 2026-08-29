@@ -225,9 +225,15 @@ const modelBusinessRule = (args: Record<string, string>, context: PromptContext)
     '## What this vocabulary does not reach',
     '',
     `Of ${surfaces} mechanisms this platform has, ${gaps} are outside the model's vocabulary — the \`query\` step, the`,
-    'clock, uniqueness, every contribution point but `access.permission`, and which record an effect writes. When the',
+    'clock, every contribution point but `access.permission`, and which record an effect writes. When the',
     'rule needs one of them, say so plainly and hand the decision back. Do not translate it into something that',
     'looks similar: that is the one failure mode this whole subsystem exists to prevent.',
+    '',
+    'Uniqueness is INSIDE the vocabulary, and it is the one rule you declare instead of computing: `entity.keys`, or',
+    '`unique: true` on a field. When the rule says "there cannot be two" — one CPF, one code, one item number per',
+    'order — that is a key, and the gate refuses it written as an expression, because an expression sees one record',
+    'and never queries. Absence is a decision too: an entity with no key accepts duplicates, so if the rule is silent',
+    'about it, say so rather than adding one.',
   ].filter((line, index, all) => !(line === '' && all[index - 1] === '')).join('\n');
 };
 

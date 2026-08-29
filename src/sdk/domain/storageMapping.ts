@@ -261,10 +261,12 @@ export const mapRelationship = (
       'domain.relationship.one-to-one-not-enforced',
       'info',
       relationship,
-      'The platform has no uniqueness constraint, so a one-to-one is stored exactly like a many-to-one.',
-      'Nothing to change. If uniqueness must hold, enforce it where writes happen — a "validate" expression cannot see other records, '
-      + 'so it takes a workflow on save that queries the collection.',
-      'None needed — this is information, not a defect.',
+      'A one-to-one is STORED exactly like a many-to-one: one reference field. What makes it one-to-one is a key.',
+      `Declare it on "${relationship.sourceEntity}": keys: [{ name: "${relationship.sourceField}", kind: "unique", `
+      + `fields: ["${relationship.sourceField}"] }] — or unique: true on the field, which is the same thing. Without it `
+      + 'nothing stops a second record pointing at the same target, and the "one" in one-to-one is only a comment.',
+      'Leave it unenforced when the second link is acceptable — but then it is a many-to-one, and saying so in the '
+      + 'model is cheaper than a rule nobody applies.',
     ));
   }
 

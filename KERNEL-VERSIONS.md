@@ -18,6 +18,37 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.36.0] — 2026-08-28
+
+- feat(schema/record-keys): a screen can declare what must not repeat in it — `ScreenDefinition.keys`, with
+  `FieldDefinition.unique` as the one-field shorthand that `resolveEntityKeys` desugars. Composite keys, a
+  `parent` scope, declared normalization (trim, case, format preset) and a sparse-by-default policy. Until now no
+  layer enforced uniqueness at all: two identical records were accepted everywhere, silently, and `autoValue` only
+  avoided collisions inside the 500-record window the client happened to hold.
+- feat(data/record-keys): the guarantee is a reservation document under `tenants/{id}/recordKeys`, whose id derives
+  from the normalized value and which is written in the SAME batch as the record. The `recordKeys` rules allow
+  `create` and not `update`, and `create` only fires when the document is absent — so a duplicate fails the batch
+  whole. No read-then-write, no race, and no composite index: the lookup is by document id. It generalizes the
+  `/nicknames` pattern that already lived in this repository for exactly one case.
+- feat(workflow/mutation): `runWorkflowUpsert` and `runWorkflowRemove` reserve and release through the same plan,
+  in an Admin-SDK transaction where `tx.create` is the lock. A uniqueness the automation path could bypass would
+  not be a uniqueness — it would be a hint in the form.
+- feat(sdk/domain-model): `DomainEntity.keys` and `DomainField.unique` enter the model, invariant scope
+  `collection` enters the behavior half, and the whole "there is no uniqueness constraint here" answer is replaced
+  across the surfaces that state it — the JSON schema, `BEHAVIOR_MECHANISMS`, the one-to-one storage note, the MCP
+  rules resource, the modelling prompt and `AUTHORING.md`. Seven `model.key.*` detectors and
+  `behavior.invariant.uniqueness-undeclared` refuse a key over an unknown or derived field, a second primary, a
+  parent scope on a non-child, and uniqueness written as an expression.
+- feat(sdk/plan): `generate_artifact_plan` emits the keys of each screen, and marks the ones that need a sweep over
+  records that already exist — a key installed over a populated collection is born pending, because a key that
+  "already holds" and meets two old duplicates blocks the next write for a reason nobody showed.
+- fix(presentation/schema): `useSchemaContext` now goes through `toSchemaScreens` instead of a second hand-written
+  copy of it. The two had drifted by construction: a new property reached the write path and not the screen, which
+  is exactly how the keys would have gone missing.
+- fix(schema/screen-entity): `NativeFieldSpec` carries `unique`, so the `FieldDefinition` round trip stops dropping
+  it. Without this a key declared in the Form Design vanished on the next read with nothing to show for it.
+- KERNEL_VERSION 2.11.0 -> 2.12.0 (additive: a screen in an installed package may now declare `keys`).
+
 #### [9.35.0] — 2026-08-28
 
 - docs(sdk/authoring): the installation-gate refusal is described as being of the FUNCTION, not of the command. An author reading "refused before anything is deployed" had no way to tell that a source left in the workspace for an uninstalled extension blocks nothing, and that the day it is installed is the day it is refused.

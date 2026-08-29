@@ -926,6 +926,9 @@ export const CORE_AUTOMATION_MESSAGES: Record<string, string> = {
   'input.required': 'The required input "{label}" was not provided',
   'mutation.remove.invalid': 'Invalid deletion: {detail}',
   'mutation.upsert.invalid': 'Invalid write: {detail}',
+  'mutation.upsert.key-conflict':
+    'Another record already holds the key "{key}" with the value {value}.',
+  'mutation.upsert.key-required': 'The key "{key}" needs a value: {fields}.',
   'mutation.upsert.unwritable-ignored':
     'Write to "{table}": {count} field(s) that cannot be written were ignored — {fields}',
   'query.invalid': 'Invalid query: {detail}',

@@ -35,6 +35,7 @@ const SHARED_FILES = [
   'domain/schema/querySpec.ts',
   'domain/schema/mutationSpec.ts',
   'domain/schema/recordRules.ts',
+  'domain/schema/recordKeys.ts',
   'domain/schema/aggregationSpec.ts',
   'domain/schema/parameterRules.ts',
   'domain/schema/validateSpec.ts',

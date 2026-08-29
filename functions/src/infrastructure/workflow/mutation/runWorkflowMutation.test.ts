@@ -1,7 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import { runWorkflowRemove, runWorkflowUpsert } from './runWorkflowMutation';
 import type { WorkflowMutationDeps } from './runWorkflowMutation';
-import type { IWorkflowMutationRepository } from '../../../domain/repositories/IWorkflowMutationRepository';
+import type {
+  IWorkflowMutationRepository,
+  RecordKeyMutation,
+} from '../../../domain/repositories/IWorkflowMutationRepository';
+import { RecordKeyTakenError } from '../../../domain/repositories/IWorkflowMutationRepository';
 import type { IScreenDefinitionProvider } from '../../../domain/repositories/IScreenDefinitionProvider';
 import type { SchemaScreen } from '../../../domain/schema/pathResolver';
 import type { UpsertSpec, RemoveSpec } from '../../../domain/schema/mutationSpec';
@@ -62,6 +66,8 @@ interface WriteCall {
 
 class FakeMutationRepository implements IWorkflowMutationRepository {
   store = new Map<string, Record<string, unknown>>();
+  /** As reservas, pelo id — o mesmo papel de `tenants/{id}/recordKeys` no Firestore. */
+  keys = new Map<string, { keyName: string; recordId: string; values: string[] }>();
   createCalls: WriteCall[] = [];
   updateCalls: WriteCall[] = [];
   deleteCalls: WriteCall[] = [];
@@ -75,26 +81,68 @@ class FakeMutationRepository implements IWorkflowMutationRepository {
     this.store.set(this.key(collection, id), data);
   }
 
+  /** Semeia uma reserva já ocupada — é assim que a duplicata é montada no teste. */
+  seedKey(keyId: string, recordId: string, keyName = 'k', values: string[] = []): void {
+    this.keys.set(keyId, { keyName, recordId, values });
+  }
+
   async getById(_tenantId: string, collection: string, id: string) {
     return this.store.get(this.key(collection, id)) ?? null;
   }
 
-  async create(tenantId: string, collection: string, data: Record<string, unknown>, id?: string) {
-    const finalId = id ?? `gen-${(this.seq += 1)}`;
+  newId(): string {
+    return `gen-${(this.seq += 1)}`;
+  }
+
+  /**
+   * A trava do backend é `create`, que FALHA se o documento já existe. O fake reproduz isso e mais
+   * nada: é a única propriedade do Firestore de que a corretude depende aqui.
+   */
+  private applyKeys(recordId: string, keys?: RecordKeyMutation): void {
+    for (const keyId of keys?.release ?? []) this.keys.delete(keyId);
+    for (const reservation of keys?.create ?? []) {
+      if (this.keys.has(reservation.keyId)) {
+        throw new RecordKeyTakenError(reservation.keyName, reservation.values);
+      }
+      this.keys.set(reservation.keyId, {
+        keyName: reservation.keyName,
+        recordId,
+        values: reservation.values,
+      });
+    }
+  }
+
+  async create(
+    tenantId: string,
+    collection: string,
+    data: Record<string, unknown>,
+    id?: string,
+    keys?: RecordKeyMutation,
+  ) {
+    const finalId = id ?? this.newId();
+    this.applyKeys(finalId, keys);
     this.createCalls.push({ tenantId, collection, id, data });
     this.store.set(this.key(collection, finalId), { ...data });
     return finalId;
   }
 
-  async update(tenantId: string, collection: string, id: string, data: Record<string, unknown>) {
+  async update(
+    tenantId: string,
+    collection: string,
+    id: string,
+    data: Record<string, unknown>,
+    keys?: RecordKeyMutation,
+  ) {
+    this.applyKeys(id, keys);
     this.updateCalls.push({ tenantId, collection, id, data });
     const current = this.store.get(this.key(collection, id)) ?? {};
     this.store.set(this.key(collection, id), { ...current, ...data });
   }
 
-  async delete(tenantId: string, collection: string, id: string) {
+  async delete(tenantId: string, collection: string, id: string, releaseKeyIds?: string[]) {
     this.deleteCalls.push({ tenantId, collection, id });
     this.store.delete(this.key(collection, id));
+    for (const keyId of releaseKeyIds ?? []) this.keys.delete(keyId);
   }
 }
 
@@ -332,5 +380,172 @@ describe('runWorkflowRemove', () => {
     const repo = new FakeMutationRepository();
     const outcome = await remove(repo, { table: 'members', id: 'm1' });
     expect(outcome.ok).toBe(false);
+  });
+});
+
+/**
+ * A automação passa pelo MESMO portão de chave que o formulário. É o ponto da implementação em que
+ * mais valia errar: uma unicidade que o `UpsertStep` fura não é unicidade — só um aviso no front.
+ */
+describe('chaves de registro na gravação por automação', () => {
+  const keyedScreen: SchemaScreen = {
+    id: 'produtos',
+    titleSingular: 'Produto',
+    titleFieldKey: 'nome',
+    fields: [
+      { key: 'nome', label: 'Nome', type: 'text', required: true, order: 0, origin: 'design' },
+      { key: 'sku', label: 'SKU', type: 'text', required: false, order: 1, origin: 'design' },
+      { key: 'linha', label: 'Linha', type: 'text', required: false, order: 2, origin: 'design' },
+    ],
+    keys: [
+      { name: 'sku', kind: 'unique', fields: ['sku'], normalize: { caseInsensitive: true } },
+      { name: 'linha-nome', kind: 'unique', fields: ['linha', 'nome'] },
+    ],
+  };
+
+  const keyedDeps = (repo: FakeMutationRepository): WorkflowMutationDeps => ({
+    mutationRepository: repo,
+    screenProvider: fakeScreenProvider([keyedScreen]),
+  });
+
+  const upsert = (data: Record<string, unknown>, id?: string): UpsertSpec =>
+    ({ table: 'produtos', data, ...(id ? { id } : {}) }) as UpsertSpec;
+
+  it('grava reservando as chaves e carimba no registro o que o sustenta', async () => {
+    const repo = new FakeMutationRepository();
+    const result = await runWorkflowUpsert(
+      upsert({ nome: 'Cadeira', sku: 'AB-1', linha: 'casa' }),
+      context(),
+      keyedDeps(repo),
+    );
+    expect(result.ok).toBe(true);
+    expect([...repo.keys.keys()].sort()).toEqual(['produtos|linha-nome|casa|Cadeira', 'produtos|sku|ab-1']);
+    const stored = repo.store.get('produtos/gen-1') as Record<string, unknown>;
+    expect(stored.keyRefs).toEqual({
+      sku: 'produtos|sku|ab-1',
+      'linha-nome': 'produtos|linha-nome|casa|Cadeira',
+    });
+  });
+
+  it('recusa a segunda gravação com o mesmo valor, e diz qual chave e qual valor', async () => {
+    const repo = new FakeMutationRepository();
+    await runWorkflowUpsert(upsert({ nome: 'A', sku: 'AB-1' }), context(), keyedDeps(repo));
+    const result = await runWorkflowUpsert(upsert({ nome: 'B', sku: 'AB-1' }), context(), keyedDeps(repo));
+    expect(result.ok).toBe(false);
+    expect(result).toMatchObject({
+      error: '@core.automation/mutation.upsert.key-conflict',
+      errorParams: { key: 'sku', value: 'ab-1' },
+    });
+  });
+
+  it('recusa a duplicata que só difere na CAIXA, porque a chave declarou a comparação', async () => {
+    const repo = new FakeMutationRepository();
+    await runWorkflowUpsert(upsert({ nome: 'A', sku: 'ab-1' }), context(), keyedDeps(repo));
+    const result = await runWorkflowUpsert(upsert({ nome: 'B', sku: 'AB-1' }), context(), keyedDeps(repo));
+    expect(result.ok).toBe(false);
+  });
+
+  it('o registro NÃO é gravado quando a reserva falha — a recusa é do lote inteiro', async () => {
+    const repo = new FakeMutationRepository();
+    await runWorkflowUpsert(upsert({ nome: 'A', sku: 'AB-1' }), context(), keyedDeps(repo));
+    const before = repo.store.size;
+    await runWorkflowUpsert(upsert({ nome: 'B', sku: 'AB-1' }), context(), keyedDeps(repo));
+    expect(repo.store.size).toBe(before);
+  });
+
+  it('regravar o MESMO registro com o mesmo valor não conflita consigo mesmo', async () => {
+    const repo = new FakeMutationRepository();
+    await runWorkflowUpsert(upsert({ nome: 'A', sku: 'AB-1' }, 'p1'), context(), keyedDeps(repo));
+    const again = await runWorkflowUpsert(
+      upsert({ nome: 'A2', sku: 'AB-1' }, 'p1'),
+      context(),
+      keyedDeps(repo),
+    );
+    expect(again.ok).toBe(true);
+  });
+
+  it('trocar o valor solta a reserva antiga e o valor volta a ficar livre', async () => {
+    const repo = new FakeMutationRepository();
+    await runWorkflowUpsert(upsert({ nome: 'A', sku: 'AB-1' }, 'p1'), context(), keyedDeps(repo));
+    await runWorkflowUpsert(upsert({ sku: 'AB-2' }, 'p1'), context(), keyedDeps(repo));
+    expect([...repo.keys.keys()]).toContain('produtos|sku|ab-2');
+    expect([...repo.keys.keys()]).not.toContain('produtos|sku|ab-1');
+
+    const outro = await runWorkflowUpsert(upsert({ nome: 'B', sku: 'AB-1' }), context(), keyedDeps(repo));
+    expect(outro.ok).toBe(true);
+  });
+
+  it('um upsert PARCIAL de chave composta a reconstitui do registro gravado', async () => {
+    const repo = new FakeMutationRepository();
+    await runWorkflowUpsert(
+      upsert({ nome: 'Cadeira', linha: 'casa' }, 'p1'),
+      context(),
+      keyedDeps(repo),
+    );
+    // Só `linha` chega no segundo upsert: sem a mescla com o existente, `nome` iria vazio e a chave
+    // composta não reservaria nada.
+    await runWorkflowUpsert(upsert({ linha: 'escritorio' }, 'p1'), context(), keyedDeps(repo));
+    expect([...repo.keys.keys()]).toContain('produtos|linha-nome|escritorio|Cadeira');
+    expect([...repo.keys.keys()]).not.toContain('produtos|linha-nome|casa|Cadeira');
+  });
+
+  it('a chave esparsa sem valor não reserva nada, e dois registros vazios convivem', async () => {
+    const repo = new FakeMutationRepository();
+    const um = await runWorkflowUpsert(upsert({ nome: 'A' }), context(), keyedDeps(repo));
+    const dois = await runWorkflowUpsert(upsert({ nome: 'B' }), context(), keyedDeps(repo));
+    expect(um.ok && dois.ok).toBe(true);
+    expect(repo.keys.size).toBe(0);
+  });
+
+  it('a chave OBRIGATÓRIA sem valor recusa a gravação em vez de deixar passar', async () => {
+    const repo = new FakeMutationRepository();
+    const strict: SchemaScreen = {
+      ...keyedScreen,
+      keys: [{ name: 'sku', kind: 'unique', fields: ['sku'], sparse: false }],
+    };
+    const result = await runWorkflowUpsert(
+      upsert({ nome: 'A' }),
+      context(),
+      { mutationRepository: repo, screenProvider: fakeScreenProvider([strict]) },
+    );
+    expect(result).toMatchObject({
+      error: '@core.automation/mutation.upsert.key-required',
+      errorParams: { key: 'sku' },
+    });
+    expect(repo.store.size).toBe(0);
+  });
+
+  it('excluir solta as reservas, e o valor volta a poder ser usado', async () => {
+    const repo = new FakeMutationRepository();
+    await runWorkflowUpsert(upsert({ nome: 'A', sku: 'AB-1' }, 'p1'), context(), keyedDeps(repo));
+    const removed = await runWorkflowRemove(
+      { table: 'produtos', id: 'p1' } as RemoveSpec,
+      context(),
+      keyedDeps(repo),
+    );
+    expect(removed.ok).toBe(true);
+    expect(repo.keys.size).toBe(0);
+    const outro = await runWorkflowUpsert(upsert({ nome: 'B', sku: 'AB-1' }), context(), keyedDeps(repo));
+    expect(outro.ok).toBe(true);
+  });
+
+  it('solta a reserva que o REGISTRO cita, mesmo que a declaração já não a produza', async () => {
+    const repo = new FakeMutationRepository();
+    repo.seed('produtos', 'p1', { nome: 'A', sku: 'AB-1', keyRefs: { sku: 'produtos|sku|FORMATO-ANTIGO' } });
+    repo.seedKey('produtos|sku|FORMATO-ANTIGO', 'p1', 'sku', ['FORMATO-ANTIGO']);
+    await runWorkflowRemove({ table: 'produtos', id: 'p1' } as RemoveSpec, context(), keyedDeps(repo));
+    expect(repo.keys.size).toBe(0);
+  });
+
+  it('a coleção SEM chave nenhuma segue gravando exatamente como antes', async () => {
+    const repo = new FakeMutationRepository();
+    const result = await runWorkflowUpsert(
+      { table: 'processos', data: { title: 'X' } } as UpsertSpec,
+      context(),
+      deps(repo),
+    );
+    expect(result.ok).toBe(true);
+    expect(repo.keys.size).toBe(0);
+    expect(repo.store.get('processos/gen-1')).not.toHaveProperty('keyRefs');
   });
 });

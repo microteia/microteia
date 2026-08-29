@@ -72,6 +72,7 @@ const harness = (
       },
       mutationRepository: {
         getById: async (_tenantId, _collection, id) => parents[id] ?? null,
+        newId: () => 'novo',
         create: async () => 'novo',
         update: async (_tenantId, _collection, id, data) => {
           updates.push({ id, data });

@@ -748,6 +748,15 @@ export const ScreenBuilderView: React.FC = () => {
                 />
               </S.CheckboxCell>
             )}
+            {vm.fieldSupportsUnique && (
+              <S.CheckboxCell>
+                <Checkbox
+                  label={t('key.field.unique')}
+                  checked={vm.fieldForm.unique}
+                  onChange={(next) => vm.updateFieldForm({ unique: next })}
+                />
+              </S.CheckboxCell>
+            )}
             <S.CheckboxCell>
               <Checkbox
                 label={t('field.show-in-list')}
