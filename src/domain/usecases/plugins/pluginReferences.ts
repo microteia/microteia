@@ -11,6 +11,7 @@ import { splitEntityEventName } from '../../schema/eventCatalog';
 import { isLookupCollection } from '../../schema/lookupRegistry';
 import { dependencyCollections } from '../../schema/plugin/pluginManifest';
 import { validateMigrations } from '../../schema/plugin/migration';
+import { packageIconIssues } from './pluginIcons';
 import { screenEventPrefix, templateCollection } from './screenModule';
 
 export type RefKind = 'screen' | 'action' | 'workflow' | 'script';
@@ -298,13 +299,14 @@ export const packageMigrationIssues = (pkg: MarketplacePlugin): LocalizedIssue[]
   validateMigrations(pkg.migrations);
 
 /**
- * As validações de pacote que não apontam para um artefato — tamanho e fila de migração. É UMA porta,
- * e é de propósito: export e import compartilham a mesma checagem, e uma validação nova acrescentada
- * aqui não precisa ser lembrada em cada chamador.
+ * As validações de pacote que não apontam para um artefato — tamanho, fila de migração e ícone. É UMA
+ * porta, e é de propósito: export e import compartilham a mesma checagem, e uma validação nova
+ * acrescentada aqui não precisa ser lembrada em cada chamador.
  */
 export const packageIssues = (pkg: MarketplacePlugin): LocalizedIssue[] => [
   ...packageSizeIssues(pkg),
   ...packageMigrationIssues(pkg),
+  ...packageIconIssues(pkg),
 ];
 
 /** O aviso de que o pacote está grande, mas ainda instala. Para a tela de autoria, não para o import. */

@@ -10,6 +10,7 @@ import { STEP_TYPES } from '../../../domain/entities/Workflow';
 import { FIELD_EXPRESSION_FUNCTION_NAMES } from '../../../domain/schema/fieldExpression';
 import { CORE_STEP_CATALOG } from '../../../domain/schema/workflowStepCatalog';
 import { RECORD_ACTION_COMMANDS } from '../../../domain/schema/ui/recordActionMetadata';
+import { SCREEN_ICON_KEYS, isScreenIconKey } from '../../../domain/schema/ui/screenIconCatalog';
 import {
   DOMAIN_ISSUE_CODES,
   EMBEDDED_STRATEGY,
@@ -526,6 +527,31 @@ describe('o que o texto afirma sobre o kernel vem do kernel', () => {
       expect(text).toContain(advisory);
       expect(text).toContain(max);
     }
+  });
+
+  /**
+   * Todo ícone escrito nestes textos existe no catálogo — e a guarda é sobre o TEXTO, não sobre uma
+   * lista de exemplos conferida à mão.
+   *
+   * Ela nasceu depois de o defeito chegar ao manual: `icon: 'chart'` e `icon: 'receipt'` estavam nos
+   * exemplos que o autor copia, e nenhum dos dois existiu algum dia. Não havia como saber — `icon` era
+   * string livre em todo lugar, e o kernel desenha o marcador genérico para o que não reconhece, de
+   * modo que um nome inventado só se revela na tela de quem instalou.
+   */
+  it('todo ícone escrito nos guias existe no catálogo', () => {
+    const escritos = (text: string): string[] =>
+      [...text.matchAll(/icon: '([^']*)'/g)].map((match) => match[1]);
+
+    for (const text of [authoringGuide(AGENTS), workspaceAgentsMd(AGENTS), ...Object.values(workspaceScripts('../.microteia/sdk'))]) {
+      expect(escritos(text).filter((icon) => !isScreenIconKey(icon))).toEqual([]);
+    }
+  });
+
+  /** Guarda que não dispara é pior que guarda nenhuma. */
+  it('e o catálogo de ícones do manual é o do kernel, por extenso', () => {
+    const guide = authoringGuide(AGENTS);
+    expect(guide).toContain(`the same ${SCREEN_ICON_KEYS.length} keys`);
+    for (const key of SCREEN_ICON_KEYS) expect(guide, `ícone "${key}"`).toContain(`\`${key}\``);
   });
 
   /** Guarda que não dispara é pior que guarda nenhuma. */

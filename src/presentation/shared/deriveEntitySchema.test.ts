@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { CustomFieldType, FieldDefinition } from '../../domain/entities';
 import { createSchemaContext } from '../../domain/schema/pathResolver';
 import { deriveFormFields, deriveListRows } from './deriveEntitySchema';
-import { SCREEN_ICON_KEYS } from './screenIcons';
+import { SCREEN_ICON_KEYS } from '../../domain/schema/ui/screenIconCatalog';
 import { MARKETPLACE_CATALOG } from '../../plugins/marketplace/catalog';
 
 const CONTROL_TYPES: CustomFieldType[] = [

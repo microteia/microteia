@@ -18,6 +18,29 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.37.0] — 2026-08-29
+
+- feat(domain/ui): the icon vocabulary moved out of the presentation layer into `domain/schema/ui/screenIconCatalog.ts`
+  (`SCREEN_ICON_KEYS`, `ScreenIconKey`, `isScreenIconKey`). `screenIcons.tsx` is now only the drawing, typed
+  `Record<ScreenIconKey, IconType>`, so a key with no component and a component with no key stop the typecheck instead
+  of falling through to the generic marker.
+- feat(domain/plugins): `packageIconIssues` joins `packageIssues`, so the single validation door refuses an icon that
+  is not in the catalogue — in `manifest.icon`, in the metadata of any contribution to a core UI point, in
+  `screens[].icon`, in a card field's `listIcon`, in `actions[].icon` and in `views[].icon`. `icon` was free text in
+  all of them and the kernel draws a generic marker for what it does not know: nothing validated, nothing failed, and
+  the invented name only showed up on the screen of whoever installed it.
+- feat(sdk/node/mcp): the resource `microteia://icons` (`list_icons`) serves the catalogue, derived from the kernel.
+  The MCP server had no icon resource at all, which is why an authoring agent had nothing to ask and guessed.
+- feat(sdk/node/workspace): AUTHORING.md §4 gains "Icons — a closed vocabulary", with the full list derived from
+  `SCREEN_ICON_KEYS`. A partial list would send the author back to guessing, which is the defect itself.
+- fix(marketplace/automation-example): `act-mirror` shipped `icon: 'refresh'`, which never existed in the catalogue. A
+  first-party example, written to be read as a reference, carried an invalid icon and nothing ever said so.
+- fix(sdk/node/workspace): the `icon: 'chart'` and `icon: 'receipt'` in the AUTHORING.md and AGENTS.md examples — the
+  ones an author copies — never existed either.
+- test(sdk/node/workspace): `templates.test.ts` extracts every `icon: '…'` written in the authoring texts and refuses
+  what is not a key; `extensionTemplates.test.ts` now runs every embedded extension AND the travelling examples
+  through `validatePluginPackage` instead of referential integrity alone, which is the gap the example fell through.
+
 #### [9.36.2] — 2026-08-29
 
 - fix(records/validation): `requiredFieldError` asked `t` for `@core.automation/parameter.required`. The sigil marks a

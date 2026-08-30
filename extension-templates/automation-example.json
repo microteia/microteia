@@ -1,7 +1,7 @@
 {
   "manifest": {
     "id": "com.microteia.automation-example",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "kernel": "^2.0.0",
     "name": "@com.microteia.automation-example/package.name",
     "description": "@com.microteia.automation-example/package.description",
@@ -623,7 +623,7 @@
       "templateId": "act-mirror",
       "key": "mirror",
       "title": "@com.microteia.automation-example/action.mirror",
-      "icon": "refresh",
+      "icon": "fileCopy",
       "workflowId": "wf-mirror",
       "order": 1,
       "enabled": true,

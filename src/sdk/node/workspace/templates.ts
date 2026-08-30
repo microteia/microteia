@@ -342,8 +342,8 @@ a string is not type-checked, and that is where mistakes hide.
 **A view is not a page until a contribution points at it.** \`views\` is a registry keyed by
 \`views[].key\`; the screen only exists once \`manifest.contributes\` names that key:
 
-    nav({ key: 'summary', label: label('nav.summary'), icon: 'chart', order: 50 }),
-    page({ key: 'summary', title: label('page.summary'), icon: 'chart' }, 'summary'),
+    nav({ key: 'summary', label: label('nav.summary'), icon: 'lineChart', order: 50 }),
+    page({ key: 'summary', title: label('page.summary'), icon: 'lineChart' }, 'summary'),
     //                                                                     ^ views[].key
 
 Forgetting the \`page\` is the most common mistake there is, and nothing fails: the package validates,

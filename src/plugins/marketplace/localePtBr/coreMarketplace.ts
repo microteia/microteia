@@ -249,6 +249,8 @@ export const CORE_MARKETPLACE: Record<string, string> = {
   'issue.migration.source-missing': 'A migração de dados "{id}" está sem código.',
   'issue.migration.source-modules': 'A migração de dados "{id}" usa import/export/require, que o sandbox não resolve.',
   'issue.migration.version-invalid': 'A migração de dados "{id}" declara a versão "{version}", que não é um semver válido.',
+  'issue.package.icon.unknown':
+    'O ícone "{icon}" ({where}) não está no catálogo da plataforma. A instalação desenharia o marcador genérico no lugar dele. Peça `list_icons` ao servidor MCP microteia-plugin para ver todas as chaves.',
   'issue.package.near-limit':
     'O pacote tem {size}. Acima de {limit} ele deixa de caber no documento da instalação — convém dividi-lo antes de crescer mais.',
   'issue.package.no-manifest': 'A extensão não tem um manifest com "id".',

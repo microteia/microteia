@@ -23,6 +23,7 @@ import {
   isCoreStepDefinitionId,
 } from '../../domain/schema/workflowStepCatalog';
 import { RECORD_ACTION_METADATA } from '../../domain/schema/ui/recordActionMetadata';
+import { SCREEN_ICON_KEYS } from '../../domain/schema/ui/screenIconCatalog';
 import {
   ENTITY_EVENT_ACTIONS,
   NESTED_EVENT_SUFFIXES,
@@ -901,6 +902,27 @@ const PURE_READS: ToolDefinition[] = [
     }),
   },
   {
+    name: 'list_icons',
+    description:
+      'Every icon key this installation can draw. `icon` is a key from this catalogue everywhere it '
+      + 'appears — a screen, a nav item, a tab, a widget, a menu item, an action, a list card field '
+      + '(`ui.list.icon`) and the extension itself. There is no free naming, and no Remix or Material '
+      + 'name: a key outside this list is refused by validate_plugin. Derived from the kernel, so it is '
+      + 'exactly what the installed version knows how to draw — read it BEFORE writing an icon, because '
+      + 'guessing one costs nothing at build time and shows up as the generic marker on the screen of '
+      + 'whoever installed the extension.',
+    inputSchema: { type: 'object', properties: {} },
+    run: () => pretty({
+      kernelVersion: KERNEL_VERSION,
+      total: SCREEN_ICON_KEYS.length,
+      icons: [...SCREEN_ICON_KEYS],
+      note:
+        'The kernel draws the generic marker for a key it does not know, so a typo never fails at '
+        + 'runtime. That is why the package gate refuses it instead: validate_plugin reports the icon '
+        + 'and where it was written.',
+    }),
+  },
+  {
     name: 'list_workspace_plugins',
     description: 'The extensions authored in this workspace, with their id, version and current problems.',
     inputSchema: { type: 'object', properties: {} },
@@ -952,6 +974,7 @@ const PURE_READ_URIS: Record<string, string> = {
   list_workflow_steps: 'microteia://workflow/steps',
   list_workflow_events: 'microteia://workflow/events',
   list_record_commands: 'microteia://record-commands',
+  list_icons: 'microteia://icons',
   list_expression_functions: 'microteia://expression-functions',
   list_workspace_plugins: 'microteia://workspace/plugins',
   workspace_info: 'microteia://workspace/info',

@@ -11,7 +11,7 @@ import {
   type UiMenuItemMetadata,
   type UiPageMetadata,
 } from '../domain/schema/ui/uiExtensionPoints';
-import { SCREEN_ICON_KEYS } from '../presentation/shared/screenIcons';
+import { isScreenIconKey } from '../domain/schema/ui/screenIconCatalog';
 
 const loadedHost = () => {
   const host = createPluginHost();
@@ -113,7 +113,7 @@ describe('o menu do usuário como contribuição', () => {
     const unknown = menuItemsOf(USER_MENU_SURFACE)
       .map((item) => item.icon)
       .filter((icon): icon is string => !!icon)
-      .filter((icon) => !SCREEN_ICON_KEYS.includes(icon));
+      .filter((icon) => !isScreenIconKey(icon));
     expect(unknown).toEqual([]);
   });
 });

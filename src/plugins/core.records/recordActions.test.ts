@@ -5,7 +5,7 @@ import { UI_RECORD_ACTION_POINT } from '../../domain/schema/ui/uiExtensionPoints
 import type { UiRecordActionMetadata } from '../../domain/schema/ui/uiExtensionPoints';
 import { isActionHidden } from '../../domain/schema/actionExpression';
 import type { ActionExprContext } from '../../domain/schema/actionExpression';
-import { SCREEN_ICON_KEYS } from '../../presentation/shared/screenIcons';
+import { SCREEN_ICON_KEYS } from '../../domain/schema/ui/screenIconCatalog';
 import { RECORD_ACTION_METADATA, unlinkCommand } from './recordActionCommands';
 import type { RecordActionHost } from '../../presentation/shared/recordActions/recordActionHost';
 import type { ResolvedRecordAction } from '../../presentation/shared/recordActions/useRecordActions';

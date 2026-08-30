@@ -4465,6 +4465,41 @@ O campo `icon` de uma `StepDefinition` é o **nome** de um ícone de `react-icon
 novo ou trocar o `icon` de um existente, registre o ícone escolhido nesse whitelist**. Se não
 registrar, o Step cai silenciosamente no ícone padrão (`RiToolsLine`) — nenhum erro é lançado.
 
+### O catálogo de ícones de TELA — vocabulário fechado, cobrado no portão do pacote
+
+O `icon` de um Step é nome de componente do `react-icons`; o `icon` de tudo o mais é **chave de um
+catálogo curado** — e são coisas diferentes, servidas por arquivos diferentes.
+
+A fonte é `domain/schema/ui/screenIconCatalog.ts`: `SCREEN_ICON_KEYS`, o tipo `ScreenIconKey` e
+`isScreenIconKey`. Ela mora no DOMÍNIO, e não junto dos componentes que desenham, porque quem precisa
+saber quais existem — a validação de pacote, o SDK, o servidor MCP que responde ao autor — não pode
+depender da camada de apresentação. `presentation/shared/screenIcons.tsx` passou a ser só o desenho,
+tipado como `Record<ScreenIconKey, IconType>`: uma chave sem componente e um componente sem chave
+param o `tsc`, em vez de virarem marcador genérico na tela.
+
+O mesmo vocabulário vale em **todos** os lugares em que `icon` aparece — `manifest.icon`, o
+`metadata.icon` de qualquer contribuição a um ponto de UI do núcleo, `screens[].icon`, o `listIcon`
+de um campo de cartão (`ui.list.icon`), `actions[].icon` e `views[].icon`.
+
+**Por que a checagem existe.** `icon` era string livre em todos esses lugares, e o kernel desenha o
+marcador genérico para o que não reconhece. Somados, davam o pior arranjo possível: nada validava,
+nada falhava, e o nome inventado só se revelava na tela de quem instalou. Foi assim que
+`examples/automation-example/` viajou com `icon: 'refresh'` — um exemplo de primeira parte, escrito
+para ser lido como referência, carregando um ícone que nunca existiu —, e que `'chart'` e `'receipt'`
+ficaram nos exemplos do `AUTHORING.md` e do `AGENTS.md` que o autor copia.
+
+**Onde ela é cobrada.** `packageIconIssues` (`domain/usecases/plugins/pluginIcons.ts`), somada a
+`packageIssues` — a porta única. Vale igual no `check` do terminal, no `validate_plugin` do MCP, no
+dry-run da tela de autoria e na instalação. O metadata de um ponto de OUTRA extensão fica de fora de
+propósito: ali `icon` é vocabulário dela, e recusá-lo seria o núcleo legislando sobre um nome que não
+é dele.
+
+**Como o autor descobre as chaves.** O recurso MCP `microteia://icons` (`list_icons`) e a §4 do
+`AUTHORING.md`, que traz a lista **por extenso** e derivada. Uma lista parcial devolveria o autor a
+adivinhar, que é exatamente o defeito. `templates.test.ts` extrai todo `icon: '…'` dos textos de
+autoria e reprova o que não existir; `extensionTemplates.test.ts` passa cada extensão embutida — e os
+EXEMPLOS junto, que era o que faltava — pela porta única.
+
 ### Catálogo de Steps no cliente
 
 `src/` não pode importar os executores de `functions/`. Por isso o composition root também

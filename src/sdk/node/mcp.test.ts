@@ -55,6 +55,7 @@ describe('o servidor MCP de autoria', () => {
       'microteia://entities',
       'microteia://expression-functions',
       'microteia://extension-points',
+      'microteia://icons',
       'microteia://record-commands',
       'microteia://workflow/events',
       'microteia://workflow/steps',

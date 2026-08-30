@@ -369,7 +369,7 @@ const ACTIONS: ActionModuleTemplate[] = [
     templateId: 'act-mirror',
     key: 'mirror',
     title: message('action.mirror'),
-    icon: 'refresh',
+    icon: 'fileCopy',
     workflowId: 'wf-mirror',
     order: 1,
     enabled: true,
@@ -380,7 +380,7 @@ const ACTIONS: ActionModuleTemplate[] = [
 export const automationExamplePlugin: MarketplacePlugin = {
   manifest: {
     id: 'com.microteia.automation-example',
-    version: '1.0.0',
+    version: '1.0.1',
     kernel: '^2.0.0',
     name: message('package.name'),
     description: message('package.description'),

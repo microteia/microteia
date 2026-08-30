@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { packageFingerprint, serializePackage } from '../src/domain/usecases/plugins/packageSerialization';
 import { isVersionGreater } from '../src/domain/usecases/plugins/publicExtension';
-import { validatePackage } from '../src/domain/usecases/plugins/pluginReferences';
+import { validatePluginPackage } from '../src/sdk/validate';
 import { MARKETPLACE_CATALOG, automationExamplePlugin } from '../src/plugins/marketplace/catalog';
 import type { MarketplacePlugin } from '../src/domain/entities/MarketplacePlugin';
 
@@ -86,7 +86,7 @@ describe('pacotes distribuíveis das extensões de primeira parte', () => {
  * avisou".
  */
 const VERSAO_CONFERIDA: Record<string, { version: string; fingerprint: string }> = {
-  'com.microteia.locale-pt-br': { version: '1.34.0', fingerprint: '5ba48391fd3a' },
+  'com.microteia.locale-pt-br': { version: '1.35.0', fingerprint: '639d9fc0e38a' },
   'com.microteia.brasil': { version: '1.0.0', fingerprint: '576f69353711' },
   'com.microteia.dashboard': { version: '1.1.0', fingerprint: '8e32837f3528' },
   'com.microteia.calendar': { version: '1.2.0', fingerprint: '158e72e23ecd' },
@@ -136,11 +136,20 @@ describe('conteúdo alterado exige versão nova', () => {
  * se mostra na agenda) deixaria de ser exportável sem a dependência declarada, com a coleção que ela
  * traz.
  */
-describe('integridade referencial das extensões de primeira parte', () => {
-  it.each(MARKETPLACE_CATALOG.map((plugin) => [plugin.manifest.name, plugin] as const))(
-    '%s valida sem pendências',
-    (_name, plugin) => {
-      expect(validatePackage(plugin)).toEqual([]);
-    },
-  );
+/**
+ * A conferência passa pela porta ÚNICA (`validatePluginPackage`), e não só pela integridade
+ * referencial: é a mesma pergunta que a instalação faz, e qualquer checagem nova acrescentada lá
+ * chega aqui sem ninguém lembrar.
+ *
+ * E vale para os EXEMPLOS também. Enquanto a lista era só o `MARKETPLACE_CATALOG`, o exemplo de
+ * automação — escrito para ser lido como referência — viajou com `icon: 'refresh'`, que nunca
+ * existiu no catálogo de ícones, e nada nunca o disse: o kernel desenha o marcador genérico para o
+ * que não reconhece, e o defeito só aparecia na tela de quem instalou.
+ */
+describe('validação de pacote das extensões de primeira parte', () => {
+  it.each(
+    [...MARKETPLACE_CATALOG, ...EXEMPLOS_QUE_VIAJAM].map((plugin) => [plugin.manifest.name, plugin] as const),
+  )('%s valida sem pendências', (_name, plugin) => {
+    expect(validatePluginPackage(plugin)).toEqual([]);
+  });
 });

@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.37.0] — 2026-08-29
+
+- Os ícones das telas, dos menus, das abas e dos botões passaram a ser conferidos antes de uma extensão ser instalada. Antes, um ícone escrito errado não acusava nada: a extensão instalava e o lugar dele aparecia com um marcador genérico, sem explicação.
+- Corrigido o ícone do botão de uma das extensões de exemplo, que aparecia como marcador genérico.
+
 #### [9.36.2] — 2026-08-29
 
 - Corrigidas as mensagens de erro do formulário de um registro, que apareciam como código interno em vez do texto: o aviso de campo obrigatório e o de valor recusado por uma regra da tela.

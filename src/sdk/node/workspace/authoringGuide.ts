@@ -1,4 +1,5 @@
 import { UI_EXTENSION_POINTS, USER_MENU_SURFACE, WORKSPACE_SLOT_SURFACES } from '../../../domain/schema/ui/uiExtensionPoints';
+import { SCREEN_ICON_KEYS } from '../../../domain/schema/ui/screenIconCatalog';
 import { DATA_EXTENSION_POINTS } from '../../../domain/schema/dataExtensionPoints';
 import { I18N_EXTENSION_POINTS } from '../../../domain/schema/i18n/extensionPoints';
 import { THEME_EXTENSION_POINTS } from '../../../domain/schema/theme/extensionPoints';
@@ -190,6 +191,27 @@ const describedTable = (header: string, entries: readonly string[], described: R
  */
 /** Uma lista de nomes em `code`, para prosa gerada. */
 const codeList = (names: readonly string[]): string => names.map((name) => `\`${name}\``).join(', ');
+
+/**
+ * O catálogo de ícones em parágrafo justificado. Vai por extenso, e não por amostra, porque a
+ * pergunta que ele responde é fechada: uma chave fora desta lista não existe, e uma lista parcial
+ * devolveria o autor a adivinhar — que é exatamente o defeito.
+ */
+const iconColumns = (): string => {
+  const lines: string[] = [];
+  let line = '';
+  for (const key of SCREEN_ICON_KEYS) {
+    const next = line === '' ? `\`${key}\`` : `${line}, \`${key}\``;
+    if (next.length > 98) {
+      lines.push(`${line},`);
+      line = `\`${key}\``;
+    } else {
+      line = next;
+    }
+  }
+  lines.push(line);
+  return lines.join('\n');
+};
 
 const stepCatalogTable = (steps: readonly WorkflowStepMetadata[]): string => [
   '| `stepDefinitionId` | What it does | Takes | Publishes |',
@@ -463,6 +485,22 @@ Metadata for a screen, a tab or a widget also takes **\`requiredPermissions\`**:
 them is enough. Absent, the contribution shows for every member. This is what keeps a menu entry from
 leading someone to a screen they cannot read.
 
+### Icons — a closed vocabulary
+
+Every \`icon\` in a package is a **key from the platform's catalogue** — a screen, a nav entry, a tab,
+a widget, a menu item, an action, a list-card field (\`ui.list.icon\`) and the extension itself all draw
+from the same ${SCREEN_ICON_KEYS.length} keys. They are not Remix names, not Material names, and not
+free text.
+
+Guessing one costs nothing while you write: the platform draws a generic marker for a key it does not
+recognise, so nothing throws and nothing logs — the mistake first appears on the screen of whoever
+installed the extension. \`check\` refuses it instead, naming the icon and where it was written.
+
+Ask the MCP server for \`list_icons\` (resource \`microteia://icons\`) for the list this installation
+actually draws. It is:
+
+${iconColumns()}
+
 ## 5. Text — the rule that has no exception
 
 Every label a person reads is a **reference**, resolved at render:
@@ -570,7 +608,7 @@ and you should not design as though it might.
 Author views as real files:
 
 \`\`\`ts
-views: [{ key: 'summary', title: label('page.summary'), icon: 'chart', sourceFile: './views/Summary.view.tsx' }]
+views: [{ key: 'summary', title: label('page.summary'), icon: 'lineChart', sourceFile: './views/Summary.view.tsx' }]
 \`\`\`
 
 \`sourceFile\` is an authoring field: the compiler replaces it with the file's contents. Keeping the
@@ -583,8 +621,8 @@ to be wrong.
 
 \`\`\`ts
 contributes: [
-  nav({ key: 'summary', label: label('nav.summary'), icon: 'chart', order: 50 }),
-  page({ key: 'summary', title: label('page.summary'), icon: 'chart' }, 'summary'),
+  nav({ key: 'summary', label: label('nav.summary'), icon: 'lineChart', order: 50 }),
+  page({ key: 'summary', title: label('page.summary'), icon: 'lineChart' }, 'summary'),
   //     ^ the workspace tab                                            ^ views[].key
 ]
 \`\`\`
@@ -610,7 +648,7 @@ Two things follow from the same wiring:
 views: [{
   key: 'summary',
   title: label('page.summary'),
-  icon: 'chart',
+  icon: 'lineChart',
   sourceFile: ['./views/Summary.view.tsx', './views/Summary.viewmodel.tsx', './views/Summary.styles.tsx'],
 }]
 \`\`\`
@@ -891,7 +929,7 @@ screens: [{
   sourceId: 'com.example.billing:invoice',   // universal identity — how an update recognises it
   titleSingular: label('screen.singular'),
   titlePlural: label('screen.plural'),
-  icon: 'receipt',
+  icon: 'filePaper',
   titleFieldKey: 'number',
   subtitleFieldKey: 'client',
   fields: FIELDS,
