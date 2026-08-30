@@ -42,7 +42,7 @@ describe('coleções reservadas', () => {
       'screenDefinitions', 'lookupDefinitions', 'tagDefinitions',
       'workflow_definitions', 'workflow_events', 'workflow_executions',
       'actions', 'scripts', 'aiConnections',
-      'plugin_installations', 'extensions', 'installed_extensions',
+      'plugin_installations', 'extensions', 'installed_extensions', 'extension_history',
       'members',
     ];
 

@@ -486,6 +486,7 @@ export const RESERVED_COLLECTIONS: ReadonlySet<string> = new Set<string>([
   'extensions',
   'installed_extensions',
   'extension_migrations',
+  'extension_history',
   'notes',
   'documents',
   'tags',

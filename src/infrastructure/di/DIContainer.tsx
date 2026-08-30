@@ -30,6 +30,7 @@ import { FirebasePluginRegistryRepository } from '../../data/repositories/Fireba
 import { FirebaseTenantExtensionRepository } from '../../data/repositories/FirebaseTenantExtensionRepository';
 import { FirebaseInstalledExtensionRepository } from '../../data/repositories/FirebaseInstalledExtensionRepository';
 import { FirebaseExtensionMigrationRepository } from '../../data/repositories/FirebaseExtensionMigrationRepository';
+import { FirebaseExtensionHistoryRepository } from '../../data/repositories/FirebaseExtensionHistoryRepository';
 import { FirebasePublicExtensionRepository } from '../../data/repositories/FirebasePublicExtensionRepository';
 import { FirebaseSettingsRepository } from '../../data/repositories/FirebaseSettingsRepository';
 import { FirebaseBackendResidueRepository } from '../../data/repositories/FirebaseBackendResidueRepository';
@@ -73,6 +74,7 @@ export const DIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
     tenantExtensionRepository: new FirebaseTenantExtensionRepository(),
     installedExtensionRepository: new FirebaseInstalledExtensionRepository(),
     extensionMigrationRepository: new FirebaseExtensionMigrationRepository(),
+    extensionHistoryRepository: new FirebaseExtensionHistoryRepository(),
     publicExtensionRepository: new FirebasePublicExtensionRepository(),
     backendResidueRepository: new FirebaseBackendResidueRepository(),
   }), [host]);

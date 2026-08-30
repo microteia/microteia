@@ -234,6 +234,28 @@ service cloud.firestore {
         allow delete: if false;
       }
 
+      // Histórico de VERSÕES APLICADAS das extensões: o que este escritório já pôs no ar de cada uma,
+      // e o que ele pode reaplicar. Todo membro lê, como em `installed_extensions` — o pacote guardado
+      // aqui é o mesmo que já está exposto lá, então não há exposição nova; só admin grava, porque
+      // gravar aqui é o mesmo ato de instalar.
+      //
+      // O índice fica no documento e o PACOTE de cada entrada na subcoleção `versions`: assinar dez
+      // pacotes por extensão a cada carga da aplicação custaria megabytes, e o índice estouraria o
+      // 1 MiB do Firestore antes da quarta versão de um pacote de tradução.
+      //
+      // Ao contrário de `extension_migrations`, aqui `delete` é PERMITIDO: desinstalar preserva o
+      // histórico (é dele que sai a última versão instalada), mas EXCLUIR a extensão o apaga junto —
+      // não sobra a quem ele sirva.
+      match /extension_history/{extensionId} {
+        allow read: if isMember(tenantId);
+        allow create, update, delete: if can(tenantId, 'extensions.manage');
+
+        match /versions/{revision} {
+          allow read: if isMember(tenantId);
+          allow create, update, delete: if can(tenantId, 'extensions.manage');
+        }
+      }
+
       // Configurações declaradas por plugins. Dois documentos, e o caminho decide quem grava:
       // `tenant` é o padrão do escritório (só admin) e `user_{uid}` é a preferência pessoal, que só
       // o dono escreve. Todo membro LÊ os dois — a resolução (usuário vence escritório) acontece no
@@ -306,7 +328,7 @@ service cloud.firestore {
       function isReservedCollection(name) {
         return name in [
         'actions', 'aiConnections',
-        'documentTypes', 'documents', 'extension_migrations', 'extensions',
+        'documentTypes', 'documents', 'extension_history', 'extension_migrations', 'extensions',
         'installed_extensions', 'lookupDefinitions', 'members', 'notes',
         'roles',
         'tagDefinitions', 'plugin_installations',

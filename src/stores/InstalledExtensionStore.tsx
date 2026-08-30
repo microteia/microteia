@@ -20,6 +20,8 @@ import {
   type MigrationRunOutcome,
 } from '../domain/usecases/plugins/runPluginMigrations';
 import type { ExtensionMigrationState } from '../domain/entities/ExtensionMigration';
+import type { ExtensionHistory } from '../domain/entities/ExtensionHistory';
+import { packageRevision } from '../domain/usecases/plugins/extensionHistory';
 import type { PluginMigration } from '../domain/schema/plugin/migration';
 import type { MarketplacePlugin } from '../domain/entities/MarketplacePlugin';
 import { buildScreenKeyMap } from '../domain/usecases/plugins/screenModule';
@@ -38,6 +40,7 @@ export const InstalledExtensionStoreProvider: React.FC<{ children: React.ReactNo
   const {
     installedExtensionRepository,
     extensionMigrationRepository,
+    extensionHistoryRepository,
     screenDefinitionRepository,
     workflowDefinitionRepository,
     scriptRepository,
@@ -63,6 +66,7 @@ export const InstalledExtensionStoreProvider: React.FC<{ children: React.ReactNo
   const [installed, setInstalled] = useState<InstalledExtension[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [migrationStates, setMigrationStates] = useState<ReadonlyMap<string, ExtensionMigrationState>>(new Map());
+  const [histories, setHistories] = useState<ReadonlyMap<string, ExtensionHistory>>(new Map());
 
   /**
    * O executor de migração é o sandbox do servidor, pela callable que já existe: ela recebe o código
@@ -110,6 +114,23 @@ export const InstalledExtensionStoreProvider: React.FC<{ children: React.ReactNo
     });
     return () => unsubscribe();
   }, [currentTenant, extensionMigrationRepository]);
+
+  /**
+   * Só o ÍNDICE do histórico é assinado — dez linhas de metadados por extensão. O pacote de cada
+   * entrada fica na subcoleção e só é lido por quem escolhe voltar àquela versão: assiná-lo aqui
+   * traria megabytes a cada carga da aplicação para uma pergunta que quase ninguém faz.
+   */
+  useEffect(() => {
+    if (!currentTenant) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- limpar estado local na troca de tenant é exigência arquitetural
+      setHistories(new Map());
+      return;
+    }
+    const unsubscribe = extensionHistoryRepository.subscribe(currentTenant.id, (list) => {
+      setHistories(new Map(list.map((history) => [history.pluginId, history])));
+    });
+    return () => unsubscribe();
+  }, [currentTenant, extensionHistoryRepository]);
 
   /**
    * O contexto de uma execução. `collections` é lido do escritório NA HORA (e não uma vez por
@@ -212,6 +233,37 @@ export const InstalledExtensionStoreProvider: React.FC<{ children: React.ReactNo
       // gravar o registro — se falhar, nada fica "instalado". Idempotente: reinstalar/atualizar reusa por
       // sourceId. Código-only (ex.: Kanban) = no-op barato. As telas/menus surgem via os stores de dados.
       await applyPackageArtifacts(artifactDeps, input.package, { tenantId: currentTenant.id, userId: user.id, now: new Date() });
+      /**
+       * A versão APLICADA entra no histórico antes de o registro ser gravado, pela mesma razão dos
+       * artefatos acima: se o histórico não puder ser escrito, nada fica instalado.
+       *
+       * Quem entra é a versão que está sendo aplicada, e não a que sai. Assim a última que o
+       * escritório teve já está registrada quando ele desinstalar — não há nada a gravar num gesto
+       * que remove —, e reaplicar uma versão vinda do próprio histórico não cria item nenhum: o
+       * `record` é idempotente pela revisão.
+       */
+      const revision = await packageRevision(input.package);
+      await extensionHistoryRepository.record(
+        currentTenant.id,
+        id,
+        {
+          revision,
+          version: input.version,
+          source: input.source,
+          appliedAt: new Date(),
+          appliedBy: user.id,
+          appliedByName: effectiveName,
+        },
+        {
+          revision,
+          package: input.package,
+          source: input.source,
+          version: input.version,
+          authorId: input.authorId,
+          authorName: input.authorName,
+          authorPhotoURL: input.authorPhotoURL,
+        },
+      );
       await installedExtensionRepository.upsert(currentTenant.id, extension);
       notifyArtifactStores();
       setInstalled((prev) =>
@@ -251,9 +303,29 @@ export const InstalledExtensionStoreProvider: React.FC<{ children: React.ReactNo
       ));
     });
   }, [
-    currentTenant, user, installed, installedExtensionRepository, artifactDeps,
-    migrationStates, migrationDeps, contextOf, withMigrationLock, failIfNotOk,
+    currentTenant, user, effectiveName, installed, installedExtensionRepository, artifactDeps,
+    extensionHistoryRepository, migrationStates, migrationDeps, contextOf, withMigrationLock, failIfNotOk,
   ]);
+
+  /**
+   * Voltar a uma versão do histórico. O pacote é lido da entrada e entregue à MESMA `install` — não há
+   * caminho de rollback separado, e por isso a volta paga tudo o que uma aplicação paga: artefatos
+   * convergidos, migração planejada contra o que este escritório já aplicou, e a confiança de código
+   * reavaliada pelo hash.
+   */
+  const restore = useCallback(async (id: string, revision: string) => {
+    if (!currentTenant) return;
+    const version = await extensionHistoryRepository.getVersion(currentTenant.id, id, revision);
+    if (!version) throw new LocalizedError('@core.marketplace/history.error.missing');
+    await install({
+      package: version.package,
+      source: version.source,
+      version: version.version,
+      authorId: version.authorId,
+      authorName: version.authorName,
+      authorPhotoURL: version.authorPhotoURL,
+    });
+  }, [currentTenant, extensionHistoryRepository, install]);
 
   const pendingMigrationsOf = useCallback(
     (id: string): PluginMigration[] => {
@@ -318,6 +390,7 @@ export const InstalledExtensionStoreProvider: React.FC<{ children: React.ReactNo
       installed,
       isLoading,
       migrationStates,
+      histories,
       install,
       setActive,
       trustCode,
@@ -325,10 +398,11 @@ export const InstalledExtensionStoreProvider: React.FC<{ children: React.ReactNo
       installedOf,
       pendingMigrationsOf,
       runMigrations,
+      restore,
     }),
     [
-      installed, isLoading, migrationStates, install, setActive, trustCode, uninstall, installedOf,
-      pendingMigrationsOf, runMigrations,
+      installed, isLoading, migrationStates, histories, install, setActive, trustCode, uninstall,
+      installedOf, pendingMigrationsOf, runMigrations, restore,
     ],
   );
 

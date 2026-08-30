@@ -6366,6 +6366,112 @@ clicando "Atualizar" ao mesmo tempo se encontram. A reserva **expira** (`MIGRATI
 
 ---
 
+## Histórico de versões de extensão — voltar atrás
+
+Aplicar uma extensão sobrescrevia a cópia instalada e não deixava nada para trás. Uma atualização que
+piorava a tela do escritório só se desfazia se alguém ainda tivesse o `.json` da versão anterior — e
+uma desinstalação por engano não se desfazia de jeito nenhum, porque o pacote instalado morria com o
+documento. O histórico é a resposta: **toda versão aplicada fica registrada, e voltar a qualquer uma
+delas é a mesma instalação de sempre.**
+
+### O que entra no histórico é a versão APLICADA, não a que sai
+
+A entrada é gravada no momento em que a versão é aplicada, e é a versão que está chegando. A escolha
+parece a menos óbvia das duas, e é ela que faz as três regras do recurso caírem sozinhas:
+
+| Gesto | O que acontece no histórico | Por quê |
+|---|---|---|
+| Instalar / atualizar | entra a versão que está sendo aplicada | é o que o escritório passou a ter |
+| Desinstalar | **nada** — o histórico fica como está | a versão que estava no ar já foi registrada quando foi aplicada; é dela que sai o "trazer de volta" |
+| Aplicar uma do histórico | **nada** — a revisão já está lá | `record` é idempotente pela revisão |
+| Excluir a extensão | o histórico inteiro é apagado | não sobra a quem ele sirva |
+
+Registrando a versão que SAI, nenhuma dessas linhas seria de graça: a última instalada só entraria no
+histórico se a desinstalação a gravasse (um gesto que não aplica nada gravando uma aplicação), e todo
+rollback criaria um item novo — o histórico contaria a mesma versão duas vezes, uma por ida e uma por
+volta.
+
+### A identidade é o CONTEÚDO, nunca a versão declarada
+
+`revision` é o SHA-256 do `packageFingerprint` — o mesmo fingerprint canônico que `builtinUpdateOf` já
+usava para oferecer "Atualizar" a um pacote embutido cuja versão não mudou. Presa à versão, a
+identidade quebraria nos dois casos em que o conteúdo anda sem o número: a extensão de primeira parte
+durante o desenvolvimento, e a privada editada em cima de si mesma. As duas aplicações apareceriam como
+uma só, e o histórico mentiria sobre o que foi aplicado.
+
+O fingerprint em si não serve de id de documento — ele é o JSON canônico inteiro. Daí o hash.
+
+### Índice e pacote em documentos separados
+
+```
+tenants/{tenantId}/extension_history/{pluginId}              → índice: até 10 entradas de metadados
+tenants/{tenantId}/extension_history/{pluginId}/versions/{revision} → o pacote daquela entrada
+```
+
+A divisão é entre duas perguntas de custo oposto: "esta extensão tem histórico?" é feita a cada
+abertura da tela, para todas as extensões de uma vez, e "qual era o pacote da 1.2.0?" é feita uma vez,
+por quem já decidiu voltar. Com o pacote dentro do índice, assinar o histórico traria megabytes a cada
+carga da aplicação — e o índice estouraria o 1 MiB do Firestore antes da quarta versão de um pacote de
+tradução (ver "Guarda de tamanho do pacote").
+
+O `record` é **transacional**: a decisão de criar depende do que já está lá, e dois admins aplicando ao
+mesmo tempo leriam o mesmo índice — o segundo apagaria a entrada do primeiro. A poda entra na mesma
+transação, com o `delete` do pacote podado junto: fora dela, o teto seria só da lista e os megabytes
+ficariam.
+
+### O teto — `EXTENSION_HISTORY_LIMIT = 10`
+
+Cada entrada carrega o pacote inteiro, que a importação aceita até 800 KB. Sem teto, um pacote de
+tradução atualizado toda semana chega a dezenas de MB em um ano, sem nada que avise. Dez cobre o
+arrependimento real; as mais antigas saem à medida que chegam novas, com o pacote delas.
+
+### Voltar é instalar — não há caminho de rollback
+
+`restore` lê o pacote da entrada e o entrega à MESMA `install`. A volta paga tudo o que uma aplicação
+paga: artefatos convergidos por `applyPackageArtifacts`, fila de migração planejada contra o que este
+escritório já aplicou (`extension_migrations` sobrevive, então uma migração já rodada não roda de novo)
+e confiança de código reavaliada pelo hash. Um caminho separado teria de repetir as quatro coisas, e
+seria onde a quinta seria esquecida.
+
+É também o que dispensa avisar `install` de que aquilo é um rollback: como a revisão já está no índice,
+o `record` não cria item nenhum.
+
+### Desinstalar preserva, excluir apaga
+
+`uninstall` remove a cópia e **não toca** no histórico — é essa sobrevivência que torna possível trazer
+de volta a última versão que o escritório tinha. `removeExtension` (o gesto de EXCLUIR, disponível só
+para a extensão privada da qual o escritório é autor) apaga o histórico inteiro antes de apagar a
+extensão.
+
+É a mesma divisão de `extension_migrations`, com uma diferença: lá a regra do Firestore **nega**
+`delete`, porque o dado migrado sobrevive a tudo e o registro do que foi feito com ele vale por si.
+Aqui o `delete` é permitido, porque um pacote guardado para reaplicar numa extensão que já não existe
+não serve a ninguém.
+
+### Na tela
+
+O ícone de histórico aparece na linha da extensão quando há entrada registrada e quem olha pode
+gerenciar extensões. O modal lista as versões na ordem em que foram aplicadas — e não por número:
+quem volta para a 1.2.0 depois da 2.0.0 quer encontrar a 2.0.0 no lugar de onde saiu. A que está no ar
+aparece marcada e sem gesto; a revisão da cópia instalada é calculada **só** com o modal aberto
+(`useInstalledRevision`), porque é um SHA-256 sobre o pacote inteiro.
+
+Desinstalada, a extensão continua com o histórico e com o ícone: o modal diz que ela não está
+instalada e aplicar uma versão dali é o que a traz de volta.
+
+### Arquivos-chave
+
+| Arquivo | Papel |
+|---|---|
+| `domain/entities/ExtensionHistory.ts` | a entrada, o índice e o pacote guardado |
+| `domain/usecases/plugins/extensionHistory.ts` | revisão, poda e o teto (puro) |
+| `data/repositories/FirebaseExtensionHistoryRepository.ts` | índice + subcoleção, com o `record` transacional |
+| `stores/InstalledExtensionStore.tsx` | grava na aplicação; `restore` devolve à `install` |
+| `stores/TenantExtensionStore.tsx` | a cascata do EXCLUIR |
+| `stores/useInstalledRevision.ts` | qual entrada está no ar |
+
+---
+
 ## Idioma — tradução como contribuição
 
 **O inglês é o idioma-fonte (`DEFAULT_LOCALE = 'en'`); todo outro idioma é uma tradução dele.** Não há

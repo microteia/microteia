@@ -11,7 +11,7 @@ import type { MarketplacePlugin } from '../domain/entities/MarketplacePlugin';
 export const TenantExtensionStoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { currentTenant } = useTenant();
   const { user } = useAuth();
-  const { tenantExtensionRepository } = useDI();
+  const { tenantExtensionRepository, extensionHistoryRepository } = useDI();
 
   const [extensions, setExtensions] = useState<TenantExtension[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -72,11 +72,17 @@ export const TenantExtensionStoreProvider: React.FC<{ children: React.ReactNode 
     setExtensions((prev) => prev.map((e) => (e.id === id ? { ...e, active } : e)));
   }, [currentTenant, tenantExtensionRepository]);
 
+  /**
+   * EXCLUIR é o fim da extensão, e o histórico de versões aplicadas morre com ela — não sobra a quem
+   * servir. É o oposto de DESINSTALAR, que só retira a cópia do escritório e preserva o histórico:
+   * é dele que sai a última versão instalada, para quem se arrependeu de ter desinstalado.
+   */
   const removeExtension = useCallback(async (id: string) => {
     if (!currentTenant) return;
+    await extensionHistoryRepository.deleteAll(currentTenant.id, id);
     await tenantExtensionRepository.delete(currentTenant.id, id);
     setExtensions((prev) => prev.filter((e) => e.id !== id));
-  }, [currentTenant, tenantExtensionRepository]);
+  }, [currentTenant, tenantExtensionRepository, extensionHistoryRepository]);
 
   const value = useMemo(
     () => ({ extensions, isLoading, saveExtension, importExtension, setActive, removeExtension, extensionOf }),

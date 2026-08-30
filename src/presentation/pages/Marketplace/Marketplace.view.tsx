@@ -19,6 +19,7 @@ import {
   RiCopyrightLine,
   RiErrorWarningLine,
   RiDatabase2Line,
+  RiHistoryLine,
 } from 'react-icons/ri';
 import { Button } from '../../components/ui/Button';
 import { InfoBanner } from '../../components/ui/InfoBanner';
@@ -26,7 +27,7 @@ import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { Modal } from '../../components/ui/Modal';
 import { WidgetRenderer } from '../../components/ui/WidgetRenderer';
 import { useMarketplaceViewModel } from './Marketplace.viewmodel';
-import type { Author, ExtensionRow, MarketplaceFilter, StatusBadge } from './Marketplace.viewmodel';
+import type { Author, ExtensionRow, HistoryPanel, MarketplaceFilter, StatusBadge } from './Marketplace.viewmodel';
 import { S } from './Marketplace.styles';
 
 import { useT } from '../../shared/i18n/useT';
@@ -175,6 +176,11 @@ const RowView: React.FC<{ row: ExtensionRow; busy: boolean; vm: ReturnType<typeo
           <RiDatabase2Line size={17} />
         </S.ActionButton>
       )}
+      {row.hasHistory && (
+        <S.ActionButton title={t('extension.history')} onClick={() => vm.openHistory(row.id)}>
+          <RiHistoryLine size={17} />
+        </S.ActionButton>
+      )}
       {row.needsCodeReview && (
         <S.ActionButton
           $primary
@@ -231,6 +237,49 @@ const RowView: React.FC<{ row: ExtensionRow; busy: boolean; vm: ReturnType<typeo
       )}
     </S.RowActions>
   </S.Row>
+  );
+};
+
+/**
+ * As versões que este escritório já aplicou desta extensão. A que está no ar aparece marcada e sem
+ * gesto — reaplicá-la não faria nada, e oferecer o botão sugeriria que faria.
+ */
+const HistoryModal: React.FC<{ history: HistoryPanel; vm: ReturnType<typeof useMarketplaceViewModel> }> = ({ history, vm }) => {
+  const t = useT('core.marketplace');
+
+  return (
+    <Modal title={t('history.title', { name: history.name })} size="large" onClose={vm.closeHistory}>
+      <S.DetailsIntro>{t('history.intro')}</S.DetailsIntro>
+      {history.uninstalled && <InfoBanner message={t('history.uninstalled')} variant="info" />}
+      {history.versions.length === 0 ? (
+        <S.Empty>{t('history.empty')}</S.Empty>
+      ) : (
+        <S.HistoryList>
+          {history.versions.map((version) => (
+            <S.HistoryItem key={version.revision} $current={version.current}>
+              <S.HistoryMain>
+                <S.HistoryVersion>
+                  v{version.version}
+                  {version.current && <S.Badge $tone="success">{t('history.current')}</S.Badge>}
+                </S.HistoryVersion>
+                <S.HistoryMeta>{version.appliedBy}</S.HistoryMeta>
+              </S.HistoryMain>
+              {!version.current && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  disabled={vm.busyId === history.id}
+                  onClick={() => void vm.restore(history.id, version.revision)}
+                >
+                  <RiHistoryLine size={15} /> {t('history.apply')}
+                </Button>
+              )}
+            </S.HistoryItem>
+          ))}
+        </S.HistoryList>
+      )}
+      <S.HistoryFooter>{t('history.limit', { count: history.limit })}</S.HistoryFooter>
+    </Modal>
   );
 };
 
@@ -355,6 +404,8 @@ export const MarketplaceView: React.FC = () => {
           </S.DetailsMeta>
         </Modal>
       )}
+
+      {vm.history && <HistoryModal history={vm.history} vm={vm} />}
 
       {vm.reviewTarget && (
         <Modal title={t('extension.review.title', { name: vm.reviewTarget.name })} size="large" onClose={vm.cancelReview}>

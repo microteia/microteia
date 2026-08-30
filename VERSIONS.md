@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.38.0] — 2026-08-30
+
+- Toda versão de extensão que o escritório aplica passa a ficar registrada, e um ícone de histórico na lista de Extensões mostra quais foram — com a versão, quem aplicou e quando. Dali é possível voltar a qualquer uma delas, inclusive depois de desinstalar a extensão: aplicar uma versão do histórico a traz de volta como estava. Antes, uma atualização que atrapalhasse o dia a dia só se desfazia se alguém ainda tivesse guardado o arquivo da versão anterior, e uma desinstalação por engano não se desfazia de jeito nenhum.
+- São guardadas as dez últimas versões aplicadas de cada extensão. Excluir a extensão apaga o histórico dela junto; desinstalar, não — é o que permite trazê-la de volta depois.
+
 #### [9.37.3] — 2026-08-30
 
 - Corrigido o exemplo de automação que acompanha o material de autoria: as duas mensagens que ele registrava no histórico pediam o registro por um caminho que não existe, e o fluxo parava com erro ao salvar em vez de concluir. Quem se guiasse por ele escreveria a mesma automação quebrada.

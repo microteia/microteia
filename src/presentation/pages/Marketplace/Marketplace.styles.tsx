@@ -400,6 +400,54 @@ export const S = {
     margin-top: ${({ theme }) => theme.spacing.md};
   `,
 
+  HistoryList: styled.div`
+    display: flex;
+    flex-direction: column;
+    border: 1px solid ${({ theme }) => theme.colors.border};
+    border-radius: ${({ theme }) => theme.borderRadius.md};
+    overflow: hidden;
+  `,
+
+  HistoryItem: styled.div<{ $current?: boolean }>`
+    display: flex;
+    align-items: center;
+    gap: ${({ theme }) => theme.spacing.md};
+    padding: ${({ theme }) => theme.spacing.md};
+    background: ${({ theme, $current }) => ($current ? theme.colors.surfaceHover : 'transparent')};
+
+    & + & {
+      border-top: 1px solid ${({ theme }) => theme.colors.border};
+    }
+  `,
+
+  HistoryMain: styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: ${({ theme }) => theme.spacing.xs};
+    min-width: 0;
+    flex: 1;
+  `,
+
+  HistoryVersion: styled.div`
+    display: flex;
+    align-items: center;
+    gap: ${({ theme }) => theme.spacing.sm};
+    font-size: ${({ theme }) => theme.fontSizes.sm};
+    font-weight: 600;
+    color: ${({ theme }) => theme.colors.text};
+  `,
+
+  HistoryMeta: styled.span`
+    font-size: ${({ theme }) => theme.fontSizes.xs};
+    color: ${({ theme }) => theme.colors.textMuted};
+  `,
+
+  HistoryFooter: styled.p`
+    margin: ${({ theme }) => theme.spacing.md} 0 0;
+    font-size: ${({ theme }) => theme.fontSizes.xs};
+    color: ${({ theme }) => theme.colors.textMuted};
+  `,
+
   Empty: styled.div`
     padding: ${({ theme }) => theme.spacing.xl};
     text-align: center;

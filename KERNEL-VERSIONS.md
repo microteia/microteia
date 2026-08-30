@@ -18,6 +18,37 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.38.0] — 2026-08-30
+
+- feat(marketplace/history): applying an extension overwrote the installed copy and left nothing
+  behind. An update that made a screen worse could only be undone by whoever still had the previous
+  `.json`, and an accidental uninstall could not be undone at all — the installed package died with
+  the document. Every applied version is now recorded in
+  `tenants/{tenantId}/extension_history/{pluginId}`, and going back to one is the same `install` as
+  ever.
+- feat(marketplace/history): the recorded entry is the version being APPLIED, not the one leaving.
+  That is what makes the three rules fall out for free: the last installed version is already in the
+  history when the office uninstalls (nothing to write in a gesture that applies nothing), and
+  re-applying one from the history creates no item, because `record` is idempotent by revision.
+- feat(marketplace/history): the entry's identity is `SHA-256(packageFingerprint)`, not the declared
+  version — the same fingerprint `builtinUpdateOf` already used to offer "Update" for a builtin whose
+  version had not moved. Keyed by version, a first-party extension under development and a private one
+  edited in place would collapse two applications into one.
+- feat(marketplace/history): the index doc holds up to `EXTENSION_HISTORY_LIMIT` (10) metadata entries
+  and the package of each lives in `versions/{revision}`. Subscribing to the index is what the screen
+  needs; the package costs a read only for whoever chose to go back. Inline, the subscription would
+  carry megabytes on every load and the index would pass Firestore's 1 MiB before a translation
+  package's fourth version. `record` is transactional and prunes the dropped package in the same
+  transaction — outside it, the cap would bound the list and leave the bytes.
+- feat(marketplace/history): `uninstall` preserves the history (it is where "bring it back" comes
+  from); `removeExtension` — DELETE, offered only for the office's own private extension — cascades it
+  away. Unlike `extension_migrations`, the Firestore rule allows `delete` here: a package kept to
+  re-apply to an extension that no longer exists serves no one.
+- feat(marketplace/history): `restore` hands the stored package to the same `install`, so a rollback
+  pays for converged artifacts, a migration queue planned against what this office already applied,
+  and code trust re-evaluated by hash. A separate rollback path would have to repeat all four, and
+  would be where the fifth was forgotten.
+
 #### [9.37.3] — 2026-08-30
 
 - fix(sdk/docs): `list_workflow_events` and the authoring guide both said an `{ kind: 'Expression' }`

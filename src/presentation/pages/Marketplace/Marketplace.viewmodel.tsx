@@ -17,6 +17,8 @@ import type { BackendResidue } from '../../../domain/entities/BackendResidue';
 import { extensionMigrationError, isExtensionMigrationPending } from '../../../domain/usecases/plugins/extensionMigrationState';
 import { licenseOf } from '../../../domain/usecases/plugins/pluginLicenses';
 import { useExtensionCodeTrust } from '../../../stores/useExtensionCodeTrust';
+import { useInstalledRevision } from '../../../stores/useInstalledRevision';
+import { EXTENSION_HISTORY_LIMIT } from '../../../domain/usecases/plugins/extensionHistory';
 import { usePluginDiagnostics } from '../../../stores/useKernel';
 import { MARKETPLACE_CATALOG } from '../../../plugins/marketplace/catalog';
 import { SYSTEM_THEME_PACKAGES } from '../../../plugins/themes/systemThemes';
@@ -88,6 +90,11 @@ export interface ExtensionRow {
   migrationError: string | null;
   /** Há fila pendente E o usuário pode rodá-la (só admin) — o gesto de "Atualizar dados". */
   canRunMigrations: boolean;
+  /**
+   * Há versão aplicada registrada para esta extensão neste escritório. Sobrevive à desinstalação: é
+   * o que permite trazer de volta a última que o escritório tinha.
+   */
+  hasHistory: boolean;
   /** Código instalado que ainda não pode executar — falta a revisão de um admin do escritório. */
   needsCodeReview: boolean;
   /** Fonte do código, para o admin ler antes de confiar. */
@@ -143,6 +150,30 @@ export interface BackendResidueSummary {
   message: string;
 }
 
+/** Uma versão já aplicada, como a tela a lista. */
+export interface HistoryVersionRow {
+  revision: string;
+  version: string;
+  /** A frase pronta com quem aplicou e quando — a tela é quem conhece o idioma de quem lê. */
+  appliedBy: string;
+  /**
+   * É a versão que está no ar agora. Falsa enquanto a revisão da cópia instalada ainda está sendo
+   * calculada — o hash é assíncrono, e chega num segundo render.
+   */
+  current: boolean;
+}
+
+/** O histórico de UMA extensão, aberto no modal. */
+export interface HistoryPanel {
+  id: string;
+  name: string;
+  /** A extensão não está instalada: aplicar uma versão daqui é o que a traz de volta. */
+  uninstalled: boolean;
+  versions: HistoryVersionRow[];
+  /** Quantas versões o histórico guarda — a frase de rodapé é derivada daqui, nunca escrita à mão. */
+  limit: number;
+}
+
 export interface MarketplaceViewModel {
   canManage: boolean;
   /**
@@ -174,6 +205,11 @@ export interface MarketplaceViewModel {
   openReview: (id: string) => void;
   confirmReview: () => Promise<void>;
   cancelReview: () => void;
+  /** O histórico aberto, ou `null`. Ver `HistoryPanel`. */
+  history: HistoryPanel | null;
+  openHistory: (id: string) => void;
+  closeHistory: () => void;
+  restore: (id: string, revision: string) => Promise<void>;
   openAuthor: () => void;
   onImportFile: (event: React.ChangeEvent<HTMLInputElement>) => Promise<void>;
   edit: (id: string) => void;
@@ -209,6 +245,8 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
     uninstall: uninstallCopy,
     pendingMigrationsOf,
     runMigrations: runExtensionMigrations,
+    histories,
+    restore: restoreVersion,
   } = useInstalledExtensions();
   const { publicExtensions, publish: publishPublic, approve: approvePublic, deprecate: deprecatePublic, unpublish, publicOf } = usePublicExtensions();
   const { can } = useAuthorization();
@@ -222,6 +260,7 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
   const [reviewTarget, setReviewTarget] = useState<{ id: string; name: string; code: string } | null>(null);
   const [detailsId, setDetailsId] = useState<string | null>(null);
   const [licenseId, setLicenseId] = useState<string | null>(null);
+  const [historyId, setHistoryId] = useState<string | null>(null);
 
   const trustedIds = useExtensionCodeTrust(installed);
 
@@ -465,6 +504,7 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
         migrationPending: false,
         migrationError: null,
         canRunMigrations: false,
+        hasHistory: false,
         codeTrustedByName: null,
         mine: false,
         installed: true,
@@ -543,6 +583,7 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
         migrationPending: inst ? isExtensionMigrationPending(inst, migrationStates) : false,
         migrationError: migrationErrorOf(inst),
         canRunMigrations: canManage && inst !== undefined && pendingMigrationsOf(id).length > 0,
+        hasHistory: canManage && (histories.get(id)?.entries.length ?? 0) > 0,
         needsCodeReview: Boolean(inst) && installedNeedsReview.has(id),
         codeToReview: inst ? extensionCodeOf(inst.package) : null,
         codeTrustedByName: inst?.codeTrust?.trustedByName ?? null,
@@ -557,7 +598,7 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
     }
 
     return list.sort((a, b) => rankOf(a) - rankOf(b) || a.name.localeCompare(b.name));
-  }, [extensions, installed, publicExtensions, publicOf, updateSourceOf, builtinUpdateOf, canModerate, canManage, user, installedNeedsReview, problemsByPlugin, label, migrationStates, pendingMigrationsOf, migrationErrorOf]);
+  }, [extensions, installed, publicExtensions, publicOf, updateSourceOf, builtinUpdateOf, canModerate, canManage, user, installedNeedsReview, problemsByPlugin, label, migrationStates, pendingMigrationsOf, migrationErrorOf, histories]);
 
   const counts = useMemo<Record<MarketplaceFilter, number>>(() => ({
     all: rows.length,
@@ -695,6 +736,54 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
     [rows, licenseId],
   );
 
+  const openHistory = useCallback((id: string) => setHistoryId(id), []);
+  const closeHistory = useCallback(() => setHistoryId(null), []);
+
+  /**
+   * A revisão do que está instalado é calculada só para a extensão cujo histórico está aberto: é
+   * um SHA-256 sobre o pacote inteiro, e fazê-lo para todas as instaladas a cada mudança pagaria
+   * megabytes de digestão por uma pergunta que só existe com o modal na tela.
+   */
+  const historyPackage = useMemo(
+    () => (historyId ? installed.find((extension) => extension.id === historyId)?.package ?? null : null),
+    [historyId, installed],
+  );
+  const currentRevision = useInstalledRevision(historyPackage);
+
+  const history = useMemo<HistoryPanel | null>(() => {
+    if (!historyId) return null;
+    const row = rows.find((candidate) => candidate.id === historyId);
+    const entries = histories.get(historyId)?.entries ?? [];
+    return {
+      id: historyId,
+      name: row?.name ?? historyId,
+      uninstalled: !row?.installed,
+      limit: EXTENSION_HISTORY_LIMIT,
+      versions: entries.map((entry) => ({
+        revision: entry.revision,
+        version: entry.version,
+        appliedBy: t('history.applied-by', {
+          name: entry.appliedByName || entry.appliedBy,
+          date: formatDateTime(entry.appliedAt),
+        }),
+        current: currentRevision !== null && entry.revision === currentRevision,
+      })),
+    };
+  }, [historyId, rows, histories, currentRevision, t, formatDateTime]);
+
+  /**
+   * Voltar a uma versão. Fecha o modal antes de correr porque a lista dele é a mesma que a aplicação
+   * vai reordenar — deixá-lo aberto mostraria o estado intermediário como se fosse o final.
+   */
+  const restore = useCallback(
+    (id: string, revision: string) => {
+      const entry = histories.get(id)?.entries.find((candidate) => candidate.revision === revision);
+      setHistoryId(null);
+      return run(id, () => restoreVersion(id, revision), t('history.applied', { version: entry?.version ?? '' }));
+    },
+    [histories, run, restoreVersion, t],
+  );
+
   const confirmReview = useCallback(async () => {
     if (!reviewTarget) return;
     const { id } = reviewTarget;
@@ -746,6 +835,10 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
     openReview,
     confirmReview,
     cancelReview,
+    history,
+    openHistory,
+    closeHistory,
+    restore,
     openAuthor,
     onImportFile,
     edit,

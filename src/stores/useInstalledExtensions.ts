@@ -1,5 +1,6 @@
 import { createContext, useContext } from 'react';
 import type { InstalledExtension, InstalledExtensionSource } from '../domain/entities/InstalledExtension';
+import type { ExtensionHistory } from '../domain/entities/ExtensionHistory';
 import type { ExtensionMigrationState } from '../domain/entities/ExtensionMigration';
 import type { MarketplacePlugin } from '../domain/entities/MarketplacePlugin';
 import type { PluginMigration } from '../domain/schema/plugin/migration';
@@ -23,6 +24,12 @@ export interface InstalledExtensionStoreValue {
    * dado, e este mapa diz o que o dado já recebeu. Ver `extensionMigrationState`.
    */
   migrationStates: ReadonlyMap<string, ExtensionMigrationState>;
+  /**
+   * O que cada extensão já APLICOU neste escritório, por `pluginId` — só o índice, sem os pacotes.
+   * Sobrevive à desinstalação de propósito: é ele que permite voltar à última versão que o escritório
+   * tinha depois de desinstalar. Ver `ExtensionHistory`.
+   */
+  histories: ReadonlyMap<string, ExtensionHistory>;
   /** Copia (fielmente) o pacote para o tenant; preserva `active` de uma instalação existente. */
   install: (input: InstallExtensionInput) => Promise<void>;
   setActive: (id: string, active: boolean) => Promise<void>;
@@ -37,6 +44,11 @@ export interface InstalledExtensionStoreValue {
    * atualização ou quando uma versão já instalada passou a declarar migração.
    */
   runMigrations: (id: string) => Promise<void>;
+  /**
+   * Reaplica uma versão do histórico. Passa pela MESMA `install`, com o pacote lido da entrada — e
+   * por isso não cria item novo no histórico: aquela revisão já está lá.
+   */
+  restore: (id: string, revision: string) => Promise<void>;
 }
 
 export const InstalledExtensionStoreContext = createContext<InstalledExtensionStoreValue | null>(null);
