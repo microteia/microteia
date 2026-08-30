@@ -286,8 +286,17 @@ export interface MappedTransition {
   describable: boolean;
   /** A chave da ação de registro que a invoca, quando o gatilho é de pessoa. */
   actionKey?: string;
-  /** O filtro avaliado ANTES de qualquer passo, em uma linha. */
+  /**
+   * O filtro avaliado ANTES de qualquer passo, em uma linha — EXPRESSÃO e nada mais.
+   *
+   * A nota que explica por que ela converge morava aqui dentro, entre parênteses, em prosa inglesa:
+   * `status == "draft" (false after the write, which is what ends the cascade)`. Um campo com nome de
+   * condição, emitido para quem escreve o `plugin.ts`, cujo valor não parseia — e o guia pede
+   * justamente que o plano seja copiado verbatim. A explicação continua, em `conditionNote`.
+   */
   workflowCondition: string;
+  /** Por que a condição converge, quando há o que dizer. Prosa: nunca vai para dentro da expressão. */
+  conditionNote?: string;
   /** Os passos, na ordem, por `stepDefinitionId` — ou o tipo do nó, quando é controle de fluxo. */
   steps: string[];
   permission?: string;
@@ -352,15 +361,18 @@ export const mapTransition = (
   if (trigger.kind === 'entity-event') {
     // Numa exclusão o payload é a imagem ANTERIOR do documento, então o campo lido é o estado em que
     // ele estava; não há `old` nem `changeType` (o publicador só os põe em `.saved`).
-    const tail = deletes
-      ? ' (the payload of a delete is the before-image, so this reads the state it was in)'
-      : isSelfLoop(transition) ? '' : ' (false after the write, which is what ends the cascade)';
+    const note = deletes
+      ? 'The payload of a delete is the before-image, so this reads the state it was in.'
+      : isSelfLoop(transition)
+        ? undefined
+        : 'False after the write, which is what ends the cascade.';
     return {
       transition,
       ...permission,
       eventName: `${collection}.${trigger.event}`,
       describable: DESCRIPTION_REQUIRED_EVENTS.includes(`${collection}.${trigger.event}`),
-      workflowCondition: `${stateField} == "${transition.from}"${tail}`,
+      workflowCondition: `${stateField} == "${transition.from}"`,
+      ...(note === undefined ? {} : { conditionNote: note }),
       steps,
       fromCheck: {
         where: 'workflow-condition',

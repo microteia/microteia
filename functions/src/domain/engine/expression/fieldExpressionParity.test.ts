@@ -1,8 +1,8 @@
 import { Parser } from 'expr-eval';
 import { describe, expect, it } from 'vitest';
 import { coreExpressionsPlugin } from '../../../plugins/core.expressions/manifest';
-import { FIELD_EXPRESSION_FUNCTION_NAMES } from '../../schema/fieldExpression';
-import { ENGINE_PARSER_OPERATORS } from './ExpressionEngine';
+import { FIELD_EXPRESSION_FUNCTION_NAMES, evaluateFieldExpression } from '../../schema/fieldExpression';
+import { ENGINE_PARSER_OPERATORS, buildEngineParser } from './ExpressionEngine';
 
 /**
  * O ExpressionEditor valida o que o usuário escreve contra o catálogo do WORKFLOW, que vem deste
@@ -109,5 +109,44 @@ describe('o catálogo só anuncia o que o expr-eval consegue chamar', () => {
     expect(ENGINE_PARSER_OPERATORS.length).toBe(false);
     expect(reachableAsFunction('length')).toBe(true);
     expect(workflowFunctionNames).toContain('length');
+  });
+});
+
+/**
+ * Paridade de OPERADOR, não só de função.
+ *
+ * Este arquivo cobrava o catálogo e mais nada, e por baixo dele as duas pontas discordavam do
+ * significado de `!`: no `expr-eval` cru ele é o fatorial, a tela tinha sido corrigida e o motor não.
+ * `!(status == "draft")` valia `false` na tela e `1` — verdadeiro — no fluxo. Uma condição de passo
+ * escrita com `!` passava sempre, e o único sintoma era a automação correndo quando não devia.
+ *
+ * O que se cobra aqui é o RESULTADO das duas pontas sobre o mesmo dado, porque é isso que a promessa
+ * "é a mesma linguagem" significa para quem escreve a expressão uma vez e a usa nos dois lugares.
+ */
+describe('as duas pontas concordam sobre o significado dos operadores', () => {
+  const DATA = { status: 'draft', total: 500, ativo: true };
+
+  const noMotor = (expression: string): unknown =>
+    buildEngineParser().parse(expression).evaluate({ ...DATA } as never);
+
+  const naTela = (expression: string): unknown =>
+    evaluateFieldExpression(expression, { value: null, data: { ...DATA } });
+
+  const EXPRESSIONS = [
+    '!ativo',
+    '!(status == "draft")',
+    '!(total > 0)',
+    '!(status == "draft") or !(total > 0)',
+    'not (status == "draft")',
+    'status == "draft" and total > 0',
+  ];
+
+  it.each(EXPRESSIONS)('"%s" vale o mesmo no motor e na tela', (expression) => {
+    expect(noMotor(expression)).toStrictEqual(naTela(expression));
+  });
+
+  it('`!` é negação nas duas, e não o fatorial do expr-eval', () => {
+    expect(noMotor('!(status == "draft")')).toBe(false);
+    expect(naTela('!(status == "draft")')).toBe(false);
   });
 });

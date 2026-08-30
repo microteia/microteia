@@ -5,6 +5,7 @@ import { buildDomainCatalog } from './catalog';
 import type { DomainModel } from './domainModel';
 import { emptyRuleLedger, withRuleEntry } from './traceability';
 import { validateDomainModel } from './validateDomainModel';
+import { evaluateFieldBoolean } from '../../domain/schema/fieldExpression';
 
 /**
  * O PIPELINE INTEIRO, uma vez: uma frase de regra -> modelo -> validação -> plano.
@@ -296,10 +297,31 @@ describe('de uma frase de regra a um plano de telas', () => {
   it('o `disabledWhen` da ação carrega o `from` MAIS a invariante que BLOQUEIA', () => {
     const order = plan(purchaseModel()).screenPlan.screens.find((one) => one.entity === 'PurchaseOrder');
     const approve = order?.actions.find((one) => one.key === 'approve-order');
-    expect(approve?.disabledWhen).toBe('!(record.status == "draft") || !(total > 0)');
+    expect(approve?.disabledWhen).toBe('!(record.status == "draft") or !(total > 0)');
     // E a de rejeitar não ganha a invariante da outra: `blocks` é DAQUELA passagem.
     expect(order?.actions.find((one) => one.key === 'reject-order')?.disabledWhen)
       .toBe('!(record.status == "draft")');
+  });
+
+  /**
+   * E a condição é LIDA como condição por quem a avalia — que é a metade que faltava.
+   *
+   * O texto era `!(a) || !(b)`, e em `expr-eval` o `||` é concatenação: a expressão devolvia a string
+   * `"falsefalse"`, verdadeira nas quatro combinações. O pedido em rascunho com total no lugar — o
+   * caso em que aprovar é exatamente o que se espera — tinha o botão cinza, e nenhum dado o acendia.
+   */
+  it('a condição avalia de verdade: em rascunho e com total, aprovar está LIBERADO', () => {
+    const order = plan(purchaseModel()).screenPlan.screens.find((one) => one.entity === 'PurchaseOrder');
+    const approve = order?.actions.find((one) => one.key === 'approve-order');
+    const context = (status: string, total: number) => ({
+      value: null,
+      data: { record: { status }, total },
+      permissions: [],
+    });
+
+    expect(evaluateFieldBoolean(approve?.disabledWhen, context('draft', 500))).toBe(false);
+    expect(evaluateFieldBoolean(approve?.disabledWhen, context('approved', 500))).toBe(true);
+    expect(evaluateFieldBoolean(approve?.disabledWhen, context('draft', 0))).toBe(true);
   });
 
   it('a permissão vira `hiddenWhen`, e o fluxo pede o parâmetro de referência que o resolve', () => {

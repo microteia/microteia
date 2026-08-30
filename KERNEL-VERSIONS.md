@@ -18,6 +18,34 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.37.2] — 2026-08-30
+
+- fix(sdk/screen-plan): the generated `disabledWhen` joined its terms with `||`, which in the expression
+  language is SQL-style text concatenation, not "or". `!(a) || !(b)` evaluated to the string `"falsefalse"`,
+  and every non-empty string is truthy in all four combinations — so an action carrying at least one
+  blocking invariant was permanently greyed out and no data could light it up, while an action with none
+  emitted a single term, no operator, and worked. Copying the plan verbatim, which is what the guide asks
+  for, is what shipped it.
+- fix(engine/expression): `!` is logical negation in the workflow engine too. It was still the raw
+  `expr-eval` factorial there — `!(status == "draft")` returned `1` — so a step condition written with `!`
+  passed for any data, and the only symptom was an automation running when it should not have. The screen
+  evaluator had been fixed; the fix never crossed over.
+- fix(sdk/behavior-mapping): `workflowCondition` is an EXPRESSION again. On an entity-event transition it
+  carried the reason it converges as English prose inside the parentheses of the expression itself —
+  `status == "draft" (false after the write, which is what ends the cascade)` — a field named condition,
+  emitted to whoever writes the `plugin.ts`, that does not parse. The guide asks for the plan to be copied
+  verbatim. The reason survives in `conditionNote`, beside it, and `describe_domain_model` emits both.
+- feat(domain/schema): `expressionSyntax.ts` holds the operator vocabulary — `NOT_OPERATOR`, `OR_OPERATOR`,
+  `notExpression`, `anyOf` — beside the file that configures the parser. Whoever BUILDS an expression no
+  longer types the token from memory, which is how the wrong one got in.
+- test(sdk/screen-plan): every condition the plan emits for the corpus — `disabledWhen`, `hiddenWhen`,
+  `workflowCondition` and the `fromCheck` tests — is run through the real evaluator and must come back a
+  BOOLEAN. A condition that returns a string is a condition the grammar reads differently, and one that
+  does not parse is one nobody can copy; both fail here, naming the expression. That catches the operator
+  nobody has got wrong yet.
+- test(engine/expression): `fieldExpressionParity.test.ts` now compares operator SEMANTICS across the two
+  ends, not just the function catalogue — which is what it was doing while they disagreed about `!`.
+
 #### [9.37.1] — 2026-08-30
 
 - fix(sdk/workspace): the `.gitignore` seeded into `extensions/` swallowed `domain-model.json`,

@@ -3,6 +3,7 @@ import type { WorkflowContext } from '../../entities/WorkflowContext';
 import { expressionFunctions } from './FunctionRegistry';
 import { registerExpressionFunctionsFromPlugins } from '../../../infrastructure/workflow/loadWorkflowPlugins';
 import { operatorRegistry } from './OperatorRegistry';
+import { NOT_OPERATOR } from '../../schema/expressionSyntax';
 import { LocalizedError } from '../../errors/LocalizedError';
 import {
   addOperator, subtractOperator, multiplyOperator, divideOperator, remainderOperator, powerOperator, factorialOperator,
@@ -105,6 +106,28 @@ const buildVariablesContext = (context: WorkflowContext): Record<string, unknown
  * os Steps, que importam este motor, e registrar no topo do arquivo leria a lista antes de ela
  * existir. Ler `expressionFunctions` direto pularia essa garantia; use sempre este acessador.
  */
+/**
+ * O parser do motor, num lugar só — e com `!` significando NEGAÇÃO LÓGICA.
+ *
+ * No `expr-eval` cru o `!` é o FATORIAL: `!(status == "draft")` valia `1`, que é verdadeiro. A
+ * condição de um passo escrita com `!` passava SEMPRE, qualquer que fosse o dado, e nada acusava — o
+ * fluxo simplesmente corria quando não devia. A tela já tinha sido corrigida em `fieldExpression.ts`,
+ * e a correção nunca atravessou para cá.
+ *
+ * É exportado porque as duas pontas prometem a MESMA linguagem, e `fieldExpressionParity.test.ts`
+ * confronta a semântica dos operadores — não só o catálogo de funções, que era tudo o que ele cobrava
+ * enquanto esta divergência existiu.
+ */
+export const buildEngineParser = (): Parser => {
+  const parser = new Parser({
+    allowMemberAccess: true,
+    operators: { ...ENGINE_PARSER_OPERATORS },
+  });
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- expr-eval não tipa parser.unaryOps
+  (parser.unaryOps as any)[NOT_OPERATOR] = (value: unknown) => !value;
+  return parser;
+};
+
 export const loadedExpressionFunctions = (): typeof expressionFunctions => {
   registerExpressionFunctionsFromPlugins();
   return expressionFunctions;
@@ -181,10 +204,7 @@ class ExpressionEngineImpl implements ExpressionEngine {
         throw new Error(`Falta fechar aspas (${stringChar === '"' ? 'aspas duplas "' : "aspas simples '"})`);
       }
 
-      const parser = new Parser({
-        allowMemberAccess: true,
-        operators: { ...ENGINE_PARSER_OPERATORS },
-      });
+      const parser = buildEngineParser();
       const variables = buildVariablesContext(context);
       const functions = buildFunctionsContext(context);
 

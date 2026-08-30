@@ -21,6 +21,7 @@ import {
 } from './access/permissionGate';
 import { matchesPermission } from './access/permissionPattern';
 import { currencyForLocale, formatMoneyFor } from './i18n/localeFormat';
+import { NOT_OPERATOR } from './expressionSyntax';
 
 export interface FieldExprContext {
   value: unknown;
@@ -362,7 +363,7 @@ const buildParser = (): Parser => {
    * outra coisa que não negação contraria o que qualquer pessoa escreve por reflexo.
    */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- expr-eval não tipa parser.unaryOps
-  (parser.unaryOps as any)['!'] = (value: unknown) => !value;
+  (parser.unaryOps as any)[NOT_OPERATOR] = (value: unknown) => !value;
   return parser;
 };
 

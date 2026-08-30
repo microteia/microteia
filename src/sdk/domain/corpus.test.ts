@@ -128,7 +128,7 @@ describe('modelos bons passam inteiros', () => {
         const transition = gestures.find((one) => one.name === action.transition);
         const blocking = (source.behavior?.invariants ?? [])
           .filter((one) => one.transition === action.transition && one.enforcement === 'blocks');
-        expect(action.disabledWhen.split(' || ').length).toBe(1 + blocking.length);
+        expect(action.disabledWhen.split(' or ').length).toBe(1 + blocking.length);
         for (const one of blocking) expect(action.disabledWhen).toContain(`!(${one.expression})`);
         expect(action.disabledWhen).toContain(`"${transition?.from}"`);
         // E a ação sempre sabe qual parâmetro o fluxo dela precisa.

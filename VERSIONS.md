@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.37.2] — 2026-08-30
+
+- Corrigido um problema que deixava botões de ação permanentemente apagados na tela, mesmo quando o registro estava em ordem para receber a ação. Acontecia com as ações que dependem de mais de uma condição, e não havia nada que a pessoa pudesse fazer para liberá-las.
+- Corrigida a leitura de condições de automação escritas com "não": elas eram tratadas como sempre verdadeiras, e o fluxo podia seguir adiante em situações em que deveria parar.
+
 #### [9.37.1] — 2026-08-30
 
 - Corrigido o arquivo de configuração criado no diretório das extensões, que deixava de fora do controle de versão o modelo de domínio, o registro das regras de negócio e o enunciado que deu origem a eles. Eram anotações escritas à mão, e quem clonava o diretório noutro computador não as recebia — a mesma decisão precisava ser tomada de novo, e uma regra alterada não tinha como ser comparada com a versão anterior dela.

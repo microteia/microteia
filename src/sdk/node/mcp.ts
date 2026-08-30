@@ -471,6 +471,9 @@ const TOOLS: ToolDefinition[] = [
           eventName: one.eventName || undefined,
           action: one.actionKey,
           condition: one.workflowCondition,
+          // A prosa fica FORA da condição: `condition` é copiada verbatim para o `plugin.ts`, e uma
+          // nota entre parênteses dentro dela não parseia.
+          conditionNote: one.conditionNote,
           steps: one.steps,
           permission: one.permission,
           // Onde o `from` é conferido em RUNTIME, e o que o gatilho traz para conferi-lo. Sem isto o

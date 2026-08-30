@@ -23,6 +23,7 @@ const SHARED_FILES = [
   'domain/schema/fieldRulePresets.ts',
   'domain/schema/lookupProviderSpec.ts',
   'domain/schema/clockGate.ts',
+  'domain/schema/expressionSyntax.ts',
   'domain/schema/fieldExpression.ts',
   'domain/schema/entityRegistry.ts',
   'domain/schema/lookupRegistry.ts',

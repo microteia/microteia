@@ -1,5 +1,6 @@
 import type { FieldDefinition } from '../../domain/entities/entitySchemas';
 import type { RecordKeyKind, RecordKeyScope } from '../../domain/schema/recordKeys';
+import { anyOf, notExpression, notTerm } from '../../domain/schema/expressionSyntax';
 import type { CatalogScreenInput } from './catalog';
 import type { BehaviorInvariant, BehaviorModel } from './behaviorModel';
 import { stateOfEntity } from './behaviorModel';
@@ -334,13 +335,21 @@ const referencedKeys = (expression: string): string[] => {
  * aqui que eles cabem: no gesto, antes de qualquer escrita. Um `blocks` que não chegasse à ação
  * viraria uma promessa que só a regra do campo cumpre, e a regra do campo não sabe que houve gesto.
  */
-const disabledExpression = (mapped: MappedTransition, blocking: readonly BehaviorInvariant[]): string => {
-  const terms = [
-    `!(${mapped.fromCheck?.expression ?? mapped.workflowCondition})`,
-    ...blocking.map((one) => `!(${one.expression})`),
-  ];
-  return terms.join(' || ');
-};
+/**
+ * A recusa: o estado de origem MAIS cada invariante que bloqueia, e basta uma para desabilitar.
+ *
+ * O "ou" vem de `anyOf`, e o `!` de `notExpression`, porque este texto é copiado verbatim para dentro
+ * de um manifesto e avaliado pelo `expr-eval`. Enquanto os termos eram juntados por `' || '`, o
+ * resultado não era um booleano: `||` é CONCATENAÇÃO ali, e `!(a) || !(b)` avaliava para a string
+ * `"falsefalse"` — verdadeira, como toda string não-vazia, nas quatro combinações. A ação com uma
+ * invariante que bloqueia nascia cinza e não havia dado que a acendesse; a ação sem nenhuma saía com
+ * um termo só, sem operador, e funcionava. Ver `domain/schema/expressionSyntax.ts`.
+ */
+const disabledExpression = (mapped: MappedTransition, blocking: readonly BehaviorInvariant[]): string =>
+  anyOf([
+    notExpression(mapped.fromCheck?.expression ?? mapped.workflowCondition),
+    ...blocking.map((one) => notExpression(one.expression)),
+  ]);
 
 const stateFields = (behavior: BehaviorModel | undefined, entity: string): Set<string> => {
   const state = stateOfEntity(behavior, entity);
@@ -637,7 +646,9 @@ export const buildScreenPlan = (input: ScreenPlanInput): ScreenPlan => {
           : { requiresParameter: mapped.fromCheck.requiresParameter }),
         workflowCondition: mapped.workflowCondition,
         disabledWhen,
-        ...(mapped.permission === undefined ? {} : { hiddenWhen: `!hasPermission("${mapped.permission}")` }),
+        ...(mapped.permission === undefined
+          ? {}
+          : { hiddenWhen: notTerm(`hasPermission("${mapped.permission}")`) }),
         ...placementOf(disabledWhen, columns),
       };
     });
