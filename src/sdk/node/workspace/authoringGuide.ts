@@ -1249,7 +1249,7 @@ the organization designed, for a collection that already exists. Also \`lookup.s
 |---|---|
 | \`{ kind: 'Literal', value }\` | a constant |
 | \`{ kind: 'Event', path }\` | a path **inside \`event.payload\`** — relative |
-| \`{ kind: 'Expression', expression }\` | an expression over the whole context (§9) — \`event.\` here is absolute |
+| \`{ kind: 'Expression', expression }\` | an expression over the whole context (§9) — there \`event\` **is** the payload: \`event.title\`, never \`event.payload.title\` |
 | \`{ kind: 'Output', stepId, outputId }\` | what an earlier step produced |
 | \`{ kind: 'Variable', name }\` | a workflow variable |
 

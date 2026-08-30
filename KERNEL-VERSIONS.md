@@ -18,6 +18,23 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.37.3] — 2026-08-30
+
+- fix(sdk/docs): `list_workflow_events` and the authoring guide both said an `{ kind: 'Expression' }`
+  mapping addresses the event ABSOLUTELY, `event.payload.x`, same as a condition's `fieldPath`. The
+  engine binds `event` to the payload itself (`buildVariablesContext`), so `event.payload` is
+  `undefined` there — and the member access after it THROWS, which fails the step's input resolution
+  and halts the run. It does not read as empty, and nothing reports it until a record is saved. Both
+  now state the three addressing forms apart: absolute in `fieldPath`, relative in an `Event` mapping,
+  and the payload itself in an expression.
+- fix(marketplace/automation-example): the canonical automation example was written from that wrong
+  instruction, so both audit messages of its only save-triggered workflow — the created branch and the
+  updated branch — crashed on every save. The one worked automation the guide points at could not run
+  at all.
+- test(scripts/declarativeWorkflow): the addressing is now pinned from both ends — the real engine is
+  run twice to show `event.title` resolving and `event.payload.title` failing the execution, and every
+  first-party workflow declaration is swept for an expression that asks for `event.payload`.
+
 #### [9.37.2] — 2026-08-30
 
 - fix(sdk/screen-plan): the generated `disabledWhen` joined its terms with `||`, which in the expression

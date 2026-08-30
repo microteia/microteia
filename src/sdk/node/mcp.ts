@@ -859,9 +859,12 @@ const PURE_READS: ToolDefinition[] = [
         + 'collection, or the `eventPrefix` it declares.',
         `"${WORKFLOW_CALLED_EVENT}" is the trigger an action fires. That workflow declares `
         + '`parameters`, and `promptParameters` on the action opens their form before firing.',
-        'In `condition` and in an Expression mapping the path is ABSOLUTE over the whole context '
-        + '(`event.payload.x`); in an `{ kind: "Event", path }` mapping it is RELATIVE to '
-        + 'event.payload (`x`). Mixing the two is the most common mistake in a workflow.',
+        'The same value is addressed three different ways, and telling them apart is the most '
+        + 'common mistake in a workflow. A `condition` `fieldPath` is ABSOLUTE over the whole '
+        + 'context (`event.payload.x`); an `{ kind: "Event", path }` mapping is RELATIVE to the '
+        + 'payload (`x`); and inside an `{ kind: "Expression" }` the name `event` IS the payload '
+        + '(`event.x`) — there is no `event.payload` to reach for there, and reaching for one '
+        + 'throws instead of reading as empty.',
       ],
     }),
   },

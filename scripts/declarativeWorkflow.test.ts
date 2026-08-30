@@ -10,6 +10,7 @@ import type { StepRegistry } from '../functions/src/domain/engine/StepRegistry';
 import type { WorkflowServices } from '../functions/src/domain/entities/WorkflowContext';
 import type { WorkflowDefinition, WorkflowStep } from '../functions/src/domain/entities/Workflow';
 import type { SchemaScreen } from '../functions/src/domain/schema/pathResolver';
+import { MARKETPLACE_CATALOG, automationExamplePlugin } from '../src/plugins/marketplace/catalog';
 
 /**
  * Uma declaração escrita à mão rodando no MOTOR de verdade, com um banco em memória que grava.
@@ -507,4 +508,87 @@ describe('o mutirão declarado, rodando no motor', () => {
     expect(Object.keys(espelho()[0].data).sort())
       .toEqual(['amount', 'createdBy', 'originId', 'state', 'title', 'updatedBy']);
   });
+});
+
+/**
+ * O MESMO valor é endereçado de três jeitos diferentes num workflow, e confundi-los é o erro mais
+ * comum que existe aqui: o `fieldPath` de uma condição é ABSOLUTO sobre o contexto inteiro
+ * (`event.payload.x`), o `path` de um mapping `Event` é RELATIVO ao payload (`x`), e dentro de uma
+ * Expression o nome `event` JÁ É o payload (`event.x`).
+ *
+ * Esta é a ponta que não tinha rede. `event.payload.x` numa Expression não lê vazio: o acesso a
+ * membro sobre `undefined` ESTOURA, o passo falha ao resolver o input e o fluxo inteiro para — e nada
+ * dizia isso antes de alguém gravar um registro. Foi assim que o exemplo canônico de automação
+ * viajou com as duas mensagens de auditoria quebradas, nos dois ramos, escritas exatamente como a
+ * documentação do MCP mandava escrever.
+ */
+const mapearMensagem = (expression: string): WorkflowStep[] => [{
+  id: 'mensagem',
+  stepDefinitionId: 'map',
+  type: 'Action',
+  order: 0,
+  enabled: true,
+  configuration: {
+    map: {
+      kind: 'Literal',
+      value: { name: 'mensagem', fields: [{ name: 'texto', value: { kind: 'Expression', expression } }] },
+    },
+  },
+}];
+
+describe('numa Expression, `event` é o próprio payload', () => {
+  it('`event.title` resolve o campo do registro', async () => {
+    const { registry } = banco({ records: [], mirror: [] });
+    const execucao = await rodar(registry, mapearMensagem('concat("Aberto: ", event.title)'), 'record.saved', {
+      id: 'r-1', title: 'Primeiro',
+    });
+
+    expect(execucao.status).toBe('SUCCESS');
+    expect(execucao.outputs?.mensagem).toEqual({ texto: 'Aberto: Primeiro' });
+  });
+
+  it('`event.payload.title` derruba a execução, em vez de ler vazio', async () => {
+    const { registry } = banco({ records: [], mirror: [] });
+    const execucao = await rodar(registry, mapearMensagem('concat("Aberto: ", event.payload.title)'), 'record.saved', {
+      id: 'r-1', title: 'Primeiro',
+    });
+
+    expect(execucao.status).toBe('FAILED');
+  });
+});
+
+/** Toda expressão declarada nos workflows de um pacote, ramos e repetições inclusive. */
+const expressoesDe = (node: unknown, encontradas: string[] = []): string[] => {
+  if (Array.isArray(node)) {
+    node.forEach((item) => expressoesDe(item, encontradas));
+    return encontradas;
+  }
+  if (node === null || typeof node !== 'object') return encontradas;
+
+  const record = node as Record<string, unknown>;
+  if (record.kind === 'Expression' && typeof record.expression === 'string') {
+    encontradas.push(record.expression);
+  }
+  if (record.kind === 'FieldComparison' && record.valueType === 'expression') {
+    encontradas.push(String(record.value));
+  }
+  Object.values(record).forEach((value) => expressoesDe(value, encontradas));
+  return encontradas;
+};
+
+const PACOTES_COM_WORKFLOW = [...MARKETPLACE_CATALOG, automationExamplePlugin]
+  .filter((plugin) => (plugin.workflows ?? []).length > 0);
+
+describe('as declarações de primeira parte endereçam o evento como o motor o expõe', () => {
+  it('há pacote com workflow para conferir', () => {
+    expect(PACOTES_COM_WORKFLOW.length).toBeGreaterThan(0);
+  });
+
+  it.each(PACOTES_COM_WORKFLOW.map((plugin) => [plugin.manifest.id, plugin] as const))(
+    '%s: nenhuma Expression pede `event.payload`',
+    (_id, plugin) => {
+      const erradas = expressoesDe(plugin.workflows).filter((expression) => expression.includes('event.payload'));
+      expect(erradas, 'numa Expression o `event` já é o payload — escreva `event.campo`').toEqual([]);
+    },
+  );
 });

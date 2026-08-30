@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.37.3] — 2026-08-30
+
+- Corrigido o exemplo de automação que acompanha o material de autoria: as duas mensagens que ele registrava no histórico pediam o registro por um caminho que não existe, e o fluxo parava com erro ao salvar em vez de concluir. Quem se guiasse por ele escreveria a mesma automação quebrada.
+- Corrigida a orientação sobre como uma automação alcança o registro que a disparou. Ela dizia o contrário do que a plataforma faz, e era ela que estava sendo seguida.
+
 #### [9.37.2] — 2026-08-30
 
 - Corrigido um problema que deixava botões de ação permanentemente apagados na tela, mesmo quando o registro estava em ordem para receber a ação. Acontecia com as ações que dependem de mais de uma condição, e não havia nada que a pessoa pudesse fazer para liberá-las.

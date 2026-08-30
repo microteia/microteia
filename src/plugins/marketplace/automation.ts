@@ -140,9 +140,14 @@ const REVIEW_OBJECT: MapStepConfig = {
 
 const WORKFLOWS: WorkflowModuleTemplate[] = [
   /**
-   * Triggered by a SAVE. `condition` is evaluated once, before any step; `fieldPath` there is
-   * ABSOLUTE over the whole context (`event.payload.…`), while an `{ kind: 'Event', path }` mapping
-   * inside a step is RELATIVE to the payload. Mixing those two is the most common mistake there is.
+   * Triggered by a SAVE. There are THREE ways to address the same value here, and telling them apart
+   * is the most common mistake in a workflow:
+   *
+   * - a `condition`'s `fieldPath` is ABSOLUTE over the whole context — `event.payload.changeType`;
+   * - an `{ kind: 'Event', path }` mapping is RELATIVE to the payload — `id`, not `event.payload.id`;
+   * - inside an `{ kind: 'Expression' }`, `event` IS the payload — `event.title`. There is no
+   *   `event.payload` to reach for in an expression, and asking for one does not read as empty: the
+   *   member access throws, and the step fails to resolve its input.
    */
   {
     templateId: 'wf-on-save',
@@ -175,7 +180,7 @@ const WORKFLOWS: WorkflowModuleTemplate[] = [
             enabled: true,
             configuration: {
               title: { kind: 'Literal', value: message('workflow.on-save.created.title') },
-              message: { kind: 'Expression', expression: 'concat("Opened: ", event.payload.title)' },
+              message: { kind: 'Expression', expression: 'concat("Opened: ", event.title)' },
               entity: { kind: 'Literal', value: 'automationRequest' },
               entityId: { kind: 'Event', path: 'id' },
             },
@@ -188,7 +193,7 @@ const WORKFLOWS: WorkflowModuleTemplate[] = [
             enabled: true,
             configuration: {
               title: { kind: 'Literal', value: message('workflow.on-save.updated.title') },
-              message: { kind: 'Expression', expression: 'concat("Changed: ", event.payload.title)' },
+              message: { kind: 'Expression', expression: 'concat("Changed: ", event.title)' },
               entity: { kind: 'Literal', value: 'automationRequest' },
               entityId: { kind: 'Event', path: 'id' },
             },
@@ -380,7 +385,7 @@ const ACTIONS: ActionModuleTemplate[] = [
 export const automationExamplePlugin: MarketplacePlugin = {
   manifest: {
     id: 'com.microteia.automation-example',
-    version: '1.0.1',
+    version: '1.0.2',
     kernel: '^2.0.0',
     name: message('package.name'),
     description: message('package.description'),

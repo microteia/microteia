@@ -1,7 +1,7 @@
 {
   "manifest": {
     "id": "com.microteia.automation-example",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "kernel": "^2.0.0",
     "name": "@com.microteia.automation-example/package.name",
     "description": "@com.microteia.automation-example/package.description",
@@ -154,7 +154,7 @@
                   },
                   "message": {
                     "kind": "Expression",
-                    "expression": "concat(\"Opened: \", event.payload.title)"
+                    "expression": "concat(\"Opened: \", event.title)"
                   },
                   "entity": {
                     "kind": "Literal",
@@ -181,7 +181,7 @@
                   },
                   "message": {
                     "kind": "Expression",
-                    "expression": "concat(\"Changed: \", event.payload.title)"
+                    "expression": "concat(\"Changed: \", event.title)"
                   },
                   "entity": {
                     "kind": "Literal",
