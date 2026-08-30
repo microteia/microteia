@@ -18,6 +18,20 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.37.1] — 2026-08-30
+
+- fix(sdk/workspace): the `.gitignore` seeded into `extensions/` swallowed `domain-model.json`,
+  `business-rules.json` and `business-rules-input.json` under its `*.json` wildcard. Those three are the
+  author's SOURCE — the guide tells you to keep them beside the `plugin.ts`, the directory's own `npm test`
+  reads them back, and the plan hands you the ledger entry ready to write. Uncommitted, a declared snapshot
+  exception was raised again on the next machine, and a CHANGED rule had no previous batch to diff against,
+  so it proposed a second set of screens that looked like the first. `REQUIRED_IGNORES` now negates all three,
+  and `sync` appends the missing lines to a `.gitignore` that already exists.
+- refactor(sdk/domain): `DOMAIN_MODEL_FILE` moved from `node/workspaceCatalog.ts` to `domain/domainModel.ts`
+  (re-exported from its old home, so no importer changed), next to `RULE_LEDGER_FILE` in `traceability.ts`.
+  The `.gitignore` seed needs the two names without dragging the extension compiler in behind them, and a
+  filename written twice is a filename that diverges on the third.
+
 #### [9.37.0] — 2026-08-29
 
 - feat(domain/ui): the icon vocabulary moved out of the presentation layer into `domain/schema/ui/screenIconCatalog.ts`

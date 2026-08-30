@@ -256,6 +256,15 @@ export interface DomainRelationship {
   attributes?: DomainField[];
 }
 
+/**
+ * O arquivo em que o modelo mora, ao lado do `plugin.ts` que ele descreve.
+ *
+ * Ele fica AQUI, e não em `workspaceCatalog.ts`, pela mesma razão que `RULE_LEDGER_FILE` fica em
+ * `traceability.ts`: quem semeia o `.gitignore` de `extensions/` precisa do nome sem arrastar o
+ * compilador junto — e um nome de arquivo escrito duas vezes é um nome que diverge na terceira.
+ */
+export const DOMAIN_MODEL_FILE = 'domain-model.json';
+
 export const DOMAIN_MODEL_VERSION = 1;
 
 export interface DomainModel {

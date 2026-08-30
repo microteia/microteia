@@ -1,3 +1,4 @@
+import { DOMAIN_MODEL_FILE, RULE_LEDGER_FILE } from '../../domain';
 import { INSTALLED_CATALOG_FILE } from '../installedCatalog';
 
 /**
@@ -83,6 +84,13 @@ export const MCP_SERVER = {
  * O `.json` de uma extensão é ARTEFATO — sai do `build` e não se versiona. A configuração e o lock,
  * sim: sem o lock, dois computadores do mesmo escritório instalam versões diferentes do SDK.
  *
+ * O curinga `*.json` engolia mais do que devia, e a conta era alta: o modelo de domínio, o livro de
+ * rastreabilidade e o enunciado de onde os dois saíram são FONTE — o autor os escreve, o `npm test`
+ * do diretório os lê, e o guia manda salvá-los ao lado do `plugin.ts`. Não versioná-los faz a próxima
+ * sessão levantar de novo a exceção já decidida, e faz a regra ALTERADA propor uma segunda leva de
+ * telas parecida com a primeira, sem nada com que compará-la. Os dois primeiros nomes vêm dos módulos
+ * que os declaram; o do enunciado é do autor, e nenhum código nosso o lê.
+ *
  * O retrato da instalação é descartado por uma razão diferente das outras, e por isso está escrito
  * mesmo já caindo no `*.json`: ele carrega nome de tela e de campo que o ESCRITÓRIO digitou. Isso é
  * dado do tenant, não artefato do produto, e um repositório de extensão não é lugar para ele. A linha
@@ -95,6 +103,9 @@ export const REQUIRED_IGNORES = [
   '!package-lock.json',
   '!tsconfig.json',
   '!.mcp.json',
+  '!business-rules-input.json',
+  `!${RULE_LEDGER_FILE}`,
+  `!${DOMAIN_MODEL_FILE}`,
   INSTALLED_CATALOG_FILE,
 ];
 

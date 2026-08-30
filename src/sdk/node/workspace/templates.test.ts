@@ -13,6 +13,7 @@ import { RECORD_ACTION_COMMANDS } from '../../../domain/schema/ui/recordActionMe
 import { SCREEN_ICON_KEYS, isScreenIconKey } from '../../../domain/schema/ui/screenIconCatalog';
 import {
   DOMAIN_ISSUE_CODES,
+  DOMAIN_MODEL_FILE,
   EMBEDDED_STRATEGY,
   RULE_LEDGER_FILE,
   SCREEN_IS_NOT_AN_ENTITY_MODEL,
@@ -183,6 +184,19 @@ describe('o que é gerado em extensions/', () => {
     expect(lines).toContain('*.json');
     for (const keep of ['!package.json', '!package-lock.json', '!tsconfig.json', '!.mcp.json']) {
       expect(lines).toContain(keep);
+    }
+  });
+
+  /**
+   * O modelo, o livro e o enunciado são FONTE do autor, não artefato do `build` — e o guia manda
+   * salvá-los ao lado do `plugin.ts`. Enquanto o curinga os engolia, a exceção já decidida voltava a
+   * ser levantada na sessão seguinte e a regra alterada não tinha leva anterior com que se comparar.
+   */
+  it('o .gitignore VERSIONA o modelo, o livro de regras e o enunciado', () => {
+    const lines = workspaceGitignore().split('\n');
+    for (const keep of ['!business-rules-input.json', `!${RULE_LEDGER_FILE}`, `!${DOMAIN_MODEL_FILE}`]) {
+      expect(lines).toContain(keep);
+      expect(lines.indexOf(keep)).toBeGreaterThan(lines.indexOf('*.json'));
     }
   });
 

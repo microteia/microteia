@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.37.1] — 2026-08-30
+
+- Corrigido o arquivo de configuração criado no diretório das extensões, que deixava de fora do controle de versão o modelo de domínio, o registro das regras de negócio e o enunciado que deu origem a eles. Eram anotações escritas à mão, e quem clonava o diretório noutro computador não as recebia — a mesma decisão precisava ser tomada de novo, e uma regra alterada não tinha como ser comparada com a versão anterior dela.
+
 #### [9.37.0] — 2026-08-29
 
 - Os ícones das telas, dos menus, das abas e dos botões passaram a ser conferidos antes de uma extensão ser instalada. Antes, um ícone escrito errado não acusava nada: a extensão instalava e o lugar dele aparecia com um marcador genérico, sem explicação.

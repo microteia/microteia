@@ -4,7 +4,7 @@ import type { MarketplacePlugin, ScreenModuleTemplate } from '../../domain/entit
 import type { SchemaLookup } from '../../domain/schema/screenEntity';
 import type { CatalogException, CatalogScreenInput, DomainCatalog } from '../domain/catalog';
 import { buildDomainCatalog, collectionOfScreen } from '../domain/catalog';
-import { parseDomainModel } from '../domain/domainModel';
+import { DOMAIN_MODEL_FILE, parseDomainModel } from '../domain/domainModel';
 import type { RuleLedger } from '../domain/traceability';
 import { RULE_LEDGER_FILE, RULE_LEDGER_VERSION, emptyRuleLedger, parseRuleLedger } from '../domain/traceability';
 import { modelExceptions } from '../domain/toPlatform';
@@ -41,16 +41,16 @@ import type { InstalledCatalogExtension, InstalledCatalogList } from './installe
  * fica no arquivo do autor, que é do workspace e não do pacote. Ver `CatalogException`.
  */
 
-export const DOMAIN_MODEL_FILE = 'domain-model.json';
-
 /**
- * O livro de rastreabilidade, lido do lado do `plugin.ts` como o `domain-model.json` já é.
+ * Os dois arquivos de trabalho lidos do lado do `plugin.ts`: o modelo e o livro de rastreabilidade.
  *
- * Ele é o que faz a REAPLICAÇÃO valer: sem o vínculo de ontem, a mesma regra amanhã propõe as mesmas
- * telas outra vez e a regra ALTERADA propõe uma segunda leva parecida com a primeira. Ver
- * `traceability.ts` para o porquê de ele morar aqui e não dentro do artefato instalado.
+ * Nenhum dos dois nasce aqui — `domainModel.ts` e `traceability.ts` os declaram, e este módulo só os
+ * repassa a quem já o importa. O livro é o que faz a REAPLICAÇÃO valer: sem o vínculo de ontem, a
+ * mesma regra amanhã propõe as mesmas telas outra vez e a regra ALTERADA propõe uma segunda leva
+ * parecida com a primeira. Ver `traceability.ts` para o porquê de ele não morar dentro do artefato
+ * instalado.
  */
-export { RULE_LEDGER_FILE };
+export { DOMAIN_MODEL_FILE, RULE_LEDGER_FILE };
 
 const findPluginFiles = (dir: string, depth = 3): string[] => {
   if (depth < 0 || !existsSync(dir)) return [];
