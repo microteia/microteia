@@ -18,6 +18,22 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.38.1] — 2026-08-31
+
+- fix(records/identity): the detail header and the tab label read the title and subtitle fields with `readRecordText`,
+  which returns the stored value. A reference stores the target's id and a select stores the option key, so the same
+  record read "Alex" on the list card — which resolved through `displayValue` — and `BnUQ236xn6k16FTlcwfQ` in its own
+  header. One declaration, three places, and now one resolver: `useRecordIdentityText`, used by the card, the header
+  and the tab title.
+- fix(records/identity): an untitled record put `@core.records/record.untitled` on the card and on the tab, raw —
+  `resolveRecordTitle` returns a reference and neither consumer resolved it. Both go through `useLabel` now.
+- fix(extensions/detail): `useEntityDetailVM` built the new-record tab title as a Portuguese template literal with the
+  unresolved `titleSingular` in it. It is `record.new.title` with a resolved label, like every other screen.
+- fix(screen-builder): the identity block was gated on `titleFieldOptions.length > 0`, so a screen with no required
+  text field lost the subtitle and image selectors along with the title one. The gate is split, and the title filter
+  no longer demands `required` — being required is good advice for the field that names a record, not a precondition;
+  an empty one already falls back to "untitled". The saved value is always offered, as the subtitle's already was.
+
 #### [9.38.0] — 2026-08-30
 
 - feat(marketplace/history): applying an extension overwrote the installed copy and left nothing

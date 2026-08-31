@@ -13,6 +13,7 @@ import { dispatchActionOutcome } from './useScreenActions';
 import { useActionParameterPrompt } from './useActionParameterPrompt';
 import type { ActionParameterPromptController } from './useActionParameterPrompt';
 import { useCustomFieldListing } from '../../hooks/useCustomFieldListing';
+import { useRecordIdentityText } from './useRecordIdentityText';
 import type { CustomFieldCardItem } from '../../hooks/useCustomFieldListing';
 import { buildNewTabKey, buildViewTabKey, buildCloneTabKey, buildChildNewTabKey, recordTabKeyOf } from '../../../shared/constants/dynamicScreenKeys';
 import { resolveRecordImageUrl, resolveRecordTitle, sortFieldsByOrder } from '../../../domain/services/customFieldValues';
@@ -257,30 +258,22 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
     [listing, definition, listRowKeys],
   );
 
-  const getCardTitle = useCallback(
-    (record: EntityRecord): string => {
-      const titleField = definition?.fields.find((field) => field.key === definition.titleFieldKey);
-      if (titleField && (titleField.type === 'reference' || titleField.type === 'select')) {
-        const resolved = listing.displayValue(record, titleField);
-        if (resolved && resolved !== '—') return resolved;
-      }
-      return resolveRecordTitle(record, definition?.titleFieldKey ?? '');
-    },
-    [definition, listing],
-  );
-
   const subtitleField = useMemo(
     () => sortedFields.find((field) => field.key === definition?.subtitleFieldKey) ?? null,
     [sortedFields, definition],
   );
 
+  const identity = useRecordIdentityText(definition, sortedFields, listing.displayValue);
+
+  const getCardTitle = useCallback(
+    (record: EntityRecord): string =>
+      label(identity.titleOf(record) || resolveRecordTitle(record, definition?.titleFieldKey ?? '')),
+    [identity, definition, label],
+  );
+
   const getCardSubtitle = useCallback(
-    (record: EntityRecord): string => {
-      if (!subtitleField) return '';
-      const value = listing.displayValue(record, subtitleField);
-      return value === '—' ? '' : value;
-    },
-    [subtitleField, listing],
+    (record: EntityRecord): string => identity.subtitleOf(record),
+    [identity],
   );
 
   const getCardImageUrl = useCallback(

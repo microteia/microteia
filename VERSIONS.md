@@ -11,6 +11,12 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.38.1] — 2026-08-31
+
+- Corrigido o subtítulo do cabeçalho de um registro quando o campo escolhido aponta para outro registro ou é uma lista de opções: aparecia o código interno do valor, e não o nome — a mesma listagem já mostrava o nome certo. Vale também para o rótulo da aba aberta.
+- Corrigidas as opções de Título e Subtítulo do registro, que sumiam da tela de edição de algumas telas. Bastava a tela não ter nenhum campo de texto obrigatório para os três seletores — título, subtítulo e imagem — desaparecerem juntos.
+- O campo de título deixa de exigir que seja obrigatório: qualquer campo de texto pode dar nome ao registro, e o que ficar em branco continua aparecendo como "Sem título".
+
 #### [9.38.0] — 2026-08-30
 
 - Toda versão de extensão que o escritório aplica passa a ficar registrada, e um ícone de histórico na lista de Extensões mostra quais foram — com a versão, quem aplicou e quando. Dali é possível voltar a qualquer uma delas, inclusive depois de desinstalar a extensão: aplicar uma versão do histórico a traz de volta como estava. Antes, uma atualização que atrapalhasse o dia a dia só se desfazia se alguém ainda tivesse guardado o arquivo da versão anterior, e uma desinstalação por engano não se desfazia de jeito nenhum.

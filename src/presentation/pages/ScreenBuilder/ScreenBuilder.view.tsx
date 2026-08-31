@@ -341,17 +341,19 @@ export const ScreenBuilderView: React.FC = () => {
                     placeholder={t('screen.icon.placeholder')}
                   />
                 </InputGroup>
-                {vm.screenModalIsEdit && vm.titleFieldOptions.length > 0 && (
+                {vm.screenModalIsEdit && (
                   <>
-                    <InputGroup>
-                      <Label>{t('screen.title-field')}</Label>
-                      <SearchSelect
-                        options={vm.titleFieldOptions}
-                        value={vm.screenForm.titleFieldKey}
-                        onChange={(value) => vm.updateScreenForm({ titleFieldKey: value })}
-                        placeholder={t('screen.title-field.placeholder')}
-                      />
-                    </InputGroup>
+                    {vm.titleFieldOptions.length > 0 && (
+                      <InputGroup>
+                        <Label>{t('screen.title-field')}</Label>
+                        <SearchSelect
+                          options={vm.titleFieldOptions}
+                          value={vm.screenForm.titleFieldKey}
+                          onChange={(value) => vm.updateScreenForm({ titleFieldKey: value })}
+                          placeholder={t('screen.title-field.placeholder')}
+                        />
+                      </InputGroup>
+                    )}
                     <InputGroup>
                       <Label>{t('screen.subtitle-field')}</Label>
                       <SearchSelect

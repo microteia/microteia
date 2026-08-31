@@ -18,10 +18,11 @@ import {
   formValuesToStoredValues,
   readRecordText,
   resolveRecordImageUrl,
-  resolveRecordTabTitle,
   resolveRecordTitle,
   sortFieldsByOrder,
 } from '../../../domain/services/customFieldValues';
+import { useCustomFieldListing } from '../../hooks/useCustomFieldListing';
+import { useRecordIdentityText } from '../../shared/entityScreen/useRecordIdentityText';
 import { useRecordFormValidation } from '../../shared/entityScreen/useRecordFormValidation';
 import { useEntityDetail } from '../../shared/entityScreen/useEntityDetail';
 import type { ScreenActions } from '../../shared/entityScreen/useScreenActions';
@@ -144,7 +145,9 @@ export const useViewDynamicRecordViewModel = (tabKey: string): ViewDynamicRecord
   );
   const sortedFields = useResolvedFields(declaredFields);
   const titleFieldKey = definition?.titleFieldKey ?? '';
-  const subtitleFieldKey = definition?.subtitleFieldKey ?? '';
+
+  const listing = useCustomFieldListing(sortedFields);
+  const identity = useRecordIdentityText(definition, sortedFields, listing.displayValue);
 
   const getByIdUC = useMemo(() => makeGetRecordByIdUseCase(recordRepository), [recordRepository]);
 
@@ -187,9 +190,10 @@ export const useViewDynamicRecordViewModel = (tabKey: string): ViewDynamicRecord
       if (!definition) return null;
       if (isNew) return t('record.new.title', { entity: label(definition.titleSingular) });
       if (!record) return null;
-      return resolveRecordTabTitle(record, titleFieldKey, subtitleFieldKey);
+      return label(identity.titleOf(record) || identity.subtitleOf(record)
+        || resolveRecordTitle(record, titleFieldKey));
     },
-    [definition, subtitleFieldKey, titleFieldKey, t, label],
+    [definition, identity, titleFieldKey, t, label],
   );
 
   const resolveTitleFromValues = useCallback(
@@ -319,8 +323,8 @@ export const useViewDynamicRecordViewModel = (tabKey: string): ViewDynamicRecord
   }, [pendingAutoValues, collectionRecords, setFieldValue]);
 
   // Cabeçalho: título e subtítulo do REGISTRO, como nas telas fixas.
-  const recordTitle = sourceRecord ? readRecordText(sourceRecord, titleFieldKey) : '';
-  const recordSubtitle = sourceRecord ? readRecordText(sourceRecord, subtitleFieldKey) : '';
+  const recordTitle = sourceRecord ? identity.titleOf(sourceRecord) : '';
+  const recordSubtitle = sourceRecord ? identity.subtitleOf(sourceRecord) : '';
   const recordImageUrl = resolveRecordImageUrl(sourceRecord, sortedFields, definition?.imageFieldKey);
 
   const tagIdsOf = useCallback(() => sourceRecord?.tagIds ?? [], [sourceRecord]);

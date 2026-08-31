@@ -1033,14 +1033,22 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     return resolvedFieldsByScreen[key] ?? getDefinitionByKey(key)?.fields ?? [];
   }, [screenModal, resolvedFieldsByScreen, getDefinitionByKey]);
 
-  // O VALOR da opção é a chave do campo; o rótulo é lido por gente, então resolve. Sem isto o seletor
-  // de campo-título listava `@com.microteia.news/field.title` como se fosse o nome do campo.
-  const titleFieldOptions = useMemo<SearchSelectOption[]>(
-    () => modalScreenFields
-      .filter((f) => f.type === 'text' && f.required)
-      .map((f) => ({ value: f.key, label: label(f.label) })),
-    [modalScreenFields, label],
-  );
+  /**
+   * O VALOR da opção é a chave do campo; o rótulo é lido por gente, então resolve. Sem isto o seletor
+   * de campo-título listava `@com.microteia.news/field.title` como se fosse o nome do campo.
+   *
+   * O filtro exigia `required`, e uma tela sem NENHUM campo de texto obrigatório ficava sem lista —
+   * o que, pelo antigo `titleFieldOptions.length > 0`, apagava também o subtítulo e a imagem. Ser
+   * obrigatório é uma boa ideia para o campo que dá nome ao registro, não um requisito: quem não
+   * tiver valor cai em "Sem título", que é o que `resolveRecordTitle` já faz. O valor JÁ GRAVADO
+   * entra na lista mesmo que não passe pelo filtro, pelo mesmo motivo do subtítulo.
+   */
+  const titleFieldOptions = useMemo<SearchSelectOption[]>(() => {
+    const current = screenForm.titleFieldKey;
+    return modalScreenFields
+      .filter((f) => f.type === 'text' || f.key === current)
+      .map((f) => ({ value: f.key, label: label(f.label) }));
+  }, [modalScreenFields, screenForm.titleFieldKey, label]);
 
   /**
    * O subtítulo aceita qualquer campo que caiba numa LINHA ao lado do título — inclusive seleção e

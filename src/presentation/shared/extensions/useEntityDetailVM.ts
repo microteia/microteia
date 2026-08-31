@@ -10,12 +10,12 @@ import { makeGetRecordByIdUseCase } from '../../../domain/usecases/records/GetRe
 import {
   buildInitialFormValues,
   formValuesToStoredValues,
-  readRecordText,
   resolveRecordImageUrl,
-  resolveRecordTabTitle,
   resolveRecordTitle,
   sortFieldsByOrder,
 } from '../../../domain/services/customFieldValues';
+import { useCustomFieldListing } from '../../hooks/useCustomFieldListing';
+import { useRecordIdentityText } from '../entityScreen/useRecordIdentityText';
 import { useRecordFormValidation } from '../entityScreen/useRecordFormValidation';
 import { useEntityDetail } from '../entityScreen/useEntityDetail';
 import { useRecordFileUpload } from '../entityScreen/useRecordFilePort';
@@ -79,7 +79,9 @@ export const useEntityDetailVM = (
   );
   const sortedFields = useResolvedFields(declaredFields);
   const titleFieldKey = definition?.titleFieldKey ?? '';
-  const subtitleFieldKey = definition?.subtitleFieldKey ?? '';
+
+  const listing = useCustomFieldListing(sortedFields);
+  const identity = useRecordIdentityText(definition, sortedFields, listing.displayValue);
 
   const parseTab = useCallback((tk: string) => {
     const rest = tk.startsWith(editKeyPrefix) ? tk.slice(editKeyPrefix.length) : '';
@@ -112,11 +114,12 @@ export const useEntityDetailVM = (
   const resolveTabTitle = useCallback(
     (record: EntityRecord | null, isNew: boolean) => {
       if (!definition) return null;
-      if (isNew) return `Novo ${definition.titleSingular}`;
+      if (isNew) return t('record.new.title', { entity: label(definition.titleSingular) });
       if (!record) return null;
-      return resolveRecordTabTitle(record, titleFieldKey, subtitleFieldKey);
+      return label(identity.titleOf(record) || identity.subtitleOf(record)
+        || resolveRecordTitle(record, titleFieldKey));
     },
-    [definition, subtitleFieldKey, titleFieldKey],
+    [definition, identity, titleFieldKey, t, label],
   );
 
   const resolveTitleFromValues = useCallback(
@@ -196,8 +199,8 @@ export const useEntityDetailVM = (
     const sourceRecord = detail.record;
 
   // Cabeçalho: título e subtítulo do REGISTRO, como nas telas fixas.
-  const recordTitle = sourceRecord ? readRecordText(sourceRecord, titleFieldKey) : '';
-  const recordSubtitle = sourceRecord ? readRecordText(sourceRecord, subtitleFieldKey) : '';
+  const recordTitle = sourceRecord ? identity.titleOf(sourceRecord) : '';
+  const recordSubtitle = sourceRecord ? identity.subtitleOf(sourceRecord) : '';
   const recordImageUrl = resolveRecordImageUrl(sourceRecord, sortedFields, definition?.imageFieldKey);
 
   const tagIdsOf = useCallback(() => sourceRecord?.tagIds ?? [], [sourceRecord]);
