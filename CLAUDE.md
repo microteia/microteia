@@ -423,8 +423,12 @@ Três regras que valem para toda alteração:
   `manifest.backend` dela e sai da baseline do pacote: só é deployada no projeto do escritório que
   instalou a extensão. Vale igual para índice composto e parâmetro de backend. O `pack` **aborta** se as
   contas não fecharem. Ver "Artefatos de backend por extensão" no `ARCHITECTURE.md`.
-- **`functions/custom/` é do escritório.** Nada do kernel escreve lá, e o upgrade preserva o
-  diretório inteiro.
+- **A Cloud Function do escritório NÃO mora em `.microteia/`.** A fonte fica em `functions/`, ao lado
+  do `microteia.yaml` (quando é comum a várias), ou em `extensions/<plugin>/functions/` (quando é
+  daquela extensão); `install/functions/custom/src/` é MONTADO pelo `deploy` a partir das duas, e do
+  `PRESERVED` do `unpack` sobrou só `functions/node_modules`, que é cache. Nome de function repetido
+  entre elas, ou colidindo com o kernel, é recusa — o customizado é espalhado DEPOIS do kernel, e um
+  gatilho substituído não falha: deixa de acontecer.
 - **NADA que uma pessoa digita mora em `.microteia/`.** O `unpack` apaga aquele diretório por inteiro a
   cada troca de kernel — é o que faz o upgrade ser confiável. O que é do escritório fica ao lado do
   `microteia.yaml`: `.env.<projectId>`, `extensions/`, `functions/` e o `README.md` dele. A configuração

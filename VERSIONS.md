@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.38.2] — 2026-08-31
+
+- Corrigida a documentação do projeto, que ainda descrevia regras revogadas: os papéis fixos por escritório (que deram lugar aos perfis que o próprio escritório cria), o lugar das Cloud Functions escritas pelo escritório e o nome de um comando de autoria de extensões. Quem seguisse o passo a passo antigo escrevia código num diretório que é substituído a cada atualização.
+
 #### [9.38.1] — 2026-08-31
 
 - Corrigido o subtítulo do cabeçalho de um registro quando o campo escolhido aponta para outro registro ou é uma lista de opções: aparecia o código interno do valor, e não o nome — a mesma listagem já mostrava o nome certo. Vale também para o rótulo da aba aberta.

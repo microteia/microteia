@@ -12,7 +12,7 @@ eles após o login.
 ## Tecnologias
 
 - **Frontend:** React 19 + TypeScript + Vite
-- **Estilização:** Styled Components — cor, fonte e espaçamento **sempre** via tema; o tema é uma contribuição de plugin (o núcleo traz `dark` e `white`; os demais vêm do catálogo)
+- **Estilização:** Styled Components — cor, fonte e espaçamento **sempre** via tema; o tema é uma contribuição de plugin (o núcleo traz `dark` e `light`; os demais vêm do catálogo)
 - **Backend:** Firebase (Auth + Firestore + Storage + Functions)
 - **Roteamento:** React Router v7
 - **Arquitetura:** Clean Architecture + MVVM, sobre um kernel de plugins
@@ -139,8 +139,9 @@ npx microteia --help         # ou: node cli/lib/index.js --help
 | `microteia connect --project <projectId> [--no-create-web-app]` | escritório | liga a instalação ao Firebase dele |
 | `microteia unpack --version <latest\|x.y.z>` | escritório | baixa a versão do catálogo, confere o `sha256` e a põe no lugar, sem publicar nada |
 | `microteia unpack --kernel <pacote.tgz>` | escritório | o mesmo, de um arquivo local — para quem não alcança o catálogo |
-| `microteia deploy [--only rules,indexes,functions,hosting] [--delay <s>] [--prune]` | escritório | publica o pacote que está no lugar |
-| `microteia provision [--prune] [--delay <s>]` | escritório | dá às extensões instaladas as functions e os índices que elas exigem |
+| `microteia deploy [--only rules,indexes,functions,hosting] [--delay <s>] [--prune] [--all]` | escritório | publica o pacote que está no lugar |
+| `microteia provision [--prune] [--delay <s>] [--all]` | escritório | dá às extensões instaladas as functions e os índices que elas exigem |
+| `microteia export-catalog --tenant <tenantId> [--output <path>]` | escritório | escreve o que um escritório tem — telas, listas, extensões — para as ferramentas de autoria lerem |
 | `microteia plugin-init [--dir <path>] [--force]` | escritório | prepara `extensions/`, para escrever extensão em TypeScript |
 
 Na máquina de quem instala ele vem do npm, e não daqui:
@@ -270,6 +271,11 @@ O que fica no diretório:
 microteia.yaml              # a instalação: nome, ambiente, projectId, região, versão do kernel
 .env.<projectId>            # SUAS configurações de backend — credenciais, gitignorado
 .gitignore                  # criado junto: este diretório tende a virar um repositório seu
+README.md                   # SEU: criado se não existir, e nunca mais reescrito
+MICROTEIA.md                # NOSSO: sobreposto a cada `unpack`, carimbado do pacote instalado
+KERNEL-VERSIONS.md          # o histórico técnico do kernel — vem dentro do pacote
+CONSOLE-VERSIONS.md         # o histórico técnico do Console — vem com o binário
+functions/                  # opcional: as Cloud Functions que você escreve (ver §5)
 extensions/                 # opcional: as extensões que você escreve (ver §6)
 .microteia/                 # DESCARTÁVEL: refeito do pacote + `connect`. Nada seu mora aqui
 ├── firebase-config.json    # config web lida do projeto do escritório (por `connect`)
@@ -316,7 +322,7 @@ criar um cliente OAuth, um tópico do Pub/Sub, o que for. Recarregue a aplicaç�
 Isto exige o `gcloud` autenticado (`gcloud auth login`): é por ele que o Console lê o que está
 instalado. Ele não guarda credencial nenhuma — pede o token a cada execução.
 
-**Preencheu (ou trocou) um valor em `functions/.env.<projectId>`? Rode `microteia provision` de novo.**
+**Preencheu (ou trocou) um valor em `.env.<projectId>`? Rode `microteia provision` de novo.**
 Uma Cloud Function só vê o valor do deploy que a carimbou: preencher o arquivo depois não alcança
 nenhuma delas, e a feature falha só na hora de usar. O `provision` compara o arquivo com o que já foi
 aplicado e redeploya justamente as functions que carregam o parâmetro que mudou — nem a baseline
@@ -338,8 +344,8 @@ E o Console, que tem versão própria: `npm i -g @microteia/console` de novo, ou
 pacote que exija um Console mais novo é recusado pelo `unpack` **antes** de qualquer troca.
 
 O kernel é substituído por inteiro, e o que é do escritório é preservado. Dentro de `.microteia/`,
-só `functions/custom/` e `functions/node_modules` atravessam a troca. **Tudo o mais que é seu vive
-FORA de `.microteia/`** — o `.env.<projectId>` e o `extensions/` ficam ao lado do `microteia.yaml`,
+só `functions/node_modules` atravessa a troca — e ele é cache. **Tudo o que é seu vive FORA de
+`.microteia/`** — `.env.<projectId>`, `functions/` e `extensions/` ficam ao lado do `microteia.yaml`,
 e é isso que os torna imunes ao `unpack`.
 
 ### 4.1. Configurações de backend
@@ -368,16 +374,23 @@ exatamente as functions que carregam aquele parâmetro.
 
 ### 5. Cloud Functions do próprio escritório
 
-O pacote reserva um lugar para elas — o kernel é imutável, estende-se por acréscimo:
+O kernel é imutável e se estende por acréscimo — e a fonte delas fica **fora** de `.microteia/`, em
+dois lugares que respondem a duas perguntas diferentes:
 
-```
-.microteia/install/functions/
-├── lib/                    # kernel COMPILADO — não se edita, é trocado no upgrade
-└── custom/src/index.ts     # as functions do escritório entram aqui
-```
+| Onde | Quando | Sobe em |
+|---|---|---|
+| `functions/` (ao lado do `microteia.yaml`) | a function é COMUM a várias | `microteia deploy` |
+| `extensions/<plugin>/functions/` | a function é DAQUELA extensão | `microteia provision` |
 
-O `predeploy` compila **só** o `custom/`, e o entrypoint soma os dois com nomes planos. Nesta etapa o
-escritório escreve contra `firebase-functions` e `firebase-admin`, não contra APIs internas do kernel.
+Cada diretório é lido pelo `index.ts` dele, e declara no `package.json` ao lado as dependências npm que
+precisar. O `deploy` monta `.microteia/install/functions/custom/src/` a partir dos dois, gera o barril e
+o `predeploy` compila **só** o `custom/`; o entrypoint soma kernel e customizado com nomes planos. Dois
+diretórios exportando o mesmo nome, ou um nome que colida com function do kernel, é **recusa**: o
+customizado é espalhado depois do kernel, então o repetido substituiria em silêncio — e um gatilho do
+kernel substituído não falha, simplesmente deixa de acontecer.
+
+Nesta etapa o escritório escreve contra `firebase-functions` e `firebase-admin`, não contra APIs
+internas do kernel.
 
 ### 6. Extensões escritas pelo próprio escritório, em TypeScript
 
@@ -388,7 +401,7 @@ que o código-fonte do kernel saia daqui (o que viaja é compilado mais `.d.ts`)
 ```bash
 microteia plugin-init            # cria "extensions/" ao lado do microteia.yaml
 cd extensions
-npx microteia-plugin new com.example.hello
+npx microteia-plugin create com.example.hello
 npx tsc --noEmit                              # tipos
 npx microteia-plugin check hello/plugin.ts    # o gate
 npx microteia-plugin build hello/plugin.ts    # gera hello/com.example.hello.json
@@ -404,14 +417,19 @@ Duas coisas valem a pena saber antes de começar:
 - **Extensão que traz código (`views`/`startup`) instala inerte.** Um administrador abre a fonte, lê e
   confia; a confiança fica presa àquele código exato, por hash. Trocar um caractere pede confiar de novo.
 
-`extensions/` fica **fora** de `.microteia/` — é do escritório, e o upgrade não o toca, como
-`functions/custom/`. Depois de cada `microteia deploy`, rode `npm install` ali para o SDK acompanhar a
-instalação.
+`extensions/` fica **fora** de `.microteia/` — é do escritório, e o upgrade não o toca, como o
+`functions/` da raiz. Mantê-lo em dia é do `unpack`: quando o diretório existe, ele chama
+`microteia-plugin sync` sozinho, e uma falha ali avisa sem derrubar a troca de kernel.
 
-O diretório vem com o manual (`AUTHORING.md`), as regras operacionais (`AGENTS.md` / `CLAUDE.md`), as
-doze extensões de primeira parte como exemplo, e um `.mcp.json` que registra um servidor MCP: uma IA no
-editor consulta os pontos de extensão, a API disponível e a validação **desta** instalação, em vez de um
-retrato da documentação.
+O diretório vem com o manual (`AUTHORING.md`), as regras operacionais (`AGENTS.md` — mais um `CLAUDE.md`
+que nasce uma vez e passa a ser seu), as extensões de primeira parte como FONTE em `examples/`, e um
+`.mcp.json` que registra um servidor MCP: uma IA no editor consulta os pontos de extensão, a API
+disponível e a validação **desta** instalação, em vez de um retrato da documentação.
+
+Três políticas convivem ali, e a diferença é de quem é o arquivo: `AGENTS.md`, `AUTHORING.md` e
+`examples/` são sobrepostos (prosa nossa); `CLAUDE.md` e `README.md` nascem uma vez e são seus; e
+`tsconfig.json`, `.mcp.json`, `.gitignore` e `package.json` são **conciliados** — o `sync` acrescenta o
+requisito que falta, nunca altera o que você escreveu, e avisa quando os dois divergem.
 
 Motivo de cada decisão acima: seção **"Distribuição — a Microteia instalável no Firebase do cliente"**
 do [ARCHITECTURE.md](./ARCHITECTURE.md).
@@ -422,6 +440,7 @@ do [ARCHITECTURE.md](./ARCHITECTURE.md).
 src/
 ├── kernel/          # O runtime de plugins: PluginHost e registries. NÃO conhece domínio nenhum
 ├── plugins/         # Os plugins do núcleo (core.*), os temas e o catálogo do marketplace
+├── sdk/             # O SDK de autoria de extensão — só depende de domain/
 ├── domain/          # Entidades, interfaces de repositório, use cases e os schemas compartilhados
 ├── data/            # Implementações Firebase dos repositórios
 ├── infrastructure/  # Config do Firebase, DIContainer, eventos, deeplink
@@ -461,9 +480,10 @@ Calendário, Dashboard, dados do Brasil e a tradução pt-BR.
 
 ## Multi-tenant
 
-- Ao fazer login pela primeira vez, um tenant padrão é criado automaticamente, com o usuário como `admin`.
+- Ao fazer login pela primeira vez, um tenant padrão `[displayName]([email])` é criado automaticamente, e o usuário é o `ownerId` dele — sem nenhum perfil semeado. O nome é montado só com o que o usuário trouxe. O PRIMEIRO usuário do sistema nasce `SYSTEM`.
 - O tenant ativo fica em `useTenant().currentTenant`; todos os stores de dados só carregam quando ele não é `null`.
-- Papéis por tenant: `admin`, `lawyer`, `secretary`, `user`. Papel global: `SYSTEM` | `SUPPORT` | `USER`.
+- **Não existe papel por escritório.** O escritório cria os próprios perfis (`tenants/{id}/roles`) e o membro os recebe em `roleIds`; todo código pergunta por PERMISSÃO (`can('screens.manage')`), nunca por papel. As duas exceções não são perfis: o papel global `SYSTEM` (administrador de todos os escritórios) e o dono do escritório (curinga `*`, lido de `Tenant.ownerId`).
+- Papel global: `SYSTEM` | `USER` — a única união fechada que resta.
 - O último tenant escolhido é salvo em `localStorage` com a chave `microteia:lastTenantId`.
 
 ## Autenticação

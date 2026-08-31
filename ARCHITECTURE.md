@@ -170,10 +170,10 @@ interface Tenant {
 
 ### Bootstrap do usuário — Cloud Function `onUserCreated`
 
-Todo o onboarding de um usuário novo (`users/{uid}`, `userProfiles/{uid}` e o tenant próprio com o usuário como `admin`) é feito **inteiramente no servidor**, nunca pelo client:
+Todo o onboarding de um usuário novo (`users/{uid}`, `userProfiles/{uid}` e o tenant próprio, do qual o usuário é o `ownerId`) é feito **inteiramente no servidor**, nunca pelo client:
 
 - `functions/src/infrastructure/handlers/onUserCreated.ts` — trigger `functions.auth.user().onCreate()` (API **v1** do `firebase-functions`; triggers de Auth `onCreate`/`onDelete` ainda não têm equivalente em v2). Dispara automaticamente logo após a criação da conta no Firebase Auth (Google, Facebook ou e-mail/senha — antes mesmo da verificação de e-mail).
-- `BootstrapUserUseCase` (`functions/src/domain/usecases/BootstrapUserUseCase.ts`), idempotente: `createUserIfMissing` cria `users/{uid}` (role `USER`) só se ainda não existir — se já existir (reexecução do trigger), a função **retorna sem fazer nada**, para não duplicar tenant; `createUserProfileIfMissing` cria `userProfiles/{uid}` vazio; em seguida cria o tenant (`ITenantRepository.createTenant`, com `memberLimit: 1, memberCount: 0`) e adiciona o próprio usuário como `admin` via `addMemberIfWithinLimit` (mesma transação atômica descrita abaixo) — resultado final: `memberLimit: 1`, `memberCount: 1`. Todo usuário sempre tem exatamente 1 tenant (o seu) ao final do bootstrap; todo tenant sempre tem um `ownerId`.
+- `BootstrapUserUseCase` (`functions/src/domain/usecases/BootstrapUserUseCase.ts`), idempotente: `createUserIfMissing` cria `users/{uid}` (role `USER`) só se ainda não existir — se já existir (reexecução do trigger), a função **retorna sem fazer nada**, para não duplicar tenant; `createUserProfileIfMissing` cria `userProfiles/{uid}` vazio; em seguida cria o tenant (`ITenantRepository.createTenant`, com o nome `${displayName}(${email})` e `memberLimit: 1, memberCount: 0`) e adiciona o próprio usuário **sem perfil algum** (`roleIds: []`) via `addMemberIfWithinLimit` (mesma transação atômica descrita abaixo) — resultado final: `memberLimit: 1`, `memberCount: 1`. Todo usuário sempre tem exatamente 1 tenant (o seu) ao final do bootstrap; todo tenant sempre tem um `ownerId`.
 - **Client não cria mais nada disso.** `users`/`tenants` negam `create` do client nas Security Rules (`allow create: if false`). O `AuthContext` (`src/stores/AuthContext.tsx`) não faz mais `createUserProfile` — em vez disso, `IUserRepository.waitForProvisioning` (`src/data/repositories/FirebaseUserRepository.ts`) abre um `onSnapshot` em `users/{uid}` e só resolve quando o documento existir **e** `tenantIds` não estiver vazio (sinal de que o bootstrap terminou), com timeout de 20s. Para quem já loga há tempos isso resolve quase instantaneamente (documento já existe); no primeiro login, cobre a espera pela Cloud Function. `TenantStore` (`src/stores/TenantStore.tsx`) não cria mais tenant algum — se `getTenantsForUser` retornar vazio nesse ponto (não deveria, dado o `waitForProvisioning`), trata como falha de provisionamento (`initError`) em vez de criar um tenant no client.
 
 ### `TenantMember` não é entidade de domínio — não use como alvo de FK
@@ -1724,13 +1724,14 @@ provisionamento marcava as functions daquela extensão como obsoletas e as **red
 vazia**. O mecanismo escrito para detectar valor faltando (ver "Parâmetro preenchido depois do deploy")
 passava a ser a causa dele.
 
-Hoje a fonte é `.env.<projectId>` **ao lado do `microteia.yaml`**, e a divisão segue a mesma regra de
-`functions/custom/`:
+Hoje a fonte é `.env.<projectId>` **ao lado do `microteia.yaml`**, e a divisão segue a mesma regra das
+Cloud Functions do escritório:
 
 | Onde | De quem | Sobrevive ao `unpack`? |
 |---|---|---|
-| `.env.<projectId>`, `extensions/`, `microteia.yaml` | do escritório | sim — estão fora de `.microteia/` |
-| `.microteia/install/functions/custom/` | do escritório | sim — copiado de volta explicitamente |
+| `.env.<projectId>`, `extensions/`, `functions/`, `microteia.yaml` | do escritório | sim — estão fora de `.microteia/` |
+| `.microteia/install/functions/custom/` | MONTADO pelo `deploy` a partir das duas fontes acima | não precisa — é refeito a cada deploy |
+| `.microteia/install/functions/node_modules` | cache | sim — é o único `PRESERVED` que restou |
 | `.microteia/install/**` (o resto) | do kernel | não — substituído por inteiro |
 
 O arquivo que o `firebase-functions` lê continua tendo de estar em `install/functions/`, então ele é uma

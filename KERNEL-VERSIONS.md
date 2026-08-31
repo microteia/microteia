@@ -18,6 +18,29 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.38.2] — 2026-08-31
+
+- docs(readme): the "Multi-tenant" section still listed `admin`, `lawyer`, `secretary` and `user` as per-office roles
+  and `SUPPORT` as a global one. Both were revoked: authorization is by permission over office-authored profiles
+  (`roleIds` -> `Role`), `UserRole` is `SYSTEM | USER`, and the bootstrapped tenant seeds no profile at all — the owner
+  passes through the `*` wildcard read from `Tenant.ownerId`. A reader following the README would have written
+  `role === 'admin'`, which no code path answers any more.
+- docs(readme): section 5 still put the office's own Cloud Functions in `.microteia/install/functions/custom/src/`, a
+  directory the `unpack` replaces wholesale — `PRESERVED` is down to `functions/node_modules`. The source lives in
+  `functions/` beside `microteia.yaml` (shared) or `extensions/<plugin>/functions/` (owned by one extension), and the
+  `deploy` assembles `custom/src/` from both, refusing duplicate export names.
+- docs(readme): `microteia-plugin new` does not exist — the command is `create`. Also: the two theme bases are
+  `dark`/`light`, not `dark`/`white`; the examples in `extensions/` are the six of `EXAMPLE_SOURCES`, so the count came
+  out of the prose; the installation layout now lists `functions/`, `README.md`, `MICROTEIA.md` and the two technical
+  changelogs the `unpack` writes; the Console table gained `export-catalog` and the `--all` flags; the source tree
+  gained `src/sdk/`; and the backend `.env.<projectId>` is named at the root everywhere, never under `functions/`.
+- docs(claude): the `functions/custom/` bullet described the revoked model and contradicted the bullet under it, which
+  already said nothing a person types lives in `.microteia/`.
+- docs(architecture): two spots contradicted the rest of the file — the bootstrap paragraph still added the first user
+  as `admin` (it adds a member with `roleIds: []` to a tenant named `${displayName}(${email})`), and the backend-env
+  table still claimed `install/functions/custom/` is copied back through an upgrade, four sections after the one that
+  took it out of `PRESERVED`.
+
 #### [9.38.1] — 2026-08-31
 
 - fix(records/identity): the detail header and the tab label read the title and subtitle fields with `readRecordText`,
