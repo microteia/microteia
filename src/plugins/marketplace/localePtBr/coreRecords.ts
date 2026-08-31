@@ -262,6 +262,8 @@ export const CORE_RECORDS: Record<string, string> = {
     'Você não tem permissão para ver os registros desta tela. Peça acesso a um administrador.',
   'aggregation.avg': 'Média',
   'field.invalid-format': 'O campo "{label}" está em um formato inválido',
+  'field.issue': '{label}: {reason}',
+  'field.issue-more': '{label}: {reason} — e mais {others} campo(s)',
   'field.invalid-value': 'Valor inválido',
   'field.no-lookup': 'O campo não tem uma lista de opções configurada.',
   'record.untitled': 'Sem título',

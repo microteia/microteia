@@ -1,7 +1,7 @@
 import type { StepDefinition, WorkflowStepExecutor } from '../../../domain/engine/StepDefinition';
 import { coreStepMetadata } from '../../../domain/engine/StepDefinition';
 import type { IScreenDefinitionProvider } from '../../../domain/repositories/IScreenDefinitionProvider';
-import { describeRuleIssues } from '../../../domain/schema/fieldRules';
+import { ruleIssueParams } from '../../../domain/schema/fieldRules';
 import { getValueAtPath, parsePath } from '../../../domain/schema/pathResolver';
 import type { ValidateStepConfig } from '../../../domain/schema/validateSpec';
 import { validateObject } from '../../../domain/schema/validateSpec';
@@ -35,7 +35,7 @@ export const makeValidateStepDefinition = (screenProvider: IScreenDefinitionProv
         return {
           success: false,
           message: '@core.automation/step.validate.invalid-object',
-          messageParams: { detail: describeRuleIssues(outcome.issues) },
+          messageParams: ruleIssueParams(outcome.issues),
         };
       }
 

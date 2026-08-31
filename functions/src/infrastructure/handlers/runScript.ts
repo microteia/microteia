@@ -4,7 +4,7 @@ import { requirePermission } from './shared/requirePermission';
 import { PERMISSION_AUTOMATION_RUN } from '../../domain/schema/access';
 import { getDb } from '../firebase/initFirebase';
 import { applyParameterDefaults } from '../../domain/schema/eventCatalog';
-import { describeRuleIssues } from '../../domain/schema/fieldRules';
+import { ruleIssueParams } from '../../domain/schema/fieldRules';
 import { formatAndValidateParameters } from '../../domain/schema/parameterRules';
 import { parseDateOnly } from '../../domain/schema/mutationSpec';
 import { runScriptSandbox } from '../workflow/sandbox/runScriptSandbox';
@@ -106,7 +106,7 @@ export const runScript = onCall(
       throw new HttpsError(
         'invalid-argument',
         '@core.automation/handler.script.invalid-params',
-        { messageParams: { detail: describeRuleIssues(ruled.issues) } },
+        { messageParams: ruleIssueParams(ruled.issues) },
       );
     }
 

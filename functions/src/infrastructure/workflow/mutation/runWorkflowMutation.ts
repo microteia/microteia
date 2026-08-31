@@ -13,7 +13,8 @@ import {
   validateWritablePath,
 } from '../../../domain/schema/mutationSpec';
 import type { RemoveSpec, ResolvedWritableTable, UpsertSpec } from '../../../domain/schema/mutationSpec';
-import { describeRuleIssues } from '../../../domain/schema/fieldRules';
+import { ruleIssueParams } from '../../../domain/schema/fieldRules';
+import type { DescribableIssue } from '../../../domain/schema/fieldRules';
 import { formatAndValidateRecord } from '../../../domain/schema/recordRules';
 import {
   diffRecordKeys,
@@ -42,7 +43,7 @@ export interface UpsertOptions {
 
 interface WritableLeavesOutcome {
   spec: UpsertSpec;
-  discarded: string[];
+  discarded: DescribableIssue[];
 }
 
 const keepWritableLeaves = (
@@ -50,12 +51,13 @@ const keepWritableLeaves = (
   ctx: ReturnType<typeof createSchemaContext>,
 ): WritableLeavesOutcome => {
   const data: Record<string, unknown> = {};
-  const discarded: string[] = [];
+  const discarded: DescribableIssue[] = [];
   for (const leaf of flattenDataLeaves(spec.data)) {
     const issue = validateWritablePath(ctx, spec.table, leaf.path);
     if (issue) {
-      // O log é diagnóstico nosso: guarda a CHAVE do motivo, que é o que identifica a regra.
-      discarded.push(`${leaf.path} (${issue.error})`);
+      // O motivo sobe como REFERÊNCIA, não colado numa frase: é o que permite ao aviso dizer na
+      // tela POR QUE o campo não entrou, em vez de mostrar a chave crua no meio do texto.
+      discarded.push({ label: leaf.path, error: issue.error, errorParams: issue.errorParams });
       continue;
     }
     setValueAtPath(data, leaf.path, leaf.value);
@@ -109,7 +111,7 @@ export async function runWorkflowUpsert(
       context.logger.warn('@core.automation/mutation.upsert.unwritable-ignored', {
         table: spec.table,
         count: String(kept.discarded.length),
-        fields: kept.discarded.join('; '),
+        ...ruleIssueParams(kept.discarded),
       });
     }
   }
@@ -119,7 +121,9 @@ export async function runWorkflowUpsert(
     return {
       ok: false,
       error: '@core.automation/mutation.upsert.invalid',
-      errorParams: { detail: issues.map((issue) => `${issue.field}: ${issue.error}`).join('; ') },
+      errorParams: ruleIssueParams(
+        issues.map((issue) => ({ label: issue.field, error: issue.error, errorParams: issue.errorParams })),
+      ),
     };
   }
 
@@ -142,7 +146,7 @@ export async function runWorkflowUpsert(
     return {
       ok: false,
       error: '@core.automation/mutation.upsert.invalid',
-      errorParams: { detail: describeRuleIssues(ruled.issues) },
+      errorParams: ruleIssueParams(ruled.issues),
     };
   }
   const ruledSpec: UpsertSpec = { ...effectiveSpec, data: ruled.data };
@@ -233,7 +237,9 @@ export async function runWorkflowRemove(
     return {
       ok: false,
       error: '@core.automation/mutation.remove.invalid',
-      errorParams: { detail: issues.map((issue) => `${issue.field}: ${issue.error}`).join('; ') },
+      errorParams: ruleIssueParams(
+        issues.map((issue) => ({ label: issue.field, error: issue.error, errorParams: issue.errorParams })),
+      ),
     };
   }
 

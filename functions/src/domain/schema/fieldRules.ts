@@ -334,9 +334,43 @@ export const formatAndValidate = (
   return issue ? { value: formatted, issue: { path, label, ...issue } } : { value: formatted };
 };
 
-/** O resumo para LOG: guarda a chave, que identifica a regra que recusou o valor. */
+/** O resumo para LOG TÉCNICO: guarda a chave, que identifica a regra que recusou o valor. */
 export const describeRuleIssues = (issues: RuleIssue[]): string =>
   issues.map((issue) => `${issue.label}: ${issue.error}`).join('; ');
+
+/** O bastante para descrever uma recusa: de que campo é, e qual referência diz o motivo. */
+export interface DescribableIssue {
+  label: string;
+  error: string;
+  errorParams?: Record<string, string>;
+}
+
+/**
+ * Os parâmetros da mensagem que EMBRULHA uma recusa de regra.
+ *
+ * `describeRuleIssues` serve ao log técnico e não serve à tela: ele junta as recusas numa string, e
+ * a referência de cada uma (`@core.records/field.invalid-format`) fica enterrada no meio dela, onde
+ * nada mais a resolve — quem lia a execução via a referência crua, ou o `{detail}` intacto quando o
+ * chamador nem repassava os valores. Aqui a recusa volta a ser referência mais valores, que é a
+ * única forma que o backend tem de falar: `detail` aponta para o embrulho e os irmãos descem para a
+ * frase de dentro, exatamente como `resolveParam` do catálogo resolve.
+ *
+ * Descreve o PRIMEIRO issue, e conta os demais: um conjunto de irmãos interpola uma frase, não
+ * duas, e a recusa que interessa a quem corrige é a primeira. `others` é o que impede a segunda de
+ * sumir sem aviso.
+ */
+export const ruleIssueParams = (issues: readonly DescribableIssue[]): Record<string, string> => {
+  const first = issues[0];
+  if (!first) return {};
+  const others = issues.length - 1;
+  return {
+    ...first.errorParams,
+    detail: others > 0 ? '@core.records/field.issue-more' : '@core.records/field.issue',
+    label: first.label,
+    reason: first.error,
+    others: String(others),
+  };
+};
 
 /**
  * `pattern`/`patternMessage` do InputDefinition antecedem FieldRules e continuam válidos.

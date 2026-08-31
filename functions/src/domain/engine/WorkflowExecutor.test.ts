@@ -383,9 +383,12 @@ describe('runWorkflow — parâmetros obrigatórios', () => {
     });
     expect(result.status).toBe('FAILED');
     expect(order).toEqual([]);
+    // O motivo viaja como REFERÊNCIA em `reason`, com o campo em `label`: é o que permite à tela
+    // resolver a frase de dentro em vez de mostrar a chave crua colada num resumo.
     expect(result.logs.some(
-      (entry) => entry.messageParams?.detail?.includes('parameter.required') ?? false,
+      (entry) => entry.messageParams?.reason?.includes('parameter.required') ?? false,
     )).toBe(true);
+    expect(result.logs.some((entry) => entry.messageParams?.label === 'Nome')).toBe(true);
   });
 
   it('falha quando um parâmetro obrigatório está vazio', async () => {

@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.38.3] — 2026-08-31
+
+- As falhas de uma automação passam a dizer o que aconteceu. Uma gravação recusada por regra de campo mostrava apenas "Gravação inválida: {detail}", sem informar campo nem motivo; agora a execução aponta o campo e a razão da recusa, no idioma de quem lê. O mesmo vale para exclusões, consultas, Steps de validação e parâmetros obrigatórios.
+- O aviso de campos ignorados numa gravação passa a explicar por que cada um foi descartado, em vez de mostrar um código interno no meio da frase.
+
 #### [9.38.2] — 2026-08-31
 
 - Corrigida a documentação do projeto, que ainda descrevia regras revogadas: os papéis fixos por escritório (que deram lugar aos perfis que o próprio escritório cria), o lugar das Cloud Functions escritas pelo escritório e o nome de um comando de autoria de extensões. Quem seguisse o passo a passo antigo escrevia código num diretório que é substituído a cada atualização.

@@ -36,7 +36,7 @@ export const makeUpsertStepDefinition = (deps: WorkflowMutationDeps): StepDefini
 
       const outcome = await runWorkflowUpsert(spec, context, deps, { ignoreUnwritableFields: true });
       if (!outcome.ok) {
-        return { success: false, message: outcome.error };
+        return { success: false, message: outcome.error, messageParams: outcome.errorParams };
       }
 
       const { id: recordId, created, record } = outcome.value;

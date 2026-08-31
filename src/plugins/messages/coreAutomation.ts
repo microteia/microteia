@@ -930,7 +930,7 @@ export const CORE_AUTOMATION_MESSAGES: Record<string, string> = {
     'Another record already holds the key "{key}" with the value {value}.',
   'mutation.upsert.key-required': 'The key "{key}" needs a value: {fields}.',
   'mutation.upsert.unwritable-ignored':
-    'Write to "{table}": {count} field(s) that cannot be written were ignored — {fields}',
+    'Write to "{table}": {count} field(s) that cannot be written were ignored — {detail}',
   'query.invalid': 'Invalid query: {detail}',
   'script.mutation-limit': 'The Script write/delete limit was exceeded.',
   'script.no-output-object': 'The Script must return an object with the output fields.',

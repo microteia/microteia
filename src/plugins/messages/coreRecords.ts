@@ -265,6 +265,8 @@ export const CORE_RECORDS_MESSAGES: Record<string, string> = {
     'You do not have permission to view the records of this screen. Ask an administrator for access.',
   'aggregation.avg': 'Average',
   'field.invalid-format': 'Field "{label}" is in an invalid format',
+  'field.issue': '{label}: {reason}',
+  'field.issue-more': '{label}: {reason} — and {others} other field(s)',
   'field.invalid-value': 'Invalid value',
   'field.no-lookup': 'The field has no option list configured.',
   'record.untitled': 'Untitled',

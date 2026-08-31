@@ -291,15 +291,17 @@ describe('runWorkflowUpsert', () => {
       { ignoreUnwritableFields: true },
     );
 
-    // A mensagem é REFERÊNCIA; o que muda por execução viaja nos params, e é neles que os campos
-    // descartados são conferidos.
+    // A mensagem é REFERÊNCIA; o que muda por execução viaja nos params. O campo descartado vem em
+    // `label` e o MOTIVO em `reason`, também como referência — colado numa frase ele apareceria
+    // cru na tela, que foi o defeito que este formato desfaz.
     expect(warnings).toHaveLength(1);
     expect(warnings[0].message).toBe('@core.automation/mutation.upsert.unwritable-ignored');
     expect(warnings[0].params?.table).toBe('persons');
     expect(warnings[0].params?.count).toBe('2');
-    expect(warnings[0].params?.fields).toContain('createdBy');
-    expect(warnings[0].params?.fields).toContain('naoExiste');
-    expect(warnings[0].params?.fields).not.toContain('name');
+    expect(warnings[0].params?.label).toBe('createdBy');
+    expect(warnings[0].params?.reason).toBe('@core.automation/mutation.path.system-managed');
+    expect(warnings[0].params?.detail).toBe('@core.records/field.issue-more');
+    expect(warnings[0].params?.others).toBe('1');
   });
 
   it('não avisa quando todos os campos são graváveis', async () => {

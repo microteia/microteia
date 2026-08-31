@@ -6906,6 +6906,30 @@ interpolava valor — não havia como traduzi-la sem perder o valor. Os três m�
 > se traduz. Quem resolve trata o que não começa com `@` como já pronto, então uma porta só basta e
 > não há decisão a tomar no ponto de emissão.
 
+#### A recusa de regra também é referência mais valores — e por isso não se junta numa string
+
+`describeRuleIssues` junta as recusas de campo numa string — `CPF: @core.records/field.invalid-format`
+— e serve ao **log técnico**, onde a chave é o que identifica a regra. O que ele não pode fazer é
+alimentar uma mensagem de tela: a referência de cada recusa fica enterrada no meio do texto, onde
+nada mais a resolve, e os valores que a frase de dentro interpola (`{label}`) já se perderam no
+`join`. Era o que a execução mostrava — a chave crua no meio da frase — quando o chamador repassava
+os valores, e `Gravação inválida: {detail}` intacto quando ele nem isso fazia, que era o caso dos
+Steps de gravação, exclusão e consulta.
+
+`ruleIssueParams` devolve a mesma recusa na única forma que o backend tem para falar: `detail`
+aponta para o EMBRULHO (`@core.records/field.issue`), `label` diz de que campo é e `reason` traz a
+referência do motivo. Quem resolve é o `resolveParam` do catálogo, que já resolvia o parâmetro que é
+ele próprio uma referência e já fazia os irmãos descerem para a mensagem aninhada — não houve
+mecanismo novo, só um emissor que voltou a usar o que existia.
+
+> **Descreve UMA recusa, e conta as demais.** Um conjunto de irmãos interpola uma frase, não duas.
+> A recusa que interessa a quem corrige é a primeira; `others` e a chave `field.issue-more` existem
+> para que a segunda não suma em silêncio, que é a diferença entre resumir e esconder.
+
+A mensagem que o ESCRITÓRIO escreveu numa regra (`message: 'Telefone deve ter DDD + 8 ou 9 dígitos'`)
+passa por `reason` intacta, pelo mesmo motivo que o `console.log` do Script passa: não começa com
+`@`, logo já está pronta.
+
 **`services.logger` não é `context.logger`.** O primeiro vai só para o Cloud Logging e é lido por
 quem opera o sistema — ali o português continua, pelo mesmo motivo que `console.*` continua. O segundo
 é o `captureLogger`, e o que passa por ele **aparece na tela**. `WorkflowContextHydrator`,

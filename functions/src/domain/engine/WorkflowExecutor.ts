@@ -9,7 +9,7 @@ import type { WorkflowContext, WorkflowLogger, WorkflowServices } from '../entit
 import type { StepRegistry } from './StepRegistry';
 import { evaluateCondition } from './ConditionEvaluator';
 import { resolveInputsSafe, resolveMapping } from './InputMapping';
-import { describeRuleIssues } from '../schema/fieldRules';
+import { ruleIssueParams } from '../schema/fieldRules';
 import { collectRequiredIssues, formatAndValidateParameters } from '../schema/parameterRules';
 import { flattenSteps } from '../services/stepTree';
 
@@ -127,7 +127,7 @@ export const runWorkflow = async ({ definition, event, registry, services, actor
       'ERROR',
       '@core.automation/run.parameters.invalid',
       undefined, undefined, undefined, undefined, undefined,
-      { detail: describeRuleIssues(requiredIssues) },
+      ruleIssueParams(requiredIssues),
     );
     return finish('FAILED', {});
   }
@@ -138,7 +138,7 @@ export const runWorkflow = async ({ definition, event, registry, services, actor
       'ERROR',
       '@core.automation/run.parameters.invalid',
       undefined, undefined, undefined, undefined, undefined,
-      { detail: describeRuleIssues(ruledParameters.issues) },
+      ruleIssueParams(ruledParameters.issues),
     );
     return finish('FAILED', {});
   }

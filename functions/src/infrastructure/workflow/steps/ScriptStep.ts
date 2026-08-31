@@ -4,7 +4,7 @@ import type { IScriptRepository } from '../../../domain/repositories/IScriptRepo
 import { resolveMapping } from '../../../domain/engine/InputMapping';
 import { buildNestedParams } from '../../../domain/engine/nestedParams';
 import { applyParameterDefaults } from '../../../domain/schema/eventCatalog';
-import { describeRuleIssues } from '../../../domain/schema/fieldRules';
+import { ruleIssueParams } from '../../../domain/schema/fieldRules';
 import { formatAndValidateParameters } from '../../../domain/schema/parameterRules';
 import { runScriptSandbox } from '../sandbox/runScriptSandbox';
 import type { WorkflowQueryDeps } from '../query/runWorkflowQuery';
@@ -47,7 +47,7 @@ export const makeScriptStepDefinition = (
         return {
           success: false,
           message: '@core.automation/handler.script.invalid-params',
-          messageParams: { detail: describeRuleIssues(ruled.issues) },
+          messageParams: ruleIssueParams(ruled.issues),
         };
       }
       const scriptInput = ruled.data;

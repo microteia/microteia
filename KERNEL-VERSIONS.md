@@ -18,6 +18,14 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.38.3] — 2026-08-31
+
+- fix(workflow/steps): `UpsertStep`, `RemoveStep` and `QueryStep` dropped the mutation outcome's `errorParams`, so every write refused by a field rule reached the execution log as the raw template — "Invalid write: {detail}" — with no field and no reason. The office had no way to tell which field the engine refused.
+- fix(schema/fieldRules): `ruleIssueParams` replaces `describeRuleIssues` wherever a refusal reaches a SCREEN. The old summary joined the issues into one string with each message reference buried inside it, where nothing resolves it any more; the new one returns reference plus values — `detail` points at the wrapper, `label`/`reason` describe the first issue and its siblings descend into the nested phrase, exactly as the catalog's `resolveParam` resolves. Applied to the upsert/remove specs, the rule outcome, `ValidateStep`, `ScriptStep`, `runScript` and the workflow parameter gate. `describeRuleIssues` stays for the technical log.
+- fix(workflow/mutation): the "fields ignored" warning carried `path (@core.automation/mutation.path.unknown-field)` as text; it now carries the reason as a reference, so the warning says WHY the field was dropped instead of showing the key raw.
+- feat(messages): `core.records/field.issue` and `field.issue-more` — the wrapper a refusal resolves through, with the count of the issues the sibling set cannot describe at once.
+
+
 #### [9.38.2] — 2026-08-31
 
 - docs(readme): the "Multi-tenant" section still listed `admin`, `lawyer`, `secretary` and `user` as per-office roles

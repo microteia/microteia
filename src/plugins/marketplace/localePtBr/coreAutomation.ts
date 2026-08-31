@@ -935,7 +935,7 @@ export const CORE_AUTOMATION: Record<string, string> = {
     'Outro registro já ocupa a chave "{key}" com o valor {value}.',
   'mutation.upsert.key-required': 'A chave "{key}" precisa de valor: {fields}.',
   'mutation.upsert.unwritable-ignored':
-    'Gravação em "{table}": {count} campo(s) não gravável(is) foram ignorados — {fields}',
+    'Gravação em "{table}": {count} campo(s) não gravável(is) foram ignorados — {detail}',
   'query.invalid': 'Consulta inválida: {detail}',
   'script.mutation-limit': 'Limite de gravações/exclusões do Script excedido.',
   'script.no-output-object': 'O Script deve retornar um objeto com os campos de saída.',

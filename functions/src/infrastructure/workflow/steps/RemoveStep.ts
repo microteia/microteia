@@ -23,7 +23,7 @@ export const makeRemoveStepDefinition = (deps: WorkflowMutationDeps): StepDefini
       const spec: RemoveSpec = { table: config.table, id: String(resolvedId) };
       const outcome = await runWorkflowRemove(spec, context, deps);
       if (!outcome.ok) {
-        return { success: false, message: outcome.error };
+        return { success: false, message: outcome.error, messageParams: outcome.errorParams };
       }
 
       const { id, removed } = outcome.value;

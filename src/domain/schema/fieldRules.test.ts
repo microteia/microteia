@@ -12,7 +12,11 @@ import {
   formatAndValidate,
   isEmptyRuleValue,
   resolveFileConfig,
+  ruleIssueParams,
 } from './fieldRules';
+import { buildMessageCatalog, translate } from './i18n/messages';
+import { CORE_RECORDS_MESSAGES } from '../../plugins/messages/coreRecords';
+import { CORE_AUTOMATION_MESSAGES } from '../../plugins/messages/coreAutomation';
 
 describe('applyFormat', () => {
   it('aplica um preset', () => {
@@ -135,5 +139,47 @@ describe('config de campo de arquivo', () => {
     expect(fileConfigIsImageOnly({ extensions: ['png', 'pdf'] })).toBe(false);
     expect(fileConfigIsImageOnly({ extensions: [] })).toBe(false);
     expect(fileConfigIsImageOnly()).toBe(false);
+  });
+});
+
+/**
+ * Recusa de regra no backend tem de chegar LEGÍVEL à tela. O motor não conhece idioma: ele devolve
+ * referência e valores, e é o catálogo de quem lê que monta a frase. Antes, as recusas eram juntadas
+ * numa string e a referência de cada uma ficava enterrada nela — a execução mostrava
+ * "Gravação inválida: {detail}", ou a chave crua, e ninguém tinha como saber que campo recusou.
+ */
+describe('ruleIssueParams', () => {
+  const catalog = buildMessageCatalog(
+    [
+      { locale: 'en', namespace: 'core.records', messages: CORE_RECORDS_MESSAGES },
+      { locale: 'en', namespace: 'core.automation', messages: CORE_AUTOMATION_MESSAGES },
+    ],
+    'en',
+  );
+
+  const resolve = (issues: Parameters<typeof ruleIssueParams>[0]): string =>
+    translate(catalog, 'core.automation/mutation.upsert.invalid', ruleIssueParams(issues));
+
+  it('a recusa vira frase inteira: o campo, e o motivo resolvido pelo catálogo', () => {
+    expect(resolve([
+      { label: 'CPF', error: '@core.records/field.invalid-format', errorParams: { label: 'CPF' } },
+    ])).toBe('Invalid write: CPF: Field "CPF" is in an invalid format');
+  });
+
+  it('a mensagem escrita pelo escritório passa intacta — ela não é referência', () => {
+    expect(resolve([
+      { label: 'Telefone', error: 'Telefone deve ter DDD + 8 ou 9 dígitos' },
+    ])).toBe('Invalid write: Telefone: Telefone deve ter DDD + 8 ou 9 dígitos');
+  });
+
+  it('as recusas seguintes não somem em silêncio: entram como contagem', () => {
+    expect(resolve([
+      { label: 'CPF', error: '@core.records/field.invalid-value' },
+      { label: 'E-mail', error: '@core.records/field.invalid-value' },
+    ])).toBe('Invalid write: CPF: Invalid value — and 1 other field(s)');
+  });
+
+  it('sem recusa não há o que interpolar', () => {
+    expect(ruleIssueParams([])).toEqual({});
   });
 });

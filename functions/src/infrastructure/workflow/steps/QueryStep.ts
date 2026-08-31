@@ -22,7 +22,7 @@ export const makeQueryStepDefinition = (
 
       const outcome = await runWorkflowQuery(spec, context, { queryRepository, fetcher, screenProvider });
       if (!outcome.ok) {
-        return { success: false, message: outcome.error };
+        return { success: false, message: outcome.error, messageParams: outcome.errorParams };
       }
 
       return {
