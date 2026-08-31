@@ -3,6 +3,7 @@ import type { IconType } from 'react-icons';
 import { useTenant } from '../../../stores/useTenant';
 import { useDI } from '../../../infrastructure/di/useDI';
 import { makeGetAIConnectionsUseCase } from '../../../domain/usecases/aiconnections/GetAIConnectionsUseCase';
+import { findByArtifactRef } from '../../../domain/services/artifactLookup';
 import type { AIConnection } from '../../../domain/entities';
 import { useWorkflowStore } from '../../../stores/useWorkflowStore';
 import { useScriptStore } from '../../../stores/useScriptStore';
@@ -353,7 +354,8 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
     const mapping = configuration[dynamicInputsSourceId];
     const id = mapping?.kind === 'Literal' ? String(mapping.value ?? '') : '';
     if (!id) return null;
-    return workflows.find((w) => w.id === id && w.eventName === WORKFLOW_CALLED_EVENT) ?? null;
+    const found = findByArtifactRef(workflows, id);
+    return found?.eventName === WORKFLOW_CALLED_EVENT ? found : null;
   }, [dynamicTargetKind, dynamicInputsSourceId, configuration, workflows]);
 
   const targetScript = useMemo(() => {
@@ -361,7 +363,7 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
     const mapping = configuration[dynamicInputsSourceId];
     const id = mapping?.kind === 'Literal' ? String(mapping.value ?? '') : '';
     if (!id) return null;
-    return scripts.find((s) => s.id === id) ?? null;
+    return findByArtifactRef(scripts, id) ?? null;
   }, [dynamicTargetKind, dynamicInputsSourceId, configuration, scripts]);
 
   const effectiveInputs = useMemo<InputDefinition[]>(() => {
@@ -581,7 +583,7 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
       const mapping = step.configuration[definition.dynamicOutputs.sourceInputId];
       const id = mapping?.kind === 'Literal' ? String(mapping.value ?? '') : '';
       if (!id) return [];
-      const script = scripts.find((s) => s.id === id);
+      const script = findByArtifactRef(scripts, id);
       return (script?.outputParams ?? []).map((param) => ({ id: param.key, label: label(param.label) || param.key }));
     },
     [scripts, label],
@@ -649,7 +651,7 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
       const mapping = step.configuration[definition.dynamicOutputs.sourceInputId];
       const id = mapping?.kind === 'Literal' ? String(mapping.value ?? '') : '';
       if (!id) return [];
-      const target = workflows.find((w) => w.id === id);
+      const target = findByArtifactRef(workflows, id);
       if (!target) return [];
 
       const labelsByOutputId = new Map<string, string>();
@@ -674,7 +676,7 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
       const mapping = step.configuration[definition.dynamicOutputs.sourceInputId];
       const id = mapping?.kind === 'Literal' ? String(mapping.value ?? '') : '';
       if (!id) return [];
-      const target = workflows.find((w) => w.id === id);
+      const target = findByArtifactRef(workflows, id);
       if (!target) return [];
       return (target.parameters ?? []).flatMap((parameter) =>
         parameterOutputs(t, parameterForDisplay(label, parameter), 'params'),
@@ -731,7 +733,7 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
         const mapping = step.configuration[definition.dynamicOutputs.sourceInputId];
         const id = mapping?.kind === 'Literal' ? String(mapping.value ?? '') : '';
         if (!id) return;
-        const script = scripts.find((s) => s.id === id);
+        const script = findByArtifactRef(scripts, id);
         (script?.outputParams ?? []).forEach((param) => {
           fields.push(workflowParameterToNativeField(param as WorkflowParameter));
         });

@@ -23,7 +23,7 @@ export const makeRunWorkflowsForEventUseCase = (
     if (event.name === WORKFLOW_CALLED_EVENT) {
       const targetId = typeof event.payload.__targetWorkflowId === 'string' ? event.payload.__targetWorkflowId : null;
       if (!targetId) return;
-      const target = await definitionRepository.findById(event.tenantId, targetId);
+      const target = await definitionRepository.findByRef(event.tenantId, targetId);
       definitions = target && target.enabled && target.eventName === WORKFLOW_CALLED_EVENT ? [target] : [];
     } else {
       definitions = await definitionRepository.findEnabledByEvent(event.tenantId, event.name);

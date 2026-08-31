@@ -1,4 +1,5 @@
 import type { TranslateFn } from '../schema/i18n/messages';
+import { MAX_ARTIFACT_ID_LENGTH, isArtifactId } from '../schema/plugin/artifactRef';
 /**
  * O IDENTIFICADOR de um artefato de id gerado — automação, ação e script.
  *
@@ -14,7 +15,7 @@ import type { TranslateFn } from '../schema/i18n/messages';
  */
 const ARTIFACT_ID_PATTERN = /^[a-z][a-z0-9-]*$/;
 
-export const MAX_ARTIFACT_ID_LENGTH = 60;
+export { MAX_ARTIFACT_ID_LENGTH, isArtifactId };
 
 /**
  * O artefato a que o identificador pertence. Vira SUFIXO de chave (`artifact.taken.workflow`) em vez
@@ -22,11 +23,6 @@ export const MAX_ARTIFACT_ID_LENGTH = 60;
  * ação"), e nenhuma interpolação resolve concordância — só a frase inteira por artefato resolve.
  */
 export type ArtifactKind = 'workflow' | 'action' | 'script';
-
-export const isArtifactId = (id: string): boolean => {
-  const trimmed = id.trim();
-  return ARTIFACT_ID_PATTERN.test(trimmed) && trimmed.length <= MAX_ARTIFACT_ID_LENGTH;
-};
 
 export const artifactIdIssue = (
   t: TranslateFn,

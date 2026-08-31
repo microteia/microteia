@@ -215,6 +215,9 @@ export const CORE_MARKETPLACE: Record<string, string> = {
   'diagnostic.manifest.dependencies.invalid': 'As dependências precisam ser um objeto { pluginId: faixa }.',
   'diagnostic.manifest.dependency.id.invalid': 'A dependência "{id}" não é um id de plugin válido.',
   'diagnostic.manifest.dependency.range.invalid': 'A faixa "{range}" da dependência "{id}" é inválida.',
+  'diagnostic.manifest.export.duplicated': 'O artefato público "{id}" está declarado duas vezes.',
+  'diagnostic.manifest.export.id.invalid': 'O artefato público "{id}" não é um id de artefato válido.',
+  'diagnostic.manifest.exports.invalid': 'Os artefatos públicos precisam ser uma lista de ids de artefato.',
   'diagnostic.manifest.id.invalid':
     'Id de plugin "{id}" é inválido. Use DNS reverso com ao menos dois segmentos (ex.: "com.acme.contratos").',
   'diagnostic.manifest.kernel.invalid': 'A faixa de kernel "{range}" é inválida. Use algo como "^1.0.0".',
@@ -282,6 +285,8 @@ export const CORE_MARKETPLACE: Record<string, string> = {
     'o passo "{step}" nomeia o passo "{definition}", que não está no catálogo. O pacote não declara dependência nenhuma, então ele também não pode vir de outra extensão.',
   'issue.step.unknown-input':
     'o passo "{step}" ({definition}) preenche a entrada "{input}", que esse passo não tem. Ele recebe: {expected}.',
+  'install.dependency-missing':
+    'Esta extensão referencia {kind} "{id}" da extensão "{plugin}", que não está instalada — instale-a antes.',
   'issue.patch.own-screen':
     'o complemento aponta para "{target}", que é uma tela do próprio pacote — declare os campos na tela, não num complemento.',
   'issue.patch.unknown-target':
@@ -294,6 +299,16 @@ export const CORE_MARKETPLACE: Record<string, string> = {
     'a tela "{screen}" emitiria "{prefix}.saved", um nome reservado pelo motor de automações — declare outro `eventPrefix`.',
   'issue.ref.external':
     '{origin} "{name}" referencia {kind} "{id}", que não está no pacote nem coberta por uma dependência declarada.',
+  'issue.ref.malformed':
+    '{origin} "{name}" referencia {kind} "{id}", que não é uma referência válida — use <id-da-extensão>/<id-do-artefato>.',
+  'issue.ref.not-exported':
+    '{origin} "{name}" referencia {kind} "{id}", que a extensão "{plugin}" não declara em `exports`.',
+  'issue.ref.screen-qualified':
+    '{origin} "{name}" referencia a tela "{id}" na forma qualificada — uma tela é nomeada pela coleção dela, ou pelo `sourceId` da extensão que a traz.',
+  'issue.ref.self':
+    '{origin} "{name}" referencia {kind} "{id}" pelo id do próprio pacote — dentro do pacote, nomeie o artefato direto.',
+  'issue.ref.undeclared':
+    '{origin} "{name}" referencia {kind} "{id}", que pertence à extensão "{plugin}" — declare-a em `dependencies`.',
   'permission.domain.capability': 'Integrações',
   'permission.domain.data': 'Dados do escritório',
   'permission.domain.net': 'Rede externa',

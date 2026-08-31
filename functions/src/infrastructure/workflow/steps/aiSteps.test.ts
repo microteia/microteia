@@ -4,6 +4,7 @@ import { makeAIExtractParametersStepDefinition } from './AIExtractParametersStep
 import type { AIStepDeps } from '../stepDeps';
 import type { IAIConnectionRepository } from '../../../domain/repositories/IAIConnectionRepository';
 import type { IWorkflowDefinitionRepository } from '../../../domain/repositories/IWorkflowDefinitionRepository';
+import { parseArtifactRef } from '../../../domain/schema/plugin/artifactRef';
 import type { AICredentials } from '../../../domain/entities/AICredentials';
 import type { WorkflowDefinition, WorkflowEvent } from '../../../domain/entities/Workflow';
 import type { WorkflowContext } from '../../../domain/entities/WorkflowContext';
@@ -55,6 +56,12 @@ class FakeDefinitions implements IWorkflowDefinitionRepository {
   }
   async findById(_tenantId: string, id: string): Promise<WorkflowDefinition | null> {
     return this.all.find((one) => one.id === id) ?? null;
+  }
+  async findByRef(tenantId: string, ref: string): Promise<WorkflowDefinition | null> {
+    const qualified = parseArtifactRef(ref);
+    if (!qualified) return this.findById(tenantId, ref);
+    return this.all.find((one) => one.sourceId === qualified.artifactId
+      && (one.ownerPluginIds ?? []).includes(qualified.pluginId)) ?? null;
   }
 }
 

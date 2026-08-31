@@ -215,6 +215,9 @@ export const CORE_MARKETPLACE_MESSAGES: Record<string, string> = {
   'diagnostic.manifest.dependencies.invalid': 'Dependencies must be an object { pluginId: range }.',
   'diagnostic.manifest.dependency.id.invalid': 'Dependency "{id}" is not a valid plugin id.',
   'diagnostic.manifest.dependency.range.invalid': 'Range "{range}" of dependency "{id}" is invalid.',
+  'diagnostic.manifest.export.duplicated': 'Export "{id}" is declared twice.',
+  'diagnostic.manifest.export.id.invalid': 'Export "{id}" is not a valid artifact id.',
+  'diagnostic.manifest.exports.invalid': 'Exports must be a list of artifact ids.',
   'diagnostic.manifest.id.invalid':
     'Plugin id "{id}" is invalid. Use reverse DNS with at least two segments (e.g. "com.acme.contracts").',
   'diagnostic.manifest.kernel.invalid': 'Kernel range "{range}" is invalid. Use something like "^1.0.0".',
@@ -282,6 +285,8 @@ export const CORE_MARKETPLACE_MESSAGES: Record<string, string> = {
     'step "{step}" names step "{definition}", which is not in the catalog. The package declares no dependency, so it cannot come from another extension either.',
   'issue.step.unknown-input':
     'step "{step}" ({definition}) sets input "{input}", which that step does not have. It takes: {expected}.',
+  'install.dependency-missing':
+    'This extension references {kind} "{id}" of extension "{plugin}", which is not installed — install it first.',
   'issue.patch.own-screen':
     'the patch points to "{target}", which is a screen of the package itself — declare the fields on the screen, not on a patch.',
   'issue.patch.unknown-target':
@@ -294,6 +299,16 @@ export const CORE_MARKETPLACE_MESSAGES: Record<string, string> = {
     'screen "{screen}" would emit "{prefix}.saved", a name reserved by the automation engine — declare another `eventPrefix`.',
   'issue.ref.external':
     '{origin} "{name}" references {kind} "{id}", which is neither in the package nor covered by a declared dependency.',
+  'issue.ref.malformed':
+    '{origin} "{name}" references {kind} "{id}", which is not a valid reference — use <extension-id>/<artifact-id>.',
+  'issue.ref.not-exported':
+    '{origin} "{name}" references {kind} "{id}", which extension "{plugin}" does not declare in `exports`.',
+  'issue.ref.screen-qualified':
+    '{origin} "{name}" references screen "{id}" in qualified form — a screen is named by its collection, or by the `sourceId` of the extension that brings it.',
+  'issue.ref.self':
+    '{origin} "{name}" references {kind} "{id}" through the package\'s own id — inside the package, name the artifact directly.',
+  'issue.ref.undeclared':
+    '{origin} "{name}" references {kind} "{id}", which belongs to extension "{plugin}" — declare it in `dependencies`.',
   'permission.domain.capability': 'Integrations',
   'permission.domain.data': 'Organization data',
   'permission.domain.net': 'External network',

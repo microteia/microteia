@@ -273,6 +273,7 @@ const PLUGIN_MANIFEST_REACH: Record<keyof PluginManifest, string | null> = {
   publisher: null,
   license: null,
   dependencies: null,
+  exports: null,
   provides: null,
   consumes: null,
   permissions: 'transition.permission',
@@ -292,6 +293,8 @@ const MANIFEST_NOTES: Record<string, string> = {
   license: 'the terms the author sets with the office. A legal decision, never a derived one',
   dependencies: 'other extensions this one needs. A model that referenced another extension\'s collection would imply '
     + 'one, and nothing in the vocabulary says so',
+  exports: 'the automations, actions and scripts this extension declares public, for another extension to reference. '
+    + 'Which of them are a contract with someone else is the author\'s decision, and no rule of this extension implies it',
   provides: 'a capability this extension offers to other extensions',
   consumes: 'a capability this extension requires from another extension',
   extensionPoints: 'a point of your OWN, for others to contribute to. Far outside a rule',

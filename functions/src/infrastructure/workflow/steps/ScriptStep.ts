@@ -5,6 +5,7 @@ import { resolveMapping } from '../../../domain/engine/InputMapping';
 import { buildNestedParams } from '../../../domain/engine/nestedParams';
 import { applyParameterDefaults } from '../../../domain/schema/eventCatalog';
 import { ruleIssueParams } from '../../../domain/schema/fieldRules';
+import { parseArtifactRef } from '../../../domain/schema/plugin/artifactRef';
 import { formatAndValidateParameters } from '../../../domain/schema/parameterRules';
 import { runScriptSandbox } from '../sandbox/runScriptSandbox';
 import type { WorkflowQueryDeps } from '../query/runWorkflowQuery';
@@ -26,9 +27,18 @@ export const makeScriptStepDefinition = (
         return { success: false, message: '@core.automation/step.script.none-selected' };
       }
 
-      const script = await scriptRepository.findById(context.execution.tenantId, scriptId);
+      const script = await scriptRepository.findByRef(context.execution.tenantId, scriptId);
       if (!script) {
-        return { success: false, message: '@core.automation/step.script.not-found' };
+        // Ver a nota gêmea em `CallWorkflowStep`: com o alvo de outra extensão, o que resolve é o
+        // nome dela.
+        const qualified = parseArtifactRef(scriptId);
+        return qualified
+          ? {
+              success: false,
+              message: '@core.automation/step.script.not-found-extension',
+              messageParams: { artifact: qualified.artifactId, plugin: qualified.pluginId },
+            }
+          : { success: false, message: '@core.automation/step.script.not-found' };
       }
       if (!script.compiledJs.trim()) {
         return { success: false, message: '@core.automation/step.script.empty' };

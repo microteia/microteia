@@ -7,6 +7,7 @@ import { applyPackageArtifacts, releasePackageArtifacts, type ArtifactDeps } fro
 import { storeEvents, StoreEvents } from '../infrastructure/events/StoreEventEmitter';
 import type { InstalledExtension } from '../domain/entities/InstalledExtension';
 import { hashExtensionCode } from '../domain/usecases/plugins/extensionCodeTrust';
+import { crossExtensionRefIssues } from '../domain/usecases/plugins/crossExtensionRefs';
 import { translationOverwriteIssue } from '../domain/usecases/i18n/translationPackage';
 import { transpileScriptSource } from '../domain/services/scriptSource';
 import { appliedMigrationIds, planPluginMigrations, pendingPluginMigrations } from '../domain/services/pluginMigrations';
@@ -193,6 +194,23 @@ export const InstalledExtensionStoreProvider: React.FC<{ children: React.ReactNo
      */
     const overwrite = translationOverwriteIssue(input.package, existing?.package);
     if (overwrite) throw new LocalizedError(overwrite.message, overwrite.messageParams);
+    /**
+     * Pela mesma razão, e no mesmo lugar: a referência a um artefato de OUTRA extensão só resolve se
+     * a dona estiver aqui, na versão certa, e declarando aquele artefato em `exports`. Falha fechada
+     * — instalar mesmo assim gravaria um passo cujo alvo nunca existiu, e ele só falaria na primeira
+     * execução. O próprio pacote em instalação sai da lista: reinstalar não é dependência de si.
+     */
+    const [missingRef] = crossExtensionRefIssues(
+      input.package,
+      installed
+        .filter((extension) => extension.id !== id)
+        .map((extension) => ({
+          id: extension.id,
+          version: extension.installedVersion,
+          exports: extension.package.manifest.exports,
+        })),
+    );
+    if (missingRef) throw new LocalizedError(missingRef.message, missingRef.messageParams);
     // Cópia independente e fiel: preserva apenas o estado local `active`; todo o resto vem da fonte.
     const extension: InstalledExtension = {
       id,

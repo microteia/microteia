@@ -823,6 +823,8 @@ export const CORE_AUTOMATION_MESSAGES: Record<string, string> = {
   'step.call-workflow.max-depth': 'Maximum depth of {max} workflow calls exceeded',
   'step.call-workflow.target-missing':
     'The target workflow was not found, is disabled, or is not of the "Called by another workflow" kind',
+  'step.call-workflow.target-missing-extension':
+    'The automation "{artifact}" of extension "{plugin}" was not found, is disabled, or is not of the "Called by another workflow" kind — the extension may not be installed',
   'step.call-workflow.wait.description':
     'When on, runs the target workflow and waits for it to finish, making its outputs (the "Workflow Output" ones) available to the next steps. When off, it only fires the workflow and moves on without waiting.',
   'step.exit.description':
@@ -939,6 +941,8 @@ export const CORE_AUTOMATION_MESSAGES: Record<string, string> = {
   'script.unsettled': 'The Script did not finish: the main function returned an unresolved promise.',
   'step.script.empty': 'The selected Script is empty',
   'step.script.not-found': 'Script not found',
+  'step.script.not-found-extension':
+    'The script "{artifact}" of extension "{plugin}" was not found — the extension may not be installed',
   'ai.connection-not-found': 'AI connection not found for this organization.',
   'ai.default-key-missing': 'The API key of the default AI connection is not on file.',
   'ai.invalid-response': 'The AI returned a response in an invalid format.',

@@ -206,6 +206,97 @@ describe('validatePackage', () => {
   });
 });
 
+/**
+ * A referência QUALIFICADA — o artefato de outra extensão. Ver `artifactRef`: aqui só se confere a
+ * FORMA e a dependência declarada; se o `sourceId` está mesmo no `exports` da dona é pergunta do
+ * portão de instalação, que enxerga o escritório.
+ */
+describe('validatePackage — referência a artefato de outra extensão', () => {
+  const dependent = (value: string, overrides: Partial<MarketplacePlugin> = {}): MarketplacePlugin => base({
+    manifest: {
+      id: 'com.acme.vendas', version: '1.0.0', kernel: '^2.0.0', name: 'Vendas',
+      dependencies: { 'com.acme.utils': '^1.0.0' },
+    },
+    workflows: [{
+      templateId: 'wf-1', name: 'W', eventName: 'workflow.called', version: 1,
+      condition: { kind: 'AlwaysTrue' },
+      steps: [{
+        id: 's', stepDefinitionId: 'script', type: 'Action', order: 0, enabled: true,
+        configuration: { scriptId: { kind: 'Literal', value } },
+      }],
+    }],
+    ...overrides,
+  });
+
+  it('script de uma dependência declarada é aceito', () => {
+    expect(validatePackage(dependent('com.acme.utils/normalizar-cpf'))).toEqual([]);
+  });
+
+  it('automação de uma dependência declarada é aceita', () => {
+    const pkg = base({
+      manifest: {
+        id: 'com.acme.vendas', version: '1.0.0', kernel: '^2.0.0', name: 'Vendas',
+        dependencies: { 'com.acme.utils': '^1.0.0' },
+      },
+      actions: [{ templateId: 'act-1', key: 'a', title: 'A', icon: 'apps', workflowId: 'com.acme.utils/avisar', danger: false, enabled: true, order: 0 }],
+    });
+    expect(validatePackage(pkg)).toEqual([]);
+  });
+
+  it('sem a dependência declarada, recusa NOMEANDO a extensão dona', () => {
+    const pkg = base({
+      manifest: { id: 'com.acme.vendas', version: '1.0.0', kernel: '^2.0.0', name: 'Vendas' },
+      workflows: [{
+        templateId: 'wf-1', name: 'W', eventName: 'workflow.called', version: 1,
+        condition: { kind: 'AlwaysTrue' },
+        steps: [{
+          id: 's', stepDefinitionId: 'script', type: 'Action', order: 0, enabled: true,
+          configuration: { scriptId: { kind: 'Literal', value: 'com.acme.utils/normalizar-cpf' } },
+        }],
+      }],
+    });
+    const issues = validatePackage(pkg);
+    expect(issues.map((i) => i.message)).toEqual(['@core.marketplace/issue.ref.undeclared']);
+    expect(issues[0].messageParams).toMatchObject({ plugin: 'com.acme.utils' });
+  });
+
+  it('barra que não forma referência válida é erro de digitação, não referência externa', () => {
+    const issues = validatePackage(dependent('com.acme.utils/Normalizar CPF'));
+    expect(issues.map((i) => i.message)).toEqual(['@core.marketplace/issue.ref.malformed']);
+  });
+
+  it('apontar para si pelo próprio id é recusado — dentro do pacote o nome é direto', () => {
+    const pkg = base({
+      manifest: { id: 'com.acme.vendas', version: '1.0.0', kernel: '^2.0.0', name: 'Vendas' },
+      scripts: [{ templateId: 'normalizar-cpf', name: 'S', sourceTs: '', compiledJs: '', inputParams: [], outputParams: [] }],
+      workflows: [{
+        templateId: 'wf-1', name: 'W', eventName: 'workflow.called', version: 1,
+        condition: { kind: 'AlwaysTrue' },
+        steps: [{
+          id: 's', stepDefinitionId: 'script', type: 'Action', order: 0, enabled: true,
+          configuration: { scriptId: { kind: 'Literal', value: 'com.acme.vendas/normalizar-cpf' } },
+        }],
+      }],
+    });
+    expect(validatePackage(pkg).map((i) => i.message)).toEqual(['@core.marketplace/issue.ref.self']);
+  });
+
+  /** A identidade de uma tela é o nome da coleção, e `com.x/produtos` não é um nome de coleção. */
+  it('tela na forma qualificada é recusada, e a mensagem aponta o outro mecanismo', () => {
+    const pkg = base({
+      manifest: {
+        id: 'com.acme.vendas', version: '1.0.0', kernel: '^2.0.0', name: 'Vendas',
+        dependencies: { 'com.acme.utils': '^1.0.0' },
+      },
+      screens: [{ key: 'pedido', titleSingular: 'P', titlePlural: 'P', icon: 'apps', titleFieldKey: 'n', fields: [
+        { key: 'n', label: 'N', type: 'text', required: true, order: 0 },
+        { key: 'produto', label: 'Produto', type: 'reference', refEntity: 'com.acme.utils/produtos', required: false, order: 1 },
+      ] }],
+    });
+    expect(validatePackage(pkg).map((i) => i.message)).toEqual(['@core.marketplace/issue.ref.screen-qualified']);
+  });
+});
+
 describe('validatePackage — complementos de tela', () => {
   const patch = (over: Partial<MarketplacePlugin['screenPatches'] extends (infer T)[] | undefined ? T : never>) => ({
     target: 'members',

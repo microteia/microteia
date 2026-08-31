@@ -161,6 +161,12 @@ export interface WorkflowDefinition {
   version: number;
   condition: Condition;
   steps: WorkflowStep[];
+  /**
+   * O conjunto de extensões DONAS, e o id universal de origem. Ver a nota gêmea em `Script` — é a
+   * referência qualificada de uma extensão ao artefato de outra que os traz para o backend.
+   */
+  ownerPluginIds?: string[] | null;
+  sourceId?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }

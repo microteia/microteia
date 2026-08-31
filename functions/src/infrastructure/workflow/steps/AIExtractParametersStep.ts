@@ -31,7 +31,7 @@ export const makeAIExtractParametersStepDefinition = (deps: AIStepDeps): StepDef
       }
 
       const tenantId = context.execution.tenantId;
-      const definition = await deps.workflowDefinitionRepository.findById(tenantId, targetWorkflowId);
+      const definition = await deps.workflowDefinitionRepository.findByRef(tenantId, targetWorkflowId);
       if (!definition || definition.eventName !== WORKFLOW_CALLED_EVENT) {
         return { success: false, message: '@core.automation/step.ai-extract-parameters.target-missing' };
       }

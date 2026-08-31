@@ -7,6 +7,7 @@ import type {
 import type { WorkflowDefinition, WorkflowStep } from '../../entities/Workflow';
 import type { Script } from '../../entities/Script';
 import type { ActionDefinitionInput } from '../../repositories/IActionRepository';
+import { isArtifactRef } from '../../schema/plugin/artifactRef';
 import { splitEntityEventName } from '../../schema/eventCatalog';
 import { installedScreenKey, screenEventPrefix } from './screenModule';
 
@@ -16,12 +17,20 @@ export type IdMap = Map<string, string>;
  * Reescreve, recursivamente (inclui ramos e corpos de laço), o valor Literal de um input de Step
  * pelo id remapeado. É como as referências a script (`scriptId`) e a outro workflow
  * (`targetWorkflowId`) migram do id de template para o id real gerado na instalação.
+ *
+ * A referência QUALIFICADA a outra extensão (`com.acme.utils/normalizar-cpf`) passa intacta, de
+ * propósito: ela já é universal, e é o motor que a resolve por nome a cada execução. Reescrevê-la
+ * para o id local de hoje é o que a deixaria pendurada quando a extensão dona fosse reinstalada e
+ * renumerasse os artefatos. A guarda é explícita porque, sem ela, o comportamento certo dependia de
+ * o mapa ERRAR — e "acidentalmente correto" foi exatamente como nasceu a trava `0 > 0` de
+ * `shouldRewriteContent`.
  */
 export const rewriteStepLiteral = (steps: WorkflowStep[], inputId: string, map: IdMap): WorkflowStep[] =>
   steps.map((step) => {
     let next = step;
     const mapping = step.configuration?.[inputId];
-    if (mapping && mapping.kind === 'Literal' && typeof mapping.value === 'string') {
+    if (mapping && mapping.kind === 'Literal' && typeof mapping.value === 'string'
+      && !isArtifactRef(mapping.value)) {
       const mapped = map.get(mapping.value);
       if (mapped) {
         next = { ...next, configuration: { ...next.configuration, [inputId]: { ...mapping, value: mapped } } };
@@ -121,6 +130,8 @@ export const actionInputFromTemplate = (
   const rest = withoutTemplateId(template);
   return stripUndefined({
     ...rest,
+    // Referência qualificada a outra extensão nunca está no mapa (ele é dos `templateId` deste
+    // pacote, e nenhum deles tem `/`), então ela cai no fallback e viaja intacta até o motor.
     workflowId: workflowMap.get(rest.workflowId) ?? rest.workflowId,
     ownerPluginId: pluginId,
     ownerPluginIds: [pluginId],

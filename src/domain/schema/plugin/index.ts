@@ -1,3 +1,14 @@
+export type { ArtifactRef } from './artifactRef';
+export {
+  ARTIFACT_REF_SEPARATOR,
+  MAX_ARTIFACT_ID_LENGTH,
+  artifactRef,
+  hasRefSeparator,
+  isArtifactId,
+  isArtifactRef,
+  parseArtifactRef,
+} from './artifactRef';
+
 export type {
   BackendPrerequisite,
   FirestoreIndexField,
@@ -88,13 +99,20 @@ export {
 } from './permission';
 
 export type {
+  PluginDependency,
   PluginLifecycle,
   PluginLifecycleHook,
   PluginManifest,
   PluginPublisher,
   ValidateManifestOptions,
 } from './pluginManifest';
-export { isKernelCompatible, isValidPluginId, validatePluginManifest } from './pluginManifest';
+export {
+  dependencyCollections,
+  dependencyRange,
+  isKernelCompatible,
+  isValidPluginId,
+  validatePluginManifest,
+} from './pluginManifest';
 
 export type { RangeComparator, RangeOperator, SemVer } from './semver';
 export {

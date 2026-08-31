@@ -18,6 +18,15 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.39.0] — 2026-08-31
+
+- feat(plugins): a package can now reference an automation, action or script brought by ANOTHER extension, written as `<pluginId>/<sourceId>` (`domain/schema/plugin/artifactRef.ts`). Until now only `kind: 'screen'` could cross a package boundary, because a screen is identified by its collection name while the three generated-id artifacts are identified by a local id that install may rename — so there was no name to point at. The reference resolves by name at RUN time (`findByRef` on the workflow-definition and script repositories), never rewritten at install: a rewritten id dangles the moment the owning extension is reinstalled and renumbers, a name does not. KERNEL_VERSION 2.12.0 -> 2.13.0, additive.
+- feat(plugins): `manifest.exports` declares which generated-id artifacts an extension makes public. Absent means an EMPTY public surface, not a total one — without it every `templateId` an extension ever shipped would become a contract by accident, and renaming an internal helper would break a consumer that its author never knew about.
+- feat(plugins): installing is fail-closed on a cross-extension reference (`crossExtensionRefIssues`, wired into the single install door in `InstalledExtensionStore`). The owning extension must be installed, satisfy the declared range, and list the artifact in `exports`. `PluginHost` already refused to LOAD a plugin whose dependency was missing; what was missing was refusing the gesture that puts it there.
+- fix(plugins): `rewriteStepLiteral` now refuses to rewrite a qualified reference explicitly. It already behaved correctly, but only because the id map MISSED — the same "accidentally correct" that produced the `0 > 0` freeze in `shouldRewriteContent`.
+- fix(automation): a call to a missing artifact of another extension names that extension (`step.call-workflow.target-missing-extension`, `step.script.not-found-extension`). A dangling local id said nothing; the answer the office needs is which extension to install.
+- fix(functions): `sourceId` and `ownerPluginIds` reach the backend `WorkflowDefinition` and `Script` entities and their Firestore mappers. Both fields existed in Firestore and were dropped on the way in, so the engine could not tell whose artifact a `sourceId` had found — and install dedups by `sourceId` alone, so two unrelated extensions can share one.
+
 #### [9.38.3] — 2026-08-31
 
 - fix(workflow/steps): `UpsertStep`, `RemoveStep` and `QueryStep` dropped the mutation outcome's `errorParams`, so every write refused by a field rule reached the execution log as the raw template — "Invalid write: {detail}" — with no field and no reason. The office had no way to tell which field the engine refused.

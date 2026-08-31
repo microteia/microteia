@@ -174,8 +174,8 @@ const STEP_KINDS: Record<StepType, string> = {
   Condition: 'A control node: `condition` decides which of `branches.whenTrue` / `branches.whenFalse` runs, and the flow converges after. `stepDefinitionId` is empty.',
   Delay: '**Not implemented in this version.** It is in the union for compatibility, and a step declared with it stops the flow at that point — `validate_plugin` refuses it. To wait, schedule the work instead: a Cloud Function on a timer (§12) that fires a `workflow.called` flow.',
   Loop: 'A control node: `loop: { source, itemName, outputName, body }` runs `body` once per item and publishes the collected outputs under `outputName`. `stepDefinitionId` is empty.',
-  Script: 'Runs one of your `scripts`, named by `configuration.scriptId` as a `Literal` — the `templateId`, which `check` resolves.',
-  SubWorkflow: 'Calls another workflow, named by `configuration.targetWorkflowId` as a `Literal` — again a `templateId`.',
+  Script: 'Runs a script, named by `configuration.scriptId` as a `Literal` — a `templateId` of your own package, or `<extension-id>/<source-id>` for a script another extension exports (§3).',
+  SubWorkflow: 'Calls another workflow, named by `configuration.targetWorkflowId` as a `Literal` — again a `templateId`, or a qualified reference.',
 };
 
 const describedTable = (header: string, entries: readonly string[], described: Record<string, string>): string => [
@@ -383,11 +383,48 @@ Inside the package, artifacts point at each other by \`templateId\` (automations
 \`key\` (screens), never by real id — the real ids are generated at install time and differ per
 organization. \`check\` refuses a reference that leads nowhere.
 
-To point at something *another* extension installs, declare it:
+To point at a *screen* another extension installs, declare what that extension brings:
 
 \`\`\`ts
 dependencies: { 'com.example.projects': { version: '^2.0.0', collections: ['projects'] } }
 \`\`\`
+
+### References to another extension's artifacts
+
+An automation, an action or a script of another extension is named
+\`<extension-id>/<source-id>\` — the id of the extension that owns it, then the \`templateId\` it
+carries in its own package. A local id is never enough: it is generated at install time and the
+organization may already have that name taken, so what survives the trip is the owning extension
+plus the source id.
+
+\`\`\`ts
+import { artifactRef } from '@microteia/sdk';
+
+// in the manifest
+dependencies: { 'com.example.utils': '^1.0.0' },
+
+// in a step
+configuration: {
+  scriptId: { kind: 'Literal', value: artifactRef('com.example.utils', 'normalize-tax-id') },
+}
+\`\`\`
+
+Two conditions, and both are refused when unmet:
+
+- **You declare the dependency.** \`check\` refuses a qualified reference whose extension is not in
+  \`dependencies\`.
+- **They declare the export.** Only what the owning extension lists in \`manifest.exports\` may be
+  referenced. An extension that declares no \`exports\` exposes nothing — every artifact of it stays
+  private. This is what lets you rename an internal helper without breaking someone else.
+
+\`\`\`ts
+// in the owning extension's manifest
+exports: ['normalize-tax-id', 'notify-customer'],
+\`\`\`
+
+If the owning extension is not installed, installation is refused and names it. Nothing is resolved
+at packaging time: the reference travels as written and the engine resolves it by name on every run,
+so it survives the owner being updated or reinstalled.
 
 ## 4. Extension points
 

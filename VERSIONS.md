@@ -11,6 +11,12 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.39.0] — 2026-08-31
+
+- Uma extensão passa a poder usar a automação, a ação ou o script que outra extensão já instalou, em vez de carregar uma cópia própria. Quem publica a extensão escolhe o que fica disponível para as outras; o resto continua sendo só dela.
+- A instalação avisa na hora quando a extensão de que a outra depende não está no escritório, em vez de deixar o problema aparecer só quando a automação rodar.
+- Quando uma automação chama algo de outra extensão e não encontra, a mensagem passa a dizer de qual extensão se trata.
+
 #### [9.38.3] — 2026-08-31
 
 - As falhas de uma automação passam a dizer o que aconteceu. Uma gravação recusada por regra de campo mostrava apenas "Gravação inválida: {detail}", sem informar campo nem motivo; agora a execução aponta o campo e a razão da recusa, no idioma de quem lê. O mesmo vale para exclusões, consultas, Steps de validação e parâmetros obrigatórios.

@@ -120,6 +120,7 @@ const LACUNAS_CONFERIDAS = [
   'manifest-property\tpublisher',
   'manifest-property\tlicense',
   'manifest-property\tdependencies',
+  'manifest-property\texports',
   'manifest-property\tprovides',
   'manifest-property\tconsumes',
   'manifest-property\textensionPoints',

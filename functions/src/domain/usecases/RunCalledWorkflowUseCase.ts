@@ -33,7 +33,7 @@ export const makeRunCalledWorkflowUseCase = (
   hydrator: WorkflowContextHydrator,
 ): RunCalledWorkflowUseCase => ({
   execute: async ({ tenantId, targetWorkflowId, params, callDepth, actor }) => {
-    const target = await definitionRepository.findById(tenantId, targetWorkflowId);
+    const target = await definitionRepository.findByRef(tenantId, targetWorkflowId);
     if (!target || !target.enabled || target.eventName !== WORKFLOW_CALLED_EVENT) {
       return { found: false };
     }

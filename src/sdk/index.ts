@@ -28,11 +28,13 @@ export type {
 // ─── Manifest, contribuições e pontos de extensão ─────────────────────────────
 
 export type {
+  ArtifactRef,
   Contribution,
   ImplKind,
   ImplRef,
   ExtensionPointDefinition,
   PluginBackendRequirement,
+  PluginDependency,
   BackendPrerequisite,
   FirestoreIndexField,
   FirestoreIndexSpec,
@@ -54,6 +56,13 @@ export type {
 } from '../domain/schema/plugin';
 
 export {
+  ARTIFACT_REF_SEPARATOR,
+  MAX_ARTIFACT_ID_LENGTH,
+  artifactRef,
+  hasRefSeparator,
+  isArtifactId,
+  isArtifactRef,
+  parseArtifactRef,
   DEFAULT_CONTRIBUTION_PRIORITY,
   IMPL_KINDS,
   KERNEL_PLUGIN_ID,

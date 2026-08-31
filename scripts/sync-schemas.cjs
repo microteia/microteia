@@ -53,6 +53,7 @@ const SHARED_FILES = [
   'domain/schema/i18n/localeGate.ts',
   'domain/schema/i18n/extensionPoints.ts',
   'domain/schema/i18n/index.ts',
+  'domain/schema/plugin/artifactRef.ts',
   'domain/schema/plugin/semver.ts',
   'domain/schema/plugin/diagnostics.ts',
   'domain/schema/plugin/permission.ts',

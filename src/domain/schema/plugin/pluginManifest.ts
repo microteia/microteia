@@ -1,3 +1,4 @@
+import { isArtifactId, isValidPluginId } from './artifactRef';
 import type { PluginBackendRequirement } from './backendRequirement';
 import { validateBackendRequirement } from './backendRequirement';
 import type { CapabilityProvision, CapabilityRequirement } from './capability';
@@ -71,6 +72,17 @@ export interface PluginManifest {
    */
   license?: unknown;
   dependencies?: Record<string, PluginDependency>;
+  /**
+   * Os artefatos de id gerado — automação, ação e script — que esta extensão declara PÚBLICOS, pelo
+   * `sourceId` de cada um. É a única superfície que outra extensão pode referenciar
+   * (`<pluginId>/<sourceId>`, ver `artifactRef`).
+   *
+   * **Ausente significa superfície VAZIA, não superfície total.** Sem isso, todo `templateId` que a
+   * extensão já publicou viraria contrato público por acidente, e renomear um auxiliar interno
+   * quebraria quem o estivesse usando — sem que o autor tivesse em momento algum decidido expô-lo. O
+   * preço é que expor exige republicar; é o preço de ter superfície privada.
+   */
+  exports?: string[];
   provides?: CapabilityProvision[];
   consumes?: CapabilityRequirement[];
   permissions?: string[];
@@ -85,10 +97,12 @@ export interface PluginManifest {
   backend?: PluginBackendRequirement;
 }
 
-const PLUGIN_ID_PATTERN = /^[a-z][a-z0-9]*(\.[a-z][a-z0-9-]*)+$/;
-
-export const isValidPluginId = (id: string): boolean =>
-  typeof id === 'string' && PLUGIN_ID_PATTERN.test(id);
+/**
+ * Reexportado de `artifactRef`, onde ele mora junto do padrão do id de ARTEFATO: uma referência a
+ * outra extensão é feita das duas metades, e conferi-las em lugares diferentes deixaria a disjunção
+ * entre elas sem um lugar que a garanta.
+ */
+export { isValidPluginId };
 
 export const isKernelCompatible = (manifest: PluginManifest, kernelVersion: string): boolean =>
   satisfiesRange(kernelVersion, manifest?.kernel);
@@ -202,6 +216,55 @@ const validateDependencies = (manifest: PluginManifest): PluginDiagnostic[] => {
   });
 };
 
+/**
+ * A superfície pública declarada. Recusa o que impediria uma referência de resolver: item que não é
+ * um id de artefato, e o mesmo id declarado duas vezes. O que ela NÃO confere é se o `sourceId`
+ * existe no pacote — o manifesto é validado sozinho, sem o pacote em volta, e quem cobra isso é
+ * `validatePackage`.
+ */
+const validateExports = (manifest: PluginManifest): PluginDiagnostic[] => {
+  const declared = manifest?.exports;
+  if (declared === undefined) return [];
+  if (!Array.isArray(declared)) {
+    return [
+      error({
+        code: 'manifest.invalid',
+        message: '@core.marketplace/diagnostic.manifest.exports.invalid',
+        pluginId: manifest?.id,
+        path: 'exports',
+      }),
+    ];
+  }
+
+  const seen = new Set<string>();
+  return declared.flatMap((sourceId, index) => {
+    if (!isArtifactId(sourceId)) {
+      return [
+        error({
+          code: 'manifest.id.invalid',
+          message: '@core.marketplace/diagnostic.manifest.export.id.invalid',
+          messageParams: { id: String(sourceId) },
+          pluginId: manifest.id,
+          path: `exports[${index}]`,
+        }),
+      ];
+    }
+    if (seen.has(sourceId)) {
+      return [
+        error({
+          code: 'manifest.invalid',
+          message: '@core.marketplace/diagnostic.manifest.export.duplicated',
+          messageParams: { id: sourceId },
+          pluginId: manifest.id,
+          path: `exports[${index}]`,
+        }),
+      ];
+    }
+    seen.add(sourceId);
+    return [];
+  });
+};
+
 const validateExtensionPoints = (manifest: PluginManifest): PluginDiagnostic[] => {
   const points = manifest?.extensionPoints ?? [];
   const seen = new Set<string>();
@@ -240,6 +303,7 @@ export const validatePluginManifest = (
   const diagnostics: PluginDiagnostic[] = [
     ...validateShape(manifest),
     ...validateDependencies(manifest),
+    ...validateExports(manifest),
     ...validatePermissions(manifest.permissions, manifest.id),
     ...validateProvisions(manifest.provides, manifest.id),
     ...validateRequirements(manifest.consumes, manifest.id),

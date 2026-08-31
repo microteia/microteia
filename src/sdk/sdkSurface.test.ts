@@ -32,6 +32,12 @@ const PUBLISHED = [
   'CUSTOM_FIELD_TYPES', 'FIELD_EXPRESSION_FUNCTION_NAMES', 'STEP_TYPES',
   'CONTROL_STEP_TYPES', 'CORE_STEP_CATALOG', 'CORE_STEP_DEFINITION_IDS',
   'UNIMPLEMENTED_STEP_TYPES', 'coreStepMetadata', 'isCoreStepDefinitionId',
+  // A REFERÊNCIA a um artefato de OUTRA extensão, e os dois identificadores de que ela é feita. Sai
+  // no barril porque o autor escreve a referência à mão nos dois lados — o `exports` de quem é
+  // dependido e o literal do passo de quem depende. MOVE o `KERNEL_VERSION`: um literal qualificado
+  // dentro do `.json` instalado é forma nova de pacote, e um kernel antigo o procuraria por id.
+  'ARTIFACT_REF_SEPARATOR', 'MAX_ARTIFACT_ID_LENGTH', 'artifactRef', 'hasRefSeparator',
+  'isArtifactId', 'isArtifactRef', 'parseArtifactRef',
   'backendFingerprint', 'command', 'compareSemVer', 'contributionKey', 'fieldRulePresetContribution',
   'isApiVersionCompatible', 'isKernelCompatible', 'isMessageRef', 'isTrustedOnlyImplKind',
   'isValidContributionId', 'isValidExtensionPointId', 'isValidMessageKey', 'isValidPermission',
@@ -89,6 +95,7 @@ const PUBLISHED_TYPES = [
   'AuthProviderFlow', 'AuthProviderKind', 'AuthProviderMetadata', 'AuthProviderSpec',
   'AccessPermission', 'AccessRequirement', 'CatalogPermission', 'CrudAction', 'DeclaredPermission', 'DeclaredRequirement', 'ParsedAccessPermission', 'PermissionCatalog', 'PermissionResource', 'ResolvedPermissions',
   'ActionDefinition', 'ActionLocalCommand', 'ActionModuleTemplate', 'ActionOutcome', 'AggregationOp',
+  'ArtifactRef',
   'AuthoredPlugin',
   'AuthoredView', 'BackendPrerequisite', 'CapabilityProvision', 'CapabilityRequirement', 'Condition',
   'Contribution', 'CustomFieldMask', 'CustomFieldOption', 'CustomFieldType', 'CustomFieldValue',
@@ -102,6 +109,7 @@ const PUBLISHED_TYPES = [
   'LookupProviderRequest', 'LookupProviderSpec', 'MarketplacePlugin', 'MessageBundle', 'MessageParams',
   'MigrationPhase', 'OutputInputMapping', 'PackageRef', 'PackageValidationIssue', 'ParsePackageResult',
   'ParsedPermission', 'PermissionDomain', 'PluginBackendRequirement', 'PluginDiagnostic',
+  'PluginDependency',
   'PluginLifecycle', 'PluginLifecycleHook', 'PluginManifest', 'PluginMigration', 'PluginPublisher',
   'QueryOperator', 'QueryOrderBy', 'QueryPredicate', 'QuerySpec', 'RecordKeyKind', 'RecordKeyNormalization',
   'RecordKeyScope', 'RecordKeySpec', 'RecordKeyStatus', 'RefKind', 'ScreenListAction',

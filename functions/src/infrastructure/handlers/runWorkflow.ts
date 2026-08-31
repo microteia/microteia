@@ -98,7 +98,7 @@ export const runWorkflow = onCall(
       // aqui, e o gesto síncrono que precisa dele é a Action (`runAction`), que roda em processo.
       await requirePermission(tenantId, request.auth.uid, PERMISSION_AUTOMATION_RUN);
 
-      const definition = await di.getWorkflowDefinitionRepository().findById(tenantId, targetWorkflowId);
+      const definition = await di.getWorkflowDefinitionRepository().findByRef(tenantId, targetWorkflowId);
       if (!definition) {
         throw new HttpsError('not-found', '@core.admin/processor.workflow-not-found');
       }

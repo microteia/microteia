@@ -9,6 +9,7 @@ import type { InputMapping, WorkflowStep } from '../../entities/Workflow';
 import { getEntityByCollection, getEntityByEventPrefix } from '../../schema/entityRegistry';
 import { splitEntityEventName } from '../../schema/eventCatalog';
 import { isLookupCollection } from '../../schema/lookupRegistry';
+import { hasRefSeparator, parseArtifactRef } from '../../schema/plugin/artifactRef';
 import { dependencyCollections } from '../../schema/plugin/pluginManifest';
 import { validateMigrations } from '../../schema/plugin/migration';
 import { packageIconIssues } from './pluginIcons';
@@ -321,10 +322,15 @@ export const packageSizeAdvisory = (pkg: MarketplacePlugin): LocalizedIssue | un
 
 /**
  * Valida a integridade referencial de um pacote — a MESMA checagem no export (dry-run) e no import.
- * Toda referência de saída precisa estar: (1) incluída no pacote, (2) numa coleção fixa do core, ou
- * (3) coberta por uma dependência declarada (chave namespaced `<slug-do-plugin>__x` de uma
- * `dependencies`). O que sobrar é uma referência pendente — no export, o autor inclui o artefato ou
- * declara a dependência; no import, a instalação é recusada.
+ * Toda referência de saída precisa estar: (1) incluída no pacote, (2) numa coleção fixa do core,
+ * (3) coberta por uma dependência declarada (para TELA, pelo nome global da coleção ou pela chave
+ * namespaced `<slug-do-plugin>__x`), ou (4) escrita na forma QUALIFICADA `<pluginId>/<sourceId>`,
+ * apontando para uma extensão que está em `dependencies`.
+ *
+ * O que esta porta NÃO consegue conferir, e por quê: se o `sourceId` está mesmo no `exports` da
+ * extensão dona. Aqui só existe um pacote, e o manifesto do outro não está em mãos — quem cobra isso
+ * é o portão da instalação, que enxerga o que o escritório tem instalado, e o `check` do terminal,
+ * que enxerga o retrato do Console.
  */
 export const validatePackage = (pkg: MarketplacePlugin): PackageValidationIssue[] => {
   const screenKeys = new Set((pkg.screens ?? []).map((s) => s.key));
@@ -340,6 +346,8 @@ export const validatePackage = (pkg: MarketplacePlugin): PackageValidationIssue[
     dependencies.flatMap(([, dependency]) => dependencyCollections(dependency)),
   );
 
+  const dependencyIds = new Set(dependencies.map(([id]) => id));
+
   const coveredByDependency = (ref: PackageRef): boolean =>
     ref.kind === 'screen'
     && (dependencyCollectionNames.has(ref.id)
@@ -354,6 +362,44 @@ export const validatePackage = (pkg: MarketplacePlugin): PackageValidationIssue[
     }
   };
 
+  const refusal = (
+    ref: PackageRef,
+    message: string,
+    extra: Record<string, string> = {},
+  ): PackageValidationIssue => ({
+    ref,
+    message,
+    messageParams: {
+      origin: ref.from.origin,
+      name: ref.from.name,
+      kind: REF_KIND_KEYS[ref.kind],
+      id: ref.id,
+      ...extra,
+    },
+  });
+
+  /**
+   * O veredito de UMA referência. A forma qualificada é decidida primeiro porque os dois espaços de
+   * nomes são disjuntos: um id de artefato nunca contém `/`, então quem tem barra só pode estar
+   * tentando apontar para fora — e distinguir "apontou para fora" de "digitou errado" é justamente
+   * o que a recusa genérica de antes não sabia fazer.
+   */
+  const refIssue = (ref: PackageRef): PackageValidationIssue | undefined => {
+    const qualified = parseArtifactRef(ref.id);
+    if (qualified) {
+      // A identidade de uma tela é o nome da coleção, e `com.x/produtos` não é um nome de coleção.
+      if (ref.kind === 'screen') return refusal(ref, '@core.marketplace/issue.ref.screen-qualified');
+      if (qualified.pluginId === pkg.manifest.id) return refusal(ref, '@core.marketplace/issue.ref.self');
+      if (!dependencyIds.has(qualified.pluginId)) {
+        return refusal(ref, '@core.marketplace/issue.ref.undeclared', { plugin: qualified.pluginId });
+      }
+      return undefined;
+    }
+    if (hasRefSeparator(ref.id)) return refusal(ref, '@core.marketplace/issue.ref.malformed');
+    if (bundled(ref) || coveredByDependency(ref)) return undefined;
+    return refusal(ref, '@core.marketplace/issue.ref.external');
+  };
+
   const screenSourceIds = new Set((pkg.screens ?? []).map((s) => s.sourceId ?? s.key));
   const targetIssues = (pkg.screenPatches ?? [])
     .map((patch) => patchTargetIssue(patch, screenKeys, screenSourceIds))
@@ -363,16 +409,7 @@ export const validatePackage = (pkg: MarketplacePlugin): PackageValidationIssue[
     ...targetIssues,
     ...eventPrefixIssues(pkg.screens ?? []),
     ...packageOutRefs(pkg)
-      .filter((ref) => !bundled(ref) && !coveredByDependency(ref))
-      .map((ref) => ({
-        ref,
-        message: '@core.marketplace/issue.ref.external',
-        messageParams: {
-          origin: ref.from.origin,
-          name: ref.from.name,
-          kind: REF_KIND_KEYS[ref.kind],
-          id: ref.id,
-        },
-      })),
+      .map(refIssue)
+      .filter((issue): issue is PackageValidationIssue => issue !== undefined),
   ];
 };

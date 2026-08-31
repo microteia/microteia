@@ -32,6 +32,21 @@ describe('rewriteStepLiteral', () => {
     expect((out.configuration.scriptId as { value: string }).value).toBe('desconhecido');
   });
 
+  /**
+   * A referência a outra extensão já é universal, e é o motor que a resolve por nome. Reescrevê-la
+   * para o id local de hoje é o que a deixaria pendurada quando a extensão dona fosse reinstalada.
+   * Antes o comportamento certo dependia de o mapa ERRAR; agora é a guarda que o garante.
+   */
+  it('NÃO toca numa referência qualificada, nem quando o mapa tem aquele valor', () => {
+    const armadilha = new Map([['com.acme.utils/normalizar-cpf', 'real']]);
+    const [out] = rewriteStepLiteral(
+      [step('scriptId', 'com.acme.utils/normalizar-cpf')],
+      'scriptId',
+      armadilha,
+    );
+    expect((out.configuration.scriptId as { value: string }).value).toBe('com.acme.utils/normalizar-cpf');
+  });
+
   it('reescreve recursivamente em ramos e corpos de laço', () => {
     const nested: WorkflowStep = {
       id: 'ctrl', stepDefinitionId: '', type: 'Condition', order: 0, enabled: true, configuration: {},

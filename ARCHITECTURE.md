@@ -6172,11 +6172,65 @@ para que um mesmo fluxo atenda mais de uma ação — logo, **pode repetir de pr
 chamava de "Identificador", que era o rótulo errado no lugar mais confuso possível; hoje é "Chave
 para o fluxo", e "Identificador" é o id.
 
-**O que ainda NÃO existe:** referenciar de um pacote um workflow/action/script trazido por OUTRA
-extensão. `validatePackage` só aceita referência externa de `kind: 'screen'` (por nome de coleção ou
-por chave namespaced de dependência); para os três artefatos de id gerado, a referência precisa estar
-dentro do próprio pacote. O identificador legível é a base para isso — sem ele não havia por qual
-nome apontar —, mas a capacidade em si é trabalho à parte.
+**Referenciar o artefato de OUTRA extensão** — o que o identificador legível destravou. Ver
+"Referência entre extensões" abaixo.
+
+#### Referência entre extensões — `<pluginId>/<sourceId>`
+
+**Por que a tela atravessava o pacote e os três não.** A identidade de uma tela é o nome da coleção,
+e ele é o mesmo em todo escritório — por isso uma referência a ela viaja intacta e resolve tarde. A
+identidade dos três artefatos de id gerado é um id LOCAL, que `installedArtifactId` pode renomear no
+destino quando o nome já está ocupado. Quem empacota não tem como saber por qual nome o artefato vai
+atender lá. O que sobrevive é o `sourceId`, que já é a chave por onde `materializeArtifacts`
+deduplica.
+
+Daí a forma: **`com.acme.utils/normalizar-cpf`** — à esquerda a extensão dona, à direita o `sourceId`
+dela. Os dois espaços de nomes são **disjuntos por construção**: um id de artefato é
+`^[a-z][a-z0-9-]*$` e nunca contém `/`, então a barra já significa "qualificado", e `bundled()` não
+pode confundir os dois. Sem sigilo, porque o `@` é o da referência de MENSAGEM. Não se usou o
+`<slug>__x` das telas porque `slug()` é lossy (`com.acme.x` e `com-acme-x` colapsam), e aqui é
+preciso RECUPERAR o pluginId — a tela só precisa de um "começa com". Tela na forma qualificada é
+recusada: `refEntity: 'com.x/produtos'` não é nome de coleção.
+
+**`manifest.exports` — ausente é superfície VAZIA.** Só o que a extensão dona lista ali pode ser
+referenciado. Sem isso, todo `templateId` que ela um dia publicou viraria contrato público por
+acidente, e renomear um auxiliar interno quebraria alguém que o autor nunca soube que existia. O
+preço é que expor exige republicar; é o preço de ter superfície privada.
+
+**Resolve por NOME em execução, e não na instalação.** O literal qualificado passa intacto pelo
+instalador (guarda explícita em `rewriteStepLiteral`) e é o motor que o resolve, por `findByRef` nos
+repositórios de workflow e de script: sem barra, o `doc().get()` de sempre; com barra, um
+`where('sourceId','==',...)` — igualdade de campo único, **auto-indexada** — mais o filtro de dono em
+memória. Quatro razões contra reescrever na instalação: um id reescrito fica pendurado quando a dona
+é desinstalada e reinstalada (que renumera); `applyPackageArtifacts` reroda em toda atualização, e o
+literal só sobrevivia à segunda passada porque o mapa ERRAVA; o rollback reentra em `install`; e um
+`wf-7` pendurado não diz nada, enquanto o nome qualificado diz qual extensão instalar.
+
+**O DONO precisa bater, não só o `sourceId`.** A deduplicação da instalação ignora o dono: duas
+extensões sem relação nenhuma que usem `templateId: 'notificar'` já hoje colapsam num documento com
+dois donos. Sem o filtro, `com.a.x/notificar` resolveria para a cópia de `com.c.y` — uma troca de
+artefato entre extensões, sem sintoma. É por isso que `sourceId` e `ownerPluginIds` passaram a chegar
+às entidades de backend: os campos existiam no Firestore e eram descartados nos mappers.
+
+**Falha FECHADA na instalação.** `crossExtensionRefIssues`, na porta única de `InstalledExtensionStore`,
+recusa quando a dona não está instalada, quando a versão não satisfaz a faixa declarada, ou quando o
+`sourceId` não está no `exports` dela. O `PluginHost` já recusava CARREGAR o dependente sem a
+dependência (`dependency.missing`); o que faltava era recusar o gesto que o coloca ali. Extensão
+instalada porém desligada passa — o artefato dela continua sendo documento do escritório —, e quem
+avisa que nada está no ar continua sendo o `PluginHost`.
+
+`validatePackage` cobre o que dá para cobrar com UM pacote na mão, e as recusas são específicas em
+vez da genérica de antes: `issue.ref.undeclared` (falta a `dependencies`), `issue.ref.malformed`
+(tem barra e não parseia — o erro de digitação, que antes era indistinguível da referência
+legítima), `issue.ref.self` e `issue.ref.screen-qualified`. O `exports` não é conferido ali: o
+manifesto do outro não está em mãos.
+
+**O que ainda NÃO existe:** a tela de autoria ainda não PRODUZ a referência — ela esconde o artefato
+alheio (`ownActions`/`ownWorkflows`/`ownScripts` filtram `!ownerPluginId`) e o fecho de dependências
+copia o próprio. E `releaseVanishedGeneratedArtifacts` ainda apaga por ausência de DONO, não de USO:
+uma atualização da dona que deixe de trazer o artefato o apaga com o dependente instalado e rodando.
+O catálogo offline (`installedCatalog`) também ainda omite comportamento, então quem autora fora do
+escritório não descobre o que pode referenciar.
 
 **O que quebrava, e por quê.** O conteúdo de script, workflow e action só era reescrito quando a
 revisão de origem que chegava era maior (`revOf(template) > revOf(existing)`). O catálogo embutido é

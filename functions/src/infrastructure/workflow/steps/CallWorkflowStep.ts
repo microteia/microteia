@@ -1,4 +1,5 @@
 import type { StepDefinition, WorkflowStepExecutor } from '../../../domain/engine/StepDefinition';
+import { parseArtifactRef } from '../../../domain/schema/plugin/artifactRef';
 import { coreStepMetadata } from '../../../domain/engine/StepDefinition';
 import type { RunCalledWorkflowUseCase } from '../../../domain/usecases/RunCalledWorkflowUseCase';
 import { resolveMapping } from '../../../domain/engine/InputMapping';
@@ -63,10 +64,16 @@ export const makeCallWorkflowStepDefinition = (runCalledWorkflow: RunCalledWorkf
       });
 
       if (!result.found) {
-        return {
-          success: false,
-          message: '@core.automation/step.call-workflow.target-missing',
-        };
+        // Quando o alvo é de outra extensão, o nome dela é a informação que resolve: a saída não é
+        // "conserte o fluxo", é "instale a extensão X". Um id local pendurado não diz nem isso.
+        const qualified = parseArtifactRef(targetWorkflowId);
+        return qualified
+          ? {
+              success: false,
+              message: '@core.automation/step.call-workflow.target-missing-extension',
+              messageParams: { artifact: qualified.artifactId, plugin: qualified.pluginId },
+            }
+          : { success: false, message: '@core.automation/step.call-workflow.target-missing' };
       }
 
       if (result.status !== 'SUCCESS') {

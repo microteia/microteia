@@ -825,6 +825,8 @@ export const CORE_AUTOMATION: Record<string, string> = {
   'step.call-workflow.max-depth': 'Profundidade máxima de {max} chamadas de workflow excedida',
   'step.call-workflow.target-missing':
     'Workflow-alvo não encontrado, desativado ou não é do tipo "Chamar Workflow"',
+  'step.call-workflow.target-missing-extension':
+    'A automação "{artifact}" da extensão "{plugin}" não foi encontrada, está desativada ou não é do tipo "Chamar Workflow" — a extensão pode não estar instalada',
   'step.call-workflow.wait.description':
     'Se ativado, executa o workflow-alvo e espera terminar, disponibilizando as saídas dele (as "Saída do Workflow") para os próximos passos. Se desativado, apenas dispara o workflow e segue em frente sem esperar.',
   'step.exit.description':
@@ -944,6 +946,8 @@ export const CORE_AUTOMATION: Record<string, string> = {
   'script.unsettled': 'O Script não concluiu: a função principal retornou uma promessa não resolvida.',
   'step.script.empty': 'O Script selecionado está vazio',
   'step.script.not-found': 'Script não encontrado',
+  'step.script.not-found-extension':
+    'O script "{artifact}" da extensão "{plugin}" não foi encontrado — a extensão pode não estar instalada',
   'ai.connection-not-found': 'Conexão de IA não encontrada para este escritório.',
   'ai.default-key-missing': 'A chave de API da conexão IA padrão não está cadastrada.',
   'ai.invalid-response': 'A IA retornou uma resposta em formato inválido.',
