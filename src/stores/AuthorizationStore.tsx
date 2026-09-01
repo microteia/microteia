@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import { AuthorizationContext } from './useAuthorization';
 import { useAuth } from './useAuth';
 import { useTenant } from './useTenant';
@@ -12,6 +12,7 @@ import {
   ACCESS_PERMISSION_POINT,
   ACCESS_REQUIREMENT_POINT,
   ACCESS_RESOURCE_POINT,
+  KERNEL_CATALOG_FINGERPRINT,
   buildPermissionCatalog,
   declaredPermissionsOf,
   declaredRequirementsOf,
@@ -22,6 +23,7 @@ import {
   setAmbientPermissions,
 } from '../domain/schema/access';
 import { screenDataCollection } from '../domain/services/screenDataCollection';
+import { collectionPermissionResources } from '../domain/services/collectionPermissionResources';
 
 /**
  * Quem responde "pode?" — e a razão de o resto do sistema nunca precisar saber quem é quem.
@@ -36,7 +38,7 @@ import { screenDataCollection } from '../domain/services/screenDataCollection';
 export const AuthorizationStoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, userRole } = useAuth();
   const { currentTenant, members, isLoading: tenantLoading } = useTenant();
-  const { roles, isLoading: rolesLoading } = useRoles();
+  const { roles, isLoading: rolesLoading, syncPermissions } = useRoles();
   const { definitions, isLoading: screensLoading } = useScreenDefinitions();
   const { availableLookups } = useLookups();
   const { availableTagLists } = useTags();
@@ -56,10 +58,7 @@ export const AuthorizationStoreProvider: React.FC<{ children: React.ReactNode }>
       deriveCrud: true,
       ...(definition.ownerPluginId ? { source: definition.ownerPluginId } : {}),
     }));
-    const listResources: PermissionResource[] = [
-      ...availableLookups.map((lookup) => ({ id: lookup.collection, name: lookup.label })),
-      ...availableTagLists.map((tagList) => ({ id: tagList.collection, name: tagList.label })),
-    ].map((resource) => ({ ...resource, deriveCrud: true }));
+    const listResources = collectionPermissionResources(availableLookups, availableTagLists);
 
     return buildPermissionCatalog(
       declaredPermissionsOf(permissionContributions),
@@ -112,6 +111,32 @@ export const AuthorizationStoreProvider: React.FC<{ children: React.ReactNode }>
   );
 
   const effectiveSet = useMemo(() => new Set(effectivePermissions), [effectivePermissions]);
+
+  const healedTenants = useRef(new Set<string>());
+
+  /**
+   * O conjunto materializado se recompõe sozinho quando o CATÁLOGO DE CÓDIGO muda.
+   *
+   * Uma versão nova do kernel pode alterar de que uma permissão depende, e nesse dia nenhuma escrita
+   * acontece no banco — então nenhum dos gatilhos de materialização acorda. Quem fica velho é só o
+   * campo que as Security Rules leem: esta tela recalcula por conta própria e segue acertando, e o
+   * que a pessoa vive é a tela oferecendo o que salvar recusa.
+   *
+   * A digital carimbada no membro é o que torna a diferença VISÍVEL sem custar leitura nenhuma — o
+   * documento de membro já está assinado aqui. Divergiu, pede a recomposição uma vez por escritório
+   * por sessão; o primeiro que abrir o app depois do upgrade cura o escritório inteiro, e nenhum
+   * administrador precisa saber que algo aconteceu.
+   *
+   * Falhar é SILENCIOSO de propósito: ninguém pediu isto, e o que se perde ao falhar é exatamente o
+   * que já se tinha. A tentativa volta na sessão seguinte.
+   */
+  useEffect(() => {
+    if (!currentTenant || !member) return;
+    if (member.permissionsCatalog === KERNEL_CATALOG_FINGERPRINT) return;
+    if (healedTenants.current.has(currentTenant.id)) return;
+    healedTenants.current.add(currentTenant.id);
+    void syncPermissions().catch(() => healedTenants.current.delete(currentTenant.id));
+  }, [currentTenant, member, syncPermissions]);
 
   /**
    * O gate de módulo é o CAMINHO DE RESERVA de `hasPermission(...)`: quem avalia uma expressão de

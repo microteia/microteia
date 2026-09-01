@@ -108,6 +108,7 @@ export type {
   PermissionCatalog,
   PermissionResource,
   ResolvedPermissions,
+  ResourceLabel,
 } from '../domain/schema/access';
 
 export {

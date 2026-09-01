@@ -529,11 +529,45 @@ extensão instalada (os dois últimos mudam o catálogo). Ela **não grava quand
 o que a torna idempotente e, sobretudo, impede o laço: gravar no documento de membro dispara o
 gatilho de membro, e a segunda passada não grava.
 
+#### A recomposição quando o catálogo muda no CÓDIGO
+
 Os gatilhos acordam com escrita no BANCO, e não cobrem o que muda no CÓDIGO: uma versão nova do
 kernel pode alterar de que uma permissão depende — foi o que aconteceu quando criar, editar e excluir
-passaram a exigir ver — sem que nenhuma escrita aconteça. Para isso existe a callable
-`syncTenantPermissions`, e a ação **"Recalcular permissões"** na aba de perfis. Ela é idempotente
-pela mesma razão que a rotina é.
+passaram a exigir ver — sem que nenhuma escrita aconteça. O sintoma é silencioso e o pior possível: a
+tela recalcula sozinha e segue acertando, só o campo que as Security Rules leem fica velho, e o que a
+pessoa vive é a tela oferecendo o que salvar recusa.
+
+Isso já foi um botão **"Recalcular permissões"** na aba de perfis, e o botão era a forma errada: ele
+exigia que alguém no escritório soubesse que houve upgrade de kernel, que o upgrade mexeu numa
+dependência, e que a consequência disso era um botão numa aba de perfis. Ninguém sabe as três coisas.
+
+Hoje o sistema percebe sozinho, por uma **impressão digital do catálogo de código**
+(`KERNEL_CATALOG_FINGERPRINT`, em `domain/schema/access/catalogFingerprint.ts`):
+
+| Peça | O que faz |
+|---|---|
+| `KERNEL_CATALOG_FINGERPRINT` | resume `id` + `requires` do catálogo do núcleo, mais um recurso sintético que exercita a DERIVAÇÃO — é o que faz uma mudança em "criar exige ver" mover a digital |
+| `MaterializeMemberPermissionsUseCase` | carimba a digital em `permissionsCatalog`, na MESMA escrita de `permissions`, e entra na guarda de idempotência |
+| `AuthorizationStore` | compara o carimbo do membro (já assinado, custo zero) com o do código; divergiu, chama `syncTenantPermissions` uma vez por escritório por sessão |
+| `syncTenantPermissions` | pede PERTENCIMENTO, não permissão — quem está com o conjunto velho é justamente quem pode não ter `roles.manage` —, e a guarda de digital faz de uma chamada repetida uma leitura só |
+
+A digital é **derivada, nunca escrita à mão**, e por isso não é o `KERNEL_VERSION`: aquele só se move
+quando o PACOTE INSTALADO muda de forma, e mudar o `requires` de uma permissão do núcleo não o move.
+Um número que alguém precisa lembrar de subir ficaria para trás justamente na versão em que importava.
+
+O primeiro que abrir o app depois do upgrade cura o escritório inteiro, e nenhum administrador precisa
+saber que algo aconteceu.
+
+#### O rótulo de um recurso viaja com os parâmetros dele
+
+`PermissionResource` tem `name` **e** `nameParams`, e o catálogo os guarda juntos em `resourceLabels`
+(`ResourceLabel`). Separá-los foi o defeito: `@core.data/lookup.qualified` chegava à tela de perfis
+sem `{screen}` nem `{entity}`, e o que aparecia era o próprio template, em maiúsculas, em qualquer
+idioma. Quem monta os recursos de coleção é `collectionPermissionResources`, ponto único, e é lá que
+mora a segunda regra: **coleção RESERVADA não deriva CRUD.** O curinga do `firestore.rules` que monta
+`<coleção>.create` exige `!isReservedCollection(name)` — uma reservada tem regra e permissão próprias
+(`documentTypes` é guardada por `document-types.manage`), e derivar as quatro para ela dava um grupo
+inteiro de permissões que nenhuma regra lê, ao lado do grupo verdadeiro.
 
 ### `SYSTEM` e o DONO — as duas exceções, e por que não são perfis
 

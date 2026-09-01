@@ -28,6 +28,8 @@ export {
   declaredResourcesOf,
 } from './extensionPoints';
 
+export { KERNEL_CATALOG_FINGERPRINT } from './catalogFingerprint';
+
 export {
   KERNEL_PERMISSIONS,
   KERNEL_PERMISSION_RESOURCES,
@@ -53,6 +55,7 @@ export type {
   PermissionCatalog,
   PermissionResource,
   ResolvedPermissions,
+  ResourceLabel,
 } from './resolvePermissions';
 export { buildPermissionCatalog, dependenciesOf, resolveEffective } from './resolvePermissions';
 

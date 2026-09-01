@@ -75,7 +75,7 @@ describe('buildPermissionCatalog', () => {
   });
 
   it('guarda o nome do recurso para a tela agrupar sem repetir o rótulo', () => {
-    expect(financeCatalog().resourceNames.get('finance')).toBe('Finance');
+    expect(financeCatalog().resourceLabels.get('finance')).toEqual({ name: 'Finance' });
   });
 
   it('recurso que não é coleção dá nome ao grupo sem derivar CRUD nenhum', () => {
@@ -84,7 +84,7 @@ describe('buildPermissionCatalog', () => {
       [{ id: 'roles', name: '@core.access/resource.roles' }],
     );
     expect(catalog.list.map((p) => p.id)).toEqual(['roles.manage']);
-    expect(catalog.resourceNames.get('roles')).toBe('@core.access/resource.roles');
+    expect(catalog.resourceLabels.get('roles')).toEqual({ name: '@core.access/resource.roles' });
   });
 
   it('sem rótulo declarado, o recurso fica com o próprio identificador', () => {
@@ -92,7 +92,7 @@ describe('buildPermissionCatalog', () => {
       declare('com.acme.x', { id: 'orfao.use', name: 'Use' }),
       [],
     );
-    expect(catalog.resourceNames.get('orfao')).toBe('orfao');
+    expect(catalog.resourceLabels.get('orfao')).toEqual({ name: 'orfao' });
   });
 
   it('ordena por recurso e pela ordem canônica das ações, nunca pela de carregamento', () => {

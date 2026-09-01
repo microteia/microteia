@@ -11,6 +11,12 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.43.0] — 2026-09-01
+
+- As permissões dos membros passam a se recompor sozinhas depois de uma atualização do sistema. Antes, uma atualização que mudasse o que uma permissão exige deixava o escritório com o cálculo antigo até alguém apertar um botão em Configurações — e quem não apertasse ficava com telas que ofereciam o que salvar recusava, sem nenhum aviso ligando uma coisa à outra. O botão "Recalcular permissões" foi removido: quem abrir o sistema primeiro depois da atualização já acerta o escritório inteiro.
+- Corrigido um grupo de permissões que aparecia com o texto do sistema no lugar do nome, em Perfis de acesso. Acontecia com as listas de opções e os conjuntos de etiquetas cujo nome é montado a partir do nome da tela.
+- Removido um grupo repetido de permissões sobre tipos de documento. Ele podia ser marcado num perfil e não fazia efeito nenhum — quem manda ali é a permissão "Gerenciar tipos de documento", que continua onde estava.
+
 #### [9.42.1] — 2026-09-01
 
 - Corrigida a conferência de uma extensão, que não enxergava o que estivesse dentro de uma repetição ou de uma condição. Uma automação que chamava um roteiro ou outra automação de dentro de um laço passava pela conferência sem nenhum aviso, era instalada, e só falhava na primeira vez que rodasse — no escritório de destino, longe de quem a escreveu.

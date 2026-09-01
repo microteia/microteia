@@ -39,6 +39,7 @@ const mapMember = (d: Record<string, unknown>): TenantMember => ({
   tenantId: d.tenantId as string,
   roleIds: Array.isArray(d.roleIds) ? (d.roleIds as string[]) : [],
   permissions: Array.isArray(d.permissions) ? (d.permissions as string[]) : [],
+  ...(typeof d.permissionsCatalog === 'string' ? { permissionsCatalog: d.permissionsCatalog } : {}),
   displayName: d.displayName as string,
   email: d.email as string,
   photoURL: (d.photoURL as string | null) ?? null,

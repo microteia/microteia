@@ -34,7 +34,7 @@ describe('core.access', () => {
   it('todo recurso do núcleo tem rótulo, e nenhum aparece como identificador cru', () => {
     const catalog = kernelCatalog();
     for (const permission of catalog.list) {
-      expect(catalog.resourceNames.get(permission.resource)).toMatch(/^@core\.access\/resource\./);
+      expect(catalog.resourceLabels.get(permission.resource)?.name).toMatch(/^@core\.access\/resource\./);
     }
   });
 

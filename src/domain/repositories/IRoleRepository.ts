@@ -13,9 +13,13 @@ export interface IRoleRepository {
   /** Tira o perfil de todos que o tinham. Ver `DeleteRoleUseCase` — exclusão é cascata. */
   detachFromMembers(tenantId: string, roleId: string): Promise<void>;
   /**
-   * Recalcula as permissões efetivas de todos os membros. Necessário quando o CATÁLOGO muda por
+   * Recompõe as permissões efetivas de todos os membros. Necessária quando o CATÁLOGO muda por
    * código (uma versão nova do kernel altera a dependência de uma permissão) — os gatilhos do
    * Firestore só acordam com escrita no banco. Devolve quantos membros mudaram.
+   *
+   * Quem decide chamá-la é o app, comparando a digital carimbada no membro com a do código: um botão
+   * dependeria de alguém saber que houve upgrade, que ele mexeu numa dependência, e que a
+   * consequência era um botão. Ver `KERNEL_CATALOG_FINGERPRINT`.
    */
   syncPermissions(tenantId: string): Promise<number>;
 }

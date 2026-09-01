@@ -144,6 +144,15 @@ export interface TenantMember {
    * recém-criado nasça sem ninguém capaz de configurá-lo.
    */
   permissions: string[];
+  /**
+   * A digital do catálogo de CÓDIGO com que `permissions` foi composto. Carimbada na mesma escrita,
+   * pelo mesmo Admin SDK, e pelo mesmo motivo: um carimbo em documento separado divergiria do
+   * conjunto que ele descreve.
+   *
+   * É por ela que o app percebe sozinho que o kernel mudou de ideia sobre uma dependência — nenhuma
+   * escrita no banco acontece nesse dia, então nenhum gatilho acorda. Ver `KERNEL_CATALOG_FINGERPRINT`.
+   */
+  permissionsCatalog?: string;
   displayName: string;
   email: string;
   photoURL: string | null;

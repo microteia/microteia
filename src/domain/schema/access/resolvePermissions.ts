@@ -22,12 +22,24 @@ export interface CatalogPermission {
   derived: boolean;
 }
 
+/**
+ * O rótulo de um recurso — a REFERÊNCIA e os parâmetros dela, nunca o texto pronto.
+ *
+ * Os dois viajam juntos porque separá-los é o defeito: enquanto o catálogo guardava só a referência,
+ * `@core.data/lookup.qualified` chegava à tela sem `{screen}` nem `{entity}` para interpolar, e o que
+ * aparecia era o próprio template — em maiúsculas, em qualquer idioma, para todo escritório.
+ */
+export interface ResourceLabel {
+  name: string;
+  nameParams?: Record<string, string>;
+}
+
 export interface PermissionCatalog {
   byId: ReadonlyMap<string, CatalogPermission>;
   /** Ordem determinística: recurso, depois a ordem canônica das ações. Não a de carregamento. */
   list: readonly CatalogPermission[];
-  /** O nome de cada recurso, para a tela agrupar por ele sem repetir o rótulo em cada permissão. */
-  resourceNames: ReadonlyMap<string, string>;
+  /** O rótulo de cada recurso, para a tela agrupar por ele sem repetir o texto em cada permissão. */
+  resourceLabels: ReadonlyMap<string, ResourceLabel>;
   diagnostics: readonly PluginDiagnostic[];
 }
 
@@ -57,6 +69,8 @@ export interface PermissionResource {
   id: string;
   /** Rótulo do recurso: o título da tela, texto cru ou referência de mensagem. */
   name: string;
+  /** Os parâmetros que `name` interpola, quando ele é uma referência composta. */
+  nameParams?: Record<string, string>;
   deriveCrud?: boolean;
   source?: string;
 }
@@ -96,11 +110,14 @@ export const buildPermissionCatalog = (
 ): PermissionCatalog => {
   const diagnostics: PluginDiagnostic[] = [];
   const byId = new Map<string, CatalogPermission>();
-  const resourceNames = new Map<string, string>();
+  const resourceLabels = new Map<string, ResourceLabel>();
 
   for (const resource of resources) {
     if (!parseAccessPermission(collectionPermissionId(resource.id, 'read'))) continue;
-    resourceNames.set(resource.id, resource.name);
+    resourceLabels.set(resource.id, {
+      name: resource.name,
+      ...(resource.nameParams ? { nameParams: resource.nameParams } : {}),
+    });
     if (resource.deriveCrud !== true) continue;
     // Criar, editar e excluir EXIGEM ver. Não é conveniência: quem grava num registro que não pode
     // ler grava às cegas, e a tela que ele abriria para isso não tem como carregar. A dependência é
@@ -153,7 +170,7 @@ export const buildPermissionCatalog = (
       source,
       derived: false,
     });
-    if (!resourceNames.has(parsed.resource)) resourceNames.set(parsed.resource, parsed.resource);
+    if (!resourceLabels.has(parsed.resource)) resourceLabels.set(parsed.resource, { name: parsed.resource });
   }
 
   diagnostics.push(...mergeRequirements(byId, requirements));
@@ -161,7 +178,7 @@ export const buildPermissionCatalog = (
   const list = [...byId.values()].sort(compareCatalog);
   diagnostics.push(...catalogIntegrityDiagnostics(byId));
 
-  return { byId, list, resourceNames, diagnostics };
+  return { byId, list, resourceLabels, diagnostics };
 };
 
 /** `required` alcança `id` seguindo as arestas de `requires`? É o que detecta o ciclo antes de criá-lo. */

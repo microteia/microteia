@@ -56,7 +56,9 @@ export interface ScreenCollectionDeclaration {
 
 export interface DerivedCollection {
   collection: string;
+  /** REFERÊNCIA de mensagem, ou o rótulo que o escritório digitou; `labelParams` interpola. */
   label: string;
+  labelParams?: Record<string, string>;
 }
 
 const dedupe = (items: DerivedCollection[]): DerivedCollection[] => {

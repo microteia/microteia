@@ -166,8 +166,13 @@ service cloud.firestore {
         // Atribuir perfis continua sendo escrita direta do client — não mexe no contador de membros.
         // `permissions` é o conjunto materializado, e o cliente NUNCA o escreve: fosse editável aqui,
         // bastaria uma escrita no próprio documento para se conceder qualquer coisa.
+        //
+        // `permissionsCatalog` é a digital do catálogo com que aquele conjunto foi composto, e é
+        // negada pelo MESMO motivo por tabela: quem pudesse carimbá-la à mão diria que o conjunto
+        // está em dia, e a recomposição que o corrigiria nunca mais seria pedida.
         allow update: if can(tenantId, 'members.manage')
-          && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['permissions']);
+          && !request.resource.data.diff(resource.data).affectedKeys()
+               .hasAny(['permissions', 'permissionsCatalog']);
       }
 
       // Tipos de documento — a lista compartilhada por toda tela que anexa arquivo

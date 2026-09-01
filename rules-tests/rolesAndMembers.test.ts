@@ -102,6 +102,17 @@ describe('membros — o campo que o cliente NUNCA escreve', () => {
     await assertFails(updateDoc(member('gestor', 'comum'), { roleIds: ['financeiro'], permissions: ['*'] }));
   });
 
+  /**
+   * `permissionsCatalog` é a digital do catálogo com que aquele conjunto foi composto. Quem pudesse
+   * carimbá-la à mão diria que o conjunto está em dia, e a recomposição que o corrigiria nunca mais
+   * seria pedida — o conjunto velho ficaria velho para sempre, em silêncio.
+   */
+  it('NINGUÉM escreve `permissionsCatalog` — o carimbo vale tanto quanto o conjunto', async () => {
+    await assertFails(updateDoc(member('gestor', 'comum'), { permissionsCatalog: 'inventada' }));
+    await assertFails(updateDoc(member('comum', 'comum'), { permissionsCatalog: 'inventada' }));
+    await assertFails(updateDoc(member('gestor', 'comum'), { roleIds: ['financeiro'], permissionsCatalog: 'inventada' }));
+  });
+
   it('o próprio membro não se concede nada', async () => {
     await assertFails(updateDoc(member('comum', 'comum'), { permissions: ['*'] }));
     await assertFails(updateDoc(member('comum', 'comum'), { roleIds: ['financeiro'] }));

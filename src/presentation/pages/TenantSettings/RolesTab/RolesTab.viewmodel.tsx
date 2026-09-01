@@ -79,9 +79,6 @@ export interface RolesTabViewModel {
   requestDeleteRole: (role: Role) => void;
   confirmDeleteRole: () => Promise<void>;
   cancelDeleteRole: () => void;
-
-  isSyncing: boolean;
-  syncMemberPermissions: () => Promise<void>;
 }
 
 const EMPTY_DRAFT: RoleDraft = { name: '', description: '' };
@@ -90,7 +87,7 @@ export const useRolesTabViewModel = (): RolesTabViewModel => {
   const t = useT('core.access');
   const label = useLabel();
   const { notify } = useNotification();
-  const { roles, isLoading, createRole, updateRole, deleteRole, syncPermissions } = useRoles();
+  const { roles, isLoading, createRole, updateRole, deleteRole } = useRoles();
   const { catalog, can } = useAuthorization();
 
   const [query, setQuery] = useState('');
@@ -101,9 +98,21 @@ export const useRolesTabViewModel = (): RolesTabViewModel => {
   const [roleDraft, setRoleDraftState] = useState<RoleDraft>(EMPTY_DRAFT);
   const [isSavingRole, setSavingRole] = useState(false);
   const [roleToDelete, setRoleToDelete] = useState<Role | null>(null);
-  const [isSyncing, setSyncing] = useState(false);
 
   const canManage = can(PERMISSION_ROLES_MANAGE);
+
+  /**
+   * O rótulo do recurso com os PARÂMETROS dele. Sem eles, um rótulo composto — o de uma lista de
+   * opções, o de um conjunto de etiquetas — chegava à tela como o próprio template.
+   */
+  const resourceLabel = useCallback(
+    (resource: string): string => {
+      const declared = catalog.resourceLabels.get(resource);
+      if (!declared) return resource;
+      return label(declared.name, declared.nameParams);
+    },
+    [catalog, label],
+  );
 
   const nameOf = useCallback(
     (id: string): string => {
@@ -111,10 +120,9 @@ export const useRolesTabViewModel = (): RolesTabViewModel => {
       if (!permission) return id;
       const name = label(permission.name);
       if (!permission.derived) return name;
-      const resource = label(catalog.resourceNames.get(permission.resource) ?? permission.resource);
-      return t('role.qualified-name', { action: name, resource });
+      return t('role.qualified-name', { action: name, resource: resourceLabel(permission.resource) });
     },
-    [catalog, label, t],
+    [catalog, label, resourceLabel, t],
   );
 
   /**
@@ -168,11 +176,11 @@ export const useRolesTabViewModel = (): RolesTabViewModel => {
     return [...byResource.entries()]
       .map(([resource, permissions]) => ({
         resource,
-        name: label(catalog.resourceNames.get(resource) ?? resource),
+        name: resourceLabel(resource),
         permissions,
       }))
       .sort((a, b) => a.name.localeCompare(b.name));
-  }, [catalog, rowOf, label]);
+  }, [catalog, rowOf, resourceLabel]);
 
   /**
    * A busca casa com o RECURSO, com a permissão e com o nome de um PERFIL. O último importa: é o que
@@ -284,22 +292,6 @@ export const useRolesTabViewModel = (): RolesTabViewModel => {
     }
   }, [roleToDelete, deleteRole, notify, t, report]);
 
-  /**
-   * O que os gatilhos do banco não alcançam: uma versão nova do kernel pode mudar de que uma
-   * permissão depende, e nenhuma escrita acontece para acordá-los.
-   */
-  const syncMemberPermissions = useCallback(async () => {
-    setSyncing(true);
-    try {
-      const updated = await syncPermissions();
-      notify(t('role.sync.done', { count: String(updated) }), 'success');
-    } catch (err) {
-      report(err, 'role.sync.failed');
-    } finally {
-      setSyncing(false);
-    }
-  }, [syncPermissions, notify, t, report]);
-
   return {
     canManage,
     isLoading,
@@ -328,7 +320,5 @@ export const useRolesTabViewModel = (): RolesTabViewModel => {
     requestDeleteRole,
     confirmDeleteRole,
     cancelDeleteRole,
-    isSyncing,
-    syncMemberPermissions,
   };
 };

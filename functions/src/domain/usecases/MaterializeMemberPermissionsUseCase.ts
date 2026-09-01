@@ -1,6 +1,6 @@
 import type { Firestore } from 'firebase-admin/firestore';
 import type { AssignedRole } from '../schema/access';
-import { UNRESTRICTED_PERMISSION, memberPermissions } from '../schema/access';
+import { KERNEL_CATALOG_FINGERPRINT, UNRESTRICTED_PERMISSION, memberPermissions } from '../schema/access';
 import type { PermissionCatalogCache } from '../../data/services/PermissionCatalogCache';
 
 export interface MaterializeInput {
@@ -27,6 +27,10 @@ const sameSet = (a: readonly string[], b: readonly string[]): boolean =>
  * 2. **O dono do escritório recebe o curinga.** Sem isso, "nenhum perfil semeado" significaria um
  *    escritório recém-criado sem ninguém capaz de criar o primeiro perfil. Dono é fato do escritório
  *    (`Tenant.ownerId`), não papel concedido por alguém — e por isso não passa por Role nenhuma.
+ * 3. **Carimba a digital do catálogo de código junto com o conjunto.** Os dois na MESMA escrita, no
+ *    mesmo documento: é o que impede que o carimbo diga uma coisa e o conjunto materializado, outra.
+ *    É por ele que o front descobre sozinho que o kernel mudou de ideia sobre uma dependência — ver
+ *    `KERNEL_CATALOG_FINGERPRINT`.
  */
 export const makeMaterializeMemberPermissionsUseCase = (
   db: Firestore,
@@ -61,13 +65,17 @@ export const makeMaterializeMemberPermissionsUseCase = (
         // lista, ainda que vazia. Sem isso o campo nunca nasceria para quem não tem perfil, e o
         // gatilho de membro voltaria a recalcular o escritório a cada escrita nele.
         const current = Array.isArray(doc.data().permissions) ? (doc.data().permissions as string[]) : null;
+        const stamped = doc.data().permissionsCatalog as string | undefined;
         const next =
           userId === ownerId
             ? [UNRESTRICTED_PERMISSION]
             : memberPermissions(catalog, roles, roleIds).effective;
 
-        if (current !== null && sameSet(current, next)) return;
-        await doc.ref.update({ permissions: next });
+        // O carimbo entra na guarda junto com o conjunto: sem isso, um kernel que mudou uma
+        // dependência SEM mudar o resultado deste membro deixaria o documento com a digital velha, e
+        // o front pediria a mesma recomposição a cada sessão, para sempre.
+        if (current !== null && sameSet(current, next) && stamped === KERNEL_CATALOG_FINGERPRINT) return;
+        await doc.ref.update({ permissions: next, permissionsCatalog: KERNEL_CATALOG_FINGERPRINT });
         written += 1;
       }),
     );

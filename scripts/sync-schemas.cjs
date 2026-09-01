@@ -69,6 +69,7 @@ const SHARED_FILES = [
   'domain/schema/access/resolvePermissions.ts',
   'domain/schema/access/extensionPoints.ts',
   'domain/schema/access/kernelPermissions.ts',
+  'domain/schema/access/catalogFingerprint.ts',
   'domain/schema/access/memberPermissions.ts',
   'domain/schema/access/permissionGate.ts',
   'domain/schema/access/permissionPattern.ts',

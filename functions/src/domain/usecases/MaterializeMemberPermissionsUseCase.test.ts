@@ -3,6 +3,7 @@ import type { Firestore } from 'firebase-admin/firestore';
 import type { PermissionCatalog } from '../schema/access';
 import { buildPermissionCatalog } from '../schema/access';
 import type { PermissionCatalogCache } from '../../data/services/PermissionCatalogCache';
+import { KERNEL_CATALOG_FINGERPRINT } from '../schema/access';
 import { makeMaterializeMemberPermissionsUseCase } from './MaterializeMemberPermissionsUseCase';
 
 type Doc = Record<string, unknown>;
@@ -136,5 +137,25 @@ describe('MaterializeMemberPermissionsUseCase', () => {
   it('escritório inexistente não faz nada', async () => {
     const state = baseState();
     expect(await run(state, 'fantasma')).toBe(0);
+  });
+
+  it('carimba a digital do catálogo de código na MESMA escrita do conjunto', async () => {
+    const state = baseState();
+    await run(state);
+    expect(state.members.t1.ana.permissionsCatalog).toBe(KERNEL_CATALOG_FINGERPRINT);
+    expect(state.members.t1.owner.permissionsCatalog).toBe(KERNEL_CATALOG_FINGERPRINT);
+  });
+
+  /**
+   * A guarda de idempotência precisa olhar o carimbo, e não só o conjunto: um kernel que mudou uma
+   * dependência SEM mudar o resultado deste membro deixaria o documento com a digital velha, e o
+   * front pediria a mesma recomposição a cada sessão, para sempre.
+   */
+  it('recompõe quem tem o conjunto certo e o carimbo velho', async () => {
+    const state = baseState();
+    await run(state);
+    state.members.t1.ana.permissionsCatalog = 'digital-de-outra-versao';
+    expect(await run(state, 't1', ['ana'])).toBe(1);
+    expect(state.members.t1.ana.permissionsCatalog).toBe(KERNEL_CATALOG_FINGERPRINT);
   });
 });

@@ -122,11 +122,6 @@ export const CORE_ACCESS_MESSAGES: Record<string, string> = {
   'role.search.none': 'No permission matches this search.',
   'role.search.placeholder': 'Filter permissions…',
   'role.summary': '{explicit} chosen, {effective} in effect',
-  'role.sync': 'Recalculate permissions',
-  'role.sync.done': 'Permissions recalculated. {count} members updated.',
-  'role.sync.failed': 'Could not recalculate the permissions.',
-  'role.sync.hint': 'Reapplies the profiles to every member. Needed after a system update that changes what a permission depends on.',
-  'role.sync.running': 'Recalculating…',
   'role.system.locked': 'This profile is controlled by the system and cannot be changed here.',
   'role.system.protected':
     'This access profile is controlled by the system and cannot be changed or deleted.',

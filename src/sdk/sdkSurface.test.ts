@@ -93,7 +93,7 @@ const PUBLISHED = [
  */
 const PUBLISHED_TYPES = [
   'AuthProviderFlow', 'AuthProviderKind', 'AuthProviderMetadata', 'AuthProviderSpec',
-  'AccessPermission', 'AccessRequirement', 'CatalogPermission', 'CrudAction', 'DeclaredPermission', 'DeclaredRequirement', 'ParsedAccessPermission', 'PermissionCatalog', 'PermissionResource', 'ResolvedPermissions',
+  'AccessPermission', 'AccessRequirement', 'CatalogPermission', 'CrudAction', 'DeclaredPermission', 'DeclaredRequirement', 'ParsedAccessPermission', 'PermissionCatalog', 'PermissionResource', 'ResolvedPermissions', 'ResourceLabel',
   'ActionDefinition', 'ActionLocalCommand', 'ActionModuleTemplate', 'ActionOutcome', 'AggregationOp',
   'ArtifactRef',
   'AuthoredPlugin',

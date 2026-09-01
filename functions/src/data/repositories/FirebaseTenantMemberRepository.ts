@@ -43,6 +43,18 @@ export class FirebaseTenantMemberRepository implements ITenantMemberRepository {
     return Array.isArray(permissions) ? (permissions as string[]) : [];
   }
 
+  async getMemberCatalogStamp(tenantId: string, userId: string): Promise<string | null> {
+    const memberSnap = await this.db
+      .collection('tenants')
+      .doc(tenantId)
+      .collection('members')
+      .doc(userId)
+      .get();
+
+    const stamp = memberSnap.data()?.permissionsCatalog;
+    return typeof stamp === 'string' ? stamp : null;
+  }
+
   async getMember(tenantId: string, userId: string): Promise<TenantMemberInfo | null> {
     const memberSnap = await this.db
       .collection('tenants')
