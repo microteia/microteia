@@ -13,6 +13,7 @@ import type { PluginManifest } from '../../schema/plugin/pluginManifest';
 import type { ActionDefinition, ScreenDefinition } from '../../entities';
 import type { Script } from '../../entities/Script';
 import type { WorkflowDefinition, WorkflowStep } from '../../entities/Workflow';
+import { mapSteps } from '../../services/stepTree';
 import { parameterLookupCollections } from '../../schema/workflowParameters';
 import { artifactRef, isArtifactRef } from '../../schema/plugin/artifactRef';
 import { SCRIPT_ID_INPUT, TARGET_WORKFLOW_ID_INPUT } from './pluginReferences';
@@ -263,6 +264,11 @@ const foreignArtifactRefs = (
 const outgoingRef = (value: string, refs: ReadonlyMap<string, string>): string =>
   (isArtifactRef(value) ? value : (refs.get(value) ?? value));
 
+/**
+ * A reescrita percorre a ÁRVORE (`mapSteps`), e não a raiz de `steps`. Um passo dentro de um laço ou
+ * de um ramo chama outra extensão do mesmo jeito que um passo do topo; enquanto isto era um `.map`
+ * raso, o alvo aninhado saía do escritório com o id LOCAL dele, que não atende em lugar nenhum.
+ */
 const rewriteStepRefs = (step: WorkflowStep, refs: ReadonlyMap<string, string>): WorkflowStep => {
   const configuration = { ...step.configuration };
   let rewritten = false;
@@ -292,7 +298,7 @@ const workflowToTemplate = (workflow: WorkflowDefinition, refs: ReadonlyMap<stri
   stripUndefined({
     templateId: templateIdOf(workflow),
     ...omit(workflow, ['id', 'tenantId', 'ownerPluginId', 'enabled', 'createdAt', 'updatedAt']),
-    steps: (workflow.steps ?? []).map((step) => rewriteStepRefs(step, refs)),
+    steps: mapSteps(workflow.steps, (step) => rewriteStepRefs(step, refs)),
     sourceRev: workflow.updatedAt.getTime(),
   }) as WorkflowModuleTemplate;
 

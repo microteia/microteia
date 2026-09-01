@@ -1,5 +1,6 @@
 import type { MarketplacePlugin, WorkflowModuleTemplate } from '../../entities/MarketplacePlugin';
 import type { InputMapping, WorkflowStep } from '../../entities/Workflow';
+import { flattenSteps } from '../../services/stepTree';
 import {
   CONTROL_STEP_TYPES,
   UNIMPLEMENTED_STEP_TYPES,
@@ -30,15 +31,6 @@ import type { PackageRef, PackageValidationIssue } from './pluginReferences';
 const MAPPING_KINDS = ['Literal', 'Event', 'Expression', 'Output', 'Variable'];
 
 const isControl = (step: WorkflowStep): boolean => CONTROL_STEP_TYPES.includes(step.type);
-
-/** Todo passo do fluxo, incluindo os que moram dentro de ramos e de corpos de repetição. */
-const flatten = (steps: readonly WorkflowStep[] | undefined): WorkflowStep[] =>
-  (steps ?? []).flatMap((step) => [
-    step,
-    ...flatten(step.branches?.whenTrue),
-    ...flatten(step.branches?.whenFalse),
-    ...flatten(step.loop?.body),
-  ]);
 
 const isMapping = (value: unknown): value is InputMapping =>
   typeof value === 'object'
@@ -263,7 +255,7 @@ const workflowIssues = (
     id: workflow.templateId,
     from: { origin: '@core.marketplace/ref.origin.workflow', name: workflow.name },
   };
-  const steps = flatten(workflow.steps);
+  const steps = flattenSteps(workflow.steps);
 
   return [
     ...steps.flatMap((step) => stepIssues(step, ref, hasDependencies)),

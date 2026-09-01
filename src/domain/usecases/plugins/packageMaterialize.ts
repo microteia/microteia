@@ -7,6 +7,7 @@ import type {
 import type { WorkflowDefinition, WorkflowStep } from '../../entities/Workflow';
 import type { Script } from '../../entities/Script';
 import type { ActionDefinitionInput } from '../../repositories/IActionRepository';
+import { mapSteps } from '../../services/stepTree';
 import { isArtifactRef } from '../../schema/plugin/artifactRef';
 import { splitEntityEventName } from '../../schema/eventCatalog';
 import { installedScreenKey, screenEventPrefix } from './screenModule';
@@ -26,29 +27,15 @@ export type IdMap = Map<string, string>;
  * `shouldRewriteContent`.
  */
 export const rewriteStepLiteral = (steps: WorkflowStep[], inputId: string, map: IdMap): WorkflowStep[] =>
-  steps.map((step) => {
-    let next = step;
+  mapSteps(steps, (step) => {
     const mapping = step.configuration?.[inputId];
-    if (mapping && mapping.kind === 'Literal' && typeof mapping.value === 'string'
-      && !isArtifactRef(mapping.value)) {
-      const mapped = map.get(mapping.value);
-      if (mapped) {
-        next = { ...next, configuration: { ...next.configuration, [inputId]: { ...mapping, value: mapped } } };
-      }
+    if (!mapping || mapping.kind !== 'Literal' || typeof mapping.value !== 'string'
+      || isArtifactRef(mapping.value)) {
+      return step;
     }
-    if (next.branches) {
-      next = {
-        ...next,
-        branches: {
-          whenTrue: rewriteStepLiteral(next.branches.whenTrue, inputId, map),
-          whenFalse: rewriteStepLiteral(next.branches.whenFalse, inputId, map),
-        },
-      };
-    }
-    if (next.loop) {
-      next = { ...next, loop: { ...next.loop, body: rewriteStepLiteral(next.loop.body, inputId, map) } };
-    }
-    return next;
+    const mapped = map.get(mapping.value);
+    if (!mapped) return step;
+    return { ...step, configuration: { ...step.configuration, [inputId]: { ...mapping, value: mapped } } };
   });
 
 const withoutTemplateId = <T extends { templateId: string }>(template: T): Omit<T, 'templateId'> => {

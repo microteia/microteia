@@ -330,6 +330,7 @@ export const CORE_MARKETPLACE_MESSAGES: Record<string, string> = {
   'ref.origin.patch': 'patch of',
   'ref.origin.screen': 'screen',
   'ref.origin.workflow': 'automation',
+  'ref.origin.workflow-step': 'step "{step}" of automation',
   'extension.code-pending-review':
     'This extension brings a screen in code, which will only run after a system administrator publishes it in the catalog. The data was installed normally.',
   'publish.id-taken': 'This identifier was already published by another organization.',

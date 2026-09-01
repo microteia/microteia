@@ -330,6 +330,7 @@ export const CORE_MARKETPLACE: Record<string, string> = {
   'ref.origin.patch': 'complemento de',
   'ref.origin.screen': 'tela',
   'ref.origin.workflow': 'automação',
+  'ref.origin.workflow-step': 'passo "{step}" da automação',
   'extension.code-pending-review':
     'Esta extensão traz uma tela em código, que só será executada após ser publicada no catálogo por um administrador do sistema. Os dados foram instalados normalmente.',
   'publish.id-taken': 'Este identificador já foi publicado por outro escritório.',

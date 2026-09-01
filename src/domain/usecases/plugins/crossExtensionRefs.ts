@@ -186,6 +186,7 @@ export const crossRefIssue = (pkg: MarketplacePlugin, check: CrossRefCheck): Loc
     messageParams: {
       origin: ref.from.origin,
       name: ref.from.name,
+      ...(ref.from.step ? { step: ref.from.step } : {}),
       kind: REF_KIND_KEYS[ref.kind],
       id: ref.id,
       plugin: pluginId,
@@ -271,6 +272,7 @@ export const dependentRefIssues = (
           dependent: dependent.id,
           origin: ref.from.origin,
           name: ref.from.name,
+          ...(ref.from.step ? { step: ref.from.step } : {}),
           kind: REF_KIND_KEYS[ref.kind],
           id: qualified.artifactId,
         },

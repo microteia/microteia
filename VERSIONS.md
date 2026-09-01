@@ -11,6 +11,12 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.42.1] — 2026-09-01
+
+- Corrigida a conferência de uma extensão, que não enxergava o que estivesse dentro de uma repetição ou de uma condição. Uma automação que chamava um roteiro ou outra automação de dentro de um laço passava pela conferência sem nenhum aviso, era instalada, e só falhava na primeira vez que rodasse — no escritório de destino, longe de quem a escreveu.
+- Pelo mesmo motivo, o que uma extensão usava de outra também deixava de ser reconhecido quando o uso estava dentro de uma repetição: a extensão saía da mesa com um endereço que só valia no computador de quem a montou, e atualizar a extensão de origem deixava de avisar que outra dependia dela.
+- O aviso dessa conferência passa a dizer em QUAL passo está o problema, e não só em qual automação. Num fluxo com vários laços, saber apenas o nome da automação ainda deixava a procura por conta de quem lê.
+
 #### [9.42.0] — 2026-09-01
 
 - Quem monta extensões passa a encontrar, no próprio lugar em que a automação é escrita, a lista do que as outras extensões oferecem para uso — com o nome, o tipo e o endereço já pronto para copiar. Antes essa lista só aparecia nas respostas sobre cadastros e campos, que não é onde a pergunta nasce.

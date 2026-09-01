@@ -6,6 +6,7 @@ import type {
   WorkflowModuleTemplate,
 } from '../../entities/MarketplacePlugin';
 import type { InputMapping, WorkflowStep } from '../../entities/Workflow';
+import { flattenSteps } from '../../services/stepTree';
 import { getEntityByCollection, getEntityByEventPrefix } from '../../schema/entityRegistry';
 import { splitEntityEventName } from '../../schema/eventCatalog';
 import { isLookupCollection } from '../../schema/lookupRegistry';
@@ -20,10 +21,16 @@ export type RefKind = 'screen' | 'action' | 'workflow' | 'script';
 /**
  * De onde a referência partiu, em duas partes: `origin` é uma REFERÊNCIA de mensagem — "a ação",
  * "a automação" —, e `name` é o nome que o escritório deu ao artefato, que nunca traduz.
+ *
+ * `step` é o passo dentro da automação, e existe porque a recusa passou a alcançar QUALQUER
+ * profundidade da árvore: num fluxo com dois laços de cinco passos, "a automação X referencia o
+ * script Y" manda o autor procurar. Ele não muda a forma de nenhuma mensagem — entra pelo `origin`,
+ * que é uma referência aninhada e recebe os parâmetros IRMÃOS da mensagem que o embrulha.
  */
 export interface RefOrigin {
   origin: string;
   name: string;
+  step?: string;
 }
 
 export interface PackageRef {
@@ -40,6 +47,9 @@ export const REF_KIND_KEYS: Record<RefKind, string> = {
   workflow: '@core.marketplace/ref.kind.workflow',
   script: '@core.marketplace/ref.kind.script',
 };
+
+/** A origem de uma referência que nasceu DENTRO de um passo — resolve com `{step}` na frase. */
+export const WORKFLOW_STEP_ORIGIN = '@core.marketplace/ref.origin.workflow-step';
 
 /** Ids de input de Step que guardam referências a outros artefatos (Literal com o id). */
 export const SCRIPT_ID_INPUT = 'scriptId';
@@ -115,6 +125,11 @@ export const actionOutRefs = (action: ActionModuleTemplate): PackageRef[] =>
  *
  * Prefixo que nenhuma tela do pacote emite e que não é do kernel continua virando referência pelo
  * próprio nome: é o caso legítimo de uma automação que dispara com algo que o pacote não leva.
+ *
+ * A travessia é da ÁRVORE inteira (`flattenSteps`), não da raiz de `steps`. Enquanto era rasa, uma
+ * chamada a script ou a outra automação dentro de um laço ou de um ramo não virava referência — e o
+ * que não é referência não é recusado por nada aqui. O que nasce de um passo diz QUAL passo; o
+ * gatilho não é de passo nenhum, e continua nomeando só a automação.
  */
 export const workflowOutRefs = (
   workflow: WorkflowModuleTemplate,
@@ -123,11 +138,12 @@ export const workflowOutRefs = (
   const refs: PackageRef[] = [];
   const from: RefOrigin = { origin: '@core.marketplace/ref.origin.workflow', name: workflow.name };
 
-  for (const step of workflow.steps ?? []) {
+  for (const step of flattenSteps(workflow.steps)) {
+    const stepFrom: RefOrigin = { ...from, origin: WORKFLOW_STEP_ORIGIN, step: step.id };
     const scriptId = stepLiteral(step, SCRIPT_ID_INPUT);
-    if (scriptId) refs.push({ kind: 'script', id: scriptId, from });
+    if (scriptId) refs.push({ kind: 'script', id: scriptId, from: stepFrom });
     const targetWorkflowId = stepLiteral(step, TARGET_WORKFLOW_ID_INPUT);
-    if (targetWorkflowId) refs.push({ kind: 'workflow', id: targetWorkflowId, from });
+    if (targetWorkflowId) refs.push({ kind: 'workflow', id: targetWorkflowId, from: stepFrom });
   }
   const event = splitEntityEventName(workflow.eventName);
   if (event) {
@@ -372,6 +388,7 @@ export const validatePackage = (pkg: MarketplacePlugin): PackageValidationIssue[
     messageParams: {
       origin: ref.from.origin,
       name: ref.from.name,
+      ...(ref.from.step ? { step: ref.from.step } : {}),
       kind: REF_KIND_KEYS[ref.kind],
       id: ref.id,
       ...extra,

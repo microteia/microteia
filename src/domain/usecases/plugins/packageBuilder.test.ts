@@ -467,6 +467,34 @@ describe('buildPackage — a referência ao artefato de outra extensão', () => 
       .toEqual({ kind: 'Literal', value: 'com.acme.utils/normalizar-cpf' });
   });
 
+  /**
+   * O passo DENTRO de um laço ou de um ramo chama outra extensão igual ao do topo. Enquanto a
+   * reescrita era um `.map` raso, o alvo aninhado saía com o id local do escritório — e a validação,
+   * rasa pelo mesmo motivo, não tinha como recusá-lo. Um escondia o outro.
+   */
+  it('o passo aninhado em laço e em ramo também viaja qualificado', () => {
+    const pkg = buildPackage({
+      ...empty, manifest, summary: 's',
+      workflows: [workflow({
+        id: 'wf-1',
+        steps: [{
+          id: 'L', stepDefinitionId: '', type: 'Loop', order: 0, enabled: true, configuration: {},
+          loop: {
+            source: { kind: 'Literal', value: '[]' }, itemName: 'item', outputName: 'out',
+            body: [{
+              id: 'C', stepDefinitionId: '', type: 'Condition', order: 0, enabled: true, configuration: {},
+              condition: { kind: 'AlwaysTrue' },
+              branches: { whenTrue: [scriptStep('scr-local-7')], whenFalse: [] },
+            }],
+          },
+        }],
+      })],
+      installedScripts: [deOutra],
+    });
+    const dentro = pkg.workflows[0].steps[0].loop!.body[0].branches!.whenTrue[0];
+    expect(dentro.configuration.scriptId).toEqual({ kind: 'Literal', value: 'com.acme.utils/normalizar-cpf' });
+  });
+
   it('a automação de outra extensão chamada por uma ação viaja qualificada', () => {
     const pkg = buildPackage({
       ...empty, manifest, summary: 's',

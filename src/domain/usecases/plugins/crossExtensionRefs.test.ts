@@ -122,6 +122,28 @@ describe('portão da versão que deixa de trazer um artefato em uso', () => {
     pkg.workflows.push({ ...pkg.workflows[0], templateId: 'wf-2', name: 'W2' });
     expect(dependentRefIssues(utilsPackage([]), [{ id: 'com.acme.vendas', package: pkg }])).toHaveLength(1);
   });
+
+  /**
+   * O dependente que só chama de dentro de um laço é o caso que reabria este portão inteiro: enquanto
+   * a colheita de referências não descia na árvore de passos, ele era invisível aqui — a atualização
+   * passava e o dependente quebrava na primeira execução, que é exatamente o que este portão existe
+   * para não deixar acontecer.
+   */
+  it('conta o dependente que chama o artefato de dentro de um laço', () => {
+    const emLaco = consumer('nao-usado');
+    emLaco.workflows[0].steps = [{
+      id: 'L', stepDefinitionId: '', type: 'Loop', order: 0, enabled: true, configuration: {},
+      loop: {
+        source: { kind: 'Literal', value: '[]' }, itemName: 'item', outputName: 'out',
+        body: [{
+          id: 's', stepDefinitionId: 'script', type: 'Action', order: 0, enabled: true,
+          configuration: { scriptId: { kind: 'Literal', value: 'com.acme.utils/normalizar-cpf' } },
+        }],
+      },
+    }];
+    const issues = dependentRefIssues(utilsPackage([]), [{ id: 'com.acme.vendas', package: emLaco }]);
+    expect(issues.map((i) => i.message)).toEqual(['@core.marketplace/install.dependent-breaks']);
+  });
 });
 
 /**

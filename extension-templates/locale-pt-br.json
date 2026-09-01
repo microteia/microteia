@@ -3,7 +3,7 @@
   "workflows": [],
   "manifest": {
     "id": "com.microteia.locale-pt-br",
-    "version": "1.40.0",
+    "version": "1.41.0",
     "kernel": "^2.0.0",
     "name": "Português (Brasil)",
     "description": "Tradução da Microteia para português do Brasil.",
@@ -1252,6 +1252,7 @@
             "ref.origin.patch": "complemento de",
             "ref.origin.screen": "tela",
             "ref.origin.workflow": "automação",
+            "ref.origin.workflow-step": "passo \"{step}\" da automação",
             "extension.code-pending-review": "Esta extensão traz uma tela em código, que só será executada após ser publicada no catálogo por um administrador do sistema. Os dados foram instalados normalmente.",
             "publish.id-taken": "Este identificador já foi publicado por outro escritório.",
             "publish.invalid-version": "A versão \"{version}\" não é válida.",

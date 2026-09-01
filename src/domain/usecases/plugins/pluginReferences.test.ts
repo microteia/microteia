@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import type { MarketplacePlugin, ScreenModuleTemplate } from '../../entities/MarketplacePlugin';
-import { isCoreCollection, packageIssues, validatePackage, workflowOutRefs } from './pluginReferences';
+import type { WorkflowStep } from '../../entities/Workflow';
+import { isCoreCollection, packageIssues, packageOutRefs, validatePackage, workflowOutRefs } from './pluginReferences';
 
 const base = (overrides: Partial<MarketplacePlugin>): MarketplacePlugin => ({
   summary: '',
@@ -35,9 +36,10 @@ describe('workflowOutRefs', () => {
         { id: 's2', stepDefinitionId: 'call-workflow', type: 'Action', order: 1, enabled: true, configuration: { targetWorkflowId: { kind: 'Literal', value: 'wf-2' } } },
       ],
     });
+    // O que nasce de um passo diz QUAL passo; o gatilho não é de passo nenhum e nomeia só a automação.
     expect(refs).toEqual([
-      { kind: 'script', id: 'scr-1', from: { origin: '@core.marketplace/ref.origin.workflow', name: 'W' } },
-      { kind: 'workflow', id: 'wf-2', from: { origin: '@core.marketplace/ref.origin.workflow', name: 'W' } },
+      { kind: 'script', id: 'scr-1', from: { origin: '@core.marketplace/ref.origin.workflow-step', name: 'W', step: 's1' } },
+      { kind: 'workflow', id: 'wf-2', from: { origin: '@core.marketplace/ref.origin.workflow-step', name: 'W', step: 's2' } },
       { kind: 'screen', id: 'venda', from: { origin: '@core.marketplace/ref.origin.workflow', name: 'W' } },
     ]);
   });
@@ -378,5 +380,112 @@ describe('packageIssues — a porta compartilhada por export e import', () => {
       ],
     }));
     expect(issues.map((issue) => issue.message)).toEqual(['@core.marketplace/issue.migration.id-invalid']);
+  });
+});
+
+/**
+ * A referência PENDURADA dentro de um laço ou de um ramo.
+ *
+ * Quatro travessias da árvore de passos existiam neste repositório e duas não desciam — esta e a da
+ * exportação. Uma extensão em que toda chamada mora dentro de um laço passava pelo `check` sem uma
+ * recusa sequer, instalava, e só falava na primeira execução como `step.script.not-found` num log.
+ *
+ * O último caso é o que impede a próxima ocorrência da CLASSE: um passo em cada profundidade, e a
+ * afirmação de que `packageOutRefs` colhe todos. Sem ele, o próximo percurso novo volta a não descer.
+ */
+describe('validatePackage — referência dentro de laço e de ramo', () => {
+  const scriptStep = (id: string, scriptId: string): WorkflowStep => ({
+    id, stepDefinitionId: 'script', type: 'Action', order: 0, enabled: true,
+    configuration: { scriptId: { kind: 'Literal', value: scriptId } },
+  });
+
+  const callStep = (id: string, targetWorkflowId: string): WorkflowStep => ({
+    id, stepDefinitionId: 'call-workflow', type: 'Action', order: 0, enabled: true,
+    configuration: { targetWorkflowId: { kind: 'Literal', value: targetWorkflowId } },
+  });
+
+  const loop = (id: string, body: WorkflowStep[]): WorkflowStep => ({
+    id, stepDefinitionId: '', type: 'Loop', order: 0, enabled: true, configuration: {},
+    loop: { source: { kind: 'Literal', value: '[]' }, itemName: 'item', outputName: 'out', body },
+  });
+
+  const condition = (id: string, whenTrue: WorkflowStep[], whenFalse: WorkflowStep[] = []): WorkflowStep => ({
+    id, stepDefinitionId: '', type: 'Condition', order: 0, enabled: true, configuration: {},
+    condition: { kind: 'AlwaysTrue' }, branches: { whenTrue, whenFalse },
+  });
+
+  const withSteps = (steps: WorkflowStep[], overrides: Partial<MarketplacePlugin> = {}): MarketplacePlugin => base({
+    workflows: [{
+      templateId: 'wf-1', name: 'W', eventName: 'workflow.called', version: 1,
+      condition: { kind: 'AlwaysTrue' }, steps,
+    }],
+    ...overrides,
+  });
+
+  it('script ausente chamado de dentro de um laço é recusado', () => {
+    const issues = validatePackage(withSteps([loop('L', [scriptStep('s', 'scr-ausente')])]));
+    expect(issues.map((i) => i.message)).toEqual(['@core.marketplace/issue.ref.external']);
+    expect(issues[0].ref).toMatchObject({ kind: 'script', id: 'scr-ausente' });
+  });
+
+  /**
+   * A recusa NOMEIA o passo. Num fluxo com dois laços de cinco passos, "a automação X referencia o
+   * script Y" manda o autor procurar; o passo é o que faz a frase apontar. Ele viaja pelo `origin`,
+   * que é uma referência aninhada — nenhuma das mensagens de recusa mudou de forma para recebê-lo.
+   */
+  it('a recusa aninhada nomeia o passo, e a do gatilho não inventa um', () => {
+    const dentro = validatePackage(withSteps([loop('L', [scriptStep('normaliza', 'scr-ausente')])]))[0];
+    expect(dentro.messageParams).toMatchObject({
+      origin: '@core.marketplace/ref.origin.workflow-step',
+      step: 'normaliza',
+      name: 'W',
+    });
+
+    const gatilho = validatePackage(base({
+      workflows: [{
+        templateId: 'wf-1', name: 'W', eventName: 'venda.saved', version: 1,
+        condition: { kind: 'AlwaysTrue' }, steps: [],
+      }],
+    }))[0];
+    expect(gatilho.messageParams?.origin).toBe('@core.marketplace/ref.origin.workflow');
+    expect(gatilho.messageParams).not.toHaveProperty('step');
+  });
+
+  it('automação ausente chamada de dentro de um laço é recusada', () => {
+    const issues = validatePackage(withSteps([loop('L', [callStep('s', 'wf-ausente')])]));
+    expect(issues.map((i) => i.ref.id)).toEqual(['wf-ausente']);
+  });
+
+  it('script ausente chamado do ramo verdadeiro é recusado', () => {
+    expect(validatePackage(withSteps([condition('C', [scriptStep('s', 'scr-ausente')])])).map((i) => i.ref.id))
+      .toEqual(['scr-ausente']);
+  });
+
+  it('script ausente chamado do ramo falso é recusado', () => {
+    expect(validatePackage(withSteps([condition('C', [], [scriptStep('s', 'scr-ausente')])])).map((i) => i.ref.id))
+      .toEqual(['scr-ausente']);
+  });
+
+  it('referência qualificada sem a dependência declarada é recusada também dentro do laço', () => {
+    const issues = validatePackage(withSteps([loop('L', [scriptStep('s', 'com.acme.utils/normalizar')])]));
+    expect(issues.map((i) => i.message)).toEqual(['@core.marketplace/issue.ref.undeclared']);
+    expect(issues[0].messageParams?.plugin).toBe('com.acme.utils');
+  });
+
+  it('a referência aninhada satisfeita pelo pacote não vira recusa', () => {
+    const pkg = withSteps([loop('L', [scriptStep('s', 'scr-1')])], {
+      scripts: [{ templateId: 'scr-1', name: 'S', sourceTs: '', compiledJs: '', inputParams: [], outputParams: [] }],
+    });
+    expect(validatePackage(pkg)).toEqual([]);
+  });
+
+  it('packageOutRefs colhe a referência de TODA profundidade da árvore', () => {
+    const pkg = withSteps([
+      scriptStep('topo', 'a'),
+      loop('L', [scriptStep('corpo', 'b')]),
+      condition('C', [scriptStep('verdadeiro', 'c')], [scriptStep('falso', 'd')]),
+      condition('C2', [loop('L2', [scriptStep('laco-no-ramo', 'e')])]),
+    ]);
+    expect(packageOutRefs(pkg).map((ref) => ref.id).sort()).toEqual(['a', 'b', 'c', 'd', 'e']);
   });
 });
