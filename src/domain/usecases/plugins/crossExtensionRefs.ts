@@ -86,3 +86,75 @@ export const crossExtensionRefIssues = (
 
   return issues;
 };
+
+/** O que o portão precisa saber de cada extensão que já aponta para a que está sendo aplicada. */
+export interface DependentExtension {
+  id: string;
+  package: MarketplacePlugin;
+}
+
+/** Os `sourceId` que o pacote traz — o `templateId` de um artefato de id gerado É o `sourceId` dele. */
+const providedArtifactIds = (pkg: MarketplacePlugin): Set<string> => new Set([
+  ...pkg.workflows.map((template) => template.templateId),
+  ...(pkg.actions ?? []).map((template) => template.templateId),
+  ...(pkg.scripts ?? []).map((template) => template.templateId),
+]);
+
+/**
+ * O MESMO portão, no sentido inverso: a versão que chega pode ter deixado de trazer um artefato que
+ * outra extensão instalada referencia.
+ *
+ * **Por que a atualização era o caminho perigoso, e não a desinstalação.** `applyPackageArtifacts`
+ * converge, e converger inclui remover o que sumiu do pacote (`releaseVanishedGeneratedArtifacts`):
+ * a extensão dona deixa de ser dona do artefato, e ele é apagado quando não sobra dona nenhuma. O
+ * dependente continua instalado, ligado e carregado — nada o tira do ar, porque a dependência dele
+ * não sumiu, só o artefato —, e a falha só aparece na primeira execução do passo. Na desinstalação o
+ * `PluginHost` ao menos recusa carregar o dependente, com `dependency.missing` na tela.
+ *
+ * **Perder o DONO já basta para quebrar**, ainda que o documento sobreviva por ter outra dona:
+ * `findByRef` casa `sourceId` E dono, então um artefato que uma terceira extensão mantém vivo deixa
+ * de atender `com.a/x` no instante em que `com.a` sai dos donos dele.
+ *
+ * **Dependente DESLIGADO conta.** Ele não está rodando, mas a referência segue gravada no passo
+ * dele, e deixar passar trocaria a recusa de agora pela mesma falha silenciosa no dia em que o
+ * escritório o religasse — que é exatamente o que este portão existe para não fazer.
+ *
+ * O que ele NÃO cobra é o `exports` que encolheu com o artefato ainda no pacote: ali nada quebra em
+ * execução — a resolução é por `sourceId` e dono, nunca pela lista —, e o estreitamento do contrato
+ * é cobrado de quem depende, no próximo gesto dele, por `issue.ref.not-exported`.
+ */
+export const dependentRefIssues = (
+  incoming: MarketplacePlugin,
+  dependents: readonly DependentExtension[],
+): LocalizedIssue[] => {
+  const pluginId = incoming.manifest.id;
+  const provided = providedArtifactIds(incoming);
+  const issues: LocalizedIssue[] = [];
+  const seen = new Set<string>();
+
+  for (const dependent of dependents) {
+    if (dependent.id === pluginId) continue;
+    for (const ref of packageOutRefs(dependent.package)) {
+      const qualified = parseArtifactRef(ref.id);
+      if (!qualified || ref.kind === 'screen') continue;
+      if (qualified.pluginId !== pluginId || provided.has(qualified.artifactId)) continue;
+      // Dois passos do mesmo dependente apontando para o mesmo artefato são um problema só.
+      const seenKey = `${dependent.id} ${ref.id}`;
+      if (seen.has(seenKey)) continue;
+      seen.add(seenKey);
+
+      issues.push({
+        message: '@core.marketplace/install.dependent-breaks',
+        messageParams: {
+          dependent: dependent.id,
+          origin: ref.from.origin,
+          name: ref.from.name,
+          kind: REF_KIND_KEYS[ref.kind],
+          id: qualified.artifactId,
+        },
+      });
+    }
+  }
+
+  return issues;
+};

@@ -7,7 +7,7 @@ import { applyPackageArtifacts, releasePackageArtifacts, type ArtifactDeps } fro
 import { storeEvents, StoreEvents } from '../infrastructure/events/StoreEventEmitter';
 import type { InstalledExtension } from '../domain/entities/InstalledExtension';
 import { hashExtensionCode } from '../domain/usecases/plugins/extensionCodeTrust';
-import { crossExtensionRefIssues } from '../domain/usecases/plugins/crossExtensionRefs';
+import { crossExtensionRefIssues, dependentRefIssues } from '../domain/usecases/plugins/crossExtensionRefs';
 import { translationOverwriteIssue } from '../domain/usecases/i18n/translationPackage';
 import { transpileScriptSource } from '../domain/services/scriptSource';
 import { appliedMigrationIds, planPluginMigrations, pendingPluginMigrations } from '../domain/services/pluginMigrations';
@@ -211,6 +211,19 @@ export const InstalledExtensionStoreProvider: React.FC<{ children: React.ReactNo
         })),
     );
     if (missingRef) throw new LocalizedError(missingRef.message, missingRef.messageParams);
+    /**
+     * E o mesmo portão no sentido inverso, cobrado no mesmo gesto: aplicar esta versão CONVERGE os
+     * artefatos, e converger remove os que ela deixou de trazer — inclusive um que outra extensão
+     * instalada referencia. Sem esta recusa, o dependente segue instalado, ligado e carregado, e a
+     * falha só se apresenta na primeira execução do passo.
+     */
+    const [brokenDependent] = dependentRefIssues(
+      input.package,
+      installed
+        .filter((extension) => extension.id !== id)
+        .map((extension) => ({ id: extension.id, package: extension.package })),
+    );
+    if (brokenDependent) throw new LocalizedError(brokenDependent.message, brokenDependent.messageParams);
     // Cópia independente e fiel: preserva apenas o estado local `active`; todo o resto vem da fonte.
     const extension: InstalledExtension = {
       id,

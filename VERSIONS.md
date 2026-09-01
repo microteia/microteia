@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.39.1] — 2026-08-31
+
+- Atualizar uma extensão não apaga mais, em silêncio, a automação, a ação ou o script que outra extensão instalada estava usando. Quando a versão nova deixa de trazer algo que outra extensão aponta, a atualização é recusada e a mensagem diz qual extensão depende daquilo e onde — para que a escolha de seguir em frente seja de quem administra o escritório, e não uma surpresa na primeira vez que a automação rodar.
+
 #### [9.39.0] — 2026-08-31
 
 - Uma extensão passa a poder usar a automação, a ação ou o script que outra extensão já instalou, em vez de carregar uma cópia própria. Quem publica a extensão escolhe o que fica disponível para as outras; o resto continua sendo só dela.

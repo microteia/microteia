@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { MarketplacePlugin } from '../../entities/MarketplacePlugin';
-import { crossExtensionRefIssues } from './crossExtensionRefs';
+import { crossExtensionRefIssues, dependentRefIssues } from './crossExtensionRefs';
 
 const consumer = (scriptId: string): MarketplacePlugin => ({
   summary: '',
@@ -68,5 +68,58 @@ describe('portão da referência a outra extensão', () => {
     const pkg = consumer('com.acme.utils/normalizar-cpf');
     pkg.workflows.push({ ...pkg.workflows[0], templateId: 'wf-2', name: 'W2' });
     expect(crossExtensionRefIssues(pkg, [])).toHaveLength(1);
+  });
+});
+
+const utilsPackage = (scriptIds: string[]): MarketplacePlugin => ({
+  summary: '',
+  manifest: { id: 'com.acme.utils', version: '1.1.0', kernel: '^2.0.0', name: 'Utils', exports: scriptIds },
+  workflows: [],
+  scripts: scriptIds.map((templateId) => ({
+    templateId, name: templateId, sourceTs: '', compiledJs: '', inputParams: [], outputParams: [],
+  })),
+});
+
+const dependent = (scriptId: string) => ({
+  id: 'com.acme.vendas',
+  package: consumer(scriptId),
+});
+
+describe('portão da versão que deixa de trazer um artefato em uso', () => {
+  it('passa quando a versão nova continua trazendo o artefato referenciado', () => {
+    expect(dependentRefIssues(utilsPackage(['normalizar-cpf']), [dependent('com.acme.utils/normalizar-cpf')]))
+      .toEqual([]);
+  });
+
+  it('recusa quando o artefato referenciado sumiu do pacote', () => {
+    const issues = dependentRefIssues(utilsPackage([]), [dependent('com.acme.utils/normalizar-cpf')]);
+    expect(issues.map((i) => i.message)).toEqual(['@core.marketplace/install.dependent-breaks']);
+    expect(issues[0].messageParams).toMatchObject({ dependent: 'com.acme.vendas', id: 'normalizar-cpf' });
+  });
+
+  /** Perder o DONO basta: `findByRef` casa `sourceId` E dono, e outra dona não devolve este artefato. */
+  it('recusa mesmo quando outra extensão traz o mesmo artefato', () => {
+    const outra = { id: 'com.outra.lib', package: utilsPackage(['normalizar-cpf']) };
+    const issues = dependentRefIssues(utilsPackage([]), [dependent('com.acme.utils/normalizar-cpf'), outra]);
+    expect(issues).toHaveLength(1);
+  });
+
+  it('ignora o dependente que aponta para OUTRA extensão', () => {
+    expect(dependentRefIssues(utilsPackage([]), [dependent('com.terceira.lib/normalizar-cpf')])).toEqual([]);
+  });
+
+  it('ignora a referência local do dependente — ela nunca dependeu deste pacote', () => {
+    expect(dependentRefIssues(utilsPackage([]), [dependent('normalizar-cpf')])).toEqual([]);
+  });
+
+  it('ignora o próprio pacote na lista — reinstalar não é depender de si', () => {
+    const proprio = { id: 'com.acme.utils', package: consumer('com.acme.utils/normalizar-cpf') };
+    expect(dependentRefIssues(utilsPackage([]), [proprio])).toEqual([]);
+  });
+
+  it('dois passos do mesmo dependente no mesmo artefato são um problema só', () => {
+    const pkg = consumer('com.acme.utils/normalizar-cpf');
+    pkg.workflows.push({ ...pkg.workflows[0], templateId: 'wf-2', name: 'W2' });
+    expect(dependentRefIssues(utilsPackage([]), [{ id: 'com.acme.vendas', package: pkg }])).toHaveLength(1);
   });
 });

@@ -6225,12 +6225,38 @@ vez da genérica de antes: `issue.ref.undeclared` (falta a `dependencies`), `iss
 legítima), `issue.ref.self` e `issue.ref.screen-qualified`. O `exports` não é conferido ali: o
 manifesto do outro não está em mãos.
 
+**A ATUALIZAÇÃO da dona também é falha fechada** — `dependentRefIssues`, na mesma porta única e no
+mesmo gesto. `applyPackageArtifacts` CONVERGE, e converger inclui remover o que sumiu do pacote
+(`releaseVanishedGeneratedArtifacts`): a dona deixa de ser dona do artefato, e ele é apagado quando
+não sobra dona nenhuma. Era o caminho mais afiado dos dois, e não a desinstalação — ali o
+`PluginHost` ao menos recusa carregar o dependente com `dependency.missing`, enquanto aqui ele
+continua instalado, ligado e carregado, porque a dependência não sumiu, só o artefato. A falha só se
+apresentava na primeira execução do passo.
+
+Três leituras que a recusa embute:
+
+- **Perder o DONO basta para quebrar**, mesmo que o documento sobreviva por ter outra dona:
+  `findByRef` casa `sourceId` E dono, então um artefato que uma terceira extensão mantém vivo deixa
+  de atender `com.a/x` no instante em que `com.a` sai dos donos.
+- **Dependente DESLIGADO conta.** Ele não roda, mas a referência segue gravada no passo dele, e
+  deixar passar trocaria a recusa de agora pela mesma falha silenciosa quando o escritório o
+  religasse.
+- **`exports` que encolhe com o artefato ainda no pacote NÃO é recusado aqui.** Nada quebra em
+  execução — a resolução é por `sourceId` e dono, nunca pela lista —, e o estreitamento do contrato
+  é cobrado de quem depende, no próximo gesto dele, por `issue.ref.not-exported`.
+
+A DESINSTALAÇÃO da dona segue passando de propósito. Recusá-la seria o simétrico exato do portão da
+instalação, mas abriria uma armadilha: A↔B mútuo não é *instalável* (o portão recusa o primeiro),
+porém é alcançável — instala A, instala B apontando para A, atualiza A para uma versão que aponta
+para B —, e a partir daí nenhum dos dois sairia sem que alguém descobrisse sozinho que a saída é
+restaurar A por uma versão do histórico. O gesto é deliberado, o `PluginHost` denuncia, e reinstalar
+A recria o artefato pelo mesmo `sourceId`: a referência volta a resolver sem que nada tenha sido
+reescrito.
+
 **O que ainda NÃO existe:** a tela de autoria ainda não PRODUZ a referência — ela esconde o artefato
 alheio (`ownActions`/`ownWorkflows`/`ownScripts` filtram `!ownerPluginId`) e o fecho de dependências
-copia o próprio. E `releaseVanishedGeneratedArtifacts` ainda apaga por ausência de DONO, não de USO:
-uma atualização da dona que deixe de trazer o artefato o apaga com o dependente instalado e rodando.
-O catálogo offline (`installedCatalog`) também ainda omite comportamento, então quem autora fora do
-escritório não descobre o que pode referenciar.
+copia o próprio. O catálogo offline (`installedCatalog`) também ainda omite comportamento, então quem
+autora fora do escritório não descobre o que pode referenciar.
 
 **O que quebrava, e por quê.** O conteúdo de script, workflow e action só era reescrito quando a
 revisão de origem que chegava era maior (`revOf(template) > revOf(existing)`). O catálogo embutido é

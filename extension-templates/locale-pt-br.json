@@ -3,7 +3,7 @@
   "workflows": [],
   "manifest": {
     "id": "com.microteia.locale-pt-br",
-    "version": "1.38.0",
+    "version": "1.39.0",
     "kernel": "^2.0.0",
     "name": "Português (Brasil)",
     "description": "Tradução da Microteia para português do Brasil.",
@@ -1224,6 +1224,7 @@
             "issue.step.unknown-definition": "o passo \"{step}\" nomeia o passo \"{definition}\", que não está no catálogo. O pacote não declara dependência nenhuma, então ele também não pode vir de outra extensão.",
             "issue.step.unknown-input": "o passo \"{step}\" ({definition}) preenche a entrada \"{input}\", que esse passo não tem. Ele recebe: {expected}.",
             "install.dependency-missing": "Esta extensão referencia {kind} \"{id}\" da extensão \"{plugin}\", que não está instalada — instale-a antes.",
+            "install.dependent-breaks": "{origin} \"{name}\" da extensão \"{dependent}\" referencia {kind} \"{id}\", que esta versão não traz mais — atualize ou remova essa extensão antes.",
             "issue.patch.own-screen": "o complemento aponta para \"{target}\", que é uma tela do próprio pacote — declare os campos na tela, não num complemento.",
             "issue.patch.unknown-target": "o complemento aponta para \"{target}\", que não é uma coleção fixa do sistema — para estender a tela de outra extensão, use o `sourceId` dela.",
             "issue.screen.duplicate-prefix": "a tela \"{screen}\" emitiria \"{prefix}.saved\", nome que \"{taken}\" já usa neste pacote — duas coleções não podem publicar o mesmo evento.",

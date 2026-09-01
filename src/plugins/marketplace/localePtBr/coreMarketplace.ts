@@ -287,6 +287,9 @@ export const CORE_MARKETPLACE: Record<string, string> = {
     'o passo "{step}" ({definition}) preenche a entrada "{input}", que esse passo não tem. Ele recebe: {expected}.',
   'install.dependency-missing':
     'Esta extensão referencia {kind} "{id}" da extensão "{plugin}", que não está instalada — instale-a antes.',
+  'install.dependent-breaks':
+    '{origin} "{name}" da extensão "{dependent}" referencia {kind} "{id}", que esta versão não traz '
+    + 'mais — atualize ou remova essa extensão antes.',
   'issue.patch.own-screen':
     'o complemento aponta para "{target}", que é uma tela do próprio pacote — declare os campos na tela, não num complemento.',
   'issue.patch.unknown-target':
