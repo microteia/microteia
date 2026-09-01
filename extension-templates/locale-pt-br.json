@@ -3,7 +3,7 @@
   "workflows": [],
   "manifest": {
     "id": "com.microteia.locale-pt-br",
-    "version": "1.42.0",
+    "version": "1.42.1",
     "kernel": "^2.0.0",
     "name": "Português (Brasil)",
     "description": "Tradução da Microteia para português do Brasil.",
@@ -1063,7 +1063,7 @@
             "author.issue.view-title-required": "Uma tela de código precisa de um título.",
             "author.issue.view-compile": "A tela de código \"{label}\" não compila: {error}.",
             "author.issue.startup-compile": "O código de inicialização não compila: {error}.",
-            "author.issue.external-ref": "{origin} \"{source}\" referencia {kind} \"{name}\", que pertence a outra extensão. Ela será exigida na instalação.",
+            "author.issue.external-ref": "{origin} \"{source}\" referencia {kind} \"{name}\", que não está no pacote nem coberta por uma dependência declarada.",
             "author.field.id": "Identificador",
             "author.field.id.placeholder": "com.seuescritorio.vendas",
             "author.field.name.placeholder": "Vendas",

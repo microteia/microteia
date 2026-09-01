@@ -11,6 +11,7 @@ import { PERMISSION_EXTENSIONS_MANAGE } from '../../../domain/schema/access';
 import { useNotification } from '../../../stores/useNotification';
 import { buildPackage, type CarriedTemplates } from '../../../domain/usecases/plugins/packageBuilder';
 import {
+  REF_EXTERNAL_MESSAGE,
   packageOutRefs,
   packageSizeAdvisory,
 } from '../../../domain/usecases/plugins/pluginReferences';
@@ -613,15 +614,22 @@ export const usePluginAuthorViewModel = (tabKey?: string): PluginAuthorViewModel
 
   /**
    * As pendências do pacote vêm da MESMA porta que a importação usa (`validatePluginPackage`), para
-   * que exportar aqui e instalar do outro lado nunca discordem. Só a referência pendente ganha frase
-   * própria: é a única que sabe apontar o artefato, e o nome dele só existe nesta tela.
+   * que exportar aqui e instalar do outro lado nunca discordem.
+   *
+   * Só o alvo PENDENTE ganha frase própria, e o que a escolhe é a MENSAGEM — nunca a presença de
+   * `ref`. Ela existe em toda recusa que sabe de qual artefato está falando, o que inclui a
+   * integridade de passo (`workflowStepIssues`), onde o `ref` é a automação DONA do defeito e não um
+   * alvo: enquanto o `if` era `issue.ref`, um input obrigatório faltando num passo saía da tela como
+   * "a automação X referencia a automação X, que pertence a outra extensão" — a única automação em
+   * jogo apontando para si mesma, com o passo e o input, que a frase certa nomeia, jogados fora.
    */
   const issues = useMemo<string[]>(() => [
     ...validatePluginPackage(pkg).map((issue) =>
-      issue.ref
+      issue.ref && issue.message === REF_EXTERNAL_MESSAGE
         ? t('author.issue.external-ref', {
           origin: issue.ref.from.origin,
           source: issue.ref.from.name,
+          ...(issue.ref.from.step ? { step: issue.ref.from.step } : {}),
           kind: t(KIND_KEY[issue.ref.kind]),
           name: nameOf(issue.ref.kind, issue.ref.id),
         })

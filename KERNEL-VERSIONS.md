@@ -18,6 +18,11 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.43.1] — 2026-09-01
+
+- fix(plugins/author): the export screen picked the diagnostic sentence by the presence of `SdkIssue.ref`, not by the message. Every ref-bearing refusal — the eight of `validatePackage` and all of `workflowStepIssues` — was printed as `author.issue.external-ref`. A step missing a required input surfaced as `automation "X" references the automation "X", which belongs to another extension`: `workflowIssues` anchors its `ref` on the workflow that OWNS the defect, so origin and target were the same automation, and the step and input the real sentence names were discarded. The branch now keys on `REF_EXTERNAL_MESSAGE`, exported from `pluginReferences`, and forwards `ref.from.step` so a step-scoped origin no longer renders `{step}` raw.
+- fix(i18n): `author.issue.external-ref` claimed the artifact "belongs to another extension"; `issue.ref.external` means it is neither in the package nor covered by a declared dependency, which is not the same thing. Both catalogs restated, `com.microteia.locale-pt-br` at 1.42.1.
+
 #### [9.43.0] — 2026-09-01
 
 - feat(access): member permissions recompose themselves when the CODE catalog changes. The four Firestore triggers wake on writes to the database — role, member, screen, extension — and cover nothing that moves in code: a new kernel version can change what a permission depends on, and no write happens to wake them. `KERNEL_CATALOG_FINGERPRINT` (`domain/schema/access/catalogFingerprint.ts`) summarizes `id` + `requires` of the kernel catalog, plus a synthetic resource that exercises the CRUD DERIVATION — so the day "create requires read" was introduced would have moved it. `MaterializeMemberPermissionsUseCase` stamps it into `permissionsCatalog` in the SAME write as `permissions`, and the stamp joins the idempotency guard; `AuthorizationStore` compares the stamp already loaded on the member document against the one in code, and calls `syncTenantPermissions` once per office per session. The first person to open the app after an upgrade heals the whole office.

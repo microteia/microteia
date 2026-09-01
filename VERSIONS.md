@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.43.1] — 2026-09-01
+
+- Corrigido o aviso da tela de Autoria de extensão, que descrevia qualquer pendência de uma automação como se ela dependesse de outra extensão. Agora cada pendência aparece com a explicação dela — inclusive dizendo qual passo e qual campo estão incompletos.
+
 #### [9.43.0] — 2026-09-01
 
 - As permissões dos membros passam a se recompor sozinhas depois de uma atualização do sistema. Antes, uma atualização que mudasse o que uma permissão exige deixava o escritório com o cálculo antigo até alguém apertar um botão em Configurações — e quem não apertasse ficava com telas que ofereciam o que salvar recusava, sem nenhum aviso ligando uma coisa à outra. O botão "Recalcular permissões" foi removido: quem abrir o sistema primeiro depois da atualização já acerta o escritório inteiro.

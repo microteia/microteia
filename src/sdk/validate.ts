@@ -25,7 +25,11 @@ export interface SdkIssue {
   /** Só em `source: 'manifest'` — o código do diagnóstico e o caminho dentro do manifest. */
   code?: DiagnosticCode;
   path?: string;
-  /** Só em `source: 'reference'` — o artefato que ficou pendente. */
+  /**
+   * Só em `source: 'reference'` — o artefato de que a recusa FALA. Nem sempre é um alvo pendente: na
+   * integridade de passo ele é a automação DONA do defeito, e tratá-lo como alvo faz a frase dizer
+   * que a automação referencia a si mesma. Quem escolhe a frase escolhe pela `message`.
+   */
   ref?: PackageRef;
 }
 

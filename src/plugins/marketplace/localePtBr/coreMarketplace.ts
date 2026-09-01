@@ -75,7 +75,7 @@ export const CORE_MARKETPLACE: Record<string, string> = {
   'author.issue.view-compile': 'A tela de código "{label}" não compila: {error}.',
   'author.issue.startup-compile': 'O código de inicialização não compila: {error}.',
   'author.issue.external-ref':
-    '{origin} "{source}" referencia {kind} "{name}", que pertence a outra extensão. Ela será exigida na instalação.',
+    '{origin} "{source}" referencia {kind} "{name}", que não está no pacote nem coberta por uma dependência declarada.',
 
   'author.field.id': 'Identificador',
   'author.field.id.placeholder': 'com.seuescritorio.vendas',

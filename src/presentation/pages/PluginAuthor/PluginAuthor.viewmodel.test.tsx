@@ -45,7 +45,14 @@ const editingPackage = {
   summary: '@com.acme.auto/package.summary',
   screens: [{ key: 'request', titleSingular: '@com.acme.auto/screen.request', titlePlural: '@com.acme.auto/screen.request.plural', fields: [] }],
   actions: [{ templateId: 'act-review', key: 'review', title: '@com.acme.auto/action.review', workflowId: 'wf-review', order: 0, enabled: true }],
-  workflows: [{ templateId: 'wf-review', name: '@com.acme.auto/workflow.review', eventName: 'workflow.called', steps: [] }],
+  // O passo INCOMPLETO é de propósito: `call-workflow` exige `targetWorkflowId`, e é essa recusa que
+  // a tela mostrava como "referencia a automação que pertence a outra extensão".
+  workflows: [{
+    templateId: 'wf-review',
+    name: '@com.acme.auto/workflow.review',
+    eventName: 'workflow.called',
+    steps: [{ id: 'revisar', type: 'SubWorkflow', stepDefinitionId: 'call-workflow', configuration: {} }],
+  }],
   scripts: [{ templateId: 'sc-total', name: '@com.acme.auto/script.total', code: '' }],
 };
 
@@ -104,5 +111,26 @@ describe('PluginAuthor — a árvore de conteúdo fala um idioma só', () => {
 
     expect(result.current.form.name).toBe('@com.acme.auto/package.name');
     expect(result.current.form.summary).toBe('@com.acme.auto/package.summary');
+  });
+});
+
+/**
+ * A recusa que o pacote produz chega à tela com a FRASE dela. Enquanto a tela escolhia a frase pela
+ * presença de `ref`, toda recusa que sabe de qual artefato fala — e a integridade de passo sabe, com
+ * o `ref` apontando a automação DONA do defeito — saía como a frase da referência pendente: "a
+ * automação X referencia a automação X, que pertence a outra extensão", com o passo e o input, que a
+ * frase certa nomeia, jogados fora.
+ */
+describe('PluginAuthor — a pendência do pacote diz o que ela é', () => {
+  it('o defeito de um passo chega com a mensagem do passo', () => {
+    const { result } = renderHook(() => usePluginAuthorViewModel('plugin-author:com.acme.auto'));
+
+    expect(result.current.issues).toContain('@core.marketplace/issue.step.missing-input');
+  });
+
+  it('e nunca como a frase da referência pendente', () => {
+    const { result } = renderHook(() => usePluginAuthorViewModel('plugin-author:com.acme.auto'));
+
+    expect(result.current.issues).not.toContain('author.issue.external-ref');
   });
 });

@@ -51,6 +51,15 @@ export const REF_KIND_KEYS: Record<RefKind, string> = {
 /** A origem de uma referência que nasceu DENTRO de um passo — resolve com `{step}` na frase. */
 export const WORKFLOW_STEP_ORIGIN = '@core.marketplace/ref.origin.workflow-step';
 
+/**
+ * A ÚNICA recusa cujo `{id}` é um identificador local — um alvo que o pacote não leva e que
+ * dependência nenhuma cobre. É o que permite a quem tem o escritório em mãos (a tela de autoria)
+ * trocar o id pelo nome do artefato antes de mostrar a frase; toda outra recusa já nomeia o que
+ * nomeia. Exportada porque a alternativa é a apresentação comparar a chave como texto solto — e foi
+ * exatamente por não haver o que comparar que ela passou a discriminar pela presença de `ref`.
+ */
+export const REF_EXTERNAL_MESSAGE = '@core.marketplace/issue.ref.external';
+
 /** Ids de input de Step que guardam referências a outros artefatos (Literal com o id). */
 export const SCRIPT_ID_INPUT = 'scriptId';
 export const TARGET_WORKFLOW_ID_INPUT = 'targetWorkflowId';
@@ -414,7 +423,7 @@ export const validatePackage = (pkg: MarketplacePlugin): PackageValidationIssue[
     }
     if (hasRefSeparator(ref.id)) return refusal(ref, '@core.marketplace/issue.ref.malformed');
     if (bundled(ref) || coveredByDependency(ref)) return undefined;
-    return refusal(ref, '@core.marketplace/issue.ref.external');
+    return refusal(ref, REF_EXTERNAL_MESSAGE);
   };
 
   const screenSourceIds = new Set((pkg.screens ?? []).map((s) => s.sourceId ?? s.key));

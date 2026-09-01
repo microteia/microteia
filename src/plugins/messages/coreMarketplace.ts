@@ -76,7 +76,7 @@ export const CORE_MARKETPLACE_MESSAGES: Record<string, string> = {
   'author.issue.view-compile': 'The code screen "{label}" does not compile: {error}.',
   'author.issue.startup-compile': 'The startup code does not compile: {error}.',
   'author.issue.external-ref':
-    '{origin} "{source}" references {kind} "{name}", which belongs to another extension. It will be required at install time.',
+    '{origin} "{source}" references {kind} "{name}", which is not in the package and is not covered by a declared dependency.',
 
   'author.field.id': 'Identifier',
   'author.field.id.placeholder': 'com.yourfirm.sales',
