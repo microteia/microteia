@@ -87,6 +87,22 @@ export const crossExtensionRefIssues = (
   return issues;
 };
 
+/**
+ * As extensões que este pacote referencia, na ordem em que aparecem. É o que a autoria precisa para
+ * DERIVAR a `dependencies` do manifesto: o autor escolhe o artefato num seletor, nunca digita uma
+ * dependência, e sem ela o próprio `validatePackage` recusaria o pacote com `issue.ref.undeclared` —
+ * uma recusa que o autor não teria como atender pela tela.
+ */
+export const referencedExtensionIds = (pkg: MarketplacePlugin): string[] => {
+  const ids: string[] = [];
+  for (const ref of packageOutRefs(pkg)) {
+    const qualified = parseArtifactRef(ref.id);
+    if (!qualified || ref.kind === 'screen' || qualified.pluginId === pkg.manifest.id) continue;
+    if (!ids.includes(qualified.pluginId)) ids.push(qualified.pluginId);
+  }
+  return ids;
+};
+
 /** O que o portão precisa saber de cada extensão que já aponta para a que está sendo aplicada. */
 export interface DependentExtension {
   id: string;

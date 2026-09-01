@@ -21,6 +21,10 @@ export const CORE_MARKETPLACE_MESSAGES: Record<string, string> = {
   'author.identification': 'Identification',
   'author.content': 'Content',
   'author.issues': 'Pending items',
+  'author.dependencies':
+    'This package points at artifacts of {list}, so it now requires those extensions: an office can '
+    + 'only install it after installing them.',
+  'author.dependencies.join': ', ',
   'author.id.locked': 'The identifier is fixed after creation.',
   'author.id.hint': 'Reverse DNS, at least two segments.',
   'author.field.name': 'Name',

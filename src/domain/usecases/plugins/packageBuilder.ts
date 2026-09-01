@@ -12,8 +12,10 @@ import type { PluginMigration } from '../../schema/plugin/migration';
 import type { PluginManifest } from '../../schema/plugin/pluginManifest';
 import type { ActionDefinition, ScreenDefinition } from '../../entities';
 import type { Script } from '../../entities/Script';
-import type { WorkflowDefinition } from '../../entities/Workflow';
+import type { WorkflowDefinition, WorkflowStep } from '../../entities/Workflow';
 import { parameterLookupCollections } from '../../schema/workflowParameters';
+import { artifactRef, isArtifactRef } from '../../schema/plugin/artifactRef';
+import { SCRIPT_ID_INPUT, TARGET_WORKFLOW_ID_INPUT } from './pluginReferences';
 
 export interface PackageSelection {
   screens: ScreenDefinition[];
@@ -61,6 +63,14 @@ export interface BuildPackageInput extends PackageSelection {
    */
   installedScreens?: ScreenDefinition[];
   installedActions?: ActionDefinition[];
+  /**
+   * Automações e scripts VIVOS do escritório. Servem à referência de SAÍDA: um passo que aponta para
+   * o artefato de OUTRA extensão viaja como `<pluginId>/<sourceId>`, e é aqui que se descobre de quem
+   * o id local guardado no passo é. Sem eles, a exportação continua emitindo o id local — que só
+   * existe neste escritório — e `validatePackage` recusa, com razão.
+   */
+  installedWorkflows?: WorkflowDefinition[];
+  installedScripts?: Script[];
 }
 
 const dedupeBy = <T>(items: T[], keyOf: (item: T) => string): T[] => {
@@ -229,20 +239,60 @@ const screenToPatch = (
 const templateIdOf = (artifact: { id: string; sourceId?: string | null }): string =>
   artifact.sourceId ?? artifact.id;
 
-const actionToTemplate = (action: ActionDefinition): ActionModuleTemplate =>
+/**
+ * Id LOCAL → referência QUALIFICADA, para os artefatos de OUTRA extensão que este escritório tem.
+ *
+ * É o que faz a tela de autoria PRODUZIR a referência: o seletor de um passo guarda o id local do
+ * alvo, que só existe aqui, e a exportação o troca pelo nome que atende em qualquer escritório.
+ *
+ * **Só o artefato alheio entra no mapa**, e não por economia: um artefato do escritório não tem
+ * `ownerPluginId`, e `sourceId` e `ownerPluginId` são gravados JUNTOS na materialização — logo o id
+ * local dele já É o `templateId`, e mapeá-lo seria trocar um nome certo por ele mesmo. É essa
+ * coincidência que mantém o fecho de dependências da autoria comparando ids locais.
+ */
+const foreignArtifactRefs = (
+  artifacts: readonly { id: string; sourceId?: string | null; ownerPluginId?: string | null }[],
+  selfPluginId: string,
+): Map<string, string> => new Map(
+  artifacts
+    .filter((artifact) => !!artifact.ownerPluginId && artifact.ownerPluginId !== selfPluginId && !!artifact.sourceId)
+    .map((artifact) => [artifact.id, artifactRef(artifact.ownerPluginId as string, artifact.sourceId as string)]),
+);
+
+/** Referência já qualificada fica em paz: ela não é id local de nada, e o mapa não a alcança. */
+const outgoingRef = (value: string, refs: ReadonlyMap<string, string>): string =>
+  (isArtifactRef(value) ? value : (refs.get(value) ?? value));
+
+const rewriteStepRefs = (step: WorkflowStep, refs: ReadonlyMap<string, string>): WorkflowStep => {
+  const configuration = { ...step.configuration };
+  let rewritten = false;
+  for (const inputId of [SCRIPT_ID_INPUT, TARGET_WORKFLOW_ID_INPUT]) {
+    const mapping = configuration[inputId];
+    if (!mapping || mapping.kind !== 'Literal' || typeof mapping.value !== 'string') continue;
+    const value = outgoingRef(mapping.value, refs);
+    if (value === mapping.value) continue;
+    configuration[inputId] = { ...mapping, value };
+    rewritten = true;
+  }
+  return rewritten ? { ...step, configuration } : step;
+};
+
+const actionToTemplate = (action: ActionDefinition, refs: ReadonlyMap<string, string>): ActionModuleTemplate =>
   stripUndefined({
     templateId: templateIdOf(action),
     ...omit(action, [
       'id', 'tenantId', 'ownerPluginId',
       'createdAt', 'createdBy', 'updatedAt', 'updatedBy', 'updatedByName', 'updatedByPhotoURL',
     ]),
+    ...(action.workflowId ? { workflowId: outgoingRef(action.workflowId, refs) } : {}),
     sourceRev: action.updatedAt.getTime(),
   }) as ActionModuleTemplate;
 
-const workflowToTemplate = (workflow: WorkflowDefinition): WorkflowModuleTemplate =>
+const workflowToTemplate = (workflow: WorkflowDefinition, refs: ReadonlyMap<string, string>): WorkflowModuleTemplate =>
   stripUndefined({
     templateId: templateIdOf(workflow),
     ...omit(workflow, ['id', 'tenantId', 'ownerPluginId', 'enabled', 'createdAt', 'updatedAt']),
+    steps: (workflow.steps ?? []).map((step) => rewriteStepRefs(step, refs)),
     sourceRev: workflow.updatedAt.getTime(),
   }) as WorkflowModuleTemplate;
 
@@ -323,8 +373,17 @@ export const buildPackage = (input: BuildPackageInput): MarketplacePlugin => {
       : template;
   });
 
+  // O alvo de um passo (ou de uma ação) que é de OUTRA extensão: id local aqui, nome qualificado lá.
+  const foreignRefs = foreignArtifactRefs(
+    [...(input.installedWorkflows ?? []), ...(input.installedScripts ?? [])],
+    input.manifest.id,
+  );
+
   const screens = dedupeBy([...input.screens.map(screenToTemplate), ...carriedScreens], (s) => s.key);
-  const actions = dedupeBy([...input.actions.map(actionToTemplate), ...(input.carried?.actions ?? [])], (a) => a.templateId);
+  const actions = dedupeBy(
+    [...input.actions.map((action) => actionToTemplate(action, foreignRefs)), ...(input.carried?.actions ?? [])],
+    (a) => a.templateId,
+  );
 
   /**
    * Ação INSTALADA → `templateId`, só para as que este pacote leva. É o mesmo par de mapas que
@@ -350,7 +409,10 @@ export const buildPackage = (input: BuildPackageInput): MarketplacePlugin => {
   );
   const tagLists = collectTagLists(screens, input.availableTagLists ?? []);
   const scripts = dedupeBy([...input.scripts.map(scriptToTemplate), ...(input.carried?.scripts ?? [])], (s) => s.templateId);
-  const workflows = dedupeBy([...input.workflows.map(workflowToTemplate), ...(input.carried?.workflows ?? [])], (w) => w.templateId);
+  const workflows = dedupeBy(
+    [...input.workflows.map((workflow) => workflowToTemplate(workflow, foreignRefs)), ...(input.carried?.workflows ?? [])],
+    (w) => w.templateId,
+  );
   // As listas e etiquetas que o pacote referencia — os campos do complemento junto com os das telas,
   // porque um campo de seleção acrescentado a `persons` precisa da lista dele declarada igual, e os
   // PARÂMETROS de fluxos e scripts, porque um fluxo que pede "Situação" precisa chegar com a lista

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { buildPackage } from './packageBuilder';
 import { validatePackage } from './pluginReferences';
+import { referencedExtensionIds } from './crossExtensionRefs';
 import { serializePackage, parsePackage } from './packageSerialization';
 import type { ScreenDefinition, ActionDefinition } from '../../entities';
 import type { Script } from '../../entities/Script';
@@ -440,5 +441,109 @@ describe('buildPackage — reexportar uma extensão em edição', () => {
       installedScreens: [],
     });
     expect(pkg.screens?.[0]).toEqual(carriedTemplate);
+  });
+});
+
+/**
+ * O passo guarda o id LOCAL do alvo, porque é ele que o seletor da automação oferece. Quando o alvo é
+ * de outra extensão, esse id só existe neste escritório — e é a exportação que o troca pelo nome que
+ * atende em qualquer um.
+ */
+describe('buildPackage — a referência ao artefato de outra extensão', () => {
+  const scriptStep = (scriptId: string) => ({
+    id: 's1', stepDefinitionId: 'script', type: 'Action' as const, order: 0, enabled: true,
+    configuration: { scriptId: { kind: 'Literal' as const, value: scriptId } },
+  });
+
+  const deOutra = script({ id: 'scr-local-7', sourceId: 'normalizar-cpf', ownerPluginId: 'com.acme.utils' });
+
+  it('o passo que aponta para o script de outra extensão viaja qualificado', () => {
+    const pkg = buildPackage({
+      ...empty, manifest, summary: 's',
+      workflows: [workflow({ id: 'wf-1', steps: [scriptStep('scr-local-7')] })],
+      installedScripts: [deOutra],
+    });
+    expect(pkg.workflows[0].steps[0].configuration.scriptId)
+      .toEqual({ kind: 'Literal', value: 'com.acme.utils/normalizar-cpf' });
+  });
+
+  it('a automação de outra extensão chamada por uma ação viaja qualificada', () => {
+    const pkg = buildPackage({
+      ...empty, manifest, summary: 's',
+      actions: [action({ id: 'act-1', workflowId: 'wf-de-outra' })],
+      installedWorkflows: [workflow({ id: 'wf-de-outra', sourceId: 'notificar', ownerPluginId: 'com.acme.utils' })],
+    });
+    expect(pkg.actions?.[0].workflowId).toBe('com.acme.utils/notificar');
+  });
+
+  /** Own = sem `ownerPluginId`, e `sourceId` só é gravado junto com ele: o id local já é o certo. */
+  it('o alvo do próprio escritório continua viajando pelo id local', () => {
+    const pkg = buildPackage({
+      ...empty, manifest, summary: 's',
+      workflows: [workflow({ id: 'wf-1', steps: [scriptStep('scr-1')] })],
+      scripts: [script({ id: 'scr-1' })],
+      installedScripts: [script({ id: 'scr-1' })],
+    });
+    expect(pkg.workflows[0].steps[0].configuration.scriptId)
+      .toEqual({ kind: 'Literal', value: 'scr-1' });
+    expect(validatePackage(pkg)).toEqual([]);
+  });
+
+  /** Editar a própria extensão instalada não é apontar para fora — ela não vira dependência de si. */
+  it('o artefato da extensão em EDIÇÃO não vira referência qualificada', () => {
+    const pkg = buildPackage({
+      ...empty, manifest, summary: 's',
+      workflows: [workflow({ id: 'wf-1', steps: [scriptStep('scr-meu')] })],
+      scripts: [script({ id: 'scr-meu', sourceId: 'meu-script', ownerPluginId: 'com.acme.vendas' })],
+      installedScripts: [script({ id: 'scr-meu', sourceId: 'meu-script', ownerPluginId: 'com.acme.vendas' })],
+    });
+    expect(pkg.workflows[0].steps[0].configuration.scriptId)
+      .toEqual({ kind: 'Literal', value: 'scr-meu' });
+  });
+
+  it('referência já qualificada fica em paz', () => {
+    const pkg = buildPackage({
+      ...empty, manifest, summary: 's',
+      workflows: [workflow({ id: 'wf-1', steps: [scriptStep('com.acme.utils/normalizar-cpf')] })],
+      installedScripts: [deOutra],
+    });
+    expect(pkg.workflows[0].steps[0].configuration.scriptId)
+      .toEqual({ kind: 'Literal', value: 'com.acme.utils/normalizar-cpf' });
+  });
+
+  it('um alvo que não é literal não é tocado', () => {
+    const dynamic = {
+      id: 's1', stepDefinitionId: 'script', type: 'Action' as const, order: 0, enabled: true,
+      configuration: { scriptId: { kind: 'Output' as const, stepId: 's0', outputId: 'id' } },
+    };
+    const pkg = buildPackage({
+      ...empty, manifest, summary: 's',
+      workflows: [workflow({ id: 'wf-1', steps: [dynamic] })],
+      installedScripts: [deOutra],
+    });
+    expect(pkg.workflows[0].steps[0].configuration.scriptId).toEqual(dynamic.configuration.scriptId);
+  });
+
+  it('com a dependência declarada, o pacote qualificado passa na validação de integridade', () => {
+    const pkg = buildPackage({
+      ...empty,
+      manifest: { ...manifest, dependencies: { 'com.acme.utils': '^1.0.0' } },
+      summary: 's',
+      workflows: [workflow({ id: 'wf-1', steps: [scriptStep('scr-local-7')] })],
+      installedScripts: [deOutra],
+    });
+    expect(validatePackage(pkg)).toEqual([]);
+    expect(referencedExtensionIds(pkg)).toEqual(['com.acme.utils']);
+  });
+
+  it('sem a dependência declarada, a recusa diz qual extensão falta', () => {
+    const pkg = buildPackage({
+      ...empty, manifest, summary: 's',
+      workflows: [workflow({ id: 'wf-1', steps: [scriptStep('scr-local-7')] })],
+      installedScripts: [deOutra],
+    });
+    const issues = validatePackage(pkg);
+    expect(issues.map((i) => i.message)).toEqual(['@core.marketplace/issue.ref.undeclared']);
+    expect(issues[0].messageParams).toMatchObject({ plugin: 'com.acme.utils' });
   });
 });

@@ -20,6 +20,10 @@ export const CORE_MARKETPLACE: Record<string, string> = {
   'author.identification': 'Identificação',
   'author.content': 'Conteúdo',
   'author.issues': 'Pendências',
+  'author.dependencies':
+    'Este pacote aponta para artefatos de {list}, e por isso passa a exigir essas extensões: um '
+    + 'escritório só consegue instalá-lo depois de instalar cada uma.',
+  'author.dependencies.join': ', ',
   'author.id.locked': 'O identificador é fixo após a criação.',
   'author.id.hint': 'DNS reverso, ao menos dois segmentos.',
   'author.field.name': 'Nome',

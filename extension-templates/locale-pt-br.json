@@ -3,7 +3,7 @@
   "workflows": [],
   "manifest": {
     "id": "com.microteia.locale-pt-br",
-    "version": "1.39.0",
+    "version": "1.40.0",
     "kernel": "^2.0.0",
     "name": "Português (Brasil)",
     "description": "Tradução da Microteia para português do Brasil.",
@@ -1017,6 +1017,8 @@
             "author.identification": "Identificação",
             "author.content": "Conteúdo",
             "author.issues": "Pendências",
+            "author.dependencies": "Este pacote aponta para artefatos de {list}, e por isso passa a exigir essas extensões: um escritório só consegue instalá-lo depois de instalar cada uma.",
+            "author.dependencies.join": ", ",
             "author.id.locked": "O identificador é fixo após a criação.",
             "author.id.hint": "DNS reverso, ao menos dois segmentos.",
             "author.field.name": "Nome",

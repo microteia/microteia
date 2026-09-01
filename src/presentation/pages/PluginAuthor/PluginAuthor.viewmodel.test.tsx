@@ -55,6 +55,9 @@ vi.mock('../../../stores/useTenantExtensions', () => ({
     extensionOf: () => ({ package: editingPackage }),
   }),
 }));
+vi.mock('../../../stores/useInstalledExtensions', () => ({
+  useInstalledExtensions: () => ({ installed: [] }),
+}));
 vi.mock('../../../stores/useWorkspace', () => ({ useWorkspace: () => ({ openTab: vi.fn() }) }));
 vi.mock('../../../stores/useScreenDefinitions', () => ({
   useScreenDefinitions: () => ({ definitions: [ownScreen] }),

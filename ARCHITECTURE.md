@@ -6253,10 +6253,38 @@ restaurar A por uma versão do histórico. O gesto é deliberado, o `PluginHost`
 A recria o artefato pelo mesmo `sourceId`: a referência volta a resolver sem que nada tenha sido
 reescrito.
 
-**O que ainda NÃO existe:** a tela de autoria ainda não PRODUZ a referência — ela esconde o artefato
-alheio (`ownActions`/`ownWorkflows`/`ownScripts` filtram `!ownerPluginId`) e o fecho de dependências
-copia o próprio. O catálogo offline (`installedCatalog`) também ainda omite comportamento, então quem
-autora fora do escritório não descobre o que pode referenciar.
+#### Quem PRODUZ a referência é a exportação, não o seletor
+
+O seletor de alvo de um passo sempre ofereceu a automação e o script de outra extensão — eles estão
+no escritório como qualquer outro — e sempre gravou o **id local** deles, que é o que o motor resolve
+aqui. Faltava a outra ponta: esse id só existe neste escritório, e a exportação o emitia cru. O
+pacote referenciava um artefato que não incluía, `validatePackage` recusava com `issue.ref.external`,
+e a recusa não tinha como ser atendida pela tela — só editando o `.ts` à mão.
+
+`buildPackage` agora traduz a referência de SAÍDA: id local → `<pluginId>/<sourceId>`, para os passos
+(`scriptId`, `targetWorkflowId`) e para a automação que uma ação chama (`workflowId`). É o mesmo
+movimento que `toTemplateRefs` já fazia com tela e ação, no mesmo ponto — a fronteira do pacote.
+
+**Só o artefato ALHEIO entra no mapa**, e não por economia: `sourceId` e `ownerPluginId` são gravados
+JUNTOS na materialização, então um artefato do escritório não tem nem um nem outro e o id local dele
+já É o `templateId`. É essa coincidência que deixa o fecho de dependências da autoria continuar
+comparando ids locais, e é ela que faz a tradução ser desnecessária no caso comum. Referência já
+qualificada fica em paz; alvo que não é `Literal` — a saída de um passo anterior — não é referência a
+artefato nenhum e não se toca.
+
+**A `dependencies` é DERIVADA, como já era a de `core.ui`.** O autor escolhe num seletor e não tem
+por que saber que aquilo virou requisito de instalação; a faixa é `^` sobre a versão INSTALADA aqui,
+a única que se sabe verdadeira. Extensão referenciada que não esteja instalada não entra — e aí a
+recusa de integridade é a resposta certa, porque não há versão a declarar.
+
+E o autor é AVISADO, num `InfoBanner`: o pacote passou a exigir aquelas extensões, e o escritório que
+o receber só instala depois de instalar cada uma. Sem o aviso, a primeira notícia da exigência seria
+a recusa do portão, do outro lado, para alguém que não fez a escolha.
+
+**O que ainda NÃO existe:** o catálogo offline (`installedCatalog`) ainda omite comportamento, então
+quem autora fora do escritório não descobre o que pode referenciar. E a ação de outra extensão
+pendurada numa tela continua não viajando: a identidade de uma ação numa tela é resolvida por id
+local no render, sem `findByRef`, e qualificar ali exigiria um mecanismo que ainda não existe.
 
 **O que quebrava, e por quê.** O conteúdo de script, workflow e action só era reescrito quando a
 revisão de origem que chegava era maior (`revOf(template) > revOf(existing)`). O catálogo embutido é

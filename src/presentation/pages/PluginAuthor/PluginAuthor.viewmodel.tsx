@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useTenantExtensions } from '../../../stores/useTenantExtensions';
+import { useInstalledExtensions } from '../../../stores/useInstalledExtensions';
 import { useWorkspace } from '../../../stores/useWorkspace';
 import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
 import { useActions } from '../../../stores/useActions';
@@ -13,6 +14,7 @@ import {
   packageOutRefs,
   packageSizeAdvisory,
 } from '../../../domain/usecases/plugins/pluginReferences';
+import { referencedExtensionIds } from '../../../domain/usecases/plugins/crossExtensionRefs';
 import { serializePackage } from '../../../domain/usecases/plugins/packageSerialization';
 import { isValidPluginId } from '../../../domain/schema/plugin/pluginManifest';
 import { validatePluginPackage } from '../../../sdk/validate';
@@ -120,6 +122,8 @@ export interface PluginAuthorViewModel {
   issues: string[];
   /** Aviso de tamanho: o pacote instala, mas está a caminho do limite do documento. */
   sizeAdvisory?: string;
+  /** As extensões que este pacote passou a exigir por apontar para um artefato delas. */
+  dependencyNotice?: string;
   canExport: boolean;
   canSave: boolean;
   busy: boolean;
@@ -159,6 +163,7 @@ const patchSummaryOf = (t: TranslateFn, screen: ScreenDefinition, ownActionIds: 
 export const usePluginAuthorViewModel = (tabKey?: string): PluginAuthorViewModel => {
   const label = useLabel();
   const { saveExtension, extensionOf } = useTenantExtensions();
+  const { installed } = useInstalledExtensions();
   const { openTab } = useWorkspace();
   const { definitions } = useScreenDefinitions();
   const { actions } = useActions();
@@ -410,6 +415,10 @@ export const usePluginAuthorViewModel = (tabKey?: string): PluginAuthorViewModel
         actions: ownActions.filter((a) => has('actions', a.id)),
         workflows: ownWorkflows.filter((w) => has('workflows', w.id)),
         scripts: ownScripts.filter((s) => has('scripts', s.id)),
+        // O fecho enxerga o MESMO pacote que a exportação: o alvo de outra extensão já sai daqui
+        // qualificado, e é por não estar em `availById` que ele não é puxado para dentro.
+        installedWorkflows: workflows,
+        installedScripts: scripts,
       });
       for (const ref of packageOutRefs(pkg)) {
         const plural = `${ref.kind}s` as ArtifactKind;
@@ -420,7 +429,7 @@ export const usePluginAuthorViewModel = (tabKey?: string): PluginAuthorViewModel
       }
     }
     return req;
-  }, [availById, ownScreens, patchableScreens, ownActions, ownWorkflows, ownScripts, screenIds, patchIds, actionIds, workflowIds, scriptIds]);
+  }, [availById, ownScreens, patchableScreens, ownActions, ownWorkflows, ownScripts, workflows, scripts, screenIds, patchIds, actionIds, workflowIds, scriptIds]);
 
   const effective = useMemo(() => ({
     screens: union(screenIds, required.screens),
@@ -531,8 +540,18 @@ export const usePluginAuthorViewModel = (tabKey?: string): PluginAuthorViewModel
     [selection, views.length, foreignCarried],
   );
 
-  const pkg = useMemo<MarketplacePlugin>(
-    () => buildPackage({
+  /**
+   * A dependência de OUTRA extensão é DERIVADA, nunca digitada — como já era a de `core.ui`. O autor
+   * escolhe o artefato num seletor e não tem por que saber que aquilo virou um requisito de
+   * instalação; sem a entrada correspondente, `validatePackage` recusaria o pacote dele com
+   * `issue.ref.undeclared`, uma recusa que a tela não lhe daria como atender.
+   *
+   * A faixa é `^` sobre a versão INSTALADA aqui: é a única que se sabe verdadeira, e é a que diz que
+   * uma major da outra extensão deixa de servir. Extensão referenciada que não esteja instalada não
+   * entra — e aí a recusa de integridade é a resposta certa.
+   */
+  const pkg = useMemo<MarketplacePlugin>(() => {
+    const built = buildPackage({
       ...selection,
       manifest,
       summary: form.summary.trim(),
@@ -546,9 +565,25 @@ export const usePluginAuthorViewModel = (tabKey?: string): PluginAuthorViewModel
       // carregado é reancorado, senão reexportar reemitiria a versão velha.
       installedScreens: definitions,
       installedActions: actions,
-    }),
-    [selection, manifest, form.summary, viewTemplates, startup, foreignCarried, definitions, actions, editingPackage],
-  );
+      // E é daqui que sai o nome qualificado do alvo que pertence a outra extensão.
+      installedWorkflows: workflows,
+      installedScripts: scripts,
+    });
+    const derived = Object.fromEntries(
+      referencedExtensionIds(built)
+        .map((id) => [id, installed.find((extension) => extension.id === id)?.installedVersion])
+        .filter((entry): entry is [string, string] => entry[1] !== undefined)
+        .map(([id, version]) => [id, `^${version}`]),
+    );
+    if (Object.keys(derived).length === 0) return built;
+    return {
+      ...built,
+      manifest: { ...built.manifest, dependencies: { ...built.manifest.dependencies, ...derived } },
+    };
+  }, [
+    selection, manifest, form.summary, viewTemplates, startup, foreignCarried, definitions, actions,
+    workflows, scripts, installed, editingPackage,
+  ]);
 
   const nameOf = useCallback((kind: RefKind, id: string): string => {
     switch (kind) {
@@ -595,6 +630,21 @@ export const usePluginAuthorViewModel = (tabKey?: string): PluginAuthorViewModel
     ...viewIssues,
     ...(startupError ? [t('author.issue.startup-compile', { error: startupError })] : []),
   ], [pkg, nameOf, viewIssues, startupError, t, label]);
+
+  /**
+   * O autor escolheu o artefato num seletor; quem lê o aviso descobre que a escolha virou requisito
+   * de instalação. Sem ele, a extensão sai daqui exigindo outra sem que ninguém tenha dito isso, e a
+   * primeira notícia é a recusa no escritório que tentar instalar.
+   */
+  const dependencyNotice = useMemo(() => {
+    const ids = referencedExtensionIds(pkg);
+    if (ids.length === 0) return undefined;
+    const names = ids.map((id) => {
+      const extension = installed.find((candidate) => candidate.id === id);
+      return extension ? `${label(extension.package.manifest.name)} ${extension.installedVersion}` : id;
+    });
+    return t('author.dependencies', { list: names.join(t('author.dependencies.join')) });
+  }, [pkg, installed, label, t]);
 
   /** Não bloqueia exportar — só avisa que o pacote está a caminho do limite do documento. */
   const sizeAdvisory = useMemo(() => {
@@ -665,6 +715,7 @@ export const usePluginAuthorViewModel = (tabKey?: string): PluginAuthorViewModel
     selectedCount,
     issues,
     sizeAdvisory,
+    dependencyNotice,
     canExport,
     canSave,
     busy,

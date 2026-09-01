@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.40.0] — 2026-08-31
+
+- Ao montar uma extensão, uma automação que usa o script ou o fluxo trazido por outra extensão já pode ser empacotada como está. Antes esse uso virava uma pendência impossível de resolver pela tela, e a saída era duplicar o script dentro da sua extensão.
+- A tela de criação de extensão avisa, em destaque, quando o pacote passou a depender de outras extensões, dizendo quais — para que ninguém descubra a exigência só quando outro escritório tentar instalar.
+
 #### [9.39.1] — 2026-08-31
 
 - Atualizar uma extensão não apaga mais, em silêncio, a automação, a ação ou o script que outra extensão instalada estava usando. Quando a versão nova deixa de trazer algo que outra extensão aponta, a atualização é recusada e a mensagem diz qual extensão depende daquilo e onde — para que a escolha de seguir em frente seja de quem administra o escritório, e não uma surpresa na primeira vez que a automação rodar.

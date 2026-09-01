@@ -202,6 +202,12 @@ export const PluginAuthorView: React.FC<{ tabKey?: string }> = ({ tabKey }) => {
           </S.TreeContainer>
         </S.Section>
 
+        {vm.dependencyNotice && vm.selectedCount > 0 && (
+          <S.Section>
+            <InfoBanner message={vm.dependencyNotice} variant="info" />
+          </S.Section>
+        )}
+
         {vm.sizeAdvisory && vm.selectedCount > 0 && (
           <S.Section>
             <InfoBanner message={vm.sizeAdvisory} />
