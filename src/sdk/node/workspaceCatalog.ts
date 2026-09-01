@@ -2,6 +2,8 @@ import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import type { MarketplacePlugin, ScreenModuleTemplate } from '../../domain/entities/MarketplacePlugin';
 import type { SchemaLookup } from '../../domain/schema/screenEntity';
+import type { ExportedArtifact } from '../../domain/usecases/plugins/crossExtensionRefs';
+import { exportedSurface } from '../../domain/usecases/plugins/crossExtensionRefs';
 import type { CatalogException, CatalogScreenInput, DomainCatalog } from '../domain/catalog';
 import { buildDomainCatalog, collectionOfScreen } from '../domain/catalog';
 import { DOMAIN_MODEL_FILE, parseDomainModel } from '../domain/domainModel';
@@ -146,6 +148,19 @@ export interface WorkspaceCatalog {
   ruleLedger: RuleLedger;
   /** Os pacotes que compilaram, e o que cada um contribuiu. */
   sources: { path: string; pluginId: string; screens: number; lookups: number }[];
+  /**
+   * A SUPERFÍCIE PÚBLICA de cada pacote deste diretório — o que uma extensão daqui pode referenciar
+   * de uma IRMÃ daqui.
+   *
+   * O retrato da instalação não alcança este caso, e ele é o mais comum de todos: o escritório escreve
+   * a `utils` e a extensão que a usa lado a lado, e a `utils` ainda não está instalada em lugar nenhum.
+   * Enquanto isto não viajava, o que se enxergava da irmã era id, versão e problemas — nunca o nome de
+   * nada dentro dela.
+   *
+   * Aqui a lista vazia é AFIRMAÇÃO, ao contrário do retrato: o `plugin.ts` está na mão, e um pacote sem
+   * `exports` não expõe nada mesmo.
+   */
+  authored: { path: string; pluginId: string; version: string; exports: ExportedArtifact[] }[];
   /** Os que NÃO compilaram. O catálogo segue sem eles, e quem lê fica sabendo. */
   failures: { path: string; error: string }[];
   /** Os `domain-model.json` lidos, e quantas exceções cada um trouxe. */
@@ -197,6 +212,7 @@ export const readWorkspaceCatalog = (
   const lookups: SchemaLookup[] = [];
   const tagLists: SchemaLookup[] = [];
   const sources: WorkspaceCatalog['sources'] = [];
+  const authored: WorkspaceCatalog['authored'] = [];
   const failures: WorkspaceCatalog['failures'] = [];
   const models: WorkspaceCatalog['models'] = [];
   const ledgers: WorkspaceCatalog['ledgers'] = [];
@@ -229,6 +245,12 @@ export const readWorkspaceCatalog = (
         pluginId: pkg.manifest.id,
         screens: own.length,
         lookups: (pkg.lookups ?? []).length,
+      });
+      authored.push({
+        path: relative(root, entry),
+        pluginId: pkg.manifest.id,
+        version: pkg.manifest.version,
+        exports: exportedSurface(pkg),
       });
     } catch (error) {
       failures.push({ path: relative(root, entry), error: error instanceof Error ? error.message : String(error) });
@@ -315,6 +337,7 @@ export const readWorkspaceCatalog = (
     catalog: buildDomainCatalog(screens, lookups, tagLists, exceptions),
     ruleLedger: { version: RULE_LEDGER_VERSION, rules: ruleEntries },
     sources,
+    authored,
     failures,
     models,
     ledgers,

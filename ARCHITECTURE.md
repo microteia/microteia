@@ -2220,13 +2220,16 @@ a validação é a mesma função que a instalação chama.
 | `validate_plugin`, `build_plugin` | `src/sdk/validate.ts`, `src/sdk/node/compile.ts` |
 | `list_extension_points` | `UI_/DATA_/I18N_/THEME_EXTENSION_POINTS` |
 | `describe_host_module` | um bloco de `sdk/types/microteia-host.d.ts` |
-| `list_workspace_plugins` | compila cada `plugin.ts` do diretório e devolve as pendências |
+| `list_workspace_plugins` | compila cada `plugin.ts` do diretório e devolve as pendências e o `exports` de cada um |
+| `list_referenceable` | `authored` (os `plugin.ts` daqui) + as extensões do retrato, casados com `manifest.exports` |
 | `read_authoring_guide` | `AUTHORING.md`, por seção |
 | `workspace_info` | contrato, tipos, e se a instalação está conectada |
 | `list_entities` | `entityRegistry.ts` + os `plugin.ts` daqui + o retrato da instalação, quando há um |
 
 `validate_plugin` é o laço mais curto que existe aqui: propor → validar → corrigir, sem deploy e sem
-escritório de cliente no meio.
+escritório de cliente no meio. E ele fecha o laço INTEIRO da referência a outra extensão: além da forma
+e da dependência declarada, confere o que só o outro lado responde — ver "A superfície é uma lista só"
+adiante.
 
 #### O retrato da instalação — o catálogo deixa de ser só o do workspace
 
@@ -6308,6 +6311,49 @@ em vez de apresentar lista vazia como "estas extensões não exportam nada". Foi
 `INSTALLED_CATALOG_VERSION` **não** subiu: o campo é aditivo, um leitor antigo o ignora sem perder
 nada, e subir a versão faria o leitor recusar o arquivo inteiro nos dois sentidos — a recusa é por
 igualdade estrita.
+
+#### A superfície é uma lista só, e ela é servida onde a referência é ESCRITA
+
+O retrato fechou a cegueira de quem autora fora do escritório, e sobraram três buracos — os três da
+mesma família, e nenhum deles de precaução:
+
+- **A lista chegava no lugar errado.** `referenceable` viajava nas respostas que carregam
+  `catalogSources`, e as três que as carregam são sobre entidade, tela e campo (`list_entities`,
+  `validate_domain_model`, `generate_artifact_plan`). Quem escreve o passo pergunta o PASSO. Hoje ela é
+  um recurso próprio — `microteia://referenceable` — e `describe_workflow_step` a repete **no input que
+  guarda o id**, filtrada pelo `kind` que cabe ali: `scriptId` não lista automação.
+- **A extensão IRMÃ não aparecia em fonte nenhuma.** O retrato só conhece o que já está instalado, e o
+  caso mais comum de compartilhamento é a `utils` e quem a usa sendo escritas lado a lado, nenhuma das
+  duas instalada em lugar nenhum. `readWorkspaceCatalog` passa a devolver `authored` — a superfície de
+  cada `plugin.ts` do diretório, derivada por `exportedSurface` do mesmo `manifest.exports`. Ali a lista
+  vazia é **afirmação** (o pacote está na mão), ao contrário do retrato, onde pode ser silêncio de um
+  Console velho. Precedência: o workspace vence, como já vencia para coleção.
+- **`validate_plugin` conferia metade do portão.** Ele prometia "as mesmas checagens que a plataforma
+  roda na instalação" e alcançava duas: a forma da referência e a dependência declarada. As outras duas
+  — o `sourceId` estar no `exports` da dona e a versão satisfazer a faixa — só existiam em
+  `crossExtensionRefIssues`, chamado no `InstalledExtensionStore`. Um id trocado passava no terminal do
+  autor e era recusado no escritório de quem instala, que é o único lugar onde ninguém pode consertá-lo.
+
+**A regra é a mesma; o que muda é o significado da ausência.** `crossExtensionRefIssues` foi partido em
+dois: `crossExtensionRefChecks` decide (`ok`, `owner-absent`, `version-unsatisfied`, `not-exported`) e
+`crossRefIssue` recusa. A instalação lê `owner-absent` como recusa — a dona não está lá. O terminal lê
+como *"não dá para conferir daqui"*, porque o diretório não é o escritório, e responde com o caminho de
+conserto. Fabricar uma recusa a partir do que não se sabe seria pior que a lacuna: ensinaria o autor a
+ignorar o relatório. Sem essa divisão, a única forma de o terminal cobrar as três outras checagens seria
+reescrevê-las — duas cópias da mesma regra, e uma checagem nova numa delas nunca chegando à outra.
+
+Quatro vereditos, e o quarto é o que o retrato tornou possível dizer:
+
+| veredito | quando | o que significa |
+|---|---|---|
+| `ok` | a dona é irmã daqui, ou está no retrato exportando o id | a resposta diz CONTRA O QUE foi conferida — um `plugin.ts` é a verdade de agora, um retrato tem idade |
+| `refused` | a dona não exporta o id, ou a versão está fora da faixa | a instalação recusaria, e a frase é a do kernel, resolvida — não uma segunda redação dela |
+| `absent-there` | há retrato, e a dona não está nele | o retrato lista TODAS as instaladas, então a ausência é informação: instalar NAQUELE escritório seria recusado. Não é `refused` porque o pacote pode ser de outro escritório |
+| `unverifiable` | não há retrato, ou a dona está nele sem `exports` | não se sabe, e a resposta diz o que rodar para saber. Nunca "não exporta nada" |
+
+Uma extensão do retrato **sem** a chave `exports` fica de fora dos donos conhecidos de propósito: o
+portão lê chave ausente como superfície vazia, e passá-la adiante transformaria o silêncio de um Console
+velho numa recusa inventada.
 
 **O que ainda NÃO existe:** a ação de outra extensão pendurada numa tela continua não viajando. A
 identidade de uma ação numa tela é resolvida por id local no render, sem `findByRef`, e qualificar ali

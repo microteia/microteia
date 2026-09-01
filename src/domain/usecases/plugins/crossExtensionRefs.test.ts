@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { MarketplacePlugin } from '../../entities/MarketplacePlugin';
-import { crossExtensionRefIssues, dependentRefIssues } from './crossExtensionRefs';
+import { crossExtensionRefIssues, dependentRefIssues, exportedSurface } from './crossExtensionRefs';
 
 const consumer = (scriptId: string): MarketplacePlugin => ({
   summary: '',
@@ -121,5 +121,46 @@ describe('portão da versão que deixa de trazer um artefato em uso', () => {
     const pkg = consumer('com.acme.utils/normalizar-cpf');
     pkg.workflows.push({ ...pkg.workflows[0], templateId: 'wf-2', name: 'W2' });
     expect(dependentRefIssues(utilsPackage([]), [{ id: 'com.acme.vendas', package: pkg }])).toHaveLength(1);
+  });
+});
+
+/**
+ * A OUTRA metade do portão. Ele responde "esta referência resolve?"; esta responde "o que há para
+ * referenciar?" — e sem a segunda a primeira só servia a quem já soubesse o nome de cor.
+ */
+describe('a superfície pública de um pacote', () => {
+  const rico: MarketplacePlugin = {
+    summary: '',
+    manifest: {
+      id: 'com.acme.utils', version: '1.0.0', kernel: '^2.0.0', name: 'Utils',
+      exports: ['normalizar-cpf', 'cobrar', 'abrir', 'fantasma'],
+    },
+    workflows: [{
+      templateId: 'cobrar', name: 'Cobrar', eventName: 'workflow.called', version: 1,
+      condition: { kind: 'AlwaysTrue' }, steps: [],
+    }],
+    actions: [{
+      templateId: 'abrir', key: 'abrir', title: 'Abrir', icon: 'eye', workflowId: 'cobrar',
+      order: 0, enabled: true, danger: false,
+    }],
+    scripts: [{
+      templateId: 'normalizar-cpf', name: 'Normalizar CPF', sourceTs: '', compiledJs: '',
+      inputParams: [], outputParams: [],
+    }],
+  };
+
+  /** O `kind` decide ONDE a referência cabe, e o nome é o que faz o artefato ser reconhecível. */
+  it('casa cada id declarado com o artefato que o atende, para dar tipo e nome', () => {
+    expect(exportedSurface(rico)).toStrictEqual([
+      { id: 'abrir', kind: 'action', name: 'Abrir' },
+      { id: 'cobrar', kind: 'workflow', name: 'Cobrar' },
+      { id: 'fantasma', kind: 'unknown', name: 'fantasma' },
+      { id: 'normalizar-cpf', kind: 'script', name: 'Normalizar CPF' },
+    ]);
+  });
+
+  /** Superfície é o que a dona DECLARA — nunca o que ela carrega. */
+  it('pacote sem exports não expõe nada, mesmo carregando artefatos', () => {
+    expect(exportedSurface({ ...rico, manifest: { ...rico.manifest, exports: undefined } })).toEqual([]);
   });
 });

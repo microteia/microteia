@@ -426,6 +426,23 @@ If the owning extension is not installed, installation is refused and names it. 
 at packaging time: the reference travels as written and the engine resolves it by name on every run,
 so it survives the owner being updated or reinstalled.
 
+**You do not have to know the name of anything to write one.** Read \`microteia://referenceable\` — it
+lists every artifact this directory can see another extension exporting, already in the form the
+reference takes, and each line says which \`kind\` it is, because the kind decides where it fits:
+
+    com.example.utils/normalize-tax-id — Normalize tax id (script, authored here)
+
+Two sources feed it, and the difference matters. A \`plugin.ts\` **in this directory** — the sibling being
+authored beside yours — is the truth of now, and it is the case no snapshot can know about, because that
+extension is not installed anywhere yet. An extension from \`${INSTALLED_CATALOG_FILE}\` is what the
+organization runs, as of the day the snapshot was taken. \`describe_workflow_step\` says the same thing on
+the input that takes the id, filtered to the kind that fits there.
+
+\`check\` confers the whole gate from here, not half of it: the reference's shape, the declared
+dependency, **and** whether the owner really exports that id at the version you asked for. What it will
+not invent is an absence — an owner this directory cannot see comes back as "cannot be checked here",
+with what to run to close the gap, never as a refusal.
+
 ## 4. Extension points
 
 ${pointsTable(ALL_POINTS)}
@@ -1736,7 +1753,7 @@ is why it is worth asking before writing:
 |---|---|
 | \`validate_domain_model\` | the domain model, checked deterministically. An ERROR stops the work |
 | \`generate_artifact_plan\` | what must exist, reconciled against what is already here |
-| \`validate_plugin\` | the platform's verdict, after every edit |
+| \`validate_plugin\` | the platform's verdict, after every edit — including every reference to another extension, against what its owner exports |
 | \`build_plugin\` | the \`.json\`, without writing it |
 | \`describe_sdk_type\` | the exact declaration of any authoring type — \`TemplateField\`, \`WidgetSpec\`, \`WorkflowStep\`, \`PluginManifest\`, \`AuthoredPlugin\` |
 | \`describe_host_module\` | what a curated module really exports, for a view or a \`startup\` |
@@ -1769,7 +1786,8 @@ rather than a tool costing an input schema in every agent's context, in every se
 | \`microteia://extension-points\` | every point, its API version, the impl kinds it accepts |
 | \`microteia://record-commands\` | the record gestures an action may run through \`command\` |
 | \`microteia://expression-functions\` | the expression functions the installed platform resolves |
-| \`microteia://workspace/plugins\` | the extensions authored here, with their current problems |
+| \`microteia://referenceable\` | every artifact another extension exports that you may point a step at, already in the form the reference takes (§3) |
+| \`microteia://workspace/plugins\` | the extensions authored here, with their current problems and what each one exports |
 | \`microteia://workspace/info\` | what this workspace is bound to |
 
 None of them reads the organization's database: what they know is this directory plus the platform
@@ -1797,8 +1815,8 @@ organization typed: that is tenant data, not a product artifact.
 
 The exported surface is what makes §3 usable from here. Without it you knew an extension was installed
 and had no way to learn the name of anything inside it — and a name you cannot see is a name you cannot
-write. Every answer that carries a \`catalogSources\` block now lists what is \`referenceable\`, already
-in the form the reference takes:
+write. The whole list, from both sources, is the resource \`microteia://referenceable\`; every answer that
+carries a \`catalogSources\` block repeats it, already in the form the reference takes:
 
     com.example.utils/normalize-tax-id — Normalize tax id (script)
 
@@ -1809,6 +1827,11 @@ the snapshot is shape. The name and the kind are contract.
 A snapshot taken by a Console older than this field carries no surface at all, and the answer says so
 rather than presenting an empty list as "these extensions export nothing". Re-run \`export-catalog\` with
 the Console that came with the installation.
+
+One thing the snapshot cannot cover, and it is the most common: the extension being authored **beside
+yours in this directory**, which is installed nowhere and therefore in no snapshot. Its surface is read
+from its own \`plugin.ts\`, and there an empty \`exports\` is an answer rather than a silence — the package
+is right here.
 
 Three things follow, and they are the point:
 

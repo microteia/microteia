@@ -391,7 +391,9 @@ including the one that opened the editor only to validate a package.
 - \`validate_domain_model\` — the gate: the domain model, checked deterministically, before anything is
   generated. An ERROR here stops the work
 - \`generate_artifact_plan\` — what must exist, reconciled against what is already here
-- \`validate_plugin\` — after every edit; this is the short feedback loop
+- \`validate_plugin\` — after every edit; this is the short feedback loop. It also confers every
+  reference to ANOTHER extension against what its owner exports, which is the half that used to be
+  checked only in the organization that installs the package
 - \`build_plugin\` — the \`.json\`, without writing it
 - \`describe_workflow_step\` — one step's exact inputs, which mapping kinds each accepts, and the
   outputs a later step can read. It also names the type a composite input needs, which is NOT the
@@ -420,7 +422,13 @@ including the one that opened the editor only to validate a package.
 - \`microteia://extension-points\` — every point, its API version, and which impl kinds it accepts
 - \`microteia://record-commands\` — the record gestures an action may run through \`command\`
 - \`microteia://expression-functions\` — the functions a declarative expression may call here
-- \`microteia://workspace/plugins\` — the extensions authored here, with their current problems
+- \`microteia://referenceable\` — every artifact another extension exports that you may point a step at,
+  already in the form the reference takes. Two sources: the \`plugin.ts\` files here (the sibling being
+  authored beside yours, which no snapshot can know about) and the extensions in the installation
+  snapshot. **Read it before writing a qualified reference** — a name you cannot see is a name you
+  cannot write
+- \`microteia://workspace/plugins\` — the extensions authored here, with their current problems and what
+  each one declares in \`exports\`
 - \`microteia://workspace/info\` — what this workspace is bound to
 
 **Prompt — one, and it is the step that gets skipped:**
@@ -444,7 +452,9 @@ parameters, and an action that asks a person for a value.
 
 - A package must stay under **${kib(input.maxBytes)}** (it is stored as one document). A warning starts at ${kib(input.advisoryBytes)}.
 - Every reference out of the package must be **in** the package or covered by a declared
-  \`dependency\`. \`check\` refuses a dangling one.
+  \`dependency\`. \`check\` refuses a dangling one — and, for a qualified reference, it also refuses one
+  whose owner does not declare that id in \`exports\`, or whose installed version falls outside your
+  range. What it cannot see from here it says it cannot see, rather than refusing.
 - Changing the **shape of data already written** by an earlier version of your extension requires a
   \`migration\` — see the guide.
 

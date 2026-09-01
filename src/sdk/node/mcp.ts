@@ -7,6 +7,7 @@ import { THEME_EXTENSION_POINTS } from '../../domain/schema/theme/extensionPoint
 import { ACCESS_EXTENSION_POINTS } from '../../domain/schema/access';
 import { KERNEL_VERSION } from '../../domain/schema/plugin/kernelVersion';
 import { THIRD_PARTY_IMPL_KINDS } from '../../domain/schema/plugin/extensionPoint';
+import type { MarketplacePlugin } from '../../domain/entities/MarketplacePlugin';
 import { parsePackage } from '../../domain/usecases/plugins/packageSerialization';
 import { validatePluginPackage } from '../validate';
 import { buildPlugin } from './compile';
@@ -53,6 +54,10 @@ import {
 } from '../domain';
 import type { BusinessRule } from '../domain';
 import { MCP_PROMPTS, renderMcpPrompt } from './prompts';
+import { exportedSurface } from '../../domain/usecases/plugins/crossExtensionRefs';
+import { SCRIPT_ID_INPUT, TARGET_WORKFLOW_ID_INPUT } from '../../domain/usecases/plugins/pluginReferences';
+import type { ReferenceableArtifact } from './referenceable';
+import { crossRefReport, referenceableArtifacts } from './referenceable';
 import { readWorkspaceCatalog } from './workspaceCatalog';
 import type { WorkspaceCatalog } from './workspaceCatalog';
 import { INSTALLED_CATALOG_FILE, INSTALLED_CATALOG_OMITS } from './installedCatalog';
@@ -127,6 +132,33 @@ const describeIssues = (issues: ReturnType<typeof validatePluginPackage>): strin
       .map((issue) => `- [${issue.source}] ${describeMessage(issue.message, issue.messageParams)}`)
       .join('\n')}`;
 
+/**
+ * O relatório da referência a OUTRA extensão, que `validatePluginPackage` não alcança sozinha.
+ *
+ * Com o pacote na mão dá para conferir a forma da referência e a dependência declarada; as outras duas
+ * — se o `sourceId` está no `exports` da dona e se a versão satisfaz a faixa — pedem o outro lado, e o
+ * outro lado passou a estar aqui: os `plugin.ts` deste diretório e o retrato da instalação. Enquanto
+ * elas não eram cobradas, um id trocado passava por esta tool e era recusado no escritório de quem
+ * instala — o único lugar em que ninguém tem como consertá-lo.
+ *
+ * A recusa da dona sai do PORTÃO real, com a frase do kernel resolvida para inglês. O que muda aqui é
+ * só o significado da ausência: este diretório não é o escritório, e por isso "não achei a dona" é uma
+ * resposta sobre o que não se sabe, nunca uma recusa fabricada.
+ */
+const describeCrossRefs = (pkg: MarketplacePlugin, root: string): string => {
+  const findings = crossRefReport(pkg, root);
+  if (findings.length === 0) return '';
+
+  const refused = findings.filter((one) => one.status === 'refused' || one.status === 'absent-there');
+  const head = refused.length === 0
+    ? `${findings.length} reference(s) to another extension, none of them refused here:`
+    : `${refused.length} of ${findings.length} reference(s) to another extension would NOT install:`;
+
+  return `\n\n${head}\n${findings
+    .map((one) => `- [${one.status}] ${one.ref} (${one.kind}, from ${one.writtenBy}) — ${one.detail}`)
+    .join('\n')}`;
+};
+
 const findFiles = (dir: string, name: string, depth = 3): string[] => {
   if (depth < 0 || !existsSync(dir)) return [];
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
@@ -179,6 +211,15 @@ const readModel = (input: Record<string, unknown>): ParseResult => {
 };
 
 /**
+ * Uma linha de superfície referenciável, já na forma em que a referência se escreve. A fonte viaja
+ * junto porque as duas não valem o mesmo: o `plugin.ts` ao lado é a verdade de agora, e o retrato
+ * envelhece — dizer "instalada lá" sem dizer isso apresentaria as duas como uma coisa só.
+ */
+const referenceableLine = (one: ReferenceableArtifact): string =>
+  `${one.ref} — ${one.name} (${one.kind}${one.from === 'workspace' ? ', authored here' : ', installed there'}`
+  + `${one.disabled ? ', extension switched off' : ''})`;
+
+/**
  * DE ONDE O CATÁLOGO VEIO, dito em toda resposta que o usa.
  *
  * Um catálogo apresentado como completo quando não é vale menos que nenhum: o agente para de
@@ -193,6 +234,7 @@ const catalogProvenance = (read: WorkspaceCatalog): Record<string, unknown> => {
     return {
       workspace: `${read.sources.length} plugin.ts compiled in this directory`,
       installation: null,
+      referenceable: referenceableArtifacts(read).map(referenceableLine),
       caveats: [
         ...read.installedProblems,
         `No ${INSTALLED_CATALOG_FILE} here, so nothing this organization actually runs is in this list: a `
@@ -205,6 +247,13 @@ const catalogProvenance = (read: WorkspaceCatalog): Record<string, unknown> => {
 
   return {
     workspace: `${read.sources.length} plugin.ts compiled in this directory`,
+    /**
+     * O que se pode REFERENCIAR, das DUAS fontes: os `plugin.ts` deste diretório e as extensões do
+     * retrato. Vive fora do bloco `installation` porque deixou de ser só dele — enquanto era, a
+     * extensão irmã escrita ao lado, que é o caso mais comum de compartilhamento, não aparecia em
+     * lugar nenhum.
+     */
+    referenceable: referenceableArtifacts(read).map(referenceableLine),
     installation: {
       file: installed.path,
       projectId: installed.projectId,
@@ -217,13 +266,6 @@ const catalogProvenance = (read: WorkspaceCatalog): Record<string, unknown> => {
       consoleVersion: installed.consoleVersion,
       extensions: installed.extensions.map((one) =>
         `${one.name} ${one.version} (${one.id})${one.active ? '' : ' — switched off'}`),
-      /**
-       * O que se pode REFERENCIAR de cada extensão instalada, já na forma em que a referência se
-       * escreve. Sem isto o autor sabia que a extensão está lá e não tinha como descobrir o nome de
-       * nada dentro dela — e um nome que não se enxerga é um nome que não se escreve.
-       */
-      referenceable: installed.extensions.flatMap((one) => (one.exports ?? []).map((exported) =>
-        `${one.id}/${exported.id} — ${exported.name} (${exported.kind})`)),
       collectionsOnlyThere: installed.addedCollections,
       collectionsAlsoInWorkspace: installed.shadowedCollections,
       listsAdded: installed.lookups,
@@ -248,7 +290,9 @@ const TOOLS: ToolDefinition[] = [
     name: 'validate_plugin',
     description:
       'Validate an extension package against the exact same checks the platform runs on install: '
-      + 'manifest shape, referential integrity, size limits and migrations. Accepts a path to a '
+      + 'manifest shape, referential integrity, size limits and migrations — plus every reference to '
+      + 'ANOTHER extension, checked against what this workspace and the installation snapshot know that '
+      + 'each owner exports. Accepts a path to a '
       + 'plugin.ts (compiled first) or to a .json, or the raw JSON. Use this after every edit — it is '
       + 'the fastest way to know whether a package would be accepted.',
     inputSchema: {
@@ -262,16 +306,17 @@ const TOOLS: ToolDefinition[] = [
       if (typeof input.json === 'string') {
         const parsed = parsePackage(input.json);
         if (!parsed.ok) return `Not a valid package: ${describeMessage(parsed.error)}`;
-        return describeIssues(validatePluginPackage(parsed.package));
+        return `${describeIssues(validatePluginPackage(parsed.package))}${describeCrossRefs(parsed.package, root)}`;
       }
       const path = resolve(root, asString(input.path, 'path'));
       if (path.endsWith('.json')) {
         const parsed = parsePackage(readFileSync(path, 'utf8'));
         if (!parsed.ok) return `Not a valid package: ${describeMessage(parsed.error)}`;
-        return describeIssues(validatePluginPackage(parsed.package));
+        return `${describeIssues(validatePluginPackage(parsed.package))}${describeCrossRefs(parsed.package, root)}`;
       }
       const result = buildPlugin({ entry: path });
-      return `${result.package.manifest.id} v${result.package.manifest.version}\n${describeIssues(result.issues)}`;
+      return `${result.package.manifest.id} v${result.package.manifest.version}\n${describeIssues(result.issues)}`
+        + describeCrossRefs(result.package, root);
     },
   },
   {
@@ -371,12 +416,14 @@ const TOOLS: ToolDefinition[] = [
       + 'required, its type, which InputMapping kinds it accepts, its options and its default — plus '
       + 'the outputs later steps can read through `{ kind: "Output" }`. Call with no id to list the '
       + 'ids. For a composite input (Query, Upsert, Remove, Map, Validate) the value is a '
-      + 'Literal wrapping the matching *StepConfig — ask `describe_sdk_type` for its shape.',
+      + 'Literal wrapping the matching *StepConfig — ask `describe_sdk_type` for its shape. An input that '
+      + 'names another artifact also lists what is referenceable from here, already in the form the '
+      + 'reference takes.',
     inputSchema: {
       type: 'object',
       properties: { stepDefinitionId: { type: 'string', description: "e.g. 'upsert'" } },
     },
-    run: (input) => {
+    run: (input, root) => {
       const wanted = typeof input.stepDefinitionId === 'string' ? input.stepDefinitionId : '';
       if (wanted === '') {
         return `The catalog has ${CORE_STEP_CATALOG.length} steps:\n${CORE_STEP_DEFINITION_IDS
@@ -388,6 +435,22 @@ const TOOLS: ToolDefinition[] = [
           + 'here — read that extension\'s own documentation.';
       }
       const step = coreStepMetadata(wanted);
+      /**
+       * O input que guarda o id de OUTRO artefato é o lugar exato em que a referência qualificada é
+       * escrita — e era o lugar em que a lista do que se pode referenciar não chegava. Ela viajava em
+       * três respostas, todas sobre entidade e tela; quem escreve o passo pergunta o passo.
+       *
+       * A leitura do catálogo é preguiçosa: descrever um passo que não aponta para nada não paga o
+       * preço de compilar os `plugin.ts` do diretório.
+       */
+      const referencedKind = (inputId: string): ReferenceableArtifact['kind'] | null => {
+        if (inputId === SCRIPT_ID_INPUT) return 'script';
+        return inputId === TARGET_WORKFLOW_ID_INPUT ? 'workflow' : null;
+      };
+      const surface = step.inputs.some((one) => referencedKind(one.id) !== null)
+        ? referenceableArtifacts(readWorkspaceCatalog(root))
+        : [];
+
       return pretty({
         stepDefinitionId: step.id,
         name: describeMessage(step.name),
@@ -404,6 +467,15 @@ const TOOLS: ToolDefinition[] = [
           description: one.description === undefined ? undefined : describeMessage(one.description),
           required: one.required,
           type: one.type,
+          ...(referencedKind(one.id) === null ? {} : {
+            acceptsQualifiedRef:
+              'A `templateId` of your own package, or "<extension-id>/<source-id>" for an artifact another '
+              + 'extension exports. The owner must be in `manifest.dependencies` and must list that id in its '
+              + '`manifest.exports` — validate_plugin checks both.',
+            referenceable: surface
+              .filter((artifact) => artifact.kind === referencedKind(one.id))
+              .map(referenceableLine),
+          }),
           shape: COMPOSITE_INPUT_SHAPE[one.type] ?? null,
           acceptsMappingKinds: one.allowedMappingKinds ?? ALL_MAPPING_KINDS,
           defaultValue: one.defaultValue,
@@ -937,7 +1009,10 @@ const PURE_READS: ToolDefinition[] = [
   },
   {
     name: 'list_workspace_plugins',
-    description: 'The extensions authored in this workspace, with their id, version and current problems.',
+    description:
+      'The extensions authored in this workspace, with their id, version, current problems and — the part '
+      + 'a sibling needs — what each one declares in `manifest.exports`, which is the only surface of it '
+      + 'another extension may reference.',
     inputSchema: { type: 'object', properties: {} },
     run: (_input, root) => {
       const entries = findFiles(root, 'plugin.ts');
@@ -946,11 +1021,52 @@ const PURE_READS: ToolDefinition[] = [
         try {
           const result = buildPlugin({ entry });
           const { manifest } = result.package;
-          return `${relative(root, entry)}\n  ${manifest.id} v${manifest.version} — ${describeIssues(result.issues)}`;
+          /**
+           * A superfície exportada da IRMÃ era o que faltava aqui, e é o caso mais comum de
+           * compartilhamento: o escritório escreve a `utils` e quem a usa lado a lado, e a `utils` não
+           * está instalada em lugar nenhum — logo o retrato da instalação não a alcança. O que se
+           * enxergava era id, versão e problemas; nunca o nome de nada dentro dela.
+           */
+          const surface = exportedSurface(result.package);
+          const exported = surface.length === 0
+            ? '  exports nothing — every artifact of it is private to it'
+            : surface.map((one) => `  exports ${manifest.id}/${one.id} — ${one.name} (${one.kind})`).join('\n');
+          return `${relative(root, entry)}\n  ${manifest.id} v${manifest.version} — `
+            + `${describeIssues(result.issues)}\n${exported}`;
         } catch (error) {
           return `${relative(root, entry)}\n  does not compile: ${error instanceof Error ? error.message : String(error)}`;
         }
       }).join('\n\n');
+    },
+  },
+  {
+    name: 'list_referenceable',
+    description:
+      'Everything this directory can see that another extension exports — the artifacts you may point a '
+      + 'step at with "<extension-id>/<source-id>", already in the form the reference takes. Two sources: '
+      + 'the plugin.ts files here (a sibling being authored beside yours, which no snapshot can know about) '
+      + 'and the extensions in the installation snapshot. Each line says which, because a plugin.ts is the '
+      + 'truth of now and a snapshot ages. A name you cannot see is a name you cannot write.',
+    inputSchema: { type: 'object', properties: {} },
+    run: (_input, root) => {
+      const read = readWorkspaceCatalog(root);
+      const artifacts = referenceableArtifacts(read);
+      return pretty({
+        total: artifacts.length,
+        catalogSources: catalogProvenance(read),
+        referenceable: artifacts.map((one) => ({
+          ref: one.ref,
+          name: one.name,
+          kind: one.kind,
+          from: one.from,
+          writtenIn: one.writtenIn,
+          ...(one.disabled ? { extensionSwitchedOff: true } : {}),
+        })),
+        alsoRequired:
+          'Referencing one of these means declaring the owner in `manifest.dependencies`. validate_plugin '
+          + 'refuses a qualified reference that is not covered by a declared dependency, and the authoring '
+          + 'screen derives the dependency from what the package points at.',
+      });
     },
   },
   {
@@ -990,6 +1106,7 @@ const PURE_READ_URIS: Record<string, string> = {
   list_icons: 'microteia://icons',
   list_expression_functions: 'microteia://expression-functions',
   list_workspace_plugins: 'microteia://workspace/plugins',
+  list_referenceable: 'microteia://referenceable',
   workspace_info: 'microteia://workspace/info',
 };
 

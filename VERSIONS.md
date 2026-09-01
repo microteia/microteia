@@ -11,6 +11,12 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.42.0] — 2026-09-01
+
+- Quem monta extensões passa a encontrar, no próprio lugar em que a automação é escrita, a lista do que as outras extensões oferecem para uso — com o nome, o tipo e o endereço já pronto para copiar. Antes essa lista só aparecia nas respostas sobre cadastros e campos, que não é onde a pergunta nasce.
+- Duas extensões escritas lado a lado passam a se enxergar. Antes, uma extensão nova só descobria o que a outra oferecia depois que ela já estivesse instalada em algum escritório — o que é justamente o contrário da ordem em que o trabalho acontece.
+- A conferência de uma extensão passa a apontar, antes de ela sair da mesa, o uso que aponta para algo que a outra extensão não oferece. Esse erro só era descoberto na hora de instalar, no escritório de destino, onde ninguém tem como corrigi-lo. Quando não há como conferir daqui, a resposta diz isso e o que fazer para conferir — em vez de acusar um problema que não se comprovou.
+
 #### [9.41.0] — 2026-09-01
 
 - Quem monta extensões fora do escritório passa a enxergar o que cada extensão instalada oferece para as outras usarem. Antes era possível saber que a extensão estava instalada, mas não descobrir o nome do que havia dentro dela — e o que não se enxerga não se escreve. O retrato do escritório agora traz essa lista, dizendo o nome e o tipo de cada item.

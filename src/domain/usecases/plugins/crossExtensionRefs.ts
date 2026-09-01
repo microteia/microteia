@@ -2,8 +2,58 @@ import type { MarketplacePlugin } from '../../entities/MarketplacePlugin';
 import { parseArtifactRef } from '../../schema/plugin/artifactRef';
 import { dependencyRange } from '../../schema/plugin/pluginManifest';
 import { satisfiesRange } from '../../schema/plugin/semver';
-import type { LocalizedIssue } from './pluginReferences';
+import type { LocalizedIssue, PackageRef } from './pluginReferences';
 import { REF_KIND_KEYS, packageOutRefs } from './pluginReferences';
+
+/**
+ * O TIPO do artefato exportado, e ele não é enfeite: é o que decide ONDE a referência cabe — um
+ * script vai em `scriptId`, uma automação em `targetWorkflowId`, uma ação na lista de ações de uma
+ * tela. `unknown` é o export declarado que não casa com artefato nenhum do pacote.
+ */
+export type ExportedArtifactKind = 'workflow' | 'action' | 'script' | 'unknown';
+
+/** Um artefato da superfície pública de um pacote, na forma em que outra extensão o referencia. */
+export interface ExportedArtifact {
+  /** O `sourceId` — a metade direita de `<pluginId>/<sourceId>`. */
+  id: string;
+  kind: ExportedArtifactKind;
+  name: string;
+}
+
+/**
+ * A SUPERFÍCIE PÚBLICA de um pacote: cada id de `manifest.exports` casado com o artefato que o
+ * atende, para ganhar tipo e nome.
+ *
+ * É a outra metade do portão abaixo. Ele responde "esta referência resolve?"; esta responde "o que
+ * há para referenciar?" — e sem a segunda a primeira só serve a quem já sabia o nome de cor. Um
+ * nome que não se enxerga é um nome que não se escreve.
+ *
+ * Export declarado que não casa com nada fica na lista como `unknown` em vez de sumir: a extensão
+ * está prometendo o que não entrega, e esconder isso adia a descoberta para a primeira execução.
+ *
+ * O que o artefato FAZ nunca entra aqui — passos e código são comportamento. Nome e tipo são
+ * contrato.
+ */
+export const exportedSurface = (pkg: MarketplacePlugin): ExportedArtifact[] => {
+  const named = new Map<string, ExportedArtifact>();
+  const collect = <T extends { templateId: string }>(
+    entries: readonly T[],
+    kind: Exclude<ExportedArtifactKind, 'unknown'>,
+    nameOf: (one: T) => string,
+  ): void => {
+    for (const one of entries) {
+      if (named.has(one.templateId)) continue;
+      named.set(one.templateId, { id: one.templateId, kind, name: nameOf(one) || one.templateId });
+    }
+  };
+  collect(pkg.workflows, 'workflow', (one) => one.name);
+  collect(pkg.actions ?? [], 'action', (one) => one.title);
+  collect(pkg.scripts ?? [], 'script', (one) => one.name);
+
+  return (pkg.manifest.exports ?? [])
+    .map((id) => named.get(id) ?? { id, kind: 'unknown' as const, name: id })
+    .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+};
 
 /** O que o portão precisa saber de cada extensão que o escritório já tem. */
 export interface InstalledExtensionSummary {
@@ -11,6 +61,74 @@ export interface InstalledExtensionSummary {
   version: string;
   exports?: string[];
 }
+
+/**
+ * O VEREDITO de uma referência qualificada contra o que se sabe das extensões do escritório.
+ *
+ * Ele mora separado da recusa porque um dos quatro casos MUDA de significado conforme quem pergunta:
+ * `owner-absent` é recusa na instalação — a dona não está lá — e é "não dá para conferir daqui" no
+ * terminal de autoria, onde o catálogo do diretório não é o escritório. Enquanto a decisão e a recusa
+ * eram a mesma função, a única forma de o terminal conferir as outras três era reescrevê-las: duas
+ * cópias da mesma regra, e uma checagem nova em uma delas nunca chegando à outra.
+ */
+export type CrossRefVerdict =
+  | { kind: 'ok' }
+  | { kind: 'owner-absent' }
+  | { kind: 'version-unsatisfied'; range: string; installed: string }
+  | { kind: 'not-exported' };
+
+export interface CrossRefCheck {
+  ref: PackageRef;
+  pluginId: string;
+  artifactId: string;
+  verdict: CrossRefVerdict;
+}
+
+/**
+ * Cada referência qualificada do pacote, conferida uma vez, na ordem em que aparece.
+ *
+ * Referência a TELA fica de fora: a identidade dela é o nome da coleção, igual em todo escritório, e
+ * por isso ela não passa por `exports`. O mesmo artefato apontado por dois passos é conferido uma
+ * vez — o autor conserta uma coisa.
+ */
+export const crossExtensionRefChecks = (
+  pkg: MarketplacePlugin,
+  installed: readonly InstalledExtensionSummary[],
+): CrossRefCheck[] => {
+  const dependencies = pkg.manifest.dependencies ?? {};
+  const byId = new Map(installed.map((extension) => [extension.id, extension]));
+  const checks: CrossRefCheck[] = [];
+  const seen = new Set<string>();
+
+  for (const ref of packageOutRefs(pkg)) {
+    const qualified = parseArtifactRef(ref.id);
+    if (!qualified || ref.kind === 'screen') continue;
+    if (seen.has(ref.id)) continue;
+    seen.add(ref.id);
+
+    const common = { ref, pluginId: qualified.pluginId, artifactId: qualified.artifactId };
+    const owner = byId.get(qualified.pluginId);
+    if (!owner) {
+      checks.push({ ...common, verdict: { kind: 'owner-absent' } });
+      continue;
+    }
+
+    const range = dependencies[qualified.pluginId] === undefined
+      ? undefined
+      : dependencyRange(dependencies[qualified.pluginId]);
+    if (range !== undefined && !satisfiesRange(owner.version, range)) {
+      checks.push({ ...common, verdict: { kind: 'version-unsatisfied', range, installed: owner.version } });
+      continue;
+    }
+
+    checks.push({
+      ...common,
+      verdict: (owner.exports ?? []).includes(qualified.artifactId) ? { kind: 'ok' } : { kind: 'not-exported' },
+    });
+  }
+
+  return checks;
+};
 
 /**
  * O PORTÃO da referência a outra extensão, cobrado na instalação.
@@ -32,59 +150,47 @@ export interface InstalledExtensionSummary {
 export const crossExtensionRefIssues = (
   pkg: MarketplacePlugin,
   installed: readonly InstalledExtensionSummary[],
-): LocalizedIssue[] => {
-  const dependencies = pkg.manifest.dependencies ?? {};
-  const byId = new Map(installed.map((extension) => [extension.id, extension]));
-  const issues: LocalizedIssue[] = [];
-  const seen = new Set<string>();
+): LocalizedIssue[] => crossExtensionRefChecks(pkg, installed)
+  .map((check) => crossRefIssue(pkg, check))
+  .filter((issue): issue is LocalizedIssue => issue !== null);
 
-  for (const ref of packageOutRefs(pkg)) {
-    const qualified = parseArtifactRef(ref.id);
-    if (!qualified || ref.kind === 'screen') continue;
-    // O mesmo artefato referenciado por dois passos é um problema só: o autor conserta uma coisa.
-    if (seen.has(ref.id)) continue;
-    seen.add(ref.id);
-
-    const owner = byId.get(qualified.pluginId);
-    if (!owner) {
-      issues.push({
-        message: '@core.marketplace/install.dependency-missing',
-        messageParams: { plugin: qualified.pluginId, kind: REF_KIND_KEYS[ref.kind], id: qualified.artifactId },
-      });
-      continue;
-    }
-
-    const range = dependencies[qualified.pluginId] === undefined
-      ? undefined
-      : dependencyRange(dependencies[qualified.pluginId]);
-    if (range !== undefined && !satisfiesRange(owner.version, range)) {
-      issues.push({
-        message: '@core.marketplace/diagnostic.dependency.unsatisfied',
-        messageParams: {
-          id: pkg.manifest.id,
-          dependency: qualified.pluginId,
-          range,
-          installed: owner.version,
-        },
-      });
-      continue;
-    }
-
-    if (!(owner.exports ?? []).includes(qualified.artifactId)) {
-      issues.push({
-        message: '@core.marketplace/issue.ref.not-exported',
-        messageParams: {
-          origin: ref.from.origin,
-          name: ref.from.name,
-          kind: REF_KIND_KEYS[ref.kind],
-          id: ref.id,
-          plugin: qualified.pluginId,
-        },
-      });
-    }
+/**
+ * A RECUSA de um veredito, ou `null` quando não há o que recusar.
+ *
+ * Ela é exposta por veredito, e não só em lista, porque quem confere fora da instalação precisa da
+ * frase COLADA na referência que a causou — e porque a frase é do kernel: redigi-la de novo no
+ * terminal faria o autor ler uma recusa diferente da que o escritório vê na tela.
+ */
+export const crossRefIssue = (pkg: MarketplacePlugin, check: CrossRefCheck): LocalizedIssue | null => {
+  const { ref, pluginId, artifactId, verdict } = check;
+  if (verdict.kind === 'ok') return null;
+  if (verdict.kind === 'owner-absent') {
+    return {
+      message: '@core.marketplace/install.dependency-missing',
+      messageParams: { plugin: pluginId, kind: REF_KIND_KEYS[ref.kind], id: artifactId },
+    };
   }
-
-  return issues;
+  if (verdict.kind === 'version-unsatisfied') {
+    return {
+      message: '@core.marketplace/diagnostic.dependency.unsatisfied',
+      messageParams: {
+        id: pkg.manifest.id,
+        dependency: pluginId,
+        range: verdict.range,
+        installed: verdict.installed,
+      },
+    };
+  }
+  return {
+    message: '@core.marketplace/issue.ref.not-exported',
+    messageParams: {
+      origin: ref.from.origin,
+      name: ref.from.name,
+      kind: REF_KIND_KEYS[ref.kind],
+      id: ref.id,
+      plugin: pluginId,
+    },
+  };
 };
 
 /**

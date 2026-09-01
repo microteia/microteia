@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join, resolve } from 'node:path';
+import type { MarketplacePlugin } from '../../domain/entities/MarketplacePlugin';
 import { KERNEL_VERSION } from '../../domain/schema/plugin/kernelVersion';
 import { buildPlugin } from './compile';
 import { messageBundlesOf } from '../../domain/schema/i18n/extensionPoints';
@@ -8,6 +9,7 @@ import { describeMessage, describeWith } from './messages';
 import { installationRegion, scaffoldFunction, scaffoldPlugin } from './scaffold';
 import { askerFor } from './prompt';
 import { serveMcp } from './mcp';
+import { crossRefReport } from './referenceable';
 import { syncWorkspace } from './workspace/sync';
 
 /**
@@ -89,6 +91,35 @@ const describeIssues = (
   }
 };
 
+/**
+ * A referência a OUTRA extensão, conferida contra o que este diretório enxerga.
+ *
+ * `validatePackage` alcança a forma da referência e a dependência declarada; as outras duas — o
+ * `sourceId` estar no `exports` da dona e a versão satisfazer a faixa — pedem o outro lado. O outro
+ * lado passou a estar aqui: os `plugin.ts` deste diretório e o retrato da instalação. Enquanto não
+ * eram cobradas neste comando, o `check` dizia "no problems found" e a recusa acontecia no escritório
+ * de quem instala, que é o único lugar onde ninguém pode consertá-la.
+ *
+ * O que MUDA em relação à instalação é só o significado da ausência: um diretório de autoria não é o
+ * escritório, e "não achei a dona" é resposta sobre o que não se sabe, nunca recusa fabricada. Por
+ * isso apenas `refused` conta como problema — `absent-there` é dito com destaque e não reprova, porque
+ * o pacote pode ser destinado a outro escritório.
+ */
+const sayCrossRefs = (pkg: MarketplacePlugin, root: string): number => {
+  const findings = crossRefReport(pkg, root);
+  if (findings.length === 0) return 0;
+
+  const refused = findings.filter((one) => one.status === 'refused');
+  say();
+  say(`  ${DIM}${findings.length} reference(s) to another extension${RESET}`);
+  for (const one of findings) {
+    const mark = one.status === 'ok' ? `${GREEN}ok${RESET}` : one.status === 'refused' ? `${RED}x${RESET}` : `${YELLOW}!${RESET}`;
+    say(`  ${mark} ${one.ref} ${DIM}(${one.kind}, from ${one.writtenBy})${RESET}`);
+    say(`     ${DIM}${one.detail}${RESET}`);
+  }
+  return refused.length;
+};
+
 const build = (args: Args, write: boolean): number => {
   const entry = entryFrom(args);
   const result = buildPlugin({ entry, exportName: args.values.get('export') });
@@ -113,6 +144,12 @@ const build = (args: Args, write: boolean): number => {
     say();
     problem(`${result.issues.length} problem(s) - this package would be refused on install:`);
     describeIssues(result.issues, describe);
+  }
+
+  const refusedRefs = sayCrossRefs(result.package, resolve(args.values.get('root') ?? process.cwd()));
+  const problems = result.issues.length + refusedRefs;
+
+  if (problems > 0) {
     if (!write) return 1;
     if (!args.flags.has('force')) {
       say();
@@ -135,7 +172,7 @@ const build = (args: Args, write: boolean): number => {
   const kb = Math.round(Buffer.byteLength(result.json) / 1024);
   say();
   done(`${file} ${DIM}(${kb} KB)${RESET}`);
-  if (result.issues.length > 0) warn('written with problems, because --force was given.');
+  if (problems > 0) warn('written with problems, because --force was given.');
   if ((result.package.views?.length ?? 0) > 0 || result.package.startup !== undefined) {
     say();
     say(`${DIM}This package carries code. After importing it, an administrator has to open the${RESET}`);
@@ -471,13 +508,13 @@ const COMMANDS: Command[] = [
   },
   {
     name: 'check',
-    usage: 'microteia-plugin check [plugin.ts] [--export <name>]',
+    usage: 'microteia-plugin check [plugin.ts] [--export <name>] [--root <path>]',
     summary: 'Compile and validate without writing. This is the gate - run it before publishing.',
     run: (args) => build(args, false),
   },
   {
     name: 'build',
-    usage: 'microteia-plugin build [plugin.ts] [--out <dir>] [--export <name>] [--force]',
+    usage: 'microteia-plugin build [plugin.ts] [--out <dir>] [--export <name>] [--force] [--root <path>]',
     summary: 'Compile to the .json the platform installs.',
     run: (args) => build(args, true),
   },

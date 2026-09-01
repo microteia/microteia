@@ -26,6 +26,7 @@ import {
 } from '../../domain';
 import { MULTI_FK_MATERIALIZE_LIMIT } from '../../../domain/schema/materialize';
 import { authoringGuide } from './authoringGuide';
+import { mcpResourceUris } from '../mcp';
 import {
   workspaceGitignore,
   workspaceMcpJson,
@@ -830,5 +831,34 @@ describe('modelar antes de gerar, nos documentos que o autor lê', () => {
     expect(claude).not.toContain(SCREEN_IS_NOT_AN_ENTITY_MODEL);
     expect(claude).not.toContain('validate_domain_model');
     expect(claude).toContain('@AGENTS.md');
+  });
+});
+
+/**
+ * O documento que o escritório lê não pode citar um recurso que o servidor não serve.
+ *
+ * A lista de URIs era prosa nos dois arquivos, e uma URI é o que um cliente ANEXA ao contexto:
+ * renomeá-la, ou citar uma que não existe, quebra o anexo sem erro nenhum — o agente pede, não recebe,
+ * e segue escrevendo sem o documento que decidiria a questão. Derivar a conferência da lista real é o
+ * que transforma isso em reprovação em vez de descoberta.
+ */
+describe('as URIs citadas nos documentos de autoria', () => {
+  const cited = (text: string): string[] => [...new Set(
+    (text.match(/microteia:\/\/[a-z0-9/-]+/g) ?? []).map((one) => one.replace(/-+$/, '')),
+  )];
+
+  it('todas existem no servidor — nenhum documento promete um recurso que não responde', () => {
+    const served = mcpResourceUris();
+    for (const uri of [...cited(workspaceAgentsMd(AGENTS)), ...cited(authoringGuide(AGENTS))]) {
+      expect(served, `${uri} é citado e não é servido`).toContain(uri);
+    }
+  });
+
+  /** E o caminho inverso, que é o que faz um recurso novo ser ANUNCIADO em vez de ficar só existindo. */
+  it('e todo recurso servido é citado em algum dos dois', () => {
+    const documented = `${workspaceAgentsMd(AGENTS)}\n${authoringGuide(AGENTS)}`;
+    for (const uri of mcpResourceUris()) {
+      expect(documented, `${uri} é servido e não é citado em documento nenhum`).toContain(uri);
+    }
   });
 });
