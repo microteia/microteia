@@ -171,7 +171,7 @@ describe('a exportação do catálogo instalado', () => {
       { collection: 'customerTags', label: 'Etiquetas', ownerPluginId: 'com.example.billing' },
     ]);
     expect(exported.extensions).toStrictEqual([
-      { id: 'com.example.billing', name: 'Billing', version: '2.1.0', active: true },
+      { id: 'com.example.billing', name: 'Billing', version: '2.1.0', active: true, exports: [] },
     ]);
   });
 
@@ -195,6 +195,83 @@ describe('a exportação do catálogo instalado', () => {
       expect(read.snapshot?.extensions[0].id).toBe('com.example.billing');
       expect(read.ageDays).toBe(0);
       expect(read.stale).toBe(false);
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+});
+
+/**
+ * A superfície exportada é a única parte do COMPORTAMENTO que atravessa: o nome e o tipo são contrato,
+ * os passos e o código não. Sem ela, quem autora fora do escritório sabia que a extensão está lá e não
+ * tinha como descobrir o nome de nada dentro dela.
+ */
+describe('o que cada extensão declara para as outras referenciarem', () => {
+  const billing = (manifest: Record<string, unknown>, data: Record<string, unknown>): InstalledExtensionRecord => ({
+    ...EXTENSIONS[0], manifest: { id: 'com.example.billing', ...manifest }, data,
+  });
+
+  const buildWith = (extension: InstalledExtensionRecord) => buildCatalogExport({
+    projectId: 'office-prod',
+    tenant: { id: 'tenant-1', name: 'Escritório Central' },
+    kernelVersion: '2.7.0',
+    exportedAt: EXPORTED_AT,
+    screens: [], lookups: [], tagLists: [],
+    extensions: [extension],
+  });
+
+  const PACKAGE = {
+    package: {
+      scripts: [{ templateId: 'normalize-tax-id', name: 'Normalize tax id' }],
+      workflows: [{ templateId: 'notify-customer', name: 'Notify the customer' }],
+      actions: [{ templateId: 'reissue', title: 'Reissue' }],
+    },
+  };
+
+  it('casa cada export com o artefato que o atende, para dar tipo e nome', () => {
+    const exported = buildWith(billing({ exports: ['notify-customer', 'normalize-tax-id'] }, PACKAGE));
+    expect(exported.extensions[0].exports).toStrictEqual([
+      { id: 'normalize-tax-id', kind: 'script', name: 'Normalize tax id' },
+      { id: 'notify-customer', kind: 'workflow', name: 'Notify the customer' },
+    ]);
+  });
+
+  /** A ação usa `title`, não `name` — o nome do artefato vem de onde cada um o guarda. */
+  it('a ação exportada viaja com o título dela', () => {
+    const exported = buildWith(billing({ exports: ['reissue'] }, PACKAGE));
+    expect(exported.extensions[0].exports).toStrictEqual([
+      { id: 'reissue', kind: 'action', name: 'Reissue' },
+    ]);
+  });
+
+  /**
+   * O export declarado que não casa com nada: o portão da instalação confere a LISTA e deixaria passar
+   * uma referência a ele, que só falharia na primeira execução. Dizê-lo é melhor que escondê-lo.
+   */
+  it('o export que a extensão declara e não entrega viaja como "unknown"', () => {
+    const exported = buildWith(billing({ exports: ['fantasma'] }, PACKAGE));
+    expect(exported.extensions[0].exports).toStrictEqual([
+      { id: 'fantasma', kind: 'unknown', name: 'fantasma' },
+    ]);
+  });
+
+  it('sem declarar nada, a lista sai vazia — e vazia é uma resposta, nunca a chave ausente', () => {
+    const exported = buildWith(billing({}, PACKAGE));
+    expect(exported.extensions[0].exports).toStrictEqual([]);
+    expect('exports' in exported.extensions[0]).toBe(true);
+  });
+
+  it('o kernel lê a superfície de volta e a considera conhecida', () => {
+    const directory = mkdtempSync(join(tmpdir(), 'microteia-export-surface-'));
+    try {
+      const document = buildWith(billing({ exports: ['normalize-tax-id'] }, PACKAGE));
+      writeFileSync(join(directory, CATALOG_FILE), `${JSON.stringify(document, null, 2)}\n`);
+      const read = readInstalledCatalog(directory, EXPORTED_AT);
+
+      expect(read.exportsKnown).toBe(true);
+      expect(read.snapshot?.extensions[0].exports).toStrictEqual([
+        { id: 'normalize-tax-id', kind: 'script', name: 'Normalize tax id' },
+      ]);
     } finally {
       rmSync(directory, { recursive: true, force: true });
     }

@@ -22,6 +22,12 @@
 - fix(command): what was broken, and what it did to whoever hit it.
 -->
 
+#### [2.20.0] — 2026-09-01
+
+- feat(cli/export-catalog): the snapshot carries what each installed extension declares in `manifest.exports` — the artifacts another extension may reference as `<extension-id>/<source-id>`. Whoever authors outside the office knew an extension was installed and had no way to learn the name of anything inside it, so the reference could be written by hand and never discovered. Each entry carries the id, the artifact's name, and its `kind`, which is the part that decides where the reference fits: a script goes in `scriptId`, an automation in `targetWorkflowId`. What the artifact DOES still never travels — the steps and the code are behaviour, and the snapshot is shape.
+- feat(cli/export-catalog): a declared export that matches no artifact in the package travels as `unknown` rather than being dropped. The install gate checks the LIST, so a reference to it would be accepted there and fail only on the step's first run; saying it is better than hiding it.
+- feat(cli/export-catalog): `exports` is written for every extension, empty list included. A present-and-empty list is the answer "this extension exports nothing"; an absent key is the silence of a Console older than the field, and the kernel tells the two apart instead of reading absence as a claim.
+
 #### [2.19.0] — 2026-08-28
 
 - fix(cli/deploy): the installation gate is charged against the functions that are GOING UP, not against every source found on disk. It lived in `functionProblems` — the door that answers "can this set be assembled?" — and that door reads every `extensions/<x>/functions/` directory that exists, including one left behind by an extension that was uninstalled and removed. The result was `microteia deploy` refusing in full — hosting, rules and indexes with it — over a callable no command would have deployed. `gateProblems` now carries the function's name, and `gateProblemsFor` filters by what is being deployed.

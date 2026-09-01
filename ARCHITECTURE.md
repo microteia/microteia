@@ -6281,10 +6281,38 @@ E o autor é AVISADO, num `InfoBanner`: o pacote passou a exigir aquelas extens�
 o receber só instala depois de instalar cada uma. Sem o aviso, a primeira notícia da exigência seria
 a recusa do portão, do outro lado, para alguém que não fez a escolha.
 
-**O que ainda NÃO existe:** o catálogo offline (`installedCatalog`) ainda omite comportamento, então
-quem autora fora do escritório não descobre o que pode referenciar. E a ação de outra extensão
-pendurada numa tela continua não viajando: a identidade de uma ação numa tela é resolvida por id
-local no render, sem `findByRef`, e qualificar ali exigiria um mecanismo que ainda não existe.
+#### A superfície exportada atravessa para quem autora fora do escritório
+
+O retrato da instalação (`installedCatalog`) trazia telas, listas e QUAIS extensões estão instaladas —
+e nada de dentro delas. Quem autora fora do escritório sabia que `com.acme.utils` está lá e não tinha
+como descobrir o nome de coisa nenhuma dentro dela; a referência qualificada podia ser escrita à mão e
+não podia ser DESCOBERTA. **Nome que não se enxerga é nome que não se escreve.**
+
+O que passou a viajar é `manifest.exports` de cada extensão instalada, cada id casado com o artefato
+que o atende para ganhar **nome** e **`kind`**. O `kind` não é enfeite: é ele que decide onde a
+referência cabe — script em `scriptId`, automação em `targetWorkflowId`.
+
+**A linha de "esquema, nunca conteúdo" não se moveu.** O que o artefato FAZ — os passos, o código —
+continua fora, porque é comportamento. O nome e o tipo do que é público são **contrato**, e contrato é
+esquema. A entrada de `INSTALLED_CATALOG_OMITS` foi reescrita para dizer exatamente essa fronteira, em
+vez do antigo "workflows, scripts e actions" que passou a ser meia verdade.
+
+**Export declarado que não casa com artefato nenhum viaja como `unknown`,** em vez de sumir. O portão
+da instalação confere a LISTA, então uma referência a ele passaria ali e falharia só na primeira
+execução do passo; dizê-lo é melhor que escondê-lo.
+
+**Lista vazia é resposta; chave ausente é silêncio — e o retrato distingue as duas.** O Console
+escreve `exports` sempre, mesmo vazio. Um retrato tirado por um Console anterior ao campo não tem a
+chave, e `exportsKnown` fica `false`: a resposta diz que não há como saber o que se pode referenciar,
+em vez de apresentar lista vazia como "estas extensões não exportam nada". Foi por isso que o
+`INSTALLED_CATALOG_VERSION` **não** subiu: o campo é aditivo, um leitor antigo o ignora sem perder
+nada, e subir a versão faria o leitor recusar o arquivo inteiro nos dois sentidos — a recusa é por
+igualdade estrita.
+
+**O que ainda NÃO existe:** a ação de outra extensão pendurada numa tela continua não viajando. A
+identidade de uma ação numa tela é resolvida por id local no render, sem `findByRef`, e qualificar ali
+exigiria um mecanismo que ainda não existe — `acaoDoPacote` segue filtrando, e agora com a razão
+registrada em vez de parecer uma sobra.
 
 **O que quebrava, e por quê.** O conteúdo de script, workflow e action só era reescrito quando a
 revisão de origem que chegava era maior (`revOf(template) > revOf(existing)`). O catálogo embutido é

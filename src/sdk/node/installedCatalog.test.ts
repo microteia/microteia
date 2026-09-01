@@ -128,3 +128,59 @@ describe('o retrato da instalação', () => {
     expect(input.fields[0]).toMatchObject({ key: 'name', type: 'text', required: true, origin: 'design' });
   });
 });
+
+/**
+ * O nome que não se enxerga é o nome que não se escreve: sem a superfície exportada, quem autora fora
+ * do escritório sabia que a extensão está instalada e não tinha como descobrir o que referenciar dela.
+ */
+describe('a superfície que se pode referenciar', () => {
+  const billing = (exports: unknown): Record<string, unknown> => ({
+    id: 'com.example.billing', name: 'Billing', version: '2.1.0', active: true, ...(exports === undefined ? {} : { exports }),
+  });
+
+  it('traz cada export com o tipo e o nome, que é o que decide onde a referência cabe', () => {
+    write(snapshot({
+      extensions: [billing([
+        { id: 'normalize-tax-id', kind: 'script', name: 'Normalize tax id' },
+        { id: 'notify-customer', kind: 'workflow', name: 'Notify the customer' },
+      ])],
+    }));
+    const read = readInstalledCatalog(workspace, TAKEN_AT);
+    expect(read.exportsKnown).toBe(true);
+    expect(read.snapshot?.extensions[0].exports).toEqual([
+      { id: 'normalize-tax-id', kind: 'script', name: 'Normalize tax id' },
+      { id: 'notify-customer', kind: 'workflow', name: 'Notify the customer' },
+    ]);
+  });
+
+  /** A lista PRESENTE e vazia é a resposta "não exporta nada" — e é uma resposta, não silêncio. */
+  it('lista vazia é uma afirmação, e continua sendo conhecida', () => {
+    write(snapshot({ extensions: [billing([])] }));
+    const read = readInstalledCatalog(workspace, TAKEN_AT);
+    expect(read.exportsKnown).toBe(true);
+    expect(read.snapshot?.extensions[0].exports).toEqual([]);
+  });
+
+  it('chave AUSENTE é silêncio de um Console antigo, e o retrato não a lê como ausência', () => {
+    write(snapshot({ extensions: [billing(undefined)] }));
+    const read = readInstalledCatalog(workspace, TAKEN_AT);
+    expect(read.exportsKnown).toBe(false);
+    expect(read.snapshot?.extensions[0].exports).toBeUndefined();
+  });
+
+  it('basta UMA extensão sem a chave para a superfície inteira deixar de ser confiável', () => {
+    write(snapshot({ extensions: [billing([]), { id: 'com.example.crm', name: 'CRM', version: '1.0.0', active: true }] }));
+    expect(readInstalledCatalog(workspace, TAKEN_AT).exportsKnown).toBe(false);
+  });
+
+  it('sem extensão nenhuma não há o que ignorar — a superfície é conhecida e vazia', () => {
+    write(snapshot({ extensions: [] }));
+    expect(readInstalledCatalog(workspace, TAKEN_AT).exportsKnown).toBe(true);
+  });
+
+  it('tipo que este kernel não conhece vira "unknown" em vez de derrubar o retrato', () => {
+    write(snapshot({ extensions: [billing([{ id: 'x', kind: 'gadget', name: 'X' }])] }));
+    expect(readInstalledCatalog(workspace, TAKEN_AT).snapshot?.extensions[0].exports)
+      .toEqual([{ id: 'x', kind: 'unknown', name: 'X' }]);
+  });
+});

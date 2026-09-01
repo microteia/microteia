@@ -122,6 +122,12 @@ export interface InstalledContribution {
   kernelDiffers: boolean;
   consoleVersion: string;
   extensions: InstalledCatalogExtension[];
+  /**
+   * Se a superfície exportada das extensões pode ser lida como completa. `false` quando o retrato veio
+   * de um Console anterior a `exports` — e aí a ausência de uma lista não diz que a extensão não
+   * exporta nada, diz que ninguém perguntou.
+   */
+  exportsKnown: boolean;
   /** Coleções que SÓ existem na instalação — as que este catálogo não teria sem o retrato. */
   addedCollections: string[];
   /**
@@ -275,6 +281,7 @@ export const readWorkspaceCatalog = (
       kernelDiffers: installation.kernelDiffers,
       consoleVersion: snapshot.consoleVersion,
       extensions: snapshot.extensions,
+      exportsKnown: installation.exportsKnown,
       addedCollections: addedCollections.sort(),
       shadowedCollections: shadowedCollections.sort(),
       lookups: addedLookups.length,
@@ -286,6 +293,14 @@ export const readWorkspaceCatalog = (
         `${INSTALLED_CATALOG_FILE} was taken ${installation.ageDays} day(s) ago, and anything created in `
         + `${snapshot.tenantName} since then is missing from it. Run "microteia export-catalog --tenant `
         + `${snapshot.tenantId}" in the installation to refresh it.`,
+      );
+    }
+    if (!installation.exportsKnown) {
+      installedProblems.push(
+        `${INSTALLED_CATALOG_FILE} was taken by a Console that did not record what each extension exports, `
+        + 'so there is no telling which artifacts of them may be referenced. Do not read the absence of a '
+        + `list as "this extension exports nothing". Run "microteia export-catalog --tenant `
+        + `${snapshot.tenantId}" with the Console that came with this installation.`,
       );
     }
     if (installation.kernelDiffers) {

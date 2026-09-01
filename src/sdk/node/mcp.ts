@@ -217,6 +217,13 @@ const catalogProvenance = (read: WorkspaceCatalog): Record<string, unknown> => {
       consoleVersion: installed.consoleVersion,
       extensions: installed.extensions.map((one) =>
         `${one.name} ${one.version} (${one.id})${one.active ? '' : ' — switched off'}`),
+      /**
+       * O que se pode REFERENCIAR de cada extensão instalada, já na forma em que a referência se
+       * escreve. Sem isto o autor sabia que a extensão está lá e não tinha como descobrir o nome de
+       * nada dentro dela — e um nome que não se enxerga é um nome que não se escreve.
+       */
+      referenceable: installed.extensions.flatMap((one) => (one.exports ?? []).map((exported) =>
+        `${one.id}/${exported.id} — ${exported.name} (${exported.kind})`)),
       collectionsOnlyThere: installed.addedCollections,
       collectionsAlsoInWorkspace: installed.shadowedCollections,
       listsAdded: installed.lookups,

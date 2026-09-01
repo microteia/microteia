@@ -1790,10 +1790,25 @@ to the project is the Console, so the Console exports a **snapshot** and this di
     microteia export-catalog --tenant <tenantId>
 
 It writes \`${INSTALLED_CATALOG_FILE}\` here — screens with their fields, lists of options, tag lists,
-and which extensions are installed. Run it from the installation root (where \`microteia.yaml\` is); with
-no \`--tenant\` it lists the offices in the project rather than guessing one. It is **git-ignored**,
-because it carries screen and field names the organization typed: that is tenant data, not a product
-artifact.
+which extensions are installed, and **what each of them declares in \`manifest.exports\`**. Run it from
+the installation root (where \`microteia.yaml\` is); with no \`--tenant\` it lists the offices in the
+project rather than guessing one. It is **git-ignored**, because it carries screen and field names the
+organization typed: that is tenant data, not a product artifact.
+
+The exported surface is what makes §3 usable from here. Without it you knew an extension was installed
+and had no way to learn the name of anything inside it — and a name you cannot see is a name you cannot
+write. Every answer that carries a \`catalogSources\` block now lists what is \`referenceable\`, already
+in the form the reference takes:
+
+    com.example.utils/normalize-tax-id — Normalize tax id (script)
+
+The \`kind\` is the part that decides where it fits: a script goes in \`scriptId\`, an automation in
+\`targetWorkflowId\`. What the artifact DOES never travels — the steps and the code are behaviour, and
+the snapshot is shape. The name and the kind are contract.
+
+A snapshot taken by a Console older than this field carries no surface at all, and the answer says so
+rather than presenting an empty list as "these extensions export nothing". Re-run \`export-catalog\` with
+the Console that came with the installation.
 
 Three things follow, and they are the point:
 

@@ -95,11 +95,34 @@ export interface CatalogListExport {
   ownerPluginId?: string;
 }
 
+/**
+ * Um artefato que a extensão declara em `manifest.exports` — a superfície que outra extensão pode
+ * referenciar como `<pluginId>/<sourceId>`.
+ *
+ * O `kind` viaja porque é ele que decide ONDE a referência cabe: script em `scriptId`, automação em
+ * `targetWorkflowId`. `unknown` é o export declarado que não casa com artefato nenhum do pacote —
+ * dizê-lo é melhor que omiti-lo, porque uma referência a ele passaria no portão da instalação, que
+ * confere a LISTA, e falharia só na primeira execução.
+ *
+ * O que NÃO viaja é o que o artefato faz: os passos e o código são comportamento, e o retrato é
+ * esquema. O nome e o tipo são contrato.
+ */
+export interface CatalogExtensionExportedArtifact {
+  id: string;
+  kind: 'workflow' | 'action' | 'script' | 'unknown';
+  name: string;
+}
+
 export interface CatalogExtensionExport {
   id: string;
   name: string;
   version: string;
   active: boolean;
+  /**
+   * Sempre escrita, mesmo vazia. É a lista PRESENTE e vazia que diz "esta extensão não exporta nada";
+   * a chave ausente é o silêncio de um Console anterior a este campo, e o kernel distingue as duas.
+   */
+  exports: CatalogExtensionExportedArtifact[];
 }
 
 export interface CatalogExport {
@@ -142,6 +165,39 @@ const asRecord = (value: unknown): Record<string, unknown> | undefined =>
     : undefined);
 
 const FIELD_ORIGINS = ['builtin', 'plugin', 'design'];
+
+/**
+ * A superfície exportada de uma cópia instalada: os ids de `manifest.exports`, cada um casado com o
+ * artefato do pacote que o atende, para ganhar tipo e nome.
+ *
+ * O Console não alcança `src/` — logo não há `MarketplacePlugin` tipado aqui, e a leitura é do
+ * documento cru, como todo o resto deste arquivo. Um export que não casa com nada continua na lista
+ * como `unknown`: a extensão está declarando algo que não entrega, e esconder isso do autor apenas
+ * adia a descoberta para a primeira execução.
+ */
+const exportedArtifacts = (extension: InstalledExtensionRecord): CatalogExtensionExportedArtifact[] => {
+  const declared = extension.manifest?.exports;
+  if (!Array.isArray(declared)) return [];
+
+  const pkg = asRecord(extension.data.package) ?? {};
+  const named = new Map<string, CatalogExtensionExportedArtifact>();
+  const collect = (raw: unknown, kind: 'workflow' | 'action' | 'script'): void => {
+    for (const one of Array.isArray(raw) ? raw : []) {
+      const record = asRecord(one);
+      const id = text(record?.templateId);
+      if (id === undefined || named.has(id)) continue;
+      named.set(id, { id, kind, name: text(record?.name) ?? text(record?.title) ?? id });
+    }
+  };
+  collect(pkg.workflows, 'workflow');
+  collect(pkg.actions, 'action');
+  collect(pkg.scripts, 'script');
+
+  return declared
+    .filter((id): id is string => typeof id === 'string' && id !== '')
+    .map((id) => named.get(id) ?? { id, kind: 'unknown' as const, name: id })
+    .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+};
 
 /**
  * A mesma dedução que a aplicação faz ao ler a tela (`screenDefinitionMapper.ts`): o `origin` gravado
@@ -236,7 +292,13 @@ export const buildCatalogExport = (input: CatalogExportInput): CatalogExport => 
   kernelVersion: input.kernelVersion,
   consoleVersion: CLI_VERSION,
   extensions: input.extensions
-    .map((one) => ({ id: one.id, name: one.name, version: one.version, active: one.active }))
+    .map((one) => ({
+      id: one.id,
+      name: one.name,
+      version: one.version,
+      active: one.active,
+      exports: exportedArtifacts(one),
+    }))
     .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)),
   screens: input.screens
     .filter((document) => document.data.enabled !== false)
@@ -379,6 +441,8 @@ export const exportCatalog = async (args: ParsedArgs): Promise<void> => {
     + `${document.lookups.length} list(s), ${document.tagLists.length} tag list(s)`);
   info(`  ${fromExtensions} screen(s) come from the ${document.extensions.length} installed extension(s); `
     + `the rest the office built itself.`);
+  const exported = document.extensions.reduce((total, one) => total + one.exports.length, 0);
+  info(`  ${exported} artifact(s) are declared for other extensions to reference as <extension-id>/<id>.`);
 
   blank();
   await checkIgnored(directory);
@@ -386,7 +450,8 @@ export const exportCatalog = async (args: ParsedArgs): Promise<void> => {
   info('is old. Nothing keeps it in step with the office — run this again after screens change there.');
   blank();
   info('What it deliberately leaves out: records, the values inside a list of options or a tag list,');
-  info('members and permissions, workflows, scripts, actions, secrets and settings. It describes what');
-  info('the entities ARE, and nothing an office typed into them.');
+  info('members and permissions, what a workflow, script or action DOES, secrets and settings. It');
+  info('describes what the entities ARE, and nothing an office typed into them. What each extension');
+  info('declares in "exports" travels: that is the surface another extension may reference.');
   blank();
 };

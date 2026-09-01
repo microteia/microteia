@@ -49,7 +49,9 @@ export const INSTALLED_CATALOG_OMITS: readonly string[] = [
   'records — the catalog describes shape, and a snapshot of an office\'s data has no business in an authoring directory',
   'the values inside a list of options or a tag list — that vocabulary is the office\'s, and the entity catalog never reads it',
   'members, roles and permissions — who may do what is not part of what an entity IS',
-  'workflows, scripts and actions — behaviour, not shape',
+  'what a workflow, script or action DOES — the steps and the code are behaviour, not shape. What each '
+    + 'installed extension declares in `manifest.exports` does travel: that is the surface you may '
+    + 'reference, and a name you cannot see is a name you cannot write',
   'secrets and settings — nothing here should ever hold a credential',
 ];
 
@@ -92,11 +94,33 @@ export interface InstalledCatalogList {
   ownerPluginId?: string | null;
 }
 
+/**
+ * O tipo do artefato exportado, porque é ele que decide ONDE a referência cabe: um script vai em
+ * `scriptId`, uma automação em `targetWorkflowId`. `unknown` é o export declarado que não casa com
+ * nenhum artefato do pacote — dizê-lo é melhor que escondê-lo, porque a referência a ele passaria no
+ * portão da instalação (que confere a lista) e falharia na primeira execução.
+ */
+export type InstalledCatalogExportKind = 'workflow' | 'action' | 'script' | 'unknown';
+
+export interface InstalledCatalogExport {
+  /** O `sourceId` — a metade direita de `<pluginId>/<sourceId>`. */
+  id: string;
+  kind: InstalledCatalogExportKind;
+  name: string;
+}
+
 export interface InstalledCatalogExtension {
   id: string;
   name: string;
   version: string;
   active: boolean;
+  /**
+   * A superfície pública desta extensão, de `manifest.exports`. **`undefined` é "não registrado", e
+   * nunca "não exporta nada"** — um Console anterior a este campo não escrevia a chave, e um que a
+   * conhece escreve `[]` quando a lista é vazia. É essa distinção que `exportsKnown` carrega, e é ela
+   * que impede o retrato de afirmar ausência quando o que houve foi silêncio.
+   */
+  exports?: InstalledCatalogExport[];
 }
 
 export interface InstalledCatalogFile {
@@ -125,6 +149,12 @@ export interface InstalledCatalogRead {
   stale: boolean;
   /** O retrato foi tirado por um kernel diferente do que roda aqui. */
   kernelDiffers: boolean;
+  /**
+   * Se dá para confiar na superfície exportada que o retrato traz. `false` quando alguma extensão
+   * chegou SEM a chave `exports` — o Console que o tirou é anterior a ela, e uma lista vazia ali seria
+   * lida como "esta extensão não exporta nada", que é uma afirmação que ninguém fez.
+   */
+  exportsKnown: boolean;
   /** Por que o arquivo não pôde ser usado — arquivo torto, formato de outra época, campo faltando. */
   problems: string[];
 }
@@ -136,6 +166,7 @@ const ABSENT = (path: string): InstalledCatalogRead => ({
   ageDays: null,
   stale: false,
   kernelDiffers: false,
+  exportsKnown: true,
   problems: [],
 });
 
@@ -222,6 +253,21 @@ const readList = (raw: unknown): InstalledCatalogList | null => {
   };
 };
 
+const EXPORT_KINDS: readonly InstalledCatalogExportKind[] = ['workflow', 'action', 'script', 'unknown'];
+
+const readExport = (raw: unknown): InstalledCatalogExport | null => {
+  const record = asRecord(raw);
+  if (record === null) return null;
+  const id = text(record.id);
+  if (id === '') return null;
+  const kind = text(record.kind);
+  return {
+    id,
+    kind: (EXPORT_KINDS as readonly string[]).includes(kind) ? kind as InstalledCatalogExportKind : 'unknown',
+    name: text(record.name, id),
+  };
+};
+
 const readExtension = (raw: unknown): InstalledCatalogExtension | null => {
   const record = asRecord(raw);
   if (record === null) return null;
@@ -232,6 +278,10 @@ const readExtension = (raw: unknown): InstalledCatalogExtension | null => {
     name: text(record.name, id),
     version: text(record.version, '0.0.0'),
     active: record.active !== false,
+    // A chave AUSENTE é o silêncio de um Console antigo; a chave presente e vazia é a resposta "nada".
+    ...(Array.isArray(record.exports)
+      ? { exports: record.exports.map(readExport).filter((one): one is InstalledCatalogExport => one !== null) }
+      : {}),
   };
 };
 
@@ -321,6 +371,7 @@ export const readInstalledCatalog = (root: string, now: Date = new Date()): Inst
     ageDays,
     stale: ageDays !== null && ageDays >= INSTALLED_CATALOG_STALE_DAYS,
     kernelDiffers: snapshot.kernelVersion !== KERNEL_VERSION,
+    exportsKnown: snapshot.extensions.every((one) => one.exports !== undefined),
     problems: readable ? [] : [`${INSTALLED_CATALOG_FILE} has no readable "exportedAt", so there is no telling `
       + 'how old it is. Treat every entity it brings as possibly out of date.'],
   };

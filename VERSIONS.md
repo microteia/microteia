@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.41.0] — 2026-09-01
+
+- Quem monta extensões fora do escritório passa a enxergar o que cada extensão instalada oferece para as outras usarem. Antes era possível saber que a extensão estava instalada, mas não descobrir o nome do que havia dentro dela — e o que não se enxerga não se escreve. O retrato do escritório agora traz essa lista, dizendo o nome e o tipo de cada item.
+- Esse retrato continua sem levar nada do que as automações fazem por dentro, nem nada que o escritório digitou: ele descreve o que existe, nunca o conteúdo.
+
 #### [9.40.0] — 2026-08-31
 
 - Ao montar uma extensão, uma automação que usa o script ou o fluxo trazido por outra extensão já pode ser empacotada como está. Antes esse uso virava uma pendência impossível de resolver pela tela, e a saída era duplicar o script dentro da sua extensão.

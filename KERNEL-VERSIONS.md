@@ -18,6 +18,13 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.41.0] — 2026-09-01
+
+- feat(sdk): the installation snapshot carries the exported surface of every installed extension, and every answer with a `catalogSources` block lists it as `referenceable`, already in the form the reference takes (`com.example.utils/normalize-tax-id — Normalize tax id (script)`). The snapshot brought screens, lists and WHICH extensions are installed, and nothing from inside them: a qualified reference could be written by hand and could not be DISCOVERED. A name you cannot see is a name you cannot write. The `kind` travels because it decides where the reference fits — a script in `scriptId`, an automation in `targetWorkflowId`.
+- feat(sdk): `INSTALLED_CATALOG_OMITS` states the line where it actually falls. What a workflow, script or action DOES stays out — steps and code are behaviour — while the name and kind of what is public are CONTRACT, and contract is shape. The old "workflows, scripts and actions" entry had become a half-truth.
+- feat(sdk): `exportsKnown` tells an empty list from a missing key. A Console older than the field writes no `exports`, and reading that absence as "these extensions export nothing" would be a claim nobody made; the answer says the surface is unknown and names the command that refreshes it. `INSTALLED_CATALOG_VERSION` deliberately did NOT move: the field is additive and an old reader ignores it, while bumping it would make the strict-equality check reject the whole file in both directions.
+- feat(sdk): the authoring guide documents the surface next to the reference syntax it serves, so §3 is usable from a directory that never talks to the database.
+
 #### [9.40.0] — 2026-08-31
 
 - feat(plugins): `buildPackage` translates the OUTGOING reference — local id to `<pluginId>/<sourceId>` — for a step's `scriptId` and `targetWorkflowId` and for the workflow an action calls. The step picker always offered another extension's automation and script, and always stored their local id, which is what the engine resolves here; what was missing was the other end, where that id exists in no other office. The package referenced an artifact it did not include, `validatePackage` refused it with `issue.ref.external`, and the refusal could not be answered from the screen — only by hand-editing the `.ts`. Only the FOREIGN artifact enters the map: `sourceId` and `ownerPluginId` are written together at materialization, so an office artifact has neither and its local id already IS the `templateId` — the coincidence that lets the authoring dependency closure keep comparing local ids. An already-qualified reference is left alone, and a non-`Literal` target is no reference at all.
