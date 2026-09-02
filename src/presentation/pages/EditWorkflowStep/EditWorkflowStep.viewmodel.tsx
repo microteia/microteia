@@ -166,6 +166,12 @@ export interface EditWorkflowStepViewModel {
   stepIdentifierHint: string;
   stepIdentifierError: string | null;
   isStepIdentifierLocked: boolean;
+  /**
+   * O rótulo livre do passo — `signature`, o que o cartão do fluxo mostra. Vazio faz o cartão cair
+   * no identificador, que é o comportamento de um passo que nunca recebeu rótulo.
+   */
+  stepLabel: string;
+  setStepLabel: (label: string) => void;
   configuration: Record<string, InputMapping>;
   effectiveInputs: InputDefinition[];
   /** O seletor que este input pede, ou `null` quando ele é preenchido por mapeamento comum. */
@@ -278,6 +284,7 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
   const [selectedDefinitionId, setSelectedDefinitionId] = useState('');
   const [stepIdentifier, setStepIdentifier] = useState('');
   const [identifierTouched, setIdentifierTouched] = useState(false);
+  const [stepLabel, setStepLabel] = useState('');
   const [configuration, setConfiguration] = useState<Record<string, InputMapping>>({});
   const [enabled, setEnabled] = useState(true);
   const [pendingCondition, setPendingCondition] = useState<Condition>({ kind: 'AlwaysTrue' });
@@ -314,6 +321,7 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
     setSelectedDefinitionId(editingStep?.stepDefinitionId ?? '');
     setStepIdentifier(editingStep?.id ?? '');
     setIdentifierTouched(false);
+    setStepLabel(editingStep?.signature ?? '');
     // Nó Loop guarda a origem da lista em `loop.source`; expõe-a como configuration['source']
     // para reusar os mesmos controles de mapeamento de qualquer outro input.
     setConfiguration(
@@ -889,8 +897,7 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
           stepDefinitionId: '',
           type: 'Condition',
           order: editingStep.order,
-          ...(editingStep.signature ? { signature: editingStep.signature } : {}),
-          ...(editingStep.name ? { name: editingStep.name } : {}),
+          ...(stepLabel.trim() ? { signature: stepLabel.trim() } : {}),
           configuration: {},
           enabled,
           condition: pendingCondition,
@@ -919,8 +926,7 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
           stepDefinitionId: '',
           type: 'Loop',
           order: editingStep.order,
-          ...(editingStep.signature ? { signature: editingStep.signature } : {}),
-          ...(editingStep.name ? { name: editingStep.name } : {}),
+          ...(stepLabel.trim() ? { signature: stepLabel.trim() } : {}),
           configuration: {},
           enabled,
           loop: {
@@ -950,8 +956,7 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
         stepDefinitionId: selectedDefinition.id,
         type: selectedDefinition.type,
         order: editingStep?.order ?? 0,
-        ...(editingStep?.signature ? { signature: editingStep.signature } : {}),
-        ...(editingStep?.name ? { name: editingStep.name } : {}),
+        ...(stepLabel.trim() ? { signature: stepLabel.trim() } : {}),
         configuration,
         enabled,
       };
@@ -982,6 +987,7 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
     insertTarget,
     insertIndex,
     stepIdentifier,
+    stepLabel,
     configuration,
     enabled,
     pendingCondition,
@@ -1027,6 +1033,8 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
     stepIdentifierHint,
     stepIdentifierError: visibleStepIdentifierError ?? null,
     isStepIdentifierLocked: !!editingStep,
+    stepLabel,
+    setStepLabel,
     configuration,
     effectiveInputs,
     pickerFor,

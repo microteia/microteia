@@ -18,6 +18,12 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.44.0] — 2026-09-02
+
+- feat(automation/editor): `WorkflowStep.signature` — the free label `getStepDisplayName` puts first on the flow card — had no field in the step editor. Nothing in the tree writes it any more (the screen that did is gone), so a card showed either a label nobody could change or the technical identifier, and the identifier is the one field the form did expose — immutable after creation. `EditWorkflowStep` now edits the label in all three forms (action, condition, loop), saving into `signature`.
+- refactor(automation): `WorkflowStep.name` is gone, from both copies of the entity (the backend's is hand-kept — `domain/entities/Workflow.ts` is not in `sync-schemas`). It was a second spelling of the same label that no screen, engine path, authored workflow or template ever wrote, and its only reader was the fallback line right under `signature` in `getStepDisplayName`. Keeping it meant every future decision about the label had to answer for two fields — which is what made writing the label the wrong way tempting in the first place. `stepTree.test.ts` used it as its arbitrary mutable field and now uses `signature`.
+- feat(i18n): `step.label`, `step.label.hint` and `step.label.placeholder` in `core.automation`, with the pt-BR pair; `com.microteia.locale-pt-br` at 1.42.2.
+
 #### [9.43.3] — 2026-09-02
 
 - fix(automation/editor): the `workflow` and `script` pickers matched their option list by LOCAL id, and a step that targets another extension's artifact stores the qualified ref `<pluginId>/<sourceId>`. Nothing matched, so `SearchSelect` drew a working target as `reference.not-found`. `EditWorkflowStep.viewmodel` now exposes `pickerValue`, resolving the stored ref through `findByArtifactRef` — the same lookup the dynamic inputs and outputs already used — and `pickerOptions` takes the resolved value so an option can be appended for a target the filter would otherwise hide.

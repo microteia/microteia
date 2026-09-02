@@ -448,6 +448,10 @@ export const CORE_AUTOMATION_MESSAGES: Record<string, string> = {
   'step.edit.condition': 'Edit Condition',
   'step.edit.loop': 'Edit Loop',
   'step.identifier.placeholder': 'e.g. findCase',
+  'step.label': 'Description',
+  'step.label.hint':
+    'The name of this step on the flow card. Leave it empty to show the identifier.',
+  'step.label.placeholder': 'e.g. Register the parties',
   'step.no-prior-steps':
     "There is no previous step in this workflow to use as the source of 'Output of another step'.",
   'step.target.script': 'Select the script…',

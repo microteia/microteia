@@ -360,6 +360,15 @@ export const EditWorkflowStepView: React.FC<{ tabKey: string }> = ({ tabKey }) =
               <Input value={vm.stepIdentifier} readOnly disabled />
               <S.HelpText>{vm.stepIdentifierHint}</S.HelpText>
             </InputGroup>
+            <InputGroup>
+              <Label>{t('step.label')}</Label>
+              <Input
+                value={vm.stepLabel}
+                onChange={(e) => vm.setStepLabel(e.target.value)}
+                placeholder={t('step.label.placeholder')}
+              />
+              <S.HelpText>{t('step.label.hint')}</S.HelpText>
+            </InputGroup>
             <S.StepsDivider />
             <S.ConditionToolbar>
               <S.ViewToggle>
@@ -410,6 +419,15 @@ export const EditWorkflowStepView: React.FC<{ tabKey: string }> = ({ tabKey }) =
               <Label>{t('core.ui/field.identifier')}</Label>
               <Input value={vm.stepIdentifier} readOnly disabled />
               <S.HelpText>{vm.stepIdentifierHint}</S.HelpText>
+            </InputGroup>
+            <InputGroup>
+              <Label>{t('step.label')}</Label>
+              <Input
+                value={vm.stepLabel}
+                onChange={(e) => vm.setStepLabel(e.target.value)}
+                placeholder={t('step.label.placeholder')}
+              />
+              <S.HelpText>{t('step.label.hint')}</S.HelpText>
             </InputGroup>
             <S.StepsDivider />
             <S.Field>
@@ -476,6 +494,16 @@ export const EditWorkflowStepView: React.FC<{ tabKey: string }> = ({ tabKey }) =
             {vm.stepIdentifierError
               ? <S.HelpText $error>{vm.stepIdentifierError}</S.HelpText>
               : <S.HelpText>{vm.stepIdentifierHint}</S.HelpText>}
+          </InputGroup>
+
+          <InputGroup>
+            <Label>{t('step.label')}</Label>
+            <Input
+              value={vm.stepLabel}
+              onChange={(e) => vm.setStepLabel(e.target.value)}
+              placeholder={t('step.label.placeholder')}
+            />
+            <S.HelpText>{t('step.label.hint')}</S.HelpText>
           </InputGroup>
 
           {vm.selectedDefinition && vm.effectiveInputs.length > 0 && <S.StepsDivider />}

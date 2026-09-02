@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.44.0] — 2026-09-02
+
+- O passo de uma automação passa a ter Descrição: um nome livre, escrito na hora de criar ou de editar o passo, e é ele que aparece no cartão do fluxo. Antes o cartão só mostrava o identificador técnico do passo, e a descrição de um passo antigo, que já vinha escrita, não tinha mais como ser alterada.
+
 #### [9.43.3] — 2026-09-02
 
 - Corrigido o passo "Chamar Workflow": uma automação ou um script trazidos por outra extensão apareciam como "Registro não encontrado", ainda que o passo funcionasse — o campo agora mostra o nome do que ele chama.

@@ -448,6 +448,10 @@ export const CORE_AUTOMATION: Record<string, string> = {
   'step.edit.condition': 'Editar Condição',
   'step.edit.loop': 'Editar Repetição',
   'step.identifier.placeholder': 'ex: buscarProcesso',
+  'step.label': 'Descrição',
+  'step.label.hint':
+    'O nome deste passo no cartão do fluxo. Deixe vazio para mostrar o identificador.',
+  'step.label.placeholder': 'ex: Cadastrar as partes',
   'step.no-prior-steps':
     "Não há steps anteriores neste workflow para usar como origem de 'Saída de outro step'.",
   'step.target.script': 'Selecione o script...',

@@ -34,8 +34,8 @@ describe('travessia da árvore de passos', () => {
   });
 
   it('aplica a transformação em toda profundidade preservando a forma', () => {
-    const marcado = mapSteps(arvore(), (s) => ({ ...s, name: `x-${s.id}` }));
-    expect(flattenSteps(marcado).map((s) => s.name))
+    const marcado = mapSteps(arvore(), (s) => ({ ...s, signature: `x-${s.id}` }));
+    expect(flattenSteps(marcado).map((s) => s.signature))
       .toEqual(['x-topo', 'x-L', 'x-corpo', 'x-C', 'x-v', 'x-f', 'x-C2', 'x-L2', 'x-fundo']);
     expect(marcado[1].loop?.body[1].branches?.whenTrue[0].id).toBe('v');
   });
@@ -43,7 +43,7 @@ describe('travessia da árvore de passos', () => {
   /** A entrada é do chamador: uma travessia que mutasse a árvore original trocaria um defeito por outro. */
   it('não muta a árvore recebida', () => {
     const original = arvore();
-    mapSteps(original, (s) => ({ ...s, name: 'outro' }));
-    expect(original[1].loop?.body[0].name).toBeUndefined();
+    mapSteps(original, (s) => ({ ...s, signature: 'outro' }));
+    expect(original[1].loop?.body[0].signature).toBeUndefined();
   });
 });

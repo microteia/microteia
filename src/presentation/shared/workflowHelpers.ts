@@ -15,10 +15,9 @@ export const isReferenceableStepId = (stepId: string): boolean => STEP_IDENTIFIE
 
 /**
  * Retorna o nome de exibição de um step, com prioridade:
- * 1. signature (rótulo livre, herdado dos Steps criados antes do identificador único)
- * 2. name (idem, nunca escrito pela tela atual)
- * 3. id, quando referenciável — é o nome pelo qual as expressões chamam o Step
- * 4. nome do tipo (o nó do grafo mostra o tipo na segunda linha quando o título já diz outra coisa)
+ * 1. signature (o rótulo livre que o campo Descrição da tela de Step escreve)
+ * 2. id, quando referenciável — é o nome pelo qual as expressões chamam o Step
+ * 3. nome do tipo (o nó do grafo mostra o tipo na segunda linha quando o título já diz outra coisa)
  */
 export const getStepDisplayName = (
   t: TranslateFn,
@@ -27,7 +26,6 @@ export const getStepDisplayName = (
   fallback?: string,
 ): string => {
   if (step.signature) return step.signature;
-  if (step.name) return step.name;
   if (isReferenceableStepId(step.id)) return step.id;
   if (definition?.name) return definition.name;
   if (step.type === 'Condition') return t('core.automation/step.type.condition');

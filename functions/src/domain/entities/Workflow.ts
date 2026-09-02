@@ -60,7 +60,6 @@ export interface WorkflowStep {
   stepDefinitionId: string;
   type: StepType;
   order: number;
-  name?: string;
   signature?: string;
   configuration: Record<string, InputMapping>;
   enabled: boolean;
