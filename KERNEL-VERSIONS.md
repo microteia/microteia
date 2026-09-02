@@ -18,6 +18,11 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.43.2] — 2026-09-02
+
+- fix(i18n): a sentence that WRAPS a `LocalizedError` lost the params the wrapped sentence interpolates. `translate` descends only the SIBLING params the outer message received, so `t('extension.operation-failed', { detail: err.message })` resolved the nested reference and then printed `{kind}`, `{id}` and `{plugin}` raw: the refusal to install an extension whose dependency is absent named neither the missing extension nor the artifact it references. `wrappedErrorParams` (`domain/errors/LocalizedError.ts`) emits the `{detail}` and the error's own params together, so forgetting one stops being possible; applied to `extension.operation-failed`, `extension.publish-failed`, `extension.import-failed` and `author.save-failed`.
+- fix(screens): deleting a screen printed the refusal REFERENCE on the banner — `NotificationBanner` renders the string it is handed, and the three `DeleteScreenDefinitionUseCase` messages reached it unresolved. Resolved with `useLabel` at the call site, as `RolesTab` already did.
+
 #### [9.43.1] — 2026-09-01
 
 - fix(plugins/author): the export screen picked the diagnostic sentence by the presence of `SdkIssue.ref`, not by the message. Every ref-bearing refusal — the eight of `validatePackage` and all of `workflowStepIssues` — was printed as `author.issue.external-ref`. A step missing a required input surfaced as `automation "X" references the automation "X", which belongs to another extension`: `workflowIssues` anchors its `ref` on the workflow that OWNS the defect, so origin and target were the same automation, and the step and input the real sentence names were discarded. The branch now keys on `REF_EXTERNAL_MESSAGE`, exported from `pluginReferences`, and forwards `ref.from.step` so a step-scoped origin no longer renders `{step}` raw.

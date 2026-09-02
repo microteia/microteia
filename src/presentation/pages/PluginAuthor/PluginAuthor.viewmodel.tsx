@@ -17,6 +17,7 @@ import {
 } from '../../../domain/usecases/plugins/pluginReferences';
 import { referencedExtensionIds } from '../../../domain/usecases/plugins/crossExtensionRefs';
 import { serializePackage } from '../../../domain/usecases/plugins/packageSerialization';
+import { wrappedErrorParams } from '../../../domain/errors/LocalizedError';
 import { isValidPluginId } from '../../../domain/schema/plugin/pluginManifest';
 import { validatePluginPackage } from '../../../sdk/validate';
 import { nav, page } from '../../../plugins/contributionBuilders';
@@ -687,7 +688,7 @@ export const usePluginAuthorViewModel = (tabKey?: string): PluginAuthorViewModel
       openTab('marketplace');
     } catch (err) {
       console.error('[plugin-author] failed to save extension:', err);
-      notify(t('author.save-failed', { detail: err instanceof Error ? err.message : String(err) }), 'error');
+      notify(t('author.save-failed', wrappedErrorParams(err)), 'error');
     } finally {
       setBusy(false);
     }

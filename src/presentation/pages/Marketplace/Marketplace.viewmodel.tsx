@@ -16,6 +16,7 @@ import { useDI } from '../../../infrastructure/di/useDI';
 import type { BackendResidue } from '../../../domain/entities/BackendResidue';
 import { extensionMigrationError, isExtensionMigrationPending } from '../../../domain/usecases/plugins/extensionMigrationState';
 import { licenseOf } from '../../../domain/usecases/plugins/pluginLicenses';
+import { wrappedErrorParams } from '../../../domain/errors/LocalizedError';
 import { useExtensionCodeTrust } from '../../../stores/useExtensionCodeTrust';
 import { useInstalledRevision } from '../../../stores/useInstalledRevision';
 import { EXTENSION_HISTORY_LIMIT } from '../../../domain/usecases/plugins/extensionHistory';
@@ -374,9 +375,8 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
         await action();
         notify(successMessage, 'success');
       } catch (err) {
-        const detail = err instanceof Error ? err.message : String(err);
         console.error('[marketplace] extension operation failed:', err);
-        notify(t('extension.operation-failed', { detail: detail }), 'error');
+        notify(t('extension.operation-failed', wrappedErrorParams(err)), 'error');
       } finally {
         setBusyId(null);
       }
@@ -652,7 +652,7 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
         notify(t('extension.sent-for-approval'), 'warning');
       } else notify(t('extension.published'), 'success');
     } catch (err) {
-      notify(t('extension.publish-failed', { detail: err instanceof Error ? err.message : String(err) }), 'error');
+      notify(t('extension.publish-failed', wrappedErrorParams(err)), 'error');
     } finally {
       setBusyId(null);
     }
@@ -808,7 +808,7 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
       if (result.ok) notify(t('extension.imported', { name: result.name }), 'success');
       else notify(t('extension.import-failed', { detail: label(result.error, result.errorParams) }), 'error');
     } catch (err) {
-      notify(t('extension.import-failed', { detail: err instanceof Error ? err.message : String(err) }), 'error');
+      notify(t('extension.import-failed', wrappedErrorParams(err)), 'error');
     } finally {
       setBusyId(null);
     }

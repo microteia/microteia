@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.43.2] — 2026-09-02
+
+- Corrigida a mensagem que recusa instalar uma extensão que depende de outra ainda não instalada. Ela chegava à tela com os espaços do texto sem preencher — sem dizer qual extensão falta nem qual item dela é usado —, e o mesmo acontecia com as recusas de publicar, importar e salvar uma extensão, e com as de excluir uma tela. Agora cada uma diz o que aconteceu, com os nomes no lugar.
+
 #### [9.43.1] — 2026-09-01
 
 - Corrigido o aviso da tela de Autoria de extensão, que descrevia qualquer pendência de uma automação como se ela dependesse de outra extensão. Agora cada pendência aparece com a explicação dela — inclusive dizendo qual passo e qual campo estão incompletos.

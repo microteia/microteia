@@ -2,6 +2,7 @@ import { useCallback, useMemo, useRef, useState } from 'react';
 import { useTheme } from 'styled-components';
 import { useAuthorization } from '../../../stores/useAuthorization';
 import { PERMISSION_SCREENS_MANAGE } from '../../../domain/schema/access';
+import { errorParamsOf } from '../../../domain/errors/LocalizedError';
 import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
 import type { ScreenDefinitionSaveInput } from '../../../stores/useScreenDefinitions';
 import { useNotification } from '../../../stores/useNotification';
@@ -1348,11 +1349,11 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       notify(t('screen.deleted'), 'success');
       setDeleteScreenTarget(null);
     } catch (err) {
-      notify(err instanceof Error ? err.message : t('screen.delete-failed'), 'error');
+      notify(label(err instanceof Error ? err.message : t('screen.delete-failed'), errorParamsOf(err)), 'error');
     } finally {
       setDeletingScreen(false);
     }
-  }, [deleteScreenTarget, deleteDefinition, notify, t]);
+  }, [deleteScreenTarget, deleteDefinition, notify, t, label]);
 
   const openCreateField = useCallback((screenKey: string) => {
     setFieldForm({ ...EMPTY_FIELD_FORM, optionColorInput: defaultTagColor });
