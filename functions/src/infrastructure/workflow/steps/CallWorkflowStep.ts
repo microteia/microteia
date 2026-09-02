@@ -77,6 +77,12 @@ export const makeCallWorkflowStepDefinition = (runCalledWorkflow: RunCalledWorkf
       }
 
       if (result.status !== 'SUCCESS') {
+        // O MOTIVO, antes do veredito: as linhas de erro da execução chamada entram no log deste
+        // passo, atribuídas a ele. Sem isso, o chamador dizia só o status, e descobrir o que houve
+        // era sair da tela e caçar a execução da outra automação pelo horário.
+        for (const failure of result.failures) {
+          context.logger.error(failure.message, failure.messageParams);
+        }
         return {
           success: false,
           message: '@core.automation/step.call-workflow.bad-status',

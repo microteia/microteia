@@ -17,9 +17,28 @@ export interface RunCalledWorkflowParams {
   actor?: WorkflowContext['actor'];
 }
 
+/**
+ * As linhas de ERRO da execução chamada, do jeito que ela as gravou — referência e parâmetros.
+ *
+ * Elas sobem porque a única coisa que o chamador sabia dizer era o STATUS, e "terminou com status
+ * FAILED" não diz o que houve nem em qual passo: quem lia o log do chamador tinha de sair da tela,
+ * achar a automação chamada e procurar a execução correspondente pelo horário. O motivo mora numa
+ * execução, a pergunta nasce na outra, e é o chamador que junta as duas.
+ */
+export interface CalledWorkflowFailure {
+  message: string;
+  messageParams?: Record<string, string>;
+}
+
 export type RunCalledWorkflowResult =
   | { found: false }
-  | { found: true; status: WorkflowExecutionStatus; outputs: Record<string, unknown>; executionId: string };
+  | {
+      found: true;
+      status: WorkflowExecutionStatus;
+      outputs: Record<string, unknown>;
+      executionId: string;
+      failures: CalledWorkflowFailure[];
+    };
 
 export type RunCalledWorkflowUseCase = {
   execute: (params: RunCalledWorkflowParams) => Promise<RunCalledWorkflowResult>;
@@ -49,6 +68,13 @@ export const makeRunCalledWorkflowUseCase = (
     const execution = await hydrateAndRunWorkflow(target, event, { registry, services, hydrator, ...(actor ? { actor } : {}) });
     await executionRepository.create(execution);
 
-    return { found: true, status: execution.status, outputs: execution.outputs, executionId: execution.id };
+    const failures = execution.logs
+      .filter((entry) => entry.level === 'ERROR')
+      .map((entry) => ({
+        message: entry.message,
+        ...(entry.messageParams ? { messageParams: entry.messageParams } : {}),
+      }));
+
+    return { found: true, status: execution.status, outputs: execution.outputs, executionId: execution.id, failures };
   },
 });

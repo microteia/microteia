@@ -170,7 +170,12 @@ export interface EditWorkflowStepViewModel {
   effectiveInputs: InputDefinition[];
   /** O seletor que este input pede, ou `null` quando ele é preenchido por mapeamento comum. */
   pickerFor: (input: InputDefinition) => InputPickerKind | null;
-  pickerOptions: (kind: InputPickerKind) => { value: string; label: string }[];
+  /**
+   * O id LOCAL do artefato que o passo guarda — o valor gravado pode ser a referência qualificada
+   * `<extensão>/<artefato>`, e é por id local que a lista do seletor identifica a linha.
+   */
+  pickerValue: (kind: InputPickerKind, stored: string) => string;
+  pickerOptions: (kind: InputPickerKind, current: string) => { value: string; label: string }[];
   pickerPlaceholder: (kind: InputPickerKind) => string;
   setPickerValue: (inputId: string, value: string) => void;
   setMappingKind: (inputId: string, kind: InputMapping['kind']) => void;
@@ -373,15 +378,22 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
       ? (targetScript?.inputParams ?? [])
       : (targetWorkflow?.parameters ?? []);
     const paramInputs = source.flatMap(
-      (parameter) => flattenParameterInputs(parameterForDisplay(label, parameter)),
+      (parameter) => flattenParameterInputs(label, parameterForDisplay(label, parameter)),
     );
     return [...selectedDefinition.inputs, ...paramInputs];
   }, [selectedDefinition, dynamicInputsSourceId, dynamicTargetKind, targetWorkflow, targetScript, label]);
 
+  /**
+   * As automações que este passo pode chamar: as CHAMÁVEIS, ativas, menos ela mesma.
+   *
+   * O filtro por `enabled` não é cosmético — quem executa recusa um alvo desativado exatamente como
+   * recusa um alvo inexistente, então oferecer uma automação inativa é oferecer uma escolha que só
+   * falha na hora em que alguém depender dela.
+   */
   const callableWorkflowOptions = useMemo(
     () =>
       workflows
-        .filter((w) => w.eventName === WORKFLOW_CALLED_EVENT && w.id !== workflowId)
+        .filter((w) => w.eventName === WORKFLOW_CALLED_EVENT && w.enabled && w.id !== workflowId)
         .map((w) => ({ value: w.id, label: label(w.name) })),
     [workflows, workflowId, label],
   );
@@ -447,13 +459,39 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
     [configuration],
   );
 
-  const pickerOptions = useCallback(
-    (kind: InputPickerKind): { value: string; label: string }[] => {
-      if (kind === 'script') return callableScriptOptions;
-      if (kind === 'ai-connection') return aiConnectionOptions;
-      return callableWorkflowOptions;
+  /**
+   * O que o passo GUARDA e o que a lista MOSTRA não são a mesma coisa quando o alvo é de outra
+   * extensão: ali o valor gravado é `<extensão>/<artefato>`, resolvido por nome em tempo de execução,
+   * e a lista é de ids locais. Sem traduzir um no outro, o seletor não achava a linha e desenhava o
+   * alvo — que existe e roda — como "Registro não encontrado".
+   */
+  const pickerValue = useCallback(
+    (kind: InputPickerKind, stored: string): string => {
+      if (!stored || kind === 'ai-connection') return stored;
+      const found = kind === 'script'
+        ? findByArtifactRef(scripts, stored)
+        : findByArtifactRef(workflows, stored);
+      return found?.id ?? stored;
     },
-    [callableScriptOptions, aiConnectionOptions, callableWorkflowOptions],
+    [scripts, workflows],
+  );
+
+  /**
+   * A lista, mais o que já está escolhido quando ele não estaria nela — uma automação desativada
+   * DEPOIS de escolhida. Escondê-la não a desconfigura: só faz o passo parecer vazio quando ele
+   * aponta para algo. O filtro decide o que se pode escolher, nunca o que se pode ver.
+   */
+  const pickerOptions = useCallback(
+    (kind: InputPickerKind, current: string): { value: string; label: string }[] => {
+      if (kind === 'ai-connection') return aiConnectionOptions;
+      const options = kind === 'script' ? callableScriptOptions : callableWorkflowOptions;
+      if (!current || options.some((option) => option.value === current)) return options;
+      const chosen = kind === 'script'
+        ? findByArtifactRef(scripts, current)
+        : findByArtifactRef(workflows, current);
+      return chosen ? [...options, { value: chosen.id, label: label(chosen.name) }] : options;
+    },
+    [callableScriptOptions, aiConnectionOptions, callableWorkflowOptions, scripts, workflows, label],
   );
 
   const pickerPlaceholder = useCallback(
@@ -992,6 +1030,7 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
     configuration,
     effectiveInputs,
     pickerFor,
+    pickerValue,
     pickerOptions,
     pickerPlaceholder,
     setPickerValue,

@@ -11,6 +11,13 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.43.3] — 2026-09-02
+
+- Corrigido o passo "Chamar Workflow": uma automação ou um script trazidos por outra extensão apareciam como "Registro não encontrado", ainda que o passo funcionasse — o campo agora mostra o nome do que ele chama.
+- A lista de automações a chamar deixou de oferecer automações inativas. Escolher uma delas produzia um passo que só falhava no dia em que alguém dependesse dele.
+- Os parâmetros que recebem uma lista deixaram de aparecer no passo com o rótulo por preencher, no lugar do nome do parâmetro.
+- Quando uma automação chamada por outra falha, o motivo passa a aparecer no histórico de quem a chamou. Antes só o resultado aparecia, e descobrir o que houve exigia procurar a execução da outra automação pelo horário.
+
 #### [9.43.2] — 2026-09-02
 
 - Corrigida a mensagem que recusa instalar uma extensão que depende de outra ainda não instalada. Ela chegava à tela com os espaços do texto sem preencher — sem dizer qual extensão falta nem qual item dela é usado —, e o mesmo acontecia com as recusas de publicar, importar e salvar uma extensão, e com as de excluir uma tela. Agora cada uma diz o que aconteceu, com os nomes no lugar.

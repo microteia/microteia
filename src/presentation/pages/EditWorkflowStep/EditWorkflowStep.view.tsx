@@ -235,15 +235,18 @@ export const EditWorkflowStepView: React.FC<{ tabKey: string }> = ({ tabKey }) =
    */
   const renderPicker = (input: InputDefinition, kind: InputPickerKind) => {
     const mapping = vm.configuration[input.id];
+    const stored =
+      mapping?.kind === 'Literal'
+        ? String((mapping as Extract<InputMapping, { kind: 'Literal' }>).value ?? '')
+        : '';
+    // O gravado pode ser a referência qualificada a um artefato de outra extensão; a lista é de ids
+    // locais. Quem faz a ponte é o ViewModel — a View só desenha o que ele resolveu.
+    const value = vm.pickerValue(kind, stored);
     return (
       <SearchSelect
-        options={vm.pickerOptions(kind)}
-        value={
-          mapping?.kind === 'Literal'
-            ? String((mapping as Extract<InputMapping, { kind: 'Literal' }>).value ?? '')
-            : ''
-        }
-        onChange={(value) => vm.setPickerValue(input.id, value)}
+        options={vm.pickerOptions(kind, value)}
+        value={value}
+        onChange={(chosen) => vm.setPickerValue(input.id, chosen)}
         placeholder={vm.pickerPlaceholder(kind)}
       />
     );

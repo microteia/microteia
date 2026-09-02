@@ -25,10 +25,23 @@ const recordStepDefinition: StepDefinition = {
   }),
 };
 
+/** Um passo que RECUSA, com a frase e os parâmetros que a execução chamada grava no log. */
+const refusingStepDefinition: StepDefinition = {
+  ...recordStepDefinition,
+  id: 'refuse',
+  createExecutor: () => ({
+    execute: async () => ({
+      success: false,
+      message: '@core.automation/step.validate.invalid-object',
+      messageParams: { detail: 'CPF inválido' },
+    }),
+  }),
+};
+
 const registry: StepRegistry = {
   register: () => undefined,
-  resolve: (id) => (id === 'record' ? recordStepDefinition : undefined),
-  list: () => [recordStepDefinition],
+  resolve: (id) => (id === 'record' ? recordStepDefinition : id === 'refuse' ? refusingStepDefinition : undefined),
+  list: () => [recordStepDefinition, refusingStepDefinition],
 };
 
 const services: WorkflowServices = {
@@ -114,6 +127,58 @@ describe('RunCalledWorkflowUseCase', () => {
 
     const result = await useCase.execute({ tenantId: 't1', targetWorkflowId: 'wf-b', params: {}, callDepth: 1 });
     expect(result.found).toBe(false);
+  });
+
+  /**
+   * O motivo mora na execução CHAMADA e a pergunta nasce na chamadora. Sem as linhas de erro
+   * subindo, o chamador só sabia dizer "terminou com status FAILED" — e quem lia tinha de sair da
+   * tela para descobrir o que houve.
+   */
+  it('devolve as linhas de ERRO da execução chamada, com a referência e os parâmetros', async () => {
+    const target = makeTarget({
+      steps: [
+        {
+          id: 's1',
+          stepDefinitionId: 'refuse',
+          type: 'Action',
+          order: 0,
+          configuration: { tag: { kind: 'Literal', value: 'x' } },
+          enabled: true,
+        },
+      ],
+    });
+    const { definitionRepository, executionRepository } = makeDeps(target);
+    const useCase = makeRunCalledWorkflowUseCase(
+      definitionRepository,
+      executionRepository,
+      registry,
+      services,
+      passthroughHydrator,
+    );
+
+    const result = await useCase.execute({ tenantId: 't1', targetWorkflowId: 'wf-b', params: {}, callDepth: 1 });
+
+    expect(result.found).toBe(true);
+    if (result.found) {
+      expect(result.status).toBe('FAILED');
+      expect(result.failures).toEqual([
+        { message: '@core.automation/step.validate.invalid-object', messageParams: { detail: 'CPF inválido' } },
+      ]);
+    }
+  });
+
+  it('não devolve falha nenhuma quando a execução chamada termina bem', async () => {
+    const { definitionRepository, executionRepository } = makeDeps(makeTarget());
+    const useCase = makeRunCalledWorkflowUseCase(
+      definitionRepository,
+      executionRepository,
+      registry,
+      services,
+      passthroughHydrator,
+    );
+
+    const result = await useCase.execute({ tenantId: 't1', targetWorkflowId: 'wf-b', params: {}, callDepth: 1 });
+    expect(result.found && result.failures).toEqual([]);
   });
 
   it('retorna found:false quando o alvo não existe', async () => {

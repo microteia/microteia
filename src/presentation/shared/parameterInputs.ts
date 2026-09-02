@@ -1,7 +1,12 @@
 import type { WorkflowParameter } from '../../domain/entities/Workflow';
 import type { InputDefinition } from '../../domain/entities/WorkflowStepCatalog';
 
-type LabelFn = (value: string | null | undefined) => string;
+/**
+ * Resolve uma referência de mensagem — com os parâmetros de interpolação, quando a referência os
+ * pede. É a mesma assinatura de `useLabel`, e ela precisa dos dois argumentos porque este módulo
+ * INTRODUZ referências próprias (o rótulo de uma lista), e não só repassa as declaradas.
+ */
+type LabelFn = (value: string | null | undefined, params?: Record<string, string>) => string;
 
 /**
  * O parâmetro com os RÓTULOS resolvidos — e nada mais tocado.
@@ -66,6 +71,7 @@ export const parameterToInputDefinition = (
  * "Executar Script"): o objeto se desdobra nos filhos, com o id composto que o executor espera.
  */
 export const flattenParameterInputs = (
+  resolve: LabelFn,
   parameter: WorkflowParameter,
   idPrefix = 'param',
   labelPrefix = '',
@@ -74,15 +80,18 @@ export const flattenParameterInputs = (
   const label = labelPrefix ? `${labelPrefix} › ${parameter.label}` : parameter.label;
   if (parameter.list) {
     return [{
+      // O rótulo de uma lista é a ÚNICA referência que este módulo inventa — as outras chegam
+      // prontas de `parameterForDisplay`. Ela é resolvida AQUI, e não deixada para quem consome, pela
+      // razão de sempre: quem consome não sabe que ela existe, e o que aparecia na tela era o
+      // "{name} (lista)" cru.
       id,
-      label: '@core.automation/output.list',
-      labelParams: { name: label },
+      label: resolve('@core.automation/output.list', { name: label }),
       required: parameter.required ?? false,
       type: 'String',
     }];
   }
   if (parameter.type === 'Object') {
-    return (parameter.fields ?? []).flatMap((child) => flattenParameterInputs(child, id, label));
+    return (parameter.fields ?? []).flatMap((child) => flattenParameterInputs(resolve, child, id, label));
   }
   return [parameterToInputDefinition(parameter, id, label)];
 };

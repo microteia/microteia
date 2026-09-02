@@ -3,6 +3,17 @@ import { flattenParameterInputs, parameterForDisplay, parameterToInputDefinition
 import type { WorkflowParameter } from '../../domain/entities/Workflow';
 
 /**
+ * O resolvedor de referência do teste: marca o que passou por ele e interpola o que a frase pede —
+ * é o suficiente para provar que nenhuma referência escapa para a tela.
+ */
+const label = (value: string | null | undefined, params?: Record<string, string>): string => {
+  const raw = value ?? '';
+  if (!raw.startsWith('@')) return raw;
+  const resolved = `traduzido(${raw.slice(1)})`;
+  return params ? `${resolved}[${Object.entries(params).map(([k, v]) => `${k}=${v}`).join(',')}]` : resolved;
+};
+
+/**
  * A ponte que faz o parâmetro declarado virar um controle. É o que garante que o mesmo parâmetro
  * seja preenchido do mesmo jeito no Step, no "Executar" e na ação que pergunta.
  */
@@ -44,7 +55,7 @@ describe('parameterToInputDefinition', () => {
       type: 'Object',
       fields: [{ key: 'area', label: 'Área', type: 'lookup', lookupCollection: 'caseAreas' }],
     };
-    const [input] = flattenParameterInputs(param);
+    const [input] = flattenParameterInputs(label, param);
     expect(input.id).toBe('param.dados.area');
     expect(input.label).toBe('Dados › Área');
     expect(input.options).toEqual({ kind: 'Lookup', lookup: 'caseAreas' });
@@ -59,9 +70,6 @@ describe('parameterToInputDefinition', () => {
  * `select`, o campo do objeto —, a referência volta à tela e ninguém vê até alguém abrir o formulário.
  */
 describe('parameterForDisplay — o rótulo declarativo resolvido antes de virar controle', () => {
-  const label = (value: string | null | undefined): string =>
-    (value ?? '').startsWith('@') ? `traduzido(${(value ?? '').slice(1)})` : (value ?? '');
-
   it('resolve o rótulo, as opções e os campos do objeto', () => {
     const param: WorkflowParameter = {
       key: 'decision',
@@ -115,7 +123,28 @@ describe('parameterForDisplay — o rótulo declarativo resolvido antes de virar
       type: 'Object',
       fields: [{ key: 'note', label: '@com.acme.auto/parameter.note', type: 'String' }],
     };
-    const inputs = flattenParameterInputs(parameterForDisplay(label, param));
+    const inputs = flattenParameterInputs(label, parameterForDisplay(label, param));
     inputs.forEach((input) => expect(input.label.startsWith('@')).toBe(false));
+  });
+
+  /**
+   * A REGRESSÃO que este teste guarda: o rótulo de uma lista é a única referência que o próprio
+   * `flattenParameterInputs` inventa, e ela não vinha de `parameterForDisplay`. Ninguém a resolvia,
+   * e o Step "Chamar Workflow" desenhava "{name} (lista)" cru em cima de cada parâmetro de lista.
+   */
+  it('o parâmetro de LISTA também chega resolvido, com o nome interpolado', () => {
+    const param: WorkflowParameter = {
+      key: 'reclamantes',
+      label: '@com.acme.auto/parameter.claimants',
+      type: 'Object',
+      list: true,
+      fields: [{ key: 'name', label: 'Nome', type: 'String' }],
+    };
+    const [input] = flattenParameterInputs(label, parameterForDisplay(label, param));
+
+    expect(input.id).toBe('param.reclamantes');
+    expect(input.label).toBe(
+      'traduzido(core.automation/output.list)[name=traduzido(com.acme.auto/parameter.claimants)]',
+    );
   });
 });
