@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import ReactDOM from 'react-dom';
 import styled from 'styled-components';
 import type { IconType } from 'react-icons';
-import { RiSearchLine, RiCloseLine, RiCheckLine, RiErrorWarningLine } from 'react-icons/ri';
+import { RiSearchLine, RiCloseLine, RiCheckLine, RiErrorWarningLine, RiArrowRightUpLine } from 'react-icons/ri';
 import { useAnchoredDropdown } from '../../hooks/useAnchoredDropdown';
 
 import { useT } from '../../shared/i18n/useT';
@@ -27,6 +27,13 @@ interface SearchSelectProps {
    * referência a outra extensão, onde o que falta não é o registro, é a extensão.
    */
   orphanMessage?: string;
+  /**
+   * O DESTINO do valor escolhido, quando ele é um registro que alguma tela apresenta. Presente, o
+   * controle ganha o gesto de ir até lá — ao lado do de limpar, e também quando o campo está
+   * somente-leitura, onde ver o registro apontado é o que mais se quer. Ausente, nada aparece: é o
+   * silêncio de uma lista de opções, de um lookup ou de uma referência sem tela de visualização.
+   */
+  onOpenSelected?: (value: string) => void;
 }
 
 const Wrapper = styled.div`
@@ -101,6 +108,19 @@ const ClearBtn = styled.span`
   flex-shrink: 0;
 
   &:hover { color: ${({ theme }) => theme.colors.text}; }
+`;
+
+const OpenBtn = styled.span`
+  display: flex;
+  align-items: center;
+  color: ${({ theme }) => theme.colors.textMuted};
+  padding: 2px;
+  border-radius: 50%;
+  transition: color ${({ theme }) => theme.transitions.fast};
+  flex-shrink: 0;
+  cursor: pointer;
+
+  &:hover { color: ${({ theme }) => theme.colors.primary}; }
 `;
 
 const Dropdown = styled.div<{ $top: number | null; $bottom: number | null; $left: number; $minWidth: number; $maxHeight: number }>`
@@ -202,6 +222,7 @@ export const SearchSelect: React.FC<SearchSelectProps> = ({
   placeholder = 'Selecione...',
   disabled,
   orphanMessage,
+  onOpenSelected,
 }) => {
   const t = useT('core.ui');
   const orphanTitle = orphanMessage ?? t('reference.orphan.title');
@@ -241,6 +262,19 @@ export const SearchSelect: React.FC<SearchSelectProps> = ({
     onChange('');
   };
 
+  const handleOpenSelected = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onOpenSelected?.(value);
+  };
+
+  /**
+   * O botão nativo `disabled` engole o clique de TUDO que está dentro dele — inclusive do atalho. Um
+   * campo somente-leitura é justamente onde mais se quer chegar ao registro apontado, então ali o
+   * desabilitado passa a ser dito por `aria-disabled` e pela aparência: `handleOpen` já recusa
+   * abrir a lista, e nenhum outro uso do controle muda, porque isso só vale quando há atalho.
+   */
+  const hasOpenShortcut = !!selected && !!onOpenSelected;
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'ArrowDown') { e.preventDefault(); setActiveIdx((i) => Math.min(i + 1, filtered.length - 1)); }
     if (e.key === 'ArrowUp')   { e.preventDefault(); setActiveIdx((i) => Math.max(i - 1, 0)); }
@@ -270,7 +304,8 @@ export const SearchSelect: React.FC<SearchSelectProps> = ({
         $hasValue={!!selected}
         $disabled={disabled}
         onClick={handleOpen}
-        disabled={disabled}
+        disabled={disabled && !hasOpenShortcut}
+        aria-disabled={disabled}
       >
         {isOrphan && <OrphanIcon title={orphanTitle}><RiErrorWarningLine size={14} /></OrphanIcon>}
         {selected?.color && <ColorDot $color={selected.color} />}
@@ -282,6 +317,11 @@ export const SearchSelect: React.FC<SearchSelectProps> = ({
               ? orphanMessage ?? t('reference.not-found', { id: value })
               : placeholder}
         </TriggerLabel>
+        {hasOpenShortcut && (
+          <OpenBtn onClick={handleOpenSelected} title={t('reference.open')}>
+            <RiArrowRightUpLine size={14} />
+          </OpenBtn>
+        )}
         {(selected || isOrphan) && !disabled && (
           <ClearBtn onClick={handleClear} title={t('action.clear')}>
             <RiCloseLine size={14} />

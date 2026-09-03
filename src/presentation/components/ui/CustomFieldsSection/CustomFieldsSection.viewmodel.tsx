@@ -10,12 +10,14 @@ import { computeFieldValues, deriveFieldValues } from '../../../../domain/schema
 import { buildHydratedFieldScope } from '../../../../domain/schema/referenceScope';
 import { buildFieldUiScope } from '../../../../domain/schema/fieldUiScope';
 import { useRecordResolver } from '../../../shared/useRecordResolver';
+import { useReferenceOpener } from '../../../shared/useReferenceOpener';
 import { useLabel } from '../../../shared/i18n/useT';
 import { useFieldChangeEffects } from './useFieldChangeEffects';
 import { nextLookupOptionColor, resolveColor, resolveFieldOptionColor } from '../../../../shared/styles/colorUtils';
 import type { CustomFieldValue, FieldDefinition } from '../../../../domain/entities';
 import type { DynamicSelectOption } from '../DynamicSelect';
 import type { ReferenceOption } from '../../../hooks/useReferenceOptions';
+import type { ReferenceOpener } from '../../../shared/useReferenceOpener';
 import type { FieldFileUpload } from '../../../shared/entityScreen/types';
 
 export interface LookupOptionSet {
@@ -97,6 +99,11 @@ export interface CustomFieldsSectionViewModel {
   handleRecolorOption: (field: FieldDefinition, optionKey: string, color: string) => Promise<void>;
   handleDeleteOption: (field: FieldDefinition, optionKey: string) => Promise<void>;
   referenceOptions: (field: FieldDefinition) => ReferenceOption[];
+  /**
+   * O atalho até o registro que o campo aponta, ou `null` quando não há para onde ir — é o que dá ao
+   * controle de referência o gesto de abrir o registro escolhido sem perder o formulário de vista.
+   */
+  referenceOpener: (field: FieldDefinition) => ReferenceOpener | null;
   isFieldHidden: (field: FieldDefinition) => boolean;
   isFieldDisabled: (field: FieldDefinition) => boolean;
   fieldError: (field: FieldDefinition) => string | null;
@@ -126,6 +133,7 @@ export const useCustomFieldsSectionViewModel = (props: CustomFieldsSectionProps)
   const canDeleteOption = can(PERMISSION_SCREENS_MANAGE);
 
   const resolveRecord = useRecordResolver();
+  const resolveReferenceOpener = useReferenceOpener();
 
   const { runFieldChangeEffects, isFieldLoading } = useFieldChangeEffects({
     fields,
@@ -275,6 +283,11 @@ export const useCustomFieldsSectionViewModel = (props: CustomFieldsSectionProps)
     [referenceOptionsByEntity],
   );
 
+  const referenceOpener = useCallback(
+    (field: FieldDefinition): ReferenceOpener | null => resolveReferenceOpener(field.refEntity),
+    [resolveReferenceOpener],
+  );
+
   // Escopo com os campos de referência trocados pelo registro apontado, para que `produto.preco`
   // funcione. Vale SÓ nos slots front-only: `validate` e `compute` também rodam no backend, onde só
   // existe o id, e precisam continuar avaliando sobre ele.
@@ -350,6 +363,7 @@ export const useCustomFieldsSectionViewModel = (props: CustomFieldsSectionProps)
     handleRecolorOption,
     handleDeleteOption,
     referenceOptions,
+    referenceOpener,
     isFieldHidden,
     isFieldDisabled,
     fieldError,

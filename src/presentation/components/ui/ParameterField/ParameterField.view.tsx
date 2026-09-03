@@ -39,6 +39,7 @@ export const ParameterField: React.FC<ParameterFieldProps> = (props) => {
         values={vm.multiValues}
         onChange={vm.setMultiValues}
         placeholder={t('select.placeholder')}
+        onOpenSelected={vm.multiOpenSelected ?? undefined}
       />
     );
   }

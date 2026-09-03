@@ -11,6 +11,13 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.49.0] — 2026-09-03
+
+- Um campo que aponta para outro cadastro passou a oferecer o caminho até ele. Ao lado do "x" que limpa a escolha, apareceu uma seta discreta: um clique nela abre o registro escolhido na tela que o apresenta, sem perder de vista o formulário em que se estava. Numa venda, chega-se aos dados do cliente sem procurá-lo de novo pelo menu.
+- A seta só aparece quando há mesmo para onde ir — quando alguma tela apresenta aquele cadastro e a pessoa tem permissão para vê-lo. Campos de lista de opções, de lista livre e referências a cadastros sem tela continuam como estavam.
+- Quando o campo aceita vários cadastros, cada etiqueta escolhida ganha a sua própria seta: dois clientes selecionados são dois caminhos, um para cada um deles.
+- O atalho vale também nos formulários apenas de leitura, que é justamente onde mais se quer consultar o registro apontado, e nos parâmetros de fluxos e ações que pedem um registro — um ou vários.
+
 #### [9.48.0] — 2026-09-03
 
 - Os Termos de Uso e a Política de Privacidade deixaram de pressupor um país. Nenhuma lei nacional é eleita: cada parte cumpre a legislação que se aplica a ela, e o escritório responde pelas exigências da própria jurisdição e daquelas onde estão seus usuários e clientes. Uma controvérsia se resolve, de preferência, no domicílio de quem for demandado.

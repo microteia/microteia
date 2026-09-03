@@ -2,9 +2,11 @@ import { useCallback, useMemo } from 'react';
 import { useReferenceOptions } from '../../../hooks/useReferenceOptions';
 import { useLookupValues } from '../../../shared/useLookupValues';
 import { parameterToInputDefinition } from '../../../shared/parameterInputs';
+import { useReferenceOpener } from '../../../shared/useReferenceOpener';
 import type { WorkflowParameter } from '../../../../domain/entities/Workflow';
 import type { InputDefinition } from '../../../../domain/entities/WorkflowStepCatalog';
 import type { MultiSearchSelectOption } from '../MultiSearchSelect';
+import type { ReferenceOpener } from '../../../shared/useReferenceOpener';
 
 export interface ParameterFieldProps {
   parameter: WorkflowParameter;
@@ -26,6 +28,11 @@ export interface ParameterFieldViewModel {
   multiOptions: MultiSearchSelectOption[];
   multiValues: string[];
   setMultiValues: (values: string[]) => void;
+  /**
+   * O atalho até o registro de cada valor escolhido — só existe quando o parâmetro aponta para uma
+   * ENTIDADE. Uma lista de opções ou de lookup não referencia registro nenhum, e não tem destino.
+   */
+  multiOpenSelected: ReferenceOpener | null;
   numeric: boolean;
   jsonPlaceholder: string;
 }
@@ -58,6 +65,7 @@ export const useParameterFieldViewModel = (props: ParameterFieldProps): Paramete
   const { parameter, value, onChange } = props;
   const referenceOptionsByEntity = useReferenceOptions();
   const { getLookupOptions } = useLookupValues();
+  const resolveReferenceOpener = useReferenceOpener();
 
   const mode = modeOf(parameter);
   const input = useMemo(() => parameterToInputDefinition(parameter), [parameter]);
@@ -83,6 +91,8 @@ export const useParameterFieldViewModel = (props: ParameterFieldProps): Paramete
     multiOptions,
     multiValues,
     setMultiValues,
+    multiOpenSelected:
+      parameter.type === 'EntityReference' ? resolveReferenceOpener(parameter.entityType) : null,
     numeric: parameter.type === 'Number',
     jsonPlaceholder: parameter.list ? '[ ... ]' : '{ ... }',
   };

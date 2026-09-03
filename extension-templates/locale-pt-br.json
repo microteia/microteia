@@ -3,7 +3,7 @@
   "workflows": [],
   "manifest": {
     "id": "com.microteia.locale-pt-br",
-    "version": "1.43.0",
+    "version": "1.44.0",
     "kernel": "^2.0.0",
     "name": "Português (Brasil)",
     "description": "Tradução da Microteia para português do Brasil.",
@@ -292,6 +292,7 @@
             "record.not-found": "Registro não encontrado. Ele pode ter sido excluído.",
             "record.screen-unavailable": "Esta tela não está mais disponível. Ela pode ter sido desativada ou excluída.",
             "reference.not-found": "Registro não encontrado ({id})",
+            "reference.open": "Abrir o registro referenciado",
             "reference.orphan.title": "O registro referenciado não foi encontrado — pode ter sido excluído. O identificador foi mantido e permite localizar os dados na auditoria.",
             "field.option.delete.title": "Excluir opção",
             "field.option.delete.message": "Tem certeza que deseja excluir esta opção? Registros que a utilizam manterão o valor salvo.",

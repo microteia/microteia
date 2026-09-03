@@ -111,7 +111,8 @@ export const FieldControl: React.FC<{ field: FieldDefinition; vm: CustomFieldsSe
           deleteConfirmMessage={t('field.option.delete.message')}
         />
       );
-    case 'reference':
+    case 'reference': {
+      const openReferenced = vm.referenceOpener(field);
       return field.multi ? (
         <MultiSearchSelect
           options={vm.referenceOptions(field)}
@@ -119,6 +120,7 @@ export const FieldControl: React.FC<{ field: FieldDefinition; vm: CustomFieldsSe
           onChange={(values) => vm.setValue(field.key, values)}
           placeholder={field.placeholder ?? t('action.select')}
           disabled={isDisabled}
+          onOpenSelected={openReferenced ?? undefined}
         />
       ) : (
         <SearchSelect
@@ -127,8 +129,10 @@ export const FieldControl: React.FC<{ field: FieldDefinition; vm: CustomFieldsSe
           onChange={(value) => vm.setValue(field.key, value)}
           placeholder={field.placeholder ?? t('action.select')}
           disabled={isDisabled}
+          onOpenSelected={openReferenced ?? undefined}
         />
       );
+    }
     case 'file':
       return (
         <FileInput

@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import ReactDOM from 'react-dom';
 import styled from 'styled-components';
-import { RiSearchLine, RiCloseLine, RiCheckLine, RiArrowDownSLine, RiErrorWarningLine } from 'react-icons/ri';
+import { RiSearchLine, RiCloseLine, RiCheckLine, RiArrowDownSLine, RiErrorWarningLine, RiArrowRightUpLine } from 'react-icons/ri';
 import { useAnchoredDropdown } from '../../hooks/useAnchoredDropdown';
 
 import { useT } from '../../shared/i18n/useT';
@@ -18,6 +18,13 @@ interface MultiSearchSelectProps {
   onChange: (values: string[]) => void;
   placeholder?: string;
   disabled?: boolean;
+  /**
+   * O DESTINO de cada valor escolhido, quando ele é um registro que alguma tela apresenta. Presente,
+   * cada etiqueta ganha o gesto de ir até o SEU registro — dois escolhidos são dois destinos, e um
+   * atalho só para o controle teria de eleger um deles. O rótulo continua abrindo a lista, como no
+   * `SearchSelect`: quem navega é a seta. Ausente, nada aparece.
+   */
+  onOpenSelected?: (value: string) => void;
 }
 
 const Wrapper = styled.div`
@@ -77,6 +84,18 @@ const OrphanIcon = styled.span`
   align-items: center;
   color: ${({ theme }) => theme.colors.warning};
   flex-shrink: 0;
+`;
+
+const PillOpenBtn = styled.span`
+  display: inline-flex;
+  align-items: center;
+  margin-left: 1px;
+  opacity: 0.6;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: opacity ${({ theme }) => theme.transitions.fast};
+
+  &:hover { opacity: 1; }
 `;
 
 
@@ -213,6 +232,7 @@ export const MultiSearchSelect: React.FC<MultiSearchSelectProps> = ({
   onChange,
   placeholder = 'Selecionar...',
   disabled,
+  onOpenSelected,
 }) => {
   const t = useT('core.ui');
   const orphanTitle = t('reference.orphan.title');
@@ -253,6 +273,19 @@ export const MultiSearchSelect: React.FC<MultiSearchSelectProps> = ({
     onChange([]);
   };
 
+  const handleOpenSelected = (e: React.MouseEvent, val: string) => {
+    e.stopPropagation();
+    onOpenSelected?.(val);
+  };
+
+  /**
+   * O botão nativo `disabled` engole o clique de TUDO que está dentro dele — inclusive o das setas.
+   * Um campo somente-leitura é justamente onde mais se quer chegar aos registros apontados, então
+   * ali o desabilitado passa a ser dito por `aria-disabled` e pela aparência: `handleOpen` já recusa
+   * abrir a lista, e nenhum outro uso do controle muda, porque isso só vale quando há atalho.
+   */
+  const hasOpenShortcut = !!onOpenSelected && selectedOptions.length > 0;
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'ArrowDown') { e.preventDefault(); setActiveIdx((i) => Math.min(i + 1, filtered.length - 1)); }
     if (e.key === 'ArrowUp')   { e.preventDefault(); setActiveIdx((i) => Math.max(i - 1, 0)); }
@@ -282,13 +315,22 @@ export const MultiSearchSelect: React.FC<MultiSearchSelectProps> = ({
         $hasValue={selectedOptions.length > 0 || orphanValues.length > 0}
         $disabled={disabled}
         onClick={handleOpen}
-        disabled={disabled}
+        disabled={disabled && !hasOpenShortcut}
+        aria-disabled={disabled}
       >
         {selectedOptions.length > 0 || orphanValues.length > 0 ? (
           <SelectedPills>
             {selectedOptions.map((opt) => (
               <SelectedPill key={opt.value} $color={opt.color}>
                 {opt.label}
+                {onOpenSelected && (
+                  <PillOpenBtn
+                    onClick={(e) => handleOpenSelected(e, opt.value)}
+                    title={t('reference.open')}
+                  >
+                    <RiArrowRightUpLine size={11} />
+                  </PillOpenBtn>
+                )}
               </SelectedPill>
             ))}
             {orphanValues.map((val) => (

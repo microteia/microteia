@@ -18,6 +18,13 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.49.0] — 2026-09-03
+
+- feat(ui/SearchSelect): a reference field now offers the way to the record it points at. The optional `onOpenSelected` prop puts a discreet arrow beside the clear button and opens the referenced record in its own tab. Reaching a linked record meant leaving the form, finding the screen in the menu and searching for the record again — the field knew the id the whole time and had no way to say so.
+- feat(presentation/useReferenceOpener): the resolution of "is there anywhere to go" now lives in one hook, beside `useOpenRecord` and `useOpenScreenList`. It answers with `null` unless three things hold together: the field names a collection, some screen describes that collection, and the viewer can read it — so a lookup, a free list and a reference to an uninstalled extension show nothing instead of opening a dead tab or a list the server keeps empty. The collection is also looked up by screen key, for the same reason `useReferenceOptions` does it: declarations written before `dataCollection` stored the key.
+- feat(ui/MultiSearchSelect): the same `onOpenSelected`, but per PILL — two selected records are two destinations, and one arrow on the control would have had to elect one of them. The label keeps opening the list, as in `SearchSelect`: the arrow is what navigates. It reaches multi-valued reference fields and `EntityReference` parameters declared as a list; a lookup or option list references no record and shows nothing.
+- feat(ui/CustomFieldsSection): `referenceOpener(field)` joins the field view model, so the shortcut reaches the standard form, the `FieldInput` atom an extension composes its own screen with, and the read-only form — where seeing the referenced record is what one wants most. `EntityReferenceControl` gained the same, which carries it to every workflow and action parameter that asks for a record.
+
 #### [9.48.0] — 2026-09-03
 
 - feat(license): the Terms and the Privacy Policy no longer presuppose a nationality. §11 elects the law of no country: each party complies with the legislation applicable to it, the organization answers for its own jurisdiction and for those where its users and clients are, a mandatory provision that conflicts with a clause limits that clause instead of voiding the document, and a dispute goes by preference to the domicile of the defending party. The LGPD citation and the Brazilian forum are gone — §6 now says that what data protection law requires differs between countries and that identifying which ones apply is the organization's, naming none.

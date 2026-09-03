@@ -167,6 +167,7 @@ export const CORE_UI_MESSAGES: Record<string, string> = {
   'record.not-found': 'Record not found. It may have been deleted.',
   'record.screen-unavailable': 'This screen is no longer available. It may have been disabled or deleted.',
   'reference.not-found': 'Record not found ({id})',
+  'reference.open': 'Open the referenced record',
   'reference.orphan.title':
     'The referenced record was not found — it may have been deleted. The identifier was kept and allows locating the data in the audit log.',
   'field.option.delete.title': 'Delete option',

@@ -166,6 +166,7 @@ export const CORE_UI: Record<string, string> = {
   'record.not-found': 'Registro não encontrado. Ele pode ter sido excluído.',
   'record.screen-unavailable': 'Esta tela não está mais disponível. Ela pode ter sido desativada ou excluída.',
   'reference.not-found': 'Registro não encontrado ({id})',
+  'reference.open': 'Abrir o registro referenciado',
   'reference.orphan.title':
     'O registro referenciado não foi encontrado — pode ter sido excluído. O identificador foi mantido e permite localizar os dados na auditoria.',
   'field.option.delete.title': 'Excluir opção',

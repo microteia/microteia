@@ -1,6 +1,8 @@
 import { useMemo } from 'react';
 import { useReferenceOptions } from '../../../hooks/useReferenceOptions';
+import { useReferenceOpener } from '../../../shared/useReferenceOpener';
 import type { InputDefinition } from '../../../../domain/entities/WorkflowStepCatalog';
+import type { ReferenceOpener } from '../../../shared/useReferenceOpener';
 import type { SearchSelectOption } from '../SearchSelect';
 
 export interface EntityReferenceControlProps {
@@ -9,10 +11,21 @@ export interface EntityReferenceControlProps {
   onChange: (value: string) => void;
 }
 
-export const useEntityReferenceControlViewModel = (input: InputDefinition): SearchSelectOption[] => {
+export interface EntityReferenceControlViewModel {
+  options: SearchSelectOption[];
+  /** O atalho até o registro escolhido, ou `null` quando nenhuma tela legível apresenta a entidade. */
+  openSelected: ReferenceOpener | null;
+}
+
+export const useEntityReferenceControlViewModel = (input: InputDefinition): EntityReferenceControlViewModel => {
   const referenceOptionsByEntity = useReferenceOptions();
-  return useMemo(
-    () => referenceOptionsByEntity[input.entityType ?? ''] ?? [],
-    [referenceOptionsByEntity, input.entityType],
+  const resolveReferenceOpener = useReferenceOpener();
+  const entityType = input.entityType ?? '';
+
+  const options = useMemo(
+    () => referenceOptionsByEntity[entityType] ?? [],
+    [referenceOptionsByEntity, entityType],
   );
+
+  return { options, openSelected: resolveReferenceOpener(entityType) };
 };
