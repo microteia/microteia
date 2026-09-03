@@ -22,6 +22,7 @@ import {
   RiHistoryLine,
 } from 'react-icons/ri';
 import { Button } from '../../components/ui/Button';
+import { CompositeFilter } from '../../components/ui/CompositeFilter';
 import { InfoBanner } from '../../components/ui/InfoBanner';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { Modal } from '../../components/ui/Modal';
@@ -138,6 +139,12 @@ const RowView: React.FC<{ row: ExtensionRow; busy: boolean; vm: ReturnType<typeo
         <span>v{row.version}</span>
         <S.MetaSep>·</S.MetaSep>
         <span>{row.id}</span>
+        {row.categoryLabel && (
+          <>
+            <S.MetaSep>·</S.MetaSep>
+            <span>{row.categoryLabel}</span>
+          </>
+        )}
       </S.Meta>
     </S.RowMain>
 
@@ -334,9 +341,23 @@ export const MarketplaceView: React.FC = () => {
             ))}
           </S.Filters>
 
+          {/* O filtro fino é da aba "Todas": as outras três já SÃO um recorte, e um segundo por cima
+              delas ofereceria o vazio como escolha. */}
+          {vm.filter === 'all' && (
+            <CompositeFilter
+              defs={vm.filterDefs}
+              tokens={vm.filterTokens}
+              onChange={vm.setFilterTokens}
+              placeholder={t('filter.compose.placeholder')}
+              screenKey={vm.savedFiltersScreenKey}
+            />
+          )}
+
           {vm.rows.length === 0 ? (
             <S.Empty>
-              {t(vm.filter === 'all' ? 'marketplace.empty' : 'marketplace.empty.filtered')}
+              {t(vm.filter === 'all' && vm.filterTokens.length === 0
+                ? 'marketplace.empty'
+                : 'marketplace.empty.filtered')}
             </S.Empty>
           ) : (
             <S.List>

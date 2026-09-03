@@ -11,6 +11,12 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.46.0] — 2026-09-03
+
+- As extensões passam a poder declarar uma **categoria** — "Tema", "Integração", o que fizer sentido para quem a escreveu. É opcional, aparece ao lado da versão na lista de Extensões, e quem cria uma extensão a informa no campo novo da tela de criação.
+- As extensões que vêm com o sistema já chegam classificadas: os temas como Tema, o Calendário como Produtividade, o Painel como Análise, as Notícias como Comunicação, o Brasil como Localização e o pacote de português como Idioma. Duas extensões que escrevem a mesma categoria contam como uma só no filtro, mesmo vindo de autores diferentes.
+- A aba "Todas" de Extensões ganhou um filtro completo, com os mesmos recortes das demais telas: por texto, ativa ou inativa, privada ou publicada, do sistema, com código, faz parte do sistema, categoria, com atualização disponível e instalada ou não. Achar uma extensão numa lista que só crescia dependia de percorrê-la inteira.
+
 #### [9.45.0] — 2026-09-02
 
 - No passo de uma automação, o campo que aponta para uma automação ou um script de OUTRA extensão passa a dizer POR QUE não achou o que aponta, quando não acha: a extensão dona não está instalada, está instalada e desligada, está instalada e não oferece aquele item, ou o oferece e o item não veio na instalação. Antes a resposta era sempre "Registro não encontrado", que manda procurar no lugar errado — o item não está entre os do escritório, e nunca esteve.

@@ -11,6 +11,8 @@ export const CORE_THEME_MESSAGES: Record<string, string> = {
   'theme.dark': 'Dark',
   'theme.white': 'White',
 
+  'category.theme': 'Theme',
+
   'point.definition.title': 'Theme',
   'point.definition.description':
     'A palette the organization can choose. Colors, fonts and spacing only — no code, so any theme file can be installed as it is.',

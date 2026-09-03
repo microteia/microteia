@@ -26,6 +26,7 @@ import { SYSTEM_THEME_PACKAGES } from '../../../plugins/themes/systemThemes';
 import type { MarketplacePlugin } from '../../../domain/entities/MarketplacePlugin';
 import type { InstalledExtension } from '../../../domain/entities/InstalledExtension';
 import type { WidgetSpec } from '../../../domain/schema/ui/widgetSpec';
+import type { FilterDef, FilterToken } from '../../components/ui/CompositeFilter';
 
 import { useT, useLocaleFormat } from '../../shared/i18n/useT';
 import { usePackageCatalog } from '../../shared/i18n/usePackageCatalog';
@@ -58,6 +59,13 @@ export interface ExtensionRow {
    */
   license: WidgetSpec | null;
   description: string;
+  /**
+   * A categoria declarada no manifest, crua — é ela que o filtro compara. Nula em quem não declarou
+   * nenhuma: a categoria é opcional, e inventar uma para quem não a tem esconderia o fato.
+   */
+  category: string | null;
+  /** A mesma categoria já resolvida para o idioma de quem lê — é o que a linha mostra. */
+  categoryLabel: string | null;
 
   installBadge: InstallBadge | null;
   statusBadge: StatusBadge | null;
@@ -130,6 +138,13 @@ export interface ExtensionProblem {
 
 export type MarketplaceFilter = 'all' | 'installed' | 'mine' | 'catalog';
 
+/**
+ * O valor da opção "sem categoria" do filtro. Um sentinela porque `FilterToken` só carrega texto, e
+ * ausência de categoria precisa ser escolhível como qualquer outra — é o recorte de quem quer ver o
+ * que ainda não foi classificado.
+ */
+const UNCATEGORIZED = '__uncategorized__';
+
 /** Índice do catálogo embutido — as extensões de primeira parte que viajam no bundle. */
 const BUILTIN_BY_ID = new Map<string, MarketplacePlugin>(
   MARKETPLACE_CATALOG.map((plugin) => [plugin.manifest.id, plugin]),
@@ -193,6 +208,14 @@ export interface MarketplaceViewModel {
   filter: MarketplaceFilter;
   setFilter: (filter: MarketplaceFilter) => void;
   counts: Record<MarketplaceFilter, number>;
+  /**
+   * O filtro fino da aba "Todas". Ele existe só ali porque as outras três abas JÁ SÃO um recorte:
+   * oferecer "instalada: não" dentro de "Instaladas" seria oferecer o vazio.
+   */
+  filterDefs: FilterDef[];
+  filterTokens: FilterToken[];
+  setFilterTokens: (tokens: FilterToken[]) => void;
+  savedFiltersScreenKey: string;
   busyId: string | null;
   removeTarget: { id: string; name: string } | null;
   reviewTarget: { id: string; name: string; code: string } | null;
@@ -231,6 +254,48 @@ export interface MarketplaceViewModel {
 
 const hasCodeOf = (views: unknown[] | undefined): boolean => (views?.length ?? 0) > 0;
 
+/** Sim e Não escolhidos ao mesmo tempo devolvem tudo — é o que escolher os dois quer dizer. */
+const matchesBoolean = (values: string[], actual: boolean): boolean =>
+  values.some((value) => (value === 'yes') === actual);
+
+/**
+ * A linha contra os tokens: OU dentro de um campo, E entre campos — o mesmo contrato do
+ * `CompositeFilter` em toda tela que o usa. Campo desconhecido não recusa nada: um filtro salvo de
+ * uma versão anterior desta tela continua abrindo, só sem o recorte que já não existe.
+ *
+ * `categoryLabelOf` resolve o valor guardado no token. Categoria se compara pelo TEXTO, e não pela
+ * referência que a declarou: duas extensões que dizem "Integração" estão na mesma categoria, ainda
+ * que cada uma aponte para o próprio catálogo — o campo é livre, e é o texto que o leitor vê. O
+ * token continua guardando a referência, que não muda quando o escritório troca de idioma.
+ */
+const matchesTokens = (
+  row: ExtensionRow,
+  tokens: FilterToken[],
+  categoryLabelOf: (value: string) => string,
+): boolean =>
+  tokens.every(({ key, values }) => {
+    if (values.length === 0) return true;
+    switch (key) {
+      case 'search': {
+        const term = (values[0] ?? '').trim().toLowerCase();
+        return term === ''
+          || [row.name, row.summary, row.id].some((text) => text.toLowerCase().includes(term));
+      }
+      // Ativa/inativa é estado da CÓPIA instalada: quem não tem cópia não é nem uma coisa nem outra.
+      case 'state': return row.installBadge !== null && values.includes(row.installBadge);
+      case 'visibility': return values.some((value) => (value === 'private' ? row.mine : row.isPublic));
+      case 'builtin': return matchesBoolean(values, row.isBuiltin);
+      case 'code': return matchesBoolean(values, row.hasCode);
+      case 'system': return matchesBoolean(values, row.isSystem);
+      case 'category': return row.categoryLabel === null
+        ? values.includes(UNCATEGORIZED)
+        : values.map(categoryLabelOf).includes(row.categoryLabel);
+      case 'update': return matchesBoolean(values, row.updateAvailable);
+      case 'installation': return matchesBoolean(values, row.installed);
+      default: return true;
+    }
+  });
+
 const rankOf = (row: ExtensionRow): number => (row.installed ? 0 : row.mine ? 1 : 2);
 
 export const useMarketplaceViewModel = (): MarketplaceViewModel => {
@@ -262,6 +327,7 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
   const [detailsId, setDetailsId] = useState<string | null>(null);
   const [licenseId, setLicenseId] = useState<string | null>(null);
   const [historyId, setHistoryId] = useState<string | null>(null);
+  const [filterTokens, setFilterTokens] = useState<FilterToken[]>([]);
 
   const trustedIds = useExtensionCodeTrust(installed);
 
@@ -484,6 +550,8 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
         overview: pkg.overview ?? null,
         license: licenseOf(pkg.manifest),
         description: label(pkg.manifest.description ?? ''),
+        category: pkg.manifest.category ?? null,
+        categoryLabel: pkg.manifest.category ? label(pkg.manifest.category) : null,
         installBadge: 'active',
         statusBadge: 'system',
         updateAvailable: false,
@@ -563,6 +631,8 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
         overview: pkg.overview ?? null,
         license: licenseOf(pkg.manifest),
         description: label(pkg.manifest.description ?? ''),
+        category: pkg.manifest.category ?? null,
+        categoryLabel: pkg.manifest.category ? label(pkg.manifest.category) : null,
         installBadge: inst ? (inst.active ? 'active' : 'inactive') : null,
         statusBadge,
         updateAvailable,
@@ -607,14 +677,88 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
     catalog: rows.filter((r) => r.isPublic).length,
   }), [rows]);
 
+  /**
+   * As categorias que os pacotes LISTADOS declaram — nunca uma lista nossa. Categoria é campo livre
+   * do manifest, e derivar as opções do que está na tela é o que faz a categoria de uma extensão de
+   * terceiro aparecer aqui sem que o núcleo precise conhecê-la. A opção "sem categoria" só existe
+   * quando há alguém sem ela: um recorte que devolve o vazio não é escolha, é engano.
+   */
+  const categoryOptions = useMemo(() => {
+    // Indexado pelo TEXTO, com a primeira referência que o produziu como valor: dois pacotes que
+    // dizem a mesma coisa são uma opção só, e não duas linhas idênticas que recortam metade cada.
+    const byLabel = new Map<string, string>();
+    let uncategorized = false;
+    for (const row of rows) {
+      if (row.category === null) uncategorized = true;
+      else if (!byLabel.has(row.categoryLabel ?? row.category)) {
+        byLabel.set(row.categoryLabel ?? row.category, row.category);
+      }
+    }
+    const declared = [...byLabel.entries()]
+      .map(([text, value]) => ({ value, label: text }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+    return uncategorized
+      ? [...declared, { value: UNCATEGORIZED, label: t('filter.category.none') }]
+      : declared;
+  }, [rows, t]);
+
+  const booleanOptions = useMemo(
+    () => [
+      { value: 'yes', label: t('core.ui/boolean.yes') },
+      { value: 'no', label: t('core.ui/boolean.no') },
+    ],
+    [t],
+  );
+
+  const filterDefs = useMemo<FilterDef[]>(() => [
+    {
+      key: 'search',
+      label: t('core.ui/filter.search'),
+      type: 'text',
+      placeholder: t('filter.search.placeholder'),
+    },
+    {
+      key: 'state',
+      label: t('core.ui/filter.status'),
+      type: 'select',
+      options: [
+        { value: 'active', label: t('extension.badge.active') },
+        { value: 'inactive', label: t('extension.badge.inactive') },
+      ],
+    },
+    {
+      key: 'visibility',
+      label: t('filter.visibility'),
+      type: 'select',
+      options: [
+        { value: 'private', label: t('status.private') },
+        { value: 'public', label: t('status.published') },
+      ],
+    },
+    { key: 'builtin', label: t('status.builtin'), type: 'select', options: booleanOptions },
+    { key: 'code', label: t('extension.badge.has-code'), type: 'select', options: booleanOptions },
+    { key: 'system', label: t('status.system'), type: 'select', options: booleanOptions },
+    { key: 'category', label: t('core.ui/filter.category'), type: 'select', options: categoryOptions },
+    { key: 'update', label: t('extension.badge.update'), type: 'select', options: booleanOptions },
+    {
+      key: 'installation',
+      label: t('filter.installation'),
+      type: 'select',
+      options: [
+        { value: 'yes', label: t('filter.installation.yes') },
+        { value: 'no', label: t('filter.installation.no') },
+      ],
+    },
+  ], [t, booleanOptions, categoryOptions]);
+
   const visibleRows = useMemo<ExtensionRow[]>(() => {
     switch (filter) {
       case 'installed': return rows.filter((r) => r.installed);
       case 'mine': return rows.filter((r) => r.mine);
       case 'catalog': return rows.filter((r) => r.isPublic);
-      default: return rows;
+      default: return rows.filter((r) => matchesTokens(r, filterTokens, label));
     }
-  }, [rows, filter]);
+  }, [rows, filter, filterTokens, label]);
 
   const edit = useCallback((id: string) => openTab(`plugin-author:${id}`), [openTab]);
 
@@ -823,6 +967,10 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
     filter,
     setFilter,
     counts,
+    filterDefs,
+    filterTokens,
+    setFilterTokens,
+    savedFiltersScreenKey: 'marketplace',
     busyId,
     removeTarget,
     reviewTarget,

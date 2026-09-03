@@ -21,6 +21,7 @@ export const CALENDAR_NAMESPACE = 'com.microteia.calendar';
 
 export const CALENDAR_MESSAGES: Record<string, string> = {
   'package.name': 'Calendar',
+  'package.category': 'Productivity',
   'package.description': 'The office agenda, agnostic: any extension puts an item on it and stays its owner.',
   'package.summary':
     'The office agenda in day columns, with the whole month on a single scroll that opens on today. It knows nothing about deadlines, hearings or instalments: any extension registers an item, stays its owner and decides what happens when someone drags it to another day.',

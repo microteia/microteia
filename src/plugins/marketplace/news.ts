@@ -212,10 +212,11 @@ const COMMENTS_SCREEN: ScreenModuleTemplate = {
 export const newsPlugin: MarketplacePlugin = {
   manifest: {
     id: 'com.microteia.news',
-    version: '1.3.0',
+    version: '1.4.0',
     kernel: '^2.0.0',
     name: message('package.name'),
     description: message('package.description'),
+    category: message('package.category'),
     publisher: { name: 'Microteia' },
     /**
      * The LICENCE TERMS, which the Extensions screen shows behind the licence icon and the

@@ -12,6 +12,7 @@ export const AUTOMATION_NAMESPACE = 'com.microteia.automation-example';
 
 export const AUTOMATION_MESSAGES: Record<string, string> = {
   'package.name': 'Automation, by example',
+  'package.category': 'Automation',
   'package.description':
     'A worked automation: a workflow on save, a branch, a query, a write that does not duplicate, a script, and an action that asks for a value.',
   'package.summary':

@@ -115,6 +115,7 @@ const LACUNAS_CONFERIDAS = [
   'manifest-property\tkernel',
   'manifest-property\tname',
   'manifest-property\tdescription',
+  'manifest-property\tcategory',
   'manifest-property\ticon',
   'manifest-property\thomepage',
   'manifest-property\tpublisher',

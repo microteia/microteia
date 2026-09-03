@@ -1,10 +1,11 @@
 {
   "manifest": {
     "id": "com.microteia.automation-example",
-    "version": "1.0.2",
+    "version": "1.1.0",
     "kernel": "^2.0.0",
     "name": "@com.microteia.automation-example/package.name",
     "description": "@com.microteia.automation-example/package.description",
+    "category": "@com.microteia.automation-example/package.category",
     "publisher": {
       "name": "Microteia"
     },
@@ -18,6 +19,7 @@
           "namespace": "com.microteia.automation-example",
           "messages": {
             "package.name": "Automation, by example",
+            "package.category": "Automation",
             "package.description": "A worked automation: a workflow on save, a branch, a query, a write that does not duplicate, a script, and an action that asks for a value.",
             "package.summary": "The mechanics of automation, with no business in the way. It installs one screen and every kind of automation the platform runs, so each can be read as source: a workflow that fires on save, a control node that branches, a query that asks whether a record already exists, a write that stays idempotent on a second run, a sandbox script, and a button that asks a person for a value before firing a flow.",
             "screen.request": "Request",
@@ -69,6 +71,7 @@
           "namespace": "com.microteia.automation-example",
           "messages": {
             "package.name": "Automação, pelo exemplo",
+            "package.category": "Automação",
             "package.description": "Uma automação inteira: fluxo ao salvar, ramificação, consulta, gravação que não duplica, script e um botão que pede um valor.",
             "package.summary": "A mecânica da automação, sem negócio no caminho. Instala uma tela e cada tipo de automação que a plataforma executa, para que todos possam ser lidos como fonte: um fluxo que dispara ao salvar, um nó de controle que ramifica, uma consulta que pergunta se o registro já existe, uma gravação que continua idempotente na segunda execução, um script no sandbox, e um botão que pede um valor a uma pessoa antes de disparar o fluxo.",
             "screen.request": "Solicitação",

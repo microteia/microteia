@@ -10,6 +10,7 @@ import { DASHBOARD_NAMESPACE } from './dashboardMessages';
  */
 const DASHBOARD_PT_BR: Record<string, string> = {
   'package.name': 'Painel',
+  'package.category': 'Análise',
   'package.description': 'A tela de abertura do escritório, montada com os widgets que cada extensão oferece.',
   'package.summary':
     'A tela de abertura do escritório: uma grade de widgets que cada extensão instalada oferece. Você escolhe quais aparecem, em que ordem e com que largura — e cada pessoa pode montar o seu do jeito que preferir.',

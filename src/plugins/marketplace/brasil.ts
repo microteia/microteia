@@ -88,10 +88,11 @@ const VIACEP: LookupProviderSpec = {
 export const brasilPlugin: MarketplacePlugin = {
   manifest: {
     id: 'com.microteia.brasil',
-    version: '1.0.0',
+    version: '1.1.0',
     kernel: '^2.0.0',
     name: 'Brasil',
     description: 'Documentos, telefone, CEP e busca de endereço do Brasil — as regras de país que o sistema não embute.',
+    category: '@core.i18n/category.localization',
     publisher: { name: 'Microteia' },
     // Só declarações de dados: nenhuma tela, nenhuma automação, nenhum código.
     contributes: [

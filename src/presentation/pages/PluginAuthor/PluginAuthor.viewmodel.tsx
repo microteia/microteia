@@ -96,7 +96,7 @@ export interface CodeViewEditing {
 export interface PluginAuthorViewModel {
   canManage: boolean;
   editing: boolean;
-  form: { id: string; name: string; version: string; description: string; summary: string };
+  form: { id: string; name: string; version: string; category: string; description: string; summary: string };
   updateForm: (patch: Partial<PluginAuthorViewModel['form']>) => void;
   groups: ArtifactGroup[];
   toggle: (kind: ArtifactKind, id: string) => void;
@@ -187,10 +187,11 @@ export const usePluginAuthorViewModel = (tabKey?: string): PluginAuthorViewModel
       id: editingPackage.manifest.id,
       name: editingPackage.manifest.name,
       version: editingPackage.manifest.version,
+      category: editingPackage.manifest.category ?? '',
       description: editingPackage.manifest.description ?? '',
       summary: editingPackage.summary,
     }
-    : { id: '', name: '', version: '1.0.0', description: '', summary: '' }));
+    : { id: '', name: '', version: '1.0.0', category: '', description: '', summary: '' }));
   const updateForm = useCallback((patch: Partial<typeof form>) => setForm((prev) => ({ ...prev, ...patch })), []);
 
   const [screenIds, toggleScreen] = useSelection(new Set((editingPackage?.screens ?? []).map((s) => s.key)));
@@ -520,6 +521,7 @@ export const usePluginAuthorViewModel = (tabKey?: string): PluginAuthorViewModel
     version: form.version.trim(),
     kernel: '^2.0.0',
     name: form.name.trim(),
+    ...(form.category.trim() ? { category: form.category.trim() } : {}),
     ...(form.description.trim() ? { description: form.description.trim() } : {}),
     ...(codeContributions.length > 0
       ? { dependencies: { 'core.ui': '^1.0.0' }, contributes: codeContributions }

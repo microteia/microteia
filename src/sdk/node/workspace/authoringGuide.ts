@@ -371,6 +371,11 @@ view carries its \`source\` inline. The compiler turns the first into the second
 a domain you control. \`manifest.version\` is semver. \`manifest.kernel\` is the range of platform
 contracts you work against — \`^${input.kernelVersion}\` for what is installed here.
 
+\`manifest.category\` is optional and free — \`'Theme'\`, \`'Integration'\`, whatever files your
+extension usefully. The Extensions list derives its category filter from what the listed packages
+declare, so a category nobody used before appears there on its own. Like \`name\` and \`summary\`, it
+may be a message reference (\`label('category.reports')\`): you translate what you name.
+
 Every change to an extension raises \`manifest.version\`, and records itself as one entry at the top of
 that extension's \`VERSIONS.md\` — the file \`create\` generates next to \`plugin.ts\`. The entry is
 written for whoever *uses* the extension: what they will notice, in one plain sentence, never the file

@@ -49,9 +49,14 @@ const catalogFor = (locale: string) => {
  * As propriedades que CARREGAM texto de usuário, em qualquer lugar do pacote. É a mesma lista do
  * seletor de ESLint que cobra o literal numa propriedade — de propósito: as duas respondem à mesma
  * pergunta ("isto é lido por quem usa o sistema?") e discordar seria ter duas verdades.
+ *
+ * `category` é a exceção, e a razão é de ESCOPO, não de discordância: dentro de um pacote ela é a
+ * categoria que a extensão mostra no Marketplace, mas fora dele a mesma palavra nomeia o
+ * agrupamento técnico dos passos de automação (`workflowStepCatalog`), e um seletor de ESLint não
+ * distingue os dois. Aqui a varredura é só destes três pacotes, então a pergunta tem uma resposta.
  */
 const TEXT_KEYS = new Set([
-  'name', 'description', 'summary', 'title', 'titleSingular', 'titlePlural',
+  'name', 'description', 'summary', 'category', 'title', 'titleSingular', 'titlePlural',
   'label', 'placeholder', 'message', 'content', 'text', 'value', 'emptyMessage', 'hint', 'subtitle',
 ]);
 

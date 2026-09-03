@@ -10,6 +10,8 @@ export const CORE_THEME: Record<string, string> = {
   'theme.dark': 'Escuro',
   'theme.white': 'Claro',
 
+  'category.theme': 'Tema',
+
   'point.definition.title': 'Tema',
   'point.definition.description':
     'Uma paleta que o escritório pode escolher. Só cores, fontes e espaçamentos — nada de código, e por isso qualquer arquivo de tema se instala como está.',

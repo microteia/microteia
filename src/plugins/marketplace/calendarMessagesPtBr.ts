@@ -16,6 +16,7 @@ import { CALENDAR_NAMESPACE } from './calendarMessages';
  */
 const CALENDAR_PT_BR: Record<string, string> = {
   'package.name': 'Calendário',
+  'package.category': 'Produtividade',
   'package.description': 'A agenda do escritório, agnóstica: qualquer extensão põe um item nela e continua dona dele.',
   'package.summary':
     'A agenda do escritório em colunas de dia, com o mês inteiro numa rolagem que abre no dia de hoje. Ela não conhece prazo, audiência nem parcela: qualquer extensão registra um item, continua dona dele e diz o que acontece quando o usuário o arrasta para outro dia.',

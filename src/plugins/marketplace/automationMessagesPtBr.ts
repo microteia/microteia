@@ -8,6 +8,7 @@ import { AUTOMATION_NAMESPACE } from './automationMessages';
  */
 const AUTOMATION_PT_BR: Record<string, string> = {
   'package.name': 'Automação, pelo exemplo',
+  'package.category': 'Automação',
   'package.description':
     'Uma automação inteira: fluxo ao salvar, ramificação, consulta, gravação que não duplica, script e um botão que pede um valor.',
   'package.summary':

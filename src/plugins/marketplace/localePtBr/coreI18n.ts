@@ -2,6 +2,9 @@ export const CORE_I18N: Record<string, string> = {
   'section.title': 'Idioma e região',
   'section.description':
     'Como este escritório lê texto, datas e valores. A preferência pessoal, quando existir, vence a do escritório.',
+  'category.language': 'Idioma',
+  'category.localization': 'Localização',
+
   'locale.label': 'Idioma',
   'locale.description':
     'Os idiomas disponíveis vêm dos pacotes de tradução instalados. Texto sem tradução aparece no idioma original.',

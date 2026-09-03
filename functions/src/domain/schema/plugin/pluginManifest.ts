@@ -59,6 +59,19 @@ export interface PluginManifest {
   kernel: string;
   name: string;
   description?: string;
+  /**
+   * A CATEGORIA da extensão — "Tema", "Integração", o que o autor quiser —, opcional e livre.
+   *
+   * Livre de propósito: uma união fechada aqui seria o kernel decidindo que assuntos existem, e o
+   * primeiro escritório com um assunto que não está na lista teria de esperar uma versão nova do
+   * núcleo para se organizar. O Marketplace deriva a lista de categorias do que os pacotes
+   * LISTADOS declaram, então uma categoria nova aparece no filtro sozinha, sem nada a registrar.
+   *
+   * É texto como `name` e `summary` são: literal, ou referência de mensagem (`@namespace/chave`)
+   * resolvida no ponto de render. Quem declara a categoria responde pela tradução dela — o catálogo
+   * do núcleo não carrega vocabulário de extensão.
+   */
+  category?: string;
   icon?: string;
   homepage?: string;
   publisher?: PluginPublisher;

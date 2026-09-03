@@ -71,6 +71,10 @@ export const PluginAuthorView: React.FC<{ tabKey?: string }> = ({ tabKey }) => {
                 {t('author.field.version')}
                 <LabelInput as={S.Input} placeholder="1.0.0" value={vm.form.version} onChange={(version) => vm.updateForm({ version })} />
               </S.Field>
+              <S.Field>
+                {t('author.field.category')}
+                <LabelInput as={S.Input} placeholder={t('author.field.category.placeholder')} value={vm.form.category} onChange={(category) => vm.updateForm({ category })} />
+              </S.Field>
               <S.FieldWide>
                 {t('author.field.summary')}
                 <LabelInput as={S.Input} placeholder={t('author.field.summary.placeholder')} value={vm.form.summary} onChange={(summary) => vm.updateForm({ summary })} />

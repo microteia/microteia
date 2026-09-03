@@ -34,6 +34,7 @@ export const darkThemePackage: MarketplacePlugin = {
     name: 'Dark',
     description:
       'The dark theme that ships with Microteia.',
+    category: '@core.theme/category.theme',
     icon: 'palette',
     publisher: { name: 'Microteia' },
     dependencies: { 'core.theme': '^1.0.0' },
@@ -53,6 +54,7 @@ export const whiteThemePackage: MarketplacePlugin = {
     name: 'White',
     description:
       'The light theme that ships with Microteia.',
+    category: '@core.theme/category.theme',
     icon: 'palette',
     publisher: { name: 'Microteia' },
     dependencies: { 'core.theme': '^1.0.0' },

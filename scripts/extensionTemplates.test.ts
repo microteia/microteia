@@ -86,18 +86,18 @@ describe('pacotes distribuíveis das extensões de primeira parte', () => {
  * avisou".
  */
 const VERSAO_CONFERIDA: Record<string, { version: string; fingerprint: string }> = {
-  'com.microteia.locale-pt-br': { version: '1.42.3', fingerprint: '8aee1bc24d79' },
-  'com.microteia.brasil': { version: '1.0.0', fingerprint: '576f69353711' },
-  'com.microteia.dashboard': { version: '1.1.0', fingerprint: '8e32837f3528' },
-  'com.microteia.calendar': { version: '1.2.0', fingerprint: '158e72e23ecd' },
-  'com.microteia.news': { version: '1.3.0', fingerprint: 'cd27cfeaf6a3' },
-  'com.microteia.theme-indigo': { version: '1.1.0', fingerprint: '4e06fa55e351' },
-  'com.microteia.theme-indigo-light': { version: '1.1.0', fingerprint: '8545a2fd0dfa' },
-  'com.microteia.theme-claude': { version: '1.1.0', fingerprint: '5269f3fa614b' },
-  'com.microteia.theme-teams': { version: '1.1.0', fingerprint: '04bb34f48cae' },
-  'com.microteia.theme-kindle': { version: '1.1.0', fingerprint: '5a315e68b9a9' },
-  'com.microteia.theme-themis': { version: '1.1.0', fingerprint: 'c7fa4d36f9ab' },
-  'com.microteia.theme-themis-night': { version: '1.1.0', fingerprint: 'dcf346551ac3' },
+  'com.microteia.locale-pt-br': { version: '1.43.0', fingerprint: 'd11ce71eb9ac' },
+  'com.microteia.brasil': { version: '1.1.0', fingerprint: 'bc1dfe565f9e' },
+  'com.microteia.dashboard': { version: '1.2.0', fingerprint: '3d89d46273e6' },
+  'com.microteia.calendar': { version: '1.3.0', fingerprint: 'ff568d502c6d' },
+  'com.microteia.news': { version: '1.4.0', fingerprint: '6a187135a822' },
+  'com.microteia.theme-indigo': { version: '1.2.0', fingerprint: 'e3c5b0b5a9d1' },
+  'com.microteia.theme-indigo-light': { version: '1.2.0', fingerprint: '213c6d7c1c6a' },
+  'com.microteia.theme-claude': { version: '1.2.0', fingerprint: '8db4b38b451f' },
+  'com.microteia.theme-teams': { version: '1.2.0', fingerprint: '62e6b4a4221d' },
+  'com.microteia.theme-kindle': { version: '1.2.0', fingerprint: '83354c6cfb25' },
+  'com.microteia.theme-themis': { version: '1.2.0', fingerprint: '2b899a947ffa' },
+  'com.microteia.theme-themis-night': { version: '1.2.0', fingerprint: 'ca3f730391f9' },
 };
 
 const impressao = (plugin: MarketplacePlugin): string =>

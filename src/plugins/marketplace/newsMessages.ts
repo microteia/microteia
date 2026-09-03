@@ -20,6 +20,7 @@ export const NEWS_NAMESPACE = 'com.microteia.news';
 
 export const NEWS_MESSAGES: Record<string, string> = {
   'package.name': 'News',
+  'package.category': 'Communication',
   'package.description': 'The office noticeboard as an extension — with per-person unread marks, comments and tags.',
   'package.summary':
     'The office noticeboard: the announcement someone publishes, a badge in the menu with what YOU have not read yet, likes, save for later, tags, attached documents and the conversation in comments under each item.',

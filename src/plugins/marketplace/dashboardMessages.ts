@@ -13,6 +13,7 @@ export const DASHBOARD_NAMESPACE = 'com.microteia.dashboard';
 
 export const DASHBOARD_MESSAGES: Record<string, string> = {
   'package.name': 'Dashboard',
+  'package.category': 'Analytics',
   'package.description': 'The opening screen of the office, assembled from the widgets each extension offers.',
   'package.summary':
     'The opening screen of the office: a grid of widgets offered by each installed extension. You choose which ones appear, in what order and at what width — and each person can assemble their own.',

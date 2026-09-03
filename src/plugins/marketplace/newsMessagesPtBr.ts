@@ -8,6 +8,7 @@ import { NEWS_NAMESPACE } from './newsMessages';
  */
 const NEWS_PT_BR: Record<string, string> = {
   'package.name': 'Notícias',
+  'package.category': 'Comunicação',
   'package.description': 'O mural do escritório como extensão — com o não-lido por usuário, os comentários e as etiquetas.',
   'package.summary':
     'O mural do escritório: o comunicado que alguém publica, um selo no menu com o que VOCÊ ainda não leu, curtidas, guardar para depois, etiquetas, documentos anexados e a conversa em comentários embaixo de cada notícia.',

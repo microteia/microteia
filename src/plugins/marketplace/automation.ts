@@ -385,10 +385,11 @@ const ACTIONS: ActionModuleTemplate[] = [
 export const automationExamplePlugin: MarketplacePlugin = {
   manifest: {
     id: 'com.microteia.automation-example',
-    version: '1.0.2',
+    version: '1.1.0',
     kernel: '^2.0.0',
     name: message('package.name'),
     description: message('package.description'),
+    category: message('package.category'),
     publisher: { name: 'Microteia' },
     contributes: [
       automationMessagesContribution(),

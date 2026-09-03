@@ -32,10 +32,11 @@ const message = (key: string): string => `@com.microteia.dashboard/${key}`;
 export const dashboardPlugin: MarketplacePlugin = {
   manifest: {
     id: 'com.microteia.dashboard',
-    version: '1.1.0',
+    version: '1.2.0',
     kernel: '^2.0.0',
     name: message('package.name'),
     description: message('package.description'),
+    category: message('package.category'),
     publisher: { name: 'Microteia' },
     dependencies: { 'core.ui': '^1.0.0' },
     contributes: [

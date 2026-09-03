@@ -1,10 +1,11 @@
 {
   "manifest": {
     "id": "com.microteia.dashboard",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "kernel": "^2.0.0",
     "name": "@com.microteia.dashboard/package.name",
     "description": "@com.microteia.dashboard/package.description",
+    "category": "@com.microteia.dashboard/package.category",
     "publisher": {
       "name": "Microteia"
     },
@@ -21,6 +22,7 @@
           "namespace": "com.microteia.dashboard",
           "messages": {
             "package.name": "Dashboard",
+            "package.category": "Analytics",
             "package.description": "The opening screen of the office, assembled from the widgets each extension offers.",
             "package.summary": "The opening screen of the office: a grid of widgets offered by each installed extension. You choose which ones appear, in what order and at what width — and each person can assemble their own.",
             "nav.dashboard": "Dashboard",
@@ -50,6 +52,7 @@
           "namespace": "com.microteia.dashboard",
           "messages": {
             "package.name": "Painel",
+            "package.category": "Análise",
             "package.description": "A tela de abertura do escritório, montada com os widgets que cada extensão oferece.",
             "package.summary": "A tela de abertura do escritório: uma grade de widgets que cada extensão instalada oferece. Você escolhe quais aparecem, em que ordem e com que largura — e cada pessoa pode montar o seu do jeito que preferir.",
             "nav.dashboard": "Painel",

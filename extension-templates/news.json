@@ -1,10 +1,11 @@
 {
   "manifest": {
     "id": "com.microteia.news",
-    "version": "1.3.0",
+    "version": "1.4.0",
     "kernel": "^2.0.0",
     "name": "@com.microteia.news/package.name",
     "description": "@com.microteia.news/package.description",
+    "category": "@com.microteia.news/package.category",
     "publisher": {
       "name": "Microteia"
     },
@@ -36,6 +37,7 @@
           "namespace": "com.microteia.news",
           "messages": {
             "package.name": "News",
+            "package.category": "Communication",
             "package.description": "The office noticeboard as an extension — with per-person unread marks, comments and tags.",
             "package.summary": "The office noticeboard: the announcement someone publishes, a badge in the menu with what YOU have not read yet, likes, save for later, tags, attached documents and the conversation in comments under each item.",
             "nav.news": "News",
@@ -146,6 +148,7 @@
           "namespace": "com.microteia.news",
           "messages": {
             "package.name": "Notícias",
+            "package.category": "Comunicação",
             "package.description": "O mural do escritório como extensão — com o não-lido por usuário, os comentários e as etiquetas.",
             "package.summary": "O mural do escritório: o comunicado que alguém publica, um selo no menu com o que VOCÊ ainda não leu, curtidas, guardar para depois, etiquetas, documentos anexados e a conversa em comentários embaixo de cada notícia.",
             "nav.news": "Notícias",

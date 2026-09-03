@@ -1,10 +1,11 @@
 {
   "manifest": {
     "id": "com.microteia.calendar",
-    "version": "1.2.0",
+    "version": "1.3.0",
     "kernel": "^2.0.0",
     "name": "@com.microteia.calendar/package.name",
     "description": "@com.microteia.calendar/package.description",
+    "category": "@com.microteia.calendar/package.category",
     "publisher": {
       "name": "Microteia"
     },
@@ -33,6 +34,7 @@
           "namespace": "com.microteia.calendar",
           "messages": {
             "package.name": "Calendar",
+            "package.category": "Productivity",
             "package.description": "The office agenda, agnostic: any extension puts an item on it and stays its owner.",
             "package.summary": "The office agenda in day columns, with the whole month on a single scroll that opens on today. It knows nothing about deadlines, hearings or instalments: any extension registers an item, stays its owner and decides what happens when someone drags it to another day.",
             "nav.calendar": "Calendar",
@@ -105,6 +107,7 @@
           "namespace": "com.microteia.calendar",
           "messages": {
             "package.name": "Calendário",
+            "package.category": "Produtividade",
             "package.description": "A agenda do escritório, agnóstica: qualquer extensão põe um item nela e continua dona dele.",
             "package.summary": "A agenda do escritório em colunas de dia, com o mês inteiro numa rolagem que abre no dia de hoje. Ela não conhece prazo, audiência nem parcela: qualquer extensão registra um item, continua dona dele e diz o que acontece quando o usuário o arrasta para outro dia.",
             "nav.calendar": "Calendário",
