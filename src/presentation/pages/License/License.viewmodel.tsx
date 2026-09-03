@@ -10,7 +10,7 @@ import type { WidgetSpec } from '../../../domain/schema/ui/widgetSpec';
  *
  * Mexer nela é declarar que o documento mudou; ela não acompanha o deploy.
  */
-const LAST_UPDATED_AT = '2026-08-24';
+const LAST_UPDATED_AT = '2026-09-03';
 
 /** A identidade do autor é DADO, não texto: não traduz, e por isso não entra no catálogo. */
 const AUTHOR_NAME = 'Alexnaldo Carvalho dos Santos';

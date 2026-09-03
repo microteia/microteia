@@ -11,6 +11,20 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.48.0] — 2026-09-03
+
+- Os Termos de Uso e a Política de Privacidade deixaram de pressupor um país. Nenhuma lei nacional é eleita: cada parte cumpre a legislação que se aplica a ela, e o escritório responde pelas exigências da própria jurisdição e daquelas onde estão seus usuários e clientes. Uma controvérsia se resolve, de preferência, no domicílio de quem for demandado.
+- O documento passou a dizer com clareza o fato que estava faltando: **a Microteia é instalada no projeto Firebase do próprio escritório**. Uma seção nova explica o que decorre disso — o projeto, a cobrança, as credenciais e a região dos dados são do escritório; registros, arquivos, perfis, auditoria e backups permanecem lá dentro, sob controle exclusivo dele; e quem desenvolve o software não tem acesso permanente à instalação, dependendo do acesso temporário que o escritório conceder quando pedir suporte.
+- A seção de proteção de dados foi reescrita nesse mesmo sentido: o software não envia registros, documentos nem estatísticas de uso para fora da instalação, e os dados só chegam a serviços de inteligência artificial, e-mail ou integração que o próprio escritório configurou com as credenciais dele. O escritório é o controlador dos dados: é ele que define o que se coleta e por quanto tempo, identifica as leis de proteção de dados que se aplicam a ele e responde aos pedidos de acesso, correção ou exclusão — porque é o único com acesso à informação.
+- A seção de segurança agora separa o que o software entrega (controle de acesso por permissão, isolamento entre escritórios, regras aplicadas no servidor e trilha de auditoria) do que só o escritório pode fazer: proteger as credenciais do projeto, revisar perfis e cortar o acesso de quem sai, avaliar uma extensão antes de instalá-la e manter backups cuja restauração já tenha testado. Investigar e comunicar um incidente cabe a quem opera a instalação.
+- A propriedade intelectual ficou explícita: o escritório recebe licença não exclusiva e não transferível para instalar e usar o software na própria operação, sem direito de redistribuir, sublicenciar ou oferecê-lo como serviço a terceiros. E cada instalação passa a carregar a versão dos termos que veio com a versão do software que ela roda.
+
+#### [9.47.0] — 2026-09-03
+
+- Os Termos de Uso e a Política de Privacidade passam a descrever o sistema que a Microteia é hoje: uma plataforma em que cada escritório monta a própria aplicação — telas, coleções, formulários, automações e perfis de acesso — e a estende com extensões que ele mesmo ou outra pessoa criou. A redação anterior ainda prometia um sistema de gestão para escritórios de advocacia, com clientes, processos, prazos e monitoramento de intimações, e nada disso é mais o que o sistema faz por conta própria.
+- No mesmo documento, a cláusula de cadastro deixou de citar papéis fixos (admin, advogado, secretaria, usuário) e passou a falar dos perfis de acesso que o próprio escritório cria, das permissões que ele concede e do que fazem, em seu nome, as extensões que instala. A de privacidade descreve o conteúdo que o escritório submete à inteligência artificial em lugar do antigo monitor de e-mails, e a de propriedade intelectual diz que uma extensão criada por terceiro pertence a quem a escreveu.
+- A data de última revisão da página foi atualizada, e o texto em português acompanha o original em inglês cláusula por cláusula.
+
 #### [9.46.0] — 2026-09-03
 
 - As extensões passam a poder declarar uma **categoria** — "Tema", "Integração", o que fizer sentido para quem a escreveu. É opcional, aparece ao lado da versão na lista de Extensões, e quem cria uma extensão a informa no campo novo da tela de criação.

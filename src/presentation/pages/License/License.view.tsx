@@ -48,6 +48,17 @@ export const LicenseView: React.FC = () => {
         </S.Section>
 
         <S.Section>
+          <S.SectionTitle>{t('install.title')}</S.SectionTitle>
+          <S.Paragraph>{t('install.text')}</S.Paragraph>
+          <S.List>
+            <S.ListItem>{t('install.item.project')}</S.ListItem>
+            <S.ListItem>{t('install.item.data')}</S.ListItem>
+            <S.ListItem>{t('install.item.access')}</S.ListItem>
+            <S.ListItem>{t('install.item.operation')}</S.ListItem>
+          </S.List>
+        </S.Section>
+
+        <S.Section>
           <S.SectionTitle>{t('beta.title')}</S.SectionTitle>
           <S.Paragraph>{t('beta.text')}</S.Paragraph>
           <S.List>
@@ -67,18 +78,26 @@ export const LicenseView: React.FC = () => {
           <S.SectionTitle>{t('privacy.title')}</S.SectionTitle>
           <S.Paragraph>{t('privacy.text')}</S.Paragraph>
           <S.List>
-            <S.ListItem>{t('privacy.item.account')}</S.ListItem>
-            <S.ListItem>{t('privacy.item.records')}</S.ListItem>
-            <S.ListItem>{t('privacy.item.email')}</S.ListItem>
+            <S.ListItem>{t('privacy.item.no-collection')}</S.ListItem>
+            <S.ListItem>{t('privacy.item.processing')}</S.ListItem>
+            <S.ListItem>{t('privacy.item.extensions')}</S.ListItem>
             <S.ListItem>{t('privacy.item.audit')}</S.ListItem>
           </S.List>
-          <S.Paragraph>{t('privacy.isolation')}</S.Paragraph>
+          <S.Paragraph>{t('privacy.controller')}</S.Paragraph>
+          <S.Paragraph>{t('privacy.laws')}</S.Paragraph>
           <S.Paragraph>{t('privacy.rights')}</S.Paragraph>
         </S.Section>
 
         <S.Section>
           <S.SectionTitle>{t('security.title')}</S.SectionTitle>
           <S.Paragraph>{t('security.text')}</S.Paragraph>
+          <S.List>
+            <S.ListItem>{t('security.item.credentials')}</S.ListItem>
+            <S.ListItem>{t('security.item.permissions')}</S.ListItem>
+            <S.ListItem>{t('security.item.extensions')}</S.ListItem>
+            <S.ListItem>{t('security.item.backup')}</S.ListItem>
+          </S.List>
+          <S.Paragraph>{t('security.note')}</S.Paragraph>
         </S.Section>
 
         <S.Section>
