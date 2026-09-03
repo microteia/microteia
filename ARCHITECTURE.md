@@ -6318,6 +6318,45 @@ E o autor é AVISADO, num `InfoBanner`: o pacote passou a exigir aquelas extens�
 o receber só instala depois de instalar cada uma. Sem o aviso, a primeira notícia da exigência seria
 a recusa do portão, do outro lado, para alguém que não fez a escolha.
 
+#### Quem LÊ a referência é o editor, e a ausência tem de dizer de quem é
+
+A resolução por nome em execução tem uma consequência no DESIGN-TIME que passou desapercebida por
+tempo: o valor gravado no input tem duas formas — id de documento e referência qualificada — e o
+seletor só sabia uma. Ele procurava o gravado na coleção local por id, não achava a referência
+qualificada, e desenhava como ausente um alvo que executa certo. O conserto é na LEITURA: a
+referência tem de continuar viajando literal, e resolvê-la na instalação destruiria a propriedade
+inteira.
+
+**O editor resolve COMO O MOTOR resolve.** `findByArtifactRef` (`domain/services/artifactLookup.ts`)
+é o espelho puro do `findByRef` dos repositórios: sem barra, casa por id; com barra, casa `sourceId` E
+dono. No front a busca é em memória — os stores já carregam as listas inteiras —, então resolver por
+nome não custa uma leitura. É ele que os inputs dinâmicos, as saídas do alvo e o rótulo do seletor
+usam, e é o que faz os três concordarem.
+
+**A linha da lista carrega o GRAVADO, não o id achado.** O seletor precisa de um valor que case com
+uma opção, e a saída óbvia — traduzir o gravado para o id local e entregar esse — reescrevia a
+referência qualificada no instante em que alguém reescolhesse o mesmo alvo: a opção clicada carregava
+o id do documento, e era ele que ia para o passo. Uma referência trocada por um ponteiro local não
+sobrevive à dona ser reinstalada, e é ela que `buildPackage` lê para derivar a `dependencies` quando o
+fluxo é empacotado de novo. Hoje a linha que representa o gravado recebe o gravado como `value` — ela
+SUBSTITUI a linha de id local do mesmo artefato, ou é acrescentada quando o filtro a esconderia.
+
+**A ausência tem de dizer POR QUE, nomeando a dona.** `reference.not-found` — "Registro não
+encontrado (id)" — é verdade sobre a coleção local e irrelevante sobre uma referência qualificada:
+manda o leitor procurar um documento que nunca esteve lá. `resolveArtifactRef` transforma a busca em
+veredito (`found`, `unresolved`, `owner-absent`, `not-exported`, `owner-inactive`,
+`artifact-absent`) e `artifactRefTarget` (`presentation/shared`) o transforma na frase, que chega ao
+`SearchSelect` pelo `orphanMessage` — todo outro uso do componente segue com a frase genérica, que
+para um registro apagado está certa.
+
+O vocabulário é de propósito o de `CrossRefVerdict`, o portão da instalação: é a mesma pergunta feita
+de outro lugar. **A ORDEM das recusas é a ordem em que o leitor pode agir**: `not-exported` vem antes
+de `owner-inactive` porque é fato sobre a referência — a dona está lá e não promete aquele id, então
+religá-la não muda nada, e mandar religar primeiro custa uma volta inútil. A dona DESLIGADA que
+exporta o id continua tendo os artefatos dela como documentos do escritório, e é por isso que esse
+caso só aparece quando o documento também falta. `artifact-absent` é o resto honesto: nada do que se
+sabe explica a ausência, e dizê-lo assim é melhor que atribuí-la a uma causa errada.
+
 #### A superfície exportada atravessa para quem autora fora do escritório
 
 O retrato da instalação (`installedCatalog`) trazia telas, listas e QUAIS extensões estão instaladas —

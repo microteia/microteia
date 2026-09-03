@@ -455,6 +455,14 @@ export const CORE_AUTOMATION: Record<string, string> = {
   'step.no-prior-steps':
     "Não há steps anteriores neste workflow para usar como origem de 'Saída de outro step'.",
   'step.target.script': 'Selecione o script...',
+  'step.target.ref.owner-absent':
+    '“{id}” é da extensão {plugin}, que não está instalada neste escritório.',
+  'step.target.ref.not-exported':
+    'A extensão {plugin} está instalada, mas não exporta “{id}”.',
+  'step.target.ref.owner-inactive':
+    '“{id}” é da extensão {plugin}, que está desligada neste escritório.',
+  'step.target.ref.artifact-absent':
+    'A extensão {plugin} exporta “{id}”, mas nenhum registro dele foi instalado aqui.',
   'step.target.workflow': 'Selecione a automação...',
   'step.target.ai-connection': 'Conexão padrão do escritório',
   'step.ai-connection.default': 'Conexão padrão do escritório',

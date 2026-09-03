@@ -21,6 +21,12 @@ interface SearchSelectProps {
   placeholder?: string;
   disabled?: boolean;
   label?: string;
+  /**
+   * A frase da ausência, quando quem chama sabe POR QUE o valor gravado não está na lista. Sem ela a
+   * ausência é dita pelo genérico — que está certo para um id de registro apagado e errado para uma
+   * referência a outra extensão, onde o que falta não é o registro, é a extensão.
+   */
+  orphanMessage?: string;
 }
 
 const Wrapper = styled.div`
@@ -195,9 +201,10 @@ export const SearchSelect: React.FC<SearchSelectProps> = ({
   onChange,
   placeholder = 'Selecione...',
   disabled,
+  orphanMessage,
 }) => {
   const t = useT('core.ui');
-  const orphanTitle = t('reference.orphan.title');
+  const orphanTitle = orphanMessage ?? t('reference.orphan.title');
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [activeIdx, setActiveIdx] = useState(0);
@@ -269,7 +276,11 @@ export const SearchSelect: React.FC<SearchSelectProps> = ({
         {selected?.color && <ColorDot $color={selected.color} />}
         {selected?.icon && <OptionIcon><selected.icon size={14} /></OptionIcon>}
         <TriggerLabel $orphan={isOrphan} title={isOrphan ? orphanTitle : undefined}>
-          {selected ? selected.label : isOrphan ? t('reference.not-found', { id: value }) : placeholder}
+          {selected
+            ? selected.label
+            : isOrphan
+              ? orphanMessage ?? t('reference.not-found', { id: value })
+              : placeholder}
         </TriggerLabel>
         {(selected || isOrphan) && !disabled && (
           <ClearBtn onClick={handleClear} title={t('action.clear')}>

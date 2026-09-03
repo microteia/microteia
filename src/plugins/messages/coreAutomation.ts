@@ -455,6 +455,14 @@ export const CORE_AUTOMATION_MESSAGES: Record<string, string> = {
   'step.no-prior-steps':
     "There is no previous step in this workflow to use as the source of 'Output of another step'.",
   'step.target.script': 'Select the script…',
+  'step.target.ref.owner-absent':
+    '“{id}” belongs to the {plugin} extension, which is not installed in this organization.',
+  'step.target.ref.not-exported':
+    'The {plugin} extension is installed but does not export “{id}”.',
+  'step.target.ref.owner-inactive':
+    '“{id}” belongs to the {plugin} extension, which is turned off in this organization.',
+  'step.target.ref.artifact-absent':
+    'The {plugin} extension exports “{id}”, but no record of it was installed here.',
   'step.target.workflow': 'Select the automation…',
   'step.target.ai-connection': 'Default connection of the organization',
   'step.ai-connection.default': 'Default connection of the organization',

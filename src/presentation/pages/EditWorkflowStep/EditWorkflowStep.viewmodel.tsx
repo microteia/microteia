@@ -4,9 +4,12 @@ import { useTenant } from '../../../stores/useTenant';
 import { useDI } from '../../../infrastructure/di/useDI';
 import { makeGetAIConnectionsUseCase } from '../../../domain/usecases/aiconnections/GetAIConnectionsUseCase';
 import { findByArtifactRef } from '../../../domain/services/artifactLookup';
+import type { ArtifactRefOwner } from '../../../domain/services/artifactLookup';
+import { artifactRefTarget } from '../../shared/artifactRefTarget';
 import type { AIConnection } from '../../../domain/entities';
 import { useWorkflowStore } from '../../../stores/useWorkflowStore';
 import { useScriptStore } from '../../../stores/useScriptStore';
+import { useInstalledExtensions } from '../../../stores/useInstalledExtensions';
 import { useWorkspace } from '../../../stores/useWorkspace';
 import { useNotification } from '../../../stores/useNotification';
 import { useSchemaContext } from '../../shared/useSchemaContext';
@@ -153,6 +156,13 @@ const loadConditionViewMode = (): ConditionViewMode => {
   }
 };
 
+/** O que o seletor de um input que aponta um artefato precisa para desenhar o valor gravado. */
+export interface PickerDisplay {
+  options: { value: string; label: string }[];
+  /** A frase da ausência, quando a referência gravada não resolve e há um motivo a dizer. */
+  orphanMessage?: string;
+}
+
 export interface EditWorkflowStepViewModel {
   workflowName: string;
   stepOrder: number;
@@ -177,11 +187,11 @@ export interface EditWorkflowStepViewModel {
   /** O seletor que este input pede, ou `null` quando ele é preenchido por mapeamento comum. */
   pickerFor: (input: InputDefinition) => InputPickerKind | null;
   /**
-   * O id LOCAL do artefato que o passo guarda — o valor gravado pode ser a referência qualificada
-   * `<extensão>/<artefato>`, e é por id local que a lista do seletor identifica a linha.
+   * A lista do seletor e, quando o alvo gravado não é achado, a frase que diz por quê. As duas saem
+   * da mesma resolução, e por isso saem juntas: perguntá-las em separado repetiria a busca e abriria
+   * espaço para uma responder o que a outra desmente.
    */
-  pickerValue: (kind: InputPickerKind, stored: string) => string;
-  pickerOptions: (kind: InputPickerKind, current: string) => { value: string; label: string }[];
+  pickerDisplay: (kind: InputPickerKind, stored: string) => PickerDisplay;
   pickerPlaceholder: (kind: InputPickerKind) => string;
   setPickerValue: (inputId: string, value: string) => void;
   setMappingKind: (inputId: string, kind: InputMapping['kind']) => void;
@@ -258,6 +268,7 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
 
   const { workflows, updateWorkflowSteps } = useWorkflowStore();
   const { scripts } = useScriptStore();
+  const { installed } = useInstalledExtensions();
   const { closeTab, setTabTitle, activePanelId } = useWorkspace();
   const { notify } = useNotification();
   const schemaContext = useSchemaContext();
@@ -411,6 +422,19 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
     [scripts, label],
   );
 
+  /**
+   * As extensões do escritório reduzidas ao que o diagnóstico de uma referência usa. Todo membro lê
+   * `installed_extensions`, e o store já as assina — nada é carregado por causa desta tela.
+   */
+  const refOwners = useMemo<ArtifactRefOwner[]>(
+    () => installed.map((one) => ({
+      id: one.id,
+      active: one.active,
+      exports: one.package.manifest.exports,
+    })),
+    [installed],
+  );
+
   const needsAIConnections = useMemo(
     () => (selectedDefinition?.inputs ?? []).some((input) => input.picker === 'ai-connection'),
     [selectedDefinition],
@@ -469,37 +493,45 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
 
   /**
    * O que o passo GUARDA e o que a lista MOSTRA não são a mesma coisa quando o alvo é de outra
-   * extensão: ali o valor gravado é `<extensão>/<artefato>`, resolvido por nome em tempo de execução,
-   * e a lista é de ids locais. Sem traduzir um no outro, o seletor não achava a linha e desenhava o
-   * alvo — que existe e roda — como "Registro não encontrado".
+   * extensão: ali o valor gravado é `<extensão>/<source-id>`, resolvido por dono e `sourceId` em
+   * tempo de execução, e a lista é de ids de documento. Sem casar um com o outro, o seletor não
+   * achava a linha e desenhava o alvo — que existe e roda — como "Registro não encontrado".
+   *
+   * A linha que representa o gravado recebe o GRAVADO como valor, e não o id do documento achado:
+   * reescolher o mesmo alvo não pode trocar a referência qualificada pelo id local. A referência tem
+   * de continuar viajando literal — é ela que sobrevive à extensão dona ser atualizada ou
+   * reinstalada.
+   *
+   * A lista traz também o que já está escolhido quando ele não estaria nela — uma automação
+   * desativada DEPOIS de escolhida. Escondê-la não a desconfigura: só faz o passo parecer vazio
+   * quando ele aponta para algo. O filtro decide o que se pode escolher, nunca o que se pode ver.
    */
-  const pickerValue = useCallback(
-    (kind: InputPickerKind, stored: string): string => {
-      if (!stored || kind === 'ai-connection') return stored;
-      const found = kind === 'script'
-        ? findByArtifactRef(scripts, stored)
-        : findByArtifactRef(workflows, stored);
-      return found?.id ?? stored;
-    },
-    [scripts, workflows],
-  );
-
-  /**
-   * A lista, mais o que já está escolhido quando ele não estaria nela — uma automação desativada
-   * DEPOIS de escolhida. Escondê-la não a desconfigura: só faz o passo parecer vazio quando ele
-   * aponta para algo. O filtro decide o que se pode escolher, nunca o que se pode ver.
-   */
-  const pickerOptions = useCallback(
-    (kind: InputPickerKind, current: string): { value: string; label: string }[] => {
-      if (kind === 'ai-connection') return aiConnectionOptions;
+  const pickerDisplay = useCallback(
+    (kind: InputPickerKind, stored: string): PickerDisplay => {
+      if (kind === 'ai-connection') return { options: aiConnectionOptions };
       const options = kind === 'script' ? callableScriptOptions : callableWorkflowOptions;
-      if (!current || options.some((option) => option.value === current)) return options;
-      const chosen = kind === 'script'
-        ? findByArtifactRef(scripts, current)
-        : findByArtifactRef(workflows, current);
-      return chosen ? [...options, { value: chosen.id, label: label(chosen.name) }] : options;
+      if (!stored) return { options };
+
+      const target = artifactRefTarget(label, kind === 'script' ? scripts : workflows, stored, refOwners);
+      if (!target.option) {
+        return { options, ...(target.reason ? { orphanMessage: target.reason } : {}) };
+      }
+      const { option: line, localId } = target;
+      return {
+        options: options.some((option) => option.value === localId)
+          ? options.map((option) => (option.value === localId ? line : option))
+          : [...options, line],
+      };
     },
-    [callableScriptOptions, aiConnectionOptions, callableWorkflowOptions, scripts, workflows, label],
+    [
+      aiConnectionOptions,
+      callableScriptOptions,
+      callableWorkflowOptions,
+      scripts,
+      workflows,
+      refOwners,
+      label,
+    ],
   );
 
   const pickerPlaceholder = useCallback(
@@ -1038,8 +1070,7 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
     configuration,
     effectiveInputs,
     pickerFor,
-    pickerValue,
-    pickerOptions,
+    pickerDisplay,
     pickerPlaceholder,
     setPickerValue,
     setMappingKind,

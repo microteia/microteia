@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.45.0] — 2026-09-02
+
+- No passo de uma automação, o campo que aponta para uma automação ou um script de OUTRA extensão passa a dizer POR QUE não achou o que aponta, quando não acha: a extensão dona não está instalada, está instalada e desligada, está instalada e não oferece aquele item, ou o oferece e o item não veio na instalação. Antes a resposta era sempre "Registro não encontrado", que manda procurar no lugar errado — o item não está entre os do escritório, e nunca esteve.
+- Reescolher, nesse mesmo campo, o item que já estava escolhido deixou de trocar o vínculo com a extensão dona por um vínculo com a cópia instalada. O vínculo pela extensão é o que sobrevive à dona ser atualizada ou reinstalada.
+
 #### [9.44.0] — 2026-09-02
 
 - O passo de uma automação passa a ter Descrição: um nome livre, escrito na hora de criar ou de editar o passo, e é ele que aparece no cartão do fluxo. Antes o cartão só mostrava o identificador técnico do passo, e a descrição de um passo antigo, que já vinha escrita, não tinha mais como ser alterada.
