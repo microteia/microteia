@@ -227,6 +227,65 @@ export {
   themeTokensContribution,
 } from '../domain/schema/theme';
 
+// ─── Relatórios: a pergunta que se faz ao dado ────────────────────────────────
+
+export type {
+  ReportAccess,
+  ReportAggregateMeasure,
+  ReportChart,
+  ReportChartKind,
+  ReportComputedMeasure,
+  ReportDataset,
+  ReportDatasetKind,
+  ReportDimension,
+  ReportFieldPresentation,
+  ReportGranularity,
+  ReportGroupLevel,
+  ReportMatrixShape,
+  ReportMeasure,
+  ReportPresentation,
+  ReportPrompt,
+  ReportSchedule,
+  ReportShape,
+  ReportShapeKind,
+  ReportSpec,
+  ReportSummaryShape,
+  ReportTabularShape,
+  ReportValueFormat,
+  ReportContributionMetadata,
+  ReportGroupKey,
+  ReportResult,
+  ReportRow,
+  ReportTotals,
+  ReportSpecIssue,
+  ReportValidationContext,
+} from '../domain/schema/report';
+
+export {
+  REPORT_API_VERSION,
+  REPORT_CAPABILITIES,
+  REPORT_CHART_KINDS,
+  REPORT_DATASET_KINDS,
+  REPORT_DEFINITION_POINT,
+  REPORT_EXTENSION_POINTS,
+  REPORT_GRANULARITIES,
+  REPORT_SHAPE_KINDS,
+  REPORT_SPEC_VERSION,
+  deriveReportRequires,
+  hasBlockingReportIssue,
+  reportContribution,
+  reportOf,
+  reportPaths,
+  reportSourceCollections,
+  unsupportedReportCapabilities,
+  validateReportSpec,
+  validateReportSpecShape,
+} from '../domain/schema/report';
+
+export type { ReportDefinition, ReportModuleTemplate } from '../domain/entities/Report';
+
+export { KERNEL_EXTENSION_POINTS } from '../domain/schema/extensionPoints';
+
 // ─── Automação: workflows, ações e scripts ────────────────────────────────────
 
 export type {

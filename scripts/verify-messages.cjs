@@ -37,6 +37,7 @@ const MODULE_BY_NS = {
   'core.tenant': 'coreTenant',
   'core.marketplace': 'coreMarketplace',
   'core.records': 'coreRecords',
+  'core.reports': 'coreReports',
   'core.workspace': 'coreWorkspace',
   'core.settings': 'coreSettings',
   'core.i18n': 'coreI18n',

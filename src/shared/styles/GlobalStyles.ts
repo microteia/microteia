@@ -230,4 +230,56 @@ export const GlobalStyles = createGlobalStyle`
   .rbc-current-time-indicator {
     background: ${({ theme }) => theme.colors.primary};
   }
+
+  /*
+   * A FOLHA DE IMPRESSÃO.
+   *
+   * O navegador já sabe compor uma página e oferecer "Salvar como PDF" — trazer um gerador de PDF
+   * custaria uma dependência, o embutimento de fontes e um segundo motor de layout, para produzir
+   * algo pior. O que falta é dizer o que imprimir: tudo é escondido e só a marca data-print-root
+   * reaparece, no lugar da página.
+   *
+   * As cores são forçadas para tinta em papel branco: um relatório impresso com o fundo do tema
+   * escuro gasta o cartucho e sai ilegível.
+   */
+  @media print {
+    body * {
+      visibility: hidden;
+    }
+
+    [data-print-root],
+    [data-print-root] * {
+      visibility: visible;
+    }
+
+    [data-print-root] {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      padding: 0;
+      background: #ffffff;
+      color: #000000;
+    }
+
+    [data-print-root] table,
+    [data-print-root] th,
+    [data-print-root] td {
+      background: #ffffff;
+      color: #000000;
+      border-color: #999999;
+    }
+
+    /* Uma linha partida entre duas páginas some do meio: o leitor não sabe que ela existiu. */
+    [data-print-root] tr {
+      break-inside: avoid;
+    }
+
+    [data-print-root] [data-print-hide] {
+      display: none;
+    }
+
+    @page {
+      margin: 14mm;
+    }
+  }
 `;

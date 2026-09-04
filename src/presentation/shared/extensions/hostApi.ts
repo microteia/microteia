@@ -1,4 +1,9 @@
 import React, { useCallback, useMemo } from 'react';
+import { ReportView } from '../../components/ui/ReportView';
+import { ReportTable } from '../../components/ui/ReportTable';
+import { ReportMatrix } from '../../components/ui/ReportMatrix';
+import { ReportChart } from '../../components/ui/ReportChart';
+import { useReport } from '../report/useReport';
 import { httpsCallable } from 'firebase/functions';
 import { jsx, jsxs, Fragment } from 'react/jsx-runtime';
 import styled, { useTheme } from 'styled-components';
@@ -28,7 +33,7 @@ import { MarkdownContent } from '../../components/ui/MarkdownContent';
 import { MarkdownEditor } from '../../components/ui/MarkdownEditor';
 import { UserAvatar } from '../../components/ui/UserAvatar';
 import { WidgetSurface } from '../../components/ui/WidgetSurface';
-import { DonutChart, TimeSeriesChart } from '../../components/ui/Chart';
+import { BarChart, DonutChart, TimeSeriesChart } from '../../components/ui/Chart';
 import { EntityListView } from '../../components/layout/EntityListView';
 import { DocumentsPanel } from '../../components/layout/EntityDetailPanels/DocumentsPanel';
 import { RecordListSurface } from '../../components/layout/RecordListSurface';
@@ -219,6 +224,24 @@ const useLookup = (collection: string): LookupOption[] => useLookups().getOption
 
 const useNotify = (): ReturnType<typeof useNotification>['notify'] => useNotification().notify;
 
+/**
+ * `@microteia/report` — o que o CAMINHO EM CÓDIGO compõe.
+ *
+ * São os MESMOS componentes que o renderizador declarativo usa, e é isso que faz escrever relatório
+ * em código ser composição e não reimplementação: o autor monta a capa, o texto entre seções e dois
+ * datasets lado a lado, e as peças que desenham número continuam sendo as do kernel.
+ *
+ * O que ele NÃO dá é acesso ao dado: os números chegam por `useReport`, que chama a callable — e é
+ * lá que a leitura de cada coleção é cobrada. O código substitui a APRESENTAÇÃO, nunca o `dataset`.
+ */
+const reportModule = {
+  ReportView,
+  ReportTable,
+  ReportMatrix,
+  ReportChart,
+  useReport,
+};
+
 const uiModule = {
   Button,
   InfoBanner,
@@ -244,6 +267,7 @@ const uiModule = {
   WidgetSurface,
   TimeSeriesChart,
   DonutChart,
+  BarChart,
   CustomFieldMetaRows,
   MarkdownContent,
   MarkdownEditor,
@@ -350,6 +374,7 @@ export const HOST_MODULES: Record<string, unknown> = {
   'react/jsx-dev-runtime': { jsxDEV: jsx, Fragment },
   'styled-components': { default: styled, styled, useTheme },
   '@microteia/ui': uiModule,
+  '@microteia/report': reportModule,
   '@microteia/data': dataModule,
   '@microteia/format': formatModule,
   '@microteia/i18n': i18nModule,

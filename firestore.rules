@@ -207,6 +207,14 @@ service cloud.firestore {
         allow create, update, delete: if can(tenantId, 'automation.manage');
       }
 
+      // Relatórios do escritório. Todo membro LÊ a definição — a lista precisa mostrar o que existe,
+      // e a definição não é o dado: executar um relatório cobra, no servidor, a leitura de cada
+      // coleção que ele toca. Só quem gerencia relatórios escreve.
+      match /reports/{reportId} {
+        allow read: if isMember(tenantId);
+        allow create, update, delete: if can(tenantId, 'reports.manage');
+      }
+
       // Plugins instalados no escritório (Marketplace). Todo membro lê — o app precisa saber
       // quais extensões estão ativas para montar contribuições; só admin instala/atualiza/remove.
       match /plugin_installations/{pluginId} {
@@ -335,7 +343,7 @@ service cloud.firestore {
         'actions', 'aiConnections',
         'documentTypes', 'documents', 'extension_history', 'extension_migrations', 'extensions',
         'installed_extensions', 'lookupDefinitions', 'members', 'notes',
-        'roles',
+        'reports', 'roles',
         'tagDefinitions', 'plugin_installations',
         'recordKeys',
         'screenDefinitions', 'scripts', 'secrets', 'settings', 'tags', 'tenant', 'workflow_definitions',

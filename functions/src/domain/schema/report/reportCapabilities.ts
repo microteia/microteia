@@ -1,0 +1,111 @@
+// ═══════════════════════════════════════════════════════════════════════════
+// ⚠️  ARQUIVO GERADO POR scripts/sync-schemas.cjs — NÃO EDITE.
+// Fonte única: src/domain/schema/report/reportCapabilities.ts
+// Para alterar, edite a fonte e rode: npm run sync-schemas
+// ═══════════════════════════════════════════════════════════════════════════
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// FONTE ÚNICA — a cópia em functions/src/domain/schema/report/reportCapabilities.ts
+// é GERADA por scripts/sync-schemas.cjs (npm run sync-schemas). Nunca edite a cópia.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+import { DEFAULT_REPORT_DATASET_KIND, isAggregateMeasure } from './reportSpec';
+import type { ReportGroupLevel, ReportSpec } from './reportSpec';
+
+/**
+ * As capacidades que ESTE kernel sabe executar.
+ *
+ * A lista só CRESCE — há teste. É ela que permite a um relatório escrito com o SDK de 2031, mas que
+ * só usa o que 2026 sabia fazer, rodar num kernel de 2026: o carimbo de versão do pacote seria
+ * grosso demais para essa pergunta, porque recusaria a extensão inteira por causa de um recurso que
+ * ela nem chegou a usar.
+ */
+export const REPORT_CAPABILITIES: readonly string[] = [
+  'dataset.collection',
+  'dimension.granularity',
+  'export.csv',
+  'export.pdf',
+  'measure.aggregate',
+  'measure.distinct',
+  'measure.filter',
+  'presentation.chart',
+  'presentation.prompt',
+  'shape.matrix',
+  'shape.subtotal',
+  'shape.summary',
+  'shape.tabular',
+];
+
+const anySubtotal = (levels: ReportGroupLevel[]): boolean =>
+  levels.some((level) => level.subtotal === true);
+
+/**
+ * As capacidades que o spec de fato usa. É DERIVADA: o autor nunca a escreve, e o portão do pacote
+ * reprova a divergência entre `spec.requires` e esta função.
+ *
+ * Emite deliberadamente tokens que `REPORT_CAPABILITIES` ainda NÃO tem (`measure.computed`,
+ * `dataset.join`, `schedule`). É esse descompasso que faz o kernel recusar pelo NOME do recurso que
+ * lhe falta, em vez de somar sem ele e devolver um número diferente com o mesmo rótulo.
+ */
+export const deriveReportRequires = (spec: ReportSpec): string[] => {
+  const required = new Set<string>();
+
+  required.add(`dataset.${spec.dataset.kind ?? DEFAULT_REPORT_DATASET_KIND}`);
+
+  for (const dimension of spec.dataset.dimensions ?? []) {
+    if (dimension.granularity !== undefined) required.add('dimension.granularity');
+  }
+
+  for (const measure of spec.dataset.measures ?? []) {
+    if (!isAggregateMeasure(measure)) {
+      required.add(`measure.${measure.kind}`);
+      continue;
+    }
+    required.add('measure.aggregate');
+    if (measure.filter && measure.filter.length > 0) required.add('measure.filter');
+    if (measure.distinct === true) required.add('measure.distinct');
+  }
+
+  required.add(`shape.${spec.shape.kind}`);
+  if (spec.shape.kind === 'summary' && anySubtotal(spec.shape.groupBy)) required.add('shape.subtotal');
+  if (spec.shape.kind === 'matrix'
+    && (anySubtotal(spec.shape.rows) || anySubtotal(spec.shape.columns))) {
+    required.add('shape.subtotal');
+  }
+
+  if (spec.presentation?.chart) required.add('presentation.chart');
+  if ((spec.presentation?.prompts ?? []).length > 0) required.add('presentation.prompt');
+  if (spec.presentation?.export?.csv) required.add('export.csv');
+  if (spec.presentation?.export?.pdf) required.add('export.pdf');
+  if (spec.schedule) required.add('schedule');
+
+  return [...required].sort();
+};
+
+/**
+ * Os prefixos cuja ausência RECUSA o relatório. Todo o resto degrada com aviso.
+ *
+ * A linha é a mesma que separa as camadas: `dataset` e `measure` são a verdade do NÚMERO — somar sem
+ * uma medida devolve um número diferente com o mesmo rótulo, e o leitor não tem como notar. Uma
+ * dobra, um gráfico ou um balde que faltem tiram algo que se VÊ faltar.
+ *
+ * Esta é a regra inteira, e ela é derivada da POSIÇÃO — não uma tabela mantida à mão. Uma exceção
+ * que dissesse "capacidade desconhecida sempre recusa" tornaria a degradação de `shape` código
+ * morto: nenhuma dobra nova jamais chegaria a degradar, porque o token dela recusaria antes.
+ */
+const REFUSING_CAPABILITY_PREFIXES = ['dataset.', 'measure.'];
+
+export const reportCapabilitySeverity = (capability: string): 'error' | 'warning' =>
+  REFUSING_CAPABILITY_PREFIXES.some((prefix) => capability.startsWith(prefix)) ? 'error' : 'warning';
+
+/** O que o relatório pede e este kernel não sabe fazer. Vazio = executável aqui. */
+export const unsupportedReportCapabilities = (
+  spec: ReportSpec,
+  capabilities: readonly string[] = REPORT_CAPABILITIES,
+): string[] => {
+  const known = new Set(capabilities);
+  const asked = spec.requires && spec.requires.length > 0
+    ? spec.requires
+    : deriveReportRequires(spec);
+  return asked.filter((capability) => !known.has(capability));
+};

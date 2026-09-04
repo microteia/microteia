@@ -1,6 +1,7 @@
 import type { AuditAction } from './AuditLog';
 import type { PluginManifest } from '../schema/plugin/pluginManifest';
 import type { PluginMigration } from '../schema/plugin/migration';
+import type { ReportModuleTemplate as ReportModuleTemplateType } from './Report';
 import type { WorkflowDefinition } from './Workflow';
 import type { Script } from './Script';
 import type { ActionDefinition } from './Action';
@@ -139,6 +140,15 @@ export type ActionModuleTemplate = { templateId: string } & Omit<
   'id' | 'tenantId' | 'createdAt' | 'createdBy' | 'updatedAt' | 'updatedBy' | 'updatedByName' | 'updatedByPhotoURL' | 'ownerPluginId'
 >;
 
+/**
+ * Um relatório do pacote.
+ *
+ * O `ReportSpec` dele aponta para uma COLEÇÃO (`dataset.table`), e essa é a única referência que a
+ * instalação precisa reescrever: a chave de uma tela do pacote pode ganhar sufixo no escritório de
+ * destino. Ver `rewriteReportTables`.
+ */
+export type ReportModuleTemplate = ReportModuleTemplateType;
+
 /** Um script do pacote, referenciado por `step.configuration.scriptId` de workflows via `templateId`. */
 export type ScriptModuleTemplate = { templateId: string } & Omit<
   Script,
@@ -197,6 +207,12 @@ export interface MarketplacePlugin {
   tagLists?: LookupModuleTemplate[];
   actions?: ActionModuleTemplate[];
   scripts?: ScriptModuleTemplate[];
+  /**
+   * Relatórios que o pacote entrega prontos. Cada um pode ser DECLARATIVO (o normal) ou ter a
+   * apresentação escrita em código — nesse caso uma contribuição `report.definition` com
+   * `impl: { kind: 'code', key }` casa com a `views[]` de mesma chave.
+   */
+  reports?: ReportModuleTemplate[];
   /** Views de código (extensões trusted). Cada `key` casa com uma contribuição `ui.page` code. */
   views?: ViewModuleTemplate[];
   /**

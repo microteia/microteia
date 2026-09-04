@@ -313,6 +313,7 @@ export const CORE_MARKETPLACE: Record<string, string> = {
     'a tela "{screen}" declara o prefixo "{prefix}", que é de {entity} — as automações de {entity} passariam a disparar com "{collection}".',
   'issue.screen.reserved-prefix':
     'a tela "{screen}" emitiria "{prefix}.saved", um nome reservado pelo motor de automações — declare outro `eventPrefix`.',
+  'issue.report.invalid': 'O relatório "{name}" não pode ser executado como está — {field}: {detail}',
   'issue.ref.external':
     '{origin} "{name}" referencia {kind} "{id}", que não está no pacote nem coberta por uma dependência declarada.',
   'issue.ref.malformed':
@@ -337,6 +338,7 @@ export const CORE_MARKETPLACE: Record<string, string> = {
   'ref.kind.workflow': 'a automação',
   'ref.origin.action': 'ação',
   'ref.origin.patch': 'complemento de',
+  'ref.origin.report': 'relatório',
   'ref.origin.screen': 'tela',
   'ref.origin.workflow': 'automação',
   'ref.origin.workflow-step': 'passo "{step}" da automação',

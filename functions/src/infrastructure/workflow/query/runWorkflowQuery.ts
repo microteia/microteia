@@ -10,9 +10,28 @@ import { collectHopRecordRefs, materializeHops, recordKey } from '../../../domai
 import type { QueryOrderBy, QueryPredicate, QuerySpec } from '../../../domain/schema/querySpec';
 import { resolveQueryTable, validateQuerySpec } from '../../../domain/schema/querySpec';
 import { applyDerivedFields, collectDerivedFieldKeys } from '../../../domain/schema/recordRules';
+import { compareValues, evaluateResolvedPredicate } from '../../../domain/schema/predicateMatch';
+import type { ResolvedPredicate as SharedResolvedPredicate } from '../../../domain/schema/predicateMatch';
 
 const MAX_SCAN = 300;
 const MAX_QUERY_LIMIT = 100;
+
+/**
+ * Os tetos da consulta, fornecidos por quem chama.
+ *
+ * Eram constantes fixas, e continuam sendo o PADRÃO — o caminho do workflow não muda uma linha. O
+ * relatório precisa varrer mais que 300 para que um total seja um total, e a estratégia índice-free
+ * é preservada: o que muda é quantos documentos a varredura traz, nunca como ela é montada.
+ */
+export interface WorkflowQueryLimits {
+  maxScan: number;
+  maxResults: number;
+}
+
+export const DEFAULT_WORKFLOW_QUERY_LIMITS: WorkflowQueryLimits = {
+  maxScan: MAX_SCAN,
+  maxResults: MAX_QUERY_LIMIT,
+};
 
 export interface WorkflowQueryDeps {
   queryRepository: IWorkflowQueryRepository;
@@ -24,6 +43,17 @@ export interface WorkflowQueryResult {
   count: number;
   results: Record<string, unknown>[];
   first: Record<string, unknown> | null;
+  /** Quantos documentos a varredura trouxe. */
+  scanned: number;
+  /**
+   * A varredura NÃO bateu no teto — ou seja, ela viu a coleção inteira que os filtros de igualdade
+   * delimitam.
+   *
+   * Enquadrado no positivo de propósito: o padrão de um campo esquecido não pode ser "está tudo
+   * bem". Isto conserta um defeito latente que já atingia o passo "Buscar Registros": um fluxo que
+   * consulta 5000 registros vê 300 e não tinha como saber.
+   */
+  complete: boolean;
 }
 
 export type WorkflowQueryOutcome =
@@ -35,83 +65,16 @@ interface ResolvedPredicate extends QueryPredicate {
   resolvedValue: unknown;
 }
 
-const toMillis = (value: unknown): number | undefined => {
-  if (value instanceof Date) return value.getTime();
-  if (typeof value === 'string') {
-    const parsed = Date.parse(value);
-    return Number.isNaN(parsed) ? undefined : parsed;
-  }
-  return undefined;
-};
-
-const looseEquals = (a: unknown, b: unknown): boolean => {
-  if (a instanceof Date || b instanceof Date) {
-    const am = toMillis(a);
-    const bm = toMillis(b);
-    return am !== undefined && am === bm;
-  }
-  if (typeof a === 'number' && typeof b === 'string') return a === Number(b);
-  if (typeof a === 'string' && typeof b === 'number') return Number(a) === b;
-  return a === b;
-};
-
-const compare = (a: unknown, b: unknown): number | undefined => {
-  const am = a instanceof Date ? a.getTime() : a;
-  const bm = b instanceof Date ? b.getTime() : b;
-  if (typeof am === 'number' || typeof bm === 'number') {
-    const an = typeof am === 'number' ? am : Number(am);
-    const bn = typeof bm === 'number' ? bm : Number(bm);
-    if (Number.isNaN(an) || Number.isNaN(bn)) return undefined;
-    return an - bn;
-  }
-  if (typeof am === 'string' && typeof bm === 'string') return am.localeCompare(bm);
-  return undefined;
-};
-
-const evaluatePredicate = (record: Record<string, unknown>, predicate: ResolvedPredicate): boolean => {
-  const actual = getValueAtPath(record, parsePath(predicate.path));
-  const expected = predicate.resolvedValue;
-
-  switch (predicate.op) {
-    case 'eq':
-      return looseEquals(actual, expected);
-    case 'neq':
-      return !looseEquals(actual, expected);
-    case 'lt': {
-      const c = compare(actual, expected);
-      return c !== undefined && c < 0;
-    }
-    case 'lte': {
-      const c = compare(actual, expected);
-      return c !== undefined && c <= 0;
-    }
-    case 'gt': {
-      const c = compare(actual, expected);
-      return c !== undefined && c > 0;
-    }
-    case 'gte': {
-      const c = compare(actual, expected);
-      return c !== undefined && c >= 0;
-    }
-    case 'in':
-      return Array.isArray(expected) && expected.some((item) => looseEquals(actual, item));
-    case 'contains':
-      if (Array.isArray(actual)) return actual.some((item) => looseEquals(item, expected));
-      if (typeof actual === 'string' && typeof expected === 'string') return actual.includes(expected);
-      return false;
-    case 'exists':
-      return actual !== undefined && actual !== null;
-    default:
-      return false;
-  }
-};
+/** O predicado local no formato do avaliador COMPARTILHADO, que é o mesmo do relatório. */
+const asShared = (predicate: ResolvedPredicate): SharedResolvedPredicate =>
+  ({ path: predicate.path, op: predicate.op, value: predicate.resolvedValue });
 
 const applyOrdering = (records: Record<string, unknown>[], orderBy: QueryOrderBy[]): Record<string, unknown>[] =>
   [...records].sort((left, right) => {
     for (const order of orderBy) {
       const lv = getValueAtPath(left, parsePath(order.path));
       const rv = getValueAtPath(right, parsePath(order.path));
-      const c = compare(lv, rv) ?? 0;
+      const c = compareValues(lv, rv) ?? 0;
       if (c !== 0) return order.dir === 'desc' ? -c : c;
     }
     return 0;
@@ -162,6 +125,7 @@ export async function runWorkflowQuery(
   spec: QuerySpec,
   context: WorkflowContext,
   deps: WorkflowQueryDeps,
+  limits: WorkflowQueryLimits = DEFAULT_WORKFLOW_QUERY_LIMITS,
 ): Promise<WorkflowQueryOutcome> {
   const tenantId = context.execution.tenantId;
   const ctx = await deps.screenProvider.getSchemaContext(tenantId);
@@ -212,7 +176,7 @@ export async function runWorkflowQuery(
     }
   }
 
-  const rows = await deps.queryRepository.queryByEquality(tenantId, resolved.physicalCollection, equalityFilters, MAX_SCAN);
+  const rows = await deps.queryRepository.queryByEquality(tenantId, resolved.physicalCollection, equalityFilters, limits.maxScan);
 
   const pathsToHydrate = [
     ...new Set([
@@ -233,12 +197,12 @@ export async function runWorkflowQuery(
       : hydrated.map((record) => applyDerivedFields(ctx, spec.table, record, at));
 
   let results = materialized.filter((record) =>
-    memoryPredicates.every((predicate) => evaluatePredicate(record, predicate)),
+    memoryPredicates.every((predicate) => evaluateResolvedPredicate(record, asShared(predicate))),
   );
   if (spec.orderBy && spec.orderBy.length > 0) {
     results = applyOrdering(results, spec.orderBy);
   }
-  const limited = results.slice(0, Math.min(spec.limit, MAX_QUERY_LIMIT));
+  const limited = results.slice(0, Math.min(spec.limit, limits.maxResults));
 
   return {
     ok: true,
@@ -246,6 +210,8 @@ export async function runWorkflowQuery(
       results: limited,
       count: limited.length,
       first: limited[0] ?? null,
+      scanned: rows.length,
+      complete: rows.length < limits.maxScan,
     },
   };
 }

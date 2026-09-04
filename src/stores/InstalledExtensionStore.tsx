@@ -49,6 +49,7 @@ export const InstalledExtensionStoreProvider: React.FC<{ children: React.ReactNo
     lookupRepository,
     tagDefinitionRepository,
     actionRepository,
+    reportRepository,
   } = useDI();
 
   const artifactDeps = useMemo<ArtifactDeps>(
@@ -60,8 +61,9 @@ export const InstalledExtensionStoreProvider: React.FC<{ children: React.ReactNo
       lookupRepository,
       tagDefinitionRepository,
       actionRepository,
+      reportRepository,
     }),
-    [screenDefinitionRepository, workflowDefinitionRepository, scriptRepository, actionRepository, lookupDefinitionRepository, lookupRepository, tagDefinitionRepository],
+    [screenDefinitionRepository, workflowDefinitionRepository, scriptRepository, actionRepository, lookupDefinitionRepository, lookupRepository, tagDefinitionRepository, reportRepository],
   );
 
   const [installed, setInstalled] = useState<InstalledExtension[]>([]);

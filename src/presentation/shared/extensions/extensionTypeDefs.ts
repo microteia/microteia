@@ -500,6 +500,20 @@ const UI_MODULE_DEFS = `declare module '@microteia/ui' {
   }
   export function DonutChart(props: DonutChartProps): JSX.Element;
 
+  /**
+   * Bar chart. It knows nothing about what it draws: one series per number, with the label and the
+   * colour decided by whoever holds the data. Set stacked to pile the series instead of placing them
+   * side by side.
+   */
+  export interface BarChartProps {
+    data: Array<Record<string, string | number>>;
+    xKey: string;
+    series: ChartSeries[];
+    stacked?: boolean;
+    height?: number;
+  }
+  export function BarChart(props: BarChartProps): JSX.Element;
+
   /** Props of the info banner. */
   export interface InfoBannerProps {
     message: string;
@@ -1286,6 +1300,87 @@ const THEME_MODULE_DEFS = `declare module '@microteia/theme' {
 }`;
 
 
+const REPORT_MODULE_DEFS = `declare module '@microteia/report' {
+  /**
+   * The report pieces — the same ones the platform uses to draw a declared report.
+   *
+   * Writing a report in code is composition, not reimplementation: you lay out the cover, the text
+   * between sections and two datasets side by side, and the parts that draw a number stay the
+   * platform's. What this module does NOT give you is the data. Numbers arrive through
+   * \`useReport\`, which asks the server — and that is where reading each collection the report
+   * covers is required. Code replaces the PRESENTATION of a report, never its dataset.
+   */
+
+  /** One group key, as the server sends it: the raw value, plus a label when the server derived one. */
+  export interface ReportGroupKey {
+    dimension: string;
+    key: string;
+    label?: string;
+  }
+
+  export interface ReportRow {
+    keys: ReportGroupKey[];
+    values: Record<string, number | null>;
+    cells?: Record<string, Record<string, number | null>>;
+    count: number;
+    level: number;
+    subtotal?: boolean;
+  }
+
+  export interface ReportResult {
+    shape: string;
+    columns: ReportGroupKey[][];
+    rows: ReportRow[];
+    totals: { values: Record<string, number | null>; count: number } | null;
+    columnTotals?: Record<string, Record<string, number | null>>;
+    records?: Record<string, unknown>[];
+    scanned: number;
+    /**
+     * The scan did NOT hit the ceiling — so the numbers cover everything the filters delimit.
+     *
+     * Say so when it is false. A partial report that does not admit it is the one failure a reader
+     * cannot notice on their own.
+     */
+    complete: boolean;
+    completeGroups: boolean;
+    generatedAt: string;
+  }
+
+  export interface ReportSpecIssue {
+    field: string;
+    error: string;
+    errorParams?: Record<string, string>;
+    severity?: 'error' | 'warning';
+  }
+
+  export interface UseReportResult {
+    report: { id: string; key: string; title: string } | undefined;
+    result: ReportResult | null;
+    /** What degraded without stopping the report. Show them — the loss is invisible otherwise. */
+    issues: ReportSpecIssue[];
+    isLoading: boolean;
+    /** A message REFERENCE, or null. Resolve it with \`useLabel\` from '@microteia/i18n'. */
+    error: string | null;
+    errorParams?: Record<string, string>;
+    run: (prompts?: Record<string, unknown>) => Promise<void>;
+  }
+
+  /** Runs a report from the organization's catalogue, by its key. */
+  export function useReport(reportKey: string, prompts?: Record<string, unknown>): UseReportResult;
+
+  /** The whole declared report: header, warnings, chart and fold. Wrap it in your own chrome. */
+  export function ReportView(props: { reportKey: string }): JSX.Element;
+
+  /** The grouped table: levels by indent, subtotals as marked rows, total in the footer. */
+  export function ReportTable(props: { spec: unknown; result: ReportResult | null }): JSX.Element;
+
+  /** The pivot: rows crossed with columns, group column pinned to the left. */
+  export function ReportMatrix(props: { spec: unknown; result: ReportResult | null }): JSX.Element;
+
+  /** The chart the report declares. A mark this version cannot draw simply does not appear. */
+  export function ReportChart(props: { spec: unknown; result: ReportResult | null }): JSX.Element;
+}`;
+
 const SETTINGS_MODULE_DEFS = `declare module '@microteia/settings' {
   /**
    * The value in effect for a setting, by its full key ('dashboard.widgets'). Already resolved: the
@@ -1431,6 +1526,7 @@ export const buildExtensionTypeDefs = (): string => [
   FORMAT_MODULE_DEFS,
   I18N_MODULE_DEFS,
   THEME_MODULE_DEFS,
+  REPORT_MODULE_DEFS,
   SETTINGS_MODULE_DEFS,
   FUNCTIONS_MODULE_DEFS,
   HOST_DEFS,

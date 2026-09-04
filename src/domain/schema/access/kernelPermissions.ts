@@ -26,6 +26,7 @@ export const PERMISSION_AI_MANAGE = 'ai.manage';
 export const PERMISSION_TRANSLATIONS_MANAGE = 'translations.manage';
 export const PERMISSION_DATA_PROCESSOR_USE = 'data-processor.use';
 export const PERMISSION_DOCUMENT_TYPES_MANAGE = 'document-types.manage';
+export const PERMISSION_REPORTS_MANAGE = 'reports.manage';
 
 /**
  * O nome e a descrição vão por extenso, e não montados a partir do `id`. Uma referência composta em
@@ -101,6 +102,14 @@ export const KERNEL_PERMISSIONS: AccessPermission[] = [
     name: '@core.access/permission.document-types.manage',
     description: '@core.access/permission.document-types.manage.description',
   },
+  {
+    // Quem monta um relatório precisa poder ESCOLHER a coleção-fonte, e para isso precisa vê-la.
+    // A leitura de cada coleção que o relatório toca é cobrada na EXECUÇÃO, não aqui: esta permissão
+    // é sobre autoria, e ela nunca concede acesso a dado nenhum.
+    id: PERMISSION_REPORTS_MANAGE,
+    name: '@core.access/permission.reports.manage',
+    description: '@core.access/permission.reports.manage.description',
+  },
 ];
 
 export const KERNEL_PERMISSION_RESOURCES: PermissionResource[] = [
@@ -116,4 +125,5 @@ export const KERNEL_PERMISSION_RESOURCES: PermissionResource[] = [
   { id: 'translations', name: '@core.access/resource.translations' },
   { id: 'data-processor', name: '@core.access/resource.data-processor' },
   { id: 'document-types', name: '@core.access/resource.document-types' },
+  { id: 'reports', name: '@core.access/resource.reports' },
 ];

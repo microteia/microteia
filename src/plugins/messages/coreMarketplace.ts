@@ -313,6 +313,7 @@ export const CORE_MARKETPLACE_MESSAGES: Record<string, string> = {
     'screen "{screen}" declares prefix "{prefix}", which belongs to {entity} — the {entity} automations would start firing with "{collection}".',
   'issue.screen.reserved-prefix':
     'screen "{screen}" would emit "{prefix}.saved", a name reserved by the automation engine — declare another `eventPrefix`.',
+  'issue.report.invalid': 'The report "{name}" cannot be run as it is — {field}: {detail}',
   'issue.ref.external':
     '{origin} "{name}" references {kind} "{id}", which is neither in the package nor covered by a declared dependency.',
   'issue.ref.malformed':
@@ -337,6 +338,7 @@ export const CORE_MARKETPLACE_MESSAGES: Record<string, string> = {
   'ref.kind.workflow': 'the automation',
   'ref.origin.action': 'action',
   'ref.origin.patch': 'patch of',
+  'ref.origin.report': 'report',
   'ref.origin.screen': 'screen',
   'ref.origin.workflow': 'automation',
   'ref.origin.workflow-step': 'step "{step}" of automation',

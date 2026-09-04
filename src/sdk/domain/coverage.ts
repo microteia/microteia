@@ -1,12 +1,7 @@
 import type { ActionModuleTemplate, MarketplacePlugin, ScreenModuleTemplate, WorkflowModuleTemplate } from '../../domain/entities/MarketplacePlugin';
+import { KERNEL_EXTENSION_POINTS } from '../../domain/schema/extensionPoints';
 import type { PluginManifest } from '../../domain/schema/plugin/pluginManifest';
 import type { ExtensionPointDefinition } from '../../domain/schema/plugin/extensionPoint';
-import { ACCESS_EXTENSION_POINTS } from '../../domain/schema/access';
-import { AUTH_EXTENSION_POINTS } from '../../domain/schema/auth';
-import { DATA_EXTENSION_POINTS } from '../../domain/schema/dataExtensionPoints';
-import { I18N_EXTENSION_POINTS } from '../../domain/schema/i18n/extensionPoints';
-import { THEME_EXTENSION_POINTS } from '../../domain/schema/theme/extensionPoints';
-import { UI_EXTENSION_POINTS } from '../../domain/schema/ui/uiExtensionPoints';
 import { WORKFLOW_EVENT_CATALOG } from '../../domain/schema/eventCatalog';
 import {
   CONTROL_STEP_TYPES,
@@ -202,14 +197,7 @@ const eventItems = (): CoverageItem[] => WORKFLOW_EVENT_CATALOG.map((entry) => {
 
 // ─── Pontos de contribuição ───────────────────────────────────────────────────
 
-const ALL_POINTS: ExtensionPointDefinition[] = [
-  ...UI_EXTENSION_POINTS,
-  ...DATA_EXTENSION_POINTS,
-  ...I18N_EXTENSION_POINTS,
-  ...THEME_EXTENSION_POINTS,
-  ...ACCESS_EXTENSION_POINTS,
-  ...AUTH_EXTENSION_POINTS,
-];
+const ALL_POINTS: ExtensionPointDefinition[] = KERNEL_EXTENSION_POINTS;
 
 /** O único ponto que o modelo alcança, e o vocabulário que o alcança. */
 const POINT_REACH: Record<string, string> = {
@@ -248,6 +236,7 @@ const PACKAGE_REACH: Record<keyof MarketplacePlugin, string | null> = {
   tagLists: 'entity.tabs of kind "tags"',
   actions: 'one per transition triggered by user-action',
   scripts: null,
+  reports: null,
   views: null,
   startup: null,
   migrations: 'plan.migrationsRequired names the conversion; the routine itself is code',
@@ -257,6 +246,7 @@ const PACKAGE_REACH: Record<keyof MarketplacePlugin, string | null> = {
 const PACKAGE_NOTES: Record<string, string> = {
   summary: 'the one-line description of the extension in the Marketplace. It is product text, and no model field says it',
   scripts: 'reviewed code the office can run. Out of reach on purpose — see the "script" step',
+  reports: 'a question asked of the data — what to cover, how to fold it, how to show it. The model describes what the\n    business IS, not what one wants to know about it, and no field of it says either',
   views: 'a code page. A rule that needs a screen the platform cannot draw is outside this vocabulary',
   startup: 'code that runs when the extension loads. Same reason',
   overview: 'the rich description of the extension. Product text, like the summary',

@@ -6070,6 +6070,125 @@ não dispara é pior que guarda nenhuma.
 
 ---
 
+## Relatórios declarativos
+
+O relatório é uma **pergunta feita ao dado**, e ele não é um subsistema novo: é a junção de três
+peças que já existiam — `QuerySpec` (consulta declarativa validada contra o esquema do tenant),
+`applyAggregationOp` (as cinco operações) e o Widget DSL — mais a etapa que faltava entre elas.
+
+### Três camadas separáveis, e por que a separação é o contrato
+
+```
+dataset            →   shape             →   presentation
+QuerySpec + medidas    rows × columns        gráfico, filtros, export
+(camada semântica)     (a dobra)             OU código (view MVVM)
+```
+
+A separação não é elegância: **ela é o que torna a política de compatibilidade derivável da
+POSIÇÃO**. O modelo é o de Cube/Metabase/Grafana (consulta ≠ painel) — a camada semântica vive
+DENTRO do relatório, e não num registro global de métricas, porque aqui não há modelo central: cada
+escritório declara as próprias telas.
+
+Rejeitado de propósito: o modelo banded (RDL/SSRS/Jasper). Ele pressupõe esquema conhecido em tempo
+de autoria e um canvas de papel; a Microteia declara telas em runtime e pinta com tokens de tema.
+
+### A REGRA da compatibilidade — NÃO-NEGOCIÁVEL
+
+1. `spec.v` é a única quebra total: versão desconhecida recusa o relatório inteiro, sem olhar dentro.
+2. Fora disso, o kernel **nunca recusa por não conhecer um NOME; recusa por não poder responder pelo
+   NÚMERO** — e a CAMADA decide o nível:
+
+| Nível | Camada | Comportamento | O que se perde |
+|---|---|---|---|
+| **1 — ignora** | `presentation.*` | descarta o nó, renderiza o resto | aparência |
+| **2 — degrada** | `shape.*`, `dimension.granularity` | cai no nível documentado, **com aviso visível** | uma dobra — e a ausência dela se vê |
+| **3 — recusa** | `dataset.*`, `measure.*` | `ok:false` nomeando o token | a verdade do número |
+
+`requires` **herda** a severidade do prefixo do token; ele não a sobrepõe. A regra contrária tornaria
+a degradação de `shape` código morto — nenhuma dobra nova chegaria a degradar, porque o token dela
+recusaria antes.
+
+Por que o nível 3 existe e o Widget DSL não precisa dele: um widget que descarta um nó mostra
+*menos*; um relatório que descarta uma medida mostra **um número diferente com o mesmo rótulo**.
+
+3. A recusa é do RELATÓRIO, nunca da TELA.
+4. Chave desconhecida no topo do spec é **preservada na gravação** — o repositório grava `spec`
+   verbatim, nunca campo a campo.
+
+### Os três caminhos de autoria
+
+| # | Quem | Como | Onde vive | Confiança de código |
+|---|---|---|---|---|
+| **A** | O escritório | tela `report-design`, irmã do Form Design | `tenants/{tid}/reports`, `origin: 'design'` | não |
+| **B** | A extensão, declarando | `MarketplacePlugin.reports` | materializado na instalação | não |
+| **C** | A extensão, em código | view MVVM que compõe `@microteia/report` | `views[]` + `impl: { kind: 'code' }` | **sim** |
+
+**A regra que mantém C seguro:** o código substitui a `presentation`, **nunca o `dataset`**. Os
+números só chegam pela callable, que cobra permissão e teto. Sem isso, relatório em código seria a
+porta dos fundos do RBAC.
+
+### O RBAC — onde um relatório vazaria dado
+
+`requireReportCollections` cobra, **no servidor**, a leitura de cada coleção que o relatório toca. Um
+agregado sobre linhas que o leitor não pode ver é exatamente como um relatório vaza: a contagem de
+salários acima de X não mostra nenhum salário e revela todos.
+
+E não é só a coleção-fonte: agrupar por `cliente.cidade` LÊ a coleção de clientes. A lista sai de
+`reportSourceCollections`, **derivada do plano de hidratação** — uma extensão não consegue esconder
+um hop declarando de menos. O executor de workflow não faz isso porque roda como ator de automação;
+**o relatório roda como o USUÁRIO**.
+
+O `spec` cru (pré-visualização da autoria) exige `reports.manage` **por cima** disso.
+
+### O teto, e por que ele é dito
+
+A varredura é índice-free (só `eq` raso vai ao Firestore) com teto de `REPORT_MAX_SCAN = 2000`. Um
+relatório que cobre mais do que isso devolve `complete: false`, e a incompletude aparece **em toda
+superfície**: banner na tela, cabeçalho do CSV, rodapé da impressão. Um número parcial que se
+apresenta como total é a única falha deste desenho que o leitor não teria como notar.
+
+`complete` é enquadrado no positivo de propósito: o padrão de um campo esquecido não pode ser "está
+tudo bem".
+
+### Arquivos-chave
+
+| Arquivo | Papel |
+|---|---|
+| `domain/schema/report/reportSpec.ts` | o contrato; `reportPaths`, `buildReportQuery`, `reportSourceCollections` |
+| `domain/schema/report/aggregateRows.ts` | o agregador — **função pura**, fora da Cloud Function |
+| `domain/schema/report/validateReportSpec.ts` | forma (o que o `pack` cobra) + esquema (front e back) |
+| `domain/schema/report/reportCapabilities.ts` | `REPORT_CAPABILITIES` e `deriveReportRequires` |
+| `domain/schema/report/reportBuckets.ts` | o balde de data, cortado no fuso declarado |
+| `domain/schema/report/reportCsv.ts` | a forma do arquivo, compartilhada com o agendamento futuro |
+| `domain/usecases/plugins/reportModule.ts` | `rewriteReportTables` — a coleção reescrita na instalação |
+| `functions/src/infrastructure/report/runReportQuery.ts` | o executor e o RBAC por coleção |
+| `presentation/components/ui/{ReportTable,ReportMatrix,ReportChart,ReportView}/` | o que desenha |
+| `presentation/pages/{Reports,ViewReport,ReportDesign}/` | a lista, a aba e a autoria |
+
+### Três coisas que só falhariam no cliente
+
+1. **A coleção reescrita.** `dataset.table` de um relatório de pacote passa pelo `screenKeyMap`:
+   `buildScreenKeyMap` dá sufixo quando o nome já está ocupado no destino. Os **caminhos** não passam
+   por lá — um caminho nunca nomeia coleção, o hop sai do `refEntity` que a tela já reescreveu.
+2. **O portão do pacote.** `reportOutRefs` emite a coleção coberta, então um relatório apontando para
+   o que o pacote não leva nem declara em `dependencies` é recusado no empacotamento.
+3. **A guarda em execução.** O escritório pode apagar a tela depois; `resolveQueryTable` em `null`
+   recusa nomeando, nunca devolve uma tabela vazia.
+
+### O que o contrato prevê e a v1 não executa
+
+`schedule` já é tipado (com aviso `@core.reports/schedule.not-implemented`); medida calculada
+(`kind: 'computed'`) já está na união; join já tem discriminante em `dataset.kind`. Cada um entra de
+forma aditiva — e reservar o nome agora é o que impede um kernel velho de podar em silêncio o que uma
+ferramenta nova escreveu.
+
+**Relatório do pacote NÃO se mescla com edição do escritório** — o oposto do que vale para telas. Uma
+tela mescla porque o campo é unidade independente com dono próprio; um `ReportSpec` é uma afirmação
+só, e metade do pacote com metade do escritório produziria um número que ninguém escreveu. O gesto é
+duplicar para editar.
+
+---
+
 ## Busca de dados externos declarativa
 
 O slot `FieldLogic.onChangeLookup` ("Ao alterar, buscar dados externos") resolve um provedor **por

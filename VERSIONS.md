@@ -11,6 +11,17 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.50.0] — 2026-09-04
+
+- O escritório passou a poder fazer perguntas aos próprios cadastros. Em **Relatórios**, escolhe-se o cadastro, por onde quebrá-lo (situação, mês, cidade do cliente) e o que contar ou somar — e o número aparece, com subtotal por grupo e total no fim.
+- O relatório pode ser mostrado de três formas: uma lista simples, agrupado com subtotais, ou cruzado — agrupamentos nas linhas e nas colunas ao mesmo tempo, para ver o faturamento de cada situação mês a mês numa tabela só.
+- Um agrupamento por data escolhe o período: por dia, semana, mês, trimestre ou ano. O corte respeita o fuso do escritório, então uma venda das nove da noite do dia 31 conta no mês em que ela aconteceu.
+- Cada relatório pode trazer um gráfico — barras, linha ou rosca — desenhado a partir dos mesmos números da tabela.
+- O resultado sai em CSV, pronto para abrir na planilha com acentos no lugar, e a página imprime só o relatório, sem menu nem barra, para virar PDF pelo próprio navegador.
+- **Quando um relatório cobre mais registros do que consegue varrer de uma vez, ele diz isso** — na tela, no cabeçalho do arquivo e no papel. Um número parcial que se apresenta como total é pior que número nenhum.
+- Um relatório só aparece para quem pode ler os cadastros que ele cobre — inclusive os alcançados por um campo que aponta para outro cadastro. Agrupar por "cidade do cliente" exige poder ver Clientes.
+- Uma extensão pode entregar relatórios prontos, e eles aparecem na lista assim que ela é instalada.
+
 #### [9.49.0] — 2026-09-03
 
 - Um campo que aponta para outro cadastro passou a oferecer o caminho até ele. Ao lado do "x" que limpa a escolha, apareceu uma seta discreta: um clique nela abre o registro escolhido na tela que o apresenta, sem perder de vista o formulário em que se estava. Numa venda, chega-se aos dados do cliente sem procurá-lo de novo pelo menu.

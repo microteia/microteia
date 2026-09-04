@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isWidgetSpec, widgetChildren } from './widgetSpec';
+import { isWidgetSpec, widgetChildren, WIDGET_NODE_TYPES } from './widgetSpec';
 import type { WidgetSpec } from './widgetSpec';
 
 describe('isWidgetSpec', () => {
@@ -42,5 +42,26 @@ describe('widgetChildren', () => {
 
   it('devolve array vazio quando children está ausente/malformado', () => {
     expect(widgetChildren({ type: 'stack' } as unknown as WidgetSpec)).toEqual([]);
+  });
+});
+
+/**
+ * O nó de RELATÓRIO — a ligação a dados que o v1 não tinha.
+ *
+ * Ele nomeia um relatório do catálogo em vez de embutir a consulta: um `source:` inline poria
+ * semântica de agregação, permissão e teto de varredura dentro de um DSL de layout.
+ */
+describe('nó report', () => {
+  it('é um nó conhecido', () => {
+    expect(isWidgetSpec({ type: 'report', report: 'faturamento' })).toBe(true);
+    expect(WIDGET_NODE_TYPES).toContain('report');
+  });
+
+  it('não tem filhos — o relatório se desenha inteiro', () => {
+    expect(widgetChildren({ type: 'report', report: 'faturamento' })).toEqual([]);
+  });
+
+  it('um nó DESCONHECIDO continua sendo recusado — acrescentar um tipo não abre a porta', () => {
+    expect(isWidgetSpec({ type: 'sankey', data: [] })).toBe(false);
   });
 });

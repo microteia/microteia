@@ -15,6 +15,7 @@ import {
   DOMAIN_ISSUE_CODES,
   DOMAIN_MODEL_FILE,
   EMBEDDED_STRATEGY,
+  AGGREGATION_OPS,
   RULE_LEDGER_FILE,
   SCREEN_IS_NOT_AN_ENTITY_MODEL,
   SCREEN_PLAN_HUMAN_DECISIONS,
@@ -25,6 +26,10 @@ import {
   coverageSummary,
 } from '../../domain';
 import { MULTI_FK_MATERIALIZE_LIMIT } from '../../../domain/schema/materialize';
+import {
+  REPORT_GRANULARITIES,
+  REPORT_SHAPE_KINDS,
+} from '../../../domain/schema/report/reportSpec';
 import { authoringGuide } from './authoringGuide';
 import { mcpResourceUris } from '../mcp';
 import {
@@ -860,5 +865,93 @@ describe('as URIs citadas nos documentos de autoria', () => {
     for (const uri of mcpResourceUris()) {
       expect(documented, `${uri} é servido e não é citado em documento nenhum`).toContain(uri);
     }
+  });
+});
+
+/**
+ * A NUMERAÇÃO das seções, e as referências que apontam para elas.
+ *
+ * Existe porque acrescentar uma seção no MEIO renumera as seguintes, e as referências escritas à mão
+ * passam a apontar para a seção vizinha — em silêncio, num documento que é ENTREGUE ao autor de
+ * extensão. Foi o que aconteceu ao inserir a seção de relatórios: seis referências ficaram erradas, e
+ * nada reprovava.
+ */
+describe('a numeração do guia', () => {
+  const numbers = (text: string): number[] =>
+    [...text.matchAll(/^## (\d+)\. /gm)].map((match) => Number(match[1]));
+
+  it('numera as seções em sequência, sem salto nem repetição', () => {
+    const found = numbers(authoringGuide(AGENTS));
+    expect(found).toEqual(found.map((_, index) => index + 1));
+  });
+
+  it('toda referência §N aponta para uma seção que existe', () => {
+    const guide = authoringGuide(AGENTS);
+    const sections = new Set(numbers(guide));
+    const referenced = [...new Set([...guide.matchAll(/§(\d+)/g)].map((m) => Number(m[1])))];
+
+    expect(referenced.filter((one) => !sections.has(one)), 'referências sem seção').toEqual([]);
+  });
+});
+
+/**
+ * O guia precisa ensinar o artefato de RELATÓRIO.
+ *
+ * O ponto de extensão sozinho não diz nada: um agente que lê o guia tem de descobrir que `reports`
+ * existe, qual é a forma dele e — sobretudo — o que ele NÃO controla. A permissão por coleção e o
+ * teto de varredura são cobrados pelo servidor, e um autor que não os conhecesse tentaria contorná-los.
+ */
+describe('a seção de relatórios', () => {
+  it('mostra o artefato no pacote e onde achar a forma exata', () => {
+    const guide = authoringGuide(AGENTS);
+
+    expect(guide).toContain('## 11. Reports');
+    expect(guide).toContain('reports: [');
+    expect(guide).toContain('describe_sdk_type ReportSpec');
+  });
+
+  it('nomeia as operações e as granularidades DERIVADAS do kernel, não escritas à mão', () => {
+    const guide = authoringGuide(AGENTS);
+    for (const op of AGGREGATION_OPS) {
+      expect(guide, `a operação "${op}" não está no guia`).toContain(`\`${op}\``);
+    }
+    for (const granularity of REPORT_GRANULARITIES) {
+      expect(guide, `a granularidade "${granularity}" não está no guia`).toContain(`\`${granularity}\``);
+    }
+  });
+
+  it('não inventa vocabulário — o guia não nomeia operação nem dobra que o kernel não tem', () => {
+    // O par do caso acima. Só "contém tudo" passaria com uma lista escrita à mão e desatualizada
+    // para o outro lado: uma operação que saiu do kernel e ficou no texto.
+    const guide = authoringGuide(AGENTS);
+    const listed = [...guide.matchAll(/`(sum|count|avg|min|max|median|stddev|percentile)`/g)]
+      .map((match) => match[1]);
+
+    expect([...new Set(listed)].filter((one) => !AGGREGATION_OPS.includes(one as never))).toEqual([]);
+  });
+
+  it('nomeia as três dobras e o que cada camada faz', () => {
+    const guide = authoringGuide(AGENTS);
+    for (const shape of REPORT_SHAPE_KINDS) {
+      expect(guide, `a dobra "${shape}" não está no guia`).toContain(`\`${shape}\``);
+    }
+  });
+
+  it('diz que a permissão de cada coleção é cobrada, inclusive a alcançada por referência', () => {
+    expect(authoringGuide(AGENTS)).toContain('clients.read');
+  });
+
+  it('avisa que o balde de data sem fuso cai no mês errado', () => {
+    // É o defeito mais fácil de escrever e o mais difícil de notar: uma venda das nove da noite do
+    // dia 31 conta no mês seguinte, e nada na tela denuncia.
+    expect(authoringGuide(AGENTS)).toContain('timeZone');
+  });
+
+  it('nomeia o que o contrato prevê e esta versão não executa', () => {
+    const guide = authoringGuide(AGENTS);
+
+    expect(guide).toContain('schedule');
+    expect(guide).toContain("'computed'");
+    expect(guide).toContain("'join'");
   });
 });
