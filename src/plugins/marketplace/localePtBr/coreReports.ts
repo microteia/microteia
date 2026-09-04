@@ -40,6 +40,7 @@ export const CORE_REPORTS: Record<string, string> = {
   'design.measures.hint': 'O que é contado ou somado. Um relatório sem número não tem o que dizer.',
   'design.no-chart': 'Sem gráfico',
   'design.no-granularity': 'Valor exato',
+  'design.not-found': 'O relatório "{key}" não foi encontrado neste escritório. Ele pode ter sido excluído, ou o link pode apontar para outro.',
   'design.preview': 'Pré-visualizar',
   'design.prompts': 'Filtros que o leitor preenche',
   'design.prompts.hint': 'Perguntados ao abrir o relatório. Deixados em branco, simplesmente não restringem nada.',

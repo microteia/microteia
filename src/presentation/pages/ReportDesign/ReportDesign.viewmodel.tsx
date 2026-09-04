@@ -67,6 +67,14 @@ export interface ReportDesignViewModel {
   /** Editando um relatório que já existe, em vez de criando. */
   isEditing: boolean;
   editingNotice: string | null;
+  /**
+   * A aba pede um relatório que não existe.
+   *
+   * Sem isto a tela abria o formulário de CRIAR, em branco e calada — e quem clicou em Editar via
+   * uma tela vazia sem nada dizendo que o relatório não foi achado. Um formulário vazio no lugar de
+   * um erro é o pior tipo de silêncio: parece que a tela quebrou.
+   */
+  notFound: string | null;
   /** O relatório de PACOTE é somente-leitura: um spec não se mescla — duplica-se para editar. */
   isManaged: boolean;
 
@@ -251,7 +259,9 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
   const label = useLabel();
   const schema = useSchemaContext();
   const { dynamicScreens } = useScreenDefinitions();
-  const { reports, getReport, createReport, updateReport, deleteReport, runReport } = useReportDefinitions();
+  const {
+    reports, isLoading, getReport, createReport, updateReport, deleteReport, runReport,
+  } = useReportDefinitions();
   const { notify } = useNotification();
   const { openTab, setTabTitle } = useWorkspace();
 
@@ -582,6 +592,10 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
     // Só o de PACOTE: ele explica um bloqueio. Dizer "você está editando" a quem clicou em Editar
     // é ocupar a tela com o que a pessoa acabou de fazer.
     editingNotice: isManaged ? t('design.managed') : null,
+    // Enquanto a lista carrega, "não achei" seria mentira: o relatório pode estar a caminho.
+    notFound: editingKey !== null && editing === undefined && !isLoading
+      ? t('design.not-found', { key: editingKey })
+      : null,
     isManaged,
     tableOptions,
     table: draft.table,

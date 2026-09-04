@@ -58,6 +58,7 @@ export const ReportDesignView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
       </S.Header>
 
       <S.Content>
+      {vm.notFound && <InfoBanner message={vm.notFound} variant="warning" />}
       {/* Só sobrou o aviso do relatório de PACOTE: ele diz por que os gestos estão bloqueados. */}
       {vm.editingNotice && <InfoBanner message={vm.editingNotice} variant="info" />}
 

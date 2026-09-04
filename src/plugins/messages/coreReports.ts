@@ -48,6 +48,7 @@ export const CORE_REPORTS_MESSAGES: Record<string, string> = {
   'design.measures.hint': 'What is counted or added up. A report without a figure has nothing to say.',
   'design.no-chart': 'No chart',
   'design.no-granularity': 'Exact value',
+  'design.not-found': 'The report "{key}" was not found in this organization. It may have been deleted, or the link may point at another one.',
   'design.preview': 'Preview',
   'design.prompts': 'Filters the reader fills in',
   'design.prompts.hint': 'Asked when the report is opened. Left empty, they simply do not narrow anything.',

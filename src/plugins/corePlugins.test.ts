@@ -132,6 +132,10 @@ describe('core plugins — resolução de aba', () => {
     ['view-dyn:minha-tela:reg1', 'ViewDynamicRecordView'],
     ['tenant-settings', 'TenantSettingsView'],
     ['tenant-settings:membros', 'TenantSettingsView'],
+    ['reports', 'ReportsView'],
+    ['rep:faturamento', 'ViewReportView'],
+    ['report-design', 'ReportDesignView'],
+    ['report-design:faturamento', 'ReportDesignView'],
   ])('resolve "%s" para %s', (tabKey, implKey) => {
     const contribution = resolvePageContribution(pages(), tabKey);
     expect(contribution?.impl).toMatchObject({ kind: 'code', key: implKey });
