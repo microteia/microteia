@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { MEASURE_COUNT_KEY, uniqueReportKey } from './ReportDesign.viewmodel';
+import { MEASURE_COUNT_KEY, operatorNeedsValue, uniqueReportKey } from './ReportDesign.viewmodel';
 
 /**
  * A chave do DOCUMENTO, e o defeito que chegou à tela.
@@ -52,5 +52,23 @@ describe('a chave de uma medida', () => {
     // Guardado pelo catálogo: se alguém trocar a chave por uma palavra traduzida outra vez, o par
     // rótulo/chave deixa de existir e nada mais reprova.
     expect(MEASURE_COUNT_KEY).toBe('count');
+  });
+});
+
+/**
+ * O operador que NÃO pede valor.
+ *
+ * `está preenchido` responde sobre a presença do campo, não sobre o conteúdo dele. Pedir um valor ali
+ * seria cobrar da pessoa o que a consulta ignora — e o valor digitado sumiria sem explicação.
+ */
+describe('operatorNeedsValue', () => {
+  it('exists dispensa valor', () => {
+    expect(operatorNeedsValue('exists')).toBe(false);
+  });
+
+  it('todos os outros pedem', () => {
+    for (const op of ['eq', 'neq', 'lt', 'lte', 'gt', 'gte', 'in', 'contains'] as const) {
+      expect(operatorNeedsValue(op), op).toBe(true);
+    }
   });
 });

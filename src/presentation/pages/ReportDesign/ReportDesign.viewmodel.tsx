@@ -12,11 +12,19 @@ import { parseReportDesignTabKey } from '../../../shared/constants/reportKeys';
 
 /** A lista, para onde a autoria volta depois de excluir. */
 const REPORT_DESIGN_RETURN_TAB = 'reports';
-import { REPORT_GRANULARITIES, REPORT_SPEC_VERSION } from '../../../domain/schema/report/reportSpec';
+import {
+  REPORT_CHART_KINDS,
+  REPORT_GRANULARITIES,
+  REPORT_SPEC_VERSION,
+} from '../../../domain/schema/report/reportSpec';
+import { QUERY_OPERATORS } from '../../../domain/schema/querySpec';
+import type { QueryOperator, QueryPredicate } from '../../../domain/schema/querySpec';
 import type {
   ReportDimension,
   ReportGranularity,
   ReportMeasure,
+  ReportPresentation,
+  ReportPrompt,
   ReportShape,
   ReportSpec,
 } from '../../../domain/schema/report/reportSpec';
@@ -43,6 +51,15 @@ interface ReportDraft {
   measures: ReportMeasure[];
   shapeKind: ReportShapeKindChoice;
   columnDimension: string;
+  /** O filtro FIXO: vale sempre, e quem lê o relatório não o vê nem o muda. */
+  filters: QueryPredicate[];
+  /** Vazio = sem gráfico. A tabela sozinha é um relatório legítimo. */
+  chartKind: string;
+  chartCategory: string;
+  chartSeries: string[];
+  chartStacked: boolean;
+  /** Os filtros que o LEITOR preenche ao abrir. */
+  prompts: ReportPrompt[];
 }
 
 export interface ReportDesignViewModel {
@@ -81,6 +98,38 @@ export interface ReportDesignViewModel {
   columnDimension: string;
   setColumnDimension: (key: string) => void;
 
+  filters: { label: string; op: string; value: string }[];
+  filterPath: string;
+  setFilterPath: (path: string) => void;
+  filterOp: QueryOperator;
+  setFilterOp: (op: QueryOperator) => void;
+  filterValue: string;
+  setFilterValue: (value: string) => void;
+  /** O valor escolhido é uma DATA — o campo então é o de data, nunca um texto livre. */
+  filterIsDate: boolean;
+  filterNeedsValue: boolean;
+  addFilter: () => void;
+  canAddFilter: boolean;
+  removeFilter: (index: number) => void;
+
+  chartKind: string;
+  setChartKind: (kind: string) => void;
+  chartCategory: string;
+  setChartCategory: (key: string) => void;
+  chartSeries: string[];
+  setChartSeries: (keys: string[]) => void;
+  chartStacked: boolean;
+  setChartStacked: (stacked: boolean) => void;
+
+  prompts: { key: string; label: string; op: string }[];
+  promptPath: string;
+  setPromptPath: (path: string) => void;
+  promptOp: QueryOperator;
+  setPromptOp: (op: QueryOperator) => void;
+  addPrompt: () => void;
+  canAddPrompt: boolean;
+  removePrompt: (key: string) => void;
+
   spec: ReportSpec;
   errors: string[];
   warnings: string[];
@@ -117,6 +166,19 @@ export interface ReportDesignViewModel {
     noGranularity: string;
     measureOp: string;
     measureField: string;
+    filters: string;
+    filtersHint: string;
+    filterValue: string;
+    chart: string;
+    chartHint: string;
+    chartCategory: string;
+    chartSeries: string;
+    chartStacked: string;
+    noChart: string;
+    prompts: string;
+    promptsHint: string;
+    chartOptions: { value: string; label: string }[];
+    operatorOptions: { value: QueryOperator; label: string }[];
     deleteAction: string;
     deleteConfirm: string;
     shapeOptions: { value: ReportShapeKindChoice; label: string }[];
@@ -126,6 +188,11 @@ export interface ReportDesignViewModel {
 }
 
 const OPS: AggregationOp[] = ['sum', 'count', 'avg', 'min', 'max'];
+
+/** `exists` não pede valor — pedir um faria a tela cobrar o que o operador ignora. */
+const OPS_WITHOUT_VALUE: QueryOperator[] = ['exists'];
+
+export const operatorNeedsValue = (op: QueryOperator): boolean => !OPS_WITHOUT_VALUE.includes(op);
 
 /**
  * A chave da medida de CONTAGEM.
@@ -208,6 +275,12 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
         measures: editing.spec.dataset.measures ?? [],
         shapeKind: shapeKindOf(editing.spec),
         columnDimension: columnDimensionOf(editing.spec),
+        filters: editing.spec.dataset.where ?? [],
+        chartKind: editing.spec.presentation?.chart?.kind ?? '',
+        chartCategory: editing.spec.presentation?.chart?.category ?? '',
+        chartSeries: editing.spec.presentation?.chart?.series ?? [],
+        chartStacked: editing.spec.presentation?.chart?.stacked === true,
+        prompts: editing.spec.presentation?.prompts ?? [],
       }
     : {
         table: tableOptions[0]?.value ?? '',
@@ -216,6 +289,12 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
         measures: [],
         shapeKind: 'summary',
         columnDimension: '',
+        filters: [],
+        chartKind: '',
+        chartCategory: '',
+        chartSeries: [],
+        chartStacked: false,
+        prompts: [],
       }), [editing, label, tableOptions]);
 
   const [touched, setTouched] = useState<ReportDraft | null>(null);
@@ -223,6 +302,11 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
 
   const [measureOp, setMeasureOp] = useState<AggregationOp>('count');
   const [measurePath, setMeasurePath] = useState('');
+  const [filterPath, setFilterPath] = useState('');
+  const [filterOp, setFilterOp] = useState<QueryOperator>('eq');
+  const [filterValue, setFilterValue] = useState('');
+  const [promptPath, setPromptPath] = useState('');
+  const [promptOp, setPromptOp] = useState<QueryOperator>('eq');
   const [preview, setPreview] = useState<ReportResult | null>(null);
   const [isPreviewing, setIsPreviewing] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
@@ -246,7 +330,17 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
   // Trocar a coleção descarta agrupamentos e números: eles apontam para campos que a coleção nova
   // não tem, e manter o que sobrou daria um relatório meio certo — o pior resultado possível.
   const setTable = useCallback((table: string) => {
-    change({ table, dimensions: [], measures: [], columnDimension: '' });
+    change({
+      table,
+      dimensions: [],
+      measures: [],
+      columnDimension: '',
+      filters: [],
+      chartKind: '',
+      chartCategory: '',
+      chartSeries: [],
+      prompts: [],
+    });
     setPreview(null);
   }, [change]);
 
@@ -306,6 +400,45 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
     change({ measures: draft.measures.filter((one) => one.key !== key) });
   }, [draft, change]);
 
+  const addFilter = useCallback(() => {
+    if (!filterPath) return;
+    if (operatorNeedsValue(filterOp) && filterValue.trim() === '') return;
+    change({
+      filters: [...draft.filters, {
+        path: filterPath,
+        op: filterOp,
+        // `Literal` porque é valor FIXO, escrito na autoria. O mesmo `resolveMapping` do resto do
+        // caminho o resolve — não existe um segundo jeito de um valor chegar à consulta.
+        ...(operatorNeedsValue(filterOp)
+          ? { value: { kind: 'Literal' as const, value: filterValue.trim() } }
+          : {}),
+      }],
+    });
+    setFilterValue('');
+  }, [filterPath, filterOp, filterValue, draft, change]);
+
+  const removeFilter = useCallback((index: number) => {
+    change({ filters: draft.filters.filter((_, at) => at !== index) });
+  }, [draft, change]);
+
+  const addPrompt = useCallback(() => {
+    if (!promptPath) return;
+    const option = pathOptions.find((one) => one.value === promptPath);
+    const taken = new Set(draft.prompts.map((one) => one.key));
+    change({
+      prompts: [...draft.prompts, {
+        key: keyFromPath(promptPath, taken, `_${promptOp}`),
+        path: promptPath,
+        op: promptOp,
+        label: option?.label,
+      }],
+    });
+  }, [promptPath, promptOp, pathOptions, draft, change]);
+
+  const removePrompt = useCallback((key: string) => {
+    change({ prompts: draft.prompts.filter((one) => one.key !== key) });
+  }, [draft, change]);
+
   const spec = useMemo<ReportSpec>(() => {
     const valueKeys = draft.measures.map((one) => one.key);
     const columnKeys = draft.columnDimension ? [draft.columnDimension] : [];
@@ -333,10 +466,31 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
             values: valueKeys,
           });
 
+    // `presentation` só existe quando há o que dizer nela. Um objeto vazio no spec seria ruído no
+    // `.json` e uma camada a mais para quem lê o relatório entender.
+    const chart = draft.chartKind
+      ? {
+          kind: draft.chartKind,
+          ...(draft.chartCategory ? { category: draft.chartCategory } : {}),
+          ...(draft.chartSeries.length > 0 ? { series: draft.chartSeries } : {}),
+          ...(draft.chartStacked ? { stacked: true } : {}),
+        }
+      : undefined;
+
+    const presentation: ReportPresentation | undefined = chart || draft.prompts.length > 0
+      ? { ...(chart ? { chart } : {}), ...(draft.prompts.length > 0 ? { prompts: draft.prompts } : {}) }
+      : undefined;
+
     return {
       v: REPORT_SPEC_VERSION,
-      dataset: { table: draft.table, dimensions: draft.dimensions, measures: draft.measures },
+      dataset: {
+        table: draft.table,
+        ...(draft.filters.length > 0 ? { where: draft.filters } : {}),
+        dimensions: draft.dimensions,
+        measures: draft.measures,
+      },
       shape,
+      ...(presentation ? { presentation } : {}),
     };
   }, [draft]);
 
@@ -451,6 +605,45 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
     setShapeKind: (shapeKind) => change({ shapeKind }),
     columnDimension: draft.columnDimension,
     setColumnDimension: (columnDimension) => change({ columnDimension }),
+
+    filters: draft.filters.map((filter) => ({
+      label: pathOptions.find((one) => one.value === filter.path)?.label ?? filter.path,
+      op: t(`operator.${filter.op}`),
+      value: filter.value && filter.value.kind === 'Literal' ? String(filter.value.value) : '',
+    })),
+    filterPath,
+    setFilterPath,
+    filterOp,
+    setFilterOp,
+    filterValue,
+    setFilterValue,
+    filterIsDate: pathOptions.find((one) => one.value === filterPath)?.isDate === true,
+    filterNeedsValue: operatorNeedsValue(filterOp),
+    addFilter,
+    canAddFilter: filterPath !== '' && (!operatorNeedsValue(filterOp) || filterValue.trim() !== ''),
+    removeFilter,
+
+    chartKind: draft.chartKind,
+    setChartKind: (chartKind) => change({ chartKind }),
+    chartCategory: draft.chartCategory,
+    setChartCategory: (chartCategory) => change({ chartCategory }),
+    chartSeries: draft.chartSeries,
+    setChartSeries: (chartSeries) => change({ chartSeries }),
+    chartStacked: draft.chartStacked,
+    setChartStacked: (chartStacked) => change({ chartStacked }),
+
+    prompts: draft.prompts.map((prompt) => ({
+      key: prompt.key,
+      label: prompt.label ?? prompt.path,
+      op: t(`operator.${prompt.op}`),
+    })),
+    promptPath,
+    setPromptPath,
+    promptOp,
+    setPromptOp,
+    addPrompt,
+    canAddPrompt: promptPath !== '',
+    removePrompt,
     spec,
     errors,
     warnings,
@@ -483,6 +676,19 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
       noGranularity: t('design.no-granularity'),
       measureOp: t('design.measure-op'),
       measureField: t('design.measure-field'),
+      filters: t('design.filters'),
+      filtersHint: t('design.filters.hint'),
+      filterValue: t('design.filter-value'),
+      chart: t('design.chart'),
+      chartHint: t('design.chart.hint'),
+      chartCategory: t('design.chart-category'),
+      chartSeries: t('design.chart-series'),
+      chartStacked: t('design.chart-stacked'),
+      noChart: t('design.no-chart'),
+      prompts: t('design.prompts'),
+      promptsHint: t('design.prompts.hint'),
+      chartOptions: REPORT_CHART_KINDS.map((kind) => ({ value: kind, label: t(`chart.${kind}`) })),
+      operatorOptions: QUERY_OPERATORS.map((op) => ({ value: op, label: t(`operator.${op}`) })),
       deleteAction: t('design.delete'),
       deleteConfirm: t('design.delete.confirm', { name: draft.title || '—' }),
       shapeOptions: [

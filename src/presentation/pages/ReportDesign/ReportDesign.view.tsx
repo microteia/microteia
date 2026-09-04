@@ -5,7 +5,10 @@ import { useReportDesignViewModel } from './ReportDesign.viewmodel';
 import { Button } from '../../components/ui/Button';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { InfoBanner } from '../../components/ui/InfoBanner';
+import { Checkbox } from '../../components/ui/Checkbox';
+import { DateInput } from '../../components/ui/DateInput';
 import { Input } from '../../components/ui/Input';
+import { MultiSearchSelect } from '../../components/ui/MultiSearchSelect';
 import { SearchSelect } from '../../components/ui/SearchSelect';
 import { ReportChart } from '../../components/ui/ReportChart';
 import { ReportMatrix } from '../../components/ui/ReportMatrix';
@@ -177,6 +180,145 @@ export const ReportDesignView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                 onChange={vm.setColumnDimension}
               />
             )}
+          </S.Group>
+
+
+          <S.Group>
+            <S.GroupHeader>
+              <S.Legend>{vm.labels.filters}</S.Legend>
+            </S.GroupHeader>
+            <S.Hint>{vm.labels.filtersHint}</S.Hint>
+            {vm.filters.map((filter, index) => (
+              <S.Item key={`${filter.label}:${filter.op}:${filter.value}:${index}`}>
+                <div>
+                  <S.ItemLabel>{filter.label}</S.ItemLabel>
+                  <S.ItemMeta>{`${filter.op} ${filter.value}`.trim()}</S.ItemMeta>
+                </div>
+                <Button variant="ghost" size="sm" onClick={() => vm.removeFilter(index)}>
+                  {vm.labels.remove}
+                </Button>
+              </S.Item>
+            ))}
+            <S.Row>
+              <S.Grow>
+                <SearchSelect
+                  options={vm.pathOptions.map((option) => ({ value: option.value, label: option.label }))}
+                  value={vm.filterPath}
+                  onChange={vm.setFilterPath}
+                  placeholder={vm.labels.add}
+                />
+              </S.Grow>
+              <S.Grow>
+                <SearchSelect
+                  options={vm.labels.operatorOptions}
+                  value={vm.filterOp}
+                  onChange={(value) => vm.setFilterOp(value as typeof vm.filterOp)}
+                />
+              </S.Grow>
+              {vm.filterNeedsValue && (
+                <S.Grow>
+                  {/* Campo de data é o `DateInput`, nunca um texto livre — a regra vale aqui como
+                      em qualquer outro lugar do produto. */}
+                  {vm.filterIsDate ? (
+                    <DateInput value={vm.filterValue} onChange={vm.setFilterValue} />
+                  ) : (
+                    <Input
+                      value={vm.filterValue}
+                      placeholder={vm.labels.filterValue}
+                      onChange={(event) => vm.setFilterValue(event.target.value)}
+                    />
+                  )}
+                </S.Grow>
+              )}
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={vm.addFilter}
+                disabled={!vm.canAddFilter}
+              >
+                {vm.labels.add}
+              </Button>
+            </S.Row>
+          </S.Group>
+
+          <S.Group>
+            <S.Legend>{vm.labels.chart}</S.Legend>
+            <S.Hint>{vm.labels.chartHint}</S.Hint>
+            <SearchSelect
+              options={[{ value: '', label: vm.labels.noChart }, ...vm.labels.chartOptions]}
+              value={vm.chartKind}
+              onChange={vm.setChartKind}
+            />
+            {vm.chartKind !== '' && (
+              <>
+                <SearchSelect
+                  label={vm.labels.chartCategory}
+                  options={vm.dimensions.map((dimension) => ({
+                    value: dimension.key,
+                    label: dimension.label ?? dimension.key,
+                  }))}
+                  value={vm.chartCategory}
+                  onChange={vm.setChartCategory}
+                />
+                <MultiSearchSelect
+                  options={vm.measures.map((measure) => ({
+                    value: measure.key,
+                    label: measure.label ?? measure.key,
+                  }))}
+                  values={vm.chartSeries}
+                  onChange={vm.setChartSeries}
+                  placeholder={vm.labels.chartSeries}
+                />
+                <Checkbox
+                  checked={vm.chartStacked}
+                  onChange={vm.setChartStacked}
+                  label={vm.labels.chartStacked}
+                />
+              </>
+            )}
+          </S.Group>
+
+          <S.Group>
+            <S.GroupHeader>
+              <S.Legend>{vm.labels.prompts}</S.Legend>
+            </S.GroupHeader>
+            <S.Hint>{vm.labels.promptsHint}</S.Hint>
+            {vm.prompts.map((prompt) => (
+              <S.Item key={prompt.key}>
+                <div>
+                  <S.ItemLabel>{prompt.label}</S.ItemLabel>
+                  <S.ItemMeta>{prompt.op}</S.ItemMeta>
+                </div>
+                <Button variant="ghost" size="sm" onClick={() => vm.removePrompt(prompt.key)}>
+                  {vm.labels.remove}
+                </Button>
+              </S.Item>
+            ))}
+            <S.Row>
+              <S.Grow>
+                <SearchSelect
+                  options={vm.pathOptions.map((option) => ({ value: option.value, label: option.label }))}
+                  value={vm.promptPath}
+                  onChange={vm.setPromptPath}
+                  placeholder={vm.labels.add}
+                />
+              </S.Grow>
+              <S.Grow>
+                <SearchSelect
+                  options={vm.labels.operatorOptions}
+                  value={vm.promptOp}
+                  onChange={(value) => vm.setPromptOp(value as typeof vm.promptOp)}
+                />
+              </S.Grow>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={vm.addPrompt}
+                disabled={!vm.canAddPrompt}
+              >
+                {vm.labels.add}
+              </Button>
+            </S.Row>
           </S.Group>
 
           {vm.errors.map((error) => <InfoBanner key={error} message={error} variant="warning" />)}

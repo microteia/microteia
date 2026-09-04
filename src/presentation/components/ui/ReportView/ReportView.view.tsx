@@ -2,7 +2,9 @@ import React from 'react';
 import { S } from './ReportView.styles';
 import { useReportViewViewModel } from './ReportView.viewmodel';
 import { Button } from '../Button';
+import { DateInput } from '../DateInput';
 import { InfoBanner } from '../InfoBanner';
+import { Input } from '../Input';
 import { ReportChart } from '../ReportChart';
 import { ReportMatrix } from '../ReportMatrix';
 import { ReportTable } from '../ReportTable';
@@ -43,6 +45,36 @@ export const ReportView: React.FC<ReportViewProps> = ({ reportKey, tabKey }) => 
           </Button>
         </S.Actions>
       </S.Header>
+
+      {vm.prompts.length > 0 && (
+        <S.Prompts
+          data-print-hide
+          onSubmit={(event) => { event.preventDefault(); void vm.run(); }}
+        >
+          {vm.prompts.map((prompt) => (
+            <S.PromptField key={prompt.key}>
+              {prompt.label}
+              {prompt.isDate ? (
+                <DateInput
+                  value={prompt.value}
+                  onChange={(value) => vm.setPromptValue(prompt.key, value)}
+                />
+              ) : (
+                <Input
+                  value={prompt.value}
+                  onChange={(event) => vm.setPromptValue(prompt.key, event.target.value)}
+                />
+              )}
+            </S.PromptField>
+          ))}
+          <Button type="submit" size="sm" disabled={vm.isLoading}>{vm.applyLabel}</Button>
+          {vm.hasPromptValues && (
+            <Button type="button" variant="ghost" size="sm" onClick={vm.clearPrompts}>
+              {vm.clearLabel}
+            </Button>
+          )}
+        </S.Prompts>
+      )}
 
       {vm.error && <InfoBanner message={vm.error} variant="warning" />}
       {vm.partial && <InfoBanner message={vm.partial} variant="warning" />}

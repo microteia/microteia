@@ -21,6 +21,8 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - **Quando um relatório cobre mais registros do que consegue varrer de uma vez, ele diz isso** — na tela, no cabeçalho do arquivo e no papel. Um número parcial que se apresenta como total é pior que número nenhum.
 - Um relatório só aparece para quem pode ler os cadastros que ele cobre — inclusive os alcançados por um campo que aponta para outro cadastro. Agrupar por "cidade do cliente" exige poder ver Clientes.
 - Uma extensão pode entregar relatórios prontos, e eles aparecem na lista assim que ela é instalada.
+- O relatório pode ter um **filtro fixo** — o que ele sempre cobre, e que quem lê não vê nem muda — e também **filtros que quem lê preenche** ao abrir, como um período. Deixados em branco, eles simplesmente não restringem nada.
+- O **gráfico** passou a ser escolhido na própria tela de autoria: barras, colunas, linha, área, pizza ou rosca, com a opção de empilhar os números.
 
 #### [9.49.0] — 2026-09-03
 

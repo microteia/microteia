@@ -418,3 +418,79 @@ describe('validateReportSpec — o que a autoria ainda não terminou', () => {
     expect(errors(validateReportSpec(semNumero, ctx))).toContain('@core.reports/dataset.no-measure');
   });
 });
+
+/**
+ * O SPEC INTEIRO que a autoria pode montar hoje: filtro fixo, gráfico e filtros do leitor.
+ *
+ * A tela e o servidor rodam a MESMA função, então este teste é o que garante que não existe um
+ * relatório que a autoria deixa salvar e a execução recusa.
+ */
+describe('validateReportSpec — o que a autoria monta por inteiro', () => {
+  const completo: ReportSpec = {
+    v: 1,
+    dataset: {
+      table: 'lancamentos',
+      where: [{ path: 'situacao', op: 'neq', value: { kind: 'Literal', value: 'cancelado' } }],
+      dimensions: [
+        { key: 'situacao', path: 'situacao', label: 'Situação' },
+        { key: 'vencimento_month', path: 'vencimento', granularity: 'month' },
+      ],
+      measures: [
+        { key: 'count', op: 'count', label: 'Quantidade' },
+        { key: 'valor_sum', op: 'sum', path: 'valor', label: 'Soma de Valor' },
+      ],
+    },
+    shape: {
+      kind: 'summary',
+      groupBy: [{ dimension: 'situacao', subtotal: true }, { dimension: 'vencimento_month' }],
+      values: ['count', 'valor_sum'],
+    },
+    presentation: {
+      chart: { kind: 'bar', category: 'vencimento_month', series: ['valor_sum'], stacked: true },
+      prompts: [{ key: 'vencimento_gte', path: 'vencimento', op: 'gte', label: 'Vencimento a partir de' }],
+    },
+  };
+
+  it('é aceito sem uma queixa', () => {
+    expect(validateReportSpec(completo, ctx)).toEqual([]);
+  });
+
+  it('o filtro fixo passa pelo MESMO verificador do passo de consulta', () => {
+    const comCaminhoRuim: ReportSpec = {
+      ...completo,
+      dataset: { ...completo.dataset, where: [{ path: 'titulo.foo', op: 'eq', value: { kind: 'Literal', value: 'x' } }] },
+    };
+
+    expect(hasBlockingReportIssue(validateReportSpec(comCaminhoRuim, ctx))).toBe(true);
+  });
+
+  it('o filtro fixo sem valor, num operador que exige valor, é recusado', () => {
+    const semValor: ReportSpec = {
+      ...completo,
+      dataset: { ...completo.dataset, where: [{ path: 'situacao', op: 'eq' }] },
+    };
+
+    expect(errors(validateReportSpec(semValor, ctx)))
+      .toContain('@core.automation/query.filter-value.missing');
+  });
+
+  it('o filtro do LEITOR com caminho que não resolve é recusado', () => {
+    const promptRuim: ReportSpec = {
+      ...completo,
+      presentation: { prompts: [{ key: 'x', path: 'titulo.foo', op: 'eq' }] },
+    };
+
+    expect(hasBlockingReportIssue(validateReportSpec(promptRuim, ctx))).toBe(true);
+  });
+
+  it('o gráfico que cita medida inexistente AVISA, e o relatório continua valendo', () => {
+    const graficoRuim: ReportSpec = {
+      ...completo,
+      presentation: { chart: { kind: 'bar', series: ['fantasma'] } },
+    };
+    const issues = validateReportSpec(graficoRuim, ctx);
+
+    expect(warnings(issues)).toContain('@core.reports/chart.key.unknown');
+    expect(hasBlockingReportIssue(issues)).toBe(false);
+  });
+});

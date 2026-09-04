@@ -34,6 +34,26 @@ export const S = {
     gap: ${({ theme }) => theme.spacing.sm};
     align-items: center;
   `,
+  /** A barra dos filtros que o leitor preenche. Some da impressão: no papel vale o resultado. */
+  Prompts: styled.form`
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: ${({ theme }) => theme.spacing.sm};
+    padding: ${({ theme }) => theme.spacing.md};
+    background: ${({ theme }) => theme.colors.surface};
+    border: 1px solid ${({ theme }) => theme.colors.border};
+    border-radius: ${({ theme }) => theme.borderRadius.md};
+  `,
+  PromptField: styled.label`
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex: 1 1 180px;
+    min-width: 0;
+    font-size: ${({ theme }) => theme.fontSizes.xs};
+    color: ${({ theme }) => theme.colors.textSecondary};
+  `,
   Loading: styled.p`
     margin: 0;
     padding: 32px 0;
