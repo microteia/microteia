@@ -18,6 +18,14 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.51.3] — 2026-09-05
+
+- fix(query): a predicate over a REFERENCE matched nothing — neither single nor multi, `eq` nor `contains`. `runWorkflowQuery` hydrates the row before evaluating in-memory predicates, so the value under the path is the pointed RECORD, and the comparison was record-object against the id the filter carried. `looseEquals` in `predicateMatch.ts` now takes the `id` of a record-shaped value, which is the same identity rule `aggregateRows` uses for group keys. This was never report-only: the workflow "find records" step filtered by a reference the same way.
+- fix(query): equality against a LIST-valued field is pertinence, not identity. `evaluateResolvedPredicate` treats `eq`/`neq` with an array on either side as "any of" — a field of many has no value, it has a list, and comparing the whole list to one value is a question that can never be answered yes. `in` and `contains` route through the same helper.
+- fix(query): a `stringArray` path, or a resolved value that is an array, no longer becomes a Firestore equality filter. There `==` over an array field compares the WHOLE array, so a multi-select filter came back empty with no error and nothing to distinguish it from "nobody matches". These join the deep path and the derived field in memory.
+- feat(reports): `filterFieldOf` preserves the field's `multi` instead of forcing `false`, and `filterValueOf` / `filterLiteralOf` carry the chosen ids as a LIST across the text the screen transports. The control let you pick one person for a pole the office declared as many, and the literal `"p1,p2"` was the id of nobody.
+- fix(reports): `promptPredicates` skips an empty list the same way it skips an empty string — no one chosen is the same as not asking, and the predicate it built matched nothing.
+
 #### [9.51.2] — 2026-09-05
 
 - fix(reports): a report row arrives HYDRATED — where the document keeps a reference id, the row carries the referenced record itself, and a multi reference carries the list of them. The simple list wrote every cell through `String`, so a reference column read `[object Object]`, and one `[object Object]` per pointee on a multi reference: the whole datum lost with nothing on screen saying it was lost. `presentation/shared/report/useReportCellText.ts` names a hydrated record by the TITLE FIELD of its screen — the same name the listing, the search and a mention show — reading it from what already came hydrated, so no second query and no dependency on the pointed collection being loaded in this screen. `ReportTable` and `useReportCsv` both go through it, because the table and the spreadsheet cannot disagree about the same cell.

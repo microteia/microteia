@@ -11,6 +11,12 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.51.3] — 2026-09-05
+
+- **Filtrar um relatório por um cadastro relacionado voltou a filtrar.** Escolher a pessoa, o cliente ou o processo apontado não restringia nada: o relatório vinha vazio, sem erro e sem aviso — o que se lê como "não existe nenhum assim". Vale para o filtro fixo do relatório e para o que quem abre preenche.
+- **Um campo que aceita vários agora deixa escolher vários no filtro.** Onde o cadastro permite mais de uma pessoa no polo ativo, o filtro pedia uma só; agora aceita quantas quiser, e o relatório traz os registros que tenham qualquer uma delas.
+- O mesmo passou a valer para as listas de opções de várias escolhas: filtrar por uma delas não trazia nada.
+
 #### [9.51.2] — 2026-09-05
 
 - **Um relatório sobre um cadastro que aponta para vários outros deixou de mostrar `[object Object]`.** Onde antes aparecia esse código no lugar do dado, aparece agora o nome de cada registro apontado, separados por vírgula — na tela e no arquivo exportado.

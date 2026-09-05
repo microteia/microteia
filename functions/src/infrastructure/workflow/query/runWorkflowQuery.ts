@@ -163,11 +163,21 @@ export async function runWorkflowQuery(
   const equalityFilters: WorkflowEqualityFilter[] = [];
   const memoryPredicates: ResolvedPredicate[] = [];
   for (const predicate of predicates) {
-    const isDeep = resolvePath(ctx, resolved.root, parsePath(predicate.path)).hops.length > 0;
+    const resolution = resolvePath(ctx, resolved.root, parsePath(predicate.path));
+    const isDeep = resolution.hops.length > 0;
+    // Campo de VÁRIOS não vira igualdade no Firestore, e um valor que é lista tampouco: ali `==`
+    // sobre um campo de lista compara a lista INTEIRA, e a pergunta que se faz num filtro é de
+    // pertinência. A consulta voltava vazia — sem erro, sem aviso, e sem nada que distinguisse
+    // "ninguém atende" de "esta pergunta não foi feita ao banco". Estes ficam em memória, como já
+    // ficam o caminho profundo e o campo derivado.
+    const isList =
+      Array.isArray(predicate.resolvedValue) ||
+      (resolution.node.kind === 'scalar' && resolution.node.type === 'stringArray');
     if (
       predicate.op === 'eq' &&
       predicate.resolvedValue !== undefined &&
       !isDeep &&
+      !isList &&
       !isDerivedPath(predicate.path)
     ) {
       equalityFilters.push({ path: predicate.path, value: predicate.resolvedValue });

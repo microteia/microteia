@@ -29,8 +29,26 @@ const toMillis = (value: unknown): number | undefined => {
   return undefined;
 };
 
-/** Igualdade TOLERANTE: data contra texto ISO, número contra o texto do número. */
+/**
+ * O id de um valor com forma de REGISTRO.
+ *
+ * A linha chega HIDRATADA: onde o documento guarda o id de uma referência, ela traz o registro
+ * apontado inteiro. Comparar esse objeto com o id que o filtro trouxe nunca dava certo — e o
+ * relatório não errava o número, ele devolvia vazio, que se lê como "não há nada assim".
+ */
+const recordId = (value: unknown): string | undefined => {
+  if (typeof value !== 'object' || value === null || Array.isArray(value) || value instanceof Date) {
+    return undefined;
+  }
+  const id = (value as { id?: unknown }).id;
+  return typeof id === 'string' ? id : undefined;
+};
+
+/** Igualdade TOLERANTE: data contra texto ISO, número contra o texto do número, registro pelo id. */
 export const looseEquals = (a: unknown, b: unknown): boolean => {
+  const aId = recordId(a);
+  const bId = recordId(b);
+  if (aId !== undefined || bId !== undefined) return (aId ?? a) === (bId ?? b);
   if (a instanceof Date || b instanceof Date) {
     const am = toMillis(a);
     const bm = toMillis(b);
@@ -55,6 +73,24 @@ export const compareValues = (a: unknown, b: unknown): number | undefined => {
   return undefined;
 };
 
+/**
+ * Pertinência entre os dois lados, com qualquer um deles podendo ser LISTA.
+ *
+ * Um campo de vários não tem um valor: ele tem uma lista — e um filtro pode trazer mais de um
+ * escolhido. Igualdade entre lista e valor é uma pergunta que nunca pode ser respondida com sim;
+ * o que se pergunta ali é se algum dos que o registro tem está entre os que foram escolhidos.
+ */
+const anyMatches = (actual: unknown, expected: unknown): boolean => {
+  const actuals = Array.isArray(actual) ? actual : [actual];
+  const expecteds = Array.isArray(expected) ? expected : [expected];
+  return actuals.some((one) => expecteds.some((other) => looseEquals(one, other)));
+};
+
+const equals = (actual: unknown, expected: unknown): boolean =>
+  Array.isArray(actual) || Array.isArray(expected)
+    ? anyMatches(actual, expected)
+    : looseEquals(actual, expected);
+
 export const evaluateResolvedPredicate = (
   record: Record<string, unknown>,
   predicate: ResolvedPredicate,
@@ -64,9 +100,9 @@ export const evaluateResolvedPredicate = (
 
   switch (predicate.op) {
     case 'eq':
-      return looseEquals(actual, expected);
+      return equals(actual, expected);
     case 'neq':
-      return !looseEquals(actual, expected);
+      return !equals(actual, expected);
     case 'lt': {
       const c = compareValues(actual, expected);
       return c !== undefined && c < 0;
@@ -84,9 +120,9 @@ export const evaluateResolvedPredicate = (
       return c !== undefined && c >= 0;
     }
     case 'in':
-      return Array.isArray(expected) && expected.some((item) => looseEquals(actual, item));
+      return Array.isArray(expected) && anyMatches(actual, expected);
     case 'contains':
-      if (Array.isArray(actual)) return actual.some((item) => looseEquals(item, expected));
+      if (Array.isArray(actual)) return anyMatches(actual, expected);
       if (typeof actual === 'string' && typeof expected === 'string') return actual.includes(expected);
       return false;
     case 'exists':

@@ -37,14 +37,19 @@ const FILTER_PLAIN_TEXT_TYPES: FieldDefinition['type'][] = ['textarea', 'markdow
  * O campo visto como o VALOR de um filtro — o mesmo tipo, sem o que só faz sentido num registro.
  *
  * Existe porque o controle é o mesmo (`FieldInput`, dirigido pelo schema), mas a pergunta é outra:
- * um filtro compara com UM valor, não semeia padrão nenhum, não gera código e não cadastra opção
- * nova na lista do escritório — quem está filtrando não está criando dado.
+ * um filtro não semeia padrão nenhum, não gera código e não cadastra opção nova na lista do
+ * escritório — quem está filtrando não está criando dado.
+ *
+ * O `multi` do campo é PRESERVADO. Ele já esteve fixo em `false`, sob o argumento de que um filtro
+ * compara com um valor só; mas um campo de vários não tem um valor — ele tem uma lista, e o filtro
+ * sobre ele é uma pergunta de pertinência. Com o controle preso a uma escolha, quem filtrava o polo
+ * ativo de um processo só podia perguntar por uma pessoa, num campo que o escritório declarou como
+ * de várias.
  */
 export const filterFieldOf = (field: FieldDefinition): FieldDefinition => ({
   ...field,
   type: FILTER_PLAIN_TEXT_TYPES.includes(field.type) ? 'text' : field.type,
   required: false,
-  multi: false,
   optionsAllowUserAdd: false,
   defaultValue: undefined,
   autoValue: null,
@@ -66,9 +71,14 @@ export const filterTextOf = (value: CustomFieldValue): string => {
   return String(value);
 };
 
+/** Os escolhidos de um campo de VÁRIOS, do texto que os transporta. Vazio é nenhum, não é um vazio. */
+const filterListOf = (text: string): string[] =>
+  text.split(',').map((one) => one.trim()).filter((one) => one !== '');
+
 /** O texto como o CONTROLE o entende. `null` é ausência de resposta, e não a resposta "não". */
 export const filterValueOf = (field: FieldDefinition | undefined, text: string): CustomFieldValue => {
   if (!field) return text;
+  if (field.multi) return filterListOf(text);
   if (field.type === 'checkbox') {
     if (text === 'true') return true;
     return text === 'false' ? false : null;
@@ -89,6 +99,10 @@ export const filterValueOf = (field: FieldDefinition | undefined, text: string):
  * é o formato que o produto inteiro fala, e um objeto ali não sobreviveria ao `.json` do relatório.
  */
 export const filterLiteralOf = (field: FieldDefinition | undefined, text: string): unknown => {
+  // Um campo de vários leva a LISTA dos escolhidos, e a comparação é de pertinência: o registro
+  // atende se algum dos valores dele está entre os escolhidos. Mandar `"p1,p2"` como um texto só
+  // procurava um registro cujo campo fosse literalmente essa string, e nunca achava nenhum.
+  if (field?.multi) return filterListOf(text);
   if (field?.type === 'checkbox') return text === 'true';
   if (field?.type === 'number' || field?.type === 'currency') {
     const parsed = Number(text);

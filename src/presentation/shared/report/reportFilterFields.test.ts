@@ -25,8 +25,15 @@ const field = (patch: Partial<FieldDefinition>): FieldDefinition => ({
  * e a referência no registro apontado —, mas a pergunta é outra: filtrar não é criar dado.
  */
 describe('filterFieldOf', () => {
-  it('um filtro compara com UM valor, mesmo num campo de vários', () => {
-    expect(filterFieldOf(field({ type: 'select', multi: true })).multi).toBe(false);
+  it('um campo de VÁRIOS filtra por vários — ele não tem um valor, tem uma lista', () => {
+    // Preso em `false`, o controle deixava escolher uma pessoa só no polo ativo de um processo,
+    // num campo que o escritório declarou como de várias.
+    expect(filterFieldOf(field({ type: 'select', multi: true })).multi).toBe(true);
+    expect(filterFieldOf(field({ type: 'reference', refEntity: 'pessoas', multi: true })).multi).toBe(true);
+  });
+
+  it('o campo de um valor continua pedindo um', () => {
+    expect(filterFieldOf(field({ type: 'reference', refEntity: 'pessoas' })).multi).toBeUndefined();
   });
 
   it('não cobra preenchimento: um filtro em branco simplesmente não restringe', () => {
@@ -76,6 +83,16 @@ describe('o valor entre o texto, o controle e o spec', () => {
     expect(filterValueOf(field({ type: 'currency' }), 'abc')).toBeNull();
   });
 
+  it('o campo de vários vai e volta como LISTA, pelo texto que a tela carrega', () => {
+    const varios = field({ type: 'reference', refEntity: 'pessoas', multi: true });
+
+    expect(filterTextOf(['p1', 'p2'])).toBe('p1,p2');
+    expect(filterValueOf(varios, 'p1,p2')).toEqual(['p1', 'p2']);
+    // Nenhum escolhido é lista vazia, e não uma escolha em branco: quem decide que isso não vira
+    // predicado é quem monta a consulta.
+    expect(filterValueOf(varios, '')).toEqual([]);
+  });
+
   it('sem campo conhecido o valor é o texto — é o que sobra, e não um palpite', () => {
     expect(filterValueOf(undefined, 'pending')).toBe('pending');
   });
@@ -106,6 +123,13 @@ describe('filterLiteralOf', () => {
 
   it('o que não é número passa intacto — quem recusa é o validador, não a conversão', () => {
     expect(filterLiteralOf(field({ type: 'number' }), 'dez')).toBe('dez');
+  });
+
+  it('o campo de vários é gravado como LISTA — o texto "p1,p2" não é o id de ninguém', () => {
+    const varios = field({ type: 'reference', refEntity: 'pessoas', multi: true });
+
+    expect(filterLiteralOf(varios, 'p1,p2')).toEqual(['p1', 'p2']);
+    expect(filterLiteralOf(varios, 'p1')).toEqual(['p1']);
   });
 
   it('a data continua texto ISO: é o formato que o produto inteiro fala', () => {

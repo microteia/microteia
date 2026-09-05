@@ -58,6 +58,17 @@ const resolvedFilters = (
 }));
 
 /**
+ * O filtro FOI respondido.
+ *
+ * Nenhum escolhido num filtro de vários é o mesmo que não perguntar: uma lista vazia viraria um
+ * predicado que nada atende, e o relatório voltaria vazio por causa do filtro que ninguém preencheu.
+ */
+const answered = (value: unknown): boolean => {
+  if (value === undefined || value === null || value === '') return false;
+  return !Array.isArray(value) || value.length > 0;
+};
+
+/**
  * Os predicados que o LEITOR preencheu, na forma que o resto do caminho já entende.
  *
  * Entram como `Literal` de propósito: assim eles passam pelo MESMO `resolveMapping` do filtro fixo,
@@ -65,7 +76,7 @@ const resolvedFilters = (
  */
 const promptPredicates = (spec: ReportSpec, values: Record<string, unknown>): QueryPredicate[] =>
   (spec.presentation?.prompts ?? [])
-    .filter((prompt) => values[prompt.key] !== undefined && values[prompt.key] !== '')
+    .filter((prompt) => answered(values[prompt.key]))
     .map((prompt) => ({
       path: prompt.path,
       op: prompt.op,

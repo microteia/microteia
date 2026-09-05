@@ -35,6 +35,27 @@ const personsScreen: SchemaScreen = {
   ],
 };
 
+const processosScreen: SchemaScreen = {
+  id: 'processos',
+  titleSingular: 'Processo',
+  titleFieldKey: 'titulo',
+  fields: [
+    { key: 'titulo', label: 'Título', type: 'text', required: false, order: 0, origin: 'design' },
+    {
+      key: 'poloAtivoIds', label: 'Polo ativo', type: 'reference', refEntity: 'clientes',
+      multi: true, required: false, order: 1, origin: 'design',
+    },
+    {
+      key: 'responsavelId', label: 'Responsável', type: 'reference', refEntity: 'clientes',
+      required: false, order: 2, origin: 'design',
+    },
+    {
+      key: 'etiquetas', label: 'Etiquetas', type: 'select', multi: true,
+      required: false, order: 3, origin: 'design',
+    },
+  ],
+};
+
 const lancamentosScreen: SchemaScreen = {
   id: 'lancamentos',
   titleSingular: 'Lançamento',
@@ -87,7 +108,7 @@ const context = (): WorkflowContext => ({
 const deps = (rows: WorkflowQueryRow[], byId: Record<string, Record<string, unknown>> = {}) => ({
   queryRepository: new FakeQueryRepository(rows),
   fetcher: new FakeFetcher(byId),
-  screenProvider: fakeScreenProvider([personsScreen, lancamentosScreen]),
+  screenProvider: fakeScreenProvider([personsScreen, lancamentosScreen, processosScreen]),
 });
 
 const spec: ReportSpec = {
@@ -270,6 +291,95 @@ describe('runReportQuery', () => {
     expect(outcome.ok).toBe(true);
     if (!outcome.ok) return;
     expect(outcome.value.totals).toEqual({ values: { total: 350, pagas: 300 }, count: 3 });
+  });
+
+  /**
+   * O filtro sobre uma REFERÊNCIA não achava nada — nem o de um, nem o de vários.
+   *
+   * A linha é hidratada ANTES de o predicado ser avaliado: onde o documento guarda o id, ela traz o
+   * registro apontado inteiro, e a comparação era entre esse objeto e o id que o filtro trouxe. O
+   * relatório não errava o número: voltava vazio, que se lê como "não há nada assim".
+   */
+  describe('filtro sobre referência', () => {
+    const processos: WorkflowQueryRow[] = [
+      { id: '1', data: { titulo: 'A', poloAtivoIds: ['c1', 'c2'], responsavelId: 'c1', etiquetas: ['urgente', 'civel'] } },
+      { id: '2', data: { titulo: 'B', poloAtivoIds: ['c3'], responsavelId: 'c3', etiquetas: ['civel'] } },
+    ];
+    const clientes = { c1: { nome: 'Ana' }, c2: { nome: 'Bruno' }, c3: { nome: 'Carla' } };
+
+    const listaDe = (where: NonNullable<ReportSpec['dataset']['where']>) => ({
+      v: 1 as const,
+      dataset: {
+        table: 'processos',
+        dimensions: [{ key: 'titulo', path: 'titulo' }],
+        measures: [{ key: 'qtd', op: 'count' as const }],
+        where,
+      },
+      shape: { kind: 'tabular' as const, columns: ['titulo'] },
+    });
+
+    const idsOf = async (where: NonNullable<ReportSpec['dataset']['where']>): Promise<string[]> => {
+      const outcome = await runReportQuery({
+        spec: listaDe(where),
+        context: context(),
+        deps: deps(processos, clientes),
+      });
+      if (!outcome.ok) throw new Error(outcome.error);
+      return (outcome.value.records ?? []).map((record) => String(record.id));
+    };
+
+    it('acha pelo apontado numa referência de VÁRIOS', async () => {
+      expect(await idsOf([{ path: 'poloAtivoIds', op: 'eq', value: { kind: 'Literal', value: 'c2' } }]))
+        .toEqual(['1']);
+    });
+
+    it('acha pelo apontado numa referência de UM', async () => {
+      expect(await idsOf([{ path: 'responsavelId', op: 'eq', value: { kind: 'Literal', value: 'c3' } }]))
+        .toEqual(['2']);
+    });
+
+    it('com vários escolhidos, atende quem tem QUALQUER UM deles', async () => {
+      expect(await idsOf([{ path: 'poloAtivoIds', op: 'eq', value: { kind: 'Literal', value: ['c2', 'c3'] } }]))
+        .toEqual(['1', '2']);
+    });
+
+    it('o filtro de vários que o LEITOR não preencheu não restringe nada', async () => {
+      const comPrompt: ReportSpec = {
+        ...listaDe([]),
+        presentation: { prompts: [{ key: 'polo', path: 'poloAtivoIds', op: 'eq' }] },
+      };
+
+      const outcome = await runReportQuery({
+        spec: comPrompt,
+        context: context(),
+        deps: deps(processos, clientes),
+        prompts: { polo: [] },
+      });
+
+      expect(outcome.ok).toBe(true);
+      if (!outcome.ok) return;
+      expect((outcome.value.records ?? []).map((record) => String(record.id))).toEqual(['1', '2']);
+    });
+
+    /**
+     * A lista de opções é um campo de vários que o caminho alcança sem salto nenhum — e por isso ia
+     * ao Firestore como igualdade, onde `==` sobre um campo de lista compara a LISTA INTEIRA. A
+     * consulta voltava vazia sem erro e sem aviso, indistinguível de "ninguém atende".
+     */
+    it('campo de VÁRIOS raso fica em memória, e filtra por pertinência', async () => {
+      const d = deps(processos, clientes);
+
+      const outcome = await runReportQuery({
+        spec: listaDe([{ path: 'etiquetas', op: 'eq', value: { kind: 'Literal', value: 'urgente' } }]),
+        context: context(),
+        deps: d,
+      });
+
+      expect((d.queryRepository as FakeQueryRepository).calls[0].filters).toEqual([]);
+      expect(outcome.ok).toBe(true);
+      if (!outcome.ok) return;
+      expect((outcome.value.records ?? []).map((record) => String(record.id))).toEqual(['1']);
+    });
   });
 
   it('agrupa por campo de coleção relacionada, hidratando a referência', async () => {

@@ -657,7 +657,7 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
       label: pathOptions.find((one) => one.value === filter.path)?.label ?? filter.path,
       op: t(`operator.${filter.op}`),
       value: filter.value && filter.value.kind === 'Literal'
-        ? valueLabel(filter.path, String(filter.value.value))
+        ? valueLabel(filter.path, filterTextOf(filter.value.value as CustomFieldValue))
         : '',
     })),
     filterPath,
