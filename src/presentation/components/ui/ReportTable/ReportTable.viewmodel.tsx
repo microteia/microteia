@@ -2,13 +2,13 @@ import { useMemo } from 'react';
 import { useLabel, useLocaleFormat, useT } from '../../../shared/i18n/useT';
 import type { ReportResult } from '../../../../domain/schema/report/reportResult';
 import type { ReportSpec } from '../../../../domain/schema/report/reportSpec';
-import { getValueAtPath, parsePath } from '../../../../domain/schema/pathResolver';
 import {
   columnLabel,
   formatMeasureValue,
   rowDimensions,
   shownMeasures,
 } from '../../../shared/report/reportFormatting';
+import { useReportCellText } from '../../../shared/report/useReportCellText';
 import { useReportGroupLabels } from '../../../shared/report/useReportGroupLabels';
 
 export interface ReportTableColumn {
@@ -57,6 +57,7 @@ export const useReportTableViewModel = (
   const t = useT('core.reports');
 
   const groupLabel = useReportGroupLabels(spec);
+  const cellText = useReportCellText(spec);
   const totalLabel = t('table.total');
   const emptyMessage = t('table.empty');
 
@@ -86,10 +87,7 @@ export const useReportTableViewModel = (
         level: 0,
         subtotal: false,
         group: '',
-        values: dimensions.map((dimension) => {
-          const raw = getValueAtPath(record, parsePath(dimension.path));
-          return raw === null || raw === undefined ? '' : String(raw);
-        }),
+        values: dimensions.map((dimension) => cellText(record, dimension)),
       }));
 
       const totalsInline = result?.totals
@@ -157,5 +155,5 @@ export const useReportTableViewModel = (
       isEmpty: rows.length === 0,
       emptyMessage,
     };
-  }, [spec, result, label, formatters, groupLabel, totalLabel, emptyMessage]);
+  }, [spec, result, label, formatters, groupLabel, cellText, totalLabel, emptyMessage]);
 };

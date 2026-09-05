@@ -18,6 +18,11 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.51.2] — 2026-09-05
+
+- fix(reports): a report row arrives HYDRATED — where the document keeps a reference id, the row carries the referenced record itself, and a multi reference carries the list of them. The simple list wrote every cell through `String`, so a reference column read `[object Object]`, and one `[object Object]` per pointee on a multi reference: the whole datum lost with nothing on screen saying it was lost. `presentation/shared/report/useReportCellText.ts` names a hydrated record by the TITLE FIELD of its screen — the same name the listing, the search and a mention show — reading it from what already came hydrated, so no second query and no dependency on the pointed collection being loaded in this screen. `ReportTable` and `useReportCsv` both go through it, because the table and the spreadsheet cannot disagree about the same cell.
+- fix(reports): `scalarKey` in `aggregateRows` now takes the `id` of a record-shaped value as the group key. `String(record)` made every pointee collapse into `[object Object]`: one group for all of them in a `summary` or `matrix`, and a `count distinct` over a reference answering 1 — a number that is wrong without looking wrong. The raw key is what `useReportGroupLabels` was documented to receive all along.
+
 #### [9.51.1] — 2026-09-05
 
 - fix(reports/csv): `useReportCsv` read `result.rows` for every shape, but a `tabular` fold returns `rows: []` and puts the data in `records` — the export wrote a header and nothing else while the table on screen showed the whole collection. It now reads `records` and resolves each column by its dimension path, the same way `ReportTable` already did.

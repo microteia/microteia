@@ -3,6 +3,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { ThemeProvider } from 'styled-components';
 import { baseDarkTheme } from '../../../../shared/styles/theme';
+import { createSchemaContext } from '../../../../domain/schema/pathResolver';
 import type { ReportResult } from '../../../../domain/schema/report/reportResult';
 import type { ReportSpec } from '../../../../domain/schema/report/reportSpec';
 import { ReportTable } from './ReportTable.view';
@@ -25,6 +26,32 @@ vi.mock('../../../shared/i18n/useT', () => ({
 
 vi.mock('../../../shared/report/useReportGroupLabels', () => ({
   useReportGroupLabels: () => (entry: { key: string } | undefined) => entry?.key ?? '',
+}));
+
+// O schema entra de verdade — é ele que sabe que `amigosIds` aponta para uma coleção e qual campo
+// nomeia o registro apontado. Dublar o texto da célula esconderia justamente o que se quer provar.
+vi.mock('../../../shared/useSchemaContext', () => ({
+  useSchemaContext: () => createSchemaContext([
+    {
+      id: 'pessoas',
+      titleSingular: 'Pessoa',
+      titleFieldKey: 'nome',
+      fields: [
+        { key: 'nome', label: 'Nome', type: 'text', required: false, order: 0, origin: 'design' },
+        { key: 'cidade', label: 'Cidade', type: 'text', required: false, order: 1, origin: 'design' },
+        {
+          key: 'amigosIds',
+          label: 'Amigos',
+          type: 'reference',
+          required: false,
+          order: 2,
+          origin: 'design',
+          refEntity: 'pessoas',
+          multi: true,
+        },
+      ],
+    },
+  ]),
 }));
 
 const draw = (spec: ReportSpec, result: ReportResult) =>
@@ -101,6 +128,27 @@ describe('ReportTable — lista simples', () => {
     });
 
     expect(screen.getByText('Caruaru')).toBeDefined();
+  });
+
+  /**
+   * O defeito que chegou à tela: a coluna de uma referência de VÁRIOS mostrava
+   * `[object Object],[object Object]`. A linha já vem hidratada — o registro apontado inteiro no
+   * lugar do id —, e nomear um registro é ler o campo-título da tela dele.
+   */
+  it('a referência de VÁRIOS mostra os nomes dos apontados', () => {
+    const comReferencia: ReportSpec = {
+      ...spec,
+      dataset: { ...spec.dataset, dimensions: [{ key: 'amigos', path: 'amigosIds', label: 'Amigos' }] },
+      shape: { kind: 'tabular', columns: ['amigos'] },
+    };
+
+    draw(comReferencia, {
+      ...result,
+      records: [{ id: '1', amigosIds: [{ id: 'p1', nome: 'Ana' }, { id: 'p2', nome: 'Bruno' }] }],
+    });
+
+    expect(screen.getByText('Ana, Bruno')).toBeDefined();
+    expect(screen.queryByText(/object Object/)).toBeNull();
   });
 
   it('o total vem numa LINHA, porque as colunas do corpo não são números', () => {

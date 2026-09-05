@@ -65,6 +65,12 @@ const scalarKey = (value: unknown): string => {
   if (value === null || value === undefined) return EMPTY_KEY;
   if (value instanceof Date) return value.toISOString();
   if (Array.isArray(value)) return value.map((item) => scalarKey(item)).join(',');
+  // O que identifica um REGISTRO apontado é o id dele — e a linha chega HIDRATADA, com o registro
+  // inteiro onde o documento guarda o id. Sem isto, toda referência caía na mesma chave,
+  // `[object Object]`: um grupo só para apontados diferentes, e uma contagem distinta respondendo 1.
+  if (typeof value === 'object' && typeof (value as { id?: unknown }).id === 'string') {
+    return (value as { id: string }).id;
+  }
   return String(value);
 };
 

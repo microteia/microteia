@@ -2,8 +2,8 @@ import { useCallback } from 'react';
 import { useLabel, useT } from '../i18n/useT';
 import { useReportGroupLabels } from './useReportGroupLabels';
 import { columnLabel, rowDimensions, shownMeasures } from './reportFormatting';
+import { useReportCellText } from './useReportCellText';
 import { reportCellKey } from '../../../domain/schema/report/aggregateRows';
-import { getValueAtPath, parsePath } from '../../../domain/schema/pathResolver';
 import { reportCsvFileName, reportResultToCsv } from '../../../domain/schema/report/reportCsv';
 import type { ReportResult } from '../../../domain/schema/report/reportResult';
 import type { ReportSpec } from '../../../domain/schema/report/reportSpec';
@@ -25,6 +25,7 @@ export const useReportCsv = (
 ): (() => void) => {
   const label = useLabel();
   const groupLabel = useReportGroupLabels(spec);
+  const cellText = useReportCellText(spec);
   const t = useT('core.reports');
 
   return useCallback(() => {
@@ -50,10 +51,7 @@ export const useReportCsv = (
     if (spec.shape.kind === 'tabular') {
       header.push(...dimensionLabels);
       for (const record of result.records ?? []) {
-        rows.push(dimensions.map((dimension) => {
-          const raw = getValueAtPath(record, parsePath(dimension.path));
-          return raw === null || raw === undefined ? '' : String(raw);
-        }));
+        rows.push(dimensions.map((dimension) => cellText(record, dimension)));
       }
       if (result.totals && measures.length > 0) {
         // Bloco à parte: o corpo tem as colunas do registro, o total tem as das medidas.
@@ -121,5 +119,5 @@ export const useReportCsv = (
     anchor.download = reportCsvFileName(title, new Date(result.generatedAt));
     anchor.click();
     URL.revokeObjectURL(url);
-  }, [spec, result, title, label, groupLabel, t]);
+  }, [spec, result, title, label, groupLabel, cellText, t]);
 };

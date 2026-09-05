@@ -211,6 +211,47 @@ describe('aggregateReportRows — summary', () => {
   });
 });
 
+/**
+ * O caminho de uma REFERÊNCIA chega hidratado: onde o documento guarda o id, a linha traz o registro
+ * apontado inteiro. Enquanto a chave do grupo saía de `String(registro)`, apontados diferentes caíam
+ * todos em `[object Object]` — um grupo só, e uma contagem distinta respondendo 1.
+ */
+describe('aggregateReportRows — dimensão de referência', () => {
+  const referenceRows: Record<string, unknown>[] = [
+    { id: '1', client: { id: 'c1', name: 'Ana' }, amount: 100 },
+    { id: '2', client: { id: 'c2', name: 'Bruno' }, amount: 200 },
+    { id: '3', client: { id: 'c1', name: 'Ana' }, amount: 50 },
+  ];
+
+  const referenceSpec: ReportSpec = {
+    v: REPORT_SPEC_VERSION,
+    dataset: {
+      table: 'lancamentos',
+      dimensions: [{ key: 'cliente', path: 'client', label: 'Cliente' }],
+      measures: [
+        { key: 'total', label: 'Total', op: 'sum' as const, path: 'amount' },
+        { key: 'clientes', label: 'Clientes', op: 'count' as const, path: 'client', distinct: true },
+      ],
+    },
+    shape: { kind: 'summary', groupBy: [{ dimension: 'cliente' }], values: ['total', 'clientes'] },
+  };
+
+  it('agrupa pelo ID do registro apontado, e não pelo objeto inteiro', () => {
+    const result = aggregateReportRows({ spec: referenceSpec, rows: referenceRows });
+    const byClient = valuesByKey(result);
+
+    expect(Object.keys(byClient).sort()).toEqual(['c1', 'c2']);
+    expect(byClient.c1.total).toBe(150);
+    expect(byClient.c2.total).toBe(200);
+  });
+
+  it('a contagem DISTINTA conta apontados, não objetos', () => {
+    const result = aggregateReportRows({ spec: referenceSpec, rows: referenceRows });
+
+    expect(result.totals?.values.clientes).toBe(2);
+  });
+});
+
 describe('aggregateReportRows — matrix', () => {
   const matrixSpec: ReportSpec = {
     v: REPORT_SPEC_VERSION,

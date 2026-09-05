@@ -6,6 +6,32 @@ vi.mock('./useReportGroupLabels', () => ({
   useReportGroupLabels: () => (entry: { key: string } | undefined) => entry?.key ?? '—',
 }));
 
+// O schema entra de verdade: é dele que sai o campo que NOMEIA o registro apontado.
+vi.mock('../useSchemaContext', () => ({
+  useSchemaContext: () => createSchemaContext([
+    {
+      id: 'clientes',
+      titleSingular: 'Cliente',
+      titleFieldKey: 'nome',
+      fields: [
+        { key: 'nome', label: 'Nome', type: 'text', required: false, order: 0, origin: 'design' },
+        {
+          key: 'sociosIds',
+          label: 'Sócios',
+          type: 'reference',
+          required: false,
+          order: 1,
+          origin: 'design',
+          refEntity: 'clientes',
+          multi: true,
+        },
+      ],
+    },
+  ]),
+}));
+
+import { createSchemaContext } from '../../../domain/schema/pathResolver';
+
 const { useReportCsv } = await import('./useReportCsv');
 import type { ReportResult } from '../../../domain/schema/report/reportResult';
 import type { ReportSpec } from '../../../domain/schema/report/reportSpec';
@@ -69,6 +95,26 @@ describe('useReportCsv', () => {
       'Ana,Recife',
       '"Bruno, Jr.",Olinda',
     ]);
+  });
+
+  /** A planilha sofria do mesmo mal da tela: o registro apontado saía como `[object Object]`. */
+  it('a referência de VÁRIOS sai com os nomes, numa célula só', async () => {
+    const spec: ReportSpec = {
+      ...TABULAR,
+      dataset: {
+        ...TABULAR.dataset,
+        dimensions: [{ key: 'socios', path: 'sociosIds', label: 'Sócios' }],
+      },
+      shape: { kind: 'tabular', columns: ['socios'] },
+    };
+
+    const lines = await exported(spec, {
+      ...RESULT,
+      records: [{ id: '1', sociosIds: [{ id: 'c1', nome: 'Ana' }, { id: 'c2', nome: 'Bruno' }] }],
+      totals: null,
+    });
+
+    expect(lines.slice(0, 2)).toEqual(['Sócios', '"Ana, Bruno"']);
   });
 
   it('põe o total da lista simples num bloco à parte, com as colunas das medidas', async () => {

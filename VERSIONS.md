@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.51.2] — 2026-09-05
+
+- **Um relatório sobre um cadastro que aponta para vários outros deixou de mostrar `[object Object]`.** Onde antes aparecia esse código no lugar do dado, aparece agora o nome de cada registro apontado, separados por vírgula — na tela e no arquivo exportado.
+- Agrupar um relatório por um campo que aponta para outro cadastro voltou a formar um grupo por apontado. Todos caíam num grupo só, e uma contagem de "quantos diferentes" respondia sempre 1.
+
 #### [9.51.1] — 2026-09-05
 
 - **Exportar um relatório em lista simples deixou de baixar uma planilha vazia.** O arquivo saía só com o cabeçalho, mesmo com a tela cheia de registros; agora leva as mesmas linhas que a tela mostra.
