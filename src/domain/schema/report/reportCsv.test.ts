@@ -34,6 +34,26 @@ describe('reportResultToCsv', () => {
     expect(csv.trimEnd().endsWith('Total,1')).toBe(true);
   });
 
+  it('põe o total num bloco à parte quando ele não tem as colunas do corpo', () => {
+    // A lista simples mostra campos do registro no corpo e números agregados no total: alinhados,
+    // a soma cairia debaixo da coluna "Cliente" — um número plausível lido como outra coisa.
+    const csv = reportResultToCsv({
+      header: ['Cliente', 'Contrato'],
+      rows: [['Ana', 'A-1'], ['Bruno', 'B-2']],
+      totalsHeader: ['', 'Faturamento'],
+      totals: ['Total', '3000'],
+    });
+
+    expect(csv.slice(1).split('\r\n')).toEqual([
+      'Cliente,Contrato',
+      'Ana,A-1',
+      'Bruno,B-2',
+      '',
+      ',Faturamento',
+      'Total,3000',
+    ]);
+  });
+
   it('diz NO ARQUIVO que o resultado é parcial', () => {
     // A planilha viaja por e-mail e sobrevive à tela: se o aviso ficasse só no banner, o número
     // parcial chegaria ao destinatário sem nada dizendo que é parcial.

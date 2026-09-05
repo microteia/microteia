@@ -3,6 +3,7 @@ import { useLabel, useT } from '../i18n/useT';
 import { useReportGroupLabels } from './useReportGroupLabels';
 import { columnLabel, rowDimensions, shownMeasures } from './reportFormatting';
 import { reportCellKey } from '../../../domain/schema/report/aggregateRows';
+import { getValueAtPath, parsePath } from '../../../domain/schema/pathResolver';
 import { reportCsvFileName, reportResultToCsv } from '../../../domain/schema/report/reportCsv';
 import type { ReportResult } from '../../../domain/schema/report/reportResult';
 import type { ReportSpec } from '../../../domain/schema/report/reportSpec';
@@ -31,15 +32,38 @@ export const useReportCsv = (
 
     const measures = shownMeasures(spec);
     const dimensions = rowDimensions(spec);
-    const groupHeader = dimensions
-      .map((dimension) => columnLabel(dimension.label, dimension.key, label))
-      .join(' / ');
+    const dimensionLabels = dimensions
+      .map((dimension) => columnLabel(dimension.label, dimension.key, label));
 
-    const header = [groupHeader];
+    const header: string[] = [];
     const rows: string[][] = [];
     let totals: string[] | undefined;
+    let totalsHeader: string[] | undefined;
 
-    if (spec.shape.kind === 'matrix') {
+    /*
+     * A LISTA SIMPLES é outro arquivo — a mesma lição que a tabela já aprendeu.
+     *
+     * Numa dobra `tabular` o agregador não devolve grupos: ele devolve os REGISTROS, em `records`, e
+     * `rows` vem vazio. Ler `rows` aqui — como o caminho agrupado faz — exportava um arquivo com
+     * cabeçalho e nenhuma linha, com a coleção cheia.
+     */
+    if (spec.shape.kind === 'tabular') {
+      header.push(...dimensionLabels);
+      for (const record of result.records ?? []) {
+        rows.push(dimensions.map((dimension) => {
+          const raw = getValueAtPath(record, parsePath(dimension.path));
+          return raw === null || raw === undefined ? '' : String(raw);
+        }));
+      }
+      if (result.totals && measures.length > 0) {
+        // Bloco à parte: o corpo tem as colunas do registro, o total tem as das medidas.
+        totalsHeader = ['', ...measures.map((measure) =>
+          columnLabel(measure.label, measure.key, label))];
+        totals = [t('table.total'), ...measures.map((measure) =>
+          rawNumber(result.totals?.values[measure.key]))];
+      }
+    } else if (spec.shape.kind === 'matrix') {
+      header.push(dimensionLabels.join(' / '));
       for (const column of result.columns) {
         const columnName = column.map((entry) => groupLabel(entry)).join(' / ');
         for (const measure of measures) {
@@ -63,6 +87,7 @@ export const useReportCsv = (
         ];
       }
     } else {
+      header.push(dimensionLabels.join(' / '));
       header.push(...measures.map((measure) => columnLabel(measure.label, measure.key, label)));
       for (const row of result.rows) {
         rows.push([
@@ -82,6 +107,7 @@ export const useReportCsv = (
       header,
       rows,
       totals,
+      totalsHeader,
       notice: result.complete && result.completeGroups
         ? undefined
         : t('csv.partial', { scanned: String(result.scanned) }),

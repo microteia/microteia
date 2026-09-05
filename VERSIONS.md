@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.51.1] — 2026-09-05
+
+- **Exportar um relatório em lista simples deixou de baixar uma planilha vazia.** O arquivo saía só com o cabeçalho, mesmo com a tela cheia de registros; agora leva as mesmas linhas que a tela mostra.
+- O total dessa exportação passou a vir num bloco próprio, ao final, com o nome de cada número. Alinhado às colunas do registro, ele cairia debaixo da coluna errada — uma soma lida como se fosse outra coisa.
+
 #### [9.51.0] — 2026-09-04
 
 - Nos relatórios, o valor de um filtro passou a ser pedido **no formato do campo escolhido**: uma data no calendário, um sim/não como caixa de marcar, uma lista de opções na própria lista, e um campo que aponta para outro cadastro no registro apontado — com o nome dele, não com um código. Vale nos dois lugares: no filtro fixo, ao montar o relatório, e nos filtros que quem lê preenche ao abrir.

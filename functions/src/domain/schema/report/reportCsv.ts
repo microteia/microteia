@@ -22,6 +22,15 @@ export interface ReportCsvTable {
   /** Linha de total, quando existe. */
   totals?: string[];
   /**
+   * O cabeçalho PRÓPRIO do total, quando ele não tem as colunas do corpo.
+   *
+   * É o caso da lista simples: o corpo mostra campos do registro e o total mostra números
+   * agregados. Sem um cabeçalho próprio, a soma cairia debaixo da coluna "Cliente" — um número
+   * plausível lido como outra coisa. Presente, o total vira um bloco à parte, depois de uma linha
+   * em branco.
+   */
+  totalsHeader?: string[];
+  /**
    * Dito NO ARQUIVO quando o resultado é parcial.
    *
    * Uma planilha viaja por e-mail e sobrevive à tela que a gerou: se o aviso ficasse só no banner,
@@ -45,7 +54,10 @@ export const reportResultToCsv = (table: ReportCsvTable): string => {
   if (table.notice) lines.push(line([table.notice]), '');
   lines.push(line(table.header));
   for (const row of table.rows) lines.push(line(row));
-  if (table.totals) lines.push(line(table.totals));
+  if (table.totals) {
+    if (table.totalsHeader) lines.push('', line(table.totalsHeader));
+    lines.push(line(table.totals));
+  }
 
   return BOM + lines.join('\r\n');
 };

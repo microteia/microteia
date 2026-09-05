@@ -18,6 +18,11 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.51.1] — 2026-09-05
+
+- fix(reports/csv): `useReportCsv` read `result.rows` for every shape, but a `tabular` fold returns `rows: []` and puts the data in `records` — the export wrote a header and nothing else while the table on screen showed the whole collection. It now reads `records` and resolves each column by its dimension path, the same way `ReportTable` already did.
+- feat(reports/csv): `ReportCsvTable` gained `totalsHeader`, for the fold whose totals do not share the body's columns. The simple list shows record fields in the body and aggregates in the total; emitted on the same columns, the sum landed under "Client" — a plausible number read as something else. With a header of its own it becomes a block after a blank line.
+
 #### [9.51.0] — 2026-09-04
 
 - feat(reports): a filter value is asked for in the SHAPE OF THE FIELD, in the design screen and in the reader's prompt bar alike. `useReportPathOptions` now carries the `FieldDefinition` behind each path, and both screens render it through `ui/FieldInput` — the same schema-driven atom the record form uses, so a date is picked in the date control, a lookup in its own list and a reference in the record it points at. A free text box there charged whoever filters with what the product already knows: the referenced record's id, the exact wording of an option, the exact format of a date.
