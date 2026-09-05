@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.52.0] — 2026-09-05
+
+- **Filtrar um relatório por um cadastro relacionado passou a aceitar VÁRIOS escolhidos, mesmo quando o campo guarda um só.** É a mesma escolha múltipla da barra de filtros das listagens: pergunta-se por "qualquer um destes", e não por um de cada vez.
+- O mesmo vale para as listas de opções: escolher três situações traz os registros de qualquer uma das três.
+
 #### [9.51.3] — 2026-09-05
 
 - **Filtrar um relatório por um cadastro relacionado voltou a filtrar.** Escolher a pessoa, o cliente ou o processo apontado não restringia nada: o relatório vinha vazio, sem erro e sem aviso — o que se lê como "não existe nenhum assim". Vale para o filtro fixo do relatório e para o que quem abre preenche.

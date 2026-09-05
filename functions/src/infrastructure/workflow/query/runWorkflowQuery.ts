@@ -4,7 +4,7 @@ import type { IWorkflowRecordFetcher } from '../../../domain/repositories/IWorkf
 import type { IScreenDefinitionProvider } from '../../../domain/repositories/IScreenDefinitionProvider';
 import { resolveMapping } from '../../../domain/engine/InputMapping';
 import { getValueAtPath, parsePath, resolvePath } from '../../../domain/schema/pathResolver';
-import type { PathRoot, SchemaContext } from '../../../domain/schema/pathResolver';
+import type { PathResolution, PathRoot, SchemaContext } from '../../../domain/schema/pathResolver';
 import { buildHydrationPlan } from '../../../domain/schema/hydrationPlan';
 import { collectHopRecordRefs, materializeHops, recordKey } from '../../../domain/schema/materialize';
 import type { QueryOrderBy, QueryPredicate, QuerySpec } from '../../../domain/schema/querySpec';
@@ -79,6 +79,40 @@ const applyOrdering = (records: Record<string, unknown>[], orderBy: QueryOrderBy
     }
     return 0;
   });
+
+/**
+ * O caminho como um campo DO DOCUMENTO, ou `null` quando o banco não pode responder por ele.
+ *
+ * É aqui que a consulta decide, a partir do esquema, o que ela pergunta ao Firestore e o que ela
+ * filtra em memória — e a divisão é sempre a mesma, seja quem chamar: o relatório, o passo de
+ * automação ou o Script.
+ *
+ * Só IGUALDADE desce, e é de propósito: uma conjunção de igualdades é servida pela junção dos
+ * índices de campo único, que toda coleção ganha de graça. Coleção de tenant nasce em tempo de
+ * execução, e nenhum índice composto pode ser declarado para ela — um `in` ou um `array-contains`
+ * ao lado de outro filtro faria a consulta FALHAR pedindo um índice que ninguém tem como criar.
+ * Filtrar em memória custa varredura; pedir um índice inexistente custa o relatório inteiro.
+ *
+ * A referência TERMINAL é um campo do documento como outro qualquer — o documento guarda o id, e é
+ * a hidratação, depois e em memória, que põe o registro apontado no lugar dele. Tratá-la como
+ * caminho profundo mandava para a memória, e para dentro do teto de varredura, uma pergunta que o
+ * banco responde sozinho. Quando ela é navegada pelo nome do apontado (`cliente` para `clienteId`),
+ * quem desce é a chave que o documento realmente guarda.
+ *
+ * Ficam fora, e vão para a memória: o caminho que ENTRA na coleção apontada (`cliente.cidade`), a
+ * referência de vários e o campo de lista — ali `==` compara a lista inteira, e a pergunta de um
+ * filtro é de pertinência.
+ */
+const documentFieldPath = (resolution: PathResolution, path: string): string | null => {
+  if (resolution.hops.length === 0) {
+    const isList = resolution.node.kind === 'scalar' && resolution.node.type === 'stringArray';
+    return isList ? null : path;
+  }
+  if (resolution.hops.length > 1) return null;
+
+  const hop = resolution.hops[0];
+  return hop.materializeAt === path && !hop.multi ? hop.atPath : null;
+};
 
 const materializeRecords = async (
   rows: WorkflowQueryRow[],
@@ -164,26 +198,16 @@ export async function runWorkflowQuery(
   const memoryPredicates: ResolvedPredicate[] = [];
   for (const predicate of predicates) {
     const resolution = resolvePath(ctx, resolved.root, parsePath(predicate.path));
-    const isDeep = resolution.hops.length > 0;
-    // Campo de VÁRIOS não vira igualdade no Firestore, e um valor que é lista tampouco: ali `==`
-    // sobre um campo de lista compara a lista INTEIRA, e a pergunta que se faz num filtro é de
-    // pertinência. A consulta voltava vazia — sem erro, sem aviso, e sem nada que distinguisse
-    // "ninguém atende" de "esta pergunta não foi feita ao banco". Estes ficam em memória, como já
-    // ficam o caminho profundo e o campo derivado.
-    const isList =
-      Array.isArray(predicate.resolvedValue) ||
-      (resolution.node.kind === 'scalar' && resolution.node.type === 'stringArray');
-    if (
+    const atPath =
       predicate.op === 'eq' &&
       predicate.resolvedValue !== undefined &&
-      !isDeep &&
-      !isList &&
+      !Array.isArray(predicate.resolvedValue) &&
       !isDerivedPath(predicate.path)
-    ) {
-      equalityFilters.push({ path: predicate.path, value: predicate.resolvedValue });
-    } else {
-      memoryPredicates.push(predicate);
-    }
+        ? documentFieldPath(resolution, predicate.path)
+        : null;
+
+    if (atPath !== null) equalityFilters.push({ path: atPath, value: predicate.resolvedValue });
+    else memoryPredicates.push(predicate);
   }
 
   const rows = await deps.queryRepository.queryByEquality(tenantId, resolved.physicalCollection, equalityFilters, limits.maxScan);

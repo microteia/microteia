@@ -18,6 +18,12 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.52.0] — 2026-09-05
+
+- feat(reports): `filterFieldOf` makes a `reference` or `select` filter a MULTIPLE choice regardless of the field's own `multi`, which is the rule the listing's filter bar already follows. A filter asks "is it among these"; making the same person learn one gesture in the listing and another in the report bought nothing.
+- fix(query): the pushdown decision is now derived from the field, in `documentFieldPath`, and it is the single place where the engine splits what Firestore answers from what it filters in memory — the same split for the report, the workflow step and the Script, since all three funnel through `runWorkflowQuery`. A TERMINAL reference is a document field like any other (the document keeps the id; hydration puts the record there afterwards, in memory), and treating it as a deep path pushed into the scan ceiling a question the database answers by itself. Navigated by the pointee's name (`cliente` for `clienteId`), what goes down is the key the document actually keeps.
+- fix(query): only EQUALITY goes down, and that is the index-free strategy stated: a conjunction of equalities is served by merging single-field indexes, which every collection gets for free. A tenant collection is born at runtime and can have no composite index declared, so an `in` or an `array-contains` beside another filter would make the query FAIL asking for an index nobody can create. Filtering in memory costs scan; asking for an index that cannot exist costs the whole report.
+
 #### [9.51.3] — 2026-09-05
 
 - fix(query): a predicate over a REFERENCE matched nothing — neither single nor multi, `eq` nor `contains`. `runWorkflowQuery` hydrates the row before evaluating in-memory predicates, so the value under the path is the pointed RECORD, and the comparison was record-object against the id the filter carried. `looseEquals` in `predicateMatch.ts` now takes the `id` of a record-shaped value, which is the same identity rule `aggregateRows` uses for group keys. This was never report-only: the workflow "find records" step filtered by a reference the same way.

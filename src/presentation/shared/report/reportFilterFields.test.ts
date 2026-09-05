@@ -25,15 +25,19 @@ const field = (patch: Partial<FieldDefinition>): FieldDefinition => ({
  * e a referência no registro apontado —, mas a pergunta é outra: filtrar não é criar dado.
  */
 describe('filterFieldOf', () => {
-  it('um campo de VÁRIOS filtra por vários — ele não tem um valor, tem uma lista', () => {
+  it('cadastro apontado e lista de opções filtram por VÁRIOS, guardem eles um ou muitos', () => {
     // Preso em `false`, o controle deixava escolher uma pessoa só no polo ativo de um processo,
-    // num campo que o escritório declarou como de várias.
-    expect(filterFieldOf(field({ type: 'select', multi: true })).multi).toBe(true);
+    // num campo que o escritório declarou como de várias. E filtrar por um só, num campo que
+    // guarda um, é outra pergunta da que a listagem faz: ali a escolha é sempre múltipla.
     expect(filterFieldOf(field({ type: 'reference', refEntity: 'pessoas', multi: true })).multi).toBe(true);
+    expect(filterFieldOf(field({ type: 'reference', refEntity: 'pessoas' })).multi).toBe(true);
+    expect(filterFieldOf(field({ type: 'select' })).multi).toBe(true);
   });
 
-  it('o campo de um valor continua pedindo um', () => {
-    expect(filterFieldOf(field({ type: 'reference', refEntity: 'pessoas' })).multi).toBeUndefined();
+  it('o que não se filtra por pertinência continua pedindo um valor', () => {
+    expect(filterFieldOf(field({ type: 'date' })).multi).toBeUndefined();
+    expect(filterFieldOf(field({ type: 'checkbox' })).multi).toBeUndefined();
+    expect(filterFieldOf(field({ type: 'text' })).multi).toBeUndefined();
   });
 
   it('não cobra preenchimento: um filtro em branco simplesmente não restringe', () => {
@@ -84,7 +88,7 @@ describe('o valor entre o texto, o controle e o spec', () => {
   });
 
   it('o campo de vários vai e volta como LISTA, pelo texto que a tela carrega', () => {
-    const varios = field({ type: 'reference', refEntity: 'pessoas', multi: true });
+    const varios = filterFieldOf(field({ type: 'reference', refEntity: 'pessoas', multi: true }));
 
     expect(filterTextOf(['p1', 'p2'])).toBe('p1,p2');
     expect(filterValueOf(varios, 'p1,p2')).toEqual(['p1', 'p2']);
@@ -126,7 +130,7 @@ describe('filterLiteralOf', () => {
   });
 
   it('o campo de vários é gravado como LISTA — o texto "p1,p2" não é o id de ninguém', () => {
-    const varios = field({ type: 'reference', refEntity: 'pessoas', multi: true });
+    const varios = filterFieldOf(field({ type: 'reference', refEntity: 'pessoas', multi: true }));
 
     expect(filterLiteralOf(varios, 'p1,p2')).toEqual(['p1', 'p2']);
     expect(filterLiteralOf(varios, 'p1')).toEqual(['p1']);

@@ -71,6 +71,11 @@ const lancamentosScreen: SchemaScreen = {
   ],
 };
 
+/**
+ * O banco, no que ele faz de diferente: a igualdade que DESCE é resolvida por ele, e o que sobra
+ * chega inteiro à memória. Um dublê que devolvesse tudo esconderia justamente a decisão que o motor
+ * de consulta toma.
+ */
 class FakeQueryRepository implements IWorkflowQueryRepository {
   calls: { collection: string; filters: WorkflowEqualityFilter[]; limit: number }[] = [];
   constructor(private readonly rows: WorkflowQueryRow[]) {}
@@ -81,7 +86,13 @@ class FakeQueryRepository implements IWorkflowQueryRepository {
     limit: number,
   ): Promise<WorkflowQueryRow[]> {
     this.calls.push({ collection, filters: equalityFilters, limit });
-    return this.rows;
+    return this.rows.filter((row) => equalityFilters.every((filter) => {
+      const value = filter.path.split('.').reduce<unknown>(
+        (current, key) => (current as Record<string, unknown> | undefined)?.[key],
+        row.data,
+      );
+      return value === filter.value;
+    }));
   }
 }
 
@@ -366,6 +377,54 @@ describe('runReportQuery', () => {
      * ao Firestore como igualdade, onde `==` sobre um campo de lista compara a LISTA INTEIRA. A
      * consulta voltava vazia sem erro e sem aviso, indistinguível de "ninguém atende".
      */
+    /**
+     * A referência TERMINAL é um campo do documento: ele guarda o id, e é a hidratação — depois, em
+     * memória — que põe o registro apontado no lugar dele. Tratá-la como caminho profundo mandava
+     * para dentro do teto de varredura uma pergunta que o banco responde sozinho.
+     */
+    it('a referência de UM com um valor desce ao Firestore, como igualdade', async () => {
+      const d = deps(processos, clientes);
+
+      await runReportQuery({
+        spec: listaDe([{ path: 'responsavelId', op: 'eq', value: { kind: 'Literal', value: 'c3' } }]),
+        context: context(),
+        deps: d,
+      });
+
+      expect((d.queryRepository as FakeQueryRepository).calls[0].filters)
+        .toEqual([{ path: 'responsavelId', value: 'c3' }]);
+    });
+
+    it('o caminho que ENTRA na coleção apontada não desce — ele não existe no documento', async () => {
+      const d = deps(rows);
+
+      await runReportQuery({
+        spec: {
+          ...spec,
+          dataset: {
+            ...spec.dataset,
+            where: [{ path: 'cliente.cidade', op: 'eq', value: { kind: 'Literal', value: 'Recife' } }],
+          },
+        },
+        context: context(),
+        deps: d,
+      });
+
+      expect((d.queryRepository as FakeQueryRepository).calls[0].filters).toEqual([]);
+    });
+
+    it('a referência de VÁRIOS não desce: ali o documento guarda uma lista', async () => {
+      const d = deps(processos, clientes);
+
+      await runReportQuery({
+        spec: listaDe([{ path: 'poloAtivoIds', op: 'eq', value: { kind: 'Literal', value: 'c2' } }]),
+        context: context(),
+        deps: d,
+      });
+
+      expect((d.queryRepository as FakeQueryRepository).calls[0].filters).toEqual([]);
+    });
+
     it('campo de VÁRIOS raso fica em memória, e filtra por pertinência', async () => {
       const d = deps(processos, clientes);
 

@@ -34,21 +34,33 @@ export const fieldAtPath = (
 const FILTER_PLAIN_TEXT_TYPES: FieldDefinition['type'][] = ['textarea', 'markdown'];
 
 /**
+ * O que se filtra por PERTINÊNCIA — "está entre estes" —, e por isso escolhe VÁRIOS mesmo quando o
+ * campo guarda um.
+ *
+ * É a regra que a barra de filtros da listagem já segue: ali um campo que aponta para outro cadastro
+ * e uma lista de opções são sempre uma escolha múltipla, porque quem filtra quase nunca quer um só —
+ * quer "destes três". Divergir disso obrigaria a mesma pessoa a aprender duas formas de fazer a
+ * mesma pergunta, uma na listagem e outra no relatório.
+ */
+const FILTER_ANY_OF_TYPES: FieldDefinition['type'][] = ['reference', 'select'];
+
+/**
  * O campo visto como o VALOR de um filtro — o mesmo tipo, sem o que só faz sentido num registro.
  *
  * Existe porque o controle é o mesmo (`FieldInput`, dirigido pelo schema), mas a pergunta é outra:
  * um filtro não semeia padrão nenhum, não gera código e não cadastra opção nova na lista do
  * escritório — quem está filtrando não está criando dado.
  *
- * O `multi` do campo é PRESERVADO. Ele já esteve fixo em `false`, sob o argumento de que um filtro
- * compara com um valor só; mas um campo de vários não tem um valor — ele tem uma lista, e o filtro
- * sobre ele é uma pergunta de pertinência. Com o controle preso a uma escolha, quem filtrava o polo
- * ativo de um processo só podia perguntar por uma pessoa, num campo que o escritório declarou como
- * de várias.
+ * Um cadastro apontado e uma lista de opções filtram por VÁRIOS, independentemente de o campo
+ * guardar um ou muitos — a mesma escolha múltipla da barra de filtros da listagem. O `multi` já
+ * esteve fixo em `false` aqui, sob o argumento de que um filtro compara com um valor só: com ele,
+ * quem filtrava o polo ativo de um processo só podia perguntar por uma pessoa, num campo que o
+ * escritório declarou como de várias.
  */
 export const filterFieldOf = (field: FieldDefinition): FieldDefinition => ({
   ...field,
   type: FILTER_PLAIN_TEXT_TYPES.includes(field.type) ? 'text' : field.type,
+  multi: FILTER_ANY_OF_TYPES.includes(field.type) ? true : field.multi,
   required: false,
   optionsAllowUserAdd: false,
   defaultValue: undefined,
