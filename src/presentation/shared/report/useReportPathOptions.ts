@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useLabel } from '../i18n/useT';
 import { useSchemaContext } from '../useSchemaContext';
+import { filterFieldOf } from './reportFilterFields';
 import type { FieldDefinition } from '../../../domain/entities/entitySchemas';
 
 export interface ReportPathOption {
@@ -9,6 +10,14 @@ export interface ReportPathOption {
   /** O tipo nativo do campo, para a autoria oferecer só o que faz sentido. */
   isDate: boolean;
   isNumeric: boolean;
+  /**
+   * O campo do schema, já visto como VALOR DE FILTRO.
+   *
+   * É o que faz a autoria e a leitura pedirem o valor no formato do campo — uma data no controle de
+   * data, uma lista nas opções dela, uma referência no registro apontado. Sem ele, todo filtro era
+   * um texto livre onde a pessoa tinha de digitar o id do registro que queria comparar.
+   */
+  field: FieldDefinition;
 }
 
 const NUMERIC_TYPES = new Set(['number', 'currency']);
@@ -23,6 +32,7 @@ const optionOf = (
   label: prefixLabel ? `${prefixLabel} › ${label(field.label)}` : label(field.label),
   isDate: field.type === 'date',
   isNumeric: NUMERIC_TYPES.has(field.type),
+  field: filterFieldOf(field),
 });
 
 /**

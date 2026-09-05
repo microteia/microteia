@@ -1,8 +1,9 @@
 import React from 'react';
+import { RiCloseLine, RiPlayLine } from 'react-icons/ri';
 import { S } from './ReportView.styles';
 import { useReportViewViewModel } from './ReportView.viewmodel';
 import { Button } from '../Button';
-import { DateInput } from '../DateInput';
+import { FieldFilterInput } from '../FieldFilterInput';
 import { InfoBanner } from '../InfoBanner';
 import { Input } from '../Input';
 import { ReportChart } from '../ReportChart';
@@ -54,25 +55,33 @@ export const ReportView: React.FC<ReportViewProps> = ({ reportKey, tabKey }) => 
           {vm.prompts.map((prompt) => (
             <S.PromptField key={prompt.key}>
               {prompt.label}
-              {prompt.isDate ? (
-                <DateInput
+              {/* O valor é pedido no FORMATO DO CAMPO — o mesmo controle do formulário do registro.
+                  Um texto livre aqui pedia a quem lê o relatório o id do registro que ele queria
+                  ver, e o formato exato da data. */}
+              {prompt.field ? (
+                <FieldFilterInput
+                  field={prompt.field}
                   value={prompt.value}
                   onChange={(value) => vm.setPromptValue(prompt.key, value)}
                 />
               ) : (
                 <Input
-                  value={prompt.value}
+                  value={typeof prompt.value === 'string' ? prompt.value : ''}
                   onChange={(event) => vm.setPromptValue(prompt.key, event.target.value)}
                 />
               )}
             </S.PromptField>
           ))}
-          <Button type="submit" size="sm" disabled={vm.isLoading}>{vm.applyLabel}</Button>
-          {vm.hasPromptValues && (
-            <Button type="button" variant="ghost" size="sm" onClick={vm.clearPrompts}>
-              {vm.clearLabel}
-            </Button>
-          )}
+          <S.PromptActions>
+            <S.PromptBtn type="submit" title={vm.runLabel} disabled={vm.isLoading}>
+              <RiPlayLine size={15} />
+            </S.PromptBtn>
+            {vm.hasPromptValues && (
+              <S.PromptBtn type="button" title={vm.clearLabel} onClick={vm.clearPrompts}>
+                <RiCloseLine size={15} />
+              </S.PromptBtn>
+            )}
+          </S.PromptActions>
         </S.Prompts>
       )}
 

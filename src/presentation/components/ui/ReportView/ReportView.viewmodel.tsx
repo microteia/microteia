@@ -6,6 +6,8 @@ import type { ReportDefinition } from '../../../../domain/entities/Report';
 import type { ReportResult } from '../../../../domain/schema/report/reportResult';
 import type { ReportPrompt, ReportSpec } from '../../../../domain/schema/report/reportSpec';
 import { useReportPathOptions } from '../../../shared/report/useReportPathOptions';
+import { filterLiteralOf, filterTextOf, filterValueOf } from '../../../shared/report/reportFilterFields';
+import type { CustomFieldValue, FieldDefinition } from '../../../../domain/entities/entitySchemas';
 import type { ReportSpecIssue } from '../../../../domain/schema/report/validateReportSpec';
 import { useReportCsv } from '../../../shared/report/useReportCsv';
 
@@ -13,9 +15,13 @@ import { useReportCsv } from '../../../shared/report/useReportCsv';
 export interface ReportPromptField {
   key: string;
   label: string;
-  /** Campo de data usa o controle de data, como em qualquer outro lugar do produto. */
-  isDate: boolean;
-  value: string;
+  /**
+   * O campo do schema que o filtro compara — é ele que decide o controle. Ausente quando o caminho
+   * declarado não descreve campo nenhum: aí o valor é pedido como texto, que é o que sobra.
+   */
+  field: FieldDefinition | undefined;
+  /** O valor no FORMATO DO CAMPO, como o controle o entende. */
+  value: CustomFieldValue;
 }
 
 export interface ReportViewViewModel {
@@ -35,8 +41,8 @@ export interface ReportViewViewModel {
   run: () => Promise<void>;
 
   prompts: ReportPromptField[];
-  setPromptValue: (key: string, value: string) => void;
-  applyLabel: string;
+  setPromptValue: (key: string, value: CustomFieldValue) => void;
+  runLabel: string;
   clearLabel: string;
   clearPrompts: () => void;
   hasPromptValues: boolean;
@@ -76,16 +82,41 @@ export const useReportViewViewModel = (reportKey: string, tabKey?: string): Repo
   const [isLoading, setIsLoading] = useState(false);
   const [promptValues, setPromptValues] = useState<Record<string, string>>({});
 
-  const run = useCallback(async () => {
+  // Memoizado, e não derivado solto: um `?? []` cria um array novo a cada render, e o `useMemo`
+  // abaixo passaria a recalcular sempre — refazendo a lista a cada tecla digitada num filtro.
+  const declaredPrompts = useMemo<ReportPrompt[]>(
+    () => spec?.presentation?.prompts ?? [],
+    [spec],
+  );
+  const pathOptions = useReportPathOptions(spec?.dataset.table ?? '');
+
+  const fieldByPath = useCallback(
+    (path: string): FieldDefinition | undefined =>
+      pathOptions.find((option) => option.value === path)?.field,
+    [pathOptions],
+  );
+
+  /**
+   * Executa com os valores que LHE PASSAM, e não com os que estão no estado.
+   *
+   * A diferença não é de estilo: enquanto o valor dos filtros era dependência desta função, ela
+   * mudava de identidade a cada tecla — e o efeito que executa ao abrir a aba disparava junto. Um
+   * relatório sobre dez mil registros era refeito no servidor letra por letra, e a resposta que
+   * chegava por último nem sempre era a da última pergunta.
+   */
+  const runWith = useCallback(async (values: Record<string, string>) => {
     if (!report) return;
     setIsLoading(true);
     setError(null);
     try {
-      // Só o que foi preenchido vai. Um filtro em branco não restringe nada — mandá-lo vazio faria
-      // o servidor comparar com string vazia, que é uma pergunta diferente.
-      const filled = Object.fromEntries(
-        Object.entries(promptValues).filter(([, value]) => value.trim() !== ''),
-      );
+      // Só o que foi preenchido vai, e vai NO TIPO DO CAMPO. Um filtro em branco não restringe nada
+      // — mandá-lo vazio faria o servidor comparar com string vazia, que é outra pergunta; e mandar
+      // "true" onde o documento guarda um booleano não encontra nada, sem uma palavra na tela.
+      const filled: Record<string, unknown> = {};
+      for (const prompt of declaredPrompts) {
+        const text = (values[prompt.key] ?? '').trim();
+        if (text !== '') filled[prompt.key] = filterLiteralOf(fieldByPath(prompt.path), text);
+      }
       const outcome = await runReport({ reportId: report.id, prompts: filled });
       setResult(outcome.result);
       setIssues(outcome.issues ?? []);
@@ -96,33 +127,37 @@ export const useReportViewViewModel = (reportKey: string, tabKey?: string): Repo
     } finally {
       setIsLoading(false);
     }
-  }, [report, runReport, label, promptValues]);
+  }, [report, declaredPrompts, fieldByPath, runReport, label]);
 
-  // O relatório é executado ao abrir a aba, e refeito quando ela troca de relatório. O `setState`
-  // síncrono aqui é o `setIsLoading(true)` de dentro de `run` — ele PRECISA acontecer antes do
-  // await, senão a tela fica parada sem dizer que está buscando.
-  // eslint-disable-next-line react-hooks/set-state-in-effect -- estado de carga antes da chamada
-  useEffect(() => { void run(); }, [run]);
+  const run = useCallback(() => runWith(promptValues), [runWith, promptValues]);
 
   const reportTitle = report ? label(report.title) : '';
-
-  // Memoizado, e não derivado solto: um `?? []` cria um array novo a cada render, e o `useMemo`
-  // abaixo passaria a recalcular sempre — refazendo a lista a cada tecla digitada num filtro.
-  const declaredPrompts = useMemo<ReportPrompt[]>(
-    () => spec?.presentation?.prompts ?? [],
-    [spec],
-  );
-  const pathOptions = useReportPathOptions(spec?.dataset.table ?? '');
 
   const prompts = useMemo<ReportPromptField[]>(
     () => declaredPrompts.map((prompt) => ({
       key: prompt.key,
       label: prompt.label ? label(prompt.label) : prompt.path,
-      isDate: pathOptions.find((option) => option.value === prompt.path)?.isDate === true,
-      value: promptValues[prompt.key] ?? '',
+      field: fieldByPath(prompt.path),
+      value: filterValueOf(fieldByPath(prompt.path), promptValues[prompt.key] ?? ''),
     })),
-    [declaredPrompts, pathOptions, promptValues, label],
+    [declaredPrompts, fieldByPath, promptValues, label],
   );
+
+  /**
+   * Abrir a aba executa o relatório — MENOS quando ele pergunta algo a quem o abre.
+   *
+   * Executá-lo antes da resposta é gastar a varredura inteira do servidor para mostrar o que ninguém
+   * pediu: o relatório que existe PARA ser filtrado por mês abria com o ano todo, e quem o abriu
+   * esperava por um número que ia trocar. Com pergunta, a tela espera o gesto de executar; sem
+   * pergunta, não há o que esperar.
+   *
+   * O `setState` síncrono é o `setIsLoading(true)` de dentro de `runWith` — ele PRECISA acontecer
+   * antes do await, senão a tela fica parada sem dizer que está buscando.
+   */
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- estado de carga antes da chamada
+    if (declaredPrompts.length === 0) void runWith({});
+  }, [declaredPrompts, runWith]);
 
   // A aba passa a se chamar como o RELATÓRIO. É por esse nome que a pessoa reconhece a aba aberta —
   // "Relatório" é o nome do tipo, e três abas com o mesmo nome não se distinguem.
@@ -161,8 +196,9 @@ export const useReportViewViewModel = (reportKey: string, tabKey?: string): Repo
     }) : null,
     run,
     prompts,
-    setPromptValue: (key, value) => setPromptValues((current) => ({ ...current, [key]: value })),
-    applyLabel: t('prompts.apply'),
+    setPromptValue: (key, value) =>
+      setPromptValues((current) => ({ ...current, [key]: filterTextOf(value) })),
+    runLabel: t('prompts.run'),
     clearLabel: t('prompts.clear'),
     clearPrompts: () => setPromptValues({}),
     hasPromptValues: Object.values(promptValues).some((value) => value.trim() !== ''),

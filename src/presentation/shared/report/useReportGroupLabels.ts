@@ -1,40 +1,11 @@
 import { useCallback, useMemo } from 'react';
 import { useCustomFieldListing } from '../../hooks/useCustomFieldListing';
 import { useSchemaContext } from '../useSchemaContext';
+import { fieldAtPath } from './reportFilterFields';
 import { useT } from '../i18n/useT';
 import type { FieldDefinition } from '../../../domain/entities/entitySchemas';
-import type { SchemaContext } from '../../../domain/schema/pathResolver';
 import type { ReportGroupKey } from '../../../domain/schema/report/reportResult';
 import type { ReportSpec } from '../../../domain/schema/report/reportSpec';
-
-/** A tela que descreve uma coleção — a chave do mapa é a própria coleção. */
-const fieldsOf = (ctx: SchemaContext, collection: string): FieldDefinition[] =>
-  ctx.screens.get(collection)?.fields ?? [];
-
-/**
- * O CAMPO que a dimensão lê, mesmo quando o caminho atravessa uma referência.
- *
- * `situacao` é um campo da coleção-fonte; `cliente.cidade` é um campo da coleção APONTADA, e é ele
- * que sabe se `pending` se escreve "Pendente". O salto é feito pelo `refDenormKey` (o nome pelo qual
- * o registro apontado é navegado) ou pela própria chave do campo de referência.
- */
-const fieldAtPath = (
-  ctx: SchemaContext,
-  table: string,
-  path: string,
-): FieldDefinition | undefined => {
-  const segments = path.split('.').filter(Boolean);
-  let collection = table;
-
-  for (let index = 0; index < segments.length - 1; index += 1) {
-    const hop = fieldsOf(ctx, collection).find((field) =>
-      (field.refDenormKey ?? field.key) === segments[index] || field.key === segments[index]);
-    if (!hop?.refEntity) return undefined;
-    collection = hop.refEntity;
-  }
-
-  return fieldsOf(ctx, collection).find((field) => field.key === segments[segments.length - 1]);
-};
 
 /**
  * Traduz a chave CRUA de um grupo no que o escritório lê.

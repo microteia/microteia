@@ -6,7 +6,7 @@ import { Button } from '../../components/ui/Button';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { InfoBanner } from '../../components/ui/InfoBanner';
 import { Checkbox } from '../../components/ui/Checkbox';
-import { DateInput } from '../../components/ui/DateInput';
+import { FieldFilterInput } from '../../components/ui/FieldFilterInput';
 import { Input } from '../../components/ui/Input';
 import { MultiSearchSelect } from '../../components/ui/MultiSearchSelect';
 import { SearchSelect } from '../../components/ui/SearchSelect';
@@ -216,19 +216,16 @@ export const ReportDesignView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                   onChange={(value) => vm.setFilterOp(value as typeof vm.filterOp)}
                 />
               </S.Grow>
-              {vm.filterNeedsValue && (
+              {vm.filterNeedsValue && vm.filterField && (
                 <S.Grow>
-                  {/* Campo de data é o `DateInput`, nunca um texto livre — a regra vale aqui como
-                      em qualquer outro lugar do produto. */}
-                  {vm.filterIsDate ? (
-                    <DateInput value={vm.filterValue} onChange={vm.setFilterValue} />
-                  ) : (
-                    <Input
-                      value={vm.filterValue}
-                      placeholder={vm.labels.filterValue}
-                      onChange={(event) => vm.setFilterValue(event.target.value)}
-                    />
-                  )}
+                  {/* O valor é pedido no FORMATO DO CAMPO — o mesmo controle que o formulário do
+                      registro usa. Um texto livre aqui cobrava da autoria o id do registro que ela
+                      queria comparar, e o formato exato da data. */}
+                  <FieldFilterInput
+                    field={vm.filterField}
+                    value={vm.filterValue}
+                    onChange={vm.setFilterValue}
+                  />
                 </S.Grow>
               )}
               <Button

@@ -11,6 +11,14 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.51.0] — 2026-09-04
+
+- Nos relatórios, o valor de um filtro passou a ser pedido **no formato do campo escolhido**: uma data no calendário, um sim/não como caixa de marcar, uma lista de opções na própria lista, e um campo que aponta para outro cadastro no registro apontado — com o nome dele, não com um código. Vale nos dois lugares: no filtro fixo, ao montar o relatório, e nos filtros que quem lê preenche ao abrir.
+- O filtro fixo já montado passou a ser lido em palavras. Onde antes aparecia o código do registro, aparece agora o nome pelo qual o escritório o conhece.
+- **Um filtro sobre um campo de sim/não passou a funcionar.** Ele era gravado como o texto "sim" e nunca encontrava nada — sem erro, sem aviso, apenas um relatório vazio. Agora a pergunta tem três respostas: sim, não, ou não filtrar por isto.
+- **Um relatório que pergunta algo a quem o abre deixou de ser executado antes da resposta.** A tela abre com os filtros à espera e um botão de executar; até então, o relatório era refeito a cada letra digitada e o primeiro resultado cobria tudo — justamente o que quem abriu não queria ver.
+- Na barra de filtros do relatório, "Aplicar" e "Limpar" viraram os ícones que o resto do sistema já usa para executar e para limpar.
+
 #### [9.50.0] — 2026-09-04
 
 - O escritório passou a poder fazer perguntas aos próprios cadastros. Em **Relatórios**, escolhe-se o cadastro, por onde quebrá-lo (situação, mês, cidade do cliente) e o que contar ou somar — e o número aparece, com subtotal por grupo e total no fim.

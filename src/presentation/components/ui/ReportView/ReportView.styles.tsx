@@ -54,6 +54,41 @@ export const S = {
     font-size: ${({ theme }) => theme.fontSizes.xs};
     color: ${({ theme }) => theme.colors.textSecondary};
   `,
+  /** Executar e limpar ficam JUNTOS, alinhados pela base dos campos que eles governam. */
+  PromptActions: styled.div`
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  `,
+  /**
+   * O gesto de executar é o ÍCONE que o resto do produto já usa para executar — o mesmo desenho
+   * quadrado dos botões de cabeçalho das telas de edição.
+   */
+  PromptBtn: styled.button`
+    width: 32px;
+    height: 32px;
+    border-radius: ${({ theme }) => theme.borderRadius.md};
+    border: 1px solid ${({ theme }) => theme.colors.border};
+    background: ${({ theme }) => theme.colors.background};
+    color: ${({ theme }) => theme.colors.textMuted};
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: ${({ theme }) => theme.transitions.fast};
+    flex-shrink: 0;
+
+    &:hover:not(:disabled) {
+      background: ${({ theme }) => theme.colors.primary};
+      color: ${({ theme }) => theme.colors.white};
+      border-color: ${({ theme }) => theme.colors.primary};
+    }
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+  `,
   Loading: styled.p`
     margin: 0;
     padding: 32px 0;

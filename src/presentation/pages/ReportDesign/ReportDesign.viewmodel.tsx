@@ -7,6 +7,12 @@ import { useSchemaContext } from '../../shared/useSchemaContext';
 import { useLabel, useT } from '../../shared/i18n/useT';
 import { useReportPathOptions } from '../../shared/report/useReportPathOptions';
 import type { ReportPathOption } from '../../shared/report/useReportPathOptions';
+import { useReportValueLabel } from '../../shared/report/useReportValueLabel';
+import {
+  filterLiteralOf,
+  filterTextOf,
+  filterValueOf,
+} from '../../shared/report/reportFilterFields';
 import { screenDataCollection } from '../../../domain/services/screenDataCollection';
 import { parseReportDesignTabKey } from '../../../shared/constants/reportKeys';
 
@@ -31,6 +37,7 @@ import type {
 import { hasBlockingReportIssue, validateReportSpec } from '../../../domain/schema/report/validateReportSpec';
 import type { ReportResult } from '../../../domain/schema/report/reportResult';
 import type { AggregationOp } from '../../../domain/schema/fieldRules';
+import type { CustomFieldValue, FieldDefinition } from '../../../domain/entities/entitySchemas';
 import { errorParamsOf } from '../../../domain/errors/LocalizedError';
 
 export type ReportShapeKindChoice = 'tabular' | 'summary' | 'matrix';
@@ -111,10 +118,14 @@ export interface ReportDesignViewModel {
   setFilterPath: (path: string) => void;
   filterOp: QueryOperator;
   setFilterOp: (op: QueryOperator) => void;
-  filterValue: string;
-  setFilterValue: (value: string) => void;
-  /** O valor escolhido é uma DATA — o campo então é o de data, nunca um texto livre. */
-  filterIsDate: boolean;
+  /**
+   * O valor do filtro NO FORMATO DO CAMPO — é ele que o controle do schema recebe. A data chega como
+   * data, o booleano como booleano, a referência como o id do registro apontado.
+   */
+  filterValue: CustomFieldValue;
+  setFilterValue: (value: CustomFieldValue) => void;
+  /** O campo escolhido, visto como valor de filtro. Ausente enquanto nenhum caminho foi escolhido. */
+  filterField: FieldDefinition | undefined;
   filterNeedsValue: boolean;
   addFilter: () => void;
   canAddFilter: boolean;
@@ -176,7 +187,6 @@ export interface ReportDesignViewModel {
     measureField: string;
     filters: string;
     filtersHint: string;
-    filterValue: string;
     chart: string;
     chartHint: string;
     chartCategory: string;
@@ -314,7 +324,7 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
   const [measurePath, setMeasurePath] = useState('');
   const [filterPath, setFilterPath] = useState('');
   const [filterOp, setFilterOp] = useState<QueryOperator>('eq');
-  const [filterValue, setFilterValue] = useState('');
+  const [filterText, setFilterText] = useState('');
   const [promptPath, setPromptPath] = useState('');
   const [promptOp, setPromptOp] = useState<QueryOperator>('eq');
   const [preview, setPreview] = useState<ReportResult | null>(null);
@@ -325,6 +335,25 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
   const [isDeleting, setIsDeleting] = useState(false);
 
   const pathOptions = useReportPathOptions(draft.table);
+  const valueLabel = useReportValueLabel(pathOptions);
+
+  /** O campo do caminho escolhido — é ele que decide o CONTROLE com que o valor é informado. */
+  const filterField = useMemo(
+    () => pathOptions.find((one) => one.value === filterPath)?.field,
+    [pathOptions, filterPath],
+  );
+
+  // Trocar o campo descarta o valor: o que foi informado responde ao tipo ANTERIOR, e a data de um
+  // filtro trocado por uma lista entraria nela como uma opção que não existe.
+  const chooseFilterPath = useCallback((path: string) => {
+    setFilterPath(path);
+    setFilterText('');
+  }, []);
+
+  const setFilterValue = useCallback(
+    (value: CustomFieldValue) => setFilterText(filterTextOf(value)),
+    [],
+  );
 
   // A aba se chama como o relatório que se está editando, pelo mesmo motivo da aba de leitura.
   useEffect(() => {
@@ -351,6 +380,8 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
       chartSeries: [],
       prompts: [],
     });
+    setFilterPath('');
+    setFilterText('');
     setPreview(null);
   }, [change]);
 
@@ -412,20 +443,22 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
 
   const addFilter = useCallback(() => {
     if (!filterPath) return;
-    if (operatorNeedsValue(filterOp) && filterValue.trim() === '') return;
+    if (operatorNeedsValue(filterOp) && filterText.trim() === '') return;
     change({
       filters: [...draft.filters, {
         path: filterPath,
         op: filterOp,
         // `Literal` porque é valor FIXO, escrito na autoria. O mesmo `resolveMapping` do resto do
         // caminho o resolve — não existe um segundo jeito de um valor chegar à consulta.
+        // O valor vai NO TIPO DO CAMPO: um `eq` raso é resolvido pelo Firestore, e a string
+        // "true" não encontra o booleano gravado no documento.
         ...(operatorNeedsValue(filterOp)
-          ? { value: { kind: 'Literal' as const, value: filterValue.trim() } }
+          ? { value: { kind: 'Literal' as const, value: filterLiteralOf(filterField, filterText.trim()) } }
           : {}),
       }],
     });
-    setFilterValue('');
-  }, [filterPath, filterOp, filterValue, draft, change]);
+    setFilterText('');
+  }, [filterPath, filterOp, filterText, filterField, draft, change]);
 
   const removeFilter = useCallback((index: number) => {
     change({ filters: draft.filters.filter((_, at) => at !== index) });
@@ -623,18 +656,20 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
     filters: draft.filters.map((filter) => ({
       label: pathOptions.find((one) => one.value === filter.path)?.label ?? filter.path,
       op: t(`operator.${filter.op}`),
-      value: filter.value && filter.value.kind === 'Literal' ? String(filter.value.value) : '',
+      value: filter.value && filter.value.kind === 'Literal'
+        ? valueLabel(filter.path, String(filter.value.value))
+        : '',
     })),
     filterPath,
-    setFilterPath,
+    setFilterPath: chooseFilterPath,
     filterOp,
     setFilterOp,
-    filterValue,
+    filterValue: filterValueOf(filterField, filterText),
     setFilterValue,
-    filterIsDate: pathOptions.find((one) => one.value === filterPath)?.isDate === true,
+    filterField,
     filterNeedsValue: operatorNeedsValue(filterOp),
     addFilter,
-    canAddFilter: filterPath !== '' && (!operatorNeedsValue(filterOp) || filterValue.trim() !== ''),
+    canAddFilter: filterPath !== '' && (!operatorNeedsValue(filterOp) || filterText.trim() !== ''),
     removeFilter,
 
     chartKind: draft.chartKind,
@@ -692,7 +727,6 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
       measureField: t('design.measure-field'),
       filters: t('design.filters'),
       filtersHint: t('design.filters.hint'),
-      filterValue: t('design.filter-value'),
       chart: t('design.chart'),
       chartHint: t('design.chart.hint'),
       chartCategory: t('design.chart-category'),

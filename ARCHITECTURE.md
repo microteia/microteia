@@ -6150,6 +6150,52 @@ apresenta como total é a única falha deste desenho que o leitor não teria com
 `complete` é enquadrado no positivo de propósito: o padrão de um campo esquecido não pode ser "está
 tudo bem".
 
+### O valor de um filtro é pedido no FORMATO DO CAMPO
+
+Um filtro — o FIXO da autoria e o que o leitor preenche — compara com um valor de um campo que o
+schema já descreve. Pedi-lo como texto livre era cobrar de quem filtra o que o produto sabe: o id do
+registro apontado, a palavra exata de uma opção de lista, o formato da data.
+
+O controle é o mesmo átomo do formulário do registro (`ui/FieldInput`, dirigido pelo
+`FieldDefinition`), e é isso que faz o relatório e o cadastro pedirem o mesmo dado do mesmo jeito —
+um segundo controle aqui divergiria do primeiro campo de tipo novo.
+
+As travessias moram em `presentation/shared/report/reportFilterFields.ts`:
+
+| Função | O que resolve |
+|---|---|
+| `fieldAtPath` | o campo que o caminho lê, saltando a referência pelo `refDenormKey` |
+| `filterFieldOf` | o campo visto como FILTRO: um valor só, nada obrigatório, sem semear padrão, sem gerar código e sem cadastrar opção nova na lista do escritório |
+| `filterTextOf` / `filterValueOf` | a tela carrega texto; o CONTROLE fala em número e em booleano |
+| `filterLiteralOf` | o `Literal` que o spec grava, **no tipo do campo** |
+
+O que se LÊ de um valor gravado passa por `useReportValueLabel`, que é o `displayValue` da própria
+listagem: o relatório e o cartão do registro dizem a MESMA palavra sobre o mesmo dado.
+
+**O `Literal` não é texto — é o tipo do campo**, e isso não é preciosismo de forma: um `eq` raso vai
+ao Firestore com o valor tal como está no spec, e a string `"true"` não encontra o booleano `true`
+gravado no documento. O filtro não falhava; ele não achava nada, sem uma palavra na tela. A data
+segue como texto ISO de propósito — é o formato que o produto inteiro fala, e um objeto ali não
+sobreviveria ao `.json` do relatório.
+
+**Um filtro booleano tem TRÊS respostas**, e é a única divergência de `ui/FieldFilterInput` em
+relação ao `FieldInput` que ele envolve. A divergência é da PERGUNTA, não do controle: no registro,
+sim e não esgotam o assunto e a caixa de marcar diz os dois; num filtro existe a terceira — "não
+filtre por isto" — que uma caixa desmarcada não distingue de "não".
+
+### O relatório que PERGUNTA não roda antes da resposta
+
+Um relatório sem `presentation.prompts` executa ao abrir a aba. Um relatório COM prompts abre com a
+barra de filtros e espera o gesto de executar (o ícone de run, o mesmo do resto do produto).
+
+São dois defeitos no mesmo lugar. O primeiro: o valor dos filtros era dependência do `run`, que era
+dependência do efeito — o relatório era refeito no servidor **a cada tecla digitada**, e a resposta
+que chegava por último nem sempre era a da última pergunta. O segundo: a primeira execução gastava a
+varredura inteira para mostrar o ano todo a quem abriu o relatório justamente para ver um mês.
+
+A correção é a mesma nos dois: `runWith(values)` recebe os valores em vez de os capturar, e o efeito
+só dispara quando não há nada a perguntar.
+
 ### Arquivos-chave
 
 | Arquivo | Papel |
@@ -6162,6 +6208,7 @@ tudo bem".
 | `domain/schema/report/reportCsv.ts` | a forma do arquivo, compartilhada com o agendamento futuro |
 | `domain/usecases/plugins/reportModule.ts` | `rewriteReportTables` — a coleção reescrita na instalação |
 | `functions/src/infrastructure/report/runReportQuery.ts` | o executor e o RBAC por coleção |
+| `presentation/shared/report/reportFilterFields.ts` | o campo de um caminho, e o valor entre o controle e o spec |
 | `presentation/components/ui/{ReportTable,ReportMatrix,ReportChart,ReportView}/` | o que desenha |
 | `presentation/pages/{Reports,ViewReport,ReportDesign}/` | a lista, a aba e a autoria |
 
