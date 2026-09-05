@@ -43,6 +43,14 @@ describe('bucketDateValue', () => {
     expect(bucketDateValue(undefined, 'day', 'UTC')).toBeNull();
   });
 
+  it('uma LISTA de datas tem um balde por item', () => {
+    // É o que um caminho colhe de uma referência de vários. Sem isto, o balde não se aplicava e o
+    // agrupamento caía na data inteira — o corte pedido ignorado, sem uma palavra na tela.
+    expect(bucketDateValue(['2026-03-14', '2026-08-02'], 'month', 'UTC')).toBe('2026-03,2026-08');
+    expect(bucketDateValue([], 'month', 'UTC')).toBeNull();
+    expect(bucketDateValue(['2026-03-14', 'pendente'], 'month', 'UTC')).toBeNull();
+  });
+
   it('cai em UTC quando o fuso declarado é inválido, em vez de derrubar o relatório', () => {
     expect(bucketDateValue(new Date('2026-04-01T02:30:00.000Z'), 'month', 'Nao/Existe')).toBe('2026-04');
   });

@@ -29,6 +29,10 @@ const lancamentosScreen: SchemaScreen = {
       key: 'clienteId', label: 'Cliente', type: 'reference', refEntity: 'persons',
       refDenormKey: 'cliente', required: false, order: 4, origin: 'design',
     },
+    {
+      key: 'participanteIds', label: 'Participantes', type: 'reference', refEntity: 'persons',
+      multi: true, required: false, order: 5, origin: 'design',
+    },
   ],
 };
 
@@ -262,6 +266,23 @@ describe('validateReportSpec — o esquema do escritório', () => {
       ...valid,
       dataset: { ...valid.dataset, dimensions: [{ key: 'cidade', path: 'cliente.cidade' }] },
       shape: { kind: 'summary', groupBy: [{ dimension: 'cidade' }], values: ['total'] },
+    };
+
+    expect(validateReportSpec(spec, ctx)).toEqual([]);
+  });
+
+  it('aceita o campo de cada apontado quando a relação é de VÁRIOS', () => {
+    // Era o único jeito de a pergunta ser feita: uma referência de vários só respondia pelo nome do
+    // apontado, e pedir o CPF de cada um recusava o relatório inteiro pedindo a posição do item.
+    const spec: ReportSpec = {
+      ...valid,
+      dataset: {
+        ...valid.dataset,
+        dimensions: [{ key: 'cidades', path: 'participanteIds.cidade' }],
+        where: [{ path: 'participanteIds.cidade', op: 'eq', value: { kind: 'Literal', value: 'Recife' } }],
+      },
+      shape: { kind: 'summary', groupBy: [{ dimension: 'cidades' }], values: ['total'] },
+      presentation: { prompts: [{ key: 'cidade', path: 'participanteIds.cidade', op: 'eq' }] },
     };
 
     expect(validateReportSpec(spec, ctx)).toEqual([]);

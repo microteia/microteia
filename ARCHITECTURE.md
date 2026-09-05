@@ -4805,8 +4805,9 @@ da execução e **apenas para os caminhos que a automação realmente referencia
    `MaterializationMode`: FK fixa materializa sob o `denormKey` (`contractId` → `contract`, com
    os `denormalizedFields` do registry); um campo `reference` **substitui** o ID pelo registro
    alvo na própria chave (`event.tarefa.nome`), sem envelope nenhum. FKs múltiplas materializam
-   arrays (cap de 50 itens,
-   navegáveis por índice: `event.activePole.0.name`); `old.*` também é hidratado.
+   arrays (cap de 50 itens), navegáveis de duas formas: por índice, que fixa um item
+   (`event.activePole.0.name`), ou pelo NOME do campo, que atravessa todos eles e colhe um valor
+   por apontado (`event.activePole.name` → `['Maria', 'João']`); `old.*` também é hidratado.
 
 As `ScreenDefinition`s do tenant vêm do `ScreenDefinitionCache` (`functions/src/data/services/`),
 cache em memória da instância com TTL de 5 min + invalidação best-effort quando o trigger de
@@ -6182,6 +6183,33 @@ sobreviveria ao `.json` do relatório.
 relação ao `FieldInput` que ele envolve. A divergência é da PERGUNTA, não do controle: no registro,
 sim e não esgotam o assunto e a caixa de marcar diz os dois; num filtro existe a terceira — "não
 filtre por isto" — que uma caixa desmarcada não distingue de "não".
+
+### O campo do cadastro relacionado quando a relação aponta para VÁRIOS
+
+Um agrupamento, um filtro fixo ou uma pergunta ao leitor pode pedir o campo do registro apontado —
+`cliente.cidade`. Quando a relação aponta para vários, a pergunta é a mesma e a resposta vem em
+vários: `activePoleIds.cidade` é a cidade de CADA apontado.
+
+Quem responde por isso é a gramática de caminhos, não o relatório — `resolvePath` atravessa a lista
+pelo nome do campo e marca o nó com `list: true`, e `getValueAtPath` colhe o valor de cada item,
+achatando um nível por passo e deixando fora o ausente (projeção vazia é ausência de valor, e é o que
+mantém `exists` respondendo não). Antes disso, o caminho exigia a POSIÇÃO do item
+(`activePoleIds.0.cidade`), que responde por um apontado e ignora o resto: nenhum agrupamento e
+nenhum filtro conseguia escrever a pergunta mais comum que se faz sobre uma referência de vários, e a
+tela de autoria oferecia o campo para em seguida recusar o relatório inteiro.
+
+O que segue dessa forma, e por que cada um estava errado sem ela:
+
+| Peça | O que faz com a lista |
+|---|---|
+| `evaluateResolvedPredicate` | pertinência — a linha atende se QUALQUER apontado atende (já era assim para campo de vários) |
+| `scalarKey` (`aggregateRows`) | uma chave composta, a mesma que uma lista de valores crus já tinha |
+| `bucketDateValue` | um balde por item, composto; sem isso o corte pedido caía no valor cru sem aviso |
+| `applyAggregationOp` | entra pela LISTA de itens: `Number([10, 20])` é `NaN`, e a soma respondia 0 com a cara de um total |
+| `documentFieldPath` | nunca desce ao Firestore — é caminho profundo, e a pergunta é filtrada em memória |
+
+**Ler não é escrever:** `checkWritablePath` continua recusando qualquer caminho que atravesse uma
+referência (`mutation.path.through-reference`), então isto não abriu porta nenhuma de gravação.
 
 ### O relatório que PERGUNTA não roda antes da resposta
 

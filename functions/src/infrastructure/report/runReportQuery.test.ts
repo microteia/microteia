@@ -32,6 +32,7 @@ const personsScreen: SchemaScreen = {
   fields: [
     { key: 'nome', label: 'Nome', type: 'text', required: false, order: 0, origin: 'design' },
     { key: 'cidade', label: 'Cidade', type: 'text', required: false, order: 1, origin: 'design' },
+    { key: 'email', label: 'E-mail', type: 'text', required: false, order: 2, origin: 'design' },
   ],
 };
 
@@ -438,6 +439,115 @@ describe('runReportQuery', () => {
       expect(outcome.ok).toBe(true);
       if (!outcome.ok) return;
       expect((outcome.value.records ?? []).map((record) => String(record.id))).toEqual(['1']);
+    });
+  });
+
+  /**
+   * O campo de CADA apontado, numa referência de vários — como coluna e como filtro.
+   *
+   * Os dois caminhos são o mesmo (`poloAtivoIds.cidade`), e era o executor que os separava: o
+   * resolvedor exigia a posição do item, então o relatório era RECUSADO inteiro
+   * (`dataset.dimensions[n].path: path.is-list`) no instante em que a autoria escolhia o campo — e a
+   * recusa aparecia mesmo com o filtro em branco, porque a validação vem antes da resposta.
+   */
+  describe('o campo de cada apontado', () => {
+    const processos: WorkflowQueryRow[] = [
+      { id: '1', data: { titulo: 'A', poloAtivoIds: ['c1', 'c2'] } },
+      { id: '2', data: { titulo: 'B', poloAtivoIds: ['c3'] } },
+    ];
+    const clientes = {
+      c1: { nome: 'Ana', cidade: 'Recife', email: 'ana.souza@exemplo.com' },
+      c2: { nome: 'Bruno', cidade: 'Olinda', email: 'bruno@exemplo.com' },
+      c3: { nome: 'Carla', cidade: 'Natal', email: 'carla@exemplo.com' },
+    };
+
+    const porCidadeDoPolo = (prompts?: ReportSpec['presentation']): ReportSpec => ({
+      v: 1,
+      dataset: {
+        table: 'processos',
+        dimensions: [{ key: 'cidades', path: 'poloAtivoIds.cidade' }],
+        measures: [{ key: 'qtd', op: 'count' }],
+      },
+      shape: { kind: 'summary', groupBy: [{ dimension: 'cidades' }], values: ['qtd'] },
+      ...(prompts ? { presentation: prompts } : {}),
+    });
+
+    it('agrupa pela cidade de cada apontado', async () => {
+      const outcome = await runReportQuery({
+        spec: porCidadeDoPolo(),
+        context: context(),
+        deps: deps(processos, clientes),
+      });
+
+      expect(outcome.ok).toBe(true);
+      if (!outcome.ok) return;
+      expect(outcome.value.rows.map((row) => [row.keys[0].key, row.values.qtd]))
+        .toEqual([['Natal', 1], ['Recife,Olinda', 1]]);
+    });
+
+    it('o MESMO campo como filtro do leitor não recusa o relatório, e em branco não restringe', async () => {
+      const spec = porCidadeDoPolo({ prompts: [{ key: 'cidade', path: 'poloAtivoIds.cidade', op: 'eq' }] });
+
+      const emBranco = await runReportQuery({
+        spec,
+        context: context(),
+        deps: deps(processos, clientes),
+        prompts: {},
+      });
+
+      expect(emBranco.ok).toBe(true);
+      if (!emBranco.ok) return;
+      expect(emBranco.value.totals?.count).toBe(2);
+
+      const respondido = await runReportQuery({
+        spec,
+        context: context(),
+        deps: deps(processos, clientes),
+        prompts: { cidade: 'Olinda' },
+      });
+
+      expect(respondido.ok).toBe(true);
+      if (!respondido.ok) return;
+      // Pertinência: a linha atende porque UM dos apontados dela é de Olinda.
+      expect(respondido.value.rows.map((row) => row.keys[0].key)).toEqual(['Recife,Olinda']);
+    });
+
+    it('"contém" acha pelo pedaço do texto de qualquer apontado', async () => {
+      // O e-mail de cada apontado é uma lista de TEXTO, e "contém" ali era comparado por igualdade
+      // exata: filtrar por "alex" não achava `alexnaldo.santos@gmail.com`, e o relatório voltava
+      // vazio — indistinguível de "não há nada assim".
+      const spec = porCidadeDoPolo({ prompts: [{ key: 'email', path: 'poloAtivoIds.email', op: 'contains' }] });
+
+      const outcome = await runReportQuery({
+        spec,
+        context: context(),
+        deps: deps(processos, clientes),
+        prompts: { email: 'ANA.' },
+      });
+
+      expect(outcome.ok).toBe(true);
+      if (!outcome.ok) return;
+      expect(outcome.value.rows.map((row) => row.keys[0].key)).toEqual(['Recife,Olinda']);
+    });
+
+    it('o filtro FIXO sobre o campo de cada apontado também filtra por pertinência', async () => {
+      const spec: ReportSpec = {
+        ...porCidadeDoPolo(),
+        dataset: {
+          ...porCidadeDoPolo().dataset,
+          where: [{ path: 'poloAtivoIds.cidade', op: 'eq', value: { kind: 'Literal', value: 'Natal' } }],
+        },
+      };
+
+      const outcome = await runReportQuery({
+        spec,
+        context: context(),
+        deps: deps(processos, clientes),
+      });
+
+      expect(outcome.ok).toBe(true);
+      if (!outcome.ok) return;
+      expect(outcome.value.rows.map((row) => row.keys[0].key)).toEqual(['Natal']);
     });
   });
 

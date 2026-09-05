@@ -100,9 +100,11 @@ describe('validateQuerySpec', () => {
     expect(issues.some((issue) => issue.field === 'projections[0]')).toBe(true);
   });
 
-  it('reprova FK múltipla sem índice', () => {
-    const issues = validateQuerySpec(spec({ projections: ['contractor.name'] }), ctx);
-    expect(issues.some((issue) => issue.field === 'projections[0]')).toBe(true);
+  it('aceita o campo de cada apontado numa FK múltipla, sem exigir a posição', () => {
+    // O caminho atravessa a lista e colhe um valor por apontado — a pergunta que um agrupamento ou
+    // um filtro de relatório faz sobre uma referência de vários.
+    expect(validateQuerySpec(spec({ projections: ['contractor.name'] }), ctx)).toEqual([]);
+    expect(validateQuerySpec(spec({ projections: ['contractor.0.name'] }), ctx)).toEqual([]);
   });
 
   it('exige valor em filtros que precisam de valor', () => {

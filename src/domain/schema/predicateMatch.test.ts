@@ -56,6 +56,61 @@ describe('evaluateResolvedPredicate — campo de vários', () => {
   });
 });
 
+describe('evaluateResolvedPredicate — o campo de cada apontado', () => {
+  /** Como a linha chega hidratada: o registro apontado inteiro, e uma referência de vários, todos. */
+  const registro = { id: '1', poles: [{ id: 'p1', cidade: 'Recife' }, { id: 'p2', cidade: 'Olinda' }] };
+
+  it('filtra pelo campo de qualquer um dos apontados', () => {
+    expect(matches(registro, { path: 'poles.cidade', op: 'eq', value: 'Olinda' })).toBe(true);
+    expect(matches(registro, { path: 'poles.cidade', op: 'eq', value: 'Natal' })).toBe(false);
+    expect(matches(registro, { path: 'poles.cidade', op: 'in', value: ['Natal', 'Recife'] })).toBe(true);
+  });
+
+  it('nenhum apontado com o campo é ausência de valor, e não um valor vazio', () => {
+    expect(matches({ id: '1', poles: [] }, { path: 'poles.cidade', op: 'exists' })).toBe(false);
+    expect(matches({ id: '1', poles: [{ id: 'p1' }] }, { path: 'poles.cidade', op: 'exists' })).toBe(false);
+    expect(matches(registro, { path: 'poles.cidade', op: 'exists' })).toBe(true);
+  });
+});
+
+describe('evaluateResolvedPredicate — contém', () => {
+  const registro = {
+    id: '1',
+    titulo: 'Ação de Indenizacao',
+    emails: ['alexnaldo.santos@gmail.com', 'carol@gmail.com'],
+    etiquetas: ['urgente', 'civel'],
+    poles: [{ id: 'p1', nome: 'Ana' }, { id: 'p2', nome: 'Bruno' }],
+  };
+
+  it('numa lista de TEXTO é subcadeia em qualquer item', () => {
+    // O caso que voltava vazio: um caminho que atravessa a referência de vários colhe o e-mail de
+    // cada apontado, e ninguém digita o e-mail inteiro para filtrar.
+    expect(matches(registro, { path: 'emails', op: 'contains', value: 'alex' })).toBe(true);
+    expect(matches(registro, { path: 'emails', op: 'contains', value: 'carol' })).toBe(true);
+    expect(matches(registro, { path: 'emails', op: 'contains', value: 'joana' })).toBe(false);
+  });
+
+  it('não diferencia maiúscula de minúscula, como o "contém" da condição de automação', () => {
+    expect(matches(registro, { path: 'emails', op: 'contains', value: 'ALEX' })).toBe(true);
+    expect(matches(registro, { path: 'titulo', op: 'contains', value: 'indenizacao' })).toBe(true);
+  });
+
+  it('numa lista de OPÇÕES segue achando a opção escolhida', () => {
+    expect(matches(registro, { path: 'etiquetas', op: 'contains', value: 'urgente' })).toBe(true);
+    expect(matches(registro, { path: 'etiquetas', op: 'contains', value: 'penal' })).toBe(false);
+  });
+
+  it('numa lista de REFERÊNCIAS é pertinência pelo id, nunca subcadeia', () => {
+    expect(matches(registro, { path: 'poles', op: 'contains', value: 'p2' })).toBe(true);
+    expect(matches(registro, { path: 'poles', op: 'contains', value: 'p' })).toBe(false);
+  });
+
+  it('com vários escolhidos, basta que UM deles esteja contido', () => {
+    expect(matches(registro, { path: 'emails', op: 'contains', value: ['joana', 'carol'] })).toBe(true);
+    expect(matches(registro, { path: 'emails', op: 'contains', value: ['joana', 'maria'] })).toBe(false);
+  });
+});
+
 describe('looseEquals', () => {
   it('o registro apontado é o id dele', () => {
     expect(looseEquals({ id: 'p1', nome: 'Ana' }, 'p1')).toBe(true);

@@ -92,6 +92,32 @@ const anyMatches = (actual: unknown, expected: unknown): boolean => {
   return actuals.some((one) => expecteds.some((other) => looseEquals(one, other)));
 };
 
+/**
+ * "Contém" tem duas leituras, e é o VALOR que decide qual — não o operador.
+ *
+ * Entre dois TEXTOS é subcadeia, e sem diferenciar maiúscula de minúscula: é o que a condição de
+ * automação (`ConditionEvaluator`) já entende por "contém", e a mesma palavra com duas respostas
+ * seriam duas verdades sobre o mesmo filtro. Onde há LISTA — de um lado, do outro ou dos dois — a
+ * pergunta se repete item a item.
+ *
+ * A lista era comparada por igualdade EXATA, e era o certo enquanto a única lista alcançável era de
+ * ids ou de opções. Um caminho que atravessa uma referência de vários colhe um valor por apontado —
+ * e-mail, nome, endereço —, e ali "contém alex" tinha de achar `alexnaldo.santos@gmail.com`: pedia
+ * pertinência entre textos inteiros num campo onde ninguém digita o texto inteiro, e o relatório
+ * voltava vazio, que se lê como "não há nada assim".
+ *
+ * O registro apontado continua caindo em `looseEquals`, que o compara pelo id: "contém" sobre uma
+ * lista de referências segue sendo pertinência, e nenhum id é comparado por subcadeia.
+ */
+const containsValue = (actual: unknown, expected: unknown): boolean => {
+  if (Array.isArray(actual)) return actual.some((item) => containsValue(item, expected));
+  if (Array.isArray(expected)) return expected.some((one) => containsValue(actual, one));
+  if (typeof actual === 'string' && typeof expected === 'string') {
+    return actual.toLowerCase().includes(expected.toLowerCase());
+  }
+  return looseEquals(actual, expected);
+};
+
 const equals = (actual: unknown, expected: unknown): boolean =>
   Array.isArray(actual) || Array.isArray(expected)
     ? anyMatches(actual, expected)
@@ -128,9 +154,7 @@ export const evaluateResolvedPredicate = (
     case 'in':
       return Array.isArray(expected) && anyMatches(actual, expected);
     case 'contains':
-      if (Array.isArray(actual)) return anyMatches(actual, expected);
-      if (typeof actual === 'string' && typeof expected === 'string') return actual.includes(expected);
-      return false;
+      return containsValue(actual, expected);
     case 'exists':
       return actual !== undefined && actual !== null;
     default:

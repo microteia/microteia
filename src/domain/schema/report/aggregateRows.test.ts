@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { aggregateReportRows, reportCellKey } from './aggregateRows';
-import type { ReportSpec } from './reportSpec';
+import type { ReportDimension, ReportSpec } from './reportSpec';
 import { REPORT_SPEC_VERSION } from './reportSpec';
 
 /**
@@ -38,6 +38,59 @@ const summarySpec = (overrides: Partial<ReportSpec> = {}): ReportSpec => ({
 
 const valuesByKey = (result: ReturnType<typeof aggregateReportRows>): Record<string, Record<string, number | null>> =>
   Object.fromEntries(result.rows.map((row) => [row.keys[row.keys.length - 1].key, row.values]));
+
+describe('aggregateReportRows — o caminho que atravessa uma referência de VÁRIOS', () => {
+  /** Como o plano de hidratação entrega uma referência de vários: uma lista de registros. */
+  const multiRows: Record<string, unknown>[] = [
+    { id: '1', amount: 10, poles: [{ id: 'p1', city: 'Recife' }, { id: 'p2', city: 'Olinda' }] },
+    { id: '2', amount: 20, poles: [{ id: 'p1', city: 'Recife' }] },
+    { id: '3', amount: 30, poles: [] },
+  ];
+
+  const multiSpec = (dimension: Omit<ReportDimension, 'key' | 'label'>): ReportSpec => ({
+    v: REPORT_SPEC_VERSION,
+    dataset: {
+      table: 'processos',
+      dimensions: [{ key: 'cidades', label: 'Cidades', ...dimension }],
+      measures: [{ key: 'total', label: 'Total', op: 'sum', path: 'amount' }],
+    },
+    shape: { kind: 'summary', groupBy: [{ dimension: 'cidades' }], values: ['total'] },
+  });
+
+  it('agrupa pelo campo de cada apontado, e a lista vazia é o grupo sem valor', () => {
+    const result = aggregateReportRows({ spec: multiSpec({ path: 'poles.city' }), rows: multiRows });
+    const byCity = valuesByKey(result);
+
+    expect(byCity['Recife,Olinda']).toEqual({ total: 10 });
+    expect(byCity.Recife).toEqual({ total: 20 });
+    expect(byCity['']).toEqual({ total: 30 });
+  });
+
+  it('soma o número de cada apontado, em vez de devolver zero', () => {
+    // `Number([10, 20])` é `NaN`: sem achatar a lista, a medida saía na filtragem e o grupo mostrava
+    // um total de zero — um número com a mesma cara de um total legítimo.
+    const rowsWithValues = [{ id: '1', poles: [{ valor: 10 }, { valor: 20 }] }];
+    const spec: ReportSpec = {
+      v: REPORT_SPEC_VERSION,
+      dataset: {
+        table: 'processos',
+        dimensions: [{ key: 'um', label: 'Um', path: 'id' }],
+        measures: [{ key: 'total', label: 'Total', op: 'sum', path: 'poles.valor' }],
+      },
+      shape: { kind: 'summary', groupBy: [{ dimension: 'um' }], values: ['total'] },
+    };
+
+    expect(valuesByKey(aggregateReportRows({ spec, rows: rowsWithValues }))['1']).toEqual({ total: 30 });
+  });
+
+  it('o balde de data vale para a data de cada apontado', () => {
+    const rowsWithDates = [{ id: '1', amount: 5, poles: [{ nascimento: '1990-03-14' }, { nascimento: '1990-03-28' }] }];
+    const spec = multiSpec({ path: 'poles.nascimento', granularity: 'month' as const, timeZone: 'UTC' });
+
+    expect(valuesByKey(aggregateReportRows({ spec, rows: rowsWithDates }))['1990-03,1990-03'])
+      .toEqual({ total: 5 });
+  });
+});
 
 describe('aggregateReportRows — summary', () => {
   it('agrupa por um nível, somando e contando', () => {

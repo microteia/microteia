@@ -11,6 +11,14 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.53.0] — 2026-09-05
+
+- **Um relatório passou a poder agrupar e filtrar por um campo do cadastro relacionado mesmo quando a relação aponta para VÁRIOS registros.** Antes só era possível escolher o campo quando o relacionamento apontava para um; escolhê-lo numa relação de vários respondia que era preciso informar a posição do item, e o relatório não abria.
+- O valor colhido é o de cada apontado: um agrupamento pela cidade dos participantes reúne as cidades de todos eles, um filtro encontra o registro em que qualquer um dos apontados atende, e uma soma soma o número de cada um.
+- Um agrupamento por mês, trimestre ou ano continua valendo quando a data vem de vários apontados — antes o corte pedido era ignorado em silêncio e a data aparecia inteira.
+- **O filtro "contém" passou a achar pelo PEDAÇO do texto também quando o campo vem de vários registros apontados.** Filtrar o e-mail do polo ativo por "alex" não trazia nada, apesar de existir `alexnaldo.santos@gmail.com`: ali era preciso digitar o e-mail inteiro, e o relatório vinha vazio sem dizer por quê.
+- **"Contém" deixou de diferenciar maiúscula de minúscula** — é como o "contém" das automações sempre funcionou, e responder de dois jeitos à mesma palavra era duas verdades sobre o mesmo filtro.
+
 #### [9.52.0] — 2026-09-05
 
 - **Filtrar um relatório por um cadastro relacionado passou a aceitar VÁRIOS escolhidos, mesmo quando o campo guarda um só.** É a mesma escolha múltipla da barra de filtros das listagens: pergunta-se por "qualquer um destes", e não por um de cada vez.

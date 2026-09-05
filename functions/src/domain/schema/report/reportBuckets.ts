@@ -90,6 +90,15 @@ export const bucketDateValue = (
   granularity: ReportGranularity,
   timeZone?: string,
 ): string | null => {
+  // Uma lista de datas — o que um caminho colhe de uma referência de VÁRIOS — tem um balde por item,
+  // e a chave é a composição deles, do mesmo jeito que o agrupamento já compõe a chave de uma lista
+  // de valores crus. Sem isto, o balde não se aplicava e o agrupamento caía no valor cru: a data
+  // inteira onde se pediu o mês, sem uma palavra na tela dizendo que o corte foi ignorado.
+  if (Array.isArray(value)) {
+    const buckets = value.map((item) => bucketDateValue(item, granularity, timeZone));
+    return buckets.length > 0 && buckets.every((one) => one !== null) ? buckets.join(',') : null;
+  }
+
   const civil = civilDateOf(value, timeZone);
   if (!civil) return null;
 
