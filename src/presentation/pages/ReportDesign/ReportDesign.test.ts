@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { MEASURE_COUNT_KEY, operatorNeedsValue, uniqueReportKey } from './ReportDesign.viewmodel';
+import {
+  MEASURE_COUNT_KEY,
+  movedDimensions,
+  operatorNeedsValue,
+  uniqueReportKey,
+  withGranularity,
+} from './ReportDesign.viewmodel';
+import type { ReportDimension } from '../../../domain/schema/report/reportSpec';
 
 /**
  * A chave do DOCUMENTO, e o defeito que chegou à tela.
@@ -70,5 +77,63 @@ describe('operatorNeedsValue', () => {
     for (const op of ['eq', 'neq', 'lt', 'lte', 'gt', 'gte', 'in', 'contains'] as const) {
       expect(operatorNeedsValue(op), op).toBe(true);
     }
+  });
+});
+
+/**
+ * "Valor exato" REMOVE o corte, em vez de o gravar `undefined`.
+ *
+ * O defeito chegou à tela como uma recusa do SDK do Firestore — `Unsupported field value:
+ * undefined (found in document tenants/.../reports/...)` —, dita sobre um documento que quem estava
+ * desenhando o relatório nunca viu. O `spec` é gravado verbatim, então um `undefined` dentro dele
+ * derruba a gravação inteira.
+ */
+describe('withGranularity', () => {
+  const dimensions: ReportDimension[] = [
+    { key: 'venc', path: 'dueDate', granularity: 'month' },
+    { key: 'tipo', path: 'kind' },
+  ];
+
+  it('valor exato apaga a chave, e não a deixa como undefined', () => {
+    const [venc] = withGranularity(dimensions, 'venc', undefined);
+
+    expect('granularity' in venc).toBe(false);
+    // A prova do defeito: `JSON.stringify` esconderia um `undefined`, o Firestore não.
+    expect(Object.values(venc).includes(undefined)).toBe(false);
+  });
+
+  it('trocar de corte grava o corte novo', () => {
+    expect(withGranularity(dimensions, 'venc', 'quarter')[0].granularity).toBe('quarter');
+  });
+
+  it('quem tem outra chave não é tocado', () => {
+    expect(withGranularity(dimensions, 'venc', undefined)[1]).toBe(dimensions[1]);
+  });
+});
+
+/**
+ * A ORDEM dos agrupamentos é o relatório: ela é a ordem dos níveis do resumo e a das colunas da
+ * lista simples. Sem reordenar, trocar dois de lugar exigia remover os dois e declará-los de novo.
+ */
+describe('movedDimensions', () => {
+  const dimensions: ReportDimension[] = [
+    { key: 'a', path: 'a' },
+    { key: 'b', path: 'b' },
+    { key: 'c', path: 'c' },
+  ];
+  const keys = (list: ReportDimension[] | null): string[] => (list ?? []).map((one) => one.key);
+
+  it('sobe uma posição', () => {
+    expect(keys(movedDimensions(dimensions, 'c', 1))).toEqual(['a', 'c', 'b']);
+  });
+
+  it('arrastar para o topo leva o item para o topo', () => {
+    expect(keys(movedDimensions(dimensions, 'c', 0))).toEqual(['c', 'a', 'b']);
+  });
+
+  it('fora da lista nada muda — o botão da ponta não pode inventar uma posição', () => {
+    expect(movedDimensions(dimensions, 'a', -1)).toBeNull();
+    expect(movedDimensions(dimensions, 'c', 3)).toBeNull();
+    expect(movedDimensions(dimensions, 'z', 0)).toBeNull();
   });
 });

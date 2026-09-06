@@ -18,6 +18,16 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.55.0] — 2026-09-06
+
+- fix(reports): `aggregateReportRows` emits `records` with dates as ISO text. A date field is stored as a Timestamp and read back as a `Date`, and the callable's response encoder turns a `Date` into `{}` — `Object.entries` of a date has no entry at all. The date column of a plain list reached the screen as `[object Object]`: the whole value lost in transit, with nothing on screen saying it was. It is done in the aggregation and not in the Cloud Function because the same pure function answers the executor and the authoring preview, and both cross the same wire.
+- feat(reports): `useReportCellText` cuts a date by the SAME bucket the aggregator uses when the dimension declares one, and formats it in the locale in force when it does not. A plain list is the only fold whose cell comes from the record instead of the aggregator, so the granularity picked in the design screen had no effect anywhere in the report it described.
+- fix(reports): "Exact value" REMOVES `dimension.granularity` instead of writing it as `undefined`. The `spec` is stored verbatim, and an `undefined` inside it made Firestore refuse the whole write — `Unsupported field value: undefined`, said with the SDK's words about a document the author never saw. `FirebaseReportDefinitionRepository.stripUndefined` now walks DEEP for the same reason: the `spec` is a nested object, and a shallow pass only ever covered the top level.
+- fix(reports): the granularity picker is shown when the FIELD is a date, not when a bucket is already chosen. Picking "Exact value" made the control disappear, and with it the way back to "By month".
+- fix(reports): the design tab remembers the report it just created. The create tab carries no key in its name, so `editing` stayed empty after the first save and each following Save created ANOTHER report — and a third, and a fourth. From the second Save on, the tab edits.
+- feat(reports): the groupings can be reordered — drag handle or arrows, the Form Design gesture. Their order is the order of the summary levels and of the plain list's columns; without it, swapping two meant removing both and declaring them again.
+- fix(reports): `ItemLabel` and `ItemMeta` are blocks. As inline spans they touched with no space between them — "Tipo" and "é" reached the screen as "Tipoé", which nobody reads as two things.
+
 #### [9.54.0] — 2026-09-05
 
 - feat(reports): `deriveReportRequires` now emits a token for every property the contract has and this version does not act on — `shape.limit`, `presentation.fields`, `presentation.drilldown`, `export.filename`, `dimension.sort.by` and the `control`/`required`/`default` of a prompt. They were silent no-ops: the author declared one, nothing happened, and nothing anywhere said why. The token puts each on the SAME warning path the capability gate already had, and the day one is executed is the day it enters `REPORT_CAPABILITIES` and the warning goes away on its own. Nothing is refused by this — `reportCapabilitySeverity` still refuses only under `dataset.` and `measure.`.

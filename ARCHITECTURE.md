@@ -6224,6 +6224,34 @@ varredura inteira para mostrar o ano todo a quem abriu o relatório justamente p
 A correção é a mesma nos dois: `runWith(values)` recebe os valores em vez de os capturar, e o efeito
 só dispara quando não há nada a perguntar.
 
+### A DATA atravessa a rede como texto, e a autoria edita o que gravou
+
+Um campo de data é gravado como Timestamp (é o `formatAndValidateRecord` que converte), e a leitura
+o devolve como `Date` — mas o codificador de resposta da callable transforma um `Date` em `{}`:
+`Object.entries` de uma data não tem uma entrada sequer. A coluna de data de uma lista simples
+chegava à tela como `[object Object]`, com a data inteira perdida na travessia e nada dizendo que se
+perdeu. Por isso `aggregateReportRows` emite `records` já em texto ISO — na agregação e não na Cloud
+Function, porque a mesma função responde ao executor e à pré-visualização da autoria, e as duas
+atravessam a mesma rede.
+
+Do lado de cá, `useReportCellText` corta a data pelo MESMO balde do agregador quando o agrupamento
+declara um, e a formata no idioma em vigor quando não declara. A lista simples é a única dobra em que
+a célula vem do registro e não do agregador: sem isso, a autoria escolhia "Por mês" e a coluna
+mostrava o instante cru — a pergunta feita na tela de desenho não tinha resposta nenhuma na tela do
+relatório.
+
+Três defeitos de autoria vinham do mesmo lugar, e valem como regra:
+
+| O que acontecia | Por que | O que passou a valer |
+|---|---|---|
+| "Valor exato" derrubava a gravação com `Unsupported field value: undefined` | o corte virava `granularity: undefined` dentro do `spec`, que é gravado verbatim | `withGranularity` **remove a chave**; e o `stripUndefined` do repositório varre FUNDO, porque o `spec` é objeto aninhado |
+| escolhido "Valor exato", não havia como voltar para "Por mês" | o seletor só aparecia quando já havia corte escolhido | quem decide é o CAMPO ser data (`isDate`), não haver corte |
+| Salvar duas vezes criava dois relatórios | a aba de criar não leva chave no nome, e `editing` seguia vazio depois de gravar | a tela guarda a chave do que acabou de criar; do segundo Salvar em diante é edição |
+
+E a ordem dos agrupamentos é reordenável — pela alça de arraste ou pelas setas, o gesto do Form
+Design. Ela não é cosmética: é a ordem dos níveis do resumo e a das colunas da lista simples, e sem
+reordenar a única forma de trocar dois de lugar era remover os dois e declará-los de novo.
+
 ### Arquivos-chave
 
 | Arquivo | Papel |

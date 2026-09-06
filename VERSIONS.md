@@ -11,6 +11,14 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.55.0] — 2026-09-06
+
+- **Um agrupamento por data voltou a mostrar a data.** Ao executar o relatório, a coluna de uma data aparecia como um texto sem sentido, e o modelo de apresentação escolhido — por mês, por trimestre, por ano — não tinha efeito nenhum sobre ela. Agora a data aparece como data, e cortada no período que foi pedido.
+- **Escolher "Valor exato" no agrupamento por data deixou de impedir que o relatório fosse salvo.** A gravação era recusada com uma mensagem técnica sobre um documento que ninguém tinha aberto — e, uma vez escolhido, não havia mais como voltar para "Por mês" ou qualquer outro período: a opção simplesmente sumia da tela.
+- **Salvar duas vezes sem sair da tela deixou de criar um relatório novo a cada vez.** Depois da primeira gravação, cada Salvar seguinte criava uma cópia — e a terceira, uma terceira. Agora o segundo Salvar altera o relatório que acabou de ser criado.
+- **Os agrupamentos podem ser reordenados**, arrastando ou pelas setas, como já se faz com os campos no desenho das telas. A ordem deles é a ordem dos níveis e a das colunas do relatório; para trocar dois de lugar, era preciso removê-los e declará-los de novo.
+- Corrigida a condição dos filtros que o leitor preenche, que aparecia colada ao nome do campo.
+
 #### [9.54.0] — 2026-09-05
 
 - **Um relatório que mostra só os primeiros de uma lista passou a avisar que está mostrando um recorte.** Quando o agrupamento tem um teto de itens, o total geral continua somando tudo — e as linhas visíveis não fecham com ele. Agora o relatório diz que o resultado é parcial na tela, na planilha e na impressão, como já fazia quando a consulta era grande demais.
