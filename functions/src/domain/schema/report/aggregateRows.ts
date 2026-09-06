@@ -157,11 +157,19 @@ const buildTree = (
   return root;
 };
 
+/**
+ * Os membros de UM nível, ordenados e cortados pelo `limit` da dimensão.
+ *
+ * Devolve também o que ficou de FORA, e não é detalhe: o total geral é somado sobre todas as linhas
+ * varridas, então um nível cortado mostra linhas que não fecham com o próprio total. Sem este sinal o
+ * relatório dizia isso em silêncio — com ele, o corte entra no MESMO aviso de resultado parcial que a
+ * varredura já usa, e quem lê sabe que está vendo os primeiros.
+ */
 const sortedChildren = (
   node: GroupNode,
   level: ReportGroupLevel | undefined,
   dimensions: Map<string, ReportDimension>,
-): GroupNode[] => {
+): { shown: GroupNode[]; dropped: boolean } => {
   const children = [...node.children.values()];
   const dimension = level ? dimensions.get(level.dimension) : undefined;
   const direction = dimension?.sort?.dir === 'desc' ? -1 : 1;
@@ -173,7 +181,8 @@ const sortedChildren = (
   });
 
   const limit = dimension?.limit;
-  return Number.isFinite(limit) && (limit ?? 0) > 0 ? children.slice(0, limit) : children;
+  if (!Number.isFinite(limit) || (limit ?? 0) <= 0) return { shown: children, dropped: false };
+  return { shown: children.slice(0, limit), dropped: children.length > (limit as number) };
 };
 
 const valuesOf = (
@@ -243,7 +252,10 @@ export const aggregateReportRows = (input: AggregateReportInput): ReportResult =
     let truncated = false;
 
     const walk = (node: GroupNode, depth: number): void => {
-      for (const child of sortedChildren(node, levels[depth], dimensions)) {
+      const level = sortedChildren(node, levels[depth], dimensions);
+      truncated = truncated || level.dropped;
+
+      for (const child of level.shown) {
         if (emitted.length >= limits.maxGroups) {
           truncated = true;
           return;
@@ -279,8 +291,12 @@ export const aggregateReportRows = (input: AggregateReportInput): ReportResult =
 
   const columnTree = buildTree(rows, columnLevels, dimensions);
   const columnPaths: ReportGroupKey[][] = [];
+  let columnsDropped = false;
   const collectColumns = (node: GroupNode, depth: number): void => {
-    for (const child of sortedChildren(node, columnLevels[depth], dimensions)) {
+    const level = sortedChildren(node, columnLevels[depth], dimensions);
+    columnsDropped = columnsDropped || level.dropped;
+
+    for (const child of level.shown) {
       if (depth === columnLevels.length - 1) columnPaths.push(child.keys);
       else collectColumns(child, depth + 1);
     }
@@ -288,14 +304,17 @@ export const aggregateReportRows = (input: AggregateReportInput): ReportResult =
   collectColumns(columnTree, 0);
 
   const columns = columnPaths.slice(0, limits.maxColumns);
-  const columnsTruncated = columnPaths.length > columns.length;
+  const columnsTruncated = columnsDropped || columnPaths.length > columns.length;
 
   const rowTree = buildTree(rows, rowLevels, dimensions);
   const emitted: ReportRow[] = [];
   let rowsTruncated = false;
 
   const walkRows = (node: GroupNode, depth: number): void => {
-    for (const child of sortedChildren(node, rowLevels[depth], dimensions)) {
+    const level = sortedChildren(node, rowLevels[depth], dimensions);
+    rowsTruncated = rowsTruncated || level.dropped;
+
+    for (const child of level.shown) {
       if (emitted.length >= limits.maxGroups) {
         rowsTruncated = true;
         return;

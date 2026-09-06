@@ -80,6 +80,19 @@ const refusals = (): string => bullets(BEHAVIOR_MECHANISMS
   .filter((one) => !one.supported)
   .map((one) => `\`${one.declares}\`: ${one.mechanism}. ${one.declaredAs}`));
 
+/**
+ * A nota do relatório, LIDA da cobertura em vez de reescrita aqui.
+ *
+ * Uma segunda redação da mesma razão envelhece sozinha — é a regra que já governa as tabelas acima. E
+ * este é o item que mais precisa dela: a pergunta de negócio ("quanto vendemos por mês") chega junto
+ * com a estrutura, e quem não for avisado a traduz numa tela.
+ */
+const reportGap = (): string => {
+  const note = coverageGaps()
+    .find((one) => one.surface === 'package-artifact' && one.id === 'reports')?.note;
+  return note === undefined ? 'it is outside this vocabulary.' : `${note.replace(/\s+/g, ' ')}.`;
+};
+
 const has = (context: PromptContext, name: string): boolean =>
   context.toolNames.includes(name) || context.resourceUris.includes(name);
 
@@ -228,6 +241,12 @@ const modelBusinessRule = (args: Record<string, string>, context: PromptContext)
     'clock, every contribution point but `access.permission`, and which record an effect writes. When the',
     'rule needs one of them, say so plainly and hand the decision back. Do not translate it into something that',
     'looks similar: that is the one failure mode this whole subsystem exists to prevent.',
+    '',
+    `**The report is one of them**, and it is the one that arrives disguised as a rule: ${reportGap()}`,
+    'So when the sentence asks how much, how many, by month, by customer — that is not an entity and not an',
+    'automation, and no plan will propose it. Declare it by hand from the reports section of AUTHORING.md, and',
+    'read that section BEFORE writing the spec: what a report charges in permissions, and how much it is allowed',
+    'to scan, are decided by the platform and are not yours to work around.',
     '',
     'Uniqueness is INSIDE the vocabulary, and it is the one rule you declare instead of computing: `entity.keys`, or',
     '`unique: true` on a field. When the rule says "there cannot be two" — one CPF, one code, one item number per',

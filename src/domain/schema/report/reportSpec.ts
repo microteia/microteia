@@ -84,7 +84,13 @@ export interface ReportDimension {
    */
   timeZone?: string;
   sort?: { by?: 'key' | 'label' | string; dir?: 'asc' | 'desc' };
-  /** Teto de membros distintos. O excedente cai num agrupamento residual, nunca desaparece. */
+  /**
+   * Teto de membros distintos DESTE nível: ficam os primeiros, na ordem de `sort`.
+   *
+   * O excedente não vira um agrupamento residual — ele sai da tabela, e o total geral continua
+   * somando as linhas todas. Por isso o corte marca o resultado como PARCIAL: as linhas visíveis não
+   * fecham com o próprio total, e isso precisa estar dito na tela, no CSV e na impressão.
+   */
   limit?: number;
 }
 
@@ -297,8 +303,13 @@ export interface ReportSpec {
   schedule?: ReportSchedule;
   /**
    * As capacidades que este relatório EXIGE de quem o executa. É DERIVADA por
-   * `deriveReportRequires`, nunca escrita à mão, e `microteia pack` reprova a divergência — a mesma
-   * regra de "afirmação sobre o kernel num documento gerado é DERIVADA, nunca prosa".
+   * `deriveReportRequires` e nunca escrita à mão — a mesma regra de "afirmação sobre o kernel num
+   * documento gerado é DERIVADA, nunca prosa".
+   *
+   * O portão do pacote (`packageIssues`, e portanto o `build` da extensão e o `validate_plugin` do
+   * MCP) reprova a OMISSÃO: um `requires` escrito à menos vale mais que a derivação em
+   * `unsupportedReportCapabilities`, e seria o único jeito de o relatório rodar sem o recurso que
+   * lhe falta em vez de ser recusado pelo nome dele.
    */
   requires?: string[];
 }

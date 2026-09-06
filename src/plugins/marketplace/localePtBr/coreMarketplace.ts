@@ -314,6 +314,7 @@ export const CORE_MARKETPLACE: Record<string, string> = {
   'issue.screen.reserved-prefix':
     'a tela "{screen}" emitiria "{prefix}.saved", um nome reservado pelo motor de automações — declare outro `eventPrefix`.',
   'issue.report.invalid': 'O relatório "{name}" não pode ser executado como está — {field}: {detail}',
+  'issue.report.requires': 'O relatório "{name}" declara um `requires` que omite o que ele usa: {capability}. A lista é derivada do spec — não a escreva.',
   'issue.ref.external':
     '{origin} "{name}" referencia {kind} "{id}", que não está no pacote nem coberta por uma dependência declarada.',
   'issue.ref.malformed':

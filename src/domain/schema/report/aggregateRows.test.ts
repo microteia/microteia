@@ -245,6 +245,47 @@ describe('aggregateReportRows — summary', () => {
     expect(result.completeGroups).toBe(false);
   });
 
+  it('o `limit` da dimensão corta os membros E diz que o resultado é parcial', () => {
+    // O total geral continua somando TODAS as linhas varridas, então as visíveis não fecham com ele.
+    // Sem o aviso, isso é um recorte que se lê como o todo — e o leitor não tem como notar.
+    const result = aggregateReportRows({
+      spec: summarySpec({
+        dataset: {
+          ...dataset,
+          dimensions: [
+            ...dataset.dimensions.filter((one) => one.key !== 'cliente'),
+            { key: 'cliente', path: 'client.name', label: 'Cliente', limit: 1 },
+          ],
+        },
+        shape: { kind: 'summary', groupBy: [{ dimension: 'cliente' }], values: ['total'] },
+      }),
+      rows,
+    });
+
+    expect(result.rows).toHaveLength(1);
+    expect(result.completeGroups).toBe(false);
+    expect(result.totals?.values.total).toBe(420);
+  });
+
+  it('o `limit` que cabe não torna o resultado parcial', () => {
+    const result = aggregateReportRows({
+      spec: summarySpec({
+        dataset: {
+          ...dataset,
+          dimensions: [
+            ...dataset.dimensions.filter((one) => one.key !== 'cliente'),
+            { key: 'cliente', path: 'client.name', label: 'Cliente', limit: 5 },
+          ],
+        },
+        shape: { kind: 'summary', groupBy: [{ dimension: 'cliente' }], values: ['total'] },
+      }),
+      rows,
+    });
+
+    expect(result.rows).toHaveLength(2);
+    expect(result.completeGroups).toBe(true);
+  });
+
   it('carrega a varredura parcial para fora — `complete` nunca é inventado', () => {
     const result = aggregateReportRows({ spec: summarySpec(), rows, scanned: 2000, complete: false });
 

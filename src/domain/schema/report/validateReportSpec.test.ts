@@ -81,8 +81,31 @@ describe('validateReportSpec — a fronteira entre as camadas', () => {
       },
     };
 
-    expect(validateReportSpec(semAparencia, ctx)).toEqual([]);
+    // Nenhum ERRO vem da aparência: o que ela declara e este kernel ainda não lê vira AVISO, que é
+    // o caminho pelo qual `presentation.fields` deixou de ser um no-op silencioso.
+    expect(validateReportSpec(semAparencia, ctx)
+      .filter((issue) => (issue.severity ?? 'error') === 'error')).toEqual([]);
     expect(validateReportSpec({ ...semAparencia, presentation: undefined }, ctx)).toEqual([]);
+  });
+
+  it('a propriedade de aparência que este kernel não lê AVISA, em vez de não fazer nada', () => {
+    // Era o pior dos dois mundos: o autor declarava `fields`, `drillDown`, `shape.limit` ou um
+    // filtro obrigatório, nada acontecia, e nada em lugar nenhum dizia por quê.
+    const issues = validateReportSpec({
+      ...valid,
+      presentation: {
+        fields: { total: { align: 'end' } },
+        drillDown: { enabled: true },
+        prompts: [{ key: 'situacao', path: 'situacao', op: 'eq', required: true }],
+      },
+    }, ctx);
+
+    expect(issues.map((issue) => issue.errorParams?.capability).filter(Boolean).sort()).toEqual([
+      'presentation.drilldown',
+      'presentation.fields',
+      'presentation.prompt.required',
+    ]);
+    expect(issues.every((issue) => issue.severity === 'warning')).toBe(true);
   });
 });
 

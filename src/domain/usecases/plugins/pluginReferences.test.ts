@@ -623,6 +623,38 @@ describe('packageIssues — a forma do relatório', () => {
     expect(packageIssues(withReport({ ...valido, shape: { kind: 'funnel' } }))).toEqual([]);
   });
 
+  it('recusa o `requires` escrito à MENOS — é o único jeito de escapar do portão de capacidade', () => {
+    // `unsupportedReportCapabilities` prefere o `requires` declarado à derivação. Um `requires`
+    // omisso fazia o kernel executar o relatório sem o recurso que lhe falta, em vez de recusá-lo
+    // pelo nome dele — e devolver outro número com o mesmo rótulo.
+    const issues = packageIssues(withReport({
+      ...valido,
+      dataset: {
+        ...valido.dataset,
+        measures: [{ key: 'ticket', kind: 'computed', expression: 'a / b' }],
+      },
+      requires: ['dataset.collection', 'shape.summary'],
+    }));
+
+    expect(issues.map((i) => i.message)).toContain('@core.marketplace/issue.report.requires');
+    expect(issues.find((i) => i.message === '@core.marketplace/issue.report.requires')?.messageParams)
+      .toMatchObject({ name: 'vendas', capability: 'measure.computed' });
+  });
+
+  it('aceita o `requires` que bate com a derivação, e o que traz token A MAIS', () => {
+    // Token a mais é o pacote escrito num SDK que deriva mais que este kernel. O caminho dele já
+    // existe, e é o kernel recusar o relatório pelo nome da capacidade que não tem.
+    expect(packageIssues(withReport({
+      ...valido,
+      requires: ['dataset.collection', 'measure.aggregate', 'shape.summary'],
+    }))).toEqual([]);
+
+    expect(packageIssues(withReport({
+      ...valido,
+      requires: ['dataset.collection', 'measure.aggregate', 'shape.summary', 'shape.sankey'],
+    }))).toEqual([]);
+  });
+
   it('não estoura com relatório sem spec', () => {
     const issues = packageIssues(withReport(undefined));
 

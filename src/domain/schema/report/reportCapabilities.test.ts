@@ -106,6 +106,55 @@ describe('deriveReportRequires', () => {
     expect(unsupportedReportCapabilities(calculada)).toEqual(['measure.computed']);
   });
 
+  it('a propriedade que o contrato prevê e este kernel não lê emite token, para AVISAR', () => {
+    // Sem isto elas eram no-op silencioso: o autor declarava e nada acontecia, sem uma palavra em
+    // lugar nenhum. Com o token, cada uma cai no mesmo aviso de capacidade que já existia.
+    const declarativo: ReportSpec = {
+      ...base,
+      dataset: {
+        ...base.dataset,
+        dimensions: [{ key: 'situacao', path: 'situacao', sort: { by: 'label' } }],
+      },
+      shape: { ...base.shape, limit: 10 } as ReportSpec['shape'],
+      presentation: {
+        fields: { total: { align: 'end' } },
+        drillDown: { enabled: true },
+        export: { fileName: 'x.csv' },
+        prompts: [{
+          key: 'situacao',
+          path: 'situacao',
+          op: 'eq',
+          control: 'select',
+          required: true,
+          default: { kind: 'Literal', value: 'aberto' },
+        }],
+      },
+    };
+
+    expect(unsupportedReportCapabilities(declarativo).sort()).toEqual([
+      'dimension.sort.by',
+      'export.filename',
+      'presentation.drilldown',
+      'presentation.fields',
+      'presentation.prompt.control',
+      'presentation.prompt.default',
+      'presentation.prompt.required',
+      'shape.limit',
+    ]);
+  });
+
+  it('ordenar por chave é o que este kernel faz, e não pede capacidade nenhuma', () => {
+    const porChave: ReportSpec = {
+      ...base,
+      dataset: {
+        ...base.dataset,
+        dimensions: [{ key: 'situacao', path: 'situacao', sort: { by: 'key', dir: 'desc' } }],
+      },
+    };
+
+    expect(unsupportedReportCapabilities(porChave)).toEqual([]);
+  });
+
   it('um dataset de tipo desconhecido é recusado pelo discriminante', () => {
     const join: ReportSpec = { ...base, dataset: { ...base.dataset, kind: 'join' } };
 

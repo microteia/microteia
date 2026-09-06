@@ -15,6 +15,7 @@ import { hasRefSeparator, parseArtifactRef } from '../../schema/plugin/artifactR
 import { dependencyCollections } from '../../schema/plugin/pluginManifest';
 import { validateMigrations } from '../../schema/plugin/migration';
 import { validateReportSpecShape } from '../../schema/report/validateReportSpec';
+import { deriveReportRequires } from '../../schema/report/reportCapabilities';
 import { packageIconIssues } from './pluginIcons';
 import { screenEventPrefix, templateCollection } from './screenModule';
 
@@ -367,17 +368,45 @@ export const packageMigrationIssues = (pkg: MarketplacePlugin): LocalizedIssue[]
  * relatório que roda — recusá-lo no pacote contradiria a própria regra da degradação.
  */
 const packageReportIssues = (pkg: MarketplacePlugin): LocalizedIssue[] =>
-  (pkg.reports ?? []).flatMap((report) => validateReportSpecShape(report.spec ?? { v: 0 } as never)
-    .filter((issue) => (issue.severity ?? 'error') === 'error')
-    .map((issue) => ({
-      message: '@core.marketplace/issue.report.invalid',
-      messageParams: {
-        name: report.templateId,
-        field: issue.field,
-        detail: issue.error,
-        ...(issue.errorParams ?? {}),
-      },
-    })));
+  (pkg.reports ?? []).flatMap((report) => [
+    ...validateReportSpecShape(report.spec ?? { v: 0 } as never)
+      .filter((issue) => (issue.severity ?? 'error') === 'error')
+      .map((issue) => ({
+        message: '@core.marketplace/issue.report.invalid',
+        messageParams: {
+          name: report.templateId,
+          field: issue.field,
+          detail: issue.error,
+          ...(issue.errorParams ?? {}),
+        },
+      })),
+    ...underDeclaredCapabilities(report),
+  ]);
+
+/**
+ * O `requires` escrito à MENOS — a única forma de escapar do portão de capacidade.
+ *
+ * `unsupportedReportCapabilities` prefere o `requires` declarado à derivação, e é isso que faz um
+ * `requires` omisso valer mais que a verdade do spec: o kernel deixa de recusar pelo nome do recurso
+ * que lhe falta e passa a executar o relatório sem ele. O comentário do `ReportSpec` já dizia que o
+ * portão do pacote reprovava a divergência; ele não reprovava, e este é o portão.
+ *
+ * Só a omissão. Token A MAIS não é defeito: é o pacote escrito num SDK que deriva mais do que este
+ * kernel — e o caminho correto para ele já existe, que é o kernel recusar o relatório pelo nome da
+ * capacidade que não tem, no lugar de o pacote inteiro ser recusado aqui.
+ */
+const underDeclaredCapabilities = (report: ReportModuleTemplate): LocalizedIssue[] => {
+  const declared = report.spec?.requires;
+  if (!declared || declared.length === 0) return [];
+
+  const known = new Set(declared);
+  return deriveReportRequires(report.spec)
+    .filter((capability) => !known.has(capability))
+    .map((capability) => ({
+      message: '@core.marketplace/issue.report.requires',
+      messageParams: { name: report.templateId, capability },
+    }));
+};
 
 export const packageIssues = (pkg: MarketplacePlugin): LocalizedIssue[] => [
   ...packageSizeIssues(pkg),

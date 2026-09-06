@@ -11,6 +11,12 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.54.0] — 2026-09-05
+
+- **Um relatório que mostra só os primeiros de uma lista passou a avisar que está mostrando um recorte.** Quando o agrupamento tem um teto de itens, o total geral continua somando tudo — e as linhas visíveis não fecham com ele. Agora o relatório diz que o resultado é parcial na tela, na planilha e na impressão, como já fazia quando a consulta era grande demais.
+- **O relatório passou a dizer o que ele pediu e o sistema ainda não faz.** Antes havia detalhes que podiam ser declarados e simplesmente não aconteciam, sem nenhuma explicação em lugar nenhum; agora cada um deles aparece como aviso ao abrir o relatório.
+- Melhorada a documentação de quem cria relatórios por extensão, com o filtro que o leitor preenche, o painel formado por vários gráficos e o que o sistema cobra de permissão em cada consulta.
+
 #### [9.53.0] — 2026-09-05
 
 - **Um relatório passou a poder agrupar e filtrar por um campo do cadastro relacionado mesmo quando a relação aponta para VÁRIOS registros.** Antes só era possível escolher o campo quando o relacionamento apontava para um; escolhê-lo numa relação de vários respondia que era preciso informar a posição do item, e o relatório não abria.

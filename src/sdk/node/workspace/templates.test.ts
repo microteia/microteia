@@ -954,4 +954,66 @@ describe('a seção de relatórios', () => {
     expect(guide).toContain("'computed'");
     expect(guide).toContain("'join'");
   });
+
+  /**
+   * A propriedade que o kernel LÊ e não executa precisa estar dita.
+   *
+   * Todas avisam em runtime — mas o autor descobre o aviso depois de escrever o relatório. Dizê-lo
+   * aqui é o que evita a tarde inteira gasta declarando um filtro obrigatório que não obriga.
+   */
+  it('diz qual propriedade é lida e não executada, uma a uma', () => {
+    const guide = authoringGuide(AGENTS);
+
+    for (const inert of ['shape.limit', 'presentation.fields', 'presentation.drillDown']) {
+      expect(guide, `"${inert}" não está dito no guia`).toContain(inert);
+    }
+    for (const inert of ['required', 'default', 'control']) {
+      expect(guide).toContain(`prompts[].${inert}`);
+    }
+  });
+
+  /**
+   * O FILTRO DO LEITOR era o buraco maior: ele funciona, e o guia inteiro não o mencionava. Um
+   * relatório sem ele é um relatório por escritório inteiro, e quem o lê não tem como recortá-lo.
+   */
+  it('ensina o filtro que o leitor preenche, e diz que vazio não filtra', () => {
+    const guide = authoringGuide(AGENTS);
+
+    expect(guide).toContain('presentation.prompts');
+    expect(guide).toContain('A prompt left empty simply does not filter');
+  });
+
+  it('diz que `requires` é derivada e nunca escrita à mão', () => {
+    // O único jeito de escapar do portão de capacidade é escrevê-la à menos, e o portão do pacote
+    // recusa exatamente isso — o guia precisa dizer por quê antes de o autor tentar.
+    expect(authoringGuide(AGENTS)).toContain('Derived from the spec, never written by hand');
+  });
+
+  it('ensina o gráfico ALÉM do tipo dele — categoria, séries, quebra e empilhamento', () => {
+    const guide = authoringGuide(AGENTS);
+
+    for (const property of ['category', 'series', 'splitBy', 'stacked']) {
+      expect(guide, `o gráfico não explica "${property}"`).toContain(`\`${property}\``);
+    }
+  });
+});
+
+/**
+ * O relatório dentro do Widget DSL.
+ *
+ * O nó `report` é a ÚNICA ligação a dados do DSL, e é como se declara um painel de gráficos sem
+ * código. Enquanto o guia fechava a seção dizendo que o DSL era estático e que dali não se alcança
+ * dado, ele proibia por escrito o caminho que a plataforma acabara de abrir.
+ */
+describe('o Widget DSL e o relatório', () => {
+  it('não afirma mais que o DSL não alcança dado', () => {
+    expect(authoringGuide(AGENTS)).not.toContain('do not try to reach data from here');
+  });
+
+  it('mostra o painel: uma grade de nós `report`', () => {
+    const guide = authoringGuide(AGENTS);
+
+    expect(guide).toContain("{ type: 'report', report:");
+    expect(guide).toContain('widgetPage(');
+  });
 });
