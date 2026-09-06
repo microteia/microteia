@@ -11,6 +11,12 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.55.1] — 2026-09-06
+
+- **O gráfico do relatório voltou a ser desenhado.** Numa lista simples ele saía como uma moldura vazia ao lado de uma tabela cheia — qualquer que fosse a configuração escolhida. Agora o relatório diz, ali mesmo, que uma lista sem agrupamento não tem o que desenhar, e ensina o caminho: mostrá-lo agrupado ou cruzado.
+- **A escolha de "No eixo" passou a valer.** Ao agrupar por dois níveis, o gráfico desenhava sempre o de dentro, e escolher o de fora não mudava nada. Agora o gráfico é desenhado pelo agrupamento escolhido.
+- **A moldura vazia deixou de aparecer.** Quando não há o que desenhar — nenhum resultado, nenhum número escolhido, um tipo de gráfico que esta versão não conhece —, o espaço do gráfico simplesmente não é ocupado, e a tabela continua mostrando o mesmo dado.
+
 #### [9.55.0] — 2026-09-06
 
 - **Um agrupamento por data voltou a mostrar a data.** Ao executar o relatório, a coluna de uma data aparecia como um texto sem sentido, e o modelo de apresentação escolhido — por mês, por trimestre, por ano — não tinha efeito nenhum sobre ela. Agora a data aparece como data, e cortada no período que foi pedido.

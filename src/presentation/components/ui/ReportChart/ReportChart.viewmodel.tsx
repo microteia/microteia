@@ -5,7 +5,7 @@ import { useReportGroupLabels } from '../../../shared/report/useReportGroupLabel
 import { columnLabel, shownMeasures } from '../../../shared/report/reportFormatting';
 import { reportCellKey } from '../../../../domain/schema/report/aggregateRows';
 import type { ChartSeries, DonutSlice } from '../Chart';
-import type { ReportResult } from '../../../../domain/schema/report/reportResult';
+import type { ReportResult, ReportRow } from '../../../../domain/schema/report/reportResult';
 import type { ReportSpec } from '../../../../domain/schema/report/reportSpec';
 
 export type ReportChartMark = 'bar' | 'column' | 'line' | 'area' | 'pie' | 'donut';
@@ -20,6 +20,10 @@ export interface ReportChartViewModel {
   height: number;
 }
 
+const NOTHING: ReportChartViewModel = {
+  mark: null, data: [], series: [], slices: [], stacked: false, height: 240,
+};
+
 /** A marca declarada, reduzida às três primitivas. Desconhecida não desenha — a tabela já mostra. */
 const primitiveOf = (kind: string): 'bar' | 'line' | 'donut' | null => {
   if (kind === 'bar' || kind === 'column') return 'bar';
@@ -29,10 +33,30 @@ const primitiveOf = (kind: string): 'bar' | 'line' | 'donut' | null => {
 };
 
 /**
+ * O NÍVEL de agrupamento que vira o eixo categórico, ou `null` para o mais interno.
+ *
+ * A categoria declarada era lida na validação e ignorada no desenho: quem escolhia agrupar o gráfico
+ * pelo primeiro nível de dois via o segundo, e nada na tela dizia que a escolha não valeu.
+ */
+const categoryDepth = (spec: ReportSpec, category: string | undefined): number | null => {
+  if (spec.shape.kind !== 'summary' || category === undefined) return null;
+  const depth = spec.shape.groupBy.findIndex((level) => level.dimension === category);
+  return depth >= 0 ? depth : null;
+};
+
+/** As linhas que viram ponto: as do nível pedido, ou as folhas quando nenhum foi pedido. */
+const pointRows = (rows: ReportRow[], depth: number | null): ReportRow[] =>
+  rows.filter((row) => (depth === null ? row.subtotal !== true : row.level === depth));
+
+/**
  * Traduz o gráfico DECLARADO nas séries que as primitivas esperam.
  *
  * As primitivas não sabem o que desenham: recebem linhas prontas com rótulo e cor. A cor sai da
  * paleta do tema, na ordem — nunca de um hex dentro do pacote, que não sobreviveria à troca de tema.
+ *
+ * Sem ponto ou sem série, a marca volta `null` e a moldura não é desenhada. Um retângulo vazio ao
+ * lado de uma tabela cheia é a pior resposta possível: parece defeito do produto, e não diz que o
+ * relatório é uma lista simples — que não agrupa, e por isso não tem o que plotar.
  */
 export const useReportChartViewModel = (
   spec: ReportSpec,
@@ -47,9 +71,7 @@ export const useReportChartViewModel = (
     const mark = chart ? primitiveOf(chart.kind) : null;
     const palette = theme.tagColors;
 
-    if (!chart || !mark || !result) {
-      return { mark: null, data: [], series: [], slices: [], stacked: false, height: 240 };
-    }
+    if (!chart || !mark || !result) return NOTHING;
 
     const measures = shownMeasures(spec)
       .filter((measure) => !chart.series || chart.series.includes(measure.key));
@@ -60,14 +82,13 @@ export const useReportChartViewModel = (
       color: palette[index % palette.length].value,
     }));
 
-    // No pivô, cada coluna é um ponto do eixo; na dobra agrupada, cada linha é.
+    // No pivô, cada coluna é um ponto do eixo; na dobra agrupada, cada linha do nível escolhido é.
     const points = spec.shape.kind === 'matrix'
       ? result.columns.map((path) => ({
           name: path.map((entry) => groupLabel(entry)).join(' / '),
           values: result.columnTotals?.[reportCellKey(path)] ?? {},
         }))
-      : result.rows
-        .filter((row) => row.subtotal !== true)
+      : pointRows(result.rows, categoryDepth(spec, chart.category))
         .map((row) => ({
           name: groupLabel(row.keys[row.keys.length - 1]),
           values: row.values,
@@ -87,6 +108,10 @@ export const useReportChartViewModel = (
           color: palette[index % palette.length].value,
         }))
       : [];
+
+    if (mark === 'donut' ? slices.length === 0 : data.length === 0 || series.length === 0) {
+      return NOTHING;
+    }
 
     return {
       mark,

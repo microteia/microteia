@@ -10,6 +10,8 @@ export const CORE_REPORTS: Record<string, string> = {
     'O gráfico se refere a "{key}", que o relatório não declara. O gráfico foi deixado de fora.',
   'chart.line': 'Linha',
   'chart.pie': 'Pizza',
+  'chart.shape.tabular':
+    'A lista simples não agrupa, então o gráfico não tem o que desenhar. Mostre este relatório como agrupado ou cruzado para desenhá-lo.',
   'command.group': 'Relatórios',
   'csv.partial': 'Resultado parcial: {scanned} registros cobertos, e pode haver mais.',
   'dataset.kind.unsupported':

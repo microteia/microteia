@@ -42,11 +42,11 @@ const anySubtotal = (levels: ReportGroupLevel[]): boolean =>
  * lhe falta, em vez de somar sem ele e devolver um número diferente com o mesmo rótulo.
  *
  * O mesmo vale para a propriedade que o contrato PREVÊ e este kernel ainda não lê — `shape.limit`,
- * `presentation.fields`, o alvo do detalhamento, o controle/obrigatoriedade/semente de um filtro e a
- * ordenação por rótulo. Antes disso elas eram no-ops silenciosos: o autor declarava e nada acontecia,
- * sem uma palavra em lugar nenhum. Emitir o token põe cada uma no MESMO caminho de aviso que já
- * existia, e o dia em que uma delas for executada é o dia em que ela entra em `REPORT_CAPABILITIES` e
- * o aviso some sozinho.
+ * `presentation.fields`, a quebra do gráfico por uma segunda dimensão, o alvo do detalhamento, o
+ * controle/obrigatoriedade/semente de um filtro e a ordenação por rótulo. Antes disso elas eram
+ * no-ops silenciosos: o autor declarava e nada acontecia, sem uma palavra em lugar nenhum. Emitir o
+ * token põe cada uma no MESMO caminho de aviso que já existia, e o dia em que uma delas for
+ * executada é o dia em que ela entra em `REPORT_CAPABILITIES` e o aviso some sozinho.
  */
 export const deriveReportRequires = (spec: ReportSpec): string[] => {
   const required = new Set<string>();
@@ -80,6 +80,7 @@ export const deriveReportRequires = (spec: ReportSpec): string[] => {
   if ('limit' in spec.shape && spec.shape.limit !== undefined) required.add('shape.limit');
 
   if (spec.presentation?.chart) required.add('presentation.chart');
+  if (spec.presentation?.chart?.splitBy !== undefined) required.add('presentation.chart.split');
   if ((spec.presentation?.prompts ?? []).length > 0) required.add('presentation.prompt');
 
   for (const prompt of spec.presentation?.prompts ?? []) {

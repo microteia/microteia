@@ -239,6 +239,24 @@ describe('validateReportSpec — a coerência entre as camadas', () => {
     expect(errors(validateReportSpec(spec, ctx))).toContain('@core.reports/key.duplicated');
   });
 
+  it('avisa que a lista simples não tem o que o gráfico plote, sem derrubar o relatório', () => {
+    const spec: ReportSpec = {
+      ...valid,
+      shape: { kind: 'tabular', columns: ['situacao'] },
+      presentation: { chart: { kind: 'bar' } },
+    };
+    const issues = validateReportSpec(spec, ctx);
+
+    expect(warnings(issues)).toContain('@core.reports/chart.shape.tabular');
+    expect(hasBlockingReportIssue(issues)).toBe(false);
+  });
+
+  it('não avisa da dobra quando o relatório agrupa', () => {
+    const spec: ReportSpec = { ...valid, presentation: { chart: { kind: 'bar' } } };
+
+    expect(warnings(validateReportSpec(spec, ctx))).not.toContain('@core.reports/chart.shape.tabular');
+  });
+
   it('avisa quando o gráfico cita chave que não existe, sem derrubar o relatório', () => {
     const spec: ReportSpec = {
       ...valid,

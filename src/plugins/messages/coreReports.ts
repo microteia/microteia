@@ -18,6 +18,8 @@ export const CORE_REPORTS_MESSAGES: Record<string, string> = {
     'The chart refers to "{key}", which the report does not declare. The chart was left out.',
   'chart.line': 'Line',
   'chart.pie': 'Pie',
+  'chart.shape.tabular':
+    'A plain list does not group, so there is nothing for the chart to plot. Fold this report as grouped or crossed to draw it.',
   'command.group': 'Reports',
   'csv.partial': 'Partial result: {scanned} records covered, and there may be more.',
   'dataset.kind.unsupported':

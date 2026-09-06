@@ -18,6 +18,22 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.55.1] — 2026-09-06
+
+- fix(reports): the chart is drawn again. `ReportChart` read the grouped rows, but a `tabular` result
+  carries its data in `records` and always returns `rows: []` — so a chart on a plain list rendered an
+  empty frame beside a full table, with nothing on screen saying why. `validateReportSpec` now warns
+  on that pairing, through the warning path the report screen already renders.
+- fix(reports): `presentation.chart.category` stopped being read and ignored. The axis was always the
+  innermost grouping level, so picking the outer one of two changed nothing. Points now come from the
+  rows of the level the chart names — the same subtotal rows the backend already returns.
+- fix(reports): nothing to draw no longer draws a frame. No points, no series, or a mark this kernel
+  does not know now yields `mark: null`, which is what the degradation contract already promised: the
+  chart disappears and the table keeps showing the same data.
+- fix(reports): `presentation.chart.splitBy` was a silent no-op. `deriveReportRequires` now emits
+  `presentation.chart.split`, a token `REPORT_CAPABILITIES` does not hold, which puts it on the same
+  warning path as every other property the contract foresees and this kernel does not yet execute.
+
 #### [9.55.0] — 2026-09-06
 
 - fix(reports): `aggregateReportRows` emits `records` with dates as ISO text. A date field is stored as a Timestamp and read back as a `Date`, and the callable's response encoder turns a `Date` into `{}` — `Object.entries` of a date has no entry at all. The date column of a plain list reached the screen as `[object Object]`: the whole value lost in transit, with nothing on screen saying it was. It is done in the aggregation and not in the Cloud Function because the same pure function answers the executor and the authoring preview, and both cross the same wire.

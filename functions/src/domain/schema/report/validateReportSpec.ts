@@ -240,6 +240,16 @@ export const validateReportSpecShape = (
 
   const chart = spec.presentation?.chart;
   if (chart) {
+    // A lista simples não agrupa, e sem grupo não há ponto a desenhar: o gráfico saía uma moldura
+    // vazia ao lado de uma tabela cheia, e quem o configurou não tinha como saber por quê.
+    if (spec.shape.kind === 'tabular') {
+      issues.push({
+        field: 'presentation.chart',
+        error: '@core.reports/chart.shape.tabular',
+        severity: 'warning',
+      });
+    }
+
     const citedKeys = [
       ...(chart.category ? [chart.category] : []),
       ...(chart.splitBy ? [chart.splitBy] : []),

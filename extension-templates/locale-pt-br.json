@@ -3,7 +3,7 @@
   "workflows": [],
   "manifest": {
     "id": "com.microteia.locale-pt-br",
-    "version": "1.48.0",
+    "version": "1.49.0",
     "kernel": "^2.0.0",
     "name": "Português (Brasil)",
     "description": "Tradução da Microteia para português do Brasil.",
@@ -1603,6 +1603,7 @@
             "chart.key.unknown": "O gráfico se refere a \"{key}\", que o relatório não declara. O gráfico foi deixado de fora.",
             "chart.line": "Linha",
             "chart.pie": "Pizza",
+            "chart.shape.tabular": "A lista simples não agrupa, então o gráfico não tem o que desenhar. Mostre este relatório como agrupado ou cruzado para desenhá-lo.",
             "command.group": "Relatórios",
             "csv.partial": "Resultado parcial: {scanned} registros cobertos, e pode haver mais.",
             "dataset.kind.unsupported": "Este relatório busca as linhas de um jeito que esta versão não faz ({kind}), então não pode ser executado aqui.",
