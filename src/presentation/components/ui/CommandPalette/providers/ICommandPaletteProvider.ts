@@ -19,6 +19,23 @@ export interface CommandPaletteItem {
   keywords?: string[];
 }
 
+/**
+ * Um relatório como a paleta o vê.
+ *
+ * `collections` vem PRONTO, e é o ponto: derivá-lo aqui exigiria o esquema do escritório dentro de
+ * um provedor, que é função pura chamada a cada tecla. Quem tem o esquema resolve antes.
+ */
+export interface CommandPaletteReport {
+  key: string;
+  /** REFERÊNCIA de mensagem ou o texto do escritório — quem exibe resolve. */
+  title: string;
+  /** O cadastro que o relatório cobre, mostrado como subtítulo. */
+  covers: string;
+  /** Toda coleção que ele toca, inclusive as alcançadas por referência. */
+  collections: string[];
+  enabled?: boolean;
+}
+
 export interface CommandPaletteAppContext {
   openTab: (key: string) => void;
   close: () => void;
@@ -28,6 +45,7 @@ export interface CommandPaletteAppContext {
   records: EntityRecord[];
   screenDefinitions: ScreenDefinition[];
   workflows: WorkflowDefinition[];
+  reports: CommandPaletteReport[];
   /** O tema EM VIGOR e a lista de instalados — a paleta não conhece nome de tema nenhum. */
   themeId: string;
   themes: ThemeOption[];

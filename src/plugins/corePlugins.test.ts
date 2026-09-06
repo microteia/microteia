@@ -35,7 +35,8 @@ const PAGE_KEYS_ANTES_DA_MIGRACAO = [
   'view-dyn:', 'view-script:', 'view-workflow:',
   'workflows',
   // Adicionadas depois da migração (a lista é o guarda de "nenhuma tela some", não um congelamento):
-  'marketplace', 'plugin-author', 'plugin-author:', 'settings', 'translations',
+  'marketplace', 'plugin-author', 'plugin-author:', 'rep:', 'report-design', 'report-design:',
+  'reports', 'settings', 'translations',
   'license',
 ].sort();
 
@@ -111,7 +112,7 @@ describe('core plugins — paridade com o registro anterior', () => {
     const items = visibleNavItems(host.contributions.query(UI_NAV_POINT), () => true);
 
     expect(items.map((item) => item.key)).toEqual([
-      'tenant-settings', 'settings', 'translations', 'audit-logs',
+      'reports', 'tenant-settings', 'settings', 'translations', 'audit-logs',
     ]);
   });
 
@@ -131,6 +132,10 @@ describe('core plugins — resolução de aba', () => {
     ['view-dyn:minha-tela:reg1', 'ViewDynamicRecordView'],
     ['tenant-settings', 'TenantSettingsView'],
     ['tenant-settings:membros', 'TenantSettingsView'],
+    ['reports', 'ReportsView'],
+    ['rep:faturamento', 'ViewReportView'],
+    ['report-design', 'ReportDesignView'],
+    ['report-design:faturamento', 'ReportDesignView'],
   ])('resolve "%s" para %s', (tabKey, implKey) => {
     const contribution = resolvePageContribution(pages(), tabKey);
     expect(contribution?.impl).toMatchObject({ kind: 'code', key: implKey });
@@ -167,7 +172,7 @@ describe('core plugins — remoção limpa (critério de aceite da Etapa 2)', ()
     const pages = host.contributions.query(UI_PAGE_POINT);
 
     expect(resolvePageContribution(pages, 'audit-logs')).toBeDefined();
-    expect(host.contributions.query(UI_NAV_POINT).length).toBe(4);
+    expect(host.contributions.query(UI_NAV_POINT).length).toBe(5);
   });
 
   it('remover core.ui derruba todos os módulos de UI, porque ninguém declara os pontos', () => {
@@ -176,6 +181,10 @@ describe('core plugins — remoção limpa (critério de aceite da Etapa 2)', ()
     // Sobrevivem os que declaram os PRÓPRIOS pontos e não dependem de core.ui: o controle de acesso,
     // os dados e a entrada no sistema. É a lista de quem não é interface — a tela de entrada é
     // desenhada pela interface, mas o ponto que declara COMO se entra não depende dela.
+    //
+    // `core.reports` NÃO está aqui, e é correto que não esteja: o ponto `report.definition` é dele,
+    // mas ele também contribui o menu e as abas onde o relatório aparece. Um relatório que não tem
+    // onde ser mostrado não é meio relatório — é nenhum.
     expect(result.loaded).toEqual(['core.access', 'core.auth', 'core.data']);
     expect(host.contributions.query(UI_PAGE_POINT)).toEqual([]);
     // A cascata tem DOIS níveis desde que core.license passou a depender de core.i18n: quem depende

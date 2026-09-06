@@ -4,8 +4,8 @@
  * browser**: nada de `dangerouslySetInnerHTML`, `eval` ou estilo arbitrário; cada nó vira um
  * componente do próprio Microteia, com cor só via tema.
  *
- * v1 é estática (sem ligação a dados nem expressões) — suficiente para telas descritivas. Ligação a
- * dados (`source: query:/script:/field:`) é o próximo incremento.
+ * A ligação a dados chegou pelo nó `report`, que nomeia um relatório do catálogo. `when` por
+ * expressão continua pendente.
  */
 export type WidgetSpec =
   | { type: 'stack'; gap?: 'sm' | 'md' | 'lg'; children: WidgetSpec[] }
@@ -16,12 +16,22 @@ export type WidgetSpec =
   | { type: 'metric'; label: string; value: string }
   | { type: 'keyValue'; items: { label: string; value: string }[] }
   | { type: 'banner'; message: string; variant?: 'info' | 'warning' }
-  | { type: 'divider' };
+  | { type: 'divider' }
+  /**
+   * UM RELATÓRIO, pelo nome.
+   *
+   * É a ligação a dados que o v1 não tinha — e ela é INDIRETA de propósito. Inlinar uma consulta
+   * aqui poria semântica de agregação, permissão e teto de varredura dentro de um DSL de layout, e
+   * criaria um segundo lugar onde declarar o que um número significa. Nomear o relatório dá o mesmo
+   * poder com um nó, e não fecha a porta para um `source:` inline depois.
+   */
+  | { type: 'report'; report: string };
 
 export type WidgetNodeType = WidgetSpec['type'];
 
 export const WIDGET_NODE_TYPES: readonly WidgetNodeType[] = [
   'stack', 'grid', 'heading', 'text', 'markdown', 'metric', 'keyValue', 'banner', 'divider',
+  'report',
 ] as const;
 
 const isPlainObject = (value: unknown): value is Record<string, unknown> =>

@@ -50,6 +50,16 @@ const PUBLISHED = [
   'validateBackendRequirement', 'validateContribution', 'validateExtensionPoint',
   'validateMigrations', 'validatePackage', 'validatePermissions', 'validatePluginManifest',
   'validatePluginPackage', 'widgetChildren', 'widgetPage', 'mergeViewSources',
+  // RELATÓRIOS. Sai no barril inteiro porque o autor escreve o `ReportSpec` à mão e precisa do
+  // vocabulário fechado (as dobras, os baldes, as marcas de gráfico) e do validador — o mesmo que o
+  // portão do pacote roda. MOVE o `KERNEL_VERSION`: um ponto de extensão novo e um artefato novo no
+  // `.json` são forma nova de pacote instalado, e um kernel antigo não os entende.
+  'KERNEL_EXTENSION_POINTS', 'REPORT_API_VERSION', 'REPORT_CAPABILITIES', 'REPORT_CHART_KINDS',
+  'REPORT_DATASET_KINDS', 'REPORT_DEFINITION_POINT', 'REPORT_EXTENSION_POINTS',
+  'REPORT_GRANULARITIES', 'REPORT_SHAPE_KINDS', 'REPORT_SPEC_VERSION', 'deriveReportRequires',
+  'hasBlockingReportIssue', 'reportContribution', 'reportOf', 'reportPaths',
+  'reportSourceCollections', 'unsupportedReportCapabilities', 'validateReportSpec',
+  'validateReportSpecShape',
   // A camada de MODELO DE DOMÍNIO. Sai no barril para que a regra crítica possa ser cobrada no
   // `npm test` do diretório de autoria, e não só no diálogo com o agente. NÃO move o
   // `KERNEL_VERSION`: um modelo de domínio nunca viaja no `.json` instalado — é vocabulário de
@@ -92,6 +102,14 @@ const PUBLISHED = [
  * `plugin.ts` de quem já escreveu contra ele.
  */
 const PUBLISHED_TYPES = [
+  'ReportAccess', 'ReportAggregateMeasure', 'ReportChart', 'ReportChartKind',
+  'ReportComputedMeasure', 'ReportContributionMetadata', 'ReportDataset', 'ReportDatasetKind',
+  'ReportDefinition', 'ReportDimension', 'ReportFieldPresentation', 'ReportGranularity',
+  'ReportGroupKey', 'ReportGroupLevel', 'ReportMatrixShape', 'ReportMeasure',
+  'ReportModuleTemplate', 'ReportPresentation', 'ReportPrompt', 'ReportResult', 'ReportRow',
+  'ReportSchedule', 'ReportShape', 'ReportShapeKind', 'ReportSpec', 'ReportSpecIssue',
+  'ReportSummaryShape', 'ReportTabularShape', 'ReportTotals', 'ReportValidationContext',
+  'ReportValueFormat',
   'AuthProviderFlow', 'AuthProviderKind', 'AuthProviderMetadata', 'AuthProviderSpec',
   'AccessPermission', 'AccessRequirement', 'CatalogPermission', 'CrudAction', 'DeclaredPermission', 'DeclaredRequirement', 'ParsedAccessPermission', 'PermissionCatalog', 'PermissionResource', 'ResolvedPermissions', 'ResourceLabel',
   'ActionDefinition', 'ActionLocalCommand', 'ActionModuleTemplate', 'ActionOutcome', 'AggregationOp',

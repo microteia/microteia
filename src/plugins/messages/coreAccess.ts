@@ -64,6 +64,9 @@ export const CORE_ACCESS_MESSAGES: Record<string, string> = {
   'permission.members.manage': 'Manage members',
   'permission.members.manage.description':
     'Add and remove people from the organization, and choose the access profiles of each one.',
+  'permission.reports.manage': 'Manage reports',
+  'permission.reports.manage.description':
+    'Create, edit and remove the reports of the organization. Reading each collection a report covers is still required to run it.',
   'permission.roles.manage': 'Manage access profiles',
   'permission.roles.manage.description':
     'Create, edit and delete access profiles, and choose which permissions each one grants.',
@@ -93,6 +96,7 @@ export const CORE_ACCESS_MESSAGES: Record<string, string> = {
   'resource.document-types': 'Document types',
   'resource.extensions': 'Extensions',
   'resource.members': 'Members',
+  'resource.reports': 'Reports',
   'resource.roles': 'Access profiles',
   'resource.screens': 'Screens',
   'resource.settings': 'Settings',

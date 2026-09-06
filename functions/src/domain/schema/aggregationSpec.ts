@@ -112,11 +112,18 @@ const toNumber = (value: unknown): number | null => {
  * Aplica a operação sobre os valores já extraídos. `count` conta registros; as demais ignoram os
  * valores não numéricos. Sem nenhum valor válido: `sum`/`count` devolvem 0 (agregado vazio é zero),
  * `avg`/`min`/`max` devolvem null (não existe média de nada).
+ *
+ * Um valor que É uma lista entra pelos ITENS dele. O caminho que atravessa uma referência de vários
+ * colhe um número por apontado, e `Number([10, 20])` não é 30: é `NaN`, que sairia na filtragem e
+ * devolveria uma soma de zero com a mesma cara de um total legítimo.
  */
 export const applyAggregationOp = (op: AggregationOp, values: unknown[]): number | null => {
   if (op === 'count') return values.length;
 
-  const numbers = values.map(toNumber).filter((value): value is number => value !== null);
+  const numbers = values
+    .flatMap((value) => (Array.isArray(value) ? value : [value]))
+    .map(toNumber)
+    .filter((value): value is number => value !== null);
   if (numbers.length === 0) return op === 'sum' ? 0 : null;
 
   switch (op) {

@@ -34,6 +34,10 @@ export interface QuerySpec {
   projections: string[];
 }
 
+/** Todos os operadores, para quem precisa VALIDAR um operador declarado em vez de executá-lo. */
+export const QUERY_OPERATORS: readonly QueryOperator[] =
+  ['eq', 'neq', 'lt', 'lte', 'gt', 'gte', 'in', 'contains', 'exists'];
+
 export const QUERY_OPERATORS_WITHOUT_VALUE: QueryOperator[] = ['exists'];
 
 export const LOOKUP_QUERY_FIELDS: NativeFieldSpec[] = [
@@ -69,45 +73,63 @@ export interface QuerySpecIssue {
   errorParams?: Record<string, string>;
 }
 
-export const validateQuerySpec = (spec: QuerySpec, ctx: SchemaContext): QuerySpecIssue[] => {
-  const issues: QuerySpecIssue[] = [];
+/**
+ * Confere UM caminho contra o esquema.
+ *
+ * Extraído para que o relatório cobre exatamente o que a automação cobra. Duas cópias divergiriam na
+ * primeira operação nova, e a divergência apareceria como "o fluxo recusa, o relatório aceita" — a
+ * pior forma de descobrir que existem duas verdades sobre o mesmo caminho.
+ */
+export const checkQueryPath = (
+  ctx: SchemaContext,
+  root: PathRoot,
+  path: string,
+  field: string,
+): QuerySpecIssue[] => {
+  if (!path.trim()) return [{ field, error: '@core.automation/query.path.missing' }];
 
+  const resolution = resolvePath(ctx, root, parsePath(path));
+  if (resolution.valid) return [];
+
+  return [
+    resolution.error
+      ? { field, error: resolution.error, errorParams: resolution.errorParams }
+      : { field, error: '@core.automation/mutation.path.invalid', errorParams: { path } },
+  ];
+};
+
+/** O mesmo para uma lista de predicados: caminho que resolve e, quando o operador exige, valor presente. */
+export const checkQueryPredicates = (
+  ctx: SchemaContext,
+  root: PathRoot,
+  predicates: QueryPredicate[],
+  prefix: string,
+): QuerySpecIssue[] =>
+  predicates.flatMap((predicate, index) => {
+    const issues: QuerySpecIssue[] = checkQueryPath(ctx, root, predicate.path, `${prefix}[${index}].path`);
+    if (!QUERY_OPERATORS_WITHOUT_VALUE.includes(predicate.op) && !predicate.value) {
+      issues.push({ field: `${prefix}[${index}].value`, error: '@core.automation/query.filter-value.missing' });
+    }
+    return issues;
+  });
+
+export const validateQuerySpec = (spec: QuerySpec, ctx: SchemaContext): QuerySpecIssue[] => {
   const resolved = resolveQueryTable(spec.table, ctx);
   if (!resolved) {
-    issues.push({
+    return [{
       field: 'table',
       error: '@core.automation/mutation.table.unknown',
       errorParams: { table: spec.table },
-    });
-    return issues;
+    }];
   }
 
-  const checkPath = (path: string, field: string): void => {
-    if (!path.trim()) {
-      issues.push({ field, error: '@core.automation/query.path.missing' });
-      return;
-    }
-    const resolution = resolvePath(ctx, resolved.root, parsePath(path));
-    if (!resolution.valid) {
-      issues.push(
-        resolution.error
-          ? { field, error: resolution.error, errorParams: resolution.errorParams }
-          : { field, error: '@core.automation/mutation.path.invalid', errorParams: { path } },
-      );
-    }
-  };
-
-  spec.where.forEach((predicate, index) => {
-    checkPath(predicate.path, `where[${index}].path`);
-    if (!QUERY_OPERATORS_WITHOUT_VALUE.includes(predicate.op) && !predicate.value) {
-      issues.push({
-        field: `where[${index}].value`,
-        error: '@core.automation/query.filter-value.missing',
-      });
-    }
-  });
-  spec.orderBy?.forEach((order, index) => checkPath(order.path, `orderBy[${index}].path`));
-  spec.projections.forEach((path, index) => checkPath(path, `projections[${index}]`));
+  const issues: QuerySpecIssue[] = [
+    ...checkQueryPredicates(ctx, resolved.root, spec.where, 'where'),
+    ...(spec.orderBy ?? []).flatMap((order, index) =>
+      checkQueryPath(ctx, resolved.root, order.path, `orderBy[${index}].path`)),
+    ...spec.projections.flatMap((path, index) =>
+      checkQueryPath(ctx, resolved.root, path, `projections[${index}]`)),
+  ];
 
   if (!Number.isFinite(spec.limit) || spec.limit <= 0) {
     issues.push({ field: 'limit', error: '@core.automation/query.limit.invalid' });

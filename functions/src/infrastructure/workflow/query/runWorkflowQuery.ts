@@ -4,15 +4,34 @@ import type { IWorkflowRecordFetcher } from '../../../domain/repositories/IWorkf
 import type { IScreenDefinitionProvider } from '../../../domain/repositories/IScreenDefinitionProvider';
 import { resolveMapping } from '../../../domain/engine/InputMapping';
 import { getValueAtPath, parsePath, resolvePath } from '../../../domain/schema/pathResolver';
-import type { PathRoot, SchemaContext } from '../../../domain/schema/pathResolver';
+import type { PathResolution, PathRoot, SchemaContext } from '../../../domain/schema/pathResolver';
 import { buildHydrationPlan } from '../../../domain/schema/hydrationPlan';
 import { collectHopRecordRefs, materializeHops, recordKey } from '../../../domain/schema/materialize';
 import type { QueryOrderBy, QueryPredicate, QuerySpec } from '../../../domain/schema/querySpec';
 import { resolveQueryTable, validateQuerySpec } from '../../../domain/schema/querySpec';
 import { applyDerivedFields, collectDerivedFieldKeys } from '../../../domain/schema/recordRules';
+import { compareValues, evaluateResolvedPredicate } from '../../../domain/schema/predicateMatch';
+import type { ResolvedPredicate as SharedResolvedPredicate } from '../../../domain/schema/predicateMatch';
 
 const MAX_SCAN = 300;
 const MAX_QUERY_LIMIT = 100;
+
+/**
+ * Os tetos da consulta, fornecidos por quem chama.
+ *
+ * Eram constantes fixas, e continuam sendo o PADRÃO — o caminho do workflow não muda uma linha. O
+ * relatório precisa varrer mais que 300 para que um total seja um total, e a estratégia índice-free
+ * é preservada: o que muda é quantos documentos a varredura traz, nunca como ela é montada.
+ */
+export interface WorkflowQueryLimits {
+  maxScan: number;
+  maxResults: number;
+}
+
+export const DEFAULT_WORKFLOW_QUERY_LIMITS: WorkflowQueryLimits = {
+  maxScan: MAX_SCAN,
+  maxResults: MAX_QUERY_LIMIT,
+};
 
 export interface WorkflowQueryDeps {
   queryRepository: IWorkflowQueryRepository;
@@ -24,6 +43,17 @@ export interface WorkflowQueryResult {
   count: number;
   results: Record<string, unknown>[];
   first: Record<string, unknown> | null;
+  /** Quantos documentos a varredura trouxe. */
+  scanned: number;
+  /**
+   * A varredura NÃO bateu no teto — ou seja, ela viu a coleção inteira que os filtros de igualdade
+   * delimitam.
+   *
+   * Enquadrado no positivo de propósito: o padrão de um campo esquecido não pode ser "está tudo
+   * bem". Isto conserta um defeito latente que já atingia o passo "Buscar Registros": um fluxo que
+   * consulta 5000 registros vê 300 e não tinha como saber.
+   */
+  complete: boolean;
 }
 
 export type WorkflowQueryOutcome =
@@ -35,87 +65,54 @@ interface ResolvedPredicate extends QueryPredicate {
   resolvedValue: unknown;
 }
 
-const toMillis = (value: unknown): number | undefined => {
-  if (value instanceof Date) return value.getTime();
-  if (typeof value === 'string') {
-    const parsed = Date.parse(value);
-    return Number.isNaN(parsed) ? undefined : parsed;
-  }
-  return undefined;
-};
-
-const looseEquals = (a: unknown, b: unknown): boolean => {
-  if (a instanceof Date || b instanceof Date) {
-    const am = toMillis(a);
-    const bm = toMillis(b);
-    return am !== undefined && am === bm;
-  }
-  if (typeof a === 'number' && typeof b === 'string') return a === Number(b);
-  if (typeof a === 'string' && typeof b === 'number') return Number(a) === b;
-  return a === b;
-};
-
-const compare = (a: unknown, b: unknown): number | undefined => {
-  const am = a instanceof Date ? a.getTime() : a;
-  const bm = b instanceof Date ? b.getTime() : b;
-  if (typeof am === 'number' || typeof bm === 'number') {
-    const an = typeof am === 'number' ? am : Number(am);
-    const bn = typeof bm === 'number' ? bm : Number(bm);
-    if (Number.isNaN(an) || Number.isNaN(bn)) return undefined;
-    return an - bn;
-  }
-  if (typeof am === 'string' && typeof bm === 'string') return am.localeCompare(bm);
-  return undefined;
-};
-
-const evaluatePredicate = (record: Record<string, unknown>, predicate: ResolvedPredicate): boolean => {
-  const actual = getValueAtPath(record, parsePath(predicate.path));
-  const expected = predicate.resolvedValue;
-
-  switch (predicate.op) {
-    case 'eq':
-      return looseEquals(actual, expected);
-    case 'neq':
-      return !looseEquals(actual, expected);
-    case 'lt': {
-      const c = compare(actual, expected);
-      return c !== undefined && c < 0;
-    }
-    case 'lte': {
-      const c = compare(actual, expected);
-      return c !== undefined && c <= 0;
-    }
-    case 'gt': {
-      const c = compare(actual, expected);
-      return c !== undefined && c > 0;
-    }
-    case 'gte': {
-      const c = compare(actual, expected);
-      return c !== undefined && c >= 0;
-    }
-    case 'in':
-      return Array.isArray(expected) && expected.some((item) => looseEquals(actual, item));
-    case 'contains':
-      if (Array.isArray(actual)) return actual.some((item) => looseEquals(item, expected));
-      if (typeof actual === 'string' && typeof expected === 'string') return actual.includes(expected);
-      return false;
-    case 'exists':
-      return actual !== undefined && actual !== null;
-    default:
-      return false;
-  }
-};
+/** O predicado local no formato do avaliador COMPARTILHADO, que é o mesmo do relatório. */
+const asShared = (predicate: ResolvedPredicate): SharedResolvedPredicate =>
+  ({ path: predicate.path, op: predicate.op, value: predicate.resolvedValue });
 
 const applyOrdering = (records: Record<string, unknown>[], orderBy: QueryOrderBy[]): Record<string, unknown>[] =>
   [...records].sort((left, right) => {
     for (const order of orderBy) {
       const lv = getValueAtPath(left, parsePath(order.path));
       const rv = getValueAtPath(right, parsePath(order.path));
-      const c = compare(lv, rv) ?? 0;
+      const c = compareValues(lv, rv) ?? 0;
       if (c !== 0) return order.dir === 'desc' ? -c : c;
     }
     return 0;
   });
+
+/**
+ * O caminho como um campo DO DOCUMENTO, ou `null` quando o banco não pode responder por ele.
+ *
+ * É aqui que a consulta decide, a partir do esquema, o que ela pergunta ao Firestore e o que ela
+ * filtra em memória — e a divisão é sempre a mesma, seja quem chamar: o relatório, o passo de
+ * automação ou o Script.
+ *
+ * Só IGUALDADE desce, e é de propósito: uma conjunção de igualdades é servida pela junção dos
+ * índices de campo único, que toda coleção ganha de graça. Coleção de tenant nasce em tempo de
+ * execução, e nenhum índice composto pode ser declarado para ela — um `in` ou um `array-contains`
+ * ao lado de outro filtro faria a consulta FALHAR pedindo um índice que ninguém tem como criar.
+ * Filtrar em memória custa varredura; pedir um índice inexistente custa o relatório inteiro.
+ *
+ * A referência TERMINAL é um campo do documento como outro qualquer — o documento guarda o id, e é
+ * a hidratação, depois e em memória, que põe o registro apontado no lugar dele. Tratá-la como
+ * caminho profundo mandava para a memória, e para dentro do teto de varredura, uma pergunta que o
+ * banco responde sozinho. Quando ela é navegada pelo nome do apontado (`cliente` para `clienteId`),
+ * quem desce é a chave que o documento realmente guarda.
+ *
+ * Ficam fora, e vão para a memória: o caminho que ENTRA na coleção apontada (`cliente.cidade`), a
+ * referência de vários e o campo de lista — ali `==` compara a lista inteira, e a pergunta de um
+ * filtro é de pertinência.
+ */
+const documentFieldPath = (resolution: PathResolution, path: string): string | null => {
+  if (resolution.hops.length === 0) {
+    const isList = resolution.node.kind === 'scalar' && resolution.node.type === 'stringArray';
+    return isList ? null : path;
+  }
+  if (resolution.hops.length > 1) return null;
+
+  const hop = resolution.hops[0];
+  return hop.materializeAt === path && !hop.multi ? hop.atPath : null;
+};
 
 const materializeRecords = async (
   rows: WorkflowQueryRow[],
@@ -162,6 +159,7 @@ export async function runWorkflowQuery(
   spec: QuerySpec,
   context: WorkflowContext,
   deps: WorkflowQueryDeps,
+  limits: WorkflowQueryLimits = DEFAULT_WORKFLOW_QUERY_LIMITS,
 ): Promise<WorkflowQueryOutcome> {
   const tenantId = context.execution.tenantId;
   const ctx = await deps.screenProvider.getSchemaContext(tenantId);
@@ -199,20 +197,20 @@ export async function runWorkflowQuery(
   const equalityFilters: WorkflowEqualityFilter[] = [];
   const memoryPredicates: ResolvedPredicate[] = [];
   for (const predicate of predicates) {
-    const isDeep = resolvePath(ctx, resolved.root, parsePath(predicate.path)).hops.length > 0;
-    if (
+    const resolution = resolvePath(ctx, resolved.root, parsePath(predicate.path));
+    const atPath =
       predicate.op === 'eq' &&
       predicate.resolvedValue !== undefined &&
-      !isDeep &&
+      !Array.isArray(predicate.resolvedValue) &&
       !isDerivedPath(predicate.path)
-    ) {
-      equalityFilters.push({ path: predicate.path, value: predicate.resolvedValue });
-    } else {
-      memoryPredicates.push(predicate);
-    }
+        ? documentFieldPath(resolution, predicate.path)
+        : null;
+
+    if (atPath !== null) equalityFilters.push({ path: atPath, value: predicate.resolvedValue });
+    else memoryPredicates.push(predicate);
   }
 
-  const rows = await deps.queryRepository.queryByEquality(tenantId, resolved.physicalCollection, equalityFilters, MAX_SCAN);
+  const rows = await deps.queryRepository.queryByEquality(tenantId, resolved.physicalCollection, equalityFilters, limits.maxScan);
 
   const pathsToHydrate = [
     ...new Set([
@@ -233,12 +231,12 @@ export async function runWorkflowQuery(
       : hydrated.map((record) => applyDerivedFields(ctx, spec.table, record, at));
 
   let results = materialized.filter((record) =>
-    memoryPredicates.every((predicate) => evaluatePredicate(record, predicate)),
+    memoryPredicates.every((predicate) => evaluateResolvedPredicate(record, asShared(predicate))),
   );
   if (spec.orderBy && spec.orderBy.length > 0) {
     results = applyOrdering(results, spec.orderBy);
   }
-  const limited = results.slice(0, Math.min(spec.limit, MAX_QUERY_LIMIT));
+  const limited = results.slice(0, Math.min(spec.limit, limits.maxResults));
 
   return {
     ok: true,
@@ -246,6 +244,8 @@ export async function runWorkflowQuery(
       results: limited,
       count: limited.length,
       first: limited[0] ?? null,
+      scanned: rows.length,
+      complete: rows.length < limits.maxScan,
     },
   };
 }

@@ -199,6 +199,23 @@ describe('o servidor MCP de autoria', () => {
     expect(answer).toContain('lookupCollection');
   });
 
+  /**
+   * O REEXPORTE não pode ser a resposta.
+   *
+   * `ReportModuleTemplate` mora em `Report.d.ts` e `MarketplacePlugin.d.ts` o reexporta; a varredura
+   * alcançava o reexporte primeiro e devolvia `= ReportModuleTemplateType` — um apelido para um
+   * símbolo que o barril não publica, e portanto sem expansão nenhuma possível. Quem ia declarar um
+   * relatório no pacote ficava sem saber que ele pede `templateId`, `key`, `title` e `origin`.
+   */
+  it('atravessa o reexporte e devolve a declaração que tem forma', () => {
+    const answer = runMcpTool('describe_sdk_type', { name: 'ReportModuleTemplate' }, ROOT);
+
+    expect(answer).not.toContain('= ReportModuleTemplateType;');
+    expect(answer).toContain("templateId: string");
+    expect(answer).toContain('export interface ReportDefinition');
+    expect(answer).toContain('spec: ReportSpec');
+  });
+
   it('lista a superfície publicada quando não se diz o nome', () => {
     const answer = runMcpTool('describe_sdk_type', {}, ROOT);
     expect(answer).toContain('- AuthoredPlugin');
@@ -505,6 +522,22 @@ describe('o servidor MCP de autoria', () => {
      * que a plataforma sabe fazer, e ela envelhece sozinha: no dia em que um armazenamento novo entra
      * em `STORAGE_MECHANISMS`, a cópia em prosa fica incompleta sem reprovar em nada.
      */
+    /**
+     * O relatório chega DISFARÇADO de regra: "quanto vendemos por mês" vem na mesma frase que a
+     * estrutura, e o modelo não tem campo que o diga. Sem esta linha, o gesto conduzia até as telas e
+     * a automação e deixava a pergunta ser traduzida numa tela — que é o defeito que ele existe para
+     * impedir, na única superfície em que ele não avisava.
+     */
+    it('nomeia o relatório entre o que o vocabulário não alcança, com a nota da cobertura', () => {
+      const text = readMcpPrompt('model_business_rule', { statement: 'x' });
+      const gap = coverageGaps()
+        .find((one) => one.surface === 'package-artifact' && one.id === 'reports');
+
+      expect(gap, 'o relatório saiu da cobertura — reveja o prompt').toBeDefined();
+      expect(text).toContain('The report is one of them');
+      expect(text).toContain('AUTHORING.md');
+    });
+
     it('as tabelas dele saem do kernel, nunca de uma cópia em prosa', () => {
       const text = readMcpPrompt('model_business_rule', { statement: 'x' });
       for (const mechanism of STORAGE_MECHANISMS) expect(text).toContain(`\`${mechanism.storage}\``);

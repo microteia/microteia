@@ -1,10 +1,6 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { KERNEL_EXTENSION_POINTS } from '../../domain/schema/extensionPoints';
 import { join, relative, resolve } from 'node:path';
-import { UI_EXTENSION_POINTS } from '../../domain/schema/ui/uiExtensionPoints';
-import { DATA_EXTENSION_POINTS } from '../../domain/schema/dataExtensionPoints';
-import { I18N_EXTENSION_POINTS } from '../../domain/schema/i18n/extensionPoints';
-import { THEME_EXTENSION_POINTS } from '../../domain/schema/theme/extensionPoints';
-import { ACCESS_EXTENSION_POINTS } from '../../domain/schema/access';
 import { KERNEL_VERSION } from '../../domain/schema/plugin/kernelVersion';
 import { THIRD_PARTY_IMPL_KINDS } from '../../domain/schema/plugin/extensionPoint';
 import type { MarketplacePlugin } from '../../domain/entities/MarketplacePlugin';
@@ -117,13 +113,7 @@ const COMPOSITE_INPUT_SHAPE: Record<string, string> = {
 };
 
 
-const ALL_POINTS = [
-  ...UI_EXTENSION_POINTS,
-  ...DATA_EXTENSION_POINTS,
-  ...I18N_EXTENSION_POINTS,
-  ...THEME_EXTENSION_POINTS,
-  ...ACCESS_EXTENSION_POINTS,
-];
+const ALL_POINTS = KERNEL_EXTENSION_POINTS;
 
 const describeIssues = (issues: ReturnType<typeof validatePluginPackage>): string =>
   issues.length === 0
@@ -370,7 +360,8 @@ const TOOLS: ToolDefinition[] = [
       + 'the shape a package must have for the platform to accept it. Ask for `AuthoredPlugin`, '
       + '`PluginManifest`, `ScreenModuleTemplate`, `TemplateField`, `FieldDefinition`, `WidgetSpec`, '
       + '`WorkflowDefinition`, `WorkflowStep`, `InputMapping`, `ActionDefinition`, `Script`, '
-      + '`PluginMigration`, `SettingsSection`, `QuerySpec`, or any other symbol the SDK publishes. '
+      + '`PluginMigration`, `SettingsSection`, `QuerySpec`, `ReportSpec`, or any other symbol the SDK '
+      + 'publishes. '
       + 'Call with no name to list the whole published surface. The declarations carry no comments — '
       + 'they are emitted stripped, so read AUTHORING.md for what each property MEANS.',
     inputSchema: {
@@ -742,9 +733,11 @@ const TOOLS: ToolDefinition[] = [
   {
     name: 'read_authoring_guide',
     description:
-      'The authoring manual for this platform: package anatomy, extension points, the curated API, '
-      + 'code trust, translation rules and size limits. Read it before writing an extension. Pass a '
-      + 'query to get only the matching sections.',
+      'The authoring manual for this platform: package anatomy, extension points, screens, '
+      + 'automation, reports, the curated API, code trust, translation rules and size limits. Read it '
+      + 'before writing an extension. Pass a query to get only the matching sections — '
+      + '"reports" is the section to read before declaring one, and it names what the author does '
+      + 'NOT control (permission per collection, the scan ceiling).',
     inputSchema: {
       type: 'object',
       properties: { query: { type: 'string', description: 'Optional: only sections matching this.' } },

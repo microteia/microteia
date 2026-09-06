@@ -489,3 +489,176 @@ describe('validatePackage — referência dentro de laço e de ramo', () => {
     expect(packageOutRefs(pkg).map((ref) => ref.id).sort()).toEqual(['a', 'b', 'c', 'd', 'e']);
   });
 });
+
+/**
+ * O relatório aponta para uma COLEÇÃO, e é a perna que o portão do pacote precisa cobrar: sem ela, o
+ * relatório viaja apontando para o que ninguém instala, e a falha aparece só no escritório do cliente
+ * — um relatório abrindo vazio, sem nada acusando por quê.
+ */
+describe('validatePackage — a coleção que o relatório cobre', () => {
+  const reportSpec = (table: string) => ({
+    v: 1,
+    dataset: {
+      table,
+      dimensions: [{ key: 'c', path: 'categoria' }],
+      measures: [{ key: 't', op: 'sum' as const, path: 'preco' }],
+    },
+    shape: { kind: 'summary' as const, groupBy: [{ dimension: 'c' }], values: ['t'] },
+  });
+
+  const withReport = (table: string, extra: Partial<MarketplacePlugin> = {}): MarketplacePlugin => ({
+    summary: 'S',
+    manifest: { id: 'com.acme.vendas', version: '1.0.0', kernel: '^2.0.0', name: 'V' },
+    workflows: [],
+    reports: [{
+      templateId: 'vendas',
+      key: 'vendas',
+      title: 'Vendas',
+      spec: reportSpec(table),
+      origin: 'plugin' as const,
+    }],
+    ...extra,
+  });
+
+  it('recusa o relatório sobre coleção que o pacote não leva nem declara', () => {
+    const issues = validatePackage(withReport('produtos'));
+
+    expect(issues.map((i) => i.message)).toEqual(['@core.marketplace/issue.ref.external']);
+    expect(issues[0].messageParams).toMatchObject({
+      origin: '@core.marketplace/ref.origin.report',
+      name: 'vendas',
+      id: 'produtos',
+    });
+  });
+
+  it('aceita quando o pacote LEVA a tela daquela coleção', () => {
+    const issues = validatePackage(withReport('produtos', {
+      screens: [{
+        key: 'produtos', titleSingular: 'Produto', titlePlural: 'Produtos', icon: 'apps',
+        titleFieldKey: 'nome',
+        fields: [{ key: 'nome', label: 'Nome', type: 'text', required: true, order: 0 }],
+      }],
+    }));
+
+    expect(issues).toEqual([]);
+  });
+
+  it('aceita quando uma DEPENDÊNCIA declara trazer a coleção', () => {
+    const issues = validatePackage(withReport('produtos', {
+      manifest: {
+        id: 'com.acme.vendas', version: '1.0.0', kernel: '^2.0.0', name: 'V',
+        dependencies: { 'com.acme.catalogo': { version: '^1.0.0', collections: ['produtos'] } },
+      },
+    }));
+
+    expect(issues).toEqual([]);
+  });
+});
+
+/**
+ * O relatório é conferido pela FORMA no empacotamento — a terceira porta do mesmo validador.
+ *
+ * Sem ela, um relatório que cita uma dimensão que ele não declara viaja no pacote e falha só no
+ * escritório do cliente: uma tela que não abre, sem nada dizendo por quê.
+ */
+describe('packageIssues — a forma do relatório', () => {
+  const withReport = (spec: unknown): MarketplacePlugin => ({
+    summary: 'S',
+    manifest: { id: 'com.acme.vendas', version: '1.0.0', kernel: '^2.0.0', name: 'V' },
+    workflows: [],
+    screens: [{
+      key: 'produtos', titleSingular: 'Produto', titlePlural: 'Produtos', icon: 'apps',
+      titleFieldKey: 'nome',
+      fields: [
+        { key: 'nome', label: 'Nome', type: 'text', required: true, order: 0 },
+        { key: 'preco', label: 'Preço', type: 'currency', required: false, order: 1 },
+      ],
+    }],
+    reports: [{
+      templateId: 'vendas', key: 'vendas', title: 'Vendas', origin: 'plugin' as const,
+      spec: spec as never,
+    }],
+  });
+
+  const valido = {
+    v: 1,
+    dataset: {
+      table: 'produtos',
+      dimensions: [{ key: 'nome', path: 'nome' }],
+      measures: [{ key: 'total', op: 'sum', path: 'preco' }],
+    },
+    shape: { kind: 'summary', groupBy: [{ dimension: 'nome' }], values: ['total'] },
+  };
+
+  it('aceita o relatório bem formado', () => {
+    expect(packageIssues(withReport(valido))).toEqual([]);
+  });
+
+  it('recusa a dobra que cita dimensão que o relatório não declara', () => {
+    const issues = packageIssues(withReport({
+      ...valido,
+      shape: { kind: 'summary', groupBy: [{ dimension: 'fantasma' }], values: ['total'] },
+    }));
+
+    expect(issues.map((i) => i.message)).toEqual(['@core.marketplace/issue.report.invalid']);
+    expect(issues[0].messageParams).toMatchObject({
+      name: 'vendas',
+      detail: '@core.reports/shape.dimension.unknown',
+    });
+  });
+
+  it('recusa operação de medida que este kernel não tem', () => {
+    const issues = packageIssues(withReport({
+      ...valido,
+      dataset: { ...valido.dataset, measures: [{ key: 'total', op: 'median', path: 'preco' }] },
+    }));
+
+    expect(issues.map((i) => i.messageParams?.detail))
+      .toContain('@core.reports/measure.op.unsupported');
+  });
+
+  it('NÃO recusa por aviso — uma dobra que o kernel degrada é um relatório que roda', () => {
+    // Recusar aqui contradiria a própria regra da degradação: `shape` desconhecida vira lista
+    // simples, com aviso, e o relatório continua correto.
+    expect(packageIssues(withReport({ ...valido, shape: { kind: 'funnel' } }))).toEqual([]);
+  });
+
+  it('recusa o `requires` escrito à MENOS — é o único jeito de escapar do portão de capacidade', () => {
+    // `unsupportedReportCapabilities` prefere o `requires` declarado à derivação. Um `requires`
+    // omisso fazia o kernel executar o relatório sem o recurso que lhe falta, em vez de recusá-lo
+    // pelo nome dele — e devolver outro número com o mesmo rótulo.
+    const issues = packageIssues(withReport({
+      ...valido,
+      dataset: {
+        ...valido.dataset,
+        measures: [{ key: 'ticket', kind: 'computed', expression: 'a / b' }],
+      },
+      requires: ['dataset.collection', 'shape.summary'],
+    }));
+
+    expect(issues.map((i) => i.message)).toContain('@core.marketplace/issue.report.requires');
+    expect(issues.find((i) => i.message === '@core.marketplace/issue.report.requires')?.messageParams)
+      .toMatchObject({ name: 'vendas', capability: 'measure.computed' });
+  });
+
+  it('aceita o `requires` que bate com a derivação, e o que traz token A MAIS', () => {
+    // Token a mais é o pacote escrito num SDK que deriva mais que este kernel. O caminho dele já
+    // existe, e é o kernel recusar o relatório pelo nome da capacidade que não tem.
+    expect(packageIssues(withReport({
+      ...valido,
+      requires: ['dataset.collection', 'measure.aggregate', 'shape.summary'],
+    }))).toEqual([]);
+
+    expect(packageIssues(withReport({
+      ...valido,
+      requires: ['dataset.collection', 'measure.aggregate', 'shape.summary', 'shape.sankey'],
+    }))).toEqual([]);
+  });
+
+  it('não estoura com relatório sem spec', () => {
+    const issues = packageIssues(withReport(undefined));
+
+    expect(() => packageIssues(withReport(undefined))).not.toThrow();
+    expect(issues.length).toBeGreaterThan(0);
+  });
+});

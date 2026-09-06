@@ -32,11 +32,16 @@ export interface FkHop {
   requiredFields?: string[];
 }
 
+/**
+ * `list` marca o que o caminho colheu de uma LISTA de registros — `activePoleIds.cpf` é um CPF por
+ * apontado. O tipo continua sendo o do campo: quem precisa do valor sabe lê-lo, e quem precisa saber
+ * que ele vem em vários (um balde de data, uma soma) pergunta por `list`.
+ */
 export type PathNode =
-  | { kind: 'scalar'; type: NativeFieldType; lookupCollection?: string }
+  | { kind: 'scalar'; type: NativeFieldType; lookupCollection?: string; list?: true }
   | { kind: 'entity'; collection: string }
   | { kind: 'entityList'; collection: string }
-  | { kind: 'object' }
+  | { kind: 'object'; list?: true }
   | { kind: 'unknown' };
 
 export interface PathResolution {
@@ -116,6 +121,23 @@ export const getValueAtPath = (obj: unknown, segments: PathSegment[]): unknown =
       }
       return undefined;
     }
+    // O campo de CADA item, quando o valor é uma LISTA — a referência de vários chega hidratada como
+    // uma lista de registros, e `activePoleIds.cpf` é o CPF de cada apontado. Sem esta projeção o
+    // caminho devolvia `undefined`, e a única forma de ler um campo do apontado era fixar a posição
+    // (`activePoleIds.0.cpf`), que responde por um item e ignora o resto.
+    //
+    // O resultado é achatado um nível a cada passo (lista de listas é lista) e o ausente sai: uma
+    // lista vazia é ausência de valor, não o valor vazio — é o que mantém `exists` respondendo não.
+    if (Array.isArray(value)) {
+      const projected = value
+        .flatMap((item) => {
+          const found = getValueAtPath(item, [segment]);
+          return Array.isArray(found) ? found : [found];
+        })
+        .filter((item) => item !== null && item !== undefined);
+      value = projected.length > 0 ? projected : undefined;
+      continue;
+    }
     if (typeof value === 'object' && segment.name in (value as Record<string, unknown>)) {
       value = (value as Record<string, unknown>)[segment.name];
     } else {
@@ -138,6 +160,12 @@ interface WalkState {
   hops: FkHop[];
   depth: number;
   path: PathSegment[];
+  /**
+   * O caminho ATRAVESSOU uma lista de registros sem fixar a posição — do ponto em que isso acontece,
+   * tudo o que ele lê é um valor por item. Uma vez ligado nunca se desliga: entrar num registro
+   * apontado de dentro de uma lista continua sendo um por item.
+   */
+  listed?: true;
   error?: string;
   errorParams?: Record<string, string>;
 }
@@ -186,7 +214,7 @@ const buildReferenceHopState = (
     : target
       ? { kind: 'entity', entity: target }
       : { kind: 'externalRecord', collection: refEntity };
-  return { cursor, hops: [...state.hops, hop], depth, path };
+  return { cursor, hops: [...state.hops, hop], depth, path, listed: state.listed };
 };
 
 const stepNativeField = (
@@ -316,7 +344,7 @@ const stepDenormalizedReference = (
     : target
       ? { kind: 'entity', entity: target }
       : { kind: 'externalRecord', collection: reference.targetCollection };
-  return { cursor, hops: [...state.hops, hop], depth, path };
+  return { cursor, hops: [...state.hops, hop], depth, path, listed: state.listed };
 };
 
 const stepCursor = (
@@ -333,17 +361,16 @@ const stepCursor = (
   }
 
   if (cursor.kind === 'entityList') {
-    if (segment.kind !== 'index') {
-      return invalid(
-        state,
-        '@core.automation/path.is-list',
-        { path: joinSegments(state.path) },
-      );
-    }
-    const nextCursor: Cursor = cursor.entity
+    const item: Cursor = cursor.entity
       ? { kind: 'entity', entity: cursor.entity }
       : { kind: 'externalRecord', collection: cursor.collection };
-    return { ...state, cursor: nextCursor, path: [...state.path, segment] };
+    // A posição fixa um item; o NOME de um campo atravessa todos eles, e o que o caminho lê dali é um
+    // valor por apontado. Exigir a posição era recusar a pergunta mais comum sobre uma referência de
+    // vários — "o CPF do polo ativo" —, e nenhum agrupamento ou filtro de relatório podia escrevê-la.
+    if (segment.kind !== 'index') {
+      return stepCursor(ctx, { ...state, cursor: item, listed: true }, segment, hasOld, maxFkDepth);
+    }
+    return { ...state, cursor: item, path: [...state.path, segment] };
   }
 
   if (segment.kind === 'index') {
@@ -403,18 +430,28 @@ const walk = (
   return state;
 };
 
-const cursorToNode = (cursor: Cursor): PathNode => {
+/**
+ * O nó do que o caminho alcançou. Ter ATRAVESSADO uma lista muda a resposta: um registro apontado de
+ * dentro dela é uma lista de registros, e um campo dele é um valor por item.
+ */
+const cursorToNode = (cursor: Cursor, listed: boolean): PathNode => {
   switch (cursor.kind) {
     case 'entity':
-      return { kind: 'entity', collection: cursor.entity.collection };
+      return listed
+        ? { kind: 'entityList', collection: cursor.entity.collection }
+        : { kind: 'entity', collection: cursor.entity.collection };
     case 'entityList':
       return { kind: 'entityList', collection: cursor.collection };
     case 'externalRecord':
-      return { kind: 'entity', collection: cursor.collection };
+      return listed
+        ? { kind: 'entityList', collection: cursor.collection }
+        : { kind: 'entity', collection: cursor.collection };
     case 'object':
-      return { kind: 'object' };
+      return listed ? { kind: 'object', list: true } : { kind: 'object' };
     case 'scalar':
-      return { kind: 'scalar', type: cursor.type, lookupCollection: cursor.lookupCollection };
+      return listed
+        ? { kind: 'scalar', type: cursor.type, lookupCollection: cursor.lookupCollection, list: true }
+        : { kind: 'scalar', type: cursor.type, lookupCollection: cursor.lookupCollection };
     case 'unknown':
       return { kind: 'unknown' };
   }
@@ -437,7 +474,12 @@ export const resolvePath = (
       depth: state.depth,
     };
   }
-  return { valid: true, node: cursorToNode(state.cursor), hops: state.hops, depth: state.depth };
+  return {
+    valid: true,
+    node: cursorToNode(state.cursor, state.listed === true),
+    hops: state.hops,
+    depth: state.depth,
+  };
 };
 
 /**
@@ -564,13 +606,18 @@ export const suggestNextSegments = (
   switch (cursor.kind) {
     case 'entity':
       return entitySuggestions(ctx, cursor, atRoot, root.hasOld);
-    case 'entityList':
-      return [{
+    case 'entityList': {
+      const first: PathSuggestion = {
         insertText: '0',
         label: '@core.automation/autocomplete.first-item',
         kind: 'index',
         isLeaf: false,
-      }];
+      };
+      // Os campos de cada item vêm depois da posição, e não em vez dela: o caminho aceita os dois, e
+      // oferecer só a posição escondia a leitura que atravessa a lista inteira.
+      if (!cursor.entity) return [first];
+      return [first, ...entitySuggestions(ctx, { kind: 'entity', entity: cursor.entity }, false, false)];
+    }
     case 'object': {
       if (atRoot && root.hasOld) {
         return [

@@ -40,8 +40,9 @@ const LACUNAS_CONFERIDAS = [
   'workflow-event\tlookup.saved',
   'workflow-event\tlookup.deleted',
 
-  // Vinte dos vinte e um pontos de contribuição. O modelo alcança `access.permission` e nada mais —
-  // tudo que uma regra precise além de dado e passagem está fora deste vocabulário.
+  // Todos os pontos de contribuição menos um. O modelo alcança `access.permission` e nada mais —
+  // tudo que uma regra precise além de dado e passagem está fora deste vocabulário. A lista é
+  // derivada de `KERNEL_EXTENSION_POINTS`, então um ponto novo aparece aqui sozinho.
   'extension-point\tui.page',
   'extension-point\tui.nav',
   'extension-point\tui.record.action',
@@ -56,6 +57,7 @@ const LACUNAS_CONFERIDAS = [
   'extension-point\tdata.service',
   'extension-point\tdata.field.preset',
   'extension-point\tdata.external.lookup',
+  'extension-point\treport.definition',
   'extension-point\ti18n.messages',
   'extension-point\ttheme.definition',
   'extension-point\ttheme.tokens',
@@ -66,6 +68,9 @@ const LACUNAS_CONFERIDAS = [
   // Os artefatos de pacote que o plano nunca preenche.
   'package-artifact\tsummary',
   'package-artifact\tscripts',
+  // O relatório é uma PERGUNTA feita ao dado. O modelo descreve o que o negócio É, não o que se
+  // quer saber sobre ele — e nenhum campo dele diz nem uma coisa nem a outra.
+  'package-artifact\treports',
   'package-artifact\tviews',
   'package-artifact\tstartup',
   'package-artifact\toverview',

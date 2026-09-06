@@ -4805,8 +4805,9 @@ da execução e **apenas para os caminhos que a automação realmente referencia
    `MaterializationMode`: FK fixa materializa sob o `denormKey` (`contractId` → `contract`, com
    os `denormalizedFields` do registry); um campo `reference` **substitui** o ID pelo registro
    alvo na própria chave (`event.tarefa.nome`), sem envelope nenhum. FKs múltiplas materializam
-   arrays (cap de 50 itens,
-   navegáveis por índice: `event.activePole.0.name`); `old.*` também é hidratado.
+   arrays (cap de 50 itens), navegáveis de duas formas: por índice, que fixa um item
+   (`event.activePole.0.name`), ou pelo NOME do campo, que atravessa todos eles e colhe um valor
+   por apontado (`event.activePole.name` → `['Maria', 'João']`); `old.*` também é hidratado.
 
 As `ScreenDefinition`s do tenant vêm do `ScreenDefinitionCache` (`functions/src/data/services/`),
 cache em memória da instância com TTL de 5 min + invalidação best-effort quando o trigger de
@@ -6067,6 +6068,199 @@ não dispara é pior que guarda nenhuma.
 | 6 ✅ | Widget DSL (estático) — plugin instalado entrega tela por widget; falta só ligação a dados |
 | 8 ✅ | Configuração declarativa (`ui.settings`) + superfícies de widget (`ui.widget`): o Dashboard sai do kernel e vira extensão |
 | 7 | Marketplace: `plugin_registry`, publicação e instalação |
+
+---
+
+## Relatórios declarativos
+
+O relatório é uma **pergunta feita ao dado**, e ele não é um subsistema novo: é a junção de três
+peças que já existiam — `QuerySpec` (consulta declarativa validada contra o esquema do tenant),
+`applyAggregationOp` (as cinco operações) e o Widget DSL — mais a etapa que faltava entre elas.
+
+### Três camadas separáveis, e por que a separação é o contrato
+
+```
+dataset            →   shape             →   presentation
+QuerySpec + medidas    rows × columns        gráfico, filtros, export
+(camada semântica)     (a dobra)             OU código (view MVVM)
+```
+
+A separação não é elegância: **ela é o que torna a política de compatibilidade derivável da
+POSIÇÃO**. O modelo é o de Cube/Metabase/Grafana (consulta ≠ painel) — a camada semântica vive
+DENTRO do relatório, e não num registro global de métricas, porque aqui não há modelo central: cada
+escritório declara as próprias telas.
+
+Rejeitado de propósito: o modelo banded (RDL/SSRS/Jasper). Ele pressupõe esquema conhecido em tempo
+de autoria e um canvas de papel; a Microteia declara telas em runtime e pinta com tokens de tema.
+
+### A REGRA da compatibilidade — NÃO-NEGOCIÁVEL
+
+1. `spec.v` é a única quebra total: versão desconhecida recusa o relatório inteiro, sem olhar dentro.
+2. Fora disso, o kernel **nunca recusa por não conhecer um NOME; recusa por não poder responder pelo
+   NÚMERO** — e a CAMADA decide o nível:
+
+| Nível | Camada | Comportamento | O que se perde |
+|---|---|---|---|
+| **1 — ignora** | `presentation.*` | descarta o nó, renderiza o resto | aparência |
+| **2 — degrada** | `shape.*`, `dimension.granularity` | cai no nível documentado, **com aviso visível** | uma dobra — e a ausência dela se vê |
+| **3 — recusa** | `dataset.*`, `measure.*` | `ok:false` nomeando o token | a verdade do número |
+
+`requires` **herda** a severidade do prefixo do token; ele não a sobrepõe. A regra contrária tornaria
+a degradação de `shape` código morto — nenhuma dobra nova chegaria a degradar, porque o token dela
+recusaria antes.
+
+Por que o nível 3 existe e o Widget DSL não precisa dele: um widget que descarta um nó mostra
+*menos*; um relatório que descarta uma medida mostra **um número diferente com o mesmo rótulo**.
+
+3. A recusa é do RELATÓRIO, nunca da TELA.
+4. Chave desconhecida no topo do spec é **preservada na gravação** — o repositório grava `spec`
+   verbatim, nunca campo a campo.
+
+### Os três caminhos de autoria
+
+| # | Quem | Como | Onde vive | Confiança de código |
+|---|---|---|---|---|
+| **A** | O escritório | tela `report-design`, irmã do Form Design | `tenants/{tid}/reports`, `origin: 'design'` | não |
+| **B** | A extensão, declarando | `MarketplacePlugin.reports` | materializado na instalação | não |
+| **C** | A extensão, em código | view MVVM que compõe `@microteia/report` | `views[]` + `impl: { kind: 'code' }` | **sim** |
+
+**A regra que mantém C seguro:** o código substitui a `presentation`, **nunca o `dataset`**. Os
+números só chegam pela callable, que cobra permissão e teto. Sem isso, relatório em código seria a
+porta dos fundos do RBAC.
+
+### O RBAC — onde um relatório vazaria dado
+
+`requireReportCollections` cobra, **no servidor**, a leitura de cada coleção que o relatório toca. Um
+agregado sobre linhas que o leitor não pode ver é exatamente como um relatório vaza: a contagem de
+salários acima de X não mostra nenhum salário e revela todos.
+
+E não é só a coleção-fonte: agrupar por `cliente.cidade` LÊ a coleção de clientes. A lista sai de
+`reportSourceCollections`, **derivada do plano de hidratação** — uma extensão não consegue esconder
+um hop declarando de menos. O executor de workflow não faz isso porque roda como ator de automação;
+**o relatório roda como o USUÁRIO**.
+
+O `spec` cru (pré-visualização da autoria) exige `reports.manage` **por cima** disso.
+
+### O teto, e por que ele é dito
+
+A varredura é índice-free (só `eq` raso vai ao Firestore) com teto de `REPORT_MAX_SCAN = 2000`. Um
+relatório que cobre mais do que isso devolve `complete: false`, e a incompletude aparece **em toda
+superfície**: banner na tela, cabeçalho do CSV, rodapé da impressão. Um número parcial que se
+apresenta como total é a única falha deste desenho que o leitor não teria como notar.
+
+`complete` é enquadrado no positivo de propósito: o padrão de um campo esquecido não pode ser "está
+tudo bem".
+
+### O valor de um filtro é pedido no FORMATO DO CAMPO
+
+Um filtro — o FIXO da autoria e o que o leitor preenche — compara com um valor de um campo que o
+schema já descreve. Pedi-lo como texto livre era cobrar de quem filtra o que o produto sabe: o id do
+registro apontado, a palavra exata de uma opção de lista, o formato da data.
+
+O controle é o mesmo átomo do formulário do registro (`ui/FieldInput`, dirigido pelo
+`FieldDefinition`), e é isso que faz o relatório e o cadastro pedirem o mesmo dado do mesmo jeito —
+um segundo controle aqui divergiria do primeiro campo de tipo novo.
+
+As travessias moram em `presentation/shared/report/reportFilterFields.ts`:
+
+| Função | O que resolve |
+|---|---|
+| `fieldAtPath` | o campo que o caminho lê, saltando a referência pelo `refDenormKey` |
+| `filterFieldOf` | o campo visto como FILTRO: um valor só, nada obrigatório, sem semear padrão, sem gerar código e sem cadastrar opção nova na lista do escritório |
+| `filterTextOf` / `filterValueOf` | a tela carrega texto; o CONTROLE fala em número e em booleano |
+| `filterLiteralOf` | o `Literal` que o spec grava, **no tipo do campo** |
+
+O que se LÊ de um valor gravado passa por `useReportValueLabel`, que é o `displayValue` da própria
+listagem: o relatório e o cartão do registro dizem a MESMA palavra sobre o mesmo dado.
+
+**O `Literal` não é texto — é o tipo do campo**, e isso não é preciosismo de forma: um `eq` raso vai
+ao Firestore com o valor tal como está no spec, e a string `"true"` não encontra o booleano `true`
+gravado no documento. O filtro não falhava; ele não achava nada, sem uma palavra na tela. A data
+segue como texto ISO de propósito — é o formato que o produto inteiro fala, e um objeto ali não
+sobreviveria ao `.json` do relatório.
+
+**Um filtro booleano tem TRÊS respostas**, e é a única divergência de `ui/FieldFilterInput` em
+relação ao `FieldInput` que ele envolve. A divergência é da PERGUNTA, não do controle: no registro,
+sim e não esgotam o assunto e a caixa de marcar diz os dois; num filtro existe a terceira — "não
+filtre por isto" — que uma caixa desmarcada não distingue de "não".
+
+### O campo do cadastro relacionado quando a relação aponta para VÁRIOS
+
+Um agrupamento, um filtro fixo ou uma pergunta ao leitor pode pedir o campo do registro apontado —
+`cliente.cidade`. Quando a relação aponta para vários, a pergunta é a mesma e a resposta vem em
+vários: `activePoleIds.cidade` é a cidade de CADA apontado.
+
+Quem responde por isso é a gramática de caminhos, não o relatório — `resolvePath` atravessa a lista
+pelo nome do campo e marca o nó com `list: true`, e `getValueAtPath` colhe o valor de cada item,
+achatando um nível por passo e deixando fora o ausente (projeção vazia é ausência de valor, e é o que
+mantém `exists` respondendo não). Antes disso, o caminho exigia a POSIÇÃO do item
+(`activePoleIds.0.cidade`), que responde por um apontado e ignora o resto: nenhum agrupamento e
+nenhum filtro conseguia escrever a pergunta mais comum que se faz sobre uma referência de vários, e a
+tela de autoria oferecia o campo para em seguida recusar o relatório inteiro.
+
+O que segue dessa forma, e por que cada um estava errado sem ela:
+
+| Peça | O que faz com a lista |
+|---|---|
+| `evaluateResolvedPredicate` | pertinência — a linha atende se QUALQUER apontado atende (já era assim para campo de vários) |
+| `scalarKey` (`aggregateRows`) | uma chave composta, a mesma que uma lista de valores crus já tinha |
+| `bucketDateValue` | um balde por item, composto; sem isso o corte pedido caía no valor cru sem aviso |
+| `applyAggregationOp` | entra pela LISTA de itens: `Number([10, 20])` é `NaN`, e a soma respondia 0 com a cara de um total |
+| `documentFieldPath` | nunca desce ao Firestore — é caminho profundo, e a pergunta é filtrada em memória |
+
+**Ler não é escrever:** `checkWritablePath` continua recusando qualquer caminho que atravesse uma
+referência (`mutation.path.through-reference`), então isto não abriu porta nenhuma de gravação.
+
+### O relatório que PERGUNTA não roda antes da resposta
+
+Um relatório sem `presentation.prompts` executa ao abrir a aba. Um relatório COM prompts abre com a
+barra de filtros e espera o gesto de executar (o ícone de run, o mesmo do resto do produto).
+
+São dois defeitos no mesmo lugar. O primeiro: o valor dos filtros era dependência do `run`, que era
+dependência do efeito — o relatório era refeito no servidor **a cada tecla digitada**, e a resposta
+que chegava por último nem sempre era a da última pergunta. O segundo: a primeira execução gastava a
+varredura inteira para mostrar o ano todo a quem abriu o relatório justamente para ver um mês.
+
+A correção é a mesma nos dois: `runWith(values)` recebe os valores em vez de os capturar, e o efeito
+só dispara quando não há nada a perguntar.
+
+### Arquivos-chave
+
+| Arquivo | Papel |
+|---|---|
+| `domain/schema/report/reportSpec.ts` | o contrato; `reportPaths`, `buildReportQuery`, `reportSourceCollections` |
+| `domain/schema/report/aggregateRows.ts` | o agregador — **função pura**, fora da Cloud Function |
+| `domain/schema/report/validateReportSpec.ts` | forma (o que o `pack` cobra) + esquema (front e back) |
+| `domain/schema/report/reportCapabilities.ts` | `REPORT_CAPABILITIES` e `deriveReportRequires` |
+| `domain/schema/report/reportBuckets.ts` | o balde de data, cortado no fuso declarado |
+| `domain/schema/report/reportCsv.ts` | a forma do arquivo, compartilhada com o agendamento futuro |
+| `domain/usecases/plugins/reportModule.ts` | `rewriteReportTables` — a coleção reescrita na instalação |
+| `functions/src/infrastructure/report/runReportQuery.ts` | o executor e o RBAC por coleção |
+| `presentation/shared/report/reportFilterFields.ts` | o campo de um caminho, e o valor entre o controle e o spec |
+| `presentation/components/ui/{ReportTable,ReportMatrix,ReportChart,ReportView}/` | o que desenha |
+| `presentation/pages/{Reports,ViewReport,ReportDesign}/` | a lista, a aba e a autoria |
+
+### Três coisas que só falhariam no cliente
+
+1. **A coleção reescrita.** `dataset.table` de um relatório de pacote passa pelo `screenKeyMap`:
+   `buildScreenKeyMap` dá sufixo quando o nome já está ocupado no destino. Os **caminhos** não passam
+   por lá — um caminho nunca nomeia coleção, o hop sai do `refEntity` que a tela já reescreveu.
+2. **O portão do pacote.** `reportOutRefs` emite a coleção coberta, então um relatório apontando para
+   o que o pacote não leva nem declara em `dependencies` é recusado no empacotamento.
+3. **A guarda em execução.** O escritório pode apagar a tela depois; `resolveQueryTable` em `null`
+   recusa nomeando, nunca devolve uma tabela vazia.
+
+### O que o contrato prevê e a v1 não executa
+
+`schedule` já é tipado (com aviso `@core.reports/schedule.not-implemented`); medida calculada
+(`kind: 'computed'`) já está na união; join já tem discriminante em `dataset.kind`. Cada um entra de
+forma aditiva — e reservar o nome agora é o que impede um kernel velho de podar em silêncio o que uma
+ferramenta nova escreveu.
+
+**Relatório do pacote NÃO se mescla com edição do escritório** — o oposto do que vale para telas. Uma
+tela mescla porque o campo é unidade independente com dono próprio; um `ReportSpec` é uma afirmação
+só, e metade do pacote com metade do escritório produziria um número que ninguém escreveu. O gesto é
+duplicar para editar.
 
 ---
 

@@ -26,6 +26,15 @@ export interface TimeSeriesChartProps {
   height?: number;
 }
 
+export interface BarChartProps {
+  data: Array<Record<string, string | number>>;
+  xKey: string;
+  series: ChartSeries[];
+  /** Empilha as séries em vez de pô-las lado a lado. */
+  stacked?: boolean;
+  height?: number;
+}
+
 export interface DonutSlice {
   name: string;
   value: number;
@@ -85,6 +94,44 @@ const LazyTimeSeries = lazy(async () => {
   return { default: Rendered };
 });
 
+const LazyBar = lazy(async () => {
+  const {
+    Bar, BarChart: RechartsBar, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis,
+  } = await import('recharts');
+
+  const Rendered: React.FC<BarChartProps & { chartTheme: ChartTheme }> = ({
+    data, xKey, series, stacked, chartTheme,
+  }) => (
+    <ResponsiveContainer width="100%" height="100%">
+      <RechartsBar data={data}>
+        <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.grid} vertical={false} />
+        <XAxis dataKey={xKey} stroke={chartTheme.axis} style={{ fontSize: 12 }} />
+        <YAxis stroke={chartTheme.axis} style={{ fontSize: 12 }} />
+        <Tooltip
+          contentStyle={{
+            backgroundColor: chartTheme.surface,
+            border: `1px solid ${chartTheme.border}`,
+            borderRadius: chartTheme.radius,
+            fontSize: 12,
+          }}
+        />
+        {series.map((bar) => (
+          <Bar
+            key={bar.key}
+            dataKey={bar.key}
+            name={bar.label}
+            fill={bar.color}
+            stackId={stacked ? 'one' : undefined}
+            radius={[3, 3, 0, 0]}
+          />
+        ))}
+      </RechartsBar>
+    </ResponsiveContainer>
+  );
+
+  return { default: Rendered };
+});
+
 const LazyDonut = lazy(async () => {
   const { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } = await import('recharts');
 
@@ -119,6 +166,26 @@ export const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({ data, xKey, se
     <S.Frame $height={height}>
       <Suspense fallback={<S.Placeholder>{t('chart.loading')}</S.Placeholder>}>
         <LazyTimeSeries data={data} xKey={xKey} series={series} chartTheme={chartTheme} />
+      </Suspense>
+    </S.Frame>
+  );
+};
+
+export const BarChart: React.FC<BarChartProps> = ({ data, xKey, series, stacked, height = 240 }) => {
+  const theme = useTheme();
+  const t = useT('core.ui');
+  const chartTheme: ChartTheme = {
+    grid: theme.colors.border,
+    axis: theme.colors.textSecondary,
+    surface: theme.colors.surface,
+    border: theme.colors.border,
+    radius: theme.borderRadius.md,
+  };
+
+  return (
+    <S.Frame $height={height}>
+      <Suspense fallback={<S.Placeholder>{t('chart.loading')}</S.Placeholder>}>
+        <LazyBar data={data} xKey={xKey} series={series} stacked={stacked} chartTheme={chartTheme} />
       </Suspense>
     </S.Frame>
   );

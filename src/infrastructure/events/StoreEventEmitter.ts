@@ -37,5 +37,6 @@ export const StoreEvents = {
   WORKFLOWS_UPDATED: 'workflows:updated',
   SCRIPTS_UPDATED: 'scripts:updated',
   ACTIONS_UPDATED: 'actions:updated',
+  REPORTS_UPDATED: 'reports:updated',
   ROLES_UPDATED: 'roles:updated',
 } as const;

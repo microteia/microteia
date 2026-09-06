@@ -42,6 +42,7 @@ const ALL_FUNCTIONS = [
   'getExpressionFunctions',
   'runScript',
   'runAction',
+  'runReport',
   'materializePermissionsOnMemberChange',
   'materializePermissionsOnRoleChange',
   'materializePermissionsOnScreenChange',

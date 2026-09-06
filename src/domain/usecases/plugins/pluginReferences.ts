@@ -5,6 +5,7 @@ import type {
   ScreenPatchTemplate,
   WorkflowModuleTemplate,
 } from '../../entities/MarketplacePlugin';
+import type { ReportModuleTemplate } from '../../entities/Report';
 import type { InputMapping, WorkflowStep } from '../../entities/Workflow';
 import { flattenSteps } from '../../services/stepTree';
 import { getEntityByCollection, getEntityByEventPrefix } from '../../schema/entityRegistry';
@@ -13,6 +14,8 @@ import { isLookupCollection } from '../../schema/lookupRegistry';
 import { hasRefSeparator, parseArtifactRef } from '../../schema/plugin/artifactRef';
 import { dependencyCollections } from '../../schema/plugin/pluginManifest';
 import { validateMigrations } from '../../schema/plugin/migration';
+import { validateReportSpecShape } from '../../schema/report/validateReportSpec';
+import { deriveReportRequires } from '../../schema/report/reportCapabilities';
 import { packageIconIssues } from './pluginIcons';
 import { screenEventPrefix, templateCollection } from './screenModule';
 
@@ -165,10 +168,31 @@ export const workflowOutRefs = (
   return refs;
 };
 
+/**
+ * A referência de saída de um RELATÓRIO: a coleção que ele cobre.
+ *
+ * Sem esta perna o relatório viaja apontando para uma coleção que o pacote não leva nem declara em
+ * `dependencies`, e a falha aparece SÓ no escritório do cliente — um relatório que abre vazio, sem
+ * nada acusando por quê. É a perna quase sempre esquecida, e é a razão de o portão do pacote existir.
+ *
+ * Coleção do kernel ou lista de opções não vira referência, pelo mesmo `isCoreCollection` que as
+ * telas usam: esses nomes são globais e não precisam viajar com ninguém.
+ */
+export const reportOutRefs = (report: ReportModuleTemplate): PackageRef[] => {
+  const table = report.spec?.dataset?.table;
+  if (!table || isCoreCollection(table)) return [];
+  return [{
+    kind: 'screen' as const,
+    id: table,
+    from: { origin: '@core.marketplace/ref.origin.report', name: report.templateId },
+  }];
+};
+
 export const packageOutRefs = (pkg: MarketplacePlugin): PackageRef[] => [
   ...(pkg.screens ?? []).flatMap(screenOutRefs),
   ...(pkg.screenPatches ?? []).flatMap(screenPatchOutRefs),
   ...(pkg.actions ?? []).flatMap(actionOutRefs),
+  ...(pkg.reports ?? []).flatMap(reportOutRefs),
   ...pkg.workflows.flatMap((workflow) => workflowOutRefs(workflow, pkg.screens ?? [])),
 ];
 
@@ -329,10 +353,66 @@ export const packageMigrationIssues = (pkg: MarketplacePlugin): LocalizedIssue[]
  * porta, e é de propósito: export e import compartilham a mesma checagem, e uma validação nova
  * acrescentada aqui não precisa ser lembrada em cada chamador.
  */
+/**
+ * Os relatórios do pacote, conferidos pela FORMA.
+ *
+ * A terceira porta do mesmo validador: a autoria confere antes de salvar, a callable antes de
+ * executar, e o empacotamento aqui. Sem esta, um relatório que cita uma dimensão que ele não declara
+ * viaja no pacote e só falha no escritório do cliente — e a falha é um relatório que não abre, sem
+ * nada dizendo por quê.
+ *
+ * Só a forma, e não o esquema: no empacotamento não EXISTE escritório, não há `SchemaContext` e não
+ * pode haver. Caminho é conferido onde o esquema existe.
+ *
+ * Aviso não reprova: uma dobra que este kernel degrada, ou um balde que ele não conhece, é um
+ * relatório que roda — recusá-lo no pacote contradiria a própria regra da degradação.
+ */
+const packageReportIssues = (pkg: MarketplacePlugin): LocalizedIssue[] =>
+  (pkg.reports ?? []).flatMap((report) => [
+    ...validateReportSpecShape(report.spec ?? { v: 0 } as never)
+      .filter((issue) => (issue.severity ?? 'error') === 'error')
+      .map((issue) => ({
+        message: '@core.marketplace/issue.report.invalid',
+        messageParams: {
+          name: report.templateId,
+          field: issue.field,
+          detail: issue.error,
+          ...(issue.errorParams ?? {}),
+        },
+      })),
+    ...underDeclaredCapabilities(report),
+  ]);
+
+/**
+ * O `requires` escrito à MENOS — a única forma de escapar do portão de capacidade.
+ *
+ * `unsupportedReportCapabilities` prefere o `requires` declarado à derivação, e é isso que faz um
+ * `requires` omisso valer mais que a verdade do spec: o kernel deixa de recusar pelo nome do recurso
+ * que lhe falta e passa a executar o relatório sem ele. O comentário do `ReportSpec` já dizia que o
+ * portão do pacote reprovava a divergência; ele não reprovava, e este é o portão.
+ *
+ * Só a omissão. Token A MAIS não é defeito: é o pacote escrito num SDK que deriva mais do que este
+ * kernel — e o caminho correto para ele já existe, que é o kernel recusar o relatório pelo nome da
+ * capacidade que não tem, no lugar de o pacote inteiro ser recusado aqui.
+ */
+const underDeclaredCapabilities = (report: ReportModuleTemplate): LocalizedIssue[] => {
+  const declared = report.spec?.requires;
+  if (!declared || declared.length === 0) return [];
+
+  const known = new Set(declared);
+  return deriveReportRequires(report.spec)
+    .filter((capability) => !known.has(capability))
+    .map((capability) => ({
+      message: '@core.marketplace/issue.report.requires',
+      messageParams: { name: report.templateId, capability },
+    }));
+};
+
 export const packageIssues = (pkg: MarketplacePlugin): LocalizedIssue[] => [
   ...packageSizeIssues(pkg),
   ...packageMigrationIssues(pkg),
   ...packageIconIssues(pkg),
+  ...packageReportIssues(pkg),
 ];
 
 /** O aviso de que o pacote está grande, mas ainda instala. Para a tela de autoria, não para o import. */

@@ -17,6 +17,7 @@ import { SavedFilterStoreProvider } from './stores/SavedFilterStore';
 import { SettingsStoreProvider } from './stores/SettingsStore';
 import { ScreenDefinitionStoreProvider } from './stores/ScreenDefinitionStore';
 import { ActionStoreProvider } from './stores/ActionStore';
+import { ReportDefinitionStoreProvider } from './stores/ReportDefinitionStore';
 import { RecordStoreProvider } from './stores/RecordStore';
 import { WorkflowStoreProvider } from './stores/WorkflowStore';
 import { ScriptStoreProvider } from './stores/ScriptStore';
@@ -72,6 +73,7 @@ const App: React.FC = () => {
                                           <InstalledExtensionStoreProvider>
                                           <PublicExtensionStoreProvider>
                                           <ActionStoreProvider>
+                                          <ReportDefinitionStoreProvider>
                                           <AuditLogStoreProvider>
                                           <WorkspaceStoreProvider>
                                             <NotificationProvider>
@@ -98,6 +100,7 @@ const App: React.FC = () => {
                                             </NotificationProvider>
                                           </WorkspaceStoreProvider>
                                           </AuditLogStoreProvider>
+                                          </ReportDefinitionStoreProvider>
                                           </ActionStoreProvider>
                                           </PublicExtensionStoreProvider>
                                           </InstalledExtensionStoreProvider>

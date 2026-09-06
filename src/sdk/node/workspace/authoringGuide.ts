@@ -1,14 +1,17 @@
-import { UI_EXTENSION_POINTS, USER_MENU_SURFACE, WORKSPACE_SLOT_SURFACES } from '../../../domain/schema/ui/uiExtensionPoints';
+import { USER_MENU_SURFACE, WORKSPACE_SLOT_SURFACES } from '../../../domain/schema/ui/uiExtensionPoints';
+import { KERNEL_EXTENSION_POINTS } from '../../../domain/schema/extensionPoints';
 import { SCREEN_ICON_KEYS } from '../../../domain/schema/ui/screenIconCatalog';
-import { DATA_EXTENSION_POINTS } from '../../../domain/schema/dataExtensionPoints';
-import { I18N_EXTENSION_POINTS } from '../../../domain/schema/i18n/extensionPoints';
-import { THEME_EXTENSION_POINTS } from '../../../domain/schema/theme/extensionPoints';
-import { ACCESS_EXTENSION_POINTS } from '../../../domain/schema/access';
-import { AUTH_EXTENSION_POINTS, AUTH_PROVIDER_KINDS } from '../../../domain/schema/auth';
+import { AUTH_PROVIDER_KINDS } from '../../../domain/schema/auth';
 import type { ExtensionPointDefinition } from '../../../domain/schema/plugin/extensionPoint';
 import { CUSTOM_FIELD_TYPES } from '../../../domain/schema/fieldRules';
 import type { CustomFieldType } from '../../../domain/schema/fieldRules';
 import { WIDGET_NODE_TYPES } from '../../../domain/schema/ui/widgetSpec';
+import {
+  REPORT_CHART_KINDS,
+  REPORT_GRANULARITIES,
+  REPORT_SHAPE_KINDS,
+} from '../../../domain/schema/report/reportSpec';
+import { AGGREGATION_OP_LABELS } from '../../../domain/schema/fieldRules';
 import type { WidgetNodeType } from '../../../domain/schema/ui/widgetSpec';
 import { STEP_TYPES } from '../../../domain/entities/Workflow';
 import type { WorkflowStepMetadata } from '../../../domain/schema/workflowStepCatalog';
@@ -102,14 +105,19 @@ const COVERAGE_TABLE = coverageSummary()
   .map((one) => `| ${one.surface} | ${one.total} | ${one.gaps} |`)
   .join('\n');
 
-const ALL_POINTS: ExtensionPointDefinition[] = [
-  ...UI_EXTENSION_POINTS,
-  ...DATA_EXTENSION_POINTS,
-  ...I18N_EXTENSION_POINTS,
-  ...THEME_EXTENSION_POINTS,
-  ...ACCESS_EXTENSION_POINTS,
-  ...AUTH_EXTENSION_POINTS,
-];
+const ALL_POINTS: ExtensionPointDefinition[] = KERNEL_EXTENSION_POINTS;
+
+/**
+ * O vocabulário fechado do relatório, DERIVADO das constantes.
+ *
+ * Escrito à mão, cada lista ficava uma operação nova de distância de ficar incompleta — e um autor
+ * que lesse "sum, count, avg" não descobriria a que entrou depois. É o mesmo tratamento que as
+ * regiões do shell e o catálogo de passos já recebem.
+ */
+const inlineList = (values: readonly string[]): string =>
+  values.map((value) => `\`${value}\``).join(', ');
+
+const AGGREGATION_OP_NAMES = Object.keys(AGGREGATION_OP_LABELS);
 
 const kib = (bytes: number): string => `${Math.round(bytes / 1024)} KiB`;
 
@@ -163,6 +171,10 @@ const WIDGET_NODES: Record<WidgetNodeType, string> = {
   text: 'A paragraph. `text`, `muted?: boolean`.',
   markdown: 'A block of Markdown. `content`.',
   metric: 'A big number with a caption. `label`, `value`.',
+  report: 'A report from the organization\'s catalogue, by name. `report` is its key. '
+    + 'It names the report instead of embedding the query on purpose: an inline query would put '
+    + 'aggregation, permission and scan limits inside a layout DSL, and give you a second place to '
+    + 'declare what a number means.',
   keyValue: 'A list of label/value rows. `items: { label, value }[]`.',
   banner: 'A notice. `message`, `variant?: \'info\' \\| \'warning\'`.',
   divider: 'A rule between blocks. No properties.',
@@ -172,7 +184,7 @@ const WIDGET_NODES: Record<WidgetNodeType, string> = {
 const STEP_KINDS: Record<StepType, string> = {
   Action: 'Runs one entry of the platform\'s step catalog, named by `stepDefinitionId`. Its inputs are `configuration`.',
   Condition: 'A control node: `condition` decides which of `branches.whenTrue` / `branches.whenFalse` runs, and the flow converges after. `stepDefinitionId` is empty.',
-  Delay: '**Not implemented in this version.** It is in the union for compatibility, and a step declared with it stops the flow at that point — `validate_plugin` refuses it. To wait, schedule the work instead: a Cloud Function on a timer (§12) that fires a `workflow.called` flow.',
+  Delay: '**Not implemented in this version.** It is in the union for compatibility, and a step declared with it stops the flow at that point — `validate_plugin` refuses it. To wait, schedule the work instead: a Cloud Function on a timer (§13) that fires a `workflow.called` flow.',
   Loop: 'A control node: `loop: { source, itemName, outputName, body }` runs `body` once per item and publishes the collected outputs under `outputName`. `stepDefinitionId` is empty.',
   Script: 'Runs a script, named by `configuration.scriptId` as a `Literal` — a `templateId` of your own package, or `<extension-id>/<source-id>` for a script another extension exports (§3).',
   SubWorkflow: 'Calls another workflow, named by `configuration.targetWorkflowId` as a `Literal` — again a `templateId`, or a qualified reference.',
@@ -294,7 +306,7 @@ The order is not a style preference — each rung costs strictly more than the o
 | A **Widget DSL** page, tab or widget | nothing. It cannot break, needs no review, and survives platform upgrades untouched |
 | A **workflow**, **action** or **script** | runs in the platform's own engine and sandbox; no review, but now there is logic to keep right |
 | A **view** or **startup** — real React | an administrator must read the source and trust it, again on every change (§7), and you own that code across upgrades |
-| A **Cloud Function** — \`manifest.backend\` | the extension stays inert until someone provisions the organization's Firebase project (§12) |
+| A **Cloud Function** — \`manifest.backend\` | the extension stays inert until someone provisions the organization's Firebase project (§13) |
 
 Most of what looks like it needs the fourth rung needs the first. A field that computes itself, a
 button that hides for the wrong person, a list filtered by who is looking — all of those are
@@ -319,9 +331,9 @@ record moves through, what moves it, and who may (§8.0.1). Do not wait to be as
 lifecycle arrived in the same sentence as the structure.
 
 Read \`catalogSources\` in those answers before trusting the list of entities: without an exported
-snapshot of the installation, what the organization itself built is invisible to them (§14).
+snapshot of the installation, what the organization itself built is invisible to them (§15).
 
-Those three are MCP tools (§14). The model's shape is the resource \`microteia://domain-model/schema\`,
+Those three are MCP tools (§15). The model's shape is the resource \`microteia://domain-model/schema\`,
 and every check it runs is \`microteia://domain-model/rules\` — both derived from this installation.
 §8.0 below is the short version.
 
@@ -350,6 +362,7 @@ export default {
   screenPatches: [],   // fields added to a screen that already exists
   lookups: [], tagLists: [],
   actions: [], scripts: [],
+  reports: [],         // questions asked of the data
   views: [],           // pages delivered as code
   startup: '',         // code that runs once when the extension loads
   migrations: [],      // converting data an earlier version of YOURS wrote
@@ -531,7 +544,7 @@ id is the whole of how an update recognises the same contribution across version
 | \`settingsSection(section)\` | \`ui.settings\` | a section of the Settings screen — the properties *are* the contribution |
 | \`messageBundleContribution({ locale, namespace, messages })\` | \`i18n.messages\` | the words, one bundle per locale (§5) |
 | \`themeTokensContribution(spec)\` | \`theme.tokens\` | colour and typography tokens |
-| \`accessPermissionContribution\` · \`accessRequirementContribution\` · \`accessResourceContribution\` | \`access.*\` | what people can do (§11) |
+| \`accessPermissionContribution\` · \`accessRequirementContribution\` · \`accessResourceContribution\` | \`access.*\` | what people can do (§12) |
 | \`lookupProviderContribution\` · \`fieldRulePresetContribution\` | \`data.*\` | an external source of options; a reusable field rule |
 | \`pointContribution(point, id, metadata, apiVersion)\` | any | a point published by *another* extension, which cannot have a constructor here |
 
@@ -645,9 +658,28 @@ widgetPage({ key: 'hello', title: label('page.hello'), icon: 'star' }, {
 })
 \`\`\`
 
-Every string in a spec is a message reference, exactly as everywhere else. The DSL is **static**: it
-has no data binding and no expressions. When a page has to show live records, that is either a screen
-(§8) or a view (§7) — do not try to reach data from here.
+Every string in a spec is a message reference, exactly as everywhere else — every string but the
+one named below, which is an identifier and not text anybody reads. The DSL has no
+expressions, and it reaches data in exactly ONE way: the \`report\` node, which names a report from
+the organization's catalogue (§11). That is what a dashboard is here — a \`grid\` of \`report\`
+nodes, each one a table or a chart, with no code in it and nothing for anybody to review:
+
+\`\`\`ts
+widgetPage({ key: 'sales', title: label('page.sales'), icon: 'fileChart' }, {
+  type: 'grid',
+  columns: 2,
+  children: [
+    { type: 'heading', text: label('page.sales') },
+    { type: 'report', report: 'acme-invoices-by-month' },
+    { type: 'report', report: 'acme-invoices-by-city' },
+  ],
+})
+\`\`\`
+
+The node names the report by its \`key\`, and that key is **not** rewritten on installation the way a
+collection name is — so prefix it with your extension, or you inherit whichever report of that name
+the organization already had. Anything else that has to show live records is a screen (§8) or a view
+(§7): there is no inline query here, for the reason the node table gives.
 
 ## 7. Code trust - why a human has to say yes
 
@@ -1432,7 +1464,7 @@ main();
 In scope: \`input\` (the declared \`inputParams\`), \`query\`, \`upsert\`, \`remove\`, \`fn.*\` (the expression
 functions of §9), \`log\` and \`console\`. Nothing else — no \`fetch\`, no \`require\`, no filesystem. The
 budget per run is **25 queries, 25 mutations and 10 seconds**; a script that needs more than that is a
-Cloud Function (§12), not a script.
+Cloud Function (§13), not a script.
 
 **A script travels with both \`sourceTs\` and \`compiledJs\`,** and the compiler does not fill the second
 in for you: the sandbox never transpiles, on purpose. Produce it with the same transpiler the platform
@@ -1456,7 +1488,232 @@ scripts: [{
 
 Declaring \`outputParams\` is what lets later steps read the result by name.
 
-## 11. Access — declare capabilities, never roles
+## 11. Reports — questions asked of the data
+
+A report is not a screen and not an automation: it is a **question**. What it covers, how it is
+folded, what is counted. Declare one in \`reports\` and it shows up in the organization's report list
+the moment your extension is installed.
+
+\`\`\`ts
+reports: [{
+  templateId: 'invoicesByStatus',
+  key: 'acme-invoices-by-status',
+  title: label('report.invoices'),
+  description: label('report.invoices.about'),
+  icon: 'fileChart',
+  origin: 'plugin',
+  spec: {
+    v: 1,
+    dataset: {
+      table: 'invoices',                       // the COLLECTION — a screen your package installs
+      where: [{ path: 'status', op: 'neq', value: { kind: 'Literal', value: 'void' } }],
+      dimensions: [
+        { key: 'month', path: 'dueDate', label: label('report.month'), granularity: 'month',
+          timeZone: 'America/Sao_Paulo' },
+        { key: 'city', path: 'client.city', label: label('report.city'), sort: { dir: 'asc' } },
+      ],
+      measures: [
+        { key: 'total', op: 'sum', path: 'amount', label: label('report.total'),
+          format: { kind: 'currency' } },
+        { key: 'count', op: 'count', label: label('report.count') },
+        { key: 'late', op: 'sum', path: 'amount', label: label('report.late'),
+          filter: [{ path: 'status', op: 'eq', value: { kind: 'Literal', value: 'overdue' } }] },
+      ],
+    },
+    shape: {
+      kind: 'matrix',
+      rows: [{ dimension: 'city', subtotal: true }],
+      columns: [{ dimension: 'month' }],
+      values: ['total', 'count'],
+      emptyCell: 'blank',
+    },
+    presentation: {
+      chart: { kind: 'bar', category: 'month', series: ['total'], splitBy: 'city', stacked: true },
+      prompts: [{ key: 'city', label: label('report.ask.city'), path: 'client.city', op: 'eq' }],
+      export: { csv: true },
+    },
+  },
+}]
+\`\`\`
+
+Call \`describe_sdk_type ReportSpec\` for the exact shape of the spec and
+\`describe_sdk_type ReportModuleTemplate\` for the envelope around it — both expand the types they
+reference.
+
+### The envelope
+
+| property | what it is |
+|---|---|
+| \`templateId\` | the stable address of the report inside your package, as with every other artifact |
+| \`key\` | how it is ADDRESSED once installed: its tab (\`rep:<key>\`), its deep link, the command palette, and the \`report\` node of the Widget DSL (§6). Unlike a collection name it is **not** rewritten on installation — prefix it with your extension |
+| \`origin\` | \`'plugin'\`, always, for a report your package brings |
+| \`icon\` | one key of the icon catalogue (§4) |
+| \`enabled\` | \`false\` installs it hidden: declared, not offered |
+| \`spec\` | the report itself — everything below |
+
+A report your package brings is **managed**: its spec is read-only in the organization's designer, and
+the gesture there is to duplicate it. That is not borrowed from how screens behave, it is the opposite
+of it, and on purpose: a screen merges because a field is an independent unit with an owner of its
+own, while a report is a single assertion — half of your package plus half of somebody's edit is a
+number nobody wrote.
+
+### Three layers, and why the split is the contract
+
+\`dataset\` is the **semantic layer**: where the rows come from, what can be grouped
+(\`dimensions\`) and what can be measured (\`measures\`). \`shape\` is the **fold**. \`presentation\`
+is the **look**.
+
+\`shape\` and \`presentation\` never repeat a path — they **cite a key**. That indirection is what
+buys you years: swapping the measured field, changing the period, promoting a measure to a computed
+one, are all a change inside one \`dataset\` entry, and nothing else moves.
+
+The split is also what decides how an OLDER kernel treats your report:
+
+| Where the unknown thing is | What happens |
+|---|---|
+| \`presentation\` | ignored, the rest renders |
+| \`shape\`, \`dimension.granularity\` | degrades to the documented fallback, **with a visible warning** |
+| \`dataset\`, \`measures\` | the report is **refused**, naming the token |
+
+That asymmetry is deliberate. A discarded chart shows *less*; a discarded measure shows **a
+different number under the same label**, and no reader can notice that. So write the numbers you
+mean, and treat a refusal as the platform telling you it cannot answer for them.
+
+### The vocabulary
+
+- \`measures[].op\`: ${inlineList(AGGREGATION_OP_NAMES)} — the same words a field aggregate uses. \`path\` is required except for \`count\`; \`count\` with \`distinct: true\` and a \`path\`
+  counts distinct values. \`filter\` restricts one measure and only it — that is how one column counts
+  everything and the next counts only what is overdue, in the same table.
+- \`measures[].format\`: \`{ kind, decimals, preset }\`. \`kind\` is \`number\`, \`integer\`,
+  \`currency\`, \`percent\`, \`date\` or \`duration\`; \`preset\` names an entry of the SAME field-rule
+  preset catalogue a field uses, never a parallel one.
+- \`dimensions[].granularity\`: ${inlineList(REPORT_GRANULARITIES)}. Only meaningful over a date. **Set \`timeZone\`**: without it the bucket is cut in UTC, and a sale at nine at night
+  on the 31st lands in the wrong month — with nothing on screen saying so.
+- \`dimensions[].path\` may cross a reference (\`client.city\`), same grammar as a query projection.
+- \`dimensions[].sort\`: \`{ dir: 'asc' | 'desc' }\` orders that level's members. \`limit\` keeps the
+  first N of them, and what it drops does not reappear anywhere — while the grand total still counts
+  every row scanned. So a limited level marks the result **partial**, and the platform says so on
+  screen, in the CSV and on the printed page, because rows that do not add up to their own total are
+  the one thing a reader cannot catch.
+- \`shape.kind\`: ${inlineList(REPORT_SHAPE_KINDS)} — no grouping, levels down, down and across:
+  - \`tabular\`: one row per record. \`columns\` is an array of **dimension keys**, plain strings, in
+    column order — a measure key there is a named error. \`orderBy\` is done by the query.
+  - \`summary\`: \`groupBy\` is an array of \`{ dimension, subtotal? }\`, outermost level first, and
+    \`values\` an array of measure keys.
+  - \`matrix\`: \`rows\` and \`columns\` are those same level objects and BOTH are required. This
+    version reads one level of \`columns\`; more than one is flattened, with a warning.
+    \`emptyCell: 'zero'\` writes a zero where nothing happened — the default leaves it blank, because
+    "there was none" and "there was, and it came to zero" are different statements.
+  - \`grandTotal: false\` drops the total row, on \`summary\` and \`matrix\`.
+- \`presentation.chart.kind\`: ${inlineList(REPORT_CHART_KINDS)}. \`category\` is the dimension on the
+  categorical axis (absent: the first level of \`rows\`/\`groupBy\`), \`series\` the measures drawn
+  (absent: all of \`values\`), \`splitBy\` a second dimension that breaks each measure into one series
+  per member — the pivot's columns becoming the legend — and \`stacked\` piles them instead of setting
+  them side by side. A kind this version cannot draw simply does not appear; the table still shows the
+  same data.
+- \`dataset.scanLimit\` asks for a smaller scan than the ceiling. Asking for a bigger one is clamped,
+  never refused.
+
+### The question the report asks the reader
+
+\`presentation.prompts\` is the filter the READER fills in before running — the difference between one
+report and the same report per customer, per period, per city.
+
+\`\`\`ts
+prompts: [
+  { key: 'from', label: label('report.ask.from'), path: 'dueDate', op: 'gte' },
+  { key: 'client', label: label('report.ask.client'), path: 'clientId', op: 'in' },
+]
+\`\`\`
+
+Each prompt names a \`path\` and an \`op\`, and an answered one becomes one more predicate on top of
+\`dataset.where\`. How it is asked comes from the FIELD the path points at — a date asks with a date
+picker, a reference asks with the record chooser of the collection it points to, an option list asks
+with its options. You do not choose that, and you should not try to: it is the same control the
+organization already knows from the screen the data came from.
+
+**A prompt left empty simply does not filter.** \`required\` and \`default\` are in the contract and
+this version acts on neither, so a report that would be wrong unrestricted needs its restriction in
+\`dataset.where\`, where nobody can skip it.
+
+### What is refused, and what is only warned about
+
+The same function checks a report before it is packaged, before it is saved and before it runs — there
+is no path where one accepts what another rejects. It is **refused** when:
+
+- it declares no measure. A report with no number has nothing to say, a \`tabular\` one included;
+- \`shape\` cites a dimension or measure key that \`dataset\` does not declare, or a \`tabular\` column
+  that is a measure;
+- a \`matrix\` is missing its rows or its columns;
+- two keys collide — dimensions and measures share ONE namespace, so that \`values\` can never be
+  ambiguous;
+- a measure other than \`count\` has no \`path\`;
+- \`dataset.table\` is not a collection this installation has.
+
+Everything else is a **warning**, and warnings are visible — to you in \`validate_plugin\`, and to
+whoever opens the report. A chart citing a key nobody declared, a bucket over something that is not a
+date, a scan above the ceiling, and every property this version reads but does not act on, all arrive
+that way rather than as silence.
+
+### What you do not control, and should not try to
+
+**Permission.** Running a report charges, on the server, the read permission of every collection it
+touches — including collections reached through a reference. Grouping by \`client.city\` requires
+\`clients.read\`. You do not declare that and cannot opt out of it: the list is derived from the
+hydration plan, so a package cannot hide a hop by declaring less.
+
+A report may carry a permission of its OWN — \`spec.access.permission\`, with \`requires\` for what it
+depends on (§12). It only ever restricts: seeing the report takes that permission AND the read of
+every collection it touches. It cannot grant, and that is the whole reason creating a report is
+allowed to be cheap.
+
+**The scan ceiling.** The query is index-free by design, so it walks documents with a ceiling. A
+report covering more than that comes back marked partial, and the platform says so on screen, in the
+CSV header and on the printed page. Do not work around it — a partial number presented as a total is
+the one failure a reader cannot catch.
+
+**The collection name.** \`dataset.table\` is the \`key\` of a screen your package installs, and the
+installation rewrites it: the name can take a suffix in an organization that already uses it. Paths
+are NOT rewritten, because a path never names a collection. Point at a collection your package
+carries, or one a declared dependency brings — the package gate refuses anything else.
+
+**\`requires\`.** Derived from the spec, never written by hand. It is what lets a kernel refuse your
+report by the NAME of the feature it lacks instead of running it without that feature and returning a
+different number under the same label. Leaving it out is correct; writing it short is the one way to
+defeat that gate, so the package gate refuses a \`requires\` that omits anything the spec uses.
+
+### Putting one somewhere other than the report list
+
+A report is a page of its own, and it is also a node: \`{ type: 'report', report: '<key>' }\` places it
+in any Widget DSL tree (§6). A \`grid\` of those nodes is a dashboard — declared, with no code in it
+and nothing for anybody to review.
+
+### Writing a report in code
+
+When the declared shape is not enough — a cover page, text between sections, two datasets side by
+side — write a view and compose \`@microteia/report\`: \`useReport\`, \`ReportView\`,
+\`ReportTable\`, \`ReportMatrix\`, \`ReportChart\`. They are the same components the platform uses,
+so this is composition, not reimplementation.
+
+The report still needs its \`dataset\`: code replaces the **presentation**, never the data. Numbers
+arrive through \`useReport\`, which asks the server — and that is where permission is charged. A view
+is \`impl: { kind: 'code' }\`, so it waits for an administrator to read and trust it (§7).
+
+### What the contract names but this version does not run
+
+\`schedule\` (running on a timer), \`measures[].kind: 'computed'\` (a ratio over other measures) and
+\`dataset.kind: 'join'\`. Declaring one is not silently ignored: the platform refuses the report by
+the name of what it lacks.
+
+These are read and not acted on, and each says so as a warning rather than doing nothing:
+\`shape.limit\`, \`presentation.fields\`, \`presentation.drillDown\`, \`presentation.export.fileName\`
+(the file is always offered, and its name comes from the title), \`prompts[].control\`,
+\`prompts[].required\`, \`prompts[].default\`, and \`dimensions[].sort.by\` — of \`sort\`, only
+\`dir\` is read, and members are ordered by their key.
+
+Reading any of this here is how you know it is coming, not permission to use it yet.
+
+## 12. Access — declare capabilities, never roles
 
 Your extension declares what people can *do*; the organization decides *who* does it. You never see
 a role, and that is the point: the profiles of the organization that installs you are theirs to
@@ -1515,7 +1772,7 @@ const can = useCan();
 
 In anything declarative, \`hasPermission(...)\` — the patterns are in §9.
 
-## 12. When your extension needs the server
+## 13. When your extension needs the server
 
 \`manifest.backend\` declares what the organization's Firebase project must provide — Cloud Functions,
 composite indexes, configuration parameters, manual prerequisites. The extension stays **pending**,
@@ -1726,7 +1983,7 @@ The handler is then a few lines that can only be wrong in obvious ways, and ever
 in subtle ways sits in a file \`npm test\` covers. It is the same division as a view and its rules (§7),
 for the same reason: the part with a name is the part that can be tested.
 
-## 13. Size
+## 14. Size
 
 | | |
 |---|---|
@@ -1736,7 +1993,7 @@ for the same reason: the part with a name is the part that can be tested.
 A package is stored as a single document. If you are near the limit, the usual cause is code that
 should be several extensions, or a seed list that should be data.
 
-## 14. Testing, and asking the installation
+## 15. Testing, and asking the installation
 
 \`validatePluginPackage\` is exported from \`@microteia/sdk\` — the same function \`check\` calls. Keeping
 it in a test means a broken package fails in a second, on your machine:

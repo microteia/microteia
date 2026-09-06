@@ -84,19 +84,36 @@ export interface SdkDeclaration {
  * A declaração de um símbolo publicado, com o arquivo em que ela mora — o caminho vai junto porque é a
  * prova de que a resposta saiu do pacote instalado, e não da memória de quem responde.
  */
+/**
+ * Um `export type X = Y;` e nada mais — o REEXPORTE, que responde à pergunta com outro nome.
+ *
+ * `ReportModuleTemplate` mora em `Report.d.ts` e é reexportado por `MarketplacePlugin.d.ts`, que a
+ * varredura alcança primeiro. Quem perguntava por ele recebia `= ReportModuleTemplateType`: um alias
+ * para um símbolo que o barril não publica, e portanto sem uma volta de expansão possível. O autor
+ * ficava sem saber que o relatório do pacote pede `templateId`, `key`, `title` e `origin`.
+ */
+const isBareAlias = (declaration: string): boolean =>
+  /^export type [A-Za-z0-9_$]+\s*=\s*[A-Za-z0-9_$.]+;$/.test(declaration.trim());
+
 export const sdkDeclaration = (sdkRoot: string, name: string): SdkDeclaration | null => {
   if (!/^[A-Za-z_$][\w$]*$/.test(name)) return null;
   const pattern = new RegExp(`^export (?:declare )?(?:abstract )?(type|interface|class|enum|const|function|namespace) ${name}\\b`, 'm');
+  let alias: SdkDeclaration | null = null;
+
   for (const file of declarationFiles(join(sdkRoot, 'lib'))) {
     const source = readFileSync(file, 'utf8');
     const match = pattern.exec(source);
     if (match === null) continue;
-    return {
+
+    const found = {
       file: file.slice(sdkRoot.length + 1),
       declaration: sliceDeclaration(source, match.index),
     };
+    if (!isBareAlias(found.declaration)) return found;
+    alias = alias ?? found;
   }
-  return null;
+
+  return alias;
 };
 
 /**

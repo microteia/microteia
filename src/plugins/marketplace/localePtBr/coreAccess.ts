@@ -58,6 +58,9 @@ export const CORE_ACCESS: Record<string, string> = {
   'permission.members.manage': 'Gerenciar membros',
   'permission.members.manage.description':
     'Incluir e remover pessoas do escritório, e escolher os perfis de acesso de cada uma.',
+  'permission.reports.manage': 'Gerenciar relatórios',
+  'permission.reports.manage.description':
+    'Criar, editar e remover os relatórios do escritório. Para EXECUTAR um relatório continua sendo preciso poder ler cada cadastro que ele cobre.',
   'permission.roles.manage': 'Gerenciar perfis de acesso',
   'permission.roles.manage.description':
     'Criar, editar e excluir perfis de acesso, e escolher quais permissões cada um concede.',
@@ -87,6 +90,7 @@ export const CORE_ACCESS: Record<string, string> = {
   'resource.document-types': 'Tipos de documento',
   'resource.extensions': 'Extensões',
   'resource.members': 'Membros',
+  'resource.reports': 'Relatórios',
   'resource.roles': 'Perfis de acesso',
   'resource.screens': 'Telas',
   'resource.settings': 'Configurações',

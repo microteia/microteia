@@ -491,6 +491,7 @@ export const RESERVED_COLLECTIONS: ReadonlySet<string> = new Set<string>([
   'documents',
   'tags',
   'lookupDefinitions',
+  'reports',
   'tagDefinitions',
   'secrets',
   'settings',

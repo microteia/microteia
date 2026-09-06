@@ -6,6 +6,9 @@ import { useCaseRecords, useContractRecords } from '../../../shared/useCollectio
 import { useRecords } from '../../../../stores/useRecords';
 import { useScreenDefinitions } from '../../../../stores/useScreenDefinitions';
 import { useWorkflowStore } from '../../../../stores/useWorkflowStore';
+import { useReportDefinitions } from '../../../../stores/useReportDefinitions';
+import { useSchemaContext } from '../../../shared/useSchemaContext';
+import { reportSourceCollections } from '../../../../domain/schema/report/reportSpec';
 import { useTheme } from '../../../../stores/useTheme';
 import { useAuth } from '../../../../stores/useAuth';
 import { useAuthorization } from '../../../../stores/useAuthorization';
@@ -39,6 +42,7 @@ export const useCommandPaletteViewModel = (): CommandPaletteViewModel => {
   const { allRecords } = useRecords();
   const { definitions: screenDefinitions } = useScreenDefinitions();
   const { workflows } = useWorkflowStore();
+  const { reports } = useReportDefinitions();
   const { themeId, available: installedThemes, setTheme } = useTheme();
   const { signOut, userRole } = useAuth();
   const { can, canAny } = useAuthorization();
@@ -46,6 +50,24 @@ export const useCommandPaletteViewModel = (): CommandPaletteViewModel => {
   const pageContributions = usePageContributions();
   const label = useLabel();
   const t = useT('core.ui');
+  const schema = useSchemaContext();
+
+  /*
+   * Os relatórios na forma que a paleta consome, com as coleções que cada um toca JÁ derivadas.
+   *
+   * O provedor é função pura chamada a cada tecla: derivar o esquema lá dentro seria refazer o plano
+   * de hidratação a cada letra digitada, e ele não tem como pendurar um hook.
+   */
+  const paletteReports = useMemo(
+    () => reports.map((report) => ({
+      key: report.key,
+      title: report.title,
+      covers: report.spec.dataset.table,
+      collections: reportSourceCollections(report.spec, schema),
+      enabled: report.enabled,
+    })),
+    [reports, schema],
+  );
 
   // O ⌘K procura pelo TÍTULO — então ele precisa procurar pelo título que a pessoa lê, e não pela
   // referência declarada. Resolver aqui, e não na busca, mantém um caminho só para o rótulo.
@@ -79,6 +101,7 @@ export const useCommandPaletteViewModel = (): CommandPaletteViewModel => {
       records: allRecords,
       screenDefinitions,
       workflows,
+      reports: paletteReports,
       themeId,
       themes,
       setTheme,
@@ -89,7 +112,7 @@ export const useCommandPaletteViewModel = (): CommandPaletteViewModel => {
       t,
       label,
     }),
-    [openTab, close, persons, cases, contracts, allRecords, screenDefinitions, workflows, themeId, themes, setTheme, signOut, userRole, can, navigablePages, t, label],
+    [openTab, close, persons, cases, contracts, allRecords, screenDefinitions, workflows, paletteReports, themeId, themes, setTheme, signOut, userRole, can, navigablePages, t, label],
   );
 
   const groups = useMemo<CommandPaletteGroup[]>(() => {

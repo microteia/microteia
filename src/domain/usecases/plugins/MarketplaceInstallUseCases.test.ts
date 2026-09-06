@@ -14,6 +14,11 @@ import type { ILookupDefinitionRepository, LookupDefinitionInput } from '../../r
 import type { LookupDefinition, LookupOption, TagDefinition } from '../../entities';
 import type { ILookupRepository } from '../../repositories/ILookupRepository';
 import type { ITagDefinitionRepository, TagDefinitionInput } from '../../repositories/ITagDefinitionRepository';
+import type { ReportDefinition } from '../../entities/Report';
+import type {
+  IReportDefinitionRepository,
+  ReportDefinitionInput,
+} from '../../repositories/IReportDefinitionRepository';
 import {
   makeInstallMarketplacePluginUseCase,
   makeUninstallMarketplacePluginUseCase,
@@ -187,12 +192,44 @@ const actor: LifecycleActor = { tenantId: 't1', userId: 'u1', now: new Date('202
 
 let installations: FakeInstallations;
 let workflows: FakeWorkflows;
+/** Os RELATÓRIOS materializados, para provar a reescrita da coleção e o refcount. */
+class FakeReports implements IReportDefinitionRepository {
+  items: ReportDefinition[] = [];
+  deleted: string[] = [];
+  subscribeToReports(): () => void { return () => {}; }
+  async getAll(): Promise<ReportDefinition[]> { return this.items; }
+  async getById(_t: string, id: string): Promise<ReportDefinition | null> {
+    return this.items.find((item) => item.id === id) ?? null;
+  }
+  async create(tenantId: string, data: ReportDefinitionInput, id?: string): Promise<ReportDefinition> {
+    const report = {
+      ...data,
+      id: id ?? `gen-${this.items.length + 1}`,
+      tenantId,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    } as ReportDefinition;
+    this.items.push(report);
+    return report;
+  }
+  async update(_t: string, id: string, data: Partial<ReportDefinitionInput>): Promise<void> {
+    const index = this.items.findIndex((item) => item.id === id);
+    if (index >= 0) this.items[index] = { ...this.items[index], ...data } as ReportDefinition;
+  }
+  async delete(_t: string, id: string): Promise<void> {
+    this.deleted.push(id);
+    this.items = this.items.filter((item) => item.id !== id);
+  }
+  async runReport(): Promise<never> { throw new Error('a instalação não executa relatório'); }
+}
+
 let screens: FakeScreens;
 let actions: FakeActions;
 let scripts: FakeScripts;
 let lookupDefinitions: FakeLookupDefinitions;
 let lookupOptions: FakeLookupOptions;
 let tagDefinitions: FakeTagDefinitions;
+let reports: FakeReports;
 
 const deps = () => ({
   installationRepository: installations,
@@ -203,6 +240,7 @@ const deps = () => ({
   lookupDefinitionRepository: lookupDefinitions,
   lookupRepository: lookupOptions,
   tagDefinitionRepository: tagDefinitions,
+  reportRepository: reports,
 });
 
 beforeEach(() => {
@@ -214,6 +252,7 @@ beforeEach(() => {
   lookupDefinitions = new FakeLookupDefinitions();
   lookupOptions = new FakeLookupOptions();
   tagDefinitions = new FakeTagDefinitions();
+  reports = new FakeReports();
 });
 
 const literalStep = (id: string, stepDefinitionId: string, inputId: string, value: string): WorkflowStep => ({
@@ -1360,5 +1399,132 @@ describe('atualização de extensão reescreve as propriedades da tela existente
 
     const atualizada = (await screens.getAll('t1')).find((s) => s.id === 'fichas')!;
     expect(atualizada.recordTabPrefix ?? null).toBeNull();
+  });
+});
+
+/**
+ * O RELATÓRIO do pacote, e a única referência dele que a instalação precisa reescrever: a coleção.
+ *
+ * É o defeito que só apareceria no escritório do cliente — um relatório abrindo vazio, sem nada
+ * acusando por quê —, e por isso a prova é de ponta a ponta, com a chave ocupada de propósito.
+ */
+describe('Relatórios do pacote', () => {
+  const reportSpec = (table: string) => ({
+    v: 1,
+    dataset: {
+      table,
+      dimensions: [{ key: 'categoria', path: 'categoria' }],
+      measures: [{ key: 'total', op: 'sum' as const, path: 'preco' }],
+    },
+    shape: { kind: 'summary' as const, groupBy: [{ dimension: 'categoria' }], values: ['total'] },
+  });
+
+  const reportPlugin = (id: string, templateIds: string[] = ['vendas']): MarketplacePlugin => ({
+    summary: 'Com relatório',
+    manifest: { id, version: '1.0.0', kernel: '^2.0.0', name: 'R' },
+    workflows: [],
+    screens: [{
+      key: 'produtos', sourceId: `src-produtos-${id}`, titleSingular: 'Produto', titlePlural: 'Produtos',
+      icon: 'apps', titleFieldKey: 'nome',
+      fields: [
+        { key: 'nome', label: 'Nome', type: 'text', required: true, order: 0 },
+        { key: 'categoria', label: 'Categoria', type: 'text', required: false, order: 1 },
+        { key: 'preco', label: 'Preço', type: 'currency', required: false, order: 2 },
+      ],
+    }],
+    reports: templateIds.map((templateId) => ({
+      templateId,
+      key: templateId,
+      title: `Relatório ${templateId}`,
+      icon: 'fileChart',
+      spec: reportSpec('produtos'),
+      origin: 'plugin' as const,
+    })),
+  });
+
+  it('materializa o relatório com a coleção declarada, quando a chave está livre', async () => {
+    const d = deps();
+    await applyPackageArtifacts(d, reportPlugin('com.acme.vendas'), actor);
+
+    expect(reports.items).toHaveLength(1);
+    expect(reports.items[0]).toMatchObject({
+      origin: 'plugin',
+      managed: true,
+      ownerPluginIds: ['com.acme.vendas'],
+      sourceId: 'vendas',
+    });
+    expect(reports.items[0].spec.dataset.table).toBe('produtos');
+  });
+
+  it('reescreve a coleção quando a chave da tela ganhou SUFIXO na instalação', async () => {
+    // A tela já existe no escritório com outra origem, então a do pacote entra como `produtos_2` —
+    // e o relatório precisa acompanhar, senão lê uma coleção vazia em silêncio.
+    const d = deps();
+    screens.store.set('produtos', {
+      id: 'produtos', tenantId: 't1', origin: 'design', titleSingular: 'Produto', titlePlural: 'Produtos',
+      icon: 'apps', titleFieldKey: 'nome', fields: [], hasNotes: false, hasDocuments: false, hasTags: false,
+      order: 0, createdAt: new Date(), updatedAt: new Date(),
+    } as unknown as ScreenDefinition);
+
+    await applyPackageArtifacts(d, reportPlugin('com.acme.vendas'), actor);
+
+    expect(reports.items[0].spec.dataset.table).toBe('produtos_2');
+  });
+
+  it('reinstalar não duplica: dedupe por `sourceId`', async () => {
+    const d = deps();
+    await applyPackageArtifacts(d, reportPlugin('com.acme.vendas'), actor);
+    await applyPackageArtifacts(d, reportPlugin('com.acme.vendas'), actor);
+
+    expect(reports.items).toHaveLength(1);
+  });
+
+  it('duas extensões trazendo o MESMO relatório somam donos, sem duplicar', async () => {
+    const d = deps();
+    await applyPackageArtifacts(d, reportPlugin('com.acme.vendas'), actor);
+    await applyPackageArtifacts(d, reportPlugin('com.acme.outra'), actor);
+
+    expect(reports.items).toHaveLength(1);
+    expect(reports.items[0].ownerPluginIds).toEqual(['com.acme.vendas', 'com.acme.outra']);
+  });
+
+  it('o relatório que SUMIU da versão nova perde este dono', async () => {
+    const d = deps();
+    await applyPackageArtifacts(d, reportPlugin('com.acme.vendas', ['vendas', 'compras']), actor);
+    expect(reports.items).toHaveLength(2);
+
+    await applyPackageArtifacts(d, reportPlugin('com.acme.vendas', ['vendas']), actor);
+
+    expect(reports.items.map((one) => one.sourceId)).toEqual(['vendas']);
+  });
+
+  it('desinstalar apaga só o relatório cujo conjunto de donos esvaziou', async () => {
+    // Pelo caminho de INSTALAÇÃO, e não por `applyPackageArtifacts`: desinstalar recusa o que não
+    // está instalado, e sem o registro da instalação a liberação nem chega a rodar.
+    const d = deps();
+    await makeInstallMarketplacePluginUseCase(d).execute(reportPlugin('com.acme.vendas'), actor);
+    await makeInstallMarketplacePluginUseCase(d).execute(reportPlugin('com.acme.outra'), actor);
+
+    await makeUninstallMarketplacePluginUseCase(d).execute('com.acme.vendas', actor);
+    expect(reports.items).toHaveLength(1);
+    expect(reports.items[0].ownerPluginIds).toEqual(['com.acme.outra']);
+
+    await makeUninstallMarketplacePluginUseCase(d).execute('com.acme.outra', actor);
+    expect(reports.items).toHaveLength(0);
+  });
+
+  it('o relatório do ESCRITÓRIO nunca é tocado — nem no upgrade, nem na desinstalação', async () => {
+    // Sem `ownerPluginIds`, ele é invisível para os dois laços. É o que faz o gesto de duplicar para
+    // editar ser seguro.
+    const d = deps();
+    await reports.create('t1', {
+      key: 'meu', title: 'Meu relatório', spec: reportSpec('produtos'), origin: 'design',
+    } as never, 'meu');
+
+    await makeInstallMarketplacePluginUseCase(d).execute(reportPlugin('com.acme.vendas'), actor);
+    await applyPackageArtifacts(d, reportPlugin('com.acme.vendas', []), actor);
+    await makeUninstallMarketplacePluginUseCase(d).execute('com.acme.vendas', actor);
+
+    expect(reports.items.map((one) => one.id)).toEqual(['meu']);
   });
 });

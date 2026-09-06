@@ -1,0 +1,394 @@
+// ═══════════════════════════════════════════════════════════════════════════
+// ⚠️  ARQUIVO GERADO POR scripts/sync-schemas.cjs — NÃO EDITE.
+// Fonte única: src/domain/schema/report/reportSpec.ts
+// Para alterar, edite a fonte e rode: npm run sync-schemas
+// ═══════════════════════════════════════════════════════════════════════════
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// FONTE ÚNICA — a cópia em functions/src/domain/schema/report/reportSpec.ts é
+// GERADA por scripts/sync-schemas.cjs (npm run sync-schemas). Nunca edite a cópia.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+import type { AggregationOp } from '../fieldRules';
+import { parsePath, resolvePath } from '../pathResolver';
+import type { SchemaContext } from '../pathResolver';
+import { resolveQueryTable } from '../querySpec';
+import type { QueryOperator, QueryOrderBy, QueryPredicate, QuerySpec } from '../querySpec';
+import type { InputMapping } from '../../entities/Workflow';
+
+/**
+ * O MAJOR do FORMATO — e nada mais.
+ *
+ * Toda evolução aditiva o deixa em 1; ele só se move numa quebra total, e uma quebra total é a única
+ * coisa que autoriza um kernel a recusar o relatório inteiro sem olhar dentro dele.
+ *
+ * Existe apesar de `Contribution.apiVersion` porque o relatório do ESCRITÓRIO não é contribuição
+ * nenhuma: é dado do tenant, gravado num documento, e precisa se descrever sozinho.
+ */
+export const REPORT_SPEC_VERSION = 1;
+
+/**
+ * De onde as linhas vêm. Aberto por string no ÚNICO lugar em que fechá-lo custaria um major.
+ *
+ * Hoje só existe `collection`. No dia em que `join` nascer, um kernel que não o conheça precisa
+ * PARAR — e é este discriminante que o faz parar. Sem ele, o kernel velho leria `table`, produziria
+ * um relatório sobre um lado do join e o rotularia com o título do todo: um número plausível e
+ * errado, que é a única falha que este contrato não pode admitir.
+ */
+export type ReportDatasetKind = string;
+
+export const REPORT_DATASET_KINDS: readonly ReportDatasetKind[] = ['collection'];
+
+export const DEFAULT_REPORT_DATASET_KIND = 'collection';
+
+/**
+ * Os baldes de data — o `bin` do Vega-Lite, a `granularity` do Cube. Sem eles, uma dimensão de data
+ * produz um grupo por registro, e "faturamento por mês" seria impossível de declarar.
+ */
+export type ReportGranularity = 'day' | 'week' | 'month' | 'quarter' | 'year';
+
+export const REPORT_GRANULARITIES: readonly ReportGranularity[] =
+  ['day', 'week', 'month', 'quarter', 'year'];
+
+/** Lê de volta uma granularidade declarada, devolvendo `undefined` para a que este kernel não conhece. */
+export const reportGranularityOf = (value: unknown): ReportGranularity | undefined =>
+  REPORT_GRANULARITIES.find((granularity) => granularity === value);
+
+export interface ReportValueFormat {
+  /** Aberto: `number`, `integer`, `currency`, `percent`, `date`, `duration` hoje. */
+  kind?: string;
+  decimals?: number;
+  /** Preset do MESMO catálogo de `fieldRulePresets` que o campo usa — nunca um catálogo paralelo. */
+  preset?: string;
+}
+
+/**
+ * O que se pode AGRUPAR e PROJETAR.
+ *
+ * `key` é a identidade DENTRO do relatório, e é por ela que `shape` e `presentation` a citam — nunca
+ * pelo `path`. A indireção é o que compra anos: trocar o caminho medido, mudar o balde ou promover a
+ * dimensão a calculada é mudança de UMA entrada daqui, e nenhuma das outras camadas muda uma letra.
+ */
+export interface ReportDimension {
+  key: string;
+  /**
+   * Caminho no registro, com hop de FK (`client.name`). MESMA gramática de `QuerySpec.projections`,
+   * mesmo `resolvePath`, mesma hidratação — é o que dispensa um mecanismo de join na v1.
+   */
+  path: string;
+  /** Referência `@ns/chave` numa extensão; o que o escritório digitou passa INTACTO por `useLabel`. */
+  label?: string;
+  /**
+   * O BALDE. Só significa algo sobre data; sobre outro tipo é ignorado com aviso. Valor desconhecido
+   * degrada para o VALOR CRU, jamais para um balde diferente: um mês exibido como dia é uma tabela
+   * grande; um mês exibido como trimestre é uma mentira.
+   */
+  granularity?: ReportGranularity;
+  /**
+   * Fuso em que o balde é cortado (IANA). Ausente = UTC. Sem ele, "vendas de segunda" muda de dia
+   * conforme quem abre o relatório — e ninguém descobre.
+   */
+  timeZone?: string;
+  sort?: { by?: 'key' | 'label' | string; dir?: 'asc' | 'desc' };
+  /**
+   * Teto de membros distintos DESTE nível: ficam os primeiros, na ordem de `sort`.
+   *
+   * O excedente não vira um agrupamento residual — ele sai da tabela, e o total geral continua
+   * somando as linhas todas. Por isso o corte marca o resultado como PARCIAL: as linhas visíveis não
+   * fecham com o próprio total, e isso precisa estar dito na tela, no CSV e na impressão.
+   */
+  limit?: number;
+}
+
+interface ReportMeasureBase {
+  key: string;
+  label?: string;
+  format?: ReportValueFormat;
+}
+
+/**
+ * A medida agregada. `kind` ausente é `aggregate` — e mudar esse padrão é QUEBRA ainda que nenhum
+ * JSON mude, porque todo spec gravado hoje omite o campo.
+ */
+export interface ReportAggregateMeasure extends ReportMeasureBase {
+  kind?: 'aggregate';
+  /**
+   * O MESMO vocabulário do agregado de campo (`FieldAggregation.op`). Uma segunda lista de operações
+   * seria a primeira divergência silenciosa entre o total de um relatório e o total de um campo.
+   */
+  op: AggregationOp;
+  /** Caminho medido. Obrigatório salvo em `count`. */
+  path?: string;
+  /** A MEDIDA FILTRADA do Cube: restringe esta medida, e só ela. */
+  filter?: QueryPredicate[];
+  distinct?: boolean;
+}
+
+/**
+ * A medida CALCULADA — razão, percentual, ticket médio. PREVISTA no contrato, executada depois: um
+ * kernel que não a saiba fazer recusa pelo NOME dela (`requires`), em vez de somar sem ela.
+ *
+ * A expressão vê as OUTRAS medidas, por chave, e nunca o registro: uma razão de médias não é a média
+ * das razões, e deixar a expressão enxergar a linha convidaria exatamente esse erro.
+ */
+export interface ReportComputedMeasure extends ReportMeasureBase {
+  kind: 'computed';
+  expression: string;
+}
+
+export type ReportMeasure = ReportAggregateMeasure | ReportComputedMeasure;
+
+/** `kind` ausente é `aggregate`; é a leitura única desse padrão, para ninguém reinventá-la. */
+export const isAggregateMeasure = (measure: ReportMeasure): measure is ReportAggregateMeasure =>
+  measure.kind === undefined || measure.kind === 'aggregate';
+
+export interface ReportDataset {
+  /** Ausente = `collection`. Mudar este padrão é QUEBRA, ainda que nenhum JSON mude. */
+  kind?: ReportDatasetKind;
+  /**
+   * A COLEÇÃO. Num pacote é a chave de TEMPLATE da tela, reescrita para a chave instalada por
+   * `materializeReport` — a coleção pode ganhar sufixo no escritório de destino.
+   */
+  table: string;
+  /** O filtro FIXO do relatório. Reuso literal do predicado do `QuerySpec`, `InputMapping` incluso. */
+  where?: QueryPredicate[];
+  dimensions?: ReportDimension[];
+  measures?: ReportMeasure[];
+  /** Teto de registros VARRIDOS. Pedido acima do teto do executor é grampeado, nunca recusado. */
+  scanLimit?: number;
+}
+
+/**
+ * UM nível de agrupamento.
+ *
+ * É objeto, e não `string`, porque o subtotal é propriedade DO NÍVEL — não da lista de níveis. Uma
+ * lista paralela de "quais níveis subtotalizam" dessincroniza na primeira reordenação, e a
+ * dessincronia aparece como um subtotal no lugar errado.
+ */
+export interface ReportGroupLevel {
+  /** Chave de uma `ReportDimension`. NUNCA um caminho. */
+  dimension: string;
+  subtotal?: boolean;
+  collapsed?: boolean;
+}
+
+/** Sem agrupamento: o registro é a linha. */
+export interface ReportTabularShape {
+  kind: 'tabular';
+  /** Chaves de DIMENSÃO, na ordem das colunas. Uma medida aqui é erro nomeado. */
+  columns: string[];
+  orderBy?: QueryOrderBy[];
+  limit?: number;
+}
+
+/** Agrupado, com subtotal por nível. */
+export interface ReportSummaryShape {
+  kind: 'summary';
+  /** Níveis, do mais externo ao mais interno. Array desde o dia um. */
+  groupBy: ReportGroupLevel[];
+  /** Chaves de MEDIDA, na ordem. Array desde o dia um: duas medidas por célula é o caso comum. */
+  values: string[];
+  grandTotal?: boolean;
+  limit?: number;
+}
+
+/** O pivô: linhas × colunas. */
+export interface ReportMatrixShape {
+  kind: 'matrix';
+  rows: ReportGroupLevel[];
+  columns: ReportGroupLevel[];
+  values: string[];
+  grandTotal?: boolean;
+  /** Zero e vazio não são a mesma afirmação: um diz "houve e deu zero", o outro "não houve". */
+  emptyCell?: 'blank' | 'zero';
+}
+
+export type ReportShape = ReportTabularShape | ReportSummaryShape | ReportMatrixShape;
+
+export type ReportShapeKind = string;
+
+export const REPORT_SHAPE_KINDS: readonly ReportShapeKind[] = ['tabular', 'summary', 'matrix'];
+
+/**
+ * Aberto de propósito: um ponto `reports.chart` futuro deixa uma extensão trazer o renderizador, e o
+ * kind dela virá qualificado (`com.acme.charts/sankey`). Fechar agora custaria um major depois.
+ */
+export type ReportChartKind = string;
+
+export const REPORT_CHART_KINDS: readonly ReportChartKind[] =
+  ['bar', 'column', 'line', 'area', 'pie', 'donut'];
+
+export interface ReportChart {
+  kind: ReportChartKind;
+  /** Dimensão do eixo categórico. Ausente = o primeiro nível de `rows`/`groupBy`. */
+  category?: string;
+  /** Medidas desenhadas. Ausente = todas as de `values`. */
+  series?: string[];
+  /** Quebra as séries por uma segunda dimensão — o `columns` do pivô virando legenda. */
+  splitBy?: string;
+  stacked?: boolean;
+  height?: number;
+}
+
+export interface ReportFieldPresentation {
+  label?: string;
+  format?: ReportValueFormat;
+  align?: 'start' | 'center' | 'end';
+  width?: number;
+  hidden?: boolean;
+}
+
+/** O filtro que o LEITOR preenche na tela. `value` nasce vazio; `default` semeia. */
+export interface ReportPrompt {
+  key: string;
+  label?: string;
+  path: string;
+  op: QueryOperator;
+  /** Como ele escolhe. Ausente = herda o controle do campo apontado. */
+  control?: string;
+  required?: boolean;
+  default?: InputMapping;
+}
+
+/**
+ * A APARÊNCIA — e o limite dela.
+ *
+ * REGRA DA CAMADA: só pode conter propriedade cuja REMOÇÃO deixa um relatório correto. O que muda um
+ * número mora em `dataset` ou em `shape`. Há teste mecânico, porque regra que só existe na prosa
+ * erode: sem ele, esta camada vira um segundo Widget DSL em dois anos.
+ */
+export interface ReportPresentation {
+  chart?: ReportChart;
+  /** Aparência por chave de dimensão OU de medida — o espaço de nomes é um só. */
+  fields?: Record<string, ReportFieldPresentation>;
+  prompts?: ReportPrompt[];
+  /**
+   * Objeto desde já, e não booleano: booleano que vira objeto é a quebra clássica, e um alvo de
+   * detalhamento é a primeira coisa que este campo vai querer.
+   */
+  drillDown?: { enabled?: boolean };
+  export?: { csv?: boolean; pdf?: boolean; fileName?: string };
+}
+
+export interface ReportAccess {
+  /**
+   * A permissão PRÓPRIA. Ela só RESTRINGE; NUNCA concede: ver o relatório exige esta permissão E a
+   * leitura de cada coleção que ele toca. A alternativa transformaria cada relatório num vetor de
+   * escalada de privilégio autorado por quem só tem `reports.manage` — e criar relatório é, de
+   * propósito, um gesto barato.
+   */
+  permission?: string;
+  /** O que essa permissão passa a exigir. Mesma semântica aditiva de `access.requirement`. */
+  requires?: string[];
+}
+
+/** PREVISTO no contrato, não executado na v1. Reservar o nome é o que torna a ida e volta sem perda. */
+export interface ReportSchedule {
+  cron?: string;
+  timeZone?: string;
+  delivery?: { kind: string; to?: string[]; format?: string }[];
+  enabled?: boolean;
+}
+
+/**
+ * A espinha é FIXA e legível por qualquer versão; a variação mora dentro de cada camada, onde a
+ * recusa pode ser nomeada.
+ *
+ * Não é união discriminada na raiz — e essa é a decisão que governa todas as outras. O `WidgetSpec`
+ * pode ser união porque é árvore composicional: descartar um nó deixa uma árvore válida. Um
+ * relatório é uma AFIRMAÇÃO SOBRE UM NÚMERO, com raiz só: diante de uma `shape` desconhecida, um
+ * kernel velho precisa conseguir ler `dataset` para dizer sobre o que o relatório é, em vez de
+ * recusar uma caixa preta.
+ */
+export interface ReportSpec {
+  v: number;
+  dataset: ReportDataset;
+  shape: ReportShape;
+  presentation?: ReportPresentation;
+  access?: ReportAccess;
+  schedule?: ReportSchedule;
+  /**
+   * As capacidades que este relatório EXIGE de quem o executa. É DERIVADA por
+   * `deriveReportRequires` e nunca escrita à mão — a mesma regra de "afirmação sobre o kernel num
+   * documento gerado é DERIVADA, nunca prosa".
+   *
+   * O portão do pacote (`packageIssues`, e portanto o `build` da extensão e o `validate_plugin` do
+   * MCP) reprova a OMISSÃO: um `requires` escrito à menos vale mais que a derivação em
+   * `unsupportedReportCapabilities`, e seria o único jeito de o relatório rodar sem o recurso que
+   * lhe falta em vez de ser recusado pelo nome dele.
+   */
+  requires?: string[];
+}
+
+const trimmed = (value: string | undefined): string => (value ?? '').trim();
+
+/**
+ * Todos os caminhos que o relatório LÊ. Alimenta `projections`, e portanto o plano de hidratação —
+ * um caminho que falte aqui chega ao agregador como `undefined`, e vira um grupo vazio silencioso.
+ */
+export const reportPaths = (spec: ReportSpec): string[] => {
+  const paths = new Set<string>();
+  const add = (path: string | undefined): void => {
+    const value = trimmed(path);
+    if (value) paths.add(value);
+  };
+
+  for (const predicate of spec.dataset.where ?? []) add(predicate.path);
+  for (const dimension of spec.dataset.dimensions ?? []) add(dimension.path);
+
+  for (const measure of spec.dataset.measures ?? []) {
+    if (!isAggregateMeasure(measure)) continue;
+    add(measure.path);
+    for (const predicate of measure.filter ?? []) add(predicate.path);
+  }
+
+  if (spec.shape.kind === 'tabular') {
+    for (const order of spec.shape.orderBy ?? []) add(order.path);
+  }
+  for (const prompt of spec.presentation?.prompts ?? []) add(prompt.path);
+
+  return [...paths];
+};
+
+/**
+ * Deriva o `QuerySpec` que traz as linhas. Um executor só, um validador só — acrescentar `groupBy` e
+ * `measures` ao próprio `QuerySpec` obrigaria cada um dos consumidores dele a responder "e se vier
+ * preenchido e eu ignorar?", e a resposta seria um resultado silenciosamente errado.
+ *
+ * O `limit` É o orçamento de varredura: quem corta o resultado é a agregação, não a consulta. Cortar
+ * antes de agregar somaria as primeiras cem linhas e chamaria isso de total.
+ */
+export const buildReportQuery = (spec: ReportSpec, scanCeiling: number): QuerySpec => {
+  const asked = spec.dataset.scanLimit;
+  const scan = Number.isFinite(asked) && (asked ?? 0) > 0
+    ? Math.min(asked as number, scanCeiling)
+    : scanCeiling;
+
+  return {
+    table: spec.dataset.table,
+    where: spec.dataset.where ?? [],
+    orderBy: spec.shape.kind === 'tabular' ? spec.shape.orderBy : undefined,
+    limit: scan,
+    projections: reportPaths(spec),
+  };
+};
+
+/**
+ * Toda coleção que o relatório TOCA: a fonte, mais o destino de cada hop de FK. É a lista que o RBAC
+ * cobra, e é DERIVADA — uma extensão não consegue esconder um hop declarando de menos.
+ *
+ * Os hops são colhidos mesmo de um caminho que não resolve: a lista de permissões a cobrar nunca
+ * pode ser MENOR que a realidade, e um spec inválido é recusado antes de executar de qualquer forma.
+ */
+export const reportSourceCollections = (spec: ReportSpec, ctx: SchemaContext): string[] => {
+  const resolved = resolveQueryTable(spec.dataset.table, ctx);
+  if (!resolved) return [];
+
+  const collections = new Set<string>([resolved.physicalCollection]);
+  for (const path of reportPaths(spec)) {
+    const resolution = resolvePath(ctx, resolved.root, parsePath(path));
+    for (const hop of resolution.hops) collections.add(hop.targetCollection);
+  }
+
+  return [...collections];
+};

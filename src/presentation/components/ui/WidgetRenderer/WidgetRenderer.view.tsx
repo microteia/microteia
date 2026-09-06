@@ -1,5 +1,6 @@
 import React from 'react';
 import { InfoBanner } from '../InfoBanner';
+import { ReportView } from '../ReportView';
 import { MarkdownContent } from '../MarkdownContent';
 import type { WidgetSpec } from '../../../../domain/schema/ui/widgetSpec';
 import { isWidgetSpec } from '../../../../domain/schema/ui/widgetSpec';
@@ -73,6 +74,8 @@ const WidgetNode: React.FC<{ node: WidgetSpec }> = ({ node }) => {
       return <InfoBanner message={label(node.message)} variant={node.variant ?? 'info'} />;
     case 'divider':
       return <S.Divider />;
+    case 'report':
+      return <ReportView reportKey={node.report} />;
   }
 };
 

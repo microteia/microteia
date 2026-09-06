@@ -138,6 +138,23 @@ describe('getValueAtPath — equivalência com os resolvedores antigos', () => {
     expect(getValueAtPath(payload, parsePath('activePole[1].name'))).toBe('João');
     expect(getValueAtPath(payload, parsePath('activePole.5.name'))).toBeUndefined();
   });
+
+  it('colhe o campo de cada item quando o caminho atravessa a lista', () => {
+    const payload = { activePole: [{ name: 'Maria' }, { name: 'João' }] };
+    expect(getValueAtPath(payload, parsePath('activePole.name'))).toStrictEqual(['Maria', 'João']);
+  });
+
+  it('deixa fora o item sem o campo, e lista sem nenhum é ausência de valor', () => {
+    expect(getValueAtPath({ activePole: [{ name: 'Maria' }, {}] }, parsePath('activePole.name')))
+      .toStrictEqual(['Maria']);
+    expect(getValueAtPath({ activePole: [{}] }, parsePath('activePole.name'))).toBeUndefined();
+    expect(getValueAtPath({ activePole: [] }, parsePath('activePole.name'))).toBeUndefined();
+  });
+
+  it('achata a lista de listas: dois níveis de vários seguem sendo um valor por item', () => {
+    const payload = { activePole: [{ tags: ['a', 'b'] }, { tags: ['c'] }] };
+    expect(getValueAtPath(payload, parsePath('activePole.tags'))).toStrictEqual(['a', 'b', 'c']);
+  });
 });
 
 describe('resolvePath — FKs fixas', () => {
@@ -190,10 +207,37 @@ describe('resolvePath — FKs fixas', () => {
     expect(item.node).toMatchObject({ kind: 'scalar', type: 'string' });
   });
 
-  it('exige índice para navegar em lista', () => {
+  it('navega em lista pelo NOME do campo, e o nó diz que o valor vem em vários', () => {
     const resolution = resolvePath(ctx, casesRoot, parsePath('activePole.name'));
-    expect(resolution.valid).toBe(false);
-    expect(resolution.error).toBe('@core.automation/path.is-list');
+    expect(resolution.valid).toBe(true);
+    expect(resolution.node).toStrictEqual({
+      kind: 'scalar',
+      type: 'string',
+      lookupCollection: undefined,
+      list: true,
+    });
+    // O salto é o mesmo de sempre: quem hidrata não precisa saber que o caminho seguiu adiante.
+    expect(resolution.hops[0]).toMatchObject({ atPath: 'activePoleIds', materializeAt: 'activePole', multi: true });
+  });
+
+  it('a posição fixada NÃO marca lista: um item é um valor', () => {
+    expect(resolvePath(ctx, casesRoot, parsePath('activePole.0.name')).node).toStrictEqual({
+      kind: 'scalar',
+      type: 'string',
+      lookupCollection: undefined,
+    });
+  });
+
+  it('o registro apontado de dentro de uma lista continua sendo lista', () => {
+    const resolution = resolvePath(ctx, casesRoot, parsePath('activePole.address'));
+    expect(resolution.node).toStrictEqual({ kind: 'object', list: true });
+  });
+
+  it('atravessa a lista por dois saltos, e o valor final segue vindo em vários', () => {
+    const resolution = resolvePath(ctx, casesRoot, parsePath('tarefa.etapas.nome'));
+    expect(resolution.valid).toBe(true);
+    expect(resolution.node).toMatchObject({ kind: 'scalar', list: true });
+    expect(resolution.depth).toBe(2);
   });
 
   it('a relação é navegável pelo nome do registro apontado', () => {
@@ -353,15 +397,15 @@ describe('suggestNextSegments', () => {
     expect(texts).toContain('client');
   });
 
-  it('sugere índice para listas', () => {
-    expect(suggestNextSegments(ctx, casesRoot, parsePath('activePole'))).toStrictEqual([
-      {
-        insertText: '0',
-        label: '@core.automation/autocomplete.first-item',
-        kind: 'index',
-        isLeaf: false,
-      },
-    ]);
+  it('sugere para listas o índice E os campos de cada item', () => {
+    const suggestions = suggestNextSegments(ctx, casesRoot, parsePath('activePole'));
+    expect(suggestions[0]).toStrictEqual({
+      insertText: '0',
+      label: '@core.automation/autocomplete.first-item',
+      kind: 'index',
+      isLeaf: false,
+    });
+    expect(suggestions.map((one) => one.insertText)).toEqual(expect.arrayContaining(['name', 'address']));
   });
 
   it('navega para os campos da tela alvo de uma reference declarada pelo tenant', () => {
@@ -373,6 +417,7 @@ describe('suggestNextSegments', () => {
   it('não sugere nada após erro ou em folha', () => {
     expect(suggestNextSegments(ctx, casesRoot, parsePath('caseNumber'))).toStrictEqual([]);
     expect(suggestNextSegments(ctx, casesRoot, parsePath('activePole.name'))).toStrictEqual([]);
+    expect(suggestNextSegments(ctx, casesRoot, parsePath('activePole.0.name'))).toStrictEqual([]);
   });
 });
 

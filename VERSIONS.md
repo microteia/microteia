@@ -11,6 +11,62 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.54.0] — 2026-09-05
+
+- **Um relatório que mostra só os primeiros de uma lista passou a avisar que está mostrando um recorte.** Quando o agrupamento tem um teto de itens, o total geral continua somando tudo — e as linhas visíveis não fecham com ele. Agora o relatório diz que o resultado é parcial na tela, na planilha e na impressão, como já fazia quando a consulta era grande demais.
+- **O relatório passou a dizer o que ele pediu e o sistema ainda não faz.** Antes havia detalhes que podiam ser declarados e simplesmente não aconteciam, sem nenhuma explicação em lugar nenhum; agora cada um deles aparece como aviso ao abrir o relatório.
+- Melhorada a documentação de quem cria relatórios por extensão, com o filtro que o leitor preenche, o painel formado por vários gráficos e o que o sistema cobra de permissão em cada consulta.
+
+#### [9.53.0] — 2026-09-05
+
+- **Um relatório passou a poder agrupar e filtrar por um campo do cadastro relacionado mesmo quando a relação aponta para VÁRIOS registros.** Antes só era possível escolher o campo quando o relacionamento apontava para um; escolhê-lo numa relação de vários respondia que era preciso informar a posição do item, e o relatório não abria.
+- O valor colhido é o de cada apontado: um agrupamento pela cidade dos participantes reúne as cidades de todos eles, um filtro encontra o registro em que qualquer um dos apontados atende, e uma soma soma o número de cada um.
+- Um agrupamento por mês, trimestre ou ano continua valendo quando a data vem de vários apontados — antes o corte pedido era ignorado em silêncio e a data aparecia inteira.
+- **O filtro "contém" passou a achar pelo PEDAÇO do texto também quando o campo vem de vários registros apontados.** Filtrar o e-mail do polo ativo por "alex" não trazia nada, apesar de existir `alexnaldo.santos@gmail.com`: ali era preciso digitar o e-mail inteiro, e o relatório vinha vazio sem dizer por quê.
+- **"Contém" deixou de diferenciar maiúscula de minúscula** — é como o "contém" das automações sempre funcionou, e responder de dois jeitos à mesma palavra era duas verdades sobre o mesmo filtro.
+
+#### [9.52.0] — 2026-09-05
+
+- **Filtrar um relatório por um cadastro relacionado passou a aceitar VÁRIOS escolhidos, mesmo quando o campo guarda um só.** É a mesma escolha múltipla da barra de filtros das listagens: pergunta-se por "qualquer um destes", e não por um de cada vez.
+- O mesmo vale para as listas de opções: escolher três situações traz os registros de qualquer uma das três.
+
+#### [9.51.3] — 2026-09-05
+
+- **Filtrar um relatório por um cadastro relacionado voltou a filtrar.** Escolher a pessoa, o cliente ou o processo apontado não restringia nada: o relatório vinha vazio, sem erro e sem aviso — o que se lê como "não existe nenhum assim". Vale para o filtro fixo do relatório e para o que quem abre preenche.
+- **Um campo que aceita vários agora deixa escolher vários no filtro.** Onde o cadastro permite mais de uma pessoa no polo ativo, o filtro pedia uma só; agora aceita quantas quiser, e o relatório traz os registros que tenham qualquer uma delas.
+- O mesmo passou a valer para as listas de opções de várias escolhas: filtrar por uma delas não trazia nada.
+
+#### [9.51.2] — 2026-09-05
+
+- **Um relatório sobre um cadastro que aponta para vários outros deixou de mostrar `[object Object]`.** Onde antes aparecia esse código no lugar do dado, aparece agora o nome de cada registro apontado, separados por vírgula — na tela e no arquivo exportado.
+- Agrupar um relatório por um campo que aponta para outro cadastro voltou a formar um grupo por apontado. Todos caíam num grupo só, e uma contagem de "quantos diferentes" respondia sempre 1.
+
+#### [9.51.1] — 2026-09-05
+
+- **Exportar um relatório em lista simples deixou de baixar uma planilha vazia.** O arquivo saía só com o cabeçalho, mesmo com a tela cheia de registros; agora leva as mesmas linhas que a tela mostra.
+- O total dessa exportação passou a vir num bloco próprio, ao final, com o nome de cada número. Alinhado às colunas do registro, ele cairia debaixo da coluna errada — uma soma lida como se fosse outra coisa.
+
+#### [9.51.0] — 2026-09-04
+
+- Nos relatórios, o valor de um filtro passou a ser pedido **no formato do campo escolhido**: uma data no calendário, um sim/não como caixa de marcar, uma lista de opções na própria lista, e um campo que aponta para outro cadastro no registro apontado — com o nome dele, não com um código. Vale nos dois lugares: no filtro fixo, ao montar o relatório, e nos filtros que quem lê preenche ao abrir.
+- O filtro fixo já montado passou a ser lido em palavras. Onde antes aparecia o código do registro, aparece agora o nome pelo qual o escritório o conhece.
+- **Um filtro sobre um campo de sim/não passou a funcionar.** Ele era gravado como o texto "sim" e nunca encontrava nada — sem erro, sem aviso, apenas um relatório vazio. Agora a pergunta tem três respostas: sim, não, ou não filtrar por isto.
+- **Um relatório que pergunta algo a quem o abre deixou de ser executado antes da resposta.** A tela abre com os filtros à espera e um botão de executar; até então, o relatório era refeito a cada letra digitada e o primeiro resultado cobria tudo — justamente o que quem abriu não queria ver.
+- Na barra de filtros do relatório, "Aplicar" e "Limpar" viraram os ícones que o resto do sistema já usa para executar e para limpar.
+
+#### [9.50.0] — 2026-09-04
+
+- O escritório passou a poder fazer perguntas aos próprios cadastros. Em **Relatórios**, escolhe-se o cadastro, por onde quebrá-lo (situação, mês, cidade do cliente) e o que contar ou somar — e o número aparece, com subtotal por grupo e total no fim.
+- O relatório pode ser mostrado de três formas: uma lista simples, agrupado com subtotais, ou cruzado — agrupamentos nas linhas e nas colunas ao mesmo tempo, para ver o faturamento de cada situação mês a mês numa tabela só.
+- Um agrupamento por data escolhe o período: por dia, semana, mês, trimestre ou ano. O corte respeita o fuso do escritório, então uma venda das nove da noite do dia 31 conta no mês em que ela aconteceu.
+- Cada relatório pode trazer um gráfico — barras, linha ou rosca — desenhado a partir dos mesmos números da tabela.
+- O resultado sai em CSV, pronto para abrir na planilha com acentos no lugar, e a página imprime só o relatório, sem menu nem barra, para virar PDF pelo próprio navegador.
+- **Quando um relatório cobre mais registros do que consegue varrer de uma vez, ele diz isso** — na tela, no cabeçalho do arquivo e no papel. Um número parcial que se apresenta como total é pior que número nenhum.
+- Um relatório só aparece para quem pode ler os cadastros que ele cobre — inclusive os alcançados por um campo que aponta para outro cadastro. Agrupar por "cidade do cliente" exige poder ver Clientes.
+- Uma extensão pode entregar relatórios prontos, e eles aparecem na lista assim que ela é instalada.
+- O relatório pode ter um **filtro fixo** — o que ele sempre cobre, e que quem lê não vê nem muda — e também **filtros que quem lê preenche** ao abrir, como um período. Deixados em branco, eles simplesmente não restringem nada.
+- O **gráfico** passou a ser escolhido na própria tela de autoria: barras, colunas, linha, área, pizza ou rosca, com a opção de empilhar os números.
+
 #### [9.49.0] — 2026-09-03
 
 - Um campo que aponta para outro cadastro passou a oferecer o caminho até ele. Ao lado do "x" que limpa a escolha, apareceu uma seta discreta: um clique nela abre o registro escolhido na tela que o apresenta, sem perder de vista o formulário em que se estava. Numa venda, chega-se aos dados do cliente sem procurá-lo de novo pelo menu.

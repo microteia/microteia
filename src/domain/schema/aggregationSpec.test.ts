@@ -115,6 +115,16 @@ describe('applyAggregationOp', () => {
     expect(applyAggregationOp('sum', [10, null, 'abc', undefined, 5])).toBe(15);
   });
 
+  it('um valor que é LISTA entra pelos itens dele', () => {
+    // O caminho que atravessa uma referência de vários colhe um número por apontado. `Number([10,
+    // 20])` é `NaN`: sem entrar pelos itens, a soma respondia 0 com a cara de um total legítimo.
+    expect(applyAggregationOp('sum', [[10, 20], 5])).toBe(35);
+    expect(applyAggregationOp('avg', [[10, 20], 30])).toBe(20);
+    expect(applyAggregationOp('max', [[10, 20]])).toBe(20);
+    // `count` continua contando REGISTROS, não itens: é a contagem de linhas do grupo.
+    expect(applyAggregationOp('count', [[10, 20], 5])).toBe(2);
+  });
+
   it('agregado vazio: soma é 0, mas média/mínimo/máximo são nulos', () => {
     expect(applyAggregationOp('sum', [])).toBe(0);
     expect(applyAggregationOp('count', [])).toBe(0);

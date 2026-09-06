@@ -1,0 +1,60 @@
+import styled from 'styled-components';
+
+export const S = {
+  Scroll: styled.div`
+    overflow-x: auto;
+    border: 1px solid ${({ theme }) => theme.colors.border};
+    border-radius: ${({ theme }) => theme.borderRadius.md};
+    background: ${({ theme }) => theme.colors.surface};
+  `,
+  Table: styled.table`
+    width: 100%;
+    border-collapse: collapse;
+    font-size: ${({ theme }) => theme.fontSizes.sm};
+    color: ${({ theme }) => theme.colors.text};
+  `,
+  Head: styled.thead`
+    background: ${({ theme }) => theme.colors.inputBackground};
+  `,
+  Th: styled.th<{ $numeric?: boolean }>`
+    text-align: ${({ $numeric }) => ($numeric ? 'right' : 'left')};
+    font-size: ${({ theme }) => theme.fontSizes.xs};
+    font-weight: 600;
+    color: ${({ theme }) => theme.colors.textSecondary};
+    padding: 10px 14px;
+    border-bottom: 1px solid ${({ theme }) => theme.colors.border};
+    white-space: nowrap;
+  `,
+  Row: styled.tr<{ $subtotal?: boolean }>`
+    background: ${({ theme, $subtotal }) => ($subtotal ? theme.colors.inputBackground : 'transparent')};
+
+    &:hover {
+      background: ${({ theme }) => theme.colors.surfaceHover};
+    }
+  `,
+  Td: styled.td<{ $numeric?: boolean; $level?: number; $strong?: boolean }>`
+    text-align: ${({ $numeric }) => ($numeric ? 'right' : 'left')};
+    padding: 9px 14px;
+    padding-left: ${({ $level, $numeric }) => ($numeric ? 14 : 14 + (($level ?? 0) * 18))}px;
+    border-bottom: 1px solid ${({ theme }) => theme.colors.borderSubtle};
+    font-weight: ${({ $strong }) => ($strong ? 600 : 400)};
+    font-variant-numeric: tabular-nums;
+  `,
+  TotalRow: styled.tr`
+    background: ${({ theme }) => theme.colors.inputBackground};
+  `,
+  TotalTd: styled.td<{ $numeric?: boolean }>`
+    text-align: ${({ $numeric }) => ($numeric ? 'right' : 'left')};
+    padding: 11px 14px;
+    border-top: 2px solid ${({ theme }) => theme.colors.border};
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  `,
+  Empty: styled.p`
+    margin: 0;
+    padding: 28px 14px;
+    text-align: center;
+    font-size: ${({ theme }) => theme.fontSizes.sm};
+    color: ${({ theme }) => theme.colors.textMuted};
+  `,
+};

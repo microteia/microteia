@@ -20,6 +20,8 @@ import {
 } from './packageMaterialize';
 import { workflowOutRefs } from './pluginReferences';
 import { installedArtifactId } from '../../services/artifactIdentity';
+import type { IReportDefinitionRepository } from '../../repositories/IReportDefinitionRepository';
+import { reportInputFromTemplate, reportTemplateSourceId } from './reportModule';
 import type { ILookupDefinitionRepository } from '../../repositories/ILookupDefinitionRepository';
 import type { ILookupRepository } from '../../repositories/ILookupRepository';
 import { isLookupCollection } from '../../schema/lookupRegistry';
@@ -43,6 +45,7 @@ export interface ArtifactDeps {
   tagDefinitionRepository: ITagDefinitionRepository;
   /** Opções das listas — só para SEMEAR uma lista vazia na instalação. */
   lookupRepository: ILookupRepository;
+  reportRepository: IReportDefinitionRepository;
 }
 
 export interface MarketplaceDeps extends ArtifactDeps {
@@ -256,7 +259,65 @@ const materializeArtifacts = async (
     }
   }
 
+  await materializeReports(deps, plugin, tenantId, userId, pluginId, screenKeyMap);
+
   return { actionMap, screenKeyMap };
+};
+
+/**
+ * Materializa os relatórios do pacote.
+ *
+ * Roda DEPOIS de `buildScreenKeyMap` porque é dele que sai a reescrita de `dataset.table`: a chave de
+ * uma tela do pacote pode ganhar sufixo no escritório de destino, e um relatório que continuasse
+ * apontando para o nome declarado leria uma coleção vazia — sem erro e sem aviso.
+ *
+ * Dedupe por `sourceId`, como os irmãos. Mas a reescrita do CONTEÚDO é mais simples de propósito: um
+ * `ReportSpec` não se mescla com a edição do escritório, então não há campo do usuário a preservar —
+ * o que existe é o gesto de duplicar para editar, que produz uma cópia `design` sem `ownerPluginIds`
+ * e por isso invisível para este laço.
+ */
+const materializeReports = async (
+  deps: ArtifactDeps,
+  plugin: MarketplacePlugin,
+  tenantId: string,
+  userId: string,
+  pluginId: string,
+  screenKeyMap: Map<string, string>,
+): Promise<void> => {
+  if ((plugin.reports ?? []).length === 0) return;
+
+  const existingReports = await deps.reportRepository.getAll(tenantId);
+  const takenReportIds = new Set(existingReports.map((report) => report.id));
+
+  for (const template of plugin.reports ?? []) {
+    const sourceId = reportTemplateSourceId(template);
+    const existing = existingReports.find((report) => (report.sourceId ?? '') === sourceId);
+    const input = reportInputFromTemplate(template, pluginId, screenKeyMap, userId);
+
+    if (existing) {
+      const owners = addOwner(ownerSet(existing), pluginId);
+      if (shouldRewriteContent(template, existing)) {
+        await deps.reportRepository.update(tenantId, existing.id, {
+          ...input,
+          ownerPluginIds: owners,
+          ownerPluginId: existing.ownerPluginId ?? pluginId,
+        });
+      } else if (owners.length !== ownerSet(existing).length) {
+        await deps.reportRepository.update(tenantId, existing.id, {
+          ownerPluginIds: owners,
+          ownerPluginId: existing.ownerPluginId ?? pluginId,
+        });
+      }
+      continue;
+    }
+
+    const created = await deps.reportRepository.create(
+      tenantId,
+      input,
+      installedArtifactId(template.templateId, template.title, takenReportIds),
+    );
+    takenReportIds.add(created.id);
+  }
 };
 
 /**
@@ -662,6 +723,12 @@ const releaseGeneratedArtifacts = async (
     else await deps.scriptRepository.updateScript(tenantId, script.id, { ownerPluginIds: owners, ownerPluginId: owners[0] });
   }
 
+  for (const report of (await deps.reportRepository.getAll(tenantId)).filter((r) => ownerSet(r).includes(pluginId))) {
+    const owners = removeOwner(ownerSet(report), pluginId);
+    if (owners.length === 0) await deps.reportRepository.delete(tenantId, report.id);
+    else await deps.reportRepository.update(tenantId, report.id, { ownerPluginIds: owners, ownerPluginId: owners[0] });
+  }
+
   return { removedActions, removedWorkflows, removedScripts };
 };
 
@@ -680,6 +747,14 @@ const releaseVanishedGeneratedArtifacts = async (
   const keepWorkflows = new Set((plugin.workflows ?? []).map((t) => t.templateId));
   const keepActions = new Set((plugin.actions ?? []).map((t) => t.templateId));
   const keepScripts = new Set((plugin.scripts ?? []).map((t) => t.templateId));
+  const keepReports = new Set((plugin.reports ?? []).map((t) => reportTemplateSourceId(t)));
+
+  for (const report of (await deps.reportRepository.getAll(tenantId))
+    .filter((r) => ownerSet(r).includes(pluginId) && !keepReports.has(r.sourceId ?? ''))) {
+    const owners = removeOwner(ownerSet(report), pluginId);
+    if (owners.length === 0) await deps.reportRepository.delete(tenantId, report.id);
+    else await deps.reportRepository.update(tenantId, report.id, { ownerPluginIds: owners, ownerPluginId: owners[0] });
+  }
 
   for (const workflow of (await deps.workflowRepository.getWorkflowDefinitions(tenantId))
     .filter((w) => ownerSet(w).includes(pluginId) && !keepWorkflows.has(w.sourceId ?? ''))) {
