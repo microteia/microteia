@@ -6090,8 +6090,11 @@ POSIÇÃO**. O modelo é o de Cube/Metabase/Grafana (consulta ≠ painel) — a 
 DENTRO do relatório, e não num registro global de métricas, porque aqui não há modelo central: cada
 escritório declara as próprias telas.
 
-Rejeitado de propósito: o modelo banded (RDL/SSRS/Jasper). Ele pressupõe esquema conhecido em tempo
-de autoria e um canvas de papel; a Microteia declara telas em runtime e pinta com tokens de tema.
+Rejeitado de propósito: o **motor de layout** banded (RDL/SSRS/Jasper) — o canvas de papel, com banda
+posicionada em coordenada e esquema conhecido em tempo de autoria. A Microteia declara telas em
+runtime e pinta com tokens de tema. O que o modelo banded acertou e foi tomado dele é outra coisa, e
+está na dobra de lista: **um grupo pode emoldurar registros em vez de os substituir** (ver "As três
+dobras" abaixo). A recusa é do canvas, nunca da leitura.
 
 ### A REGRA da compatibilidade — NÃO-NEGOCIÁVEL
 
@@ -6127,6 +6130,59 @@ Por que o nível 3 existe e o Widget DSL não precisa dele: um widget que descar
 **A regra que mantém C seguro:** o código substitui a `presentation`, **nunca o `dataset`**. Os
 números só chegam pela callable, que cobra permissão e teto. Sem isso, relatório em código seria a
 porta dos fundos do RBAC.
+
+### As três dobras, e o buraco que a quarta preencheu
+
+| Dobra | Cada linha é | Reúne? | Quando |
+|---|---|---|---|
+| `tabular` | um REGISTRO | opcionalmente, por `groupBy` | "o que" — os registros, com ou sem moldura de grupo |
+| `summary` | um GRUPO | sim, um nível por `groupBy` | "quanto" — os totais, e os registros não aparecem |
+| `matrix` | um grupo × uma coluna | sim, nas duas direções | o pivô |
+
+`tabular.groupBy` nasceu de um defeito de MODELO, não de renderização: a lista mostrava os registros
+e nunca os reunia; o resumo os reunia e nunca os mostrava. Quem queria "o que cada cliente deve", e
+não "quanto", só tinha a dobra agrupada — e ali cada dimensão vira um NÍVEL DE RECUO numa coluna só,
+não uma coluna. O sintoma era uma linha por coluna, e a leitura fácil era culpar o desenho da tabela.
+
+**AGRUPAR e MOSTRAR são duas perguntas — e a autoria pergunta as duas, para as três dobras.** Essa é a
+outra metade da correção, e ela veio depois: a tela ainda derivava os NÍVEIS da lista inteira de
+campos declarados, então o resumo e o pivô continuavam comendo tudo. Dez campos escolhidos para serem
+colunas davam dez níveis de recuo, e trocar a dobra fazia os campos sumirem sem uma palavra. Hoje há
+um seletor só — `groupDimensions`, múltiplo e ordenado pela escolha — e cada dobra usa essa mesma
+escolha do seu jeito:
+
+| Dobra | O que faz com os níveis escolhidos | O que faz com o resto dos campos |
+|---|---|---|
+| `tabular` | `groupBy` | vira `columns` |
+| `summary` | `groupBy` (subtotal em todos menos o último) | nada — e isso é DITO |
+| `matrix` | `rows`, menos a dimensão de coluna | nada — e isso é DITO |
+
+O "e isso é DITO" é `shape.fields-unused`: um aviso que nomeia cada dimensão declarada que a dobra não
+mostra em lugar nenhum. Degrada em vez de recusar porque o número continua certo — mas o silêncio ali
+se lia como dado perdido. Pelo mesmo motivo, `summary` sem nível nenhum é RECUSA nomeada: `buildTree`
+não teria o que percorrer, e o relatório saía "Nenhum dado" sobre uma coleção cheia.
+
+Três decisões seguem daí, e nenhuma é de aparência:
+
+1. **O grupo carrega os registros dele** (`ReportRow.records`, só na folha). A alternativa era o
+   front reagrupar `records` pela chave da dimensão — o que obrigaria a apresentação a repetir o
+   corte de data e o fuso, duas implementações do mesmo balde, e a segunda erra sozinha no dia em que
+   a primeira mudar.
+2. **`groupBy` é array desde o dia um.** `buildTree` já percorre N níveis — é a mesma recursão do
+   resumo e do pivô —, então fechar em um nível não pouparia código e custaria um segundo formato
+   depois, sobre `.json` já gravado no escritório. A tela também escolhe N, pela ordem em que se
+   escolhe: `MultiSearchSelect` já preserva essa ordem, e ela É a ordem dos níveis.
+3. **O campo que agrupa sai de `columns`** (`tabularShapeOf`, puro e exportado). Repeti-lo em cada
+   linha de detalhe é escrever o mesmo valor debaixo da faixa que acabou de o dizer — a mesma regra
+   que o pivô já aplica à dimensão de coluna.
+
+O token é `shape.tabular.group`, e não `shape.tabular` sozinho: um kernel que só saiba a lista corrida
+desenharia tudo corrido, com o total certo, e nada diria que os grupos sumiram. Por estar sob
+`shape.`, a falta dele **avisa** — o número não muda, só o desenho.
+
+O CSV da lista agrupada é **plano**, de propósito diferente da tela: o valor do grupo repetido numa
+coluna à frente, sem faixa nem subtotal no meio. Uma faixa de texto dentro do arquivo quebra o `SOMA`
+de toda coluna abaixo dela; repetido por linha, o grupo é o que uma tabela dinâmica reagrupa.
 
 ### O RBAC — onde um relatório vazaria dado
 
@@ -6265,6 +6321,7 @@ reordenar a única forma de trocar dois de lugar era remover os dois e declará-
 | `domain/usecases/plugins/reportModule.ts` | `rewriteReportTables` — a coleção reescrita na instalação |
 | `functions/src/infrastructure/report/runReportQuery.ts` | o executor e o RBAC por coleção |
 | `presentation/shared/report/reportFilterFields.ts` | o campo de um caminho, e o valor entre o controle e o spec |
+| `presentation/shared/report/reportFormatting.ts` | `rowDimensions` (o que a linha MOSTRA) × `groupDimensions` (o que a REÚNE) |
 | `presentation/components/ui/{ReportTable,ReportMatrix,ReportChart,ReportView}/` | o que desenha |
 | `presentation/pages/{Reports,ViewReport,ReportDesign}/` | a lista, a aba e a autoria |
 

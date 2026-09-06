@@ -19,7 +19,7 @@ export const CORE_REPORTS_MESSAGES: Record<string, string> = {
   'chart.line': 'Line',
   'chart.pie': 'Pie',
   'chart.shape.tabular':
-    'A plain list does not group, so there is nothing for the chart to plot. Fold this report as grouped or crossed to draw it.',
+    'A list with no grouping has nothing for the chart to plot. Group its lines, or show the report as a summary or crossed, to draw it.',
   'command.group': 'Reports',
   'csv.partial': 'Partial result: {scanned} records covered, and there may be more.',
   'dataset.kind.unsupported':
@@ -37,11 +37,13 @@ export const CORE_REPORTS_MESSAGES: Record<string, string> = {
   'design.column-dimension': 'Grouping across the columns',
   'design.delete': 'Delete report',
   'design.delete.confirm': 'Delete the report "{name}"? The records it covers are not touched.',
-  'design.dimensions': 'Groupings',
-  'design.dimensions.hint': 'What the report is broken down by. A date grouping also chooses the period.',
+  'design.dimensions': 'Fields',
+  'design.dimensions.hint': 'The columns of the list, in this order. A date field also chooses the period it is shown by. A summary and a crossed report show only what groups them.',
   'design.editing': 'Editing an existing report. Saving replaces it.',
   'design.filters': 'Fixed filter',
   'design.filters.hint': 'What the report always covers. Whoever reads it does not see this and cannot change it.',
+  'design.group': 'Group the lines by',
+  'design.group.hint': 'Each value becomes a group, in the order chosen. In a list the records stay under it, with the total of each group; in a summary and a crossed report the group is the line.',
   'design.managed': 'This report comes from an extension, so it cannot be changed here. A report is a single statement — half from the package and half from you would give a number nobody wrote. Create another one to say it differently.',
   'design.measure-field': 'Of which field',
   'design.move-down': 'Move down',
@@ -51,6 +53,7 @@ export const CORE_REPORTS_MESSAGES: Record<string, string> = {
   'design.measures.hint': 'What is counted or added up. A report without a figure has nothing to say.',
   'design.no-chart': 'No chart',
   'design.no-granularity': 'Exact value',
+  'design.no-group': 'No grouping',
   'design.not-found': 'The report "{key}" was not found in this organization. It may have been deleted, or the link may point at another one.',
   'design.preview': 'Preview',
   'design.prompts': 'Filters the reader fills in',
@@ -58,7 +61,7 @@ export const CORE_REPORTS_MESSAGES: Record<string, string> = {
   'design.remove': 'Remove',
   'design.reorder': 'Drag to reorder',
   'design.save': 'Save report',
-  'design.shape': 'Fold',
+  'design.shape': 'How to show it',
   'design.table': 'What the report covers',
   'design.title': 'Name of the report',
   'dimension.granularity.not-date':
@@ -81,7 +84,7 @@ export const CORE_REPORTS_MESSAGES: Record<string, string> = {
   'list.create': 'New report',
   'list.create-first': 'Create the first report',
   'list.edit': 'Edit',
-  'list.empty': 'No report yet. A report says what to cover, how to fold it and how to show it.',
+  'list.empty': 'No report yet. A report says what to cover, what to calculate and how to show it.',
   'list.filter.placeholder': 'Filter reports...',
   'list.filter.search': 'Name or collection',
   'measure.kind.unsupported':
@@ -122,18 +125,24 @@ export const CORE_REPORTS_MESSAGES: Record<string, string> = {
   'schedule.not-implemented':
     'This report asks to run on a schedule, which this version does not do yet. It still runs whenever you open it.',
   'shape.dimension.unknown': 'The report is folded by "{key}", which it does not declare as a grouping.',
+  'shape.fields-unused':
+    'This report shows only what groups it, so the fields {keys} do not appear anywhere. Group by them, remove them, or show the report as a list.',
   'shape.kind.unsupported':
     'This report is folded in a way this version does not know ({kind}), so it is shown as a plain list.',
-  'shape.matrix': 'Crossed — groupings down and across',
+  'shape.matrix': 'Crossed — one field down, another across',
   'shape.matrix.incomplete': 'A crossed report needs at least one grouping down and one across.',
   'shape.matrix.levels-flattened':
     'This version draws a single level of columns, so the extra levels were folded into the first.',
   'shape.measure.unknown': 'The report shows "{key}", which it does not declare as a figure.',
-  'shape.summary': 'Grouped — one level per grouping',
-  'shape.tabular': 'Plain list — no grouping',
+  'shape.summary': 'Summary — the total of each group, without the records',
+  'shape.summary.no-group':
+    'A summary is made of groups, and this report does not say which field forms them. Choose at least one field to group the lines by.',
+  'shape.tabular': 'List — one line per record',
   'shape.tabular.measure':
-    'A plain list shows fields, and "{key}" is a calculated figure. Fold the report to show it.',
-  'shape.tabular.no-columns': 'This plain list has no column. Add at least one grouping to show as a column.',
+    'A list shows fields, and "{key}" is a calculated figure. Show the report as a summary to show it.',
+  'shape.tabular.no-columns': 'This list has no column. Add at least one field.',
+  'shape.tabular.only-grouped':
+    'Every field of this list is grouping it, so no column is left for the lines. Leave at least one field out of the grouping, or show the report as a summary.',
   'spec.capability.unsupported':
     'This report needs something this version does not have ({capability}).',
   'spec.invalid': 'This report cannot be run as it is: {detail}',

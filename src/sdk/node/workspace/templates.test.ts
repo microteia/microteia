@@ -1017,3 +1017,36 @@ describe('o Widget DSL e o relatório', () => {
     expect(guide).toContain('widgetPage(');
   });
 });
+
+/**
+ * A lista AGRUPADA precisa estar dita, e dita como uma dobra e não como um detalhe do desenho: quem
+ * quer "o que cada cliente deve" e lê só `summary` recebe "quanto" — o mesmo mal-entendido que fez
+ * cada campo declarado virar um nível de recuo numa coluna só.
+ */
+describe('o guia sobre a lista agrupada e o gráfico', () => {
+  it('diz que a lista agrupa sem perder as colunas', () => {
+    const guide = authoringGuide(AGENTS);
+
+    expect(guide).toContain('groupBy');
+    expect(guide).toMatch(/without giving up the columns/i);
+  });
+
+  it('separa AGRUPAR de MOSTRAR, e diz o que cada dobra faz com o que não agrupa', () => {
+    const guide = authoringGuide(AGENTS);
+
+    expect(guide).toMatch(/two different\s*\n?\s*questions/i);
+    expect(guide).toMatch(/shown nowhere/i);
+  });
+
+  /* O gráfico numa lista sem agrupamento saía uma moldura vazia ao lado de uma tabela cheia. */
+  it('diz que o gráfico plota grupos, e que uma lista sem agrupamento não tem o que desenhar', () => {
+    expect(authoringGuide(AGENTS)).toMatch(/chart plots GROUPS/i);
+  });
+
+  it('nomeia as recusas novas — o resumo sem nível e a lista sem coluna', () => {
+    const guide = authoringGuide(AGENTS);
+
+    expect(guide).toMatch(/summary. groups by nothing/i);
+    expect(guide).toMatch(/no column at all/i);
+  });
+});

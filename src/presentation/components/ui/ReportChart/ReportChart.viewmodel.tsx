@@ -32,6 +32,13 @@ const primitiveOf = (kind: string): 'bar' | 'line' | 'donut' | null => {
   return null;
 };
 
+/** Os níveis que a dobra agrupa nas LINHAS. Vazio na lista corrida e no pivô. */
+const groupLevels = (spec: ReportSpec): { dimension: string }[] => {
+  if (spec.shape.kind === 'summary') return spec.shape.groupBy;
+  if (spec.shape.kind === 'tabular') return spec.shape.groupBy ?? [];
+  return [];
+};
+
 /**
  * O NÍVEL de agrupamento que vira o eixo categórico, ou `null` para o mais interno.
  *
@@ -39,9 +46,18 @@ const primitiveOf = (kind: string): 'bar' | 'line' | 'donut' | null => {
  * pelo primeiro nível de dois via o segundo, e nada na tela dizia que a escolha não valeu.
  */
 const categoryDepth = (spec: ReportSpec, category: string | undefined): number | null => {
-  if (spec.shape.kind !== 'summary' || category === undefined) return null;
-  const depth = spec.shape.groupBy.findIndex((level) => level.dimension === category);
-  return depth >= 0 ? depth : null;
+  const levels = groupLevels(spec);
+  if (levels.length === 0) return null;
+
+  const depth = category === undefined
+    ? -1
+    : levels.findIndex((level) => level.dimension === category);
+  if (depth >= 0) return depth;
+
+  // Na lista AGRUPADA nenhuma linha é folha no sentido do resumo — toda linha de grupo carrega os
+  // números dela. Sem escolher um nível, o ponto é o mais fundo: é o que a tabela mostra abaixo de
+  // cada faixa, e o gráfico não pode desenhar uma leitura que a tabela ao lado não confirma.
+  return spec.shape.kind === 'tabular' ? levels.length - 1 : null;
 };
 
 /** As linhas que viram ponto: as do nível pedido, ou as folhas quando nenhum foi pedido. */

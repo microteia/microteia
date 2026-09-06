@@ -1538,7 +1538,20 @@ reports: [{
 
 Call \`describe_sdk_type ReportSpec\` for the exact shape of the spec and
 \`describe_sdk_type ReportModuleTemplate\` for the envelope around it — both expand the types they
-reference.
+reference. \`list_report_options\` (\`microteia://reports/options\`) answers the other half: the folds,
+the chart kinds, the date buckets, the measure operations and the capability tokens THIS installation
+executes, derived from the kernel rather than from this page.
+
+The fold above is a pivot. The one that answers "WHAT each customer owes" — the records, gathered,
+with the total of each group — is a list that groups:
+
+\`\`\`ts
+shape: {
+  kind: 'tabular',
+  columns: ['number', 'dueDate', 'total'],   // the columns stay the columns
+  groupBy: [{ dimension: 'city', subtotal: true }],
+}
+\`\`\`
 
 ### The envelope
 
@@ -1595,22 +1608,49 @@ mean, and treat a refusal as the platform telling you it cannot answer for them.
   every row scanned. So a limited level marks the result **partial**, and the platform says so on
   screen, in the CSV and on the printed page, because rows that do not add up to their own total are
   the one thing a reader cannot catch.
-- \`shape.kind\`: ${inlineList(REPORT_SHAPE_KINDS)} — no grouping, levels down, down and across:
+- \`shape.kind\`: ${inlineList(REPORT_SHAPE_KINDS)}. **Grouping and showing are two different
+  questions, and the fold decides how the second one is answered — never whether the first one was
+  asked.** Every fold groups by \`{ dimension, subtotal? }\` levels, outermost first; what changes is
+  what the fold does with the levels and with the dimensions that are NOT levels:
+
+  | fold | one row is | the levels are | the other dimensions |
+  |---|---|---|---|
+  | \`tabular\` | a RECORD | \`groupBy\`, optional | \`columns\` |
+  | \`summary\` | a GROUP | \`groupBy\`, required | shown nowhere — you are warned by key |
+  | \`matrix\` | a group × a column | \`rows\` (and \`columns\`) | shown nowhere — you are warned by key |
+
   - \`tabular\`: one row per record. \`columns\` is an array of **dimension keys**, plain strings, in
     column order — a measure key there is a named error. \`orderBy\` is done by the query.
-  - \`summary\`: \`groupBy\` is an array of \`{ dimension, subtotal? }\`, outermost level first, and
-    \`values\` an array of measure keys.
+    \`groupBy\` breaks the list into groups **without giving up the columns**: each group opens with
+    the value of its dimension, its records follow with the same columns as always, and the group's
+    total closes it. That is the report that answers "WHAT each customer owes"; \`summary\` answers
+    "HOW MUCH", and the difference is whether the records survive. Put a dimension in \`groupBy\` and
+    leave it OUT of \`columns\` — repeating it on every detail line writes the same value under the
+    band that just said it.
+  - \`summary\`: \`groupBy\` is required and \`values\` is an array of measure keys. The records do
+    not appear at all — only one row per group, with its numbers. A \`summary\` with an empty
+    \`groupBy\` is refused: there would be nothing to group, and it would render as "no data" over a
+    full collection.
   - \`matrix\`: \`rows\` and \`columns\` are those same level objects and BOTH are required. This
     version reads one level of \`columns\`; more than one is flattened, with a warning.
     \`emptyCell: 'zero'\` writes a zero where nothing happened — the default leaves it blank, because
     "there was none" and "there was, and it came to zero" are different statements.
   - \`grandTotal: false\` drops the total row, on \`summary\` and \`matrix\`.
+  - **Declare only the dimensions the fold uses.** One that is neither a level nor a column is shown
+    nowhere, and the platform warns whoever opens the report, naming it. It is a warning and not a
+    refusal because the numbers stay right — but a field that silently vanishes reads as lost data.
 - \`presentation.chart.kind\`: ${inlineList(REPORT_CHART_KINDS)}. \`category\` is the dimension on the
-  categorical axis (absent: the first level of \`rows\`/\`groupBy\`), \`series\` the measures drawn
-  (absent: all of \`values\`), \`splitBy\` a second dimension that breaks each measure into one series
-  per member — the pivot's columns becoming the legend — and \`stacked\` piles them instead of setting
-  them side by side. A kind this version cannot draw simply does not appear; the table still shows the
-  same data.
+  categorical axis, \`series\` the measures drawn (absent: all of \`values\`), \`splitBy\` a second
+  dimension that breaks each measure into one series per member — the pivot's columns becoming the
+  legend — and \`stacked\` piles them instead of setting them side by side. A kind this version cannot
+  draw simply does not appear; the table still shows the same data.
+
+  **A chart plots GROUPS, so the fold has to have them.** It reads one level of \`groupBy\` /
+  \`rows\` — the one \`category\` names, or the innermost when it names none — and one point comes out
+  of each member of that level, with the measures of that group as its values. So a \`summary\`, a
+  \`matrix\` and a \`tabular\` **with** \`groupBy\` all draw; a \`tabular\` with no grouping does not,
+  and declaring a chart on one is warned rather than rendered as an empty frame beside a full table.
+  If you want the chart, group the list — you keep the records either way.
 - \`dataset.scanLimit\` asks for a smaller scan than the ceiling. Asking for a bigger one is clamped,
   never refused.
 
@@ -1644,6 +1684,9 @@ is no path where one accepts what another rejects. It is **refused** when:
 - it declares no measure. A report with no number has nothing to say, a \`tabular\` one included;
 - \`shape\` cites a dimension or measure key that \`dataset\` does not declare, or a \`tabular\` column
   that is a measure;
+- a \`summary\` groups by nothing, or a \`tabular\` is left with no column at all — including the case
+  where every dimension it declares went into \`groupBy\`, which the refusal names separately, because
+  "add a column" has nothing to teach whoever grouped by the only field they had;
 - a \`matrix\` is missing its rows or its columns;
 - two keys collide — dimensions and measures share ONE namespace, so that \`values\` can never be
   ambiguous;
@@ -1651,9 +1694,10 @@ is no path where one accepts what another rejects. It is **refused** when:
 - \`dataset.table\` is not a collection this installation has.
 
 Everything else is a **warning**, and warnings are visible — to you in \`validate_plugin\`, and to
-whoever opens the report. A chart citing a key nobody declared, a bucket over something that is not a
-date, a scan above the ceiling, and every property this version reads but does not act on, all arrive
-that way rather than as silence.
+whoever opens the report. A chart citing a key nobody declared, a chart on a list that groups by
+nothing, a dimension the fold shows nowhere, a bucket over something that is not a date, a scan above
+the ceiling, and every property this version reads but does not act on, all arrive that way rather
+than as silence.
 
 ### What you do not control, and should not try to
 

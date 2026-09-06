@@ -3,6 +3,7 @@ import {
   MEASURE_COUNT_KEY,
   movedDimensions,
   operatorNeedsValue,
+  tabularShapeOf,
   uniqueReportKey,
   withGranularity,
 } from './ReportDesign.viewmodel';
@@ -135,5 +136,43 @@ describe('movedDimensions', () => {
     expect(movedDimensions(dimensions, 'a', -1)).toBeNull();
     expect(movedDimensions(dimensions, 'c', 3)).toBeNull();
     expect(movedDimensions(dimensions, 'z', 0)).toBeNull();
+  });
+});
+
+/**
+ * A seção de campos passou a ser o que ela sempre foi na lista: as COLUNAS. O agrupamento é uma
+ * escolha à parte — e escolher um campo para agrupar não pode custar a coluna dos outros, que era
+ * exatamente o que acontecia quando a única saída para agrupar era trocar a dobra inteira.
+ */
+describe('tabularShapeOf', () => {
+  it('sem agrupamento, todo campo é coluna e não há grupo nenhum', () => {
+    expect(tabularShapeOf(['nome', 'cidade'], [])).toEqual({
+      kind: 'tabular',
+      columns: ['nome', 'cidade'],
+    });
+  });
+
+  it('o campo que agrupa sai das colunas — os outros continuam onde estavam', () => {
+    expect(tabularShapeOf(['nome', 'cidade', 'valor'], ['cidade'])).toEqual({
+      kind: 'tabular',
+      columns: ['nome', 'valor'],
+      groupBy: [{ dimension: 'cidade', subtotal: true }],
+    });
+  });
+
+  it('todo nível subtotaliza: o total do grupo é a pergunta que o agrupou', () => {
+    expect(tabularShapeOf(['nome', 'cidade', 'uf'], ['uf', 'cidade']).groupBy).toEqual([
+      { dimension: 'uf', subtotal: true },
+      { dimension: 'cidade', subtotal: true },
+    ]);
+  });
+
+  it('os níveis saem na ORDEM escolhida, e as colunas na ordem dos campos', () => {
+    expect(tabularShapeOf(['nome', 'cidade', 'uf', 'valor'], ['uf', 'cidade']).columns)
+      .toEqual(['nome', 'valor']);
+  });
+
+  it('agrupar por todos os campos deixa a lista sem coluna — a validação recusa, não a tela', () => {
+    expect(tabularShapeOf(['cidade'], ['cidade']).columns).toEqual([]);
   });
 });

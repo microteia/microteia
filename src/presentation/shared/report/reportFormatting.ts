@@ -69,5 +69,21 @@ export const rowDimensions = (spec: ReportSpec): ReportDimension[] => {
     .filter((dimension): dimension is ReportDimension => dimension !== undefined);
 };
 
+/**
+ * As dimensões que QUEBRAM a lista em grupos, na ordem dos níveis. Vazio em toda outra dobra.
+ *
+ * Separada de `rowDimensions` de propósito: na lista agrupada as duas respondem coisas diferentes —
+ * uma é o que cada linha MOSTRA, a outra é o que as REÚNE —, e foi confundir as duas que fazia cada
+ * campo virar um nível de recuo em vez de uma coluna.
+ */
+export const groupDimensions = (spec: ReportSpec): ReportDimension[] => {
+  if (spec.shape.kind !== 'tabular') return [];
+  const declared = spec.dataset.dimensions ?? [];
+
+  return (spec.shape.groupBy ?? [])
+    .map((level) => declared.find((dimension) => dimension.key === level.dimension))
+    .filter((dimension): dimension is ReportDimension => dimension !== undefined);
+};
+
 export const hasRows = (result: ReportResult | null): boolean =>
   result !== null && (result.rows.length > 0 || (result.records ?? []).length > 0);

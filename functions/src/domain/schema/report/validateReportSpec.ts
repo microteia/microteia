@@ -61,7 +61,7 @@ const AGGREGATION_OPS = Object.keys(AGGREGATION_OP_LABELS);
 const levelsOf = (spec: ReportSpec): ReportGroupLevel[] => {
   if (spec.shape.kind === 'summary') return spec.shape.groupBy;
   if (spec.shape.kind === 'matrix') return [...spec.shape.rows, ...spec.shape.columns];
-  return [];
+  return spec.shape.groupBy ?? [];
 };
 
 const valuesOf = (spec: ReportSpec): string[] =>
@@ -192,6 +192,27 @@ export const validateReportSpecShape = (
     }
   });
 
+  /*
+   * O campo DECLARADO que a dobra não mostra em lugar nenhum.
+   *
+   * É aviso, e não recusa: o número continua certo. Mas dizê-lo é o que faltava — quem escolhia dez
+   * campos e trocava a dobra para resumo via nove deles sumirem sem uma palavra, e a leitura fácil
+   * era achar que o relatório tinha perdido o dado.
+   */
+  const shownKeys = new Set<string>([
+    ...levelsOf(spec).map((level) => level.dimension),
+    ...(spec.shape.kind === 'tabular' ? spec.shape.columns : []),
+  ]);
+  const unused = dimensions.map((dimension) => dimension.key).filter((key) => !shownKeys.has(key));
+  if (unused.length > 0) {
+    issues.push({
+      field: 'dataset.dimensions',
+      error: '@core.reports/shape.fields-unused',
+      errorParams: { keys: unused.join(', ') },
+      severity: 'warning',
+    });
+  }
+
   valuesOf(spec).forEach((key, index) => {
     if (!measureKeys.has(key)) {
       issues.push({
@@ -203,10 +224,16 @@ export const validateReportSpecShape = (
   });
 
   if (spec.shape.kind === 'tabular') {
-    // Uma lista simples sem coluna nenhuma desenha uma tabela vazia — e "vazio" se confunde com
-    // "não há dado", que é a leitura errada.
+    // Uma lista sem coluna nenhuma desenha uma tabela vazia — e "vazio" se confunde com "não há
+    // dado", que é a leitura errada. Quando o que a esvaziou foi o AGRUPAMENTO, a recusa diz isso:
+    // "acrescente uma coluna" não tem o que ensinar a quem já declarou o único campo que tinha.
     if (spec.shape.columns.length === 0) {
-      issues.push({ field: 'shape.columns', error: '@core.reports/shape.tabular.no-columns' });
+      issues.push({
+        field: 'shape.columns',
+        error: (spec.shape.groupBy ?? []).length > 0
+          ? '@core.reports/shape.tabular.only-grouped'
+          : '@core.reports/shape.tabular.no-columns',
+      });
     }
     spec.shape.columns.forEach((key, index) => {
       if (measureKeys.has(key)) {
@@ -225,6 +252,12 @@ export const validateReportSpecShape = (
     });
   }
 
+  // Um resumo é feito de grupos. Sem nível nenhum, `buildTree` não tem o que percorrer e o
+  // relatório saía "Nenhum dado" sobre uma coleção cheia — o sintoma que mais parece defeito do dado.
+  if (spec.shape.kind === 'summary' && spec.shape.groupBy.length === 0) {
+    issues.push({ field: 'shape.groupBy', error: '@core.reports/shape.summary.no-group' });
+  }
+
   if (spec.shape.kind === 'matrix') {
     if (spec.shape.rows.length === 0 || spec.shape.columns.length === 0) {
       issues.push({ field: 'shape', error: '@core.reports/shape.matrix.incomplete' });
@@ -240,9 +273,10 @@ export const validateReportSpecShape = (
 
   const chart = spec.presentation?.chart;
   if (chart) {
-    // A lista simples não agrupa, e sem grupo não há ponto a desenhar: o gráfico saía uma moldura
-    // vazia ao lado de uma tabela cheia, e quem o configurou não tinha como saber por quê.
-    if (spec.shape.kind === 'tabular') {
+    // Sem grupo não há ponto a desenhar: o gráfico saía uma moldura vazia ao lado de uma tabela
+    // cheia, e quem o configurou não tinha como saber por quê. A lista AGRUPADA tem grupos, e por
+    // isso desenha — o aviso aqui só vale para a lista corrida.
+    if (spec.shape.kind === 'tabular' && (spec.shape.groupBy ?? []).length === 0) {
       issues.push({
         field: 'presentation.chart',
         error: '@core.reports/chart.shape.tabular',

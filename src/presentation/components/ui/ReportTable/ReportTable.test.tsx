@@ -200,3 +200,94 @@ describe('ReportTable — dobra agrupada', () => {
     expect(screen.getByText('table.total')).toBeDefined();
   });
 });
+
+/**
+ * A LISTA AGRUPADA: as colunas continuam sendo os campos, e o que muda é que as linhas passam a vir
+ * reunidas sob o valor do campo que agrupa, com o total de cada grupo ao fechá-lo.
+ *
+ * Era o que o resumo NÃO fazia: ali cada campo virava um nível de recuo numa coluna só, e os
+ * registros desapareciam — uma linha por coluna, que não é lista nenhuma.
+ */
+describe('ReportTable — lista agrupada', () => {
+  const spec: ReportSpec = {
+    v: 1,
+    dataset: {
+      table: 'pessoas',
+      dimensions: [
+        { key: 'nome', path: 'nome', label: 'Nome' },
+        { key: 'cidade', path: 'cidade', label: 'Cidade' },
+      ],
+      measures: [{ key: 'quantidade', op: 'count', label: 'Quantidade' }],
+    },
+    shape: {
+      kind: 'tabular',
+      columns: ['nome'],
+      groupBy: [{ dimension: 'cidade', subtotal: true }],
+    },
+  };
+
+  const result: ReportResult = {
+    ...envelope,
+    shape: 'tabular',
+    rows: [
+      {
+        keys: [{ dimension: 'cidade', key: 'Olinda' }],
+        values: { quantidade: 1 },
+        count: 1,
+        level: 0,
+        records: [{ id: '2', nome: 'Bruno', cidade: 'Olinda' }],
+      },
+      {
+        keys: [{ dimension: 'cidade', key: 'Recife' }],
+        values: { quantidade: 2 },
+        count: 2,
+        level: 0,
+        records: [
+          { id: '1', nome: 'Ana', cidade: 'Recife' },
+          { id: '3', nome: 'Carla', cidade: 'Recife' },
+        ],
+      },
+    ],
+    totals: { values: { quantidade: 3 }, count: 3 },
+  };
+
+  it('as COLUNAS continuam sendo os campos, e os registros aparecem', () => {
+    draw(spec, result);
+
+    expect(screen.getByText('Nome')).toBeDefined();
+    expect(screen.getByText('Ana')).toBeDefined();
+    expect(screen.getByText('Bruno')).toBeDefined();
+    expect(screen.getByText('Carla')).toBeDefined();
+  });
+
+  it('cada grupo abre com o valor do campo e fecha com o total dele', () => {
+    draw(spec, result);
+
+    expect(screen.getByText('Recife')).toBeDefined();
+    expect(screen.getByText(/table\.total — Recife — Quantidade: 2/)).toBeDefined();
+    expect(screen.getByText(/table\.total — Olinda — Quantidade: 1/)).toBeDefined();
+  });
+
+  /* O nível que declara `subtotal: false` abre o grupo e não o fecha com número nenhum. */
+  it('o nível que não subtotaliza não ganha faixa de total', () => {
+    draw(
+      { ...spec, shape: { kind: 'tabular', columns: ['nome'], groupBy: [{ dimension: 'cidade', subtotal: false }] } },
+      result,
+    );
+
+    expect(screen.queryByText(/table\.total — Recife/)).toBeNull();
+    expect(screen.getByText('Recife')).toBeDefined();
+  });
+
+  it('o total geral continua sendo o rodapé de sempre', () => {
+    draw(spec, result);
+
+    expect(screen.getByText(/table\.total — Quantidade: 3/)).toBeDefined();
+  });
+
+  it('sem grupo nenhum diz que não há dado, em vez de desenhar uma tabela vazia', () => {
+    draw(spec, { ...result, rows: [], totals: null });
+
+    expect(screen.getByText('table.empty')).toBeDefined();
+  });
+});

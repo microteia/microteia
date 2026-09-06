@@ -25,8 +25,12 @@ export const S = {
     border-bottom: 1px solid ${({ theme }) => theme.colors.border};
     white-space: nowrap;
   `,
-  Row: styled.tr<{ $subtotal?: boolean }>`
-    background: ${({ theme, $subtotal }) => ($subtotal ? theme.colors.inputBackground : 'transparent')};
+  Row: styled.tr<{ $subtotal?: boolean; $band?: boolean }>`
+    background: ${({ theme, $subtotal, $band }) =>
+    ($subtotal || $band ? theme.colors.inputBackground : 'transparent')};
+    /* A faixa que ABRE um grupo é a única linha com traço acima: é ela que separa um grupo do
+       anterior, e sem isso a lista agrupada vira uma lista corrida com títulos no meio. */
+    border-top: ${({ theme, $band }) => ($band ? `2px solid ${theme.colors.border}` : 'none')};
 
     &:hover {
       background: ${({ theme }) => theme.colors.surfaceHover};

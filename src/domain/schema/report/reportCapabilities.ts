@@ -28,6 +28,7 @@ export const REPORT_CAPABILITIES: readonly string[] = [
   'shape.subtotal',
   'shape.summary',
   'shape.tabular',
+  'shape.tabular.group',
 ];
 
 const anySubtotal = (levels: ReportGroupLevel[]): boolean =>
@@ -71,6 +72,13 @@ export const deriveReportRequires = (spec: ReportSpec): string[] => {
   }
 
   required.add(`shape.${spec.shape.kind}`);
+  // A lista AGRUPADA é um token próprio, e não `shape.tabular` sozinho: um kernel que só saiba a
+  // lista corrida precisa dizer que a quebra em grupos se perdeu. Sem o token ele desenharia a lista
+  // toda corrida, com o total certo — e nada na tela dizendo que os grupos sumiram.
+  if (spec.shape.kind === 'tabular' && (spec.shape.groupBy ?? []).length > 0) {
+    required.add('shape.tabular.group');
+    if (anySubtotal(spec.shape.groupBy ?? [])) required.add('shape.subtotal');
+  }
   if (spec.shape.kind === 'summary' && anySubtotal(spec.shape.groupBy)) required.add('shape.subtotal');
   if (spec.shape.kind === 'matrix'
     && (anySubtotal(spec.shape.rows) || anySubtotal(spec.shape.columns))) {

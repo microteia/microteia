@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { REPORT_CAPABILITIES, deriveReportRequires, unsupportedReportCapabilities } from './reportCapabilities';
+import {
+  REPORT_CAPABILITIES,
+  deriveReportRequires,
+  reportCapabilitySeverity,
+  unsupportedReportCapabilities,
+} from './reportCapabilities';
 import type { ReportSpec } from './reportSpec';
 
 const base: ReportSpec = {
@@ -181,5 +186,38 @@ describe('deriveReportRequires', () => {
 
   it('o spec que só usa o que este kernel faz não pede nada que falte', () => {
     expect(unsupportedReportCapabilities(base)).toEqual([]);
+  });
+});
+
+describe('deriveReportRequires — lista agrupada', () => {
+  const grouped: ReportSpec = {
+    v: 1,
+    dataset: base.dataset,
+    shape: {
+      kind: 'tabular',
+      columns: ['situacao'],
+      groupBy: [{ dimension: 'situacao', subtotal: true }],
+    },
+  };
+
+  it('a quebra em grupos tem TOKEN PRÓPRIO — sem ele o kernel velho some com os grupos calado', () => {
+    expect(deriveReportRequires(grouped)).toEqual([
+      'dataset.collection',
+      'measure.aggregate',
+      'shape.subtotal',
+      'shape.tabular',
+      'shape.tabular.group',
+    ]);
+  });
+
+  it('a lista CORRIDA não o pede — quem não agrupa não perde nada num kernel que não agrupa', () => {
+    expect(deriveReportRequires({ ...grouped, shape: { kind: 'tabular', columns: ['situacao'] } }))
+      .not.toContain('shape.tabular.group');
+  });
+
+  it('a perda é AVISO, não recusa: o número não muda, só o desenho', () => {
+    const missing = unsupportedReportCapabilities(grouped, ['dataset.collection', 'measure.aggregate', 'shape.tabular']);
+    expect(missing).toContain('shape.tabular.group');
+    expect(reportCapabilitySeverity('shape.tabular.group')).toBe('warning');
   });
 });

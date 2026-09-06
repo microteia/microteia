@@ -229,6 +229,22 @@ export const ReportDesignView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                 onChange={vm.setColumnDimension}
               />
             )}
+            {/* O agrupamento vale para as TRÊS dobras — é a mesma pergunta, respondida de um jeito
+                em cada uma. Deixá-lo só na lista era o que fazia o resumo e o pivô comerem a lista
+                inteira de campos como níveis. A ordem é a da escolha, e ela é a ordem dos níveis. */}
+            <S.GroupHeader>
+              <S.Legend>{vm.labels.group}</S.Legend>
+            </S.GroupHeader>
+            <MultiSearchSelect
+              options={vm.dimensions.map((dimension) => ({
+                value: dimension.key,
+                label: dimension.label,
+              }))}
+              values={vm.groupDimensions}
+              onChange={vm.setGroupDimensions}
+              placeholder={vm.labels.noGroup}
+            />
+            <S.Hint>{vm.labels.groupHint}</S.Hint>
           </S.Group>
 
 

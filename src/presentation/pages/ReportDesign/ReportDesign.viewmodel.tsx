@@ -33,6 +33,7 @@ import type {
   ReportPrompt,
   ReportShape,
   ReportSpec,
+  ReportTabularShape,
 } from '../../../domain/schema/report/reportSpec';
 import { hasBlockingReportIssue, validateReportSpec } from '../../../domain/schema/report/validateReportSpec';
 import type { ReportResult } from '../../../domain/schema/report/reportResult';
@@ -79,6 +80,15 @@ interface ReportDraft {
   measures: ReportMeasure[];
   shapeKind: ReportShapeKindChoice;
   columnDimension: string;
+  /**
+   * Os campos que REÚNEM as linhas, do nível mais externo ao mais interno. Vazio = nada agrupa.
+   *
+   * Um só para as três dobras, e essa unificação é a correção: enquanto o resumo e o pivô comiam a
+   * lista INTEIRA de campos como níveis, escolher dez campos para ver como colunas dava dez níveis
+   * de recuo numa coluna só — uma linha por coluna, que não é resumo nenhum. Agrupar e mostrar
+   * passaram a ser duas perguntas, e cada dobra responde a mesma pergunta do seu jeito.
+   */
+  groupDimensions: string[];
   /** O filtro FIXO: vale sempre, e quem lê o relatório não o vê nem o muda. */
   filters: QueryPredicate[];
   /** Vazio = sem gráfico. A tabela sozinha é um relatório legítimo. */
@@ -141,6 +151,8 @@ export interface ReportDesignViewModel {
   setShapeKind: (kind: ReportShapeKindChoice) => void;
   columnDimension: string;
   setColumnDimension: (key: string) => void;
+  groupDimensions: string[];
+  setGroupDimensions: (keys: string[]) => void;
 
   filters: { label: string; op: string; value: string }[];
   filterPath: string;
@@ -207,6 +219,9 @@ export interface ReportDesignViewModel {
     measuresHint: string;
     shape: string;
     columnDimension: string;
+    group: string;
+    groupHint: string;
+    noGroup: string;
     add: string;
     remove: string;
     reorder: string;
@@ -309,6 +324,26 @@ export const movedDimensions = (
 };
 
 /**
+ * A dobra de LISTA que a tela declara — as colunas, e a quebra em grupos quando há uma.
+ *
+ * Pura e exportada porque é a decisão que resolveu o defeito: o campo que agrupa SAI das colunas.
+ * Repeti-lo em toda linha de detalhe é escrever o mesmo valor debaixo da faixa que acabou de o
+ * dizer, e um teste sobre um hook inteiro não guardaria essa linha.
+ */
+export const tabularShapeOf = (
+  dimensionKeys: string[],
+  groupKeys: string[],
+): ReportTabularShape => ({
+  kind: 'tabular',
+  columns: dimensionKeys.filter((key) => !groupKeys.includes(key)),
+  // Todo nível subtotaliza: o total do grupo é a pergunta que o agrupou, e um nível que abre sem
+  // fechar deixa quem lê somando de cabeça o que a máquina já sabia.
+  ...(groupKeys.length > 0
+    ? { groupBy: groupKeys.map((dimension) => ({ dimension, subtotal: true })) }
+    : {}),
+});
+
+/**
  * A chave do DOCUMENTO, única entre os relatórios que já existem.
  *
  * Sem isto, salvar dois relatórios de nome parecido devolvia `artifact.id-taken` — uma recusa
@@ -326,6 +361,18 @@ const shapeKindOf = (spec: ReportSpec): ReportShapeKindChoice => spec.shape.kind
 
 const columnDimensionOf = (spec: ReportSpec): string =>
   spec.shape.kind === 'matrix' ? (spec.shape.columns[0]?.dimension ?? '') : '';
+
+/**
+ * Os níveis que a dobra gravada agrupa nas LINHAS — a leitura única das três.
+ *
+ * O pivô devolve só as linhas dele: a dimensão de coluna tem seletor próprio, e trazê-la para cá
+ * faria o mesmo campo aparecer nos dois lugares.
+ */
+const groupDimensionsOf = (spec: ReportSpec): string[] => {
+  if (spec.shape.kind === 'summary') return spec.shape.groupBy.map((level) => level.dimension);
+  if (spec.shape.kind === 'matrix') return spec.shape.rows.map((level) => level.dimension);
+  return (spec.shape.groupBy ?? []).map((level) => level.dimension);
+};
 
 /**
  * A autoria de um relatório — criando um novo ou editando um que já existe.
@@ -378,6 +425,7 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
         measures: editing.spec.dataset.measures ?? [],
         shapeKind: shapeKindOf(editing.spec),
         columnDimension: columnDimensionOf(editing.spec),
+        groupDimensions: groupDimensionsOf(editing.spec),
         filters: editing.spec.dataset.where ?? [],
         chartKind: editing.spec.presentation?.chart?.kind ?? '',
         chartCategory: editing.spec.presentation?.chart?.category ?? '',
@@ -390,8 +438,12 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
         title: '',
         dimensions: [],
         measures: [],
-        shapeKind: 'summary',
+        // A LISTA é o padrão: é a dobra cujo resultado se explica sozinho — uma linha por registro,
+        // uma coluna por campo. O resumo continua a um clique, e agora diz na etiqueta que troca os
+        // registros pelos totais.
+        shapeKind: 'tabular',
         columnDimension: '',
+        groupDimensions: [],
         filters: [],
         chartKind: '',
         chartCategory: '',
@@ -459,6 +511,7 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
       dimensions: [],
       measures: [],
       columnDimension: '',
+      groupDimensions: [],
       filters: [],
       chartKind: '',
       chartCategory: '',
@@ -490,6 +543,7 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
     change({
       dimensions: draft.dimensions.filter((one) => one.key !== key),
       columnDimension: draft.columnDimension === key ? '' : draft.columnDimension,
+      groupDimensions: draft.groupDimensions.filter((one) => one !== key),
     });
   }, [draft, change]);
 
@@ -613,13 +667,23 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
 
   const spec = useMemo<ReportSpec>(() => {
     const valueKeys = draft.measures.map((one) => one.key);
-    const columnKeys = draft.columnDimension ? [draft.columnDimension] : [];
-    const rowKeys = draft.dimensions
-      .map((one) => one.key)
+    const columnKeys = draft.shapeKind === 'matrix' && draft.columnDimension
+      ? [draft.columnDimension]
+      : [];
+    /*
+     * Os níveis das LINHAS, e a razão de eles serem escolhidos em vez de herdados.
+     *
+     * Antes, `rowKeys` era a lista INTEIRA de campos: quem declarava dez campos para vê-los como
+     * colunas recebia dez níveis de recuo, no resumo e no pivô. Agrupar é uma escolha; declarar um
+     * campo é outra. O campo que já está atravessado nas colunas do pivô sai daqui — ele não pode
+     * ser eixo duas vezes.
+     */
+    const rowKeys = draft.groupDimensions
+      .filter((key) => draft.dimensions.some((one) => one.key === key))
       .filter((key) => !columnKeys.includes(key));
 
     const shape: ReportShape = draft.shapeKind === 'tabular'
-      ? { kind: 'tabular', columns: draft.dimensions.map((one) => one.key) }
+      ? tabularShapeOf(draft.dimensions.map((one) => one.key), rowKeys)
       : (draft.shapeKind === 'matrix'
         ? {
             kind: 'matrix',
@@ -629,11 +693,11 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
           }
         : {
             kind: 'summary',
-            groupBy: draft.dimensions.map((one, index) => ({
-              dimension: one.key,
+            groupBy: rowKeys.map((dimension, index) => ({
+              dimension,
               // O nível de cima subtotaliza quando há mais de um: sem isso um relatório de dois
               // níveis não mostra o total de cada grupo, que é a pergunta que o agrupou.
-              subtotal: index < draft.dimensions.length - 1,
+              subtotal: index < rowKeys.length - 1,
             })),
             values: valueKeys,
           });
@@ -790,6 +854,8 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
     setShapeKind: (shapeKind) => change({ shapeKind }),
     columnDimension: draft.columnDimension,
     setColumnDimension: (columnDimension) => change({ columnDimension }),
+    groupDimensions: draft.groupDimensions,
+    setGroupDimensions: (groupDimensions) => change({ groupDimensions }),
 
     filters: draft.filters.map((filter) => ({
       label: pathOptions.find((one) => one.value === filter.path)?.label ?? filter.path,
@@ -856,6 +922,9 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
       measuresHint: t('design.measures.hint'),
       shape: t('design.shape'),
       columnDimension: t('design.column-dimension'),
+      group: t('design.group'),
+      groupHint: t('design.group.hint'),
+      noGroup: t('design.no-group'),
       add: t('design.add'),
       remove: t('design.remove'),
       reorder: t('design.reorder'),

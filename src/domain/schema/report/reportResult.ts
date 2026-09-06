@@ -31,6 +31,15 @@ export interface ReportRow {
   level: number;
   /** A linha é um SUBTOTAL do nível, não um grupo folha. */
   subtotal?: boolean;
+  /**
+   * Os REGISTROS deste grupo, na lista agrupada. Só no nível mais fundo.
+   *
+   * Moram na linha do grupo, e não numa lista à parte, porque quem sabe em que grupo cada registro
+   * caiu é o agregador: refazer a conta na tela obrigaria a apresentação a repetir o corte de data e
+   * o fuso da dimensão — duas implementações do mesmo balde, e a segunda erra sozinha no dia em que
+   * a primeira mudar.
+   */
+  records?: Record<string, unknown>[];
 }
 
 export interface ReportTotals {

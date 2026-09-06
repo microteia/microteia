@@ -21,6 +21,13 @@ import {
 } from '../../domain/schema/workflowStepCatalog';
 import { RECORD_ACTION_METADATA } from '../../domain/schema/ui/recordActionMetadata';
 import { SCREEN_ICON_KEYS } from '../../domain/schema/ui/screenIconCatalog';
+import { REPORT_CAPABILITIES } from '../../domain/schema/report/reportCapabilities';
+import {
+  REPORT_CHART_KINDS,
+  REPORT_GRANULARITIES,
+  REPORT_SHAPE_KINDS,
+} from '../../domain/schema/report/reportSpec';
+import { AGGREGATION_OP_LABELS } from '../../domain/schema/fieldRules';
 import {
   ENTITY_EVENT_ACTIONS,
   NESTED_EVENT_SUFFIXES,
@@ -736,8 +743,10 @@ const TOOLS: ToolDefinition[] = [
       'The authoring manual for this platform: package anatomy, extension points, screens, '
       + 'automation, reports, the curated API, code trust, translation rules and size limits. Read it '
       + 'before writing an extension. Pass a query to get only the matching sections — '
-      + '"reports" is the section to read before declaring one, and it names what the author does '
-      + 'NOT control (permission per collection, the scan ceiling).',
+      + '"reports" is the section to read before declaring one: which question each fold answers, '
+      + 'when a chart has anything to plot, and what the author does NOT control (permission per '
+      + 'collection, the scan ceiling). Pair it with list_report_options, which says what THIS '
+      + 'installation executes.',
     inputSchema: {
       type: 'object',
       properties: { query: { type: 'string', description: 'Optional: only sections matching this.' } },
@@ -980,6 +989,34 @@ const PURE_READS: ToolDefinition[] = [
     }),
   },
   {
+    name: 'list_report_options',
+    description:
+      'The report vocabulary this installation actually executes: the folds and what each does with '
+      + 'the groupings, the chart kinds, the date buckets, the measure operations, and the capability '
+      + 'tokens. Derived from the kernel, so it is what THIS version answers for — a fold or a chart '
+      + 'kind outside it degrades with a visible warning rather than failing. Read it before writing a '
+      + '`spec`, together with AUTHORING.md, "Reports": this tool says WHAT exists, that section says '
+      + 'which question each fold answers.',
+    inputSchema: { type: 'object', properties: {} },
+    run: () => pretty({
+      kernelVersion: KERNEL_VERSION,
+      // Grouping and showing are two questions. Conflating them is what made a ten-field report
+      // render ten indent levels in a single column, so the fold table answers both separately.
+      folds: REPORT_SHAPE_KINDS.map((kind) => ({ kind, ...(REPORT_FOLD_NOTES[kind] ?? {}) })),
+      chartKinds: [...REPORT_CHART_KINDS],
+      granularities: [...REPORT_GRANULARITIES],
+      measureOps: Object.keys(AGGREGATION_OP_LABELS),
+      capabilities: [...REPORT_CAPABILITIES],
+      note:
+        'A chart plots GROUPS: it reads one level of `groupBy` / `rows` and draws a point per member '
+        + 'of it. So `summary`, `matrix` and a `tabular` WITH `groupBy` all draw; a `tabular` without '
+        + 'grouping does not, and a chart declared on one is warned instead of rendered empty. '
+        + '`spec.requires` is DERIVED from the spec and never written by hand — it is what lets an '
+        + 'older kernel refuse a report by the name of the feature it lacks instead of answering with '
+        + 'a different number under the same label.',
+    }),
+  },
+  {
     name: 'list_icons',
     description:
       'Every icon key this installation can draw. `icon` is a key from this catalogue everywhere it '
@@ -1090,12 +1127,38 @@ const PURE_READS: ToolDefinition[] = [
  * A URI de cada leitura pura. Ela é o que um cliente anexa ao contexto, então é contrato — mais
  * frágil que o nome de uma ferramenta, porque renomeá-la quebra o anexo sem erro nenhum.
  */
+/**
+ * O que cada dobra faz com os NÍVEIS e com as dimensões que não são níveis.
+ *
+ * Prosa, e por isso emparelhada com `REPORT_SHAPE_KINDS` em vez de escrita como lista própria: uma
+ * dobra nova sem nota aqui é reprovada no teste, e a lista servida continua sendo a do kernel.
+ */
+const REPORT_FOLD_NOTES: Record<string, { oneRowIs: string; levels: string; otherDimensions: string }> = {
+  tabular: {
+    oneRowIs: 'a RECORD',
+    levels: '`groupBy`, optional — each group opens with its value, its records follow with the same '
+      + 'columns, and the group total closes it',
+    otherDimensions: '`columns`, in that order',
+  },
+  summary: {
+    oneRowIs: 'a GROUP',
+    levels: '`groupBy`, required — an empty one is refused',
+    otherDimensions: 'shown nowhere; the platform warns, naming each of them',
+  },
+  matrix: {
+    oneRowIs: 'a group crossed with a column',
+    levels: '`rows` and `columns`, both required — this version reads one level of `columns`',
+    otherDimensions: 'shown nowhere; the platform warns, naming each of them',
+  },
+};
+
 const PURE_READ_URIS: Record<string, string> = {
   list_entities: 'microteia://entities',
   list_extension_points: 'microteia://extension-points',
   list_workflow_steps: 'microteia://workflow/steps',
   list_workflow_events: 'microteia://workflow/events',
   list_record_commands: 'microteia://record-commands',
+  list_report_options: 'microteia://reports/options',
   list_icons: 'microteia://icons',
   list_expression_functions: 'microteia://expression-functions',
   list_workspace_plugins: 'microteia://workspace/plugins',

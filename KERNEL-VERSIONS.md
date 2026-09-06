@@ -18,6 +18,58 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.57.1] — 2026-09-06
+
+- docs(sdk/authoring): the reports section of AUTHORING.md carries the grouped list, the fold table
+  that separates GROUPING from SHOWING, and what each fold does with the dimensions that are not
+  levels. It described only what existed before `9.56.0`, so an agent reading it answered "what each
+  customer owes" with a `summary`, which is the other question.
+- docs(sdk/authoring): the chart paragraph says a chart plots GROUPS — one point per member of one
+  `groupBy` / `rows` level — so a `summary`, a `matrix` and a `tabular` WITH `groupBy` all draw and a
+  plain list does not. Declaring one on a plain list is warned, not rendered as an empty frame.
+- feat(sdk/mcp): `list_report_options` (`microteia://reports/options`) serves the folds, chart kinds,
+  granularities, measure ops and capability tokens THIS kernel executes, derived rather than written.
+  The fold notes are paired with `REPORT_SHAPE_KINDS` and a test refuses a fold without one — the same
+  rule that keeps every other generated assertion about the kernel derived.
+
+#### [9.57.0] — 2026-09-06
+
+- fix(reports/design): `summary` and `matrix` consumed the WHOLE dimension list as levels — the other
+  half of the defect `9.56.0` fixed for `tabular`. Ten fields declared to be columns became ten indent
+  levels in a single column, and switching shape made them vanish without a word. The draft now holds
+  `groupDimensions: string[]`, picked in one `MultiSearchSelect` shared by all three shapes: the
+  chosen order is the level order, `tabular` puts the rest in `columns`, `summary` makes them
+  `groupBy`, `matrix` makes them `rows` minus the column dimension.
+- feat(reports): `shape.fields-unused` warns, by key, for every declared dimension the shape shows
+  nowhere. The number stays right, so it degrades — but silence there read as lost data.
+- fix(reports): `summary` with an empty `groupBy` is refused by name. `buildTree` has nothing to walk,
+  and the report rendered "no data" over a full collection — the symptom that most looks like a data
+  defect.
+
+#### [9.56.0] — 2026-09-06
+
+- feat(reports): `ReportTabularShape` gains `groupBy?: ReportGroupLevel[]` — the grouped list, the
+  hole between the two shapes that existed. A `tabular` result showed the records and never gathered
+  them; a `summary` gathered them and never showed them. Whoever wanted "what each client owes", and
+  not "how much", switched to `summary` and lost the columns: every dimension became an indent level,
+  one line per column. The aggregator now emits the group tree with the leaf records on
+  `ReportRow.records`, and the table draws a band per group, its records, and the group total. Array
+  from day one because `buildTree` already walks N levels — closing it at one would have cost a second
+  format later, over `.json` already written in the office.
+- feat(reports): capability `shape.tabular.group`, derived by `deriveReportRequires` and warned by
+  name on a kernel that lacks it. Without a token of its own, an older kernel would draw the whole
+  list flat, with the right total, and nothing on screen saying the groups were gone.
+- feat(reports/design): the fold picker gains "Group the lines by" for the list shape, and the field
+  that groups leaves `shape.columns` — the same rule the pivot already applies to its column
+  dimension. `tabularShapeOf` is pure and exported: that removal is the decision the defect turned on.
+- fix(reports/design): section labels said the opposite of what they did. `design.dimensions` was
+  "Groupings" while, in a list, it is the columns; `design.shape` was "Fold". Each shape's label now
+  states what it delivers, and a new report defaults to `tabular`.
+- feat(reports): the chart accepts a grouped list — `categoryDepth` reads `groupBy` on both shapes,
+  and `chart.shape.tabular` only warns when there is no grouping at all.
+- feat(reports/csv): a grouped list exports flat, the group value repeated in a leading column. A band
+  or a subtotal inside the file is text that breaks `SUM` over every column below it.
+
 #### [9.55.1] — 2026-09-06
 
 - fix(reports): the chart is drawn again. `ReportChart` read the grouped rows, but a `tabular` result

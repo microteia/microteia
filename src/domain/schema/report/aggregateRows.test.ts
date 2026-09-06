@@ -501,3 +501,86 @@ describe('aggregateReportRows — medida calculada', () => {
     expect(result.rows.every((row) => row.values.ticket === null)).toBe(true);
   });
 });
+
+/**
+ * A LISTA AGRUPADA — o buraco entre as duas dobras que existiam.
+ *
+ * A lista corrida mostrava os registros e não os reunia; o resumo os reunia e não os mostrava. Quem
+ * queria "o que cada cliente deve", e não "quanto", punha as dimensões numa dobra agrupada e perdia
+ * as colunas: cada campo virava um nível de recuo, uma linha por coluna.
+ */
+describe('aggregateReportRows — lista agrupada', () => {
+  const groupedSpec = (levels: { dimension: string; subtotal?: boolean }[]): ReportSpec => ({
+    v: REPORT_SPEC_VERSION,
+    dataset,
+    shape: { kind: 'tabular', columns: ['cliente'], groupBy: levels },
+  });
+
+  it('devolve o grupo COM os registros dele, e o total do grupo junto', () => {
+    const result = aggregateReportRows({ spec: groupedSpec([{ dimension: 'status' }]), rows });
+
+    expect(result.rows.map((row) => row.keys[0].key)).toEqual(['', 'aberto', 'pago']);
+    const pago = result.rows.find((row) => row.keys[0].key === 'pago');
+    expect(pago?.records?.map((record) => record.id)).toEqual(['1', '2']);
+    expect(pago?.values.total).toBe(300);
+    expect(pago?.count).toBe(2);
+  });
+
+  it('o total geral continua sobre TODAS as linhas varridas, e não sobre as mostradas', () => {
+    const result = aggregateReportRows({ spec: groupedSpec([{ dimension: 'status' }]), rows });
+
+    expect(result.totals?.count).toBe(5);
+    expect(result.totals?.values.quantidade).toBe(5);
+  });
+
+  it('os registros vão embrulhados para a rede — a data vira ISO em vez de {}', () => {
+    const result = aggregateReportRows({
+      spec: groupedSpec([{ dimension: 'status' }]),
+      rows: [{ id: '9', status: 'pago', amount: 10, dueDate: new Date('2026-01-10T00:00:00.000Z') }],
+    });
+
+    expect(result.rows[0].records?.[0].dueDate).toBe('2026-01-10T00:00:00.000Z');
+  });
+
+  it('N níveis vêm em PROFUNDIDADE, o pai antes dos filhos, e só a folha traz registros', () => {
+    const result = aggregateReportRows({
+      spec: groupedSpec([{ dimension: 'status' }, { dimension: 'cliente' }]),
+      rows,
+    });
+
+    const shape = result.rows.map((row) => ({
+      level: row.level,
+      key: row.keys[row.keys.length - 1].key,
+      records: row.records?.length,
+    }));
+
+    expect(shape).toEqual([
+      { level: 0, key: '', records: undefined },
+      { level: 1, key: 'Bruno', records: 1 },
+      { level: 0, key: 'aberto', records: undefined },
+      { level: 1, key: 'Ana', records: 2 },
+      { level: 0, key: 'pago', records: undefined },
+      { level: 1, key: 'Ana', records: 1 },
+      { level: 1, key: 'Bruno', records: 1 },
+    ]);
+  });
+
+  it('o teto de registros é do RELATÓRIO, não do grupo — e esgotá-lo marca o resultado parcial', () => {
+    const result = aggregateReportRows({
+      spec: groupedSpec([{ dimension: 'status' }]),
+      rows,
+      limits: { maxRecords: 2 },
+    });
+
+    const shown = result.rows.reduce((count, row) => count + (row.records?.length ?? 0), 0);
+    expect(shown).toBe(2);
+    expect(result.completeGroups).toBe(false);
+  });
+
+  it('sem agrupamento nenhum continua sendo a lista corrida de sempre', () => {
+    const result = aggregateReportRows({ spec: groupedSpec([]), rows });
+
+    expect(result.rows).toEqual([]);
+    expect(result.records).toHaveLength(5);
+  });
+});

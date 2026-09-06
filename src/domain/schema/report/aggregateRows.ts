@@ -249,13 +249,72 @@ export const aggregateReportRows = (input: AggregateReportInput): ReportResult =
 
   if (spec.shape.kind === 'tabular') {
     const measureKeys = measures.map((measure) => measure.key);
+    const levels = spec.shape.groupBy ?? [];
+    const totals = measureKeys.length > 0 ? totalsOf(measures, measureKeys, rows, filters) : null;
+
+    if (levels.length === 0) {
+      return {
+        ...base,
+        columns: [],
+        rows: [],
+        records: rows.slice(0, limits.maxRecords).map((row) => wireValue(row) as Record<string, unknown>),
+        totals,
+        completeGroups: rows.length <= limits.maxRecords,
+      };
+    }
+
+    /*
+     * A LISTA AGRUPADA devolve as duas coisas: a árvore de grupos e, na folha de cada um, os
+     * registros dele.
+     *
+     * O teto de registros é do RELATÓRIO, não do grupo: gastá-lo por grupo deixaria um relatório de
+     * duzentos grupos devolver cem mil linhas. Quem esgota o teto marca o resultado como parcial, no
+     * mesmo aviso que a varredura já usa — o grupo seguinte aparece sem detalhe, e isso precisa ser
+     * dito em vez de parecer um grupo vazio.
+     */
+    const tree = buildTree(rows, levels, dimensions);
+    const emitted: ReportRow[] = [];
+    let truncated = false;
+    let taken = 0;
+
+    const walk = (node: GroupNode, depth: number): void => {
+      const level = sortedChildren(node, levels[depth], dimensions);
+      truncated = truncated || level.dropped;
+
+      for (const child of level.shown) {
+        if (emitted.length >= limits.maxGroups) {
+          truncated = true;
+          return;
+        }
+
+        const leaf = depth === levels.length - 1;
+        const shown = leaf
+          ? child.rows.slice(0, Math.max(0, limits.maxRecords - taken))
+          : [];
+        if (leaf) {
+          taken += shown.length;
+          truncated = truncated || shown.length < child.rows.length;
+        }
+
+        emitted.push({
+          keys: child.keys,
+          values: valuesOf(measures, measureKeys, child.rows, filters),
+          count: child.rows.length,
+          level: depth,
+          ...(leaf ? { records: shown.map((row) => wireValue(row) as Record<string, unknown>) } : {}),
+        });
+        if (!leaf) walk(child, depth + 1);
+      }
+    };
+
+    walk(tree, 0);
+
     return {
       ...base,
       columns: [],
-      rows: [],
-      records: rows.slice(0, limits.maxRecords).map((row) => wireValue(row) as Record<string, unknown>),
-      totals: measureKeys.length > 0 ? totalsOf(measures, measureKeys, rows, filters) : null,
-      completeGroups: rows.length <= limits.maxRecords,
+      rows: emitted,
+      totals,
+      completeGroups: !truncated,
     };
   }
 

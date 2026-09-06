@@ -172,11 +172,28 @@ export interface ReportGroupLevel {
   collapsed?: boolean;
 }
 
-/** Sem agrupamento: o registro é a linha. */
+/** O registro é a linha — e a lista pode ser QUEBRADA em grupos sem deixar de mostrar os registros. */
 export interface ReportTabularShape {
   kind: 'tabular';
   /** Chaves de DIMENSÃO, na ordem das colunas. Uma medida aqui é erro nomeado. */
   columns: string[];
+  /**
+   * Os níveis que quebram a lista em grupos. Ausente ou vazio = lista corrida.
+   *
+   * É a LISTA AGRUPADA, e ela não é `summary` com detalhe: no resumo o grupo SUBSTITUI os registros
+   * — ele é a resposta —, e aqui o grupo os EMOLDURA. Um relatório que responde "quanto cada cliente
+   * deve" e um que responde "o que cada cliente deve" são perguntas diferentes, e a segunda não
+   * tinha como ser declarada: quem punha as dimensões numa dobra agrupada perdia as colunas, porque
+   * cada dimensão virava um nível de recuo.
+   *
+   * Array desde o dia um, e não uma chave só, porque o custo é o mesmo: `buildTree` já percorre N
+   * níveis, e é a mesma recursão que o resumo e o pivô usam. Fechar em um nível agora obrigaria a um
+   * segundo formato depois — e o `.json` já gravado no escritório não se reescreve.
+   *
+   * A dimensão que agrupa sai das `columns`: repeti-la em toda linha de detalhe é escrever o mesmo
+   * valor debaixo do cabeçalho que acabou de o dizer.
+   */
+  groupBy?: ReportGroupLevel[];
   orderBy?: QueryOrderBy[];
   limit?: number;
 }

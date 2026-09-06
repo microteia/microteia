@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import { useLabel, useT } from '../i18n/useT';
 import { useReportGroupLabels } from './useReportGroupLabels';
-import { columnLabel, rowDimensions, shownMeasures } from './reportFormatting';
+import { columnLabel, groupDimensions, rowDimensions, shownMeasures } from './reportFormatting';
 import { useReportCellText } from './useReportCellText';
 import { reportCellKey } from '../../../domain/schema/report/aggregateRows';
 import { reportCsvFileName, reportResultToCsv } from '../../../domain/schema/report/reportCsv';
@@ -49,10 +49,34 @@ export const useReportCsv = (
      * cabeçalho e nenhuma linha, com a coleção cheia.
      */
     if (spec.shape.kind === 'tabular') {
-      header.push(...dimensionLabels);
-      for (const record of result.records ?? []) {
-        rows.push(dimensions.map((dimension) => cellText(record, dimension)));
+      /*
+       * A lista AGRUPADA vira arquivo PLANO: o valor do grupo repetido em cada linha, numa coluna
+       * própria à frente das outras.
+       *
+       * De propósito diferente da tela. Uma faixa de grupo e um subtotal no meio do arquivo são
+       * texto que quebra o `SOMA` de qualquer coluna abaixo dele — a planilha recebe uma tabela que
+       * não pode somar. Repetido em cada linha, o grupo é o que uma tabela dinâmica reagrupa, e o
+       * subtotal ela refaz sozinha.
+       */
+      const groups = groupDimensions(spec);
+      header.push(
+        ...groups.map((dimension) => columnLabel(dimension.label, dimension.key, label)),
+        ...dimensionLabels,
+      );
+
+      if (groups.length > 0) {
+        for (const row of result.rows) {
+          const prefix = row.keys.map((entry) => groupLabel(entry));
+          for (const record of row.records ?? []) {
+            rows.push([...prefix, ...dimensions.map((dimension) => cellText(record, dimension))]);
+          }
+        }
+      } else {
+        for (const record of result.records ?? []) {
+          rows.push(dimensions.map((dimension) => cellText(record, dimension)));
+        }
       }
+
       if (result.totals && measures.length > 0) {
         // Bloco à parte: o corpo tem as colunas do registro, o total tem as das medidas.
         totalsHeader = ['', ...measures.map((measure) =>

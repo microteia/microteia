@@ -11,6 +11,24 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.57.1] — 2026-09-06
+
+- **O manual de quem escreve extensões aprendeu as formas de relatório.** O guia e as ferramentas que um assistente de IA consulta descreviam apenas as formas antigas — quem pedisse um relatório agrupado recebia um resumo, que é outra pergunta. Agora eles dizem qual pergunta cada forma responde, quando um gráfico tem o que desenhar, e o que a instalação em uso de fato executa.
+
+#### [9.57.0] — 2026-09-06
+
+- **"Resumo" e "Cruzado" deixaram de virar de cabeça para baixo.** Eles usavam TODOS os campos declarados como níveis de agrupamento: dez campos escolhidos para serem colunas viravam dez linhas recuadas, uma por campo. Agora o agrupamento é uma escolha própria — "Agrupar as linhas por" —, e vale para as três formas: escolha um campo, ou vários, e a ordem em que escolher é a ordem dos níveis.
+- **Os campos que a forma escolhida não mostra passaram a ser ditos.** Um resumo mostra só o que o agrupa, e antes os outros campos simplesmente sumiam da tela sem uma palavra. Agora o relatório diz quais são, e o que fazer com eles.
+- **Um resumo sem agrupamento nenhum é recusado, com o motivo.** Antes ele abria dizendo "Nenhum dado" sobre um cadastro cheio — o que parece defeito do dado, e não da forma escolhida.
+
+#### [9.56.0] — 2026-09-06
+
+- **O relatório agora agrupa sem perder as colunas.** Escolher "Agrupado" trocava as colunas por uma linha recuada para cada campo, e os registros desapareciam. Na autoria há agora uma escolha própria — "Agrupar as linhas por" — que mantém as colunas como estão e reúne as linhas sob o valor do campo escolhido, com o total de cada grupo abaixo delas.
+- **As seções da autoria passaram a dizer o que fazem.** O que se chamava "Agrupamentos" é "Campos", porque é dali que saem as colunas do relatório; o que se chamava "Dobra" é "Como mostrar". E cada opção diz o que entrega: a lista mostra uma linha por registro, o resumo mostra o total de cada grupo sem os registros, e o cruzado põe um campo nas linhas e outro nas colunas.
+- **Um relatório novo já começa como lista.** É a forma cujo resultado se explica sozinho — uma linha por registro, uma coluna por campo —, e as outras continuam a um clique.
+- **O gráfico passou a desenhar a lista agrupada também**, com os mesmos números que aparecem na tabela ao lado.
+- **A exportação da lista agrupada abre em planilha somando.** O valor do grupo vai repetido em cada linha, numa coluna à frente das outras, em vez de virar um título no meio do arquivo — assim a soma de qualquer coluna continua funcionando, e a planilha reagrupa como quiser.
+
 #### [9.55.1] — 2026-09-06
 
 - **O gráfico do relatório voltou a ser desenhado.** Numa lista simples ele saía como uma moldura vazia ao lado de uma tabela cheia — qualquer que fosse a configuração escolhida. Agora o relatório diz, ali mesmo, que uma lista sem agrupamento não tem o que desenhar, e ensina o caminho: mostrá-lo agrupado ou cruzado.

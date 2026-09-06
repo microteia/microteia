@@ -556,3 +556,108 @@ describe('validateReportSpec — o que a autoria monta por inteiro', () => {
     expect(hasBlockingReportIssue(issues)).toBe(false);
   });
 });
+
+describe('validateReportSpec — lista agrupada', () => {
+  const grouped = (columns: string[], groupBy: string[]): ReportSpec => ({
+    ...valid,
+    dataset: {
+      ...valid.dataset,
+      dimensions: [
+        { key: 'situacao', path: 'situacao', label: 'Situação' },
+        { key: 'titulo', path: 'titulo', label: 'Título' },
+      ],
+    },
+    shape: {
+      kind: 'tabular',
+      columns,
+      groupBy: groupBy.map((dimension) => ({ dimension, subtotal: true })),
+    },
+  });
+
+  it('aceita a lista quebrada por um campo, com os outros como colunas', () => {
+    expect(validateReportSpec(grouped(['titulo'], ['situacao']), ctx)).toEqual([]);
+  });
+
+  it('cobra a dimensão que o agrupamento cita e o relatório não declara', () => {
+    expect(errors(validateReportSpec(grouped(['titulo'], ['inexistente']), ctx)))
+      .toContain('@core.reports/shape.dimension.unknown');
+  });
+
+  /*
+   * A recusa DIZ o que aconteceu. "Acrescente uma coluna" não tem o que ensinar a quem já declarou
+   * o único campo que tinha e o pôs para agrupar — a saída dele é tirar o campo do agrupamento ou
+   * mostrar o relatório como resumo, e é isso que a outra mensagem diz.
+   */
+  it('quando o agrupamento consumiu todos os campos, a recusa é a que ensina a sair', () => {
+    const issues = validateReportSpec(grouped([], ['situacao']), ctx);
+
+    expect(errors(issues)).toContain('@core.reports/shape.tabular.only-grouped');
+    expect(errors(issues)).not.toContain('@core.reports/shape.tabular.no-columns');
+  });
+
+  it('a lista sem coluna e sem agrupamento continua com a recusa de sempre', () => {
+    expect(errors(validateReportSpec(grouped([], []), ctx)))
+      .toContain('@core.reports/shape.tabular.no-columns');
+  });
+
+  it('não avisa que não há o que plotar — a lista agrupada tem grupos', () => {
+    const spec: ReportSpec = {
+      ...grouped(['titulo'], ['situacao']),
+      presentation: { chart: { kind: 'bar' } },
+    };
+
+    expect(warnings(validateReportSpec(spec, ctx))).not.toContain('@core.reports/chart.shape.tabular');
+  });
+});
+
+/**
+ * O defeito que a lista agrupada não cobriu: o resumo e o pivô comiam a lista INTEIRA de campos como
+ * níveis. Quem declarava dez campos para vê-los como colunas recebia dez níveis de recuo numa coluna
+ * só, e ao trocar a dobra os campos sumiam sem uma palavra. A escolha dos níveis passou a ser
+ * própria, e o que a dobra não mostra é DITO.
+ */
+describe('validateReportSpec — o campo que a dobra não mostra', () => {
+  const comDoisCampos = (shape: ReportSpec['shape']): ReportSpec => ({
+    ...valid,
+    dataset: {
+      ...valid.dataset,
+      dimensions: [
+        { key: 'situacao', path: 'situacao', label: 'Situação' },
+        { key: 'titulo', path: 'titulo', label: 'Título' },
+      ],
+    },
+    shape,
+  });
+
+  it('avisa quais campos não aparecem, sem derrubar o relatório', () => {
+    const spec = comDoisCampos({
+      kind: 'summary',
+      groupBy: [{ dimension: 'situacao' }],
+      values: ['total'],
+    });
+    const issues = validateReportSpec(spec, ctx);
+
+    expect(warnings(issues)).toContain('@core.reports/shape.fields-unused');
+    expect(issues.find((issue) => issue.error === '@core.reports/shape.fields-unused')?.errorParams)
+      .toEqual({ keys: 'titulo' });
+    expect(hasBlockingReportIssue(issues)).toBe(false);
+  });
+
+  it('não avisa quando a lista mostra uns como coluna e reúne os outros', () => {
+    const spec = comDoisCampos({
+      kind: 'tabular',
+      columns: ['titulo'],
+      groupBy: [{ dimension: 'situacao', subtotal: true }],
+    });
+
+    expect(warnings(validateReportSpec(spec, ctx))).not.toContain('@core.reports/shape.fields-unused');
+  });
+
+  /* Sem nível nenhum, `buildTree` não tem o que percorrer: o resumo saía "Nenhum dado" sobre uma
+     coleção cheia — o sintoma que mais parece defeito do dado. */
+  it('recusa o resumo sem agrupamento nenhum, em vez de devolver uma tabela vazia', () => {
+    const spec = comDoisCampos({ kind: 'summary', groupBy: [], values: ['total'] });
+
+    expect(errors(validateReportSpec(spec, ctx))).toContain('@core.reports/shape.summary.no-group');
+  });
+});

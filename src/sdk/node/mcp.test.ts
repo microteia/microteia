@@ -3,6 +3,11 @@ import { resolve } from 'node:path';
 import { mcpPrompts, mcpResourceUris, mcpToolNames, mcpTools, readMcpPrompt, readMcpResource, runMcpTool } from './mcp';
 import { CORE_STEP_DEFINITION_IDS } from '../../domain/schema/workflowStepCatalog';
 import { CUSTOM_FIELD_TYPES } from '../../domain/schema/fieldRules';
+import {
+  REPORT_CHART_KINDS,
+  REPORT_GRANULARITIES,
+  REPORT_SHAPE_KINDS,
+} from '../../domain/schema/report/reportSpec';
 import { DOMAIN_ISSUE_CODES, RULE_LEDGER_FILE, SCREEN_PLAN_RULES, STORAGE_MECHANISMS, coverageGaps } from '../domain';
 
 /**
@@ -58,6 +63,7 @@ describe('o servidor MCP de autoria', () => {
       'microteia://icons',
       'microteia://record-commands',
       'microteia://referenceable',
+      'microteia://reports/options',
       'microteia://workflow/events',
       'microteia://workflow/steps',
       'microteia://workspace/info',
@@ -575,5 +581,59 @@ describe('o servidor MCP de autoria', () => {
     // Este repositório não é uma instalação: a resposta honesta é `false`/`null`.
     expect(answer.installationConnected).toBe(false);
     expect(answer.firebaseProjectId).toBeNull();
+  });
+});
+
+/**
+ * O relatório era a única capacidade grande cujo vocabulário o autor não conseguia enumerar: as
+ * dobras e os tipos de gráfico viviam no guia, em prosa, e "agrupar" e "mostrar" chegavam ali como a
+ * mesma coisa — que foi exatamente o que fez um relatório de dez campos desenhar dez níveis de recuo
+ * numa coluna só.
+ */
+describe('as opções de relatório servidas ao agente', () => {
+  const options = (): {
+    folds: { kind: string; oneRowIs?: string; levels?: string; otherDimensions?: string }[];
+    chartKinds: string[];
+    granularities: string[];
+    measureOps: string[];
+    capabilities: string[];
+    note: string;
+  } => JSON.parse(readMcpResource('microteia://reports/options', ROOT));
+
+  it('deriva as dobras do kernel, e toda dobra diz o que faz com os níveis', () => {
+    const answer = options();
+
+    expect(answer.folds.map((fold) => fold.kind).sort()).toEqual([...REPORT_SHAPE_KINDS].sort());
+    for (const fold of answer.folds) {
+      expect(fold.oneRowIs, `a dobra "${fold.kind}" não diz o que é uma linha`).toBeDefined();
+      expect(fold.levels, `a dobra "${fold.kind}" não diz o que faz com os níveis`).toBeDefined();
+      expect(
+        fold.otherDimensions,
+        `a dobra "${fold.kind}" não diz o que faz com os campos que não agrupam`,
+      ).toBeDefined();
+    }
+  });
+
+  it('a lista agrupada é DITA como a dobra que reúne sem perder as colunas', () => {
+    const tabular = options().folds.find((fold) => fold.kind === 'tabular');
+
+    expect(tabular?.oneRowIs).toContain('RECORD');
+    expect(tabular?.levels).toContain('groupBy');
+    expect(tabular?.otherDimensions).toContain('columns');
+  });
+
+  it('serve o vocabulário do kernel, e não uma cópia dele', () => {
+    const answer = options();
+
+    expect(answer.chartKinds).toEqual([...REPORT_CHART_KINDS]);
+    expect(answer.granularities).toEqual([...REPORT_GRANULARITIES]);
+    expect(answer.capabilities).toContain('shape.tabular.group');
+  });
+
+  /* O gráfico desenha GRUPOS. Sem isso dito, quem declara um numa lista corrida recebe uma moldura
+     vazia ao lado de uma tabela cheia — e nada na tela diz por quê. */
+  it('diz que o gráfico precisa de agrupamento para ter o que plotar', () => {
+    expect(options().note).toContain('groupBy');
+    expect(options().note).toMatch(/chart plots GROUPS/i);
   });
 });

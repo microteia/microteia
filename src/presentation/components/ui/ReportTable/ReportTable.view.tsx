@@ -10,10 +10,11 @@ export interface ReportTableProps {
 }
 
 /**
- * A tabela AGRUPADA — a dobra `summary`.
+ * A tabela do relatório — a lista, a lista agrupada e o resumo.
  *
  * Não sabe o que desenha: recebe o resultado agregado e os rótulos já resolvidos. Os níveis
- * aparecem pelo recuo, e o subtotal é uma linha como as outras, só marcada.
+ * aparecem pelo recuo, e o subtotal é uma linha como as outras, só marcada. A FAIXA — o grupo que
+ * abre e o total que o fecha — é a linha cujo texto atravessa as colunas.
  */
 export const ReportTable: React.FC<ReportTableProps> = ({ spec, result }) => {
   const vm = useReportTableViewModel(spec, result);
@@ -30,19 +31,28 @@ export const ReportTable: React.FC<ReportTableProps> = ({ spec, result }) => {
         </S.Head>
         <tbody>
           {vm.rows.map((row) => (
-            <S.Row key={row.id} $subtotal={row.subtotal}>
-              {vm.grouped && (
-                <S.Td $level={row.level} $strong={row.subtotal}>{row.group}</S.Td>
-              )}
-              {row.values.map((value, index) => (
-                <S.Td
-                  key={vm.valueColumns[index].key}
-                  $numeric={vm.valueColumns[index].numeric}
-                  $strong={row.subtotal}
-                >
-                  {value}
+            <S.Row key={row.id} $subtotal={row.subtotal} $band={row.span !== null && !row.subtotal}>
+              {row.span !== null ? (
+                <S.Td colSpan={Math.max(1, vm.columns.length)} $level={row.level} $strong>
+                  {row.span}
                 </S.Td>
-              ))}
+              ) : (
+                <>
+                  {vm.grouped && (
+                    <S.Td $level={row.level} $strong={row.subtotal}>{row.group}</S.Td>
+                  )}
+                  {row.values.map((value, index) => (
+                    <S.Td
+                      key={vm.valueColumns[index].key}
+                      $numeric={vm.valueColumns[index].numeric}
+                      $strong={row.subtotal}
+                      $level={index === 0 ? row.level : undefined}
+                    >
+                      {value}
+                    </S.Td>
+                  ))}
+                </>
+              )}
             </S.Row>
           ))}
         </tbody>
