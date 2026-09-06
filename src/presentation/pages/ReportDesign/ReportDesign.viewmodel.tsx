@@ -38,9 +38,30 @@ import { hasBlockingReportIssue, validateReportSpec } from '../../../domain/sche
 import type { ReportResult } from '../../../domain/schema/report/reportResult';
 import type { AggregationOp } from '../../../domain/schema/fieldRules';
 import type { CustomFieldValue, FieldDefinition } from '../../../domain/entities/entitySchemas';
+import type { ReportDefinition } from '../../../domain/entities/Report';
 import { errorParamsOf } from '../../../domain/errors/LocalizedError';
 
 export type ReportShapeKindChoice = 'tabular' | 'summary' | 'matrix';
+
+/**
+ * Um agrupamento como a TELA o mostra.
+ *
+ * A ORDEM importa — ela é a ordem dos níveis do resumo e a das colunas da lista simples —, e é por
+ * isso que cada item carrega se pode subir e se pode descer: sem os dois, a tela teria de contar a
+ * posição de novo, e um botão habilitado no primeiro item é um gesto que não faz nada.
+ *
+ * `isDate` é o que decide se há modelo de apresentação a escolher, e ele vem do CAMPO — não de já
+ * haver um corte escolhido. Enquanto vinha do corte, escolher "Valor exato" fazia o seletor sumir:
+ * a pessoa perdia o caminho de volta para "Por mês" sem nada dizer por quê.
+ */
+export interface ReportDesignDimension {
+  key: string;
+  label: string;
+  granularity: ReportGranularity | '';
+  isDate: boolean;
+  canMoveUp: boolean;
+  canMoveDown: boolean;
+}
 
 /**
  * O RASCUNHO — tudo o que a tela edita, num objeto só.
@@ -94,10 +115,18 @@ export interface ReportDesignViewModel {
 
   pathOptions: ReportPathOption[];
 
-  dimensions: ReportDimension[];
+  dimensions: ReportDesignDimension[];
   addDimension: (path: string) => void;
   removeDimension: (key: string) => void;
   setGranularity: (key: string, granularity: ReportGranularity | undefined) => void;
+  /** A reordenação pelos botões — o mesmo gesto do Form Design, e o que funciona sem mouse. */
+  moveDimension: (key: string, direction: -1 | 1) => void;
+  draggedDimension: string | null;
+  dragOverDimension: string | null;
+  startDragDimension: (key: string) => void;
+  dragOverDimensionAt: (key: string) => void;
+  endDragDimension: () => void;
+  dropDimension: (targetKey: string) => void;
 
   measures: ReportMeasure[];
   measureOp: AggregationOp;
@@ -180,6 +209,9 @@ export interface ReportDesignViewModel {
     columnDimension: string;
     add: string;
     remove: string;
+    reorder: string;
+    moveUp: string;
+    moveDown: string;
     preview: string;
     save: string;
     noGranularity: string;
@@ -239,6 +271,44 @@ const keyFromPath = (path: string, taken: Set<string>, suffix = ''): string => {
 };
 
 /**
+ * O corte de data de um agrupamento — e "Valor exato" REMOVE a chave, nunca a grava `undefined`.
+ *
+ * O `spec` é gravado verbatim, e um `undefined` dentro dele derruba a gravação inteira:
+ * `Unsupported field value: undefined`, dito com o texto do SDK sobre um documento que quem estava
+ * desenhando o relatório nunca viu.
+ */
+export const withGranularity = (
+  dimensions: ReportDimension[],
+  key: string,
+  granularity: ReportGranularity | undefined,
+): ReportDimension[] => dimensions.map((one) => {
+  if (one.key !== key) return one;
+  const next: ReportDimension = { ...one };
+  delete next.granularity;
+  return granularity ? { ...next, granularity } : next;
+});
+
+/**
+ * A lista de agrupamentos com `key` movido para `targetIndex`. Fora da lista, `null` — nada muda.
+ *
+ * A ORDEM é o relatório: ela é a ordem dos níveis do resumo e a das colunas da lista simples. Sem
+ * reordenar, a única forma de trocar dois agrupamentos de lugar era remover os dois e declará-los
+ * de novo, na ordem certa.
+ */
+export const movedDimensions = (
+  dimensions: ReportDimension[],
+  key: string,
+  targetIndex: number,
+): ReportDimension[] | null => {
+  const order = [...dimensions];
+  const index = order.findIndex((one) => one.key === key);
+  if (index < 0 || targetIndex < 0 || targetIndex >= order.length) return null;
+  const [moved] = order.splice(index, 1);
+  order.splice(targetIndex, 0, moved);
+  return order;
+};
+
+/**
  * A chave do DOCUMENTO, única entre os relatórios que já existem.
  *
  * Sem isto, salvar dois relatórios de nome parecido devolvia `artifact.id-taken` — uma recusa
@@ -276,7 +346,20 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
   const { openTab, setTabTitle } = useWorkspace();
 
   const editingKey = useMemo(() => parseReportDesignTabKey(tabKey), [tabKey]);
-  const editing = editingKey ? getReport(editingKey) : undefined;
+  /**
+   * O relatório que ESTA aba acabou de criar.
+   *
+   * A aba de criar não leva chave no nome, então `editing` seguia vazio depois da primeira gravação
+   * e o segundo Salvar criava um SEGUNDO relatório — e o terceiro, um terceiro. Quem salva de novo
+   * sem sair da tela está editando o que acabou de gravar, e é a tela que precisa saber disso: o
+   * repositório só vê dois pedidos de criar.
+   */
+  const [createdReport, setCreatedReport] = useState<ReportDefinition | null>(null);
+  const openKey = editingKey ?? createdReport?.key ?? null;
+  // O documento do STORE é o mais fresco; o devolvido pela criação cobre o intervalo até a assinatura
+  // trazê-lo — e é nesse intervalo que um segundo Salvar criaria a cópia.
+  const editing = (openKey ? getReport(openKey) : undefined)
+    ?? (editingKey === null ? createdReport ?? undefined : undefined);
 
   const tableOptions = useMemo(
     () => dynamicScreens.map((screen) => ({
@@ -327,6 +410,8 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
   const [filterText, setFilterText] = useState('');
   const [promptPath, setPromptPath] = useState('');
   const [promptOp, setPromptOp] = useState<QueryOperator>('eq');
+  const [draggedDimension, setDraggedDimension] = useState<string | null>(null);
+  const [dragOverDimension, setDragOverDimension] = useState<string | null>(null);
   const [preview, setPreview] = useState<ReportResult | null>(null);
   const [isPreviewing, setIsPreviewing] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
@@ -409,10 +494,36 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
   }, [draft, change]);
 
   const setGranularity = useCallback((key: string, granularity: ReportGranularity | undefined) => {
-    change({
-      dimensions: draft.dimensions.map((one) => (one.key === key ? { ...one, granularity } : one)),
-    });
+    change({ dimensions: withGranularity(draft.dimensions, key, granularity) });
   }, [draft, change]);
+
+  const moveDimension = useCallback((key: string, direction: -1 | 1) => {
+    const index = draft.dimensions.findIndex((one) => one.key === key);
+    const order = index < 0 ? null : movedDimensions(draft.dimensions, key, index + direction);
+    if (order) change({ dimensions: order });
+  }, [draft, change]);
+
+  const startDragDimension = useCallback((key: string) => setDraggedDimension(key), []);
+
+  const dragOverDimensionAt = useCallback(
+    (key: string) => setDragOverDimension((current) => (current === key ? current : key)),
+    [],
+  );
+
+  const endDragDimension = useCallback(() => {
+    setDraggedDimension(null);
+    setDragOverDimension(null);
+  }, []);
+
+  const dropDimension = useCallback((targetKey: string) => {
+    const sourceKey = draggedDimension;
+    setDraggedDimension(null);
+    setDragOverDimension(null);
+    if (!sourceKey || sourceKey === targetKey) return;
+    const targetIndex = draft.dimensions.findIndex((one) => one.key === targetKey);
+    const order = targetIndex < 0 ? null : movedDimensions(draft.dimensions, sourceKey, targetIndex);
+    if (order) change({ dimensions: order });
+  }, [draggedDimension, draft, change]);
 
   const addMeasure = useCallback(() => {
     if (measureOp !== 'count' && !measurePath) return;
@@ -481,6 +592,24 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
   const removePrompt = useCallback((key: string) => {
     change({ prompts: draft.prompts.filter((one) => one.key !== key) });
   }, [draft, change]);
+
+  /**
+   * O agrupamento com o que a TELA precisa saber sobre ele: se é data, e onde está na ordem.
+   *
+   * O `isDate` sai do CAMPO, e não de já haver corte escolhido — é o que devolve o caminho de volta
+   * a quem escolheu "Valor exato" e viu o seletor desaparecer.
+   */
+  const designDimensions = useMemo<ReportDesignDimension[]>(
+    () => draft.dimensions.map((dimension, index) => ({
+      key: dimension.key,
+      label: dimension.label ?? dimension.key,
+      granularity: dimension.granularity ?? '',
+      isDate: pathOptions.find((one) => one.value === dimension.path)?.isDate === true,
+      canMoveUp: index > 0,
+      canMoveDown: index < draft.dimensions.length - 1,
+    })),
+    [draft, pathOptions],
+  );
 
   const spec = useMemo<ReportSpec>(() => {
     const valueKeys = draft.measures.map((one) => one.key);
@@ -585,7 +714,7 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
       } else {
         const taken = new Set(reports.map((report) => report.key));
         const key = uniqueReportKey(draft.title, taken);
-        await createReport({
+        const created = await createReport({
           key,
           title: draft.title.trim(),
           icon: 'fileChart',
@@ -593,6 +722,8 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
           origin: 'design',
           enabled: true,
         }, key);
+        // A partir daqui esta aba EDITA. Sem esta linha, cada Salvar seguinte criava outro relatório.
+        setCreatedReport(created);
       }
       notify(t('save.done'), 'success');
     } catch (caught) {
@@ -636,10 +767,17 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
     reportTitle: draft.title,
     setReportTitle,
     pathOptions,
-    dimensions: draft.dimensions,
+    dimensions: designDimensions,
     addDimension,
     removeDimension,
     setGranularity,
+    moveDimension,
+    draggedDimension,
+    dragOverDimension,
+    startDragDimension,
+    dragOverDimensionAt,
+    endDragDimension,
+    dropDimension,
     measures: draft.measures,
     measureOp,
     setMeasureOp,
@@ -720,6 +858,9 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
       columnDimension: t('design.column-dimension'),
       add: t('design.add'),
       remove: t('design.remove'),
+      reorder: t('design.reorder'),
+      moveUp: t('design.move-up'),
+      moveDown: t('design.move-down'),
       preview: t('design.preview'),
       save: t('design.save'),
       noGranularity: t('design.no-granularity'),

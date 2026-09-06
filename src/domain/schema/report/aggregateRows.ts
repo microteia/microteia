@@ -69,6 +69,29 @@ const scalarKey = (value: unknown): string => {
 };
 
 /**
+ * O REGISTRO como ele atravessa a rede.
+ *
+ * A resposta da callable é serializada pelo codificador do Firebase, e ele transforma um `Date` em
+ * `{}` — `Object.entries` de uma data não tem uma entrada sequer. A coluna de data de uma lista
+ * simples chegava à tela como `[object Object]`: a data inteira perdida, e nada na tela dizendo que
+ * se perdeu. Aqui ela vira texto ISO, que é o formato que o produto inteiro fala e o único que
+ * sobrevive ao `.json`.
+ *
+ * É na AGREGAÇÃO e não na Cloud Function porque `records` é o que o contrato entrega — a mesma
+ * função responde ao executor e à pré-visualização da autoria, e as duas atravessam a mesma rede.
+ */
+const wireValue = (value: unknown): unknown => {
+  if (value instanceof Date) return value.toISOString();
+  if (Array.isArray(value)) return value.map(wireValue);
+  if (value !== null && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>).map(([key, item]) => [key, wireValue(item)]),
+    );
+  }
+  return value;
+};
+
+/**
  * A chave do grupo desta dimensão, nesta linha.
  *
  * Granularidade que não se aplica ao valor (não é data, ou é desconhecida deste kernel) cai no VALOR
@@ -230,7 +253,7 @@ export const aggregateReportRows = (input: AggregateReportInput): ReportResult =
       ...base,
       columns: [],
       rows: [],
-      records: rows.slice(0, limits.maxRecords),
+      records: rows.slice(0, limits.maxRecords).map((row) => wireValue(row) as Record<string, unknown>),
       totals: measureKeys.length > 0 ? totalsOf(measures, measureKeys, rows, filters) : null,
       completeGroups: rows.length <= limits.maxRecords,
     };

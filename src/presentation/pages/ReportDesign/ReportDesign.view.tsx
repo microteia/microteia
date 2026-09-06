@@ -1,7 +1,16 @@
 import React from 'react';
-import { RiDeleteBinLine, RiEyeLine, RiFileList2Line, RiSave3Line } from 'react-icons/ri';
+import {
+  RiArrowDownSLine,
+  RiArrowUpSLine,
+  RiDeleteBinLine,
+  RiDraggable,
+  RiEyeLine,
+  RiFileList2Line,
+  RiSave3Line,
+} from 'react-icons/ri';
 import { S } from './ReportDesign.styles';
 import { useReportDesignViewModel } from './ReportDesign.viewmodel';
+import type { ReportGranularity } from '../../../domain/schema/report/reportSpec';
 import { Button } from '../../components/ui/Button';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { InfoBanner } from '../../components/ui/InfoBanner';
@@ -87,28 +96,67 @@ export const ReportDesignView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
               <S.Legend>{vm.labels.dimensions}</S.Legend>
             </S.GroupHeader>
             <S.Hint>{vm.labels.dimensionsHint}</S.Hint>
+            {/*
+              * A ORDEM é o relatório: ela é a ordem dos níveis do resumo e a das colunas da lista.
+              * O gesto é o do Form Design — arrastar pela alça, ou as setas, que é o que funciona
+              * sem mouse.
+              */}
             {vm.dimensions.map((dimension) => (
-              <S.Item key={dimension.key}>
+              <S.DimensionItem
+                key={dimension.key}
+                draggable
+                $dragging={vm.draggedDimension === dimension.key}
+                $dragOver={vm.dragOverDimension === dimension.key && vm.draggedDimension !== dimension.key}
+                onDragStart={() => vm.startDragDimension(dimension.key)}
+                onDragOver={(event) => {
+                  event.preventDefault();
+                  vm.dragOverDimensionAt(dimension.key);
+                }}
+                onDrop={(event) => {
+                  event.preventDefault();
+                  vm.dropDimension(dimension.key);
+                }}
+                onDragEnd={vm.endDragDimension}
+              >
+                <S.DragHandle title={vm.labels.reorder}>
+                  <RiDraggable size={16} />
+                </S.DragHandle>
                 <div>
-                  <S.ItemLabel>{dimension.label ?? dimension.key}</S.ItemLabel>
-                  {dimension.granularity !== undefined && (
+                  <S.ItemLabel>{dimension.label}</S.ItemLabel>
+                  {dimension.isDate && (
                     <SearchSelect
                       options={[
                         { value: '', label: vm.labels.noGranularity },
                         ...vm.labels.granularityOptions,
                       ]}
-                      value={dimension.granularity ?? ''}
+                      value={dimension.granularity}
                       onChange={(value) => vm.setGranularity(
                         dimension.key,
-                        value === '' ? undefined : (value as typeof dimension.granularity),
+                        value === '' ? undefined : (value as ReportGranularity),
                       )}
                     />
                   )}
                 </div>
-                <Button variant="ghost" size="sm" onClick={() => vm.removeDimension(dimension.key)}>
-                  {vm.labels.remove}
-                </Button>
-              </S.Item>
+                <S.ItemActions>
+                  <S.MoveBtn
+                    title={vm.labels.moveUp}
+                    disabled={!dimension.canMoveUp}
+                    onClick={() => vm.moveDimension(dimension.key, -1)}
+                  >
+                    <RiArrowUpSLine size={16} />
+                  </S.MoveBtn>
+                  <S.MoveBtn
+                    title={vm.labels.moveDown}
+                    disabled={!dimension.canMoveDown}
+                    onClick={() => vm.moveDimension(dimension.key, 1)}
+                  >
+                    <RiArrowDownSLine size={16} />
+                  </S.MoveBtn>
+                  <Button variant="ghost" size="sm" onClick={() => vm.removeDimension(dimension.key)}>
+                    {vm.labels.remove}
+                  </Button>
+                </S.ItemActions>
+              </S.DimensionItem>
             ))}
             <SearchSelect
               options={vm.pathOptions.map((option) => ({ value: option.value, label: option.label }))}
@@ -175,7 +223,7 @@ export const ReportDesignView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                 label={vm.labels.columnDimension}
                 options={vm.dimensions.map((dimension) => ({
                   value: dimension.key,
-                  label: dimension.label ?? dimension.key,
+                  label: dimension.label,
                 }))}
                 value={vm.columnDimension}
                 onChange={vm.setColumnDimension}
@@ -253,7 +301,7 @@ export const ReportDesignView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                   label={vm.labels.chartCategory}
                   options={vm.dimensions.map((dimension) => ({
                     value: dimension.key,
-                    label: dimension.label ?? dimension.key,
+                    label: dimension.label,
                   }))}
                   value={vm.chartCategory}
                   onChange={vm.setChartCategory}

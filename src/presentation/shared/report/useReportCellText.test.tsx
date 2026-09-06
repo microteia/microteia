@@ -23,6 +23,7 @@ const SCREENS: SchemaScreen[] = [
     titleFieldKey: 'title',
     fields: [
       field({ key: 'title' }),
+      field({ key: 'dueDate', type: 'date' }),
       field({ key: 'activeIds', type: 'reference', refEntity: 'persons', multi: true }),
       field({ key: 'passiveId', type: 'reference', refEntity: 'persons' }),
     ],
@@ -50,9 +51,11 @@ const SPEC: ReportSpec = {
       { key: 'titulo', path: 'title' },
       { key: 'ativo', path: 'activeIds' },
       { key: 'passivo', path: 'passiveId' },
+      { key: 'venc', path: 'dueDate' },
+      { key: 'venc_mes', path: 'dueDate', granularity: 'month', timeZone: 'UTC' },
     ],
   },
-  shape: { kind: 'tabular', columns: ['titulo', 'ativo', 'passivo'] },
+  shape: { kind: 'tabular', columns: ['titulo', 'ativo', 'passivo', 'venc', 'venc_mes'] },
 };
 
 const cellOf = (record: Record<string, unknown>, dimensionKey: string): string => {
@@ -94,5 +97,22 @@ describe('useReportCellText', () => {
   it('ausência é célula vazia', () => {
     expect(cellOf({ id: '1' }, 'passivo')).toBe('');
     expect(cellOf({ id: '1', activeIds: [] }, 'ativo')).toBe('');
+  });
+
+  /**
+   * A data chegava do servidor como o `{}` que o codificador da callable faz de um `Date`, e a
+   * coluna mostrava `[object Object]`. Ela atravessa como texto ISO, e aqui vira data de verdade —
+   * o texto ISO cru é o formato do arquivo, não o que se lê numa tabela.
+   */
+  it('a data vira data, e não o texto ISO cru', () => {
+    const text = cellOf({ id: '1', dueDate: '2026-03-01T12:00:00.000Z' }, 'venc');
+
+    expect(text).toContain('2026');
+    expect(text).not.toContain('T12:00');
+    expect(text).not.toContain('object');
+  });
+
+  it('o corte declarado é honrado — quem escolheu "Por mês" vê o mês', () => {
+    expect(cellOf({ id: '1', dueDate: '2026-03-01T12:00:00.000Z' }, 'venc_mes')).toBe('2026-03');
   });
 });

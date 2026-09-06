@@ -59,10 +59,24 @@ const mapReport = (id: string, d: Record<string, unknown>, tenantId: string): Re
   updatedAt: toDate(d.updatedAt),
 });
 
-// O Firestore rejeita `undefined`, e um campo opcional ausente chega assim. Ausente some;
-// para limpar um valor gravado, use `null`.
-const stripUndefined = <T extends object>(data: T): T =>
-  Object.fromEntries(Object.entries(data).filter(([, value]) => value !== undefined)) as T;
+/**
+ * O Firestore rejeita `undefined`, e um campo opcional ausente chega assim. Ausente some; para
+ * limpar um valor gravado, use `null`.
+ *
+ * A varredura é FUNDA porque o `spec` é um objeto aninhado gravado inteiro: uma chave opcional
+ * ausente lá dentro — o corte de data de um agrupamento — derrubava a gravação com
+ * `Unsupported field value: undefined`, apontando um documento que quem estava desenhando o
+ * relatório nunca viu. Um `undefined` não é valor em JSON, então nada se perde ao removê-lo.
+ */
+const stripUndefined = <T>(value: T): T => {
+  if (Array.isArray(value)) return value.map((item) => stripUndefined(item)) as T;
+  if (value === null || typeof value !== 'object' || value instanceof Date) return value;
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>)
+      .filter(([, item]) => item !== undefined)
+      .map(([key, item]) => [key, stripUndefined(item)]),
+  ) as T;
+};
 
 const ordered = (tenantId: string) => query(reportsRef(tenantId), orderBy('title', 'asc'));
 

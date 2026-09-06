@@ -453,6 +453,33 @@ describe('aggregateReportRows — tabular', () => {
     expect(result.records).toHaveLength(2);
     expect(result.completeGroups).toBe(false);
   });
+
+  /**
+   * O defeito que chegou à tela: a coluna de data de uma lista simples mostrava `[object Object]`.
+   *
+   * O documento guarda a data como Timestamp e a leitura a devolve como `Date` — e o codificador da
+   * callable transforma um `Date` em `{}`, porque `Object.entries` de uma data não tem uma entrada
+   * sequer. A data inteira se perdia na travessia, sem uma palavra dizendo que se perdeu.
+   */
+  it('a data atravessa a rede como texto ISO, nunca como Date', () => {
+    const result = aggregateReportRows({
+      spec: tabularSpec,
+      rows: [{ id: '9', status: 'pago', dueDate: new Date('2026-03-01T12:00:00.000Z') }],
+    });
+
+    expect(result.records?.[0].dueDate).toBe('2026-03-01T12:00:00.000Z');
+    expect(JSON.parse(JSON.stringify(result.records?.[0].dueDate))).toBe('2026-03-01T12:00:00.000Z');
+  });
+
+  it('a data DENTRO do registro apontado atravessa igual — a hidratação traz o registro inteiro', () => {
+    const result = aggregateReportRows({
+      spec: tabularSpec,
+      rows: [{ id: '9', client: { name: 'Ana', since: new Date('2020-05-04T00:00:00.000Z') } }],
+    });
+
+    expect((result.records?.[0].client as Record<string, unknown>).since)
+      .toBe('2020-05-04T00:00:00.000Z');
+  });
 });
 
 describe('aggregateReportRows — medida calculada', () => {
