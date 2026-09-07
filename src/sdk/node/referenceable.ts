@@ -5,7 +5,7 @@ import { crossExtensionRefChecks, crossRefIssue } from '../../domain/usecases/pl
 import { REF_KIND_KEYS, SCRIPT_ID_INPUT, TARGET_WORKFLOW_ID_INPUT } from '../../domain/usecases/plugins/pluginReferences';
 import { referencedExtensionIds } from '../../domain/usecases/plugins/crossExtensionRefs';
 import { INSTALLED_CATALOG_FILE } from './installedCatalog';
-import { describeMessage } from './messages';
+import { describeMessage, packageText } from './messages';
 import type { WorkspaceCatalog } from './workspaceCatalog';
 import { readWorkspaceCatalog } from './workspaceCatalog';
 
@@ -162,11 +162,25 @@ export const crossRefFindings = (pkg: MarketplacePlugin, read: WorkspaceCatalog)
   const listedThere = new Map((snapshot?.extensions ?? []).map((one) => [one.id, one]));
   const surfaces = new Map(referenceableArtifacts(read).map((one) => [one.ref, one]));
 
+  // O nome do artefato que escreveu a referência é do PACOTE, e pode ser uma chave: quem aponta o
+  // passo para outra extensão é um fluxo, e fluxo tem nome que alguém lê.
+  const describe = packageText(pkg);
+
   return crossExtensionRefChecks(pkg, knownOwners(read)).map((check): CrossRefFinding => {
     const head = {
       ref: check.ref.id,
       kind: describeMessage(REF_KIND_KEYS[check.ref.kind]),
-      writtenBy: `${describeMessage(check.ref.from.origin)} "${check.ref.from.name}"`,
+      /**
+       * `origin` é uma referência que pode ter PARÂMETRO: a de passo é `step "{step}" of automation`,
+       * e o `{step}` chega como parâmetro IRMÃO, do mesmo jeito que a recusa do kernel o monta
+       * (`refusal` em `pluginReferences.ts`). Resolvê-la sem os parâmetros imprimia o `{step}` cru
+       * para o autor — e a referência dentro de um passo é justamente o caso em que ele precisa saber
+       * QUAL passo, num fluxo com dois laços de cinco.
+       */
+      writtenBy: `${describeMessage(
+        check.ref.from.origin,
+        check.ref.from.step === undefined ? undefined : { step: check.ref.from.step },
+      )} "${describe(check.ref.from.name)}"`,
     };
 
     if (check.verdict.kind === 'ok') {

@@ -10,7 +10,7 @@ import { buildPlugin } from './compile';
 import { hostModuleBlock, hostModuleNames, hostTypesPath, readHostTypes } from './hostTypes';
 import { referencedSymbols, sdkDeclaration, sdkSurfaceNames, sdkTypesRoot } from './sdkTypes';
 import { FIELD_EXPRESSION_FUNCTION_NAMES } from '../../domain/schema/fieldExpression';
-import { describeMessage } from './messages';
+import { describeMessage, packageText } from './messages';
 import {
   CONTROL_STEP_TYPES,
   CORE_STEP_CATALOG,
@@ -1126,7 +1126,9 @@ const PURE_READS: ToolDefinition[] = [
            * está instalada em lugar nenhum — logo o retrato da instalação não a alcança. O que se
            * enxergava era id, versão e problemas; nunca o nome de nada dentro dela.
            */
-          const surface = exportedSurface(result.package);
+          const describe = packageText(result.package);
+          const surface = exportedSurface(result.package)
+            .map((one) => ({ ...one, name: describe(one.name) }));
           const exported = surface.length === 0
             ? '  exports nothing — every artifact of it is private to it'
             : surface.map((one) => `  exports ${manifest.id}/${one.id} — ${one.name} (${one.kind})`).join('\n');

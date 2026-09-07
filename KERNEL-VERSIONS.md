@@ -18,6 +18,25 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.60.1] — 2026-09-07
+
+- fix(sdk/mcp): an artifact's NAME reaches the author, not its message key. `exportedSurface` and the
+  cross-reference gate are domain functions: they return the artifact as it stands, because they run
+  where there is no language — and `name: message('flow.notify')` is exactly how a first-party
+  extension is written. So `list_referenceable`, `microteia://workspace/plugins` and the `check`
+  report answered `@com.example.utils/script.normalize` to whoever asked for the script's name, having
+  written the phrase themselves minutes earlier. `packageText(pkg)` in `messages.ts` is now the single
+  door — the expression was being rebuilt in four places — and the workspace catalog resolves the
+  surface once per package, at collection time, rather than leaving each of its two readers to
+  remember. The installation snapshot is untouched: it carries no catalog, so there is nothing there
+  to resolve with, and claiming otherwise would be worse than leaving it.
+
+- fix(sdk/mcp): the cross-reference report says WHICH step. `RefOrigin.origin` may carry a parameter —
+  the step origin is `step "{step}" of automation` — and it was being resolved with none, printing the
+  placeholder raw. The kernel's own refusal has always passed `step` as a sibling param (`refusal` in
+  `pluginReferences.ts`); this now does the same. A reference written inside a step is precisely the
+  case where the author needs to know which one, in a flow with two branches of five.
+
 #### [9.60.0] — 2026-09-07
 
 - feat(sdk/mcp): `describe_extension` and the resource `microteia://examples`. "How is X done?" had no

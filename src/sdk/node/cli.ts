@@ -4,8 +4,7 @@ import { basename, dirname, join, resolve } from 'node:path';
 import type { MarketplacePlugin } from '../../domain/entities/MarketplacePlugin';
 import { KERNEL_VERSION } from '../../domain/schema/plugin/kernelVersion';
 import { buildPlugin } from './compile';
-import { messageBundlesOf } from '../../domain/schema/i18n/extensionPoints';
-import { describeMessage, describeWith } from './messages';
+import { describeMessage, packageText } from './messages';
 import { installationRegion, scaffoldFunction, scaffoldPlugin } from './scaffold';
 import { askerFor } from './prompt';
 import { serveMcp } from './mcp';
@@ -126,7 +125,7 @@ const build = (args: Args, write: boolean): number => {
   const { manifest } = result.package;
   // O pacote traz os próprios textos; usá-los aqui é o que faz o terminal mostrar o nome da extensão
   // em vez da chave dele.
-  const describe = describeWith(messageBundlesOf(manifest.contributes ?? []));
+  const describe = packageText(result.package);
 
   say(`${BOLD}${describe(manifest.name)}${RESET} ${manifest.id} ${DIM}v${manifest.version}${RESET}`);
 

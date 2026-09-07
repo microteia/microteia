@@ -1,6 +1,8 @@
 import { buildMessageCatalog, translate } from '../../domain/schema/i18n/messages';
 import type { MessageBundle, MessageParams } from '../../domain/schema/i18n/messages';
 import { DEFAULT_LOCALE } from '../../domain/schema/i18n/localeNegotiation';
+import { messageBundlesOf } from '../../domain/schema/i18n/extensionPoints';
+import type { MarketplacePlugin } from '../../domain/entities/MarketplacePlugin';
 import { CORE_ACCESS_MESSAGES } from '../../plugins/messages/coreAccess';
 import { CORE_ADMIN_MESSAGES } from '../../plugins/messages/coreAdmin';
 import { CORE_AUTOMATION_MESSAGES } from '../../plugins/messages/coreAutomation';
@@ -72,6 +74,19 @@ export const describeMessage = (message: string, params?: MessageParams): string
   if (!match) return message;
   return translate(CATALOG, `${match[1]}/${match[2]}`, params);
 };
+
+/**
+ * O resolvedor DE UM PACOTE — a forma em que `describeWith` é usada em todo lugar que tem o pacote na
+ * mão, e que estava sendo remontada em quatro.
+ *
+ * O nome de um artefato do pacote pode ser uma REFERÊNCIA: `name: message('flow.closing')` é como as
+ * extensões de primeira parte são escritas, porque nome de fluxo, de ação e de script é texto que
+ * alguém lê. As funções de domínio que os leem — `exportedSurface`, o portão da referência cruzada —
+ * devolvem o artefato como ele está, porque rodam onde não existe idioma. Quem imprime resolve, e o
+ * catálogo para resolver viaja dentro do próprio pacote.
+ */
+export const packageText = (pkg: MarketplacePlugin): ((message: string, params?: MessageParams) => string) =>
+  describeWith(messageBundlesOf(pkg.manifest.contributes ?? []));
 
 /**
  * O mesmo, mas conhecendo também os textos que o PACOTE traz. Sem isto o terminal imprime

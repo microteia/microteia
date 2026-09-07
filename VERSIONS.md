@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.60.1] — 2026-09-07
+
+- **Corrigido: o assistente de IA voltou a mostrar o nome dos itens de uma extensão, em vez do código interno deles.** Ao listar o que uma extensão deixa disponível para as outras, ele exibia a chave interna do texto no lugar do nome — quem acabara de batizar uma automação via um código em vez do nome que deu a ela. E quando ele apontava um problema de referência dentro de uma automação, deixava de dizer em qual passo estava.
+
 #### [9.60.0] — 2026-09-07
 
 - **O assistente de IA passou a saber o que cada extensão de exemplo faz, e qual delas ler.** As extensões que a Microteia entrega como exemplo ficam ao lado das que o escritório escreve, para servirem de leitura — mas quem pedia ajuda a um assistente tinha de abrir cada uma para descobrir do que ela tratava. Agora ele responde, sobre qualquer extensão, o que ela acrescenta ao sistema, quais telas e listas ela traz, o que ela exige do projeto e o que ela deixa disponível para outras extensões — e diz qual exemplo ler para aprender cada recurso.

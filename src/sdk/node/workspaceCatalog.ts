@@ -11,6 +11,7 @@ import type { RuleLedger } from '../domain/traceability';
 import { RULE_LEDGER_FILE, RULE_LEDGER_VERSION, emptyRuleLedger, parseRuleLedger } from '../domain/traceability';
 import { modelExceptions } from '../domain/toPlatform';
 import { buildPlugin } from './compile';
+import { packageText } from './messages';
 import { findPluginFiles } from './workspacePlugins';
 import {
   INSTALLED_CATALOG_FILE,
@@ -243,6 +244,7 @@ export const readWorkspaceCatalog = (
 
     try {
       const { package: pkg } = buildPlugin({ entry });
+      const describe = packageText(pkg);
       const own = (pkg.screens ?? []).map((template) => screenFrom(template, pkg.manifest.id));
       screens.push(...own, ...patchesFrom(pkg));
       lookups.push(...(pkg.lookups ?? []).map((one) => ({ collection: one.collection, label: one.label })));
@@ -257,7 +259,12 @@ export const readWorkspaceCatalog = (
         path: relative(root, entry),
         pluginId: pkg.manifest.id,
         version: pkg.manifest.version,
-        exports: exportedSurface(pkg),
+        /**
+         * O nome resolvido AQUI, e não em quem imprime: esta lista é a resposta de `list_referenceable`
+         * e do portão da referência cruzada, e cada um dos dois teria de lembrar de resolvê-la — o
+         * catálogo do pacote está em mãos neste ponto do laço e em nenhum dos dois.
+         */
+        exports: exportedSurface(pkg).map((one) => ({ ...one, name: describe(one.name) })),
       });
     } catch (error) {
       failures.push({ path: relative(root, entry), error: error instanceof Error ? error.message : String(error) });

@@ -2,11 +2,10 @@ import { existsSync, readdirSync } from 'node:fs';
 import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import type { MarketplacePlugin } from '../../domain/entities/MarketplacePlugin';
 import type { Contribution } from '../../domain/schema/plugin/contribution';
-import { messageBundlesOf } from '../../domain/schema/i18n/extensionPoints';
 import { exportedSurface } from '../../domain/usecases/plugins/crossExtensionRefs';
 import { buildPlugin } from './compile';
 import { exampleNote } from './exampleNotes';
-import { describeWith } from './messages';
+import { packageText } from './messages';
 import { readWorkspaceCatalog } from './workspaceCatalog';
 import { EXAMPLES_DIR, findPluginFiles, isExamplePlugin } from './workspacePlugins';
 
@@ -139,7 +138,7 @@ const projectPackage = (
   const result = buildPlugin({ entry });
   const pkg = result.package;
   const { manifest } = pkg;
-  const resolveText = describeWith(messageBundlesOf(manifest.contributes ?? []));
+  const resolveText = packageText(pkg);
   const full = detail === 'full';
 
   const overview: string[] = [];

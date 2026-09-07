@@ -55,6 +55,95 @@ const utilsSource = (exports: string[]): string => `export default {
 };
 `;
 
+/**
+ * A MESMA `utils`, escrita como as extensões de primeira parte são: nome de fluxo e de script como
+ * REFERÊNCIA de mensagem, com o catálogo viajando dentro do próprio pacote.
+ */
+const NAMESPACE = 'com.example.utils';
+
+const translatedUtilsSource = (): string => `export default {
+  manifest: {
+    id: '${NAMESPACE}',
+    version: '1.4.0',
+    kernel: '^2.0.0',
+    name: '@${NAMESPACE}/package.name',
+    description: 'Shared helpers.',
+    exports: ['normalize-tax-id', 'notify-customer'],
+    contributes: [{
+      point: 'i18n.messages',
+      id: 'messages.en',
+      apiVersion: '1.0.0',
+      metadata: ${JSON.stringify({
+        'locale': 'en',
+        'namespace': 'com.example.utils',
+        'messages': {
+          'package.name': 'Utils',
+          'flow.notify': 'Notify customer',
+          'script.normalize': 'Normalize tax id',
+        },
+      })},
+    }],
+  },
+  summary: 'Shared helpers.',
+  workflows: [{
+    templateId: 'notify-customer',
+    name: '@${NAMESPACE}/flow.notify',
+    eventName: 'workflow.called',
+    version: 1,
+    condition: { kind: 'AlwaysTrue' },
+    steps: [],
+  }],
+  scripts: [{
+    templateId: 'normalize-tax-id',
+    name: '@${NAMESPACE}/script.normalize',
+    sourceTs: '',
+    compiledJs: '',
+    inputParams: [],
+    outputParams: [],
+  }],
+};
+`;
+
+const SALES_NS = 'com.example.sales';
+
+const translatedConsumerSource = (ref: string): string => `export default {
+  manifest: {
+    id: '${SALES_NS}',
+    version: '1.0.0',
+    kernel: '^2.0.0',
+    name: 'Sales',
+    description: 'Sales.',
+    dependencies: { 'com.example.utils': '^1.0.0' },
+    contributes: [{
+      point: 'i18n.messages',
+      id: 'messages.en',
+      apiVersion: '1.0.0',
+      metadata: ${JSON.stringify({
+        'locale': 'en',
+        'namespace': 'com.example.sales',
+        'messages': { 'flow.on-save': 'When an order is saved' },
+      })},
+    }],
+  },
+  summary: 'Sales.',
+  workflows: [{
+    templateId: 'on-save',
+    name: '@${SALES_NS}/flow.on-save',
+    eventName: 'workflow.called',
+    version: 1,
+    condition: { kind: 'AlwaysTrue' },
+    steps: [{
+      id: 's1',
+      stepDefinitionId: 'script',
+      type: 'Action',
+      order: 0,
+      enabled: true,
+      configuration: { scriptId: { kind: 'Literal', value: '${ref}' } },
+    }],
+  }],
+};
+`;
+
 const consumerSource = (ref: string, dependency = 'com.example.utils'): string => `export default {
   manifest: {
     id: 'com.example.sales',
@@ -177,6 +266,34 @@ describe('a superfície que se pode referenciar deste diretório', () => {
     expect(artifacts[1].disabled).toBe(true);
   });
 
+  /**
+   * O NOME do artefato, e não a chave dele.
+   *
+   * `exportedSurface` é função de domínio: ela devolve o artefato como está, porque roda onde não
+   * existe idioma. E é assim que as extensões de primeira parte são escritas — `name: message(...)` —,
+   * então a lista respondia `@com.example.utils/script.normalize` a quem perguntou o nome do script.
+   * Quem imprime resolve, e o catálogo para resolver viaja dentro do próprio pacote.
+   */
+  it('o nome vem RESOLVIDO pelo catálogo que o pacote carrega, nunca como a chave', () => {
+    writeFileSync(join(workspace, 'utils', 'plugin.ts'), translatedUtilsSource());
+
+    const artifacts = referenceableArtifacts(readWorkspaceCatalog(workspace));
+    expect(artifacts.map((one) => one.name).sort()).toStrictEqual(['Normalize tax id', 'Notify customer']);
+    for (const one of artifacts) expect(one.name).not.toContain('@');
+  });
+
+  it('e a resposta servida ao agente também, que é onde a chave aparecia', () => {
+    writeFileSync(join(workspace, 'utils', 'plugin.ts'), translatedUtilsSource());
+
+    const served = readMcpResource('microteia://referenceable', workspace);
+    expect(served).toContain('Normalize tax id');
+    expect(served).not.toContain('script.normalize');
+
+    const listed = readMcpResource('microteia://workspace/plugins', workspace);
+    expect(listed).toContain('Notify customer');
+    expect(listed).not.toContain('flow.notify');
+  });
+
   it('extensão presente nas duas fontes resolve pela do WORKSPACE, que é a que está sendo editada', () => {
     writeUtils(['normalize-tax-id']);
     snapshot([{
@@ -195,6 +312,22 @@ describe('a superfície que se pode referenciar deste diretório', () => {
 
 describe('o portão da referência a outra extensão, cobrado fora do escritório', () => {
   afterEach(() => rmSync(join(workspace, INSTALLED_CATALOG_FILE), { force: true }));
+
+  /**
+   * "the flow \"@com.example.sales/flow.on-save\"" era o que o relatório dizia a quem acabou de
+   * escrever a frase. O nome de quem ESCREVEU a referência é do pacote em mãos, e é o pacote em mãos
+   * que carrega o catálogo — a mesma resolução da lista, no outro lado do portão.
+   */
+  it('nomeia quem escreveu a referência pelo nome, e diz QUAL passo, sem deixar parâmetro cru', () => {
+    writeUtils(['normalize-tax-id']);
+    writeFileSync(join(workspace, 'sales', 'plugin.ts'), translatedConsumerSource('com.example.utils/normalize-tax-id'));
+    const { package: pkg } = buildPlugin({ entry: join(workspace, 'sales', 'plugin.ts') });
+
+    const findings = crossRefFindings(pkg, readWorkspaceCatalog(workspace));
+    expect(findings).toHaveLength(1);
+    expect(findings[0].writtenBy).toBe('step "s1" of automation "When an order is saved"');
+    expect(findings[0].writtenBy).not.toContain('{');
+  });
 
   it('a referência que a dona exporta passa, e a resposta diz de onde a resposta veio', () => {
     writeUtils(['normalize-tax-id']);
