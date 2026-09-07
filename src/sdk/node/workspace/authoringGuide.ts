@@ -2064,6 +2064,7 @@ is why it is worth asking before writing:
 | \`describe_sdk_type\` | the exact declaration of any authoring type — \`TemplateField\`, \`WidgetSpec\`, \`WorkflowStep\`, \`PluginManifest\`, \`AuthoredPlugin\` |
 | \`describe_host_module\` | what a curated module really exports, for a view or a \`startup\` |
 | \`describe_workflow_step\` | one step in full: required inputs, accepted mapping kinds, composite shape, outputs |
+| \`describe_extension\` | what ONE extension declares, brings and requires, from the compiled package — how "how is X done?" gets answered without reading a whole \`plugin.ts\` |
 | \`read_authoring_guide\` | this document, by section |
 
 And one **prompt**, which is the gesture rather than an answer:
@@ -2093,6 +2094,7 @@ rather than a tool costing an input schema in every agent's context, in every se
 | \`microteia://record-commands\` | the record gestures an action may run through \`command\` |
 | \`microteia://expression-functions\` | the expression functions the installed platform resolves |
 | \`microteia://referenceable\` | every artifact another extension exports that you may point a step at, already in the form the reference takes (§3) |
+| \`microteia://examples\` | the first-party extensions in \`examples/\`, and which mechanism each is the best one to read for |
 | \`microteia://workspace/plugins\` | the extensions authored here, with their current problems and what each one exports |
 | \`microteia://workspace/info\` | what this workspace is bound to |
 
@@ -2228,6 +2230,13 @@ mode this whole subsystem exists to prevent.
 Read \`examples/\` for first-party extensions in source form — they are the very source that produces
 the \`.json\` the platform installs, so nothing in them is a simplification. Between them they cover
 screens, fields, lookups, patches, views wired to pages, \`startup\`, translation and themes.
+
+Which one, though, is a question the folder names do not answer. \`microteia://examples\` does: it lists
+what is here and says which MECHANISM each one is the best one to read for. And \`describe_extension\`
+answers what any one of them declares, brings and requires without your reading it line by line — the
+points it contributes to, the points it declares for others, its screens and collections, its exported
+surface, and what it demands of the Firebase project. Neither is prose written beside the code: both
+are the package itself, compiled here.
 
 For automation, read \`examples/automation-example/\` first. It exists for that reason and nothing
 else: a workflow triggered by a save, a \`Condition\` node that branches and converges, a \`query\`, a

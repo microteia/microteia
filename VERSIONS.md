@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.60.0] — 2026-09-07
+
+- **O assistente de IA passou a saber o que cada extensão de exemplo faz, e qual delas ler.** As extensões que a Microteia entrega como exemplo ficam ao lado das que o escritório escreve, para servirem de leitura — mas quem pedia ajuda a um assistente tinha de abrir cada uma para descobrir do que ela tratava. Agora ele responde, sobre qualquer extensão, o que ela acrescenta ao sistema, quais telas e listas ela traz, o que ela exige do projeto e o que ela deixa disponível para outras extensões — e diz qual exemplo ler para aprender cada recurso.
+- **Corrigido: as extensões de exemplo deixaram de ser tratadas como se fossem do escritório.** O assistente as contava como trabalho do próprio escritório, e o efeito pior era silencioso: uma tela de exemplo passava por cima da tela real, e ele passava a sugerir campos que ninguém tem. Agora ele diz quais são de exemplo, onde estão para ler, e responde sobre o que o escritório de fato tem instalado.
+
 #### [9.59.0] — 2026-09-07
 
 - **O aviso de falha crítica na Auditoria passou a aparecer também no alto da tela.** Ele só existia ao lado de Auditoria no menu, e quem estivesse com o menu recolhido não tinha como notar. No alto da tela ele aparece somente quando há falha não vista, e continua se apagando ao abrir a Auditoria, como sempre.

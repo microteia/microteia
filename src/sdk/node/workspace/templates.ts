@@ -402,6 +402,11 @@ including the one that opened the editor only to validate a package.
   \`WorkflowStep\`, \`PluginManifest\`…). The SDK ships its types with the comments stripped, so this is
   how you learn what a package may contain without guessing
 - \`describe_host_module\` — what a curated module actually exports
+- \`describe_extension\` — what ONE extension declares, brings and requires, read from the compiled
+  package: the points it contributes to, the points it declares for others, its screens and their
+  collections, its lists, flows, actions, scripts, views, \`startup\`, migrations, what it exports and
+  what it demands of the Firebase project. **This is how you answer "how is X done?"** — ask it about
+  the example that does X instead of reading five hundred lines and inferring
 - \`read_authoring_guide\` — this manual, whole or by section
 
 **Resources — read them, they cost you nothing to have open:**
@@ -427,8 +432,12 @@ including the one that opened the editor only to validate a package.
   authored beside yours, which no snapshot can know about) and the extensions in the installation
   snapshot. **Read it before writing a qualified reference** — a name you cannot see is a name you
   cannot write
+- \`microteia://examples\` — the first-party extensions that travel in \`examples/\` as source, and which
+  MECHANISM each one is the best one to read for. **Read it before writing a mechanism for the first
+  time**, and before deciding which folder to open; \`describe_extension\` answers the next question
 - \`microteia://workspace/plugins\` — the extensions authored here, with their current problems and what
-  each one declares in \`exports\`
+  each one declares in \`exports\`. What sits in \`examples/\` is ours and is named apart there: nobody
+  in this organization wrote it, and nothing here installs it
 - \`microteia://workspace/info\` — what this workspace is bound to
 
 **Prompt — one, and it is the step that gets skipped:**

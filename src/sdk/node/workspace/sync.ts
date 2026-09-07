@@ -8,6 +8,7 @@ import {
   PACKAGE_MAX_BYTES,
 } from '../../../domain/usecases/plugins/pluginReferences';
 import { hostModuleNames, readHostTypes } from '../hostTypes';
+import { EXAMPLES_DIR } from '../workspacePlugins';
 import { authoringGuide } from './authoringGuide';
 import {
   reconcileGitignore,
@@ -280,7 +281,7 @@ export const syncWorkspace = (options: SyncOptions = {}): SyncReport => {
     examples: exampleIds(install),
   }));
 
-  const examples = copyExamples(install, join(root, 'examples'));
+  const examples = copyExamples(install, join(root, EXAMPLES_DIR));
 
   return {
     kernelVersion: KERNEL_VERSION,

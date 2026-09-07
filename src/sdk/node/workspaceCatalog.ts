@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import type { MarketplacePlugin, ScreenModuleTemplate } from '../../domain/entities/MarketplacePlugin';
 import type { SchemaLookup } from '../../domain/schema/screenEntity';
@@ -11,6 +11,7 @@ import type { RuleLedger } from '../domain/traceability';
 import { RULE_LEDGER_FILE, RULE_LEDGER_VERSION, emptyRuleLedger, parseRuleLedger } from '../domain/traceability';
 import { modelExceptions } from '../domain/toPlatform';
 import { buildPlugin } from './compile';
+import { findPluginFiles } from './workspacePlugins';
 import {
   INSTALLED_CATALOG_FILE,
   INSTALLED_CATALOG_STALE_DAYS,
@@ -37,6 +38,11 @@ import type { InstalledCatalogExtension, InstalledCatalogList } from './installe
  * Precedência: uma entidade que apareça nas duas fontes resolve para a do WORKSPACE, que é a que o
  * autor está editando. A do retrato é descartada e a divergência é RELATADA — informação, nunca erro.
  *
+ * E são DUAS fontes, não três: o que mora em `examples/` fica FORA deste catálogo. Aqueles pacotes são
+ * nossos, reescritos a cada troca de kernel, e nada neste diretório os instalou — enquanto eles entravam
+ * pela varredura, a precedência acima trabalhava contra o próprio propósito dela, porque a coleção de um
+ * exemplo descartava a tela real do escritório. Ver `workspacePlugins.ts`.
+ *
  * Ele lê uma segunda coisa, e ela é o que faz uma exceção declarada custar UMA aprovação em vez de
  * uma por sessão: o `domain-model.json` ao lado do `plugin.ts`. `source` e `reason` de um snapshot
  * não têm onde morar num `FieldDefinition` — o artefato guarda um campo comum —, então a declaração
@@ -53,16 +59,6 @@ import type { InstalledCatalogExtension, InstalledCatalogList } from './installe
  * instalado.
  */
 export { DOMAIN_MODEL_FILE, RULE_LEDGER_FILE };
-
-const findPluginFiles = (dir: string, depth = 3): string[] => {
-  if (depth < 0 || !existsSync(dir)) return [];
-  return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
-    if (entry.name === 'node_modules' || entry.name.startsWith('.')) return [];
-    const path = join(dir, entry.name);
-    if (entry.isDirectory()) return findPluginFiles(path, depth - 1);
-    return entry.name === 'plugin.ts' ? [path] : [];
-  });
-};
 
 const screenFrom = (template: ScreenModuleTemplate, pluginId: string): CatalogScreenInput => ({
   key: template.key,
@@ -161,6 +157,15 @@ export interface WorkspaceCatalog {
    * `exports` não expõe nada mesmo.
    */
   authored: { path: string; pluginId: string; version: string; exports: ExportedArtifact[] }[];
+  /**
+   * Os `plugin.ts` de `examples/`, como CAMINHO e nada mais.
+   *
+   * Eles não são compilados e não entram em nada acima: nada neste diretório os instalou, e uma
+   * entidade que só existe num exemplo não existe em escritório nenhum. Viajam para que a resposta
+   * possa dizer que estão lá e valem leitura — o silêncio faria um diretório só com exemplos parecer
+   * vazio. Ver `workspacePlugins.ts`.
+   */
+  examples: string[];
   /** Os que NÃO compilaram. O catálogo segue sem eles, e quem lê fica sabendo. */
   failures: { path: string; error: string }[];
   /** Os `domain-model.json` lidos, e quantas exceções cada um trouxe. */
@@ -219,7 +224,9 @@ export const readWorkspaceCatalog = (
   const exceptions: CatalogException[] = [];
   const ruleEntries: RuleLedger['rules'] = [];
 
-  for (const entry of findPluginFiles(root)) {
+  const files = findPluginFiles(root);
+
+  for (const entry of files.authored) {
     const modelPath = join(dirname(entry), DOMAIN_MODEL_FILE);
     if (existsSync(modelPath)) {
       const declared = exceptionsFrom(modelPath, root);
@@ -338,6 +345,7 @@ export const readWorkspaceCatalog = (
     ruleLedger: { version: RULE_LEDGER_VERSION, rules: ruleEntries },
     sources,
     authored,
+    examples: files.examples.map((path) => relative(root, path)),
     failures,
     models,
     ledgers,

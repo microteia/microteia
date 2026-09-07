@@ -18,6 +18,41 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.60.0] — 2026-09-07
+
+- feat(sdk/mcp): `describe_extension` and the resource `microteia://examples`. "How is X done?" had no
+  answer: what an agent could see of an extension was id, version and problems, so it opened six
+  500-line `plugin.ts` files and inferred. The tool projects the COMPILED package — contributions
+  grouped by point, extension points declared for others, screens with their collections and fields,
+  option lists, flows, actions, scripts, reports, code views, `startup`, migrations, exported surface,
+  declared dependencies, what it demands of the Firebase project, and whether it would install — with
+  a `detail` flag because the full projection of one example runs past two hundred lines of JSON. Text
+  is resolved through the catalog the package itself carries (`describeWith`), including the names in
+  `exportedSurface`, which is a domain function and returns message references as they are. Nothing in
+  the answer is prose written beside the code, so nothing in it can drift from the code. The resource
+  is the question that comes BEFORE it — which folder to open —, and it carries the single sentence no
+  package answers: which mechanism each example is the best one to read for (`exampleNotes.ts`, in the
+  SDK because text describing what the kernel does travels with the kernel; `scripts/exampleNotes.test.ts`
+  pairs it against the packer's list in both directions, since a seventh example would otherwise ship
+  noteless without failing anything). Both are announced in `AGENTS.md` and `AUTHORING.md`, which the
+  URI test already forced.
+
+- fix(sdk/mcp): `examples/` stops being read as this organization's authorship. The first-party
+  extensions the `sync` copies into `extensions/examples/` sat inside the authoring directory, so both
+  `plugin.ts` sweeps — `mcp.ts` and `workspaceCatalog.ts` — picked them up. The result was not a gap
+  but wrong attribution: `list_workspace_plugins` announced six packages as "authored here" that
+  nobody there wrote, `list_referenceable` answered for an installed extension with the EXAMPLE's
+  surface, and, through the `workspace wins` precedence, a collection declared by an example DISCARDED
+  the organization's real screen coming from the installation snapshot — the one thing that
+  precedence exists to prevent. New `workspacePlugins.ts` owns the directory name and the split, and
+  both sweeps now go through it; the two hand-written walkers are gone. An example is no longer
+  compiled by the catalog at all, so it got cheaper too. It is still ANNOUNCED, with its path, in every
+  answer that carries provenance and in `workspace_info.examples`: a directory holding only examples
+  must not look empty. A qualified reference whose owner is only an example is now answered by the
+  snapshot instead — `unverifiable` without one, `absent-there` when one exists and does not list the
+  owner — because whether the organization runs a first-party extension is the snapshot's to say, and
+  an example answering for it fabricates both the approval and the refusal.
+
 #### [9.59.0] — 2026-09-07
 
 - feat(admin): the unread-critical audit badge reaches the top bar. It existed only on the sidebar

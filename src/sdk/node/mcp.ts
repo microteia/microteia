@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { KERNEL_EXTENSION_POINTS } from '../../domain/schema/extensionPoints';
 import { join, relative, resolve } from 'node:path';
 import { KERNEL_VERSION } from '../../domain/schema/plugin/kernelVersion';
@@ -64,6 +64,8 @@ import { crossRefReport, referenceableArtifacts } from './referenceable';
 import { readWorkspaceCatalog } from './workspaceCatalog';
 import type { WorkspaceCatalog } from './workspaceCatalog';
 import { INSTALLED_CATALOG_FILE, INSTALLED_CATALOG_OMITS } from './installedCatalog';
+import { EXAMPLES_DIR, findPluginFiles } from './workspacePlugins';
+import { describeExtension, listExamples } from './describeExtension';
 
 /**
  * O servidor MCP do diretório de extensões — o que faz uma IA no VSCode trabalhar com a VERDADE em vez
@@ -156,16 +158,6 @@ const describeCrossRefs = (pkg: MarketplacePlugin, root: string): string => {
     .join('\n')}`;
 };
 
-const findFiles = (dir: string, name: string, depth = 3): string[] => {
-  if (depth < 0 || !existsSync(dir)) return [];
-  return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
-    if (entry.name === 'node_modules' || entry.name.startsWith('.')) return [];
-    const path = join(dir, entry.name);
-    if (entry.isDirectory()) return findFiles(path, name, depth - 1);
-    return entry.name === name ? [path] : [];
-  });
-};
-
 // ─── Modelo de domínio ────────────────────────────────────────────────────────
 
 /**
@@ -217,6 +209,23 @@ const referenceableLine = (one: ReferenceableArtifact): string =>
   + `${one.disabled ? ', extension switched off' : ''})`;
 
 /**
+ * O QUE ESTÁ EM `examples/`, dito em toda resposta que carrega procedência — e dito como o que NÃO
+ * está no catálogo.
+ *
+ * Omitir era o defeito anterior por outro caminho: um diretório em que só há exemplos passaria a
+ * parecer vazio, e quem lesse iria procurar o `calendar` justamente por não ter sido avisado de que
+ * ele está ali, em fonte, para ler.
+ */
+const describeExamples = (read: WorkspaceCatalog): string | null =>
+  read.examples.length === 0
+    ? null
+    : `${read.examples.length} first-party extension(s) in ${EXAMPLES_DIR}/, as SOURCE to read: `
+      + `${read.examples.join(', ')}. They are ours and are rewritten whenever this installation takes a new `
+      + 'platform version. They are NOT in this catalog and are NOT authored here: nothing in this directory '
+      + 'installs them, so an entity one of them declares exists nowhere. If this organization actually runs '
+      + `one of them, it is the installation snapshot that says so — read it there, not from ${EXAMPLES_DIR}/.`;
+
+/**
  * DE ONDE O CATÁLOGO VEIO, dito em toda resposta que o usa.
  *
  * Um catálogo apresentado como completo quando não é vale menos que nenhum: o agente para de
@@ -230,6 +239,7 @@ const catalogProvenance = (read: WorkspaceCatalog): Record<string, unknown> => {
   if (installed === null) {
     return {
       workspace: `${read.sources.length} plugin.ts compiled in this directory`,
+      examples: describeExamples(read),
       installation: null,
       referenceable: referenceableArtifacts(read).map(referenceableLine),
       caveats: [
@@ -244,6 +254,7 @@ const catalogProvenance = (read: WorkspaceCatalog): Record<string, unknown> => {
 
   return {
     workspace: `${read.sources.length} plugin.ts compiled in this directory`,
+    examples: describeExamples(read),
     /**
      * O que se pode REFERENCIAR, das DUAS fontes: os `plugin.ts` deste diretório e as extensões do
      * retrato. Vive fora do bloco `installation` porque deixou de ser só dele — enquanto era, a
@@ -335,6 +346,44 @@ const TOOLS: ToolDefinition[] = [
         exportName: typeof input.exportName === 'string' ? input.exportName : undefined,
       });
       return `${describeIssues(result.issues)}\n\n${result.json}`;
+    },
+  },
+  {
+    name: 'describe_extension',
+    description:
+      'What ONE extension declares, brings and requires, read from the compiled package — the answer to '
+      + '"how is X done?" and to "what does this extension actually do?" in a single call, instead of opening '
+      + 'a 500-line plugin.ts and inferring. It says the points it contributes to, the extension points it '
+      + 'declares for others, its screens and their collections, its option lists, workflows, actions, '
+      + 'scripts, reports, code views, startup code and migrations, what it exports for another extension to '
+      + `reference, what it demands of the Firebase project, and whether it would install. Pass a folder name `
+      + `(the ones in ${EXAMPLES_DIR}/ included), an extension id, or a path to a plugin.ts. Start from `
+      + 'the resource microteia://examples when you do not know which one to ask about. Nothing in the answer '
+      + 'is prose written beside the code: it is the package itself.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        extension: {
+          type: 'string',
+          description: `Folder name, extension id, or path to a plugin.ts. A folder under ${EXAMPLES_DIR}/ works by its own name.`,
+        },
+        detail: {
+          type: 'string',
+          enum: ['summary', 'full'],
+          description: 'summary (default) counts and names what each screen holds; full lists every field of every screen.',
+        },
+      },
+      required: ['extension'],
+    },
+    run: (input, root) => {
+      const query = typeof input.extension === 'string' ? input.extension : '';
+      if (query.trim() === '') {
+        return 'Name the extension in "extension": a folder name, an id, or a path to a plugin.ts. '
+          + 'Read microteia://examples for the ones that ship with this installation.';
+      }
+      const detail = input.detail === 'full' ? 'full' : 'summary';
+      const result = describeExtension(root, query, { detail });
+      return typeof result.answer === 'string' ? result.answer : pretty(result.answer);
     },
   },
   {
@@ -1038,16 +1087,36 @@ const PURE_READS: ToolDefinition[] = [
     }),
   },
   {
+    name: 'list_examples',
+    description:
+      `The first-party extensions that travel in ${EXAMPLES_DIR}/ as source to read, and — the part no package `
+      + 'answers — which MECHANISM each one is the best one to read for. Read it before writing a mechanism for '
+      + 'the first time, and before guessing which folder to open: it is the question that comes before '
+      + 'describe_extension. They are ours, nobody in this organization wrote them, nothing here installs them, '
+      + 'and the whole directory is rewritten whenever this installation takes a new platform version.',
+    inputSchema: { type: 'object', properties: {} },
+    run: (_input, root) => pretty(listExamples(root)),
+  },
+  {
     name: 'list_workspace_plugins',
     description:
-      'The extensions authored in this workspace, with their id, version, current problems and — the part '
-      + 'a sibling needs — what each one declares in `manifest.exports`, which is the only surface of it '
-      + 'another extension may reference.',
+      'The extensions authored in this workspace — the ones somebody here wrote —, with their id, version, '
+      + 'current problems and, the part a sibling needs, what each one declares in `manifest.exports`, which '
+      + `is the only surface of it another extension may reference. What sits in ${EXAMPLES_DIR}/ is ours and `
+      + 'is named apart: it is reading material, not work of this organization.',
     inputSchema: { type: 'object', properties: {} },
     run: (_input, root) => {
-      const entries = findFiles(root, 'plugin.ts');
-      if (entries.length === 0) return 'No plugin.ts found. Create one with "microteia-plugin create".';
-      return entries.map((entry) => {
+      const { authored, examples } = findPluginFiles(root);
+      const reference = examples.length === 0 ? '' : `\n\n${examples.length} first-party extension(s) also sit `
+        + `in ${EXAMPLES_DIR}/, as source to READ: ${examples.map((one) => relative(root, one)).join(', ')}. `
+        + 'They are not in the list above because nobody here wrote them and nothing here installs them — they '
+        + 'are rewritten whenever this installation takes a new platform version.';
+
+      if (authored.length === 0) {
+        return 'No extension is authored in this directory. Create one with "microteia-plugin create".' + reference;
+      }
+
+      return authored.map((entry) => {
         try {
           const result = buildPlugin({ entry });
           const { manifest } = result.package;
@@ -1066,7 +1135,7 @@ const PURE_READS: ToolDefinition[] = [
         } catch (error) {
           return `${relative(root, entry)}\n  does not compile: ${error instanceof Error ? error.message : String(error)}`;
         }
-      }).join('\n\n');
+      }).join('\n\n') + reference;
     },
   },
   {
@@ -1103,11 +1172,13 @@ const PURE_READS: ToolDefinition[] = [
     name: 'workspace_info',
     description:
       'What this workspace is bound to: the kernel contract version, whether an installation is '
-      + 'connected, and where the curated type declarations live.',
+      + 'connected, where the curated type declarations live, the extensions authored here and the '
+      + `first-party ones that travel in ${EXAMPLES_DIR}/ as source to read.`,
     inputSchema: { type: 'object', properties: {} },
     run: (_input, root) => {
       const configPath = join(root, '../.microteia/firebase-config.json');
       const connected = existsSync(configPath);
+      const files = findPluginFiles(root);
       return pretty({
         kernelVersion: KERNEL_VERSION,
         workspace: root,
@@ -1117,7 +1188,12 @@ const PURE_READS: ToolDefinition[] = [
         firebaseProjectId: connected
           ? (JSON.parse(readFileSync(configPath, 'utf8')) as { projectId?: string }).projectId ?? null
           : null,
-        plugins: findFiles(root, 'plugin.ts').map((entry) => relative(root, entry)),
+        plugins: files.authored.map((entry) => relative(root, entry)),
+        /**
+         * Listados à parte de propósito: são nossos, são reescritos a cada troca de kernel, e listá-los
+         * junto dos do escritório era o que fazia um agente atribuir a autoria deles a quem lê.
+         */
+        examples: files.examples.map((entry) => relative(root, entry)),
       });
     },
   },
@@ -1154,6 +1230,7 @@ const REPORT_FOLD_NOTES: Record<string, { oneRowIs: string; levels: string; othe
 
 const PURE_READ_URIS: Record<string, string> = {
   list_entities: 'microteia://entities',
+  list_examples: 'microteia://examples',
   list_extension_points: 'microteia://extension-points',
   list_workflow_steps: 'microteia://workflow/steps',
   list_workflow_events: 'microteia://workflow/events',

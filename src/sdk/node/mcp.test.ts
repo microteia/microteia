@@ -23,6 +23,7 @@ describe('o servidor MCP de autoria', () => {
   it('publica exatamente as ferramentas declaradas', () => {
     expect(mcpToolNames().sort()).toEqual([
       'build_plugin',
+      'describe_extension',
       'describe_host_module',
       'describe_sdk_type',
       'describe_workflow_step',
@@ -58,6 +59,7 @@ describe('o servidor MCP de autoria', () => {
       'microteia://domain-model/rules',
       'microteia://domain-model/schema',
       'microteia://entities',
+      'microteia://examples',
       'microteia://expression-functions',
       'microteia://extension-points',
       'microteia://icons',
