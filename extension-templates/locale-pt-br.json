@@ -3,7 +3,7 @@
   "workflows": [],
   "manifest": {
     "id": "com.microteia.locale-pt-br",
-    "version": "1.51.0",
+    "version": "1.52.0",
     "kernel": "^2.0.0",
     "name": "Português (Brasil)",
     "description": "Tradução da Microteia para português do Brasil.",
@@ -1003,6 +1003,8 @@
             "page.marketplace": "Extensões",
             "page.plugin-author": "Criar extensão",
             "page.plugin-author-edit": "Editar extensão",
+            "nav.updates.one": "{count} extensão com atualização à espera",
+            "nav.updates.other": "{count} extensões com atualização à espera",
             "author.template.view": "import { useCasePhases } from '@microteia/data';\n\nexport default function View() {\n  const phases = useCasePhases();\n  return (\n    <div style={{ padding: 16 }}>\n      Minha extensão — {phases.length} fase(s) cadastrada(s).\n    </div>\n  );\n}\n",
             "author.template.startup": "// import { Icon } from '@microteia/ui';\n\nexport default function startup(host) {\n  /*\n  // Exemplo: registrar comandos no Command Palette (⌘K)\n  host.commands.register({\n    group: 'Minha Extensão',\n    getItems(query, ctx) {\n      const q = String(query || '').toLowerCase().trim();\n      if (!q) return [];\n      \n      // const icon = <Icon name=\"star\" size={16} />;\n      const items = [];\n      \n      // Comando fixo (ex: \"novo item\")\n      if ('novo item da extensão'.indexOf(q) !== -1) {\n        items.push({\n          id: 'minha-ext:novo',\n          title: 'Novo item da extensão',\n          group: 'Minha Extensão',\n          // icon,\n          onSelect: () => {\n            ctx.openTab('minha-tela:new');\n            ctx.close();\n          }\n        });\n      }\n      \n      // Busca em registros (exemplo: entidades customizadas)\n      // for (const r of ctx.customRecords) {\n      //   if (r.screenKey === 'minha-tela' && r.title?.toLowerCase().indexOf(q) !== -1) {\n      //     items.push({\n      //       id: 'minha-ext:' + r.id,\n      //       title: r.title,\n      //       subtitle: 'Minha Extensão',\n      //       group: 'Minha Extensão',\n      //       icon,\n      //       onSelect: () => { ctx.openTab('minha-tela:' + r.id); ctx.close(); }\n      //     });\n      //   }\n      // }\n      \n      return items.slice(0, 9);\n    },\n  });\n  */\n\n  /*\n  // Exemplo: registrar menção @ no chat\n  host.mentions.register({\n    key: 'minha-mencao',\n    label: 'Minha Menção',\n    description: 'Inserir link para um item da extensão',\n    icon: 'star',\n    search(query, ctx) {\n      const q = String(query || '').toLowerCase().trim();\n      \n      // Retornar lista de opções para o usuário escolher\n      // return ctx.customRecords\n      //   .filter((r) => r.screenKey === 'minha-tela' && r.title && (!q || r.title.toLowerCase().indexOf(q) !== -1))\n      //   .slice(0, 20)\n      //   .map((r) => ({\n      //     id: r.id,\n      //     title: r.title,\n      //     subtitle: 'Minha Extensão',\n      //     tabKey: 'minha-tela:' + r.id\n      //   }));\n      \n      return [];\n    },\n  });\n  */\n\n  // Opcional: retornar função de cleanup para desregistrar ao descarregar a extensão\n  // return () => {\n  //   // Cleanup se necessário\n  // };\n}\n",
             "author.subtitle": "Empacote telas, ações, automações e scripts do seu escritório em uma extensão. Salve em Minhas Extensões para editar depois; a publicação fica na tela Extensões.",

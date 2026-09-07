@@ -18,6 +18,23 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.58.0] — 2026-09-07
+
+- feat(marketplace): pending extension updates are now announced outside the Extensions screen. A new
+  `hasExtensionUpdate` domain rule and the `useExtensionUpdates` hook derive, from the three sources
+  already provided above the layout (installed copies, private authoring, approved public catalog),
+  which installed copies have an update waiting and how many of those are IN USE (installed and
+  active). The count reaches the user-menu item for Extensions (plus a dot on the avatar trigger, since
+  that menu lives closed) and a top-bar shortcut that exists only while there is something to update.
+  Unlike the audit badge, it is not dismissed by opening the screen: it clears when the last update is
+  applied, because what it counts is a pending action, not a piece of news.
+- feat(marketplace): the Extensions screen enters filtered by `update: yes` when an update is waiting,
+  and unfiltered when none is — decided once, when the three sources finish loading, so that applying
+  the last update never pulls the filter out from under whoever is looking at it.
+- refactor(marketplace): `Marketplace.viewmodel` stopped computing `updateAvailable` inline and reads
+  it from the same set that feeds the badges. A number that disagreed with what the row shows would be
+  worse than no number.
+
 #### [9.57.1] — 2026-09-06
 
 - docs(sdk/authoring): the reports section of AUTHORING.md carries the grouped list, the fold table

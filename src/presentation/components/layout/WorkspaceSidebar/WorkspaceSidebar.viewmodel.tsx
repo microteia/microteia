@@ -15,6 +15,7 @@ import { DYNAMIC_SCREEN_NAV_ORDER, USER_MENU_SURFACE } from '../../../../domain/
 import { useSurfaceMenuItems, type SurfaceMenuItemDescriptor } from '../../../shared/settings/useSettingsCatalog';
 import { useSurfaceMenuLayout } from '../../../shared/settings/useSettingValue';
 import { useAuditLogAlert } from '../../../../stores/useAuditLogAlert';
+import { useExtensionUpdates } from '../../../shared/useExtensionUpdates';
 import type { User } from '../../../../domain/entities';
 import { useLabel } from '../../../shared/i18n/useT';
 
@@ -49,6 +50,8 @@ export interface SidebarMenuItem {
   label: string;
   icon: React.ReactNode;
   danger: boolean;
+  /** Contador do item, no mesmo contrato do `badge` da barra: `0` = sem selo. */
+  badge: number;
 }
 
 export interface WorkspaceSidebarViewModel {
@@ -62,6 +65,11 @@ export interface WorkspaceSidebarViewModel {
    * sabe quantos são nem o que há em cada um.
    */
   menuGroups: SidebarMenuItem[][];
+  /**
+   * Há selo em algum item do menu do usuário. O menu vive fechado, então sem isto o selo só apareceria
+   * para quem já tivesse aberto o menu — inútil justamente para o que ele existe: avisar antes.
+   */
+  hasMenuBadge: boolean;
   user: User | null;
   effectivePhotoURL: string | null;
   effectiveName: string;
@@ -90,6 +98,7 @@ export const useWorkspaceSidebarViewModel = (): WorkspaceSidebarViewModel => {
   const { themeId, preferred: preferredTheme, available: themes, setTheme } = useTheme();
   const { open: openCommandPalette } = useCommandPalette();
   const { unreadCriticalCount: unreadCriticalAuditCount } = useAuditLogAlert();
+  const { pendingInUse: extensionUpdates } = useExtensionUpdates();
   const { sidebarScreens } = useScreenDefinitions();
   const navContributions = useNavContributions();
   const registeredMenuItems = useSurfaceMenuItems(USER_MENU_SURFACE);
@@ -178,6 +187,16 @@ export const useWorkspaceSidebarViewModel = (): WorkspaceSidebarViewModel => {
       .filter((item) => !item.requiredPermissions?.length || canAny(item.requiredPermissions));
   }, [registeredMenuItems, menuEntries, isSystemAdmin, canAny]);
 
+  /**
+   * O selo de um item do MENU DO USUÁRIO. Hoje há um: as extensões com atualização à espera. Ele não
+   * se apaga ao entrar na tela, como o da auditoria: some quando a última atualização é aplicada,
+   * porque o que ele conta é uma pendência e não uma notícia.
+   */
+  const menuBadge = useCallback(
+    (key: string): number => (key === 'marketplace' ? extensionUpdates : 0),
+    [extensionUpdates],
+  );
+
   const menuGroups = useMemo<SidebarMenuItem[][]>(() => {
     const groups = new Map<string, SidebarMenuItem[]>();
     for (const item of visibleMenuItems) {
@@ -187,13 +206,19 @@ export const useWorkspaceSidebarViewModel = (): WorkspaceSidebarViewModel => {
         label: item.title,
         icon: item.icon ? getScreenIcon(item.icon, 16) : null,
         danger: item.danger === true,
+        badge: menuBadge(item.key),
       };
       const existing = groups.get(group);
       if (existing) existing.push(resolved);
       else groups.set(group, [resolved]);
     }
     return Array.from(groups.values());
-  }, [visibleMenuItems]);
+  }, [visibleMenuItems, menuBadge]);
+
+  const hasMenuBadge = useMemo(
+    () => menuGroups.some((group) => group.some((item) => item.badge > 0)),
+    [menuGroups],
+  );
 
   const handleMenuItemClick = useCallback((key: string) => {
     const item = visibleMenuItems.find((candidate) => candidate.key === key);
@@ -249,6 +274,7 @@ export const useWorkspaceSidebarViewModel = (): WorkspaceSidebarViewModel => {
     isMenuOpen,
     isThemeSubOpen,
     menuGroups,
+    hasMenuBadge,
     user,
     effectivePhotoURL,
     effectiveName,

@@ -2,6 +2,8 @@ export const CORE_MARKETPLACE: Record<string, string> = {
   'page.marketplace': 'Extensões',
   'page.plugin-author': 'Criar extensão',
   'page.plugin-author-edit': 'Editar extensão',
+  'nav.updates.one': '{count} extensão com atualização à espera',
+  'nav.updates.other': '{count} extensões com atualização à espera',
 
   'author.template.view':
     'import { useCasePhases } from \'@microteia/data\';\n\nexport default function View() {\n  const phases = useCasePhases();\n  return (\n    <div style={{ padding: 16 }}>\n      Minha extensão — {phases.length} fase(s) cadastrada(s).\n    </div>\n  );\n}\n',

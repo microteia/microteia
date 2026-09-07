@@ -215,6 +215,34 @@ export const S = {
     flex-shrink: 0;
   `,
 
+  MenuBadge: styled.span`
+    margin-left: auto;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: ${({ theme }) => theme.borderRadius.full};
+    background: ${({ theme }) => theme.colors.primary};
+    color: ${({ theme }) => theme.colors.white};
+    font-size: 10px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  `,
+
+  UserBadgeDot: styled.span`
+    position: absolute;
+    top: 8px;
+    left: 32px;
+    width: 8px;
+    height: 8px;
+    border-radius: ${({ theme }) => theme.borderRadius.full};
+    background: ${({ theme }) => theme.colors.primary};
+    box-shadow: 0 0 0 2px ${({ theme }) => theme.colors.surface};
+    pointer-events: none;
+  `,
+
   VersionBadge: styled.span`
     font-size: 10px;
     color: ${({ theme }) => theme.colors.textMuted};
@@ -230,6 +258,7 @@ export const S = {
   `,
 
   UserMenuTrigger: styled.button`
+    position: relative;
     display: flex;
     align-items: center;
     gap: 10px;

@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.58.0] — 2026-09-07
+
+- **A atualização de uma extensão passou a se anunciar, sem que ninguém precise ir olhar.** Enquanto houver extensão em uso com versão nova à espera, o número delas aparece ao lado de Extensões no menu do usuário e num atalho no alto da tela — e nos dois casos ele só desaparece quando a última atualização é aplicada, porque o que ele conta é uma pendência, não uma notícia. Antes a novidade existia em silêncio: só quem abrisse a tela de Extensões ficava sabendo.
+- **Clicar nesse aviso já abre a lista recortada pelo que há para atualizar.** Chegar na lista inteira obrigava a refazer à mão o recorte que o aviso acabou de anunciar. Sem nenhuma atualização à espera, a tela continua abrindo sem recorte nenhum.
+
 #### [9.57.1] — 2026-09-06
 
 - **O manual de quem escreve extensões aprendeu as formas de relatório.** O guia e as ferramentas que um assistente de IA consulta descreviam apenas as formas antigas — quem pedisse um relatório agrupado recebia um resumo, que é outra pergunta. Agora eles dizem qual pergunta cada forma responde, quando um gráfico tem o que desenhar, e o que a instalação em uso de fato executa.

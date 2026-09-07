@@ -3,6 +3,8 @@ export const CORE_MARKETPLACE_MESSAGES: Record<string, string> = {
   'page.marketplace': 'Extensions',
   'page.plugin-author': 'Create extension',
   'page.plugin-author-edit': 'Edit extension',
+  'nav.updates.one': '{count} extension with an update waiting',
+  'nav.updates.other': '{count} extensions with an update waiting',
 
   'author.template.view':
     'import { useCasePhases } from \'@microteia/data\';\n\nexport default function View() {\n  const phases = useCasePhases();\n  return (\n    <div style={{ padding: 16 }}>\n      My extension — {phases.length} phase(s) registered.\n    </div>\n  );\n}\n',

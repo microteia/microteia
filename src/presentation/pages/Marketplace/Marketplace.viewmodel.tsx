@@ -21,6 +21,7 @@ import { useExtensionCodeTrust } from '../../../stores/useExtensionCodeTrust';
 import { useInstalledRevision } from '../../../stores/useInstalledRevision';
 import { EXTENSION_HISTORY_LIMIT } from '../../../domain/usecases/plugins/extensionHistory';
 import { usePluginDiagnostics } from '../../../stores/useKernel';
+import { useExtensionUpdates } from '../../shared/useExtensionUpdates';
 import { MARKETPLACE_CATALOG } from '../../../plugins/marketplace/catalog';
 import { SYSTEM_THEME_PACKAGES } from '../../../plugins/themes/systemThemes';
 import type { MarketplacePlugin } from '../../../domain/entities/MarketplacePlugin';
@@ -329,6 +330,31 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
   const [historyId, setHistoryId] = useState<string | null>(null);
   const [filterTokens, setFilterTokens] = useState<FilterToken[]>([]);
 
+  const {
+    ready: updatesReady,
+    pendingIds: pendingUpdateIds,
+    pendingInUse: pendingUpdatesInUse,
+  } = useExtensionUpdates();
+  const [entryFilterDecided, setEntryFilterDecided] = useState(false);
+
+  /**
+   * Entrar JÁ RECORTADO por "Atualização: sim" quando há alguma à espera — e sem recorte nenhum
+   * quando não há. É o gesto que o selo promete: quem clica no selo vem atualizar, e chegar na lista
+   * inteira obrigaria a refazer à mão o recorte que o selo acabou de anunciar.
+   *
+   * A decisão é de ENTRADA e acontece UMA vez, quando as três origens da atualização terminam de
+   * carregar: antes disso a contagem é zero por não se saber ainda, e depois disso o recorte é de
+   * quem está olhando — aplicar a última atualização não pode tirar da tela o filtro que a pessoa
+   * está usando.
+   */
+  useEffect(() => {
+    if (entryFilterDecided || !updatesReady) return;
+    /* eslint-disable react-hooks/set-state-in-effect -- a decisão de entrada só pode ser tomada quando as origens carregam, e é o carregamento que a dispara */
+    setEntryFilterDecided(true);
+    if (pendingUpdatesInUse > 0) setFilterTokens([{ key: 'update', values: ['yes'] }]);
+    /* eslint-enable react-hooks/set-state-in-effect */
+  }, [entryFilterDecided, updatesReady, pendingUpdatesInUse]);
+
   const trustedIds = useExtensionCodeTrust(installed);
 
   /**
@@ -605,9 +631,10 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
           ? { name: priv.createdByName ?? null, photoURL: priv.createdByPhotoURL ?? null }
           : { name: pub?.ownerName || null, photoURL: pub?.ownerPhotoURL ?? null };
 
-      const updateAvailable = inst
-        ? (updateSourceOf(id, inst.installedVersion) !== null || (!!builtin && builtinUpdateOf(id, inst) !== null))
-        : false;
+      // A MESMA resposta que alimenta o selo da barra lateral e o do alto da tela — ver
+      // `useExtensionUpdates`. Era calculada aqui, e um número que discordasse do que esta linha
+      // mostra seria pior do que número nenhum.
+      const updateAvailable = pendingUpdateIds.has(id);
       const install: InstallAction | null = inst
         ? (updateAvailable ? 'update' : null)
         : (mine || isApproved || !!builtin ? 'install' : null);
@@ -668,7 +695,7 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
     }
 
     return list.sort((a, b) => rankOf(a) - rankOf(b) || a.name.localeCompare(b.name));
-  }, [extensions, installed, publicExtensions, publicOf, updateSourceOf, builtinUpdateOf, canModerate, canManage, user, installedNeedsReview, problemsByPlugin, label, migrationStates, pendingMigrationsOf, migrationErrorOf, histories]);
+  }, [extensions, installed, publicExtensions, publicOf, pendingUpdateIds, canModerate, canManage, user, installedNeedsReview, problemsByPlugin, label, migrationStates, pendingMigrationsOf, migrationErrorOf, histories]);
 
   const counts = useMemo<Record<MarketplaceFilter, number>>(() => ({
     all: rows.length,

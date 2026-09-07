@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useWorkspace } from '../../../../stores/useWorkspace';
 import { useTenant } from '../../../../stores/useTenant';
+import { useAuthorization } from '../../../../stores/useAuthorization';
+import { PERMISSION_EXTENSIONS_MANAGE } from '../../../../domain/schema/access';
 import { useNavContributions } from '../../../shared/useUiContributions';
+import { useExtensionUpdates } from '../../../shared/useExtensionUpdates';
 import { navMetadataOf } from '../../../shared/resolveUiContributions';
 import { useLabel } from '../../../shared/i18n/useT';
 import { useNavBadgeCount } from '../../../shared/useNavBadgeCount';
@@ -41,8 +44,10 @@ export interface TopBarViewModel {
 export const useTopBarViewModel = (): TopBarViewModel => {
   const { openTab } = useWorkspace();
   const { currentTenant, availableTenants, selectTenant } = useTenant();
+  const { can } = useAuthorization();
   const navContributions = useNavContributions();
   const badgeCount = useNavBadgeCount();
+  const { pendingInUse: extensionUpdates } = useExtensionUpdates();
 
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isSwitching, setIsSwitching] = useState(false);
@@ -66,8 +71,17 @@ export const useTopBarViewModel = (): TopBarViewModel => {
 
   const label = useLabel();
 
-  const shortcuts = useMemo<TopBarShortcut[]>(
-    () => navContributions
+  const canManageExtensions = can(PERMISSION_EXTENSIONS_MANAGE);
+
+  /**
+   * O atalho das ATUALIZAÇÕES de extensão. Diferente dos de cima, ele só existe enquanto houver o que
+   * atualizar: um ícone permanente no alto da tela cobraria atenção todo dia por algo que quase
+   * sempre não tem nada a dizer. Ele desaparece sozinho quando a última atualização é aplicada — não
+   * há "marcar como visto" aqui, ao contrário da auditoria, porque o que ele conta é uma pendência,
+   * não uma notícia.
+   */
+  const shortcuts = useMemo<TopBarShortcut[]>(() => {
+    const contributed = navContributions
       .map(navMetadataOf)
       .filter((metadata) => !!metadata.badge)
       .map((metadata) => ({
@@ -75,9 +89,20 @@ export const useTopBarViewModel = (): TopBarViewModel => {
         label: label(metadata.label),
         icon: getScreenIcon(metadata.icon, 18),
         count: badgeCount(metadata.badge),
-      })),
-    [navContributions, badgeCount, label],
-  );
+      }));
+
+    if (!canManageExtensions || extensionUpdates === 0) return contributed;
+
+    return [
+      ...contributed,
+      {
+        key: 'marketplace',
+        label: label('@core.marketplace/nav.updates', { count: extensionUpdates }),
+        icon: getScreenIcon('store', 18),
+        count: extensionUpdates,
+      },
+    ];
+  }, [navContributions, badgeCount, label, canManageExtensions, extensionUpdates]);
 
   const handleTenantButtonClick = useCallback(() => {
     if (availableTenants.length <= 1) return;
