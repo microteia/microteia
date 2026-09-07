@@ -3,7 +3,7 @@
   "workflows": [],
   "manifest": {
     "id": "com.microteia.locale-pt-br",
-    "version": "1.52.0",
+    "version": "1.53.0",
     "kernel": "^2.0.0",
     "name": "Português (Brasil)",
     "description": "Tradução da Microteia para português do Brasil.",
@@ -825,6 +825,8 @@
             "page.audit-logs": "Auditoria",
             "page.data-processor": "Processador de Dados",
             "nav.audit-logs": "Auditoria",
+            "nav.unread.one": "{count} registro crítico de auditoria ainda não visto",
+            "nav.unread.other": "{count} registros críticos de auditoria ainda não vistos",
             "audit.action.create": "Criação",
             "audit.action.delete": "Exclusão",
             "audit.action.system": "Sistema",

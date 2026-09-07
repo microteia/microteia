@@ -3,6 +3,8 @@ export const CORE_ADMIN: Record<string, string> = {
   'page.audit-logs': 'Auditoria',
   'page.data-processor': 'Processador de Dados',
   'nav.audit-logs': 'Auditoria',
+  'nav.unread.one': '{count} registro crítico de auditoria ainda não visto',
+  'nav.unread.other': '{count} registros críticos de auditoria ainda não vistos',
   'audit.action.create': 'Criação',
   'audit.action.delete': 'Exclusão',
   'audit.action.system': 'Sistema',

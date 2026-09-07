@@ -152,7 +152,7 @@ export const useAuditLogsViewModel = (): AuditLogsViewModel => {
   }, [resolvedTenantId, isUnauthorized, search]);
 
   // Abrir a tela de Auditoria marca as falhas CRITICAL do escritório atual como lidas,
-  // zerando o badge no WorkspaceSidebar (ver AuditLogAlertStore).
+  // zerando o selo na barra lateral e o atalho no alto da tela (ver AuditLogAlertStore).
   useEffect(() => {
     if (isUnauthorized || !currentTenant) return;
     void markAllAsRead();

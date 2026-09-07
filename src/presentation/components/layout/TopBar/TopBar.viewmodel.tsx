@@ -3,6 +3,7 @@ import { useWorkspace } from '../../../../stores/useWorkspace';
 import { useTenant } from '../../../../stores/useTenant';
 import { useAuthorization } from '../../../../stores/useAuthorization';
 import { PERMISSION_EXTENSIONS_MANAGE } from '../../../../domain/schema/access';
+import { useAuditLogAlert } from '../../../../stores/useAuditLogAlert';
 import { useNavContributions } from '../../../shared/useUiContributions';
 import { useExtensionUpdates } from '../../../shared/useExtensionUpdates';
 import { navMetadataOf } from '../../../shared/resolveUiContributions';
@@ -48,6 +49,7 @@ export const useTopBarViewModel = (): TopBarViewModel => {
   const navContributions = useNavContributions();
   const badgeCount = useNavBadgeCount();
   const { pendingInUse: extensionUpdates } = useExtensionUpdates();
+  const { unreadCriticalCount: unreadCriticalAuditCount } = useAuditLogAlert();
 
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isSwitching, setIsSwitching] = useState(false);
@@ -74,11 +76,17 @@ export const useTopBarViewModel = (): TopBarViewModel => {
   const canManageExtensions = can(PERMISSION_EXTENSIONS_MANAGE);
 
   /**
-   * O atalho das ATUALIZAÇÕES de extensão. Diferente dos de cima, ele só existe enquanto houver o que
-   * atualizar: um ícone permanente no alto da tela cobraria atenção todo dia por algo que quase
-   * sempre não tem nada a dizer. Ele desaparece sozinho quando a última atualização é aplicada — não
-   * há "marcar como visto" aqui, ao contrário da auditoria, porque o que ele conta é uma pendência,
-   * não uma notícia.
+   * Os atalhos do KERNEL — a auditoria não lida e as extensões com atualização à espera. Ao contrário
+   * dos contribuídos, eles só EXISTEM enquanto têm o que dizer: um ícone permanente no alto da tela
+   * cobraria atenção todo dia por algo que quase sempre está zerado, e o que a barra lateral já faz é
+   * manter o item visível de graça, porque ele mora numa lista.
+   *
+   * O que apaga cada um é diferente, e é o dado que decide: a auditoria se apaga ao ser LIDA — abrir
+   * a tela marca as falhas críticas como vistas —, e a atualização de extensão só sai quando é
+   * APLICADA. Uma é notícia, a outra é pendência.
+   *
+   * A auditoria não precisa de checagem de permissão aqui: o store já devolve zero para quem não tem
+   * `audit.read`, e repetir a pergunta seria manter duas respostas para a mesma coisa.
    */
   const shortcuts = useMemo<TopBarShortcut[]>(() => {
     const contributed = navContributions
@@ -91,18 +99,28 @@ export const useTopBarViewModel = (): TopBarViewModel => {
         count: badgeCount(metadata.badge),
       }));
 
-    if (!canManageExtensions || extensionUpdates === 0) return contributed;
+    const kernel: TopBarShortcut[] = [];
 
-    return [
-      ...contributed,
-      {
+    if (unreadCriticalAuditCount > 0) {
+      kernel.push({
+        key: 'audit-logs',
+        label: label('@core.admin/nav.unread', { count: unreadCriticalAuditCount }),
+        icon: getScreenIcon('history', 18),
+        count: unreadCriticalAuditCount,
+      });
+    }
+
+    if (canManageExtensions && extensionUpdates > 0) {
+      kernel.push({
         key: 'marketplace',
         label: label('@core.marketplace/nav.updates', { count: extensionUpdates }),
         icon: getScreenIcon('store', 18),
         count: extensionUpdates,
-      },
-    ];
-  }, [navContributions, badgeCount, label, canManageExtensions, extensionUpdates]);
+      });
+    }
+
+    return [...contributed, ...kernel];
+  }, [navContributions, badgeCount, label, canManageExtensions, extensionUpdates, unreadCriticalAuditCount]);
 
   const handleTenantButtonClick = useCallback(() => {
     if (availableTenants.length <= 1) return;

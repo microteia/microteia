@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.59.0] — 2026-09-07
+
+- **O aviso de falha crítica na Auditoria passou a aparecer também no alto da tela.** Ele só existia ao lado de Auditoria no menu, e quem estivesse com o menu recolhido não tinha como notar. No alto da tela ele aparece somente quando há falha não vista, e continua se apagando ao abrir a Auditoria, como sempre.
+
 #### [9.58.0] — 2026-09-07
 
 - **A atualização de uma extensão passou a se anunciar, sem que ninguém precise ir olhar.** Enquanto houver extensão em uso com versão nova à espera, o número delas aparece ao lado de Extensões no menu do usuário e num atalho no alto da tela — e nos dois casos ele só desaparece quando a última atualização é aplicada, porque o que ele conta é uma pendência, não uma notícia. Antes a novidade existia em silêncio: só quem abrisse a tela de Extensões ficava sabendo.

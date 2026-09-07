@@ -18,6 +18,16 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.59.0] — 2026-09-07
+
+- feat(admin): the unread-critical audit badge reaches the top bar. It existed only on the sidebar
+  `audit-logs` nav item, so a collapsed sidebar hid it entirely. As with the extension-update
+  shortcut, the top-bar one only EXISTS while the count is above zero — the sidebar keeps its item
+  visible for free because the item lives in a list, and a permanent top-bar icon would charge
+  attention daily for something usually at zero. No permission check is duplicated here:
+  `AuditLogAlertStore` already returns zero without `audit.read`. Opening the screen still clears it,
+  which is what separates it from the extension shortcut — one is news, the other is a pending action.
+
 #### [9.58.0] — 2026-09-07
 
 - feat(marketplace): pending extension updates are now announced outside the Extensions screen. A new

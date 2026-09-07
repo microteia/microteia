@@ -4,6 +4,8 @@ export const CORE_ADMIN_MESSAGES: Record<string, string> = {
   'page.audit-logs': 'Audit Log',
   'page.data-processor': 'Data Processor',
   'nav.audit-logs': 'Audit Log',
+  'nav.unread.one': '{count} critical audit record not seen yet',
+  'nav.unread.other': '{count} critical audit records not seen yet',
   'audit.action.create': 'Creation',
   'audit.action.delete': 'Deletion',
   'audit.action.system': 'System',
