@@ -3,9 +3,11 @@ import { collectionPermissionId } from '../../domain/schema/access';
 import { resolveMapping } from '../../domain/engine/InputMapping';
 import type { WorkflowContext } from '../../domain/entities/WorkflowContext';
 import type { SchemaContext } from '../../domain/schema/pathResolver';
+import { resolveQueryTable } from '../../domain/schema/querySpec';
 import type { QueryPredicate, QuerySpec } from '../../domain/schema/querySpec';
 import type { ResolvedPredicate } from '../../domain/schema/predicateMatch';
 import { aggregateReportRows } from '../../domain/schema/report/aggregateRows';
+import { filterReportRows } from '../../domain/schema/report/reportRowFilter';
 import type { ReportResult } from '../../domain/schema/report/reportResult';
 import { buildReportQuery, isAggregateMeasure, reportSourceCollections } from '../../domain/schema/report/reportSpec';
 import type { ReportSpec } from '../../domain/schema/report/reportSpec';
@@ -36,16 +38,23 @@ export type ReportOutcome =
  * USUÁRIO. Sem esta checagem, um campo de Clientes sai num relatório para quem não pode abrir
  * Clientes; e a lista é DERIVADA do plano de hidratação, não declarada, para que uma extensão não
  * consiga esconder um hop declarando de menos.
+ *
+ * Devolve o conjunto CONCEDIDO, como `requirePermission` faz, porque quem acaba de autorizar precisa
+ * dele em seguida: é o conjunto que o `hasPermission` de um filtro por expressão consulta, e uma
+ * segunda leitura do mesmo documento de membro seria só desperdício. Vazio quando não havia coleção
+ * a cobrar — e aí o spec já não resolve a tabela, e a execução o recusa antes de agregar qualquer coisa.
  */
 export const requireReportCollections = async (
   spec: ReportSpec,
   ctx: SchemaContext,
   tenantId: string,
   userId: string,
-): Promise<void> => {
+): Promise<string[]> => {
+  let granted: string[] = [];
   for (const collection of reportSourceCollections(spec, ctx)) {
-    await requirePermission(tenantId, userId, collectionPermissionId(collection, 'read'));
+    granted = await requirePermission(tenantId, userId, collectionPermissionId(collection, 'read'));
   }
+  return granted;
 };
 
 const resolvedFilters = (
@@ -130,6 +139,26 @@ export const runReportQuery = async ({
   });
   if (!outcome.ok) return { ok: false, error: outcome.error, errorParams: outcome.errorParams, issues };
 
+  /*
+   * O filtro por EXPRESSÃO, aplicado entre a varredura e a agregação.
+   *
+   * Aqui e não dentro do agregador porque ele pode RECUSAR: uma expressão que estoura não vira linha
+   * descartada, e o agregador devolve um resultado, nunca um resultado-ou-recusa. O que ele recebe
+   * continua sendo o `scanned` da varredura, que é o que responde pela incompletude — o filtro
+   * restringe o que entra na conta, não muda quantos documentos foram lidos.
+   */
+  const now = context.services.now();
+  const filtered = filterReportRows({
+    spec,
+    rows: outcome.value.results,
+    entity: resolveQueryTable(spec.dataset.table, schema)?.physicalCollection,
+    permissions: context.actor?.permissions,
+    now,
+  });
+  if (!filtered.ok) {
+    return { ok: false, error: filtered.error, errorParams: filtered.errorParams, issues };
+  }
+
   const measureFilters: Record<string, ResolvedPredicate[]> = {};
   for (const measure of spec.dataset.measures ?? []) {
     if (isAggregateMeasure(measure) && measure.filter && measure.filter.length > 0) {
@@ -142,7 +171,7 @@ export const runReportQuery = async ({
     issues,
     value: aggregateReportRows({
       spec,
-      rows: outcome.value.results,
+      rows: filtered.rows,
       measureFilters,
       scanned: outcome.value.scanned,
       complete: outcome.value.complete,
@@ -151,7 +180,7 @@ export const runReportQuery = async ({
         maxColumns: REPORT_MAX_COLUMNS,
         maxRecords: REPORT_MAX_RECORDS,
       },
-      now: context.services.now(),
+      now,
     }),
   };
 };

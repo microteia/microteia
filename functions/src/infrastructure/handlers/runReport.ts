@@ -86,7 +86,10 @@ export const runReport = onCall(
     // A permissão vem ANTES de qualquer leitura de dado, e é cobrada por coleção — inclusive as
     // alcançadas por referência. `requirePermission` lança `permission-denied`: falha fechada.
     const schema = await deps.screenProvider.getSchemaContext(tenantId);
-    await requireReportCollections(spec, schema, tenantId, userId);
+    // O conjunto CONCEDIDO volta da mesma leitura que autorizou: é ele que o `hasPermission` de um
+    // filtro por expressão consulta. Com o ator vazio, a pergunta respondia NÃO a tudo — e num filtro
+    // de linha isso não é um botão que some, é uma linha que sai da conta.
+    const permissions = await requireReportCollections(spec, schema, tenantId, userId);
 
     const logs: string[] = [];
     const logger: WorkflowLogger = {
@@ -102,7 +105,7 @@ export const runReport = onCall(
       services: { logger, now: () => new Date() },
       logger,
       execution: { id: crypto.randomUUID(), workflowDefinitionId: '', tenantId },
-      actor: { userId, permissions: [] },
+      actor: { userId, permissions },
       input: prompts ?? {},
     };
 

@@ -189,6 +189,27 @@ describe('deriveReportRequires', () => {
   });
 });
 
+describe('deriveReportRequires — filtro por expressão', () => {
+  it('pede token próprio, e ele RECUSA por estar sob `dataset.`', () => {
+    // Um kernel que não execute a expressão somaria justamente as linhas que ela exclui, e sairia um
+    // total menor com o mesmo rótulo. É a única resposta possível: recusar pelo nome.
+    const comExpressao: ReportSpec = {
+      ...base,
+      dataset: { ...base.dataset, includeWhen: 'valor > 0' },
+    };
+
+    expect(deriveReportRequires(comExpressao)).toContain('dataset.includeWhen');
+    expect(reportCapabilitySeverity('dataset.includeWhen')).toBe('error');
+    expect(unsupportedReportCapabilities(comExpressao)).toEqual([]);
+  });
+
+  it('expressão em branco não pede nada — chave vazia não é capacidade usada', () => {
+    const embranco: ReportSpec = { ...base, dataset: { ...base.dataset, includeWhen: '   ' } };
+
+    expect(deriveReportRequires(embranco)).not.toContain('dataset.includeWhen');
+  });
+});
+
 describe('deriveReportRequires — lista agrupada', () => {
   const grouped: ReportSpec = {
     v: 1,

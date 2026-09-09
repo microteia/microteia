@@ -40,6 +40,10 @@ export const CORE_REPORTS_MESSAGES: Record<string, string> = {
   'design.dimensions': 'Fields',
   'design.dimensions.hint': 'The columns of the list, in this order. A date field also chooses the period it is shown by. A summary and a crossed report show only what groups them.',
   'design.editing': 'Editing an existing report. Saving replaces it.',
+  'design.expression': 'Filter by expression',
+  'design.expression.hint': 'A question asked of each line: it enters the report when the answer is yes. This is where two fields are compared with each other, a sum is checked, or a date is read against today — what a fixed filter cannot say. Type a field name to see what is available.',
+  'design.expression.placeholder': 'status != "paid" and dueDate < today()',
+  'design.expression.record-id': 'Identifier of the record',
   'design.filters': 'Fixed filter',
   'design.filters.hint': 'What the report always covers. Whoever reads it does not see this and cannot change it.',
   'design.group': 'Group the lines by',
@@ -68,6 +72,9 @@ export const CORE_REPORTS_MESSAGES: Record<string, string> = {
     'The grouping "{key}" asks for a date period, but the field it reads is not a date. It groups by the raw value instead.',
   'dimension.granularity.unsupported':
     'The grouping "{key}" asks for a period this version does not know ({granularity}). It groups by the raw value instead.',
+  'filter.failed':
+    'The filter by expression of this report could not be answered for one of the lines, so no number here would be trustworthy. Review the expression: {detail}',
+  'filter.syntax': 'The filter by expression of this report is not written correctly, so it cannot be run: {detail}',
   'granularity.day': 'By day',
   'granularity.month': 'By month',
   'granularity.quarter': 'By quarter',

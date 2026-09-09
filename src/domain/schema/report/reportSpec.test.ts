@@ -137,6 +137,30 @@ describe('reportPaths', () => {
 
     expect(reportPaths(spec).sort()).toEqual(['cliente.cidade', 'situacao', 'vencimento']);
   });
+
+  it('inclui os caminhos que a EXPRESSÃO lê', () => {
+    // Sem eles, o caminho não é hidratado — chega ao avaliador como ausente — nem a coleção que ele
+    // atravessa é cobrada de quem lê o relatório.
+    const comExpressao: ReportSpec = {
+      ...FIXTURE_V1,
+      dataset: { ...FIXTURE_V1.dataset, includeWhen: 'valor > 0 and cliente.cidade == "Recife"' },
+    };
+
+    expect(reportPaths(comExpressao)).toContain('cliente.cidade');
+    expect(reportPaths(comExpressao)).toContain('valor');
+  });
+
+  it('não confunde NOME DE FUNÇÃO com caminho', () => {
+    // O extrator usa o mesmo parser que avalia, com as funções registradas. Num parser cru, `today`
+    // e `isEmpty` saem como variáveis — e cada um viraria um caminho a hidratar.
+    const comFuncoes: ReportSpec = {
+      ...FIXTURE_V1,
+      dataset: { ...FIXTURE_V1.dataset, includeWhen: 'isEmpty(situacao) or vencimento < today()' },
+    };
+
+    expect(reportPaths(comFuncoes)).not.toContain('today');
+    expect(reportPaths(comFuncoes)).not.toContain('isEmpty');
+  });
 });
 
 describe('buildReportQuery', () => {

@@ -166,7 +166,10 @@ describe('requireReportCollections — o RBAC no servidor', () => {
   it('passa quando a leitura da fonte foi concedida', async () => {
     permissionsByUser.ana = ['lancamentos.read'];
 
-    await expect(requireReportCollections(spec, await schema(), 't1', 'ana')).resolves.toBeUndefined();
+    // Devolve o conjunto CONCEDIDO, e não `void`: é ele que o `hasPermission` de um filtro por
+    // expressão consulta, e uma segunda leitura do mesmo documento de membro seria desperdício.
+    await expect(requireReportCollections(spec, await schema(), 't1', 'ana'))
+      .resolves.toEqual(['lancamentos.read']);
   });
 
   it('exige TAMBÉM a leitura da coleção alcançada por referência', async () => {
@@ -183,7 +186,8 @@ describe('requireReportCollections — o RBAC no servidor', () => {
     expect(error.code).toBe('permission-denied');
 
     permissionsByUser.ana = ['lancamentos.read', 'clientes.read'];
-    await expect(requireReportCollections(comHop, await schema(), 't1', 'ana')).resolves.toBeUndefined();
+    await expect(requireReportCollections(comHop, await schema(), 't1', 'ana'))
+      .resolves.toEqual(['lancamentos.read', 'clientes.read']);
   });
 });
 
@@ -548,6 +552,95 @@ describe('runReportQuery', () => {
       expect(outcome.ok).toBe(true);
       if (!outcome.ok) return;
       expect(outcome.value.rows.map((row) => row.keys[0].key)).toEqual(['Natal']);
+    });
+  });
+
+  describe('o filtro por EXPRESSÃO', () => {
+    const com = (includeWhen: string): ReportSpec =>
+      ({ ...spec, dataset: { ...spec.dataset, includeWhen } });
+
+    it('restringe as linhas que entram na conta, e a varredura continua dizendo quantas leu', async () => {
+      const outcome = await runReportQuery({
+        spec: com('valor > 100'),
+        context: context(),
+        deps: deps(rows),
+      });
+
+      expect(outcome.ok).toBe(true);
+      if (!outcome.ok) return;
+      expect(outcome.value.totals).toEqual({ values: { total: 200 }, count: 1 });
+      // `scanned` é da VARREDURA: o filtro restringe o que entra na conta, não quantos documentos o
+      // banco entregou — e é `scanned` que responde pela incompletude.
+      expect(outcome.value.scanned).toBe(3);
+    });
+
+    it('a expressão atravessa a referência, e o hop é HIDRATADO por ela', async () => {
+      // O caminho da expressão entra em `reportPaths`, que é o que alimenta o plano de hidratação.
+      // Sem isso, `cliente.cidade` chegaria ausente e o filtro devolveria zero linha.
+      const outcome = await runReportQuery({
+        spec: com('cliente.cidade == "Recife"'),
+        context: context(),
+        deps: deps(rows, { c1: { cidade: 'Recife' }, c2: { cidade: 'Olinda' } }),
+      });
+
+      expect(outcome.ok).toBe(true);
+      if (!outcome.ok) return;
+      expect(outcome.value.totals).toEqual({ values: { total: 150 }, count: 2 });
+    });
+
+    it('a coleção que só a EXPRESSÃO alcança também é cobrada de quem lê', async () => {
+      // A lista do RBAC é derivada de `reportPaths`: se a expressão pode ler a cidade do cliente, ela
+      // exige a leitura de Clientes como qualquer agrupamento exigiria.
+      const schema = await fakeScreenProvider([personsScreen, lancamentosScreen]).getSchemaContext('t1');
+      permissionsByUser.ana = ['lancamentos.read'];
+
+      const error = await denied(
+        requireReportCollections(com('cliente.cidade == "Recife"'), schema, 't1', 'ana'),
+      );
+      expect(error.code).toBe('permission-denied');
+    });
+
+    it('recusa nomeando quando a expressão não pode ser respondida', async () => {
+      const outcome = await runReportQuery({
+        spec: com('getVar("x") == 1'),
+        context: context(),
+        deps: deps(rows),
+      });
+
+      expect(outcome.ok).toBe(false);
+      if (outcome.ok) return;
+      expect(outcome.error).toBe('@core.reports/filter.failed');
+    });
+
+    it('recusa antes de varrer quando a expressão não parseia', async () => {
+      const outcome = await runReportQuery({
+        spec: com('valor > '),
+        context: context(),
+        deps: deps(rows),
+      });
+
+      expect(outcome.ok).toBe(false);
+      if (outcome.ok) return;
+      expect(outcome.error).toBe('@core.reports/spec.invalid');
+    });
+
+    it('`hasPermission` responde pelo conjunto do ATOR — o relatório roda como o usuário', async () => {
+      const withActor = (permissions: string[]): WorkflowContext =>
+        ({ ...context(), actor: { userId: 'ana', permissions } });
+
+      const permitted = await runReportQuery({
+        spec: com('hasPermission("<entity>.read")'),
+        context: withActor(['lancamentos.read']),
+        deps: deps(rows),
+      });
+      expect(permitted.ok && permitted.value.totals?.count).toBe(3);
+
+      const empty = await runReportQuery({
+        spec: com('hasPermission("<entity>.read")'),
+        context: withActor([]),
+        deps: deps(rows),
+      });
+      expect(empty.ok && empty.value.totals?.count).toBe(0);
     });
   });
 

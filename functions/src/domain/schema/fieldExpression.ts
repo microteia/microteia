@@ -419,6 +419,48 @@ export const extractFieldExpressionDependencies = (
 };
 
 /**
+ * Os CAMINHOS que a expressão lê — `situacao`, `cliente.cidade` —, e não apenas o primeiro segmento
+ * de cada um.
+ *
+ * É outra pergunta que a de `extractFieldExpressionDependencies`, e por isso é outra função: lá o
+ * que se quer são as CHAVES do escopo de que a expressão depende, para ordenar campos calculados;
+ * aqui o que se quer é o DADO que ela alcança, e a resposta precisa do caminho inteiro — é ele que a
+ * hidratação traz, é ele que o RBAC cobra e é ele que decide o que entra no escopo da avaliação.
+ *
+ * O parser é o MESMO que avalia, e isso não é detalhe: num parser sem as funções registradas, todo
+ * nome de função sai daqui com a cara de um campo (`isEmpty`, `today`, `isCPF`) — e cada um deles
+ * viraria um caminho a hidratar e, pior, uma coleção a cobrar de quem lê o relatório.
+ */
+export const extractFieldExpressionPaths = (expr: string | null | undefined): string[] => {
+  if (!expr || !expr.trim()) return [];
+  try {
+    return fieldParser
+      .parse(expr)
+      .variables({ withMembers: true })
+      .filter((name) => !SCOPE_RESERVED_VARIABLES.has(name.split('.')[0]));
+  } catch {
+    return [];
+  }
+};
+
+/**
+ * A expressão PARSEIA? É a única checagem que dispensa escopo e esquema, e por isso é a que o
+ * empacotamento consegue fazer.
+ *
+ * Devolve a mensagem do parser, e não um booleano: quem escreveu a expressão precisa saber ONDE ela
+ * quebrou, e "expressão inválida" não tem o que ensinar a ninguém.
+ */
+export const fieldExpressionSyntaxError = (expr: string | null | undefined): string | null => {
+  if (!expr || !expr.trim()) return null;
+  try {
+    fieldParser.parse(expr);
+    return null;
+  } catch (caught) {
+    return caught instanceof Error ? caught.message : String(caught);
+  }
+};
+
+/**
  * `fallback` é o resultado quando a expressão está ausente ou estoura. Os slots de tela (`hiddenWhen`,
  * `disabledWhen`) querem `false` — na dúvida, mostra o campo. Já a validação de um preset quer `true`:
  * um preset quebrado não pode reprovar um valor legítimo.

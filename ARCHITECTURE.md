@@ -6240,6 +6240,82 @@ relação ao `FieldInput` que ele envolve. A divergência é da PERGUNTA, não d
 sim e não esgotam o assunto e a caixa de marcar diz os dois; num filtro existe a terceira — "não
 filtre por isto" — que uma caixa desmarcada não distingue de "não".
 
+### O filtro por EXPRESSÃO — a pergunta que nenhum predicado escreve
+
+`dataset.where` compara UM caminho com UM valor, e é isso que o faz barato: uma igualdade desce ao
+Firestore e a varredura fica índice-free. `dataset.includeWhen` é a outra metade — uma expressão do
+MESMO idioma do `hiddenWhen` de uma ação e do `aggregation.filter` de um campo, avaliada sobre cada
+linha, e a linha entra no relatório quando ela responde verdadeiro.
+
+Ela existe porque havia pergunta que a autoria não tinha como escrever, e nenhuma delas é exótica:
+dois campos comparados entre si (`pago < valor`), uma conta, uma data relativa a hoje
+(`vencimento < today()`), um OU no meio de dois ES. Quem precisava disso saía do relatório e ia
+declarar um campo derivado só para ter algo que um predicado alcançasse.
+
+**Ela mora em `dataset`, e essa posição é a decisão.** Um kernel que não a execute recusa o relatório
+pelo NOME do token (`dataset.includeWhen`) em vez de somar justamente as linhas que ela exclui — que
+é a mesma regra de nível 3 que já valia para `measure`. Nenhuma outra posição serviria: em `shape` ela
+degradaria com aviso, e um total maior com o mesmo rótulo é o defeito que o leitor não tem como notar.
+
+Três propriedades seguem de ONDE ela roda, e cada uma conserta algo que estaria errado sem ela:
+
+| Propriedade | Por que |
+|---|---|
+| Ela só RESTRINGE | é avaliada em memória sobre o que a varredura trouxe; nada aqui amplia o que foi lido, e o teto de `REPORT_MAX_SCAN` mantém o mesmo significado |
+| Os caminhos dela são dado LIDO | entram em `reportPaths`, e portanto no plano de hidratação E na lista que `requireReportCollections` cobra: `cliente.cidade` numa expressão exige a leitura de Clientes exatamente como um agrupamento exigiria |
+| Expressão que não pode ser respondida RECUSA | e o relatório, não a linha — ver abaixo |
+
+#### O escopo é montado a partir da própria expressão
+
+O `expr-eval` **estoura** ao ler um nome que não está no escopo, e um campo que ninguém preencheu
+simplesmente não existe no documento do Firestore. Espalhar a linha crua no escopo faria a expressão
+quebrar em metade dos registros de uma coleção meio preenchida — e o resultado seria um número menor,
+com o mesmo rótulo.
+
+Por isso `reportRowScope` monta o escopo a partir dos CAMINHOS que a expressão cita: todo nome que ela
+usa existe, valendo `null` quando o registro não o tem. A lista de caminhos é a MESMA que
+`reportPaths` entrega à hidratação e ao RBAC — uma derivação, três usos, e nenhuma chance de o escopo
+pedir o que a varredura não trouxe. Um nó intermediário espalha o registro apontado e sobrepõe o que a
+expressão cita dele: sem o espalhamento, `isNotNull(cliente)` perderia os outros campos do apontado;
+sem a sobreposição, `cliente.cidade` de um cliente sem cidade voltaria a estourar.
+
+Duas consequências pontuais, e as duas são silenciosas se não ditas:
+
+- **`value` e `self` valem o CAMPO de mesmo nome.** Uma linha de relatório não tem "valor próprio", e
+  o escopo do avaliador sobrescreve esses dois nomes sempre. O valor vem do REGISTRO, e não do escopo
+  montado, porque `value` é nome reservado e não sai da extração de caminhos — sem isso, uma coleção
+  com um campo `value` veria toda comparação sobre ele responder sobre nulo.
+- **Um campo de referência é comparado pelo APONTADO** (`cliente.id`), nunca pelo caminho cru: a
+  hidratação troca o id pelo registro inteiro, e `clienteId == "c1"` compara um objeto com um texto e
+  não acha nada. É por isso que `reportExpressionVariables` oferece `cliente.id` no intellisense e
+  **não** oferece `clienteId`.
+
+#### `hasPermission` responde pelo ATOR, e o ator estava vazio
+
+`hasPermission` numa expressão consulta o gate de permissões, que no backend nunca era empurrado: a
+resposta era NÃO para tudo. Num `hiddenWhen` isso é um botão que some; num filtro de linha é uma linha
+que sai da conta. `requireReportCollections` passou a devolver o conjunto CONCEDIDO — a mesma leitura
+que acabou de autorizar, sem uma segunda ida ao documento de membro — e ele entra em
+`WorkflowContext.actor.permissions`, que a callable preenchia com `[]`. `<entity>` resolve para a
+coleção-fonte.
+
+#### A recusa, e por que ela não é "descarte a linha"
+
+`evaluateFieldBoolean` existe para os slots de tela, onde o fallback conservador é mostrar o campo.
+Aqui não há fallback conservador: `false` produz um total menor e `true` um total maior, os dois sem
+uma palavra na tela. Por isso `filterReportRows` devolve um RESULTADO, e não uma lista — e é isso que
+o obriga a viver entre a varredura e a agregação, em `runReportQuery`, e não dentro de
+`aggregateReportRows`, que devolve um resultado e nunca uma recusa.
+
+A sintaxe é cobrada antes disso, em `validateReportSpecShape` — a única checagem sobre a expressão que
+dispensa o esquema, e por isso a única que `microteia pack` consegue fazer. Os caminhos são cobrados
+em `validateReportSpec`, pelo mesmo `checkQueryPath` de todos os outros.
+
+Na tela de autoria é o mesmo `ExpressionEditor` do resto do produto, com as variáveis derivadas dos
+MESMOS `pathOptions` que alimentam os seletores de campo: a expressão fala do dado com o nome que a
+tela acabou de mostrar, e um segundo vocabulário aqui divergiria do primeiro na próxima vez que um
+tipo de campo novo entrasse.
+
 ### O campo do cadastro relacionado quando a relação aponta para VÁRIOS
 
 Um agrupamento, um filtro fixo ou uma pergunta ao leitor pode pedir o campo do registro apontado —
@@ -6320,7 +6396,9 @@ reordenar a única forma de trocar dois de lugar era remover os dois e declará-
 | `domain/schema/report/reportCsv.ts` | a forma do arquivo, compartilhada com o agendamento futuro |
 | `domain/usecases/plugins/reportModule.ts` | `rewriteReportTables` — a coleção reescrita na instalação |
 | `functions/src/infrastructure/report/runReportQuery.ts` | o executor e o RBAC por coleção |
+| `domain/schema/report/reportRowFilter.ts` | o filtro por expressão — o escopo da linha e a recusa nomeada |
 | `presentation/shared/report/reportFilterFields.ts` | o campo de um caminho, e o valor entre o controle e o spec |
+| `presentation/shared/report/reportExpressionVariables.ts` | o que o intellisense da expressão oferece |
 | `presentation/shared/report/reportFormatting.ts` | `rowDimensions` (o que a linha MOSTRA) × `groupDimensions` (o que a REÚNE) |
 | `presentation/components/ui/{ReportTable,ReportMatrix,ReportChart,ReportView}/` | o que desenha |
 | `presentation/pages/{Reports,ViewReport,ReportDesign}/` | a lista, a aba e a autoria |

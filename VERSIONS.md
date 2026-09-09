@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.61.0] — 2026-09-09
+
+- **Um relatório passou a poder filtrar por expressão, e não só por campo.** Até aqui o filtro de um relatório comparava um campo com um valor, e havia pergunta comum que ele não conseguia escrever: os lançamentos em que o pago é menor que o valor, os vencidos em relação a hoje, os que atendem uma condição *ou* outra. Agora existe um campo de expressão no desenho do relatório, igual ao que já se usa para esconder um botão ou validar um campo — com as sugestões dos campos da tela escolhida, inclusive os do cadastro relacionado, e a conferência da expressão enquanto se escreve. Um campo que ninguém preencheu é lido como vazio, e um relatório cuja expressão não puder ser respondida avisa em vez de devolver um total menor sem dizer nada.
+
 #### [9.60.1] — 2026-09-07
 
 - **Corrigido: o assistente de IA voltou a mostrar o nome dos itens de uma extensão, em vez do código interno deles.** Ao listar o que uma extensão deixa disponível para as outras, ele exibia a chave interna do texto no lugar do nome — quem acabara de batizar uma automação via um código em vez do nome que deu a ela. E quando ele apontava um problema de referência dentro de uma automação, deixava de dizer em qual passo estava.

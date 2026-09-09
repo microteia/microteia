@@ -10,6 +10,7 @@
 // ═══════════════════════════════════════════════════════════════════════════════
 
 import { isValidAccessPermissionId } from '../access/permission';
+import { extractFieldExpressionPaths, fieldExpressionSyntaxError } from '../fieldExpression';
 import { AGGREGATION_OP_LABELS } from '../fieldRules';
 import { parsePath, resolvePath } from '../pathResolver';
 import type { PathRoot, SchemaContext } from '../pathResolver';
@@ -103,6 +104,23 @@ export const validateReportSpecShape = (
       field: 'dataset.kind',
       error: '@core.reports/dataset.kind.unsupported',
       errorParams: { kind: datasetKind },
+    });
+  }
+
+  /*
+   * A SINTAXE do filtro por expressão — a única checagem sobre ele que dispensa o esquema, e por isso
+   * a única que o empacotamento consegue fazer.
+   *
+   * Recusa em vez de avisar porque uma expressão que não parseia não tem resultado: mantê-la como
+   * aviso deixaria o relatório rodar com a expressão estourando linha a linha, o que sai como um
+   * total menor sem uma palavra na tela.
+   */
+  const syntax = fieldExpressionSyntaxError(spec.dataset.includeWhen);
+  if (syntax) {
+    issues.push({
+      field: 'dataset.includeWhen',
+      error: '@core.reports/filter.syntax',
+      errorParams: { detail: syntax },
     });
   }
 
@@ -368,6 +386,13 @@ export const validateReportSpec = (
   };
 
   issues.push(...checkQueryPredicates(ctx.schema, root, spec.dataset.where ?? [], 'dataset.where'));
+
+  // Os caminhos que a EXPRESSÃO lê passam pela mesma porta dos outros: é a lista que a hidratação
+  // traz e que o RBAC cobra, então um caminho que o esquema não sabe atravessar tem de aparecer aqui
+  // e não na hora de avaliar.
+  for (const path of extractFieldExpressionPaths(spec.dataset.includeWhen)) {
+    check(path, 'dataset.includeWhen');
+  }
 
   (spec.dataset.dimensions ?? []).forEach((dimension, index) => {
     check(dimension.path, `dataset.dimensions[${index}].path`);

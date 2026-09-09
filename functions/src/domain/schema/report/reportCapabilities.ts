@@ -22,6 +22,7 @@ import type { ReportGroupLevel, ReportSpec } from './reportSpec';
  */
 export const REPORT_CAPABILITIES: readonly string[] = [
   'dataset.collection',
+  'dataset.includeWhen',
   'dimension.granularity',
   'export.csv',
   'export.pdf',
@@ -59,6 +60,9 @@ export const deriveReportRequires = (spec: ReportSpec): string[] => {
   const required = new Set<string>();
 
   required.add(`dataset.${spec.dataset.kind ?? DEFAULT_REPORT_DATASET_KIND}`);
+  // O filtro por expressão pede token PRÓPRIO, e sob `dataset.` de propósito: um kernel que não o
+  // execute somaria justamente as linhas que ele exclui, com o mesmo rótulo no total.
+  if ((spec.dataset.includeWhen ?? '').trim() !== '') required.add('dataset.includeWhen');
 
   for (const dimension of spec.dataset.dimensions ?? []) {
     if (dimension.granularity !== undefined) required.add('dimension.granularity');

@@ -1206,6 +1206,7 @@ no statements, no assignment, no side effects.
 | \`field.logic.hiddenWhen\`, \`disabledWhen\` | whether the field is shown, and whether it can be edited |
 | \`field.logic.onChange\` | an object merged into the form when this field changes — seeds values the person can still edit |
 | \`field.aggregation.filter\` | which child records enter the aggregate |
+| \`report.dataset.includeWhen\` | which rows enter the report (§11) |
 | \`action.hiddenWhen\`, \`disabledWhen\`, \`activeWhen\` | whether a button appears, is pressable, or reads as ON |
 | \`nav().badge.when\` | which records the menu badge counts |
 | \`contribution.when\` | whether the contribution exists at all |
@@ -1219,6 +1220,7 @@ no statements, no assignment, no side effects.
 | \`hiddenWhen\`, \`disabledWhen\`, \`onChange\` of a field | the above, plus \`isNew\` and \`isDirty\`. Client only |
 | an action's expressions | the form's current values at the root, plus \`record\` (as stored, \`{}\` when new), \`isNew\`, \`isDirty\`, \`permissions\`, \`surface\` (\`detail\` / \`list\` / \`parentTab\`), \`relation\` (\`none\` / \`owned\` / \`related\`), \`user\` |
 | \`badge.when\` | each record's fields at the root, plus \`user\` |
+| a report's \`dataset.includeWhen\` | each row's fields at the root, a reference navigated by the name of the record it points at (\`client.city\`), and \`id\`. Every path the expression names exists, and is \`null\` when the record has no value for it — so a field nobody filled in is empty, never an error. Server only, running as the reader: \`hasPermission\` answers for the person who opened the report |
 | a workflow | \`event.*\` (the payload), the outputs of earlier steps, and the workflow's variables |
 
 \`user\` is \`{ id, name, permissions }\`. A reserved name wins over a field of the same key — a field
@@ -1676,6 +1678,42 @@ organization already knows from the screen the data came from.
 this version acts on neither, so a report that would be wrong unrestricted needs its restriction in
 \`dataset.where\`, where nobody can skip it.
 
+### The question asked of each row
+
+\`dataset.where\` compares one path with one value, and that is what makes it cheap: an equality goes
+down to the database. \`dataset.includeWhen\` is the other half — an EXPRESSION (§9), evaluated over
+each row, and the row enters the report when it answers true.
+
+\`\`\`ts
+dataset: {
+  table: 'invoices',
+  where: [{ path: 'status', op: 'neq', value: { kind: 'Literal', value: 'void' } }],
+  includeWhen: 'paid < amount and dueDate < today()',
+}
+\`\`\`
+
+Reach for it when no list of predicates can write the question: two fields compared with each other,
+an arithmetic check, a date read against today, an OR between two ANDs. The scope is the row — the
+fields at the root, a reference navigated by the name of the record it points at (\`client.city\`), and
+\`id\`. Compare a reference through the record it points at (\`client.id\`), never through the raw path:
+the row arrives with the pointed record in place of the id, so comparing the raw path with an id finds
+nothing.
+
+Three properties follow from where it runs, and each one matters:
+
+- **It only narrows.** It is evaluated in memory over what the scan brought back, so it never widens
+  the read and the scan ceiling keeps its meaning. Keep the cheap part of the question in
+  \`where\` — that is the part the database answers.
+- **Every path it names is read data.** It joins the hydration plan and the permission check like any
+  other path, so \`client.city\` in an expression asks for the read of the pointed collection exactly
+  as grouping by it would.
+- **An expression that cannot be answered refuses the report.** Not the row — the report. This is the
+  one place where swallowing a failure produces a SMALLER total under the same label, and no reader can
+  catch that. A path the record has no value for is not a failure: it is \`null\`.
+
+It lives in \`dataset\`, so an older kernel that does not execute it **refuses** the report by the name
+of the token (\`dataset.includeWhen\`) rather than summing the rows it would have excluded.
+
 ### What is refused, and what is only warned about
 
 The same function checks a report before it is packaged, before it is saved and before it runs — there
@@ -1691,6 +1729,7 @@ is no path where one accepts what another rejects. It is **refused** when:
 - two keys collide — dimensions and measures share ONE namespace, so that \`values\` can never be
   ambiguous;
 - a measure other than \`count\` has no \`path\`;
+- \`dataset.includeWhen\` is not a valid expression, or names a path the schema cannot walk;
 - \`dataset.table\` is not a collection this installation has.
 
 Everything else is a **warning**, and warnings are visible — to you in \`validate_plugin\`, and to

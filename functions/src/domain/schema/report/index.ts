@@ -63,6 +63,9 @@ export {
 } from './aggregateRows';
 export type { AggregateReportInput, ReportAggregateLimits } from './aggregateRows';
 
+export { filterReportRows, reportRowScope } from './reportRowFilter';
+export type { ReportRowFilterInput, ReportRowFilterOutcome } from './reportRowFilter';
+
 export { hasBlockingReportIssue, validateReportSpec, validateReportSpecShape } from './validateReportSpec';
 export type { ReportSpecIssue, ReportValidationContext } from './validateReportSpec';
 

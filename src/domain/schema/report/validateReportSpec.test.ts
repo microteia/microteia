@@ -171,6 +171,41 @@ describe('validateReportSpec — os três níveis de recusa', () => {
   });
 });
 
+describe('validateReportSpec — o filtro por expressão', () => {
+  const com = (includeWhen: string): ReportSpec =>
+    ({ ...valid, dataset: { ...valid.dataset, includeWhen } });
+
+  it('a expressão correta não levanta nada', () => {
+    expect(validateReportSpec(com('situacao != "cancelado" and valor > 0'), ctx)).toEqual([]);
+  });
+
+  it('sintaxe quebrada é RECUSA, e a mensagem do parser vai junto', () => {
+    // Aviso deixaria o relatório rodar com a expressão estourando linha a linha, o que sai como um
+    // total menor sem uma palavra na tela.
+    const issues = validateReportSpec(com('situacao == '), ctx);
+
+    expect(errors(issues)).toContain('@core.reports/filter.syntax');
+    expect(issues.find((issue) => issue.error === '@core.reports/filter.syntax')?.errorParams?.detail)
+      .toBeTruthy();
+  });
+
+  it('a sintaxe é cobrada TAMBÉM sem esquema — é o que o empacotamento consegue fazer', () => {
+    expect(errors(validateReportSpecShape(com('valor > ('))))
+      .toContain('@core.reports/filter.syntax');
+  });
+
+  it('o caminho da expressão passa pela mesma porta dos outros', () => {
+    // `situacao` é escalar: entrar nele não é caminho que o esquema saiba atravessar, e isso tem de
+    // aparecer aqui em vez de na hora de avaliar.
+    expect(errors(validateReportSpec(com('situacao.cidade == "Recife"'), ctx)))
+      .toContain('@core.automation/path.scalar-has-no-field');
+  });
+
+  it('o hop de referência da expressão é aceito, como em qualquer outro caminho', () => {
+    expect(validateReportSpec(com('cliente.cidade == "Recife"'), ctx)).toEqual([]);
+  });
+});
+
 describe('validateReportSpec — a coerência entre as camadas', () => {
   it('recusa dobra que cita dimensão inexistente', () => {
     const spec: ReportSpec = {

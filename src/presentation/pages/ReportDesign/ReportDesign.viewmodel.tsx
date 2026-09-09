@@ -8,6 +8,7 @@ import { useLabel, useT } from '../../shared/i18n/useT';
 import { useReportPathOptions } from '../../shared/report/useReportPathOptions';
 import type { ReportPathOption } from '../../shared/report/useReportPathOptions';
 import { useReportValueLabel } from '../../shared/report/useReportValueLabel';
+import { reportExpressionVariables } from '../../shared/report/reportExpressionVariables';
 import {
   filterLiteralOf,
   filterTextOf,
@@ -38,6 +39,7 @@ import type {
 import { hasBlockingReportIssue, validateReportSpec } from '../../../domain/schema/report/validateReportSpec';
 import type { ReportResult } from '../../../domain/schema/report/reportResult';
 import type { AggregationOp } from '../../../domain/schema/fieldRules';
+import type { WorkflowVariable } from '../../components/ui/ExpressionEditor/autocompleteHelpers';
 import type { CustomFieldValue, FieldDefinition } from '../../../domain/entities/entitySchemas';
 import type { ReportDefinition } from '../../../domain/entities/Report';
 import { errorParamsOf } from '../../../domain/errors/LocalizedError';
@@ -91,6 +93,8 @@ interface ReportDraft {
   groupDimensions: string[];
   /** O filtro FIXO: vale sempre, e quem lê o relatório não o vê nem o muda. */
   filters: QueryPredicate[];
+  /** A pergunta feita sobre a LINHA. Vazio = nada a mais do que os predicados já dizem. */
+  filterExpression: string;
   /** Vazio = sem gráfico. A tabela sozinha é um relatório legítimo. */
   chartKind: string;
   chartCategory: string;
@@ -172,6 +176,18 @@ export interface ReportDesignViewModel {
   canAddFilter: boolean;
   removeFilter: (index: number) => void;
 
+  /**
+   * O filtro por EXPRESSÃO, e as variáveis que o editor oferece.
+   *
+   * As variáveis saem dos MESMOS caminhos que os seletores de campo oferecem — um salto de
+   * referência —, para que a expressão fale do dado com o mesmo nome que a tela acabou de mostrar. Um
+   * campo de referência entra pelo apontado (`cliente.id`), e não pelo caminho cru: a hidratação
+   * troca o id pelo registro, e comparar o caminho cru com um id nunca acharia nada.
+   */
+  filterExpression: string;
+  setFilterExpression: (expression: string) => void;
+  expressionVariables: WorkflowVariable[];
+
   chartKind: string;
   setChartKind: (kind: string) => void;
   chartCategory: string;
@@ -234,6 +250,9 @@ export interface ReportDesignViewModel {
     measureField: string;
     filters: string;
     filtersHint: string;
+    expressionFilter: string;
+    expressionFilterHint: string;
+    expressionFilterPlaceholder: string;
     chart: string;
     chartHint: string;
     chartCategory: string;
@@ -427,6 +446,7 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
         columnDimension: columnDimensionOf(editing.spec),
         groupDimensions: groupDimensionsOf(editing.spec),
         filters: editing.spec.dataset.where ?? [],
+        filterExpression: editing.spec.dataset.includeWhen ?? '',
         chartKind: editing.spec.presentation?.chart?.kind ?? '',
         chartCategory: editing.spec.presentation?.chart?.category ?? '',
         chartSeries: editing.spec.presentation?.chart?.series ?? [],
@@ -445,6 +465,7 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
         columnDimension: '',
         groupDimensions: [],
         filters: [],
+        filterExpression: '',
         chartKind: '',
         chartCategory: '',
         chartSeries: [],
@@ -513,6 +534,7 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
       columnDimension: '',
       groupDimensions: [],
       filters: [],
+      filterExpression: '',
       chartKind: '',
       chartCategory: '',
       chartSeries: [],
@@ -647,6 +669,11 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
     change({ prompts: draft.prompts.filter((one) => one.key !== key) });
   }, [draft, change]);
 
+  const expressionVariables = useMemo<WorkflowVariable[]>(
+    () => reportExpressionVariables(pathOptions, t('design.expression.record-id')),
+    [pathOptions, t],
+  );
+
   /**
    * O agrupamento com o que a TELA precisa saber sobre ele: se é data, e onde está na ordem.
    *
@@ -722,6 +749,11 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
       dataset: {
         table: draft.table,
         ...(draft.filters.length > 0 ? { where: draft.filters } : {}),
+        // Chave AUSENTE quando não há expressão, nunca vazia: o `spec` é gravado verbatim, e uma
+        // string vazia ali seria uma capacidade declarada que o relatório não usa.
+        ...(draft.filterExpression.trim() !== ''
+          ? { includeWhen: draft.filterExpression.trim() }
+          : {}),
         dimensions: draft.dimensions,
         measures: draft.measures,
       },
@@ -876,6 +908,10 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
     canAddFilter: filterPath !== '' && (!operatorNeedsValue(filterOp) || filterText.trim() !== ''),
     removeFilter,
 
+    filterExpression: draft.filterExpression,
+    setFilterExpression: (filterExpression) => change({ filterExpression }),
+    expressionVariables,
+
     chartKind: draft.chartKind,
     setChartKind: (chartKind) => change({ chartKind }),
     chartCategory: draft.chartCategory,
@@ -937,6 +973,9 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
       measureField: t('design.measure-field'),
       filters: t('design.filters'),
       filtersHint: t('design.filters.hint'),
+      expressionFilter: t('design.expression'),
+      expressionFilterHint: t('design.expression.hint'),
+      expressionFilterPlaceholder: t('design.expression.placeholder'),
       chart: t('design.chart'),
       chartHint: t('design.chart.hint'),
       chartCategory: t('design.chart-category'),

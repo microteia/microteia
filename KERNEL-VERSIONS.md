@@ -18,6 +18,48 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.61.0] — 2026-09-09
+
+- feat(report): `dataset.includeWhen` — an expression evaluated over each row, and the row enters the
+  report when it answers true. `dataset.where` compares one path with one value, which is what makes
+  it cheap: an equality goes down to Firestore and the scan stays index-free. This is the other half,
+  the question no list of predicates writes — two fields compared with each other, an arithmetic
+  check, a date read against today, an OR between two ANDs. Same language as an action's `hiddenWhen`
+  and a field's `aggregation.filter`, same function catalogue. It lives in `dataset` on purpose: a
+  kernel that cannot execute it refuses the report by the name of the token instead of summing the
+  very rows it would exclude. `dataset.includeWhen` joins `REPORT_CAPABILITIES`, and `KERNEL_VERSION`
+  goes to `2.18.0`.
+- feat(report): the paths an expression names join `reportPaths`, so they are hydrated AND charged by
+  `requireReportCollections`. `client.city` in an expression asks for the read of the pointed
+  collection exactly as grouping by it would — a report cannot reach a collection through an
+  expression that a dimension could not reach.
+- feat(report): `reportRowScope` builds the evaluation scope from the paths the expression itself
+  names, so every name it uses exists and is `null` when the record has no value for it. `expr-eval`
+  throws on a name that is not in scope and a field nobody filled in does not exist in the Firestore
+  document: spreading the raw row would have broken the expression on half the records of a
+  half-filled collection, and the result would have been a smaller number under the same label.
+- feat(report): a failed expression refuses the REPORT, not the row. `filterReportRows` returns an
+  outcome rather than a list, which is why it sits between the scan and the aggregation in
+  `runReportQuery` instead of inside `aggregateReportRows`. There is no conservative fallback here:
+  `false` gives a smaller total and `true` a bigger one, both silently. Syntax is refused earlier, in
+  `validateReportSpecShape` — the only check on the expression that needs no schema, and therefore the
+  only one `microteia pack` can make.
+- fix(report): `WorkflowContext.actor.permissions` was `[]` in the report callable, so `hasPermission`
+  answered no to everything. `requireReportCollections` now returns the granted set — the same read
+  that just authorized, with no second trip to the member document — and the callable puts it on the
+  actor. In a `hiddenWhen` an empty actor is a button that disappears; in a row filter it is a line
+  that leaves the count.
+- feat(report/design): the designer gained the expression editor, with variables derived from the same
+  `pathOptions` that feed the field selectors. A reference is offered through the record it points at
+  (`client.id`) and never through the raw path: hydration replaces the id with the whole record, so
+  comparing the raw path with an id finds nothing — and the symptom would be an empty report over a
+  full collection.
+- feat(schema): `extractFieldExpressionPaths` and `fieldExpressionSyntaxError` in `fieldExpression.ts`.
+  The first answers what DATA an expression reaches, whole paths included — a different question from
+  `extractFieldExpressionDependencies`, which answers which scope KEYS it depends on. Both use the
+  parser that evaluates: in a parser without the functions registered, every function name comes out
+  looking like a field, and each one would become a path to hydrate and a collection to charge.
+
 #### [9.60.1] — 2026-09-07
 
 - fix(sdk/mcp): an artifact's NAME reaches the author, not its message key. `exportedSurface` and the

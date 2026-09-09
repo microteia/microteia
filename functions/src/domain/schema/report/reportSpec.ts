@@ -10,6 +10,7 @@
 // ═══════════════════════════════════════════════════════════════════════════════
 
 import type { AggregationOp } from '../fieldRules';
+import { extractFieldExpressionPaths } from '../fieldExpression';
 import { parsePath, resolvePath } from '../pathResolver';
 import type { SchemaContext } from '../pathResolver';
 import { resolveQueryTable } from '../querySpec';
@@ -152,6 +153,25 @@ export interface ReportDataset {
   table: string;
   /** O filtro FIXO do relatório. Reuso literal do predicado do `QuerySpec`, `InputMapping` incluso. */
   where?: QueryPredicate[];
+  /**
+   * O filtro por EXPRESSÃO — a pergunta feita sobre a LINHA, e a linha entra no relatório quando ela
+   * responde verdadeiro.
+   *
+   * É o MESMO idioma do `hiddenWhen` de uma ação e do `validate` de um campo, com o mesmo catálogo de
+   * funções: o escopo é o registro, plano por chave, e uma referência é navegada pelo nome do
+   * apontado (`cliente.cidade`).
+   *
+   * Existe AO LADO de `where`, não em vez dele, porque são duas coisas diferentes. Um predicado
+   * compara UM caminho com UM valor, e é ele que desce ao Firestore como igualdade rasa — é a
+   * varredura mais barata que o relatório tem. Esta é a pergunta que nenhuma lista de predicados
+   * escreve: dois campos comparados entre si, uma conta, uma data relativa a hoje, um OU no meio de
+   * dois ES. Ela é sempre avaliada em MEMÓRIA, sobre o que a varredura trouxe, e por isso ela restringe
+   * o resultado sem nunca ampliar o que foi lido.
+   *
+   * Mora em `dataset` porque muda o NÚMERO, e é essa posição que faz um kernel que não a conheça
+   * RECUSAR o relatório pelo nome dela — em vez de somar, calado, justamente as linhas que ela exclui.
+   */
+  includeWhen?: string;
   dimensions?: ReportDimension[];
   measures?: ReportMeasure[];
   /** Teto de registros VARRIDOS. Pedido acima do teto do executor é grampeado, nunca recusado. */
@@ -351,6 +371,9 @@ export const reportPaths = (spec: ReportSpec): string[] => {
   };
 
   for (const predicate of spec.dataset.where ?? []) add(predicate.path);
+  // O que a EXPRESSÃO lê é dado que o relatório lê: sem entrar aqui, o caminho não é hidratado (e
+  // chega ao avaliador como ausente) nem a coleção que ele atravessa é cobrada de quem lê.
+  for (const path of extractFieldExpressionPaths(spec.dataset.includeWhen)) add(path);
   for (const dimension of spec.dataset.dimensions ?? []) add(dimension.path);
 
   for (const measure of spec.dataset.measures ?? []) {

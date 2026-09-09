@@ -15,6 +15,7 @@ import { Button } from '../../components/ui/Button';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { InfoBanner } from '../../components/ui/InfoBanner';
 import { Checkbox } from '../../components/ui/Checkbox';
+import { ExpressionEditor } from '../../components/ui/ExpressionEditor';
 import { FieldFilterInput } from '../../components/ui/FieldFilterInput';
 import { Input } from '../../components/ui/Input';
 import { MultiSearchSelect } from '../../components/ui/MultiSearchSelect';
@@ -301,6 +302,22 @@ export const ReportDesignView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                 {vm.labels.add}
               </Button>
             </S.Row>
+          </S.Group>
+
+          {/* A pergunta que nenhuma lista de predicados escreve: dois campos comparados entre si,
+              uma conta, uma data relativa a hoje. Mesmo editor e mesmo idioma do `hiddenWhen` de uma
+              ação — o escopo é a linha, e o intellisense oferece os campos da tela escolhida. */}
+          <S.Group>
+            <S.GroupHeader>
+              <S.Legend>{vm.labels.expressionFilter}</S.Legend>
+            </S.GroupHeader>
+            <S.Hint>{vm.labels.expressionFilterHint}</S.Hint>
+            <ExpressionEditor
+              value={vm.filterExpression}
+              onChange={vm.setFilterExpression}
+              workflowVariables={vm.expressionVariables}
+              placeholder={vm.labels.expressionFilterPlaceholder}
+            />
           </S.Group>
 
           <S.Group>

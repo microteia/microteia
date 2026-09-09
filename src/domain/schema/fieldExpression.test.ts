@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { configuredInstant, resetAmbientInstant } from './clockGate';
 import { resetAmbientLocale, setAmbientLocale } from './i18n/localeGate';
-import { evaluateFieldBoolean, evaluateFieldExpression, evaluateFieldValidation, extractFieldExpressionDependencies } from './fieldExpression';
+import {
+  evaluateFieldBoolean,
+  evaluateFieldExpression,
+  evaluateFieldValidation,
+  extractFieldExpressionDependencies,
+  extractFieldExpressionPaths,
+  fieldExpressionSyntaxError,
+} from './fieldExpression';
 
 describe('evaluateFieldExpression — escopo e literais', () => {
   it('acessa campos por chave e o valor do próprio campo', () => {
@@ -151,6 +158,48 @@ describe('extractFieldExpressionDependencies', () => {
     expect(extractFieldExpressionDependencies(null)).toEqual([]);
     expect(extractFieldExpressionDependencies('')).toEqual([]);
     expect(extractFieldExpressionDependencies('concat(')).toEqual([]);
+  });
+});
+
+describe('extractFieldExpressionPaths', () => {
+  it('devolve o CAMINHO inteiro, e não só o primeiro segmento', () => {
+    // É a diferença que importa: `dependencies` responde de que CHAVE do escopo a expressão depende;
+    // isto responde que DADO ela alcança, e é o caminho inteiro que a hidratação traz.
+    expect(extractFieldExpressionPaths('cliente.cidade == "Recife" and valor > 0').sort())
+      .toEqual(['cliente.cidade', 'valor']);
+    expect(extractFieldExpressionDependencies('cliente.cidade == "Recife" and valor > 0').sort())
+      .toEqual(['cliente', 'valor']);
+  });
+
+  it('não devolve nome de FUNÇÃO', () => {
+    // Num parser sem as funções registradas, `today` e `isCPF` saem daqui com a cara de um campo — e
+    // cada um viraria um caminho a hidratar e uma coleção a cobrar de quem lê.
+    expect(extractFieldExpressionPaths('isEmpty(situacao) or vencimento < today()').sort())
+      .toEqual(['situacao', 'vencimento']);
+  });
+
+  it('descarta os nomes reservados do escopo, inclusive quando são o início de um caminho', () => {
+    expect(extractFieldExpressionPaths('if(isEmpty(value), status, self)')).toEqual(['status']);
+    expect(extractFieldExpressionPaths('value.nome == "Ana"')).toEqual([]);
+  });
+
+  it('devolve vazio para expressão ausente ou inválida', () => {
+    expect(extractFieldExpressionPaths(null)).toEqual([]);
+    expect(extractFieldExpressionPaths('concat(')).toEqual([]);
+  });
+});
+
+describe('fieldExpressionSyntaxError', () => {
+  it('a expressão correta não tem erro — e a ausente também não', () => {
+    expect(fieldExpressionSyntaxError('situacao == "pago"')).toBeNull();
+    expect(fieldExpressionSyntaxError(null)).toBeNull();
+    expect(fieldExpressionSyntaxError('   ')).toBeNull();
+  });
+
+  it('devolve a mensagem do parser, e não um booleano', () => {
+    // Quem escreveu a expressão precisa saber ONDE ela quebrou: "expressão inválida" não ensina nada.
+    expect(fieldExpressionSyntaxError('situacao == ')).toBeTruthy();
+    expect(fieldExpressionSyntaxError('valor > (')).toBeTruthy();
   });
 });
 
