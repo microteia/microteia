@@ -13,8 +13,21 @@ import type {
 import { RecordKeyTakenError } from '../../domain/repositories/IWorkflowMutationRepository';
 import { RECORD_KEYS_COLLECTION } from '../../domain/schema/recordKeys';
 import { normalizeFirestoreValue } from '../../domain/services/normalizeFirestoreValue';
+import { getBucket } from '../../infrastructure/firebase/initFirebase';
 
 const ALREADY_EXISTS = 6;
+
+/**
+ * As subcoleções que PERTENCEM ao registro, e por isso saem com ele.
+ *
+ * Elas estão no CAMINHO do registro (`tenants/{t}/{coleção}/{id}/notes`), então nada nelas está
+ * denormalizado — e é exatamente por isso que apagar só o documento as deixava inalcançáveis, sem
+ * erro em lugar nenhum. Ver `DeleteRecordUseCase`, do lado do cliente, que sempre cascateou.
+ */
+const OWNED_SUBCOLLECTIONS = ['notes', 'documents'] as const;
+
+/** Quantos documentos de subcoleção por rodada. O Firestore limita o lote a 500 escritas. */
+const CASCADE_PAGE = 300;
 
 export class FirestoreWorkflowMutationRepository implements IWorkflowMutationRepository {
   constructor(private readonly db: Firestore) {}
@@ -134,19 +147,71 @@ export class FirestoreWorkflowMutationRepository implements IWorkflowMutationRep
     }
   }
 
+  /**
+   * Apaga o registro, o que pertence a ele e as reservas de chave que ele citava.
+   *
+   * A cascata vem ANTES da exclusão do registro, e não depois: se ela falhar no meio, o registro
+   * continua lá e uma segunda tentativa termina o serviço. Na ordem inversa, uma falha deixaria
+   * anotações e arquivos sem nenhum documento que os alcance — órfãos que ninguém encontra para
+   * apagar.
+   *
+   * Este era o ponto onde o backend divergia do cliente: `DeleteRecordUseCase` sempre cascateou, e o
+   * Step "Excluir Registro" apagava só o documento. O defeito não era do agente de IA — ele já
+   * existia —, mas é aqui que ele se corrige para as duas superfícies de uma vez.
+   */
   async delete(
     tenantId: string,
     collection: string,
     id: string,
     releaseKeyIds?: string[],
   ): Promise<void> {
+    const record = this.collection(tenantId, collection).doc(id);
+    await this.cascade(record);
+
     if (!releaseKeyIds || releaseKeyIds.length === 0) {
-      await this.collection(tenantId, collection).doc(id).delete();
+      await record.delete();
       return;
     }
     const batch = this.db.batch();
-    batch.delete(this.collection(tenantId, collection).doc(id));
+    batch.delete(record);
     for (const keyId of releaseKeyIds) batch.delete(this.keyDoc(tenantId, keyId));
     await batch.commit();
+  }
+
+  private async cascade(record: DocumentReference): Promise<void> {
+    for (const name of OWNED_SUBCOLLECTIONS) {
+      // Em páginas porque uma subcoleção não tem teto declarado: um registro com mil anotações não
+      // pode virar um lote de mil escritas.
+      for (;;) {
+        const page = await record.collection(name).limit(CASCADE_PAGE).get();
+        if (page.empty) break;
+
+        // O arquivo sai antes do documento que o aponta, pelo mesmo motivo da ordem acima: o
+        // `storagePath` é a única forma de encontrá-lo.
+        await Promise.all(page.docs.map((doc) => this.removeStoredFile(doc.get('storagePath'))));
+
+        const batch = this.db.batch();
+        for (const doc of page.docs) batch.delete(doc.ref);
+        await batch.commit();
+
+        if (page.size < CASCADE_PAGE) break;
+      }
+    }
+  }
+
+  /**
+   * O arquivo do Storage, quando há um.
+   *
+   * A falha é registrada e NÃO propaga: um objeto que já não existe (exclusão repetida, ou arquivo
+   * removido à mão no console) não pode impedir a exclusão do registro. O contrário — abortar por
+   * causa de um arquivo ausente — deixaria o registro para sempre inexcluível.
+   */
+  private async removeStoredFile(storagePath: unknown): Promise<void> {
+    if (typeof storagePath !== 'string' || storagePath === '') return;
+    try {
+      await getBucket().file(storagePath).delete({ ignoreNotFound: true });
+    } catch (error) {
+      console.error(`[mutation] Falha ao apagar o arquivo ${storagePath}:`, error);
+    }
   }
 }

@@ -39,6 +39,14 @@ export interface UpsertOptions {
   // Usado pelo Step "Gravar Registro", que recebe um objeto inteiro (ex.: um registro já
   // existente) e não deve falhar por ele carregar campos que o sistema gerencia.
   ignoreUnwritableFields?: boolean;
+  /**
+   * Quem grava, para `createdBy`/`updatedBy` — e portanto para a AUTORIA que a auditoria mostra.
+   *
+   * O padrão continua sendo o motor, que é a verdade quando o motor gravou. O acesso de agente passa
+   * o seu próprio ator: dizer "workflow-engine" numa gravação feita por um agente de IA a pedido de
+   * uma pessoa seria mentir no único campo pelo qual alguém consegue rastreá-la depois.
+   */
+  writeActor?: string;
 }
 
 interface WritableLeavesOutcome {
@@ -102,6 +110,7 @@ export async function runWorkflowUpsert(
 ): Promise<WorkflowMutationOutcome<UpsertResult>> {
   const tenantId = context.execution.tenantId;
   const ctx = await deps.screenProvider.getSchemaContext(tenantId);
+  const actor = options.writeActor ?? WORKFLOW_ACTOR;
 
   let effectiveSpec = spec;
   if (options.ignoreUnwritableFields) {
@@ -194,7 +203,7 @@ export async function runWorkflowUpsert(
         tenantId,
         collection,
         id,
-        { ...withKeys, updatedBy: WORKFLOW_ACTOR },
+        { ...withKeys, updatedBy: actor },
         keyMutation,
       );
       created = false;
@@ -203,7 +212,7 @@ export async function runWorkflowUpsert(
       finalId = await deps.mutationRepository.create(
         tenantId,
         collection,
-        { ...withKeys, createdBy: WORKFLOW_ACTOR, updatedBy: WORKFLOW_ACTOR },
+        { ...withKeys, createdBy: actor, updatedBy: actor },
         id,
         keyMutation,
       );

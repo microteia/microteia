@@ -124,6 +124,24 @@ service cloud.firestore {
       allow create: if false;
       allow delete: if false;
 
+      // ─── Acessos de agente de IA ─────────────────────────────────────────────
+      // O DONO do acesso lê o seu; quem tem `agent.manage` lê os de todos, porque é ele quem
+      // responde por revogar o de alguém que saiu.
+      //
+      // A ESCRITA é `false` para todo cliente, sem exceção, e não por rigor: o segredo tem de ser
+      // sorteado no servidor, e o documento só pode nascer com o HASH dele. Uma escrita direta
+      // permitiria gravar um `secretHash` escolhido — e quem escolhe o hash escolhe o token.
+      // São as callables `createAgentGrant` / `revokeAgentGrant` que gravam, pelo Admin SDK.
+      match /agentGrants/{grantId} {
+        // `isMember` PRIMEIRO, e ele não é redundante com o resto: sem ele, quem SAIU do escritório
+        // continuaria lendo o acesso que emitiu enquanto era membro, porque o `userId` do documento
+        // ainda casa com o uid dele. Todo o resto do produto é escopado por participação, e um
+        // documento que responde a ex-membro seria a única exceção.
+        allow read: if isMember(tenantId)
+          && (resource.data.userId == request.auth.uid || can(tenantId, 'agent.manage'));
+        allow write: if false;
+      }
+
       // Conexões de IA do escritório — quem tem `ai.manage` lê e escreve
       match /aiConnections/{connectionId} {
         allow read, write: if can(tenantId, 'ai.manage');
@@ -340,7 +358,7 @@ service cloud.firestore {
       // leitura de documento por consulta não pagaria o que protege.
       function isReservedCollection(name) {
         return name in [
-        'actions', 'aiConnections',
+        'actions', 'agentGrants', 'aiConnections',
         'documentTypes', 'documents', 'extension_history', 'extension_migrations', 'extensions',
         'installed_extensions', 'lookupDefinitions', 'members', 'notes',
         'reports', 'roles',

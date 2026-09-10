@@ -17,6 +17,7 @@ import {
 import type { BackendClaim, FirestoreIndexSpec } from './backendShape.js';
 import { exportedFunctionNames } from './manifest.js';
 import { firstPartyTemplates } from '../vendor/firstPartyTemplates.js';
+import { AGENT_BACKEND_FUNCTIONS } from '../../../src/domain/schema/agent/agentBackend';
 
 /**
  * A MESMA porta que o `pack` usa. Ler o diretório aqui por conta própria já custou cinco casos
@@ -141,11 +142,6 @@ describe('baseline e reivindicado — as contas do pacote', () => {
   });
 
   /**
-   * Nenhuma extensão de primeira parte reivindica backend hoje, e o teste registra isso em vez de
-   * passar por vazio: se uma passar a reivindicar, os casos acima deixam de ser sintéticos e este
-   * caso é o que avisa.
-   */
-  /**
    * A EXCLUSÃO, afirmada — e não deduzida do silêncio do caso acima.
    *
    * "Nenhuma reivindica" é verdade tanto quando o filtro funciona quanto quando não há exemplo com
@@ -167,8 +163,31 @@ describe('baseline e reivindicado — as contas do pacote', () => {
     );
   });
 
-  it('nenhuma extensão de primeira parte reivindica backend neste momento', () => {
-    expect(claimsFromTemplates(templates())).toEqual([]);
+  /**
+   * QUEM reivindica backend hoje, afirmado por extenso.
+   *
+   * Este caso já disse "nenhuma", e o comentário de então prometia que ele avisaria no dia em que
+   * uma passasse a reivindicar. Ele avisou: o Acesso de Agente de IA traz três Cloud Functions, e a
+   * razão de elas serem reivindicadas em vez de baseline é a que vale para qualquer uma — um
+   * escritório que nunca quis o recurso não tem por que ter um endpoint HTTP no ar.
+   *
+   * A lista continua sendo uma AFIRMAÇÃO, e não um `length > 0`: uma reivindicação acrescentada sem
+   * intenção — por um `manifest.backend` copiado de outra extensão, digamos — tira uma function da
+   * baseline e ela deixa de subir para todo mundo, em silêncio. É o defeito que este caso pega.
+   */
+  it('as extensões de primeira parte que reivindicam backend são exatamente estas', () => {
+    const reivindicacoes = claimsFromTemplates(templates());
+
+    expect(reivindicacoes.map((claim) => claim.pluginId)).toEqual(['com.microteia.agent']);
+    // Contra as CONSTANTES do domínio, e não contra uma lista escrita aqui: o `plugin.ts` da extensão
+    // escreve os nomes por extenso — como um autor de fora escreveria —, e é esta comparação que
+    // impede o manifest e o `functions/index.ts` de divergirem em silêncio.
+    expect(reivindicacoes.flatMap((claim) => claim.backend.functions ?? []).sort())
+      .toEqual([...AGENT_BACKEND_FUNCTIONS].sort());
+    // Índice e parâmetro de backend continuam vazios em todas — o dia em que não estiverem é o dia
+    // em que a raiz e a declaração da extensão precisam ser conferidas uma contra a outra.
+    expect(reivindicacoes.flatMap((claim) => claim.backend.indexes ?? [])).toEqual([]);
+    expect(reivindicacoes.flatMap((claim) => claim.backend.parameters ?? [])).toEqual([]);
   });
 
   it('reivindicação inválida é NOMEADA, e não silenciada', () => {

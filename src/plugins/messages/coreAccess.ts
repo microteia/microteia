@@ -35,6 +35,78 @@ export const CORE_ACCESS_MESSAGES: Record<string, string> = {
     'A dependency was added to the permission "{id}", which does not exist. The addition was ignored.',
   'diagnostic.requirement.unknown':
     'The dependency "{required}" added to the permission "{id}" does not exist, so it was ignored — "{id}" keeps working as it did before.',
+  'agent.tab': 'AI agents',
+  'agent.title': 'AI agent access',
+  'agent.description':
+    'An access lets an AI agent work in this organization on your behalf — search records, register '
+    + 'them, change them, run a report. It can never do more than you can, and you can revoke it at '
+    + 'any time.',
+  'agent.banner.disabled':
+    'AI agent access is not enabled in this organization. Install "AI Agent Access" from the '
+    + 'Marketplace to turn it on.',
+  'agent.banner.pending':
+    'The extension is installed, but the Firebase project has not been provisioned yet, so the '
+    + 'endpoint is not in the air. Whoever administers the project has to run "microteia provision".',
+  'agent.endpoint.label': 'Connection address',
+  'agent.endpoint.hint':
+    'This is the address the AI client connects to. The access token goes in the Authorization '
+    + 'header, and you get it when you issue an access.',
+  'agent.empty': 'No access issued yet.',
+  'agent.action.issue': 'Issue access',
+  'agent.action.revoke': 'Revoke',
+  'agent.state.active': 'Active',
+  'agent.state.revoked': 'Revoked',
+  'agent.state.expired': 'Expired',
+  'agent.meta.expires': 'expires on',
+  'agent.meta.last-used': 'last used on',
+  'agent.meta.never-used': 'never used',
+  'agent.meta.of-another': 'of another member',
+  'agent.form.title': 'Issue an AI agent access',
+  'agent.form.name': 'Name',
+  'agent.form.name.placeholder': 'Claude on my laptop',
+  'agent.form.name.hint': 'It is how you recognise this access later, to revoke the right one.',
+  'agent.form.permissions': 'Permissions this access may use',
+  'agent.form.permissions.placeholder': 'Choose the permissions...',
+  'agent.form.permissions.hint':
+    'Only the permissions you hold are offered. Choose the fewest that get the job done: the access '
+    + 'can do everything you release to it, and nothing else.',
+  'agent.form.expiry': 'Validity',
+  'agent.form.cancel': 'Cancel',
+  'agent.form.confirm': 'Issue',
+  'agent.form.issuing': 'Issuing...',
+  'agent.expiry.30': '30 days',
+  'agent.expiry.90': '90 days',
+  'agent.expiry.365': '1 year',
+  'agent.expiry.never': 'No expiry',
+  'agent.issued.title': 'Access issued',
+  'agent.issued.once':
+    'Copy the token now: it is shown this one time and cannot be recovered. If you lose it, issue '
+    + 'another one and revoke this.',
+  'agent.issued.token': 'Access token',
+  'agent.issued.copy': 'Copy token',
+  'agent.issued.done': 'Done',
+  'agent.issued.command': 'To connect Claude Code',
+  'agent.issued.command.hint': 'Run this in a terminal. Other AI clients ask for the address and the token separately.',
+  'agent.token.copied': 'Token copied to the clipboard.',
+  'agent.revoke.title': 'Revoke this access?',
+  'agent.revoke.message':
+    'The access "{name}" stops working immediately, and no AI agent using it can reach this '
+    + 'organization any more. This cannot be undone — issue a new access if you need one again.',
+  'agent.revoke.failed': 'The access could not be revoked. Try again.',
+  'agent.expiry.invalid': 'The validity has to be between 1 and 366 days.',
+  'agent.grant.required': 'Say which access is to be revoked.',
+  'agent.name.required': 'Give the access a name, so it can be recognised later.',
+  'agent.nothing-to-grant':
+    'You hold no permissions in this organization, so an access issued here would grant nothing.',
+  'agent.not-enabled': 'AI agent access is not enabled for this organization.',
+  'agent.permission.unknown': 'The permission "{permission}" does not exist in this organization.',
+  'agent.permissions.required': 'Choose at least one permission for the access.',
+  'agent.permissions.unrestricted':
+    'An access cannot be granted everything: list the permissions it may use, so they can be reviewed later.',
+  'agent.token.failed': 'The access could not be issued. Try again.',
+  'permission.agent.manage': 'Manage AI agent access',
+  'permission.agent.manage.description':
+    'See and revoke the AI agent access of every member. Issuing an access for oneself does not need this.',
   'permission.ai.manage': 'Manage AI connections',
   'permission.ai.manage.description':
     'Register, edit and remove the artificial intelligence connections of the organization.',
@@ -89,6 +161,7 @@ export const CORE_ACCESS_MESSAGES: Record<string, string> = {
     'A dependency added to a permission declared elsewhere, or derived from a screen, so that reading it also grants what a complementary extension needs.',
   'point.requirement.title': 'Added permission dependency',
   'point.resource.title': 'Permission resource',
+  'resource.agent': 'AI agents',
   'resource.ai': 'Artificial intelligence',
   'resource.audit': 'Audit trail',
   'resource.automation': 'Automations',

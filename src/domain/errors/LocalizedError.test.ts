@@ -28,6 +28,36 @@ describe('errorParamsOf', () => {
     expect(errorParamsOf(error)).toEqual({ id: 'a1' });
   });
 
+  /**
+   * A SEGUNDA origem: uma callable manda os valores no terceiro argumento do `HttpsError`, e eles
+   * chegam ao cliente como `details`. Sem isto a frase de `requirePermission` aparecia na tela com o
+   * próprio `{permission}` cru no meio dela — o backend passava o valor e o front não o procurava.
+   */
+  it('devolve os parâmetros que uma callable manda em details', () => {
+    const doServidor = Object.assign(new Error('@core.access/permission.denied'), {
+      details: { permission: 'clientes.delete' },
+    });
+    expect(errorParamsOf(doServidor)).toEqual({ permission: 'clientes.delete' });
+  });
+
+  it('aceita número e booleano, que uma frase interpola como texto', () => {
+    const erro = Object.assign(new Error('@x/y'), { details: { count: 3, done: true } });
+    expect(errorParamsOf(erro)).toEqual({ count: '3', done: 'true' });
+  });
+
+  // `details` é livre por contrato do Firebase: um objeto aninhado ali viraria `[object Object]`
+  // dentro da frase, o que é pior que não interpolar nada.
+  it('descarta o que não é valor simples', () => {
+    const erro = Object.assign(new Error('@x/y'), { details: { ok: 'sim', aninhado: { a: 1 } } });
+    expect(errorParamsOf(erro)).toEqual({ ok: 'sim' });
+  });
+
+  it('devolve undefined quando details não é um mapa de valores', () => {
+    expect(errorParamsOf(Object.assign(new Error('x'), { details: 'texto' }))).toBeUndefined();
+    expect(errorParamsOf(Object.assign(new Error('x'), { details: ['a'] }))).toBeUndefined();
+    expect(errorParamsOf(Object.assign(new Error('x'), { details: {} }))).toBeUndefined();
+  });
+
   it('devolve undefined para qualquer outro erro', () => {
     expect(errorParamsOf(new Error('boom'))).toBeUndefined();
   });

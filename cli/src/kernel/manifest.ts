@@ -189,7 +189,9 @@ export const MANUAL_PREREQUISITES: KernelPrerequisite[] = [
       + 'CORS error. The fix is one command per function, and the deploy prints the exact list: gcloud '
       + 'run services add-iam-policy-binding <function-name-in-lowercase> --region=<region> '
       + '--project=<projectId> --member=allUsers --role=roles/run.invoker. Unauthenticated invocation '
-      + 'is not open access: every callable still rejects callers with no signed-in user.',
+      + 'is not open access: reaching a function is not the same as being allowed to use it. A callable '
+      + 'rejects any caller with no signed-in user, and an HTTP endpoint authenticates every request '
+      + 'with the credential it was given and refuses everything else.',
     optional: true,
   },
   {
@@ -214,13 +216,24 @@ export const exportedFunctionNames = (indexSource: string): string[] =>
     .filter((name) => name !== '');
 
 /**
- * As callables são as functions que o NAVEGADOR chama. Elas se distinguem das de gatilho por uma
- * razão prática: só elas podem ser verificadas de fora, e só nelas a permissão de invocação pública
- * importa. Sem ela a aplicação abre e toda chamada ao servidor falha — parecendo erro de CORS, que
- * manda procurar no lugar errado.
+ * As functions que o mundo de FORA chama — e é isso que a lista significa, não o construtor delas.
+ *
+ * Elas se distinguem das de gatilho por uma razão prática: só elas podem ser verificadas de fora, e
+ * só nelas a permissão de invocação pública importa. Sem ela a aplicação abre e toda chamada ao
+ * servidor falha — parecendo erro de CORS, que manda procurar no lugar errado.
+ *
+ * `onRequest` entra pela MESMA razão, e não por generosidade: um endpoint HTTP é ainda mais
+ * dependente da invocação pública que uma callable, porque quem o consome pode não ser um navegador
+ * nosso — é o caso do endpoint MCP, que um cliente de IA chama. O preflight de `callableAccess`
+ * serve os dois sem mudar uma linha: ele pergunta `OPTIONS` e confere o cabeçalho de CORS, que um
+ * `onRequest` com `cors: true` responde igual.
+ *
+ * O que NÃO se confunde com isto é o portão de instalação (`functionGate`): lá a distinção entre
+ * `onCall` e `onRequest` importa muito, porque uma tem escritório no chamador e a outra não.
  */
 export const callableFunctionNames = (source: string): string[] =>
-  [...source.matchAll(/export\s+const\s+([a-zA-Z0-9_]+)\s*=\s*onCall\b/g)].map((match) => match[1]);
+  [...source.matchAll(/export\s+const\s+([a-zA-Z0-9_]+)\s*=\s*(?:onCall|onRequest)\b/g)]
+    .map((match) => match[1]);
 
 /**
  * Os parâmetros que o backend declara com `defineString`. O `firebase-functions` os valida

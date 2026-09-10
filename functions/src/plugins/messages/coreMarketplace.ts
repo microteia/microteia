@@ -1,0 +1,387 @@
+// ═══════════════════════════════════════════════════════════════════════════
+// ⚠️  ARQUIVO GERADO POR scripts/sync-schemas.cjs — NÃO EDITE.
+// Fonte única: src/plugins/messages/coreMarketplace.ts
+// Para alterar, edite a fonte e rode: npm run sync-schemas
+// ═══════════════════════════════════════════════════════════════════════════
+
+/** Os textos das extensões: catálogo, instalação e a tela de autoria. */
+export const CORE_MARKETPLACE_MESSAGES: Record<string, string> = {
+  'page.marketplace': 'Extensions',
+  'page.plugin-author': 'Create extension',
+  'page.plugin-author-edit': 'Edit extension',
+  'nav.updates.one': '{count} extension with an update waiting',
+  'nav.updates.other': '{count} extensions with an update waiting',
+
+  'author.template.view':
+    'import { useCasePhases } from \'@microteia/data\';\n\nexport default function View() {\n  const phases = useCasePhases();\n  return (\n    <div style={{ padding: 16 }}>\n      My extension — {phases.length} phase(s) registered.\n    </div>\n  );\n}\n',
+  'author.template.startup':
+    '// import { Icon } from \'@microteia/ui\';\n\nexport default function startup(host) {\n  /*\n  // Example: register commands in the Command Palette (⌘K)\n  host.commands.register({\n    group: \'My Extension\',\n    getItems(query, ctx) {\n      const q = String(query || \'\').toLowerCase().trim();\n      if (!q) return [];\n      \n      // const icon = <Icon name="star" size={16} />;\n      const items = [];\n      \n      // Fixed command (e.g. "new item")\n      if (\'new extension item\'.indexOf(q) !== -1) {\n        items.push({\n          id: \'my-ext:new\',\n          title: \'New extension item\',\n          group: \'My Extension\',\n          // icon,\n          onSelect: () => {\n            ctx.openTab(\'my-screen:new\');\n            ctx.close();\n          }\n        });\n      }\n      \n      // Search over records (example: custom entities)\n      // for (const r of ctx.customRecords) {\n      //   if (r.screenKey === \'my-screen\' && r.title?.toLowerCase().indexOf(q) !== -1) {\n      //     items.push({\n      //       id: \'my-ext:\' + r.id,\n      //       title: r.title,\n      //       subtitle: \'My Extension\',\n      //       group: \'My Extension\',\n      //       icon,\n      //       onSelect: () => { ctx.openTab(\'my-screen:\' + r.id); ctx.close(); }\n      //     });\n      //   }\n      // }\n      \n      return items.slice(0, 9);\n    },\n  });\n  */\n\n  /*\n  // Example: register an @ mention in the chat\n  host.mentions.register({\n    key: \'my-mention\',\n    label: \'My Mention\',\n    description: \'Insert a link to an item of the extension\',\n    icon: \'star\',\n    search(query, ctx) {\n      const q = String(query || \'\').toLowerCase().trim();\n      \n      // Return the list of options for the user to pick from\n      // return ctx.customRecords\n      //   .filter((r) => r.screenKey === \'my-screen\' && r.title && (!q || r.title.toLowerCase().indexOf(q) !== -1))\n      //   .slice(0, 20)\n      //   .map((r) => ({\n      //     id: r.id,\n      //     title: r.title,\n      //     subtitle: \'My Extension\',\n      //     tabKey: \'my-screen:\' + r.id\n      //   }));\n      \n      return [];\n    },\n  });\n  */\n\n  // Optional: return a cleanup function to unregister when the extension unloads\n  // return () => {\n  //   // Cleanup if needed\n  // };\n}\n',
+  'author.subtitle':
+    'Package screens, actions, automations and scripts of your organization into an extension. Save it to My Extensions to edit later; publishing happens on the Extensions screen.',
+  'author.admin-only': 'Only organization administrators can create extensions.',
+  'author.download': 'Download .json',
+  'author.saving': 'Saving…',
+  'author.save-changes': 'Save changes',
+  'author.save-to-mine': 'Save to My Extensions',
+  'author.saved': '{name} saved to My Extensions.',
+  'author.save-failed': 'Could not save: {detail}',
+  'author.exported': 'Extension file generated.',
+  'author.identification': 'Identification',
+  'author.content': 'Content',
+  'author.issues': 'Pending items',
+  'author.dependencies':
+    'This package points at artifacts of {list}, so it now requires those extensions: an office can '
+    + 'only install it after installing them.',
+  'author.dependencies.join': ', ',
+  'author.id.locked': 'The identifier is fixed after creation.',
+  'author.id.hint': 'Reverse DNS, at least two segments.',
+  'author.field.name': 'Name',
+  'author.field.version': 'Version',
+  'author.field.summary': 'Summary',
+  'author.field.summary.placeholder': 'What this extension adds to the organization.',
+  'author.field.category': 'Category (optional)',
+  'author.field.category.placeholder': 'Theme, Integration, Reports…',
+  'author.field.description': 'Description (optional)',
+  'author.startup': 'Startup code',
+  'author.startup.edit': 'Edit the startup code',
+  'author.startup.description':
+    'Optional. It runs once when the extension is loaded in the organization and receives a host to register services — such as ⌘K commands and @ mentions. Export a (host) => cleanup? function as default.',
+  'author.compile-error': 'Does not compile',
+  'author.compile-error.detail': 'Does not compile: {error}',
+  'author.group.empty': 'Nothing available.',
+  'author.group.collapse': 'Collapse group',
+  'author.group.expand': 'Expand group',
+  'author.group.screen-patches': 'Fields and actions on existing screens',
+  'author.option.locked': 'Required by another checked item',
+  'author.option.carried': 'Embedded in this extension — click to remove',
+  'author.option.required': 'Required',
+  'author.option.included': 'Included',
+  'author.code-views': 'Code screens',
+  'author.code-views.empty': 'No code screen.',
+  'author.view.add': 'Add screen',
+  'author.view.remove': 'Remove screen',
+  'author.view.title': 'Title',
+  'author.view.key': 'Key (menu and address)',
+  'author.view.untitled': 'Untitled',
+  'author.view.fallback': 'code screen',
+  'author.view.no-code': 'no code',
+  'author.view.modal-title': 'Code screen — {name}',
+  'author.preview.show': 'Preview alongside',
+  'author.preview.hide': 'Hide preview',
+  'author.preview.failed': 'Could not render the preview. Check the code.',
+  'author.selected.one': '{count} item selected',
+  'author.selected.other': '{count} items selected',
+  'author.patch.fields': '{count} field(s)',
+  'author.patch.actions': '{count} action(s)',
+  'author.patch.join': ' and ',
+  'author.patch.summary': '{parts} of yours',
+  'author.kind.screen': 'the screen',
+  'author.kind.action': 'the action',
+  'author.kind.workflow': 'the automation',
+  'author.kind.script': 'the script',
+  'author.issue.view-key-required': 'The code screen "{label}" needs a key.',
+  'author.issue.view-key-invalid': 'The key "{key}" is invalid: use lowercase letters, numbers and "-".',
+  'author.issue.view-key-duplicated': 'The key "{key}" is repeated among the code screens.',
+  'author.issue.view-title-required': 'A code screen needs a title.',
+  'author.issue.view-compile': 'The code screen "{label}" does not compile: {error}.',
+  'author.issue.startup-compile': 'The startup code does not compile: {error}.',
+  'author.issue.external-ref':
+    '{origin} "{source}" references {kind} "{name}", which is not in the package and is not covered by a declared dependency.',
+
+  'author.field.id': 'Identifier',
+  'author.field.id.placeholder': 'com.yourfirm.sales',
+  'author.field.name.placeholder': 'Sales',
+  'author.view.key.placeholder': 'my-screen',
+  'extension.load-failed': 'Could not load this extension: {message}',
+  'marketplace.subtitle':
+    'Create and edit extensions in your private area, install them to use in the organization, and publish them to the catalog to share with other organizations.',
+  'marketplace.admin-only':
+    'Only organization administrators can create, install or publish extensions.',
+  'marketplace.residue':
+    '{count} backend artifact(s) in this Firebase project belong to extensions that nobody has '
+    + 'installed any more: {functions} Cloud Function(s) and {indexes} database index(es). A callable '
+    + 'left behind just sits there; a trigger does not — it keeps running on every change, with the '
+    + 'code of an extension nobody has. Whoever maintains the project removes them with '
+    + '"microteia provision --prune" in the Microteia Console.',
+  'marketplace.residue.scanned':
+    'Read from every organization in this project on {date}: {tenants} organization(s), {extensions} '
+    + 'installed extension(s).',
+  'marketplace.empty':
+    'No extension yet. Use "Create extension", import a .json, or install one from the public catalog.',
+  'marketplace.empty.filtered': 'No extension in this view.',
+  'filter.all': 'All',
+  'filter.installed': 'Installed',
+  'filter.mine': 'Mine',
+  'filter.catalog': 'Catalog',
+  'filter.compose.placeholder': 'Filter the extensions…',
+  'filter.search.placeholder': 'Name, summary or identifier…',
+  'filter.visibility': 'Visibility',
+  'filter.installation': 'Installation',
+  'filter.installation.yes': 'Installed',
+  'filter.installation.no': 'Not installed',
+  'filter.category.none': 'No category',
+  'status.published': 'Published',
+  'status.pending': 'Under review',
+  'status.deprecated': 'Deprecated',
+  'status.private': 'Private',
+  'status.builtin': 'From the system',
+  'status.system': 'Part of the system',
+  'extension.details': 'See details',
+  'extension.license': 'Licence terms',
+  'extension.license.title': 'Licence terms of "{name}"',
+  'extension.license.intro':
+    'Terms written by whoever authored this extension. They add to the Microteia Terms of Use, and are reproduced in the organization’s Terms page while the extension is installed and active.',
+  'extension.badge.active': 'Active',
+  'extension.badge.inactive': 'Inactive',
+  'extension.badge.failed': 'Did not load',
+  'extension.badge.update': 'Update',
+  'extension.badge.has-code': 'With code',
+  'extension.badge.unreviewed': 'Code not reviewed',
+  'extension.badge.backend-pending': 'Backend pending',
+  'extension.backend-pending.detail':
+    'This extension needs Cloud Functions or database indexes that this Firebase project does not have '
+    + 'yet, so it is installed but not running. Whoever maintains the project applies them with '
+    + '"microteia provision" in the Microteia Console.',
+  'extension.badge.migration-pending': 'Data update pending',
+  'extension.migration-pending.detail':
+    'This extension needs to update data written by an earlier version of it, so it is installed but '
+    + 'not running. Only an administrator runs it, from "Update data" on this card.',
+  'extension.run-migrations': 'Update data',
+  'extension.install': 'Install in the organization',
+  'extension.update': 'Update',
+  'extension.uninstall': 'Uninstall from the organization',
+  'extension.activate': 'Activate in the organization',
+  'extension.deactivate': 'Deactivate in the organization',
+  'extension.publish': 'Publish to the catalog',
+  'extension.republish': 'Republish to the catalog',
+  'extension.approve': 'Approve publication',
+  'extension.reject': 'Reject publication',
+  'extension.deprecate': 'Mark as deprecated',
+  'extension.remove': 'Delete from the private area',
+  'extension.remove.title': 'Delete extension',
+  'extension.remove.message':
+    'Delete "{name}" from your private area? Copies already installed (here or in other organizations) and the published version are not affected.',
+  'extension.import': 'Import .json',
+  'extension.imported': '{name} imported into My Extensions.',
+  'extension.import-failed': 'Could not import: {detail}',
+  'extension.review': 'Review and trust the code',
+  'extension.review.title': 'Review the code of "{name}"',
+  'extension.review.intro':
+    'This code runs in the browser of EVERY member of the organization, with access to the data each one sees. Read it before releasing. Extensions coming from the public catalog do not pass through here — they were already reviewed at publication.',
+  'extension.review.confirm': 'Trust and run',
+  'extension.trusted': 'Code reviewed and released to run in this organization.',
+  'extension.installed': 'Installed in the organization.',
+  'extension.uninstalled': 'Extension uninstalled.',
+  'extension.not-installed':
+    'The extension "{extension}" is not installed in this organization, so its server functions do not '
+    + 'answer here.',
+  'extension.activated': 'Extension activated.',
+  'extension.deactivated': 'Extension deactivated.',
+  'extension.updated': 'Extension updated.',
+  'extension.removed': 'Extension deleted from your private area.',
+  'extension.published': 'Published to the catalog.',
+  'extension.publish-failed': 'Could not publish: {detail}',
+  'extension.sent-for-approval':
+    'Sent for approval: an extension with code only becomes public after a system administrator approves it.',
+  'extension.approved': 'Extension approved.',
+  'extension.deprecated': 'Extension marked as deprecated.',
+  'extension.rejected': 'Publication rejected and removed from the catalog.',
+  'extension.operation-failed': 'Could not complete the operation: {detail}',
+  'author.group.screens': 'Screens',
+  'author.view.default-title': 'Screen {number}',
+  'diagnostic.capability.id.invalid':
+    'Capability "{id}" is invalid. Use the "group.name" format (e.g. "ai.completion").',
+  'diagnostic.capability.range.invalid': 'Range "{range}" of capability "{id}" is invalid.',
+  'diagnostic.capability.unsatisfied':
+    'Plugin "{id}" needs "{capability}" {range}, and no installed plugin provides that capability.',
+  'diagnostic.capability.version.invalid': 'Version "{version}" of capability "{id}" is not a valid semver.',
+  'diagnostic.contribution.api-version.missing': 'Contribution "{id}" must declare apiVersion in semver.',
+  'diagnostic.contribution.conflict':
+    'Point "{point}" accepts a single contribution, but {count} were registered. "{winner}" prevailed.',
+  'diagnostic.contribution.duplicate':
+    'Contribution "{id}" was already declared for point "{point}" in this plugin.',
+  'diagnostic.contribution.id.invalid':
+    'Contribution id "{id}" is invalid. Use lowercase letters, numbers, "-" and ".".',
+  'diagnostic.contribution.impl.kind-forbidden':
+    'Point "{point}" does not accept an implementation of kind "{kind}". It accepts: {allowed}.',
+  'diagnostic.contribution.impl.malformed':
+    'The implementation of contribution "{id}" is malformed for kind "{kind}".',
+  'diagnostic.contribution.impl.missing':
+    'Point "{point}" requires an implementation and contribution "{id}" declared none.',
+  'diagnostic.contribution.impl.trusted-only':
+    'An implementation of kind "{kind}" is exclusive to internal plugins. Use "script", "widget" or "workflow".',
+  'diagnostic.contribution.impl.unresolved':
+    'Contribution "{id}" points to implementation "{key}", which plugin "{plugin}" did not provide.',
+  'diagnostic.contribution.metadata.invalid': 'The metadata of contribution "{id}" must be an object.',
+  'diagnostic.contribution.point.incompatible':
+    'Contribution "{id}" expects contract {expected} of "{point}", which is on version {actual}.',
+  'diagnostic.contribution.point.invalid': 'Extension point "{point}" is invalid.',
+  'diagnostic.contribution.point.unknown':
+    'Extension point "{point}" is not registered. Contribution "{id}" was ignored.',
+  'diagnostic.dependency.cycle': 'Plugin "{id}" is part of a dependency cycle and could not be loaded.',
+  'diagnostic.dependency.disabled': 'Plugin "{id}" depends on "{dependency}", which could not be loaded.',
+  'diagnostic.dependency.missing': 'Plugin "{id}" depends on "{dependency}", which is not installed.',
+  'diagnostic.dependency.unsatisfied':
+    'Plugin "{id}" requires "{dependency}" {range}, but the installed version is {installed}.',
+  'diagnostic.backend.not-object': 'The backend requirement must be an object.',
+  'diagnostic.backend.functions-invalid': 'backend.functions must be a list of Cloud Function names.',
+  'diagnostic.backend.function-name-invalid': 'A Cloud Function name must start with a letter and hold only letters, digits and underscore.',
+  'diagnostic.backend.parameters-invalid': 'backend.parameters must be a list of setting names.',
+  'diagnostic.backend.parameter-name-invalid': 'A backend setting name must be upper case, with digits and underscore.',
+  'diagnostic.backend.indexes-invalid': 'backend.indexes must be a list of composite index definitions.',
+  'diagnostic.backend.index.collection-missing': 'A composite index must name the collection it indexes.',
+  'diagnostic.backend.index.scope-invalid': 'A composite index scope must be COLLECTION or COLLECTION_GROUP.',
+  'diagnostic.backend.index.fields-missing': 'A composite index needs at least two fields — a single field is indexed automatically.',
+  'diagnostic.backend.index.field-invalid': 'Every field of a composite index needs a field path.',
+  'diagnostic.manifest.dependencies.invalid': 'Dependencies must be an object { pluginId: range }.',
+  'diagnostic.manifest.dependency.id.invalid': 'Dependency "{id}" is not a valid plugin id.',
+  'diagnostic.manifest.dependency.range.invalid': 'Range "{range}" of dependency "{id}" is invalid.',
+  'diagnostic.manifest.export.duplicated': 'Export "{id}" is declared twice.',
+  'diagnostic.manifest.export.id.invalid': 'Export "{id}" is not a valid artifact id.',
+  'diagnostic.manifest.exports.invalid': 'Exports must be a list of artifact ids.',
+  'diagnostic.manifest.id.invalid':
+    'Plugin id "{id}" is invalid. Use reverse DNS with at least two segments (e.g. "com.acme.contracts").',
+  'diagnostic.manifest.kernel.invalid': 'Kernel range "{range}" is invalid. Use something like "^1.0.0".',
+  'diagnostic.manifest.kernel.unsatisfied':
+    'Plugin "{name}" requires Microteia {required}, but this installation is on version {installed}.',
+  'diagnostic.manifest.name.missing': 'The plugin needs a readable name.',
+  'diagnostic.manifest.not-object': 'The manifest must be an object.',
+  'diagnostic.manifest.point.duplicated': 'Extension point "{id}" was declared more than once in this plugin.',
+  'diagnostic.manifest.version.invalid': 'Version "{version}" is not a valid semver.',
+  'diagnostic.permission.invalid':
+    'Permission "{permission}" is invalid. Use "domain:action" or "domain:resource:action" with one of the domains: {domains}.',
+  'diagnostic.plugin.code-ignored':
+    'Plugin "{id}" is not internal, so its code implementations were ignored.',
+  'diagnostic.plugin.duplicate':
+    'Plugin "{id}" was declared more than once. The second declaration was ignored.',
+  'diagnostic.point.api-version.invalid': 'Point "{id}" needs an apiVersion in semver.',
+  'diagnostic.point.id.invalid':
+    'Extension point "{id}" is invalid. Use the "group.name" format (e.g. "ui.page").',
+  'diagnostic.point.impl-kind.unknown': 'Implementation kind "{kind}" does not exist. Use one of: {allowed}.',
+  'diagnostic.point.impl-kinds.missing': 'Point "{id}" must declare allowedImplKinds.',
+  'diagnostic.point.impl-required-none-allowed': 'Point "{id}" requires an implementation but allows no kind.',
+  'diagnostic.point.owned':
+    'Extension point "{id}" already belongs to plugin "{owner}" and cannot be redeclared by "{claimant}".',
+  'diagnostic.point.title.missing': 'Point "{id}" needs a title.',
+  'issue.migration.id-duplicated': 'Two data migrations share the identifier "{id}" — the identifier is what records that it already ran.',
+  'issue.migration.id-invalid': 'Data migration identifier "{id}" is invalid: lower-case letters, digits and hyphen, starting with a letter.',
+  'issue.migration.name-missing': 'Data migration "{id}" needs a name — it is what the organization reads before running it.',
+  'issue.migration.not-list': 'The data migrations must be a list.',
+  'issue.migration.out-of-order': 'Data migration "{id}" comes after "{previous}", of a later version — the declared order is the execution order.',
+  'issue.migration.phase-invalid': 'Data migration "{id}" declares phase "{phase}": it runs "before" or "after" the package artifacts.',
+  'issue.migration.rounds-invalid': 'Data migration "{id}" declares {rounds} rounds — the ceiling must be a whole number of 1 or more.',
+  'issue.migration.source-missing': 'Data migration "{id}" has no code.',
+  'issue.migration.source-modules': 'Data migration "{id}" uses import/export/require, which the sandbox does not resolve.',
+  'issue.migration.version-invalid': 'Data migration "{id}" declares version "{version}", which is not a valid semver.',
+  'issue.package.icon.unknown':
+    'Icon "{icon}" ({where}) is not in the platform catalogue. The installation would draw the generic marker instead. Ask the microteia-plugin MCP server for list_icons to see every key.',
+  'issue.package.near-limit':
+    'The package is {size}. Above {limit} it stops fitting in the installation document — it is worth splitting it before it grows further.',
+  'issue.package.no-manifest': 'The extension has no manifest with an "id".',
+  'issue.package.no-summary': 'The extension needs a short description (summary).',
+  'issue.package.no-workflows': 'The extension needs the "workflows" list (it may be empty).',
+  'issue.package.not-json': 'The file is not valid JSON.',
+  'issue.package.not-object': 'The content is not an extension object.',
+  'issue.package.too-large':
+    'The package is {size} and would not fit in the installation document (the practical limit is {limit}). Split it — one package per language, or one per set of screens.',
+  'issue.step.control-incomplete':
+    'step "{step}" is a {type} control node but has no `{missing}` — the flow has nothing to branch on.',
+  'issue.step.input-invalid':
+    'step "{step}" ({definition}) gives input "{input}" a value the step refuses: {reason}',
+  'issue.step.input-not-mapping':
+    'step "{step}" ({definition}) sets input "{input}" to a bare value — every step input is an InputMapping, one of Literal, Event, Expression, Output or Variable.',
+  'issue.step.mapping-kind':
+    'step "{step}" ({definition}) maps input "{input}" as {kind}, which that input does not accept. It takes: {allowed}.',
+  'issue.step.missing-input':
+    'step "{step}" ({definition}) is missing required input "{input}".',
+  'issue.step.no-definition':
+    'step "{step}" is of type {type} and names no step of the catalog — only Condition and Loop may leave `stepDefinitionId` empty.',
+  'issue.step.output-unknown-id':
+    'step "{step}" reads output "{output}" of step "{target}" through input "{input}", and that step does not publish it. It publishes: {expected}.',
+  'issue.step.output-unknown-step':
+    'step "{step}" reads, through input "{input}", the output of step "{target}", which does not exist in this workflow.',
+  'issue.step.type-unimplemented':
+    'step "{step}" is of type {type}, which this platform version does not run — the flow would stop there.',
+  'issue.step.unknown-definition':
+    'step "{step}" names step "{definition}", which is not in the catalog. The package declares no dependency, so it cannot come from another extension either.',
+  'issue.step.unknown-input':
+    'step "{step}" ({definition}) sets input "{input}", which that step does not have. It takes: {expected}.',
+  'install.dependency-missing':
+    'This extension references {kind} "{id}" of extension "{plugin}", which is not installed — install it first.',
+  'install.dependent-breaks':
+    '{origin} "{name}" of extension "{dependent}" references {kind} "{id}", which this version no longer '
+    + 'brings — update or remove that extension first.',
+  'issue.patch.own-screen':
+    'the patch points to "{target}", which is a screen of the package itself — declare the fields on the screen, not on a patch.',
+  'issue.patch.unknown-target':
+    'the patch points to "{target}", which is not a fixed system collection — to extend the screen of another extension, use its `sourceId`.',
+  'issue.screen.duplicate-prefix':
+    'screen "{screen}" would emit "{prefix}.saved", a name that "{taken}" already uses in this package — two collections cannot publish the same event.',
+  'issue.screen.kernel-prefix':
+    'screen "{screen}" declares prefix "{prefix}", which belongs to {entity} — the {entity} automations would start firing with "{collection}".',
+  'issue.screen.reserved-prefix':
+    'screen "{screen}" would emit "{prefix}.saved", a name reserved by the automation engine — declare another `eventPrefix`.',
+  'issue.report.invalid': 'The report "{name}" cannot be run as it is — {field}: {detail}',
+  'issue.report.requires': 'The report "{name}" declares a `requires` that omits what it uses: {capability}. The list is derived from the spec — leave it out.',
+  'issue.ref.external':
+    '{origin} "{name}" references {kind} "{id}", which is neither in the package nor covered by a declared dependency.',
+  'issue.ref.malformed':
+    '{origin} "{name}" references {kind} "{id}", which is not a valid reference — use <extension-id>/<artifact-id>.',
+  'issue.ref.not-exported':
+    '{origin} "{name}" references {kind} "{id}", which extension "{plugin}" does not declare in `exports`.',
+  'issue.ref.screen-qualified':
+    '{origin} "{name}" references screen "{id}" in qualified form — a screen is named by its collection, or by the `sourceId` of the extension that brings it.',
+  'issue.ref.self':
+    '{origin} "{name}" references {kind} "{id}" through the package\'s own id — inside the package, name the artifact directly.',
+  'issue.ref.undeclared':
+    '{origin} "{name}" references {kind} "{id}", which belongs to extension "{plugin}" — declare it in `dependencies`.',
+  'permission.domain.capability': 'Integrations',
+  'permission.domain.data': 'Organization data',
+  'permission.domain.net': 'External network',
+  'permission.domain.script': 'Scripts',
+  'permission.domain.ui': 'Interface',
+  'permission.domain.workflow': 'Automations',
+  'ref.kind.action': 'the action',
+  'ref.kind.screen': 'the screen',
+  'ref.kind.script': 'the script',
+  'ref.kind.workflow': 'the automation',
+  'ref.origin.action': 'action',
+  'ref.origin.patch': 'patch of',
+  'ref.origin.report': 'report',
+  'ref.origin.screen': 'screen',
+  'ref.origin.workflow': 'automation',
+  'ref.origin.workflow-step': 'step "{step}" of automation',
+  'extension.code-pending-review':
+    'This extension brings a screen in code, which will only run after a system administrator publishes it in the catalog. The data was installed normally.',
+  'publish.id-taken': 'This identifier was already published by another organization.',
+  'publish.invalid-version': 'Version "{version}" is not valid.',
+  'publish.no-tenant': 'No organization or user.',
+  'lifecycle.already-installed': 'Plugin "{id}" is already installed (version {version}). Use update.',
+  'lifecycle.invalid-version': 'Version "{version}" is not a valid semver.',
+  'lifecycle.not-installed': 'The plugin is not installed in this organization.',
+  'lifecycle.not-newer': 'Version {version} is not newer than the installed one ({installed}).',
+  'migration.error.failed': 'Data update "{name}" failed: {detail}',
+  'migration.error.locked': 'Another data update of this extension is already running in this organization. Wait for it to finish.',
+  'migration.error.max-rounds': 'Data update "{name}" did not finish within {rounds} rounds. Run it again to continue where it stopped.',
+  'migration.error.no-progress': 'Data update "{name}" stopped with {remaining} records left and made no progress — it needs a fix from whoever wrote it.',
+  'migration.ran': 'Data of {name} updated.',
+  'migration.up-to-date': 'The data of {name} is already up to date.',
+  'extension.history': 'Version history',
+  'history.title': 'Version history — {name}',
+  'history.intro': 'Every version this organization has applied of this extension. Going back to one reapplies its package exactly as it was, keeping the history as it is.',
+  'history.empty': 'This extension has no applied version recorded yet.',
+  'history.current': 'Applied now',
+  'history.applied-by': 'Applied by {name} on {date}',
+  'history.limit': 'The last {count} applied versions are kept; older ones are dropped as new ones arrive.',
+  'history.uninstalled': 'The extension is not installed in this organization. Applying a version from the history brings it back.',
+  'history.apply': 'Apply this version',
+  'history.applied': 'Version {version} applied.',
+  'history.error.missing': 'The package of this version is no longer in the history.',
+  'capability.ai-completion': 'AI text generation',
+  'plugin.capabilities.description':
+    'Declares the extension point where plugins provide Capability implementations.',
+  'point.capability.description':
+    'Provides the implementation of a Capability (AI, messaging, payments). Several plugins may provide the same one, and the organization chooses which to use.',
+  'point.capability.title': 'Capability provider',
+  'author.patch.field-count': '{name} ({count} field(s))',
+};

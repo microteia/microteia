@@ -1,5 +1,6 @@
 import type { MarketplacePlugin } from '../../domain/entities/MarketplacePlugin';
 import { nav, widgetPage } from '../contributionBuilders';
+import { agentPlugin } from './agent';
 import { brasilPlugin } from './brasil';
 import { newsPlugin } from './news';
 import { dashboardPlugin } from './dashboard';
@@ -193,7 +194,7 @@ export const guiaPlugin: MarketplacePlugin =
     workflows: [],
   };
 
-export { brasilPlugin, newsPlugin, dashboardPlugin, calendarPlugin, localePtBrPlugin };
+export { agentPlugin, brasilPlugin, newsPlugin, dashboardPlugin, calendarPlugin, localePtBrPlugin };
 
 /**
  * Catálogo do Marketplace EMBUTIDO: extensões de PRIMEIRA PARTE que viajam no bundle da aplicação.
@@ -225,6 +226,7 @@ export {
 
 export const MARKETPLACE_CATALOG: MarketplacePlugin[] = [
   localePtBrPlugin,
+  agentPlugin,
   brasilPlugin,
   dashboardPlugin,
   calendarPlugin,

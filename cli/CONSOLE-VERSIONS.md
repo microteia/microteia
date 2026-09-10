@@ -22,6 +22,17 @@
 - fix(command): what was broken, and what it did to whoever hit it.
 -->
 
+#### [2.22.0] — 2026-09-10
+
+- feat(deploy): the reachability check now covers HTTP endpoints, not only callables.
+  `callableFunctionNames` matches `onRequest` as well, because the list means "what the outside world
+  calls" and an HTTP endpoint depends on public invocation even more than a callable does — a blocked
+  invoker grant answers 403 with no CORS header, and the client reports a connection error. Without
+  this, the platform's first `onRequest` would have gone up unverified.
+- fix(deploy): the `functions-invoker` prerequisite no longer promises that every reachable function
+  rejects a caller with no signed-in user. That is true of a callable and false of an endpoint that
+  authenticates by token, and the sentence was about to be read by whoever installs the agent access.
+
 #### [2.21.0] — 2026-09-09
 
 - fix(cli/pack): reading-only examples are left out of the first-party backend accounting.

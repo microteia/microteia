@@ -34,6 +34,7 @@ export const coreTenantPlugin: PluginRecord = {
     MembersTabView: lazyView(() => import('../../presentation/pages/TenantSettings/MembersTab/MembersTab.view'), 'MembersTabView'),
     RolesTabView: lazyView(() => import('../../presentation/pages/TenantSettings/RolesTab/RolesTab.view'), 'RolesTabView'),
     AITabView: lazyView(() => import('../../presentation/pages/TenantSettings/AITab/AITab.view'), 'AITabView'),
+    AgentTabView: lazyView(() => import('../../presentation/pages/TenantSettings/AgentTab/AgentTab.view'), 'AgentTabView'),
   },
   manifest: {
     id: 'core.tenant',
@@ -82,6 +83,27 @@ export const coreTenantPlugin: PluginRecord = {
         order: 30,
         requiredPermissions: [PERMISSION_AI_MANAGE],
       }, 'AITabView'),
+      // A aba dos acessos de agente de IA.
+      //
+      // Ela mora aqui, e não na extensão que liga o recurso, porque o que ela manipula é do KERNEL:
+      // a coleção `agentGrants` é reservada, as callables validam contra o catálogo de permissões do
+      // escritório, e o seletor de permissões precisa desse catálogo — que a API curada das
+      // extensões não expõe, e não deveria expor por causa de uma tela.
+      //
+      // O que a extensão decide é se o recurso está NO AR (`manifest.backend.functions`), e a aba
+      // pergunta isso pelo nome da function em vez do id do pacote: `agentAvailability` responde
+      // `disabled`, `pending` ou `ready`, e a aba diz qual é.
+      //
+      // Sem `requiredPermissions`: emitir um acesso para si mesmo não concede nada de novo — a
+      // interseção garante que ele nunca exceda quem o emitiu. `agent.manage` governa VER e REVOGAR
+      // o de outra pessoa, o que a própria aba decide por linha.
+      surfaceTab({
+        surface: TENANT_SETTINGS_SURFACE,
+        key: 'agent',
+        title: '@core.access/agent.tab',
+        icon: 'sparkling',
+        order: 35,
+      }, 'AgentTabView'),
       settingsSection({
         key: 'tenant-settings',
         title: '@core.tenant/settings.section.title',

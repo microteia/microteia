@@ -7,4 +7,13 @@
  */
 export interface ITenantSettingsRepository {
   getTenantValues(tenantId: string): Promise<Record<string, unknown>>;
+  /**
+   * As configurações PESSOAIS de um membro (`settings/user_{uid}`), que ficam ACIMA das do
+   * escritório na resolução — a mesma ordem `user > tenant > default` do cliente.
+   *
+   * Ela existe porque o gateway de agente resolve texto, e o idioma em que ele resolve é o de quem
+   * emitiu o acesso. Ler só o do escritório faria o agente de um membro responder no idioma de
+   * outro.
+   */
+  getUserValues(tenantId: string, userId: string): Promise<Record<string, unknown>>;
 }

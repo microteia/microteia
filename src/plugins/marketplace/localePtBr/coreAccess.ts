@@ -34,6 +34,79 @@ export const CORE_ACCESS: Record<string, string> = {
     'Uma dependência foi acrescentada à permissão "{id}", que não existe. O acréscimo foi ignorado.',
   'diagnostic.requirement.unknown':
     'A dependência "{required}" acrescentada à permissão "{id}" não existe, então ela foi ignorada — "{id}" continua funcionando como antes.',
+  'agent.tab': 'Agentes de IA',
+  'agent.title': 'Acesso de agente de IA',
+  'agent.description':
+    'Um acesso permite que um agente de IA trabalhe neste escritório em seu nome — pesquisar '
+    + 'registros, cadastrar, alterar, rodar um relatório. Ele nunca pode mais do que você, e você '
+    + 'pode revogá-lo quando quiser.',
+  'agent.banner.disabled':
+    'O acesso de agente de IA não está ativado neste escritório. Instale o "Acesso de Agente de IA" '
+    + 'no Marketplace para ligá-lo.',
+  'agent.banner.pending':
+    'A extensão está instalada, mas o projeto Firebase ainda não foi provisionado, então o endereço '
+    + 'não está no ar. Quem administra o projeto precisa rodar "microteia provision".',
+  'agent.endpoint.label': 'Endereço da conexão',
+  'agent.endpoint.hint':
+    'É o endereço a que o cliente de IA se conecta. O token do acesso vai no cabeçalho '
+    + 'Authorization, e você o recebe ao emitir um acesso.',
+  'agent.empty': 'Nenhum acesso emitido ainda.',
+  'agent.action.issue': 'Emitir acesso',
+  'agent.action.revoke': 'Revogar',
+  'agent.state.active': 'Ativo',
+  'agent.state.revoked': 'Revogado',
+  'agent.state.expired': 'Expirado',
+  'agent.meta.expires': 'expira em',
+  'agent.meta.last-used': 'usado por último em',
+  'agent.meta.never-used': 'nunca usado',
+  'agent.meta.of-another': 'de outro membro',
+  'agent.form.title': 'Emitir um acesso de agente de IA',
+  'agent.form.name': 'Nome',
+  'agent.form.name.placeholder': 'Claude no meu computador',
+  'agent.form.name.hint': 'É como você reconhece este acesso depois, para revogar o certo.',
+  'agent.form.permissions': 'Permissões que este acesso pode usar',
+  'agent.form.permissions.placeholder': 'Escolha as permissões...',
+  'agent.form.permissions.hint':
+    'Só as permissões que você tem são oferecidas. Escolha as menos possíveis para o que precisa: o '
+    + 'acesso pode tudo o que você liberar a ele, e nada além.',
+  'agent.form.expiry': 'Validade',
+  'agent.form.cancel': 'Cancelar',
+  'agent.form.confirm': 'Emitir',
+  'agent.form.issuing': 'Emitindo...',
+  'agent.expiry.30': '30 dias',
+  'agent.expiry.90': '90 dias',
+  'agent.expiry.365': '1 ano',
+  'agent.expiry.never': 'Sem expiração',
+  'agent.issued.title': 'Acesso emitido',
+  'agent.issued.once':
+    'Copie o token agora: ele é mostrado esta única vez e não pode ser recuperado. Se você o perder, '
+    + 'emita outro e revogue este.',
+  'agent.issued.token': 'Token de acesso',
+  'agent.issued.copy': 'Copiar token',
+  'agent.issued.done': 'Pronto',
+  'agent.issued.command': 'Para conectar o Claude Code',
+  'agent.issued.command.hint':
+    'Rode isto num terminal. Outros clientes de IA pedem o endereço e o token separadamente.',
+  'agent.token.copied': 'Token copiado para a área de transferência.',
+  'agent.revoke.title': 'Revogar este acesso?',
+  'agent.revoke.message':
+    'O acesso "{name}" para de funcionar imediatamente, e nenhum agente de IA que o use alcança mais '
+    + 'este escritório. Isto não pode ser desfeito — emita um acesso novo se precisar de um outra vez.',
+  'agent.revoke.failed': 'Não foi possível revogar o acesso. Tente novamente.',
+  'agent.expiry.invalid': 'A validade tem de ficar entre 1 e 366 dias.',
+  'agent.grant.required': 'Informe qual acesso deve ser revogado.',
+  'agent.name.required': 'Dê um nome ao acesso, para ele poder ser reconhecido depois.',
+  'agent.nothing-to-grant':
+    'Você não tem nenhuma permissão neste escritório, então um acesso emitido aqui não concederia nada.',
+  'agent.not-enabled': 'O acesso de agente de IA não está ativado neste escritório.',
+  'agent.permission.unknown': 'A permissão "{permission}" não existe neste escritório.',
+  'agent.permissions.required': 'Escolha ao menos uma permissão para o acesso.',
+  'agent.permissions.unrestricted':
+    'Um acesso não pode receber tudo: liste as permissões que ele pode usar, para que elas possam ser revisadas depois.',
+  'agent.token.failed': 'Não foi possível emitir o acesso. Tente novamente.',
+  'permission.agent.manage': 'Gerenciar acessos de agente de IA',
+  'permission.agent.manage.description':
+    'Ver e revogar os acessos de agente de IA de todos os membros. Emitir um acesso para si mesmo não exige esta permissão.',
   'permission.ai.manage': 'Gerenciar conexões de IA',
   'permission.ai.manage.description':
     'Cadastrar, editar e remover as conexões de inteligência artificial do escritório.',
@@ -83,6 +156,7 @@ export const CORE_ACCESS: Record<string, string> = {
     'Uma dependência acrescentada a uma permissão declarada por outro pacote, ou derivada de uma tela, para que lê-la também conceda o que uma extensão complementar precisa.',
   'point.requirement.title': 'Dependência acrescentada de permissão',
   'point.resource.title': 'Recurso de permissão',
+  'resource.agent': 'Agentes de IA',
   'resource.ai': 'Inteligência artificial',
   'resource.audit': 'Auditoria',
   'resource.automation': 'Automações',

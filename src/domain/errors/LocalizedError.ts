@@ -19,9 +19,34 @@ export class LocalizedError extends Error {
   }
 }
 
-/** Os valores de interpolação de um erro, quando ele os tiver. */
-export const errorParamsOf = (error: unknown): Record<string, string> | undefined =>
-  error instanceof LocalizedError ? error.messageParams : undefined;
+/**
+ * Os valores que a frase de um erro interpola, quando ele os tiver — de qualquer uma das DUAS
+ * origens que existem.
+ *
+ * `LocalizedError` os carrega em `messageParams`, e é o caminho de quem lança dentro do navegador.
+ * Uma callable os manda no terceiro argumento do `HttpsError`, que chega ao cliente como `details` —
+ * é assim que `requirePermission` diz QUAL permissão faltou.
+ *
+ * A segunda origem faltava, e o efeito era silencioso: a frase chegava à tela com o próprio
+ * `{permission}` cru no meio dela, porque o backend passava o valor e o front não o procurava. O
+ * mecanismo já existia nas duas pontas; o que não existia era a ponte.
+ *
+ * Só entra o que é um mapa de valores simples. `details` é livre por contrato do Firebase, e um
+ * objeto aninhado ali viraria `[object Object]` dentro de uma frase.
+ */
+export const errorParamsOf = (error: unknown): Record<string, string> | undefined => {
+  if (error instanceof LocalizedError) return error.messageParams;
+
+  const details = (error as { details?: unknown } | null)?.details;
+  if (typeof details !== 'object' || details === null || Array.isArray(details)) return undefined;
+
+  const params: Record<string, string> = {};
+  for (const [key, value] of Object.entries(details as Record<string, unknown>)) {
+    if (typeof value === 'string') params[key] = value;
+    else if (typeof value === 'number' || typeof value === 'boolean') params[key] = String(value);
+  }
+  return Object.keys(params).length > 0 ? params : undefined;
+};
 
 /**
  * Os parâmetros de uma frase que EMBRULHA um erro: o `{detail}` mais o que a frase de DENTRO

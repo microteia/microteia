@@ -91,6 +91,7 @@ npm run verify          # typecheck + lint + verify-schemas
 |---|---|---|
 | `User` | `users/{uid}` | Não |
 | `UserProfile` | `userProfiles/{uid}` | Não |
+| `AgentGrant` (acesso de agente de IA) | `tenants/{tenantId}/agentGrants/{id}` | Sim (só o HASH do segredo; a escrita é `false` para todo cliente) |
 | `AIConnection` | `tenants/{tenantId}/aiConnections/{id}` | Sim |
 | `AIConnectionSecret` | `tenants/{tenantId}/aiConnections/{id}/secrets/current` | Sim (chave de API — nunca trafega para o frontend) |
 | `Tenant` | `tenants/{tenantId}` | — |
@@ -6473,6 +6474,254 @@ viraram testes do executor rodando a declaração — é o que autorizou a exclu
 
 Na autoria, o provedor escolhido mostra o **host de destino** e as chaves devolvidas: a URL é dado, e
 é isso que torna a escolha revisável.
+
+## Acesso de agente de IA — o MCP de EXECUÇÃO
+
+Existem DOIS servidores MCP neste projeto, e confundi-los é o primeiro erro possível:
+
+| | Autoria (`microteia-plugin mcp`) | Execução (`agentMcp`) |
+|---|---|---|
+| Para quem | quem ESCREVE extensão | quem USA o escritório |
+| Onde roda | máquina do autor, offline por desenho | Cloud Function do projeto do escritório |
+| Transporte | JSON-RPC sobre stdio | MCP Streamable HTTP (`2025-03-26`) |
+| Fala com o Firestore | **nunca** — lê um retrato exportado | sim, é a razão de existir |
+| Arquivos | `src/sdk/node/mcp.ts` | `functions/src/infrastructure/{agent,handlers/agentMcp.ts}` |
+
+O de autoria continua como estava. Esta seção é sobre o segundo.
+
+### A decisão que organiza todo o resto: a API é REFLEXIVA
+
+O caminho natural seria uma API por extensão instalada. Ele é impossível aqui, e não por dificuldade:
+**o kernel não conhece nenhuma extensão, por desenho**, e uma API que soubesse o nome de uma coleção
+de negócio seria o defeito que este projeto existe para não ter.
+
+A saída não é "uma API flexível o bastante". É que a superfície **não tem nome de negócio nenhum**:
+dez ferramentas genéricas em que a coleção é ARGUMENTO, mais a descoberta de esquema que diz ao
+agente o que existe naquele escritório. `search_records(collection, …)`, nunca `search_processo`. É
+exatamente a propriedade que `FirebaseRecordRepository` e `RecordStore` já têm — recebem a coleção
+como argumento e servem qualquer uma — levada até a superfície de ferramentas.
+
+Isso também mantém o custo de contexto CONSTANTE: a lista de ferramentas não cresce com cada extensão
+instalada, e `describe_screen` é o que dispensa uma ferramenta por entidade.
+
+### O gateway é ADAPTADOR, não motor
+
+Cada operação delega a um executor que já servia o motor de automações ou os relatórios. É isso que
+faz uma gravação de agente passar pelas mesmas conferências de uma gravação de tela sem que nada seja
+dito duas vezes:
+
+| Operação | Executor reusado |
+|---|---|
+| `search_records` | `runWorkflowQuery` (índice-free; só igualdade desce ao Firestore) |
+| `create_record` / `update_record` | `runWorkflowUpsert` — a porta de gravação do backend |
+| `delete_record` | `runWorkflowRemove` |
+| `run_report` | `runReportQuery`, com `reportSourceCollections` para enumerar o que ele alcança |
+| `run_workflow` | `publishEvent` — PUBLICA, não executa |
+| `run_action` | `RunCalledWorkflowUseCase` |
+| esquema | `ScreenDefinitionCache.getSchemaContext` |
+
+`runAgentOperation.ts` tem uma ordem só, e ela é o que o mantém adaptador: resolver a ferramenta,
+cobrar a permissão declarada, traduzir o argumento para a forma do executor, delegar, resolver a
+referência que voltou. Nenhuma regra de negócio, nenhuma validação de campo.
+
+> **`run_report` não reusa `requireReportCollections`, e a razão é o ATOR.** Aquela função cobra com
+> `requirePermission`, que responde pelo conjunto do USUÁRIO — usá-la aqui faria um relatório ler uma
+> coleção que o teto do token exclui. A ENUMERAÇÃO é a mesma função (`reportSourceCollections`, então
+> o que é alcançado nunca divergirá, inclusive os saltos por referência); o que muda é de quem se
+> cobra.
+
+> **`run_workflow` devolve o `eventId`, não o resultado.** É a mesma decisão da callable `runWorkflow`,
+> e não uma limitação deste caminho: levar as permissões no payload persistiria um retrato do acesso
+> de alguém dentro do barramento, e um retrato envelhece. `get_workflow_run` lê o desfecho depois, e
+> diz `pending` quando o motor ainda não começou — vazio não é "nada vai acontecer".
+
+### A autenticação — o token é emitido no app, e só o hash é gravado
+
+Formato `mt_<tenantId>.<grantId>.<segredo>`, com 43 caracteres de um alfabeto de 64 (258 bits). O
+escritório viaja DENTRO do token, e é o que faz achar o acesso ser uma leitura pontual em vez de uma
+consulta por hash sobre todos os escritórios do projeto — o mesmo arranjo de um token de Slack, que
+carrega o time. O Firestore guarda **só** o SHA-256 do segredo, e nem o servidor precisa recuperá-lo:
+não havendo o que ler, não há como vazar.
+
+**A permissão efetiva é uma interseção, recalculada a cada chamada:**
+
+```
+efetiva = grantedPermissions(user)  ∩  grant.permissions
+```
+
+Nenhum vocabulário novo: o teto são ids do catálogo que o escritório já tem. Duas propriedades caem de
+graça, e são elas que dispensam um segundo modelo de autorização:
+
+- um acesso **nunca** excede o de quem o emitiu, mesmo que o teto peça mais — então emitir um acesso
+  para si não concede nada, e por isso não exige permissão;
+- tirar o perfil da pessoa estreita o agente na chamada seguinte, sem tocar no token.
+
+O curinga do dono (`*`) é a AUSÊNCIA de limite, não uma permissão: ele interseca para exatamente o
+teto declarado. Sem este caso, o dono receberia acesso irrestrito em todo token que emitisse — o
+oposto de declarar um teto.
+
+### A ordem das recusas não é arbitrária
+
+`authenticateAgent` falha fechada em cada passo, e a ordem é ela mesma uma decisão:
+
+1. **parse** → `malformed`. Não lê nada.
+2. **o portão da extensão** → `inactive`. Vem ANTES de ler o acesso: num escritório que desativou a
+   extensão, nem a EXISTÊNCIA de um acesso é observável. O desligamento é completo, não "responde
+   diferente".
+3. **acesso inexistente, sem dono, ou segredo errado** → `unknown`, os três com a MESMA resposta.
+   Distinguir diria a quem tenta se aquele id existe, e um oráculo de existência é meio caminho para
+   o resto. A comparação de hash é em tempo constante pelo mesmo motivo.
+4. **revogado / expirado** → ditos por extenso, porque são acionáveis e quem os recebe é o dono
+   legítimo: um pede outro token, o outro pede falar com quem revogou.
+5. **interseção vazia** → `no-access`, recusada aqui e não em cada ferramenta. Um acesso que não
+   alcança nada não é degradado: quem o emitiu perdeu os perfis. Responder "sem permissão" dez vezes
+   esconderia isso atrás de dez mensagens.
+
+### O portão pergunta pelo NOME DA FUNCTION, nunca pelo id do plugin
+
+`@microteia/office` responde "a MINHA extensão está instalada?" e o chamador passa o próprio id — o
+que é certo para a function DE uma extensão. Uma function do KERNEL reivindicada por uma extensão não
+pode fazer essa pergunta sem escrever o id do reivindicante dentro do núcleo.
+
+Então ela pergunta pelo nome dela mesma: *alguma* extensão instalada e ativa reivindica esta function?
+(`InstalledExtensionCache.claimsFunction`). O kernel nomeia só o que é dele, a resposta continua sendo
+dado do escritório, e quem bifurcar a extensão para um pacote próprio continua atendido sem alterar o
+núcleo. A tela faz a MESMA pergunta (`agentAvailability`), com três respostas: `disabled`, `pending`
+(reivindicada e o projeto ainda não provisionado — instalado não é o mesmo que alcançável) e `ready`.
+
+### O primeiro `onRequest` do produto — e o portão que não se aplica
+
+`cli/src/console/functionGate.ts` lista `onRequest` entre os construtores que exigem
+`forEachInstalledOffice`, porque o evento de um `onRequest` não carrega `{tenantId}` no caminho e uma
+function assim agiria sobre o projeto inteiro. O gate inspeciona só as fontes do ESCRITÓRIO
+(`office.sources`), então não alcança esta function — mas a preocupação alcança, e a resposta é uma
+**terceira** saída legítima: o escritório vem do TOKEN, e o portão é conferido explicitamente antes de
+qualquer outra coisa. Não é ausência de portão; é o portão feito pela pergunta inversa, a única que um
+`onRequest` pode fazer.
+
+O endpoint é **sem sessão**: cada requisição se autentica sozinha e nada é guardado entre elas. A spec
+permite responder `application/json` em vez de abrir um fluxo SSE, e um servidor sem estado é o que
+sobrevive a uma instância de Cloud Function que morre entre duas chamadas.
+
+> **`onRequest` passou a contar como "chamável de fora".** `callableFunctionNames`
+> (`cli/src/kernel/manifest.ts`) casa `onCall` e `onRequest`: a lista significa *o que o mundo de fora
+> chama*, não *o que é `onCall`*, e um endpoint HTTP depende da invocação pública mais que uma
+> callable. Assim o preflight de `callableAccess` o cobre sem mudar uma linha — ele pergunta `OPTIONS`
+> e confere o cabeçalho de CORS, que um `onRequest` com `cors: true` responde igual.
+
+### O backend passou a RESOLVER referência de mensagem
+
+O backend nunca formatou frase: devolve a referência (`@core.records/field.invalid-format`) e deixa a
+resolução para a tela, com o catálogo de quem lê. **O gateway é o primeiro consumidor que não é uma
+tela**, e devolver a referência crua a um modelo é devolver nada.
+
+- `buildMessageCatalog` e `translate` já estavam sincronizados; o que faltava era o catálogo `en` do
+  núcleo do lado que emite. Os **dez namespaces que o backend cita** entraram em
+  `scripts/sync-schemas.cjs`, e `agentMessages.test.ts` reprova nas duas direções: namespace citado e
+  não sincronizado, e namespace sincronizado que ninguém cita. A lista fica DERIVADA.
+- O reconhecimento da referência é `parseMessageRef`, a mesma porta da tela — não um
+  `startsWith('@')`: a chave plena do catálogo não leva o `@`, e um `@` no meio de uma frase não é
+  referência.
+- A tradução funciona **sem mecanismo novo**: o pacote de idioma é uma extensão contribuindo
+  `i18n.messages`, e `InstalledExtensionCache.messageBundles` os traz. Um escritório com pt-BR
+  instalado tem o agente respondendo em português pela mesma via que as telas usam. O idioma é
+  `user > tenant > default`, do dono do acesso.
+- A resposta carrega **texto E referência**. Um modelo que recebe só "Formato inválido" não distingue
+  dois motivos que compartilham a frase, e quem depura precisa da chave.
+
+### O que vale igual, e o que declaradamente NÃO vale
+
+Vale igual ao caminho do navegador: RBAC por permissão, regras de campo (`rules.format`,
+`rules.validate`, `logic.validate`, `logic.compute`), obrigatoriedade, coerção ao tipo declarado,
+unicidade por `keys` (atômica, via reserva em `recordKeys`), eventos de automação, agregados e
+auditoria — os quatro últimos porque são gatilhos do Firestore e disparam para qualquer escrita.
+
+**Não** vale: `hiddenWhen`, `disabledWhen` e `onChange`, que são de tela por definição, e qualquer
+checagem que exista só num ViewModel.
+
+Essa assimetria é **dita ao agente**, em `microteia://office/info` (`AGENT_ENFORCED` e
+`AGENT_UNENFORCED`), em vez de ficar implícita: um agente que gravasse num campo escondido por
+condição concluiria — corretamente, a partir do silêncio — que ele era livre.
+
+> Um `agentAccess` declarado por tela foi considerado e ficou de fora: seria um segundo eixo de
+> autorização ao lado do RBAC, e a interseção do grant já responde por coleção.
+
+### A leitura de VOCABULÁRIO não é cobrada
+
+`firestore.rules` libera a leitura de uma lista de opções ou de um conjunto de etiquetas a qualquer
+membro (`isDeclaredVocabulary`), sem cobrar `<coleção>.read`: são vocabulário, não dado. O caminho do
+agente diz o mesmo — não por conveniência, mas porque dizer o contrário faria a mesma pergunta ter
+duas respostas, e obrigaria quem emite um acesso a listar cada uma das dezenas de listas do escritório
+para que um único campo de seleção pudesse ser preenchido. A ESCRITA continua cobrada.
+
+### A cascata de exclusão desceu para o backend
+
+`runWorkflowRemove` apagava o registro e as reservas de chave, e **não** cascateava: o Step "Excluir
+Registro" deixava anotações, documentos e arquivos do Storage sem nenhum documento que os alcançasse,
+sem erro em lugar nenhum. `DeleteRecordUseCase` sempre cascateou do lado do cliente.
+
+A cascata mora agora em `FirestoreWorkflowMutationRepository.delete` — ponto único de exclusão do
+backend —, e vem ANTES da exclusão do registro: se ela falhar no meio, o registro continua lá e uma
+segunda tentativa termina o serviço. Na ordem inversa, uma falha deixaria órfãos que ninguém encontra
+para apagar. O defeito não era do agente; é que foi ele quem o encontrou.
+
+### O carimbo de autoria
+
+`UpsertOptions.writeActor` decide o `createdBy`/`updatedBy`. O padrão continua sendo `workflow-engine`,
+que é a verdade quando o motor gravou; o agente passa o **uid da pessoa**, porque é ela que responde
+pelo que ele faz — e porque é o único valor que a auditoria resolve (`resolveActor` procura o uid em
+`userProfiles` e `users`, e qualquer coisa composta apareceria como "usuário desconhecido", perdendo
+também o nome da pessoa). Distinguir na auditoria QUAL agente gravou exigiria um campo de ator próprio
+no registro de auditoria, não um valor enfiado no campo de autor de um documento de negócio.
+
+### As duas metades: o que é do kernel e o que é da extensão
+
+| | Onde | Por quê |
+|---|---|---|
+| Coleção `agentGrants`, permissão `agent.manage`, as três callables, a aba | **kernel** | coleção reservada, callables que validam contra o catálogo do escritório, e uma tela que precisa desse catálogo — a mesma divisão de `aiConnections`/`ai.manage` |
+| A DECISÃO de ter o recurso | **extensão** `com.microteia.agent` | `manifest.backend.functions` tira as três da baseline do pacote: escritório que não instalou não tem endpoint HTTP no ar, que é garantia mais forte que qualquer checagem em tempo de requisição |
+
+A extensão carrega quase nada — um interruptor de configuração (`agent.selfServiceGrants`) e a
+reivindicação de backend — e é justamente esse o ponto dela. Ela é também a primeira extensão de
+primeira parte a reivindicar backend, e `backendShape.test.ts` afirma a lista por extenso: uma
+reivindicação acrescentada sem intenção tira uma function da baseline e ela deixa de subir para todo
+mundo, em silêncio.
+
+### A regra do Firestore
+
+```
+match /agentGrants/{grantId} {
+  allow read: if isMember(tenantId)
+    && (resource.data.userId == request.auth.uid || can(tenantId, 'agent.manage'));
+  allow write: if false;
+}
+```
+
+**A escrita é `false` para todo cliente, sem exceção**, e não por rigor: o segredo tem de ser sorteado
+no servidor e o documento só pode nascer com o hash dele — quem escolhe o hash escolhe o token.
+
+O `isMember` não é redundante com o resto: sem ele, quem SAIU do escritório continuaria lendo o acesso
+que emitiu enquanto era membro, porque o `userId` do documento ainda casa com o uid dele. Seria o
+único documento do produto a responder a ex-membro.
+
+### Arquivos-chave
+
+| Arquivo | O que é |
+|---|---|
+| `domain/schema/agent/agentGrant.ts` | formato do token, hash, validade, a INTERSEÇÃO (sincronizado) |
+| `domain/schema/agent/agentOps.ts` | as dez ferramentas, os quatro recursos, e a regra de cobrança de cada uma |
+| `domain/schema/agent/agentBackend.ts` | os nomes das três functions — contrato entre `index.ts`, o manifest e o portão |
+| `functions/src/infrastructure/agent/authenticateAgent.ts` | token → sessão, com a ordem das recusas |
+| `functions/src/infrastructure/agent/runAgentOperation.ts` | o despacho |
+| `functions/src/infrastructure/agent/agentAuthorization.ts` | qual permissão cada chamada cobra |
+| `functions/src/infrastructure/agent/describeScreen.ts` | a tela como esquema legível por agente |
+| `functions/src/infrastructure/agent/agentMessages.ts` | a resolução de referência do lado que a emite |
+| `functions/src/infrastructure/handlers/agentMcp.ts` | o transporte HTTP |
+| `data/services/InstalledExtensionCache.ts` | a pergunta inversa do portão, e os bundles de idioma |
+| `presentation/pages/TenantSettings/AgentTab/` | a aba que emite e revoga |
+| `plugins/marketplace/agent.ts` | a extensão — o interruptor |
+
+---
 
 ## Fronteira de confiança do código de extensão
 

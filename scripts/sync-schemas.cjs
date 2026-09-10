@@ -76,6 +76,10 @@ const SHARED_FILES = [
   'domain/schema/access/permissionGate.ts',
   'domain/schema/access/permissionPattern.ts',
   'domain/schema/access/index.ts',
+  'domain/schema/agent/agentBackend.ts',
+  'domain/schema/agent/agentGrant.ts',
+  'domain/schema/agent/agentOps.ts',
+  'domain/schema/agent/index.ts',
   'domain/schema/report/reportSpec.ts',
   'domain/schema/report/reportCapabilities.ts',
   'domain/schema/report/reportBuckets.ts',
@@ -92,6 +96,25 @@ const SHARED_FILES = [
   'kernel/CapabilityRegistry.ts',
   'kernel/PluginHost.ts',
   'kernel/index.ts',
+  // Os catálogos do idioma-fonte que o BACKEND precisa resolver.
+  //
+  // Ele sempre emitiu referência (`@core.records/field.invalid-format`) e deixou a resolução para a
+  // tela, que tem o catálogo de quem lê. O gateway de agente é o primeiro consumidor que NÃO é uma
+  // tela: devolver a referência crua a um modelo é devolver nada.
+  //
+  // A lista é o conjunto de namespaces que `functions/src` de fato cita, e `agentMessages.test.ts`
+  // reprova quando o backend passa a citar um que não está aqui — é o que a mantém derivada em vez
+  // de mantida à mão.
+  'plugins/messages/coreAccess.ts',
+  'plugins/messages/coreAdmin.ts',
+  'plugins/messages/coreAutomation.ts',
+  'plugins/messages/coreData.ts',
+  'plugins/messages/coreMarketplace.ts',
+  'plugins/messages/coreRecords.ts',
+  'plugins/messages/coreReports.ts',
+  'plugins/messages/coreTenant.ts',
+  'plugins/messages/coreUi.ts',
+  'plugins/messages/coreWorkspace.ts',
 ];
 
 const buildHeader = (relativePath) =>

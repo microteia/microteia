@@ -150,6 +150,15 @@ export default defineConfig([
       // API, não texto de runtime — não passam por catálogo e não têm como ser traduzidas em tempo de
       // execução —, e devem ir para o inglês como as de extensão já foram.
       'src/presentation/pages/ViewScript/scriptTypeDefs.ts',
+      // O mesmo caso, do lado do agente de IA: a descrição de cada ferramenta e de cada recurso do
+      // MCP de execução é documentação de API entregue a quem CONSOME a superfície — o mesmo leitor
+      // de `extensionTypeDefs.ts` e do `AUTHORING.md`, e por isso já escrita em inglês. Ela não passa
+      // por catálogo por decisão: são ~40 frases que guiam um modelo, não texto que alguém lê na
+      // tela, e traduzi-las obrigaria a manter em pt-BR a documentação de uma API cujo idioma é o
+      // inglês. O que a regra continua cobrando é o que importa — a TELA que gerencia os acessos, que
+      // é texto de usuário e nasce no catálogo.
+      'src/domain/schema/agent/agentOps.ts',
+      'functions/src/domain/schema/agent/agentOps.ts',
       // A esteira do Gmail/push pertence ao plugin de push, que não é traduzido nesta rodada —
       // o texto dela casa com o e-mail de tribunal que ela processa.
       'functions/src/domain/services/gmailPushAuditText.ts',

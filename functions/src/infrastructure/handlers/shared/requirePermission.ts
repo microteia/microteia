@@ -23,6 +23,25 @@ const isTenantOwner = async (tenantId: string, userId: string): Promise<boolean>
   (await getDI().getTenantRepository().getById(tenantId))?.ownerId === userId;
 
 /**
+ * O conjunto concedido, SEM exigir permissão nenhuma — e sem lançar.
+ *
+ * `requirePermission` responde "pode fazer X?"; esta responde "o que pode?". A diferença importa para
+ * quem precisa do conjunto ANTES de saber o que vai perguntar: o acesso de agente cruza este conjunto
+ * com o teto declarado no token, e a pergunta concreta só aparece depois, uma por operação.
+ *
+ * Ela mora aqui, e reusa as duas frases privadas acima, porque são as MESMAS três regras que decidem
+ * quem entra num escritório — membro, dono, SYSTEM. Escrevê-las de novo do lado do agente seria a
+ * quarta cópia, e ela divergiria justamente onde não se pode divergir.
+ *
+ * Vazio é a resposta de quem não é membro: a ausência não concede nada.
+ */
+export const grantedPermissions = async (tenantId: string, userId: string): Promise<string[]> => {
+  if (await isSystemAdmin(userId)) return [UNRESTRICTED_PERMISSION];
+  if (await isTenantOwner(tenantId, userId)) return [UNRESTRICTED_PERMISSION];
+  return getDI().getTenantMemberRepository().getMemberPermissions(tenantId, userId);
+};
+
+/**
  * Devolve o conjunto CONCEDIDO, e não `void`: quem acabou de autorizar quase sempre precisa dele em
  * seguida para montar o ator da execução (`WorkflowContext.actor`), e uma segunda leitura do mesmo
  * documento seria só desperdício. O administrador global recebe o curinga, que é o que ele de fato

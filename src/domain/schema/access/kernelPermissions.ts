@@ -23,6 +23,7 @@ export const PERMISSION_EXTENSIONS_MANAGE = 'extensions.manage';
 export const PERMISSION_SETTINGS_MANAGE = 'settings.manage';
 export const PERMISSION_AUDIT_READ = 'audit.read';
 export const PERMISSION_AI_MANAGE = 'ai.manage';
+export const PERMISSION_AGENT_MANAGE = 'agent.manage';
 export const PERMISSION_TRANSLATIONS_MANAGE = 'translations.manage';
 export const PERMISSION_DATA_PROCESSOR_USE = 'data-processor.use';
 export const PERMISSION_DOCUMENT_TYPES_MANAGE = 'document-types.manage';
@@ -88,6 +89,11 @@ export const KERNEL_PERMISSIONS: AccessPermission[] = [
     description: '@core.access/permission.ai.manage.description',
   },
   {
+    id: PERMISSION_AGENT_MANAGE,
+    name: '@core.access/permission.agent.manage',
+    description: '@core.access/permission.agent.manage.description',
+  },
+  {
     id: PERMISSION_TRANSLATIONS_MANAGE,
     name: '@core.access/permission.translations.manage',
     description: '@core.access/permission.translations.manage.description',
@@ -121,6 +127,7 @@ export const KERNEL_PERMISSION_RESOURCES: PermissionResource[] = [
   { id: 'extensions', name: '@core.access/resource.extensions' },
   { id: 'settings', name: '@core.access/resource.settings' },
   { id: 'audit', name: '@core.access/resource.audit' },
+  { id: 'agent', name: '@core.access/resource.agent' },
   { id: 'ai', name: '@core.access/resource.ai' },
   { id: 'translations', name: '@core.access/resource.translations' },
   { id: 'data-processor', name: '@core.access/resource.data-processor' },

@@ -32,6 +32,7 @@ const CATALOG = 'src/plugins/marketplace/catalog.ts';
 
 /** Arquivo distribuído → export do módulo de catálogo que o origina. */
 const TEMPLATES = {
+  'agent.json': 'agentPlugin',
   'brasil.json': 'brasilPlugin',
   'news.json': 'newsPlugin',
   'dashboard.json': 'dashboardPlugin',

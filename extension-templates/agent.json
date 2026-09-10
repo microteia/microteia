@@ -1,0 +1,113 @@
+{
+  "manifest": {
+    "id": "com.microteia.agent",
+    "version": "1.0.0",
+    "kernel": "^2.0.0",
+    "name": "@com.microteia.agent/package.name",
+    "description": "@com.microteia.agent/package.description",
+    "category": "@com.microteia.agent/package.category",
+    "publisher": {
+      "name": "Microteia"
+    },
+    "contributes": [
+      {
+        "point": "i18n.messages",
+        "id": "en.com.microteia.agent",
+        "apiVersion": "1.0.0",
+        "metadata": {
+          "locale": "en",
+          "namespace": "com.microteia.agent",
+          "messages": {
+            "package.name": "AI Agent Access",
+            "package.category": "Productivity",
+            "package.description": "Lets an AI agent read and change this office data, with the permissions each person releases and nothing more.",
+            "package.summary": "Turns on a connection an AI agent can use to work inside this office — search records, register them, change them, run a report or an automation — without any access to the database. Each person issues their own access, chooses which permissions it may use and for how long, and revokes it at any time. An access can never do more than the person who issued it.",
+            "settings.section.title": "AI agent access",
+            "settings.section.description": "How accesses are issued in this office.",
+            "settings.self-service": "Every member can issue their own access",
+            "settings.self-service.description": "On, anyone issues an access for themselves — which grants nothing new, since an access can never exceed the permissions the person already has. Off, issuing one requires the permission to manage AI agent access."
+          }
+        }
+      },
+      {
+        "point": "i18n.messages",
+        "id": "pt-br.com.microteia.agent",
+        "apiVersion": "1.0.0",
+        "metadata": {
+          "locale": "pt-BR",
+          "namespace": "com.microteia.agent",
+          "messages": {
+            "package.name": "Acesso de Agente de IA",
+            "package.category": "Produtividade",
+            "package.description": "Permite que um agente de IA leia e altere os dados deste escritório, com as permissões que cada pessoa liberar e nada além.",
+            "package.summary": "Liga uma conexão que um agente de IA pode usar para trabalhar dentro deste escritório — pesquisar registros, cadastrar, alterar, rodar um relatório ou uma automação — sem nenhum acesso ao banco de dados. Cada pessoa emite o próprio acesso, escolhe quais permissões ele pode usar e por quanto tempo, e o revoga quando quiser. Um acesso nunca pode mais do que a pessoa que o emitiu.",
+            "settings.section.title": "Acesso de agente de IA",
+            "settings.section.description": "Como os acessos são emitidos neste escritório.",
+            "settings.self-service": "Todo membro pode emitir o próprio acesso",
+            "settings.self-service.description": "Ligado, qualquer pessoa emite um acesso para si — o que não concede nada de novo, já que um acesso nunca excede as permissões que ela já tem. Desligado, emitir um passa a exigir a permissão de gerenciar acessos de agente de IA."
+          }
+        }
+      },
+      {
+        "point": "ui.settings",
+        "id": "agent",
+        "apiVersion": "1.0.0",
+        "metadata": {
+          "key": "agent",
+          "title": "@com.microteia.agent/settings.section.title",
+          "description": "@com.microteia.agent/settings.section.description",
+          "icon": "sparkling",
+          "order": 35,
+          "properties": [
+            {
+              "key": "agent.selfServiceGrants",
+              "label": "@com.microteia.agent/settings.self-service",
+              "description": "@com.microteia.agent/settings.self-service.description",
+              "type": "boolean",
+              "default": true,
+              "scopes": [
+                "tenant"
+              ]
+            }
+          ]
+        }
+      }
+    ],
+    "backend": {
+      "functions": [
+        "agentMcp",
+        "createAgentGrant",
+        "revokeAgentGrant"
+      ]
+    }
+  },
+  "summary": "@com.microteia.agent/package.summary",
+  "overview": {
+    "type": "stack",
+    "gap": "lg",
+    "children": [
+      {
+        "type": "markdown",
+        "content": "**AI Agent Access** lets an AI assistant work inside this office, on the office own data, without any access to the database.\n\n- Each person issues **their own access**, in Organization → AI agents.\n- The access declares **which permissions it may use** and, if you want, **when it expires**.\n- An access can **never do more than the person who issued it**: lose a role, and every access of yours narrows on the next call.\n- Any access can be **revoked at any time**, and it stops working immediately.\n\nOnce connected, the assistant discovers the screens this office has and can search records, register them, change them, delete them, run a report and start an automation — each of those only when the access releases it."
+      },
+      {
+        "type": "keyValue",
+        "items": [
+          {
+            "label": "Connection",
+            "value": "MCP over HTTP — nothing to install on the machine"
+          },
+          {
+            "label": "Authentication",
+            "value": "An access token issued in the application, revocable"
+          },
+          {
+            "label": "Limit",
+            "value": "The permissions of the person who issued it, intersected with the ones the access declares"
+          }
+        ]
+      }
+    ]
+  },
+  "workflows": []
+}

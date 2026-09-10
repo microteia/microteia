@@ -99,13 +99,21 @@ describe('callables no manifesto', () => {
   const callables = (): string[] =>
     [...new Set(sources().flatMap((source) => callableFunctionNames(source)))];
 
-  it('distingue callable de gatilho', () => {
+  // A lista é "o que o mundo de fora chama", e não "o que é `onCall`". O gatilho fica de fora porque
+  // ninguém o alcança por URL; o `onRequest` entra porque a invocação pública decide se ele responde,
+  // exatamente como decide para uma callable.
+  it('distingue o que se chama de fora do que só um gatilho acorda', () => {
     const parsed = callableFunctionNames(
       "export const chamada = onCall({ region: 'x' }, () => 1);\n"
       + "export const gatilho = onDocumentWritten('a/{b}', () => 2);\n"
-      + "export const web = onRequest(() => 3);\n",
+      + "export const web = onRequest(() => 3);\n"
+      + "export const agendada = onSchedule('every day 03:00', () => 4);\n",
     );
-    expect(parsed).toEqual(['chamada']);
+    expect(parsed).toEqual(['chamada', 'web']);
+  });
+
+  it('o endpoint HTTP do agente entra na conferência de alcance', () => {
+    expect(callables()).toContain('agentMcp');
   });
 
   it('encontra as callables reais do backend', () => {

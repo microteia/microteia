@@ -18,6 +18,62 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.63.0] — 2026-09-10
+
+- feat(agent): an MCP server over HTTP that lets an AI agent operate an office — the first `onRequest`
+  in the product, claimed by `com.microteia.agent` so it is deployed only where the office installed
+  it. Ten generic tools and four resources, none of them named after a business entity: the
+  collection is an argument, and `describe_screen` is what replaces one tool per installed entity. A
+  per-entity API would have made the kernel know the extension, which is the defect this project
+  exists not to have, and would have grown the tool list with every install.
+- feat(agent): the gateway is an ADAPTER, not an engine. Every operation delegates to an executor
+  that already serves the workflow engine or the reports — `runWorkflowQuery`, `runWorkflowUpsert`,
+  `runWorkflowRemove`, `runReportQuery`, `RunCalledWorkflowUseCase` — so field rules, uniqueness
+  keys, type coercion, entity events, aggregates and the audit log all apply to an agent write
+  exactly as they do to a screen write, and none of it is stated twice.
+- feat(agent): access is a token issued in the application (`mt_<tenant>.<grant>.<secret>`), with
+  only its SHA-256 stored. Effective permissions are `granted(user) ∩ grant.permissions`, recomputed
+  on every call: an access can never exceed the person who issued it, and revoking their role
+  narrows it on the next request without touching the token. The owner's `*` intersects down to the
+  declared ceiling, so a ceiling stays a ceiling even for the office owner.
+- feat(agent): the runtime gate asks the INVERSE question — "does any installed, active extension
+  claim the function named `agentMcp`?" — instead of naming a plugin id inside the kernel
+  (`InstalledExtensionCache.claimsFunction`). The kernel names only what is its own, the answer stays
+  data belonging to the office, and forking the extension into another package keeps working.
+- feat(i18n): the backend can now RESOLVE a message reference. It has always emitted
+  `@core.records/field.invalid-format` and left resolution to the screen; the agent gateway is the
+  first consumer that is not a screen, and a raw reference is no answer to a model. The ten source
+  catalogs the backend cites are synced to `functions/src`, and `agentMessages.test.ts` refuses a
+  namespace cited but not synced — so the list stays derived. A translation package installed in the
+  office reaches the agent through the same `i18n.messages` contribution the screens use.
+- fix(workflow/mutation): deleting a record now cascades its notes, its attached documents and the
+  stored files of both. `DeleteRecordUseCase` always cascaded on the client; the "Remove record" step
+  deleted the document alone and left everything hanging from it unreachable, with no error
+  anywhere. The cascade runs BEFORE the record so a mid-way failure leaves something that can still
+  be found and retried.
+- feat(workflow/mutation): `UpsertOptions.writeActor` — the author stamped on a write. The engine
+  stays the default because it is the truth when the engine wrote; the agent passes its own, because
+  saying "workflow-engine" for a write a person asked an agent to make would lie in the only field
+  anyone can trace it by.
+- feat(access): `agent.manage` is a KERNEL permission, alongside `ai.manage` and for the same
+  reasons — reserved collection, kernel callables, and a screen that needs the office's own
+  permission catalog. Issuing an access for oneself needs no permission at all: it grants nothing
+  new. `agentGrants` joins `RESERVED_COLLECTIONS`, and its rule reads for the owner or
+  `agent.manage` and writes for nobody — whoever chooses the hash chooses the token.
+- fix(rules): the `agentGrants` read is gated by membership on both branches. Without it, whoever
+  LEFT an office would keep reading the access they issued while a member, because the document's
+  `userId` still matches their uid — the only document in the product that would answer an
+  ex-member.
+- fix(errors): `errorParamsOf` now also reads the params a callable sends. `HttpsError`'s third
+  argument reaches the client as `details`, and nothing in the front looked there — so
+  `requirePermission`'s phrase arrived on screen with a literal `{permission}` in the middle of it.
+  The mechanism existed on both ends; the bridge did not.
+- feat(cli/manifest): `callableFunctionNames` now also matches `onRequest`. The list means "what the
+  outside world calls", not "what is an `onCall`", and an HTTP endpoint depends on public invocation
+  even more than a callable does. The `functions-invoker` prerequisite text was corrected in the same
+  change: it promised every callable rejects a caller with no signed-in user, which is not what an
+  endpoint authenticating by token does.
+
 #### [9.62.0] — 2026-09-09
 
 - feat(sdk/examples): eleven authored examples, one mechanism each, joining `automation-example` in

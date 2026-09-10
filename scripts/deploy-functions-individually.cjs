@@ -19,6 +19,9 @@ const path = require('path');
 
 // Lista completa de functions exportadas (ordem de index.ts)
 const ALL_FUNCTIONS = [
+  'agentMcp',
+  'createAgentGrant',
+  'revokeAgentGrant',
   'callAIProxy',
   'detectWorkflows',
   'runWorkflow',

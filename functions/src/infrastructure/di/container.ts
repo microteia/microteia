@@ -3,6 +3,7 @@ import { FirebaseAuditLogRepository } from '../../data/repositories/FirebaseAudi
 import { UserProfileLookupService } from '../../data/services/UserProfileLookupService';
 import { FkNameEnricherService } from '../../data/services/FkNameEnricherService';
 import { PermissionCatalogCache } from '../../data/services/PermissionCatalogCache';
+import { InstalledExtensionCache } from '../../data/services/InstalledExtensionCache';
 import { makeMaterializeMemberPermissionsUseCase } from '../../domain/usecases/MaterializeMemberPermissionsUseCase';
 import type { MaterializeMemberPermissionsUseCase } from '../../domain/usecases/MaterializeMemberPermissionsUseCase';
 import { makeCreateAuditLogUseCase } from '../../domain/usecases/CreateAuditLogUseCase';
@@ -14,6 +15,7 @@ import type { IUserProfileLookupService } from '../../domain/repositories/IUserP
 import type { IFkNameEnricherService } from '../../domain/repositories/IFkNameEnricherService';
 import { FirebaseAIConnectionRepository } from '../../data/repositories/FirebaseAIConnectionRepository';
 import { FirebaseTenantMemberRepository } from '../../data/repositories/FirebaseTenantMemberRepository';
+import { FirebaseAgentGrantRepository } from '../../data/repositories/FirebaseAgentGrantRepository';
 import { FirebaseUserRepository } from '../../data/repositories/FirebaseUserRepository';
 import { FirebaseNicknameRepository } from '../../data/repositories/FirebaseNicknameRepository';
 import { FirebaseTenantRepository } from '../../data/repositories/FirebaseTenantRepository';
@@ -41,6 +43,7 @@ import type { IAIConnectionRepository } from '../../domain/repositories/IAIConne
 import type { ITenantRepository } from '../../domain/repositories/ITenantRepository';
 import type { ITenantSettingsRepository } from '../../domain/repositories/ITenantSettingsRepository';
 import type { ITenantMemberRepository } from '../../domain/repositories/ITenantMemberRepository';
+import type { IAgentGrantRepository } from '../../domain/repositories/IAgentGrantRepository';
 import type { IUserRepository } from '../../domain/repositories/IUserRepository';
 import { FirebaseWorkflowDefinitionRepository } from '../../data/repositories/FirebaseWorkflowDefinitionRepository';
 import { FirebaseWorkflowExecutionRepository } from '../../data/repositories/FirebaseWorkflowExecutionRepository';
@@ -82,6 +85,8 @@ class DIContainer {
   private checkNicknameAvailabilityUC?: CheckNicknameAvailabilityUseCase;
   private claimNicknameUC?: ClaimNicknameUseCase;
   private tenantMemberRepo?: ITenantMemberRepository;
+  private agentGrantRepo?: IAgentGrantRepository;
+  private installedExtensionCache?: InstalledExtensionCache;
   private addTenantMemberUC?: AddTenantMemberUseCase;
   private removeTenantMemberUC?: RemoveTenantMemberUseCase;
   private userRepo?: IUserRepository;
@@ -196,6 +201,20 @@ class DIContainer {
       this.tenantMemberRepo = new FirebaseTenantMemberRepository(getDb());
     }
     return this.tenantMemberRepo;
+  }
+
+  getInstalledExtensionCache(): InstalledExtensionCache {
+    if (!this.installedExtensionCache) {
+      this.installedExtensionCache = new InstalledExtensionCache(getDb());
+    }
+    return this.installedExtensionCache;
+  }
+
+  getAgentGrantRepository(): IAgentGrantRepository {
+    if (!this.agentGrantRepo) {
+      this.agentGrantRepo = new FirebaseAgentGrantRepository(getDb());
+    }
+    return this.agentGrantRepo;
   }
 
   getAddTenantMemberUseCase(): AddTenantMemberUseCase {

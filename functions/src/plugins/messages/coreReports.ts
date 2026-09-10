@@ -1,0 +1,168 @@
+// ═══════════════════════════════════════════════════════════════════════════
+// ⚠️  ARQUIVO GERADO POR scripts/sync-schemas.cjs — NÃO EDITE.
+// Fonte única: src/plugins/messages/coreReports.ts
+// Para alterar, edite a fonte e rode: npm run sync-schemas
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * Os textos dos RELATÓRIOS: o ponto de extensão e, sobretudo, o que se diz a quem declarou um
+ * relatório que este kernel não pode responder por inteiro.
+ *
+ * Quase tudo aqui é diagnóstico, e não é acidente: a decisão central do contrato é que a apresentação
+ * degrada em silêncio e o DADO nunca — quando o kernel não sabe fazer uma medida, ele precisa dizer
+ * QUAL, porque somar sem ela devolveria um número diferente com o mesmo rótulo.
+ */
+export const CORE_REPORTS_MESSAGES: Record<string, string> = {
+  'access.permission.invalid':
+    'The report asks for the permission "{id}", which is not a valid permission identifier.',
+  'artifact.id-taken': 'A report with the key "{id}" already exists in this organization.',
+  'chart.area': 'Area',
+  'chart.bar': 'Bars',
+  'chart.column': 'Columns',
+  'chart.donut': 'Donut',
+  'chart.key.unknown':
+    'The chart refers to "{key}", which the report does not declare. The chart was left out.',
+  'chart.line': 'Line',
+  'chart.pie': 'Pie',
+  'chart.shape.tabular':
+    'A list with no grouping has nothing for the chart to plot. Group its lines, or show the report as a summary or crossed, to draw it.',
+  'command.group': 'Reports',
+  'csv.partial': 'Partial result: {scanned} records covered, and there may be more.',
+  'dataset.kind.unsupported':
+    'This report reads its rows in a way this version does not support ({kind}), so it cannot be run here.',
+  'dataset.no-measure': 'This report has no figure. Add what should be counted or added up — a report without one has nothing to say.',
+  'dataset.table.unknown':
+    'The report covers "{table}", and no screen describes that collection any more.',
+  'delete.done': 'Report deleted.',
+  'design.add': 'Add',
+  'design.chart': 'Chart',
+  'design.chart-category': 'Along the axis',
+  'design.chart-series': 'What to draw',
+  'design.chart-stacked': 'Stack the figures',
+  'design.chart.hint': 'Drawn from the same numbers as the table. A report without one is still a report.',
+  'design.column-dimension': 'Grouping across the columns',
+  'design.delete': 'Delete report',
+  'design.delete.confirm': 'Delete the report "{name}"? The records it covers are not touched.',
+  'design.dimensions': 'Fields',
+  'design.dimensions.hint': 'The columns of the list, in this order. A date field also chooses the period it is shown by. A summary and a crossed report show only what groups them.',
+  'design.editing': 'Editing an existing report. Saving replaces it.',
+  'design.expression': 'Filter by expression',
+  'design.expression.hint': 'A question asked of each line: it enters the report when the answer is yes. This is where two fields are compared with each other, a sum is checked, or a date is read against today — what a fixed filter cannot say. Type a field name to see what is available.',
+  'design.expression.placeholder': 'status != "paid" and dueDate < today()',
+  'design.expression.record-id': 'Identifier of the record',
+  'design.filters': 'Fixed filter',
+  'design.filters.hint': 'What the report always covers. Whoever reads it does not see this and cannot change it.',
+  'design.group': 'Group the lines by',
+  'design.group.hint': 'Each value becomes a group, in the order chosen. In a list the records stay under it, with the total of each group; in a summary and a crossed report the group is the line.',
+  'design.managed': 'This report comes from an extension, so it cannot be changed here. A report is a single statement — half from the package and half from you would give a number nobody wrote. Create another one to say it differently.',
+  'design.measure-field': 'Of which field',
+  'design.move-down': 'Move down',
+  'design.move-up': 'Move up',
+  'design.measure-op': 'What to calculate',
+  'design.measures': 'Figures',
+  'design.measures.hint': 'What is counted or added up. A report without a figure has nothing to say.',
+  'design.no-chart': 'No chart',
+  'design.no-granularity': 'Exact value',
+  'design.no-group': 'No grouping',
+  'design.not-found': 'The report "{key}" was not found in this organization. It may have been deleted, or the link may point at another one.',
+  'design.preview': 'Preview',
+  'design.prompts': 'Filters the reader fills in',
+  'design.prompts.hint': 'Asked when the report is opened. Left empty, they simply do not narrow anything.',
+  'design.remove': 'Remove',
+  'design.reorder': 'Drag to reorder',
+  'design.save': 'Save report',
+  'design.shape': 'How to show it',
+  'design.table': 'What the report covers',
+  'design.title': 'Name of the report',
+  'dimension.granularity.not-date':
+    'The grouping "{key}" asks for a date period, but the field it reads is not a date. It groups by the raw value instead.',
+  'dimension.granularity.unsupported':
+    'The grouping "{key}" asks for a period this version does not know ({granularity}). It groups by the raw value instead.',
+  'filter.failed':
+    'The filter by expression of this report could not be answered for one of the lines, so no number here would be trustworthy. Review the expression: {detail}',
+  'filter.syntax': 'The filter by expression of this report is not written correctly, so it cannot be run: {detail}',
+  'granularity.day': 'By day',
+  'granularity.month': 'By month',
+  'granularity.quarter': 'By quarter',
+  'granularity.week': 'By week',
+  'granularity.year': 'By year',
+  'group.empty': '(empty)',
+  'handler.not-found': 'The report "{id}" does not exist in this organization.',
+  'handler.spec.missing': 'This report has no definition recorded, so there is nothing to run.',
+  'handler.target.ambiguous': 'Say either which report to run or the definition to preview — not both, and not neither.',
+  'key.duplicated': 'The report declares "{key}" more than once. Groupings and figures share one set of names.',
+  'key.invalid': 'The name "{key}" cannot be used. Use letters, digits, hyphen and underscore, starting with a letter.',
+  'limit.clamped':
+    'The report asks to cover {asked} records and this installation allows {allowed}. It runs over {allowed}, and says so when the result is partial.',
+  'list.create': 'New report',
+  'list.create-first': 'Create the first report',
+  'list.edit': 'Edit',
+  'list.empty': 'No report yet. A report says what to cover, what to calculate and how to show it.',
+  'list.filter.placeholder': 'Filter reports...',
+  'list.filter.search': 'Name or collection',
+  'measure.kind.unsupported':
+    'The figure "{key}" is of a kind this version cannot calculate ({kind}), so the report cannot be run here.',
+  'measure.op.unsupported': 'The figure "{key}" asks for a calculation this version does not have ({op}).',
+  'measure.path.missing': 'The figure "{key}" does not say which field it measures.',
+  'measure.path.not-numeric':
+    'The figure "{key}" adds up a field that does not hold numbers. Text counts as zero, so the total may look right and be wrong.',
+  'nav.reports': 'Reports',
+  'op.avg': 'Average of',
+  'op.count': 'Number of records',
+  'op.max': 'Highest',
+  'op.min': 'Lowest',
+  'op.sum': 'Sum of',
+  'operator.contains': 'contains',
+  'operator.eq': 'is',
+  'operator.exists': 'is filled in',
+  'operator.gt': 'is after / greater than',
+  'operator.gte': 'is at least',
+  'operator.in': 'is one of',
+  'operator.lt': 'is before / less than',
+  'operator.lte': 'is at most',
+  'operator.neq': 'is not',
+  'page.design': 'Report design',
+  'page.report': 'Report',
+  'page.reports': 'Reports',
+  'point.definition.description':
+    'A report an extension brings ready to use: what it covers, how it is folded and how it is shown. It runs no code of its own.',
+  'point.definition.title': 'Report',
+  'prompt.key.duplicated': 'The filter "{key}" is declared more than once.',
+  'prompt.op.unsupported': 'The filter uses a comparison this version does not have ({op}).',
+  'prompts.clear': 'Clear',
+  'prompts.run': 'Run',
+  'result.meta': '{count} records covered, {at}',
+  'result.partial': 'This report covered {scanned} records and there may be more. The numbers below are partial.',
+  'result.partial-groups': 'There were more groups than this report shows. What is below is part of the answer.',
+  'save.done': 'Report saved.',
+  'schedule.not-implemented':
+    'This report asks to run on a schedule, which this version does not do yet. It still runs whenever you open it.',
+  'shape.dimension.unknown': 'The report is folded by "{key}", which it does not declare as a grouping.',
+  'shape.fields-unused':
+    'This report shows only what groups it, so the fields {keys} do not appear anywhere. Group by them, remove them, or show the report as a list.',
+  'shape.kind.unsupported':
+    'This report is folded in a way this version does not know ({kind}), so it is shown as a plain list.',
+  'shape.matrix': 'Crossed — one field down, another across',
+  'shape.matrix.incomplete': 'A crossed report needs at least one grouping down and one across.',
+  'shape.matrix.levels-flattened':
+    'This version draws a single level of columns, so the extra levels were folded into the first.',
+  'shape.measure.unknown': 'The report shows "{key}", which it does not declare as a figure.',
+  'shape.summary': 'Summary — the total of each group, without the records',
+  'shape.summary.no-group':
+    'A summary is made of groups, and this report does not say which field forms them. Choose at least one field to group the lines by.',
+  'shape.tabular': 'List — one line per record',
+  'shape.tabular.measure':
+    'A list shows fields, and "{key}" is a calculated figure. Show the report as a summary to show it.',
+  'shape.tabular.no-columns': 'This list has no column. Add at least one field.',
+  'shape.tabular.only-grouped':
+    'Every field of this list is grouping it, so no column is left for the lines. Leave at least one field out of the grouping, or show the report as a summary.',
+  'spec.capability.unsupported':
+    'This report needs something this version does not have ({capability}).',
+  'spec.invalid': 'This report cannot be run as it is: {detail}',
+  'spec.version.unsupported':
+    'This report was written for a newer version of Microteia (format {version}) and cannot be read here.',
+  'table.empty': 'No data for this report.',
+  'table.total': 'Total',
+  'toolbar.export': 'Export CSV',
+  'toolbar.print': 'Print',
+};

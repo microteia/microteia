@@ -26,6 +26,7 @@ import { FirebaseDataProcessorRepository } from '../../data/repositories/Firebas
 import { FirebaseActionRepository } from '../../data/repositories/FirebaseActionRepository';
 import { FirebaseReportDefinitionRepository } from '../../data/repositories/FirebaseReportDefinitionRepository';
 import { FirebaseRoleRepository } from '../../data/repositories/FirebaseRoleRepository';
+import { FirebaseAgentGrantRepository } from '../../data/repositories/FirebaseAgentGrantRepository';
 import { FirebasePluginInstallationRepository } from '../../data/repositories/FirebasePluginInstallationRepository';
 import { FirebasePluginRegistryRepository } from '../../data/repositories/FirebasePluginRegistryRepository';
 import { FirebaseTenantExtensionRepository } from '../../data/repositories/FirebaseTenantExtensionRepository';
@@ -71,6 +72,7 @@ export const DIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
     actionRepository:         new FirebaseActionRepository(),
     reportRepository:         new FirebaseReportDefinitionRepository(),
     roleRepository:           new FirebaseRoleRepository(),
+    agentGrantRepository:     new FirebaseAgentGrantRepository(),
     pluginInstallationRepository: new FirebasePluginInstallationRepository(),
     pluginRegistryRepository: new FirebasePluginRegistryRepository(),
     tenantExtensionRepository: new FirebaseTenantExtensionRepository(),

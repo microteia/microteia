@@ -76,6 +76,22 @@ export const functions: Functions = getFunctions(
   runtimeConfig.functionsRegion ?? DEFAULT_FUNCTIONS_REGION,
 );
 
+/**
+ * A URL de uma Cloud Function HTTP deste projeto.
+ *
+ * Ela é DERIVADA do projeto e da região carimbados na instalação, nunca escrita à mão: numa
+ * instalação distribuída o bundle é montado sem saber em que projeto Firebase vai rodar, e uma URL
+ * literal apontaria para o nosso projeto a partir do escritório de outra pessoa. É o mesmo motivo por
+ * que `bundleAudit` aborta o empacotamento ao achar credencial no artefato.
+ *
+ * Serve à tela que precisa MOSTRAR o endereço para alguém copiar — as callables não passam por aqui,
+ * porque o SDK do Firebase monta a URL delas sozinho.
+ */
+export const httpFunctionUrl = (name: string): string => {
+  const region = runtimeConfig.functionsRegion ?? DEFAULT_FUNCTIONS_REGION;
+  return `https://${region}-${runtimeConfig.projectId}.cloudfunctions.net/${name}`;
+};
+
 // if (import.meta.env.DEV) {
 //   connectFunctionsEmulator(functions, '127.0.0.1', 5001);
 // }
