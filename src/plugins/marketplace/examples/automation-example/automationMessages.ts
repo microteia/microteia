@@ -1,5 +1,5 @@
-import { DEFAULT_LOCALE, messageBundleContribution } from '../../domain/schema/i18n';
-import type { Contribution } from '../../domain/schema/plugin/contribution';
+import { DEFAULT_LOCALE, messageBundleContribution } from '../../../../domain/schema/i18n';
+import type { Contribution } from '../../../../domain/schema/plugin/contribution';
 
 /**
  * **The Automation example catalog, in the source language.**

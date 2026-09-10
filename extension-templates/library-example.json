@@ -1,0 +1,200 @@
+{
+  "manifest": {
+    "id": "com.microteia.library-example",
+    "version": "1.0.0",
+    "kernel": "^2.0.0",
+    "name": "@com.microteia.library-example/package.name",
+    "description": "@com.microteia.library-example/package.description",
+    "category": "@com.microteia.library-example/package.category",
+    "publisher": {
+      "name": "Microteia"
+    },
+    "extensionPoints": [
+      {
+        "id": "codelibrary.formatter",
+        "apiVersion": "1.0.0",
+        "title": "@com.microteia.library-example/point.formatter.title",
+        "description": "@com.microteia.library-example/point.formatter.description",
+        "ownerPluginId": "com.microteia.library-example",
+        "allowedImplKinds": [],
+        "implRequired": false,
+        "multiple": true
+      }
+    ],
+    "exports": [
+      "normalize-code",
+      "wf-announce"
+    ],
+    "provides": [
+      {
+        "capability": "example.code-formatting",
+        "version": "1.0.0",
+        "priority": 10,
+        "label": "@com.microteia.library-example/package.name"
+      }
+    ],
+    "contributes": [
+      {
+        "point": "i18n.messages",
+        "id": "en.com.microteia.library-example",
+        "apiVersion": "1.0.0",
+        "metadata": {
+          "locale": "en",
+          "namespace": "com.microteia.library-example",
+          "messages": {
+            "package.name": "A library extension, by example",
+            "package.category": "Cooperation",
+            "package.description": "An extension with no interface at all: it publishes an extension point, exports a script and a flow for others to point at, and offers a capability.",
+            "package.summary": "The half of cooperation that PUBLISHES. It installs no screen and no page — everything it brings exists for another extension to use: an extension point of its own that others fill, a sandbox script and a callable flow named in `exports`, a permission others may add to, and a capability it provides. Read it next to the consumer example, which is the other half.",
+            "point.formatter.title": "Code formatter",
+            "point.formatter.description": "Register a way of formatting a code. Whoever fills this point is offered wherever the library formats one.",
+            "script.normalize": "Normalize a code",
+            "script.normalize.description": "Trims, upper-cases and joins with dashes. Exported, so another extension may point a step at it.",
+            "script.normalize.in.code": "Code to normalize",
+            "script.normalize.out.code": "The normalized code",
+            "script.normalize.out.changed": "Whether it differed from what was given",
+            "workflow.announce": "Announce a code",
+            "workflow.announce.description": "A callable flow: receives a code and a reason, and writes them to the audit trail. Exported, so another extension may call it.",
+            "workflow.announce.audit.title": "Code announced",
+            "parameter.code": "Code",
+            "parameter.reason": "Reason",
+            "resource.library": "Code library",
+            "permission.use": "Use the code library",
+            "permission.use.description": "Call what this library exports. Another extension may widen this permission with its own requirements."
+          }
+        }
+      },
+      {
+        "point": "i18n.messages",
+        "id": "pt-br.com.microteia.library-example",
+        "apiVersion": "1.0.0",
+        "metadata": {
+          "locale": "pt-BR",
+          "namespace": "com.microteia.library-example",
+          "messages": {
+            "package.name": "Uma extensão-biblioteca, pelo exemplo",
+            "package.category": "Cooperação",
+            "package.description": "Uma extensão sem interface nenhuma: publica um ponto de extensão, exporta um script e um fluxo para outras apontarem, e oferece uma capacidade.",
+            "package.summary": "A metade da cooperação que PUBLICA. Não instala tela nem página — tudo o que ela traz existe para outra extensão usar: um ponto de extensão próprio que outras preenchem, um script de sandbox e um fluxo chamável nomeados em `exports`, uma permissão a que outras podem somar, e uma capacidade que ela provê. Leia ao lado do exemplo consumidor, que é a outra metade.",
+            "point.formatter.title": "Formatador de código",
+            "point.formatter.description": "Registre um jeito de formatar um código. Quem preencher este ponto é oferecido onde a biblioteca formata um.",
+            "script.normalize": "Normalizar um código",
+            "script.normalize.description": "Apara, põe em maiúsculas e junta com hifens. Exportado, para que outra extensão possa apontar um passo para ele.",
+            "script.normalize.in.code": "Código a normalizar",
+            "script.normalize.out.code": "O código normalizado",
+            "script.normalize.out.changed": "Se ele diferia do que foi dado",
+            "workflow.announce": "Anunciar um código",
+            "workflow.announce.description": "Um fluxo chamável: recebe um código e um motivo, e os grava na auditoria. Exportado, para que outra extensão possa chamá-lo.",
+            "workflow.announce.audit.title": "Código anunciado",
+            "parameter.code": "Código",
+            "parameter.reason": "Motivo",
+            "resource.library": "Biblioteca de códigos",
+            "permission.use": "Usar a biblioteca de códigos",
+            "permission.use.description": "Chamar o que esta biblioteca exporta. Outra extensão pode alargar esta permissão com as exigências dela."
+          }
+        }
+      },
+      {
+        "point": "access.resource",
+        "id": "library-example",
+        "apiVersion": "1.0.0",
+        "metadata": {
+          "id": "library-example",
+          "name": "@com.microteia.library-example/resource.library"
+        }
+      },
+      {
+        "point": "access.permission",
+        "id": "library-example-use",
+        "apiVersion": "1.0.0",
+        "metadata": {
+          "id": "library-example.use",
+          "name": "@com.microteia.library-example/permission.use",
+          "description": "@com.microteia.library-example/permission.use.description"
+        }
+      }
+    ]
+  },
+  "summary": "@com.microteia.library-example/package.summary",
+  "workflows": [
+    {
+      "templateId": "wf-announce",
+      "sourceId": "microteia:library-example:announce",
+      "sourceRev": 1,
+      "name": "@com.microteia.library-example/workflow.announce",
+      "description": "@com.microteia.library-example/workflow.announce.description",
+      "eventName": "workflow.called",
+      "version": 1,
+      "condition": {
+        "kind": "AlwaysTrue"
+      },
+      "parameters": [
+        {
+          "key": "code",
+          "label": "@com.microteia.library-example/parameter.code",
+          "type": "String",
+          "required": true
+        },
+        {
+          "key": "reason",
+          "label": "@com.microteia.library-example/parameter.reason",
+          "type": "String"
+        }
+      ],
+      "steps": [
+        {
+          "id": "announce",
+          "stepDefinitionId": "register-audit",
+          "type": "Action",
+          "order": 0,
+          "enabled": true,
+          "configuration": {
+            "title": {
+              "kind": "Literal",
+              "value": "@com.microteia.library-example/workflow.announce.audit.title"
+            },
+            "message": {
+              "kind": "Expression",
+              "expression": "concat(event.code, \" — \", coalesce(event.reason, \"no reason given\"))"
+            },
+            "severity": {
+              "kind": "Literal",
+              "value": "LOW"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "scripts": [
+    {
+      "templateId": "normalize-code",
+      "sourceId": "microteia:library-example:normalize-code",
+      "sourceRev": 1,
+      "name": "@com.microteia.library-example/script.normalize",
+      "description": "@com.microteia.library-example/script.normalize.description",
+      "sourceTs": "// Runs in the QuickJS sandbox on the server, never in the browser. There are no imports here on\n// purpose: `input`, `fn` and `log` are globals the sandbox provides, and nothing else is reachable.\n//\n// This is what `manifest.exports` makes public. Another extension points a step at it by name —\n// `com.microteia.library-example/normalize-code` — and never by the id it happens to get here.\nasync function main() {\n  if (fn.isEmpty(input.code)) {\n    log('normalize-code: nothing given');\n    return { code: null, changed: false };\n  }\n\n  const original = String(input.code);\n  const code = fn.upper(fn.trim(original)).split(' ').join('-');\n\n  return { code, changed: code !== original };\n}\n\nmain()\n",
+      "compiledJs": "// Runs in the QuickJS sandbox on the server, never in the browser. There are no imports here on\n// purpose: `input`, `fn` and `log` are globals the sandbox provides, and nothing else is reachable.\n//\n// This is what `manifest.exports` makes public. Another extension points a step at it by name —\n// `com.microteia.library-example/normalize-code` — and never by the id it happens to get here.\nasync function main() {\n  if (fn.isEmpty(input.code)) {\n    log('normalize-code: nothing given');\n    return { code: null, changed: false };\n  }\n\n  const original = String(input.code);\n  const code = fn.upper(fn.trim(original)).split(' ').join('-');\n\n  return { code, changed: code !== original };\n}\n\nmain()\n",
+      "inputParams": [
+        {
+          "key": "code",
+          "label": "@com.microteia.library-example/script.normalize.in.code",
+          "type": "String",
+          "required": true
+        }
+      ],
+      "outputParams": [
+        {
+          "key": "code",
+          "label": "@com.microteia.library-example/script.normalize.out.code",
+          "type": "String"
+        },
+        {
+          "key": "changed",
+          "label": "@com.microteia.library-example/script.normalize.out.changed",
+          "type": "Boolean"
+        }
+      ]
+    }
+  ]
+}

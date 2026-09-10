@@ -1,0 +1,161 @@
+{
+  "manifest": {
+    "id": "com.microteia.backend-example",
+    "version": "1.0.0",
+    "kernel": "^2.0.0",
+    "name": "@com.microteia.backend-example/package.name",
+    "description": "@com.microteia.backend-example/package.description",
+    "category": "@com.microteia.backend-example/package.category",
+    "publisher": {
+      "name": "Microteia"
+    },
+    "contributes": [
+      {
+        "point": "i18n.messages",
+        "id": "en.com.microteia.backend-example",
+        "apiVersion": "1.0.0",
+        "metadata": {
+          "locale": "en",
+          "namespace": "com.microteia.backend-example",
+          "messages": {
+            "package.name": "Cloud Functions, by example",
+            "package.category": "Backend",
+            "package.description": "A callable, a Firestore trigger and a nightly run — each with the guard its shape requires — plus the backend the extension asks of the project.",
+            "package.summary": "What an extension needs when a declaration is not enough and code has to run on the server. It carries three Cloud Functions of its own, one of each shape, and each one is born with the guard that shape requires: a callable refuses a caller who is not a member of that organization, a document trigger refuses to fire where the extension was never installed, and a scheduled run loops over the organizations that have it. It also declares what it needs of the Firebase project — the functions, a setting, an index and one step a person has to take by hand.",
+            "screen.ticket": "Ticket",
+            "screen.ticket.plural": "Tickets",
+            "field.subject": "Subject",
+            "field.subject.placeholder": "What this ticket is about",
+            "field.amount": "Amount",
+            "field.status": "Status",
+            "field.status.open": "Open",
+            "field.status.closed": "Closed",
+            "field.openedAt": "Opened at",
+            "prerequisite.scheduler.title": "Enable Cloud Scheduler in the project",
+            "prerequisite.scheduler.detail": "The nightly run needs Cloud Scheduler enabled and a billing account on the Firebase project, then a value in BACKEND_EXAMPLE_RATE in the backend settings. Settings are never shared between installations."
+          }
+        }
+      },
+      {
+        "point": "i18n.messages",
+        "id": "pt-br.com.microteia.backend-example",
+        "apiVersion": "1.0.0",
+        "metadata": {
+          "locale": "pt-BR",
+          "namespace": "com.microteia.backend-example",
+          "messages": {
+            "package.name": "Cloud Functions, pelo exemplo",
+            "package.category": "Backend",
+            "package.description": "Uma callable, um gatilho do Firestore e uma rotina noturna — cada um com o guarda que a forma dele exige —, mais o backend que a extensão pede ao projeto.",
+            "package.summary": "O que uma extensão precisa quando declarar não basta e algum código tem de rodar no servidor. Ela traz três Cloud Functions próprias, uma de cada forma, e cada uma nasce com o guarda que aquela forma exige: uma callable recusa quem não é membro daquele escritório, um gatilho de documento recusa disparar onde a extensão nunca foi instalada, e uma rotina agendada percorre os escritórios que a têm. Também declara o que precisa do projeto Firebase — as functions, um parâmetro, um índice e um passo que uma pessoa dá à mão.",
+            "screen.ticket": "Chamado",
+            "screen.ticket.plural": "Chamados",
+            "field.subject": "Assunto",
+            "field.subject.placeholder": "Sobre o que é este chamado",
+            "field.amount": "Valor",
+            "field.status": "Situação",
+            "field.status.open": "Aberto",
+            "field.status.closed": "Fechado",
+            "field.openedAt": "Aberto em",
+            "prerequisite.scheduler.title": "Habilitar o Cloud Scheduler no projeto",
+            "prerequisite.scheduler.detail": "A rotina noturna exige o Cloud Scheduler habilitado e uma conta de faturamento no projeto Firebase, e depois um valor em BACKEND_EXAMPLE_RATE nas configurações de backend. Configurações nunca são compartilhadas entre instalações."
+          }
+        }
+      }
+    ],
+    "backend": {
+      "functions": [
+        "backendExampleQuote",
+        "backendExampleOnTicketWritten",
+        "backendExampleNightlySweep"
+      ],
+      "indexes": [
+        {
+          "collectionGroup": "backendTicket",
+          "queryScope": "COLLECTION",
+          "fields": [
+            {
+              "fieldPath": "status",
+              "order": "ASCENDING"
+            },
+            {
+              "fieldPath": "openedAt",
+              "order": "DESCENDING"
+            }
+          ]
+        }
+      ],
+      "parameters": [
+        "BACKEND_EXAMPLE_RATE"
+      ],
+      "prerequisites": [
+        {
+          "id": "backend-example-scheduler",
+          "title": "@com.microteia.backend-example/prerequisite.scheduler.title",
+          "detail": "@com.microteia.backend-example/prerequisite.scheduler.detail"
+        }
+      ]
+    }
+  },
+  "summary": "@com.microteia.backend-example/package.summary",
+  "workflows": [],
+  "screens": [
+    {
+      "key": "backendTicket",
+      "sourceId": "microteia:backend-example:ticket",
+      "sourceRev": 1,
+      "titleSingular": "@com.microteia.backend-example/screen.ticket",
+      "titlePlural": "@com.microteia.backend-example/screen.ticket.plural",
+      "icon": "fileList",
+      "fields": [
+        {
+          "key": "subject",
+          "label": "@com.microteia.backend-example/field.subject",
+          "type": "text",
+          "required": true,
+          "order": 0,
+          "placeholder": "@com.microteia.backend-example/field.subject.placeholder"
+        },
+        {
+          "key": "amount",
+          "label": "@com.microteia.backend-example/field.amount",
+          "type": "currency",
+          "required": false,
+          "order": 1
+        },
+        {
+          "key": "status",
+          "label": "@com.microteia.backend-example/field.status",
+          "type": "select",
+          "required": true,
+          "order": 2,
+          "filterable": true,
+          "optionsColored": true,
+          "options": [
+            {
+              "key": "open",
+              "label": "@com.microteia.backend-example/field.status.open",
+              "color": "warning"
+            },
+            {
+              "key": "closed",
+              "label": "@com.microteia.backend-example/field.status.closed",
+              "color": "success"
+            }
+          ]
+        },
+        {
+          "key": "openedAt",
+          "label": "@com.microteia.backend-example/field.openedAt",
+          "type": "date",
+          "required": false,
+          "order": 3,
+          "filterable": true
+        }
+      ],
+      "titleFieldKey": "subject",
+      "subtitleFieldKey": "status",
+      "eventPrefix": "backendTicket"
+    }
+  ]
+}

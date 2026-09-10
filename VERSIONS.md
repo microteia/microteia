@@ -11,6 +11,12 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.62.0] — 2026-09-09
+
+- **Quem escreve extensões passou a receber uma coletânea de exemplos prontos, um para cada assunto.** Antes vinham seis, e cinco deles eram extensões nossas reaproveitadas — quem procurava como entregar um relatório, rodar código no servidor ou controlar quem vê o quê não encontrava nada e concluía que não dava. Agora são doze, cada um pequeno e sobre um assunto só: relatórios nos quatro formatos, cartões no painel e marcas na barra, permissões, Cloud Functions, duas extensões que cooperam entre si, um campo acrescentado à tela de outra extensão com a conversão dos dados antigos, aparência, formas de entrar no sistema, atalhos e menções, e configurações. Todos chegam sozinhos na próxima atualização da plataforma.
+- **O exemplo de código de servidor passou a ser conferido junto com o resto.** O código das funções de nuvem que ele traz é verificado a cada alteração, com as mesmas exigências do restante do sistema — então o que se copia dali já nasce conferido.
+- **O assistente de IA passou a saber o que a plataforma faz e ainda não tem exemplo.** Em vez de concluir do silêncio que algo é impossível, ele agora consulta uma lista conferida automaticamente: o que tem exemplo, o que não tem, e o que nenhum exemplo poderia mostrar porque não está ao alcance de uma extensão — com o caminho que existe no lugar.
+
 #### [9.61.0] — 2026-09-09
 
 - **Um relatório passou a poder filtrar por expressão, e não só por campo.** Até aqui o filtro de um relatório comparava um campo com um valor, e havia pergunta comum que ele não conseguia escrever: os lançamentos em que o pago é menor que o valor, os vencidos em relação a hoje, os que atendem uma condição *ou* outra. Agora existe um campo de expressão no desenho do relatório, igual ao que já se usa para esconder um botão ou validar um campo — com as sugestões dos campos da tela escolhida, inclusive os do cadastro relacionado, e a conferência da expressão enquanto se escreve. Um campo que ninguém preencheu é lido como vazio, e um relatório cuja expressão não puder ser respondida avisa em vez de devolver um total menor sem dizer nada.

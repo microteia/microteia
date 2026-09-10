@@ -1,0 +1,131 @@
+{
+  "manifest": {
+    "id": "com.microteia.patch-example",
+    "version": "1.1.0",
+    "kernel": "^2.0.0",
+    "name": "@com.microteia.patch-example/package.name",
+    "description": "@com.microteia.patch-example/package.description",
+    "category": "@com.microteia.patch-example/package.category",
+    "publisher": {
+      "name": "Microteia"
+    },
+    "dependencies": {
+      "com.microteia.automation-example": "^1.0.0"
+    },
+    "contributes": [
+      {
+        "point": "i18n.messages",
+        "id": "en.com.microteia.patch-example",
+        "apiVersion": "1.0.0",
+        "metadata": {
+          "locale": "en",
+          "namespace": "com.microteia.patch-example",
+          "messages": {
+            "package.name": "Extending and migrating, by example",
+            "package.category": "Cooperation",
+            "package.description": "Adds a field to a screen another extension owns, and carries the migration that fills in the records that were already there.",
+            "package.summary": "The two things an extension does to data that is not new. It adds a field to a screen ANOTHER extension declared, without either of them being rewritten, and it carries a migration that runs once per office to fill a field that older records never had. The migration runs in the same sandbox a script does, and it never writes a collection name by hand.",
+            "screen.note": "Note",
+            "screen.note.plural": "Notes",
+            "field.title": "Title",
+            "field.title.placeholder": "What this note is about",
+            "field.code": "Code",
+            "field.body": "Body",
+            "patch.note": "Related note",
+            "migration.fill-code": "Fill in the code of older notes"
+          }
+        }
+      },
+      {
+        "point": "i18n.messages",
+        "id": "pt-br.com.microteia.patch-example",
+        "apiVersion": "1.0.0",
+        "metadata": {
+          "locale": "pt-BR",
+          "namespace": "com.microteia.patch-example",
+          "messages": {
+            "package.name": "Estender e migrar, pelo exemplo",
+            "package.category": "Cooperação",
+            "package.description": "Acrescenta um campo a uma tela que é de outra extensão, e traz a migração que preenche os registros que já estavam lá.",
+            "package.summary": "As duas coisas que uma extensão faz com dado que não é novo. Ela acrescenta um campo a uma tela que OUTRA extensão declarou, sem que nenhuma das duas seja reescrita, e traz uma migração que roda uma vez por escritório para preencher um campo que os registros antigos nunca tiveram. A migração roda no mesmo sandbox de um script, e nunca escreve o nome de uma coleção à mão.",
+            "screen.note": "Nota",
+            "screen.note.plural": "Notas",
+            "field.title": "Título",
+            "field.title.placeholder": "Sobre o que é esta nota",
+            "field.code": "Código",
+            "field.body": "Conteúdo",
+            "patch.note": "Nota relacionada",
+            "migration.fill-code": "Preencher o código das notas antigas"
+          }
+        }
+      }
+    ]
+  },
+  "summary": "@com.microteia.patch-example/package.summary",
+  "workflows": [],
+  "screens": [
+    {
+      "key": "patchNote",
+      "sourceId": "microteia:patch-example:note",
+      "sourceRev": 1,
+      "titleSingular": "@com.microteia.patch-example/screen.note",
+      "titlePlural": "@com.microteia.patch-example/screen.note.plural",
+      "icon": "fileText",
+      "fields": [
+        {
+          "key": "title",
+          "label": "@com.microteia.patch-example/field.title",
+          "type": "text",
+          "required": true,
+          "order": 0,
+          "placeholder": "@com.microteia.patch-example/field.title.placeholder"
+        },
+        {
+          "key": "code",
+          "label": "@com.microteia.patch-example/field.code",
+          "type": "text",
+          "required": false,
+          "order": 1,
+          "filterable": true
+        },
+        {
+          "key": "body",
+          "label": "@com.microteia.patch-example/field.body",
+          "type": "textarea",
+          "required": false,
+          "order": 2
+        }
+      ],
+      "titleFieldKey": "title",
+      "eventPrefix": "patchNote"
+    }
+  ],
+  "screenPatches": [
+    {
+      "target": "microteia:automation-example:request",
+      "targetKind": "sourceId",
+      "sourceRev": 1,
+      "fields": [
+        {
+          "key": "patchNoteId",
+          "label": "@com.microteia.patch-example/patch.note",
+          "type": "reference",
+          "required": false,
+          "order": 50,
+          "refEntity": "patchNote",
+          "filterable": true
+        }
+      ]
+    }
+  ],
+  "migrations": [
+    {
+      "id": "fill-code",
+      "version": "1.1.0",
+      "name": "@com.microteia.patch-example/migration.fill-code",
+      "sourceTs": "// Runs in the same QuickJS sandbox a Script runs in — no imports, and only the globals the sandbox\n// provides. Server-side, once per office, and never in the browser.\n//\n// It NEVER writes a collection name by hand. `input.collections` maps the template key declared in the\n// package to the collection actually installed here: the key is CLAIMED on install and gets a suffix\n// when the name is already taken in the destination office. Screens and flows are rewritten during\n// materialisation, but a migration's code is opaque text that nobody would rewrite — so a hardcoded\n// name works in the author's office and fails silently in the customer's.\nasync function main() {\n  const table = input.collections['patchNote'];\n\n  const pending = await query({\n    table,\n    where: [{ path: 'code', op: 'eq', value: null }],\n    limit: 200,\n  });\n\n  for (const row of pending.rows) {\n    await upsert({\n      table,\n      data: { id: row.id, code: fn.upper(fn.trim(fn.coalesce(row.title, ''))) },\n    });\n  }\n\n  // `remaining` is what makes this run again. Without it a migration ends after the first round, and a\n  // collection larger than one batch would be left half done — with nothing saying so.\n  return { changed: pending.rows.length, remaining: pending.rows.length > 0 };\n}\n\nmain()\n",
+      "phase": "after",
+      "maxRounds": 50
+    }
+  ]
+}

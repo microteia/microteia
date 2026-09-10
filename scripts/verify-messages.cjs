@@ -63,18 +63,32 @@ const PT_BR_CATALOG_BY_NS = {
 
 /**
  * As EXTENSÕES que carregam o próprio par de catálogos — o de origem e o traduzido —, ao lado do
- * arquivo de plugin. São as agnósticas de negócio: uma agenda, uma tela de abertura e um mural
- * servem a qualquer escritório, e por isso nascem em inglês em vez de num idioma só.
+ * arquivo de plugin. São as agnósticas de negócio: uma agenda, uma tela de abertura, um mural e os
+ * moldes de autoria servem a qualquer escritório, e por isso nascem em inglês em vez de num idioma só.
+ *
+ * O `dir` é relativo a `src/plugins/`, e é por isso que um exemplo da coletânea traz o caminho da
+ * pasta dele: o par de catálogos mora junto do `plugin.ts` que os usa, não num diretório comum.
  *
  * Estão aqui pelo mesmo motivo que os namespaces do núcleo estão: sem a entrada, o gate não conhece
  * o catálogo e para de cobrar o par de cada chave — e deixar de cobrar é indistinguível de estar
  * tudo certo.
  */
 const PLUGIN_CATALOG_BY_NS = {
-  'com.microteia.automation-example': { dir: 'marketplace', source: 'automationMessages', ptBr: 'automationMessagesPtBr' },
+  'com.microteia.automation-example': { dir: 'marketplace/examples/automation-example', source: 'automationMessages', ptBr: 'automationMessagesPtBr' },
   'com.microteia.calendar': { dir: 'marketplace', source: 'calendarMessages', ptBr: 'calendarMessagesPtBr' },
   'com.microteia.dashboard': { dir: 'marketplace', source: 'dashboardMessages', ptBr: 'dashboardMessagesPtBr' },
   'com.microteia.news': { dir: 'marketplace', source: 'newsMessages', ptBr: 'newsMessagesPtBr' },
+  'com.microteia.report-example': { dir: 'marketplace/examples/report-example', source: 'reportMessages', ptBr: 'reportMessagesPtBr' },
+  'com.microteia.widget-example': { dir: 'marketplace/examples/widget-example', source: 'widgetMessages', ptBr: 'widgetMessagesPtBr' },
+  'com.microteia.access-example': { dir: 'marketplace/examples/access-example', source: 'accessMessages', ptBr: 'accessMessagesPtBr' },
+  'com.microteia.backend-example': { dir: 'marketplace/examples/backend-example', source: 'backendMessages', ptBr: 'backendMessagesPtBr' },
+  'com.microteia.library-example': { dir: 'marketplace/examples/library-example', source: 'libraryMessages', ptBr: 'libraryMessagesPtBr' },
+  'com.microteia.consumer-example': { dir: 'marketplace/examples/consumer-example', source: 'consumerMessages', ptBr: 'consumerMessagesPtBr' },
+  'com.microteia.patch-example': { dir: 'marketplace/examples/patch-example', source: 'patchMessages', ptBr: 'patchMessagesPtBr' },
+  'com.microteia.theme-example': { dir: 'marketplace/examples/theme-example', source: 'themeMessages', ptBr: 'themeMessagesPtBr' },
+  'com.microteia.auth-example': { dir: 'marketplace/examples/auth-example', source: 'authMessages', ptBr: 'authMessagesPtBr' },
+  'com.microteia.command-example': { dir: 'marketplace/examples/command-example', source: 'commandMessages', ptBr: 'commandMessagesPtBr' },
+  'com.microteia.settings-example': { dir: 'marketplace/examples/settings-example', source: 'settingsMessages', ptBr: 'settingsMessagesPtBr' },
 };
 
 /** Onde mora o catálogo de ORIGEM de um namespace, seja ele do núcleo ou de uma extensão. */

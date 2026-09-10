@@ -38,6 +38,17 @@ const TEMPLATES = {
   'calendar.json': 'calendarPlugin',
   'locale-pt-br.json': 'localePtBrPlugin',
   'automation-example.json': 'automationExamplePlugin',
+  'report-example.json': 'reportExamplePlugin',
+  'widget-example.json': 'widgetExamplePlugin',
+  'access-example.json': 'accessExamplePlugin',
+  'backend-example.json': 'backendExamplePlugin',
+  'library-example.json': 'libraryExamplePlugin',
+  'consumer-example.json': 'consumerExamplePlugin',
+  'patch-example.json': 'patchExamplePlugin',
+  'theme-example.json': 'themeExamplePlugin',
+  'auth-example.json': 'authExamplePlugin',
+  'command-example.json': 'commandExamplePlugin',
+  'settings-example.json': 'settingsExamplePlugin',
 };
 
 const check = process.argv.includes('--check');

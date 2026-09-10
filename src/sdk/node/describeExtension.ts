@@ -4,6 +4,10 @@ import type { MarketplacePlugin } from '../../domain/entities/MarketplacePlugin'
 import type { Contribution } from '../../domain/schema/plugin/contribution';
 import { exportedSurface } from '../../domain/usecases/plugins/crossExtensionRefs';
 import { buildPlugin } from './compile';
+import {
+  exampleCoverage,
+  exampleCoverageSummary,
+} from '../domain/exampleCoverage';
 import { exampleNote } from './exampleNotes';
 import { packageText } from './messages';
 import { readWorkspaceCatalog } from './workspaceCatalog';
@@ -339,5 +343,60 @@ export const listExamples = (root: string): Record<string, unknown> => {
         }),
         next: 'describe_extension with the folder name says what one of them declares, brings and requires.',
       }),
+  };
+};
+
+/**
+ * A COBERTURA — que mecanismo desta plataforma nenhum exemplo ensina.
+ *
+ * É a pergunta inversa de `listExamples`: aquela responde "qual exemplo eu abro", esta responde "existe
+ * exemplo para o que eu preciso fazer". As duas juntas são o que impede o agente de concluir, do
+ * silêncio, que a plataforma não faz relatório, Cloud Function ou permissão — que foi exatamente o que
+ * ela concluía enquanto seis exemplos cobriam seis dos vinte e dois pontos.
+ *
+ * Ela COMPILA cada exemplo, e por isso não entra na lista barata: é a resposta cara, pedida de
+ * propósito. Um exemplo que não compile é pulado com o nome dito, e não derruba o relatório — o
+ * diretório é reescrito a cada troca de versão, e uma leitura que falhasse inteira por causa de um
+ * arquivo seria pior que uma incompleta que se explica.
+ */
+export const exampleCoverageReport = (root: string): Record<string, unknown> => {
+  const { examples } = findPluginFiles(root);
+  const packages: MarketplacePlugin[] = [];
+  const skipped: string[] = [];
+
+  for (const entry of examples) {
+    try {
+      packages.push(buildPlugin({ entry }).package);
+    } catch {
+      skipped.push(basename(dirname(entry)));
+    }
+  }
+
+  if (packages.length === 0) {
+    return {
+      total: 0,
+      note: `No ${EXAMPLES_DIR}/ to measure here. They arrive with a platform version; sync this workspace first.`,
+    };
+  }
+
+  const items = exampleCoverage(packages);
+  const taught = items.filter((one) => one.gap === 'none');
+
+  return {
+    measured: packages.length,
+    ...(skipped.length === 0 ? {} : { skipped }),
+    whatThisIs:
+      'Every mechanism this platform has, and which example — if any — shows it being used. It is DERIVED: the '
+      + 'points are walked from the point arrays, and the package and manifest properties are closed by `keyof`, so '
+      + 'a new one cannot appear without somebody saying whether an example should show it.',
+    summary: exampleCoverageSummary(packages),
+    taughtBy: Object.fromEntries(taught.map((one) => [`${one.surface}/${one.id}`, one.taughtBy])),
+    /** O que um exemplo NÃO pode ensinar, e o caminho que existe no lugar. É a metade que mais serve. */
+    outOfReach: items
+      .filter((one) => one.gap === 'unreachable')
+      .map((one) => ({ mechanism: `${one.surface}/${one.id}`, why: one.note })),
+    missing: items
+      .filter((one) => one.gap === 'missing')
+      .map((one) => ({ mechanism: `${one.surface}/${one.id}`, why: one.note })),
   };
 };

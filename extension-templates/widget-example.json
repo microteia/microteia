@@ -1,0 +1,265 @@
+{
+  "manifest": {
+    "id": "com.microteia.widget-example",
+    "version": "1.0.0",
+    "kernel": "^2.0.0",
+    "name": "@com.microteia.widget-example/package.name",
+    "description": "@com.microteia.widget-example/package.description",
+    "category": "@com.microteia.widget-example/package.category",
+    "publisher": {
+      "name": "Microteia"
+    },
+    "dependencies": {
+      "core.ui": "^1.0.0"
+    },
+    "contributes": [
+      {
+        "point": "i18n.messages",
+        "id": "en.com.microteia.widget-example",
+        "apiVersion": "1.0.0",
+        "metadata": {
+          "locale": "en",
+          "namespace": "com.microteia.widget-example",
+          "messages": {
+            "package.name": "Surfaces, by example",
+            "package.category": "Interface",
+            "package.description": "Cards on the dashboard, a mark in the shell and a tab in the organization settings — all declared as data, with no code in the browser.",
+            "package.summary": "How an extension shows up in places it does not own. It installs two cards on the dashboard surface, two marks in the workspace shell and one tab in the organization settings, and every one of them is a Widget DSL tree: data the kernel renders with its own components. Nothing here executes in the browser, so nothing here needs the office to review code before it runs.",
+            "widget.glance": "At a glance",
+            "widget.glance.description": "A card on the dashboard, drawn from a declared tree.",
+            "widget.how": "How this card got here",
+            "widget.how.description": "What a Widget DSL tree can say, and where it stops.",
+            "slot.badge": "Top bar mark",
+            "slot.badge.description": "A mark placed in the right of the top bar.",
+            "slot.status": "Status bar mark",
+            "slot.status.description": "A mark placed in the left of the status bar.",
+            "tab.about": "Surfaces example",
+            "tab.about.description": "A tab added to the organization settings.",
+            "glance.heading": "Placed by an extension",
+            "glance.installed": "Installed",
+            "glance.installed.value": "Surfaces example",
+            "glance.code": "Code in the browser",
+            "glance.code.value": "None",
+            "glance.surface": "Surface",
+            "glance.surface.value": "dashboard",
+            "glance.note": "Remove this extension and the card goes with it. Nothing here was added to the dashboard by hand.",
+            "how.body": "This card is a **tree of nodes**, not a component. The kernel walks it and renders each node with its own components — so the colour comes from the theme, never from the extension.\n\nA node the kernel does not recognise is **ignored, not fatal**: a card written for a newer platform degrades instead of taking the dashboard down with it.\n\nTo put a real NUMBER on a card, name a report:\n\n```\n{ type: 'report', report: 'my-report-key' }\n```\n\nThat is the data binding — indirect on purpose, so that what a number means stays declared in one place.",
+            "badge.text": "Surfaces example",
+            "status.text": "Placed by an extension",
+            "about.heading": "Surfaces, by example",
+            "about.body": "A **surface** is a NAME, not a screen. Whoever hosts one declares the name; whoever fills it names the same string. Neither knows the other exists.\n\nThat is why this tab needed no change anywhere: the organization settings renders whatever is registered under `tenant-settings`, and this extension registered something there.\n\nThe same holds for the dashboard cards. If the Dashboard extension is not installed, the cards simply have nowhere to appear — and nothing breaks.",
+            "about.surfaces": "Surfaces used",
+            "about.surfaces.value": "dashboard, top-bar.right, status-bar.left, tenant-settings"
+          }
+        }
+      },
+      {
+        "point": "i18n.messages",
+        "id": "pt-br.com.microteia.widget-example",
+        "apiVersion": "1.0.0",
+        "metadata": {
+          "locale": "pt-BR",
+          "namespace": "com.microteia.widget-example",
+          "messages": {
+            "package.name": "Superfícies, pelo exemplo",
+            "package.category": "Interface",
+            "package.description": "Cartões no painel, uma marca no shell e uma aba nas configurações do escritório — tudo declarado como dado, sem código no navegador.",
+            "package.summary": "Como uma extensão aparece em lugares que não são dela. Instala dois cartões na superfície do painel, duas marcas no shell da área de trabalho e uma aba nas configurações do escritório, e cada um deles é uma árvore do Widget DSL: dado que o kernel renderiza com os componentes dele. Nada aqui executa no navegador, então nada aqui exige que o escritório revise código antes de rodar.",
+            "widget.glance": "Num relance",
+            "widget.glance.description": "Um cartão no painel, desenhado a partir de uma árvore declarada.",
+            "widget.how": "Como este cartão chegou aqui",
+            "widget.how.description": "O que uma árvore do Widget DSL consegue dizer, e onde ela para.",
+            "slot.badge": "Marca na barra superior",
+            "slot.badge.description": "Uma marca posta à direita da barra superior.",
+            "slot.status": "Marca na barra de status",
+            "slot.status.description": "Uma marca posta à esquerda da barra de status.",
+            "tab.about": "Exemplo de superfícies",
+            "tab.about.description": "Uma aba acrescentada às configurações do escritório.",
+            "glance.heading": "Posto por uma extensão",
+            "glance.installed": "Instalada",
+            "glance.installed.value": "Exemplo de superfícies",
+            "glance.code": "Código no navegador",
+            "glance.code.value": "Nenhum",
+            "glance.surface": "Superfície",
+            "glance.surface.value": "dashboard",
+            "glance.note": "Remova esta extensão e o cartão sai junto. Nada aqui foi acrescentado ao painel à mão.",
+            "how.body": "Este cartão é uma **árvore de nós**, não um componente. O kernel a percorre e renderiza cada nó com os componentes dele — então a cor vem do tema, nunca da extensão.\n\nUm nó que o kernel não conhece é **ignorado, não fatal**: um cartão escrito para uma plataforma mais nova degrada em vez de derrubar o painel junto.\n\nPara pôr um NÚMERO de verdade num cartão, nomeie um relatório:\n\n```\n{ type: 'report', report: 'chave-do-relatorio' }\n```\n\nEssa é a ligação a dados — indireta de propósito, para que o significado de um número continue declarado num lugar só.",
+            "badge.text": "Exemplo de superfícies",
+            "status.text": "Posto por uma extensão",
+            "about.heading": "Superfícies, pelo exemplo",
+            "about.body": "Uma **superfície** é um NOME, não uma tela. Quem hospeda uma declara o nome; quem a preenche nomeia a mesma string. Nenhum dos dois sabe que o outro existe.\n\nÉ por isso que esta aba não exigiu mudança em lugar nenhum: as configurações do escritório renderizam o que estiver registrado sob `tenant-settings`, e esta extensão registrou algo ali.\n\nO mesmo vale para os cartões do painel. Se a extensão Painel não estiver instalada, os cartões simplesmente não têm onde aparecer — e nada quebra.",
+            "about.surfaces": "Superfícies usadas",
+            "about.surfaces.value": "dashboard, top-bar.right, status-bar.left, tenant-settings"
+          }
+        }
+      },
+      {
+        "point": "ui.widget",
+        "id": "dashboard-widget-example-at-a-glance",
+        "apiVersion": "1.0.0",
+        "metadata": {
+          "surface": "dashboard",
+          "key": "widget-example.at-a-glance",
+          "title": "@com.microteia.widget-example/widget.glance",
+          "description": "@com.microteia.widget-example/widget.glance.description",
+          "icon": "layoutGrid",
+          "defaultSpan": 2,
+          "order": 10
+        },
+        "impl": {
+          "kind": "widget",
+          "spec": {
+            "type": "stack",
+            "gap": "md",
+            "children": [
+              {
+                "type": "heading",
+                "text": "@com.microteia.widget-example/glance.heading"
+              },
+              {
+                "type": "grid",
+                "columns": 3,
+                "children": [
+                  {
+                    "type": "metric",
+                    "label": "@com.microteia.widget-example/glance.installed",
+                    "value": "@com.microteia.widget-example/glance.installed.value"
+                  },
+                  {
+                    "type": "metric",
+                    "label": "@com.microteia.widget-example/glance.code",
+                    "value": "@com.microteia.widget-example/glance.code.value"
+                  },
+                  {
+                    "type": "metric",
+                    "label": "@com.microteia.widget-example/glance.surface",
+                    "value": "@com.microteia.widget-example/glance.surface.value"
+                  }
+                ]
+              },
+              {
+                "type": "divider"
+              },
+              {
+                "type": "banner",
+                "message": "@com.microteia.widget-example/glance.note",
+                "variant": "info"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "point": "ui.widget",
+        "id": "dashboard-widget-example-how-it-works",
+        "apiVersion": "1.0.0",
+        "metadata": {
+          "surface": "dashboard",
+          "key": "widget-example.how-it-works",
+          "title": "@com.microteia.widget-example/widget.how",
+          "description": "@com.microteia.widget-example/widget.how.description",
+          "icon": "bookSimple",
+          "defaultSpan": 1,
+          "order": 20
+        },
+        "impl": {
+          "kind": "widget",
+          "spec": {
+            "type": "stack",
+            "gap": "sm",
+            "children": [
+              {
+                "type": "markdown",
+                "content": "@com.microteia.widget-example/how.body"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "point": "ui.slot",
+        "id": "top-bar-right-widget-example-badge",
+        "apiVersion": "1.0.0",
+        "metadata": {
+          "surface": "top-bar.right",
+          "key": "widget-example.badge",
+          "title": "@com.microteia.widget-example/slot.badge",
+          "description": "@com.microteia.widget-example/slot.badge.description",
+          "order": 10
+        },
+        "impl": {
+          "kind": "widget",
+          "spec": {
+            "type": "text",
+            "text": "@com.microteia.widget-example/badge.text",
+            "muted": true
+          }
+        }
+      },
+      {
+        "point": "ui.slot",
+        "id": "status-bar-left-widget-example-status",
+        "apiVersion": "1.0.0",
+        "metadata": {
+          "surface": "status-bar.left",
+          "key": "widget-example.status",
+          "title": "@com.microteia.widget-example/slot.status",
+          "description": "@com.microteia.widget-example/slot.status.description",
+          "order": 10
+        },
+        "impl": {
+          "kind": "widget",
+          "spec": {
+            "type": "text",
+            "text": "@com.microteia.widget-example/status.text",
+            "muted": true
+          }
+        }
+      },
+      {
+        "point": "ui.tab",
+        "id": "tenant-settings-widget-example-about",
+        "apiVersion": "1.0.0",
+        "metadata": {
+          "surface": "tenant-settings",
+          "key": "widget-example.about",
+          "title": "@com.microteia.widget-example/tab.about",
+          "description": "@com.microteia.widget-example/tab.about.description",
+          "icon": "layoutGrid",
+          "order": 90
+        },
+        "impl": {
+          "kind": "widget",
+          "spec": {
+            "type": "stack",
+            "gap": "lg",
+            "children": [
+              {
+                "type": "heading",
+                "text": "@com.microteia.widget-example/about.heading"
+              },
+              {
+                "type": "markdown",
+                "content": "@com.microteia.widget-example/about.body"
+              },
+              {
+                "type": "divider"
+              },
+              {
+                "type": "keyValue",
+                "items": [
+                  {
+                    "label": "@com.microteia.widget-example/about.surfaces",
+                    "value": "@com.microteia.widget-example/about.surfaces.value"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      }
+    ]
+  },
+  "summary": "@com.microteia.widget-example/package.summary",
+  "workflows": []
+}

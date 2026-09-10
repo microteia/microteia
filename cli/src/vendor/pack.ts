@@ -33,6 +33,7 @@ import { KERNEL_CHANGELOG, readChangelog } from './changelogs.js';
 import { assertInsideRepository } from './repository.js';
 import { SDK_TARBALL } from './pluginWorkspaceTemplates.js';
 import { stageExamples } from './exampleSources.js';
+import { firstPartyTemplates } from './firstPartyTemplates.js';
 import {
   packageCustomIndexTs,
   packageCustomTsconfig,
@@ -57,15 +58,14 @@ interface RootIndexesFile {
  * As exigências de backend das extensões de PRIMEIRA PARTE saem dos `extension-templates/*.json`, que
  * são gerados dos `.ts` e conferidos pelo `verify-extensions` que o gate de qualidade acima já roda.
  * Ler o `.json` gerado em vez do `.ts` evita carregar o Vite aqui só para avaliar um módulo.
+ *
+ * Os exemplos que só viajam para ser lidos ficam de FORA (`READING_ONLY_EXAMPLES`), e o motivo está
+ * escrito lá: o backend de um exemplo não é deste repositório. Cobrá-lo aqui faria o exemplo que
+ * ensina Cloud Functions abortar toda publicação — e, se a function existisse, a reivindicação a
+ * tiraria da baseline do kernel, que é o oposto exato do que um exemplo deve provocar.
  */
-const firstPartyClaims = async (root: string): Promise<BackendClaim[]> => {
-  const dir = join(root, 'extension-templates');
-  const files = (await readdir(dir)).filter((file) => file.endsWith('.json'));
-  const templates = await Promise.all(
-    files.map((file) => readJson<{ manifest?: Record<string, unknown> }>(join(dir, file))),
-  );
-  return claimsFromTemplates(templates);
-};
+const firstPartyClaims = (root: string): BackendClaim[] =>
+  claimsFromTemplates(firstPartyTemplates<{ manifest?: Record<string, unknown> }>(root));
 
 interface RepoFirebaseJson {
   hosting?: HostingConfig;
@@ -204,7 +204,7 @@ export const pack = async (args: ParsedArgs): Promise<void> => {
   const callables = scan.callables.filter((name) => functionNames.includes(name));
 
   const rootIndexes = await readJson<RootIndexesFile>(join(root, 'firestore.indexes.json'));
-  const claims = await firstPartyClaims(root);
+  const claims = firstPartyClaims(root);
   const problems = claimProblems(claims, functionNames, rootIndexes.indexes);
   if (problems.length > 0) {
     throw new Error(

@@ -5,7 +5,18 @@ import { newsPlugin } from './news';
 import { dashboardPlugin } from './dashboard';
 import { calendarPlugin } from './calendar';
 import { localePtBrPlugin } from './localePtBr';
-import { automationExamplePlugin } from './automation';
+import { automationExamplePlugin } from './examples/automation-example/plugin';
+import { reportExamplePlugin } from './examples/report-example/plugin';
+import { widgetExamplePlugin } from './examples/widget-example/plugin';
+import { accessExamplePlugin } from './examples/access-example/plugin';
+import { backendExamplePlugin } from './examples/backend-example/plugin';
+import { libraryExamplePlugin } from './examples/library-example/plugin';
+import { consumerExamplePlugin } from './examples/consumer-example/plugin';
+import { patchExamplePlugin } from './examples/patch-example/plugin';
+import { themeExamplePlugin } from './examples/theme-example/plugin';
+import { authExamplePlugin } from './examples/auth-example/plugin';
+import { commandExamplePlugin } from './examples/command-example/plugin';
+import { settingsExamplePlugin } from './examples/settings-example/plugin';
 import { THEME_MARKETPLACE_PLUGINS } from './themes';
 
 /**
@@ -18,6 +29,11 @@ import { THEME_MARKETPLACE_PLUGINS } from './themes';
  * O `automationExamplePlugin` mora em `automation.ts` e VIAJA no pacote, em `examples/`: era a única
  * coisa que os exemplos não cobriam, e o guia dizia isso em voz alta. Ele não entra no
  * `MARKETPLACE_CATALOG` — é molde de leitura, não extensão que o escritório instala do Marketplace.
+ *
+ * A COLETÂNEA que nasceu dele mora em `examples/`, uma pasta por exemplo, e segue a mesma regra: cada
+ * um viaja como fonte e nenhum entra no catálogo embutido. A separação de diretório não é arrumação —
+ * é o que impede as extensões de primeira parte de se perderem no meio dos moldes, que são muitos mais
+ * e existem para ser lidos, não instalados.
  */
 export const boasVindasPlugin: MarketplacePlugin =
   {
@@ -192,7 +208,20 @@ export { brasilPlugin, newsPlugin, dashboardPlugin, calendarPlugin, localePtBrPl
  * O mesmo pacote também é distribuível como `.json` (`extension-templates/`, gerado por
  * `npm run build:extensions`), para importar em escritórios que não rodam este bundle.
  */
-export { automationExamplePlugin };
+export {
+  automationExamplePlugin,
+  reportExamplePlugin,
+  widgetExamplePlugin,
+  accessExamplePlugin,
+  backendExamplePlugin,
+  libraryExamplePlugin,
+  consumerExamplePlugin,
+  patchExamplePlugin,
+  themeExamplePlugin,
+  authExamplePlugin,
+  commandExamplePlugin,
+  settingsExamplePlugin,
+};
 
 export const MARKETPLACE_CATALOG: MarketplacePlugin[] = [
   localePtBrPlugin,

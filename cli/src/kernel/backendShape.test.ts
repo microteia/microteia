@@ -16,13 +16,16 @@ import {
 } from './backendShape.js';
 import type { BackendClaim, FirestoreIndexSpec } from './backendShape.js';
 import { exportedFunctionNames } from './manifest.js';
+import { firstPartyTemplates } from '../vendor/firstPartyTemplates.js';
 
-const templates = (): { manifest?: Record<string, unknown> }[] => {
-  const dir = join(repoRoot, 'extension-templates');
-  return readdirSync(dir)
-    .filter((file) => file.endsWith('.json'))
-    .map((file) => JSON.parse(readFileSync(join(dir, file), 'utf8')) as { manifest?: Record<string, unknown> });
-};
+/**
+ * A MESMA porta que o `pack` usa. Ler o diretório aqui por conta própria já custou cinco casos
+ * vermelhos: o teste que guarda a conta do empacotamento passou a enxergar um pacote que o
+ * empacotamento não enxerga, e a divergência entre os dois leitores é justamente o que ele existe
+ * para impedir.
+ */
+const templates = (): { manifest?: Record<string, unknown> }[] =>
+  firstPartyTemplates<{ manifest?: Record<string, unknown> }>(repoRoot);
 
 const rootIndexes = (): FirestoreIndexSpec[] =>
   (JSON.parse(readFileSync(join(repoRoot, 'firestore.indexes.json'), 'utf8')) as {
@@ -142,6 +145,28 @@ describe('baseline e reivindicado — as contas do pacote', () => {
    * passar por vazio: se uma passar a reivindicar, os casos acima deixam de ser sintéticos e este
    * caso é o que avisa.
    */
+  /**
+   * A EXCLUSÃO, afirmada — e não deduzida do silêncio do caso acima.
+   *
+   * "Nenhuma reivindica" é verdade tanto quando o filtro funciona quanto quando não há exemplo com
+   * backend nenhum, e as duas ficam indistinguíveis no dia em que o filtro quebrar. Este caso lê o
+   * diretório CRU, encontra o exemplo que reivindica, e exige que a porta o tenha deixado de fora.
+   */
+  it('o exemplo que ensina Cloud Functions reivindica, e a porta o deixa de fora', () => {
+    const crus = readdirSync(join(repoRoot, 'extension-templates'))
+      .filter((file) => file.endsWith('.json'))
+      .map((file) => JSON.parse(readFileSync(join(repoRoot, 'extension-templates', file), 'utf8')) as {
+        manifest?: Record<string, unknown>;
+      });
+
+    const todos = claimsFromTemplates(crus).map((claim) => claim.pluginId);
+    expect(todos, 'algum exemplo precisa reivindicar backend, ou este caso não prova nada')
+      .toContain('com.microteia.backend-example');
+    expect(claimsFromTemplates(templates()).map((claim) => claim.pluginId)).not.toContain(
+      'com.microteia.backend-example',
+    );
+  });
+
   it('nenhuma extensão de primeira parte reivindica backend neste momento', () => {
     expect(claimsFromTemplates(templates())).toEqual([]);
   });

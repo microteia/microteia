@@ -435,6 +435,10 @@ including the one that opened the editor only to validate a package.
 - \`microteia://examples\` — the first-party extensions that travel in \`examples/\` as source, and which
   MECHANISM each one is the best one to read for. **Read it before writing a mechanism for the first
   time**, and before deciding which folder to open; \`describe_extension\` answers the next question
+- \`microteia://example-coverage\` — every mechanism this platform has, against those examples: which
+  ones an example shows, which have none, and which no example COULD show because they are out of
+  reach for an extension. **Read it before concluding that something cannot be done here** — the answer
+  is usually an example you have not opened, or the other road this report names
 - \`microteia://workspace/plugins\` — the extensions authored here, with their current problems and what
   each one declares in \`exports\`. What sits in \`examples/\` is ours and is named apart there: nobody
   in this organization wrote it, and nothing here installs it

@@ -33,10 +33,19 @@ beforeAll(async () => {
   await mkdir(join(staged, 'node_modules/@microteia'), { recursive: true });
   const pkg = join(staged, 'node_modules/@microteia/sdk');
   await mkdir(pkg, { recursive: true });
+  // As DUAS entradas do pacote real: o barril isomórfico e a de FERRAMENTA (`@microteia/sdk/node`, de
+  // onde vem o transpilador de script). Só `main` deixava a segunda sem resolver, e um exemplo que
+  // precisasse dela falharia aqui por falta do mapeamento, não por defeito dele.
+  //
+  // Os alvos de `exports` têm de ser relativos ao pacote, então cada entrada é um repasse de uma linha
+  // para o SDK construído deste repositório — que é o que o link inteiro sempre foi.
+  await writeFile(join(pkg, 'index.js'), `module.exports = require(${JSON.stringify(join(repoRoot, 'sdk/lib/sdk/index.js'))});\n`);
+  await writeFile(join(pkg, 'node.js'), `module.exports = require(${JSON.stringify(join(repoRoot, 'sdk/lib/sdk/node/compile.js'))});\n`);
   await writeFile(join(pkg, 'package.json'), JSON.stringify({
     name: '@microteia/sdk',
     version: '0.0.0',
-    main: join(repoRoot, 'sdk/lib/sdk/index.js'),
+    main: './index.js',
+    exports: { '.': './index.js', './node': './node.js' },
   }));
 });
 

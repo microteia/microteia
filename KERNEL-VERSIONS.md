@@ -18,6 +18,60 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.62.0] — 2026-09-09
+
+- feat(sdk/examples): eleven authored examples, one mechanism each, joining `automation-example` in
+  `extensions/examples/`. Six examples covered six of the twenty-two extension points, and nothing
+  anywhere said which sixteen were missing: whoever looked for a report, a Cloud Function or a
+  permission found no source and concluded the platform had none. The collection covers reports in
+  all four shapes, dashboard and shell surfaces, RBAC, backend requirements, the publish/consume pair
+  for cooperation, `screenPatches` with a migration, theme tokens, `auth.provider`, gestures, and
+  settings. They live in `src/plugins/marketplace/examples/<name>/`, stay out of
+  `MARKETPLACE_CATALOG`, and travel as source.
+- feat(sdk): `exampleCoverage` — every extension point, package artifact and manifest property against
+  the examples that travel, derived rather than written. Points are walked from the point arrays;
+  package and manifest keys are closed by `Record<keyof …>`, so a new one does not compile until
+  somebody says whether an example should show it. `scripts/exampleCoverage.test.ts` fails on any gap
+  that is not in an acknowledged table, in the discipline of `VERSAO_CONFERIDA`. A third state,
+  `unreachable`, names what no example could show — `ui.command`, `ui.record.action`, `data.entity`,
+  `data.lookup`, `data.service`, `report.definition`, `manifest.permissions` and `manifest.lifecycle`
+  — and says the road that exists instead, so an author reads a redirection rather than a silence.
+- feat(sdk/mcp): `microteia://example-coverage` serves that report from the installation, compiling
+  the examples on the spot. `AGENTS.md` and `AUTHORING.md` point at it before concluding that
+  something cannot be done here.
+- feat(sdk): `themeContribution` joins the barrel. Its sibling `themeTokensContribution` was already
+  there and the asymmetry was an oversight, not a decision: `theme.definition` is pure metadata, so
+  any package may contribute it, and only the constructor failed to cross. Authoring-only, so
+  `KERNEL_VERSION` does not move.
+- fix(cli/pack): reading-only examples are excluded from the first-party backend accounting.
+  `extension-templates/` now holds two kinds of package with the same shape and different owners, and
+  the baseline is derived as `all functions − claimed`: the first example to teach Cloud Functions
+  would have aborted every publish, and a claimed name would have been taken out of the kernel
+  baseline by a template. `firstPartyTemplates` is the single door, and `backendShape.test.ts` reads
+  through it — it had its own copy of the directory read, which is how a gate starts approving what it
+  exists to refuse.
+- feat(build): `tsconfig.extbackend.json` type-checks the Cloud Function source of an example against
+  the generated `microteia-office.d.ts` and the real `firebase-functions`, and `npm run typecheck`
+  runs it. It nearly did not exist: adding `firebase-functions` to the root hit a peer conflict — the
+  root carries `firebase-admin ^14` and the 6 series accepted up to 13 — and the easy way out was to
+  leave the source outside the gate with a note saying the office checks it. That is the debt code in
+  a template literal was: eight wrong declarations in the curated API lived for years that way, and
+  what found them was putting the file under `tsc`. `firebase-functions@^7.3.2` widened its peer to
+  `^14`, which is the fix. The project is STRICTER than the `tsconfig.json` seeded in the office
+  (which ships `noImplicitAny` and `strictNullChecks` off), so what passes here passes there;
+  `skipLibCheck` is on, and for the opposite reason to `tsconfig.extsrc.json` — there the library is
+  our own contract, here it is the third-party tree `firebase-functions` drags along.
+- fix(cli/vendor): `stageExamples` copies `functions/` and `scripts/` beside `views/`, and
+  `rewriteImports` sends the node-only modules to `@microteia/sdk/node` rather than to the isomorphic
+  barrel, where `transpileScriptSource` deliberately is not.
+- fix(cli/vendor): `MICROTEIA.md` derives its build command from the examples actually present. It
+  named `examples/pessoa`, which left the repository with the office extensions.
+- test(marketplace): the source-language sweep covers `automation-example` and the whole collection,
+  and stops reporting three families of false positive — a chart's `category`, the `value` of an
+  `InputMapping` or a condition, and the `value` of a parameter option, all of which are keys rather
+  than text. Its floor of ten texts per package became one per package plus ten times the count over
+  the set, so a small example is not refused for being small.
+
 #### [9.61.0] — 2026-09-09
 
 - feat(report): `dataset.includeWhen` — an expression evaluated over each row, and the row enters the

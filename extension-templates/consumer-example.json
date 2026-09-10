@@ -1,0 +1,174 @@
+{
+  "manifest": {
+    "id": "com.microteia.consumer-example",
+    "version": "1.0.0",
+    "kernel": "^2.0.0",
+    "name": "@com.microteia.consumer-example/package.name",
+    "description": "@com.microteia.consumer-example/package.description",
+    "category": "@com.microteia.consumer-example/package.category",
+    "publisher": {
+      "name": "Microteia"
+    },
+    "dependencies": {
+      "com.microteia.library-example": "^1.0.0"
+    },
+    "consumes": [
+      {
+        "capability": "example.code-formatting",
+        "range": "^1.0.0"
+      }
+    ],
+    "contributes": [
+      {
+        "point": "i18n.messages",
+        "id": "en.com.microteia.consumer-example",
+        "apiVersion": "1.0.0",
+        "metadata": {
+          "locale": "en",
+          "namespace": "com.microteia.consumer-example",
+          "messages": {
+            "package.name": "Using another extension, by example",
+            "package.category": "Cooperation",
+            "package.description": "The other half of cooperation: it fills a point another extension opened, points a step at a script it does not own, widens a permission and asks for a capability.",
+            "package.summary": "How one extension uses another without either of them importing anything. It fills the extension point the library example publishes, runs a flow whose step points at the library script by NAME rather than by id, adds its own requirement to a permission the library declared, and asks for the capability the library provides. Every one of the four is declared, and none of them makes this package execute the other one code.",
+            "contribution.slug": "Dashed slug",
+            "contribution.slug.description": "Formats a code as a lowercase dashed slug.",
+            "workflow.tidy": "Tidy a code",
+            "workflow.tidy.description": "Runs the library script on a code, then calls the library flow to announce the result. Neither step names a local id.",
+            "parameter.code": "Code",
+            "resource.consumer": "Code tidying",
+            "permission.tidy": "Tidy codes",
+            "permission.tidy.description": "Run the tidy flow. Whoever uses the library needs this one too, because this package contributes into it."
+          }
+        }
+      },
+      {
+        "point": "i18n.messages",
+        "id": "pt-br.com.microteia.consumer-example",
+        "apiVersion": "1.0.0",
+        "metadata": {
+          "locale": "pt-BR",
+          "namespace": "com.microteia.consumer-example",
+          "messages": {
+            "package.name": "Usando outra extensão, pelo exemplo",
+            "package.category": "Cooperação",
+            "package.description": "A outra metade da cooperação: preenche um ponto que outra extensão abriu, aponta um passo para um script que não é dela, alarga uma permissão e pede uma capacidade.",
+            "package.summary": "Como uma extensão usa outra sem que nenhuma das duas importe nada. Preenche o ponto de extensão que o exemplo-biblioteca publica, roda um fluxo cujo passo aponta para o script da biblioteca pelo NOME e não pelo id, soma a própria exigência a uma permissão que a biblioteca declarou, e pede a capacidade que a biblioteca provê. Os quatro são declarados, e nenhum deles faz este pacote executar código do outro.",
+            "contribution.slug": "Slug com hifens",
+            "contribution.slug.description": "Formata um código como um slug em minúsculas separado por hifens.",
+            "workflow.tidy": "Arrumar um código",
+            "workflow.tidy.description": "Roda o script da biblioteca sobre um código e depois chama o fluxo da biblioteca para anunciar o resultado. Nenhum dos dois passos nomeia um id local.",
+            "parameter.code": "Código",
+            "resource.consumer": "Arrumação de códigos",
+            "permission.tidy": "Arrumar códigos",
+            "permission.tidy.description": "Rodar o fluxo de arrumação. Quem usa a biblioteca precisa desta também, porque este pacote contribui dentro dela."
+          }
+        }
+      },
+      {
+        "point": "codelibrary.formatter",
+        "id": "dashed-slug",
+        "apiVersion": "1.0.0",
+        "metadata": {
+          "label": "@com.microteia.consumer-example/contribution.slug",
+          "description": "@com.microteia.consumer-example/contribution.slug.description",
+          "separator": "-",
+          "lowercase": true
+        }
+      },
+      {
+        "point": "access.resource",
+        "id": "consumer-example",
+        "apiVersion": "1.0.0",
+        "metadata": {
+          "id": "consumer-example",
+          "name": "@com.microteia.consumer-example/resource.consumer"
+        }
+      },
+      {
+        "point": "access.permission",
+        "id": "consumer-example-tidy",
+        "apiVersion": "1.0.0",
+        "metadata": {
+          "id": "consumer-example.tidy",
+          "name": "@com.microteia.consumer-example/permission.tidy",
+          "description": "@com.microteia.consumer-example/permission.tidy.description"
+        }
+      },
+      {
+        "point": "access.requirement",
+        "id": "library-example-use",
+        "apiVersion": "1.0.0",
+        "metadata": {
+          "id": "library-example.use",
+          "requires": [
+            "consumer-example.tidy"
+          ]
+        }
+      }
+    ]
+  },
+  "summary": "@com.microteia.consumer-example/package.summary",
+  "workflows": [
+    {
+      "templateId": "wf-tidy",
+      "sourceId": "microteia:consumer-example:tidy",
+      "sourceRev": 1,
+      "name": "@com.microteia.consumer-example/workflow.tidy",
+      "description": "@com.microteia.consumer-example/workflow.tidy.description",
+      "eventName": "workflow.called",
+      "version": 1,
+      "condition": {
+        "kind": "AlwaysTrue"
+      },
+      "parameters": [
+        {
+          "key": "code",
+          "label": "@com.microteia.consumer-example/parameter.code",
+          "type": "String",
+          "required": true
+        }
+      ],
+      "steps": [
+        {
+          "id": "normalize",
+          "stepDefinitionId": "script",
+          "type": "Script",
+          "order": 0,
+          "enabled": true,
+          "configuration": {
+            "scriptId": {
+              "kind": "Literal",
+              "value": "com.microteia.library-example/normalize-code"
+            },
+            "param.code": {
+              "kind": "Event",
+              "path": "code"
+            }
+          }
+        },
+        {
+          "id": "announce",
+          "stepDefinitionId": "call-workflow",
+          "type": "SubWorkflow",
+          "order": 1,
+          "enabled": true,
+          "configuration": {
+            "targetWorkflowId": {
+              "kind": "Literal",
+              "value": "com.microteia.library-example/wf-announce"
+            },
+            "params": {
+              "kind": "Expression",
+              "expression": "object(\"code\", steps.normalize.code, \"reason\", \"tidied by the consumer example\")"
+            },
+            "waitForResult": {
+              "kind": "Literal",
+              "value": false
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -4,10 +4,10 @@ import type {
   ScreenModuleTemplate,
   TemplateField,
   WorkflowModuleTemplate,
-} from '../../domain/entities/MarketplacePlugin';
-import type { QuerySpec } from '../../domain/schema/querySpec';
-import type { UpsertStepConfig } from '../../domain/schema/mutationSpec';
-import type { MapStepConfig } from '../../domain/schema/mapSpec';
+} from '../../../../domain/entities/MarketplacePlugin';
+import type { QuerySpec } from '../../../../domain/schema/querySpec';
+import type { UpsertStepConfig } from '../../../../domain/schema/mutationSpec';
+import type { MapStepConfig } from '../../../../domain/schema/mapSpec';
 import { automationMessagesContribution } from './automationMessages';
 import { automationPtBrContribution } from './automationMessagesPtBr';
 

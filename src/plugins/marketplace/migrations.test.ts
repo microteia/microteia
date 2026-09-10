@@ -1,9 +1,20 @@
 import { describe, expect, it } from 'vitest';
 import { validateMigrations } from '../../domain/schema/plugin/migration';
 import { MARKETPLACE_CATALOG, boasVindasPlugin, guiaPlugin } from './catalog';
+import { TRAVELLING_EXAMPLES } from './travellingExamples';
 import type { MarketplacePlugin } from '../../domain/entities/MarketplacePlugin';
 
-const ALL: MarketplacePlugin[] = [...MARKETPLACE_CATALOG, boasVindasPlugin, guiaPlugin];
+/**
+ * O catálogo embutido, as fixtures e os EXEMPLOS que viajam. Os exemplos entram porque a guarda abaixo
+ * existe justamente para quem aprende a escrever migração lendo um deles: um molde que endereça a
+ * coleção pelo nome ensina o defeito que este teste existe para impedir.
+ */
+const ALL: MarketplacePlugin[] = [
+  ...MARKETPLACE_CATALOG,
+  boasVindasPlugin,
+  guiaPlugin,
+  ...TRAVELLING_EXAMPLES,
+];
 
 /** Toda `table: 'x'` escrita no código de uma migração. */
 const hardcodedTables = (source: string): string[] =>

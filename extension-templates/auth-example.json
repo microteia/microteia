@@ -1,0 +1,110 @@
+{
+  "manifest": {
+    "id": "com.microteia.auth-example",
+    "version": "1.0.0",
+    "kernel": "^2.0.0",
+    "name": "@com.microteia.auth-example/package.name",
+    "description": "@com.microteia.auth-example/package.description",
+    "category": "@com.microteia.auth-example/package.category",
+    "publisher": {
+      "name": "Microteia"
+    },
+    "dependencies": {
+      "core.auth": "^1.0.0"
+    },
+    "contributes": [
+      {
+        "point": "i18n.messages",
+        "id": "en.com.microteia.auth-example",
+        "apiVersion": "1.0.0",
+        "metadata": {
+          "locale": "en",
+          "namespace": "com.microteia.auth-example",
+          "messages": {
+            "package.name": "Signing in, by example",
+            "package.category": "Access",
+            "package.description": "A corporate single sign-on and the house password form, both declared — plus a note in the footer of the sign-in screen.",
+            "package.summary": "How an office adds its own way in. Single sign-on fits entirely in a declaration, because the project Firebase Auth already speaks OIDC and SAML — what was missing was a package saying WITH WHOM. The point accepts no implementation at all, and that is what makes it useful: accepting code would have made sign-in a first-party privilege, which is the opposite of what it needs to be.",
+            "provider.sso": "Sign in with Acme ID",
+            "provider.password": "Email and password",
+            "slot.footer": "Sign-in note",
+            "slot.footer.description": "A line under the sign-in form.",
+            "footer.text": "Trouble signing in? Talk to whoever administers this installation."
+          }
+        }
+      },
+      {
+        "point": "i18n.messages",
+        "id": "pt-br.com.microteia.auth-example",
+        "apiVersion": "1.0.0",
+        "metadata": {
+          "locale": "pt-BR",
+          "namespace": "com.microteia.auth-example",
+          "messages": {
+            "package.name": "Entrar no sistema, pelo exemplo",
+            "package.category": "Acesso",
+            "package.description": "Um login único corporativo e o formulário de senha da casa, os dois declarados — mais um aviso no rodapé da tela de entrada.",
+            "package.summary": "Como um escritório acrescenta o próprio jeito de entrar. Um login único cabe inteiro numa declaração, porque o Firebase Auth do projeto já sabe falar OIDC e SAML — o que faltava era um pacote dizer COM QUEM. O ponto não aceita implementação nenhuma, e é isso que o torna útil: aceitar código faria da entrada um privilégio de primeira parte, que é o oposto do que ela precisa ser.",
+            "provider.sso": "Entrar com o Acme ID",
+            "provider.password": "E-mail e senha",
+            "slot.footer": "Aviso da entrada",
+            "slot.footer.description": "Uma linha sob o formulário de entrada.",
+            "footer.text": "Problemas para entrar? Fale com quem administra esta instalação."
+          }
+        }
+      },
+      {
+        "point": "auth.provider",
+        "id": "acme-sso",
+        "apiVersion": "1.0.0",
+        "metadata": {
+          "key": "acme-sso",
+          "label": "@com.microteia.auth-example/provider.sso",
+          "kind": "oidc",
+          "providerId": "oidc.acme",
+          "flow": "redirect",
+          "scopes": [
+            "openid",
+            "email",
+            "profile"
+          ],
+          "icon": "shieldCheck",
+          "order": 10
+        }
+      },
+      {
+        "point": "auth.provider",
+        "id": "password",
+        "apiVersion": "1.0.0",
+        "metadata": {
+          "key": "password",
+          "label": "@com.microteia.auth-example/provider.password",
+          "kind": "password",
+          "order": 20
+        }
+      },
+      {
+        "point": "ui.slot",
+        "id": "login-footer-auth-example-note",
+        "apiVersion": "1.0.0",
+        "metadata": {
+          "surface": "login.footer",
+          "key": "auth-example.note",
+          "title": "@com.microteia.auth-example/slot.footer",
+          "description": "@com.microteia.auth-example/slot.footer.description",
+          "order": 10
+        },
+        "impl": {
+          "kind": "widget",
+          "spec": {
+            "type": "text",
+            "text": "@com.microteia.auth-example/footer.text",
+            "muted": true
+          }
+        }
+      }
+    ]
+  },
+  "summary": "@com.microteia.auth-example/package.summary",
+  "workflows": []
+}

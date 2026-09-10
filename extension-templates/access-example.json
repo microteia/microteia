@@ -1,0 +1,228 @@
+{
+  "manifest": {
+    "id": "com.microteia.access-example",
+    "version": "1.0.0",
+    "kernel": "^2.0.0",
+    "name": "@com.microteia.access-example/package.name",
+    "description": "@com.microteia.access-example/package.description",
+    "category": "@com.microteia.access-example/package.category",
+    "publisher": {
+      "name": "Microteia"
+    },
+    "dependencies": {
+      "core.ui": "^1.0.0"
+    },
+    "contributes": [
+      {
+        "point": "i18n.messages",
+        "id": "en.com.microteia.access-example",
+        "apiVersion": "1.0.0",
+        "metadata": {
+          "locale": "en",
+          "namespace": "com.microteia.access-example",
+          "messages": {
+            "package.name": "Permissions, by example",
+            "package.category": "Access",
+            "package.description": "What a collection gives you for free, and what you have to declare: a named resource, two permissions with their closure, and a page that only opens for one of them.",
+            "package.summary": "How an extension says who may do what. Authorisation here is by PERMISSION and never by role: the office builds its own profiles, and code only ever asks whether a permission is held. It installs one screen — whose four CRUD permissions the platform derives on its own — plus a named resource for the thing that is not a collection, two declared permissions with the closure each one drags along, and a page gated by one of them.",
+            "screen.note": "Note",
+            "screen.note.plural": "Notes",
+            "field.title": "Title",
+            "field.title.placeholder": "What this note is about",
+            "field.body": "Body",
+            "field.published": "Published",
+            "resource.board": "Notes board",
+            "permission.view": "Open the notes board",
+            "permission.view.description": "See the board that reads the notes. It cannot show what the holder may not read, so it drags note reading along with it.",
+            "permission.publish": "Publish a note",
+            "permission.publish.description": "Mark a note as published. Publishing is writing, so it drags reading and updating along with it.",
+            "nav.board": "Notes board",
+            "page.board": "Notes board",
+            "board.heading": "Notes board",
+            "board.body": "You are seeing this page because you hold **Open the notes board**. Someone without it does not get an error here — the menu item and the page are simply not there for them.\n\nThat is the whole shape of authorisation in this platform: **ask what someone may DO, never who they are**. There is no role to compare against; the office builds its own profiles and puts permissions in them.",
+            "board.free": "Given for free",
+            "board.free.value": "accessNote.read, accessNote.create, accessNote.update, accessNote.delete",
+            "board.declared": "Declared here",
+            "board.declared.value": "access-example.view, access-example.publish",
+            "board.note": "A permission RESTRICTS and never grants: holding this one still gets you nothing on a note you may not read."
+          }
+        }
+      },
+      {
+        "point": "i18n.messages",
+        "id": "pt-br.com.microteia.access-example",
+        "apiVersion": "1.0.0",
+        "metadata": {
+          "locale": "pt-BR",
+          "namespace": "com.microteia.access-example",
+          "messages": {
+            "package.name": "Permissões, pelo exemplo",
+            "package.category": "Acesso",
+            "package.description": "O que uma coleção dá de graça, e o que é preciso declarar: um recurso nomeado, duas permissões com o fecho delas, e uma página que só abre para uma.",
+            "package.summary": "Como uma extensão diz quem pode o quê. A autorização aqui é por PERMISSÃO e nunca por papel: o escritório monta os próprios perfis, e o código só pergunta se uma permissão está com quem age. Instala uma tela — cujas quatro permissões de CRUD a plataforma deriva sozinha —, mais um recurso nomeado para aquilo que não é coleção, duas permissões declaradas com o fecho que cada uma arrasta, e uma página protegida por uma delas.",
+            "screen.note": "Nota",
+            "screen.note.plural": "Notas",
+            "field.title": "Título",
+            "field.title.placeholder": "Sobre o que é esta nota",
+            "field.body": "Conteúdo",
+            "field.published": "Publicada",
+            "resource.board": "Quadro de notas",
+            "permission.view": "Abrir o quadro de notas",
+            "permission.view.description": "Ver o quadro que lê as notas. Ele não tem como mostrar o que quem o abre não pode ler, então arrasta a leitura das notas junto.",
+            "permission.publish": "Publicar uma nota",
+            "permission.publish.description": "Marcar uma nota como publicada. Publicar é gravar, então arrasta a leitura e a alteração junto.",
+            "nav.board": "Quadro de notas",
+            "page.board": "Quadro de notas",
+            "board.heading": "Quadro de notas",
+            "board.body": "Você está vendo esta página porque tem **Abrir o quadro de notas**. Quem não a tem não recebe um erro aqui — o item de menu e a página simplesmente não existem para essa pessoa.\n\nÉ essa a forma inteira da autorização nesta plataforma: **pergunte o que alguém pode FAZER, nunca quem essa pessoa é**. Não há papel a comparar; o escritório monta os próprios perfis e põe permissões dentro deles.",
+            "board.free": "Dadas de graça",
+            "board.free.value": "accessNote.read, accessNote.create, accessNote.update, accessNote.delete",
+            "board.declared": "Declaradas aqui",
+            "board.declared.value": "access-example.view, access-example.publish",
+            "board.note": "Uma permissão RESTRINGE e nunca concede: ter esta continua não dando nada sobre uma nota que você não pode ler."
+          }
+        }
+      },
+      {
+        "point": "access.resource",
+        "id": "access-example",
+        "apiVersion": "1.0.0",
+        "metadata": {
+          "id": "access-example",
+          "name": "@com.microteia.access-example/resource.board"
+        }
+      },
+      {
+        "point": "access.permission",
+        "id": "access-example-view",
+        "apiVersion": "1.0.0",
+        "metadata": {
+          "id": "access-example.view",
+          "name": "@com.microteia.access-example/permission.view",
+          "description": "@com.microteia.access-example/permission.view.description",
+          "requires": [
+            "accessNote.read"
+          ]
+        }
+      },
+      {
+        "point": "access.permission",
+        "id": "access-example-publish",
+        "apiVersion": "1.0.0",
+        "metadata": {
+          "id": "access-example.publish",
+          "name": "@com.microteia.access-example/permission.publish",
+          "description": "@com.microteia.access-example/permission.publish.description",
+          "requires": [
+            "accessNote.read",
+            "accessNote.update"
+          ]
+        }
+      },
+      {
+        "point": "ui.nav",
+        "id": "access-example-board",
+        "apiVersion": "1.0.0",
+        "metadata": {
+          "key": "access-example-board",
+          "label": "@com.microteia.access-example/nav.board",
+          "icon": "fileText",
+          "order": 105,
+          "requiredPermissions": [
+            "access-example.view"
+          ]
+        }
+      },
+      {
+        "point": "ui.page",
+        "id": "access-example-board",
+        "apiVersion": "1.0.0",
+        "metadata": {
+          "key": "access-example-board",
+          "title": "@com.microteia.access-example/page.board",
+          "icon": "fileText",
+          "requiredPermissions": [
+            "access-example.view"
+          ]
+        },
+        "impl": {
+          "kind": "widget",
+          "spec": {
+            "type": "stack",
+            "gap": "lg",
+            "children": [
+              {
+                "type": "heading",
+                "text": "@com.microteia.access-example/board.heading"
+              },
+              {
+                "type": "markdown",
+                "content": "@com.microteia.access-example/board.body"
+              },
+              {
+                "type": "divider"
+              },
+              {
+                "type": "keyValue",
+                "items": [
+                  {
+                    "label": "@com.microteia.access-example/board.free",
+                    "value": "@com.microteia.access-example/board.free.value"
+                  },
+                  {
+                    "label": "@com.microteia.access-example/board.declared",
+                    "value": "@com.microteia.access-example/board.declared.value"
+                  }
+                ]
+              },
+              {
+                "type": "banner",
+                "message": "@com.microteia.access-example/board.note",
+                "variant": "info"
+              }
+            ]
+          }
+        }
+      }
+    ]
+  },
+  "summary": "@com.microteia.access-example/package.summary",
+  "workflows": [],
+  "screens": [
+    {
+      "key": "accessNote",
+      "sourceId": "microteia:access-example:note",
+      "sourceRev": 1,
+      "titleSingular": "@com.microteia.access-example/screen.note",
+      "titlePlural": "@com.microteia.access-example/screen.note.plural",
+      "icon": "fileText",
+      "fields": [
+        {
+          "key": "title",
+          "label": "@com.microteia.access-example/field.title",
+          "type": "text",
+          "required": true,
+          "order": 0,
+          "placeholder": "@com.microteia.access-example/field.title.placeholder"
+        },
+        {
+          "key": "body",
+          "label": "@com.microteia.access-example/field.body",
+          "type": "textarea",
+          "required": false,
+          "order": 1
+        },
+        {
+          "key": "published",
+          "label": "@com.microteia.access-example/field.published",
+          "type": "checkbox",
+          "required": false,
+          "order": 2,
+          "filterable": true
+        }
+      ],
+      "titleFieldKey": "title",
+      "eventPrefix": "accessNote"
+    }
+  ]
+}

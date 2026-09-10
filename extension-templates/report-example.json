@@ -1,0 +1,528 @@
+{
+  "manifest": {
+    "id": "com.microteia.report-example",
+    "version": "1.0.0",
+    "kernel": "^2.0.0",
+    "name": "@com.microteia.report-example/package.name",
+    "description": "@com.microteia.report-example/package.description",
+    "category": "@com.microteia.report-example/package.category",
+    "publisher": {
+      "name": "Microteia"
+    },
+    "contributes": [
+      {
+        "point": "i18n.messages",
+        "id": "en.com.microteia.report-example",
+        "apiVersion": "1.0.0",
+        "metadata": {
+          "locale": "en",
+          "namespace": "com.microteia.report-example",
+          "messages": {
+            "package.name": "Reports, by example",
+            "package.category": "Reports",
+            "package.description": "Four reports over one small screen: a grouped list, a summary with a chart, a pivot, and one that filters by expression and asks a question first.",
+            "package.summary": "What a declarative report can say, with no business in the way. It installs one screen and four reports over it, so each shape can be read as source: a list broken into groups with subtotals, a summary bucketed by month with a chart beside it, a pivot of category against month, and a list that filters by an expression over each row and asks the reader for a date before it runs.",
+            "screen.entry": "Entry",
+            "screen.entry.plural": "Entries",
+            "section.entry": "Entry",
+            "section.amounts": "Amounts",
+            "field.label": "Label",
+            "field.label.placeholder": "What this entry is",
+            "field.category": "Category",
+            "field.category.standard": "Standard",
+            "field.category.priority": "Priority",
+            "field.category.exception": "Exception",
+            "field.amount": "Amount",
+            "field.estimate": "Estimate",
+            "field.entryDate": "Date",
+            "field.archived": "Archived",
+            "report.by-category": "Entries by category",
+            "report.by-category.description": "The grouped list: every entry stays visible, broken into one block per category, with a subtotal under each block.",
+            "report.by-month": "Totals by month",
+            "report.by-month.description": "The summary: one line per month, with a chart beside it. The month is a BUCKET cut from the date, not a field anybody types.",
+            "report.category-by-month": "Category against month",
+            "report.category-by-month.description": "The pivot: categories down the side, months across the top, one total in each cell.",
+            "report.over-estimate": "Over the estimate",
+            "report.over-estimate.description": "The list that no fixed filter can write: it keeps the rows whose amount went past their own estimate, and asks the reader for a starting date first.",
+            "measure.total": "Total",
+            "measure.count": "Entries",
+            "measure.open-total": "Total still open",
+            "measure.categories": "Categories",
+            "dimension.label": "Label",
+            "dimension.category": "Category",
+            "dimension.date": "Date",
+            "dimension.month": "Month",
+            "prompt.from": "From"
+          }
+        }
+      },
+      {
+        "point": "i18n.messages",
+        "id": "pt-br.com.microteia.report-example",
+        "apiVersion": "1.0.0",
+        "metadata": {
+          "locale": "pt-BR",
+          "namespace": "com.microteia.report-example",
+          "messages": {
+            "package.name": "Relatórios, pelo exemplo",
+            "package.category": "Relatórios",
+            "package.description": "Quatro relatórios sobre uma tela pequena: uma lista agrupada, um resumo com gráfico, um pivô, e um que filtra por expressão e pergunta antes de rodar.",
+            "package.summary": "O que um relatório declarativo consegue dizer, sem negócio no caminho. Instala uma tela e quatro relatórios sobre ela, para que cada dobra possa ser lida como fonte: uma lista quebrada em grupos com subtotais, um resumo em baldes de mês com um gráfico ao lado, um pivô de categoria contra mês, e uma lista que filtra por uma expressão sobre cada linha e pede uma data ao leitor antes de rodar.",
+            "screen.entry": "Lançamento",
+            "screen.entry.plural": "Lançamentos",
+            "section.entry": "Lançamento",
+            "section.amounts": "Valores",
+            "field.label": "Descrição",
+            "field.label.placeholder": "O que é este lançamento",
+            "field.category": "Categoria",
+            "field.category.standard": "Comum",
+            "field.category.priority": "Prioritário",
+            "field.category.exception": "Excepcional",
+            "field.amount": "Valor",
+            "field.estimate": "Previsto",
+            "field.entryDate": "Data",
+            "field.archived": "Arquivado",
+            "report.by-category": "Lançamentos por categoria",
+            "report.by-category.description": "A lista agrupada: cada lançamento continua visível, quebrado em um bloco por categoria, com um subtotal sob cada bloco.",
+            "report.by-month": "Totais por mês",
+            "report.by-month.description": "O resumo: uma linha por mês, com um gráfico ao lado. O mês é um BALDE recortado da data, não um campo que alguém digita.",
+            "report.category-by-month": "Categoria contra mês",
+            "report.category-by-month.description": "O pivô: categorias na lateral, meses no topo, um total em cada célula.",
+            "report.over-estimate": "Acima do previsto",
+            "report.over-estimate.description": "A lista que nenhum filtro fixo escreve: mantém as linhas cujo valor passou do próprio previsto, e pede antes uma data inicial ao leitor.",
+            "measure.total": "Total",
+            "measure.count": "Lançamentos",
+            "measure.open-total": "Total em aberto",
+            "measure.categories": "Categorias",
+            "dimension.label": "Descrição",
+            "dimension.category": "Categoria",
+            "dimension.date": "Data",
+            "dimension.month": "Mês",
+            "prompt.from": "A partir de"
+          }
+        }
+      }
+    ]
+  },
+  "summary": "@com.microteia.report-example/package.summary",
+  "workflows": [],
+  "screens": [
+    {
+      "key": "reportEntry",
+      "sourceId": "microteia:report-example:entry",
+      "sourceRev": 1,
+      "titleSingular": "@com.microteia.report-example/screen.entry",
+      "titlePlural": "@com.microteia.report-example/screen.entry.plural",
+      "icon": "fileList",
+      "fields": [
+        {
+          "key": "label",
+          "label": "@com.microteia.report-example/field.label",
+          "type": "text",
+          "required": true,
+          "order": 0,
+          "section": "@com.microteia.report-example/section.entry",
+          "placeholder": "@com.microteia.report-example/field.label.placeholder"
+        },
+        {
+          "key": "category",
+          "label": "@com.microteia.report-example/field.category",
+          "type": "select",
+          "required": true,
+          "order": 1,
+          "section": "@com.microteia.report-example/section.entry",
+          "filterable": true,
+          "optionsColored": true,
+          "options": [
+            {
+              "key": "standard",
+              "label": "@com.microteia.report-example/field.category.standard",
+              "color": "info"
+            },
+            {
+              "key": "priority",
+              "label": "@com.microteia.report-example/field.category.priority",
+              "color": "warning"
+            },
+            {
+              "key": "exception",
+              "label": "@com.microteia.report-example/field.category.exception",
+              "color": "danger"
+            }
+          ]
+        },
+        {
+          "key": "entryDate",
+          "label": "@com.microteia.report-example/field.entryDate",
+          "type": "date",
+          "required": true,
+          "order": 2,
+          "section": "@com.microteia.report-example/section.entry",
+          "filterable": true
+        },
+        {
+          "key": "amount",
+          "label": "@com.microteia.report-example/field.amount",
+          "type": "currency",
+          "required": true,
+          "order": 3,
+          "section": "@com.microteia.report-example/section.amounts"
+        },
+        {
+          "key": "estimate",
+          "label": "@com.microteia.report-example/field.estimate",
+          "type": "currency",
+          "required": false,
+          "order": 4,
+          "section": "@com.microteia.report-example/section.amounts"
+        },
+        {
+          "key": "archived",
+          "label": "@com.microteia.report-example/field.archived",
+          "type": "checkbox",
+          "required": false,
+          "order": 5,
+          "section": "@com.microteia.report-example/section.amounts",
+          "filterable": true
+        }
+      ],
+      "titleFieldKey": "label",
+      "subtitleFieldKey": "category",
+      "eventPrefix": "reportEntry"
+    }
+  ],
+  "reports": [
+    {
+      "templateId": "by-category",
+      "key": "entries-by-category",
+      "title": "@com.microteia.report-example/report.by-category",
+      "description": "@com.microteia.report-example/report.by-category.description",
+      "icon": "fileList",
+      "origin": "plugin",
+      "sourceId": "microteia:report-example:by-category",
+      "sourceRev": 1,
+      "managed": true,
+      "enabled": true,
+      "spec": {
+        "v": 1,
+        "dataset": {
+          "table": "reportEntry",
+          "dimensions": [
+            {
+              "key": "category",
+              "path": "category",
+              "label": "@com.microteia.report-example/dimension.category"
+            },
+            {
+              "key": "label",
+              "path": "label",
+              "label": "@com.microteia.report-example/dimension.label"
+            },
+            {
+              "key": "date",
+              "path": "entryDate",
+              "label": "@com.microteia.report-example/dimension.date"
+            }
+          ],
+          "measures": [
+            {
+              "key": "total",
+              "op": "sum",
+              "path": "amount",
+              "label": "@com.microteia.report-example/measure.total",
+              "format": {
+                "kind": "currency"
+              }
+            }
+          ]
+        },
+        "shape": {
+          "kind": "tabular",
+          "columns": [
+            "label",
+            "date"
+          ],
+          "groupBy": [
+            {
+              "dimension": "category",
+              "subtotal": true
+            }
+          ],
+          "orderBy": [
+            {
+              "path": "entryDate",
+              "dir": "desc"
+            }
+          ]
+        },
+        "presentation": {
+          "export": {
+            "csv": true
+          }
+        },
+        "requires": [
+          "dataset.collection",
+          "export.csv",
+          "measure.aggregate",
+          "shape.subtotal",
+          "shape.tabular",
+          "shape.tabular.group"
+        ]
+      }
+    },
+    {
+      "templateId": "by-month",
+      "key": "entry-totals-by-month",
+      "title": "@com.microteia.report-example/report.by-month",
+      "description": "@com.microteia.report-example/report.by-month.description",
+      "icon": "barChart",
+      "origin": "plugin",
+      "sourceId": "microteia:report-example:by-month",
+      "sourceRev": 1,
+      "managed": true,
+      "enabled": true,
+      "spec": {
+        "v": 1,
+        "dataset": {
+          "table": "reportEntry",
+          "dimensions": [
+            {
+              "key": "month",
+              "path": "entryDate",
+              "label": "@com.microteia.report-example/dimension.month",
+              "granularity": "month",
+              "timeZone": "UTC"
+            }
+          ],
+          "measures": [
+            {
+              "key": "total",
+              "op": "sum",
+              "path": "amount",
+              "label": "@com.microteia.report-example/measure.total",
+              "format": {
+                "kind": "currency"
+              }
+            },
+            {
+              "key": "count",
+              "op": "count",
+              "label": "@com.microteia.report-example/measure.count"
+            },
+            {
+              "key": "openTotal",
+              "op": "sum",
+              "path": "amount",
+              "label": "@com.microteia.report-example/measure.open-total",
+              "format": {
+                "kind": "currency"
+              },
+              "filter": [
+                {
+                  "path": "archived",
+                  "op": "eq",
+                  "value": {
+                    "kind": "Literal",
+                    "value": false
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        "shape": {
+          "kind": "summary",
+          "groupBy": [
+            {
+              "dimension": "month"
+            }
+          ],
+          "values": [
+            "total",
+            "count",
+            "openTotal"
+          ],
+          "grandTotal": true
+        },
+        "presentation": {
+          "chart": {
+            "kind": "column",
+            "category": "month",
+            "series": [
+              "total"
+            ]
+          },
+          "export": {
+            "csv": true
+          }
+        },
+        "requires": [
+          "dataset.collection",
+          "dimension.granularity",
+          "export.csv",
+          "measure.aggregate",
+          "measure.filter",
+          "presentation.chart",
+          "shape.summary"
+        ]
+      }
+    },
+    {
+      "templateId": "category-by-month",
+      "key": "entry-category-by-month",
+      "title": "@com.microteia.report-example/report.category-by-month",
+      "description": "@com.microteia.report-example/report.category-by-month.description",
+      "icon": "barChartBox",
+      "origin": "plugin",
+      "sourceId": "microteia:report-example:category-by-month",
+      "sourceRev": 1,
+      "managed": true,
+      "enabled": true,
+      "spec": {
+        "v": 1,
+        "dataset": {
+          "table": "reportEntry",
+          "dimensions": [
+            {
+              "key": "category",
+              "path": "category",
+              "label": "@com.microteia.report-example/dimension.category"
+            },
+            {
+              "key": "month",
+              "path": "entryDate",
+              "label": "@com.microteia.report-example/dimension.month",
+              "granularity": "month",
+              "timeZone": "UTC"
+            }
+          ],
+          "measures": [
+            {
+              "key": "total",
+              "op": "sum",
+              "path": "amount",
+              "label": "@com.microteia.report-example/measure.total",
+              "format": {
+                "kind": "currency"
+              }
+            }
+          ]
+        },
+        "shape": {
+          "kind": "matrix",
+          "rows": [
+            {
+              "dimension": "category"
+            }
+          ],
+          "columns": [
+            {
+              "dimension": "month"
+            }
+          ],
+          "values": [
+            "total"
+          ],
+          "grandTotal": true,
+          "emptyCell": "zero"
+        },
+        "requires": [
+          "dataset.collection",
+          "dimension.granularity",
+          "measure.aggregate",
+          "shape.matrix"
+        ]
+      }
+    },
+    {
+      "templateId": "over-estimate",
+      "key": "entries-over-estimate",
+      "title": "@com.microteia.report-example/report.over-estimate",
+      "description": "@com.microteia.report-example/report.over-estimate.description",
+      "icon": "fileSearch",
+      "origin": "plugin",
+      "sourceId": "microteia:report-example:over-estimate",
+      "sourceRev": 1,
+      "managed": true,
+      "enabled": true,
+      "spec": {
+        "v": 1,
+        "dataset": {
+          "table": "reportEntry",
+          "includeWhen": "amount > estimate",
+          "dimensions": [
+            {
+              "key": "label",
+              "path": "label",
+              "label": "@com.microteia.report-example/dimension.label"
+            },
+            {
+              "key": "category",
+              "path": "category",
+              "label": "@com.microteia.report-example/dimension.category"
+            },
+            {
+              "key": "date",
+              "path": "entryDate",
+              "label": "@com.microteia.report-example/dimension.date"
+            }
+          ],
+          "measures": [
+            {
+              "key": "total",
+              "op": "sum",
+              "path": "amount",
+              "label": "@com.microteia.report-example/measure.total",
+              "format": {
+                "kind": "currency"
+              }
+            },
+            {
+              "key": "categories",
+              "op": "count",
+              "path": "category",
+              "distinct": true,
+              "label": "@com.microteia.report-example/measure.categories"
+            }
+          ]
+        },
+        "shape": {
+          "kind": "tabular",
+          "columns": [
+            "label",
+            "category",
+            "date"
+          ],
+          "orderBy": [
+            {
+              "path": "entryDate",
+              "dir": "desc"
+            }
+          ]
+        },
+        "presentation": {
+          "prompts": [
+            {
+              "key": "from",
+              "label": "@com.microteia.report-example/prompt.from",
+              "path": "entryDate",
+              "op": "gte"
+            }
+          ],
+          "export": {
+            "csv": true
+          }
+        },
+        "requires": [
+          "dataset.collection",
+          "dataset.includeWhen",
+          "export.csv",
+          "measure.aggregate",
+          "measure.distinct",
+          "presentation.prompt",
+          "shape.tabular"
+        ]
+      }
+    }
+  ]
+}

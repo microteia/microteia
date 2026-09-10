@@ -27,7 +27,7 @@
       "styled-components": ["./sdk/types/microteia-host.d.ts"]
     }
   },
-  "include": ["src/plugins/marketplace/views"],
+  "include": ["src/plugins/marketplace/views", "src/plugins/marketplace/examples/*/views"],
   // Os testes são do vitest e usam `import.meta.glob` — não são fonte de extensão.
   "exclude": ["**/*.test.ts", "**/*.test.tsx"]
 }

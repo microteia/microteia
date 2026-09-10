@@ -11,20 +11,76 @@ import { join } from 'node:path';
  *
  * A única transformação é de IMPORT: neste repositório um plugin importa `../../domain/entities/...` e
  * `../contributionBuilders`; do lado do escritório, tudo isso é `@microteia/sdk`. Todo símbolo usado
- * pelos doze está no barril do SDK — e é por isso que a conferência é possível: `exampleSources.test.ts`
+ * por eles está no barril do SDK — e é por isso que a conferência é possível: `exampleSources.test.ts`
  * COMPILA cada exemplo reescrito e exige que o `.json` saia byte a byte igual ao versionado. Um símbolo
  * que faltasse no barril reprovaria ali, e não no escritório de alguém.
  */
 
-/** Arquivo distribuído → módulo de origem. O nome da pasta do exemplo é o do `.json`, sem extensão. */
+/** A pasta, dentro do marketplace, em que mora um exemplo que existe só para ser lido. */
+const EXAMPLES_DIR = 'examples';
+
+/**
+ * Arquivo distribuído → módulo de origem, relativo a `src/plugins/marketplace/`. O nome da pasta do
+ * exemplo é o do `.json`, sem extensão.
+ *
+ * Há DUAS formas de origem, e a diferença não é de estilo: é de quem o módulo é.
+ *
+ * - **Um arquivo** (`automation.ts`) — a extensão mora na raiz do marketplace porque ela é, ou já foi,
+ *   uma extensão de PRIMEIRA PARTE do catálogo embutido. Os vizinhos que ela importa são descobertos
+ *   por `siblingModules`, e as views dela ficam em `views/<módulo>/`.
+ * - **Um diretório** (`examples/report-example`) — a extensão existe SÓ para ser lida. Nada dela entra
+ *   no `MARKETPLACE_CATALOG`, então ela não tem por que ocupar a raiz do marketplace junto das que
+ *   entram: ali as cinco de primeira parte se perderiam no meio de doze moldes. Tudo o que é dela mora
+ *   na pasta dela — o `plugin.ts`, os catálogos de mensagem e as `views/`.
+ */
 export const EXAMPLE_SOURCES: Record<string, string> = {
-  'automation-example': 'automation.ts',
+  'automation-example': 'examples/automation-example',
   brasil: 'brasil.ts',
   calendar: 'calendar.ts',
   dashboard: 'dashboard.ts',
   'locale-pt-br': 'localePtBr',
   news: 'news.ts',
+  'report-example': 'examples/report-example',
+  'widget-example': 'examples/widget-example',
+  'access-example': 'examples/access-example',
+  'backend-example': 'examples/backend-example',
+  'library-example': 'examples/library-example',
+  'consumer-example': 'examples/consumer-example',
+  'patch-example': 'examples/patch-example',
+  'theme-example': 'examples/theme-example',
+  'auth-example': 'examples/auth-example',
+  'command-example': 'examples/command-example',
+  'settings-example': 'examples/settings-example',
 };
+
+/**
+ * Os exemplos que existem SÓ para ser lidos — os que não estão no catálogo embutido.
+ *
+ * A pergunta que eles respondem é do `pack`: de quem é o backend que este repositório sobe. Uma
+ * extensão de primeira parte que declare `manifest.backend` reivindica uma function que o kernel
+ * compila e deploya, e o `pack` confere isso — reivindicar um nome que não existe aborta o
+ * empacotamento, e reivindicar um que existe o TIRA da baseline. Um exemplo não é nada disso: o
+ * `functions/` dele viaja como fonte para ser lido, e quem o instalar de verdade constrói o próprio.
+ * Sem esta distinção, o primeiro exemplo a ensinar Cloud Functions reprovaria toda publicação.
+ *
+ * É DERIVADA da forma da origem, e não uma segunda lista a manter: morar em `examples/` é
+ * exatamente o que significa não estar no catálogo embutido. As cinco de primeira parte moram na raiz
+ * do marketplace porque o bundle as carrega, e é por isso que elas continuam sendo cobradas.
+ */
+export const READING_ONLY_EXAMPLES: ReadonlySet<string> = new Set(
+  Object.entries(EXAMPLE_SOURCES)
+    .filter(([, origin]) => origin.startsWith(`${EXAMPLES_DIR}/`))
+    .map(([id]) => id),
+);
+
+/**
+ * Os módulos do kernel cuja casa, para quem escreve de fora, é `@microteia/sdk/node` — a entrada de
+ * FERRAMENTA do pacote, e não o barril isomórfico.
+ *
+ * `scriptSource` está aqui porque um `Script` viaja com `sourceTs` E `compiledJs`, e o sandbox nunca
+ * transpila: quem empacota precisa produzir o segundo, com o MESMO transpilador que o runtime usa.
+ */
+const NODE_ONLY_MODULES = ['sdk/node/', 'domain/services/scriptSource'];
 
 /**
  * Reescreve os imports de um plugin para a forma que o escritório usa.
@@ -36,6 +92,13 @@ export const EXAMPLE_SOURCES: Record<string, string> = {
 export const rewriteImports = (source: string): string => source.replace(
   /from '(\.[^']*)'/g,
   (match, specifier: string) => {
+    // A FERRAMENTA vem antes da superfície, e a ordem é o ponto: estes caminhos também casariam com as
+    // regras genéricas abaixo, que os mandariam para o barril isomórfico — onde `transpileScriptSource`
+    // NÃO está, de propósito, porque ele arrasta o `sucrase` e `@microteia/sdk` é a superfície que não
+    // arrasta nada. Do lado do escritório ele vem de `@microteia/sdk/node`, que é outra entrada do
+    // mesmo pacote. O sintoma seria no escritório de quem instalou, não aqui, se o round-trip byte a
+    // byte não compilasse cada exemplo reescrito.
+    if (NODE_ONLY_MODULES.some((one) => specifier.includes(one))) return "from '@microteia/sdk/node'";
     if (
       /(^|\/)contributionBuilders$/.test(specifier)
       || specifier.includes('domain/')
@@ -92,13 +155,23 @@ const siblingModules = async (marketplace: string, entry: string): Promise<Map<s
   return collected;
 };
 
-const viewFiles = async (viewsDir: string): Promise<string[]> => {
+/**
+ * Os arquivos de uma pasta do exemplo — `views/` ou `functions/` —, e o teste deles COM eles, de
+ * propósito. Pasta ausente é lista vazia, nunca erro: nem todo exemplo tem as duas.
+ *
+ * O `.rules.test.ts` ao lado de um `.rules.ts` é material didático: é onde se vê que a regra de uma
+ * view pode ser extraída e exercitada sem montar React nenhum, que é exatamente o que o `AGENTS.md`
+ * pede de quem escreve aqui. O `.test.ts` da RAIZ do módulo é outra coisa — aquele é nosso, sobre a
+ * nossa extensão — e é por isso que só ele é filtrado, no laço de baixo.
+ */
+const sourceFilesIn = async (folder: string): Promise<string[]> => {
   try {
-    return (await readdir(viewsDir)).filter((name) => name.endsWith('.tsx') || name.endsWith('.ts'));
+    return (await readdir(folder)).filter((name) => name.endsWith('.tsx') || name.endsWith('.ts'));
   } catch {
     return [];
   }
 };
+
 
 /**
  * Escreve `<target>/<plugin>/plugin.ts` e `<target>/<plugin>/views/*` para cada exemplo. Devolve os
@@ -122,22 +195,40 @@ export const stageExamples = async (repo: string, target: string): Promise<strin
 
       const plugin = origin.replace(/\.ts$/, '');
       const views = join(marketplace, 'views', plugin);
-      const files = await viewFiles(views);
+      const files = await sourceFilesIn(views);
       if (files.length > 0) await mkdir(join(directory, 'views'), { recursive: true });
       for (const name of files) {
         await writeFile(join(directory, 'views', name), await readFile(join(views, name), 'utf8'));
       }
     } else {
-      // Extensão que é um DIRETÓRIO (o pacote de idioma, com um arquivo por namespace). O `index.ts`
-      // vira `plugin.ts`; os demais são vizinhos dele e os imports relativos seguem valendo.
-      for (const name of await readdir(join(marketplace, origin))) {
+      // Extensão que é um DIRETÓRIO: o exemplo de leitura, cuja entrada é `plugin.ts`, e o pacote de
+      // idioma, cuja entrada é `index.ts` porque ele é um módulo de primeira parte antes de ser um
+      // exemplo. A entrada vira `plugin.ts` no destino nos dois casos — é o nome que o autor compila —
+      // e os demais `.ts` são vizinhos dela, com os imports relativos seguindo valendo.
+      const source = join(marketplace, origin);
+      const names = await readdir(source);
+      const entry = names.includes('plugin.ts') ? 'plugin.ts' : 'index.ts';
+
+      for (const name of names) {
         if (!name.endsWith('.ts') || name.endsWith('.test.ts')) continue;
-        const source = rewriteImports(await readFile(join(marketplace, origin, name), 'utf8'));
-        const isEntry = name === 'index.ts';
-        await writeFile(
-          join(directory, isEntry ? 'plugin.ts' : name),
-          isEntry ? HEADER(id) + source : source,
-        );
+        const text = rewriteImports(await readFile(join(source, name), 'utf8'));
+        const isEntry = name === entry;
+        await writeFile(join(directory, isEntry ? 'plugin.ts' : name), isEntry ? HEADER(id) + text : text);
+      }
+
+      // As views, as Cloud Functions e os scripts de um exemplo moram DENTRO dele, e não em
+      // `views/<módulo>/`: a pasta é o pacote, exatamente como do lado do escritório. `functions/` e
+      // `scripts/` viajam VERBATIM — a primeira já é escrita contra `microteia-functions/office` e
+      // `firebase-functions`, que são os nomes que valem lá, e a segunda não importa nada: o script
+      // roda no sandbox, contra globais que só existem lá dentro.
+      for (const folder of ['views', 'functions', 'scripts']) {
+        const from = join(source, folder);
+        const files = await sourceFilesIn(from);
+        if (files.length === 0) continue;
+        await mkdir(join(directory, folder), { recursive: true });
+        for (const name of files) {
+          await writeFile(join(directory, folder, name), await readFile(join(from, name), 'utf8'));
+        }
       }
     }
 

@@ -1,0 +1,192 @@
+{
+  "manifest": {
+    "id": "com.microteia.settings-example",
+    "version": "1.0.0",
+    "kernel": "^2.0.0",
+    "name": "@com.microteia.settings-example/package.name",
+    "description": "@com.microteia.settings-example/package.description",
+    "category": "@com.microteia.settings-example/package.category",
+    "icon": "settings",
+    "publisher": {
+      "name": "Microteia"
+    },
+    "dependencies": {
+      "core.ui": "^1.0.0"
+    },
+    "license": {
+      "type": "stack",
+      "gap": "md",
+      "children": [
+        {
+          "type": "heading",
+          "text": "@com.microteia.settings-example/licence.heading"
+        },
+        {
+          "type": "markdown",
+          "content": "@com.microteia.settings-example/licence.body"
+        }
+      ]
+    },
+    "contributes": [
+      {
+        "point": "i18n.messages",
+        "id": "en.com.microteia.settings-example",
+        "apiVersion": "1.0.0",
+        "metadata": {
+          "locale": "en",
+          "namespace": "com.microteia.settings-example",
+          "messages": {
+            "package.name": "Configuration, by example",
+            "package.category": "Configuration",
+            "package.description": "A settings section with every kind of property the platform edits — and the licence terms this package asks the office to accept.",
+            "package.summary": "How an extension is configured without bringing a screen for it. The Settings page is a generic host: it knows no setting in particular, and if nothing is contributed it is empty by definition. This package declares one section with each kind of property the editor knows how to draw, in both scopes, and carries the terms it asks the office to accept before installing.",
+            "section.title": "Settings example",
+            "section.description": "One of each kind of property, so the editor can be read rather than guessed.",
+            "prop.enabled": "Enabled",
+            "prop.enabled.description": "A switch. Both scopes, so a person may differ from the office default.",
+            "prop.batch": "Batch size",
+            "prop.batch.description": "A number with bounds. Office-wide only — it is about the installation, not about a person.",
+            "prop.label": "Report heading",
+            "prop.label.description": "Free text.",
+            "prop.mode": "Mode",
+            "prop.mode.description": "A closed list of choices.",
+            "prop.mode.strict": "Strict",
+            "prop.mode.lenient": "Lenient",
+            "prop.senders": "Allowed senders",
+            "prop.senders.description": "A list of texts, validated one item at a time. It exists so an extension that needs \"several addresses\" does not have to ask for a JSON blob.",
+            "prop.senders.placeholder": "someone@example.com",
+            "prop.extra": "Advanced",
+            "prop.extra.description": "Anything the vocabulary above cannot say — the escape hatch, and the last resort.",
+            "licence.heading": "Terms of the Settings example",
+            "licence.body": "This example is provided as reading material, with no warranty of any kind. It stores no data of its own and sends nothing anywhere.\n\nTerms declared by an extension are ADDED to the ones Microteia already asks for — they never replace them."
+          }
+        }
+      },
+      {
+        "point": "i18n.messages",
+        "id": "pt-br.com.microteia.settings-example",
+        "apiVersion": "1.0.0",
+        "metadata": {
+          "locale": "pt-BR",
+          "namespace": "com.microteia.settings-example",
+          "messages": {
+            "package.name": "Configuração, pelo exemplo",
+            "package.category": "Configuração",
+            "package.description": "Uma seção de configurações com cada tipo de propriedade que a plataforma edita — e os termos de licença que este pacote pede que o escritório aceite.",
+            "package.summary": "Como uma extensão é configurada sem trazer uma tela para isso. A tela de Configurações é um hospedeiro genérico: ela não conhece nenhuma configuração em particular, e se nada for contribuído ela está vazia por definição. Este pacote declara uma seção com um de cada tipo de propriedade que o editor sabe desenhar, nos dois escopos, e carrega os termos que pede que o escritório aceite antes de instalar.",
+            "section.title": "Exemplo de configurações",
+            "section.description": "Um de cada tipo de propriedade, para que o editor possa ser lido em vez de adivinhado.",
+            "prop.enabled": "Ativado",
+            "prop.enabled.description": "Um interruptor. Nos dois escopos, para que uma pessoa possa diferir do padrão do escritório.",
+            "prop.batch": "Tamanho do lote",
+            "prop.batch.description": "Um número com limites. Só do escritório — é sobre a instalação, não sobre uma pessoa.",
+            "prop.label": "Título do relatório",
+            "prop.label.description": "Texto livre.",
+            "prop.mode": "Modo",
+            "prop.mode.description": "Uma lista fechada de escolhas.",
+            "prop.mode.strict": "Estrito",
+            "prop.mode.lenient": "Tolerante",
+            "prop.senders": "Remetentes permitidos",
+            "prop.senders.description": "Uma lista de textos, validada item a item. Existe para que uma extensão que precisa de \"vários endereços\" não tenha de pedir um bloco de JSON.",
+            "prop.senders.placeholder": "alguem@exemplo.com",
+            "prop.extra": "Avançado",
+            "prop.extra.description": "O que o vocabulário acima não diz — a saída de emergência, e o último recurso.",
+            "licence.heading": "Termos do exemplo de configurações",
+            "licence.body": "Este exemplo é material de leitura, sem garantia de espécie alguma. Ele não guarda dado próprio e não envia nada a lugar nenhum.\n\nOs termos declarados por uma extensão SOMAM-SE aos que a Microteia já pede — nunca os substituem."
+          }
+        }
+      },
+      {
+        "point": "ui.settings",
+        "id": "settings-example",
+        "apiVersion": "1.0.0",
+        "metadata": {
+          "key": "settings-example",
+          "title": "@com.microteia.settings-example/section.title",
+          "description": "@com.microteia.settings-example/section.description",
+          "icon": "settings",
+          "order": 90,
+          "properties": [
+            {
+              "key": "settingsExample.enabled",
+              "label": "@com.microteia.settings-example/prop.enabled",
+              "description": "@com.microteia.settings-example/prop.enabled.description",
+              "type": "boolean",
+              "default": true,
+              "scopes": [
+                "tenant",
+                "user"
+              ]
+            },
+            {
+              "key": "settingsExample.batchSize",
+              "label": "@com.microteia.settings-example/prop.batch",
+              "description": "@com.microteia.settings-example/prop.batch.description",
+              "type": "number",
+              "default": 50,
+              "min": 1,
+              "max": 500,
+              "scopes": [
+                "tenant"
+              ]
+            },
+            {
+              "key": "settingsExample.heading",
+              "label": "@com.microteia.settings-example/prop.label",
+              "description": "@com.microteia.settings-example/prop.label.description",
+              "type": "text",
+              "default": "",
+              "scopes": [
+                "tenant"
+              ]
+            },
+            {
+              "key": "settingsExample.mode",
+              "label": "@com.microteia.settings-example/prop.mode",
+              "description": "@com.microteia.settings-example/prop.mode.description",
+              "type": "select",
+              "default": "strict",
+              "options": [
+                {
+                  "value": "strict",
+                  "label": "@com.microteia.settings-example/prop.mode.strict"
+                },
+                {
+                  "value": "lenient",
+                  "label": "@com.microteia.settings-example/prop.mode.lenient"
+                }
+              ],
+              "scopes": [
+                "tenant"
+              ]
+            },
+            {
+              "key": "settingsExample.senders",
+              "label": "@com.microteia.settings-example/prop.senders",
+              "description": "@com.microteia.settings-example/prop.senders.description",
+              "type": "stringList",
+              "default": [],
+              "itemPlaceholder": "@com.microteia.settings-example/prop.senders.placeholder",
+              "itemPattern": "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$",
+              "scopes": [
+                "tenant"
+              ]
+            },
+            {
+              "key": "settingsExample.advanced",
+              "label": "@com.microteia.settings-example/prop.extra",
+              "description": "@com.microteia.settings-example/prop.extra.description",
+              "type": "json",
+              "default": {},
+              "scopes": [
+                "tenant"
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "summary": "@com.microteia.settings-example/package.summary",
+  "workflows": []
+}

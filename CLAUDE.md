@@ -69,9 +69,15 @@ Use o atalho do `package.json` quando existir: `npm run verify` (= `typecheck` +
 > como gerar os `extension-templates/*.json`. Numa árvore recém-clonada, `sdk/` não existe — ele é
 > gerado e está no `.gitignore`.
 
-> **`npm run typecheck` são DOIS projetos:** `tsc -b --force` (app, node, cli) e
-> `tsc -p tsconfig.extsrc.json` (as fontes de view das extensões, checadas contra
-> `sdk/types/microteia-host.d.ts`). O segundo depende de `npm run build:host-types` ter rodado.
+> **`npm run typecheck` são TRÊS projetos:** `tsc -b --force` (app, node, cli),
+> `tsc -p tsconfig.extsrc.json` (as fontes de VIEW das extensões, checadas contra
+> `sdk/types/microteia-host.d.ts`) e `tsc -p tsconfig.extbackend.json` (as fontes de BACKEND delas —
+> `examples/*/functions` —, checadas contra `sdk/types/microteia-office.d.ts` e o `firebase-functions`
+> de verdade). Os dois últimos dependem de `npm run build:host-types` ter rodado.
+>
+> São dois projetos separados porque são dois ambientes: a view roda no navegador contra a API curada,
+> a function roda em Node. O de backend é mais ESTRITO que o `tsconfig.json` semeado no escritório, de
+> propósito — o que passa aqui passa lá, e o molde não pode ser o arquivo menos conferido.
 
 > **Por que `tsc -b --force` e não `tsc --noEmit`?** O root usa *project references* (`tsconfig.app.json` + `tsconfig.node.json`). O `tsc --noEmit` avalia só o tsconfig raiz e **não entra nos projetos referenciados** — havia erro de tipo real em `src/` passando batido nele e só estourando no `npm run build`. O `-b --force` percorre os projetos e não usa o cache incremental (que mascararia arquivos não alterados). Ele não emite nada: os tsconfigs têm `noEmit`.
 

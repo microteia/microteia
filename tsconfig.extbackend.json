@@ -1,0 +1,33 @@
+{
+  "compilerOptions": {
+    "target": "es2022",
+    "lib": ["ES2022"],
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "types": ["node"],
+    "noEmit": true,
+
+    // `true`, e aqui a razão é o INVERSO da de `tsconfig.extsrc.json`.
+    //
+    // Lá a "biblioteca" é a nossa API curada, e desligar a checagem calaria justamente o erro que
+    // aquele projeto existe para pegar. Aqui a biblioteca é o `firebase-functions` e a árvore que ele
+    // arrasta — código de terceiro, com problemas de terceiro (a de hoje é um `google-auth-library`
+    // ESM importado por um `.d.ts` CommonJS). Reprovar a nossa fonte por causa deles seria um portão
+    // que ninguém consegue atender, e a saída de quem o herdasse seria apagá-lo.
+    "skipLibCheck": true,
+
+    // Mais ESTRITO que o `tsconfig.json` semeado no escritório, que traz `noImplicitAny` e
+    // `strictNullChecks` desligados. É de propósito: o que passa aqui passa lá, e a recíproca não
+    // precisa valer. O molde é lido e copiado — ele não pode ser o arquivo que menos foi conferido.
+    "strict": true,
+    "noFallthroughCasesInSwitch": true,
+
+    "paths": {
+      // O MESMO nome que o autor escreve. Do lado dele o `paths` do workspace aponta para
+      // `node_modules/@microteia/sdk/types/`; aqui aponta para o arquivo gerado, que é a fonte dos
+      // dois — checar contra outra coisa seria checar contra um contrato que ninguém recebe.
+      "microteia-functions/office": ["./sdk/types/microteia-office.d.ts"]
+    }
+  },
+  "include": ["src/plugins/marketplace/examples/*/functions"]
+}

@@ -59,6 +59,7 @@ describe('o servidor MCP de autoria', () => {
       'microteia://domain-model/rules',
       'microteia://domain-model/schema',
       'microteia://entities',
+      'microteia://example-coverage',
       'microteia://examples',
       'microteia://expression-functions',
       'microteia://extension-points',

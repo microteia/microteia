@@ -1,5 +1,5 @@
-import { messageBundleContribution } from '../../domain/schema/i18n';
-import type { Contribution } from '../../domain/schema/plugin/contribution';
+import { messageBundleContribution } from '../../../../domain/schema/i18n';
+import type { Contribution } from '../../../../domain/schema/plugin/contribution';
 import { AUTOMATION_NAMESPACE } from './automationMessages';
 
 /**

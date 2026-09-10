@@ -224,6 +224,13 @@ export {
   THEME_DEFINITION_POINT,
   THEME_EXTENSION_POINTS,
   THEME_TOKENS_POINT,
+  /**
+   * A PALETA. Faltava aqui enquanto o irmão dela — o construtor de tokens de domínio — já estava, e a
+   * assimetria era descuido, não decisão: `theme.definition` é metadata pura (`allowedImplKinds: []`),
+   * então qualquer pacote pode contribuí-la, e só o construtor não atravessava. Quem escrevesse um tema
+   * pelo SDK montava a contribuição à mão ou não escrevia.
+   */
+  themeContribution,
   themeTokensContribution,
 } from '../domain/schema/theme';
 

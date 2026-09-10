@@ -265,7 +265,7 @@ ${examples.length === 0 ? '_None in this package._' : examples.map((id) => `- \`
 Each is the real source of an extension that ships with Microteia. Build any of them and you get the
 same \`.json\` the platform installs:
 
-    npx microteia-plugin build examples/pessoa/plugin.ts
+    npx microteia-plugin build examples/${examples[0] ?? '<example>'}/plugin.ts
 
 ## 6. An AI assistant in this directory
 

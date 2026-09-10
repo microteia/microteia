@@ -22,5 +22,12 @@
     "noFallthroughCasesInSwitch": true
   },
   "include": ["src"],
-  "exclude": ["src/__tests__", "src/sdk/node", "src/plugins/marketplace/views"]
+  "exclude": [
+    "src/__tests__",
+    "src/sdk/node",
+    "src/plugins/marketplace/views",
+    "src/plugins/marketplace/examples/*/views",
+    "src/plugins/marketplace/examples/*/functions",
+    "src/plugins/marketplace/examples/*/scripts"
+  ]
 }

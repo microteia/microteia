@@ -34,6 +34,14 @@ const PLUGINS = import.meta.glob('/src/plugins/marketplace/*.ts', {
 const VIEWS_DIR = 'src/plugins/marketplace/views';
 
 /**
+ * O outro diretório de fonte de extensão: as views e o `startup` dos exemplos da coletânea, que moram
+ * dentro da pasta de cada um. Ele precisa das MESMAS duas linhas de configuração, e por exatamente o
+ * mesmo motivo — um exemplo cuja fonte deixasse de ser checada seria o pior lugar possível para uma
+ * declaração errada, porque é dele que se copia.
+ */
+const EXAMPLE_VIEWS_DIR = 'src/plugins/marketplace/examples/*/views';
+
+/**
  * A conferência é sobre o TEXTO, não sobre um objeto: os tsconfigs deste repositório são JSONC, e
  * qualquer `JSON.parse` aqui precisaria de um mini-parser que quebra no primeiro comentário novo — foi
  * o que aconteceu. O que a guarda quer dizer ("a configuração continua dizendo X") um `toContain`
@@ -44,17 +52,23 @@ const config = (name: string): string => CONFIGS[`/${name}`];
 const sourceFiles = Object.keys(SOURCES).filter((path) => !path.endsWith('.test.ts'));
 
 describe('as fontes de extensão continuam sendo checadas', () => {
-  it('o projeto do app EXCLUI o diretório — senão ele tenta resolver @microteia/* de verdade', () => {
-    const app = config('tsconfig.app.json');
-    const exclude = /"exclude"\s*:\s*\[([^\]]*)\]/.exec(app)?.[1] ?? '';
-    expect(exclude).toContain(VIEWS_DIR);
-  });
+  it.each([VIEWS_DIR, EXAMPLE_VIEWS_DIR])(
+    'o projeto do app EXCLUI %s — senão ele tenta resolver @microteia/* de verdade',
+    (dir) => {
+      const app = config('tsconfig.app.json');
+      const exclude = /"exclude"\s*:\s*\[([^\]]*)\]/.exec(app)?.[1] ?? '';
+      expect(exclude).toContain(dir);
+    },
+  );
 
-  it('o projeto das fontes de extensão INCLUI o diretório', () => {
-    const extsrc = config('tsconfig.extsrc.json');
-    const include = /"include"\s*:\s*\[([^\]]*)\]/.exec(extsrc)?.[1] ?? '';
-    expect(include).toContain(VIEWS_DIR);
-  });
+  it.each([VIEWS_DIR, EXAMPLE_VIEWS_DIR])(
+    'o projeto das fontes de extensão INCLUI %s',
+    (dir) => {
+      const extsrc = config('tsconfig.extsrc.json');
+      const include = /"include"\s*:\s*\[([^\]]*)\]/.exec(extsrc)?.[1] ?? '';
+      expect(include).toContain(dir);
+    },
+  );
 
   it('e mapeia os módulos curados para os tipos gerados, senão o import não resolve', () => {
     const extsrc = config('tsconfig.extsrc.json');
@@ -83,6 +97,73 @@ describe('as fontes de extensão continuam sendo checadas', () => {
 
   it('há fonte para checar — um diretório vazio faria os casos acima passarem por nada', () => {
     expect(sourceFiles.length).toBeGreaterThanOrEqual(5);
+  });
+});
+
+/**
+ * A fonte de BACKEND de um exemplo — as Cloud Functions dele — é checada pelo mesmo princípio e por um
+ * projeto separado, porque ela é outra coisa: roda em Node contra `firebase-functions`, não no
+ * navegador contra a API curada de view.
+ *
+ * Ela quase não foi checada por nada. Acrescentar `firebase-functions` à raiz esbarrava num conflito
+ * de peer — a raiz tem `firebase-admin ^14` e a série 6 da biblioteca só aceitava até a 13 —, e a saída
+ * fácil seria deixar a fonte de fora do portão com uma nota dizendo que o escritório a checa. Seria a
+ * mesma dívida que o código em template literal foi: oito declarações erradas na API curada passaram
+ * anos assim, e o que as achou foi pôr o arquivo debaixo do `tsc`.
+ */
+describe('a fonte de backend dos exemplos continua sendo checada', () => {
+  const BACKEND_DIR = 'src/plugins/marketplace/examples/*/functions';
+
+  const BACKEND_SOURCES = import.meta.glob('/src/plugins/marketplace/examples/*/functions/**/*.ts', {
+    query: '?raw',
+    import: 'default',
+    eager: true,
+  }) as Record<string, string>;
+
+  const PACKAGE_JSON = (import.meta.glob('/package.json', {
+    query: '?raw',
+    import: 'default',
+    eager: true,
+  }) as Record<string, string>)['/package.json'];
+
+  it('o projeto do app EXCLUI o diretório — ele não tem os tipos do Node', () => {
+    const exclude = /"exclude"\s*:\s*\[([^\]]*)\]/.exec(config('tsconfig.app.json'))?.[1] ?? '';
+    expect(exclude).toContain(BACKEND_DIR);
+  });
+
+  it('e o projeto de backend das extensões o INCLUI', () => {
+    const include = /"include"\s*:\s*\[([^\]]*)\]/.exec(config('tsconfig.extbackend.json'))?.[1] ?? '';
+    expect(include).toContain(BACKEND_DIR);
+  });
+
+  /**
+   * O nome pelo qual o AUTOR importa a API do host no servidor. Sem este mapeamento o import não
+   * resolveria e o projeto reprovaria por não achar o módulo — o que ao menos é barulhento. O risco
+   * real é o mapeamento apontar para outro arquivo: aí a fonte é checada contra um contrato que
+   * ninguém recebe, e passa aqui para falhar no escritório.
+   */
+  it('e mapeia `microteia-functions/office` para a declaração GERADA', () => {
+    const extbackend = config('tsconfig.extbackend.json');
+    const mapping = /"microteia-functions\/office"\s*:\s*\[\s*"([^"]+)"/.exec(extbackend);
+    expect(mapping?.[1]).toContain('microteia-office.d.ts');
+  });
+
+  /** Mais estrito que o `tsconfig.json` semeado no escritório: o que passa aqui passa lá. */
+  it('e é ESTRITO — o molde não pode ser o arquivo menos conferido', () => {
+    expect(config('tsconfig.extbackend.json')).toContain('"strict": true');
+  });
+
+  /**
+   * Um projeto de configuração que ninguém executa é pior que a ausência dele: ele parece cobertura.
+   * O `tsconfig.extsrc.json` só vale porque o `typecheck` o roda, e este vale pelo mesmo motivo.
+   */
+  it('e roda no `npm run typecheck`, senão o projeto existe e ninguém o executa', () => {
+    const scripts = (JSON.parse(PACKAGE_JSON) as { scripts: Record<string, string> }).scripts;
+    expect(scripts.typecheck).toContain('tsconfig.extbackend.json');
+  });
+
+  it('há fonte de backend para checar', () => {
+    expect(Object.keys(BACKEND_SOURCES).length).toBeGreaterThanOrEqual(3);
   });
 
   /**

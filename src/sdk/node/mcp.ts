@@ -65,7 +65,7 @@ import { readWorkspaceCatalog } from './workspaceCatalog';
 import type { WorkspaceCatalog } from './workspaceCatalog';
 import { INSTALLED_CATALOG_FILE, INSTALLED_CATALOG_OMITS } from './installedCatalog';
 import { EXAMPLES_DIR, findPluginFiles } from './workspacePlugins';
-import { describeExtension, listExamples } from './describeExtension';
+import { describeExtension, exampleCoverageReport, listExamples } from './describeExtension';
 
 /**
  * O servidor MCP do diretório de extensões — o que faz uma IA no VSCode trabalhar com a VERDADE em vez
@@ -1422,6 +1422,17 @@ const RESOURCES: ResourceDefinition[] = [
       + '`howToDeclareException` — when there is no exception, it says so, and that is an answer too.',
       '',
     ].join('\n'),
+  },
+  {
+    uri: 'microteia://example-coverage',
+    name: 'Which mechanism has an example, and which has none',
+    description:
+      'Every extension point, package artifact and manifest property of this platform, against the examples in '
+      + 'examples/ — which ones show it, which have no example, and which NO example could show because they are out '
+      + 'of reach for an extension. Read it before concluding that this platform cannot do something: the answer is '
+      + 'usually an example you have not opened, or a different road that this report names.',
+    mimeType: 'application/json',
+    read: (root: string) => JSON.stringify(exampleCoverageReport(root), null, 2),
   },
   {
     uri: 'microteia://domain-model/coverage',

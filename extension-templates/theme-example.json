@@ -1,0 +1,156 @@
+{
+  "manifest": {
+    "id": "com.microteia.theme-example",
+    "version": "1.0.0",
+    "kernel": "^2.0.0",
+    "name": "@com.microteia.theme-example/package.name",
+    "description": "@com.microteia.theme-example/package.description",
+    "category": "@com.microteia.theme-example/package.category",
+    "icon": "palette",
+    "publisher": {
+      "name": "Microteia"
+    },
+    "dependencies": {
+      "core.theme": "^1.0.0"
+    },
+    "contributes": [
+      {
+        "point": "i18n.messages",
+        "id": "en.com.microteia.theme-example",
+        "apiVersion": "1.0.0",
+        "metadata": {
+          "locale": "en",
+          "namespace": "com.microteia.theme-example",
+          "messages": {
+            "package.name": "Appearance, by example",
+            "package.category": "Appearance",
+            "package.description": "A palette that extends a base, and the colour tokens of a vocabulary this package owns — the two halves of appearance, and why they are two.",
+            "package.summary": "How an extension answers for how things look. It brings a small palette that declares only what differs from the base it extends, and — the half nobody demonstrates — the colour tokens for its OWN vocabulary. A token has one owner, and the owner answers for it in every theme; a palette that carried somebody else vocabulary would be opining on a word that is not its own, and would need to win an install-order race to do it.",
+            "screen.item": "Item",
+            "screen.item.plural": "Items",
+            "field.title": "Title",
+            "field.stage": "Stage",
+            "field.stage.draft": "Draft",
+            "field.stage.review": "In review",
+            "field.stage.settled": "Settled",
+            "theme.name": "Parchment"
+          }
+        }
+      },
+      {
+        "point": "i18n.messages",
+        "id": "pt-br.com.microteia.theme-example",
+        "apiVersion": "1.0.0",
+        "metadata": {
+          "locale": "pt-BR",
+          "namespace": "com.microteia.theme-example",
+          "messages": {
+            "package.name": "Aparência, pelo exemplo",
+            "package.category": "Aparência",
+            "package.description": "Uma paleta que estende uma base, e os tokens de cor de um vocabulário que é deste pacote — as duas metades da aparência, e por que são duas.",
+            "package.summary": "Como uma extensão responde pela aparência. Traz uma paleta pequena que declara só o que difere da base que estende e — a metade que ninguém demonstra — os tokens de cor do PRÓPRIO vocabulário. Um token tem um dono, e o dono responde por ele em todo tema; uma paleta que carregasse vocabulário alheio estaria opinando sobre palavra que não é dela, e dependeria de ganhar uma corrida de ordem de instalação para isso.",
+            "screen.item": "Item",
+            "screen.item.plural": "Itens",
+            "field.title": "Título",
+            "field.stage": "Fase",
+            "field.stage.draft": "Rascunho",
+            "field.stage.review": "Em revisão",
+            "field.stage.settled": "Encerrado",
+            "theme.name": "Pergaminho"
+          }
+        }
+      },
+      {
+        "point": "theme.tokens",
+        "id": "theme-example-stages",
+        "apiVersion": "1.0.0",
+        "metadata": {
+          "light": {
+            "exampleStageDraft": "#6b7280",
+            "exampleStageReview": "#b45309",
+            "exampleStageSettled": "#15803d"
+          },
+          "dark": {
+            "exampleStageDraft": "#9ca3af",
+            "exampleStageReview": "#f59e0b",
+            "exampleStageSettled": "#4ade80"
+          },
+          "themes": {
+            "theme-example-parchment": {
+              "exampleStageDraft": "#8a7f6d",
+              "exampleStageReview": "#a8621b",
+              "exampleStageSettled": "#4f6b3a"
+            }
+          }
+        }
+      },
+      {
+        "point": "theme.definition",
+        "id": "theme-example-parchment",
+        "apiVersion": "1.0.0",
+        "metadata": {
+          "id": "theme-example-parchment",
+          "name": "@com.microteia.theme-example/theme.name",
+          "extends": "light",
+          "colors": {
+            "background": "#f7f3e8",
+            "surface": "#fffdf7",
+            "surfaceHover": "#f1ead8",
+            "border": "rgba(74, 62, 42, 0.16)",
+            "primary": "#8a6d3b",
+            "primaryHover": "#6f5730"
+          }
+        }
+      }
+    ]
+  },
+  "summary": "@com.microteia.theme-example/package.summary",
+  "workflows": [],
+  "screens": [
+    {
+      "key": "themeItem",
+      "sourceId": "microteia:theme-example:item",
+      "sourceRev": 1,
+      "titleSingular": "@com.microteia.theme-example/screen.item",
+      "titlePlural": "@com.microteia.theme-example/screen.item.plural",
+      "icon": "fileList",
+      "fields": [
+        {
+          "key": "title",
+          "label": "@com.microteia.theme-example/field.title",
+          "type": "text",
+          "required": true,
+          "order": 0
+        },
+        {
+          "key": "stage",
+          "label": "@com.microteia.theme-example/field.stage",
+          "type": "select",
+          "required": true,
+          "order": 1,
+          "filterable": true,
+          "optionsColored": true,
+          "options": [
+            {
+              "key": "draft",
+              "label": "@com.microteia.theme-example/field.stage.draft",
+              "color": "exampleStageDraft"
+            },
+            {
+              "key": "review",
+              "label": "@com.microteia.theme-example/field.stage.review",
+              "color": "exampleStageReview"
+            },
+            {
+              "key": "settled",
+              "label": "@com.microteia.theme-example/field.stage.settled",
+              "color": "exampleStageSettled"
+            }
+          ]
+        }
+      ],
+      "titleFieldKey": "title",
+      "eventPrefix": "themeItem"
+    }
+  ]
+}

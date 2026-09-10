@@ -46,7 +46,7 @@ const PUBLISHED = [
   'packageSizeAdvisory', 'page', 'parsePackage', 'parseSemVer', 'pointContribution', 'qualifyKey',
   'recordAction', 'satisfiesRange', 'serializePackage', 'settingsSection', 'sortContributions',
   'surfaceSlot', 'surfaceSlotSpec', 'surfaceTab', 'surfaceTabSpec', 'surfaceWidget',
-  'surfaceWidgetSpec', 'themeTokensContribution',
+  'surfaceWidgetSpec', 'themeContribution', 'themeTokensContribution',
   'validateBackendRequirement', 'validateContribution', 'validateExtensionPoint',
   'validateMigrations', 'validatePackage', 'validatePermissions', 'validatePluginManifest',
   'validatePluginPackage', 'widgetChildren', 'widgetPage', 'mergeViewSources',

@@ -22,6 +22,27 @@
 - fix(command): what was broken, and what it did to whoever hit it.
 -->
 
+#### [2.21.0] — 2026-09-09
+
+- fix(cli/pack): reading-only examples are left out of the first-party backend accounting.
+  `extension-templates/` holds two kinds of package with the same shape and different owners — the
+  first-party extensions, whose Cloud Functions this kernel compiles and deploys, and the examples,
+  whose backend belongs to whoever installs them. The pack derives its baseline as
+  `all functions − claimed`, so the first example to teach Cloud Functions would have aborted every
+  publish by claiming a name that is not here, and a name that WAS here would have been taken out of
+  the kernel baseline by a mere template. `firstPartyTemplates` is now the single door onto that
+  directory, and `READING_ONLY_EXAMPLES` is derived from where an example's source lives rather than
+  kept as a second list.
+- feat(cli/vendor): `stageExamples` carries `functions/` and `scripts/` beside `views/`, and an
+  example whose source is a DIRECTORY takes `plugin.ts` as its entry. Without both, an example could
+  not teach a Cloud Function or a sandbox script — the two files simply would not travel.
+- fix(cli/vendor): `rewriteImports` sends the node-only modules to `@microteia/sdk/node` instead of to
+  the isomorphic barrel, which is where `transpileScriptSource` deliberately is not. The symptom
+  would have been in the office of whoever installed, not here.
+- fix(cli/vendor): the `MICROTEIA.md` it writes derives its build command from the examples actually
+  present. It named `examples/pessoa`, which left the repository with the office extensions — a
+  generated document telling the reader to compile something that is not there.
+
 #### [2.20.0] — 2026-09-01
 
 - feat(cli/export-catalog): the snapshot carries what each installed extension declares in `manifest.exports` — the artifacts another extension may reference as `<extension-id>/<source-id>`. Whoever authors outside the office knew an extension was installed and had no way to learn the name of anything inside it, so the reference could be written by hand and never discovered. Each entry carries the id, the artifact's name, and its `kind`, which is the part that decides where the reference fits: a script goes in `scriptId`, an automation in `targetWorkflowId`. What the artifact DOES still never travels — the steps and the code are behaviour, and the snapshot is shape.

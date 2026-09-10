@@ -1,0 +1,173 @@
+{
+  "manifest": {
+    "id": "com.microteia.command-example",
+    "version": "1.0.0",
+    "kernel": "^2.0.0",
+    "name": "@com.microteia.command-example/package.name",
+    "description": "@com.microteia.command-example/package.description",
+    "category": "@com.microteia.command-example/package.category",
+    "publisher": {
+      "name": "Microteia"
+    },
+    "dependencies": {
+      "core.ui": "^1.0.0"
+    },
+    "contributes": [
+      {
+        "point": "i18n.messages",
+        "id": "en.com.microteia.command-example",
+        "apiVersion": "1.0.0",
+        "metadata": {
+          "locale": "en",
+          "namespace": "com.microteia.command-example",
+          "messages": {
+            "package.name": "Gestures, by example",
+            "package.category": "Interface",
+            "package.description": "A line in the user menu, declared — and a command palette entry and an @ mention, registered at load time because neither can be written as data.",
+            "package.summary": "The two ways an extension adds a gesture, and why there are two. A menu item is a fixed line and fits in a declaration. A command palette entry and an @ mention have to SEARCH as the person types, so no declaration can express them: they are registered by `startup`, the function that runs when the extension loads and returns its own teardown.",
+            "screen.note": "Note",
+            "screen.note.plural": "Notes",
+            "field.title": "Title",
+            "field.title.placeholder": "What this note is about",
+            "field.note": "Note",
+            "menu.guide": "About gestures",
+            "page.guide": "About gestures",
+            "command.group": "Gestures example",
+            "command.guide": "Open the gestures guide",
+            "mention.label": "Note",
+            "mention.description": "Link a note into the text.",
+            "guide.heading": "Gestures, by example",
+            "guide.body": "Type **⌘K** and search for \"gestures\" — this page is one of the results, and every note you create is another. Type **@note** in any rich text field and the same records are offered there.\n\nNeither of those is declared anywhere. They cannot be: both have to answer a query that does not exist until somebody types it, and a manifest is data. They are registered by `startup`, which runs when this extension loads.\n\nThe line in the user menu, by contrast, is a fixed row — so it IS declared, and no code is involved.",
+            "guide.declared": "Declared",
+            "guide.declared.value": "The user menu line",
+            "guide.registered": "Registered at load time",
+            "guide.registered.value": "The palette entry and the @ mention"
+          }
+        }
+      },
+      {
+        "point": "i18n.messages",
+        "id": "pt-br.com.microteia.command-example",
+        "apiVersion": "1.0.0",
+        "metadata": {
+          "locale": "pt-BR",
+          "namespace": "com.microteia.command-example",
+          "messages": {
+            "package.name": "Gestos, pelo exemplo",
+            "package.category": "Interface",
+            "package.description": "Uma linha no menu do usuário, declarada — e uma entrada na paleta de comandos e uma menção @, registradas na carga porque nenhuma das duas cabe como dado.",
+            "package.summary": "Os dois jeitos de uma extensão acrescentar um gesto, e por que são dois. Um item de menu é uma linha fixa e cabe numa declaração. Uma entrada da paleta de comandos e uma menção @ precisam BUSCAR conforme a pessoa digita, então nenhuma declaração as expressa: elas são registradas pelo `startup`, a função que roda quando a extensão carrega e devolve a própria desmontagem.",
+            "screen.note": "Nota",
+            "screen.note.plural": "Notas",
+            "field.title": "Título",
+            "field.title.placeholder": "Sobre o que é esta nota",
+            "field.note": "Anotação",
+            "menu.guide": "Sobre os gestos",
+            "page.guide": "Sobre os gestos",
+            "command.group": "Exemplo de gestos",
+            "command.guide": "Abrir o guia de gestos",
+            "mention.label": "Nota",
+            "mention.description": "Ligar uma nota ao texto.",
+            "guide.heading": "Gestos, pelo exemplo",
+            "guide.body": "Digite **⌘K** e procure por \"gestos\" — esta página é um dos resultados, e cada nota que você criar é outro. Digite **@note** em qualquer campo de texto rico e os mesmos registros são oferecidos ali.\n\nNenhum dos dois está declarado em lugar nenhum. Nem poderiam: os dois precisam responder a uma consulta que só existe quando alguém digita, e um manifesto é dado. Eles são registrados pelo `startup`, que roda quando esta extensão carrega.\n\nA linha no menu do usuário, ao contrário, é uma linha fixa — então ELA é declarada, e não há código envolvido.",
+            "guide.declared": "Declarado",
+            "guide.declared.value": "A linha do menu do usuário",
+            "guide.registered": "Registrado na carga",
+            "guide.registered.value": "A entrada da paleta e a menção @"
+          }
+        }
+      },
+      {
+        "point": "ui.menu",
+        "id": "user-menu-command-example-guide",
+        "apiVersion": "1.0.0",
+        "metadata": {
+          "surface": "user-menu",
+          "key": "command-example.guide",
+          "title": "@com.microteia.command-example/menu.guide",
+          "icon": "keyboard",
+          "order": 50,
+          "action": {
+            "kind": "openTab",
+            "tabKey": "command-example-guide"
+          }
+        }
+      },
+      {
+        "point": "ui.page",
+        "id": "command-example-guide",
+        "apiVersion": "1.0.0",
+        "metadata": {
+          "key": "command-example-guide",
+          "title": "@com.microteia.command-example/page.guide",
+          "icon": "keyboard"
+        },
+        "impl": {
+          "kind": "widget",
+          "spec": {
+            "type": "stack",
+            "gap": "lg",
+            "children": [
+              {
+                "type": "heading",
+                "text": "@com.microteia.command-example/guide.heading"
+              },
+              {
+                "type": "markdown",
+                "content": "@com.microteia.command-example/guide.body"
+              },
+              {
+                "type": "divider"
+              },
+              {
+                "type": "keyValue",
+                "items": [
+                  {
+                    "label": "@com.microteia.command-example/guide.declared",
+                    "value": "@com.microteia.command-example/guide.declared.value"
+                  },
+                  {
+                    "label": "@com.microteia.command-example/guide.registered",
+                    "value": "@com.microteia.command-example/guide.registered.value"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      }
+    ]
+  },
+  "summary": "@com.microteia.command-example/package.summary",
+  "workflows": [],
+  "screens": [
+    {
+      "key": "commandNote",
+      "sourceId": "microteia:command-example:note",
+      "sourceRev": 1,
+      "titleSingular": "@com.microteia.command-example/screen.note",
+      "titlePlural": "@com.microteia.command-example/screen.note.plural",
+      "icon": "keyboard",
+      "fields": [
+        {
+          "key": "title",
+          "label": "@com.microteia.command-example/field.title",
+          "type": "text",
+          "required": true,
+          "order": 0,
+          "placeholder": "@com.microteia.command-example/field.title.placeholder"
+        },
+        {
+          "key": "note",
+          "label": "@com.microteia.command-example/field.note",
+          "type": "textarea",
+          "required": false,
+          "order": 1
+        }
+      ],
+      "titleFieldKey": "title",
+      "eventPrefix": "commandNote"
+    }
+  ],
+  "startup": "import { Icon } from '@microteia/ui';\n\n/**\n * `startup` runs when the extension LOADS, and returns its own teardown. It is the one place an\n * extension registers something at runtime rather than declaring it in the manifest — and for two\n * surfaces it is the ONLY place, because neither can be expressed as data:\n *\n * - the command palette, which has to SEARCH as the person types;\n * - the `@` mention in the markdown editor, same reason.\n *\n * Everything registered here is scoped to this plugin and released when it unloads, so the teardown\n * below is a courtesy rather than a requirement — but returning it is the habit worth keeping, because\n * anything you subscribe to yourself is not scoped for you.\n *\n * There are no hooks in this file. `startup` is not a component: what a component would get from\n * `useT` arrives in the CONTEXT instead, as `ctx.t`.\n */\n\nconst SOURCE_ID = 'microteia:command-example:note';\nconst NAMESPACE = 'com.microteia.command-example';\nconst GUIDE_TAB = 'command-example-guide';\n\n/** A reference into this extension's own catalog, for whoever renders the label to resolve. */\nconst message = (key) => '@' + NAMESPACE + '/' + key;\n\nconst screenOf = (ctx) => ctx.screenDefinitions.find((s) => (s.sourceId || s.id) === SOURCE_ID);\n\nconst textOf = (record, key) => (key && typeof record[key] === 'string' ? record[key] : '');\n\nconst recordsOf = (ctx, screen) => {\n  const collection = screen.dataCollection || screen.id;\n  return ctx.records.filter((r) => r.collection === collection);\n};\n\nexport default function startup(host) {\n  host.commands.register({\n    group: message('command.group'),\n    /**\n     * The query is compared against the TRANSLATED title, and that is the whole point of `ctx.t` being\n     * here: matching a hardcoded phrase would leave the command unreachable for anyone typing what\n     * they actually read on screen.\n     *\n     * An empty query returns nothing on purpose — the palette opens on every keystroke, and a\n     * provider that answered \"everything\" would bury whatever the person was looking for.\n     */\n    getItems(query, ctx) {\n      const q = String(query || '').toLowerCase().trim();\n      if (!q) return [];\n\n      const screen = screenOf(ctx);\n      const icon = <Icon name=\"keyboard\" size={16} />;\n      const group = message('command.group');\n      const items = [];\n\n      const guide = ctx.t(NAMESPACE + '/command.guide');\n      if (guide.toLowerCase().indexOf(q) !== -1) {\n        items.push({\n          id: 'command-example:guide',\n          title: guide,\n          group,\n          icon,\n          onSelect: () => { ctx.openTab(GUIDE_TAB); ctx.close(); },\n        });\n      }\n\n      if (!screen) return items;\n      for (const record of recordsOf(ctx, screen)) {\n        const title = textOf(record, 'title');\n        if (!title || title.toLowerCase().indexOf(q) === -1) continue;\n        items.push({\n          id: 'command-example:' + record.id,\n          title,\n          subtitle: textOf(record, 'note'),\n          group,\n          icon,\n          // `view-dyn:<screen>:<record>` is the detail tab of a record on a declared screen. The\n          // context offers `openTab` and nothing narrower: a palette item is a tab to open, and the\n          // prefix is the whole addressing scheme.\n          onSelect: () => { ctx.openTab('view-dyn:' + screen.id + ':' + record.id); ctx.close(); },\n        });\n      }\n\n      return items.slice(0, 9);\n    },\n  });\n\n  host.mentions.register({\n    // The trigger typed after `@`. It is an IDENTIFIER and not a label: it stays stable across\n    // languages, the same way a field key does. Translating it would break every mention already\n    // written the moment somebody switched language.\n    key: 'note',\n    label: message('mention.label'),\n    description: message('mention.description'),\n    icon: 'keyboard',\n    search(query, ctx) {\n      const screen = screenOf(ctx);\n      if (!screen) return [];\n      const q = String(query || '').toLowerCase().trim();\n      return recordsOf(ctx, screen)\n        .filter((r) => textOf(r, 'title') && textOf(r, 'title').toLowerCase().indexOf(q) !== -1)\n        .slice(0, 20)\n        .map((r) => ({\n          id: r.id,\n          title: textOf(r, 'title'),\n          subtitle: textOf(r, 'note'),\n          tabKey: 'view-dyn:' + screen.id + ':' + r.id,\n        }));\n    },\n  });\n}\n"
+}

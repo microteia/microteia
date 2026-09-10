@@ -2134,6 +2134,7 @@ rather than a tool costing an input schema in every agent's context, in every se
 | \`microteia://expression-functions\` | the expression functions the installed platform resolves |
 | \`microteia://referenceable\` | every artifact another extension exports that you may point a step at, already in the form the reference takes (§3) |
 | \`microteia://examples\` | the first-party extensions in \`examples/\`, and which mechanism each is the best one to read for |
+| \`microteia://example-coverage\` | every mechanism of this platform against those examples: which have one, which have none, and which are out of reach for an extension |
 | \`microteia://workspace/plugins\` | the extensions authored here, with their current problems and what each one exports |
 | \`microteia://workspace/info\` | what this workspace is bound to |
 
