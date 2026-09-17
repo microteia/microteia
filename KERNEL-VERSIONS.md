@@ -18,6 +18,11 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.64.0] — 2026-09-17
+
+- feat(entity-screen): the Documents tab uploads a BATCH. `EntityDocumentsController` traded `pendingFile`/`pendingType` for a `pendingUploads` queue of `{ id, file, type, status }` — the type stays per file, which is what a single shared type could never express. `handleConfirmUpload` walks the queue one file at a time (readable progress, no burst of Storage connections), prepends what landed, and keeps only what failed — with the type the user had already typed, so a dropped connection does not cost the file picker and the typing again.
+- feat(core.ui): `documents.uploaded.many`, `documents.upload-failed.many`, `documents.upload-failed.partial`, `documents.confirm-upload.many` and `documents.pending.remove`, in `en` and in the pt-BR package (1.56.0).
+
 #### [9.63.0] — 2026-09-10
 
 - feat(agent): an MCP server over HTTP that lets an AI agent operate an office — the first `onRequest`

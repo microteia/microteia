@@ -29,50 +29,78 @@ export const DocumentsPanel: React.FC<DocumentsPanelProps> = ({ controller: vm, 
 
   return (
     <>
-      <input ref={fileInputRef} type="file" style={{ display: 'none' }} onChange={vm.handleSelectFile} />
+      <input
+        ref={fileInputRef}
+        type="file"
+        multiple
+        style={{ display: 'none' }}
+        onChange={vm.handleSelectFiles}
+      />
 
       <S.TabSectionHeader>
         <Button
           variant="secondary"
           size="sm"
           onClick={() => fileInputRef.current?.click()}
-          disabled={vm.isUploadingDoc || !!vm.pendingFile}
+          disabled={vm.isUploadingDoc}
         >
           <RiUploadLine size={14} />
           {t('documents.attach')}
         </Button>
       </S.TabSectionHeader>
 
-      {vm.pendingFile && (
-        <S.PendingFileCard>
-          <S.PendingFileTopRow>
-            <S.DocIcon><RiFileTextLine /></S.DocIcon>
-            <S.PendingFileContent>
-              <DynamicSelect
-                staticOptions={vm.documentTypeOptions}
-                dynamicOptions={vm.documentTypeDynamicOptions}
-                value={vm.pendingType}
-                onChange={vm.setPendingType}
-                placeholder={t('documents.type.placeholder')}
-                onAdd={vm.handleAddDocumentType}
-                onDelete={canManageTypes ? vm.handleDeleteDocumentType : undefined}
-                deleteConfirmTitle={t('documents.type.delete.title')}
-                deleteConfirmMessage={t('documents.type.delete.message')}
-                disabled={vm.isUploadingDoc}
-              />
-            </S.PendingFileContent>
-            <S.PendingFileActions>
-              <Button variant="ghost" size="sm" onClick={vm.handleCancelPendingUpload} disabled={vm.isUploadingDoc}>
-                <RiCloseLine size={14} />
-                {t('action.cancel')}
-              </Button>
-              <Button size="sm" onClick={() => void vm.handleConfirmUpload()} disabled={vm.isUploadingDoc}>
-                {vm.isUploadingDoc ? t('documents.uploading') : t('documents.confirm-upload')}
-              </Button>
-            </S.PendingFileActions>
-          </S.PendingFileTopRow>
-          <S.PendingFileName title={vm.pendingFile.name}>{vm.pendingFile.name}</S.PendingFileName>
-        </S.PendingFileCard>
+      {vm.pendingUploads.length > 0 && (
+        <S.PendingList>
+          {vm.pendingUploads.map((pending) => (
+            <S.PendingFileCard key={pending.id} $failed={pending.status === 'failed'}>
+              <S.PendingFileTopRow>
+                <S.DocIcon>
+                  {pending.status === 'uploading' ? <Spinner size={18} /> : <RiFileTextLine />}
+                </S.DocIcon>
+                <S.PendingFileContent>
+                  <DynamicSelect
+                    staticOptions={vm.documentTypeOptions}
+                    dynamicOptions={vm.documentTypeDynamicOptions}
+                    value={pending.type}
+                    onChange={(value) => vm.setPendingUploadType(pending.id, value)}
+                    placeholder={t('documents.type.placeholder')}
+                    onAdd={vm.handleAddDocumentType}
+                    onDelete={canManageTypes ? vm.handleDeleteDocumentType : undefined}
+                    deleteConfirmTitle={t('documents.type.delete.title')}
+                    deleteConfirmMessage={t('documents.type.delete.message')}
+                    disabled={vm.isUploadingDoc}
+                  />
+                </S.PendingFileContent>
+                <S.PendingFileActions>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => vm.removePendingUpload(pending.id)}
+                    disabled={vm.isUploadingDoc}
+                    title={t('documents.pending.remove')}
+                  >
+                    <RiCloseLine size={14} />
+                  </Button>
+                </S.PendingFileActions>
+              </S.PendingFileTopRow>
+              <S.PendingFileName title={pending.file.name}>{pending.file.name}</S.PendingFileName>
+            </S.PendingFileCard>
+          ))}
+
+          <S.PendingActionsBar>
+            <Button variant="ghost" size="sm" onClick={vm.handleCancelPendingUpload} disabled={vm.isUploadingDoc}>
+              <RiCloseLine size={14} />
+              {t('action.cancel')}
+            </Button>
+            <Button size="sm" onClick={() => void vm.handleConfirmUpload()} disabled={vm.isUploadingDoc}>
+              {vm.isUploadingDoc
+                ? t('documents.uploading')
+                : vm.pendingUploads.length === 1
+                  ? t('documents.confirm-upload')
+                  : t('documents.confirm-upload.many', { count: vm.pendingUploads.length })}
+            </Button>
+          </S.PendingActionsBar>
+        </S.PendingList>
       )}
 
       {vm.docsLoading ? (

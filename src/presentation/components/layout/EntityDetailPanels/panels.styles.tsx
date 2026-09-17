@@ -154,16 +154,29 @@ export const S = {
     padding-top: ${({ theme }) => theme.spacing.sm};
   `,
 
-  PendingFileCard: styled.div`
+  PendingList: styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: ${({ theme }) => theme.spacing.sm};
+    margin-bottom: ${({ theme }) => theme.spacing.md};
+    max-width: 720px;
+  `,
+
+  PendingFileCard: styled.div<{ $failed?: boolean }>`
     display: flex;
     flex-direction: column;
     gap: ${({ theme }) => theme.spacing.sm};
     padding: ${({ theme }) => theme.spacing.lg};
     background: ${({ theme }) => theme.colors.surface};
-    border: 1px solid ${({ theme }) => theme.colors.border};
+    border: 1px solid ${({ theme, $failed }) => ($failed ? theme.colors.danger : theme.colors.border)};
     border-radius: ${({ theme }) => theme.borderRadius.lg};
-    margin-bottom: ${({ theme }) => theme.spacing.md};
-    max-width: 720px;
+  `,
+
+  PendingActionsBar: styled.div`
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: ${({ theme }) => theme.spacing.xs};
   `,
 
   PendingFileTopRow: styled.div`

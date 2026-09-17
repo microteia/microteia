@@ -3194,6 +3194,14 @@ A listagem consulta `orderBy('createdAt','desc') + limit(500)` — sem filtro im
 - Repositórios genéricos + `useRecordNotesPort`/`useRecordDocumentsPort` (`entityScreen/useRecordPorts.ts`), que prendem a coleção e entregam o mesmo `NotesPort`/`DocumentsPort` das fixas.
 - `DeleteRecordUseCase` cascateia: exclui notas, documentos (incluindo arquivos do Storage) e então o registro.
 - Auditoria: `getNestedEntityConfig` cai numa configuração genérica de "Nota/Documento de Registro" para qualquer coleção que não seja reservada.
+- **Anexar é um LOTE, e o tipo é de cada arquivo.** `useEntityDocuments` guarda uma fila
+  (`pendingUploads: { id, file, type, status }[]`) em vez de um arquivo só: o `<input multiple>`
+  acrescenta à fila sem apagar o que já estava, cada linha tem o próprio `DynamicSelect`, e o `id` é
+  cunhado no cliente porque dois arquivos podem ter o mesmo nome. `handleConfirmUpload` envia um por
+  vez — o progresso fica legível e um lote grande não abre dezenas de conexões ao Storage —, prepende
+  o que subiu e deixa na fila só o que falhou, com o tipo já informado. Um tipo compartilhado pelo
+  lote foi descartado: era exatamente o dado que o usuário precisa variar entre um arquivo e outro.
+  Coberto por `useEntityDocuments.test.tsx`.
 
 Nota: as coleções de lista (`caseCourts`, `medico_especialidade`…) **não** estão no `NESTED_ENTITY_CONFIG` — não geram log de auditoria hoje.
 

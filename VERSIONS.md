@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.64.0] — 2026-09-17
+
+- **Agora dá para anexar vários documentos de uma vez.** Ao clicar em Anexar Documento, é possível escolher quantos arquivos quiser — eles aparecem numa lista, e o tipo de cada um é informado na própria linha antes de confirmar o envio. Dá para escolher mais arquivos sem perder os que já estão na lista, e tirar da lista qualquer um que tenha entrado por engano.
+- **Se algum arquivo falhar no envio, só ele continua na lista.** Os que subiram já aparecem entre os documentos do registro; o que não subiu permanece na lista com o tipo que já havia sido informado, pronto para tentar de novo — sem precisar procurar o arquivo outra vez.
+
 #### [9.63.0] — 2026-09-10
 
 - **Um agente de IA passou a poder trabalhar dentro do escritório, com as permissões que cada pessoa liberar.** Até aqui a única forma de pedir ajuda a uma inteligência artificial sobre os dados do escritório era descrevê-los à mão, ou montar automação de clique no navegador. Agora existe a extensão **Acesso de Agente de IA**, que o escritório instala se quiser: quem a ativa recebe um endereço de conexão, e cada pessoa emite o próprio acesso escolhendo quais permissões ele pode usar e por quanto tempo vale. Conectado, o assistente descobre sozinho as telas que o escritório tem e passa a pesquisar registros, cadastrar, alterar, excluir, rodar relatório e iniciar automação — cada uma dessas coisas só quando o acesso a libera.

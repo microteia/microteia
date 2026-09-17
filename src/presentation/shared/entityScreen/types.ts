@@ -74,14 +74,27 @@ export interface EntityNotesController {
   cancelDeleteNote: () => void;
 }
 
+/**
+ * Um arquivo escolhido e ainda não enviado.
+ *
+ * O `id` é cunhado no cliente porque o nome não identifica: escolher dois arquivos homônimos de
+ * pastas diferentes é comum, e é por esse id que a linha sabe de qual tipo o usuário está falando.
+ */
+export interface PendingDocumentUpload {
+  id: string;
+  file: File;
+  type: string;
+  status: 'pending' | 'uploading' | 'failed';
+}
+
 export interface EntityDocumentsController {
   documents: EntityDocument[];
   docsLoading: boolean;
   isUploadingDoc: boolean;
-  pendingFile: File | null;
-  pendingType: string;
-  setPendingType: (v: string) => void;
-  handleSelectFile: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  pendingUploads: PendingDocumentUpload[];
+  setPendingUploadType: (id: string, type: string) => void;
+  removePendingUpload: (id: string) => void;
+  handleSelectFiles: (e: React.ChangeEvent<HTMLInputElement>) => void;
   handleCancelPendingUpload: () => void;
   handleConfirmUpload: () => Promise<void>;
   docToDelete: EntityDocument | null;

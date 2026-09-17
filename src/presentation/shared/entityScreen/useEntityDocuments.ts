@@ -2,7 +2,12 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNotification } from '../../../stores/useNotification';
 import { useLookups } from '../../../stores/useLookups';
 import type { DynamicSelectOption } from '../../components/ui/DynamicSelect';
-import type { EntityDocument, EntityDocumentsController, DocumentsPort } from './types';
+import type {
+  EntityDocument,
+  EntityDocumentsController,
+  DocumentsPort,
+  PendingDocumentUpload,
+} from './types';
 
 import { useT } from '../i18n/useT';
 
@@ -21,8 +26,7 @@ export const useEntityDocuments = ({ enabled, recordId, port }: UseEntityDocumen
   const [documents, setDocuments] = useState<EntityDocument[]>([]);
   const [docsLoading, setDocsLoading] = useState(false);
   const [isUploadingDoc, setIsUploadingDoc] = useState(false);
-  const [pendingFile, setPendingFile] = useState<File | null>(null);
-  const [pendingType, setPendingType] = useState('');
+  const [pendingUploads, setPendingUploads] = useState<PendingDocumentUpload[]>([]);
   const [docToDelete, setDocToDelete] = useState<EntityDocument | null>(null);
 
   useEffect(() => {
@@ -34,41 +38,78 @@ export const useEntityDocuments = ({ enabled, recordId, port }: UseEntityDocumen
       .finally(() => setDocsLoading(false));
   }, [enabled, recordId, port]);
 
-  const handleSelectFile = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setPendingFile(file);
-      setPendingType('');
+  const handleSelectFiles = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const chosen = Array.from(e.target.files ?? []);
+    if (chosen.length > 0) {
+      const queued: PendingDocumentUpload[] = chosen.map((file) => ({
+        id: crypto.randomUUID(),
+        file,
+        type: '',
+        status: 'pending',
+      }));
+      setPendingUploads((prev) => [...prev, ...queued]);
     }
     e.target.value = '';
   }, []);
 
-  const handleCancelPendingUpload = useCallback(() => {
-    setPendingFile(null);
-    setPendingType('');
+  const setPendingUploadType = useCallback((id: string, type: string) => {
+    setPendingUploads((prev) => prev.map((item) => (item.id === id ? { ...item, type } : item)));
   }, []);
 
+  const removePendingUpload = useCallback((id: string) => {
+    setPendingUploads((prev) => prev.filter((item) => item.id !== id));
+  }, []);
+
+  const handleCancelPendingUpload = useCallback(() => {
+    setPendingUploads([]);
+  }, []);
+
+  /**
+   * Envia a fila inteira, um arquivo por vez.
+   *
+   * Sequencial e não em paralelo por duas razões: o progresso fica legível (a linha em envio é
+   * exatamente uma), e um lote grande não abre dezenas de conexões ao Storage de uma vez. O que
+   * falhou PERMANECE na fila, com o tipo que o usuário já informou — a alternativa seria pedir de
+   * volta a escolha do arquivo e a digitação do tipo por causa de uma queda de rede.
+   */
   const handleConfirmUpload = useCallback(async () => {
-    if (!pendingFile || !recordId) return;
+    if (pendingUploads.length === 0 || !recordId) return;
     setIsUploadingDoc(true);
-    try {
-      const { url, storagePath } = await port.upload(recordId, pendingFile);
-      const addedDoc = await port.add(recordId, {
-        name: pendingFile.name,
-        type: pendingType.trim() || undefined,
-        url,
-        storagePath,
-      });
-      setDocuments((prev) => [addedDoc, ...prev]);
-      setPendingFile(null);
-      setPendingType('');
-      notify(t('documents.uploaded'), 'success');
-    } catch {
-      notify(t('documents.upload-failed'), 'error');
-    } finally {
-      setIsUploadingDoc(false);
+    const uploaded: EntityDocument[] = [];
+    const failed: PendingDocumentUpload[] = [];
+    for (const pending of pendingUploads) {
+      setPendingUploads((prev) => prev.map((item) => (
+        item.id === pending.id ? { ...item, status: 'uploading' } : item
+      )));
+      try {
+        const { url, storagePath } = await port.upload(recordId, pending.file);
+        uploaded.push(await port.add(recordId, {
+          name: pending.file.name,
+          type: pending.type.trim() || undefined,
+          url,
+          storagePath,
+        }));
+      } catch {
+        failed.push({ ...pending, status: 'failed' });
+      }
     }
-  }, [pendingFile, pendingType, recordId, port, notify, t]);
+    if (uploaded.length > 0) setDocuments((prev) => [...[...uploaded].reverse(), ...prev]);
+    setPendingUploads(failed);
+    setIsUploadingDoc(false);
+    if (failed.length === 0) {
+      notify(
+        uploaded.length === 1 ? t('documents.uploaded') : t('documents.uploaded.many', { count: uploaded.length }),
+        'success',
+      );
+    } else if (uploaded.length === 0) {
+      notify(
+        failed.length === 1 ? t('documents.upload-failed') : t('documents.upload-failed.many', { count: failed.length }),
+        'error',
+      );
+    } else {
+      notify(t('documents.upload-failed.partial', { failed: failed.length, total: uploaded.length + failed.length }), 'error');
+    }
+  }, [pendingUploads, recordId, port, notify, t]);
 
   const requestDeleteDoc = useCallback((doc: EntityDocument) => setDocToDelete(doc), []);
   const cancelDeleteDoc = useCallback(() => setDocToDelete(null), []);
@@ -100,10 +141,10 @@ export const useEntityDocuments = ({ enabled, recordId, port }: UseEntityDocumen
     documents,
     docsLoading,
     isUploadingDoc,
-    pendingFile,
-    pendingType,
-    setPendingType,
-    handleSelectFile,
+    pendingUploads,
+    setPendingUploadType,
+    removePendingUpload,
+    handleSelectFiles,
     handleCancelPendingUpload,
     handleConfirmUpload,
     docToDelete,
