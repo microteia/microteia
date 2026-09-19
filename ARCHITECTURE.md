@@ -2038,6 +2038,22 @@ conferência passa a ser contornada com `--skip-verify`. O formato é o dos outr
 (`#### [versão] — AAAA-MM-DD`, mais recente no topo); o molde dentro do comentário HTML do topo é ignorado
 pelo parser, senão ele seria lido como a entrada mais recente do arquivo.
 
+**O corpo do release publicado cobre o INTERVALO, não a versão.** O `publish` não escreve texto de
+release: ele recorta do `KERNEL-VERSIONS.md` — o mesmo parágrafo que o `pack` já conferiu — e o que ele
+recorta vai da versão que está subindo até a última versão **publicada**, exclusive. As duas pontas são
+diferentes de propósito: o histórico conta versões empacotadas, o catálogo conta versões publicadas, e
+entre uma e outra cabe uma versão que foi empacotada e nunca subiu. Enquanto o recorte era de uma entrada
+só, publicar a 9.66.0 sobre um catálogo cuja última entrada era a 9.64.0 produzia um release que CARREGA
+a 9.65.0 e não citava uma linha dela — e release é imutável: nenhum release posterior volta para contar o
+que aquelas versões mudaram.
+
+Quem sabe onde o intervalo começa é o catálogo, então `publishedBefore(index, version)` é lido do índice
+publicado e o recorte acontece DEPOIS dessa leitura, não ao ler o pacote. É a maior versão publicada
+**abaixo** desta, e não o topo do catálogo: publicar fora de ordem é possível, e o que o release descreve
+é o que ele acrescenta a quem tinha a anterior. A primeira publicação não tem intervalo e recorta só a
+própria entrada — o arquivo de histórico começa antes do catálogo, e despejá-lo inteiro não seria
+descrever o que subiu. O comando imprime quais versões as notas carregam, inclusive no `--dry-run`.
+
 ### SDK de autoria — escrever extensão em TypeScript, sem o source do kernel
 
 O sistema lê extensão por `.json`, e isso está certo: é o artefato. Mas as extensões de primeira parte

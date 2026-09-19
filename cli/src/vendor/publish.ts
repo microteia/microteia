@@ -12,12 +12,13 @@ import {
   entryOf,
   kernelTarballName,
   parseIndex,
+  publishedBefore,
   serializeIndex,
   withEntry,
 } from '../kernel/channel.js';
 import type { ChannelIndex } from '../kernel/channel.js';
 import type { KernelManifest } from '../kernel/manifest.js';
-import { CONSOLE_CHANGELOG, KERNEL_CHANGELOG, changelogEntry, readChangelog } from './changelogs.js';
+import { CONSOLE_CHANGELOG, KERNEL_CHANGELOG, changelogEntries, readChangelog } from './changelogs.js';
 import { CONSOLE_PACKAGE_NAME } from './packageTemplates.js';
 import { assertInsideRepository } from './repository.js';
 
@@ -206,7 +207,7 @@ const releaseExists = async (repo: string, version: string): Promise<boolean> =>
 const readKernelPackage = async (
   root: string,
   version: string,
-): Promise<{ manifest: KernelManifest; tarball: string; entry: string }> => {
+): Promise<{ manifest: KernelManifest; tarball: string; changelog: string }> => {
   const directory = join(root, 'distributions', 'kernel', version);
   const tarball = join(directory, kernelTarballName(version));
   const manifestPath = join(directory, 'manifest.json');
@@ -241,7 +242,7 @@ const readKernelPackage = async (
   }
 
   const changelog = await readChangelog(root, KERNEL_CHANGELOG, version);
-  return { manifest, tarball, entry: changelogEntry(changelog, version) };
+  return { manifest, tarball, changelog };
 };
 
 const publishKernel = async (
@@ -251,11 +252,20 @@ const publishKernel = async (
   dryRun: boolean,
 ): Promise<void> => {
   await assertGitHubCli();
-  const { manifest, tarball, entry } = await readKernelPackage(root, version);
+  const { manifest, tarball, changelog } = await readKernelPackage(root, version);
   const directory = join(root, 'distributions', 'kernel', version);
   const manifestPath = join(directory, 'manifest.json');
 
   const published = await readPublishedIndex(repo);
+
+  /**
+   * O corpo do release cobre o INTERVALO, e não só a versão que está saindo. Um pacote leva tudo o que
+   * veio antes dele; um release que só cita a própria entrada esconde as versões que foram empacotadas e
+   * não publicadas, e nenhum release posterior volta para contá-las.
+   */
+  const since = publishedBefore(published.index, version);
+  const notes = changelogEntries(changelog, version, since);
+
   const next = withEntry(published.index, entryOf(manifest, {
     tarball: assetUrl(repo, version, kernelTarballName(version)),
     manifest: assetUrl(repo, version, 'manifest.json'),
@@ -263,6 +273,11 @@ const publishKernel = async (
 
   success(`kernel ${version} verified: ${manifest.tarball?.bytes} bytes, sha256 ${manifest.tarball?.sha256.slice(0, 12)}…`);
   info(`  tag ${tagOf(version)} in ${repo}, and ${INDEX_PATH} promoting it to "latest"`);
+  info(
+    notes.versions.length === 1
+      ? `  release notes: the ${version} entry of ${KERNEL_CHANGELOG}`
+      : `  release notes: ${notes.versions.join(', ')} — every entry since ${since ?? 'the first one'}`,
+  );
 
   if (dryRun) {
     if (published.empty) info(`  ${repo} has no commits, so it would be seeded with a README first`);
@@ -272,9 +287,9 @@ const publishKernel = async (
 
   if (published.empty) await seedRepository(repo);
 
-  const notes = await mkdtemp(join(tmpdir(), 'microteia-publish-'));
-  const notesFile = join(notes, 'notes.md');
-  await writeFile(notesFile, entry);
+  const notesRoot = await mkdtemp(join(tmpdir(), 'microteia-publish-'));
+  const notesFile = join(notesRoot, 'notes.md');
+  await writeFile(notesFile, notes.body);
 
   try {
     if (await releaseExists(repo, version)) {
@@ -305,7 +320,7 @@ const publishKernel = async (
     await writePublishedIndex(repo, next, published.sha, version);
     success(`${INDEX_PATH} updated — "microteia unpack --version latest" now takes ${version}`);
   } finally {
-    await rm(notes, { recursive: true, force: true });
+    await rm(notesRoot, { recursive: true, force: true });
   }
 };
 

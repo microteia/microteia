@@ -108,27 +108,53 @@ export const readChangelog = async (
 };
 
 /**
- * A entrada de UMA versão, para ser o corpo do release publicado.
+ * As entradas que o release publicado carrega: a da versão que está saindo, e a de TODA versão entre ela
+ * e a última já publicada.
  *
  * O texto do release não é escrito à mão em lugar nenhum: ele é o mesmo parágrafo que já foi conferido
  * pelo `pack`, recortado daqui. Dois textos sobre a mesma versão divergem — e o que divergiria é
  * justamente o que fica visível para quem procura o que mudou.
  *
- * Recorta do cabeçalho da versão até o próximo cabeçalho, e não até o fim: o que vem depois é o
- * histórico anterior, e ele já está publicado nos releases dele.
+ * O recorte de uma entrada só perdia o intervalo. Publicar a 9.66.0 quando a última publicada é a
+ * 9.64.0 — porque a 9.65.0 foi empacotada e não subiu — entrega um release que CONTÉM a 9.65.0 e não
+ * menciona uma linha dela: para quem procura o que mudou, aquelas alterações nunca existiram, e não há
+ * release posterior que as traga de volta. O release descreve o que ele leva, e ele leva tudo desde a
+ * última publicação.
+ *
+ * Sem `since` é a primeira publicação, e aí o recorte é só da própria versão: o histórico do arquivo é
+ * anterior ao catálogo, e despejá-lo inteiro não seria descrever o que subiu.
  */
-export const changelogEntry = (contents: string, version: string): string => {
+export interface ChangelogNotes {
+  body: string;
+  /** As versões recortadas, da mais recente para a mais antiga — o que o release diz que cobre. */
+  versions: string[];
+}
+
+export const changelogEntries = (contents: string, version: string, since?: string): ChangelogNotes => {
   const body = withoutTemplates(contents);
   const headings = [...body.matchAll(ENTRY)];
-  const index = headings.findIndex((match) => match[1] === version);
+  const first = headings.findIndex((match) => match[1] === version);
 
-  if (index === -1) {
+  if (first === -1) {
     throw new Error(`The changelog has no entry for ${version}.`);
   }
 
-  const start = headings[index].index;
-  const end = index + 1 < headings.length ? headings[index + 1].index : body.length;
-  return `${body.slice(start, end).trim()}\n`;
+  let last = first;
+  while (
+    since !== undefined
+    && last + 1 < headings.length
+    && compareVersions(headings[last + 1][1], since) > 0
+  ) {
+    last += 1;
+  }
+
+  const start = headings[first].index;
+  const end = last + 1 < headings.length ? headings[last + 1].index : body.length;
+
+  return {
+    body: `${body.slice(start, end).trim()}\n`,
+    versions: headings.slice(first, last + 1).map((match) => match[1]),
+  };
 };
 
 export interface ChangelogRefresh {

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { CLI_VERSION, consoleRoot, repoRoot } from '../shared/paths.js';
-import { CONSOLE_CHANGELOG, KERNEL_CHANGELOG, changelogEntry, changelogProblems, changelogVersions } from './changelogs.js';
+import { CONSOLE_CHANGELOG, KERNEL_CHANGELOG, changelogEntries, changelogProblems, changelogVersions } from './changelogs.js';
 
 /**
  * Os dois artefatos que o escritório recebe — a plataforma e o Console — têm cada um o seu histórico
@@ -140,9 +140,13 @@ describe('cada histórico viaja no artefato que ele descreve', () => {
  * lado dela. Dois textos sobre a mesma versão divergem, e o que divergiria é justamente o que fica
  * visível para quem procura o que mudou.
  */
-describe('a entrada de uma versão, recortada para o release', () => {
+describe('as entradas recortadas para o release', () => {
   const changelog = [
     '<!-- #### [x.y.z] — AAAA-MM-DD -->',
+    '',
+    '#### [9.8.3] — 2026-08-25',
+    '',
+    '- feat(cli/publish): the notes cover the interval.',
     '',
     '#### [9.8.2] — 2026-08-24',
     '',
@@ -155,22 +159,44 @@ describe('a entrada de uma versão, recortada para o release', () => {
   ].join('\n');
 
   it('recorta do cabeçalho até o próximo, e não até o fim do arquivo', () => {
-    const entry = changelogEntry(changelog, '9.8.2');
-    expect(entry).toContain('#### [9.8.2]');
-    expect(entry).toContain('the channel exists');
-    expect(entry).not.toContain('9.8.1');
+    const notes = changelogEntries(changelog, '9.8.2', '9.8.1');
+    expect(notes.body).toContain('#### [9.8.2]');
+    expect(notes.body).toContain('the channel exists');
+    expect(notes.body).not.toContain('9.8.1');
+    expect(notes.versions).toEqual(['9.8.2']);
   });
 
   it('a última entrada vai até o fim, porque não há próxima', () => {
-    expect(changelogEntry(changelog, '9.8.1')).toContain('something else entirely');
+    expect(changelogEntries(changelog, '9.8.1', '9.8.0').body).toContain('something else entirely');
   });
 
   /** O molde do topo é comentário HTML, e ele não pode ser lido como a entrada mais recente. */
   it('o molde do topo não é uma entrada', () => {
-    expect(changelogEntry(changelog, '9.8.2').startsWith('#### [9.8.2]')).toBe(true);
+    expect(changelogEntries(changelog, '9.8.3').body.startsWith('#### [9.8.3]')).toBe(true);
   });
 
   it('e uma versão que não está no arquivo recusa', () => {
-    expect(() => changelogEntry(changelog, '9.9.9')).toThrow(/no entry for 9\.9\.9/);
+    expect(() => changelogEntries(changelog, '9.9.9')).toThrow(/no entry for 9\.9\.9/);
+  });
+
+  /**
+   * O defeito que criou este bloco: a 9.8.2 foi empacotada e não subiu, e o release da 9.8.3 — que
+   * CONTÉM a 9.8.2 — não citava uma linha dela. Não há release posterior que volte para contá-la, então
+   * aquelas alterações desapareciam para quem procura o que mudou.
+   */
+  it('cobrem toda versão entre a que está saindo e a última publicada', () => {
+    const notes = changelogEntries(changelog, '9.8.3', '9.8.1');
+    expect(notes.versions).toEqual(['9.8.3', '9.8.2']);
+    expect(notes.body).toContain('the notes cover the interval');
+    expect(notes.body).toContain('the channel exists');
+    expect(notes.body).not.toContain('something else entirely');
+  });
+
+  /**
+   * A primeira publicação não tem intervalo: o arquivo de histórico começa antes do catálogo, e despejá-lo
+   * inteiro no primeiro release não seria descrever o que subiu.
+   */
+  it('e a primeira publicação recorta só a própria versão', () => {
+    expect(changelogEntries(changelog, '9.8.3').versions).toEqual(['9.8.3']);
   });
 });

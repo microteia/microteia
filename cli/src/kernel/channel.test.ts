@@ -6,6 +6,7 @@ import {
   entryOf,
   kernelTarballName,
   parseIndex,
+  publishedBefore,
   resolveVersion,
   serializeIndex,
   withEntry,
@@ -168,5 +169,31 @@ describe('a entrada montada a partir do manifesto', () => {
 describe('o nome do arquivo', () => {
   it('é montado da versão, e é o mesmo que o pack escreve', () => {
     expect(kernelTarballName('9.8.2')).toBe('microteia-kernel-9.8.2.tgz');
+  });
+});
+
+/**
+ * O release de uma versão descreve o que ela acrescenta a quem tinha a anterior — e a anterior é a maior
+ * versão PUBLICADA abaixo dela, que não é necessariamente a versão de número imediatamente anterior:
+ * entre as duas pode haver versões empacotadas e nunca publicadas.
+ */
+describe('a última versão publicada abaixo de uma', () => {
+  const index = (versions: string[]) => ({
+    schema: INDEX_SCHEMA,
+    channels: {},
+    kernel: versions.map((version) => entry(version)),
+  });
+
+  it('pula o que foi empacotado e nunca subiu', () => {
+    expect(publishedBefore(index(['9.64.0', '9.60.0']), '9.66.0')).toBe('9.64.0');
+  });
+
+  /** Publicar fora de ordem é possível, e o topo do catálogo não é o que esta versão sucede. */
+  it('é a maior ABAIXO desta, e não o topo do catálogo', () => {
+    expect(publishedBefore(index(['9.70.0', '9.64.0']), '9.66.0')).toBe('9.64.0');
+  });
+
+  it('e um catálogo vazio não tem anterior nenhuma', () => {
+    expect(publishedBefore(emptyIndex(), '9.66.0')).toBeUndefined();
   });
 });

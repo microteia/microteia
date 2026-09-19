@@ -58,6 +58,36 @@ describe('o que o publish recusa antes de publicar', () => {
 });
 
 /**
+ * O corpo do release cobre o INTERVALO desde a última versão publicada, e não só a versão que está
+ * saindo.
+ *
+ * O defeito: a 9.65.0 foi empacotada e não subiu, e o release da 9.66.0 — que CONTÉM a 9.65.0 — não
+ * citava uma linha dela. Release é imutável e não há release posterior que volte a contá-las: para quem
+ * procura o que mudou, aquelas alterações nunca existiram.
+ */
+describe('as notas do release cobrem o intervalo', () => {
+  it('o corte começa na última versão já publicada, lida do catálogo', () => {
+    expect(publish).toContain('publishedBefore(published.index, version)');
+    expect(publish).toContain('changelogEntries(changelog, version, since)');
+  });
+
+  /** O catálogo é quem sabe o que já subiu, então o recorte só pode acontecer depois de lê-lo. */
+  it('e por isso ele acontece depois da leitura do catálogo, não ao ler o pacote', () => {
+    const kernel = publish.slice(publish.indexOf('const publishKernel ='));
+    expect(kernel.indexOf('await readPublishedIndex(repo)'))
+      .toBeLessThan(kernel.indexOf('changelogEntries(changelog'));
+    expect(source('vendor/publish.ts')).not.toContain('changelogEntry(');
+  });
+
+  /** Quem publica vê quais versões o release está descrevendo — inclusive no dry-run. */
+  it('e o comando diz quais versões as notas carregam', () => {
+    expect(publish).toContain('notes.versions.length === 1');
+    expect(publish).toContain('every entry since');
+    expect(publish.indexOf('release notes:')).toBeLessThan(publish.indexOf('if (dryRun) {'));
+  });
+});
+
+/**
  * A ordem que importa, e a razão dela: um índice que aponta para um arquivo que não subiu quebra a
  * instalação de todo mundo que pedir `latest`; um arquivo que subiu e que o índice ainda não menciona
  * não quebra nada — ninguém o encontra até a publicação terminar.

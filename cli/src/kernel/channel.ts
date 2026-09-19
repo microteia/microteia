@@ -181,6 +181,22 @@ export const withEntry = (index: ChannelIndex, entry: ChannelEntry): ChannelInde
 };
 
 /**
+ * A última versão publicada ABAIXO desta — o começo do intervalo que o release novo cobre.
+ *
+ * É "abaixo desta" e não "o topo do catálogo" porque publicar fora de ordem é possível, e o que o
+ * release precisa descrever é o que ele acrescenta a quem já tinha a anterior. Quem já tinha a anterior
+ * está na maior versão MENOR que esta.
+ *
+ * Nada publicado ainda é `undefined`, e não a menor versão do histórico: o arquivo de histórico começa
+ * antes do catálogo, e a primeira publicação não descreve o que veio antes dela.
+ */
+export const publishedBefore = (index: ChannelIndex, version: string): string | undefined =>
+  [...index.kernel]
+    .sort(byVersionDescending)
+    .find((entry) => compareVersions(entry.version, version) < 0)
+    ?.version;
+
+/**
  * Resolve o que foi pedido — `latest` ou um número — nomeando o que existe quando não acha.
  *
  * A recusa lista as versões porque a alternativa é a pessoa tentar de novo com outro palpite. Cinco

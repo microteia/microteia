@@ -22,6 +22,17 @@
 - fix(command): what was broken, and what it did to whoever hit it.
 -->
 
+#### [2.22.1] — 2026-09-19
+
+- fix(cli/publish): the release notes now carry every changelog entry since the last PUBLISHED version,
+  not only the one being packaged. A version can be packaged and never published — the catalog is what
+  says what went up, and the package being published contains all of them. Publishing 9.66.0 over a
+  catalog whose newest entry was 9.64.0 created a release that carries 9.65.0 and did not quote a line
+  of it, and a release is immutable: no later release goes back to tell what those versions changed.
+  The cut now starts at `publishedBefore(index, version)`, so it happens after the catalog is read
+  rather than while the package is; the first publish, which has no interval, still cuts its own entry
+  alone. The command prints which versions the notes carry, in the dry run too.
+
 #### [2.22.0] — 2026-09-10
 
 - feat(deploy): the reachability check now covers HTTP endpoints, not only callables.
