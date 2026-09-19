@@ -1,6 +1,5 @@
 import type { LookupModuleTemplate, MarketplacePlugin, ScreenPatchTemplate } from '../../entities/MarketplacePlugin';
 import type { IWorkflowDefinitionRepository } from '../../repositories/IWorkflowDefinitionRepository';
-import type { IPluginInstallationRepository } from '../../repositories/IPluginInstallationRepository';
 import type { IScreenDefinitionRepository, ScreenDefinitionInput } from '../../repositories/IScreenDefinitionRepository';
 import type { IActionRepository } from '../../repositories/IActionRepository';
 import type { IScriptRepository } from '../../repositories/IScriptRepository';
@@ -8,8 +7,6 @@ import type { DeletionActor, FieldDefinition, ScreenDefinition } from '../../ent
 import { CUSTOM_FIELD_ENABLED_ENTITIES } from '../../entities/entitySchemas';
 import { builtinScreenBaseline } from '../../schema/screenEntity';
 import type { LifecycleActor } from '../../services/pluginLifecycle';
-import { planInstall, planUninstall, planUpgrade } from '../../services/pluginLifecycle';
-import type { LifecycleResult } from './PluginLifecycleUseCases';
 import { buildScreenKeyMap, isAdoptedScreen, materializeScreen, ownerSet } from './screenModule';
 import {
   actionInputFromTemplate,
@@ -34,8 +31,8 @@ const BUILTIN_TAG_COLLECTIONS = new Set(
 );
 
 /** Repositórios necessários para materializar/liberar os artefatos de dados de um pacote (telas,
- *  actions, workflows, scripts) — sem depender do registro de instalação. Reusado tanto pela máquina
- *  antiga (PluginInstallation) quanto pelo novo fluxo de extensões instaladas (`installed_extensions`). */
+ *  actions, workflows, scripts) — sem depender de registro de instalação nenhum. É o que permite a
+ *  MESMA materialização servir a instalação e a atualização de `installed_extensions`. */
 export interface ArtifactDeps {
   workflowRepository: IWorkflowDefinitionRepository;
   screenRepository: IScreenDefinitionRepository;
@@ -48,20 +45,10 @@ export interface ArtifactDeps {
   reportRepository: IReportDefinitionRepository;
 }
 
-export interface MarketplaceDeps extends ArtifactDeps {
-  installationRepository: IPluginInstallationRepository;
-}
-
 const deletionActor = (actor: LifecycleActor): DeletionActor => ({
   uid: actor.userId,
   name: actor.userId,
   photoURL: '',
-});
-
-const displayConfig = (plugin: MarketplacePlugin): Record<string, unknown> => ({
-  name: plugin.manifest.name,
-  summary: plugin.summary,
-  workflowCount: plugin.workflows.length,
 });
 
 const stripUndefined = <T>(value: T): T => {
@@ -811,6 +798,15 @@ export const applyPackageArtifacts = async (
   await releaseVanishedGeneratedArtifacts(deps, plugin, tenantId, pluginId, actor);
 };
 
+export interface UninstallCounts {
+  removedScreens: number;
+  removedActions: number;
+  removedWorkflows: number;
+  removedScripts: number;
+  /** Campos retirados de telas de terceiros (complementos) — a tela em si continua de pé. */
+  removedPatchFields: number;
+}
+
 /**
  * Libera (refcount) todos os artefatos de dados que este pacote trouxe ao tenant. Cada artefato só é
  * de fato apagado quando nenhuma outra extensão o usa; senão, apenas perde este plugin como dono. Os
@@ -833,123 +829,3 @@ export const releasePackageArtifacts = async (
   const { removedActions, removedWorkflows, removedScripts } = await releaseGeneratedArtifacts(deps, tenantId, pluginId, actor);
   return { removedScreens, removedActions, removedWorkflows, removedScripts, removedPatchFields };
 };
-
-export type InstallMarketplacePluginUseCase = {
-  execute: (plugin: MarketplacePlugin, actor: LifecycleActor) => Promise<LifecycleResult>;
-};
-
-/**
- * Instala um plugin: valida, MATERIALIZA os artefatos (deduplicando os que já existem de outra
- * extensão, por `sourceId`) e grava o registro.
- */
-export const makeInstallMarketplacePluginUseCase = (
-  deps: MarketplaceDeps,
-): InstallMarketplacePluginUseCase => ({
-  execute: async (plugin, actor) => {
-    const pluginId = plugin.manifest.id;
-    const { tenantId, userId } = actor;
-    const current = await deps.installationRepository.getById(tenantId, pluginId);
-
-    const outcome = planInstall(
-      current,
-      {
-        pluginId,
-        version: plugin.manifest.version,
-        grantedPermissions: plugin.manifest.permissions ?? [],
-        // Cache denormalizado para exibir extensões importadas (fora do catálogo) na tela de Extensões.
-        config: displayConfig(plugin),
-      },
-      actor,
-    );
-    if (!outcome.ok) return { ok: false, error: outcome.error };
-
-    const existingScreens = await deps.screenRepository.getAll(tenantId);
-    const { actionMap, screenKeyMap } = await materializeArtifacts(deps, plugin, tenantId, userId, existingScreens);
-    await declarePluginLookups(deps, plugin, tenantId, userId);
-    await declarePluginTagLists(deps, plugin, tenantId, userId);
-    await upsertPluginScreens(deps, plugin, tenantId, userId, screenKeyMap, actionMap, existingScreens);
-    await applyScreenPatches(deps, plugin, tenantId, userId, await deps.screenRepository.getAll(tenantId), actionMap);
-
-    await deps.installationRepository.save(outcome.value);
-    return { ok: true, installation: outcome.value };
-  },
-});
-
-export type UpgradeMarketplacePluginUseCase = {
-  execute: (plugin: MarketplacePlugin, actor: LifecycleActor) => Promise<LifecycleResult>;
-};
-
-/**
- * Atualiza um plugin já instalado para uma versão mais recente. Os artefatos de id gerado são
- * LIBERADOS (refcount) e re-materializados; as telas são reconciliadas por chave (preservando dados
- * e campos do usuário), e as que sumiram na nova versão são liberadas. Artefatos compartilhados com
- * outra extensão não são apagados — só perdem/reganham este plugin como dono.
- */
-export const makeUpgradeMarketplacePluginUseCase = (
-  deps: MarketplaceDeps,
-): UpgradeMarketplacePluginUseCase => ({
-  execute: async (plugin, actor) => {
-    const pluginId = plugin.manifest.id;
-    const current = await deps.installationRepository.getById(actor.tenantId, pluginId);
-
-    const outcome = planUpgrade(current, plugin.manifest.version, actor);
-    if (!outcome.ok) return { ok: false, error: outcome.error };
-
-    // Uma só rota de materialização (mesma do fluxo installed_extensions): reescreve por `sourceRev`,
-    // preserva o que o usuário adicionou e libera o que sumiu na versão nova. Sem release-first cego.
-    await applyPackageArtifacts(deps, plugin, actor);
-
-    const installation = { ...outcome.value, config: displayConfig(plugin) };
-    await deps.installationRepository.save(installation);
-    return { ok: true, installation };
-  },
-});
-
-export interface UninstallCounts {
-  removedScreens: number;
-  removedActions: number;
-  removedWorkflows: number;
-  removedScripts: number;
-  /** Campos retirados de telas de terceiros (complementos) — a tela em si continua de pé. */
-  removedPatchFields: number;
-}
-
-export type UninstallMarketplacePluginResult = ({ ok: true } & UninstallCounts) | LifecycleResult;
-
-export type UninstallMarketplacePluginUseCase = {
-  execute: (pluginId: string, actor: LifecycleActor) => Promise<UninstallMarketplacePluginResult>;
-};
-
-/**
- * Desinstala: valida e LIBERA (refcount) os artefatos usados por este plugin — telas, actions,
- * workflows e scripts. Cada artefato só é de fato apagado quando NENHUMA outra extensão o usa;
- * caso contrário, apenas perde este plugin do conjunto de donos. Os REGISTROS (customRecords) das
- * telas apagadas ficam órfãos: a estrutura some, os dados ficam. As contagens são de fato apagados.
- */
-export const makeUninstallMarketplacePluginUseCase = (
-  deps: MarketplaceDeps,
-): UninstallMarketplacePluginUseCase => ({
-  execute: async (pluginId, actor) => {
-    const { tenantId } = actor;
-    const current = await deps.installationRepository.getById(tenantId, pluginId);
-    const outcome = planUninstall(current);
-    if (!outcome.ok) return { ok: false, error: outcome.error };
-
-    const screens = await deps.screenRepository.getAll(tenantId);
-    let removedScreens = 0;
-    for (const screen of screens.filter((s) => ownerSet(s).includes(pluginId))) {
-      if (await releaseScreen(deps, tenantId, screen, pluginId, actor)) removedScreens += 1;
-    }
-    const removedPatchFields = await releaseScreenPatches(deps, tenantId, pluginId, screens);
-
-    await releasePluginLookups(deps, tenantId, pluginId);
-    await releasePluginTagLists(deps, tenantId, pluginId);
-
-    const { removedActions, removedWorkflows, removedScripts } = await releaseGeneratedArtifacts(
-      deps, tenantId, pluginId, actor,
-    );
-
-    await deps.installationRepository.delete(tenantId, pluginId);
-    return { ok: true, removedScreens, removedActions, removedWorkflows, removedScripts, removedPatchFields };
-  },
-});

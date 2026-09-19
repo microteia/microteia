@@ -3,13 +3,14 @@ import type { PublicExtension } from '../domain/entities/PublicExtension';
 import type { MarketplacePlugin } from '../domain/entities/MarketplacePlugin';
 
 export type PublishPublicResult =
-  | { ok: true; status: 'pending' | 'approved' }
+  | { ok: true }
+  /** `error` é uma REFERÊNCIA de mensagem; `errorParams` traz os valores que a frase interpola. */
   | { ok: false; error: string; errorParams?: Record<string, string> };
 
 export interface PublicExtensionStoreValue {
   publicExtensions: PublicExtension[];
   isLoading: boolean;
-  /** Publica (ou republica com versão maior) a extensão no catálogo global. */
+  /** Publica no catálogo global; republicar exige versão maior, e código exige SYSTEM. */
   publish: (pkg: MarketplacePlugin) => Promise<PublishPublicResult>;
   approve: (domain: string) => Promise<void>;
   deprecate: (domain: string) => Promise<void>;

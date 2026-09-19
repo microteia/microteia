@@ -33,6 +33,12 @@ describe('coleções reservadas', () => {
    *
    * A lista abaixo é o mínimo que precisa ter regra própria: as coleções de que o kernel depende
    * para funcionar, e as que uma entidade fora do kernel ainda usa.
+   *
+   * `SELADAS` é o caso oposto, e é deliberado: coleção reservada que NÃO tem match nomeado fica sem
+   * regra nenhuma, e é isso que se quer de um resto de código removido — o nome continua bloqueado
+   * para telas novas, e os documentos que sobraram nos escritórios não são lidos nem escritos por
+   * ninguém. Sem este teste, a diferença entre "selada de propósito" e "alguém apagou o bloco por
+   * engano" não estaria escrita em lugar nenhum.
    */
   it('toda coleção reservada de que o sistema depende tem o seu match nomeado', () => {
     const rules = readFileSync(join(process.cwd(), 'firestore.rules'), 'utf8');
@@ -42,12 +48,20 @@ describe('coleções reservadas', () => {
       'screenDefinitions', 'lookupDefinitions', 'tagDefinitions',
       'workflow_definitions', 'workflow_events', 'workflow_executions',
       'actions', 'scripts', 'aiConnections',
-      'plugin_installations', 'extensions', 'installed_extensions', 'extension_history',
+      'extensions', 'installed_extensions', 'extension_history',
       'members',
     ];
 
+    /** Reservadas de propósito SEM regra: nada as lê, e o que sobrou delas fica inalcançável. */
+    const SELADAS = ['plugin_installations'];
+
     for (const collection of REQUIRED) {
       expect(named, `"${collection}" perdeu o match nomeado no firestore.rules`).toContain(collection);
+    }
+    for (const collection of SELADAS) {
+      expect(RESERVED_COLLECTIONS, `"${collection}" precisa continuar reservada`).toContain(collection);
+      expect(named, `"${collection}" ganhou um match: ou ele é engano, ou ela saiu de SELADAS`)
+        .not.toContain(collection);
     }
   });
 

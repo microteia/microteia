@@ -702,14 +702,20 @@ vazio** — perfil é nome, permissão é escolha, cada uma no lugar onde a perg
 ### As regras são exercitadas, não só lidas — `rules-tests/`
 
 `npm run test:rules` sobe o emulador do Firestore, roda a suíte contra o **arquivo real** de regras
-(lido do disco: um teste que carregasse uma cópia provaria coisa nenhuma) e o derruba. Trinta e cinco
-verificações em três arquivos:
+(lido do disco: um teste que carregasse uma cópia provaria coisa nenhuma) e o derruba. Um arquivo por
+regra que tem uma decisão a defender:
 
 | Arquivo | O que prova |
 |---|---|
 | `screenRecords.test.ts` | o curinga por permissão derivada; coleção não declarada e reservada recusadas; isolamento entre escritórios; o DONO sem materialização e o `SYSTEM` sem ser membro |
 | `rolesAndMembers.test.ts` | perfil lido por todo membro e escrito só por `roles.manage`; o protegido que não nasce nem vira protegido pelo cliente; e `members.permissions` que NINGUÉM escreve — nem escondido no meio de uma alteração legítima |
 | `screenDeclarations.test.ts` | `authorCanDelete`, `memberWritableFields` e o vocabulário (lista de opções lida por todos, gravada com permissão) |
+| `publicExtensions.test.ts` | o catálogo global: sem código o dono publica já aprovada, com código só o `SYSTEM`; e a regra lê o pacote que ESTÁ SENDO ESCRITO, então acrescentar código a um registro próprio é barrado igual |
+| `agentGrants.test.ts` | a leitura assimétrica do acesso de agente e a escrita fechada para todo cliente — quem escolhe o hash escolhe o token |
+| `extensionHistory.test.ts` | a subcoleção `versions/{revision}`, que o curinga de registros não alcança, e o `delete` permitido que separa excluir de desinstalar |
+| `recordKeys.test.ts` | a unicidade: `create` liberado e `update` negado é o que faz duas gravações no mesmo instante não passarem as duas |
+| `reports.test.ts` | definição lida por todo membro, escrita por quem gerencia — e o acesso ao DADO que a regra deliberadamente não decide |
+| `backendState.test.ts` | o cliente lê e nunca escreve: escrita liberada deixaria forjar a lista de órfãs do provisionamento |
 
 Ela fica **fora do `npm test`**, com configuração própria (`vitest.rules.config.ts`), porque exige um
 JDK — e um teste que não roda na máquina de quem o herda vira ruído até alguém apagá-lo. A semeadura
@@ -791,7 +797,7 @@ src/
 │   ├── RecordStore.tsx + useRecords.ts        # os registros de QUALQUER coleção de tela
 │   ├── ScreenDefinitionStore.tsx, LookupStore.tsx, TagStore.tsx
 │   ├── KernelContext.tsx + useKernel.ts       # o host de plugins ligado ao React
-│   ├── InstalledExtensionStore.tsx, PluginStore.tsx, PublicExtensionStore.tsx
+│   ├── InstalledExtensionStore.tsx, PublicExtensionStore.tsx
 │   ├── LocaleContext.tsx, ThemeContext.tsx, SettingsStore.tsx
 │   ├── WorkflowStore.tsx, ActionStore.tsx, ScriptStore.tsx, StepCatalogStore.tsx
 │   └── WorkspaceStore.tsx, CommandPaletteContext.tsx, NotificationContext.tsx
@@ -5420,16 +5426,16 @@ envolvendo `<WorkspaceShell />`, ele renderiza um **segundo** `KernelProvider` c
 interna vence para a subárvore do workspace — barra lateral, páginas e ⌘K leem as contribuições
 **dela**. O DI, acima, continua no host base. Nenhuma mudança no Kernel; só aninhamento.
 
-`installedPluginRecords(catalog, installations)` (`domain/usecases/plugins/`, puro e testado)
-computa os `PluginRecord` a partir de `(instalação habilitada ∩ catálogo)`, sempre `trusted: false`.
-Consequências:
+`installedExtensionRecords(installed, trustedIds, migrationPendingIds)`
+(`domain/usecases/plugins/`, puro e testado) computa os `PluginRecord` a partir das cópias
+INSTALADAS E ATIVAS, e `extensionRecordFrom` converte cada pacote. Consequências:
 
 - **Contribuição de UI de plugin instalado não é persistida.** É derivada; ativar/desativar liga e
   desliga o menu e as páginas ao vivo, sem gravar nada. (Workflow continua materializado — é estado;
   UI é função do que está instalado.)
-- **Terceiro nunca roda `code`.** `trusted: false` faz o `PluginHost` recusar `impl: code`; só
-  `widget`/`workflow`/`nav` passam. Uma página de plugin instalado é sempre Widget DSL.
-- **Instalação órfã** (manifest sumiu do catálogo por despublicação) é ignorada.
+- **Código só roda com confiança explícita.** Fora de `trustedIds` o pacote entra `trusted: false`, e
+  o `PluginHost` recusa `impl: code`; só `widget`/`workflow`/`nav` passam. Quem responde por essa
+  decisão é `extensionCodeTrust` — procedência do catálogo, ou o gesto de revisão de um admin.
 - **Extensão com exigência de backend não aplicada é ignorada**, e é falha fechada: o carimbo
   `backendState` tem de bater com o `backendFingerprint` do que ela exige. Sem isso, o menu e a tela
   apareceriam sem o servidor por trás, e cada chamada falharia no navegador parecendo erro de CORS.
@@ -5747,16 +5753,7 @@ não ganhou vocabulário nenhum.
 Prazo, e cobre o que só o motor prova: o mutirão idempotente, o espelho reescrevendo o mesmo
 documento e as três datas do arrasto (vencimento, pagamento, cancelamento) conforme a situação.
 
-### Integridade do Marketplace — publicar válido e ver por que falhou
-
-Duas guardas que fecham buracos da carga por tenant:
-
-**Validação na publicação** (`domain/usecases/plugins/PublishPluginUseCase.ts`). Publicar agora roda
-`validatePluginManifest` **antes** de gravar no registro, contra os pontos e a versão do kernel em
-execução, com `trusted: false` — exatamente como o plugin vai rodar nos escritórios. Manifest com id
-inválido, kernel incompatível, contribuição para ponto inexistente ou tentativa de `impl: code` (JS
-compilado de terceiro) é **recusado, sem gravar**. Sem isso, um admin publicaria um plugin que
-falharia em todos os tenants. O `PluginStore` valida usando `host.points.snapshot()` do host base.
+### Integridade do Marketplace — ver por que uma extensão não carregou
 
 **Visibilidade de falha de carga.** Um plugin instalado que não carrega (ex.: incompatível) antes
 sumia em silêncio. Agora o `Marketplace.viewmodel` cruza `host.isLoaded(pluginId)` com
@@ -5764,29 +5761,63 @@ sumia em silêncio. Agora o `Marketplace.viewmodel` cruza `host.isLoaded(pluginI
 o card mostra "Esta extensão não pôde ser carregada: <motivo>". `usePluginDiagnostics()` já existia;
 aqui ele ganha consumidor.
 
-### Registro global do Marketplace (Etapa 7 — spine)
+### Como uma extensão chega ao catálogo — `public_extensions`
 
-O catálogo deixou de ser só código: uma coleção-raiz `plugin_registry` guarda os plugins
-publicados (qualquer autenticado LÊ; só a equipe global publica).
+A aba **Catálogo** da tela de Extensões não mostra o que está no bundle: mostra a coleção-raiz
+`public_extensions/{domain}`, em que o id do documento é o `manifest.id`. É por ela que uma extensão
+escrita em QUALQUER escritório fica disponível para todos os outros instalarem, sem passar `.json` de
+mão em mão e sem deploy do frontend.
 
-| | Leitura | Escrita |
+O percurso tem dois passos, e o primeiro é sempre o mesmo:
+
+| Passo | Onde grava | Quem vê |
 |---|---|---|
-| `plugin_registry/{pluginId}` | qualquer autenticado | só `isSystemAdmin()` (equipe global) |
+| **Importar** (`.json`) ou autorar | `tenants/{id}/extensions` | só o escritório, na aba "Minhas" |
+| **Publicar** | `public_extensions/{domain}` | todo escritório autenticado, na aba "Catálogo" |
 
-**Marketplace curado, v1.** Publicar é escrita de cliente gated a SYSTEM — a equipe Microteia
-curadora, não o admin do tenant. Precisa apenas de `deploy:rules`, sem Cloud Function nem service
-account. A evolução para marketplace aberto (revisão + publish via Admin SDK) é trocar a regra e a
-porta de escrita, sem mexer no resto.
+**A decisão de alcance é feita na IMPORTAÇÃO**, não depois. Escolher o arquivo abre a pergunta — *só
+neste escritório* ou *no catálogo, para todos* — e ela é feita sobre o pacote já lido, com nome,
+versão e se ele traz código; perguntar isso sobre um arquivo anônimo não seria uma escolha informada.
+Confirmada, a importação é sempre a mesma escrita privada, e "para todos" acrescenta a publicação
+DEPOIS dela: o catálogo global só recebe pacote que já foi validado e gravado, e uma publicação que
+falhe deixa a extensão importada em vez de perder o gesto inteiro.
 
-**Catálogo mostrado = publicados ∪ embutidos**, deduplicados por id, o publicado vencendo
-(`domain/usecases/plugins/mergeCatalog.ts`, puro e testado). Os plugins **embutidos**
-(`plugins/marketplace/catalog.ts`) vêm no bundle e são o ponto de partida; o **registro** é o que
-permite adicionar um plugin **sem deploy do frontend**. Publicar um embutido prova o ciclo:
-o card passa de "Interna" para "Publicada" e a partir dali vem do Firestore. O `PluginStore` assina
-`plugin_registry` (global, independente de tenant) e expõe `publish`/`unpublish` para SYSTEM.
+**Quem publica depende de o pacote trazer CÓDIGO**, e a assimetria não é hierarquia, é consequência:
 
-O que falta para a Etapa 7 completa: versões por plugin (`versions/{semver}`) e um fluxo de publish
-de verdade (formulário/validação de manifest).
+- **Sem código** — telas, automações, ações, relatórios — o pacote é declaração que o kernel
+  interpreta. Quem tem `extensions.manage` no escritório DONO publica direto, já `approved`.
+- **Com código** (`views`), a extensão roda no navegador de cada membro de cada escritório que a
+  instalar, com acesso ao que aquela pessoa vê. Só o `SYSTEM` publica. Deixar isso entrar por
+  autosserviço daria a qualquer admin de qualquer escritório uma porta para o navegador de todos os
+  outros.
+
+Publicar é, portanto, gesto de quem já poderia aprovar: **toda publicação nova nasce `approved`**.
+O status `pending` é legado — veio de quando o admin do escritório enfileirava código para curadoria —
+e o `SYSTEM` ainda aprova ou rejeita o que ficou na fila. As Rules cobram a mesma divisão
+(`rules-tests/publicExtensions.test.ts`), e `canPublishPublicly` existe para a tela não OFERECER o que
+seria recusado lá.
+
+**Republicar exige subir a versão — e essa é a regra que não pode ser silenciosa.** Um escritório que
+já instalou a extensão só recebe a cópia nova quando a versão sobe (`updateSourceOf`). Publicar por
+cima da mesma versão gravaria um pacote que ninguém jamais receberia. `publishRefusal`
+(`domain/usecases/plugins/publicExtension.ts`, puro e testado) é a porta única dos quatro motivos de
+recusa — versão inválida, código sem SYSTEM, domínio de outro escritório, versão não maior — e é a
+MESMA função que o store aplica ao publicar e que a linha usa para decidir o que oferecer:
+
+| `PublishAction` | Quando | O que a linha faz |
+|---|---|---|
+| `publish` | nunca publicada | botão ativo |
+| `republish` | o pacote privado difere do publicado E a versão é maior | botão ativo, dizendo a versão |
+| `needs-version` | difere, mas a versão não subiu | botão **desabilitado**, dizendo que falta subir |
+| `null` | publicada e IDÊNTICA, ou sem permissão | nada |
+
+O `null` é o que a tela ganhou: enquanto "Republicar" aparecia logo depois de publicar, o botão era a
+própria pergunta *republicar o quê?*. Um gesto que não tem efeito não deve estar na tela, e um que
+não pode acontecer ainda deve dizer o que falta em vez de sumir.
+
+**Instalar do catálogo copia o pacote para o escritório** (`source: 'public'`), como qualquer outra
+instalação: o catálogo é origem, não vínculo. Retirar do catálogo (`delete`) é do `SYSTEM`, e não
+afeta quem já instalou.
 
 ### Extensões que carregam módulos de domínio (Fase 1)
 
@@ -5915,10 +5946,10 @@ automações** — sem uma linha de backend novo.
 único workflow: ao criar uma Pessoa (`person.saved`, `changeType == created`), registra um evento
 na Auditoria. O catálogo é código embutido nesta fatia; na Etapa 7 completa vem do registro global.
 
-**Instalar = materializar.** `InstallMarketplacePluginUseCase` valida a instalação (regras puras da
-Etapa 5), cria os workflows do plugin no tenant **marcados com `ownerPluginId`** e habilitados, e só
-então grava o `PluginInstallation`. A ordem importa: validar antes de criar evita workflow órfão;
-gravar o registro por último evita marcar como instalado algo cuja materialização falhou.
+**Instalar = materializar.** `applyPackageArtifacts` cria os workflows do plugin no tenant
+**marcados com `ownerPluginId`** e habilitados, e a cópia instalada é gravada em
+`installed_extensions` depois. A ordem importa: materializar antes de gravar evita marcar como
+instalado algo cuja materialização falhou.
 
 **Duas convenções de caminho — não confundir** (o autor do plugin de exemplo tropeçou nisto): o
 `fieldPath` de um `FieldComparison` (condição) é resolvido contra o **contexto inteiro**, então usa
@@ -5933,37 +5964,31 @@ qualquer outro. **Nenhum backend novo, nenhuma rule nova.** Por isso o `ownerPlu
 **só do frontend**: o motor é agnóstico a dono (roda todo workflow habilitado), então
 `functions/src/.../Workflow.ts` não precisa do campo.
 
-**Desinstalar = cascata.** `UninstallMarketplacePluginUseCase` remove **todos** os workflows do
-tenant com aquele `ownerPluginId` e depois apaga o registro — a cascata de artefatos que a Etapa 5
-reservou, agora real para workflows. Workflows do próprio usuário (sem `ownerPluginId`) não são
-tocados; há teste.
+**Desinstalar = cascata.** `releasePackageArtifacts` libera **todos** os artefatos do tenant com
+aquele `ownerPluginId` — por refcount: o que outra extensão também usa apenas perde este dono.
+Artefatos do próprio escritório (sem `ownerPluginId`) não são tocados; há teste.
 
-**Superfície:** o `PluginStore` assina as instalações do tenant e expõe instalar/ativar/desativar/
-remover; a página **Extensões** (`core.marketplace`, contribuindo `ui.page` + `ui.nav`) lista o
+**Superfície:** o `InstalledExtensionStore` assina as cópias instaladas do tenant e expõe
+instalar/ativar/desativar/desinstalar; a página **Extensões** (`core.marketplace`, contribuindo `ui.page` + `ui.nav`) lista o
 catálogo com o estado por card. Só admin gerencia (InfoBanner para os demais).
 
-### Ciclo de vida de instalação (Etapa 5 — spine)
+### O ciclo de vida de instalação que NÃO existe mais
 
-Quando um plugin do Marketplace for instalado num escritório, o registro fica em
-`tenants/{tid}/plugin_installations/{pluginId}`: `version`, `enabled`, `config`,
-`grantedPermissions`, `installedAt/By`. Regra: membro lê (o app precisa saber o que está ativo),
-só admin instala/atualiza/remove.
+Houve um registro de instalação próprio — `tenants/{tid}/plugin_installations/{pluginId}`, com
+`version`/`enabled`/`config`/`grantedPermissions` — e um conjunto de regras puras em volta dele
+(`planInstall`, `planEnable`, `planUpgrade`, `planUninstall`), com erros tipados para
+`already-installed`, `not-newer-version` e afins.
 
-**A lógica de negócio é pura e isolada** em `domain/services/pluginLifecycle.ts`: `planInstall`,
-`planEnable`, `planDisable`, `planUpgrade`, `planUninstall` recebem o estado atual e devolvem o
-próximo estado **ou** um erro tipado (`already-installed`, `not-installed`, `not-newer-version`,
-`invalid-version`) — nunca lançam, nunca tocam I/O. Regras cobertas: idempotência (ativar o que já
-está ativo é no-op, não erro), upgrade só para frente (recusa versão igual/anterior, comparada por
-semver), install só do que não existe.
+Nada disso sobreviveu ao fluxo de `installed_extensions`, que guarda o PACOTE inteiro em vez de um
+ponteiro para um catálogo: a cópia instalada é o próprio estado, "atualizar" é uma convergência
+(`applyPackageArtifacts`) e não uma transição de máquina de estados, e a comparação de versão que
+importa é a do pacote, feita na tela. As duas máquinas conviveram por um tempo — uma delas sem
+nenhuma tela chamando — e a segunda saiu do repositório em 18/09/2026, junto com `plugin_registry`.
 
-Os use cases (`usecases/plugins/PluginLifecycleUseCases.ts`, padrão factory) orquestram o
-repositório em volta dessas funções: leem o estado, aplicam a regra, persistem só se aprovada.
-
-**Esta é a Etapa 5 em sua forma spine.** O que depende de existir plugin instalável — a tela de
-Plugins (admin), o enforçamento de permissão por plugin no sandbox QuickJS e a marcação
-`ownerPluginId`/`managed` dos artefatos com varredura na desinstalação — fica para a Etapa 7, quando
-o Marketplace fornece o conteúdo. O `UninstallPluginUseCase` já reserva o lugar da cascata de
-artefatos, hoje um no-op documentado.
+De `pluginLifecycle.ts` restou `LifecycleActor`: quem opera e quando, que é o que a materialização
+ainda precisa saber. A coleção `plugin_installations` continua **reservada** nas Rules e no
+`screenEntity`, porque os documentos de então continuam nos escritórios e liberar o nome deixaria uma
+tela nova nascer por cima deles.
 
 ### Entidades e lookups como contribuições (Etapa 4b)
 
@@ -6077,7 +6102,7 @@ não dispara é pior que guarda nenhuma.
 | 7 ◑ | Marketplace: registro global + publish (SYSTEM); falta versões por plugin e publish com validação |
 | 6 ✅ | Widget DSL (estático) — plugin instalado entrega tela por widget; falta só ligação a dados |
 | 8 ✅ | Configuração declarativa (`ui.settings`) + superfícies de widget (`ui.widget`): o Dashboard sai do kernel e vira extensão |
-| 7 | Marketplace: `plugin_registry`, publicação e instalação |
+| 7 | Marketplace: catálogo global, publicação e instalação |
 
 ---
 
@@ -7071,9 +7096,10 @@ com `serializePackage` — o mesmo formato do botão "Baixar .json". `scripts/ex
 é a rede: alterar a extensão e esquecer de regerar o arquivo quebra o teste, em vez de deixar um
 `.json` velho instalando uma tela que não existe mais no repositório.
 
-**O que continua em aberto, e é honesto registrar:** não há CSP (`connect-src`), `manifest.permissions`
-segue declarado e não consultado (inclusive o domínio `net`), e `installedPluginRecords` continua sem
-chamador — a decisão de confiança vive agora em `extensionCodeTrust`.
+**O que continua em aberto, e é honesto registrar:** não há CSP (`connect-src`) e
+`manifest.permissions` segue declarado e não consultado (inclusive o domínio `net`).
+`installedPluginRecords`, que ficou sem chamador quando a decisão de confiança passou para
+`extensionCodeTrust`, saiu do repositório.
 
 ## Migração de dados de extensão
 
@@ -7618,7 +7644,7 @@ pares chave/texto.
 | Função | Limite | Efeito |
 |---|---|---|
 | `packageSizeAdvisory` | 400 KB | aviso na tela de autoria; **não** bloqueia |
-| `packageSizeIssues` | 800 KB | recusa na importação (`PluginStore`, `TenantExtensionStore`) e na autoria |
+| `packageSizeIssues` | 800 KB | recusa na importação (`TenantExtensionStore`) e na autoria |
 
 São funções **à parte** de `validatePackage` de propósito: `PackageValidationIssue` exige um `ref` de
 `RefKind`, e a tela de autoria **reescreve** a mensagem a partir dele — um problema de tamanho passaria

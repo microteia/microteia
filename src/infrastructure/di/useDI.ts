@@ -27,8 +27,6 @@ import type { IDataProcessorRepository } from '../../domain/repositories/IDataPr
 import type { IActionRepository } from '../../domain/repositories/IActionRepository';
 import type { IReportDefinitionRepository } from '../../domain/repositories/IReportDefinitionRepository';
 import type { IRoleRepository } from '../../domain/repositories/IRoleRepository';
-import type { IPluginInstallationRepository } from '../../domain/repositories/IPluginInstallationRepository';
-import type { IPluginRegistryRepository } from '../../domain/repositories/IPluginRegistryRepository';
 import type { ITenantExtensionRepository } from '../../domain/repositories/ITenantExtensionRepository';
 import type { IInstalledExtensionRepository } from '../../domain/repositories/IInstalledExtensionRepository';
 import type { IExtensionMigrationRepository } from '../../domain/repositories/IExtensionMigrationRepository';
@@ -71,8 +69,6 @@ export interface DIContainer {
   reportRepository: IReportDefinitionRepository;
   roleRepository: IRoleRepository;
   agentGrantRepository: IAgentGrantRepository;
-  pluginInstallationRepository: IPluginInstallationRepository;
-  pluginRegistryRepository: IPluginRegistryRepository;
   tenantExtensionRepository: ITenantExtensionRepository;
   installedExtensionRepository: IInstalledExtensionRepository;
   extensionMigrationRepository: IExtensionMigrationRepository;

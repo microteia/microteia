@@ -40,6 +40,8 @@ export interface Seed {
   roles?: Record<string, Record<string, Record<string, unknown>>>;
   /** Registros já existentes: `tenants/{t}/{coleção}/{id}`. */
   records?: Record<string, Record<string, Record<string, unknown>>>;
+  /** Documentos de coleção-RAIZ (fora de tenant): `{coleção}/{id}`. */
+  root?: Record<string, Record<string, unknown>>;
 }
 
 /**
@@ -81,6 +83,10 @@ export const seed = async (env: RulesTestEnvironment, data: Seed): Promise<void>
         const [collection, id] = path.split('/');
         await setDoc(doc(db, 'tenants', tenantId, collection, id), record);
       }
+    }
+    for (const [path, record] of Object.entries(data.root ?? {})) {
+      const [collection, id] = path.split('/');
+      await setDoc(doc(db, collection, id), record);
     }
   });
 };

@@ -482,6 +482,9 @@ export const RESERVED_COLLECTIONS: ReadonlySet<string> = new Set<string>([
   'workflow_executions',
   'scripts',
   'actions',
+  // Sem código que a leia desde 18/09/2026 — foi a instalação de antes de `installed_extensions`.
+  // Continua reservada porque os documentos de então continuam nos escritórios, e liberar o nome
+  // deixaria uma tela nova nascer por cima deles.
   'plugin_installations',
   'roles',
   'extensions',

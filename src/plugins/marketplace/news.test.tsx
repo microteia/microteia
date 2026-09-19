@@ -2,28 +2,15 @@
 import { describe, it, expect } from 'vitest';
 import { createPluginHost } from '../../kernel';
 import { CORE_PLUGINS } from '..';
-import { installedPluginRecords } from '../../domain/usecases/plugins/installedPluginRecords';
+import { extensionRecordFrom } from '../../domain/usecases/plugins/extensionRecordFrom';
 import { materializePluginScreens } from '../../domain/usecases/plugins/screenModule';
 import { evaluateExtensionView } from '../../presentation/shared/extensions/evaluateExtensionView';
 import { navMetadataOf } from '../../presentation/shared/resolveUiContributions';
 import { UI_NAV_POINT, UI_PAGE_POINT } from '../../domain/schema/ui/uiExtensionPoints';
 import { RESERVED_COLLECTIONS } from '../../domain/schema/screenEntity';
 import { countBadgeRecords } from '../../presentation/shared/useNavBadgeCount';
-import type { PluginInstallation } from '../../domain/entities/PluginInstallation';
 import type { EntityRecord } from '../../domain/entities';
 import { newsPlugin } from './news';
-
-const installation = (pluginId: string): PluginInstallation => ({
-  pluginId,
-  tenantId: 't1',
-  version: '1.0.0',
-  enabled: true,
-  config: {},
-  grantedPermissions: [],
-  installedAt: new Date(),
-  installedBy: 'u1',
-  updatedAt: new Date(),
-});
 
 const screens = () => materializePluginScreens(newsPlugin, 'u1');
 const newsScreen = () => screens()[0].input;
@@ -51,7 +38,7 @@ describe('newsPlugin', () => {
     const host = createPluginHost();
     const result = host.load([
       ...CORE_PLUGINS,
-      ...installedPluginRecords([newsPlugin], [installation(newsPlugin.manifest.id)]),
+      ...[newsPlugin].map((plugin) => extensionRecordFrom(plugin, true)),
     ]);
 
     expect(result.diagnostics.filter((d) => d.severity === 'error')).toEqual([]);

@@ -3,14 +3,13 @@ import { PublicExtensionStoreContext, type PublishPublicResult } from './usePubl
 import { useTenant } from './useTenant';
 import { useAuth } from './useAuth';
 import { useDI } from '../infrastructure/di/useDI';
-import { extensionHasCode, initialPublicStatus } from '../domain/usecases/plugins/publicExtension';
-import { isValidSemVer } from '../domain/schema/plugin/semver';
+import { extensionHasCode, publishRefusal } from '../domain/usecases/plugins/publicExtension';
 import type { PublicExtension } from '../domain/entities/PublicExtension';
 import type { MarketplacePlugin } from '../domain/entities/MarketplacePlugin';
 
 export const PublicExtensionStoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { currentTenant } = useTenant();
-  const { user } = useAuth();
+  const { user, userRole } = useAuth();
   const { publicExtensionRepository } = useDI();
 
   const [publicExtensions, setPublicExtensions] = useState<PublicExtension[]>([]);
@@ -37,34 +36,37 @@ export const PublicExtensionStoreProvider: React.FC<{ children: React.ReactNode 
     }
     const domain = pkg.manifest.id;
     const version = pkg.manifest.version;
-    if (!isValidSemVer(version)) {
+
+    // Upsert: um identificador tem UM registro público. Republicar sobrescreve os dados da mesma
+    // extensão (não cria um novo registro), e por isso exige versão maior — quem já instalou só
+    // recebe a cópia nova quando a versão sobe.
+    const published = publicExtensions.find((p) => p.domain === domain);
+    const refusal = publishRefusal({
+      pkg,
+      isSystem: userRole === 'SYSTEM',
+      ownerTenantId: currentTenant.id,
+      published,
+    });
+    if (refusal) {
       return {
         ok: false,
-        error: '@core.marketplace/publish.invalid-version',
-        errorParams: { version },
+        error: `@core.marketplace/publish.${refusal}`,
+        errorParams: { version, published: published?.version ?? '' },
       };
     }
 
-    // Upsert: um identificador tem UM registro público. Republicar sobrescreve os dados da mesma
-    // extensão (não cria um novo registro). Só barra se o domínio pertence a OUTRO escritório.
-    const existing = publicExtensions.find((p) => p.domain === domain);
-    if (existing && existing.ownerTenantId !== currentTenant.id) {
-      return { ok: false, error: '@core.marketplace/publish.id-taken' };
-    }
-
-    const status = initialPublicStatus(pkg);
     await publicExtensionRepository.publish({
       package: pkg,
       ownerTenantId: currentTenant.id,
       ownerName: user.displayName,
       ownerPhotoURL: user.photoURL,
       version,
-      status,
+      status: 'approved',
       hasCode: extensionHasCode(pkg),
       publishedBy: user.id,
     });
-    return { ok: true, status };
-  }, [currentTenant, user, publicExtensions, publicExtensionRepository]);
+    return { ok: true };
+  }, [currentTenant, user, userRole, publicExtensions, publicExtensionRepository]);
 
   const approve = useCallback((domain: string) => publicExtensionRepository.setStatus(domain, 'approved'), [publicExtensionRepository]);
   const deprecate = useCallback((domain: string) => publicExtensionRepository.setStatus(domain, 'deprecated'), [publicExtensionRepository]);

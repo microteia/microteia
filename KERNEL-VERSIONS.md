@@ -18,6 +18,24 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.66.0] — 2026-09-18
+
+- refactor(marketplace): the `plugin_registry` spine and the `plugin_installations` lifecycle are gone — 16 files. `PluginStoreProvider` was still mounted in `App.tsx` and `usePluginStore` had no consumer, so every session opened two Firestore subscriptions whose results nothing read. With it went `mergeCatalog`, `PublishPluginUseCase`, both registry repositories, `PluginLifecycleUseCases`, `installedPluginRecords`, the `PluginInstallation` entity and the three `make*MarketplacePluginUseCase` factories. The catalog the Extensions screen reads is `public_extensions`; the installed copy is `installed_extensions`.
+- refactor(domain): `pluginLifecycle.ts` keeps only `LifecycleActor` — who operates and when, which materialization still needs. The `plan*` transitions belonged to a state machine that `applyPackageArtifacts` replaced with convergence.
+- refactor(tests): `MarketplaceInstallUseCases.test.ts` now drives `applyPackageArtifacts`/`releasePackageArtifacts` — the live path — keeping every materialization, refcount and cascade assertion; the five tests that asserted lifecycle codes (`already-installed`, `not-newer-version`, `not-installed`) went with the machine they described. The four first-party plugin tests build host records with `extensionRecordFrom`.
+- feat(scripts/reservedCollections): `SELADAS` — a reserved collection deliberately WITHOUT a named rule, so leftover `plugin_installations` documents stay unreachable while the name stays unclaimable by a new screen. Reserved-and-unmatched was indistinguishable from a rule block deleted by mistake, which is the accident this very test was written for.
+- fix(firestore.rules): the `public_extensions` preamble described the approval queue that 9.65.0 removed.
+
+#### [9.65.0] — 2026-09-18
+
+- feat(marketplace): importing a `.json` now asks where the extension becomes available — this organization only, or the global catalog — and publishes right after the private write when the second is chosen. The catalog (`public_extensions`) was reachable before, through a second, unlabelled gesture that shared the header's upload icon; the path existed and nobody found it.
+- feat(firestore.rules): an extension that ships `views` is published to `public_extensions` by `isSystemAdmin()` only. `statusMatchesCode()` let any `extensions.manage` holder queue third-party code as `pending`; it is now `ownerPublishing()` — no code, status `approved`. The rule reads `request.resource`, so adding code to a record you already own is refused the same way.
+- feat(domain/plugins): `publishRefusal` is the single door for the four refusals (invalid version, code without SYSTEM, domain owned elsewhere, version not greater), used by both `PublicExtensionStore.publish` and the row's `PublishAction`. A gesture the screen offers is one the store would accept.
+- fix(marketplace): republishing requires a greater version. `updateSourceOf` only hands an installed copy the new package when the version rises, so publishing over the same version wrote a package nobody would ever receive — the entity's own docstring already claimed the rule the code did not enforce.
+- fix(marketplace): the publish action is `null` when the published copy is identical, `needs-version` (disabled, saying what is missing) when the package differs without a version bump. "Republish to the catalog" used to sit there right after publishing, which was the question `republish what?` in button form.
+- feat(rules-tests): `publicExtensions.test.ts` — 15 checks over the real rules file; `seed` gained `root` for collections outside a tenant.
+- feat(core.marketplace): `import.*`, `extension.publish.needs-version`, `publish.code-requires-system` and `publish.version-not-greater`, in `en` and in the pt-BR package (1.57.0); `extension.sent-for-approval` dropped with the approval queue.
+
 #### [9.64.0] — 2026-09-17
 
 - feat(entity-screen): the Documents tab uploads a BATCH. `EntityDocumentsController` traded `pendingFile`/`pendingType` for a `pendingUploads` queue of `{ id, file, type, status }` — the type stays per file, which is what a single shared type could never express. `handleConfirmUpload` walks the queue one file at a time (readable progress, no burst of Storage connections), prepends what landed, and keeps only what failed — with the type the user had already typed, so a dropped connection does not cost the file picker and the typing again.

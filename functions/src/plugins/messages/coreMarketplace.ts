@@ -153,7 +153,10 @@ export const CORE_MARKETPLACE_MESSAGES: Record<string, string> = {
   'extension.activate': 'Activate in the organization',
   'extension.deactivate': 'Deactivate in the organization',
   'extension.publish': 'Publish to the catalog',
-  'extension.republish': 'Republish to the catalog',
+  'extension.republish': 'Update the catalog to version {version}',
+  'extension.publish.needs-version':
+    'Raise the version of this extension to send the changes to the catalog: organizations that already '
+    + 'installed it only receive an update when the version rises.',
   'extension.approve': 'Approve publication',
   'extension.reject': 'Reject publication',
   'extension.deprecate': 'Mark as deprecated',
@@ -164,6 +167,21 @@ export const CORE_MARKETPLACE_MESSAGES: Record<string, string> = {
   'extension.import': 'Import .json',
   'extension.imported': '{name} imported into My Extensions.',
   'extension.import-failed': 'Could not import: {detail}',
+  'import.title': 'Import {name}',
+  'import.intro': 'Version {version} of this extension was recognized. Choose where it will be available.',
+  'import.scope.private': 'Only in this organization',
+  'import.scope.public': 'In the catalog, for every organization',
+  'import.scope.private.hint':
+    'It goes to My Extensions, ready to be installed here. No other organization sees it, and you can '
+    + 'publish it to the catalog later.',
+  'import.scope.public.hint':
+    'It goes to My Extensions and, at the same time, to the catalog every organization browses, where '
+    + 'anyone can install it. Only a system administrator takes it out of the catalog afterwards.',
+  'import.code-requires-system':
+    'This extension brings a screen in code, and code runs in the browser of every member of every '
+    + 'organization that installs it — only a system administrator publishes it to the catalog. '
+    + 'Importing keeps it in this organization.',
+  'import.confirm': 'Import',
   'extension.review': 'Review and trust the code',
   'extension.review.title': 'Review the code of "{name}"',
   'extension.review.intro':
@@ -181,8 +199,6 @@ export const CORE_MARKETPLACE_MESSAGES: Record<string, string> = {
   'extension.removed': 'Extension deleted from your private area.',
   'extension.published': 'Published to the catalog.',
   'extension.publish-failed': 'Could not publish: {detail}',
-  'extension.sent-for-approval':
-    'Sent for approval: an extension with code only becomes public after a system administrator approves it.',
   'extension.approved': 'Extension approved.',
   'extension.deprecated': 'Extension marked as deprecated.',
   'extension.rejected': 'Publication rejected and removed from the catalog.',
@@ -355,6 +371,11 @@ export const CORE_MARKETPLACE_MESSAGES: Record<string, string> = {
     'This extension brings a screen in code, which will only run after a system administrator publishes it in the catalog. The data was installed normally.',
   'publish.id-taken': 'This identifier was already published by another organization.',
   'publish.invalid-version': 'Version "{version}" is not valid.',
+  'publish.code-requires-system':
+    'An extension that brings code is published to the catalog only by a system administrator.',
+  'publish.version-not-greater':
+    'Version {version} is not greater than the published one ({published}). Raise it: organizations that '
+    + 'already installed this extension only receive an update when the version rises.',
   'publish.no-tenant': 'No organization or user.',
   'lifecycle.already-installed': 'Plugin "{id}" is already installed (version {version}). Use update.',
   'lifecycle.invalid-version': 'Version "{version}" is not a valid semver.',

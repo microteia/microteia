@@ -2,31 +2,18 @@
 import { describe, it, expect } from 'vitest';
 import { createPluginHost } from '../../kernel';
 import { CORE_PLUGINS } from '..';
-import { installedPluginRecords } from '../../domain/usecases/plugins/installedPluginRecords';
+import { extensionRecordFrom } from '../../domain/usecases/plugins/extensionRecordFrom';
 import { evaluateExtensionView } from '../../presentation/shared/extensions/evaluateExtensionView';
 import { UI_SETTINGS_POINT, UI_WIDGET_POINT } from '../../domain/schema/ui/uiExtensionPoints';
-import type { PluginInstallation } from '../../domain/entities/PluginInstallation';
 import type { SettingsSection } from '../../domain/schema/settings';
 import { MARKETPLACE_CATALOG } from './catalog';
 import { dashboardPlugin } from './dashboard';
-
-const installation = (pluginId: string): PluginInstallation => ({
-  pluginId,
-  tenantId: 't1',
-  version: '1.0.0',
-  enabled: true,
-  config: {},
-  grantedPermissions: [],
-  installedAt: new Date(),
-  installedBy: 'u1',
-  updatedAt: new Date(),
-});
 
 const hostWithCatalog = () => {
   const host = createPluginHost();
   const result = host.load([
     ...CORE_PLUGINS,
-    ...installedPluginRecords(MARKETPLACE_CATALOG, MARKETPLACE_CATALOG.map((plugin) => installation(plugin.manifest.id))),
+    ...MARKETPLACE_CATALOG.map((plugin) => extensionRecordFrom(plugin, true)),
   ]);
   return { host, result };
 };

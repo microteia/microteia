@@ -21,7 +21,6 @@ import { ReportDefinitionStoreProvider } from './stores/ReportDefinitionStore';
 import { RecordStoreProvider } from './stores/RecordStore';
 import { WorkflowStoreProvider } from './stores/WorkflowStore';
 import { ScriptStoreProvider } from './stores/ScriptStore';
-import { PluginStoreProvider } from './stores/PluginStore';
 import { TenantExtensionStoreProvider } from './stores/TenantExtensionStore';
 import { InstalledExtensionStoreProvider } from './stores/InstalledExtensionStore';
 import { PublicExtensionStoreProvider } from './stores/PublicExtensionStore';
@@ -68,7 +67,6 @@ const App: React.FC = () => {
                                           <RecordStoreProvider>
                                           <WorkflowStoreProvider>
                                           <ScriptStoreProvider>
-                                          <PluginStoreProvider>
                                           <TenantExtensionStoreProvider>
                                           <InstalledExtensionStoreProvider>
                                           <PublicExtensionStoreProvider>
@@ -105,7 +103,6 @@ const App: React.FC = () => {
                                           </PublicExtensionStoreProvider>
                                           </InstalledExtensionStoreProvider>
                                           </TenantExtensionStoreProvider>
-                                          </PluginStoreProvider>
                                           </ScriptStoreProvider>
                                           </WorkflowStoreProvider>
                                           </RecordStoreProvider>

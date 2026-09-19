@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTenantExtensions } from '../../../stores/useTenantExtensions';
+import { useTenant } from '../../../stores/useTenant';
 import { useInstalledExtensions, type InstallExtensionInput } from '../../../stores/useInstalledExtensions';
 import { usePublicExtensions } from '../../../stores/usePublicExtensions';
 import { useAuthorization } from '../../../stores/useAuthorization';
@@ -7,8 +8,8 @@ import { PERMISSION_EXTENSIONS_MANAGE } from '../../../domain/schema/access';
 import { useAuth } from '../../../stores/useAuth';
 import { useNotification } from '../../../stores/useNotification';
 import { useWorkspace } from '../../../stores/useWorkspace';
-import { packageFingerprint, serializePackage } from '../../../domain/usecases/plugins/packageSerialization';
-import { isVersionGreater } from '../../../domain/usecases/plugins/publicExtension';
+import { packageFingerprint, parsePackage, serializePackage } from '../../../domain/usecases/plugins/packageSerialization';
+import { isVersionGreater, publishRefusal } from '../../../domain/usecases/plugins/publicExtension';
 import { extensionCodeOf, extensionHasCode } from '../../../domain/usecases/plugins/extensionCodeTrust';
 import { isExtensionBackendPending } from '../../../domain/usecases/plugins/extensionBackendState';
 import { backendResidueCount } from '../../../domain/usecases/plugins/backendResidue';
@@ -26,6 +27,8 @@ import { MARKETPLACE_CATALOG } from '../../../plugins/marketplace/catalog';
 import { SYSTEM_THEME_PACKAGES } from '../../../plugins/themes/systemThemes';
 import type { MarketplacePlugin } from '../../../domain/entities/MarketplacePlugin';
 import type { InstalledExtension } from '../../../domain/entities/InstalledExtension';
+import type { TenantExtension } from '../../../domain/entities/TenantExtension';
+import type { PublicExtension } from '../../../domain/entities/PublicExtension';
 import type { WidgetSpec } from '../../../domain/schema/ui/widgetSpec';
 import type { FilterDef, FilterToken } from '../../components/ui/CompositeFilter';
 
@@ -42,6 +45,15 @@ export interface Author {
 export type StatusBadge = 'published' | 'pending' | 'deprecated' | 'private' | 'builtin' | 'system';
 export type InstallBadge = 'active' | 'inactive';
 export type InstallAction = 'install' | 'update';
+
+/**
+ * O que há para levar ao catálogo global a partir da cópia PRIVADA desta extensão.
+ *
+ * `needs-version` é o caso que não pode ser silencioso: o pacote privado mudou, mas a versão dele não
+ * subiu — e quem já instalou a extensão só recebe a cópia nova quando a versão sobe. Sem este estado
+ * a tela ou publicaria um pacote que ninguém receberia, ou faria o botão sumir sem dizer por quê.
+ */
+export type PublishAction = 'publish' | 'republish' | 'needs-version';
 
 /** Uma extensão consolidada: a mesma identidade (id/domínio) aparece uma única vez, reunindo todos os
  *  seus papéis — autoria privada, cópia instalada no escritório e presença no catálogo público —, com
@@ -77,7 +89,13 @@ export interface ExtensionRow {
   active: boolean;
   canToggleActive: boolean;
   published: boolean;
-  canPublish: boolean;
+  /**
+   * O gesto de publicação disponível, ou `null` quando não há nenhum: extensão que não é de autoria
+   * deste escritório, que traz código sem que quem olha seja SYSTEM, ou que já está no catálogo
+   * exatamente como está aqui. Publicada e idêntica não oferece nada — não havia o que republicar, e
+   * o botão que insistia em aparecer era a própria pergunta "republicar o quê?".
+   */
+  publish: PublishAction | null;
   canDownload: boolean;
   canUninstall: boolean;
   canDelete: boolean;
@@ -138,6 +156,23 @@ export interface ExtensionProblem {
 }
 
 export type MarketplaceFilter = 'all' | 'installed' | 'mine' | 'catalog';
+
+/** Onde a extensão importada fica disponível: só neste escritório, ou no catálogo de todos. */
+export type ImportScope = 'private' | 'public';
+
+/**
+ * O arquivo já lido e reconhecido como pacote, à espera da decisão de alcance. Ele é lido ANTES de
+ * qualquer escrita para que a pergunta possa dizer de quem é o pacote e o que ele traz — perguntar
+ * "onde isto fica disponível?" sobre um arquivo anônimo não é uma escolha informada.
+ */
+export interface ImportTarget {
+  text: string;
+  name: string;
+  version: string;
+  hasCode: boolean;
+  /** O catálogo global está aberto para ESTE pacote nas mãos de quem importa. */
+  canPublish: boolean;
+}
 
 /**
  * O valor da opção "sem categoria" do filtro. Um sentinela porque `FilterToken` só carrega texto, e
@@ -237,6 +272,12 @@ export interface MarketplaceViewModel {
   restore: (id: string, revision: string) => Promise<void>;
   openAuthor: () => void;
   onImportFile: (event: React.ChangeEvent<HTMLInputElement>) => Promise<void>;
+  /** O arquivo escolhido, esperando a decisão de onde a extensão vai ficar disponível. */
+  importTarget: ImportTarget | null;
+  importScope: ImportScope;
+  setImportScope: (scope: ImportScope) => void;
+  confirmImport: () => Promise<void>;
+  cancelImport: () => void;
   edit: (id: string) => void;
   download: (id: string) => void;
   publish: (id: string) => Promise<void>;
@@ -303,6 +344,7 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
   const t = useT('core.marketplace');
   const { formatDateTime } = useLocaleFormat();
   const { extensions, importExtension, removeExtension } = useTenantExtensions();
+  const { currentTenant } = useTenant();
   const {
     installed,
     migrationStates,
@@ -329,6 +371,8 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
   const [licenseId, setLicenseId] = useState<string | null>(null);
   const [historyId, setHistoryId] = useState<string | null>(null);
   const [filterTokens, setFilterTokens] = useState<FilterToken[]>([]);
+  const [importTarget, setImportTarget] = useState<ImportTarget | null>(null);
+  const [importScope, setImportScope] = useState<ImportScope>('private');
 
   const {
     ready: updatesReady,
@@ -556,6 +600,29 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
     [migrationStates, label],
   );
 
+  /**
+   * O que a cópia privada tem a levar ao catálogo. Reusa a MESMA recusa que o store aplica ao
+   * publicar: um botão oferecido aqui e recusado lá seria a tela mentindo sobre o que sabe.
+   */
+  const publishActionOf = useCallback(
+    (priv: TenantExtension | undefined, pub: PublicExtension | undefined): PublishAction | null => {
+      if (!priv || !currentTenant) return null;
+      const refusal = publishRefusal({
+        pkg: priv.package,
+        isSystem: canModerate,
+        ownerTenantId: currentTenant.id,
+        published: pub,
+      });
+      if (refusal === null) return pub ? 'republish' : 'publish';
+      // Versão não maior só é um AVISO quando há mesmo o que levar: publicada e idêntica não pede
+      // versão nova, pede silêncio. Só esta recusa sobrevive à checagem — ela é a única que o autor
+      // resolve daqui, subindo a versão do próprio pacote.
+      if (refusal !== 'version-not-greater' || !pub) return null;
+      return packageFingerprint(priv.package) === packageFingerprint(pub.package) ? null : 'needs-version';
+    },
+    [currentTenant, canModerate],
+  );
+
   const rows = useMemo<ExtensionRow[]>(() => {
     const ids = new Set<string>();
     extensions.forEach((e) => ids.add(e.id));
@@ -586,7 +653,7 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
         active: true,
         canToggleActive: false,
         published: false,
-        canPublish: false,
+        publish: null,
         canDownload: true,
         canUninstall: false,
         canDelete: false,
@@ -668,7 +735,7 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
         active: inst?.active ?? false,
         canToggleActive: installed_,
         published: publicStatus !== null,
-        canPublish: mine,
+        publish: publishActionOf(priv, pub),
         // Do embutido também: é o pacote que o `npm run build:extensions` gera, útil para levar a
         // extensão a um escritório que não roda este bundle.
         canDownload: mine || !!builtin || Boolean(inst && inst.authorId === user?.id),
@@ -695,7 +762,7 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
     }
 
     return list.sort((a, b) => rankOf(a) - rankOf(b) || a.name.localeCompare(b.name));
-  }, [extensions, installed, publicExtensions, publicOf, pendingUpdateIds, canModerate, canManage, user, installedNeedsReview, problemsByPlugin, label, migrationStates, pendingMigrationsOf, migrationErrorOf, histories]);
+  }, [extensions, installed, publicExtensions, publicOf, pendingUpdateIds, canModerate, canManage, user, installedNeedsReview, problemsByPlugin, label, migrationStates, pendingMigrationsOf, migrationErrorOf, histories, publishActionOf]);
 
   const counts = useMemo<Record<MarketplaceFilter, number>>(() => ({
     all: rows.length,
@@ -812,22 +879,29 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
     if (builtin) downloadPackage(id, serializePackage(builtin));
   }, [extensions, installed, downloadPackage]);
 
-  const publish = useCallback(async (id: string) => {
-    const ext = extensions.find((e) => e.id === id);
-    if (!ext) return;
+  /**
+   * Leva ao catálogo global o pacote que já está no escritório. A recusa vem do store como REFERÊNCIA
+   * de mensagem com os valores que ela interpola — e é por isso que o `label` recebe os dois: a de
+   * versão não maior só ensina o que fazer se disser qual versão está publicada.
+   */
+  const publishPackage = useCallback(async (id: string, pkg: MarketplacePlugin) => {
     setBusyId(id);
     try {
-      const result = await publishPublic(ext.package);
-      if (!result.ok) notify(label(result.error), 'error');
-      else if (result.status === 'pending') {
-        notify(t('extension.sent-for-approval'), 'warning');
-      } else notify(t('extension.published'), 'success');
+      const result = await publishPublic(pkg);
+      if (!result.ok) notify(t('extension.publish-failed', { detail: label(result.error, result.errorParams) }), 'error');
+      else notify(t('extension.published'), 'success');
     } catch (err) {
       notify(t('extension.publish-failed', wrappedErrorParams(err)), 'error');
     } finally {
       setBusyId(null);
     }
-  }, [extensions, publishPublic, notify, t, label]);
+  }, [publishPublic, notify, t, label]);
+
+  const publish = useCallback(async (id: string) => {
+    const ext = extensions.find((e) => e.id === id);
+    if (!ext) return;
+    await publishPackage(id, ext.package);
+  }, [extensions, publishPackage]);
 
   const install = useCallback((id: string) => {
     const inst = installed.find((e) => e.id === id);
@@ -969,21 +1043,69 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
     await run(id, () => removeExtension(id), t('extension.removed'));
   }, [removeTarget, run, removeExtension, t]);
 
+  /**
+   * Escolher o arquivo não importa nada: abre a PERGUNTA de alcance. O pacote é lido aqui só para que
+   * ela possa ser feita sobre algo — nome, versão e se traz código, que é o que decide se o catálogo
+   * global está aberto para ele. Arquivo que nem é pacote é recusado antes da pergunta: não há o que
+   * perguntar sobre um arquivo que não vai entrar de jeito nenhum.
+   */
   const onImportFile = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     event.target.value = '';
     if (!file) return;
     setBusyId('__import__');
     try {
-      const result = await importExtension(await file.text());
-      if (result.ok) notify(t('extension.imported', { name: result.name }), 'success');
-      else notify(t('extension.import-failed', { detail: label(result.error, result.errorParams) }), 'error');
+      const text = await file.text();
+      const parsed = parsePackage(text);
+      if (!parsed.ok) {
+        notify(t('extension.import-failed', { detail: label(parsed.error) }), 'error');
+        return;
+      }
+      const hasCode = hasCodeOf(parsed.package.views);
+      setImportScope('private');
+      setImportTarget({
+        text,
+        name: label(parsed.package.manifest.name) || parsed.package.manifest.id,
+        version: parsed.package.manifest.version,
+        hasCode,
+        canPublish: canModerate || !hasCode,
+      });
     } catch (err) {
       notify(t('extension.import-failed', wrappedErrorParams(err)), 'error');
     } finally {
       setBusyId(null);
     }
-  }, [importExtension, notify, t, label]);
+  }, [notify, t, label, canModerate]);
+
+  const cancelImport = useCallback(() => setImportTarget(null), []);
+
+  /**
+   * Importar é sempre a mesma escrita — a cópia privada do escritório. "Disponível para todos"
+   * acrescenta a publicação DEPOIS dela, e nessa ordem de propósito: o catálogo global guarda um
+   * pacote que já foi validado e gravado aqui, e uma publicação que falhe deixa a extensão importada
+   * em vez de deixar o gesto inteiro no vazio.
+   */
+  const confirmImport = useCallback(async () => {
+    const target = importTarget;
+    if (!target) return;
+    setImportTarget(null);
+    setBusyId('__import__');
+    let imported: { id: string; package: MarketplacePlugin } | null = null;
+    try {
+      const result = await importExtension(target.text);
+      if (!result.ok) {
+        notify(t('extension.import-failed', { detail: label(result.error, result.errorParams) }), 'error');
+        return;
+      }
+      notify(t('extension.imported', { name: label(result.name) }), 'success');
+      imported = { id: result.package.manifest.id, package: result.package };
+    } catch (err) {
+      notify(t('extension.import-failed', wrappedErrorParams(err)), 'error');
+    } finally {
+      setBusyId(null);
+    }
+    if (imported && importScope === 'public') await publishPackage(imported.id, imported.package);
+  }, [importTarget, importScope, importExtension, publishPackage, notify, t, label]);
 
   return {
     canManage,
@@ -1016,6 +1138,11 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
     restore,
     openAuthor,
     onImportFile,
+    importTarget,
+    importScope,
+    setImportScope,
+    confirmImport,
+    cancelImport,
     edit,
     download,
     publish,

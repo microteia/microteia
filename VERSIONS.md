@@ -11,6 +11,16 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.66.0] — 2026-09-18
+
+- Retirada do sistema uma máquina de instalação de extensões que não era mais usada por tela nenhuma — ela ficava lendo dados do escritório a cada abertura, sem que nada aparecesse a partir disso. Nenhuma extensão instalada é afetada.
+
+#### [9.65.0] — 2026-09-18
+
+- Ao importar uma extensão, agora se escolhe onde ela fica disponível: só neste escritório ou no catálogo que todos os escritórios navegam. Antes, publicar era um segundo passo que ninguém encontrava — e o catálogo só tinha as extensões que já vinham com o sistema.
+- Extensão que traz tela em código só vai ao catálogo pela mão de um administrador do sistema, porque esse código passa a rodar no navegador de cada pessoa de cada escritório que a instalar. Extensão sem código continua indo direto, por quem administra o escritório dono dela.
+- O botão "Republicar no catálogo" não fica mais aparecendo quando não há nada a republicar. Ele aparece quando a sua cópia difere da publicada, e diz qual versão vai ao catálogo; se a versão não subiu, ele avisa que precisa subir — quem já instalou a extensão só recebe a novidade quando a versão sobe.
+
 #### [9.64.0] — 2026-09-17
 
 - **Agora dá para anexar vários documentos de uma vez.** Ao clicar em Anexar Documento, é possível escolher quantos arquivos quiser — eles aparecem numa lista, e o tipo de cada um é informado na própria linha antes de confirmar o envio. Dá para escolher mais arquivos sem perder os que já estão na lista, e tirar da lista qualquer um que tenha entrado por engano.

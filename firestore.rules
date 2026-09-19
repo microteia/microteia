@@ -233,13 +233,6 @@ service cloud.firestore {
         allow create, update, delete: if can(tenantId, 'reports.manage');
       }
 
-      // Plugins instalados no escritório (Marketplace). Todo membro lê — o app precisa saber
-      // quais extensões estão ativas para montar contribuições; só admin instala/atualiza/remove.
-      match /plugin_installations/{pluginId} {
-        allow read: if isMember(tenantId);
-        allow create, update, delete: if can(tenantId, 'extensions.manage');
-      }
-
       // Extensões PRIVADAS do escritório (criadas na tela "Criar extensão"). Todo membro lê —
       // as ativas contribuem telas/menu no Kernel do tenant; só admin cria/edita/remove.
       match /extensions/{extensionId} {
@@ -362,6 +355,9 @@ service cloud.firestore {
         'documentTypes', 'documents', 'extension_history', 'extension_migrations', 'extensions',
         'installed_extensions', 'lookupDefinitions', 'members', 'notes',
         'reports', 'roles',
+        // `plugin_installations` não tem mais código que a leia — foi a instalação de antes de
+        // `installed_extensions`. Continua RESERVADA porque os documentos de então continuam nos
+        // escritórios, e liberar o nome deixaria uma tela nova nascer por cima deles.
         'tagDefinitions', 'plugin_installations',
         'recordKeys',
         'screenDefinitions', 'scripts', 'secrets', 'settings', 'tags', 'tenant', 'workflow_definitions',
@@ -563,45 +559,34 @@ service cloud.firestore {
       allow write: if false;
     }
 
-    // Registro global de plugins do Marketplace. Qualquer autenticado lê (é o catálogo mostrado
-    // na tela Extensões); só a equipe global (SYSTEM) publica/despublica — marketplace curado.
-    // Ver "Registro global do Marketplace" no ARCHITECTURE.md.
-    match /plugin_registry/{pluginId} {
-      allow read: if request.auth != null;
-      allow write: if isSystemAdmin();
-    }
-
-    // Catálogo global de extensões publicadas por usuários (modelo npm/VS Code). É a FRONTEIRA de
-    // integridade da publicação/aprovação/imutabilidade — o app não usa Cloud Function aqui.
-    // - Qualquer autenticado lê (é o catálogo "Públicas").
-    // - Publicar (create): SYSTEM, ou admin do próprio escritório (ownerTenantId), e o status precisa
-    //   bater com o código: extensão COM código entra 'pending' (aguarda aprovação do SYSTEM); SEM
-    //   código entra 'approved'. create só existe quando o doc não existe → domínio único global.
-    // - Atualizar (update): SYSTEM (aprovar/obsoletar/qualquer), ou o dono, mantendo o mesmo
-    //   ownerTenantId. É UPSERT: um identificador tem UM registro público, então republicar
-    //   sobrescreve os dados (qualquer versão) e o status volta a bater com o código (de código →
-    //   'pending' de novo, re-aprovação).
-    // - Apagar: só SYSTEM (usuário usa 'deprecated', não apaga do catálogo).
+    // Catálogo global de extensões publicadas pelos escritórios (modelo npm/VS Code). É a FRONTEIRA
+    // de integridade da publicação — o app não usa Cloud Function aqui. É ESTE o catálogo da tela de
+    // Extensões. Ver "Como uma extensão chega ao catálogo" no ARCHITECTURE.md.
+    // - Qualquer autenticado lê.
+    // - Publicar (create/update): o dono publica o que NÃO traz código, sempre 'approved'; com código,
+    //   só SYSTEM. create só existe quando o doc não existe → domínio único global.
+    // - Trocar de dono, aprovar e obsoletar: só SYSTEM.
+    // - Apagar: só SYSTEM (o dono usa 'deprecated', não apaga do catálogo).
     match /public_extensions/{domain} {
       function pkgHasCode() {
         return ('views' in request.resource.data.package)
           && request.resource.data.package.views.size() > 0;
       }
-      function statusMatchesCode() {
-        return pkgHasCode()
-          ? request.resource.data.status == 'pending'
-          : request.resource.data.status == 'approved';
+      // Extensão COM código roda no navegador de todo membro de todo escritório que a instalar: quem a
+      // põe no catálogo é só a equipe global. Sem código o pacote é declaração, e quem administra o
+      // escritório DONO publica direto — já aprovada, porque não há terceiro a quem consultar.
+      function ownerPublishing() {
+        return !pkgHasCode() && request.resource.data.status == 'approved';
       }
       allow read: if request.auth != null;
       allow create: if isSystemAdmin()
-        || (can(request.resource.data.ownerTenantId, 'extensions.manage') && statusMatchesCode());
-      // Republicar = upsert: um identificador tem UM registro público. O dono sobrescreve seus
-      // próprios dados (qualquer versão); o status volta a corresponder ao código (de código →
-      // 'pending' de novo, re-aprovação). O SYSTEM aprova/obsoleta livremente.
+        || (can(request.resource.data.ownerTenantId, 'extensions.manage') && ownerPublishing());
+      // Republicar = upsert: um identificador tem UM registro público, e o dono sobrescreve os
+      // próprios dados. Trocar de dono, aprovar, obsoletar e publicar código são do SYSTEM.
       allow update: if isSystemAdmin()
         || (can(resource.data.ownerTenantId, 'extensions.manage')
             && request.resource.data.ownerTenantId == resource.data.ownerTenantId
-            && statusMatchesCode());
+            && ownerPublishing());
       allow delete: if isSystemAdmin();
     }
 

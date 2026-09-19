@@ -2,18 +2,14 @@ import { describe, expect, it } from 'vitest';
 import { Timestamp } from 'firebase/firestore';
 import instalada from './FirebaseInstalledExtensionRepository.ts?raw';
 import doTenant from './FirebaseTenantExtensionRepository.ts?raw';
-import instalacao from './FirebasePluginInstallationRepository.ts?raw';
 import publica from './publicExtensionMapping.ts?raw';
-import registro from './pluginRegistryMapping.ts?raw';
 
 import { toDateValueOrNow } from '../utils/toDateValue';
 
 const FONTES: Record<string, string> = {
   FirebaseInstalledExtensionRepository: instalada,
   FirebaseTenantExtensionRepository: doTenant,
-  FirebasePluginInstallationRepository: instalacao,
   publicExtensionMapping: publica,
-  pluginRegistryMapping: registro,
 };
 
 const CAST_A_MAO = /instanceof Timestamp \? [\w.]+\.toDate\(\) : \(?\w+ as Date/;
@@ -27,7 +23,8 @@ const CAST_A_MAO = /instanceof Timestamp \? [\w.]+\.toDate\(\) : \(?\w+ as Date/
  * campo, sem origem, e só reproduzível em quem já havia provisionado o backend uma vez.
  *
  * `toDateValueOrNow` existia desde antes, testado, escrito para exatamente este caso — e o caminho
- * inteiro do marketplace o ignorava em favor de cinco cópias idênticas do cast.
+ * inteiro do marketplace o ignorava em favor de cinco cópias idênticas do cast. Duas delas saíram
+ * com `plugin_registry` e `plugin_installations`; as três que restam são as que estão no ar.
  */
 describe('as datas do caminho do marketplace passam pela conversão canônica', () => {
   const arquivos = Object.keys(FONTES);

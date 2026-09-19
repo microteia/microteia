@@ -1,12 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { createPluginHost } from '../../kernel';
 import { CORE_PLUGINS } from '..';
-import { installedPluginRecords } from '../../domain/usecases/plugins/installedPluginRecords';
+import { extensionRecordFrom } from '../../domain/usecases/plugins/extensionRecordFrom';
 import { I18N_MESSAGES_POINT, messageBundlesOf } from '../../domain/schema/i18n/extensionPoints';
 import { buildMessageCatalog } from '../../domain/schema/i18n/messages';
 import { isMessageRef, parseMessageRef, resolveLabel } from '../../domain/schema/i18n/messageRef';
 import type { MarketplacePlugin } from '../../domain/entities/MarketplacePlugin';
-import type { PluginInstallation } from '../../domain/entities/PluginInstallation';
 import { calendarPlugin } from './calendar';
 import { dashboardPlugin } from './dashboard';
 import { newsPlugin } from './news';
@@ -25,23 +24,11 @@ import { TRAVELLING_EXAMPLES } from './travellingExamples';
  */
 const PLUGINS: MarketplacePlugin[] = [calendarPlugin, dashboardPlugin, newsPlugin, ...TRAVELLING_EXAMPLES];
 
-const installation = (pluginId: string): PluginInstallation => ({
-  pluginId,
-  tenantId: 't1',
-  version: '1.0.0',
-  enabled: true,
-  config: {},
-  grantedPermissions: [],
-  installedAt: new Date(),
-  installedBy: 'u1',
-  updatedAt: new Date(),
-});
-
 const catalogFor = (locale: string) => {
   const host = createPluginHost();
   host.load([
     ...CORE_PLUGINS,
-    ...installedPluginRecords(PLUGINS, PLUGINS.map((plugin) => installation(plugin.manifest.id))),
+    ...PLUGINS.map((plugin) => extensionRecordFrom(plugin, true)),
   ]);
   return buildMessageCatalog(messageBundlesOf(host.contributions.query(I18N_MESSAGES_POINT)), locale);
 };
@@ -222,7 +209,7 @@ describe('as extensões agnósticas de negócio nascem no idioma-fonte', () => {
     const host = createPluginHost();
     host.load([
       ...CORE_PLUGINS,
-      ...installedPluginRecords(PLUGINS, PLUGINS.map((plugin) => installation(plugin.manifest.id))),
+      ...PLUGINS.map((plugin) => extensionRecordFrom(plugin, true)),
     ]);
     const ownNamespaces = new Set(PLUGINS.map((plugin) => plugin.manifest.id));
     const fromLocalePackage = messageBundlesOf(host.contributions.query(I18N_MESSAGES_POINT))

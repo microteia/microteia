@@ -63,7 +63,7 @@ export const TenantExtensionStoreProvider: React.FC<{ children: React.ReactNode 
     const [issue] = validatePluginPackage(pkg);
     if (issue) return { ok: false, error: issue.message, errorParams: issue.messageParams };
     await saveExtension(pkg);
-    return { ok: true, name: pkg.manifest.name || pkg.manifest.id };
+    return { ok: true, name: pkg.manifest.name || pkg.manifest.id, package: pkg };
   }, [saveExtension]);
 
   const setActive = useCallback(async (id: string, active: boolean) => {

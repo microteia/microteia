@@ -146,7 +146,10 @@ export const CORE_MARKETPLACE: Record<string, string> = {
   'extension.activate': 'Ativar no escritório',
   'extension.deactivate': 'Desativar no escritório',
   'extension.publish': 'Publicar no catálogo',
-  'extension.republish': 'Republicar no catálogo',
+  'extension.republish': 'Levar a versão {version} ao catálogo',
+  'extension.publish.needs-version':
+    'Suba a versão desta extensão para levar as mudanças ao catálogo: quem já a instalou só recebe a '
+    + 'atualização quando a versão sobe.',
   'extension.approve': 'Aprovar publicação',
   'extension.reject': 'Recusar publicação',
   'extension.deprecate': 'Marcar como obsoleta',
@@ -157,6 +160,20 @@ export const CORE_MARKETPLACE: Record<string, string> = {
   'extension.import': 'Importar .json',
   'extension.imported': '{name} importado para Minhas Extensões.',
   'extension.import-failed': 'Não foi possível importar: {detail}',
+  'import.title': 'Importar {name}',
+  'import.intro': 'Reconhecemos a versão {version} desta extensão. Escolha onde ela vai ficar disponível.',
+  'import.scope.private': 'Só neste escritório',
+  'import.scope.public': 'No catálogo, para todos os escritórios',
+  'import.scope.private.hint':
+    'Ela vai para Minhas Extensões, pronta para ser instalada aqui. Nenhum outro escritório a vê, e '
+    + 'você pode publicá-la no catálogo depois.',
+  'import.scope.public.hint':
+    'Ela vai para Minhas Extensões e, ao mesmo tempo, para o catálogo que todos os escritórios navegam, '
+    + 'onde qualquer um pode instalá-la. Retirá-la do catálogo depois é só com um administrador do sistema.',
+  'import.code-requires-system':
+    'Esta extensão traz tela em código, e código roda no navegador de cada membro de cada escritório que '
+    + 'a instalar — só um administrador do sistema a publica no catálogo. Importar a mantém neste escritório.',
+  'import.confirm': 'Importar',
   'extension.review': 'Revisar e confiar no código',
   'extension.review.title': 'Revisar o código de "{name}"',
   'extension.review.intro':
@@ -174,8 +191,6 @@ export const CORE_MARKETPLACE: Record<string, string> = {
   'extension.removed': 'Extensão excluída da sua área privada.',
   'extension.published': 'Publicada no catálogo.',
   'extension.publish-failed': 'Não foi possível publicar: {detail}',
-  'extension.sent-for-approval':
-    'Enviada para aprovação: uma extensão com código só fica pública depois de aprovada por um administrador do sistema.',
   'extension.approved': 'Extensão aprovada.',
   'extension.deprecated': 'Extensão marcada como obsoleta.',
   'extension.rejected': 'Publicação recusada e removida do catálogo.',
@@ -349,6 +364,11 @@ export const CORE_MARKETPLACE: Record<string, string> = {
     'Esta extensão traz uma tela em código, que só será executada após ser publicada no catálogo por um administrador do sistema. Os dados foram instalados normalmente.',
   'publish.id-taken': 'Este identificador já foi publicado por outro escritório.',
   'publish.invalid-version': 'A versão "{version}" não é válida.',
+  'publish.code-requires-system':
+    'Extensão que traz código só é publicada no catálogo por um administrador do sistema.',
+  'publish.version-not-greater':
+    'A versão {version} não é maior que a publicada ({published}). Suba a versão: quem já instalou esta '
+    + 'extensão só recebe a atualização quando ela sobe.',
   'publish.no-tenant': 'Sem escritório ou usuário.',
   'lifecycle.already-installed': 'O plugin "{id}" já está instalado (versão {version}). Use atualizar.',
   'lifecycle.invalid-version': 'Versão "{version}" não é um semver válido.',

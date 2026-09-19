@@ -393,6 +393,13 @@ export const S = {
     word-break: break-word;
   `,
 
+  ImportHint: styled.p`
+    margin: ${({ theme }) => theme.spacing.md} 0;
+    font-size: ${({ theme }) => theme.fontSizes.sm};
+    line-height: 1.5;
+    color: ${({ theme }) => theme.colors.textMuted};
+  `,
+
   ReviewActions: styled.div`
     display: flex;
     justify-content: flex-end;

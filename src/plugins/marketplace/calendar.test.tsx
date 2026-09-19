@@ -3,33 +3,20 @@ import { describe, it, expect } from 'vitest';
 import { createPluginHost } from '../../kernel';
 import { I18N_MESSAGES_POINT } from '../../domain/schema/i18n/extensionPoints';
 import { CORE_PLUGINS } from '..';
-import { installedPluginRecords } from '../../domain/usecases/plugins/installedPluginRecords';
+import { extensionRecordFrom } from '../../domain/usecases/plugins/extensionRecordFrom';
 import { materializePluginScreens } from '../../domain/usecases/plugins/screenModule';
 import { evaluateExtensionView } from '../../presentation/shared/extensions/evaluateExtensionView';
 import { UI_PAGE_POINT, UI_SETTINGS_POINT } from '../../domain/schema/ui/uiExtensionPoints';
 import { validateSettingValue, type SettingsSection } from '../../domain/schema/settings';
 import type { MarketplacePlugin } from '../../domain/entities/MarketplacePlugin';
-import type { PluginInstallation } from '../../domain/entities/PluginInstallation';
 import { pointContribution } from '../contributionBuilders';
 import { calendarPlugin } from './calendar';
-
-const installation = (pluginId: string): PluginInstallation => ({
-  pluginId,
-  tenantId: 't1',
-  version: '1.0.0',
-  enabled: true,
-  config: {},
-  grantedPermissions: [],
-  installedAt: new Date(),
-  installedBy: 'u1',
-  updatedAt: new Date(),
-});
 
 const loadHost = (plugins: MarketplacePlugin[]) => {
   const host = createPluginHost();
   const result = host.load([
     ...CORE_PLUGINS,
-    ...installedPluginRecords(plugins, plugins.map((plugin) => installation(plugin.manifest.id))),
+    ...plugins.map((plugin) => extensionRecordFrom(plugin, true)),
   ]);
   return { host, result };
 };

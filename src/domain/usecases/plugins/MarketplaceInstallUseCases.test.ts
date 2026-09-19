@@ -1,10 +1,8 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import type { PluginInstallation } from '../../entities/PluginInstallation';
 import type { MarketplacePlugin, ScreenModuleTemplate } from '../../entities/MarketplacePlugin';
 import type { WorkflowDefinition, WorkflowStep } from '../../entities/Workflow';
 import type { ScreenDefinition, ActionDefinition } from '../../entities';
 import type { Script } from '../../entities/Script';
-import type { IPluginInstallationRepository } from '../../repositories/IPluginInstallationRepository';
 import type { IWorkflowDefinitionRepository } from '../../repositories/IWorkflowDefinitionRepository';
 import type { IScreenDefinitionRepository, ScreenDefinitionInput } from '../../repositories/IScreenDefinitionRepository';
 import type { IActionRepository, ActionDefinitionInput } from '../../repositories/IActionRepository';
@@ -19,32 +17,7 @@ import type {
   IReportDefinitionRepository,
   ReportDefinitionInput,
 } from '../../repositories/IReportDefinitionRepository';
-import {
-  makeInstallMarketplacePluginUseCase,
-  makeUninstallMarketplacePluginUseCase,
-  makeUpgradeMarketplacePluginUseCase,
-  applyPackageArtifacts,
-  releasePackageArtifacts,
-} from './MarketplaceInstallUseCases';
-
-class FakeInstallations implements IPluginInstallationRepository {
-  store = new Map<string, PluginInstallation>();
-  async getAll(tenantId: string) {
-    return [...this.store.values()].filter((i) => i.tenantId === tenantId);
-  }
-  async getById(tenantId: string, pluginId: string) {
-    return this.store.get(`${tenantId}:${pluginId}`) ?? null;
-  }
-  subscribe() {
-    return () => {};
-  }
-  async save(installation: PluginInstallation) {
-    this.store.set(`${installation.tenantId}:${installation.pluginId}`, installation);
-  }
-  async delete(tenantId: string, pluginId: string) {
-    this.store.delete(`${tenantId}:${pluginId}`);
-  }
-}
+import { applyPackageArtifacts, releasePackageArtifacts } from './MarketplaceInstallUseCases';
 
 class FakeWorkflows {
   seq = 0;
@@ -190,7 +163,6 @@ class FakeTagDefinitions implements ITagDefinitionRepository {
 
 const actor: LifecycleActor = { tenantId: 't1', userId: 'u1', now: new Date('2026-07-23T12:00:00Z') };
 
-let installations: FakeInstallations;
 let workflows: FakeWorkflows;
 /** Os RELATÓRIOS materializados, para provar a reescrita da coleção e o refcount. */
 class FakeReports implements IReportDefinitionRepository {
@@ -232,7 +204,6 @@ let tagDefinitions: FakeTagDefinitions;
 let reports: FakeReports;
 
 const deps = () => ({
-  installationRepository: installations,
   workflowRepository: workflows as unknown as IWorkflowDefinitionRepository,
   screenRepository: screens as unknown as IScreenDefinitionRepository,
   actionRepository: actions as unknown as IActionRepository,
@@ -244,7 +215,6 @@ const deps = () => ({
 });
 
 beforeEach(() => {
-  installations = new FakeInstallations();
   workflows = new FakeWorkflows();
   screens = new FakeScreens();
   actions = new FakeActions();
@@ -273,20 +243,13 @@ const workflowPlugin: MarketplacePlugin = {
 };
 
 describe('Install — workflows (compatibilidade)', () => {
-  it('materializa o workflow marcado e grava a instalação', async () => {
-    const result = await makeInstallMarketplacePluginUseCase(deps()).execute(workflowPlugin, actor);
-    expect(result.ok).toBe(true);
+  it('materializa o workflow marcado', async () => {
+    await applyPackageArtifacts(deps(), workflowPlugin, actor);
     const created = await workflows.getWorkflowDefinitions('t1');
     expect(created).toHaveLength(1);
     expect(created[0]).toMatchObject({ name: 'W1', ownerPluginId: 'com.acme.aut', enabled: true });
     // templateId não vaza para a WorkflowDefinition gravada.
     expect('templateId' in created[0]).toBe(false);
-  });
-
-  it('recusa reinstalar', async () => {
-    await makeInstallMarketplacePluginUseCase(deps()).execute(workflowPlugin, actor);
-    const result = await makeInstallMarketplacePluginUseCase(deps()).execute(workflowPlugin, actor);
-    expect(result).toMatchObject({ ok: false, error: { code: 'already-installed' } });
   });
 });
 
@@ -332,7 +295,7 @@ describe('Install — remapeamento de ids (scripts → workflows → actions →
   };
 
   it('reescreve scriptId do step pelo id real do script', async () => {
-    await makeInstallMarketplacePluginUseCase(deps()).execute(fullPlugin, actor);
+    await applyPackageArtifacts(deps(), fullPlugin, actor);
     const inner = (await workflows.getWorkflowDefinitions('t1')).find((w) => w.name === 'Inner')!;
     const scriptId = (inner.steps[0].configuration.scriptId as { value: string }).value;
     const realScript = (await scripts.getScripts('t1'))[0];
@@ -341,7 +304,7 @@ describe('Install — remapeamento de ids (scripts → workflows → actions →
   });
 
   it('reescreve targetWorkflowId (workflow que chama workflow) na segunda passada', async () => {
-    await makeInstallMarketplacePluginUseCase(deps()).execute(fullPlugin, actor);
+    await applyPackageArtifacts(deps(), fullPlugin, actor);
     const all = await workflows.getWorkflowDefinitions('t1');
     const outer = all.find((w) => w.name === 'Outer')!;
     const inner = all.find((w) => w.name === 'Inner')!;
@@ -350,7 +313,7 @@ describe('Install — remapeamento de ids (scripts → workflows → actions →
   });
 
   it('reescreve o workflowId da action pelo id real do workflow', async () => {
-    await makeInstallMarketplacePluginUseCase(deps()).execute(fullPlugin, actor);
+    await applyPackageArtifacts(deps(), fullPlugin, actor);
     const action = (await actions.getAll('t1'))[0];
     const outer = (await workflows.getWorkflowDefinitions('t1')).find((w) => w.name === 'Outer')!;
     expect(action.workflowId).toBe(outer.id);
@@ -358,7 +321,7 @@ describe('Install — remapeamento de ids (scripts → workflows → actions →
   });
 
   it('reescreve os viewActionIds da tela pelo id real da action', async () => {
-    await makeInstallMarketplacePluginUseCase(deps()).execute(fullPlugin, actor);
+    await applyPackageArtifacts(deps(), fullPlugin, actor);
     const screen = (await screens.getAll('t1'))[0];
     const action = (await actions.getAll('t1'))[0];
     expect(screen.viewActionIds).toEqual([action.id]);
@@ -376,10 +339,10 @@ describe('Uninstall — cascata dos quatro tipos', () => {
   };
 
   it('remove telas, actions, workflows e scripts do plugin e conta', async () => {
-    await makeInstallMarketplacePluginUseCase(deps()).execute(fullPlugin, actor);
-    const result = await makeUninstallMarketplacePluginUseCase(deps()).execute('com.acme.full', actor);
+    await applyPackageArtifacts(deps(), fullPlugin, actor);
+    const result = await releasePackageArtifacts(deps(), 'com.acme.full', actor);
 
-    expect(result).toEqual({ ok: true, removedScreens: 1, removedActions: 1, removedWorkflows: 1, removedScripts: 1, removedPatchFields: 0 });
+    expect(result).toEqual({ removedScreens: 1, removedActions: 1, removedWorkflows: 1, removedScripts: 1, removedPatchFields: 0 });
     expect(await screens.getAll('t1')).toEqual([]);
     expect(await actions.getAll('t1')).toEqual([]);
     expect(await workflows.getWorkflowDefinitions('t1')).toEqual([]);
@@ -388,14 +351,9 @@ describe('Uninstall — cascata dos quatro tipos', () => {
 
   it('não toca em artefatos de outro dono nem do usuário', async () => {
     await scripts.createScript('t1', { name: 'meu', sourceTs: '', compiledJs: '', inputParams: [], outputParams: [] } as never);
-    await makeInstallMarketplacePluginUseCase(deps()).execute(fullPlugin, actor);
-    await makeUninstallMarketplacePluginUseCase(deps()).execute('com.acme.full', actor);
+    await applyPackageArtifacts(deps(), fullPlugin, actor);
+    await releasePackageArtifacts(deps(), 'com.acme.full', actor);
     expect((await scripts.getScripts('t1')).map((s) => s.name)).toEqual(['meu']);
-  });
-
-  it('recusa desinstalar o que não está instalado', async () => {
-    const result = await makeUninstallMarketplacePluginUseCase(deps()).execute('com.acme.full', actor);
-    expect(result).toMatchObject({ ok: false, error: { code: 'not-installed' } });
   });
 });
 
@@ -416,7 +374,7 @@ describe('Uninstall — listas de opções sobrevivem', () => {
   });
 
   it('declara a lista na instalação, com o plugin como dono', async () => {
-    await makeInstallMarketplacePluginUseCase(deps()).execute(lookupPlugin('com.acme.med'), actor);
+    await applyPackageArtifacts(deps(), lookupPlugin('com.acme.med'), actor);
     expect(lookupDefinitions.items).toEqual([
       expect.objectContaining({
         collection: 'medico_especialidade',
@@ -440,7 +398,7 @@ describe('Uninstall — listas de opções sobrevivem', () => {
         options: [{ key: 'Clínico', label: 'Clínico' }, { key: 'Pediatra', label: 'Pediatra', color: 'blue' }],
       }],
     };
-    await makeInstallMarketplacePluginUseCase(deps()).execute(seeded, actor);
+    await applyPackageArtifacts(deps(), seeded, actor);
     expect(lookupOptions.options.medico_especialidade).toEqual([
       { key: 'Clínico', label: 'Clínico' },
       { key: 'Pediatra', label: 'Pediatra', color: 'blue' },
@@ -458,7 +416,7 @@ describe('Uninstall — listas de opções sobrevivem', () => {
         options: [{ key: 'Clínico', label: 'Clínico' }],
       }],
     };
-    await makeInstallMarketplacePluginUseCase(d).execute(seeded, actor);
+    await applyPackageArtifacts(d, seeded, actor);
     expect(lookupOptions.options.medico_especialidade).toEqual([{ key: 'Cirurgião', label: 'Cirurgião' }]);
   });
 
@@ -469,8 +427,8 @@ describe('Uninstall — listas de opções sobrevivem', () => {
    */
   it('a desinstalação remove a declaração, nunca a coleção de opções', async () => {
     const d = deps();
-    await makeInstallMarketplacePluginUseCase(d).execute(lookupPlugin('com.acme.med'), actor);
-    await makeUninstallMarketplacePluginUseCase(d).execute('com.acme.med', actor);
+    await applyPackageArtifacts(d, lookupPlugin('com.acme.med'), actor);
+    await releasePackageArtifacts(d, 'com.acme.med', actor);
 
     expect(lookupDefinitions.items).toEqual([]);
     // Nenhuma exclusão de dado foi pedida: a coleção `medico_especialidade` continua intacta.
@@ -478,11 +436,11 @@ describe('Uninstall — listas de opções sobrevivem', () => {
   });
 
   it('duas extensões na mesma lista: desinstalar uma mantém a declaração', async () => {
-    await makeInstallMarketplacePluginUseCase(deps()).execute(lookupPlugin('com.a'), actor);
-    await makeInstallMarketplacePluginUseCase(deps()).execute(lookupPlugin('com.b'), actor);
+    await applyPackageArtifacts(deps(), lookupPlugin('com.a'), actor);
+    await applyPackageArtifacts(deps(), lookupPlugin('com.b'), actor);
     expect(lookupDefinitions.items[0].ownerPluginIds).toEqual(['com.a', 'com.b']);
 
-    await makeUninstallMarketplacePluginUseCase(deps()).execute('com.a', actor);
+    await releasePackageArtifacts(deps(), 'com.a', actor);
     expect(lookupDefinitions.items).toEqual([
       expect.objectContaining({ collection: 'medico_especialidade', ownerPluginIds: ['com.b'] }),
     ]);
@@ -491,7 +449,7 @@ describe('Uninstall — listas de opções sobrevivem', () => {
   it('lista do kernel não vira documento — ela já é declarada em código', async () => {
     const plugin = lookupPlugin('com.acme.kernel');
     plugin.lookups = [{ collection: 'documentTypes', label: 'Tipo de documento' }];
-    await makeInstallMarketplacePluginUseCase(deps()).execute(plugin, actor);
+    await applyPackageArtifacts(deps(), plugin, actor);
     expect(lookupDefinitions.items).toEqual([]);
   });
 });
@@ -510,7 +468,7 @@ describe('Uninstall — etiquetas sobrevivem', () => {
   });
 
   it('declara o conjunto na instalação, com o plugin como dono', async () => {
-    await makeInstallMarketplacePluginUseCase(deps()).execute(taggedPlugin('com.acme.med'), actor);
+    await applyPackageArtifacts(deps(), taggedPlugin('com.acme.med'), actor);
     expect(tagDefinitions.items).toEqual([
       expect.objectContaining({ collection: 'medico_tags', ownerPluginIds: ['com.acme.med'] }),
     ]);
@@ -522,19 +480,19 @@ describe('Uninstall — etiquetas sobrevivem', () => {
    */
   it('a desinstalação remove a declaração, nunca a coleção de etiquetas', async () => {
     const d = deps();
-    await makeInstallMarketplacePluginUseCase(d).execute(taggedPlugin('com.acme.med'), actor);
-    await makeUninstallMarketplacePluginUseCase(d).execute('com.acme.med', actor);
+    await applyPackageArtifacts(d, taggedPlugin('com.acme.med'), actor);
+    await releasePackageArtifacts(d, 'com.acme.med', actor);
 
     expect(tagDefinitions.items).toEqual([]);
     expect(tagDefinitions.deletedCollections).toEqual(['medico_tags']);
   });
 
   it('duas extensões no mesmo conjunto: desinstalar uma mantém a declaração', async () => {
-    await makeInstallMarketplacePluginUseCase(deps()).execute(taggedPlugin('com.a'), actor);
-    await makeInstallMarketplacePluginUseCase(deps()).execute(taggedPlugin('com.b'), actor);
+    await applyPackageArtifacts(deps(), taggedPlugin('com.a'), actor);
+    await applyPackageArtifacts(deps(), taggedPlugin('com.b'), actor);
     expect(tagDefinitions.items[0].ownerPluginIds).toEqual(['com.a', 'com.b']);
 
-    await makeUninstallMarketplacePluginUseCase(deps()).execute('com.a', actor);
+    await releasePackageArtifacts(deps(), 'com.a', actor);
     expect(tagDefinitions.items).toEqual([
       expect.objectContaining({ collection: 'medico_tags', ownerPluginIds: ['com.b'] }),
     ]);
@@ -545,7 +503,7 @@ describe('Uninstall — etiquetas sobrevivem', () => {
   it('conjunto de etiquetas do pacote vira documento no escritório', async () => {
     const plugin = taggedPlugin('com.acme.kernel');
     plugin.tagLists = [{ collection: 'caseTags', label: 'Etiquetas: Processos' }];
-    await makeInstallMarketplacePluginUseCase(deps()).execute(plugin, actor);
+    await applyPackageArtifacts(deps(), plugin, actor);
     expect(tagDefinitions.items.map((item) => item.collection)).toContain('caseTags');
   });
 });
@@ -568,19 +526,9 @@ describe('Upgrade — atualização de versão', () => {
   const KEY_A = 'a';
   const KEY_B = 'b';
 
-  it('sobe a versão da instalação e atualiza o cache de exibição', async () => {
-    await makeInstallMarketplacePluginUseCase(deps()).execute(version('1.0.0', [screenT('a')]), actor);
-    const result = await makeUpgradeMarketplacePluginUseCase(deps()).execute(version('1.1.0', [screenT('a')]), actor);
-
-    expect(result.ok).toBe(true);
-    const installation = await installations.getById('t1', 'com.acme.up');
-    expect(installation?.version).toBe('1.1.0');
-    expect(installation?.config).toMatchObject({ name: 'Up', workflowCount: 1 });
-  });
-
   it('cria tela nova e remove tela que sumiu na nova versão; dados por chave preservados', async () => {
-    await makeInstallMarketplacePluginUseCase(deps()).execute(version('1.0.0', [screenT('a'), screenT('b')]), actor);
-    await makeUpgradeMarketplacePluginUseCase(deps()).execute(version('1.1.0', [screenT('a')]), actor);
+    await applyPackageArtifacts(deps(), version('1.0.0', [screenT('a'), screenT('b')]), actor);
+    await applyPackageArtifacts(deps(), version('1.1.0', [screenT('a')]), actor);
 
     const keys = (await screens.getAll('t1')).map((s) => s.id);
     expect(keys).toContain(KEY_A);
@@ -588,14 +536,14 @@ describe('Upgrade — atualização de versão', () => {
   });
 
   it('preserva os campos que o usuário adicionou por cima da tela gerenciada', async () => {
-    await makeInstallMarketplacePluginUseCase(deps()).execute(version('1.0.0', [screenT('a')]), actor);
+    await applyPackageArtifacts(deps(), version('1.0.0', [screenT('a')]), actor);
     const current = screens.store.get(KEY_A)!;
     screens.store.set(KEY_A, {
       ...current,
       fields: [...current.fields, { key: 'meu', label: 'Meu', type: 'text', required: false, order: 5, origin: 'design', ownerPluginId: null }],
     });
 
-    await makeUpgradeMarketplacePluginUseCase(deps()).execute(version('1.1.0', [screenT('a')]), actor);
+    await applyPackageArtifacts(deps(), version('1.1.0', [screenT('a')]), actor);
 
     const after = screens.store.get(KEY_A)!;
     const keys = after.fields.map((f) => f.key);
@@ -604,11 +552,11 @@ describe('Upgrade — atualização de versão', () => {
   });
 
   it('atualiza in-place PRESERVANDO os ids (sem regenerar) quando a revisão não muda', async () => {
-    await makeInstallMarketplacePluginUseCase(deps()).execute(version('1.0.0', [screenT('a')]), actor);
+    await applyPackageArtifacts(deps(), version('1.0.0', [screenT('a')]), actor);
     const actionIdBefore = (await actions.getAll('t1'))[0].id;
     const wfIdBefore = (await workflows.getWorkflowDefinitions('t1'))[0].id;
 
-    await makeUpgradeMarketplacePluginUseCase(deps()).execute(version('1.1.0', [screenT('a')]), actor);
+    await applyPackageArtifacts(deps(), version('1.1.0', [screenT('a')]), actor);
 
     const allActions = await actions.getAll('t1');
     expect(allActions).toHaveLength(1);
@@ -618,17 +566,6 @@ describe('Upgrade — atualização de versão', () => {
     expect(allWf[0].id).toBe(wfIdBefore);
     // A tela continua apontando para a MESMA action (id estável).
     expect((await screens.getAll('t1'))[0].viewActionIds ?? []).toEqual([actionIdBefore]);
-  });
-
-  it('recusa versão que não é mais recente', async () => {
-    await makeInstallMarketplacePluginUseCase(deps()).execute(version('1.0.0', [screenT('a')]), actor);
-    const result = await makeUpgradeMarketplacePluginUseCase(deps()).execute(version('1.0.0', [screenT('a')]), actor);
-    expect(result).toMatchObject({ ok: false, error: { code: 'not-newer-version' } });
-  });
-
-  it('recusa atualizar o que não está instalado', async () => {
-    const result = await makeUpgradeMarketplacePluginUseCase(deps()).execute(version('1.1.0', [screenT('a')]), actor);
-    expect(result).toMatchObject({ ok: false, error: { code: 'not-installed' } });
   });
 });
 
@@ -649,8 +586,8 @@ describe('Dedup + refcount — extensões que compartilham artefatos', () => {
   });
 
   const installTwo = async () => {
-    await makeInstallMarketplacePluginUseCase(deps()).execute(shared('com.a'), actor);
-    await makeInstallMarketplacePluginUseCase(deps()).execute(shared('com.b'), actor);
+    await applyPackageArtifacts(deps(), shared('com.a'), actor);
+    await applyPackageArtifacts(deps(), shared('com.b'), actor);
   };
 
   it('instalar duas extensões com o mesmo artefato NÃO duplica; ambas viram donas', async () => {
@@ -673,15 +610,15 @@ describe('Dedup + refcount — extensões que compartilham artefatos', () => {
   it('remover uma mantém o artefato (a outra usa); remover a outra apaga', async () => {
     await installTwo();
 
-    const first = await makeUninstallMarketplacePluginUseCase(deps()).execute('com.a', actor);
-    expect(first).toMatchObject({ ok: true, removedScreens: 0, removedActions: 0, removedWorkflows: 0, removedScripts: 0 });
+    const first = await releasePackageArtifacts(deps(), 'com.a', actor);
+    expect(first).toMatchObject({ removedScreens: 0, removedActions: 0, removedWorkflows: 0, removedScripts: 0 });
     expect((await screens.getAll('t1'))[0].ownerPluginIds).toEqual(['com.b']);
     expect((await screens.getAll('t1'))[0].ownerPluginId).toBe('com.b');
     expect((await actions.getAll('t1'))[0].ownerPluginId).toBe('com.b');
     expect(await scripts.getScripts('t1')).toHaveLength(1);
 
-    const second = await makeUninstallMarketplacePluginUseCase(deps()).execute('com.b', actor);
-    expect(second).toMatchObject({ ok: true, removedScreens: 1, removedActions: 1, removedWorkflows: 1, removedScripts: 1 });
+    const second = await releasePackageArtifacts(deps(), 'com.b', actor);
+    expect(second).toMatchObject({ removedScreens: 1, removedActions: 1, removedWorkflows: 1, removedScripts: 1 });
     expect(await screens.getAll('t1')).toEqual([]);
     expect(await actions.getAll('t1')).toEqual([]);
     expect(await workflows.getWorkflowDefinitions('t1')).toEqual([]);
@@ -689,12 +626,12 @@ describe('Dedup + refcount — extensões que compartilham artefatos', () => {
   });
 
   it('segundo install preserva campos que o usuário adicionou à tela compartilhada', async () => {
-    await makeInstallMarketplacePluginUseCase(deps()).execute(shared('com.a'), actor);
+    await applyPackageArtifacts(deps(), shared('com.a'), actor);
     const key = 'medico';
     const cur = screens.store.get(key)!;
     screens.store.set(key, { ...cur, fields: [...cur.fields, { key: 'meu', label: 'Meu', type: 'text', required: false, order: 9, origin: 'design', ownerPluginId: null }] });
 
-    await makeInstallMarketplacePluginUseCase(deps()).execute(shared('com.b'), actor);
+    await applyPackageArtifacts(deps(), shared('com.b'), actor);
 
     const after = screens.store.get(key)!;
     expect(after.fields.map((f) => f.key)).toEqual(expect.arrayContaining(['n', 'meu']));
@@ -980,7 +917,7 @@ describe('Adoção de tela do tenant (Form Design → extensão → desinstalar 
   it('instalar REUSA a chave da tela do tenant e a mantém como dela (não vira tela de extensão)', async () => {
     screens.store.set('produtos', userScreen());
 
-    await makeInstallMarketplacePluginUseCase(deps()).execute(exported(), actor);
+    await applyPackageArtifacts(deps(), exported(), actor);
 
     const all = await screens.getAll('t1');
     expect(all.map((s) => s.id)).toEqual(['produtos']);
@@ -990,11 +927,11 @@ describe('Adoção de tela do tenant (Form Design → extensão → desinstalar 
 
   it('desinstalar DEVOLVE a tela adotada em vez de apagá-la — a chave da coleção sobrevive', async () => {
     screens.store.set('produtos', userScreen());
-    await makeInstallMarketplacePluginUseCase(deps()).execute(exported(), actor);
+    await applyPackageArtifacts(deps(), exported(), actor);
 
-    const result = await makeUninstallMarketplacePluginUseCase(deps()).execute('com.microteia.produto', actor);
+    const result = await releasePackageArtifacts(deps(), 'com.microteia.produto', actor);
 
-    expect(result).toMatchObject({ ok: true, removedScreens: 0 });
+    expect(result).toMatchObject({ removedScreens: 0 });
     const screen = screens.store.get('produtos')!;
     expect(screen.origin).toBe('design');
     expect(screen.ownerPluginIds).toEqual([]);
@@ -1005,21 +942,21 @@ describe('Adoção de tela do tenant (Form Design → extensão → desinstalar 
 
   it('reinstalar depois de desinstalar volta para a MESMA chave — nunca uma coleção nova', async () => {
     screens.store.set('produtos', userScreen());
-    await makeInstallMarketplacePluginUseCase(deps()).execute(exported(), actor);
-    await makeUninstallMarketplacePluginUseCase(deps()).execute('com.microteia.produto', actor);
+    await applyPackageArtifacts(deps(), exported(), actor);
+    await releasePackageArtifacts(deps(), 'com.microteia.produto', actor);
 
-    await makeInstallMarketplacePluginUseCase(deps()).execute(exported(), actor);
+    await applyPackageArtifacts(deps(), exported(), actor);
 
     expect((await screens.getAll('t1')).map((s) => s.id)).toEqual(['produtos']);
   });
 
   it('tela nascida da extensão continua sendo apagada na desinstalação (chave determinística)', async () => {
-    await makeInstallMarketplacePluginUseCase(deps()).execute(exported(), actor);
+    await applyPackageArtifacts(deps(), exported(), actor);
     expect((await screens.getAll('t1')).map((s) => s.id)).toEqual(['produtos']);
 
-    const result = await makeUninstallMarketplacePluginUseCase(deps()).execute('com.microteia.produto', actor);
+    const result = await releasePackageArtifacts(deps(), 'com.microteia.produto', actor);
 
-    expect(result).toMatchObject({ ok: true, removedScreens: 1 });
+    expect(result).toMatchObject({ removedScreens: 1 });
     expect(await screens.getAll('t1')).toEqual([]);
   });
 });
@@ -1046,7 +983,7 @@ describe('Complementos — campos acrescentados a telas que já existem', () => 
   it('acrescenta o campo à tela que já existe, sem virar dona dela', async () => {
     screens.store.set('pushes', pushesScreen([]));
 
-    await makeInstallMarketplacePluginUseCase(deps()).execute(patchPlugin('com.acme.crm', ['crm']), actor);
+    await applyPackageArtifacts(deps(), patchPlugin('com.acme.crm', ['crm']), actor);
 
     const alvo = screens.store.get('pushes')!;
     expect(alvo.fields.map((f) => f.key)).toEqual(['crm']);
@@ -1063,7 +1000,7 @@ describe('Complementos — campos acrescentados a telas que já existem', () => 
       { key: 'outro', label: 'Outro', type: 'text', required: false, order: 1, origin: 'plugin', ownerPluginId: 'com.b' },
     ]));
 
-    await makeInstallMarketplacePluginUseCase(deps()).execute(patchPlugin('com.acme.crm', ['crm']), actor);
+    await applyPackageArtifacts(deps(), patchPlugin('com.acme.crm', ['crm']), actor);
 
     expect(screens.store.get('pushes')!.fields.map((f) => f.key)).toEqual(['meu', 'outro', 'crm']);
   });
@@ -1072,11 +1009,11 @@ describe('Complementos — campos acrescentados a telas que já existem', () => 
     screens.store.set('pushes', pushesScreen([
       { key: 'meu', label: 'Meu', type: 'text', required: false, order: 0, origin: 'design', ownerPluginId: null },
     ]));
-    await makeInstallMarketplacePluginUseCase(deps()).execute(patchPlugin('com.acme.crm', ['crm', 'oab']), actor);
+    await applyPackageArtifacts(deps(), patchPlugin('com.acme.crm', ['crm', 'oab']), actor);
 
-    const result = await makeUninstallMarketplacePluginUseCase(deps()).execute('com.acme.crm', actor);
+    const result = await releasePackageArtifacts(deps(), 'com.acme.crm', actor);
 
-    expect(result).toMatchObject({ ok: true, removedScreens: 0, removedPatchFields: 2 });
+    expect(result).toMatchObject({ removedScreens: 0, removedPatchFields: 2 });
     const prazos = screens.store.get('pushes')!;
     expect(prazos.fields.map((f) => f.key)).toEqual(['meu']);
     expect(prazos.origin).toBe('builtin');
@@ -1093,7 +1030,7 @@ describe('Complementos — campos acrescentados a telas que já existem', () => 
   });
 
   it('complemento cujo alvo NÃO existe no escritório é ignorado, sem criar tela', async () => {
-    await makeInstallMarketplacePluginUseCase(deps()).execute(
+    await applyPackageArtifacts(deps(), 
       { ...patchPlugin('com.acme.crm', ['crm']), screenPatches: [{ target: 'nao-existe', fields: [] }] },
       actor,
     );
@@ -1106,7 +1043,7 @@ describe('Complementos — campos acrescentados a telas que já existem', () => 
       ownerPluginId: 'com.b', ownerPluginIds: ['com.b'],
     });
 
-    await makeInstallMarketplacePluginUseCase(deps()).execute({
+    await applyPackageArtifacts(deps(), {
       ...patchPlugin('com.acme.crm', []),
       screenPatches: [{
         target: 'src-produtos', targetKind: 'sourceId',
@@ -1141,7 +1078,7 @@ describe('Complementos — campos acrescentados a telas que já existem', () => 
   it('a ação do complemento entra na lista da tela alvo, com o id gerado na instalação', async () => {
     screens.store.set('pushes', pushesScreen([]));
 
-    await makeInstallMarketplacePluginUseCase(deps()).execute(comAcao('com.acme.gesto'), actor);
+    await applyPackageArtifacts(deps(), comAcao('com.acme.gesto'), actor);
 
     const [acao] = await actions.getAll('t1');
     const alvo = screens.store.get('pushes')!;
@@ -1156,8 +1093,8 @@ describe('Complementos — campos acrescentados a telas que já existem', () => 
   it('não duplica ao reinstalar, e preserva o que o escritório pôs na lista', async () => {
     screens.store.set('pushes', { ...pushesScreen([]), cardActionIds: ['acao-do-escritorio'] });
 
-    await makeInstallMarketplacePluginUseCase(deps()).execute(comAcao('com.acme.gesto'), actor);
-    await makeInstallMarketplacePluginUseCase(deps()).execute(comAcao('com.acme.gesto'), actor);
+    await applyPackageArtifacts(deps(), comAcao('com.acme.gesto'), actor);
+    await applyPackageArtifacts(deps(), comAcao('com.acme.gesto'), actor);
 
     const [acao] = await actions.getAll('t1');
     expect(screens.store.get('pushes')!.cardActionIds).toEqual(['acao-do-escritorio', acao.id]);
@@ -1165,9 +1102,9 @@ describe('Complementos — campos acrescentados a telas que já existem', () => 
 
   it('desinstalar tira só a ação da extensão da lista — a do escritório fica', async () => {
     screens.store.set('pushes', { ...pushesScreen([]), cardActionIds: ['acao-do-escritorio'] });
-    await makeInstallMarketplacePluginUseCase(deps()).execute(comAcao('com.acme.gesto'), actor);
+    await applyPackageArtifacts(deps(), comAcao('com.acme.gesto'), actor);
 
-    await makeUninstallMarketplacePluginUseCase(deps()).execute('com.acme.gesto', actor);
+    await releasePackageArtifacts(deps(), 'com.acme.gesto', actor);
 
     expect(screens.store.get('pushes')!.cardActionIds).toEqual(['acao-do-escritorio']);
     expect(screens.store.get('pushes')!.viewActionIds).toEqual([]);
@@ -1229,7 +1166,7 @@ describe('Tela sobre uma coleção existente', () => {
    * curinga das rules procura (`isDeclaredScreen`) antes de autorizar qualquer gravação.
    */
   it('grava a tela e o documento da coleção alvo', async () => {
-    await makeInstallMarketplacePluginUseCase(deps()).execute(boundPlugin, actor);
+    await applyPackageArtifacts(deps(), boundPlugin, actor);
 
     const screen = screens.store.get('processos');
     expect(screen).toMatchObject({ dataCollection: 'cases', eventPrefix: 'case' });
@@ -1257,7 +1194,7 @@ describe('Tela sobre uma coleção existente', () => {
       enabled: true,
       createdBy: 'u1',
     });
-    await makeInstallMarketplacePluginUseCase(d).execute(boundPlugin, actor);
+    await applyPackageArtifacts(d, boundPlugin, actor);
 
     const target = screens.store.get('cases');
     expect(target?.fields.map((f) => f.key)).toEqual(['meu']);
@@ -1288,7 +1225,7 @@ describe('Tela cuja chave é a própria coleção', () => {
   };
 
   it('a instalação não grava a baseline por cima da própria tela', async () => {
-    await makeInstallMarketplacePluginUseCase(deps()).execute(selfBound, actor);
+    await applyPackageArtifacts(deps(), selfBound, actor);
 
     const screen = screens.store.get('pushes');
     expect(screen?.origin, 'a tela continua sendo do pacote').toBe('plugin');
@@ -1502,14 +1439,14 @@ describe('Relatórios do pacote', () => {
     // Pelo caminho de INSTALAÇÃO, e não por `applyPackageArtifacts`: desinstalar recusa o que não
     // está instalado, e sem o registro da instalação a liberação nem chega a rodar.
     const d = deps();
-    await makeInstallMarketplacePluginUseCase(d).execute(reportPlugin('com.acme.vendas'), actor);
-    await makeInstallMarketplacePluginUseCase(d).execute(reportPlugin('com.acme.outra'), actor);
+    await applyPackageArtifacts(d, reportPlugin('com.acme.vendas'), actor);
+    await applyPackageArtifacts(d, reportPlugin('com.acme.outra'), actor);
 
-    await makeUninstallMarketplacePluginUseCase(d).execute('com.acme.vendas', actor);
+    await releasePackageArtifacts(d, 'com.acme.vendas', actor);
     expect(reports.items).toHaveLength(1);
     expect(reports.items[0].ownerPluginIds).toEqual(['com.acme.outra']);
 
-    await makeUninstallMarketplacePluginUseCase(d).execute('com.acme.outra', actor);
+    await releasePackageArtifacts(d, 'com.acme.outra', actor);
     expect(reports.items).toHaveLength(0);
   });
 
@@ -1521,9 +1458,9 @@ describe('Relatórios do pacote', () => {
       key: 'meu', title: 'Meu relatório', spec: reportSpec('produtos'), origin: 'design',
     } as never, 'meu');
 
-    await makeInstallMarketplacePluginUseCase(d).execute(reportPlugin('com.acme.vendas'), actor);
+    await applyPackageArtifacts(d, reportPlugin('com.acme.vendas'), actor);
     await applyPackageArtifacts(d, reportPlugin('com.acme.vendas', []), actor);
-    await makeUninstallMarketplacePluginUseCase(d).execute('com.acme.vendas', actor);
+    await releasePackageArtifacts(d, 'com.acme.vendas', actor);
 
     expect(reports.items.map((one) => one.id)).toEqual(['meu']);
   });

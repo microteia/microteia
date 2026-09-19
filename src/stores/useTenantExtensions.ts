@@ -3,7 +3,8 @@ import type { TenantExtension } from '../domain/entities/TenantExtension';
 import type { MarketplacePlugin } from '../domain/entities/MarketplacePlugin';
 
 export type ImportExtensionResult =
-  | { ok: true; name: string }
+  /** `package` é o que ficou gravado: quem importa para publicar em seguida não o lê de novo. */
+  | { ok: true; name: string; package: MarketplacePlugin }
   /** `error` é uma REFERÊNCIA de mensagem; `errorParams` traz os valores que a frase interpola. */
   | { ok: false; error: string; errorParams?: Record<string, string> };
 

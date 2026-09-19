@@ -20,6 +20,7 @@ import {
   RiErrorWarningLine,
   RiDatabase2Line,
   RiHistoryLine,
+  RiGlobalLine,
 } from 'react-icons/ri';
 import { Button } from '../../components/ui/Button';
 import { CompositeFilter } from '../../components/ui/CompositeFilter';
@@ -27,8 +28,9 @@ import { InfoBanner } from '../../components/ui/InfoBanner';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { Modal } from '../../components/ui/Modal';
 import { WidgetRenderer } from '../../components/ui/WidgetRenderer';
+import { RadioGroup } from '../../components/ui/RadioButton';
 import { useMarketplaceViewModel } from './Marketplace.viewmodel';
-import type { Author, ExtensionRow, HistoryPanel, MarketplaceFilter, StatusBadge } from './Marketplace.viewmodel';
+import type { Author, ExtensionRow, HistoryPanel, MarketplaceFilter, PublishAction, StatusBadge } from './Marketplace.viewmodel';
 import { S } from './Marketplace.styles';
 
 import { useT } from '../../shared/i18n/useT';
@@ -42,6 +44,13 @@ const FILTERS: { key: MarketplaceFilter; labelKey: string }[] = [
   { key: 'mine', labelKey: 'filter.mine' },
   { key: 'catalog', labelKey: 'filter.catalog' },
 ];
+
+/** Cada gesto de publicação diz o que vai acontecer — inclusive o que NÃO vai, e por quê. */
+const PUBLISH_TITLE: Record<PublishAction, string> = {
+  publish: 'extension.publish',
+  republish: 'extension.republish',
+  'needs-version': 'extension.publish.needs-version',
+};
 
 const STATUS_LABEL: Record<StatusBadge, { labelKey: string; tone: Tone }> = {
   published: { labelKey: 'status.published', tone: 'success' },
@@ -207,9 +216,13 @@ const RowView: React.FC<{ row: ExtensionRow; busy: boolean; vm: ReturnType<typeo
           {row.active ? <RiToggleFill size={18} /> : <RiToggleLine size={18} />}
         </S.ActionButton>
       )}
-      {row.canPublish && (
-        <S.ActionButton title={row.published ? t('extension.republish') : t('extension.publish')} disabled={busy} onClick={() => void vm.publish(row.id)}>
-          <RiUploadLine size={17} />
+      {row.publish && (
+        <S.ActionButton
+          title={t(PUBLISH_TITLE[row.publish], { version: row.version })}
+          disabled={busy || row.publish === 'needs-version'}
+          onClick={() => void vm.publish(row.id)}
+        >
+          <RiGlobalLine size={17} />
         </S.ActionButton>
       )}
       {row.canDownload && (
@@ -427,6 +440,32 @@ export const MarketplaceView: React.FC = () => {
       )}
 
       {vm.history && <HistoryModal history={vm.history} vm={vm} />}
+
+      {vm.importTarget && (
+        <Modal title={t('import.title', { name: vm.importTarget.name })} size="small" onClose={vm.cancelImport}>
+          <S.DetailsIntro>{t('import.intro', { name: vm.importTarget.name, version: vm.importTarget.version })}</S.DetailsIntro>
+          <RadioGroup
+            name="import-scope"
+            value={vm.importScope}
+            onChange={(value) => vm.setImportScope(value === 'public' ? 'public' : 'private')}
+            options={[
+              { value: 'private', label: t('import.scope.private') },
+              ...(vm.importTarget.canPublish ? [{ value: 'public', label: t('import.scope.public') }] : []),
+            ]}
+          />
+          <S.ImportHint>
+            {t(vm.importScope === 'public' ? 'import.scope.public.hint' : 'import.scope.private.hint')}
+          </S.ImportHint>
+          {/* Sem a explicação, a opção que falta parece defeito da tela. */}
+          {!vm.importTarget.canPublish && (
+            <InfoBanner message={t('import.code-requires-system')} variant="info" />
+          )}
+          <S.ReviewActions>
+            <Button variant="secondary" onClick={vm.cancelImport}>{t('core.ui/action.cancel')}</Button>
+            <Button onClick={() => void vm.confirmImport()}>{t('import.confirm')}</Button>
+          </S.ReviewActions>
+        </Modal>
+      )}
 
       {vm.reviewTarget && (
         <Modal title={t('extension.review.title', { name: vm.reviewTarget.name })} size="large" onClose={vm.cancelReview}>
