@@ -6,6 +6,14 @@ interface CheckboxProps {
   onChange: (checked: boolean) => void;
   label: string;
   disabled?: boolean;
+  /**
+   * Parte do conjunto marcada — o estado de um grupo com alguns itens dentro.
+   *
+   * Desenhado por CSS e anunciado por `aria-checked="mixed"`, nunca pela propriedade `indeterminate`
+   * do DOM: aquela só se escreve por `ref`, e ler ou escrever `ref.current` fora de um efeito é o
+   * que o React Compiler recusa. O resultado visual é o mesmo e o componente continua sendo props.
+   */
+  indeterminate?: boolean;
 }
 
 const StyledCheckboxLabel = styled.label<{ $disabled?: boolean }>`
@@ -23,7 +31,7 @@ const StyledCheckboxLabel = styled.label<{ $disabled?: boolean }>`
   }
 `;
 
-const StyledCheckboxInput = styled.input`
+const StyledCheckboxInput = styled.input<{ $indeterminate?: boolean }>`
   appearance: none;
   width: 18px;
   height: 18px;
@@ -56,6 +64,23 @@ const StyledCheckboxInput = styled.input`
     line-height: 1;
   }
 
+  ${({ $indeterminate, theme }) => $indeterminate && `
+    border-color: ${theme.colors.primary};
+    background: ${theme.colors.primary};
+
+    &::after {
+      content: '–';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: #fff;
+      font-size: 12px;
+      font-weight: bold;
+      line-height: 1;
+    }
+  `}
+
   &:focus-visible {
     outline: 2px solid ${({ theme }) => theme.colors.primary};
     outline-offset: 2px;
@@ -67,12 +92,20 @@ const StyledCheckboxInput = styled.input`
   }
 `;
 
-export const Checkbox: React.FC<CheckboxProps> = ({ checked, onChange, label, disabled = false }) => {
+export const Checkbox: React.FC<CheckboxProps> = ({
+  checked,
+  onChange,
+  label,
+  disabled = false,
+  indeterminate = false,
+}) => {
   return (
     <StyledCheckboxLabel $disabled={disabled}>
       <StyledCheckboxInput
         type="checkbox"
         checked={checked}
+        $indeterminate={!checked && indeterminate}
+        aria-checked={!checked && indeterminate ? 'mixed' : checked}
         onChange={(e) => onChange(e.target.checked)}
         disabled={disabled}
       />

@@ -1,6 +1,5 @@
 /**
- * As validades que as duas telas de autorização de agente oferecem, e o tipo da permissão que elas
- * listam.
+ * As validades que as duas telas de autorização de agente oferecem.
  *
  * Num `.ts` à parte porque é compartilhado entre a aba de Agentes de IA e o consentimento de OAuth,
  * e um `.tsx` de ViewModel que também exporte constante dispara `react-refresh/only-export-components`.
@@ -14,10 +13,3 @@ export const AGENT_EXPIRY_CHOICES: { days: number | null; labelKey: string }[] =
 ];
 
 export const AGENT_DEFAULT_EXPIRY_DAYS = 90;
-
-/** Uma permissão oferecível: o id, o rótulo já resolvido, e o recurso a que ela pertence. */
-export interface AgentPermissionChoice {
-  id: string;
-  label: string;
-  resource: string;
-}

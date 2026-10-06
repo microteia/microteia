@@ -19,7 +19,6 @@ import {
 } from '../../../../domain/usecases/agent';
 import { errorParamsOf } from '../../../../domain/errors/LocalizedError';
 import { useLabel, useT } from '../../../shared/i18n/useT';
-import type { AgentPermissionChoice } from '../../../shared/agentExpiry';
 import { AGENT_DEFAULT_EXPIRY_DAYS } from '../../../shared/agentExpiry';
 
 
@@ -57,7 +56,6 @@ export interface AgentTabViewModel {
   closeForm: () => void;
   name: string;
   setName: (value: string) => void;
-  permissionChoices: AgentPermissionChoice[];
   selectedPermissions: string[];
   setSelectedPermissions: (values: string[]) => void;
   expiryDays: number | null;
@@ -83,7 +81,7 @@ export const useAgentTabViewModel = (): AgentTabViewModel => {
   const { currentTenant } = useTenant();
   const { user } = useAuth();
   const { installed } = useInstalledExtensions();
-  const { can, catalog, effectivePermissions, isUnrestricted } = useAuthorization();
+  const { can } = useAuthorization();
   const { notify } = useNotification();
   const label = useLabel();
   const t = useT('core.access');
@@ -159,23 +157,6 @@ export const useAgentTabViewModel = (): AgentTabViewModel => {
   );
 
   /**
-   * O que este membro pode OFERECER a um agente: nunca mais do que ele próprio tem.
-   *
-   * A mesma conta que a callable refaz do lado do servidor — aqui ela existe para a tela não oferecer
-   * o que seria recusado, e não como garantia. A garantia é a de lá.
-   */
-  const permissionChoices = useMemo<AgentPermissionChoice[]>(() => {
-    const held = new Set(effectivePermissions);
-    return catalog.list
-      .filter((permission) => isUnrestricted || held.has(permission.id))
-      .map((permission) => ({
-        id: permission.id,
-        label: label(permission.name),
-        resource: label(catalog.resourceLabels.get(permission.resource)?.name ?? permission.resource),
-      }));
-  }, [catalog, effectivePermissions, isUnrestricted, label]);
-
-  /**
    * A recusa do servidor, dita a quem clicou.
    *
    * A `message` de um `HttpsError` JÁ É a referência que a callable emitiu
@@ -249,7 +230,6 @@ export const useAgentTabViewModel = (): AgentTabViewModel => {
     closeForm,
     name,
     setName,
-    permissionChoices,
     selectedPermissions,
     setSelectedPermissions,
     expiryDays,

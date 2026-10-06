@@ -107,6 +107,16 @@ export const CORE_ACCESS: Record<string, string> = {
   'agent.permissions.unrestricted':
     'Um acesso não pode receber tudo: liste as permissões que ele pode usar, para que elas possam ser revisadas depois.',
   'agent.token.failed': 'Não foi possível emitir o acesso. Tente novamente.',
+  'permission.picker.search': 'Buscar uma tela ou uma permissão...',
+  'permission.picker.selected': '{selected} de {total} escolhidas',
+  'permission.picker.group-count': '{selected}/{total}',
+  'permission.picker.clear': 'Limpar',
+  'permission.picker.no-matches': 'Nada corresponde a essa busca.',
+  'permission.picker.nothing-to-offer':
+    'Você não tem permissão nenhuma neste escritório, então não há o que permitir aqui.',
+  'permission.picker.included-by': 'Incluída porque você escolheu {by}.',
+  'permission.picker.missing-for':
+    '{by} precisa desta para funcionar por completo. Deixe-a de fora só se você quis o acesso mais estreito.',
   'agent.oauth.title': 'Autorizar {client}',
   'agent.oauth.intro':
     '{client} está pedindo para trabalhar dentro de {tenant} em seu nome. Ele poderá fazer apenas o '

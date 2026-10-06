@@ -699,6 +699,39 @@ Foi feita nessa direção porque é a direção da pergunta: "quais perfis conce
 abrir perfil por perfil. Criar, renomear e excluir perfil ficam num modal à parte, e **um perfil nasce
 vazio** — perfil é nome, permissão é escolha, cada uma no lugar onde a pergunta acontece.
 
+### Escolher um TETO é outra pergunta — `PermissionPicker`
+
+A tela de Perfis responde "quais perfis concedem isto?". A aba de Agentes de IA e o consentimento de
+OAuth respondem outra: "até onde este acesso pode ir?". A estrutura é a mesma — o catálogo já agrupa
+por `resource` e já tem `resourceLabels` —, e por isso o seletor
+(`presentation/components/ui/PermissionPicker/`) agrupa igual, com caixa de grupo em três estados e
+busca. Uma lista chapada de oitenta itens, que era o que havia, torna "tudo de Prazos" em quatro
+cliques e a descoberta de que Criar precisa de Visualizar em tentativa e erro.
+
+**O que muda em relação a Perfis é a trava, e a diferença é de NATUREZA.** Num perfil, a permissão
+exigida por outra fica travada: criar-sem-ver não é um perfil mais estreito, é um perfil quebrado.
+Num teto, "escreve e nunca lê" é um estreitamento legítimo — uma ingestão que só grava é exatamente
+isso. Então aqui a dependência é **acrescentada ao marcar e AVISADA ao faltar**, nunca imposta:
+
+| Gesto | O que acontece |
+|---|---|
+| marcar *Criar* | entra *Visualizar* junto, atravessando recurso se preciso, e a linha diz por que entrou |
+| desmarcar *Visualizar* | sai só ela, e a linha passa a avisar que *Criar — Prazos* a exigia |
+| marcar o grupo | entram os itens dele MAIS o que eles exigem de fora |
+| desmarcar o grupo | saem só os itens dele; o que está marcado noutro grupo fica |
+
+A assimetria entre marcar e desmarcar é o desenho inteiro: **completar a escolha é serviço, estreitá-la
+é decisão de quem está escolhendo.** As duas contas moram em `permissionSelection.ts`
+(`withDependencies` e `requiredBySelection`), puras e sobre o `dependenciesOf` que a tela de Perfis já
+usava — não há um segundo cálculo de fecho no produto.
+
+O aviso usa o nome QUALIFICADO (`role.qualified-name`, a mesma chave de Perfis), e não o nome da ação
+sozinho: a exigida pode morar noutro grupo, e "Visualizar é exigida por Criar" não diz criar o quê.
+
+> O `Checkbox` ganhou `indeterminate` para o estado do grupo. Ele é desenhado por CSS e anunciado por
+> `aria-checked="mixed"`, **nunca** pela propriedade `indeterminate` do DOM — aquela só se escreve por
+> `ref`, e o componente deixaria de ser props.
+
 ### As regras são exercitadas, não só lidas — `rules-tests/`
 
 `npm run test:rules` sobe o emulador do Firestore, roda a suíte contra o **arquivo real** de regras
@@ -734,7 +767,8 @@ dono continua podendo tudo dentro do dele.
 `domain/schema/access/{permission,extensionPoints,resolvePermissions,memberPermissions,kernelPermissions,permissionPattern,permissionGate}.ts` ·
 `domain/entities/Role.ts` · `domain/usecases/roles/RoleUseCases.ts` ·
 `stores/{RoleStore,AuthorizationStore}.tsx` · `plugins/core.access/manifest.ts` ·
-`presentation/pages/TenantSettings/RolesTab/` ·
+`presentation/pages/TenantSettings/RolesTab/` · `presentation/components/ui/PermissionPicker/` ·
+`domain/schema/access/permissionSelection.ts` ·
 `functions/src/data/services/PermissionCatalogCache.ts` ·
 `functions/src/domain/usecases/MaterializeMemberPermissionsUseCase.ts` ·
 `functions/src/infrastructure/handlers/{materializeMemberPermissions,syncTenantPermissions,shared/requirePermission}.ts` ·

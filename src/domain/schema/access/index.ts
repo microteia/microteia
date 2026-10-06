@@ -60,6 +60,7 @@ export type {
   ResourceLabel,
 } from './resolvePermissions';
 export { buildPermissionCatalog, dependenciesOf, resolveEffective } from './resolvePermissions';
+export { requiredBySelection, withDependencies } from './permissionSelection';
 
 export type { AssignedRole, MemberPermissions } from './memberPermissions';
 export {

@@ -11,6 +11,12 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.68.0] — 2026-10-06
+
+- Escolher o que um agente de IA pode fazer ficou bem mais rápido. As permissões agora aparecem agrupadas por tela, com a lista fechada e uma busca em cima — marcar a tela inteira é um clique, em vez de marcar item por item numa lista enorme.
+- Ao marcar "Criar", o "Visualizar" daquela tela é marcado junto, porque criar sem poder ver não funciona por completo. Se a permissão que veio junto for desmarcada de propósito, a tela avisa quem precisava dela, em vez de deixar passar calado.
+- Vale nas duas telas: ao emitir um acesso em Agentes de IA e ao autorizar um assistente que está entrando com a sua conta.
+
 #### [9.67.0] — 2026-10-06
 
 - Agora é possível conectar o Claude pela web ao escritório entrando com a própria conta, sem copiar e colar token nenhum. Ao conectar, uma tela pergunta quais permissões aquele assistente pode usar, e o acesso aparece na aba Agentes de IA para ser revogado quando você quiser.

@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useDI } from '../../../infrastructure/di/useDI';
 import { useTenant } from '../../../stores/useTenant';
-import { useAuthorization } from '../../../stores/useAuthorization';
 import { useInstalledExtensions } from '../../../stores/useInstalledExtensions';
 import { useNotification } from '../../../stores/useNotification';
 import type { AgentAvailability } from '../../../domain/usecases/agent/agentAvailability';
@@ -14,7 +13,6 @@ import {
 } from '../../../domain/usecases/agent';
 import { errorParamsOf } from '../../../domain/errors/LocalizedError';
 import { useLabel, useT } from '../../shared/i18n/useT';
-import type { AgentPermissionChoice } from '../../shared/agentExpiry';
 import { AGENT_DEFAULT_EXPIRY_DAYS } from '../../shared/agentExpiry';
 
 export interface OAuthConsentViewModel {
@@ -24,7 +22,6 @@ export interface OAuthConsentViewModel {
   error: string | null;
   tenantName: string;
 
-  permissionChoices: AgentPermissionChoice[];
   selectedPermissions: string[];
   setSelectedPermissions: (ids: string[]) => void;
   expiryDays: number | null;
@@ -49,7 +46,6 @@ export const useOAuthConsentViewModel = (): OAuthConsentViewModel => {
   const [params] = useSearchParams();
   const { agentAuthRequestRepository } = useDI();
   const { currentTenant } = useTenant();
-  const { catalog, effectivePermissions, isUnrestricted } = useAuthorization();
   const { installed } = useInstalledExtensions();
   const { notify } = useNotification();
   const label = useLabel();
@@ -113,23 +109,6 @@ export const useOAuthConsentViewModel = (): OAuthConsentViewModel => {
   const error = requestId === '' ? t('agent.oauth.request.missing') : settled?.error ?? null;
   const availability = useMemo(() => agentAvailability(installed), [installed]);
 
-  /**
-   * O que esta pessoa pode OFERECER: nunca mais do que ela própria tem.
-   *
-   * A mesma conta que `issueAgentGrant` refaz no servidor. Aqui ela existe para a tela não oferecer
-   * o que seria recusado, e não como garantia — a garantia é a de lá.
-   */
-  const permissionChoices = useMemo<AgentPermissionChoice[]>(() => {
-    const held = new Set(effectivePermissions);
-    return catalog.list
-      .filter((permission) => isUnrestricted || held.has(permission.id))
-      .map((permission) => ({
-        id: permission.id,
-        label: label(permission.name),
-        resource: label(catalog.resourceLabels.get(permission.resource)?.name ?? permission.resource),
-      }));
-  }, [catalog, effectivePermissions, isUnrestricted, label]);
-
   const allow = useCallback(async () => {
     if (request === null || currentTenant === null) return;
     setIsWorking(true);
@@ -164,7 +143,6 @@ export const useOAuthConsentViewModel = (): OAuthConsentViewModel => {
     request,
     error,
     tenantName: currentTenant?.name ?? '',
-    permissionChoices,
     selectedPermissions,
     setSelectedPermissions,
     expiryDays,

@@ -18,6 +18,14 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.68.0] — 2026-10-06
+
+- feat(access): `PermissionPicker` replaces the flat `MultiSearchSelect` in both the AI agents tab and the OAuth consent. It groups by `resource` with a tri-state group checkbox and a search, over the `resourceLabels` the catalog already carried — a flat list of eighty items made "everything under Deadlines" four clicks and made discovering that Create needs View trial and error.
+- feat(access): `withDependencies` and `requiredBySelection` in `permissionSelection.ts`, both pure and both over the `dependenciesOf` the roles screen already used. Ticking a permission pulls its closure in, crossing resources; unticking takes only that one and the row then warns which selection still needed it. The asymmetry is the design: a ceiling admits "writes and never reads", a role does not — so the dependency is added on tick and warned on absence, never locked as it is in Roles.
+- feat(ui): `Checkbox` gains `indeterminate`, drawn in CSS and announced as `aria-checked="mixed"`. The DOM property of the same name is only writable through a ref, and the component would stop being props.
+- fix(scripts): `sync-schemas --check` now also refuses a synced file whose relative import has no counterpart under `functions/src`. The copy is literal, imports included, so such a file compiles into a module that references one that does not exist — and the root gate never sees it, because `npm run typecheck` does not enter the functions tsconfig. `access/index.ts` re-exporting `permissionSelection` hit exactly this: every copy matched its source, and one was simply absent. The counterpart need not be generated; `domain/entities/{AuditLog,Workflow}.ts` are hand-written there and always were, so what is required is existence, not membership in the list.
+- refactor(access): both agent screens lost their copy of the "what may this person offer" memo — the picker owns it now, so there is one filter instead of two that could drift.
+
 #### [9.67.0] — 2026-10-06
 
 - feat(agent): `list_screens` joins the MCP surface as the eleventh tool. The label-to-collection map existed only as the `microteia://office/screens` resource, under the rule that a pure read is a resource — and that rule assumes a client that fetches resources on its own. Where it does not, the model never sees the map and the office answers only to the technical collection name. The resource stays: a resource URI is a contract with whoever already configured the server, and nothing in a client validates one that disappeared. `mcpProtocol.test.ts` names `list_screens` as the one tool that may take no argument, rather than dropping the invariant.

@@ -75,6 +75,7 @@ const SHARED_FILES = [
   'domain/schema/access/memberPermissions.ts',
   'domain/schema/access/permissionGate.ts',
   'domain/schema/access/permissionPattern.ts',
+  'domain/schema/access/permissionSelection.ts',
   'domain/schema/access/index.ts',
   'domain/schema/agent/agentBackend.ts',
   'domain/schema/agent/agentGrant.ts',
@@ -135,6 +136,49 @@ const expectedTargetContent = (relativePath) => {
   return buildHeader(relativePath) + source;
 };
 
+/**
+ * O que um arquivo sincronizado importa de RELATIVO, e que precisa EXISTIR do lado do backend.
+ *
+ * A cópia é literal, inclusive os `import`/`export ... from`. Um arquivo da lista que aponte para um
+ * vizinho sem contraparte em `functions/src` gera, no backend, um módulo que referencia outro que
+ * não existe — e isso o gate do root NÃO pega: `npm run typecheck` não entra no tsconfig das
+ * functions. O defeito aparece só em `tsc -b functions`, no build ou no deploy.
+ *
+ * Foi o que aconteceu quando `access/index.ts` passou a reexportar `permissionSelection`: o
+ * `--check` dizia que tudo estava sincronizado, porque todas as cópias batiam com as fontes. Batiam
+ * mesmo — faltava uma.
+ *
+ * A contraparte NÃO precisa ser gerada. `domain/entities/{AuditLog,Workflow}.ts` são escritas à mão
+ * em `functions/src` e sempre foram; exigi-las na lista seria inventar uma regra que o projeto não
+ * tem, para resolver um problema que ele não tinha. O que se cobra é a existência.
+ */
+const RELATIVE_IMPORT = /\bfrom\s+'(\.[^']*)'/g;
+
+const resolveIn = (base, specifier, root) => {
+  const joined = path.posix.join(path.posix.dirname(base), specifier);
+  for (const candidate of [`${joined}.ts`, `${joined}.tsx`, `${joined}/index.ts`]) {
+    if (fs.existsSync(path.join(ROOT, root, 'src', candidate))) return candidate;
+  }
+  return null;
+};
+
+const missingCompanions = () => {
+  const missing = [];
+
+  for (const relativePath of SHARED_FILES) {
+    const source = fs.readFileSync(path.join(ROOT, 'src', relativePath), 'utf8');
+    for (const [, specifier] of source.matchAll(RELATIVE_IMPORT)) {
+      // Não resolve dentro de `src/`: é import quebrado, e quem o reprova é o `tsc` — com o nome do
+      // símbolo, que é informação melhor do que esta verificação teria para dar.
+      const inSource = resolveIn(relativePath, specifier, '.');
+      if (inSource === null) continue;
+      if (resolveIn(relativePath, specifier, 'functions') !== null) continue;
+      missing.push({ from: relativePath, needs: inSource });
+    }
+  }
+  return missing;
+};
+
 const checkMode = process.argv.includes('--check');
 let divergent = [];
 
@@ -152,6 +196,18 @@ for (const relativePath of SHARED_FILES) {
     fs.writeFileSync(targetPath, expected, 'utf8');
     console.log(`✏️  gerado: functions/src/${relativePath}`);
   }
+}
+
+const missing = missingCompanions();
+if (missing.length > 0) {
+  console.error('❌ Arquivo sincronizado importando um que não tem contraparte no backend:');
+  for (const { from, needs } of missing) {
+    console.error(`   - src/${from} importa src/${needs}, que não existe em functions/src`);
+  }
+  console.error('');
+  console.error('   A cópia é literal: no backend, o import apontaria para um módulo inexistente.');
+  console.error('   Acrescente o arquivo a SHARED_FILES, ou dê a ele uma contraparte em functions/src.');
+  process.exit(1);
 }
 
 if (checkMode) {

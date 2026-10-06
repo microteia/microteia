@@ -113,6 +113,16 @@ export const CORE_ACCESS_MESSAGES: Record<string, string> = {
   'agent.permissions.unrestricted':
     'An access cannot be granted everything: list the permissions it may use, so they can be reviewed later.',
   'agent.token.failed': 'The access could not be issued. Try again.',
+  'permission.picker.search': 'Search a screen or a permission...',
+  'permission.picker.selected': '{selected} of {total} chosen',
+  'permission.picker.group-count': '{selected}/{total}',
+  'permission.picker.clear': 'Clear',
+  'permission.picker.no-matches': 'Nothing matches that search.',
+  'permission.picker.nothing-to-offer':
+    'You hold no permissions in this organization, so there is nothing to allow here.',
+  'permission.picker.included-by': 'Included because you chose {by}.',
+  'permission.picker.missing-for':
+    '{by} needs this one to work fully. Leave it off only if you meant the narrower access.',
   'agent.oauth.title': 'Authorize {client}',
   'agent.oauth.intro':
     '{client} is asking to work inside {tenant} on your behalf. It will be able to do only what you '

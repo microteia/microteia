@@ -11,7 +11,7 @@ import { ConfirmModal } from '../../../components/ui/ConfirmModal';
 import { Spinner } from '../../../components/ui/Spinner';
 import { InfoBanner } from '../../../components/ui/InfoBanner';
 import { SearchSelect } from '../../../components/ui/SearchSelect';
-import { MultiSearchSelect } from '../../../components/ui/MultiSearchSelect';
+import { PermissionPicker } from '../../../components/ui/PermissionPicker';
 import { useT } from '../../../shared/i18n/useT';
 import { formatDate } from '../../../../utils/formatters';
 
@@ -118,14 +118,9 @@ export const AgentTabView: React.FC = () => {
 
             <S.Field>
               <S.FieldLabel>{t('agent.form.permissions')}</S.FieldLabel>
-              <MultiSearchSelect
-                options={vm.permissionChoices.map((choice) => ({
-                  value: choice.id,
-                  label: `${choice.resource} · ${choice.label}`,
-                }))}
-                values={vm.selectedPermissions}
+              <PermissionPicker
+                selected={vm.selectedPermissions}
                 onChange={vm.setSelectedPermissions}
-                placeholder={t('agent.form.permissions.placeholder')}
               />
               <S.FieldHint>{t('agent.form.permissions.hint')}</S.FieldHint>
             </S.Field>
