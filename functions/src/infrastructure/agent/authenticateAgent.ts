@@ -66,7 +66,7 @@ export interface AgentAuthDeps {
  *
  * A interseção vazia é recusada aqui em vez de deixada para cada operação. Um acesso que não alcança
  * nada não é um acesso degradado: quem o emitiu perdeu os perfis, ou o teto foi declarado com ids que
- * ele nunca teve. Responder "sem permissão" a cada uma das dez ferramentas esconderia isso atrás de
+ * ele nunca teve. Responder "sem permissão" a cada uma das ferramentas esconderia isso atrás de
  * dez mensagens; recusar a sessão diz o que aconteceu, uma vez.
  */
 export const authenticateAgent = async (

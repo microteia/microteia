@@ -5,6 +5,8 @@ initFirebase();
 export { agentMcp } from './infrastructure/handlers/agentMcp';
 export { createAgentGrant } from './infrastructure/handlers/createAgentGrant';
 export { revokeAgentGrant } from './infrastructure/handlers/revokeAgentGrant';
+export { agentOAuth } from './infrastructure/handlers/agentOAuth';
+export { getAgentAuthRequest, consentAgentAuthRequest } from './infrastructure/handlers/agentOAuthConsent';
 export { callAIProxy } from './infrastructure/handlers/callAIProxy';
 export { detectWorkflows } from './infrastructure/handlers/detectWorkflows';
 export { runWorkflow } from './infrastructure/handlers/runWorkflow';

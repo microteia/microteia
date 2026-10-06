@@ -10,6 +10,8 @@ import { agentLocale } from '../agent/agentLocale';
 import { runAgentOperation } from '../agent/runAgentOperation';
 import { officeInfo, officeReports, officeWorkflows } from '../agent/agentResources';
 import { officeScreens } from '../agent/describeScreen';
+import { installationIssuer } from '../agent/agentOrigin';
+import { bearerChallenge } from '../../domain/schema/agent/agentOAuth';
 import type { JsonRpcRequest } from '../agent/mcpProtocol';
 import {
   JSON_RPC_INVALID_PARAMS,
@@ -115,6 +117,13 @@ export const agentMcp = onRequest(
 
     const auth = await authenticateAgent(bearer(request.headers.authorization), agentAuthDeps());
     if (!auth.ok) {
+      // O cabeçalho é o que transforma um 401 em CONVITE PARA ENTRAR. Sem ele o cliente sabe que
+      // falta credencial e não sabe onde obtê-la: ele tentaria adivinhar os `/.well-known` nesta
+      // origem, que é a do Cloud Functions e não serve caminho na raiz. O ponteiro resolve isso
+      // apontando para onde os metadados realmente estão — e a spec permite que seja outra origem.
+      //
+      // Só num 401. Num 200 o cliente ignora o cabeçalho, e anunciá-lo ali seria ruído.
+      response.set('WWW-Authenticate', bearerChallenge(installationIssuer()));
       // 401, e não um erro de JSON-RPC: é o código que faz um cliente MCP saber que precisa de
       // credencial, em vez de tratar a resposta como uma falha da chamada.
       response.status(401).json({ error: REFUSAL_MESSAGE[auth.refusal], reason: auth.refusal });

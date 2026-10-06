@@ -11,6 +11,12 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.67.0] — 2026-10-06
+
+- Agora é possível conectar o Claude pela web ao escritório entrando com a própria conta, sem copiar e colar token nenhum. Ao conectar, uma tela pergunta quais permissões aquele assistente pode usar, e o acesso aparece na aba Agentes de IA para ser revogado quando você quiser.
+- Cada pessoa que conecta passa a ter o próprio acesso. Antes, um escritório que usasse o Claude na web precisava compartilhar um token só entre todos — e todos agiam com as permissões de quem o emitiu.
+- O assistente passa a reconhecer as telas pelo nome que elas têm no escritório. Pedir "liste as Pessoas" funcionava em alguns aplicativos de IA e falhava em outros, que só respondiam ao nome técnico da coleção.
+
 #### [9.66.0] — 2026-09-18
 
 - Retirada do sistema uma máquina de instalação de extensões que não era mais usada por tela nenhuma — ela ficava lendo dados do escritório a cada abertura, sem que nada aparecesse a partir disso. Nenhuma extensão instalada é afetada.

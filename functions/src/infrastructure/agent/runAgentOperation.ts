@@ -116,6 +116,9 @@ export const runAgentOperation = async (
   if (!authorized.ok) return refuse(catalog, authorized.error, authorized.params);
 
   switch (tool.name) {
+    case 'list_screens':
+      return { ok: true, value: officeScreens(schema, catalog, session) };
+
     case 'describe_screen': {
       const described = describeScreen(schema, catalog, session, asText(input.collection));
       return described === null

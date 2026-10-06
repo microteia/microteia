@@ -48,8 +48,11 @@ export const CORE_ACCESS: Record<string, string> = {
     + 'não está no ar. Quem administra o projeto precisa rodar "microteia provision".',
   'agent.endpoint.label': 'Endereço da conexão',
   'agent.endpoint.hint':
-    'É o endereço a que o cliente de IA se conecta. O token do acesso vai no cabeçalho '
-    + 'Authorization, e você o recebe ao emitir um acesso.',
+    'É este o endereço a que o cliente de IA se conecta. Clientes que sabem fazer login — o Claude '
+    + 'na web entre eles — pedem só o endereço, e cada pessoa entra com a própria conta. Um cliente '
+    + 'que use token fixo manda o token no cabeçalho Authorization, e você o recebe ao emitir um '
+    + 'acesso abaixo.',
+  'agent.meta.signed-in-as': 'entrou por {client}',
   'agent.empty': 'Nenhum acesso emitido ainda.',
   'agent.action.issue': 'Emitir acesso',
   'agent.action.revoke': 'Revogar',
@@ -104,6 +107,25 @@ export const CORE_ACCESS: Record<string, string> = {
   'agent.permissions.unrestricted':
     'Um acesso não pode receber tudo: liste as permissões que ele pode usar, para que elas possam ser revisadas depois.',
   'agent.token.failed': 'Não foi possível emitir o acesso. Tente novamente.',
+  'agent.oauth.title': 'Autorizar {client}',
+  'agent.oauth.intro':
+    '{client} está pedindo para trabalhar dentro de {tenant} em seu nome. Ele poderá fazer apenas o '
+    + 'que você permitir abaixo, e nunca mais do que você mesmo pode fazer.',
+  'agent.oauth.returns-to': 'Ao terminar, ele volta para {host}.',
+  'agent.oauth.loopback':
+    'Este cliente roda no seu próprio computador. Qualquer programa nesta máquina poderia dizer que '
+    + 'é ele, então só continue se foi você quem iniciou a conexão.',
+  'agent.oauth.tenant': 'Escritório',
+  'agent.oauth.tenant.hint':
+    'O acesso vale só para este escritório. Troque de escritório antes, se você quis outro.',
+  'agent.oauth.allow': 'Autorizar',
+  'agent.oauth.deny': 'Cancelar',
+  'agent.oauth.working': 'Autorizando...',
+  'agent.oauth.denied': 'Autorização cancelada. Você já pode fechar esta página.',
+  'agent.oauth.request.missing': 'Esta página foi aberta sem um pedido de autorização.',
+  'agent.oauth.request.unknown': 'Este pedido de autorização não existe mais. Comece de novo pelo cliente.',
+  'agent.oauth.request.expired': 'Este pedido de autorização expirou. Comece de novo pelo cliente.',
+  'agent.oauth.request.used': 'Este pedido de autorização já foi respondido.',
   'permission.agent.manage': 'Gerenciar acessos de agente de IA',
   'permission.agent.manage.description':
     'Ver e revogar os acessos de agente de IA de todos os membros. Emitir um acesso para si mesmo não exige esta permissão.',

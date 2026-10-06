@@ -1,7 +1,7 @@
 {
   "manifest": {
     "id": "com.microteia.agent",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "kernel": "^2.0.0",
     "name": "@com.microteia.agent/package.name",
     "description": "@com.microteia.agent/package.description",
@@ -77,7 +77,10 @@
       "functions": [
         "agentMcp",
         "createAgentGrant",
-        "revokeAgentGrant"
+        "revokeAgentGrant",
+        "agentOAuth",
+        "getAgentAuthRequest",
+        "consentAgentAuthRequest"
       ]
     }
   },
@@ -88,7 +91,7 @@
     "children": [
       {
         "type": "markdown",
-        "content": "**AI Agent Access** lets an AI assistant work inside this office, on the office own data, without any access to the database.\n\n- Each person issues **their own access**, in Organization → AI agents.\n- The access declares **which permissions it may use** and, if you want, **when it expires**.\n- An access can **never do more than the person who issued it**: lose a role, and every access of yours narrows on the next call.\n- Any access can be **revoked at any time**, and it stops working immediately.\n\nOnce connected, the assistant discovers the screens this office has and can search records, register them, change them, delete them, run a report and start an automation — each of those only when the access releases it."
+        "content": "**AI Agent Access** lets an AI assistant work inside this office, on the office own data, without any access to the database.\n\n- Each person gets **their own access**, and it is always **theirs**: it carries their name, their permissions and nobody else's.\n- The access declares **which permissions it may use** and, if you want, **when it expires**.\n- An access can **never do more than the person who holds it**: lose a role, and every access of yours narrows on the next call.\n- Any access can be **revoked at any time**, and it stops working immediately.\n\nThere are two ways to connect, and the office does not have to choose one — both work at the same time, and both end up in the same list.\n\n**Signing in.** The assistant asks only for the connection address. The person signs in with their own account, picks which permissions to allow, and that is it — no token is ever copied or pasted. Clients that can sign in, Claude on the web among them, should use this: it is what keeps one person's assistant from acting as another person.\n\n**A token.** For a client that cannot sign in, an access issued in Organization → AI agents produces a token to paste into it. The token is shown once and stored only as a fingerprint, so a lost one is replaced, never recovered.\n\nOnce connected, the assistant discovers the screens this office has and can search records, register them, change them, delete them, run a report and start an automation — each of those only when the access releases it."
       },
       {
         "type": "keyValue",
@@ -98,12 +101,16 @@
             "value": "MCP over HTTP — nothing to install on the machine"
           },
           {
-            "label": "Authentication",
-            "value": "An access token issued in the application, revocable"
+            "label": "Signing in",
+            "value": "OAuth 2.1, each person with their own account — no token to copy"
+          },
+          {
+            "label": "Or a token",
+            "value": "An access token issued in the application, revocable, shown once"
           },
           {
             "label": "Limit",
-            "value": "The permissions of the person who issued it, intersected with the ones the access declares"
+            "value": "The permissions of the person who holds it, intersected with the ones the access declares"
           }
         ]
       }

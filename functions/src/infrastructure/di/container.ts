@@ -16,6 +16,7 @@ import type { IFkNameEnricherService } from '../../domain/repositories/IFkNameEn
 import { FirebaseAIConnectionRepository } from '../../data/repositories/FirebaseAIConnectionRepository';
 import { FirebaseTenantMemberRepository } from '../../data/repositories/FirebaseTenantMemberRepository';
 import { FirebaseAgentGrantRepository } from '../../data/repositories/FirebaseAgentGrantRepository';
+import { FirebaseAgentAuthRequestRepository } from '../../data/repositories/FirebaseAgentAuthRequestRepository';
 import { FirebaseUserRepository } from '../../data/repositories/FirebaseUserRepository';
 import { FirebaseNicknameRepository } from '../../data/repositories/FirebaseNicknameRepository';
 import { FirebaseTenantRepository } from '../../data/repositories/FirebaseTenantRepository';
@@ -44,6 +45,7 @@ import type { ITenantRepository } from '../../domain/repositories/ITenantReposit
 import type { ITenantSettingsRepository } from '../../domain/repositories/ITenantSettingsRepository';
 import type { ITenantMemberRepository } from '../../domain/repositories/ITenantMemberRepository';
 import type { IAgentGrantRepository } from '../../domain/repositories/IAgentGrantRepository';
+import type { IAgentAuthRequestRepository } from '../../domain/repositories/IAgentAuthRequestRepository';
 import type { IUserRepository } from '../../domain/repositories/IUserRepository';
 import { FirebaseWorkflowDefinitionRepository } from '../../data/repositories/FirebaseWorkflowDefinitionRepository';
 import { FirebaseWorkflowExecutionRepository } from '../../data/repositories/FirebaseWorkflowExecutionRepository';
@@ -86,6 +88,8 @@ class DIContainer {
   private claimNicknameUC?: ClaimNicknameUseCase;
   private tenantMemberRepo?: ITenantMemberRepository;
   private agentGrantRepo?: IAgentGrantRepository;
+
+  private agentAuthRequestRepo?: IAgentAuthRequestRepository;
   private installedExtensionCache?: InstalledExtensionCache;
   private addTenantMemberUC?: AddTenantMemberUseCase;
   private removeTenantMemberUC?: RemoveTenantMemberUseCase;
@@ -215,6 +219,13 @@ class DIContainer {
       this.agentGrantRepo = new FirebaseAgentGrantRepository(getDb());
     }
     return this.agentGrantRepo;
+  }
+
+  getAgentAuthRequestRepository(): IAgentAuthRequestRepository {
+    if (!this.agentAuthRequestRepo) {
+      this.agentAuthRequestRepo = new FirebaseAgentAuthRequestRepository(getDb());
+    }
+    return this.agentAuthRequestRepo;
   }
 
   getAddTenantMemberUseCase(): AddTenantMemberUseCase {

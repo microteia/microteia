@@ -1,3 +1,4 @@
+import { httpFunctionEndpoint } from '../../domain/schema/agent/agentOAuth';
 import { initializeApp } from 'firebase/app';
 import type { FirebaseApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
@@ -87,10 +88,11 @@ export const functions: Functions = getFunctions(
  * Serve à tela que precisa MOSTRAR o endereço para alguém copiar — as callables não passam por aqui,
  * porque o SDK do Firebase monta a URL delas sozinho.
  */
-export const httpFunctionUrl = (name: string): string => {
-  const region = runtimeConfig.functionsRegion ?? DEFAULT_FUNCTIONS_REGION;
-  return `https://${region}-${runtimeConfig.projectId}.cloudfunctions.net/${name}`;
-};
+export const httpFunctionUrl = (name: string): string => httpFunctionEndpoint(
+  runtimeConfig.functionsRegion ?? DEFAULT_FUNCTIONS_REGION,
+  runtimeConfig.projectId ?? '',
+  name,
+);
 
 // if (import.meta.env.DEV) {
 //   connectFunctionsEmulator(functions, '127.0.0.1', 5001);

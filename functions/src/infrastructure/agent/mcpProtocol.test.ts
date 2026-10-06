@@ -21,8 +21,9 @@ import { AGENT_OPERATIONS, AGENT_RESOURCES, AGENT_TOOLS } from '../../domain/sch
  * deixa de ser encontrada. A URI é a mais frágil das duas, porque nada no cliente a valida.
  */
 describe('a superfície publicada', () => {
-  it('publica exatamente estas dez ferramentas, nesta ordem', () => {
+  it('publica exatamente estas onze ferramentas, nesta ordem', () => {
     expect(AGENT_TOOLS.map((tool) => tool.name)).toEqual([
+      'list_screens',
       'describe_screen',
       'search_records',
       'get_record',
@@ -60,8 +61,14 @@ describe('a superfície publicada', () => {
     }
   });
 
-  it('toda ferramenta recebe argumento — nenhuma é documento disfarçado', () => {
-    for (const tool of AGENT_TOOLS) {
+  // A regra original era "toda ferramenta recebe argumento — nenhuma é documento disfarçado", e ela
+  // pressupunha um cliente que busca recurso sozinho. Onde o cliente não busca, o recurso é material
+  // que a PESSOA anexa: o modelo nunca lê o mapa rótulo→coleção, e o escritório só responde a quem
+  // digita o nome técnico. `list_screens` é a exceção NOMEADA, não uma brecha — é o ponto de entrada
+  // sem o qual nenhuma das outras é alcançável, e é por isso que ela é a única que pode não receber
+  // nada. Uma segunda sem argumento é documento disfarçado, e este teste a reprova.
+  it('só o ponto de entrada não recebe argumento; toda outra ferramenta recebe', () => {
+    for (const tool of AGENT_TOOLS.filter((one) => one.name !== 'list_screens')) {
       const properties = (tool.inputSchema.properties ?? {}) as Record<string, unknown>;
       expect(Object.keys(properties).length, tool.name).toBeGreaterThan(0);
     }

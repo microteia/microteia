@@ -1,6 +1,7 @@
 import React from 'react';
 import { RiAddLine, RiFileCopyLine, RiRobot2Line, RiCloseCircleLine } from 'react-icons/ri';
-import { useAgentTabViewModel, AGENT_EXPIRY_CHOICES } from './AgentTab.viewmodel';
+import { useAgentTabViewModel } from './AgentTab.viewmodel';
+import { AGENT_EXPIRY_CHOICES } from '../../../shared/agentExpiry';
 import type { AgentGrantRow } from './AgentTab.viewmodel';
 import { S } from './AgentTab.styles.tsx';
 import { Button } from '../../../components/ui/Button';
@@ -83,6 +84,8 @@ export const AgentTabView: React.FC = () => {
                   {row.expiresAt !== null && ` · ${t('agent.meta.expires')} ${formatDate(row.expiresAt)}`}
                   {row.lastUsedAt !== null && ` · ${t('agent.meta.last-used')} ${formatDate(row.lastUsedAt)}`}
                   {row.lastUsedAt === null && row.state === 'active' && ` · ${t('agent.meta.never-used')}`}
+                  {row.signedInFrom !== null
+                    && ` · ${t('agent.meta.signed-in-as', { client: row.signedInFrom })}`}
                   {!row.isOwn && ` · ${t('agent.meta.of-another')}`}
                 </S.RowMeta>
               </S.RowMain>

@@ -39,6 +39,8 @@ import { WorkspaceShell } from './presentation/components/layout/WorkspaceShell'
 import { ExtensionStartupHost } from './presentation/shared/extensions/ExtensionStartupHost';
 import { FieldRulePresetBridge } from './presentation/shared/FieldRulePresetBridge';
 import { AppErrorBoundary } from './presentation/components/layout/AppErrorBoundary';
+import { OAuthConsentView } from './presentation/pages/OAuthConsent';
+import { OAUTH_CONSENT_PATH } from './domain/schema/agent/agentOAuth';
 
 const App: React.FC = () => {
   return (
@@ -86,7 +88,23 @@ const App: React.FC = () => {
                                                         <TenantThemeBridge />
                                                         <FieldRulePresetBridge />
                                                         <ExtensionStartupHost />
-                                                        <WorkspaceShell />
+                                                        <Routes>
+                                                          {/*
+                                                            O consentimento de OAuth é uma rota, e
+                                                            ela mora AQUI DENTRO de propósito: ela
+                                                            precisa do escritório corrente, do
+                                                            catálogo de permissões e das extensões
+                                                            instaladas — a mesma pilha que a aba de
+                                                            Agentes de IA consome. Montá-la ao lado
+                                                            do `/login` exigiria uma segunda pilha
+                                                            de providers, que divergiria desta.
+                                                          */}
+                                                          <Route
+                                                            path={OAUTH_CONSENT_PATH}
+                                                            element={<OAuthConsentView />}
+                                                          />
+                                                          <Route path="*" element={<WorkspaceShell />} />
+                                                        </Routes>
                                                       </TenantLocaleProvider>
                                                       </AuditLogAlertStoreProvider>
                                                       </AuthorizationStoreProvider>

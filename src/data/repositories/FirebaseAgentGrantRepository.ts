@@ -32,6 +32,12 @@ const mapGrant = (id: string, tenantId: string, data: Record<string, unknown>): 
   lastUsedAt: asDate(data.lastUsedAt),
   createdAt: asDate(data.createdAt) ?? new Date(),
   createdBy: typeof data.createdBy === 'string' ? data.createdBy : '',
+  // Ausente é `manual`: todo acesso gravado antes do OAuth existir veio da tela.
+  origin: data.origin === 'oauth' ? 'oauth' : 'manual',
+  accessExpiresAt: asDate(data.accessExpiresAt),
+  // Como o `secretHash`, o hash do refresh não desce: a tela não tem o que fazer com ele.
+  refreshHash: null,
+  clientId: typeof data.clientId === 'string' ? data.clientId : null,
 });
 
 export class FirebaseAgentGrantRepository implements IAgentGrantRepository {

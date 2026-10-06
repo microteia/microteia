@@ -46,7 +46,29 @@ export interface AgentGrant {
   lastUsedAt: Date | null;
   createdAt: Date;
   createdBy: string;
+  /**
+   * De onde o acesso veio: digitado na tela, ou consentido num fluxo de OAuth.
+   *
+   * Não muda nada em quem AUTENTICA — os dois caminhos produzem o mesmo token e passam pela mesma
+   * interseção. Muda o que a tela mostra, e muda o que o `/token` tem direito de rotacionar.
+   */
+  origin: AgentGrantOrigin;
+  /**
+   * Quando o SEGREDO atual morre — distinto de `expiresAt`, que é quando o CONSENTIMENTO morre.
+   *
+   * Conflatar os dois foi a primeira tentativa, e ela obrigava a escolher entre um access token de
+   * vida curta e um acesso que some da tela uma hora depois do último uso. São duas perguntas
+   * diferentes: "esta credencial ainda vale?" e "esta pessoa ainda autorizou?". `null` no caminho da
+   * tela, onde o token emitido não é rotacionado por ninguém.
+   */
+  accessExpiresAt: Date | null;
+  /** Hash do refresh token vigente. Rotacionado a cada uso, como a spec exige de cliente público. */
+  refreshHash: string | null;
+  /** A URL do documento de identidade do cliente OAuth, para a tela dizer QUEM está conectado. */
+  clientId: string | null;
 }
+
+export type AgentGrantOrigin = 'manual' | 'oauth';
 
 export interface ParsedAgentToken {
   tenantId: string;
@@ -70,11 +92,50 @@ const SECRET_PATTERN = new RegExp(`^[A-Za-z0-9_-]{${AGENT_SECRET_LENGTH}}$`);
  * Não é vazamento: quem tem o token é o dono dele, e ele já sabe de que escritório é. É o mesmo
  * arranjo de um token de Slack, que carrega o time, ou de uma chave de Stripe, que carrega o modo.
  */
-export const buildAgentToken = (parsed: ParsedAgentToken): string | null => {
-  if (!SEGMENT_PATTERN.test(parsed.tenantId)) return null;
-  if (!SEGMENT_PATTERN.test(parsed.grantId)) return null;
+export const buildAgentToken = (parsed: ParsedAgentToken): string | null =>
+  buildTripleToken(AGENT_TOKEN_PREFIX, {
+    scope: parsed.tenantId,
+    id: parsed.grantId,
+    secret: parsed.secret,
+  });
+
+/**
+ * A forma `<prefixo><escopo>.<id>.<segredo>`, sem saber o que ela credencia.
+ *
+ * Existe generalizada porque o OAuth precisa da MESMA forma para o refresh token e para o código de
+ * autorização, e a regra que ela carrega — o ponto é separador, então nenhum segmento pode contê-lo —
+ * é exatamente a que não pode ser reescrita de memória num segundo lugar. Um parse ambíguo de
+ * credencial é o caminho para dois valores diferentes casarem com o mesmo registro.
+ */
+export interface TripleToken {
+  /** O que delimita a busca — o escritório, em todos os usos de hoje. */
+  scope: string;
+  /** O documento que o segredo credencia. */
+  id: string;
+  secret: string;
+}
+
+export const buildTripleToken = (prefix: string, parsed: TripleToken): string | null => {
+  if (!SEGMENT_PATTERN.test(parsed.scope)) return null;
+  if (!SEGMENT_PATTERN.test(parsed.id)) return null;
   if (!SECRET_PATTERN.test(parsed.secret)) return null;
-  return `${AGENT_TOKEN_PREFIX}${parsed.tenantId}.${parsed.grantId}.${parsed.secret}`;
+  return `${prefix}${parsed.scope}.${parsed.id}.${parsed.secret}`;
+};
+
+export const parseTripleToken = (prefix: string, raw: unknown): TripleToken | null => {
+  if (typeof raw !== 'string') return null;
+  const trimmed = raw.trim();
+  if (!trimmed.startsWith(prefix)) return null;
+
+  const parts = trimmed.slice(prefix.length).split('.');
+  if (parts.length !== 3) return null;
+
+  const [scope, id, secret] = parts;
+  if (!SEGMENT_PATTERN.test(scope)) return null;
+  if (!SEGMENT_PATTERN.test(id)) return null;
+  if (!SECRET_PATTERN.test(secret)) return null;
+
+  return { scope, id, secret };
 };
 
 /**
@@ -82,19 +143,10 @@ export const buildAgentToken = (parsed: ParsedAgentToken): string | null => {
  * como "então procure de outro jeito".
  */
 export const parseAgentToken = (raw: unknown): ParsedAgentToken | null => {
-  if (typeof raw !== 'string') return null;
-  const trimmed = raw.trim();
-  if (!trimmed.startsWith(AGENT_TOKEN_PREFIX)) return null;
-
-  const parts = trimmed.slice(AGENT_TOKEN_PREFIX.length).split('.');
-  if (parts.length !== 3) return null;
-
-  const [tenantId, grantId, secret] = parts;
-  if (!SEGMENT_PATTERN.test(tenantId)) return null;
-  if (!SEGMENT_PATTERN.test(grantId)) return null;
-  if (!SECRET_PATTERN.test(secret)) return null;
-
-  return { tenantId, grantId, secret };
+  const triple = parseTripleToken(AGENT_TOKEN_PREFIX, raw);
+  return triple === null
+    ? null
+    : { tenantId: triple.scope, grantId: triple.id, secret: triple.secret };
 };
 
 /**
@@ -141,11 +193,17 @@ export const secretHashMatches = (expected: string, actual: string): boolean => 
 export type AgentGrantRefusal = 'revoked' | 'expired';
 
 export const grantRefusal = (
-  grant: Pick<AgentGrant, 'revokedAt' | 'expiresAt'>,
+  grant: Pick<AgentGrant, 'revokedAt' | 'expiresAt'> & Partial<Pick<AgentGrant, 'accessExpiresAt'>>,
   now: Date,
 ): AgentGrantRefusal | null => {
   if (grant.revokedAt !== null) return 'revoked';
   if (grant.expiresAt !== null && grant.expiresAt.getTime() <= now.getTime()) return 'expired';
+  // O segredo vencido responde `expired` — o MESMO motivo, e de propósito. Para quem apresentou o
+  // token a diferença não existe: nos dois casos a saída é obter outro, e o 401 é o que faz um
+  // cliente de OAuth ir renovar em vez de desistir. Separá-los só acrescentaria um estado que
+  // ninguém trata diferente.
+  const accessExpiresAt = grant.accessExpiresAt ?? null;
+  if (accessExpiresAt !== null && accessExpiresAt.getTime() <= now.getTime()) return 'expired';
   return null;
 };
 

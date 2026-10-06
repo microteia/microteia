@@ -11,8 +11,16 @@ export const AGENT_MCP_FUNCTION = 'agentMcp';
 export const AGENT_CREATE_GRANT_FUNCTION = 'createAgentGrant';
 export const AGENT_REVOKE_GRANT_FUNCTION = 'revokeAgentGrant';
 
+/** O servidor de autorização: metadados, `/authorize` e `/token`, numa function só. */
+export const AGENT_OAUTH_FUNCTION = 'agentOAuth';
+export const AGENT_OAUTH_REQUEST_FUNCTION = 'getAgentAuthRequest';
+export const AGENT_OAUTH_CONSENT_FUNCTION = 'consentAgentAuthRequest';
+
 export const AGENT_BACKEND_FUNCTIONS: readonly string[] = [
   AGENT_MCP_FUNCTION,
   AGENT_CREATE_GRANT_FUNCTION,
   AGENT_REVOKE_GRANT_FUNCTION,
+  AGENT_OAUTH_FUNCTION,
+  AGENT_OAUTH_REQUEST_FUNCTION,
+  AGENT_OAUTH_CONSENT_FUNCTION,
 ];

@@ -590,5 +590,17 @@ service cloud.firestore {
       allow delete: if isSystemAdmin();
     }
 
+    // ─── Pedidos de autorização de OAuth ───────────────────────────────────────
+    // FECHADA para todo cliente, nas duas direções, e esta é a regra inteira.
+    //
+    // De raiz e não dentro de `tenants` porque, quando o documento nasce, ainda não há escritório:
+    // quem chega é um navegador anônimo vindo do `/authorize`, e escolher o escritório é parte do
+    // consentimento. Fechá-la não é excesso — o documento guarda o hash do código de autorização, e
+    // quem lê o hash não tem o código, mas quem ESCREVE escolhe qual código vale. O navegador chega
+    // ao que precisa por callable, filtrado, e nunca ao `codeHash`.
+    match /agentAuthRequests/{requestId} {
+      allow read, write: if false;
+    }
+
   }
 }

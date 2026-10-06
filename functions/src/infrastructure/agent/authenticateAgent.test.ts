@@ -26,6 +26,10 @@ const acesso = async (sobrepondo: Partial<AgentGrant> = {}): Promise<AgentGrant>
   lastUsedAt: null,
   createdAt: new Date('2026-09-01T00:00:00Z'),
   createdBy: 'membro1',
+  origin: 'manual',
+  accessExpiresAt: null,
+  refreshHash: null,
+  clientId: null,
   ...sobrepondo,
 });
 

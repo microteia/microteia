@@ -19,6 +19,7 @@ import type { CrudAction } from '../access/permission';
  * o que ele descobre sozinho por `describe_screen`.
  */
 export const AGENT_OPERATIONS = [
+  'list_screens',
   'describe_screen',
   'search_records',
   'get_record',
@@ -73,7 +74,7 @@ const object = (
 
 const COLLECTION = {
   type: 'string',
-  description: 'Collection name, as listed in the microteia://office/screens resource.',
+  description: 'Collection name, exactly as list_screens returns it — never the screen label.',
 };
 
 const RECORD_ID = { type: 'string', description: 'The record id.' };
@@ -130,8 +131,29 @@ const DATA = {
  * `describe_screen` é o que dispensa uma ferramenta por entidade: ele devolve os campos, os tipos, os
  * obrigatórios, as chaves e as opções daquela tela, e a partir dele as sete operações genéricas
  * bastam para qualquer coleção que o escritório tenha instalado ou criado.
+ *
+ * `list_screens` é o que faz as outras serem alcançáveis, e é a única sem argumento. O mapa
+ * rótulo→coleção nasceu só como o recurso `microteia://office/screens`, pela regra de que leitura
+ * pura é recurso — e a regra pressupunha um cliente que busca recurso sozinho. Nem todo cliente é:
+ * onde o recurso é material que a PESSOA anexa, o modelo nunca vê o mapa, e o escritório só responde
+ * a quem digita o nome técnico da coleção. Um escritório que só atende por `persons` quando a tela
+ * se chama Pessoas é um escritório que não foi encontrado.
  */
 export const AGENT_TOOLS: readonly AgentToolDefinition[] = [
+  {
+    name: 'list_screens',
+    description:
+      'Every screen this access can reach, with its collection name, its label and the operations '
+      + 'allowed on it. Call this first: the collection name behind a label is given nowhere else, '
+      + 'and every other tool takes that name as an argument. Screens this access cannot reach are '
+      + 'absent from the list rather than listed as denied.',
+    inputSchema: object({}, []),
+    // `delegated` e não uma permissão fixa: `officeScreens` já devolve só o que o acesso alcança, e
+    // uma permissão a mais para LISTAR obrigaria quem emite um acesso estreito a concedê-la só para
+    // o agente descobrir as duas telas que ele pode ler.
+    permission: { kind: 'delegated' },
+    writes: false,
+  },
   {
     name: 'describe_screen',
     description:
@@ -268,6 +290,12 @@ export const AGENT_TOOLS: readonly AgentToolDefinition[] = [
  * A distinção é a mesma que o MCP de autoria carimba em teste: *recebe argumento ou muda alguma
  * coisa, é ferramenta; devolve um documento, é recurso*. Ela não é decorativa — toda ferramenta é
  * contexto que o agente carrega em toda sessão, e estas quatro respostas não têm argumento nenhum.
+ *
+ * `office/screens` é a ÚNICA que também é ferramenta, e a duplicação é deliberada: ela é o ponto de
+ * entrada para as outras, e um cliente que não busca recurso sozinho fica sem nenhuma se ela não for
+ * alcançável por `tools/call`. As outras três não têm esse papel — quem não as lê perde contexto,
+ * não perde o caminho. Remover a URI não é opção: URI de recurso é contrato com quem já configurou o
+ * servidor, e nada no cliente valida uma que sumiu.
  */
 export const AGENT_RESOURCES = [
   {
@@ -282,7 +310,8 @@ export const AGENT_RESOURCES = [
     name: 'Screens',
     description:
       'Every screen this access can reach, with its collection name and which operations are allowed '
-      + 'on it. Field schemas come from describe_screen.',
+      + 'on it. Field schemas come from describe_screen. This is the same answer the list_screens '
+      + 'tool gives, for clients that read resources.',
   },
   {
     uri: 'microteia://office/reports',

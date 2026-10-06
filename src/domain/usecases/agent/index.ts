@@ -4,6 +4,11 @@ import type {
   IssuedAgentGrant,
 } from '../../repositories/IAgentGrantRepository';
 import type { AgentGrant } from '../../schema/agent/agentGrant';
+import type {
+  AgentAuthRequestView,
+  AgentConsentInput,
+  IAgentAuthRequestRepository,
+} from '../../repositories/IAgentAuthRequestRepository';
 
 export type SubscribeToAgentGrantsUseCase = {
   execute: (
@@ -37,4 +42,24 @@ export const makeRevokeAgentGrantUseCase = (
   repo: IAgentGrantRepository,
 ): RevokeAgentGrantUseCase => ({
   execute: (tenantId, grantId) => repo.revoke(tenantId, grantId),
+});
+
+export type GetAgentAuthRequestUseCase = {
+  execute: (requestId: string) => Promise<AgentAuthRequestView>;
+};
+
+export const makeGetAgentAuthRequestUseCase = (
+  repo: IAgentAuthRequestRepository,
+): GetAgentAuthRequestUseCase => ({
+  execute: (requestId) => repo.get(requestId),
+});
+
+export type ConsentAgentAuthRequestUseCase = {
+  execute: (input: AgentConsentInput) => Promise<string>;
+};
+
+export const makeConsentAgentAuthRequestUseCase = (
+  repo: IAgentAuthRequestRepository,
+): ConsentAgentAuthRequestUseCase => ({
+  execute: (input) => repo.consent(input),
 });

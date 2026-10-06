@@ -49,8 +49,11 @@ export const CORE_ACCESS_MESSAGES: Record<string, string> = {
     + 'endpoint is not in the air. Whoever administers the project has to run "microteia provision".',
   'agent.endpoint.label': 'Connection address',
   'agent.endpoint.hint':
-    'This is the address the AI client connects to. The access token goes in the Authorization '
-    + 'header, and you get it when you issue an access.',
+    'This is the address the AI client connects to. Clients that can sign in — Claude on the web '
+    + 'among them — ask only for this address, and each person signs in with their own account. A '
+    + 'client that takes a fixed token instead sends it in the Authorization header, and you get '
+    + 'that token when you issue an access below.',
+  'agent.meta.signed-in-as': 'signed in from {client}',
   'agent.empty': 'No access issued yet.',
   'agent.action.issue': 'Issue access',
   'agent.action.revoke': 'Revoke',
@@ -104,6 +107,25 @@ export const CORE_ACCESS_MESSAGES: Record<string, string> = {
   'agent.permissions.unrestricted':
     'An access cannot be granted everything: list the permissions it may use, so they can be reviewed later.',
   'agent.token.failed': 'The access could not be issued. Try again.',
+  'agent.oauth.title': 'Authorize {client}',
+  'agent.oauth.intro':
+    '{client} is asking to work inside {tenant} on your behalf. It will be able to do only what you '
+    + 'allow below, and never more than you can do yourself.',
+  'agent.oauth.returns-to': 'It returns to {host} when you are done.',
+  'agent.oauth.loopback':
+    'This client runs on your own computer. Any program on this machine could claim to be it, so '
+    + 'only continue if you started the connection yourself.',
+  'agent.oauth.tenant': 'Organization',
+  'agent.oauth.tenant.hint':
+    'The access is for this organization only. Switch organizations first if you meant another one.',
+  'agent.oauth.allow': 'Authorize',
+  'agent.oauth.deny': 'Cancel',
+  'agent.oauth.working': 'Authorizing...',
+  'agent.oauth.denied': 'Authorization cancelled. You can close this page.',
+  'agent.oauth.request.missing': 'This page was opened without an authorization request.',
+  'agent.oauth.request.unknown': 'This authorization request no longer exists. Start again from the client.',
+  'agent.oauth.request.expired': 'This authorization request has expired. Start again from the client.',
+  'agent.oauth.request.used': 'This authorization request has already been answered.',
   'permission.agent.manage': 'Manage AI agent access',
   'permission.agent.manage.description':
     'See and revoke the AI agent access of every member. Issuing an access for oneself does not need this.',

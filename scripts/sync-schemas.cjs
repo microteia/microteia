@@ -78,6 +78,7 @@ const SHARED_FILES = [
   'domain/schema/access/index.ts',
   'domain/schema/agent/agentBackend.ts',
   'domain/schema/agent/agentGrant.ts',
+  'domain/schema/agent/agentOAuth.ts',
   'domain/schema/agent/agentOps.ts',
   'domain/schema/agent/index.ts',
   'domain/schema/report/reportSpec.ts',

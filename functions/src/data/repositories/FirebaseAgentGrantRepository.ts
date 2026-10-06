@@ -1,7 +1,11 @@
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 import type { Firestore } from 'firebase-admin/firestore';
-import type { IAgentGrantRepository, NewAgentGrant } from '../../domain/repositories/IAgentGrantRepository';
-import type { AgentGrant } from '../../domain/schema/agent/agentGrant';
+import type {
+  IAgentGrantRepository,
+  NewAgentGrant,
+  RotatedAgentGrant,
+} from '../../domain/repositories/IAgentGrantRepository';
+import type { AgentGrant, AgentGrantOrigin } from '../../domain/schema/agent/agentGrant';
 import { AGENT_GRANTS_COLLECTION } from '../../domain/schema/agent/agentGrant';
 
 const asDate = (value: unknown): Date | null =>
@@ -37,6 +41,12 @@ export class FirebaseAgentGrantRepository implements IAgentGrantRepository {
       lastUsedAt: asDate(data.lastUsedAt),
       createdAt: asDate(data.createdAt) ?? new Date(0),
       createdBy: typeof data.createdBy === 'string' ? data.createdBy : '',
+      // Ausente é `manual`: todo acesso gravado antes do OAuth existir é da tela, e lê-los como
+      // `oauth` daria ao `/token` o direito de rotacionar um segredo que ninguém pode renovar.
+      origin: data.origin === 'oauth' ? ('oauth' as AgentGrantOrigin) : ('manual' as AgentGrantOrigin),
+      accessExpiresAt: asDate(data.accessExpiresAt),
+      refreshHash: typeof data.refreshHash === 'string' ? data.refreshHash : null,
+      clientId: typeof data.clientId === 'string' ? data.clientId : null,
     };
   }
 
@@ -52,6 +62,10 @@ export class FirebaseAgentGrantRepository implements IAgentGrantRepository {
       lastUsedAt: null,
       createdAt: FieldValue.serverTimestamp(),
       createdBy: grant.createdBy,
+      origin: grant.origin ?? 'manual',
+      accessExpiresAt: grant.accessExpiresAt ? Timestamp.fromDate(grant.accessExpiresAt) : null,
+      refreshHash: grant.refreshHash ?? null,
+      clientId: grant.clientId ?? null,
     });
     return reference.id;
   }
@@ -71,5 +85,38 @@ export class FirebaseAgentGrantRepository implements IAgentGrantRepository {
 
   async touchLastUsed(tenantId: string, grantId: string): Promise<void> {
     await this.grants(tenantId).doc(grantId).update({ lastUsedAt: FieldValue.serverTimestamp() });
+  }
+
+  /**
+   * A troca acontece dentro de uma TRANSAÇÃO, e a condição é lida lá dentro.
+   *
+   * Conferir o hash antes e escrever depois deixaria a janela em que dois refreshes simultâneos — o
+   * legítimo e o de quem copiou o token — passam os dois. A transação é o que faz o segundo perder.
+   */
+  async rotate(
+    tenantId: string,
+    grantId: string,
+    expectedRefreshHash: string | null,
+    next: RotatedAgentGrant,
+  ): Promise<boolean> {
+    const reference = this.grants(tenantId).doc(grantId);
+    return this.db.runTransaction(async (transaction) => {
+      const snapshot = await transaction.get(reference);
+      if (!snapshot.exists) return false;
+
+      const data = snapshot.data() ?? {};
+      // Normalizado dos dois lados: o acesso recém-consentido ainda não tem refresh, e `null` tem de
+      // casar com `null` — a primeira troca é justamente a que estreia o par.
+      const current = typeof data.refreshHash === 'string' ? data.refreshHash : null;
+      if (current !== (expectedRefreshHash ?? null)) return false;
+      if (asDate(data.revokedAt) !== null) return false;
+
+      transaction.update(reference, {
+        secretHash: next.secretHash,
+        refreshHash: next.refreshHash,
+        accessExpiresAt: Timestamp.fromDate(next.accessExpiresAt),
+      });
+      return true;
+    });
   }
 }

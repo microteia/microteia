@@ -13,7 +13,7 @@ export interface AgentRun {
  * O `actor` carrega as permissões EFETIVAS — a interseção —, e não as do usuário. É a diferença que
  * decide um vazamento: `hasPermission(...)` dentro de um filtro por expressão de relatório, ou dentro
  * de um Script, é respondido a partir daqui. Passar o conjunto do usuário faria o teto declarado no
- * token valer para as dez ferramentas e não valer para a expressão dentro de uma delas.
+ * token valer para as ferramentas e não valer para a expressão dentro de uma delas.
  */
 export const agentRun = (session: AgentSession, operation: string): AgentRun => {
   const logs: AgentRun['logs'] = [];

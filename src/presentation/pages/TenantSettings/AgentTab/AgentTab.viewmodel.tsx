@@ -19,23 +19,9 @@ import {
 } from '../../../../domain/usecases/agent';
 import { errorParamsOf } from '../../../../domain/errors/LocalizedError';
 import { useLabel, useT } from '../../../shared/i18n/useT';
+import type { AgentPermissionChoice } from '../../../shared/agentExpiry';
+import { AGENT_DEFAULT_EXPIRY_DAYS } from '../../../shared/agentExpiry';
 
-/** As validades oferecidas. Chave de catálogo no rótulo, dias no valor. */
-export const AGENT_EXPIRY_CHOICES: { days: number | null; labelKey: string }[] = [
-  { days: 30, labelKey: 'agent.expiry.30' },
-  { days: 90, labelKey: 'agent.expiry.90' },
-  { days: 365, labelKey: 'agent.expiry.365' },
-  { days: null, labelKey: 'agent.expiry.never' },
-];
-
-const DEFAULT_EXPIRY_DAYS = 90;
-
-/** Uma permissão oferecível: o id, o rótulo já resolvido, e o recurso a que ela pertence. */
-export interface AgentPermissionChoice {
-  id: string;
-  label: string;
-  resource: string;
-}
 
 /** Um acesso como a lista o apresenta — o estado já decidido, não os três campos crus. */
 export interface AgentGrantRow {
@@ -44,6 +30,13 @@ export interface AgentGrantRow {
   permissions: string[];
   state: 'active' | 'revoked' | 'expired';
   isOwn: boolean;
+  /**
+   * O cliente que entrou por OAuth, ou `null` no acesso emitido na tela.
+   *
+   * A lista mistura os dois caminhos de propósito — revogar é o mesmo gesto para os dois —, e é
+   * esta linha que diz qual é qual a quem precisa decidir se reconhece o acesso.
+   */
+  signedInFrom: string | null;
   expiresAt: Date | null;
   lastUsedAt: Date | null;
   createdAt: Date;
@@ -107,7 +100,7 @@ export const useAgentTabViewModel = (): AgentTabViewModel => {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [name, setName] = useState('');
   const [selectedPermissions, setSelectedPermissions] = useState<string[]>([]);
-  const [expiryDays, setExpiryDays] = useState<number | null>(DEFAULT_EXPIRY_DAYS);
+  const [expiryDays, setExpiryDays] = useState<number | null>(AGENT_DEFAULT_EXPIRY_DAYS);
   const [isIssuing, setIsIssuing] = useState(false);
   const [issuedToken, setIssuedToken] = useState<string | null>(null);
   const [revoking, setRevoking] = useState<AgentGrantRow | null>(null);
@@ -157,6 +150,7 @@ export const useAgentTabViewModel = (): AgentTabViewModel => {
       // servidor não podem discordar sobre o que é um acesso expirado.
       state: grantRefusal(grant, new Date()) ?? 'active',
       isOwn: grant.userId === user?.id,
+      signedInFrom: grant.origin === 'oauth' ? grant.name : null,
       expiresAt: grant.expiresAt,
       lastUsedAt: grant.lastUsedAt,
       createdAt: grant.createdAt,
@@ -198,7 +192,7 @@ export const useAgentTabViewModel = (): AgentTabViewModel => {
   const openForm = useCallback(() => {
     setName('');
     setSelectedPermissions([]);
-    setExpiryDays(DEFAULT_EXPIRY_DAYS);
+    setExpiryDays(AGENT_DEFAULT_EXPIRY_DAYS);
     setIsFormOpen(true);
   }, []);
 

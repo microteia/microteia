@@ -6545,13 +6545,31 @@ O caminho natural seria uma API por extensão instalada. Ele é impossível aqui
 de negócio seria o defeito que este projeto existe para não ter.
 
 A saída não é "uma API flexível o bastante". É que a superfície **não tem nome de negócio nenhum**:
-dez ferramentas genéricas em que a coleção é ARGUMENTO, mais a descoberta de esquema que diz ao
+onze ferramentas genéricas em que a coleção é ARGUMENTO, mais a descoberta de esquema que diz ao
 agente o que existe naquele escritório. `search_records(collection, …)`, nunca `search_processo`. É
 exatamente a propriedade que `FirebaseRecordRepository` e `RecordStore` já têm — recebem a coleção
 como argumento e servem qualquer uma — levada até a superfície de ferramentas.
 
 Isso também mantém o custo de contexto CONSTANTE: a lista de ferramentas não cresce com cada extensão
 instalada, e `describe_screen` é o que dispensa uma ferramenta por entidade.
+
+#### O ponto de entrada é ferramenta, e é a única sem argumento
+
+A coleção ser argumento tem um preço que só aparece no cliente: **o agente precisa descobrir em algum
+lugar que a tela "Pessoas" é a coleção `persons`.** Esse mapa nasceu só como o recurso
+`microteia://office/screens`, pela regra de que leitura pura é recurso — e a regra pressupõe um
+cliente que vá buscar recurso sozinho.
+
+Nem todo cliente vai. Onde o recurso é material que a PESSOA anexa à conversa, e não algo que o
+modelo busca, o mapa nunca chega ao modelo: o escritório passa a responder a `persons` e a ignorar
+Pessoas. Foi o que aconteceu ao conectar o mesmo servidor por dois clientes diferentes — num deles o
+rótulo funcionava, no outro só o nome técnico.
+
+Por isso `list_screens` existe como FERRAMENTA, servindo o mesmo `officeScreens()` do recurso. As
+duas pontas ficam: tirar a URI quebraria a configuração de quem já a usa, e nada no cliente valida
+uma URI que sumiu. É a única ferramenta sem argumento, e `mcpProtocol.test.ts` a nomeia como exceção
+em vez de afrouxar a regra — uma segunda sem argumento continua sendo documento disfarçado, e
+continua reprovada.
 
 ### O gateway é ADAPTADOR, não motor
 
@@ -6567,7 +6585,7 @@ dito duas vezes:
 | `run_report` | `runReportQuery`, com `reportSourceCollections` para enumerar o que ele alcança |
 | `run_workflow` | `publishEvent` — PUBLICA, não executa |
 | `run_action` | `RunCalledWorkflowUseCase` |
-| esquema | `ScreenDefinitionCache.getSchemaContext` |
+| `list_screens` / `describe_screen` | `officeScreens` e `describeScreen`, sobre `ScreenDefinitionCache.getSchemaContext` |
 
 `runAgentOperation.ts` tem uma ordem só, e ela é o que o mantém adaptador: resolver a ferramenta,
 cobrar a permissão declarada, traduzir o argumento para a forma do executor, delegar, resolver a
@@ -6728,7 +6746,7 @@ no registro de auditoria, não um valor enfiado no campo de autor de um document
 | | Onde | Por quê |
 |---|---|---|
 | Coleção `agentGrants`, permissão `agent.manage`, as três callables, a aba | **kernel** | coleção reservada, callables que validam contra o catálogo do escritório, e uma tela que precisa desse catálogo — a mesma divisão de `aiConnections`/`ai.manage` |
-| A DECISÃO de ter o recurso | **extensão** `com.microteia.agent` | `manifest.backend.functions` tira as três da baseline do pacote: escritório que não instalou não tem endpoint HTTP no ar, que é garantia mais forte que qualquer checagem em tempo de requisição |
+| A DECISÃO de ter o recurso | **extensão** `com.microteia.agent` | `manifest.backend.functions` tira as seis da baseline do pacote: escritório que não instalou não tem endpoint HTTP no ar, que é garantia mais forte que qualquer checagem em tempo de requisição |
 
 A extensão carrega quase nada — um interruptor de configuração (`agent.selfServiceGrants`) e a
 reivindicação de backend — e é justamente esse o ponto dela. Ela é também a primeira extensão de
@@ -6753,19 +6771,119 @@ O `isMember` não é redundante com o resto: sem ele, quem SAIU do escritório c
 que emitiu enquanto era membro, porque o `userId` do documento ainda casa com o uid dele. Seria o
 único documento do produto a responder a ex-membro.
 
+### Entrar com a própria conta — o OAuth do escritório
+
+O token de cabeçalho resolve o cliente que roda na máquina de quem o emitiu. Ele não resolve o
+cliente hospedado: num claude.ai da vida, a credencial fixa é da ORGANIZAÇÃO lá, compartilhada por
+todos os membros dela — e como a permissão efetiva é a interseção com quem emitiu, todos agem como
+aquela pessoa. É o oposto do modelo de permissão do produto, onde cada um responde pelo que faz.
+
+O OAuth troca isso por "cada um entra com a própria conta", e ele cabe no que já existia:
+
+| Peça do OAuth | O que ela É aqui |
+|---|---|
+| servidor de autorização | o próprio app, que já faz login pelo Firebase Auth |
+| tela de consentimento | uma rota do app, com o seletor de permissões da aba de Agentes de IA |
+| emissão do token | `issueAgentGrant` — a MESMA de sempre, com outra tela na frente |
+| access token | o `mt_<tenant>.<grant>.<segredo>` de sempre, com o segredo rotacionado |
+| revogação | `revokeAgentGrant`, na mesma lista — os dois caminhos convivem numa tela só |
+
+`authenticateAgent` **não muda uma linha**. É a propriedade que organiza o resto: não há um segundo
+formato de token, um segundo caminho de autenticação nem um segundo modelo de autorização.
+
+#### Duas origens, e por que elas moram em origens diferentes
+
+O endpoint MCP continua em `cloudfunctions.net`, e o servidor de autorização sai do Hosting
+(`<projectId>.web.app`). Não é acidente nem transição: o `/authorize` tem de ser uma PÁGINA, com o
+login do escritório, e página é o que o Hosting serve. A spec permite explicitamente que o servidor
+de autorização esteja em outro host — e é isso que dispensa mover o endpoint MCP, que quebraria a
+configuração de quem já conectou por cabeçalho.
+
+O que amarra as duas pontas é o `WWW-Authenticate` do 401:
+
+```
+WWW-Authenticate: Bearer resource_metadata="https://<projectId>.web.app/.well-known/oauth-protected-resource"
+```
+
+Sem ele o cliente procuraria os `/.well-known` na origem do endpoint, que é a do Cloud Functions e
+não serve caminho na raiz — e o sintoma seria "não consegui alcançar o servidor", sem nada nos logs.
+O cabeçalho só vale num 401: num 200 o cliente o ignora.
+
+Os quatro caminhos do Hosting são reescritos para uma function só (`agentOAuth`), e os nomes deles
+são constantes compartilhadas em vez de strings repetidas no `firebase.json`: os metadados ANUNCIAM
+os endereços que a própria function serve, e duas listas separadas divergiriam calado.
+
+#### O que o cliente da Anthropic exige além da spec
+
+Cada um destes já custou a alguém um "couldn't reach the MCP server" sem pista:
+
+| Exigência | O que acontece sem ela |
+|---|---|
+| `client_id_metadata_document_supported` **e** `"none"` em `token_endpoint_auth_methods_supported` | o cliente cai para registro dinâmico, que não existe aqui, e a conexão falha |
+| só a PRIMEIRA entrada de `authorization_servers` é lida | as demais são decoração |
+| `resource` igual à URL digitada, path incluído | a comparação é literal, e falha sem explicar |
+| `/token` aceitando `application/x-www-form-urlencoded` | `415` em todo refresh: funciona uma hora e morre |
+| `invalid_grant` (e não `invalid_request`) no refresh inválido | o cliente repete o mesmo refresh para sempre |
+| loopback casando ignorando a PORTA | o cliente de terminal, que escuta em porta efêmera, nunca conecta |
+
+#### As três decisões que sustentam a segurança
+
+**O código de autorização aponta para o PEDIDO, não para o acesso.** É o pedido que guarda o desafio
+de PKCE, o redirecionamento e o "já foi usado"; o acesso só aparece depois dele.
+`authorizationCodeRefusal` reúne a decisão inteira numa função pura, com a ordem das recusas
+carimbada em teste — o mesmo arranjo de `authenticateAgent`, e pelo mesmo motivo: uma decisão de
+segurança escrita ao longo de um if-chain de trinta linhas é uma que ninguém audita de uma vez.
+
+**O par de segredos roda junto, e por transação.** Dois usos do mesmo refresh token significam que
+alguém tem uma cópia, e o segundo tem de falhar — conferir antes e escrever depois deixa a janela em
+que os dois passam. Pela mesma razão o código é GASTO antes de qualquer token ser emitido.
+
+**`accessExpiresAt` é distinto de `expiresAt`.** A primeira tentativa conflatou os dois, e ela
+obrigava a escolher entre um access token de vida curta e um acesso que some da tela uma hora depois
+do último uso. São duas perguntas: "esta credencial ainda vale?" e "esta pessoa ainda autorizou?". O
+acesso vindo da tela tem `accessExpiresAt` nulo, porque ninguém rotaciona o token dele.
+
+#### Os dois caminhos convivem, e terminam na mesma lista
+
+O escritório não escolhe entre token e login: os dois funcionam ao mesmo tempo, e o acesso nascido de
+qualquer um dos dois aparece na mesma aba, com o mesmo botão de revogar. É a consequência de o
+consentimento ser uma emissão de acesso como outra qualquer — e é o que permite um escritório mover-se
+de um para o outro sem migração nenhuma.
+
+O que muda entre eles é de QUEM é a credencial. O token é de quem o emitiu, e um cliente hospedado o
+compartilha entre todos os membros da organização dele — todos agindo com as permissões de uma pessoa
+só. O login é de cada um. Onde o cliente sabe entrar, é o login que preserva o modelo de permissão do
+produto; onde não sabe, o token continua sendo a saída honesta.
+
+> **As três functions do OAuth são públicas por natureza**, e isso não é descuido: um cliente de OAuth
+> não tem conta no projeto do escritório — é exatamente isso que ele vem resolver. Elas entram no mesmo
+> passo `functions-invoker` que o `agentMcp` já exigia, e o `deploy` do Console imprime a lista exata.
+> O que as protege não é a invocação fechada: é o portão da extensão, o PKCE, o documento de identidade
+> do cliente e o consentimento de uma pessoa que entrou.
+
+> **A coleção `agentAuthRequests` é de RAIZ, e fechada para todo cliente.** De raiz porque, quando o
+> pedido nasce, ainda não há escritório — escolhê-lo é parte do consentimento. Fechada porque quem
+> escreve nela escolhe qual código de autorização vale, e um código escolhido é um acesso que
+> ninguém autorizou. `rules-tests/agentAuthRequests.test.ts` cobra isso inclusive do SYSTEM.
+
 ### Arquivos-chave
 
 | Arquivo | O que é |
 |---|---|
 | `domain/schema/agent/agentGrant.ts` | formato do token, hash, validade, a INTERSEÇÃO (sincronizado) |
-| `domain/schema/agent/agentOps.ts` | as dez ferramentas, os quatro recursos, e a regra de cobrança de cada uma |
-| `domain/schema/agent/agentBackend.ts` | os nomes das três functions — contrato entre `index.ts`, o manifest e o portão |
+| `domain/schema/agent/agentOps.ts` | as onze ferramentas, os quatro recursos, e a regra de cobrança de cada uma |
+| `domain/schema/agent/agentOAuth.ts` | metadados, PKCE, redirecionamento, e a recusa da troca de código (sincronizado) |
+| `domain/schema/agent/agentBackend.ts` | os nomes das seis functions — contrato entre `index.ts`, o manifest e o portão |
 | `functions/src/infrastructure/agent/authenticateAgent.ts` | token → sessão, com a ordem das recusas |
 | `functions/src/infrastructure/agent/runAgentOperation.ts` | o despacho |
 | `functions/src/infrastructure/agent/agentAuthorization.ts` | qual permissão cada chamada cobra |
 | `functions/src/infrastructure/agent/describeScreen.ts` | a tela como esquema legível por agente |
 | `functions/src/infrastructure/agent/agentMessages.ts` | a resolução de referência do lado que a emite |
-| `functions/src/infrastructure/handlers/agentMcp.ts` | o transporte HTTP |
+| `functions/src/infrastructure/agent/issueAgentGrant.ts` | a emissão ÚNICA, para a tela e para o consentimento |
+| `functions/src/infrastructure/handlers/agentMcp.ts` | o transporte HTTP, e o ponteiro de descoberta no 401 |
+| `functions/src/infrastructure/handlers/agentOAuth.ts` | metadados, `/authorize` e `/token` |
+| `functions/src/infrastructure/handlers/agentOAuthConsent.ts` | as duas callables da tela de consentimento |
+| `presentation/pages/OAuthConsent/` | a tela que pergunta, e que consente para o escritório corrente |
 | `data/services/InstalledExtensionCache.ts` | a pergunta inversa do portão, e os bundles de idioma |
 | `presentation/pages/TenantSettings/AgentTab/` | a aba que emite e revoga |
 | `plugins/marketplace/agent.ts` | a extensão — o interruptor |

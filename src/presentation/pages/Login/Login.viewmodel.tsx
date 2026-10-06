@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../stores/useAuth';
 import { authErrorKey, authProviderSpecOf } from '../../../domain/schema/auth';
 import { useAuthProviders, type AuthProviderDescriptor } from '../../shared/auth/useAuthProviders';
@@ -57,6 +57,7 @@ export const useLoginViewModel = (): LoginViewModel => {
     sendEmailVerification, sendPasswordResetEmail, checkEmailVerification, signOut,
   } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const t = useT('core.workspace');
   const providers = useAuthProviders();
 
@@ -76,9 +77,20 @@ export const useLoginViewModel = (): LoginViewModel => {
   );
   const hasPasswordProvider = providers.some((provider) => provider.kind === 'password');
 
+  /**
+   * Para onde ir depois de entrar: de volta ao que a pessoa tentou abrir, ou o painel.
+   *
+   * O `from` é posto pelo `ProtectedRoute`, e só é seguido quando é um caminho DESTE app — um
+   * destino vindo de fora transformaria a tela de login numa página de redirecionamento aberta.
+   */
+  const afterLogin = useMemo(() => {
+    const from = (location.state as { from?: unknown } | null)?.from;
+    return typeof from === 'string' && from.startsWith('/') && !from.startsWith('//') ? from : '/app';
+  }, [location.state]);
+
   useEffect(() => {
-    if (user && isEmailVerified) navigate('/app', { replace: true });
-  }, [user, isEmailVerified, navigate]);
+    if (user && isEmailVerified) navigate(afterLogin, { replace: true });
+  }, [user, isEmailVerified, navigate, afterLogin]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- switching to verify-email mode synchronously in response to auth state is architecturally required

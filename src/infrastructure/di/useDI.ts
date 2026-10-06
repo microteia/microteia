@@ -33,6 +33,7 @@ import type { IExtensionMigrationRepository } from '../../domain/repositories/IE
 import type { IExtensionHistoryRepository } from '../../domain/repositories/IExtensionHistoryRepository';
 import type { IPublicExtensionRepository } from '../../domain/repositories/IPublicExtensionRepository';
 import type { IBackendResidueRepository } from '../../domain/repositories/IBackendResidueRepository';
+import type { IAgentAuthRequestRepository } from '../../domain/repositories/IAgentAuthRequestRepository';
 import type { IAgentGrantRepository } from '../../domain/repositories/IAgentGrantRepository';
 
 export interface DIContainer {
@@ -69,6 +70,7 @@ export interface DIContainer {
   reportRepository: IReportDefinitionRepository;
   roleRepository: IRoleRepository;
   agentGrantRepository: IAgentGrantRepository;
+  agentAuthRequestRepository: IAgentAuthRequestRepository;
   tenantExtensionRepository: ITenantExtensionRepository;
   installedExtensionRepository: IInstalledExtensionRepository;
   extensionMigrationRepository: IExtensionMigrationRepository;
