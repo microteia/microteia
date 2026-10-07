@@ -10,7 +10,7 @@ import type { WorkflowContext, WorkflowLogger } from '../../domain/entities/Work
 import type { ReportSpec } from '../../domain/schema/report/reportSpec';
 import type { ReportResult } from '../../domain/schema/report/reportResult';
 import type { ReportSpecIssue } from '../../domain/schema/report/validateReportSpec';
-import { requireReportCollections, runReportQuery } from '../report/runReportQuery';
+import { requireReportAccess, runReportQuery } from '../report/runReportQuery';
 
 interface RunReportRequest {
   tenantId: string;
@@ -83,13 +83,14 @@ export const runReport = onCall(
       screenProvider: di.getScreenDefinitionCache(),
     };
 
-    // A permissão vem ANTES de qualquer leitura de dado, e é cobrada por coleção — inclusive as
-    // alcançadas por referência. `requirePermission` lança `permission-denied`: falha fechada.
+    // A permissão vem ANTES de qualquer leitura de dado: a PRÓPRIA do relatório, quando declarada, e
+    // a leitura de cada coleção — inclusive as alcançadas por referência. `requirePermission` lança
+    // `permission-denied`: falha fechada.
     const schema = await deps.screenProvider.getSchemaContext(tenantId);
     // O conjunto CONCEDIDO volta da mesma leitura que autorizou: é ele que o `hasPermission` de um
     // filtro por expressão consulta. Com o ator vazio, a pergunta respondia NÃO a tudo — e num filtro
     // de linha isso não é um botão que some, é uma linha que sai da conta.
-    const permissions = await requireReportCollections(spec, schema, tenantId, userId);
+    const permissions = await requireReportAccess(spec, schema, tenantId, userId);
 
     const logs: string[] = [];
     const logger: WorkflowLogger = {

@@ -123,3 +123,47 @@ describe('looseEquals', () => {
     expect(looseEquals(10, '10')).toBe(true);
   });
 });
+
+/**
+ * O defeito relatado por um agente: `gte` em `createdAt` com um valor ISO voltava ZERO registros,
+ * havendo registros que atendiam. A linha chega com `Date` e o filtro com texto, e o texto ia para
+ * `Number()` — `NaN`, comparação declarada impossível, linha descartada.
+ */
+describe('evaluateResolvedPredicate — datas comparam como datas', () => {
+  const registro = { id: '1', createdAt: new Date('2026-10-01T15:30:00Z') };
+  const casa = (op: ResolvedPredicate['op'], value: unknown): boolean =>
+    matches(registro, { path: 'createdAt', op, value });
+
+  it('o instante ISO completo compara como instante', () => {
+    expect(casa('gte', '2026-10-01T00:00:00Z')).toBe(true);
+    expect(casa('gte', '2026-10-01T15:30:00.001Z')).toBe(false);
+    expect(casa('lt', '2026-10-01T12:30:00-03:00')).toBe(false);
+    expect(casa('lte', '2026-10-01T12:30:00-03:00')).toBe(true);
+  });
+
+  it('o dia puro é o dia INTEIRO, e cada operador pergunta o que se lê nele', () => {
+    expect(casa('gte', '2026-10-01')).toBe(true);
+    expect(casa('lte', '2026-10-01')).toBe(true);
+    expect(casa('eq', '2026-10-01')).toBe(true);
+    expect(casa('gt', '2026-10-01')).toBe(false);
+    expect(casa('lt', '2026-10-01')).toBe(false);
+    expect(casa('neq', '2026-10-01')).toBe(false);
+    expect(casa('gt', '2026-09-30')).toBe(true);
+    expect(casa('lt', '2026-10-02')).toBe(true);
+  });
+
+  it('o campo de data gravado na âncora de meio-dia cai no próprio dia', () => {
+    const prazo = { id: '1', dueOn: new Date(Date.UTC(2026, 9, 1, 12)) };
+    expect(matches(prazo, { path: 'dueOn', op: 'eq', value: '2026-10-01' })).toBe(true);
+    expect(matches(prazo, { path: 'dueOn', op: 'lte', value: '2026-09-30' })).toBe(false);
+  });
+
+  it('o objeto Date no filtro também compara', () => {
+    expect(casa('gte', new Date('2026-09-01T00:00:00Z'))).toBe(true);
+  });
+
+  it('texto que não é data não vira data só porque o filtro trouxe um dia', () => {
+    expect(matches({ id: '1', code: '1' }, { path: 'code', op: 'gte', value: '2026-10-01' })).toBe(false);
+    expect(matches({ id: '1', code: 'b' }, { path: 'code', op: 'gt', value: 'a' })).toBe(true);
+  });
+});

@@ -7,6 +7,7 @@ import {
   REPORT_SPEC_VERSION,
   reportGranularityOf,
   reportPaths,
+  reportRequiredPermissions,
   reportSourceCollections,
 } from './reportSpec';
 import type { ReportSpec } from './reportSpec';
@@ -221,5 +222,23 @@ describe('reportSourceCollections', () => {
     const spec: ReportSpec = { ...FIXTURE_V1, dataset: { ...FIXTURE_V1.dataset, table: 'nao-existe' } };
 
     expect(reportSourceCollections(spec, ctx)).toEqual([]);
+  });
+});
+
+describe('reportRequiredPermissions', () => {
+  it('é a leitura de cada coleção tocada quando o relatório não declara permissão própria', () => {
+    expect(reportRequiredPermissions(FIXTURE_V1, ctx).sort()).toEqual(['lancamentos.read', 'persons.read']);
+  });
+
+  // A permissão própria só RESTRINGE: ela entra AO LADO das leituras, nunca no lugar delas.
+  it('acrescenta a permissão própria, sem dispensar as leituras', () => {
+    const spec: ReportSpec = { ...FIXTURE_V1, access: { permission: 'lancamentos.margem' } };
+    expect(reportRequiredPermissions(spec, ctx).sort())
+      .toEqual(['lancamentos.margem', 'lancamentos.read', 'persons.read']);
+  });
+
+  it('ignora a permissão própria em branco', () => {
+    const spec: ReportSpec = { ...FIXTURE_V1, access: { permission: '  ' } };
+    expect(reportRequiredPermissions(spec, ctx)).not.toContain('  ');
   });
 });

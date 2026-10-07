@@ -6271,7 +6271,7 @@ de toda coluna abaixo dela; repetido por linha, o grupo é o que uma tabela din�
 
 ### O RBAC — onde um relatório vazaria dado
 
-`requireReportCollections` cobra, **no servidor**, a leitura de cada coleção que o relatório toca. Um
+`requireReportAccess` cobra, **no servidor**, a leitura de cada coleção que o relatório toca. Um
 agregado sobre linhas que o leitor não pode ver é exatamente como um relatório vaza: a contagem de
 salários acima de X não mostra nenhum salário e revela todos.
 
@@ -6347,7 +6347,7 @@ Três propriedades seguem de ONDE ela roda, e cada uma conserta algo que estaria
 | Propriedade | Por que |
 |---|---|
 | Ela só RESTRINGE | é avaliada em memória sobre o que a varredura trouxe; nada aqui amplia o que foi lido, e o teto de `REPORT_MAX_SCAN` mantém o mesmo significado |
-| Os caminhos dela são dado LIDO | entram em `reportPaths`, e portanto no plano de hidratação E na lista que `requireReportCollections` cobra: `cliente.cidade` numa expressão exige a leitura de Clientes exatamente como um agrupamento exigiria |
+| Os caminhos dela são dado LIDO | entram em `reportPaths`, e portanto no plano de hidratação E na lista que `requireReportAccess` cobra: `cliente.cidade` numa expressão exige a leitura de Clientes exatamente como um agrupamento exigiria |
 | Expressão que não pode ser respondida RECUSA | e o relatório, não a linha — ver abaixo |
 
 #### O escopo é montado a partir da própria expressão
@@ -6379,7 +6379,7 @@ Duas consequências pontuais, e as duas são silenciosas se não ditas:
 
 `hasPermission` numa expressão consulta o gate de permissões, que no backend nunca era empurrado: a
 resposta era NÃO para tudo. Num `hiddenWhen` isso é um botão que some; num filtro de linha é uma linha
-que sai da conta. `requireReportCollections` passou a devolver o conjunto CONCEDIDO — a mesma leitura
+que sai da conta. `requireReportAccess` passou a devolver o conjunto CONCEDIDO — a mesma leitura
 que acabou de autorizar, sem uma segunda ida ao documento de membro — e ele entra em
 `WorkflowContext.actor.permissions`, que a callable preenchia com `[]`. `<entity>` resolve para a
 coleção-fonte.
@@ -6579,7 +6579,7 @@ O caminho natural seria uma API por extensão instalada. Ele é impossível aqui
 de negócio seria o defeito que este projeto existe para não ter.
 
 A saída não é "uma API flexível o bastante". É que a superfície **não tem nome de negócio nenhum**:
-onze ferramentas genéricas em que a coleção é ARGUMENTO, mais a descoberta de esquema que diz ao
+doze ferramentas genéricas em que a coleção é ARGUMENTO, mais a descoberta de esquema que diz ao
 agente o que existe naquele escritório. `search_records(collection, …)`, nunca `search_processo`. É
 exatamente a propriedade que `FirebaseRecordRepository` e `RecordStore` já têm — recebem a coleção
 como argumento e servem qualquer uma — levada até a superfície de ferramentas.
@@ -6619,13 +6619,14 @@ dito duas vezes:
 | `run_report` | `runReportQuery`, com `reportSourceCollections` para enumerar o que ele alcança |
 | `run_workflow` | `publishEvent` — PUBLICA, não executa |
 | `run_action` | `RunCalledWorkflowUseCase` |
-| `list_screens` / `describe_screen` | `officeScreens` e `describeScreen`, sobre `ScreenDefinitionCache.getSchemaContext` |
+| `list_screens` / `describe_screen` | `officeScreens` e `describeScreen`, sobre `ScreenDefinitionCache.getSchemaContext`; as ações vêm de `viewActionIds`/`cardActionIds` da tela |
+| `describe_workflow` | `describeAgentWorkflow`, sobre o catálogo de passos do `stepRegistry` |
 
 `runAgentOperation.ts` tem uma ordem só, e ela é o que o mantém adaptador: resolver a ferramenta,
 cobrar a permissão declarada, traduzir o argumento para a forma do executor, delegar, resolver a
 referência que voltou. Nenhuma regra de negócio, nenhuma validação de campo.
 
-> **`run_report` não reusa `requireReportCollections`, e a razão é o ATOR.** Aquela função cobra com
+> **`run_report` não reusa `requireReportAccess`, e a razão é o ATOR.** Aquela função cobra com
 > `requirePermission`, que responde pelo conjunto do USUÁRIO — usá-la aqui faria um relatório ler uma
 > coleção que o teto do token exclui. A ENUMERAÇÃO é a mesma função (`reportSourceCollections`, então
 > o que é alcançado nunca divergirá, inclusive os saltos por referência); o que muda é de quem se
@@ -6635,6 +6636,97 @@ referência que voltou. Nenhuma regra de negócio, nenhuma validação de campo.
 > e não uma limitação deste caminho: levar as permissões no payload persistiria um retrato do acesso
 > de alguém dentro do barramento, e um retrato envelhece. `get_workflow_run` lê o desfecho depois, e
 > diz `pending` quando o motor ainda não começou — vazio não é "nada vai acontecer".
+
+### A superfície é CONFERIDA, não só anunciada
+
+Um agente importando registros de outro sistema esbarrou em quatro silêncios, e todos tinham a mesma
+forma: o servidor recebia algo errado, não dizia nada, e a resposta parecia certa.
+
+| Silêncio | O que acontecia | A resposta agora |
+|---|---|---|
+| `microteia://office/workflows` lia `name` do parâmetro | o parâmetro é gravado como `key`: todo parâmetro chegava `"name": ""` | a descrição sai de `describeParameters`, a MESMA de `describe_workflow`: chave, rótulo, tipo, obrigatoriedade, `options`/`optionsFrom`/`references`, `format`/`pattern`, padrão, `accepts` e `example` |
+| chave desconhecida em `params` | descartada pelo motor; a execução terminava SUCCESS sem ter recebido nada | `run_workflow` e `run_action` RECUSAM antes de publicar, com as chaves desconhecidas e as aceitas |
+| obrigatório ausente | só era conferido DENTRO do motor, depois do `STARTED` | recusado antes de publicar (`collectRequiredIssues`), junto do valor que não converte ao tipo |
+| `gte` com ISO em `createdAt` | o texto ia para `Number()`, virava `NaN`, e a linha saía da resposta | data compara como data (ver abaixo) |
+
+E o mesmo defeito, um nível acima: o esquema de cada ferramenta sempre disse
+`additionalProperties: false`, e ninguém o conferia — `filters` no lugar de `where` devolvia a coleção
+inteira. `checkAgentInput` confere o esquema publicado ANTES de qualquer leitura (tipo, obrigatório,
+`enum`, limites, chave desconhecida, descendo em `items`), e `agentInput.test.ts` exige que toda
+palavra de JSON Schema usada pelas ferramentas seja uma que ele sabe conferir.
+
+A recusa carrega `details` além da frase: a frase diz o primeiro problema, `details` diz todos, em
+forma que o modelo lê sem interpretar texto (`unknownParams`, `acceptedParams`, `issues[]`).
+
+> **Por que RECUSAR a chave desconhecida, e não só avisar.** O aviso viria junto de uma execução já
+> publicada — e uma automação cujos parâmetros são todos opcionais rodaria com os padrões, gravando o
+> que ninguém pediu. Quem quer o aviso sem a execução tem o `dry_run`, que é exatamente essa pergunta.
+
+#### `describe_workflow` e `dry_run`
+
+`describe_workflow` devolve, além dos parâmetros: o que a automação lê, grava e exclui; um resumo dos
+passos com as ligações de cada input (`{ "event": "code" }`, `{ "value": … }`) e as condições; a
+condição de ENTRADA quando não é sempre-verdadeira (falsa, a execução termina SUCCESS sem rodar nada —
+o "deu certo e nada aconteceu" que precisa de explicação); o formato do resultado; e se repetir é
+seguro.
+
+**Os efeitos são lidos do TIPO de input, nunca do id do passo.** `Query` lê, `Upsert` grava, `Remove`
+exclui — vale para qualquer passo que use essas entradas, inclusive um registrado por extensão, e o
+kernel não precisa saber o nome de nenhum. O catálogo usado é o do `stepRegistry`, não só o fixo.
+
+**A idempotência é veredito com motivo de vocabulário fechado**, não frase: `reads-only` e
+`keyed-writes` (toda coleção gravada tem chave única — a repetição é recusada como duplicata) são
+`yes`; `may-duplicate` e `notifies` são `no`; `opaque-steps` (Script, chamada de outra automação,
+passo desconhecido) é `unknown`. Dizer `yes` onde há Script seria afirmar o que a declaração não diz.
+
+`run_workflow` com `dry_run: true` passa pela MESMA preparação e não recusa: devolve `valid`, os
+valores como o motor os receberia (já convertidos), os problemas, e o que seria gravado. É previsão
+pela declaração, não simulação — simular exigiria um modo de ensaio no motor inteiro, com cada passo
+sabendo não gravar, e um Script não tem como prometer isso.
+
+O formato do resultado sai de `returningStepsOf`, que morava em `presentation/shared/workflowHelpers.ts`
+e desceu para `domain/schema/workflowReturn.ts`: o editor mostra uma saída e o agente prometeria outra
+no dia em que a regra mudasse num só dos lados.
+
+#### Datas em `search_records`
+
+`compareValues` (`predicateMatch.ts`) passa a tratar um lado DATA como data dos dois lados: o registro
+chega com `Date` (o repositório normaliza o `Timestamp`) e o filtro com texto ISO. Um dia puro
+`AAAA-MM-DD` é o DIA INTEIRO em UTC, como intervalo semiaberto: `gte` inclui o dia, `lte` também, `gt`
+e `lt` o excluem, `eq` casa qualquer instante dele. UTC porque é o fuso da âncora de meio-dia com que
+um campo de data é gravado (`parseDateOnly`) — o dia gravado cai sempre no intervalo do mesmo dia.
+
+O avaliador é compartilhado, então relatório e passo "Buscar Registros" ganham a mesma correção. E um
+`eq` de TEXTO sobre campo de data deixou de descer ao Firestore (`runWorkflowQuery`): o documento guarda
+`Timestamp`, o banco compara tipos diferentes como diferentes, e `"2026-10-01"` nunca casaria com nada.
+
+O texto de data só conta como data com forma ISO: `Date.parse` aceita `"1"`, e um campo de texto
+qualquer não pode virar data só porque o filtro trouxe um dia.
+
+#### O que mais a revisão encontrou
+
+- **`run_action` não tinha descoberta.** A ferramenta existia e nada dizia um id que ela aceitasse.
+  `describe_screen` agora lista as ações da tela (`viewActionIds` ∪ `cardActionIds`), só as que rodam
+  automação — uma de COMANDO é gesto de tela —, com os parâmetros do fluxo-alvo menos os cinco que o
+  sistema entrega.
+- **Nenhum portão cobrava `spec.access.permission`.** O guia de autoria promete que ver o relatório
+  exige a permissão própria dele, e os QUATRO lugares que decidem "este relatório é para você?" — a
+  callable `runReport`, o gateway de agente, a lista de Relatórios e o ⌘K — montavam cada um a lista
+  de coleções à mão, sem ela. Agora há uma lista só, `reportRequiredPermissions` (`reportSpec.ts`,
+  sincronizado): a permissão própria, quando declarada, mais a leitura de cada coleção tocada. A
+  callable a cobra do usuário (`requireReportAccess`, que era `requireReportCollections` e mudou de
+  nome porque passou a cobrar mais que coleções), o agente a cobra do acesso, e as duas telas escondem
+  o relatório que seria recusado. O recurso `office/reports` usa a mesma lista e diz o tipo de cada
+  filtro (resolvido pelo campo que ele aponta); filtro desconhecido e filtro obrigatório ausente são
+  recusados com a lista dos aceitos.
+- **`get_workflow_run` com id inventado respondia `pending` para sempre.** Sem execução e sem evento
+  publicado é recusa; e `finished` diz se ainda há execução em `RUNNING`.
+- **`search_records`:** `in` sem lista nunca casava e voltava vazio — é recusado; o teto de 200
+  resultados está no esquema (`maximum`), e não só no executor.
+- **`describe_screen`** prometia "regras de validação" e só mandava o `format`: passa `pattern` e um
+  `example` por campo gravável.
+- **Valor que não converte** (`"muitos"` num número, opção que não existe) virava `null` ou `0` calado
+  na coerção; no caminho do agente é recusado.
 
 ### A autenticação — o token é emitido no app, e só o hash é gravado
 
@@ -6905,7 +6997,12 @@ produto; onde não sabe, o token continua sendo a saída honesta.
 | Arquivo | O que é |
 |---|---|
 | `domain/schema/agent/agentGrant.ts` | formato do token, hash, validade, a INTERSEÇÃO (sincronizado) |
-| `domain/schema/agent/agentOps.ts` | as onze ferramentas, os quatro recursos, e a regra de cobrança de cada uma |
+| `domain/schema/agent/agentOps.ts` | as doze ferramentas, os quatro recursos, a regra de cobrança de cada uma, e o texto de API (`accepts`, exemplos) |
+| `domain/schema/agent/agentInput.ts` | a conferência dos argumentos contra o esquema publicado (sincronizado) |
+| `domain/schema/agent/agentWorkflow.ts` | a automação legível por agente: parâmetros, passos, efeitos, saída e idempotência (sincronizado) |
+| `domain/schema/workflowReturn.ts` | quais passos dão o retorno de uma automação — a regra do editor, agora alcançável pelo backend (sincronizado) |
+| `functions/src/infrastructure/agent/agentParameters.ts` | a preparação dos parâmetros de automação e de ação, com as três recusas |
+| `functions/src/infrastructure/agent/agentWorkflows.ts` | `describe_workflow`, o ensaio de `dry_run` e as ações de uma tela |
 | `domain/schema/agent/agentOAuth.ts` | metadados, PKCE, redirecionamento, e a recusa da troca de código (sincronizado) |
 | `domain/schema/agent/agentBackend.ts` | os nomes das seis functions — contrato entre `index.ts`, o manifest e o portão |
 | `functions/src/infrastructure/agent/authenticateAgent.ts` | token → sessão, com a ordem das recusas |

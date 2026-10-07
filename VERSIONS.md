@@ -11,6 +11,15 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.69.0] — 2026-10-07
+
+- Um assistente de IA conectado ao escritório agora consegue saber exatamente o que cada automação espera receber: o nome de cada informação, se ela é obrigatória, quais valores são aceitos e um exemplo. Antes ele precisava adivinhar, por tentativa e erro.
+- O assistente também pode consultar o que uma automação faz antes de executá-la — o que ela lê e grava, o que devolve no final e se é seguro executá-la duas vezes — e pode fazer um ensaio, que confere tudo sem gravar nada.
+- Uma automação chamada pelo assistente com uma informação de nome errado, ou sem uma obrigatória, agora é recusada antes de começar, com a explicação do que faltou. Antes ela rodava sem aquela informação e terminava como se tivesse dado certo.
+- As buscas do assistente por data passaram a funcionar como se espera: pedir os registros "a partir de 01/10" traz os registros daquele dia em diante, inclusive pela data de criação, que antes não trazia nada.
+- O assistente passa a enxergar os botões de ação de cada tela e o que cada um pede.
+- Corrigido: um relatório restrito a uma permissão específica podia ser aberto por quem não tinha essa permissão. Agora ele só aparece — na lista de Relatórios, na busca rápida e para o assistente de IA — para quem pode vê-lo.
+
 #### [9.68.0] — 2026-10-06
 
 - Escolher o que um agente de IA pode fazer ficou bem mais rápido. As permissões agora aparecem agrupadas por tela, com a lista fechada e uma busca em cima — marcar a tela inteira é um clique, em vez de marcar item por item numa lista enorme.

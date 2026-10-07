@@ -16,6 +16,7 @@ import type { SchemaContext } from '../pathResolver';
 import { resolveQueryTable } from '../querySpec';
 import type { QueryOperator, QueryOrderBy, QueryPredicate, QuerySpec } from '../querySpec';
 import type { InputMapping } from '../../entities/Workflow';
+import { collectionPermissionId } from '../access/permission';
 
 /**
  * O MAJOR do FORMATO — e nada mais.
@@ -431,4 +432,21 @@ export const reportSourceCollections = (spec: ReportSpec, ctx: SchemaContext): s
   }
 
   return [...collections];
+};
+
+/**
+ * TODA permissão que ver o relatório exige: a PRÓPRIA (`access.permission`), quando declarada, mais a
+ * leitura de cada coleção que ele toca.
+ *
+ * A própria só RESTRINGE — o guia de autoria promete isso, e nenhum dos quatro lugares que decidem
+ * "este relatório é para você?" a cobrava: a callable, o gateway de agente, a lista de Relatórios e o
+ * ⌘K montavam cada um a lista de coleções à mão, e a permissão própria não estava em nenhuma das
+ * quatro. Uma lista só é o que impede a quinta de nascer sem ela.
+ */
+export const reportRequiredPermissions = (spec: ReportSpec, ctx: SchemaContext): string[] => {
+  const own = spec.access?.permission?.trim();
+  return [
+    ...(own ? [own] : []),
+    ...reportSourceCollections(spec, ctx).map((collection) => collectionPermissionId(collection, 'read')),
+  ];
 };

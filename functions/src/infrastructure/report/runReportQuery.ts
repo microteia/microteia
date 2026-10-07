@@ -1,5 +1,4 @@
 import { requirePermission } from '../handlers/shared/requirePermission';
-import { collectionPermissionId } from '../../domain/schema/access';
 import { resolveMapping } from '../../domain/engine/InputMapping';
 import type { WorkflowContext } from '../../domain/entities/WorkflowContext';
 import type { SchemaContext } from '../../domain/schema/pathResolver';
@@ -9,7 +8,7 @@ import type { ResolvedPredicate } from '../../domain/schema/predicateMatch';
 import { aggregateReportRows } from '../../domain/schema/report/aggregateRows';
 import { filterReportRows } from '../../domain/schema/report/reportRowFilter';
 import type { ReportResult } from '../../domain/schema/report/reportResult';
-import { buildReportQuery, isAggregateMeasure, reportSourceCollections } from '../../domain/schema/report/reportSpec';
+import { buildReportQuery, isAggregateMeasure, reportRequiredPermissions } from '../../domain/schema/report/reportSpec';
 import type { ReportSpec } from '../../domain/schema/report/reportSpec';
 import { hasBlockingReportIssue, validateReportSpec } from '../../domain/schema/report/validateReportSpec';
 import type { ReportSpecIssue } from '../../domain/schema/report/validateReportSpec';
@@ -28,7 +27,8 @@ export type ReportOutcome =
   | { ok: false; error: string; errorParams?: Record<string, string>; issues?: ReportSpecIssue[] };
 
 /**
- * Cobra, no SERVIDOR, a leitura de cada coleção que o relatório toca.
+ * Cobra, no SERVIDOR, tudo o que ver o relatório exige (`reportRequiredPermissions`): a permissão
+ * PRÓPRIA dele, quando declarada, e a leitura de cada coleção que ele toca.
  *
  * Um agregado sobre linhas que o leitor não pode ver é exatamente como um relatório vaza dado: a
  * contagem de salários acima de X não mostra nenhum salário e revela todos.
@@ -44,15 +44,15 @@ export type ReportOutcome =
  * segunda leitura do mesmo documento de membro seria só desperdício. Vazio quando não havia coleção
  * a cobrar — e aí o spec já não resolve a tabela, e a execução o recusa antes de agregar qualquer coisa.
  */
-export const requireReportCollections = async (
+export const requireReportAccess = async (
   spec: ReportSpec,
   ctx: SchemaContext,
   tenantId: string,
   userId: string,
 ): Promise<string[]> => {
   let granted: string[] = [];
-  for (const collection of reportSourceCollections(spec, ctx)) {
-    granted = await requirePermission(tenantId, userId, collectionPermissionId(collection, 'read'));
+  for (const permission of reportRequiredPermissions(spec, ctx)) {
+    granted = await requirePermission(tenantId, userId, permission);
   }
   return granted;
 };

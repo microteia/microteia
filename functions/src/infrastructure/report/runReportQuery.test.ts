@@ -10,7 +10,7 @@ import type { SchemaScreen } from '../../domain/schema/pathResolver';
 import { fakeScreenProvider } from '../../domain/repositories/fakeScreenProvider';
 import type { WorkflowContext, WorkflowLogger } from '../../domain/entities/WorkflowContext';
 import type { ReportSpec } from '../../domain/schema/report/reportSpec';
-import { requireReportCollections, runReportQuery } from './runReportQuery';
+import { requireReportAccess, runReportQuery } from './runReportQuery';
 import { REPORT_MAX_SCAN } from './reportLimits';
 
 const permissionsByUser: Record<string, string[]> = {};
@@ -152,13 +152,13 @@ beforeEach(() => {
   for (const key of Object.keys(permissionsByUser)) delete permissionsByUser[key];
 });
 
-describe('requireReportCollections — o RBAC no servidor', () => {
+describe('requireReportAccess — o RBAC no servidor', () => {
   const schema = () => fakeScreenProvider([personsScreen, lancamentosScreen]).getSchemaContext('t1');
 
   it('exige a leitura da coleção-fonte', async () => {
     // Um agregado sobre linhas que o leitor não pode ver é como um relatório vaza dado: a contagem
     // de salários acima de X não mostra nenhum salário e revela todos.
-    const error = await denied(requireReportCollections(spec, await schema(), 't1', 'ana'));
+    const error = await denied(requireReportAccess(spec, await schema(), 't1', 'ana'));
 
     expect(error.code).toBe('permission-denied');
   });
@@ -168,7 +168,7 @@ describe('requireReportCollections — o RBAC no servidor', () => {
 
     // Devolve o conjunto CONCEDIDO, e não `void`: é ele que o `hasPermission` de um filtro por
     // expressão consulta, e uma segunda leitura do mesmo documento de membro seria desperdício.
-    await expect(requireReportCollections(spec, await schema(), 't1', 'ana'))
+    await expect(requireReportAccess(spec, await schema(), 't1', 'ana'))
       .resolves.toEqual(['lancamentos.read']);
   });
 
@@ -182,12 +182,25 @@ describe('requireReportCollections — o RBAC no servidor', () => {
       shape: { kind: 'summary', groupBy: [{ dimension: 'cidade' }], values: ['total'] },
     };
 
-    const error = await denied(requireReportCollections(comHop, await schema(), 't1', 'ana'));
+    const error = await denied(requireReportAccess(comHop, await schema(), 't1', 'ana'));
     expect(error.code).toBe('permission-denied');
 
     permissionsByUser.ana = ['lancamentos.read', 'clientes.read'];
-    await expect(requireReportCollections(comHop, await schema(), 't1', 'ana'))
+    await expect(requireReportAccess(comHop, await schema(), 't1', 'ana'))
       .resolves.toEqual(['lancamentos.read', 'clientes.read']);
+  });
+
+  // O guia de autoria promete que a permissão PRÓPRIA só restringe — e a callable não a cobrava: quem
+  // lia a coleção via o relatório que o escritório declarou restrito.
+  it('exige a permissão PRÓPRIA do relatório, além da leitura das coleções', async () => {
+    permissionsByUser.ana = ['lancamentos.read'];
+    const restrito: ReportSpec = { ...spec, access: { permission: 'lancamentos.margem' } };
+
+    const error = await denied(requireReportAccess(restrito, await schema(), 't1', 'ana'));
+    expect(error.code).toBe('permission-denied');
+
+    permissionsByUser.ana = ['lancamentos.read', 'lancamentos.margem'];
+    await expect(requireReportAccess(restrito, await schema(), 't1', 'ana')).resolves.toBeDefined();
   });
 });
 
@@ -595,7 +608,7 @@ describe('runReportQuery', () => {
       permissionsByUser.ana = ['lancamentos.read'];
 
       const error = await denied(
-        requireReportCollections(com('cliente.cidade == "Recife"'), schema, 't1', 'ana'),
+        requireReportAccess(com('cliente.cidade == "Recife"'), schema, 't1', 'ana'),
       );
       expect(error.code).toBe('permission-denied');
     });

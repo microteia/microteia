@@ -65,10 +65,73 @@ export const looseEquals = (a: unknown, b: unknown): boolean => {
   return a === b;
 };
 
-/** Ordem entre dois valores, ou `undefined` quando eles não são comparáveis. */
+const DAY_ONLY_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * O DIA inteiro que um "AAAA-MM-DD" nomeia, como intervalo semiaberto em UTC.
+ *
+ * Um dia não é um instante, e compará-lo como meia-noite responde errado a metade das perguntas:
+ * "criado em ou antes de 2026-10-01" excluiria tudo o que foi criado ao longo daquele dia. Como
+ * intervalo, cada operador pergunta o que se lê nele — `lte` é "até o fim do dia", `gt` é "depois
+ * do dia". UTC porque é o fuso da âncora de meio-dia com que um campo de data é gravado
+ * (`parseDateOnly`): um dia gravado cai sempre dentro do intervalo do mesmo dia.
+ */
+const dayRange = (value: unknown): { start: number; end: number } | null => {
+  if (typeof value !== 'string') return null;
+  const match = DAY_ONLY_PATTERN.exec(value.trim());
+  if (!match) return null;
+  const start = Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+  return Number.isNaN(start) ? null : { start, end: start + DAY_MS };
+};
+
+const ISO_DATE_PREFIX = /^\d{4}-\d{2}-\d{2}/;
+
+/**
+ * O instante de um valor que é DATA — o objeto, ou um texto com forma ISO. A forma é exigida porque
+ * `Date.parse` aceita quase tudo (`"1"` é uma data para ele), e um campo de texto qualquer não pode
+ * passar a ser comparado como data só porque o filtro trouxe um dia.
+ */
+const instantOf = (value: unknown): number | undefined => {
+  if (value instanceof Date) return value.getTime();
+  return typeof value === 'string' && ISO_DATE_PREFIX.test(value.trim()) ? toMillis(value.trim()) : undefined;
+};
+
+/**
+ * A comparação de um DIA contra um instante, por operador — ou `undefined` quando a pergunta não
+ * é essa (o filtro não é um dia puro, ou o valor do registro não é data).
+ */
+const compareWithDay = (op: QueryOperator, actual: unknown, expected: unknown): boolean | undefined => {
+  const range = dayRange(expected);
+  if (range === null) return undefined;
+  const at = instantOf(actual);
+  if (at === undefined) return undefined;
+  switch (op) {
+    case 'eq': return at >= range.start && at < range.end;
+    case 'neq': return at < range.start || at >= range.end;
+    case 'lt': return at < range.start;
+    case 'lte': return at < range.end;
+    case 'gt': return at >= range.end;
+    case 'gte': return at >= range.start;
+    default: return undefined;
+  }
+};
+
+/**
+ * Ordem entre dois valores, ou `undefined` quando eles não são comparáveis.
+ *
+ * Um lado DATA faz do outro uma data: o registro chega com `Date` e o filtro chega como texto ISO.
+ * Antes o texto ia para `Number()`, virava `NaN` e a comparação era declarada impossível — um
+ * `gte` em `createdAt` voltava vazio, que se lê como "não há registro assim".
+ */
 export const compareValues = (a: unknown, b: unknown): number | undefined => {
-  const am = a instanceof Date ? a.getTime() : a;
-  const bm = b instanceof Date ? b.getTime() : b;
+  if (a instanceof Date || b instanceof Date) {
+    const ad = typeof a === 'number' ? a : instantOf(a);
+    const bd = typeof b === 'number' ? b : instantOf(b);
+    return ad === undefined || bd === undefined ? undefined : ad - bd;
+  }
+  const am = a;
+  const bm = b;
   if (typeof am === 'number' || typeof bm === 'number') {
     const an = typeof am === 'number' ? am : Number(am);
     const bn = typeof bm === 'number' ? bm : Number(bm);
@@ -129,6 +192,9 @@ export const evaluateResolvedPredicate = (
 ): boolean => {
   const actual = getValueAtPath(record, parsePath(predicate.path));
   const expected = predicate.value;
+
+  const asDay = Array.isArray(actual) ? undefined : compareWithDay(predicate.op, actual, expected);
+  if (asDay !== undefined) return asDay;
 
   switch (predicate.op) {
     case 'eq':

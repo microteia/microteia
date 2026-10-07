@@ -1,6 +1,5 @@
 import { RiFileChartLine } from 'react-icons/ri';
 import type { ICommandPaletteProvider, CommandPaletteAppContext, CommandPaletteItem } from './ICommandPaletteProvider';
-import { collectionPermissionId } from '../../../../../domain/schema/access';
 import { buildReportTabKey } from '../../../../../shared/constants/reportKeys';
 
 const contains = (text: string | null | undefined, query: string) =>
@@ -14,7 +13,8 @@ const contains = (text: string | null | undefined, query: string) =>
  * qual o provedor de automações resolve antes de comparar.
  *
  * O que ele NÃO oferece é o relatório que esta pessoa não poderia executar. A pergunta é a mesma da
- * lista e a mesma do servidor: a leitura de cada coleção que o relatório toca. Oferecer aqui o que a
+ * lista e a mesma do servidor (`reportRequiredPermissions`): a permissão própria do relatório e a
+ * leitura de cada coleção que ele toca. Oferecer aqui o que a
  * callable vai recusar seria abrir uma porta fechada.
  */
 export const ReportCommandProvider: ICommandPaletteProvider = {
@@ -25,8 +25,7 @@ export const ReportCommandProvider: ICommandPaletteProvider = {
 
     return reports
       .filter((report) => report.enabled !== false)
-      .filter((report) => report.collections.every((collection) =>
-        can(collectionPermissionId(collection, 'read'))))
+      .filter((report) => report.permissions.every((permission) => can(permission)))
       .filter((report) => contains(label(report.title), query) || contains(report.key, query))
       .slice(0, 8)
       .map((report) => ({

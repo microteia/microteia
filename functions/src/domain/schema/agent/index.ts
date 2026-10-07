@@ -78,7 +78,31 @@ export {
   AGENT_ENFORCED,
   AGENT_OPERATIONS,
   AGENT_RESOURCES,
+  AGENT_SEARCH_MAX_RESULTS,
   AGENT_TOOLS,
   AGENT_UNENFORCED,
+  agentParameterAccepts,
+  agentParameterPlaceholder,
   agentToolByName,
 } from './agentOps';
+
+export type { AgentInputIssue } from './agentInput';
+export { AGENT_SCHEMA_KEYWORDS, checkAgentInput } from './agentInput';
+
+export type {
+  AgentIdempotency,
+  AgentParameter,
+  AgentStepSummary,
+  AgentWorkflowDataAccess,
+  AgentWorkflowOutput,
+} from './agentWorkflow';
+export {
+  describeParameter,
+  describeParameters,
+  indexStepCatalog,
+  summarizeSteps,
+  unknownParameterKeys,
+  workflowDataAccess,
+  workflowIdempotency,
+  workflowOutputs,
+} from './agentWorkflow';

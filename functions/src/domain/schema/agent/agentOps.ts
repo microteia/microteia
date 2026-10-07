@@ -7,6 +7,7 @@
 import { PERMISSION_AUTOMATION_RUN } from '../access/kernelPermissions';
 import { QUERY_OPERATORS } from '../querySpec';
 import type { CrudAction } from '../access/permission';
+import type { WorkflowParameterType } from '../../entities/Workflow';
 
 /**
  * As operações que um agente de IA executa contra um escritório.
@@ -27,6 +28,7 @@ export const AGENT_OPERATIONS = [
   'update_record',
   'delete_record',
   'run_report',
+  'describe_workflow',
   'run_workflow',
   'get_workflow_run',
   'run_action',
@@ -47,7 +49,7 @@ export type AgentPermissionRule =
   /** Uma permissão fixa do catálogo. */
   | { kind: 'fixed'; id: string }
   /**
-   * Quem executa cobra. É o caso do relatório: `requireReportCollections` já cobra a leitura de cada
+   * Quem executa cobra. É o caso do relatório: `requireReportAccess` já cobra a leitura de cada
    * coleção que o spec alcança, INCLUSIVE as alcançadas por referência, que nenhuma regra declarada
    * aqui saberia enumerar.
    */
@@ -91,7 +93,14 @@ const WHERE = {
   description:
     'Filters, combined with AND. Equality filters are answered by the database; the others are '
     + 'applied in memory over the scanned window, so prefer at least one equality filter on a '
-    + 'large collection.',
+    + 'large collection. '
+    + 'Operators: eq / neq (equality; on a multi-value field, "any of"), lt / lte / gt / gte '
+    + '(ordering), in (value must be an array: matches any of them), contains (case-insensitive '
+    + 'substring on text; membership on lists), exists (the field has a value; send no value). '
+    + 'Dates compare as dates on every operator, including createdAt and updatedAt. A bare day '
+    + '"YYYY-MM-DD" means that whole day in UTC: gte "2026-10-01" includes all of October 1st, '
+    + 'lte "2026-10-01" includes it too, gt and lt exclude it, eq matches any instant of it. A full '
+    + 'ISO-8601 timestamp ("2026-10-01T14:30:00-03:00") compares as that exact instant.',
   items: object(
     {
       path: {
@@ -102,7 +111,10 @@ const WHERE = {
       },
       op: { type: 'string', enum: [...QUERY_OPERATORS] },
       value: {
-        description: 'The value to compare against. Omit it for the "exists" operator.',
+        description:
+          'The value to compare against: text, number, boolean, a date as "YYYY-MM-DD" or ISO-8601, '
+          + 'a record id for a reference field, an option key for a list field, or an array for '
+          + '"in". Omit it for "exists".',
       },
     },
     ['path', 'op'],
@@ -123,6 +135,37 @@ const DATA = {
   description:
     'Field keys and values, as described by describe_screen. Dates are "YYYY-MM-DD", times are '
     + '"HH:mm", and a reference field takes the id of the referenced record.',
+};
+
+/** O teto de `search_records`, dito no esquema para o modelo não pedir mais e achar que recebeu. */
+export const AGENT_SEARCH_MAX_RESULTS = 200;
+
+/**
+ * Como se escreve o valor de cada tipo de parâmetro de automação.
+ *
+ * Mora aqui, e não junto de quem descreve o parâmetro, pela mesma razão das descrições de
+ * ferramenta: é documentação de API entregue a quem consome a superfície, em inglês, e este arquivo é
+ * o lugar declarado dela — uma segunda exceção ao gate de idioma seria uma segunda lista a manter.
+ */
+const PARAMETER_ACCEPTS: Readonly<Record<WorkflowParameterType, string>> = {
+  String: 'Text.',
+  Number: 'A JSON number.',
+  Date: 'A day as "YYYY-MM-DD" (preferred), or a full ISO-8601 timestamp.',
+  Boolean: 'true or false.',
+  select: 'One of the "value"s listed in options — never the label.',
+  lookup: 'The key of an item of the office list named in optionsFrom; list it with search_records.',
+  EntityReference: 'The id of a record of the collection named in references; find it with search_records.',
+  Object: 'An object with the keys listed in fields.',
+};
+
+export const agentParameterAccepts = (type: WorkflowParameterType, list: boolean): string =>
+  list ? `A JSON array. Each item: ${PARAMETER_ACCEPTS[type]}` : PARAMETER_ACCEPTS[type];
+
+/** O exemplo de um valor que só o escritório conhece — a chave de um item, o id de um registro. */
+export const agentParameterPlaceholder = (type: WorkflowParameterType, target?: string): string => {
+  if (type === 'lookup') return `<key of an item of ${target ?? 'the list'}>`;
+  if (type === 'EntityReference') return `<id of a record of ${target ?? 'the collection'}>`;
+  return 'text';
 };
 
 /**
@@ -158,8 +201,10 @@ export const AGENT_TOOLS: readonly AgentToolDefinition[] = [
     name: 'describe_screen',
     description:
       'The full field schema of one screen: every field with its type, whether it is required, the '
-      + 'available options, the uniqueness keys, and the validation rules. Read this before writing '
-      + 'to a collection you have not written to yet — field keys are not guessable from labels.',
+      + 'available options, the uniqueness keys, the validation rules and an example value — plus '
+      + 'the record actions the screen offers, with the parameters each one takes (those are the ids '
+      + 'run_action accepts). Read this before writing to a collection you have not written to yet '
+      + '— field keys are not guessable from labels.',
     inputSchema: object({ collection: COLLECTION }, ['collection']),
     permission: { kind: 'collection', action: 'read' },
     writes: false,
@@ -169,13 +214,20 @@ export const AGENT_TOOLS: readonly AgentToolDefinition[] = [
     description:
       'Find records in a collection. Returns the matching records plus how many documents were '
       + 'scanned and whether the scan was complete — an incomplete scan means there may be more '
-      + 'matches than the ones returned, so narrow the filters rather than trusting the count.',
+      + 'matches than the ones returned, so narrow the filters rather than trusting the count. '
+      + 'Filter paths are checked against the screen: an unknown field or argument is refused with '
+      + 'the reason, never ignored. Dates compare as dates — see "where".',
     inputSchema: object(
       {
         collection: COLLECTION,
         where: WHERE,
         orderBy: ORDER_BY,
-        limit: { type: 'integer', minimum: 1, description: 'Maximum records to return.' },
+        limit: {
+          type: 'integer',
+          minimum: 1,
+          maximum: AGENT_SEARCH_MAX_RESULTS,
+          description: `Maximum records to return (at most ${AGENT_SEARCH_MAX_RESULTS}; that is also the default).`,
+        },
       },
       ['collection'],
     ),
@@ -230,11 +282,16 @@ export const AGENT_TOOLS: readonly AgentToolDefinition[] = [
     name: 'run_report',
     description:
       'Run one of the office reports and get the aggregate back. Reports listed in the '
-      + 'microteia://office/reports resource say which filters they ask for.',
+      + 'microteia://office/reports resource say which filters they ask for, with the type of each. '
+      + 'A filter key the report does not declare, or a required filter left out, is refused with '
+      + 'the list of accepted keys.',
     inputSchema: object(
       {
         report: { type: 'string', description: 'The report key.' },
-        prompts: { type: 'object', description: 'Values for the filters the report declares.' },
+        prompts: {
+          type: 'object',
+          description: 'Values for the filters the report declares, keyed by the filter "key".',
+        },
       },
       ['report'],
     ),
@@ -242,14 +299,44 @@ export const AGENT_TOOLS: readonly AgentToolDefinition[] = [
     writes: false,
   },
   {
+    name: 'describe_workflow',
+    description:
+      'Everything needed to call one automation right the first time: every parameter with its key, '
+      + 'type, whether it is required, its options or the collection its value comes from, and an '
+      + 'example; the collections it reads, writes and deletes from; a summary of its steps with '
+      + 'their inputs and conditions; the shape of its result; and whether running it twice is safe '
+      + '("idempotent": yes / no / unknown, with "because": reads-only, keyed-writes — a repeat is '
+      + 'refused as a duplicate —, may-duplicate, notifies, or opaque-steps).',
+    inputSchema: object(
+      { workflow: { type: 'string', description: 'The automation id, as microteia://office/workflows lists it.' } },
+      ['workflow'],
+    ),
+    permission: { kind: 'fixed', id: PERMISSION_AUTOMATION_RUN },
+    writes: false,
+  },
+  {
     name: 'run_workflow',
     description:
       'Start an automation. It runs asynchronously: this returns an event id, and get_workflow_run '
-      + 'tells you how it went. Automations can write data, so confirm with the person first.',
+      + 'tells you how it went. Parameters are checked before anything starts: a key the automation '
+      + 'does not declare, a missing required parameter or an invalid value is refused with the list '
+      + 'of accepted keys — call describe_workflow first. Pass dry_run: true to validate and see what '
+      + 'it would write without starting it. Automations can write data, so confirm with the person '
+      + 'first.',
     inputSchema: object(
       {
         workflow: { type: 'string', description: 'The automation id.' },
-        params: { type: 'object', description: 'Values for the parameters the automation declares.' },
+        params: {
+          type: 'object',
+          description: 'Values for the parameters the automation declares, keyed by the parameter "key".',
+        },
+        dry_run: {
+          type: 'boolean',
+          description:
+            'Validate the parameters and return the values as they would be received, the '
+            + 'collections the automation would write to, and whether it is safe to repeat — '
+            + 'without starting it or writing anything.',
+        },
       },
       ['workflow'],
     ),
@@ -259,20 +346,26 @@ export const AGENT_TOOLS: readonly AgentToolDefinition[] = [
   {
     name: 'get_workflow_run',
     description:
-      'How an automation started by run_workflow went: its status and its execution log. The run '
-      + 'may still be in progress, in which case call again.',
-    inputSchema: object({ eventId: { type: 'string' } }, ['eventId']),
+      'How an automation started by run_workflow went: its status, its execution log and its '
+      + 'outputs. "pending": true means the run has not started yet, and "finished": false that it is '
+      + 'still running — call again in both cases. An event id no run_workflow returned is refused.',
+    inputSchema: object(
+      { eventId: { type: 'string', description: 'The event id run_workflow returned.' } },
+      ['eventId'],
+    ),
     permission: { kind: 'fixed', id: PERMISSION_AUTOMATION_RUN },
     writes: false,
   },
   {
     name: 'run_action',
     description:
-      'Run a record action — one of the buttons a screen offers on a record. Runs synchronously and '
-      + 'returns its outcome. Actions can write data, so confirm with the person first.',
+      'Run a record action — one of the buttons a screen offers on a record; describe_screen lists '
+      + 'them with their parameters. Runs synchronously and returns its outcome. A parameter the '
+      + 'action does not declare, or a missing required one, is refused before it runs. Actions can '
+      + 'write data, so confirm with the person first.',
     inputSchema: object(
       {
-        action: { type: 'string', description: 'The action id.' },
+        action: { type: 'string', description: 'The action id, as describe_screen lists it.' },
         collection: { ...COLLECTION, description: 'The collection of the record it acts on.' },
         recordId: { type: 'string', description: 'The record it acts on.' },
         params: { type: 'object', description: 'Values for the parameters the action declares.' },
@@ -316,12 +409,17 @@ export const AGENT_RESOURCES = [
   {
     uri: 'microteia://office/reports',
     name: 'Reports',
-    description: 'The office reports this access can run, and the filters each one asks for.',
+    description:
+      'The office reports this access can run, and the filters each one asks for — key, field, '
+      + 'operator, type, whether it is required, and its options or source collection.',
   },
   {
     uri: 'microteia://office/workflows',
     name: 'Automations',
-    description: 'The automations this access can start, and the parameters each one declares.',
+    description:
+      'The automations this access can start, with every parameter each one declares — key, type, '
+      + 'whether it is required, options or source collection, and an example. describe_workflow '
+      + 'adds what each one reads and writes.',
   },
 ] as const;
 

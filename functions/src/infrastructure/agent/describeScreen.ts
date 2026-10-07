@@ -6,6 +6,7 @@ import { resolveEntity } from '../../domain/schema/screenEntity';
 import type { CrudAction } from '../../domain/schema/access/permission';
 import { CRUD_ACTIONS, collectionPermissionId } from '../../domain/schema/access/permission';
 import { grants } from '../../domain/schema/access/memberPermissions';
+import { agentParameterPlaceholder } from '../../domain/schema/agent/agentOps';
 import type { AgentSession } from './authenticateAgent';
 
 /**
@@ -31,8 +32,12 @@ interface AgentField {
   optionsFrom?: string;
   /** A coleção apontada por um campo de referência. O valor gravado é o `id` de um registro dela. */
   references?: string;
-  /** O formato que o valor precisa ter, quando a tela declara um. */
+  /** A máscara aplicada ao valor antes de ele ser conferido, quando a tela declara uma. */
   format?: string;
+  /** O padrão (expressão regular) que o valor precisa satisfazer. */
+  pattern?: string;
+  /** Um valor na forma aceita — o de partida, quando há, ou um da forma do tipo. */
+  example?: unknown;
   /** Gravar não é possível: o valor é calculado ou derivado. */
   readOnly?: true;
   /** O valor de partida de um registro novo. */
@@ -101,6 +106,30 @@ const flatten = (fields: readonly NativeFieldSpec[], prefix = ''): NativeFieldSp
     return field.objectFields ? [own, ...flatten(field.objectFields, key)] : [own];
   });
 
+/**
+ * Um valor na forma que o campo aceita. Um rótulo diz o que o campo É; o exemplo diz como ele se
+ * ESCREVE — "2026-01-31" e não "31/01/2026", a chave da opção e não o rótulo dela.
+ */
+const exampleOf = (field: NativeFieldSpec): unknown => {
+  if (field.defaultValue !== undefined && field.defaultValue !== null && field.defaultValue !== '') {
+    return field.defaultValue;
+  }
+  const one = ((): unknown => {
+    if (field.options && field.options.length > 0) return field.options[0].key;
+    if (field.lookupCollection) return agentParameterPlaceholder('lookup', field.lookupCollection);
+    if (field.refEntity) return agentParameterPlaceholder('EntityReference', field.refEntity);
+    switch (field.type) {
+      case 'date': return '2026-01-31';
+      case 'number': return 1;
+      case 'boolean': return true;
+      case 'object': return undefined;
+      default: return agentParameterPlaceholder('String');
+    }
+  })();
+  if (one === undefined) return undefined;
+  return field.multi === true || field.list === true || field.type === 'stringArray' ? [one] : one;
+};
+
 const describeField = (catalog: MessageCatalog, field: NativeFieldSpec): AgentField => ({
   key: field.key,
   label: resolveLabel(catalog, field.label),
@@ -115,8 +144,10 @@ const describeField = (catalog: MessageCatalog, field: NativeFieldSpec): AgentFi
   ...(field.lookupCollection ? { optionsFrom: field.lookupCollection } : {}),
   ...(field.refEntity ? { references: field.refEntity } : {}),
   ...(field.rules?.format?.preset ? { format: field.rules.format.preset } : {}),
+  ...(field.rules?.validate?.pattern ? { pattern: field.rules.validate.pattern } : {}),
   ...(isWritable(field) ? {} : { readOnly: true as const }),
   ...(field.defaultValue === undefined ? {} : { default: field.defaultValue }),
+  ...(isWritable(field) && exampleOf(field) !== undefined ? { example: exampleOf(field) } : {}),
 });
 
 /**

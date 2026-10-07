@@ -14,6 +14,7 @@ export {
   isAggregateMeasure,
   reportGranularityOf,
   reportPaths,
+  reportRequiredPermissions,
   reportSourceCollections,
 } from './reportSpec';
 export type {

@@ -198,10 +198,18 @@ export async function runWorkflowQuery(
   const memoryPredicates: ResolvedPredicate[] = [];
   for (const predicate of predicates) {
     const resolution = resolvePath(ctx, resolved.root, parsePath(predicate.path));
+    // Data contra TEXTO não desce: o documento guarda um Timestamp, e o Firestore compara tipos
+    // diferentes como diferentes — "2026-10-01" nunca seria igual a nada. Em memória o texto vira o
+    // dia inteiro, que é o que quem filtra por um dia está perguntando.
+    const isDateAgainstText =
+      resolution.node.kind === 'scalar' &&
+      resolution.node.type === 'date' &&
+      typeof predicate.resolvedValue === 'string';
     const atPath =
       predicate.op === 'eq' &&
       predicate.resolvedValue !== undefined &&
       !Array.isArray(predicate.resolvedValue) &&
+      !isDateAgainstText &&
       !isDerivedPath(predicate.path)
         ? documentFieldPath(resolution, predicate.path)
         : null;

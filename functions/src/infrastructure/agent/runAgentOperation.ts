@@ -2,14 +2,18 @@ import type { MessageCatalog } from '../../domain/schema/i18n/messages';
 import type { QueryPredicate, QuerySpec } from '../../domain/schema/querySpec';
 import { QUERY_OPERATORS_WITHOUT_VALUE } from '../../domain/schema/querySpec';
 import type { ReportSpec } from '../../domain/schema/report/reportSpec';
-import { reportSourceCollections } from '../../domain/schema/report/reportSpec';
-import { collectionPermissionId } from '../../domain/schema/access/permission';
+import { reportRequiredPermissions } from '../../domain/schema/report/reportSpec';
 import { grants } from '../../domain/schema/access/memberPermissions';
 import { WORKFLOW_CALLED_EVENT } from '../../domain/schema/eventCatalog';
-import { formatAndValidateParameters } from '../../domain/schema/parameterRules';
+import type { RuleIssue } from '../../domain/schema/fieldRules';
 import { ruleIssueParams } from '../../domain/schema/fieldRules';
+import { checkAgentInput } from '../../domain/schema/agent/agentInput';
+import { AGENT_SEARCH_MAX_RESULTS } from '../../domain/schema/agent/agentOps';
 import { applyDerivedFields } from '../../domain/schema/recordRules';
 import { resolveQueryTable } from '../../domain/schema/querySpec';
+import type { SchemaContext } from '../../domain/schema/screenEntity';
+import { isEmptyRuleValue } from '../../domain/schema/fieldRules';
+import { resolveLabel } from '../../domain/schema/i18n/messageRef';
 import type { WorkflowQueryLimits } from '../workflow/query/runWorkflowQuery';
 import { runWorkflowQuery } from '../workflow/query/runWorkflowQuery';
 import { runWorkflowRemove, runWorkflowUpsert } from '../workflow/mutation/runWorkflowMutation';
@@ -26,6 +30,9 @@ import { agentText } from './agentMessages';
 import type { AgentText } from './agentMessages';
 import { describeScreen, officeScreens } from './describeScreen';
 import { authorizeOperation, permissionCharge, resolveTool } from './agentAuthorization';
+import type { PreparedParameters } from './agentParameters';
+import { ACTION_SYSTEM_PARAMETERS, prepareParameters } from './agentParameters';
+import { describeAgentWorkflow, previewAgentWorkflow, screenActions } from './agentWorkflows';
 
 /**
  * Os tetos da varredura para uma pergunta de agente.
@@ -35,14 +42,58 @@ import { authorizeOperation, permissionCharge, resolveTool } from './agentAuthor
  * pior que uma consulta um pouco mais cara. `complete` continua indo na resposta — é ele que diz ao
  * modelo que estreitar o filtro é necessário, em vez de deixá-lo confiar numa contagem parcial.
  */
-const AGENT_QUERY_LIMITS: WorkflowQueryLimits = { maxScan: 2000, maxResults: 200 };
+const AGENT_QUERY_LIMITS: WorkflowQueryLimits = { maxScan: 2000, maxResults: AGENT_SEARCH_MAX_RESULTS };
+
+/**
+ * A recusa, com o DETALHE que permite corrigi-la: as chaves aceitas, cada problema por caminho. A
+ * frase diz o primeiro; `details` diz todos, em forma que o modelo lê sem interpretar texto.
+ */
+export type AgentRefusal = AgentText & { details?: Record<string, unknown> };
 
 export type AgentOperationOutcome =
   | { ok: true; value: unknown }
-  | { ok: false; error: AgentText };
+  | { ok: false; error: AgentRefusal };
 
-const refuse = (catalog: MessageCatalog, ref: string, params?: Record<string, string>): AgentOperationOutcome =>
-  ({ ok: false, error: agentText(catalog, ref, params) });
+const refuse = (
+  catalog: MessageCatalog,
+  ref: string,
+  params?: Record<string, string>,
+  details?: Record<string, unknown>,
+): AgentOperationOutcome =>
+  ({ ok: false, error: { ...agentText(catalog, ref, params), ...(details ? { details } : {}) } });
+
+/** Cada problema de regra com a frase resolvida, para o modelo não depender só do primeiro. */
+const issueDetails = (catalog: MessageCatalog, issues: readonly RuleIssue[]): Record<string, unknown> => ({
+  issues: issues.map((issue) => ({
+    path: issue.path,
+    label: issue.label,
+    ...agentText(catalog, issue.error, issue.errorParams),
+  })),
+});
+
+/** A recusa de parâmetros mal formados, a mesma para automação e para ação. */
+const refuseParameters = (
+  catalog: MessageCatalog,
+  prepared: Exclude<PreparedParameters, { ok: true }>,
+): AgentOperationOutcome => {
+  if (prepared.kind === 'unknown') {
+    const params = { unknown: prepared.unknown.join(', '), accepted: prepared.accepted.join(', ') };
+    return refuse(
+      catalog,
+      prepared.accepted.length > 0 ? '@core.access/agent.params.unknown' : '@core.access/agent.params.unknown-none',
+      params,
+      { unknownParams: prepared.unknown, acceptedParams: prepared.accepted },
+    );
+  }
+  return refuse(
+    catalog,
+    '@core.automation/run.parameters.invalid',
+    // `RuleIssue` já É um `DescribableIssue` — tem `label`, `error` e `errorParams`. Remapeá-lo
+    // seria a chance de perder um dos três.
+    ruleIssueParams(prepared.issues),
+    issueDetails(catalog, prepared.issues),
+  );
+};
 
 const asRecord = (value: unknown): Record<string, unknown> =>
   (typeof value === 'object' && value !== null && !Array.isArray(value))
@@ -111,6 +162,16 @@ export const runAgentOperation = async (
   const tool = resolveTool(name);
   if (tool === null) return refuse(catalog, '@core.automation/handler.action.not-found');
 
+  // O esquema publicado é CONFERIDO, e antes de qualquer leitura: um argumento de nome errado era
+  // ignorado, e `filters` no lugar de `where` devolvia a coleção inteira como se fosse a resposta.
+  const inputIssues = checkAgentInput(tool.inputSchema, input);
+  if (inputIssues.length > 0) {
+    const [first] = inputIssues;
+    return refuse(catalog, first.error, first.params, {
+      issues: inputIssues.map((issue) => ({ path: issue.path, ...agentText(catalog, issue.error, issue.params) })),
+    });
+  }
+
   const schema = await getDI().getScreenDefinitionCache().getSchemaContext(session.tenantId);
   const authorized = authorizeOperation(session, permissionCharge(schema, tool, input));
   if (!authorized.ok) return refuse(catalog, authorized.error, authorized.params);
@@ -120,13 +181,25 @@ export const runAgentOperation = async (
       return { ok: true, value: officeScreens(schema, catalog, session) };
 
     case 'describe_screen': {
-      const described = describeScreen(schema, catalog, session, asText(input.collection));
-      return described === null
-        ? refuse(catalog, '@core.automation/mutation.table.unknown', { table: asText(input.collection) })
-        : { ok: true, value: described };
+      const collection = asText(input.collection);
+      const described = describeScreen(schema, catalog, session, collection);
+      if (described === null) {
+        return refuse(catalog, '@core.automation/mutation.table.unknown', { table: collection });
+      }
+      const screen = schema.screens.get(collection);
+      const actions = screen ? await screenActions(session.tenantId, screen.id, catalog) : [];
+      return { ok: true, value: actions.length > 0 ? { ...described, actions } : described };
     }
 
     case 'search_records': {
+      // `in` sem lista nunca casa com nada (`evaluateResolvedPredicate` exige array), e voltava
+      // vazio — que se lê como "não há registro assim".
+      const where = Array.isArray(input.where) ? input.where : [];
+      const notList = where.findIndex((one) => asRecord(one).op === 'in' && !Array.isArray(asRecord(one).value));
+      if (notList >= 0) {
+        return refuse(catalog, '@core.access/agent.query.in-needs-list', { path: `where[${notList}].value` });
+      }
+
       const spec: QuerySpec = {
         table: asText(input.collection),
         where: asPredicates(input.where),
@@ -205,8 +278,11 @@ export const runAgentOperation = async (
     case 'run_report':
       return runAgentReport(input, session, catalog, schema);
 
+    case 'describe_workflow':
+      return describeWorkflowOperation(input, session, catalog, schema);
+
     case 'run_workflow':
-      return startAgentWorkflow(input, session, catalog);
+      return startAgentWorkflow(input, session, catalog, schema);
 
     case 'get_workflow_run':
       return readAgentWorkflowRun(input, session, catalog);
@@ -222,8 +298,9 @@ export const runAgentOperation = async (
 /**
  * O relatório, com a leitura cobrada do ACESSO e não do usuário.
  *
- * A enumeração das coleções é `reportSourceCollections` — a mesma função que `requireReportCollections`
- * usa, então o que é alcançado nunca divergirá, inclusive os saltos por referência. O que muda é de
+ * A lista é `reportRequiredPermissions` — a mesma que `requireReportAccess` cobra, então o que é
+ * exigido nunca divergirá: a permissão própria do relatório e as coleções, inclusive as alcançadas
+ * por referência. O que muda é de
  * quem se cobra: aquela chama `requirePermission`, que responde pelo conjunto do USUÁRIO, e usá-la
  * aqui faria um relatório ler uma coleção que o teto do token exclui. Mesma pergunta, outro ator.
  */
@@ -231,7 +308,7 @@ const runAgentReport = async (
   input: Record<string, unknown>,
   session: AgentSession,
   catalog: MessageCatalog,
-  schema: Awaited<ReturnType<ReturnType<typeof queryDeps>['screenProvider']['getSchemaContext']>>,
+  schema: SchemaContext,
 ): Promise<AgentOperationOutcome> => {
   const reportId = asText(input.report);
   const snapshot = await getDb().doc(`tenants/${session.tenantId}/reports/${reportId}`).get();
@@ -240,14 +317,33 @@ const runAgentReport = async (
   const spec = (snapshot.data() as { spec?: ReportSpec } | undefined)?.spec;
   if (!spec) return refuse(catalog, '@core.reports/handler.spec.missing');
 
-  for (const collection of reportSourceCollections(spec, schema)) {
-    const permission = collectionPermissionId(collection, 'read');
+  for (const permission of reportRequiredPermissions(spec, schema)) {
     if (!grants(session.permissions, permission)) {
       return refuse(catalog, '@core.access/permission.denied', { permission });
     }
   }
 
   const prompts = asRecord(input.prompts);
+  const declared = spec.presentation?.prompts ?? [];
+  const accepted = declared.map((prompt) => prompt.key);
+  const unknown = Object.keys(prompts).filter((key) => !accepted.includes(key));
+  if (unknown.length > 0) {
+    return refuse(
+      catalog,
+      accepted.length > 0 ? '@core.access/agent.prompts.unknown' : '@core.access/agent.prompts.unknown-none',
+      { unknown: unknown.join(', '), accepted: accepted.join(', ') },
+      { unknownFilters: unknown, acceptedFilters: accepted },
+    );
+  }
+  const missing = declared.find((prompt) =>
+    prompt.required === true && prompt.default === undefined && isEmptyRuleValue(prompts[prompt.key]));
+  if (missing) {
+    return refuse(catalog, '@core.access/agent.prompts.required', {
+      key: missing.key,
+      label: resolveLabel(catalog, missing.label ?? missing.key),
+    });
+  }
+
   const { context } = agentRun(session, 'run_report');
   const outcome = await runReportQuery({ spec, context, deps: queryDeps(), prompts });
   return outcome.ok
@@ -264,6 +360,7 @@ const startAgentWorkflow = async (
   input: Record<string, unknown>,
   session: AgentSession,
   catalog: MessageCatalog,
+  schema: SchemaContext,
 ): Promise<AgentOperationOutcome> => {
   const workflowId = asText(input.workflow);
   const definition = await getDI().getWorkflowDefinitionRepository().findByRef(session.tenantId, workflowId);
@@ -272,23 +369,49 @@ const startAgentWorkflow = async (
     return refuse(catalog, '@core.admin/processor.workflow-not-callable');
   }
 
-  const ruled = formatAndValidateParameters(definition.parameters ?? [], asRecord(input.params));
-  if (ruled.issues.length > 0) {
-    return refuse(
-      catalog,
-      '@core.automation/mutation.upsert.invalid',
-      // `RuleIssue` já É um `DescribableIssue` — tem `label`, `error` e `errorParams`. Remapeá-lo
-      // seria a chance de perder um dos três.
-      ruleIssueParams(ruled.issues),
-    );
+  const prepared = prepareParameters(definition.parameters, asRecord(input.params));
+
+  if (input.dry_run === true) {
+    // O ensaio NÃO recusa: ele é a pergunta "isto passaria?", e a resposta inclui o que não passa.
+    return {
+      ok: true,
+      value: {
+        dryRun: true,
+        valid: prepared.ok,
+        ...(prepared.ok ? { params: prepared.data } : {}),
+        ...(!prepared.ok && prepared.kind === 'unknown'
+          ? { unknownParams: prepared.unknown, acceptedParams: prepared.accepted }
+          : {}),
+        ...(!prepared.ok && prepared.kind === 'invalid' ? issueDetails(catalog, prepared.issues) : {}),
+        ...(await previewAgentWorkflow(definition, schema, catalog)),
+      },
+    };
   }
+
+  if (!prepared.ok) return refuseParameters(catalog, prepared);
 
   const eventId = await publishEvent(getDb(), session.tenantId, WORKFLOW_CALLED_EVENT, {
     __targetWorkflowId: workflowId,
     __callDepth: 1,
-    ...ruled.data,
+    ...prepared.data,
   });
   return { ok: true, value: { eventId, status: 'STARTED' } };
+};
+
+const describeWorkflowOperation = async (
+  input: Record<string, unknown>,
+  session: AgentSession,
+  catalog: MessageCatalog,
+  schema: SchemaContext,
+): Promise<AgentOperationOutcome> => {
+  const definition = await getDI().getWorkflowDefinitionRepository()
+    .findByRef(session.tenantId, asText(input.workflow));
+  // A mesma recusa para "não existe" e "não é chamável": a lista do recurso só mostra as chamáveis,
+  // e descrever uma de gatilho faria o agente tentar iniciá-la.
+  if (!definition || definition.eventName !== WORKFLOW_CALLED_EVENT) {
+    return refuse(catalog, '@core.admin/processor.workflow-not-found');
+  }
+  return { ok: true, value: await describeAgentWorkflow(definition, schema, catalog) };
 };
 
 const readAgentWorkflowRun = async (
@@ -296,8 +419,16 @@ const readAgentWorkflowRun = async (
   session: AgentSession,
   catalog: MessageCatalog,
 ): Promise<AgentOperationOutcome> => {
+  const eventId = asText(input.eventId);
   const executions = await getDI().getWorkflowExecutionRepository()
-    .findByEventId(session.tenantId, asText(input.eventId));
+    .findByEventId(session.tenantId, eventId);
+
+  // Sem execução E sem evento é um id que ninguém publicou — e "pending" para sempre faria o modelo
+  // esperar por uma automação que nunca vai começar.
+  if (executions.length === 0) {
+    const event = await getDb().doc(`tenants/${session.tenantId}/workflow_events/${eventId}`).get();
+    if (!event.exists) return refuse(catalog, '@core.access/agent.run.not-found', { eventId });
+  }
 
   return {
     ok: true,
@@ -305,6 +436,7 @@ const readAgentWorkflowRun = async (
       // Vazio não é "nada vai acontecer": a publicação e a execução são invocações diferentes, e
       // dizê-lo evita o modelo concluir que a automação falhou quando ela ainda não começou.
       pending: executions.length === 0,
+      finished: executions.length > 0 && executions.every((execution) => execution.status !== 'RUNNING'),
       runs: executions.map((execution) => ({
         id: execution.id,
         workflow: execution.workflowDefinitionId,
@@ -338,20 +470,26 @@ const runAgentAction = async (
   if (!action.workflowId) return refuse(catalog, '@core.automation/handler.action.no-workflow');
 
   const di = getDI();
+  const target = await di.getWorkflowDefinitionRepository().findByRef(session.tenantId, action.workflowId);
+  if (!target) return refuse(catalog, '@core.automation/handler.action.workflow-invalid');
+
+  const system: Record<(typeof ACTION_SYSTEM_PARAMETERS)[number], unknown> = {
+    action: action.key ?? '',
+    source: 'agent',
+    context: {},
+    recordId: asText(input.recordId) || null,
+    isNew: false,
+  };
+  // Os informados primeiro: os cinco do sistema são a última palavra, como em `runAction`.
+  const prepared = prepareParameters(target.parameters, asRecord(input.params), system);
+  if (!prepared.ok) return refuseParameters(catalog, prepared);
+
   await di.ensureWorkflowStepsRegistered();
 
   const result = await di.getRunCalledWorkflowUseCase().execute({
     tenantId: session.tenantId,
     targetWorkflowId: action.workflowId,
-    params: {
-      // Os informados primeiro: os cinco do sistema são a última palavra, como em `runAction`.
-      ...asRecord(input.params),
-      action: action.key ?? '',
-      source: 'agent',
-      context: {},
-      recordId: asText(input.recordId) || null,
-      isNew: false,
-    },
+    params: { ...prepared.data, ...system },
     // A INTERSEÇÃO, e não o conjunto do usuário: é dela que `hasPermission(...)` responde dentro de
     // um Script ou de uma expressão da ação.
     actor: { userId: session.userId, permissions: session.permissions },

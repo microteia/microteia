@@ -6,8 +6,8 @@ import { useNotification } from '../../../stores/useNotification';
 import { useSchemaContext } from '../../shared/useSchemaContext';
 import { useLabel, useT } from '../../shared/i18n/useT';
 import type { FilterDef, FilterToken } from '../../components/ui/CompositeFilter';
-import { collectionPermissionId, PERMISSION_REPORTS_MANAGE } from '../../../domain/schema/access';
-import { reportSourceCollections } from '../../../domain/schema/report/reportSpec';
+import { PERMISSION_REPORTS_MANAGE } from '../../../domain/schema/access';
+import { reportRequiredPermissions } from '../../../domain/schema/report/reportSpec';
 import { buildReportDesignTabKey, buildReportTabKey } from '../../../shared/constants/reportKeys';
 import { errorParamsOf } from '../../../domain/errors/LocalizedError';
 
@@ -84,10 +84,7 @@ export const useReportsViewModel = (): ReportsViewModel => {
   const visible = useMemo(
     () => reports
       .filter((report) => report.enabled !== false)
-      .filter((report) => canAll(
-        reportSourceCollections(report.spec, schema).map((collection) =>
-          collectionPermissionId(collection, 'read')),
-      ))
+      .filter((report) => canAll(reportRequiredPermissions(report.spec, schema)))
       .map((report) => ({
         id: report.key,
         documentId: report.id,

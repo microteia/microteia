@@ -7,20 +7,26 @@ const reports: CommandPaletteReport[] = [
     key: 'faturamento',
     title: 'Faturamento por sócio',
     covers: 'lancamentos',
-    collections: ['lancamentos'],
+    permissions: ['lancamentos.read'],
   },
   {
     key: 'clientes-por-cidade',
     // Título vindo de EXTENSÃO: uma referência de mensagem, não o texto.
     title: '@com.acme.vendas/report.cidades',
     covers: 'clientes',
-    collections: ['clientes', 'cidades'],
+    permissions: ['clientes.read', 'cidades.read'],
+  },
+  {
+    key: 'restrito',
+    title: 'Margem por sócio',
+    covers: 'lancamentos',
+    permissions: ['diretoria.margem', 'lancamentos.read'],
   },
   {
     key: 'desligado',
     title: 'Desligado',
     covers: 'lancamentos',
-    collections: ['lancamentos'],
+    permissions: ['lancamentos.read'],
     enabled: false,
   },
 ];
@@ -57,6 +63,13 @@ describe('ReportCommandProvider', () => {
     // A mesma pergunta da lista e a mesma do servidor. Oferecer aqui o que a callable vai recusar
     // seria abrir uma porta fechada.
     expect(titles('cidade', ['clientes.read'])).toEqual([]);
+  });
+
+  // A permissão PRÓPRIA do relatório só restringe: ler a coleção não basta para ver um relatório que
+  // declarou a sua. Nenhum dos quatro portões a cobrava.
+  it('esconde o relatório cuja permissão própria a pessoa não tem', () => {
+    expect(titles('margem', ['lancamentos.read'])).toEqual([]);
+    expect(titles('margem', ['lancamentos.read', 'diretoria.margem'])).toEqual(['Margem por sócio']);
   });
 
   it('esconde o relatório desligado', () => {

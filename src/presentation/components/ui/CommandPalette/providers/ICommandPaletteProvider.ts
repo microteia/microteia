@@ -22,7 +22,7 @@ export interface CommandPaletteItem {
 /**
  * Um relatório como a paleta o vê.
  *
- * `collections` vem PRONTO, e é o ponto: derivá-lo aqui exigiria o esquema do escritório dentro de
+ * `permissions` vem PRONTO, e é o ponto: derivá-lo aqui exigiria o esquema do escritório dentro de
  * um provedor, que é função pura chamada a cada tecla. Quem tem o esquema resolve antes.
  */
 export interface CommandPaletteReport {
@@ -31,8 +31,11 @@ export interface CommandPaletteReport {
   title: string;
   /** O cadastro que o relatório cobre, mostrado como subtítulo. */
   covers: string;
-  /** Toda coleção que ele toca, inclusive as alcançadas por referência. */
-  collections: string[];
+  /**
+   * Tudo o que vê-lo exige (`reportRequiredPermissions`): a permissão própria, quando declarada, e a
+   * leitura de cada coleção que ele toca, inclusive as alcançadas por referência.
+   */
+  permissions: string[];
   enabled?: boolean;
 }
 

@@ -8,7 +8,7 @@ import { useScreenDefinitions } from '../../../../stores/useScreenDefinitions';
 import { useWorkflowStore } from '../../../../stores/useWorkflowStore';
 import { useReportDefinitions } from '../../../../stores/useReportDefinitions';
 import { useSchemaContext } from '../../../shared/useSchemaContext';
-import { reportSourceCollections } from '../../../../domain/schema/report/reportSpec';
+import { reportRequiredPermissions } from '../../../../domain/schema/report/reportSpec';
 import { useTheme } from '../../../../stores/useTheme';
 import { useAuth } from '../../../../stores/useAuth';
 import { useAuthorization } from '../../../../stores/useAuthorization';
@@ -53,7 +53,7 @@ export const useCommandPaletteViewModel = (): CommandPaletteViewModel => {
   const schema = useSchemaContext();
 
   /*
-   * Os relatórios na forma que a paleta consome, com as coleções que cada um toca JÁ derivadas.
+   * Os relatórios na forma que a paleta consome, com as permissões que cada um exige JÁ derivadas.
    *
    * O provedor é função pura chamada a cada tecla: derivar o esquema lá dentro seria refazer o plano
    * de hidratação a cada letra digitada, e ele não tem como pendurar um hook.
@@ -63,7 +63,7 @@ export const useCommandPaletteViewModel = (): CommandPaletteViewModel => {
       key: report.key,
       title: report.title,
       covers: report.spec.dataset.table,
-      collections: reportSourceCollections(report.spec, schema),
+      permissions: reportRequiredPermissions(report.spec, schema),
       enabled: report.enabled,
     })),
     [reports, schema],
