@@ -3414,10 +3414,29 @@ No front os registros referenciados já estão em memória (os stores assinam as
 |---|---|---|---|
 | `hiddenWhen`, `disabledWhen`, `onChange` | **hidratado** (`produto` = objeto) | sim | não |
 | `validate`, `compute`, `derive` | **cru** (`produto` = id) | não | sim |
+| expressões de Action (`hiddenWhen`, `disabledWhen`, `activeWhen`, `parameterDefaults`) | **navegável no que a expressão atravessa** (`caseId.title`; `caseId` sozinho = id) | sim | não |
 
 Se `validate`/`compute`/`derive` fossem hidratados só no front, a mesma expressão daria resultados diferentes dos dois lados — um `validate` que passa no front e reprova no back. `referenceScope.ts`, `fieldUiScope.ts` e `fieldChangeSpec.ts` ficam **fora de `SHARED_FILES`** justamente por serem front-only.
 
 Compatibilidade com expressões já escritas: referência vazia continua `null`/`''` (não há registro para hidratar), então `isEmpty`/`isNull` seguem corretos — o uso dominante em `hiddenWhen`. O id permanece em `produto.id`. E `contains`/`indexOf` casam por `.id` quando os itens são registros hidratados, mantendo `contains(produtos, '<id>')` funcionando nos dois formatos.
+
+#### Expressões de AÇÃO navegam referências — só o que a expressão navega
+
+As expressões de uma Action (`hiddenWhen`, `disabledWhen`, `activeWhen` e os valores de `parameterDefaults`) também são front-only, e agora leem o registro apontado: `caseId.responsibleLawyerId`, `caseId.contractId.clientId`. A regra de troca, porém, **não é a do slot de campo**, e a diferença é deliberada.
+
+O slot de campo troca todo id de referência pelo registro. Na ação isso quebraria o que já está gravado nas instalações: `parameterDefaults: { clientId: 'clientId' }` passaria a pré-preencher o parâmetro com um objeto, e `caseId == "abc"` deixaria de casar. Por isso `navigateReferences` (`domain/schema/referenceScope.ts`) troca **só o nome que a expressão atravessa** — o caminho que tem algo depois dele. Lido sozinho, o nome segue sendo o id, em qualquer profundidade (`caseId.contractId` é o id do contrato). Numa expressão que lê o nome sozinho E o navega, ele é o registro, como no slot de campo, e o id fica em `caseId.id`.
+
+| Situação | `caseId.title` | `caseId` sozinho |
+|---|---|---|
+| registro em memória e legível | o título | o id (ou o registro, se a mesma expressão navega `caseId`) |
+| referência vazia | `null` | `null`/`''`, como gravado |
+| registro apagado, não carregado, ou coleção sem `<coleção>.read` | `null` | o id |
+
+- **As peças são as do backend.** `planReferenceNavigation` usa `buildHydrationPlan` (os saltos, nível a nível) e `navigateReferences` usa `materializeHops` — o mesmo par do `WorkflowContextHydrator`. Registro que não veio vira `{ id }`, como lá. Um salto que não chegou a registro nenhum vira `{ id: null }`, e toda folha navegada sem valor vira `null`: o `expr-eval` estoura ao ler membro de `null`, e "vazio, nunca erro" é a mesma promessa do `includeWhen` dos relatórios. A exceção é o nome que a expressão também lê sozinho — `isEmpty(caseId) or caseId.title == "X"` continua vendo `null` no vazio, e o curto-circuito do `or` protege a navegação.
+- **Referência múltipla não é navegada** aqui: o caminho que a atravessa sai do plano e o valor fica como gravado.
+- **O plano é guardado** por identidade do `SchemaContext` + texto da expressão: a listagem avalia a mesma expressão uma vez por cartão, e o que muda entre cartões é só a materialização.
+- **Duas portas, um portão** — `useActionReferences` (`presentation/shared/`): `lookup` é a memória do `RecordStore` (`useRecordResolver`), síncrona, para os três slots desenhados em cada cartão; `fetch` é o `GetRecordByIdUseCase`, só para `parameterDefaults`. As duas perguntam `can('<coleção>.read')` antes, e a busca que falha (inclusive por regra) vira `null`. Sem isso, o formulário de parâmetros seria um jeito de exibir o campo de um registro que a pessoa não abriria.
+- **Onde entra:** `ActionExprContext.references`, montado por `useScreenActions` (`detail`), `useRecordListViewModel` (`list` e `parentTab`) e `useActionGate` (a superfície de extensão). Sem `references`, ou sem `entity`, o escopo é o de antes.
 
 - **Autoria:** `ScreenBuilder` grava `FieldDefinition.logic` via seis `ExpressionEditor` + o select de provedor externo. O `InfoBanner` do bloco diz onde o vínculo é navegável e onde não é; o autocomplete sugere `campo.subcampo` para os campos de referência.
 - **Campos nativos das telas fixas:** a **validação** já vale (o passo lê `entity.fields[].logic.validate`); o **desabilitar/ocultar ao vivo** vale onde os campos nativos são renderizados pelo renderer de Schema (piloto: Pessoas — ver abaixo).
@@ -4050,12 +4069,26 @@ tela. Esses cinco não entram no formulário, e são a última palavra ao montar
 `runAction` — um parâmetro chamado `recordId` vindo da tela não passa a mandar em qual registro a
 ação age.
 
-`parameterDefaults` é um mapa `parâmetro do fluxo → EXPRESSÃO`, avaliada no mesmo escopo do
-`hiddenWhen` (campos do registro na raiz, mais `record`, `isNew`, `role`, `surface`). Existe porque o
-nome do campo na tela raramente é o nome do parâmetro no fluxo: o push guarda `processNumber` e o
-fluxo pede `caseNumber`. Parâmetro sem entrada no mapa ainda é preenchido pelo campo de mesmo nome —
-o mapa é para a divergência de nome e para o valor derivado (`concat("Gerado a partir do push: ",
-subject)`).
+`parameterDefaults` é um mapa `parâmetro do fluxo → EXPRESSÃO`, avaliada no MESMO escopo do
+`hiddenWhen` (`evaluateActionExpression`: campos do registro na raiz, mais `record`, `isNew`,
+`isDirty`, `permissions`, `surface`, `relation`, `user`). Existe porque o nome do campo na tela
+raramente é o nome do parâmetro no fluxo: o push guarda `processNumber` e o fluxo pede `caseNumber`.
+O mapa é para a divergência de nome, para o valor derivado (`concat("Gerado a partir do push: ",
+subject)`) e para o valor que mora no registro apontado (`caseId.responsibleLawyerId` — ver
+"Expressões de AÇÃO navegam referências"). O escopo era uma cópia própria, e por ser cópia não tinha
+`user`: `user.id` num `parameterDefaults` estourava como campo inexistente.
+
+O formulário abre com a primeira origem que responder: a expressão; o campo de mesmo nome; o
+`defaultValue` que o próprio fluxo declara no parâmetro. Expressão que responde vazio NÃO recai no
+campo de mesmo nome (foi declarada para não ser ele), mas recai no `defaultValue`. Antes o
+`defaultValue` não entrava: o parâmetro abria vazio, ou com o valor de um campo homônimo do registro
+que nada tinha a ver com ele. O resultado no servidor quase não muda — `InputMapping` já aplicava o
+`defaultValue` ao parâmetro ausente —; o que muda é que a pessoa VÊ o valor antes de confirmar.
+
+Quando alguma expressão do mapa navega uma referência, `request` devolve `true` na hora, põe
+`loading` (as superfícies seguram os botões, como na ação em execução), busca nível a nível o que a
+memória não tem (`loadNavigatedReferences`) e só então abre o formulário. Um sequencial descarta a
+resposta de um pedido já cancelado ou substituído.
 
 Expressão que **estoura** não derruba o formulário. `buildPromptInitialValues` devolve
 `{ values, failures }`: a falha é isolada no parâmetro, que recai no campo de mesmo nome, e o modal

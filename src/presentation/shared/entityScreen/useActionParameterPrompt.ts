@@ -1,8 +1,9 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { useWorkflowStore } from '../../../stores/useWorkflowStore';
 import { useNotification } from '../../../stores/useNotification';
-import { evaluateFieldExpression } from '../../../domain/schema/fieldExpression';
+import { evaluateActionExpression, ACTION_RESERVED_VARIABLES } from '../../../domain/schema/actionExpression';
 import type { ActionExprContext } from '../../../domain/schema/actionExpression';
+import { loadNavigatedReferences, planReferenceNavigation } from '../../../domain/schema/referenceScope';
 import type { ActionDefinition } from '../../../domain/entities';
 import type { WorkflowParameter } from '../../../domain/entities/Workflow';
 
@@ -31,6 +32,11 @@ export interface ActionParameterPrompt {
 export interface ActionParameterPromptController {
   pending: ActionParameterPrompt | null;
   /**
+   * O formulário vai abrir, mas ainda espera os registros que `parameterDefaults` navega. As
+   * superfícies seguram os botões enquanto isso, como fazem com a ação em execução.
+   */
+  loading: boolean;
+  /**
    * Pede os parâmetros da ação, se ela os pedir. Devolve `true` quando ASSUMIU o disparo (o modal
    * abriu) e `false` quando não há nada a perguntar — aí quem chamou executa como sempre.
    */
@@ -42,16 +48,6 @@ export interface ActionParameterPromptController {
   cancel: () => void;
   confirm: (params: Record<string, unknown>) => void;
 }
-
-const buildScope = (context: ActionExprContext): Record<string, unknown> => ({
-  ...context.values,
-  record: context.record ?? {},
-  isNew: context.isNew,
-  isDirty: context.isDirty,
-  permissions: context.permissions,
-  surface: context.surface ?? 'detail',
-  relation: context.relation ?? 'none',
-});
 
 const IDENTIFIER_PATTERN = /^[A-Za-z_$][\w$]*$/;
 
@@ -75,10 +71,18 @@ export interface PromptInitialValues {
   failures: { key: string; label: string; message: string }[];
 }
 
+const hasValue = (value: unknown): boolean => value !== undefined && value !== null && value !== '';
+
 /**
- * Com o que o formulário abre. Duas origens, nesta ordem: a EXPRESSÃO que a ação declarou para o
- * parâmetro, e — só na falta dela — o campo de mesmo nome na tela. A expressão vem primeiro porque é
- * a declaração explícita; o casamento por nome é a conveniência de quem não precisou declarar nada.
+ * Com o que o formulário abre. Três origens, nesta ordem: a EXPRESSÃO que a ação declarou para o
+ * parâmetro; na falta dela, o campo de mesmo nome na tela; e, quando nenhuma das duas respondeu, o
+ * `defaultValue` que o próprio fluxo declarou. A expressão vem primeiro porque é a declaração
+ * explícita; o casamento por nome é a conveniência de quem não precisou declarar nada. Expressão que
+ * responde vazio não recai no campo de mesmo nome — ela foi declarada justamente para não ser ele —,
+ * mas recai no `defaultValue`.
+ *
+ * A expressão é avaliada no MESMO escopo dos slots booleanos da ação (`evaluateActionExpression`),
+ * inclusive a navegação de referência: `caseId.responsibleLawyerId`.
  *
  * Expressão que estoura NÃO derruba o formulário: ela vira uma falha relatada, o parâmetro recai no
  * campo de mesmo nome e a tela abre para ser preenchida à mão. Antes o erro subia pelo handler do
@@ -90,18 +94,15 @@ export const buildPromptInitialValues = (
   parameters: WorkflowParameter[],
   context: ActionExprContext,
 ): PromptInitialValues => {
-  const scope = buildScope(context);
   const defaults = action.parameterDefaults ?? {};
   const values: Record<string, unknown> = {};
   const failures: PromptInitialValues['failures'] = [];
 
-  for (const param of parameters) {
+  const fromDeclaration = (param: WorkflowParameter): unknown => {
     const expression = defaults[param.key];
     if (expression && expression.trim() !== '') {
       try {
-        const value = evaluateFieldExpression(expression, { value: null, data: scope });
-        if (value !== undefined && value !== null) values[param.key] = value;
-        continue;
+        return evaluateActionExpression(expression, context);
       } catch (error) {
         failures.push({
           key: param.key,
@@ -110,8 +111,13 @@ export const buildPromptInitialValues = (
         });
       }
     }
-    const fromScreen = context.values[param.key];
-    if (fromScreen !== undefined && fromScreen !== null) values[param.key] = fromScreen;
+    return context.values[param.key];
+  };
+
+  for (const param of parameters) {
+    const declared = fromDeclaration(param);
+    if (declared !== undefined && declared !== null) values[param.key] = declared;
+    else if (hasValue(param.defaultValue)) values[param.key] = param.defaultValue;
   }
 
   return { values, failures };
@@ -133,6 +139,8 @@ export const useActionParameterPrompt = (): ActionParameterPromptController => {
   const { workflows } = useWorkflowStore();
   const { notify } = useNotification();
   const [pending, setPending] = useState<ActionParameterPrompt | null>(null);
+  const [loading, setLoading] = useState(false);
+  const requestSequence = useRef(0);
 
   const parametersOf = useCallback((workflowId: string): WorkflowParameter[] => {
     const workflow = workflows.find((candidate) => candidate.id === workflowId);
@@ -147,15 +155,44 @@ export const useActionParameterPrompt = (): ActionParameterPromptController => {
     if (!action.promptParameters || action.command) return false;
     const parameters = parametersOf(action.workflowId);
     if (parameters.length === 0) return false;
-    const { values, failures } = buildPromptInitialValues(t, action, parameters, context);
-    for (const failure of failures) {
-      notify(t('action.prompt.compute-failed', { label: label(failure.label), message: failure.message }), 'warning');
+
+    const sequence = ++requestSequence.current;
+    const open = (resolved: ActionExprContext) => {
+      if (sequence !== requestSequence.current) return;
+      const { values, failures } = buildPromptInitialValues(t, action, parameters, resolved);
+      for (const failure of failures) {
+        notify(t('action.prompt.compute-failed', { label: label(failure.label), message: failure.message }), 'warning');
+      }
+      setLoading(false);
+      setPending({ action, parameters, initialValues: values, run });
+    };
+
+    const { references, entity } = context;
+    const expressions = parameters
+      .map((param) => action.parameterDefaults?.[param.key])
+      .filter((expression): expression is string => !!expression && expression.trim() !== '');
+    const plan = references?.fetch && entity
+      ? planReferenceNavigation(references.schema, entity, expressions, new Set(ACTION_RESERVED_VARIABLES))
+      : null;
+    if (!references || !plan) {
+      open(context);
+      return true;
     }
-    setPending({ action, parameters, initialValues: values, run });
+
+    // O clique já é a espera que a busca precisa: o formulário abre um instante depois, com o
+    // registro apontado em mãos, em vez de abrir com o campo vazio porque ele não estava em memória.
+    setLoading(true);
+    void loadNavigatedReferences(context.values, plan, references)
+      .then((lookup) => open({ ...context, references: { ...references, lookup } }))
+      .catch(() => open(context));
     return true;
   }, [parametersOf, notify, t, label]);
 
-  const cancel = useCallback(() => setPending(null), []);
+  const cancel = useCallback(() => {
+    requestSequence.current += 1;
+    setLoading(false);
+    setPending(null);
+  }, []);
 
   const confirm = useCallback((params: Record<string, unknown>) => {
     if (!pending) return;
@@ -164,5 +201,5 @@ export const useActionParameterPrompt = (): ActionParameterPromptController => {
     run(params);
   }, [pending]);
 
-  return { pending, request, cancel, confirm };
+  return { pending, loading, request, cancel, confirm };
 };

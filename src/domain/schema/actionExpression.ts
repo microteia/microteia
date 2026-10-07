@@ -1,4 +1,6 @@
-import { evaluateFieldBoolean } from './fieldExpression';
+import { evaluateFieldBoolean, evaluateFieldExpression } from './fieldExpression';
+import { navigateReferences, planReferenceNavigation } from './referenceScope';
+import type { ReferenceNavigator } from './referenceScope';
 
 /**
  * QUEM ESTÁ OLHANDO, no escopo de uma expressão de UI (`user.id`, `user.name`, `user.permissions`).
@@ -64,6 +66,12 @@ export interface ActionExprContext {
    * e é o que permite a mesma ação servir a qualquer tela em vez de nomear uma.
    */
   entity?: string;
+  /**
+   * Como chegar aos registros que um campo de referência aponta. Presente, a expressão que NAVEGA
+   * uma referência (`caseId.responsibleLawyerId`) lê o registro apontado; ausente, só existe o id —
+   * que é o que o escopo sempre teve. Ver `navigateReferences`.
+   */
+  references?: ReferenceNavigator;
 }
 
 /**
@@ -84,8 +92,17 @@ export type ActionRelation = 'none' | 'owned' | 'related';
  */
 export const ACTION_RESERVED_VARIABLES = ['record', 'isNew', 'isDirty', 'permissions', 'surface', 'relation', 'user'] as const;
 
-const buildScope = (ctx: ActionExprContext): Record<string, unknown> => ({
-  ...ctx.values,
+const RESERVED_ROOTS: ReadonlySet<string> = new Set(ACTION_RESERVED_VARIABLES);
+
+/** Os valores da raiz, com as referências que ESTA expressão navega já trocadas pelos registros. */
+const navigatedValues = (expr: string, ctx: ActionExprContext): Record<string, unknown> => {
+  if (!ctx.references || !ctx.entity) return ctx.values;
+  const plan = planReferenceNavigation(ctx.references.schema, ctx.entity, [expr], RESERVED_ROOTS);
+  return plan ? navigateReferences(ctx.values, plan, ctx.references.lookup) : ctx.values;
+};
+
+const buildScope = (expr: string, ctx: ActionExprContext): Record<string, unknown> => ({
+  ...navigatedValues(expr, ctx),
   record: ctx.record ?? {},
   isNew: ctx.isNew,
   isDirty: ctx.isDirty,
@@ -95,18 +112,26 @@ const buildScope = (ctx: ActionExprContext): Record<string, unknown> => ({
   user: ctx.user ?? EMPTY_VIEWER,
 });
 
-const asFieldContext = (ctx: ActionExprContext) => ({
+const asFieldContext = (expr: string, ctx: ActionExprContext) => ({
   value: null,
-  data: buildScope(ctx),
+  data: buildScope(expr, ctx),
   ...(ctx.entity ? { entity: ctx.entity } : {}),
   permissions: ctx.permissions,
 });
 
 export const isActionHidden = (expr: string | null | undefined, ctx: ActionExprContext): boolean =>
-  evaluateFieldBoolean(expr, asFieldContext(ctx));
+  evaluateFieldBoolean(expr, asFieldContext(expr ?? '', ctx));
 
 export const isActionDisabled = (expr: string | null | undefined, ctx: ActionExprContext): boolean =>
-  evaluateFieldBoolean(expr, asFieldContext(ctx));
+  evaluateFieldBoolean(expr, asFieldContext(expr ?? '', ctx));
+
+/**
+ * O VALOR de uma expressão de ação, no mesmo escopo dos três slots booleanos. É o que o formulário de
+ * parâmetros usa para `parameterDefaults` — e estoura, em vez de engolir o erro, porque ali a falha é
+ * relatada a quem escreveu a expressão.
+ */
+export const evaluateActionExpression = (expr: string, ctx: ActionExprContext): unknown =>
+  evaluateFieldExpression(expr, asFieldContext(expr, ctx));
 
 /**
  * A ação está LIGADA? Só faz sentido quando ela declara `activeWhen`; sem declaração, `undefined`
@@ -116,4 +141,4 @@ export const actionActiveState = (
   expr: string | null | undefined,
   ctx: ActionExprContext,
 ): boolean | undefined =>
-  expr?.trim() ? evaluateFieldBoolean(expr, asFieldContext(ctx)) : undefined;
+  expr?.trim() ? evaluateFieldBoolean(expr, asFieldContext(expr, ctx)) : undefined;

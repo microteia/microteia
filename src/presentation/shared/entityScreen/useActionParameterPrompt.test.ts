@@ -3,6 +3,9 @@ import { buildPromptInitialValues } from './useActionParameterPrompt';
 import type { ActionExprContext } from '../../../domain/schema/actionExpression';
 import type { ActionDefinition } from '../../../domain/entities';
 import type { WorkflowParameter } from '../../../domain/entities/Workflow';
+import type { FieldDefinition } from '../../../domain/entities/entitySchemas';
+import { createSchemaContext } from '../../../domain/schema/pathResolver';
+import type { ReferenceNavigator } from '../../../domain/schema/referenceScope';
 
 /**
  * O tradutor de teste devolve a chave MAIS os parâmetros. Sem os parâmetros o teste perderia
@@ -128,5 +131,104 @@ describe('buildPromptInitialValues', () => {
     );
     expect(failures[0].message).toContain('campoQueNaoExiste');
     expect(failures[0].message).toContain('unknown-field');
+  });
+});
+
+const refField = (key: string, refEntity?: string): FieldDefinition => ({
+  key,
+  label: key,
+  origin: 'design',
+  type: refEntity ? 'reference' : 'text',
+  ...(refEntity ? { refEntity } : {}),
+  required: false,
+  order: 0,
+});
+
+const schema = createSchemaContext([
+  { id: 'pushes', collection: 'pushes', titleSingular: 'Push', titleFieldKey: 'subject', fields: [refField('subject'), refField('caseId', 'cases')] },
+  { id: 'cases', collection: 'cases', titleSingular: 'Case', titleFieldKey: 'title', fields: [refField('title'), refField('responsibleLawyerId')] },
+]);
+
+const cases: Record<string, Record<string, unknown>> = {
+  c1: { title: 'Cobrança', responsibleLawyerId: 'lawyer-ana' },
+};
+
+const references = (readable = true): ReferenceNavigator => ({
+  schema,
+  lookup: (collection, id) => (readable && collection === 'cases' ? (cases[id] ?? null) : null),
+});
+
+const generateDeadline = action({
+  promptParameters: true,
+  parameterDefaults: { responsibleLawyerId: 'caseId.responsibleLawyerId' },
+});
+
+describe('buildPromptInitialValues — referência navegada', () => {
+  it.each(['detail', 'list'])('pré-preenche com o campo do registro apontado (%s)', (surface) => {
+    const { values, failures } = buildPromptInitialValues(
+      echo,
+      generateDeadline,
+      [param('responsibleLawyerId')],
+      { ...context({ caseId: 'c1' }), surface, entity: 'pushes', references: references() },
+    );
+    expect(values).toEqual({ responsibleLawyerId: 'lawyer-ana' });
+    expect(failures).toEqual([]);
+  });
+
+  it('referência vazia abre o campo vazio, sem falha', () => {
+    const { values, failures } = buildPromptInitialValues(
+      echo,
+      generateDeadline,
+      [param('responsibleLawyerId')],
+      { ...context({ caseId: null }), entity: 'pushes', references: references() },
+    );
+    expect(values).toEqual({});
+    expect(failures).toEqual([]);
+  });
+
+  it('registro de coleção que quem olha não lê abre o campo vazio', () => {
+    const { values, failures } = buildPromptInitialValues(
+      echo,
+      generateDeadline,
+      [param('responsibleLawyerId')],
+      { ...context({ caseId: 'c1' }), entity: 'pushes', references: references(false) },
+    );
+    expect(values).toEqual({});
+    expect(failures).toEqual([]);
+  });
+
+  /** A compatibilidade que justifica hidratar só o que é navegado: copiar a referência copia o id. */
+  it('copiar a referência inteira continua copiando o id', () => {
+    const { values } = buildPromptInitialValues(
+      echo,
+      action({ parameterDefaults: { linkedCaseId: 'caseId' } }),
+      [param('linkedCaseId'), param('caseId')],
+      { ...context({ caseId: 'c1' }), entity: 'pushes', references: references() },
+    );
+    expect(values).toEqual({ linkedCaseId: 'c1', caseId: 'c1' });
+  });
+});
+
+describe('buildPromptInitialValues — defaultValue do fluxo como último recurso', () => {
+  const withDefault = (key: string, defaultValue: unknown): WorkflowParameter => ({ ...param(key), defaultValue });
+
+  it('sem expressão e sem campo de mesmo nome, abre com o defaultValue', () => {
+    const { values } = buildPromptInitialValues(echo, action(), [withDefault('priority', 'NORMAL')], context({}));
+    expect(values).toEqual({ priority: 'NORMAL' });
+  });
+
+  it('o campo de mesmo nome vence o defaultValue', () => {
+    const { values } = buildPromptInitialValues(echo, action(), [withDefault('priority', 'NORMAL')], context({ priority: 'HIGH' }));
+    expect(values).toEqual({ priority: 'HIGH' });
+  });
+
+  it('a expressão que responde vazio recai no defaultValue, não no campo de mesmo nome', () => {
+    const { values } = buildPromptInitialValues(
+      echo,
+      action({ parameterDefaults: { priority: 'null' } }),
+      [withDefault('priority', 'NORMAL')],
+      context({ priority: 'HIGH' }),
+    );
+    expect(values).toEqual({ priority: 'NORMAL' });
   });
 });

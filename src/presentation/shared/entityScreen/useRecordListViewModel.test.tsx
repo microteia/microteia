@@ -31,6 +31,7 @@ vi.mock('../../../stores/useRecords', () => ({
 }));
 vi.mock('../../../stores/useWorkspace', () => ({ useWorkspace: () => ({ openTab: vi.fn() }) }));
 vi.mock('../../../stores/useTenant', () => ({ useTenant: () => ({ members: [] }) }));
+vi.mock('../../../infrastructure/di/useDI', () => ({ useDI: () => ({ recordRepository: { getById: vi.fn() } }) }));
 // `granted: null` é "pode tudo", que é o que quase todo teste daqui pressupõe; a lista fecha o cerco
 // só onde a permissão É o assunto.
 const auth = { effectivePermissions: [] as string[], granted: null as string[] | null };

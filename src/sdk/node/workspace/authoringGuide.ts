@@ -1237,13 +1237,31 @@ no statements, no assignment, no side effects.
 |---|---|
 | \`compute\`, \`validate\`, \`derive\` | the record's fields at the root, plus \`value\` (= \`self\`) — the field's own value. These three run on the client AND on the server, so they must not depend on anything else. A \`derive\` also sees the \`compute\` results; the reverse cannot happen, because \`compute\` runs on save and no derived value exists there |
 | \`hiddenWhen\`, \`disabledWhen\`, \`onChange\` of a field | the above, plus \`isNew\` and \`isDirty\`. Client only |
-| an action's expressions | the form's current values at the root, plus \`record\` (as stored, \`{}\` when new), \`isNew\`, \`isDirty\`, \`permissions\`, \`surface\` (\`detail\` / \`list\` / \`parentTab\`), \`relation\` (\`none\` / \`owned\` / \`related\`), \`user\` |
+| an action's expressions | the form's current values at the root, plus \`record\` (as stored, \`{}\` when new), \`isNew\`, \`isDirty\`, \`permissions\`, \`surface\` (\`detail\` / \`list\` / \`parentTab\`), \`relation\` (\`none\` / \`owned\` / \`related\`), \`user\`. A single \`reference\` field is navigable (\`caseId.responsibleLawyerId\`, \`caseId.contractId.clientId\`) — see below. Client only |
 | \`badge.when\` | each record's fields at the root, plus \`user\` |
 | a report's \`dataset.includeWhen\` | each row's fields at the root, a reference navigated by the name of the record it points at (\`client.city\`), and \`id\`. Every path the expression names exists, and is \`null\` when the record has no value for it — so a field nobody filled in is empty, never an error. Server only, running as the reader: \`hasPermission\` answers for the person who opened the report |
 | a workflow | \`event.*\` (the payload), the outputs of earlier steps, and the workflow's variables |
 
 \`user\` is \`{ id, name, permissions }\`. A reserved name wins over a field of the same key — a field
 called \`record\` is still reachable as \`record.record\`.
+
+**Navigating a reference from an action.** In an action's expressions, a path that goes THROUGH a
+single \`reference\` field reads the record it points at: \`caseId.title\`, and further,
+\`caseId.contractId.clientId\`. Only what the expression navigates is swapped — a reference read on its
+own is still the id, so \`parameterDefaults: { clientId: 'clientId' }\`, \`isEmpty(caseId)\` and
+\`caseId == "abc"\` mean what they always meant. Inside an expression that also navigates it, the bare
+name is the record; its id is \`caseId.id\`. A \`multi\` reference is not navigable here.
+
+A path with nothing at the end of it is \`null\`, never an error: an empty reference, a deleted record,
+and a record in a collection the viewer cannot read all answer \`null\` along the way — a value only
+reaches the expression if the person could open the record it came from.
+
+When the pointed-at record is fetched depends on the slot:
+
+| Slot | Pointed-at record |
+|---|---|
+| \`hiddenWhen\`, \`disabledWhen\`, \`activeWhen\` | synchronous: what the client already holds. A record not loaded yet reads as \`null\` — the button is drawn, never hidden by mistake |
+| \`parameterDefaults\` | on demand: the form waits a moment for the records the expression navigates, then opens |
 
 ### Computed or derived — the question is whether the expression asks the clock
 
@@ -1458,7 +1476,28 @@ installation). \`order\`, \`enabled\` and \`danger\` are REQUIRED on every actio
 \`activeWhen\` turns the button into a switch that shows the record's current state.
 \`promptParameters\` opens the workflow's parameter form before firing, and \`parameterDefaults\` maps
 each parameter to an expression, for when the field name on screen is not the parameter name in the
-flow. A screen offers the action by putting its \`templateId\` in \`cardActionIds\` or \`viewActionIds\`.
+flow — or when the value lives on a record this one points at:
+
+\`\`\`ts
+{
+  templateId: 'act-generate-deadline',
+  workflowId: 'wf-generate-deadline',
+  promptParameters: true,
+  parameterDefaults: {
+    responsibleLawyerId: 'caseId.responsibleLawyerId',   // the lawyer of the CASE, not a copy
+    caseNumber: 'processNumber',
+  },
+  // ...
+}
+\`\`\`
+
+Each parameter opens with the first of these that answers: the \`parameterDefaults\` expression; the
+record's field with the same key; the parameter's own \`defaultValue\` in the workflow. A declared
+expression that answers empty skips the same-key field — it was declared not to be that field — but
+still falls back to \`defaultValue\`. An expression that throws is reported and the parameter falls
+back as if it had none.
+
+A screen offers the action by putting its \`templateId\` in \`cardActionIds\` or \`viewActionIds\`.
 
 ### Scripts
 

@@ -21,6 +21,7 @@ import { isBoundScreen, isOwnedByParentScreen, screenDataCollection } from '../.
 import { collectionPermissionId } from '../../../domain/schema/access';
 import { screenForDisplay, useEntityFormFields, useResolvedFields } from '../useEntityFormFields';
 import { useExprViewer } from '../useExprViewer';
+import { useActionReferences } from '../useActionReferences';
 import { useSchemaContext } from '../useSchemaContext';
 import { useRecordActions } from '../recordActions/useRecordActions';
 import type { RecordActionHost } from '../recordActions/recordActionHost';
@@ -148,6 +149,7 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
   const label = useLabel();
   const { getActionsByIds, runAction } = useActions();
   const viewer = useExprViewer();
+  const references = useActionReferences();
 
   /**
    * Abrir a listagem JÁ FILTRADA: o painel manda ver "prazos vencidos", o cartão de um push manda ver
@@ -421,7 +423,8 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
     surface: (parent ? 'parentTab' : 'list') as ActionSurface,
     relation,
     user: viewer,
-  }), [effectivePermissions, collection, parent, relation, viewer]);
+    references,
+  }), [effectivePermissions, collection, parent, relation, viewer, references]);
 
   const confirmPendingCardAction = useCallback(() => {
     if (!pendingCardAction) return;
@@ -463,7 +466,7 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
         title: label(action.title),
         danger: action.danger,
         iconKey: action.icon,
-        disabled: runningActionId !== null || isActionDisabled(action.disabledWhen, exprContext),
+        disabled: runningActionId !== null || parameterPrompt.loading || isActionDisabled(action.disabledWhen, exprContext),
         // Confirmar vem ANTES de perguntar parâmetro: a pergunta "tem certeza?" é sobre o gesto, e
         // abrir um formulário para só depois perguntar se era para fazer inverte a ordem do diálogo.
         onClick: () => {
@@ -476,7 +479,7 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
       }));
 
     return [...native, ...custom];
-  }, [definition, collection, can, cardExprContext, recordActions, buildActionHost, cardActionDefs, viewer, runningActionId, askAndRunCardAction, label]);
+  }, [definition, collection, can, cardExprContext, recordActions, buildActionHost, cardActionDefs, viewer, runningActionId, parameterPrompt.loading, askAndRunCardAction, label]);
 
   const tagIdsOf = useCallback((entityId: string) => records.find((r) => r.id === entityId)?.tagIds ?? [], [records]);
   const setRecordTags = useCallback(

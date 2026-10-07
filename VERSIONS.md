@@ -11,6 +11,12 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.72.0] — 2026-10-07
+
+- Ações agora podem usar informações do registro relacionado: o botão "Gerar prazo" de um push, por exemplo, já abre com o advogado responsável pelo processo vinculado, sem precisar copiar esse dado para dentro do push.
+- Os botões de ação também podem aparecer, sumir ou ficar desabilitados conforme o registro relacionado — e nunca mostram informação de um registro que a pessoa não tem permissão para ver.
+- Formulários de ação passam a abrir já preenchidos com o valor padrão definido na automação, quando não há outra informação para o campo.
+
 #### [9.71.0] — 2026-10-07
 
 - Extensões agora podem acrescentar abas próprias dentro de um registro — por exemplo, uma aba de Prazos dentro do Processo, com o visual que a extensão escolher. Elas aparecem depois das abas de sempre, apenas em registros já salvos.

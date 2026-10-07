@@ -7,6 +7,7 @@ import { actionActiveState, isActionDisabled, isActionHidden } from '../../../do
 import { useActionParameterPrompt } from './useActionParameterPrompt';
 import type { ActionParameterPromptController } from './useActionParameterPrompt';
 import { useExprViewer } from '../useExprViewer';
+import { useActionReferences } from '../useActionReferences';
 import type { ActionDefinition, ActionOutcome, ActionStatusCode, CustomFieldValue } from '../../../domain/entities';
 
 import { useT, useLabel } from '../i18n/useT';
@@ -164,6 +165,7 @@ export const useScreenActions = (target: ScreenActionTarget): ScreenActions => {
   const label = useLabel();
   const { effectivePermissions } = useAuthorization();
   const viewer = useExprViewer();
+  const references = useActionReferences();
 
   const [runningActionId, setRunningActionId] = useState<string | null>(null);
   const [pendingAction, setPendingAction] = useState<ActionDefinition | null>(null);
@@ -180,7 +182,8 @@ export const useScreenActions = (target: ScreenActionTarget): ScreenActions => {
     // O cabeçalho do registro aberto — a superfície em que uma ação sempre coube.
     surface: 'detail' as const,
     user: viewer,
-  }), [values, record, isNew, isDirty, effectivePermissions, targetCollection, screenKey, viewer]);
+    references,
+  }), [values, record, isNew, isDirty, effectivePermissions, targetCollection, screenKey, viewer, references]);
 
   const execute = useCallback(async (
     action: ActionDefinition,
@@ -256,11 +259,11 @@ export const useScreenActions = (target: ScreenActionTarget): ScreenActions => {
         iconKey: action.icon,
         title: label(action.title),
         danger: action.danger,
-        disabled: runningActionId !== null || isActionDisabled(action.disabledWhen, exprContext),
+        disabled: runningActionId !== null || parameterPrompt.loading || isActionDisabled(action.disabledWhen, exprContext),
         active: actionActiveState(action.activeWhen, exprContext),
         onClick: () => requestRun(action),
       })),
-    [available, exprContext, runningActionId, requestRun, runRecordCommand, label],
+    [available, exprContext, runningActionId, parameterPrompt.loading, requestRun, runRecordCommand, label],
   );
 
   return { buttons, runningActionId, pendingAction, confirmPendingAction, cancelPendingAction, parameterPrompt };
