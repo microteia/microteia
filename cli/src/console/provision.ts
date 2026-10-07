@@ -37,6 +37,7 @@ import { ENVIRONMENT_FILE, readEnvironment, writeEnvironment } from './environme
 import type { Environment } from './environment.js';
 import { FIREBASE_BIN } from './firebaseCli.js';
 import { deployFunctionsOneByOne, reportFailures, reportNotices } from './deployFunctions.js';
+import { deployFunctionsThatChanged } from './functionsUpToDate.js';
 import { clearRegionOrphans, listDeployedFunctions } from './regionOrphans.js';
 import type { DeployedFunction } from './regionOrphans.js';
 import { outdatedByStamp } from './functionsUpToDate.js';
@@ -497,9 +498,30 @@ export const provisionBackend = async (options: ProvisionOptions): Promise<Provi
     blank();
   }
 
-  const queued = wantedFunctions.filter(
-    (name) => options.all === true || !appliedNames.has(name) || staleFunctions.has(name),
-  );
+  /**
+   * De onde vem a conclusão sobre o que mudou — e são DOIS caminhos, porque as duas situações são
+   * diferentes de verdade.
+   *
+   * Vindo do `deploy`, o carimbo de agora já foi observado: as functions do kernel acabaram de subir,
+   * e as de extensão estão no MESMO codebase, então `outdatedByStamp` decide sem sondar nada.
+   *
+   * Rodando SOZINHO — que é o caminho de quem acabou de trocar de kernel por `unpack` — não há mapa
+   * nenhum, e era aqui que estava o defeito: `outdatedByStamp` não tinha com o que comparar, não
+   * tirava conclusão, e a function de extensão cujo CÓDIGO mudou ficava de fora da fila para sempre.
+   * O registro dizia "aplicada", porque ela de fato estava no ar — só que da versão anterior. Nada
+   * avisava, e o sintoma aparecia no cliente, não aqui.
+   *
+   * Então a fila passa a ser TUDO o que as extensões pedem, e quem decide o que realmente sobe é
+   * `deployFunctionsThatChanged` — a mesma sondagem do `deploy`, pela mesma função: deploya uma
+   * referência por carimbo e, se o carimbo voltar igual, deixa as outras em paz. Custa uma function
+   * por execução; não custar nada era o que fazia a conta ficar errada.
+   */
+  const probing = options.refreshedStamps === undefined;
+  const queued = probing
+    ? wantedFunctions
+    : wantedFunctions.filter(
+      (name) => options.all === true || !appliedNames.has(name) || staleFunctions.has(name),
+    );
 
   /**
    * A recusa do portão, cobrada de quem está na fila — e só dela.
@@ -519,6 +541,9 @@ export const provisionBackend = async (options: ProvisionOptions): Promise<Provi
     info('  they are the only ones held back. Fix the guard and run "microteia provision" again.');
     outcome.failed.push(...refused);
   }
+
+  /** O que já estava no ar com ESTE código, e por isso não subiu. Conta como satisfeito. */
+  let skippedNow: string[] = [];
 
   if (toDeploy.length === 0) {
     // Anunciar "as 0 functions já estão deployadas" seria o preço de ter tirado o desvio, e não é
@@ -545,10 +570,16 @@ export const provisionBackend = async (options: ProvisionOptions): Promise<Provi
     // é o mesmo: deploy recusado em toda tentativa, e gatilho disparando em duas regiões.
     await clearRegionOrphans(projectId, toDeploy, region, options.prune, await projectFunctions());
 
-    info(`  deploying ${toDeploy.length} function(s), one at a time…`);
-    const report = await deployFunctionsOneByOne(toDeploy, {
-      projectId, cwd: install, delaySeconds, force: false,
-    });
+    const deployOptions = { projectId, cwd: install, delaySeconds, force: false };
+    if (!probing) info(`  deploying ${toDeploy.length} function(s), one at a time…`);
+    const report = probing
+      ? await deployFunctionsThatChanged(toDeploy, deployOptions, {
+        deployed: await projectFunctions(),
+        region,
+        all: options.all === true,
+      })
+      : { ...await deployFunctionsOneByOne(toDeploy, deployOptions), skipped: [] as string[] };
+    skippedNow = report.skipped;
     outcome.deployed = report.deployed;
     outcome.failed.push(...report.failed.map((entry) => entry.name));
     reportFailures(report.failed);
@@ -561,7 +592,10 @@ export const provisionBackend = async (options: ProvisionOptions): Promise<Provi
     );
   }
 
-  const deployedNow = new Set([...appliedNames, ...outcome.deployed]);
+  // O PULADO entra junto: ele não subiu agora porque o projeto já roda exatamente este código, que é
+  // o mesmo que estar satisfeito. Deixá-lo de fora manteria a extensão "pendente" para sempre numa
+  // instalação em que não falta nada.
+  const deployedNow = new Set([...appliedNames, ...outcome.deployed, ...skippedNow]);
   for (const claim of valid) {
     const satisfied = (claim.backend.functions ?? []).every((name) => deployedNow.has(name));
     if (satisfied) {

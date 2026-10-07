@@ -228,6 +228,27 @@ describe('a decisão fica onde ela é tomada', () => {
     expect(provision).toContain('options.refreshedStamps)');
   });
 
+  /**
+   * O defeito: `microteia provision` sozinho nunca redeployava uma function de EXTENSÃO cujo código
+   * tinha mudado. Ele só sabia comparar carimbos com o mapa que o `deploy` lhe entrega, e rodando
+   * sozinho — que é o caminho de quem acabou de trocar de kernel por `unpack` — não havia mapa:
+   * `outdatedByStamp` não tirava conclusão, a function ficava fora da fila, e o registro dizia
+   * "aplicada" porque ela estava mesmo no ar — da versão anterior. Nada avisava.
+   */
+  it('o provisionamento sozinho SONDA, em vez de concluir que nada mudou', () => {
+    const provision = source('console/provision.ts');
+
+    // Sem mapa com que comparar, a fila é tudo o que as extensões pedem — quem decide o que sobe de
+    // verdade é a sondagem, e não o registro de quem já foi aplicada uma vez.
+    expect(provision).toContain('const probing = options.refreshedStamps === undefined;');
+    expect(provision).toContain('deployFunctionsThatChanged');
+    expect(provision).toContain('? wantedFunctions');
+
+    // E o que a sonda PULOU conta como satisfeito: ele não subiu porque o projeto já roda este
+    // código. Sem isto, a extensão ficaria "pendente" para sempre numa instalação completa.
+    expect(provision).toContain('...skippedNow]');
+  });
+
   it('a comparação continua sendo a do firebase, e não uma nossa', () => {
     const module = source('console/functionsUpToDate.ts');
 
