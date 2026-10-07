@@ -41,7 +41,11 @@ export const useReferenceOptions = (): Record<string, ReferenceOption[]> => {
     // pelo caminho genérico abaixo: o rótulo sai do campo-título e o complemento, do subtítulo.
     const map: Record<string, ReferenceOption[]> = {
       members: members
-        .map((m) => ({ value: m.userId, label: m.displayName }))
+        .map((m) => ({
+          value: m.userId,
+          label: m.displayName || m.email,
+          meta: m.email || undefined,
+        }))
         .sort((a, b) => a.label.localeCompare(b.label)),
     };
     Object.entries(recordsByCollection).forEach(([collection, records]) => {

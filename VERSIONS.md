@@ -11,6 +11,12 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.70.0] — 2026-10-07
+
+- Ao escolher um usuário do escritório num campo, cada nome agora aparece acompanhado do e-mail, para distinguir pessoas com o mesmo nome. Usuários sem nome cadastrado aparecem pelo e-mail, em vez de uma linha em branco.
+- A busca desses campos também encontra o usuário por parte do e-mail.
+- Campos que permitem escolher vários registros passaram a mostrar a mesma segunda linha de informação que os campos de escolha única já mostravam.
+
 #### [9.69.0] — 2026-10-07
 
 - Um assistente de IA conectado ao escritório agora consegue saber exatamente o que cada automação espera receber: o nome de cada informação, se ela é obrigatória, quais valores são aceitos e um exemplo. Antes ele precisava adivinhar, por tentativa e erro.

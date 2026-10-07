@@ -8,6 +8,7 @@ import { useT } from '../../shared/i18n/useT';
 export interface MultiSearchSelectOption {
   value: string;
   label: string;
+  meta?: string;
   color?: string;
   statusDot?: string;
 }
@@ -199,11 +200,21 @@ const OptionItem = styled.li<{ $active: boolean; $selected: boolean }>`
   &:hover { background: ${({ theme }) => theme.colors.surfaceHover}; }
 `;
 
-const OptionLabel = styled.div`
+const OptionText = styled.div`
   flex: 1;
+  min-width: 0;
+`;
+
+const OptionLabel = styled.div`
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+`;
+
+const OptionMeta = styled.div`
+  font-size: ${({ theme }) => theme.fontSizes.xs};
+  color: ${({ theme }) => theme.colors.textMuted};
+  margin-top: 1px;
 `;
 
 const CheckIcon = styled.span`
@@ -245,7 +256,8 @@ export const MultiSearchSelect: React.FC<MultiSearchSelectProps> = ({
   const { dropPos, reposition } = useAnchoredDropdown({ open, anchorRef: wrapperRef, dropdownRef });
 
   const filtered = options.filter((o) =>
-    o.label.toLowerCase().includes(query.toLowerCase())
+    o.label.toLowerCase().includes(query.toLowerCase()) ||
+    (o.meta ?? '').toLowerCase().includes(query.toLowerCase())
   );
 
   const knownValues = new Set(options.map((o) => o.value));
@@ -389,7 +401,10 @@ export const MultiSearchSelect: React.FC<MultiSearchSelectProps> = ({
                     onMouseEnter={() => setActiveIdx(idx)}
                   >
                     {opt.statusDot && <StatusDot $color={opt.statusDot} />}
-                    <OptionLabel>{opt.label}</OptionLabel>
+                    <OptionText>
+                      <OptionLabel>{opt.label}</OptionLabel>
+                      {opt.meta && <OptionMeta>{opt.meta}</OptionMeta>}
+                    </OptionText>
                     {selected && <CheckIcon><RiCheckLine size={15} /></CheckIcon>}
                   </OptionItem>
                 );

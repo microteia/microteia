@@ -18,6 +18,11 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.70.0] — 2026-10-07
+
+- feat(reference): `members` options now carry the member's e-mail as `meta`, and fall back to it as `label` when `displayName` is empty. `members` is not a screen, so no `subtitleFieldKey` could be declared for it, and two members sharing a name were indistinguishable in the picker. The stored `value` is still `userId`.
+- feat(ui/MultiSearchSelect): options render `meta` as a second line in the list (not in the selected pills), and the search matches `meta` as well as `label` — the same behaviour `SearchSelect` already had, so a `multi: true` reference behaves like the single one.
+
 #### [9.69.0] — 2026-10-07
 
 - fix(agent): `microteia://office/workflows` read `name` from each parameter, which is stored as `key` — every parameter reached the agent as `"name": ""`. Parameters are now described once (`describeParameters`, `domain/schema/agent/agentWorkflow.ts`) and served by both the resource and the new tool: key, label, type, required, list, options / `optionsFrom` / `references`, format, pattern, default, `accepts` and an `example`.
