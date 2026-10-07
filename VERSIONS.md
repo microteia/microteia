@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.73.0] — 2026-10-07
+
+- Quem cria extensões ganhou um exemplo pronto de aba dentro de um registro: uma linha do tempo dos marcos de cada projeto, que pode ser copiada como ponto de partida.
+- O editor avisa mais cedo quando uma extensão usa um recurso de lista com o nome errado, em vez de a tela simplesmente não funcionar.
+
 #### [9.72.0] — 2026-10-07
 
 - Ações agora podem usar informações do registro relacionado: o botão "Gerar prazo" de um push, por exemplo, já abre com o advogado responsável pelo processo vinculado, sem precisar copiar esse dado para dentro do push.

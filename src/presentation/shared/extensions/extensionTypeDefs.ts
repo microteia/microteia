@@ -951,7 +951,7 @@ const UI_MODULE_DEFS = `declare module '@microteia/ui' {
 }`;
 
 const DATA_MODULE_DEFS = `declare module '@microteia/data' {
-  import { FieldFileUpload } from '@microteia/ui';
+  import { CustomFieldMetaRowsProps, FieldFileUpload, FilterDef, FilterToken } from '@microteia/ui';
 
   /** Records of any collection described by a screen in the organization. */
   export function useCollection(collection: string): any[];
@@ -1058,15 +1058,53 @@ const DATA_MODULE_DEFS = `declare module '@microteia/data' {
     onClick: () => void;
   }
 
+  /**
+   * What useEntityList returns. Every member is declared, so a misspelt one is a type error rather than
+   * an undefined at run time. Hand the whole object to RecordListSurface / EntityListModals as vm.
+   */
   export interface RecordListViewModel {
-    records: any[];
+    /** The screen, or null while it loads or when no screen has this sourceId. */
+    definition: any | null;
     /** The records' collection - the screen key, or the target collection when it is a view. */
     collection: string;
+    isAvailable: boolean;
     isLoading: boolean;
-    filters: any[];
-    setFilters: (filters: any[]) => void;
+    /** Every record of the list (already locked to the parent, when options.parent is given). */
+    records: any[];
+    /** records after the filter the person typed. */
+    filteredRecords: any[];
+    filterTokens: FilterToken[];
+    filterDefs: FilterDef[];
+    setFilterTokens: (tokens: FilterToken[]) => void;
+    /** Pass to CompositeFilter as screenKey, so saved filters belong to this screen. */
+    savedFiltersScreenKey: string;
+    tags: { id: string; name: string; color: string }[];
+    /** What this person may do in this collection. Hide what the rules would refuse. */
+    canRead: boolean;
+    canCreate: boolean;
+    canUpdate: boolean;
+    canDeleteRecords: boolean;
+    /** Opens the form of a new record - with the parent field filled in when options.parent is given. */
+    openNewRecord: () => void;
+    openRecord: (record: any) => void;
+    getCardItems: (record: any) => CustomFieldMetaRowsProps['items'];
+    getCardTitle: (record: any) => string;
+    getCardSubtitle: (record: any) => string;
+    cardSubtitleIconKey: string | null;
+    getCardImageUrl: (record: any) => string | null;
     getCardActions: (record: any) => RecordCardAction[];
-    [key: string]: any;
+    /** State for EntityListModals - read it through vm, not directly. */
+    parameterPrompt: any;
+    pendingCardAction: { action: any; record: any } | null;
+    confirmPendingCardAction: () => void;
+    cancelPendingCardAction: () => void;
+    tagAdapter: any;
+    tagManagerRecord: any | null;
+    closeTagManager: () => void;
+    recordToDelete: any | null;
+    cancelDelete: () => void;
+    confirmDelete: () => Promise<void>;
+    isDeleting: boolean;
   }
 
   export interface EntityListOptions {

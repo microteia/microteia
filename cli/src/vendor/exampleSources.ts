@@ -52,6 +52,7 @@ export const EXAMPLE_SOURCES: Record<string, string> = {
   'auth-example': 'examples/auth-example',
   'command-example': 'examples/command-example',
   'settings-example': 'examples/settings-example',
+  'record-tab-example': 'examples/record-tab-example',
 };
 
 /**

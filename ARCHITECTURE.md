@@ -9252,6 +9252,10 @@ mesma regra de `useEntityList`: `screen.sourceId ?? screen.id`, da tela que CONF
 | `packageSurfaceIssues` | `domain/usecases/plugins/pluginSurfaces.ts` | o portão recusa `record:` sem `sourceId` |
 | `recordSurfaceFindings` | `sdk/node/recordSurfaces.ts` | o `check` AVISA do `sourceId` que não enxerga |
 
+O exemplo de autoria é `examples/record-tab-example`: Projeto e Marco (este de propósito SEM
+`parentEntity`), uma aba de código com a linha do tempo dos marcos — `useEntityList` com `parent`, a
+bolinha na cor da opção de prioridade como o escritório a configurou — e uma aba declarativa ao lado.
+
 As abas de tela-filha não mudaram: o recurso é um caminho a mais, não uma substituição. Como o
 `useEntityDetailVM` da API curada passa pelo mesmo `useEntityDetail`, o editor próprio de uma extensão
 (`recordTabPrefix` + `RecordDetailSurface`) desenha as mesmas abas sem uma linha a mais.
@@ -9259,6 +9263,11 @@ As abas de tela-filha não mudaram: o recurso é um caminho a mais, não uma sub
 **`RecordTabProps`** — `recordId`, `record` (como está gravado, e de novo quando muda), `collection`
 (respeita `dataCollection`) e `screenSourceId`. O tipo mora no domínio e é publicado ao autor em
 `@microteia/data` (`extensionTypeDefs.ts`).
+
+**O `RecordListViewModel` publicado declara cada campo, e só eles.** Tinha `[key: string]: any` e dois
+nomes que nunca existiram (`filters`, `setFilters`): um nome errado passava no `tsc` do autor e virava
+`undefined` na tela — e era assim que `openNewRecord`, a peça que a aba usa, aparecia só na prosa.
+`recordListTypeDefs.test.ts` amarra a declaração ao tipo real com um `Record<keyof …>`.
 
 **`when` não é avaliado** — nem aqui, nem em superfície nenhuma: o campo existe em `Contribution` e o
 kernel não o lê. Começar a lê-lo seria uma decisão de todas as superfícies, não desta.

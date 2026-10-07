@@ -18,6 +18,7 @@ import { themeExamplePlugin } from './examples/theme-example/plugin';
 import { authExamplePlugin } from './examples/auth-example/plugin';
 import { commandExamplePlugin } from './examples/command-example/plugin';
 import { settingsExamplePlugin } from './examples/settings-example/plugin';
+import { recordTabExamplePlugin } from './examples/record-tab-example/plugin';
 import { THEME_MARKETPLACE_PLUGINS } from './themes';
 
 /**
@@ -222,6 +223,7 @@ export {
   authExamplePlugin,
   commandExamplePlugin,
   settingsExamplePlugin,
+  recordTabExamplePlugin,
 };
 
 export const MARKETPLACE_CATALOG: MarketplacePlugin[] = [

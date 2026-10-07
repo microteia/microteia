@@ -509,6 +509,7 @@ actions see \`surface: 'parentTab'\`, and \`openNewRecord()\` opens the form wit
 The organization toggles and orders these tabs from Settings (\`<surface>.tabs\`). \`check\` refuses
 \`${RECORD_SURFACE_PREFIX}\` with no \`sourceId\`, and warns — without refusing — about a \`sourceId\` it
 cannot find in your package, in a dependency authored beside it, or in the installation snapshot.
+\`examples/record-tab-example\` has both kinds of tab, and the list locked to the open record.
 
 ### Signing in — including your own SSO
 

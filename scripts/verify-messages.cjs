@@ -90,6 +90,7 @@ const PLUGIN_CATALOG_BY_NS = {
   'com.microteia.auth-example': { dir: 'marketplace/examples/auth-example', source: 'authMessages', ptBr: 'authMessagesPtBr' },
   'com.microteia.command-example': { dir: 'marketplace/examples/command-example', source: 'commandMessages', ptBr: 'commandMessagesPtBr' },
   'com.microteia.settings-example': { dir: 'marketplace/examples/settings-example', source: 'settingsMessages', ptBr: 'settingsMessagesPtBr' },
+  'com.microteia.record-tab-example': { dir: 'marketplace/examples/record-tab-example', source: 'recordTabMessages', ptBr: 'recordTabMessagesPtBr' },
 };
 
 /** Onde mora o catálogo de ORIGEM de um namespace, seja ele do núcleo ou de uma extensão. */

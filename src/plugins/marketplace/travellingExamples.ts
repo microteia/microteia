@@ -9,6 +9,7 @@ import {
   consumerExamplePlugin,
   libraryExamplePlugin,
   patchExamplePlugin,
+  recordTabExamplePlugin,
   reportExamplePlugin,
   settingsExamplePlugin,
   themeExamplePlugin,
@@ -44,6 +45,7 @@ export const TRAVELLING_EXAMPLES: MarketplacePlugin[] = [
   authExamplePlugin,
   commandExamplePlugin,
   settingsExamplePlugin,
+  recordTabExamplePlugin,
 ];
 
 /**

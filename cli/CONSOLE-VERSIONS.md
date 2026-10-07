@@ -22,6 +22,10 @@
 - fix(command): what was broken, and what it did to whoever hit it.
 -->
 
+#### [2.25.0] — 2026-10-07
+
+- feat(examples): the Console ships `record-tab-example` as authoring source — a tab inside another screen's record, as code and as Widget DSL, and a list locked to the open record.
+
 #### [2.24.0] — 2026-10-07
 
 - feat(export-catalog): each screen in `installed-catalog.json` now carries its `sourceId`. The snapshot only had the installed key, which may have been disambiguated on install, so an extension that adds a tab to another's record detail (`record:<sourceId>`) could not be checked against the installation. Older snapshots simply lack the field.
