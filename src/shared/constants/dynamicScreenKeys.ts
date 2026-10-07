@@ -10,6 +10,11 @@ export interface DynamicTabInfo {
   /** Presente ao criar um registro filho a partir da aba do pai. */
   parentEntity?: string;
   parentId?: string;
+  /**
+   * O campo que recebe o pai, quando não é o `parentFieldKey` da tela — a lista de uma aba contribuída
+   * prende os registros por um campo de referência qualquer, e o novo tem de nascer preso a ele.
+   */
+  parentFieldKey?: string;
 }
 
 /** Chaves de aba de detalhe das telas fixas — o resto é tela dinâmica. */
@@ -34,8 +39,13 @@ export const buildEntityViewTabKey = (entityKey: string, recordId: string): stri
   builtinViewTabKey(entityKey, recordId) ?? `${DYN_VIEW_PREFIX}${entityKey}:${recordId}`;
 
 /** Novo registro filho, carregando o pai a quem ele pertence (e a quem voltar ao salvar). */
-export const buildChildNewTabKey = (screenKey: string, parentEntity: string, parentId: string): string =>
-  `${DYN_NEW_PREFIX}${screenKey}:parent:${parentEntity}:${parentId}`;
+export const buildChildNewTabKey = (
+  screenKey: string,
+  parentEntity: string,
+  parentId: string,
+  parentFieldKey?: string,
+): string =>
+  `${DYN_NEW_PREFIX}${screenKey}:parent:${parentEntity}:${parentId}${parentFieldKey ? `:${parentFieldKey}` : ''}`;
 
 export const buildListTabKey = (screenKey: string): string => `${DYN_LIST_PREFIX}${screenKey}`;
 
@@ -61,7 +71,13 @@ export const parseDynamicTabKey = (tabKey: string): DynamicTabInfo | null => {
       return { kind: 'new', screenKey, cloneSourceId: parts[2] };
     }
     if (parts[1] === 'parent' && parts[2] && parts[3]) {
-      return { kind: 'new', screenKey, parentEntity: parts[2], parentId: parts[3] };
+      return {
+        kind: 'new',
+        screenKey,
+        parentEntity: parts[2],
+        parentId: parts[3],
+        ...(parts[4] ? { parentFieldKey: parts[4] } : {}),
+      };
     }
     return { kind: 'new', screenKey };
   }

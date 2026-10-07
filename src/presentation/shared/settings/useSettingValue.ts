@@ -1,5 +1,6 @@
 import { useCallback, useMemo } from 'react';
 import { useOptionalSettings, useSettings } from '../../../stores/useSettings';
+import { useAuthorization } from '../../../stores/useAuthorization';
 import {
   findSettingsProperty,
   resolveContributionLayout,
@@ -18,6 +19,7 @@ import {
   useSurfaceSlots,
   useSurfaceTabs,
   useSurfaceWidgets,
+  type SurfaceTabDescriptor,
 } from './useSettingsCatalog';
 
 /**
@@ -168,6 +170,31 @@ export const useSurfaceTabLayout = (surface: string): SurfaceTabLayout => {
   }, [property, values, tabs]);
 
   return { entries, property };
+};
+
+/**
+ * As abas que APARECEM numa superfície: as registradas, na ordem e com o liga/desliga da configuração,
+ * menos as que a permissão de quem olha veta (uma basta). É o que a faixa de Configurações do
+ * escritório e a do detalhe de um registro mostram — uma regra só para as duas.
+ */
+export const useVisibleSurfaceTabs = (surface: string): {
+  tabs: SurfaceTabDescriptor[];
+  registeredCount: number;
+} => {
+  const registered = useSurfaceTabs(surface);
+  const { entries } = useSurfaceTabLayout(surface);
+  const { canAny } = useAuthorization();
+
+  const tabs = useMemo(() => {
+    const byKey = new Map(registered.map((tab) => [tab.key, tab]));
+    return entries
+      .filter((entry) => entry.enabled)
+      .map((entry) => byKey.get(entry.key))
+      .filter((tab): tab is SurfaceTabDescriptor => !!tab)
+      .filter((tab) => !tab.requiredPermissions?.length || canAny(tab.requiredPermissions));
+  }, [registered, entries, canAny]);
+
+  return { tabs, registeredCount: registered.length };
 };
 
 export interface SurfaceContributionLayout {

@@ -161,6 +161,7 @@ export type {
   UiNavBadge,
   UiNavMetadata,
   UiPageMetadata,
+  RecordTabProps,
   UiRecordActionMetadata,
   UiSlotMetadata,
   UiTabMetadata,
@@ -180,8 +181,11 @@ export {
   UI_TAB_POINT,
   UI_WIDGET_POINT,
   LOGIN_SLOT_SURFACES,
+  RECORD_SURFACE_PREFIX,
   USER_MENU_SURFACE,
   WORKSPACE_SLOT_SURFACES,
+  recordSurface,
+  recordSurfaceSourceId,
 } from '../domain/schema/ui/uiExtensionPoints';
 
 export type { WidgetNodeType, WidgetSpec } from '../domain/schema/ui/widgetSpec';

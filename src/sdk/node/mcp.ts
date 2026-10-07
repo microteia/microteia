@@ -61,6 +61,7 @@ import { exportedSurface } from '../../domain/usecases/plugins/crossExtensionRef
 import { SCRIPT_ID_INPUT, TARGET_WORKFLOW_ID_INPUT } from '../../domain/usecases/plugins/pluginReferences';
 import type { ReferenceableArtifact } from './referenceable';
 import { crossRefReport, referenceableArtifacts } from './referenceable';
+import { recordSurfaceReport } from './recordSurfaces';
 import { readWorkspaceCatalog } from './workspaceCatalog';
 import type { WorkspaceCatalog } from './workspaceCatalog';
 import { INSTALLED_CATALOG_FILE, INSTALLED_CATALOG_OMITS } from './installedCatalog';
@@ -155,6 +156,18 @@ const describeCrossRefs = (pkg: MarketplacePlugin, root: string): string => {
 
   return `\n\n${head}\n${findings
     .map((one) => `- [${one.status}] ${one.ref} (${one.kind}, from ${one.writtenBy}) — ${one.detail}`)
+    .join('\n')}`;
+};
+
+/**
+ * As telas a que o pacote pendura abas (`record:<sourceId>`). Aviso, nunca recusa: a tela pode ser de
+ * outra extensão, num escritório que este diretório não enxerga.
+ */
+const describeRecordSurfaces = (pkg: MarketplacePlugin, root: string): string => {
+  const findings = recordSurfaceReport(pkg, root);
+  if (findings.length === 0) return '';
+  return `\n\n${findings.length} record detail(s) this package adds tabs to (warnings only, never refused):\n${findings
+    .map((one) => `- [${one.status}] record:${one.sourceId} (${one.contributions.join(', ')}) — ${one.detail}`)
     .join('\n')}`;
 };
 
@@ -314,17 +327,18 @@ const TOOLS: ToolDefinition[] = [
       if (typeof input.json === 'string') {
         const parsed = parsePackage(input.json);
         if (!parsed.ok) return `Not a valid package: ${describeMessage(parsed.error)}`;
-        return `${describeIssues(validatePluginPackage(parsed.package))}${describeCrossRefs(parsed.package, root)}`;
+        return `${describeIssues(validatePluginPackage(parsed.package))}${describeCrossRefs(parsed.package, root)}${describeRecordSurfaces(parsed.package, root)}`;
       }
       const path = resolve(root, asString(input.path, 'path'));
       if (path.endsWith('.json')) {
         const parsed = parsePackage(readFileSync(path, 'utf8'));
         if (!parsed.ok) return `Not a valid package: ${describeMessage(parsed.error)}`;
-        return `${describeIssues(validatePluginPackage(parsed.package))}${describeCrossRefs(parsed.package, root)}`;
+        return `${describeIssues(validatePluginPackage(parsed.package))}${describeCrossRefs(parsed.package, root)}${describeRecordSurfaces(parsed.package, root)}`;
       }
       const result = buildPlugin({ entry: path });
       return `${result.package.manifest.id} v${result.package.manifest.version}\n${describeIssues(result.issues)}`
-        + describeCrossRefs(result.package, root);
+        + describeCrossRefs(result.package, root)
+        + describeRecordSurfaces(result.package, root);
     },
   },
   {

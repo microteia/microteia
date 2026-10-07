@@ -75,6 +75,11 @@ export interface CatalogFieldExport {
 
 export interface CatalogScreenExport {
   key: string;
+  /**
+   * O id UNIVERSAL da tela. A chave acima é a instalada, que pode ter sido desambiguada; é pelo
+   * `sourceId` que uma extensão endereça a tela de outra (`record:<sourceId>`).
+   */
+  sourceId?: string;
   collection?: string;
   titleSingular: string;
   titlePlural?: string;
@@ -244,6 +249,7 @@ const screenExport = (document: CatalogSourceDocument): CatalogScreenExport => {
 
   return {
     key: document.id,
+    ...(text(data.sourceId) === undefined ? {} : { sourceId: text(data.sourceId) as string }),
     ...(text(data.dataCollection) === undefined ? {} : { collection: text(data.dataCollection) as string }),
     titleSingular: text(data.titleSingular) ?? document.id,
     ...(text(data.titlePlural) === undefined ? {} : { titlePlural: text(data.titlePlural) as string }),

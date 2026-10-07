@@ -9192,6 +9192,81 @@ divisor é o que aparece entre duas — quem contribui declara `group`, e o shel
 
 ---
 
+## Abas de extensão no detalhe de um registro — `record:<sourceId>`
+
+Toda extensão que se pendura na entidade de outra precisa, cedo ou tarde, mostrar algo DENTRO do
+registro dela: Prazos no Processo, Financeiro no Contrato. O contorno que existia — declarar a tela
+como filha (`parentEntity`) — só entregava a lista genérica embutida, sem visual próprio e sem ordem.
+A capacidade que faltava não era uma tela nova: era a faixa de abas do detalhe virar SUPERFÍCIE.
+
+### O endereço é o `sourceId`, não a chave
+
+`recordSurface(sourceId)` (`domain/schema/ui/uiExtensionPoints.ts`, no barril do SDK) devolve
+`record:<sourceId>`. A chave instalada pode ser desambiguada na instalação; o `sourceId` não muda — e
+é ele que permite a uma extensão contribuir na tela de OUTRA. O detalhe acha o próprio `sourceId` pela
+mesma regra de `useEntityList`: `screen.sourceId ?? screen.id`, da tela que CONFIGURA o detalhe
+(`configScreenKey`).
+
+### O que mudou, e o que não mudou
+
+| Peça | Onde | O que faz |
+|---|---|---|
+| `useVisibleSurfaceTabs` | `shared/settings/useSettingValue.ts` | registradas + liga/desliga/ordem de `<superfície>.tabs` + permissão (uma basta). A MESMA regra do `TabSurface` — que passou a usá-la |
+| `useRecordSurfaceTabs` | `shared/entityScreen/` | as abas de `record:<sourceId>`, só para registro já gravado, com chave `surface:<key>` |
+| `RecordSurfaceTab` | `components/layout/` | o limite de erro da aba; `impl: code` recebe `RecordTabProps`, `impl: widget` não recebe dado |
+| `useEntityDetail` | `shared/entityScreen/` | `childTabs` = telas-filhas **e depois** as contribuídas |
+| `useRecordTabSettingsSection` | `shared/settings/useRecordTabSettings.ts` | a seção "Abas do registro" em Configurações |
+| `packageSurfaceIssues` | `domain/usecases/plugins/pluginSurfaces.ts` | o portão recusa `record:` sem `sourceId` |
+| `recordSurfaceFindings` | `sdk/node/recordSurfaces.ts` | o `check` AVISA do `sourceId` que não enxerga |
+
+As abas de tela-filha não mudaram: o recurso é um caminho a mais, não uma substituição. Como o
+`useEntityDetailVM` da API curada passa pelo mesmo `useEntityDetail`, o editor próprio de uma extensão
+(`recordTabPrefix` + `RecordDetailSurface`) desenha as mesmas abas sem uma linha a mais.
+
+**`RecordTabProps`** — `recordId`, `record` (como está gravado, e de novo quando muda), `collection`
+(respeita `dataCollection`) e `screenSourceId`. O tipo mora no domínio e é publicado ao autor em
+`@microteia/data` (`extensionTypeDefs.ts`).
+
+**`when` não é avaliado** — nem aqui, nem em superfície nenhuma: o campo existe em `Contribution` e o
+kernel não o lê. Começar a lê-lo seria uma decisão de todas as superfícies, não desta.
+
+### A configuração é DERIVADA, porque a superfície é uma por tela
+
+A propriedade é a de sempre — `surfaceTabsProperty`, chave `record:<sourceId>.tabs`, escopos tenant e
+user. O que não existe é um manifest que a declare: nenhum sabe de antemão que telas o escritório tem.
+Por isso a tela de Configurações soma ao catálogo uma seção derivada, com uma propriedade por tela que
+de fato recebeu aba e o nome da tela no rótulo. Uma propriedade que alguém já declarou para a
+superfície vence e não se repete — a mesma precedência de toda superfície.
+
+A seção entra só na tela de Configurações (que roda dentro do escritório, com as telas carregadas), e
+não em `useSettingsSections`: este é lido também onde não há escritório, e o padrão implícito de
+`surfaceTabsProperty` já resolve o valor sem ela.
+
+### A lista presa ao pai — `useEntityList(sourceId, { parent })`
+
+`parent: { fieldKey, recordId }` liga a lista à mesma `RecordListParent` da aba de tela-filha: trava
+(não filtro), `surface: 'parentTab'` nas expressões, e o registro novo nascendo preso. Duas coisas
+precisaram generalizar, porque o campo agora pode não ser o `parentFieldKey` da tela:
+
+- **a chave de "novo filho" carrega o campo** (`new-dyn:<tela>:parent:<entidade>:<id>:<campo>`, só
+  quando ele difere do `parentFieldKey`), e o formulário preenche esse campo;
+- **a `relation` só é `owned` quando o campo É o vínculo da tela** e ela pertence ao pai. Prender por
+  um campo de referência qualquer é relação, não posse.
+
+A entidade do pai sai da declaração — o `refEntity` do campo, ou o `parentEntity` da tela —, e não de
+quem chama.
+
+### O que o `check` diz, e por que só diz
+
+Recusar `record:` sem tela é do portão do pacote: a aba instalaria e nunca apareceria. Um `sourceId`
+que não se acha NÃO é recusado — a tela pode ser de outra extensão, num escritório que o diretório de
+autoria não enxerga. O `check` (e o `validate_plugin` do MCP) responde por três fontes: o próprio
+pacote, uma dependência declarada escrita no diretório, e o retrato da instalação — que passou a
+carregar o `sourceId` de cada tela (Console `2.24.0`). Uma irmã do diretório que não está em
+`dependencies` é dita à parte.
+
+---
+
 ## A entrada no sistema vira contribuição — `auth.provider`
 
 A tela de entrada era o último lugar do produto sem ponto de extensão. O formulário de e-mail e senha

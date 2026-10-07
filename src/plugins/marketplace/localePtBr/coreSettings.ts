@@ -14,6 +14,12 @@ export const CORE_SETTINGS: Record<string, string> = {
   'settings.mode.json': 'Editar em JSON',
   'settings.mode.visual': 'Edição visual',
   'settings.none-found': 'Nenhuma configuração encontrada.',
+  'settings.record-tabs.description':
+    'Abas que as extensões acrescentam ao detalhe de um registro. Escolha, tela a tela, quais aparecem e em que ordem.',
+  'settings.record-tabs.property':
+    'Abas acrescentadas ao detalhe de um registro desta tela.',
+  'settings.record-tabs.title':
+    'Abas do registro',
   'settings.reset': 'Restaurar padrão',
   'settings.reset-failed': 'Não foi possível restaurar o padrão.',
   'settings.save-all-failed': 'Não foi possível gravar as configurações.',

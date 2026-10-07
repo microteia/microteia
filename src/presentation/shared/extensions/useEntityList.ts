@@ -27,6 +27,13 @@ export interface EntityListOptions {
    * render, sem que nada tenha mudado.
    */
   sortRecords?: (a: EntityRecord, b: EntityRecord) => number;
+  /**
+   * Prende a lista aos registros de UM pai: só entram os que têm `fieldKey == recordId`. É uma trava,
+   * não um filtro — a pessoa não a apaga —, e é o mesmo efeito da lista embutida na aba de tela-filha:
+   * as expressões das ações veem `surface: 'parentTab'` e a relação com o pai, e o registro novo já
+   * nasce com o campo preenchido. Feita para a aba contribuída no detalhe de um registro.
+   */
+  parent?: { fieldKey: string; recordId: string };
 }
 
 /**
@@ -43,10 +50,27 @@ export const useEntityList = (sourceId: string, options: EntityListOptions = {})
   const { editKeyPrefix, defaultFilterTokens, sortRecords } = options;
   const { dynamicScreens } = useScreenDefinitions();
 
-  const screenKey = useMemo(
-    () => dynamicScreens.find((definition) => (definition.sourceId ?? definition.id) === sourceId)?.id ?? '',
+  const screen = useMemo(
+    () => dynamicScreens.find((definition) => (definition.sourceId ?? definition.id) === sourceId) ?? null,
     [dynamicScreens, sourceId],
   );
+  const screenKey = screen?.id ?? '';
+
+  /**
+   * A entidade do pai sai da DECLARAÇÃO, não de quem chama: o alvo do campo de referência, ou o
+   * `parentEntity` da tela quando o campo é o vínculo dela. As chaves primitivas — e não o objeto —
+   * entram nas dependências porque a view passa um literal novo a cada render.
+   */
+  const parentFieldKey = options.parent?.fieldKey ?? '';
+  const parentRecordId = options.parent?.recordId ?? '';
+  const parent = useMemo(() => {
+    if (!parentFieldKey || !parentRecordId) return undefined;
+    const field = screen?.fields.find((candidate) => candidate.key === parentFieldKey);
+    const entityKey = field?.refEntity
+      ?? (screen?.parentFieldKey === parentFieldKey ? screen.parentEntity : null)
+      ?? '';
+    return { entityKey, fieldKey: parentFieldKey, recordId: parentRecordId };
+  }, [screen, parentFieldKey, parentRecordId]);
 
   /**
    * O endereço do registro NESTA extensão. Antes as ações de duplicar e copiar link eram
@@ -69,5 +93,6 @@ export const useEntityList = (sourceId: string, options: EntityListOptions = {})
     recordTabKeys,
     defaultFilterTokens,
     sortRecords,
+    parent,
   });
 };

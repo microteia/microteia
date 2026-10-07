@@ -19,6 +19,16 @@ describe('parseDynamicTabKey', () => {
       .toEqual({ kind: 'view', screenKey: 'vendas', recordId: 'r1' });
   });
 
+  it('carrega o campo de vínculo quando ele não é o parentFieldKey da tela', () => {
+    expect(parseDynamicTabKey(buildChildNewTabKey('prazos', 'processos', 'p1', 'processo'))).toEqual({
+      kind: 'new',
+      screenKey: 'prazos',
+      parentEntity: 'processos',
+      parentId: 'p1',
+      parentFieldKey: 'processo',
+    });
+  });
+
   it('devolve o contexto do pai ao criar um registro filho', () => {
     expect(parseDynamicTabKey(buildChildNewTabKey('itens', 'vendas', 'v1'))).toEqual({
       kind: 'new',

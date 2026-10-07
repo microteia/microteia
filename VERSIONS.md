@@ -11,6 +11,12 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.71.0] — 2026-10-07
+
+- Extensões agora podem acrescentar abas próprias dentro de um registro — por exemplo, uma aba de Prazos dentro do Processo, com o visual que a extensão escolher. Elas aparecem depois das abas de sempre, apenas em registros já salvos.
+- Em Configurações, a nova seção "Abas do registro" permite ao escritório, e a cada pessoa, escolher quais dessas abas aparecem em cada tela e em que ordem.
+- Uma aba que lista registros ligados ao registro aberto já cria os novos com esse vínculo preenchido.
+
 #### [9.70.0] — 2026-10-07
 
 - Ao escolher um usuário do escritório num campo, cada nome agora aparece acompanhado do e-mail, para distinguir pessoas com o mesmo nome. Usuários sem nome cadastrado aparecem pelo e-mail, em vez de uma linha em branco.

@@ -251,6 +251,34 @@ export const LOGIN_SLOT_SURFACES = {
 /** O menu que se abre no rodapé da barra lateral, sob o nome de quem está conectado. */
 export const USER_MENU_SURFACE = 'user-menu';
 
+/**
+ * A faixa de abas do DETALHE de um registro, uma por tela. O endereço é o `sourceId` da tela, e não a
+ * chave instalada: a chave pode ser desambiguada na instalação, o `sourceId` não muda — e é ele que
+ * permite a uma extensão pendurar uma aba na tela de OUTRA (Prazos dentro do Processo).
+ */
+export const RECORD_SURFACE_PREFIX = 'record:';
+
+export const recordSurface = (screenSourceId: string): string => `${RECORD_SURFACE_PREFIX}${screenSourceId}`;
+
+/**
+ * O `sourceId` endereçado por uma superfície de registro. `null` quando a superfície não é de
+ * registro; `''` quando é, mas não diz de qual tela — o caso que o portão do pacote recusa.
+ */
+export const recordSurfaceSourceId = (surface: string): string | null =>
+  surface.startsWith(RECORD_SURFACE_PREFIX) ? surface.slice(RECORD_SURFACE_PREFIX.length).trim() : null;
+
+/**
+ * O que uma aba `impl: code` de uma superfície de registro recebe por props. `record` é o documento
+ * como está gravado, e chega de novo quando ele muda; `collection` é onde os dados da tela vivem
+ * (respeita `dataCollection`).
+ */
+export interface RecordTabProps {
+  recordId: string;
+  record: Record<string, unknown>;
+  collection: string;
+  screenSourceId: string;
+}
+
 export const UI_SLOT_POINT = 'ui.slot';
 export const UI_MENU_POINT = 'ui.menu';
 

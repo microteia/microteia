@@ -284,9 +284,14 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
 
   const openNewRecord = useCallback(
     () => openTab(parent
-      ? buildChildNewTabKey(screenKey, parent.entityKey, parent.recordId)
+      ? buildChildNewTabKey(
+          screenKey,
+          parent.entityKey,
+          parent.recordId,
+          parent.fieldKey === definition?.parentFieldKey ? undefined : parent.fieldKey,
+        )
       : buildNewTabKey(screenKey)),
-    [openTab, screenKey, parent],
+    [openTab, screenKey, parent, definition],
   );
   const openRecord = useCallback(
     (record: EntityRecord) => openTab(buildViewTabKey(screenKey, record.id)),
@@ -304,7 +309,7 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
    */
   const relation: ActionRelation = !parent || !definition
     ? 'none'
-    : isOwnedByParentScreen(definition) ? 'owned' : 'related';
+    : parent.fieldKey === definition.parentFieldKey && isOwnedByParentScreen(definition) ? 'owned' : 'related';
 
   const recordActions = useRecordActions();
 

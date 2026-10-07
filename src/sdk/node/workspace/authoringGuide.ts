@@ -1,4 +1,4 @@
-import { USER_MENU_SURFACE, WORKSPACE_SLOT_SURFACES } from '../../../domain/schema/ui/uiExtensionPoints';
+import { RECORD_SURFACE_PREFIX, USER_MENU_SURFACE, WORKSPACE_SLOT_SURFACES } from '../../../domain/schema/ui/uiExtensionPoints';
 import { KERNEL_EXTENSION_POINTS } from '../../../domain/schema/extensionPoints';
 import { SCREEN_ICON_KEYS } from '../../../domain/schema/ui/screenIconCatalog';
 import { AUTH_PROVIDER_KINDS } from '../../../domain/schema/auth';
@@ -490,6 +490,25 @@ is open to a package that ships no JavaScript at all.
 Both are toggled and ordered by the organization, from Settings, under the region's own key
 (\`<surface>.slots\`, \`<surface>.items\`). Declare \`order\` and \`defaultEnabled\` and you have said
 where it starts; where it ends up is theirs to decide.
+
+### A tab inside a record — including another extension's
+
+Every record detail hosts a tab surface of its own, addressed by the screen's \`sourceId\`:
+\`recordSurface('<sourceId>')\` returns \`${RECORD_SURFACE_PREFIX}<sourceId>\`. Contribute a \`ui.tab\` there with
+\`surfaceTab\` or \`surfaceTabSpec\` and it appears after the native tabs and the child-screen tabs,
+on saved records only. Address the \`sourceId\`, never the installed key: the key may be disambiguated
+on install, the \`sourceId\` does not change. A screen of another extension is fair game — declare
+that extension in \`dependencies\`.
+
+A \`code\` tab receives \`RecordTabProps\` from \`@microteia/data\`: \`recordId\`, \`record\` (as stored,
+and re-rendered when it changes), \`collection\` and \`screenSourceId\`. A \`widget\` tab receives no
+data, as on every surface. To list the children of the open record, pass
+\`parent: { fieldKey, recordId }\` to \`useEntityList\`: the list is locked to that record, its
+actions see \`surface: 'parentTab'\`, and \`openNewRecord()\` opens the form with the field filled in.
+
+The organization toggles and orders these tabs from Settings (\`<surface>.tabs\`). \`check\` refuses
+\`${RECORD_SURFACE_PREFIX}\` with no \`sourceId\`, and warns — without refusing — about a \`sourceId\` it
+cannot find in your package, in a dependency authored beside it, or in the installation snapshot.
 
 ### Signing in — including your own SSO
 

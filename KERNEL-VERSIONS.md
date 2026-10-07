@@ -18,6 +18,17 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.71.0] — 2026-10-07
+
+- feat(ui/record-tabs): every record detail hosts a `ui.tab` surface addressed by the screen's `sourceId` — `recordSurface('<sourceId>')`, i.e. `record:<sourceId>` (`RECORD_SURFACE_PREFIX`, `recordSurfaceSourceId`, all in the SDK barrel). Contributed tabs render after the native and child-screen tabs, on saved records only, enabled/ordered by `<surface>.tabs` (tenant/user) and filtered by `requiredPermissions` (any one suffices). Addressing by `sourceId` rather than the installed key is what lets one extension add a tab to another's screen. Until now `ui.tab` was only read by Organization settings, and the only way into a record was a child screen, which always rendered the generic embedded list.
+- feat(ui/record-tabs): a `code` tab receives `RecordTabProps` (`recordId`, `record` as stored and re-rendered on change, `collection` honouring `dataCollection`, `screenSourceId`), published in `@microteia/data` and in the SDK barrel. A `widget` tab receives no data, as on every surface. An extension's own editor built on `useEntityDetailVM` + `RecordDetailSurface` gets the same tabs, through `childTabs`.
+- feat(settings): Settings derives a "Record tabs" section with one `contributions` property per screen that received a tab, keyed `record:<sourceId>.tabs` via the existing `surfaceTabsProperty`. A property already declared for the surface wins and is not repeated.
+- feat(data/useEntityList): `parent: { fieldKey, recordId }` locks the list to one parent record (a lock, not a clearable filter), with `surface: 'parentTab'` in action expressions and `openNewRecord()` prefilling the field. The new-child tab key carries the field when it is not the screen's `parentFieldKey` (`new-dyn:<screen>:parent:<entity>:<id>:<field>`), and `relation` is `owned` only when the field IS the screen's ownership link. Previously the only option was `defaultFilterTokens`, an editable starting point.
+- feat(sdk/check): the package gate refuses a contribution on `record:` with no `sourceId` (`issue.package.record-surface.no-source-id`) — it would install and never show. `check` and `validate_plugin` warn, never refuse, about a `sourceId` found neither in the package, nor in a declared dependency authored in the workspace, nor in the installation snapshot; a workspace sibling that is not a declared dependency is reported separately.
+- feat(sdk): the installation snapshot reader keeps each screen's `sourceId` when present.
+- refactor(ui/TabSurface): the enabled/ordered/permitted tab list is `useVisibleSurfaceTabs`, shared by Organization settings and the record detail.
+- chore(kernel): `KERNEL_VERSION` goes to `2.19.0` (additive: a new surface on `ui.tab` and a new published type). `com.microteia.locale-pt-br` goes to `1.61.0`.
+
 #### [9.70.0] — 2026-10-07
 
 - feat(reference): `members` options now carry the member's e-mail as `meta`, and fall back to it as `label` when `displayName` is empty. `members` is not a screen, so no `subtitleFieldKey` could be declared for it, and two members sharing a name were indistinguishable in the picker. The stored `value` is still `userId`.

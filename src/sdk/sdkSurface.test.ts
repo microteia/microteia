@@ -29,6 +29,10 @@ const PUBLISHED = [
   'LOGIN_SLOT_SURFACES',
   'UI_MENU_POINT', 'UI_SETTINGS_POINT', 'UI_SLOT_POINT', 'UI_TAB_POINT', 'UI_WIDGET_POINT',
   'USER_MENU_SURFACE', 'WORKSPACE_SLOT_SURFACES', 'WIDGET_NODE_TYPES',
+  // A faixa de abas do DETALHE de um registro, endereçada pelo `sourceId` da tela. MOVE o
+  // `KERNEL_VERSION`: uma aba em `record:<sourceId>` é forma nova de pacote instalado — um kernel
+  // antigo a aceitaria e nunca a desenharia.
+  'RECORD_SURFACE_PREFIX', 'recordSurface', 'recordSurfaceSourceId',
   'CUSTOM_FIELD_TYPES', 'FIELD_EXPRESSION_FUNCTION_NAMES', 'STEP_TYPES',
   'CONTROL_STEP_TYPES', 'CORE_STEP_CATALOG', 'CORE_STEP_DEFINITION_IDS',
   'UNIMPLEMENTED_STEP_TYPES', 'coreStepMetadata', 'isCoreStepDefinitionId',
@@ -129,7 +133,7 @@ const PUBLISHED_TYPES = [
   'ParsedPermission', 'PermissionDomain', 'PluginBackendRequirement', 'PluginDiagnostic',
   'PluginDependency',
   'PluginLifecycle', 'PluginLifecycleHook', 'PluginManifest', 'PluginMigration', 'PluginPublisher',
-  'QueryOperator', 'QueryOrderBy', 'QueryPredicate', 'QuerySpec', 'RecordKeyKind', 'RecordKeyNormalization',
+  'QueryOperator', 'QueryOrderBy', 'QueryPredicate', 'QuerySpec', 'RecordKeyKind', 'RecordTabProps', 'RecordKeyNormalization',
   'RecordKeyScope', 'RecordKeySpec', 'RecordKeyStatus', 'RefKind', 'ScreenListAction',
   'ScreenModuleTemplate', 'ScreenPatchTemplate', 'Script', 'ScriptModuleTemplate', 'ScriptOutputParam',
   'SdkIssue', 'SemVer', 'SettingsProperty', 'SettingsPropertyOption', 'SettingsPropertyType',

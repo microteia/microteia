@@ -15,6 +15,12 @@ export const CORE_SETTINGS_MESSAGES: Record<string, string> = {
   'settings.mode.json': 'Edit as JSON',
   'settings.mode.visual': 'Visual editing',
   'settings.none-found': 'No setting found.',
+  'settings.record-tabs.description':
+    'Tabs that extensions add to the detail of a record. Choose, screen by screen, which ones appear and in what order.',
+  'settings.record-tabs.property':
+    'Tabs added to the detail of a record of this screen.',
+  'settings.record-tabs.title':
+    'Record tabs',
   'settings.reset': 'Restore default',
   'settings.reset-failed': 'Could not restore the default.',
   'settings.save-all-failed': 'Could not save the settings.',

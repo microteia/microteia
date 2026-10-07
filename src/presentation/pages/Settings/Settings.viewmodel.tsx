@@ -5,6 +5,7 @@ import { useAuthorization } from '../../../stores/useAuthorization';
 import { PERMISSION_SETTINGS_MANAGE } from '../../../domain/schema/access';
 import { useNotification } from '../../../stores/useNotification';
 import { useSettingsSections } from '../../shared/settings/useSettingsCatalog';
+import { useRecordTabSettingsSection } from '../../shared/settings/useRecordTabSettings';
 import { visibleSettingsSections } from '../../shared/resolveUiContributions';
 import type { ExtensionSettingsSection } from '../../shared/extensions/extensionServices';
 import { useT } from '../../shared/i18n/useT';
@@ -69,7 +70,12 @@ export const useSettingsViewModel = (): SettingsViewModel => {
   const { can, canAny } = useAuthorization();
   const canEditTenant = can(PERMISSION_SETTINGS_MANAGE);
   const { notify } = useNotification();
-  const catalog = useSettingsSections();
+  const declared = useSettingsSections();
+  const recordTabs = useRecordTabSettingsSection(declared);
+  const catalog = useMemo<ExtensionSettingsSection[]>(
+    () => (recordTabs ? [...declared, recordTabs] : declared),
+    [declared, recordTabs],
+  );
 
   /**
    * O que esta pessoa VÊ. A validação do modo JSON continua sobre o catálogo INTEIRO: ela existe para

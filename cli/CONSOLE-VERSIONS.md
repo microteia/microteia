@@ -22,6 +22,10 @@
 - fix(command): what was broken, and what it did to whoever hit it.
 -->
 
+#### [2.24.0] — 2026-10-07
+
+- feat(export-catalog): each screen in `installed-catalog.json` now carries its `sourceId`. The snapshot only had the installed key, which may have been disambiguated on install, so an extension that adds a tab to another's record detail (`record:<sourceId>`) could not be checked against the installation. Older snapshots simply lack the field.
+
 #### [2.23.0] — 2026-10-07
 
 - fix(provision): `microteia provision` run on its own now probes the deployed stamps itself instead of concluding that nothing changed. It could only compare stamps with the map `deploy` hands it, and running alone — the path of anyone who has just swapped kernels with `unpack` — there was no map: `outdatedByStamp` drew no conclusion, the function stayed out of the queue, and the record said "applied" because it genuinely was running, from the previous package. An office upgraded this way kept serving an extension's old Cloud Function with nothing anywhere saying so; the symptom surfaced in the client, not in the Console. The queue is now everything the installed extensions claim, and `deployFunctionsThatChanged` — the same probe `deploy` uses — decides what actually goes up: one reference function per stamp, and the rest left alone when it comes back unchanged. What the probe skips counts as satisfied, or a complete installation would stay "pending" forever.

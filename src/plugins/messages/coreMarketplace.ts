@@ -292,6 +292,8 @@ export const CORE_MARKETPLACE_MESSAGES: Record<string, string> = {
   'issue.package.no-workflows': 'The extension needs the "workflows" list (it may be empty).',
   'issue.package.not-json': 'The file is not valid JSON.',
   'issue.package.not-object': 'The content is not an extension object.',
+  'issue.package.record-surface.no-source-id':
+    'Contribution "{id}" ({where}) is addressed to "record:" without naming the screen, so no record detail would ever show it. Write recordSurface(<screen sourceId>).',
   'issue.package.too-large':
     'The package is {size} and would not fit in the installation document (the practical limit is {limit}). Split it — one package per language, or one per set of screens.',
   'issue.step.control-incomplete':

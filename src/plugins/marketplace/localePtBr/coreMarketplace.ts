@@ -291,6 +291,8 @@ export const CORE_MARKETPLACE: Record<string, string> = {
   'issue.package.no-workflows': 'A extensão precisa da lista "workflows" (pode ser vazia).',
   'issue.package.not-json': 'O arquivo não é um JSON válido.',
   'issue.package.not-object': 'O conteúdo não é um objeto de extensão.',
+  'issue.package.record-surface.no-source-id':
+    'A contribuição "{id}" ({where}) é endereçada a "record:" sem dizer de qual tela, e por isso nenhum detalhe de registro a mostraria. Escreva recordSurface(<sourceId da tela>).',
   'issue.package.too-large':
     'O pacote tem {size} e não caberia no documento da instalação (o limite prático é {limit}). Divida-o — um pacote por idioma, ou um por conjunto de telas.',
   'issue.step.control-incomplete':

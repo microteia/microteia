@@ -1,7 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
-import { useAuthorization } from '../../../../stores/useAuthorization';
-import { useSurfaceTabs, type SurfaceTabDescriptor } from '../../../shared/settings/useSettingsCatalog';
-import { useSurfaceTabLayout } from '../../../shared/settings/useSettingValue';
+import type { SurfaceTabDescriptor } from '../../../shared/settings/useSettingsCatalog';
+import { useVisibleSurfaceTabs } from '../../../shared/settings/useSettingValue';
 
 export interface TabSurfaceViewModel {
   tabs: SurfaceTabDescriptor[];
@@ -20,21 +19,8 @@ export interface TabSurfaceOptions {
 
 export const useTabSurfaceViewModel = (options: TabSurfaceOptions): TabSurfaceViewModel => {
   const { surface, initialKey } = options;
-  const registered = useSurfaceTabs(surface);
-  const { entries } = useSurfaceTabLayout(surface);
-  const { canAny } = useAuthorization();
+  const { tabs, registeredCount } = useVisibleSurfaceTabs(surface);
   const [selectedKey, setSelectedKey] = useState<string | null>(initialKey ?? null);
-
-  const byKey = useMemo(() => new Map(registered.map((tab) => [tab.key, tab])), [registered]);
-
-  const tabs = useMemo<SurfaceTabDescriptor[]>(
-    () => entries
-      .filter((entry) => entry.enabled)
-      .map((entry) => byKey.get(entry.key))
-      .filter((tab): tab is SurfaceTabDescriptor => !!tab)
-      .filter((tab) => !tab.requiredPermissions?.length || canAny(tab.requiredPermissions)),
-    [entries, byKey, canAny],
-  );
 
   // A aba escolhida pode ter sido desligada, perdida na troca de escritório ou vetada por falta de
   // permissão;
@@ -51,6 +37,6 @@ export const useTabSurfaceViewModel = (options: TabSurfaceOptions): TabSurfaceVi
     activeTab,
     activeKey: activeTab?.key ?? '',
     setActiveKey,
-    isAllHidden: registered.length > 0 && tabs.length === 0,
+    isAllHidden: registeredCount > 0 && tabs.length === 0,
   };
 };

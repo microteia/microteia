@@ -9,6 +9,7 @@ import { installationRegion, scaffoldFunction, scaffoldPlugin } from './scaffold
 import { askerFor } from './prompt';
 import { serveMcp } from './mcp';
 import { crossRefReport } from './referenceable';
+import { recordSurfaceReport } from './recordSurfaces';
 import { syncWorkspace } from './workspace/sync';
 
 /**
@@ -119,6 +120,23 @@ const sayCrossRefs = (pkg: MarketplacePlugin, root: string): number => {
   return refused.length;
 };
 
+/**
+ * As telas a que o pacote pendura abas (`record:<sourceId>`). Só avisa, nunca reprova: a tela pode ser
+ * de outra extensão, num escritório que este diretório não enxerga.
+ */
+const sayRecordSurfaces = (pkg: MarketplacePlugin, root: string): void => {
+  const findings = recordSurfaceReport(pkg, root);
+  if (findings.length === 0) return;
+
+  say();
+  say(`  ${DIM}${findings.length} record detail(s) this package adds tabs to${RESET}`);
+  for (const one of findings) {
+    const mark = one.status === 'ok' ? `${GREEN}ok${RESET}` : `${YELLOW}!${RESET}`;
+    say(`  ${mark} record:${one.sourceId} ${DIM}(${one.contributions.join(', ')})${RESET}`);
+    say(`     ${DIM}${one.detail}${RESET}`);
+  }
+};
+
 const build = (args: Args, write: boolean): number => {
   const entry = entryFrom(args);
   const result = buildPlugin({ entry, exportName: args.values.get('export') });
@@ -145,7 +163,9 @@ const build = (args: Args, write: boolean): number => {
     describeIssues(result.issues, describe);
   }
 
-  const refusedRefs = sayCrossRefs(result.package, resolve(args.values.get('root') ?? process.cwd()));
+  const root = resolve(args.values.get('root') ?? process.cwd());
+  const refusedRefs = sayCrossRefs(result.package, root);
+  sayRecordSurfaces(result.package, root);
   const problems = result.issues.length + refusedRefs;
 
   if (problems > 0) {

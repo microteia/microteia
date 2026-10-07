@@ -74,6 +74,8 @@ export interface InstalledCatalogField {
 
 export interface InstalledCatalogScreen {
   key: string;
+  /** O id universal da tela. Ausente num retrato de Console anterior ao campo. */
+  sourceId?: string | null;
   collection?: string | null;
   titleSingular: string;
   titlePlural?: string;
@@ -224,6 +226,7 @@ const readScreen = (raw: unknown): InstalledCatalogScreen | null => {
   const screenOrigin = origin(record.origin, 'design');
   return {
     key,
+    ...(optionalText(record.sourceId) === null ? {} : { sourceId: optionalText(record.sourceId) }),
     ...(optionalText(record.collection) === null ? {} : { collection: optionalText(record.collection) }),
     titleSingular: text(record.titleSingular, key),
     ...(optionalText(record.titlePlural) === null ? {} : { titlePlural: text(record.titlePlural) }),
@@ -383,6 +386,7 @@ export const readInstalledCatalog = (root: string, now: Date = new Date()): Inst
  */
 export const installedScreenInput = (screen: InstalledCatalogScreen): CatalogScreenInput => ({
   key: screen.key,
+  ...(screen.sourceId === undefined ? {} : { sourceId: screen.sourceId }),
   ...(screen.collection === undefined ? {} : { collection: screen.collection }),
   titleSingular: screen.titleSingular,
   ...(screen.titlePlural === undefined ? {} : { titlePlural: screen.titlePlural }),

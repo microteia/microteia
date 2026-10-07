@@ -17,6 +17,7 @@ import { validateMigrations } from '../../schema/plugin/migration';
 import { validateReportSpecShape } from '../../schema/report/validateReportSpec';
 import { deriveReportRequires } from '../../schema/report/reportCapabilities';
 import { packageIconIssues } from './pluginIcons';
+import { packageSurfaceIssues } from './pluginSurfaces';
 import { screenEventPrefix, templateCollection } from './screenModule';
 
 export type RefKind = 'screen' | 'action' | 'workflow' | 'script';
@@ -412,6 +413,7 @@ export const packageIssues = (pkg: MarketplacePlugin): LocalizedIssue[] => [
   ...packageSizeIssues(pkg),
   ...packageMigrationIssues(pkg),
   ...packageIconIssues(pkg),
+  ...packageSurfaceIssues(pkg),
   ...packageReportIssues(pkg),
 ];
 

@@ -1082,6 +1082,13 @@ const DATA_MODULE_DEFS = `declare module '@microteia/data' {
      * recent first. Declare the comparator OUTSIDE the component.
      */
     sortRecords?: (a: any, b: any) => number;
+    /**
+     * Locks the list to the children of ONE record: only records whose fieldKey equals recordId.
+     * A lock, not a filter the user can clear. Card actions see surface 'parentTab' and the relation
+     * to the parent, and openNewRecord() opens the form with that field already filled. Made for a
+     * tab contributed to a record's detail (see RecordTabProps).
+     */
+    parent?: { fieldKey: string; recordId: string };
   }
   /**
    * List a dynamic entity, with filters and card actions.
@@ -1115,6 +1122,20 @@ const DATA_MODULE_DEFS = `declare module '@microteia/data' {
    * Manages state, validation and saving.
    */
   export function useEntityForm(sourceId: string, recordId?: string | null): EntityForm;
+
+  /**
+   * The props of a code tab contributed to a record's detail - a 'ui.tab' whose surface is
+   * recordSurface('<screen sourceId>'). The tab is only shown for a saved record, never a new one.
+   */
+  export interface RecordTabProps {
+    recordId: string;
+    /** The record as stored. The tab re-renders with the new value when it changes. */
+    record: Record<string, any>;
+    /** The collection the screen's data lives in (honours dataCollection). */
+    collection: string;
+    /** The sourceId of the screen whose detail hosts the tab. */
+    screenSourceId: string;
+  }
 
   export interface EntityDetailVM {
     record: any | null;

@@ -125,7 +125,7 @@ export const useViewDynamicRecordViewModel = (tabKey: string): ViewDynamicRecord
   const parentContext = useMemo(() => {
     const info = parseDynamicTabKey(tabKey);
     return info?.parentEntity && info.parentId
-      ? { entity: info.parentEntity, id: info.parentId }
+      ? { entity: info.parentEntity, id: info.parentId, fieldKey: info.parentFieldKey ?? null }
       : null;
   }, [tabKey]);
   const isAvailable = !!definition && definition.origin !== 'builtin';
@@ -173,9 +173,11 @@ export const useViewDynamicRecordViewModel = (tabKey: string): ViewDynamicRecord
   const recordToValues = useCallback(
     (record: EntityRecord | null) => {
       const values = buildInitialFormValues(sortedFields, record);
-      // Registro filho novo já nasce vinculado ao pai que abriu a aba.
-      if (parentContext && definition?.parentFieldKey) {
-        values[definition.parentFieldKey] = parentContext.id;
+      // Registro filho novo já nasce vinculado ao pai que abriu a aba — pelo campo que a chave
+      // carrega, ou pelo `parentFieldKey` da tela.
+      const linkFieldKey = parentContext?.fieldKey ?? definition?.parentFieldKey;
+      if (parentContext && linkFieldKey) {
+        values[linkFieldKey] = parentContext.id;
       }
       return values;
     },
