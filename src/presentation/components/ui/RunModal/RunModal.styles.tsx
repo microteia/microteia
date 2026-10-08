@@ -174,7 +174,7 @@ export const S = {
     gap: ${({ theme }) => theme.spacing.sm};
   `,
 
-  StatusBadge: styled.span<{ $tone: 'success' | 'danger' | 'warning' }>`
+  StatusBadge: styled.span<{ $tone: 'success' | 'danger' | 'warning' | 'muted' }>`
     display: inline-flex;
     align-items: center;
     gap: ${({ theme }) => theme.spacing.xs};
@@ -182,9 +182,9 @@ export const S = {
     border-radius: ${({ theme }) => theme.borderRadius.md};
     font-size: ${({ theme }) => theme.fontSizes.xs};
     font-weight: 600;
-    color: ${({ theme, $tone }) => theme.colors[$tone]};
+    color: ${({ theme, $tone }) => ($tone === 'muted' ? theme.colors.textMuted : theme.colors[$tone])};
     background: ${({ theme }) => theme.colors.surfaceHover};
-    border: 1px solid ${({ theme, $tone }) => theme.colors[$tone]};
+    border: 1px solid ${({ theme, $tone }) => ($tone === 'muted' ? theme.colors.border : theme.colors[$tone])};
   `,
 
   SectionLabel: styled.h4`

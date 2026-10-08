@@ -14,11 +14,12 @@ import type { AIConnection } from '../../../domain/entities';
 import type { WorkflowDefinition, WorkflowExecution, WorkflowParameter } from '../../../domain/entities/Workflow';
 
 import { useT, useLabel } from '../../shared/i18n/useT';
+import { followWorkflowExecution } from '../../shared/followWorkflowExecution';
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 
-const EXECUTION_TIMEOUT_MS = 60000;
+const EXECUTION_WAIT_MS = 60000;
 
-export type StageStatus = 'idle' | 'running' | 'success' | 'error';
+export type StageStatus = 'idle' | 'running' | 'waiting' | 'untracked' | 'success' | 'error';
 
 export interface RunStage {
   key: string;
@@ -113,6 +114,7 @@ export interface DataProcessorViewModel {
 
   openWorkflow: (id: string) => void;
   openResultExecutions: () => void;
+  showResultExecutionsLink: boolean;
 }
 
 const STEP_ORDER: StepKey[] = ['source', 'ai', 'workflow', 'run'];
@@ -190,17 +192,12 @@ export const useDataProcessorViewModel = (): DataProcessorViewModel => {
   const [resultExecution, setResultExecution] = useState<WorkflowExecution | null>(null);
   const [runWorkflowId, setRunWorkflowId] = useState('');
 
-  const unsubRef = useRef<(() => void) | null>(null);
-  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const stopFollowRef = useRef<(() => void) | null>(null);
 
   const clearObservation = useCallback(() => {
-    if (unsubRef.current) {
-      unsubRef.current();
-      unsubRef.current = null;
-    }
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-      timeoutRef.current = null;
+    if (stopFollowRef.current) {
+      stopFollowRef.current();
+      stopFollowRef.current = null;
     }
   }, []);
 
@@ -500,32 +497,34 @@ export const useDataProcessorViewModel = (): DataProcessorViewModel => {
   const observeExecution = useCallback(
     (tenantId: string, workflowId: string, eventId: string) => {
       clearObservation();
-      unsubRef.current = workflowExecutionRepository.subscribeToWorkflowExecutions(
-        tenantId,
-        workflowId,
-        (execs) => {
-          const exec = execs.find((e) => e.eventId === eventId);
-          if (!exec || exec.status === 'RUNNING') return;
-          setResultExecution(exec);
-          if (exec.status === 'SUCCESS') {
-            setStage('execute', 'success', t('processor.stage.succeeded'));
-          } else {
-            setStage('execute', 'error', t('processor.stage.failed'));
+      stopFollowRef.current = followWorkflowExecution(
+        (onUpdate, onError) => workflowExecutionRepository.subscribeToWorkflowExecutions(
+          tenantId,
+          workflowId,
+          onUpdate,
+          onError,
+        ),
+        eventId,
+        EXECUTION_WAIT_MS,
+        (event) => {
+          if (event.kind === 'still-running') {
+            setStage('execute', 'waiting', t('processor.stage.still-running'));
+            return;
           }
+          if (event.kind === 'untracked') {
+            setStage('execute', 'untracked', t('processor.stage.untracked'));
+          } else {
+            setResultExecution(event.execution);
+            if (event.execution.status === 'SUCCESS') {
+              setStage('execute', 'success', t('processor.stage.succeeded'));
+            } else {
+              setStage('execute', 'error', t('processor.stage.failed'));
+            }
+          }
+          stopFollowRef.current = null;
           setRunning(false);
-          clearObservation();
-        },
-        () => {
-          setStage('execute', 'error', t('processor.stage.untracked'));
-          setRunning(false);
-          clearObservation();
         },
       );
-      timeoutRef.current = setTimeout(() => {
-        setStage('execute', 'error', t('processor.stage.timeout'));
-        setRunning(false);
-        clearObservation();
-      }, EXECUTION_TIMEOUT_MS);
     },
     [workflowExecutionRepository, clearObservation, setStage, t],
   );
@@ -569,6 +568,12 @@ export const useDataProcessorViewModel = (): DataProcessorViewModel => {
     notify,
     t,
   ]);
+
+  const showResultExecutionsLink = useMemo(() => {
+    if (resultExecution) return resultExecution.status !== 'SUCCESS';
+    const execute = runStages.find((stage) => stage.key === 'execute');
+    return execute?.status === 'waiting' || execute?.status === 'untracked';
+  }, [resultExecution, runStages]);
 
   const onRestart = useCallback(() => {
     clearObservation();
@@ -645,5 +650,6 @@ export const useDataProcessorViewModel = (): DataProcessorViewModel => {
 
     openWorkflow,
     openResultExecutions,
+    showResultExecutionsLink,
   };
 };

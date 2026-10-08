@@ -697,6 +697,7 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
           runLabel={t('workflow.run.action')}
           onClose={vm.closeRunModal}
           onRun={vm.runWorkflowForModal}
+          onOpenExecution={vm.openRunExecution}
         />
       )}
 

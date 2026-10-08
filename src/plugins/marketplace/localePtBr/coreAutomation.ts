@@ -38,7 +38,7 @@ export const CORE_AUTOMATION: Record<string, string> = {
   'workflow.run.save-first': 'Salve a automação antes de executar.',
   'workflow.run.only-callable': 'Só automações do tipo "Chamada por outro workflow" podem ser executadas aqui.',
   'workflow.run.watch-failed': 'Não foi possível acompanhar a execução: {detail}',
-  'workflow.run.timeout': 'Tempo esgotado ao aguardar a execução. Confira na aba Execuções.',
+  'workflow.run.still-running': 'A automação continua rodando no servidor. O resultado aparece na aba Execuções.',
   'tab.conditions': 'Condições',
   'tab.executions': 'Execuções',
   'field.description': 'Descrição',

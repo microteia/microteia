@@ -39,7 +39,7 @@ export const CORE_AUTOMATION_MESSAGES: Record<string, string> = {
   'workflow.run.save-first': 'Save the automation before running it.',
   'workflow.run.only-callable': 'Only automations of type "Called by another workflow" can be run here.',
   'workflow.run.watch-failed': 'Could not follow the execution: {detail}',
-  'workflow.run.timeout': 'Timed out waiting for the execution. Check the Executions tab.',
+  'workflow.run.still-running': 'The automation is still running on the server. The result will appear in the Executions tab.',
   'tab.conditions': 'Conditions',
   'tab.executions': 'Executions',
   'field.description': 'Description',

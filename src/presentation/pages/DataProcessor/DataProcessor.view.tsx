@@ -255,7 +255,7 @@ export const DataProcessorView: React.FC = () => {
               </S.Timeline>
             )}
 
-            {vm.resultExecution && vm.resultExecution.status !== 'SUCCESS' && (
+            {vm.showResultExecutionsLink && (
               <S.ResultActions>
                 <S.LinkButton onClick={vm.openResultExecutions}>
                   <RiExternalLinkLine /> {t('processor.open-executions')}

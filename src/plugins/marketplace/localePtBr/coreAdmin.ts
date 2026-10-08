@@ -122,7 +122,7 @@ export const CORE_ADMIN: Record<string, string> = {
   'processor.stage.failed': 'A automação falhou.',
   'processor.stage.prepare': 'Enviando dados e preenchendo a automação',
   'processor.stage.succeeded': 'Concluída com sucesso.',
-  'processor.stage.timeout': 'Tempo esgotado ao aguardar a execução. Confira na aba Execuções.',
+  'processor.stage.still-running': 'Continua rodando no servidor. O resultado aparece aqui, ou na aba Execuções.',
   'processor.stage.untracked': 'Não foi possível acompanhar a execução.',
   'processor.step.ai': 'Inteligência artificial',
   'processor.step.ai.hint': 'Escolha qual inteligência artificial vai interpretar o conteúdo.',

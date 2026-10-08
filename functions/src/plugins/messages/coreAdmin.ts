@@ -128,7 +128,7 @@ export const CORE_ADMIN_MESSAGES: Record<string, string> = {
   'processor.stage.failed': 'The automation failed.',
   'processor.stage.prepare': 'Sending data and filling in the automation',
   'processor.stage.succeeded': 'Finished successfully.',
-  'processor.stage.timeout': 'Timed out waiting for the run. Check the Runs tab.',
+  'processor.stage.still-running': 'Still running on the server. The result will appear here, or in the Runs tab.',
   'processor.stage.untracked': 'Could not follow the run.',
   'processor.step.ai': 'Artificial intelligence',
   'processor.step.ai.hint': 'Choose which artificial intelligence will read the content.',

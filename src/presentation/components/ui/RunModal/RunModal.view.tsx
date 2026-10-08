@@ -1,30 +1,17 @@
 import React from 'react';
-import { RiPlayLine, RiCloseLine } from 'react-icons/ri';
+import { RiPlayLine, RiCloseLine, RiExternalLinkLine } from 'react-icons/ri';
 import { S } from './RunModal.styles';
-import { useRunModalViewModel, type RunModalProps, type RunModalLogLevel } from './RunModal.viewmodel';
+import { useRunModalViewModel, type RunModalProps, type RunModalLogLevel, type RunModalTone } from './RunModal.viewmodel';
 import { Button } from '../Button';
+import { InfoBanner } from '../InfoBanner';
 import { ParameterField } from '../ParameterField';
 import { useT } from '../../../shared/i18n/useT';
 
-type Tone = 'success' | 'danger' | 'warning' | 'muted';
-
-const levelTone = (level: RunModalLogLevel): Tone => {
+const levelTone = (level: RunModalLogLevel): RunModalTone => {
   if (level === 'ERROR') return 'danger';
   if (level === 'WARN') return 'warning';
   if (level === 'SUCCESS') return 'success';
   return 'muted';
-};
-
-const statusTone = (status: 'SUCCESS' | 'FAILED' | 'PARTIAL' | null): 'success' | 'danger' | 'warning' => {
-  if (status === 'FAILED') return 'danger';
-  if (status === 'PARTIAL') return 'warning';
-  return 'success';
-};
-
-const statusKey = (status: 'SUCCESS' | 'FAILED' | 'PARTIAL' | null): string => {
-  if (status === 'FAILED') return 'run.status.failed';
-  if (status === 'PARTIAL') return 'run.status.partial';
-  return 'run.status.done';
 };
 
 export const RunModal: React.FC<RunModalProps> = (props) => {
@@ -92,10 +79,16 @@ export const RunModal: React.FC<RunModalProps> = (props) => {
           ) : (
             <>
               <S.ResultHeader>
-                <S.StatusBadge $tone={statusTone(vm.result?.status ?? null)}>
-                  {t(statusKey(vm.result?.status ?? null))}
-                </S.StatusBadge>
+                <S.StatusBadge $tone={vm.statusTone}>{vm.statusLabel}</S.StatusBadge>
+                {vm.canOpenExecution && (
+                  <Button variant="ghost" size="sm" onClick={vm.handleOpenExecution}>
+                    <RiExternalLinkLine size={14} />
+                    {t('run.open-execution')}
+                  </Button>
+                )}
               </S.ResultHeader>
+
+              {vm.notice && <InfoBanner message={vm.notice} variant="info" />}
 
               {vm.result?.error && <S.ErrorBox>{vm.result.error}</S.ErrorBox>}
 
@@ -145,7 +138,7 @@ export const RunModal: React.FC<RunModalProps> = (props) => {
               <Button variant="secondary" onClick={vm.handleClose}>
                 {t('action.close')}
               </Button>
-              <Button variant="primary" onClick={vm.handleReset}>
+              <Button variant="primary" onClick={vm.handleReset} disabled={!vm.canRunAgain}>
                 {t('run.again')}
               </Button>
             </>

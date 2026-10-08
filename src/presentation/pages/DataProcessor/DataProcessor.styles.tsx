@@ -512,13 +512,13 @@ export const S = {
         ? theme.colors.success
         : $status === 'error'
           ? theme.colors.danger
-          : $status === 'running'
+          : $status === 'running' || $status === 'waiting'
             ? theme.colors.primary
             : theme.colors.border};
     box-shadow: ${({ theme, $status }) =>
-      $status === 'running' ? `0 0 0 4px ${theme.colors.primaryLight}` : 'none'};
+      $status === 'running' || $status === 'waiting' ? `0 0 0 4px ${theme.colors.primaryLight}` : 'none'};
     animation: ${({ $status }) =>
-      $status === 'running'
+      $status === 'running' || $status === 'waiting'
         ? css`
             ${pulse} 1.2s ease-in-out infinite
           `

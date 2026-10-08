@@ -18,6 +18,13 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.74.3] — 2026-10-08
+
+- fix(workflow/run): the Run modal no longer fabricates `status: 'FAILED'` when the 60 s wait ends or the execution subscription errors. `RunModalResult.status` gains `WAITING` (wait elapsed, execution still running) and `UNTRACKED` (subscription lost), rendered with a neutral badge, an info notice and an "Open execution" link (by `eventId`); "Run again" is disabled while `WAITING`. Before, an execution that took longer than 60 s was shown as failed while it went on to finish and write everything, inviting a second run.
+- fix(workflow/run): the subscription is no longer cancelled at 60 s. `followWorkflowExecution` (presentation/shared) keeps listening until the execution finishes, the modal closes, or the subscription errors; the wait only decides when to report "still running". `RunModalProps.onRun` receives a second argument, `RunModalFollow` (`update` + `signal`), through which the real result replaces the provisional one; `onOpenExecution` is new and optional. Callers that ignore the second argument are unaffected.
+- fix(data-processor): the "execute" stage goes to `waiting` (not `error`) after 60 s and is updated when the run finishes; a lost subscription is `untracked`, not `error`. The Runs link shows in both states.
+- Messages: `workflow.run.timeout` and `processor.stage.timeout` are replaced by `workflow.run.still-running` and `processor.stage.still-running`; `run.status.waiting`, `run.status.untracked` and `run.open-execution` are new in `core.ui`. `com.microteia.locale-pt-br` 1.65.0. `KERNEL_VERSION` does not move.
+
 #### [9.74.2] — 2026-10-07
 
 - fix(plugins/install): the inverse gate (`dependentRefIssues`) now also refuses an update whose screens stop emitting an event prefix that an installed dependent listens to (`install.dependent-event-breaks`, naming the dependent, its workflow and the prefix). Before, a new version of the emitter installed and converged, and the dependent's workflow simply stopped firing — an event nobody publishes does not fail. The dependent's triggers are resolved by `eventRefChecks` against the installed version and against the incoming one, and only what was `ok` through this extension and no longer is gets refused; another declared dependency still emitting the prefix keeps it standing. `dependentRefIssues` takes the installed package as an optional third argument; without it (a fresh install) nothing is checked.

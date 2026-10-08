@@ -11,6 +11,12 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.74.3] — 2026-10-08
+
+- Ao executar uma automação demorada, a tela não diz mais "Falhou" depois de um minuto de espera. Ela passa a mostrar "Em execução", com um atalho para abrir a execução, e troca sozinha para o resultado real quando a automação termina. Enquanto ela não termina, o botão "Executar novamente" fica bloqueado, para não repetir o trabalho.
+- O Processador de Dados segue o mesmo caminho: a etapa de execução continua em andamento após um minuto e é atualizada quando a automação termina.
+- Quando não for possível acompanhar a execução, a tela diz exatamente isso, em vez de dar a execução como falha.
+
 #### [9.74.2] — 2026-10-07
 
 - Atualizar uma extensão deixou de poder desligar, em silêncio, as automações de outra que dependem dela: se a nova versão parar de avisar sobre algo que outra extensão acompanha, a atualização é recusada e diz qual extensão ajustar antes.
