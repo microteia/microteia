@@ -12,7 +12,8 @@ import {
   validateUpsertSpec,
   validateWritablePath,
 } from '../../../domain/schema/mutationSpec';
-import type { RemoveSpec, ResolvedWritableTable, UpsertSpec } from '../../../domain/schema/mutationSpec';
+import type { RecordWriteVia, RemoveSpec, ResolvedWritableTable, UpsertSpec } from '../../../domain/schema/mutationSpec';
+import { RECORD_CREATED_VIA_FIELD, RECORD_UPDATED_VIA_FIELD } from '../../../domain/schema/mutationSpec';
 import { ruleIssueParams } from '../../../domain/schema/fieldRules';
 import type { DescribableIssue } from '../../../domain/schema/fieldRules';
 import { formatAndValidateRecord } from '../../../domain/schema/recordRules';
@@ -28,6 +29,48 @@ import type { RecordKeyMutation } from '../../../domain/repositories/IWorkflowMu
 
 const WORKFLOW_ACTOR = 'workflow-engine';
 
+interface WriteAuthor {
+  by: string;
+  name: string | null;
+  photoURL: string | null;
+  via: RecordWriteVia;
+}
+
+/**
+ * Quem responde pela gravação — e portanto a AUTORIA que a auditoria e a listagem mostram.
+ *
+ * Vem do CONTEXTO, e não de uma opção de quem chama: o passo "Gravar Registro", o `upsert` do Script e
+ * o `create_record` do agente gravam todos pela mesma regra. Com uma pessoa por trás (um botão, o
+ * agente em nome do dono do token), o autor é o uid dela — o único valor que a auditoria resolve em
+ * nome — e o nome e a foto saem da mesma regra do formulário. Sem pessoa, o autor é o motor.
+ *
+ * O nome do motor é `null`, não ausente: numa atualização, o merge deixaria o `updatedByName` da
+ * pessoa anterior ao lado de `updatedBy: 'workflow-engine'`, e a auditoria atribuiria a ela uma
+ * alteração que a automação fez.
+ */
+const authorOf = (context: WorkflowContext): WriteAuthor =>
+  context.actor
+    ? { by: context.actor.userId, name: context.actor.name, photoURL: context.actor.photoURL, via: context.actor.via }
+    : { by: WORKFLOW_ACTOR, name: null, photoURL: null, via: 'automation' };
+
+const updateStamp = (author: WriteAuthor): Record<string, unknown> => ({
+  updatedBy: author.by,
+  updatedByName: author.name,
+  updatedByPhotoURL: author.photoURL,
+  [RECORD_UPDATED_VIA_FIELD]: author.via,
+});
+
+/** Um registro NOVO não tem nome anterior a apagar: os `null` do motor simplesmente não entram. */
+const createStamp = (author: WriteAuthor): Record<string, unknown> => Object.fromEntries(
+  Object.entries({
+    createdBy: author.by,
+    createdByName: author.name,
+    createdByPhotoURL: author.photoURL,
+    [RECORD_CREATED_VIA_FIELD]: author.via,
+    ...updateStamp(author),
+  }).filter(([, value]) => value !== null),
+);
+
 export interface WorkflowMutationDeps {
   mutationRepository: IWorkflowMutationRepository;
   screenProvider: IScreenDefinitionProvider;
@@ -39,14 +82,6 @@ export interface UpsertOptions {
   // Usado pelo Step "Gravar Registro", que recebe um objeto inteiro (ex.: um registro já
   // existente) e não deve falhar por ele carregar campos que o sistema gerencia.
   ignoreUnwritableFields?: boolean;
-  /**
-   * Quem grava, para `createdBy`/`updatedBy` — e portanto para a AUTORIA que a auditoria mostra.
-   *
-   * O padrão continua sendo o motor, que é a verdade quando o motor gravou. O acesso de agente passa
-   * o seu próprio ator: dizer "workflow-engine" numa gravação feita por um agente de IA a pedido de
-   * uma pessoa seria mentir no único campo pelo qual alguém consegue rastreá-la depois.
-   */
-  writeActor?: string;
 }
 
 interface WritableLeavesOutcome {
@@ -110,7 +145,7 @@ export async function runWorkflowUpsert(
 ): Promise<WorkflowMutationOutcome<UpsertResult>> {
   const tenantId = context.execution.tenantId;
   const ctx = await deps.screenProvider.getSchemaContext(tenantId);
-  const actor = options.writeActor ?? WORKFLOW_ACTOR;
+  const author = authorOf(context);
 
   let effectiveSpec = spec;
   if (options.ignoreUnwritableFields) {
@@ -203,7 +238,7 @@ export async function runWorkflowUpsert(
         tenantId,
         collection,
         id,
-        { ...withKeys, updatedBy: actor },
+        { ...withKeys, ...updateStamp(author) },
         keyMutation,
       );
       created = false;
@@ -212,7 +247,7 @@ export async function runWorkflowUpsert(
       finalId = await deps.mutationRepository.create(
         tenantId,
         collection,
-        { ...withKeys, createdBy: actor, updatedBy: actor },
+        { ...withKeys, ...createStamp(author) },
         id,
         keyMutation,
       );

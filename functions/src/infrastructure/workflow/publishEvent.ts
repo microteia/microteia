@@ -1,5 +1,6 @@
 import { Timestamp } from 'firebase-admin/firestore';
 import type { Firestore } from 'firebase-admin/firestore';
+import type { PublishedActor } from '../../domain/engine/workflowActor';
 
 /**
  * Publica um evento de domínio para o Workflow Engine, gravando em
@@ -8,16 +9,23 @@ import type { Firestore } from 'firebase-admin/firestore';
  *
  * Retorna o id do documento de evento criado, usado para correlacionar a execução resultante
  * (`workflow_executions` guarda o `eventId`).
+ *
+ * `actor` é QUEM causou o evento, quando uma pessoa causou — gravado AO LADO do payload, nunca dentro
+ * dele: o payload são os parâmetros declarados, e um parâmetro chamado `actor` colidiria. Só o Admin
+ * SDK o escreve; a regra do Firestore recusa um evento publicado pelo cliente que o traga, e é isso
+ * que impede alguém de disparar uma automação em nome de outra pessoa.
  */
 export const publishEvent = async (
   db: Firestore,
   tenantId: string,
   name: string,
   payload: Record<string, unknown>,
+  actor?: PublishedActor,
 ): Promise<string> => {
   const ref = await db.collection('tenants').doc(tenantId).collection('workflow_events').add({
     name,
     payload,
+    ...(actor ? { actor } : {}),
     timestamp: Timestamp.now(),
   });
   return ref.id;

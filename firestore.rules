@@ -296,7 +296,11 @@ service cloud.firestore {
       // coleção append-only, ninguém lê/edita/exclui pelo client (só a Cloud Function
       // onWorkflowEventCreated, via Admin SDK, que ignora estas regras).
       match /workflow_events/{eventId} {
-        allow create: if can(tenantId, 'automation.run');
+        // Sem `actor`: QUEM disparou é gravado só pelo Admin SDK, ao lado do payload. Aceitá-lo do
+        // cliente deixaria qualquer membro com `automation.run` executar um fluxo em nome de outro — e o
+        // registro que o fluxo gravasse sairia com o autor forjado.
+        allow create: if can(tenantId, 'automation.run')
+          && !('actor' in request.resource.data);
         allow read, update, delete: if false;
       }
 
@@ -408,7 +412,7 @@ service cloud.firestore {
         return isDeclaredScreen(name)
           && screenMemberWritableFields(name).size() > 0
           && request.resource.data.diff(resource.data).affectedKeys()
-               .hasOnly(screenMemberWritableFields(name).concat(['updatedAt']));
+               .hasOnly(screenMemberWritableFields(name).concat(['updatedAt', 'updatedVia']));
       }
       // A tela que declara `authorCanDelete` deixa quem escreveu apagar o que escreveu, mesmo sem a
       // permissão de exclusão da coleção: ali a autoria É a posse — um comentário, um recado.
@@ -419,6 +423,18 @@ service cloud.firestore {
       }
       function isRecordAuthor() {
         return resource.data.get('createdBy', '') == request.auth.uid;
+      }
+      // POR ONDE a gravação entrou (`createdVia`/`updatedVia`). O cliente só pode dizer `ui`: `agent` e
+      // `automation` são escritos pelo Admin SDK, e é esta regra que impede uma tela — ou uma extensão
+      // rodando nela — de fazer um registro digitado passar por gravado pela IA, ou o contrário.
+      function declaresOnlyUiOnCreate() {
+        return request.resource.data.get('createdVia', 'ui') == 'ui'
+          && request.resource.data.get('updatedVia', 'ui') == 'ui';
+      }
+      function keepsWriteViaOnUpdate() {
+        let changed = request.resource.data.diff(resource.data).affectedKeys();
+        return !changed.hasAny(['createdVia'])
+          && (!changed.hasAny(['updatedVia']) || request.resource.data.updatedVia == 'ui');
       }
 
       // Uma LISTA DE OPÇÕES e um CONJUNTO DE ETIQUETAS são vocabulário, não dado: toda tela que os
@@ -468,8 +484,10 @@ service cloud.firestore {
           && isMember(tenantId)
           && (canOnCollection(screenCollection, 'read') || isDeclaredVocabulary(screenCollection));
         allow create: if isWritableScreen(screenCollection)
-          && canOnCollection(screenCollection, 'create');
+          && canOnCollection(screenCollection, 'create')
+          && declaresOnlyUiOnCreate();
         allow update: if isWritableScreen(screenCollection)
+          && keepsWriteViaOnUpdate()
           && (canOnCollection(screenCollection, 'update')
               || (isMember(tenantId) && touchesOnlyMemberWritableFields(screenCollection)));
         allow delete: if isWritableScreen(screenCollection)

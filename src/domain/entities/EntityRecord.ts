@@ -1,3 +1,4 @@
+import type { RecordWriteVia } from '../schema/mutationSpec';
 import type { CustomFieldValue } from './entitySchemas';
 
 /**
@@ -28,6 +29,9 @@ export interface RecordIdentity {
   updatedBy?: string;
   updatedByName?: string;
   updatedByPhotoURL?: string;
+  /** Por onde a gravação entrou — `ui`, `agent` ou `automation`. Ausente nos registros anteriores ao campo. */
+  createdVia?: RecordWriteVia;
+  updatedVia?: RecordWriteVia;
 }
 
 export type EntityRecord = RecordIdentity & Record<string, unknown>;

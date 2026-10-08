@@ -137,7 +137,7 @@ export const useExpressionEditorViewModel = (
   // ou de Action não passa nenhuma delas, e lá o escopo é plano (`isNew`, não `input.isNew`).
   const contextRoots = useMemo<ExpressionContextRoot[]>(() => {
     const roots: ExpressionContextRoot[] = [];
-    if (pathRoot || (props.eventFields?.length ?? 0) > 0) roots.push('event');
+    if (pathRoot || (props.eventFields?.length ?? 0) > 0) roots.push('event', 'actor');
     if (inputRoot || (props.stepOutputFields?.length ?? 0) > 0) roots.push('input');
     if ((props.stepOutputFields?.length ?? 0) > 0) roots.push('output');
     return roots;

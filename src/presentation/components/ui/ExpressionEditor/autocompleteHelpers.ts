@@ -75,7 +75,7 @@ const commonSnippets = (t: TranslateFn): AutocompleteItem[] => [
   },
 ];
 
-export type ExpressionContextRoot = 'event' | 'input' | 'output';
+export type ExpressionContextRoot = 'event' | 'input' | 'output' | 'actor';
 
 /**
  * Raízes de contexto do Workflow. Só existem quando a expressão é avaliada pelo `ExpressionEngine`;
@@ -99,6 +99,12 @@ const contextVariables = (t: TranslateFn): Record<ExpressionContextRoot, Autocom
     value: 'output.',
     label: 'output',
     description: t('expression.context.output'),
+    category: t('expression.category.context'),
+  },
+  actor: {
+    value: 'actor.',
+    label: 'actor',
+    description: t('expression.context.actor'),
     category: t('expression.category.context'),
   },
 });

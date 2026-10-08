@@ -156,6 +156,7 @@ export const CORE_UI_MESSAGES: Record<string, string> = {
   'expression.context.event': 'Data of the event that triggered the workflow',
   'expression.context.input': 'Input data configured for this step',
   'expression.context.output': 'Outputs of previous workflow steps',
+  'expression.context.actor': 'Who triggered the workflow: actor.id, actor.name and actor.via ("ui" or "agent"). Empty when no person triggered it',
   'expression.variable.defined-by': 'Variable defined by: {by}',
   'expression.variable.short': 'Variable: {by}',
   'expression.snippet.if.label': 'if - conditional',

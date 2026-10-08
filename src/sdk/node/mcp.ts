@@ -1030,6 +1030,10 @@ const PURE_READS: ToolDefinition[] = [
         + 'payload (`x`); and inside an `{ kind: "Expression" }` the name `event` IS the payload '
         + '(`event.x`) — there is no `event.payload` to reach for there, and reaching for one '
         + 'throws instead of reading as empty.',
+        'Who triggered the run is NOT in `event`: it is the `actor` root, `{ id, name, via }`, in any '
+        + '`{ kind: "Expression" }` and condition. It is the person on an action and on `run_workflow` '
+        + '(`via` "ui", or "agent" over MCP), it is passed on by `call-workflow`, and it is `null` on '
+        + 'every `<collection>.saved` / `.deleted` trigger — test it with `isEmpty(actor)`.',
       ],
     }),
   },

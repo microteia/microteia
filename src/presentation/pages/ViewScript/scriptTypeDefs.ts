@@ -78,7 +78,14 @@ declare function upsert(spec: UpsertSpec): Promise<UpsertResult>;
 declare function remove(spec: RemoveSpec): Promise<RemoveResult>;
 
 /** Registra uma mensagem no log de execução do Step. */
-declare function log(...args: unknown[]): void;`;
+declare function log(...args: unknown[]): void;
+
+/**
+ * Quem disparou a execução: \`via\` é 'ui' (um botão no app) ou 'agent' (um agente de IA, em nome da
+ * pessoa). \`null\` quando nenhuma pessoa a disparou — uma automação de gatilho de gravação. O que o
+ * \`upsert\` grava já sai com esta pessoa como autora.
+ */
+declare const actor: { id: string; name: string; via: 'ui' | 'agent' } | null;`;
 
 const INDENT_UNIT = '  ';
 

@@ -1,4 +1,5 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
+import { identifyActor } from '../workflow/identifyActor';
 import { getDI } from '../di/container';
 import { requirePermission } from './shared/requirePermission';
 import { PERMISSION_AUTOMATION_RUN } from '../../domain/schema/access';
@@ -135,7 +136,7 @@ export const runScript = onCall(
       services: { logger, now: () => new Date() },
       logger,
       execution: { id: crypto.randomUUID(), workflowDefinitionId: '', tenantId },
-      actor: { userId: request.auth.uid, permissions: actorPermissions },
+      actor: await identifyActor(request.auth.uid, 'ui', actorPermissions),
       input: ruled.data,
     };
 

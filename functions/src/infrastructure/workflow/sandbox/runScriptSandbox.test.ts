@@ -123,9 +123,21 @@ describe('runScriptSandbox — compatibilidade fn.* (Expression) com QuickJS', (
     const out = await run(
       wrapMain('return { pode: fn.hasPermission("finance.write"), naoPode: fn.hasPermission("finance.delete") };'),
       {},
-      { userId: 'u1', permissions: ['finance.read', 'finance.write'] },
+      { userId: 'u1', name: 'Ana', photoURL: '', via: 'ui', permissions: ['finance.read', 'finance.write'] },
     );
     expect(out).toEqual({ pode: true, naoPode: false });
+  });
+
+  it('`actor` é quem disparou, na mesma forma das expressões — e `null` sem pessoa', async () => {
+    const comAtor = await run(
+      wrapMain('return { id: actor.id, name: actor.name, via: actor.via };'),
+      {},
+      { userId: 'u1', name: 'Ana', photoURL: 'p', via: 'agent', permissions: [] },
+    );
+    expect(comAtor).toEqual({ id: 'u1', name: 'Ana', via: 'agent' });
+
+    const semAtor = await run(wrapMain('return { vazio: actor === null };'), {});
+    expect(semAtor).toEqual({ vazio: true });
   });
 
   it('fn.hasPermission responde NÃO quando a execução não tem ator — nasceu de um gatilho', async () => {
@@ -137,7 +149,7 @@ describe('runScriptSandbox — compatibilidade fn.* (Expression) com QuickJS', (
     const out = await run(
       wrapMain('return { pode: fn.hasPermission("qualquer.coisa") };'),
       {},
-      { userId: 'dono', permissions: ['*'] },
+      { userId: 'dono', name: 'Dono', photoURL: '', via: 'ui', permissions: ['*'] },
     );
     expect(out).toEqual({ pode: true });
   });

@@ -506,7 +506,7 @@ describe('o mutirão declarado, rodando no motor', () => {
     });
 
     expect(Object.keys(espelho()[0].data).sort())
-      .toEqual(['amount', 'createdBy', 'originId', 'state', 'title', 'updatedBy']);
+      .toEqual(['amount', 'createdBy', 'createdVia', 'originId', 'state', 'title', 'updatedBy', 'updatedVia']);
   });
 });
 

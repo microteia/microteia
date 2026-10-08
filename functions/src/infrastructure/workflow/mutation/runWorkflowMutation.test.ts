@@ -241,6 +241,81 @@ describe('runWorkflowUpsert', () => {
     expect(repo.updateCalls[0].data).toMatchObject({ name: 'Novo', updatedBy: 'workflow-engine' });
   });
 
+  describe('autoria', () => {
+    const withActor = (via: 'ui' | 'agent'): WorkflowContext => ({
+      ...context(),
+      actor: { userId: 'u-ana', name: 'Ana Souza', photoURL: 'https://foto/ana', via, permissions: [] },
+    });
+
+    it('com uma pessoa por trás, grava o uid, o nome efetivo, a foto e por onde veio — como o formulário', async () => {
+      const repo = new FakeMutationRepository();
+      await runWorkflowUpsert({ table: 'persons', data: { name: 'Bia' } }, withActor('ui'), deps(repo));
+      expect(repo.createCalls[0].data).toMatchObject({
+        createdBy: 'u-ana',
+        createdByName: 'Ana Souza',
+        createdByPhotoURL: 'https://foto/ana',
+        createdVia: 'ui',
+        updatedBy: 'u-ana',
+        updatedByName: 'Ana Souza',
+        updatedVia: 'ui',
+      });
+    });
+
+    it('pelo agente, o autor continua sendo a pessoa e o `via` diz que foi o agente', async () => {
+      const repo = new FakeMutationRepository();
+      repo.seed('persons', 'p1', { name: 'Antigo', createdBy: 'u-x', createdVia: 'ui' });
+      await runWorkflowUpsert({ table: 'persons', id: 'p1', data: { name: 'Novo' } }, withActor('agent'), deps(repo));
+      const written = repo.updateCalls[0].data ?? {};
+      expect(written).toMatchObject({ updatedBy: 'u-ana', updatedByName: 'Ana Souza', updatedVia: 'agent' });
+      expect(written).not.toHaveProperty('createdBy');
+      expect(written).not.toHaveProperty('createdVia');
+    });
+
+    it('sem pessoa, o autor é o motor e o `via` é automation — sem nome nenhum inventado', async () => {
+      const repo = new FakeMutationRepository();
+      await upsert(repo, { table: 'persons', data: { name: 'Bia' } });
+      const created = repo.createCalls[0].data ?? {};
+      expect(created).toMatchObject({ createdBy: 'workflow-engine', createdVia: 'automation', updatedVia: 'automation' });
+      expect(created).not.toHaveProperty('createdByName');
+      expect(created).not.toHaveProperty('updatedByName');
+    });
+
+    it('sem pessoa, a atualização APAGA o nome de quem editou antes, em vez de deixá-lo ao lado do motor', async () => {
+      const repo = new FakeMutationRepository();
+      repo.seed('persons', 'p1', { name: 'Antigo', updatedBy: 'u-ana', updatedByName: 'Ana Souza' });
+      await upsert(repo, { table: 'persons', id: 'p1', data: { name: 'Novo' } });
+      expect(repo.store.get('persons/p1')).toMatchObject({
+        updatedBy: 'workflow-engine',
+        updatedByName: null,
+        updatedVia: 'automation',
+      });
+    });
+
+    it('o dado do fluxo não forja o autor: createdBy, createdByName e createdVia são recusados', async () => {
+      const repo = new FakeMutationRepository();
+      for (const field of ['createdBy', 'createdByName', 'createdVia', 'updatedVia']) {
+        const outcome = await runWorkflowUpsert(
+          { table: 'persons', data: { name: 'Bia', [field]: 'forjado' } },
+          withActor('ui'),
+          deps(repo),
+        );
+        expect(outcome.ok).toBe(false);
+      }
+      expect(repo.createCalls).toHaveLength(0);
+    });
+
+    it('com ignoreUnwritableFields, o campo forjado é descartado e o carimbo verdadeiro prevalece', async () => {
+      const repo = new FakeMutationRepository();
+      await runWorkflowUpsert(
+        { table: 'persons', data: { name: 'Bia', createdBy: 'forjado', createdVia: 'agent', createdByName: 'X' } },
+        withActor('ui'),
+        deps(repo),
+        { ignoreUnwritableFields: true },
+      );
+      expect(repo.createCalls[0].data).toMatchObject({ createdBy: 'u-ana', createdByName: 'Ana Souza', createdVia: 'ui' });
+    });
+  });
+
   it('com ignoreUnwritableFields, descarta campos reservados/desconhecidos em vez de falhar', async () => {
     const repo = new FakeMutationRepository();
     repo.seed('persons', 'p1', { name: 'Antigo' });

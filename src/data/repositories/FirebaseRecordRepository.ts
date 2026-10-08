@@ -1,3 +1,5 @@
+import { RECORD_CREATED_VIA_FIELD, RECORD_UPDATED_VIA_FIELD } from '../../domain/schema/mutationSpec';
+import type { RecordWriteVia } from '../../domain/schema/mutationSpec';
 import {
   addDoc,
   collection as firestoreCollection,
@@ -137,7 +139,16 @@ const mapRecord = (
   updatedBy: d.updatedBy as string | undefined,
   updatedByName: d.updatedByName as string | undefined,
   updatedByPhotoURL: d.updatedByPhotoURL as string | undefined,
+  createdVia: d.createdVia as RecordWriteVia | undefined,
+  updatedVia: d.updatedVia as RecordWriteVia | undefined,
 });
+
+/**
+ * Toda gravação deste repositório é a de uma pessoa no app. O carimbo é dele, e não de quem chama,
+ * porque é ele o único ponto por onde um registro sai do front — e a regra do Firestore recusa
+ * qualquer outro valor vindo do cliente, de modo que ninguém se passa por agente ou automação.
+ */
+const RECORD_VIA_UI: RecordWriteVia = 'ui';
 
 /** Metadados de memória nunca chegam ao Firestore. */
 const stripIdentity = (data: EntityRecordValues): Record<string, unknown> => {
@@ -203,6 +214,7 @@ export class FirebaseRecordRepository implements IRecordRepository {
     const payload = {
       ...ruled,
       ...(plan.entries.length > 0 ? { [RECORD_KEY_REFS_FIELD]: recordKeyRefs(plan.entries) } : {}),
+      [RECORD_CREATED_VIA_FIELD]: RECORD_VIA_UI,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     };
@@ -271,6 +283,7 @@ export class FirebaseRecordRepository implements IRecordRepository {
     if (!hasKeys) {
       await updateDoc(doc(recordsRef(tenantId, collection), recordId), {
         ...ruled,
+        [RECORD_UPDATED_VIA_FIELD]: RECORD_VIA_UI,
         updatedAt: serverTimestamp(),
       });
       return;
@@ -284,6 +297,7 @@ export class FirebaseRecordRepository implements IRecordRepository {
     batch.update(doc(recordsRef(tenantId, collection), recordId), {
       ...ruled,
       [RECORD_KEY_REFS_FIELD]: diff.refs,
+      [RECORD_UPDATED_VIA_FIELD]: RECORD_VIA_UI,
       updatedAt: serverTimestamp(),
     });
     // Soltar antes de criar é o que permite trocar o valor de uma chave e voltar atrás na mesma

@@ -17,6 +17,27 @@ export interface WorkflowServices {
   now(): Date;
 }
 
+/** De onde partiu o gesto de uma PESSOA: o app ou um agente de IA, pelo MCP, em nome dela. */
+export type ActorVia = 'ui' | 'agent';
+
+/**
+ * A pessoa que causou a execução: a IDENTIDADE (uid, nome efetivo, foto, por onde veio) e o ACESSO
+ * (as permissões dela nesta execução).
+ *
+ * As duas metades viajam de forma diferente, e é isso que justifica serem campos separados. A
+ * identidade é um fato — quem apertou o botão não muda depois — e atravessa o barramento de eventos.
+ * As permissões são um retrato do acesso, que envelhece: só existem na execução EM PROCESSO, e o ator
+ * remontado de um evento publicado chega com `permissions: []`.
+ */
+export interface WorkflowActor {
+  userId: string;
+  /** O nome efetivo, pela mesma regra do front (apelido → nome completo → displayName → e-mail). */
+  name: string;
+  photoURL: string;
+  via: ActorVia;
+  permissions: string[];
+}
+
 export interface WorkflowContext {
   event: WorkflowEvent;
   outputs: Record<string, Record<string, unknown>>;
@@ -38,7 +59,7 @@ export interface WorkflowContext {
    * requisições concorrentes, e permissão vazada de uma execução para outra é o defeito que este
    * modelo inteiro existe para não ter.
    */
-  actor?: { userId: string; permissions: string[] };
+  actor?: WorkflowActor;
   input?: Record<string, unknown>;
   // Configuração bruta do step em execução. Permite que um step com inputs dinâmicos (ex:
   // 'Chamar Workflow') resolva chaves de configuração que resolveInputsSafe não conhece.

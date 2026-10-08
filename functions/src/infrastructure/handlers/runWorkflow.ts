@@ -1,4 +1,6 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
+import { identifyActor } from '../workflow/identifyActor';
+import { toPublishedActor } from '../../domain/engine/workflowActor';
 import { getDI } from '../di/container';
 import { requirePermission } from './shared/requirePermission';
 import { PERMISSION_AUTOMATION_RUN } from '../../domain/schema/access';
@@ -92,11 +94,12 @@ export const runWorkflow = onCall(
 
     try {
       const di = getDI();
-      // Sem ator no contexto, de propósito: esta porta PUBLICA um evento, e a execução acontece
-      // depois, noutra invocação. Levar as permissões no payload seria persistir um retrato do
-      // acesso de alguém — que envelhece — dentro do barramento. `hasPermission(...)` responde NÃO
-      // aqui, e o gesto síncrono que precisa dele é a Action (`runAction`), que roda em processo.
-      await requirePermission(tenantId, request.auth.uid, PERMISSION_AUTOMATION_RUN);
+      // Sem PERMISSÕES no evento, de propósito: esta porta PUBLICA um evento, e a execução acontece
+      // depois, noutra invocação. Levar as permissões seria persistir um retrato do acesso de alguém
+      // — que envelhece — dentro do barramento. `hasPermission(...)` responde NÃO aqui, e o gesto
+      // síncrono que precisa dele é a Action (`runAction`), que roda em processo. A IDENTIDADE vai:
+      // quem pediu a execução é um fato, e é o autor do que o fluxo gravar.
+      const actorPermissions = await requirePermission(tenantId, request.auth.uid, PERMISSION_AUTOMATION_RUN);
 
       const definition = await di.getWorkflowDefinitionRepository().findByRef(tenantId, targetWorkflowId);
       if (!definition) {
@@ -184,7 +187,7 @@ export const runWorkflow = onCall(
         __targetWorkflowId: targetWorkflowId,
         __callDepth: 1,
         ...ruled.data,
-      });
+      }, toPublishedActor(await identifyActor(request.auth.uid, 'ui', actorPermissions)));
 
       return { eventId };
     } catch (err) {

@@ -25,7 +25,9 @@ import { FirestoreWorkflowMutationRepository } from '../../data/services/Firesto
 import { getDI } from '../di/container';
 import { getDb } from '../firebase/initFirebase';
 import type { AgentSession } from './authenticateAgent';
-import { agentRun, agentWriteActor } from './agentContext';
+import { agentRun } from './agentContext';
+import { identifyActor } from '../workflow/identifyActor';
+import { toPublishedActor } from '../../domain/engine/workflowActor';
 import { agentText } from './agentMessages';
 import type { AgentText } from './agentMessages';
 import { describeScreen, officeScreens } from './describeScreen';
@@ -207,7 +209,7 @@ export const runAgentOperation = async (
         limit: typeof input.limit === 'number' ? input.limit : AGENT_QUERY_LIMITS.maxResults,
         projections: [],
       };
-      const { context } = agentRun(session, tool.name);
+      const { context } = await agentRun(session, tool.name);
       const outcome = await runWorkflowQuery(spec, context, queryDeps(), AGENT_QUERY_LIMITS);
       return outcome.ok
         ? {
@@ -251,12 +253,11 @@ export const runAgentOperation = async (
       const id = asText(input.id);
       if (isUpdate && id === '') return refuse(catalog, '@core.records/record.not-found');
 
-      const { context } = agentRun(session, tool.name);
+      const { context } = await agentRun(session, tool.name);
       const outcome = await runWorkflowUpsert(
         { table: asText(input.collection), ...(id === '' ? {} : { id }), data: asRecord(input.data) },
         context,
         mutationDeps(),
-        { writeActor: agentWriteActor(session) },
       );
       return outcome.ok
         ? { ok: true, value: { id: outcome.value.id, created: outcome.value.created, record: outcome.value.record } }
@@ -264,7 +265,7 @@ export const runAgentOperation = async (
     }
 
     case 'delete_record': {
-      const { context } = agentRun(session, tool.name);
+      const { context } = await agentRun(session, tool.name);
       const outcome = await runWorkflowRemove(
         { table: asText(input.collection), id: asText(input.id) },
         context,
@@ -344,7 +345,7 @@ const runAgentReport = async (
     });
   }
 
-  const { context } = agentRun(session, 'run_report');
+  const { context } = await agentRun(session, 'run_report');
   const outcome = await runReportQuery({ spec, context, deps: queryDeps(), prompts });
   return outcome.ok
     ? { ok: true, value: outcome.value }
@@ -355,6 +356,9 @@ const runAgentReport = async (
  * A automação é PUBLICADA, não executada — a mesma decisão da callable `runWorkflow`, e não uma
  * limitação deste caminho: levar as permissões no payload persistiria um retrato do acesso de alguém
  * dentro do barramento, e um retrato envelhece. `get_workflow_run` lê o desfecho depois.
+ *
+ * A IDENTIDADE vai junto, ao lado do payload: quem pediu é um fato que não envelhece, e é o que faz o
+ * fluxo gravar o registro em nome do dono do token, com `via: 'agent'`.
  */
 const startAgentWorkflow = async (
   input: Record<string, unknown>,
@@ -394,7 +398,7 @@ const startAgentWorkflow = async (
     __targetWorkflowId: workflowId,
     __callDepth: 1,
     ...prepared.data,
-  });
+  }, toPublishedActor(await identifyActor(session.userId, 'agent', session.permissions)));
   return { ok: true, value: { eventId, status: 'STARTED' } };
 };
 
@@ -492,7 +496,7 @@ const runAgentAction = async (
     params: { ...prepared.data, ...system },
     // A INTERSEÇÃO, e não o conjunto do usuário: é dela que `hasPermission(...)` responde dentro de
     // um Script ou de uma expressão da ação.
-    actor: { userId: session.userId, permissions: session.permissions },
+    actor: await identifyActor(session.userId, 'agent', session.permissions),
     callDepth: 1,
   });
 

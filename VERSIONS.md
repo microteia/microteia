@@ -11,6 +11,13 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.75.0] — 2026-10-08
+
+- Um registro criado ou alterado por uma automação disparada por um botão passa a mostrar quem apertou o botão como autor, com o mesmo nome e foto que apareceriam se a pessoa o tivesse digitado. Antes, ele aparecia sem autor.
+- Cada registro passa a guardar por onde foi gravado: na tela, por um assistente de IA em nome de alguém, ou por uma automação sem ninguém por trás. Assim dá para saber o que foi digitado e o que a IA registrou, sem precisar de um campo próprio para isso.
+- As automações podem usar o nome de quem as disparou, por exemplo para registrar "quem fez" num histórico, e saber se o pedido veio da tela ou de um assistente de IA.
+- Ninguém consegue disparar uma automação em nome de outra pessoa, nem fazer um registro digitado passar por gravado pela IA.
+
 #### [9.74.3] — 2026-10-08
 
 - Ao executar uma automação demorada, a tela não diz mais "Falhou" depois de um minuto de espera. Ela passa a mostrar "Em execução", com um atalho para abrir a execução, e troca sozinha para o resultado real quando a automação termina. Enquanto ela não termina, o botão "Executar novamente" fica bloqueado, para não repetir o trabalho.

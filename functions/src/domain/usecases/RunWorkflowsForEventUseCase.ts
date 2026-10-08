@@ -1,5 +1,5 @@
 import type { WorkflowDefinition, WorkflowEvent } from '../entities/Workflow';
-import type { WorkflowServices } from '../entities/WorkflowContext';
+import type { WorkflowActor, WorkflowServices } from '../entities/WorkflowContext';
 import type { IWorkflowDefinitionRepository } from '../repositories/IWorkflowDefinitionRepository';
 import type { IWorkflowExecutionRepository } from '../repositories/IWorkflowExecutionRepository';
 import type { StepRegistry } from '../engine/StepRegistry';
@@ -8,7 +8,12 @@ import { hydrateAndRunWorkflow } from '../engine/hydrateAndRunWorkflow';
 import { WORKFLOW_CALLED_EVENT } from '../schema/eventCatalog';
 
 export type RunWorkflowsForEventUseCase = {
-  execute: (event: WorkflowEvent) => Promise<void>;
+  /**
+   * `actor` é a pessoa que publicou o evento — `runWorkflow`, `run_workflow` ou um `call-workflow` que
+   * não espera —, sem permissões. Ausente nos gatilhos de gravação (`.saved`/`.deleted`): ali a
+   * automação é consequência de um documento ter mudado, não o gesto de alguém.
+   */
+  execute: (event: WorkflowEvent, actor?: WorkflowActor) => Promise<void>;
 };
 
 export const makeRunWorkflowsForEventUseCase = (
@@ -18,7 +23,7 @@ export const makeRunWorkflowsForEventUseCase = (
   services: WorkflowServices,
   hydrator: WorkflowContextHydrator,
 ): RunWorkflowsForEventUseCase => ({
-  execute: async (event) => {
+  execute: async (event, actor) => {
     let definitions: WorkflowDefinition[];
     if (event.name === WORKFLOW_CALLED_EVENT) {
       const targetId = typeof event.payload.__targetWorkflowId === 'string' ? event.payload.__targetWorkflowId : null;
@@ -38,6 +43,7 @@ export const makeRunWorkflowsForEventUseCase = (
           services,
           hydrator,
           cache: hydrationCache,
+          ...(actor ? { actor } : {}),
         });
         await executionRepository.create(execution);
       } catch (error) {

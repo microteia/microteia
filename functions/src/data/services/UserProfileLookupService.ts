@@ -11,6 +11,12 @@ export class UserProfileLookupService implements IUserProfileLookupService {
 
   async resolveActor(uid: string): Promise<ResolvedActor> {
     if (!uid) return { name: 'Sistema', photoURL: '' };
+    const identity = await this.resolveIdentity(uid);
+    return { name: identity.name || '@core.workspace/user.unknown', photoURL: identity.photoURL };
+  }
+
+  async resolveIdentity(uid: string): Promise<ResolvedActor> {
+    if (!uid) return { name: '', photoURL: '' };
 
     const [profileData, userData] = await Promise.all([
       this.db.collection('userProfiles').doc(uid).get()
@@ -26,7 +32,7 @@ export class UserProfileLookupService implements IUserProfileLookupService {
     const displayName = userData?.displayName as string | undefined;
     const email = userData?.email as string | undefined;
 
-    const name = nickname || fullName || displayName || email || '@core.workspace/user.unknown';
+    const name = nickname || fullName || displayName || email || '';
     const photoURL = (profileData?.photoURL as string | undefined)
       || (userData?.photoURL as string | undefined)
       || '';

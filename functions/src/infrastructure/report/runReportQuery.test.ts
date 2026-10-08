@@ -113,7 +113,7 @@ const context = (): WorkflowContext => ({
   services: { logger, now: () => new Date('2026-05-05T12:00:00.000Z') },
   logger,
   execution: { id: 'e1', workflowDefinitionId: '', tenantId: 't1' },
-  actor: { userId: 'ana', permissions: [] },
+  actor: { userId: 'ana', name: 'Ana', photoURL: '', via: 'ui', permissions: [] },
   input: {},
 });
 
@@ -639,7 +639,7 @@ describe('runReportQuery', () => {
 
     it('`hasPermission` responde pelo conjunto do ATOR — o relatório roda como o usuário', async () => {
       const withActor = (permissions: string[]): WorkflowContext =>
-        ({ ...context(), actor: { userId: 'ana', permissions } });
+        ({ ...context(), actor: { userId: 'ana', name: 'Ana', photoURL: '', via: 'ui', permissions } });
 
       const permitted = await runReportQuery({
         spec: com('hasPermission("<entity>.read")'),

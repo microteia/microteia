@@ -10,7 +10,7 @@ export interface FieldDiff {
 }
 
 const IGNORED_KEYS = new Set([
-  'updatedAt', 'updatedBy', 'updatedByName', 'updatedByPhotoURL',
+  'updatedAt', 'updatedBy', 'updatedByName', 'updatedByPhotoURL', 'updatedVia', 'createdVia',
   'deletedBy', 'deletedByName', 'deletedByPhotoURL',
   'id', 'tenantId',
 ]);

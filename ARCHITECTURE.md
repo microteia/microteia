@@ -674,11 +674,13 @@ assim — a ação sumia do cartão e aparecia numa tela aberta depois. Quem ava
 passa o conjunto pelo contexto; o gate ficou para quem avalia fora dela.
 
 **Sem ator, a resposta é NÃO.** A automação que nasce de um gatilho não tem pessoa, e conceder por
-ausência de pessoa transformaria "ninguém disparou isto" em "pode tudo". Há ator em `runAction` e no
-Step "Script" (execução em processo); `runWorkflow` PUBLICA um evento e a execução acontece noutra
-invocação — levar as permissões no payload seria persistir um retrato do acesso de alguém dentro do
-barramento, e por isso ali não há ator. `<entity>` também não resolve no backend: uma automação não
-está presa a uma coleção.
+ausência de pessoa transformaria "ninguém disparou isto" em "pode tudo". Há PERMISSÕES no ator em
+`runAction`, no Step "Script" e no `call-workflow` que espera o retorno (execução em processo);
+`runWorkflow` e o `call-workflow` que não espera PUBLICAM um evento e a execução acontece noutra
+invocação — levar as permissões no evento seria persistir um retrato do acesso de alguém dentro do
+barramento, e por isso ali o ator chega com `permissions: []`. A IDENTIDADE atravessa (ver "Quem
+disparou — `actor`"). `<entity>` também não resolve no backend: uma automação não está presa a uma
+coleção.
 
 #### `!` é NEGAÇÃO, e não era
 
@@ -5173,8 +5175,8 @@ Contraparte de escrita do Step "Buscar Registros" e da ponte `query`. Permitem q
 - **Validação** — `validateUpsertSpec` achata o `data` em caminhos e valida cada um com
   `resolvePath` (rejeita campos desconhecidos, campos gerenciados pelo sistema — `id`, timestamps,
   autoria — e escrita "através" de referência). **Todas** as tabelas gravam os campos na raiz;
-  listas gravam `key`/`label`/`color`. `upsert` sem `id` inclui (com `createdBy: 'workflow-engine'`
-  + timestamps); com `id` existente faz merge.
+  listas gravam `key`/`label`/`color`. `upsert` sem `id` inclui (com a autoria — ver "Quem disparou
+  — `actor`" — + timestamps); com `id` existente faz merge.
 - **Eventos** — como a escrita é um `set`/`delete` em `tenants/{tenantId}/{coleção}/{doc}`, os
   eventos `*.saved`/`*.deleted` são emitidos **automaticamente** pelo trigger
   `publishWorkflowEventOnEntityChange`; nenhuma emissão manual. **Sem cascata** (ver "Cascata de
@@ -5234,6 +5236,80 @@ Três decisões que não são detalhe de implementação:
 
 A conexão de IA é opcional: vazia, usa a **padrão do escritório** (`getDefaultCredentials`). Uma
 automação declarada numa extensão não pode carregar o id de uma conexão que quem instala nem criou.
+
+### Quem disparou — `actor`
+
+Uma automação disparada por um botão gravava o registro como se ninguém o tivesse criado: o ator chegava
+ao backend (`runAction` monta o uid e as permissões), ficava em `context.actor` só para o `hasPermission`,
+e a mutação carimbava `workflow-engine`. Todo "registrar X" por botão — histórico, aprovação, ocorrência
+— perdia o autor, e a extensão que quisesse dizê-lo teria de pedir à pessoa que se identificasse num
+campo que ela (ou a IA) podia esquecer ou forjar.
+
+**`WorkflowContext.actor` é `WorkflowActor`: identidade E acesso, em campos separados** —
+`{ userId, name, photoURL, via, permissions }`. As duas metades viajam diferente, e é isso que justifica
+a separação:
+
+| Origem | `via` | Identidade | Permissões |
+|---|---|---|---|
+| `runAction` (botão) | `ui` | sim | sim — em processo |
+| `run_action` (MCP) | `agent` | o dono do token | a interseção com o teto do token |
+| `runScript` (depurar Script) | `ui` | sim | sim |
+| `runWorkflow` / `run_workflow` | `ui` / `agent` | sim, gravada no EVENTO | não — `[]` |
+| `call-workflow` esperando | herda | herda | herda — mesma invocação |
+| `call-workflow` sem esperar | herda | herda, gravada no evento | não — `[]` |
+| `<coleção>.saved` / `.deleted` | — | **não há ator** | — |
+
+- **A identidade atravessa o barramento; o acesso não.** `publishEvent` aceita um `PublishedActor` e o
+  grava AO LADO do payload (nunca dentro: o payload são os parâmetros, e um parâmetro `actor`
+  colidiria); `onWorkflowEventCreated` o remonta com `actorFromPublished`, com `permissions: []`. Quem
+  apertou o botão é um fato que não envelhece; o conjunto de permissões é um retrato que envelhece — a
+  decisão antiga de `runWorkflow` era sobre ESTE, e continua valendo.
+- **O cliente não escreve `actor` no evento.** `firestore.rules` recusa um `workflow_events` criado pelo
+  cliente que o traga. Sem isso, qualquer membro com `automation.run` dispararia um fluxo em nome de
+  outro, e o registro que o fluxo gravasse sairia com o autor forjado.
+- **`runWorkflow` ganhou identidade, ao contrário do que a proposta original pedia.** O comentário que
+  "omitia o ator de propósito" falava das PERMISSÕES; a pessoa que pediu a execução existe, e é a autora
+  do que o fluxo grava. Deixá-la de fora seria tratar o "Executar" do Processador como gatilho.
+- **O nome efetivo** sai de `IUserProfileLookupService.resolveIdentity` — a mesma ordem do
+  `effectiveName` do front (apelido → nome completo → displayName → e-mail) e `''` quando não há nenhum,
+  porque vai para dentro de um registro e uma referência "usuário desconhecido" seria texto do produto
+  gravado como dado. `identifyActor` (`infrastructure/workflow/`) monta o ator nas portas de entrada.
+
+**Nas expressões, `actor` é `{ id, name, via } | null`** (`toExpressionActor`) — sem foto nem
+permissões: é identidade, e o acesso continua perguntado por `hasPermission`. Entra no escopo DEPOIS das
+variáveis, para um `set-variable` chamado `actor` não passar a dizer quem disparou. Sem ator, `actor.id`
+lê `null` em vez de estourar: o `expr-eval` acessa membro sem guarda, e a condição `actor.via == "agent"`
+derrubaria o passo justamente no gatilho de gravação. A correção é nos TOKENS parseados e só para esta
+raiz (`nullAbsentActorChains`) — a cadeia `actor.x.y` vira a constante `null`, e `isEmpty(actor)` segue
+`true`. O Script recebe a mesma forma no global `actor`. O editor oferece a raiz onde oferece `event`.
+
+**Na gravação, o autor sai do contexto, e não de uma opção de quem chama.** `runWorkflowUpsert` lê
+`context.actor`: com pessoa, `createdBy`/`updatedBy` = uid, `createdByName`/`updatedByName` e a foto pela
+regra acima, e `createdVia`/`updatedVia` = `via`; sem pessoa, `workflow-engine` e `via: 'automation'`, com
+`updatedByName: null` numa atualização — o merge deixaria o nome da pessoa anterior ao lado do motor, e a
+auditoria (que lê `updatedByName` primeiro) atribuiria a ela o que a automação fez. A opção
+`UpsertOptions.writeActor`, por onde o agente passava o uid, saiu: o contexto do agente já carrega o
+ator, com `via: 'agent'`.
+
+**`createdVia`/`updatedVia` é campo de auditoria protegido**, nos três caminhos: `FirebaseRecordRepository`
+carimba `ui` em toda gravação do front (é o único ponto por onde um registro sai dele); a mutação de
+workflow e o MCP carimbam `agent`/`automation`. Estão em `SYSTEM_MANAGED_KEYS` (um mapping que os nomeie é
+recusado, ou descartado pelo Step), em `IGNORED_KEYS` do diff de auditoria, e `firestore.rules` só deixa o
+cliente dizer `ui` — e nunca reescrever `createdVia`. O `via` é À PARTE do autor: o autor continua sendo o
+uid, pelos motivos de "O carimbo de autoria".
+
+**O que ficou de fora, e por quê:**
+
+- **`remove` não carimba quem excluiu.** O front carimba `deletedBy` com um `update` antes do `delete`; no
+  backend esse `update` dispararia `<coleção>.saved` (o gatilho de publicação não filtra campos de
+  auditoria) e rodaria automações de gravação sobre um registro prestes a sumir. Fazê-lo pede um filtro
+  no gatilho, que é outra alteração.
+- **A atualização pelo formulário não carimba `updatedBy`** — já não carimbava. Carimba só `updatedVia`,
+  para um registro gravado pelo agente e editado à mão não continuar dizendo `agent`. Carimbar o autor ali
+  faria "marcar como lida" num mural aparecer como edição de quem leu.
+- **`validate_plugin` não confere raiz de expressão em lugar nenhum** — nem antes desta alteração. Recusar
+  `actor` numa `compute` seria errado além de novo: o escopo de campo é PLANO, e um campo chamado `actor`
+  é legítimo ali.
 
 ### `call-workflow` com alvo dinâmico e parâmetros em bloco
 
@@ -6924,12 +7000,13 @@ para apagar. O defeito não era do agente; é que foi ele quem o encontrou.
 
 ### O carimbo de autoria
 
-`UpsertOptions.writeActor` decide o `createdBy`/`updatedBy`. O padrão continua sendo `workflow-engine`,
-que é a verdade quando o motor gravou; o agente passa o **uid da pessoa**, porque é ela que responde
-pelo que ele faz — e porque é o único valor que a auditoria resolve (`resolveActor` procura o uid em
+O `createdBy`/`updatedBy` sai do ator do contexto (ver "Quem disparou — `actor`"). Sem ator é
+`workflow-engine`, que é a verdade quando o motor gravou; o agente grava o **uid da pessoa**, porque é ela
+que responde pelo que ele faz — e porque é o único valor que a auditoria resolve (`resolveActor` procura o uid em
 `userProfiles` e `users`, e qualquer coisa composta apareceria como "usuário desconhecido", perdendo
-também o nome da pessoa). Distinguir na auditoria QUAL agente gravou exigiria um campo de ator próprio
-no registro de auditoria, não um valor enfiado no campo de autor de um documento de negócio.
+também o nome da pessoa). Distinguir que foi O AGENTE é o papel de `createdVia`/`updatedVia: 'agent'`, um campo à
+parte; distinguir QUAL acesso de agente gravou exigiria um campo de ator próprio no registro de
+auditoria, não um valor enfiado no campo de autor de um documento de negócio.
 
 ### As duas metades: o que é do kernel e o que é da extensão
 

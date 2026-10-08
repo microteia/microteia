@@ -7,7 +7,13 @@ import type { WorkflowEvent } from '../../../domain/entities/Workflow';
 // O passo importa a inicialização do Firebase para o caminho que NÃO espera retorno (ele publica um
 // evento). Nenhum teste daqui passa por lá, e o módulo real abriria uma conexão só para ser ignorado.
 vi.mock('../../firebase/initFirebase', () => ({ getDb: () => ({}) }));
-vi.mock('../publishEvent', () => ({ publishEvent: async () => undefined }));
+const published = vi.hoisted(() => [] as unknown[][]);
+vi.mock('../publishEvent', () => ({
+  publishEvent: async (...args: unknown[]) => {
+    published.push(args);
+    return 'ev-1';
+  },
+}));
 
 const makeContext = (logger: WorkflowLogger): WorkflowContext => {
   const event: WorkflowEvent = {
@@ -109,5 +115,58 @@ describe('Step "Chamar Workflow" — o que ele conta quando o chamado falha', ()
     expect(errors).toEqual([]);
     expect(result.message).toBe('@core.automation/step.call-workflow.target-missing-extension');
     expect(result.messageParams).toEqual({ artifact: 'wf-x', plugin: 'com.acme.utils' });
+  });
+});
+
+describe('Step "Chamar Workflow" — a pessoa que causou a execução chega ao fluxo chamado', () => {
+  const actor = { userId: 'u-ana', name: 'Ana Souza', photoURL: '', via: 'ui' as const, permissions: ['x.read'] };
+  const silent: WorkflowLogger = { info: () => undefined, warn: () => undefined, error: () => undefined };
+
+  it('esperando, leva o ator inteiro — identidade e permissões, porque roda nesta invocação', async () => {
+    const calls: unknown[] = [];
+    const definition = makeCallWorkflowStepDefinition({
+      execute: async (params) => {
+        calls.push(params.actor);
+        return { found: true, status: 'SUCCESS', outputs: {}, executionId: 'b', failures: [] };
+      },
+    });
+
+    await definition.createExecutor().execute(
+      { targetWorkflowId: 'wf-b', waitForResult: true },
+      { ...makeContext(silent), actor },
+    );
+
+    expect(calls).toEqual([actor]);
+  });
+
+  it('sem esperar, publica a IDENTIDADE ao lado do payload, e nunca as permissões', async () => {
+    published.length = 0;
+    const definition = makeCallWorkflowStepDefinition(runner({ found: false }));
+
+    await definition.createExecutor().execute(
+      { targetWorkflowId: 'wf-b', waitForResult: false },
+      { ...makeContext(silent), actor },
+    );
+
+    const [, , , payload, publishedActor] = published[0];
+    expect(publishedActor).toEqual({ userId: 'u-ana', name: 'Ana Souza', photoURL: '', via: 'ui' });
+    expect(payload).not.toHaveProperty('actor');
+  });
+
+  it('sem pessoa por trás, não inventa ator em nenhum dos dois modos', async () => {
+    published.length = 0;
+    const calls: unknown[] = [];
+    const definition = makeCallWorkflowStepDefinition({
+      execute: async (params) => {
+        calls.push(params.actor);
+        return { found: true, status: 'SUCCESS', outputs: {}, executionId: 'b', failures: [] };
+      },
+    });
+
+    await definition.createExecutor().execute({ targetWorkflowId: 'wf-b', waitForResult: true }, makeContext(silent));
+    await definition.createExecutor().execute({ targetWorkflowId: 'wf-b', waitForResult: false }, makeContext(silent));
+
+    expect(calls).toEqual([undefined]);
+    expect(published[0][4]).toBeUndefined();
   });
 });

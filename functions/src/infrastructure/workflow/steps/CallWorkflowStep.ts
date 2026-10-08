@@ -7,6 +7,7 @@ import { buildNestedParams } from '../../../domain/engine/nestedParams';
 import { WORKFLOW_CALLED_EVENT } from '../../../domain/schema/eventCatalog';
 import { getDb } from '../../firebase/initFirebase';
 import { publishEvent } from '../publishEvent';
+import { toPublishedActor } from '../../../domain/engine/workflowActor';
 
 import type { WorkflowResult } from '../../../domain/entities/WorkflowContext';
 const MAX_CALL_DEPTH = 10;
@@ -47,12 +48,16 @@ export const makeCallWorkflowStepDefinition = (runCalledWorkflow: RunCalledWorkf
 
       const waitForResult = inputs.waitForResult === true;
 
+      // A mesma pessoa causando a mesma execução: o fluxo chamado lê o mesmo `actor` nos dois modos.
+      // O que muda é o ACESSO. Esperando, a chamada roda nesta invocação e leva as permissões junto —
+      // é a execução em processo, como a Action. Sem esperar, ela vira um evento no barramento, e ali
+      // só a identidade viaja: gravar as permissões seria persistir um retrato do acesso que envelhece.
       if (!waitForResult) {
         await publishEvent(getDb(), context.execution.tenantId, WORKFLOW_CALLED_EVENT, {
           __targetWorkflowId: targetWorkflowId,
           __callDepth: depth + 1,
           ...resolvedParams,
-        });
+        }, context.actor ? toPublishedActor(context.actor) : undefined);
         return { success: true, message: '@core.automation/step.call-workflow.fired', outputs: {} };
       }
 
@@ -61,6 +66,7 @@ export const makeCallWorkflowStepDefinition = (runCalledWorkflow: RunCalledWorkf
         targetWorkflowId,
         params: resolvedParams,
         callDepth: depth + 1,
+        ...(context.actor ? { actor: context.actor } : {}),
       });
 
       if (!result.found) {

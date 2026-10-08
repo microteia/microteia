@@ -5,6 +5,7 @@ import { registerExpressionFunctionsFromPlugins } from '../../../infrastructure/
 import { operatorRegistry } from './OperatorRegistry';
 import { NOT_OPERATOR } from '../../schema/expressionSyntax';
 import { LocalizedError } from '../../errors/LocalizedError';
+import { toExpressionActor } from '../workflowActor';
 import {
   addOperator, subtractOperator, multiplyOperator, divideOperator, remainderOperator, powerOperator, factorialOperator,
   equalOperator, notEqualOperator, lessThanOperator, lessOrEqualOperator, greaterThanOperator, greaterOrEqualOperator,
@@ -89,15 +90,54 @@ export const ENGINE_PARSER_OPERATORS = {
   fndef: false,
 } as const;
 
+/**
+ * `actor` vem DEPOIS das variáveis, ao contrário de `event`/`input`/`output`: uma variável do fluxo
+ * chamada `actor` não pode passar a dizer quem disparou a execução.
+ */
 const buildVariablesContext = (context: WorkflowContext): Record<string, unknown> => {
   const variables: Record<string, unknown> = {
     event: context.event.payload,
     input: context.input ?? {},
     output: context.outputs,
     ...context.variables,
+    [ACTOR_ROOT]: toExpressionActor(context.actor),
   };
 
   return variables;
+};
+
+export const ACTOR_ROOT = 'actor';
+
+interface ExprToken {
+  type: string;
+  value: unknown;
+}
+
+/**
+ * `actor.id` sem ator lê `null`, e não estoura.
+ *
+ * O `expr-eval` acessa membro sem guarda (`n1[item.value]`): sobre `null`, a expressão lançaria
+ * "Cannot read properties of null" — e a condição `actor.via == "agent"` derrubaria o passo justamente
+ * na automação de gatilho, onde não há pessoa. A troca é feita nos TOKENS já parseados, e só para esta
+ * raiz: a cadeia `actor.x.y` inteira vira a constante `null`, e `isEmpty(actor)` continua `true`
+ * porque a raiz sozinha já é `null` no escopo.
+ */
+const nullAbsentActorChains = (tokens: ExprToken[]): ExprToken[] => {
+  const out: ExprToken[] = [];
+  for (let index = 0; index < tokens.length; index += 1) {
+    const token = tokens[index];
+    if (token.type === 'IEXPR' && Array.isArray(token.value)) {
+      out.push({ ...token, value: nullAbsentActorChains(token.value as ExprToken[]) });
+      continue;
+    }
+    if (token.type === 'IVAR' && token.value === ACTOR_ROOT && tokens[index + 1]?.type === 'IMEMBER') {
+      while (tokens[index + 1]?.type === 'IMEMBER') index += 1;
+      out.push({ type: 'INUMBER', value: null });
+      continue;
+    }
+    out.push(token);
+  }
+  return out;
 };
 
 /**
@@ -215,8 +255,13 @@ class ExpressionEngineImpl implements ExpressionEngine {
 
       // expr-eval originalmente suporta apenas number/string/function/object
       // mas estendemos para Date, boolean e outros tipos via nossas funções customizadas
+      const parsed = parser.parse(expression);
+      if (variables[ACTOR_ROOT] === null) {
+        const holder = parsed as unknown as { tokens: ExprToken[] };
+        holder.tokens = nullAbsentActorChains(holder.tokens);
+      }
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const result = parser.evaluate(expression, variables as any);
+      const result = parsed.evaluate(variables as any);
       return result;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);

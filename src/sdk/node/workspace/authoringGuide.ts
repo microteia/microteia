@@ -1244,10 +1244,27 @@ no statements, no assignment, no side effects.
 | an action's expressions | the form's current values at the root, plus \`record\` (as stored, \`{}\` when new), \`isNew\`, \`isDirty\`, \`permissions\`, \`surface\` (\`detail\` / \`list\` / \`parentTab\`), \`relation\` (\`none\` / \`owned\` / \`related\`), \`user\`. A single \`reference\` field is navigable (\`caseId.responsibleLawyerId\`, \`caseId.contractId.clientId\`) — see below. Client only |
 | \`badge.when\` | each record's fields at the root, plus \`user\` |
 | a report's \`dataset.includeWhen\` | each row's fields at the root, a reference navigated by the name of the record it points at (\`client.city\`), and \`id\`. Every path the expression names exists, and is \`null\` when the record has no value for it — so a field nobody filled in is empty, never an error. Server only, running as the reader: \`hasPermission\` answers for the person who opened the report |
-| a workflow | \`event.*\` (the payload), the outputs of earlier steps, and the workflow's variables |
+| a workflow | \`event.*\` (the payload), the outputs of earlier steps, the workflow's variables, and \`actor\` — who triggered the run |
 
 \`user\` is \`{ id, name, permissions }\`. A reserved name wins over a field of the same key — a field
 called \`record\` is still reachable as \`record.record\`.
+
+\`actor\`, in a workflow, is \`{ id, name, via }\` or \`null\`. \`id\` is the person's uid — the same value a
+form writes in \`createdBy\` and the id of their \`members\` document —, \`name\` is their effective name
+(nickname, then full name, then display name, then e-mail), and \`via\` is \`"ui"\` when they pressed a
+button in the app and \`"agent"\` when an AI agent acted on their behalf over MCP. It is \`null\` where no
+person caused the run: a \`<collection>.saved\` / \`.deleted\` trigger, and every flow those start. Test it
+with \`isEmpty(actor)\`; \`actor.name\` there reads \`null\` instead of failing. A workflow variable named
+\`actor\` does not shadow it. It is identity, not access: what the person may do is still
+\`hasPermission(...)\`.
+
+| How the run started | \`actor\` | \`hasPermission\` answers for |
+|---|---|---|
+| an action (button), or \`run_action\` over MCP | the person, \`via\` \`ui\` / \`agent\` | that person (over MCP: the token's ceiling) |
+| \`run_workflow\` (app or MCP) | the person | nobody — the run happens later, on the event bus, and access is not written there |
+| \`call-workflow\` waiting for the result | the caller's actor | the caller's actor |
+| \`call-workflow\` not waiting | the caller's actor | nobody — same reason as \`run_workflow\` |
+| \`<collection>.saved\` / \`.deleted\` | \`null\` | nobody |
 
 **Navigating a reference from an action.** In an action's expressions, a path that goes THROUGH a
 single \`reference\` field reads the record it points at: \`caseId.title\`, and further,
@@ -1429,6 +1446,14 @@ Writing \`UpsertSpec\` where \`UpsertStepConfig\` belongs is the single most com
 automation, and it used to be invisible: the package validated and the flow silently wrote nothing.
 \`check\` now refuses it.
 
+**Who wrote it is stamped for you, and cannot be written by you.** An \`upsert\` — the step, a script's
+\`upsert()\`, or \`create_record\` / \`update_record\` over MCP — records the author exactly as the form does:
+\`createdBy\` / \`updatedBy\` is the \`actor\`'s uid, \`createdByName\` / \`updatedByName\` and the photo come
+from the same rule, and \`createdVia\` / \`updatedVia\` says how the write came in — \`"ui"\`, \`"agent"\` or,
+with no person behind the run, \`"automation"\` (the author is then \`workflow-engine\`). Every one of those
+fields is managed by the system: a mapping or a \`data\` object that names them is refused, or dropped by the
+step. So "who registered this" and "typed or by the AI" need no field of yours — read them off the record.
+
 **\`QuerySpec.where\` uses the operator NAMES**, not the symbols: \`eq\`, \`neq\`, \`lt\`, \`lte\`, \`gt\`,
 \`gte\`, \`in\`, \`contains\`, \`exists\`. An operator outside that set matches no rows at all — the query
 returns nothing and the flow carries on as if the records did not exist.
@@ -1543,8 +1568,8 @@ async function main() {
 main();
 \`\`\`
 
-In scope: \`input\` (the declared \`inputParams\`), \`query\`, \`upsert\`, \`remove\`, \`fn.*\` (the expression
-functions of §9), \`log\` and \`console\`. Nothing else — no \`fetch\`, no \`require\`, no filesystem. The
+In scope: \`input\` (the declared \`inputParams\`), \`actor\` (as in §9 — \`{ id, name, via }\` or \`null\`),
+\`query\`, \`upsert\`, \`remove\`, \`fn.*\` (the expression functions of §9), \`log\` and \`console\`. Nothing else — no \`fetch\`, no \`require\`, no filesystem. The
 budget per run is **25 queries, 25 mutations and 10 seconds**; a script that needs more than that is a
 Cloud Function (§13), not a script.
 

@@ -1,3 +1,4 @@
+import { toExpressionActor } from '../../../domain/engine/workflowActor';
 import { getQuickJS, shouldInterruptAfterDeadline } from 'quickjs-emscripten';
 import type { QuickJSWASMModule, QuickJSContext, QuickJSHandle, QuickJSDeferredPromise } from 'quickjs-emscripten';
 import { loadedExpressionFunctions } from '../../../domain/engine/expression/ExpressionEngine';
@@ -171,6 +172,11 @@ export async function runScriptSandbox(
     const inputHandle = hostValueToVm(input);
     vm.setProp(vm.global, 'input', inputHandle);
     inputHandle.dispose();
+
+    // A mesma forma que as expressões do fluxo leem em `actor` — `null` quando não há pessoa.
+    const actorHandle = hostValueToVm(toExpressionActor(context.actor));
+    vm.setProp(vm.global, 'actor', actorHandle);
+    actorHandle.dispose();
 
     const formatLogArgs = (args: QuickJSHandle[]): string =>
       args

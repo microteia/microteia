@@ -2,6 +2,7 @@ import { onDocumentCreated } from 'firebase-functions/v2/firestore';
 import { getDI } from '../di/container';
 import type { WorkflowEvent } from '../../domain/entities/Workflow';
 import { normalizeFirestoreValue } from '../../domain/services/normalizeFirestoreValue';
+import { actorFromPublished } from '../../domain/engine/workflowActor';
 
 /**
  * Escuta a criação de documentos em `tenants/{tenantId}/workflow_events/{eventId}` — o Event
@@ -28,7 +29,7 @@ export const onWorkflowEventCreated = onDocumentCreated(
       };
 
       await getDI().ensureWorkflowStepsRegistered();
-      await getDI().getRunWorkflowsForEventUseCase().execute(workflowEvent);
+      await getDI().getRunWorkflowsForEventUseCase().execute(workflowEvent, actorFromPublished(data.actor));
     } catch (error) {
       console.error(`[workflow] Falha ao processar evento ${tenantId}/${eventId}:`, error);
     }

@@ -3,7 +3,7 @@
   "workflows": [],
   "manifest": {
     "id": "com.microteia.locale-pt-br",
-    "version": "1.65.0",
+    "version": "1.66.0",
     "kernel": "^2.0.0",
     "name": "Português (Brasil)",
     "description": "Tradução da Microteia para português do Brasil.",
@@ -372,6 +372,7 @@
             "expression.context.event": "Dados do evento que disparou o workflow",
             "expression.context.input": "Dados de entrada configurados para este step",
             "expression.context.output": "Saídas de steps anteriores do workflow",
+            "expression.context.actor": "Quem disparou o workflow: actor.id, actor.name e actor.via (\"ui\" ou \"agent\"). Vazio quando nenhuma pessoa o disparou",
             "expression.variable.defined-by": "Variável definida por: {by}",
             "expression.variable.short": "Variável: {by}",
             "expression.snippet.if.label": "if - condicional",
