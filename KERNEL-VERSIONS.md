@@ -18,6 +18,13 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.74.0] — 2026-10-07
+
+- fix(records)!: a list locked to a parent (child tab, `useEntityList({ parent })`) now computes `relation` with `parentLinkRelation`: `owned` when the link field is the screen's declared ownership OR is `required`, `related` only for an optional link. Before, every link other than the declared ownership was `related`, so a required link (deadlines inside a case, with no `parentEntity`) lost Delete and offered Unlink, which empties a field the save refuses. **Behaviour change for expressions:** `relation == "owned"` is now true on a required link where it used to see `related`. Same rule the domain-model validator already enforced (`domain.relationship.unlink-requires-optional`). No type change; `KERNEL_VERSION` does not move.
+- fix(records): the `unlink` command refuses a required link (`action.unlink.required`) instead of writing `null`, for an action list that names it by hand. `RecordActionHost.parent` carries `required`.
+- fix(records): an owned child's form hides `parentFieldKey` only when the parent is known — a `new-dyn:<screen>:parent:...` key whose link field is the ownership one (`hiddenParentFieldKey`). Opened from the child's own screen (menu, ⌘K, deep link, edit), the field shows as declared and is validated as `required`; before, it was hidden everywhere, so an owned child with a menu of its own could not be created there.
+- docs(authoring): `parentEntity`/`parentRelation` and `useEntityList({ parent })` state both rules. The `parentRelation` row no longer claims that deleting the parent deletes an `owned` child: there is no cascade, by design, and the child is left orphaned — as the guide's own "No cascade" section already said.
+
 #### [9.73.0] — 2026-10-07
 
 - fix(host-types): `RecordListViewModel` in `@microteia/data` now declares every member `useEntityList` returns (`openNewRecord`, `openRecord`, `filteredRecords`, `filterTokens`/`setFilterTokens`, `filterDefs`, `savedFiltersScreenKey`, `tags`, the `can*` flags, the card getters and the modal state) and nothing else. It had `[key: string]: any` plus `filters`/`setFilters`, which never existed: a misspelt member compiled in the author's `tsc` and was `undefined` at run time, and `openNewRecord` — what a record tab calls — was only in prose. `recordListTypeDefs.test.ts` ties the declaration to the real interface through `Record<keyof RecordListViewModel, true>`. Type-only; `KERNEL_VERSION` does not move.

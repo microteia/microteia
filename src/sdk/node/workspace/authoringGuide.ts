@@ -505,6 +505,9 @@ and re-rendered when it changes), \`collection\` and \`screenSourceId\`. A \`wid
 data, as on every surface. To list the children of the open record, pass
 \`parent: { fieldKey, recordId }\` to \`useEntityList\`: the list is locked to that record, its
 actions see \`surface: 'parentTab'\`, and \`openNewRecord()\` opens the form with the field filled in.
+Their \`relation\` is \`owned\` when \`fieldKey\` is the screen's declared ownership OR a \`required\`
+field — a link that cannot be emptied is never offered as Unlink, so the card shows Delete — and
+\`related\` only when the link is optional.
 
 The organization toggles and orders these tabs from Settings (\`<surface>.tabs\`). \`check\` refuses
 \`${RECORD_SURFACE_PREFIX}\` with no \`sourceId\`, and warns — without refusing — about a \`sourceId\` it
@@ -1149,8 +1152,8 @@ is enforced at the two write paths, which is the same footing \`required\`, a ma
 
 | | |
 |---|---|
-| \`parentEntity\`, \`parentFieldKey\` | this screen is a CHILD: which screen, and the \`reference\` field that points at it |
-| \`parentRelation: 'owned' \\| 'related'\` | \`owned\` — it exists because of the parent, and deleting the parent deletes it. \`related\` — it merely points at the parent, and the gesture that fits is unlinking |
+| \`parentEntity\`, \`parentFieldKey\` | this screen is a CHILD: which screen, and the \`reference\` field that points at it. On an \`owned\` child the form hides that field only when it is opened from INSIDE the parent (the child tab, a list locked with \`useEntityList({ parent })\`), where it comes filled in; opened from the child's own screen, the field shows as declared, so a child with a menu of its own can still be created there |
+| \`parentRelation: 'owned' \\| 'related'\` | \`owned\` — it exists because of the parent; deleting the parent does NOT delete it (there is no cascade, see above), it is left orphaned. \`related\` — it merely points at the parent, and the gesture that fits is unlinking. A \`required\` link is treated as \`owned\` for the card gestures whatever this says: Unlink would empty a field the save refuses |
 | \`hideFromParentTabs\` | the child does not become a tab of the parent |
 | \`hideFromSidebar\`, \`sidebarOrder\` | whether a top-level screen gets its own menu entry, and where. Hide it when you declare the entry yourself with \`nav()\` — that is how a menu entry gets a badge |
 | \`recordTabPrefix\` | opening a record from outside (audit log, a mention, the command palette) lands on YOUR view instead of the form (§7) |

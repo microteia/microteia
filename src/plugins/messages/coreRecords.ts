@@ -11,6 +11,7 @@ export const CORE_RECORDS_MESSAGES: Record<string, string> = {
   'action.unlink': 'Unlink',
   'action.unlink.done': 'Record unlinked.',
   'action.unlink.failed': 'Could not unlink the record.',
+  'action.unlink.required': 'This record cannot be unlinked: the link is required. Delete it instead.',
 
   'badge.extension': 'Extension',
   'badge.disabled': 'Disabled',

@@ -17,7 +17,7 @@ import { useRecordIdentityText } from './useRecordIdentityText';
 import type { CustomFieldCardItem } from '../../hooks/useCustomFieldListing';
 import { buildNewTabKey, buildViewTabKey, buildCloneTabKey, buildChildNewTabKey, recordTabKeyOf } from '../../../shared/constants/dynamicScreenKeys';
 import { resolveRecordImageUrl, resolveRecordTitle, sortFieldsByOrder } from '../../../domain/services/customFieldValues';
-import { isBoundScreen, isOwnedByParentScreen, screenDataCollection } from '../../../domain/services/screenDataCollection';
+import { isBoundScreen, parentLinkRelation, screenDataCollection } from '../../../domain/services/screenDataCollection';
 import { collectionPermissionId } from '../../../domain/schema/access';
 import { screenForDisplay, useEntityFormFields, useResolvedFields } from '../useEntityFormFields';
 import { useExprViewer } from '../useExprViewer';
@@ -194,11 +194,18 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
 
   // Na aba do pai, todos os registros têm o mesmo vínculo: filtrar ou exibir esse campo não
   // informa nada. É o mesmo motivo pelo qual ele não vai ao formulário do filho.
-  const declaredFields = useMemo(() => {
-    if (!definition) return [];
-    const fields = isBound ? boundFields.fields : sortFieldsByOrder(definition.fields);
-    return parent ? fields.filter((field) => field.key !== parent.fieldKey) : fields;
-  }, [definition, isBound, boundFields.fields, parent]);
+  const allFields = useMemo(
+    () => (!definition ? [] : isBound ? boundFields.fields : sortFieldsByOrder(definition.fields)),
+    [definition, isBound, boundFields.fields],
+  );
+  const declaredFields = useMemo(
+    () => (parent ? allFields.filter((field) => field.key !== parent.fieldKey) : allFields),
+    [allFields, parent],
+  );
+  const parentLinkField = useMemo(
+    () => (parent ? allFields.find((field) => field.key === parent.fieldKey) : undefined),
+    [allFields, parent],
+  );
   // Rótulo declarativo resolve NOS DOIS ramos — é dele que saem os filtros e as linhas do cartão, e
   // uma referência crua apareceria no filtro salvo do escritório. Ver `useResolvedFields`.
   const sortedFields = useResolvedFields(declaredFields);
@@ -307,11 +314,12 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
 
   /**
    * O que o registro é para o pai da aba em que aparece. É o que decide, por expressão declarada,
-   * se a ação destrutiva do card apaga o registro ou apenas o desliga do pai.
+   * se a ação destrutiva do card apaga o registro ou apenas o desliga do pai — e um vínculo
+   * obrigatório nunca se desliga (`parentLinkRelation`).
    */
   const relation: ActionRelation = !parent || !definition
     ? 'none'
-    : parent.fieldKey === definition.parentFieldKey && isOwnedByParentScreen(definition) ? 'owned' : 'related';
+    : parentLinkRelation(definition, parent.fieldKey, parentLinkField);
 
   const recordActions = useRecordActions();
 
@@ -324,7 +332,9 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
     collection,
     screenKey,
     surface: parent ? 'parentTab' : 'list',
-    parent: parent ? { fieldKey: parent.fieldKey, recordId: parent.recordId } : null,
+    parent: parent
+      ? { fieldKey: parent.fieldKey, recordId: parent.recordId, required: !!parentLinkField?.required }
+      : null,
     // O endereço do registro é o que a TELA declara (`recordTabPrefix`), e não a aba genérica: a
     // notícia se lê em `news-read:`, e era esse link que "copiar link" tinha de pôr na área de
     // transferência. O host da lista pode sobrepor (`recordTabKeys`) quando a extensão endereça
@@ -338,7 +348,7 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
     openTagManager: () => setTagManagerRecord(record),
     requestDelete: () => setRecordToDelete(record),
     t,
-  }), [collection, screenKey, definition, parent, openTab, notify, updateRecord, recordTabKeys, t]);
+  }), [collection, screenKey, definition, parent, parentLinkField, openTab, notify, updateRecord, recordTabKeys, t]);
 
   const cardActionDefs = useMemo(
     () => getActionsByIds(definition?.cardActionIds ?? []),

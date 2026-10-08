@@ -36,7 +36,7 @@ import type {
 import type { TagStoreAdapter } from '../../components/ui/TagManager';
 import type { EntityDetailExtraTab, EntityDetailTab } from '../../components/layout/EntityDetailView';
 import { useTagAdapter } from '../../shared/entityScreen/useTagAdapter';
-import { isBoundScreen, isOwnedByParentScreen, screenDataCollection } from '../../../domain/services/screenDataCollection';
+import { hiddenParentFieldKey, isBoundScreen, isOwnedByParentScreen, screenDataCollection } from '../../../domain/services/screenDataCollection';
 import { autoValueFields, generateAutoValue } from '../../../domain/services/autoValue';
 import { screenForDisplay, useEntityFormFields, useResolvedFields } from '../../shared/useEntityFormFields';
 import { useLabel, useT } from '../../shared/i18n/useT';
@@ -249,14 +249,13 @@ export const useViewDynamicRecordViewModel = (tabKey: string): ViewDynamicRecord
       : undefined;
   }, [parentContext, definition, recordId, recordsByCollection, collection]);
 
-  // O campo de vínculo não vai ao formulário (já vem preenchido), mas segue em `sortedFields`
-  // para ser gravado normalmente. Só quando o registro PERTENCE ao pai: numa relação de visão o
-  // campo é justamente o que liga e desliga um registro do outro.
+  // O campo de vínculo não vai ao formulário aberto de dentro do pai (já vem preenchido), mas segue
+  // em `sortedFields` para ser gravado normalmente. Aberto pela tela própria do filho, o pai não é
+  // conhecido, e o campo aparece como declarado — ver `hiddenParentFieldKey`.
+  const hiddenFieldKey = definition ? hiddenParentFieldKey(definition, parentContext) : null;
   const formFields = useMemo(
-    () => (definition?.parentFieldKey && definition && isOwnedByParentScreen(definition)
-      ? sortedFields.filter((f) => f.key !== definition.parentFieldKey)
-      : sortedFields),
-    [sortedFields, definition],
+    () => (hiddenFieldKey ? sortedFields.filter((f) => f.key !== hiddenFieldKey) : sortedFields),
+    [sortedFields, hiddenFieldKey],
   );
 
   const notesPort = useRecordNotesPort(collection);

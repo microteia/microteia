@@ -37,6 +37,12 @@ export const deleteCommand: RecordActionCommand = (host) => {
  */
 export const unlinkCommand: RecordActionCommand = async (host) => {
   if (!host.parent) return;
+  // A lista já não oferece desvincular num vínculo obrigatório; a recusa aqui é para a lista de
+  // ações montada à mão, que ainda pode nomear o comando.
+  if (host.parent.required) {
+    host.notify(host.t('action.unlink.required'), 'error');
+    return;
+  }
   try {
     await host.patchRecord({ [host.parent.fieldKey]: null });
     host.notify(host.t('action.unlink.done'), 'success');

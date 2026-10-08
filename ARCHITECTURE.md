@@ -3869,11 +3869,22 @@ o Contrato mostrar os processos ligados a ele, só a primeira serve. A distinç�
 
 | `parentRelation` | Aba no pai | Menu e ⌘K | Campo de vínculo no formulário | Salvar volta ao pai |
 |---|---|---|---|---|
-| `owned` (padrão) | sim | não | escondido (já vem preenchido) | sim |
+| `owned` (padrão) | sim | não | escondido só quando aberto de dentro do pai (já vem preenchido); pela tela própria, visível e obrigatório como declarado | sim |
 | `related` | sim | sim | visível — é por ele que se liga e desliga | não |
 
 `isOwnedByParentScreen` (em `services/screenDataCollection.ts`) é o ponto único que as quatro
-decisões consultam; separadas, elas divergiriam. Processos declara `parentEntity: 'contracts'`,
+decisões consultam; separadas, elas divergiriam. O campo do formulário passa por
+`hiddenParentFieldKey`: escondê-lo também na tela própria do filho tornava impossível criar ali um
+registro cujo vínculo é obrigatório.
+
+**Posse não é cascata.** Excluir o pai NÃO exclui os filhos possuídos — é decisão de performance, e o
+filho órfão é aceito (ver "Cascata de Exclusão"). `owned` decide aba, menu, formulário e o gesto do
+cartão, nunca o destino do filho.
+
+**Vínculo obrigatório é posse para os gestos.** Na lista presa a um pai, `relation` vem de
+`parentLinkRelation`: `owned` quando o campo é a posse declarada OU é `required`; `related` só no
+vínculo opcional. Desvincular esvaziaria um campo que a gravação recusa — por isso o cartão mostra
+Excluir, e o comando `unlink` recusa o vínculo obrigatório com aviso. Processos declara `parentEntity: 'contracts'`,
 `parentFieldKey: 'contractId'`, `parentRelation: 'related'` — o que também torna a dependência
 Processo → Contrato explícita, na mesma forma longa que já ligava Processo a Pessoa.
 

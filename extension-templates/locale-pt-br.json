@@ -3,7 +3,7 @@
   "workflows": [],
   "manifest": {
     "id": "com.microteia.locale-pt-br",
-    "version": "1.61.0",
+    "version": "1.62.0",
     "kernel": "^2.0.0",
     "name": "Português (Brasil)",
     "description": "Tradução da Microteia para português do Brasil.",
@@ -1429,6 +1429,7 @@
             "action.unlink": "Desvincular",
             "action.unlink.done": "Registro desvinculado.",
             "action.unlink.failed": "Não foi possível desvincular o registro.",
+            "action.unlink.required": "Este registro não pode ser desvinculado: o vínculo é obrigatório. Exclua-o.",
             "badge.extension": "Extensão",
             "badge.disabled": "Desativada",
             "screen-builder.admin-only": "Somente administradores do escritório podem configurar telas e campos personalizados.",

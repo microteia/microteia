@@ -10,6 +10,7 @@ export const CORE_RECORDS: Record<string, string> = {
   'action.unlink': 'Desvincular',
   'action.unlink.done': 'Registro desvinculado.',
   'action.unlink.failed': 'Não foi possível desvincular o registro.',
+  'action.unlink.required': 'Este registro não pode ser desvinculado: o vínculo é obrigatório. Exclua-o.',
 
   'badge.extension': 'Extensão',
   'badge.disabled': 'Desativada',

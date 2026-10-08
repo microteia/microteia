@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.74.0] — 2026-10-07
+
+- Na lista de registros que pertencem obrigatoriamente a outro — como os prazos dentro de um processo —, cada item agora oferece Excluir, e não mais Desvincular, que não tinha como funcionar.
+- Telas de registros filhos que também têm menu próprio voltam a permitir criar registros por ali: o campo que liga ao registro principal só fica escondido quando o formulário é aberto de dentro dele.
+
 #### [9.73.0] — 2026-10-07
 
 - Quem cria extensões ganhou um exemplo pronto de aba dentro de um registro: uma linha do tempo dos marcos de cada projeto, que pode ser copiada como ponto de partida.

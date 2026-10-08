@@ -136,7 +136,7 @@ describe('desvincular', () => {
     collection: 'cases',
     screenKey: 'processos',
     surface: 'parentTab',
-    parent: { fieldKey: 'contractId', recordId: 'c1' },
+    parent: { fieldKey: 'contractId', recordId: 'c1', required: false },
     recordTabKey: 'view-dyn:processos:r1',
     cloneTabKey: 'new-dyn:processos:clone:r1',
     openTab: vi.fn(),
@@ -153,6 +153,13 @@ describe('desvincular', () => {
     await unlinkCommand(h);
     expect(h.patchRecord).toHaveBeenCalledWith({ contractId: null });
     expect(h.requestDelete).not.toHaveBeenCalled();
+  });
+
+  it('vínculo obrigatório é recusado com aviso, sem gravar nada', async () => {
+    const h = host({ parent: { fieldKey: 'caseId', recordId: 'p1', required: true } });
+    await unlinkCommand(h);
+    expect(h.patchRecord).not.toHaveBeenCalled();
+    expect(h.notify).toHaveBeenCalledWith('action.unlink.required', 'error');
   });
 
   it('sem pai não faz nada: não há vínculo a desfazer', async () => {

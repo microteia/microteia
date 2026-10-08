@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
+  hiddenParentFieldKey,
   isBoundScreen,
   isOwnedByParentScreen,
+  parentLinkRelation,
   screenDataCollection,
   screenReadPermission,
   screenLookupCollections,
@@ -111,5 +113,49 @@ describe('screenReadPermission', () => {
 
   it('espaço em branco não desloca a permissão', () => {
     expect(screenReadPermission({ id: 'medico', dataCollection: '  ' })).toBe('medico.read');
+  });
+});
+
+describe('parentLinkRelation', () => {
+  const semPosse = { parentEntity: null, parentRelation: null, parentFieldKey: null };
+  const possuida = { parentEntity: 'cases', parentRelation: 'owned' as const, parentFieldKey: 'caseId' };
+
+  it('vínculo obrigatório é posse, mesmo sem a tela declarar o pai', () => {
+    expect(parentLinkRelation(semPosse, 'caseId', { required: true })).toBe('owned');
+  });
+
+  it('vínculo opcional sem posse declarada é relação: é o que se pode desfazer', () => {
+    expect(parentLinkRelation(semPosse, 'caseId', { required: false })).toBe('related');
+    expect(parentLinkRelation(semPosse, 'caseId', undefined)).toBe('related');
+  });
+
+  it('a posse declarada vale pelo campo dela, obrigatório ou não', () => {
+    expect(parentLinkRelation(possuida, 'caseId', { required: false })).toBe('owned');
+    expect(parentLinkRelation(possuida, 'contractId', { required: false })).toBe('related');
+  });
+
+  it('`parentRelation: related` com campo obrigatório continua sem desvincular', () => {
+    expect(parentLinkRelation({ ...possuida, parentRelation: 'related' }, 'caseId', { required: true })).toBe('owned');
+  });
+});
+
+describe('hiddenParentFieldKey', () => {
+  const possuida = { parentEntity: 'cases', parentRelation: 'owned' as const, parentFieldKey: 'caseId' };
+
+  it('aberto pela tela própria do filho, o campo do pai aparece', () => {
+    expect(hiddenParentFieldKey(possuida, null)).toBeNull();
+  });
+
+  it('aberto de dentro do pai, o campo de posse some — ele já nasce preenchido', () => {
+    expect(hiddenParentFieldKey(possuida, { fieldKey: null })).toBe('caseId');
+    expect(hiddenParentFieldKey(possuida, { fieldKey: 'caseId' })).toBe('caseId');
+  });
+
+  it('preso ao pai por outro campo, o de posse fica: é ele que ainda precisa ser escolhido', () => {
+    expect(hiddenParentFieldKey(possuida, { fieldKey: 'contractId' })).toBeNull();
+  });
+
+  it('tela relacionada nunca esconde o vínculo', () => {
+    expect(hiddenParentFieldKey({ ...possuida, parentRelation: 'related' }, { fieldKey: null })).toBeNull();
   });
 });

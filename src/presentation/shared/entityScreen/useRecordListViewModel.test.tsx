@@ -57,13 +57,23 @@ vi.mock('../../../stores/useLookups', () => ({ useLookups: () => ({ getOptions: 
 vi.mock('../../../stores/useTags', () => ({ useTags: () => ({ getTags: () => [], availableTagLists: [], declareTagList: vi.fn(), setTags: vi.fn() }) }));
 vi.mock('../../../stores/useWorkflowStore', () => ({ useWorkflowStore: () => ({ workflows: [] }) }));
 let copiado = '';
-vi.mock('../recordActions/useRecordActions', () => ({
-  useRecordActions: () => [{
-    slot: 'copyLink',
-    metadata: { key: 'copyLink', title: 'Copiar link', icon: 'link', order: 0 },
-    run: (host: { recordTabKey: string }) => { copiado = host.recordTabKey; },
-  }],
-}));
+vi.mock('../recordActions/useRecordActions', async () => {
+  const { RECORD_ACTION_METADATA } = await import('../../../domain/schema/ui/recordActionMetadata');
+  return {
+    useRecordActions: () => [
+      {
+        slot: 'copyLink',
+        metadata: { key: 'copyLink', title: 'Copiar link', icon: 'link', order: 0 },
+        run: (host: { recordTabKey: string }) => { copiado = host.recordTabKey; },
+      },
+      ...(['delete', 'unlink'] as const).map((key) => ({
+        slot: RECORD_ACTION_METADATA[key].slot ?? key,
+        metadata: RECORD_ACTION_METADATA[key],
+        run: vi.fn(),
+      })),
+    ],
+  };
+});
 vi.mock('../../../stores/useAuth', () => ({
   useAuth: () => ({ user: { id: 'u1', photoURL: null }, userRole: 'USER', effectiveName: 'Fulano' }),
 }));
@@ -352,5 +362,48 @@ describe('useRecordListViewModel — ações customizadas do cartão', () => {
 
     const { result } = listar({ screenKey: 'prazos', savedFiltersKey: 'prazos' });
     expect(result.current.getCardActions(record('r1', 'Prazo', 'Pendente', 1))).toEqual([]);
+  });
+});
+
+/**
+ * A aba de um pai que lista filhos com tela própria — os prazos de um processo. Enquanto a relação
+ * olhava só a posse declarada, um vínculo obrigatório virava `related`: o cartão perdia Excluir e
+ * ganhava Desvincular, que esvaziaria um campo que a validação exige.
+ */
+describe('useRecordListViewModel — relação com o pai', () => {
+  const comVinculo = (required: boolean, extra: Partial<ScreenDefinition> = {}) => {
+    const base = definition();
+    state.definition = {
+      ...base,
+      listActions: ['delete'],
+      fields: [
+        ...base.fields,
+        { key: 'caseId', label: 'Processo', type: 'reference', refEntity: 'cases', required, order: 2, origin: 'plugin' },
+      ],
+      ...extra,
+    } as ScreenDefinition;
+    state.records = [{ id: 'r1', type: 'Recurso', caseId: 'p1' } as unknown as EntityRecord];
+  };
+  const naAbaDoPai = () => listar(source({ parent: { entityKey: 'cases', fieldKey: 'caseId', recordId: 'p1' } }));
+  const gestos = (result: ReturnType<typeof naAbaDoPai>['result']) =>
+    result.current.getCardActions(state.records[0]).map((a) => a.key);
+
+  it('vínculo obrigatório sem posse declarada: Excluir, e nunca Desvincular', () => {
+    comVinculo(true);
+    expect(gestos(naAbaDoPai().result)).toEqual(expect.arrayContaining(['delete']));
+    expect(gestos(naAbaDoPai().result)).not.toContain('unlink');
+  });
+
+  it('a expressão vê `relation == "owned"` no vínculo obrigatório', () => {
+    actionStore.actions = [{ id: 'a1', tenantId: 't1', key: 'k', title: 'só na posse', icon: 'apps', workflowId: 'w1', enabled: true, danger: false, order: 0, hiddenWhen: 'relation != "owned"', disabledWhen: null }];
+    comVinculo(true, { cardActionIds: ['a1'] });
+    expect(gestos(naAbaDoPai().result)).toContain('a1');
+  });
+
+  it('vínculo opcional sem posse: Desvincular, e não Excluir', () => {
+    comVinculo(false);
+    const keys = gestos(naAbaDoPai().result);
+    expect(keys).toContain('unlink');
+    expect(keys).not.toContain('delete');
   });
 });
