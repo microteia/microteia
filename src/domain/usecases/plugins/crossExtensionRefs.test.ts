@@ -239,3 +239,53 @@ describe('portão do gatilho no evento de outra extensão', () => {
       .toEqual(['@core.marketplace/issue.ref.event-unresolved']);
   });
 });
+
+/**
+ * O sentido inverso do gatilho: uma versão de Processos cuja tela deixa de emitir `case` instalaria, e
+ * a automação de Pushes pararia de disparar sem erro nenhum — evento que ninguém publica não falha.
+ */
+describe('portão inverso do gatilho no evento de outra extensão', () => {
+  const processo = (eventPrefix?: string): MarketplacePlugin => ({
+    summary: '',
+    manifest: { id: 'com.microteia.processo', version: eventPrefix ? '2.1.0' : '3.0.0', kernel: '^2.0.0', name: 'Processos' },
+    screens: [{
+      key: 'processos', titleSingular: 'Processo', titlePlural: 'Processos', icon: 'gavel', titleFieldKey: 'n',
+      dataCollection: 'cases', ...(eventPrefix ? { eventPrefix } : {}),
+      fields: [{ key: 'n', label: 'N', type: 'text', required: true, order: 0 }],
+    }],
+    workflows: [],
+  });
+  const pushes: MarketplacePlugin = {
+    summary: '',
+    manifest: {
+      id: 'com.microteia.push', version: '1.0.0', kernel: '^2.0.0', name: 'Pushes',
+      dependencies: { 'com.microteia.processo': { version: '^2.0.0', collections: ['cases'] } },
+    },
+    workflows: [{ templateId: 'vincular', name: 'Vincular', eventName: 'case.saved', version: 1, condition: { kind: 'AlwaysTrue' }, steps: [] }],
+  };
+  const dependents = [{ id: 'com.microteia.push', package: pushes }];
+
+  it('recusa a versão que deixa de emitir o prefixo que um dependente escuta', () => {
+    expect(dependentRefIssues(processo(), dependents, processo('case'))).toEqual([{
+      message: '@core.marketplace/install.dependent-event-breaks',
+      messageParams: {
+        dependent: 'com.microteia.push',
+        origin: '@core.marketplace/ref.origin.workflow',
+        name: 'Vincular',
+        prefix: 'case',
+      },
+    }]);
+  });
+
+  it('a versão que continua emitindo o prefixo passa', () => {
+    expect(dependentRefIssues(processo('case'), dependents, processo('case'))).toEqual([]);
+  });
+
+  it('instalação nova não tira prefixo de ninguém', () => {
+    expect(dependentRefIssues(processo(), dependents)).toEqual([]);
+  });
+
+  it('o gatilho que já não resolvia antes da troca não é cobrado desta versão', () => {
+    expect(dependentRefIssues(processo(), dependents, processo('outro'))).toEqual([]);
+  });
+});

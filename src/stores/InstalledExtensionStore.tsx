@@ -218,13 +218,15 @@ export const InstalledExtensionStoreProvider: React.FC<{ children: React.ReactNo
      * E o mesmo portão no sentido inverso, cobrado no mesmo gesto: aplicar esta versão CONVERGE os
      * artefatos, e converger remove os que ela deixou de trazer — inclusive um que outra extensão
      * instalada referencia. Sem esta recusa, o dependente segue instalado, ligado e carregado, e a
-     * falha só se apresenta na primeira execução do passo.
+     * falha só se apresenta na primeira execução do passo. Vale igual para o prefixo de evento que a
+     * versão deixou de emitir: por isso a versão instalada vai junto, para comparar antes e depois.
      */
     const [brokenDependent] = dependentRefIssues(
       input.package,
       installed
         .filter((extension) => extension.id !== id)
         .map((extension) => ({ id: extension.id, package: extension.package })),
+      existing?.package,
     );
     if (brokenDependent) throw new LocalizedError(brokenDependent.message, brokenDependent.messageParams);
     // Cópia independente e fiel: preserva apenas o estado local `active`; todo o resto vem da fonte.

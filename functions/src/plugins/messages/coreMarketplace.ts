@@ -329,6 +329,9 @@ export const CORE_MARKETPLACE_MESSAGES: Record<string, string> = {
   'install.dependent-breaks':
     '{origin} "{name}" of extension "{dependent}" references {kind} "{id}", which this version no longer '
     + 'brings — update or remove that extension first.',
+  'install.dependent-event-breaks':
+    '{origin} "{name}" of extension "{dependent}" listens to the event prefix "{prefix}", which this version no longer '
+    + 'emits — update or remove that extension first.',
   'issue.patch.own-screen':
     'the patch points to "{target}", which is a screen of the package itself — declare the fields on the screen, not on a patch.',
   'issue.patch.unknown-target':

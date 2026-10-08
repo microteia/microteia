@@ -6035,7 +6035,10 @@ marcada `event: true`, e cada porta responde o que enxerga:
 | `check` / `validate_plugin` (`eventRefReport`) | `plugin.ts` do workspace + `installed-catalog.json` (que já exporta `eventPrefix` e `ownerPluginId` de cada tela) | AVISO, com o `export-catalog` para fechar a lacuna | recusa |
 
 É o mesmo veredito (`eventRefChecks`) nas duas pontas contextuais, e a mesma regra do `recordSurface`:
-o que não dá para ver daqui é dito, não recusado. O motor não muda: ele busca as automações por
+o que não dá para ver daqui é dito, não recusado. O sentido inverso também é cobrado: uma versão da
+dependência que deixa de emitir um prefixo que um dependente instalado escuta é recusada
+(`dependentRefIssues` → `install.dependent-event-breaks`), comparando o veredito do dependente com a
+versão instalada e com a que chega. O motor não muda: ele busca as automações por
 `eventName`, sem olhar a dona, e `buildScreenEventMap` não toca um prefixo que não é de tela do pacote.
 
 `splitEntityEventName` reconhece o evento de FILHO (`person_note.saved`) por composição — prefixo de

@@ -322,6 +322,9 @@ export const CORE_MARKETPLACE: Record<string, string> = {
   'install.dependent-breaks':
     '{origin} "{name}" da extensão "{dependent}" referencia {kind} "{id}", que esta versão não traz '
     + 'mais — atualize ou remova essa extensão antes.',
+  'install.dependent-event-breaks':
+    '{origin} "{name}" da extensão "{dependent}" escuta o prefixo de evento "{prefix}", que esta versão não emite '
+    + 'mais — atualize ou remova essa extensão antes.',
   'issue.patch.own-screen':
     'o complemento aponta para "{target}", que é uma tela do próprio pacote — declare os campos na tela, não num complemento.',
   'issue.patch.unknown-target':

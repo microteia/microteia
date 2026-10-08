@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.74.2] — 2026-10-07
+
+- Atualizar uma extensão deixou de poder desligar, em silêncio, as automações de outra que dependem dela: se a nova versão parar de avisar sobre algo que outra extensão acompanha, a atualização é recusada e diz qual extensão ajustar antes.
+
 #### [9.74.1] — 2026-10-07
 
 - Uma extensão agora pode reagir ao que acontece em outra da qual depende — por exemplo, ligar as intimações já recebidas a um processo assim que ele é cadastrado. Antes, esse tipo de automação era recusado na instalação.

@@ -303,11 +303,25 @@ const providedArtifactIds = (pkg: MarketplacePlugin): Set<string> => new Set([
  * dele, e deixar passar trocaria a recusa de agora pela mesma falha silenciosa no dia em que o
  * escritório o religasse — que é exatamente o que este portão existe para não fazer.
  *
+ * O GATILHO de um dependente quebra do mesmo jeito: Pushes escuta `case.saved`, e uma versão de
+ * Processos cuja tela deixa de emitir `case` instala, converge, e a automação de Pushes para de
+ * disparar — sem erro, porque um evento que ninguém publica não falha, só não acontece. Ver
+ * `dependentEventIssues`.
+ *
  * O que ele NÃO cobra é o `exports` que encolheu com o artefato ainda no pacote: ali nada quebra em
  * execução — a resolução é por `sourceId` e dono, nunca pela lista —, e o estreitamento do contrato
  * é cobrado de quem depende, no próximo gesto dele, por `issue.ref.not-exported`.
  */
 export const dependentRefIssues = (
+  incoming: MarketplacePlugin,
+  dependents: readonly DependentExtension[],
+  previous?: MarketplacePlugin,
+): LocalizedIssue[] => [
+  ...dependentArtifactIssues(incoming, dependents),
+  ...dependentEventIssues(incoming, dependents, previous),
+];
+
+const dependentArtifactIssues = (
   incoming: MarketplacePlugin,
   dependents: readonly DependentExtension[],
 ): LocalizedIssue[] => {
@@ -342,4 +356,49 @@ export const dependentRefIssues = (
   }
 
   return issues;
+};
+
+const emitterSummary = (id: string, pkg: MarketplacePlugin): InstalledExtensionSummary => ({
+  id,
+  version: pkg.manifest.version,
+  eventPrefixes: emittedEventPrefixes(pkg),
+});
+
+/**
+ * O portão inverso do GATILHO: o prefixo que a versão em mãos deixou de emitir e que um dependente
+ * escuta. Só conta o que ESTA troca quebra — o veredito do dependente é calculado com a versão
+ * instalada (`previous`) e com a que chega, e recusa apenas o que era `ok` resolvido por ela e deixou
+ * de ser. Sem `previous` é instalação nova, e ela não tira prefixo de ninguém.
+ *
+ * Uma outra dependência declarada que continue emitindo o prefixo mantém o gatilho de pé: é a mesma
+ * resolução da instalação, rodada duas vezes, e não uma regra paralela.
+ */
+const dependentEventIssues = (
+  incoming: MarketplacePlugin,
+  dependents: readonly DependentExtension[],
+  previous: MarketplacePlugin | undefined,
+): LocalizedIssue[] => {
+  if (previous === undefined) return [];
+  const pluginId = incoming.manifest.id;
+  const others = dependents.filter((dependent) => dependent.id !== pluginId);
+  const summaries = others.map((dependent) => emitterSummary(dependent.id, dependent.package));
+  const before = [...summaries, emitterSummary(pluginId, previous)];
+  const after = [...summaries, emitterSummary(pluginId, incoming)];
+
+  return others.flatMap((dependent) => {
+    const now = eventRefChecks(dependent.package, after);
+    return eventRefChecks(dependent.package, before).flatMap((check, index): LocalizedIssue[] => {
+      if (check.verdict.kind !== 'ok' || check.verdict.pluginId !== pluginId) return [];
+      if (now[index].verdict.kind === 'ok') return [];
+      return [{
+        message: '@core.marketplace/install.dependent-event-breaks',
+        messageParams: {
+          dependent: dependent.id,
+          origin: check.ref.from.origin,
+          name: check.ref.from.name,
+          prefix: check.prefix,
+        },
+      }];
+    });
+  });
 };

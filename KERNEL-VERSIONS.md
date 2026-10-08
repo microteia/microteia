@@ -18,6 +18,11 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.74.2] — 2026-10-07
+
+- fix(plugins/install): the inverse gate (`dependentRefIssues`) now also refuses an update whose screens stop emitting an event prefix that an installed dependent listens to (`install.dependent-event-breaks`, naming the dependent, its workflow and the prefix). Before, a new version of the emitter installed and converged, and the dependent's workflow simply stopped firing — an event nobody publishes does not fail. The dependent's triggers are resolved by `eventRefChecks` against the installed version and against the incoming one, and only what was `ok` through this extension and no longer is gets refused; another declared dependency still emitting the prefix keeps it standing. `dependentRefIssues` takes the installed package as an optional third argument; without it (a fresh install) nothing is checked.
+- `com.microteia.locale-pt-br` 1.64.0: the new message. `KERNEL_VERSION` does not move.
+
 #### [9.74.1] — 2026-10-07
 
 - fix(plugins/references): a workflow may listen to `<prefix>.saved` / `.deleted` emitted by a screen of a DECLARED DEPENDENCY whose `eventPrefix` differs from its collection (`case.saved` from a screen over `cases`). Before, a prefix that was neither the package's own nor the kernel's became a reference to a "screen" of that name, covered only by a `collections` entry — so `case` could never be declared, and `check` and install both refused. `workflowOutRefs` now marks that reference `event: true`; `validatePackage` refuses it (`issue.ref.event-unresolved`, naming the prefix) only when the package declares no dependency at all, and otherwise leaves it to `pendingEventRefs`.
