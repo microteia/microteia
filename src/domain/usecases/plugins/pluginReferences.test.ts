@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import type { MarketplacePlugin, ScreenModuleTemplate } from '../../entities/MarketplacePlugin';
 import type { WorkflowStep } from '../../entities/Workflow';
-import { isCoreCollection, packageIssues, packageOutRefs, validatePackage, workflowOutRefs } from './pluginReferences';
+import { isCoreCollection, packageIssues, packageOutRefs, pendingEventRefs, validatePackage, workflowOutRefs } from './pluginReferences';
 
 const base = (overrides: Partial<MarketplacePlugin>): MarketplacePlugin => ({
   summary: '',
@@ -40,7 +40,7 @@ describe('workflowOutRefs', () => {
     expect(refs).toEqual([
       { kind: 'script', id: 'scr-1', from: { origin: '@core.marketplace/ref.origin.workflow-step', name: 'W', step: 's1' } },
       { kind: 'workflow', id: 'wf-2', from: { origin: '@core.marketplace/ref.origin.workflow-step', name: 'W', step: 's2' } },
-      { kind: 'screen', id: 'venda', from: { origin: '@core.marketplace/ref.origin.workflow', name: 'W' } },
+      { kind: 'screen', id: 'venda', from: { origin: '@core.marketplace/ref.origin.workflow', name: 'W' }, event: true },
     ]);
   });
 
@@ -70,7 +70,7 @@ describe('workflowOutRefs', () => {
       condition: { kind: 'AlwaysTrue' }, steps: [],
     });
     expect(refs).toEqual([
-      { kind: 'screen', id: 'com-microteia-vendas__produto', from: { origin: '@core.marketplace/ref.origin.workflow', name: 'W' } },
+      { kind: 'screen', id: 'com-microteia-vendas__produto', from: { origin: '@core.marketplace/ref.origin.workflow', name: 'W' }, event: true },
     ]);
   });
 });
@@ -660,5 +660,58 @@ describe('packageIssues — a forma do relatório', () => {
 
     expect(() => packageIssues(withReport(undefined))).not.toThrow();
     expect(issues.length).toBeGreaterThan(0);
+  });
+});
+
+/**
+ * O gatilho que escuta OUTRA extensão: `case.saved` é emitido pela tela de coleção `cases` da extensão
+ * Processos, e `case` não é coleção de ninguém. O pacote sozinho não tem como resolver o prefixo —
+ * só recusa quando não há dependência nenhuma a consultar.
+ */
+describe('validatePackage — gatilho no evento de outra extensão', () => {
+  const pushes = (dependencies?: MarketplacePlugin['manifest']['dependencies']): MarketplacePlugin => base({
+    manifest: { id: 'com.microteia.push', version: '1.0.0', kernel: '^2.0.0', name: 'Pushes', ...(dependencies ? { dependencies } : {}) },
+    workflows: [{
+      templateId: 'vincular', name: 'Vincular pushes ao processo cadastrado', eventName: 'case.saved', version: 1,
+      condition: { kind: 'AlwaysTrue' }, steps: [],
+    }],
+  });
+
+  it('com a dependência declarada, o pacote não recusa e deixa o prefixo pendente', () => {
+    const pkg = pushes({ 'com.microteia.processo': { version: '^2.0.0', collections: ['cases'] } });
+    expect(validatePackage(pkg)).toEqual([]);
+    expect(pendingEventRefs(pkg).map((ref) => ref.id)).toEqual(['case']);
+  });
+
+  it('sem dependência nenhuma, recusa nomeando o PREFIXO de evento', () => {
+    const issues = validatePackage(pushes());
+    expect(issues.map((i) => i.message)).toEqual(['@core.marketplace/issue.ref.event-unresolved']);
+    expect(issues[0].messageParams).toEqual({
+      origin: '@core.marketplace/ref.origin.workflow',
+      name: 'Vincular pushes ao processo cadastrado',
+      prefix: 'case',
+    });
+  });
+
+  it('o prefixo que coincide com uma coleção declarada continua coberto pelo pacote', () => {
+    const pkg = base({
+      manifest: { id: 'com.acme.x', version: '1.0.0', kernel: '^2.0.0', name: 'X', dependencies: { 'com.acme.v': { version: '^1.0.0', collections: ['vendas'] } } },
+      workflows: [{ templateId: 'w', name: 'W', eventName: 'vendas.saved', version: 1, condition: { kind: 'AlwaysTrue' }, steps: [] }],
+    });
+    expect(validatePackage(pkg)).toEqual([]);
+    expect(pendingEventRefs(pkg)).toEqual([]);
+  });
+
+  it('o pacote que escuta o próprio evento não deixa nada pendente', () => {
+    const pkg = base({
+      screens: [{
+        key: 'prazos', titleSingular: 'Prazo', titlePlural: 'Prazos', icon: 'event', titleFieldKey: 'n',
+        dataCollection: 'deadlines', eventPrefix: 'deadline',
+        fields: [{ key: 'n', label: 'N', type: 'text', required: true, order: 0 }],
+      }],
+      workflows: [{ templateId: 'w', name: 'W', eventName: 'deadline.saved', version: 1, condition: { kind: 'AlwaysTrue' }, steps: [] }],
+    });
+    expect(validatePackage(pkg)).toEqual([]);
+    expect(pendingEventRefs(pkg)).toEqual([]);
   });
 });

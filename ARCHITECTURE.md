@@ -6021,6 +6021,23 @@ publica. Declarar o prefixo da própria coleção fixa (`cases` → `case`) é o
 é a continuidade que deixa a entidade sair do kernel sem renomear evento nenhum, e por isso a
 checagem compara a coleção, não só o nome.
 
+**Escutar o evento de OUTRA extensão.** A extensão Pushes escuta `case.saved`, que a tela de coleção
+`cases` da extensão Processos emite. O prefixo `case` não é tela do pacote, nem do núcleo, nem coleção
+de ninguém — e listá-lo em `collections` seria declarar uma coleção que não existe. Antes, o gatilho
+virava referência a uma "tela `case`" e o pacote era recusado. A resposta mora no pacote da
+DEPENDÊNCIA, que o pacote isolado não tem em mãos; por isso a referência sai de `workflowOutRefs`
+marcada `event: true`, e cada porta responde o que enxerga:
+
+| Porta | Fonte | Prefixo que ninguém visível emite | Emitido por extensão NÃO declarada |
+|---|---|---|---|
+| `validatePackage` | só o pacote | recusa (`issue.ref.event-unresolved`) se não há dependência nenhuma; com dependência, cala e deixa `pendingEventRefs` | — |
+| instalação (`crossExtensionRefIssues` → `eventRefChecks`) | as telas dos pacotes instalados (`emittedEventPrefixes`) | recusa (`event-unresolved`) | recusa (`issue.ref.event-undeclared`, nomeando a extensão) |
+| `check` / `validate_plugin` (`eventRefReport`) | `plugin.ts` do workspace + `installed-catalog.json` (que já exporta `eventPrefix` e `ownerPluginId` de cada tela) | AVISO, com o `export-catalog` para fechar a lacuna | recusa |
+
+É o mesmo veredito (`eventRefChecks`) nas duas pontas contextuais, e a mesma regra do `recordSurface`:
+o que não dá para ver daqui é dito, não recusado. O motor não muda: ele busca as automações por
+`eventName`, sem olhar a dona, e `buildScreenEventMap` não toca um prefixo que não é de tela do pacote.
+
 `splitEntityEventName` reconhece o evento de FILHO (`person_note.saved`) por composição — prefixo de
 entidade do registro mais `_note`/`_document` —, e não por "tem underscore": chave com underscore é
 o normal de uma tela trazida por dependência (`com-acme-vendas__produto`), e barrá-la fazia o

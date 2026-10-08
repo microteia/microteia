@@ -9,6 +9,7 @@ import { installationRegion, scaffoldFunction, scaffoldPlugin } from './scaffold
 import { askerFor } from './prompt';
 import { serveMcp } from './mcp';
 import { crossRefReport } from './referenceable';
+import { eventRefReport } from './eventRefs';
 import { recordSurfaceReport } from './recordSurfaces';
 import { syncWorkspace } from './workspace/sync';
 
@@ -121,6 +122,25 @@ const sayCrossRefs = (pkg: MarketplacePlugin, root: string): number => {
 };
 
 /**
+ * Os gatilhos que escutam OUTRA extensão (`case.saved`). Conta como problema só o `refused` — o
+ * prefixo emitido por uma extensão que o pacote não declara, que a instalação recusaria em qualquer
+ * escritório. O que este diretório não enxerga é dito, não recusado.
+ */
+const sayEventRefs = (pkg: MarketplacePlugin, root: string): number => {
+  const findings = eventRefReport(pkg, root);
+  if (findings.length === 0) return 0;
+
+  say();
+  say(`  ${DIM}${findings.length} trigger(s) on an event another extension emits${RESET}`);
+  for (const one of findings) {
+    const mark = one.status === 'ok' ? `${GREEN}ok${RESET}` : one.status === 'refused' ? `${RED}x${RESET}` : `${YELLOW}!${RESET}`;
+    say(`  ${mark} ${one.prefix}.* ${DIM}(from ${one.writtenBy})${RESET}`);
+    say(`     ${DIM}${one.detail}${RESET}`);
+  }
+  return findings.filter((one) => one.status === 'refused').length;
+};
+
+/**
  * As telas a que o pacote pendura abas (`record:<sourceId>`). Só avisa, nunca reprova: a tela pode ser
  * de outra extensão, num escritório que este diretório não enxerga.
  */
@@ -164,7 +184,7 @@ const build = (args: Args, write: boolean): number => {
   }
 
   const root = resolve(args.values.get('root') ?? process.cwd());
-  const refusedRefs = sayCrossRefs(result.package, root);
+  const refusedRefs = sayCrossRefs(result.package, root) + sayEventRefs(result.package, root);
   sayRecordSurfaces(result.package, root);
   const problems = result.issues.length + refusedRefs;
 

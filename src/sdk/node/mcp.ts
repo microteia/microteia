@@ -62,6 +62,7 @@ import { SCRIPT_ID_INPUT, TARGET_WORKFLOW_ID_INPUT } from '../../domain/usecases
 import type { ReferenceableArtifact } from './referenceable';
 import { crossRefReport, referenceableArtifacts } from './referenceable';
 import { recordSurfaceReport } from './recordSurfaces';
+import { eventRefReport } from './eventRefs';
 import { readWorkspaceCatalog } from './workspaceCatalog';
 import type { WorkspaceCatalog } from './workspaceCatalog';
 import { INSTALLED_CATALOG_FILE, INSTALLED_CATALOG_OMITS } from './installedCatalog';
@@ -156,6 +157,22 @@ const describeCrossRefs = (pkg: MarketplacePlugin, root: string): string => {
 
   return `\n\n${head}\n${findings
     .map((one) => `- [${one.status}] ${one.ref} (${one.kind}, from ${one.writtenBy}) — ${one.detail}`)
+    .join('\n')}`;
+};
+
+/**
+ * Os gatilhos que escutam OUTRA extensão. `refused` é o prefixo emitido por uma extensão que o pacote
+ * não declara; o resto é o que este diretório enxerga ou não — dito, nunca recusado.
+ */
+const describeEventRefs = (pkg: MarketplacePlugin, root: string): string => {
+  const findings = eventRefReport(pkg, root);
+  if (findings.length === 0) return '';
+  const refused = findings.filter((one) => one.status === 'refused');
+  const head = refused.length === 0
+    ? `${findings.length} trigger(s) on an event another extension emits, none of them refused here:`
+    : `${refused.length} of ${findings.length} trigger(s) on an event another extension emits would NOT install:`;
+  return `\n\n${head}\n${findings
+    .map((one) => `- [${one.status}] ${one.prefix}.* (from ${one.writtenBy}) — ${one.detail}`)
     .join('\n')}`;
 };
 
@@ -327,17 +344,18 @@ const TOOLS: ToolDefinition[] = [
       if (typeof input.json === 'string') {
         const parsed = parsePackage(input.json);
         if (!parsed.ok) return `Not a valid package: ${describeMessage(parsed.error)}`;
-        return `${describeIssues(validatePluginPackage(parsed.package))}${describeCrossRefs(parsed.package, root)}${describeRecordSurfaces(parsed.package, root)}`;
+        return `${describeIssues(validatePluginPackage(parsed.package))}${describeCrossRefs(parsed.package, root)}${describeEventRefs(parsed.package, root)}${describeRecordSurfaces(parsed.package, root)}`;
       }
       const path = resolve(root, asString(input.path, 'path'));
       if (path.endsWith('.json')) {
         const parsed = parsePackage(readFileSync(path, 'utf8'));
         if (!parsed.ok) return `Not a valid package: ${describeMessage(parsed.error)}`;
-        return `${describeIssues(validatePluginPackage(parsed.package))}${describeCrossRefs(parsed.package, root)}${describeRecordSurfaces(parsed.package, root)}`;
+        return `${describeIssues(validatePluginPackage(parsed.package))}${describeCrossRefs(parsed.package, root)}${describeEventRefs(parsed.package, root)}${describeRecordSurfaces(parsed.package, root)}`;
       }
       const result = buildPlugin({ entry: path });
       return `${result.package.manifest.id} v${result.package.manifest.version}\n${describeIssues(result.issues)}`
         + describeCrossRefs(result.package, root)
+        + describeEventRefs(result.package, root)
         + describeRecordSurfaces(result.package, root);
     },
   },
@@ -969,8 +987,8 @@ const PURE_READS: ToolDefinition[] = [
     name: 'list_workflow_events',
     description:
       'The event names a workflow may declare in `eventName` — the GRAMMAR, derived from the engine, '
-      + 'because the collection half of the name is yours (your screen, a screen the organization '
-      + 'designed, a collection that already exists). Also says what `event.` carries in each case, '
+      + 'because the collection half of the name is yours (your screen, a screen of a declared '
+      + 'dependency, a screen the organization designed, a collection that already exists). Also says what `event.` carries in each case, '
       + 'which is what decides whether a condition can even answer.',
     inputSchema: { type: 'object', properties: {} },
     run: () => pretty({
@@ -1000,7 +1018,10 @@ const PURE_READS: ToolDefinition[] = [
       notes: [
         'The collection half is not enumerable from here on purpose: it is the collection of the '
         + 'screen that declares it, and the kernel knows none by name. Use your own screen\'s '
-        + 'collection, or the `eventPrefix` it declares.',
+        + 'collection, or the `eventPrefix` it declares — or the prefix a screen of a DEPENDENCY '
+        + 'emits (`case.saved` for a screen over `cases` declaring `eventPrefix: "case"`). That '
+        + 'extension must be in `manifest.dependencies`; the prefix is resolved against its screens, '
+        + 'and validate_plugin says which one emits it.',
         `"${WORKFLOW_CALLED_EVENT}" is the trigger an action fires. That workflow declares `
         + '`parameters`, and `promptParameters` on the action opens their form before firing.',
         'The same value is addressed three different ways, and telling them apart is the most '

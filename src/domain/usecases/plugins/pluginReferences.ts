@@ -42,6 +42,13 @@ export interface PackageRef {
   /** `key` de template (screen) ou `templateId` (action/workflow/script). */
   id: string;
   from: RefOrigin;
+  /**
+   * A referência nasceu do GATILHO, e o `id` é um PREFIXO DE EVENTO que nenhuma tela do pacote emite
+   * e que não é do kernel. Ele coincide com a chave da tela só quando ela não declara `eventPrefix`;
+   * `case.saved` é emitido pela tela de coleção `cases`. Quem resolve é a tela de uma dependência
+   * declarada — e só quem enxerga as dependências pode dizer qual (`eventRefChecks`).
+   */
+  event?: boolean;
 }
 
 /** O nome de cada tipo de artefato, como REFERÊNCIA: quem exibe resolve com o catálogo do usuário. */
@@ -54,6 +61,9 @@ export const REF_KIND_KEYS: Record<RefKind, string> = {
 
 /** A origem de uma referência que nasceu DENTRO de um passo — resolve com `{step}` na frase. */
 export const WORKFLOW_STEP_ORIGIN = '@core.marketplace/ref.origin.workflow-step';
+
+/** A recusa do gatilho cujo prefixo de evento ninguém visível emite. Nomeia o PREFIXO, não uma tela. */
+export const EVENT_UNRESOLVED_MESSAGE = '@core.marketplace/issue.ref.event-unresolved';
 
 /**
  * A ÚNICA recusa cujo `{id}` é um identificador local — um alvo que o pacote não leva e que
@@ -137,7 +147,8 @@ export const actionOutRefs = (action: ActionModuleTemplate): PackageRef[] =>
  * chave dela; supor que prefixo e chave são a mesma palavra acusaria uma tela inexistente.
  *
  * Prefixo que nenhuma tela do pacote emite e que não é do kernel continua virando referência pelo
- * próprio nome: é o caso legítimo de uma automação que dispara com algo que o pacote não leva.
+ * próprio nome, marcada como `event`: é o caso legítimo de uma automação que escuta o que OUTRA
+ * extensão emite. Quem a resolve é a tela de uma dependência declarada — ver `pendingEventRefs`.
  *
  * A travessia é da ÁRVORE inteira (`flattenSteps`), não da raiz de `steps`. Enquanto era rasa, uma
  * chamada a script ou a outra automação dentro de um laço ou de um ramo não virava referência — e o
@@ -163,7 +174,7 @@ export const workflowOutRefs = (
     const emitter = screens.find((screen) => screenEventPrefix(screen) === event.prefix);
     if (emitter) refs.push({ kind: 'screen', id: emitter.key, from });
     else if (!isCoreCollection(event.prefix) && !getEntityByEventPrefix(event.prefix)) {
-      refs.push({ kind: 'screen', id: event.prefix, from });
+      refs.push({ kind: 'screen', id: event.prefix, from, event: true });
     }
   }
   return refs;
@@ -428,6 +439,56 @@ export const packageSizeAdvisory = (pkg: MarketplacePlugin): LocalizedIssue | un
 };
 
 /**
+ * O que cobre uma referência a TELA sem sair do pacote: a chave dele, ou o que as dependências
+ * declaram trazer — a coleção pelo nome GLOBAL, ou a chave namespaced `<slug-do-plugin>__x`.
+ *
+ * Uma entidade que saiu do kernel mantém o nome global (`persons`) — não ganha o prefixo da extensão
+ * que a descreve, senão os registros mudariam de lugar —, então é a declaração que liga o nome à
+ * extensão que o instala.
+ */
+const screenCoverage = (pkg: MarketplacePlugin): ((id: string) => boolean) => {
+  const screenKeys = new Set((pkg.screens ?? []).map((s) => s.key));
+  const dependencies = Object.entries(pkg.manifest.dependencies ?? {});
+  const dependencySlugs = dependencies.map(([id]) => slug(id));
+  const dependencyCollectionNames = new Set(
+    dependencies.flatMap(([, dependency]) => dependencyCollections(dependency)),
+  );
+  return (id) =>
+    screenKeys.has(id)
+    || dependencyCollectionNames.has(id)
+    || dependencySlugs.some((depSlug) => id.startsWith(`${depSlug}__`));
+};
+
+/**
+ * Os gatilhos que o pacote SOZINHO não resolve: o prefixo não é de tela dele, nem do kernel, nem de
+ * nome que as dependências declaram trazer. Quem emite `case.saved` é a tela de coleção `cases`, e
+ * `case` não é coleção de ninguém — a resposta mora no pacote da DEPENDÊNCIA, que não está em mãos.
+ *
+ * Com dependência declarada, `validatePackage` cala e deixa a pergunta a quem enxerga o outro lado:
+ * a instalação, que tem os pacotes instalados (`crossExtensionRefIssues`), e o `check`, que tem o
+ * workspace e o retrato (`eventRefReport`). Sem dependência nenhuma não há a quem perguntar, e a
+ * recusa é dele. Um prefixo por automação: o autor conserta uma coisa.
+ */
+export const pendingEventRefs = (pkg: MarketplacePlugin): PackageRef[] => {
+  const covered = screenCoverage(pkg);
+  const seen = new Set<string>();
+  return packageOutRefs(pkg).filter((ref) => {
+    if (!ref.event || covered(ref.id)) return false;
+    const seenKey = `${ref.from.name} ${ref.id}`;
+    if (seen.has(seenKey)) return false;
+    seen.add(seenKey);
+    return true;
+  });
+};
+
+/** A recusa de um gatilho cujo prefixo ninguém visível emite — a mesma frase no pacote e na instalação. */
+export const eventUnresolvedIssue = (ref: PackageRef): PackageValidationIssue => ({
+  ref,
+  message: EVENT_UNRESOLVED_MESSAGE,
+  messageParams: { origin: ref.from.origin, name: ref.from.name, prefix: ref.id },
+});
+
+/**
  * Valida a integridade referencial de um pacote — a MESMA checagem no export (dry-run) e no import.
  * Toda referência de saída precisa estar: (1) incluída no pacote, (2) numa coleção fixa do core,
  * (3) coberta por uma dependência declarada (para TELA, pelo nome global da coleção ou pela chave
@@ -444,25 +505,12 @@ export const validatePackage = (pkg: MarketplacePlugin): PackageValidationIssue[
   const actionIds = new Set((pkg.actions ?? []).map((a) => a.templateId));
   const workflowIds = new Set(pkg.workflows.map((w) => w.templateId));
   const scriptIds = new Set((pkg.scripts ?? []).map((s) => s.templateId));
-  const dependencies = Object.entries(pkg.manifest.dependencies ?? {});
-  const dependencySlugs = dependencies.map(([id]) => slug(id));
-  // As coleções que as dependências declaram trazer. Uma entidade que saiu do kernel mantém o nome
-  // GLOBAL (`persons`) — não ganha o prefixo da extensão que a descreve, senão os registros mudariam
-  // de lugar —, então é a declaração que liga o nome à extensão que o instala.
-  const dependencyCollectionNames = new Set(
-    dependencies.flatMap(([, dependency]) => dependencyCollections(dependency)),
-  );
-
-  const dependencyIds = new Set(dependencies.map(([id]) => id));
-
-  const coveredByDependency = (ref: PackageRef): boolean =>
-    ref.kind === 'screen'
-    && (dependencyCollectionNames.has(ref.id)
-      || dependencySlugs.some((depSlug) => ref.id.startsWith(`${depSlug}__`)));
+  const dependencyIds = new Set(Object.keys(pkg.manifest.dependencies ?? {}));
+  const screenCovered = screenCoverage(pkg);
 
   const bundled = (ref: PackageRef): boolean => {
     switch (ref.kind) {
-      case 'screen': return screenKeys.has(ref.id);
+      case 'screen': return screenCovered(ref.id);
       case 'action': return actionIds.has(ref.id);
       case 'workflow': return workflowIds.has(ref.id);
       case 'script': return scriptIds.has(ref.id);
@@ -504,7 +552,10 @@ export const validatePackage = (pkg: MarketplacePlugin): PackageValidationIssue[
       return undefined;
     }
     if (hasRefSeparator(ref.id)) return refusal(ref, '@core.marketplace/issue.ref.malformed');
-    if (bundled(ref) || coveredByDependency(ref)) return undefined;
+    if (bundled(ref)) return undefined;
+    // O gatilho que escuta outra extensão: com dependência declarada, a resposta está no pacote dela
+    // e é dada por quem o enxerga; sem nenhuma, não há onde procurar.
+    if (ref.event) return dependencyIds.size === 0 ? eventUnresolvedIssue(ref) : undefined;
     return refusal(ref, REF_EXTERNAL_MESSAGE);
   };
 

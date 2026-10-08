@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.74.1] — 2026-10-07
+
+- Uma extensão agora pode reagir ao que acontece em outra da qual depende — por exemplo, ligar as intimações já recebidas a um processo assim que ele é cadastrado. Antes, esse tipo de automação era recusado na instalação.
+- Quando a automação escuta algo que nenhuma extensão instalada oferece, o aviso diz exatamente qual evento falta e, quando dá, qual extensão precisa ser declarada.
+
 #### [9.74.0] — 2026-10-07
 
 - Na lista de registros que pertencem obrigatoriamente a outro — como os prazos dentro de um processo —, cada item agora oferece Excluir, e não mais Desvincular, que não tinha como funcionar.

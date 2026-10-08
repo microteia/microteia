@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { MarketplacePlugin } from '../../entities/MarketplacePlugin';
-import { crossExtensionRefIssues, dependentRefIssues, exportedSurface } from './crossExtensionRefs';
+import { crossExtensionRefIssues, dependentRefIssues, emittedEventPrefixes, exportedSurface } from './crossExtensionRefs';
 
 const consumer = (scriptId: string): MarketplacePlugin => ({
   summary: '',
@@ -184,5 +184,58 @@ describe('a superfície pública de um pacote', () => {
   /** Superfície é o que a dona DECLARA — nunca o que ela carrega. */
   it('pacote sem exports não expõe nada, mesmo carregando artefatos', () => {
     expect(exportedSurface({ ...rico, manifest: { ...rico.manifest, exports: undefined } })).toEqual([]);
+  });
+});
+
+/**
+ * Na instalação todo pacote está à vista: o gatilho que escuta outra extensão resolve pelas telas das
+ * dependências instaladas, e o prefixo que nenhuma delas emite é recusa — nomeando o prefixo.
+ */
+describe('portão do gatilho no evento de outra extensão', () => {
+  const processo: MarketplacePlugin = {
+    summary: '',
+    manifest: { id: 'com.microteia.processo', version: '2.1.0', kernel: '^2.0.0', name: 'Processos' },
+    screens: [{
+      key: 'processos', titleSingular: 'Processo', titlePlural: 'Processos', icon: 'gavel', titleFieldKey: 'n',
+      dataCollection: 'cases', eventPrefix: 'case',
+      fields: [{ key: 'n', label: 'N', type: 'text', required: true, order: 0 }],
+    }],
+    workflows: [],
+  };
+  const installed = [{ id: 'com.microteia.processo', version: '2.1.0', eventPrefixes: emittedEventPrefixes(processo) }];
+
+  const pushes = (eventName: string, dependencies: Record<string, { version: string; collections?: string[] }>): MarketplacePlugin => ({
+    summary: '',
+    manifest: { id: 'com.microteia.push', version: '1.0.0', kernel: '^2.0.0', name: 'Pushes', dependencies },
+    workflows: [{ templateId: 'vincular', name: 'Vincular', eventName, version: 1, condition: { kind: 'AlwaysTrue' }, steps: [] }],
+  });
+
+  it('o prefixo emitido pela tela da dependência declarada é aceito', () => {
+    expect(emittedEventPrefixes(processo)).toEqual(['case']);
+    const pkg = pushes('case.saved', { 'com.microteia.processo': { version: '^2.0.0', collections: ['cases'] } });
+    expect(crossExtensionRefIssues(pkg, installed)).toEqual([]);
+  });
+
+  it('o prefixo emitido por extensão NÃO declarada é recusado, dizendo qual declarar', () => {
+    const pkg = pushes('case.saved', { 'com.acme.utils': { version: '^1.0.0' } });
+    const issues = crossExtensionRefIssues(pkg, installed);
+    expect(issues).toEqual([{
+      message: '@core.marketplace/issue.ref.event-undeclared',
+      messageParams: { origin: '@core.marketplace/ref.origin.workflow', name: 'Vincular', prefix: 'case', plugin: 'com.microteia.processo' },
+    }]);
+  });
+
+  it('o prefixo que nenhuma extensão instalada emite é recusado, nomeando o prefixo', () => {
+    const pkg = pushes('casse.saved', { 'com.microteia.processo': { version: '^2.0.0' } });
+    expect(crossExtensionRefIssues(pkg, installed)).toEqual([{
+      message: '@core.marketplace/issue.ref.event-unresolved',
+      messageParams: { origin: '@core.marketplace/ref.origin.workflow', name: 'Vincular', prefix: 'casse' },
+    }]);
+  });
+
+  it('a dependência declarada mas não instalada não resolve o prefixo', () => {
+    const pkg = pushes('case.saved', { 'com.microteia.processo': { version: '^2.0.0' } });
+    expect(crossExtensionRefIssues(pkg, []).map((issue) => issue.message))
+      .toEqual(['@core.marketplace/issue.ref.event-unresolved']);
   });
 });

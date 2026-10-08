@@ -335,6 +335,10 @@ export const CORE_MARKETPLACE_MESSAGES: Record<string, string> = {
     'screen "{screen}" would emit "{prefix}.saved", a name reserved by the automation engine — declare another `eventPrefix`.',
   'issue.report.invalid': 'The report "{name}" cannot be run as it is — {field}: {detail}',
   'issue.report.requires': 'The report "{name}" declares a `requires` that omits what it uses: {capability}. The list is derived from the spec — leave it out.',
+  'issue.ref.event-undeclared':
+    '{origin} "{name}" listens to the event prefix "{prefix}", which a screen of extension "{plugin}" emits — declare it in `dependencies`.',
+  'issue.ref.event-unresolved':
+    '{origin} "{name}" listens to the event prefix "{prefix}", which no screen of the package, of the kernel or of a declared dependency emits.',
   'issue.ref.external':
     '{origin} "{name}" references {kind} "{id}", which is neither in the package nor covered by a declared dependency.',
   'issue.ref.malformed':

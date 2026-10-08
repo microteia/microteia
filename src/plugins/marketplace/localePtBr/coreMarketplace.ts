@@ -334,6 +334,10 @@ export const CORE_MARKETPLACE: Record<string, string> = {
     'a tela "{screen}" emitiria "{prefix}.saved", um nome reservado pelo motor de automações — declare outro `eventPrefix`.',
   'issue.report.invalid': 'O relatório "{name}" não pode ser executado como está — {field}: {detail}',
   'issue.report.requires': 'O relatório "{name}" declara um `requires` que omite o que ele usa: {capability}. A lista é derivada do spec — não a escreva.',
+  'issue.ref.event-undeclared':
+    '{origin} "{name}" escuta o prefixo de evento "{prefix}", que uma tela da extensão "{plugin}" emite — declare-a em `dependencies`.',
+  'issue.ref.event-unresolved':
+    '{origin} "{name}" escuta o prefixo de evento "{prefix}", que nenhuma tela do pacote, do núcleo ou de uma dependência declarada emite.',
   'issue.ref.external':
     '{origin} "{name}" referencia {kind} "{id}", que não está no pacote nem coberta por uma dependência declarada.',
   'issue.ref.malformed':

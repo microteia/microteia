@@ -3,7 +3,8 @@ import { parseArtifactRef } from '../../schema/plugin/artifactRef';
 import { dependencyRange } from '../../schema/plugin/pluginManifest';
 import { satisfiesRange } from '../../schema/plugin/semver';
 import type { LocalizedIssue, PackageRef } from './pluginReferences';
-import { REF_KIND_KEYS, packageOutRefs } from './pluginReferences';
+import { REF_KIND_KEYS, eventUnresolvedIssue, packageOutRefs, pendingEventRefs } from './pluginReferences';
+import { screenEventPrefix } from './screenModule';
 
 /**
  * O TIPO do artefato exportado, e ele não é enfeite: é o que decide ONDE a referência cabe — um
@@ -60,7 +61,63 @@ export interface InstalledExtensionSummary {
   id: string;
   version: string;
   exports?: string[];
+  /** Os prefixos de evento que as telas dela emitem (`emittedEventPrefixes`). Ausente: nenhum conhecido. */
+  eventPrefixes?: readonly string[];
 }
+
+/** Os prefixos que as telas de um pacote emitem — é o que o gatilho de OUTRA extensão escuta. */
+export const emittedEventPrefixes = (pkg: MarketplacePlugin): string[] =>
+  Array.from(new Set((pkg.screens ?? []).map(screenEventPrefix)));
+
+/**
+ * O VEREDITO de um gatilho que escuta outra extensão (`pendingEventRefs`), contra as extensões que se
+ * enxerga. `undeclared` é o prefixo emitido por uma extensão que o pacote não declara: a instalação
+ * não pode contar com ela, e a frase diz qual declarar.
+ */
+export type EventRefVerdict =
+  | { kind: 'ok'; pluginId: string }
+  | { kind: 'undeclared'; pluginId: string }
+  | { kind: 'unknown' };
+
+export interface EventRefCheck {
+  ref: PackageRef;
+  prefix: string;
+  verdict: EventRefVerdict;
+}
+
+/**
+ * Cada gatilho pendente, resolvido pelas telas das extensões conhecidas. Uma dependência declarada que
+ * emite o prefixo vence qualquer outra emissora: é ela que a instalação garante presente.
+ */
+export const eventRefChecks = (
+  pkg: MarketplacePlugin,
+  known: readonly InstalledExtensionSummary[],
+): EventRefCheck[] => {
+  const declared = new Set(Object.keys(pkg.manifest.dependencies ?? {}));
+  const others = known.filter((extension) => extension.id !== pkg.manifest.id);
+
+  return pendingEventRefs(pkg).map((ref): EventRefCheck => {
+    const emitters = others.filter((extension) => (extension.eventPrefixes ?? []).includes(ref.id));
+    const dependency = emitters.find((extension) => declared.has(extension.id));
+    if (dependency) return { ref, prefix: ref.id, verdict: { kind: 'ok', pluginId: dependency.id } };
+    if (emitters.length > 0) return { ref, prefix: ref.id, verdict: { kind: 'undeclared', pluginId: emitters[0].id } };
+    return { ref, prefix: ref.id, verdict: { kind: 'unknown' } };
+  });
+};
+
+/** A recusa de um veredito de gatilho, ou `null`. A mesma frase na instalação e no terminal. */
+export const eventRefIssue = (check: EventRefCheck): LocalizedIssue | null => {
+  const { ref, verdict } = check;
+  if (verdict.kind === 'ok') return null;
+  if (verdict.kind === 'unknown') {
+    const { message, messageParams } = eventUnresolvedIssue(ref);
+    return { message, messageParams };
+  }
+  return {
+    message: '@core.marketplace/issue.ref.event-undeclared',
+    messageParams: { origin: ref.from.origin, name: ref.from.name, prefix: check.prefix, plugin: verdict.pluginId },
+  };
+};
 
 /**
  * O VEREDITO de uma referência qualificada contra o que se sabe das extensões do escritório.
@@ -143,6 +200,9 @@ export const crossExtensionRefChecks = (
  * O `PluginHost` já recusa CARREGAR a extensão cuja dependência falta; o que faltava era recusar o
  * gesto que a coloca lá.
  *
+ * O gatilho que escuta OUTRA extensão (`case.saved`) passa pelo mesmo portão: aqui todo pacote
+ * instalado está à vista, e um prefixo que nenhuma dependência declarada emite é recusa — não aviso.
+ *
  * Extensão instalada porém DESLIGADA passa: o artefato dela continua sendo documento do escritório e
  * continua existindo. Quem avisa que nada disso está no ar é o `PluginHost`, com
  * `dependency.disabled` — recusar aqui repetiria o recado no lugar errado.
@@ -150,9 +210,10 @@ export const crossExtensionRefChecks = (
 export const crossExtensionRefIssues = (
   pkg: MarketplacePlugin,
   installed: readonly InstalledExtensionSummary[],
-): LocalizedIssue[] => crossExtensionRefChecks(pkg, installed)
-  .map((check) => crossRefIssue(pkg, check))
-  .filter((issue): issue is LocalizedIssue => issue !== null);
+): LocalizedIssue[] => [
+  ...crossExtensionRefChecks(pkg, installed).map((check) => crossRefIssue(pkg, check)),
+  ...eventRefChecks(pkg, installed).map(eventRefIssue),
+].filter((issue): issue is LocalizedIssue => issue !== null);
 
 /**
  * A RECUSA de um veredito, ou `null` quando não há o que recusar.

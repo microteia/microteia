@@ -1374,6 +1374,24 @@ the organization designed, for a collection that already exists. Also \`lookup.s
 \`document\`, and \`workflow.called\` for a workflow that only exists to be invoked — that one declares
 \`parameters\`, which become the \`event.\` it receives.
 
+**Listening to another extension.** A workflow may listen to \`<prefix>.saved\` / \`<prefix>.deleted\` of
+a collection a **declared dependency** brings. The name is the prefix that screen EMITS — its
+\`eventPrefix\`, or its collection when it declares none —, which is not always the collection: a screen
+over \`cases\` declaring \`eventPrefix: 'case'\` emits \`case.saved\`. Declare the extension in
+\`manifest.dependencies\` (listing \`collections\` is not needed for this, and \`case\` is no collection):
+
+\`\`\`ts
+dependencies: { 'com.acme.cases': { version: '^2.0.0', collections: ['cases'] } },
+workflows: [{ templateId: 'link-on-case', name: 'Link on new case', eventName: 'case.saved', /* … */ }],
+\`\`\`
+
+The prefix is resolved against the screens of your dependencies. **On install**, every package is in
+view, and a prefix no declared dependency emits is refused — naming the prefix. **In \`check\`**, the
+dependencies are the \`plugin.ts\` files in this workspace and the \`installed-catalog.json\`; a prefix
+emitted by an extension you did NOT declare is refused, and one no visible source emits is a warning that
+says so (run \`microteia export-catalog\` to close the gap). With no dependency declared at all, there is
+nowhere to look, and the trigger is refused.
+
 **\`condition\`** is evaluated once, before any step: \`AlwaysTrue\`, \`FieldComparison\`, \`LogicalAnd\`,
 \`LogicalOr\`, \`Not\`, or \`Expression\`.
 

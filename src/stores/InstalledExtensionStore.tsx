@@ -7,7 +7,7 @@ import { applyPackageArtifacts, releasePackageArtifacts, type ArtifactDeps } fro
 import { storeEvents, StoreEvents } from '../infrastructure/events/StoreEventEmitter';
 import type { InstalledExtension } from '../domain/entities/InstalledExtension';
 import { hashExtensionCode } from '../domain/usecases/plugins/extensionCodeTrust';
-import { crossExtensionRefIssues, dependentRefIssues } from '../domain/usecases/plugins/crossExtensionRefs';
+import { crossExtensionRefIssues, dependentRefIssues, emittedEventPrefixes } from '../domain/usecases/plugins/crossExtensionRefs';
 import { translationOverwriteIssue } from '../domain/usecases/i18n/translationPackage';
 import { transpileScriptSource } from '../domain/services/scriptSource';
 import { appliedMigrationIds, planPluginMigrations, pendingPluginMigrations } from '../domain/services/pluginMigrations';
@@ -210,6 +210,7 @@ export const InstalledExtensionStoreProvider: React.FC<{ children: React.ReactNo
           id: extension.id,
           version: extension.installedVersion,
           exports: extension.package.manifest.exports,
+          eventPrefixes: emittedEventPrefixes(extension.package),
         })),
     );
     if (missingRef) throw new LocalizedError(missingRef.message, missingRef.messageParams);

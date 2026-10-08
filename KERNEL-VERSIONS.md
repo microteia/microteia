@@ -18,6 +18,14 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.74.1] — 2026-10-07
+
+- fix(plugins/references): a workflow may listen to `<prefix>.saved` / `.deleted` emitted by a screen of a DECLARED DEPENDENCY whose `eventPrefix` differs from its collection (`case.saved` from a screen over `cases`). Before, a prefix that was neither the package's own nor the kernel's became a reference to a "screen" of that name, covered only by a `collections` entry — so `case` could never be declared, and `check` and install both refused. `workflowOutRefs` now marks that reference `event: true`; `validatePackage` refuses it (`issue.ref.event-unresolved`, naming the prefix) only when the package declares no dependency at all, and otherwise leaves it to `pendingEventRefs`.
+- fix(plugins/install): the install gate (`crossExtensionRefIssues`) resolves each pending prefix against the screens of the installed packages (`InstalledExtensionSummary.eventPrefixes`, from `emittedEventPrefixes`): emitted by a declared dependency passes; emitted only by an undeclared extension is refused with `issue.ref.event-undeclared` (naming it); emitted by nobody is refused with `issue.ref.event-unresolved`. Packages listening to their own prefix (`deadline.saved`, `financial.saved`) are unaffected; the engine already matched workflows by `eventName` regardless of owner.
+- feat(sdk/check): `microteia-plugin check` and `validate_plugin` report each such trigger against the workspace `plugin.ts` files and `installed-catalog.json` (`eventRefReport`, same verdict as install): `ok`, `refused` for an undeclared emitter, and a WARNING — never a refusal — when no visible source emits it, pointing to `microteia export-catalog`. The snapshot already carried `eventPrefix` and `ownerPluginId` per screen, so the Console does not change.
+- docs(authoring): AUTHORING.md §10 and `list_workflow_events` / `microteia://workflow/events` explain listening to a dependency's prefix and how it is resolved.
+- `com.microteia.locale-pt-br` 1.63.0: the two new messages. No type change in the installed package's shape; `KERNEL_VERSION` does not move.
+
 #### [9.74.0] — 2026-10-07
 
 - fix(records)!: a list locked to a parent (child tab, `useEntityList({ parent })`) now computes `relation` with `parentLinkRelation`: `owned` when the link field is the screen's declared ownership OR is `required`, `related` only for an optional link. Before, every link other than the declared ownership was `related`, so a required link (deadlines inside a case, with no `parentEntity`) lost Delete and offered Unlink, which empties a field the save refuses. **Behaviour change for expressions:** `relation == "owned"` is now true on a required link where it used to see `related`. Same rule the domain-model validator already enforced (`domain.relationship.unlink-requires-optional`). No type change; `KERNEL_VERSION` does not move.
