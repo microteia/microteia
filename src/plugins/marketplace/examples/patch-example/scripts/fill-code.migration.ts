@@ -12,19 +12,21 @@ async function main() {
   const pending = await query({
     table,
     where: [{ path: 'code', op: 'eq', value: null }],
-    limit: 200,
+    // One write per row, and a run may write 25 times: a larger batch fails on the 26th upsert.
+    limit: 25,
   });
 
-  for (const row of pending.rows) {
+  for (const row of pending.results) {
     await upsert({
       table,
-      data: { id: row.id, code: fn.upper(fn.trim(fn.coalesce(row.title, ''))) },
+      id: String(row.id),
+      data: { code: fn.upper(fn.trim(fn.coalesce(row.title, ''))) },
     });
   }
 
   // `remaining` is what makes this run again. Without it a migration ends after the first round, and a
   // collection larger than one batch would be left half done — with nothing saying so.
-  return { changed: pending.rows.length, remaining: pending.rows.length > 0 };
+  return { changed: pending.count, remaining: pending.count > 0 };
 }
 
 main()

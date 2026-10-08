@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.75.1] — 2026-10-08
+
+- Corrigido o exemplo de atualização de dados que acompanha o kit de criação de extensões: ele parava logo no primeiro lote em vez de completar os registros antigos.
+- Corrigido o guia de criação de extensões, que ensinava a ler o resultado de uma consulta de um jeito que não funciona.
+
 #### [9.75.0] — 2026-10-08
 
 - Um registro criado ou alterado por uma automação disparada por um botão passa a mostrar quem apertou o botão como autor, com o mesmo nome e foto que apareceriam se a pessoa o tivesse digitado. Antes, ele aparecia sem autor.

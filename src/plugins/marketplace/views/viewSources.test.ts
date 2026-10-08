@@ -101,6 +101,23 @@ describe('as fontes de extensão continuam sendo checadas', () => {
 });
 
 /**
+ * O editor só acha um projeto que se chame `tsconfig.json` ou que esteja nas `references` dele. Sem
+ * as duas linhas abaixo, `tsconfig.extsrc.json` e `tsconfig.extbackend.json` rodavam no `typecheck`
+ * e o VSCode abria as mesmas fontes num projeto inferido — sem `paths`, sem JSX —, pintando de
+ * vermelho cada import de `@microteia/*` num código que o gate aprovava. Referenciados, eles também
+ * passam a rodar no `tsc -b --force`, que é o portão que o CLAUDE.md manda executar.
+ */
+describe('o editor e o `tsc -b` enxergam os projetos de fonte de extensão', () => {
+  it.each(['tsconfig.extsrc.json', 'tsconfig.extbackend.json'])(
+    'o tsconfig.json raiz referencia %s',
+    (project) => {
+      const references = /"references"\s*:\s*\[([\s\S]*?)\]/.exec(config('tsconfig.json'))?.[1] ?? '';
+      expect(references).toContain(`"./${project}"`);
+    },
+  );
+});
+
+/**
  * A fonte de BACKEND de um exemplo — as Cloud Functions dele — é checada pelo mesmo princípio e por um
  * projeto separado, porque ela é outra coisa: roda em Node contra `firebase-functions`, não no
  * navegador contra a API curada de view.

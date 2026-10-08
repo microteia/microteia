@@ -9,6 +9,12 @@
     },
     {
       "path": "./cli"
+    },
+    {
+      "path": "./tsconfig.extsrc.json"
+    },
+    {
+      "path": "./tsconfig.extbackend.json"
     }
   ]
 }

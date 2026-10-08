@@ -1560,9 +1560,11 @@ async function main() {
     limit: 50,
     projections: ['id', 'total'],
   });
-  await upsert({ table: 'invoices', id: open[0].id, data: { status: 'PAID' } });
-  log('closed', open.length);
-  return { closed: open.length };
+  for (const invoice of open.results) {                       // { count, results, first }, never an array
+    await upsert({ table: 'invoices', id: String(invoice.id), data: { status: 'PAID' } });
+  }
+  log('closed', open.count);
+  return { closed: open.count };
 }
 
 main();

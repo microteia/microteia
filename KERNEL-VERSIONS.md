@@ -18,6 +18,12 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.75.1] — 2026-10-08
+
+- fix(tsconfig): the root `tsconfig.json` now references `tsconfig.extsrc.json` and `tsconfig.extbackend.json`. The editor only finds a project named `tsconfig.json` or referenced by it, so VSCode opened extension view and function sources in an inferred project and flagged every `@microteia/*` import the gate approved. `tsc -b --force` now checks both projects too; their build info goes to `node_modules/.tmp`.
+- fix(examples/patch-example): the `fill-code` migration read `query().rows` (the sandbox returns `{ count, results, first }`), passed `id` inside `data` (the sandbox reads it at the root) and asked for 200 rows when a run may write 25 times. It threw on its first round.
+- fix(sdk/workspace): the authoring guide's script example treated `query()` as an array (`open[0].id`, `open.length`); it now iterates `results` and reads `count`.
+
 #### [9.75.0] — 2026-10-08
 
 - feat(workflow/actor): `WorkflowContext.actor` is now `WorkflowActor` — `{ userId, name, photoURL, via: 'ui' | 'agent', permissions }`. `runAction`, `runScript`, `runReport` and the agent context build it with `identifyActor`, which resolves the effective name with the front's rule (nickname → full name → displayName → e-mail; `''` when none) through the new `IUserProfileLookupService.resolveIdentity`. Before, the actor reached the backend and was used only by `hasPermission`; the person who pressed the button was discarded on the way to the write.

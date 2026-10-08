@@ -2631,6 +2631,7 @@ o caminho que sempre existiu, e nenhum pacote muda de resultado por causa desta 
 | `tsconfig.extsrc.json` | INCLUI `src/plugins/marketplace/views`; mapeia `@microteia/*`, `react` e `styled-components` para `sdk/types/microteia-host.d.ts` |
 | `tsconfig.extbackend.json` | INCLUI `src/plugins/marketplace/examples/*/functions`; mapeia `microteia-functions/office` para `sdk/types/microteia-office.d.ts`. É a fonte de BACKEND de um exemplo, que roda em Node contra `firebase-functions` — outro ambiente, outro projeto. `skipLibCheck: true`, e pelo INVERSO da razão do `extsrc`: ali a biblioteca é o nosso contrato, aqui é a árvore de terceiro que o `firebase-functions` arrasta |
 | `tsconfig.app.json` | EXCLUI o mesmo diretório — senão o build do app tenta resolver `@microteia/ui` de verdade e quebra |
+| `tsconfig.json` (raiz) | REFERENCIA `tsconfig.extsrc.json` e `tsconfig.extbackend.json`. O editor só acha um projeto chamado `tsconfig.json` ou referenciado por ele: sem isso o VSCode abria as fontes de extensão num projeto inferido e acusava erro em todo import de `@microteia/*` que o gate aprovava. Referenciados, rodam também no `tsc -b --force` |
 | `eslint.config.js` | as regras de Hooks e do React Compiler valem; a checagem de literal de i18n não, porque o vocabulário é do domínio da extensão |
 | `viewSources.test.ts` | tranca as três coisas acima, e prova que nenhum plugin voltou ao template literal |
 | `extensionTypeDefs.test.ts` | compila a API curada com `skipLibCheck: false` e cobra o efeito num arquivo `.styles.tsx` |
