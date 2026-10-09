@@ -120,6 +120,22 @@ const satisfiesComparator = (version: SemVer, comparator: RangeComparator): bool
   }
 };
 
+const LOWER_BOUND_OPERATORS: ReadonlySet<RangeOperator> = new Set(['=', '>', '>=', '^', '~']);
+
+/**
+ * A faixa exclui TODA versão anterior a `floor`? Como a faixa é uma conjunção, basta um comparador de
+ * limite inferior já em `floor` ou acima. É a pergunta de quem usa um recurso que só existe a partir
+ * de uma versão: a faixa que a responde com "sim" é a que faz o kernel antigo recusar o pacote.
+ * Faixa inválida, ou `*`, responde "não".
+ */
+export const rangeExcludesBelow = (range: string, floor: string): boolean => {
+  const comparators = parseRange(range);
+  const minimum = parseSemVer(floor);
+  if (!comparators || !minimum) return false;
+  return comparators.some((comparator) =>
+    LOWER_BOUND_OPERATORS.has(comparator.operator) && compareSemVer(comparator.version, minimum) >= 0);
+};
+
 export const satisfiesRange = (version: string, range: string): boolean => {
   const parsedVersion = parseSemVer(version);
   const comparators = parseRange(range);

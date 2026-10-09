@@ -1,4 +1,5 @@
 import type { AggregationOp, CustomFieldType } from '../../domain/schema/fieldRules';
+import type { QueryOrderBy } from '../../domain/schema/querySpec';
 import { CUSTOM_FIELD_TYPES } from '../../domain/schema/fieldRules';
 import type {
   RecordKeyKind,
@@ -103,7 +104,7 @@ export type DeleteSemantics = (typeof DELETE_SEMANTICS)[number];
 export const EMBEDDED_STRATEGY = 'flatten-with-section' as const;
 
 const AGGREGATION_OP_SET: Record<AggregationOp, true> = {
-  sum: true, count: true, avg: true, min: true, max: true,
+  sum: true, count: true, avg: true, min: true, max: true, latest: true,
 };
 
 /** Derivado, para que um operador novo no kernel entre aqui sem ninguém lembrar de uma lista. */
@@ -117,9 +118,11 @@ export interface DomainAggregation {
   /** Chave do campo de referência NO FILHO que aponta para este registro. */
   via: string;
   op: AggregationOp;
-  /** Campo do filho medido; ignorado por `count`. */
+  /** Campo do filho medido (copiado, em `latest`); ignorado por `count`. */
   field?: string;
   filter?: string;
+  /** Só `latest`, e obrigatório nela: qual filho é o mais recente. */
+  orderBy?: QueryOrderBy[];
 }
 
 export interface DomainField {
@@ -382,8 +385,15 @@ const readAggregation = (raw: unknown): DomainAggregation | undefined => {
     op,
     ...(str(raw.field) === undefined ? {} : { field: str(raw.field) as string }),
     ...(str(raw.filter) === undefined ? {} : { filter: str(raw.filter) as string }),
+    ...(Array.isArray(raw.orderBy) ? { orderBy: readAggregationOrderBy(raw.orderBy) } : {}),
   };
 };
+
+/** A direção atravessa como veio: a recusa de uma direção inválida é da validação, com mensagem. */
+export const readAggregationOrderBy = (raw: unknown[]): QueryOrderBy[] =>
+  raw
+    .filter(isRecord)
+    .map((one) => ({ path: str(one.path) ?? '', dir: String(one.dir ?? 'desc') as QueryOrderBy['dir'] }));
 
 const readField = (raw: unknown, entityName: string, issues: DomainIssue[]): DomainField | null => {
   if (!isRecord(raw)) {

@@ -187,8 +187,24 @@ export const domainModelJsonSchema = (): Record<string, unknown> => ({
         from: { type: 'string', description: 'The child entity or collection.' },
         via: { type: 'string', description: 'The key of the SINGLE reference field on the child that points back here.' },
         op: { enum: [...AGGREGATION_OPS] },
-        field: { type: 'string', description: 'The child field measured. Ignored by "count".' },
+        field: { type: 'string', description: 'The child field measured — or, with "latest", the child field whose value is copied as it is. Ignored by "count".' },
         filter: { type: 'string', description: 'A boolean expression over the child; only what it accepts is counted.' },
+        orderBy: {
+          type: 'array',
+          minItems: 1,
+          description: 'Only with "latest", and required by it: which child is the most recent. The first key decides, the next ones break ties; '
+            + 'an empty value sorts last in both directions, then createdAt (in the direction of the last key), then the record id. '
+            + 'A child field or createdAt / updatedAt. No child passing the filter leaves the parent field empty.',
+          items: {
+            type: 'object',
+            required: ['path', 'dir'],
+            additionalProperties: false,
+            properties: {
+              path: { type: 'string' },
+              dir: { enum: ['asc', 'desc'] },
+            },
+          },
+        },
       },
     },
     behavior: {

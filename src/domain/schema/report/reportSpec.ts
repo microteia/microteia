@@ -3,7 +3,7 @@
 // GERADA por scripts/sync-schemas.cjs (npm run sync-schemas). Nunca edite a cópia.
 // ═══════════════════════════════════════════════════════════════════════════════
 
-import type { AggregationOp } from '../fieldRules';
+import type { NumericAggregationOp } from '../fieldRules';
 import { extractFieldExpressionPaths } from '../fieldExpression';
 import { parsePath, resolvePath } from '../pathResolver';
 import type { SchemaContext } from '../pathResolver';
@@ -109,10 +109,11 @@ interface ReportMeasureBase {
 export interface ReportAggregateMeasure extends ReportMeasureBase {
   kind?: 'aggregate';
   /**
-   * O MESMO vocabulário do agregado de campo (`FieldAggregation.op`). Uma segunda lista de operações
-   * seria a primeira divergência silenciosa entre o total de um relatório e o total de um campo.
+   * O MESMO vocabulário NUMÉRICO do agregado de campo (`FieldAggregation.op`). Uma segunda lista de
+   * operações seria a primeira divergência silenciosa entre o total de um relatório e o total de um
+   * campo. `latest` fica de fora: ele copia um valor, e uma medida tem de ser número.
    */
-  op: AggregationOp;
+  op: NumericAggregationOp;
   /** Caminho medido. Obrigatório salvo em `count`. */
   path?: string;
   /** A MEDIDA FILTRADA do Cube: restringe esta medida, e só ela. */

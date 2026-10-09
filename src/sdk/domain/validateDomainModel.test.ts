@@ -276,6 +276,79 @@ describe('N:N com atributos próprios', () => {
   });
 });
 
+describe('agregado latest — o valor do filho mais recente', () => {
+  const withLatest = (aggregation: Record<string, unknown>, parentType = 'text'): DomainModel => ({
+    version: 1,
+    target: 'screenDefinitions',
+    entities: [
+      {
+        name: 'Customer',
+        kind: 'entity',
+        collection: 'customers',
+        titleField: 'name',
+        fields: [scalar('name'), {
+          key: 'lastChannel', label: 'lastChannel', semanticType: 'derived', derivedFrom: 'children',
+          type: parentType as never,
+          aggregation: { from: 'Contact', via: 'customerId', op: 'latest', ...aggregation } as never,
+        }],
+      },
+      {
+        name: 'Contact',
+        kind: 'child',
+        collection: 'contacts',
+        titleField: 'channel',
+        fields: [
+          scalar('channel'),
+          scalar('date', 'date'),
+          { key: 'customerId', label: 'customerId', semanticType: 'reference', target: 'Customer' },
+        ],
+      },
+    ],
+    relationships: [{
+      sourceEntity: 'Contact',
+      targetEntity: 'Customer',
+      sourceField: 'customerId',
+      type: 'many-to-one',
+      storage: 'child',
+      ownership: 'composition',
+    }],
+  });
+
+  it('aceita o latest completo, e o leva à plataforma com o orderBy', () => {
+    const result = check(withLatest({ field: 'channel', orderBy: [{ path: 'date', dir: 'desc' }] }));
+    expect(errors(result.issues)).toEqual([]);
+  });
+
+  it('o orderBy atravessa a leitura do JSON — é por ali que o modelo chega do agente', () => {
+    const parsed = parseDomainModel(JSON.stringify(withLatest({ field: 'channel', orderBy: [{ path: 'date', dir: 'desc' }] })));
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    const lastChannel = parsed.model.entities[0].fields.find((one) => one.key === 'lastChannel');
+    expect(lastChannel?.aggregation?.orderBy).toEqual([{ path: 'date', dir: 'desc' }]);
+    expect(errors(check(parsed.model).issues)).toEqual([]);
+  });
+
+  it('reprova latest sem orderBy', () => {
+    expect(codes(check(withLatest({ field: 'channel' })).issues)).toContain('domain.aggregation.latest-incomplete');
+  });
+
+  it('reprova a ordenação por campo que o filho não tem', () => {
+    const result = check(withLatest({ field: 'channel', orderBy: [{ path: 'when', dir: 'desc' }] }));
+    expect(codes(result.issues)).toContain('domain.aggregation.order-invalid');
+  });
+
+  it('reprova copiar para um campo de outro tipo', () => {
+    const result = check(withLatest({ field: 'date', orderBy: [{ path: 'date', dir: 'desc' }] }));
+    const issue = result.issues.find((one) => one.code === 'domain.aggregation.type-mismatch');
+    expect(issue?.message).toContain('"Contact.date" (date)');
+  });
+
+  it('reprova o campo copiado que o filho não tem', () => {
+    const result = check(withLatest({ field: 'nothing', orderBy: [{ path: 'date', dir: 'desc' }] }));
+    expect(codes(result.issues)).toContain('domain.aggregation.unknown-child-field');
+  });
+});
+
 describe('o limite verificável: agregado sobre referência múltipla', () => {
   const aggregatingOver = (multi: boolean): DomainModel => ({
     version: 1,

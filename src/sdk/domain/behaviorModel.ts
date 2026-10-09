@@ -1,5 +1,5 @@
 import type { DomainAggregation, DomainIssue } from './domainModel';
-import { malformedIssue } from './domainModel';
+import { malformedIssue, readAggregationOrderBy } from './domainModel';
 
 /**
  * O MODELO DE COMPORTAMENTO — o irmão que faltava ao `domainModel.ts`.
@@ -376,6 +376,7 @@ const readEffect = (raw: unknown, name: string, issues: DomainIssue[]): Behavior
         op: op as DomainAggregation['op'],
         ...(str(raw.aggregation.field) === undefined ? {} : { field: str(raw.aggregation.field) as string }),
         ...(str(raw.aggregation.filter) === undefined ? {} : { filter: str(raw.aggregation.filter) as string }),
+        ...(Array.isArray(raw.aggregation.orderBy) ? { orderBy: readAggregationOrderBy(raw.aggregation.orderBy) } : {}),
       };
     }
   }

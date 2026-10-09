@@ -5,7 +5,7 @@
 
 import { isValidAccessPermissionId } from '../access/permission';
 import { extractFieldExpressionPaths, fieldExpressionSyntaxError } from '../fieldExpression';
-import { AGGREGATION_OP_LABELS } from '../fieldRules';
+import { NUMERIC_AGGREGATION_OPS } from '../fieldRules';
 import { parsePath, resolvePath } from '../pathResolver';
 import type { PathRoot, SchemaContext } from '../pathResolver';
 import { checkQueryPath, checkQueryPredicates, QUERY_OPERATORS, resolveQueryTable } from '../querySpec';
@@ -51,7 +51,7 @@ export const hasBlockingReportIssue = (issues: ReportSpecIssue[]): boolean =>
 
 const KEY_PATTERN = /^[A-Za-z_][A-Za-z0-9_-]*$/;
 
-const AGGREGATION_OPS = Object.keys(AGGREGATION_OP_LABELS);
+const AGGREGATION_OPS: readonly string[] = NUMERIC_AGGREGATION_OPS;
 
 const levelsOf = (spec: ReportSpec): ReportGroupLevel[] => {
   if (spec.shape.kind === 'summary') return spec.shape.groupBy;

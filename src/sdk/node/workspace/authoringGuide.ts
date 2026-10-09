@@ -11,7 +11,8 @@ import {
   REPORT_GRANULARITIES,
   REPORT_SHAPE_KINDS,
 } from '../../../domain/schema/report/reportSpec';
-import { AGGREGATION_OP_LABELS } from '../../../domain/schema/fieldRules';
+import { AGGREGATION_OP_SINCE_KERNEL } from '../../../domain/schema/aggregationSpec';
+import { AGGREGATION_OP_LABELS, NUMERIC_AGGREGATION_OPS } from '../../../domain/schema/fieldRules';
 import type { WidgetNodeType } from '../../../domain/schema/ui/widgetSpec';
 import { STEP_TYPES } from '../../../domain/entities/Workflow';
 import type { WorkflowStepMetadata } from '../../../domain/schema/workflowStepCatalog';
@@ -118,6 +119,8 @@ const inlineList = (values: readonly string[]): string =>
   values.map((value) => `\`${value}\``).join(', ');
 
 const AGGREGATION_OP_NAMES = Object.keys(AGGREGATION_OP_LABELS);
+
+const MEASURE_OP_NAMES: readonly string[] = NUMERIC_AGGREGATION_OPS;
 
 const kib = (bytes: number): string => `${Math.round(bytes / 1024)} KiB`;
 
@@ -1003,7 +1006,10 @@ Read the refusals as answers, not as gaps to route around:
   \`hasPermission\` answers \`false\`, always, because granting on the absence of a person would turn "nobody
   triggered this" into "can do anything". A permission on an event trigger is a flow that never runs.
 - **A total is not a step.** Declare the field as derived from children with the aggregate and the kernel
-  recomputes it on every write to a child, whoever caused it — including edits made outside your flow.
+  recomputes it on every write to a child, whoever caused it — including edits made outside your flow. The same
+  goes for "the value of the most recent child" (the outcome of the last decision, the date of the last contact):
+  that is \`op: 'latest'\` with an \`orderBy\`, not a pair of flows on \`.saved\` and \`.deleted\` querying with
+  \`limit: 1\` — those miss a write made outside the flow and leave the field editable by hand.
 - **An invariant that must REFUSE the passage cannot live in the automation.** The event of a save is published by
   an \`onDocumentWritten\` trigger: by the time it exists the document is committed, and the \`exit\` step halts the
   flow, not the write. So \`scope: 'transition'\` also declares \`enforcement\`. \`blocks\` belongs on the write path —
@@ -1132,7 +1138,7 @@ Beyond \`key\`, \`label\`, \`type\`, \`order\` and \`required\`, the properties 
 | \`defaultValue\` | what a new record is born with. Seeds only — the person can still change it |
 | \`autoValue: { pattern }\` | a generated code: \`A\` letter, \`0\` digit, \`*\` either, anything else literal (\`AA-0000\`). Not repeated among the records already loaded, and still editable. For a code that must truly not repeat, declare a key |
 | \`logic\` | the expressions: \`compute\`, \`validate\`, \`hiddenWhen\`, \`disabledWhen\`, \`onChange\` (§9) |
-| \`aggregation: { from, via, op, field?, filter? }\` | the value is a sum/count/avg/min/max over CHILD records. Declared, not inferred, so the engine knows exactly when to recompute |
+| \`aggregation: { from, via, op, field?, filter?, orderBy? }\` | the value comes from CHILD records — \`op\` is one of ${inlineList(AGGREGATION_OP_NAMES)}. Declared, not inferred, so the engine knows exactly when to recompute. \`latest\` copies \`field\` of the first child that passes \`filter\` after sorting by \`orderBy\` (required with it, and only with it): an empty key sorts last in both directions, ties fall to \`createdAt\` in the direction of the last key and then to the document id, and no matching child makes the field empty (\`null\`). The parent field must have the child field's type, option list, target and cardinality — the value is copied as it is. "The first" is \`latest\` with \`dir: 'asc'\`. A package using \`latest\` declares \`kernel: '^${AGGREGATION_OP_SINCE_KERNEL.latest}'\` or later |
 | \`rules\` | \`validate\` and \`format\` presets — bounds, required-if, formatting |
 | \`showInList\`, \`listLabel\`, \`listIcon\`, \`listOrder\` | whether and how the field appears on the list card |
 | \`filterable\` | the field becomes a filter on the list |
@@ -1753,7 +1759,7 @@ mean, and treat a refusal as the platform telling you it cannot answer for them.
 
 ### The vocabulary
 
-- \`measures[].op\`: ${inlineList(AGGREGATION_OP_NAMES)} — the same words a field aggregate uses. \`path\` is required except for \`count\`; \`count\` with \`distinct: true\` and a \`path\`
+- \`measures[].op\`: ${inlineList(MEASURE_OP_NAMES)} — the same words a field aggregate uses, minus \`latest\`, which copies a value instead of computing a number. \`path\` is required except for \`count\`; \`count\` with \`distinct: true\` and a \`path\`
   counts distinct values. \`filter\` restricts one measure and only it — that is how one column counts
   everything and the next counts only what is overdue, in the same table.
 - \`measures[].format\`: \`{ kind, decimals, preset }\`. \`kind\` is \`number\`, \`integer\`,

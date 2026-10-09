@@ -377,6 +377,7 @@ export type {
 export type {
   AggregationOp,
   FieldAggregation,
+  NumericAggregationOp,
   FieldFileConfig,
   FieldLogic,
   FieldLookupBinding,

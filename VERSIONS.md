@@ -11,6 +11,12 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.77.0] — 2026-10-09
+
+- Um campo pode agora mostrar o valor do registro filho mais recente — por exemplo, o resultado da última decisão de um processo ou a data do último contato com um cliente. O valor se atualiza sozinho quando um filho é criado, alterado ou excluído, e volta a ficar vazio quando nenhum filho se encaixa mais.
+- No Form Design, a nova operação "Valor do mais recente" permite escolher o campo a copiar e por quais campos decidir qual registro é o mais recente.
+- As operações de total no Form Design passam a aparecer traduzidas.
+
 #### [9.76.0] — 2026-10-09
 
 - Uma configuração pode oferecer como opções uma lista do próprio escritório (por exemplo, os status de um cadastro) ou os registros de uma tela (por exemplo, as pessoas). As opções acompanham o que o escritório cria e renomeia, com as mesmas cores da lista.

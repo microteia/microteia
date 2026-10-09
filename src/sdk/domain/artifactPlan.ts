@@ -1,4 +1,5 @@
 import type { FieldDefinition } from '../../domain/entities/entitySchemas';
+import type { QueryOrderBy } from '../../domain/schema/querySpec';
 import type { RecordKeyKind, RecordKeySpec } from '../../domain/schema/recordKeys';
 import type { BusinessRule } from './businessRule';
 import { checkBusinessRule } from './businessRule';
@@ -59,7 +60,7 @@ export interface PlannedField {
   multi: boolean;
   refEntity?: string;
   lookupCollection?: string;
-  aggregation?: { from: string; via: string; op: string; field?: string };
+  aggregation?: { from: string; via: string; op: string; field?: string; orderBy?: QueryOrderBy[] };
   computeExpression?: string;
   section?: string;
   /** Por que a operação é o que é, quando não é óbvio. */
@@ -218,7 +219,8 @@ const make = (code: DomainIssueCode, severity: DomainIssue['severity'], draft: O
 
 const sameAggregation = (a: PlannedField['aggregation'], b: PlannedField['aggregation']): boolean => {
   if (a === undefined || b === undefined) return a === b;
-  return a.from === b.from && a.via === b.via && a.op === b.op && (a.field ?? null) === (b.field ?? null);
+  return a.from === b.from && a.via === b.via && a.op === b.op && (a.field ?? null) === (b.field ?? null)
+    && JSON.stringify(a.orderBy ?? []) === JSON.stringify(b.orderBy ?? []);
 };
 
 const toPlannedField = (definition: FieldDefinition): Omit<PlannedField, 'operation' | 'reason'> => ({
@@ -236,6 +238,7 @@ const toPlannedField = (definition: FieldDefinition): Omit<PlannedField, 'operat
         via: definition.aggregation.via,
         op: definition.aggregation.op as string,
         ...(definition.aggregation.field ? { field: definition.aggregation.field } : {}),
+        ...(definition.aggregation.orderBy?.length ? { orderBy: definition.aggregation.orderBy } : {}),
       },
     }
     : {}),

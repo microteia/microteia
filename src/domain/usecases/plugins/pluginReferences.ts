@@ -16,6 +16,7 @@ import { dependencyCollections } from '../../schema/plugin/pluginManifest';
 import { validateMigrations } from '../../schema/plugin/migration';
 import { validateReportSpecShape } from '../../schema/report/validateReportSpec';
 import { deriveReportRequires } from '../../schema/report/reportCapabilities';
+import { packageAggregationIssues } from './pluginAggregations';
 import { packageIconIssues } from './pluginIcons';
 import { packageSurfaceIssues } from './pluginSurfaces';
 import { packageSettingsIssues, settingsOutRefs } from './pluginSettings';
@@ -437,6 +438,7 @@ export const packageIssues = (pkg: MarketplacePlugin): LocalizedIssue[] => [
   ...packageSurfaceIssues(pkg),
   ...packageSettingsIssues(pkg),
   ...packageReportIssues(pkg),
+  ...packageAggregationIssues(pkg),
 ];
 
 /** O aviso de que o pacote está grande, mas ainda instala. Para a tela de autoria, não para o import. */

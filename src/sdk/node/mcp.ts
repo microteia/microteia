@@ -27,7 +27,7 @@ import {
   REPORT_GRANULARITIES,
   REPORT_SHAPE_KINDS,
 } from '../../domain/schema/report/reportSpec';
-import { AGGREGATION_OP_LABELS } from '../../domain/schema/fieldRules';
+import { NUMERIC_AGGREGATION_OPS } from '../../domain/schema/fieldRules';
 import {
   ENTITY_EVENT_ACTIONS,
   NESTED_EVENT_SUFFIXES,
@@ -1093,7 +1093,7 @@ const PURE_READS: ToolDefinition[] = [
       folds: REPORT_SHAPE_KINDS.map((kind) => ({ kind, ...(REPORT_FOLD_NOTES[kind] ?? {}) })),
       chartKinds: [...REPORT_CHART_KINDS],
       granularities: [...REPORT_GRANULARITIES],
-      measureOps: Object.keys(AGGREGATION_OP_LABELS),
+      measureOps: [...NUMERIC_AGGREGATION_OPS],
       capabilities: [...REPORT_CAPABILITIES],
       note:
         'A chart plots GROUPS: it reads one level of `groupBy` / `rows` and draws a point per member '

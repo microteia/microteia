@@ -38,7 +38,7 @@ import type {
 } from '../../../domain/schema/report/reportSpec';
 import { hasBlockingReportIssue, validateReportSpec } from '../../../domain/schema/report/validateReportSpec';
 import type { ReportResult } from '../../../domain/schema/report/reportResult';
-import type { AggregationOp } from '../../../domain/schema/fieldRules';
+import { NUMERIC_AGGREGATION_OPS, type NumericAggregationOp } from '../../../domain/schema/fieldRules';
 import type { WorkflowVariable } from '../../components/ui/ExpressionEditor/autocompleteHelpers';
 import type { CustomFieldValue, FieldDefinition } from '../../../domain/entities/entitySchemas';
 import type { ReportDefinition } from '../../../domain/entities/Report';
@@ -143,8 +143,8 @@ export interface ReportDesignViewModel {
   dropDimension: (targetKey: string) => void;
 
   measures: ReportMeasure[];
-  measureOp: AggregationOp;
-  setMeasureOp: (op: AggregationOp) => void;
+  measureOp: NumericAggregationOp;
+  setMeasureOp: (op: NumericAggregationOp) => void;
   measurePath: string;
   setMeasurePath: (path: string) => void;
   addMeasure: () => void;
@@ -266,12 +266,10 @@ export interface ReportDesignViewModel {
     deleteAction: string;
     deleteConfirm: string;
     shapeOptions: { value: ReportShapeKindChoice; label: string }[];
-    opOptions: { value: AggregationOp; label: string }[];
+    opOptions: { value: NumericAggregationOp; label: string }[];
     granularityOptions: { value: string; label: string }[];
   };
 }
-
-const OPS: AggregationOp[] = ['sum', 'count', 'avg', 'min', 'max'];
 
 /** `exists` não pede valor — pedir um faria a tela cobrar o que o operador ignora. */
 const OPS_WITHOUT_VALUE: QueryOperator[] = ['exists'];
@@ -476,7 +474,7 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
   const [touched, setTouched] = useState<ReportDraft | null>(null);
   const draft = touched ?? seeded;
 
-  const [measureOp, setMeasureOp] = useState<AggregationOp>('count');
+  const [measureOp, setMeasureOp] = useState<NumericAggregationOp>('count');
   const [measurePath, setMeasurePath] = useState('');
   const [filterPath, setFilterPath] = useState('');
   const [filterOp, setFilterOp] = useState<QueryOperator>('eq');
@@ -993,7 +991,7 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
         { value: 'summary', label: t('shape.summary') },
         { value: 'matrix', label: t('shape.matrix') },
       ],
-      opOptions: OPS.map((op) => ({ value: op, label: t(`op.${op}`) })),
+      opOptions: NUMERIC_AGGREGATION_OPS.map((op) => ({ value: op, label: t(`op.${op}`) })),
       granularityOptions: REPORT_GRANULARITIES.map((one) => ({
         value: one,
         label: t(`granularity.${one}`),

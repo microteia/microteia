@@ -11,7 +11,9 @@ import { formatAndValidateRecord } from '../schema/recordRules';
 const AGGREGATE_ACTOR = 'aggregate-engine';
 
 // Acima disto o agregado sairia incorreto por truncamento: melhor gravar o que dá e registrar o
-// aviso do que silenciar a divergência.
+// aviso do que silenciar a divergência. Vale igual para o `latest`: a consulta é só por igualdade no
+// vínculo (servida pelos índices de campo único, sem índice composto por agregação) e a ordenação é
+// em memória — então, acima do teto, o mais recente pode ter ficado fora da leitura.
 const MAX_CHILDREN = 500;
 
 export interface AggregateRecomputeDeps {
@@ -24,10 +26,17 @@ export interface AggregateRecomputeDeps {
 const asRecordId = (value: unknown): string | null =>
   typeof value === 'string' && value.trim() !== '' ? value.trim() : null;
 
+/**
+ * Igualdade ESTRUTURAL: `latest` copia o valor do filho como está, e ele pode ser uma lista (uma
+ * referência de vários, uma seleção múltipla) — que chega como array NOVO a cada leitura. Com `===`,
+ * o mesmo valor pareceria diferente, o pai seria regravado a cada mudança de filho e o `.saved` dele
+ * seria republicado sem nada ter mudado.
+ */
 const sameValue = (a: unknown, b: unknown): boolean => {
   if (a === b) return true;
   if ((a === null || a === undefined) && (b === null || b === undefined)) return true;
-  return false;
+  if (typeof a !== 'object' || typeof b !== 'object' || a === null || b === null) return false;
+  return JSON.stringify(a) === JSON.stringify(b);
 };
 
 /** A coleção É a entidade: não há mais coleção física compartilhada por várias telas. */
@@ -35,8 +44,9 @@ export const resolveChildTable = (collection: string): string => collection;
 
 /**
  * Só recalcula quando a mudança no filho pode ter mexido no agregado: o pai vinculado mudou, o campo
- * medido mudou, ou existe filtro (que pode depender de qualquer campo). Sem isso, toda edição de um
- * filho custaria uma query por agregado.
+ * medido mudou, uma chave do `orderBy` mudou (é ela que decide QUAL filho o `latest` copia), ou existe
+ * filtro (que pode depender de qualquer campo). Sem isso, toda edição de um filho custaria uma query
+ * por agregado.
  */
 const changeAffectsAggregate = (
   ctx: SchemaContext,
@@ -48,17 +58,16 @@ const changeAffectsAggregate = (
   if (!before || !after) return true;
   if (target.aggregation.filter?.trim()) return true;
 
-  const { via, field, op } = target.aggregation;
-  if (!sameValue(readChildField(ctx, childTable, before, via), readChildField(ctx, childTable, after, via))) {
-    return true;
-  }
+  const { via, field, op, orderBy } = target.aggregation;
+  const changed = (key: string): boolean =>
+    !sameValue(readChildField(ctx, childTable, before, key), readChildField(ctx, childTable, after, key));
+
+  if (changed(via)) return true;
   if (op === 'count') return false;
+  if (op === 'latest' && (orderBy ?? []).some((order) => changed(order.path))) return true;
   if (!field) return false;
 
-  return !sameValue(
-    readChildField(ctx, childTable, before, field),
-    readChildField(ctx, childTable, after, field),
-  );
+  return changed(field);
 };
 
 const buildChildFilters = (
@@ -105,7 +114,7 @@ const recomputeOneParent = async (
     );
   }
 
-  const value = aggregateChildren(ctx, target.aggregation, childTable, rows.map((row) => row.data));
+  const value = aggregateChildren(ctx, target.aggregation, childTable, rows);
 
   const patch: Record<string, unknown> = {};
   setValueAtPath(patch, target.parentPath, value);

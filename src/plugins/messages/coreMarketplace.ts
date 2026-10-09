@@ -349,6 +349,8 @@ export const CORE_MARKETPLACE_MESSAGES: Record<string, string> = {
     'screen "{screen}" would emit "{prefix}.saved", a name reserved by the automation engine — declare another `eventPrefix`.',
   'issue.report.invalid': 'The report "{name}" cannot be run as it is — {field}: {detail}',
   'issue.report.requires': 'The report "{name}" declares a `requires` that omits what it uses: {capability}. The list is derived from the spec — leave it out.',
+  'issue.aggregation.invalid': 'The field "{field}" of screen "{screen}" cannot aggregate as declared — {detail}',
+  'issue.aggregation.kernel': 'The field "{field}" of screen "{screen}" uses the "{op}" aggregation, which only exists from kernel {minimum} on — declare `kernel: "^{minimum}"` (or later) in the manifest, so that an older kernel refuses the package instead of leaving the field empty.',
   'issue.ref.event-undeclared':
     '{origin} "{name}" listens to the event prefix "{prefix}", which a screen of extension "{plugin}" emits — declare it in `dependencies`.',
   'issue.ref.event-unresolved':

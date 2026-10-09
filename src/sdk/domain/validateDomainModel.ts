@@ -1,4 +1,5 @@
-import { aggregationCreatesCycle } from '../../domain/schema/aggregationSpec';
+import { aggregationCreatesCycle, fieldAggregationIssues } from '../../domain/schema/aggregationSpec';
+import type { AggregationFieldShape, AggregationIssue, AggregationIssueCode } from '../../domain/schema/aggregationSpec';
 import type { MappedTransition } from './behaviorMapping';
 import { validateBehaviorModel } from './validateBehaviorModel';
 import { screenIdIssue } from '../../domain/schema/screenEntity';
@@ -11,7 +12,7 @@ import type { DomainIssueCode } from './detectors';
 import type { MappedRelationship } from './storageMapping';
 import { canonicalRelationship, mapRelationship } from './storageMapping';
 import type { ExpandedModel } from './toPlatform';
-import { collectionOfEntity, collectionResolver, embeddedStrategyNote, expandEmbedded, modelScreenInputs } from './toPlatform';
+import { collectionOfEntity, collectionResolver, embeddedStrategyNote, expandEmbedded, fieldToDefinition, modelScreenInputs } from './toPlatform';
 
 /**
  * O MOTOR DETERMINÍSTICO. A IA propõe, isto responde.
@@ -665,6 +666,71 @@ const relationshipIssues = (
   return issues;
 };
 
+const AGGREGATION_SHAPE_CODES: Record<AggregationIssueCode, DomainIssueCode> = {
+  'latest-field': 'domain.aggregation.latest-incomplete',
+  'latest-order': 'domain.aggregation.latest-incomplete',
+  'order-not-latest': 'domain.aggregation.order-invalid',
+  'order-dir': 'domain.aggregation.order-invalid',
+  'unknown-order': 'domain.aggregation.order-invalid',
+  'unknown-field': 'domain.aggregation.unknown-child-field',
+  'type-mismatch': 'domain.aggregation.type-mismatch',
+};
+
+/**
+ * A frase do agente para cada recusa da forma. A recusa vem do MESMO validador que o Form Design e o
+ * portão do pacote chamam (`fieldAggregationIssues`); só a língua é daqui, porque o modelo de domínio
+ * fala com o agente em inglês e não passa pelo catálogo.
+ */
+const aggregationShapeText = (
+  found: AggregationIssue,
+  entity: string,
+  field: string,
+  from: string,
+): { message: string; suggestion: string } => {
+  const params = found.messageParams ?? {};
+  switch (found.code) {
+    case 'latest-field':
+      return {
+        message: `"${entity}.${field}" uses op "latest" without "field": nothing says which child value to copy.`,
+        suggestion: `Name the field of "${from}" whose value this field takes.`,
+      };
+    case 'latest-order':
+      return {
+        message: `"${entity}.${field}" uses op "latest" without "orderBy": nothing says which child is the most recent.`,
+        suggestion: 'Give it orderBy: [{ path, dir }] — the first key decides, the next ones break ties. "The first" is the same op with dir "asc".',
+      };
+    case 'order-not-latest':
+      return {
+        message: `"${entity}.${field}" declares orderBy on op "${params.op}", which ignores it.`,
+        suggestion: 'Drop orderBy, or use op "latest" if the field takes the value of one child.',
+      };
+    case 'order-dir':
+      return {
+        message: `"${entity}.${field}" orders by "${params.path}" in direction "${params.dir}".`,
+        suggestion: 'Use dir "asc" or "desc".',
+      };
+    case 'unknown-order':
+      return {
+        message: `"${entity}.${field}" orders by "${params.path}", which "${from}" does not have.`,
+        suggestion: `Order by a field of "${from}", or by createdAt / updatedAt.`,
+      };
+    case 'unknown-field':
+      return {
+        message: `"${entity}.${field}" aggregates "${params.childField}", which "${from}" does not have.`,
+        suggestion: `Point "field" at a field of "${from}".`,
+      };
+    case 'type-mismatch':
+      return {
+        message: `"${entity}.${field}" (${params.parentType}) copies "${from}.${params.childField}" (${params.childType}) with op "latest", `
+          + 'but the value is copied as it is — an option key, a date, an id.',
+        suggestion: 'Give the parent field the same type, list, target and cardinality as the child field.',
+      };
+  }
+};
+
+const shapeOf = (field: DomainField, resolve: (name: string) => string | undefined): AggregationFieldShape =>
+  fieldToDefinition(field, 0, 'design', resolve);
+
 const aggregationIssues = (
   model: DomainModel,
   catalog: DomainCatalog,
@@ -739,6 +805,18 @@ const aggregationIssues = (
           suggestion: `Give "${aggregation.from}" a single reference to "${entity.name}" and aggregate through that. If the link really is many-to-many, `
             + 'the thing being totalled belongs to a junction entity — model the pair as kind "child" and aggregate over it.',
           howToDeclareException: 'None. This is a limit of the aggregation engine, not a preference.',
+        }));
+      }
+
+      const childFields: AggregationFieldShape[] = childModel
+        ? childModel.fields.map((one) => shapeOf(one, resolve))
+        : childCatalog?.fields ?? [];
+      for (const found of fieldAggregationIssues(aggregation, shapeOf(field, resolve), childFields)) {
+        issues.push(make(AGGREGATION_SHAPE_CODES[found.code], 'error', {
+          entity: entity.name,
+          field: field.key,
+          ...aggregationShapeText(found, entity.name, field.key, aggregation.from),
+          howToDeclareException: 'None. The platform refuses the same declaration when the screen is saved and when the package is checked.',
         }));
       }
     }

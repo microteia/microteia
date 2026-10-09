@@ -1,5 +1,6 @@
 import type { FieldDefinition } from '../../domain/entities/entitySchemas';
 import type { EntityMetadata, NativeFieldSpec } from '../../domain/schema/entityRegistry';
+import type { QueryOrderBy } from '../../domain/schema/querySpec';
 import type { RecordKeySpec } from '../../domain/schema/recordKeys';
 import type { SchemaContext, SchemaLookup, SchemaScreen, SchemaTagList } from '../../domain/schema/screenEntity';
 import { createSchemaContext, nativeSpecToFieldDefinition, resolveEntity } from '../../domain/schema/screenEntity';
@@ -66,7 +67,7 @@ export interface CatalogField {
   refEntity?: string;
   lookupCollection?: string;
   /** O agregado, inteiro — a comparação do plano é campo a campo, e "mesma origem" não basta. */
-  aggregation?: { from: string; via: string; op: string; field?: string };
+  aggregation?: { from: string; via: string; op: string; field?: string; orderBy?: QueryOrderBy[] };
   computeExpression?: string;
   origin: FieldDefinition['origin'];
 }
@@ -199,6 +200,7 @@ const toCatalogField = (spec: NativeFieldSpec, key: string): CatalogField => {
           via: spec.aggregation.via,
           op: spec.aggregation.op as string,
           ...(spec.aggregation.field ? { field: spec.aggregation.field } : {}),
+          ...(spec.aggregation.orderBy?.length ? { orderBy: spec.aggregation.orderBy } : {}),
         },
       }
       : {}),

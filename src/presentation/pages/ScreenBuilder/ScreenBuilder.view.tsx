@@ -850,7 +850,7 @@ export const ScreenBuilderView: React.FC = () => {
                       <SearchSelect
                         options={vm.aggregationFromOptions}
                         value={vm.fieldForm.aggregationFrom}
-                        onChange={(value) => vm.updateFieldForm({ aggregationFrom: value, aggregationVia: '', aggregationField: '' })}
+                        onChange={(value) => vm.updateFieldForm({ aggregationFrom: value, aggregationVia: '', aggregationField: '', aggregationOrderBy: [] })}
                         placeholder={t('field.aggregation.none')}
                       />
                     </InputGroup>
@@ -876,7 +876,7 @@ export const ScreenBuilderView: React.FC = () => {
                         </InputGroup>
                         {vm.fieldForm.aggregationOp !== 'count' && (
                           <InputGroup>
-                            <Label>{t('field.aggregation.target')}</Label>
+                            <Label>{t(vm.fieldForm.aggregationOp === 'latest' ? 'field.aggregation.target.latest' : 'field.aggregation.target')}</Label>
                             <SearchSelect
                               options={vm.aggregationFieldOptions}
                               value={vm.fieldForm.aggregationField}
@@ -884,6 +884,39 @@ export const ScreenBuilderView: React.FC = () => {
                               placeholder={t('field.pick')}
                             />
                           </InputGroup>
+                        )}
+                        {vm.fieldForm.aggregationOp === 'latest' && (
+                          <S.FullRow>
+                            <InputGroup>
+                              <Label>{t('field.aggregation.order')}</Label>
+                              <S.FieldHint>{t('field.aggregation.order.hint')}</S.FieldHint>
+                              {vm.fieldForm.aggregationOrderBy.map((order, index) => (
+                                <S.OptionInputRow key={`${index}-${order.path}`}>
+                                  <SearchSelect
+                                    options={vm.aggregationOrderOptions}
+                                    value={order.path}
+                                    onChange={(value) => vm.updateAggregationOrder(index, { path: value })}
+                                    placeholder={t('field.aggregation.order.field')}
+                                  />
+                                  <SearchSelect
+                                    options={vm.aggregationDirOptions}
+                                    value={order.dir}
+                                    onChange={(value) => vm.updateAggregationOrder(index, { dir: value })}
+                                  />
+                                  <S.DangerIconButton
+                                    type="button"
+                                    title={t('field.aggregation.order.remove')}
+                                    onClick={() => vm.removeAggregationOrder(index)}
+                                  >
+                                    <RiDeleteBinLine size={16} />
+                                  </S.DangerIconButton>
+                                </S.OptionInputRow>
+                              ))}
+                              <S.OptionInputRow>
+                                <Button variant="secondary" onClick={vm.addAggregationOrder}>{t('field.aggregation.order.add')}</Button>
+                              </S.OptionInputRow>
+                            </InputGroup>
+                          </S.FullRow>
                         )}
                         <S.FullRow>
                           <InputGroup>

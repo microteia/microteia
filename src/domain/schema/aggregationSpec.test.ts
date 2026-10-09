@@ -5,6 +5,7 @@ import {
   aggregationCreatesCycle,
   applyAggregationOp,
   collectAggregationsFor,
+  fieldAggregationIssues,
   readChildField,
 } from './aggregationSpec';
 import { createSchemaContext } from './pathResolver';
@@ -138,7 +139,7 @@ describe('aggregateChildren', () => {
     { total: 10, status: 'ativo' },
     { total: 20, status: 'cancelado' },
     { total: 5, status: 'ativo' },
-  ];
+  ].map((data, index) => ({ id: `i${index}`, data }));
 
   it('soma o campo declarado sobre os filhos', () => {
     const target = collectAggregationsFor(ctx, 'itens').find((t) => t.fieldKey === 'totalItens')!;
@@ -173,5 +174,189 @@ describe('readChildField', () => {
 
   it('lê na raiz numa entidade fixa', () => {
     expect(readChildField(ctx, 'persons', { name: 'Ana' }, 'name')).toBe('Ana');
+  });
+});
+
+describe('latest — valor do filho mais recente', () => {
+  const latestScreens: SchemaScreen[] = [
+    {
+      id: 'processos',
+      titleSingular: 'Processo',
+      titleFieldKey: 'numero',
+      fields: [
+        field({ key: 'numero', label: 'Número' }),
+        field({
+          key: 'resultado',
+          label: 'Resultado',
+          type: 'select',
+          lookupCollection: 'resultados',
+          aggregation: {
+            from: 'movimentos',
+            via: 'processo',
+            op: 'latest',
+            field: 'resultado',
+            orderBy: [{ path: 'data', dir: 'desc' }, { path: 'hora', dir: 'desc' }],
+            filter: 'tipo == "Decisão" and resultado != ""',
+          },
+        }),
+      ],
+    },
+    {
+      id: 'movimentos',
+      titleSingular: 'Movimento',
+      titleFieldKey: 'tipo',
+      fields: [
+        field({ key: 'processo', label: 'Processo', type: 'reference', refEntity: 'processos' }),
+        field({ key: 'tipo', label: 'Tipo' }),
+        field({ key: 'data', label: 'Data', type: 'date' }),
+        field({ key: 'hora', label: 'Hora', type: 'time' }),
+        field({ key: 'resultado', label: 'Resultado', type: 'select', lookupCollection: 'resultados' }),
+      ],
+    },
+  ];
+  const latestCtx = createSchemaContext(latestScreens);
+  const aggregation = latestScreens[0].fields[1].aggregation!;
+  const movimento = (id: string, data: Record<string, unknown>) =>
+    ({ id, data: { processo: 'p1', tipo: 'Decisão', ...data } });
+  const latest = (children: ReturnType<typeof movimento>[], override: Partial<typeof aggregation> = {}) =>
+    aggregateChildren(latestCtx, { ...aggregation, ...override }, 'movimentos', children);
+
+  it('copia o campo do filho mais recente, como está', () => {
+    const a = movimento('a', { data: '2026-01-10', resultado: 'procedente' });
+    const b = movimento('b', { data: '2026-01-11', resultado: 'improcedente' });
+    expect(latest([a, b])).toBe('improcedente');
+    expect(latest([b, a])).toBe('improcedente');
+  });
+
+  it('sem o mais recente, volta ao anterior; sem nenhum, fica vazio', () => {
+    const a = movimento('a', { data: '2026-01-10', resultado: 'procedente' });
+    expect(latest([a])).toBe('procedente');
+    expect(latest([])).toBeNull();
+  });
+
+  it('na mesma data, a segunda chave do orderBy decide', () => {
+    const manha = movimento('m', { data: '2026-01-10', hora: '09:00', resultado: 'parcial' });
+    const tarde = movimento('t', { data: '2026-01-10', hora: '15:30', resultado: 'procedente' });
+    expect(latest([manha, tarde])).toBe('procedente');
+    expect(latest([tarde, manha])).toBe('procedente');
+  });
+
+  it('empate total é resolvido sempre igual: createdAt, depois o id', () => {
+    const base = { data: '2026-01-10', hora: '09:00' };
+    const antigo = movimento('z', { ...base, resultado: 'antigo', createdAt: new Date('2026-01-10T09:00:00Z') });
+    const novo = movimento('y', { ...base, resultado: 'novo', createdAt: new Date('2026-01-10T10:00:00Z') });
+    expect(latest([antigo, novo])).toBe('novo');
+    expect(latest([novo, antigo])).toBe('novo');
+
+    const x = movimento('x', { ...base, resultado: 'x' });
+    const w = movimento('w', { ...base, resultado: 'w' });
+    expect(latest([x, w])).toBe('w');
+    expect(latest([w, x])).toBe('w');
+  });
+
+  it('o createdAt do Firestore (Timestamp) também desempata', () => {
+    const stamp = (ms: number) => ({ toDate: () => new Date(ms) });
+    const base = { data: '2026-01-10', hora: '09:00' };
+    const um = movimento('a', { ...base, resultado: 'um', createdAt: stamp(1000) });
+    const dois = movimento('b', { ...base, resultado: 'dois', createdAt: stamp(2000) });
+    expect(latest([dois, um])).toBe('dois');
+  });
+
+  it('valor vazio na chave vai para o fim nas duas direções', () => {
+    const semData = movimento('s', { data: '', resultado: 'sem-data' });
+    const comData = movimento('c', { data: '2026-01-10', resultado: 'com-data' });
+    expect(latest([semData, comData])).toBe('com-data');
+    expect(latest([semData, comData], { orderBy: [{ path: 'data', dir: 'asc' }] })).toBe('com-data');
+  });
+
+  it('"primeiro" é o latest com dir asc', () => {
+    const a = movimento('a', { data: '2026-01-10', resultado: 'primeiro' });
+    const b = movimento('b', { data: '2026-01-11', resultado: 'segundo' });
+    expect(latest([b, a], { orderBy: [{ path: 'data', dir: 'asc' }] })).toBe('primeiro');
+  });
+
+  it('o filho que não passa no filtro sai da conta', () => {
+    const decisao = movimento('a', { data: '2026-01-10', resultado: 'procedente' });
+    const despacho = movimento('b', { data: '2026-01-11', tipo: 'Despacho', resultado: 'outro' });
+    expect(latest([decisao, despacho])).toBe('procedente');
+    expect(latest([despacho])).toBeNull();
+  });
+
+  it('copia listas e ids sem converter', () => {
+    const one = movimento('a', { data: '2026-01-10', resultado: ['x', 'y'] });
+    expect(latest([one])).toEqual(['x', 'y']);
+  });
+
+  it('sem field ou sem orderBy, não escolhe ninguém', () => {
+    const a = movimento('a', { data: '2026-01-10', resultado: 'procedente' });
+    expect(latest([a], { field: null })).toBeNull();
+    expect(latest([a], { orderBy: [] })).toBeNull();
+  });
+});
+
+describe('fieldAggregationIssues', () => {
+  const parent = { key: 'resultado', type: 'select' as const, lookupCollection: 'resultados' };
+  const child = [
+    { key: 'resultado', type: 'select' as const, lookupCollection: 'resultados' },
+    { key: 'data', type: 'date' as const },
+    { key: 'valor', type: 'currency' as const },
+    { key: 'outraLista', type: 'select' as const, lookupCollection: 'outra' },
+  ];
+  const base = {
+    from: 'movimentos',
+    via: 'processo',
+    op: 'latest' as const,
+    field: 'resultado',
+    orderBy: [{ path: 'data', dir: 'desc' as const }],
+  };
+  const codes = (aggregation: Parameters<typeof fieldAggregationIssues>[0], childFields = child) =>
+    fieldAggregationIssues(aggregation, parent, childFields).map((one) => one.code);
+
+  it('aceita a declaração completa', () => {
+    expect(codes(base)).toEqual([]);
+  });
+
+  it('aceita ordenar por campo de sistema', () => {
+    expect(codes({ ...base, orderBy: [{ path: 'createdAt', dir: 'desc' }] })).toEqual([]);
+  });
+
+  it('recusa latest sem field e sem orderBy', () => {
+    expect(codes({ ...base, field: null })).toEqual(['latest-field']);
+    expect(codes({ ...base, orderBy: [] })).toEqual(['latest-order']);
+    expect(codes({ ...base, orderBy: null })).toEqual(['latest-order']);
+  });
+
+  it('recusa orderBy em outra operação', () => {
+    expect(codes({ ...base, op: 'sum', field: 'valor' })).toEqual(['order-not-latest']);
+  });
+
+  it('recusa direção inválida', () => {
+    expect(codes({ ...base, orderBy: [{ path: 'data', dir: 'down' as never }] })).toEqual(['order-dir']);
+  });
+
+  it('recusa orderBy e field que não são campos do filho', () => {
+    expect(codes({ ...base, orderBy: [{ path: 'inexistente', dir: 'desc' }] })).toEqual(['unknown-order']);
+    expect(codes({ ...base, field: 'inexistente' })).toEqual(['unknown-field']);
+  });
+
+  it('recusa tipo, lista ou cardinalidade incompatível', () => {
+    expect(codes({ ...base, field: 'valor' })).toEqual(['type-mismatch']);
+    expect(codes({ ...base, field: 'outraLista' })).toEqual(['type-mismatch']);
+    expect(fieldAggregationIssues(base, { ...parent, multi: true }, child).map((one) => one.code)).toEqual(['type-mismatch']);
+  });
+
+  it('cada recusa é uma referência de mensagem', () => {
+    const [found] = fieldAggregationIssues({ ...base, field: 'valor' }, parent, child);
+    expect(found.message).toBe('@core.records/aggregation.issue.type-mismatch');
+    expect(found.messageParams).toMatchObject({ childField: 'valor', parentType: 'select', childType: 'currency' });
+  });
+
+  it('sem os campos do filho, confere só o que não depende deles', () => {
+    expect(fieldAggregationIssues({ ...base, field: 'inexistente' }, parent, null)).toEqual([]);
+  });
+
+  it('as operações numéricas continuam sem exigência nova', () => {
+    expect(codes({ from: 'movimentos', via: 'processo', op: 'sum', field: 'valor' })).toEqual([]);
+    expect(codes({ from: 'movimentos', via: 'processo', op: 'count' })).toEqual([]);
   });
 });

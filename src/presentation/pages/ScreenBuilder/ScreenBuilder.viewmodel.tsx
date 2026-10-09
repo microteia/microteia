@@ -26,7 +26,9 @@ import type { ExternalLookupProviderOption } from '../../shared/useExternalLooku
 import { useExternalLookupOptions } from '../../shared/useExternalLookupProviders';
 import { extractFieldExpressionDependencies } from '../../../domain/schema/fieldExpression';
 import { FIELD_UI_RESERVED_VARIABLES } from '../../../domain/schema/fieldUiScope';
-import { aggregationCreatesCycle } from '../../../domain/schema/aggregationSpec';
+import { AGGREGATION_ORDER_SYSTEM_KEYS, aggregationCreatesCycle, aggregationTypesCompatible, fieldAggregationIssues } from '../../../domain/schema/aggregationSpec';
+import type { AggregationFieldShape } from '../../../domain/schema/aggregationSpec';
+import type { QueryOrderBy } from '../../../domain/schema/querySpec';
 import { useSchemaContext } from '../../shared/useSchemaContext';
 import { useLookups } from '../../../stores/useLookups';
 import { useTags } from '../../../stores/useTags';
@@ -174,6 +176,7 @@ export interface FieldFormState {
   aggregationOp: AggregationOp | '';
   aggregationField: string;
   aggregationFilter: string;
+  aggregationOrderBy: QueryOrderBy[];
   /** Extensões separadas por vírgula, como o usuário digita. Vazio = qualquer uma. */
   fileExtensions: string;
   /** Tamanho máximo em MB, como texto: vazio é "usa o limite", e `0` não é vazio. */
@@ -278,6 +281,11 @@ export interface ScreenBuilderViewModel {
   aggregationFieldOptions: SearchSelectOption[];
   aggregationOpOptions: SearchSelectOption[];
   aggregationFilterVariables: WorkflowVariable[];
+  aggregationOrderOptions: SearchSelectOption[];
+  aggregationDirOptions: SearchSelectOption[];
+  addAggregationOrder: () => void;
+  updateAggregationOrder: (index: number, patch: { path?: string; dir?: string }) => void;
+  removeAggregationOrder: (index: number) => void;
   lookupProviderOptions: SearchSelectOption[];
   selectedLookupProvider: ExternalLookupProviderOption | null;
   tagColors: ColorSwatchOption[];
@@ -387,6 +395,7 @@ const EMPTY_FIELD_FORM: FieldFormState = {
   aggregationOp: '',
   aggregationField: '',
   aggregationFilter: '',
+  aggregationOrderBy: [],
   fileExtensions: '',
   fileMaxSizeMb: '',
 };
@@ -477,24 +486,36 @@ const buildFieldAggregation = (form: FieldFormState): FieldAggregation | null =>
 
   const field = form.aggregationField.trim();
   const filter = form.aggregationFilter.trim();
+  const orderBy = form.aggregationOrderBy.filter((order) => order.path.trim() !== '');
   return {
     from,
     via,
     op: form.aggregationOp,
     ...(form.aggregationOp !== 'count' && field ? { field } : {}),
     ...(filter ? { filter } : {}),
+    ...(form.aggregationOp === 'latest' ? { orderBy } : {}),
   };
 };
 
 const fieldAggregationToForm = (aggregation: FieldAggregation | null | undefined): Pick<
   FieldFormState,
-  'aggregationFrom' | 'aggregationVia' | 'aggregationOp' | 'aggregationField' | 'aggregationFilter'
+  'aggregationFrom' | 'aggregationVia' | 'aggregationOp' | 'aggregationField' | 'aggregationFilter' | 'aggregationOrderBy'
 > => ({
   aggregationFrom: aggregation?.from ?? '',
   aggregationVia: aggregation?.via ?? '',
   aggregationOp: aggregation?.op ?? '',
   aggregationField: aggregation?.field ?? '',
   aggregationFilter: aggregation?.filter ?? '',
+  aggregationOrderBy: (aggregation?.orderBy ?? []).map((order) => ({ ...order })),
+});
+
+/** O campo que está sendo editado, na forma que a validação do agregado compara com o do filho. */
+const formAggregationShape = (form: FieldFormState): AggregationFieldShape => ({
+  key: form.fieldKey,
+  type: form.type,
+  multi: form.multi,
+  lookupCollection: form.lookupCollection.trim() || null,
+  refEntity: form.refEntity.trim() || null,
 });
 
 const buildFieldFileConfig = (form: FieldFormState): FieldFileConfig | null => {
@@ -1540,12 +1561,66 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       .map((f) => ({ value: f.key, label: f.label }));
   }, [aggregationChildScreens, fieldForm.aggregationFrom, fieldModal]);
 
+  // `latest` copia o valor: o filho oferecido é o que grava a mesma forma que este campo. As demais
+  // operações calculam, e só um número entra nelas.
   const aggregationFieldOptions = useMemo<SearchSelectOption[]>(() => {
     const child = aggregationChildScreens.find((def) => def.id === fieldForm.aggregationFrom);
+    const parent = formAggregationShape(fieldForm);
     return (child?.fields ?? [])
-      .filter((f) => f.type === 'number' || f.type === 'currency')
+      .filter((f) => fieldForm.aggregationOp === 'latest'
+        ? !f.logic?.derive && aggregationTypesCompatible(parent, f)
+        : f.type === 'number' || f.type === 'currency')
       .map((f) => ({ value: f.key, label: f.label }));
-  }, [aggregationChildScreens, fieldForm.aggregationFrom]);
+  }, [aggregationChildScreens, fieldForm]);
+
+  const aggregationOrderOptions = useMemo<SearchSelectOption[]>(() => {
+    const child = aggregationChildScreens.find((def) => def.id === fieldForm.aggregationFrom);
+    const systemLabels: Record<string, string> = {
+      createdAt: t('field.aggregation.order.created-at'),
+      updatedAt: t('field.aggregation.order.updated-at'),
+    };
+    return [
+      ...(child?.fields ?? [])
+        .filter((f) => !f.logic?.derive)
+        .map((f) => ({ value: f.key, label: f.label })),
+      ...AGGREGATION_ORDER_SYSTEM_KEYS.map((key) => ({ value: key, label: systemLabels[key] ?? key })),
+    ];
+  }, [aggregationChildScreens, fieldForm.aggregationFrom, t]);
+
+  const aggregationDirOptions = useMemo<SearchSelectOption[]>(
+    () => [
+      { value: 'desc', label: t('field.aggregation.order.desc') },
+      { value: 'asc', label: t('field.aggregation.order.asc') },
+    ],
+    [t],
+  );
+
+  const addAggregationOrder = useCallback(() => {
+    setFieldForm((prev) => ({
+      ...prev,
+      aggregationOrderBy: [...prev.aggregationOrderBy, { path: '', dir: 'desc' }],
+    }));
+  }, []);
+
+  const updateAggregationOrder = useCallback((index: number, patch: { path?: string; dir?: string }) => {
+    setFieldForm((prev) => ({
+      ...prev,
+      aggregationOrderBy: prev.aggregationOrderBy.map((order, position) =>
+        position === index
+          ? {
+              path: patch.path ?? order.path,
+              dir: patch.dir === undefined ? order.dir : patch.dir === 'asc' ? 'asc' : 'desc',
+            }
+          : order),
+    }));
+  }, []);
+
+  const removeAggregationOrder = useCallback((index: number) => {
+    setFieldForm((prev) => ({
+      ...prev,
+      aggregationOrderBy: prev.aggregationOrderBy.filter((_, position) => position !== index),
+    }));
+  }, []);
 
   const lookupProviderOptions = useMemo<SearchSelectOption[]>(
     () => [
@@ -1565,8 +1640,8 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
   );
 
   const aggregationOpOptions = useMemo<SearchSelectOption[]>(
-    () => Object.entries(AGGREGATION_OP_LABELS).map(([value, label]) => ({ value, label })),
-    [],
+    () => Object.entries(AGGREGATION_OP_LABELS).map(([value, text]) => ({ value, label: label(text) })),
+    [label],
   );
 
   // O filtro é avaliado sobre o FILHO: as sugestões são os campos da tela filha, não desta.
@@ -1757,8 +1832,15 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
         return;
       }
       const childFields = getDefinitionByKey(aggregation.from)?.fields ?? [];
-      if (aggregation.field && derivedKeyIn(childFields, [aggregation.field])) {
-        reject('advanced', t('field.error.aggregation-needs-stored', { field: aggregation.field }));
+      const orderKeys = (aggregation.orderBy ?? []).map((order) => order.path);
+      const derivedKey = derivedKeyIn(childFields, [aggregation.field ?? '', ...orderKeys].filter(Boolean));
+      if (derivedKey) {
+        reject('advanced', t('field.error.aggregation-needs-stored', { field: derivedKey }));
+        return;
+      }
+      const [shapeIssue] = fieldAggregationIssues(aggregation, formAggregationShape(fieldForm), childFields);
+      if (shapeIssue) {
+        reject('advanced', label(shapeIssue.message, shapeIssue.messageParams));
         return;
       }
     }
@@ -2073,6 +2155,11 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     suggestedLookupCollection,
     aggregationFromOptions,
     aggregationViaOptions,
+    aggregationOrderOptions,
+    aggregationDirOptions,
+    addAggregationOrder,
+    updateAggregationOrder,
+    removeAggregationOrder,
     aggregationFieldOptions,
     aggregationOpOptions,
     aggregationFilterVariables,

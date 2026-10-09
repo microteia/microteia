@@ -3462,7 +3462,7 @@ As duas são as **mesmas** do escopo das Actions, com a mesma semântica — a p
 
 ### Campos agregados (valor vindo dos registros filhos)
 
-`FieldDefinition.aggregation?: FieldAggregation` (`domain/schema/fieldRules.ts`) declara que o valor do campo vem de um agregado sobre os **filhos**: `{ from, via, op, field?, filter? }` — tela dos filhos, campo de referência no filho que aponta para este registro, operação (`sum|count|avg|min|max`), campo medido e filtro opcional.
+`FieldDefinition.aggregation?: FieldAggregation` (`domain/schema/fieldRules.ts`) declara que o valor do campo vem de um agregado sobre os **filhos**: `{ from, via, op, field?, filter?, orderBy? }` — tela dos filhos, campo de referência no filho que aponta para este registro, operação (`sum|count|avg|min|max|latest`), campo medido (ou copiado), filtro opcional e, só em `latest`, a ordenação.
 
 **Por que declarativo e não uma função de expressão** (`sum(children(...))`): a dependência precisa ser conhecida pelo motor para saber *quando* recalcular. Inferir isso do texto de uma expressão é análise estática frágil — falharia em silêncio, deixando o total desatualizado. Declarado, também permite detectar ciclos entre telas na autoria.
 
@@ -3473,7 +3473,39 @@ As duas são as **mesmas** do escopo das Actions, com a mesma semântica — a p
 - **Escopo de recálculo:** só recalcula quando a mudança pode ter mexido no agregado — o pai vinculado mudou, o campo medido mudou, ou existe filtro. Um filho que troca de pai recalcula **os dois** (o antigo, lido de `before`, e o novo).
 - **Composição com `compute`:** o patch do agregado passa por `formatAndValidateRecord` com `baseline`, então um campo `compute` que dependa do agregado é recalculado no mesmo write.
 - **Limitação conhecida:** o vínculo é por igualdade simples — campo de referência `multi` (que grava um array) não é suportado, pois `queryByEquality` não faz `array-contains`.
+- **Idempotência estrutural:** a comparação da guarda é por valor, não por referência — uma lista copiada por `latest` chega como array novo a cada leitura, e com `===` o pai seria regravado (e o `.saved` dele republicado) a cada mudança de filho.
 - **Escrita:** carimba `updatedBy: 'aggregate-engine'`. O campo agregado é somente-leitura no formulário (`isFieldDisabled`).
+
+#### `latest` — o valor do filho mais recente
+
+A primeira operação que não calcula: ela **escolhe** um filho e copia o `field` dele como está — chave de opção continua chave, data continua `YYYY-MM-DD`, id continua id. "O processo mostra o resultado da última decisão", "o pedido está na situação do último evento", "a data e o canal do último contato": antes, cada um era um par de automações em `<filho>.saved` e `<filho>.deleted` com consulta `limit: 1` e `upsert` no pai, que não via gravação feita fora do fluxo e deixava o campo editável à mão.
+
+```ts
+aggregation: {
+  from: 'caseMovements', via: 'caseId', op: 'latest', field: 'outcome',
+  orderBy: [{ path: 'date', dir: 'desc' }, { path: 'time', dir: 'desc' }],
+  filter: 'movementType == "Decision" and outcome != ""',
+}
+```
+
+| Ponto | Decisão |
+|---|---|
+| Valor | o `field` do PRIMEIRO filho que passa no `filter`, depois de ordenado por `orderBy`, copiado sem conversão |
+| `orderBy` | obrigatório com `latest` e recusado em qualquer outra op; várias chaves (a primeira decide, as seguintes desempatam); campo do filho ou `createdAt`/`updatedAt` |
+| Vazio | `null`, `undefined`, `''` e lista vazia vão para o **fim** nas duas direções — um filho sem data não é nem o mais antigo nem o mais recente |
+| Empate total | `createdAt` na direção da ÚLTIMA chave (o mais recente registrado vence um `desc`), depois o id do documento, crescente — que é único. O valor não muda de uma recomputação para outra porque o banco devolveu os irmãos em outra ordem |
+| Nenhum filho passa | o pai volta a `null` — inclusive depois de apagar o único que passava. Nunca fica com o último valor |
+| Quando recomputa | nas mesmas gravações e exclusões de filho das outras ops; `changeAffectsAggregate` conta também a mudança numa chave do `orderBy`, porque é ela que decide QUAL filho é copiado |
+| Formulário | somente leitura, como todo campo com `aggregation` |
+| "Primeiro" | não é op: é `latest` com `dir: 'asc'` |
+
+**Por que a ordenação é em memória, e não no Firestore.** A consulta continua sendo a mesma das outras ops — igualdade no `via`, servida pelos índices de campo único que toda coleção ganha. Um `where(via ==) + orderBy(data desc) + limit(1)` exigiria um índice composto POR agregação declarada, que a extensão teria de carregar em `manifest.backend.indexes` e o escritório de deployar; e uma coleção de tela nasce em tempo de execução, sem índice declarável. Em troca, vale o mesmo teto de 500 filhos com aviso no log: acima dele, o mais recente pode ter ficado fora da leitura.
+
+**O tipo do pai é o tipo do filho.** É a primeira op que não devolve número, então `fieldAggregationIssues` (`aggregationSpec.ts`) exige mesmo `type`, mesma `lookupCollection`, mesmo `refEntity` (em `reference`) e mesma cardinalidade (`multi`). A mesma função é chamada pelo Form Design (ao salvar o campo), pelo portão do pacote (`packageAggregationIssues`, em `packageIssues`) e pelo modelo de domínio do SDK (`domain.aggregation.latest-incomplete|order-invalid|unknown-child-field|type-mismatch`) — as três recusas dizem a mesma coisa. No pacote, os campos do filho só são conferidos quando a tela dele vem no próprio pacote.
+
+**Kernel antigo recusa, não ignora.** Um kernel anterior a `2.23.0` não conhece `latest`: `aggregateChildren` cairia no `default` e gravaria `null` em silêncio. `AGGREGATION_OP_SINCE_KERNEL` registra a partir de quando cada op existe, e o portão recusa o pacote cujo `manifest.kernel` ainda admita um kernel anterior (`rangeExcludesBelow`) — com isso, quem recusa no escritório desatualizado é a checagem de intervalo que todo kernel já faz.
+
+**Relatório não mede `latest`.** `AggregationOp` (do campo) = `NumericAggregationOp | 'latest'`; a medida de relatório usa `NumericAggregationOp` e `NUMERIC_AGGREGATION_OPS`, porque uma medida tem de ser número para ser somada, comparada e desenhada.
 
 ### Origem de tela e de campo (`origin`)
 

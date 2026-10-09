@@ -173,6 +173,7 @@ export const fieldToDefinition = (
       op: field.aggregation.op,
       ...(field.aggregation.field === undefined ? {} : { field: field.aggregation.field }),
       ...(field.aggregation.filter === undefined ? {} : { filter: field.aggregation.filter }),
+      ...(field.aggregation.orderBy === undefined ? {} : { orderBy: field.aggregation.orderBy.map((order) => ({ ...order })) }),
     };
   }
   return definition;

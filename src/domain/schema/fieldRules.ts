@@ -8,6 +8,7 @@ import type {
   FieldRulePreset,
   FieldRulePresetCatalog,
 } from './fieldRulePresets';
+import type { QueryOrderBy } from './querySpec';
 import {
   applyFormatOps,
   buildRegExp,
@@ -99,7 +100,20 @@ export interface FieldLogic {
 
 // ─── Agregação sobre registros filhos ─────────────────────────────────────────
 
-export type AggregationOp = 'sum' | 'count' | 'avg' | 'min' | 'max';
+/**
+ * As operações que devolvem NÚMERO. São as únicas que um relatório mede: `latest` copia um valor,
+ * e uma medida de relatório que não fosse número não teria como ser somada, comparada ou desenhada.
+ */
+export type NumericAggregationOp = 'sum' | 'count' | 'avg' | 'min' | 'max';
+
+/**
+ * `latest` é a primeira operação que não calcula: ela ESCOLHE um filho — o primeiro que passa no
+ * `filter`, depois de ordenado por `orderBy` — e copia o `field` dele como está. "Primeiro" é a
+ * mesma operação com `dir: 'asc'`.
+ */
+export type AggregationOp = NumericAggregationOp | 'latest';
+
+export const NUMERIC_AGGREGATION_OPS: readonly NumericAggregationOp[] = ['sum', 'count', 'avg', 'min', 'max'];
 
 /**
  * Declara que o valor do campo vem de um agregado sobre os registros FILHOS — o que o `compute`
@@ -113,18 +127,21 @@ export interface FieldAggregation {
   // Chave do campo de referência NO FILHO que aponta para este registro.
   via: string;
   op: AggregationOp;
-  // Campo do filho medido; ignorado por `count`.
+  // Campo do filho medido (ou copiado, em `latest`); ignorado por `count`.
   field?: string | null;
   // Expressão booleana avaliada sobre o filho — só entra no agregado quando verdadeira.
   filter?: string | null;
+  // Só `latest`, e obrigatório nela: qual filho é o "mais recente". Ordenado em memória.
+  orderBy?: QueryOrderBy[] | null;
 }
 
 export const AGGREGATION_OP_LABELS: Record<AggregationOp, string> = {
-  sum: 'Soma',
-  count: 'Contagem',
+  sum: '@core.records/aggregation.sum',
+  count: '@core.records/aggregation.count',
   avg: '@core.records/aggregation.avg',
-  min: 'Menor valor',
-  max: 'Maior valor',
+  min: '@core.records/aggregation.min',
+  max: '@core.records/aggregation.max',
+  latest: '@core.records/aggregation.latest',
 };
 
 // ─── Campo de arquivo ─────────────────────────────────────────────────────────

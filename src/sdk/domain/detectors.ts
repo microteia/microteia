@@ -52,6 +52,10 @@ export const DOMAIN_ISSUE_CODES = [
   'domain.aggregation.unknown-child',
   'domain.aggregation.via-not-a-reference',
   'domain.aggregation.cycle',
+  'domain.aggregation.latest-incomplete',
+  'domain.aggregation.order-invalid',
+  'domain.aggregation.unknown-child-field',
+  'domain.aggregation.type-mismatch',
 
   'behavior.model.malformed',
 
@@ -169,6 +173,10 @@ export const DETECTORS: Record<DomainIssueCode, Detector> = {
   'domain.aggregation.unknown-child': { severity: 'error', summary: 'An aggregation over children nobody declares.' },
   'domain.aggregation.via-not-a-reference': { severity: 'error', summary: 'The "via" key is not a reference field on the child.' },
   'domain.aggregation.cycle': { severity: 'error', summary: 'Two entities aggregating from each other: the value never settles.' },
+  'domain.aggregation.latest-incomplete': { severity: 'error', summary: 'op "latest" without the field it copies or without the orderBy that says which child is the most recent.' },
+  'domain.aggregation.order-invalid': { severity: 'error', summary: 'An orderBy on an op other than "latest", in a direction other than asc/desc, or over a key the child does not have.' },
+  'domain.aggregation.unknown-child-field': { severity: 'error', summary: 'The aggregated field is not a field of the child entity.' },
+  'domain.aggregation.type-mismatch': { severity: 'error', summary: 'op "latest" copies a child value into a parent field that does not store the same shape.' },
 
   'behavior.model.malformed': { severity: 'error', summary: 'The behavior block is not shaped like one.' },
 

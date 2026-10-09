@@ -1,13 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  compareSemVer,
-  isValidRange,
-  isValidSemVer,
-  maxSatisfying,
-  parseRange,
-  parseSemVer,
-  satisfiesRange,
-} from './semver';
+import { compareSemVer, isValidRange, isValidSemVer, maxSatisfying, parseRange, parseSemVer, rangeExcludesBelow, satisfiesRange } from './semver';
 
 const version = (raw: string) => {
   const parsed = parseSemVer(raw);
@@ -159,5 +151,25 @@ describe('maxSatisfying', () => {
 
   it('devolve null para lista vazia', () => {
     expect(maxSatisfying([], '*')).toBeNull();
+  });
+});
+
+describe('rangeExcludesBelow', () => {
+  it('a faixa que começa no piso, ou acima, exclui o que vem antes', () => {
+    expect(rangeExcludesBelow('^2.23.0', '2.23.0')).toBe(true);
+    expect(rangeExcludesBelow('^2.24.1', '2.23.0')).toBe(true);
+    expect(rangeExcludesBelow('>=2.23.0 <3.0.0', '2.23.0')).toBe(true);
+    expect(rangeExcludesBelow('~2.23.0', '2.23.0')).toBe(true);
+  });
+
+  it('a faixa que admite um kernel anterior ao piso não exclui', () => {
+    expect(rangeExcludesBelow('^2.0.0', '2.23.0')).toBe(false);
+    expect(rangeExcludesBelow('<3.0.0', '2.23.0')).toBe(false);
+    expect(rangeExcludesBelow('*', '2.23.0')).toBe(false);
+  });
+
+  it('faixa ou piso inválido respondem que não', () => {
+    expect(rangeExcludesBelow('nope', '2.23.0')).toBe(false);
+    expect(rangeExcludesBelow('^2.23.0', 'nope')).toBe(false);
   });
 });

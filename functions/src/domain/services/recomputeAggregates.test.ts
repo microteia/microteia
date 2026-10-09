@@ -219,3 +219,158 @@ describe('recomputeAggregatesForChildChange', () => {
     expect(h.updates).toHaveLength(0);
   });
 });
+
+describe('recomputeAggregatesForChildChange — latest', () => {
+  const latestScreens: SchemaScreen[] = [
+    {
+      id: 'processos',
+      titleSingular: 'Processo',
+      titleFieldKey: 'numero',
+      fields: [
+        field({ key: 'numero', label: 'Número' }),
+        field({
+          key: 'resultado',
+          label: 'Resultado',
+          type: 'select',
+          lookupCollection: 'resultados',
+          aggregation: {
+            from: 'movimentos',
+            via: 'processo',
+            op: 'latest',
+            field: 'resultado',
+            orderBy: [{ path: 'data', dir: 'desc' }],
+            filter: 'tipo == "Decisão"',
+          },
+        }),
+        field({
+          key: 'etiquetas',
+          label: 'Etiquetas',
+          type: 'select',
+          multi: true,
+          aggregation: {
+            from: 'movimentos',
+            via: 'processo',
+            op: 'latest',
+            field: 'etiquetas',
+            orderBy: [{ path: 'data', dir: 'desc' }],
+          },
+        }),
+      ],
+    },
+    {
+      id: 'movimentos',
+      titleSingular: 'Movimento',
+      titleFieldKey: 'tipo',
+      fields: [
+        field({ key: 'processo', label: 'Processo', type: 'reference', refEntity: 'processos' }),
+        field({ key: 'tipo', label: 'Tipo' }),
+        field({ key: 'data', label: 'Data', type: 'date' }),
+        field({ key: 'resultado', label: 'Resultado', type: 'select', lookupCollection: 'resultados' }),
+        field({ key: 'etiquetas', label: 'Etiquetas', type: 'select', multi: true }),
+        field({ key: 'nota', label: 'Nota' }),
+      ],
+    },
+  ];
+
+  /** Um banco em memória: a consulta filtra de verdade pelo vínculo, e a gravação muda o pai. */
+  const store = (
+    parents: Record<string, Record<string, unknown>>,
+    children: WorkflowQueryRow[],
+  ) => {
+    const updates: { id: string; data: Record<string, unknown> }[] = [];
+    const queried: string[] = [];
+    const deps: AggregateRecomputeDeps = {
+      screenProvider: fakeScreenProvider(latestScreens),
+      queryRepository: {
+        queryByEquality: async (_tenantId, _collection, filters) => {
+          queried.push(String(filters[0]?.value));
+          return children.filter((row) => filters.every((one) => row.data[one.path] === one.value));
+        },
+      },
+      mutationRepository: {
+        getById: async (_tenantId, _collection, id) => parents[id] ?? null,
+        newId: () => 'novo',
+        create: async () => 'novo',
+        update: async (_tenantId, _collection, id, data) => {
+          updates.push({ id, data });
+          parents[id] = { ...parents[id], ...data };
+        },
+        delete: async () => undefined,
+      },
+    };
+    return { deps, updates, queried, parents, children };
+  };
+
+  const mov = (id: string, data: Record<string, unknown>): WorkflowQueryRow =>
+    ({ id, data: { processo: 'p1', tipo: 'Decisão', ...data } });
+
+  const run = (
+    s: ReturnType<typeof store>,
+    before: Record<string, unknown> | null,
+    after: Record<string, unknown> | null,
+  ) => recomputeAggregatesForChildChange('t1', 'movimentos', before, after, s.deps);
+
+  it('o pai fica com o valor do filho mais recente; apagar o mais recente volta ao anterior; apagar o último esvazia', async () => {
+    const a = mov('a', { data: '2026-01-10', resultado: 'procedente' });
+    const b = mov('b', { data: '2026-01-11', resultado: 'improcedente' });
+    const s = store({ p1: { numero: '1' } }, [a, b]);
+
+    await run(s, null, b.data);
+    expect(s.parents.p1.resultado).toBe('improcedente');
+
+    s.children.splice(s.children.indexOf(b), 1);
+    await run(s, b.data, null);
+    expect(s.parents.p1.resultado).toBe('procedente');
+
+    s.children.splice(s.children.indexOf(a), 1);
+    await run(s, a.data, null);
+    expect(s.parents.p1.resultado).toBeNull();
+  });
+
+  it('o filho que deixa de passar no filtro sai da conta', async () => {
+    const a = mov('a', { data: '2026-01-10', resultado: 'procedente' });
+    const b = mov('b', { data: '2026-01-11', resultado: 'improcedente' });
+    const s = store({ p1: { resultado: 'improcedente' } }, [a, b]);
+
+    const before = { ...b.data };
+    b.data = { ...b.data, tipo: 'Despacho' };
+    await run(s, before, b.data);
+
+    expect(s.parents.p1.resultado).toBe('procedente');
+  });
+
+  it('o filho que troca de pai recalcula os dois', async () => {
+    const a = mov('a', { data: '2026-01-10', resultado: 'procedente' });
+    const b = mov('b', { processo: 'p2', data: '2026-01-11', resultado: 'improcedente' });
+    const s = store({ p1: { resultado: 'improcedente' }, p2: {} }, [a, b]);
+
+    await run(s, { ...b.data, processo: 'p1' }, b.data);
+
+    expect(new Set(s.queried)).toEqual(new Set(['p1', 'p2']));
+    expect(s.parents.p1.resultado).toBe('procedente');
+    expect(s.parents.p2.resultado).toBe('improcedente');
+  });
+
+  it('mudar só a chave do orderBy recalcula — é ela que decide quem é o mais recente', async () => {
+    const a = mov('a', { data: '2026-01-10', resultado: 'procedente' });
+    const b = mov('b', { data: '2026-01-11', resultado: 'improcedente' });
+    const s = store({ p1: { resultado: 'improcedente', etiquetas: null } }, [a, b]);
+
+    const before = { ...a.data };
+    a.data = { ...a.data, data: '2026-01-12' };
+    await run(s, before, a.data);
+
+    expect(s.parents.p1.resultado).toBe('procedente');
+  });
+
+  it('gravar de novo o filho sem mudar nada não regrava o pai — nem com lista', async () => {
+    const a = mov('a', { data: '2026-01-10', resultado: 'procedente', etiquetas: ['x', 'y'] });
+    const s = store({ p1: { resultado: 'procedente', etiquetas: ['x', 'y'] } }, [a]);
+
+    await run(s, { ...a.data }, { ...a.data, nota: 'outra' });
+    await run(s, null, { ...a.data, etiquetas: ['x', 'y'] });
+
+    expect(s.queried.length).toBeGreaterThan(0);
+    expect(s.updates).toHaveLength(0);
+  });
+});

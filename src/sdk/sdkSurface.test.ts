@@ -129,7 +129,7 @@ const PUBLISHED_TYPES = [
   'InputMapping',
   'LiteralInputMapping', 'LocaleCode', 'LookupModuleTemplate', 'LookupProviderFailure',
   'LookupProviderRequest', 'LookupProviderSpec', 'MarketplacePlugin', 'MessageBundle', 'MessageParams',
-  'MigrationPhase', 'OutputInputMapping', 'PackageRef', 'PackageValidationIssue', 'ParsePackageResult',
+  'MigrationPhase', 'NumericAggregationOp', 'OutputInputMapping', 'PackageRef', 'PackageValidationIssue', 'ParsePackageResult',
   'ParsedPermission', 'PermissionDomain', 'PluginBackendRequirement', 'PluginDiagnostic',
   'PluginDependency',
   'PluginLifecycle', 'PluginLifecycleHook', 'PluginManifest', 'PluginMigration', 'PluginPublisher',
