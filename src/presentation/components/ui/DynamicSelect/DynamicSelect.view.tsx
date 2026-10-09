@@ -45,6 +45,7 @@ export const DynamicSelect: React.FC<DynamicSelectProps> = (props) => {
     handleSelect,
     handleClear,
     handleClearAll,
+    handleRemove,
     onQueryChange,
     handleKeyDown,
     handleRecolorClick,
@@ -88,6 +89,14 @@ export const DynamicSelect: React.FC<DynamicSelectProps> = (props) => {
                       ? <S.OrphanIcon><RiErrorWarningLine size={11} /></S.OrphanIcon>
                       : opt.color && <S.ColorDot $color={opt.color} />}
                     {opt.label}
+                    {!disabled && (
+                      <S.PillRemove
+                        title={t('action.remove')}
+                        onClick={e => handleRemove(e, opt.value)}
+                      >
+                        <RiCloseLine size={11} />
+                      </S.PillRemove>
+                    )}
                   </S.SelectedPill>
                 ))}
               </S.SelectedPills>

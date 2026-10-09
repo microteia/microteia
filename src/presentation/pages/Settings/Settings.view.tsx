@@ -166,6 +166,7 @@ export const SettingsView: React.FC = () => {
                       <S.PropertyControl>
                         <SettingsField
                           property={row.property}
+                          pluginId={row.pluginId}
                           value={row.value}
                           disabled={!row.isEditable}
                           onChange={(value) => vm.changeValue(row.property, value)}

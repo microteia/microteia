@@ -14,6 +14,9 @@ export const CORE_SETTINGS: Record<string, string> = {
   'settings.mode.json': 'Editar em JSON',
   'settings.mode.visual': 'Edição visual',
   'settings.none-found': 'Nenhuma configuração encontrada.',
+  'settings.options.forbidden':
+    'Você não tem permissão para ler {screen}, por isso esta configuração não pode ser alterada aqui. Peça a permissão de leitura.',
+  'settings.options.unavailable': 'A lista de onde vêm estas opções não está disponível neste escritório.',
   'settings.record-tabs.description':
     'Abas que as extensões acrescentam ao detalhe de um registro. Escolha, tela a tela, quais aparecem e em que ordem.',
   'settings.record-tabs.property':
@@ -45,6 +48,8 @@ export const CORE_SETTINGS: Record<string, string> = {
   'setting.number.min': 'O mínimo é {min}.',
   'setting.scope.read-only': 'Esta configuração não é editável neste escopo.',
   'setting.select': 'Informe uma das opções.',
+  'setting.select.duplicate': 'A mesma opção aparece mais de uma vez.',
+  'setting.select.multi': 'Informe uma lista de opções.',
   'setting.string-list': 'Informe uma lista de textos.',
   'setting.string-list.item': 'Cada item precisa ser um texto não vazio.',
   'setting.string-list.pattern': 'Há item fora do formato esperado.',

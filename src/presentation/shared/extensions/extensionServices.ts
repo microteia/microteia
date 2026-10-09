@@ -57,6 +57,11 @@ export interface ExtensionSurfaceWidget extends UiWidgetMetadata {
  */
 export interface ExtensionSettingsSection extends SettingsSection {
   editor?: React.ComponentType;
+  /**
+   * A extensão que declarou a seção. É o que resolve uma coleção do PRÓPRIO pacote em `optionsFrom`
+   * para a tela instalada, onde quer que a chave dela tenha ido parar. Carimbado pelo catálogo.
+   */
+  pluginId?: string;
 }
 
 const commandProvidersByPlugin = new Map<string, ICommandPaletteProvider[]>();
@@ -73,7 +78,8 @@ const recompute = (): void => {
   commandSnapshot = Array.from(commandProvidersByPlugin.values()).flat();
   mentionSnapshot = Array.from(mentionProvidersByPlugin.values()).flat();
   surfaceWidgetSnapshot = Array.from(surfaceWidgetsByPlugin.values()).flat();
-  settingsSectionSnapshot = Array.from(settingsSectionsByPlugin.values()).flat();
+  settingsSectionSnapshot = Array.from(settingsSectionsByPlugin.entries())
+    .flatMap(([pluginId, sections]) => sections.map((section) => ({ ...section, pluginId })));
 };
 
 const emit = (): void => {

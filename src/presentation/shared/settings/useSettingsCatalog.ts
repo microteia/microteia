@@ -156,7 +156,7 @@ export const useSettingsSections = (): ExtensionSettingsSection[] => {
     const byKey = new Map<string, ExtensionSettingsSection>();
     for (const contribution of contributions) {
       const section = asSection(contribution.metadata);
-      if (section) byKey.set(section.key, section);
+      if (section) byKey.set(section.key, { ...section, pluginId: contribution.pluginId });
     }
     for (const section of registered) byKey.set(section.key, section);
     return Array.from(byKey.values())

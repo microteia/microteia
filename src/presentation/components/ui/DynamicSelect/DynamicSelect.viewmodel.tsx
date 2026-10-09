@@ -63,6 +63,8 @@ export interface DynamicSelectViewModel {
   handleSelect: (value: string) => void;
   handleClear: (e: React.MouseEvent) => void;
   handleClearAll: (e: React.MouseEvent) => void;
+  /** Tira UM valor da seleção múltipla pela própria etiqueta — inclusive o que não existe mais. */
+  handleRemove: (e: React.MouseEvent, value: string) => void;
   onQueryChange: (q: string) => void;
   handleKeyDown: (e: React.KeyboardEvent) => void;
   handleRecolorClick: (e: React.MouseEvent, item: InternalOption) => void;
@@ -205,6 +207,11 @@ export const useDynamicSelectViewModel = (props: DynamicSelectProps): DynamicSel
     onChangeMulti?.([]);
   }, [onChangeMulti]);
 
+  const handleRemove = useCallback((e: React.MouseEvent, val: string) => {
+    e.stopPropagation();
+    onChangeMulti?.(values.filter(v => v !== val));
+  }, [onChangeMulti, values]);
+
   const onQueryChange = useCallback((q: string) => setQuery(q), []);
 
   const handleAdd = useCallback(async () => {
@@ -325,6 +332,7 @@ export const useDynamicSelectViewModel = (props: DynamicSelectProps): DynamicSel
     handleSelect,
     handleClear,
     handleClearAll,
+    handleRemove,
     onQueryChange,
     handleKeyDown,
     handleRecolorClick,

@@ -173,3 +173,94 @@ describe('parseSettingsJson — o documento escrito à mão', () => {
     expect(parsed.errors.map((issue) => issue.key)).toEqual(['escritorio.horario']);
   });
 });
+
+const statusChoice: SettingsProperty = {
+  key: 'processo.recentes.status',
+  label: 'Status',
+  type: 'select',
+  multi: true,
+  optionsFrom: { kind: 'lookup', collection: 'caseStatuses' },
+  default: ['Em Andamento'],
+  scopes: ['user', 'tenant'],
+};
+
+const ownerChoice: SettingsProperty = {
+  key: 'agenda.responsavel',
+  label: 'Responsável',
+  type: 'select',
+  optionsFrom: { kind: 'entity', collection: 'persons' },
+  default: '',
+  scopes: ['tenant'],
+};
+
+const closedMulti: SettingsProperty = {
+  key: 'agenda.dias',
+  label: 'Dias',
+  type: 'select',
+  multi: true,
+  options: [{ value: 'seg', label: 'Seg' }, { value: 'ter', label: 'Ter' }],
+  default: [],
+  scopes: ['tenant'],
+};
+
+describe('select com opções de uma coleção do escritório (optionsFrom)', () => {
+  it('multi aceita a lista de valores, inclusive vazia', () => {
+    expect(validateSettingValue(statusChoice, ['Em Andamento', 'Suspenso'])).toBeNull();
+    expect(validateSettingValue(statusChoice, [])).toBeNull();
+  });
+
+  it('multi recusa o valor escalar e o item que não é texto', () => {
+    expect(validateSettingValue(statusChoice, 'Em Andamento')).toEqual({ message: 'setting.select.multi' });
+    expect(validateSettingValue(statusChoice, ['Em Andamento', 3])).toEqual({ message: 'setting.select.multi' });
+  });
+
+  it('multi recusa a mesma opção duas vezes', () => {
+    expect(validateSettingValue(statusChoice, ['Suspenso', 'Suspenso']))
+      .toEqual({ message: 'setting.select.duplicate' });
+  });
+
+  /**
+   * A validação é síncrona e roda no backend: não conhece os registros. Recusar o valor que não está
+   * mais na lista faria a escolha voltar sozinha ao padrão no dia em que a opção fosse excluída.
+   */
+  it('confere a forma, nunca a existência — o valor que sumiu da lista continua válido', () => {
+    expect(validateSettingValue(statusChoice, ['Opção que foi excluída'])).toBeNull();
+    expect(validateSettingValue(ownerChoice, 'id-de-um-registro-excluido')).toBeNull();
+  });
+
+  it('o select simples de coleção exige um texto não vazio', () => {
+    expect(validateSettingValue(ownerChoice, '')).toEqual({ message: 'setting.select' });
+    expect(validateSettingValue(ownerChoice, ['a'])).toEqual({ message: 'setting.select' });
+  });
+
+  it('multi de opções fechadas confere cada item contra a lista', () => {
+    expect(validateSettingValue(closedMulti, ['seg', 'ter'])).toBeNull();
+    expect(validateSettingValue(closedMulti, ['seg', 'dom'])).toEqual({ message: 'setting.select' });
+  });
+
+  it('a resolução devolve o array do usuário, senão o do escritório, senão o padrão', () => {
+    expect(resolveSetting(statusChoice, emptySettingsValues()))
+      .toEqual({ value: ['Em Andamento'], scope: null });
+
+    const tenantOnlyValue = { tenant: { [statusChoice.key]: ['Suspenso'] }, user: {} };
+    expect(resolveSetting(statusChoice, tenantOnlyValue)).toEqual({ value: ['Suspenso'], scope: 'tenant' });
+
+    const both = { tenant: { [statusChoice.key]: ['Suspenso'] }, user: { [statusChoice.key]: ['Em Andamento', 'Suspenso'] } };
+    expect(resolveSetting(statusChoice, both)).toEqual({ value: ['Em Andamento', 'Suspenso'], scope: 'user' });
+  });
+
+  it('o JSON aceita o array e recusa o escalar, com a mensagem da propriedade', () => {
+    const ok = parseSettingsJson(sections([statusChoice]), JSON.stringify({ [statusChoice.key]: ['Suspenso'] }), 'user');
+    expect(ok.errors).toEqual([]);
+    expect(ok.values).toEqual({ [statusChoice.key]: ['Suspenso'] });
+
+    const wrong = parseSettingsJson(sections([statusChoice]), JSON.stringify({ [statusChoice.key]: 'Suspenso' }), 'user');
+    expect(wrong.errors).toEqual([{ key: statusChoice.key, message: 'setting.select.multi' }]);
+  });
+
+  it('o select simples de opções fechadas continua como era', () => {
+    const closed: SettingsProperty = { ...closedMulti, multi: undefined, default: 'seg' };
+    expect(validateSettingValue(closed, 'ter')).toBeNull();
+    expect(validateSettingValue(closed, 'dom')).toEqual({ message: 'setting.select' });
+  });
+});

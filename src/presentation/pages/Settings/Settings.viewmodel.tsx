@@ -25,6 +25,8 @@ export type SettingsMode = 'visual' | 'json';
 export interface SettingsRow {
   sectionKey: string;
   sectionTitle: string;
+  /** A extensão que declarou a seção. Ver `ExtensionSettingsSection.pluginId`. */
+  pluginId?: string;
   property: SettingsProperty;
   /** O valor que o editor mostra: o gravado neste escopo, ou o herdado quando não há. */
   value: unknown;
@@ -111,6 +113,7 @@ export const useSettingsViewModel = (): SettingsViewModel => {
           return {
             sectionKey: section.key,
             sectionTitle: section.title,
+            pluginId: section.pluginId,
             property,
             value: stored === undefined ? resolved.value : stored,
             originScope: resolved.scope,

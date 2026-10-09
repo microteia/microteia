@@ -69,6 +69,7 @@ export const CORE_MARKETPLACE: Record<string, string> = {
   'author.patch.join': ' e ',
   'author.patch.summary': '{parts} seu(s)',
   'author.kind.screen': 'a tela',
+  'author.kind.lookup': 'a lista de opções',
   'author.kind.action': 'a ação',
   'author.kind.workflow': 'a automação',
   'author.kind.script': 'o script',
@@ -293,6 +294,16 @@ export const CORE_MARKETPLACE: Record<string, string> = {
   'issue.package.not-object': 'O conteúdo não é um objeto de extensão.',
   'issue.package.record-surface.no-source-id':
     'A contribuição "{id}" ({where}) é endereçada a "record:" sem dizer de qual tela, e por isso nenhum detalhe de registro a mostraria. Escreva recordSurface(<sourceId da tela>).',
+  'issue.package.settings.default':
+    'O `default` da configuração "{key}" da contribuição "{id}" ({where}) não é um valor que ela aceita: {detail}',
+  'issue.package.settings.multi-type':
+    'A configuração "{key}" da contribuição "{id}" ({where}) declara `multi`, que só um `select` lê.',
+  'issue.package.settings.options-conflict':
+    'A configuração "{key}" da contribuição "{id}" ({where}) declara `options` e `optionsFrom` ao mesmo tempo. Fique com uma: uma lista fechada, ou as opções de uma coleção do escritório.',
+  'issue.package.settings.options-from-invalid':
+    'A configuração "{key}" da contribuição "{id}" ({where}) tem um `optionsFrom` que não diz de onde vêm as opções. Escreva { kind: \'lookup\' | \'entity\', collection }.',
+  'issue.package.settings.options-from-type':
+    'A configuração "{key}" da contribuição "{id}" ({where}) declara `optionsFrom`, que só um `select` lê.',
   'issue.package.too-large':
     'O pacote tem {size} e não caberia no documento da instalação (o limite prático é {limit}). Divida-o — um pacote por idioma, ou um por conjunto de telas.',
   'issue.step.control-incomplete':
@@ -349,6 +360,8 @@ export const CORE_MARKETPLACE: Record<string, string> = {
     '{origin} "{name}" referencia {kind} "{id}", que a extensão "{plugin}" não declara em `exports`.',
   'issue.ref.screen-qualified':
     '{origin} "{name}" referencia a tela "{id}" na forma qualificada — uma tela é nomeada pela coleção dela, ou pelo `sourceId` da extensão que a traz.',
+  'issue.ref.lookup-qualified':
+    '{origin} "{name}" referencia a lista de opções "{id}" na forma qualificada — uma lista é nomeada pela coleção dela.',
   'issue.ref.self':
     '{origin} "{name}" referencia {kind} "{id}" pelo id do próprio pacote — dentro do pacote, nomeie o artefato direto.',
   'issue.ref.undeclared':
@@ -361,12 +374,14 @@ export const CORE_MARKETPLACE: Record<string, string> = {
   'permission.domain.workflow': 'Automações',
   'ref.kind.action': 'a ação',
   'ref.kind.screen': 'a tela',
+  'ref.kind.lookup': 'a lista de opções',
   'ref.kind.script': 'o script',
   'ref.kind.workflow': 'a automação',
   'ref.origin.action': 'ação',
   'ref.origin.patch': 'complemento de',
   'ref.origin.report': 'relatório',
   'ref.origin.screen': 'tela',
+  'ref.origin.setting': 'configuração',
   'ref.origin.workflow': 'automação',
   'ref.origin.workflow-step': 'passo "{step}" da automação',
   'extension.code-pending-review':

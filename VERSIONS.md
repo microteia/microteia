@@ -11,6 +11,14 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.76.0] — 2026-10-09
+
+- Uma configuração pode oferecer como opções uma lista do próprio escritório (por exemplo, os status de um cadastro) ou os registros de uma tela (por exemplo, as pessoas). As opções acompanham o que o escritório cria e renomeia, com as mesmas cores da lista.
+- Essas configurações aceitam uma ou várias escolhas, que aparecem como etiquetas fáceis de remover, uma a uma.
+- Quando uma opção escolhida deixa de existir, a configuração continua mostrando-a, marcada como inexistente, para que ela possa ser removida. Nada some sem aviso.
+- Quem não tem permissão para ver a tela de onde vêm as opções vê a configuração bloqueada, com o motivo, em vez de uma lista vazia.
+- As seleções múltiplas do formulário ganharam um botão para remover cada item escolhido diretamente na etiqueta, inclusive o que não existe mais.
+
 #### [9.75.1] — 2026-10-08
 
 - Corrigido o exemplo de atualização de dados que acompanha o kit de criação de extensões: ele parava logo no primeiro lote em vez de completar os registros antigos.

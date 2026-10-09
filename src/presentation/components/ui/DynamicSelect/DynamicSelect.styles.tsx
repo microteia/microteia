@@ -104,6 +104,18 @@ export const ClearBtn = styled.span`
   &:hover { color: ${({ theme }) => theme.colors.text}; }
 `;
 
+export const PillRemove = styled.span`
+  display: inline-flex;
+  align-items: center;
+  margin-right: -3px;
+  border-radius: 50%;
+  color: inherit;
+  opacity: 0.7;
+  cursor: pointer;
+
+  &:hover { opacity: 1; }
+`;
+
 export const ChevronIcon = styled.span<{ $open: boolean }>`
   display: flex;
   align-items: center;

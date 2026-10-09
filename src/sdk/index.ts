@@ -393,13 +393,15 @@ export { CUSTOM_FIELD_TYPES } from '../domain/schema/fieldRules';
 export { FIELD_EXPRESSION_FUNCTION_NAMES } from '../domain/schema/fieldExpression';
 
 export type {
+  SettingsOptionsSource,
+  SettingsOptionsSourceKind,
   SettingsProperty,
   SettingsPropertyOption,
   SettingsPropertyType,
   SettingsScope,
   SettingsSection,
 } from '../domain/schema/settings';
-export { SETTINGS_SCOPES } from '../domain/schema/settings';
+export { SETTINGS_OPTIONS_SOURCE_KINDS, SETTINGS_SCOPES } from '../domain/schema/settings';
 
 // ─── Construtores de contribuição ─────────────────────────────────────────────
 

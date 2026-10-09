@@ -76,6 +76,7 @@ export const CORE_MARKETPLACE_MESSAGES: Record<string, string> = {
   'author.patch.join': ' and ',
   'author.patch.summary': '{parts} of yours',
   'author.kind.screen': 'the screen',
+  'author.kind.lookup': 'the option list',
   'author.kind.action': 'the action',
   'author.kind.workflow': 'the automation',
   'author.kind.script': 'the script',
@@ -300,6 +301,16 @@ export const CORE_MARKETPLACE_MESSAGES: Record<string, string> = {
   'issue.package.not-object': 'The content is not an extension object.',
   'issue.package.record-surface.no-source-id':
     'Contribution "{id}" ({where}) is addressed to "record:" without naming the screen, so no record detail would ever show it. Write recordSurface(<screen sourceId>).',
+  'issue.package.settings.default':
+    'The `default` of setting "{key}" in contribution "{id}" ({where}) is not a value the setting accepts: {detail}',
+  'issue.package.settings.multi-type':
+    'Setting "{key}" in contribution "{id}" ({where}) declares `multi`, which only a `select` reads.',
+  'issue.package.settings.options-conflict':
+    'Setting "{key}" in contribution "{id}" ({where}) declares both `options` and `optionsFrom`. Keep one: a closed list, or the options of a collection of the organization.',
+  'issue.package.settings.options-from-invalid':
+    'Setting "{key}" in contribution "{id}" ({where}) has an `optionsFrom` that does not say where the options come from. Write { kind: \'lookup\' | \'entity\', collection }.',
+  'issue.package.settings.options-from-type':
+    'Setting "{key}" in contribution "{id}" ({where}) declares `optionsFrom`, which only a `select` reads.',
   'issue.package.too-large':
     'The package is {size} and would not fit in the installation document (the practical limit is {limit}). Split it — one package per language, or one per set of screens.',
   'issue.step.control-incomplete':
@@ -356,6 +367,8 @@ export const CORE_MARKETPLACE_MESSAGES: Record<string, string> = {
     '{origin} "{name}" references {kind} "{id}", which extension "{plugin}" does not declare in `exports`.',
   'issue.ref.screen-qualified':
     '{origin} "{name}" references screen "{id}" in qualified form — a screen is named by its collection, or by the `sourceId` of the extension that brings it.',
+  'issue.ref.lookup-qualified':
+    '{origin} "{name}" references option list "{id}" in qualified form — a list is named by its collection.',
   'issue.ref.self':
     '{origin} "{name}" references {kind} "{id}" through the package\'s own id — inside the package, name the artifact directly.',
   'issue.ref.undeclared':
@@ -368,12 +381,14 @@ export const CORE_MARKETPLACE_MESSAGES: Record<string, string> = {
   'permission.domain.workflow': 'Automations',
   'ref.kind.action': 'the action',
   'ref.kind.screen': 'the screen',
+  'ref.kind.lookup': 'the option list',
   'ref.kind.script': 'the script',
   'ref.kind.workflow': 'the automation',
   'ref.origin.action': 'action',
   'ref.origin.patch': 'patch of',
   'ref.origin.report': 'report',
   'ref.origin.screen': 'screen',
+  'ref.origin.setting': 'setting',
   'ref.origin.workflow': 'automation',
   'ref.origin.workflow-step': 'step "{step}" of automation',
   'extension.code-pending-review':

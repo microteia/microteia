@@ -99,6 +99,7 @@ const PillOpenBtn = styled.span`
   &:hover { opacity: 1; }
 `;
 
+const PillRemoveBtn = styled(PillOpenBtn)``;
 
 const PlaceholderText = styled.span`
   flex: 1;
@@ -285,6 +286,11 @@ export const MultiSearchSelect: React.FC<MultiSearchSelectProps> = ({
     onChange([]);
   };
 
+  const handleRemove = (e: React.MouseEvent, val: string) => {
+    e.stopPropagation();
+    onChange(values.filter((v) => v !== val));
+  };
+
   const handleOpenSelected = (e: React.MouseEvent, val: string) => {
     e.stopPropagation();
     onOpenSelected?.(val);
@@ -343,12 +349,22 @@ export const MultiSearchSelect: React.FC<MultiSearchSelectProps> = ({
                     <RiArrowRightUpLine size={11} />
                   </PillOpenBtn>
                 )}
+                {!disabled && (
+                  <PillRemoveBtn onClick={(e) => handleRemove(e, opt.value)} title={t('action.remove')}>
+                    <RiCloseLine size={11} />
+                  </PillRemoveBtn>
+                )}
               </SelectedPill>
             ))}
             {orphanValues.map((val) => (
               <SelectedPill key={val} $orphan title={orphanTitle}>
                 <OrphanIcon><RiErrorWarningLine size={11} /></OrphanIcon>
                 {t('reference.not-found', { id: val })}
+                {!disabled && (
+                  <PillRemoveBtn onClick={(e) => handleRemove(e, val)} title={t('action.remove')}>
+                    <RiCloseLine size={11} />
+                  </PillRemoveBtn>
+                )}
               </SelectedPill>
             ))}
           </SelectedPills>

@@ -18,9 +18,10 @@ import { validateReportSpecShape } from '../../schema/report/validateReportSpec'
 import { deriveReportRequires } from '../../schema/report/reportCapabilities';
 import { packageIconIssues } from './pluginIcons';
 import { packageSurfaceIssues } from './pluginSurfaces';
+import { packageSettingsIssues, settingsOutRefs } from './pluginSettings';
 import { screenEventPrefix, templateCollection } from './screenModule';
 
-export type RefKind = 'screen' | 'action' | 'workflow' | 'script';
+export type RefKind = 'screen' | 'lookup' | 'action' | 'workflow' | 'script';
 
 /**
  * De onde a referência partiu, em duas partes: `origin` é uma REFERÊNCIA de mensagem — "a ação",
@@ -39,7 +40,7 @@ export interface RefOrigin {
 
 export interface PackageRef {
   kind: RefKind;
-  /** `key` de template (screen) ou `templateId` (action/workflow/script). */
+  /** `key` de template (screen), coleção (lookup) ou `templateId` (action/workflow/script). */
   id: string;
   from: RefOrigin;
   /**
@@ -51,9 +52,17 @@ export interface PackageRef {
   event?: boolean;
 }
 
+/**
+ * Tela e lista são nomeadas pela COLEÇÃO, um nome global — nunca pela forma qualificada
+ * `<pluginId>/<id>`, que é a dos artefatos com id gerado. Quem confere `exports` pula as duas.
+ */
+export const isCollectionRef = (ref: Pick<PackageRef, 'kind'>): boolean =>
+  ref.kind === 'screen' || ref.kind === 'lookup';
+
 /** O nome de cada tipo de artefato, como REFERÊNCIA: quem exibe resolve com o catálogo do usuário. */
 export const REF_KIND_KEYS: Record<RefKind, string> = {
   screen: '@core.marketplace/ref.kind.screen',
+  lookup: '@core.marketplace/ref.kind.lookup',
   action: '@core.marketplace/ref.kind.action',
   workflow: '@core.marketplace/ref.kind.workflow',
   script: '@core.marketplace/ref.kind.script',
@@ -206,6 +215,7 @@ export const packageOutRefs = (pkg: MarketplacePlugin): PackageRef[] => [
   ...(pkg.actions ?? []).flatMap(actionOutRefs),
   ...(pkg.reports ?? []).flatMap(reportOutRefs),
   ...pkg.workflows.flatMap((workflow) => workflowOutRefs(workflow, pkg.screens ?? [])),
+  ...settingsOutRefs(pkg),
 ];
 
 /**
@@ -425,6 +435,7 @@ export const packageIssues = (pkg: MarketplacePlugin): LocalizedIssue[] => [
   ...packageMigrationIssues(pkg),
   ...packageIconIssues(pkg),
   ...packageSurfaceIssues(pkg),
+  ...packageSettingsIssues(pkg),
   ...packageReportIssues(pkg),
 ];
 
@@ -455,6 +466,24 @@ const screenCoverage = (pkg: MarketplacePlugin): ((id: string) => boolean) => {
   );
   return (id) =>
     screenKeys.has(id)
+    || dependencyCollectionNames.has(id)
+    || dependencySlugs.some((depSlug) => id.startsWith(`${depSlug}__`));
+};
+
+/**
+ * O que cobre uma referência a LISTA DE OPÇÕES: as que o pacote declara em `lookups`, as que as
+ * dependências declaram trazer, e a chave namespaced de uma dependência. Uma lista do kernel nem
+ * chega a virar referência.
+ */
+const lookupCoverage = (pkg: MarketplacePlugin): ((id: string) => boolean) => {
+  const declared = new Set((pkg.lookups ?? []).map((lookup) => lookup.collection));
+  const dependencies = Object.entries(pkg.manifest.dependencies ?? {});
+  const dependencySlugs = dependencies.map(([id]) => slug(id));
+  const dependencyCollectionNames = new Set(
+    dependencies.flatMap(([, dependency]) => dependencyCollections(dependency)),
+  );
+  return (id) =>
+    declared.has(id)
     || dependencyCollectionNames.has(id)
     || dependencySlugs.some((depSlug) => id.startsWith(`${depSlug}__`));
 };
@@ -507,10 +536,12 @@ export const validatePackage = (pkg: MarketplacePlugin): PackageValidationIssue[
   const scriptIds = new Set((pkg.scripts ?? []).map((s) => s.templateId));
   const dependencyIds = new Set(Object.keys(pkg.manifest.dependencies ?? {}));
   const screenCovered = screenCoverage(pkg);
+  const lookupCovered = lookupCoverage(pkg);
 
   const bundled = (ref: PackageRef): boolean => {
     switch (ref.kind) {
       case 'screen': return screenCovered(ref.id);
+      case 'lookup': return lookupCovered(ref.id);
       case 'action': return actionIds.has(ref.id);
       case 'workflow': return workflowIds.has(ref.id);
       case 'script': return scriptIds.has(ref.id);
@@ -545,6 +576,7 @@ export const validatePackage = (pkg: MarketplacePlugin): PackageValidationIssue[
     if (qualified) {
       // A identidade de uma tela é o nome da coleção, e `com.x/produtos` não é um nome de coleção.
       if (ref.kind === 'screen') return refusal(ref, '@core.marketplace/issue.ref.screen-qualified');
+      if (ref.kind === 'lookup') return refusal(ref, '@core.marketplace/issue.ref.lookup-qualified');
       if (qualified.pluginId === pkg.manifest.id) return refusal(ref, '@core.marketplace/issue.ref.self');
       if (!dependencyIds.has(qualified.pluginId)) {
         return refusal(ref, '@core.marketplace/issue.ref.undeclared', { plugin: qualified.pluginId });

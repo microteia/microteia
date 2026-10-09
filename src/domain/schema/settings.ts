@@ -43,6 +43,31 @@ export interface SettingsPropertyOption {
   label: string;
 }
 
+/**
+ * De onde vêm as opções de um `select` quando elas são DADO do escritório, e não uma lista fechada
+ * no pacote.
+ *
+ * - `lookup` — uma lista de opções (`lookupCollection`). O valor é a CHAVE da opção, o mesmo que um
+ *   campo `select` com aquela `lookupCollection` grava no registro; rótulo e cor são os da opção.
+ * - `entity` — os registros de uma tela. O valor é o ID do registro, o mesmo que um campo
+ *   `reference` grava; o rótulo é o campo-título da tela.
+ *
+ * O valor gravado ser idêntico ao do registro é o contrato inteiro: a view compara por igualdade,
+ * sem tradução nenhuma no meio.
+ */
+export type SettingsOptionsSourceKind = 'lookup' | 'entity';
+
+export const SETTINGS_OPTIONS_SOURCE_KINDS: SettingsOptionsSourceKind[] = ['lookup', 'entity'];
+
+export interface SettingsOptionsSource {
+  kind: SettingsOptionsSourceKind;
+  /**
+   * A lista (`lookup`) ou a coleção da tela (`entity`), como um campo a nomearia em
+   * `lookupCollection` ou `refEntity`: do próprio pacote ou de uma dependência declarada.
+   */
+  collection: string;
+}
+
 export interface SettingsProperty {
   /** Chave COMPLETA, com o namespace de quem declara: `dashboard.widgets`, `agenda.primeiroDia`. */
   key: string;
@@ -51,8 +76,12 @@ export interface SettingsProperty {
   type: SettingsPropertyType;
   /** O valor quando nenhum escopo gravou nada. É o terceiro nível da resolução. */
   default: unknown;
-  /** Opções de um `select`. Ignorado nos demais tipos. */
+  /** Opções de um `select`. Ignorado nos demais tipos. Exclui `optionsFrom`. */
   options?: SettingsPropertyOption[];
+  /** Opções de um `select` lidas de uma coleção do escritório. Exclui `options`. */
+  optionsFrom?: SettingsOptionsSource;
+  /** `select` que guarda VÁRIOS valores: o valor é `string[]`, e não `string`. */
+  multi?: boolean;
   min?: number;
   max?: number;
   /** Texto de apoio dentro do campo de um `stringList`. */
@@ -125,6 +154,32 @@ export interface ResolvedSetting {
 }
 
 export const emptySettingsValues = (): SettingsValuesByScope => ({ tenant: {}, user: {} });
+
+export const isMultiSelectProperty = (property: SettingsProperty): boolean =>
+  property.type === 'select' && property.multi === true;
+
+
+/**
+ * Um `select` é conferido pela FORMA sempre, e pela PERTINÊNCIA só quando as opções são fechadas.
+ *
+ * Com `optionsFrom`, as opções são dado do escritório e esta função é síncrona e roda também no
+ * backend: ela não conhece os registros. Recusar um valor por não estar na lista faria a escolha de
+ * alguém sumir no dia em que a opção fosse excluída — e a configuração voltar sozinha ao padrão, sem
+ * aviso. O valor que deixou de existir continua valendo, e a tela de Configurações o mostra como
+ * inexistente para que a pessoa o remova.
+ */
+const validateSelectValue = (property: SettingsProperty, value: unknown): SettingsValueIssue | null => {
+  const allowed = property.optionsFrom ? null : new Set((property.options ?? []).map((option) => option.value));
+  const isChoice = (choice: unknown): choice is string =>
+    typeof choice === 'string' && (allowed === null ? choice.trim() !== '' : allowed.has(choice));
+
+  if (!isMultiSelectProperty(property)) return isChoice(value) ? null : { message: 'setting.select' };
+  if (!Array.isArray(value) || !value.every((item) => typeof item === 'string')) {
+    return { message: 'setting.select.multi' };
+  }
+  if (new Set(value).size !== value.length) return { message: 'setting.select.duplicate' };
+  return value.every(isChoice) ? null : { message: 'setting.select' };
+};
 
 export const propertyAcceptsScope = (property: SettingsProperty, scope: SettingsScope): boolean =>
   property.scopes.includes(scope);
@@ -206,11 +261,8 @@ export const validateSettingValue = (
     }
     case 'text':
       return typeof value === 'string' ? null : { message: 'setting.text' };
-    case 'select': {
-      if (typeof value !== 'string') return { message: 'setting.select' };
-      const allowed = (property.options ?? []).map((option) => option.value);
-      return allowed.includes(value) ? null : { message: 'setting.select' };
-    }
+    case 'select':
+      return validateSelectValue(property, value);
     case 'stringList': {
       if (!Array.isArray(value)) return { message: 'setting.string-list' };
       if (!value.every((item) => typeof item === 'string' && item.trim() !== '')) {

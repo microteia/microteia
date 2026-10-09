@@ -5675,6 +5675,47 @@ serializável; regex quebrada vira "sem padrão", nunca exceção — declaraç�
 derrubar a tela de Configurações. Primeira consumidora: os remetentes e assuntos permitidos da
 extensão de Pushes.
 
+**`optionsFrom` — opções que são dado do escritório.** Um `select` declara `options` (lista fechada,
+no pacote) **ou** `optionsFrom: { kind, collection }`, nunca as duas. `kind: 'lookup'` lê uma lista de
+opções; `kind: 'entity'`, os registros de uma tela. `multi: true` faz o valor ser `string[]` — vale
+também para `options` fechadas.
+
+- **O valor é o do registro, e esse é o contrato inteiro.** Lookup grava a CHAVE da opção — o que um
+  campo `select` com aquela `lookupCollection` grava (`CustomFieldsSection.dynamicSelectOptions`) —, e
+  não o rótulo; entidade grava o id, como um `reference`. A view compara por `===`. Na opção criada
+  pelo escritório chave e rótulo são o mesmo texto (`LookupStore.addOption`); na semeada pela extensão
+  podem divergir (`pending` / "Pendente"). Não existe RENOMEAR opção — só criar, recolorir e excluir —,
+  então "renomear" é excluir e criar outra, e cai no caso do órfão.
+- **A validação confere a forma, nunca a existência.** `validateSettingValue` é síncrona e roda no
+  backend: com `optionsFrom` ela exige texto não vazio (ou lista de textos sem repetição) e não olha a
+  coleção. Recusar o valor que sumiu da lista faria a escolha voltar sozinha ao padrão no dia em que a
+  opção fosse excluída. O órfão continua valendo; a tela o mostra marcado, e a pessoa o remove.
+- **O editor é o do formulário.** `SettingsOptionsSelect` desenha `DynamicSelect` para lookup (cor da
+  opção, chips, órfão) e `SearchSelect`/`MultiSearchSelect` para entidade e lista fechada. Os dois
+  multisseletores ganharam o × por etiqueta — inclusive na do valor órfão, que antes só saía pelo
+  "limpar tudo".
+- **Permissão só na entidade.** Lista de opções é vocabulário: todo membro lê
+  (`isDeclaredVocabulary`). Para `entity`, sem `<coleção>.read` a propriedade aparece desabilitada com
+  a frase (`settings.options.forbidden`) — lista vazia diria "não há opções". Coleção que o escritório
+  não tem (extensão dona ausente) dá `settings.options.unavailable`.
+- **A coleção não é reescrita na instalação — é resolvida na leitura.** Contribuição é lida do manifest
+  instalado tal como veio; nada a reescreve. `resolveSettingsOptionsScreen` faz na leitura o que a
+  instalação faz com o `refEntity` do campo: a coleção de uma tela do PRÓPRIO pacote vai para a tela
+  instalada com o mesmo `sourceId` (onde quer que a chave tenha ido parar, `medicos` → `medicos_2`);
+  um nome global vai para a tela que descreve a coleção. Por isso a seção carrega `pluginId`
+  (`ExtensionSettingsSection.pluginId`, carimbado pelo catálogo). Lista de opções não ganha sufixo:
+  o nome é global.
+- **O portão** (`pluginSettings.ts`): `options` + `optionsFrom`, `optionsFrom`/`multi` fora de `select`,
+  fonte malformada e `default` na forma errada são recusas de declaração. A coleção é REFERÊNCIA
+  (`settingsOutRefs` → `packageOutRefs`), com a mesma frase das outras: entidade é `kind: 'screen'`;
+  lista ganhou `RefKind` próprio, `lookup`, coberto por `pkg.lookups`, pelas `collections` de uma
+  dependência e pela chave namespaced. O `default` do `select` fechado sem `multi` não é conferido: a
+  regra nasceu com as capacidades novas, e recusar agora o pacote que já instalava mudaria a regra de
+  quem não pediu nada.
+- **Para a view:** `useSettingValue` devolve o valor resolvido; `useSettingChoices(key)`
+  (`@microteia/settings`) devolve cada valor com rótulo, cor e `missing` — que só é afirmado quando as
+  opções estão na mão.
+
 **Dois escopos, uma resolução:** `usuário → escritório → padrão declarado`. `resolveSetting` pula o
 escopo que a propriedade não aceita (resíduo no banco de uma declaração desligada não volta a valer)
 e pula valor inválido (cai para o próximo nível em vez de quebrar quem consome). Um valor gravado

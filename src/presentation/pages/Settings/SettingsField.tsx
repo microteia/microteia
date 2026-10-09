@@ -5,6 +5,7 @@ import { SearchSelect } from '../../components/ui/SearchSelect';
 import { TagInput } from '../../components/ui/TagInput';
 import { WidgetLayoutEditor } from './WidgetLayoutEditor';
 import { ContributionListEditor } from './ContributionListEditor';
+import { SettingsOptionsSelect } from './SettingsOptionsSelect';
 import {
   settingsToJson,
   stringListPattern,
@@ -19,6 +20,8 @@ import { useTheme, AUTOMATIC_THEME } from '../../../stores/useTheme';
 import { useT, useLabel } from '../../shared/i18n/useT';
 interface SettingsFieldProps {
   property: SettingsProperty;
+  /** A extensão que declarou a propriedade — resolve uma coleção do próprio pacote em `optionsFrom`. */
+  pluginId?: string;
   value: unknown;
   disabled: boolean;
   onChange: (value: unknown) => void;
@@ -28,7 +31,7 @@ interface SettingsFieldProps {
  * O editor de UMA propriedade, escolhido pelo `type` declarado. É o que torna a tela genérica: um
  * plugin declara `boolean` e ganha uma caixa de seleção sem escrever interface nenhuma.
  */
-export const SettingsField: React.FC<SettingsFieldProps> = ({ property, value, disabled, onChange }) => {
+export const SettingsField: React.FC<SettingsFieldProps> = ({ property, pluginId, value, disabled, onChange }) => {
   const t = useT('core.settings');
   const label = useLabel();
   const { available, locale, preferred } = useLocale();
@@ -62,12 +65,12 @@ export const SettingsField: React.FC<SettingsFieldProps> = ({ property, value, d
 
     case 'select':
       return (
-        <SearchSelect
-          value={typeof value === 'string' ? value : ''}
-          options={(property.options ?? []).map((option) => ({ value: option.value, label: option.label }))}
+        <SettingsOptionsSelect
+          property={property}
+          pluginId={pluginId}
+          value={value}
           disabled={disabled}
-          onChange={(next) => onChange(next)}
-          placeholder={t('core.ui/action.select')}
+          onChange={onChange}
         />
       );
 

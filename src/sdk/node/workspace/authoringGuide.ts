@@ -514,6 +514,56 @@ The organization toggles and orders these tabs from Settings (\`<surface>.tabs\`
 cannot find in your package, in a dependency authored beside it, or in the installation snapshot.
 \`examples/record-tab-example\` has both kinds of tab, and the list locked to the open record.
 
+### Settings whose options are the organization's data
+
+A \`select\` in a \`settingsSection\` takes either \`options\` — a closed list, written in your package —
+or \`optionsFrom\`, never both. \`optionsFrom\` reads the options from a collection of the organization,
+so a choice keeps up with what the office renames, recolours and adds:
+
+\`\`\`ts
+{
+  key: 'cases.recent.statuses',
+  label: label('settings.recent.statuses'),
+  type: 'select',
+  multi: true,
+  optionsFrom: { kind: 'lookup', collection: 'caseStatuses' },
+  default: ['open'],
+  scopes: ['tenant', 'user'],
+}
+\`\`\`
+
+| \`kind\` | Options | Value stored | Label | Colour |
+|---|---|---|---|---|
+| \`lookup\` | an option list | the option KEY | the option label | the option colour, when the list has one |
+| \`entity\` | the records of a screen | the record ID | the screen's \`titleFieldKey\` | — |
+
+**The value is exactly what the matching field stores on a record** — a \`select\` field with that
+\`lookupCollection\` stores the key, a \`reference\` field stores the ID. That is the whole contract:
+your view compares the setting with the record using \`===\`, with no translation in between. An
+option created by the office has the same key and label; an option you seed may not
+(\`pending\` / "Pending"), and the key is what you compare.
+
+\`multi: true\` makes the value a \`string[]\` (it works with closed \`options\` too). Read it with
+\`useSettingValue\`, or with \`useSettingChoices\` from \`@microteia/settings\`, which also gives each
+chosen value's label and colour — so a card title can name the statuses it shows without reading the
+list again.
+
+\`collection\` follows the rule of every other reference: in your package (\`lookups\` or \`screens\`) or
+in a declared dependency (\`collections\`), and \`check\` refuses one that leads nowhere. Name a screen
+of your package by its key, as a field would: the platform finds the installed screen even when its
+key had to be disambiguated in the office.
+
+What the editor does, so you do not have to: it is the record form's own control, so options keep
+their colours and several values show as removable chips. A value whose option or record no longer
+exists stays stored, shows as missing, and can be removed — validation checks the SHAPE of the value,
+never whether it still exists. Someone who cannot read the screen of an \`entity\` source sees the
+setting disabled, with the reason. An option list is vocabulary, readable by every member.
+
+\`check\` also refuses \`optionsFrom\` or \`multi\` outside a \`select\`, and a \`default\` of the wrong
+shape (a list with \`multi\`, a text without). A kernel older than these two draws such a \`select\`
+with no options, so a package that uses them starts its \`kernel\` range at the version it is built
+with. \`examples/settings-example\` has one property of each kind.
+
 ### Signing in — including your own SSO
 
 \`auth.provider\` declares a way of signing in, and it takes no implementation at all. The protocol

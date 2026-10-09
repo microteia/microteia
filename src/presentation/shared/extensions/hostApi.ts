@@ -74,6 +74,7 @@ import { useActionGate } from './useActionGate';
 import { useEntity } from './useEntity';
 import { useLookups } from '../../../stores/useLookups';
 import { useSettingValue } from '../settings/useSettingValue';
+import { useSettingChoices } from '../settings/useSettingOptions';
 import { useRecords } from '../../../stores/useRecords';
 import type { EntityRecord, EntityRecordValues, LookupOption } from '../../../domain/entities';
 
@@ -292,6 +293,7 @@ const uiModule = {
  */
 const settingsModule = {
   useSettingValue,
+  useSettingChoices,
 } as const;
 
 /**

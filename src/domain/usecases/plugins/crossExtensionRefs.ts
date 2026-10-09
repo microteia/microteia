@@ -3,7 +3,7 @@ import { parseArtifactRef } from '../../schema/plugin/artifactRef';
 import { dependencyRange } from '../../schema/plugin/pluginManifest';
 import { satisfiesRange } from '../../schema/plugin/semver';
 import type { LocalizedIssue, PackageRef } from './pluginReferences';
-import { REF_KIND_KEYS, eventUnresolvedIssue, packageOutRefs, pendingEventRefs } from './pluginReferences';
+import { REF_KIND_KEYS, eventUnresolvedIssue, isCollectionRef, packageOutRefs, pendingEventRefs } from './pluginReferences';
 import { screenEventPrefix } from './screenModule';
 
 /**
@@ -159,7 +159,7 @@ export const crossExtensionRefChecks = (
 
   for (const ref of packageOutRefs(pkg)) {
     const qualified = parseArtifactRef(ref.id);
-    if (!qualified || ref.kind === 'screen') continue;
+    if (!qualified || isCollectionRef(ref)) continue;
     if (seen.has(ref.id)) continue;
     seen.add(ref.id);
 
@@ -265,7 +265,7 @@ export const referencedExtensionIds = (pkg: MarketplacePlugin): string[] => {
   const ids: string[] = [];
   for (const ref of packageOutRefs(pkg)) {
     const qualified = parseArtifactRef(ref.id);
-    if (!qualified || ref.kind === 'screen' || qualified.pluginId === pkg.manifest.id) continue;
+    if (!qualified || isCollectionRef(ref) || qualified.pluginId === pkg.manifest.id) continue;
     if (!ids.includes(qualified.pluginId)) ids.push(qualified.pluginId);
   }
   return ids;
@@ -334,7 +334,7 @@ const dependentArtifactIssues = (
     if (dependent.id === pluginId) continue;
     for (const ref of packageOutRefs(dependent.package)) {
       const qualified = parseArtifactRef(ref.id);
-      if (!qualified || ref.kind === 'screen') continue;
+      if (!qualified || isCollectionRef(ref)) continue;
       if (qualified.pluginId !== pluginId || provided.has(qualified.artifactId)) continue;
       // Dois passos do mesmo dependente apontando para o mesmo artefato são um problema só.
       const seenKey = `${dependent.id} ${ref.id}`;

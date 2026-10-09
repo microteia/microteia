@@ -1,4 +1,8 @@
-import type { MarketplacePlugin } from '../../../../domain/entities/MarketplacePlugin';
+import type {
+  LookupModuleTemplate,
+  MarketplacePlugin,
+  ScreenModuleTemplate,
+} from '../../../../domain/entities/MarketplacePlugin';
 import type { SettingsSection } from '../../../../domain/schema/settings';
 import type { WidgetSpec } from '../../../../domain/schema/ui/widgetSpec';
 import { settingsSection } from '../../../contributionBuilders';
@@ -29,6 +33,38 @@ import { settingsPtBrContribution } from './settingsMessagesPtBr';
  */
 
 const message = (key: string): string => `@com.microteia.settings-example/${key}`;
+
+/**
+ * A list of options this package brings, so a setting can draw from it. The KEYS are stable; the
+ * labels are translated, and from install time on the list belongs to the office — it renames,
+ * recolours and adds options. The `color` names a theme token.
+ */
+const STAGES: LookupModuleTemplate = {
+  collection: 'settingsExampleStages',
+  label: message('lookup.stages'),
+  options: [
+    { key: 'open', label: message('stage.open'), color: 'primary' },
+    { key: 'waiting', label: message('stage.waiting'), color: 'warning' },
+    { key: 'done', label: message('stage.done'), color: 'success' },
+  ],
+};
+
+/** A screen whose records a setting can point at — the `entity` source needs one. */
+const CONTACT_SCREEN: ScreenModuleTemplate = {
+  key: 'settingsExampleContact',
+  sourceId: 'microteia:settings-example:contact',
+  sourceRev: 1,
+  titleSingular: message('screen.contact'),
+  titlePlural: message('screen.contact.plural'),
+  icon: 'user',
+  fields: [
+    { key: 'name', label: message('field.name'), type: 'text', required: true, order: 0 },
+    { key: 'email', label: message('field.email'), type: 'text', required: false, order: 1 },
+  ],
+  titleFieldKey: 'name',
+  subtitleFieldKey: 'email',
+  eventPrefix: 'settingsExampleContact',
+};
 
 const SECTION: SettingsSection = {
   key: 'settings-example',
@@ -83,6 +119,45 @@ const SECTION: SettingsSection = {
         { value: 'strict', label: message('prop.mode.strict') },
         { value: 'lenient', label: message('prop.mode.lenient') },
       ],
+      scopes: ['tenant'],
+    },
+
+    /**
+     * Options that are the OFFICE's data, not a closed list in the package. `optionsFrom` names an
+     * option list, and the value stored is the option KEY — exactly what a `select` field with that
+     * `lookupCollection` stores on a record, so a view compares the two with `===`. The editor is the
+     * record form's own: the options keep their colours, and an option that has since been deleted
+     * shows as missing, for the person to remove.
+     *
+     * `multi` makes the value a `string[]`. Read it with `useSettingValue`, or with `useSettingChoices`
+     * from `@microteia/settings` to get each label and colour too.
+     */
+    {
+      key: 'settingsExample.stages',
+      label: message('prop.stages'),
+      description: message('prop.stages.description'),
+      type: 'select',
+      multi: true,
+      optionsFrom: { kind: 'lookup', collection: STAGES.collection },
+      default: ['open', 'waiting'],
+      scopes: ['tenant', 'user'],
+    },
+
+    /**
+     * The records of a screen. The value stored is the record ID — what a `reference` field stores —
+     * and the label is the screen's title field. Whoever cannot read the screen sees the setting
+     * disabled, with the reason, rather than an empty list that reads as "there is nothing".
+     *
+     * The collection is named the way a field names it in the package; the platform finds the
+     * installed screen even when its key had to be disambiguated in the office.
+     */
+    {
+      key: 'settingsExample.owner',
+      label: message('prop.owner'),
+      description: message('prop.owner.description'),
+      type: 'select',
+      optionsFrom: { kind: 'entity', collection: CONTACT_SCREEN.key },
+      default: '',
       scopes: ['tenant'],
     },
 
@@ -142,8 +217,8 @@ const LICENCE: WidgetSpec = {
 export const settingsExamplePlugin: MarketplacePlugin = {
   manifest: {
     id: 'com.microteia.settings-example',
-    version: '1.0.0',
-    kernel: '^2.0.0',
+    version: '1.1.0',
+    kernel: '^2.22.0',
     name: message('package.name'),
     description: message('package.description'),
     category: message('package.category'),
@@ -159,4 +234,6 @@ export const settingsExamplePlugin: MarketplacePlugin = {
   },
   summary: message('package.summary'),
   workflows: [],
+  screens: [CONTACT_SCREEN],
+  lookups: [STAGES],
 };

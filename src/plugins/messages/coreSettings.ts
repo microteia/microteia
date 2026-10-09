@@ -15,6 +15,9 @@ export const CORE_SETTINGS_MESSAGES: Record<string, string> = {
   'settings.mode.json': 'Edit as JSON',
   'settings.mode.visual': 'Visual editing',
   'settings.none-found': 'No setting found.',
+  'settings.options.forbidden':
+    'You cannot read {screen}, so this setting cannot be changed here. Ask for permission to read it.',
+  'settings.options.unavailable': 'The list these options come from is not available in this organization.',
   'settings.record-tabs.description':
     'Tabs that extensions add to the detail of a record. Choose, screen by screen, which ones appear and in what order.',
   'settings.record-tabs.property':
@@ -46,6 +49,8 @@ export const CORE_SETTINGS_MESSAGES: Record<string, string> = {
   'setting.number.min': 'The minimum is {min}.',
   'setting.scope.read-only': 'This setting is not editable in this scope.',
   'setting.select': 'Enter one of the options.',
+  'setting.select.duplicate': 'The same option appears more than once.',
+  'setting.select.multi': 'Enter a list of options.',
   'setting.string-list': 'Enter a list of texts.',
   'setting.string-list.item': 'Each item must be a non-empty text.',
   'setting.string-list.pattern': 'There is an item outside the expected format.',

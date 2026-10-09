@@ -1444,8 +1444,32 @@ const SETTINGS_MODULE_DEFS = `declare module '@microteia/settings' {
   /**
    * The value in effect for a setting, by its full key ('dashboard.widgets'). Already resolved: the
    * user's preference, else the organization's default, else the declared default.
+   *
+   * A 'select' with 'multi: true' returns string[]; any other 'select' returns a string. With
+   * 'optionsFrom', each value is exactly what the matching field stores on a record — the option KEY
+   * for a 'lookup', the record ID for an 'entity' — so compare it to the record with ===.
    */
   export function useSettingValue(key: string): unknown;
+
+  /** One chosen value of a 'select' setting, ready to show. */
+  export interface SettingChoice {
+    /** What is stored — the same value 'useSettingValue' returns. */
+    value: string;
+    /** The option label or the record title, already translated. */
+    label: string;
+    /** The option colour, when the list has colours. */
+    color?: string;
+    /** The value is stored, but the option or record no longer exists. */
+    missing: boolean;
+  }
+
+  /**
+   * The value in effect for a 'select' setting, one entry per chosen value, with its label and colour
+   * — so a card title can read "Recent cases · Open, On hold" without reading the collection again.
+   * Empty for a setting that is not a 'select'. 'missing' is only ever true when the options could be
+   * read; without permission to read the source, values come back as they are.
+   */
+  export function useSettingChoices(key: string): SettingChoice[];
 }`;
 
 const FUNCTIONS_MODULE_DEFS = `declare module '@microteia/functions' {

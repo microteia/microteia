@@ -1,8 +1,8 @@
 {
   "manifest": {
     "id": "com.microteia.settings-example",
-    "version": "1.0.0",
-    "kernel": "^2.0.0",
+    "version": "1.1.0",
+    "kernel": "^2.22.0",
     "name": "@com.microteia.settings-example/package.name",
     "description": "@com.microteia.settings-example/package.description",
     "category": "@com.microteia.settings-example/package.category",
@@ -52,6 +52,18 @@
             "prop.mode.description": "A closed list of choices.",
             "prop.mode.strict": "Strict",
             "prop.mode.lenient": "Lenient",
+            "prop.stages": "Stages to show",
+            "prop.stages.description": "Several options from a list the office owns. The value stored is each option key — the same a record stores.",
+            "prop.owner": "Default contact",
+            "prop.owner.description": "One record of a screen. The value stored is the record ID — the same a reference field stores.",
+            "lookup.stages": "Example stages",
+            "stage.open": "Open",
+            "stage.waiting": "Waiting",
+            "stage.done": "Done",
+            "screen.contact": "Example contact",
+            "screen.contact.plural": "Example contacts",
+            "field.name": "Name",
+            "field.email": "E-mail",
             "prop.senders": "Allowed senders",
             "prop.senders.description": "A list of texts, validated one item at a time. It exists so an extension that needs \"several addresses\" does not have to ask for a JSON blob.",
             "prop.senders.placeholder": "someone@example.com",
@@ -86,6 +98,18 @@
             "prop.mode.description": "Uma lista fechada de escolhas.",
             "prop.mode.strict": "Estrito",
             "prop.mode.lenient": "Tolerante",
+            "prop.stages": "Etapas a mostrar",
+            "prop.stages.description": "Várias opções de uma lista que é do escritório. O valor gravado é a chave de cada opção — a mesma que um registro grava.",
+            "prop.owner": "Contato padrão",
+            "prop.owner.description": "Um registro de uma tela. O valor gravado é o id do registro — o mesmo que um campo de referência grava.",
+            "lookup.stages": "Etapas do exemplo",
+            "stage.open": "Aberta",
+            "stage.waiting": "Aguardando",
+            "stage.done": "Concluída",
+            "screen.contact": "Contato de exemplo",
+            "screen.contact.plural": "Contatos de exemplo",
+            "field.name": "Nome",
+            "field.email": "E-mail",
             "prop.senders": "Remetentes permitidos",
             "prop.senders.description": "Uma lista de textos, validada item a item. Existe para que uma extensão que precisa de \"vários endereços\" não tenha de pedir um bloco de JSON.",
             "prop.senders.placeholder": "alguem@exemplo.com",
@@ -161,6 +185,39 @@
               ]
             },
             {
+              "key": "settingsExample.stages",
+              "label": "@com.microteia.settings-example/prop.stages",
+              "description": "@com.microteia.settings-example/prop.stages.description",
+              "type": "select",
+              "multi": true,
+              "optionsFrom": {
+                "kind": "lookup",
+                "collection": "settingsExampleStages"
+              },
+              "default": [
+                "open",
+                "waiting"
+              ],
+              "scopes": [
+                "tenant",
+                "user"
+              ]
+            },
+            {
+              "key": "settingsExample.owner",
+              "label": "@com.microteia.settings-example/prop.owner",
+              "description": "@com.microteia.settings-example/prop.owner.description",
+              "type": "select",
+              "optionsFrom": {
+                "kind": "entity",
+                "collection": "settingsExampleContact"
+              },
+              "default": "",
+              "scopes": [
+                "tenant"
+              ]
+            },
+            {
               "key": "settingsExample.senders",
               "label": "@com.microteia.settings-example/prop.senders",
               "description": "@com.microteia.settings-example/prop.senders.description",
@@ -188,5 +245,57 @@
     ]
   },
   "summary": "@com.microteia.settings-example/package.summary",
-  "workflows": []
+  "workflows": [],
+  "screens": [
+    {
+      "key": "settingsExampleContact",
+      "sourceId": "microteia:settings-example:contact",
+      "sourceRev": 1,
+      "titleSingular": "@com.microteia.settings-example/screen.contact",
+      "titlePlural": "@com.microteia.settings-example/screen.contact.plural",
+      "icon": "user",
+      "fields": [
+        {
+          "key": "name",
+          "label": "@com.microteia.settings-example/field.name",
+          "type": "text",
+          "required": true,
+          "order": 0
+        },
+        {
+          "key": "email",
+          "label": "@com.microteia.settings-example/field.email",
+          "type": "text",
+          "required": false,
+          "order": 1
+        }
+      ],
+      "titleFieldKey": "name",
+      "subtitleFieldKey": "email",
+      "eventPrefix": "settingsExampleContact"
+    }
+  ],
+  "lookups": [
+    {
+      "collection": "settingsExampleStages",
+      "label": "@com.microteia.settings-example/lookup.stages",
+      "options": [
+        {
+          "key": "open",
+          "label": "@com.microteia.settings-example/stage.open",
+          "color": "primary"
+        },
+        {
+          "key": "waiting",
+          "label": "@com.microteia.settings-example/stage.waiting",
+          "color": "warning"
+        },
+        {
+          "key": "done",
+          "label": "@com.microteia.settings-example/stage.done",
+          "color": "success"
+        }
+      ]
+    }
+  ]
 }

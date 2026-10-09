@@ -43,6 +43,7 @@ const KEY_PATTERN = /^[a-z0-9][a-z0-9-]*$/;
 
 const KIND_KEY: Record<RefKind, string> = {
   screen: 'author.kind.screen',
+  lookup: 'author.kind.lookup',
   action: 'author.kind.action',
   workflow: 'author.kind.workflow',
   script: 'author.kind.script',
@@ -424,6 +425,7 @@ export const usePluginAuthorViewModel = (tabKey?: string): PluginAuthorViewModel
         installedScripts: scripts,
       });
       for (const ref of packageOutRefs(pkg)) {
+        if (ref.kind === 'lookup') continue;
         const plural = `${ref.kind}s` as ArtifactKind;
         if (availById[ref.kind].has(ref.id) && !has(plural, ref.id)) {
           req[plural].add(ref.id);
@@ -592,6 +594,7 @@ export const usePluginAuthorViewModel = (tabKey?: string): PluginAuthorViewModel
   const nameOf = useCallback((kind: RefKind, id: string): string => {
     switch (kind) {
       case 'screen': return definitions.find((d) => d.id === id)?.titlePlural || id;
+      case 'lookup': return id;
       case 'action': return actions.find((a) => a.id === id)?.title || id;
       case 'workflow': return workflows.find((w) => w.id === id)?.name || id;
       case 'script': return scripts.find((s) => s.id === id)?.name || id;
