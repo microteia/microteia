@@ -9,6 +9,7 @@ import type { RuleIssue } from '../../domain/schema/fieldRules';
 import { ruleIssueParams } from '../../domain/schema/fieldRules';
 import { checkAgentInput } from '../../domain/schema/agent/agentInput';
 import { AGENT_SEARCH_MAX_RESULTS } from '../../domain/schema/agent/agentOps';
+import { searchAuditLog } from './agentAuditLog';
 import { applyDerivedFields } from '../../domain/schema/recordRules';
 import { resolveQueryTable } from '../../domain/schema/querySpec';
 import type { SchemaContext } from '../../domain/schema/screenEntity';
@@ -290,6 +291,11 @@ export const runAgentOperation = async (
 
     case 'run_action':
       return runAgentAction(input, session, catalog);
+
+    case 'search_audit_log': {
+      const outcome = await searchAuditLog(input, session.tenantId, catalog);
+      return outcome.ok ? outcome : refuse(catalog, outcome.error, outcome.params);
+    }
 
     default:
       return refuse(catalog, '@core.automation/handler.action.not-found');

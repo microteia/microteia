@@ -156,6 +156,7 @@ export const CORE_ACCESS_MESSAGES: Record<string, string> = {
   'agent.prompts.unknown-none': 'Unknown report filters: {unknown}. This report declares no filters.',
   'agent.prompts.required': 'The report filter "{label}" ({key}) is required.',
   'agent.run.not-found': 'No automation was started with the event id "{eventId}".',
+  'agent.audit.date-invalid': '"{path}" is not a date: send "YYYY-MM-DD" or an ISO-8601 timestamp.',
   'permission.agent.manage': 'Manage AI agent access',
   'permission.agent.manage.description':
     'See and revoke the AI agent access of every member. Issuing an access for oneself does not need this.',

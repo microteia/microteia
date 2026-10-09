@@ -18,6 +18,11 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.78.0] — 2026-10-09
+
+- feat(agent): new MCP tool `search_audit_log`, charged by `audit.read`. The permission could be granted to an agent access (OAuth or token) but no tool consumed it: the audit log lives in the root `auditLogs` collection, not in a screen collection, so `search_records` could never reach it and the agent reported that it could not read the audit. The tool filters by period (`since`/`until`, bare day = whole UTC day), `action`, `severity`, `type`, `entity`, `entityId` and `userId`, resolves `title`/`text` message refs through the agent catalog, and reports `scanned`/`complete` like `search_records`. It queries only the existing `tenantId` + `createdAt desc` index — the other filters apply in memory over a 2000-entry window — so no index deploy is needed.
+- chore(locale-pt-br): 1.69.0, with the refusal for an invalid audit date.
+
 #### [9.77.0] — 2026-10-09
 
 - feat(aggregation): `FieldAggregation.op` takes `latest` — `field` of the FIRST child that passes `filter` after sorting by the new `orderBy: QueryOrderBy[]`, copied as it is (option key, `YYYY-MM-DD`, id, list). No child passing — including after the only one is deleted — writes `null`. Empty keys sort last in both directions; a full tie falls to `createdAt` in the direction of the last key, then to the document id ascending, so the value is stable across recomputes. Sorting is in memory over the same equality query (`via == parentId`, 500-child cap with warning): an `orderBy` on Firestore would need a composite index per declared aggregation. `KERNEL_VERSION` 2.22.0 → 2.23.0.

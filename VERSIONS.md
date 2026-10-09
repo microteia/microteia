@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.78.0] — 2026-10-09
+
+- O agente de IA conectado ao escritório agora consegue consultar a Auditoria: com a permissão de ler a auditoria, ele responde quem criou, alterou ou excluiu um registro e quando, e quais falhas o sistema registrou — filtrando por período, tipo de alteração, gravidade, registro ou usuário.
+
 #### [9.77.0] — 2026-10-09
 
 - Um campo pode agora mostrar o valor do registro filho mais recente — por exemplo, o resultado da última decisão de um processo ou a data do último contato com um cliente. O valor se atualiza sozinho quando um filho é criado, alterado ou excluído, e volta a ficar vazio quando nenhum filho se encaixa mais.

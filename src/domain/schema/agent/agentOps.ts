@@ -1,7 +1,8 @@
-import { PERMISSION_AUTOMATION_RUN } from '../access/kernelPermissions';
+import { PERMISSION_AUDIT_READ, PERMISSION_AUTOMATION_RUN } from '../access/kernelPermissions';
 import { QUERY_OPERATORS } from '../querySpec';
 import type { CrudAction } from '../access/permission';
 import type { WorkflowParameterType } from '../../entities/Workflow';
+import type { AuditAction, AuditSeverity, AuditType } from '../../entities/AuditLog';
 
 /**
  * As operações que um agente de IA executa contra um escritório.
@@ -26,6 +27,7 @@ export const AGENT_OPERATIONS = [
   'run_workflow',
   'get_workflow_run',
   'run_action',
+  'search_audit_log',
 ] as const;
 
 export type AgentOperation = (typeof AGENT_OPERATIONS)[number];
@@ -130,6 +132,14 @@ const DATA = {
     'Field keys and values, as described by describe_screen. Dates are "YYYY-MM-DD", times are '
     + '"HH:mm", and a reference field takes the id of the referenced record.',
 };
+
+export const AUDIT_LOG_ACTIONS = ['CREATE', 'UPDATE', 'DELETE', 'SYSTEM'] as const satisfies readonly AuditAction[];
+export const AUDIT_LOG_SEVERITIES = ['LOW', 'HIGH', 'CRITICAL'] as const satisfies readonly AuditSeverity[];
+export const AUDIT_LOG_TYPES = ['AUDIT', 'ERROR'] as const satisfies readonly AuditType[];
+
+const AUDIT_DAY_OR_INSTANT = (edge: string): string =>
+  `Only entries ${edge} this moment, inclusive. A bare day "YYYY-MM-DD" means that whole day in UTC; `
+  + 'a full ISO-8601 timestamp means that exact instant.';
 
 /** O teto de `search_records`, dito no esquema para o modelo não pedir mais e achar que recebeu. */
 export const AGENT_SEARCH_MAX_RESULTS = 200;
@@ -368,6 +378,38 @@ export const AGENT_TOOLS: readonly AgentToolDefinition[] = [
     ),
     permission: { kind: 'fixed', id: PERMISSION_AUTOMATION_RUN },
     writes: true,
+  },
+  {
+    name: 'search_audit_log',
+    description:
+      'The office audit log, newest first: who created, changed or deleted what and when, plus the '
+      + 'errors the platform recorded. Entries are kept for 30 days. Returns how many entries were '
+      + 'scanned and whether the scan was complete — an incomplete scan means older matches may '
+      + 'exist, so narrow the period rather than trusting the count.',
+    inputSchema: object(
+      {
+        since: { type: 'string', description: AUDIT_DAY_OR_INSTANT('from') },
+        until: { type: 'string', description: AUDIT_DAY_OR_INSTANT('up to') },
+        action: { type: 'string', enum: [...AUDIT_LOG_ACTIONS], description: 'Only entries of this kind of change.' },
+        severity: { type: 'string', enum: [...AUDIT_LOG_SEVERITIES], description: 'Only entries of this severity.' },
+        type: { type: 'string', enum: [...AUDIT_LOG_TYPES], description: 'AUDIT for changes, ERROR for failures.' },
+        entity: { type: 'string', description: 'Only entries about this entity, exactly as the log names it.' },
+        entityId: { type: 'string', description: 'Only entries about this record id.' },
+        userId: { type: 'string', description: 'Only entries made by this user id.' },
+        limit: {
+          type: 'integer',
+          minimum: 1,
+          maximum: AGENT_SEARCH_MAX_RESULTS,
+          description: `Maximum entries to return (at most ${AGENT_SEARCH_MAX_RESULTS}; that is also the default).`,
+        },
+      },
+      [],
+    ),
+    // Uma permissão FIXA, e não `<coleção>.read`: o log não é coleção de tela — mora fora do
+    // escritório, em `auditLogs`, e `firestore.rules` o cobra por `audit.read`. Era a permissão que
+    // um acesso podia receber sem nenhuma ferramenta que a usasse.
+    permission: { kind: 'fixed', id: PERMISSION_AUDIT_READ },
+    writes: false,
   },
 ];
 

@@ -150,6 +150,7 @@ export const CORE_ACCESS: Record<string, string> = {
   'agent.prompts.unknown-none': 'Filtros desconhecidos: {unknown}. Este relatório não declara filtros.',
   'agent.prompts.required': 'O filtro "{label}" ({key}) do relatório é obrigatório.',
   'agent.run.not-found': 'Nenhuma automação foi iniciada com o id de evento "{eventId}".',
+  'agent.audit.date-invalid': '"{path}" não é uma data: envie "AAAA-MM-DD" ou um instante ISO-8601.',
   'permission.agent.manage': 'Gerenciar acessos de agente de IA',
   'permission.agent.manage.description':
     'Ver e revogar os acessos de agente de IA de todos os membros. Emitir um acesso para si mesmo não exige esta permissão.',
