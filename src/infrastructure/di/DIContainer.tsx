@@ -33,6 +33,7 @@ import { FirebaseInstalledExtensionRepository } from '../../data/repositories/Fi
 import { FirebaseExtensionMigrationRepository } from '../../data/repositories/FirebaseExtensionMigrationRepository';
 import { FirebaseExtensionHistoryRepository } from '../../data/repositories/FirebaseExtensionHistoryRepository';
 import { FirebasePublicExtensionRepository } from '../../data/repositories/FirebasePublicExtensionRepository';
+import { FirebaseExtensionReputationRepository } from '../../data/repositories/FirebaseExtensionReputationRepository';
 import { FirebaseSettingsRepository } from '../../data/repositories/FirebaseSettingsRepository';
 import { FirebaseBackendResidueRepository } from '../../data/repositories/FirebaseBackendResidueRepository';
 import { DIContext } from './useDI';
@@ -78,6 +79,7 @@ export const DIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
     extensionMigrationRepository: new FirebaseExtensionMigrationRepository(),
     extensionHistoryRepository: new FirebaseExtensionHistoryRepository(),
     publicExtensionRepository: new FirebasePublicExtensionRepository(),
+    extensionReputationRepository: new FirebaseExtensionReputationRepository(),
     backendResidueRepository: new FirebaseBackendResidueRepository(),
   }), [host]);
 

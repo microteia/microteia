@@ -67,6 +67,17 @@ export interface PluginManifest {
    */
   category?: string;
   icon?: string;
+  /**
+   * A IMAGEM que identifica a extensão na tela de Extensões — o logotipo do autor.
+   *
+   * Só `data:` URI (PNG, JPEG, WebP ou SVG), com teto de tamanho: o pacote é autocontido e viaja
+   * inteiro para cada escritório que o instala. Uma URL externa faria cada navegador que abre a lista
+   * avisar a um servidor de terceiro quem está olhando, e deixaria a imagem sumir no dia em que ele
+   * saísse do ar. Quem não declara cai no `icon`, e quem não declara nenhum dos dois ganha o ícone da
+   * primeira tela ou entrada de menu que contribui — ver `extensionGlyphOf`. Validação:
+   * `packageImageIssues`.
+   */
+  image?: string;
   homepage?: string;
   publisher?: PluginPublisher;
   /**

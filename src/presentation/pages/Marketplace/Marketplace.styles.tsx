@@ -161,6 +161,23 @@ export const S = {
     }
   `,
 
+  Sort: styled.div`
+    display: inline-flex;
+    align-items: center;
+    gap: ${({ theme }) => theme.spacing.sm};
+    margin-left: auto;
+  `,
+
+  SortLabel: styled.span`
+    font-size: ${({ theme }) => theme.fontSizes.sm};
+    color: ${({ theme }) => theme.colors.textSecondary};
+    white-space: nowrap;
+  `,
+
+  SortSelect: styled.div`
+    min-width: 190px;
+  `,
+
   FilterCount: styled.span`
     font-size: ${({ theme }) => theme.fontSizes.xs};
     font-weight: 700;
@@ -189,6 +206,125 @@ export const S = {
     background: ${({ theme }) => theme.colors.surfaceHover};
     color: ${({ theme, $tone }) => toneColor(theme, $tone)};
     flex-shrink: 0;
+  `,
+
+  RowImage: styled.img`
+    width: 38px;
+    height: 38px;
+    border-radius: ${({ theme }) => theme.borderRadius.md};
+    object-fit: contain;
+    flex-shrink: 0;
+  `,
+
+  Verified: styled.span`
+    display: inline-flex;
+    align-items: center;
+    color: ${({ theme }) => theme.colors.primary};
+    flex-shrink: 0;
+  `,
+
+  Stat: styled.span`
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  `,
+
+  Stars: styled.span`
+    display: inline-flex;
+    align-items: center;
+    gap: 1px;
+    color: ${({ theme }) => theme.colors.warning};
+  `,
+
+  DetailsHeader: styled.div`
+    display: flex;
+    align-items: center;
+    gap: ${({ theme }) => theme.spacing.md};
+    margin-bottom: ${({ theme }) => theme.spacing.lg};
+  `,
+
+  DetailsImage: styled.img`
+    width: 64px;
+    height: 64px;
+    border-radius: ${({ theme }) => theme.borderRadius.lg};
+    object-fit: contain;
+    flex-shrink: 0;
+  `,
+
+  DetailsGlyph: styled.div`
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 64px;
+    height: 64px;
+    border-radius: ${({ theme }) => theme.borderRadius.lg};
+    background: ${({ theme }) => theme.colors.surfaceHover};
+    color: ${({ theme }) => theme.colors.primary};
+    flex-shrink: 0;
+  `,
+
+  DetailsHeaderText: styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: ${({ theme }) => theme.spacing.xs};
+    min-width: 0;
+  `,
+
+  DetailsHeaderLine: styled.div`
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: ${({ theme }) => theme.spacing.sm};
+    font-size: ${({ theme }) => theme.fontSizes.sm};
+    color: ${({ theme }) => theme.colors.textSecondary};
+  `,
+
+  RateBox: styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: ${({ theme }) => theme.spacing.xs};
+    margin-top: ${({ theme }) => theme.spacing.lg};
+    padding-top: ${({ theme }) => theme.spacing.md};
+    border-top: 1px solid ${({ theme }) => theme.colors.border};
+  `,
+
+  RateTitle: styled.span`
+    font-size: ${({ theme }) => theme.fontSizes.sm};
+    font-weight: 600;
+    color: ${({ theme }) => theme.colors.text};
+  `,
+
+  RateLine: styled.div`
+    display: flex;
+    align-items: center;
+    gap: ${({ theme }) => theme.spacing.md};
+  `,
+
+  RateStars: styled.div`
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+  `,
+
+  RateStar: styled.button<{ $filled: boolean }>`
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2px;
+    border: none;
+    background: none;
+    color: ${({ theme, $filled }) => ($filled ? theme.colors.warning : theme.colors.textMuted)};
+    cursor: pointer;
+    transition: ${({ theme }) => theme.transitions.fast};
+
+    &:hover {
+      color: ${({ theme }) => theme.colors.warning};
+    }
+  `,
+
+  RateHint: styled.span`
+    font-size: ${({ theme }) => theme.fontSizes.xs};
+    color: ${({ theme }) => theme.colors.textMuted};
   `,
 
   RowMain: styled.div`

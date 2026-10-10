@@ -21,6 +21,9 @@ import { EXAMPLE_NOTES } from '../src/sdk/node/exampleNotes';
  * fica. As duas são decisões; o que não é decisão é a lacuna aparecer sozinha.
  */
 const LACUNAS_RECONHECIDAS: Record<string, string> = {
+  'manifest-property/image':
+    'o logotipo da extensão. Um exemplo é molde, e um logotipo copiado de molde vira a identidade de outra '
+    + 'extensão; quem não declara imagem já ganha o ícone derivado do menu ou da tela que contribui.',
   'manifest-property/homepage':
     'onde ler mais sobre a extensão. Nenhum exemplo tem página própria, e inventar uma URL num molde é pior que '
     + 'omitir o campo: quem copiasse levaria junto um endereço que não existe.',

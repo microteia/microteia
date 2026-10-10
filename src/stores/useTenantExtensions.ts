@@ -11,9 +11,15 @@ export type ImportExtensionResult =
 export interface TenantExtensionStoreValue {
   extensions: TenantExtension[];
   isLoading: boolean;
-  /** Cria ou atualiza a extensão privada (id = package.manifest.id); preserva `active`/autoria. */
+  /**
+   * Grava o que a tela "Criar extensão" montou (origem `authored`); preserva `active`/autoria. Lança
+   * `LocalizedError` quando o id é de uma extensão importada — essa não se edita.
+   */
   saveExtension: (pkg: MarketplacePlugin) => Promise<void>;
-  /** Faz parse + valida um `.json` e o grava como rascunho privado em Minhas Extensões. */
+  /**
+   * Faz parse + valida um `.json` e o grava em Minhas Extensões com origem `imported`. Recusa quando o
+   * id é de uma extensão montada aqui: importar trocaria a fonte do escritório por uma cópia fechada.
+   */
   importExtension: (text: string) => Promise<ImportExtensionResult>;
   setActive: (id: string, active: boolean) => Promise<void>;
   removeExtension: (id: string) => Promise<void>;

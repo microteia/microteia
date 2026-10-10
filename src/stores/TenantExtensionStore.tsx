@@ -5,7 +5,8 @@ import { useAuth } from './useAuth';
 import { useDI } from '../infrastructure/di/useDI';
 import { parsePackage } from '../domain/usecases/plugins/packageSerialization';
 import { validatePluginPackage } from '../sdk/validate';
-import type { TenantExtension } from '../domain/entities/TenantExtension';
+import type { TenantExtension, TenantExtensionOrigin } from '../domain/entities/TenantExtension';
+import { authoringRefusal, importRefusal } from '../domain/usecases/plugins/extensionOrigin';
 import type { MarketplacePlugin } from '../domain/entities/MarketplacePlugin';
 
 export const TenantExtensionStoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -35,7 +36,11 @@ export const TenantExtensionStoreProvider: React.FC<{ children: React.ReactNode 
     [extensions],
   );
 
-  const saveExtension = useCallback(async (pkg: MarketplacePlugin) => {
+  /**
+   * A gravação das duas portas de entrada. A origem é de QUEM chama — a tela de autoria grava
+   * `authored`, a importação `imported` —, e cada porta recusa antes o que a outra deixou ali.
+   */
+  const write = useCallback(async (pkg: MarketplacePlugin, origin: TenantExtensionOrigin) => {
     if (!currentTenant || !user) return;
     const id = pkg.manifest.id;
     const existing = extensions.find((extension) => extension.id === id);
@@ -44,6 +49,7 @@ export const TenantExtensionStoreProvider: React.FC<{ children: React.ReactNode 
       tenantId: currentTenant.id,
       active: existing?.active ?? false,
       package: pkg,
+      origin,
       createdBy: existing?.createdBy ?? user.id,
       createdByName: existing?.createdByName ?? user.displayName,
       createdByPhotoURL: existing?.createdByPhotoURL ?? user.photoURL,
@@ -56,15 +62,23 @@ export const TenantExtensionStoreProvider: React.FC<{ children: React.ReactNode 
     );
   }, [currentTenant, user, extensions, tenantExtensionRepository]);
 
+  const saveExtension = useCallback(async (pkg: MarketplacePlugin) => {
+    const refusal = authoringRefusal(extensions.find((extension) => extension.id === pkg.manifest.id));
+    if (refusal) throw refusal;
+    await write(pkg, 'authored');
+  }, [extensions, write]);
+
   const importExtension = useCallback(async (text: string): Promise<ImportExtensionResult> => {
     const parsed = parsePackage(text);
     if (!parsed.ok) return { ok: false, error: parsed.error };
     const pkg = parsed.package;
     const [issue] = validatePluginPackage(pkg);
     if (issue) return { ok: false, error: issue.message, errorParams: issue.messageParams };
-    await saveExtension(pkg);
+    const refusal = importRefusal(extensions.find((extension) => extension.id === pkg.manifest.id));
+    if (refusal) return { ok: false, error: refusal.message, errorParams: refusal.messageParams };
+    await write(pkg, 'imported');
     return { ok: true, name: pkg.manifest.name || pkg.manifest.id, package: pkg };
-  }, [saveExtension]);
+  }, [extensions, write]);
 
   const setActive = useCallback(async (id: string, active: boolean) => {
     if (!currentTenant) return;

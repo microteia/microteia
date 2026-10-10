@@ -17,6 +17,17 @@ import { useDI } from '../../../infrastructure/di/useDI';
 import type { BackendResidue } from '../../../domain/entities/BackendResidue';
 import { extensionMigrationError, isExtensionMigrationPending } from '../../../domain/usecases/plugins/extensionMigrationState';
 import { licenseOf } from '../../../domain/usecases/plugins/pluginLicenses';
+import { isAuthoredHere } from '../../../domain/usecases/plugins/extensionOrigin';
+import {
+  compareByMetric,
+  extensionGlyphOf,
+  extensionImageOf,
+  publisherVerificationOf,
+  ratingAverage,
+  starsOf,
+  MAX_STARS,
+} from '../../../domain/usecases/plugins/extensionReputation';
+import type { PublisherVerification, StarKind } from '../../../domain/usecases/plugins/extensionReputation';
 import { wrappedErrorParams } from '../../../domain/errors/LocalizedError';
 import { useExtensionCodeTrust } from '../../../stores/useExtensionCodeTrust';
 import { useInstalledRevision } from '../../../stores/useInstalledRevision';
@@ -31,6 +42,7 @@ import type { TenantExtension } from '../../../domain/entities/TenantExtension';
 import type { PublicExtension } from '../../../domain/entities/PublicExtension';
 import type { WidgetSpec } from '../../../domain/schema/ui/widgetSpec';
 import type { FilterDef, FilterToken } from '../../components/ui/CompositeFilter';
+import type { SearchSelectOption } from '../../components/ui/SearchSelect';
 
 import { useT, useLocaleFormat } from '../../shared/i18n/useT';
 import { usePackageCatalog } from '../../shared/i18n/usePackageCatalog';
@@ -40,6 +52,24 @@ import type { MessageCatalog, MessageParams } from '../../../domain/schema/i18n/
 export interface Author {
   name: string | null;
   photoURL: string | null;
+}
+
+/** A nota pública de uma extensão, pronta para desenhar. */
+export interface RatingSummary {
+  stars: StarKind[];
+  /** A média com uma casa, no formato de quem lê. */
+  average: string;
+  /** Quantos votaram, no formato curto ("1,2 mil"). */
+  count: string;
+  /** A frase inteira, para o `title` — a média e quantos votaram. */
+  label: string;
+}
+
+/** Uma estrela do voto de quem está lendo: a posição e se está acesa. */
+export interface RatingStar {
+  value: number;
+  filled: boolean;
+  label: string;
 }
 
 export type StatusBadge = 'published' | 'pending' | 'deprecated' | 'private' | 'builtin' | 'system';
@@ -79,6 +109,26 @@ export interface ExtensionRow {
   category: string | null;
   /** A mesma categoria já resolvida para o idioma de quem lê — é o que a linha mostra. */
   categoryLabel: string | null;
+
+  /** A imagem declarada (`manifest.image`), quando é uma que a tela desenha. */
+  image: string | null;
+  /** O ícone do catálogo que identifica a extensão quando não há imagem. Ver `extensionGlyphOf`. */
+  glyph: string | null;
+  /** Quem responde pela autenticidade do publicador, ou `null`. Ver `publisherVerificationOf`. */
+  verification: PublisherVerification | null;
+  /** O que o selo de verificação significa, já traduzido — vai no `title` dele. */
+  verificationLabel: string | null;
+  /** Quantos escritórios instalaram, no formato curto. Nulo enquanto não há contagem. */
+  installs: string | null;
+  /** A mesma contagem por extenso, para o `title`. */
+  installsLabel: string | null;
+  /** A nota pública, ou `null` sem voto nenhum — zero estrelas não é nota. */
+  rating: RatingSummary | null;
+  /** Quem lê pode votar: a extensão está instalada aqui, a partir do catálogo. */
+  canRate: boolean;
+  /** O SYSTEM pode conceder ou retirar o selo do escritório que publicou. */
+  canVerifyPublisher: boolean;
+  publisherVerified: boolean;
 
   installBadge: InstallBadge | null;
   statusBadge: StatusBadge | null;
@@ -130,6 +180,11 @@ export interface ExtensionRow {
   codeTrustedByName: string | null;
 
   mine: boolean;
+  /**
+   * Está em "Minhas" porque foi IMPORTADA, e não montada aqui. A fonte dela é de quem a escreveu: aqui
+   * ela é ativada, instalada e publicada, mas não editada nem baixada.
+   */
+  imported: boolean;
   installed: boolean;
   isPublic: boolean;
   /** Vem do catálogo embutido no bundle — extensão de primeira parte, sempre disponível. */
@@ -156,6 +211,13 @@ export interface ExtensionProblem {
 }
 
 export type MarketplaceFilter = 'all' | 'installed' | 'mine' | 'catalog';
+
+/**
+ * A ordem da lista. `relevance` é a de sempre — instaladas, depois as do escritório, depois o resto —
+ * e continua sendo o padrão: quem abre a tela para gerenciar o que tem não pode ter a ordem trocada
+ * por popularidade.
+ */
+export type MarketplaceSort = 'relevance' | 'installs' | 'rating' | 'name';
 
 /** Onde a extensão importada fica disponível: só neste escritório, ou no catálogo de todos. */
 export type ImportScope = 'private' | 'public';
@@ -243,6 +305,10 @@ export interface MarketplaceViewModel {
   rows: ExtensionRow[];
   filter: MarketplaceFilter;
   setFilter: (filter: MarketplaceFilter) => void;
+  sort: MarketplaceSort;
+  /** Recebe o valor do seletor; o que não for uma ordem conhecida é ignorado. */
+  setSort: (sort: string) => void;
+  sortOptions: SearchSelectOption[];
   counts: Record<MarketplaceFilter, number>;
   /**
    * O filtro fino da aba "Todas". Ele existe só ali porque as outras três abas JÁ SÃO um recorte:
@@ -256,6 +322,17 @@ export interface MarketplaceViewModel {
   removeTarget: { id: string; name: string } | null;
   reviewTarget: { id: string; name: string; code: string } | null;
   detailsRow: ExtensionRow | null;
+  /**
+   * As cinco estrelas do voto de quem lê, na extensão do modal de detalhes. Vazio quando não pode
+   * votar nela.
+   */
+  myRatingStars: RatingStar[];
+  /** Já votou — é o que oferece retirar o voto. */
+  hasMyRating: boolean;
+  rate: (stars: number) => Promise<void>;
+  clearMyRating: () => Promise<void>;
+  /** Concede ou retira o selo do publicador desta extensão. */
+  togglePublisherVerified: (id: string) => Promise<void>;
   openDetails: (id: string) => void;
   closeDetails: () => void;
   /** A extensão cujos termos de licença estão abertos — o modal do ícone de licença do cartão. */
@@ -329,6 +406,7 @@ const matchesTokens = (
       case 'builtin': return matchesBoolean(values, row.isBuiltin);
       case 'code': return matchesBoolean(values, row.hasCode);
       case 'system': return matchesBoolean(values, row.isSystem);
+      case 'verified': return matchesBoolean(values, row.verification !== null);
       case 'category': return row.categoryLabel === null
         ? values.includes(UNCATEGORIZED)
         : values.map(categoryLabelOf).includes(row.categoryLabel);
@@ -340,9 +418,15 @@ const matchesTokens = (
 
 const rankOf = (row: ExtensionRow): number => (row.installed ? 0 : row.mine ? 1 : 2);
 
+const SORTS: MarketplaceSort[] = ['relevance', 'installs', 'rating', 'name'];
+
+const isSort = (value: string): value is MarketplaceSort => (SORTS as string[]).includes(value);
+
+const byName = (a: ExtensionRow, b: ExtensionRow): number => a.name.localeCompare(b.name);
+
 export const useMarketplaceViewModel = (): MarketplaceViewModel => {
   const t = useT('core.marketplace');
-  const { formatDateTime } = useLocaleFormat();
+  const { formatDateTime, formatNumber } = useLocaleFormat();
   const { extensions, importExtension, removeExtension } = useTenantExtensions();
   const { currentTenant } = useTenant();
   const {
@@ -357,7 +441,20 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
     histories,
     restore: restoreVersion,
   } = useInstalledExtensions();
-  const { publicExtensions, publish: publishPublic, approve: approvePublic, deprecate: deprecatePublic, unpublish, publicOf } = usePublicExtensions();
+  const {
+    publicExtensions,
+    publish: publishPublic,
+    approve: approvePublic,
+    deprecate: deprecatePublic,
+    unpublish,
+    publicOf,
+    statsById,
+    verifiedPublishers,
+    myRatingOf,
+    rate: ratePublic,
+    clearRating,
+    setPublisherVerified,
+  } = usePublicExtensions();
   const { can } = useAuthorization();
   const { user, userRole } = useAuth();
   const { notify } = useNotification();
@@ -366,6 +463,8 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [removeTarget, setRemoveTarget] = useState<{ id: string; name: string } | null>(null);
   const [filter, setFilter] = useState<MarketplaceFilter>('all');
+  const [sort, setSortState] = useState<MarketplaceSort>('relevance');
+  const setSort = useCallback((value: string) => { if (isSort(value)) setSortState(value); }, []);
   const [reviewTarget, setReviewTarget] = useState<{ id: string; name: string; code: string } | null>(null);
   const [detailsId, setDetailsId] = useState<string | null>(null);
   const [licenseId, setLicenseId] = useState<string | null>(null);
@@ -623,6 +722,41 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
     [currentTenant, canModerate],
   );
 
+  /**
+   * Instalações e nota de uma extensão, como a linha as mostra. O número curto ("1,2 mil") é o que
+   * cabe na linha; a frase por extenso vai no `title`, para quem quer o número exato.
+   */
+  const reputationOf = useCallback((id: string) => {
+    const stats = statsById.get(id);
+    const compact = (value: number) => formatNumber(value, { notation: 'compact', maximumFractionDigits: 1 });
+    const average = ratingAverage(stats);
+    return {
+      installs: stats ? compact(stats.installs) : null,
+      installsLabel: stats
+        ? t('extension.installs', { count: stats.installs, formatted: formatNumber(stats.installs) })
+        : null,
+      rating: stats && average !== null
+        ? {
+          stars: starsOf(average),
+          average: formatNumber(average, { minimumFractionDigits: 1, maximumFractionDigits: 1 }),
+          count: compact(stats.ratingCount),
+          label: t('extension.rating', {
+            count: stats.ratingCount,
+            formatted: formatNumber(stats.ratingCount),
+            average: formatNumber(average, { minimumFractionDigits: 1, maximumFractionDigits: 1 }),
+            max: MAX_STARS,
+          }),
+        }
+        : null,
+    };
+  }, [statsById, formatNumber, t]);
+
+  const verificationLabelOf = useCallback((verification: PublisherVerification | null): string | null => {
+    if (verification === 'first-party') return t('extension.verified.first-party');
+    if (verification === 'verified') return t('extension.verified.publisher');
+    return null;
+  }, [t]);
+
   const rows = useMemo<ExtensionRow[]>(() => {
     const ids = new Set<string>();
     extensions.forEach((e) => ids.add(e.id));
@@ -645,6 +779,16 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
         description: label(pkg.manifest.description ?? ''),
         category: pkg.manifest.category ?? null,
         categoryLabel: pkg.manifest.category ? label(pkg.manifest.category) : null,
+        image: extensionImageOf(pkg),
+        glyph: extensionGlyphOf(pkg),
+        verification: 'first-party',
+        verificationLabel: verificationLabelOf('first-party'),
+        installs: null,
+        installsLabel: null,
+        rating: null,
+        canRate: false,
+        canVerifyPublisher: false,
+        publisherVerified: false,
         installBadge: 'active',
         statusBadge: 'system',
         updateAvailable: false,
@@ -668,6 +812,7 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
         hasHistory: false,
         codeTrustedByName: null,
         mine: false,
+        imported: false,
         installed: true,
         isPublic: false,
         isBuiltin: false,
@@ -708,6 +853,16 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
 
       const problems = problemsByPlugin.get(id) ?? [];
 
+      // A cópia do bundle é de primeira parte; a mesma identidade vinda de outra origem — importada,
+      // publicada por um escritório — responde pela origem dela, e não pelo nome que carrega.
+      const firstParty = builtin !== null && !priv && (!inst || inst.source === 'builtin');
+      const verification = publisherVerificationOf({
+        firstParty,
+        ownerTenantId: pub?.ownerTenantId ?? null,
+        verifiedPublishers,
+      });
+      const reputation = reputationOf(id);
+
       const statusBadge: StatusBadge | null = publicStatus === 'approved' ? 'published'
         : publicStatus === 'pending' ? 'pending'
           : publicStatus === 'deprecated' ? 'deprecated'
@@ -727,18 +882,27 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
         description: label(pkg.manifest.description ?? ''),
         category: pkg.manifest.category ?? null,
         categoryLabel: pkg.manifest.category ? label(pkg.manifest.category) : null,
+        image: extensionImageOf(pkg),
+        glyph: extensionGlyphOf(pkg),
+        verification,
+        verificationLabel: verificationLabelOf(verification),
+        ...reputation,
+        canRate: Boolean(inst) && inst?.source !== 'private' && user !== null,
+        canVerifyPublisher: canModerate && Boolean(pub),
+        publisherVerified: pub ? verifiedPublishers.has(pub.ownerTenantId) : false,
         installBadge: inst ? (inst.active ? 'active' : 'inactive') : null,
         statusBadge,
         updateAvailable,
-        canEdit: mine,
+        canEdit: isAuthoredHere(priv),
         install,
         active: inst?.active ?? false,
         canToggleActive: installed_,
         published: publicStatus !== null,
         publish: publishActionOf(priv, pub),
-        // Do embutido também: é o pacote que o `npm run build:extensions` gera, útil para levar a
-        // extensão a um escritório que não roda este bundle.
-        canDownload: mine || !!builtin || Boolean(inst && inst.authorId === user?.id),
+        // Baixa quem tem a FONTE: o que foi montado aqui, e o embutido — que é nosso, e é o pacote que
+        // o `npm run build:extensions` gera para levar a extensão a um escritório que não roda este
+        // bundle. A importada e a cópia instalada vinda do catálogo não: a fonte delas é de outro.
+        canDownload: isAuthoredHere(priv) || !!builtin,
         canUninstall: installed_,
         canDelete: mine,
         canApprove: canModerate && publicStatus === 'pending',
@@ -752,6 +916,7 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
         codeToReview: inst ? extensionCodeOf(inst.package) : null,
         codeTrustedByName: inst?.codeTrust?.trustedByName ?? null,
         mine,
+        imported: priv?.origin === 'imported',
         installed: installed_,
         isPublic: isApproved,
         isBuiltin: !!builtin,
@@ -762,7 +927,7 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
     }
 
     return list.sort((a, b) => rankOf(a) - rankOf(b) || a.name.localeCompare(b.name));
-  }, [extensions, installed, publicExtensions, publicOf, pendingUpdateIds, canModerate, canManage, user, installedNeedsReview, problemsByPlugin, label, migrationStates, pendingMigrationsOf, migrationErrorOf, histories, publishActionOf]);
+  }, [extensions, installed, publicExtensions, publicOf, pendingUpdateIds, canModerate, canManage, user, installedNeedsReview, problemsByPlugin, label, migrationStates, pendingMigrationsOf, migrationErrorOf, histories, publishActionOf, verifiedPublishers, reputationOf, verificationLabelOf]);
 
   const counts = useMemo<Record<MarketplaceFilter, number>>(() => ({
     all: rows.length,
@@ -832,6 +997,7 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
     { key: 'builtin', label: t('status.builtin'), type: 'select', options: booleanOptions },
     { key: 'code', label: t('extension.badge.has-code'), type: 'select', options: booleanOptions },
     { key: 'system', label: t('status.system'), type: 'select', options: booleanOptions },
+    { key: 'verified', label: t('extension.verified.publisher'), type: 'select', options: booleanOptions },
     { key: 'category', label: t('core.ui/filter.category'), type: 'select', options: categoryOptions },
     { key: 'update', label: t('extension.badge.update'), type: 'select', options: booleanOptions },
     {
@@ -845,14 +1011,27 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
     },
   ], [t, booleanOptions, categoryOptions]);
 
+  const sortOptions = useMemo<SearchSelectOption[]>(
+    () => SORTS.map((value) => ({ value, label: t(`sort.${value}`) })),
+    [t],
+  );
+
   const visibleRows = useMemo<ExtensionRow[]>(() => {
-    switch (filter) {
-      case 'installed': return rows.filter((r) => r.installed);
-      case 'mine': return rows.filter((r) => r.mine);
-      case 'catalog': return rows.filter((r) => r.isPublic);
-      default: return rows.filter((r) => matchesTokens(r, filterTokens, label));
+    const filtered = (() => {
+      switch (filter) {
+        case 'installed': return rows.filter((r) => r.installed);
+        case 'mine': return rows.filter((r) => r.mine);
+        case 'catalog': return rows.filter((r) => r.isPublic);
+        default: return rows.filter((r) => matchesTokens(r, filterTokens, label));
+      }
+    })();
+    switch (sort) {
+      case 'installs': return [...filtered].sort(compareByMetric((row: ExtensionRow) => statsById.get(row.id)?.installs ?? null, byName));
+      case 'rating': return [...filtered].sort(compareByMetric((row: ExtensionRow) => ratingAverage(statsById.get(row.id)), byName));
+      case 'name': return [...filtered].sort(byName);
+      default: return filtered;
     }
-  }, [rows, filter, filterTokens, label]);
+  }, [rows, filter, filterTokens, label, sort, statsById]);
 
   const edit = useCallback((id: string) => openTab(`plugin-author:${id}`), [openTab]);
 
@@ -872,12 +1051,10 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
     const system = SYSTEM_BY_ID.get(id);
     if (system) { downloadPackage(id, serializePackage(system)); return; }
     const priv = extensions.find((e) => e.id === id);
-    if (priv) { downloadPackage(id, serializePackage(priv.package)); return; }
-    const inst = installed.find((e) => e.id === id);
-    if (inst) { downloadPackage(id, serializePackage(inst.package)); return; }
+    if (priv && isAuthoredHere(priv)) { downloadPackage(id, serializePackage(priv.package)); return; }
     const builtin = BUILTIN_BY_ID.get(id);
     if (builtin) downloadPackage(id, serializePackage(builtin));
-  }, [extensions, installed, downloadPackage]);
+  }, [extensions, downloadPackage]);
 
   /**
    * Leva ao catálogo global o pacote que já está no escritório. A recusa vem do store como REFERÊNCIA
@@ -972,6 +1149,77 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
     () => rows.find((row) => row.id === detailsId) ?? null,
     [rows, detailsId],
   );
+
+  /**
+   * O voto de quem lê é buscado quando o modal abre — e só ali: perguntar por todas as linhas da
+   * lista custaria uma leitura por extensão para mostrar algo que só o modal desenha. O valor vem
+   * marcado com a extensão a que pertence, para que a resposta atrasada de um modal já fechado não
+   * apareça no próximo.
+   */
+  const [myRating, setMyRating] = useState<{ id: string; stars: number | null } | null>(null);
+  const ratingTargetId = detailsRow?.canRate ? detailsRow.id : null;
+
+  useEffect(() => {
+    if (ratingTargetId === null) return undefined;
+    let cancelled = false;
+    void myRatingOf(ratingTargetId).then(
+      (stars) => { if (!cancelled) setMyRating({ id: ratingTargetId, stars }); },
+      (err: unknown) => { console.error('[marketplace] read rating failed:', err); },
+    );
+    return () => { cancelled = true; };
+  }, [ratingTargetId, myRatingOf]);
+
+  const myStars = myRating !== null && myRating.id === ratingTargetId ? myRating.stars : null;
+
+  const myRatingStars = useMemo<RatingStar[]>(
+    () => (ratingTargetId === null
+      ? []
+      : Array.from({ length: MAX_STARS }, (_, index) => ({
+        value: index + 1,
+        filled: myStars !== null && index < myStars,
+        label: t('extension.rate.star', { count: index + 1 }),
+      }))),
+    [ratingTargetId, myStars, t],
+  );
+
+  const rate = useCallback(async (stars: number) => {
+    if (ratingTargetId === null) return;
+    const id = ratingTargetId;
+    const previous = myStars;
+    setMyRating({ id, stars });
+    try {
+      await ratePublic(id, stars);
+      notify(t('extension.rated'), 'success');
+    } catch (err) {
+      setMyRating({ id, stars: previous });
+      notify(t('extension.operation-failed', wrappedErrorParams(err)), 'error');
+    }
+  }, [ratingTargetId, myStars, ratePublic, notify, t]);
+
+  const clearMyRating = useCallback(async () => {
+    if (ratingTargetId === null) return;
+    const id = ratingTargetId;
+    const previous = myStars;
+    setMyRating({ id, stars: null });
+    try {
+      await clearRating(id);
+      notify(t('extension.rating.cleared'), 'success');
+    } catch (err) {
+      setMyRating({ id, stars: previous });
+      notify(t('extension.operation-failed', wrappedErrorParams(err)), 'error');
+    }
+  }, [ratingTargetId, myStars, clearRating, notify, t]);
+
+  const togglePublisherVerified = useCallback((id: string) => {
+    const pub = publicOf(id);
+    if (!pub) return Promise.resolve();
+    const verified = !verifiedPublishers.has(pub.ownerTenantId);
+    return run(
+      id,
+      () => setPublisherVerified(pub.ownerTenantId, verified),
+      t(verified ? 'extension.publisher-verified' : 'extension.publisher-unverified', { name: pub.ownerName }),
+    );
+  }, [publicOf, verifiedPublishers, run, setPublisherVerified, t]);
 
   const openLicense = useCallback((id: string) => setLicenseId(id), []);
   const closeLicense = useCallback(() => setLicenseId(null), []);
@@ -1115,6 +1363,9 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
     rows: visibleRows,
     filter,
     setFilter,
+    sort,
+    setSort,
+    sortOptions,
     counts,
     filterDefs,
     filterTokens,
@@ -1124,6 +1375,11 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
     removeTarget,
     reviewTarget,
     detailsRow,
+    myRatingStars,
+    hasMyRating: myStars !== null,
+    rate,
+    clearMyRating,
+    togglePublisherVerified,
     openDetails,
     closeDetails,
     licenseRow,

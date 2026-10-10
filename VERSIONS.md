@@ -11,6 +11,15 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.80.0] — 2026-10-10
+
+- A tela de Extensões ficou parecida com uma loja de aplicativos: cada extensão aparece com a própria imagem ou ícone, quantos escritórios já a instalaram e a nota média dada por quem a usa, em estrelas.
+- Agora é possível avaliar com estrelas as extensões instaladas no escritório, nos detalhes de cada uma — e mudar ou retirar a avaliação quando quiser.
+- Extensões de publicadores confiáveis exibem o selo de verificado ao lado do nome do autor. As que vêm com a própria Microteia já trazem o selo; as de outros escritórios recebem-no quando a equipe da Microteia confirma quem as publica. Também é possível filtrar a lista só pelas verificadas.
+- A lista de Extensões pode ser ordenada pelas mais instaladas, pelas mais bem avaliadas ou pelo nome.
+- Ao criar ou editar uma extensão, agora dá para escolher o ícone dela e enviar uma imagem que a identifique. Corrigido também um problema em que salvar uma extensão editada apagava o ícone que ela já tinha.
+- Extensões importadas de um arquivo agora aparecem com o selo "Importada" e não podem mais ser editadas nem baixadas: o código delas pertence a quem as escreveu. Elas continuam podendo ser ativadas, instaladas e publicadas no catálogo. A tela "Criar extensão" fica reservada para reunir e compartilhar as telas, ações, automações e scripts do próprio escritório.
+
 #### [9.79.0] — 2026-10-09
 
 - Ao preparar a pasta de extensões, o escritório agora informa o próprio namespace (por exemplo, `com.suaempresa`), e toda extensão criada ali — pelo assistente de criação ou pela IA — já nasce com esse prefixo. Basta digitar `cobranca` para obter `com.suaempresa.cobranca`, e o sistema avisa quando uma extensão foge do namespace do escritório.

@@ -122,6 +122,7 @@ const LACUNAS_CONFERIDAS = [
   'manifest-property\tdescription',
   'manifest-property\tcategory',
   'manifest-property\ticon',
+  'manifest-property\timage',
   'manifest-property\thomepage',
   'manifest-property\tpublisher',
   'manifest-property\tlicense',

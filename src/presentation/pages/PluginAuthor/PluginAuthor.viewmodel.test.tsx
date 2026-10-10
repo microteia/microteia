@@ -41,6 +41,7 @@ const editingPackage = {
     id: 'com.acme.auto', version: '1.0.0', kernel: '^2.0.0',
     name: '@com.acme.auto/package.name', description: '@com.acme.auto/package.description',
     publisher: { name: 'Acme' }, contributes: [],
+    icon: 'calendar', image: 'data:image/png;base64,iVBORw0KGgo=',
   },
   summary: '@com.acme.auto/package.summary',
   screens: [{ key: 'request', titleSingular: '@com.acme.auto/screen.request', titlePlural: '@com.acme.auto/screen.request.plural', fields: [] }],
@@ -56,10 +57,12 @@ const editingPackage = {
   scripts: [{ templateId: 'sc-total', name: '@com.acme.auto/script.total', code: '' }],
 };
 
+const origin = vi.hoisted(() => ({ value: 'authored' as 'authored' | 'imported' }));
+
 vi.mock('../../../stores/useTenantExtensions', () => ({
   useTenantExtensions: () => ({
     saveExtension: vi.fn(),
-    extensionOf: () => ({ package: editingPackage }),
+    extensionOf: () => ({ package: editingPackage, origin: origin.value }),
   }),
 }));
 vi.mock('../../../stores/useInstalledExtensions', () => ({
@@ -132,5 +135,47 @@ describe('PluginAuthor — a pendência do pacote diz o que ela é', () => {
     const { result } = renderHook(() => usePluginAuthorViewModel('plugin-author:com.acme.auto'));
 
     expect(result.current.issues).not.toContain('author.issue.external-ref');
+  });
+});
+
+/**
+ * O formulário reconstrói o manifesto só com o que conhece. Enquanto ícone e imagem não estavam nele,
+ * salvar uma extensão editada os apagava em silêncio — e ela voltava ao marcador genérico na lista.
+ */
+describe('PluginAuthor — ícone e imagem sobrevivem à edição', () => {
+  it('o formulário abre com o ícone e a imagem da extensão', () => {
+    const { result } = renderHook(() => usePluginAuthorViewModel('plugin-author:com.acme.auto'));
+
+    expect(result.current.form.icon).toBe('calendar');
+    expect(result.current.form.image).toBe('data:image/png;base64,iVBORw0KGgo=');
+  });
+
+  it('e a imagem válida não vira pendência do pacote', () => {
+    const { result } = renderHook(() => usePluginAuthorViewModel('plugin-author:com.acme.auto'));
+
+    expect(result.current.issues.join(' ')).not.toContain('issue.package.image');
+  });
+});
+
+/**
+ * A extensão importada tem a fonte com quem a escreveu. Se a aba de edição dela chegar a abrir — o
+ * workspace restaura abas —, a tela não oferece salvar nem exportar o que o store recusaria.
+ */
+describe('PluginAuthor — a extensão importada não se edita nem se exporta', () => {
+  it('trava salvar e exportar', () => {
+    origin.value = 'imported';
+    try {
+      const { result } = renderHook(() => usePluginAuthorViewModel('plugin-author:com.acme.auto'));
+      expect(result.current.locked).toBe(true);
+      expect(result.current.canSave).toBe(false);
+      expect(result.current.canExport).toBe(false);
+    } finally {
+      origin.value = 'authored';
+    }
+  });
+
+  it('a montada aqui segue editável', () => {
+    const { result } = renderHook(() => usePluginAuthorViewModel('plugin-author:com.acme.auto'));
+    expect(result.current.locked).toBe(false);
   });
 });

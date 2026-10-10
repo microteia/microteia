@@ -1,8 +1,9 @@
 import React from 'react';
 import {
   RiDownloadLine, RiCheckLine, RiLockLine, RiAddLine, RiDeleteBinLine, RiErrorWarningLine, RiSaveLine,
-  RiArrowRightSLine, RiArrowDownSLine, RiCodeSSlashLine,
+  RiArrowRightSLine, RiArrowDownSLine, RiCodeSSlashLine, RiImageAddLine, RiPuzzle2Line,
 } from 'react-icons/ri';
+import { SearchSelect } from '../../components/ui/SearchSelect';
 import { InfoBanner } from '../../components/ui/InfoBanner';
 import { CodeEditor } from '../../components/ui/CodeEditor';
 import { Modal } from '../../components/ui/Modal';
@@ -45,9 +46,11 @@ export const PluginAuthorView: React.FC<{ tabKey?: string }> = ({ tabKey }) => {
       </S.Header>
 
       <S.Content>
-        {!vm.canManage && (
+        {vm.locked && <InfoBanner message={t('author.imported-locked.banner')} variant="info" />}
+        {!vm.locked && !vm.canManage && (
           <InfoBanner message={t('author.admin-only')} variant="info" />
         )}
+        {!vm.locked && (<>
 
         <S.Section>
           <S.SectionTitle>{t('author.identification')}</S.SectionTitle>
@@ -75,6 +78,37 @@ export const PluginAuthorView: React.FC<{ tabKey?: string }> = ({ tabKey }) => {
                 {t('author.field.category')}
                 <LabelInput as={S.Input} placeholder={t('author.field.category.placeholder')} value={vm.form.category} onChange={(category) => vm.updateForm({ category })} />
               </S.Field>
+              <S.FieldBlock>
+                {t('author.field.icon')}
+                <SearchSelect
+                  options={vm.iconOptions}
+                  value={vm.form.icon}
+                  onChange={(icon) => vm.updateForm({ icon })}
+                  placeholder={t('author.field.icon.placeholder')}
+                />
+              </S.FieldBlock>
+              <S.FieldBlock>
+                {t('author.field.image')}
+                <S.ImageRow>
+                  {vm.form.image
+                    ? <S.ImagePreview src={vm.form.image} alt="" />
+                    : <S.ImagePlaceholder>{vm.form.icon ? getScreenIcon(vm.form.icon, 22) : <RiPuzzle2Line size={22} />}</S.ImagePlaceholder>}
+                  <S.ImagePick>
+                    <RiImageAddLine size={15} /> {t(vm.form.image ? 'author.image.replace' : 'author.image.choose')}
+                    <S.HiddenFile
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                      onChange={(e) => void vm.onImageFile(e)}
+                    />
+                  </S.ImagePick>
+                  {vm.form.image && (
+                    <S.ActionBtn type="button" onClick={vm.clearImage} title={t('author.image.remove')}>
+                      <RiDeleteBinLine size={15} />
+                    </S.ActionBtn>
+                  )}
+                </S.ImageRow>
+                <S.Hint>{t('author.image.hint', { limit: vm.imageLimitKb })}</S.Hint>
+              </S.FieldBlock>
               <S.FieldWide>
                 {t('author.field.summary')}
                 <LabelInput as={S.Input} placeholder={t('author.field.summary.placeholder')} value={vm.form.summary} onChange={(summary) => vm.updateForm({ summary })} />
@@ -232,6 +266,7 @@ export const PluginAuthorView: React.FC<{ tabKey?: string }> = ({ tabKey }) => {
         <S.StatusBar>
           <S.Count>{t('author.selected', { count: vm.selectedCount })}</S.Count>
         </S.StatusBar>
+        </>)}
       </S.Content>
 
       {/* Modal de edição do código de inicialização */}

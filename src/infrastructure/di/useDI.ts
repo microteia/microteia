@@ -32,6 +32,7 @@ import type { IInstalledExtensionRepository } from '../../domain/repositories/II
 import type { IExtensionMigrationRepository } from '../../domain/repositories/IExtensionMigrationRepository';
 import type { IExtensionHistoryRepository } from '../../domain/repositories/IExtensionHistoryRepository';
 import type { IPublicExtensionRepository } from '../../domain/repositories/IPublicExtensionRepository';
+import type { IExtensionReputationRepository } from '../../domain/repositories/IExtensionReputationRepository';
 import type { IBackendResidueRepository } from '../../domain/repositories/IBackendResidueRepository';
 import type { IAgentAuthRequestRepository } from '../../domain/repositories/IAgentAuthRequestRepository';
 import type { IAgentGrantRepository } from '../../domain/repositories/IAgentGrantRepository';
@@ -76,6 +77,7 @@ export interface DIContainer {
   extensionMigrationRepository: IExtensionMigrationRepository;
   extensionHistoryRepository: IExtensionHistoryRepository;
   publicExtensionRepository: IPublicExtensionRepository;
+  extensionReputationRepository: IExtensionReputationRepository;
   backendResidueRepository: IBackendResidueRepository;
 }
 

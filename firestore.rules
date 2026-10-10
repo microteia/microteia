@@ -235,9 +235,16 @@ service cloud.firestore {
 
       // Extensões PRIVADAS do escritório (criadas na tela "Criar extensão"). Todo membro lê —
       // as ativas contribuem telas/menu no Kernel do tenant; só admin cria/edita/remove.
+      //
+      // A origem `imported` não se desfaz: a extensão importada tem a fonte com quem a escreveu, e
+      // regravá-la como `authored` seria editá-la por um caminho que a tela não oferece. Reimportar
+      // (versão nova do autor) mantém `imported` e passa; ligar/desligar não toca a origem.
       match /extensions/{extensionId} {
         allow read: if isMember(tenantId);
-        allow create, update, delete: if can(tenantId, 'extensions.manage');
+        allow create, delete: if can(tenantId, 'extensions.manage');
+        allow update: if can(tenantId, 'extensions.manage')
+          && (resource.data.get('origin', '') != 'imported'
+              || request.resource.data.get('origin', '') == 'imported');
       }
 
       // Extensões INSTALADAS (cópias fiéis da área pública ou de uma privada). Todo membro lê — as
@@ -605,6 +612,58 @@ service cloud.firestore {
         || (can(resource.data.ownerTenantId, 'extensions.manage')
             && request.resource.data.ownerTenantId == resource.data.ownerTenantId
             && ownerPublishing());
+      allow delete: if isSystemAdmin();
+    }
+
+    // ─── Reputação de extensão — instalações e estrelas ────────────────────────
+    // O agregado é escrito SÓ pelo Admin SDK (countExtensionInstalls, aggregateExtensionRatings). Ele
+    // não mora em `public_extensions` porque o dono reescreve aquele documento a cada republicação, e
+    // um número que o autor pode gravar não diz nada a quem lê.
+    match /extension_stats/{pluginId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+
+      // Um escritório que instalou: marcador da contagem. Nenhum cliente lê nem escreve — a lista
+      // diria quais escritórios usam o quê.
+      match /installs/{tenantId} {
+        allow read, write: if false;
+      }
+
+      // Um voto por pessoa (id = uid), e só de quem é membro de um escritório que tem a extensão
+      // instalada a partir do catálogo. A cópia privada não vota: o voto criaria o agregado com o
+      // identificador de algo que nunca foi publicado.
+      match /ratings/{userId} {
+        function installedFromCatalog(tenantId, extensionId) {
+          let installed = /databases/$(database)/documents/tenants/$(tenantId)/installed_extensions/$(extensionId);
+          return exists(installed) && get(installed).data.get('source', 'public') != 'private';
+        }
+        function validVote(vote, extensionId) {
+          return vote.keys().hasOnly(['stars', 'tenantId', 'updatedAt'])
+            && vote.stars is int && vote.stars >= 1 && vote.stars <= 5
+            && vote.tenantId is string
+            && vote.updatedAt == request.time
+            && isTenantMember(vote.tenantId)
+            && installedFromCatalog(vote.tenantId, extensionId);
+        }
+        allow get: if request.auth != null && request.auth.uid == userId;
+        allow list: if false;
+        allow create, update: if request.auth != null && request.auth.uid == userId
+          && validVote(request.resource.data, pluginId);
+        allow delete: if request.auth != null && request.auth.uid == userId;
+      }
+    }
+
+    // ─── Publicador verificado ─────────────────────────────────────────────────
+    // Id = o escritório que publica. A verificação é do PUBLICADOR, e não da versão: republicar não a
+    // apaga, e o dono não a concede a si mesmo — o nome que ele grava em `public_extensions` é livre,
+    // e o selo existe justamente para não depender dele.
+    match /extension_publishers/{tenantId} {
+      allow read: if request.auth != null;
+      allow create, update: if isSystemAdmin()
+        && request.resource.data.keys().hasOnly(['verified', 'verifiedBy', 'verifiedAt'])
+        && request.resource.data.verified == true
+        && request.resource.data.verifiedBy == request.auth.uid
+        && request.resource.data.verifiedAt == request.time;
       allow delete: if isSystemAdmin();
     }
 

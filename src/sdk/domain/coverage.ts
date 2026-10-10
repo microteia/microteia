@@ -260,6 +260,7 @@ const PLUGIN_MANIFEST_REACH: Record<keyof PluginManifest, string | null> = {
   description: null,
   category: null,
   icon: null,
+  image: null,
   homepage: null,
   publisher: null,
   license: null,

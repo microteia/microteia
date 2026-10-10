@@ -14,20 +14,25 @@ import type { ITenantExtensionRepository } from '../../domain/repositories/ITena
 import type { TenantExtension } from '../../domain/entities/TenantExtension';
 import type { MarketplacePlugin } from '../../domain/entities/MarketplacePlugin';
 import { toDateValueOrNow as toDate } from '../utils/toDateValue';
+import { isTenantExtensionOrigin, legacyOriginOf } from '../../domain/usecases/plugins/extensionOrigin';
 
 const extensionsRef = (tenantId: string) => collection(db, 'tenants', tenantId, 'extensions');
 
-const mapExtension = (id: string, tenantId: string, d: Record<string, unknown>): TenantExtension => ({
+const mapExtension = (id: string, tenantId: string, d: Record<string, unknown>): TenantExtension => {
+  const pkg = (d.package as MarketplacePlugin) ?? { manifest: { id, version: '0.0.0', kernel: '*', name: id }, summary: '', workflows: [] };
+  return {
   id,
   tenantId,
   active: Boolean(d.active),
-  package: (d.package as MarketplacePlugin) ?? { manifest: { id, version: '0.0.0', kernel: '*', name: id }, summary: '', workflows: [] },
+  package: pkg,
+  origin: isTenantExtensionOrigin(d.origin) ? d.origin : legacyOriginOf(pkg),
   createdBy: (d.createdBy as string | undefined) ?? '',
   createdByName: (d.createdByName as string | undefined) ?? undefined,
   createdByPhotoURL: (d.createdByPhotoURL as string | null | undefined) ?? null,
   createdAt: toDate(d.createdAt),
   updatedAt: toDate(d.updatedAt),
-});
+  };
+};
 
 export class FirebaseTenantExtensionRepository implements ITenantExtensionRepository {
   subscribe(tenantId: string, onChange: (items: TenantExtension[]) => void): () => void {
@@ -45,6 +50,7 @@ export class FirebaseTenantExtensionRepository implements ITenantExtensionReposi
     await setDoc(doc(extensionsRef(tenantId), extension.id), {
       active: extension.active,
       package: pruneUndefined(extension.package),
+      origin: extension.origin,
       createdBy: extension.createdBy,
       createdByName: extension.createdByName ?? null,
       createdByPhotoURL: extension.createdByPhotoURL ?? null,

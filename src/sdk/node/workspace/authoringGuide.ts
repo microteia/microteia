@@ -2,6 +2,7 @@ import { RECORD_SURFACE_PREFIX, USER_MENU_SURFACE, WORKSPACE_SLOT_SURFACES } fro
 import { KERNEL_EXTENSION_POINTS } from '../../../domain/schema/extensionPoints';
 import { SCREEN_ICON_KEYS } from '../../../domain/schema/ui/screenIconCatalog';
 import { AUTH_PROVIDER_KINDS } from '../../../domain/schema/auth';
+import { EXTENSION_IMAGE_MAX_BYTES } from '../../../domain/usecases/plugins/pluginImage';
 import type { ExtensionPointDefinition } from '../../../domain/schema/plugin/extensionPoint';
 import { CUSTOM_FIELD_TYPES } from '../../../domain/schema/fieldRules';
 import type { CustomFieldType } from '../../../domain/schema/fieldRules';
@@ -352,6 +353,12 @@ same function, the same messages. If \`check\` passes, the package installs.
 
 Then import the \`.json\` on the **Extensions** screen.
 
+An imported extension is used there — activated, installed, published to the catalogue — but never
+edited or downloaded: its source is *your* \`plugin.ts\`, not the copy in the organization. To change
+it, raise \`manifest.version\`, build, and import the new \`.json\` over the old one. The platform
+refuses an import whose id belongs to an extension created on that organization's own *Create
+extension* screen, since that would replace an editable source with a closed copy.
+
 ## 3. The package
 
 \`\`\`ts
@@ -391,6 +398,13 @@ contracts you work against — \`^${input.kernelVersion}\` for what is installed
 extension usefully. The Extensions list derives its category filter from what the listed packages
 declare, so a category nobody used before appears there on its own. Like \`name\` and \`summary\`, it
 may be a message reference (\`label('category.reports')\`): you translate what you name.
+
+\`manifest.image\` is the logo the Extensions list shows next to the name — a base64 \`data:\` URI of
+a PNG, JPEG, WebP or SVG, at most ${EXTENSION_IMAGE_MAX_BYTES / 1024} KB. A web address is refused: the
+package carries everything it shows, and a remote image would tell a third-party server who opened the
+list. Without an image the list draws \`manifest.icon\`, and without that, the icon of the first menu
+entry or page the extension contributes. Installs, stars and the verified-publisher seal are not
+declared: the platform counts and grants them.
 
 Every change to an extension raises \`manifest.version\`, and records itself as one entry at the top of
 that extension's \`VERSIONS.md\` — the file \`create\` generates next to \`plugin.ts\`. The entry is

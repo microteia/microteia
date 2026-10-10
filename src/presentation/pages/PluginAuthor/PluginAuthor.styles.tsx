@@ -139,6 +139,64 @@ export const S = {
     color: ${({ theme }) => theme.colors.textSecondary};
   `,
 
+  /** O mesmo visual do `Field`, sem ser `<label>`: o campo da imagem tem outro `<label>` dentro. */
+  FieldBlock: styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: ${({ theme }) => theme.spacing.xs};
+    font-size: ${({ theme }) => theme.fontSizes.sm};
+    font-weight: 500;
+    color: ${({ theme }) => theme.colors.textSecondary};
+  `,
+
+  ImageRow: styled.div`
+    display: flex;
+    align-items: center;
+    gap: ${({ theme }) => theme.spacing.sm};
+  `,
+
+  ImagePreview: styled.img`
+    width: 38px;
+    height: 38px;
+    border-radius: ${({ theme }) => theme.borderRadius.md};
+    object-fit: contain;
+    flex-shrink: 0;
+  `,
+
+  ImagePlaceholder: styled.div`
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    border-radius: ${({ theme }) => theme.borderRadius.md};
+    background: ${({ theme }) => theme.colors.surfaceHover};
+    color: ${({ theme }) => theme.colors.textMuted};
+    flex-shrink: 0;
+  `,
+
+  ImagePick: styled.label`
+    display: inline-flex;
+    align-items: center;
+    gap: ${({ theme }) => theme.spacing.xs};
+    padding: ${({ theme }) => theme.spacing.xs} ${({ theme }) => theme.spacing.md};
+    border: 1px solid ${({ theme }) => theme.colors.border};
+    border-radius: ${({ theme }) => theme.borderRadius.sm};
+    background: ${({ theme }) => theme.colors.surface};
+    color: ${({ theme }) => theme.colors.text};
+    font-size: ${({ theme }) => theme.fontSizes.sm};
+    cursor: pointer;
+    transition: ${({ theme }) => theme.transitions.fast};
+
+    &:hover {
+      background: ${({ theme }) => theme.colors.surfaceHover};
+    }
+  `,
+
+  HiddenFile: styled.input`
+    display: none;
+  `,
+
   FieldWide: styled.label`
     grid-column: 1 / -1;
     display: flex;

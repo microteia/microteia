@@ -6,14 +6,17 @@ import { useDI } from '../infrastructure/di/useDI';
 import { extensionHasCode, publishRefusal } from '../domain/usecases/plugins/publicExtension';
 import type { PublicExtension } from '../domain/entities/PublicExtension';
 import type { MarketplacePlugin } from '../domain/entities/MarketplacePlugin';
+import type { ExtensionStats } from '../domain/entities/ExtensionReputation';
 
 export const PublicExtensionStoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { currentTenant } = useTenant();
   const { user, userRole } = useAuth();
-  const { publicExtensionRepository } = useDI();
+  const { publicExtensionRepository, extensionReputationRepository } = useDI();
 
   const [publicExtensions, setPublicExtensions] = useState<PublicExtension[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [stats, setStats] = useState<ExtensionStats[]>([]);
+  const [verifiedIds, setVerifiedIds] = useState<string[]>([]);
 
   useEffect(() => {
     // isLoading já inicia true; a assinatura zera ao chegar o primeiro snapshot (setState em callback,
@@ -24,6 +27,38 @@ export const PublicExtensionStoreProvider: React.FC<{ children: React.ReactNode 
     });
     return () => unsubscribe();
   }, [publicExtensionRepository]);
+
+  useEffect(() => {
+    const unsubscribeStats = extensionReputationRepository.subscribeStats(setStats);
+    const unsubscribePublishers = extensionReputationRepository.subscribeVerifiedPublishers(setVerifiedIds);
+    return () => {
+      unsubscribeStats();
+      unsubscribePublishers();
+    };
+  }, [extensionReputationRepository]);
+
+  const statsById = useMemo(() => new Map(stats.map((entry) => [entry.id, entry])), [stats]);
+  const verifiedPublishers = useMemo(() => new Set(verifiedIds), [verifiedIds]);
+
+  const myRatingOf = useCallback(
+    async (pluginId: string) => (user ? extensionReputationRepository.getRating(pluginId, user.id) : null),
+    [user, extensionReputationRepository],
+  );
+
+  const rate = useCallback(async (pluginId: string, stars: number) => {
+    if (!user || !currentTenant) return;
+    await extensionReputationRepository.rate({ pluginId, userId: user.id, tenantId: currentTenant.id, stars });
+  }, [user, currentTenant, extensionReputationRepository]);
+
+  const clearRating = useCallback(async (pluginId: string) => {
+    if (!user) return;
+    await extensionReputationRepository.clearRating(pluginId, user.id);
+  }, [user, extensionReputationRepository]);
+
+  const setPublisherVerified = useCallback(async (ownerTenantId: string, verified: boolean) => {
+    if (!user) return;
+    await extensionReputationRepository.setPublisherVerified(ownerTenantId, verified, user.id);
+  }, [user, extensionReputationRepository]);
 
   const publicOf = useCallback(
     (domain: string) => publicExtensions.find((p) => p.domain === domain),
@@ -73,8 +108,14 @@ export const PublicExtensionStoreProvider: React.FC<{ children: React.ReactNode 
   const unpublish = useCallback((domain: string) => publicExtensionRepository.delete(domain), [publicExtensionRepository]);
 
   const value = useMemo(
-    () => ({ publicExtensions, isLoading, publish, approve, deprecate, unpublish, publicOf }),
-    [publicExtensions, isLoading, publish, approve, deprecate, unpublish, publicOf],
+    () => ({
+      publicExtensions, isLoading, publish, approve, deprecate, unpublish, publicOf,
+      statsById, verifiedPublishers, myRatingOf, rate, clearRating, setPublisherVerified,
+    }),
+    [
+      publicExtensions, isLoading, publish, approve, deprecate, unpublish, publicOf,
+      statsById, verifiedPublishers, myRatingOf, rate, clearRating, setPublisherVerified,
+    ],
   );
 
   return <PublicExtensionStoreContext.Provider value={value}>{children}</PublicExtensionStoreContext.Provider>;

@@ -1,5 +1,15 @@
 import { getDb } from '../firebase/initFirebase';
 import { FirebaseAuditLogRepository } from '../../data/repositories/FirebaseAuditLogRepository';
+import { FirebaseExtensionStatsRepository } from '../../data/repositories/FirebaseExtensionStatsRepository';
+import {
+  makeRecountExtensionInstallsUseCase,
+  makeRecountExtensionRatingsUseCase,
+} from '../../domain/usecases/RecountExtensionStatsUseCase';
+import type {
+  RecountExtensionInstallsUseCase,
+  RecountExtensionRatingsUseCase,
+} from '../../domain/usecases/RecountExtensionStatsUseCase';
+import type { IExtensionStatsRepository } from '../../domain/repositories/IExtensionStatsRepository';
 import { UserProfileLookupService } from '../../data/services/UserProfileLookupService';
 import { FkNameEnricherService } from '../../data/services/FkNameEnricherService';
 import { PermissionCatalogCache } from '../../data/services/PermissionCatalogCache';
@@ -103,6 +113,9 @@ class DIContainer {
   private aggregateRecomputeDeps?: AggregateRecomputeDeps;
   private workflowContextHydrator?: WorkflowContextHydrator;
   private workflowStepsRegistered = false;
+  private extensionStatsRepo?: IExtensionStatsRepository;
+  private recountExtensionInstallsUC?: RecountExtensionInstallsUseCase;
+  private recountExtensionRatingsUC?: RecountExtensionRatingsUseCase;
 
   private constructor() {
     this.aiProviders = capabilityProvidersOf<IAIProviderService>('ai.completion');
@@ -184,6 +197,27 @@ class DIContainer {
       this.aiConnectionRepo = new FirebaseAIConnectionRepository(db);
     }
     return this.aiConnectionRepo;
+  }
+
+  getExtensionStatsRepository(): IExtensionStatsRepository {
+    if (!this.extensionStatsRepo) {
+      this.extensionStatsRepo = new FirebaseExtensionStatsRepository(getDb());
+    }
+    return this.extensionStatsRepo;
+  }
+
+  getRecountExtensionInstallsUseCase(): RecountExtensionInstallsUseCase {
+    if (!this.recountExtensionInstallsUC) {
+      this.recountExtensionInstallsUC = makeRecountExtensionInstallsUseCase(this.getExtensionStatsRepository());
+    }
+    return this.recountExtensionInstallsUC;
+  }
+
+  getRecountExtensionRatingsUseCase(): RecountExtensionRatingsUseCase {
+    if (!this.recountExtensionRatingsUC) {
+      this.recountExtensionRatingsUC = makeRecountExtensionRatingsUseCase(this.getExtensionStatsRepository());
+    }
+    return this.recountExtensionRatingsUC;
   }
 
   getTenantRepository(): ITenantRepository {

@@ -157,6 +157,7 @@ const MANIFEST_NOTES: Record<keyof PluginManifest, string> = {
   description: 'one paragraph about what it does',
   category: 'how it is grouped in the Marketplace',
   icon: 'a key of the curated screen-icon set',
+  image: 'the logo shown in the Extensions list — a small data: URI, never a URL',
   homepage: 'where to read more about it',
   publisher: 'who answers for it',
   license: 'the terms it adds to the ones Microteia already asks',

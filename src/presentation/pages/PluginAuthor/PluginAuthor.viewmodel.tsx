@@ -17,6 +17,7 @@ import {
 } from '../../../domain/usecases/plugins/pluginReferences';
 import { referencedExtensionIds } from '../../../domain/usecases/plugins/crossExtensionRefs';
 import { serializePackage } from '../../../domain/usecases/plugins/packageSerialization';
+import { EXTENSION_IMAGE_MAX_BYTES, packageImageIssues } from '../../../domain/usecases/plugins/pluginImage';
 import { wrappedErrorParams } from '../../../domain/errors/LocalizedError';
 import { isValidPluginId } from '../../../domain/schema/plugin/pluginManifest';
 import { validatePluginPackage } from '../../../sdk/validate';
@@ -97,8 +98,29 @@ export interface CodeViewEditing {
 export interface PluginAuthorViewModel {
   canManage: boolean;
   editing: boolean;
-  form: { id: string; name: string; version: string; category: string; description: string; summary: string };
+  /**
+   * A aba aponta para uma extensão IMPORTADA. Ela não se edita nem se exporta daqui — a fonte é de
+   * quem a escreveu —, e a tela diz isso em vez de oferecer um formulário que o store recusaria.
+   */
+  locked: boolean;
+  form: {
+    id: string;
+    name: string;
+    version: string;
+    category: string;
+    description: string;
+    summary: string;
+    /** Chave do catálogo de ícones, ou vazio. */
+    icon: string;
+    /** A imagem da extensão como `data:` URI, ou vazio. */
+    image: string;
+  };
   updateForm: (patch: Partial<PluginAuthorViewModel['form']>) => void;
+  /** Lê o arquivo escolhido e o põe como imagem da extensão — recusando o que o pacote recusaria. */
+  onImageFile: (event: React.ChangeEvent<HTMLInputElement>) => Promise<void>;
+  clearImage: () => void;
+  /** O teto da imagem em KB — derivado do portão, nunca escrito no texto. */
+  imageLimitKb: number;
   groups: ArtifactGroup[];
   toggle: (kind: ArtifactKind, id: string) => void;
   expandedGroups: Set<ArtifactKind | 'codeViews'>;
@@ -181,7 +203,9 @@ export const usePluginAuthorViewModel = (tabKey?: string): PluginAuthorViewModel
   // Editar = pré-carrega o formulário da extensão já em memória (a aba abre a partir de Minhas
   // Extensões, então ela está carregada). Inicialização preguiçosa, uma vez — sem efeito que copia
   // dados para o estado (que dispararia renders em cascata / bailout do React Compiler).
-  const editingPackage = editingId ? extensionOf(editingId)?.package : undefined;
+  const editingExtension = editingId ? extensionOf(editingId) : undefined;
+  const locked = editingExtension?.origin === 'imported';
+  const editingPackage = editingExtension?.package;
 
   const [form, setForm] = useState(() => (editingPackage
     ? {
@@ -191,8 +215,10 @@ export const usePluginAuthorViewModel = (tabKey?: string): PluginAuthorViewModel
       category: editingPackage.manifest.category ?? '',
       description: editingPackage.manifest.description ?? '',
       summary: editingPackage.summary,
+      icon: editingPackage.manifest.icon ?? '',
+      image: editingPackage.manifest.image ?? '',
     }
-    : { id: '', name: '', version: '1.0.0', category: '', description: '', summary: '' }));
+    : { id: '', name: '', version: '1.0.0', category: '', description: '', summary: '', icon: '', image: '' }));
   const updateForm = useCallback((patch: Partial<typeof form>) => setForm((prev) => ({ ...prev, ...patch })), []);
 
   const [screenIds, toggleScreen] = useSelection(new Set((editingPackage?.screens ?? []).map((s) => s.key)));
@@ -243,6 +269,39 @@ export const usePluginAuthorViewModel = (tabKey?: string): PluginAuthorViewModel
       scripts: kind === 'scripts' ? prev.scripts.filter((s) => s.templateId !== id) : prev.scripts,
     }));
   }, []);
+
+  /**
+   * A imagem vira `data:` URI aqui mesmo, no navegador: é assim que ela viaja no pacote. A recusa é a
+   * do portão do pacote (`packageImageIssues`) — a mesma frase que o `check` do terminal daria —, e
+   * acontece na escolha do arquivo, em vez de só aparecer depois como problema do pacote inteiro.
+   */
+  const onImageFile = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    try {
+      const dataUri = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : '');
+        reader.onerror = () => reject(reader.error ?? new Error('read failed'));
+        reader.readAsDataURL(file);
+      });
+      const [issue] = packageImageIssues({
+        manifest: { ...STUB_MANIFEST, image: dataUri },
+        summary: 's',
+        workflows: [],
+      });
+      if (issue) {
+        notify(label(issue.message, issue.messageParams), 'error');
+        return;
+      }
+      updateForm({ image: dataUri });
+    } catch (err) {
+      notify(t('author.image.read-failed', wrappedErrorParams(err)), 'error');
+    }
+  }, [notify, label, t, updateForm]);
+
+  const clearImage = useCallback(() => updateForm({ image: '' }), [updateForm]);
 
   const iconOptions = useMemo<SearchSelectOption[]>(
     () => getScreenIconOptions().map((option) => ({ value: option.key, label: label(option.label), icon: option.Icon })),
@@ -525,6 +584,8 @@ export const usePluginAuthorViewModel = (tabKey?: string): PluginAuthorViewModel
     name: form.name.trim(),
     ...(form.category.trim() ? { category: form.category.trim() } : {}),
     ...(form.description.trim() ? { description: form.description.trim() } : {}),
+    ...(form.icon ? { icon: form.icon } : {}),
+    ...(form.image ? { image: form.image } : {}),
     ...(codeContributions.length > 0
       ? { dependencies: { 'core.ui': '^1.0.0' }, contributes: codeContributions }
       : {}),
@@ -666,14 +727,15 @@ export const usePluginAuthorViewModel = (tabKey?: string): PluginAuthorViewModel
     return advisory ? label(advisory.message, advisory.messageParams) : undefined;
   }, [pkg, label]);
 
-  const canExport = selectedCount > 0 && issues.length === 0;
+  const canExport = !locked && selectedCount > 0 && issues.length === 0;
   // Salvar um rascunho editável exige só um domínio (id) válido — pendências não bloqueiam salvar,
   // só exportar/publicar. É o que permite "criar e voltar depois para editar".
-  const canSave = canManage && isValidPluginId(form.id.trim()) && Boolean(form.name.trim());
+  const canSave = !locked && canManage && isValidPluginId(form.id.trim()) && Boolean(form.name.trim());
 
   const extensionTypeDefs = useMemo(() => buildExtensionTypeDefs(), []);
 
   const download = useCallback(() => {
+    if (locked) return;
     const blob = new Blob([serializePackage(pkg)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement('a');
@@ -682,7 +744,7 @@ export const usePluginAuthorViewModel = (tabKey?: string): PluginAuthorViewModel
     anchor.click();
     URL.revokeObjectURL(url);
     notify(t('author.exported'), 'success');
-  }, [pkg, manifest.id, notify, t]);
+  }, [locked, pkg, manifest.id, notify, t]);
 
   const save = useCallback(async () => {
     if (!canSave) return;
@@ -701,9 +763,13 @@ export const usePluginAuthorViewModel = (tabKey?: string): PluginAuthorViewModel
 
   return {
     canManage,
+    locked,
     editing: Boolean(editingId),
     form,
     updateForm,
+    onImageFile,
+    clearImage,
+    imageLimitKb: EXTENSION_IMAGE_MAX_BYTES / 1024,
     groups,
     toggle,
     expandedGroups,

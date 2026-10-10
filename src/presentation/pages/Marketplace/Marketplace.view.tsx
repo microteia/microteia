@@ -21,7 +21,14 @@ import {
   RiDatabase2Line,
   RiHistoryLine,
   RiGlobalLine,
+  RiStarFill,
+  RiStarHalfFill,
+  RiStarLine,
+  RiVerifiedBadgeFill,
+  RiVerifiedBadgeLine,
+  RiDownloadCloud2Line,
 } from 'react-icons/ri';
+import { getScreenIcon } from '../../shared/screenIcons';
 import { Button } from '../../components/ui/Button';
 import { CompositeFilter } from '../../components/ui/CompositeFilter';
 import { InfoBanner } from '../../components/ui/InfoBanner';
@@ -29,8 +36,10 @@ import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { Modal } from '../../components/ui/Modal';
 import { WidgetRenderer } from '../../components/ui/WidgetRenderer';
 import { RadioGroup } from '../../components/ui/RadioButton';
+import { SearchSelect } from '../../components/ui/SearchSelect';
 import { useMarketplaceViewModel } from './Marketplace.viewmodel';
-import type { Author, ExtensionRow, HistoryPanel, MarketplaceFilter, PublishAction, StatusBadge } from './Marketplace.viewmodel';
+import type { Author, ExtensionRow, HistoryPanel, MarketplaceFilter, PublishAction, RatingSummary, StatusBadge } from './Marketplace.viewmodel';
+import type { StarKind } from '../../../domain/usecases/plugins/extensionReputation';
 import { S } from './Marketplace.styles';
 
 import { useT } from '../../shared/i18n/useT';
@@ -61,7 +70,7 @@ const STATUS_LABEL: Record<StatusBadge, { labelKey: string; tone: Tone }> = {
   system: { labelKey: 'status.system', tone: 'primary' },
 };
 
-const AuthorLine: React.FC<{ author: Author }> = ({ author }) => {
+const AuthorLine: React.FC<{ author: Author; verificationLabel: string | null }> = ({ author, verificationLabel }) => {
   if (!author.name) return null;
   return (
     <S.MetaAuthor>
@@ -69,18 +78,67 @@ const AuthorLine: React.FC<{ author: Author }> = ({ author }) => {
         ? <S.AuthorPhoto src={author.photoURL} alt={author.name} referrerPolicy="no-referrer" />
         : <S.AuthorInitial>{author.name.charAt(0).toUpperCase()}</S.AuthorInitial>}
       {author.name}
+      {verificationLabel && (
+        <S.Verified title={verificationLabel} aria-label={verificationLabel}>
+          <RiVerifiedBadgeFill size={14} />
+        </S.Verified>
+      )}
     </S.MetaAuthor>
   );
 };
+
+const STAR_ICON: Record<StarKind, React.ReactNode> = {
+  full: <RiStarFill size={13} />,
+  half: <RiStarHalfFill size={13} />,
+  empty: <RiStarLine size={13} />,
+};
+
+const Rating: React.FC<{ rating: RatingSummary }> = ({ rating }) => (
+  <S.Stat title={rating.label} aria-label={rating.label}>
+    <S.Stars>
+      {rating.stars.map((kind, index) => <React.Fragment key={index}>{STAR_ICON[kind]}</React.Fragment>)}
+    </S.Stars>
+    {rating.average}
+    <span>({rating.count})</span>
+  </S.Stat>
+);
+
+/** A identidade visual da extensão: a imagem que ela declara, senão o ícone dela, senão a peça. */
+const Identity: React.FC<{ row: ExtensionRow; large?: boolean }> = ({ row, large }) => {
+  const size = large ? 30 : 20;
+  if (row.image) return large ? <S.DetailsImage src={row.image} alt="" /> : <S.RowImage src={row.image} alt="" />;
+  const glyph = row.glyph ? getScreenIcon(row.glyph, size) : <RiPuzzle2Line size={size} />;
+  return large
+    ? <S.DetailsGlyph>{glyph}</S.DetailsGlyph>
+    : <S.RowIcon $tone={row.installBadge === 'active' ? 'primary' : 'neutral'}>{glyph}</S.RowIcon>;
+};
+
+const Reputation: React.FC<{ row: ExtensionRow }> = ({ row }) => (
+  <>
+    {row.installs !== null && row.installsLabel !== null && (
+      <>
+        <S.MetaSep>·</S.MetaSep>
+        <S.Stat title={row.installsLabel} aria-label={row.installsLabel}>
+          <RiDownloadCloud2Line size={13} />
+          {row.installs}
+        </S.Stat>
+      </>
+    )}
+    {row.rating && (
+      <>
+        <S.MetaSep>·</S.MetaSep>
+        <Rating rating={row.rating} />
+      </>
+    )}
+  </>
+);
 
 const RowView: React.FC<{ row: ExtensionRow; busy: boolean; vm: ReturnType<typeof useMarketplaceViewModel> }> = ({ row, busy, vm }) => {
   const t = useT('core.marketplace');
 
   return (
   <S.Row>
-    <S.RowIcon $tone={row.installBadge === 'active' ? 'primary' : 'neutral'}>
-      <RiPuzzle2Line size={20} />
-    </S.RowIcon>
+    <Identity row={row} />
 
     <S.RowMain>
       <S.TitleLine>
@@ -91,6 +149,7 @@ const RowView: React.FC<{ row: ExtensionRow; busy: boolean; vm: ReturnType<typeo
           {row.failed && <S.Badge $tone="danger"><S.BadgeDot $tone="danger" />{t('extension.badge.failed')}</S.Badge>}
           {row.updateAvailable && <S.Badge $tone="primary">{t('extension.badge.update')}</S.Badge>}
           {row.statusBadge && <S.Badge $tone={STATUS_LABEL[row.statusBadge].tone}>{t(STATUS_LABEL[row.statusBadge].labelKey)}</S.Badge>}
+          {row.imported && <S.Badge $tone="neutral" title={t('extension.badge.imported.hint')}>{t('extension.badge.imported')}</S.Badge>}
           {row.hasCode && <S.Badge $tone="info">{t('extension.badge.has-code')}</S.Badge>}
           {row.needsCodeReview && <S.Badge $tone="warning">{t('extension.badge.unreviewed')}</S.Badge>}
           {row.backendPending && <S.Badge $tone="warning">{t('extension.badge.backend-pending')}</S.Badge>}
@@ -143,9 +202,10 @@ const RowView: React.FC<{ row: ExtensionRow; busy: boolean; vm: ReturnType<typeo
       )}
 
       <S.Meta>
-        <AuthorLine author={row.author} />
+        <AuthorLine author={row.author} verificationLabel={row.verificationLabel} />
         {row.author.name && <S.MetaSep>·</S.MetaSep>}
         <span>v{row.version}</span>
+        <Reputation row={row} />
         <S.MetaSep>·</S.MetaSep>
         <span>{row.id}</span>
         {row.categoryLabel && (
@@ -239,6 +299,15 @@ const RowView: React.FC<{ row: ExtensionRow; busy: boolean; vm: ReturnType<typeo
             <RiCloseLine size={18} />
           </S.ActionButton>
         </>
+      )}
+      {row.canVerifyPublisher && (
+        <S.ActionButton
+          title={t(row.publisherVerified ? 'extension.unverify-publisher' : 'extension.verify-publisher')}
+          disabled={busy}
+          onClick={() => void vm.togglePublisherVerified(row.id)}
+        >
+          {row.publisherVerified ? <RiVerifiedBadgeFill size={17} /> : <RiVerifiedBadgeLine size={17} />}
+        </S.ActionButton>
       )}
       {row.canDeprecate && (
         <S.ActionButton title={t('extension.deprecate')} disabled={busy} onClick={() => void vm.deprecate(row.id)}>
@@ -352,6 +421,12 @@ export const MarketplaceView: React.FC = () => {
                 <S.FilterCount>{vm.counts[f.key]}</S.FilterCount>
               </S.Filter>
             ))}
+            <S.Sort>
+              <S.SortLabel>{t('sort.label')}</S.SortLabel>
+              <S.SortSelect>
+                <SearchSelect options={vm.sortOptions} value={vm.sort} onChange={vm.setSort} />
+              </S.SortSelect>
+            </S.Sort>
           </S.Filters>
 
           {/* O filtro fino é da aba "Todas": as outras três já SÃO um recorte, e um segundo por cima
@@ -394,6 +469,19 @@ export const MarketplaceView: React.FC = () => {
 
       {vm.detailsRow && (
         <Modal title={vm.detailsRow.name} size="large" onClose={vm.closeDetails}>
+          <S.DetailsHeader>
+            <Identity row={vm.detailsRow} large />
+            <S.DetailsHeaderText>
+              <S.DetailsHeaderLine>
+                <AuthorLine author={vm.detailsRow.author} verificationLabel={vm.detailsRow.verificationLabel} />
+                {vm.detailsRow.verificationLabel && <S.Verified>{vm.detailsRow.verificationLabel}</S.Verified>}
+              </S.DetailsHeaderLine>
+              <S.DetailsHeaderLine>
+                <span>v{vm.detailsRow.version}</span>
+                <Reputation row={vm.detailsRow} />
+              </S.DetailsHeaderLine>
+            </S.DetailsHeaderText>
+          </S.DetailsHeader>
           <S.DetailsIntro>{vm.detailsRow.description || vm.detailsRow.summary}</S.DetailsIntro>
           {/* A descrição rica do pacote (Widget DSL) — dado, renderizado pelos componentes do
               Microteia. Extensão sem `overview` mostra só o resumo acima. O catálogo desta tela desce
@@ -402,6 +490,34 @@ export const MarketplaceView: React.FC = () => {
           <PackageLocaleProvider catalog={vm.catalog}>
             <WidgetRenderer spec={vm.detailsRow.overview} />
           </PackageLocaleProvider>
+          {vm.myRatingStars.length > 0 && (
+            <S.RateBox>
+              <S.RateTitle>{t('extension.my-rating')}</S.RateTitle>
+              <S.RateLine>
+                <S.RateStars>
+                  {vm.myRatingStars.map((star) => (
+                    <S.RateStar
+                      key={star.value}
+                      type="button"
+                      $filled={star.filled}
+                      title={star.label}
+                      aria-label={star.label}
+                      aria-pressed={star.filled}
+                      onClick={() => void vm.rate(star.value)}
+                    >
+                      {star.filled ? <RiStarFill size={22} /> : <RiStarLine size={22} />}
+                    </S.RateStar>
+                  ))}
+                </S.RateStars>
+                {vm.hasMyRating && (
+                  <Button variant="secondary" size="sm" onClick={() => void vm.clearMyRating()}>
+                    {t('extension.rating.clear')}
+                  </Button>
+                )}
+              </S.RateLine>
+              <S.RateHint>{t('extension.my-rating.hint')}</S.RateHint>
+            </S.RateBox>
+          )}
           <S.DetailsMeta>
             <span>v{vm.detailsRow.version}</span>
             <S.MetaSep>·</S.MetaSep>

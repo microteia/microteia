@@ -6041,6 +6041,24 @@ O percurso tem dois passos, e o primeiro é sempre o mesmo:
 | **Importar** (`.json`) ou autorar | `tenants/{id}/extensions` | só o escritório, na aba "Minhas" |
 | **Publicar** | `public_extensions/{domain}` | todo escritório autenticado, na aba "Catálogo" |
 
+**Origem: montada aqui ou importada — e só a primeira se edita.** "Criar extensão" é a forma de
+reunir os artefatos do PRÓPRIO escritório (telas, ações, automações, scripts) num pacote e
+compartilhá-lo. Uma extensão importada tem a fonte com quem a escreveu — o `plugin.ts` do autor, o
+escritório de origem —, e aqui ela é usada, instalada e até **publicada no catálogo**, mas nunca
+editada nem baixada: editá-la criaria uma versão paralela que a próxima versão do autor apagaria, e
+baixá-la redistribuiria o trabalho dele. `TenantExtension.origin` (`authored` | `imported`) é gravado
+pela porta de entrada; as recusas são `authoringRefusal` (a tela não grava por cima de uma importada) e
+`importRefusal` (importar não substitui uma montada aqui — importar por cima de uma importada é a
+atualização dela). As Rules garantem que `imported` não se desfaz.
+
+Documento anterior ao campo é classificado por `legacyOriginOf`, num sentido só: campo que a tela de
+autoria nunca escreve (`publisher`, `license`, `backend`, `overview`, `reports`…) PROVA que veio de
+fora; a ausência não prova nada, e o caso ambíguo continua editável — travar a única cópia de algo que
+o escritório montou seria pior que deixar editável algo importado.
+
+Baixar segue a mesma regra: só o que foi montado aqui e o pacote de primeira parte do bundle. A cópia
+instalada deixou de oferecer o gesto por ser do autor logado — a fonte dela está onde foi montada.
+
 **A decisão de alcance é feita na IMPORTAÇÃO**, não depois. Escolher o arquivo abre a pergunta — *só
 neste escritório* ou *no catálogo, para todos* — e ela é feita sobre o pacote já lido, com nome,
 versão e se ele traz código; perguntar isso sobre um arquivo anônimo não seria uma escolha informada.
@@ -6084,6 +6102,64 @@ não pode acontecer ainda deve dizer o que falta em vez de sumir.
 **Instalar do catálogo copia o pacote para o escritório** (`source: 'public'`), como qualquer outra
 instalação: o catálogo é origem, não vínculo. Retirar do catálogo (`delete`) é do `SYSTEM`, e não
 afeta quem já instalou.
+
+### Reputação no catálogo — imagem, instalações, estrelas e publicador verificado
+
+A linha de uma extensão mostra o que uma loja mostra ao lado de um nome: a **imagem** dela, **quantos
+escritórios a instalaram**, a **nota em estrelas** e o **selo de publicador verificado**. São quatro
+peças, e a regra que as organiza é uma só: **nenhum número que o autor possa escrever**.
+
+Por isso nada disso mora em `public_extensions/{domain}`. O dono reescreve aquele documento inteiro a
+cada republicação (as Rules não restringem as chaves), e um contador ali seria um número escolhido por
+quem quer parecer popular. O mesmo vale para `ownerName`: é texto livre, e um selo que dependesse dele
+seria falsificável por quem se chamasse de Microteia.
+
+| Peça | Onde mora | Quem escreve |
+|---|---|---|
+| Imagem | `manifest.image` (`data:` URI, ≤ `EXTENSION_IMAGE_MAX_BYTES`) | o autor, cobrado por `packageImageIssues` |
+| Instalações | `extension_stats/{id}.installs` + marcadores `installs/{tenantId}` | `countExtensionInstalls` (Admin SDK) |
+| Estrelas | votos em `extension_stats/{id}/ratings/{uid}`; `ratingCount`/`ratingSum` no agregado | o membro vota; `aggregateExtensionRatings` agrega |
+| Verificado | `extension_publishers/{tenantId}` | só o `SYSTEM` |
+
+**A imagem é `data:` URI, nunca URL.** O pacote é autocontido e viaja inteiro para cada escritório: uma
+imagem remota faria cada navegador que abre a lista avisar um servidor de terceiro quem está olhando, e
+sumiria no dia em que ele saísse do ar. SVG entra porque é desenhado por `<img>`, onde script não roda.
+Sem imagem, a tela usa `extensionGlyphOf`: o `manifest.icon`, senão o ícone da primeira contribuição
+`ui.nav`/`ui.page`, tela ou view — só chave do catálogo de ícones. É o que dá identidade às extensões
+que já existiam **sem republicar nenhuma**: o Calendário aparece com o calendário do menu dele.
+
+**Contar por marcador, e não por `increment`.** Gatilho do Firestore entrega ao menos uma vez; um
+incremento reentregue contaria a mesma instalação duas vezes. O gatilho grava (ou apaga) o marcador do
+escritório e reconta com `count()` — idempotente, e a cada escrita na cópia instalada, o que faz a
+conta se corrigir sozinha. Na primeira vez que vê uma extensão, ele **semeia** os marcadores varrendo
+os escritórios (`installsSeeded`): sem isso, tudo o que foi instalado antes do deploy ficaria de fora.
+A cópia `private` não conta: criaria `extension_stats/{id}` — legível por todo autenticado — com o
+identificador de algo que nunca foi publicado.
+
+**O voto** é um por pessoa (id = uid), de 1 a 5 estrelas inteiras, e as Rules exigem que quem vota seja
+membro de um escritório que tem a extensão instalada **a partir do catálogo**. A média é derivada na
+leitura (`ratingAverage`), da soma e da quantidade, e a tela arredonda à meia estrela (`starsOf`). O voto
+de quem lê só é buscado quando o modal de detalhes abre — perguntar por todas as linhas custaria uma
+leitura por extensão para algo que só o modal desenha.
+
+**O selo é do PUBLICADOR, não da versão.** Republicar não o apaga, e o dono não o concede a si mesmo.
+Primeira parte (`first-party`) é verificada pela procedência: o pacote do sistema, ou o embutido cuja
+cópia em uso é a do bundle — a mesma identidade vinda de outra origem responde pela origem dela
+(`publisherVerificationOf`). O `SYSTEM` concede e retira o selo pelo botão da linha de uma extensão
+publicada; o filtro "Publicador verificado" recorta a aba "Todas".
+
+**Ordenar** a lista por mais instaladas ou mais bem avaliadas usa `compareByMetric`: quem não tem o
+número vai para o fim (sem voto não é nota zero) e o empate cai no nome, para a ordem não pular a cada
+atualização do agregado. A ordem padrão continua sendo a de relevância — quem abre a tela para
+gerenciar o que tem não pode ter a lista reembaralhada por popularidade.
+
+**Na tela de autoria**, `icon` e `image` são campos do formulário. A imagem escolhida vira `data:` URI
+no navegador e é recusada NA ESCOLHA, com a frase do portão do pacote. Antes, o formulário reconstruía
+o manifesto só com os campos que conhecia, e salvar uma extensão editada apagava o `icon` dela.
+
+O agregado e os publicadores são assinados pelo `PublicExtensionStore`, junto do catálogo público. As
+Rules estão cobertas por `rules-tests/extensionReputation.test.ts`; o deploy dos dois gatilhos é
+`npm run deploy:marketplace`.
 
 ### Extensões que carregam módulos de domínio (Fase 1)
 

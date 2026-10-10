@@ -53,6 +53,8 @@ const ALL_FUNCTIONS = [
   'materializePermissionsOnRoleChange',
   'materializePermissionsOnScreenChange',
   'materializePermissionsOnExtensionChange',
+  'countExtensionInstalls',
+  'aggregateExtensionRatings',
   'syncTenantPermissions',
 ];
 
