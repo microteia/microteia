@@ -2296,6 +2296,28 @@ ordem é o que faz cada um valer:
 2. `microteia-plugin sync`, do SDK que acabou de chegar — é ele que sabe o que o kernel faz.
 3. `npm install`, porque o passo 2 pode ter acrescentado uma `devDependency` que o kernel novo exige.
 
+#### O namespace do diretório
+
+Todo id de extensão escrito em `extensions/` nasce abaixo do **namespace** do escritório (`com.acme` →
+`com.acme.billing`), gravado em `extensions/package.json` sob `microteia.namespace`. Sem ele, o id era o
+que alguém digitasse na hora: o padrão do `create` era `com.example.hello`, e um agente que lia os
+exemplos de primeira parte copiava o `com.microteia` deles — um prefixo que não é do escritório, num id
+que é permanente.
+
+| Quem | O que faz com ele |
+|---|---|
+| `microteia plugin-init` | exige `--namespace` (ou pergunta, com terminal) e o grava na semente; com `--force`, reaproveita o gravado |
+| `microteia-plugin create` | parte dele: `billing` vira `com.acme.billing`; recusa id fora dele; num diretório anterior, pergunta uma vez e grava |
+| `check` / `build` / `validate_plugin` | **avisam**, nunca recusam, um id fora dele — uma extensão já publicada não pode ser renomeada |
+| `sync` | preserva a chave ao carimbar o `kernelVersion`; avisa quando falta ou está fora do formato, sem inventar um |
+| `microteia://workspace/info` e `AGENTS.md` | dizem ao agente qual é, e que perguntar é o caminho quando não há |
+
+Mora no `package.json`, e não num arquivo próprio, porque a chave `microteia` já é nossa, o arquivo é
+conciliado (nenhum `sync` o apaga) e é o primeiro que alguém abre. O `name` do npm ficou de fora: é a
+identidade do pacote npm, e o `sync` deduz dele o nome do escritório. O formato é o de
+`isValidPluginId`; o Console o repete (não importa o kernel) para recusar antes de escrever a semente, e
+`pluginWorkspaceTemplates.test.ts` prende as duas cópias. Código: `src/sdk/node/workspace/namespace.ts`.
+
 O `unpack` chama isso sozinho quando `extensions/` existe, e **antes** do retorno de instalação não
 conectada: escrever extensão não depende de haver projeto Firebase. A falha ali **avisa e não derruba**
 a troca de kernel — um `npm` sem rede não pode deixar a instalação pela metade por causa da

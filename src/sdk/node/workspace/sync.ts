@@ -16,6 +16,7 @@ import {
   reconcileTsconfig,
 } from './reconcile';
 import type { Reconciliation } from './reconcile';
+import { invalidNamespaceMessage, isValidNamespace, storedNamespace } from './namespace';
 import {
   workspaceAgentsMd,
   workspaceClaudeMd,
@@ -223,6 +224,22 @@ const staleClaudeMdWarning = (root: string): string[] => {
   ];
 };
 
+/**
+ * Um diretório criado antes de o namespace existir não o tem, e o `sync` não inventa um: é decisão do
+ * escritório, e ele é permanente nos ids que dele nascem. O `create` o pergunta e grava.
+ */
+const namespaceWarning = (root: string): string[] => {
+  const stored = storedNamespace(root);
+  if (stored === null) {
+    return [
+      'package.json has no microteia.namespace, so nothing says which ids are this organization\'s. '
+      + 'The next "npm run create" asks for it once and records it — or add it by hand: '
+      + '"microteia": { "namespace": "com.acme" }.',
+    ];
+  }
+  return isValidNamespace(stored) ? [] : [`package.json, microteia.namespace: ${invalidNamespaceMessage(stored)}`];
+};
+
 export const syncWorkspace = (options: SyncOptions = {}): SyncReport => {
   const root = resolve(options.root ?? process.cwd());
   const packagePath = join(root, 'package.json');
@@ -272,6 +289,8 @@ export const syncWorkspace = (options: SyncOptions = {}): SyncReport => {
   reconcile('.mcp.json', reconcileMcpJson);
   reconcile('.gitignore', reconcileGitignore);
   if (pkg !== null) reconcile('package.json', () => reconcilePackageJson(packagePath, KERNEL_VERSION));
+
+  if (pkg !== null) warnings.push(...namespaceWarning(root));
 
   seed('CLAUDE.md', workspaceClaudeMd(officeName));
   warnings.push(...staleClaudeMdWarning(root));

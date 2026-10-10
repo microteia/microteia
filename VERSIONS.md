@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.79.0] — 2026-10-09
+
+- Ao preparar a pasta de extensões, o escritório agora informa o próprio namespace (por exemplo, `com.suaempresa`), e toda extensão criada ali — pelo assistente de criação ou pela IA — já nasce com esse prefixo. Basta digitar `cobranca` para obter `com.suaempresa.cobranca`, e o sistema avisa quando uma extensão foge do namespace do escritório.
+
 #### [9.78.0] — 2026-10-09
 
 - O agente de IA conectado ao escritório agora consegue consultar a Auditoria: com a permissão de ler a auditoria, ele responde quem criou, alterou ou excluiu um registro e quando, e quais falhas o sistema registrou — filtrando por período, tipo de alteração, gravidade, registro ou usuário.

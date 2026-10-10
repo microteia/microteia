@@ -67,6 +67,7 @@ import { readWorkspaceCatalog } from './workspaceCatalog';
 import type { WorkspaceCatalog } from './workspaceCatalog';
 import { INSTALLED_CATALOG_FILE, INSTALLED_CATALOG_OMITS } from './installedCatalog';
 import { EXAMPLES_DIR, findPluginFiles } from './workspacePlugins';
+import { belongsToNamespace, outsideNamespaceMessage, workspaceNamespace } from './workspace/namespace';
 import { describeExtension, exampleCoverageReport, listExamples } from './describeExtension';
 
 /**
@@ -186,6 +187,14 @@ const describeRecordSurfaces = (pkg: MarketplacePlugin, root: string): string =>
   return `\n\n${findings.length} record detail(s) this package adds tabs to (warnings only, never refused):\n${findings
     .map((one) => `- [${one.status}] record:${one.sourceId} (${one.contributions.join(', ')}) — ${one.detail}`)
     .join('\n')}`;
+};
+
+/** Aviso, como no `check`: o id é permanente, e uma extensão já publicada fora do namespace fica como está. */
+const describeNamespace = (pkg: MarketplacePlugin, root: string): string => {
+  const namespace = workspaceNamespace(root);
+  if (namespace === null || belongsToNamespace(pkg.manifest.id, namespace)) return '';
+  return `\n\nWarning (never refused): ${outsideNamespaceMessage(pkg.manifest.id, namespace)} `
+    + 'Keep it only if this extension is already installed somewhere — its id cannot change.';
 };
 
 // ─── Modelo de domínio ────────────────────────────────────────────────────────
@@ -344,19 +353,20 @@ const TOOLS: ToolDefinition[] = [
       if (typeof input.json === 'string') {
         const parsed = parsePackage(input.json);
         if (!parsed.ok) return `Not a valid package: ${describeMessage(parsed.error)}`;
-        return `${describeIssues(validatePluginPackage(parsed.package))}${describeCrossRefs(parsed.package, root)}${describeEventRefs(parsed.package, root)}${describeRecordSurfaces(parsed.package, root)}`;
+        return `${describeIssues(validatePluginPackage(parsed.package))}${describeCrossRefs(parsed.package, root)}${describeEventRefs(parsed.package, root)}${describeRecordSurfaces(parsed.package, root)}${describeNamespace(parsed.package, root)}`;
       }
       const path = resolve(root, asString(input.path, 'path'));
       if (path.endsWith('.json')) {
         const parsed = parsePackage(readFileSync(path, 'utf8'));
         if (!parsed.ok) return `Not a valid package: ${describeMessage(parsed.error)}`;
-        return `${describeIssues(validatePluginPackage(parsed.package))}${describeCrossRefs(parsed.package, root)}${describeEventRefs(parsed.package, root)}${describeRecordSurfaces(parsed.package, root)}`;
+        return `${describeIssues(validatePluginPackage(parsed.package))}${describeCrossRefs(parsed.package, root)}${describeEventRefs(parsed.package, root)}${describeRecordSurfaces(parsed.package, root)}${describeNamespace(parsed.package, root)}`;
       }
       const result = buildPlugin({ entry: path });
       return `${result.package.manifest.id} v${result.package.manifest.version}\n${describeIssues(result.issues)}`
         + describeCrossRefs(result.package, root)
         + describeEventRefs(result.package, root)
-        + describeRecordSurfaces(result.package, root);
+        + describeRecordSurfaces(result.package, root)
+        + describeNamespace(result.package, root);
     },
   },
   {
@@ -1229,6 +1239,15 @@ const PURE_READS: ToolDefinition[] = [
         firebaseProjectId: connected
           ? (JSON.parse(readFileSync(configPath, 'utf8')) as { projectId?: string }).projectId ?? null
           : null,
+        /**
+         * O prefixo de todo id escrito aqui. `null` quer dizer que ninguém o decidiu ainda — e o agente
+         * pergunta, em vez de copiar o dos exemplos.
+         */
+        namespace: workspaceNamespace(root),
+        namespaceRule: workspaceNamespace(root) === null
+          ? 'No namespace is recorded in package.json (microteia.namespace). Ask which reverse-DNS namespace '
+            + 'is this organization\'s before creating an extension; never copy the one in examples/.'
+          : `Every extension authored here is ${workspaceNamespace(root)}.<name>.`,
         plugins: files.authored.map((entry) => relative(root, entry)),
         /**
          * Listados à parte de propósito: são nossos, são reescritos a cada troca de kernel, e listá-los

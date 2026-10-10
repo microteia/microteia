@@ -142,7 +142,7 @@ npx microteia --help         # ou: node cli/lib/index.js --help
 | `microteia deploy [--only rules,indexes,functions,hosting] [--delay <s>] [--prune] [--all]` | escritório | publica o pacote que está no lugar |
 | `microteia provision [--prune] [--delay <s>] [--all]` | escritório | dá às extensões instaladas as functions e os índices que elas exigem |
 | `microteia export-catalog --tenant <tenantId> [--output <path>]` | escritório | escreve o que um escritório tem — telas, listas, extensões — para as ferramentas de autoria lerem |
-| `microteia plugin-init [--dir <path>] [--force]` | escritório | prepara `extensions/`, para escrever extensão em TypeScript |
+| `microteia plugin-init --namespace <com.acme> [--dir <path>] [--force]` | escritório | prepara `extensions/`, para escrever extensão em TypeScript, abaixo do namespace do escritório |
 
 Na máquina de quem instala ele vem do npm, e não daqui:
 
@@ -399,12 +399,12 @@ SDK, e com ele o escritório escreve a extensão em TypeScript, no VSCode, com t
 que o código-fonte do kernel saia daqui (o que viaja é compilado mais `.d.ts`).
 
 ```bash
-microteia plugin-init            # cria "extensions/" ao lado do microteia.yaml
+microteia plugin-init --namespace com.acme   # cria "extensions/" ao lado do microteia.yaml
 cd extensions
-npx microteia-plugin create com.example.hello
+npx microteia-plugin create hello             # vira com.acme.hello
 npx tsc --noEmit                              # tipos
 npx microteia-plugin check hello/plugin.ts    # o gate
-npx microteia-plugin build hello/plugin.ts    # gera hello/com.example.hello.json
+npx microteia-plugin build hello/plugin.ts    # gera hello/com.acme.hello.json
 ```
 
 O `.json` gerado é importado na tela **Extensões**. Ajuste fino direto nele continua valendo: ele é o

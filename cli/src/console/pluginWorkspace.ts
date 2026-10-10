@@ -1,12 +1,13 @@
 import { access, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join, relative, resolve } from 'node:path';
+import { createInterface } from 'node:readline/promises';
 import { flagValue, hasFlag } from '../shared/args.js';
 import type { ParsedArgs } from '../shared/args.js';
 import { blank, bullets, heading, info, success, warn } from '../shared/ui.js';
 import { run } from '../shared/run.js';
 import { ENVIRONMENT_FILE, readEnvironment } from './environment.js';
 import { WORKSPACE_DIR } from './workspace.js';
-import { SDK_TARBALL, workspacePackageJson } from '../vendor/pluginWorkspaceTemplates.js';
+import { SDK_TARBALL, isValidNamespace, workspacePackageJson } from '../vendor/pluginWorkspaceTemplates.js';
 
 /**
  * `microteia plugin-init` — prepara `extensions/`, onde o escritório escreve extensão em TypeScript.
@@ -137,6 +138,52 @@ export const refreshAuthoringWorkspace = async (root: string, officeName: string
   }
 };
 
+/** O que um `--force` anterior deixou gravado: reescrever a semente não é motivo para perguntar de novo. */
+const existingNamespace = async (directory: string): Promise<string | null> => {
+  try {
+    const pkg = JSON.parse(await readFile(join(directory, 'package.json'), 'utf8')) as {
+      microteia?: { namespace?: unknown };
+    };
+    const value = pkg.microteia?.namespace;
+    return typeof value === 'string' && isValidNamespace(value) ? value : null;
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * O namespace é OBRIGATÓRIO, e não tem padrão: qualquer padrão seria um prefixo que não é do escritório,
+ * e o id que nasce dele é permanente. Sem terminal, só a flag responde.
+ */
+const resolveNamespace = async (args: ParsedArgs, directory: string): Promise<string> => {
+  const given = flagValue(args, 'namespace') ?? await existingNamespace(directory) ?? await askNamespace();
+  const namespace = given.trim();
+  if (!isValidNamespace(namespace)) {
+    throw new Error(
+      `"${namespace}" is not a valid namespace. Use reverse-DNS, lowercase, from a domain your organization`
+      + ' controls — for example: --namespace com.acme',
+    );
+  }
+  return namespace;
+};
+
+const askNamespace = async (): Promise<string> => {
+  if (!process.stdin.isTTY) {
+    throw new Error(
+      'A namespace is required: every extension written in this directory is named below it, and its ids\n'
+      + 'are permanent. Pass it with --namespace, for example: microteia plugin-init --namespace com.acme',
+    );
+  }
+  info('Every extension written here is named below a namespace — the reverse-DNS of a domain your');
+  info('organization controls, like com.acme. Its ids are permanent, so choose one that is yours.');
+  const rl = createInterface({ input: process.stdin, output: process.stdout });
+  try {
+    return (await rl.question('namespace: ')).trim();
+  } finally {
+    rl.close();
+  }
+};
+
 export const pluginInit = async (args: ParsedArgs): Promise<void> => {
   const file = resolve(flagValue(args, 'file') ?? join(process.cwd(), ENVIRONMENT_FILE));
   const root = dirname(file);
@@ -155,6 +202,7 @@ export const pluginInit = async (args: ParsedArgs): Promise<void> => {
 
   const sdk = await locateSdk(root);
   const installDir = join(root, WORKSPACE_DIR, 'install');
+  const namespace = await resolveNamespace(args, directory);
 
   heading(`Extension authoring for "${environment.project.name}"`);
 
@@ -164,9 +212,9 @@ export const pluginInit = async (args: ParsedArgs): Promise<void> => {
   // movida — o que acontece assim que alguém a versiona num repositório do escritório.
   await writeFile(
     join(directory, 'package.json'),
-    workspacePackageJson(environment.environment.id, relative(directory, sdk.path)),
+    workspacePackageJson(environment.environment.id, relative(directory, sdk.path), namespace),
   );
-  success('wrote the seed package.json');
+  success(`wrote the seed package.json (namespace ${namespace})`);
 
   blank();
   info('Installing @microteia/sdk and writing the guides...');
@@ -174,6 +222,7 @@ export const pluginInit = async (args: ParsedArgs): Promise<void> => {
 
   blank();
   info(`Extension authoring ready in ${relative(root, directory)}/ (kernel contract ${sdk.kernelVersion}).`);
+  info(`Every extension created there is ${namespace}.<name> — recorded in package.json, under microteia.namespace.`);
   bullets([
     `cd ${relative(process.cwd(), directory) || '.'}`,
     'npm run create',

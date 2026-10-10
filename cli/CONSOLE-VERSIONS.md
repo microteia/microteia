@@ -22,6 +22,10 @@
 - fix(command): what was broken, and what it did to whoever hit it.
 -->
 
+#### [2.26.0] — 2026-10-09
+
+- feat(plugin-init): the organization's namespace is required — `--namespace com.acme`, or asked for when there is a terminal — validated before anything is written, and recorded in the seed `package.json` under `microteia.namespace`. `--force` reuses the one already recorded. The SDK derives every extension id in the directory from it.
+
 #### [2.25.0] — 2026-10-07
 
 - feat(examples): the Console ships `record-tab-example` as authoring source — a tab inside another screen's record, as code and as Widget DSL, and a list locked to the open record.

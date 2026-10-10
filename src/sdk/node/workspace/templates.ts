@@ -276,6 +276,13 @@ something to hand over and explain.
 Use it rather than copying a folder by hand: it generates only what was asked for, and what it generates
 already passes the gate.
 
+**Every extension written here is named below this organization's namespace**, recorded in
+\`package.json\` under \`microteia.namespace\` (\`microteia://workspace/info\` reports it). An extension called
+\`billing\` in namespace \`com.acme\` is \`com.acme.billing\`; \`create\` builds that from the short
+name and refuses an id outside it. Never borrow the prefix of \`examples/\` — those ids belong to
+whoever published them — and never invent a namespace: if \`package.json\` has none, ask the person
+you are working for which one is theirs. An id is permanent, so a wrong one cannot be fixed later.
+
 ## Changing an extension that already exists
 
 Every change to an extension raises its version. Two steps, in the same change, always:

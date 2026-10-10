@@ -7,11 +7,22 @@ import { buildPlugin } from './compile';
 import { describeMessage, packageText } from './messages';
 import { installationRegion, scaffoldFunction, scaffoldPlugin } from './scaffold';
 import { askerFor } from './prompt';
+import type { Asker } from './prompt';
 import { serveMcp } from './mcp';
 import { crossRefReport } from './referenceable';
 import { eventRefReport } from './eventRefs';
 import { recordSurfaceReport } from './recordSurfaces';
 import { syncWorkspace } from './workspace/sync';
+import {
+  belongsToNamespace,
+  invalidNamespaceMessage,
+  isValidNamespace,
+  outsideNamespaceMessage,
+  qualifyPluginId,
+  recordNamespace,
+  storedNamespace,
+  workspaceNamespace,
+} from './workspace/namespace';
 
 /**
  * `microteia-plugin` — a ferramenta de quem escreve extensão fora deste repositório.
@@ -157,6 +168,18 @@ const sayRecordSurfaces = (pkg: MarketplacePlugin, root: string): void => {
   }
 };
 
+/**
+ * Aviso, nunca recusa: o id é permanente, e uma extensão publicada antes de o diretório ter namespace
+ * não pode ser renomeada para caber nele. O que se evita aqui é a PRÓXIMA nascer fora.
+ */
+const sayNamespace = (id: string, root: string): void => {
+  const namespace = workspaceNamespace(root);
+  if (namespace === null || belongsToNamespace(id, namespace)) return;
+  say();
+  warn(outsideNamespaceMessage(id, namespace));
+  say(`  ${DIM}Keep it if this extension is already installed somewhere — its id cannot change.${RESET}`);
+};
+
 const build = (args: Args, write: boolean): number => {
   const entry = entryFrom(args);
   const result = buildPlugin({ entry, exportName: args.values.get('export') });
@@ -186,6 +209,7 @@ const build = (args: Args, write: boolean): number => {
   const root = resolve(args.values.get('root') ?? process.cwd());
   const refusedRefs = sayCrossRefs(result.package, root) + sayEventRefs(result.package, root);
   sayRecordSurfaces(result.package, root);
+  sayNamespace(manifest.id, root);
   const problems = result.issues.length + refusedRefs;
 
   if (problems > 0) {
@@ -221,6 +245,45 @@ const build = (args: Args, write: boolean): number => {
 };
 
 /**
+ * O namespace de onde o id sai. Gravado no `package.json` pelo `plugin-init`; num diretório anterior a
+ * ele, é perguntado UMA vez e gravado, para que a extensão seguinte já nasça no mesmo. Sem terminal e
+ * sem `--namespace`, não há padrão que sirva — inventar um é exatamente o defeito que isto conserta.
+ */
+const namespaceFor = async (args: Args, workspace: string, asker: Asker): Promise<string> => {
+  const stored = storedNamespace(workspace);
+  const given = args.values.get('namespace');
+
+  if (stored !== null && !isValidNamespace(stored)) {
+    throw new Error(`package.json, microteia.namespace: ${invalidNamespaceMessage(stored)}`);
+  }
+  if (stored !== null) {
+    if (given !== undefined && given !== stored) {
+      throw new Error(
+        `This directory's namespace is ${stored}, not ${given}. Every extension here is ${stored}.<name>;`
+        + ' change it in package.json, under microteia.namespace, if that was the mistake.',
+      );
+    }
+    return stored;
+  }
+
+  const answer = given ?? await asker.text({
+    key: 'namespace',
+    text: 'namespace',
+    hint: 'Reverse-DNS of a domain your organization controls, like com.acme. Every extension here is named below it.',
+  });
+  if (answer.trim() === '') {
+    throw new Error(
+      'This directory has no namespace yet. Pass it once — npx microteia-plugin create --namespace com.acme —'
+      + ' and it is recorded in package.json for every extension after this one.',
+    );
+  }
+  recordNamespace(workspace, answer.trim());
+  done(`namespace ${answer.trim()} recorded in package.json ${DIM}(microteia.namespace)${RESET}`);
+  say();
+  return answer.trim();
+};
+
+/**
  * `create` — o guia que produz uma extensão.
  *
  * Pergunta o que a extensão VAI SER, porque disso depende o que faz sentido gerar: uma extensão que só
@@ -236,11 +299,14 @@ const createPlugin = async (args: Args): Promise<number> => {
     say(`${BOLD}A new Microteia extension${RESET} ${DIM}(kernel contract ${KERNEL_VERSION})${RESET}`);
     say();
 
-    const id = args.positional[1] ?? await asker.text({
+    const namespace = await namespaceFor(args, workspace, asker);
+    const answer = args.positional[1] ?? await asker.text({
       key: 'id',
       text: 'id',
-      hint: 'Reverse-DNS, lowercase. Permanent — it is how an update finds what to update. Use a domain you control.',
-    }, 'com.example.hello');
+      hint: `Below ${namespace} — "billing" becomes ${namespace}.billing. Permanent: it is how an update finds what to update.`,
+    }, `${namespace}.hello`);
+    const id = qualifyPluginId(answer, namespace);
+    if (!belongsToNamespace(id, namespace)) throw new Error(outsideNamespaceMessage(id, namespace));
     const name = await asker.text(
       { key: 'name', text: 'name', hint: 'What a person sees in the Extensions list.' },
       'Hello',
@@ -380,7 +446,7 @@ const createFunction = async (args: Args): Promise<number> => {
     }, 'every day 03:00'));
 
     const directory = join(workspace, folder);
-    const id = pluginIdOf(directory) ?? `com.example.${folder}`;
+    const id = pluginIdOf(directory) ?? `${workspaceNamespace(workspace) ?? 'com.example'}.${folder}`;
     const region = installationRegion(workspace);
     await asker.close();
 
@@ -539,7 +605,7 @@ const COMMANDS: Command[] = [
   {
     name: 'create',
     usage:
-      'microteia-plugin create [<com.example.id>] [--dir <path>] [--force] [--yes]\n'
+      'microteia-plugin create [<name>|<namespace.name>] [--namespace <com.acme>] [--dir <path>] [--force] [--yes]\n'
       + '  microteia-plugin create function [--plugin <folder>] [--trigger <collection>]\n'
       + '                                   [--schedule "<cron>"] [--yes]',
     summary: 'Create an extension, guided by a few questions. "create function" adds a Cloud Function.',

@@ -18,7 +18,7 @@ export const SDK_TARBALL = 'microteia-sdk.tgz';
  * duplicá-los aqui era exatamente o problema. O `sync` os acrescenta logo depois do `npm install`, e o
  * segundo `npm install` os instala.
  */
-export const workspacePackageJson = (officeName: string, sdkPath: string): string => JSON.stringify({
+export const workspacePackageJson = (officeName: string, sdkPath: string, namespace: string): string => JSON.stringify({
   name: `${officeName}-extensions`,
   version: '0.0.0',
   private: true,
@@ -28,4 +28,16 @@ export const workspacePackageJson = (officeName: string, sdkPath: string): strin
     // traz o SDK novo é `npm run sdk:refresh` — ou o `microteia unpack`, que o faz sozinho.
     '@microteia/sdk': `file:${sdkPath}`,
   },
+  // O prefixo de todo id escrito neste diretório. É o SDK que o lê (`microteia-plugin create`, o MCP);
+  // o Console só o recebe de quem roda o `plugin-init`, que é a única pessoa que pode decidi-lo.
+  microteia: { namespace },
 }, null, 2) + '\n';
+
+/**
+ * O formato de id de extensão (`isValidPluginId`, no domínio) — repetido porque o Console não importa
+ * o kernel, e conferir ANTES de escrever a semente é o que evita um `--force` só para corrigir um erro
+ * de digitação. `pluginWorkspaceTemplates.test.ts` prende os dois um ao outro.
+ */
+const NAMESPACE_PATTERN = /^[a-z][a-z0-9]*(\.[a-z][a-z0-9-]*)+$/;
+
+export const isValidNamespace = (value: string): boolean => NAMESPACE_PATTERN.test(value);

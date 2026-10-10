@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { repoRoot } from '../shared/paths.js';
-import { SDK_TARBALL, workspacePackageJson } from './pluginWorkspaceTemplates.js';
+import { isValidPluginId } from '../../../src/domain/schema/plugin/artifactRef';
+import { SDK_TARBALL, isValidNamespace, workspacePackageJson } from './pluginWorkspaceTemplates.js';
 
 /**
  * O que sobrou do Console em `extensions/` é a SEMENTE, e só ela. A documentação, os scripts e o
@@ -15,7 +16,7 @@ import { SDK_TARBALL, workspacePackageJson } from './pluginWorkspaceTemplates.js
  */
 describe('a semente do workspace de autoria', () => {
   const parsed = (): Record<string, unknown> =>
-    JSON.parse(workspacePackageJson('acme', `../.microteia/install/sdk/${SDK_TARBALL}`)) as Record<string, unknown>;
+    JSON.parse(workspacePackageJson('acme', `../.microteia/install/sdk/${SDK_TARBALL}`, 'com.acme')) as Record<string, unknown>;
 
   it('aponta o SDK por caminho SEM versão — o upgrade não pode exigir edição à mão', () => {
     const dependencies = parsed().dependencies as Record<string, string>;
@@ -39,7 +40,21 @@ describe('a semente do workspace de autoria', () => {
 
   /** Nem a versão do contrato: ela é do SDK que de fato ficou instalado, e o `sync` a carimba. */
   it('não carimba o contrato: quem o conhece é o SDK que o npm acabou de instalar', () => {
-    expect(parsed().microteia).toBeUndefined();
+    expect((parsed().microteia as Record<string, unknown>).kernelVersion).toBeUndefined();
+  });
+
+  /**
+   * O namespace é a única coisa que só quem roda o `plugin-init` sabe. Sem ele, o id de cada extensão
+   * era o que alguém digitasse na hora — e um agente copiava o `com.microteia` dos exemplos.
+   */
+  it('grava o namespace do escritório, de onde nasce o id de toda extensão do diretório', () => {
+    expect(parsed().microteia).toEqual({ namespace: 'com.acme' });
+  });
+
+  it('confere o namespace com o MESMO formato do id de extensão do domínio', () => {
+    for (const value of ['com.acme', 'br.com.acme', 'com.acme-legal', 'acme', 'Com.Acme', 'com.', '.com', 'com.acme/x', '1com.acme', 'com.1acme']) {
+      expect(isValidNamespace(value), value).toBe(isValidPluginId(value));
+    }
   });
 });
 
@@ -54,12 +69,12 @@ describe('a fronteira entre o Console e o SDK', () => {
   it('nenhum documento de autoria é escrito pelo Console', async () => {
     // A saída, não o texto do módulo: o cabeçalho dele NOMEIA os documentos, justamente para dizer
     // que saíram daqui. O que não pode voltar é um template que os produza.
-    const written = workspacePackageJson('acme', `../${SDK_TARBALL}`);
+    const written = workspacePackageJson('acme', `../${SDK_TARBALL}`, 'com.acme');
     for (const document of ['AGENTS.md', 'AUTHORING.md', 'CLAUDE.md', '.mcp.json', 'tsconfig.json']) {
       expect(written, document).not.toContain(document);
     }
     const exported = Object.keys(await import('./pluginWorkspaceTemplates.js')).sort();
-    expect(exported).toEqual(['SDK_TARBALL', 'workspacePackageJson']);
+    expect(exported).toEqual(['SDK_TARBALL', 'isValidNamespace', 'workspacePackageJson']);
   });
 
   it('o guia de autoria não mora mais no Console', () => {

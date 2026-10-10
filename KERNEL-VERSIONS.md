@@ -18,6 +18,12 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.79.0] — 2026-10-09
+
+- feat(sdk/create): extension ids are derived from the workspace namespace, recorded in `extensions/package.json` under `microteia.namespace`. `create billing` becomes `<namespace>.billing`, an id outside the namespace is refused, and a directory without one is asked for it once (`--namespace` without a terminal) and has it recorded. Before this the default was `com.example.hello`, and an agent reading `examples/` copied the first-party `com.microteia` prefix into ids that can never change.
+- feat(sdk/check, sdk/mcp): `check`, `build` and `validate_plugin` warn — never refuse, since a published id cannot be renamed — when a package id falls outside the namespace. `microteia://workspace/info` reports `namespace` and the rule to follow when there is none.
+- feat(sdk/sync): `sync` keeps `microteia.namespace` when stamping `kernelVersion`, and warns when it is missing or malformed instead of inventing one. `AGENTS.md` tells the agent to use it, never to borrow the prefix of `examples/`, and to ask when there is none.
+
 #### [9.78.0] — 2026-10-09
 
 - feat(agent): new MCP tool `search_audit_log`, charged by `audit.read`. The permission could be granted to an agent access (OAuth or token) but no tool consumed it: the audit log lives in the root `auditLogs` collection, not in a screen collection, so `search_records` could never reach it and the agent reported that it could not read the audit. The tool filters by period (`since`/`until`, bare day = whole UTC day), `action`, `severity`, `type`, `entity`, `entityId` and `userId`, resolves `title`/`text` message refs through the agent catalog, and reports `scanned`/`complete` like `search_records`. It queries only the existing `tenantId` + `createdAt desc` index — the other filters apply in memory over a 2000-entry window — so no index deploy is needed.

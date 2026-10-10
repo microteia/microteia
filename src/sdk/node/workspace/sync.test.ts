@@ -28,7 +28,11 @@ declare module '@microteia/data' {
 const workspaces: string[] = [];
 
 /** Um `extensions/` como o `plugin-init` o deixa: a semente, e o SDK já instalado. */
-const seed = (options: { examples?: string[]; devDependencies?: Record<string, string> } = {}): string => {
+const seed = (options: {
+  examples?: string[];
+  devDependencies?: Record<string, string>;
+  namespace?: string | null;
+} = {}): string => {
   const root = mkdtempSync(join(tmpdir(), 'microteia-sync-'));
   workspaces.push(root);
 
@@ -42,6 +46,7 @@ const seed = (options: { examples?: string[]; devDependencies?: Record<string, s
     private: true,
     dependencies: { '@microteia/sdk': 'file:../.microteia/install/sdk/microteia-sdk.tgz' },
     ...(options.devDependencies === undefined ? {} : { devDependencies: options.devDependencies }),
+    ...(options.namespace === null ? {} : { microteia: { namespace: options.namespace ?? 'com.acme' } }),
   }, null, 2)}\n`);
 
   if (options.examples !== undefined) {
@@ -368,5 +373,28 @@ describe('sincronizar o diretório de autoria', () => {
     const root = seed();
     syncWorkspace({ root, install: null, officeName: 'Acme Advogados' });
     expect(read(root, 'CLAUDE.md')).toContain('Acme Advogados');
+  });
+});
+
+describe('o namespace do diretório', () => {
+  it('sobrevive ao carimbo do contrato — o sync acrescenta, nunca troca a chave inteira', () => {
+    const root = seed();
+    syncWorkspace({ root, install: null });
+    const pkg = JSON.parse(read(root, 'package.json')) as { microteia: Record<string, unknown> };
+    expect(pkg.microteia).toEqual({ namespace: 'com.acme', kernelVersion: KERNEL_VERSION });
+  });
+
+  /** Diretório anterior ao namespace: o sync não inventa um, porque o id que nasce dele é permanente. */
+  it('avisa quando falta, sem gravar nenhum', () => {
+    const root = seed({ namespace: null });
+    const report = syncWorkspace({ root, install: null });
+    expect(report.warnings.join(' ')).toContain('microteia.namespace');
+    const pkg = JSON.parse(read(root, 'package.json')) as { microteia: Record<string, unknown> };
+    expect(pkg.microteia.namespace).toBeUndefined();
+  });
+
+  it('avisa quando está fora do formato', () => {
+    const root = seed({ namespace: 'Acme' });
+    expect(syncWorkspace({ root, install: null }).warnings.join(' ')).toContain('"Acme" is not a valid namespace');
   });
 });
