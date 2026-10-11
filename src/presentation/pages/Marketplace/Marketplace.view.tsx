@@ -27,6 +27,9 @@ import {
   RiVerifiedBadgeFill,
   RiVerifiedBadgeLine,
   RiDownloadCloud2Line,
+  RiShieldKeyholeLine,
+  RiGroupLine,
+  RiQuestionMark,
 } from 'react-icons/ri';
 import { getScreenIcon } from '../../shared/screenIcons';
 import { Button } from '../../components/ui/Button';
@@ -132,6 +135,75 @@ const Reputation: React.FC<{ row: ExtensionRow }> = ({ row }) => (
     )}
   </>
 );
+
+/**
+ * A pergunta de confiança, no molde da do VS Code: quem escreveu, se a origem foi confirmada e o que
+ * o código passa a poder fazer. A fonte não aparece — quem decide é o admin do escritório, e a
+ * decisão dele é sobre o autor.
+ */
+const TrustModal: React.FC<{ row: ExtensionRow; vm: ReturnType<typeof useMarketplaceViewModel> }> = ({ row, vm }) => {
+  const t = useT('core.marketplace');
+  const verified = row.verification !== null;
+  return (
+    <Modal title={t('extension.trust.title')} size="medium" onClose={vm.cancelReview}>
+      <S.TrustHero>
+        <S.TrustShield $verified={verified}>
+          {verified ? <RiShieldCheckLine size={30} /> : <RiShieldKeyholeLine size={30} />}
+        </S.TrustShield>
+        <S.TrustQuestion>{t('extension.trust.question')}</S.TrustQuestion>
+        <S.TrustLead>{t('extension.trust.lead', { name: row.name })}</S.TrustLead>
+      </S.TrustHero>
+
+      <S.TrustCard>
+        <S.TrustCardHead>
+          <Identity row={row} />
+          <S.TrustCardText>
+            <S.TrustName>{row.name}</S.TrustName>
+            <S.TrustMeta>
+              <span>v{row.version}</span>
+              <Reputation row={row} />
+            </S.TrustMeta>
+          </S.TrustCardText>
+        </S.TrustCardHead>
+        <S.TrustPublisher $verified={verified}>
+          {row.author.photoURL
+            ? <S.TrustAvatarPhoto src={row.author.photoURL} alt="" referrerPolicy="no-referrer" />
+            : (
+              <S.TrustAvatar $verified={verified}>
+                {row.author.name ? row.author.name.charAt(0).toUpperCase() : <RiQuestionMark size={14} />}
+              </S.TrustAvatar>
+            )}
+          <S.TrustPublisherText>
+            <S.TrustPublisherName>
+              {row.author.name ?? t('extension.trust.unknown-author')}
+              {verified && <RiVerifiedBadgeFill size={15} />}
+            </S.TrustPublisherName>
+            <S.TrustPublisherStatus $verified={verified}>
+              {verified ? row.verificationLabel : t('extension.trust.unverified')}
+            </S.TrustPublisherStatus>
+            <S.TrustPublisherHint>
+              {t(verified ? 'extension.trust.verified.hint' : 'extension.trust.unverified.hint')}
+            </S.TrustPublisherHint>
+          </S.TrustPublisherText>
+        </S.TrustPublisher>
+      </S.TrustCard>
+
+      <S.TrustEffectsTitle>{t('extension.trust.effects.title')}</S.TrustEffectsTitle>
+      <S.TrustEffects>
+        <S.TrustEffect><RiGroupLine size={16} />{t('extension.trust.effect.every-member')}</S.TrustEffect>
+        <S.TrustEffect><RiDatabase2Line size={16} />{t('extension.trust.effect.data')}</S.TrustEffect>
+        <S.TrustEffect><RiToggleLine size={16} />{t('extension.trust.effect.revocable')}</S.TrustEffect>
+      </S.TrustEffects>
+
+      <S.TrustNote>{t('extension.trust.catalog-note')}</S.TrustNote>
+
+      <S.TrustActions>
+        <Button variant="secondary" onClick={vm.cancelReview}>{t('extension.trust.decline')}</Button>
+        <Button onClick={() => void vm.confirmReview()}>{t('extension.trust.confirm')}</Button>
+      </S.TrustActions>
+    </Modal>
+  );
+};
 
 const RowView: React.FC<{ row: ExtensionRow; busy: boolean; vm: ReturnType<typeof useMarketplaceViewModel> }> = ({ row, busy, vm }) => {
   const t = useT('core.marketplace');
@@ -583,16 +655,7 @@ export const MarketplaceView: React.FC = () => {
         </Modal>
       )}
 
-      {vm.reviewTarget && (
-        <Modal title={t('extension.review.title', { name: vm.reviewTarget.name })} size="large" onClose={vm.cancelReview}>
-          <S.ReviewIntro>{t('extension.review.intro')}</S.ReviewIntro>
-          <S.ReviewCode>{vm.reviewTarget.code}</S.ReviewCode>
-          <S.ReviewActions>
-            <Button variant="secondary" onClick={vm.cancelReview}>{t('core.ui/action.cancel')}</Button>
-            <Button onClick={() => void vm.confirmReview()}>{t('extension.review.confirm')}</Button>
-          </S.ReviewActions>
-        </Modal>
-      )}
+      {vm.reviewTarget && <TrustModal row={vm.reviewTarget} vm={vm} />}
     </S.Page>
   );
 };

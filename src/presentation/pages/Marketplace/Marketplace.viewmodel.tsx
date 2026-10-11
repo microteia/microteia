@@ -10,7 +10,7 @@ import { useNotification } from '../../../stores/useNotification';
 import { useWorkspace } from '../../../stores/useWorkspace';
 import { packageFingerprint, parsePackage, serializePackage } from '../../../domain/usecases/plugins/packageSerialization';
 import { isVersionGreater, publishRefusal } from '../../../domain/usecases/plugins/publicExtension';
-import { extensionCodeOf, extensionHasCode } from '../../../domain/usecases/plugins/extensionCodeTrust';
+import { extensionHasCode } from '../../../domain/usecases/plugins/extensionCodeTrust';
 import { isExtensionBackendPending } from '../../../domain/usecases/plugins/extensionBackendState';
 import { backendResidueCount } from '../../../domain/usecases/plugins/backendResidue';
 import { useDI } from '../../../infrastructure/di/useDI';
@@ -175,8 +175,6 @@ export interface ExtensionRow {
   hasHistory: boolean;
   /** Código instalado que ainda não pode executar — falta a revisão de um admin do escritório. */
   needsCodeReview: boolean;
-  /** Fonte do código, para o admin ler antes de confiar. */
-  codeToReview: string | null;
   codeTrustedByName: string | null;
 
   mine: boolean;
@@ -320,7 +318,11 @@ export interface MarketplaceViewModel {
   savedFiltersScreenKey: string;
   busyId: string | null;
   removeTarget: { id: string; name: string } | null;
-  reviewTarget: { id: string; name: string; code: string } | null;
+  /**
+   * A extensão que pede confiança para executar código. A pergunta é sobre QUEM a escreveu — autor e
+   * selo de verificação —, não sobre a leitura da fonte, que um admin de escritório não tem como avaliar.
+   */
+  reviewTarget: ExtensionRow | null;
   detailsRow: ExtensionRow | null;
   /**
    * As cinco estrelas do voto de quem lê, na extensão do modal de detalhes. Vazio quando não pode
@@ -465,7 +467,7 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
   const [filter, setFilter] = useState<MarketplaceFilter>('all');
   const [sort, setSortState] = useState<MarketplaceSort>('relevance');
   const setSort = useCallback((value: string) => { if (isSort(value)) setSortState(value); }, []);
-  const [reviewTarget, setReviewTarget] = useState<{ id: string; name: string; code: string } | null>(null);
+  const [reviewId, setReviewId] = useState<string | null>(null);
   const [detailsId, setDetailsId] = useState<string | null>(null);
   const [licenseId, setLicenseId] = useState<string | null>(null);
   const [historyId, setHistoryId] = useState<string | null>(null);
@@ -804,7 +806,6 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
         canApprove: false,
         canDeprecate: false,
         needsCodeReview: false,
-        codeToReview: null,
         backendPending: false,
         migrationPending: false,
         migrationError: null,
@@ -913,7 +914,6 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
         canRunMigrations: canManage && inst !== undefined && pendingMigrationsOf(id).length > 0,
         hasHistory: canManage && (histories.get(id)?.entries.length ?? 0) > 0,
         needsCodeReview: Boolean(inst) && installedNeedsReview.has(id),
-        codeToReview: inst ? extensionCodeOf(inst.package) : null,
         codeTrustedByName: inst?.codeTrust?.trustedByName ?? null,
         mine,
         imported: priv?.origin === 'imported',
@@ -1131,16 +1131,10 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
   const cancelRemove = useCallback(() => setRemoveTarget(null), []);
 
   const openReview = useCallback((id: string) => {
-    const extension = installed.find((candidate) => candidate.id === id);
-    if (!extension) return;
-    setReviewTarget({
-      id,
-      name: label(extension.package.manifest.name),
-      code: extensionCodeOf(extension.package) ?? '',
-    });
-  }, [installed, label]);
+    if (installed.some((candidate) => candidate.id === id)) setReviewId(id);
+  }, [installed]);
 
-  const cancelReview = useCallback(() => setReviewTarget(null), []);
+  const cancelReview = useCallback(() => setReviewId(null), []);
 
   const openDetails = useCallback((id: string) => setDetailsId(id), []);
   const closeDetails = useCallback(() => setDetailsId(null), []);
@@ -1229,6 +1223,11 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
     [rows, licenseId],
   );
 
+  const reviewTarget = useMemo(
+    () => rows.find((row) => row.id === reviewId) ?? null,
+    [rows, reviewId],
+  );
+
   const openHistory = useCallback((id: string) => setHistoryId(id), []);
   const closeHistory = useCallback(() => setHistoryId(null), []);
 
@@ -1280,7 +1279,7 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
   const confirmReview = useCallback(async () => {
     if (!reviewTarget) return;
     const { id } = reviewTarget;
-    setReviewTarget(null);
+    setReviewId(null);
     await run(id, () => trustCode(id), t('extension.trusted'));
   }, [reviewTarget, run, trustCode, t]);
 

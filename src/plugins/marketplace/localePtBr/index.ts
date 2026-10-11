@@ -51,7 +51,7 @@ const bundle = (namespace: string, messages: Record<string, string>): MessageBun
  *
  * Mudou o conteúdo, a impressão muda; o gate para e cobra o `version` junto.
  */
-export const PT_BR_MESSAGES_FINGERPRINT = '0a65fa4650f8';
+export const PT_BR_MESSAGES_FINGERPRINT = '290da3026dd3';
 
 export const localePtBrPlugin: MarketplacePlugin = {
   summary:
@@ -59,7 +59,7 @@ export const localePtBrPlugin: MarketplacePlugin = {
   workflows: [],
   manifest: {
     id: 'com.microteia.locale-pt-br',
-    version: '1.70.0',
+    version: '1.71.0',
     kernel: '^2.0.0',
     name: 'Português (Brasil)',
     description: 'Tradução da Microteia para português do Brasil.',

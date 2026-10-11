@@ -18,6 +18,12 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.82.0] — 2026-10-11
+
+- feat(marketplace): the code-trust dialog no longer shows the extension's source. It now asks, VS Code style, whether the administrator trusts the extension's AUTHOR: extension identity (image or glyph, version, installs, rating), the publisher (photo or initial, "Unknown author" when the package names none) and its verification state — the existing seal (`first-party` / `verified`) or an explicit "Unverified publisher" warning —, followed by what trusting enables (runs for every member, sees what each member sees, keeps running until deactivated or uninstalled). The confirm action is unchanged: `trustCode(id)`. A dump of bundled code was not a decision an organization admin could make; who published it is.
+- refactor(marketplace): `MarketplaceViewModel.reviewTarget` is now the `ExtensionRow` (derived from `rows` by id, like `licenseRow`) instead of `{ id, name, code }`; `ExtensionRow.codeToReview` removed, it had no other reader.
+- i18n: `extension.trust.*` keys added to `core.marketplace` (en + pt-BR); `extension.review.title`, `extension.review.intro` and `extension.review.confirm` removed. `com.microteia.locale-pt-br` 1.71.0.
+
 #### [9.81.0] — 2026-10-10
 
 - feat(screens): `hideRecordsFromCommandPalette?: boolean` on `ScreenModuleTemplate` / `ScreenDefinition`. The command palette's record search (`DynamicRecordCommandProvider`, group "Records") skips the records of a screen that declares it. Before, nothing a screen declared took it out of that search — `hideFromSidebar` only acts on the menu — so a collection filled by an ingestion took all eight result slots and pushed out what people were looking for. The only workaround was declaring the screen an `owned` child of another, which misstated the model and added a tab to every parent record. `KERNEL_VERSION` 2.25.0.

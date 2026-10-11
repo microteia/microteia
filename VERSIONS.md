@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.82.0] — 2026-10-11
+
+- A autorização para uma extensão executar código ficou mais clara e elegante: em vez de mostrar o código-fonte, a tela pergunta se você confia no autor da extensão. Ela mostra quem a publicou, se esse publicador é verificado e o que a extensão passa a poder fazer no escritório, para que a decisão seja tomada com segurança.
+
 #### [9.81.0] — 2026-10-10
 
 - Extensões que recebem registros automaticamente, como intimações e e-mails, agora podem deixar esses registros fora da busca rápida (⌘K). Assim, ao procurar um processo ou uma pessoa, os resultados não ficam tomados por itens recebidos. A tela continua aparecendo na busca para ser aberta, e os registros seguem acessíveis normalmente pela lista, pelos links e pelas abas.

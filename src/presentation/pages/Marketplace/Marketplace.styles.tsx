@@ -507,26 +507,187 @@ export const S = {
     color: ${({ theme }) => theme.colors.textMuted};
   `,
 
-  ReviewIntro: styled.p`
-    margin: 0 0 ${({ theme }) => theme.spacing.md};
-    font-size: ${({ theme }) => theme.fontSizes.sm};
-    color: ${({ theme }) => theme.colors.textMuted};
-    line-height: 1.5;
+  TrustHero: styled.div`
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: ${({ theme }) => theme.spacing.sm};
+    margin-bottom: ${({ theme }) => theme.spacing.lg};
   `,
 
-  ReviewCode: styled.pre`
+  TrustShield: styled.div<{ $verified: boolean }>`
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 60px;
+    height: 60px;
+    margin-bottom: ${({ theme }) => theme.spacing.xs};
+    border-radius: ${({ theme }) => theme.borderRadius.full};
+    background: ${({ theme, $verified }) => ($verified ? theme.colors.primaryLight : theme.colors.warningLight)};
+    color: ${({ theme, $verified }) => ($verified ? theme.colors.primary : theme.colors.warning)};
+  `,
+
+  TrustQuestion: styled.h3`
     margin: 0;
-    padding: ${({ theme }) => theme.spacing.md};
-    max-height: 50vh;
-    overflow: auto;
-    background: ${({ theme }) => theme.colors.background};
-    border: 1px solid ${({ theme }) => theme.colors.border};
-    border-radius: ${({ theme }) => theme.borderRadius.md};
-    font-family: ${({ theme }) => theme.fonts.mono};
-    font-size: ${({ theme }) => theme.fontSizes.xs};
+    font-size: ${({ theme }) => theme.fontSizes.lg};
+    font-weight: 600;
     color: ${({ theme }) => theme.colors.text};
-    white-space: pre-wrap;
-    word-break: break-word;
+  `,
+
+  TrustLead: styled.p`
+    margin: 0;
+    max-width: 460px;
+    font-size: ${({ theme }) => theme.fontSizes.sm};
+    line-height: 1.5;
+    color: ${({ theme }) => theme.colors.textMuted};
+  `,
+
+  TrustCard: styled.div`
+    border: 1px solid ${({ theme }) => theme.colors.border};
+    border-radius: ${({ theme }) => theme.borderRadius.lg};
+    overflow: hidden;
+  `,
+
+  TrustCardHead: styled.div`
+    display: flex;
+    align-items: center;
+    gap: ${({ theme }) => theme.spacing.md};
+    padding: ${({ theme }) => theme.spacing.md};
+  `,
+
+  TrustCardText: styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  `,
+
+  TrustName: styled.span`
+    font-size: ${({ theme }) => theme.fontSizes.md};
+    font-weight: 600;
+    color: ${({ theme }) => theme.colors.text};
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  `,
+
+  TrustMeta: styled.span`
+    display: inline-flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: ${({ theme }) => theme.spacing.xs};
+    font-size: ${({ theme }) => theme.fontSizes.xs};
+    color: ${({ theme }) => theme.colors.textMuted};
+  `,
+
+  TrustPublisher: styled.div<{ $verified: boolean }>`
+    display: flex;
+    align-items: flex-start;
+    gap: ${({ theme }) => theme.spacing.md};
+    padding: ${({ theme }) => theme.spacing.md};
+    border-top: 1px solid ${({ theme }) => theme.colors.border};
+    background: ${({ theme, $verified }) => ($verified ? theme.colors.primaryLight : theme.colors.warningLight)};
+  `,
+
+  TrustAvatar: styled.span<{ $verified: boolean }>`
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: ${({ theme }) => theme.borderRadius.full};
+    background: ${({ theme }) => theme.colors.surface};
+    color: ${({ theme, $verified }) => ($verified ? theme.colors.primary : theme.colors.warning)};
+    font-size: ${({ theme }) => theme.fontSizes.sm};
+    font-weight: 700;
+    flex-shrink: 0;
+  `,
+
+  TrustAvatarPhoto: styled.img`
+    width: 36px;
+    height: 36px;
+    border-radius: ${({ theme }) => theme.borderRadius.full};
+    object-fit: cover;
+    flex-shrink: 0;
+  `,
+
+  TrustPublisherText: styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  `,
+
+  TrustPublisherName: styled.span`
+    display: inline-flex;
+    align-items: center;
+    gap: ${({ theme }) => theme.spacing.xs};
+    font-size: ${({ theme }) => theme.fontSizes.sm};
+    font-weight: 600;
+    color: ${({ theme }) => theme.colors.text};
+
+    svg {
+      color: ${({ theme }) => theme.colors.primary};
+      flex-shrink: 0;
+    }
+  `,
+
+  TrustPublisherStatus: styled.span<{ $verified: boolean }>`
+    font-size: ${({ theme }) => theme.fontSizes.xs};
+    font-weight: 600;
+    color: ${({ theme, $verified }) => ($verified ? theme.colors.primary : theme.colors.warning)};
+  `,
+
+  TrustPublisherHint: styled.span`
+    font-size: ${({ theme }) => theme.fontSizes.xs};
+    line-height: 1.5;
+    color: ${({ theme }) => theme.colors.textMuted};
+  `,
+
+  TrustEffectsTitle: styled.p`
+    margin: ${({ theme }) => theme.spacing.lg} 0 ${({ theme }) => theme.spacing.sm};
+    font-size: ${({ theme }) => theme.fontSizes.sm};
+    font-weight: 600;
+    color: ${({ theme }) => theme.colors.text};
+  `,
+
+  TrustEffects: styled.ul`
+    display: flex;
+    flex-direction: column;
+    gap: ${({ theme }) => theme.spacing.sm};
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  `,
+
+  TrustEffect: styled.li`
+    display: flex;
+    align-items: center;
+    gap: ${({ theme }) => theme.spacing.sm};
+    font-size: ${({ theme }) => theme.fontSizes.sm};
+    color: ${({ theme }) => theme.colors.text};
+
+    svg {
+      color: ${({ theme }) => theme.colors.textMuted};
+      flex-shrink: 0;
+    }
+  `,
+
+  TrustNote: styled.p`
+    margin: ${({ theme }) => theme.spacing.lg} 0 0;
+    font-size: ${({ theme }) => theme.fontSizes.xs};
+    line-height: 1.5;
+    color: ${({ theme }) => theme.colors.textMuted};
+  `,
+
+  TrustActions: styled.div`
+    display: flex;
+    justify-content: flex-end;
+    gap: ${({ theme }) => theme.spacing.sm};
+    margin-top: ${({ theme }) => theme.spacing.lg};
+    padding-top: ${({ theme }) => theme.spacing.md};
+    border-top: 1px solid ${({ theme }) => theme.colors.border};
   `,
 
   ImportHint: styled.p`
