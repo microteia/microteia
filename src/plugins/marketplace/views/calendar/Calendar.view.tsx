@@ -95,7 +95,23 @@ export default function CalendarView() {
                     onClick={() => vm.openOrigin(record)}
                     title={vm.cardTooltip(record)}
                   >
+                    {/*
+                      Where the item comes from: the icon and name of the screen that presents the
+                      origin today, or what the origin declared on `calendar.source`. Derived at render,
+                      so items written before any of this show it too.
+                    */}
+                    {vm.cardSource(record) ? (
+                      <S.SourceTag $color={vm.cardSource(record).color}>
+                        {vm.cardSource(record).icon ? <Icon name={vm.cardSource(record).icon} size={10} /> : null}
+                        <span>{vm.cardSource(record).label}</span>
+                      </S.SourceTag>
+                    ) : null}
+
                     <S.EventTitle>{vm.cardTitle(record)}</S.EventTitle>
+
+                    {vm.cardSubtitle(record) ? (
+                      <S.EventSubtitle>{vm.cardSubtitle(record)}</S.EventSubtitle>
+                    ) : null}
 
                     <S.EventMeta>
                       {record.hour ? (
@@ -174,6 +190,25 @@ export default function CalendarView() {
             </S.LegendItem>
           ))}
         </S.Legend>
+
+        {vm.originLegend.length > 0 ? (
+          <S.Legend>
+            <S.LegendLabel>{vm.t('view.legend.origin')}</S.LegendLabel>
+            <S.LegendItem onClick={() => vm.filterByOrigin(null)}>
+              <span>{vm.t('view.legend.all')}</span>
+            </S.LegendItem>
+            {vm.originLegend.map((origin) => (
+              <S.LegendItem
+                key={origin.key}
+                $dimmed={origin.dimmed}
+                onClick={() => vm.filterByOrigin(origin.key)}
+              >
+                {origin.icon ? <Icon name={origin.icon} size={12} /> : null}
+                <span>{origin.label}</span>
+              </S.LegendItem>
+            ))}
+          </S.Legend>
+        ) : null}
       </S.CalendarCard>
 
       {/* An action that asks for parameters before running, the delete confirmation and the tags —

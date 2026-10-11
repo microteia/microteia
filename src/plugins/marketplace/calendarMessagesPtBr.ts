@@ -58,12 +58,17 @@ const CALENDAR_PT_BR: Record<string, string> = {
 
   'point.move.title': 'Ação ao mover um item de dia',
   'point.move.description': 'A ação executada quando um item é arrastado para outro dia. Quem decide o que a mudança significa é a origem.',
+  'point.source.title': 'Como uma origem se apresenta na agenda',
+  'point.source.description': 'A etiqueta, o subtítulo e as linhas dos cartões que uma origem põe na agenda. Lido quando a agenda é desenhada, então uma mudança alcança os itens que já estão lá.',
 
   'settings.section.title': 'Calendário',
   'settings.section.description': 'Como a agenda responde aos gestos do usuário.',
   'settings.move-actions': 'Ao arrastar um item para outro dia',
   'settings.move-actions.description':
     'As ações que respondem à mudança de dia, na ordem em que são consultadas. Vale a primeira que atende a origem do item — arrastar não grava nada por conta própria.',
+  'settings.sources': 'Origens exibidas na agenda',
+  'settings.sources.description':
+    'As extensões que põem itens na agenda. Desligar uma esconde os itens dela — ela continua a mantê-los em dia, então religar mostra tudo de novo na hora.',
 
   'overview.body':
     'O **Calendário** mostra, lado a lado, os dias do mês e o que está marcado em cada um. A rolagem abre no dia de hoje, o cartão é colorido pela prioridade e a legenda embaixo filtra por ela num clique.\n\nA agenda não é dona de nada do que mostra. Cada item pertence ao registro que o criou — um prazo, uma audiência, uma parcela — e é esse registro que o mantém em dia: mudou lá, muda aqui; foi excluído lá, some daqui. Por isso o item não se edita pela agenda, e clicar no cartão leva direto ao registro de origem.\n\nArrastar um cartão para outro dia **pergunta** à extensão dona do item o que fazer. Em Configurações › Calendário você escolhe quais respondem e em que ordem.',
@@ -75,6 +80,8 @@ const CALENDAR_PT_BR: Record<string, string> = {
   'overview.filter.value': 'Por situação, prioridade, data — e o que as extensões acrescentarem',
   'overview.drag': 'Arrastar',
   'overview.drag.value': 'Executa a ação que a origem declarou',
+  'overview.origin': 'Origem',
+  'overview.origin.value': 'Cada cartão diz de onde vem, e você escolhe quais origens aparecem',
   'overview.banner': 'Sozinha, a agenda abre vazia: quem a preenche são as extensões que registram itens nela, como a de Prazos.',
 
   'view.screen-missing': 'Tela "Calendário" não encontrada. Instale a extensão para ativá-la.',
@@ -88,6 +95,7 @@ const CALENDAR_PT_BR: Record<string, string> = {
   'view.filter.placeholder': 'Filtrar a agenda...',
   'view.legend.priority': 'Prioridade:',
   'view.legend.all': 'Todas',
+  'view.legend.origin': 'Origem:',
   'view.move.no-handler': 'Nenhuma extensão responde por este item ao mudar de dia.',
 };
 

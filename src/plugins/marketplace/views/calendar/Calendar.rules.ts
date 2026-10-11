@@ -131,28 +131,85 @@ export const statsOf = (records, month, now) => {
 };
 
 /**
+ * The office's say over the contributions of a point, as Settings stores it: `{ key, enabled }[]`. An
+ * entry the office never saw (a contribution that arrived after the list was saved) is ON and goes to
+ * the end — installing an extension must be enough for it to take part.
+ */
+const keyOfContribution = (contribution) => text(contribution.metadata.key) || contribution.id;
+
+const layoutOf = (layout) => {
+  const entries = Array.isArray(layout) ? layout : [];
+  const indexOf = (contribution) => entries.findIndex((item) => item.key === keyOfContribution(contribution));
+  return {
+    isEnabled: (contribution) => {
+      const index = indexOf(contribution);
+      return index === -1 ? true : entries[index].enabled !== false;
+    },
+    order: (contribution) => {
+      const index = indexOf(contribution);
+      return index === -1 ? entries.length : index;
+    },
+  };
+};
+
+/**
  * Which contribution answers a drag: the office's list in Settings decides, and the FIRST one that
  * serves that origin wins. Running them all would hand the Finance extension the drag of a deadline.
  */
 export const moveHandlerFor = (contributions, record, layout, isVisible) => {
-  const enabled = Array.isArray(layout) ? layout : [];
-  const keyOf = (contribution) => text(contribution.metadata.key) || contribution.id;
-  const isEnabled = (contribution) => {
-    const entry = enabled.find((item) => item.key === keyOf(contribution));
-    return entry ? entry.enabled !== false : true;
-  };
-  const order = (contribution) => {
-    const index = enabled.findIndex((item) => item.key === keyOf(contribution));
-    return index === -1 ? enabled.length : index;
-  };
-
+  const office = layoutOf(layout);
   return contributions
     .filter((contribution) => (
       servesRecord(contribution, record)
-        && isEnabled(contribution)
+        && office.isEnabled(contribution)
         && isVisible(contribution.metadata.hiddenWhen, record, 'calendar')
     ))
-    .sort((a, b) => order(a) - order(b))[0];
+    .sort((a, b) => office.order(a) - office.order(b))[0];
+};
+
+/**
+ * The declaration an origin made of ITSELF on the agenda (`calendar.source`), or undefined. Unlike a
+ * move handler, a source names its origin exactly: "every origin" would let one extension dress the
+ * cards of all the others. When two declare the same origin, the office's order decides.
+ */
+export const sourceFor = (contributions, origem, layout) => {
+  if (!origem) return undefined;
+  const office = layoutOf(layout);
+  return contributions
+    .filter((contribution) => text(contribution.metadata.origem) === origem)
+    .sort((a, b) => office.order(a) - office.order(b))[0];
+};
+
+/**
+ * Is this origin switched off in Settings › Calendar? Switching it off HIDES its items: the origin
+ * keeps writing them, so switching it back on is instant and needs no catch-up run. An origin that
+ * declared nothing cannot be switched off — and keeps showing, as it always did.
+ */
+export const isOriginHidden = (contributions, origem, layout) => {
+  const declared = sourceFor(contributions, origem, layout);
+  return !!declared && !layoutOf(layout).isEnabled(declared);
+};
+
+/** A declared list of field keys, with anything that is not a key left out. */
+export const fieldKeysOf = (value) =>
+  (Array.isArray(value) ? value.filter((key) => typeof key === 'string' && key !== '') : []);
+
+/**
+ * The subtitle a source asked for: the text of each field it named, in order, the empty ones skipped.
+ * The source names FIELDS and never writes the line itself — a template with words in it would be a
+ * phrase no catalog translates.
+ */
+export const subtitleOf = (record, keys, fieldText) =>
+  keys.map((key) => fieldText(record, key)).filter((value) => value !== '').join(' · ');
+
+/** The origins present in the records, each once, in the order they first appear. */
+export const originsOf = (records) => {
+  const seen = [];
+  for (const record of records) {
+    const origem = text(record.origem);
+    if (origem && seen.indexOf(origem) === -1) seen.push(origem);
+  }
+  return seen;
 };
 
 export const labelOf = (options, key) => {

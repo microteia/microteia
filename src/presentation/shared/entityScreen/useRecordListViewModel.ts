@@ -16,7 +16,7 @@ import { useCustomFieldListing } from '../../hooks/useCustomFieldListing';
 import { useRecordIdentityText } from './useRecordIdentityText';
 import type { CustomFieldCardItem } from '../../hooks/useCustomFieldListing';
 import { buildNewTabKey, buildViewTabKey, buildCloneTabKey, buildChildNewTabKey, recordTabKeyOf } from '../../../shared/constants/dynamicScreenKeys';
-import { resolveRecordImageUrl, resolveRecordTitle, sortFieldsByOrder } from '../../../domain/services/customFieldValues';
+import { readValueByPath, resolveRecordImageUrl, resolveRecordTitle, sortFieldsByOrder } from '../../../domain/services/customFieldValues';
 import { isBoundScreen, parentLinkRelation, screenDataCollection } from '../../../domain/services/screenDataCollection';
 import { collectionPermissionId } from '../../../domain/schema/access';
 import { screenForDisplay, useEntityFormFields, useResolvedFields } from '../useEntityFormFields';
@@ -109,6 +109,12 @@ export interface RecordListViewModel {
   getCardSubtitle: (record: EntityRecord) => string;
   /** Ícone da linha de subtítulo do card, quando o campo declara um. */
   cardSubtitleIconKey: string | null;
+  /**
+   * O texto de QUALQUER campo da tela, formatado pelo tipo dele (moeda, data, rótulo da opção, nome
+   * do registro referenciado) — não só dos marcados para a listagem. Vazio quando o campo não existe
+   * ou não tem valor, para quem compõe a própria linha poder simplesmente pulá-lo.
+   */
+  getFieldText: (record: EntityRecord, fieldKey: string) => string;
   /**
    * A imagem do registro (`imageFieldKey`), que substitui o ícone da tela no avatar do card. Nada
    * declarado, campo vazio ou campo que deixou de ser de arquivo → `null`, e o card volta ao ícone.
@@ -283,6 +289,17 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
   const getCardSubtitle = useCallback(
     (record: EntityRecord): string => identity.subtitleOf(record),
     [identity],
+  );
+
+  const getFieldText = useCallback(
+    (record: EntityRecord, fieldKey: string): string => {
+      const field = sortedFields.find((candidate) => candidate.key === fieldKey);
+      if (!field) return '';
+      const value = readValueByPath(record, field.key);
+      if (value == null || value === '' || (Array.isArray(value) && value.length === 0)) return '';
+      return listing.displayValue(record, field);
+    },
+    [sortedFields, listing],
   );
 
   const getCardImageUrl = useCallback(
@@ -537,6 +554,7 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
     getCardTitle,
     getCardSubtitle,
     cardSubtitleIconKey: subtitleField?.listIcon ?? null,
+    getFieldText,
     getCardImageUrl,
     getCardActions,
     parameterPrompt,

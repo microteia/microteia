@@ -103,9 +103,9 @@ describe('calendarPlugin', () => {
    * caminhos para a mesma pergunta — "o que aparece neste cartão?" — deixariam metade da resposta
    * fora do alcance do usuário.
    */
-  it('publica só o ponto do arrasto — o gesto do cartão é configuração da tela', () => {
+  it('publica o ponto do arrasto e o da apresentação da origem — o gesto do cartão é configuração da tela', () => {
     const pontos = (calendarPlugin.manifest.extensionPoints ?? []).map((point) => point.id);
-    expect(pontos).toEqual(['calendar.moveaction']);
+    expect(pontos).toEqual(['calendar.moveaction', 'calendar.source']);
 
     // Metadata pura: sem implementação, uma extensão de TERCEIRO (que não pode entregar código)
     // participa do arrasto pelo mesmo caminho que uma de primeira parte.
@@ -128,6 +128,21 @@ describe('calendarPlugin', () => {
     expect(propriedade.point).toBe('calendar.moveaction');
     expect(validateSettingValue(propriedade, [{ key: 'prazo.mover', enabled: true }])).toBeNull();
     expect(validateSettingValue(propriedade, 'ligado')).not.toBeNull();
+  });
+
+  /**
+   * Desligar uma origem é decisão do ESCRITÓRIO, na agenda que ele vê — não de cada extensão. Por isso
+   * a lista é uma configuração `contributions` sobre o ponto de apresentação.
+   */
+  it('a lista de origens exibidas é configurável, e sobre o ponto da apresentação', () => {
+    const { host } = loadHost([calendarPlugin]);
+    const [contribution] = host.contributions.query(UI_SETTINGS_POINT)
+      .filter((item) => (item.metadata as unknown as SettingsSection).key === 'calendar');
+    const propriedade = (contribution.metadata as unknown as SettingsSection).properties
+      .find((property) => property.key === 'calendar.sources');
+
+    expect(propriedade?.type).toBe('contributions');
+    expect(propriedade?.point).toBe('calendar.source');
   });
 
   it('a view compila e avalia contra a API curada', () => {

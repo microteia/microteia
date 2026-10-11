@@ -18,6 +18,14 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.83.0] — 2026-10-11
+
+- feat(host-api): `useCollectionIdentity()` in `@microteia/data` returns `(collection) => { screenKey, title, titlePlural, icon } | null`, resolved from the screen that presents the collection today (by data collection, then by screen key, as `useReferenceOpener` does), with labels resolved. It is the counterpart of `useOpenRecord`: a surface that mixes records of several origins can say where each came from without naming any screen. `KERNEL_VERSION` 2.26.0.
+- feat(host-api): `RecordListViewModel.getFieldText(record, fieldKey)` formats ANY field of the screen by its type (`displayValue`: currency, date, option label, referenced record), not only list fields, and returns `''` for a missing field or empty value. Declared in `extensionTypeDefs.ts`.
+- feat(marketplace/calendar): extension point `calendar.source` (metadata only, `allowedImplKinds: []`): `origem` (exact match), `label`, `icon`, `color`, `subtitleFields`, `metaFields`. Without a declaration the card tag is derived from the origin's screen; with one, the origin sets the tag, a subtitle made of formatted field values joined by ` · ` (fields, never a template, so nothing untranslatable enters), and the card lines (`metaFields` replaces the screen's list fields for that origin). Everything is read at render time and nothing is written on the item, so changes reach existing items.
+- feat(marketplace/calendar): setting `calendar.sources` (`type: 'contributions'` over `calendar.source`). A switched-off origin is hidden from days and month stats; its items keep being written, so switching it back on needs no backfill. Origins with no declaration cannot be switched off and keep showing. An origin legend (local, exact `origem` filter) appears with two or more nameable origins. Calendar 1.4.0, `kernel: ^2.26.0`; the move rules now share the layout lookup with source resolution, behaviour unchanged.
+- compat: purely additive. Items, drag handlers and card actions are untouched; an origin that declares nothing renders as before plus the derived tag.
+
 #### [9.82.1] — 2026-10-11
 
 - fix(marketplace/agent): the package overview was an English literal outside the catalog, so it never translated; it now references `overview.*` keys in `com.microteia.agent`, with pt-BR in the extension. Version 1.2.0.

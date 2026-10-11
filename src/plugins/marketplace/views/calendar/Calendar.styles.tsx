@@ -214,6 +214,33 @@ const EventTitle = styled.div`
   text-overflow: ellipsis;
 `;
 
+const SourceTag = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 150px;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: ${({ $color }) => $color};
+
+  span {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+`;
+
+const EventSubtitle = styled.div`
+  font-size: 0.65rem;
+  color: ${({ theme }) => theme.colors.textSecondary};
+  max-width: 150px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+`;
+
 const EventMeta = styled.div`
   font-size: 0.65rem;
   color: ${({ theme }) => theme.colors.textMuted};
@@ -363,7 +390,9 @@ export const S = {
   DayName,
   DayEvents,
   EventCard,
+  SourceTag,
   EventTitle,
+  EventSubtitle,
   EventMeta,
   MetaRow,
   BadgeRow,

@@ -1091,6 +1091,12 @@ const DATA_MODULE_DEFS = `declare module '@microteia/data' {
     getCardTitle: (record: any) => string;
     getCardSubtitle: (record: any) => string;
     cardSubtitleIconKey: string | null;
+    /**
+     * The text of ANY field of the screen, formatted by its type (currency, date, option label, name of
+     * the referenced record) - not only the ones marked for the list. Empty when the field does not
+     * exist or has no value, so whoever composes their own line can simply skip it.
+     */
+    getFieldText: (record: any, fieldKey: string) => string;
     getCardImageUrl: (record: any) => string | null;
     getCardActions: (record: any) => RecordCardAction[];
     /** State for EntityListModals - read it through vm, not directly. */
@@ -1206,6 +1212,22 @@ const DATA_MODULE_DEFS = `declare module '@microteia/data' {
    * collection with no screen at all opens nothing.
    */
   export function useOpenRecord(): (collection: string, recordId: string) => void;
+
+  export interface CollectionIdentity {
+    /** The key of the screen that presents the collection today. */
+    screenKey: string;
+    title: string;
+    titlePlural: string;
+    icon: string | null;
+  }
+  /**
+   * How a collection PRESENTS itself - the icon and the name of the screen that describes it today -
+   * without knowing which screen that is. Made for a surface that shows records of several origins side
+   * by side (an agenda, a feed) and has to tell the user where each one came from. It follows the
+   * screen: rename it or change its icon and the answer changes, with no record rewritten. Returns null
+   * for a collection no installed screen describes.
+   */
+  export function useCollectionIdentity(): (collection: string | null | undefined) => CollectionIdentity | null;
 
   /**
    * Opens the LIST of a collection by name, without knowing which screen presents it. The filters are

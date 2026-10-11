@@ -5868,6 +5868,7 @@ kernel. Ele é próprio porque não tem equivalente em lugar nenhum: nenhuma lis
 | Ponto | Metadata | Quem preenche |
 |---|---|---|
 | `calendar.moveaction` | `key`, `title`, `icon`, `order`, `origem`, `actionSourceId`, `hiddenWhen` | a extensão dona do registro de origem |
+| `calendar.source` | `key`, `origem`, `label`, `icon`, `color`, `subtitleFields`, `metaFields` | a extensão dona do registro de origem (opcional — ver "De onde vem o cartão") |
 
 É **metadata pura** (`allowedImplKinds: []`): uma extensão de terceiro, que não pode entregar código,
 participa do arrasto pelo mesmo caminho que uma de primeira parte. E endereça a Action pelo
@@ -5926,6 +5927,8 @@ todas faria a extensão do Financeiro receber o arrasto de um prazo.
 | `useActionVisible()` na API curada | o `hiddenWhen` declarado por terceiro seria ignorado, ou reavaliado com outra semântica |
 | `ActionSurface` virou `string` | uma superfície nova (`calendar`) não poderia ser nomeada fora do bundle |
 | `SettingsProperty` do tipo `contributions` | a lista de quem responde ao arrasto viraria tela própria da extensão |
+| `useCollectionIdentity()` na API curada | a agenda não teria como dizer de onde veio um item sem conhecer o nome da tela de cada origem |
+| `getFieldText(record, fieldKey)` no `useEntityList` | o subtítulo declarado pela origem teria de reimplementar a formatação de moeda, data, opção e referência |
 
 `usePointContributions` devolve só `{ pluginId, id, metadata }` — **`impl` não atravessa a ponte**.
 Resolver implementação é carregar código de um plugin no contexto de outro; o único caminho de
@@ -6022,6 +6025,44 @@ não ganhou vocabulário nenhum.
 `scripts/financeiroCalendarWorkflow.test.ts` roda a declaração no motor de verdade, como o irmão do
 Prazo, e cobre o que só o motor prova: o mutirão idempotente, o espelho reescrevendo o mesmo
 documento e as três datas do arrasto (vencimento, pagamento, cancelamento) conforme a situação.
+
+#### De onde vem o cartão — identidade derivada, apresentação declarada, origem desligável
+
+Com duas origens na mesma agenda, um cartão de prazo e um de lançamento eram indistinguíveis: o
+clique levava ao lugar certo, mas nada no cartão dizia qual seria. A resposta tem três camadas, e
+cada uma vale sem as outras:
+
+| Camada | De onde sai | Quem precisa fazer algo |
+|---|---|---|
+| **Identidade** — ícone e nome da origem no topo do cartão | da TELA que apresenta a coleção `origem` hoje (`useCollectionIdentity`) | ninguém |
+| **Apresentação** — rótulo/ícone/cor próprios, subtítulo e linhas do cartão | da contribuição da origem em `calendar.source` | a extensão de origem, se quiser |
+| **Exibição** — quais origens aparecem | da configuração `calendar.sources` (`type: 'contributions'`), em Configurações › Calendário | o escritório |
+
+**Nada disso é gravado no item.** As três são lidas no render, e é isso que faz uma mudança de
+declaração — ou o escritório renomear a tela de origem — alcançar os itens que já estão na agenda,
+sem mutirão. Um campo `subtitle` no item seria o contrário: uma cópia que envelhece no dia em que a
+origem muda de ideia.
+
+**O subtítulo é uma lista de CAMPOS, nunca um template.** `subtitleFields: ['caseNumber']` — o texto
+de cada um sai formatado pelo tipo do campo (`getFieldText`), unido por ` · `. Um template como
+`"Processo {{caseNumber}}"` traria uma palavra que nenhum catálogo traduz. `metaFields`, quando
+declarado, SUBSTITUI as linhas do cartão para aquela origem: as "aparece na listagem" da tela são de
+todas as origens ao mesmo tempo, e o lançamento não precisa da linha vazia do processo.
+
+**Por que metadata, e não um componente da origem.** Um "template visual" em código seria
+implementação atravessando a ponte — código de um plugin rodando no contexto de outro —, e excluiria
+a extensão de terceiro, que não entrega código. O ponto é `allowedImplKinds: []`, como o do arrasto.
+
+**Desligar ESCONDE; não para a escrita.** A decisão é da agenda, que é quem exibe — e por isso mora
+nas Configurações dela, sobre o ponto de apresentação, e não em cada origem. A origem continua
+mantendo seus itens, então religar mostra tudo na hora, sem mutirão; e os números do mês contam só o
+que está visível. Uma origem que não declarou nada não tem o que desligar e continua aparecendo,
+exatamente como antes. A declaração casa a `origem` EXATA (diferente do arrasto, em que vazio quer
+dizer "qualquer"): uma declaração genérica vestiria os cartões das outras extensões.
+
+A legenda de origem, abaixo da de prioridade, só aparece com duas ou mais origens nomeáveis — com uma
+só, repetiria em toda linha o que o cartão já diz. O filtro dela é local e exato (`origem ===`), e não
+um token do `CompositeFilter`: o filtro de texto casa por substring.
 
 ### Integridade do Marketplace — ver por que uma extensão não carregou
 

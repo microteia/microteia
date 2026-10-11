@@ -3,9 +3,14 @@ import {
   byPriority,
   daysOf,
   displayDate,
+  fieldKeysOf,
+  isOriginHidden,
   moveHandlerFor,
+  originsOf,
   positionOf,
+  sourceFor,
   statsOf,
+  subtitleOf,
   withoutMove,
 } from './Calendar.rules';
 
@@ -126,5 +131,52 @@ describe('quem responde ao arrasto', () => {
   it('e não devolve nada quando ninguém serve — a agenda não escreve por conta própria', () => {
     expect(moveHandlerFor([contribution('a', 'contracts')], record({ origem: 'invoices' }), [], visible))
       .toBeUndefined();
+  });
+});
+
+/**
+ * A origem se apresenta pela DECLARAÇÃO, e a declaração é lida no render — nunca gravada no item. É o
+ * que faz uma mudança de etiqueta ou de subtítulo alcançar os itens que já estão na agenda.
+ */
+describe('como uma origem se apresenta', () => {
+  const source = (id, origem, key) => ({ id, metadata: { origem, key } });
+
+  it('casa a origem EXATA — uma declaração vazia não veste os cartões dos outros', () => {
+    const contributions = [source('a', ''), source('b', 'invoices')];
+    expect(sourceFor(contributions, 'invoices', []).id).toBe('b');
+    expect(sourceFor(contributions, 'contracts', [])).toBeUndefined();
+    expect(sourceFor(contributions, '', [])).toBeUndefined();
+  });
+
+  it('com duas declarações para a mesma origem, vale a ordem do escritório', () => {
+    const contributions = [source('a', 'invoices', 'primeira'), source('b', 'invoices', 'segunda')];
+    expect(sourceFor(contributions, 'invoices', [{ key: 'segunda' }, { key: 'primeira' }]).id).toBe('b');
+  });
+
+  /** Desligar esconde; quem não declarou nada não tem o que desligar, e continua aparecendo. */
+  it('só some da agenda a origem que o escritório desligou', () => {
+    const contributions = [source('a', 'invoices', 'faturas')];
+    expect(isOriginHidden(contributions, 'invoices', [{ key: 'faturas', enabled: false }])).toBe(true);
+    expect(isOriginHidden(contributions, 'invoices', [{ key: 'faturas', enabled: true }])).toBe(false);
+    expect(isOriginHidden(contributions, 'invoices', [])).toBe(false);
+    expect(isOriginHidden(contributions, 'contracts', [{ key: 'faturas', enabled: false }])).toBe(false);
+  });
+
+  it('o subtítulo junta o texto dos campos nomeados, na ordem, pulando os vazios', () => {
+    const fieldText = (item, key) => (item[key] == null ? '' : String(item[key]));
+    const item = record({ number: '0001', person: '', court: 'TJ' });
+    expect(subtitleOf(item, ['number', 'person', 'court'], fieldText)).toBe('0001 · TJ');
+    expect(subtitleOf(item, [], fieldText)).toBe('');
+  });
+
+  it('uma lista de campos declarada errada vira lista vazia, em vez de reprovar o render', () => {
+    expect(fieldKeysOf(['a', '', 3, 'b'])).toEqual(['a', 'b']);
+    expect(fieldKeysOf('a')).toEqual([]);
+    expect(fieldKeysOf(undefined)).toEqual([]);
+  });
+
+  it('as origens presentes aparecem uma vez cada, na ordem em que surgem', () => {
+    const items = [record({ origem: 'b' }), record({ origem: 'a' }), record({ origem: 'b' }), record({})];
+    expect(originsOf(items)).toEqual(['b', 'a']);
   });
 });

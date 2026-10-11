@@ -63,12 +63,17 @@ export const CALENDAR_MESSAGES: Record<string, string> = {
 
   'point.move.title': 'Action when an item moves to another day',
   'point.move.description': 'The action executed when an item is dragged to another day. What the change means is decided by the origin.',
+  'point.source.title': 'How an origin presents itself on the agenda',
+  'point.source.description': 'The tag, the subtitle and the lines of the cards an origin puts on the agenda. Read when the agenda is drawn, so a change reaches the items already there.',
 
   'settings.section.title': 'Calendar',
   'settings.section.description': 'How the agenda answers what the user does.',
   'settings.move-actions': 'When an item is dragged to another day',
   'settings.move-actions.description':
     'The actions that answer a change of day, in the order they are consulted. The first one that serves the item origin wins — dragging writes nothing on its own.',
+  'settings.sources': 'Origins shown on the agenda',
+  'settings.sources.description':
+    'The extensions that put items on the agenda. Switching one off hides its items — it keeps them up to date, so switching it back on shows them again at once.',
 
   'overview.body':
     'The **Calendar** shows the days of the month side by side and what is scheduled on each one. The scroll opens on today, the card is coloured by priority, and the legend below filters by it in one click.\n\nThe agenda owns nothing it shows. Each item belongs to the record that created it — a deadline, a hearing, an instalment — and it is that record that keeps it current: changed there, changed here; deleted there, gone from here. That is why an item is not edited from the agenda, and why clicking the card goes straight to the origin record.\n\nDragging a card to another day **asks** the extension that owns the item what to do. In Settings › Calendar you choose which ones answer, and in what order.',
@@ -80,6 +85,8 @@ export const CALENDAR_MESSAGES: Record<string, string> = {
   'overview.filter.value': 'By status, priority, date — and whatever extensions add',
   'overview.drag': 'Dragging',
   'overview.drag.value': 'Runs the action the origin declared',
+  'overview.origin': 'Origin',
+  'overview.origin.value': 'Each card says where it comes from, and you choose which origins appear',
   'overview.banner': 'On its own the agenda opens empty: it is filled by the extensions that register items on it, such as Deadlines.',
 
   'view.screen-missing': 'The "Calendar" screen was not found. Install the extension to enable it.',
@@ -93,6 +100,7 @@ export const CALENDAR_MESSAGES: Record<string, string> = {
   'view.filter.placeholder': 'Filter the agenda...',
   'view.legend.priority': 'Priority:',
   'view.legend.all': 'All',
+  'view.legend.origin': 'Origin:',
   'view.move.no-handler': 'No extension answers for this item when the day changes.',
 };
 

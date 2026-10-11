@@ -1,21 +1,27 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTheme } from 'styled-components';
 import {
-  useEntityList, useContributions, useRunAction, useActionVisible, useOpenRecord, useLookup, useNotify,
+  useEntityList, useContributions, useRunAction, useActionVisible, useOpenRecord, useCollectionIdentity,
+  useLookup, useNotify,
 } from '@microteia/data';
-import { getConfigColor } from '@microteia/theme';
+import { getConfigColor, resolveColor } from '@microteia/theme';
 import { useSettingValue } from '@microteia/settings';
-import { useLocale, useT } from '@microteia/i18n';
+import { useLabel, useLocale, useT } from '@microteia/i18n';
 import {
   daysOf,
   dayKey,
   displayDate,
+  fieldKeysOf,
   isClosed,
+  isOriginHidden,
   labelOf,
   monthLabelOf,
   monthOf,
   moveHandlerFor,
+  originsOf,
+  sourceFor,
   statsOf,
+  subtitleOf,
   text,
   withoutMove,
 } from './Calendar.rules';
@@ -24,6 +30,8 @@ const SOURCE_ID = 'microteia:calendar';
 const COLLECTION = 'calendar';
 const MOVE_POINT = 'calendar.moveaction';
 const MOVE_SETTING = 'calendar.moveActions';
+const SOURCE_POINT = 'calendar.source';
+const SOURCE_SETTING = 'calendar.sources';
 
 /**
  * The state, the data and the gestures — and no JSX. Everything the agenda DECIDES is either here or,
@@ -39,6 +47,10 @@ export const useCalendarViewModel = () => {
   const runAction = useRunAction();
   const isVisible = useActionVisible();
   const openRecord = useOpenRecord();
+  const identityOf = useCollectionIdentity();
+  const sourceDeclarations = useContributions(SOURCE_POINT);
+  const sourceLayout = useSettingValue(SOURCE_SETTING);
+  const label = useLabel();
   const notify = useNotify();
   const statusOptions = useLookup('calendarStatuses');
   const priorityOptions = useLookup('calendarPriorities');
@@ -48,9 +60,42 @@ export const useCalendarViewModel = () => {
   const [dragOverKey, setDragOverKey] = useState(null);
   // The drag in flight: { [id]: { from, to } }. See positionOf.
   const [moves, setMoves] = useState({});
+  const [originFilter, setOriginFilter] = useState(null);
   const scrollerRef = useRef(null);
 
-  const records = list.filteredRecords;
+  /**
+   * Where each origin's cards say they come from, and how they are dressed. Two layers, the second
+   * optional: the IDENTITY is derived from the screen that presents the collection today (its icon and
+   * name), and the DECLARATION an origin made on `calendar.source` refines it. Both are read now, never
+   * written on the item — which is why changing either reaches the items already on the agenda.
+   */
+  const sources = useMemo(() => {
+    const byOrigin = {};
+    for (const origem of originsOf(list.records)) {
+      const declared = sourceFor(sourceDeclarations, origem, sourceLayout);
+      const meta = declared ? declared.metadata : {};
+      const identity = identityOf(origem);
+      const metaFields = fieldKeysOf(meta.metaFields);
+      byOrigin[origem] = {
+        key: origem,
+        label: text(meta.label) ? label(meta.label) : identity ? identity.title : '',
+        icon: text(meta.icon) || (identity && identity.icon) || null,
+        color: text(meta.color) ? resolveColor(meta.color, theme) : theme.colors.textMuted,
+        subtitleFields: fieldKeysOf(meta.subtitleFields),
+        metaFields: Array.isArray(meta.metaFields) ? metaFields : null,
+        hidden: isOriginHidden(sourceDeclarations, origem, sourceLayout),
+      };
+    }
+    return byOrigin;
+  }, [list.records, sourceDeclarations, sourceLayout, identityOf, label, theme]);
+
+  const records = useMemo(() => list.filteredRecords.filter((record) => {
+    const source = sources[record.origem];
+    if (source && source.hidden) return false;
+    return originFilter === null || record.origem === originFilter;
+  }), [list.filteredRecords, sources, originFilter]);
+
+  const sourceOf = useCallback((record) => sources[record.origem] || null, [sources]);
 
   const days = useMemo(() => daysOf(records, month, moves, locale, new Date()), [month, records, moves, locale]);
   const stats = useMemo(() => statsOf(records, month, new Date()), [records, month]);
@@ -162,6 +207,49 @@ export const useCalendarViewModel = () => {
     if (record.origem && record.origemId) openRecord(record.origem, record.origemId);
   }, [openRecord]);
 
+  const filterByOrigin = useCallback((origem) => setOriginFilter(origem), []);
+
+  /**
+   * The origin legend only earns its place when there is something to tell apart: with a single
+   * origin on the agenda, it would repeat on every line what the card already says.
+   */
+  const originLegend = useMemo(() => {
+    const shown = Object.keys(sources)
+      .map((origem) => sources[origem])
+      .filter((source) => !source.hidden && source.label !== '');
+    if (shown.length < 2) return [];
+    return shown
+      .sort((a, b) => a.label.localeCompare(b.label, locale))
+      .map((source) => ({
+        key: source.key,
+        label: source.label,
+        icon: source.icon,
+        dimmed: originFilter !== null && originFilter !== source.key,
+      }));
+  }, [sources, originFilter, locale]);
+
+  /**
+   * The lines under the title. A source that named its fields gets exactly those, formatted by the
+   * field's type; one that named none gets the screen's list fields, as every card always did.
+   */
+  const cardItems = useCallback((record) => {
+    const source = sourceOf(record);
+    if (!source || source.metaFields === null) return list.getCardItems(record);
+    return source.metaFields
+      .map((key) => ({ key, value: list.getFieldText(record, key) }))
+      .filter((item) => item.value !== '');
+  }, [sourceOf, list]);
+
+  const cardSubtitle = useCallback((record) => {
+    const source = sourceOf(record);
+    return source ? subtitleOf(record, source.subtitleFields, list.getFieldText) : '';
+  }, [sourceOf, list]);
+
+  const cardSource = useCallback((record) => {
+    const source = sourceOf(record);
+    return source && source.label !== '' ? source : null;
+  }, [sourceOf]);
+
   const legend = useMemo(() => priorityOptions.map((option) => ({
     key: option.key,
     label: option.label,
@@ -201,7 +289,11 @@ export const useCalendarViewModel = () => {
     openOrigin,
     cardTooltip: (record) => text(record.title),
     cardTitle: (record) => list.getCardTitle(record),
-    cardItems: (record) => list.getCardItems(record),
+    cardItems,
+    cardSubtitle,
+    cardSource,
+    originLegend,
+    filterByOrigin,
     cardActions: (record) => list.getCardActions(record),
     statusBadge: (record) => ({
       color: getConfigColor(statusOptions, record.status, theme),

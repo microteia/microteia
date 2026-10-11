@@ -11,6 +11,13 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.83.0] — 2026-10-11
+
+- Cada cartão do Calendário agora mostra de onde vem — o ícone e o nome da origem, como Prazo ou Título —, inclusive os itens que já estavam na agenda.
+- As extensões podem acrescentar um subtítulo ao cartão e escolher quais informações ele mostra.
+- Em Configurações › Calendário, é possível escolher quais origens aparecem na agenda. Desligar uma apenas a esconde: ao religar, tudo volta na hora.
+- Com mais de uma origem na agenda, uma nova legenda permite filtrar por origem com um clique.
+
 #### [9.82.1] — 2026-10-11
 
 - A apresentação do Acesso de Agente de IA, na tela de Extensões, agora aparece em português.

@@ -57,6 +57,7 @@ import {
 import { useLabel, useLocaleFormat, useT } from '../i18n/useT';
 import { useWorkspace } from '../../../stores/useWorkspace';
 import { useOpenRecord } from '../useOpenRecord';
+import { useCollectionIdentity } from '../useCollectionIdentity';
 import { useOpenScreenList } from '../useOpenScreenList';
 import { useAuth } from '../../../stores/useAuth';
 import { useTenant } from '../../../stores/useTenant';
@@ -326,6 +327,7 @@ const dataModule = {
   useLookup,
   useWorkspace,
   useOpenRecord,
+  useCollectionIdentity,
   useOpenScreenList,
   useNotify,
   useSavedViewState,

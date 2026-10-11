@@ -66,6 +66,25 @@ const SOURCE_ID = 'microteia:calendar';
 const CALENDAR_MOVE_POINT = 'calendar.moveaction';
 
 /**
+ * How an origin presents ITSELF on the agenda. Metadata only, like the drag point, and for the same
+ * reason: a third party that cannot ship code dresses its cards through the same door as a first-party
+ * extension. Every key is optional except `origem` (the collection, matched exactly):
+ *
+ * - `label`, `icon`, `color`: the tag at the top of the card. Without them the tag is DERIVED from the
+ *   screen that presents the collection — its name and icon —, so an origin that declares nothing is
+ *   still told apart.
+ * - `subtitleFields`: item fields whose text, formatted by the field's type, makes the line under the
+ *   title. Fields, never a template: words in a template would be a phrase no catalog translates.
+ * - `metaFields`: the lines this origin's cards show, replacing the screen's list fields — which on a
+ *   shared agenda belong to every origin at once.
+ *
+ * It is read at render time and never written on the item: changing the declaration reaches the
+ * items already on the agenda. The office switches an origin off in Settings › Calendar, which hides
+ * its items without stopping the origin from keeping them current.
+ */
+const CALENDAR_SOURCE_POINT = 'calendar.source';
+
+/**
  * A reference into this extension's own catalog. The namespace is written out, not composed:
  * `npm run verify-messages` reads these calls and fails on a key that does not exist, and it can
  * only do that if the namespace is there to be read.
@@ -160,6 +179,16 @@ const EXTENSION_POINTS: ExtensionPointDefinition[] = [
     implRequired: false,
     multiple: true,
   },
+  {
+    id: CALENDAR_SOURCE_POINT,
+    apiVersion: '1.0.0',
+    title: message('point.source.title'),
+    description: message('point.source.description'),
+    ownerPluginId: 'com.microteia.calendar',
+    allowedImplKinds: [],
+    implRequired: false,
+    multiple: true,
+  },
 ];
 
 /**
@@ -174,8 +203,8 @@ const EXTENSION_POINTS: ExtensionPointDefinition[] = [
 export const calendarPlugin: MarketplacePlugin = {
   manifest: {
     id: 'com.microteia.calendar',
-    version: '1.3.0',
-    kernel: '^2.0.0',
+    version: '1.4.0',
+    kernel: '^2.26.0',
     name: message('package.name'),
     description: message('package.description'),
     category: message('package.category'),
@@ -203,6 +232,15 @@ export const calendarPlugin: MarketplacePlugin = {
             default: [],
             scopes: ['tenant'],
           },
+          {
+            key: 'calendar.sources',
+            label: message('settings.sources'),
+            description: message('settings.sources.description'),
+            type: 'contributions',
+            point: CALENDAR_SOURCE_POINT,
+            default: [],
+            scopes: ['tenant'],
+          },
         ],
       }),
     ],
@@ -220,6 +258,7 @@ export const calendarPlugin: MarketplacePlugin = {
           { label: message('overview.shows'), value: message('overview.shows.value') },
           { label: message('overview.filter'), value: message('overview.filter.value') },
           { label: message('overview.drag'), value: message('overview.drag.value') },
+          { label: message('overview.origin'), value: message('overview.origin.value') },
         ],
       },
       { type: 'banner', message: message('overview.banner'), variant: 'info' },
