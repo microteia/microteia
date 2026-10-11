@@ -112,19 +112,19 @@ describe('pacotes distribuíveis das extensões de primeira parte', () => {
  * avisou".
  */
 const VERSAO_CONFERIDA: Record<string, { version: string; fingerprint: string }> = {
-  'com.microteia.locale-pt-br': { version: '1.71.0', fingerprint: 'fa2f19a20ab0' },
-  'com.microteia.agent': { version: '1.1.0', fingerprint: '0a8b3110ad41' },
+  'com.microteia.locale-pt-br': { version: '1.72.0', fingerprint: '33e74ca92cfd' },
+  'com.microteia.agent': { version: '1.2.0', fingerprint: 'b94b8d0f7e84' },
   'com.microteia.brasil': { version: '1.1.0', fingerprint: 'bc1dfe565f9e' },
   'com.microteia.dashboard': { version: '1.2.0', fingerprint: '3d89d46273e6' },
   'com.microteia.calendar': { version: '1.3.0', fingerprint: 'ff568d502c6d' },
   'com.microteia.news': { version: '1.4.0', fingerprint: '6a187135a822' },
-  'com.microteia.theme-indigo': { version: '1.2.0', fingerprint: 'e3c5b0b5a9d1' },
-  'com.microteia.theme-indigo-light': { version: '1.2.0', fingerprint: '213c6d7c1c6a' },
-  'com.microteia.theme-claude': { version: '1.2.0', fingerprint: '8db4b38b451f' },
-  'com.microteia.theme-teams': { version: '1.2.0', fingerprint: '62e6b4a4221d' },
-  'com.microteia.theme-kindle': { version: '1.2.0', fingerprint: '83354c6cfb25' },
-  'com.microteia.theme-themis': { version: '1.2.0', fingerprint: '2b899a947ffa' },
-  'com.microteia.theme-themis-night': { version: '1.2.0', fingerprint: 'ca3f730391f9' },
+  'com.microteia.theme-indigo': { version: '1.2.1', fingerprint: '2c65a329fe5d' },
+  'com.microteia.theme-indigo-light': { version: '1.2.1', fingerprint: '95e41ae94732' },
+  'com.microteia.theme-claude': { version: '1.2.1', fingerprint: '13f01b450c32' },
+  'com.microteia.theme-teams': { version: '1.2.1', fingerprint: 'f1423245f76a' },
+  'com.microteia.theme-kindle': { version: '1.2.1', fingerprint: 'ac918b9037cc' },
+  'com.microteia.theme-themis': { version: '1.2.1', fingerprint: '7da0f299ff34' },
+  'com.microteia.theme-themis-night': { version: '1.2.1', fingerprint: 'e28b5be67fc0' },
 };
 
 const impressao = (plugin: MarketplacePlugin): string =>

@@ -25,6 +25,8 @@ export const CORE_THEME_MESSAGES: Record<string, string> = {
   'package.white.summary':
     'The light theme that ships with the system. It cannot be removed — download it, rename it and import it back to build your own.',
 
+  'package.description': 'A palette for the interface — colors and fonts only, no code.',
+
   'package.indigo.summary': 'A dark theme built around a deep indigo, with the Inter typeface.',
   'package.indigo-light.summary': 'The light counterpart of Indigo: white surfaces and the same indigo accent.',
   'package.claude.summary': 'Warm paper tones and a serif typeface, for long reading sessions.',

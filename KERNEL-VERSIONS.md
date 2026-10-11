@@ -18,6 +18,11 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.82.1] — 2026-10-11
+
+- fix(marketplace/agent): the package overview was an English literal outside the catalog, so it never translated; it now references `overview.*` keys in `com.microteia.agent`, with pt-BR in the extension. Version 1.2.0.
+- fix(marketplace/themes): the theme packages' `description` was the literal `The ${name} theme for Microteia.`; it is now `@core.theme/package.description`, translated by `locale-pt-br` (1.72.0). Themes 1.2.1.
+
 #### [9.82.0] — 2026-10-11
 
 - feat(marketplace): the code-trust dialog no longer shows the extension's source. It now asks, VS Code style, whether the administrator trusts the extension's AUTHOR: extension identity (image or glyph, version, installs, rating), the publisher (photo or initial, "Unknown author" when the package names none) and its verification state — the existing seal (`first-party` / `verified`) or an explicit "Unverified publisher" warning —, followed by what trusting enables (runs for every member, sees what each member sees, keeps running until deactivated or uninstalled). The confirm action is unchanged: `trustCode(id)`. A dump of bundled code was not a decision an organization admin could make; who published it is.

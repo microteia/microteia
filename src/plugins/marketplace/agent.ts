@@ -28,7 +28,7 @@ const message = (key: string): string => `@com.microteia.agent/${key}`;
 export const agentPlugin: MarketplacePlugin = {
   manifest: {
     id: 'com.microteia.agent',
-    version: '1.1.0',
+    version: '1.2.0',
     kernel: '^2.0.0',
     name: message('package.name'),
     description: message('package.description'),
@@ -81,37 +81,14 @@ export const agentPlugin: MarketplacePlugin = {
     type: 'stack',
     gap: 'lg',
     children: [
-      {
-        type: 'markdown',
-        content:
-          '**AI Agent Access** lets an AI assistant work inside this office, on the office own data, '
-          + 'without any access to the database.\n\n'
-          + '- Each person gets **their own access**, and it is always **theirs**: it carries their name, '
-          + 'their permissions and nobody else\'s.\n'
-          + '- The access declares **which permissions it may use** and, if you want, **when it expires**.\n'
-          + '- An access can **never do more than the person who holds it**: lose a role, and every access '
-          + 'of yours narrows on the next call.\n'
-          + '- Any access can be **revoked at any time**, and it stops working immediately.\n\n'
-          + 'There are two ways to connect, and the office does not have to choose one — both work at the '
-          + 'same time, and both end up in the same list.\n\n'
-          + '**Signing in.** The assistant asks only for the connection address. The person signs in with '
-          + 'their own account, picks which permissions to allow, and that is it — no token is ever copied '
-          + 'or pasted. Clients that can sign in, Claude on the web among them, should use this: it is what '
-          + 'keeps one person\'s assistant from acting as another person.\n\n'
-          + '**A token.** For a client that cannot sign in, an access issued in Organization → AI agents '
-          + 'produces a token to paste into it. The token is shown once and stored only as a fingerprint, '
-          + 'so a lost one is replaced, never recovered.\n\n'
-          + 'Once connected, the assistant discovers the screens this office has and can search records, '
-          + 'register them, change them, delete them, run a report and start an automation — each of those '
-          + 'only when the access releases it.',
-      },
+      { type: 'markdown', content: message('overview.body') },
       {
         type: 'keyValue',
         items: [
-          { label: 'Connection', value: 'MCP over HTTP — nothing to install on the machine' },
-          { label: 'Signing in', value: 'OAuth 2.1, each person with their own account — no token to copy' },
-          { label: 'Or a token', value: 'An access token issued in the application, revocable, shown once' },
-          { label: 'Limit', value: 'The permissions of the person who holds it, intersected with the ones the access declares' },
+          { label: message('overview.connection'), value: message('overview.connection.value') },
+          { label: message('overview.sign-in'), value: message('overview.sign-in.value') },
+          { label: message('overview.token'), value: message('overview.token.value') },
+          { label: message('overview.limit'), value: message('overview.limit.value') },
         ],
       },
     ],

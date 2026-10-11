@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.82.1] — 2026-10-11
+
+- A apresentação do Acesso de Agente de IA, na tela de Extensões, agora aparece em português.
+- A descrição dos temas deixou de aparecer em inglês.
+
 #### [9.82.0] — 2026-10-11
 
 - A autorização para uma extensão executar código ficou mais clara e elegante: em vez de mostrar o código-fonte, a tela pergunta se você confia no autor da extensão. Ela mostra quem a publicou, se esse publicador é verificado e o que a extensão passa a poder fazer no escritório, para que a decisão seja tomada com segurança.

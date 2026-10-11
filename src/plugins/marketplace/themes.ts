@@ -30,11 +30,10 @@ const themePackage = (
   workflows: [],
   manifest: {
     id: `com.microteia.theme-${id}`,
-    version: '1.2.0',
+    version: '1.2.1',
     kernel: '^2.0.0',
     name,
-    description:
-      `The ${name} theme for Microteia.`,
+    description: '@core.theme/package.description',
     category: '@core.theme/category.theme',
     icon: 'palette',
     publisher: { name: 'Microteia' },

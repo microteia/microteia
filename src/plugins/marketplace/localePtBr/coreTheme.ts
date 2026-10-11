@@ -24,6 +24,8 @@ export const CORE_THEME: Record<string, string> = {
   'package.white.summary':
     'O tema claro que vem com o sistema. Não pode ser removido — baixe, troque o nome e importe de volta para criar o seu.',
 
+  'package.description': 'Uma paleta para a interface — só cores e fontes, nada de código.',
+
   'package.indigo.summary': 'Um tema escuro construído sobre um índigo profundo, com a fonte Inter.',
   'package.indigo-light.summary': 'A versão clara do Índigo: superfícies brancas e o mesmo destaque índigo.',
   'package.claude.summary': 'Tons quentes de papel e fonte com serifa, para longas sessões de leitura.',

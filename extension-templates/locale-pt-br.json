@@ -3,7 +3,7 @@
   "workflows": [],
   "manifest": {
     "id": "com.microteia.locale-pt-br",
-    "version": "1.71.0",
+    "version": "1.72.0",
     "kernel": "^2.0.0",
     "name": "Português (Brasil)",
     "description": "Tradução da Microteia para português do Brasil.",
@@ -2176,6 +2176,7 @@
             "point.tokens.description": "Cores nomeadas que uma extensão traz para o vocabulário dela, numa variante clara e numa escura. Existem sob qualquer tema, e qualquer tema pode sobrepô-las.",
             "package.dark.summary": "O tema escuro que vem com o sistema. Não pode ser removido — baixe, troque o nome e importe de volta para criar o seu.",
             "package.white.summary": "O tema claro que vem com o sistema. Não pode ser removido — baixe, troque o nome e importe de volta para criar o seu.",
+            "package.description": "Uma paleta para a interface — só cores e fontes, nada de código.",
             "package.indigo.summary": "Um tema escuro construído sobre um índigo profundo, com a fonte Inter.",
             "package.indigo-light.summary": "A versão clara do Índigo: superfícies brancas e o mesmo destaque índigo.",
             "package.claude.summary": "Tons quentes de papel e fonte com serifa, para longas sessões de leitura.",
