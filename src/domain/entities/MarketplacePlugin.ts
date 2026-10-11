@@ -83,6 +83,8 @@ export interface ScreenModuleTemplate {
   hideFromSidebar?: boolean;
   /** A tela filha não vira aba do pai. Ver `ScreenDefinition.hideFromParentTabs`. */
   hideFromParentTabs?: boolean;
+  /** Os registros ficam fora da busca do ⌘K. Ver `ScreenDefinition.hideRecordsFromCommandPalette`. */
+  hideRecordsFromCommandPalette?: boolean;
   parentEntity?: string | null;
   parentFieldKey?: string | null;
   /** Posse ou visão sobre o pai. Ver `ScreenDefinition.parentRelation`. */

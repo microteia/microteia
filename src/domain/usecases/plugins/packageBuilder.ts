@@ -118,6 +118,9 @@ const screenToTemplate = (screen: ScreenDefinition): ScreenModuleTemplate =>
     titlePlural: screen.titlePlural,
     icon: screen.icon,
     fields: screen.fields.map((field) => omit(field, ['ownerPluginId'])) as unknown as ScreenModuleTemplate['fields'],
+    keys: screen.keys?.length
+      ? screen.keys.map((key) => omit(key, ['ownerPluginId'])) as unknown as ScreenModuleTemplate['keys']
+      : undefined,
     titleFieldKey: screen.titleFieldKey,
     subtitleFieldKey: screen.subtitleFieldKey ?? undefined,
     imageFieldKey: screen.imageFieldKey ?? undefined,
@@ -127,6 +130,7 @@ const screenToTemplate = (screen: ScreenDefinition): ScreenModuleTemplate =>
     tagCollection: screen.tagCollection ?? undefined,
     dataCollection: screen.dataCollection ?? undefined,
     eventPrefix: screen.eventPrefix ?? undefined,
+    auditActions: screen.auditActions ?? undefined,
     recordTabPrefix: screen.recordTabPrefix ?? undefined,
     memberWritableFields: screen.memberWritableFields ?? undefined,
     authorCanDelete: screen.authorCanDelete ?? undefined,
@@ -135,6 +139,7 @@ const screenToTemplate = (screen: ScreenDefinition): ScreenModuleTemplate =>
     enabled: screen.enabled,
     hideFromSidebar: screen.hideFromSidebar ?? undefined,
     hideFromParentTabs: screen.hideFromParentTabs ?? undefined,
+    hideRecordsFromCommandPalette: screen.hideRecordsFromCommandPalette ?? undefined,
     parentEntity: screen.parentEntity ?? undefined,
     parentFieldKey: screen.parentFieldKey ?? undefined,
     parentRelation: screen.parentRelation ?? undefined,
@@ -161,6 +166,7 @@ const refreshedFromInstalled = (
   ...screenToTemplate({
     ...live,
     fields: live.fields.filter((field) => !field.ownerPluginId || field.ownerPluginId === pluginId),
+    keys: live.keys?.filter((key) => !key.ownerPluginId || key.ownerPluginId === pluginId),
   }),
   key: template.key,
   sourceId: templateSourceOf(template),

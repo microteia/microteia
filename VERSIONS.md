@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.81.0] — 2026-10-10
+
+- Extensões que recebem registros automaticamente, como intimações e e-mails, agora podem deixar esses registros fora da busca rápida (⌘K). Assim, ao procurar um processo ou uma pessoa, os resultados não ficam tomados por itens recebidos. A tela continua aparecendo na busca para ser aberta, e os registros seguem acessíveis normalmente pela lista, pelos links e pelas abas.
+- Corrigido um problema em que salvar novamente uma extensão em edição apagava o que ela dizia sobre auditoria (quais ações ficam registradas) e sobre os campos que não podem se repetir.
+
 #### [9.80.0] — 2026-10-10
 
 - A tela de Extensões ficou parecida com uma loja de aplicativos: cada extensão aparece com a própria imagem ou ícone, quantos escritórios já a instalaram e a nota média dada por quem a usa, em estrelas.

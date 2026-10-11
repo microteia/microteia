@@ -313,12 +313,28 @@ export interface ScreenDefinition {
   sourceRev?: number | null;
   managed?: boolean | null;
   /**
-   * Mantém a tela FORA do menu lateral e da busca ⌘K mesmo sendo de topo (sem `parentEntity`). É o
-   * que permite uma entidade existir sem menu quando quem dá acesso a ela é OUTRA tela — tipicamente
-   * uma view de código de extensão que a apresenta com layout próprio. Diferente de `parentEntity`,
-   * não a torna filha de ninguém: continua uma entidade de topo, só sem entrada de menu automática.
+   * Mantém a tela FORA do menu lateral mesmo sendo de topo (sem `parentEntity`). É o que permite uma
+   * entidade existir sem menu quando quem dá acesso a ela é OUTRA tela — tipicamente uma view de
+   * código de extensão que a apresenta com layout próprio. Diferente de `parentEntity`, não a torna
+   * filha de ninguém: continua uma entidade de topo, só sem entrada de menu automática.
+   *
+   * Age SÓ no menu. O comando "Abrir <tela>" do ⌘K continua — sem menu, ele é o caminho que sobra —,
+   * e os registros continuam na busca até a tela declarar `hideRecordsFromCommandPalette`.
    */
   hideFromSidebar?: boolean | null;
+  /**
+   * Os registros desta tela não entram no grupo "Registros" do ⌘K. A tela segue alcançável por tudo
+   * o mais: o comando "Abrir <tela>", o menu, link direto, abas e seletores de referência.
+   *
+   * É a declaração de quem traz uma coleção que a MÁQUINA enche — ingestão de intimações, de
+   * e-mails, de eventos. Os registros dela ocupavam os poucos resultados da busca e empurravam para
+   * fora o que a pessoa procurava, e a única saída era declarar a tela filha `owned` de alguém, o que
+   * mentia sobre o modelo e criava uma aba em cada registro-pai.
+   *
+   * O "Abrir <tela>" fica de propósito: numa tela que também declara `hideFromSidebar` ele é a única
+   * entrada que resta, e tirá-lo esconderia a tela inteira.
+   */
+  hideRecordsFromCommandPalette?: boolean | null;
   /**
    * A tela filha NÃO vira aba do registro-pai. Par de `hideFromSidebar`, e pelo mesmo motivo: quem
    * apresenta os filhos é OUTRA tela — tipicamente a view de código que já os desenha com layout

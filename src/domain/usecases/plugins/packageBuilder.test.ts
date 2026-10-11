@@ -405,6 +405,26 @@ describe('buildPackage — reexportar uma extensão em edição', () => {
     expect(pkg.screens?.[0].sourceId).toBe('src-produtos');
   });
 
+  it('auditActions e as chaves únicas da tela instalada sobrevivem ao reexport', () => {
+    const pkg = buildPackage({
+      manifest, summary: 's', screens: [], actions: [], workflows: [], scripts: [],
+      carried: { screens: [{ ...carriedTemplate, auditActions: ['DELETE'], keys: [{ name: 'codigo', kind: 'unique', fields: ['nome'] }] }] },
+      installedScreens: [installedProdutos({
+        auditActions: ['DELETE'],
+        keys: [
+          { name: 'codigo', kind: 'unique', fields: ['nome'], ownerPluginId: 'com.acme.vendas' },
+          { name: 'doAutor', kind: 'unique', fields: ['novo'], ownerPluginId: null },
+          { name: 'deOutra', kind: 'unique', fields: ['nome'], ownerPluginId: 'com.b' },
+        ],
+      })],
+    });
+    expect(pkg.screens?.[0].auditActions).toEqual(['DELETE']);
+    expect(pkg.screens?.[0].keys).toEqual([
+      { name: 'codigo', kind: 'unique', fields: ['nome'] },
+      { name: 'doAutor', kind: 'unique', fields: ['novo'] },
+    ]);
+  });
+
   it('campo de OUTRA extensão na mesma tela não é reexportado como se fosse do autor', () => {
     const pkg = buildPackage({
       manifest, summary: 's', screens: [], actions: [], workflows: [], scripts: [],

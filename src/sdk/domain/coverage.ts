@@ -324,6 +324,7 @@ const SCREEN_REACH: Record<keyof ScreenModuleTemplate, string | null> = {
   enabled: 'plan.deactivations — false when the rule no longer needs the screen',
   hideFromSidebar: 'kind "child": a child is a tab of its parent, never an entry of the menu',
   hideFromParentTabs: null,
+  hideRecordsFromCommandPalette: null,
   parentEntity: 'the relationship with storage "child"',
   parentFieldKey: 'idem',
   parentRelation: 'the ownership of that relationship',
@@ -346,6 +347,9 @@ const SCREEN_NOTES: Record<string, string> = {
   listActions: 'the built-in gestures of the card — copy link, manage tags, delete',
   sidebarOrder: 'HUMAN: an order is a statement about what matters most here',
   hideFromParentTabs: 'a child that should NOT show up as a tab. The model has one reading of "child" and it is the tab',
+  hideRecordsFromCommandPalette: 'whether the records of this collection stay out of the command palette search. Like '
+    + 'auditActions, it is what a collection a machine writes needs, and the model cannot say the collection is '
+    + 'machine-written',
 };
 
 const ACTION_REACH: Record<keyof ActionModuleTemplate, string | null> = {

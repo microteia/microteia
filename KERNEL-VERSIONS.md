@@ -18,6 +18,15 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.81.0] — 2026-10-10
+
+- feat(screens): `hideRecordsFromCommandPalette?: boolean` on `ScreenModuleTemplate` / `ScreenDefinition`. The command palette's record search (`DynamicRecordCommandProvider`, group "Records") skips the records of a screen that declares it. Before, nothing a screen declared took it out of that search — `hideFromSidebar` only acts on the menu — so a collection filled by an ingestion took all eight result slots and pushed out what people were looking for. The only workaround was declaring the screen an `owned` child of another, which misstated the model and added a tab to every parent record. `KERNEL_VERSION` 2.25.0.
+- design: only the RECORDS leave the search. The "Open <screen>" command stays, because on a screen that also declares `hideFromSidebar` it is the last way in. Lists, direct links, tabs and reference pickers are untouched.
+- design: only the command palette. The markdown `@` mention is scoped per provider and the agent's `search_records` takes an explicit collection, so neither has the cross-screen crowding this property exists for. Hiding records there would hide records someone asked for by name.
+- compat: package validation does not enumerate screen properties, so a kernel before 2.25.0 installs a package that declares it and ignores the property. It round-trips like `hideFromParentTabs`: `screenToTemplate` → `materializeScreen` → `screenDefinitionMapper`. Listed in AUTHORING.md ("Relationships, and where a screen shows up") and in the SDK coverage table as a human decision.
+- fix(plugin-author): `screenToTemplate` (`packageBuilder.ts`) copied screen properties one by one and had never been given `auditActions` nor `keys`, both added after it. A screen packaged from the authoring screen lost them, and so did an installed extension being edited: `refreshedFromInstalled` rebuilds the carried template from the live screen, so re-exporting erased what the original template declared. Keys are now exported without `ownerPluginId`, and a key owned by another extension is left out, the same rule fields follow.
+- docs: the `ScreenDefinition.hideFromSidebar` JSDoc claimed it also kept the screen out of the command palette. It never did; the comment now says what it does.
+
 #### [9.80.0] — 2026-10-10
 
 - feat(marketplace): extension reputation on the Extensions screen — installs, star ratings and a verified-publisher seal, the three signals a store shows next to a name. None of them lives in `public_extensions/{domain}`: its owner rewrites that document on every republish, so a counter there would be a number the author chooses.

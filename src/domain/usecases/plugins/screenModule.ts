@@ -171,6 +171,7 @@ export const materializeScreen = (
     parentRelation: template.parentRelation ?? null,
     hideFromSidebar: template.hideFromSidebar ?? false,
     hideFromParentTabs: template.hideFromParentTabs ?? false,
+    hideRecordsFromCommandPalette: template.hideRecordsFromCommandPalette ?? false,
     ownerPluginId: pluginId,
     ownerPluginIds: [pluginId],
     sourceId: templateSourceId(template),

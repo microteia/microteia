@@ -25,7 +25,13 @@ export const DynamicRecordCommandProvider: ICommandPaletteProvider = {
         && !isOwnedByParentScreen(def)
         && can(screenReadPermission(def)),
     );
-    const screenByKey = new Map(enabledScreens.map((def) => [def.id, def]));
+    // `hideRecordsFromCommandPalette` tira só os REGISTROS: o "Abrir <tela>" fica, porque numa tela
+    // que também declara `hideFromSidebar` ele é a última entrada que sobra para ela.
+    const screenByKey = new Map(
+      enabledScreens
+        .filter((def) => !def.hideRecordsFromCommandPalette)
+        .map((def) => [def.id, def]),
+    );
 
     const navigationItems: CommandPaletteItem[] = enabledScreens
       // A comparação é com o rótulo RESOLVIDO: a tela de uma extensão declara `@ns/chave`, e casar a
