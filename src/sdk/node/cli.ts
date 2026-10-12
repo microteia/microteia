@@ -12,6 +12,7 @@ import { serveMcp } from './mcp';
 import { crossRefReport } from './referenceable';
 import { eventRefReport } from './eventRefs';
 import { recordSurfaceReport } from './recordSurfaces';
+import { undeclaredPathReport } from './undeclaredPaths';
 import { syncWorkspace } from './workspace/sync';
 import {
   belongsToNamespace,
@@ -152,6 +153,22 @@ const sayEventRefs = (pkg: MarketplacePlugin, root: string): number => {
 };
 
 /**
+ * Os caminhos de relatório e de consulta que nenhum campo das telas visíveis declara. Só avisa, nunca
+ * reprova: a plataforma os aceita porque o escritório pode ter criado o campo no Form Design.
+ */
+const sayUndeclaredPaths = (pkg: MarketplacePlugin, root: string): void => {
+  const findings = undeclaredPathReport(pkg, root);
+  if (findings.length === 0) return;
+
+  say();
+  say(`  ${DIM}${findings.length} report or query path(s) no visible field declares${RESET}`);
+  for (const one of findings) {
+    say(`  ${YELLOW}!${RESET} ${one.path} ${DIM}(from ${one.writtenBy})${RESET}`);
+    say(`     ${DIM}${one.detail}${RESET}`);
+  }
+};
+
+/**
  * As telas a que o pacote pendura abas (`record:<sourceId>`). Só avisa, nunca reprova: a tela pode ser
  * de outra extensão, num escritório que este diretório não enxerga.
  */
@@ -208,6 +225,7 @@ const build = (args: Args, write: boolean): number => {
 
   const root = resolve(args.values.get('root') ?? process.cwd());
   const refusedRefs = sayCrossRefs(result.package, root) + sayEventRefs(result.package, root);
+  sayUndeclaredPaths(result.package, root);
   sayRecordSurfaces(result.package, root);
   sayNamespace(manifest.id, root);
   const problems = result.issues.length + refusedRefs;

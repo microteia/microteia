@@ -6439,6 +6439,31 @@ dependência que deixa de emitir um prefixo que um dependente instalado escuta �
 versão instalada e com a que chega. O motor não muda: ele busca as automações por
 `eventName`, sem olhar a dona, e `buildScreenEventMap` não toca um prefixo que não é de tela do pacote.
 
+**O caminho que nenhum campo declara — aviso do `check`.** `resolvePath` responde `valid: true` com
+`kind: 'unknown'` para qualquer segmento desconhecido sobre uma entidade, e isso é CERTO no designer e
+na execução: o escritório pode ter criado o campo no Form Design. Num pacote é o contrário — um
+`responsibleLawyerId.nomeQueNaoExiste` passava no `check` (que só cobrava `validateReportSpecShape`) e
+saía como coluna vazia no escritório. O validador do kernel NÃO mudou; quem conhece o conjunto de telas
+visíveis é quem pergunta:
+
+| Peça | Onde | O que faz |
+|---|---|---|
+| `undeclaredPathSegment` / `undeclaredReportPaths` / `undeclaredQueryPaths` | `sdk/domain/undeclaredPaths.ts` | anda o caminho prefixo a prefixo PELO PRÓPRIO `resolvePath` e devolve o primeiro segmento que sai do esquema sobre uma coleção cuja tela está em mãos. Os caminhos do relatório são os de `reportPaths` (a mesma lista da hidratação e do RBAC); os da consulta, `where` + `orderBy` + `projections` |
+| `packagesSchemaContext` / `packageScreenInputs` | `sdk/domain/packageScreens.ts` | as telas de um conjunto de pacotes na forma do catálogo, com os `screenPatches` por coleção e por `sourceId` — saiu de `workspaceCatalog.ts` para servir também ao teste de extensão, sem disco |
+| `undeclaredPathReport` | `sdk/node/undeclaredPaths.ts` | o `check` e o `validate_plugin` AVISAM, com a MESMA origem dos prefixos de evento: o próprio pacote, os `plugin.ts` do workspace e o `installed-catalog.json` |
+
+Três decisões. É **aviso**, nunca recusa — o campo pode ter sido criado depois do retrato. A coleção
+sem tela visível (a entidade do kernel, a apontada que não está em lugar nenhum daqui) **não é
+conferida**. E o campo `design` do retrato sobre uma coleção que o workspace também declara
+(`shadowedCollections`) **conta como declarado**: o catálogo descarta a tela do retrato inteira, e sem
+isso o campo que o escritório criou na tela de uma extensão escrita aqui seria acusado.
+
+De carona, `workspaceCatalog` passou a resolver o complemento `targetKind: 'sourceId'` contra as telas
+que enxerga, depois de todas entrarem — antes ele era descartado, e o campo acrescentado à tela de uma
+irmã parecia não declarado por ninguém. `catalogSchemaContext`, `packagesSchemaContext` e as três
+perguntas saem pela porta principal do SDK: o teste do Painel importava
+`lib/sdk/domain/catalog.js` pelo caminho e andava os caminhos com um andador próprio.
+
 `splitEntityEventName` reconhece o evento de FILHO (`person_note.saved`) por composição — prefixo de
 entidade do registro mais `_note`/`_document` —, e não por "tem underscore": chave com underscore é
 o normal de uma tela trazida por dependência (`com-acme-vendas__produto`), e barrá-la fazia o

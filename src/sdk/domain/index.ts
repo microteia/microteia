@@ -100,7 +100,12 @@ export type {
   DomainCatalog,
   ParentRelation,
 } from './catalog';
-export { buildDomainCatalog, catalogEntity, declaredScreenSourceIds } from './catalog';
+export { buildDomainCatalog, catalogEntity, catalogSchemaContext, declaredScreenSourceIds } from './catalog';
+
+export type { UndeclaredPath } from './undeclaredPaths';
+export type { ScreenSourcePackage } from './packageScreens';
+export { packagesSchemaContext } from './packageScreens';
+export { queryPaths, undeclaredPathSegment, undeclaredQueryPaths, undeclaredReportPaths } from './undeclaredPaths';
 
 export type { MappedRelationship, StorageMechanism } from './storageMapping';
 export { STORAGE_MECHANISMS, canonicalRelationship, mapRelationship, relationshipSummary } from './storageMapping';

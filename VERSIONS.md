@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.88.0] — 2026-10-12
+
+- Ao conferir uma extensão antes de instalá-la, relatórios e consultas que citam um campo que nenhuma tela conhecida possui passam a ser apontados, com o nome do campo e da tela. Um nome escrito errado deixa de chegar ao escritório como uma coluna vazia.
+
 #### [9.87.0] — 2026-10-12
 
 - Ao marcar um campo como único — ou declarar uma combinação de campos que não pode se repetir — numa tela que já tem registros, o sistema passa a conferir sozinho os registros antigos. Se nenhum se repete, a regra passa a valer para todos, sem que ninguém precise fazer nada.

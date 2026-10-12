@@ -1968,6 +1968,15 @@ nothing, a dimension the fold shows nowhere, a bucket over something that is not
 the ceiling, and every property this version reads but does not act on, all arrive that way rather
 than as silence.
 
+**A path no field declares is accepted** — by design. In an installation it may be a field the
+organization created in the Form Design, and refusing it would break the report they built. So a typo
+(\`responsibleId.nmae\`) installs, runs, and comes out as an empty column. \`check\` and \`validate_plugin\`
+close that gap from where they stand: every path of your reports and of your \`query\` steps is walked
+against the screens this directory sees — your own, the \`plugin.ts\` files beside it and the
+\`installed-catalog.json\`, the same sources that resolve an event prefix — and one that leaves the schema
+on a collection whose screen is in view is a **warning**, naming the collection and the field. A
+collection with no visible screen is not checked.
+
 ### What you do not control, and should not try to
 
 **Permission.** Running a report charges, on the server, the read permission of every collection it
@@ -2320,6 +2329,24 @@ it('installs cleanly', () => { expect(validatePluginPackage(plugin)).toEqual([])
 
 It validates the BUILT package, so compile first when views use \`sourceFile\` — \`buildPlugin\` from
 \`@microteia/sdk/node\` does exactly what \`build\` does.
+
+A report over the screens of SIBLING extensions can be held to them in a test, which makes the warning
+above a failure. \`packagesSchemaContext\` builds the schema of a set of packages — their screens, the
+fields one adds to another's screen, their lists — and \`undeclaredReportPaths\` (or \`undeclaredQueryPaths\`)
+asks the question \`check\` asks. \`catalogSchemaContext\` does the same from screens already in catalog form:
+
+\`\`\`ts
+import { packagesSchemaContext, undeclaredReportPaths, validateReportSpec } from '@microteia/sdk';
+import { contactsPlugin } from '../contacts/plugin';
+import plugin from './plugin';
+
+const ctx = packagesSchemaContext([plugin, contactsPlugin]);
+
+it.each(plugin.reports ?? [])('$key reads only declared fields', (report) => {
+  expect(validateReportSpec(report.spec, { schema: ctx })).toEqual([]);
+  expect(undeclaredReportPaths(report.spec, ctx)).toEqual([]);
+});
+\`\`\`
 
 The MCP server answers from **this installation** rather than from a snapshot of documentation, which
 is why it is worth asking before writing:

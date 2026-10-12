@@ -98,6 +98,11 @@ const PUBLISHED = [
   // move o `KERNEL_VERSION` — o campo já existe no pacote instalado; o que é novo é quem o decide.
   'SCREEN_SOURCE_ID_PRECEDENCE', 'declaredScreenSourceIds', 'deriveScreenSourceId', 'ledgerFindings',
   'registeredScreenSourceIds',
+  // O ESQUEMA DAS IRMÃS para o teste de extensão: o contexto que o `check` monta e a pergunta pelo
+  // caminho que nenhum campo declara. Vocabulário de AUTORIA — nada aqui chega ao pacote instalado,
+  // então o `KERNEL_VERSION` não se move.
+  'catalogSchemaContext', 'packagesSchemaContext', 'queryPaths', 'undeclaredQueryPaths',
+  'undeclaredReportPaths',
 ].sort();
 
 /**
@@ -171,6 +176,8 @@ const PUBLISHED_TYPES = [
   'ScreenPresence',
   // A identidade universal da tela — ver a nota na lista de runtime.
   'LedgerIntegrity', 'LedgerReality', 'ScreenSourceIdOrigin',
+  // O esquema das irmãs — ver a nota na lista de runtime.
+  'ScreenSourcePackage', 'UndeclaredPath',
 ].sort();
 
 const BARREL = import.meta.glob('/src/sdk/index.ts', {

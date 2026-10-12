@@ -1,12 +1,13 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
-import type { MarketplacePlugin, ScreenModuleTemplate } from '../../domain/entities/MarketplacePlugin';
+import type { MarketplacePlugin } from '../../domain/entities/MarketplacePlugin';
 import type { SchemaLookup } from '../../domain/schema/screenEntity';
 import type { ExportedArtifact } from '../../domain/usecases/plugins/crossExtensionRefs';
 import { exportedSurface } from '../../domain/usecases/plugins/crossExtensionRefs';
 import type { CatalogException, CatalogScreenInput, DomainCatalog } from '../domain/catalog';
 import { buildDomainCatalog, collectionOfScreen } from '../domain/catalog';
 import { DOMAIN_MODEL_FILE, parseDomainModel } from '../domain/domainModel';
+import { packageScreenInputs, sourceIdPatchesFrom } from '../domain/packageScreens';
 import type { RuleLedger } from '../domain/traceability';
 import { RULE_LEDGER_FILE, RULE_LEDGER_VERSION, emptyRuleLedger, parseRuleLedger } from '../domain/traceability';
 import { modelExceptions } from '../domain/toPlatform';
@@ -60,45 +61,6 @@ import type { InstalledCatalogExtension, InstalledCatalogList } from './installe
  * instalado.
  */
 export { DOMAIN_MODEL_FILE, RULE_LEDGER_FILE };
-
-const screenFrom = (template: ScreenModuleTemplate, pluginId: string): CatalogScreenInput => ({
-  key: template.key,
-  ...(template.dataCollection === undefined ? {} : { collection: template.dataCollection }),
-  // O id universal que o pacote já declara. É a segunda precedência da identidade da tela no plano, e
-  // sem carregá-lo daqui o plano derivaria um valor novo para uma tela que já tem um — que é o defeito
-  // que a identidade existe para não cometer.
-  ...(template.sourceId === undefined ? {} : { sourceId: template.sourceId }),
-  titleSingular: template.titleSingular,
-  titlePlural: template.titlePlural,
-  titleFieldKey: template.titleFieldKey,
-  fields: template.fields.map((field) => ({ ...field, origin: 'plugin' as const, ownerPluginId: pluginId })),
-  ...(template.parentEntity === undefined ? {} : { parentEntity: template.parentEntity }),
-  ...(template.parentFieldKey === undefined ? {} : { parentFieldKey: template.parentFieldKey }),
-  ...(template.parentRelation === undefined ? {} : { parentRelation: template.parentRelation }),
-  ...(template.tagCollection === undefined ? {} : { tagCollection: template.tagCollection }),
-  ...(template.eventPrefix === undefined ? {} : { eventPrefix: template.eventPrefix }),
-  ownerPluginId: pluginId,
-});
-
-/**
- * Um complemento entra como uma SEGUNDA tela sobre a mesma coleção, com chave própria. É assim que
- * `createSchemaContext` já trata o caso, e é o que faz os campos somarem sem que o complemento
- * reivindique o nome da entidade: quem dá rótulo e campo-título continua sendo a tela dona.
- *
- * `targetKind: 'sourceId'` fica de fora: a chave instalada de uma tela de outra extensão varia por
- * escritório, e resolvê-la exigiria ler a instalação.
- */
-const patchesFrom = (pkg: MarketplacePlugin): CatalogScreenInput[] =>
-  (pkg.screenPatches ?? [])
-    .filter((patch) => (patch.targetKind ?? 'collection') === 'collection')
-    .map((patch, index) => ({
-      key: `${pkg.manifest.id}#patch${index}`,
-      collection: patch.target,
-      titleSingular: patch.target,
-      titleFieldKey: '',
-      fields: patch.fields.map((field) => ({ ...field, origin: 'plugin' as const, ownerPluginId: pkg.manifest.id })),
-      ownerPluginId: pkg.manifest.id,
-    }));
 
 /**
  * O que o retrato da instalação somou a este catálogo — presente só quando o arquivo existe e pôde ser
@@ -224,6 +186,7 @@ export const readWorkspaceCatalog = (
   const ledgers: WorkspaceCatalog['ledgers'] = [];
   const exceptions: CatalogException[] = [];
   const ruleEntries: RuleLedger['rules'] = [];
+  const compiled: MarketplacePlugin[] = [];
 
   const files = findPluginFiles(root);
 
@@ -244,15 +207,16 @@ export const readWorkspaceCatalog = (
 
     try {
       const { package: pkg } = buildPlugin({ entry });
+      compiled.push(pkg);
       const describe = packageText(pkg);
-      const own = (pkg.screens ?? []).map((template) => screenFrom(template, pkg.manifest.id));
-      screens.push(...own, ...patchesFrom(pkg));
+      const own = packageScreenInputs(pkg, [], { sourceIdPatches: false });
+      screens.push(...own);
       lookups.push(...(pkg.lookups ?? []).map((one) => ({ collection: one.collection, label: one.label })));
       tagLists.push(...(pkg.tagLists ?? []).map((one) => ({ collection: one.collection, label: one.label })));
       sources.push({
         path: relative(root, entry),
         pluginId: pkg.manifest.id,
-        screens: own.length,
+        screens: (pkg.screens ?? []).length,
         lookups: (pkg.lookups ?? []).length,
       });
       authored.push({
@@ -346,6 +310,8 @@ export const readWorkspaceCatalog = (
       );
     }
   }
+
+  screens.push(...compiled.flatMap((pkg) => sourceIdPatchesFrom(pkg, screens)));
 
   return {
     catalog: buildDomainCatalog(screens, lookups, tagLists, exceptions),

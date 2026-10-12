@@ -592,6 +592,25 @@ export {
   validateDomainModel,
 } from './domain';
 
+/**
+ * O esquema das telas IRMÃS, para um teste de extensão conferir relatório e consulta contra elas.
+ *
+ * `validateReportSpec` aceita o caminho que não conhece, porque no escritório ele pode ser campo do
+ * Form Design. Num teste de extensão as telas estão em mãos, e o caminho que nenhuma declara é erro de
+ * digitação — o Painel conferia isso importando `lib/sdk/domain/catalog.js` pelo caminho, com um
+ * andador próprio. Daqui sai o mesmo contexto que o `check` monta e a mesma pergunta que ele faz:
+ * `packagesSchemaContext` a partir dos `plugin.ts` irmãos, `catalogSchemaContext` a partir de telas
+ * já na forma do catálogo.
+ */
+export type { ScreenSourcePackage, UndeclaredPath } from './domain';
+export {
+  catalogSchemaContext,
+  packagesSchemaContext,
+  queryPaths,
+  undeclaredQueryPaths,
+  undeclaredReportPaths,
+} from './domain';
+
 export {
   A_STATE_IS_A_KEY,
   BEHAVIOR_CONCERNS,

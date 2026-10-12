@@ -63,6 +63,7 @@ import type { ReferenceableArtifact } from './referenceable';
 import { crossRefReport, referenceableArtifacts } from './referenceable';
 import { recordSurfaceReport } from './recordSurfaces';
 import { eventRefReport } from './eventRefs';
+import { undeclaredPathReport } from './undeclaredPaths';
 import { readWorkspaceCatalog } from './workspaceCatalog';
 import type { WorkspaceCatalog } from './workspaceCatalog';
 import { INSTALLED_CATALOG_FILE, INSTALLED_CATALOG_OMITS } from './installedCatalog';
@@ -195,6 +196,18 @@ const describeNamespace = (pkg: MarketplacePlugin, root: string): string => {
   if (namespace === null || belongsToNamespace(pkg.manifest.id, namespace)) return '';
   return `\n\nWarning (never refused): ${outsideNamespaceMessage(pkg.manifest.id, namespace)} `
     + 'Keep it only if this extension is already installed somewhere — its id cannot change.';
+};
+
+/**
+ * Os caminhos de relatório e de consulta que nenhum campo das telas visíveis declara. Aviso, como no
+ * `check`: a plataforma os aceita porque o escritório pode ter criado o campo.
+ */
+const describeUndeclaredPaths = (pkg: MarketplacePlugin, root: string): string => {
+  const findings = undeclaredPathReport(pkg, root);
+  if (findings.length === 0) return '';
+  return `\n\n${findings.length} report or query path(s) no visible field declares (warnings only, never refused):\n${findings
+    .map((one) => `- ${one.path} (from ${one.writtenBy}) — ${one.detail}`)
+    .join('\n')}`;
 };
 
 // ─── Modelo de domínio ────────────────────────────────────────────────────────
@@ -353,18 +366,19 @@ const TOOLS: ToolDefinition[] = [
       if (typeof input.json === 'string') {
         const parsed = parsePackage(input.json);
         if (!parsed.ok) return `Not a valid package: ${describeMessage(parsed.error)}`;
-        return `${describeIssues(validatePluginPackage(parsed.package))}${describeCrossRefs(parsed.package, root)}${describeEventRefs(parsed.package, root)}${describeRecordSurfaces(parsed.package, root)}${describeNamespace(parsed.package, root)}`;
+        return `${describeIssues(validatePluginPackage(parsed.package))}${describeCrossRefs(parsed.package, root)}${describeEventRefs(parsed.package, root)}${describeUndeclaredPaths(parsed.package, root)}${describeRecordSurfaces(parsed.package, root)}${describeNamespace(parsed.package, root)}`;
       }
       const path = resolve(root, asString(input.path, 'path'));
       if (path.endsWith('.json')) {
         const parsed = parsePackage(readFileSync(path, 'utf8'));
         if (!parsed.ok) return `Not a valid package: ${describeMessage(parsed.error)}`;
-        return `${describeIssues(validatePluginPackage(parsed.package))}${describeCrossRefs(parsed.package, root)}${describeEventRefs(parsed.package, root)}${describeRecordSurfaces(parsed.package, root)}${describeNamespace(parsed.package, root)}`;
+        return `${describeIssues(validatePluginPackage(parsed.package))}${describeCrossRefs(parsed.package, root)}${describeEventRefs(parsed.package, root)}${describeUndeclaredPaths(parsed.package, root)}${describeRecordSurfaces(parsed.package, root)}${describeNamespace(parsed.package, root)}`;
       }
       const result = buildPlugin({ entry: path });
       return `${result.package.manifest.id} v${result.package.manifest.version}\n${describeIssues(result.issues)}`
         + describeCrossRefs(result.package, root)
         + describeEventRefs(result.package, root)
+        + describeUndeclaredPaths(result.package, root)
         + describeRecordSurfaces(result.package, root)
         + describeNamespace(result.package, root);
     },

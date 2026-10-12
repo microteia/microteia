@@ -18,6 +18,13 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.88.0] — 2026-10-12
+
+- feat(sdk/check): `check` and `validate_plugin` warn about a report or `query`-step path that no field declares. `resolvePath` accepts any unknown segment on an entity (`kind: 'unknown'`, valid), which is right in an installation, where the field may come from the Form Design, and why a typo such as `responsibleLawyerId.nameThatDoesNotExist` passed `check` (it only ran `validateReportSpecShape`) and came out as an empty column. The paths (`reportPaths`; `where`, `orderBy` and `projections` of a query) are walked prefix by prefix through `resolvePath` itself against the screens the event-prefix check already uses: the package, the workspace `plugin.ts` files and `installed-catalog.json`. Warning only: a collection with no visible screen is not checked, and a `design` field of the snapshot over a collection the workspace also declares counts as declared. The kernel validator is unchanged.
+- feat(sdk): `catalogSchemaContext`, `packagesSchemaContext`, `undeclaredReportPaths`, `undeclaredQueryPaths`, `queryPaths` and the `UndeclaredPath` / `ScreenSourcePackage` types are on the main `@microteia/sdk` entry, so an extension test can hold its reports to its sibling extensions' screens without importing `lib/sdk/domain/catalog.js` by path. Authoring-only: `KERNEL_VERSION` does not move.
+- fix(sdk/catalog): the workspace catalog resolves a `screenPatches` entry with `targetKind: 'sourceId'` against the screens it sees, once all of them are in. It used to drop those patches, so a field one sibling added to another's screen looked undeclared.
+- docs(authoring): §11 explains what the platform accepts and what `check` warns about; §15 shows the sibling-schema test.
+
 #### [9.87.0] — 2026-10-12
 
 - feat(record-keys): a key (`ScreenDefinition.keys` or `unique: true`) added to a collection that already has records is ADOPTED by the kernel: the server sweeps the existing records in batches, reserving each value and writing only `keyRefs`, and the key holds on every record by itself once nothing is duplicated. Before, an old record was only reserved when it was saved again, and the documented way out, a sweep in `package.migrations`, could not fit the sandbox's 25 writes per run. Kernel `2.29.0` (`RECORD_KEY_ADOPTION_SINCE_KERNEL`).
