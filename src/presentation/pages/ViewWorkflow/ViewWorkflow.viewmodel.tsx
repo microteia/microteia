@@ -12,6 +12,8 @@ import { WORKFLOW_CALLED_EVENT, buildWorkflowEventCatalog, getWorkflowEventField
 import type { SchemaContext } from '../../../domain/schema/pathResolver';
 import { useSchemaContext } from '../../shared/useSchemaContext';
 import { useT, useLabel } from '../../shared/i18n/useT';
+import { useOptionalLocale } from '../../../stores/useLocale';
+import { formatDateFor } from '../../../domain/schema/i18n/localeFormat';
 import { useEntityReferenceOptions, useLookupCollectionOptions } from '../../shared/useParameterOptions';
 import type { WorkflowEventFieldOption } from '../../../domain/services/workflowEventCatalog';
 import { WORKFLOW_LOOKUP_COLLECTIONS } from '../../../domain/services/workflowLookupCatalog';
@@ -41,6 +43,10 @@ import type { RunModalFollow, RunModalResult } from '../../components/ui/RunModa
 import { followWorkflowExecution } from '../../shared/followWorkflowExecution';
 import type { StepDefinitionSummary, StepCategory } from '../../../domain/entities/WorkflowStepCatalog';
 import { artifactIdIssue, deriveArtifactId } from '../../../domain/services/artifactIdentity';
+import { WORKFLOW_SCHEDULE_EVENT, nextCronOccurrences, parseCron, scheduleIssues, scheduleTimeZone } from '../../../domain/schema/workflowClock';
+import type { WorkflowSchedule } from '../../../domain/schema/workflowClock';
+import { timeZoneOptions } from '../../../domain/schema/i18n/timeZone';
+import { ambientTimeZone } from '../../../domain/schema/clockGate';
 
 export type ViewWorkflowTab = 'general' | 'conditions' | 'steps' | 'executions';
 
@@ -92,6 +98,9 @@ const STEP_CATEGORY_KEYS: Record<StepCategory, string> = {
 
 const isLookupEventName = (eventName: string): boolean => eventName.startsWith('lookup.');
 const isCalledEventName = (eventName: string): boolean => eventName === WORKFLOW_CALLED_EVENT;
+const isScheduleEventName = (eventName: string): boolean => eventName === WORKFLOW_SCHEDULE_EVENT;
+
+const SCHEDULE_PREVIEW_COUNT = 3;
 
 export const PARAMETER_TYPE_OPTIONS: { value: WorkflowParameter['type']; labelKey: string }[] = [
   { value: 'String', labelKey: 'parameter.type.string' },
@@ -112,6 +121,9 @@ export interface WorkflowFormData {
   eventName: string;
   lookupCollection: string;
   parameters: WorkflowParameter[];
+  scheduleCron: string;
+  /** Vazio = o fuso do escritório. */
+  scheduleTimeZone: string;
 }
 
 const sanitizeParameters = sanitizeWorkflowParameters;
@@ -123,6 +135,13 @@ const buildForm = (w: WorkflowDefinition | null): WorkflowFormData => ({
   eventName: w?.eventName ?? '',
   lookupCollection: w?.lookupCollection ?? '',
   parameters: w?.parameters ?? [],
+  scheduleCron: w?.schedule?.cron ?? '',
+  scheduleTimeZone: w?.schedule?.timeZone ?? '',
+});
+
+const scheduleOf = (formData: WorkflowFormData): WorkflowSchedule => ({
+  cron: formData.scheduleCron.trim(),
+  ...(formData.scheduleTimeZone ? { timeZone: formData.scheduleTimeZone } : {}),
 });
 
 /**
@@ -220,6 +239,12 @@ export interface ViewWorkflowViewModel {
   isLookupEvent: boolean;
   isLookupCollectionRecognized: boolean;
   isCalledEvent: boolean;
+  isScheduleEvent: boolean;
+  /** O que está errado no horário, já no idioma de quem lê — `null` quando ele está bom. */
+  scheduleError: string | null;
+  /** As próximas execuções que o horário pede, no fuso em que ele roda. */
+  schedulePreview: string[];
+  scheduleTimeZoneOptions: { value: string; label: string }[];
   parameterEntityOptions: { value: string; label: string }[];
   parameterLookupOptions: { value: string; label: string }[];
   parameterErrors: (string | undefined)[];
@@ -294,6 +319,7 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
   const tUi = useT('core.ui');
   const label = useLabel();
   const t = useT('core.automation');
+  const { locale } = useOptionalLocale();
   const { stepCatalog, loadCatalog } = useStepCatalog();
 
   const nameOf = useCallback(
@@ -467,6 +493,34 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
   );
 
   const isCalledEvent = useMemo(() => isCalledEventName(formData.eventName), [formData.eventName]);
+  const isScheduleEvent = useMemo(() => isScheduleEventName(formData.eventName), [formData.eventName]);
+
+  const scheduleError = useMemo(() => {
+    if (!isScheduleEvent) return null;
+    const [issue] = scheduleIssues(scheduleOf(formData));
+    return issue ? label(issue.message, issue.messageParams) : null;
+  }, [isScheduleEvent, formData, label]);
+
+  const schedulePreview = useMemo(() => {
+    if (!isScheduleEvent || scheduleError) return [];
+    const parsed = parseCron(formData.scheduleCron);
+    if (!parsed) return [];
+    const timeZone = scheduleTimeZone(scheduleOf(formData), ambientTimeZone());
+    return nextCronOccurrences(parsed, new Date(), timeZone, SCHEDULE_PREVIEW_COUNT).map((occurrence) =>
+      t('workflow.schedule.preview-item', {
+        when: formatDateFor(locale, occurrence, { dateStyle: 'full', timeStyle: 'short', timeZone }),
+        zone: timeZone,
+      }),
+    );
+  }, [isScheduleEvent, scheduleError, formData, locale, t]);
+
+  const scheduleTimeZoneOptions = useMemo(
+    () => [
+      { value: '', label: t('workflow.schedule.time-zone.office', { zone: ambientTimeZone() }) },
+      ...timeZoneOptions().map((zone) => ({ value: zone, label: zone })),
+    ],
+    [t],
+  );
 
   const parameterEntityOptions = useEntityReferenceOptions();
   const parameterLookupOptions = useLookupCollectionOptions();
@@ -530,6 +584,7 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
     try {
       const lookupCollection = isLookupEvent && formData.lookupCollection ? formData.lookupCollection : undefined;
       const parameters = isCalledEvent ? sanitizeParameters(formData.parameters) : undefined;
+      const schedule = isScheduleEvent ? scheduleOf(formData) : undefined;
 
       if (isNew) {
         const createData: Record<string, unknown> = {
@@ -547,6 +602,7 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
         if (formData.description) createData.description = formData.description;
         if (lookupCollection) createData.lookupCollection = lookupCollection;
         if (parameters) createData.parameters = parameters;
+        if (schedule) createData.schedule = schedule;
 
         const chosenId = formData.workflowId.trim() || deriveArtifactId(formData.name, takenWorkflowIds);
         const created = await createWorkflow(createData as Parameters<typeof createWorkflow>[0], chosenId);
@@ -561,6 +617,7 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
         };
         if (formData.description) updateData.description = formData.description;
         if (lookupCollection) updateData.lookupCollection = lookupCollection;
+        if (schedule) updateData.schedule = schedule;
 
         await updateWorkflow(workflow.id, updateData as Parameters<typeof updateWorkflow>[1]);
         notify(t('workflow.saved'), 'success');
@@ -571,7 +628,7 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
     } finally {
       setIsSaving(false);
     }
-  }, [takenWorkflowIds, currentTenant, isNew, formData, isLookupEvent, isCalledEvent, cloneSource, createWorkflow, updateWorkflow, workflow, notify, closeTab, tabKey, activePanelId, openTab, t]);
+  }, [takenWorkflowIds, currentTenant, isNew, formData, isLookupEvent, isCalledEvent, isScheduleEvent, cloneSource, createWorkflow, updateWorkflow, workflow, notify, closeTab, tabKey, activePanelId, openTab, t]);
 
   const toggleEnabled = useCallback(() => {
     if (!workflow) return;
@@ -1057,6 +1114,10 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
     isLookupEvent,
     isLookupCollectionRecognized,
     isCalledEvent,
+    isScheduleEvent,
+    scheduleError,
+    schedulePreview,
+    scheduleTimeZoneOptions,
     parameterEntityOptions,
     parameterLookupOptions,
     parameterErrors,

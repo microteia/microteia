@@ -32,6 +32,7 @@ export { auditTenantDeleted } from './infrastructure/handlers/auditTenantDeleted
 export { backupDeletedAuditLog } from './infrastructure/handlers/backupDeletedAuditLog';
 export { logClientError } from './infrastructure/handlers/logClientError';
 export { onWorkflowEventCreated } from './infrastructure/handlers/onWorkflowEventCreated';
+export { syncWorkflowClock, runWorkflowClock } from './infrastructure/handlers/workflowClock';
 export { getWorkflowStepCatalog } from './infrastructure/handlers/getWorkflowStepCatalog';
 export { publishWorkflowEventOnEntityChange } from './infrastructure/handlers/publishWorkflowEventOnEntityChange';
 export { recomputeAggregatesOnEntityChange } from './infrastructure/handlers/recomputeAggregatesOnEntityChange';

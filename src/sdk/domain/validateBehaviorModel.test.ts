@@ -101,10 +101,9 @@ describe('a tabela de mecanismos — o que ela promete existe', () => {
     }
   });
 
-  it('o gatilho de relógio é o único sem mecanismo, e a recusa é derivada do catálogo de eventos', () => {
-    const unsupported = BEHAVIOR_MECHANISMS.filter((one) => !one.supported);
-    expect(unsupported.map((one) => one.declares)).toStrictEqual(['schedule']);
-    expect(SCHEDULE_TRIGGER_SUPPORTED).toBe(false);
+  it('todo gatilho tem mecanismo — o de relógio desde que o catálogo publica o evento "schedule"', () => {
+    expect(BEHAVIOR_MECHANISMS.filter((one) => !one.supported)).toStrictEqual([]);
+    expect(SCHEDULE_TRIGGER_SUPPORTED).toBe(true);
   });
 
   it('nenhum efeito é traduzido para um passo de script', () => {
@@ -408,29 +407,30 @@ describe('o invariante entre registros — unicidade é DECLARADA, nunca calcula
   });
 });
 
-describe('o relógio — o gatilho sem mecanismo', () => {
-  it('recusa o agendamento e diz o que não existe', () => {
-    const result = check(withBehavior((behavior) => replaceTransition(behavior, 'cancel-invoiced', {
-      trigger: { kind: 'schedule', when: 'every day at 05:00' },
-      permission: undefined,
-      actor: undefined,
-      guard: undefined,
-    })));
-    const issue = result.issues.find((one) => one.code === 'behavior.transition.schedule-unsupported');
-    expect(issue?.message).toContain('never registered');
-    expect(result.ok).toBe(false);
+describe('o relógio — o gatilho de horário', () => {
+  const scheduled = (when: string) => withBehavior((behavior) => replaceTransition(behavior, 'cancel-invoiced', {
+    trigger: { kind: 'schedule', when },
+    permission: undefined,
+    actor: undefined,
+    guard: undefined,
+  }));
+
+  it('aceita o horário em cron e o traduz numa consulta pelo `from` mais um laço', () => {
+    const result = check(scheduled('0 5 * * *'));
+    expect(codes(result.issues)).not.toContain('behavior.transition.schedule-invalid');
+    const mapped = result.transitions.find((one) => one.transition.name === 'cancel-invoiced');
+    expect(mapped?.supported).toBe(true);
+    expect(mapped?.eventName).toBe('schedule');
+    expect(mapped?.schedule).toStrictEqual({ cron: '0 5 * * *' });
+    expect(mapped?.steps.slice(0, 2)).toStrictEqual(['query', 'Loop']);
+    expect(mapped?.fromCheck?.where).toBe('query-filter');
   });
 
-  it('não vira automação nenhuma quando o gatilho não tem mecanismo', () => {
-    const result = check(withBehavior((behavior) => replaceTransition(behavior, 'cancel-invoiced', {
-      trigger: { kind: 'schedule', when: 'every day at 05:00' },
-      permission: undefined,
-      actor: undefined,
-      guard: undefined,
-    })));
-    const scheduled = result.transitions.find((one) => one.transition.name === 'cancel-invoiced');
-    expect(scheduled?.supported).toBe(false);
-    expect(scheduled?.steps).toStrictEqual([]);
+  it('recusa o horário que não é cron, ou que roda com frequência demais', () => {
+    for (const when of ['every day at 05:00', '*/5 * * * *']) {
+      const issue = check(scheduled(when)).issues.find((one) => one.code === 'behavior.transition.schedule-invalid');
+      expect(issue?.message).toContain(when);
+    }
   });
 });
 

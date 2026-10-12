@@ -58,6 +58,8 @@ import type { IAgentGrantRepository } from '../../domain/repositories/IAgentGran
 import type { IAgentAuthRequestRepository } from '../../domain/repositories/IAgentAuthRequestRepository';
 import type { IUserRepository } from '../../domain/repositories/IUserRepository';
 import { FirebaseWorkflowDefinitionRepository } from '../../data/repositories/FirebaseWorkflowDefinitionRepository';
+import { FirebaseWorkflowClockRepository } from '../../data/repositories/FirebaseWorkflowClockRepository';
+import type { WorkflowClockDeps } from '../../domain/services/workflowClock';
 import { FirebaseWorkflowExecutionRepository } from '../../data/repositories/FirebaseWorkflowExecutionRepository';
 import type { IWorkflowDefinitionRepository } from '../../domain/repositories/IWorkflowDefinitionRepository';
 import type { IWorkflowExecutionRepository } from '../../domain/repositories/IWorkflowExecutionRepository';
@@ -120,6 +122,7 @@ class DIContainer {
   private aggregateRecomputeDeps?: AggregateRecomputeDeps;
   private aggregateBackfillDeps?: AggregateBackfillDeps;
   private recordKeyAdoptionDeps?: RecordKeyAdoptionDeps;
+  private workflowClockDeps?: WorkflowClockDeps;
   private workflowContextHydrator?: WorkflowContextHydrator;
   private workflowStepsRegistered = false;
   private extensionStatsRepo?: IExtensionStatsRepository;
@@ -402,6 +405,18 @@ class DIContainer {
     return cache.getSchemaContext(tenantId);
   }
 
+  getWorkflowClockDeps(): WorkflowClockDeps {
+    if (!this.workflowClockDeps) {
+      this.workflowClockDeps = {
+        repository: new FirebaseWorkflowClockRepository(getDb()),
+        officeTimeZone: (tenantId) => tenantTimeZone(tenantId),
+        now: () => new Date(),
+        logger: console,
+      };
+    }
+    return this.workflowClockDeps;
+  }
+
   getAggregateBackfillDeps(): AggregateBackfillDeps {
     if (!this.aggregateBackfillDeps) {
       this.aggregateBackfillDeps = {
@@ -507,6 +522,7 @@ class DIContainer {
         stepRegistry,
         this.getWorkflowServices(),
         this.getWorkflowContextHydrator(),
+        (tenantId) => this.getInstalledExtensionCache().deactivatedPluginIds(tenantId),
       );
     }
     return this.runWorkflowsForEventUC;

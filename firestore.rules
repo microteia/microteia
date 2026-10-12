@@ -325,9 +325,19 @@ service cloud.firestore {
         // Sem `actor`: QUEM disparou é gravado só pelo Admin SDK, ao lado do payload. Aceitá-lo do
         // cliente deixaria qualquer membro com `automation.run` executar um fluxo em nome de outro — e o
         // registro que o fluxo gravasse sairia com o autor forjado.
+        // Sem `target` pelo mesmo motivo: o alvo acorda UMA automação sem passar pelo gatilho dela, e só
+        // o relógio do kernel o escreve.
         allow create: if can(tenantId, 'automation.run')
-          && !('actor' in request.resource.data);
+          && !('actor' in request.resource.data)
+          && !('target' in request.resource.data);
         allow read, update, delete: if false;
+      }
+
+      // Relógio das automações temporais — o próximo disparo de cada uma. Só o kernel o calcula (Admin
+      // SDK); membros leem para o editor mostrar quando a automação roda de novo.
+      match /workflow_clock/{definitionId} {
+        allow read: if isMember(tenantId);
+        allow write: if false;
       }
 
       // Histórico de execução — só a Cloud Function grava (Admin SDK); membros só leem.
@@ -390,8 +400,8 @@ service cloud.firestore {
         // escritórios, e liberar o nome deixaria uma tela nova nascer por cima deles.
         'tagDefinitions', 'plugin_installations',
         'recordKeys', 'record_key_adoptions',
-        'screenDefinitions', 'scripts', 'secrets', 'settings', 'tags', 'tenant', 'workflow_definitions',
-        'workflow_events', 'workflow_executions'
+        'screenDefinitions', 'scripts', 'secrets', 'settings', 'tags', 'tenant', 'workflow_clock',
+        'workflow_definitions', 'workflow_events', 'workflow_executions'
         ];
       }
       function isDeclaredScreen(name) {

@@ -1,4 +1,6 @@
 import { ENTITY_EVENT_ACTIONS, WORKFLOW_CALLED_EVENT, WORKFLOW_EVENT_CATALOG } from '../../domain/schema/eventCatalog';
+import { WORKFLOW_SCHEDULE_EVENT } from '../../domain/schema/workflowClock';
+import type { WorkflowSchedule } from '../../domain/schema/workflowClock';
 import { CONTROL_STEP_TYPES } from '../../domain/schema/workflowStepCatalog';
 import type { BehaviorEffect, BehaviorTransition, EffectKind } from './behaviorModel';
 import { effectEntity, isSelfLoop } from './behaviorModel';
@@ -106,12 +108,13 @@ export const BEHAVIOR_MECHANISMS: BehaviorMechanism[] = [
     concern: 'trigger',
     declares: 'schedule',
     mechanism: SCHEDULE_TRIGGER_SUPPORTED
-      ? `a time-based event (${SCHEDULE_EVENTS.join(', ')})`
+      ? `the kernel clock (\`${SCHEDULE_EVENTS.join(', ')}\`): it wakes the workflow at the cron time, in the office time `
+        + 'zone, with no record and no actor — the workflow queries the records in the `from` state and loops over them'
       : 'NONE. No event in this installation is time-based, and the `Delay` step type was never registered either',
     declaredAs: SCHEDULE_TRIGGER_SUPPORTED
-      ? `workflows: [{ eventName: '${SCHEDULE_EVENTS[0] ?? ''}' }]`
+      ? `workflows: [{ eventName: '${WORKFLOW_SCHEDULE_EVENT}', schedule: { cron: <when> }, steps: [query, Loop] }]`
       : 'nothing declares it. Move the decision to the moment something is WRITTEN or a person acts',
-    stepIds: [],
+    stepIds: SCHEDULE_TRIGGER_SUPPORTED ? ['query', 'Loop'] : [],
     supported: SCHEDULE_TRIGGER_SUPPORTED,
   },
   {
@@ -264,7 +267,7 @@ export const stepsOfEffect = (effect: BehaviorEffect): string[] => EFFECT_STEPS[
  */
 export interface TransitionFromCheck {
   /** Onde mora a comparação que realmente impede a passagem. */
-  where: 'workflow-condition' | 'action-visibility';
+  where: 'workflow-condition' | 'action-visibility' | 'query-filter';
   /** A expressão, no vocabulário do escopo em que ela é avaliada. */
   expression: string;
   /** O parâmetro de referência sem o qual a condição do fluxo não resolve o campo do estado. */
@@ -279,6 +282,8 @@ export interface MappedTransition {
   transition: BehaviorTransition;
   /** O nome do evento que a dispara. */
   eventName: string;
+  /** Quando o relógio a dispara — só no gatilho `schedule`. */
+  schedule?: WorkflowSchedule;
   /**
    * O fluxo desta transição é candidato de uma superfície que escolhe sozinha, e portanto a
    * `description` dela não é opcional. Ver `DESCRIPTION_REQUIRED_EVENTS`.
@@ -386,13 +391,19 @@ export const mapTransition = (
     };
   }
 
+  // O relógio não traz registro nenhum: o `from` vira o filtro da consulta, e a passagem roda por
+  // registro, dentro do laço. Gravar o `to` tira o registro do filtro — é o que impede a volta seguinte
+  // de passá-lo de novo.
   return {
     transition,
     ...permission,
-    eventName: '',
+    eventName: WORKFLOW_SCHEDULE_EVENT,
+    schedule: { cron: trigger.when },
     describable: false,
-    workflowCondition: `${stateField} == "${transition.from}"`,
-    steps: [],
+    workflowCondition: '',
+    conditionNote: 'A schedule carries no record: the `from` filters the query, and the loop runs the passage per record.',
+    steps: ['query', CONTROL_STEP_TYPES[1], ...steps],
+    fromCheck: { where: 'query-filter', expression: `${stateField} == "${transition.from}"` },
     supported: SCHEDULE_TRIGGER_SUPPORTED,
   };
 };

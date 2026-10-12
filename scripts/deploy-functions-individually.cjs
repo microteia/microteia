@@ -40,6 +40,8 @@ const ALL_FUNCTIONS = [
   'backupDeletedAuditLog',
   'logClientError',
   'onWorkflowEventCreated',
+  'syncWorkflowClock',
+  'runWorkflowClock',
   'getWorkflowStepCatalog',
   'publishWorkflowEventOnEntityChange',
   'recomputeAggregatesOnEntityChange',

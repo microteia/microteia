@@ -226,3 +226,32 @@ describe('integridade de passo de automação', () => {
     })])).toEqual([]);
   });
 });
+
+describe('integridade do gatilho de horário', () => {
+  const agendada = (schedule: unknown): MarketplacePlugin => {
+    const base = pacote([]);
+    return { ...base, workflows: [{ ...base.workflows[0], eventName: 'schedule', schedule }] } as unknown as MarketplacePlugin;
+  };
+
+  it('aceita o horário que o relógio lê', () => {
+    expect(workflowStepIssues(agendada({ cron: '0 8 * * MON-FRI' }))).toEqual([]);
+  });
+
+  it('recusa o horário ausente, inválido ou frequente demais, dizendo o motivo', () => {
+    for (const [schedule, detail] of [
+      [undefined, '@core.automation/schedule.missing'],
+      [{ cron: 'todo dia às 8' }, '@core.automation/schedule.cron-invalid'],
+      [{ cron: '* * * * *' }, '@core.automation/schedule.too-frequent'],
+    ] as const) {
+      const [issue] = workflowStepIssues(agendada(schedule));
+      expect(issue?.message).toBe('@core.marketplace/issue.workflow.schedule-invalid');
+      expect(issue?.messageParams?.detail).toBe(detail);
+    }
+  });
+
+  it('não olha `schedule` em automação que não é de horário', () => {
+    const base = pacote([]);
+    const outra = { ...base, workflows: [{ ...base.workflows[0], schedule: { cron: 'x' } }] } as unknown as MarketplacePlugin;
+    expect(workflowStepIssues(outra)).toEqual([]);
+  });
+});

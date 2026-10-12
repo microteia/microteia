@@ -16,23 +16,55 @@ export type RunWorkflowsForEventUseCase = {
   execute: (event: WorkflowEvent, actor?: WorkflowActor) => Promise<void>;
 };
 
+/**
+ * As extensões DESATIVADAS do escritório. Desativar mantém os artefatos como documentos do escritório
+ * — é o que permite religar sem reinstalar —, e por isso é aqui, na execução, que o interruptor vale.
+ */
+export type DeactivatedPluginIds = (tenantId: string) => Promise<ReadonlySet<string>>;
+
+/**
+ * Uma automação de extensão fica parada quando TODAS as donas dela estão desativadas: compartilhada,
+ * ela continua devida enquanto uma delas estiver ligada. A do escritório (sem dona) nunca para por aqui.
+ * Só a desativação explícita conta — uma dona que não aparece entre as instaladas é o caso de sempre, e
+ * continuar rodando é o que ela já fazia.
+ */
+export const isSwitchedOff = (definition: WorkflowDefinition, deactivated: ReadonlySet<string>): boolean => {
+  const owners = definition.ownerPluginIds ?? [];
+  return owners.length > 0 && owners.every((owner) => deactivated.has(owner));
+};
+
+const findTargeted = async (
+  definitionRepository: IWorkflowDefinitionRepository,
+  event: WorkflowEvent,
+): Promise<WorkflowDefinition[]> => {
+  if (event.target) {
+    const target = await definitionRepository.findById(event.tenantId, event.target);
+    return target && target.enabled && target.eventName === event.name ? [target] : [];
+  }
+  if (event.name === WORKFLOW_CALLED_EVENT) {
+    const targetId = typeof event.payload.__targetWorkflowId === 'string' ? event.payload.__targetWorkflowId : null;
+    if (!targetId) return [];
+    const target = await definitionRepository.findByRef(event.tenantId, targetId);
+    return target && target.enabled && target.eventName === WORKFLOW_CALLED_EVENT ? [target] : [];
+  }
+  return definitionRepository.findEnabledByEvent(event.tenantId, event.name);
+};
+
 export const makeRunWorkflowsForEventUseCase = (
   definitionRepository: IWorkflowDefinitionRepository,
   executionRepository: IWorkflowExecutionRepository,
   registry: StepRegistry,
   services: WorkflowServices,
   hydrator: WorkflowContextHydrator,
+  deactivatedPluginIds?: DeactivatedPluginIds,
 ): RunWorkflowsForEventUseCase => ({
   execute: async (event, actor) => {
-    let definitions: WorkflowDefinition[];
-    if (event.name === WORKFLOW_CALLED_EVENT) {
-      const targetId = typeof event.payload.__targetWorkflowId === 'string' ? event.payload.__targetWorkflowId : null;
-      if (!targetId) return;
-      const target = await definitionRepository.findByRef(event.tenantId, targetId);
-      definitions = target && target.enabled && target.eventName === WORKFLOW_CALLED_EVENT ? [target] : [];
-    } else {
-      definitions = await definitionRepository.findEnabledByEvent(event.tenantId, event.name);
-    }
+    const found = await findTargeted(definitionRepository, event);
+    if (found.length === 0) return;
+
+    const owned = found.some((definition) => (definition.ownerPluginIds ?? []).length > 0);
+    const deactivated = owned && deactivatedPluginIds ? await deactivatedPluginIds(event.tenantId) : new Set<string>();
+    const definitions = found.filter((definition) => !isSwitchedOff(definition, deactivated));
     if (definitions.length === 0) return;
 
     const hydrationCache = createHydrationCache();

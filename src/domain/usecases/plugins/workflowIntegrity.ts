@@ -10,6 +10,7 @@ import {
   isCoreStepDefinitionId,
 } from '../../schema/workflowStepCatalog';
 import type { PackageRef, PackageValidationIssue } from './pluginReferences';
+import { WORKFLOW_SCHEDULE_EVENT, scheduleIssues } from '../../schema/workflowClock';
 
 /**
  * A integridade de um passo de automação.
@@ -258,9 +259,23 @@ const workflowIssues = (
   const steps = flattenSteps(workflow.steps);
 
   return [
+    ...triggerIssues(workflow, ref),
     ...steps.flatMap((step) => stepIssues(step, ref, hasDependencies)),
     ...outputRefIssues(steps, ref),
   ];
+};
+
+/**
+ * O gatilho de horário sem horário que o relógio leia. A automação instala, aparece ligada e nunca
+ * dispara — o pior tipo de defeito, porque não há execução falhada para alguém ver.
+ */
+const triggerIssues = (workflow: WorkflowModuleTemplate, ref: PackageRef): PackageValidationIssue[] => {
+  if (workflow.eventName !== WORKFLOW_SCHEDULE_EVENT) return [];
+  return scheduleIssues(workflow.schedule).map((issue) => ({
+    ref,
+    message: '@core.marketplace/issue.workflow.schedule-invalid',
+    messageParams: { detail: issue.message, ...(issue.messageParams ?? {}) },
+  }));
 };
 
 /**

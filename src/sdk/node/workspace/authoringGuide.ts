@@ -22,6 +22,7 @@ import type { WorkflowStepMetadata } from '../../../domain/schema/workflowStepCa
 import type { StepType } from '../../../domain/entities/Workflow';
 import { FIELD_EXPRESSION_FUNCTION_NAMES } from '../../../domain/schema/fieldExpression';
 import { DEFAULT_TIME_ZONE, TIME_ZONE_SETTING, timeZoneForLocale } from '../../../domain/schema/i18n/timeZone';
+import { MIN_SCHEDULE_INTERVAL_MINUTES, WORKFLOW_CLOCK_TICK_MINUTES, WORKFLOW_SCHEDULE_SINCE_KERNEL } from '../../../domain/schema/workflowClock';
 import {
   A_STATE_IS_A_KEY,
   BEHAVIOR_MECHANISMS,
@@ -191,7 +192,7 @@ const WIDGET_NODES: Record<WidgetNodeType, string> = {
 const STEP_KINDS: Record<StepType, string> = {
   Action: 'Runs one entry of the platform\'s step catalog, named by `stepDefinitionId`. Its inputs are `configuration`.',
   Condition: 'A control node: `condition` decides which of `branches.whenTrue` / `branches.whenFalse` runs, and the flow converges after. `stepDefinitionId` is empty.',
-  Delay: '**Not implemented in this version.** It is in the union for compatibility, and a step declared with it stops the flow at that point — `validate_plugin` refuses it. To wait, schedule the work instead: a Cloud Function on a timer (§13) that fires a `workflow.called` flow.',
+  Delay: '**Not implemented in this version.** It is in the union for compatibility, and a step declared with it stops the flow at that point — `validate_plugin` refuses it. To act at a time, declare a workflow with `eventName: \'schedule\'` (§10) — the kernel clock runs it, with no Cloud Function of yours.',
   Loop: 'A control node: `loop: { source, itemName, outputName, body }` runs `body` once per item and publishes the collected outputs under `outputName`. `stepDefinitionId` is empty.',
   Script: 'Runs a script, named by `configuration.scriptId` as a `Literal` — a `templateId` of your own package, or `<extension-id>/<source-id>` for a script another extension exports (§3).',
   SubWorkflow: 'Calls another workflow, named by `configuration.targetWorkflowId` as a `Literal` — again a `templateId`, or a qualified reference.',
@@ -1009,9 +1010,11 @@ ${BEHAVIOR_TABLE}
 
 Read the refusals as answers, not as gaps to route around:
 
-- **No clock.** Nothing in this installation is time-based, and the \`Delay\` step type was never registered — a
-  flow that uses it fails mid-execution. Almost every schedule in a business rule is really a question asked
-  when something is WRITTEN, or when a person opens a screen, and a filtered list does the rest.
+- **A clock moves records on; it never stops them.** \`trigger: { kind: 'schedule', when: '0 5 * * *' }\` becomes a
+  workflow the kernel clock wakes at that cron time, in the office time zone, with no record and no actor. The
+  \`from\` turns into the filter of a \`query\`, and the passage runs per record inside a \`Loop\`. What it cannot do
+  is refuse a write — by the time it looks, the record is saved. And a schedule is often the wrong answer: a rule
+  asked when something is WRITTEN, or a filtered list a person opens, needs no clock at all.
 - **Uniqueness is DECLARED, never computed.** It is the one rule that compares a record against the others, and
   the one you must not write as an expression: a field \`validate\` and a \`validate-object\` step both see a single
   record and never query, and a workflow on \`<collection>.saved\` finds the duplicate only after it exists — two
@@ -1474,7 +1477,7 @@ Three artifacts, and the distinction is what starts them:
 
 | | Starts when | Runs |
 |---|---|---|
-| **workflow** | a record changes, a list changes, or another workflow calls it | on the server |
+| **workflow** | a record changes, a list changes, a schedule comes due, or another workflow calls it | on the server |
 | **action** | a person presses a button on a record | fires a workflow, or a platform command |
 | **script** | a workflow step runs it | in the server sandbox |
 
@@ -1512,8 +1515,42 @@ workflows: [{
 **\`eventName\`** is \`<collection>.saved\` or \`<collection>.deleted\` — for your own screens, for a screen
 the organization designed, for a collection that already exists. Also \`lookup.saved\` / \`lookup.deleted\`
 (with \`lookupCollection\` naming which list), \`<parent>.note.saved\` / \`.deleted\`, the same for
-\`document\`, and \`workflow.called\` for a workflow that only exists to be invoked — that one declares
-\`parameters\`, which become the \`event.\` it receives.
+\`document\`, \`workflow.called\` for a workflow that only exists to be invoked — that one declares
+\`parameters\`, which become the \`event.\` it receives —, and \`schedule\` for one the clock starts.
+
+### A workflow that runs on a schedule
+
+\`\`\`ts
+workflows: [{
+  templateId: 'wf-overdue',
+  name: label('workflow.overdue'),
+  eventName: 'schedule',
+  schedule: { cron: '0 8 * * MON-FRI' },     // weekdays at 08:00, in the organization's time zone
+  version: 1,
+  condition: { kind: 'AlwaysTrue' },
+  steps: [/* a \`query\` for the records it is about, then a \`Loop\` over them */],
+}]
+\`\`\`
+
+The kernel has ONE clock for the whole project, and it wakes a scheduled workflow in every organization
+where that workflow exists — which is every organization that installed your extension and has not
+deactivated it. You write no Cloud Function, and the organization provisions nothing.
+
+- **\`cron\`** has five fields (minute, hour, day of month, month, day of week; names like \`MON\` and \`JAN\`
+  work) or is one of \`@hourly\`, \`@daily\`, \`@weekly\`, \`@monthly\`. It may not fire more often than every
+  ${MIN_SCHEDULE_INTERVAL_MINUTES} minutes, and the clock checks every ${WORKFLOW_CLOCK_TICK_MINUTES}: \`0 8 * * *\` starts within ${WORKFLOW_CLOCK_TICK_MINUTES} minutes after 08:00.
+  \`validate_plugin\` refuses an expression the clock cannot run, because that workflow would install switched
+  on and never fire.
+- **The time zone is the organization's** (\`${TIME_ZONE_SETTING}\`). \`schedule.timeZone\` overrides it with an IANA
+  name, and in an extension it is almost always wrong: you ship to organizations in other zones, and "at 8"
+  means at 8 in each of them.
+- **\`event\` carries no record**: only \`scheduledFor\` (the instant the cron named) and \`firedAt\` (when it ran).
+  Query what the run is about. \`actor\` is \`null\` — nobody pressed anything, so \`hasPermission\` answers false.
+- **A clock that was down fires once, not once per missed time.** A daily workflow that missed three days runs
+  one time when the clock comes back.
+
+This needs kernel ${WORKFLOW_SCHEDULE_SINCE_KERNEL} or later. On an earlier kernel the workflow installs and never
+fires, so declare \`kernel: '^${WORKFLOW_SCHEDULE_SINCE_KERNEL}'\` in the manifest when you ship one.
 
 **Listening to another extension.** A workflow may listen to \`<prefix>.saved\` / \`<prefix>.deleted\` of
 a collection a **declared dependency** brings. The name is the prefix that screen EMITS — its
@@ -2221,6 +2258,11 @@ and not as a broken response. The check reads the whole file, so the guard may s
 extracted — which is what §"Write the handler thin" asks you to do.
 
 ### A schedule of yours loops over the organizations instead
+
+**First, ask whether you need a function at all.** A routine that reads and writes records on a timer is a
+workflow with \`eventName: 'schedule'\` (§10): the kernel clock runs it in every organization that has it,
+stops it when the extension is deactivated, and asks nobody to provision anything. A Cloud Function on a
+timer is for what a workflow cannot do — calling an outside service with a secret, say.
 
 A scheduled run, a Pub/Sub message, an HTTP request and a Storage event carry no \`{tenantId}\` in their
 path. There is no organization for \`forInstalledExtension\` to ask about, and because it fails closed,

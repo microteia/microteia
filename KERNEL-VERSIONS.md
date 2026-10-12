@@ -18,6 +18,16 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.91.0] — 2026-10-12
+
+- feat(workflow): time trigger. `eventName: 'schedule'` with `schedule: { cron, timeZone? }` on a workflow definition — five-field cron or `@hourly`/`@daily`/`@weekly`/`@monthly`, in the organization's time zone (`i18n.timezone`) unless `timeZone` overrides it. The run carries no record and no actor: the payload is `{ scheduledFor, firedAt }`. An expression that fires more often than every 15 minutes, never fires, or names an unknown zone is refused by the editor and by `validatePluginPackage` (`@core.marketplace/issue.workflow.schedule-invalid`). `KERNEL_VERSION` goes to `2.32.0`: a 2.31 kernel installs such a workflow and never fires it.
+- feat(functions): ONE kernel clock for the whole project. `runWorkflowClock` (`onSchedule`, every 5 minutes) queries `collectionGroup('workflow_clock')` for `nextRunAt <= now` and publishes each due workflow's event with a `target`; execution stays with `onWorkflowEventCreated`. `syncWorkflowClock` (`onDocumentWritten` on `workflow_definitions`) keeps `tenants/{t}/workflow_clock/{id}` in step with the definition — computed server-side, never by the client. Firing is a transaction with a deterministic event id, so concurrent rounds fire once; a clock that was down fires once, not once per missed time. Extensions no longer need their own `onSchedule` + `forEachInstalledOffice` for this.
+- feat(workflow): `workflow_events` may carry `target`, the id of the only workflow it wakes. `firestore.rules` refuses a client-published event that carries it, as it already refused `actor`.
+- fix(workflow): a deactivated extension's workflows stopped firing. Deactivation only flips `installed_extensions/{id}.active`, and nothing on the run path read it; `RunWorkflowsForEventUseCase` now skips a workflow whose owners (`ownerPluginIds`) are all deactivated (`InstalledExtensionCache.deactivatedPluginIds`, 5-minute TTL). A workflow shared with an active extension, or owned by the organization, runs as before.
+- feat(sdk): `validate_domain_model` translates `trigger: { kind: 'schedule', when }` instead of refusing it — `when` is cron, and the transition becomes a `schedule` workflow with a `query` over the `from` state and a `Loop` (`behavior.transition.schedule-unsupported` is replaced by `behavior.transition.schedule-invalid`). `microteia://workflow/events` lists `schedule`; AUTHORING.md §8.0.1, §10 and §13 describe it.
+- chore(firestore): `workflow_clock` is a reserved collection (members read, nobody writes), with a `COLLECTION_GROUP` index on `nextRunAt` in `firestore.indexes.json`. Deploy `firestore:rules` and `firestore:indexes` together with the functions.
+- chore(locale-pt-br): `1.79.0`, with the schedule keys.
+
 #### [9.90.0] — 2026-10-12
 
 - feat(field-rules): `ValidateRule` gains `minLength` and `maxLength`, counted in characters and enforced by `checkValue` — so by screen fields, workflow/script/action parameters and step inputs alike. A value out of bounds is refused with `@core.records/field.too-short` / `field.too-long` (or the rule's own `message`). `KERNEL_VERSION` goes to `2.31.0`: a package that declares a length limit means nothing to a 2.30 kernel, which ignores the key.

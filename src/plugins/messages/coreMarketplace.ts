@@ -374,6 +374,8 @@ export const CORE_MARKETPLACE_MESSAGES: Record<string, string> = {
     'step "{step}" is of type {type}, which this platform version does not run — the flow would stop there.',
   'issue.step.unknown-definition':
     'step "{step}" names step "{definition}", which is not in the catalog. The package declares no dependency, so it cannot come from another extension either.',
+  'issue.workflow.schedule-invalid':
+    'the workflow runs on a schedule, and the clock cannot run it: {detail} It would install switched on and never fire.',
   'issue.step.unknown-input':
     'step "{step}" ({definition}) sets input "{input}", which that step does not have. It takes: {expected}.',
   'install.dependency-missing':

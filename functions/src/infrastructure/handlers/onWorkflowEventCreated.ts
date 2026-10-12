@@ -26,6 +26,7 @@ export const onWorkflowEventCreated = onDocumentCreated(
         name: data.name,
         payload: normalizeFirestoreValue(data.payload ?? {}),
         timestamp: data.timestamp?.toDate?.() ?? new Date(),
+        ...(typeof data.target === 'string' && data.target ? { target: data.target } : {}),
       };
 
       await getDI().ensureWorkflowStepsRegistered();

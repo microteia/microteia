@@ -7,8 +7,10 @@ import {
   RiFileCopyLine,
   RiApps2Line,
   RiListCheck2,
+  RiAlarmLine,
 } from 'react-icons/ri';
 import type { WorkflowLookupGroup } from '../../domain/services/workflowLookupCatalog';
+import { WORKFLOW_SCHEDULE_EVENT } from '../../domain/schema/workflowClock';
 
 const ENTITY_EVENT_ICONS: Record<string, IconType> = {
   person: RiTeamLine,
@@ -23,8 +25,10 @@ const LOOKUP_GROUP_ICONS: Record<WorkflowLookupGroup, IconType> = {
 
 export const CUSTOM_RECORD_EVENT_ICON: IconType = RiApps2Line;
 export const LOOKUP_EVENT_ICON: IconType = RiListCheck2;
+export const SCHEDULE_EVENT_ICON: IconType = RiAlarmLine;
 
 export const getWorkflowEventIcon = (eventName: string): IconType => {
+  if (eventName === WORKFLOW_SCHEDULE_EVENT) return SCHEDULE_EVENT_ICON;
   const prefix = eventName.split('.')[0];
   if (prefix === 'custom_record') return CUSTOM_RECORD_EVENT_ICON;
   if (prefix === 'lookup') return LOOKUP_EVENT_ICON;

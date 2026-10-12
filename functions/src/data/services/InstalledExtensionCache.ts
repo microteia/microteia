@@ -6,6 +6,8 @@ import { messageBundlesOf } from '../../domain/schema/i18n/extensionPoints';
 interface CacheEntry {
   /** Os nomes de Cloud Function que as extensões LIGADAS deste escritório reivindicam. */
   claimedFunctions: Set<string>;
+  /** As extensões instaladas e DESLIGADAS — as que o interruptor manda parar. */
+  deactivatedPluginIds: Set<string>;
   messageBundles: MessageBundle[];
   loadedAt: number;
 }
@@ -55,6 +57,14 @@ export class InstalledExtensionCache {
     return (await this.load(tenantId)).messageBundles;
   }
 
+  /**
+   * As extensões que o escritório desligou. É a pergunta do motor de automações: uma automação de
+   * extensão materializada continua no escritório depois da desativação, e só a execução pode pará-la.
+   */
+  async deactivatedPluginIds(tenantId: string): Promise<ReadonlySet<string>> {
+    return (await this.load(tenantId)).deactivatedPluginIds;
+  }
+
   invalidate(tenantId: string): void {
     this.entries.delete(tenantId);
   }
@@ -66,13 +76,17 @@ export class InstalledExtensionCache {
     const snapshot = await this.db.collection(`tenants/${tenantId}/installed_extensions`).get();
 
     const claimedFunctions = new Set<string>();
+    const deactivatedPluginIds = new Set<string>();
     const contributions: Contribution[] = [];
 
     for (const doc of snapshot.docs) {
       const data = doc.data();
       // Extensão desativada conta como não instalada — a mesma frase que `isExtensionInstalled` diz,
       // e é ela que faz o interruptor ser um interruptor.
-      if (data.active === false) continue;
+      if (data.active === false) {
+        deactivatedPluginIds.add(doc.id);
+        continue;
+      }
 
       const claimed = data.package?.manifest?.backend?.functions;
       if (Array.isArray(claimed)) {
@@ -85,6 +99,7 @@ export class InstalledExtensionCache {
 
     const entry: CacheEntry = {
       claimedFunctions,
+      deactivatedPluginIds,
       messageBundles: messageBundlesOf(contributions),
       loadedAt: Date.now(),
     };

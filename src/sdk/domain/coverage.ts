@@ -3,6 +3,7 @@ import { KERNEL_EXTENSION_POINTS } from '../../domain/schema/extensionPoints';
 import type { PluginManifest } from '../../domain/schema/plugin/pluginManifest';
 import type { ExtensionPointDefinition } from '../../domain/schema/plugin/extensionPoint';
 import { WORKFLOW_EVENT_CATALOG } from '../../domain/schema/eventCatalog';
+import { WORKFLOW_SCHEDULE_EVENT } from '../../domain/schema/workflowClock';
 import {
   CONTROL_STEP_TYPES,
   CORE_STEP_CATALOG,
@@ -128,6 +129,7 @@ const STEP_INPUT_REACH: Record<string, string | null> = {
   'notify.message': null,
   'validate-object.validate': null,
   'call-workflow.targetWorkflowId': 'effect "call-automation" (target)',
+  'query.query': 'trigger "schedule" — the collection and the `from` of the transition, as the filter',
 };
 
 const STEP_INPUT_NOTES: Record<string, string> = {
@@ -182,7 +184,9 @@ const EVENT_GAP_NOTES: Record<string, string> = {
 const eventItems = (): CoverageItem[] => WORKFLOW_EVENT_CATALOG.map((entry) => {
   const reached = entry.name === 'workflow.called'
     ? 'trigger "user-action"'
-    : /\.(saved|deleted)$/.test(entry.name) && !entry.name.startsWith('lookup.')
+    : entry.name === WORKFLOW_SCHEDULE_EVENT
+      ? 'trigger "schedule"'
+      : /\.(saved|deleted)$/.test(entry.name) && !entry.name.startsWith('lookup.')
       ? 'trigger "entity-event"'
       : null;
   return {
@@ -400,6 +404,7 @@ const WORKFLOW_REACH: Record<keyof WorkflowModuleTemplate, string | null> = {
   version: null,
   lookupCollection: null,
   parameters: 'the reference parameter a user-action flow needs to resolve the state field',
+  schedule: 'trigger "schedule" — its `when`, as cron',
   steps: 'the guard, the state write and the effects, in order',
   condition: 'the `from` of the transition',
   ownerPluginIds: null,

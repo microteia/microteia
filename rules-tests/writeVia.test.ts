@@ -106,4 +106,8 @@ describe('o evento de automação publicado pelo cliente', () => {
       actor: { userId: 'outra-pessoa', name: 'Outra', photoURL: '', via: 'ui' },
     }));
   });
+
+  it('é recusado se trouxer `target` — só o relógio do kernel acorda uma automação pelo id', async () => {
+    await assertFails(setDoc(event('escritor', 'e3'), { name: 'schedule', payload: {}, target: 'wf-qualquer' }));
+  });
 });

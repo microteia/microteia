@@ -1,6 +1,6 @@
-import { Timestamp } from 'firebase-admin/firestore';
 import type { Firestore } from 'firebase-admin/firestore';
 import type { PublishedActor } from '../../domain/engine/workflowActor';
+import { workflowEventDocument, workflowEventsRef } from '../../data/services/workflowEventDocument';
 
 /**
  * Publica um evento de domínio para o Workflow Engine, gravando em
@@ -22,11 +22,6 @@ export const publishEvent = async (
   payload: Record<string, unknown>,
   actor?: PublishedActor,
 ): Promise<string> => {
-  const ref = await db.collection('tenants').doc(tenantId).collection('workflow_events').add({
-    name,
-    payload,
-    ...(actor ? { actor } : {}),
-    timestamp: Timestamp.now(),
-  });
+  const ref = await workflowEventsRef(db, tenantId).add(workflowEventDocument(name, payload, { actor }));
   return ref.id;
 };

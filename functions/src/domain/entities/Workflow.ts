@@ -1,4 +1,5 @@
 import type { FieldRules } from '../schema/fieldRules';
+import type { WorkflowSchedule } from '../schema/workflowClock';
 
 export type StepType = 'Action' | 'Condition' | 'Delay' | 'Loop' | 'Script' | 'SubWorkflow';
 
@@ -156,6 +157,11 @@ export interface WorkflowDefinition {
   // não distingue sozinho qual lista mudou.
   lookupCollection?: string;
   parameters?: WorkflowParameter[];
+  /**
+   * Só relevante quando eventName é "schedule": QUANDO o relógio do kernel acorda esta automação.
+   * Ver "Gatilhos temporais" no ARCHITECTURE.md.
+   */
+  schedule?: WorkflowSchedule;
   enabled: boolean;
   version: number;
   condition: Condition;
@@ -177,6 +183,8 @@ export interface WorkflowEvent {
   payload: Record<string, unknown>;
   timestamp: Date;
   sourceModule?: string;
+  /** A única automação que o evento acorda, quando ele tem dono (o relógio do kernel). Ver `workflowEventDocument`. */
+  target?: string;
 }
 
 export type WorkflowExecutionStatus = 'RUNNING' | 'SUCCESS' | 'FAILED' | 'PARTIAL';

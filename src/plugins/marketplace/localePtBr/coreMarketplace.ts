@@ -373,6 +373,8 @@ export const CORE_MARKETPLACE: Record<string, string> = {
     'o passo "{step}" é do tipo {type}, que esta versão da plataforma não executa — o fluxo pararia ali.',
   'issue.step.unknown-definition':
     'o passo "{step}" nomeia o passo "{definition}", que não está no catálogo. O pacote não declara dependência nenhuma, então ele também não pode vir de outra extensão.',
+  'issue.workflow.schedule-invalid':
+    'a automação roda em um horário, e o relógio não consegue rodá-la: {detail} Ela seria instalada ligada e nunca dispararia.',
   'issue.step.unknown-input':
     'o passo "{step}" ({definition}) preenche a entrada "{input}", que esse passo não tem. Ele recebe: {expected}.',
   'install.dependency-missing':

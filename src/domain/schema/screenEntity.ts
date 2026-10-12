@@ -14,6 +14,7 @@ import { RECORD_KEYS_COLLECTION } from './recordKeys';
 import { AGENT_GRANTS_COLLECTION } from './agent/agentGrant';
 import { AGGREGATE_BACKFILL_COLLECTION } from './aggregateBackfill';
 import { RECORD_KEY_ADOPTION_COLLECTION } from './recordKeyAdoption';
+import { WORKFLOW_CLOCK_COLLECTION } from './workflowClock';
 
 import type { AuditAction } from '../entities/AuditLog';
 import type { LocalizedMessage } from './i18n/localizedMessage';
@@ -488,6 +489,7 @@ export const RESERVED_COLLECTIONS: ReadonlySet<string> = new Set<string>([
   'workflow_definitions',
   'workflow_events',
   'workflow_executions',
+  WORKFLOW_CLOCK_COLLECTION,
   'scripts',
   'actions',
   // Sem código que a leia desde 18/09/2026 — foi a instalação de antes de `installed_extensions`.

@@ -1,4 +1,5 @@
 import type { FieldRules } from '../schema/fieldRules';
+import type { WorkflowSchedule } from '../schema/workflowClock';
 
 /**
  * Os tipos de passo, como ARRAY — a união sai dele, pela mesma razão de `CUSTOM_FIELD_TYPES`: a
@@ -160,6 +161,11 @@ export interface WorkflowDefinition {
   // Só relevante quando eventName é "workflow.called": parâmetros que este workflow espera receber
   // de quem o chamar. Definem o schema de `event.` (intellisense e hidratação) do workflow chamado.
   parameters?: WorkflowParameter[];
+  /**
+   * Só relevante quando eventName é "schedule": QUANDO o relógio do kernel acorda esta automação.
+   * Ver "Gatilhos temporais" no ARCHITECTURE.md.
+   */
+  schedule?: WorkflowSchedule;
   // Presente quando o workflow foi materializado pela instalação de um plugin do Marketplace.
   // É a marca que a desinstalação usa para remover exatamente os artefatos daquele plugin, e o
   // sinal de que o registro é gerenciado (o usuário não deve editá-lo à mão). Ver "Fatia vertical

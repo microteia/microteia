@@ -10,7 +10,8 @@ import type {
 } from './behaviorModel';
 import { A_STATE_IS_A_KEY, effectEntity, enforcementOfScope, isSelfLoop } from './behaviorModel';
 import type { MappedTransition } from './behaviorMapping';
-import { DESCRIPTION_REQUIRED_BECAUSE, SCHEDULE_TRIGGER_SUPPORTED, mapTransition } from './behaviorMapping';
+import { DESCRIPTION_REQUIRED_BECAUSE, mapTransition } from './behaviorMapping';
+import { MIN_SCHEDULE_INTERVAL_MINUTES, scheduleIssues } from '../../domain/schema/workflowClock';
 import type { DomainCatalog } from './catalog';
 import type { DomainEntity, DomainIssue, DomainModel } from './domainModel';
 import type { DomainIssueCode } from './detectors';
@@ -606,18 +607,16 @@ const transitionIssues = (
       }));
     }
 
-    if (transition.trigger.kind === 'schedule' && !SCHEDULE_TRIGGER_SUPPORTED) {
-      issues.push(make('behavior.transition.schedule-unsupported', 'error', {
+    if (transition.trigger.kind === 'schedule' && scheduleIssues({ cron: transition.trigger.when }).length > 0) {
+      issues.push(make('behavior.transition.schedule-invalid', 'error', {
         entity: transition.entity,
         field: transition.name,
-        message: `"${transition.name}" is triggered by a clock${transition.trigger.when === '' ? '' : ` ("${transition.trigger.when}")`}`
-          + ', and nothing in this installation is time-based: no event is a schedule, and the "Delay" step type was '
-          + 'never registered — a flow that uses it fails at runtime, mid-execution.',
-        suggestion: 'Move the decision to a moment that exists. Almost every schedule in a business rule is really a '
-          + 'question asked when something is WRITTEN ("when the due date is set, flag it") or when a person opens the '
-          + 'screen — and both are declarable today, with a filtered list doing the rest.',
-        howToDeclareException: 'None here. It needs a mechanism in the kernel, not a declaration, and until it exists a '
-          + 'plan that accepted this would promise a cobrança nobody sends.',
+        message: `"${transition.name}" is triggered by a clock, and "${transition.trigger.when}" is not a cron expression `
+          + `the kernel clock can run — it must have five fields, happen at least once, and not fire more often than every `
+          + `${MIN_SCHEDULE_INTERVAL_MINUTES} minutes.`,
+        suggestion: 'Write `when` as cron: "0 5 * * *" is every day at 05:00, "0 8 * * MON-FRI" is weekdays at 08:00. It '
+          + 'runs in the office time zone, and the workflow it becomes is { eventName: "schedule", schedule: { cron } }.',
+        howToDeclareException: 'None. A schedule the clock cannot read never fires, and nothing would say so.',
       }));
     }
 
@@ -716,7 +715,8 @@ const enforcementIssues = (invariant: BehaviorInvariant, behavior: BehaviorModel
     issues.push(make('behavior.invariant.blocks-after-the-fact', 'error', {
       ...at,
       message: `"${named.name}" is triggered by ${clock ? 'a clock' : 'a save'}, and this invariant must BLOCK the `
-        + `passage. ${clock ? 'Nothing here is time-based at all.' : 'The event is published by an onDocumentWritten '
+        + `passage. ${clock ? 'A clock looks at records that are already written: it can move them on, never stop them '
+        + 'being written.' : 'The event is published by an onDocumentWritten '
         + 'trigger: by the time it exists the document is committed. The condition and the "exit" step stop the rest of '
         + 'the flow; nothing rolls the write back.'}`,
       suggestion: 'Two ways, and both are declarations. Put the rule on the WRITE path — field '

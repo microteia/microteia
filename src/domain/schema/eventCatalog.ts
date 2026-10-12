@@ -4,6 +4,7 @@ import type { PathRoot, SchemaContext } from './pathResolver';
 import type { WorkflowParameter } from '../entities/Workflow';
 import { isEntityCollection, resolveEntity } from './screenEntity';
 import { isLookupCollection as isBuiltinLookupCollection } from './lookupRegistry';
+import { WORKFLOW_SCHEDULE_EVENT } from './workflowClock';
 
 export const WORKFLOW_CALLED_EVENT = 'workflow.called';
 
@@ -225,6 +226,22 @@ const nestedEntries = (
 
 const orderedEntities = ENTITY_EVENT_ORDER.map((key) => ENTITY_REGISTRY[key]).filter((entity) => entity.eventPrefix);
 
+const SCHEDULE_FIELDS: NativeFieldSpec[] = [
+  { key: 'scheduledFor', label: '@core.automation/event-field.scheduled-for', type: 'date' },
+  { key: 'firedAt', label: '@core.automation/event-field.fired-at', type: 'date' },
+];
+
+/**
+ * O gatilho por horário: não há registro por trás dele, e por isso o payload é só o momento — o
+ * previsto pela expressão e o real. Os dois diferem quando o relógio ficou parado e recuperou o atraso.
+ */
+const scheduleEntry: WorkflowEventCatalogEntry = {
+  name: WORKFLOW_SCHEDULE_EVENT,
+  label: '@core.automation/event.schedule',
+  fields: flattenNativeFields(SCHEDULE_FIELDS),
+  root: { kind: 'fields', fields: SCHEDULE_FIELDS, hasOld: false },
+};
+
 const workflowCalledEntry: WorkflowEventCatalogEntry = {
   name: WORKFLOW_CALLED_EVENT,
   label: '@core.automation/event.called',
@@ -240,6 +257,7 @@ export const WORKFLOW_EVENT_CATALOG: WorkflowEventCatalogEntry[] = [
   ...nestedEntries(NOTE_PARENTS, 'note', '@core.automation/event.note', NOTE_FIELDS),
   ...nestedEntries(DOCUMENT_PARENTS, 'document', '@core.automation/event.document', DOCUMENT_FIELDS),
   workflowCalledEntry,
+  scheduleEntry,
 ];
 
 const WORKFLOW_PARAM_TYPE_MAP: Record<Exclude<WorkflowParameter['type'], 'EntityReference' | 'Object'>, NativeFieldType> = {

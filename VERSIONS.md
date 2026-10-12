@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.91.0] — 2026-10-12
+
+- As automações ganharam um novo gatilho, "Em um horário": escolha quando ela roda — todo dia às 8h, nos dias úteis, todo dia 5 — e ela acontece sozinha, no fuso do escritório. O editor mostra as próximas execuções para você conferir o horário antes de salvar.
+- Uma extensão desativada deixa de rodar as automações dela. Antes, desligar a extensão escondia as telas, mas as automações continuavam acontecendo.
+
 #### [9.90.0] — 2026-10-12
 
 - Campos de texto e parâmetros de automação agora aceitam um tamanho mínimo e um tamanho máximo, configuráveis no Form Design e no editor de parâmetros. Um texto fora do limite é recusado com uma mensagem clara antes de ser gravado.

@@ -27,6 +27,7 @@ const mapWorkflowDefinition = (id: string, tenantId: string, data: DocumentData)
   screenKey: data.screenKey ?? undefined,
   lookupCollection: data.lookupCollection ?? undefined,
   parameters: data.parameters ?? undefined,
+  schedule: data.schedule ?? undefined,
   enabled: data.enabled ?? false,
   version: data.version ?? 1,
   condition: data.condition ?? { kind: 'AlwaysTrue' },

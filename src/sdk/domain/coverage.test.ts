@@ -16,17 +16,15 @@ import { WORKFLOW_EVENT_CATALOG } from '../../domain/schema/eventCatalog';
  * qualquer um deles reprova aqui, e quem o acrescentou decide se o modelo deve saber pedi-lo.
  */
 const LACUNAS_CONFERIDAS = [
-  // Os passos que o comportamento não sabe pedir. `query` é o maior de todos: é a metade que falta a
-  // toda regra que compara um registro com os outros, e é por isso que o guard que precisa de outros
-  // registros é RECUSADO em vez de traduzido.
+  // Os passos que o comportamento não sabe pedir. `query` e `Loop` saíram daqui com o gatilho de
+  // relógio, que os pede para achar os registros no estado `from` — mas só ali: o guard que precisa
+  // de outros registros continua RECUSADO em vez de traduzido.
   'workflow-step\tregister-audit',
   'workflow-step\tset-variable',
   'workflow-step\tmap',
   'workflow-step\tscript',
   'workflow-step\tai-detect-workflow',
   'workflow-step\tai-extract-parameters',
-  'workflow-step\tquery',
-  'workflow-step\tLoop',
 
   // Os inputs OBRIGATÓRIOS dos passos que o modelo pede e não consegue preencher. `upsert.upsert` é o
   // que mais dói: o efeito diz entidade, campo e valor, e nunca QUAL registro.

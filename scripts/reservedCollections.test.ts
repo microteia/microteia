@@ -46,7 +46,7 @@ describe('coleções reservadas', () => {
 
     const REQUIRED = [
       'screenDefinitions', 'lookupDefinitions', 'tagDefinitions',
-      'workflow_definitions', 'workflow_events', 'workflow_executions',
+      'workflow_definitions', 'workflow_events', 'workflow_executions', 'workflow_clock',
       'actions', 'scripts', 'aiConnections',
       'extensions', 'installed_extensions', 'extension_history',
       'members',

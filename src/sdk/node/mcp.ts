@@ -33,6 +33,11 @@ import {
   NESTED_EVENT_SUFFIXES,
   WORKFLOW_CALLED_EVENT,
 } from '../../domain/schema/eventCatalog';
+import {
+  MIN_SCHEDULE_INTERVAL_MINUTES,
+  WORKFLOW_CLOCK_TICK_MINUTES,
+  WORKFLOW_SCHEDULE_EVENT,
+} from '../../domain/schema/workflowClock';
 import type { DomainIssue, ParseResult } from '../domain';
 import {
   A_STATE_IS_A_KEY,
@@ -1038,6 +1043,12 @@ const PURE_READS: ToolDefinition[] = [
           fires: 'an action, or another workflow, invokes it — never on its own',
           eventPayload: 'the `parameters` the workflow declares, which become its `event.`',
         },
+        {
+          eventName: WORKFLOW_SCHEDULE_EVENT,
+          fires: `the kernel clock reaches \`schedule.cron\`, in the organization's time zone — checked every `
+            + `${WORKFLOW_CLOCK_TICK_MINUTES} minutes, never more often than every ${MIN_SCHEDULE_INTERVAL_MINUTES}`,
+          eventPayload: '"scheduledFor" (the instant the cron named) and "firedAt" (when it actually ran) — no record',
+        },
       ],
       notes: [
         'The collection half is not enumerable from here on purpose: it is the collection of the '
@@ -1054,10 +1065,15 @@ const PURE_READS: ToolDefinition[] = [
         + 'payload (`x`); and inside an `{ kind: "Expression" }` the name `event` IS the payload '
         + '(`event.x`) — there is no `event.payload` to reach for there, and reaching for one '
         + 'throws instead of reading as empty.',
+        `"${WORKFLOW_SCHEDULE_EVENT}" needs \`schedule: { cron }\` beside it — five fields, or @daily / @hourly / `
+        + '@weekly / @monthly. It runs in the organization\'s time zone; `schedule.timeZone` overrides it, and is '
+        + 'almost never right in an extension, which travels to organizations in other zones. Nothing is in `event` '
+        + 'but the instant: query the records the run is about (a `query` step, then a `Loop`). An extension that '
+        + 'is deactivated stops firing; one that is not installed has no workflow to fire.',
         'Who triggered the run is NOT in `event`: it is the `actor` root, `{ id, name, via }`, in any '
         + '`{ kind: "Expression" }` and condition. It is the person on an action and on `run_workflow` '
         + '(`via` "ui", or "agent" over MCP), it is passed on by `call-workflow`, and it is `null` on '
-        + 'every `<collection>.saved` / `.deleted` trigger — test it with `isEmpty(actor)`.',
+        + 'every `<collection>.saved` / `.deleted` and `schedule` trigger — test it with `isEmpty(actor)`.',
       ],
     }),
   },

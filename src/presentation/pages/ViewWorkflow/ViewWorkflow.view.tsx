@@ -337,7 +337,8 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                 !!vm.workflowIdError ||
                 !vm.formData.eventName ||
                 (vm.isLookupEvent && !vm.formData.lookupCollection) ||
-                (vm.isCalledEvent && vm.hasParameterErrors)
+                (vm.isCalledEvent && vm.hasParameterErrors) ||
+                (vm.isScheduleEvent && !!vm.scheduleError)
               }
               title={t(vm.isSaving ? 'core.ui/saving' : 'core.ui/action.save')}
             >
@@ -441,6 +442,38 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                     placeholder={t('parameter.lookup.placeholder')}
                   />
                 </InputGroup>
+              )}
+
+              {vm.isScheduleEvent && (
+                <>
+                  <InputGroup>
+                    <Label>{t('workflow.schedule.cron')}</Label>
+                    <Input
+                      value={vm.formData.scheduleCron}
+                      onChange={(event) => vm.setFormData({ scheduleCron: event.target.value })}
+                      placeholder={t('workflow.schedule.cron.placeholder')}
+                    />
+                    <S.FieldHint>{t('workflow.schedule.cron.hint')}</S.FieldHint>
+                    {vm.scheduleError && <S.FieldError>{vm.scheduleError}</S.FieldError>}
+                  </InputGroup>
+                  <InputGroup>
+                    <Label>{t('workflow.schedule.time-zone')}</Label>
+                    <SearchSelect
+                      options={vm.scheduleTimeZoneOptions}
+                      value={vm.formData.scheduleTimeZone}
+                      onChange={(scheduleTimeZone) => vm.setFormData({ scheduleTimeZone })}
+                      placeholder={t('workflow.schedule.time-zone.placeholder')}
+                    />
+                  </InputGroup>
+                  {vm.schedulePreview.length > 0 && (
+                    <InputGroup>
+                      <Label>{t('workflow.schedule.preview')}</Label>
+                      {vm.schedulePreview.map((item) => (
+                        <S.FieldHint key={item}>{item}</S.FieldHint>
+                      ))}
+                    </InputGroup>
+                  )}
+                </>
               )}
 
               {vm.isCalledEvent && (

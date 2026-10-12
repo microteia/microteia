@@ -5152,6 +5152,7 @@ sem `onChange` ele vira somente-leitura); a edição de conteúdo (campo/operado
 no builder, acessível por atalho nos cartões do diagrama. Em `FieldComparison`, tanto `fieldPath`
 quanto o valor de `valueType: 'eventField'` usam caminho absoluto no contexto
 ("event.payload.status") e são resolvidos por `getValueByPath(context, ...)`.
+**Gatilho por horário** (`schedule`) — ver "Gatilhos temporais — o relógio do kernel".
 **Preparado só como shape, nunca registrado no `StepRegistry`** (adicionar não exige tocar no
 motor): `DelayStep`, retry/compensação/rollback, execução síncrona. (`ScriptStep` e
 `SubWorkflowStep` já são reais; a ramificação de fluxo — `StepCondition` — é nativa do motor,
@@ -5422,6 +5423,7 @@ a separação:
 | `call-workflow` esperando | herda | herda | herda — mesma invocação |
 | `call-workflow` sem esperar | herda | herda, gravada no evento | não — `[]` |
 | `<coleção>.saved` / `.deleted` | — | **não há ator** | — |
+| `schedule` (relógio do kernel) | — | **não há ator** | — |
 
 - **A identidade atravessa o barramento; o acesso não.** `publishEvent` aceita um `PublishedActor` e o
   grava AO LADO do payload (nunca dentro: o payload são os parâmetros, e um parâmetro `actor`
@@ -5474,6 +5476,88 @@ uid, pelos motivos de "O carimbo de autoria".
 - **`validate_plugin` não confere raiz de expressão em lugar nenhum** — nem antes desta alteração. Recusar
   `actor` numa `compute` seria errado além de novo: o escopo de campo é PLANO, e um campo chamado `actor`
   é legítimo ali.
+
+### Gatilhos temporais — o relógio do kernel
+
+Até aqui toda automação nascia de um GESTO (alguém gravou, alguém apertou, outra automação chamou). O que
+faltava era o tempo: "às 8h dos dias úteis", "todo dia 5". O contorno disponível era cada extensão
+escrever a sua Cloud Function `onSchedule` com `forEachInstalledOffice` — backend próprio por extensão,
+provisionamento pelo escritório, e código a remover no dia em que o kernel soubesse fazer.
+
+**A declaração.** `eventName: 'schedule'` com `schedule: { cron, timeZone? }` na `WorkflowDefinition`
+(e portanto no `WorkflowModuleTemplate` do pacote, que deriva dela). O cron tem cinco campos
+(`minuto hora dia mês dia-da-semana`, com nomes `MON`/`JAN`) ou é `@hourly`/`@daily`/`@weekly`/`@monthly`.
+O fuso é o do ESCRITÓRIO (`i18n.timezone`); `schedule.timeZone` o sobrescreve, e numa extensão quase
+sempre está errado — ela viaja para escritórios em fusos diferentes. A automação roda sem registro e
+**sem ator**: o payload é só `{ scheduledFor, firedAt }`, e o que ela trata ela consulta.
+
+**Um relógio só, e não um por automação nem por escritório.** `runWorkflowClock` é UM `onSchedule` do
+kernel (um job do Cloud Scheduler para o projeto inteiro, a cada `WORKFLOW_CLOCK_TICK_MINUTES` = 5 min).
+Ele não conhece escritório nem extensão: pergunta, numa consulta de grupo de coleção, quais automações
+temporais venceram (`workflow_clock where nextRunAt <= agora`), e para cada uma grava um evento em
+`workflow_events` — com `target`. A EXECUÇÃO continua sendo de `onWorkflowEventCreated`, como qualquer
+gatilho: mesma hidratação, mesmo interruptor de extensão, mesmo histórico. O relógio só acorda.
+
+| Alternativa | Por que não |
+|---|---|
+| um job do Cloud Scheduler por automação | criar e apagar jobs pela API a cada gravação: IAM, cota por projeto, job órfão quando a sincronização falha — e a agenda passaria a morar fora do Firestore |
+| `onSchedule` por extensão | backend próprio por extensão, provisionamento pelo escritório, e `forEachInstalledOffice` repetido |
+| ler todas as definições a cada volta | custo proporcional ao número de automações do projeto, a cada 5 minutos |
+
+**Por que o "onde a extensão está instalada" sai de graça.** A automação de extensão é MATERIALIZADA em
+`tenants/{t}/workflow_definitions` na instalação. Onde a extensão não está, não há definição e não há
+relógio; desinstalar apaga a definição, e a gravação apaga o relógio.
+
+**`workflow_clock` — o estado é do kernel.** `tenants/{t}/workflow_clock/{definitionId}` guarda
+`cron`, o fuso usado e `nextRunAt`. Fica FORA da definição por dois motivos: a definição é gravada pelo
+navegador (o editor e a instalação), e um número que decide quando o kernel age não pode ser escrito pelo
+cliente; e a atualização de extensão reescreve a definição inteira. Quem a mantém é `syncWorkflowClock`
+(`onDocumentWritten` em `workflow_definitions`): cria, recalcula ou apaga a entrada; gravação de
+automação que não é nem foi de horário sai sem ler nada; regravar SEM mudar o horário não recalcula
+(renomear às 7h59 não pode adiar o disparo das 8h). As regras deixam o membro LER (o editor) e ninguém
+escrever; a coleção está em `RESERVED_COLLECTIONS`.
+
+**Disparo exatamente uma vez.** `fire` roda numa transação: relê a entrada, confere que `nextRunAt` é o
+mesmo que a consulta viu, cria o evento com id DETERMINÍSTICO (`clock_<definição>_<instante previsto>`) e
+move `nextRunAt` para a próxima ocorrência. Duas voltas simultâneas: uma dispara, a outra vê `stale`.
+
+**Atraso e troca de fuso.** A próxima ocorrência é contada a partir do maior entre o previsto e o agora —
+um relógio parado por três dias dispara UMA vez, e não três. Ela é calculada com o fuso de AGORA, e é por
+isso que a troca de fuso do escritório se corrige sozinha depois de um disparo.
+
+**O cron é UM só, compartilhado** — `domain/schema/workflowClock.ts` (sincronizado): `parseCron`,
+`nextCronOccurrence` (no relógio de parede do fuso, via `Intl`; a hora que não existe na virada do horário
+de verão simplesmente não acontece), `scheduleIssues`. O editor mostra as próximas execuções com ele, a
+validação de pacote recusa com ele (`@core.marketplace/issue.workflow.schedule-invalid`), e o backend
+calcula com ele. Sem dependência externa: duas implementações de cron discordariam justamente no fuso.
+`MIN_SCHEDULE_INTERVAL_MINUTES` (15) recusa a expressão que vira laço — cada volta é uma execução gravada,
+em todo escritório que instalou.
+
+**O interruptor de extensão desativada vale na EXECUÇÃO, e para todo gatilho.** Desativar uma extensão só
+grava `active: false` em `installed_extensions`; as automações dela continuam como documentos do
+escritório (é o que permite religar sem reinstalar) — e continuavam disparando. Agora
+`RunWorkflowsForEventUseCase` descarta a automação cujas donas (`ownerPluginIds`) estão TODAS desligadas
+(`InstalledExtensionCache.deactivatedPluginIds`, a mesma leitura e o mesmo TTL de `claimsFunction`). A
+compartilhada continua devida enquanto uma dona estiver ligada; a do escritório nunca para por aqui; e a
+dona que não aparece entre as instaladas não para nada, porque continuar rodando é o que ela já fazia. As
+portas SÍNCRONAS (`runAction`, `call-workflow` esperando) não passam por aqui — o botão da extensão
+desligada já não aparece.
+
+**`target` no evento.** O id da única automação que o evento acorda, AO LADO do payload, como `actor`. Sem
+ele, cada disparo acordaria todas as automações de horário do escritório. `firestore.rules` recusa o evento
+publicado pelo cliente que o traga, pelo mesmo motivo que recusa `actor`.
+
+**No modelo de domínio.** `trigger: { kind: 'schedule', when }` deixou de ser recusado: `when` é cron, e a
+transição vira `{ eventName: 'schedule', schedule: { cron: when } }` com os passos `query` (o `from` como
+filtro) e `Loop` (a passagem por registro). `SCHEDULE_TRIGGER_SUPPORTED` virou `true` sozinho, porque é
+derivado do catálogo de eventos.
+
+| Arquivo | Papel |
+|---|---|
+| `domain/schema/workflowClock.ts` | cron, próxima ocorrência, validação, constantes (sincronizado) |
+| `functions/src/domain/services/workflowClock.ts` | `syncWorkflowClockEntry` e a volta do relógio |
+| `functions/src/data/repositories/FirebaseWorkflowClockRepository.ts` | a consulta de grupo e a transação do disparo |
+| `functions/src/infrastructure/handlers/workflowClock.ts` | `syncWorkflowClock` e `runWorkflowClock` |
 
 ### `call-workflow` com alvo dinâmico e parâmetros em bloco
 
@@ -10391,10 +10475,9 @@ um instante — é o que `today()` devolve às automações, para que `completed
 `cancelDate` carimbem o dia em que o gesto aconteceu. Datas gravadas antes desta regra continuam se
 lendo no dia certo; o que muda é onde as novas caem.
 
-> **Limite conhecido:** `today()` no servidor é o dia **UTC**. Entre 21h e a meia-noite no horário de
-> Brasília o servidor já virou a página, e a automação carimba o dia seguinte. Resolver isso de vez
-> pede o **fuso do escritório**, que hoje não é declarado em lugar nenhum — quando existir, é
-> `anchorDay` e `parseDateOnly` que passam a recebê-lo.
+> **O dia é o do fuso do escritório.** `today()` no servidor ancora o dia em `i18n.timezone`
+> (`anchorDay(now, timeZone)`, ver "Idioma — tradução como contribuição"), e por isso às 22h em
+> Brasília a automação continua carimbando o dia de Brasília, e não o dia UTC seguinte.
 
 O `SchemaContext` do front precisa das `ScreenDefinition`s do tenant, e um repositório não alcança um
 Store React — por isso `data/utils/recordRulesGate.ts` mantém um contexto de módulo que o
@@ -10508,12 +10591,13 @@ runtime na primeira execução. Foi a separação por dono que os encontrou — 
 `orderBy` em campos diferentes tem de declarar o índice no `manifest.backend.indexes` dela; sem isso ela
 instala, aparece no menu e falha na primeira execução.
 
-Além dos compostos, o arquivo declara dois `fieldOverrides`:
+Além dos compostos, o arquivo declara três `fieldOverrides`:
 
 | Coleção | Campo | Motivo |
 |---|---|---|
 | `auditLogs` | `expiresAt` | TTL — o Firestore expurga o log automaticamente na data |
 | `members` (collectionGroup) | `userId` ASC | `getTenantsForUser` consulta `collectionGroup('members')` para descobrir os escritórios do usuário |
+| `workflow_clock` (collectionGroup) | `nextRunAt` ASC | `runWorkflowClock` pergunta, em todos os escritórios de uma vez, quais automações temporais venceram |
 
 ---
 
