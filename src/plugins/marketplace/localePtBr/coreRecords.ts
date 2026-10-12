@@ -279,6 +279,16 @@ export const CORE_RECORDS: Record<string, string> = {
     'Não foi possível preencher os campos calculados de alguns registros que já existiam ({count}). Os valores deles podem estar desatualizados.',
   'aggregate.backfill.truncated':
     'Alguns registros ({count}) têm mais de {max} itens relacionados. Os campos calculados deles consideram só {max} desses itens e podem estar incompletos.',
+  'key.adoption.running':
+    'A chave "{keys}" está sendo conferida nos registros que já existiam ({count} conferidos até agora). Valores repetidos digitados a partir de agora já são recusados.',
+  'key.adoption.blocked':
+    'A chave "{key}" compara valores com a formatação "{preset}", que não está disponível neste escritório. Ela será conferida quando essa formatação existir ou a chave mudar.',
+  'key.adoption.duplicates':
+    'A chave "{key}" ainda não vale: registros que já existiam repetem estes valores — {values}. Altere ou exclua os registros repetidos e ela passa a valer sozinha. Valores repetidos digitados a partir de agora já são recusados.',
+  'key.adoption.missing':
+    'A chave "{key}" ainda não vale: {count} registros que já existiam estão sem valor para ela. Preencha-os e ela passa a valer sozinha.',
+  'key.adoption.failed':
+    'A chave "{keys}" não pôde ser conferida em {count} registros que já existiam. Uma nova tentativa acontece na próxima alteração da tela.',
   'aggregation.avg': 'Média',
   'aggregation.sum': 'Soma',
   'aggregation.count': 'Contagem',

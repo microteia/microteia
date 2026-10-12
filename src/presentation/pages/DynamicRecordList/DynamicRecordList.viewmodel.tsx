@@ -5,11 +5,16 @@ import type { RecordListViewModel } from '../../shared/entityScreen/useRecordLis
 import { parseDynamicTabKey } from '../../../shared/constants/dynamicScreenKeys';
 import { useLabel } from '../../shared/i18n/useT';
 import { useAggregateBackfillNotice } from '../../shared/entityScreen/useAggregateBackfillNotice';
-import type { AggregateBackfillNoticeView } from '../../shared/entityScreen/useAggregateBackfillNotice';
+import { useRecordKeyAdoptionNotice } from '../../shared/entityScreen/useRecordKeyAdoptionNotice';
+
+export interface DynamicRecordListNotice {
+  message: string;
+  variant: 'info' | 'warning';
+}
 
 export interface DynamicRecordListViewModel extends RecordListViewModel {
-  /** O que o recálculo dos agregados desta tela tem a dizer — ou nada. */
-  backfillNotice: AggregateBackfillNoticeView | null;
+  /** O que o recálculo dos agregados e a adoção das chaves desta tela têm a dizer — ou nada. */
+  notices: DynamicRecordListNotice[];
 }
 
 /** Listagem de uma tela customizada em janela própria: só resolve a aba e delega ao núcleo. */
@@ -21,10 +26,15 @@ export const useDynamicRecordListViewModel = (tabKey: string): DynamicRecordList
   const vm = useRecordListViewModel({ screenKey, savedFiltersKey: tabKey });
   const definition = vm.definition;
   const backfillNotice = useAggregateBackfillNotice(definition);
+  const keyNotices = useRecordKeyAdoptionNotice(definition);
+  const notices = useMemo(
+    () => [...(backfillNotice ? [backfillNotice] : []), ...keyNotices],
+    [backfillNotice, keyNotices],
+  );
 
   useEffect(() => {
     if (definition) setTabTitle(tabKey, label(definition.titlePlural));
   }, [definition, tabKey, setTabTitle, label]);
 
-  return { ...vm, backfillNotice };
+  return { ...vm, notices };
 };

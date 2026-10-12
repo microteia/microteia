@@ -41,12 +41,13 @@ export const RECORD_KEY_SCOPES = ['tenant', 'parent'] as const;
 export type RecordKeyScope = (typeof RECORD_KEY_SCOPES)[number];
 
 /**
- * A chave nasce `pending` e só passa a valer quando alguém varreu o que já está gravado.
+ * Se a chave já VALE sobre tudo o que está gravado. Não é declaração: é o estado da ADOÇÃO, que o
+ * kernel mantém no job da coleção (`record_key_adoptions`) e nunca na tela.
  *
- * Sem os dois estados, ligar uma chave numa coleção com dado seria ou uma promessa falsa (a chave
- * "vale" e as duplicatas anteriores continuam lá, invisíveis) ou uma tela travada (toda gravação
- * seguinte recusada por um conflito que ninguém mostrou). É a mesma postura de `package.migrations`:
- * o formato muda uma vez por escritório, e o que não coube é RELATADO, não engolido.
+ * `pending` é a chave declarada cujos registros antigos ainda não foram todos reservados — porque a
+ * varredura está em curso, ou porque encontrou duplicatas que alguém precisa resolver. Mesmo pendente,
+ * a chave já recusa o valor NOVO repetido: o que ela ainda não garante é o registro antigo. Ver
+ * `domain/schema/recordKeyAdoption.ts`.
  */
 export const RECORD_KEY_STATUSES = ['pending', 'active'] as const;
 export type RecordKeyStatus = (typeof RECORD_KEY_STATUSES)[number];
@@ -87,6 +88,11 @@ export interface RecordKeySpec {
   sparse?: boolean;
   /** REFERÊNCIA de mensagem (`@namespace/chave`) mostrada no conflito. Ausente = a do núcleo. */
   message?: string;
+  /**
+   * @deprecated Ignorado. Se a chave já vale sobre os registros antigos é estado da adoção, mantido
+   * pelo kernel (`record_key_adoptions`), e não algo que a declaração possa afirmar. Continua no tipo
+   * para que um pacote que o declarava siga válido.
+   */
   status?: RecordKeyStatus;
   /** Presente quando quem declarou a chave foi uma extensão — dirige upgrade e desinstalação. */
   ownerPluginId?: string | null;
@@ -194,10 +200,13 @@ export interface RecordKeyGap {
 export interface RecordKeyPlan {
   entries: RecordKeyEntry[];
   gaps: RecordKeyGap[];
+  /**
+   * As chaves que esta gravação não mexe: o registro já existia e o valor delas não mudou. A reserva
+   * que ele cita (se cita) fica como está, e a que ele não cita é da varredura de adoção — nunca da
+   * gravação seguinte.
+   */
+  held: string[];
 }
-
-/** A chave vale? `pending` ainda não foi adotada sobre o que já está gravado. */
-export const isRecordKeyActive = (key: RecordKeySpec): boolean => (key.status ?? 'active') === 'active';
 
 /**
  * Uma chave `primary` é `unique` com duas decisões já tomadas: ela nunca é esparsa (um endereço
@@ -207,9 +216,24 @@ export const isRecordKeyActive = (key: RecordKeySpec): boolean => (key.status ??
 export const recordKeyIsSparse = (key: RecordKeySpec): boolean =>
   key.kind === 'primary' ? false : key.sparse !== false;
 
+const recordKeyValues = (
+  key: RecordKeySpec,
+  data: Record<string, unknown>,
+  catalog: FieldRulePresetCatalog,
+): string[] => key.fields.map((field) => normalizeRecordKeyValue(data[field], key.normalize, catalog));
+
+const sameValues = (left: readonly string[], right: readonly string[]): boolean =>
+  left.length === right.length && left.every((value, index) => value === right[index]);
+
 /**
  * O que uma gravação precisa reservar, dado o registro COMPLETO (payload já mesclado com o que já
  * estava gravado — uma chave composta cujo update toca um campo só continua sendo a mesma chave).
+ *
+ * `previous` é o registro como estava antes, num update. A chave cujo valor não mudou fica em `held`:
+ * a gravação não a reserva nem cobra a lacuna dela. É o que permite declarar uma chave numa coleção
+ * que já tem duplicatas sem travar a edição de um campo qualquer de um registro antigo — o valor NOVO
+ * é recusado desde o primeiro instante, e o antigo é adotado pela varredura, que é quem sabe mostrar
+ * o conflito a quem pode resolvê-lo.
  *
  * Não consulta nada: é pura, e é isso que permite ao front, ao backend e à varredura de adoção
  * chegarem à mesma lista sem combinarem entre si.
@@ -219,13 +243,18 @@ export const planRecordKeys = (
   data: Record<string, unknown>,
   collection: string,
   catalog: FieldRulePresetCatalog = CORE_FIELD_RULE_PRESET_CATALOG,
+  previous?: Record<string, unknown> | null,
 ): RecordKeyPlan => {
   const entries: RecordKeyEntry[] = [];
   const gaps: RecordKeyGap[] = [];
+  const held: string[] = [];
   for (const key of keys ?? []) {
-    if (!isRecordKeyActive(key)) continue;
     if (key.fields.length === 0) continue;
-    const values = key.fields.map((field) => normalizeRecordKeyValue(data[field], key.normalize, catalog));
+    const values = recordKeyValues(key, data, catalog);
+    if (previous && sameValues(values, recordKeyValues(key, previous, catalog))) {
+      held.push(key.name);
+      continue;
+    }
     const missing = key.fields.filter((_, index) => values[index] === '');
     if (missing.length > 0) {
       if (recordKeyIsSparse(key)) continue;
@@ -241,7 +270,7 @@ export const planRecordKeys = (
       ...(key.message ? { message: key.message } : {}),
     });
   }
-  return { entries, gaps };
+  return { entries, gaps, held };
 };
 
 /**
@@ -278,8 +307,11 @@ export const diffRecordKeys = (
   stored: Record<string, string>,
 ): RecordKeyDiff => {
   const refs = recordKeyRefs(plan.entries);
+  for (const name of plan.held) {
+    if (stored[name]) refs[name] = stored[name];
+  }
   const create = plan.entries.filter((entry) => stored[entry.name] !== entry.keyId);
-  const kept = new Set(plan.entries.map((entry) => entry.keyId));
+  const kept = new Set(Object.values(refs));
   const release = Object.values(stored).filter((keyId) => !kept.has(keyId));
   return { create, release, refs };
 };

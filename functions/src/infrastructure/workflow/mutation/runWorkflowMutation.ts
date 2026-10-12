@@ -209,7 +209,7 @@ export async function runWorkflowUpsert(
   let keyRefs: Record<string, string> | undefined;
   if (declaredKeys.length > 0) {
     const merged = { ...(existing ?? {}), ...payload };
-    const plan = planRecordKeys(declaredKeys, merged, collection, ctx.fieldRulePresets);
+    const plan = planRecordKeys(declaredKeys, merged, collection, ctx.fieldRulePresets, existing);
     if (plan.gaps.length > 0) {
       return {
         ok: false,

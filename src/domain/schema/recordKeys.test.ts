@@ -92,7 +92,7 @@ describe('buildRecordKeyId', () => {
 
 describe('planRecordKeys', () => {
   it('sem chave declarada não planeja nada — a coleção de sempre segue como sempre', () => {
-    expect(planRecordKeys(undefined, { a: 1 }, 'c')).toEqual({ entries: [], gaps: [] });
+    expect(planRecordKeys(undefined, { a: 1 }, 'c')).toEqual({ entries: [], gaps: [], held: [] });
   });
 
   it('planeja uma reserva por chave, com os campos que ela cobre', () => {
@@ -123,9 +123,22 @@ describe('planRecordKeys', () => {
     expect(plan.gaps).toHaveLength(1);
   });
 
-  it('a chave pendente não vale — é o que permite ligá-la numa coleção que já tem dado', () => {
-    expect(planRecordKeys([key({ status: 'pending' })], { documento: '1' }, 'c').entries).toHaveLength(0);
-    expect(planRecordKeys([key({ status: 'active' })], { documento: '1' }, 'c').entries).toHaveLength(1);
+  it('a declaração não decide se a chave vale — `status` é ignorado, e o valor novo é sempre conferido', () => {
+    expect(planRecordKeys([key({ status: 'pending' })], { documento: '1' }, 'c').entries).toHaveLength(1);
+  });
+
+  it('num update, a chave cujo valor não mudou fica com o que já tinha — sem reserva nem lacuna', () => {
+    // É o registro antigo de uma coleção que ganhou a chave: editar outro campo dele não pode esbarrar
+    // numa duplicata de antes, que é assunto da adoção.
+    const plan = planRecordKeys([key({ sparse: false })], { documento: '', nome: 'x' }, 'c', undefined, { documento: '' });
+    expect(plan).toEqual({ entries: [], gaps: [], held: ['doc'] });
+    expect(planRecordKeys([key()], { documento: ' 1 ' }, 'c', undefined, { documento: '1' }).held).toEqual(['doc']);
+  });
+
+  it('num update, o valor que mudou é conferido como num registro novo', () => {
+    const plan = planRecordKeys([key()], { documento: '2' }, 'c', undefined, { documento: '1' });
+    expect(plan.entries.map((one) => one.keyId)).toEqual(['c|doc|2']);
+    expect(plan.held).toEqual([]);
   });
 
   it('a chave composta só reserva com todos os valores presentes', () => {
@@ -169,6 +182,12 @@ describe('diffRecordKeys', () => {
     expect(diff.create).toHaveLength(0);
     expect(diff.release).toEqual(['c|apelido|x']);
     expect(diff.refs).toEqual({ doc: 'c|doc|1' });
+  });
+
+  it('a chave mantida pelo update conserva a reserva que o registro cita, e não cria a que ele não cita', () => {
+    const before = { documento: '1', apelido: 'x' };
+    const held = planRecordKeys([key(), key({ name: 'apelido', fields: ['apelido'] })], { ...before, nome: 'n' }, 'c', undefined, before);
+    expect(diffRecordKeys(held, { doc: 'c|doc|ANTIGA' })).toEqual({ create: [], release: [], refs: { doc: 'c|doc|ANTIGA' } });
   });
 
   it('solta a reserva que o registro cita mesmo quando a declaração já mudou de forma', () => {

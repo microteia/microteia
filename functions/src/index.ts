@@ -40,6 +40,12 @@ export {
   runAggregateBackfill,
   reconcileAggregates,
 } from './infrastructure/handlers/aggregateBackfill';
+export {
+  reconcileRecordKeysOnScreenChange,
+  runRecordKeyAdoption,
+  recheckRecordKeysOnEntityChange,
+  reconcileRecordKeys,
+} from './infrastructure/handlers/recordKeyAdoption';
 export { onNoteChange } from './infrastructure/handlers/workflow/onNoteChange';
 export { onDocumentChange } from './infrastructure/handlers/workflow/onDocumentChange';
 export { getExpressionFunctions } from './infrastructure/handlers/getExpressionFunctions';

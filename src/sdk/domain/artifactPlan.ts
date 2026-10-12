@@ -79,10 +79,11 @@ export interface PlannedScreen {
   /**
    * As chaves que esta tela passa a ter, e as que ela já tinha.
    *
-   * Uma chave NOVA sobre uma coleção que já tem registros não vale no dia em que é instalada: ela
-   * nasce `pending`, alguém varre o que está gravado, e só então passa a valer. Está no plano porque
-   * é o único jeito de quem lê saber que aquela varredura existe — uma chave que "já vale" e encontra
-   * duas duplicatas antigas travaria a gravação seguinte por um motivo que ninguém mostrou.
+   * Uma chave NOVA sobre uma coleção que já tem registros não vale sobre eles no dia em que é
+   * instalada: o valor novo repetido é recusado desde o primeiro instante, mas os registros antigos
+   * são adotados por uma varredura do kernel, e uma duplicata antiga deixa a chave pendente até alguém
+   * resolvê-la. Está no plano porque é o único jeito de quem lê saber, antes de instalar, que a
+   * chave pode não valer de imediato.
    */
   keys: PlannedScreenKey[];
   /** Campos que existem lá e que este modelo não descreve. O plano NUNCA os remove. */
@@ -97,9 +98,9 @@ export interface PlannedScreenKey {
   kind: RecordKeyKind;
   fields: string[];
   /**
-   * A chave nova sobre uma coleção que PODE ter registros nasce pendente. O plano não vê registro
+   * A chave nova sobre uma coleção que PODE ter registros passa pela adoção. O plano não vê registro
    * nenhum — então ele não afirma que a coleção está vazia: ele diz que a varredura é parte de
-   * instalar a chave.
+   * instalar a chave, e que ela pode terminar com duplicatas para alguém resolver.
    */
   adoption: 'immediate' | 'sweep-existing-records';
 }

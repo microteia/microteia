@@ -10,6 +10,7 @@ import type { SchemaLookup, SchemaTagList } from '../../domain/schema/screenEnti
 import { resolveEntityKeys } from '../../domain/schema/screenEntity';
 import type { RecordKeyPlan, RecordKeySpec } from '../../domain/schema/recordKeys';
 import { planRecordKeys } from '../../domain/schema/recordKeys';
+import { declaredRecordKeySignatures } from '../../domain/schema/recordKeyAdoption';
 import type { FieldRulePreset } from '../../domain/schema/fieldRulePresets';
 import { applyDerivedFields, collectFieldLogicTargets, formatAndValidateRecord } from '../../domain/schema/recordRules';
 
@@ -184,7 +185,8 @@ export const makeRecordDeriver = (table: string): (<T extends object>(record: T)
  * As reservas de chave que uma gravação precisa fazer, sobre o registro COMPLETO — o payload
  * mesclado com o que já estava gravado. A mescla não é detalhe: um update que toca um campo só de
  * uma chave composta continua sendo a mesma chave, e planejar sobre o payload parcial reservaria uma
- * chave com metade dos valores vazios.
+ * chave com metade dos valores vazios. O `baseline` é também o "antes": a chave que o update não
+ * muda fica com a reserva que tinha — ou, num registro antigo, com a varredura de adoção.
  */
 export const planRecordKeysFor = (
   table: string,
@@ -192,10 +194,22 @@ export const planRecordKeysFor = (
   baseline?: object,
 ): RecordKeyPlan => {
   const keys = resolveEntityKeys(schemaContext, table);
-  if (keys.length === 0) return { entries: [], gaps: [] };
-  const merged = { ...(baseline as Record<string, unknown> | undefined), ...(data as Record<string, unknown>) };
-  return planRecordKeys(keys, merged, table, schemaContext.fieldRulePresets);
+  if (keys.length === 0) return { entries: [], gaps: [], held: [] };
+  const previous = baseline as Record<string, unknown> | undefined;
+  const merged = { ...previous, ...(data as Record<string, unknown>) };
+  return planRecordKeys(keys, merged, table, schemaContext.fieldRulePresets, previous);
 };
+
+/**
+ * Nome → assinatura das chaves da coleção, sobre o MESMO catálogo de formatações da gravação — com
+ * as das extensões. É o que a listagem compara com o job de adoção; um catálogo sem elas daria a uma
+ * chave `cpf` uma assinatura que o servidor nunca adotaria.
+ */
+export const recordKeySignaturesFor = (table: string): Record<string, string> =>
+  declaredRecordKeySignatures(resolveEntityKeys(schemaContext, table), schemaContext.fieldRulePresets);
+
+/** As chaves declaradas da coleção, como a gravação as vê. */
+export const recordKeysFor = (table: string): RecordKeySpec[] => resolveEntityKeys(schemaContext, table);
 
 /** A coleção declara alguma chave? É o que decide se a gravação precisa virar lote. */
 export const tableHasRecordKeys = (table: string): boolean =>

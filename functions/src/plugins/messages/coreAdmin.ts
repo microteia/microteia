@@ -162,6 +162,11 @@ export const CORE_ADMIN_MESSAGES: Record<string, string> = {
   'audit.aggregate-backfill.title': 'Calculated fields filled in',
   'audit.aggregate-backfill.text':
     'The calculated fields of **{screen}** were filled in for the records that already existed: {processed} checked, {written} updated, {failed} could not be updated, {truncated} over the limit of related items.',
+  'audit.record-key-adoption.title': 'Unique keys checked',
+  'audit.record-key-adoption.active.text':
+    'The keys **{keys}** of **{screen}** are now enforced on every record: {processed} checked, {reserved} reserved.',
+  'audit.record-key-adoption.pending.text':
+    'The keys **{keys}** of **{screen}** are not enforced yet: {issues} records that already existed repeat a value or have none, and {failed} could not be checked. They start being enforced as soon as these records are corrected.',
   'audit.text.create': '**{user}** created {entity} **{name}**.{blocks}',
   'audit.text.delete': '**{user}** deleted {entity} **{name}**.{blocks}',
   'audit.text.failed': 'Could not process the audit for `{path}`.\n\n```\n{detail}\n```',

@@ -54,6 +54,7 @@ Os metadados de entidades são **compartilhados** entre frontend e Cloud Functio
 | `domain/schema/materialize.ts` | Materializer puro: aplica cada `MaterializationMode` (`denormKey` para FKs fixas, `replaceValue` para references de campos customizados) sobre o payload. |
 | `domain/entities/entitySchemas.ts` | Tipos (`FieldDefinition`, `ScreenDefinition`, `CustomFieldType`…) e derivações do registry (`ENTITY_FK_SCHEMA`, `CUSTOM_FIELD_ENABLED_ENTITIES`, `BUILTIN_REF_ENTITIES`, `resolveRefEntityCollection`). |
 | `domain/schema/recordKeys.ts` | Chave primária e chave única de registro: `RecordKeySpec`, a normalização, `buildRecordKeyId` (o id da reserva — ponto único, e as três pontas precisam concordar sobre ele), o planejamento (`planRecordKeys`, `diffRecordKeys`) e a validação de autoria. Ver "Chave primária e chave única". |
+| `domain/schema/recordKeyAdoption.ts` | A adoção de chave sobre os registros que já existiam: assinatura da chave, estado do job, plano. Ver "Adoção sobre dados que já existem". |
 | `domain/schema/settings.ts` | Contrato de configuração (`SettingsSection`, `SettingsProperty`, `resolveSetting`). Compartilhado porque o backend precisa saber em que idioma falar — ver "Idioma". |
 | `domain/schema/i18n/*` | O motor de idioma inteiro: negociação, catálogo de mensagens, referência `@`, formatação por `Intl` e o gate do idioma ambiente. Ver "Idioma — tradução como contribuição". |
 
@@ -109,6 +110,7 @@ npm run verify          # typecheck + lint + verify-schemas
 | `Script` (código reutilizável do Step "Script") | `tenants/{tenantId}/scripts/{id}` | Sim |
 | `BackendResidue` (o que o provisionamento deixou no projeto) | `backend_state/current` | Não |
 | Reserva de chave (unicidade de registro) | `tenants/{tenantId}/recordKeys/{keyId}` — o `keyId` deriva do valor, e criá-lo É a trava | Sim |
+| Adoção de chave (registros antigos) | `tenants/{tenantId}/record_key_adoptions/{coleção}` — só o servidor grava | Sim |
 
 **A tabela é curta de propósito, e ficou curta por conquista.** Ela já listava `persons`, `cases`,
 `contracts`, `financials`, `deadlines`, `pushes`, as etiquetas e as dezenas de listas de opções de cada
@@ -749,6 +751,7 @@ regra que tem uma decisão a defender:
 | `agentGrants.test.ts` | a leitura assimétrica do acesso de agente e a escrita fechada para todo cliente — quem escolhe o hash escolhe o token |
 | `extensionHistory.test.ts` | a subcoleção `versions/{revision}`, que o curinga de registros não alcança, e o `delete` permitido que separa excluir de desinstalar |
 | `recordKeys.test.ts` | a unicidade: `create` liberado e `update` negado é o que faz duas gravações no mesmo instante não passarem as duas |
+| `recordKeyAdoptions.test.ts` | o job da adoção lido por todo membro e escrito por ninguém do cliente — quem escrevesse `adopted` daria por única uma chave com duplicatas embaixo |
 | `reports.test.ts` | definição lida por todo membro, escrita por quem gerencia — e o acesso ao DADO que a regra deliberadamente não decide |
 | `backendState.test.ts` | o cliente lê e nunca escreve: escrita liberada deixaria forjar a lista de órfãs do provisionamento |
 
@@ -9972,7 +9975,7 @@ varredura de adoção conseguem ler sem que cada um remonte a verdade a partir d
 | `scope` | `tenant` (padrão) ou `parent` — o item nº 1 de CADA pedido; exige `parentFieldKey` |
 | `normalize` | `trim` (padrão ligado), `caseInsensitive`, `formatPreset` (`digits` iguala `123.456` e `123456`) |
 | `sparse` | padrão ligado: sem valor não reserva nada, e quarenta cadastros de CPF vazio não colidem no vazio |
-| `status` | `pending` até alguém varrer o que já está gravado — ver "Adoção" |
+| `status` | **ignorado** (mantido no tipo por compatibilidade). Se a chave vale sobre os registros antigos é estado da adoção, não declaração — ver "Adoção" |
 
 `normalize` é deliberadamente pequeno: cada opção é uma forma de dois valores contarem como o mesmo, e
 cada uma precisa ser reproduzível **identicamente** no front, no backend e na varredura. Uma expressão
@@ -10029,6 +10032,13 @@ O planejamento é sempre sobre o registro **completo** — payload mesclado com 
 update parcial de chave composta continua sendo a mesma chave, e planejar sobre o payload sozinho
 reservaria metade dos valores vazios.
 
+**A chave que o update não muda fica como estava** (`RecordKeyPlan.held`). `planRecordKeys` recebe o
+registro de antes; a chave cujo valor normalizado é o mesmo não é reservada nem cobra lacuna — o
+registro conserva a reserva que cita, ou continua sem nenhuma. Só o registro NOVO e o valor que MUDOU
+são conferidos. É o que permite declarar uma chave numa coleção com duplicatas antigas sem travar a
+edição de um campo qualquer delas: o registro antigo é assunto da adoção, nunca da gravação seguinte.
+Numa coleção já adotada a regra não muda nada — todo registro com valor já cita a reserva certa.
+
 ### O limite, dito com todas as letras
 
 O `firestore.rules` é **estático**; as chaves são **dado de runtime**. Uma regra genérica não computa um
@@ -10043,14 +10053,105 @@ dela promete.
 
 ### Adoção sobre dados que já existem
 
-Chave que não pode ser ligada numa coleção com dado é chave que ninguém liga. Por isso o `status`:
+Chave que não pode ser ligada numa coleção com dado é chave que ninguém liga. E a gravação só reserva o
+valor que ela própria escreve: sem uma varredura, a chave "valeria" com as duplicatas de antes
+escondidas embaixo dela. A saída antiga — a extensão declarar a varredura em `package.migrations` —
+não cabia: o sandbox da migração tem teto de gravações por execução, e uma coleção de verdade passa dele
+na primeira página. Agora é o kernel que adota, no mesmo molde do recálculo de agregados.
 
-`pending` → varredura que reserva o que já existe e **devolve os conflitos** → `active`.
+**A identidade é a declaração, por chave.** `recordKeySignature` (`domain/schema/recordKeyAdoption.ts`,
+compartilhado) é o JSON de `fields`, `scope`, a normalização efetiva e `sparse` efetivo — só o que muda
+QUAL reserva um registro recebe, ou se ele recebe uma. A formatação entra pelo **conteúdo** do preset, e
+não só pelo nome: a extensão que muda o que `digits` faz muda todas as reservas feitas com ele, e é a
+mesma varredura que as refaz. Mudar a mensagem, ou trocar `unique` + `sparse: false` por `primary`, não
+varre nada.
 
-Numa extensão isso é uma entrada em `package.migrations` (roda uma vez por escritório, no sandbox, sem
-escrever nome de coleção à mão). No Form Design, a tela mostra as duplicatas encontradas e não ativa em
-silêncio. `generate_artifact_plan` marca quais chaves precisam da varredura: uma chave que "já vale" e
-encontra duas duplicatas antigas trava a gravação seguinte por um motivo que ninguém mostrou.
+**Pendente é estado, não declaração.** Um documento por **coleção** em
+`tenants/{id}/record_key_adoptions/{coleção}` — por coleção e não por tela, porque a reserva é da
+coleção (o `keyId` começa por ela) — guarda `pending` (nome → assinatura em adoção), `adopted` (o que
+já vale sobre todo registro), a lista de conflitos e o andamento. A chave declarada que não está em
+`adopted` com a assinatura de hoje está pendente. `RecordKeySpec.status` ficou no tipo, ignorado: o
+autor não tem como afirmar que os registros de um escritório que ele não vê não se repetem.
+
+**O que "pendente" significa na gravação.** Nada de especial — e é de propósito. A regra de
+`RecordKeyPlan.held` (ver "Os caminhos de escrita") vale sempre: o valor novo repetido é recusado desde
+o primeiro instante, e o registro antigo nunca trava por causa da chave. Por isso a gravação não precisa
+ler o job, e o formulário e o `upsert` não ganharam leitura nenhuma. A antiga semântica — pendente não
+reserva nada — deixava a duplicata NOVA entrar enquanto a antiga era resolvida.
+
+| Peça | Papel |
+|---|---|
+| `planRecordKeyAdoption` (compartilhado, puro) | declarado × job → `start`, `resume`, `nudge`, `settle` ou `none` |
+| `reconcileRecordKeysOnScreenChange` | **porta automática**: toda gravação em `screenDefinitions` confere todas as coleções |
+| `reconcileRecordKeys` (callable) | a conferência pedida pela listagem — o escritório que já tinha chaves antes desta versão |
+| `runRecordKeyAdoption` | uma rodada por gravação no job; o fechamento da rodada dispara a seguinte |
+| `recheckRecordKeysOnEntityChange` | o registro listado como conflito mudou: pede a reconferência |
+| `decideRecordKeyAdoption` (puro) | o que fazer com UM registro, dado o que a transação leu |
+| `useRecordKeyAdoptionNotice` | assina o job na listagem, para quem tem `screens.manage`, e chama a callable |
+
+**A passada.** Mesmo molde de `aggregate_backfills`: reserva da rodada em transação (`leaseUntil`),
+página de 200 registros por id de documento (sem índice composto), concorrência 8, cursor, `generation`,
+até 3 passadas quando um registro falha, `nudge` da passada parada há mais de 10 min. Duas diferenças:
+
+- **A maioria dos registros não abre transação.** Quem já cita, para cada chave, exatamente a reserva que
+  o valor pede (ou nenhuma, sem valor) passa só com a leitura da página — é o caso do escritório que já
+  tinha chaves antes desta versão, e da maioria dos registros quando só a normalização de uma chave mudou.
+- **A transação é por registro.** Relê o registro, planeja sobre o que leu, lê as reservas citadas e,
+  para a reserva ocupada por outro, o DONO dela. Grava reservas e `keyRefs` (por `FieldPath`, para que um
+  nome de chave com ponto não vire aninhamento) — nenhum outro campo, e não `updatedAt`. Dois registros
+  com o mesmo valor na mesma página se encontram na reserva, como dois formulários.
+
+**O dono só conta se existe e ainda cita a reserva.** Uma reserva que ninguém cita é resto de uma
+gravação interrompida; prendê-la faria de um acidente uma duplicata que ninguém consegue resolver — a
+adoção a toma. O registro em conflito sob uma normalização nova **conserva a reserva antiga**: ela
+continua impedindo o valor de antes enquanto alguém decide.
+
+**A gravação não é fato de negócio, e não precisa de marca.** `isRecordKeyBookkeepingWrite` reconhece a
+gravação que só mexe em `keyRefs` — nenhum caminho de negócio grava `keyRefs` sozinho, o formulário e a
+automação o gravam junto com o valor que o justifica. Ela não publica `.saved`, não audita e não recalcula
+agregado. Diferente do recálculo de agregados (`updatedVia: 'aggregate-backfill'`), não há marca a
+proteger nas regras: a diferença é estrutural, e um cliente que gravasse só `keyRefs` não esconderia
+dado de negócio nenhum.
+
+**Duplicata é com a pessoa, e o gesto é corrigir o registro.** Sem conflito, a chave passa a valer
+sozinha ao fim da passada. Com conflito (`duplicate`: o valor já é de outro registro vivo; `missing`: a
+chave obrigatória sem valor), ela fica pendente: o job lista até 50 (`RECORD_KEY_ADOPTION_MAX_LISTED`) com
+o registro, o dono e os valores, conta todos, e a auditoria ganha uma linha `SYSTEM`. Não existe botão
+"tentar de novo":
+
+- `recheckRecordKeysOnEntityChange` filtra pelo próprio evento — só a gravação de um registro sem a
+  reserva que o valor pede (o duplicado, inclusive apagado) ou com reserva trocando de mãos (o dono que
+  mudou de valor ou saiu) chega a ler o job. Numa coleção adotada, só a troca de valor de chave lê.
+- Se o registro está na lista (como duplicado ou como dono), o job ganha `recheck`, e a rodada seguinte
+  reconfere **só os listados** — dezenas de transações, não a coleção.
+- Resolvidos todos e não havendo mais que a lista, a chave passa a valer; havendo, uma passada nova
+  acha os seguintes.
+- O pedido vale no meio da passada (o conflito da primeira página resolvido antes da última), e a
+  reconferência o consome ao ser reservada — um registro que muda durante ela pede outra, em vez de se
+  perder numa leitura feita antes.
+
+**O aviso é de quem resolve.** A listagem mostra a quem tem `screens.manage`: a passada em curso, a
+formatação que falta (`blocked` — a gravação da tela que a traz retoma), os valores que se repetem e os
+registros sem valor. Quem só usa a tela não vê nada: o valor novo repetido já é recusado com a mensagem
+de sempre.
+
+**O limite.** Um cliente com a declaração antiga em memória por um instante pode gravar sem reservar; um
+registro novo cujo id cai antes do cursor da passada não é visto por ela. É a mesma janela que qualquer
+chave declarada sempre teve, e a reconferência não a fecha. Uma assinatura nova (mudar a declaração)
+varre de novo e a fecha.
+
+**Kernel `2.29.0`** (`RECORD_KEY_ADOPTION_SINCE_KERNEL`, citado no AUTHORING §8). Num kernel anterior a
+chave vale desde a declaração, sem olhar o que já está gravado.
+
+| Arquivo | Papel |
+|---|---|
+| `domain/schema/recordKeyAdoption.ts` | assinatura, plano, estado do job, constantes (compartilhado) |
+| `domain/schema/recordKeys.ts` | `planRecordKeys` com o registro de antes (`held`) |
+| `functions/src/domain/services/recordKeyAdoption.ts` | decisão por registro, transições do job, rodada, reconferência, `isRecordKeyBookkeepingWrite` |
+| `functions/src/data/repositories/FirebaseRecordKeyAdoptionRepository.ts` | job em transação, página de registros, transação de adoção |
+| `functions/src/infrastructure/handlers/recordKeyAdoption.ts` | as quatro functions |
+| `domain/services/recordKeyAdoptionNotice.ts` | quais avisos a listagem mostra |
+| `rules-tests/recordKeyAdoptions.test.ts` | a coleção, contra o emulador |
 
 ### O que a chave destrava
 

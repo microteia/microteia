@@ -34,6 +34,7 @@ import type { IExtensionHistoryRepository } from '../../domain/repositories/IExt
 import type { IPublicExtensionRepository } from '../../domain/repositories/IPublicExtensionRepository';
 import type { IExtensionReputationRepository } from '../../domain/repositories/IExtensionReputationRepository';
 import type { IAggregateBackfillRepository } from '../../domain/repositories/IAggregateBackfillRepository';
+import type { IRecordKeyAdoptionRepository } from '../../domain/repositories/IRecordKeyAdoptionRepository';
 import type { IBackendResidueRepository } from '../../domain/repositories/IBackendResidueRepository';
 import type { IAgentAuthRequestRepository } from '../../domain/repositories/IAgentAuthRequestRepository';
 import type { IAgentGrantRepository } from '../../domain/repositories/IAgentGrantRepository';
@@ -81,6 +82,7 @@ export interface DIContainer {
   extensionReputationRepository: IExtensionReputationRepository;
   backendResidueRepository: IBackendResidueRepository;
   aggregateBackfillRepository: IAggregateBackfillRepository;
+  recordKeyAdoptionRepository: IRecordKeyAdoptionRepository;
 }
 
 export const DIContext = createContext<DIContainer | null>(null);

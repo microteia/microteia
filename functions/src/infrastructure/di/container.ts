@@ -79,6 +79,8 @@ import type { AggregateBackfillDeps } from '../../domain/services/aggregateBackf
 import { FirebaseAggregateBackfillRepository } from '../../data/repositories/FirebaseAggregateBackfillRepository';
 import type { SchemaContext } from '../../domain/schema/pathResolver';
 import { AGGREGATE_ENGINE_ACTOR } from '../../domain/schema/aggregateBackfill';
+import type { RecordKeyAdoptionDeps } from '../../domain/services/recordKeyAdoption';
+import { FirebaseRecordKeyAdoptionRepository } from '../../data/repositories/FirebaseRecordKeyAdoptionRepository';
 import { tenantTimeZone } from '../settings/tenantTimeZone';
 
 class DIContainer {
@@ -117,6 +119,7 @@ class DIContainer {
   private screenDefinitionCache?: ScreenDefinitionCache;
   private aggregateRecomputeDeps?: AggregateRecomputeDeps;
   private aggregateBackfillDeps?: AggregateBackfillDeps;
+  private recordKeyAdoptionDeps?: RecordKeyAdoptionDeps;
   private workflowContextHydrator?: WorkflowContextHydrator;
   private workflowStepsRegistered = false;
   private extensionStatsRepo?: IExtensionStatsRepository;
@@ -438,6 +441,52 @@ class DIContainer {
       };
     }
     return this.aggregateBackfillDeps;
+  }
+
+  getRecordKeyAdoptionDeps(): RecordKeyAdoptionDeps {
+    if (!this.recordKeyAdoptionDeps) {
+      this.recordKeyAdoptionDeps = {
+        adoptionRepository: new FirebaseRecordKeyAdoptionRepository(getDb()),
+        freshSchemaContext: (tenantId: string) => this.getFreshSchemaContext(tenantId),
+        now: () => Date.now(),
+        logger: { warn: (message: string) => console.warn(`[record-key-adoption] ${message}`) },
+        recordPassFinished: async (tenantId, collection, state) => {
+          const adopting = Object.keys(state.pending);
+          // A passada que só confirmou o que já estava reservado não tem o que registrar — é o caso
+          // da primeira conferência depois de uma atualização, sobre chaves que já valiam.
+          if (adopting.length === 0 && state.reserved === 0) return;
+          const keys = (adopting.length > 0 ? adopting : Object.keys(state.adopted)).join(', ');
+          try {
+            await this.getCreateAuditLogUseCase().execute({
+              tenantId,
+              title: '@core.admin/audit.record-key-adoption.title',
+              userId: 'system',
+              userName: 'record-key-adoption',
+              photoURL: '',
+              action: 'SYSTEM',
+              severity: adopting.length > 0 ? 'HIGH' : 'LOW',
+              type: 'AUDIT',
+              entity: collection,
+              entityId: collection,
+              text: adopting.length > 0
+                ? '@core.admin/audit.record-key-adoption.pending.text'
+                : '@core.admin/audit.record-key-adoption.active.text',
+              textParams: {
+                screen: collection,
+                keys,
+                processed: String(state.processed),
+                reserved: String(state.reserved),
+                issues: String(state.issueCount),
+                failed: String(state.failed),
+              },
+            });
+          } catch (error) {
+            console.error(`[record-key-adoption] Falha ao registrar a auditoria de ${tenantId}/${collection}:`, error);
+          }
+        },
+      };
+    }
+    return this.recordKeyAdoptionDeps;
   }
 
   getWorkflowContextHydrator(): WorkflowContextHydrator {

@@ -14,6 +14,7 @@ import {
 } from '../../../domain/schema/report/reportSpec';
 import { AGGREGATION_OP_SINCE_KERNEL } from '../../../domain/schema/aggregationSpec';
 import { AGGREGATE_BACKFILL_SINCE_KERNEL, AGGREGATION_MAX_CHILDREN } from '../../../domain/schema/aggregateBackfill';
+import { RECORD_KEY_ADOPTION_SINCE_KERNEL } from '../../../domain/schema/recordKeyAdoption';
 import { AGGREGATION_OP_LABELS, NUMERIC_AGGREGATION_OPS } from '../../../domain/schema/fieldRules';
 import type { WidgetNodeType } from '../../../domain/schema/ui/widgetSpec';
 import { STEP_TYPES } from '../../../domain/entities/Workflow';
@@ -1221,10 +1222,30 @@ no window between checking and writing, and it needs no composite index.
 — the CPF was typed wrong — and moving a document would break every reference pointing at it. A key
 is an index, not an address.
 
-**On a collection that already has records**, a new key does not hold the day you install it: it is
-born \`status: 'pending'\`, somebody sweeps what is stored, and it starts holding once nothing is
-duplicated. Declare the sweep as a migration when your package adds a key to a screen it already
-shipped — see §"Changing the shape of data you already wrote".
+**On a collection that already has records**, you write nothing beyond the declaration. A key that
+is new — or whose \`fields\`, \`normalize\`, \`scope\` or \`sparse\` changed, or whose \`formatPreset\`
+now formats differently — is ADOPTED by the platform, whoever declared it: your package on install or
+update, the office in the Form Design. Do not write a migration for it.
+
+- From the first instant, a value written by the form or by an \`upsert\` is checked against the key:
+  a new record, or a record whose key value changes, is refused if the value is taken.
+- Editing any other field of a record that already existed never trips over the key. Its value is
+  the sweep's business, not the next save's.
+- The sweep runs on the server, in batches, and only writes the reservations and the record's
+  \`keyRefs\`. No other field, and not \`updatedAt\`. These writes are not business events: no
+  \`<collection>.saved\`, no audit line per record.
+- When nothing is duplicated, the key starts holding on every record by itself. Until then it is
+  **pending**.
+- When old records repeat a value — or lack it, on a \`primary\` or \`sparse: false\` key — the key
+  stays pending. Whoever manages screens sees the repeated values on the screen's list, and the
+  office's audit log gets one line. Correcting or deleting the records is the whole gesture: each
+  such write rechecks the list, and the key starts holding as soon as nothing repeats.
+- A \`formatPreset\` that is not installed holds the sweep until it is.
+
+\`status\` on a key is ignored: whether a key holds is the platform's to say, not the declaration's.
+This needs kernel ${RECORD_KEY_ADOPTION_SINCE_KERNEL} or later. On an earlier kernel the key holds from
+the moment it is declared without looking at what is stored: an old duplicate is never reported, and
+saving that record is refused for a reason nobody showed.
 
 **Where the line is.** The reservation is what makes a duplicate impossible through every honest
 path: the form, an automation's \`upsert\`, an import, a migration. What the security rules cannot

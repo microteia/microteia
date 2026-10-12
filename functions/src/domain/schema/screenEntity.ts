@@ -19,6 +19,7 @@ import type { RecordKeySpec } from './recordKeys';
 import { RECORD_KEYS_COLLECTION } from './recordKeys';
 import { AGENT_GRANTS_COLLECTION } from './agent/agentGrant';
 import { AGGREGATE_BACKFILL_COLLECTION } from './aggregateBackfill';
+import { RECORD_KEY_ADOPTION_COLLECTION } from './recordKeyAdoption';
 
 import type { AuditAction } from '../entities/AuditLog';
 import type { LocalizedMessage } from './i18n/localizedMessage';
@@ -505,6 +506,7 @@ export const RESERVED_COLLECTIONS: ReadonlySet<string> = new Set<string>([
   'extension_migrations',
   'extension_history',
   AGGREGATE_BACKFILL_COLLECTION,
+  RECORD_KEY_ADOPTION_COLLECTION,
   'notes',
   'documents',
   'tags',

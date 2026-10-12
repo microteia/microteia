@@ -5,6 +5,7 @@ import { computeChangedFields, normalizeAllFields, buildAuditText, resolveSeveri
 import { logAuditError } from './shared/logAuditError';
 import type { AuditAction } from '../../domain/entities/AuditLog';
 import { isAggregateBackfillWriteFresh } from '../../domain/services/aggregateBackfill';
+import { isRecordKeyBookkeepingWrite } from '../../domain/services/recordKeyAdoption';
 
 /**
  * Escuta qualquer escrita em `tenants/{tenantId}/{collection}/{docId}` e gera um AuditLog para as duas
@@ -39,7 +40,9 @@ export const auditFlatEntityChange = onDocumentWritten(
       const referenceData = action === 'DELETE' ? beforeData : afterData;
 
       if (action === 'UPDATE') {
-        // O recálculo é registrado no job dele, não em uma linha de auditoria por registro.
+        // A adoção de chave e o recálculo são registrados no job de cada um, não em uma linha de
+        // auditoria por registro.
+        if (isRecordKeyBookkeepingWrite(beforeData, afterData)) return;
         const di = getDI();
         const fromBackfill = await isAggregateBackfillWriteFresh(
           tenantId,

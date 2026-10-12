@@ -157,6 +157,11 @@ export const CORE_ADMIN: Record<string, string> = {
   'audit.aggregate-backfill.title': 'Campos calculados preenchidos',
   'audit.aggregate-backfill.text':
     'Os campos calculados de **{screen}** foram preenchidos nos registros que já existiam: {processed} conferidos, {written} atualizados, {failed} não puderam ser atualizados, {truncated} acima do limite de itens relacionados.',
+  'audit.record-key-adoption.title': 'Chaves únicas conferidas',
+  'audit.record-key-adoption.active.text':
+    'As chaves **{keys}** de **{screen}** passaram a valer em todos os registros: {processed} conferidos, {reserved} reservados.',
+  'audit.record-key-adoption.pending.text':
+    'As chaves **{keys}** de **{screen}** ainda não valem: {issues} registros que já existiam repetem um valor ou não têm nenhum, e {failed} não puderam ser conferidos. Elas passam a valer assim que esses registros forem corrigidos.',
   'audit.text.create': '**{user}** criou {entity} **{name}**.{blocks}',
   'audit.text.delete': '**{user}** excluiu {entity} **{name}**.{blocks}',
   'audit.text.failed': 'Falha ao processar auditoria para `{path}`.\n\n```\n{detail}\n```',

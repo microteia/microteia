@@ -51,8 +51,14 @@ export const DynamicRecordListView: React.FC<{ tabKey: string }> = ({ tabKey }) 
       vm={vm}
       definition={definition}
       variant="page"
-      summary={vm.backfillNotice
-        ? <InfoBanner variant={vm.backfillNotice.variant} message={vm.backfillNotice.message} />
+      summary={vm.notices.length > 0
+        ? (
+          <S.Notices>
+            {vm.notices.map((notice) => (
+              <InfoBanner key={notice.message} variant={notice.variant} message={notice.message} />
+            ))}
+          </S.Notices>
+        )
         : undefined}
     />
   );

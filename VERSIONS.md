@@ -11,6 +11,13 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.87.0] — 2026-10-12
+
+- Ao marcar um campo como único — ou declarar uma combinação de campos que não pode se repetir — numa tela que já tem registros, o sistema passa a conferir sozinho os registros antigos. Se nenhum se repete, a regra passa a valer para todos, sem que ninguém precise fazer nada.
+- Se algum registro antigo repete um valor, quem administra as telas vê na lista quais valores estão repetidos. Basta corrigir ou excluir os registros repetidos: a regra passa a valer assim que nada mais se repete, e a Auditoria registra o resultado.
+- Enquanto isso, um valor repetido digitado num registro novo — ou alterado num antigo — já é recusado, e editar qualquer outro campo de um registro antigo continua funcionando normalmente.
+- A mesma conferência acontece quando a forma de comparar os valores muda, por exemplo ao passar a ignorar maiúsculas e minúsculas num e-mail.
+
 #### [9.86.0] — 2026-10-12
 
 - Um campo calculado a partir de outros registros — o total dos itens de um pedido, a data do último contato — passa a ser preenchido também nos registros que já existiam quando ele foi criado ou alterado. Antes, ele ficava vazio nesses registros até que algum item deles mudasse.

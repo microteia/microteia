@@ -282,6 +282,16 @@ export const CORE_RECORDS_MESSAGES: Record<string, string> = {
     'Calculated fields could not be filled in for some records that already existed ({count}). Their values may be out of date.',
   'aggregate.backfill.truncated':
     'Some records ({count}) have more than {max} related items. Their calculated fields consider only {max} of them and may be incomplete.',
+  'key.adoption.running':
+    'The key "{keys}" is being checked against the records that already existed ({count} checked so far). Repeated values entered from now on are already refused.',
+  'key.adoption.blocked':
+    'The key "{key}" compares values using the format "{preset}", which is not available in this organization. It will be checked once that format is available or the key changes.',
+  'key.adoption.duplicates':
+    'The key "{key}" is not enforced yet: records that already existed repeat these values — {values}. Change or delete the repeated records and it starts being enforced by itself. Repeated values entered from now on are already refused.',
+  'key.adoption.missing':
+    'The key "{key}" is not enforced yet: {count} records that already existed have no value for it. Fill them in and it starts being enforced by itself.',
+  'key.adoption.failed':
+    'The key "{keys}" could not be checked on {count} records that already existed. It will be tried again the next time the screen changes.',
   'aggregation.avg': 'Average',
   'aggregation.sum': 'Sum',
   'aggregation.count': 'Count',

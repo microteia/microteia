@@ -25,6 +25,12 @@ export const S = {
     color: ${({ theme }) => theme.colors.text};
   `,
 
+  Notices: styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: ${({ theme }) => theme.spacing.sm};
+  `,
+
   BannerWrapper: styled.div`
     padding: ${({ theme }) => theme.spacing.lg} ${({ theme }) => theme.spacing.xl};
   `,

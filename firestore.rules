@@ -275,6 +275,15 @@ service cloud.firestore {
         allow write: if false;
       }
 
+      // A adoção das chaves sobre os registros que já existiam (um documento por coleção). Todo
+      // membro lê — a listagem tira dele o aviso, e o que ele expõe (nomes de chave, ids, os valores
+      // repetidos) quem lê a coleção já vê. Ninguém grava do cliente: quem escrevesse `adopted` daria
+      // por única uma chave com duplicatas embaixo dela.
+      match /record_key_adoptions/{collection} {
+        allow read: if isMember(tenantId);
+        allow write: if false;
+      }
+
       // Histórico de VERSÕES APLICADAS das extensões: o que este escritório já pôs no ar de cada uma,
       // e o que ele pode reaplicar. Todo membro lê, como em `installed_extensions` — o pacote guardado
       // aqui é o mesmo que já está exposto lá, então não há exposição nova; só admin grava, porque
@@ -380,7 +389,7 @@ service cloud.firestore {
         // `installed_extensions`. Continua RESERVADA porque os documentos de então continuam nos
         // escritórios, e liberar o nome deixaria uma tela nova nascer por cima deles.
         'tagDefinitions', 'plugin_installations',
-        'recordKeys',
+        'recordKeys', 'record_key_adoptions',
         'screenDefinitions', 'scripts', 'secrets', 'settings', 'tags', 'tenant', 'workflow_definitions',
         'workflow_events', 'workflow_executions'
         ];
