@@ -75,6 +75,10 @@ import { FirestoreWorkflowMutationRepository } from '../../data/services/Firesto
 import { FirebaseScriptRepository } from '../../data/repositories/FirebaseScriptRepository';
 import { ScreenDefinitionCache } from '../../data/services/ScreenDefinitionCache';
 import type { AggregateRecomputeDeps } from '../../domain/services/recomputeAggregates';
+import type { AggregateBackfillDeps } from '../../domain/services/aggregateBackfill';
+import { FirebaseAggregateBackfillRepository } from '../../data/repositories/FirebaseAggregateBackfillRepository';
+import type { SchemaContext } from '../../domain/schema/pathResolver';
+import { AGGREGATE_ENGINE_ACTOR } from '../../domain/schema/aggregateBackfill';
 import { tenantTimeZone } from '../settings/tenantTimeZone';
 
 class DIContainer {
@@ -112,6 +116,7 @@ class DIContainer {
   private runCalledWorkflowUC?: RunCalledWorkflowUseCase;
   private screenDefinitionCache?: ScreenDefinitionCache;
   private aggregateRecomputeDeps?: AggregateRecomputeDeps;
+  private aggregateBackfillDeps?: AggregateBackfillDeps;
   private workflowContextHydrator?: WorkflowContextHydrator;
   private workflowStepsRegistered = false;
   private extensionStatsRepo?: IExtensionStatsRepository;
@@ -385,6 +390,54 @@ class DIContainer {
       };
     }
     return this.aggregateRecomputeDeps;
+  }
+
+  /** A declaração relida do banco: o recálculo não pode agir sobre a tela de antes do cache vencer. */
+  getFreshSchemaContext(tenantId: string): Promise<SchemaContext> {
+    const cache = this.getScreenDefinitionCache();
+    cache.invalidate(tenantId);
+    return cache.getSchemaContext(tenantId);
+  }
+
+  getAggregateBackfillDeps(): AggregateBackfillDeps {
+    if (!this.aggregateBackfillDeps) {
+      this.aggregateBackfillDeps = {
+        ...this.getAggregateRecomputeDeps(),
+        backfillRepository: new FirebaseAggregateBackfillRepository(getDb()),
+        freshSchemaContext: (tenantId: string) => this.getFreshSchemaContext(tenantId),
+        now: () => Date.now(),
+        recordPassFinished: async (tenantId, table, state) => {
+          // A passada que não mudou nenhum registro não tem o que registrar — é o caso comum da
+          // primeira conferência depois de uma atualização, sobre telas que já estavam certas.
+          if (state.written === 0 && state.failed === 0 && state.truncated === 0) return;
+          try {
+            await this.getCreateAuditLogUseCase().execute({
+              tenantId,
+              title: '@core.admin/audit.aggregate-backfill.title',
+              userId: 'system',
+              userName: AGGREGATE_ENGINE_ACTOR,
+              photoURL: '',
+              action: 'SYSTEM',
+              severity: state.failed > 0 ? 'HIGH' : 'LOW',
+              type: 'AUDIT',
+              entity: table,
+              entityId: table,
+              text: '@core.admin/audit.aggregate-backfill.text',
+              textParams: {
+                screen: table,
+                processed: String(state.processed),
+                written: String(state.written),
+                failed: String(state.failed),
+                truncated: String(state.truncated),
+              },
+            });
+          } catch (error) {
+            console.error(`[aggregate-backfill] Falha ao registrar a auditoria de ${tenantId}/${table}:`, error);
+          }
+        },
+      };
+    }
+    return this.aggregateBackfillDeps;
   }
 
   getWorkflowContextHydrator(): WorkflowContextHydrator {

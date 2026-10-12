@@ -55,6 +55,7 @@ interface Harness {
 const harness = (
   parents: Record<string, Record<string, unknown>>,
   children: WorkflowQueryRow[],
+  schema: SchemaScreen[] = screens,
 ): Harness => {
   const updates: Harness['updates'] = [];
   const queries: Harness['queries'] = [];
@@ -63,7 +64,7 @@ const harness = (
     updates,
     queries,
     deps: {
-      screenProvider: fakeScreenProvider(screens),
+      screenProvider: fakeScreenProvider(schema),
       queryRepository: {
         queryByEquality: async (_tenantId, collection, filters) => {
           queries.push({ collection, filters });
@@ -105,6 +106,25 @@ describe('recomputeAggregatesForChildChange', () => {
 
     expect(h.updates).toHaveLength(1);
     expect(h.updates[0].id).toBe('v1');
+    expect(h.updates[0].data.totalItens).toBe(35);
+  });
+
+  it('grava o agregado mesmo quando uma regra do campo o recusa — o valor de antes seria falso', async () => {
+    const vigiado = screens.map((screen) => (screen.id !== 'vendas' ? screen : {
+      ...screen,
+      fields: screen.fields.map((one) => (one.key !== 'totalItens' ? one : {
+        ...one,
+        logic: { validate: 'value > 30' },
+      })),
+    }));
+    const h = harness({ v1: { numero: '001', totalItens: 10 } }, [
+      item('i1', 'v1', 10),
+      item('i2', 'v1', 25),
+    ], vigiado);
+
+    await recomputeAggregatesForChildChange('t1', 'itens', null, { venda: 'v1', total: 25 }, h.deps);
+
+    expect(h.updates).toHaveLength(1);
     expect(h.updates[0].data.totalItens).toBe(35);
   });
 

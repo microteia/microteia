@@ -12,6 +12,7 @@ import { buildFieldRulePresetCatalog } from './fieldRulePresets';
 import type { RecordKeySpec } from './recordKeys';
 import { RECORD_KEYS_COLLECTION } from './recordKeys';
 import { AGENT_GRANTS_COLLECTION } from './agent/agentGrant';
+import { AGGREGATE_BACKFILL_COLLECTION } from './aggregateBackfill';
 
 import type { AuditAction } from '../entities/AuditLog';
 import type { LocalizedMessage } from './i18n/localizedMessage';
@@ -497,6 +498,7 @@ export const RESERVED_COLLECTIONS: ReadonlySet<string> = new Set<string>([
   'installed_extensions',
   'extension_migrations',
   'extension_history',
+  AGGREGATE_BACKFILL_COLLECTION,
   'notes',
   'documents',
   'tags',

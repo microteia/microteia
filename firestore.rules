@@ -265,6 +265,16 @@ service cloud.firestore {
         allow delete: if false;
       }
 
+      // O recálculo dos agregados sobre os registros que já existiam (um documento por tela pai).
+      // Todo membro lê: é daqui que a listagem tira o aviso de uma passada bloqueada ou com falhas, e o
+      // que o documento expõe — nomes de campo, contagens, ids — quem lê a tela já vê. Ninguém grava
+      // do cliente: o cursor, a reserva e o registro do que foi recalculado são do servidor, e um
+      // cliente que os escrevesse poderia dar por recalculado o que não foi.
+      match /aggregate_backfills/{table} {
+        allow read: if isMember(tenantId);
+        allow write: if false;
+      }
+
       // Histórico de VERSÕES APLICADAS das extensões: o que este escritório já pôs no ar de cada uma,
       // e o que ele pode reaplicar. Todo membro lê, como em `installed_extensions` — o pacote guardado
       // aqui é o mesmo que já está exposto lá, então não há exposição nova; só admin grava, porque
@@ -362,7 +372,7 @@ service cloud.firestore {
       // leitura de documento por consulta não pagaria o que protege.
       function isReservedCollection(name) {
         return name in [
-        'actions', 'agentGrants', 'aiConnections',
+        'actions', 'agentGrants', 'aggregate_backfills', 'aiConnections',
         'documentTypes', 'documents', 'extension_history', 'extension_migrations', 'extensions',
         'installed_extensions', 'lookupDefinitions', 'members', 'notes',
         'reports', 'roles',
@@ -438,10 +448,18 @@ service cloud.firestore {
         return request.resource.data.get('createdVia', 'ui') == 'ui'
           && request.resource.data.get('updatedVia', 'ui') == 'ui';
       }
+      // A marca do RECÁLCULO de agregados (`updatedVia: 'aggregate-backfill'`) é o que faz uma
+      // gravação passar sem evento `.saved` e sem auditoria. Ela fica no documento depois do
+      // recálculo, e por isso não basta proibir o cliente de ESCREVÊ-LA: um update que não tocasse em
+      // `updatedVia` a herdaria. O cliente só deixa um registro marcado assim no carimbo de exclusão
+      // (`deletedBy*`), que é a única gravação dele que não carimba `updatedVia: 'ui'` — e que não
+      // passaria pela marca, porque não mexe em campo derivado.
       function keepsWriteViaOnUpdate() {
         let changed = request.resource.data.diff(resource.data).affectedKeys();
         return !changed.hasAny(['createdVia'])
-          && (!changed.hasAny(['updatedVia']) || request.resource.data.updatedVia == 'ui');
+          && (!changed.hasAny(['updatedVia']) || request.resource.data.updatedVia == 'ui')
+          && (request.resource.data.get('updatedVia', 'ui') != 'aggregate-backfill'
+              || changed.hasOnly(['deletedBy', 'deletedByName', 'deletedByPhotoURL']));
       }
 
       // Uma LISTA DE OPÇÕES e um CONJUNTO DE ETIQUETAS são vocabulário, não dado: toda tela que os

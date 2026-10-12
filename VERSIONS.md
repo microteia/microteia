@@ -11,6 +11,13 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.86.0] — 2026-10-12
+
+- Um campo calculado a partir de outros registros — o total dos itens de um pedido, a data do último contato — passa a ser preenchido também nos registros que já existiam quando ele foi criado ou alterado. Antes, ele ficava vazio nesses registros até que algum item deles mudasse.
+- Esse preenchimento acontece sozinho, em segundo plano, e não dispara as automações nem enche a Auditoria com uma linha por registro: fica registrado uma única vez, com o resumo do que foi feito.
+- Enquanto o preenchimento acontece, ou se algo impedir que ele termine, a lista da tela mostra um aviso explicando o motivo.
+- Corrigido: um campo calculado deixava de ser atualizado quando o novo valor não passava numa regra de validação do próprio campo, e continuava mostrando o valor antigo.
+
 #### [9.85.0] — 2026-10-11
 
 - O "hoje" das regras, automações e relatórios passa a ser o dia do escritório: às 22h em Brasília ainda é hoje, e a tela e a automação concordam sobre a data. Antes, a partir das 21h, o sistema já considerava o dia seguinte.

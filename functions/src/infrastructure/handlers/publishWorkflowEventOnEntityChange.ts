@@ -7,6 +7,7 @@ import {
   hasRegistryEventPrefix,
 } from '../../domain/services/workflowEventEntities';
 import { publishEvent } from '../workflow/publishEvent';
+import { isAggregateBackfillWriteFresh } from '../../domain/services/aggregateBackfill';
 
 /**
  * Publica eventos de entidades com o payload cru do documento:
@@ -66,6 +67,18 @@ export const publishWorkflowEventOnEntityChange = onDocumentWritten(
       if (!isDelete && !isCreate && beforeExists && afterExists) {
         const hasChanges = JSON.stringify(beforeData) !== JSON.stringify(afterData);
         if (!hasChanges) return;
+        // O recálculo dá ao registro o valor que ele já deveria ter: não é fato de negócio, e uma
+        // automação de `.saved` rodaria sobre cada registro histórico da coleção.
+        const di = getDI();
+        const fromBackfill = await isAggregateBackfillWriteFresh(
+          tenantId,
+          collection,
+          beforeData,
+          afterData,
+          (id) => di.getScreenDefinitionCache().getSchemaContext(id),
+          (id) => di.getFreshSchemaContext(id),
+        );
+        if (fromBackfill) return;
       }
 
       const eventName = `${prefix}.${isDelete ? 'deleted' : 'saved'}`;

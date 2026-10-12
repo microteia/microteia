@@ -3499,9 +3499,11 @@ As duas são as **mesmas** do escopo das Actions, com a mesma semântica — a p
 - **Guarda de recursão — o ponto crítico:** o write do pai dispara `.saved` do pai, que reentra no handler. A cascata termina porque o recompute é **idempotente**: as folhas resultantes são comparadas com o registro atual e, sem diferença real, **nada é gravado** — sem write, sem evento. É isso que substitui um limite de profundidade, e é o que torna seguro o ciclo que antes não tinha freio nenhum (o `JSON.stringify` de `publishWorkflowEventOnEntityChange` sempre difere, porque `updatedAt` é reescrito). Ciclos entre telas (A agrega de B que agrega de A) são recusados na autoria, pois nunca convergiriam.
 - **Escopo de recálculo:** só recalcula quando a mudança pode ter mexido no agregado — o pai vinculado mudou, o campo medido mudou, ou existe filtro. Um filho que troca de pai recalcula **os dois** (o antigo, lido de `before`, e o novo).
 - **Composição com `compute`:** o patch do agregado passa por `formatAndValidateRecord` com `baseline`, então um campo `compute` que dependa do agregado é recalculado no mesmo write.
+- **Recusa de regra não segura o agregado:** se uma regra do campo (ou a validação de um `compute` dependente) recusa o valor, o patch é gravado assim mesmo e a recusa vai para o log. O agregado é FATO sobre os filhos — recusá-lo deixava o pai com o valor de antes, que é falso, e era a causa mais comum de um pai que "não atualiza".
 - **Limitação conhecida:** o vínculo é por igualdade simples — campo de referência `multi` (que grava um array) não é suportado, pois `queryByEquality` não faz `array-contains`.
 - **Idempotência estrutural:** a comparação da guarda é por valor, não por referência — uma lista copiada por `latest` chega como array novo a cada leitura, e com `===` o pai seria regravado (e o `.saved` dele republicado) a cada mudança de filho.
 - **Escrita:** carimba `updatedBy: 'aggregate-engine'`. O campo agregado é somente-leitura no formulário (`isFieldDisabled`).
+- **Uma conta, duas gravações:** `computeAggregatePatch` calcula um ou vários campos de UM pai e devolve só o que mudou. O motor vivo grava com `update` (mexe em `updatedAt`, publica, audita); o recálculo grava com a marca dele (ver abaixo). O que os separa é só a gravação.
 
 #### `latest` — o valor do filho mais recente
 
@@ -3533,6 +3535,105 @@ aggregation: {
 **Kernel antigo recusa, não ignora.** Um kernel anterior a `2.23.0` não conhece `latest`: `aggregateChildren` cairia no `default` e gravaria `null` em silêncio. `AGGREGATION_OP_SINCE_KERNEL` registra a partir de quando cada op existe, e o portão recusa o pacote cujo `manifest.kernel` ainda admita um kernel anterior (`rangeExcludesBelow`) — com isso, quem recusa no escritório desatualizado é a checagem de intervalo que todo kernel já faz.
 
 **Relatório não mede `latest`.** `AggregationOp` (do campo) = `NumericAggregationOp | 'latest'`; a medida de relatório usa `NumericAggregationOp` e `NUMERIC_AGGREGATION_OPS`, porque uma medida tem de ser número para ser somada, comparada e desenhada.
+
+#### Recálculo dos registros que já existiam (`aggregate_backfills`)
+
+O motor vivo só recalcula o pai cujo filho mudou. Um agregado declarado numa tela que já tinha
+registros nascia vazio em todos os pais antigos, e nada o preenchia: o total aparecia em branco — ou
+parecia zero —, que é o erro silencioso que o agregado existe para evitar. A saída antiga, uma migração
+que "tocasse" os filhos, custava uma ordem de grandeza mais (cada filho tocado reconsulta os irmãos) e
+disparava `.saved` e auditoria por filho.
+
+**A identidade é a declaração, por campo.** `aggregationSignature` (`domain/schema/aggregateBackfill.ts`,
+compartilhado) é o JSON canônico de `from`, `via`, `op`, `field`, `filter` e `orderBy` — só o que muda o
+valor. Mudar o rótulo, a ordem ou qualquer outra propriedade não recalcula nada, e um agregado novo numa
+tela recalcula só ele: os que já funcionavam continuam com a assinatura registrada.
+
+**A execução é por tela.** Um documento por tela pai em `tenants/{id}/aggregate_backfills/{tela}`
+guarda `pending` (campo → assinatura da passada em curso), `reconciled` (o que já foi recalculado),
+`generation`, `round`, `cursor`, a reserva da rodada e as contagens. Três agregados que chegam numa
+instalação percorrem os pais uma vez e gravam cada pai uma vez.
+
+| Peça | Papel |
+|---|---|
+| `planAggregateBackfill` (compartilhado, puro) | declarado × job → `start`, `resume`, `nudge`, `settle` ou `none` |
+| `reconcileAggregatesOnScreenChange` | **porta automática**: toda gravação em `screenDefinitions` confere todas as telas |
+| `reconcileAggregates` (callable) | a conferência pedida pelo app — o molde de `syncTenantPermissions` |
+| `runAggregateBackfill` | uma rodada por gravação no job; o fechamento da rodada dispara a seguinte |
+| `useAggregateBackfillNotice` | assina o job na listagem da tela, chama a callable e devolve o aviso |
+
+**A porta é a declaração, não a instalação.** O pacote, o Form Design, o MCP e o Console mudam uma tela
+por caminhos diferentes; todos gravam `screenDefinitions`, e é ali que a conferência acontece. Por isso
+não há "recálculo na instalação" nem "verificar se a tela já tem registros": numa coleção vazia a passada
+termina na primeira rodada.
+
+**O escritório que já tinha agregados antes disto** não muda tela nenhuma depois da atualização, e a porta
+automática nunca dispararia. Quem cobre é o front: a listagem compara o que a tela declara com o
+`reconciled` do job e chama `reconcileAggregates` quando divergem (`start`) ou quando a passada parou
+(`nudge`). A callable pede pertencimento, não permissão — não aceita nada além do escritório, só põe em
+marcha o que a declaração já pede, e repetida custa duas leituras e nenhuma gravação.
+
+**Sem agendador, sem fila.** A rodada reserva o job em transação (`leaseUntil`, 6 min), lê uma página de
+100 pais em ordem de id de documento (sem índice composto), calcula com concorrência 8 e fecha gravando o
+cursor — e essa gravação é o gatilho da rodada seguinte. A reserva impede que uma entrega duplicada processe
+a mesma página duas vezes; a `generation` faz a rodada de uma passada abandonada (a declaração mudou no
+meio) ser descartada. A function tem `retry` e solta a reserva ao falhar; entrega com mais de 15 min é
+ignorada, para que uma falha determinística não vire custo por dias. Passada sem gravação no job há mais
+de 10 min (`AGGREGATE_BACKFILL_STALL_MS`) está parada, e a próxima conferência a acorda (`nudge`).
+
+**A gravação não é fato de negócio.** O recálculo dá ao registro o valor que ele já deveria ter. Ele:
+
+- grava só os campos agregados e os `compute` que dependem deles, com `update` (um pai apagado entre a
+  leitura e a gravação não renasce como fantasma);
+- **não toca em `updatedAt`** — os pais não pulam todos para o topo de "atualizados recentemente";
+- carimba `updatedBy: 'aggregate-engine'` e `updatedVia: 'aggregate-backfill'`;
+- **não publica `.saved` nem audita por registro.** `isAggregateBackfillWrite` reconhece a gravação pela
+  marca E por só mexer em campos derivados e carimbos de autoria; uma automação de `.saved` não roda sobre o
+  histórico do escritório. A passada que mudou algo deixa UMA linha de auditoria (`SYSTEM`), com as contagens.
+  O cache de telas da instância pode ainda não ter o campo novo: a gravação marcada que não passa na primeira
+  conferência paga uma releitura e confere de novo;
+- a cascata para os avôs segue pelo motor vivo, que publica como sempre.
+
+**A marca não pode ser forjável** — senão vira um canal de gravação sem auditoria. `updatedBy` o cliente
+escreve; `updatedVia` não. E como a marca FICA no documento, proibir o cliente de escrevê-la não basta: um
+update que não tocasse em `updatedVia` a herdaria. `keepsWriteViaOnUpdate` recusa toda gravação do cliente
+que deixe o registro marcado, com uma exceção: o carimbo de exclusão (`deletedBy*`), a única gravação do
+cliente que não carimba `updatedVia: 'ui'` — e que não passaria pela marca, porque não toca campo derivado.
+A próxima gravação do motor vivo depois do recálculo deixa a marca lá, mas mexe em `updatedAt` e publica.
+
+**Falha não pede ninguém.** Três classes, e nenhuma vira botão:
+
+| Falha | O que acontece |
+|---|---|
+| passageira (timeout, cota, deploy no meio) | o gatilho reentrega; parada, a próxima conferência acorda |
+| tela dos filhos ausente (a instalação grava uma tela por vez) | `blocked` com o campo e a origem; a gravação da tela que faltava retoma |
+| um pai que falha ao gravar | a passada não para; conta, guarda até 50 ids e recomeça até `AGGREGATE_BACKFILL_MAX_ATTEMPTS` (3). Esgotada, para com a contagem e só volta quando a declaração mudar |
+
+Acima do teto de filhos (`AGGREGATION_MAX_CHILDREN`, 500) o pai é gravado com o que foi lido e contado
+em `truncated`, como no motor vivo.
+
+**A interface é informação, nunca gesto.** A listagem da tela mostra um `InfoBanner` só quando há o que
+saber: a passada em curso (explica o campo vazio), bloqueada (diz qual declaração corrigir), com falhas ou
+com pais acima do teto. Um botão "Recalcular" daria a entender que o sistema às vezes erra e deixaria com a
+pessoa a tarefa de adivinhar quando — e o caso de mais de 500 filhos, o único que um botão pareceria
+resolver, ele não resolveria.
+
+**O step `recompute-aggregate` não existe, de propósito.** Uma automação só dispara por evento, e um step
+que varre a coleção a cada `<filho>.saved` custa uma varredura por gravação. A porta automática já cobre
+toda mudança de declaração; o caso que sobra — um filtro com `today()` que envelhece sem filho nenhum
+mudar — pede uma capacidade declarativa no próprio agregado e um agendador, que o kernel não tem.
+
+**Kernel `2.28.0`** (`AGGREGATE_BACKFILL_SINCE_KERNEL`, citado no AUTHORING §8). Num kernel anterior o
+agregado funciona, só não alcança os pais cujos filhos não mudarem.
+
+| Arquivo | Papel |
+|---|---|
+| `domain/schema/aggregateBackfill.ts` | assinatura, plano, estado do job, constantes (compartilhado) |
+| `functions/src/domain/services/aggregateBackfill.ts` | transições do job, rodada, conferência, `isAggregateBackfillWrite` |
+| `functions/src/data/repositories/FirebaseAggregateBackfillRepository.ts` | job em transação, página de pais, gravação marcada |
+| `functions/src/infrastructure/handlers/aggregateBackfill.ts` | as três functions |
+| `domain/services/aggregateBackfillNotice.ts` | qual aviso a listagem mostra |
+| `rules-tests/aggregateBackfills.test.ts`, `rules-tests/writeVia.test.ts` | a coleção e a marca, contra o emulador |
 
 ### Origem de tela e de campo (`origin`)
 

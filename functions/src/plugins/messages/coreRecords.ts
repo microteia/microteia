@@ -280,6 +280,14 @@ export const CORE_RECORDS_MESSAGES: Record<string, string> = {
     'This custom screen is no longer available. It may have been disabled or deleted by the administrator.',
   'screen.no-read-permission':
     'You do not have permission to view the records of this screen. Ask an administrator for access.',
+  'aggregate.backfill.running':
+    'Calculated fields are being filled in for the records that already existed ({count} checked so far). Until then they may appear empty.',
+  'aggregate.backfill.blocked':
+    'The calculated field "{fields}" adds up records from "{sources}", which is not available in this organization. It will stay empty until that screen exists or the field is changed.',
+  'aggregate.backfill.failed':
+    'Calculated fields could not be filled in for some records that already existed ({count}). Their values may be out of date.',
+  'aggregate.backfill.truncated':
+    'Some records ({count}) have more than {max} related items. Their calculated fields consider only {max} of them and may be incomplete.',
   'aggregation.avg': 'Average',
   'aggregation.sum': 'Sum',
   'aggregation.count': 'Count',

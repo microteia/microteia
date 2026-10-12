@@ -271,6 +271,14 @@ export const CORE_RECORDS: Record<string, string> = {
     'Esta tela personalizada não está mais disponível. Ela pode ter sido desativada ou excluída pelo administrador.',
   'screen.no-read-permission':
     'Você não tem permissão para ver os registros desta tela. Peça acesso a um administrador.',
+  'aggregate.backfill.running':
+    'Os campos calculados estão sendo preenchidos nos registros que já existiam ({count} conferidos até agora). Até lá, eles podem aparecer vazios.',
+  'aggregate.backfill.blocked':
+    'O campo calculado "{fields}" soma registros de "{sources}", que não está disponível neste escritório. Ele ficará vazio até essa tela existir ou o campo ser alterado.',
+  'aggregate.backfill.failed':
+    'Não foi possível preencher os campos calculados de alguns registros que já existiam ({count}). Os valores deles podem estar desatualizados.',
+  'aggregate.backfill.truncated':
+    'Alguns registros ({count}) têm mais de {max} itens relacionados. Os campos calculados deles consideram só {max} desses itens e podem estar incompletos.',
   'aggregation.avg': 'Média',
   'aggregation.sum': 'Soma',
   'aggregation.count': 'Contagem',

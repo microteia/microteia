@@ -35,6 +35,11 @@ export { onWorkflowEventCreated } from './infrastructure/handlers/onWorkflowEven
 export { getWorkflowStepCatalog } from './infrastructure/handlers/getWorkflowStepCatalog';
 export { publishWorkflowEventOnEntityChange } from './infrastructure/handlers/publishWorkflowEventOnEntityChange';
 export { recomputeAggregatesOnEntityChange } from './infrastructure/handlers/recomputeAggregatesOnEntityChange';
+export {
+  reconcileAggregatesOnScreenChange,
+  runAggregateBackfill,
+  reconcileAggregates,
+} from './infrastructure/handlers/aggregateBackfill';
 export { onNoteChange } from './infrastructure/handlers/workflow/onNoteChange';
 export { onDocumentChange } from './infrastructure/handlers/workflow/onDocumentChange';
 export { getExpressionFunctions } from './infrastructure/handlers/getExpressionFunctions';

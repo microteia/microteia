@@ -13,6 +13,7 @@ import {
   REPORT_SHAPE_KINDS,
 } from '../../../domain/schema/report/reportSpec';
 import { AGGREGATION_OP_SINCE_KERNEL } from '../../../domain/schema/aggregationSpec';
+import { AGGREGATE_BACKFILL_SINCE_KERNEL, AGGREGATION_MAX_CHILDREN } from '../../../domain/schema/aggregateBackfill';
 import { AGGREGATION_OP_LABELS, NUMERIC_AGGREGATION_OPS } from '../../../domain/schema/fieldRules';
 import type { WidgetNodeType } from '../../../domain/schema/ui/widgetSpec';
 import { STEP_TYPES } from '../../../domain/entities/Workflow';
@@ -1025,6 +1026,19 @@ Read the refusals as answers, not as gaps to route around:
   goes for "the value of the most recent child" (the outcome of the last decision, the date of the last contact):
   that is \`op: 'latest'\` with an \`orderBy\`, not a pair of flows on \`.saved\` and \`.deleted\` querying with
   \`limit: 1\` — those miss a write made outside the flow and leave the field editable by hand.
+- **A new aggregate reaches the records that already exist.** Adding an aggregate to a screen that already has
+  records — or changing its \`from\`, \`via\`, \`op\`, \`field\`, \`filter\` or \`orderBy\` — fills in every existing
+  parent on the server, in batches, without you writing a migration and without touching the children. It is
+  the declaration that starts it, whoever wrote it: your package on install or update, the office in the Form
+  Design. Only the aggregate that is new or changed is recomputed; the ones that were already right are left
+  alone, and changing a label recomputes nothing. These writes are not business events: they publish no
+  \`<collection>.saved\` and leave no audit line per record (one line for the whole pass), so a flow on \`.saved\`
+  never runs over the office's history. They keep \`updatedAt\` as it was and stamp \`updatedBy: 'aggregate-engine'\`
+  and \`updatedVia: 'aggregate-backfill'\`. A parent with more than ${AGGREGATION_MAX_CHILDREN} children is filled
+  in with what was read and counted on the screen's notice, exactly as the live engine does. This needs kernel
+  ${AGGREGATE_BACKFILL_SINCE_KERNEL} or later; on an earlier kernel the aggregate still works, but only on the
+  parents whose children change after it was declared — a \`kernel\` range that admits an earlier one will
+  install, and the old records will stay empty there.
 - **An invariant that must REFUSE the passage cannot live in the automation.** The event of a save is published by
   an \`onDocumentWritten\` trigger: by the time it exists the document is committed, and the \`exit\` step halts the
   flow, not the write. So \`scope: 'transition'\` also declares \`enforcement\`. \`blocks\` belongs on the write path —

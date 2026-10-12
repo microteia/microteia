@@ -4,6 +4,7 @@ import { resolveFlatEntityConfig } from '../../domain/services/auditableEntities
 import { computeChangedFields, normalizeAllFields, buildAuditText, resolveSeverity, ACTION_TITLE } from '../../domain/services/auditDiff';
 import { logAuditError } from './shared/logAuditError';
 import type { AuditAction } from '../../domain/entities/AuditLog';
+import { isAggregateBackfillWriteFresh } from '../../domain/services/aggregateBackfill';
 
 /**
  * Escuta qualquer escrita em `tenants/{tenantId}/{collection}/{docId}` e gera um AuditLog para as duas
@@ -36,6 +37,20 @@ export const auditFlatEntityChange = onDocumentWritten(
       const beforeData = (before?.data() as Record<string, unknown>) ?? {};
       const afterData = (after?.data() as Record<string, unknown>) ?? {};
       const referenceData = action === 'DELETE' ? beforeData : afterData;
+
+      if (action === 'UPDATE') {
+        // O recálculo é registrado no job dele, não em uma linha de auditoria por registro.
+        const di = getDI();
+        const fromBackfill = await isAggregateBackfillWriteFresh(
+          tenantId,
+          collection,
+          beforeData,
+          afterData,
+          (id) => di.getScreenDefinitionCache().getSchemaContext(id),
+          (id) => di.getFreshSchemaContext(id),
+        );
+        if (fromBackfill) return;
+      }
 
       let diff: { before?: Record<string, unknown>; after?: Record<string, unknown> } | undefined;
       let changedKeys: Record<string, unknown> = {};

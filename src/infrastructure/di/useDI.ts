@@ -33,6 +33,7 @@ import type { IExtensionMigrationRepository } from '../../domain/repositories/IE
 import type { IExtensionHistoryRepository } from '../../domain/repositories/IExtensionHistoryRepository';
 import type { IPublicExtensionRepository } from '../../domain/repositories/IPublicExtensionRepository';
 import type { IExtensionReputationRepository } from '../../domain/repositories/IExtensionReputationRepository';
+import type { IAggregateBackfillRepository } from '../../domain/repositories/IAggregateBackfillRepository';
 import type { IBackendResidueRepository } from '../../domain/repositories/IBackendResidueRepository';
 import type { IAgentAuthRequestRepository } from '../../domain/repositories/IAgentAuthRequestRepository';
 import type { IAgentGrantRepository } from '../../domain/repositories/IAgentGrantRepository';
@@ -79,6 +80,7 @@ export interface DIContainer {
   publicExtensionRepository: IPublicExtensionRepository;
   extensionReputationRepository: IExtensionReputationRepository;
   backendResidueRepository: IBackendResidueRepository;
+  aggregateBackfillRepository: IAggregateBackfillRepository;
 }
 
 export const DIContext = createContext<DIContainer | null>(null);

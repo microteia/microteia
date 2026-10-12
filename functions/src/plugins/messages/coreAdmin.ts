@@ -159,6 +159,9 @@ export const CORE_ADMIN_MESSAGES: Record<string, string> = {
   'audit.load-failed': 'Could not load the audit records.',
   'audit.load-more-failed': 'Could not load more audit records.',
   'audit.tenant-deleted.title': 'Organization deletion',
+  'audit.aggregate-backfill.title': 'Calculated fields filled in',
+  'audit.aggregate-backfill.text':
+    'The calculated fields of **{screen}** were filled in for the records that already existed: {processed} checked, {written} updated, {failed} could not be updated, {truncated} over the limit of related items.',
   'audit.text.create': '**{user}** created {entity} **{name}**.{blocks}',
   'audit.text.delete': '**{user}** deleted {entity} **{name}**.{blocks}',
   'audit.text.failed': 'Could not process the audit for `{path}`.\n\n```\n{detail}\n```',

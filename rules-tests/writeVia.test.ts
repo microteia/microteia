@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, it } from 'vitest';
 import { assertFails, assertSucceeds, type RulesTestEnvironment } from '@firebase/rules-unit-testing';
-import { addDoc, collection, doc, setDoc, updateDoc } from 'firebase/firestore';
+import { addDoc, collection, deleteField, doc, setDoc, updateDoc } from 'firebase/firestore';
 import { TENANT, asUser, seed, testEnv } from './helpers';
 
 /**
@@ -28,7 +28,12 @@ beforeEach(async () => {
     screens: {
       [TENANT]: { pet1: { titleSingular: 'Pet', titlePlural: 'Pets', fields: [], memberWritableFields: ['lidoPor'] } },
     },
-    records: { [TENANT]: { 'pet1/r1': { nome: 'Rex', createdBy: 'u-x', createdVia: 'agent', updatedVia: 'agent' } } },
+    records: {
+      [TENANT]: {
+        'pet1/r1': { nome: 'Rex', createdBy: 'u-x', createdVia: 'agent', updatedVia: 'agent' },
+        'pet1/r2': { nome: 'Tom', total: 10, createdBy: 'u-x', updatedBy: 'aggregate-engine', updatedVia: 'aggregate-backfill' },
+      },
+    },
   });
 });
 
@@ -55,6 +60,35 @@ describe('o cliente só declara `ui`', () => {
 
   it('o campo "por usuário" de um mural continua gravável por qualquer membro, com o carimbo `ui`', async () => {
     await assertSucceeds(updateDoc(pet('leitor'), { lidoPor: ['leitor'], updatedVia: 'ui' }));
+  });
+});
+
+describe('a marca do recálculo de agregados', () => {
+  const recalculado = (uid: string) => doc(asUser(env, uid), `tenants/${TENANT}/pet1/r2`);
+
+  it('o cliente não a escreve', async () => {
+    await assertFails(updateDoc(pet('escritor'), { nome: 'Rex II', updatedVia: 'aggregate-backfill' }));
+  });
+
+  it('nem a herda: editar o registro recalculado sem carimbar `ui` é recusado', async () => {
+    await assertFails(updateDoc(recalculado('escritor'), { total: 999 }));
+    await assertFails(updateDoc(recalculado('escritor'), { nome: 'Tom II' }));
+  });
+
+  it('editar o registro recalculado como a tela edita — carimbando `ui` — continua valendo', async () => {
+    await assertSucceeds(updateDoc(recalculado('escritor'), { nome: 'Tom II', updatedVia: 'ui' }));
+  });
+
+  it('o carimbo de exclusão, que não carimba `ui`, continua valendo', async () => {
+    await assertSucceeds(updateDoc(recalculado('escritor'), {
+      deletedBy: 'escritor',
+      deletedByName: 'Escritor',
+      deletedByPhotoURL: '',
+    }));
+  });
+
+  it('e apagar a marca sem carimbar `ui` também é recusado', async () => {
+    await assertFails(updateDoc(recalculado('escritor'), { updatedVia: deleteField() }));
   });
 });
 

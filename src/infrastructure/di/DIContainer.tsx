@@ -35,6 +35,7 @@ import { FirebaseExtensionHistoryRepository } from '../../data/repositories/Fire
 import { FirebasePublicExtensionRepository } from '../../data/repositories/FirebasePublicExtensionRepository';
 import { FirebaseExtensionReputationRepository } from '../../data/repositories/FirebaseExtensionReputationRepository';
 import { FirebaseSettingsRepository } from '../../data/repositories/FirebaseSettingsRepository';
+import { FirebaseAggregateBackfillRepository } from '../../data/repositories/FirebaseAggregateBackfillRepository';
 import { FirebaseBackendResidueRepository } from '../../data/repositories/FirebaseBackendResidueRepository';
 import { DIContext } from './useDI';
 import type { DIContainer } from './useDI';
@@ -81,6 +82,7 @@ export const DIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
     publicExtensionRepository: new FirebasePublicExtensionRepository(),
     extensionReputationRepository: new FirebaseExtensionReputationRepository(),
     backendResidueRepository: new FirebaseBackendResidueRepository(),
+    aggregateBackfillRepository: new FirebaseAggregateBackfillRepository(),
   }), [host]);
 
   return <DIContext.Provider value={container}>{children}</DIContext.Provider>;

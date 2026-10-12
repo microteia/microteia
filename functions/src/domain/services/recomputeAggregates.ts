@@ -3,19 +3,12 @@ import type { IWorkflowMutationRepository } from '../repositories/IWorkflowMutat
 import type { IWorkflowQueryRepository, WorkflowEqualityFilter } from '../repositories/IWorkflowQueryRepository';
 import { aggregateChildren, collectAggregationsFor, readChildField } from '../schema/aggregationSpec';
 import type { AggregationTarget } from '../schema/aggregationSpec';
+import { AGGREGATE_ENGINE_ACTOR, AGGREGATION_MAX_CHILDREN } from '../schema/aggregateBackfill';
 import { flattenDataLeaves, resolveWritableTable, setValueAtPath } from '../schema/mutationSpec';
 import { getValueAtPath, parsePath } from '../schema/pathResolver';
 import type { SchemaContext } from '../schema/pathResolver';
 import { formatAndValidateRecord } from '../schema/recordRules';
 import { withAmbientTimeZone } from '../schema/clockGate';
-
-const AGGREGATE_ACTOR = 'aggregate-engine';
-
-// Acima disto o agregado sairia incorreto por truncamento: melhor gravar o que dá e registrar o
-// aviso do que silenciar a divergência. Vale igual para o `latest`: a consulta é só por igualdade no
-// vínculo (servida pelos índices de campo único, sem índice composto por agregação) e a ordenação é
-// em memória — então, acima do teto, o mais recente pode ter ficado fora da leitura.
-const MAX_CHILDREN = 500;
 
 export interface AggregateRecomputeDeps {
   screenProvider: IScreenDefinitionProvider;
@@ -84,9 +77,90 @@ const buildChildFilters = (
   return [{ path: via, value: parentId }];
 };
 
+/** O que muda no pai: as folhas que diferem do que está gravado, ou `null` se nada muda. */
+export interface AggregatePatch {
+  payload: Record<string, unknown> | null;
+  /** Algum dos agregados bateu no teto de filhos lidos — o valor pode estar incompleto. */
+  truncated: boolean;
+}
+
+/**
+ * Calcula os agregados de UM pai — um ou vários campos da mesma tela — e devolve só o que mudou.
+ * É a mesma conta para o motor vivo e para o recálculo: o que os separa é como gravam.
+ *
+ * Os campos entram num patch só, que passa pelo gate com `baseline`: um campo `compute` que dependa
+ * de um agregado é recalculado no mesmo write — é o que faz agregação e valor calculado se comporem.
+ */
+export const computeAggregatePatch = async (
+  ctx: SchemaContext,
+  targets: readonly AggregationTarget[],
+  tenantId: string,
+  parentId: string,
+  baseline: Record<string, unknown>,
+  deps: AggregateRecomputeDeps,
+): Promise<AggregatePatch> => {
+  const patch: Record<string, unknown> = {};
+  const timeZone = await deps.timeZoneOf?.(tenantId);
+  let truncated = false;
+  let parentTable: string | null = null;
+
+  for (const target of targets) {
+    const childTable = target.aggregation.from;
+    const child = resolveWritableTable(childTable, ctx);
+    if (!child.ok || child.value.kind === 'lookup') continue;
+
+    const filters = buildChildFilters(ctx, childTable, target.aggregation.via, parentId);
+    if (!filters) continue;
+
+    const rows = await deps.queryRepository.queryByEquality(
+      tenantId,
+      child.value.physicalCollection,
+      filters,
+      AGGREGATION_MAX_CHILDREN,
+    );
+    if (rows.length === AGGREGATION_MAX_CHILDREN) {
+      truncated = true;
+      deps.logger?.warn(
+        `Agregado "${target.label}" em ${target.parentTable}/${parentId}: limite de ${AGGREGATION_MAX_CHILDREN} filhos atingido, o valor pode estar incompleto`,
+      );
+    }
+
+    const value = withAmbientTimeZone(timeZone, () =>
+      aggregateChildren(ctx, target.aggregation, childTable, rows),
+    );
+    setValueAtPath(patch, target.parentPath, value);
+    parentTable = target.parentTable;
+  }
+
+  if (!parentTable) return { payload: null, truncated };
+  const table = parentTable;
+
+  // O agregado é FATO sobre os filhos: uma regra do campo, ou a validação de um `compute` que
+  // depende dele, não pode impedir que ele seja gravado — recusar deixaria o pai com o valor de
+  // antes, que é falso. A recusa vai para o log, e o valor vai para o registro.
+  const ruled = withAmbientTimeZone(timeZone, () =>
+    formatAndValidateRecord(ctx, table, patch, { baseline }),
+  );
+  if (ruled.issues.length > 0) {
+    deps.logger?.warn(
+      `Agregado em ${table}/${parentId} gravado apesar de ${ruled.issues.length} recusa(s) de regra: ${ruled.issues.map((issue) => issue.path).join(', ')}`,
+    );
+  }
+
+  // Guarda de recursão: sem diferença real, não grava — e sem write o `.saved` do pai não dispara,
+  // encerrando a cascata. É o que substitui um limite de profundidade.
+  const changed = flattenDataLeaves(ruled.data).filter(
+    (leaf) => !sameValue(getValueAtPath(baseline, parsePath(leaf.path)), leaf.value),
+  );
+  if (changed.length === 0) return { payload: null, truncated };
+
+  const payload: Record<string, unknown> = {};
+  for (const leaf of changed) setValueAtPath(payload, leaf.path, leaf.value);
+  return { payload, truncated };
+};
+
 const recomputeOneParent = async (
   ctx: SchemaContext,
-  childTable: string,
   target: AggregationTarget,
   tenantId: string,
   parentId: string,
@@ -99,52 +173,12 @@ const recomputeOneParent = async (
   const baseline = await deps.mutationRepository.getById(tenantId, parentCollection, parentId);
   if (!baseline) return;
 
-  const child = resolveWritableTable(childTable, ctx);
-  if (!child.ok || child.value.kind === 'lookup') return;
-
-  const filters = buildChildFilters(ctx, childTable, target.aggregation.via, parentId);
-  if (!filters) return;
-
-  const rows = await deps.queryRepository.queryByEquality(
-    tenantId,
-    child.value.physicalCollection,
-    filters,
-    MAX_CHILDREN,
-  );
-  if (rows.length === MAX_CHILDREN) {
-    deps.logger?.warn(
-      `Agregado "${target.label}" em ${target.parentTable}/${parentId}: limite de ${MAX_CHILDREN} filhos atingido, o valor pode estar incompleto`,
-    );
-  }
-
-  const timeZone = await deps.timeZoneOf?.(tenantId);
-  const value = withAmbientTimeZone(timeZone, () =>
-    aggregateChildren(ctx, target.aggregation, childTable, rows),
-  );
-
-  const patch: Record<string, unknown> = {};
-  setValueAtPath(patch, target.parentPath, value);
-
-  // Passa pelo gate para que um campo `compute` que dependa deste agregado seja recalculado no
-  // mesmo write — é o que faz agregação e valor calculado se comporem.
-  const ruled = withAmbientTimeZone(timeZone, () =>
-    formatAndValidateRecord(ctx, target.parentTable, patch, { baseline }),
-  );
-  if (ruled.issues.length > 0) return;
-
-  // Guarda de recursão: sem diferença real, não grava — e sem write o `.saved` do pai não dispara,
-  // encerrando a cascata. É o que substitui um limite de profundidade.
-  const changed = flattenDataLeaves(ruled.data).filter(
-    (leaf) => !sameValue(getValueAtPath(baseline, parsePath(leaf.path)), leaf.value),
-  );
-  if (changed.length === 0) return;
-
-  const payload: Record<string, unknown> = {};
-  for (const leaf of changed) setValueAtPath(payload, leaf.path, leaf.value);
+  const { payload } = await computeAggregatePatch(ctx, [target], tenantId, parentId, baseline, deps);
+  if (!payload) return;
 
   await deps.mutationRepository.update(tenantId, parentCollection, parentId, {
     ...payload,
-    updatedBy: AGGREGATE_ACTOR,
+    updatedBy: AGGREGATE_ENGINE_ACTOR,
   });
 };
 
@@ -176,7 +210,7 @@ export const recomputeAggregatesForChildChange = async (
     }
 
     for (const parentId of parentIds) {
-      await recomputeOneParent(ctx, childTable, target, tenantId, parentId, deps);
+      await recomputeOneParent(ctx, target, tenantId, parentId, deps);
     }
   }
 };

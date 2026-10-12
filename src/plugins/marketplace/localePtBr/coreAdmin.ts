@@ -154,6 +154,9 @@ export const CORE_ADMIN: Record<string, string> = {
   'audit.load-failed': 'Não foi possível carregar os registros de auditoria.',
   'audit.load-more-failed': 'Não foi possível carregar mais registros de auditoria.',
   'audit.tenant-deleted.title': 'Exclusão do Escritório',
+  'audit.aggregate-backfill.title': 'Campos calculados preenchidos',
+  'audit.aggregate-backfill.text':
+    'Os campos calculados de **{screen}** foram preenchidos nos registros que já existiam: {processed} conferidos, {written} atualizados, {failed} não puderam ser atualizados, {truncated} acima do limite de itens relacionados.',
   'audit.text.create': '**{user}** criou {entity} **{name}**.{blocks}',
   'audit.text.delete': '**{user}** excluiu {entity} **{name}**.{blocks}',
   'audit.text.failed': 'Falha ao processar auditoria para `{path}`.\n\n```\n{detail}\n```',

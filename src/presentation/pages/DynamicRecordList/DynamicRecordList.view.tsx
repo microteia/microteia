@@ -46,5 +46,14 @@ export const DynamicRecordListView: React.FC<{ tabKey: string }> = ({ tabKey }) 
     return <ScreenNotice message={t('screen.no-read-permission')} />;
   }
 
-  return <RecordListSurface vm={vm} definition={definition} variant="page" />;
+  return (
+    <RecordListSurface
+      vm={vm}
+      definition={definition}
+      variant="page"
+      summary={vm.backfillNotice
+        ? <InfoBanner variant={vm.backfillNotice.variant} message={vm.backfillNotice.message} />
+        : undefined}
+    />
+  );
 };
