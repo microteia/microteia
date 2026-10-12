@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { LOOKUP_DEFAULTS, lookupDefaultsFor } from './lookupDefaults';
-import { mergeLookupDefaults } from './mergeLookupDefaults';
+import { mergeLookupDefaults } from '../../domain/schema/lookupDefaults';
 import { LOOKUP_REGISTRY } from '../../domain/schema/lookupRegistry';
 
 describe('opções que o kernel já traz', () => {

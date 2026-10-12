@@ -1,6 +1,6 @@
 import { collection, onSnapshot, orderBy, query } from 'firebase/firestore';
 import { db } from '../../infrastructure/firebase/config';
-import { mergeLookupDefaults } from './mergeLookupDefaults';
+import { mergeLookupDefaults } from '../../domain/schema/lookupDefaults';
 
 interface LookupLike {
   key: string;

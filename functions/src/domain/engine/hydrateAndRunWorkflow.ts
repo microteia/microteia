@@ -41,11 +41,13 @@ export const hydrateAndRunWorkflow = async (
       `Payload hidratado (schema v${SCHEMA_VERSION}) para o workflow "${definition.id}" com ${referencedPaths.length} caminho(s)`,
     );
   }
+  const timeZone =
+    deps.services.timeZone ?? (await deps.services.timeZoneOf?.(event.tenantId, deps.actor?.userId));
   return runWorkflow({
     definition,
     event: hydratedEvent,
     registry: deps.registry,
-    services: deps.services,
+    services: timeZone ? { ...deps.services, timeZone } : deps.services,
     ...(deps.actor ? { actor: deps.actor } : {}),
   });
 };

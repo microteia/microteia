@@ -264,3 +264,27 @@ describe('select com opções de uma coleção do escritório (optionsFrom)', ()
     expect(validateSettingValue(closed, 'dom')).toEqual({ message: 'setting.select' });
   });
 });
+
+describe('validateSettingValue — timezone', () => {
+  const timeZone: SettingsProperty = {
+    key: 'i18n.timezone',
+    label: 'Fuso',
+    type: 'timezone',
+    default: '',
+    scopes: ['tenant', 'user'],
+  };
+
+  it('aceita fuso IANA e o vazio, que é o automático', () => {
+    expect(validateSettingValue(timeZone, 'America/Sao_Paulo')).toBeNull();
+    expect(validateSettingValue(timeZone, '')).toBeNull();
+  });
+
+  it('recusa deslocamento solto e nome inventado', () => {
+    expect(validateSettingValue(timeZone, '-03:00')).toEqual({ message: 'setting.timezone' });
+    expect(validateSettingValue(timeZone, 'Brasilia')).toEqual({ message: 'setting.timezone' });
+  });
+
+  it('valor gravado inválido não resolve: cai no padrão', () => {
+    expect(resolveSetting(timeZone, { tenant: { 'i18n.timezone': 'GMT-3' }, user: {} }).value).toBe('');
+  });
+});

@@ -1,5 +1,6 @@
 import { PERMISSION_AUDIT_READ, PERMISSION_AUTOMATION_RUN } from '../access/kernelPermissions';
 import { QUERY_OPERATORS } from '../querySpec';
+import { AGENT_DOCUMENT_MAX_MB } from './agentDocument';
 import type { CrudAction } from '../access/permission';
 import type { WorkflowParameterType } from '../../entities/Workflow';
 import type { AuditAction, AuditSeverity, AuditType } from '../../entities/AuditLog';
@@ -22,6 +23,8 @@ export const AGENT_OPERATIONS = [
   'create_record',
   'update_record',
   'delete_record',
+  'list_documents',
+  'attach_document',
   'run_report',
   'describe_workflow',
   'run_workflow',
@@ -280,6 +283,52 @@ export const AGENT_TOOLS: readonly AgentToolDefinition[] = [
       + 'This cannot be undone — confirm with the person before calling it.',
     inputSchema: object({ collection: COLLECTION, id: RECORD_ID }, ['collection', 'id']),
     permission: { kind: 'collection', action: 'delete' },
+    writes: true,
+  },
+  {
+    name: 'list_documents',
+    description:
+      'The files attached to a record in its Documents tab, newest first: name, document type, '
+      + 'description, who attached it and when, and the download link. Only screens whose '
+      + 'describe_screen answer has a "documents" section have this tab.',
+    inputSchema: object({ collection: COLLECTION, recordId: RECORD_ID }, ['collection', 'recordId']),
+    // A MESMA cobrança da regra do Firestore: o documento é parte do registro, e lê-lo é ler a coleção.
+    permission: { kind: 'collection', action: 'read' },
+    writes: false,
+  },
+  {
+    name: 'attach_document',
+    description:
+      'Attach a file to a record\'s Documents tab, exactly as if it had been uploaded in the '
+      + 'application: the file is stored in the office bucket and listed with its name, type and '
+      + 'download link. Send the file as base64 in "content" (a "data:<type>;base64," prefix is also '
+      + `accepted). Files must be smaller than ${AGENT_DOCUMENT_MAX_MB} MB. The document types `
+      + 'accepted are listed by describe_screen under "documents"; an unknown type is refused with '
+      + 'the accepted ones. Only screens with a "documents" section accept attachments.',
+    inputSchema: object(
+      {
+        collection: COLLECTION,
+        recordId: { type: 'string', description: 'The record the file is attached to.' },
+        fileName: {
+          type: 'string',
+          description: 'The file name shown in the tab, with its extension — for example "power-of-attorney.pdf".',
+        },
+        content: { type: 'string', description: 'The file content, base64-encoded.' },
+        contentType: {
+          type: 'string',
+          description: 'The MIME type, for example "application/pdf". Omit it to infer from the file extension.',
+        },
+        type: {
+          type: 'string',
+          description: 'The document type: its key or its label, as describe_screen lists them under "documents".',
+        },
+        description: { type: 'string', description: 'An optional note about the file.' },
+      },
+      ['collection', 'recordId', 'fileName', 'content'],
+    ),
+    // `update`, e não `create`: é o que `firestore.rules` cobra para anexar à aba Documentos de um
+    // registro. Anexar muda o registro; não cria um registro novo da coleção.
+    permission: { kind: 'collection', action: 'update' },
     writes: true,
   },
   {

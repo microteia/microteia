@@ -55,7 +55,7 @@ export const coreI18nPlugin: PluginRecord = {
             key: 'i18n.timezone',
             label: '@core.i18n/timezone.label',
             description: '@core.i18n/timezone.description',
-            type: 'text',
+            type: 'timezone',
             default: '',
             scopes: ['tenant', 'user'],
           },

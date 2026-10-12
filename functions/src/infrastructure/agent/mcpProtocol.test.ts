@@ -21,7 +21,7 @@ import { AGENT_OPERATIONS, AGENT_RESOURCES, AGENT_TOOLS } from '../../domain/sch
  * deixa de ser encontrada. A URI é a mais frágil das duas, porque nada no cliente a valida.
  */
 describe('a superfície publicada', () => {
-  it('publica exatamente estas treze ferramentas, nesta ordem', () => {
+  it('publica exatamente estas quinze ferramentas, nesta ordem', () => {
     expect(AGENT_TOOLS.map((tool) => tool.name)).toEqual([
       'list_screens',
       'describe_screen',
@@ -30,6 +30,8 @@ describe('a superfície publicada', () => {
       'create_record',
       'update_record',
       'delete_record',
+      'list_documents',
+      'attach_document',
       'run_report',
       'describe_workflow',
       'run_workflow',
@@ -95,11 +97,12 @@ describe('a superfície publicada', () => {
 
   // `run_workflow` conta como escrita mesmo publicando um evento: o que ele dispara grava. Contá-lo
   // como leitura faria um acesso somente-leitura poder mudar dado por via indireta.
-  it('as que gravam são exatamente estas cinco', () => {
+  it('as que gravam são exatamente estas seis', () => {
     expect(AGENT_TOOLS.filter((tool) => tool.writes).map((tool) => tool.name)).toEqual([
       'create_record',
       'update_record',
       'delete_record',
+      'attach_document',
       'run_workflow',
       'run_action',
     ]);

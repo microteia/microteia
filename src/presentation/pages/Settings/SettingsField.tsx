@@ -16,6 +16,8 @@ import {
 import { useLocale } from '../../../stores/useLocale';
 import { localeDisplayName } from '../../../domain/schema/i18n/localeFormat';
 import { useTheme, AUTOMATIC_THEME } from '../../../stores/useTheme';
+import { useSettings } from '../../../stores/useSettings';
+import { automaticTimeZone, timeZoneOptions } from '../../../domain/schema/i18n/timeZone';
 
 import { useT, useLabel } from '../../shared/i18n/useT';
 interface SettingsFieldProps {
@@ -36,6 +38,7 @@ export const SettingsField: React.FC<SettingsFieldProps> = ({ property, pluginId
   const label = useLabel();
   const { available, locale, preferred } = useLocale();
   const { available: themes } = useTheme();
+  const { values: settingsValues } = useSettings();
 
   switch (property.type) {
     case 'boolean':
@@ -116,6 +119,25 @@ export const SettingsField: React.FC<SettingsFieldProps> = ({ property, pluginId
           options={[
             { value: AUTOMATIC_THEME, label: t('core.theme/theme.automatic') },
             ...themes.map((theme) => ({ value: theme.id, label: label(theme.name) })),
+          ]}
+          disabled={disabled}
+          onChange={(next) => onChange(next)}
+          placeholder={t('core.ui/action.select')}
+        />
+      );
+
+    /**
+     * As opções são os fusos IANA que a plataforma conhece, mais "Automático" — o valor vazio, que
+     * segue o idioma do escritório. O fuso efetivo do automático aparece no rótulo: sem ele, quem
+     * escolhe não sabe o que está deixando de escolher.
+     */
+    case 'timezone':
+      return (
+        <SearchSelect
+          value={typeof value === 'string' ? value : ''}
+          options={[
+            { value: '', label: t('core.i18n/timezone.automatic', { zone: automaticTimeZone(settingsValues) }) },
+            ...timeZoneOptions().map((zone) => ({ value: zone, label: zone })),
           ]}
           disabled={disabled}
           onChange={(next) => onChange(next)}

@@ -80,6 +80,18 @@ export {
   agentToolByName,
 } from './agentOps';
 
+export type { AgentFileContent } from './agentDocument';
+export {
+  AGENT_DOCUMENT_MAX_BYTES,
+  AGENT_DOCUMENT_MAX_MB,
+  DOCUMENT_TYPES_COLLECTION,
+  agentDocumentContentType,
+  agentDocumentName,
+  agentDocumentStoragePath,
+  inspectAgentFileContent,
+  resolveAgentDocumentType,
+} from './agentDocument';
+
 export type { AgentInputIssue } from './agentInput';
 export { AGENT_SCHEMA_KEYWORDS, checkAgentInput } from './agentInput';
 

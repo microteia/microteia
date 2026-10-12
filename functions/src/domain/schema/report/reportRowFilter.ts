@@ -29,6 +29,8 @@ export interface ReportRowFilterInput {
   permissions?: readonly string[];
   /** O instante que `today()` e `now()` respondem. Um só para o relatório inteiro. */
   now?: Date;
+  /** O fuso em que `today()` diz que dia é — o do escritório. Ver `i18n/timeZone.ts`. */
+  timeZone?: string;
 }
 
 export type ReportRowFilterOutcome =
@@ -133,6 +135,7 @@ export const filterReportRows = (input: ReportRowFilterInput): ReportRowFilterOu
         entity: input.entity,
         permissions: input.permissions,
         at: input.now,
+        timeZone: input.timeZone,
       });
       if (answer) kept.push(row);
     } catch (caught) {

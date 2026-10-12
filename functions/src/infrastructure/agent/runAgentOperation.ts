@@ -11,6 +11,8 @@ import { checkAgentInput } from '../../domain/schema/agent/agentInput';
 import { AGENT_SEARCH_MAX_RESULTS } from '../../domain/schema/agent/agentOps';
 import { searchAuditLog } from './agentAuditLog';
 import { applyDerivedFields } from '../../domain/schema/recordRules';
+import { withAmbientTimeZone } from '../../domain/schema/clockGate';
+import { tenantTimeZone } from '../settings/tenantTimeZone';
 import { resolveQueryTable } from '../../domain/schema/querySpec';
 import type { SchemaContext } from '../../domain/schema/screenEntity';
 import { isEmptyRuleValue } from '../../domain/schema/fieldRules';
@@ -36,6 +38,8 @@ import { authorizeOperation, permissionCharge, resolveTool } from './agentAuthor
 import type { PreparedParameters } from './agentParameters';
 import { ACTION_SYSTEM_PARAMETERS, prepareParameters } from './agentParameters';
 import { describeAgentWorkflow, previewAgentWorkflow, screenActions } from './agentWorkflows';
+import type { AgentDocumentOutcome } from './agentDocuments';
+import { attachAgentDocument, describeDocuments, listAgentDocuments } from './agentDocuments';
 
 /**
  * Os tetos da varredura para uma pergunta de agente.
@@ -97,6 +101,9 @@ const refuseParameters = (
     issueDetails(catalog, prepared.issues),
   );
 };
+
+const fromDocumentOutcome = (catalog: MessageCatalog, outcome: AgentDocumentOutcome): AgentOperationOutcome =>
+  (outcome.ok ? outcome : refuse(catalog, outcome.error, outcome.params));
 
 const asRecord = (value: unknown): Record<string, unknown> =>
   (typeof value === 'object' && value !== null && !Array.isArray(value))
@@ -190,8 +197,18 @@ export const runAgentOperation = async (
         return refuse(catalog, '@core.automation/mutation.table.unknown', { table: collection });
       }
       const screen = schema.screens.get(collection);
-      const actions = screen ? await screenActions(session.tenantId, screen.id, catalog) : [];
-      return { ok: true, value: actions.length > 0 ? { ...described, actions } : described };
+      const [actions, documents] = await Promise.all([
+        screen ? screenActions(session.tenantId, screen.id, catalog) : Promise.resolve([]),
+        describeDocuments(schema, session.tenantId, collection, catalog),
+      ]);
+      return {
+        ok: true,
+        value: {
+          ...described,
+          ...(actions.length > 0 ? { actions } : {}),
+          ...(documents ? { documents } : {}),
+        },
+      };
     }
 
     case 'search_records': {
@@ -242,9 +259,15 @@ export const runAgentOperation = async (
 
       // O MESMO derive que a busca aplica. Sem ele, o mesmo registro voltaria com campos diferentes
       // por `get_record` e por `search_records` — e o agente concluiria que um deles está errado.
+      const timeZone = await tenantTimeZone(session.tenantId, session.userId);
       return {
         ok: true,
-        value: { id, ...applyDerivedFields(schema, asText(input.collection), record, new Date()) },
+        value: {
+          id,
+          ...withAmbientTimeZone(timeZone, () =>
+            applyDerivedFields(schema, asText(input.collection), record, new Date()),
+          ),
+        },
       };
     }
 
@@ -276,6 +299,15 @@ export const runAgentOperation = async (
         ? { ok: true, value: outcome.value }
         : refuse(catalog, outcome.error, outcome.errorParams);
     }
+
+    case 'list_documents':
+      return fromDocumentOutcome(
+        catalog,
+        await listAgentDocuments(schema, session, asText(input.collection), asText(input.recordId), catalog),
+      );
+
+    case 'attach_document':
+      return fromDocumentOutcome(catalog, await attachAgentDocument(schema, session, input, catalog));
 
     case 'run_report':
       return runAgentReport(input, session, catalog, schema);

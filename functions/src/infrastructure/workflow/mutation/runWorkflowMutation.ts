@@ -17,6 +17,7 @@ import { RECORD_CREATED_VIA_FIELD, RECORD_UPDATED_VIA_FIELD } from '../../../dom
 import { ruleIssueParams } from '../../../domain/schema/fieldRules';
 import type { DescribableIssue } from '../../../domain/schema/fieldRules';
 import { formatAndValidateRecord } from '../../../domain/schema/recordRules';
+import { withAmbientTimeZone } from '../../../domain/schema/clockGate';
 import {
   diffRecordKeys,
   planRecordKeys,
@@ -183,9 +184,11 @@ export async function runWorkflowUpsert(
   const id = effectiveSpec.id?.trim();
   const existing = id ? await deps.mutationRepository.getById(tenantId, collection, id) : null;
 
-  const ruled = formatAndValidateRecord(ctx, effectiveSpec.table, effectiveSpec.data, {
-    baseline: existing ?? undefined,
-  });
+  const ruled = withAmbientTimeZone(context.services.timeZone, () =>
+    formatAndValidateRecord(ctx, effectiveSpec.table, effectiveSpec.data, {
+      baseline: existing ?? undefined,
+    }),
+  );
   if (ruled.issues.length > 0) {
     return {
       ok: false,

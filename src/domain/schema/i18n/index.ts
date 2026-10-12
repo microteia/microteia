@@ -60,3 +60,15 @@ export {
   setAmbientCatalog,
   setAmbientLocale,
 } from './localeGate';
+
+export type { TimeZoneSettingValues } from './timeZone';
+export {
+  DEFAULT_TIME_ZONE,
+  TIME_ZONE_SETTING,
+  automaticTimeZone,
+  dayInTimeZone,
+  isValidTimeZone,
+  resolveTimeZone,
+  timeZoneForLocale,
+  timeZoneOptions,
+} from './timeZone';

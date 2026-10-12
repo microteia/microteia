@@ -69,6 +69,8 @@ const OPERATION_BY_ACTION: Readonly<Record<CrudAction, string>> = {
   delete: 'delete_record',
 };
 
+const DOCUMENT_OPERATION_BY_ACTION = { read: 'list_documents', update: 'attach_document' } as const;
+
 /**
  * O que uma lista de opções é para as REGRAS — e por isso o que ela é aqui.
  *
@@ -93,7 +95,15 @@ export const allowedOperations = (
     grants(session.permissions, collectionPermissionId(collection, action))
     || (action === 'read' && isVocabulary(ctx, collection));
 
-  return CRUD_ACTIONS.filter(permitido).map((action) => OPERATION_BY_ACTION[action]);
+  const operations = CRUD_ACTIONS.filter(permitido).map((action) => OPERATION_BY_ACTION[action]);
+  if (ctx.screens.get(collection)?.hasDocuments !== true) return operations;
+  // A aba Documentos segue a permissão da COLEÇÃO, como na regra do Firestore: ler o registro é ler
+  // os anexos dele, e anexar é alterá-lo.
+  return [
+    ...operations,
+    ...(permitido('read') ? [DOCUMENT_OPERATION_BY_ACTION.read] : []),
+    ...(permitido('update') ? [DOCUMENT_OPERATION_BY_ACTION.update] : []),
+  ];
 };
 
 const isWritable = (field: NativeFieldSpec): boolean =>

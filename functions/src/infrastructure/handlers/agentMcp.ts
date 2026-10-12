@@ -106,7 +106,9 @@ const readResource = async (
  * sobrevive a uma instância de Cloud Function que morre entre duas chamadas.
  */
 export const agentMcp = onRequest(
-  { region: REGION, cors: true },
+  // 512 MiB e não o padrão: `attach_document` recebe até 20 MB em base64 (~27 MB de texto), e o
+  // corpo, o texto e o arquivo decodificado coexistem na memória durante a gravação.
+  { region: REGION, cors: true, memory: '512MiB' },
   async (request, response): Promise<void> => {
     // Só POST. A spec prevê um GET que abre um fluxo de mensagens iniciadas pelo servidor, e este
     // servidor não inicia nenhuma — dizer 405 é mais honesto que abrir um fluxo que nunca fala.

@@ -46,6 +46,12 @@ export interface SchemaScreen {
   auditActions?: AuditAction[] | null;
   /** As chaves declaradas para a COLEÇÃO. Ver `ScreenDefinition.keys`. */
   keys?: RecordKeySpec[] | null;
+  /**
+   * O registro tem a aba Documentos. Está no schema, e não só na tela, porque o agente que anexa
+   * um arquivo precisa da mesma resposta que a tela dá — sem ela, anexaria a um registro cuja aba
+   * ninguém vê.
+   */
+  hasDocuments?: boolean;
 }
 
 /** A lista de opções como o schema a enxerga. `collection` é o nome da coleção sob o tenant. */

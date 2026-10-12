@@ -70,6 +70,7 @@ export class ScreenDefinitionCache implements IScreenDefinitionProvider {
         fields: Array.isArray(data.fields) ? (data.fields as FieldDefinition[]) : [],
         tagCollection: typeof data.tagCollection === 'string' ? data.tagCollection : undefined,
         eventPrefix: typeof data.eventPrefix === 'string' ? data.eventPrefix : undefined,
+        hasDocuments: data.hasDocuments === true,
       };
     });
 

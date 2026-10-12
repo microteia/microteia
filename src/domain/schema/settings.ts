@@ -8,6 +8,8 @@
  * lugar, validadas pela mesma regra.
  */
 
+import { isValidTimeZone } from './i18n/timeZone';
+
 /**
  * Onde um valor é gravado. `tenant` é o padrão do escritório (quem grava é o administrador);
  * `user` é a preferência pessoal, que SEMPRE vence a do escritório quando existe.
@@ -25,6 +27,10 @@ export const SETTINGS_SCOPES: SettingsScope[] = ['tenant', 'user'];
  * quais pacotes de tradução estão instalados naquele escritório naquele momento. Declarar a lista no
  * manifest congelaria os idiomas existentes no núcleo — exatamente o que este tipo evita. `theme` é
  * o mesmo caso, com os temas instalados no lugar dos idiomas.
+ *
+ * `timezone` é um `select` sobre os fusos IANA que a plataforma conhece (`Intl`). A lista também não
+ * é declarável — ela é da plataforma, não do pacote —, e o valor vazio é uma escolha legítima:
+ * "automático", o fuso que o idioma do escritório sugere. Ver `i18n/timeZone.ts`.
  */
 export type SettingsPropertyType =
   | 'boolean'
@@ -36,7 +42,8 @@ export type SettingsPropertyType =
   | 'widgets'
   | 'contributions'
   | 'locale'
-  | 'theme';
+  | 'theme'
+  | 'timezone';
 
 export interface SettingsPropertyOption {
   value: string;
@@ -306,6 +313,13 @@ export const validateSettingValue = (
       return typeof value === 'string' && /^[a-z0-9][a-z0-9.-]*$/i.test(value.trim())
         ? null
         : { message: 'setting.theme' };
+    /**
+     * Um fuso é aceito quando a plataforma o reconhece como IANA — ao contrário do idioma, a lista
+     * não depende do que o escritório instalou, então validar contra ela não descarta escolha de
+     * ninguém. Vazio é "automático".
+     */
+    case 'timezone':
+      return value === '' || isValidTimeZone(value) ? null : { message: 'setting.timezone' };
     case 'json':
       return value === undefined ? { message: 'setting.json' } : null;
     default:

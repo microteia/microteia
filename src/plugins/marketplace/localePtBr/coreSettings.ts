@@ -43,6 +43,7 @@ export const CORE_SETTINGS: Record<string, string> = {
   'setting.json': 'Informe um valor.',
   'setting.locale': 'Informe um idioma no formato "en" ou "pt-BR".',
   'setting.theme': 'Informe o identificador de um tema instalado.',
+  'setting.timezone': 'Escolha um fuso da lista, como "America/Sao_Paulo".',
   'setting.number': 'Informe um número.',
   'setting.number.max': 'O máximo é {max}.',
   'setting.number.min': 'O mínimo é {min}.',

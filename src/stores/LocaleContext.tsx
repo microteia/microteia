@@ -4,6 +4,8 @@ import type { LocaleCode } from '../domain/schema/i18n/localeNegotiation';
 import { DEFAULT_LOCALE, negotiateFromCandidates, normalizeLocale } from '../domain/schema/i18n/localeNegotiation';
 import { buildMessageCatalog, localesOf } from '../domain/schema/i18n/messages';
 import { setAmbientCatalog, setAmbientLocale } from '../domain/schema/i18n/localeGate';
+import { resolveTimeZone } from '../domain/schema/i18n/timeZone';
+import { setAmbientTimeZone } from '../domain/schema/clockGate';
 import { LocaleContext } from './useLocale';
 import { useContributions } from './useKernel';
 import { useSettings } from './useSettings';
@@ -168,6 +170,21 @@ export const TenantLocaleProvider: React.FC<{ children: React.ReactNode }> = ({ 
     if (preferred === null) localStorage.removeItem(STORAGE_KEY);
     else localStorage.setItem(STORAGE_KEY, preferred);
   }, [preferred, isLoading]);
+
+  /**
+   * O FUSO do escritório vai para o gate do relógio: é nele que `today()` diz que dia é. A regra de
+   * resolução é a mesma que o servidor aplica (`resolveTimeZone`), e é por isso que a tela e a
+   * automação concordam sobre a data — inclusive às 22h em Brasília, quando UTC já é amanhã.
+   *
+   * Ao sair do escritório o gate volta ao padrão: o fuso de um escritório não vale para o próximo.
+   */
+  const timeZone = useMemo(() => resolveTimeZone(values), [values]);
+
+  useEffect(() => {
+    if (isLoading) return;
+    setAmbientTimeZone(timeZone);
+    return () => setAmbientTimeZone(null);
+  }, [timeZone, isLoading]);
 
   /**
    * Enquanto a configuração não chegou do servidor ela não tem opinião nenhuma — nem "nada gravado".

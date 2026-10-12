@@ -154,6 +154,7 @@ export const runReportQuery = async ({
     entity: resolveQueryTable(spec.dataset.table, schema)?.physicalCollection,
     permissions: context.actor?.permissions,
     now,
+    timeZone: context.services.timeZone,
   });
   if (!filtered.ok) {
     return { ok: false, error: filtered.error, errorParams: filtered.errorParams, issues };

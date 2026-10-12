@@ -4,6 +4,7 @@ import type { PathRoot, SchemaContext } from './pathResolver';
 import { parsePath, resolvePath } from './pathResolver';
 import { resolveQueryTable } from './querySpec';
 import { isLookupTable } from './screenEntity';
+import { DEFAULT_TIME_ZONE, dayInTimeZone } from './i18n/timeZone';
 
 export interface UpsertSpec {
   table: string;
@@ -292,11 +293,15 @@ export const parseDateOnly = (text: string): Date | null => {
   );
 };
 
-/** O DIA em que um instante cai, na mesma âncora — o que `today()` devolve a uma automação. */
-export const anchorDay = (instant: Date): Date =>
-  new Date(
-    Date.UTC(instant.getUTCFullYear(), instant.getUTCMonth(), instant.getUTCDate(), DAY_ANCHOR_UTC_HOUR),
-  );
+/**
+ * O DIA em que um instante cai NO FUSO dado, na mesma âncora — o que `today()` devolve a uma
+ * automação. O fuso é o do escritório: às 22h em Brasília o dia ainda é o de hoje, embora UTC já
+ * tenha virado a página.
+ */
+export const anchorDay = (instant: Date, timeZone: string = DEFAULT_TIME_ZONE): Date => {
+  const [year, month, day] = dayInTimeZone(instant, timeZone).split('-').map(Number);
+  return new Date(Date.UTC(year, month - 1, day, DAY_ANCHOR_UTC_HOUR));
+};
 
 const isTimestampLike = (value: unknown): value is { toDate: () => Date } =>
   !!value && typeof value === 'object' && typeof (value as { toDate?: unknown }).toDate === 'function';

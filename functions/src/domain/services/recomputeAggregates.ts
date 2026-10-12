@@ -7,6 +7,7 @@ import { flattenDataLeaves, resolveWritableTable, setValueAtPath } from '../sche
 import { getValueAtPath, parsePath } from '../schema/pathResolver';
 import type { SchemaContext } from '../schema/pathResolver';
 import { formatAndValidateRecord } from '../schema/recordRules';
+import { withAmbientTimeZone } from '../schema/clockGate';
 
 const AGGREGATE_ACTOR = 'aggregate-engine';
 
@@ -21,6 +22,8 @@ export interface AggregateRecomputeDeps {
   queryRepository: IWorkflowQueryRepository;
   mutationRepository: IWorkflowMutationRepository;
   logger?: { warn: (message: string) => void };
+  /** O fuso do escritório, para o `today()` de um filtro ou de um `compute` recalculado aqui. */
+  timeZoneOf?: (tenantId: string) => Promise<string>;
 }
 
 const asRecordId = (value: unknown): string | null =>
@@ -114,14 +117,19 @@ const recomputeOneParent = async (
     );
   }
 
-  const value = aggregateChildren(ctx, target.aggregation, childTable, rows);
+  const timeZone = await deps.timeZoneOf?.(tenantId);
+  const value = withAmbientTimeZone(timeZone, () =>
+    aggregateChildren(ctx, target.aggregation, childTable, rows),
+  );
 
   const patch: Record<string, unknown> = {};
   setValueAtPath(patch, target.parentPath, value);
 
   // Passa pelo gate para que um campo `compute` que dependa deste agregado seja recalculado no
   // mesmo write — é o que faz agregação e valor calculado se comporem.
-  const ruled = formatAndValidateRecord(ctx, target.parentTable, patch, { baseline });
+  const ruled = withAmbientTimeZone(timeZone, () =>
+    formatAndValidateRecord(ctx, target.parentTable, patch, { baseline }),
+  );
   if (ruled.issues.length > 0) return;
 
   // Guarda de recursão: sem diferença real, não grava — e sem write o `.saved` do pai não dispara,

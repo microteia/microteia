@@ -11,7 +11,8 @@ export const CORE_I18N_MESSAGES: Record<string, string> = {
     'Available languages come from the installed translation packages. Text without a translation appears in its original language.',
   'timezone.label': 'Time zone',
   'timezone.description':
-    'Used to decide which day an instant belongs to. Left empty, the time zone of whoever has the screen open applies.',
+    'The day "today" means in rules, automations and reports — everyone in the organization sees the same day, wherever they are. On automatic, organizations in Brazilian Portuguese (pt-BR) use America/Sao_Paulo, and the others use UTC.',
+  'timezone.automatic': 'Automatic ({zone})',
   'page.translations': 'Translations',
   'nav.translations': 'Translations',
   'translations.admin-only': 'Only organization administrators can install languages.',

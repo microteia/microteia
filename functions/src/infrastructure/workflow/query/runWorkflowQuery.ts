@@ -10,6 +10,7 @@ import { collectHopRecordRefs, materializeHops, recordKey } from '../../../domai
 import type { QueryOrderBy, QueryPredicate, QuerySpec } from '../../../domain/schema/querySpec';
 import { resolveQueryTable, validateQuerySpec } from '../../../domain/schema/querySpec';
 import { applyDerivedFields, collectDerivedFieldKeys } from '../../../domain/schema/recordRules';
+import { withAmbientTimeZone } from '../../../domain/schema/clockGate';
 import { compareValues, evaluateResolvedPredicate } from '../../../domain/schema/predicateMatch';
 import type { ResolvedPredicate as SharedResolvedPredicate } from '../../../domain/schema/predicateMatch';
 
@@ -236,7 +237,9 @@ export async function runWorkflowQuery(
   const materialized =
     derivedKeys.size === 0
       ? hydrated
-      : hydrated.map((record) => applyDerivedFields(ctx, spec.table, record, at));
+      : withAmbientTimeZone(context.services.timeZone, () =>
+          hydrated.map((record) => applyDerivedFields(ctx, spec.table, record, at)),
+        );
 
   let results = materialized.filter((record) =>
     memoryPredicates.every((predicate) => evaluateResolvedPredicate(record, asShared(predicate))),

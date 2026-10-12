@@ -16,6 +16,7 @@ import type { WorkflowQueryDeps } from '../workflow/query/runWorkflowQuery';
 import type { WorkflowMutationDeps } from '../workflow/mutation/runWorkflowMutation';
 import type { WorkflowContext, WorkflowLogger } from '../../domain/entities/WorkflowContext';
 import type { WorkflowParameter } from '../../domain/entities/Workflow';
+import { tenantTimeZone } from '../settings/tenantTimeZone';
 
 interface RunScriptRequest {
   tenantId: string;
@@ -133,7 +134,7 @@ export const runScript = onCall(
       event: { id: '', tenantId, name: 'script.debug', payload: {}, timestamp: new Date() },
       outputs: {},
       variables: {},
-      services: { logger, now: () => new Date() },
+      services: { logger, now: () => new Date(), timeZone: await tenantTimeZone(tenantId, request.auth.uid) },
       logger,
       execution: { id: crypto.randomUUID(), workflowDefinitionId: '', tenantId },
       actor: await identifyActor(request.auth.uid, 'ui', actorPermissions),

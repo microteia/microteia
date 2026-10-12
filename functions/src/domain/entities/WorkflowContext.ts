@@ -15,6 +15,19 @@ export interface WorkflowLogger {
 export interface WorkflowServices {
   logger: WorkflowLogger;
   now(): Date;
+  /**
+   * O fuso do escritório NESTA execução — em que `today()` diz que dia é. Ausente, UTC.
+   *
+   * É do contexto, e não de um gate de módulo, pela mesma razão de `actor`: uma instância atende
+   * escritórios diferentes ao mesmo tempo.
+   */
+  timeZone?: string;
+  /**
+   * Resolve o fuso de um escritório (`i18n.timezone`, usuário → escritório → padrão). Quem monta
+   * serviços COMPARTILHADOS entre escritórios — o container — fornece este, e não `timeZone`: o
+   * fuso é resolvido no começo de cada execução, por `hydrateAndRunWorkflow`.
+   */
+  timeZoneOf?(tenantId: string, userId?: string): Promise<string>;
 }
 
 /** De onde partiu o gesto de uma PESSOA: o app ou um agente de IA, pelo MCP, em nome dela. */

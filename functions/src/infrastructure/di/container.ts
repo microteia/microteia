@@ -75,6 +75,7 @@ import { FirestoreWorkflowMutationRepository } from '../../data/services/Firesto
 import { FirebaseScriptRepository } from '../../data/repositories/FirebaseScriptRepository';
 import { ScreenDefinitionCache } from '../../data/services/ScreenDefinitionCache';
 import type { AggregateRecomputeDeps } from '../../domain/services/recomputeAggregates';
+import { tenantTimeZone } from '../settings/tenantTimeZone';
 
 class DIContainer {
   private static instance: DIContainer;
@@ -345,6 +346,7 @@ class DIContainer {
         error: (message) => console.error(`[workflow] ${message}`),
       },
       now: () => new Date(),
+      timeZoneOf: tenantTimeZone,
     };
   }
 
@@ -379,6 +381,7 @@ class DIContainer {
         queryRepository: new FirestoreWorkflowQueryRepository(getDb()),
         mutationRepository: new FirestoreWorkflowMutationRepository(getDb()),
         logger: { warn: (message: string) => console.warn(`[aggregate] ${message}`) },
+        timeZoneOf: (tenantId: string) => tenantTimeZone(tenantId),
       };
     }
     return this.aggregateRecomputeDeps;

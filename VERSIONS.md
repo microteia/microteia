@@ -11,6 +11,16 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.85.0] — 2026-10-11
+
+- O "hoje" das regras, automações e relatórios passa a ser o dia do escritório: às 22h em Brasília ainda é hoje, e a tela e a automação concordam sobre a data. Antes, a partir das 21h, o sistema já considerava o dia seguinte.
+- O fuso horário em Configurações → Idioma e região agora é escolhido numa lista, com a opção "Automático", que usa o horário de Brasília para escritórios em português do Brasil.
+
+#### [9.84.0] — 2026-10-11
+
+- O assistente de IA conectado ao escritório agora consegue ver os arquivos da aba Documentos de um registro — nome, tipo, quem anexou e o link para abrir.
+- O assistente também pode anexar arquivos à aba Documentos, já com o tipo de documento, como se o envio tivesse sido feito pela própria tela. O limite de tamanho é o mesmo do envio manual: menos de 20 MB por arquivo.
+
 #### [9.83.0] — 2026-10-11
 
 - Cada cartão do Calendário agora mostra de onde vem — o ícone e o nome da origem, como Prazo ou Título —, inclusive os itens que já estavam na agenda.

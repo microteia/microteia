@@ -18,6 +18,27 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.85.0] — 2026-10-11
+
+- feat(expressions): `today()` answers the organization's day — the day the instant falls on in the `i18n.timezone` time zone — instead of the UTC day (`toISOString().slice(0, 10)`). Between 9 p.m. and midnight in Brasília both ends used to answer tomorrow. `now()` is unchanged: still an instant.
+- feat(i18n): new shared `domain/schema/i18n/timeZone.ts` (synced to `functions/`): `resolveTimeZone` (person → organization → automatic), `isValidTimeZone`, `timeZoneOptions`, `dayInTimeZone`. Automatic follows the organization's stored `i18n.locale` region (`BR` → `America/Sao_Paulo`), falling back to the person's, then `UTC` — so an organization that configures nothing keeps the day it had. Never the browser-negotiated locale, which the server cannot see.
+- feat(settings): new `SettingsPropertyType` `timezone` — a searchable list of the IANA zones `Intl` knows, plus "Automatic" (empty value). Values are validated by shape and by `Intl`; an invalid stored value falls through to the next level. `i18n.timezone` moves from `text` to `timezone`. `KERNEL_VERSION` 2.27.0 (additive).
+- feat(client): `TenantLocaleProvider` pushes the resolved zone into `clockGate` (`setAmbientTimeZone`), reset on leaving the organization. `FieldExprContext` gains `timeZone`.
+- feat(functions): the zone travels per execution, never in module state shared across organizations: `WorkflowServices.timeZone` (resolved once per run in `hydrateAndRunWorkflow` through `timeZoneOf`, and in the agent, report and script contexts), `ReportRowFilterInput.timeZone` for `includeWhen`, and `withAmbientTimeZone` around the synchronous derive/compute evaluations of queries, mutations, aggregate recompute and agent `get_record`. `tenantTimeZone` caches the resolution for 60 s.
+- feat(workflow): `anchorDay(instant, timeZone)` anchors the organization's day; the workflow `today()` uses it.
+- test: client × server parity of `today()` at 10 p.m. in Brasília across the field expression, the workflow function, a server-side derive and a report `includeWhen`.
+- docs(authoring): §9 documents `today()` as the organization's day, with the setting key and defaults derived from code.
+- chore(locale-pt-br): 1.74.0 — the time zone picker and its validation message.
+
+#### [9.84.0] — 2026-10-11
+
+- feat(agent): two new execution-MCP tools, `list_documents` and `attach_document`, over the Documents tab of any screen that declares `hasDocuments`. The collection stays an argument, so no business name enters the surface. Charges mirror `firestore.rules` for `{collection}/{id}/documents`: `<collection>.read` to list, `<collection>.update` to attach. Until now the agent had no path to that subcollection at all.
+- feat(agent): `attach_document` takes the file as base64 (`data:<type>;base64,` accepted), checks size from the text length before decoding, and refuses at the same strict ceiling the Storage rule applies to the browser (`< 20 MB`, `DEFAULT_FILE_MAX_SIZE_MB`) — the Admin SDK bypasses the rule, so the ceiling is enforced in code. The object is written to the same path as an in-app upload (`tenants/{t}/{collection}/{id}/{ts}_{name}`) with a `firebaseStorageDownloadTokens` token, so the stored `url` is a regular download link and the delete cascade reaches it. The document carries the same fields as an in-app upload plus `contentType`, `size` and `createdVia: 'agent'`; the author is the grant owner. A failed Firestore write deletes the stored object.
+- feat(agent): the document type is resolved against the list the tab offers (by key, or by label case-insensitively) and refused with the accepted keys otherwise. `describe_screen` gains a `documents` section (`maxSizeMb`, `types`) on screens with the tab, and `allowedOperations` lists the two tools there.
+- refactor(schema): the built-in `documentTypes` options and `mergeLookupDefaults` moved to the shared `domain/schema/lookupDefaults.ts` (synced to `functions/`), so the backend validates against the same list the screen shows. `SchemaScreen.hasDocuments` is now part of the schema context.
+- chore(functions): `agentMcp` runs with 512 MiB — a 20 MB file is ~27 MB of base64 and coexists with its decoded buffer during the write.
+- chore(locale-pt-br): 1.73.0 — translations for the new agent refusals.
+
 #### [9.83.0] — 2026-10-11
 
 - feat(host-api): `useCollectionIdentity()` in `@microteia/data` returns `(collection) => { screenKey, title, titlePlural, icon } | null`, resolved from the screen that presents the collection today (by data collection, then by screen key, as `useReferenceOpener` does), with labels resolved. It is the counterpart of `useOpenRecord`: a surface that mixes records of several origins can say where each came from without naming any screen. `KERNEL_VERSION` 2.26.0.

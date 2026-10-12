@@ -151,6 +151,14 @@ export const CORE_ACCESS_MESSAGES: Record<string, string> = {
   'agent.prompts.required': 'The report filter "{label}" ({key}) is required.',
   'agent.run.not-found': 'No automation was started with the event id "{eventId}".',
   'agent.audit.date-invalid': '"{path}" is not a date: send "YYYY-MM-DD" or an ISO-8601 timestamp.',
+  'agent.document.not-enabled':
+    'The screen "{collection}" has no Documents tab, so its records do not take attachments.',
+  'agent.document.name-invalid': 'Give the file a name with its extension, for example "contract.pdf".',
+  'agent.document.content-invalid': '"content" is not valid base64.',
+  'agent.document.empty': 'The file is empty.',
+  'agent.document.too-large': 'The file has {size} MB, and files must be smaller than {limit} MB.',
+  'agent.document.type-unknown': 'Unknown document type "{type}". Accepted: {accepted}.',
+  'agent.document.upload-failed': 'The file could not be stored. Try again.',
   'permission.agent.manage': 'Manage AI agent access',
   'permission.agent.manage.description':
     'See and revoke the AI agent access of every member. Issuing an access for oneself does not need this.',

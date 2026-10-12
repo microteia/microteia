@@ -12,6 +12,7 @@ import type { ReportSpec } from '../../domain/schema/report/reportSpec';
 import type { ReportResult } from '../../domain/schema/report/reportResult';
 import type { ReportSpecIssue } from '../../domain/schema/report/validateReportSpec';
 import { requireReportAccess, runReportQuery } from '../report/runReportQuery';
+import { tenantTimeZone } from '../settings/tenantTimeZone';
 
 interface RunReportRequest {
   tenantId: string;
@@ -104,7 +105,7 @@ export const runReport = onCall(
       event: { id: '', tenantId, name: 'report.run', payload: prompts ?? {}, timestamp: new Date() },
       outputs: {},
       variables: {},
-      services: { logger, now: () => new Date() },
+      services: { logger, now: () => new Date(), timeZone: await tenantTimeZone(tenantId, userId) },
       logger,
       execution: { id: crypto.randomUUID(), workflowDefinitionId: '', tenantId },
       actor: await identifyActor(userId, 'ui', permissions),

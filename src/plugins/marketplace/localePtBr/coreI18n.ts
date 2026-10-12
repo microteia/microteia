@@ -10,7 +10,8 @@ export const CORE_I18N: Record<string, string> = {
     'Os idiomas disponíveis vêm dos pacotes de tradução instalados. Texto sem tradução aparece no idioma original.',
   'timezone.label': 'Fuso horário',
   'timezone.description':
-    'Usado para decidir a que dia pertence um instante. Em branco, vale o fuso de quem está com a tela aberta.',
+    'O dia que "hoje" significa nas regras, automações e relatórios — todos no escritório veem o mesmo dia, estejam onde estiverem. No automático, escritórios brasileiros (idioma pt-BR) usam o horário de Brasília, e os demais, UTC.',
+  'timezone.automatic': 'Automático ({zone})',
   'page.translations': 'Traduções',
   'nav.translations': 'Traduções',
   'translations.admin-only': 'Somente administradores do escritório podem instalar idiomas.',

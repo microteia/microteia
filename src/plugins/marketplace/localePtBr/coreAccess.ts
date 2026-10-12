@@ -151,6 +151,14 @@ export const CORE_ACCESS: Record<string, string> = {
   'agent.prompts.required': 'O filtro "{label}" ({key}) do relatório é obrigatório.',
   'agent.run.not-found': 'Nenhuma automação foi iniciada com o id de evento "{eventId}".',
   'agent.audit.date-invalid': '"{path}" não é uma data: envie "AAAA-MM-DD" ou um instante ISO-8601.',
+  'agent.document.not-enabled':
+    'A tela "{collection}" não tem a aba Documentos, então os registros dela não recebem anexos.',
+  'agent.document.name-invalid': 'Dê ao arquivo um nome com a extensão, por exemplo "contrato.pdf".',
+  'agent.document.content-invalid': '"content" não é um base64 válido.',
+  'agent.document.empty': 'O arquivo está vazio.',
+  'agent.document.too-large': 'O arquivo tem {size} MB, e o limite é menos de {limit} MB.',
+  'agent.document.type-unknown': 'Tipo de documento desconhecido "{type}". Aceitos: {accepted}.',
+  'agent.document.upload-failed': 'Não foi possível guardar o arquivo. Tente de novo.',
   'permission.agent.manage': 'Gerenciar acessos de agente de IA',
   'permission.agent.manage.description':
     'Ver e revogar os acessos de agente de IA de todos os membros. Emitir um acesso para si mesmo não exige esta permissão.',

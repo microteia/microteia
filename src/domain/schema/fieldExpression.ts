@@ -5,7 +5,15 @@
 
 import { Parser } from 'expr-eval';
 import { isEmptyRuleValue, isValidCnpj, isValidCpf, onlyDigits } from './fieldRulePresets';
-import { ambientInstant, configuredInstant, setAmbientInstant } from './clockGate';
+import {
+  ambientInstant,
+  ambientTimeZone,
+  configuredInstant,
+  configuredTimeZone,
+  setAmbientInstant,
+  setAmbientTimeZone,
+} from './clockGate';
+import { dayInTimeZone } from './i18n/timeZone';
 import { ambientLocale } from './i18n/localeGate';
 import {
   ambientEntity,
@@ -38,6 +46,12 @@ export interface FieldExprContext {
    * inteira responda sobre o mesmo momento. Ver `clockGate.ts`.
    */
   at?: Date;
+  /**
+   * O fuso em que `today()` diz que dia é — o do escritório (`i18n.timezone`). Ausente, vale o que o
+   * gate tiver: no front, o que o provedor empurrou; no backend, UTC. Quem avalia no SERVIDOR o passa
+   * sempre, porque lá o gate de módulo é compartilhado entre escritórios.
+   */
+  timeZone?: string;
 }
 
 const EXPRESSION_OPERATORS = {
@@ -265,7 +279,11 @@ const FIELD_EXPRESSION_FUNCTIONS: Record<string, (...args: unknown[]) => unknown
     delete clone[asText(key)];
     return clone;
   },
-  today: () => ambientInstant().toISOString().slice(0, 10),
+  /**
+   * O DIA DO ESCRITÓRIO: o dia em que o instante cai no fuso `i18n.timezone`, e não em UTC. Às 22h em
+   * Brasília ainda é hoje para quem trabalha lá, embora UTC já tenha virado a página.
+   */
+  today: () => dayInTimeZone(ambientInstant(), ambientTimeZone()),
   now: () => ambientInstant().toISOString(),
   /**
    * O RESULTADO tem a forma da ENTRADA: dia entra, dia sai (`YYYY-MM-DD`, que é o que um campo de
@@ -384,15 +402,18 @@ export const evaluateFieldExpression = (expr: string, ctx: FieldExprContext): un
   const previousEntity = ambientEntity();
   const previousPermissions = ambientPermissions();
   const previousInstant = configuredInstant();
+  const previousTimeZone = configuredTimeZone();
   setAmbientEntity(ctx.entity ?? '');
   if (ctx.permissions) setAmbientPermissions(ctx.permissions);
   if (ctx.at) setAmbientInstant(ctx.at);
+  if (ctx.timeZone) setAmbientTimeZone(ctx.timeZone);
   try {
     return fieldParser.parse(expr).evaluate(buildScope(ctx) as never);
   } finally {
     setAmbientEntity(previousEntity);
     setAmbientPermissions(previousPermissions);
     if (ctx.at) setAmbientInstant(previousInstant);
+    if (ctx.timeZone) setAmbientTimeZone(previousTimeZone);
   }
 };
 

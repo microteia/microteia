@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
-import { configuredInstant, resetAmbientInstant } from './clockGate';
+import { afterEach, describe, expect, it } from 'vitest';
+import { configuredInstant, configuredTimeZone, resetAmbientInstant, setAmbientTimeZone } from './clockGate';
 import { resetAmbientLocale, setAmbientLocale } from './i18n/localeGate';
 import {
   evaluateFieldBoolean,
@@ -399,5 +399,35 @@ describe('instante da avaliação — o relógio como contexto', () => {
     resetAmbientInstant();
     evaluateFieldExpression('today()', { value: null, data: {}, at: dia });
     expect(configuredInstant()).toBeNull();
+  });
+});
+
+describe('today() — o dia do escritório', () => {
+  const evening = new Date('2026-03-31T01:00:00.000Z');
+
+  afterEach(() => resetAmbientInstant());
+
+  it('responde o dia no fuso do contexto, e não em UTC', () => {
+    expect(evaluateFieldExpression('today()', { value: null, data: {}, at: evening, timeZone: 'America/Sao_Paulo' }))
+      .toBe('2026-03-30');
+  });
+
+  it('sem fuso no contexto, vale o que o provedor empurrou', () => {
+    setAmbientTimeZone('America/Sao_Paulo');
+    expect(evaluateFieldExpression('today()', { value: null, data: {}, at: evening })).toBe('2026-03-30');
+  });
+
+  it('sem fuso nenhum, UTC', () => {
+    expect(evaluateFieldExpression('today()', { value: null, data: {}, at: evening })).toBe('2026-03-31');
+  });
+
+  it('now() continua sendo o instante, sem fuso', () => {
+    expect(evaluateFieldExpression('now()', { value: null, data: {}, at: evening, timeZone: 'America/Sao_Paulo' }))
+      .toBe('2026-03-31T01:00:00.000Z');
+  });
+
+  it('devolve o fuso ao anterior ao terminar', () => {
+    evaluateFieldExpression('today()', { value: null, data: {}, at: evening, timeZone: 'Asia/Tokyo' });
+    expect(configuredTimeZone()).toBeNull();
   });
 });

@@ -3274,6 +3274,7 @@ A listagem consulta `orderBy('createdAt','desc') + limit(500)` — sem filtro im
 - Subcoleções `tenants/{tid}/{collection}/{recordId}/notes|documents` — a coleção é o caminho, então nada precisa ser denormalizado no doc. Arquivos no Storage em `tenants/{tid}/{collection}/{recordId}/{ts}_{arquivo}` (máx. 20 MB).
 - Repositórios genéricos + `useRecordNotesPort`/`useRecordDocumentsPort` (`entityScreen/useRecordPorts.ts`), que prendem a coleção e entregam o mesmo `NotesPort`/`DocumentsPort` das fixas.
 - `DeleteRecordUseCase` cascateia: exclui notas, documentos (incluindo arquivos do Storage) e então o registro.
+- O agente de IA lê e anexa pela mesma subcoleção e no mesmo caminho do bucket (`list_documents`/`attach_document`; ver "Anexos pela aba Documentos").
 - Auditoria: `getNestedEntityConfig` cai numa configuração genérica de "Nota/Documento de Registro" para qualquer coleção que não seja reservada.
 - **Anexar é um LOTE, e o tipo é de cada arquivo.** `useEntityDocuments` guarda uma fila
   (`pendingUploads: { id, file, type, status }[]`) em vez de um arquivo só: o `<input multiple>`
@@ -6936,7 +6937,7 @@ O caminho natural seria uma API por extensão instalada. Ele é impossível aqui
 de negócio seria o defeito que este projeto existe para não ter.
 
 A saída não é "uma API flexível o bastante". É que a superfície **não tem nome de negócio nenhum**:
-doze ferramentas genéricas em que a coleção é ARGUMENTO, mais a descoberta de esquema que diz ao
+quinze ferramentas genéricas em que a coleção é ARGUMENTO, mais a descoberta de esquema que diz ao
 agente o que existe naquele escritório. `search_records(collection, …)`, nunca `search_processo`. É
 exatamente a propriedade que `FirebaseRecordRepository` e `RecordStore` já têm — recebem a coleção
 como argumento e servem qualquer uma — levada até a superfície de ferramentas.
@@ -6973,6 +6974,7 @@ dito duas vezes:
 | `search_records` | `runWorkflowQuery` (índice-free; só igualdade desce ao Firestore) |
 | `create_record` / `update_record` | `runWorkflowUpsert` — a porta de gravação do backend |
 | `delete_record` | `runWorkflowRemove` |
+| `list_documents` / `attach_document` | `agentDocuments.ts` — a subcoleção `documents` e o bucket, no MESMO formato do upload da tela (ver "Anexos pela aba Documentos") |
 | `run_report` | `runReportQuery`, com `reportSourceCollections` para enumerar o que ele alcança |
 | `run_workflow` | `publishEvent` — PUBLICA, não executa |
 | `run_action` | `RunCalledWorkflowUseCase` |
@@ -7204,6 +7206,51 @@ agente diz o mesmo — não por conveniência, mas porque dizer o contrário far
 duas respostas, e obrigaria quem emite um acesso a listar cada uma das dezenas de listas do escritório
 para que um único campo de seleção pudesse ser preenchido. A ESCRITA continua cobrada.
 
+### Anexos pela aba Documentos
+
+O agente lia e gravava registros, e não alcançava a aba Documentos de jeito nenhum: a subcoleção
+`{coleção}/{id}/documents` não é tela, e nenhuma ferramenta a atravessava. `list_documents` e
+`attach_document` são as duas ferramentas que faltavam — e, como as outras, recebem a coleção como
+ARGUMENTO. Valem para toda tela com `hasDocuments`, sem que o kernel saiba qual.
+
+**O anexo do agente é indistinguível do anexo da tela**, e é isso que dispensa qualquer tratamento à
+parte em quem o lê:
+
+| | Tela (`FirebaseRecordDocumentRepository`) | Agente (`agentDocuments.ts`) |
+|---|---|---|
+| Caminho no bucket | `tenants/{t}/{coleção}/{id}/{ts}_{nome}` | o mesmo (`agentDocumentStoragePath`) |
+| Link | `getDownloadURL` do SDK web | `firebaseStorageDownloadTokens` na gravação + `getDownloadURL` do Admin |
+| Documento | `name`, `type`, `url`, `storagePath`, `createdBy*`, `createdAt` | os mesmos, mais `contentType`, `size` e `createdVia: 'agent'` |
+| Tipo | chave de `documentTypes` | a mesma, resolvida pela chave ou pelo rótulo |
+
+A cascata de exclusão, a auditoria (`NESTED_SCREEN_PARTS`) e a aba alcançam o arquivo sem mudar uma
+linha, porque ele está onde todo anexo está.
+
+**A cobrança é a da regra do Firestore para a aba:** `<coleção>.read` para listar e `<coleção>.update`
+para anexar — não `create`, porque anexar altera o registro, não cria um da coleção. A tela precisa
+declarar `hasDocuments` (`SchemaScreen.hasDocuments`, que o cache do backend passou a carregar): a regra
+não faz essa pergunta, a tela faz, e anexar a um registro cuja aba ninguém vê seria um arquivo
+perdido.
+
+**O teto é repetido no código, de propósito.** O Admin SDK não passa pelo `storage.rules`, então os
+`< 20 MB` que a regra cobra do navegador não valeriam aqui sozinhos. `inspectAgentFileContent` mede o
+arquivo pelo COMPRIMENTO do base64, antes de decodificá-lo — recusar depois de alocar 20 MB seria pagar
+o custo que o teto existe para evitar. O teto é o `DEFAULT_FILE_MAX_SIZE_MB`, o mesmo do campo `file`.
+Por causa dele `agentMcp` roda com 512 MiB: o corpo (~27 MB de texto) e o arquivo decodificado coexistem
+durante a gravação.
+
+**Bucket primeiro, documento depois.** Se o documento falhar, o objeto é apagado. Na ordem inversa, a
+aba mostraria um link para um arquivo que não existe.
+
+**O tipo é conferido contra a lista que a tela oferece**, e isso exigiu mover as opções fixas de
+`documentTypes` (Contrato, Procuração…) de `src/data/repositories/lookupDefaults.ts` para o schema
+compartilhado (`domain/schema/lookupDefaults.ts`), junto de `mergeLookupDefaults`: o backend não as
+conhecia, e recusaria "Procuração" num escritório que nunca cadastrou tipo nenhum. A descoberta é
+`describe_screen`, que ganha a seção `documents` (`maxSizeMb`, `types`) nas telas com a aba.
+
+**O nome é saneado, não o caminho confiado.** `agentDocumentName` fica só com o nome — `../outro/x.pdf`
+vira `x.pdf` — para que o argumento do agente nunca escolha onde, no bucket, o arquivo cai.
+
 ### A cascata de exclusão desceu para o backend
 
 `runWorkflowRemove` apagava o registro e as reservas de chave, e **não** cascateava: o Step "Excluir
@@ -7355,7 +7402,7 @@ produto; onde não sabe, o token continua sendo a saída honesta.
 | Arquivo | O que é |
 |---|---|
 | `domain/schema/agent/agentGrant.ts` | formato do token, hash, validade, a INTERSEÇÃO (sincronizado) |
-| `domain/schema/agent/agentOps.ts` | as doze ferramentas, os quatro recursos, a regra de cobrança de cada uma, e o texto de API (`accepts`, exemplos) |
+| `domain/schema/agent/agentOps.ts` | as quinze ferramentas, os quatro recursos, a regra de cobrança de cada uma, e o texto de API (`accepts`, exemplos) |
 | `domain/schema/agent/agentInput.ts` | a conferência dos argumentos contra o esquema publicado (sincronizado) |
 | `domain/schema/agent/agentWorkflow.ts` | a automação legível por agente: parâmetros, passos, efeitos, saída e idempotência (sincronizado) |
 | `domain/schema/workflowReturn.ts` | quais passos dão o retorno de uma automação — a regra do editor, agora alcançável pelo backend (sincronizado) |
@@ -8086,9 +8133,28 @@ O valor é validado pela **forma**, nunca contra a lista de instalados: validar 
 preferência de quem escolheu espanhol ser descartada no dia em que o pacote fosse desativado, voltando
 sozinha ao inglês. Idioma sem tradução instalada simplesmente cai no idioma-fonte ao resolver o texto.
 
-`i18n.timezone` fecha a lacuna que `dateFns.ts` documentava como não resolvida ("pede o fuso do
-escritório, que hoje não é declarado"). **Declarado nesta fase; `anchorDay`/`parseDateOnly` ainda não o
-consomem.**
+`i18n.timezone` é o FUSO DO ESCRITÓRIO, e é ele que decide o dia de `today()` — na expressão de campo
+e na automação. Tipo `timezone` (lista IANA do `Intl`, mais "Automático" = vazio). A regra de resolução
+vive em `domain/schema/i18n/timeZone.ts`, compartilhado com `functions/`, e é UMA função
+(`resolveTimeZone`): usuário → escritório → automático. O automático lê a região do `i18n.locale`
+GRAVADO do escritório (depois o do usuário; `BR` → `America/Sao_Paulo`) e cai em `UTC` — nunca o idioma
+negociado com o navegador, que o servidor não enxerga. Uma regra que só uma ponta consegue aplicar é a
+divergência que o arquivo existe para eliminar.
+
+Como o fuso chega a cada ponta:
+
+| Ponta | Caminho |
+|---|---|
+| Cliente | `TenantLocaleProvider` empurra o fuso resolvido em `clockGate` (`setAmbientTimeZone`) |
+| Expressão de campo | `FieldExprContext.timeZone`, empurrado e restaurado como `at` |
+| Workflow | `WorkflowServices.timeZone`, resolvido uma vez por execução (`timeZoneOf` em `hydrateAndRunWorkflow`; direto nos contextos de agente, relatório e script) → `anchorDay(now, timeZone)` |
+| Derive/compute no servidor | `withAmbientTimeZone(context.services.timeZone, …)` em volta da avaliação SÍNCRONA (consulta, mutação, recálculo de agregado, `get_record` do agente) |
+| `includeWhen` de relatório | `ReportRowFilterInput.timeZone` |
+
+No servidor o fuso nunca fica empurrado no módulo: uma instância atende escritórios diferentes ao mesmo
+tempo. `withAmbientTimeZone` só aceita trecho síncrono, onde nada se intercala. `now()` continua sendo
+um instante; `formatDate`/`day`/`month` sobre um instante seguem o fuso do processo. A paridade é
+cobrada por `functions/src/domain/engine/expression/todayParity.test.ts`, às 22h em Brasília.
 
 ### Os dois provedores — e por que são dois
 

@@ -52,16 +52,16 @@ const dateDiff = (date1: Date, date2: Date, unit: string): number => {
 /**
  * `today()` devolve um DIA — quem quer o instante tem `now()`. Por isso ele cai na mesma âncora de
  * uma data digitada (meio-dia em UTC): carimbado em `completedAt`, `paymentDate` ou `cancelDate`, o
- * dia que se lê na tela é o dia em que a automação rodou. Antes era meia-noite do fuso do SERVIDOR
- * (UTC), que no escritório é o dia anterior — concluir um prazo hoje registrava ontem.
+ * dia que se lê na tela é o dia em que a automação rodou.
  *
- * O dia é o dia UTC: entre 21h e a meia-noite no horário de Brasília o servidor já virou a página, e
- * `today()` devolve o dia seguinte. Resolver isso de vez pede o fuso do escritório, que hoje não é
- * declarado em lugar nenhum.
+ * O dia é o do ESCRITÓRIO (`i18n.timezone`, resolvido no começo da execução), e não o do servidor:
+ * em UTC, entre 21h e a meia-noite no horário de Brasília a página já virou, e `today()` devolvia o
+ * dia seguinte. É a mesma resposta que `today()` dá numa expressão de campo — uma regra só, nas duas
+ * pontas.
  */
 export const todayFn: ExpressionFunction = {
   name: 'today',
-  call: (_args, context) => anchorDay(context.services.now()),
+  call: (_args, context) => anchorDay(context.services.now(), context.services.timeZone),
   description: '@core.automation/expr.today.description',
   signature: 'today()',
   example: 'today()',

@@ -19,6 +19,7 @@ import { STEP_TYPES } from '../../../domain/entities/Workflow';
 import type { WorkflowStepMetadata } from '../../../domain/schema/workflowStepCatalog';
 import type { StepType } from '../../../domain/entities/Workflow';
 import { FIELD_EXPRESSION_FUNCTION_NAMES } from '../../../domain/schema/fieldExpression';
+import { DEFAULT_TIME_ZONE, TIME_ZONE_SETTING, timeZoneForLocale } from '../../../domain/schema/i18n/timeZone';
 import {
   A_STATE_IS_A_KEY,
   BEHAVIOR_MECHANISMS,
@@ -1376,6 +1377,22 @@ field cannot aggregate over it (the aggregate IS stored, so it would freeze the 
 and sorting still work — in memory, over the records already loaded, exactly as a filter across a
 link field does. It is read-only in the form, and it is stripped from every write, so \`compute\` and
 \`validate\` cannot see it: both of those run on save, where no derived value exists.
+
+### \`today()\` is the organization's day
+
+An instant is the same everywhere; the day it falls on is not. At 10 p.m. in Brasília it is already
+tomorrow in UTC. \`today()\` answers the day **in the organization's time zone** — the
+\`${TIME_ZONE_SETTING}\` setting under Settings → Language and region, resolved person → organization →
+automatic. Automatic follows the organization's language: \`pt-BR\` means \`${timeZoneForLocale('pt-BR')}\`,
+anything without a known region means \`${DEFAULT_TIME_ZONE}\`.
+
+The same rule runs everywhere the expression does — the form, a \`derive\` read in the browser or on
+the server, a workflow, a report's \`includeWhen\` — so \`dueDate < today()\` cannot be true on the
+screen and false in the automation that acts on it. Do not compensate for the time zone yourself:
+\`addDays(today(), -1)\` "to fix the evening" is wrong for every organization the day the setting changes.
+
+\`now()\` stays an **instant**. Compare it with other instants (\`dateDiff(now(), createdAt, "hours")\`);
+when you need a day, ask \`today()\` instead of cutting one out of \`now()\`.
 
 ### Asking about permission
 

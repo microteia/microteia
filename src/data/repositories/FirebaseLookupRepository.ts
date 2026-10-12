@@ -14,7 +14,7 @@ import { db } from '../../infrastructure/firebase/config';
 import type { ILookupRepository } from '../../domain/repositories/ILookupRepository';
 import type { LookupOption } from '../../domain/entities';
 import { lookupDefaultsFor } from './lookupDefaults';
-import { mergeLookupDefaults } from './mergeLookupDefaults';
+import { mergeLookupDefaults } from '../../domain/schema/lookupDefaults';
 import { subscribeLookupCollection } from './subscribeLookupCollection';
 
 const optionsRef = (tenantId: string, collection: string) =>
