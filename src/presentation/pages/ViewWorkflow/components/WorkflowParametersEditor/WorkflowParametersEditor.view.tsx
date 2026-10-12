@@ -363,6 +363,8 @@ const ParameterFields: React.FC<{
   );
 };
 
+const toLengthLimit = (raw: string): number | undefined => (raw.trim() === '' ? undefined : Number(raw));
+
 const RULES_SUPPORTED_PARAMETER_TYPES: WorkflowParameter['type'][] = ['String', 'Number'];
 
 const ParameterRulesFields: React.FC<{
@@ -383,7 +385,7 @@ const ParameterRulesFields: React.FC<{
     const validate = { ...rules?.validate, ...patch.validate };
     const next: FieldRules = {};
     if (Object.values(format).some(Boolean)) next.format = format;
-    if (Object.values(validate).some(Boolean)) next.validate = validate;
+    if (Object.values(validate).some((value) => typeof value === 'number' || Boolean(value))) next.validate = validate;
     onUpdate(index, { rules: Object.keys(next).length > 0 ? next : undefined });
   };
 
@@ -444,6 +446,25 @@ const ParameterRulesFields: React.FC<{
             value={rules?.validate?.message ?? ''}
             onChange={(e) => patchRules({ validate: { message: e.target.value } })}
             placeholder={t('parameter.validate-message.placeholder')}
+          />
+        </S.Cell>
+      </S.SubLine>
+
+      <S.SubLine>
+        <S.Cell>
+          <Label>{t('parameter.min-length')}</Label>
+          <Input
+            type="number"
+            value={rules?.validate?.minLength ?? ''}
+            onChange={(e) => patchRules({ validate: { minLength: toLengthLimit(e.target.value) } })}
+          />
+        </S.Cell>
+        <S.Cell>
+          <Label>{t('parameter.max-length')}</Label>
+          <Input
+            type="number"
+            value={rules?.validate?.maxLength ?? ''}
+            onChange={(e) => patchRules({ validate: { maxLength: toLengthLimit(e.target.value) } })}
           />
         </S.Cell>
       </S.SubLine>

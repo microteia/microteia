@@ -163,6 +163,8 @@ export interface FieldFormState {
   ruleValidateCheck: ValidateCheck | '';
   ruleValidatePattern: string;
   ruleValidateMessage: string;
+  ruleValidateMinLength: string;
+  ruleValidateMaxLength: string;
   logicValidate: string;
   logicDisabledWhen: string;
   logicHiddenWhen: string;
@@ -382,6 +384,8 @@ const EMPTY_FIELD_FORM: FieldFormState = {
   ruleValidateCheck: '',
   ruleValidatePattern: '',
   ruleValidateMessage: '',
+  ruleValidateMinLength: '',
+  ruleValidateMaxLength: '',
   logicValidate: '',
   logicDisabledWhen: '',
   logicHiddenWhen: '',
@@ -419,6 +423,16 @@ const isInvalidRegex = (pattern: string): boolean => {
   }
 };
 
+const parseLengthLimit = (raw: string): number | undefined => {
+  const text = raw.trim();
+  if (!text) return undefined;
+  const value = Number(text);
+  return Number.isInteger(value) && value >= 0 ? value : undefined;
+};
+
+const isInvalidLengthLimit = (raw: string): boolean =>
+  raw.trim() !== '' && parseLengthLimit(raw) === undefined;
+
 const buildFieldRules = (form: FieldFormState): FieldRules | null => {
   if (!RULES_SUPPORTED_FIELD_TYPES.includes(form.type)) return null;
 
@@ -432,7 +446,13 @@ const buildFieldRules = (form: FieldFormState): FieldRules | null => {
   const validate: ValidateRule = {};
   if (form.ruleValidateCheck) validate.check = form.ruleValidateCheck;
   if (form.ruleValidatePattern.trim()) validate.pattern = form.ruleValidatePattern.trim();
-  if ((validate.check || validate.pattern) && form.ruleValidateMessage.trim()) {
+  const minLength = parseLengthLimit(form.ruleValidateMinLength);
+  const maxLength = parseLengthLimit(form.ruleValidateMaxLength);
+  if (minLength !== undefined) validate.minLength = minLength;
+  if (maxLength !== undefined) validate.maxLength = maxLength;
+  const hasValidation = Boolean(validate.check || validate.pattern)
+    || minLength !== undefined || maxLength !== undefined;
+  if (hasValidation && form.ruleValidateMessage.trim()) {
     validate.message = form.ruleValidateMessage.trim();
   }
 
@@ -445,6 +465,7 @@ const buildFieldRules = (form: FieldFormState): FieldRules | null => {
 const fieldRulesToForm = (rules: FieldRules | null | undefined): Pick<
   FieldFormState,
   'ruleFormatPreset' | 'ruleFormatPattern' | 'ruleFormatReplacement' | 'ruleValidateCheck' | 'ruleValidatePattern' | 'ruleValidateMessage'
+  | 'ruleValidateMinLength' | 'ruleValidateMaxLength'
 > => ({
   ruleFormatPreset: rules?.format?.preset ?? '',
   ruleFormatPattern: rules?.format?.pattern ?? '',
@@ -452,6 +473,8 @@ const fieldRulesToForm = (rules: FieldRules | null | undefined): Pick<
   ruleValidateCheck: rules?.validate?.check ?? '',
   ruleValidatePattern: rules?.validate?.pattern ?? '',
   ruleValidateMessage: rules?.validate?.message ?? '',
+  ruleValidateMinLength: rules?.validate?.minLength === undefined ? '' : String(rules.validate.minLength),
+  ruleValidateMaxLength: rules?.validate?.maxLength === undefined ? '' : String(rules.validate.maxLength),
 });
 
 const buildFieldLogic = (form: FieldFormState): FieldLogic | null => {
@@ -1788,6 +1811,16 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     }
     if (isInvalidRegex(fieldForm.ruleValidatePattern)) {
       reject('advanced', t('field.error.validate-regex'));
+      return;
+    }
+    const minLength = parseLengthLimit(fieldForm.ruleValidateMinLength);
+    const maxLength = parseLengthLimit(fieldForm.ruleValidateMaxLength);
+    if (
+      isInvalidLengthLimit(fieldForm.ruleValidateMinLength)
+      || isInvalidLengthLimit(fieldForm.ruleValidateMaxLength)
+      || (minLength !== undefined && maxLength !== undefined && minLength > maxLength)
+    ) {
+      reject('advanced', t('field.error.length-limit'));
       return;
     }
     if (isInvalidRegex(fieldForm.ruleFormatPattern)) {

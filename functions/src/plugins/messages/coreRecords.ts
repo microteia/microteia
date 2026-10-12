@@ -156,6 +156,7 @@ export const CORE_RECORDS_MESSAGES: Record<string, string> = {
   'field.error.linked-screen-required': 'Choose the screen the field links to.',
   'field.error.mask-required': 'Choose the field mask.',
   'field.error.validate-regex': 'The validation regular expression is invalid.',
+  'field.error.length-limit': 'The length limits must be whole numbers, and the minimum cannot exceed the maximum.',
   'field.error.format-regex': 'The formatting regular expression is invalid.',
   'field.error.compute-cycle':
     'The computed value depends on itself — review the expressions of the computed fields.',
@@ -312,6 +313,8 @@ export const CORE_RECORDS_MESSAGES: Record<string, string> = {
   'aggregation.issue.unknown-field': 'The field "{childField}" is not a field of the child screen.',
   'aggregation.issue.type-mismatch': 'The child field "{childField}" ({childType}) cannot be copied into this field ({parentType}): both must have the same type, the same option list, point at the same screen and allow the same number of values.',
   'field.invalid-format': 'Field "{label}" is in an invalid format',
+  'field.too-short': 'Field "{label}" must have at least {min} characters',
+  'field.too-long': 'Field "{label}" must have at most {max} characters',
   'field.issue': '{label}: {reason}',
   'field.issue-more': '{label}: {reason} — and {others} other field(s)',
   'field.invalid-value': 'Invalid value',

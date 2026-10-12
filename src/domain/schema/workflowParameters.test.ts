@@ -3,6 +3,7 @@ import {
   dslToParameters,
   parameterLookupCollections,
   parametersToDsl,
+  sanitizeFieldRules,
   sanitizeWorkflowParameters,
   siblingParameterErrors,
 } from './workflowParameters';
@@ -60,5 +61,24 @@ describe('parâmetro do tipo lookup', () => {
         ] },
       ]),
     ).toEqual(['pushStatuses', 'caseAreas']);
+  });
+});
+
+describe('limite de tamanho nas regras de validação', () => {
+  it('mantém minLength e maxLength inteiros, e a mensagem que os acompanha', () => {
+    expect(sanitizeFieldRules({ validate: { minLength: 2, maxLength: 500, message: ' Longo demais ' } })).toEqual({
+      validate: { minLength: 2, maxLength: 500, message: 'Longo demais' },
+    });
+  });
+
+  it('descarta limite negativo ou fracionário', () => {
+    expect(sanitizeFieldRules({ validate: { minLength: -1, maxLength: 2.5 } })).toBeUndefined();
+  });
+
+  it('o DSL de parâmetros preserva os limites', () => {
+    const { params } = dslToParameters(JSON.stringify({
+      note: { type: 'String', rules: { validate: { maxLength: 500 } } },
+    }));
+    expect(params?.[0]?.rules).toEqual({ validate: { maxLength: 500 } });
   });
 });

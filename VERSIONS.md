@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.90.0] — 2026-10-12
+
+- Campos de texto e parâmetros de automação agora aceitam um tamanho mínimo e um tamanho máximo, configuráveis no Form Design e no editor de parâmetros. Um texto fora do limite é recusado com uma mensagem clara antes de ser gravado.
+- O guia de criação de extensões teve vários exemplos corrigidos para que funcionem exatamente como estão escritos.
+
 #### [9.89.0] — 2026-10-12
 
 - Os gráficos dos relatórios passam a separar cada número por uma segunda informação — por exemplo, o total de cada mês dividido por cidade, lado a lado ou empilhado. Quando há mais de uma série, o gráfico mostra a legenda com o nome de cada uma.

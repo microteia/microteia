@@ -673,7 +673,7 @@ Every label a person reads is a **reference**, resolved at render:
 \`\`\`ts
 const label = (key: string) => \`@com.example.hello/\${key}\`;
 
-fields: [{ key: 'title', label: label('field.title'), type: 'text', order: 0 }]
+fields: [{ key: 'title', label: label('field.title'), type: 'text', required: true, order: 0 }]
 \`\`\`
 
 and the words themselves are a contribution:
@@ -1169,11 +1169,11 @@ Beyond \`key\`, \`label\`, \`type\`, \`order\` and \`required\`, the properties 
 | \`autoValue: { pattern }\` | a generated code: \`A\` letter, \`0\` digit, \`*\` either, anything else literal (\`AA-0000\`). Not repeated among the records already loaded, and still editable. For a code that must truly not repeat, declare a key |
 | \`logic\` | the expressions: \`compute\`, \`validate\`, \`hiddenWhen\`, \`disabledWhen\`, \`onChange\` (§9) |
 | \`aggregation: { from, via, op, field?, filter?, orderBy? }\` | the value comes from CHILD records — \`op\` is one of ${inlineList(AGGREGATION_OP_NAMES)}. Declared, not inferred, so the engine knows exactly when to recompute. \`latest\` copies \`field\` of the first child that passes \`filter\` after sorting by \`orderBy\` (required with it, and only with it): an empty key sorts last in both directions, ties fall to \`createdAt\` in the direction of the last key and then to the document id, and no matching child makes the field empty (\`null\`). The parent field must have the child field's type, option list, target and cardinality — the value is copied as it is. "The first" is \`latest\` with \`dir: 'asc'\`. A package using \`latest\` declares \`kernel: '^${AGGREGATION_OP_SINCE_KERNEL.latest}'\` or later |
-| \`rules\` | \`validate\` and \`format\` presets — bounds, required-if, formatting |
+| \`rules\` | \`validate\` (\`check\`, \`pattern\`, \`minLength\`, \`maxLength\`, \`message\`) and \`format\` (\`preset\`, or \`pattern\` + \`replacement\`). A requirement that depends on other fields is an expression in \`logic.validate\` |
 | \`showInList\`, \`listLabel\`, \`listIcon\`, \`listOrder\` | whether and how the field appears on the list card |
 | \`filterable\` | the field becomes a filter on the list |
 | \`hiddenInForm\` | keeps a field out of the form without deleting it |
-| \`file: { extensions, maxBytes }\` | what a \`file\` field accepts |
+| \`file: { extensions, maxSizeMb }\` | what a \`file\` field accepts — the size is in megabytes |
 
 **Fields the organization adds** to your screen are theirs. An update of your extension preserves
 them, and uninstalling removes only yours.
@@ -1185,7 +1185,7 @@ two valid rows until somebody says otherwise. When the business says otherwise, 
 the one rule here you must not write as an expression.
 
 \`\`\`ts
-screen({
+screens: [{
   key: 'produtos',
   titleFieldKey: 'nome',
   keys: [
@@ -1193,8 +1193,9 @@ screen({
     { name: 'linha-nome', kind: 'unique', fields: ['linha', 'nome'] },
     { name: 'email', kind: 'unique', fields: ['email'], normalize: { caseInsensitive: true } },
   ],
-  fields: [...],
-})
+  fields: [ /* … */ ],
+  // …the rest of the screen, as above
+}]
 \`\`\`
 
 A key over ONE field can be written on the field itself — \`unique: true\` — which produces exactly
@@ -1620,7 +1621,9 @@ declares \`parameters\`:
 \`type\` is \`String\`, \`Number\`, \`Date\`, \`Boolean\`, \`select\`, \`lookup\`, \`EntityReference\` or
 \`Object\` (which nests through \`fields\`). \`rules\` applies the same formatting and validation a screen
 field gets, so the parameter form refuses a bad value before the flow starts rather than halfway
-through it. \`list: true\` makes it many.
+through it: \`validate\` takes \`check\` (a preset), \`pattern\` (with \`flags\`), \`minLength\` and
+\`maxLength\` (counted in characters), and an optional \`message\` that replaces the default refusal.
+\`list: true\` makes it many.
 
 ### Actions
 
@@ -1636,6 +1639,9 @@ actions: [{
   hiddenWhen: 'not hasPermission("<entity>.update")',
   disabledWhen: 'status == "PAID"',
   confirmMessage: label('action.approve.confirm'),
+  danger: false,
+  enabled: true,
+  order: 0,
 }]
 \`\`\`
 
@@ -1775,12 +1781,23 @@ the chart kinds, the date buckets, the measure operations and the capability tok
 executes, derived from the kernel rather than from this page.
 
 The fold above is a pivot. The one that answers "WHAT each customer owes" — the records, gathered,
-with the total of each group — is a list that groups:
+with the total of each group — is a list that groups. Its columns are DIMENSIONS, so the record's own
+values are declared as dimensions of the dataset:
 
 \`\`\`ts
+dataset: {
+  table: 'invoices',
+  dimensions: [
+    { key: 'number', path: 'number', label: label('report.number') },
+    { key: 'dueDate', path: 'dueDate', label: label('report.due') },
+    { key: 'amount', path: 'amount', label: label('report.amount') },
+    { key: 'city', path: 'client.city', label: label('report.city') },
+  ],
+  measures: [{ key: 'total', op: 'sum', path: 'amount', label: label('report.total') }],
+},
 shape: {
   kind: 'tabular',
-  columns: ['number', 'dueDate', 'total'],   // the columns stay the columns
+  columns: ['number', 'dueDate', 'amount'],   // dimension keys — never a measure key
   groupBy: [{ dimension: 'city', subtotal: true }],
 }
 \`\`\`
@@ -2330,14 +2347,19 @@ should be several extensions, or a seed list that should be data.
 it in a test means a broken package fails in a second, on your machine:
 
 \`\`\`ts
-import { validatePluginPackage } from '@microteia/sdk';
-import plugin from './plugin';
+import { fileURLToPath } from 'node:url';
+import { buildPlugin } from '@microteia/sdk/node';
 
-it('installs cleanly', () => { expect(validatePluginPackage(plugin)).toEqual([]); });
+it('installs cleanly', () => {
+  const built = buildPlugin({ entry: fileURLToPath(new URL('./plugin.ts', import.meta.url)) });
+  expect(built.issues).toEqual([]);
+});
 \`\`\`
 
-It validates the BUILT package, so compile first when views use \`sourceFile\` — \`buildPlugin\` from
-\`@microteia/sdk/node\` does exactly what \`build\` does.
+It validates the BUILT package — \`buildPlugin\` does exactly what \`build\` does, inlining every
+\`sourceFile\` first, and its \`issues\` are \`validatePluginPackage\` over the result. Calling
+\`validatePluginPackage\` from \`@microteia/sdk\` directly is the same check for a package that is
+already built, which an authored one with views or a \`startup\` list is not.
 
 A report over the screens of SIBLING extensions can be held to them in a test, which makes the warning
 above a failure. \`packagesSchemaContext\` builds the schema of a set of packages — their screens, the
@@ -2494,11 +2516,13 @@ The domain model can be tested the same way the package is, and for the same rea
 fails here, in a second, instead of in someone's organization:
 
 \`\`\`ts
-import { buildDomainCatalog, validateDomainModel } from '@microteia/sdk';
+import { buildDomainCatalog, parseDomainModel, validateDomainModel } from '@microteia/sdk';
 import MODEL from './domain-model.json';
 
 it('stays modelled', () => {
-  const issues = validateDomainModel(MODEL, buildDomainCatalog()).issues;
+  const parsed = parseDomainModel(MODEL);
+  if (!parsed.ok) throw new Error(JSON.stringify(parsed.issues));
+  const issues = validateDomainModel(parsed.model, buildDomainCatalog()).issues;
   expect(issues.filter((one) => one.severity === 'error')).toEqual([]);
 });
 \`\`\`

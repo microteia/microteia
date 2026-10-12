@@ -827,6 +827,22 @@ export const ScreenBuilderView: React.FC = () => {
                       />
                     </InputGroup>
                     <InputGroup>
+                      <Label>{t('core.automation/parameter.min-length')}</Label>
+                      <Input
+                        type="number"
+                        value={vm.fieldForm.ruleValidateMinLength}
+                        onChange={(e) => vm.updateFieldForm({ ruleValidateMinLength: e.target.value })}
+                      />
+                    </InputGroup>
+                    <InputGroup>
+                      <Label>{t('core.automation/parameter.max-length')}</Label>
+                      <Input
+                        type="number"
+                        value={vm.fieldForm.ruleValidateMaxLength}
+                        onChange={(e) => vm.updateFieldForm({ ruleValidateMaxLength: e.target.value })}
+                      />
+                    </InputGroup>
+                    <InputGroup>
                       <Label>{t('core.automation/parameter.error-message')}</Label>
                       <Input
                         value={vm.fieldForm.ruleValidateMessage}

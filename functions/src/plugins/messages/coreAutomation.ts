@@ -164,6 +164,8 @@ export const CORE_AUTOMATION_MESSAGES: Record<string, string> = {
   'parameter.format-preset': 'Ready-made formatting',
   'parameter.validate-preset': 'Ready-made validation',
   'parameter.validate-regex': 'Validate (regular expression)',
+  'parameter.min-length': 'Minimum length',
+  'parameter.max-length': 'Maximum length',
   'parameter.validate-message.placeholder': 'Shown when the value does not pass',
   'parameter.empty.input': 'No parameter. This workflow can be called without receiving data.',
   'parameter.empty.output': 'No output parameter declared.',

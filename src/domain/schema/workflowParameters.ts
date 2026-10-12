@@ -14,6 +14,9 @@ const isValidRegex = (pattern: string): boolean => {
   }
 };
 
+const isLengthLimit = (value: unknown): value is number =>
+  typeof value === 'number' && Number.isInteger(value) && value >= 0;
+
 export const sanitizeFieldRules = (rules: FieldRules | undefined): FieldRules | undefined => {
   if (!rules) return undefined;
 
@@ -33,7 +36,13 @@ export const sanitizeFieldRules = (rules: FieldRules | undefined): FieldRules | 
     validate.pattern = rules.validate.pattern.trim();
     if (rules.validate.flags) validate.flags = rules.validate.flags;
   }
-  if ((validate.check || validate.pattern) && rules.validate?.message?.trim()) {
+  const minLength = rules.validate?.minLength;
+  const maxLength = rules.validate?.maxLength;
+  if (isLengthLimit(minLength)) validate.minLength = minLength;
+  if (isLengthLimit(maxLength)) validate.maxLength = maxLength;
+  const hasValidation = Boolean(validate.check || validate.pattern)
+    || validate.minLength !== undefined || validate.maxLength !== undefined;
+  if (hasValidation && rules.validate?.message?.trim()) {
     validate.message = rules.validate.message.trim();
   }
 
@@ -65,6 +74,8 @@ const parseDslRules = (value: unknown): FieldRules | undefined => {
           pattern: typeof rawValidate.pattern === 'string' ? rawValidate.pattern : undefined,
           message: typeof rawValidate.message === 'string' ? rawValidate.message : undefined,
           flags: typeof rawValidate.flags === 'string' ? rawValidate.flags : undefined,
+          minLength: typeof rawValidate.minLength === 'number' ? rawValidate.minLength : undefined,
+          maxLength: typeof rawValidate.maxLength === 'number' ? rawValidate.maxLength : undefined,
         }
       : undefined,
   });

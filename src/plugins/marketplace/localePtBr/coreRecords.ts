@@ -149,6 +149,7 @@ export const CORE_RECORDS: Record<string, string> = {
   'field.error.linked-screen-required': 'Escolha a tela vinculada ao campo.',
   'field.error.mask-required': 'Escolha a máscara do campo.',
   'field.error.validate-regex': 'A expressão regular de validação é inválida.',
+  'field.error.length-limit': 'Os limites de tamanho devem ser números inteiros, e o mínimo não pode passar do máximo.',
   'field.error.format-regex': 'A expressão regular de formatação é inválida.',
   'field.error.compute-cycle':
     'O valor calculado depende de si mesmo — reveja as expressões dos campos calculados.',
@@ -303,6 +304,8 @@ export const CORE_RECORDS: Record<string, string> = {
   'aggregation.issue.unknown-field': 'O campo "{childField}" não é um campo da tela dos filhos.',
   'aggregation.issue.type-mismatch': 'O campo do filho "{childField}" ({childType}) não pode ser copiado para este campo ({parentType}): os dois precisam ter o mesmo tipo, a mesma lista de opções, apontar para a mesma tela e aceitar a mesma quantidade de valores.',
   'field.invalid-format': 'O campo "{label}" está em um formato inválido',
+  'field.too-short': 'O campo "{label}" deve ter no mínimo {min} caracteres',
+  'field.too-long': 'O campo "{label}" deve ter no máximo {max} caracteres',
   'field.issue': '{label}: {reason}',
   'field.issue-more': '{label}: {reason} — e mais {others} campo(s)',
   'field.invalid-value': 'Valor inválido',

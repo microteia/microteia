@@ -157,6 +157,8 @@ export const CORE_AUTOMATION: Record<string, string> = {
   'parameter.format-preset': 'Formatação pronta',
   'parameter.validate-preset': 'Validação pronta',
   'parameter.validate-regex': 'Validar (expressão regular)',
+  'parameter.min-length': 'Tamanho mínimo',
+  'parameter.max-length': 'Tamanho máximo',
   'parameter.validate-message.placeholder': 'Exibida quando o valor não passa',
   'parameter.empty.input': 'Nenhum parâmetro. Este workflow pode ser chamado sem receber dados.',
   'parameter.empty.output': 'Nenhum parâmetro de saída declarado.',

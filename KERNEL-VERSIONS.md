@@ -18,6 +18,13 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.90.0] — 2026-10-12
+
+- feat(field-rules): `ValidateRule` gains `minLength` and `maxLength`, counted in characters and enforced by `checkValue` — so by screen fields, workflow/script/action parameters and step inputs alike. A value out of bounds is refused with `@core.records/field.too-short` / `field.too-long` (or the rule's own `message`). `KERNEL_VERSION` goes to `2.31.0`: a package that declares a length limit means nothing to a 2.30 kernel, which ignores the key.
+- feat(field-rules): `sanitizeFieldRules` and the parameter DSL keep the limits (non-negative integers only), and `describe_screen` / the agent's workflow description publish them as `minLength` / `maxLength`. The Form Design and the workflow parameter editor edit them; before, the Form Design rebuilt `rules.validate` from its own fields and would have dropped them on save.
+- docs(sdk): AUTHORING.md snippets fixed so each one type-checks against the SDK it ships with — §10's `rules: { validate: { maxLength: 500 } }` (now valid), `file: { extensions, maxSizeMb }` (was `maxBytes`), keys declared on a plain `screens` entry (there is no `screen()` builder), the action example's required `order` / `enabled` / `danger`, the field example's `required`, the tabular report whose columns are now dimensions of its own dataset, the package test through `buildPlugin` (an authored plugin with views is not a built package), and the domain-model test through `parseDomainModel` (a JSON import widens `target` to `string`).
+- chore(locale-pt-br): `1.78.0`, with the new length keys.
+
 #### [9.89.0] — 2026-10-12
 
 - feat(reports): `presentation.chart.splitBy` is drawn. `presentation.chart.split` joins `REPORT_CAPABILITIES` and `KERNEL_VERSION` goes to `2.30.0`; before, AUTHORING.md §11 described `splitBy` as available while the kernel warned on it and drew the chart without the breakdown. A report packaged for this kernel that a 2.29 kernel opens still gets that warning, by the same token.

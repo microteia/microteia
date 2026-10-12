@@ -36,6 +36,8 @@ interface AgentField {
   format?: string;
   /** O padrão (expressão regular) que o valor precisa satisfazer. */
   pattern?: string;
+  minLength?: number;
+  maxLength?: number;
   /** Um valor na forma aceita — o de partida, quando há, ou um da forma do tipo. */
   example?: unknown;
   /** Gravar não é possível: o valor é calculado ou derivado. */
@@ -155,6 +157,8 @@ const describeField = (catalog: MessageCatalog, field: NativeFieldSpec): AgentFi
   ...(field.refEntity ? { references: field.refEntity } : {}),
   ...(field.rules?.format?.preset ? { format: field.rules.format.preset } : {}),
   ...(field.rules?.validate?.pattern ? { pattern: field.rules.validate.pattern } : {}),
+  ...(field.rules?.validate?.minLength === undefined ? {} : { minLength: field.rules.validate.minLength }),
+  ...(field.rules?.validate?.maxLength === undefined ? {} : { maxLength: field.rules.validate.maxLength }),
   ...(isWritable(field) ? {} : { readOnly: true as const }),
   ...(field.defaultValue === undefined ? {} : { default: field.defaultValue }),
   ...(isWritable(field) && exampleOf(field) !== undefined ? { example: exampleOf(field) } : {}),

@@ -41,6 +41,8 @@ export interface AgentParameter {
   format?: string;
   /** O padrão que o valor precisa satisfazer. */
   pattern?: string;
+  minLength?: number;
+  maxLength?: number;
   /** Os campos de um parâmetro `Object`, na mesma forma. */
   fields?: AgentParameter[];
   example: unknown;
@@ -82,6 +84,8 @@ export const describeParameter = (catalog: MessageCatalog, parameter: WorkflowPa
   ...(parameter.defaultValue === undefined ? {} : { default: parameter.defaultValue }),
   ...(parameter.rules?.format?.preset ? { format: parameter.rules.format.preset } : {}),
   ...(parameter.rules?.validate?.pattern ? { pattern: parameter.rules.validate.pattern } : {}),
+  ...(parameter.rules?.validate?.minLength === undefined ? {} : { minLength: parameter.rules.validate.minLength }),
+  ...(parameter.rules?.validate?.maxLength === undefined ? {} : { maxLength: parameter.rules.validate.maxLength }),
   ...(parameter.type === 'Object'
     ? { fields: (parameter.fields ?? []).map((field) => describeParameter(catalog, field)) }
     : {}),

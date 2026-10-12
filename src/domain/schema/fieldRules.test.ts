@@ -75,6 +75,24 @@ describe('checkValue', () => {
   it('não reprova quando não há regra', () => {
     expect(checkValue('qualquer coisa', undefined, 'X')).toBeUndefined();
   });
+
+  it('recusa o texto mais curto que minLength e o mais longo que maxLength', () => {
+    const rule = { minLength: 3, maxLength: 5 };
+    expect(checkValue('abc', rule, 'Nota')).toBeUndefined();
+    expect(checkValue('abcde', rule, 'Nota')).toBeUndefined();
+    expect(checkValue('ab', rule, 'Nota')).toEqual({
+      error: '@core.records/field.too-short',
+      errorParams: { label: 'Nota', min: '3' },
+    });
+    expect(checkValue('abcdef', rule, 'Nota')).toEqual({
+      error: '@core.records/field.too-long',
+      errorParams: { label: 'Nota', max: '5' },
+    });
+  });
+
+  it('a mensagem declarada substitui a padrão também no limite de tamanho', () => {
+    expect(checkValue('abcdef', { maxLength: 5, message: 'Curto demais' }, 'Nota')).toEqual({ error: 'Curto demais' });
+  });
 });
 
 describe('formatAndValidate', () => {

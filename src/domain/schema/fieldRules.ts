@@ -41,6 +41,8 @@ export interface ValidateRule {
   flags?: string;
   message?: string;
   check?: ValidateCheck;
+  minLength?: number;
+  maxLength?: number;
 }
 
 export interface FormatRule {
@@ -320,6 +322,18 @@ export const checkValue = (
         ? { error: rule.message }
         : { error: '@core.records/field.invalid-format', errorParams: { label } };
     }
+  }
+
+  if (rule.minLength !== undefined && text.length < rule.minLength) {
+    return rule.message
+      ? { error: rule.message }
+      : { error: '@core.records/field.too-short', errorParams: { label, min: String(rule.minLength) } };
+  }
+
+  if (rule.maxLength !== undefined && text.length > rule.maxLength) {
+    return rule.message
+      ? { error: rule.message }
+      : { error: '@core.records/field.too-long', errorParams: { label, max: String(rule.maxLength) } };
   }
 
   return undefined;
