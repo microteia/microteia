@@ -22,6 +22,9 @@ const LACUNAS_CONFERIDAS = [
   'workflow-step\tregister-audit',
   'workflow-step\tset-variable',
   'workflow-step\tmap',
+  // A espera existe no kernel e não no modelo: "lembrar dois dias depois" ainda é escrito como gatilho
+  // de data ou de horário.
+  'workflow-step\tdelay',
   'workflow-step\tscript',
   'workflow-step\tai-detect-workflow',
   'workflow-step\tai-extract-parameters',

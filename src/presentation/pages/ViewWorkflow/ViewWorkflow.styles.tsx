@@ -1,4 +1,5 @@
 import styled from 'styled-components';
+import type { WorkflowExecutionStatus } from '../../../domain/entities/Workflow';
 
 const NodeActions = styled.div`
   position: absolute;
@@ -660,7 +661,7 @@ export const S = {
     color: ${({ theme }) => theme.colors.text};
   `,
 
-  StatusBadge: styled.span<{ $status: 'RUNNING' | 'SUCCESS' | 'FAILED' | 'PARTIAL' }>`
+  StatusBadge: styled.span<{ $status: WorkflowExecutionStatus }>`
     display: inline-flex;
     padding: 2px 8px;
     border-radius: ${({ theme }) => theme.borderRadius.full};

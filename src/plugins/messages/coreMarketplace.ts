@@ -380,6 +380,12 @@ export const CORE_MARKETPLACE_MESSAGES: Record<string, string> = {
     'the workflow runs when a date arrives, and the clock cannot run it: {detail} It would install switched on and never fire.',
   'issue.workflow.trigger-kernel':
     'the workflow is triggered by "{event}", which only exists from kernel {minimum} on — declare `kernel: "^{minimum}"` (or later) in the manifest, so that an older kernel refuses the package instead of installing a workflow that never fires.',
+  'issue.step.delay-nested':
+    'step "{step}" waits inside a condition branch or a loop body. A wait only pauses at the top level of the workflow — there the flow would stop with an error.',
+  'issue.step.delay-in-action':
+    'step "{step}" waits, and the action "{action}" runs this workflow. A button waits for the answer and cannot wait for a pause — the flow would stop with an error. Fire it from an event, or have the action call a workflow that does not wait.',
+  'issue.step.delay-kernel':
+    'step "{step}" waits, and the wait step only exists from kernel {minimum} on — declare `kernel: "^{minimum}"` (or later) in the manifest, so that an older kernel refuses the package instead of failing at the step.',
   'issue.step.unknown-input':
     'step "{step}" ({definition}) sets input "{input}", which that step does not have. It takes: {expected}.',
   'install.dependency-missing':

@@ -28,7 +28,9 @@ import {
   MAX_DATE_REACHED_OFFSET_DAYS,
   MIN_SCHEDULE_INTERVAL_MINUTES,
   WORKFLOW_CLOCK_TICK_MINUTES,
+  MAX_DELAY_DAYS,
   WORKFLOW_DATE_REACHED_SINCE_KERNEL,
+  WORKFLOW_DELAY_SINCE_KERNEL,
   WORKFLOW_SCHEDULE_SINCE_KERNEL,
 } from '../../../domain/schema/workflowClock';
 import {
@@ -200,7 +202,7 @@ const WIDGET_NODES: Record<WidgetNodeType, string> = {
 const STEP_KINDS: Record<StepType, string> = {
   Action: 'Runs one entry of the platform\'s step catalog, named by `stepDefinitionId`. Its inputs are `configuration`.',
   Condition: 'A control node: `condition` decides which of `branches.whenTrue` / `branches.whenFalse` runs, and the flow converges after. `stepDefinitionId` is empty.',
-  Delay: '**Not implemented in this version.** It is in the union for compatibility, and a step declared with it stops the flow at that point — `validate_plugin` refuses it. To act at a time, declare a workflow with `eventName: \'schedule\'` (§10) — the kernel clock runs it, with no Cloud Function of yours.',
+  Delay: '**Not a step type of its own.** It is in the union for compatibility, and a step declared with it stops the flow at that point — `validate_plugin` refuses it. To wait, use the `delay` catalog step (`type: \'Action\'`, `stepDefinitionId: \'delay\'`, §10); to act at a time, a workflow with `eventName: \'schedule\'`.',
   Loop: 'A control node: `loop: { source, itemName, outputName, body }` runs `body` once per item and publishes the collected outputs under `outputName`. `stepDefinitionId` is empty.',
   Script: 'Runs a script, named by `configuration.scriptId` as a `Literal` — a `templateId` of your own package, or `<extension-id>/<source-id>` for a script another extension exports (§3).',
   SubWorkflow: 'Calls another workflow, named by `configuration.targetWorkflowId` as a `Literal` — again a `templateId`, or a qualified reference.',
@@ -267,6 +269,7 @@ const STEP_CATALOG_NOTES: Record<string, string> = {
   map: 'Assembles an object from other values — what a write step then writes.',
   'validate-object': 'Checks an object against a screen\'s rules before anything is written.',
   exit: 'Ends the flow here, successfully. Takes nothing.',
+  delay: 'Pauses the run and continues it later, in the same run — `duration` (`30m`, `4h`, `2d`) or `until`. Top level only, and only in a run started by an event.',
   'call-workflow': 'Runs another workflow of this package. `waitForResult` decides whether this flow waits. The target may be a `Literal` id or come from an earlier output; `params` carries the parameters in bulk.',
   script: 'Runs one of your `scripts` in the server sandbox.',
   'ai-detect-workflow': 'Asks a model which callable workflow fits a free text, reading their descriptions. No match is a success with `found` false.',
@@ -1661,6 +1664,30 @@ returns nothing and the flow carries on as if the records did not exist.
 Ask the MCP server rather than guessing any of this: \`microteia://workflow/steps\` for the catalog,
 \`describe_workflow_step\` for one step's exact inputs and outputs, \`list_workflow_events\` for the
 trigger names. All three are derived from this installation.
+
+### Waiting inside a workflow — the \`delay\` step
+
+\`\`\`ts
+{ id: 'wait', stepDefinitionId: 'delay', type: 'Action', order: 1, enabled: true,
+  configuration: { duration: { kind: 'Literal', value: '2d' } } }   // or { until: <a date> }
+\`\`\`
+
+It pauses the run and continues it later, IN THE SAME RUN: the execution shows "waiting" with the time it
+continues, and the steps after it run then, with the outputs and variables from before.
+
+- **\`duration\`** is \`30m\`, \`4h\` or \`2d\` (up to ${MAX_DELAY_DAYS} days); **\`until\`** is an instant. Exactly one of the two.
+  An \`until\` that has already passed does not wait.
+- **Only at the top level** of the workflow — not inside a condition branch or a loop body.
+- **Only in a run started by an event** (a save, a date, a schedule, a \`call-workflow\` that does not wait). A
+  run someone is waiting on — an action's button, a \`call-workflow\` waiting for the result, a test run —
+  cannot pause, and the step fails there. \`validate_plugin\` refuses a \`delay\` in a workflow one of your
+  actions runs.
+- **It continues on the workflow as it is THEN.** Turned off, deleted, or its extension deactivated during the
+  wait: the run ends "cancelled", saying why. The steps after the wait are those of the current version.
+- \`actor\` comes back as the same person, with no permissions — \`hasPermission\` answers false after a wait.
+- Precision is the clock's: it continues within ${WORKFLOW_CLOCK_TICK_MINUTES} minutes of the time.
+
+The \`delay\` step needs kernel ${WORKFLOW_DELAY_SINCE_KERNEL} or later, and \`validate_plugin\` refuses a package that admits an older one.
 
 ### A workflow that only exists to be called
 

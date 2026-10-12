@@ -6,6 +6,7 @@ import { makeCallWorkflowStepDefinition } from '../../infrastructure/workflow/st
 import { makeScriptStepDefinition } from '../../infrastructure/workflow/steps/ScriptStep';
 import { makeNotifyStepDefinition } from '../../infrastructure/workflow/steps/NotifyStep';
 import { makeExitStepDefinition } from '../../infrastructure/workflow/steps/ExitStep';
+import { makeDelayStepDefinition } from '../../infrastructure/workflow/steps/DelayStep';
 import { makeMapStepDefinition } from '../../infrastructure/workflow/steps/MapStep';
 import { makeQueryStepDefinition } from '../../infrastructure/workflow/steps/QueryStep';
 import { makeUpsertStepDefinition } from '../../infrastructure/workflow/steps/UpsertStep';
@@ -21,6 +22,7 @@ const factories: Record<string, StepFactory> = {
   Map: () => makeMapStepDefinition(),
   Validate: (deps) => makeValidateStepDefinition(deps.screenDefinitionProvider),
   Exit: () => makeExitStepDefinition(),
+  Delay: () => makeDelayStepDefinition(),
   CallWorkflow: (deps) => makeCallWorkflowStepDefinition(deps.runCalledWorkflowUseCase),
   Script: (deps) =>
     makeScriptStepDefinition(deps.scriptRepository, queryDepsOf(deps), mutationDepsOf(deps)),
@@ -50,6 +52,7 @@ export const coreStepsPlugin: PluginRecord = {
       workflowStep({ stepDefinitionId: 'map', name: '@core.automation/step.map.name', category: 'Data' }, 'Map'),
       workflowStep({ stepDefinitionId: 'validate-object', name: '@core.automation/step.validate-object.name', category: 'Data' }, 'Validate'),
       workflowStep({ stepDefinitionId: 'exit', name: '@core.automation/step.exit.name', category: 'Action' }, 'Exit'),
+      workflowStep({ stepDefinitionId: 'delay', name: '@core.automation/step.delay.name', category: 'Action' }, 'Delay'),
       workflowStep({ stepDefinitionId: 'call-workflow', name: '@core.automation/step.call-workflow.name', category: 'Action' }, 'CallWorkflow'),
       workflowStep({ stepDefinitionId: 'script', name: '@core.automation/step.script.name', category: 'Action' }, 'Script'),
       workflowStep({ stepDefinitionId: 'query', name: '@core.automation/step.query.name', category: 'Data' }, 'Query'),

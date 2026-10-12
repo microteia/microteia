@@ -16,6 +16,24 @@ import { flattenSteps } from '../services/stepTree';
 const isPlainObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 
+/** Onde a execução parou num passo `delay`, e o que ela precisa para continuar dali. */
+export interface WorkflowSuspension {
+  resumeAt: Date;
+  afterStepId: string;
+  lastStepId: string | null;
+  outputs: Record<string, Record<string, unknown>>;
+  variables: Record<string, unknown>;
+}
+
+/** A continuação de uma execução que esperou: a mesma identidade, o histórico até ali e o estado. */
+export interface WorkflowResume extends Omit<WorkflowSuspension, 'resumeAt'> {
+  executionId: string;
+  startedAt: Date;
+  logs: WorkflowExecutionLogEntry[];
+}
+
+export type WorkflowRun = WorkflowExecution & { suspension?: WorkflowSuspension };
+
 export interface RunWorkflowParams {
   definition: WorkflowDefinition;
   event: WorkflowEvent;
@@ -23,12 +41,27 @@ export interface RunWorkflowParams {
   services: WorkflowServices;
   /** Quem disparou, quando alguém disparou. Ver `WorkflowContext.actor`. */
   actor?: WorkflowContext['actor'];
+  /**
+   * A execução pode PAUSAR num passo `delay`. Só a que nasce do barramento de eventos pode: quem espera
+   * a resposta — um botão, um `call-workflow` aguardando, o depurador — não tem como esperar dias.
+   */
+  suspendable?: boolean;
+  /** Continua uma execução que esperou, a partir do passo seguinte ao `delay`. */
+  resume?: WorkflowResume;
 }
 
-export const runWorkflow = async ({ definition, event, registry, services, actor }: RunWorkflowParams): Promise<WorkflowExecution> => {
-  const executionId = crypto.randomUUID();
-  const startedAt = services.now();
-  const logs: WorkflowExecutionLogEntry[] = [];
+export const runWorkflow = async ({
+  definition,
+  event,
+  registry,
+  services,
+  actor,
+  suspendable,
+  resume,
+}: RunWorkflowParams): Promise<WorkflowRun> => {
+  const executionId = resume?.executionId ?? crypto.randomUUID();
+  const startedAt = resume?.startedAt ?? services.now();
+  const logs: WorkflowExecutionLogEntry[] = [...(resume?.logs ?? [])];
 
   const log = (
     level: WorkflowExecutionLogEntry['level'],
@@ -87,71 +120,83 @@ export const runWorkflow = async ({ definition, event, registry, services, actor
     outputs,
   });
 
-  // Context parcial para avaliação da condição (antes de executar steps)
-  const conditionContext: WorkflowContext = {
-    event,
-    outputs: {},
-    variables: {},
+  const buildContext = (
+    payload: Record<string, unknown>,
+    outputs: Record<string, Record<string, unknown>>,
+    variables: Record<string, unknown>,
+  ): WorkflowContext => ({
+    event: { ...event, payload },
+    outputs,
+    variables,
     services,
     logger: captureLogger,
     execution: { id: executionId, workflowDefinitionId: definition.id, tenantId: definition.tenantId },
     ...(actor ? { actor } : {}),
+  });
+
+  /**
+   * A PORTA da execução nova: a condição da automação, os filtros de tela/lista e os parâmetros. Devolve o
+   * contexto em que os passos rodam, ou o desfecho de quem não passou. Uma execução que CONTINUA depois
+   * de esperar não passa por aqui de novo — ela já passou quando começou.
+   */
+  type Admission = { context: WorkflowContext } | { refused: WorkflowExecution['status'] };
+
+  const admit = (): Admission => {
+    const conditionContext = buildContext(event.payload, {}, {});
+    let conditionResult: boolean;
+    try {
+      conditionResult = evaluateCondition(definition.condition, conditionContext);
+    } catch (error) {
+      log('WARN', error instanceof Error ? error.message : String(error));
+      return { refused: 'PARTIAL' };
+    }
+
+    if (!conditionResult) {
+      log('INFO', '@core.automation/run.condition.false');
+      return { refused: 'SUCCESS' };
+    }
+
+    if (definition.screenKey && event.payload.screenKey !== definition.screenKey) {
+      log('INFO', '@core.automation/run.skipped.screen-mismatch');
+      return { refused: 'SUCCESS' };
+    }
+
+    if (definition.lookupCollection && event.payload.collection !== definition.lookupCollection) {
+      log('INFO', '@core.automation/run.skipped.lookup-mismatch');
+      return { refused: 'SUCCESS' };
+    }
+
+    const requiredIssues = collectRequiredIssues(definition.parameters, event.payload);
+    if (requiredIssues.length > 0) {
+      log(
+        'ERROR',
+        '@core.automation/run.parameters.invalid',
+        undefined, undefined, undefined, undefined, undefined,
+        ruleIssueParams(requiredIssues),
+      );
+      return { refused: 'FAILED' };
+    }
+
+    const ruledParameters = formatAndValidateParameters(definition.parameters, event.payload);
+    if (ruledParameters.issues.length > 0) {
+      log(
+        'ERROR',
+        '@core.automation/run.parameters.invalid',
+        undefined, undefined, undefined, undefined, undefined,
+        ruleIssueParams(ruledParameters.issues),
+      );
+      return { refused: 'FAILED' };
+    }
+
+    return { context: buildContext(ruledParameters.data, {}, {}) };
   };
 
-  let conditionResult: boolean;
-  try {
-    conditionResult = evaluateCondition(definition.condition, conditionContext);
-  } catch (error) {
-    log('WARN', error instanceof Error ? error.message : String(error));
-    return finish('PARTIAL', {});
-  }
-
-  if (!conditionResult) {
-    log('INFO', '@core.automation/run.condition.false');
-    return finish('SUCCESS', {});
-  }
-
-  if (definition.screenKey && event.payload.screenKey !== definition.screenKey) {
-    log('INFO', '@core.automation/run.skipped.screen-mismatch');
-    return finish('SUCCESS', {});
-  }
-
-  if (definition.lookupCollection && event.payload.collection !== definition.lookupCollection) {
-    log('INFO', '@core.automation/run.skipped.lookup-mismatch');
-    return finish('SUCCESS', {});
-  }
-
-  const requiredIssues = collectRequiredIssues(definition.parameters, event.payload);
-  if (requiredIssues.length > 0) {
-    log(
-      'ERROR',
-      '@core.automation/run.parameters.invalid',
-      undefined, undefined, undefined, undefined, undefined,
-      ruleIssueParams(requiredIssues),
-    );
-    return finish('FAILED', {});
-  }
-
-  const ruledParameters = formatAndValidateParameters(definition.parameters, event.payload);
-  if (ruledParameters.issues.length > 0) {
-    log(
-      'ERROR',
-      '@core.automation/run.parameters.invalid',
-      undefined, undefined, undefined, undefined, undefined,
-      ruleIssueParams(ruledParameters.issues),
-    );
-    return finish('FAILED', {});
-  }
-
-  const context: WorkflowContext = {
-    event: { ...event, payload: ruledParameters.data },
-    outputs: {},
-    variables: {},
-    services,
-    logger: captureLogger,
-    execution: { id: executionId, workflowDefinitionId: definition.id, tenantId: definition.tenantId },
-    ...(actor ? { actor } : {}),
-  };
+  const admission: Admission = resume
+    ? { context: buildContext(event.payload, resume.outputs, resume.variables) }
+    : admit();
+  if ('refused' in admission) return finish(admission.refused, {});
+  const { context } = admission;
+  if (resume) log('INFO', '@core.automation/run.delay.resumed');
 
   // Monta context.input a partir do flatten das saídas acumuladas (só Steps já executados) —
   // igual para Steps normais e para nós de controle StepCondition.
@@ -163,7 +208,9 @@ export const runWorkflow = async ({ definition, event, registry, services, actor
     context.input = Object.keys(flattenedOutputs).length > 0 ? flattenedOutputs : event.payload ?? {};
   };
 
-  type StepsRunResult = { ok: true; lastStepId: string | null; halted?: boolean } | { ok: false };
+  type StepsRunResult =
+    | { ok: true; lastStepId: string | null; halted?: boolean; suspended?: { resumeAt: Date; afterStepId: string } }
+    | { ok: false };
 
   // Executa uma sequência de Steps (um nível/ramo). Recursiva: um StepCondition avalia sua
   // condição e desce no ramo correspondente; ao retornar, o fluxo converge para os próximos
@@ -171,7 +218,13 @@ export const runWorkflow = async ({ definition, event, registry, services, actor
   // os outputs finais do workflow reflitam a travessia inteira, não só o último nível.
   // `halted` sobe pela recursão quando um Step de encerramento roda: nenhum Step posterior
   // executa, em nenhum nível, e `lastStepId` preserva o Step cujas saídas serão o retorno.
-  const executeSteps = async (branchSteps: WorkflowStep[], incomingLastStepId: string | null): Promise<StepsRunResult> => {
+  // `depth` é o nível de aninhamento: 0 é o fluxo principal. Só ali uma espera pode pausar — retomar no
+  // meio de um ramo ou de uma iteração pediria guardar a travessia inteira, e não só o próximo passo.
+  const executeSteps = async (
+    branchSteps: WorkflowStep[],
+    incomingLastStepId: string | null,
+    depth = 0,
+  ): Promise<StepsRunResult> => {
     let lastStepId = incomingLastStepId;
 
     const ordered = branchSteps
@@ -214,7 +267,7 @@ export const runWorkflow = async ({ definition, event, registry, services, actor
           { result: branchResult },
         );
 
-        const recur = await executeSteps(branch ?? [], lastStepId);
+        const recur = await executeSteps(branch ?? [], lastStepId, depth + 1);
         if (!recur.ok) {
           return { ok: false };
         }
@@ -266,7 +319,7 @@ export const runWorkflow = async ({ definition, event, registry, services, actor
           for (const bodyStepId of bodyStepIds) delete context.outputs[bodyStepId];
           context.outputs[step.id] = isPlainObject(item) ? { ...item } : { [itemName]: item };
 
-          const recur = await executeSteps(body, null);
+          const recur = await executeSteps(body, null, depth + 1);
           if (!recur.ok) {
             loopFailed = true;
             break;
@@ -349,6 +402,18 @@ export const runWorkflow = async ({ definition, event, registry, services, actor
           result.messageParams ?? { name: stepDefinition.name },
         );
 
+        if (result.suspend) {
+          if (!suspendable) {
+            log('ERROR', '@core.automation/run.delay.not-suspendable', step.id, step.stepDefinitionId, context.input);
+            return { ok: false };
+          }
+          if (depth > 0) {
+            log('ERROR', '@core.automation/run.delay.nested', step.id, step.stepDefinitionId, context.input);
+            return { ok: false };
+          }
+          return { ok: true, lastStepId: step.id, suspended: { resumeAt: result.suspend.resumeAt, afterStepId: step.id } };
+        }
+
         if (result.halt) {
           // Um Step de encerramento não produz saída própria: `lastStepId` continua apontando
           // para o Step anterior, cujas saídas viram o retorno do workflow.
@@ -367,9 +432,31 @@ export const runWorkflow = async ({ definition, event, registry, services, actor
     return { ok: true, lastStepId };
   };
 
-  const run = await executeSteps(definition.steps, null);
+  let topLevel = definition.steps;
+  if (resume) {
+    // Continua pelos passos POSTERIORES ao que esperou, na definição de AGORA: a automação editada
+    // durante a espera segue a versão nova. Sem o passo em que parou, não há "depois" a seguir.
+    const anchor = definition.steps.find((step) => step.id === resume.afterStepId);
+    if (!anchor) {
+      log('WARN', '@core.automation/run.delay.step-missing', resume.afterStepId);
+      return finish('CANCELLED', {});
+    }
+    topLevel = definition.steps.filter((step) => step.order > anchor.order);
+  }
+
+  const run = await executeSteps(topLevel, resume?.lastStepId ?? null);
   if (!run.ok) {
     return finish('FAILED', {});
+  }
+
+  if (run.suspended) {
+    const { resumeAt, afterStepId } = run.suspended;
+    return {
+      ...finish('WAITING', {}),
+      finishedAt: undefined,
+      resumeAt,
+      suspension: { resumeAt, afterStepId, lastStepId: run.lastStepId, outputs: context.outputs, variables: context.variables },
+    };
   }
 
   // Retorna apenas os outputs do último step executado na travessia

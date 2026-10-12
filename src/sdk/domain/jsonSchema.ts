@@ -277,7 +277,8 @@ export const domainModelJsonSchema = (): Record<string, unknown> => ({
             when: {
               type: 'string',
               description: SCHEDULE_TRIGGER_SUPPORTED
-                ? 'kind "schedule": when it runs.'
+                ? 'kind "schedule": when it runs, as a five-field cron ("0 5 * * *" is every day at 05:00), in the '
+                  + 'organization\'s time zone.'
                 : 'kind "schedule": REFUSED. Nothing here is time-based, and a plan that accepted it would promise '
                   + 'something nobody ever sends.',
             },

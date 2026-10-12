@@ -1,3 +1,5 @@
+import type { PublishedActor } from '../engine/workflowActor';
+
 interface WorkflowClockEntryBase {
   tenantId: string;
   definitionId: string;
@@ -44,7 +46,23 @@ export interface DateReachedClockEntry extends WorkflowClockEntryBase {
   page: DateReachedPage | null;
 }
 
-export type WorkflowClockEntry = ScheduleClockEntry | DateReachedClockEntry;
+/**
+ * Uma execução PARADA num passo `delay`: o que ela precisa para continuar quando `nextRunAt` chegar. Mora
+ * no mesmo relógio (`workflow_clock/resume_<executionId>`), e por isso acorda pela mesma consulta.
+ */
+export interface ResumeClockEntry extends WorkflowClockEntryBase {
+  kind: 'resume';
+  executionId: string;
+  afterStepId: string;
+  lastStepId: string | null;
+  event: { id: string; name: string; payload: Record<string, unknown>; timestamp: Date };
+  outputs: Record<string, Record<string, unknown>>;
+  variables: Record<string, unknown>;
+  /** Quem disparou — a IDENTIDADE atravessa a espera; as permissões não (ver `actorFromPublished`). */
+  actor: PublishedActor | null;
+}
+
+export type WorkflowClockEntry = ScheduleClockEntry | DateReachedClockEntry | ResumeClockEntry;
 
 export type WorkflowClockFireResult = 'fired' | 'stale';
 
@@ -79,6 +97,11 @@ export interface IWorkflowClockRepository {
    * daquela ocorrência já existe. É o que faz duas passadas simultâneas dispararem uma vez só.
    */
   fire(entry: ScheduleClockEntry, payload: Record<string, unknown>, next: Date | null): Promise<WorkflowClockFireResult>;
+  /**
+   * Toma para si a retomada: apaga a entrada se ela ainda é a vista na consulta. `stale` quando outra
+   * passada já a tomou — é o que faz uma execução continuar uma vez só.
+   */
+  claim(entry: ResumeClockEntry): Promise<WorkflowClockFireResult>;
   /** Move a entrada sem publicar nada. `stale` quando outra passada já a moveu. */
   advance(entry: WorkflowClockEntry, patch: ClockAdvance): Promise<WorkflowClockFireResult>;
   /**

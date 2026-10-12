@@ -61,6 +61,7 @@ import { FirebaseWorkflowDefinitionRepository } from '../../data/repositories/Fi
 import { FirebaseWorkflowClockRepository } from '../../data/repositories/FirebaseWorkflowClockRepository';
 import type { WorkflowClockDeps } from '../../domain/services/workflowClock';
 import { dateReachedOnSave } from '../../domain/services/workflowClock';
+import { resumeWorkflowExecution } from '../../domain/services/workflowSuspension';
 import { entityDateFieldKeys, eventEntity } from '../../domain/schema/eventCatalog';
 import { dateReachedEventName } from '../../domain/schema/workflowClock';
 import { FirebaseWorkflowExecutionRepository } from '../../data/repositories/FirebaseWorkflowExecutionRepository';
@@ -410,8 +411,9 @@ class DIContainer {
 
   getWorkflowClockDeps(): WorkflowClockDeps {
     if (!this.workflowClockDeps) {
+      const repository = new FirebaseWorkflowClockRepository(getDb());
       this.workflowClockDeps = {
-        repository: new FirebaseWorkflowClockRepository(getDb()),
+        repository,
         officeTimeZone: (tenantId) => tenantTimeZone(tenantId),
         deactivatedPluginIds: (tenantId) => this.getInstalledExtensionCache().deactivatedPluginIds(tenantId),
         resolveDateField: async (tenantId, prefix, field) => {
@@ -421,6 +423,18 @@ class DIContainer {
         },
         now: () => new Date(),
         logger: console,
+        resume: async (entry) => {
+          await this.ensureWorkflowStepsRegistered();
+          return resumeWorkflowExecution(entry, {
+            executionRepository: this.getWorkflowExecutionRepository(),
+            clockRepository: repository,
+            definitionRepository: this.getWorkflowDefinitionRepository(),
+            registry: stepRegistry,
+            services: this.getWorkflowServices(),
+            deactivatedPluginIds: (tenantId) => this.getInstalledExtensionCache().deactivatedPluginIds(tenantId),
+            now: () => new Date(),
+          });
+        },
       };
     }
     return this.workflowClockDeps;
@@ -531,8 +545,11 @@ class DIContainer {
         stepRegistry,
         this.getWorkflowServices(),
         this.getWorkflowContextHydrator(),
-        (tenantId) => this.getInstalledExtensionCache().deactivatedPluginIds(tenantId),
-        (event, definitions) => dateReachedOnSave(event, definitions, this.getWorkflowClockDeps()),
+        {
+          deactivatedPluginIds: (tenantId) => this.getInstalledExtensionCache().deactivatedPluginIds(tenantId),
+          onDateReachedSave: (event, definitions) => dateReachedOnSave(event, definitions, this.getWorkflowClockDeps()),
+          clockRepository: this.getWorkflowClockDeps().repository,
+        },
       );
     }
     return this.runWorkflowsForEventUC;

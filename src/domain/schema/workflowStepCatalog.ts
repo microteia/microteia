@@ -377,6 +377,35 @@ export const CORE_STEP_CATALOG: readonly WorkflowStepMetadata[] = [
     outputDefinitions: [],
   },
   {
+    id: 'delay',
+    version: 1,
+    name: '@core.automation/step.delay.name',
+    description: '@core.automation/step.delay.description',
+    icon: 'RiHourglassLine',
+    category: 'Action',
+    type: 'Action',
+    configurable: true,
+    inputs: [
+      {
+        id: 'duration',
+        label: '@core.automation/step.delay.label.duration',
+        description: '@core.automation/step.delay.help.duration',
+        required: false,
+        type: 'String',
+      },
+      {
+        id: 'until',
+        label: '@core.automation/step.delay.label.until',
+        description: '@core.automation/step.delay.help.until',
+        required: false,
+        type: 'Date',
+      },
+    ],
+    outputDefinitions: [
+      { id: 'resumeAt', label: '@core.automation/step.delay.label.resume-at', type: 'Date' },
+    ],
+  },
+  {
     id: 'call-workflow',
     version: 2,
     name: '@core.automation/step.call-workflow.name',
@@ -654,14 +683,12 @@ export const CORE_STEP_DEFINITION_IDS: readonly string[] = CORE_STEP_CATALOG.map
 export const CONTROL_STEP_TYPES: readonly string[] = ['Condition', 'Loop'];
 
 /**
- * `Delay` está em `STEP_TYPES` e NÃO é implementado — `DelayStepShape` diz, no próprio arquivo, que
- * nunca foi registrado no `StepRegistry`. Um passo `type: 'Delay'` não é interceptado como nó de
- * controle: ele cai em `registry.resolve(undefined)` e o motor registra "StepDefinition desconhecida"
- * em runtime, com o fluxo já em execução.
+ * O TIPO `Delay` está em `STEP_TYPES` e não é um nó de controle: a espera é o PASSO `delay` do catálogo
+ * (`type: 'Action'`, `stepDefinitionId: 'delay'`), que pausa a execução pelo mesmo contrato com que o
+ * `exit` a encerra — o resultado do passo pede, o executor obedece. Um passo `type: 'Delay'` não é
+ * interceptado por ninguém: cai em `registry.resolve(undefined)` e falha em runtime.
  *
- * A união fica como está — remover um valor de `STEP_TYPES` quebraria declarações já gravadas —, mas
- * a validação do pacote reprova quem o usar, e o guia de autoria diz que ele não existe ainda. Era o
- * pior caso possível: o guia prometia "espera antes dos passos seguintes", e quem acreditasse só
- * descobriria o contrário com o fluxo rodando.
+ * A união fica como está — remover um valor de `STEP_TYPES` quebraria declarações já gravadas —, e a
+ * validação do pacote reprova quem usar o tipo, apontando para o passo.
  */
 export const UNIMPLEMENTED_STEP_TYPES: readonly string[] = ['Delay'];

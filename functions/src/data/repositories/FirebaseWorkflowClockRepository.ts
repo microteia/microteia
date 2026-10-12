@@ -6,11 +6,14 @@ import type {
   DateReachedPage,
   DatedRecord,
   IWorkflowClockRepository,
+  ResumeClockEntry,
   ScheduleClockEntry,
   WorkflowClockEntry,
   WorkflowClockFireResult,
 } from '../../domain/repositories/IWorkflowClockRepository';
+import { normalizeFirestoreValue } from '../../domain/services/normalizeFirestoreValue';
 import {
+  RESUME_CLOCK_ID_PREFIX,
   WORKFLOW_CLOCK_COLLECTION,
   WORKFLOW_SCHEDULE_EVENT,
   WORKFLOW_TRIGGER_MARKS_COLLECTION,
@@ -43,6 +46,29 @@ const mapEntry = (tenantId: string, definitionId: string, data: DocumentData): W
     nextRunAt,
     ownerPluginIds: stringList(data.ownerPluginIds),
   };
+  if (data.kind === 'resume') {
+    const event = data.event && typeof data.event === 'object' ? (data.event as Record<string, unknown>) : null;
+    if (typeof data.executionId !== 'string' || typeof data.afterStepId !== 'string' || !event || typeof event.id !== 'string' || typeof event.name !== 'string') {
+      return null;
+    }
+    return {
+      ...base,
+      definitionId: typeof data.definitionId === 'string' ? data.definitionId : definitionId,
+      kind: 'resume',
+      executionId: data.executionId,
+      afterStepId: data.afterStepId,
+      lastStepId: typeof data.lastStepId === 'string' ? data.lastStepId : null,
+      event: {
+        id: event.id,
+        name: event.name,
+        payload: normalizeFirestoreValue((event.payload ?? {}) as Record<string, unknown>),
+        timestamp: toDate(event.timestamp) ?? nextRunAt,
+      },
+      outputs: normalizeFirestoreValue((data.outputs ?? {}) as Record<string, Record<string, unknown>>),
+      variables: normalizeFirestoreValue((data.variables ?? {}) as Record<string, unknown>),
+      actor: data.actor && typeof data.actor === 'object' ? (data.actor as ResumeClockEntry['actor']) : null,
+    };
+  }
   if (data.kind === 'dateReached') {
     if (
       typeof data.eventName !== 'string' || typeof data.field !== 'string'
@@ -83,6 +109,19 @@ const entryDocument = (entry: WorkflowClockEntry): DocumentData => {
     updatedAt: Timestamp.now(),
   };
   if (entry.kind === 'schedule') return { ...base, cron: entry.cron };
+  if (entry.kind === 'resume') {
+    return {
+      ...base,
+      definitionId: entry.definitionId,
+      executionId: entry.executionId,
+      afterStepId: entry.afterStepId,
+      lastStepId: entry.lastStepId,
+      event: { ...entry.event, timestamp: Timestamp.fromDate(entry.event.timestamp) },
+      outputs: entry.outputs,
+      variables: entry.variables,
+      actor: entry.actor,
+    };
+  }
   return {
     ...base,
     eventName: entry.eventName,
@@ -111,8 +150,13 @@ const ALREADY_EXISTS = 6;
 export class FirebaseWorkflowClockRepository implements IWorkflowClockRepository {
   constructor(private readonly db: Firestore) {}
 
-  private entryRef(tenantId: string, definitionId: string) {
-    return this.db.collection('tenants').doc(tenantId).collection(WORKFLOW_CLOCK_COLLECTION).doc(definitionId);
+  private entryRef(tenantId: string, clockId: string) {
+    return this.db.collection('tenants').doc(tenantId).collection(WORKFLOW_CLOCK_COLLECTION).doc(clockId);
+  }
+
+  /** O documento da entrada: o da definição, para os gatilhos; o da execução, para a retomada. */
+  private refOf(entry: WorkflowClockEntry) {
+    return this.entryRef(entry.tenantId, entry.kind === 'resume' ? `${RESUME_CLOCK_ID_PREFIX}${entry.executionId}` : entry.definitionId);
   }
 
   async find(tenantId: string, definitionId: string): Promise<WorkflowClockEntry | null> {
@@ -121,7 +165,7 @@ export class FirebaseWorkflowClockRepository implements IWorkflowClockRepository
   }
 
   async save(entry: WorkflowClockEntry): Promise<void> {
-    await this.entryRef(entry.tenantId, entry.definitionId).set(entryDocument(entry));
+    await this.refOf(entry).set(entryDocument(entry));
   }
 
   async remove(tenantId: string, definitionId: string): Promise<void> {
@@ -157,8 +201,19 @@ export class FirebaseWorkflowClockRepository implements IWorkflowClockRepository
     });
   }
 
+  async claim(entry: ResumeClockEntry): Promise<WorkflowClockFireResult> {
+    const entryRef = this.refOf(entry);
+    return this.db.runTransaction(async (tx) => {
+      const current = await tx.get(entryRef);
+      const stored = current.exists ? toDate(current.get('nextRunAt')) : null;
+      if (!stored || stored.getTime() !== entry.nextRunAt.getTime()) return 'stale';
+      tx.delete(entryRef);
+      return 'fired';
+    });
+  }
+
   async advance(entry: WorkflowClockEntry, patch: ClockAdvance): Promise<WorkflowClockFireResult> {
-    const entryRef = this.entryRef(entry.tenantId, entry.definitionId);
+    const entryRef = this.refOf(entry);
     const expectedPage = entry.kind === 'dateReached' && entry.page ? `${entry.page.fromDay}|${entry.page.afterId}` : null;
 
     return this.db.runTransaction(async (tx) => {

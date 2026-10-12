@@ -461,3 +461,71 @@ export const zonedInstant = (day: string, time: TimeOfDay, timeZone: string): Da
   const first = wall - offsetAt(wall);
   return new Date(wall - offsetAt(first));
 };
+
+// ─── Esperar — o passo `delay` ──────────────────────────────────────────────────
+
+/** O kernel a partir do qual o passo `delay` existe. */
+export const WORKFLOW_DELAY_SINCE_KERNEL = '2.34.0';
+
+/** A espera mais longa que um passo pode pedir. Além disso, a automação já não é a mesma que alguém escreveu. */
+export const MAX_DELAY_DAYS = 365;
+
+/**
+ * Onde a execução que espera guarda o que precisa para continuar: no MESMO relógio, como entrada de
+ * `workflow_clock` com este prefixo — o id da definição é de outra natureza, e as duas não podem colidir.
+ */
+export const RESUME_CLOCK_ID_PREFIX = 'resume_';
+
+const DURATION_PATTERN = /^(\d{1,4})\s*([mhd])$/;
+
+const DURATION_UNIT_MS: Record<string, number> = { m: 60_000, h: 3_600_000, d: 86_400_000 };
+
+/** `30m`, `4h`, `2d` → milissegundos. `null` quando a forma não é essa, é zero ou passa do teto. */
+export const parseDelayDuration = (value: unknown): number | null => {
+  if (typeof value !== 'string') return null;
+  const match = DURATION_PATTERN.exec(value.trim().toLowerCase());
+  if (!match) return null;
+  const ms = Number(match[1]) * DURATION_UNIT_MS[match[2]];
+  return ms > 0 && ms <= MAX_DELAY_DAYS * DURATION_UNIT_MS.d ? ms : null;
+};
+
+export type DelayResolution =
+  | { resumeAt: Date }
+  | { message: string; messageParams?: Record<string, string> };
+
+const toInstant = (value: unknown): Date | null => {
+  if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value;
+  if (typeof value === 'string' || typeof value === 'number') {
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }
+  return null;
+};
+
+const isBlank = (value: unknown): boolean => value === undefined || value === null || value === '';
+
+/**
+ * ATÉ QUANDO o passo `delay` espera: `duration` (`30m`, `4h`, `2d`) a partir de agora, OU `until` (um
+ * instante). Os dois juntos são ambíguos e recusados; nenhum dos dois também. Um `until` que já passou
+ * devolve o próprio instante — quem chama segue sem esperar.
+ */
+export const resolveDelay = (inputs: { duration?: unknown; until?: unknown }, now: Date): DelayResolution => {
+  const hasDuration = !isBlank(inputs.duration);
+  const hasUntil = !isBlank(inputs.until);
+  if (hasDuration === hasUntil) return { message: '@core.automation/step.delay.one-of' };
+
+  const limit = now.getTime() + MAX_DELAY_DAYS * 86_400_000;
+  if (hasDuration) {
+    const ms = parseDelayDuration(inputs.duration);
+    return ms === null
+      ? { message: '@core.automation/step.delay.duration-invalid', messageParams: { duration: String(inputs.duration), max: String(MAX_DELAY_DAYS) } }
+      : { resumeAt: new Date(now.getTime() + ms) };
+  }
+
+  const until = toInstant(inputs.until);
+  if (!until) return { message: '@core.automation/step.delay.until-invalid', messageParams: { until: String(inputs.until) } };
+  if (until.getTime() > limit) {
+    return { message: '@core.automation/step.delay.too-far', messageParams: { max: String(MAX_DELAY_DAYS) } };
+  }
+  return { resumeAt: until };
+};

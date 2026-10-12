@@ -1,5 +1,5 @@
 import { Timestamp } from 'firebase-admin/firestore';
-import type { Firestore } from 'firebase-admin/firestore';
+import type { DocumentData, Firestore } from 'firebase-admin/firestore';
 import type { IWorkflowExecutionRepository } from '../../domain/repositories/IWorkflowExecutionRepository';
 import type { WorkflowExecution } from '../../domain/entities/Workflow';
 
@@ -8,6 +8,22 @@ const EXECUTIONS_PER_EVENT_LIMIT = 20;
 
 const asDate = (value: unknown): Date | null =>
   value instanceof Timestamp ? value.toDate() : value instanceof Date ? value : null;
+
+const mapExecution = (tenantId: string, id: string, data: DocumentData): WorkflowExecution => ({
+  id,
+  tenantId,
+  workflowDefinitionId: String(data.workflowDefinitionId ?? ''),
+  eventId: String(data.eventId ?? ''),
+  status: data.status as WorkflowExecution['status'],
+  startedAt: asDate(data.startedAt) ?? new Date(0),
+  ...(asDate(data.finishedAt) === null ? {} : { finishedAt: asDate(data.finishedAt) as Date }),
+  ...(asDate(data.resumeAt) === null ? {} : { resumeAt: asDate(data.resumeAt) as Date }),
+  logs: (Array.isArray(data.logs) ? data.logs : []).map((entry: Record<string, unknown>) => ({
+    ...entry,
+    at: asDate(entry.at) ?? new Date(0),
+  })) as WorkflowExecution['logs'],
+  outputs: (data.outputs ?? {}) as WorkflowExecution['outputs'],
+});
 
 export class FirebaseWorkflowExecutionRepository implements IWorkflowExecutionRepository {
   constructor(private readonly db: Firestore) {}
@@ -29,7 +45,13 @@ export class FirebaseWorkflowExecutionRepository implements IWorkflowExecutionRe
           at: Timestamp.fromDate(entry.at),
         })),
         outputs: execution.outputs,
+        resumeAt: execution.resumeAt ? Timestamp.fromDate(execution.resumeAt) : null,
       });
+  }
+
+  async findById(tenantId: string, id: string): Promise<WorkflowExecution | null> {
+    const snapshot = await this.db.collection('tenants').doc(tenantId).collection('workflow_executions').doc(id).get();
+    return snapshot.exists ? mapExecution(tenantId, snapshot.id, snapshot.data() as DocumentData) : null;
   }
 
   // Igualdade única com `limit`: é servida pelo índice de campo único que toda coleção ganha de
@@ -43,22 +65,6 @@ export class FirebaseWorkflowExecutionRepository implements IWorkflowExecutionRe
       .limit(EXECUTIONS_PER_EVENT_LIMIT)
       .get();
 
-    return snapshot.docs.map((doc) => {
-      const data = doc.data();
-      return {
-        id: doc.id,
-        tenantId,
-        workflowDefinitionId: String(data.workflowDefinitionId ?? ''),
-        eventId: String(data.eventId ?? ''),
-        status: data.status as WorkflowExecution['status'],
-        startedAt: asDate(data.startedAt) ?? new Date(0),
-        ...(asDate(data.finishedAt) === null ? {} : { finishedAt: asDate(data.finishedAt) as Date }),
-        logs: (Array.isArray(data.logs) ? data.logs : []).map((entry: Record<string, unknown>) => ({
-          ...entry,
-          at: asDate(entry.at) ?? new Date(0),
-        })) as WorkflowExecution['logs'],
-        outputs: (data.outputs ?? {}) as WorkflowExecution['outputs'],
-      };
-    });
+    return snapshot.docs.map((doc) => mapExecution(tenantId, doc.id, doc.data()));
   }
 }

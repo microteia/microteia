@@ -5152,9 +5152,10 @@ sem `onChange` ele vira somente-leitura); a edição de conteúdo (campo/operado
 no builder, acessível por atalho nos cartões do diagrama. Em `FieldComparison`, tanto `fieldPath`
 quanto o valor de `valueType: 'eventField'` usam caminho absoluto no contexto
 ("event.payload.status") e são resolvidos por `getValueByPath(context, ...)`.
-**Gatilho por horário** (`schedule`) — ver "Gatilhos temporais — o relógio do kernel".
+**Gatilhos por horário e por data, e o passo de espera** (`schedule`, `<coleção>.dateReached`, `delay`) —
+ver "Gatilhos temporais — o relógio do kernel".
 **Preparado só como shape, nunca registrado no `StepRegistry`** (adicionar não exige tocar no
-motor): `DelayStep`, retry/compensação/rollback, execução síncrona. (`ScriptStep` e
+motor): retry/compensação/rollback, execução síncrona. (`ScriptStep` e
 `SubWorkflowStep` já são reais; a ramificação de fluxo — `StepCondition` — é nativa do motor,
 ver abaixo.)
 
@@ -5582,6 +5583,37 @@ que ainda não existia. Pelo mesmo caminho, o campo que deixa de ser data simple
 O tempo de uma execução do relógio é limitado (`TICK_BUDGET_MS`): o que sobra continua vencido e é da
 execução seguinte, na mesma janela (`page`).
 
+#### O passo `delay` — esperar no meio da execução
+
+O tipo `Delay` da união `STEP_TYPES` nunca foi registrado, e não é ele que espera: a espera é um PASSO do
+catálogo (`stepDefinitionId: 'delay'`, `type: 'Action'`), contribuído por `core.steps` como qualquer outro,
+com `duration` (`30m`/`4h`/`2d`, até 365 dias) ou `until`. O construtor visual o oferece sem tela nova.
+
+**O passo pede, o executor obedece** — o mesmo contrato de `exit`. O `exit` devolve `halt`; o `delay` devolve
+`suspend: { resumeAt }`. O `WorkflowExecutor` então devolve a execução com status `WAITING`, `resumeAt` e a
+`suspension`: o passo em que parou, o último que produziu saída, `outputs` e `variables`. Ele só aceita a
+pausa em duas condições, e recusa com mensagem nas outras:
+
+| Condição | Por quê |
+|---|---|
+| `suspendable` — a execução nasceu do barramento de eventos | quem AGUARDA a resposta (botão `runAction`, `call-workflow` esperando, `runScript`, o agente) não tem como aguardar dias |
+| nível principal do fluxo (`depth === 0`) | retomar no meio de um ramo ou de uma iteração pediria guardar a travessia, e não só o próximo passo |
+
+**A continuação mora no MESMO relógio**: `workflow_clock/resume_<executionId>`, de `kind: 'resume'`, com
+`nextRunAt = resumeAt`. `recordWorkflowRun` grava a continuação ANTES da execução — uma execução `WAITING`
+sem continuação esperaria para sempre. O estado que viaja é limitado (800 KB, abaixo do 1 MiB do documento):
+acima disso a execução termina `FAILED` dizendo o motivo, em vez de a gravação falhar sem rastro.
+
+**Retomar é continuar a MESMA execução.** `resumeWorkflowExecution` toma a entrada numa transação (`claim`:
+duas voltas, uma retomada), relê o histórico da execução e roda `runWorkflow` com `resume` — sem reavaliar a
+condição nem os parâmetros (já passaram), a partir dos passos de `order` maior que o da espera, NA DEFINIÇÃO DE
+AGORA. A automação apagada, desligada ou cuja extensão foi desativada durante a espera termina `CANCELLED`,
+dizendo qual dos três; a que perdeu o passo em que parou também. O ator volta como identidade, sem permissões —
+o acesso de dias atrás é um retrato vencido, a mesma regra de "Quem disparou".
+
+A validação do pacote recusa o `delay` aninhado, o `delay` numa automação que uma AÇÃO do pacote dispara, e um
+intervalo de `kernel` anterior a 2.34.0.
+
 **No modelo de domínio.** `trigger: { kind: 'schedule', when }` deixou de ser recusado: `when` é cron, e a
 transição vira `{ eventName: 'schedule', schedule: { cron: when } }` com os passos `query` (o `from` como
 filtro) e `Loop` (a passagem por registro). `SCHEDULE_TRIGGER_SUPPORTED` virou `true` sozinho, porque é
@@ -5594,6 +5626,8 @@ derivado do catálogo de eventos.
 | `functions/src/data/repositories/FirebaseWorkflowClockRepository.ts` | a consulta de grupo e a transação do disparo |
 | `functions/src/infrastructure/handlers/workflowClock.ts` | `syncWorkflowClock` e `runWorkflowClock` |
 | `functions/src/domain/services/workflowClock.ts` → `dateReachedOnSave` | a metade do gatilho de data que corre na gravação |
+| `functions/src/domain/services/workflowSuspension.ts` | guardar a continuação de quem esperou, e retomá-la |
+| `functions/src/infrastructure/workflow/steps/DelayStep.ts` | o passo `delay` — só pede a pausa |
 
 ### `call-workflow` com alvo dinâmico e parâmetros em bloco
 

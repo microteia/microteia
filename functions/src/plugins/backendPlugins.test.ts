@@ -28,6 +28,9 @@ const STEPS_ANTES_DA_MIGRACAO = [
   'register-audit', 'remove', 'script', 'set-variable', 'upsert', 'validate-object',
 ].sort();
 
+/** Os passos de `core.steps` hoje: os de antes da migração e os que nasceram como contribuição desde então. */
+const PASSOS_DO_NUCLEO = [...STEPS_ANTES_DA_MIGRACAO, 'delay'].sort();
+
 /**
  * Os passos que chamam um MODELO. Vivem em `core.ai.steps`, e não em `core.steps`, e é por isso que
  * os testes de remoção abaixo distinguem "os passos" de "os passos daquele plugin".
@@ -192,7 +195,7 @@ describe('plugins do backend — remoção limpa', () => {
       .sort();
 
     expect(result.diagnostics).toEqual([]);
-    expect(ids).toEqual(STEPS_ANTES_DA_MIGRACAO);
+    expect(ids).toEqual(PASSOS_DO_NUCLEO);
   });
 
   it('remover core.expressions tira as funções e preserva os passos', () => {

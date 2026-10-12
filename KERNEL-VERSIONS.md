@@ -18,6 +18,15 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.93.0] — 2026-10-12
+
+- feat(workflow): the `delay` step (`stepDefinitionId: 'delay'`, contributed by `core.steps`) — `duration` (`30m`/`4h`/`2d`, up to 365 days) or `until`. It returns `suspend: { resumeAt }`, the same request/obey contract as `exit`'s `halt`; the `WorkflowExecutor` then returns the run as `WAITING` with `resumeAt` and its continuation. It pauses only at the top level and only in a `suspendable` run (one started by the event bus); a sync run (`runAction`, a waiting `call-workflow`, `runScript`, the agent) and a nested wait fail with a message. The `Delay` step TYPE stays unregistered and refused, as before. `KERNEL_VERSION` goes to `2.34.0`.
+- feat(functions): the continuation lives in the same clock, `workflow_clock/resume_<executionId>` (`kind: 'resume'`), saved before the execution; the clock claims it in a transaction and resumes THE SAME execution (same id, history kept) from the steps after the wait, on the definition as it is now, without re-evaluating condition or parameters. A deleted, disabled or deactivated-extension workflow ends `CANCELLED` with the reason; state over 800 KB ends `FAILED` instead of losing the continuation. The actor comes back as identity without permissions.
+- feat(workflow): `WorkflowExecutionStatus` gains `WAITING` and `CANCELLED`; executions store `resumeAt`, and the Automations screen shows when a waiting run continues. `IWorkflowExecutionRepository.findById`.
+- feat(sdk): `validatePluginPackage` refuses a nested `delay` (`@core.marketplace/issue.step.delay-nested`), a `delay` in a workflow one of the package's actions runs (`issue.step.delay-in-action`), and a `kernel` range below 2.34.0 (`issue.step.delay-kernel`). AUTHORING.md §10 documents the step; the step table and `list_workflow_steps` carry it. `DelayStepShape`, the never-registered shape, is removed.
+- fix(sdk): two phrases that still said "nothing here is time-based" — the domain-model rules resource and the `when` field of the behaviour JSON schema.
+- chore(locale-pt-br): `1.81.0`, with the wait keys.
+
 #### [9.92.0] — 2026-10-12
 
 - feat(workflow): date trigger. `eventName: '<prefix>.dateReached'` with `dateReached: { field, offset, at? }` — a `date` field of the screen that emits the prefix, whole days (`-3d`/`0d`/`+1d`, up to 365) and `HH:mm` in the organization's time zone (default 08:00). The payload is the record, as on `.saved` without `changeType`/`old`. `splitEntityEventName` recognises the action, so package references, the install-time prefix remap and cross-extension checks cover it with no extra code. `KERNEL_VERSION` goes to `2.33.0`.

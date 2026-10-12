@@ -1,8 +1,9 @@
-import type { WorkflowDefinition, WorkflowEvent, WorkflowExecution } from '../entities/Workflow';
+import type { WorkflowDefinition, WorkflowEvent } from '../entities/Workflow';
 import type { WorkflowContext } from '../entities/WorkflowContext';
 import type { WorkflowServices } from '../entities/WorkflowContext';
 import type { StepRegistry } from './StepRegistry';
 import { runWorkflow } from './WorkflowExecutor';
+import type { WorkflowRun } from './WorkflowExecutor';
 import { WorkflowContextHydrator, createHydrationCache, type HydrationCache } from './WorkflowContextHydrator';
 import { SCHEMA_VERSION } from '../schema/entityRegistry';
 import { WORKFLOW_CALLED_EVENT, workflowParametersToRoot, applyParameterDefaults } from '../schema/eventCatalog';
@@ -14,13 +15,15 @@ export interface HydrateAndRunWorkflowDeps {
   cache?: HydrationCache;
   /** Quem disparou, quando alguém disparou. Ver `WorkflowContext.actor`. */
   actor?: WorkflowContext['actor'];
+  /** A execução pode pausar num `delay`. Ver `RunWorkflowParams.suspendable`. */
+  suspendable?: boolean;
 }
 
 export const hydrateAndRunWorkflow = async (
   definition: WorkflowDefinition,
   event: WorkflowEvent,
   deps: HydrateAndRunWorkflowDeps,
-): Promise<WorkflowExecution> => {
+): Promise<WorkflowRun> => {
   const referencedPaths = deps.hydrator.collectReferencedPaths(definition);
   const rootOverride =
     definition.eventName === WORKFLOW_CALLED_EVENT ? workflowParametersToRoot(definition.parameters) : undefined;
@@ -49,5 +52,6 @@ export const hydrateAndRunWorkflow = async (
     registry: deps.registry,
     services: timeZone ? { ...deps.services, timeZone } : deps.services,
     ...(deps.actor ? { actor: deps.actor } : {}),
+    ...(deps.suspendable ? { suspendable: true } : {}),
   });
 };

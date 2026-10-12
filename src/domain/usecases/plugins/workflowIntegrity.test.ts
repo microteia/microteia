@@ -297,3 +297,37 @@ describe('integridade do gatilho de data', () => {
     expect(issue?.messageParams?.minimum).toBe('2.33.0');
   });
 });
+
+describe('integridade do passo de espera', () => {
+  const espera = (id: string, order = 0): WorkflowStep => passo({ id, stepDefinitionId: 'delay', order, configuration: { duration: { kind: 'Literal', value: '2d' } } });
+
+  const comEspera = (steps: WorkflowStep[], extra: Record<string, unknown> = {}, kernel = '^2.34.0'): MarketplacePlugin => {
+    const base = pacote(steps);
+    return { ...base, manifest: { ...base.manifest, kernel }, ...extra } as unknown as MarketplacePlugin;
+  };
+
+  it('aceita a espera no nível principal', () => {
+    expect(workflowStepIssues(comEspera([espera('w')]))).toEqual([]);
+  });
+
+  it('recusa a espera dentro de um ramo de condição', () => {
+    const condicao = passo({
+      id: 'cond',
+      type: 'Condition',
+      stepDefinitionId: '',
+      condition: { kind: 'AlwaysTrue' },
+      branches: { whenTrue: [espera('w')], whenFalse: [] },
+    });
+    expect(workflowStepIssues(comEspera([condicao])).map((issue) => issue.message)).toContain('@core.marketplace/issue.step.delay-nested');
+  });
+
+  it('recusa a espera numa automação que uma ação do pacote dispara', () => {
+    const issues = workflowStepIssues(comEspera([espera('w')], { actions: [{ key: 'aprovar', workflowId: 'wf-teste' }] }));
+    expect(issues.map((issue) => issue.message)).toEqual(['@core.marketplace/issue.step.delay-in-action']);
+  });
+
+  it('cobra o kernel que admite uma versão sem o passo', () => {
+    const [issue] = workflowStepIssues(comEspera([espera('w')], {}, '^2.33.0'));
+    expect(issue?.message).toBe('@core.marketplace/issue.step.delay-kernel');
+  });
+});

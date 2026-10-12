@@ -13,6 +13,7 @@ const mapExecution = (id: string, d: Record<string, unknown>, tenantId: string):
   status: d.status as WorkflowExecution['status'],
   startedAt: toDate(d.startedAt),
   finishedAt: d.finishedAt ? toDate(d.finishedAt) : undefined,
+  resumeAt: d.resumeAt ? toDate(d.resumeAt) : undefined,
   logs: ((d.logs as Record<string, unknown>[]) ?? []).map((entry) => ({
     ...entry,
     at: toDate(entry.at),

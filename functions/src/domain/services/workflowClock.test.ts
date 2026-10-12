@@ -32,7 +32,7 @@ const makeDeps = (now: string, officeTimeZone = 'America/Sao_Paulo') => {
   const repository: IWorkflowClockRepository = {
     find: async (tenantId, definitionId) => entries.get(key(tenantId, definitionId)) ?? null,
     save: async (entry) => {
-      entries.set(key(entry.tenantId, entry.definitionId), entry);
+      entries.set(key(entry.tenantId, entry.kind === 'resume' ? `resume_${entry.executionId}` : entry.definitionId), entry);
     },
     remove: async (tenantId, definitionId) => {
       entries.delete(key(tenantId, definitionId));
@@ -50,6 +50,13 @@ const makeDeps = (now: string, officeTimeZone = 'America/Sao_Paulo') => {
       fired.push({ entry, payload, next });
       if (next) entries.set(key(entry.tenantId, entry.definitionId), { ...stored, nextRunAt: next, timeZone: entry.timeZone });
       else entries.delete(key(entry.tenantId, entry.definitionId));
+      return 'fired';
+    },
+    claim: async (entry) => {
+      const id = `resume_${entry.executionId}`;
+      const stored = entries.get(key(entry.tenantId, id));
+      if (!stored || stored.nextRunAt.getTime() !== entry.nextRunAt.getTime()) return 'stale';
+      entries.delete(key(entry.tenantId, id));
       return 'fired';
     },
     advance: async (entry, patch) => {

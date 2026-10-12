@@ -192,7 +192,12 @@ export interface WorkflowDefinition {
   updatedAt: Date;
 }
 
-export type WorkflowExecutionStatus = 'RUNNING' | 'SUCCESS' | 'FAILED' | 'PARTIAL';
+/**
+ * `WAITING`: parada num passo `delay`, com hora para continuar (`resumeAt`) — a MESMA execução segue
+ * depois, no mesmo histórico. `CANCELLED`: a espera acabou e não havia mais o que continuar (a automação
+ * foi desligada, apagada, ou perdeu o passo em que parou).
+ */
+export type WorkflowExecutionStatus = 'RUNNING' | 'SUCCESS' | 'FAILED' | 'PARTIAL' | 'WAITING' | 'CANCELLED';
 
 export interface WorkflowExecutionLogEntry {
   stepId?: string;
@@ -219,4 +224,6 @@ export interface WorkflowExecution {
   finishedAt?: Date;
   logs: WorkflowExecutionLogEntry[];
   outputs: Record<string, Record<string, unknown>>;
+  /** Só em `WAITING`: quando a execução continua. */
+  resumeAt?: Date;
 }

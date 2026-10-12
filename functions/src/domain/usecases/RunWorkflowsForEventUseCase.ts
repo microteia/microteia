@@ -5,6 +5,8 @@ import type { IWorkflowExecutionRepository } from '../repositories/IWorkflowExec
 import type { StepRegistry } from '../engine/StepRegistry';
 import { WorkflowContextHydrator, createHydrationCache } from '../engine/WorkflowContextHydrator';
 import { hydrateAndRunWorkflow } from '../engine/hydrateAndRunWorkflow';
+import type { IWorkflowClockRepository } from '../repositories/IWorkflowClockRepository';
+import { recordWorkflowRun } from '../services/workflowSuspension';
 import { WORKFLOW_CALLED_EVENT } from '../schema/eventCatalog';
 import { dateReachedEventName, dateReachedPrefix } from '../schema/workflowClock';
 
@@ -64,14 +66,23 @@ const findTargeted = async (
   return definitionRepository.findEnabledByEvent(event.tenantId, event.name);
 };
 
+export interface RunWorkflowsForEventOptions {
+  deactivatedPluginIds?: DeactivatedPluginIds;
+  onDateReachedSave?: DateReachedOnSave;
+  /**
+   * Onde a execução que PAROU num `delay` guarda a continuação. Sem ele, o barramento não pode esperar:
+   * o passo `delay` falha dizendo que esta execução não pausa.
+   */
+  clockRepository?: IWorkflowClockRepository;
+}
+
 export const makeRunWorkflowsForEventUseCase = (
   definitionRepository: IWorkflowDefinitionRepository,
   executionRepository: IWorkflowExecutionRepository,
   registry: StepRegistry,
   services: WorkflowServices,
   hydrator: WorkflowContextHydrator,
-  deactivatedPluginIds?: DeactivatedPluginIds,
-  onDateReachedSave?: DateReachedOnSave,
+  { deactivatedPluginIds, onDateReachedSave, clockRepository }: RunWorkflowsForEventOptions = {},
 ): RunWorkflowsForEventUseCase => ({
   execute: async (event, actor) => {
     const found = await findTargeted(definitionRepository, event);
@@ -98,14 +109,23 @@ export const makeRunWorkflowsForEventUseCase = (
     const hydrationCache = createHydrationCache();
     for (const definition of definitions) {
       try {
-        const execution = await hydrateAndRunWorkflow(definition, event, {
+        const run = await hydrateAndRunWorkflow(definition, event, {
           registry,
           services,
           hydrator,
           cache: hydrationCache,
           ...(actor ? { actor } : {}),
+          suspendable: !!clockRepository,
         });
-        await executionRepository.create(execution);
+        if (clockRepository) {
+          await recordWorkflowRun(run, { definition, event, ...(actor ? { actor } : {}) }, {
+            executionRepository,
+            clockRepository,
+            now: () => services.now(),
+          });
+        } else {
+          await executionRepository.create(run);
+        }
       } catch (error) {
         services.logger.error(
           `Falha ao executar workflow "${definition.id}" para o evento "${event.name}": ${error instanceof Error ? error.message : String(error)}`,

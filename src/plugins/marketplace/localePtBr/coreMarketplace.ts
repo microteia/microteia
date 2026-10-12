@@ -379,6 +379,12 @@ export const CORE_MARKETPLACE: Record<string, string> = {
     'a automação roda quando uma data chega, e o relógio não consegue rodá-la: {detail} Ela seria instalada ligada e nunca dispararia.',
   'issue.workflow.trigger-kernel':
     'a automação é disparada por "{event}", que só existe a partir do kernel {minimum} — declare `kernel: "^{minimum}"` (ou posterior) no manifest, para que um kernel mais antigo recuse o pacote em vez de instalar uma automação que nunca dispara.',
+  'issue.step.delay-nested':
+    'o passo "{step}" espera dentro de um ramo de condição ou do corpo de uma repetição. A espera só pausa no nível principal da automação — ali o fluxo pararia com erro.',
+  'issue.step.delay-in-action':
+    'o passo "{step}" espera, e a ação "{action}" roda esta automação. Um botão aguarda a resposta e não consegue aguardar uma pausa — o fluxo pararia com erro. Dispare-a por um evento, ou faça a ação chamar uma automação que não espere.',
+  'issue.step.delay-kernel':
+    'o passo "{step}" espera, e o passo de espera só existe a partir do kernel {minimum} — declare `kernel: "^{minimum}"` (ou posterior) no manifest, para que um kernel mais antigo recuse o pacote em vez de falhar no passo.',
   'issue.step.unknown-input':
     'o passo "{step}" ({definition}) preenche a entrada "{input}", que esse passo não tem. Ele recebe: {expected}.',
   'install.dependency-missing':

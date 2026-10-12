@@ -13,6 +13,7 @@ import type { PackageRef, PackageValidationIssue } from './pluginReferences';
 import {
   WORKFLOW_SCHEDULE_EVENT,
   WORKFLOW_DATE_REACHED_SINCE_KERNEL,
+  WORKFLOW_DELAY_SINCE_KERNEL,
   WORKFLOW_SCHEDULE_SINCE_KERNEL,
   dateReachedIssues,
   dateReachedPrefix,
@@ -270,9 +271,45 @@ const workflowIssues = (
 
   return [
     ...triggerIssues(workflow, ref, pkg),
+    ...delayIssues(workflow, steps, ref, pkg),
     ...steps.flatMap((step) => stepIssues(step, ref, hasDependencies)),
     ...outputRefIssues(steps, ref),
   ];
+};
+
+const DELAY_STEP_ID = 'delay';
+
+/**
+ * Onde o passo `delay` não pode pausar — e falharia com o fluxo rodando:
+ *
+ * - dentro de um ramo de condição ou do corpo de uma repetição: só o nível principal retoma;
+ * - num fluxo que uma AÇÃO do pacote dispara: o botão espera a resposta, e ninguém espera dias;
+ * - num pacote que admite um kernel anterior ao passo.
+ */
+const delayIssues = (
+  workflow: WorkflowModuleTemplate,
+  steps: WorkflowStep[],
+  ref: PackageRef,
+  pkg: MarketplacePlugin,
+): PackageValidationIssue[] => {
+  const delays = steps.filter((step) => step.stepDefinitionId === DELAY_STEP_ID);
+  if (delays.length === 0) return [];
+  const topLevel = new Set(workflow.steps.map((step) => step.id));
+
+  const nested = delays
+    .filter((step) => !topLevel.has(step.id))
+    .map((step) => ({ ref, message: '@core.marketplace/issue.step.delay-nested', messageParams: { step: step.id } }));
+
+  const action = (pkg.actions ?? []).find((candidate) => candidate.workflowId === workflow.templateId);
+  const fromAction = action
+    ? [{ ref, message: '@core.marketplace/issue.step.delay-in-action', messageParams: { step: delays[0].id, action: action.key } }]
+    : [];
+
+  const kernel = rangeExcludesBelow(pkg.manifest?.kernel ?? '', WORKFLOW_DELAY_SINCE_KERNEL)
+    ? []
+    : [{ ref, message: '@core.marketplace/issue.step.delay-kernel', messageParams: { step: delays[0].id, minimum: WORKFLOW_DELAY_SINCE_KERNEL } }];
+
+  return [...nested, ...fromAction, ...kernel];
 };
 
 /**

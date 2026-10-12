@@ -206,6 +206,7 @@ export const CORE_UI: Record<string, string> = {
   'time.clear': 'Limpar horário',
   'run.execute': 'Executar',
   'run.status.done': 'Concluído',
+  'run.status.cancelled': 'Cancelada',
   'run.status.failed': 'Falhou',
   'run.status.partial': 'Parcial',
   'run.status.waiting': 'Em execução',

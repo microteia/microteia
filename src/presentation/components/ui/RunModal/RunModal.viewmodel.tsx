@@ -15,7 +15,7 @@ export interface RunModalLog {
  * (a espera acabou, ou a assinatura caiu). Nunca viram `FAILED` — quem leu "Falhou" rodou de novo uma
  * execução que tinha gravado tudo.
  */
-export type RunModalStatus = 'SUCCESS' | 'FAILED' | 'PARTIAL' | 'WAITING' | 'UNTRACKED' | null;
+export type RunModalStatus = 'SUCCESS' | 'FAILED' | 'PARTIAL' | 'WAITING' | 'UNTRACKED' | 'CANCELLED' | null;
 
 export interface RunModalResult {
   status: RunModalStatus;
@@ -58,7 +58,7 @@ const isPending = (status: RunModalStatus): boolean => status === 'WAITING' || s
 
 const statusTone = (status: RunModalStatus): RunModalTone => {
   if (status === 'FAILED') return 'danger';
-  if (status === 'PARTIAL') return 'warning';
+  if (status === 'PARTIAL' || status === 'CANCELLED') return 'warning';
   if (isPending(status)) return 'muted';
   return 'success';
 };
@@ -69,6 +69,7 @@ const STATUS_KEY: Record<Exclude<RunModalStatus, null>, string> = {
   PARTIAL: 'run.status.partial',
   WAITING: 'run.status.waiting',
   UNTRACKED: 'run.status.untracked',
+  CANCELLED: 'run.status.cancelled',
 };
 
 type BuildOutcome =

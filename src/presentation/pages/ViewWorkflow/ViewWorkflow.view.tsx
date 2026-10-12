@@ -665,6 +665,9 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                       <S.ExecutionSummary>
                         <S.StatusBadge $status={execution.status}>{execution.status}</S.StatusBadge>
                         {formatDateTime(execution.startedAt)}
+                        {execution.status === 'WAITING' && execution.resumeAt && (
+                          <S.FieldHint>{t('executions.waiting-until', { when: formatDateTime(execution.resumeAt) })}</S.FieldHint>
+                        )}
                       </S.ExecutionSummary>
 
                       {stepLogs.length > 0 && (

@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.93.0] — 2026-10-12
+
+- As automações ganharam o passo "Esperar": a automação pausa por um tempo — 30 minutos, 4 horas, 2 dias — ou até uma data, e depois continua de onde parou. Na lista de execuções, a automação que está esperando mostra quando vai continuar.
+- Se a automação for desligada ou excluída durante a espera, ela não continua: a execução aparece como cancelada, com o motivo.
+
 #### [9.92.0] — 2026-10-12
 
 - As automações ganharam o gatilho "Quando uma data chega": escolha um campo de data da tela — um vencimento, um prazo, uma renovação —, quantos dias antes ou depois e a que horas, e a automação roda sozinha para cada registro quando o dia chega. Se a data mudar, ela roda de novo para a nova data; e um registro criado já no dia certo, depois do horário, roda assim que é salvo.

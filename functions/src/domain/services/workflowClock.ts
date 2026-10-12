@@ -2,6 +2,7 @@ import type {
   DateReachedClockEntry,
   DatedRecord,
   IWorkflowClockRepository,
+  ResumeClockEntry,
   ScheduleClockEntry,
   WorkflowClockEntry,
 } from '../repositories/IWorkflowClockRepository';
@@ -41,6 +42,8 @@ export interface WorkflowClockDeps {
   resolveDateField(tenantId: string, prefix: string, field: string): Promise<{ collection: string } | null>;
   now(): Date;
   logger: { info(message: string): void; warn(message: string): void; error(message: string): void };
+  /** Continua uma execução parada num `delay`. Ver `resumeWorkflowExecution`. */
+  resume?(entry: ResumeClockEntry): Promise<'fired' | 'stale'>;
 }
 
 /** O que o relógio precisa saber de uma definição — os campos que decidem se ela tem hora marcada. */
@@ -321,8 +324,11 @@ const fireDateReached = async (entry: DateReachedClockEntry, deps: WorkflowClock
   return settle(toDay);
 };
 
-const fireEntry = (entry: WorkflowClockEntry, deps: WorkflowClockDeps): Promise<'fired' | 'stale'> =>
-  entry.kind === 'schedule' ? fireSchedule(entry, deps) : fireDateReached(entry, deps);
+const fireEntry = (entry: WorkflowClockEntry, deps: WorkflowClockDeps): Promise<'fired' | 'stale'> => {
+  if (entry.kind === 'schedule') return fireSchedule(entry, deps);
+  if (entry.kind === 'dateReached') return fireDateReached(entry, deps);
+  return deps.resume ? deps.resume(entry) : Promise.resolve('stale');
+};
 
 /**
  * Uma volta do relógio: dispara as automações vencidas em todos os escritórios.

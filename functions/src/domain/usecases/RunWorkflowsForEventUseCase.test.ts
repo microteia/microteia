@@ -70,9 +70,11 @@ const setup = (definitions: WorkflowDefinition[], deactivated: string[] = []) =>
     registry,
     services,
     passthroughHydrator,
-    async () => new Set(deactivated),
-    async (_event, dated) => {
-      dateChecked.push(...dated.map((one) => one.id));
+    {
+      deactivatedPluginIds: async () => new Set(deactivated),
+      onDateReachedSave: async (_event, dated) => {
+        dateChecked.push(...dated.map((one) => one.id));
+      },
     },
   );
   return { useCase, executed, queried, dateChecked };

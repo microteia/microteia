@@ -207,6 +207,7 @@ export const CORE_UI_MESSAGES: Record<string, string> = {
   'time.clear': 'Clear time',
   'run.execute': 'Run',
   'run.status.done': 'Done',
+  'run.status.cancelled': 'Cancelled',
   'run.status.failed': 'Failed',
   'run.status.partial': 'Partial',
   'run.status.waiting': 'Running',

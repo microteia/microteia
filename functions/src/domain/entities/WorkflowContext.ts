@@ -88,4 +88,10 @@ export interface WorkflowResult {
   // Encerra o workflow imediatamente após este step, atravessando ramos de condição e
   // repetições. O workflow retorna os outputs do último step executado antes do encerramento.
   halt?: boolean;
+  /**
+   * PAUSA o workflow depois deste step até `resumeAt` — o passo `delay`. Mesmo contrato de `halt`: o
+   * passo pede, o executor obedece. Só vale no nível principal do fluxo e numa execução que pode
+   * esperar (a que nasce do barramento de eventos); nas outras, o executor recusa.
+   */
+  suspend?: { resumeAt: Date };
 }

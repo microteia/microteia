@@ -1447,10 +1447,10 @@ const RESOURCES: ResourceDefinition[] = [
       ...BEHAVIOR_MECHANISMS.map((one) =>
         `| \`${one.declares}\` (${one.concern})${one.supported ? '' : ' — **REFUSED**'} | ${one.mechanism} | ${one.declaredAs} |`),
       '',
-      'One of them has no mechanism at all, and the plan says so instead of translating it into something that looks '
-      + 'similar: a CLOCK (nothing here is time-based, and the `Delay` step type was never registered). A guard is a '
-      + 'condition over the ONE record in hand: when it needs to read others, the `query` step is the path, not a '
-      + 'workaround.',
+      'A row marked REFUSED has no mechanism, and the plan says so instead of translating it into something that '
+      + 'looks similar. A CLOCK (`schedule`) has one: it moves records on at a time, and never stops them being '
+      + 'written. A guard is a condition over the ONE record in hand: when it needs to read others, the `query` step '
+      + 'is the path, not a workaround.',
       '',
       '## What cannot repeat — the one rule that is declared, never computed',
       '',

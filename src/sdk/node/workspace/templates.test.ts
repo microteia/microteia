@@ -108,9 +108,14 @@ describe('a tabela do catálogo de passos', () => {
     expect(guide).not.toMatch(/op: '=='/);
   });
 
-  /** O guia prometia que `Delay` espera. Ele não é registrado no motor, e o fluxo para nele. */
-  it('não promete que Delay funciona', () => {
-    expect(authoringGuide(AGENTS)).toMatch(/`Delay` \| \*\*Not implemented in this version\.\*\*/);
+  /**
+   * O guia prometia que o TIPO `Delay` espera. Ele não é registrado no motor, e o fluxo para nele: a
+   * espera é o passo `delay` do catálogo, e o guia tem de mandar para lá.
+   */
+  it('não promete que o tipo Delay funciona, e aponta o passo que espera', () => {
+    const guide = authoringGuide(AGENTS);
+    expect(guide).toMatch(/`Delay` \| \*\*Not a step type of its own\.\*\*/);
+    expect(guide).toMatch(/stepDefinitionId: 'delay'/);
   });
 });
 
