@@ -34,6 +34,9 @@ import {
   WORKFLOW_CALLED_EVENT,
 } from '../../domain/schema/eventCatalog';
 import {
+  DATE_REACHED_ACTION,
+  DEFAULT_DATE_REACHED_AT,
+  MAX_DATE_REACHED_OFFSET_DAYS,
   MIN_SCHEDULE_INTERVAL_MINUTES,
   WORKFLOW_CLOCK_TICK_MINUTES,
   WORKFLOW_SCHEDULE_EVENT,
@@ -1028,6 +1031,12 @@ const PURE_READS: ToolDefinition[] = [
           fires: 'a record of that collection is written or deleted',
           eventPayload: 'the record, plus "changeType" (created | updated) and "old" on a save',
         },
+        {
+          eventName: `<collection>.${DATE_REACHED_ACTION}`,
+          fires: 'a date field of a record arrives, shifted by `dateReached.offset` days, at `dateReached.at` in the '
+            + 'organization\'s time zone — once per record and per date value',
+          eventPayload: 'the record, as on a save, without "changeType" and "old"',
+        },
         ...NESTED_EVENT_SUFFIXES.map((suffix) => ({
           eventName: `<parent>${suffix}.${ENTITY_EVENT_ACTIONS.join(` | <parent>${suffix}.`)}`,
           fires: `a ${suffix.slice(1)} of a record of that parent collection changes`,
@@ -1070,10 +1079,15 @@ const PURE_READS: ToolDefinition[] = [
         + 'almost never right in an extension, which travels to organizations in other zones. Nothing is in `event` '
         + 'but the instant: query the records the run is about (a `query` step, then a `Loop`). An extension that '
         + 'is deactivated stops firing; one that is not installed has no workflow to fire.',
+        `"<collection>.${DATE_REACHED_ACTION}" needs \`dateReached: { field, offset, at? }\` beside it: \`field\` is a `
+        + '`date` field of that collection, `offset` is whole days (`-3d` three days before, `0d` on the day, `+1d` the '
+        + `day after, up to ${MAX_DATE_REACHED_OFFSET_DAYS}), \`at\` is HH:mm (default ${DEFAULT_DATE_REACHED_AT}). The kernel `
+        + 'keeps the "already fired" mark: changing the date fires again for the new one, and a record that reaches '
+        + 'the day after `at` fires when it is saved. Dates before the workflow existed never fire.',
         'Who triggered the run is NOT in `event`: it is the `actor` root, `{ id, name, via }`, in any '
         + '`{ kind: "Expression" }` and condition. It is the person on an action and on `run_workflow` '
         + '(`via` "ui", or "agent" over MCP), it is passed on by `call-workflow`, and it is `null` on '
-        + 'every `<collection>.saved` / `.deleted` and `schedule` trigger — test it with `isEmpty(actor)`.',
+        + 'every `<collection>.saved` / `.deleted` / `.dateReached` and `schedule` trigger — test it with `isEmpty(actor)`.',
       ],
     }),
   },

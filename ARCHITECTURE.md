@@ -5423,7 +5423,7 @@ a separação:
 | `call-workflow` esperando | herda | herda | herda — mesma invocação |
 | `call-workflow` sem esperar | herda | herda, gravada no evento | não — `[]` |
 | `<coleção>.saved` / `.deleted` | — | **não há ator** | — |
-| `schedule` (relógio do kernel) | — | **não há ator** | — |
+| `schedule` / `<coleção>.dateReached` (relógio do kernel) | — | **não há ator** | — |
 
 - **A identidade atravessa o barramento; o acesso não.** `publishEvent` aceita um `PublishedActor` e o
   grava AO LADO do payload (nunca dentro: o payload são os parâmetros, e um parâmetro `actor`
@@ -5547,6 +5547,41 @@ desligada já não aparece.
 ele, cada disparo acordaria todas as automações de horário do escritório. `firestore.rules` recusa o evento
 publicado pelo cliente que o traga, pelo mesmo motivo que recusa `actor`.
 
+#### `<coleção>.dateReached` — quando uma data do registro chega
+
+`eventName: '<prefixo>.dateReached'` com `dateReached: { field, offset, at? }`: `field` é um campo `date`
+da tela que emite o prefixo, `offset` são dias inteiros (`-3d` três dias ANTES, `0d` no dia, `+1d` depois,
+até 365), `at` é `HH:mm` no fuso do escritório (padrão 08:00). O payload é o do `.saved`, sem `changeType`
+nem `old`. Prazo em D-3, D-1 e D-0 são três automações.
+
+**Duas metades, uma marca.**
+
+| Metade | Quando | Como |
+|---|---|---|
+| o relógio | na hora `at` de cada dia | consulta `tenants/{t}/<coleção> where field in [dia, dia+1)` — faixa sobre UM campo, que o índice automático atende, sem composto por coleção —, paginada (`DATE_REACHED_PAGE_SIZE`), e publica um evento com `target` por registro |
+| a gravação | o registro chega ao dia DEPOIS da hora `at` (criado hoje, vencendo hoje) | `RunWorkflowsForEventUseCase`, ao tratar `<prefixo>.saved`, pede `eventName in [saved, dateReached]` na MESMA consulta (custo zero de leitura) e entrega as de data a `dateReachedOnSave` |
+
+As duas gravam, NUM lote, a marca `workflow_trigger_marks/{automação}_{registro}_{dia}` (com `create`, que
+falha se ela existe) e o evento. É a marca que garante "uma vez por registro e por valor da data": a data que
+muda ganha outra chave e dispara de novo; a que não muda encontra a marca. A coleção é selada nas regras —
+criar uma marca suprimiria o aviso, apagar o faria repetir —, e expira por TTL (`expiresAt`, 400 dias; a
+política de TTL é habilitada no console, como a de `auditLogs`).
+
+**O dia é o do fuso do escritório.** O dia de um registro é `dayInTimeZone(valor, fuso)` — que lê certo
+tanto a âncora de meio-dia UTC quanto a meia-noite local das datas antigas —, e a janela da consulta vai da
+meia-noite local do primeiro dia à do dia seguinte ao último (`zonedInstant`).
+
+**Nunca retroativo.** A entrada nasce com `cursorDay` no dia anterior ao que a primeira volta alcança: datas
+que chegaram antes de a automação existir não disparam, e importar mil registros antigos não vira mil avisos.
+Um relógio parado recupera no máximo `DATE_REACHED_CATCH_UP_DAYS` (7) dias.
+
+**A coleção é resolvida a cada volta**, a partir do prefixo (`eventEntity`), e não guardada na entrada: a
+instalação grava as automações ANTES das telas, e uma coleção congelada na sincronização seria a de uma tela
+que ainda não existia. Pelo mesmo caminho, o campo que deixa de ser data simplesmente para de ser consultado.
+
+O tempo de uma execução do relógio é limitado (`TICK_BUDGET_MS`): o que sobra continua vencido e é da
+execução seguinte, na mesma janela (`page`).
+
 **No modelo de domínio.** `trigger: { kind: 'schedule', when }` deixou de ser recusado: `when` é cron, e a
 transição vira `{ eventName: 'schedule', schedule: { cron: when } }` com os passos `query` (o `from` como
 filtro) e `Loop` (a passagem por registro). `SCHEDULE_TRIGGER_SUPPORTED` virou `true` sozinho, porque é
@@ -5558,6 +5593,7 @@ derivado do catálogo de eventos.
 | `functions/src/domain/services/workflowClock.ts` | `syncWorkflowClockEntry` e a volta do relógio |
 | `functions/src/data/repositories/FirebaseWorkflowClockRepository.ts` | a consulta de grupo e a transação do disparo |
 | `functions/src/infrastructure/handlers/workflowClock.ts` | `syncWorkflowClock` e `runWorkflowClock` |
+| `functions/src/domain/services/workflowClock.ts` → `dateReachedOnSave` | a metade do gatilho de data que corre na gravação |
 
 ### `call-workflow` com alvo dinâmico e parâmetros em bloco
 
@@ -10591,13 +10627,14 @@ runtime na primeira execução. Foi a separação por dono que os encontrou — 
 `orderBy` em campos diferentes tem de declarar o índice no `manifest.backend.indexes` dela; sem isso ela
 instala, aparece no menu e falha na primeira execução.
 
-Além dos compostos, o arquivo declara três `fieldOverrides`:
+Além dos compostos, o arquivo declara quatro `fieldOverrides`:
 
 | Coleção | Campo | Motivo |
 |---|---|---|
 | `auditLogs` | `expiresAt` | TTL — o Firestore expurga o log automaticamente na data |
 | `members` (collectionGroup) | `userId` ASC | `getTenantsForUser` consulta `collectionGroup('members')` para descobrir os escritórios do usuário |
 | `workflow_clock` (collectionGroup) | `nextRunAt` ASC | `runWorkflowClock` pergunta, em todos os escritórios de uma vez, quais automações temporais venceram |
+| `workflow_trigger_marks` | `expiresAt` | TTL — a marca de "já disparou" do gatilho de data expira sozinha; sem índice, porque ninguém consulta por ela |
 
 ---
 

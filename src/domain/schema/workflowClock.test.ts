@@ -8,6 +8,15 @@ import {
   parseCron,
   scheduleIssues,
   scheduleTimeZone,
+  addDays,
+  dateReachedCron,
+  dateReachedFireDay,
+  dateReachedIssues,
+  dateReachedPrefix,
+  dateReachedTargetDay,
+  parseOffsetDays,
+  parseTimeOfDay,
+  zonedInstant,
 } from './workflowClock';
 
 const parse = (expression: string) => {
@@ -119,5 +128,56 @@ describe('scheduleTimeZone', () => {
     expect(scheduleTimeZone({ cron: '@daily' }, 'America/Sao_Paulo')).toBe('America/Sao_Paulo');
     expect(scheduleTimeZone({ cron: '@daily', timeZone: 'Europe/Lisbon' }, 'America/Sao_Paulo')).toBe('Europe/Lisbon');
     expect(scheduleTimeZone({ cron: '@daily', timeZone: 'x' }, 'America/Sao_Paulo')).toBe('America/Sao_Paulo');
+  });
+});
+
+describe('gatilho de data — a forma', () => {
+  it('lê o deslocamento em dias, com sinal, até o teto', () => {
+    expect(parseOffsetDays('-3d')).toBe(-3);
+    expect(parseOffsetDays('0d')).toBe(0);
+    expect(parseOffsetDays('+1d')).toBe(1);
+    expect(parseOffsetDays('1d')).toBe(1);
+    for (const bad of ['-3', '3h', 'd', '-400d', '', 3]) expect(parseOffsetDays(bad)).toBeNull();
+  });
+
+  it('lê a hora do dia em HH:mm, e a transforma em cron', () => {
+    expect(parseTimeOfDay('08:30')).toEqual({ hour: 8, minute: 30 });
+    for (const bad of ['8:30', '24:00', '08:60', 'x']) expect(parseTimeOfDay(bad)).toBeNull();
+    expect(dateReachedCron({ at: '07:15' })).toBe('15 7 * * *');
+    expect(dateReachedCron({})).toBe('0 8 * * *');
+  });
+
+  it('separa o prefixo do nome do evento', () => {
+    expect(dateReachedPrefix('prazo.dateReached')).toBe('prazo');
+    expect(dateReachedPrefix('prazo.saved')).toBeNull();
+    expect(dateReachedPrefix('.dateReached')).toBeNull();
+  });
+
+  it('cobra campo, deslocamento e hora — e o campo que não é de data, quando a tela é conhecida', () => {
+    expect(dateReachedIssues({ field: 'dueDate', offset: '-3d', at: '09:00' })).toEqual([]);
+    expect(dateReachedIssues({ field: 'dueDate', offset: '-3d' }, ['dueDate'])).toEqual([]);
+    expect(dateReachedIssues(undefined).map((issue) => issue.code)).toEqual(['field-missing', 'offset-invalid']);
+    expect(dateReachedIssues({ field: 'title', offset: '0d' }, ['dueDate']).map((issue) => issue.code)).toEqual(['field-not-date']);
+    expect(dateReachedIssues({ field: 'dueDate', offset: '0d', at: '8h' }).map((issue) => issue.code)).toEqual(['at-invalid']);
+  });
+});
+
+describe('gatilho de data — o calendário', () => {
+  it('soma dias atravessando mês e ano', () => {
+    expect(addDays('2026-10-31', 1)).toBe('2026-11-01');
+    expect(addDays('2027-01-01', -1)).toBe('2026-12-31');
+  });
+
+  it('-3d dispara três dias ANTES da data, e hoje alcança a data de daqui a três dias', () => {
+    expect(dateReachedFireDay('2026-10-20', -3)).toBe('2026-10-17');
+    expect(dateReachedTargetDay('2026-10-17', -3)).toBe('2026-10-20');
+    expect(dateReachedTargetDay('2026-10-17', 1)).toBe('2026-10-16');
+  });
+
+  it('acha o instante da hora de parede no fuso, inclusive na virada do horário de verão', () => {
+    expect(zonedInstant('2026-10-13', { hour: 0, minute: 0 }, 'America/Sao_Paulo').toISOString()).toBe('2026-10-13T03:00:00.000Z');
+    expect(zonedInstant('2026-10-13', { hour: 8, minute: 0 }, 'UTC').toISOString()).toBe('2026-10-13T08:00:00.000Z');
+    expect(zonedInstant('2026-03-08', { hour: 8, minute: 0 }, 'America/New_York').toISOString()).toBe('2026-03-08T12:00:00.000Z');
+    expect(zonedInstant('2026-03-07', { hour: 8, minute: 0 }, 'America/New_York').toISOString()).toBe('2026-03-07T13:00:00.000Z');
   });
 });

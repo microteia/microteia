@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.92.0] — 2026-10-12
+
+- As automações ganharam o gatilho "Quando uma data chega": escolha um campo de data da tela — um vencimento, um prazo, uma renovação —, quantos dias antes ou depois e a que horas, e a automação roda sozinha para cada registro quando o dia chega. Se a data mudar, ela roda de novo para a nova data; e um registro criado já no dia certo, depois do horário, roda assim que é salvo.
+
 #### [9.91.0] — 2026-10-12
 
 - As automações ganharam um novo gatilho, "Em um horário": escolha quando ela roda — todo dia às 8h, nos dias úteis, todo dia 5 — e ela acontece sozinha, no fuso do escritório. O editor mostra as próximas execuções para você conferir o horário antes de salvar.

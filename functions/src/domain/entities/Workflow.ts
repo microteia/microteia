@@ -1,5 +1,5 @@
 import type { FieldRules } from '../schema/fieldRules';
-import type { WorkflowSchedule } from '../schema/workflowClock';
+import type { WorkflowDateReached, WorkflowSchedule } from '../schema/workflowClock';
 
 export type StepType = 'Action' | 'Condition' | 'Delay' | 'Loop' | 'Script' | 'SubWorkflow';
 
@@ -162,6 +162,11 @@ export interface WorkflowDefinition {
    * Ver "Gatilhos temporais" no ARCHITECTURE.md.
    */
   schedule?: WorkflowSchedule;
+  /**
+   * Só relevante quando eventName é "<coleção>.dateReached": QUAL data do registro, com que
+   * deslocamento e a que hora. Ver "Gatilhos temporais" no ARCHITECTURE.md.
+   */
+  dateReached?: WorkflowDateReached;
   enabled: boolean;
   version: number;
   condition: Condition;

@@ -45,11 +45,16 @@ const event = (overrides: Partial<WorkflowEvent>): WorkflowEvent => ({
 
 const setup = (definitions: WorkflowDefinition[], deactivated: string[] = []) => {
   const executed: string[] = [];
+  const dateChecked: string[] = [];
   const queried: string[] = [];
   const definitionRepository: IWorkflowDefinitionRepository = {
     findEnabledByEvent: async (_tenantId, eventName) => {
       queried.push(eventName);
       return definitions.filter((one) => one.enabled && one.eventName === eventName);
+    },
+    findEnabledByEvents: async (_tenantId, eventNames) => {
+      queried.push(...eventNames);
+      return definitions.filter((one) => one.enabled && eventNames.includes(one.eventName));
     },
     findById: async (_tenantId, id) => definitions.find((one) => one.id === id) ?? null,
     findByRef: async (_tenantId, ref) => definitions.find((one) => one.id === ref) ?? null,
@@ -66,8 +71,11 @@ const setup = (definitions: WorkflowDefinition[], deactivated: string[] = []) =>
     services,
     passthroughHydrator,
     async () => new Set(deactivated),
+    async (_event, dated) => {
+      dateChecked.push(...dated.map((one) => one.id));
+    },
   );
-  return { useCase, executed, queried };
+  return { useCase, executed, queried, dateChecked };
 };
 
 describe('RunWorkflowsForEventUseCase — alvo', () => {
@@ -110,5 +118,28 @@ describe('RunWorkflowsForEventUseCase — extensão desativada', () => {
     expect(isSwitchedOff(definition({ ownerPluginIds: ['a', 'b'] }), off)).toBe(false);
     expect(isSwitchedOff(definition({ ownerPluginIds: [] }), off)).toBe(false);
     expect(isSwitchedOff(definition({ ownerPluginIds: null }), off)).toBe(false);
+  });
+});
+
+describe('RunWorkflowsForEventUseCase — gatilho de data na gravação', () => {
+  it('a gravação pergunta, na mesma consulta, pelas automações de data da coleção, e não as executa como de gravação', async () => {
+    const { useCase, executed, queried, dateChecked } = setup([
+      definition({ id: 'on-save', eventName: 'prazo.saved' }),
+      definition({ id: 'on-date', eventName: 'prazo.dateReached', dateReached: { field: 'dueDate', offset: '0d' } }),
+      definition({ id: 'off', eventName: 'prazo.dateReached', ownerPluginIds: ['com.x.off'] }),
+    ], ['com.x.off']);
+    await useCase.execute(event({ name: 'prazo.saved', payload: { id: 'r1' } }));
+    expect(queried).toEqual(['prazo.saved', 'prazo.dateReached']);
+    expect(executed).toEqual(['on-save']);
+    expect(dateChecked).toEqual(['on-date']);
+  });
+
+  it('o evento de data publicado pelo relógio roda a automação apontada', async () => {
+    const { useCase, executed, dateChecked } = setup([
+      definition({ id: 'on-date', eventName: 'prazo.dateReached' }),
+    ]);
+    await useCase.execute(event({ name: 'prazo.dateReached', target: 'on-date', payload: { id: 'r1' } }));
+    expect(executed).toEqual(['on-date']);
+    expect(dateChecked).toEqual([]);
   });
 });

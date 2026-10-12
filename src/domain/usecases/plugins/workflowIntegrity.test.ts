@@ -230,7 +230,11 @@ describe('integridade de passo de automação', () => {
 describe('integridade do gatilho de horário', () => {
   const agendada = (schedule: unknown): MarketplacePlugin => {
     const base = pacote([]);
-    return { ...base, workflows: [{ ...base.workflows[0], eventName: 'schedule', schedule }] } as unknown as MarketplacePlugin;
+    return {
+      ...base,
+      manifest: { ...base.manifest, kernel: '^2.32.0' },
+      workflows: [{ ...base.workflows[0], eventName: 'schedule', schedule }],
+    } as unknown as MarketplacePlugin;
   };
 
   it('aceita o horário que o relógio lê', () => {
@@ -253,5 +257,43 @@ describe('integridade do gatilho de horário', () => {
     const base = pacote([]);
     const outra = { ...base, workflows: [{ ...base.workflows[0], schedule: { cron: 'x' } }] } as unknown as MarketplacePlugin;
     expect(workflowStepIssues(outra)).toEqual([]);
+  });
+});
+
+describe('integridade do gatilho de data', () => {
+  const comData = (eventName: string, dateReached: unknown, kernel = '^2.33.0'): MarketplacePlugin => {
+    const base = pacote([]);
+    return {
+      ...base,
+      manifest: { ...base.manifest, kernel },
+      screens: [{
+        key: 'prazo',
+        fields: [
+          { key: 'dueDate', label: 'Vencimento', type: 'date' },
+          { key: 'title', label: 'Título', type: 'text' },
+        ],
+      }],
+      workflows: [{ ...base.workflows[0], eventName, dateReached }],
+    } as unknown as MarketplacePlugin;
+  };
+
+  it('aceita o campo de data da tela do pacote', () => {
+    expect(workflowStepIssues(comData('prazo.dateReached', { field: 'dueDate', offset: '-3d' }))).toEqual([]);
+  });
+
+  it('recusa o campo que não é de data da tela, e o deslocamento malformado', () => {
+    const details = workflowStepIssues(comData('prazo.dateReached', { field: 'title', offset: '3' }))
+      .map((issue) => issue.messageParams?.detail);
+    expect(details).toEqual(['@core.automation/date-reached.field-not-date', '@core.automation/date-reached.offset-invalid']);
+  });
+
+  it('a tela de fora do pacote tem só a forma conferida', () => {
+    expect(workflowStepIssues(comData('case.dateReached', { field: 'qualquer', offset: '0d' }))).toEqual([]);
+  });
+
+  it('cobra o intervalo de kernel que inclui um kernel anterior ao relógio', () => {
+    const [issue] = workflowStepIssues(comData('prazo.dateReached', { field: 'dueDate', offset: '0d' }, '^2.32.0'));
+    expect(issue?.message).toBe('@core.marketplace/issue.workflow.trigger-kernel');
+    expect(issue?.messageParams?.minimum).toBe('2.33.0');
   });
 });

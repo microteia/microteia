@@ -43,8 +43,19 @@ import type { RunModalFollow, RunModalResult } from '../../components/ui/RunModa
 import { followWorkflowExecution } from '../../shared/followWorkflowExecution';
 import type { StepDefinitionSummary, StepCategory } from '../../../domain/entities/WorkflowStepCatalog';
 import { artifactIdIssue, deriveArtifactId } from '../../../domain/services/artifactIdentity';
-import { WORKFLOW_SCHEDULE_EVENT, nextCronOccurrences, parseCron, scheduleIssues, scheduleTimeZone } from '../../../domain/schema/workflowClock';
-import type { WorkflowSchedule } from '../../../domain/schema/workflowClock';
+import {
+  DEFAULT_DATE_REACHED_AT,
+  WORKFLOW_SCHEDULE_EVENT,
+  dateReachedIssues,
+  dateReachedPrefix,
+  nextCronOccurrences,
+  parseCron,
+  parseOffsetDays,
+  scheduleIssues,
+  scheduleTimeZone,
+} from '../../../domain/schema/workflowClock';
+import type { WorkflowDateReached, WorkflowSchedule } from '../../../domain/schema/workflowClock';
+import { entityDateFieldKeys, eventEntity } from '../../../domain/schema/eventCatalog';
 import { timeZoneOptions } from '../../../domain/schema/i18n/timeZone';
 import { ambientTimeZone } from '../../../domain/schema/clockGate';
 
@@ -124,6 +135,10 @@ export interface WorkflowFormData {
   scheduleCron: string;
   /** Vazio = o fuso do escritório. */
   scheduleTimeZone: string;
+  dateField: string;
+  /** Dias em relação à data, como o campo numérico os guarda: `-3`, `0`, `1`. */
+  dateOffsetDays: string;
+  dateAt: string;
 }
 
 const sanitizeParameters = sanitizeWorkflowParameters;
@@ -137,6 +152,23 @@ const buildForm = (w: WorkflowDefinition | null): WorkflowFormData => ({
   parameters: w?.parameters ?? [],
   scheduleCron: w?.schedule?.cron ?? '',
   scheduleTimeZone: w?.schedule?.timeZone ?? '',
+  dateField: w?.dateReached?.field ?? '',
+  dateOffsetDays: String(parseOffsetDays(w?.dateReached?.offset) ?? 0),
+  dateAt: w?.dateReached?.at ?? DEFAULT_DATE_REACHED_AT,
+});
+
+/** `-3` → `-3d`, `0` → `0d`, `1` → `+1d`. O que não é inteiro sai como veio, para a validação recusar. */
+const offsetOf = (days: string): string => {
+  const trimmed = days.trim();
+  if (!/^[+-]?\d+$/.test(trimmed)) return trimmed;
+  const value = Number(trimmed);
+  return value > 0 ? `+${value}d` : `${value}d`;
+};
+
+const dateReachedOf = (formData: WorkflowFormData): WorkflowDateReached => ({
+  field: formData.dateField,
+  offset: offsetOf(formData.dateOffsetDays),
+  at: formData.dateAt || DEFAULT_DATE_REACHED_AT,
 });
 
 const scheduleOf = (formData: WorkflowFormData): WorkflowSchedule => ({
@@ -245,6 +277,10 @@ export interface ViewWorkflowViewModel {
   /** As próximas execuções que o horário pede, no fuso em que ele roda. */
   schedulePreview: string[];
   scheduleTimeZoneOptions: { value: string; label: string }[];
+  isDateReachedEvent: boolean;
+  /** Os campos de data da tela do gatilho. */
+  dateFieldOptions: { value: string; label: string }[];
+  dateReachedError: string | null;
   parameterEntityOptions: { value: string; label: string }[];
   parameterLookupOptions: { value: string; label: string }[];
   parameterErrors: (string | undefined)[];
@@ -514,6 +550,28 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
     );
   }, [isScheduleEvent, scheduleError, formData, locale, t]);
 
+  const isDateReachedEvent = useMemo(() => dateReachedPrefix(formData.eventName) !== null, [formData.eventName]);
+
+  const dateEntity = useMemo(
+    () => (isDateReachedEvent ? eventEntity(formData.eventName, ctx) : undefined),
+    [isDateReachedEvent, formData.eventName, ctx],
+  );
+
+  const dateFieldOptions = useMemo(() => {
+    if (!dateEntity) return [];
+    const keys = entityDateFieldKeys(dateEntity);
+    return dateEntity.fields
+      .filter((field) => keys.includes(field.key))
+      .map((field) => ({ value: field.key, label: label(field.label) }));
+  }, [dateEntity, label]);
+
+  const dateReachedError = useMemo(() => {
+    if (!isDateReachedEvent) return null;
+    const known = dateEntity ? entityDateFieldKeys(dateEntity) : null;
+    const [issue] = dateReachedIssues(dateReachedOf(formData), known);
+    return issue ? label(issue.message, issue.messageParams) : null;
+  }, [isDateReachedEvent, dateEntity, formData, label]);
+
   const scheduleTimeZoneOptions = useMemo(
     () => [
       { value: '', label: t('workflow.schedule.time-zone.office', { zone: ambientTimeZone() }) },
@@ -585,6 +643,7 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
       const lookupCollection = isLookupEvent && formData.lookupCollection ? formData.lookupCollection : undefined;
       const parameters = isCalledEvent ? sanitizeParameters(formData.parameters) : undefined;
       const schedule = isScheduleEvent ? scheduleOf(formData) : undefined;
+      const dateReached = isDateReachedEvent ? dateReachedOf(formData) : undefined;
 
       if (isNew) {
         const createData: Record<string, unknown> = {
@@ -603,6 +662,7 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
         if (lookupCollection) createData.lookupCollection = lookupCollection;
         if (parameters) createData.parameters = parameters;
         if (schedule) createData.schedule = schedule;
+        if (dateReached) createData.dateReached = dateReached;
 
         const chosenId = formData.workflowId.trim() || deriveArtifactId(formData.name, takenWorkflowIds);
         const created = await createWorkflow(createData as Parameters<typeof createWorkflow>[0], chosenId);
@@ -618,6 +678,7 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
         if (formData.description) updateData.description = formData.description;
         if (lookupCollection) updateData.lookupCollection = lookupCollection;
         if (schedule) updateData.schedule = schedule;
+        if (dateReached) updateData.dateReached = dateReached;
 
         await updateWorkflow(workflow.id, updateData as Parameters<typeof updateWorkflow>[1]);
         notify(t('workflow.saved'), 'success');
@@ -628,7 +689,7 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
     } finally {
       setIsSaving(false);
     }
-  }, [takenWorkflowIds, currentTenant, isNew, formData, isLookupEvent, isCalledEvent, isScheduleEvent, cloneSource, createWorkflow, updateWorkflow, workflow, notify, closeTab, tabKey, activePanelId, openTab, t]);
+  }, [takenWorkflowIds, currentTenant, isNew, formData, isLookupEvent, isCalledEvent, isScheduleEvent, isDateReachedEvent, cloneSource, createWorkflow, updateWorkflow, workflow, notify, closeTab, tabKey, activePanelId, openTab, t]);
 
   const toggleEnabled = useCallback(() => {
     if (!workflow) return;
@@ -1118,6 +1179,9 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
     scheduleError,
     schedulePreview,
     scheduleTimeZoneOptions,
+    isDateReachedEvent,
+    dateFieldOptions,
+    dateReachedError,
     parameterEntityOptions,
     parameterLookupOptions,
     parameterErrors,

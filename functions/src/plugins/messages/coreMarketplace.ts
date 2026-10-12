@@ -382,6 +382,10 @@ export const CORE_MARKETPLACE_MESSAGES: Record<string, string> = {
     'step "{step}" names step "{definition}", which is not in the catalog. The package declares no dependency, so it cannot come from another extension either.',
   'issue.workflow.schedule-invalid':
     'the workflow runs on a schedule, and the clock cannot run it: {detail} It would install switched on and never fire.',
+  'issue.workflow.date-reached-invalid':
+    'the workflow runs when a date arrives, and the clock cannot run it: {detail} It would install switched on and never fire.',
+  'issue.workflow.trigger-kernel':
+    'the workflow is triggered by "{event}", which only exists from kernel {minimum} on — declare `kernel: "^{minimum}"` (or later) in the manifest, so that an older kernel refuses the package instead of installing a workflow that never fires.',
   'issue.step.unknown-input':
     'step "{step}" ({definition}) sets input "{input}", which that step does not have. It takes: {expected}.',
   'install.dependency-missing':

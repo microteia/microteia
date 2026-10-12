@@ -60,6 +60,9 @@ import type { IUserRepository } from '../../domain/repositories/IUserRepository'
 import { FirebaseWorkflowDefinitionRepository } from '../../data/repositories/FirebaseWorkflowDefinitionRepository';
 import { FirebaseWorkflowClockRepository } from '../../data/repositories/FirebaseWorkflowClockRepository';
 import type { WorkflowClockDeps } from '../../domain/services/workflowClock';
+import { dateReachedOnSave } from '../../domain/services/workflowClock';
+import { entityDateFieldKeys, eventEntity } from '../../domain/schema/eventCatalog';
+import { dateReachedEventName } from '../../domain/schema/workflowClock';
 import { FirebaseWorkflowExecutionRepository } from '../../data/repositories/FirebaseWorkflowExecutionRepository';
 import type { IWorkflowDefinitionRepository } from '../../domain/repositories/IWorkflowDefinitionRepository';
 import type { IWorkflowExecutionRepository } from '../../domain/repositories/IWorkflowExecutionRepository';
@@ -410,6 +413,12 @@ class DIContainer {
       this.workflowClockDeps = {
         repository: new FirebaseWorkflowClockRepository(getDb()),
         officeTimeZone: (tenantId) => tenantTimeZone(tenantId),
+        deactivatedPluginIds: (tenantId) => this.getInstalledExtensionCache().deactivatedPluginIds(tenantId),
+        resolveDateField: async (tenantId, prefix, field) => {
+          const ctx = await this.getScreenDefinitionCache().getSchemaContext(tenantId);
+          const entity = eventEntity(dateReachedEventName(prefix), ctx);
+          return entity && entityDateFieldKeys(entity).includes(field) ? { collection: entity.collection } : null;
+        },
         now: () => new Date(),
         logger: console,
       };
@@ -523,6 +532,7 @@ class DIContainer {
         this.getWorkflowServices(),
         this.getWorkflowContextHydrator(),
         (tenantId) => this.getInstalledExtensionCache().deactivatedPluginIds(tenantId),
+        (event, definitions) => dateReachedOnSave(event, definitions, this.getWorkflowClockDeps()),
       );
     }
     return this.runWorkflowsForEventUC;

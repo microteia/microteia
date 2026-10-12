@@ -109,6 +109,9 @@ const LACUNAS_CONFERIDAS = [
 
   'workflow-property\tversion',
   'workflow-property\tlookupCollection',
+  // O gatilho de data existe no kernel e não no modelo: "avise três dias antes do vencimento" ainda se
+  // escreve como horário mais consulta. Entra no modelo quando ele ganhar o gatilho próprio.
+  'workflow-property\tdateReached',
   'workflow-property\townerPluginIds',
   'workflow-property\tsourceId',
   'workflow-property\tsourceRev',

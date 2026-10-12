@@ -52,8 +52,12 @@ describe('coleções reservadas', () => {
       'members',
     ];
 
-    /** Reservadas de propósito SEM regra: nada as lê, e o que sobrou delas fica inalcançável. */
-    const SELADAS = ['plugin_installations'];
+    /**
+     * Reservadas de propósito SEM regra: nada as lê pelo cliente. `workflow_trigger_marks` é do kernel —
+     * as marcas de "já disparou" do gatilho de data, que um membro não pode nem criar (suprimiria o aviso)
+     * nem apagar (o faria repetir).
+     */
+    const SELADAS = ['plugin_installations', 'workflow_trigger_marks'];
 
     for (const collection of REQUIRED) {
       expect(named, `"${collection}" perdeu o match nomeado no firestore.rules`).toContain(collection);

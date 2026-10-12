@@ -28,6 +28,7 @@ const mapWorkflowDefinition = (id: string, tenantId: string, data: DocumentData)
   lookupCollection: data.lookupCollection ?? undefined,
   parameters: data.parameters ?? undefined,
   schedule: data.schedule ?? undefined,
+  dateReached: data.dateReached ?? undefined,
   enabled: data.enabled ?? false,
   version: data.version ?? 1,
   condition: data.condition ?? { kind: 'AlwaysTrue' },
@@ -48,6 +49,23 @@ export class FirebaseWorkflowDefinitionRepository implements IWorkflowDefinition
       .collection('workflow_definitions')
       .where('enabled', '==', true)
       .where('eventName', '==', eventName)
+      .get();
+    return snap.docs.map((doc) => mapWorkflowDefinition(doc.id, tenantId, doc.data()));
+  }
+
+  /**
+   * Os mesmos filtros de `findEnabledByEvent`, para vários eventos numa consulta só (`in`). É o que deixa
+   * a gravação de um registro perguntar, sem leitura a mais, também pelas automações de DATA da coleção.
+   */
+  async findEnabledByEvents(tenantId: string, eventNames: string[]): Promise<WorkflowDefinition[]> {
+    if (eventNames.length === 0) return [];
+    if (eventNames.length === 1) return this.findEnabledByEvent(tenantId, eventNames[0]);
+    const snap = await this.db
+      .collection('tenants')
+      .doc(tenantId)
+      .collection('workflow_definitions')
+      .where('enabled', '==', true)
+      .where('eventName', 'in', eventNames)
       .get();
     return snap.docs.map((doc) => mapWorkflowDefinition(doc.id, tenantId, doc.data()));
   }

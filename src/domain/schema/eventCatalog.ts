@@ -4,7 +4,7 @@ import type { PathRoot, SchemaContext } from './pathResolver';
 import type { WorkflowParameter } from '../entities/Workflow';
 import { isEntityCollection, resolveEntity } from './screenEntity';
 import { isLookupCollection as isBuiltinLookupCollection } from './lookupRegistry';
-import { WORKFLOW_SCHEDULE_EVENT } from './workflowClock';
+import { DATE_REACHED_ACTION, WORKFLOW_SCHEDULE_EVENT } from './workflowClock';
 
 export const WORKFLOW_CALLED_EVENT = 'workflow.called';
 
@@ -109,10 +109,16 @@ const buildEntry = (
   root: { ...rootBase, hasOld },
 });
 
-const entityEntry = (entity: EntityMetadata, action: 'saved' | 'deleted'): WorkflowEventCatalogEntry =>
+const ENTITY_ENTRY_LABELS: Record<EntityTriggerAction, string> = {
+  saved: '@core.automation/event.on-save',
+  deleted: '@core.automation/event.on-delete',
+  dateReached: '@core.automation/event.on-date-reached',
+};
+
+const entityEntry = (entity: EntityMetadata, action: EntityTriggerAction): WorkflowEventCatalogEntry =>
   buildEntry(
     `${entity.eventPrefix}.${action}`,
-    action === 'saved' ? '@core.automation/event.on-save' : '@core.automation/event.on-delete',
+    ENTITY_ENTRY_LABELS[action],
     action === 'saved',
     entityEventFields(entity),
     { kind: 'entity', entityKey: entity.key },
@@ -360,6 +366,21 @@ export const ENTITY_EVENT_ACTIONS = ['saved', 'deleted'] as const;
 export type EntityEventAction = (typeof ENTITY_EVENT_ACTIONS)[number];
 
 /**
+ * Os gatilhos que nascem de um registro de uma coleção: os dois que o PUBLICADOR emite a cada gravação
+ * (`saved`/`deleted`) e o que o relógio do kernel emite quando uma data do registro chega.
+ */
+export const ENTITY_TRIGGER_ACTIONS = [...ENTITY_EVENT_ACTIONS, DATE_REACHED_ACTION] as const;
+
+export type EntityTriggerAction = (typeof ENTITY_TRIGGER_ACTIONS)[number];
+
+const isEntityTriggerAction = (value: string): value is EntityTriggerAction =>
+  (ENTITY_TRIGGER_ACTIONS as readonly string[]).includes(value);
+
+/** Os campos de DATA de uma entidade, no primeiro nível — os que um `dateReached` pode vigiar. */
+export const entityDateFieldKeys = (entity: EntityMetadata): string[] =>
+  entity.fields.filter((field) => field.type === 'date' && !field.list).map((field) => field.key);
+
+/**
  * `person_note.saved` é o evento de um FILHO (nota, documento) da entidade fixa, não o de uma
  * coleção. A checagem é por composição — prefixo de entidade do registro + sufixo do filho — e não
  * por "tem underscore": chave com underscore é o normal de uma tela trazida por dependência
@@ -383,11 +404,11 @@ const isNestedEntityEvent = (prefix: string): boolean =>
  */
 export const splitEntityEventName = (
   eventName: string,
-): { prefix: string; action: EntityEventAction } | null => {
+): { prefix: string; action: EntityTriggerAction } | null => {
   const separator = eventName.lastIndexOf('.');
   if (separator <= 0) return null;
-  const action = eventName.slice(separator + 1) as EntityEventAction;
-  if (!ENTITY_EVENT_ACTIONS.includes(action)) return null;
+  const action = eventName.slice(separator + 1);
+  if (!isEntityTriggerAction(action)) return null;
   const prefix = eventName.slice(0, separator);
   if (isNestedEntityEvent(prefix) || prefix === 'lookup' || prefix === 'workflow') return null;
   return { prefix, action };
@@ -407,12 +428,12 @@ const screenEventEntry = (
   if (separator <= 0) return undefined;
 
   const collection = eventName.slice(0, separator);
-  const action = eventName.slice(separator + 1) as EntityEventAction;
-  if (!ENTITY_EVENT_ACTIONS.includes(action)) return undefined;
+  const action = eventName.slice(separator + 1);
+  if (!isEntityTriggerAction(action)) return undefined;
 
   const lookup = ctx.lookups.get(collection);
   if (lookup && !isBuiltinLookupCollection(collection)) {
-    return declaredLookupEntry(lookup.collection, lookup.label, action);
+    return action === DATE_REACHED_ACTION ? undefined : declaredLookupEntry(lookup.collection, lookup.label, action);
   }
   if (isEntityCollection(ctx, collection)) {
     const entity = resolveEntity(ctx, collection);
@@ -444,6 +465,7 @@ export const buildWorkflowEventCatalog = (ctx: SchemaContext): WorkflowEventCata
     const entity = resolveEntity(ctx, collection);
     if (!entity) continue;
     screenEntries.push(entityEntry(entity, 'saved'), entityEntry(entity, 'deleted'));
+    if (entityDateFieldKeys(entity).length > 0) screenEntries.push(entityEntry(entity, DATE_REACHED_ACTION));
   }
   // As 30 listas do kernel já estão no catálogo estático sob `lookup.*`; só as declaradas pelo
   // tenant precisam de par próprio, porque emitem pelo nome da coleção.
@@ -459,6 +481,16 @@ export const buildWorkflowEventCatalog = (ctx: SchemaContext): WorkflowEventCata
 
 export const eventNameToRoot = (eventName: string, ctx?: SchemaContext): PathRoot | null =>
   findEventCatalogEntry(eventName, ctx)?.root ?? null;
+
+/**
+ * A entidade que um gatilho de registro alcança — a tela que EMITE o prefixo, mesmo quando ele não é o
+ * nome da coleção (`eventPrefix`). É por ela que o gatilho de data sabe que coleção consultar e quais
+ * campos de data existem.
+ */
+export const eventEntity = (eventName: string, ctx: SchemaContext): EntityMetadata | undefined => {
+  const root = eventNameToRoot(eventName, ctx);
+  return root?.kind === 'entity' ? resolveEntity(ctx, root.entityKey) : undefined;
+};
 
 export const eventNameToEntityKey = (eventName: string, ctx?: SchemaContext): string | null => {
   const prefix = eventName.split('.')[0];

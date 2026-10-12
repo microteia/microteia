@@ -159,6 +159,7 @@ export const parseCron = (expression: unknown): ParsedCron | null => {
 };
 
 interface WallClock {
+  year: number;
   month: number;
   day: number;
   weekday: number;
@@ -174,6 +175,7 @@ const wallClockFormatter = (timeZone: string): Intl.DateTimeFormat => {
   const created = new Intl.DateTimeFormat('en-US', {
     timeZone,
     hourCycle: 'h23',
+    year: 'numeric',
     month: 'numeric',
     day: 'numeric',
     weekday: 'short',
@@ -188,6 +190,7 @@ const wallClockAt = (instant: Date, timeZone: string): WallClock => {
   const parts = wallClockFormatter(timeZone).formatToParts(instant);
   const part = (type: Intl.DateTimeFormatPartTypes): string => parts.find((entry) => entry.type === type)?.value ?? '';
   return {
+    year: Number(part('year')),
     month: Number(part('month')),
     day: Number(part('day')),
     weekday: WEEKDAY_NAMES.indexOf(part('weekday').toUpperCase().slice(0, 3)),
@@ -324,3 +327,143 @@ export const scheduleIssues = (schedule: unknown): ScheduleIssue[] => {
 /** O fuso que vale para um `schedule`: o declarado, quando é válido; senão o do escritório. */
 export const scheduleTimeZone = (schedule: WorkflowSchedule, officeTimeZone: string): string =>
   schedule.timeZone && isValidTimeZone(schedule.timeZone) ? schedule.timeZone.trim() : officeTimeZone;
+
+// ─── Quando uma data chega — `<coleção>.dateReached` ─────────────────────────────
+
+/**
+ * O gatilho de DATA: a automação roda para cada registro cuja data (`field`) chega, deslocada de
+ * `offset` dias — `-3d` três dias antes, `0d` no dia, `+1d` no dia seguinte —, na hora `at` do fuso do
+ * escritório. Uma vez por registro e por valor da data: se a data muda, ela dispara de novo para a nova.
+ */
+export const DATE_REACHED_ACTION = 'dateReached';
+
+/** O kernel a partir do qual o gatilho de data existe. */
+export const WORKFLOW_DATE_REACHED_SINCE_KERNEL = '2.33.0';
+
+/** A hora do dia em que o gatilho de data olha, quando a declaração não diz. Cedo, para o aviso chegar antes do expediente. */
+export const DEFAULT_DATE_REACHED_AT = '08:00';
+
+/** O maior deslocamento aceito, em dias, para os dois lados. */
+export const MAX_DATE_REACHED_OFFSET_DAYS = 365;
+
+/**
+ * Quantos dias para trás o relógio recupera quando ficou parado. Além disso, o aviso já perdeu o
+ * sentido — e a recuperação sem teto, depois de uma pane longa, seria uma enxurrada de execuções.
+ */
+export const DATE_REACHED_CATCH_UP_DAYS = 7;
+
+/** Por quanto tempo a marca "já disparou" é guardada. Passado isso, ninguém volta a olhar aquele dia. */
+export const DATE_REACHED_MARK_TTL_DAYS = 400;
+
+/** As marcas de "já disparou" do gatilho de data — coleção do kernel, que o cliente não lê nem escreve. */
+export const WORKFLOW_TRIGGER_MARKS_COLLECTION = 'workflow_trigger_marks';
+
+export interface WorkflowDateReached {
+  /** O campo de data do registro (`dueDate`). */
+  field: string;
+  /** Deslocamento em dias: `-3d`, `0d`, `+1d`. */
+  offset: string;
+  /** `HH:mm` no fuso do escritório. Ausente, `DEFAULT_DATE_REACHED_AT`. */
+  at?: string;
+}
+
+export const dateReachedEventName = (prefix: string): string => `${prefix}.${DATE_REACHED_ACTION}`;
+
+/** O prefixo de um `<prefixo>.dateReached`, ou `null` quando o nome não é desse gatilho. */
+export const dateReachedPrefix = (eventName: string): string | null => {
+  const suffix = `.${DATE_REACHED_ACTION}`;
+  return eventName.endsWith(suffix) && eventName.length > suffix.length ? eventName.slice(0, -suffix.length) : null;
+};
+
+const OFFSET_PATTERN = /^([+-]?)(\d{1,3})d$/;
+
+/** `-3d` → -3. `null` quando a forma não é essa ou passa do teto. */
+export const parseOffsetDays = (offset: unknown): number | null => {
+  if (typeof offset !== 'string') return null;
+  const match = OFFSET_PATTERN.exec(offset.trim());
+  if (!match) return null;
+  const days = Number(match[2]) * (match[1] === '-' ? -1 : 1);
+  return Math.abs(days) <= MAX_DATE_REACHED_OFFSET_DAYS ? days : null;
+};
+
+const TIME_OF_DAY_PATTERN = /^([01]\d|2[0-3]):([0-5]\d)$/;
+
+export interface TimeOfDay {
+  hour: number;
+  minute: number;
+}
+
+export const parseTimeOfDay = (value: unknown): TimeOfDay | null => {
+  if (typeof value !== 'string') return null;
+  const match = TIME_OF_DAY_PATTERN.exec(value.trim());
+  return match ? { hour: Number(match[1]), minute: Number(match[2]) } : null;
+};
+
+/** A hora em que o gatilho olha, como cron — e é o mesmo cálculo de próxima ocorrência do `schedule`. */
+export const dateReachedCron = (spec: Pick<WorkflowDateReached, 'at'>): string => {
+  const time = parseTimeOfDay(spec.at ?? DEFAULT_DATE_REACHED_AT) ?? parseTimeOfDay(DEFAULT_DATE_REACHED_AT) as TimeOfDay;
+  return `${time.minute} ${time.hour} * * *`;
+};
+
+export type DateReachedIssueCode = 'field-missing' | 'field-not-date' | 'offset-invalid' | 'at-invalid';
+
+export interface DateReachedIssue {
+  code: DateReachedIssueCode;
+  message: string;
+  messageParams?: Record<string, string>;
+}
+
+/**
+ * O que está errado num `dateReached` declarado. `dateFields`, quando quem pergunta conhece a tela,
+ * são os campos de DATA dela — e um campo fora da lista é recusado: o gatilho sobre um texto nunca
+ * acha registro nenhum, e ninguém saberia por quê.
+ */
+export const dateReachedIssues = (spec: unknown, dateFields?: readonly string[] | null): DateReachedIssue[] => {
+  const declared = spec && typeof spec === 'object' ? (spec as Partial<WorkflowDateReached>) : null;
+  const issues: DateReachedIssue[] = [];
+  const field = typeof declared?.field === 'string' ? declared.field.trim() : '';
+  if (!field) {
+    issues.push({ code: 'field-missing', message: '@core.automation/date-reached.field-missing' });
+  } else if (dateFields && !dateFields.includes(field)) {
+    issues.push({ code: 'field-not-date', message: '@core.automation/date-reached.field-not-date', messageParams: { field } });
+  }
+  if (parseOffsetDays(declared?.offset) === null) {
+    issues.push({
+      code: 'offset-invalid',
+      message: '@core.automation/date-reached.offset-invalid',
+      messageParams: { offset: String(declared?.offset ?? ''), max: String(MAX_DATE_REACHED_OFFSET_DAYS) },
+    });
+  }
+  if (declared?.at !== undefined && declared.at !== '' && !parseTimeOfDay(declared.at)) {
+    issues.push({ code: 'at-invalid', message: '@core.automation/date-reached.at-invalid', messageParams: { at: String(declared.at) } });
+  }
+  return issues;
+};
+
+const DAY_MS = 86_400_000;
+
+/** `YYYY-MM-DD` + n dias, no calendário — sem fuso, porque um dia não tem fuso. */
+export const addDays = (day: string, days: number): string =>
+  new Date(Date.parse(`${day}T00:00:00Z`) + days * DAY_MS).toISOString().slice(0, 10);
+
+/** O dia da DATA do registro em que a automação dispara: `-3d` sobre 20/10 é 17/10. */
+export const dateReachedFireDay = (recordDay: string, offsetDays: number): string => addDays(recordDay, offsetDays);
+
+/** O dia de DATA que dispara HOJE: com `-3d`, hoje (17/10) dispara os registros de 20/10. */
+export const dateReachedTargetDay = (today: string, offsetDays: number): string => addDays(today, -offsetDays);
+
+/**
+ * O instante em que o relógio de parede do fuso marca `hour:minute` do dia dado. É a meia-noite que
+ * delimita a consulta por dia, e a hora `at` que decide se o gatilho já olhou hoje.
+ */
+export const zonedInstant = (day: string, time: TimeOfDay, timeZone: string): Date => {
+  const zone = isValidTimeZone(timeZone) ? timeZone.trim() : 'UTC';
+  const [year, month, date] = day.split('-').map(Number);
+  const wall = Date.UTC(year, month - 1, date, time.hour, time.minute);
+  const offsetAt = (instant: number): number => {
+    const clock = wallClockAt(new Date(instant), zone);
+    return Date.UTC(clock.year, clock.month - 1, clock.day, clock.hour, clock.minute) - instant;
+  };
+  const first = wall - offsetAt(wall);
+  return new Date(wall - offsetAt(first));
+};

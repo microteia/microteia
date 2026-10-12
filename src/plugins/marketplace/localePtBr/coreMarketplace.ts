@@ -375,6 +375,10 @@ export const CORE_MARKETPLACE: Record<string, string> = {
     'o passo "{step}" nomeia o passo "{definition}", que não está no catálogo. O pacote não declara dependência nenhuma, então ele também não pode vir de outra extensão.',
   'issue.workflow.schedule-invalid':
     'a automação roda em um horário, e o relógio não consegue rodá-la: {detail} Ela seria instalada ligada e nunca dispararia.',
+  'issue.workflow.date-reached-invalid':
+    'a automação roda quando uma data chega, e o relógio não consegue rodá-la: {detail} Ela seria instalada ligada e nunca dispararia.',
+  'issue.workflow.trigger-kernel':
+    'a automação é disparada por "{event}", que só existe a partir do kernel {minimum} — declare `kernel: "^{minimum}"` (ou posterior) no manifest, para que um kernel mais antigo recuse o pacote em vez de instalar uma automação que nunca dispara.',
   'issue.step.unknown-input':
     'o passo "{step}" ({definition}) preenche a entrada "{input}", que esse passo não tem. Ele recebe: {expected}.',
   'install.dependency-missing':

@@ -139,6 +139,7 @@ describe('o servidor MCP de autoria', () => {
     };
     expect(answer.forms.map((form) => form.eventName)).toContain('workflow.called');
     expect(answer.forms.map((form) => form.eventName)).toContain('schedule');
+    expect(answer.forms.map((form) => form.eventName)).toContain('<collection>.dateReached');
     expect(answer.notes.join(' ')).toMatch(/schedule: \{ cron \}/);
     expect(answer.forms.some((form) => form.eventName.includes('<collection>.saved'))).toBe(true);
     expect(answer.notes.join(' ')).toMatch(/ABSOLUTE/);

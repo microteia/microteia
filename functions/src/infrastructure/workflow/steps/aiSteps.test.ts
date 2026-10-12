@@ -54,6 +54,9 @@ class FakeDefinitions implements IWorkflowDefinitionRepository {
   async findEnabledByEvent(_tenantId: string, eventName: string): Promise<WorkflowDefinition[]> {
     return this.all.filter((one) => one.eventName === eventName && one.enabled);
   }
+  async findEnabledByEvents(_tenantId: string, eventNames: string[]): Promise<WorkflowDefinition[]> {
+    return this.all.filter((one) => eventNames.includes(one.eventName) && one.enabled);
+  }
   async findById(_tenantId: string, id: string): Promise<WorkflowDefinition | null> {
     return this.all.find((one) => one.id === id) ?? null;
   }

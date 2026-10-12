@@ -46,3 +46,13 @@ describe('o relógio das automações temporais', () => {
     await assertFails(deleteDoc(entry('dono')));
   });
 });
+
+describe('as marcas de "já disparou" do gatilho de data', () => {
+  const mark = (uid: string, id = 'wf_r1_2026-10-13') => doc(asUser(env, uid), `tenants/${TENANT}/workflow_trigger_marks/${id}`);
+
+  it('ninguém lê, cria nem apaga pelo cliente — criar suprimiria o aviso, apagar o repetiria', async () => {
+    await assertFails(getDoc(mark('dono')));
+    await assertFails(setDoc(mark('gestor', 'wf_r2_2026-10-14'), { definitionId: 'wf', expiresAt: new Date() }));
+    await assertFails(deleteDoc(mark('dono')));
+  });
+});

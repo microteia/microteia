@@ -405,6 +405,7 @@ const WORKFLOW_REACH: Record<keyof WorkflowModuleTemplate, string | null> = {
   lookupCollection: null,
   parameters: 'the reference parameter a user-action flow needs to resolve the state field',
   schedule: 'trigger "schedule" — its `when`, as cron',
+  dateReached: null,
   steps: 'the guard, the state write and the effects, in order',
   condition: 'the `from` of the transition',
   ownerPluginIds: null,
@@ -415,6 +416,9 @@ const WORKFLOW_REACH: Record<keyof WorkflowModuleTemplate, string | null> = {
 const WORKFLOW_NOTES: Record<string, string> = {
   version: 'the revision of the flow definition itself, bumped when the office edits it in the Automations screen',
   lookupCollection: 'which list fires a `lookup.saved`. It is the other half of the missing lookup trigger',
+  dateReached: 'which date of the record a `<collection>.dateReached` watches, how many days before or after, and at '
+    + 'what time. The model has no trigger for "when a date arrives" — a rule like "warn three days before the due '
+    + 'date" is written as a schedule with a query today',
   ownerPluginIds: 'the refcount of extensions sharing the flow, set by the installation',
   sourceId: 'the universal identity of the flow — how an update recognises it across offices',
   sourceRev: 'the origin revision, stamped at packaging so an update only rewrites what is genuinely newer',

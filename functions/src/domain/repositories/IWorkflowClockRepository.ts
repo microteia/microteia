@@ -1,20 +1,71 @@
-/**
- * Uma automação temporal vista pelo relógio do kernel: QUANDO ela é devida e o que decide isso.
- * Mora em `tenants/{t}/workflow_clock/{definitionId}`, coleção que só o kernel escreve.
- */
-export interface WorkflowClockEntry {
+interface WorkflowClockEntryBase {
   tenantId: string;
   definitionId: string;
-  kind: 'schedule';
-  cron: string;
   /** O fuso declarado na automação, quando ela sobrescreve o do escritório. */
   declaredTimeZone: string | null;
   /** O fuso com que `nextRunAt` foi calculado — o declarado ou o do escritório naquele momento. */
   timeZone: string;
   nextRunAt: Date;
+  /** As extensões donas da automação — o relógio não acorda a de uma extensão desligada. */
+  ownerPluginIds: string[];
 }
 
+/**
+ * Uma automação de HORÁRIO vista pelo relógio do kernel: quando ela é devida e o que decide isso.
+ * Mora em `tenants/{t}/workflow_clock/{definitionId}`, coleção que só o kernel escreve.
+ */
+export interface ScheduleClockEntry extends WorkflowClockEntryBase {
+  kind: 'schedule';
+  cron: string;
+}
+
+/** Onde a varredura de um dia grande parou — a volta seguinte continua daqui, na MESMA janela. */
+export interface DateReachedPage {
+  fromDay: string;
+  toDay: string;
+  afterValue: Date;
+  afterId: string;
+}
+
+/**
+ * Uma automação de DATA vista pelo relógio: o campo vigiado, e até que dia de data ela já olhou
+ * (`cursorDay`). `nextRunAt` é a próxima vez que a hora `at` chega no fuso do escritório.
+ *
+ * A COLEÇÃO não é guardada: é resolvida a cada volta, a partir do prefixo do evento. A instalação grava a
+ * automação antes da tela, e uma coleção congelada aqui seria a de uma tela que ainda não existia.
+ */
+export interface DateReachedClockEntry extends WorkflowClockEntryBase {
+  kind: 'dateReached';
+  eventName: string;
+  field: string;
+  offsetDays: number;
+  at: string;
+  cursorDay: string;
+  page: DateReachedPage | null;
+}
+
+export type WorkflowClockEntry = ScheduleClockEntry | DateReachedClockEntry;
+
 export type WorkflowClockFireResult = 'fired' | 'stale';
+
+export interface ClockAdvance {
+  nextRunAt: Date;
+  timeZone: string;
+  cursorDay?: string;
+  page?: DateReachedPage | null;
+}
+
+export interface DatedRecord {
+  id: string;
+  value: Date;
+  data: Record<string, unknown>;
+}
+
+export interface ClaimedEvent {
+  name: string;
+  payload: Record<string, unknown>;
+  target: string;
+}
 
 export interface IWorkflowClockRepository {
   find(tenantId: string, definitionId: string): Promise<WorkflowClockEntry | null>;
@@ -27,5 +78,25 @@ export interface IWorkflowClockRepository {
    * não há próxima) NUMA transação. `stale` quando outra passada já o fez — a entrada mudou, ou o evento
    * daquela ocorrência já existe. É o que faz duas passadas simultâneas dispararem uma vez só.
    */
-  fire(entry: WorkflowClockEntry, payload: Record<string, unknown>, next: Date | null): Promise<WorkflowClockFireResult>;
+  fire(entry: ScheduleClockEntry, payload: Record<string, unknown>, next: Date | null): Promise<WorkflowClockFireResult>;
+  /** Move a entrada sem publicar nada. `stale` quando outra passada já a moveu. */
+  advance(entry: WorkflowClockEntry, patch: ClockAdvance): Promise<WorkflowClockFireResult>;
+  /**
+   * Os registros da coleção com `field` em `[from, to)`, na ordem da data e depois do id, a partir de
+   * `after`. É uma faixa sobre UM campo: o índice automático do Firestore a atende, sem índice composto.
+   */
+  recordsInRange(
+    tenantId: string,
+    collection: string,
+    field: string,
+    from: Date,
+    to: Date,
+    after: { value: Date; id: string } | null,
+    limit: number,
+  ): Promise<DatedRecord[]>;
+  /**
+   * Grava a marca `markId` e publica o evento, juntos. `false` quando a marca já existia — o registro já
+   * disparou para aquela data, por esta volta, por outra, ou pela gravação que o levou ao dia.
+   */
+  claimAndPublish(tenantId: string, markId: string, expiresAt: Date, event: ClaimedEvent): Promise<boolean>;
 }

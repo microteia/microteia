@@ -28,6 +28,7 @@ import { Button } from '../../components/ui/Button';
 import { InputGroup, Label, Input } from '../../components/ui/Input';
 import { LabelInput } from '../../components/ui/LabelInput';
 import { SearchSelect } from '../../components/ui/SearchSelect';
+import { TimeInput } from '../../components/ui/TimeInput';
 import { InfoBanner } from '../../components/ui/InfoBanner';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { RunModal } from '../../components/ui/RunModal';
@@ -338,7 +339,8 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                 !vm.formData.eventName ||
                 (vm.isLookupEvent && !vm.formData.lookupCollection) ||
                 (vm.isCalledEvent && vm.hasParameterErrors) ||
-                (vm.isScheduleEvent && !!vm.scheduleError)
+                (vm.isScheduleEvent && !!vm.scheduleError) ||
+                (vm.isDateReachedEvent && !!vm.dateReachedError)
               }
               title={t(vm.isSaving ? 'core.ui/saving' : 'core.ui/action.save')}
             >
@@ -473,6 +475,36 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                       ))}
                     </InputGroup>
                   )}
+                </>
+              )}
+
+              {vm.isDateReachedEvent && (
+                <>
+                  <InputGroup>
+                    <Label>{t('workflow.date-reached.field')}</Label>
+                    <SearchSelect
+                      options={vm.dateFieldOptions}
+                      value={vm.formData.dateField}
+                      onChange={(dateField) => vm.setFormData({ dateField })}
+                      placeholder={t('workflow.date-reached.field.placeholder')}
+                    />
+                  </InputGroup>
+                  <InputGroup>
+                    <Label>{t('workflow.date-reached.days')}</Label>
+                    <Input
+                      type="number"
+                      step={1}
+                      value={vm.formData.dateOffsetDays}
+                      onChange={(event) => vm.setFormData({ dateOffsetDays: event.target.value })}
+                    />
+                    <S.FieldHint>{t('workflow.date-reached.days.hint')}</S.FieldHint>
+                  </InputGroup>
+                  <InputGroup>
+                    <Label>{t('workflow.date-reached.at')}</Label>
+                    <TimeInput value={vm.formData.dateAt} onChange={(dateAt) => vm.setFormData({ dateAt })} />
+                    <S.FieldHint>{t('workflow.date-reached.hint')}</S.FieldHint>
+                    {vm.dateReachedError && <S.FieldError>{vm.dateReachedError}</S.FieldError>}
+                  </InputGroup>
                 </>
               )}
 

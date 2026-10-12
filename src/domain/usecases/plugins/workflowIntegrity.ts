@@ -10,7 +10,16 @@ import {
   isCoreStepDefinitionId,
 } from '../../schema/workflowStepCatalog';
 import type { PackageRef, PackageValidationIssue } from './pluginReferences';
-import { WORKFLOW_SCHEDULE_EVENT, scheduleIssues } from '../../schema/workflowClock';
+import {
+  WORKFLOW_SCHEDULE_EVENT,
+  WORKFLOW_DATE_REACHED_SINCE_KERNEL,
+  WORKFLOW_SCHEDULE_SINCE_KERNEL,
+  dateReachedIssues,
+  dateReachedPrefix,
+  scheduleIssues,
+} from '../../schema/workflowClock';
+import { rangeExcludesBelow } from '../../schema/plugin/semver';
+import { screenEventPrefix } from './screenModule';
 
 /**
  * A integridade de um passo de automação.
@@ -250,6 +259,7 @@ const stepIssues = (
 const workflowIssues = (
   workflow: WorkflowModuleTemplate,
   hasDependencies: boolean,
+  pkg: MarketplacePlugin,
 ): PackageValidationIssue[] => {
   const ref: PackageRef = {
     kind: 'workflow',
@@ -259,23 +269,52 @@ const workflowIssues = (
   const steps = flattenSteps(workflow.steps);
 
   return [
-    ...triggerIssues(workflow, ref),
+    ...triggerIssues(workflow, ref, pkg),
     ...steps.flatMap((step) => stepIssues(step, ref, hasDependencies)),
     ...outputRefIssues(steps, ref),
   ];
 };
 
 /**
- * O gatilho de horário sem horário que o relógio leia. A automação instala, aparece ligada e nunca
- * dispara — o pior tipo de defeito, porque não há execução falhada para alguém ver.
+ * Os campos de DATA da tela do pacote que emite o prefixo. `null` quando a tela não vem no pacote — a de
+ * uma dependência ou do escritório não está aqui para ser lida, e recusar o que não se vê recusaria um
+ * pacote certo.
  */
-const triggerIssues = (workflow: WorkflowModuleTemplate, ref: PackageRef): PackageValidationIssue[] => {
-  if (workflow.eventName !== WORKFLOW_SCHEDULE_EVENT) return [];
-  return scheduleIssues(workflow.schedule).map((issue) => ({
-    ref,
-    message: '@core.marketplace/issue.workflow.schedule-invalid',
-    messageParams: { detail: issue.message, ...(issue.messageParams ?? {}) },
-  }));
+const packageDateFields = (prefix: string, pkg: MarketplacePlugin): string[] | null => {
+  const screen = (pkg.screens ?? []).find((candidate) => screenEventPrefix(candidate) === prefix);
+  return screen ? screen.fields.filter((field) => field.type === 'date').map((field) => field.key) : null;
+};
+
+/**
+ * O gatilho temporal que o relógio não consegue rodar. A automação instala, aparece ligada e nunca
+ * dispara — o pior tipo de defeito, porque não há execução falhada para alguém ver. E o mesmo vale para
+ * um kernel anterior ao relógio, que por isso precisa RECUSAR o pacote, pelo intervalo de `kernel`.
+ */
+const triggerIssues = (workflow: WorkflowModuleTemplate, ref: PackageRef, pkg: MarketplacePlugin): PackageValidationIssue[] => {
+  const prefix = dateReachedPrefix(workflow.eventName);
+  if (workflow.eventName !== WORKFLOW_SCHEDULE_EVENT && prefix === null) return [];
+
+  const shape = prefix === null
+    ? scheduleIssues(workflow.schedule).map((issue) => ({
+        ref,
+        message: '@core.marketplace/issue.workflow.schedule-invalid',
+        messageParams: { detail: issue.message, ...(issue.messageParams ?? {}) },
+      }))
+    : dateReachedIssues(workflow.dateReached, packageDateFields(prefix, pkg)).map((issue) => ({
+        ref,
+        message: '@core.marketplace/issue.workflow.date-reached-invalid',
+        messageParams: { detail: issue.message, ...(issue.messageParams ?? {}) },
+      }));
+
+  const minimum = prefix === null ? WORKFLOW_SCHEDULE_SINCE_KERNEL : WORKFLOW_DATE_REACHED_SINCE_KERNEL;
+  const kernel = rangeExcludesBelow(pkg.manifest?.kernel ?? '', minimum)
+    ? []
+    : [{
+        ref,
+        message: '@core.marketplace/issue.workflow.trigger-kernel',
+        messageParams: { event: workflow.eventName, minimum },
+      }];
+  return [...shape, ...kernel];
 };
 
 /**
@@ -285,5 +324,5 @@ const triggerIssues = (workflow: WorkflowModuleTemplate, ref: PackageRef): Packa
  */
 export const workflowStepIssues = (pkg: MarketplacePlugin): PackageValidationIssue[] => {
   const hasDependencies = Object.keys(pkg.manifest?.dependencies ?? {}).length > 0;
-  return (pkg.workflows ?? []).flatMap((workflow) => workflowIssues(workflow, hasDependencies));
+  return (pkg.workflows ?? []).flatMap((workflow) => workflowIssues(workflow, hasDependencies, pkg));
 };

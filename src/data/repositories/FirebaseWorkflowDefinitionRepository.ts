@@ -18,7 +18,7 @@ import { db } from '../../infrastructure/firebase/config';
 import { pruneUndefined } from '../utils/pruneUndefined';
 import type { IWorkflowDefinitionRepository } from '../../domain/repositories/IWorkflowDefinitionRepository';
 import type { WorkflowDefinition, WorkflowParameter, WorkflowStep } from '../../domain/entities/Workflow';
-import type { WorkflowSchedule } from '../../domain/schema/workflowClock';
+import type { WorkflowDateReached, WorkflowSchedule } from '../../domain/schema/workflowClock';
 
 import { LocalizedError } from '../../domain/errors/LocalizedError';
 const toDate = (v: unknown): Date => (v instanceof Timestamp ? v.toDate() : (v as Date));
@@ -35,6 +35,7 @@ const mapDefinition = (id: string, d: Record<string, unknown>, tenantId: string)
   lookupCollection: (d.lookupCollection as string | undefined) ?? undefined,
   parameters: (d.parameters as WorkflowParameter[] | undefined) ?? undefined,
   schedule: (d.schedule as WorkflowSchedule | undefined) ?? undefined,
+  dateReached: (d.dateReached as WorkflowDateReached | undefined) ?? undefined,
   ownerPluginId: (d.ownerPluginId as string | undefined) ?? undefined,
   ownerPluginIds: (d.ownerPluginIds as string[] | undefined) ?? undefined,
   sourceId: (d.sourceId as string | undefined) ?? undefined,

@@ -22,7 +22,15 @@ import type { WorkflowStepMetadata } from '../../../domain/schema/workflowStepCa
 import type { StepType } from '../../../domain/entities/Workflow';
 import { FIELD_EXPRESSION_FUNCTION_NAMES } from '../../../domain/schema/fieldExpression';
 import { DEFAULT_TIME_ZONE, TIME_ZONE_SETTING, timeZoneForLocale } from '../../../domain/schema/i18n/timeZone';
-import { MIN_SCHEDULE_INTERVAL_MINUTES, WORKFLOW_CLOCK_TICK_MINUTES, WORKFLOW_SCHEDULE_SINCE_KERNEL } from '../../../domain/schema/workflowClock';
+import {
+  DATE_REACHED_CATCH_UP_DAYS,
+  DEFAULT_DATE_REACHED_AT,
+  MAX_DATE_REACHED_OFFSET_DAYS,
+  MIN_SCHEDULE_INTERVAL_MINUTES,
+  WORKFLOW_CLOCK_TICK_MINUTES,
+  WORKFLOW_DATE_REACHED_SINCE_KERNEL,
+  WORKFLOW_SCHEDULE_SINCE_KERNEL,
+} from '../../../domain/schema/workflowClock';
 import {
   A_STATE_IS_A_KEY,
   BEHAVIOR_MECHANISMS,
@@ -1477,7 +1485,7 @@ Three artifacts, and the distinction is what starts them:
 
 | | Starts when | Runs |
 |---|---|---|
-| **workflow** | a record changes, a list changes, a schedule comes due, or another workflow calls it | on the server |
+| **workflow** | a record changes, a list changes, a schedule comes due, a date of a record arrives, or another workflow calls it | on the server |
 | **action** | a person presses a button on a record | fires a workflow, or a platform command |
 | **script** | a workflow step runs it | in the server sandbox |
 
@@ -1516,7 +1524,8 @@ workflows: [{
 the organization designed, for a collection that already exists. Also \`lookup.saved\` / \`lookup.deleted\`
 (with \`lookupCollection\` naming which list), \`<parent>.note.saved\` / \`.deleted\`, the same for
 \`document\`, \`workflow.called\` for a workflow that only exists to be invoked — that one declares
-\`parameters\`, which become the \`event.\` it receives —, and \`schedule\` for one the clock starts.
+\`parameters\`, which become the \`event.\` it receives —, \`schedule\` for one the clock starts, and
+\`<collection>.dateReached\` for one that runs when a date of a record arrives.
 
 ### A workflow that runs on a schedule
 
@@ -1549,8 +1558,38 @@ deactivated it. You write no Cloud Function, and the organization provisions not
 - **A clock that was down fires once, not once per missed time.** A daily workflow that missed three days runs
   one time when the clock comes back.
 
-This needs kernel ${WORKFLOW_SCHEDULE_SINCE_KERNEL} or later. On an earlier kernel the workflow installs and never
-fires, so declare \`kernel: '^${WORKFLOW_SCHEDULE_SINCE_KERNEL}'\` in the manifest when you ship one.
+### A workflow that runs when a date arrives
+
+\`\`\`ts
+workflows: [{
+  templateId: 'wf-due-soon',
+  name: label('workflow.due-soon'),
+  eventName: 'invoices.dateReached',
+  dateReached: { field: 'dueDate', offset: '-3d', at: '08:00' },   // three days before, at 08:00
+  version: 1,
+  condition: { kind: 'AlwaysTrue' },
+  steps: [/* event is the record — the same payload as invoices.saved */],
+}]
+\`\`\`
+
+Reminders, renewals, overdue charges, triage deadlines: "when this date comes" is the most common schedule in
+a business rule, and it is NOT a cron plus a query — the kernel already knows which records are due.
+
+- **\`field\`** is a \`date\` field of the screen that emits the prefix. \`validate_plugin\` refuses any other when
+  that screen is in your package.
+- **\`offset\`** is whole days: \`-3d\` three days before, \`0d\` on the day, \`+1d\` the day after (up to
+  ${MAX_DATE_REACHED_OFFSET_DAYS} either way). To warn at D-3, D-1 and D-0, declare three workflows.
+- **\`at\`** is \`HH:mm\` in the organization's time zone, ${DEFAULT_DATE_REACHED_AT} when omitted.
+- **Once per record and per date.** The kernel keeps the mark: a record fires once for its date, and fires again
+  if the date changes. A record that reaches its day AFTER \`at\` — created today, due today — fires when it is
+  saved instead of waiting for tomorrow.
+- **Never retroactively.** Dates that arrived before the workflow existed do not fire, and a clock that was down
+  recovers at most ${DATE_REACHED_CATCH_UP_DAYS} days.
+- **\`event\` is the record**, like \`<collection>.saved\` without \`changeType\` and \`old\`; \`actor\` is \`null\`.
+
+\`schedule\` needs kernel ${WORKFLOW_SCHEDULE_SINCE_KERNEL} or later, and \`dateReached\` ${WORKFLOW_DATE_REACHED_SINCE_KERNEL}. On an earlier
+kernel the workflow installs and never fires, so \`validate_plugin\` refuses a package whose \`kernel\` range starts
+below the one its trigger needs.
 
 **Listening to another extension.** A workflow may listen to \`<prefix>.saved\` / \`<prefix>.deleted\` of
 a collection a **declared dependency** brings. The name is the prefix that screen EMITS — its

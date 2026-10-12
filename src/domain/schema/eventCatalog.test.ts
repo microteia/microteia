@@ -3,6 +3,8 @@ import {
   WORKFLOW_EVENT_CATALOG,
   WORKFLOW_CALLED_EVENT,
   buildWorkflowEventCatalog,
+  entityDateFieldKeys,
+  eventEntity,
   resolveEventCatalogLabel,
   splitEntityEventName,
   eventNameToEntityKey,
@@ -29,6 +31,7 @@ const tenantCtx = createSchemaContext([
     fields: [
       { key: 'title', label: 'Título', type: 'text', required: true, order: 0, origin: 'plugin' },
       { key: 'caseNumber', label: 'Número', type: 'text', required: true, order: 1, origin: 'plugin' },
+      { key: 'hearingDate', label: 'Audiência', type: 'date', required: false, order: 4, origin: 'plugin' },
       { key: 'contractId', label: 'Contrato', type: 'reference', refEntity: 'contracts', refDenormKey: 'contract', required: false, order: 2, origin: 'plugin' },
       { key: 'tarefa', label: 'Tarefa', type: 'text', required: false, order: 3, origin: 'design' },
     ],
@@ -369,5 +372,22 @@ describe('resolveEventCatalogLabel — as voltas da composição', () => {
     WORKFLOW_EVENT_CATALOG.forEach((catalogEntry) => {
       expect(resolveEventCatalogLabel(label, catalogEntry).startsWith('@')).toBe(false);
     });
+  });
+});
+
+describe('gatilho de data — `<coleção>.dateReached`', () => {
+  it('existe para a tela com campo de data, pelo prefixo que ela emite, e não para a que não tem', () => {
+    const names = buildWorkflowEventCatalog(tenantCtx).map((e) => e.name);
+    expect(names).toContain('case.dateReached');
+    expect(names).not.toContain('medico.dateReached');
+    expect(entityDateFieldKeys(eventEntity('case.dateReached', tenantCtx) as NonNullable<ReturnType<typeof eventEntity>>)).toEqual(['hearingDate']);
+  });
+
+  it('o payload é o registro, sem `old` nem `changeType`', () => {
+    expect(eventNameToRoot('case.dateReached', tenantCtx)).toMatchObject({ kind: 'entity', entityKey: 'cases', hasOld: false });
+  });
+
+  it('é evento de coleção para o empacotamento — o prefixo se remapeia como o de `.saved`', () => {
+    expect(splitEntityEventName('case.dateReached')).toEqual({ prefix: 'case', action: 'dateReached' });
   });
 });

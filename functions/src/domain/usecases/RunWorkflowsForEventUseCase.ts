@@ -6,6 +6,7 @@ import type { StepRegistry } from '../engine/StepRegistry';
 import { WorkflowContextHydrator, createHydrationCache } from '../engine/WorkflowContextHydrator';
 import { hydrateAndRunWorkflow } from '../engine/hydrateAndRunWorkflow';
 import { WORKFLOW_CALLED_EVENT } from '../schema/eventCatalog';
+import { dateReachedEventName, dateReachedPrefix } from '../schema/workflowClock';
 
 export type RunWorkflowsForEventUseCase = {
   /**
@@ -21,6 +22,14 @@ export type RunWorkflowsForEventUseCase = {
  * — é o que permite religar sem reinstalar —, e por isso é aqui, na execução, que o interruptor vale.
  */
 export type DeactivatedPluginIds = (tenantId: string) => Promise<ReadonlySet<string>>;
+
+/**
+ * O gatilho de data na GRAVAÇÃO: as automações `<prefixo>.dateReached` que vieram na mesma consulta da
+ * gravação, para quem decide se o registro acabou de chegar ao dia. Ver `dateReachedOnSave`.
+ */
+export type DateReachedOnSave = (event: WorkflowEvent, definitions: WorkflowDefinition[]) => Promise<unknown>;
+
+const SAVED_SUFFIX = '.saved';
 
 /**
  * Uma automação de extensão fica parada quando TODAS as donas dela estão desativadas: compartilhada,
@@ -47,6 +56,11 @@ const findTargeted = async (
     const target = await definitionRepository.findByRef(event.tenantId, targetId);
     return target && target.enabled && target.eventName === WORKFLOW_CALLED_EVENT ? [target] : [];
   }
+  // A gravação de um registro pergunta também pelas automações de DATA da coleção — na MESMA consulta.
+  if (event.name.endsWith(SAVED_SUFFIX)) {
+    const prefix = event.name.slice(0, -SAVED_SUFFIX.length);
+    return definitionRepository.findEnabledByEvents(event.tenantId, [event.name, dateReachedEventName(prefix)]);
+  }
   return definitionRepository.findEnabledByEvent(event.tenantId, event.name);
 };
 
@@ -57,6 +71,7 @@ export const makeRunWorkflowsForEventUseCase = (
   services: WorkflowServices,
   hydrator: WorkflowContextHydrator,
   deactivatedPluginIds?: DeactivatedPluginIds,
+  onDateReachedSave?: DateReachedOnSave,
 ): RunWorkflowsForEventUseCase => ({
   execute: async (event, actor) => {
     const found = await findTargeted(definitionRepository, event);
@@ -64,7 +79,20 @@ export const makeRunWorkflowsForEventUseCase = (
 
     const owned = found.some((definition) => (definition.ownerPluginIds ?? []).length > 0);
     const deactivated = owned && deactivatedPluginIds ? await deactivatedPluginIds(event.tenantId) : new Set<string>();
-    const definitions = found.filter((definition) => !isSwitchedOff(definition, deactivated));
+    const active = found.filter((definition) => !isSwitchedOff(definition, deactivated));
+    const fromSave = !event.target && event.name.endsWith(SAVED_SUFFIX);
+    const dateReached = fromSave ? active.filter((definition) => dateReachedPrefix(definition.eventName) !== null) : [];
+    const definitions = fromSave ? active.filter((definition) => definition.eventName === event.name) : active;
+
+    if (dateReached.length > 0 && onDateReachedSave) {
+      try {
+        await onDateReachedSave(event, dateReached);
+      } catch (error) {
+        services.logger.error(
+          `Falha ao conferir o gatilho de data na gravação "${event.name}": ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+    }
     if (definitions.length === 0) return;
 
     const hydrationCache = createHydrationCache();

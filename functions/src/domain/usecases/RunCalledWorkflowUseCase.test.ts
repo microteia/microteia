@@ -84,6 +84,7 @@ const makeDeps = (target: WorkflowDefinition | null) => {
     findById: async () => target,
     findByRef: async () => target,
     findEnabledByEvent: async () => [],
+    findEnabledByEvents: async () => [],
   } as unknown as IWorkflowDefinitionRepository;
   const executionRepository: IWorkflowExecutionRepository = {
     create: async (execution: WorkflowExecution) => {

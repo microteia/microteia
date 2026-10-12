@@ -18,6 +18,15 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.92.0] — 2026-10-12
+
+- feat(workflow): date trigger. `eventName: '<prefix>.dateReached'` with `dateReached: { field, offset, at? }` — a `date` field of the screen that emits the prefix, whole days (`-3d`/`0d`/`+1d`, up to 365) and `HH:mm` in the organization's time zone (default 08:00). The payload is the record, as on `.saved` without `changeType`/`old`. `splitEntityEventName` recognises the action, so package references, the install-time prefix remap and cross-extension checks cover it with no extra code. `KERNEL_VERSION` goes to `2.33.0`.
+- feat(functions): the kernel clock serves it. At `at` each day it queries the collection by a range on that one field (served by the automatic single-field index, no composite per collection), paged by 200, and publishes one targeted event per record. A record that reaches its day after `at` fires from the save: `RunWorkflowsForEventUseCase` now asks `eventName in [<p>.saved, <p>.dateReached]` in the same query and hands the date ones to `dateReachedOnSave`. Both halves claim `workflow_trigger_marks/{workflow}_{record}_{day}` with `create` in the same batch as the event — once per record and per date value; a changed date fires again. Never retroactive; a stopped clock recovers at most 7 days. The collection is resolved on every run, because installation writes workflows before screens.
+- feat(workflow): the schedule entry carries its owners, so the clock skips a deactivated extension's workflow before publishing (and, for a date trigger, before querying).
+- feat(sdk): `validatePluginPackage` refuses a malformed `dateReached`, a `field` that is not a `date` field of a screen in the package (`@core.marketplace/issue.workflow.date-reached-invalid`), and a `kernel` range that admits a kernel older than the trigger (`issue.workflow.trigger-kernel` — 2.32.0 for `schedule`, 2.33.0 for `dateReached`). `microteia://workflow/events` and AUTHORING.md §10 describe it.
+- chore(firestore): `workflow_trigger_marks` is reserved and sealed (no client access), with a TTL `fieldOverride` on `expiresAt` in `firestore.indexes.json`. Enable the TTL policy in the Firestore console, as for `auditLogs`.
+- chore(locale-pt-br): `1.80.0`, with the date trigger keys.
+
 #### [9.91.0] — 2026-10-12
 
 - feat(workflow): time trigger. `eventName: 'schedule'` with `schedule: { cron, timeZone? }` on a workflow definition — five-field cron or `@hourly`/`@daily`/`@weekly`/`@monthly`, in the organization's time zone (`i18n.timezone`) unless `timeZone` overrides it. The run carries no record and no actor: the payload is `{ scheduledFor, firedAt }`. An expression that fires more often than every 15 minutes, never fires, or names an unknown zone is refused by the editor and by `validatePluginPackage` (`@core.marketplace/issue.workflow.schedule-invalid`). `KERNEL_VERSION` goes to `2.32.0`: a 2.31 kernel installs such a workflow and never fires it.
