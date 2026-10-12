@@ -4,8 +4,10 @@ import { useLabel } from '../../../shared/i18n/useT';
 import { useReportGroupLabels } from '../../../shared/report/useReportGroupLabels';
 import { columnLabel, shownMeasures } from '../../../shared/report/reportFormatting';
 import { reportCellKey } from '../../../../domain/schema/report/aggregateRows';
+import { reportChartSplit, reportRowLevels } from '../../../../domain/schema/report/reportChartSplit';
+import type { ReportChartSplit } from '../../../../domain/schema/report/reportChartSplit';
 import type { ChartSeries, DonutSlice } from '../Chart';
-import type { ReportResult, ReportRow } from '../../../../domain/schema/report/reportResult';
+import type { ReportGroupKey, ReportResult, ReportRow } from '../../../../domain/schema/report/reportResult';
 import type { ReportSpec } from '../../../../domain/schema/report/reportSpec';
 
 export type ReportChartMark = 'bar' | 'column' | 'line' | 'area' | 'pie' | 'donut';
@@ -32,13 +34,6 @@ const primitiveOf = (kind: string): 'bar' | 'line' | 'donut' | null => {
   return null;
 };
 
-/** Os níveis que a dobra agrupa nas LINHAS. Vazio na lista corrida e no pivô. */
-const groupLevels = (spec: ReportSpec): { dimension: string }[] => {
-  if (spec.shape.kind === 'summary') return spec.shape.groupBy;
-  if (spec.shape.kind === 'tabular') return spec.shape.groupBy ?? [];
-  return [];
-};
-
 /**
  * O NÍVEL de agrupamento que vira o eixo categórico, ou `null` para o mais interno.
  *
@@ -46,7 +41,7 @@ const groupLevels = (spec: ReportSpec): { dimension: string }[] => {
  * pelo primeiro nível de dois via o segundo, e nada na tela dizia que a escolha não valeu.
  */
 const categoryDepth = (spec: ReportSpec, category: string | undefined): number | null => {
-  const levels = groupLevels(spec);
+  const levels = reportRowLevels(spec);
   if (levels.length === 0) return null;
 
   const depth = category === undefined
@@ -63,6 +58,123 @@ const categoryDepth = (spec: ReportSpec, category: string | undefined): number |
 /** As linhas que viram ponto: as do nível pedido, ou as folhas quando nenhum foi pedido. */
 const pointRows = (rows: ReportRow[], depth: number | null): ReportRow[] =>
   rows.filter((row) => (depth === null ? row.subtotal !== true : row.level === depth));
+
+interface PlotPoint {
+  name: string;
+  values: Record<string, number | null>;
+}
+
+interface Plot {
+  points: PlotPoint[];
+  series: { key: string; label: string }[];
+}
+
+type ShownMeasure = ReturnType<typeof shownMeasures>[number];
+
+type GroupLabel = (entry: ReportGroupKey | undefined) => string;
+
+/**
+ * Uma série por par (medida, membro). A chave é posicional, e não o valor cru do membro: o gráfico
+ * lê `dataKey` como caminho, e um ponto dentro de uma opção do escritório viraria um campo aninhado
+ * que não existe. Com uma medida só, o membro basta como nome — repetir a medida em toda entrada da
+ * legenda seria ruído.
+ */
+const splitSeries = (
+  measures: ShownMeasure[],
+  members: string[],
+  measureLabel: (measure: ShownMeasure) => string,
+): Array<{ key: string; label: string; measure: string; member: number }> =>
+  measures.flatMap((measure, measureIndex) => members.map((member, memberIndex) => ({
+    key: `split-${measureIndex}-${memberIndex}`,
+    label: measures.length === 1 ? member : [measureLabel(measure), member].join(' / '),
+    measure: measure.key,
+    member: memberIndex,
+  })));
+
+/**
+ * O gráfico quebrado por `splitBy`: o ponto vem do nível do eixo, e cada membro da segunda dimensão
+ * vira uma série. Nenhum número é somado aqui — cada valor é uma linha (ou célula) que o agregador já
+ * devolveu, e é isso que mantém certa a média, o mínimo e a contagem distinta.
+ */
+const splitPlot = (
+  split: ReportChartSplit,
+  result: ReportResult,
+  measures: ShownMeasure[],
+  groupLabel: GroupLabel,
+  measureLabel: (measure: ShownMeasure) => string,
+): Plot => {
+  if (split.source === 'row') {
+    const members = result.rows.filter((row) => row.level === split.splitDepth);
+    const series = splitSeries(
+      measures,
+      members.map((row) => groupLabel(row.keys[row.keys.length - 1])),
+      measureLabel,
+    );
+
+    return {
+      series,
+      points: result.columns.map((path) => {
+        const cellKey = reportCellKey(path);
+        return {
+          name: path.map((entry) => groupLabel(entry)).join(' / '),
+          values: Object.fromEntries(series.map((one) => [
+            one.key,
+            members[one.member].cells?.[cellKey]?.[one.measure] ?? null,
+          ])),
+        };
+      }),
+    };
+  }
+
+  if (split.source === 'column') {
+    const members = result.columns.map((path) => path.map((entry) => groupLabel(entry)).join(' / '));
+    const series = splitSeries(measures, members, measureLabel);
+    const cellKeys = result.columns.map((path) => reportCellKey(path));
+
+    return {
+      series,
+      points: pointRows(result.rows, split.categoryDepth).map((row) => ({
+        name: groupLabel(row.keys[row.keys.length - 1]),
+        values: Object.fromEntries(series.map((one) => [
+          one.key,
+          row.cells?.[cellKeys[one.member]]?.[one.measure] ?? null,
+        ])),
+      })),
+    };
+  }
+
+  const memberIndex = new Map<string, number>();
+  const memberLabels: string[] = [];
+  const byPoint = new Map<string, { name: string; rows: ReportRow[] }>();
+
+  for (const row of result.rows.filter((one) => one.level === split.splitDepth)) {
+    const member = row.keys[split.splitDepth];
+    if (!memberIndex.has(member.key)) {
+      memberIndex.set(member.key, memberLabels.length);
+      memberLabels.push(groupLabel(member));
+    }
+
+    const pointKey = reportCellKey(row.keys.slice(0, split.splitDepth));
+    const point = byPoint.get(pointKey)
+      ?? { name: groupLabel(row.keys[split.categoryDepth]), rows: [] };
+    point.rows.push(row);
+    byPoint.set(pointKey, point);
+  }
+
+  const series = splitSeries(measures, memberLabels, measureLabel);
+  const points = [...byPoint.values()].map((point) => {
+    const values: Record<string, number | null> = {};
+    for (const row of point.rows) {
+      const member = memberIndex.get(row.keys[split.splitDepth].key);
+      for (const one of series) {
+        if (one.member === member) values[one.key] = row.values[one.measure] ?? null;
+      }
+    }
+    return { name: point.name, values };
+  });
+
+  return { series, points };
+};
 
 /**
  * Traduz o gráfico DECLARADO nas séries que as primitivas esperam.
@@ -92,14 +204,10 @@ export const useReportChartViewModel = (
     const measures = shownMeasures(spec)
       .filter((measure) => !chart.series || chart.series.includes(measure.key));
 
-    const series: ChartSeries[] = measures.map((measure, index) => ({
-      key: measure.key,
-      label: columnLabel(measure.label, measure.key, label),
-      color: palette[index % palette.length].value,
-    }));
+    const measureLabel = (measure: ShownMeasure): string => columnLabel(measure.label, measure.key, label);
 
     // No pivô, cada coluna é um ponto do eixo; na dobra agrupada, cada linha do nível escolhido é.
-    const points = spec.shape.kind === 'matrix'
+    const points: PlotPoint[] = spec.shape.kind === 'matrix'
       ? result.columns.map((path) => ({
           name: path.map((entry) => groupLabel(entry)).join(' / '),
           values: result.columnTotals?.[reportCellKey(path)] ?? {},
@@ -110,9 +218,25 @@ export const useReportChartViewModel = (
           values: row.values,
         }));
 
-    const data = points.map((point) => ({
+    // A quebra que não pode ser desenhada não leva o gráfico junto: ele sai sem ela, com os mesmos
+    // números da tabela, e a validação diz por quê.
+    const split = mark === 'donut' ? null : reportChartSplit(spec);
+    const plot: Plot = split
+      ? splitPlot(split, result, measures, groupLabel, measureLabel)
+      : {
+          points,
+          series: measures.map((measure) => ({ key: measure.key, label: measureLabel(measure) })),
+        };
+
+    const series: ChartSeries[] = plot.series.map((one, index) => ({
+      key: one.key,
+      label: one.label,
+      color: palette[index % palette.length].value,
+    }));
+
+    const data = plot.points.map((point) => ({
       name: point.name,
-      ...Object.fromEntries(measures.map((measure) => [measure.key, point.values[measure.key] ?? 0])),
+      ...Object.fromEntries(series.map((one) => [one.key, point.values[one.key] ?? 0])),
     }));
 
     // A rosca mostra UMA medida: várias fatias de várias medidas no mesmo círculo somariam coisas

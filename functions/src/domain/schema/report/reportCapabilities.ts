@@ -30,6 +30,7 @@ export const REPORT_CAPABILITIES: readonly string[] = [
   'measure.distinct',
   'measure.filter',
   'presentation.chart',
+  'presentation.chart.split',
   'presentation.prompt',
   'shape.matrix',
   'shape.subtotal',
@@ -50,7 +51,7 @@ const anySubtotal = (levels: ReportGroupLevel[]): boolean =>
  * lhe falta, em vez de somar sem ele e devolver um número diferente com o mesmo rótulo.
  *
  * O mesmo vale para a propriedade que o contrato PREVÊ e este kernel ainda não lê — `shape.limit`,
- * `presentation.fields`, a quebra do gráfico por uma segunda dimensão, o alvo do detalhamento, o
+ * `presentation.fields`, o alvo do detalhamento, o
  * controle/obrigatoriedade/semente de um filtro e a ordenação por rótulo. Antes disso elas eram
  * no-ops silenciosos: o autor declarava e nada acontecia, sem uma palavra em lugar nenhum. Emitir o
  * token põe cada uma no MESMO caminho de aviso que já existia, e o dia em que uma delas for

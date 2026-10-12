@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.89.0] — 2026-10-12
+
+- Os gráficos dos relatórios passam a separar cada número por uma segunda informação — por exemplo, o total de cada mês dividido por cidade, lado a lado ou empilhado. Quando há mais de uma série, o gráfico mostra a legenda com o nome de cada uma.
+- Na tela de criação de relatórios, o gráfico ganhou a opção "Quebrado por", e um relatório que já usava essa divisão deixa de perdê-la ao ser salvo de novo.
+
 #### [9.88.0] — 2026-10-12
 
 - Ao conferir uma extensão antes de instalá-la, relatórios e consultas que citam um campo que nenhuma tela conhecida possui passam a ser apontados, com o nome do campo e da tela. Um nome escrito errado deixa de chegar ao escritório como uma coluna vazia.

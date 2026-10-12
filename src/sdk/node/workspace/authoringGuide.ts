@@ -1877,6 +1877,15 @@ mean, and treat a refusal as the platform telling you it cannot answer for them.
   legend — and \`stacked\` piles them instead of setting them side by side. A kind this version cannot
   draw simply does not appear; the table still shows the same data.
 
+  **\`splitBy\` names a level the fold already has.** Either the grouping level right below the one on
+  the axis — \`groupBy: [month, city]\` with \`category: 'month'\`, \`splitBy: 'city'\` — or, on a
+  \`matrix\`, the other side of the pivot: a column grouping when the axis is a row level, a row level
+  when the axis is the columns (the example above, and the pivot's default axis). Every bar is then
+  one row or one cell the fold already computed, so an average stays an average. In a \`summary\` or a \`matrix\`, a level that is not the last needs
+  \`subtotal: true\` to have rows at all. A pie or a donut draws one figure and ignores \`splitBy\`.
+  Anything else is warned by key and the chart is drawn without the breakdown — the platform never
+  adds rows up to make one.
+
   **A chart plots GROUPS, so the fold has to have them.** It reads one level of \`groupBy\` /
   \`rows\` — the one \`category\` names, or the innermost when it names none — and one point comes out
   of each member of that level, with the measures of that group as its values. So a \`summary\`, a

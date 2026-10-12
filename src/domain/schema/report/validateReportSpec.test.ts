@@ -302,6 +302,51 @@ describe('validateReportSpec — a coerência entre as camadas', () => {
     expect(warnings(issues)).toContain('@core.reports/chart.key.unknown');
     expect(hasBlockingReportIssue(issues)).toBe(false);
   });
+
+  const porMes: ReportSpec = {
+    ...valid,
+    dataset: {
+      ...valid.dataset,
+      dimensions: [
+        { key: 'mes', path: 'vencimento', granularity: 'month' },
+        { key: 'situacao', path: 'situacao' },
+      ],
+    },
+    shape: {
+      kind: 'summary',
+      groupBy: [{ dimension: 'mes' }, { dimension: 'situacao' }],
+      values: ['total'],
+    },
+  };
+
+  it('a quebra pelo nível logo abaixo do eixo é desenhada, e não avisa nada', () => {
+    const spec: ReportSpec = {
+      ...porMes,
+      presentation: { chart: { kind: 'bar', category: 'mes', splitBy: 'situacao', stacked: true } },
+    };
+
+    expect(validateReportSpec(spec, ctx)).toEqual([]);
+  });
+
+  it('a quebra que não é o nível logo abaixo do eixo avisa pelo nome, sem derrubar o relatório', () => {
+    const spec: ReportSpec = {
+      ...porMes,
+      presentation: { chart: { kind: 'bar', category: 'situacao', splitBy: 'mes' } },
+    };
+    const issues = validateReportSpec(spec, ctx);
+
+    expect(warnings(issues)).toContain('@core.reports/chart.split.unreachable');
+    expect(hasBlockingReportIssue(issues)).toBe(false);
+  });
+
+  it('a rosca avisa que não quebra, porque desenha um número só', () => {
+    const spec: ReportSpec = {
+      ...porMes,
+      presentation: { chart: { kind: 'donut', category: 'mes', splitBy: 'situacao' } },
+    };
+
+    expect(warnings(validateReportSpec(spec, ctx))).toContain('@core.reports/chart.split.single-series');
+  });
 });
 
 describe('validateReportSpec — o esquema do escritório', () => {

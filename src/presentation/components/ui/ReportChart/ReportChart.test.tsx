@@ -136,6 +136,90 @@ describe('useReportChartViewModel', () => {
     expect(vmOf(AGRUPADO, resultOf([])).mark).toBeNull();
   });
 
+  it('splitBy quebra cada medida numa série por membro, uma linha do resultado por barra', () => {
+    const spec: ReportSpec = {
+      ...AGRUPADO,
+      presentation: { chart: { kind: 'bar', category: 'mes', splitBy: 'situacao', stacked: true } },
+    };
+    const vm = vmOf(spec, resultOf(LINHAS));
+
+    expect(vm.stacked).toBe(true);
+    expect(vm.series.map((one) => one.label)).toEqual(['pago', 'aberto']);
+    expect(vm.data).toEqual([
+      { name: '2026-08', 'split-0-0': 5, 'split-0-1': 3 },
+      { name: '2026-09', 'split-0-0': 4, 'split-0-1': 0 },
+    ]);
+  });
+
+  it('a quebra que não pode ser desenhada não leva o gráfico junto', () => {
+    const spec: ReportSpec = {
+      ...AGRUPADO,
+      presentation: { chart: { kind: 'bar', category: 'situacao', splitBy: 'mes' } },
+    };
+
+    expect(vmOf(spec, resultOf(LINHAS)).data).toEqual(vmOf(AGRUPADO, resultOf(LINHAS)).data);
+  });
+
+  describe('no pivô', () => {
+    const PIVO: ReportSpec = {
+      v: 1,
+      dataset,
+      shape: {
+        kind: 'matrix',
+        rows: [{ dimension: 'mes' }],
+        columns: [{ dimension: 'situacao' }],
+        values: ['total'],
+      },
+      presentation: { chart: { kind: 'bar' } },
+    };
+
+    const colunas: ReportResult['columns'] = [
+      [{ dimension: 'situacao', key: 'pago' }],
+      [{ dimension: 'situacao', key: 'aberto' }],
+    ];
+
+    const celulas = (pago: number, aberto: number) => ({
+      pago: { total: pago },
+      aberto: { total: aberto },
+    });
+
+    const RESULTADO: ReportResult = {
+      ...resultOf([
+        { ...row([['mes', '2026-08']], 8, 0), cells: celulas(5, 3) },
+        { ...row([['mes', '2026-09']], 4, 0), cells: celulas(4, 0) },
+      ], 'matrix'),
+      columns: colunas,
+    };
+
+    it('as colunas viram legenda quando o eixo são as linhas', () => {
+      const spec: ReportSpec = {
+        ...PIVO,
+        presentation: { chart: { kind: 'bar', category: 'mes', splitBy: 'situacao' } },
+      };
+      const vm = vmOf(spec, RESULTADO);
+
+      expect(vm.series.map((one) => one.label)).toEqual(['pago', 'aberto']);
+      expect(vm.data).toEqual([
+        { name: '2026-08', 'split-0-0': 5, 'split-0-1': 3 },
+        { name: '2026-09', 'split-0-0': 4, 'split-0-1': 0 },
+      ]);
+    });
+
+    it('as linhas viram legenda quando o eixo são as colunas', () => {
+      const spec: ReportSpec = {
+        ...PIVO,
+        presentation: { chart: { kind: 'bar', splitBy: 'mes' } },
+      };
+      const vm = vmOf(spec, RESULTADO);
+
+      expect(vm.series.map((one) => one.label)).toEqual(['2026-08', '2026-09']);
+      expect(vm.data).toEqual([
+        { name: 'pago', 'split-0-0': 5, 'split-0-1': 4 },
+        { name: 'aberto', 'split-0-0': 3, 'split-0-1': 0 },
+      ]);
+    });
+  });
+
   it('a marca que este kernel não conhece não desenha', () => {
     const spec: ReportSpec = {
       ...AGRUPADO,

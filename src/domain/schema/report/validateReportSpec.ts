@@ -14,6 +14,7 @@ import {
   reportCapabilitySeverity,
   unsupportedReportCapabilities,
 } from './reportCapabilities';
+import { isSingleSeriesChartKind, reportChartSplit } from './reportChartSplit';
 import {
   DEFAULT_REPORT_DATASET_KIND,
   isAggregateMeasure,
@@ -310,6 +311,20 @@ export const validateReportSpecShape = (
           severity: 'warning',
         });
       }
+    }
+
+    // A quebra que este kernel não consegue desenhar sai do gráfico, e o resto dele fica. Dizer qual
+    // e por quê é o que separa a degradação de um defeito: sem o aviso, o autor via as séries de
+    // sempre e não tinha como saber que a segunda dimensão foi lida.
+    if (chart.splitBy && dimensionKeys.has(chart.splitBy) && reportChartSplit(spec) === null) {
+      issues.push({
+        field: 'presentation.chart.splitBy',
+        error: isSingleSeriesChartKind(chart.kind)
+          ? '@core.reports/chart.split.single-series'
+          : '@core.reports/chart.split.unreachable',
+        errorParams: { key: chart.splitBy },
+        severity: 'warning',
+      });
     }
   }
 

@@ -96,16 +96,17 @@ describe('deriveReportRequires', () => {
     ]);
   });
 
-  it('nomeia a quebra do gráfico que ele ainda não desenha', () => {
-    // Sem o token, `splitBy` era um no-op silencioso: o autor declarava a segunda dimensão e o
-    // gráfico saía igual, sem uma palavra em lugar nenhum.
+  it('a quebra do gráfico é capacidade deste kernel', () => {
+    // O token nasceu para tirar `splitBy` do silêncio enquanto ele não era desenhado. Agora que é, o
+    // mesmo token é o que deixa um kernel MAIS VELHO dizer que a quebra se perdeu.
     const quebrado: ReportSpec = {
       ...base,
       presentation: { chart: { kind: 'bar', splitBy: 'situacao' } },
     };
 
     expect(deriveReportRequires(quebrado)).toContain('presentation.chart.split');
-    expect(unsupportedReportCapabilities(quebrado)).toContain('presentation.chart.split');
+    expect(unsupportedReportCapabilities(quebrado)).not.toContain('presentation.chart.split');
+    expect(unsupportedReportCapabilities(quebrado, CAPABILITIES_1_0)).toContain('presentation.chart.split');
   });
 
   it('emite token que este kernel NÃO tem, para ele poder recusar pelo nome', () => {

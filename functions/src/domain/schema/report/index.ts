@@ -52,6 +52,9 @@ export { REPORT_CAPABILITIES, deriveReportRequires, unsupportedReportCapabilitie
 
 export { bucketDateValue } from './reportBuckets';
 
+export { isSingleSeriesChartKind, reportChartSplit, reportRowLevels } from './reportChartSplit';
+export type { ReportChartSplit } from './reportChartSplit';
+
 export { reportCsvFileName, reportResultToCsv } from './reportCsv';
 export type { ReportCsvTable } from './reportCsv';
 

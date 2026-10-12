@@ -93,6 +93,7 @@ const SHARED_FILES = [
   'domain/schema/report/reportSpec.ts',
   'domain/schema/report/reportCapabilities.ts',
   'domain/schema/report/reportBuckets.ts',
+  'domain/schema/report/reportChartSplit.ts',
   'domain/schema/report/reportResult.ts',
   'domain/schema/report/reportRowFilter.ts',
   'domain/schema/report/aggregateRows.ts',

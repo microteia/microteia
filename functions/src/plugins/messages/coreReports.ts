@@ -26,6 +26,10 @@ export const CORE_REPORTS_MESSAGES: Record<string, string> = {
   'chart.pie': 'Pie',
   'chart.shape.tabular':
     'A list with no grouping has nothing for the chart to plot. Group its lines, or show the report as a summary or crossed, to draw it.',
+  'chart.split.single-series':
+    'A pie or a donut shows one figure on one axis, so it cannot also break it down by "{key}". The chart is drawn without the breakdown.',
+  'chart.split.unreachable':
+    'The chart cannot break its figures down by "{key}". It has to be the grouping right below the one along the axis — with its subtotal, unless it is the last one — or, in a crossed report, a grouping on the other side from the axis. The chart is drawn without the breakdown.',
   'command.group': 'Reports',
   'csv.partial': 'Partial result: {scanned} records covered, and there may be more.',
   'dataset.kind.unsupported':
@@ -37,7 +41,9 @@ export const CORE_REPORTS_MESSAGES: Record<string, string> = {
   'design.add': 'Add',
   'design.chart': 'Chart',
   'design.chart-category': 'Along the axis',
+  'design.chart-no-split': 'No breakdown',
   'design.chart-series': 'What to draw',
+  'design.chart-split': 'Broken down by',
   'design.chart-stacked': 'Stack the figures',
   'design.chart.hint': 'Drawn from the same numbers as the table. A report without one is still a report.',
   'design.column-dimension': 'Grouping across the columns',

@@ -18,6 +18,16 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.89.0] — 2026-10-12
+
+- feat(reports): `presentation.chart.splitBy` is drawn. `presentation.chart.split` joins `REPORT_CAPABILITIES` and `KERNEL_VERSION` goes to `2.30.0`; before, AUTHORING.md §11 described `splitBy` as available while the kernel warned on it and drew the chart without the breakdown. A report packaged for this kernel that a 2.29 kernel opens still gets that warning, by the same token.
+- feat(reports): `reportChartSplit` decides where the second dimension comes from — the grouping level right below the axis (`level`), a pivot's column grouping with the axis on the rows (`column`), or a row level with the axis on the columns (`row`, the pivot's default axis). Every bar is a row or a cell the aggregator already returned: nothing is added up on the client, which would be wrong for every measure that is not a sum. The same function drives `ReportChart` and `validateReportSpec`, so the warning and the drawing cannot disagree.
+- feat(reports): a split that cannot be drawn is warned by key (`chart.split.unreachable`, or `chart.split.single-series` on a pie/donut) and the chart falls back to the unsplit one — the same series and numbers it drew before.
+- feat(ui/chart): `BarChart` and `TimeSeriesChart` show a legend when they draw more than one series. Split series differ only by colour, and the label was reachable only through the tooltip.
+- fix(reports/design): the design screen rebuilt `presentation.chart` from its draft without `splitBy`, so saving a report that declared it dropped it silently. The draft carries it, a "Broken down by" picker sets it, and removing the dimension clears it (and `category`, which had the same stale-key problem).
+- docs(sdk): AUTHORING.md §11 states which `splitBy` this version draws, the subtotal a non-last level needs, and that a pie/donut ignores it.
+- chore(locale-pt-br): `1.77.0`, with the new chart keys.
+
 #### [9.88.0] — 2026-10-12
 
 - feat(sdk/check): `check` and `validate_plugin` warn about a report or `query`-step path that no field declares. `resolvePath` accepts any unknown segment on an entity (`kind: 'unknown'`, valid), which is right in an installation, where the field may come from the Form Design, and why a typo such as `responsibleLawyerId.nameThatDoesNotExist` passed `check` (it only ran `validateReportSpecShape`) and came out as an empty column. The paths (`reportPaths`; `where`, `orderBy` and `projections` of a query) are walked prefix by prefix through `resolvePath` itself against the screens the event-prefix check already uses: the package, the workspace `plugin.ts` files and `installed-catalog.json`. Warning only: a collection with no visible screen is not checked, and a `design` field of the snapshot over a collection the workspace also declares counts as declared. The kernel validator is unchanged.

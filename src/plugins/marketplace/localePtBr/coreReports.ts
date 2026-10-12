@@ -12,6 +12,10 @@ export const CORE_REPORTS: Record<string, string> = {
   'chart.pie': 'Pizza',
   'chart.shape.tabular':
     'Uma lista sem agrupamento não tem o que o gráfico desenhe. Agrupe as linhas dela, ou mostre o relatório como resumo ou cruzado, para desenhá-lo.',
+  'chart.split.single-series':
+    'Uma pizza ou rosca mostra um número sobre um eixo, então não consegue também quebrá-lo por "{key}". O gráfico é desenhado sem a quebra.',
+  'chart.split.unreachable':
+    'O gráfico não consegue quebrar os números por "{key}". Ela precisa ser o agrupamento logo abaixo do que está no eixo — com subtotal, a menos que seja o último — ou, num relatório cruzado, um agrupamento do lado oposto ao do eixo. O gráfico é desenhado sem a quebra.',
   'command.group': 'Relatórios',
   'csv.partial': 'Resultado parcial: {scanned} registros cobertos, e pode haver mais.',
   'dataset.kind.unsupported':
@@ -23,7 +27,9 @@ export const CORE_REPORTS: Record<string, string> = {
   'design.add': 'Acrescentar',
   'design.chart': 'Gráfico',
   'design.chart-category': 'No eixo',
+  'design.chart-no-split': 'Sem quebra',
   'design.chart-series': 'O que desenhar',
+  'design.chart-split': 'Quebrado por',
   'design.chart-stacked': 'Empilhar os números',
   'design.chart.hint': 'Desenhado com os mesmos números da tabela. Um relatório sem ele continua sendo um relatório.',
   'design.column-dimension': 'Agrupamento nas colunas',

@@ -6956,6 +6956,26 @@ E a ordem dos agrupamentos é reordenável — pela alça de arraste ou pelas se
 Design. Ela não é cosmética: é a ordem dos níveis do resumo e a das colunas da lista simples, e sem
 reordenar a única forma de trocar dois de lugar era remover os dois e declará-los de novo.
 
+### A quebra do gráfico nunca soma no cliente
+
+`presentation.chart.splitBy` transforma cada medida numa série por membro de uma segunda dimensão. Ela
+só é desenhada quando **cada barra é uma linha (ou célula) que o agregador já devolveu** — e é
+`reportChartSplit` quem decide, a MESMA função para o desenho (`ReportChart`) e para o aviso
+(`validateReportSpec`):
+
+| Origem | Quando | Ponto | Série |
+|---|---|---|---|
+| `level` | `splitBy` é o nível logo abaixo do eixo | a chave do pai | a linha do nível |
+| `column` | pivô, eixo nas linhas, `splitBy` é coluna | a linha | a célula da coluna |
+| `row` | pivô, eixo nas colunas (o padrão), `splitBy` é linha | a coluna | a célula da linha |
+
+Um nível de distância entre o eixo e a quebra exigiria somar várias linhas num ponto — e somar no
+cliente erra toda medida que não é soma (a média das médias não é a média). Por isso não se aproxima:
+o gráfico sai **sem** a quebra, com os números da tabela, e a validação avisa pelo nome
+(`chart.split.unreachable`; `chart.split.single-series` na rosca). Num resumo ou pivô, o nível que
+não é o último só tem linha com `subtotal: true` — a regra cobra isso também. A lista agrupada traz
+todos os níveis e não precisa.
+
 ### Arquivos-chave
 
 | Arquivo | Papel |
@@ -6964,6 +6984,7 @@ reordenar a única forma de trocar dois de lugar era remover os dois e declará-
 | `domain/schema/report/aggregateRows.ts` | o agregador — **função pura**, fora da Cloud Function |
 | `domain/schema/report/validateReportSpec.ts` | forma (o que o `pack` cobra) + esquema (front e back) |
 | `domain/schema/report/reportCapabilities.ts` | `REPORT_CAPABILITIES` e `deriveReportRequires` |
+| `domain/schema/report/reportChartSplit.ts` | de onde sai a quebra do gráfico — ou por que ela não sai |
 | `domain/schema/report/reportBuckets.ts` | o balde de data, cortado no fuso declarado |
 | `domain/schema/report/reportCsv.ts` | a forma do arquivo, compartilhada com o agendamento futuro |
 | `domain/usecases/plugins/reportModule.ts` | `rewriteReportTables` — a coleção reescrita na instalação |

@@ -348,6 +348,12 @@ export const ReportDesignView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                   onChange={vm.setChartSeries}
                   placeholder={vm.labels.chartSeries}
                 />
+                <SearchSelect
+                  label={vm.labels.chartSplit}
+                  options={vm.chartSplitOptions}
+                  value={vm.chartSplitBy}
+                  onChange={vm.setChartSplitBy}
+                />
                 <Checkbox
                   checked={vm.chartStacked}
                   onChange={vm.setChartStacked}

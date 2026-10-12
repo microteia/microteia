@@ -99,6 +99,8 @@ interface ReportDraft {
   chartKind: string;
   chartCategory: string;
   chartSeries: string[];
+  /** Vazio = sem quebra: uma série por medida. */
+  chartSplitBy: string;
   chartStacked: boolean;
   /** Os filtros que o LEITOR preenche ao abrir. */
   prompts: ReportPrompt[];
@@ -194,6 +196,9 @@ export interface ReportDesignViewModel {
   setChartCategory: (key: string) => void;
   chartSeries: string[];
   setChartSeries: (keys: string[]) => void;
+  chartSplitBy: string;
+  setChartSplitBy: (key: string) => void;
+  chartSplitOptions: { value: string; label: string }[];
   chartStacked: boolean;
   setChartStacked: (stacked: boolean) => void;
 
@@ -257,6 +262,7 @@ export interface ReportDesignViewModel {
     chartHint: string;
     chartCategory: string;
     chartSeries: string;
+    chartSplit: string;
     chartStacked: string;
     noChart: string;
     prompts: string;
@@ -448,6 +454,7 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
         chartKind: editing.spec.presentation?.chart?.kind ?? '',
         chartCategory: editing.spec.presentation?.chart?.category ?? '',
         chartSeries: editing.spec.presentation?.chart?.series ?? [],
+        chartSplitBy: editing.spec.presentation?.chart?.splitBy ?? '',
         chartStacked: editing.spec.presentation?.chart?.stacked === true,
         prompts: editing.spec.presentation?.prompts ?? [],
       }
@@ -467,6 +474,7 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
         chartKind: '',
         chartCategory: '',
         chartSeries: [],
+        chartSplitBy: '',
         chartStacked: false,
         prompts: [],
       }), [editing, label, tableOptions]);
@@ -536,6 +544,7 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
       chartKind: '',
       chartCategory: '',
       chartSeries: [],
+      chartSplitBy: '',
       prompts: [],
     });
     setFilterPath('');
@@ -564,6 +573,8 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
       dimensions: draft.dimensions.filter((one) => one.key !== key),
       columnDimension: draft.columnDimension === key ? '' : draft.columnDimension,
       groupDimensions: draft.groupDimensions.filter((one) => one !== key),
+      chartCategory: draft.chartCategory === key ? '' : draft.chartCategory,
+      chartSplitBy: draft.chartSplitBy === key ? '' : draft.chartSplitBy,
     });
   }, [draft, change]);
 
@@ -690,6 +701,14 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
     [draft, pathOptions],
   );
 
+  const chartSplitOptions = useMemo(
+    () => [
+      { value: '', label: t('design.chart-no-split') },
+      ...designDimensions.map((dimension) => ({ value: dimension.key, label: dimension.label })),
+    ],
+    [designDimensions, t],
+  );
+
   const spec = useMemo<ReportSpec>(() => {
     const valueKeys = draft.measures.map((one) => one.key);
     const columnKeys = draft.shapeKind === 'matrix' && draft.columnDimension
@@ -734,6 +753,7 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
           kind: draft.chartKind,
           ...(draft.chartCategory ? { category: draft.chartCategory } : {}),
           ...(draft.chartSeries.length > 0 ? { series: draft.chartSeries } : {}),
+          ...(draft.chartSplitBy ? { splitBy: draft.chartSplitBy } : {}),
           ...(draft.chartStacked ? { stacked: true } : {}),
         }
       : undefined;
@@ -916,6 +936,9 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
     setChartCategory: (chartCategory) => change({ chartCategory }),
     chartSeries: draft.chartSeries,
     setChartSeries: (chartSeries) => change({ chartSeries }),
+    chartSplitBy: draft.chartSplitBy,
+    setChartSplitBy: (chartSplitBy) => change({ chartSplitBy }),
+    chartSplitOptions,
     chartStacked: draft.chartStacked,
     setChartStacked: (chartStacked) => change({ chartStacked }),
 
@@ -978,6 +1001,7 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
       chartHint: t('design.chart.hint'),
       chartCategory: t('design.chart-category'),
       chartSeries: t('design.chart-series'),
+      chartSplit: t('design.chart-split'),
       chartStacked: t('design.chart-stacked'),
       noChart: t('design.no-chart'),
       prompts: t('design.prompts'),

@@ -473,7 +473,8 @@ const UI_MODULE_DEFS = `declare module '@microteia/ui' {
 
   /**
    * Time-series chart. Each series is a line, with the label and colour decided by whoever owns the
-   * data - the component knows nothing about the chart's subject.
+   * data - the component knows nothing about the chart's subject. With more than one series, a
+   * legend names them by their label.
    */
   export interface ChartSeries {
     key: string;
@@ -503,7 +504,7 @@ const UI_MODULE_DEFS = `declare module '@microteia/ui' {
   /**
    * Bar chart. It knows nothing about what it draws: one series per number, with the label and the
    * colour decided by whoever holds the data. Set stacked to pile the series instead of placing them
-   * side by side.
+   * side by side. With more than one series, a legend names them by their label.
    */
   export interface BarChartProps {
     data: Array<Record<string, string | number>>;
