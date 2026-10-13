@@ -11,7 +11,13 @@ import type {
 import { A_STATE_IS_A_KEY, effectEntity, enforcementOfScope, isSelfLoop } from './behaviorModel';
 import type { MappedTransition } from './behaviorMapping';
 import { DESCRIPTION_REQUIRED_BECAUSE, mapTransition } from './behaviorMapping';
-import { MIN_SCHEDULE_INTERVAL_MINUTES, dateReachedIssues, scheduleIssues } from '../../domain/schema/workflowClock';
+import {
+  MAX_DELAY_DAYS,
+  MIN_SCHEDULE_INTERVAL_MINUTES,
+  dateReachedIssues,
+  parseDelayDuration,
+  scheduleIssues,
+} from '../../domain/schema/workflowClock';
 import type { DomainCatalog } from './catalog';
 import type { DomainEntity, DomainIssue, DomainModel } from './domainModel';
 import type { DomainIssueCode } from './detectors';
@@ -563,6 +569,43 @@ const totalIssues = (
   })];
 };
 
+/**
+ * A espera só existe onde o motor consegue pausar: numa execução que nasceu do barramento de eventos (uma
+ * gravação, uma data) e no nível principal do fluxo. O botão aguarda a resposta; o relógio roda os efeitos
+ * dentro do laço sobre os registros.
+ */
+const waitIssues = (transition: BehaviorTransition): DomainIssue[] => transition.effects
+  .filter((effect) => effect.kind === 'wait')
+  .flatMap((effect): DomainIssue[] => {
+    const at = { entity: transition.entity, field: transition.name };
+    if (transition.trigger.kind === 'user-action' || transition.trigger.kind === 'schedule') {
+      const person = transition.trigger.kind === 'user-action';
+      return [make('behavior.effect.wait-unsupported', 'error', {
+        ...at,
+        message: `"${transition.name}" waits, and it is triggered by ${person
+          ? 'a person: the button waits for the answer, and cannot wait for a pause'
+          : 'a clock: its effects run inside the loop over the records, and a wait only pauses at the top level'}.`,
+        suggestion: person
+          ? 'Split it: the gesture does the passage, and a second transition triggered by the save (entity-event) '
+            + 'waits and does the rest. Or, if the later effects depend on a date of the record, a date-reached trigger.'
+          : 'If the effect is about a date of each record ("two days after it was invoiced"), use a date-reached '
+            + 'trigger with an offset instead of a schedule plus a wait.',
+        howToDeclareException: 'None. The engine refuses the pause there, mid-execution.',
+      })];
+    }
+    if (parseDelayDuration(effect.duration) === null) {
+      return [make('behavior.effect.wait-invalid', 'error', {
+        ...at,
+        message: `"${transition.name}" waits "${effect.duration ?? ''}", which is not a duration like 30m, 4h or 2d (at most `
+          + `${MAX_DELAY_DAYS} days).`,
+        suggestion: '{ kind: "wait", duration: "2d" } — and remember the effects after it see the record as it was at the '
+          + 'passage. When they depend on the state NOW ("if it is still open"), the rule is a date-reached trigger.',
+        howToDeclareException: 'None.',
+      })];
+    }
+    return [];
+  });
+
 const transitionIssues = (
   behavior: BehaviorModel,
   handles: ReadonlyMap<string, BehaviorEntityHandle>,
@@ -606,6 +649,8 @@ const transitionIssues = (
         howToDeclareException: 'None.',
       }));
     }
+
+    issues.push(...waitIssues(transition));
 
     if (transition.trigger.kind === 'date-reached') {
       const declared = [...handle.fields.entries()].filter(([, one]) => one.type === 'date').map(([key]) => key);

@@ -56,6 +56,7 @@ export const EFFECT_KINDS = [
   'total',
   'notify',
   'call-automation',
+  'wait',
 ] as const;
 export type EffectKind = (typeof EFFECT_KINDS)[number];
 
@@ -171,6 +172,11 @@ export interface BehaviorEffect {
   aggregation?: DomainAggregation;
   /** `call-automation`: o nome da outra transição chamada. */
   target?: string;
+  /**
+   * `wait`: quanto esperar antes dos efeitos SEGUINTES (`30m`, `4h`, `2d`). Os anteriores rodam na hora. Os
+   * seguintes veem o registro como estava na passagem — a espera não reconfere o estado.
+   */
+  duration?: string;
 }
 
 export interface BehaviorTransition {
@@ -381,6 +387,7 @@ const readEffect = (raw: unknown, name: string, issues: DomainIssue[]): Behavior
   if (str(raw.field) !== undefined) effect.field = str(raw.field) as string;
   if (str(raw.value) !== undefined) effect.value = str(raw.value) as string;
   if (str(raw.target) !== undefined) effect.target = str(raw.target) as string;
+  if (str(raw.duration) !== undefined) effect.duration = str(raw.duration) as string;
   if (isRecord(raw.aggregation)) {
     const from = str(raw.aggregation.from);
     const via = str(raw.aggregation.via);

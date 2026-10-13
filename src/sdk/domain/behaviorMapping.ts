@@ -180,6 +180,17 @@ export const BEHAVIOR_MECHANISMS: BehaviorMechanism[] = [
     supported: true,
   },
   {
+    concern: 'effect',
+    declares: 'wait',
+    mechanism: 'the wait step: the run pauses there and continues later, in the same run, with the effects after it. '
+      + 'Only on a save or a date trigger — a button cannot wait, and a schedule runs its effects inside a loop. The '
+      + 'effects after it see the record as it was at the passage: the wait does not re-check the state',
+    declaredAs: "a top-level step { stepDefinitionId: 'delay', configuration: { duration } }, in the position of the "
+      + 'effect; a guard moves into the workflow condition so the wait stays at the top level',
+    stepIds: ['delay'],
+    supported: true,
+  },
+  {
     concern: 'invariant',
     declares: "scope 'field'",
     mechanism: "the field's own rule — evaluated as the person types AND on the write path, which throws",
@@ -256,6 +267,7 @@ const EFFECT_STEPS: Record<EffectKind, string[]> = {
   total: [],
   notify: ['notify'],
   'call-automation': ['call-workflow'],
+  wait: ['delay'],
 };
 
 export const stepsOfEffect = (effect: BehaviorEffect): string[] => EFFECT_STEPS[effect.kind];
@@ -344,7 +356,11 @@ export const mapTransition = (
   collection: string,
 ): MappedTransition => {
   const trigger = transition.trigger;
-  const guardSteps = transition.guard ? [CONTROL_STEP_TYPES[0]] : [];
+  // Com espera, a guarda vai para a condição do fluxo: dentro de um nó de Condição a espera ficaria num
+  // ramo, e só o nível principal pausa. É equivalente, porque a guarda só lê o registro em mãos.
+  const waits = transition.effects.some((effect) => effect.kind === 'wait');
+  const guardSteps = transition.guard && !waits ? [CONTROL_STEP_TYPES[0]] : [];
+  const guardClause = waits && transition.guard ? ` and (${transition.guard.expression})` : '';
   const effectSteps = transition.effects.flatMap(stepsOfEffect);
   const deletes = trigger.kind === 'entity-event' && trigger.event === 'deleted';
   // Numa exclusão não há documento em que gravar o estado novo: o `upsert` que estava aqui
@@ -387,7 +403,7 @@ export const mapTransition = (
       ...permission,
       eventName: `${collection}.${trigger.event}`,
       describable: DESCRIPTION_REQUIRED_EVENTS.includes(`${collection}.${trigger.event}`),
-      workflowCondition: `${stateField} == "${transition.from}"`,
+      workflowCondition: `${stateField} == "${transition.from}"${guardClause}`,
       ...(note === undefined ? {} : { conditionNote: note }),
       steps,
       fromCheck: {
@@ -411,7 +427,7 @@ export const mapTransition = (
       eventName: `${collection}.${DATE_REACHED_ACTION}`,
       dateReached: { field: trigger.field, offset: trigger.offset, ...(trigger.at === undefined ? {} : { at: trigger.at }) },
       describable: false,
-      workflowCondition: `${stateField} == "${transition.from}"`,
+      workflowCondition: `${stateField} == "${transition.from}"${guardClause}`,
       steps,
       fromCheck: { where: 'workflow-condition', expression: `${stateField} == "${transition.from}"` },
       supported: true,

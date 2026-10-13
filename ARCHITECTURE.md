@@ -5624,8 +5624,20 @@ vira `{ eventName: '<coleção>.dateReached', dateReached }`, com o `from` na co
 registro, como numa gravação. A diferença para o `schedule` é a que decide qual usar: o relógio pergunta
 "que horas são?" e precisa CONSULTAR os registros; a data pergunta "este registro chegou ao dia?" e o kernel
 entrega cada registro devido. `validate_domain_model` confere que `field` é um campo `date` da entidade
-(`behavior.transition.date-reached-invalid`). A espera (`delay`) segue sem vocabulário no modelo, e a lacuna
-está registrada em `coverage.test.ts`.
+(`behavior.transition.date-reached-invalid`).
+
+A espera entra no modelo como EFEITO, na ordem: `effects: [..., { kind: 'wait', duration: '2d' }, ...]` vira o
+passo `delay` naquela posição — o que vem antes roda na passagem, o que vem depois roda após a espera. Duas
+consequências da tradução, ambas por causa da regra do motor (só o nível principal pausa):
+
+- havendo espera, a GUARDA vai para a condição do fluxo (`<from> and (<guarda>)`), e não para um nó de
+  Condição — dentro de um ramo a espera não pausaria. É equivalente, porque a guarda só lê o registro;
+- a espera é recusada (`behavior.effect.wait-unsupported`) no gatilho de botão (a ação aguarda a resposta) e
+  no de horário (os efeitos rodam dentro do laço).
+
+Os efeitos depois da espera veem o registro como ele estava na passagem: a espera não reconfere o estado.
+Uma regra que depende do estado de AGORA ("dois dias depois, se ainda estiver aberta") é o gatilho
+`date-reached`, que olha o registro no dia — e é o que a validação sugere.
 
 | Arquivo | Papel |
 |---|---|

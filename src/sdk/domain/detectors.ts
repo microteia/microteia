@@ -81,6 +81,8 @@ export const DOMAIN_ISSUE_CODES = [
 
   'behavior.effect.self-trigger-loop',
   'behavior.effect.total-not-an-aggregation',
+  'behavior.effect.wait-unsupported',
+  'behavior.effect.wait-invalid',
 
   'behavior.invariant.cross-record',
   'behavior.invariant.uniqueness-undeclared',
@@ -202,6 +204,8 @@ export const DETECTORS: Record<DomainIssueCode, Detector> = {
   'behavior.guard.needs-other-records': { severity: 'error', summary: 'A guard that has to read other records; a condition reads only the one in hand.' },
 
   'behavior.effect.self-trigger-loop': { severity: 'error', summary: 'An effect writing the field that fires its own trigger, with nothing to end the cascade.' },
+  'behavior.effect.wait-unsupported': { severity: 'error', summary: 'A wait on a transition a person triggers, or a clock: the engine cannot pause there.' },
+  'behavior.effect.wait-invalid': { severity: 'error', summary: 'A wait whose duration is not 30m / 4h / 2d, or longer than the engine allows.' },
   'behavior.effect.total-not-an-aggregation': { severity: 'error', summary: 'A total written by a step or an expression instead of declared as an aggregation.' },
 
   'behavior.invariant.cross-record': { severity: 'error', summary: 'An invariant that has to compare records by expression; only a declared key compares records here.' },

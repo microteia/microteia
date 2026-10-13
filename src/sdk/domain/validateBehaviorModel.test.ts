@@ -488,6 +488,65 @@ describe('quando uma data do registro chega — o gatilho date-reached', () => {
   });
 });
 
+describe('esperar no meio da passagem — o efeito wait', () => {
+  const waiting = (patch: Partial<BehaviorTransition>) => withBehavior((behavior) => replaceTransition(behavior, 'invoice', {
+    trigger: { kind: 'entity-event', event: 'saved' },
+    effects: [
+      { kind: 'create-record', entity: 'FinancialEntry', field: 'amount', value: 'total' },
+      { kind: 'wait', duration: '2d' },
+      { kind: 'notify' },
+    ],
+    ...patch,
+  }));
+
+  const mapped = (model: DomainModel) => check(model).transitions.find((one) => one.transition.name === 'invoice');
+
+  it('vira o passo delay na posição do efeito: o antes roda na hora, o depois depois da espera', () => {
+    const result = check(waiting({}));
+    expect(codes(result.issues).filter((code) => code.startsWith('behavior.effect.wait'))).toEqual([]);
+    expect(mapped(waiting({}))?.steps).toEqual(['upsert', 'upsert', 'delay', 'notify']);
+  });
+
+  it('com guarda, a guarda vai para a condição do fluxo e a espera fica no nível principal', () => {
+    const transition = mapped(waiting({ guard: { expression: 'total > 0' } }));
+    expect(transition?.steps).not.toContain('Condition');
+    expect(transition?.workflowCondition).toBe('status == "confirmed" and (total > 0)');
+  });
+
+  it('sem espera, a guarda continua sendo o nó de condição', () => {
+    const transition = mapped(withBehavior((behavior) => replaceTransition(behavior, 'invoice', {
+      trigger: { kind: 'entity-event', event: 'saved' },
+      guard: { expression: 'total > 0' },
+    })));
+    expect(transition?.steps[0]).toBe('Condition');
+    expect(transition?.workflowCondition).toBe('status == "confirmed"');
+  });
+
+  it('recusa a espera numa passagem de botão e numa de relógio, dizendo o caminho', () => {
+    for (const trigger of [
+      { kind: 'user-action', action: 'invoice-sale' },
+      { kind: 'schedule', when: '0 5 * * *' },
+    ] as BehaviorTransition['trigger'][]) {
+      const issue = check(waiting({ trigger })).issues.find((one) => one.code === 'behavior.effect.wait-unsupported');
+      expect(issue, trigger.kind).toBeDefined();
+    }
+  });
+
+  it('aceita a espera no gatilho de data', () => {
+    const result = check(waiting({ trigger: { kind: 'date-reached', field: 'soldAt', offset: '+1d' } }));
+    expect(codes(result.issues)).not.toContain('behavior.effect.wait-unsupported');
+  });
+
+  it('recusa a duração que o motor não lê', () => {
+    const model = withBehavior((behavior) => replaceTransition(behavior, 'invoice', {
+      trigger: { kind: 'entity-event', event: 'saved' },
+      effects: [{ kind: 'wait', duration: 'dois dias' }],
+    }));
+    const issue = check(model).issues.find((one) => one.code === 'behavior.effect.wait-invalid');
+    expect(issue?.message).toContain('"dois dias"');
+  });
+});
+
 describe('a transição sobre uma entidade que ninguém modelou', () => {
   it('pega a transição e o efeito que apontam para o vazio', () => {
     const result = check(withBehavior((behavior) => ({

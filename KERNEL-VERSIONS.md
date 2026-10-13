@@ -18,6 +18,10 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.95.0] — 2026-10-12
+
+- feat(sdk/domain): the behaviour model gains the `wait` effect (`EFFECT_KINDS`), `{ kind: 'wait', duration }`. `mapTransition` emits the `delay` step at the effect's position; when a transition waits, its guard moves into the workflow condition (`<from> and (<guard>)`) instead of a `Condition` node, so the wait stays at the top level. `validate_domain_model` refuses a wait on a `user-action` or `schedule` transition (`behavior.effect.wait-unsupported`) and a duration the engine does not read (`behavior.effect.wait-invalid`). `BEHAVIOR_MECHANISMS` and AUTHORING.md §8.0.1 describe it, including that the effects after a wait see the record as it was at the passage. `delay` leaves the coverage gaps. No `KERNEL_VERSION` change: authoring only.
+
 #### [9.94.0] — 2026-10-12
 
 - feat(sdk/domain): the behaviour model gains `trigger: { kind: 'date-reached', field, offset, at? }` (`TRIGGER_KINDS`). `mapTransition` translates it into a `<collection>.dateReached` workflow with `dateReached` and the `from` in the workflow condition — the payload is the record, as on a save. `validate_domain_model` refuses a `field` that is not a `date` field of the entity, an offset that is not whole days and a malformed time (`behavior.transition.date-reached-invalid`), and treats it like the clock where a permission or a blocking invariant needs a person. `BEHAVIOR_MECHANISMS`, the JSON schema of the model and AUTHORING.md §8.0.1 describe it; `dateReached` leaves the coverage gaps. No `KERNEL_VERSION` change: authoring only.

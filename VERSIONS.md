@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.95.0] — 2026-10-12
+
+- O assistente que transforma a descrição de um negócio em extensão passa a entender esperas no meio de uma regra, como "ao faturar, criar o lançamento e, dois dias depois, avisar o cliente", e as transforma em automações com o passo "Esperar".
+
 #### [9.94.0] — 2026-10-12
 
 - O assistente que transforma a descrição de um negócio em extensão passa a entender regras como "avisar três dias antes do vencimento" ou "marcar como atrasado no dia seguinte ao prazo", e as transforma diretamente em automações do tipo "Quando uma data chega".

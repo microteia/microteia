@@ -1031,6 +1031,11 @@ Read the refusals as answers, not as gaps to route around:
   \`<collection>.dateReached\` workflow: the kernel finds the records that are due, each one arrives as the
   event, once per record and per date, and a changed date fires again. Reach for \`schedule\` only when the
   rule really is about the clock ("every Monday, close the week"), not about a date of the record.
+- **Waiting is an effect, in order.** \`effects: [create-record, { kind: 'wait', duration: '2d' }, notify]\` runs the
+  first effect at the passage and the last one two days later, in the same run. It is accepted on a save or a
+  date trigger, and refused on a button (it waits for the answer) and on a schedule (its effects run inside a
+  loop). The effects after the wait see the record AS IT WAS at the passage: "two days later, if it is still
+  open, charge" is not a wait — it is \`date-reached\` on the date, with the state in the condition.
 - **Uniqueness is DECLARED, never computed.** It is the one rule that compares a record against the others, and
   the one you must not write as an expression: a field \`validate\` and a \`validate-object\` step both see a single
   record and never query, and a workflow on \`<collection>.saved\` finds the duplicate only after it exists — two
