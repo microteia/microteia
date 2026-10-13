@@ -8,7 +8,10 @@ import {
   computeFieldValues,
   deriveFieldValues,
   formatAndValidateRecord,
+  tableMentionsBusinessDays,
 } from './recordRules';
+import { businessCalendarOf, createBusinessCalendarSet } from './time/businessDays';
+import { withAmbientBusinessCalendars } from './time/businessDaysGate';
 import { BR_FIELD_RULE_PRESETS } from '../../plugins/marketplace/brasil';
 
 const field = (overrides: Partial<FieldDefinition> & Pick<FieldDefinition, 'key' | 'label'>): FieldDefinition => ({
@@ -478,5 +481,69 @@ describe('formatAndValidateRecord — transparência', () => {
     const outcome = formatAndValidateRecord(ctx, 'personTypes', data);
     expect(outcome.data).toEqual(data);
     expect(outcome.issues).toHaveLength(0);
+  });
+});
+
+const businessDayScreens: SchemaScreen[] = [
+  {
+    id: 'deadlines',
+    titleSingular: 'Deadline',
+    titleFieldKey: 'title',
+    fields: [
+      field({ key: 'title', label: 'Title' }),
+      field({ key: 'start', label: 'Start', type: 'date' }),
+      field({ key: 'calendars', label: 'Calendars' }),
+      field({ key: 'due', label: 'Due', logic: { compute: 'addBusinessDays(start, 1, calendars)' } }),
+      field({ key: 'note', label: 'Note', logic: { validate: 'isBusinessDay(start, calendars) ? "" : "start on a business day"' } }),
+    ],
+  },
+];
+const businessDayCtx = createSchemaContext(businessDayScreens);
+
+const national = createBusinessCalendarSet([
+  businessCalendarOf('cal-1', { key: 'national', weekend: [0, 6], years: { '2026': ['2026-04-03'] } }),
+]);
+
+describe('formatAndValidateRecord — contas de dias úteis', () => {
+  it('computa o prazo pelos calendários do gate', () => {
+    const outcome = withAmbientBusinessCalendars(national, () =>
+      formatAndValidateRecord(businessDayCtx, 'deadlines', { start: '2026-04-02', calendars: 'national' }),
+    );
+    expect(outcome.data.due).toBe('2026-04-06');
+    expect(outcome.issues).toEqual([]);
+  });
+
+  it('a recusa NÃO é engolida: vira pendência que bloqueia o save, nomeando o calendário', () => {
+    const outcome = withAmbientBusinessCalendars(national, () =>
+      formatAndValidateRecord(businessDayCtx, 'deadlines', { start: '2026-04-02', calendars: 'state' }),
+    );
+    expect(outcome.data.due).toBeUndefined();
+    expect(outcome.issues).toEqual([
+      {
+        path: 'due',
+        label: 'Due',
+        error: '@core.records/business-days.error.not-found',
+        errorParams: { calendar: 'state' },
+      },
+      {
+        path: 'note',
+        label: 'Note',
+        error: '@core.records/business-days.error.not-found',
+        errorParams: { calendar: 'state' },
+      },
+    ]);
+  });
+
+  it('sem extensão de calendários, a recusa é "indisponível" — nunca o prazo sem os feriados', () => {
+    const outcome = formatAndValidateRecord(businessDayCtx, 'deadlines', { start: '2026-04-02', calendars: 'national' });
+    expect(outcome.issues.map((issue) => issue.error)).toEqual([
+      '@core.records/business-days.error.unavailable',
+      '@core.records/business-days.error.unavailable',
+    ]);
+  });
+
+  it('a tabela diz se cita uma conta — é o que decide se o servidor lê os calendários', () => {
+    expect(tableMentionsBusinessDays(businessDayCtx, 'deadlines')).toBe(true);
+    expect(tableMentionsBusinessDays(computeCtx, 'itens')).toBe(false);
   });
 });

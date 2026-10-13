@@ -22,6 +22,10 @@
 - fix(command): what was broken, and what it did to whoever hit it.
 -->
 
+#### [2.28.0] — 2026-10-13
+
+- feat(examples): the Console ships `business-days` as authoring source — a collection the kernel reads without knowing its name (`time.business.calendar`), and a code view that edits data no field type describes.
+
 #### [2.27.0] — 2026-10-13
 
 - feat(examples): the Console ships `document-example` as authoring source — a `document.template` contribution (Markdown, with `{{#each}}`/`{{#if}}` and a child-record `dataset`) over two screens addressed by `sourceId`.

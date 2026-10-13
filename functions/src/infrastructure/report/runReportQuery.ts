@@ -1,5 +1,7 @@
 import { requirePermission } from '../handlers/shared/requirePermission';
 import { resolveMapping } from '../../domain/engine/InputMapping';
+import { businessCalendarsFor } from '../../domain/services/businessCalendarScope';
+import { mentionsBusinessDays } from '../../domain/schema/time/businessDays';
 import type { WorkflowContext } from '../../domain/entities/WorkflowContext';
 import type { SchemaContext } from '../../domain/schema/pathResolver';
 import { resolveQueryTable } from '../../domain/schema/querySpec';
@@ -155,6 +157,11 @@ export const runReportQuery = async ({
     permissions: context.actor?.permissions,
     now,
     timeZone: context.services.timeZone,
+    businessCalendars: await businessCalendarsFor(
+      context.services,
+      context.execution.tenantId,
+      mentionsBusinessDays(spec.dataset.includeWhen),
+    ),
   });
   if (!filtered.ok) {
     return { ok: false, error: filtered.error, errorParams: filtered.errorParams, issues };

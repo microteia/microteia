@@ -10,6 +10,7 @@
 // ═══════════════════════════════════════════════════════════════════════════════
 
 import { evaluateFieldExpression, extractFieldExpressionPaths } from '../fieldExpression';
+import { isBusinessDaysError, type BusinessCalendarSet } from '../time/businessDays';
 import { getValueAtPath, parsePath } from '../pathResolver';
 import type { ReportSpec } from './reportSpec';
 
@@ -31,6 +32,8 @@ export interface ReportRowFilterInput {
   now?: Date;
   /** O fuso em que `today()` diz que dia é — o do escritório. Ver `i18n/timeZone.ts`. */
   timeZone?: string;
+  /** Os calendários de dias úteis, quando o filtro conta dias úteis. Ver `time/businessDays.ts`. */
+  businessCalendars?: BusinessCalendarSet | null;
 }
 
 export type ReportRowFilterOutcome =
@@ -136,9 +139,11 @@ export const filterReportRows = (input: ReportRowFilterInput): ReportRowFilterOu
         permissions: input.permissions,
         at: input.now,
         timeZone: input.timeZone,
+        businessCalendars: input.businessCalendars,
       });
       if (answer) kept.push(row);
     } catch (caught) {
+      if (isBusinessDaysError(caught)) return { ok: false, error: caught.message, errorParams: caught.params };
       return {
         ok: false,
         error: '@core.reports/filter.failed',

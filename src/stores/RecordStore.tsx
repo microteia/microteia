@@ -24,6 +24,17 @@ export const RecordStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   const [recordsByCollection, setRecordsByCollection] = useState<Record<string, EntityRecord[]>>({});
   const [isLoading, setIsLoading] = useState(false);
+  /**
+   * Muda quando os calendários de dias úteis mudam. Um campo derivado é avaliado na LEITURA, dentro
+   * do repositório, e um registro já lido não se recalcula sozinho: reassinar é o que faz o prazo
+   * derivado enxergar o dia que o escritório acabou de marcar.
+   */
+  const [derivationRevision, setDerivationRevision] = useState(0);
+
+  useEffect(
+    () => storeEvents.on(StoreEvents.BUSINESS_CALENDARS_UPDATED, () => setDerivationRevision((revision) => revision + 1)),
+    [],
+  );
 
   const uc = useMemo(() => ({
     subscribe: makeSubscribeToRecordsUseCase(recordRepository),
@@ -69,7 +80,7 @@ export const RecordStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
       ),
     );
     return () => unsubscribers.forEach((unsub) => unsub());
-  }, [currentTenant, collections, uc.subscribe]);
+  }, [currentTenant, collections, uc.subscribe, derivationRevision]);
 
   const allRecords = useMemo(
     () => Object.values(recordsByCollection).flat(),

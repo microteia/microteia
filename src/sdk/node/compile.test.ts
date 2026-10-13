@@ -22,6 +22,7 @@ const TEMPLATES: [string, string][] = [
   ['brasil.json', 'brasilPlugin'],
   ['locale-pt-br.json', 'localePtBrPlugin'],
   ['calendar.json', 'calendarPlugin'],
+  ['business-days.json', 'businessDaysPlugin'],
   ['dashboard.json', 'dashboardPlugin'],
   ['news.json', 'newsPlugin'],
 ];

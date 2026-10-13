@@ -1,3 +1,5 @@
+import { mentionsBusinessDays, type BusinessCalendarSet } from '../schema/time/businessDays';
+import { tableMentionsBusinessDays } from '../schema/recordRules';
 import { evaluateFieldExpression } from '../schema/fieldExpression';
 import { configuredLocale, setAmbientLocale } from '../schema/i18n/localeGate';
 import type { SchemaContext } from '../schema/pathResolver';
@@ -45,6 +47,8 @@ export interface RenderDocumentDeps {
   /** O idioma e o fuso do ESCRITÓRIO: o documento é dele, e `formatMoney(valor)` fala a língua dele. */
   localeOf(tenantId: string): Promise<string>;
   timeZoneOf(tenantId: string): Promise<string>;
+  /** Os calendários de dias úteis, lidos só quando o modelo ou um campo derivado conta dias úteis. */
+  businessCalendarsOf?(tenantId: string): Promise<BusinessCalendarSet | null>;
 }
 
 export interface RenderDocumentUseCase {
@@ -66,6 +70,7 @@ const evaluatorFor = (
   locale: string,
   timeZone: string,
   permissions: readonly string[] | undefined,
+  businessCalendars: BusinessCalendarSet | null | undefined,
 ): TemplateEvaluator => (expr, scope) => {
   const previous = configuredLocale();
   setAmbientLocale(locale);
@@ -75,6 +80,7 @@ const evaluatorFor = (
       data: scope,
       entity: collection,
       timeZone,
+      ...(businessCalendars !== undefined ? { businessCalendars } : {}),
       ...(permissions ? { permissions } : {}),
     });
   } finally {
@@ -132,21 +138,43 @@ export const makeRenderDocumentUseCase = (deps: RenderDocumentDeps): RenderDocum
       ...parseTemplate(fileNameTemplate).nodes,
     ]);
 
-    const [locale, timeZone] = await Promise.all([
+    const countsBusinessDays =
+      mentionsBusinessDays(templateText) ||
+      mentionsBusinessDays(fileNameTemplate) ||
+      tableMentionsBusinessDays(schema, collection) ||
+      (template.datasets ?? []).some((dataset) => tableMentionsBusinessDays(schema, dataset.from));
+    const [locale, timeZone, businessCalendars] = await Promise.all([
       deps.localeOf(request.tenantId),
       deps.timeZoneOf(request.tenantId),
+      countsBusinessDays
+        ? (deps.businessCalendarsOf?.(request.tenantId) ?? Promise.resolve(null))
+        : Promise.resolve(undefined),
     ]);
 
     const datasetNames = new Set((template.datasets ?? []).map((dataset) => dataset.name));
     const recordPaths = paths.root.filter((path) => !datasetNames.has(path.split('.')[0]));
-    const read = await deps.records.record(request.tenantId, collection, request.recordId, recordPaths, timeZone);
+    const read = await deps.records.record(
+      request.tenantId,
+      collection,
+      request.recordId,
+      recordPaths,
+      timeZone,
+      businessCalendars,
+    );
     if (!read.ok) return failure(read.error, read.errorParams);
     if (!read.value) return failure('@core.records/record.not-found');
 
     const scope: Record<string, unknown> = { ...read.value };
     for (const dataset of template.datasets ?? []) {
       const loopPaths = paths.loops.get(dataset.name) ?? [];
-      const children = await deps.records.children(request.tenantId, dataset, request.recordId, loopPaths, timeZone);
+      const children = await deps.records.children(
+        request.tenantId,
+        dataset,
+        request.recordId,
+        loopPaths,
+        timeZone,
+        businessCalendars,
+      );
       if (!children.ok) {
         return failure('@core.documents/render.dataset-invalid', {
           name: dataset.name,
@@ -156,7 +184,7 @@ export const makeRenderDocumentUseCase = (deps: RenderDocumentDeps): RenderDocum
       scope[dataset.name] = children.value;
     }
 
-    const evaluate = evaluatorFor(collection, locale, timeZone, request.permissions);
+    const evaluate = evaluatorFor(collection, locale, timeZone, request.permissions, businessCalendars);
 
     let rendered;
     try {

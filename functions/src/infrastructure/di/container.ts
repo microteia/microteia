@@ -14,6 +14,7 @@ import { UserProfileLookupService } from '../../data/services/UserProfileLookupS
 import { FkNameEnricherService } from '../../data/services/FkNameEnricherService';
 import { PermissionCatalogCache } from '../../data/services/PermissionCatalogCache';
 import { InstalledExtensionCache } from '../../data/services/InstalledExtensionCache';
+import { BusinessCalendarLoader } from '../../data/services/BusinessCalendarLoader';
 import { makeMaterializeMemberPermissionsUseCase } from '../../domain/usecases/MaterializeMemberPermissionsUseCase';
 import type { MaterializeMemberPermissionsUseCase } from '../../domain/usecases/MaterializeMemberPermissionsUseCase';
 import { makeCreateAuditLogUseCase } from '../../domain/usecases/CreateAuditLogUseCase';
@@ -132,6 +133,7 @@ class DIContainer {
 
   private agentAuthRequestRepo?: IAgentAuthRequestRepository;
   private installedExtensionCache?: InstalledExtensionCache;
+  private businessCalendarLoader?: BusinessCalendarLoader;
   private addTenantMemberUC?: AddTenantMemberUseCase;
   private removeTenantMemberUC?: RemoveTenantMemberUseCase;
   private userRepo?: IUserRepository;
@@ -287,6 +289,15 @@ class DIContainer {
     return this.installedExtensionCache;
   }
 
+  getBusinessCalendarLoader(): BusinessCalendarLoader {
+    if (!this.businessCalendarLoader) {
+      this.businessCalendarLoader = new BusinessCalendarLoader(getDb(), (tenantId) =>
+        this.getInstalledExtensionCache().businessCalendarCollections(tenantId),
+      );
+    }
+    return this.businessCalendarLoader;
+  }
+
   getAgentGrantRepository(): IAgentGrantRepository {
     if (!this.agentGrantRepo) {
       this.agentGrantRepo = new FirebaseAgentGrantRepository(getDb());
@@ -385,6 +396,7 @@ class DIContainer {
       },
       now: () => new Date(),
       timeZoneOf: tenantTimeZone,
+      businessCalendarsOf: (tenantId) => this.getBusinessCalendarLoader().load(tenantId),
     };
   }
 
@@ -420,6 +432,7 @@ class DIContainer {
         mutationRepository: new FirestoreWorkflowMutationRepository(getDb()),
         logger: { warn: (message: string) => console.warn(`[aggregate] ${message}`) },
         timeZoneOf: (tenantId: string) => tenantTimeZone(tenantId),
+        businessCalendarsOf: (tenantId: string) => this.getBusinessCalendarLoader().load(tenantId),
       };
     }
     return this.aggregateRecomputeDeps;
@@ -603,6 +616,7 @@ class DIContainer {
         // O documento é do ESCRITÓRIO: o idioma é o dele, não o de quem apertou o botão.
         localeOf: async (tenantId) => preferredLocale({}, await this.getTenantSettingsRepository().getTenantValues(tenantId)),
         timeZoneOf: (tenantId) => tenantTimeZone(tenantId),
+        businessCalendarsOf: (tenantId) => this.getBusinessCalendarLoader().load(tenantId),
       });
     }
     return this.renderDocumentUC;

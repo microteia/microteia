@@ -1,0 +1,276 @@
+{
+  "manifest": {
+    "id": "com.microteia.business-days",
+    "version": "1.0.0",
+    "kernel": "^2.37.0",
+    "name": "@com.microteia.business-days/package.name",
+    "description": "@com.microteia.business-days/package.description",
+    "category": "@com.microteia.business-days/package.category",
+    "publisher": {
+      "name": "Microteia"
+    },
+    "dependencies": {
+      "core.ui": "^1.0.0",
+      "core.data": "^1.0.0"
+    },
+    "contributes": [
+      {
+        "point": "i18n.messages",
+        "id": "en.com.microteia.business-days",
+        "apiVersion": "1.0.0",
+        "metadata": {
+          "locale": "en",
+          "namespace": "com.microteia.business-days",
+          "messages": {
+            "package.name": "Business days",
+            "package.category": "Productivity",
+            "package.description": "Business-day calendars: the office marks, year by year, the days that are not business days, and every formula counts with them.",
+            "package.summary": "Keep one or more business-day calendars — national, regional, of a single client or court — and mark, on a grid of the twelve months, the days that are not business days. Formulas count with the union of the calendars a record names: a day that is not a business day in any of them is not one in the count.",
+            "nav.business-days": "Business days",
+            "page.business-days": "Business days",
+            "screen.singular": "Business-day calendar",
+            "screen.plural": "Business-day calendars",
+            "section.calendar": "Calendar",
+            "field.name": "Name",
+            "field.name.placeholder": "How the office calls this calendar",
+            "field.key": "Key",
+            "field.key.placeholder": "What a formula writes to name it, e.g. national",
+            "overview.body": "A **calendar** has the weekdays that are never business days and, for each year, the days that are not business days either. You mark them on a grid of the twelve months — click a day, or drag across a period.\n\nA formula names one or more calendars and counts with all of them: `addBusinessDays(start, 15, [\"national\", \"regional\"])`. A day that is not a business day in ANY of them is skipped. A year that was never registered is not counted as a year without holidays: the count stops and says which calendar lacks which year.",
+            "overview.adds": "Adds",
+            "overview.adds.value": "A \"Business days\" item in the menu",
+            "overview.formulas": "Formulas",
+            "overview.formulas.value": "addBusinessDays, businessDaysBetween, isBusinessDay, nextBusinessDay",
+            "overview.years": "Years",
+            "overview.years.value": "Each calendar keeps its own years; copying a year starts the next one",
+            "overview.banner": "Copying a year repeats the same day and month. Holidays that move every year must be reviewed after copying.",
+            "view.screen-missing": "The \"Business-day calendars\" screen was not found. Install the extension to enable it.",
+            "view.calendars": "Calendars",
+            "view.empty": "No calendar yet. Create the first one to start marking days.",
+            "view.new-calendar": "New calendar",
+            "view.new-calendar.name": "New calendar",
+            "view.select": "Select a calendar on the left to mark its days.",
+            "view.name": "Name",
+            "view.key": "Key",
+            "view.key.hint": "Formulas name the calendar by this key.",
+            "view.key.invalid": "The key uses letters, digits, \"-\" and \"_\", starting with a letter or digit.",
+            "view.key.taken": "Another calendar already uses the key \"{key}\".",
+            "view.weekend": "Never business days",
+            "view.years": "Years",
+            "view.no-years": "This calendar has no year yet. Add one to start marking days.",
+            "view.add-year": "Add {year}",
+            "view.copy-year": "Copy to {year}",
+            "view.copy-year.done": "The days of {from} were copied to {to}. Review the holidays that move every year.",
+            "view.remove-year": "Remove {year}",
+            "view.remove-year.title": "Remove year {year}?",
+            "view.remove-year.message": "Counts that reach {year} will stop and say the year is missing.",
+            "view.marked": "{count} days marked in {year}",
+            "view.legend.off": "Not a business day",
+            "view.legend.weekend": "Weekday never business",
+            "view.save": "Save",
+            "view.saved": "Calendar saved.",
+            "view.discard": "Discard changes",
+            "view.delete": "Delete calendar",
+            "view.delete.title": "Delete calendar \"{name}\"?",
+            "view.delete.message": "Formulas that name it will stop and say the calendar does not exist.",
+            "view.delete.confirm": "Delete",
+            "view.remove.confirm": "Remove",
+            "view.cancel": "Cancel",
+            "view.failed": "The calendar could not be saved."
+          }
+        }
+      },
+      {
+        "point": "i18n.messages",
+        "id": "pt-br.com.microteia.business-days",
+        "apiVersion": "1.0.0",
+        "metadata": {
+          "locale": "pt-BR",
+          "namespace": "com.microteia.business-days",
+          "messages": {
+            "package.name": "Dias úteis",
+            "package.category": "Produtividade",
+            "package.description": "Calendários de dias úteis: o escritório marca, ano a ano, os dias que não são úteis, e toda fórmula conta com eles.",
+            "package.summary": "Mantenha um ou mais calendários de dias úteis — nacional, regional, de um cliente ou de um tribunal — e marque, numa grade dos doze meses, os dias que não são úteis. As fórmulas contam com a união dos calendários que o registro informa: um dia que não é útil em qualquer um deles não é útil na conta.",
+            "nav.business-days": "Dias úteis",
+            "page.business-days": "Dias úteis",
+            "screen.singular": "Calendário de dias úteis",
+            "screen.plural": "Calendários de dias úteis",
+            "section.calendar": "Calendário",
+            "field.name": "Nome",
+            "field.name.placeholder": "Como o escritório chama este calendário",
+            "field.key": "Chave",
+            "field.key.placeholder": "O que uma fórmula escreve para citá-lo, ex.: nacional",
+            "overview.body": "Um **calendário** tem os dias da semana que nunca são úteis e, para cada ano, os dias que também não são. Você os marca numa grade dos doze meses — clique num dia, ou arraste por um período.\n\nUma fórmula cita um ou mais calendários e conta com todos eles: `addBusinessDays(inicio, 15, [\"nacional\", \"estadual\"])`. Um dia que não é útil em QUALQUER um deles é pulado. Um ano que nunca foi cadastrado não conta como ano sem feriados: a conta para e diz qual calendário não tem qual ano.",
+            "overview.adds": "Acrescenta",
+            "overview.adds.value": "Um item \"Dias úteis\" no menu",
+            "overview.formulas": "Fórmulas",
+            "overview.formulas.value": "addBusinessDays, businessDaysBetween, isBusinessDay, nextBusinessDay",
+            "overview.years": "Anos",
+            "overview.years.value": "Cada calendário guarda os próprios anos; copiar um ano começa o seguinte",
+            "overview.banner": "Copiar um ano repete o mesmo dia e mês. Feriados que mudam de data todo ano precisam ser revisados depois da cópia.",
+            "view.screen-missing": "Tela \"Calendários de dias úteis\" não encontrada. Instale a extensão para ativá-la.",
+            "view.calendars": "Calendários",
+            "view.empty": "Nenhum calendário ainda. Crie o primeiro para começar a marcar os dias.",
+            "view.new-calendar": "Novo calendário",
+            "view.new-calendar.name": "Novo calendário",
+            "view.select": "Selecione um calendário à esquerda para marcar os dias dele.",
+            "view.name": "Nome",
+            "view.key": "Chave",
+            "view.key.hint": "As fórmulas citam o calendário por esta chave.",
+            "view.key.invalid": "A chave usa letras, números, \"-\" e \"_\", começando por letra ou número.",
+            "view.key.taken": "Outro calendário já usa a chave \"{key}\".",
+            "view.weekend": "Nunca são úteis",
+            "view.years": "Anos",
+            "view.no-years": "Este calendário ainda não tem nenhum ano. Acrescente um para começar a marcar os dias.",
+            "view.add-year": "Acrescentar {year}",
+            "view.copy-year": "Copiar para {year}",
+            "view.copy-year.done": "Os dias de {from} foram copiados para {to}. Revise os feriados que mudam de data todo ano.",
+            "view.remove-year": "Remover {year}",
+            "view.remove-year.title": "Remover o ano {year}?",
+            "view.remove-year.message": "As contas que chegarem a {year} vão parar e dizer que o ano não está cadastrado.",
+            "view.marked": "{count} dias marcados em {year}",
+            "view.legend.off": "Dia não útil",
+            "view.legend.weekend": "Dia da semana nunca útil",
+            "view.save": "Salvar",
+            "view.saved": "Calendário salvo.",
+            "view.discard": "Descartar alterações",
+            "view.delete": "Excluir calendário",
+            "view.delete.title": "Excluir o calendário \"{name}\"?",
+            "view.delete.message": "As fórmulas que o citam vão parar e dizer que o calendário não existe.",
+            "view.delete.confirm": "Excluir",
+            "view.remove.confirm": "Remover",
+            "view.cancel": "Cancelar",
+            "view.failed": "Não foi possível salvar o calendário."
+          }
+        }
+      },
+      {
+        "point": "time.business.calendar",
+        "id": "business-calendars",
+        "apiVersion": "1.0.0",
+        "metadata": {
+          "collection": "businessCalendars"
+        }
+      },
+      {
+        "point": "ui.nav",
+        "id": "business-days",
+        "apiVersion": "1.0.0",
+        "metadata": {
+          "key": "business-days",
+          "label": "@com.microteia.business-days/nav.business-days",
+          "icon": "calendar",
+          "order": 21
+        }
+      },
+      {
+        "point": "ui.page",
+        "id": "business-days",
+        "apiVersion": "1.0.0",
+        "metadata": {
+          "key": "business-days",
+          "title": "@com.microteia.business-days/page.business-days",
+          "icon": "calendar"
+        },
+        "impl": {
+          "kind": "code",
+          "key": "business-days"
+        }
+      }
+    ]
+  },
+  "summary": "@com.microteia.business-days/package.summary",
+  "overview": {
+    "type": "stack",
+    "gap": "lg",
+    "children": [
+      {
+        "type": "markdown",
+        "content": "@com.microteia.business-days/overview.body"
+      },
+      {
+        "type": "keyValue",
+        "items": [
+          {
+            "label": "@com.microteia.business-days/overview.adds",
+            "value": "@com.microteia.business-days/overview.adds.value"
+          },
+          {
+            "label": "@com.microteia.business-days/overview.formulas",
+            "value": "@com.microteia.business-days/overview.formulas.value"
+          },
+          {
+            "label": "@com.microteia.business-days/overview.years",
+            "value": "@com.microteia.business-days/overview.years.value"
+          }
+        ]
+      },
+      {
+        "type": "banner",
+        "message": "@com.microteia.business-days/overview.banner",
+        "variant": "info"
+      }
+    ]
+  },
+  "workflows": [],
+  "screens": [
+    {
+      "key": "businessCalendars",
+      "sourceId": "microteia:business-calendars",
+      "sourceRev": 1,
+      "dataCollection": "businessCalendars",
+      "titleSingular": "@com.microteia.business-days/screen.singular",
+      "titlePlural": "@com.microteia.business-days/screen.plural",
+      "icon": "calendar",
+      "fields": [
+        {
+          "key": "name",
+          "label": "@com.microteia.business-days/field.name",
+          "type": "text",
+          "required": true,
+          "order": 0,
+          "section": "@com.microteia.business-days/section.calendar",
+          "placeholder": "@com.microteia.business-days/field.name.placeholder"
+        },
+        {
+          "key": "key",
+          "label": "@com.microteia.business-days/field.key",
+          "type": "text",
+          "required": true,
+          "order": 1,
+          "section": "@com.microteia.business-days/section.calendar",
+          "placeholder": "@com.microteia.business-days/field.key.placeholder"
+        }
+      ],
+      "titleFieldKey": "name",
+      "subtitleFieldKey": "key",
+      "keys": [
+        {
+          "name": "key",
+          "kind": "unique",
+          "fields": [
+            "key"
+          ],
+          "normalize": {
+            "caseInsensitive": true
+          }
+        }
+      ],
+      "hasNotes": false,
+      "hasDocuments": false,
+      "hasTags": false,
+      "eventPrefix": "businessCalendar",
+      "listActions": [],
+      "sidebarOrder": 0,
+      "hideFromSidebar": true
+    }
+  ],
+  "views": [
+    {
+      "key": "business-days",
+      "title": "@com.microteia.business-days/page.business-days",
+      "icon": "calendar",
+      "source": "// --- BusinessDays.view.tsx ---\nimport { Button, ConfirmModal, InfoBanner, Input, Spinner } from '@microteia/ui';\n\n\n\n/**\n * The business-day calendars, in four files: this one renders, `BusinessDays.viewmodel.tsx` holds the\n * draft and the gestures, `BusinessDays.styles.tsx` holds the styles and `BusinessDays.rules.ts` holds\n * what a test can call.\n *\n * On the left, the calendars. On the right, the selected one: its name and key, the weekdays that are\n * never business days, its years, and the twelve months of the chosen year — click a day to mark it,\n * drag across a period to mark it all.\n */\nexport default function BusinessDaysView() {\n  const vm = useBusinessDaysViewModel();\n\n  if (vm.screenMissing) {\n    return (\n      <S.Missing>\n        <InfoBanner message={vm.t('view.screen-missing')} variant=\"warning\" />\n      </S.Missing>\n    );\n  }\n\n  if (vm.isLoading) return <Spinner />;\n\n  return (\n    <S.Layout>\n      <S.Panel>\n        <S.PanelTitle>{vm.t('view.calendars')}</S.PanelTitle>\n        {vm.calendars.length === 0 ? <S.Muted>{vm.t('view.empty')}</S.Muted> : null}\n        <S.CalendarList>\n          {vm.calendars.map((calendar) => (\n            <S.CalendarItem\n              key={calendar.id}\n              type=\"button\"\n              $active={calendar.id === vm.activeId}\n              onClick={() => vm.selectCalendar(calendar.id)}\n            >\n              <S.CalendarName>{calendar.name}</S.CalendarName>\n              <S.CalendarKey>{calendar.key}</S.CalendarKey>\n            </S.CalendarItem>\n          ))}\n        </S.CalendarList>\n        {vm.canCreate ? (\n          <Button variant=\"secondary\" size=\"sm\" onClick={vm.createCalendar}>\n            {vm.t('view.new-calendar')}\n          </Button>\n        ) : null}\n      </S.Panel>\n\n      {vm.hasCalendar ? (\n        <S.Panel>\n          <S.FieldRow>\n            <S.Field>\n              {vm.t('view.name')}\n              <Input value={vm.draft.name} disabled={!vm.canEdit} onChange={(event) => vm.setName(event.target.value)} />\n            </S.Field>\n            <S.Field>\n              {vm.t('view.key')}\n              <Input value={vm.draft.key} disabled={!vm.canEdit} onChange={(event) => vm.setKey(event.target.value)} />\n              <S.Hint>{vm.t('view.key.hint')}</S.Hint>\n            </S.Field>\n          </S.FieldRow>\n\n          <S.Row>\n            <S.RowLabel>{vm.t('view.weekend')}</S.RowLabel>\n            {vm.weekdayNames.map((name, weekday) => (\n              <S.Chip\n                key={name}\n                type=\"button\"\n                $active={vm.draft.weekend.includes(weekday)}\n                disabled={!vm.canEdit}\n                onClick={() => vm.toggleWeekday(weekday)}\n              >\n                {name}\n              </S.Chip>\n            ))}\n          </S.Row>\n\n          <S.Row>\n            <S.RowLabel>{vm.t('view.years')}</S.RowLabel>\n            {vm.years.map((year) => (\n              <S.Chip key={year} type=\"button\" $active={year === vm.activeYear} onClick={() => vm.selectYear(year)}>\n                {year}\n              </S.Chip>\n            ))}\n            {vm.canEdit ? (\n              <S.Chip type=\"button\" onClick={vm.addYear}>\n                {vm.t('view.add-year', { year: vm.yearToAdd })}\n              </S.Chip>\n            ) : null}\n            {vm.canEdit && vm.canCopy ? (\n              <S.Chip type=\"button\" onClick={vm.copyToNextYear}>\n                {vm.t('view.copy-year', { year: vm.copyTarget })}\n              </S.Chip>\n            ) : null}\n            {vm.canEdit && vm.activeYear ? (\n              <S.Chip type=\"button\" onClick={() => vm.askRemoveYear(vm.activeYear ?? '')}>\n                {vm.t('view.remove-year', { year: vm.activeYear })}\n              </S.Chip>\n            ) : null}\n          </S.Row>\n\n          {vm.activeYear ? (\n            <>\n              <S.Row>\n                <S.Muted>{vm.t('view.marked', { count: vm.markedCount, year: vm.activeYear })}</S.Muted>\n                <S.Spacer />\n                <S.LegendItem>\n                  <S.LegendSwatch $state=\"off\" />\n                  {vm.t('view.legend.off')}\n                </S.LegendItem>\n                <S.LegendItem>\n                  <S.LegendSwatch $state=\"weekend\" />\n                  {vm.t('view.legend.weekend')}\n                </S.LegendItem>\n              </S.Row>\n              <S.Months>\n                {vm.months.map((month) => (\n                  <S.Month key={month.month}>\n                    <S.MonthName>{month.name}</S.MonthName>\n                    <S.Week>\n                      {vm.weekdayInitials.map((initial, index) => (\n                        <S.WeekdayHead key={index}>{initial}</S.WeekdayHead>\n                      ))}\n                    </S.Week>\n                    {month.rows.map((row, rowIndex) => (\n                      <S.Week key={rowIndex}>\n                        {row.map((cell, cellIndex) =>\n                          cell ? (\n                            <S.Day\n                              key={cell.day}\n                              type=\"button\"\n                              $state={cell.state}\n                              $editable={vm.canEdit}\n                              onPointerDown={() => vm.onDayDown(cell)}\n                              onPointerEnter={() => vm.onDayEnter(cell)}\n                            >\n                              {cell.label}\n                            </S.Day>\n                          ) : (\n                            <S.EmptyDay key={cellIndex} />\n                          ),\n                        )}\n                      </S.Week>\n                    ))}\n                  </S.Month>\n                ))}\n              </S.Months>\n            </>\n          ) : (\n            <InfoBanner message={vm.t('view.no-years')} variant=\"info\" />\n          )}\n\n          <S.Row>\n            {vm.canDelete ? (\n              <Button variant=\"ghost\" size=\"sm\" onClick={vm.askDelete}>\n                {vm.t('view.delete')}\n              </Button>\n            ) : null}\n            <S.Spacer />\n            {vm.isDirty ? (\n              <Button variant=\"ghost\" size=\"sm\" onClick={vm.discard}>\n                {vm.t('view.discard')}\n              </Button>\n            ) : null}\n            {vm.canEdit ? (\n              <Button variant=\"primary\" size=\"sm\" disabled={!vm.isDirty} $isLoading={vm.saving} onClick={vm.save}>\n                {vm.t('view.save')}\n              </Button>\n            ) : null}\n          </S.Row>\n        </S.Panel>\n      ) : (\n        <S.Panel>\n          <S.Muted>{vm.t('view.select')}</S.Muted>\n        </S.Panel>\n      )}\n\n      <ConfirmModal\n        isOpen={vm.confirmation !== null}\n        title={vm.confirmTitle}\n        message={vm.confirmMessage}\n        confirmLabel={vm.confirmLabel}\n        cancelLabel={vm.t('view.cancel')}\n        variant=\"danger\"\n        onConfirm={vm.confirm}\n        onCancel={vm.cancelConfirmation}\n      />\n    </S.Layout>\n  );\n}\n\n// --- BusinessDays.viewmodel.tsx ---\nimport { useCallback, useEffect, useMemo, useState } from 'react';\nimport { useCan, useCreateRecord, useDeleteRecord, useEntity, useNotify, useUpdateRecord } from '@microteia/data';\nimport { useLocale, useT } from '@microteia/i18n';\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nconst SOURCE_ID = 'microteia:business-calendars';\n\ntype DayState = 'off' | 'weekend' | 'business';\n\ninterface DayCell {\n  day: string;\n  label: number;\n  state: DayState;\n}\n\ninterface MonthView {\n  month: number;\n  name: string;\n  rows: (DayCell | null)[][];\n}\n\ntype Confirmation = { kind: 'delete' } | { kind: 'remove-year'; year: string } | null;\n\n/**\n * The state, the data and the gestures — and no JSX.\n *\n * What the grid edits is a DRAFT per calendar, kept apart from the stored record: marking days is a\n * dozen clicks, and saving each one would hand the formulas a calendar that is half marked. The draft\n * is derived — the stored record unless the person changed something — so nothing has to be copied\n * into state by an effect.\n */\nexport const useBusinessDaysViewModel = () => {\n  const t = useT('com.microteia.business-days');\n  const { locale } = useLocale();\n  const entity = useEntity(SOURCE_ID);\n  const createRecord = useCreateRecord();\n  const updateRecord = useUpdateRecord();\n  const deleteRecord = useDeleteRecord();\n  const notify = useNotify();\n  const can = useCan();\n\n  const collection = entity.collection;\n  const records = entity.records;\n\n  const [selectedId, setSelectedId] = useState<string | null>(null);\n  const [edits, setEdits] = useState<Record<string, CalendarDraft>>({});\n  const [yearChoice, setYearChoice] = useState<string | null>(null);\n  const [painting, setPainting] = useState<boolean | null>(null);\n  const [confirmation, setConfirmation] = useState<Confirmation>(null);\n  const [saving, setSaving] = useState(false);\n  const [currentYear] = useState(() => new Date().getFullYear());\n\n  const calendars = useMemo(\n    () =>\n      records\n        .map((record) => ({ id: record.id as string, name: String(record.name || record.key || record.id), key: String(record.key ?? '') }))\n        .sort((left, right) => left.name.localeCompare(right.name, locale)),\n    [records, locale],\n  );\n\n  const activeId = selectedId && calendars.some((calendar) => calendar.id === selectedId)\n    ? selectedId\n    : calendars[0]?.id ?? null;\n  const record = useMemo(() => records.find((item) => item.id === activeId) ?? null, [records, activeId]);\n  const stored = useMemo(() => draftOf(record), [record]);\n  const pending = activeId ? edits[activeId] : undefined;\n  const draft = pending ?? stored;\n  const isDirty = !!pending && !sameDraft(pending, stored);\n\n  const years = yearsOf(draft);\n  const activeYear =\n    yearChoice && draft.years[yearChoice]\n      ? yearChoice\n      : years.includes(String(currentYear))\n        ? String(currentYear)\n        : years[years.length - 1] ?? null;\n\n  const canEdit = !!collection && can(`${collection}.update`);\n  const canCreate = !!collection && can(`${collection}.create`);\n  const canDelete = !!collection && can(`${collection}.delete`);\n\n  const weekdayNames = useMemo(() => weekdayNamesOf(locale, 'short'), [locale]);\n  const weekdayInitials = useMemo(() => weekdayNamesOf(locale, 'narrow'), [locale]);\n\n  const months = useMemo((): MonthView[] => {\n    if (!activeYear) return [];\n    const year = Number(activeYear);\n    const marked = new Set(draft.years[activeYear] ?? []);\n    const weekend = new Set(draft.weekend);\n    return Array.from({ length: 12 }, (_, index) => ({\n      month: index + 1,\n      name: monthNameOf(locale, year, index + 1),\n      rows: monthGridOf(year, index + 1).map((row) =>\n        row.map((day) => {\n          if (!day) return null;\n          const state: DayState = marked.has(day) ? 'off' : weekend.has(weekdayOf(day)) ? 'weekend' : 'business';\n          return { day, label: Number(day.slice(8)), state };\n        }),\n      ),\n    }));\n  }, [activeYear, draft, locale]);\n\n  const markedCount = activeYear ? (draft.years[activeYear] ?? []).length : 0;\n  const lastYear = years[years.length - 1];\n  const yearToAdd = lastYear ? Number(lastYear) + 1 : currentYear;\n  const copyTarget = activeYear ? String(Number(activeYear) + 1) : null;\n  const canCopy = !!copyTarget && !draft.years[copyTarget];\n\n  const edit = useCallback(\n    (change: (current: CalendarDraft) => CalendarDraft) => {\n      if (!activeId) return;\n      setEdits((previous) => ({ ...previous, [activeId]: change(previous[activeId] ?? stored) }));\n    },\n    [activeId, stored],\n  );\n\n  useEffect(() => {\n    const stop = () => setPainting(null);\n    window.addEventListener('pointerup', stop);\n    return () => window.removeEventListener('pointerup', stop);\n  }, []);\n\n  const onDayDown = useCallback(\n    (cell: DayCell) => {\n      if (!canEdit || cell.state === 'weekend') return;\n      const mark = cell.state !== 'off';\n      edit((current) => withDay(current, cell.day, mark));\n      setPainting(mark);\n    },\n    [canEdit, edit],\n  );\n\n  const onDayEnter = useCallback(\n    (cell: DayCell) => {\n      if (painting === null || cell.state === 'weekend') return;\n      edit((current) => withDay(current, cell.day, painting));\n    },\n    [painting, edit],\n  );\n\n  const toggleWeekday = useCallback(\n    (weekday: number) => {\n      if (!canEdit) return;\n      edit((current) => withWeekday(current, weekday, !current.weekend.includes(weekday)));\n    },\n    [canEdit, edit],\n  );\n\n  const setName = useCallback((name: string) => edit((current) => ({ ...current, name })), [edit]);\n  const setKey = useCallback((key: string) => edit((current) => ({ ...current, key })), [edit]);\n\n  const selectCalendar = useCallback((id: string) => {\n    setSelectedId(id);\n    setYearChoice(null);\n  }, []);\n\n  const addYear = useCallback(() => {\n    edit((current) => withYear(current, yearToAdd));\n    setYearChoice(String(yearToAdd));\n  }, [edit, yearToAdd]);\n\n  const copyToNextYear = useCallback(() => {\n    if (!activeYear || !copyTarget) return;\n    edit((current) => copyYear(current, activeYear, copyTarget));\n    setYearChoice(copyTarget);\n    notify(t('view.copy-year.done', { from: activeYear, to: copyTarget }), 'info');\n  }, [activeYear, copyTarget, edit, notify, t]);\n\n  const discard = useCallback(() => {\n    if (!activeId) return;\n    setEdits((previous) => {\n      const next = { ...previous };\n      delete next[activeId];\n      return next;\n    });\n  }, [activeId]);\n\n  const otherKeys = useCallback(\n    (id: string | null) => calendars.filter((calendar) => calendar.id !== id).map((calendar) => calendar.key),\n    [calendars],\n  );\n\n  const save = useCallback(async () => {\n    if (!collection || !activeId) return;\n    const key = draft.key.trim();\n    if (!isValidKey(key)) {\n      notify(t('view.key.invalid'), 'error');\n      return;\n    }\n    if (isKeyTaken(key, otherKeys(activeId))) {\n      notify(t('view.key.taken', { key }), 'error');\n      return;\n    }\n    setSaving(true);\n    try {\n      await updateRecord(collection, activeId, {\n        name: draft.name.trim(),\n        key,\n        weekend: draft.weekend,\n        years: draft.years,\n      });\n      discard();\n      notify(t('view.saved'), 'success');\n    } catch {\n      notify(t('view.failed'), 'error');\n    } finally {\n      setSaving(false);\n    }\n  }, [collection, activeId, draft, otherKeys, updateRecord, discard, notify, t]);\n\n  const createCalendar = useCallback(async () => {\n    if (!collection) return;\n    const name = t('view.new-calendar.name');\n    try {\n      const created = await createRecord(collection, {\n        name,\n        key: freeKey(name, otherKeys(null)),\n        weekend: [0, 6],\n        years: { [String(currentYear)]: [] },\n      });\n      if (created?.id) selectCalendar(created.id);\n    } catch {\n      notify(t('view.failed'), 'error');\n    }\n  }, [collection, createRecord, currentYear, notify, otherKeys, selectCalendar, t]);\n\n  const askDelete = useCallback(() => setConfirmation({ kind: 'delete' }), []);\n  const askRemoveYear = useCallback((year: string) => setConfirmation({ kind: 'remove-year', year }), []);\n  const cancelConfirmation = useCallback(() => setConfirmation(null), []);\n\n  const confirm = useCallback(async () => {\n    const current = confirmation;\n    setConfirmation(null);\n    if (!current) return;\n    if (current.kind === 'remove-year') {\n      edit((draftNow) => withoutYear(draftNow, current.year));\n      setYearChoice(null);\n      return;\n    }\n    if (!collection || !activeId) return;\n    try {\n      await deleteRecord(collection, activeId);\n      discard();\n      setSelectedId(null);\n    } catch {\n      notify(t('view.failed'), 'error');\n    }\n  }, [confirmation, edit, collection, activeId, deleteRecord, discard, notify, t]);\n\n  const confirmTitle =\n    confirmation?.kind === 'delete'\n      ? t('view.delete.title', { name: draft.name || draft.key })\n      : confirmation?.kind === 'remove-year'\n        ? t('view.remove-year.title', { year: confirmation.year })\n        : '';\n  const confirmMessage =\n    confirmation?.kind === 'delete'\n      ? t('view.delete.message')\n      : confirmation?.kind === 'remove-year'\n        ? t('view.remove-year.message', { year: confirmation.year })\n        : '';\n  const confirmLabel = confirmation?.kind === 'delete' ? t('view.delete.confirm') : t('view.remove.confirm');\n\n  return {\n    t,\n    isLoading: entity.isLoading,\n    screenMissing: !entity.isLoading && !entity.screen,\n    calendars,\n    activeId,\n    selectCalendar,\n    hasCalendar: !!record,\n    draft,\n    isDirty,\n    saving,\n    canEdit,\n    canCreate,\n    canDelete,\n    weekdayNames,\n    weekdayInitials,\n    years,\n    activeYear,\n    selectYear: setYearChoice,\n    yearToAdd,\n    copyTarget,\n    canCopy,\n    months,\n    markedCount,\n    onDayDown,\n    onDayEnter,\n    toggleWeekday,\n    setName,\n    setKey,\n    addYear,\n    copyToNextYear,\n    save,\n    discard,\n    createCalendar,\n    askDelete,\n    askRemoveYear,\n    confirmation,\n    confirmTitle,\n    confirmMessage,\n    confirmLabel,\n    confirm,\n    cancelConfirmation,\n  };\n};\n\n// --- BusinessDays.styles.tsx ---\nimport { styled } from 'styled-components';\n\n/**\n * Every colour, size, space and radius comes from the theme. A day that is not a business day uses\n * the theme's danger pair, a weekday that is never one uses the muted text — the grid has to read the\n * same in a light and a dark theme.\n */\nconst Missing = styled.div`\n  padding: ${({ theme }) => theme.spacing.lg};\n`;\n\nconst Layout = styled.div`\n  display: grid;\n  grid-template-columns: minmax(200px, 260px) 1fr;\n  gap: ${({ theme }) => theme.spacing.lg};\n  align-items: start;\n\n  @media (max-width: 900px) {\n    grid-template-columns: 1fr;\n  }\n`;\n\nconst Panel = styled.div`\n  background: ${({ theme }) => theme.colors.surface};\n  border: 1px solid ${({ theme }) => theme.colors.border};\n  border-radius: ${({ theme }) => theme.borderRadius.lg};\n  padding: ${({ theme }) => theme.spacing.md};\n  display: flex;\n  flex-direction: column;\n  gap: ${({ theme }) => theme.spacing.md};\n  min-width: 0;\n`;\n\nconst PanelTitle = styled.div`\n  font-size: ${({ theme }) => theme.fontSizes.sm};\n  font-weight: 600;\n  color: ${({ theme }) => theme.colors.textSecondary};\n`;\n\nconst CalendarList = styled.div`\n  display: flex;\n  flex-direction: column;\n  gap: ${({ theme }) => theme.spacing.xs};\n`;\n\nconst CalendarItem = styled.button<{ $active?: boolean }>`\n  display: flex;\n  flex-direction: column;\n  align-items: flex-start;\n  gap: 2px;\n  width: 100%;\n  text-align: left;\n  padding: ${({ theme }) => theme.spacing.sm} ${({ theme }) => theme.spacing.md};\n  border-radius: ${({ theme }) => theme.borderRadius.md};\n  border: 1px solid ${({ $active, theme }) => ($active ? theme.colors.primary : 'transparent')};\n  background: ${({ $active, theme }) => ($active ? theme.colors.primaryLight : 'transparent')};\n  color: ${({ theme }) => theme.colors.text};\n  cursor: pointer;\n\n  &:hover {\n    background: ${({ $active, theme }) => ($active ? theme.colors.primaryLight : theme.colors.cardHover)};\n  }\n`;\n\nconst CalendarName = styled.span`\n  font-size: ${({ theme }) => theme.fontSizes.sm};\n  font-weight: 600;\n`;\n\nconst CalendarKey = styled.span`\n  font-family: ${({ theme }) => theme.fonts.mono};\n  font-size: ${({ theme }) => theme.fontSizes.xs};\n  color: ${({ theme }) => theme.colors.textMuted};\n`;\n\nconst Muted = styled.div`\n  font-size: ${({ theme }) => theme.fontSizes.sm};\n  color: ${({ theme }) => theme.colors.textMuted};\n`;\n\nconst FieldRow = styled.div`\n  display: grid;\n  grid-template-columns: 1fr 1fr;\n  gap: ${({ theme }) => theme.spacing.md};\n\n  @media (max-width: 640px) {\n    grid-template-columns: 1fr;\n  }\n`;\n\nconst Field = styled.label`\n  display: flex;\n  flex-direction: column;\n  gap: ${({ theme }) => theme.spacing.xs};\n  font-size: ${({ theme }) => theme.fontSizes.xs};\n  color: ${({ theme }) => theme.colors.textSecondary};\n`;\n\nconst Hint = styled.span`\n  font-size: ${({ theme }) => theme.fontSizes.xs};\n  color: ${({ theme }) => theme.colors.textMuted};\n`;\n\nconst Row = styled.div`\n  display: flex;\n  flex-wrap: wrap;\n  align-items: center;\n  gap: ${({ theme }) => theme.spacing.sm};\n`;\n\nconst RowLabel = styled.span`\n  font-size: ${({ theme }) => theme.fontSizes.xs};\n  color: ${({ theme }) => theme.colors.textSecondary};\n  margin-right: ${({ theme }) => theme.spacing.xs};\n`;\n\nconst Chip = styled.button<{ $active?: boolean }>`\n  padding: ${({ theme }) => theme.spacing.xs} ${({ theme }) => theme.spacing.sm};\n  border-radius: ${({ theme }) => theme.borderRadius.md};\n  border: 1px solid ${({ $active, theme }) => ($active ? theme.colors.primary : theme.colors.border)};\n  background: ${({ $active, theme }) => ($active ? theme.colors.primary : 'transparent')};\n  color: ${({ $active, theme }) => ($active ? theme.colors.white : theme.colors.text)};\n  font-size: ${({ theme }) => theme.fontSizes.xs};\n  cursor: pointer;\n\n  &:disabled {\n    cursor: default;\n    opacity: 0.6;\n  }\n`;\n\nconst Spacer = styled.div`\n  flex: 1;\n`;\n\nconst Months = styled.div`\n  display: grid;\n  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));\n  gap: ${({ theme }) => theme.spacing.md};\n  user-select: none;\n`;\n\nconst Month = styled.div`\n  border: 1px solid ${({ theme }) => theme.colors.borderSubtle};\n  border-radius: ${({ theme }) => theme.borderRadius.md};\n  padding: ${({ theme }) => theme.spacing.sm};\n`;\n\nconst MonthName = styled.div`\n  font-size: ${({ theme }) => theme.fontSizes.sm};\n  font-weight: 600;\n  text-transform: capitalize;\n  color: ${({ theme }) => theme.colors.text};\n  margin-bottom: ${({ theme }) => theme.spacing.xs};\n`;\n\nconst Week = styled.div`\n  display: grid;\n  grid-template-columns: repeat(7, 1fr);\n  gap: 2px;\n`;\n\nconst WeekdayHead = styled.div`\n  text-align: center;\n  font-size: ${({ theme }) => theme.fontSizes.xs};\n  color: ${({ theme }) => theme.colors.textMuted};\n`;\n\nconst Day = styled.button<{ $state: 'off' | 'weekend' | 'business'; $editable?: boolean }>`\n  aspect-ratio: 1;\n  border: none;\n  border-radius: ${({ theme }) => theme.borderRadius.sm};\n  font-size: ${({ theme }) => theme.fontSizes.xs};\n  touch-action: none;\n  cursor: ${({ $state, $editable }) => ($editable && $state !== 'weekend' ? 'pointer' : 'default')};\n  background: ${({ $state, theme }) =>\n    $state === 'off' ? theme.colors.danger : $state === 'weekend' ? theme.colors.surfaceHover : 'transparent'};\n  color: ${({ $state, theme }) =>\n    $state === 'off' ? theme.colors.white : $state === 'weekend' ? theme.colors.textMuted : theme.colors.text};\n\n  &:hover {\n    outline: ${({ $state, $editable, theme }) =>\n      $editable && $state !== 'weekend' ? `1px solid ${theme.colors.primary}` : 'none'};\n  }\n`;\n\nconst EmptyDay = styled.div``;\n\nconst LegendSwatch = styled.span<{ $state: 'off' | 'weekend' }>`\n  display: inline-block;\n  width: 12px;\n  height: 12px;\n  border-radius: ${({ theme }) => theme.borderRadius.sm};\n  background: ${({ $state, theme }) => ($state === 'off' ? theme.colors.danger : theme.colors.surfaceHover)};\n`;\n\nconst LegendItem = styled.span`\n  display: inline-flex;\n  align-items: center;\n  gap: ${({ theme }) => theme.spacing.xs};\n  font-size: ${({ theme }) => theme.fontSizes.xs};\n  color: ${({ theme }) => theme.colors.textSecondary};\n`;\n\nexport const S = {\n  Missing,\n  Layout,\n  Panel,\n  PanelTitle,\n  CalendarList,\n  CalendarItem,\n  CalendarName,\n  CalendarKey,\n  Muted,\n  FieldRow,\n  Field,\n  Hint,\n  Row,\n  RowLabel,\n  Chip,\n  Spacer,\n  Months,\n  Month,\n  MonthName,\n  Week,\n  WeekdayHead,\n  Day,\n  EmptyDay,\n  LegendSwatch,\n  LegendItem,\n};\n\n// --- BusinessDays.rules.ts ---\n/**\n * The grid's rules, outside React: this file imports nothing, which is what lets a test call it.\n *\n * Every day here is a `YYYY-MM-DD` text and every computation is done in UTC: a day is a name, not an\n * instant, and a grid drawn from local midnight would shift a whole column the day the office's\n * daylight-saving rule changes.\n */\n\nexport interface CalendarDraft {\n  name: string;\n  key: string;\n  /** Weekdays that are never business days: 0 = Sunday … 6 = Saturday. */\n  weekend: number[];\n  /** Year (`\"2026\"`) → the days of that year that are not business days. */\n  years: Record<string, string[]>;\n}\n\nconst DAY_PATTERN = /^\\d{4}-\\d{2}-\\d{2}$/;\nconst YEAR_PATTERN = /^\\d{4}$/;\nconst KEY_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_-]*$/;\n\nconst pad = (value: number): string => String(value).padStart(2, '0');\n\nexport const dayText = (year: number, month: number, day: number): string => `${year}-${pad(month)}-${pad(day)}`;\n\nconst utcOf = (day: string): Date => new Date(`${day}T12:00:00.000Z`);\n\nconst isRealDay = (day: string): boolean => DAY_PATTERN.test(day) && utcOf(day).toISOString().slice(0, 10) === day;\n\nexport const weekdayOf = (day: string): number => utcOf(day).getUTCDay();\n\n/**\n * One month as the rows of a week grid starting on Sunday: `null` fills the cells before the first\n * day and after the last one, so every row has seven cells.\n */\nexport const monthGridOf = (year: number, month: number): (string | null)[][] => {\n  const lead = new Date(Date.UTC(year, month - 1, 1)).getUTCDay();\n  const length = new Date(Date.UTC(year, month, 0)).getUTCDate();\n  const cells: (string | null)[] = [\n    ...Array.from({ length: lead }, () => null),\n    ...Array.from({ length }, (_, index) => dayText(year, month, index + 1)),\n  ];\n  while (cells.length % 7 !== 0) cells.push(null);\n  return Array.from({ length: cells.length / 7 }, (_, row) => cells.slice(row * 7, row * 7 + 7));\n};\n\n/** Month and weekday names come from `Intl`, never from a list written by hand. */\nexport const monthNameOf = (locale: string, year: number, month: number): string =>\n  new Intl.DateTimeFormat(locale, { month: 'long', timeZone: 'UTC' }).format(new Date(Date.UTC(year, month - 1, 1, 12)));\n\n/** Sunday first: 2026-01-04 is a Sunday. */\nexport const weekdayNamesOf = (locale: string, width: 'narrow' | 'short'): string[] =>\n  Array.from({ length: 7 }, (_, index) =>\n    new Intl.DateTimeFormat(locale, { weekday: width, timeZone: 'UTC' }).format(utcOf(dayText(2026, 1, 4 + index))),\n  );\n\nconst sortedUnique = (days: string[]): string[] => [...new Set(days)].sort();\n\n/** The stored record → the draft the grid edits. What is malformed is dropped item by item. */\nexport const draftOf = (record: Record<string, unknown> | null | undefined): CalendarDraft => {\n  const weekendRaw = record?.weekend;\n  const weekend = Array.isArray(weekendRaw)\n    ? weekendRaw.map(Number).filter((day) => Number.isInteger(day) && day >= 0 && day <= 6)\n    : [];\n  const years: Record<string, string[]> = {};\n  const yearsRaw = record?.years;\n  if (yearsRaw && typeof yearsRaw === 'object' && !Array.isArray(yearsRaw)) {\n    for (const [year, days] of Object.entries(yearsRaw as Record<string, unknown>)) {\n      if (!YEAR_PATTERN.test(year)) continue;\n      const list = Array.isArray(days) ? days : [];\n      years[year] = sortedUnique(\n        list.filter((day): day is string => typeof day === 'string' && day.startsWith(`${year}-`) && isRealDay(day)),\n      );\n    }\n  }\n  return {\n    name: typeof record?.name === 'string' ? record.name : '',\n    key: typeof record?.key === 'string' ? record.key : '',\n    weekend: [...new Set(weekend)].sort(),\n    years,\n  };\n};\n\nexport const sameDraft = (left: CalendarDraft, right: CalendarDraft): boolean =>\n  JSON.stringify(left) === JSON.stringify(right);\n\nexport const yearsOf = (draft: CalendarDraft): string[] => Object.keys(draft.years).sort();\n\n/** The day marked or unmarked — the only edit the grid makes, by click or by drag. */\nexport const withDay = (draft: CalendarDraft, day: string, marked: boolean): CalendarDraft => {\n  const year = day.slice(0, 4);\n  const current = draft.years[year];\n  if (!current) return draft;\n  const next = marked ? sortedUnique([...current, day]) : current.filter((item) => item !== day);\n  return { ...draft, years: { ...draft.years, [year]: next } };\n};\n\nexport const withWeekday = (draft: CalendarDraft, weekday: number, off: boolean): CalendarDraft => ({\n  ...draft,\n  weekend: off\n    ? [...new Set([...draft.weekend, weekday])].sort()\n    : draft.weekend.filter((item) => item !== weekday),\n});\n\nexport const withYear = (draft: CalendarDraft, year: number): CalendarDraft =>\n  draft.years[String(year)] ? draft : { ...draft, years: { ...draft.years, [String(year)]: [] } };\n\nexport const withoutYear = (draft: CalendarDraft, year: string): CalendarDraft => {\n  const years = { ...draft.years };\n  delete years[year];\n  return { ...draft, years };\n};\n\n/**\n * The next year, as a COPY of this one: same day and month. A day that does not exist in the target\n * year (29 February) is dropped. Holidays that move every year land on the wrong day and are the\n * office's to review — the copy cannot know which ones they are.\n */\nexport const copyYear = (draft: CalendarDraft, from: string, to: string): CalendarDraft => {\n  const days = (draft.years[from] ?? [])\n    .map((day) => `${to}${day.slice(4)}`)\n    .filter(isRealDay);\n  return { ...draft, years: { ...draft.years, [to]: sortedUnique(days) } };\n};\n\nexport const isValidKey = (key: string): boolean => KEY_PATTERN.test(key.trim());\n\n/** A key derived from a name: lower case, accents dropped, anything else becomes `-`. */\nexport const keyFromName = (name: string): string =>\n  name\n    .normalize('NFD')\n    .replace(/[̀-ͯ]/g, '')\n    .toLowerCase()\n    .replace(/[^a-z0-9]+/g, '-')\n    .replace(/^-+|-+$/g, '');\n\n/** A key no other calendar uses, from a base: `calendar`, `calendar-2`, `calendar-3` … */\nexport const freeKey = (base: string, taken: string[]): string => {\n  const root = keyFromName(base) || 'calendar';\n  const used = new Set(taken.map((key) => key.toLowerCase()));\n  if (!used.has(root)) return root;\n  let index = 2;\n  while (used.has(`${root}-${index}`)) index += 1;\n  return `${root}-${index}`;\n};\n\nexport const isKeyTaken = (key: string, others: string[]): boolean =>\n  others.some((other) => other.trim().toLowerCase() === key.trim().toLowerCase());\n"
+    }
+  ]
+}

@@ -78,6 +78,7 @@ const PLUGIN_CATALOG_BY_NS = {
   'com.microteia.agent': { dir: 'marketplace', source: 'agentMessages', ptBr: 'agentMessagesPtBr' },
   'com.microteia.automation-example': { dir: 'marketplace/examples/automation-example', source: 'automationMessages', ptBr: 'automationMessagesPtBr' },
   'com.microteia.calendar': { dir: 'marketplace', source: 'calendarMessages', ptBr: 'calendarMessagesPtBr' },
+  'com.microteia.business-days': { dir: 'marketplace', source: 'businessDaysMessages', ptBr: 'businessDaysMessagesPtBr' },
   'com.microteia.dashboard': { dir: 'marketplace', source: 'dashboardMessages', ptBr: 'dashboardMessagesPtBr' },
   'com.microteia.news': { dir: 'marketplace', source: 'newsMessages', ptBr: 'newsMessagesPtBr' },
   'com.microteia.report-example': { dir: 'marketplace/examples/report-example', source: 'reportMessages', ptBr: 'reportMessagesPtBr' },

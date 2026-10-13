@@ -30,6 +30,15 @@ import {
 import { matchesPermission } from './access/permissionPattern';
 import { currencyForLocale, formatMoneyFor } from './i18n/localeFormat';
 import { NOT_OPERATOR } from './expressionSyntax';
+import {
+  addBusinessDays,
+  businessDaysBetween,
+  isBusinessDay,
+  nextBusinessDay,
+  type BusinessCalendarSet,
+  type BusinessDaysEnvironment,
+} from './time/businessDays';
+import { ambientBusinessCalendars, setAmbientBusinessCalendars } from './time/businessDaysGate';
 
 export interface FieldExprContext {
   value: unknown;
@@ -58,6 +67,12 @@ export interface FieldExprContext {
    * sempre, porque lá o gate de módulo é compartilhado entre escritórios.
    */
   timeZone?: string;
+  /**
+   * Os calendários de dias úteis que `addBusinessDays` e as irmãs contam. Ausente, vale o que o gate
+   * tiver; `null` diz explicitamente "nenhuma extensão declara calendários". Quem avalia no SERVIDOR o
+   * passa sempre que a expressão cita uma das contas — lá o gate é compartilhado entre escritórios.
+   */
+  businessCalendars?: BusinessCalendarSet | null;
 }
 
 const EXPRESSION_OPERATORS = {
@@ -202,6 +217,11 @@ const matchesItem = (item: unknown, search: unknown): boolean => {
 // nome que o `expr-eval` reserva como OPERADOR — `and`/`or` (erro de sintaxe como função) e
 // `not`/`abs`/`ceil`/`floor` (o operador unário resolve antes, deixando órfã qualquer função
 // registrada com esse nome). Todos funcionam pelo built-in, na forma que o operador aceita.
+const businessDaysEnvironment = (): BusinessDaysEnvironment => ({
+  calendars: ambientBusinessCalendars(),
+  timeZone: ambientTimeZone(),
+});
+
 const FIELD_EXPRESSION_FUNCTIONS: Record<string, (...args: unknown[]) => unknown> = {
   if: (condition, whenTrue, whenFalse) => (condition ? whenTrue : whenFalse),
   concat: (...args) => args.map(asText).join(''),
@@ -323,6 +343,16 @@ const FIELD_EXPRESSION_FUNCTIONS: Record<string, (...args: unknown[]) => unknown
     if (!divisor) return null;
     return Math.floor((from.getTime() - to.getTime()) / divisor);
   },
+  /**
+   * As contas de DIAS ÚTEIS. Diferente das vizinhas, elas NÃO são lenientes: uma recusa
+   * (`BusinessDaysError`) nunca vira `null`, porque uma data sem os dias não úteis é uma data errada que
+   * ninguém percebe. Os slots de gravação a transformam em pendência que bloqueia o save.
+   */
+  addBusinessDays: (date, count, calendars) => addBusinessDays(businessDaysEnvironment(), date, count, calendars),
+  businessDaysBetween: (from, to, calendars) =>
+    businessDaysBetween(businessDaysEnvironment(), from, to, calendars),
+  isBusinessDay: (date, calendars) => isBusinessDay(businessDaysEnvironment(), date, calendars),
+  nextBusinessDay: (date, calendars) => nextBusinessDay(businessDaysEnvironment(), date, calendars),
   dayOfWeek: (value) => toDate(value)?.getDay() ?? null,
   isWeekend: (value) => {
     const date = toDate(value);
@@ -409,10 +439,13 @@ export const evaluateFieldExpression = (expr: string, ctx: FieldExprContext): un
   const previousPermissions = ambientPermissions();
   const previousInstant = configuredInstant();
   const previousTimeZone = configuredTimeZone();
+  const previousCalendars = ambientBusinessCalendars();
+  const pushesCalendars = ctx.businessCalendars !== undefined;
   setAmbientEntity(ctx.entity ?? '');
   if (ctx.permissions) setAmbientPermissions(ctx.permissions);
   if (ctx.at) setAmbientInstant(ctx.at);
   if (ctx.timeZone) setAmbientTimeZone(ctx.timeZone);
+  if (pushesCalendars) setAmbientBusinessCalendars(ctx.businessCalendars ?? null);
   try {
     return fieldParser.parse(expr).evaluate(buildScope(ctx) as never);
   } finally {
@@ -420,6 +453,7 @@ export const evaluateFieldExpression = (expr: string, ctx: FieldExprContext): un
     setAmbientPermissions(previousPermissions);
     if (ctx.at) setAmbientInstant(previousInstant);
     if (ctx.timeZone) setAmbientTimeZone(previousTimeZone);
+    if (pushesCalendars) setAmbientBusinessCalendars(previousCalendars);
   }
 };
 

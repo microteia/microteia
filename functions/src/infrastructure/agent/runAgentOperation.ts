@@ -10,9 +10,11 @@ import { ruleIssueParams } from '../../domain/schema/fieldRules';
 import { checkAgentInput } from '../../domain/schema/agent/agentInput';
 import { AGENT_SEARCH_MAX_RESULTS } from '../../domain/schema/agent/agentOps';
 import { searchAuditLog } from './agentAuditLog';
-import { applyDerivedFields } from '../../domain/schema/recordRules';
+import { applyDerivedFields, tableMentionsBusinessDays } from '../../domain/schema/recordRules';
 import { withAmbientTimeZone } from '../../domain/schema/clockGate';
 import { tenantTimeZone } from '../settings/tenantTimeZone';
+import { tenantBusinessCalendars } from '../settings/tenantBusinessCalendars';
+import { withAmbientBusinessCalendars } from '../../domain/schema/time/businessDaysGate';
 import { resolveQueryTable } from '../../domain/schema/querySpec';
 import type { SchemaContext } from '../../domain/schema/screenEntity';
 import { isEmptyRuleValue } from '../../domain/schema/fieldRules';
@@ -260,12 +262,17 @@ export const runAgentOperation = async (
       // O MESMO derive que a busca aplica. Sem ele, o mesmo registro voltaria com campos diferentes
       // por `get_record` e por `search_records` — e o agente concluiria que um deles está errado.
       const timeZone = await tenantTimeZone(session.tenantId, session.userId);
+      const calendars = tableMentionsBusinessDays(schema, asText(input.collection))
+        ? await tenantBusinessCalendars(session.tenantId)
+        : undefined;
       return {
         ok: true,
         value: {
           id,
-          ...withAmbientTimeZone(timeZone, () =>
-            applyDerivedFields(schema, asText(input.collection), record, new Date()),
+          ...withAmbientBusinessCalendars(calendars, () =>
+            withAmbientTimeZone(timeZone, () =>
+              applyDerivedFields(schema, asText(input.collection), record, new Date()),
+            ),
           ),
         },
       };

@@ -7521,6 +7521,97 @@ DERIVADOS das constantes (`TEMPLATE_BLOCKS`, `DOCUMENT_OUTPUTS_BY_FORMAT`, `DOCU
 
 ---
 
+## Dias úteis — a conta é do kernel, os calendários são de uma extensão
+
+Qualquer domínio com prazo conta dia útil — jurídico, fiscal, RH, logística, SLA. A plataforma oferece a
+CONTA; o que cada dia significa ("feriado", "recesso", "tribunal") é palavra de quem o marcou, e não entra
+no kernel nem como opção de lista.
+
+### O modelo — calendário, ano, dia
+
+Um **calendário** é um documento: `key` (o que a fórmula escreve), `name`, `weekend` (dias da semana
+nunca úteis, 0–6) e `years` (ano → dias não úteis daquele ano, `YYYY-MM-DD`). Uma conta recebe um ou mais
+calendários e usa a **UNIÃO**: o dia não útil em qualquer um deles é não útil na conta. É o que deixa o
+escritório manter "nacional", "estadual" e "do tribunal" separados e combiná-los por registro — sem
+dimensões, sem regra de correspondência, sem a plataforma conhecer a hierarquia entre eles.
+
+Foi a alternativa a um desenho com dimensões (`uf`, `city`, `court`) casadas contra um contexto: a união
+de calendários nomeados diz o mesmo com uma regra só, e é o modelo que o escritório já conhecia de uma
+grade de meses.
+
+### Quem é dono de quê
+
+| Peça | Onde | Por quê |
+|---|---|---|
+| A conta (`addBusinessDays`, `businessDaysBetween`, `isBusinessDay`, `nextBusinessDay`) | `domain/schema/time/businessDays.ts` (sincronizado) | roda dentro do avaliador de expressões, nas duas pontas — não há como uma extensão entregá-la |
+| Onde moram os calendários | ponto `time.business.calendar` (dono `core.data`, só metadata) | o kernel não escreve nome de coleção; a extensão declara `{ collection }` |
+| A coleção, a grade, os textos | extensão `com.microteia.business-days` | é dado do escritório e tela de uma extensão agnóstica, como o Calendário |
+
+**Independe do Calendário** (`com.microteia.calendar`). Um é agenda de compromissos; o outro é regra de
+contagem. Se um dia a agenda quiser pintar os dias não úteis, é ela que consome o ponto.
+
+### A conta nunca responde por omissão
+
+Nenhuma extensão declarando calendários, calendários ainda carregando, calendário inexistente, ANO não
+cadastrado, data ou quantidade inválida, nenhum dia útil em 3660 dias: cada caso é `BusinessDaysError`,
+com referência `@core.records/business-days.error.*` e parâmetros. Ano ausente não é "ano sem feriado" —
+é ano que ninguém conferiu. Um ano cadastrado sem dia marcado vale (só o fim de semana não é útil).
+
+E é a **única** falha de expressão que o portão de gravação NÃO engole. As outras são toleradas por
+desenho (validação quebrada não reprova, computado quebrado não grava); esta vira `RuleIssue` em `compute`
+e `validate` e bloqueia o save, porque um prazo calculado sem os feriados é data errada sem sintoma. Em
+`derive` o campo fica vazio; numa automação ou Script, o passo falha com `LocalizedError`; num relatório,
+a execução recusa.
+
+### Semântica — fechada por um invariante
+
+`addBusinessDays(d, n)` é o n-ésimo útil DEPOIS de `d` (antes, se negativo), e `d` nunca conta.
+`businessDaysBetween(a, b)` conta `(a, b]` (e o negativo de `[b, a)` quando `b < a`) — a assimetria é o
+que fecha `businessDaysBetween(d, addBusinessDays(d, n)) == n` para todo `n`, coberto por teste.
+`nextBusinessDay(d)` é `d` se útil, senão o próximo: é o "prorroga" de um prazo em dias corridos. Não há
+objeto de opções — "excluir o dia inicial" e "rolar para frente" são a semântica acima ou composição
+(`nextBusinessDay(addDays(d, 15), ...)`). A aritmética é em dia inteiro UTC; o dia de um instante é o do
+fuso do escritório, como `today()`.
+
+### Como os calendários chegam à conta
+
+A conta é síncrona; os calendários precisam estar em mãos antes. Mesmo molde do fuso (`clockGate.ts`):
+
+| Ponta | Caminho |
+|---|---|
+| Cliente | `BusinessCalendarBridge` lê do `RecordStore` (que já assina toda tela de extensão) as coleções declaradas e empurra em `businessDaysGate.ts`; `loading` até todas responderem. Mudou um calendário → `BUSINESS_CALENDARS_UPDATED` → o `RecordStore` reassina e os derivados se refazem |
+| Servidor | `WorkflowServices.businessCalendars` / `businessCalendarsOf`, par de `timeZone` / `timeZoneOf`; `withAmbientBusinessCalendars` em volta do trecho síncrono |
+
+**No servidor, só lê quem cita.** `mentionsBusinessDays` (sobre a definição do workflow, o Script, o
+`includeWhen`, o modelo de documento) e `tableMentionsBusinessDays` (sobre `compute`/`validate`/`derive`
+da tabela) decidem se a avaliação carrega. A gravação de um registro que não conta dia útil não paga
+leitura nenhuma. Quem carrega é `BusinessCalendarLoader`, a partir de
+`InstalledExtensionCache.businessCalendarCollections` (só extensões LIGADAS), **sem cache entre
+execuções**: um cache por instância não fica sabendo de um dia marcado noutra, e o dia marcado agora
+precisa valer na próxima conta.
+
+### O que fica com o escritório
+
+- **Permissão de leitura.** A coleção segue a regra do curinga: quem não tem `businessCalendars.read`
+  não carrega os calendários no navegador, e a conta recusa para ele (o servidor lê como admin). O
+  perfil que grava prazo precisa da leitura dos calendários.
+- **Feriados móveis.** "Copiar para o próximo ano" repete dia e mês; Carnaval, Sexta-feira Santa e
+  Corpus Christi precisam ser remarcados. A cópia não tem como saber quais são.
+
+### Arquivos-chave
+
+| Arquivo | Papel |
+|---|---|
+| `domain/schema/time/businessDays.ts` | contrato do documento, união, as quatro contas, recusas, `mentionsBusinessDays` |
+| `domain/schema/time/businessDaysGate.ts` | gate ambiente + `withAmbientBusinessCalendars` |
+| `domain/schema/time/extensionPoints.ts` | ponto `time.business.calendar`, construtor e leitor da contribuição |
+| `domain/schema/recordRules.ts` | recusa vira `RuleIssue`; `tableMentionsBusinessDays` |
+| `functions/.../builtins/businessDayFns.ts` | as contas no motor de automações |
+| `functions/src/data/services/BusinessCalendarLoader.ts` | leitura das coleções declaradas |
+| `functions/src/domain/services/businessCalendarScope.ts` | "carrega só se precisa", por execução |
+| `presentation/shared/BusinessCalendarBridge.tsx` | do `RecordStore` para o gate, no cliente |
+| `plugins/marketplace/businessDays.ts` + `views/businessDays/` | a extensão e a grade |
+
 ## Busca de dados externos declarativa
 
 O slot `FieldLogic.onChangeLookup` ("Ao alterar, buscar dados externos") resolve um provedor **por

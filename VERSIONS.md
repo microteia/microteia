@@ -11,6 +11,13 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.99.0] — 2026-10-13
+
+- Nova extensão "Dias úteis": cadastre um ou mais calendários — nacional, estadual, de um cliente ou de um tribunal — e marque, numa grade com os doze meses do ano, os dias que não são úteis. Basta clicar num dia, ou arrastar para marcar um período inteiro, como um recesso.
+- Cada calendário guarda os seus próprios anos, e o botão "Copiar para o próximo ano" começa o ano seguinte com as mesmas datas, prontas para revisar os feriados que mudam de dia.
+- As fórmulas dos campos, das automações e dos relatórios agora contam dias úteis: somam dias úteis a uma data, contam quantos há entre duas datas e levam um vencimento para o próximo dia útil, combinando quantos calendários forem necessários.
+- Uma contagem nunca sai errada em silêncio: se faltar o calendário ou o ano não estiver cadastrado, o registro não é salvo e o aviso diz exatamente o que precisa ser preenchido.
+
 #### [9.98.0] — 2026-10-13
 
 - A tela de modelos de documento ganhou um guia ao lado do texto: como escrever os campos, formatar datas e valores, repetir listas, incluir trechos sob condição e diagramar o documento, com um atalho para a lista completa de funções.

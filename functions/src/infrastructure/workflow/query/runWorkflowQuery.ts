@@ -11,6 +11,10 @@ import type { QueryOrderBy, QueryPredicate, QuerySpec } from '../../../domain/sc
 import { resolveQueryTable, validateQuerySpec } from '../../../domain/schema/querySpec';
 import { applyDerivedFields, collectDerivedFieldKeys } from '../../../domain/schema/recordRules';
 import { withAmbientTimeZone } from '../../../domain/schema/clockGate';
+import { withAmbientBusinessCalendars } from '../../../domain/schema/time/businessDaysGate';
+import type { BusinessCalendarSet } from '../../../domain/schema/time/businessDays';
+import { tableMentionsBusinessDays } from '../../../domain/schema/recordRules';
+import { businessCalendarsFor } from '../../../domain/services/businessCalendarScope';
 import { compareValues, evaluateResolvedPredicate } from '../../../domain/schema/predicateMatch';
 import type { ResolvedPredicate as SharedResolvedPredicate } from '../../../domain/schema/predicateMatch';
 
@@ -168,6 +172,10 @@ export const hydrateRecords = async (
 export interface RecordQueryScope {
   tenantId: string;
   timeZone?: string;
+  /** Os calendários de dias úteis já carregados pela execução, quando ela os tem. */
+  businessCalendars?: BusinessCalendarSet | null;
+  /** Carrega os calendários quando um campo derivado da tabela conta dias úteis e ninguém os trouxe. */
+  businessCalendarsOf?(tenantId: string): Promise<BusinessCalendarSet | null>;
 }
 
 export async function runWorkflowQuery(
@@ -180,7 +188,12 @@ export async function runWorkflowQuery(
   return runRecordQuery(
     spec,
     values,
-    { tenantId: context.execution.tenantId, timeZone: context.services.timeZone },
+    {
+      tenantId: context.execution.tenantId,
+      timeZone: context.services.timeZone,
+      businessCalendars: context.services.businessCalendars,
+      businessCalendarsOf: context.services.businessCalendarsOf,
+    },
     deps,
     limits,
   );
@@ -271,11 +284,17 @@ export async function runRecordQuery(
   // O instante é um só para a consulta inteira: dois registros da mesma resposta não podem discordar
   // sobre que dia é hoje.
   const at = new Date();
+  const calendars =
+    derivedKeys.size === 0
+      ? undefined
+      : await businessCalendarsFor(scope, tenantId, tableMentionsBusinessDays(ctx, spec.table));
   const materialized =
     derivedKeys.size === 0
       ? hydrated
-      : withAmbientTimeZone(scope.timeZone, () =>
-          hydrated.map((record) => applyDerivedFields(ctx, spec.table, record, at)),
+      : withAmbientBusinessCalendars(calendars, () =>
+          withAmbientTimeZone(scope.timeZone, () =>
+            hydrated.map((record) => applyDerivedFields(ctx, spec.table, record, at)),
+          ),
         );
 
   let results = materialized.filter((record) =>

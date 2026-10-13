@@ -8,6 +8,7 @@ import {
   LOOKUP_CONTRIBUTIONS,
   LOOKUP_PROVIDER_CONTRIBUTIONS,
 } from '../../domain/schema/dataExtensionPoints';
+import { TIME_EXTENSION_POINTS } from '../../domain/schema/time/extensionPoints';
 
 /**
  * Expõe ao Kernel as entidades nativas e os lookups da Microteia. Os dados em si continuam morando
@@ -26,7 +27,7 @@ export const coreDataPlugin: PluginRecord = {
     description:
       // eslint-disable-next-line no-restricted-syntax -- metadado do plugin do NÚCLEO: não é renderizado.
       'Declares the data extension points and exposes the native entities, lookups, ready-made masks/formats/validations and external data lookups.',
-    extensionPoints: DATA_EXTENSION_POINTS,
+    extensionPoints: [...DATA_EXTENSION_POINTS, ...TIME_EXTENSION_POINTS],
     contributes: [
       messageBundleContribution(coreMessage('core.data', CORE_DATA_MESSAGES)),
       ...ENTITY_CONTRIBUTIONS,

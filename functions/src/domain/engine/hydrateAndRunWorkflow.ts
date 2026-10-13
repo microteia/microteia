@@ -6,6 +6,8 @@ import { runWorkflow } from './WorkflowExecutor';
 import type { WorkflowRun } from './WorkflowExecutor';
 import { WorkflowContextHydrator, createHydrationCache, type HydrationCache } from './WorkflowContextHydrator';
 import { SCHEMA_VERSION } from '../schema/entityRegistry';
+import { withBusinessCalendars } from '../services/businessCalendarScope';
+import { mentionsBusinessDays } from '../schema/time/businessDays';
 import { WORKFLOW_CALLED_EVENT, workflowParametersToRoot, applyParameterDefaults } from '../schema/eventCatalog';
 
 export interface HydrateAndRunWorkflowDeps {
@@ -46,11 +48,19 @@ export const hydrateAndRunWorkflow = async (
   }
   const timeZone =
     deps.services.timeZone ?? (await deps.services.timeZoneOf?.(event.tenantId, deps.actor?.userId));
+  // A automação que cita uma conta de dias úteis (numa expressão, num Script) lê os calendários UMA
+  // vez, aqui; a que não cita não paga leitura nenhuma. A gravação de um registro com regra de dias
+  // úteis carrega por conta própria, em `runWorkflowMutation`.
+  const services = await withBusinessCalendars(
+    timeZone ? { ...deps.services, timeZone } : deps.services,
+    event.tenantId,
+    mentionsBusinessDays(JSON.stringify(definition)),
+  );
   return runWorkflow({
     definition,
     event: hydratedEvent,
     registry: deps.registry,
-    services: timeZone ? { ...deps.services, timeZone } : deps.services,
+    services,
     ...(deps.actor ? { actor: deps.actor } : {}),
     ...(deps.suspendable ? { suspendable: true } : {}),
   });

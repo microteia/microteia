@@ -23,9 +23,11 @@ const MIGRATED_TO_SOURCE_LANGUAGE = [
   // carregam a própria tradução. As de domínio (Processos, Prazos, Contratos) seguem fora da zona:
   // o vocabulário delas é de um ramo, e migrá-las é outra rodada.
   'src/plugins/marketplace/calendar*.ts',
+  'src/plugins/marketplace/businessDays*.ts',
   'src/plugins/marketplace/dashboard*.ts',
   'src/plugins/marketplace/news*.ts',
   'src/plugins/marketplace/views/calendar/**/*.{ts,tsx}',
+  'src/plugins/marketplace/views/businessDays/**/*.{ts,tsx}',
   'src/plugins/marketplace/views/dashboard/**/*.{ts,tsx}',
   'src/plugins/marketplace/views/news/**/*.{ts,tsx}',
   'src/presentation/pages/Workflows/**/*.{ts,tsx}',

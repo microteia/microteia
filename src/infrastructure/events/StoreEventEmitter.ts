@@ -41,4 +41,5 @@ export const StoreEvents = {
   DOCUMENT_TEMPLATES_UPDATED: 'document-templates:updated',
   RECORD_DOCUMENTS_UPDATED: 'record-documents:updated',
   ROLES_UPDATED: 'roles:updated',
+  BUSINESS_CALENDARS_UPDATED: 'business-calendars:updated',
 } as const;

@@ -66,6 +66,9 @@ const LACUNAS_CONFERIDAS = [
   'extension-point\taccess.resource',
   'extension-point\taccess.requirement',
   'extension-point\tauth.provider',
+  // Onde moram os calendários de dias úteis. O modelo do negócio diz QUE um prazo conta dias úteis
+  // (pela fórmula do campo), não onde o escritório guarda os calendários — isso é da extensão.
+  'extension-point\ttime.business.calendar',
 
   // Os artefatos de pacote que o plano nunca preenche.
   'package-artifact\tsummary',

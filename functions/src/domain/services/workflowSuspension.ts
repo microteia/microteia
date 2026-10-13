@@ -6,6 +6,8 @@ import type { IWorkflowExecutionRepository } from '../repositories/IWorkflowExec
 import type { StepRegistry } from '../engine/StepRegistry';
 import type { WorkflowRun } from '../engine/WorkflowExecutor';
 import { runWorkflow } from '../engine/WorkflowExecutor';
+import { withBusinessCalendars } from './businessCalendarScope';
+import { mentionsBusinessDays } from '../schema/time/businessDays';
 import { actorFromPublished, toPublishedActor } from '../engine/workflowActor';
 
 export interface WorkflowSuspensionDeps {
@@ -141,11 +143,16 @@ export const resumeWorkflowExecution = async (
   const actor = actorFromPublished(entry.actor);
   try {
     const timeZone = deps.services.timeZone ?? (await deps.services.timeZoneOf?.(entry.tenantId, actor?.userId));
+    const services = await withBusinessCalendars(
+      timeZone ? { ...deps.services, timeZone } : deps.services,
+      entry.tenantId,
+      mentionsBusinessDays(JSON.stringify(definition)),
+    );
     const run = await runWorkflow({
       definition,
       event,
       registry: deps.registry,
-      services: timeZone ? { ...deps.services, timeZone } : deps.services,
+      services,
       ...(actor ? { actor } : {}),
       suspendable: true,
       resume: {

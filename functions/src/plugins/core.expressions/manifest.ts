@@ -5,6 +5,9 @@ import {
   todayFn, nowFn, formatDateFn, dayOfWeekFn, isWeekendFn, dateDiffFn, yearFn, monthFn, dayFn,
 } from '../../domain/engine/expression/builtins/dateFns';
 import { addDaysFn } from '../../domain/engine/expression/builtins/addDaysFn';
+import {
+  addBusinessDaysFn, businessDaysBetweenFn, isBusinessDayFn, nextBusinessDayFn,
+} from '../../domain/engine/expression/builtins/businessDayFns';
 import { ifFn } from '../../domain/engine/expression/builtins/ifFn';
 import {
   concatFn, lowerFn, upperFn, lengthFn, trimFn, replaceFn, substringFn, startsWithFn, endsWithFn,
@@ -36,6 +39,7 @@ import {
 const BUILTIN_FUNCTIONS: ExpressionFunction[] = [
   todayFn, nowFn, formatDateFn, dayOfWeekFn, isWeekendFn, dateDiffFn, yearFn, monthFn, dayFn,
   addDaysFn,
+  addBusinessDaysFn, businessDaysBetweenFn, isBusinessDayFn, nextBusinessDayFn,
   ifFn,
   hasPermissionFn,
   concatFn, lowerFn, upperFn, lengthFn, trimFn, replaceFn, substringFn, startsWithFn, endsWithFn,

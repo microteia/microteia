@@ -29,6 +29,10 @@ export const EXAMPLE_NOTES: Record<string, string> = {
   calendar: 'The only example that DECLARES an extension point of its own (`calendar.moveaction`), so that a '
     + 'third extension can plug into it. It also carries a code view, a nav item, a settings page and two '
     + 'option lists — read it for both halves of the plug: declaring a point and contributing to one.',
+  'business-days': 'A collection the KERNEL reads without knowing its name: the extension declares it through '
+    + '`time.business.calendar`, and the formula functions (`addBusinessDays` and its siblings) count with the documents in '
+    + 'it. Read it for the shape of a kernel capability that is switched on by a declaration, and for a code view that edits '
+    + 'data no field type describes.',
   dashboard: 'A code view with a settings page and no collection of its own — the shape of a screen that reads '
     + 'what other extensions already store, instead of storing anything.',
   'locale-pt-br': 'An extension that ONLY translates: a single `i18n.messages` contribution and nothing else. '

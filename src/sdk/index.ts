@@ -321,6 +321,19 @@ export type {
   TemplateNode,
 } from '../domain/schema/document';
 
+// DIAS ÚTEIS. A extensão diz ONDE moram os calendários (`time.business.calendar`); a conta é do
+// kernel. O autor precisa do construtor da contribuição e do contrato do documento que a conta lê.
+export {
+  BUSINESS_CALENDAR_API_VERSION,
+  BUSINESS_CALENDAR_POINT,
+  TIME_EXTENSION_POINTS,
+  businessCalendarContribution,
+} from '../domain/schema/time/extensionPoints';
+export { BUSINESS_CALENDAR_FIELDS, BUSINESS_DAYS_FUNCTION_NAMES } from '../domain/schema/time/businessDays';
+
+export type { BusinessCalendarSource } from '../domain/schema/time/extensionPoints';
+export type { BusinessCalendar } from '../domain/schema/time/businessDays';
+
 export { KERNEL_EXTENSION_POINTS } from '../domain/schema/extensionPoints';
 
 // ─── Automação: workflows, ações e scripts ────────────────────────────────────

@@ -9,6 +9,10 @@ import { getValueAtPath, parsePath } from '../schema/pathResolver';
 import type { SchemaContext } from '../schema/pathResolver';
 import { formatAndValidateRecord } from '../schema/recordRules';
 import { withAmbientTimeZone } from '../schema/clockGate';
+import { tableMentionsBusinessDays } from '../schema/recordRules';
+import { mentionsBusinessDays, type BusinessCalendarSet } from '../schema/time/businessDays';
+import { withAmbientBusinessCalendars } from '../schema/time/businessDaysGate';
+import { businessCalendarsFor } from './businessCalendarScope';
 
 export interface AggregateRecomputeDeps {
   screenProvider: IScreenDefinitionProvider;
@@ -17,6 +21,8 @@ export interface AggregateRecomputeDeps {
   logger?: { warn: (message: string) => void };
   /** O fuso do escritório, para o `today()` de um filtro ou de um `compute` recalculado aqui. */
   timeZoneOf?: (tenantId: string) => Promise<string>;
+  /** Os calendários de dias úteis, lidos só quando um filtro ou uma regra do pai conta dias úteis. */
+  businessCalendarsOf?: (tenantId: string) => Promise<BusinessCalendarSet | null>;
 }
 
 const asRecordId = (value: unknown): string | null =>
@@ -101,6 +107,14 @@ export const computeAggregatePatch = async (
 ): Promise<AggregatePatch> => {
   const patch: Record<string, unknown> = {};
   const timeZone = await deps.timeZoneOf?.(tenantId);
+  const calendars = await businessCalendarsFor(
+    deps,
+    tenantId,
+    targets.some(
+      (target) =>
+        mentionsBusinessDays(JSON.stringify(target.aggregation)) || tableMentionsBusinessDays(ctx, target.parentTable),
+    ),
+  );
   let truncated = false;
   let parentTable: string | null = null;
 
@@ -125,8 +139,8 @@ export const computeAggregatePatch = async (
       );
     }
 
-    const value = withAmbientTimeZone(timeZone, () =>
-      aggregateChildren(ctx, target.aggregation, childTable, rows),
+    const value = withAmbientBusinessCalendars(calendars, () =>
+      withAmbientTimeZone(timeZone, () => aggregateChildren(ctx, target.aggregation, childTable, rows)),
     );
     setValueAtPath(patch, target.parentPath, value);
     parentTable = target.parentTable;
@@ -138,8 +152,8 @@ export const computeAggregatePatch = async (
   // O agregado é FATO sobre os filhos: uma regra do campo, ou a validação de um `compute` que
   // depende dele, não pode impedir que ele seja gravado — recusar deixaria o pai com o valor de
   // antes, que é falso. A recusa vai para o log, e o valor vai para o registro.
-  const ruled = withAmbientTimeZone(timeZone, () =>
-    formatAndValidateRecord(ctx, table, patch, { baseline }),
+  const ruled = withAmbientBusinessCalendars(calendars, () =>
+    withAmbientTimeZone(timeZone, () => formatAndValidateRecord(ctx, table, patch, { baseline })),
   );
   if (ruled.issues.length > 0) {
     deps.logger?.warn(

@@ -1127,7 +1127,10 @@ const PURE_READS: ToolDefinition[] = [
       note:
         'A name resolved as an operator is not repeated as a function: "not", "abs", "ceil" and '
         + '"floor" work through the operator form. "hasPermission" answers about whoever is looking, '
-        + 'and accepts the patterns "<entity>.delete", "*.delete", "invoices.*" and "invoice%.read".',
+        + 'and accepts the patterns "<entity>.delete", "*.delete", "invoices.*" and "invoice%.read". '
+        + '"addBusinessDays", "businessDaysBetween", "isBusinessDay" and "nextBusinessDay" count with the '
+        + 'business-day calendars an extension declares on "time.business.calendar"; a missing calendar '
+        + 'or year is a refusal, never a count without the holidays.',
     }),
   },
   {

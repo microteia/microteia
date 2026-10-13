@@ -7,6 +7,7 @@ import { buildMessageCatalog } from '../../domain/schema/i18n/messages';
 import { isMessageRef, parseMessageRef, resolveLabel } from '../../domain/schema/i18n/messageRef';
 import type { MarketplacePlugin } from '../../domain/entities/MarketplacePlugin';
 import { calendarPlugin } from './calendar';
+import { businessDaysPlugin } from './businessDays';
 import { dashboardPlugin } from './dashboard';
 import { newsPlugin } from './news';
 import { TRAVELLING_EXAMPLES } from './travellingExamples';
@@ -22,7 +23,7 @@ import { TRAVELLING_EXAMPLES } from './travellingExamples';
  * campos…) envelhece na primeira propriedade nova, e é exatamente a propriedade nova que ninguém
  * lembra de traduzir.
  */
-const PLUGINS: MarketplacePlugin[] = [calendarPlugin, dashboardPlugin, newsPlugin, ...TRAVELLING_EXAMPLES];
+const PLUGINS: MarketplacePlugin[] = [calendarPlugin, businessDaysPlugin, dashboardPlugin, newsPlugin, ...TRAVELLING_EXAMPLES];
 
 const catalogFor = (locale: string) => {
   const host = createPluginHost();
@@ -100,8 +101,17 @@ const OPTION_VALUE = /\.options\[\d+\]\.value$/;
  */
 const DATASET_NAME = /\.datasets\[\d+\]\.name$/;
 
+/**
+ * O `name` de uma chave única de tela é o IDENTIFICADOR pelo qual a reserva já gravada é encontrada —
+ * renomeá-lo é aposentar a chave e declarar outra. Traduzi-lo trocaria de chave a cada idioma.
+ */
+const RECORD_KEY_NAME = /\.keys\[\d+\]\.name$/;
+
 const isPointer = (path: string): boolean =>
-  NOT_TEXT_PATHS.some((suffix) => path.endsWith(suffix)) || OPTION_VALUE.test(path) || DATASET_NAME.test(path);
+  NOT_TEXT_PATHS.some((suffix) => path.endsWith(suffix)) ||
+  OPTION_VALUE.test(path) ||
+  DATASET_NAME.test(path) ||
+  RECORD_KEY_NAME.test(path);
 
 const textsOf = (plugin: MarketplacePlugin): Array<{ path: string; value: string }> => {
   const found: Array<{ path: string; value: string }> = [];

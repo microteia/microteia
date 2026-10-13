@@ -5,6 +5,7 @@ import { brasilPlugin } from './brasil';
 import { newsPlugin } from './news';
 import { dashboardPlugin } from './dashboard';
 import { calendarPlugin } from './calendar';
+import { businessDaysPlugin } from './businessDays';
 import { localePtBrPlugin } from './localePtBr';
 import { automationExamplePlugin } from './examples/automation-example/plugin';
 import { reportExamplePlugin } from './examples/report-example/plugin';
@@ -196,7 +197,7 @@ export const guiaPlugin: MarketplacePlugin =
     workflows: [],
   };
 
-export { agentPlugin, brasilPlugin, newsPlugin, dashboardPlugin, calendarPlugin, localePtBrPlugin };
+export { agentPlugin, brasilPlugin, newsPlugin, dashboardPlugin, calendarPlugin, businessDaysPlugin, localePtBrPlugin };
 
 /**
  * Catálogo do Marketplace EMBUTIDO: extensões de PRIMEIRA PARTE que viajam no bundle da aplicação.
@@ -234,6 +235,7 @@ export const MARKETPLACE_CATALOG: MarketplacePlugin[] = [
   brasilPlugin,
   dashboardPlugin,
   calendarPlugin,
+  businessDaysPlugin,
   newsPlugin,
   ...THEME_MARKETPLACE_PLUGINS,
 ];

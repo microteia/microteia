@@ -14,6 +14,7 @@ import { formatAndValidate } from './fieldRules';
 import { coerceWriteValue, flattenDataLeaves, resolveWritableTable, setValueAtPath } from './mutationSpec';
 import type { SchemaContext } from './pathResolver';
 import { resolveEntity } from './screenEntity';
+import { isBusinessDaysError, mentionsBusinessDays } from './time/businessDays';
 
 export interface ResolvedFieldRules {
   rules: FieldRules;
@@ -129,6 +130,16 @@ export const collectFieldLogicTargets = (
   return targets;
 };
 
+/**
+ * A tabela tem campo cuja regra (`compute`, `validate` ou `derive`) chama uma conta de dias úteis? É a
+ * pergunta que deixa o servidor carregar os calendários SÓ para a gravação ou a leitura que precisa
+ * deles — e não em toda gravação do escritório.
+ */
+export const tableMentionsBusinessDays = (ctx: SchemaContext, table: string): boolean =>
+  (['compute', 'validate', 'derive'] as const).some((slot) =>
+    collectFieldLogicTargets(ctx, table, slot).some((target) => mentionsBusinessDays(target.expr)),
+  );
+
 const evaluateExpressionValidations = (
   ctx: SchemaContext,
   table: string,
@@ -140,10 +151,38 @@ const evaluateExpressionValidations = (
   const scope = buildRecordFieldScope(ctx, table, data);
   const issues: RuleIssue[] = [];
   for (const target of targets) {
+    const refusal = businessDaysRefusal(target, { value: scope[target.key], data: scope });
+    if (refusal) {
+      issues.push(refusal);
+      continue;
+    }
     const error = evaluateFieldValidation(target.expr, { value: scope[target.key], data: scope });
     if (error) issues.push({ path: target.path, label: target.label, error });
   }
   return issues;
+};
+
+/**
+ * A recusa de uma conta de dias úteis como PENDÊNCIA do campo. As outras falhas de expressão seguem
+ * toleradas — validação quebrada não reprova, computado quebrado não grava —, mas esta não: um prazo
+ * calculado sem os dias não úteis é uma data errada sem sintoma, e o save tem de parar dizendo por quê.
+ */
+const refusalIssue = (target: FieldLogicTarget, error: unknown): RuleIssue | null =>
+  isBusinessDaysError(error)
+    ? { path: target.path, label: target.label, error: error.message, errorParams: error.params }
+    : null;
+
+const businessDaysRefusal = (
+  target: FieldLogicTarget,
+  context: { value: unknown; data: Record<string, unknown> },
+): RuleIssue | null => {
+  if (!mentionsBusinessDays(target.expr)) return null;
+  try {
+    evaluateFieldExpression(target.expr, context);
+    return null;
+  } catch (error) {
+    return refusalIssue(target, error);
+  }
 };
 
 /**
@@ -189,6 +228,7 @@ const evaluateComputeTargets = (
   targets: FieldLogicTarget[],
   scope: Record<string, unknown>,
   at?: Date,
+  refusals?: RuleIssue[],
 ): Map<string, unknown> => {
   const resolved = new Map<string, unknown>();
   const working = { ...scope };
@@ -203,7 +243,9 @@ const evaluateComputeTargets = (
       if (value === undefined) continue;
       working[target.key] = value;
       resolved.set(target.key, value);
-    } catch {
+    } catch (error) {
+      const refusal = refusals ? refusalIssue(target, error) : null;
+      if (refusal) refusals?.push(refusal);
       continue;
     }
   }
@@ -247,6 +289,7 @@ export const applyComputedFields = (
   table: string,
   data: Record<string, unknown>,
   baseline?: Record<string, unknown>,
+  refusals?: RuleIssue[],
 ): Record<string, unknown> => {
   const targets = collectFieldLogicTargets(ctx, table, 'compute');
   if (targets.length === 0) return data;
@@ -256,7 +299,7 @@ export const applyComputedFields = (
     ...buildRecordFieldScope(ctx, table, data),
   };
 
-  const resolved = evaluateComputeTargets(targets, scope);
+  const resolved = evaluateComputeTargets(targets, scope, undefined, refusals);
   const next = { ...data };
   for (const target of targets) {
     if (resolved.has(target.key)) setValueAtPath(next, target.path, resolved.get(target.key));
@@ -395,7 +438,7 @@ export const formatAndValidateRecord = (
 
   const computed = options.skipCompute
     ? next
-    : applyComputedFields(ctx, table, next, options.baseline);
+    : applyComputedFields(ctx, table, next, options.baseline, issues);
 
   issues.push(...evaluateExpressionValidations(ctx, table, computed));
 

@@ -4,6 +4,7 @@ import { sortContributions } from '../../domain/schema/plugin/contribution';
 import { DOCUMENT_TEMPLATE_POINT } from '../../domain/schema/document/documentTemplate';
 import type { MessageBundle } from '../../domain/schema/i18n/messages';
 import { messageBundlesOf } from '../../domain/schema/i18n/extensionPoints';
+import { businessCalendarCollectionsOf } from '../../domain/schema/time/extensionPoints';
 
 interface CacheEntry {
   /** Os nomes de Cloud Function que as extensões LIGADAS deste escritório reivindicam. */
@@ -13,6 +14,8 @@ interface CacheEntry {
   messageBundles: MessageBundle[];
   /** As contribuições `document.template`, qualificadas e na ordem do registro. */
   documentTemplates: QualifiedContribution[];
+  /** As coleções em que as extensões ligadas dizem guardar calendários de dias úteis. */
+  businessCalendarCollections: string[];
   loadedAt: number;
 }
 
@@ -78,6 +81,14 @@ export class InstalledExtensionCache {
     return (await this.load(tenantId)).documentTemplates;
   }
 
+  /**
+   * Onde moram os calendários de dias úteis deste escritório (`time.business.calendar`). Vazio é
+   * "nenhuma extensão ligada declara" — e a conta recusa, em vez de contar sem os dias não úteis.
+   */
+  async businessCalendarCollections(tenantId: string): Promise<string[]> {
+    return (await this.load(tenantId)).businessCalendarCollections;
+  }
+
   invalidate(tenantId: string): void {
     this.entries.delete(tenantId);
   }
@@ -121,6 +132,7 @@ export class InstalledExtensionCache {
       deactivatedPluginIds,
       messageBundles: messageBundlesOf(contributions),
       documentTemplates: sortContributions(documentTemplates),
+      businessCalendarCollections: businessCalendarCollectionsOf(contributions),
       loadedAt: Date.now(),
     };
     this.entries.set(tenantId, entry);

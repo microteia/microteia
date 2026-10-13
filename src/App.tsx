@@ -40,6 +40,7 @@ import { LicenseView } from './presentation/pages/License/License.view';
 import { WorkspaceShell } from './presentation/components/layout/WorkspaceShell';
 import { ExtensionStartupHost } from './presentation/shared/extensions/ExtensionStartupHost';
 import { FieldRulePresetBridge } from './presentation/shared/FieldRulePresetBridge';
+import { BusinessCalendarBridge } from './presentation/shared/BusinessCalendarBridge';
 import { AppErrorBoundary } from './presentation/components/layout/AppErrorBoundary';
 import { OAuthConsentView } from './presentation/pages/OAuthConsent';
 import { OAUTH_CONSENT_PATH } from './domain/schema/agent/agentOAuth';
@@ -91,6 +92,7 @@ const App: React.FC = () => {
                                                       <TenantLocaleProvider>
                                                         <TenantThemeBridge />
                                                         <FieldRulePresetBridge />
+                                                        <BusinessCalendarBridge />
                                                         <ExtensionStartupHost />
                                                         <Routes>
                                                           {/*

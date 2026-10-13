@@ -57,9 +57,13 @@ const FUNCOES_ANTES_DA_MIGRACAO = [
  */
 const REMOVIDAS_POR_SEREM_INALCANCAVEIS = ['abs', 'and', 'ceil', 'floor', 'not', 'or'];
 
-const FUNCOES_ESPERADAS = FUNCOES_ANTES_DA_MIGRACAO.filter(
-  (name) => !REMOVIDAS_POR_SEREM_INALCANCAVEIS.includes(name),
-);
+/** As contas de dias úteis, que chegaram depois da migração — a mesma lista dos dois catálogos. */
+const FUNCOES_DE_DIAS_UTEIS = ['addBusinessDays', 'businessDaysBetween', 'isBusinessDay', 'nextBusinessDay'];
+
+const FUNCOES_ESPERADAS = [
+  ...FUNCOES_ANTES_DA_MIGRACAO.filter((name) => !REMOVIDAS_POR_SEREM_INALCANCAVEIS.includes(name)),
+  ...FUNCOES_DE_DIAS_UTEIS,
+].sort();
 
 describe('plugins do backend — carga', () => {
   it('carrega sem nenhum diagnóstico', () => {

@@ -7,6 +7,11 @@ import type { IWorkflowQueryRepository } from '../../../domain/repositories/IWor
 import type { IWorkflowRecordFetcher } from '../../../domain/repositories/IWorkflowRecordFetcher';
 import type { IWorkflowMutationRepository } from '../../../domain/repositories/IWorkflowMutationRepository';
 import type { IScreenDefinitionProvider } from '../../../domain/repositories/IScreenDefinitionProvider';
+import {
+  businessCalendarOf,
+  createBusinessCalendarSet,
+  type BusinessCalendarSet,
+} from '../../../domain/schema/time/businessDays';
 
 const logs: string[] = [];
 
@@ -157,5 +162,55 @@ describe('runScriptSandbox — compatibilidade fn.* (Expression) com QuickJS', (
   it('fn.isCPF valida CPF', async () => {
     const out = await run(wrapMain('return { ok: fn.isCPF(input.cpf) };'), { cpf: '529.982.247-25' });
     expect(typeof out.ok).toBe('boolean');
+  });
+});
+
+describe('runScriptSandbox — contas de dias úteis (fn.addBusinessDays e irmãs)', () => {
+  const calendars = createBusinessCalendarSet([
+    businessCalendarOf('cal-1', {
+      key: 'national',
+      name: 'National',
+      weekend: [0, 6],
+      years: { '2026': ['2026-04-03', '2026-04-21'] },
+    }),
+  ]);
+
+  const runWith = (js: string, input: Record<string, unknown>, businessCalendars: BusinessCalendarSet | null) => {
+    const context = makeContext(input);
+    return runScriptSandbox(
+      js,
+      input,
+      { ...context, services: { ...context.services, timeZone: 'America/Sao_Paulo', businessCalendars } },
+      deps,
+      mutationDeps,
+    );
+  };
+
+  it('conta pelos calendários da execução, e o Date atravessa a ponte nos dois sentidos', async () => {
+    const out = await runWith(
+      wrapMain(`
+        const due = fn.addBusinessDays(input.start, 1, "national");
+        return {
+          due: fn.formatDate(due, "YYYY-MM-DD"),
+          between: fn.businessDaysBetween(input.start, due, ["national"]),
+          holiday: fn.isBusinessDay("2026-04-21", "national"),
+          next: fn.formatDate(fn.nextBusinessDay("2026-04-04", "national"), "YYYY-MM-DD"),
+        };`),
+      { start: new Date('2026-04-02T12:00:00.000Z') },
+      calendars,
+    );
+    expect(out).toEqual({ due: '2026-04-06', between: 1, holiday: false, next: '2026-04-06' });
+  });
+
+  it('calendário inexistente REJEITA o Script nomeando a recusa — nunca conta sem os dias', async () => {
+    await expect(
+      runWith(wrapMain('return { due: fn.addBusinessDays("2026-04-02", 1, "state") };'), {}, calendars),
+    ).rejects.toThrow(/business-days\.error\.not-found/);
+  });
+
+  it('sem extensão que declare calendários, a recusa é "indisponível"', async () => {
+    await expect(
+      runWith(wrapMain('return { ok: fn.isBusinessDay("2026-04-02", "national") };'), {}, null),
+    ).rejects.toThrow(/business-days\.error\.unavailable/);
   });
 });

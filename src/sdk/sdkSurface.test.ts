@@ -108,6 +108,10 @@ const PUBLISHED = [
   'DOCUMENT_EXTENSION_POINTS', 'DOCUMENT_OUTPUTS_BY_FORMAT', 'DOCUMENT_TEMPLATE_API_VERSION',
   'DOCUMENT_TEMPLATE_MAX_BYTES', 'DOCUMENT_TEMPLATE_POINT', 'documentTemplateContribution',
   'documentTemplateIssues', 'documentTemplateOf', 'parseTemplate', 'templateOutputs',
+  // DIAS ÚTEIS. MOVE o `KERNEL_VERSION` (2.37.0): o ponto `time.business.calendar` é forma nova de
+  // pacote instalado, e um kernel que não o declara descartaria a contribuição.
+  'BUSINESS_CALENDAR_API_VERSION', 'BUSINESS_CALENDAR_FIELDS', 'BUSINESS_CALENDAR_POINT',
+  'BUSINESS_DAYS_FUNCTION_NAMES', 'TIME_EXTENSION_POINTS', 'businessCalendarContribution',
 ].sort();
 
 /**
@@ -116,6 +120,7 @@ const PUBLISHED = [
  * `plugin.ts` de quem já escreveu contra ele.
  */
 const PUBLISHED_TYPES = [
+  'BusinessCalendar', 'BusinessCalendarSource',
   'DocumentOutputFormat', 'DocumentTemplateDataset', 'DocumentTemplateFormat', 'DocumentTemplateIssue',
   'DocumentTemplateSpec', 'TemplateIssue', 'TemplateNode',
   'ReportAccess', 'ReportAggregateMeasure', 'ReportChart', 'ReportChartKind',

@@ -21,6 +21,8 @@ import { STEP_TYPES } from '../../../domain/entities/Workflow';
 import type { WorkflowStepMetadata } from '../../../domain/schema/workflowStepCatalog';
 import type { StepType } from '../../../domain/entities/Workflow';
 import { FIELD_EXPRESSION_FUNCTION_NAMES } from '../../../domain/schema/fieldExpression';
+import { BUSINESS_CALENDAR_FIELDS } from '../../../domain/schema/time/businessDays';
+import { BUSINESS_CALENDAR_POINT } from '../../../domain/schema/time/extensionPoints';
 import {
   DOCUMENT_OUTPUTS_BY_FORMAT,
   DOCUMENT_TEMPLATE_MAX_BYTES,
@@ -1498,10 +1500,46 @@ logical negation. On top of them:
 | Text | \`concat(...)\`, \`lower\`, \`upper\`, \`trim\`, \`length\`, \`contains(v, s)\`, \`startsWith\`, \`endsWith\`, \`indexOf\`, \`substring(v, start, end)\`, \`replace(v, s, r)\`, \`split(v, sep)\`, \`join(a, sep)\`, \`interpolate(template, ...)\` |
 | Numbers | \`round(v, decimals)\`, \`sum(a)\`, \`avg(a)\`, \`min\`, \`max\`, \`abs\`, \`ceil\`, \`floor\`, \`sqrt\` |
 | Dates | \`today()\`, \`now()\`, \`addDays(v, n)\`, \`formatDate(v, fmt)\`, \`dateDiff(a, b, unit)\`, \`dayOfWeek\`, \`isWeekend\`, \`year\`, \`month\`, \`day\` |
+| Business days | \`addBusinessDays(v, n, calendars)\`, \`businessDaysBetween(a, b, calendars)\`, \`isBusinessDay(v, calendars)\`, \`nextBusinessDay(v, calendars)\` — see below |
 | Lists | \`first(a)\`, \`last(a)\`, \`map(a, path, compact)\`, \`contains(a, item)\`, \`length(a)\` |
 | Brazil, and formatting | \`isCPF\`, \`isCNPJ\`, \`isEmail\`, \`onlyNumber\`, \`formatCPF\`, \`formatCNPJ\`, \`formatMoney(v, locale)\` |
 | Objects | \`object(k, v, ...)\`, \`delete(key, target)\` |
 | Access | \`hasPermission(pattern)\` |
+
+### Business days
+
+The kernel counts business days; it does not know where the calendars live. An extension tells it,
+with one contribution — \`businessCalendarContribution({ collection: 'businessCalendars' })\`, on the
+point \`${BUSINESS_CALENDAR_POINT}\` — and every document of that collection is a calendar:
+
+| Field | |
+|---|---|
+| \`${BUSINESS_CALENDAR_FIELDS.key}\` | what a formula writes to name the calendar (the document id works too) |
+| \`${BUSINESS_CALENDAR_FIELDS.name}\` | how the office calls it — only used to say which calendar a refusal is about |
+| \`${BUSINESS_CALENDAR_FIELDS.weekend}\` | weekdays that are never business days, \`0\` = Sunday … \`6\` = Saturday |
+| \`${BUSINESS_CALENDAR_FIELDS.years}\` | year → the \`YYYY-MM-DD\` days of that year that are not business days |
+
+A formula names one calendar or several — a text, a list, or a reference field that points at
+calendars — and counts with their UNION: a day that is not a business day in any of them is skipped.
+
+\`\`\`
+addBusinessDays(start, 15, ["national", "regional"])   // the 15th business day AFTER start
+businessDaysBetween(start, end, "national")            // business days in (start, end]
+isBusinessDay(today(), calendars)
+nextBusinessDay(addDays(start, 15), "national")        // start itself if it is one, else the next
+\`\`\`
+
+\`addBusinessDays(d, n)\` never counts \`d\` itself, and \`businessDaysBetween(d, addBusinessDays(d, n))\` is
+always \`n\`. Doubling a term is \`n * 2\`; "the first business day after, then n more" is two calls.
+
+**A count never answers by omission.** No extension declaring calendars, a calendar that does not
+exist, a year the calendar never registered: each one is a named refusal. In \`compute\` and
+\`validate\` it blocks the save and says why — unlike every other expression error, which is
+tolerated. In \`derive\` the field reads empty. A date counted without the holidays is a wrong date
+nobody notices, and that is the one failure a deadline cannot have.
+
+The server reads the calendars only for an evaluation that calls one of these functions, so a
+collection that never counts business days pays nothing for the capability.
 
 The complete set the installed platform resolves, derived from it rather than from this table:
 

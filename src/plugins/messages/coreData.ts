@@ -16,6 +16,9 @@ export const CORE_DATA_MESSAGES: Record<string, string> = {
   'point.entity.description':
     'Declares a native entity (collection, fields, FKs) for the schema and the engine.',
   'point.entity.title': 'Domain entity',
+  'point.business-calendar.description':
+    'Declares the collection that holds the business-day calendars: weekdays that are never business days and, per year, the days that are not. The kernel counts; the extension says where the calendars live.',
+  'point.business-calendar.title': 'Business-day calendars',
   'point.field-preset.description':
     'Declares a field preset (template mask, formatting pipeline, validation by expression or regex). No code: the same declaration holds in the form and when an automation writes.',
   'point.field-preset.title': 'Ready-made mask, formatting and validation',

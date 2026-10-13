@@ -37,6 +37,7 @@ const TEMPLATES = {
   'news.json': 'newsPlugin',
   'dashboard.json': 'dashboardPlugin',
   'calendar.json': 'calendarPlugin',
+  'business-days.json': 'businessDaysPlugin',
   'locale-pt-br.json': 'localePtBrPlugin',
   'automation-example.json': 'automationExamplePlugin',
   'report-example.json': 'reportExamplePlugin',

@@ -2,6 +2,7 @@ import type { WorkflowContext, WorkflowLogger } from '../../domain/entities/Work
 import type { AgentSession } from './authenticateAgent';
 import { identifyActor } from '../workflow/identifyActor';
 import { tenantTimeZone } from '../settings/tenantTimeZone';
+import { tenantBusinessCalendars } from '../settings/tenantBusinessCalendars';
 
 export interface AgentRun {
   context: WorkflowContext;
@@ -44,7 +45,12 @@ export const agentRun = async (session: AgentSession, operation: string): Promis
       },
       outputs: {},
       variables: {},
-      services: { logger, now: () => new Date(), timeZone: await tenantTimeZone(session.tenantId, session.userId) },
+      services: {
+        logger,
+        now: () => new Date(),
+        timeZone: await tenantTimeZone(session.tenantId, session.userId),
+        businessCalendarsOf: tenantBusinessCalendars,
+      },
       logger,
       execution: { id: crypto.randomUUID(), workflowDefinitionId: '', tenantId: session.tenantId },
       actor: await identifyActor(session.userId, 'agent', session.permissions),

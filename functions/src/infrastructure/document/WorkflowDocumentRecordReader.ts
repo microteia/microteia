@@ -12,6 +12,8 @@ import { parsePath, resolvePath } from '../../domain/schema/pathResolver';
 import type { PathRoot, SchemaContext } from '../../domain/schema/pathResolver';
 import { applyDerivedFields, collectDerivedFieldKeys } from '../../domain/schema/recordRules';
 import { withAmbientTimeZone } from '../../domain/schema/clockGate';
+import { withAmbientBusinessCalendars } from '../../domain/schema/time/businessDaysGate';
+import type { BusinessCalendarSet } from '../../domain/schema/time/businessDays';
 import { hydrateRecords, runRecordQuery } from '../workflow/query/runWorkflowQuery';
 
 /**
@@ -46,6 +48,7 @@ export class WorkflowDocumentRecordReader implements IDocumentRecordReader {
     recordId: string,
     paths: readonly string[],
     timeZone: string,
+    businessCalendars?: BusinessCalendarSet | null,
   ): Promise<RecordReadOutcome<Record<string, unknown> | null>> {
     const ctx = await this.screens.getSchemaContext(tenantId);
     const table = resolveQueryTable(collection, ctx);
@@ -67,7 +70,12 @@ export class WorkflowDocumentRecordReader implements IDocumentRecordReader {
     if (collectDerivedFieldKeys(ctx, collection).size === 0) return { ok: true, value: hydrated };
 
     const at = new Date();
-    return { ok: true, value: withAmbientTimeZone(timeZone, () => applyDerivedFields(ctx, collection, hydrated, at)) };
+    return {
+      ok: true,
+      value: withAmbientBusinessCalendars(businessCalendars, () =>
+        withAmbientTimeZone(timeZone, () => applyDerivedFields(ctx, collection, hydrated, at)),
+      ),
+    };
   }
 
   async children(
@@ -76,6 +84,7 @@ export class WorkflowDocumentRecordReader implements IDocumentRecordReader {
     parentId: string,
     paths: readonly string[],
     timeZone: string,
+    businessCalendars?: BusinessCalendarSet | null,
   ): Promise<RecordReadOutcome<Record<string, unknown>[]>> {
     const ctx = await this.screens.getSchemaContext(tenantId);
     const table = resolveQueryTable(dataset.from, ctx);
@@ -91,7 +100,7 @@ export class WorkflowDocumentRecordReader implements IDocumentRecordReader {
     const outcome = await runRecordQuery(
       spec,
       [parentId],
-      { tenantId, timeZone },
+      { tenantId, timeZone, ...(businessCalendars !== undefined ? { businessCalendars } : {}) },
       { queryRepository: this.queryRepository, fetcher: this.fetcher, screenProvider: this.screens },
     );
     if (!outcome.ok) return outcome;

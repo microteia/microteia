@@ -16,8 +16,10 @@ import type { RecordWriteVia, RemoveSpec, ResolvedWritableTable, UpsertSpec } fr
 import { RECORD_CREATED_VIA_FIELD, RECORD_UPDATED_VIA_FIELD } from '../../../domain/schema/mutationSpec';
 import { ruleIssueParams } from '../../../domain/schema/fieldRules';
 import type { DescribableIssue } from '../../../domain/schema/fieldRules';
-import { formatAndValidateRecord } from '../../../domain/schema/recordRules';
+import { formatAndValidateRecord, tableMentionsBusinessDays } from '../../../domain/schema/recordRules';
 import { withAmbientTimeZone } from '../../../domain/schema/clockGate';
+import { withAmbientBusinessCalendars } from '../../../domain/schema/time/businessDaysGate';
+import { businessCalendarsFor } from '../../../domain/services/businessCalendarScope';
 import {
   diffRecordKeys,
   planRecordKeys,
@@ -184,10 +186,17 @@ export async function runWorkflowUpsert(
   const id = effectiveSpec.id?.trim();
   const existing = id ? await deps.mutationRepository.getById(tenantId, collection, id) : null;
 
-  const ruled = withAmbientTimeZone(context.services.timeZone, () =>
-    formatAndValidateRecord(ctx, effectiveSpec.table, effectiveSpec.data, {
-      baseline: existing ?? undefined,
-    }),
+  const calendars = await businessCalendarsFor(
+    context.services,
+    tenantId,
+    tableMentionsBusinessDays(ctx, effectiveSpec.table),
+  );
+  const ruled = withAmbientBusinessCalendars(calendars, () =>
+    withAmbientTimeZone(context.services.timeZone, () =>
+      formatAndValidateRecord(ctx, effectiveSpec.table, effectiveSpec.data, {
+        baseline: existing ?? undefined,
+      }),
+    ),
   );
   if (ruled.issues.length > 0) {
     return {

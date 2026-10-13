@@ -1,3 +1,4 @@
+import type { BusinessCalendarSet } from '../schema/time/businessDays';
 import type { DocumentTemplateDataset, ResolvedDocumentTemplate } from '../schema/document/documentTemplate';
 
 /** Os modelos que VALEM no escritório: os do pacote, sobrepostos pelos dele. */
@@ -22,6 +23,7 @@ export interface IDocumentRecordReader {
     recordId: string,
     paths: readonly string[],
     timeZone: string,
+    businessCalendars?: BusinessCalendarSet | null,
   ): Promise<RecordReadOutcome<Record<string, unknown> | null>>;
   children(
     tenantId: string,
@@ -29,5 +31,6 @@ export interface IDocumentRecordReader {
     parentId: string,
     paths: readonly string[],
     timeZone: string,
+    businessCalendars?: BusinessCalendarSet | null,
   ): Promise<RecordReadOutcome<Record<string, unknown>[]>>;
 }

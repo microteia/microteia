@@ -38,6 +38,7 @@ export const EXAMPLE_SOURCES: Record<string, string> = {
   agent: 'agent.ts',
   brasil: 'brasil.ts',
   calendar: 'calendar.ts',
+  'business-days': 'businessDays.ts',
   dashboard: 'dashboard.ts',
   'locale-pt-br': 'localePtBr',
   news: 'news.ts',

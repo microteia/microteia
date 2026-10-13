@@ -1,3 +1,4 @@
+import type { BusinessCalendarSet } from '../schema/time/businessDays';
 import type { InputMapping, WorkflowEvent } from './Workflow';
 
 /**
@@ -28,6 +29,14 @@ export interface WorkflowServices {
    * fuso é resolvido no começo de cada execução, por `hydrateAndRunWorkflow`.
    */
   timeZoneOf?(tenantId: string, userId?: string): Promise<string>;
+  /**
+   * Os calendários de dias úteis do escritório NESTA execução — o que `addBusinessDays` conta. `null`
+   * é "nenhuma extensão declara calendários", e a conta recusa com erro nomeado. Ausente, ninguém
+   * carregou: só se carrega quando a execução cita uma das contas (`mentionsBusinessDays`).
+   */
+  businessCalendars?: BusinessCalendarSet | null;
+  /** Carrega os calendários de um escritório. Mesmo papel de `timeZoneOf` para os serviços compartilhados. */
+  businessCalendarsOf?(tenantId: string): Promise<BusinessCalendarSet | null>;
 }
 
 /** De onde partiu o gesto de uma PESSOA: o app ou um agente de IA, pelo MCP, em nome dela. */
