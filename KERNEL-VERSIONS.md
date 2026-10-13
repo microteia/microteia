@@ -18,6 +18,12 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.99.1] — 2026-10-13
+
+- fix(entityScreen/useRecordListViewModel): `sortRecords` now orders `records` as well as `filteredRecords` (the filtered list inherits the order, so it is sorted once). Before, only `filteredRecords` was ordered and nothing in the contract said so: two record tabs drew `records` and came out in collection order. Without `sortRecords`, nothing changes.
+- docs(extensionTypeDefs, AUTHORING §4): `records` is the whole list, for counting, finding by id and totals; `filteredRecords` is the list a screen draws, filtered and in the order of `sortRecords`.
+- fix(examples/record-tab-example 1.0.1): declares `sortRecords` and draws `filteredRecords` instead of sorting `records` by hand.
+
 #### [9.99.0] — 2026-10-13
 
 - feat(time): business-day counting in the expression language — `addBusinessDays(date, n, calendars)` (the n-th business day after `date`, before it when `n < 0`, never counting `date`), `businessDaysBetween(a, b, calendars)` (business days in `(a, b]`, negative when `b < a`, so `businessDaysBetween(d, addBusinessDays(d, n)) == n`), `isBusinessDay(date, calendars)` and `nextBusinessDay(date, calendars)` (the date itself when it is one). One implementation (`domain/schema/time/businessDays.ts`, shared with `functions/`), registered in both catalogs (field expressions and `core.expressions`), so `compute`, `validate`, `derive`, action expressions, workflows, Script (`fn.*`), report `includeWhen` and document templates answer the same. Days are `YYYY-MM-DD` in the organization's `i18n.timezone`; arithmetic is on whole UTC days.

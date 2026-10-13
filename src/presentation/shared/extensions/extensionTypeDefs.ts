@@ -1070,9 +1070,17 @@ const DATA_MODULE_DEFS = `declare module '@microteia/data' {
     collection: string;
     isAvailable: boolean;
     isLoading: boolean;
-    /** Every record of the list (already locked to the parent, when options.parent is given). */
+    /**
+     * The WHOLE list - locked to the parent when options.parent is given, in the order of
+     * options.sortRecords, and blind to the filter the person typed. Use it to count, to find a record
+     * by id, to compute totals. To draw the list, use filteredRecords.
+     */
     records: any[];
-    /** records after the filter the person typed. */
+    /**
+     * The list the screen DRAWS: records after the filter the person typed (and the defaultFilterTokens),
+     * in the order of options.sortRecords. Draw this one even in a parent tab with no filter bar - the
+     * list a person can narrow is the one they expect to see.
+     */
     filteredRecords: any[];
     filterTokens: FilterToken[];
     filterDefs: FilterDef[];
@@ -1123,8 +1131,9 @@ const DATA_MODULE_DEFS = `declare module '@microteia/data' {
      */
     defaultFilterTokens?: { key: string; values: string[] }[];
     /**
-     * The order in which the list presents records. Without it, the collection's order applies - most
-     * recent first. Declare the comparator OUTSIDE the component.
+     * The order of BOTH records and filteredRecords. Without it, the collection's order applies - most
+     * recent first. Declare it instead of sorting by hand, and declare the comparator OUTSIDE the
+     * component.
      */
     sortRecords?: (a: any, b: any) => number;
     /**

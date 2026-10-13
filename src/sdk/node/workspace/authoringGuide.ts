@@ -556,7 +556,9 @@ data, as on every surface. To list the children of the open record, pass
 actions see \`surface: 'parentTab'\`, and \`openNewRecord()\` opens the form with the field filled in.
 Their \`relation\` is \`owned\` when \`fieldKey\` is the screen's declared ownership OR a \`required\`
 field — a link that cannot be emptied is never offered as Unlink, so the card shows Delete — and
-\`related\` only when the link is optional.
+\`related\` only when the link is optional. Draw \`filteredRecords\` — the list after the person's filter, in
+the order of \`sortRecords\` —, and keep \`records\` (the whole list, same order) for counting, finding by id
+and totals; declare \`sortRecords\` instead of sorting by hand.
 
 The organization toggles and orders these tabs from Settings (\`<surface>.tabs\`). \`check\` refuses
 \`${RECORD_SURFACE_PREFIX}\` with no \`sourceId\`, and warns — without refusing — about a \`sourceId\` it

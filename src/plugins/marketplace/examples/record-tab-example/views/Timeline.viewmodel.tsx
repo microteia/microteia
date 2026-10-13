@@ -21,6 +21,14 @@ const timeOf = (value: unknown): number => {
 };
 
 /**
+ * Latest due date first. Declared OUTSIDE the component and handed to `useEntityList` as `sortRecords`,
+ * so the order holds in `records` and `filteredRecords` alike — sorting by hand drifts the day someone
+ * swaps the list being drawn.
+ */
+const byDueDateDesc = (a: { dueDate?: unknown }, b: { dueDate?: unknown }): number =>
+  timeOf(b.dueDate) - timeOf(a.dueDate);
+
+/**
  * Everything the timeline decides, so the view only draws. It receives the open record as props
  * (`RecordTabProps`) — the host hands it over, and hands it again when the record changes.
  */
@@ -32,7 +40,10 @@ export const useTimelineViewModel = ({ recordId }: RecordTabProps) => {
 
   // `parent` is a LOCK, not a filter: the person cannot clear it, the card actions see
   // `surface: 'parentTab'`, and `openNewRecord()` opens the form with the project already filled in.
-  const list = useEntityList(MILESTONE_SOURCE_ID, { parent: { fieldKey: PROJECT_FIELD, recordId } });
+  const list = useEntityList(MILESTONE_SOURCE_ID, {
+    parent: { fieldKey: PROJECT_FIELD, recordId },
+    sortRecords: byDueDateDesc,
+  });
 
   // The colours come from the field's own options, as the office configured them — not from here.
   const priorityOptions = useMemo(
@@ -41,17 +52,15 @@ export const useTimelineViewModel = ({ recordId }: RecordTabProps) => {
   );
 
   const items = useMemo(
-    () => [...list.records]
-      .sort((a, b) => timeOf(b.dueDate) - timeOf(a.dueDate))
-      .map((record) => ({
-        record,
-        id: record.id as string,
-        title: list.getCardTitle(record),
-        when: record.dueDate ? formatDate(record.dueDate) : t('timeline.no-date'),
-        color: getConfigColor(priorityOptions, String(record[PRIORITY_FIELD] ?? ''), theme, theme.colors.textSecondary),
-        done: record.done === true,
-        actions: list.getCardActions(record),
-      })),
+    () => list.filteredRecords.map((record) => ({
+      record,
+      id: record.id as string,
+      title: list.getCardTitle(record),
+      when: record.dueDate ? formatDate(record.dueDate) : t('timeline.no-date'),
+      color: getConfigColor(priorityOptions, String(record[PRIORITY_FIELD] ?? ''), theme, theme.colors.textSecondary),
+      done: record.done === true,
+      actions: list.getCardActions(record),
+    })),
     [list, priorityOptions, formatDate, theme, t],
   );
 

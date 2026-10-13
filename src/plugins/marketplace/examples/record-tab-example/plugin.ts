@@ -114,7 +114,7 @@ const TIMELINE_SOURCE = mergeViewSources({
 export const recordTabExamplePlugin: MarketplacePlugin = {
   manifest: {
     id: 'com.microteia.record-tab-example',
-    version: '1.0.0',
+    version: '1.0.1',
     kernel: '^2.19.0',
     name: message('package.name'),
     description: message('package.description'),

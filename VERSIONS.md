@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.99.1] — 2026-10-13
+
+- Corrigida a ordem das listas exibidas dentro de um registro: quando uma extensão define a ordem de apresentação, ela passa a valer em qualquer lista da aba, e não só na que tem filtro.
+
 #### [9.99.0] — 2026-10-13
 
 - Nova extensão "Dias úteis": cadastre um ou mais calendários — nacional, estadual, de um cliente ou de um tribunal — e marque, numa grade com os doze meses do ano, os dias que não são úteis. Basta clicar num dia, ou arrastar para marcar um período inteiro, como um recesso.

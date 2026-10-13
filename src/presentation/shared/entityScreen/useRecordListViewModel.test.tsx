@@ -169,6 +169,24 @@ describe('useRecordListViewModel — ordenação', () => {
     const { result } = listar(source({ sortRecords: porVencimento }));
     expect(result.current.filteredRecords.map((r) => r.id)).toEqual(['b', 'c', 'a']);
   });
+
+  it('na aba do pai, a ordem declarada vale em records E em filteredRecords', () => {
+    state.records = [
+      { ...record('a', 'Recurso', 'Pendente', 20), caseId: 'p1' },
+      { ...record('b', 'Audiência', 'Vencido', 5), caseId: 'p1' },
+      { ...record('x', 'Outro', 'Pendente', 1), caseId: 'p2' },
+      { ...record('c', 'Petição', 'Pendente', 12), caseId: 'p1' },
+    ] as EntityRecord[];
+    const porVencimento = (x: EntityRecord, y: EntityRecord) =>
+      (x.dueDate as Date).getTime() - (y.dueDate as Date).getTime();
+    const { result } = listar(source({
+      parent: { entityKey: 'cases', fieldKey: 'caseId', recordId: 'p1' },
+      sortRecords: porVencimento,
+    }));
+
+    expect(result.current.records.map((r) => r.id)).toEqual(['b', 'c', 'a']);
+    expect(result.current.filteredRecords.map((r) => r.id)).toEqual(['b', 'c', 'a']);
+  });
 });
 
 /**

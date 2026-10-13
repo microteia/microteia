@@ -72,7 +72,7 @@ export interface RecordListSource {
   recordTabKeys?: (recordId: string) => { view: string; clone: string };
   /** Filtros com que a listagem abre. Ver `EntityListOptions.defaultFilterTokens`. */
   defaultFilterTokens?: FilterToken[];
-  /** Ordem em que a listagem apresenta os registros. Ver `EntityListOptions.sortRecords`. */
+  /** Ordem de `records` e de `filteredRecords`. Ver `EntityListOptions.sortRecords`. */
   sortRecords?: (a: EntityRecord, b: EntityRecord) => number;
 }
 
@@ -226,11 +226,16 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
 
   const listing = useCustomFieldListing(sortedFields);
 
+  // Sem ordem declarada vale a da coleção (mais recente primeiro). A tela cuja leitura DEPENDE da
+  // ordem — uma agenda de prazos se lê do mais próximo ao mais distante — informa a sua, e ela vale
+  // nas DUAS listas: `filteredRecords` sai daqui pelo `filter`, que preserva a ordem. Ordenar só a
+  // filtrada deixava `records` na ordem da coleção, e duas abas de registro saíram fora de ordem
+  // desenhando `records`.
   const records = useMemo(() => {
     const all = recordsByCollection[collection] ?? [];
-    if (!parent) return all;
-    return all.filter((record) => record[parent.fieldKey] === parent.recordId);
-  }, [recordsByCollection, collection, parent]);
+    const locked = parent ? all.filter((record) => record[parent.fieldKey] === parent.recordId) : all;
+    return sortRecords ? [...locked].sort(sortRecords) : locked;
+  }, [recordsByCollection, collection, parent, sortRecords]);
 
 
   const tagCollection = useTagCollection(collection, definition?.tagCollection);
@@ -256,15 +261,12 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
   const filteredRecords = useMemo(() => {
     const searchQ = (tokenMap['search']?.[0] ?? '').toLowerCase();
     const tagFilter = tokenMap['tag'] ?? [];
-    const matched = records.filter((record) => {
+    return records.filter((record) => {
       if (searchQ && !listing.searchText(record).includes(searchQ)) return false;
       if (tagFilter.length > 0 && !tagFilter.some((tid) => record.tagIds?.includes(tid))) return false;
       return listing.matchesFilters(record, tokenMap);
     });
-    // Sem ordem declarada vale a da coleção (mais recente primeiro). A tela cuja leitura DEPENDE da
-    // ordem — uma agenda de prazos se lê do mais próximo ao mais distante — informa a sua.
-    return sortRecords ? [...matched].sort(sortRecords) : matched;
-  }, [records, tokenMap, listing, sortRecords]);
+  }, [records, tokenMap, listing]);
 
   const getCardItems = useCallback(
     (record: EntityRecord): CustomFieldCardItem[] =>
