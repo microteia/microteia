@@ -106,6 +106,9 @@ export interface ResolvedDocumentTemplate extends DocumentTemplateSpec {
 
 export const DOCUMENT_TEMPLATES_COLLECTION = 'documentTemplates';
 
+/** O kernel que entende `document.template`. Um pacote que o contribui declara `kernel: '^<esta>'`. */
+export const DOCUMENT_TEMPLATE_SINCE_KERNEL = '2.36.0';
+
 /**
  * O teto do arquivo `.docx`. O modelo é guardado num documento do Firestore (limite de 1 MiB) e
  * viaja num pacote (teto de 800 KB): 512 KB decodificados são ~683 KB de base64, e cabem nos dois.

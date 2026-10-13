@@ -589,7 +589,7 @@ for every organization in the project unless you wrap its handler:
     );
 
 \`npm run create:function\` writes that for you when you say the function reacts to a saved record. A
-callable does not need it — only a screen of your extension calls one. \`AUTHORING.md\` §12 has the why.
+callable does not need it — only a screen of your extension calls one. \`AUTHORING.md\` §14 has the why.
 
 An npm package the platform does not carry goes in \`dependencies\` in that directory's own
 \`package.json\`. Two extensions asking for different ranges of the same package is refused — one

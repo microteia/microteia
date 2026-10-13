@@ -7486,6 +7486,24 @@ do escritório, com o estado de cada uma: **Extensão** (somente leitura — Per
 **Escritório**. O Markdown é editado como texto, com os problemas de gramática ao vivo; o Word é enviado
 como arquivo, e os campos são escritos no próprio documento.
 
+**A gramática é ensinada AO LADO do texto**, e não num documento à parte. A ajuda é dado
+(`presentation/shared/documents/templateHelp.ts`: exemplo de código + chave de mensagem, filtrado pelo
+formato do modelo) e tem o atalho para a Referência de expressões — a lista de funções é a mesma das
+expressões de campo, e repeti-la aqui seria a segunda cópia de um catálogo.
+
+**"Começar pela tela"** escreve o primeiro modelo a partir dos campos DA TELA escolhida
+(`buildStarterTemplate`, puro e testado): data por `formatDate` no padrão do idioma, valor por
+`formatMoney`, vínculo até o campo-título do registro apontado, caixa de seleção e opção de lista FIXA
+como cadeia de `{{#if}}`, e uma lista declarada com tabela para cada tela que aponta para esta. Um
+exemplo genérico ensinaria a gramática e deixaria a pessoa traduzindo-o para o próprio cadastro; este
+já é verdadeiro no escritório dela. Fica de fora o que sairia como identificador: o arquivo, e a opção
+de uma lista do escritório (o registro guarda a CHAVE da opção). As listas já declaradas são mantidas,
+e um texto já escrito só é substituído depois de confirmação.
+
+Para quem escreve extensão, a mesma gramática está na §12 do `AUTHORING.md`, com os fatos sobre o kernel
+DERIVADOS das constantes (`TEMPLATE_BLOCKS`, `DOCUMENT_OUTPUTS_BY_FORMAT`, `DOCUMENT_TEMPLATE_MAX_BYTES`,
+`DOCUMENT_TEMPLATE_SINCE_KERNEL`).
+
 ### Arquivos-chave
 
 | Arquivo | Papel |

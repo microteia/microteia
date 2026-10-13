@@ -25,7 +25,10 @@ export type TemplateNode =
   | { kind: 'each'; expr: string; children: TemplateNode[] }
   | { kind: 'if'; expr: string; children: TemplateNode[] };
 
-export type TemplateBlockKind = 'each' | 'if';
+/** Os dois blocos da gramática. A lista é a fonte do parser, do guia de autoria e da ajuda da tela. */
+export const TEMPLATE_BLOCKS = ['each', 'if'] as const;
+
+export type TemplateBlockKind = (typeof TEMPLATE_BLOCKS)[number];
 
 export interface TemplateIssue {
   /** REFERÊNCIA de mensagem: a validação roda também no backend, que não conhece idioma. */
@@ -46,8 +49,9 @@ export interface ParsedTemplate {
 export const TEMPLATE_LOOP_VARIABLES = ['item', 'index'] as const;
 
 const TAG = /\{\{\s*([\s\S]*?)\s*\}\}/g;
-const OPEN_BLOCK = /^#(each|if)\s+([\s\S]+)$/;
-const CLOSE_BLOCK = /^\/(each|if)$/;
+const BLOCK_NAMES = TEMPLATE_BLOCKS.join('|');
+const OPEN_BLOCK = new RegExp(`^#(${BLOCK_NAMES})\\s+([\\s\\S]+)$`);
+const CLOSE_BLOCK = new RegExp(`^\\/(${BLOCK_NAMES})$`);
 
 interface Frame {
   kind: TemplateBlockKind | 'root';

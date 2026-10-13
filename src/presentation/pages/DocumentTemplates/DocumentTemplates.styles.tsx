@@ -167,15 +167,95 @@ export const S = {
     font-family: ${({ theme }) => theme.fonts.mono};
     font-size: ${({ theme }) => theme.fontSizes.xs};
     color: ${({ theme }) => theme.colors.text};
+    word-break: break-word;
   `,
 
-  HelpList: styled.ul`
+
+  SectionHeader: styled.div`
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: ${({ theme }) => theme.spacing.sm};
+  `,
+
+  ContentLayout: styled.div`
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 300px;
+    gap: ${({ theme }) => theme.spacing.lg};
+    align-items: start;
+
+    @media (max-width: 1100px) {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  `,
+
+  ContentMain: styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: ${({ theme }) => theme.spacing.sm};
+    min-width: 0;
+  `,
+
+  Help: styled.aside`
+    display: flex;
+    flex-direction: column;
+    gap: ${({ theme }) => theme.spacing.md};
+    padding: ${({ theme }) => theme.spacing.md};
+    border-radius: ${({ theme }) => theme.borderRadius.md};
+    background: ${({ theme }) => theme.colors.surfaceHover};
+    max-height: 520px;
+    overflow-y: auto;
+  `,
+
+  HelpTitle: styled.div`
+    display: flex;
+    align-items: center;
+    gap: ${({ theme }) => theme.spacing.xs};
+    font-size: ${({ theme }) => theme.fontSizes.sm};
+    font-weight: 600;
+    color: ${({ theme }) => theme.colors.text};
+  `,
+
+  HelpGroup: styled.div`
     display: flex;
     flex-direction: column;
     gap: ${({ theme }) => theme.spacing.xs};
-    padding-left: ${({ theme }) => theme.spacing.lg};
+  `,
+
+  HelpGroupTitle: styled.div`
+    font-size: ${({ theme }) => theme.fontSizes.xs};
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: ${({ theme }) => theme.colors.textMuted};
+  `,
+
+  HelpEntry: styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  `,
+
+  HelpText: styled.span`
     font-size: ${({ theme }) => theme.fontSizes.xs};
     color: ${({ theme }) => theme.colors.textMuted};
+  `,
+
+  HelpLink: styled.button`
+    display: inline-flex;
+    align-items: center;
+    gap: ${({ theme }) => theme.spacing.xs};
+    width: fit-content;
+    padding: 0;
+    border: none;
+    background: none;
+    color: ${({ theme }) => theme.colors.primary};
+    font-size: ${({ theme }) => theme.fontSizes.xs};
+    cursor: pointer;
+
+    &:hover {
+      text-decoration: underline;
+    }
   `,
 
   DatasetRow: styled.div`

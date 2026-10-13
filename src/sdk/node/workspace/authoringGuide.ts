@@ -21,6 +21,13 @@ import { STEP_TYPES } from '../../../domain/entities/Workflow';
 import type { WorkflowStepMetadata } from '../../../domain/schema/workflowStepCatalog';
 import type { StepType } from '../../../domain/entities/Workflow';
 import { FIELD_EXPRESSION_FUNCTION_NAMES } from '../../../domain/schema/fieldExpression';
+import {
+  DOCUMENT_OUTPUTS_BY_FORMAT,
+  DOCUMENT_TEMPLATE_MAX_BYTES,
+  DOCUMENT_TEMPLATE_SINCE_KERNEL,
+  TEMPLATE_BLOCKS,
+  TEMPLATE_LOOP_VARIABLES,
+} from '../../../domain/schema/document';
 import { DEFAULT_TIME_ZONE, TIME_ZONE_SETTING, timeZoneForLocale } from '../../../domain/schema/i18n/timeZone';
 import {
   DATE_REACHED_CATCH_UP_DAYS,
@@ -134,6 +141,13 @@ const inlineList = (values: readonly string[]): string =>
   values.map((value) => `\`${value}\``).join(', ');
 
 const AGGREGATION_OP_NAMES = Object.keys(AGGREGATION_OP_LABELS);
+
+const DOCUMENT_OUTPUT_TABLE = Object.entries(DOCUMENT_OUTPUTS_BY_FORMAT)
+  .map(([format, outputs]) => `| \`${format}\` | ${outputs.map((output) => `\`${output}\``).join(', ')} |`)
+  .join('\n');
+const DOCUMENT_BLOCKS = TEMPLATE_BLOCKS.map((block) => `\`{{#${block} …}}…{{/${block}}}\``).join(' and ');
+const LOOP_VARIABLES = TEMPLATE_LOOP_VARIABLES.map((name) => `\`${name}\``).join(' and ');
+const DOCUMENT_TEMPLATE_MAX_KB = DOCUMENT_TEMPLATE_MAX_BYTES / 1024;
 
 const MEASURE_OP_NAMES: readonly string[] = NUMERIC_AGGREGATION_OPS;
 
@@ -326,7 +340,7 @@ The order is not a style preference — each rung costs strictly more than the o
 | A **Widget DSL** page, tab or widget | nothing. It cannot break, needs no review, and survives platform upgrades untouched |
 | A **workflow**, **action** or **script** | runs in the platform's own engine and sandbox; no review, but now there is logic to keep right |
 | A **view** or **startup** — real React | an administrator must read the source and trust it, again on every change (§7), and you own that code across upgrades |
-| A **Cloud Function** — \`manifest.backend\` | the extension stays inert until someone provisions the organization's Firebase project (§13) |
+| A **Cloud Function** — \`manifest.backend\` | the extension stays inert until someone provisions the organization's Firebase project (§14) |
 
 Most of what looks like it needs the fourth rung needs the first. A field that computes itself, a
 button that hides for the wrong person, a list filtered by who is looking — all of those are
@@ -351,9 +365,9 @@ record moves through, what moves it, and who may (§8.0.1). Do not wait to be as
 lifecycle arrived in the same sentence as the structure.
 
 Read \`catalogSources\` in those answers before trusting the list of entities: without an exported
-snapshot of the installation, what the organization itself built is invisible to them (§15).
+snapshot of the installation, what the organization itself built is invisible to them (§16).
 
-Those three are MCP tools (§15). The model's shape is the resource \`microteia://domain-model/schema\`,
+Those three are MCP tools (§16). The model's shape is the resource \`microteia://domain-model/schema\`,
 and every check it runs is \`microteia://domain-model/rules\` — both derived from this installation.
 §8.0 below is the short version.
 
@@ -650,7 +664,7 @@ id is the whole of how an update recognises the same contribution across version
 | \`settingsSection(section)\` | \`ui.settings\` | a section of the Settings screen — the properties *are* the contribution |
 | \`messageBundleContribution({ locale, namespace, messages })\` | \`i18n.messages\` | the words, one bundle per locale (§5) |
 | \`themeTokensContribution(spec)\` | \`theme.tokens\` | colour and typography tokens |
-| \`accessPermissionContribution\` · \`accessRequirementContribution\` · \`accessResourceContribution\` | \`access.*\` | what people can do (§12) |
+| \`accessPermissionContribution\` · \`accessRequirementContribution\` · \`accessResourceContribution\` | \`access.*\` | what people can do (§13) |
 | \`lookupProviderContribution\` · \`fieldRulePresetContribution\` | \`data.*\` | an external source of options; a reusable field rule |
 | \`pointContribution(point, id, metadata, apiVersion)\` | any | a point published by *another* extension, which cannot have a constructor here |
 
@@ -1816,7 +1830,7 @@ main();
 In scope: \`input\` (the declared \`inputParams\`), \`actor\` (as in §9 — \`{ id, name, via }\` or \`null\`),
 \`query\`, \`upsert\`, \`remove\`, \`fn.*\` (the expression functions of §9), \`log\` and \`console\`. Nothing else — no \`fetch\`, no \`require\`, no filesystem. The
 budget per run is **25 queries, 25 mutations and 10 seconds**; a script that needs more than that is a
-Cloud Function (§13), not a script.
+Cloud Function (§14), not a script.
 
 **A script travels with both \`sourceTs\` and \`compiledJs\`,** and the compiler does not fill the second
 in for you: the sandbox never transpiles, on purpose. Produce it with the same transpiler the platform
@@ -2125,7 +2139,7 @@ touches — including collections reached through a reference. Grouping by \`cli
 hydration plan, so a package cannot hide a hop by declaring less.
 
 A report may carry a permission of its OWN — \`spec.access.permission\`, with \`requires\` for what it
-depends on (§12). It only ever restricts: seeing the report takes that permission AND the read of
+depends on (§13). It only ever restricts: seeing the report takes that permission AND the read of
 every collection it touches. It cannot grant, and that is the whole reason creating a report is
 allowed to be cheap.
 
@@ -2175,7 +2189,100 @@ These are read and not acted on, and each says so as a warning rather than doing
 
 Reading any of this here is how you know it is coming, not permission to use it yet.
 
-## 12. Access — declare capabilities, never roles
+## 12. Documents — templates generated from a record
+
+A document template — a power of attorney, a fee agreement, a receipt, a notice — is **data**: a
+\`document.template\` contribution, no code, no trust gesture. The organization generates it from the
+record (the "Generate document" gesture) or from an automation (the \`render-document\` step), and the
+file lands in that record's Documents tab. Requires kernel \`^${DOCUMENT_TEMPLATE_SINCE_KERNEL}\`.
+
+\`\`\`ts
+import { documentTemplateContribution } from '@microteia/sdk';
+
+contributes: [
+  documentTemplateContribution({
+    key: 'acme-payment-plan',               // the address; the organization's template on the same key wins
+    title: label('template.payment-plan'),  // a message reference, like every label
+    collection: 'acmeAgreement',            // the screen key as you declared it...
+    screenSourceId: 'acme:agreement',       // ...and its sourceId, which wins: installed keys can get a suffix
+    format: 'markdown',
+    body: PAYMENT_PLAN,                      // the text below
+    fileName: 'Payment plan - {{party}}',
+    datasets: [{ name: 'installments', from: 'acmeInstallment', fromSourceId: 'acme:installment',
+                 via: 'agreement', orderBy: 'dueDate' }],
+  }),
+],
+\`\`\`
+
+The screen must declare \`hasDocuments: true\` — without the tab there is nowhere to attach the file,
+and the generation refuses.
+
+### The grammar
+
+What sits between \`{{ }}\` is a **field expression** (§9): the same paths (\`{{agreement.party.name}}\`
+follows references), the same functions (\`formatDate\`, \`formatMoney\`, \`upper\`, \`round\`…). The
+grammar adds only what an expression cannot say: ${DOCUMENT_BLOCKS}.
+
+\`\`\`md
+# Payment plan
+
+**Party:** {{party}} — signed on {{formatDate(signedOn, "DD/MM/YYYY")}}
+
+| # | Due | Amount |
+|---|---|--:|
+{{#each installments}}| {{index}} | {{formatDate(dueDate, "DD/MM/YYYY")}} | {{formatMoney(amount)}}{{#if paid}} (paid){{/if}} |
+{{/each}}
+
+<!-- pagebreak -->
+\`\`\`
+
+- Inside a loop the item's fields are at the root, the record's are still readable, and ${LOOP_VARIABLES}
+  are reserved: \`item\` is the whole element (the only way to read a list of plain texts), \`index\` the
+  position counting from 1.
+- There is no \`else\`: write the opposite condition, \`{{#if not paid}}\`. A Word template is rendered by a
+  different engine, and what one format cannot say the other does not offer.
+- A reference alone (\`{{client}}\`) prints nothing — it is a whole record. Write the field you mean:
+  \`{{client.name}}\`.
+- A merged value is **text**, never markup: a party called \`A*B\` does not open bold.
+- \`#\` is the document title (centered), paragraphs are justified, and GitHub tables, lists, bold,
+  italics and \`---\` work. \`<!-- pagebreak -->\` starts a new page.
+- An expression that fails leaves its place **empty** and the generation reports it — the step
+  publishes \`emptyFields\`. A malformed block is refused by \`documentTemplateIssues\`, which is what the
+  package gate runs.
+- Formatting functions without a locale argument speak the **organization's** language and time zone,
+  not the language of whoever pressed the button: the document is theirs.
+
+### Lists of child records — \`datasets\`
+
+A loop repeats a list. A list field of the record works as is; records of ANOTHER screen that point
+here come from \`datasets\`, in the vocabulary of an aggregated field: \`from\` (the child screen), \`via\`
+(its reference field to this record), \`orderBy\`, \`direction\`, \`limit\` (at most 100 — more than that is
+a report, §11). Address \`from\` by \`fromSourceId\` for the same reason as the screen.
+
+### Formats
+
+| Template | Produces |
+|---|---|
+${DOCUMENT_OUTPUT_TABLE}
+
+A Word template carries the \`.docx\` in base64 (\`content\`, at most ${DOCUMENT_TEMPLATE_MAX_KB} KB
+decoded) and the fields are written inside the document itself, with the same grammar. Converting Word
+to PDF needs an office engine the platform does not run, so that pair is refused when you declare it,
+not when someone generates.
+
+### Who wins
+
+1. Among packages, the first contribution of a key in registry order (priority, then plugin id).
+2. The organization's own template on the same key replaces yours — "Customize" copies yours there,
+   and deleting the copy brings yours back.
+3. The organization can turn a key off without uninstalling you.
+
+Your template is never copied into the organization: it lives while your extension is installed and
+enabled, and an update replaces it. A template whose screen is not installed is simply not offered.
+
+The example \`document-example\` is all of the above in one package.
+
+## 13. Access — declare capabilities, never roles
 
 Your extension declares what people can *do*; the organization decides *who* does it. You never see
 a role, and that is the point: the profiles of the organization that installs you are theirs to
@@ -2234,7 +2341,7 @@ const can = useCan();
 
 In anything declarative, \`hasPermission(...)\` — the patterns are in §9.
 
-## 13. When your extension needs the server
+## 14. When your extension needs the server
 
 \`manifest.backend\` declares what the organization's Firebase project must provide — Cloud Functions,
 composite indexes, configuration parameters, manual prerequisites. The extension stays **pending**,
@@ -2450,7 +2557,7 @@ The handler is then a few lines that can only be wrong in obvious ways, and ever
 in subtle ways sits in a file \`npm test\` covers. It is the same division as a view and its rules (§7),
 for the same reason: the part with a name is the part that can be tested.
 
-## 14. Size
+## 15. Size
 
 | | |
 |---|---|
@@ -2460,7 +2567,7 @@ for the same reason: the part with a name is the part that can be tested.
 A package is stored as a single document. If you are near the limit, the usual cause is code that
 should be several extensions, or a seed list that should be data.
 
-## 15. Testing, and asking the installation
+## 16. Testing, and asking the installation
 
 \`validatePluginPackage\` is exported from \`@microteia/sdk\` — the same function \`check\` calls. Keeping
 it in a test means a broken package fails in a second, on your machine:

@@ -18,6 +18,13 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.98.0] — 2026-10-13
+
+- feat(documents/ui): the template editor shows the grammar beside the text — fields and paths, formatting functions (with a shortcut to the expression reference), `{{#each}}`/`index`/`item`, `{{#if}}`/`not` (no `else`), Markdown layout or the Word notes depending on the format. The help is data (`templateHelp.ts`), not JSX.
+- feat(documents/ui): "Start from this screen" writes a starter template from the chosen screen's own fields (`buildStarterTemplate`): dates through `formatDate` in the language's pattern, money through `formatMoney`, references down to the linked record's title field, checkboxes and inline select options as `{{#if}}` chains, and one `dataset` plus table per screen that references this one. Files and organization-managed option lists are left out rather than printed as identifiers.
+- docs(sdk): `AUTHORING.md` gains §12 "Documents" — contribution, grammar, `datasets`, formats and precedence, with the block list, outputs per format, the Word size cap and the minimum kernel derived from the code (`TEMPLATE_BLOCKS`, `DOCUMENT_OUTPUTS_BY_FORMAT`, `DOCUMENT_TEMPLATE_MAX_BYTES`, `DOCUMENT_TEMPLATE_SINCE_KERNEL`). Access, server, size and testing move to §13–§16, cross-references included; the stale `§12` pointer for functions in the seeded docs now reads `§14`.
+- chore(locale-pt-br): `1.85.0`, with the help and starter texts.
+
 #### [9.97.0] — 2026-10-13
 
 - feat(documents): extension point `document.template` (owner `core.documents`, `allowedImplKinds: []`, data only). A `DocumentTemplateSpec` — `key`, `title`, `collection`, `format` (`markdown` + `body`, or `docx` + base64 `content`, up to 512 KB decoded), `outputs`, `fileName`, `documentType`, `datasets` — is the same shape in a package contribution and in the organization's `tenants/{tid}/documentTemplates/{key}` (document id = key, enforced by the rules). A package addresses its screens by `sourceId` (`screenSourceId`, `datasets[].fromSourceId`), resolved to the installed key on both ends — a template whose screen is not installed is not offered; `SchemaScreen` now carries `sourceId`. Not materialized on install: the server reads it from the enabled extensions (`InstalledExtensionCache.documentTemplates`). `resolveDocumentTemplates` applies the precedence on both ends: first package contribution per key in registry order, replaced by the organization's document on the same key, and removed by one with `enabled: false`.

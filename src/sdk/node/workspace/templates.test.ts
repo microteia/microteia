@@ -1,4 +1,10 @@
 import { describe, expect, it } from 'vitest';
+import {
+  DOCUMENT_OUTPUTS_BY_FORMAT,
+  DOCUMENT_TEMPLATE_MAX_BYTES,
+  DOCUMENT_TEMPLATE_SINCE_KERNEL,
+  TEMPLATE_BLOCKS,
+} from '../../../domain/schema/document';
 import { PACKAGE_ADVISORY_BYTES, PACKAGE_MAX_BYTES } from '../../../domain/usecases/plugins/pluginReferences';
 import { UI_EXTENSION_POINTS } from '../../../domain/schema/ui/uiExtensionPoints';
 import { ACCESS_EXTENSION_POINTS } from '../../../domain/schema/access';
@@ -457,7 +463,7 @@ describe('o que é gerado em extensions/', () => {
     });
 
     /** Uma function é a única parte de uma extensão que não dá para experimentar em um segundo. */
-    it('a §12 manda o handler fino, com a decisão numa função que o teste chama', () => {
+    it('a §14 manda o handler fino, com a decisão numa função que o teste chama', () => {
       expect(guide).toContain('Write the handler thin');
       expect(guide).toContain('imports nothing from firebase-functions, so a test can call it');
     });
@@ -906,6 +912,34 @@ describe('a numeração do guia', () => {
  * existe, qual é a forma dele e — sobretudo — o que ele NÃO controla. A permissão por coleção e o
  * teto de varredura são cobrados pelo servidor, e um autor que não os conhecesse tentaria contorná-los.
  */
+/**
+ * Os modelos de documento: o que o guia AFIRMA sobre o kernel — os blocos da gramática, o que cada
+ * formato produz, o teto do Word, a versão mínima — sai das constantes, e é isso que se cobra aqui.
+ */
+describe('a seção de documentos', () => {
+  it('ensina a contribuição, a gramática e a precedência, com os fatos derivados do kernel', () => {
+    const guide = authoringGuide(AGENTS);
+
+    expect(guide).toContain('## 12. Documents');
+    expect(guide).toContain('documentTemplateContribution({');
+    for (const block of TEMPLATE_BLOCKS) expect(guide).toContain(`{{#${block} …}}…{{/${block}}}`);
+    for (const [format, outputs] of Object.entries(DOCUMENT_OUTPUTS_BY_FORMAT)) {
+      expect(guide).toContain(`| \`${format}\` | ${outputs.map((output) => `\`${output}\``).join(', ')} |`);
+    }
+    expect(guide).toContain(`at most ${DOCUMENT_TEMPLATE_MAX_BYTES / 1024} KB`);
+    expect(guide).toContain(`Requires kernel \`^${DOCUMENT_TEMPLATE_SINCE_KERNEL}\``);
+  });
+
+  it('as seções seguintes andaram uma casa, e as referências andaram junto', () => {
+    const guide = authoringGuide(AGENTS);
+
+    expect(guide).toContain('## 13. Access');
+    expect(guide).toContain('## 14. When your extension needs the server');
+    expect(guide).toContain('what people can do (§13)');
+    expect(guide).not.toContain('(§12)');
+  });
+});
+
 describe('a seção de relatórios', () => {
   it('mostra o artefato no pacote e onde achar a forma exata', () => {
     const guide = authoringGuide(AGENTS);

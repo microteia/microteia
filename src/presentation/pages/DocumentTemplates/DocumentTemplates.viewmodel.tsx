@@ -6,6 +6,7 @@ import { useDocumentTemplates } from '../../../stores/useDocumentTemplates';
 import { useLookups } from '../../../stores/useLookups';
 import { useNotification } from '../../../stores/useNotification';
 import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
+import { useWorkspace } from '../../../stores/useWorkspace';
 import { PERMISSION_DOCUMENT_TEMPLATES_MANAGE } from '../../../domain/schema/access';
 import type {
   DocumentTemplate,
@@ -22,6 +23,9 @@ import {
   templateCollection,
 } from '../../../domain/schema/document/documentTemplate';
 import { useScreenKeyOfSource } from '../../shared/documents/useResolvedDocumentTemplates';
+import { buildStarterTemplate } from '../../shared/documents/starterTemplate';
+import type { TemplateHelpGroup } from '../../shared/documents/templateHelp';
+import { templateHelpFor } from '../../shared/documents/templateHelp';
 import type { SearchSelectOption } from '../../components/ui/SearchSelect';
 import { useLabel, useT } from '../../shared/i18n/useT';
 
@@ -84,6 +88,15 @@ export interface DocumentTemplatesViewModel {
   cancelDelete: () => void;
   confirmDelete: () => Promise<void>;
   handleDocxFile: (event: React.ChangeEvent<HTMLInputElement>) => void;
+  /** A ajuda da gramática para o formato do modelo, ao lado do texto. */
+  helpGroups: TemplateHelpGroup[];
+  openFunctionReference: () => void;
+  /** O modelo inicial escrito a partir dos campos da tela escolhida. */
+  canInsertStarter: boolean;
+  insertStarter: () => void;
+  isStarterConfirmOpen: boolean;
+  confirmStarter: () => void;
+  cancelStarter: () => void;
   addDataset: () => void;
   updateDataset: (index: number, patch: Partial<DocumentTemplateDataset>) => void;
   removeDataset: (index: number) => void;
@@ -129,6 +142,7 @@ export const useDocumentTemplatesViewModel = (): DocumentTemplatesViewModel => {
   const { definitions, getDefinition } = useScreenDefinitions();
   const { getOptions } = useLookups();
   const { templates, saveTemplate, deleteTemplate } = useDocumentTemplates();
+  const { openTab } = useWorkspace();
   const contributions = useContributions(DOCUMENT_TEMPLATE_POINT);
   const screenKeyOf = useScreenKeyOfSource();
 
@@ -199,6 +213,7 @@ export const useDocumentTemplatesViewModel = (): DocumentTemplatesViewModel => {
   const [draft, setDraft] = useState<DocumentTemplateSpec | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [isStarterConfirmOpen, setIsStarterConfirmOpen] = useState(false);
 
   const selectedRow = rows.find((row) => row.key === selectedKey) ?? null;
   const selectedState = isNew ? 'tenant' : selectedRow?.state ?? null;
@@ -374,6 +389,50 @@ export const useDocumentTemplatesViewModel = (): DocumentTemplatesViewModel => {
       .catch(() => notify(t('template.content.invalid'), 'error'));
   }, [form, notify, t]);
 
+  const dateFormat = t('starter.date-format');
+
+  const helpGroups = useMemo(() => templateHelpFor(form.format, dateFormat), [form.format, dateFormat]);
+
+  const openFunctionReference = useCallback(() => openTab('function-reference'), [openTab]);
+
+  const starterScreen = form.format === 'markdown' ? getDefinition(form.collection) : undefined;
+
+  /**
+   * Aplica o modelo inicial. As listas que o escritório já declarou ficam — o modelo inicial só
+   * ACRESCENTA as que faltam —, e o nome do arquivo só é sugerido quando ainda está vazio.
+   */
+  const applyStarter = useCallback(() => {
+    if (!starterScreen) return;
+    const starter = buildStarterTemplate({
+      screen: starterScreen,
+      screens: definitions,
+      label,
+      texts: {
+        fieldsComment: t('starter.comment.fields'),
+        listComment: t('starter.comment.list'),
+        dateFormat,
+        yes: t('starter.yes'),
+        no: t('starter.no'),
+        generatedOn: t('starter.generated-on'),
+      },
+    });
+    const declared = form.datasets ?? [];
+    const names = new Set(declared.map((dataset) => dataset.name));
+    setForm({
+      body: starter.body,
+      fileName: form.fileName?.trim() ? form.fileName : starter.fileName,
+      datasets: [...declared, ...starter.datasets.filter((dataset) => !names.has(dataset.name))],
+    });
+    setIsStarterConfirmOpen(false);
+  }, [starterScreen, definitions, label, t, dateFormat, form.datasets, form.fileName, setForm]);
+
+  const insertStarter = useCallback(() => {
+    if (form.body?.trim()) setIsStarterConfirmOpen(true);
+    else applyStarter();
+  }, [form.body, applyStarter]);
+
+  const cancelStarter = useCallback(() => setIsStarterConfirmOpen(false), []);
+
   const addDataset = useCallback(
     () => setForm({ datasets: [...(form.datasets ?? []), { name: '', from: '', via: '' }] }),
     [form.datasets, setForm],
@@ -438,6 +497,13 @@ export const useDocumentTemplatesViewModel = (): DocumentTemplatesViewModel => {
     cancelDelete,
     confirmDelete,
     handleDocxFile,
+    helpGroups,
+    openFunctionReference,
+    canInsertStarter: isEditable && !!starterScreen,
+    insertStarter,
+    isStarterConfirmOpen,
+    confirmStarter: applyStarter,
+    cancelStarter,
     addDataset,
     updateDataset,
     removeDataset,

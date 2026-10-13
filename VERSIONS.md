@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.98.0] — 2026-10-13
+
+- A tela de modelos de documento ganhou um guia ao lado do texto: como escrever os campos, formatar datas e valores, repetir listas, incluir trechos sob condição e diagramar o documento, com um atalho para a lista completa de funções.
+- Novo botão "Começar pela tela": ele escreve um primeiro modelo a partir dos campos da tela escolhida — datas e valores já formatados, vínculos mostrando o nome do registro ligado e as listas relacionadas em tabelas —, pronto para ser ajustado.
+
 #### [9.97.0] — 2026-10-13
 
 - Agora é possível gerar documentos a partir de um registro — procuração, contrato, recibo, notificação, relatório ao cliente. Escolha o modelo e o formato (PDF ou Word), e o arquivo pronto é anexado à aba Documentos do próprio registro.

@@ -1,5 +1,13 @@
 import React from 'react';
-import { RiAddLine, RiDeleteBinLine, RiFileTextLine, RiUploadLine } from 'react-icons/ri';
+import {
+  RiAddLine,
+  RiArrowRightUpLine,
+  RiDeleteBinLine,
+  RiFileTextLine,
+  RiMagicLine,
+  RiQuestionLine,
+  RiUploadLine,
+} from 'react-icons/ri';
 import { Button } from '../../components/ui/Button';
 import { Input, Label } from '../../components/ui/Input';
 import { SearchSelect } from '../../components/ui/SearchSelect';
@@ -148,34 +156,64 @@ export const DocumentTemplatesView: React.FC = () => {
               </S.Section>
 
               <S.Section>
-                <S.SectionTitle>{t('section.content')}</S.SectionTitle>
-                {vm.form.format === 'markdown' ? (
-                  <S.TemplateText
-                    value={vm.form.body ?? ''}
-                    readOnly={vm.isReadOnly}
-                    spellCheck={false}
-                    placeholder={t('field.body.placeholder')}
-                    onChange={(e) => vm.setForm({ body: e.target.value })}
-                  />
-                ) : (
-                  <>
-                    <S.Hint>{t(vm.form.content ? 'field.docx.loaded' : 'field.docx.empty')}</S.Hint>
-                    {!vm.isReadOnly && (
-                      <S.FileLabel>
-                        <RiUploadLine size={14} /> {t('field.docx.upload')}
-                        <S.HiddenFile
-                          type="file"
-                          accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                          onChange={vm.handleDocxFile}
-                        />
-                      </S.FileLabel>
+                <S.SectionHeader>
+                  <S.SectionTitle>{t('section.content')}</S.SectionTitle>
+                  {vm.canInsertStarter && (
+                    <Button variant="secondary" size="sm" onClick={vm.insertStarter}>
+                      <RiMagicLine size={14} /> {t('starter.insert')}
+                    </Button>
+                  )}
+                </S.SectionHeader>
+                <S.ContentLayout>
+                  <S.ContentMain>
+                    {vm.form.format === 'markdown' ? (
+                      <S.TemplateText
+                        value={vm.form.body ?? ''}
+                        readOnly={vm.isReadOnly}
+                        spellCheck={false}
+                        placeholder={t('field.body.placeholder')}
+                        onChange={(e) => vm.setForm({ body: e.target.value })}
+                      />
+                    ) : (
+                      <>
+                        <S.Hint>{t(vm.form.content ? 'field.docx.loaded' : 'field.docx.empty')}</S.Hint>
+                        {!vm.isReadOnly && (
+                          <S.FileLabel>
+                            <RiUploadLine size={14} /> {t('field.docx.upload')}
+                            <S.HiddenFile
+                              type="file"
+                              accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                              onChange={vm.handleDocxFile}
+                            />
+                          </S.FileLabel>
+                        )}
+                      </>
                     )}
-                    <S.Hint>{t('field.docx.hint')}</S.Hint>
-                  </>
-                )}
-                {[...vm.issuesFor('body'), ...vm.issuesFor('content'), ...vm.issuesFor('outputs')].map((one) => (
-                  <S.Issue key={one.message} $grammar={one.isGrammar}>{one.message}</S.Issue>
-                ))}
+                    {[...vm.issuesFor('body'), ...vm.issuesFor('content'), ...vm.issuesFor('outputs')].map((one) => (
+                      <S.Issue key={one.message} $grammar={one.isGrammar}>{one.message}</S.Issue>
+                    ))}
+                  </S.ContentMain>
+
+                  <S.Help aria-label={t('help.title')}>
+                    <S.HelpTitle><RiQuestionLine size={14} /> {t('help.title')}</S.HelpTitle>
+                    {vm.helpGroups.map((group) => (
+                      <S.HelpGroup key={group.title}>
+                        <S.HelpGroupTitle>{t(group.title)}</S.HelpGroupTitle>
+                        {group.entries.map((entry) => (
+                          <S.HelpEntry key={entry.text}>
+                            {entry.code && <S.Code>{entry.code}</S.Code>}
+                            <S.HelpText>{t(entry.text)}</S.HelpText>
+                          </S.HelpEntry>
+                        ))}
+                        {group.linksFunctionReference && (
+                          <S.HelpLink type="button" onClick={vm.openFunctionReference}>
+                            {t('help.all-functions')} <RiArrowRightUpLine size={12} />
+                          </S.HelpLink>
+                        )}
+                      </S.HelpGroup>
+                    ))}
+                  </S.Help>
+                </S.ContentLayout>
               </S.Section>
 
               <S.Section>
@@ -228,17 +266,6 @@ export const DocumentTemplatesView: React.FC = () => {
                   </Button>
                 )}
               </S.Section>
-
-              <S.Section>
-                <S.SectionTitle>{t('help.title')}</S.SectionTitle>
-                <S.HelpList>
-                  <li><S.Code>{'{{caseId.clientId.name}}'}</S.Code> — {t('help.path')}</li>
-                  <li><S.Code>{'{{formatDate(dueDate, "DD/MM/YYYY")}}'}</S.Code> — {t('help.functions')}</li>
-                  <li><S.Code>{'{{#each installments}} {{index}}. {{amount}} {{/each}}'}</S.Code> — {t('help.each')}</li>
-                  <li><S.Code>{'{{#if paid}} … {{/if}}'}</S.Code> — {t('help.if')}</li>
-                  <li><S.Code>{'<!-- pagebreak -->'}</S.Code> — {t('help.page-break')}</li>
-                </S.HelpList>
-              </S.Section>
             </>
           )}
         </S.Editor>
@@ -251,6 +278,14 @@ export const DocumentTemplatesView: React.FC = () => {
         variant={vm.selectedState === 'override' ? 'default' : 'danger'}
         onConfirm={() => void vm.confirmDelete()}
         onCancel={vm.cancelDelete}
+      />
+      <ConfirmModal
+        isOpen={vm.isStarterConfirmOpen}
+        title={t('starter.insert')}
+        message={t('starter.replace.confirm')}
+        confirmLabel={t('starter.replace')}
+        onConfirm={vm.confirmStarter}
+        onCancel={vm.cancelStarter}
       />
     </S.Page>
   );
