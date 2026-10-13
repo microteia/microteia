@@ -339,7 +339,12 @@ O nome fica **congelado no `text` do log como era no momento do evento** — se 
 
 ### Retenção (TTL) e backup frio
 
-`expiresAt` é calculado como `createdAt + 30 dias`. **Passo manual obrigatório:** habilitar a política de TTL no Firestore Console (Firestore → TTL → coleção `auditLogs`, campo `expiresAt`) — não é configurável via código/regra.
+`expiresAt` é calculado como `createdAt + 30 dias`. A política de TTL é **declarada**: `"ttl": true` no
+`fieldOverride` de `auditLogs.expiresAt` em `firestore.indexes.json`, e o deploy de índices
+(`npm run deploy:indexes`, ou `firebase deploy --only firestore:indexes` dentro do `microteia deploy`) a grava
+no projeto — o Firebase CLI traduz o `ttl` para `ttlConfig` no campo. Não há passo manual. A ativação da
+política e o expurgo são assíncronos do lado do Firestore: o documento vencido some algum tempo depois de
+`expiresAt`, nunca antes.
 
 Toda exclusão de um `AuditLog` (manual ou via TTL) dispara `backupDeletedAuditLog`, que salva uma cópia em JSON no Storage antes de ser perdida:
 - `tenants/{tenantId}/logs/{entity}/{logId}.json` (um arquivo por log, pasta por entidade)
@@ -1187,7 +1192,7 @@ lista para desatualizar é exatamente o defeito que já deixou `runAction` fora 
 
 `manualPrerequisites` é a seção "Ao criar um ambiente do zero" desta página virada dado: plano Blaze
 antes de tudo, App Engine antes das functions, região do Firestore igual à das functions, bucket do
-Storage iniciado pelo console, provedor de login, TTL da auditoria, e o condicional da invocação das
+Storage iniciado pelo console, provedor de login, e o condicional da invocação das
 callables por `allUsers`. Elas viajam no manifesto porque **quem instala não tem o `ARCHITECTURE.md`**.
 
 Credencial de terceiro **não entra nesta lista**, e `cli/src/kernel/manifest.test.ts` reprova o passo
@@ -5565,8 +5570,8 @@ nem `old`. Prazo em D-3, D-1 e D-0 são três automações.
 As duas gravam, NUM lote, a marca `workflow_trigger_marks/{automação}_{registro}_{dia}` (com `create`, que
 falha se ela existe) e o evento. É a marca que garante "uma vez por registro e por valor da data": a data que
 muda ganha outra chave e dispara de novo; a que não muda encontra a marca. A coleção é selada nas regras —
-criar uma marca suprimiria o aviso, apagar o faria repetir —, e expira por TTL (`expiresAt`, 400 dias; a
-política de TTL é habilitada no console, como a de `auditLogs`).
+criar uma marca suprimiria o aviso, apagar o faria repetir —, e expira por TTL (`expiresAt`, 400 dias),
+declarado no `firestore.indexes.json` e gravado pelo deploy de índices, como o de `auditLogs`.
 
 **O dia é o do fuso do escritório.** O dia de um registro é `dayInTimeZone(valor, fuso)` — que lê certo
 tanto a âncora de meio-dia UTC quanto a meia-noite local das datas antigas —, e a janela da consulta vai da

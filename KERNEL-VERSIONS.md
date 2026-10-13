@@ -18,6 +18,10 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.95.2] — 2026-10-12
+
+- docs(firestore): Firestore TTL is declared, not manual. `"ttl": true` on a `fieldOverride` in `firestore.indexes.json` is applied by `firebase deploy --only firestore:indexes` (the CLI writes `ttlConfig` on the field), which `microteia deploy` runs; both `auditLogs.expiresAt` and `workflow_trigger_marks.expiresAt` are covered. The "enable the TTL policy in the console" instruction is removed from the manual prerequisites (Console `2.26.1`), the README and ARCHITECTURE.md, and from the 9.92.0 entry below.
+
 #### [9.95.1] — 2026-10-12
 
 - fix(workflow-editor): the editor no longer lets a `delay` step land inside a condition branch or a loop body, where the engine refuses the pause mid-execution. `PAUSING_STEP_DEFINITION_IDS` / `isPausingStepDefinition` (`domain/schema/workflowStepCatalog.ts`) is the single list, read by package validation and the editor: the step picker does not offer it below the top level, `canPlaceStep` refuses dragging it — or a node containing it — into a branch or loop, with a notice, and a misplaced one from an import shows a warning and cannot be saved there.
@@ -46,7 +50,7 @@
 - feat(functions): the kernel clock serves it. At `at` each day it queries the collection by a range on that one field (served by the automatic single-field index, no composite per collection), paged by 200, and publishes one targeted event per record. A record that reaches its day after `at` fires from the save: `RunWorkflowsForEventUseCase` now asks `eventName in [<p>.saved, <p>.dateReached]` in the same query and hands the date ones to `dateReachedOnSave`. Both halves claim `workflow_trigger_marks/{workflow}_{record}_{day}` with `create` in the same batch as the event — once per record and per date value; a changed date fires again. Never retroactive; a stopped clock recovers at most 7 days. The collection is resolved on every run, because installation writes workflows before screens.
 - feat(workflow): the schedule entry carries its owners, so the clock skips a deactivated extension's workflow before publishing (and, for a date trigger, before querying).
 - feat(sdk): `validatePluginPackage` refuses a malformed `dateReached`, a `field` that is not a `date` field of a screen in the package (`@core.marketplace/issue.workflow.date-reached-invalid`), and a `kernel` range that admits a kernel older than the trigger (`issue.workflow.trigger-kernel` — 2.32.0 for `schedule`, 2.33.0 for `dateReached`). `microteia://workflow/events` and AUTHORING.md §10 describe it.
-- chore(firestore): `workflow_trigger_marks` is reserved and sealed (no client access), with a TTL `fieldOverride` on `expiresAt` in `firestore.indexes.json`. Enable the TTL policy in the Firestore console, as for `auditLogs`.
+- chore(firestore): `workflow_trigger_marks` is reserved and sealed (no client access), with a TTL `fieldOverride` on `expiresAt` in `firestore.indexes.json`; the index deploy applies the policy.
 - chore(locale-pt-br): `1.80.0`, with the date trigger keys.
 
 #### [9.91.0] — 2026-10-12

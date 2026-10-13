@@ -75,8 +75,20 @@ describe('pré-requisitos manuais', () => {
   it('o que sobrou é do kernel de verdade — o que toda instalação precisa', () => {
     expect(MANUAL_PREREQUISITES.map((prerequisite) => prerequisite.id)).toEqual([
       'billing', 'app-engine', 'firestore-location', 'storage-bucket', 'auth-provider',
-      'functions-invoker', 'audit-ttl',
+      'functions-invoker',
     ]);
+  });
+
+  /**
+   * O TTL do Firestore é DECLARADO: `"ttl": true` num `fieldOverride` do `firestore.indexes.json`, e o
+   * `firebase deploy --only firestore:indexes` que o `deploy` roda grava a política. O passo manual que
+   * pedia "habilitar no console" mandava o escritório refazer à mão o que o deploy já tinha feito — e
+   * cada TTL novo do kernel teria de lembrar de acrescentar mais uma linha aqui.
+   */
+  it('nenhum pré-requisito pede à mão o que o deploy de índices já declara', () => {
+    for (const prerequisite of MANUAL_PREREQUISITES) {
+      expect(`${prerequisite.title} ${prerequisite.detail}`, prerequisite.id).not.toMatch(/\bTTL\b/);
+    }
   });
 });
 

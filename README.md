@@ -243,8 +243,11 @@ Na mesma ordem em que o `connect` os imprime:
 | **Cloud Storage** iniciado pelo console | habilitar a API não basta: o bucket padrão não existe e nenhum comando de CLI o cria |
 | **Authentication → Google** habilitado | sem ele ninguém entra |
 | Invocação das callables por `allUsers` — *só se a organização bloquear* | o deploy concede e depois verifica; política de organização pode recusar |
-| **TTL** do Firestore em `auditLogs.expiresAt` | não se declara em código nem em rules |
 | O que uma extensão instalada pedir (credencial de terceiro, tópico Pub/Sub) | o próprio `provision` imprime a lista, por extensão; credencial nunca é compartilhada entre instalações |
+
+As políticas de **TTL** do Firestore (`auditLogs.expiresAt`, `workflow_trigger_marks.expiresAt`) não estão
+nesta lista porque não são passo de console: são declaradas com `"ttl": true` no `firestore.indexes.json`, e o
+deploy de índices as grava.
 
 ### 3. Instalar (lado escritório)
 

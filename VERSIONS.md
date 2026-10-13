@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.95.2] — 2026-10-12
+
+- A instalação ficou com um passo manual a menos: a limpeza automática do histórico de auditoria passa a ser configurada pela própria publicação, sem precisar ser ligada à mão no console do Firebase.
+
 #### [9.95.1] — 2026-10-12
 
 - O editor de automações não deixa mais colocar o passo "Esperar" dentro de uma condição ou de uma repetição — lugares onde a espera não funciona. Ao tentar arrastá-lo para lá, um aviso explica onde ele pode ficar.

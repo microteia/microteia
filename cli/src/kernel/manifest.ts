@@ -194,14 +194,6 @@ export const MANUAL_PREREQUISITES: KernelPrerequisite[] = [
       + 'with the credential it was given and refuses everything else.',
     optional: true,
   },
-  {
-    id: 'audit-ttl',
-    title: 'Enable the Firestore TTL policy on auditLogs.expiresAt',
-    detail:
-      'Firestore console, TTL, collection auditLogs, field expiresAt. It cannot be declared in code or '
-      + 'rules. Without it audit logs are never expired and grow without bound.',
-    optional: false,
-  },
 ];
 
 /**
