@@ -1,0 +1,174 @@
+{
+  "manifest": {
+    "id": "com.microteia.document-example",
+    "version": "1.0.0",
+    "kernel": "^2.36.0",
+    "name": "@com.microteia.document-example/package.name",
+    "description": "@com.microteia.document-example/package.description",
+    "category": "@com.microteia.document-example/package.category",
+    "publisher": {
+      "name": "Microteia"
+    },
+    "contributes": [
+      {
+        "point": "i18n.messages",
+        "id": "en.com.microteia.document-example",
+        "apiVersion": "1.0.0",
+        "metadata": {
+          "locale": "en",
+          "namespace": "com.microteia.document-example",
+          "messages": {
+            "package.name": "Documents, by example",
+            "package.category": "Documents",
+            "package.description": "A document template over two small screens: an agreement and its installments, generated as PDF or Word and attached to the agreement.",
+            "package.summary": "What a document template can say, with no business in the way. It installs an agreement screen with the Documents tab, a screen of installments linked to it, and one template that reads fields, formats dates and money, repeats the installments in a table and includes a line only when a condition holds. Generate it from the agreement, or from an automation with the \"Generate Document\" step.",
+            "screen.agreement": "Agreement",
+            "screen.agreement.plural": "Agreements",
+            "screen.installment": "Installment",
+            "screen.installment.plural": "Installments",
+            "field.party": "Party",
+            "field.signedOn": "Signed on",
+            "field.total": "Total",
+            "field.agreement": "Agreement",
+            "field.amount": "Amount",
+            "field.dueDate": "Due date",
+            "field.paid": "Paid",
+            "template.payment-plan": "Payment plan"
+          }
+        }
+      },
+      {
+        "point": "i18n.messages",
+        "id": "pt-br.com.microteia.document-example",
+        "apiVersion": "1.0.0",
+        "metadata": {
+          "locale": "pt-BR",
+          "namespace": "com.microteia.document-example",
+          "messages": {
+            "package.name": "Documentos, pelo exemplo",
+            "package.category": "Documentos",
+            "package.description": "Um modelo de documento sobre duas telas pequenas: um acordo e as parcelas dele, gerado em PDF ou Word e anexado ao acordo.",
+            "package.summary": "O que um modelo de documento consegue dizer, sem negócio no caminho. Instala uma tela de acordo com a aba Documentos, uma tela de parcelas ligada a ela, e um modelo que lê campos, formata datas e valores, repete as parcelas numa tabela e inclui uma linha só quando uma condição vale. Gere-o a partir do acordo, ou de uma automação com o passo \"Gerar Documento\".",
+            "screen.agreement": "Acordo",
+            "screen.agreement.plural": "Acordos",
+            "screen.installment": "Parcela",
+            "screen.installment.plural": "Parcelas",
+            "field.party": "Parte",
+            "field.signedOn": "Assinado em",
+            "field.total": "Total",
+            "field.agreement": "Acordo",
+            "field.amount": "Valor",
+            "field.dueDate": "Vencimento",
+            "field.paid": "Pago",
+            "template.payment-plan": "Plano de pagamento"
+          }
+        }
+      },
+      {
+        "point": "document.template",
+        "id": "payment-plan",
+        "apiVersion": "1.0.0",
+        "metadata": {
+          "key": "payment-plan",
+          "title": "@com.microteia.document-example/template.payment-plan",
+          "collection": "docAgreement",
+          "screenSourceId": "microteia:document-example:agreement",
+          "format": "markdown",
+          "body": "# Payment plan\n\n**Party:** {{party}}\n**Signed on:** {{formatDate(signedOn, \"DD/MM/YYYY\")}}\n\n| # | Due date | Amount | |\n|---|---|--:|---|\n{{#each installments}}| {{index}} | {{formatDate(dueDate, \"DD/MM/YYYY\")}} | {{formatMoney(amount)}} | {{#if paid}}paid{{/if}} |\n{{/each}}\n\n**Total:** {{formatMoney(total)}}\n\n<!-- pagebreak -->\n\nGenerated on {{formatDate(today(), \"DD/MM/YYYY\")}}.\n",
+          "fileName": "Payment plan - {{party}}",
+          "datasets": [
+            {
+              "name": "installments",
+              "from": "docInstallment",
+              "fromSourceId": "microteia:document-example:installment",
+              "via": "agreement",
+              "orderBy": "dueDate"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "summary": "@com.microteia.document-example/package.summary",
+  "workflows": [],
+  "screens": [
+    {
+      "key": "docAgreement",
+      "sourceId": "microteia:document-example:agreement",
+      "sourceRev": 1,
+      "titleSingular": "@com.microteia.document-example/screen.agreement",
+      "titlePlural": "@com.microteia.document-example/screen.agreement.plural",
+      "icon": "fileText",
+      "fields": [
+        {
+          "key": "party",
+          "label": "@com.microteia.document-example/field.party",
+          "type": "text",
+          "required": true,
+          "order": 0
+        },
+        {
+          "key": "signedOn",
+          "label": "@com.microteia.document-example/field.signedOn",
+          "type": "date",
+          "required": false,
+          "order": 1
+        },
+        {
+          "key": "total",
+          "label": "@com.microteia.document-example/field.total",
+          "type": "currency",
+          "required": false,
+          "order": 2
+        }
+      ],
+      "titleFieldKey": "party",
+      "hasDocuments": true,
+      "eventPrefix": "docAgreement"
+    },
+    {
+      "key": "docInstallment",
+      "sourceId": "microteia:document-example:installment",
+      "sourceRev": 1,
+      "titleSingular": "@com.microteia.document-example/screen.installment",
+      "titlePlural": "@com.microteia.document-example/screen.installment.plural",
+      "icon": "bank",
+      "fields": [
+        {
+          "key": "agreement",
+          "label": "@com.microteia.document-example/field.agreement",
+          "type": "reference",
+          "required": true,
+          "order": 0,
+          "refEntity": "docAgreement"
+        },
+        {
+          "key": "dueDate",
+          "label": "@com.microteia.document-example/field.dueDate",
+          "type": "date",
+          "required": true,
+          "order": 1
+        },
+        {
+          "key": "amount",
+          "label": "@com.microteia.document-example/field.amount",
+          "type": "currency",
+          "required": true,
+          "order": 2
+        },
+        {
+          "key": "paid",
+          "label": "@com.microteia.document-example/field.paid",
+          "type": "checkbox",
+          "required": false,
+          "order": 3
+        }
+      ],
+      "titleFieldKey": "dueDate",
+      "parentEntity": "docAgreement",
+      "parentFieldKey": "agreement",
+      "parentRelation": "owned",
+      "eventPrefix": "docInstallment"
+    }
+  ]
+}

@@ -42,6 +42,7 @@ describe('o menu do usuário como contribuição', () => {
       'access-management',
       'actions',
       'data-processor',
+      'document-templates',
       'marketplace',
       'screen-builder',
       'scripts',
@@ -103,6 +104,7 @@ describe('o menu do usuário como contribuição', () => {
       'workflows',
       'scripts',
       'actions',
+      'document-templates',
       'data-processor',
       'marketplace',
     ]);

@@ -29,6 +29,7 @@ export { CORE_TENANT_MESSAGES } from './coreTenant';
 export { CORE_MARKETPLACE_MESSAGES } from './coreMarketplace';
 export { CORE_RECORDS_MESSAGES } from './coreRecords';
 export { CORE_REPORTS_MESSAGES } from './coreReports';
+export { CORE_DOCUMENTS_MESSAGES } from './coreDocuments';
 export { CORE_WORKSPACE_MESSAGES } from './coreWorkspace';
 export { CORE_SETTINGS_MESSAGES } from './coreSettings';
 export { CORE_I18N_MESSAGES } from './coreI18n';

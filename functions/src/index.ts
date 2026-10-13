@@ -13,6 +13,7 @@ export { runWorkflow } from './infrastructure/handlers/runWorkflow';
 export { runScript } from './infrastructure/handlers/runScript';
 export { runAction } from './infrastructure/handlers/runAction';
 export { runReport } from './infrastructure/handlers/runReport';
+export { renderDocument } from './infrastructure/handlers/renderDocument';
 export { getUserInfo } from './infrastructure/handlers/getUserInfo';
 export { checkNicknameAvailability } from './infrastructure/handlers/checkNicknameAvailability';
 export { claimNickname } from './infrastructure/handlers/claimNickname';

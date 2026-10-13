@@ -5,6 +5,7 @@ import { useWorkspace } from '../../../stores/useWorkspace';
 import { useAuthorization } from '../../../stores/useAuthorization';
 import { useNotification } from '../../../stores/useNotification';
 import { useActions } from '../../../stores/useActions';
+import { useRecordDialog } from '../../../stores/useRecordDialog';
 import { storeEvents, StoreEvents } from '../../../infrastructure/events/StoreEventEmitter';
 import type { ActionExprContext } from '../../../domain/schema/actionExpression';
 import { isActionDisabled, isActionHidden } from '../../../domain/schema/actionExpression';
@@ -339,6 +340,7 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
     : parentLinkRelation(definition, parent.fieldKey, parentLinkField);
 
   const recordActions = useRecordActions();
+  const { open: openRecordDialog } = useRecordDialog();
 
   /**
    * O que o kernel entrega a uma ação de registro. Estreito de propósito: o comando não enxerga
@@ -364,8 +366,9 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
     copyText: (text) => navigator.clipboard.writeText(text),
     openTagManager: () => setTagManagerRecord(record),
     requestDelete: () => setRecordToDelete(record),
+    openDialog: (component) => openRecordDialog({ component, props: { record, collection, screenKey } }),
     t,
-  }), [collection, screenKey, definition, parent, parentLinkField, openTab, notify, updateRecord, recordTabKeys, t]);
+  }), [collection, screenKey, definition, parent, parentLinkField, openTab, notify, updateRecord, recordTabKeys, openRecordDialog, t]);
 
   const cardActionDefs = useMemo(
     () => getActionsByIds(definition?.cardActionIds ?? []),

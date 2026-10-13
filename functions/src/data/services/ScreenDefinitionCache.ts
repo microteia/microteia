@@ -71,6 +71,7 @@ export class ScreenDefinitionCache implements IScreenDefinitionProvider {
         tagCollection: typeof data.tagCollection === 'string' ? data.tagCollection : undefined,
         eventPrefix: typeof data.eventPrefix === 'string' ? data.eventPrefix : undefined,
         hasDocuments: data.hasDocuments === true,
+        sourceId: typeof data.sourceId === 'string' ? data.sourceId : null,
       };
     });
 

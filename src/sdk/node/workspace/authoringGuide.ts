@@ -277,6 +277,7 @@ const STEP_CATALOG_NOTES: Record<string, string> = {
   query: 'Asks the database. Publishes `count`, `results`, `first`, plus `first.<projection>`.',
   upsert: 'Writes one record. An `id` in the object means update, no `id` means insert.',
   remove: 'Deletes one record.',
+  'render-document': 'Fills a document template (`document.template`, or the organization\'s own on the same key) with a record and attaches the PDF or Word file to its Documents tab. The template names the screen; `recordId` must be a record of it. Publishes `documentId`, `name`, `url`, `format` and `emptyFields`.',
 };
 
 export interface AuthoringGuideInput {

@@ -62,6 +62,11 @@ export interface SchemaScreen {
    * ninguém vê.
    */
   hasDocuments?: boolean;
+  /**
+   * O id UNIVERSAL da tela. A chave instalada pode ganhar sufixo; o `sourceId` não muda, e é por ele
+   * que um pacote aponta a tela de outro artefato dele — um modelo de documento, uma aba de registro.
+   */
+  sourceId?: string | null;
 }
 
 /** A lista de opções como o schema a enxerga. `collection` é o nome da coleção sob o tenant. */
@@ -516,6 +521,7 @@ export const RESERVED_COLLECTIONS: ReadonlySet<string> = new Set<string>([
   'tags',
   'lookupDefinitions',
   'reports',
+  'documentTemplates',
   'tagDefinitions',
   'secrets',
   'settings',

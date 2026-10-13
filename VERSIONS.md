@@ -11,6 +11,13 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.97.0] — 2026-10-13
+
+- Agora é possível gerar documentos a partir de um registro — procuração, contrato, recibo, notificação, relatório ao cliente. Escolha o modelo e o formato (PDF ou Word), e o arquivo pronto é anexado à aba Documentos do próprio registro.
+- Nova tela "Modelos de documento", no menu do usuário: escreva o modelo em texto, com campos que buscam os dados do registro e dos registros ligados a ele, ou envie um arquivo Word com os mesmos campos. Datas e valores saem formatados no padrão do escritório, e o modelo pode repetir listas, como as parcelas de um contrato.
+- Os modelos que vêm com as extensões podem ser personalizados: o escritório edita a própria cópia, e pode voltar ao original ou desligar o modelo a qualquer momento.
+- Novo passo "Gerar Documento" nas automações, para produzir e anexar o documento sem ninguém precisar abrir o registro.
+
 #### [9.96.0] — 2026-10-13
 
 - O passo "Notificar" das automações agora entrega o aviso de verdade: escolha se ele aparece no sino, chega por e-mail, vira uma notificação no navegador ou fica registrado na Auditoria — ou tudo isso ao mesmo tempo. Automações que já existiam continuam funcionando exatamente como antes.

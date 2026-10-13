@@ -1,0 +1,445 @@
+import { useCallback, useMemo, useState } from 'react';
+import type React from 'react';
+import { useAuthorization } from '../../../stores/useAuthorization';
+import { useContributions } from '../../../stores/useKernel';
+import { useDocumentTemplates } from '../../../stores/useDocumentTemplates';
+import { useLookups } from '../../../stores/useLookups';
+import { useNotification } from '../../../stores/useNotification';
+import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
+import { PERMISSION_DOCUMENT_TEMPLATES_MANAGE } from '../../../domain/schema/access';
+import type {
+  DocumentTemplate,
+  DocumentTemplateDataset,
+  DocumentTemplateFormat,
+  DocumentTemplateSpec,
+} from '../../../domain/schema/document/documentTemplate';
+import {
+  DOCUMENT_TEMPLATE_MAX_BYTES,
+  DOCUMENT_TEMPLATE_POINT,
+  documentTemplateIssues,
+  documentTemplateOf,
+  isGrammarIssue,
+  templateCollection,
+} from '../../../domain/schema/document/documentTemplate';
+import { useScreenKeyOfSource } from '../../shared/documents/useResolvedDocumentTemplates';
+import type { SearchSelectOption } from '../../components/ui/SearchSelect';
+import { useLabel, useT } from '../../shared/i18n/useT';
+
+/**
+ * O estado de uma chave, do ponto de vista de quem administra:
+ * - `plugin`: só a extensão declara — somente leitura, personalizável;
+ * - `override`: o escritório substitui o da extensão na mesma chave;
+ * - `disabled`: o escritório desligou a chave;
+ * - `tenant`: o modelo é do escritório, sem extensão por trás.
+ */
+export type DocumentTemplateRowState = 'plugin' | 'override' | 'disabled' | 'tenant';
+
+export interface DocumentTemplateRow {
+  key: string;
+  title: string;
+  screenLabel: string;
+  format: DocumentTemplateFormat;
+  state: DocumentTemplateRowState;
+  pluginId: string | null;
+}
+
+export interface TemplateIssueLine {
+  field: string;
+  message: string;
+  isGrammar: boolean;
+}
+
+export interface DatasetRowOptions {
+  via: SearchSelectOption[];
+  orderBy: SearchSelectOption[];
+}
+
+export interface DocumentTemplatesViewModel {
+  canManage: boolean;
+  rows: DocumentTemplateRow[];
+  selectedKey: string | null;
+  isNew: boolean;
+  selectedState: DocumentTemplateRowState | null;
+  isEditable: boolean;
+  form: DocumentTemplateSpec;
+  setForm: (patch: Partial<DocumentTemplateSpec>) => void;
+  issues: TemplateIssueLine[];
+  /** Os problemas de um campo — e, para uma lista (`datasets`), os de cada item dela. */
+  issuesFor: (field: string) => TemplateIssueLine[];
+  isReadOnly: boolean;
+  screenOptions: SearchSelectOption[];
+  childScreenOptions: SearchSelectOption[];
+  formatOptions: SearchSelectOption[];
+  documentTypeOptions: SearchSelectOption[];
+  datasetOptions: DatasetRowOptions[];
+  isSaving: boolean;
+  canSave: boolean;
+  isDeleteOpen: boolean;
+  selectRow: (key: string) => void;
+  startNew: () => void;
+  handleSave: () => Promise<void>;
+  handleCustomize: () => void;
+  handleToggleDisabled: () => Promise<void>;
+  requestDelete: () => void;
+  cancelDelete: () => void;
+  confirmDelete: () => Promise<void>;
+  handleDocxFile: (event: React.ChangeEvent<HTMLInputElement>) => void;
+  addDataset: () => void;
+  updateDataset: (index: number, patch: Partial<DocumentTemplateDataset>) => void;
+  removeDataset: (index: number) => void;
+}
+
+const EMPTY_FORM: DocumentTemplateSpec = {
+  key: '',
+  title: '',
+  collection: '',
+  format: 'markdown',
+  body: '',
+};
+
+const specOf = (template: DocumentTemplateSpec): DocumentTemplateSpec => ({
+  key: template.key,
+  title: template.title,
+  ...(template.description ? { description: template.description } : {}),
+  collection: template.collection,
+  ...(template.screenSourceId ? { screenSourceId: template.screenSourceId } : {}),
+  format: template.format,
+  ...(template.body !== undefined ? { body: template.body } : {}),
+  ...(template.content !== undefined ? { content: template.content } : {}),
+  ...(template.outputs ? { outputs: template.outputs } : {}),
+  ...(template.fileName ? { fileName: template.fileName } : {}),
+  ...(template.documentType ? { documentType: template.documentType } : {}),
+  ...(template.datasets ? { datasets: template.datasets } : {}),
+});
+
+/** O arquivo lido como base64, sem o prefixo `data:` que o `FileReader` acrescenta. */
+const readAsBase64 = (file: File): Promise<string> =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result ?? '').replace(/^data:[^,]*,/, ''));
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+
+export const useDocumentTemplatesViewModel = (): DocumentTemplatesViewModel => {
+  const t = useT('core.documents');
+  const label = useLabel();
+  const { can } = useAuthorization();
+  const { notify } = useNotification();
+  const { definitions, getDefinition } = useScreenDefinitions();
+  const { getOptions } = useLookups();
+  const { templates, saveTemplate, deleteTemplate } = useDocumentTemplates();
+  const contributions = useContributions(DOCUMENT_TEMPLATE_POINT);
+  const screenKeyOf = useScreenKeyOfSource();
+
+  const packaged = useMemo(() => {
+    const byKey = new Map<string, { spec: DocumentTemplateSpec; pluginId: string }>();
+    for (const contribution of contributions) {
+      const spec = documentTemplateOf(contribution);
+      if (spec && !byKey.has(spec.key)) byKey.set(spec.key, { spec, pluginId: contribution.pluginId });
+    }
+    return byKey;
+  }, [contributions]);
+
+  const tenantByKey = useMemo(
+    () => new Map<string, DocumentTemplate>(templates.map((template) => [template.key, template])),
+    [templates],
+  );
+
+  /** A tela do modelo pela chave INSTALADA — a de pacote vem pelo `sourceId`, que não muda. */
+  const installedSpec = useCallback(
+    (spec: DocumentTemplateSpec): DocumentTemplateSpec => ({
+      ...specOf(spec),
+      collection: templateCollection(spec, screenKeyOf) ?? '',
+      ...(spec.datasets
+        ? {
+          datasets: spec.datasets.map((dataset) => ({
+            ...dataset,
+            from: (dataset.fromSourceId ? screenKeyOf(dataset.fromSourceId) : dataset.from) ?? '',
+          })),
+        }
+        : {}),
+    }),
+    [screenKeyOf],
+  );
+
+  const screenLabelOf = useCallback(
+    (collection: string) => {
+      if (!collection) return t('template.screen-missing');
+      const definition = getDefinition(collection);
+      return definition ? label(definition.titlePlural) : collection;
+    },
+    [getDefinition, label, t],
+  );
+
+  const rows = useMemo<DocumentTemplateRow[]>(() => {
+    const keys = new Set([...packaged.keys(), ...tenantByKey.keys()]);
+    return [...keys]
+      .map((key): DocumentTemplateRow => {
+        const own = tenantByKey.get(key);
+        const fromPackage = packaged.get(key);
+        const state: DocumentTemplateRowState = own
+          ? own.enabled === false ? 'disabled' : fromPackage ? 'override' : 'tenant'
+          : 'plugin';
+        const shown = installedSpec(own && own.enabled !== false ? own : fromPackage?.spec ?? (own as DocumentTemplateSpec));
+        return {
+          key,
+          title: label(shown.title),
+          screenLabel: screenLabelOf(shown.collection),
+          format: shown.format,
+          state,
+          pluginId: fromPackage?.pluginId ?? null,
+        };
+      })
+      .sort((left, right) => left.title.localeCompare(right.title));
+  }, [packaged, tenantByKey, label, screenLabelOf, installedSpec]);
+
+  const [selectedKey, setSelectedKey] = useState<string | null>(null);
+  const [isNew, setIsNew] = useState(false);
+  const [draft, setDraft] = useState<DocumentTemplateSpec | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+
+  const selectedRow = rows.find((row) => row.key === selectedKey) ?? null;
+  const selectedState = isNew ? 'tenant' : selectedRow?.state ?? null;
+  const isEditable = isNew || selectedState === 'tenant' || selectedState === 'override';
+
+  /**
+   * O formulário é o RASCUNHO quando há edição em curso; sem ela, é o que a chave selecionada diz
+   * agora — inclusive depois de um save, quando o store devolve o documento gravado.
+   */
+  const form = useMemo<DocumentTemplateSpec>(() => {
+    if (draft) return draft;
+    if (!selectedKey) return EMPTY_FORM;
+    const own = tenantByKey.get(selectedKey);
+    if (own && own.enabled !== false) return installedSpec(own);
+    return installedSpec(packaged.get(selectedKey)?.spec ?? own ?? EMPTY_FORM);
+  }, [draft, selectedKey, tenantByKey, packaged, installedSpec]);
+
+  /** Escolher a tela à mão desfaz o vínculo pelo `sourceId` — senão ele continuaria vencendo a escolha. */
+  const setForm = useCallback(
+    (patch: Partial<DocumentTemplateSpec>) => {
+      const next = { ...form, ...patch };
+      if ('collection' in patch) delete next.screenSourceId;
+      setDraft(next);
+    },
+    [form],
+  );
+
+  const issues = useMemo(
+    () => (isEditable
+      ? documentTemplateIssues(form).map((one) => ({
+        field: one.field,
+        message: label(one.error, one.errorParams),
+        isGrammar: isGrammarIssue(one),
+      }))
+      : []),
+    [form, isEditable, label],
+  );
+
+  const keyTaken = isNew && (tenantByKey.has(form.key) || packaged.has(form.key));
+
+  const screenOptions = useMemo(
+    () => definitions
+      .filter((definition) => definition.hasDocuments)
+      .map((definition) => ({ value: definition.id, label: label(definition.titlePlural), meta: definition.id })),
+    [definitions, label],
+  );
+
+  const childScreenOptions = useMemo(
+    () => definitions.map((definition) => ({ value: definition.id, label: label(definition.titlePlural), meta: definition.id })),
+    [definitions, label],
+  );
+
+  const formatOptions = useMemo(
+    () => [
+      { value: 'markdown', label: t('format.markdown') },
+      { value: 'docx', label: t('format.docx') },
+    ],
+    [t],
+  );
+
+  const documentTypeOptions = useMemo(
+    () => getOptions('documentTypes').map((option) => ({ value: option.key, label: option.label })),
+    [getOptions],
+  );
+
+  /**
+   * Para cada lista declarada: os vínculos da tela dos filhos que apontam para a tela do modelo — o
+   * `via` só faz sentido entre eles — e os campos pelos quais ordenar.
+   */
+  const datasetOptions = useMemo(
+    () => (form.datasets ?? []).map((dataset): DatasetRowOptions => {
+      const fields = getDefinition(dataset.from)?.fields ?? [];
+      return {
+        via: fields
+          .filter((field) => field.type === 'reference' && field.refEntity === form.collection)
+          .map((field) => ({ value: field.key, label: label(field.label), meta: field.key })),
+        orderBy: fields.map((field) => ({ value: field.key, label: label(field.label), meta: field.key })),
+      };
+    }),
+    [form.datasets, form.collection, getDefinition, label],
+  );
+
+  const selectRow = useCallback((key: string) => {
+    setSelectedKey(key);
+    setIsNew(false);
+    setDraft(null);
+  }, []);
+
+  const startNew = useCallback(() => {
+    setSelectedKey(null);
+    setIsNew(true);
+    setDraft({ ...EMPTY_FORM });
+  }, []);
+
+  const handleSave = useCallback(async () => {
+    if (!isEditable || keyTaken) return;
+    if (documentTemplateIssues(form).some((one) => !isGrammarIssue(one))) return;
+    setIsSaving(true);
+    try {
+      await saveTemplate({ ...specOf(form), enabled: true });
+      notify(t('template.saved'), 'success');
+      setSelectedKey(form.key);
+      setIsNew(false);
+      setDraft(null);
+    } catch {
+      notify(t('template.save-failed'), 'error');
+    } finally {
+      setIsSaving(false);
+    }
+  }, [isEditable, keyTaken, form, saveTemplate, notify, t]);
+
+  /** Personalizar é COPIAR o da extensão para a mesma chave — a cópia vence, e apagá-la devolve o original. */
+  const handleCustomize = useCallback(() => {
+    if (!selectedKey) return;
+    const fromPackage = packaged.get(selectedKey);
+    if (!fromPackage) return;
+    const copy = { ...installedSpec(fromPackage.spec), title: label(fromPackage.spec.title) };
+    setDraft(copy);
+    setIsNew(false);
+    void saveTemplate({ ...copy, enabled: true })
+      .then(() => notify(t('template.customized'), 'success'))
+      .catch(() => notify(t('template.save-failed'), 'error'));
+  }, [selectedKey, packaged, installedSpec, saveTemplate, notify, t, label]);
+
+  /** Desligar grava a chave com `enabled: false`; religar apaga essa gravação. */
+  const handleToggleDisabled = useCallback(async () => {
+    if (!selectedKey) return;
+    try {
+      if (selectedState === 'disabled') {
+        await deleteTemplate(selectedKey);
+        notify(t('template.enabled'), 'success');
+      } else {
+        const spec = packaged.get(selectedKey)?.spec ?? tenantByKey.get(selectedKey);
+        if (!spec) return;
+        await saveTemplate({ ...specOf(spec), enabled: false });
+        notify(t('template.disabled'), 'success');
+      }
+      setDraft(null);
+    } catch {
+      notify(t('template.save-failed'), 'error');
+    }
+  }, [selectedKey, selectedState, packaged, tenantByKey, deleteTemplate, saveTemplate, notify, t]);
+
+  const requestDelete = useCallback(() => setIsDeleteOpen(true), []);
+  const cancelDelete = useCallback(() => setIsDeleteOpen(false), []);
+
+  const confirmDelete = useCallback(async () => {
+    if (!selectedKey) return;
+    try {
+      await deleteTemplate(selectedKey);
+      notify(t(selectedState === 'override' ? 'template.restored' : 'template.deleted'), 'success');
+      setDraft(null);
+      if (selectedState !== 'override') setSelectedKey(null);
+    } catch {
+      notify(t('template.delete-failed'), 'error');
+    } finally {
+      setIsDeleteOpen(false);
+    }
+  }, [selectedKey, selectedState, deleteTemplate, notify, t]);
+
+  const handleDocxFile = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    if (file.size > DOCUMENT_TEMPLATE_MAX_BYTES) {
+      notify(t('template.content.too-large', { maxKb: String(DOCUMENT_TEMPLATE_MAX_BYTES / 1024) }), 'error');
+      return;
+    }
+    readAsBase64(file)
+      .then((content) => {
+        setDraft({ ...form, format: 'docx', content, body: undefined });
+      })
+      .catch(() => notify(t('template.content.invalid'), 'error'));
+  }, [form, notify, t]);
+
+  const addDataset = useCallback(
+    () => setForm({ datasets: [...(form.datasets ?? []), { name: '', from: '', via: '' }] }),
+    [form.datasets, setForm],
+  );
+
+  const updateDataset = useCallback(
+    (index: number, patch: Partial<DocumentTemplateDataset>) =>
+      setForm({
+        datasets: (form.datasets ?? []).map((dataset, at) => {
+          if (at !== index) return dataset;
+          const next = { ...dataset, ...patch };
+          if ('from' in patch) delete next.fromSourceId;
+          return next;
+        }),
+      }),
+    [form.datasets, setForm],
+  );
+
+  const removeDataset = useCallback(
+    (index: number) => setForm({ datasets: (form.datasets ?? []).filter((_dataset, at) => at !== index) }),
+    [form.datasets, setForm],
+  );
+
+  const blockingIssues = issues.some((one) => !one.isGrammar);
+  const allIssues = useMemo<TemplateIssueLine[]>(
+    () => (keyTaken
+      ? [...issues, { field: 'key', message: t('template.key.taken', { key: form.key }), isGrammar: false }]
+      : issues),
+    [issues, keyTaken, form.key, t],
+  );
+  const issuesFor = useCallback(
+    (field: string) => allIssues.filter((one) => one.field === field || one.field.startsWith(`${field}[`)),
+    [allIssues],
+  );
+
+  return {
+    canManage: can(PERMISSION_DOCUMENT_TEMPLATES_MANAGE),
+    rows,
+    selectedKey,
+    isNew,
+    selectedState,
+    isEditable,
+    form,
+    setForm,
+    issues: allIssues,
+    issuesFor,
+    isReadOnly: !isEditable,
+    screenOptions,
+    childScreenOptions,
+    formatOptions,
+    documentTypeOptions,
+    datasetOptions,
+    isSaving,
+    canSave: isEditable && draft !== null && !blockingIssues && !keyTaken && !isSaving,
+    isDeleteOpen,
+    selectRow,
+    startNew,
+    handleSave,
+    handleCustomize,
+    handleToggleDisabled,
+    requestDelete,
+    cancelDelete,
+    confirmDelete,
+    handleDocxFile,
+    addDataset,
+    updateDataset,
+    removeDataset,
+  };
+};

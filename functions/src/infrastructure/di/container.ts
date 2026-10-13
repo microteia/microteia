@@ -98,6 +98,14 @@ import type { INotificationEmailConfigRepository } from '../../domain/repositori
 import { makeDispatchNotificationUseCase } from '../../domain/usecases/DispatchNotificationUseCase';
 import type { DispatchNotificationUseCase } from '../../domain/usecases/DispatchNotificationUseCase';
 import { makeNotificationTextCatalog } from '../notifications/notificationTextCatalog';
+import type { IRecordDocumentWriter } from '../../domain/repositories/IRecordDocumentWriter';
+import { FirebaseRecordDocumentWriter } from '../../data/services/FirebaseRecordDocumentWriter';
+import { FirestoreDocumentTemplateSource } from '../../data/services/FirestoreDocumentTemplateSource';
+import { TemplateDocumentRenderer } from '../../data/services/document/TemplateDocumentRenderer';
+import { WorkflowDocumentRecordReader } from '../document/WorkflowDocumentRecordReader';
+import { makeRenderDocumentUseCase } from '../../domain/usecases/RenderDocumentUseCase';
+import type { RenderDocumentUseCase } from '../../domain/usecases/RenderDocumentUseCase';
+import { preferredLocale } from '../../domain/services/tenantSettings';
 
 class DIContainer {
   private static instance: DIContainer;
@@ -141,6 +149,8 @@ class DIContainer {
   private notificationEmailConfigRepo?: INotificationEmailConfigRepository;
   private vapidKeyStore?: VapidKeyStore;
   private dispatchNotificationUC?: DispatchNotificationUseCase;
+  private recordDocumentWriter?: IRecordDocumentWriter;
+  private renderDocumentUC?: RenderDocumentUseCase;
   private workflowStepsRegistered = false;
   private extensionStatsRepo?: IExtensionStatsRepository;
   private recountExtensionInstallsUC?: RecountExtensionInstallsUseCase;
@@ -569,6 +579,35 @@ class DIContainer {
     return this.dispatchNotificationUC;
   }
 
+  getRecordDocumentWriter(): IRecordDocumentWriter {
+    if (!this.recordDocumentWriter) this.recordDocumentWriter = new FirebaseRecordDocumentWriter();
+    return this.recordDocumentWriter;
+  }
+
+  getRenderDocumentUseCase(): RenderDocumentUseCase {
+    if (!this.renderDocumentUC) {
+      this.renderDocumentUC = makeRenderDocumentUseCase({
+        templates: new FirestoreDocumentTemplateSource(
+          getDb(),
+          this.getInstalledExtensionCache(),
+          this.getScreenDefinitionCache(),
+        ),
+        screens: this.getScreenDefinitionCache(),
+        records: new WorkflowDocumentRecordReader(
+          new FirestoreWorkflowRecordFetcher(getDb()),
+          this.getScreenDefinitionCache(),
+          new FirestoreWorkflowQueryRepository(getDb()),
+        ),
+        renderer: new TemplateDocumentRenderer(),
+        writer: this.getRecordDocumentWriter(),
+        // O documento é do ESCRITÓRIO: o idioma é o dele, não o de quem apertou o botão.
+        localeOf: async (tenantId) => preferredLocale({}, await this.getTenantSettingsRepository().getTenantValues(tenantId)),
+        timeZoneOf: (tenantId) => tenantTimeZone(tenantId),
+      });
+    }
+    return this.renderDocumentUC;
+  }
+
   getWorkflowContextHydrator(): WorkflowContextHydrator {
     if (!this.workflowContextHydrator) {
       this.workflowContextHydrator = new WorkflowContextHydrator(
@@ -621,6 +660,7 @@ class DIContainer {
     registerStepsFromPlugins({
       createAuditLogUseCase: this.getCreateAuditLogUseCase(),
       dispatchNotificationUseCase: this.getDispatchNotificationUseCase(),
+      renderDocumentUseCase: this.getRenderDocumentUseCase(),
       workflowQueryRepository: new FirestoreWorkflowQueryRepository(getDb()),
       workflowRecordFetcher: new FirestoreWorkflowRecordFetcher(getDb()),
       workflowMutationRepository: new FirestoreWorkflowMutationRepository(getDb()),

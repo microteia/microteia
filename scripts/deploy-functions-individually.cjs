@@ -60,6 +60,7 @@ const ALL_FUNCTIONS = [
   'runScript',
   'runAction',
   'runReport',
+  'renderDocument',
   'materializePermissionsOnMemberChange',
   'materializePermissionsOnRoleChange',
   'materializePermissionsOnScreenChange',

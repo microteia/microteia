@@ -38,6 +38,7 @@ const MODULE_BY_NS = {
   'core.marketplace': 'coreMarketplace',
   'core.records': 'coreRecords',
   'core.reports': 'coreReports',
+  'core.documents': 'coreDocuments',
   'core.workspace': 'coreWorkspace',
   'core.settings': 'coreSettings',
   'core.i18n': 'coreI18n',
@@ -91,6 +92,7 @@ const PLUGIN_CATALOG_BY_NS = {
   'com.microteia.command-example': { dir: 'marketplace/examples/command-example', source: 'commandMessages', ptBr: 'commandMessagesPtBr' },
   'com.microteia.settings-example': { dir: 'marketplace/examples/settings-example', source: 'settingsMessages', ptBr: 'settingsMessagesPtBr' },
   'com.microteia.record-tab-example': { dir: 'marketplace/examples/record-tab-example', source: 'recordTabMessages', ptBr: 'recordTabMessagesPtBr' },
+  'com.microteia.document-example': { dir: 'marketplace/examples/document-example', source: 'documentMessages', ptBr: 'documentMessagesPtBr' },
 };
 
 /** Onde mora o catálogo de ORIGEM de um namespace, seja ele do núcleo ou de uma extensão. */

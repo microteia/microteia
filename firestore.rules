@@ -249,6 +249,16 @@ service cloud.firestore {
         allow create, update, delete: if can(tenantId, 'reports.manage');
       }
 
+      // Modelos de documento do escritório, um por CHAVE (o id do documento é a chave). Todo membro
+      // LÊ: o gesto "Gerar documento" lista os modelos da tela, e o modelo não é o dado — gerar cobra,
+      // no servidor, a edição do registro. Só quem gerencia modelos escreve.
+      match /documentTemplates/{templateKey} {
+        allow read: if isMember(tenantId);
+        allow create, update: if can(tenantId, 'document-templates.manage')
+          && request.resource.data.key == templateKey;
+        allow delete: if can(tenantId, 'document-templates.manage');
+      }
+
       // Extensões PRIVADAS do escritório (criadas na tela "Criar extensão"). Todo membro lê —
       // as ativas contribuem telas/menu no Kernel do tenant; só admin cria/edita/remove.
       //
@@ -421,7 +431,7 @@ service cloud.firestore {
       function isReservedCollection(name) {
         return name in [
         'actions', 'agentGrants', 'aggregate_backfills', 'aiConnections',
-        'documentTypes', 'documents', 'extension_history', 'extension_migrations', 'extensions',
+        'documentTemplates', 'documentTypes', 'documents', 'extension_history', 'extension_migrations', 'extensions',
         'installed_extensions', 'lookupDefinitions', 'members', 'notes', 'notification_inbox',
         'reports', 'roles',
         // `plugin_installations` não tem mais código que a leia — foi a instalação de antes de

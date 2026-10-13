@@ -7,6 +7,7 @@ import type { IAIConnectionRepository } from '../../domain/repositories/IAIConne
 import type { IWorkflowDefinitionRepository } from '../../domain/repositories/IWorkflowDefinitionRepository';
 import type { CreateAuditLogUseCase } from '../../domain/usecases/CreateAuditLogUseCase';
 import type { DispatchNotificationUseCase } from '../../domain/usecases/DispatchNotificationUseCase';
+import type { RenderDocumentUseCase } from '../../domain/usecases/RenderDocumentUseCase';
 import type { CallAIUseCase } from '../../domain/usecases/CallAIUseCase';
 import type { RunCalledWorkflowUseCase } from '../../domain/usecases/RunCalledWorkflowUseCase';
 
@@ -18,6 +19,7 @@ import type { RunCalledWorkflowUseCase } from '../../domain/usecases/RunCalledWo
 export interface RegisterStepsDeps {
   createAuditLogUseCase: CreateAuditLogUseCase;
   dispatchNotificationUseCase: DispatchNotificationUseCase;
+  renderDocumentUseCase: RenderDocumentUseCase;
   workflowQueryRepository: IWorkflowQueryRepository;
   workflowRecordFetcher: IWorkflowRecordFetcher;
   workflowMutationRepository: IWorkflowMutationRepository;

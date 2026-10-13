@@ -1,5 +1,4 @@
-import { FieldValue, Timestamp } from 'firebase-admin/firestore';
-import { getDownloadURL } from 'firebase-admin/storage';
+import { Timestamp } from 'firebase-admin/firestore';
 import type { MessageCatalog } from '../../domain/schema/i18n/messages';
 import { resolveLabel } from '../../domain/schema/i18n/messageRef';
 import type { SchemaContext } from '../../domain/schema/screenEntity';
@@ -11,11 +10,11 @@ import {
   DOCUMENT_TYPES_COLLECTION,
   agentDocumentContentType,
   agentDocumentName,
-  agentDocumentStoragePath,
   inspectAgentFileContent,
   resolveAgentDocumentType,
 } from '../../domain/schema/agent/agentDocument';
-import { getBucket, getDb } from '../firebase/initFirebase';
+import { getDb } from '../firebase/initFirebase';
+import { getDI } from '../di/container';
 import { identifyActor } from '../workflow/identifyActor';
 import type { AgentSession } from './authenticateAgent';
 
@@ -147,8 +146,8 @@ const asText = (value: unknown): string => (typeof value === 'string' ? value.tr
  * faz a tela, a cascata de exclusão e a auditoria o tratarem como qualquer outro anexo. A diferença
  * é `createdVia: 'agent'`, o mesmo carimbo que um registro gravado pelo agente leva.
  *
- * A ordem é bucket primeiro, documento depois, e o arquivo é apagado se o documento falhar: ao
- * contrário, um documento apontaria para um arquivo que não existe, e a aba mostraria um link quebrado.
+ * A gravação é a de todo anexo do servidor (`IRecordDocumentWriter`): bucket primeiro, documento
+ * depois, e o arquivo apagado se o documento falhar.
  */
 export const attachAgentDocument = async (
   schema: SchemaContext,
@@ -196,61 +195,35 @@ export const attachAgentDocument = async (
   }
 
   const contentType = agentDocumentContentType(name, asText(input.contentType) || content.contentType);
-  const storagePath = agentDocumentStoragePath(session.tenantId, owner.physical, recordId, name, Date.now());
-  const file = getBucket().file(storagePath);
-
-  let url: string;
-  try {
-    await file.save(Buffer.from(content.base64, 'base64'), {
-      resumable: false,
-      contentType,
-      // O token é o que `getDownloadURL` do navegador cria sozinho. Sem ele o link não abre fora do
-      // console — e o link é o que a aba mostra.
-      metadata: { metadata: { firebaseStorageDownloadTokens: crypto.randomUUID() } },
-    });
-    url = await getDownloadURL(file);
-  } catch (error) {
-    console.error('[agentDocuments] Falha ao gravar o arquivo no Storage:', error);
-    await file.delete({ ignoreNotFound: true }).catch(() => undefined);
-    return { ok: false, error: '@core.access/agent.document.upload-failed' };
-  }
-
   const actor = await identifyActor(session.userId, 'agent', session.permissions);
   const description = asText(input.description);
-  const document = {
-    name,
-    ...(type ? { type } : {}),
-    ...(description ? { description } : {}),
-    url,
-    storagePath,
-    contentType,
-    size: content.size,
-    createdBy: session.userId,
-    createdByName: actor.name,
-    ...(actor.photoURL ? { createdByPhotoUrl: actor.photoURL } : {}),
-    createdVia: 'agent',
-    createdAt: FieldValue.serverTimestamp(),
-  };
 
   try {
-    const created = await getDb()
-      .collection(`tenants/${session.tenantId}/${owner.physical}/${recordId}/documents`)
-      .add(document);
+    const attached = await getDI().getRecordDocumentWriter().attach({
+      tenantId: session.tenantId,
+      physicalCollection: owner.physical,
+      recordId,
+      name,
+      contentType,
+      data: Buffer.from(content.base64, 'base64'),
+      type,
+      description,
+      author: { uid: session.userId, name: actor.name, photoUrl: actor.photoURL, via: 'agent' },
+    });
     return {
       ok: true,
       value: {
-        id: created.id,
+        id: attached.id,
         name,
-        ...(type ? { type } : {}),
-        ...(description ? { description } : {}),
-        url,
+        ...(attached.type ? { type: attached.type } : {}),
+        ...(attached.description ? { description: attached.description } : {}),
+        url: attached.url,
         contentType,
-        size: content.size,
+        size: attached.size,
       },
     };
   } catch (error) {
-    console.error('[agentDocuments] Falha ao registrar o documento:', error);
-    await file.delete({ ignoreNotFound: true }).catch(() => undefined);
+    console.error('[agentDocuments] Falha ao anexar o documento:', error);
     return { ok: false, error: '@core.access/agent.document.upload-failed' };
   }
 };

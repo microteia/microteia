@@ -7,6 +7,7 @@ import {
   backendExamplePlugin,
   commandExamplePlugin,
   consumerExamplePlugin,
+  documentExamplePlugin,
   libraryExamplePlugin,
   patchExamplePlugin,
   recordTabExamplePlugin,
@@ -46,6 +47,7 @@ export const TRAVELLING_EXAMPLES: MarketplacePlugin[] = [
   commandExamplePlugin,
   settingsExamplePlugin,
   recordTabExamplePlugin,
+  documentExamplePlugin,
 ];
 
 /**

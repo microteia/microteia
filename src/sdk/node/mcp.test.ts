@@ -156,7 +156,7 @@ describe('o servidor MCP de autoria', () => {
       commands: { command: string; title: string }[];
     };
     const commands = answer.commands.map((one) => one.command).sort();
-    expect(commands).toEqual(['clone', 'copyLink', 'delete', 'manageTags', 'unlink']);
+    expect(commands).toEqual(['clone', 'copyLink', 'delete', 'generateDocument', 'manageTags', 'unlink']);
     expect(answer.commands.every((one) => !one.title.startsWith('@'))).toBe(true);
   });
 

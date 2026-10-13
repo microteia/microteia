@@ -99,6 +99,7 @@ npm run verify          # typecheck + lint + verify-schemas
 | `TenantMember` | `tenants/{tenantId}/members/{uid}` | Sim |
 | `Role` (perfil de acesso) | `tenants/{tenantId}/roles/{roleId}` | Sim |
 | `DocumentTypeConfig` (compartilhado por todas as telas que anexam documento) | `tenants/{tenantId}/documentTypes/{id}` | Sim |
+| `DocumentTemplate` (modelo de documento do ESCRITÓRIO; os de pacote vêm de `document.template`) | `tenants/{tenantId}/documentTemplates/{key}` — o id É a chave | Sim |
 | `Notícia` (extensão `com.microteia.news`) | `tenants/{tenantId}/news/{id}` | Sim |
 | `Comentário` (extensão `com.microteia.news`) | `tenants/{tenantId}/newsComments/{id}` | Sim |
 | `SavedFilter` | `savedFilters/{uid}_{screenKey}` | Não |
@@ -7300,6 +7301,205 @@ ferramenta nova escreveu.
 tela mescla porque o campo é unidade independente com dono próprio; um `ReportSpec` é uma afirmação
 só, e metade do pacote com metade do escritório produziria um número que ninguém escreveu. O gesto é
 duplicar para editar.
+
+---
+
+## Documentos — modelos e geração
+
+Gerar um documento a partir de um registro — procuração, contrato de honorários, recibo, notificação
+extrajudicial, relatório ao cliente — não tinha caminho. O contorno era uma view em código gerando no
+navegador: sem padrão, com revisão de código, e fora do alcance de uma automação. Agora são três peças,
+e o kernel não conhece o nome de modelo nenhum.
+
+| Peça | O que é | Onde |
+|---|---|---|
+| Ponto `document.template` | O modelo como DADO, contribuído por um pacote | `domain/schema/document/documentTemplate.ts` (sincronizado) |
+| Coleção `documentTemplates` | O modelo do ESCRITÓRIO, um por chave | `tenants/{t}/documentTemplates/{key}` |
+| Passo `render-document` + gesto `generateDocument` | Gerar e anexar à aba Documentos | um caso de uso só: `RenderDocumentUseCase` |
+
+### O modelo é DADO, e tem uma forma só
+
+`DocumentTemplateSpec` é a mesma na contribuição do pacote e no documento do escritório: `key`, `title`,
+`collection` (a tela cujos registros ele descreve), `format` (`markdown` com `body`, ou `docx` com
+`content` em base64), `outputs`, `fileName`, `documentType` e `datasets`. Sem conversão entre os dois, e
+é isso que faz "personalizar o modelo da extensão" ser COPIAR para a mesma chave, e "voltar ao da
+extensão" ser APAGAR a cópia.
+
+**Não há materialização, e é decisão.** Relatório, automação e script de pacote são copiados para o
+escritório na instalação; o modelo de documento não. Ele é DERIVADO do que está instalado, como a
+contribuição de UI: desinstalar o leva embora, atualizar o troca, e nenhum escritório fica com uma cópia
+velha que não pediu. O que justificaria materializar — o backend precisar ler — já existia:
+`InstalledExtensionCache.documentTemplates` lê as contribuições das extensões LIGADAS, na mesma leitura
+de `installed_extensions` que já servia aos catálogos de mensagem.
+
+`allowedImplKinds: []`, como `i18n.messages`: modelo é metadata pura, então qualquer pacote o traz sem
+gesto de confiança — não há código a revisar.
+
+**O pacote aponta a tela pelo `sourceId`**, nunca pela chave: `screenSourceId` (vence `collection`) e
+`datasets[].fromSourceId` (vence `from`). A chave de uma tela de pacote pode ganhar sufixo na instalação
+(`contratos_2`), e um modelo preso à chave declarada deixaria de ser oferecido sem sintoma — é o mesmo
+motivo pelo qual a aba de registro é `record:<sourceId>`. `resolveDocumentTemplates` recebe o resolvedor
+`sourceId → chave instalada` (front: `ScreenDefinition.sourceId`; back: `SchemaScreen.sourceId`, que o
+`ScreenDefinitionCache` passou a carregar) e devolve `collection`/`from` já na chave instalada. Tela não
+instalada tira o modelo de circulação SEM tomar a chave: o próximo pacote na ordem pode declará-la. O
+exemplo de autoria é o `document-example`.
+
+### A precedência — `resolveDocumentTemplates`
+
+Uma função pura, a MESMA nas duas pontas (a tela que oferece e o servidor que gera):
+
+1. Os modelos de pacote entram na ordem do registro (prioridade, depois `pluginId`), e o primeiro de cada
+   chave vence — a regra de toda contribuição disputada.
+2. O documento do escritório substitui o do pacote na mesma chave (`overridesPlugin: true`).
+3. `enabled: false` no documento do escritório TIRA a chave de circulação — é como o escritório recusa o
+   modelo de uma extensão sem desinstalar a extensão inteira.
+
+**O id do documento É a chave** (`documentTemplates/{key}`), e a regra do Firestore cobra
+`request.resource.data.key == templateKey`. "Um modelo do escritório por chave" vira garantia do banco,
+sem consulta. Leitura: todo membro (o gesto lista os modelos da tela). Escrita:
+`document-templates.manage`, uma permissão de AUTORIA — ela não dá acesso a registro nenhum.
+
+### A gramática — expressão de campo entre `{{ }}`
+
+Não é linguagem nova: o que vai entre `{{ }}` é uma EXPRESSÃO de campo (`fieldExpression.ts`), com os
+mesmos caminhos (`{{caseId.clientId.name}}`) e as mesmas funções (`formatDate`, `formatMoney`, `upper`…).
+A gramática acrescenta só o que uma expressão não diz — repetir e incluir sob condição:
+
+```
+{{#each parcelas}}{{index}}. {{formatMoney(valor)}}{{#if pago}} (pago){{/if}}{{/each}}
+```
+
+- Dentro do laço o item está na raiz, o registro de fora continua legível, e `item` (o elemento
+  inteiro — o único jeito de ler uma lista de textos) e `index` (a posição, a partir de 1, porque quem
+  lê o documento conta a partir de 1) vencem um campo de mesmo nome.
+- **Não há `else`**: o DOCX é renderizado pelo docxtemplater, e o que um formato não consegue dizer o
+  outro não oferece.
+- `parseTemplate` nunca lança: bloco sem fechar, fechamento trocado e expressão que não parseia viram
+  `issues` (referências `@core.documents/grammar.*`), e a árvore é a melhor leitura possível. Erro de
+  GRAMÁTICA não descarta o modelo; erro de FORMA (chave, formato, conteúdo) descarta
+  (`isGrammarIssue`).
+- A renderização é tolerante e DIZ o que tolerou: a expressão que estoura sai vazia no documento e vira
+  `RenderIssue`. O passo publica `emptyFields`; o gesto avisa "gerado com N campo(s) vazio(s)".
+- Valor mesclado num Markdown é ESCAPADO (`escapeMarkdownValue`): o dado entra como texto, nunca como
+  marcação — um nome com `*` não abre negrito —, e quebra de linha do dado vira quebra forçada.
+- `<!-- pagebreak -->` é a quebra de página: comentário HTML não aparece em visualizador de Markdown
+  nenhum, e um marcador inventado apareceria como texto na pré-visualização.
+
+**Listas filhas — `datasets`.** `{ name, from, via, orderBy?, direction?, limit? }` é o vocabulário do
+campo agregado (`from`/`via`), porque é a mesma pergunta: os registros de outra tela cujo vínculo aponta
+para este. Teto de 100 por lista, o mesmo do passo "Buscar Registros" — mais que isso é relatório.
+
+### Os formatos — e o que NÃO existe
+
+| Modelo | Produz | Como |
+|---|---|---|
+| `markdown` | PDF | `marked` → blocos neutros → `pdfmake` (fontes PADRÃO do PDF: Times/Courier, Latin-1) |
+| `markdown` | DOCX | `marked` → blocos neutros → `docx` |
+| `docx` | DOCX | `docxtemplater`, ensinado a ler `{{#each}}`/`{{#if}}` |
+
+**DOCX → PDF não existe**, e a recusa é na AUTORIA (`DOCUMENT_OUTPUTS_BY_FORMAT`): converter Word exige
+um motor de escritório (LibreOffice), que não cabe numa Cloud Function. Oferecer a combinação e falhar
+ao gerar seria pior que não oferecê-la. Se um dia existir, entra como capacidade de conversão — não como
+um `if` no renderizador.
+
+- O Markdown é lido UMA vez para um modelo neutro de blocos (`markdownBlocks.ts`), e os dois emissores
+  andam sobre ele. Com dois percursos sobre os tokens da biblioteca, um negrito tratado num lado e
+  esquecido no outro faria o mesmo modelo dizer coisas diferentes conforme o formato.
+- `#` é o título do documento, centralizado; os parágrafos saem justificados — o desenho de toda
+  procuração e todo contrato, que um `#` de Markdown não teria como dizer de outro jeito.
+- O `pdfmake` não lê disco nem rede (`setUrlAccessPolicy`/`setLocalAccessPolicy`), exceto as próprias
+  fontes padrão, que ele pede pelo nome.
+- No DOCX o Word parte `{{cliente.nome}}` em vários trechos de XML quando alguém formata no meio da
+  marca. Os caminhos a hidratar saem do texto REMONTADO pelo docxtemplater (`docxTemplateText`), nas
+  partes de corpo, cabeçalho e rodapé — ler o XML cru os perderia.
+- Dentro de um `{{#if}}` o docxtemplater empilha a MESMA referência de escopo; um item de laço é sempre
+  outra. É essa diferença que mantém `item`/`index` corretos num `#if` dentro de um `#each`.
+- As três bibliotecas são módulos `export =` e o backend compila CommonJS sem `esModuleInterop`: o
+  `import = require` delas mora num arquivo só (`documentLibraries.ts`), com a supressão de lint
+  justificada linha a linha.
+- Teto do `.docx` de modelo: `DOCUMENT_TEMPLATE_MAX_BYTES` = 512 KB decodificados (~683 KB de base64),
+  que cabem no documento do Firestore (1 MiB) e no pacote (800 KB). Teto do documento GERADO: o mesmo
+  de qualquer anexo (`AGENT_DOCUMENT_MAX_BYTES`, 20 MB).
+
+### A geração — um caso de uso, duas portas
+
+`RenderDocumentUseCase` (`functions/src/domain/usecases/`) atende o passo e a callable `renderDocument`.
+O documento que a pessoa gera na tela é o que a automação gera de madrugada. As recusas vêm na ordem
+da pergunta que se faria à mão, e nada é gravado antes de todas passarem:
+
+1. o modelo existe (`@core.documents/render.template-not-found`);
+2. a tela pedida é a do modelo (`render.collection-mismatch`) — sem isso a permissão de uma tela daria
+   acesso a gerar sobre outra;
+3. o modelo produz o formato pedido (`render.output-unsupported`);
+4. a tela tem a aba Documentos (`render.documents-disabled`) — não há onde anexar;
+5. o registro existe (`@core.records/record.not-found`);
+6. as listas leem (`render.dataset-invalid`); o modelo é legível (`render.docx-template`).
+
+- **A leitura é a das automações.** `WorkflowDocumentRecordReader` usa `hydrateRecords` (o par
+  `buildHydrationPlan` + `materializeHops`) para o registro e `runRecordQuery` para os filhos; campo
+  derivado aparece com o valor de HOJE. `runWorkflowQuery` foi partida em duas: a resolução dos
+  mapeamentos, que precisa do contexto de execução, e `runRecordQuery`, que não precisa — sem isso a
+  geração teria de fingir ser uma execução.
+- Dentro de um laço a gramática não sabe se um nome é do item ou do registro, e pede os caminhos aos
+  DOIS lados; cada lado fica só com os que resolvem a partir da sua raiz. A consulta valida as
+  projeções, e recusaria a lista inteira por um nome que era do pai.
+- **O idioma é o do ESCRITÓRIO**, não o de quem apertou o botão: `formatMoney(valor)` sem argumento fala
+  a língua do documento. O avaliador empurra o idioma só durante a avaliação, que é síncrona.
+- O nome do arquivo usa a mesma gramática (`Procuração - {{name}}`). A barra de um valor vira hífen
+  ANTES do saneamento: "Contrato 01/2026" viraria "2026.pdf".
+- **O anexo tem uma porta só no servidor**: `IRecordDocumentWriter` (`FirebaseRecordDocumentWriter`),
+  extraída de `attachAgentDocument`. O agente, o passo e o gesto gravam no mesmo caminho do bucket e na
+  mesma subcoleção que a tela, e a cascata de exclusão e a auditoria os alcançam sem saber de onde
+  vieram. `createdVia` segue a regra da gravação de registro: `ui`/`agent` com pessoa, `automation`
+  sem — e aí `createdBy: 'workflow-engine'` sem nome, para a aba não atribuir a ninguém o que a
+  automação fez.
+
+**A callable** `renderDocument` (grupo `deploy:documents`, 512 MiB) cobra `<coleção>.update` — gerar é
+anexar, e anexar altera o registro, a mesma cobrança de `attach_document`.
+
+**O passo** `render-document` (`core.steps`, categoria `Data`): `templateKey` (seletor
+`picker: 'document-template'`, que lista os modelos que VALEM, com a tela de cada um), `recordId`,
+`output`, `fileName`, `documentType` (lista `documentTypes`). Saídas `documentId`, `name`, `url`,
+`format`, `emptyFields`. Não há input de coleção: quem escolhe o modelo escolhe de que registro ele fala.
+
+### O gesto — e o diálogo que ele abre
+
+`generateDocument` é uma ação de registro (`ui.record.action`) do `core.documents`, com
+`requiresRecordPermission: 'update'`. No cartão aparece pela caixa da aba "Listagem" do Form Design
+(opt-in: a tela nova não nasce com ela); no detalhe, por uma Action do escritório com
+`command: 'generateDocument'`.
+
+**`RecordActionHost.openDialog(Componente)`** é a capacidade que faltava: um gesto que PERGUNTA antes de
+agir. Antes, cada modal de gesto (etiquetas, exclusão) exigia estado e marcação em cada superfície —
+cartão, cabeçalho, aba de outro registro. Agora o comando abre o componente e o `RecordDialogOutlet`, um
+só, montado no `WorkspaceShell`, o desenha (`stores/RecordDialogContext.tsx`). Fora do workspace — num
+teste, numa pré-visualização — `useRecordDialog` é inerte, como `useT` fora do provedor.
+
+A aba Documentos carregava a lista uma vez só; um anexo nascido no servidor não aparecia até reabrir o
+registro. `StoreEvents.RECORD_DOCUMENTS_UPDATED` é emitido depois da geração, e a aba aberta relê.
+
+### A tela de modelos
+
+`document-templates` (menu do usuário, `document-templates.manage`) lista a UNIÃO das chaves de pacote e
+do escritório, com o estado de cada uma: **Extensão** (somente leitura — Personalizar ou Desligar),
+**Personalizado** (a cópia do escritório vale — Restaurar devolve o original), **Desligado** (Religar) e
+**Escritório**. O Markdown é editado como texto, com os problemas de gramática ao vivo; o Word é enviado
+como arquivo, e os campos são escritos no próprio documento.
+
+### Arquivos-chave
+
+| Arquivo | Papel |
+|---|---|
+| `domain/schema/document/templateGrammar.ts` | Gramática, caminhos, renderização tolerante, escape (sincronizado) |
+| `domain/schema/document/documentTemplate.ts` | Forma, validação, ponto, precedência (sincronizado) |
+| `functions/src/domain/usecases/RenderDocumentUseCase.ts` | A geração, para as duas portas |
+| `functions/src/data/services/document/` | Markdown → blocos → PDF/DOCX; DOCX → DOCX |
+| `functions/src/infrastructure/document/WorkflowDocumentRecordReader.ts` | Registro e filhos pela leitura das automações |
+| `functions/src/data/services/FirebaseRecordDocumentWriter.ts` | O anexo do servidor, uma porta só |
+| `functions/src/infrastructure/handlers/renderDocument.ts` | A callable do gesto |
+| `plugins/core.documents/` | Ponto, tela, item de menu, gesto |
+| `presentation/components/ui/GenerateDocumentDialog/` | O diálogo do gesto |
+| `presentation/pages/DocumentTemplates/` | A tela de modelos |
 
 ---
 

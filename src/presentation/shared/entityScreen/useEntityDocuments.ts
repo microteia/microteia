@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { storeEvents, StoreEvents } from '../../../infrastructure/events/StoreEventEmitter';
 import { useNotification } from '../../../stores/useNotification';
 import { useLookups } from '../../../stores/useLookups';
 import type { DynamicSelectOption } from '../../components/ui/DynamicSelect';
@@ -28,6 +29,11 @@ export const useEntityDocuments = ({ enabled, recordId, port }: UseEntityDocumen
   const [isUploadingDoc, setIsUploadingDoc] = useState(false);
   const [pendingUploads, setPendingUploads] = useState<PendingDocumentUpload[]>([]);
   const [docToDelete, setDocToDelete] = useState<EntityDocument | null>(null);
+  const [revision, setRevision] = useState(0);
+
+  // Um anexo pode nascer FORA da aba — o documento gerado no servidor a partir de um modelo. Quem o
+  // gera avisa, e a aba aberta relê a lista em vez de esperar a próxima abertura do registro.
+  useEffect(() => storeEvents.on(StoreEvents.RECORD_DOCUMENTS_UPDATED, () => setRevision((current) => current + 1)), []);
 
   useEffect(() => {
     if (!enabled || !recordId) return;
@@ -36,7 +42,7 @@ export const useEntityDocuments = ({ enabled, recordId, port }: UseEntityDocumen
     port.get(recordId)
       .then(setDocuments)
       .finally(() => setDocsLoading(false));
-  }, [enabled, recordId, port]);
+  }, [enabled, recordId, port, revision]);
 
   const handleSelectFiles = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const chosen = Array.from(e.target.files ?? []);

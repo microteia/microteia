@@ -1,7 +1,7 @@
 {
   "name": "microteia",
   "private": true,
-  "version": "9.96.0",
+  "version": "9.97.0",
   "type": "module",
   "bin": {
     "microteia": "cli/lib/index.js"
@@ -40,6 +40,7 @@
     "deploy:indexes": "firebase deploy --only firestore:indexes --project ${TARGET:-dev}",
     "deploy:workflow": "npm run build:functions && firebase deploy --only functions:onWorkflowEventCreated,functions:syncWorkflowClock,functions:runWorkflowClock,functions:publishWorkflowEventOnEntityChange,functions:recomputeAggregatesOnEntityChange,functions:reconcileAggregatesOnScreenChange,functions:runAggregateBackfill,functions:reconcileAggregates,functions:reconcileRecordKeysOnScreenChange,functions:runRecordKeyAdoption,functions:recheckRecordKeysOnEntityChange,functions:reconcileRecordKeys,functions:onNoteChange,functions:onDocumentChange,functions:getExpressionFunctions,functions:getWorkflowStepCatalog,functions:detectWorkflows,functions:runWorkflow,functions:runScript,functions:runAction --project ${TARGET:-dev}",
     "deploy:reports": "npm run build:functions && firebase deploy --only functions:runReport --project ${TARGET:-dev}",
+    "deploy:documents": "npm run build:functions && firebase deploy --only functions:renderDocument --project ${TARGET:-dev}",
     "deploy:audit": "npm run build:functions && firebase deploy --only functions:auditFlatEntityChange,functions:auditNestedEntityChange,functions:auditTenantDeleted,functions:backupDeletedAuditLog --project ${TARGET:-dev}",
     "deploy:auth": "npm run build:functions && firebase deploy --only functions:getUserInfo,functions:checkNicknameAvailability,functions:claimNickname,functions:onUserCreated --project ${TARGET:-dev}",
     "deploy:access": "npm run build:functions && firebase deploy --only functions:materializePermissionsOnMemberChange,functions:materializePermissionsOnRoleChange,functions:materializePermissionsOnScreenChange,functions:materializePermissionsOnExtensionChange,functions:syncTenantPermissions --project ${TARGET:-dev}",

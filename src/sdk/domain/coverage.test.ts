@@ -25,6 +25,9 @@ const LACUNAS_CONFERIDAS = [
   'workflow-step\tscript',
   'workflow-step\tai-detect-workflow',
   'workflow-step\tai-extract-parameters',
+  // Gerar um documento é um EFEITO que o modelo ainda não tem: "quando o contrato é assinado, gere a
+  // procuração" não tem como ser dito, e o passo fica para quem escreve a automação.
+  'workflow-step\trender-document',
 
   // Os inputs OBRIGATÓRIOS dos passos que o modelo pede e não consegue preencher. `upsert.upsert` é o
   // que mais dói: o efeito diz entidade, campo e valor, e nunca QUAL registro.
@@ -56,6 +59,7 @@ const LACUNAS_CONFERIDAS = [
   'extension-point\tdata.field.preset',
   'extension-point\tdata.external.lookup',
   'extension-point\treport.definition',
+  'extension-point\tdocument.template',
   'extension-point\ti18n.messages',
   'extension-point\ttheme.definition',
   'extension-point\ttheme.tokens',

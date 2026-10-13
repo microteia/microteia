@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useWorkspace } from '../../../stores/useWorkspace';
 import { useNotification } from '../../../stores/useNotification';
 import { useTenant } from '../../../stores/useTenant';
+import { useRecordDialog } from '../../../stores/useRecordDialog';
 import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
 import { useRecords } from '../../../stores/useRecords';
 import { useRecordActions } from '../recordActions/useRecordActions';
@@ -310,6 +311,8 @@ export function useEntityDetail<TRecord extends { id: string }>(
    * endereços de aba vêm do que a própria tela declarou (`deepLinkKey`/`cloneKey`), e não de uma
    * convenção que o comando teria de adivinhar.
    */
+  const { open: openRecordDialog } = useRecordDialog();
+
   const runRecordCommand = useCallback(async (commandKey: string) => {
     if (!record) return;
     const command = recordActions.find((candidate) => candidate.metadata.key === commandKey);
@@ -329,8 +332,12 @@ export function useEntityDetail<TRecord extends { id: string }>(
       copyText: (text) => navigator.clipboard.writeText(text),
       openTagManager: chrome.openTagManager,
       requestDelete: chrome.requestDelete,
+      openDialog: (component) => openRecordDialog({
+        component,
+        props: { record: record as unknown as EntityRecord, collection: entityKey, screenKey: configScreenKey ?? entityKey },
+      }),
     });
-  }, [record, recordActions, entityKey, configScreenKey, deepLinkKey, cloneKey, openTab, notify, updateRecord, chrome.openTagManager, chrome.requestDelete, t]);
+  }, [record, recordActions, entityKey, configScreenKey, deepLinkKey, cloneKey, openTab, notify, updateRecord, chrome.openTagManager, chrome.requestDelete, openRecordDialog, t]);
 
   const screenActions = useScreenActions({
     runRecordCommand,

@@ -9,6 +9,7 @@ import { CORE_DATA_MESSAGES } from '../../plugins/messages/coreData';
 import { CORE_MARKETPLACE_MESSAGES } from '../../plugins/messages/coreMarketplace';
 import { CORE_RECORDS_MESSAGES } from '../../plugins/messages/coreRecords';
 import { CORE_REPORTS_MESSAGES } from '../../plugins/messages/coreReports';
+import { CORE_DOCUMENTS_MESSAGES } from '../../plugins/messages/coreDocuments';
 import { CORE_TENANT_MESSAGES } from '../../plugins/messages/coreTenant';
 import { CORE_UI_MESSAGES } from '../../plugins/messages/coreUi';
 import { CORE_WORKSPACE_MESSAGES } from '../../plugins/messages/coreWorkspace';
@@ -33,6 +34,7 @@ export const KERNEL_MESSAGE_NAMESPACES: Readonly<Record<string, Record<string, s
   'core.marketplace': CORE_MARKETPLACE_MESSAGES,
   'core.records': CORE_RECORDS_MESSAGES,
   'core.reports': CORE_REPORTS_MESSAGES,
+  'core.documents': CORE_DOCUMENTS_MESSAGES,
   'core.tenant': CORE_TENANT_MESSAGES,
   'core.ui': CORE_UI_MESSAGES,
   'core.workspace': CORE_WORKSPACE_MESSAGES,

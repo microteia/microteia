@@ -32,6 +32,14 @@ export const RECORD_ACTION_METADATA: Record<string, UiRecordActionMetadata> = {
     // o registro inteiro quando o gesto é "tirar daqui". Ali quem aparece é desvincular.
     hiddenWhen: 'relation == "related"',
   },
+  generateDocument: {
+    key: 'generateDocument',
+    title: '@core.documents/action.generate',
+    icon: 'fileText',
+    order: 2,
+    // Gerar é anexar, e anexar altera o registro: a mesma cobrança da aba Documentos.
+    requiresRecordPermission: 'update',
+  },
   unlink: {
     key: 'unlink',
     // Divide o slot destrutivo com excluir: a tela habilita `delete`, e a relação decide qual das

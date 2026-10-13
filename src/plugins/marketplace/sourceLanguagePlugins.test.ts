@@ -93,8 +93,15 @@ const NOT_TEXT_PATHS = ['.presentation.chart.category'];
  */
 const OPTION_VALUE = /\.options\[\d+\]\.value$/;
 
+/**
+ * O `name` de uma lista de modelo de documento é o IDENTIFICADOR que o texto do modelo lê
+ * (`{{#each parcelas}}`) — traduzi-lo quebraria o modelo. O texto do modelo, por sua vez, não está em
+ * `TEXT_KEYS` de propósito: o documento diz o que diz no idioma em que foi escrito, como um contrato.
+ */
+const DATASET_NAME = /\.datasets\[\d+\]\.name$/;
+
 const isPointer = (path: string): boolean =>
-  NOT_TEXT_PATHS.some((suffix) => path.endsWith(suffix)) || OPTION_VALUE.test(path);
+  NOT_TEXT_PATHS.some((suffix) => path.endsWith(suffix)) || OPTION_VALUE.test(path) || DATASET_NAME.test(path);
 
 const textsOf = (plugin: MarketplacePlugin): Array<{ path: string; value: string }> => {
   const found: Array<{ path: string; value: string }> = [];

@@ -57,7 +57,7 @@ export type InputOptionsSource =
  * O seletor só é oferecido quando o mapping é `Literal`: um alvo que só se conhece em runtime não
  * tem lista a mostrar em design-time.
  */
-export type InputPickerKind = 'workflow' | 'script' | 'ai-connection' | 'permission';
+export type InputPickerKind = 'workflow' | 'script' | 'ai-connection' | 'permission' | 'document-template';
 
 export interface InputDefinition {
   id: string;
@@ -746,6 +746,72 @@ export const CORE_STEP_CATALOG: readonly WorkflowStepMetadata[] = [
     outputDefinitions: [
       { id: 'id', label: '@core.automation/step.remove.label.id-do-registro', type: 'String' },
       { id: 'removed', label: '@core.automation/step.remove.label.foi-excluido', type: 'Boolean' },
+    ],
+  },
+  {
+    /**
+     * Gera o documento de um registro a partir de um modelo (`document.template` ou o do escritório,
+     * que vence na mesma chave) e o anexa à aba Documentos. A tela é a do MODELO: quem escolhe o
+     * modelo escolhe de que registro ele fala, e por isso não há input de coleção.
+     */
+    id: 'render-document',
+    version: 1,
+    name: '@core.automation/step.render-document.name',
+    description: '@core.automation/step.render-document.description',
+    icon: 'RiFileTextLine',
+    category: 'Data',
+    type: 'Action',
+    configurable: true,
+    inputs: [
+      {
+        id: 'templateKey',
+        label: '@core.automation/step.render-document.label.template',
+        required: true,
+        type: 'String',
+        picker: 'document-template',
+      },
+      {
+        id: 'recordId',
+        label: '@core.automation/step.render-document.label.record',
+        description: '@core.automation/step.render-document.help.record',
+        required: true,
+        type: 'String',
+      },
+      {
+        id: 'output',
+        label: '@core.automation/step.render-document.label.output',
+        description: '@core.automation/step.render-document.help.output',
+        required: false,
+        type: 'String',
+        options: {
+          kind: 'Static',
+          options: [
+            { value: 'pdf', label: '@core.automation/step.render-document.output.pdf' },
+            { value: 'docx', label: '@core.automation/step.render-document.output.docx' },
+          ],
+        },
+      },
+      {
+        id: 'fileName',
+        label: '@core.automation/step.render-document.label.file-name',
+        description: '@core.automation/step.render-document.help.file-name',
+        required: false,
+        type: 'String',
+      },
+      {
+        id: 'documentType',
+        label: '@core.automation/step.render-document.label.document-type',
+        required: false,
+        type: 'String',
+        options: { kind: 'Lookup', lookup: 'documentTypes' },
+      },
+    ],
+    outputDefinitions: [
+      { id: 'documentId', label: '@core.automation/step.render-document.output.document-id', type: 'String' },
+      { id: 'name', label: '@core.automation/step.render-document.output.name', type: 'String' },
+      { id: 'url', label: '@core.automation/step.render-document.output.url', type: 'String' },
+      { id: 'format', label: '@core.automation/step.render-document.output.format', type: 'String' },
+      { id: 'emptyFields', label: '@core.automation/step.render-document.output.empty-fields', type: 'Number' },
     ],
   },
 ];

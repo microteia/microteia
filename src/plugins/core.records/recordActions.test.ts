@@ -42,13 +42,13 @@ const ctx = (overrides: Partial<ActionExprContext>): ActionExprContext => ({
  * extensão — e é isso que este teste guarda.
  */
 describe('ações de registro — contribuições do core.records', () => {
-  it('as cinco chegam pelo ponto de extensão, com implementação resolvível', () => {
+  it('as seis chegam pelo ponto de extensão, com implementação resolvível — gerar documento vem do core.documents', () => {
     const host = createPluginHost();
     host.load(CORE_PLUGINS);
 
     const contributions = host.contributions.query(UI_RECORD_ACTION_POINT);
     const keys = contributions.map((c) => (c.metadata as unknown as UiRecordActionMetadata).key);
-    expect(keys.sort()).toEqual(['clone', 'copyLink', 'delete', 'manageTags', 'unlink']);
+    expect(keys.sort()).toEqual(['clone', 'copyLink', 'delete', 'generateDocument', 'manageTags', 'unlink']);
 
     for (const contribution of contributions) {
       expect(contribution.impl?.kind).toBe('code');
@@ -144,6 +144,7 @@ describe('desvincular', () => {
     patchRecord: vi.fn(async () => {}),
     copyText: vi.fn(async () => {}),
     openTagManager: vi.fn(),
+    openDialog: vi.fn(),
     requestDelete: vi.fn(),
     ...overrides,
   });

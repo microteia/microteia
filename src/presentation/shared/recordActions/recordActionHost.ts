@@ -1,6 +1,7 @@
 import type { EntityRecord } from '../../../domain/entities';
 import type { ActionSurface } from '../../../domain/schema/actionExpression';
 import type { TranslateFn } from '../i18n/useT';
+import type { RecordDialogComponent } from '../../../stores/useRecordDialog';
 
 /**
  * O que o kernel entrega a uma ação de registro. É uma API estreita de propósito: o comando NÃO
@@ -36,6 +37,11 @@ export interface RecordActionHost {
   openTagManager: () => void;
   /** Abre a confirmação de exclusão do registro — a exclusão em si é da tela, não do comando. */
   requestDelete: () => void;
+  /**
+   * Abre um DIÁLOGO sobre este registro — o gesto que pergunta antes de agir. O componente recebe o
+   * registro e onde ele vive; quem o desenha é o shell, uma vez para todas as superfícies.
+   */
+  openDialog: (dialog: RecordDialogComponent) => void;
   /**
    * O tradutor do `core.records`. Vem no host pelo mesmo motivo que `notify`: o comando é função
    * pura, executada fora de componente, e não tem como pendurar um hook.

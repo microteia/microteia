@@ -12,6 +12,7 @@ import { CORE_LICENSE_MESSAGES } from '../../plugins/messages/coreLicense';
 import { CORE_MARKETPLACE_MESSAGES } from '../../plugins/messages/coreMarketplace';
 import { CORE_RECORDS_MESSAGES } from '../../plugins/messages/coreRecords';
 import { CORE_REPORTS_MESSAGES } from '../../plugins/messages/coreReports';
+import { CORE_DOCUMENTS_MESSAGES } from '../../plugins/messages/coreDocuments';
 import { CORE_SETTINGS_MESSAGES } from '../../plugins/messages/coreSettings';
 import { CORE_TENANT_MESSAGES } from '../../plugins/messages/coreTenant';
 import { CORE_THEME_MESSAGES } from '../../plugins/messages/coreTheme';
@@ -50,6 +51,7 @@ export const CORE_BUNDLES: MessageBundle[] = [
   ['core.marketplace', CORE_MARKETPLACE_MESSAGES],
   ['core.records', CORE_RECORDS_MESSAGES],
   ['core.reports', CORE_REPORTS_MESSAGES],
+  ['core.documents', CORE_DOCUMENTS_MESSAGES],
   ['core.settings', CORE_SETTINGS_MESSAGES],
   ['core.tenant', CORE_TENANT_MESSAGES],
   ['core.theme', CORE_THEME_MESSAGES],

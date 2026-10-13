@@ -2,6 +2,7 @@ import type { ExtensionPointDefinition } from './plugin/extensionPoint';
 import { UI_EXTENSION_POINTS } from './ui/uiExtensionPoints';
 import { DATA_EXTENSION_POINTS } from './dataExtensionPoints';
 import { REPORT_EXTENSION_POINTS } from './report/reportExtensionPoints';
+import { DOCUMENT_EXTENSION_POINTS } from './document/documentTemplate';
 import { I18N_EXTENSION_POINTS } from './i18n/extensionPoints';
 import { THEME_EXTENSION_POINTS } from './theme/extensionPoints';
 import { ACCESS_EXTENSION_POINTS } from './access/extensionPoints';
@@ -23,6 +24,7 @@ export const KERNEL_EXTENSION_POINTS: ExtensionPointDefinition[] = [
   ...UI_EXTENSION_POINTS,
   ...DATA_EXTENSION_POINTS,
   ...REPORT_EXTENSION_POINTS,
+  ...DOCUMENT_EXTENSION_POINTS,
   ...I18N_EXTENSION_POINTS,
   ...THEME_EXTENSION_POINTS,
   ...ACCESS_EXTENSION_POINTS,

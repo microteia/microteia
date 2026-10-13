@@ -22,6 +22,10 @@
 - fix(command): what was broken, and what it did to whoever hit it.
 -->
 
+#### [2.27.0] — 2026-10-13
+
+- feat(examples): the Console ships `document-example` as authoring source — a `document.template` contribution (Markdown, with `{{#each}}`/`{{#if}}` and a child-record `dataset`) over two screens addressed by `sourceId`.
+
 #### [2.26.1] — 2026-10-12
 
 - fix(connect): the "enable the Firestore TTL policy on auditLogs.expiresAt" prerequisite is gone from `connect` and from `MICROTEIA.md`. The policy is declared — `"ttl": true` in a `fieldOverride` of `firestore.indexes.json` — and the `firebase deploy --only firestore:indexes` that `deploy` runs applies it; the step asked the organization to redo by hand what the deploy had already done. The same holds for every TTL the kernel declares (`workflow_trigger_marks.expiresAt` too).

@@ -8,6 +8,7 @@ import { NotificationBanner } from '../NotificationBanner';
 import { TopBar } from '../TopBar';
 import { WorkspaceStatusBar } from '../WorkspaceStatusBar';
 import { CommandPalette } from '../../ui/CommandPalette';
+import { RecordDialogOutlet } from '../RecordDialogOutlet';
 import { useWorkspaceShellViewModel } from './WorkspaceShell.viewmodel';
 import { S } from './WorkspaceShell.styles';
 
@@ -44,6 +45,7 @@ export const WorkspaceShell: React.FC = () => {
 
         <NotificationBanner />
         {isCommandPaletteOpen && <CommandPalette />}
+        <RecordDialogOutlet />
       </S.Root>
 
       <WorkspaceStatusBar />

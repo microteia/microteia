@@ -115,7 +115,12 @@ const documentFieldPath = (resolution: PathResolution, path: string): string | n
   return hop.materializeAt === path && !hop.multi ? hop.atPath : null;
 };
 
-const materializeRecords = async (
+/**
+ * Traz os registros apontados pelos CAMINHOS e os põe no lugar dos ids — nível a nível, uma leitura
+ * por coleção por nível. É o mesmo par do `WorkflowContextHydrator` (`buildHydrationPlan` +
+ * `materializeHops`), aplicado a uma lista em vez de ao evento.
+ */
+export const hydrateRecords = async (
   rows: WorkflowQueryRow[],
   root: PathRoot,
   ctx: SchemaContext,
@@ -156,13 +161,45 @@ const materializeRecords = async (
   return records;
 };
 
+/**
+ * Quem consulta, quando não é uma execução de automação: o escritório e o fuso em que `today()` diz
+ * que dia é. A geração de documento consulta os registros filhos por aqui.
+ */
+export interface RecordQueryScope {
+  tenantId: string;
+  timeZone?: string;
+}
+
 export async function runWorkflowQuery(
   spec: QuerySpec,
   context: WorkflowContext,
   deps: WorkflowQueryDeps,
   limits: WorkflowQueryLimits = DEFAULT_WORKFLOW_QUERY_LIMITS,
 ): Promise<WorkflowQueryOutcome> {
-  const tenantId = context.execution.tenantId;
+  const values = spec.where.map((predicate) => (predicate.value ? resolveMapping(predicate.value, context) : undefined));
+  return runRecordQuery(
+    spec,
+    values,
+    { tenantId: context.execution.tenantId, timeZone: context.services.timeZone },
+    deps,
+    limits,
+  );
+}
+
+/**
+ * A consulta sem o contexto de execução: os valores dos predicados já chegam resolvidos, na ordem de
+ * `spec.where`. É o mesmo caminho — mesma divisão entre o que desce ao Firestore e o que fica em
+ * memória, mesmos tetos, mesma derivação na leitura —, e por isso uma automação e um documento que
+ * fazem a mesma pergunta recebem a mesma resposta.
+ */
+export async function runRecordQuery(
+  spec: QuerySpec,
+  values: unknown[],
+  scope: RecordQueryScope,
+  deps: WorkflowQueryDeps,
+  limits: WorkflowQueryLimits = DEFAULT_WORKFLOW_QUERY_LIMITS,
+): Promise<WorkflowQueryOutcome> {
+  const tenantId = scope.tenantId;
   const ctx = await deps.screenProvider.getSchemaContext(tenantId);
 
   const issues = validateQuerySpec(spec, ctx);
@@ -190,9 +227,9 @@ export async function runWorkflowQuery(
   const derivedKeys = collectDerivedFieldKeys(ctx, spec.table);
   const isDerivedPath = (path: string): boolean => derivedKeys.has(path.split('.')[0]);
 
-  const predicates: ResolvedPredicate[] = spec.where.map((predicate) => ({
+  const predicates: ResolvedPredicate[] = spec.where.map((predicate, index) => ({
     ...predicate,
-    resolvedValue: predicate.value ? resolveMapping(predicate.value, context) : undefined,
+    resolvedValue: values[index],
   }));
 
   const equalityFilters: WorkflowEqualityFilter[] = [];
@@ -229,7 +266,7 @@ export async function runWorkflowQuery(
     ]),
   ];
 
-  const hydrated = await materializeRecords(rows, resolved.root, ctx, pathsToHydrate, tenantId, deps.fetcher);
+  const hydrated = await hydrateRecords(rows, resolved.root, ctx, pathsToHydrate, tenantId, deps.fetcher);
 
   // O instante é um só para a consulta inteira: dois registros da mesma resposta não podem discordar
   // sobre que dia é hoje.
@@ -237,7 +274,7 @@ export async function runWorkflowQuery(
   const materialized =
     derivedKeys.size === 0
       ? hydrated
-      : withAmbientTimeZone(context.services.timeZone, () =>
+      : withAmbientTimeZone(scope.timeZone, () =>
           hydrated.map((record) => applyDerivedFields(ctx, spec.table, record, at)),
         );
 

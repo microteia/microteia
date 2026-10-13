@@ -7,6 +7,7 @@ import { CORE_ADMIN } from './coreAdmin';
 import { CORE_MARKETPLACE } from './coreMarketplace';
 import { CORE_RECORDS } from './coreRecords';
 import { CORE_REPORTS } from './coreReports';
+import { CORE_DOCUMENTS } from './coreDocuments';
 import { CORE_WORKSPACE } from './coreWorkspace';
 import { CORE_SETTINGS } from './coreSettings';
 import { CORE_I18N } from './coreI18n';
@@ -51,7 +52,7 @@ const bundle = (namespace: string, messages: Record<string, string>): MessageBun
  *
  * Mudou o conteúdo, a impressão muda; o gate para e cobra o `version` junto.
  */
-export const PT_BR_MESSAGES_FINGERPRINT = '24eb633babe9';
+export const PT_BR_MESSAGES_FINGERPRINT = 'de7de692b25e';
 
 export const localePtBrPlugin: MarketplacePlugin = {
   summary:
@@ -59,7 +60,7 @@ export const localePtBrPlugin: MarketplacePlugin = {
   workflows: [],
   manifest: {
     id: 'com.microteia.locale-pt-br',
-    version: '1.83.0',
+    version: '1.84.0',
     kernel: '^2.0.0',
     name: 'Português (Brasil)',
     description: 'Tradução da Microteia para português do Brasil.',
@@ -73,6 +74,7 @@ export const localePtBrPlugin: MarketplacePlugin = {
       messageBundleContribution(bundle('core.marketplace', CORE_MARKETPLACE)),
       messageBundleContribution(bundle('core.records', CORE_RECORDS)),
       messageBundleContribution(bundle('core.reports', CORE_REPORTS)),
+      messageBundleContribution(bundle('core.documents', CORE_DOCUMENTS)),
       messageBundleContribution(bundle('core.workspace', CORE_WORKSPACE)),
       messageBundleContribution(bundle('core.settings', CORE_SETTINGS)),
       messageBundleContribution(bundle('core.i18n', CORE_I18N)),

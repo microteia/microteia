@@ -1,5 +1,7 @@
 import type { Firestore } from 'firebase-admin/firestore';
-import type { Contribution } from '../../domain/schema/plugin/contribution';
+import type { Contribution, QualifiedContribution } from '../../domain/schema/plugin/contribution';
+import { sortContributions } from '../../domain/schema/plugin/contribution';
+import { DOCUMENT_TEMPLATE_POINT } from '../../domain/schema/document/documentTemplate';
 import type { MessageBundle } from '../../domain/schema/i18n/messages';
 import { messageBundlesOf } from '../../domain/schema/i18n/extensionPoints';
 
@@ -9,6 +11,8 @@ interface CacheEntry {
   /** As extensões instaladas e DESLIGADAS — as que o interruptor manda parar. */
   deactivatedPluginIds: Set<string>;
   messageBundles: MessageBundle[];
+  /** As contribuições `document.template`, qualificadas e na ordem do registro. */
+  documentTemplates: QualifiedContribution[];
   loadedAt: number;
 }
 
@@ -65,6 +69,15 @@ export class InstalledExtensionCache {
     return (await this.load(tenantId)).deactivatedPluginIds;
   }
 
+  /**
+   * Os modelos de documento que as extensões ligadas trazem, já na ordem do registro — prioridade,
+   * depois `pluginId` —, que é a ordem em que `resolveDocumentTemplates` decide uma chave disputada. É
+   * a mesma ordem que o host do front usa, e por isso o modelo que a tela oferece é o modelo gerado.
+   */
+  async documentTemplates(tenantId: string): Promise<QualifiedContribution[]> {
+    return (await this.load(tenantId)).documentTemplates;
+  }
+
   invalidate(tenantId: string): void {
     this.entries.delete(tenantId);
   }
@@ -78,6 +91,7 @@ export class InstalledExtensionCache {
     const claimedFunctions = new Set<string>();
     const deactivatedPluginIds = new Set<string>();
     const contributions: Contribution[] = [];
+    const documentTemplates: QualifiedContribution[] = [];
 
     for (const doc of snapshot.docs) {
       const data = doc.data();
@@ -94,13 +108,19 @@ export class InstalledExtensionCache {
       }
 
       const contributes = data.package?.manifest?.contributes;
-      if (Array.isArray(contributes)) contributions.push(...(contributes as Contribution[]));
+      if (Array.isArray(contributes)) {
+        contributions.push(...(contributes as Contribution[]));
+        for (const contribution of contributes as Contribution[]) {
+          if (contribution?.point === DOCUMENT_TEMPLATE_POINT) documentTemplates.push({ ...contribution, pluginId: doc.id });
+        }
+      }
     }
 
     const entry: CacheEntry = {
       claimedFunctions,
       deactivatedPluginIds,
       messageBundles: messageBundlesOf(contributions),
+      documentTemplates: sortContributions(documentTemplates),
       loadedAt: Date.now(),
     };
     this.entries.set(tenantId, entry);

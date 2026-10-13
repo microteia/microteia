@@ -295,6 +295,32 @@ export {
 
 export type { ReportDefinition, ReportModuleTemplate } from '../domain/entities/Report';
 
+// MODELOS DE DOCUMENTO. Um pacote declara o modelo como contribuição de DADO (`document.template`) —
+// a mesma forma que o escritório grava —, e o autor precisa do validador e da gramática que a geração
+// usa para conferir o texto antes de publicar.
+export {
+  DOCUMENT_EXTENSION_POINTS,
+  DOCUMENT_OUTPUTS_BY_FORMAT,
+  DOCUMENT_TEMPLATE_API_VERSION,
+  DOCUMENT_TEMPLATE_MAX_BYTES,
+  DOCUMENT_TEMPLATE_POINT,
+  documentTemplateContribution,
+  documentTemplateIssues,
+  documentTemplateOf,
+  parseTemplate,
+  templateOutputs,
+} from '../domain/schema/document';
+
+export type {
+  DocumentOutputFormat,
+  DocumentTemplateDataset,
+  DocumentTemplateFormat,
+  DocumentTemplateIssue,
+  DocumentTemplateSpec,
+  TemplateIssue,
+  TemplateNode,
+} from '../domain/schema/document';
+
 export { KERNEL_EXTENSION_POINTS } from '../domain/schema/extensionPoints';
 
 // ─── Automação: workflows, ações e scripts ────────────────────────────────────

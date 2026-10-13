@@ -103,6 +103,11 @@ const PUBLISHED = [
   // então o `KERNEL_VERSION` não se move.
   'catalogSchemaContext', 'packagesSchemaContext', 'queryPaths', 'undeclaredQueryPaths',
   'undeclaredReportPaths',
+  // MODELOS DE DOCUMENTO. MOVE o `KERNEL_VERSION`: o ponto `document.template` é forma nova de pacote
+  // instalado, e um kernel que não o declara descartaria a contribuição.
+  'DOCUMENT_EXTENSION_POINTS', 'DOCUMENT_OUTPUTS_BY_FORMAT', 'DOCUMENT_TEMPLATE_API_VERSION',
+  'DOCUMENT_TEMPLATE_MAX_BYTES', 'DOCUMENT_TEMPLATE_POINT', 'documentTemplateContribution',
+  'documentTemplateIssues', 'documentTemplateOf', 'parseTemplate', 'templateOutputs',
 ].sort();
 
 /**
@@ -111,6 +116,8 @@ const PUBLISHED = [
  * `plugin.ts` de quem já escreveu contra ele.
  */
 const PUBLISHED_TYPES = [
+  'DocumentOutputFormat', 'DocumentTemplateDataset', 'DocumentTemplateFormat', 'DocumentTemplateIssue',
+  'DocumentTemplateSpec', 'TemplateIssue', 'TemplateNode',
   'ReportAccess', 'ReportAggregateMeasure', 'ReportChart', 'ReportChartKind',
   'ReportComputedMeasure', 'ReportContributionMetadata', 'ReportDataset', 'ReportDatasetKind',
   'ReportDefinition', 'ReportDimension', 'ReportFieldPresentation', 'ReportGranularity',

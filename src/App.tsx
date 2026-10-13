@@ -18,6 +18,8 @@ import { SettingsStoreProvider } from './stores/SettingsStore';
 import { ScreenDefinitionStoreProvider } from './stores/ScreenDefinitionStore';
 import { ActionStoreProvider } from './stores/ActionStore';
 import { ReportDefinitionStoreProvider } from './stores/ReportDefinitionStore';
+import { DocumentTemplateStoreProvider } from './stores/DocumentTemplateStore';
+import { RecordDialogProvider } from './stores/RecordDialogContext';
 import { RecordStoreProvider } from './stores/RecordStore';
 import { WorkflowStoreProvider } from './stores/WorkflowStore';
 import { ScriptStoreProvider } from './stores/ScriptStore';
@@ -74,6 +76,8 @@ const App: React.FC = () => {
                                           <PublicExtensionStoreProvider>
                                           <ActionStoreProvider>
                                           <ReportDefinitionStoreProvider>
+                                          <DocumentTemplateStoreProvider>
+                                          <RecordDialogProvider>
                                           <AuditLogStoreProvider>
                                           <WorkspaceStoreProvider>
                                             <NotificationProvider>
@@ -116,6 +120,8 @@ const App: React.FC = () => {
                                             </NotificationProvider>
                                           </WorkspaceStoreProvider>
                                           </AuditLogStoreProvider>
+                                          </RecordDialogProvider>
+                                          </DocumentTemplateStoreProvider>
                                           </ReportDefinitionStoreProvider>
                                           </ActionStoreProvider>
                                           </PublicExtensionStoreProvider>

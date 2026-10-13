@@ -51,6 +51,7 @@ const TEMPLATES = {
   'command-example.json': 'commandExamplePlugin',
   'settings-example.json': 'settingsExamplePlugin',
   'record-tab-example.json': 'recordTabExamplePlugin',
+  'document-example.json': 'documentExamplePlugin',
 };
 
 const check = process.argv.includes('--check');

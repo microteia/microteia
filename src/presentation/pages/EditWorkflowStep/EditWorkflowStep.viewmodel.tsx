@@ -50,6 +50,7 @@ import type { StepOutputField, WorkflowVariable } from '../../components/ui/Expr
 
 import { useT, useLabel, type TranslateFn } from '../../shared/i18n/useT';
 import { isPausingStepDefinition } from '../../../domain/schema/workflowStepCatalog';
+import { useResolvedDocumentTemplates } from '../../shared/documents/useResolvedDocumentTemplates';
 
 const queryProjectionOutputs = (
   t: TranslateFn,
@@ -501,6 +502,16 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
     [permissionCatalog, label],
   );
 
+  /**
+   * Os modelos que VALEM no escritório — os de pacote sobrepostos pelos dele —, com a tela de cada
+   * um ao lado: o passo gera o documento do registro que o modelo descreve, e a tela é o que diz qual.
+   */
+  const documentTemplates = useResolvedDocumentTemplates();
+  const documentTemplateOptions = useMemo(
+    () => documentTemplates.map((template) => ({ value: template.key, label: label(template.title), meta: template.collection })),
+    [documentTemplates, label],
+  );
+
   const aiConnectionOptions = useMemo(
     () => [
       { value: '', label: t('step.ai-connection.default') },
@@ -546,6 +557,11 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
   const pickerDisplay = useCallback(
     (kind: InputPickerKind, stored: string): PickerDisplay => {
       if (kind === 'ai-connection') return { options: aiConnectionOptions };
+      if (kind === 'document-template') {
+        return !stored || documentTemplateOptions.some((option) => option.value === stored)
+          ? { options: documentTemplateOptions }
+          : { options: documentTemplateOptions, orphanMessage: t('step.target.document-template.missing', { key: stored }) };
+      }
       if (kind === 'permission') {
         return !stored || permissionOptions.some((option) => option.value === stored)
           ? { options: permissionOptions }
@@ -567,6 +583,8 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
     },
     [
       aiConnectionOptions,
+      documentTemplateOptions,
+      t,
       permissionOptions,
       callableScriptOptions,
       callableWorkflowOptions,
@@ -586,7 +604,9 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
             ? 'step.target.ai-connection'
             : kind === 'permission'
               ? 'step.target.permission'
-              : 'step.target.workflow',
+              : kind === 'document-template'
+                ? 'step.target.document-template'
+                : 'step.target.workflow',
       ),
     [t],
   );

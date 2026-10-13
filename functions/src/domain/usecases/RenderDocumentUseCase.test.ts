@@ -1,0 +1,171 @@
+import { describe, it, expect, vi } from 'vitest';
+import { makeRenderDocumentUseCase } from './RenderDocumentUseCase';
+import type { RenderDocumentDeps, RenderDocumentRequest } from './RenderDocumentUseCase';
+import { fakeScreenProvider } from '../repositories/fakeScreenProvider';
+import type { SchemaScreen } from '../schema/pathResolver';
+import type { ResolvedDocumentTemplate } from '../schema/document/documentTemplate';
+import type { DocumentRenderInput, IDocumentRenderer } from '../repositories/IDocumentRenderer';
+import { DocumentRenderError } from '../repositories/IDocumentRenderer';
+import type { IDocumentRecordReader } from '../repositories/IDocumentGenerationPorts';
+import type { IRecordDocumentWriter, RecordDocumentFile } from '../repositories/IRecordDocumentWriter';
+
+const SCREENS: SchemaScreen[] = [
+  {
+    id: 'contracts',
+    titleSingular: 'Contract',
+    titleFieldKey: 'name',
+    hasDocuments: true,
+    fields: [
+      { key: 'name', label: 'Name', type: 'text', required: true, order: 0, origin: 'custom' },
+      { key: 'fee', label: 'Fee', type: 'number', required: false, order: 1, origin: 'custom' },
+    ],
+  },
+  {
+    id: 'installments',
+    titleSingular: 'Installment',
+    titleFieldKey: 'amount',
+    fields: [
+      { key: 'amount', label: 'Amount', type: 'number', required: false, order: 0, origin: 'custom' },
+      { key: 'contractId', label: 'Contract', type: 'reference', refEntity: 'contracts', required: false, order: 1, origin: 'custom' },
+    ],
+  },
+  {
+    id: 'notes',
+    titleSingular: 'Note',
+    titleFieldKey: 'name',
+    fields: [{ key: 'name', label: 'Name', type: 'text', required: true, order: 0, origin: 'custom' }],
+  },
+] as unknown as SchemaScreen[];
+
+const template = (overrides: Partial<ResolvedDocumentTemplate> = {}): ResolvedDocumentTemplate => ({
+  key: 'receipt',
+  title: 'Receipt',
+  collection: 'contracts',
+  format: 'markdown',
+  body: '{{name}} {{formatMoney(fee)}}{{#each installments}}{{amount}}{{/each}}',
+  fileName: 'Receipt {{name}}',
+  datasets: [{ name: 'installments', from: 'installments', via: 'contractId' }],
+  origin: 'tenant',
+  ...overrides,
+});
+
+const setup = (templates: ResolvedDocumentTemplate[] = [template()]) => {
+  const rendered: DocumentRenderInput[] = [];
+  const attached: RecordDocumentFile[] = [];
+  const childrenPaths: string[][] = [];
+
+  const renderer: IDocumentRenderer = {
+    templateText: (one) => one.body ?? '',
+    render: async (input) => {
+      rendered.push(input);
+      return { data: Buffer.from('%PDF'), contentType: 'application/pdf', extension: 'pdf', issues: [] };
+    },
+  };
+  const records: IDocumentRecordReader = {
+    record: async (_tenantId, _collection, recordId) =>
+      ({ ok: true, value: recordId === 'c1' ? { id: 'c1', name: 'Ana/Bia', fee: 1500 } : null }),
+    children: async (_tenantId, _dataset, _parentId, paths) => {
+      childrenPaths.push([...paths]);
+      return { ok: true, value: [{ id: 'i1', amount: 10 }] };
+    },
+  };
+  const writer: IRecordDocumentWriter = {
+    attach: vi.fn(async (file: RecordDocumentFile) => {
+      attached.push(file);
+      return { id: 'doc1', name: file.name, url: 'https://x', storagePath: 'p', contentType: file.contentType, size: file.data.length };
+    }),
+  };
+  const deps: RenderDocumentDeps = {
+    templates: { resolve: async () => templates },
+    screens: fakeScreenProvider(SCREENS),
+    records,
+    renderer,
+    writer,
+    localeOf: async () => 'pt-BR',
+    timeZoneOf: async () => 'America/Sao_Paulo',
+  };
+  return { useCase: makeRenderDocumentUseCase(deps), rendered, attached, childrenPaths, writer };
+};
+
+const request = (overrides: Partial<RenderDocumentRequest> = {}): RenderDocumentRequest => ({
+  tenantId: 't1',
+  templateKey: 'receipt',
+  recordId: 'c1',
+  author: { uid: 'u1', name: 'Ana', via: 'ui' },
+  ...overrides,
+});
+
+describe('RenderDocumentUseCase', () => {
+  it('gera, anexa na coleção física do registro, e o nome sai do modelo sem barra', async () => {
+    const { useCase, attached } = setup();
+
+    const result = await useCase.execute(request());
+
+    expect(result.ok).toBe(true);
+    expect(attached[0]).toMatchObject({ physicalCollection: 'contracts', recordId: 'c1', name: 'Receipt Ana-Bia.pdf' });
+  });
+
+  it('o escopo traz o registro e as listas, e os caminhos do laço vão para a consulta dos filhos', async () => {
+    const { useCase, rendered, childrenPaths } = setup();
+
+    await useCase.execute(request());
+
+    expect(rendered[0].scope).toMatchObject({ name: 'Ana/Bia', installments: [{ amount: 10 }] });
+    expect(childrenPaths[0]).toEqual(['amount']);
+  });
+
+  it('a função de formatação fala o idioma do ESCRITÓRIO', async () => {
+    const { useCase, rendered } = setup();
+
+    await useCase.execute(request());
+
+    expect(String(rendered[0].evaluate('formatMoney(fee)', rendered[0].scope))).toContain('R$');
+  });
+
+  it('recusa a chave que não existe, o formato que o modelo não produz e a tela errada', async () => {
+    const { useCase, writer } = setup([template({ format: 'docx', body: undefined, content: 'UEsDBA==' })]);
+
+    expect(await useCase.execute(request({ templateKey: 'nope' })))
+      .toMatchObject({ ok: false, error: '@core.documents/render.template-not-found' });
+    expect(await useCase.execute(request({ output: 'pdf' })))
+      .toMatchObject({ ok: false, error: '@core.documents/render.output-unsupported' });
+    expect(await useCase.execute(request({ collection: 'notes' })))
+      .toMatchObject({ ok: false, error: '@core.documents/render.collection-mismatch' });
+    expect(writer.attach).not.toHaveBeenCalled();
+  });
+
+  it('recusa a tela sem aba Documentos — não há onde anexar', async () => {
+    const { useCase } = setup([template({ collection: 'notes', datasets: [] })]);
+
+    expect(await useCase.execute(request()))
+      .toMatchObject({ ok: false, error: '@core.documents/render.documents-disabled' });
+  });
+
+  it('registro que não existe não vira documento vazio', async () => {
+    const { useCase, writer } = setup();
+
+    expect(await useCase.execute(request({ recordId: 'ghost' })))
+      .toMatchObject({ ok: false, error: '@core.records/record.not-found' });
+    expect(writer.attach).not.toHaveBeenCalled();
+  });
+
+  it('o modelo ilegível volta como recusa com o motivo, e nada é anexado', async () => {
+    const { writer } = setup();
+    const broken = makeRenderDocumentUseCase({
+      templates: { resolve: async () => [template()] },
+      screens: fakeScreenProvider(SCREENS),
+      records: { record: async () => ({ ok: true, value: { id: 'c1' } }), children: async () => ({ ok: true, value: [] }) },
+      renderer: {
+        templateText: () => '',
+        render: async () => { throw new DocumentRenderError('@core.documents/render.docx-template', { detail: 'x' }); },
+      },
+      writer,
+      localeOf: async () => 'en',
+      timeZoneOf: async () => 'UTC',
+    });
+
+    expect(await broken.execute(request()))
+      .toEqual({ ok: false, error: '@core.documents/render.docx-template', errorParams: { detail: 'x' } });
+    expect(writer.attach).not.toHaveBeenCalled();
+  });
+});
