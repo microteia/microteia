@@ -434,6 +434,60 @@ describe('o relógio — o gatilho de horário', () => {
   });
 });
 
+describe('quando uma data do registro chega — o gatilho date-reached', () => {
+  const dated = (trigger: Record<string, unknown>) => withBehavior((behavior) => replaceTransition(behavior, 'cancel-invoiced', {
+    trigger: { kind: 'date-reached', ...trigger } as BehaviorTransition['trigger'],
+    permission: undefined,
+    actor: undefined,
+    guard: undefined,
+  }));
+
+  it('traduz para `<coleção>.dateReached`, com a data, o deslocamento e o `from` na condição', () => {
+    const result = check(dated({ field: 'soldAt', offset: '+30d', at: '07:00' }));
+    expect(codes(result.issues)).not.toContain('behavior.transition.date-reached-invalid');
+    const mapped = result.transitions.find((one) => one.transition.name === 'cancel-invoiced');
+    expect(mapped).toMatchObject({
+      supported: true,
+      eventName: 'sales.dateReached',
+      dateReached: { field: 'soldAt', offset: '+30d', at: '07:00' },
+      workflowCondition: 'status == "invoiced"',
+      fromCheck: { where: 'workflow-condition' },
+    });
+    expect(mapped?.steps).toContain('upsert');
+  });
+
+  it('recusa o campo que não é data da entidade, e diz quais são', () => {
+    const issue = check(dated({ field: 'code', offset: '0d' })).issues
+      .find((one) => one.code === 'behavior.transition.date-reached-invalid');
+    expect(issue?.message).toContain('"code" is not a date field');
+    expect(issue?.suggestion).toContain('soldAt');
+  });
+
+  it('recusa o deslocamento que não é dias', () => {
+    const issue = check(dated({ field: 'soldAt', offset: '3 dias' })).issues
+      .find((one) => one.code === 'behavior.transition.date-reached-invalid');
+    expect(issue?.message).toContain('"3 dias"');
+  });
+
+  it('sem pessoa, a permissão não tem quem responder — como no relógio', () => {
+    const model = withBehavior((behavior) => replaceTransition(behavior, 'cancel-invoiced', {
+      trigger: { kind: 'date-reached', field: 'soldAt', offset: '0d' },
+      actor: undefined,
+    }));
+    expect(codes(check(model).issues)).toContain('behavior.transition.permission-on-event-trigger');
+  });
+
+  it('a declaração sem `field` é recusada na leitura', () => {
+    const parsed = parseDomainModel({
+      ...salesBehaviorModel(),
+      behavior: replaceTransition(salesBehavior(), 'cancel-invoiced', {
+        trigger: { kind: 'date-reached' } as unknown as BehaviorTransition['trigger'],
+      }),
+    });
+    expect(parsed.issues.map((one) => one.message).join(' ')).toMatch(/WHICH date/);
+  });
+});
+
 describe('a transição sobre uma entidade que ninguém modelou', () => {
   it('pega a transição e o efeito que apontam para o vazio', () => {
     const result = check(withBehavior((behavior) => ({

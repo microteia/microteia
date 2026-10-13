@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.94.0] — 2026-10-12
+
+- O assistente que transforma a descrição de um negócio em extensão passa a entender regras como "avisar três dias antes do vencimento" ou "marcar como atrasado no dia seguinte ao prazo", e as transforma diretamente em automações do tipo "Quando uma data chega".
+
 #### [9.93.0] — 2026-10-12
 
 - As automações ganharam o passo "Esperar": a automação pausa por um tempo — 30 minutos, 4 horas, 2 dias — ou até uma data, e depois continua de onde parou. Na lista de execuções, a automação que está esperando mostra quando vai continuar.

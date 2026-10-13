@@ -5619,6 +5619,14 @@ transição vira `{ eventName: 'schedule', schedule: { cron: when } }` com os pa
 filtro) e `Loop` (a passagem por registro). `SCHEDULE_TRIGGER_SUPPORTED` virou `true` sozinho, porque é
 derivado do catálogo de eventos.
 
+O gatilho de data também tem vocabulário no modelo: `trigger: { kind: 'date-reached', field, offset, at? }`
+vira `{ eventName: '<coleção>.dateReached', dateReached }`, com o `from` na condição do fluxo — o payload é o
+registro, como numa gravação. A diferença para o `schedule` é a que decide qual usar: o relógio pergunta
+"que horas são?" e precisa CONSULTAR os registros; a data pergunta "este registro chegou ao dia?" e o kernel
+entrega cada registro devido. `validate_domain_model` confere que `field` é um campo `date` da entidade
+(`behavior.transition.date-reached-invalid`). A espera (`delay`) segue sem vocabulário no modelo, e a lacuna
+está registrada em `coverage.test.ts`.
+
 | Arquivo | Papel |
 |---|---|
 | `domain/schema/workflowClock.ts` | cron, próxima ocorrência, validação, constantes (sincronizado) |

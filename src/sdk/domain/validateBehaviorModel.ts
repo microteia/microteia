@@ -11,7 +11,7 @@ import type {
 import { A_STATE_IS_A_KEY, effectEntity, enforcementOfScope, isSelfLoop } from './behaviorModel';
 import type { MappedTransition } from './behaviorMapping';
 import { DESCRIPTION_REQUIRED_BECAUSE, mapTransition } from './behaviorMapping';
-import { MIN_SCHEDULE_INTERVAL_MINUTES, scheduleIssues } from '../../domain/schema/workflowClock';
+import { MIN_SCHEDULE_INTERVAL_MINUTES, dateReachedIssues, scheduleIssues } from '../../domain/schema/workflowClock';
 import type { DomainCatalog } from './catalog';
 import type { DomainEntity, DomainIssue, DomainModel } from './domainModel';
 import type { DomainIssueCode } from './detectors';
@@ -391,7 +391,7 @@ const permissionIssues = (
     issues.push(make('behavior.transition.permission-on-event-trigger', 'error', {
       entity: transition.entity,
       field: transition.name,
-      message: `"${transition.name}" is triggered by ${trigger.kind === 'schedule' ? 'a clock' : 'a save'} and requires `
+      message: `"${transition.name}" is triggered by ${trigger.kind === 'entity-event' ? 'a save' : 'a clock'} and requires `
         + `"${permission}". Nobody called it, so there is no actor, and hasPermission answers false — always. The flow `
         + 'either never runs or the permission is decoration; both are silent.',
       suggestion: 'A permission is only answerable when a person acts: make the trigger { kind: "user-action", action } '
@@ -607,6 +607,31 @@ const transitionIssues = (
       }));
     }
 
+    if (transition.trigger.kind === 'date-reached') {
+      const declared = [...handle.fields.entries()].filter(([, one]) => one.type === 'date').map(([key]) => key);
+      const known = handle.fields.size > 0 ? declared : null;
+      const [problem] = dateReachedIssues(
+        { field: transition.trigger.field, offset: transition.trigger.offset, at: transition.trigger.at },
+        known,
+      );
+      if (problem) {
+        issues.push(make('behavior.transition.date-reached-invalid', 'error', {
+          entity: transition.entity,
+          field: transition.name,
+          message: `"${transition.name}" happens when a date of "${transition.entity}" arrives, and the kernel clock cannot `
+            + `watch it: ${problem.code === 'field-not-date'
+              ? `"${transition.trigger.field}" is not a date field of the entity`
+              : problem.code === 'offset-invalid'
+                ? `"${transition.trigger.offset}" is not a whole number of days like -3d, 0d or +1d`
+                : problem.code === 'at-invalid' ? `"${transition.trigger.at}" is not a time like 08:00` : 'it names no field'}.`,
+          suggestion: `{ kind: "date-reached", field: "<a date field>", offset: "-3d", at: "08:00" } — three days before, `
+            + `at 08:00 in the office time zone. Declare the field with type "date"${known && known.length > 0
+              ? ` (this entity has: ${known.join(', ')})` : ''}.`,
+          howToDeclareException: 'None. A date trigger on a field that is not a date finds no record, and nothing says so.',
+        }));
+      }
+    }
+
     if (transition.trigger.kind === 'schedule' && scheduleIssues({ cron: transition.trigger.when }).length > 0) {
       issues.push(make('behavior.transition.schedule-invalid', 'error', {
         entity: transition.entity,
@@ -711,7 +736,7 @@ const enforcementIssues = (invariant: BehaviorInvariant, behavior: BehaviorModel
   }
 
   if (invariant.enforcement === 'blocks' && named !== undefined && named.trigger.kind !== 'user-action') {
-    const clock = named.trigger.kind === 'schedule';
+    const clock = named.trigger.kind === 'schedule' || named.trigger.kind === 'date-reached';
     issues.push(make('behavior.invariant.blocks-after-the-fact', 'error', {
       ...at,
       message: `"${named.name}" is triggered by ${clock ? 'a clock' : 'a save'}, and this invariant must BLOCK the `

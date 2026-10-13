@@ -274,6 +274,17 @@ export const domainModelJsonSchema = (): Record<string, unknown> => ({
             kind: { enum: [...TRIGGER_KINDS] },
             event: { enum: ['saved', 'deleted'], description: 'kind "entity-event": which write publishes it.' },
             action: { type: 'string', description: 'kind "user-action": the key of the record action a person presses.' },
+            field: { type: 'string', description: 'kind "date-reached": the DATE field of the entity whose arrival fires it.' },
+            offset: {
+              type: 'string',
+              pattern: '^[+-]?\\d{1,3}d$',
+              description: 'kind "date-reached": whole days from the date — "-3d" three days before, "0d" on the day, "+1d" after.',
+            },
+            at: {
+              type: 'string',
+              pattern: '^([01]\\d|2[0-3]):[0-5]\\d$',
+              description: 'kind "date-reached": the time of day it fires, in the office time zone. Default 08:00.',
+            },
             when: {
               type: 'string',
               description: SCHEDULE_TRIGGER_SUPPORTED

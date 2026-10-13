@@ -1,6 +1,6 @@
 import { ENTITY_EVENT_ACTIONS, WORKFLOW_CALLED_EVENT, WORKFLOW_EVENT_CATALOG } from '../../domain/schema/eventCatalog';
-import { WORKFLOW_SCHEDULE_EVENT } from '../../domain/schema/workflowClock';
-import type { WorkflowSchedule } from '../../domain/schema/workflowClock';
+import { DATE_REACHED_ACTION, WORKFLOW_SCHEDULE_EVENT } from '../../domain/schema/workflowClock';
+import type { WorkflowDateReached, WorkflowSchedule } from '../../domain/schema/workflowClock';
 import { CONTROL_STEP_TYPES } from '../../domain/schema/workflowStepCatalog';
 import type { BehaviorEffect, BehaviorTransition, EffectKind } from './behaviorModel';
 import { effectEntity, isSelfLoop } from './behaviorModel';
@@ -81,7 +81,7 @@ export interface BehaviorMechanism {
 }
 
 /**
- * Quatorze linhas, e são estas. Fonte também do recurso `microteia://domain-model/rules` e da tabela do
+ * Uma linha por mecanismo, e são estas. Fonte também do recurso `microteia://domain-model/rules` e da tabela do
  * `AGENTS.md` — a documentação lê daqui, e não de uma cópia em prosa que envelhece sozinha.
  */
 export const BEHAVIOR_MECHANISMS: BehaviorMechanism[] = [
@@ -116,6 +116,15 @@ export const BEHAVIOR_MECHANISMS: BehaviorMechanism[] = [
       : 'nothing declares it. Move the decision to the moment something is WRITTEN or a person acts',
     stepIds: SCHEDULE_TRIGGER_SUPPORTED ? ['query', 'Loop'] : [],
     supported: SCHEDULE_TRIGGER_SUPPORTED,
+  },
+  {
+    concern: 'trigger',
+    declares: 'date-reached',
+    mechanism: `the kernel clock, by record (\`<eventPrefix ?? collection>.${DATE_REACHED_ACTION}\`): once per record and per `
+      + 'date value, at `at` in the office time zone, the record as the payload — a changed date fires again',
+    declaredAs: `workflows: [{ eventName: '<collection>.${DATE_REACHED_ACTION}', dateReached: { field, offset, at }, condition, steps }]`,
+    stepIds: [],
+    supported: true,
   },
   {
     concern: 'guard',
@@ -284,6 +293,8 @@ export interface MappedTransition {
   eventName: string;
   /** Quando o relógio a dispara — só no gatilho `schedule`. */
   schedule?: WorkflowSchedule;
+  /** Qual data do registro a dispara — só no gatilho `date-reached`. */
+  dateReached?: WorkflowDateReached;
   /**
    * O fluxo desta transição é candidato de uma superfície que escolhe sozinha, e portanto a
    * `description` dela não é opcional. Ver `DESCRIPTION_REQUIRED_EVENTS`.
@@ -387,6 +398,22 @@ export const mapTransition = (
           creationTest: 'changeType == "created"',
         }),
       },
+      supported: true,
+    };
+  }
+
+  if (trigger.kind === 'date-reached') {
+    // O evento É o registro, como numa gravação — sem `old` nem `changeType`. O `from` é conferido na
+    // condição do fluxo, e gravar o `to` não volta a disparar: a gravação emite `.saved`, não a data.
+    return {
+      transition,
+      ...permission,
+      eventName: `${collection}.${DATE_REACHED_ACTION}`,
+      dateReached: { field: trigger.field, offset: trigger.offset, ...(trigger.at === undefined ? {} : { at: trigger.at }) },
+      describable: false,
+      workflowCondition: `${stateField} == "${transition.from}"`,
+      steps,
+      fromCheck: { where: 'workflow-condition', expression: `${stateField} == "${transition.from}"` },
       supported: true,
     };
   }

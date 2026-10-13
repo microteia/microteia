@@ -1026,6 +1026,11 @@ Read the refusals as answers, not as gaps to route around:
   \`from\` turns into the filter of a \`query\`, and the passage runs per record inside a \`Loop\`. What it cannot do
   is refuse a write — by the time it looks, the record is saved. And a schedule is often the wrong answer: a rule
   asked when something is WRITTEN, or a filtered list a person opens, needs no clock at all.
+- **"When the date comes" is not a schedule.** "Overdue three days after the due date" is
+  \`trigger: { kind: 'date-reached', field: 'dueDate', offset: '+3d' }\`, and it becomes a
+  \`<collection>.dateReached\` workflow: the kernel finds the records that are due, each one arrives as the
+  event, once per record and per date, and a changed date fires again. Reach for \`schedule\` only when the
+  rule really is about the clock ("every Monday, close the week"), not about a date of the record.
 - **Uniqueness is DECLARED, never computed.** It is the one rule that compares a record against the others, and
   the one you must not write as an expression: a field \`validate\` and a \`validate-object\` step both see a single
   record and never query, and a workflow on \`<collection>.saved\` finds the duplicate only after it exists — two

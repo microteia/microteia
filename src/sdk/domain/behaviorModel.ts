@@ -37,9 +37,11 @@ export const A_STATE_IS_A_KEY =
  *
  * - `entity-event` — uma gravação ou exclusão da própria entidade. NÃO tem ator: ninguém a chamou.
  * - `user-action`  — um gesto de pessoa sobre um registro, que é a única forma de haver ator.
- * - `schedule`     — um relógio. Declarável aqui, e RECUSADO na tradução: ver `behaviorMapping.ts`.
+ * - `schedule`     — um relógio: `when` é cron. Vira consulta pelo `from` mais um laço.
+ * - `date-reached` — uma data do PRÓPRIO registro chega (`field`, `offset` em dias, `at`). Vira
+ *                    `<coleção>.dateReached`: o kernel acha os registros devidos, e cada um chega sozinho.
  */
-export const TRIGGER_KINDS = ['entity-event', 'user-action', 'schedule'] as const;
+export const TRIGGER_KINDS = ['entity-event', 'user-action', 'schedule', 'date-reached'] as const;
 export type TriggerKind = (typeof TRIGGER_KINDS)[number];
 
 /**
@@ -146,7 +148,8 @@ export interface BehaviorState {
 export type BehaviorTrigger =
   | { kind: 'entity-event'; event: 'saved' | 'deleted' }
   | { kind: 'user-action'; action: string }
-  | { kind: 'schedule'; when: string };
+  | { kind: 'schedule'; when: string }
+  | { kind: 'date-reached'; field: string; offset: string; at?: string };
 
 /**
  * A condição que autoriza a passagem. É uma EXPRESSÃO sobre o registro em mãos, e só sobre ele: a
@@ -325,7 +328,7 @@ const readTrigger = (raw: unknown, name: string, issues: DomainIssue[]): Behavio
     issues.push(bad(
       `Transition "${name}" has an unknown trigger kind.`,
       `Use one of: ${TRIGGER_KINDS.join(', ')}. "entity-event" is a save or a delete, "user-action" is a person `
-      + 'pressing something, "schedule" is a clock.',
+      + 'pressing something, "schedule" is a clock, "date-reached" is a date of the record arriving.',
     ));
     return null;
   }
@@ -343,6 +346,19 @@ const readTrigger = (raw: unknown, name: string, issues: DomainIssue[]): Behavio
       return null;
     }
     return { kind, action };
+  }
+  if (kind === 'date-reached') {
+    const field = str(raw.field);
+    if (field === undefined) {
+      issues.push(bad(
+        `Transition "${name}" happens when a date arrives and does not say WHICH date.`,
+        'Give the trigger a "field" — the date field of the entity it watches — and an "offset" in days: "-3d" three '
+        + 'days before, "0d" on the day, "+1d" the day after.',
+      ));
+      return null;
+    }
+    const at = str(raw.at);
+    return { kind, field, offset: str(raw.offset) ?? '0d', ...(at === undefined ? {} : { at }) };
   }
   return { kind, when: str(raw.when) ?? '' };
 };

@@ -18,6 +18,10 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.94.0] — 2026-10-12
+
+- feat(sdk/domain): the behaviour model gains `trigger: { kind: 'date-reached', field, offset, at? }` (`TRIGGER_KINDS`). `mapTransition` translates it into a `<collection>.dateReached` workflow with `dateReached` and the `from` in the workflow condition — the payload is the record, as on a save. `validate_domain_model` refuses a `field` that is not a `date` field of the entity, an offset that is not whole days and a malformed time (`behavior.transition.date-reached-invalid`), and treats it like the clock where a permission or a blocking invariant needs a person. `BEHAVIOR_MECHANISMS`, the JSON schema of the model and AUTHORING.md §8.0.1 describe it; `dateReached` leaves the coverage gaps. No `KERNEL_VERSION` change: authoring only.
+
 #### [9.93.0] — 2026-10-12
 
 - feat(workflow): the `delay` step (`stepDefinitionId: 'delay'`, contributed by `core.steps`) — `duration` (`30m`/`4h`/`2d`, up to 365 days) or `until`. It returns `suspend: { resumeAt }`, the same request/obey contract as `exit`'s `halt`; the `WorkflowExecutor` then returns the run as `WAITING` with `resumeAt` and its continuation. It pauses only at the top level and only in a `suspendable` run (one started by the event bus); a sync run (`runAction`, a waiting `call-workflow`, `runScript`, the agent) and a nested wait fail with a message. The `Delay` step TYPE stays unregistered and refused, as before. `KERNEL_VERSION` goes to `2.34.0`.
