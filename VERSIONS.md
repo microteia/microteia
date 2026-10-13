@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.95.1] — 2026-10-12
+
+- O editor de automações não deixa mais colocar o passo "Esperar" dentro de uma condição ou de uma repetição — lugares onde a espera não funciona. Ao tentar arrastá-lo para lá, um aviso explica onde ele pode ficar.
+
 #### [9.95.0] — 2026-10-12
 
 - O assistente que transforma a descrição de um negócio em extensão passa a entender esperas no meio de uma regra, como "ao faturar, criar o lançamento e, dois dias depois, avisar o cliente", e as transforma em automações com o passo "Esperar".

@@ -892,6 +892,7 @@ export const CORE_AUTOMATION: Record<string, string> = {
   'run.delay.cancelled.disabled': 'A automação foi desligada durante a espera.',
   'run.delay.cancelled.extension-off': 'A extensão dona desta automação foi desativada durante a espera.',
   'run.delay.resume-failed': 'A execução não conseguiu continuar depois da espera.',
+  'step.delay.top-level-only': 'A espera só pausa no nível principal da automação. Coloque-a fora de condições e repetições.',
   'step.exit.description':
     'Encerra o workflow neste ponto e devolve as saídas do step anterior como resultado. Útil para sair de dentro de um ramo de condição ou de uma repetição sem executar os steps seguintes.',
   'step.map.not-configured': 'Montagem de objeto não configurada',

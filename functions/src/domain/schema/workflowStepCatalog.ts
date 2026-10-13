@@ -698,3 +698,13 @@ export const CONTROL_STEP_TYPES: readonly string[] = ['Condition', 'Loop'];
  * validação do pacote reprova quem usar o tipo, apontando para o passo.
  */
 export const UNIMPLEMENTED_STEP_TYPES: readonly string[] = ['Delay'];
+
+/**
+ * Os passos que PAUSAM a execução. O motor só retoma no nível principal do fluxo — dentro de um ramo de
+ * condição ou do corpo de uma repetição a pausa falharia com o fluxo rodando. Uma regra só para quem a
+ * cobra: o editor (que não oferece nem deixa arrastar), a validação de pacote e o modelo de domínio.
+ */
+export const PAUSING_STEP_DEFINITION_IDS: readonly string[] = ['delay'];
+
+export const isPausingStepDefinition = (stepDefinitionId: string | undefined): boolean =>
+  !!stepDefinitionId && PAUSING_STEP_DEFINITION_IDS.includes(stepDefinitionId);

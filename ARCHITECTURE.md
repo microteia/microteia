@@ -5614,6 +5614,12 @@ o acesso de dias atrás é um retrato vencido, a mesma regra de "Quem disparou".
 A validação do pacote recusa o `delay` aninhado, o `delay` numa automação que uma AÇÃO do pacote dispara, e um
 intervalo de `kernel` anterior a 2.34.0.
 
+**O editor também não deixa aninhar.** Quais passos pausam é UMA lista, `PAUSING_STEP_DEFINITION_IDS`
+(`domain/schema/workflowStepCatalog.ts`), lida pela validação de pacote e pelo editor. Dentro de um ramo ou
+de uma repetição o editor de passo não oferece a espera; arrastar a espera — ou um nó que a contém — para
+dentro deles é recusado com aviso (`canPlaceStep`, em `presentation/shared/workflowHelpers.ts`). A espera
+já gravada num lugar errado, vinda de importação, aparece com o aviso e não salva até sair dali.
+
 **No modelo de domínio.** `trigger: { kind: 'schedule', when }` deixou de ser recusado: `when` é cron, e a
 transição vira `{ eventName: 'schedule', schedule: { cron: when } }` com os passos `query` (o `from` como
 filtro) e `Loop` (a passagem por registro). `SCHEDULE_TRIGGER_SUPPORTED` virou `true` sozinho, porque é

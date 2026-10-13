@@ -8,6 +8,7 @@ import {
   type WorkflowStepMetadata,
   coreStepMetadata,
   isCoreStepDefinitionId,
+  isPausingStepDefinition,
 } from '../../schema/workflowStepCatalog';
 import type { PackageRef, PackageValidationIssue } from './pluginReferences';
 import {
@@ -277,8 +278,6 @@ const workflowIssues = (
   ];
 };
 
-const DELAY_STEP_ID = 'delay';
-
 /**
  * Onde o passo `delay` não pode pausar — e falharia com o fluxo rodando:
  *
@@ -292,7 +291,7 @@ const delayIssues = (
   ref: PackageRef,
   pkg: MarketplacePlugin,
 ): PackageValidationIssue[] => {
-  const delays = steps.filter((step) => step.stepDefinitionId === DELAY_STEP_ID);
+  const delays = steps.filter((step) => isPausingStepDefinition(step.stepDefinitionId));
   if (delays.length === 0) return [];
   const topLevel = new Set(workflow.steps.map((step) => step.id));
 

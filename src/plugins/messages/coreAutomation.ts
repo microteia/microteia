@@ -890,6 +890,7 @@ export const CORE_AUTOMATION_MESSAGES: Record<string, string> = {
   'run.delay.cancelled.disabled': 'The workflow was turned off during the wait.',
   'run.delay.cancelled.extension-off': 'The extension that owns this workflow was deactivated during the wait.',
   'run.delay.resume-failed': 'The run could not continue after the wait.',
+  'step.delay.top-level-only': 'A wait only pauses at the top level of the workflow. Place it outside conditions and loops.',
   'step.exit.description':
     'Ends the workflow at this point and returns the outputs of the previous step as the result. Handy for leaving a condition branch or a loop without running the following steps.',
   'step.map.not-configured': 'The object build is not configured',

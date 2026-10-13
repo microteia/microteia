@@ -2,6 +2,7 @@ import type { Condition, WorkflowStep } from '../../domain/entities/Workflow';
 import type { StepDefinitionSummary } from '../../domain/entities/WorkflowStepCatalog';
 import { conditionOperatorKey, EVENT_FIELD_PATH_PREFIX } from './conditionHelpers';
 import type { TranslateFn } from './i18n/useT';
+import { isPausingStepDefinition } from '../../domain/schema/workflowStepCatalog';
 
 /**
  * O `id` é a identidade do Step no motor: é por ele que `context.outputs` é indexado, e portanto é
@@ -299,6 +300,18 @@ export const parseParentKey = (parentKey: string): InsertTarget => {
   return { kind: 'branch', conditionId: id, branch: suffix as BranchKey };
 };
 
+/** O passo, ou algum da subárvore dele, pausa a execução (`delay`). */
+export const containsPausingStep = (step: WorkflowStep): boolean =>
+  isPausingStepDefinition(step.stepDefinitionId)
+  || childListsOf(step).some((child) => child.steps.some(containsPausingStep));
+
+/**
+ * O passo cabe ali? Um passo que pausa — ou um nó que contém um — só cabe no nível principal: o motor
+ * não retoma no meio de um ramo de condição ou de uma iteração, e a execução falharia nele.
+ */
+export const canPlaceStep = (step: WorkflowStep, target: InsertTarget): boolean =>
+  target.kind === 'root' || !containsPausingStep(step);
+
 // Container-alvo de um InsertTarget (null na raiz); usado para barrar mover um nó para dentro de si.
 const targetContainerId = (target: InsertTarget): string | null =>
   target.kind === 'root' ? null : target.kind === 'branch' ? target.conditionId : target.loopId;
@@ -316,7 +329,7 @@ export const moveStepToLocation = (
   index: number,
 ): WorkflowStep[] => {
   const moving = findStepInTree(steps, id);
-  if (!moving) return steps;
+  if (!moving || !canPlaceStep(moving, target)) return steps;
   const containerId = targetContainerId(target);
   if (containerId && findStepInTree([moving], containerId)) return steps;
   const without = removeStepFromTree(steps, id);

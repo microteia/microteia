@@ -17,6 +17,8 @@ import {
   suggestStepIdentifier,
   stepIdentifierIssue,
   EXIT_STEP_DEFINITION_ID,
+  canPlaceStep,
+  containsPausingStep,
 } from './workflowHelpers';
 
 /** O tradutor de teste devolve a própria chave — aqui o que importa é a decisão, não a frase. */
@@ -371,5 +373,32 @@ describe('getStepDisplayName — identificador como nome exibido', () => {
   it('o rótulo livre legado ainda tem precedência sobre o identificador', () => {
     const legado = { ...action('buscarProcesso', 0), signature: 'Verificar valor da causa' };
     expect(getStepDisplayName(echo, legado, definition)).toBe('Verificar valor da causa');
+  });
+});
+
+describe('o passo que pausa só cabe no nível principal', () => {
+  const wait = (id: string, order: number): WorkflowStep => ({ ...action(id, order), stepDefinitionId: 'delay' });
+
+  it('a espera, e o nó que a contém, pausam', () => {
+    expect(containsPausingStep(wait('w', 0))).toBe(true);
+    expect(containsPausingStep(cond('c', 0, [wait('w', 0)], []))).toBe(true);
+    expect(containsPausingStep(loop('l', 0, [action('a', 0)]))).toBe(false);
+  });
+
+  it('cabe na raiz, e não num ramo nem numa repetição', () => {
+    expect(canPlaceStep(wait('w', 0), { kind: 'root' })).toBe(true);
+    expect(canPlaceStep(wait('w', 0), { kind: 'branch', conditionId: 'c', branch: 'whenTrue' })).toBe(false);
+    expect(canPlaceStep(wait('w', 0), { kind: 'loop', loopId: 'l' })).toBe(false);
+    expect(canPlaceStep(action('a', 0), { kind: 'loop', loopId: 'l' })).toBe(true);
+  });
+
+  it('arrastar a espera para dentro de uma repetição devolve a árvore intacta', () => {
+    const steps = [wait('w', 0), loop('l', 1, [action('a', 0)])];
+    expect(moveStepToLocation(steps, 'w', { kind: 'loop', loopId: 'l' }, 0)).toBe(steps);
+  });
+
+  it('arrastar um ramo que contém a espera para dentro de outro também é recusado', () => {
+    const steps = [cond('c', 0, [wait('w', 0)], []), loop('l', 1, [])];
+    expect(moveStepToLocation(steps, 'c', { kind: 'loop', loopId: 'l' }, 0)).toBe(steps);
   });
 });

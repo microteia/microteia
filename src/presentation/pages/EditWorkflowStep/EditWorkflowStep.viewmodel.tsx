@@ -48,6 +48,7 @@ import type { ValidateStepConfig } from '../../../domain/schema/validateSpec';
 import type { StepOutputField, WorkflowVariable } from '../../components/ui/ExpressionEditor/autocompleteHelpers';
 
 import { useT, useLabel, type TranslateFn } from '../../shared/i18n/useT';
+import { isPausingStepDefinition } from '../../../domain/schema/workflowStepCatalog';
 
 const queryProjectionOutputs = (
   t: TranslateFn,
@@ -213,6 +214,8 @@ export interface EditWorkflowStepViewModel {
   clearConditionFocusPath: () => void;
   conditionEventName: string;
   conditionParameters?: WorkflowParameter[];
+  /** O passo escolhido pausa, e o lugar dele não é o nível principal. */
+  placementError: string | null;
   canSave: boolean;
   handleSave: () => Promise<void>;
   handleDelete: () => void;
@@ -356,9 +359,19 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
     [selectedDefinition],
   );
 
+  // Dentro de um ramo de condição ou de uma repetição o passo que PAUSA não é oferecido: o motor só
+  // retoma no nível principal. O já gravado ali (vindo de importação) continua na lista, com o aviso.
+  const atTopLevel = stepId ? existingSteps.some((step) => step.id === stepId) : insertTarget.kind === 'root';
   const stepCatalogOptions = useMemo(
-    () => stepCatalog.map((s) => ({ value: s.id, label: s.name, icon: getStepIcon(s.icon) })),
-    [stepCatalog],
+    () => stepCatalog
+      .filter((s) => atTopLevel || !isPausingStepDefinition(s.id) || s.id === editingStep?.stepDefinitionId)
+      .map((s) => ({ value: s.id, label: s.name, icon: getStepIcon(s.icon) })),
+    [stepCatalog, atTopLevel, editingStep],
+  );
+
+  const placementError = useMemo(
+    () => (!atTopLevel && isPausingStepDefinition(selectedDefinitionId) ? t('step.delay.top-level-only') : null),
+    [atTopLevel, selectedDefinitionId, t],
   );
 
   const dynamicTargetKind = useMemo<'workflow' | 'script' | null>(() => {
@@ -912,10 +925,11 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
     if (isLoopStep) return !!configuration.source && !!loopItemName.trim() && !!loopOutputName.trim();
     if (!selectedDefinition) return false;
     if (stepIdentifierError) return false;
+    if (placementError) return false;
     return effectiveInputs
       .filter((input) => input.required)
       .every((input) => configuration[input.id] !== undefined);
-  }, [isConditionStep, isLoopStep, configuration, loopItemName, loopOutputName, selectedDefinition, effectiveInputs, stepIdentifierError]);
+  }, [isConditionStep, isLoopStep, configuration, loopItemName, loopOutputName, selectedDefinition, effectiveInputs, stepIdentifierError, placementError]);
 
   const handleSave = useCallback(async () => {
     if (!workflow) return;
@@ -1092,6 +1106,7 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
     clearConditionFocusPath,
     conditionEventName: workflow?.eventName ?? '',
     conditionParameters: workflow?.parameters,
+    placementError,
     canSave,
     handleSave,
     handleDelete,

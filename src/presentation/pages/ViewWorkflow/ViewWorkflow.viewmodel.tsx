@@ -35,6 +35,8 @@ import {
   reorderSiblings,
   moveStepToLocation,
   parseParentKey,
+  canPlaceStep,
+  findStepInTree,
   suggestStepIdentifier,
 } from '../../shared/workflowHelpers';
 import type { InsertTarget } from '../../shared/workflowHelpers';
@@ -996,6 +998,11 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
     setDragging(null);
     setDropTarget(null);
     if (!workflow || !dragged || !target) return;
+    const moving = findStepInTree(workflow.steps, dragged.id);
+    if (moving && !canPlaceStep(moving, parseParentKey(target.parentKey))) {
+      notify(t('step.delay.top-level-only'), 'warning');
+      return;
+    }
     // Mesmo nível → reordena; nível diferente → move para dentro do Loop/Condição (ou de volta à raiz).
     const nextSteps = dragged.parentKey === target.parentKey
       ? reorderSiblings(workflow.steps, dragged.id, target.index)

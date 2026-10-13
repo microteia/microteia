@@ -18,6 +18,11 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.95.1] — 2026-10-12
+
+- fix(workflow-editor): the editor no longer lets a `delay` step land inside a condition branch or a loop body, where the engine refuses the pause mid-execution. `PAUSING_STEP_DEFINITION_IDS` / `isPausingStepDefinition` (`domain/schema/workflowStepCatalog.ts`) is the single list, read by package validation and the editor: the step picker does not offer it below the top level, `canPlaceStep` refuses dragging it — or a node containing it — into a branch or loop, with a notice, and a misplaced one from an import shows a warning and cannot be saved there.
+- chore(locale-pt-br): `1.82.0`, with the placement notice.
+
 #### [9.95.0] — 2026-10-12
 
 - feat(sdk/domain): the behaviour model gains the `wait` effect (`EFFECT_KINDS`), `{ kind: 'wait', duration }`. `mapTransition` emits the `delay` step at the effect's position; when a transition waits, its guard moves into the workflow condition (`<from> and (<guard>)`) instead of a `Condition` node, so the wait stays at the top level. `validate_domain_model` refuses a wait on a `user-action` or `schedule` transition (`behavior.effect.wait-unsupported`) and a duration the engine does not read (`behavior.effect.wait-invalid`). `BEHAVIOR_MECHANISMS` and AUTHORING.md §8.0.1 describe it, including that the effects after a wait see the record as it was at the passage. `delay` leaves the coverage gaps. No `KERNEL_VERSION` change: authoring only.

@@ -481,6 +481,7 @@ export const EditWorkflowStepView: React.FC<{ tabKey: string }> = ({ tabKey }) =
               placeholder={t('step.type.placeholder')}
             />
             {vm.selectedDefinition && <S.HelpText>{label(vm.selectedDefinition.description)}</S.HelpText>}
+            {vm.placementError && <InfoBanner variant="warning" message={vm.placementError} />}
           </InputGroup>
 
           <InputGroup>
