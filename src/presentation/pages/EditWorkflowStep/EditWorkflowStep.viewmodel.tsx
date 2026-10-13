@@ -1,6 +1,7 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import type { IconType } from 'react-icons';
 import { useTenant } from '../../../stores/useTenant';
+import { useAuthorization } from '../../../stores/useAuthorization';
 import { useDI } from '../../../infrastructure/di/useDI';
 import { makeGetAIConnectionsUseCase } from '../../../domain/usecases/aiconnections/GetAIConnectionsUseCase';
 import { findByArtifactRef } from '../../../domain/services/artifactLookup';
@@ -195,6 +196,8 @@ export interface EditWorkflowStepViewModel {
   pickerDisplay: (kind: InputPickerKind, stored: string) => PickerDisplay;
   pickerPlaceholder: (kind: InputPickerKind) => string;
   setPickerValue: (inputId: string, value: string) => void;
+  /** O valor `Literal` de um input `list: true`, como lista — o gravado antes da lista vira um item. */
+  literalList: (value: unknown) => string[];
   setMappingKind: (inputId: string, kind: InputMapping['kind']) => void;
   setMapping: (inputId: string, mapping: InputMapping) => void;
   enabled: boolean;
@@ -477,6 +480,27 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
     };
   }, [needsAIConnections, currentTenant, getAIConnectionsUC]);
 
+  const { catalog: permissionCatalog } = useAuthorization();
+
+  /**
+   * As permissões do escritório para o seletor de `picker: 'permission'`, com o nome QUALIFICADO —
+   * "Editar — Prazos", e não só "Editar" — pela mesma razão da tela de Perfis: a ação sozinha não diz
+   * do quê.
+   */
+  const permissionOptions = useMemo(
+    () => permissionCatalog.list.map((permission) => {
+      const resource = permissionCatalog.resourceLabels.get(permission.resource);
+      return {
+        value: permission.id,
+        label: label('@core.access/role.qualified-name', {
+          action: label(permission.name),
+          resource: resource ? label(resource.name, resource.nameParams) : permission.resource,
+        }),
+      };
+    }),
+    [permissionCatalog, label],
+  );
+
   const aiConnectionOptions = useMemo(
     () => [
       { value: '', label: t('step.ai-connection.default') },
@@ -522,6 +546,11 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
   const pickerDisplay = useCallback(
     (kind: InputPickerKind, stored: string): PickerDisplay => {
       if (kind === 'ai-connection') return { options: aiConnectionOptions };
+      if (kind === 'permission') {
+        return !stored || permissionOptions.some((option) => option.value === stored)
+          ? { options: permissionOptions }
+          : { options: [...permissionOptions, { value: stored, label: stored }] };
+      }
       const options = kind === 'script' ? callableScriptOptions : callableWorkflowOptions;
       if (!stored) return { options };
 
@@ -538,6 +567,7 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
     },
     [
       aiConnectionOptions,
+      permissionOptions,
       callableScriptOptions,
       callableWorkflowOptions,
       scripts,
@@ -554,10 +584,17 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
           ? 'step.target.script'
           : kind === 'ai-connection'
             ? 'step.target.ai-connection'
-            : 'step.target.workflow',
+            : kind === 'permission'
+              ? 'step.target.permission'
+              : 'step.target.workflow',
       ),
     [t],
   );
+
+  const literalList = useCallback((value: unknown): string[] => {
+    if (Array.isArray(value)) return value.filter((item): item is string => typeof item === 'string');
+    return typeof value === 'string' && value !== '' ? [value] : [];
+  }, []);
 
   const setPickerValue = useCallback(
     (inputId: string, value: string) => {
@@ -1087,6 +1124,7 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
     pickerDisplay,
     pickerPlaceholder,
     setPickerValue,
+    literalList,
     setMappingKind,
     setMapping,
     enabled,

@@ -39,7 +39,7 @@ describe('core.tenant — o escritório como plugin', () => {
    */
   it('entrega as abas como contribuição, não como código da tela', () => {
     const tabs = tabsOf(TENANT_SETTINGS_SURFACE);
-    expect(tabs.map((tab) => tab.key).sort()).toEqual(['agent', 'ai', 'members', 'office', 'roles']);
+    expect(tabs.map((tab) => tab.key).sort()).toEqual(['agent', 'ai', 'email', 'members', 'office', 'roles']);
   });
 
   it('deixa a aba de dados aberta a todo membro e as de gestão atrás de uma permissão', () => {
@@ -52,6 +52,9 @@ describe('core.tenant — o escritório como plugin', () => {
     // acesso para si mesmo não concede nada — a interseção garante que ele nunca exceda quem o
     // emitiu. `agent.manage` governa ver e revogar o de OUTRA pessoa, o que a aba decide por linha.
     expect(byKey.get('agent')?.requiredPermissions).toBeUndefined();
+    // A do e-mail de saída vem de OUTRO plugin — o dono do passo Notificar —, e entra pela mesma
+    // superfície que qualquer extensão usaria. É credencial do escritório: só quem grava Configurações.
+    expect(byKey.get('email')?.requiredPermissions).toEqual(['settings.manage']);
   });
 
   it('toda aba resolve o componente que declara', () => {

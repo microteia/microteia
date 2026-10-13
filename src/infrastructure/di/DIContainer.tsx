@@ -10,6 +10,9 @@ import { FirebaseTenantRepository } from '../../data/repositories/FirebaseTenant
 import { FirebaseTextAnnotationRepository } from '../../data/repositories/FirebaseTextAnnotationRepository';
 import { FirebaseAuditLogRepository } from '../../data/repositories/FirebaseAuditLogRepository';
 import { FirebaseAuditLogService } from '../../data/services/FirebaseAuditLogService';
+import { FirebaseNotificationInboxRepository } from '../../data/repositories/FirebaseNotificationInboxRepository';
+import { BrowserDevicePushService } from '../../data/services/BrowserDevicePushService';
+import { FirebaseNotificationEmailService } from '../../data/services/FirebaseNotificationEmailService';
 import { FirebaseScreenDefinitionRepository } from '../../data/repositories/FirebaseScreenDefinitionRepository';
 import { FirebaseRecordRepository } from '../../data/repositories/FirebaseRecordRepository';
 import { FirebaseLookupRepository } from '../../data/repositories/FirebaseLookupRepository';
@@ -58,6 +61,9 @@ export const DIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
     textAnnotationRepository: new FirebaseTextAnnotationRepository(),
     auditLogRepository:       new FirebaseAuditLogRepository(),
     auditLogService:          new FirebaseAuditLogService(),
+    notificationInboxRepository: new FirebaseNotificationInboxRepository(),
+    devicePushService:        new BrowserDevicePushService(),
+    notificationEmailService: new FirebaseNotificationEmailService(),
     screenDefinitionRepository: new FirebaseScreenDefinitionRepository(),
     recordRepository:         new FirebaseRecordRepository(),
     lookupRepository:         new FirebaseLookupRepository(),

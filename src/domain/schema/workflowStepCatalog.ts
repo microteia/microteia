@@ -57,7 +57,7 @@ export type InputOptionsSource =
  * O seletor só é oferecido quando o mapping é `Literal`: um alvo que só se conhece em runtime não
  * tem lista a mostrar em design-time.
  */
-export type InputPickerKind = 'workflow' | 'script' | 'ai-connection';
+export type InputPickerKind = 'workflow' | 'script' | 'ai-connection' | 'permission';
 
 export interface InputDefinition {
   id: string;
@@ -74,6 +74,12 @@ export interface InputDefinition {
    * Design ou de uma extensão. O kernel não conhece nenhuma coleção de negócio pelo nome.
    */
   entityType?: string;
+  /**
+   * O valor `Literal` é uma LISTA do que o input nomeia — vários membros, vários registros. Só muda o
+   * controle do editor (`MultiSearchSelect` no lugar de `SearchSelect`); em runtime o passo recebe o
+   * `string[]` gravado.
+   */
+  list?: boolean;
   /** Restringe os mappings aceitos. `undefined` aceita os cinco. */
   allowedMappingKinds?: InputMappingKind[];
   /** O que o valor deste input nomeia, para o editor oferecer a lista. Ver `InputPickerKind`. */
@@ -228,8 +234,16 @@ export const validateVariableName = (value: unknown): string | undefined => {
  */
 export const CORE_STEP_CATALOG: readonly WorkflowStepMetadata[] = [
   {
+    /**
+     * Um passo, quatro destinos. A versão 1 só gravava na Auditoria; os destinos novos entraram como
+     * opções do MESMO passo, e não como um passo irmão, porque são a mesma intenção — avisar — e um
+     * fluxo quer quase sempre os dois: o registro do escritório e a pessoa avisada.
+     *
+     * Sem nenhum destino marcado o passo continua indo só para a Auditoria, que é o que todo fluxo
+     * salvo antes desta versão espera. Ver "Passo Notificar" no ARCHITECTURE.md.
+     */
     id: 'notify',
-    version: 1,
+    version: 2,
     name: '@core.automation/step.notify.name',
     description: '@core.automation/step.notify.description',
     icon: 'RiNotification3Line',
@@ -239,8 +253,90 @@ export const CORE_STEP_CATALOG: readonly WorkflowStepMetadata[] = [
     inputs: [
       { id: 'title', label: '@core.automation/step.notify.label.titulo', required: true, type: 'String' },
       { id: 'message', label: '@core.automation/step.notify.label.mensagem', required: true, type: 'String' },
+      {
+        id: 'messageParams',
+        label: '@core.automation/step.notify.label.params',
+        description: '@core.automation/step.notify.help.params',
+        required: false,
+        type: 'Expression',
+        allowedMappingKinds: ['Expression', 'Output', 'Variable', 'Event'],
+      },
+      {
+        id: 'link',
+        label: '@core.automation/step.notify.label.link',
+        description: '@core.automation/step.notify.help.link',
+        required: false,
+        type: 'String',
+      },
+      {
+        id: 'toAudit',
+        label: '@core.automation/step.notify.label.to-audit',
+        required: false,
+        type: 'Boolean',
+        defaultValue: true,
+        allowedMappingKinds: ['Literal'],
+      },
+      {
+        id: 'toInApp',
+        label: '@core.automation/step.notify.label.to-in-app',
+        required: false,
+        type: 'Boolean',
+        defaultValue: false,
+        allowedMappingKinds: ['Literal'],
+      },
+      {
+        id: 'toEmail',
+        label: '@core.automation/step.notify.label.to-email',
+        required: false,
+        type: 'Boolean',
+        defaultValue: false,
+        allowedMappingKinds: ['Literal'],
+      },
+      {
+        id: 'toPush',
+        label: '@core.automation/step.notify.label.to-push',
+        required: false,
+        type: 'Boolean',
+        defaultValue: false,
+        allowedMappingKinds: ['Literal'],
+      },
+      {
+        id: 'recipientMembers',
+        label: '@core.automation/step.notify.label.recipient-members',
+        required: false,
+        type: 'EntityReference',
+        entityType: 'members',
+        list: true,
+      },
+      {
+        id: 'recipientsFrom',
+        label: '@core.automation/step.notify.label.recipients-from',
+        description: '@core.automation/step.notify.help.recipients-from',
+        required: false,
+        type: 'Expression',
+        allowedMappingKinds: ['Event', 'Expression', 'Output', 'Variable'],
+      },
+      {
+        id: 'recipientPermission',
+        label: '@core.automation/step.notify.label.recipient-permission',
+        description: '@core.automation/step.notify.help.recipient-permission',
+        required: false,
+        type: 'String',
+        picker: 'permission',
+        allowedMappingKinds: ['Literal'],
+      },
     ],
-    outputDefinitions: [],
+    outputDefinitions: [
+      { id: 'recipients', label: '@core.automation/step.notify.output.recipients', type: 'Number' },
+      { id: 'delivered.audit', label: '@core.automation/step.notify.output.delivered.audit', type: 'Number' },
+      { id: 'delivered.inApp', label: '@core.automation/step.notify.output.delivered.in-app', type: 'Number' },
+      { id: 'delivered.email', label: '@core.automation/step.notify.output.delivered.email', type: 'Number' },
+      { id: 'delivered.push', label: '@core.automation/step.notify.output.delivered.push', type: 'Number' },
+      { id: 'failed.audit', label: '@core.automation/step.notify.output.failed.audit', type: 'Number' },
+      { id: 'failed.inApp', label: '@core.automation/step.notify.output.failed.in-app', type: 'Number' },
+      { id: 'failed.email', label: '@core.automation/step.notify.output.failed.email', type: 'Number' },
+      { id: 'failed.push', label: '@core.automation/step.notify.output.failed.push', type: 'Number' },
+    ],
   },
   {
     id: 'register-audit',

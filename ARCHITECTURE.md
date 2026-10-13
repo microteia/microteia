@@ -4763,7 +4763,8 @@ motor com Admin SDK. Nenhum módulo importa ou conhece o motor.
 2. **Steps-plugin** (`functions/src/infrastructure/workflow/steps/`) — cada Step depende
    exatamente do repositório de que precisa: `UpsertStep`/`RemoveStep`/`QueryStep` → os
    repositórios GENÉRICOS de registro (nenhuma entidade pelo nome);
-   `NotifyStep`/`RegisterAuditStep` → `IAuditLogRepository` (já existente, reaproveitado);
+   `RegisterAuditStep` → `IAuditLogRepository` (já existente, reaproveitado); `NotifyStep` →
+   `DispatchNotificationUseCase` (ver "Passo Notificar");
    `SetVariableStep` → nenhuma dependência externa. Nenhum Step conhece mais uma entidade de
    escritório: `CreateDeadlineStep`, o último que conhecia, saiu com a entidade Prazo.
 3. **Composition root** (`functions/src/infrastructure/workflow/registerSteps.ts`) — único
@@ -5304,6 +5305,103 @@ workflow chama outro que também chama workflow.
 > removido — o `MapStep` sem nome faz o mesmo com N campos de uma vez e com builder visual.
 > Workflows salvos que ainda o referenciem falham com "StepDefinition desconhecida" e precisam ser
 > editados.
+
+### Passo "Notificar" (`notify`) — um passo, quatro destinos
+
+Até a versão 1 o passo só gravava uma entrada `CRITICAL` na Auditoria: o fluxo "avisava", e ninguém
+recebia nada. Um prazo vencendo que não chega a ninguém não é um aviso.
+
+**A decisão: os destinos são OPÇÕES do mesmo passo, e não um passo irmão.** Auditoria e entrega à
+pessoa são a mesma intenção — avisar —, e um fluxo quer quase sempre as duas: o registro do escritório
+e a pessoa avisada. Dois passos obrigariam a repetir título, mensagem e valores, e divergiriam na
+primeira edição. Os quatro destinos são booleanos (`toAudit`, `toInApp`, `toEmail`, `toPush`).
+
+**Compatibilidade.** `toAudit` tem `defaultValue: true` e os outros `false`; `resolveInputsSafe` aplica
+o padrão ao input ausente. Todo fluxo salvo antes desta versão continua indo só para a Auditoria, com a
+mesma severidade `CRITICAL` (é o que acende o selo da Auditoria para quem a monitora).
+
+| Peça | Onde |
+|---|---|
+| Contrato compartilhado (canais, coleções, preferências, normalização de destinatário, guarda de endpoint) | `domain/schema/notifications.ts` (sincronizado) |
+| Orquestração dos canais | `functions/src/domain/usecases/DispatchNotificationUseCase.ts` (testado com fakes) |
+| Executor do passo | `functions/src/infrastructure/workflow/steps/NotifyStep.ts` |
+| Diretório (membros, preferências e idioma em lote), sino, credencial | `functions/src/data/repositories/FirestoreNotificationRepositories.ts` |
+| SMTP e Web Push | `functions/src/data/services/NotificationTransports.ts` |
+| Callables | `manageNotificationEmail`, `getWebPushPublicKey` (`deploy:notifications`) |
+| Sino | `presentation/components/layout/NotificationBell/` — `ui.slot` em `top-bar.right` |
+| Credencial | aba "E-mail" do Escritório — `ui.tab` em `tenant-settings` |
+| Preferências | seção "Notificações" em Configurações — `ui.settings` |
+
+**Destinatários — três origens, uma porta.** `recipientMembers` (`EntityReference` de `members` com
+`list: true`), `recipientsFrom` (um campo do registro, uma expressão, a saída de outro passo) e
+`recipientPermission` (`picker: 'permission'`). `notificationRecipientCandidates` lê um uid de um texto
+e, de um registro, o `memberId`/`userId`/`uid` — e só na falta deles o `id`, que é o caso de uma
+referência a `members`. O kernel não conhece a coleção do outro lado: a "pessoa com `memberId`" é de
+quem declarou a tela. Quem decide se o candidato é mesmo membro é `INotificationDirectory.recipients`,
+lendo os documentos de membro em lote (`getAll`) — um id que não é membro fica de fora, venha de onde
+vier. A permissão é a pergunta das Security Rules: `permissions array-contains-any [perm, '*']`, mais o
+`ownerId` do escritório. Teto: `NOTIFICATION_MAX_RECIPIENTS = 200` por execução — o envio é síncrono, e
+uma permissão dada ao escritório inteiro alcançaria todo mundo.
+
+Canal pessoal marcado sem NENHUMA origem configurada (`context.stepConfiguration`) reprova o passo — é
+erro de configuração. Origem configurada que não rende ninguém NESTA execução não reprova: o log diz por
+quê.
+
+**Cada canal falha sozinho, e o resultado é contagem, não booleano.** O passo publica `recipients`,
+`delivered.<canal>` e `failed.<canal>` (`audit`, `inApp`, `email`, `push` — camelCase porque é caminho de
+expressão). Um SMTP fora do ar não impede o sino nem o push; o fluxo decide o que fazer com a falha.
+**Recusar não é falhar:** quem desligou um canal não conta em nenhum dos dois lados.
+
+**Preferência por canal — `user > tenant > default`, sem mecanismo novo.** As três propriedades
+`notifications.inApp|email|push` são `SettingsProperty` declaradas UMA vez em `notifications.ts`: a
+mesma declaração vira a seção de Configurações e é o que o servidor passa a `resolveSetting`. O padrão
+é `true` — quem escolheu o canal foi quem escreveu a automação, e a pessoa recusa; o escritório inverte
+o padrão para todos no escopo `tenant`.
+
+**Idioma de cada destinatário.** No sino, título e mensagem são gravados como o passo os recebeu
+(referência ou texto do escritório) e resolvidos na TELA, com `useLabel(valor, params)` — por isso não há
+idioma gravado no documento. E-mail e push são resolvidos no servidor, por `makeNotificationTextCatalog`:
+o mesmo caminho do gateway de agente (`agentCatalog` + `messageBundles` das extensões instaladas), com o
+idioma `i18n.locale` do destinatário (`preferredLocale`, sobre os documentos de configuração já lidos em
+lote). Um resolvedor por idioma por execução. Texto do escritório passa intacto; `messageParams` só
+interpola referência.
+
+**O sino.** `tenants/{tid}/notification_inbox/{id}`, um documento por destinatário, escrito só pelo
+Admin SDK. A regra libera a LEITURA do próprio (`recipientId == uid` — a consulta precisa do filtro) e
+a ESCRITA só de `read`/`readAt`: título e destinatário são do fluxo, e reescrevê-los seria forjar um
+aviso. TTL de 90 dias em `expiresAt` (declarado no `firestore.indexes.json`). A coleção entrou em
+`RESERVED_COLLECTIONS` nas duas pontas — sem isso, a escrita do servidor acordaria a auditoria e o
+barramento de eventos como se fosse uma tela. O sino é um `ui.slot` do `core.automation`: o ÚNICO
+trecho de shell que o núcleo ocupa, porque é o leitor de um canal do núcleo — sem ele a entrega não
+chega a ninguém. Mora no plugin dono do passo, e o escritório o desliga em `top-bar.right.slots`.
+`workspaceSurfaces.test.ts` fecha a lista em exatamente esse trecho.
+
+**E-mail — a credencial é do escritório, e só o servidor a lê.** `tenants/{tid}/secrets/notification-email`
+(`secrets` é reservada e nenhuma regra a libera). A aba "E-mail" do Escritório lê e grava pela callable
+`manageNotificationEmail` (`op: get|save|clear|test`, todas com `settings.manage`); a senha entra e
+nunca volta — `get` diz SE há senha. Ela não está na tela de Configurações porque o documento de
+configurações é legível por todo membro, e credencial ali seria credencial de todos — o mesmo motivo
+pelo qual as chaves de IA moram no Escritório. O teste envia para o e-mail de QUEM PEDIU, nunca para um
+endereço escolhido: aceitar destinatário livre faria da callable um relé aberto. O e-mail é renderizado
+por `renderNotificationEmail`, que escapa tudo o que vem do fluxo e tira quebra de linha do cabeçalho
+(injeção de cabeçalho SMTP). `appUrl`, carimbado a partir do navegador de quem salvou, é a base do link.
+
+**Push — Web Push padrão, sem FCM.** As chaves VAPID são sorteadas pelo próprio servidor na primeira vez
+(`kernel_secrets/web-push`, raiz, sem regra) e só a pública sai, por `getWebPushPublicKey`. Nada a
+configurar no bundle nem no Console — numa instalação que não deve ter passo manual, é o que decide.
+O aparelho é da PESSOA, não do escritório: `users/{uid}/push_subscriptions/{sha256(endpoint)}`, que só
+ela lê e grava; quem decide se um escritório a alcança é a preferência dela naquele escritório. O
+servidor faz um POST ao `endpoint`, por isso a regra exige `https` e `isPushEndpointAllowed` recusa
+porta explícita, IP cru e host interno (`*.internal`, `metadata`, `localhost`) — sem isso a inscrição
+seria uma forma de pôr a function para falar com a rede de dentro. Inscrição que o serviço diz não
+existir (404/410) é apagada no caminho. `public/notification-sw.js` desenha o que chega e, no clique,
+foca a aba aberta ou abre a aplicação no `link`. Ativar e desativar fica no rodapé do sino: é um GESTO
+do navegador (pedir permissão), não um dado que Configurações saiba editar.
+
+**`InputDefinition` ganhou duas capacidades, as duas declarativas.** `list: true` faz o editor oferecer
+`MultiSearchSelect` em vez de `SearchSelect` e grava `string[]`; `picker: 'permission'` oferece o
+catálogo de permissões do escritório com o nome qualificado. Nenhuma das duas é do `notify`: qualquer
+passo de extensão as declara. `KERNEL_VERSION` foi a `2.35.0` (aditivo — também o ícone `notification`).
 
 ### Step "Script" — código do usuário em sandbox QuickJS
 
@@ -10675,6 +10773,8 @@ daquela instalação. Ver "Artefatos de backend por extensão".
 | `auditLogs` | `tenantId` ASC, `severity` ASC, `createdAt` ASC | kernel | `countUnreadCritical` — badge de falhas CRITICAL não lidas |
 | `tenants/{id}/workflow_definitions` | `eventName` ASC, `enabled` ASC | kernel | `findEnabledByEvent` — o gatilho do motor localiza workflows por evento |
 | `tenants/{id}/workflow_executions` | `workflowDefinitionId` ASC, `startedAt` DESC | kernel | Aba "Execuções" de um workflow, mais recente primeiro |
+| `tenants/{id}/notification_inbox` | `recipientId` ASC, `createdAt` DESC | kernel | O sino — as notificações de quem está conectado, mais recente primeiro |
+| `tenants/{id}/notification_inbox` | `recipientId` ASC, `read` ASC, `createdAt` DESC | kernel | A contagem de não lidas do sino e o "marcar todas como lidas" |
 
 **Quatro índices de negócio saíram deste arquivo.** Três (`deadlines status+dueDate`,
 `financials status+dueDate`, `pushes emailId+processNumber`) eram declarados pelas extensões que os
@@ -10692,7 +10792,7 @@ runtime na primeira execução. Foi a separação por dono que os encontrou — 
 `orderBy` em campos diferentes tem de declarar o índice no `manifest.backend.indexes` dela; sem isso ela
 instala, aparece no menu e falha na primeira execução.
 
-Além dos compostos, o arquivo declara quatro `fieldOverrides`:
+Além dos compostos, o arquivo declara cinco `fieldOverrides`:
 
 | Coleção | Campo | Motivo |
 |---|---|---|
@@ -10700,6 +10800,7 @@ Além dos compostos, o arquivo declara quatro `fieldOverrides`:
 | `members` (collectionGroup) | `userId` ASC | `getTenantsForUser` consulta `collectionGroup('members')` para descobrir os escritórios do usuário |
 | `workflow_clock` (collectionGroup) | `nextRunAt` ASC | `runWorkflowClock` pergunta, em todos os escritórios de uma vez, quais automações temporais venceram |
 | `workflow_trigger_marks` | `expiresAt` | TTL — a marca de "já disparou" do gatilho de data expira sozinha; sem índice, porque ninguém consulta por ela |
+| `notification_inbox` | `expiresAt` | TTL — o sino guarda o recente (90 dias), não o histórico; o histórico é a Auditoria |
 
 ---
 

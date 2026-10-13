@@ -1,7 +1,5 @@
-import { DEFAULT_LOCALE } from '../../domain/schema/i18n/localeNegotiation';
+import { preferredLocale } from '../../domain/services/tenantSettings';
 import { getDI } from '../di/container';
-
-const LOCALE_SETTING = 'i18n.locale';
 
 /**
  * O idioma em que o agente responde: `user > tenant > default`.
@@ -16,10 +14,6 @@ export const agentLocale = async (tenantId: string, userId: string): Promise<str
     settings.getUserValues(tenantId, userId),
     settings.getTenantValues(tenantId),
   ]);
-
-  for (const values of [own, office]) {
-    const chosen = values[LOCALE_SETTING];
-    if (typeof chosen === 'string' && chosen.trim() !== '') return chosen;
-  }
-  return DEFAULT_LOCALE;
+  return preferredLocale(own, office);
 };
+

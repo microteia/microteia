@@ -89,8 +89,10 @@ export const EditWorkflowStepView: React.FC<{ tabKey: string }> = ({ tabKey }) =
       return (
         <EntityReferenceControl
           input={input}
-          value={String(mapping.value ?? '')}
+          value={Array.isArray(mapping.value) ? '' : String(mapping.value ?? '')}
           onChange={(v) => vm.setMapping(input.id, { kind: 'Literal', value: v })}
+          values={vm.literalList(mapping.value)}
+          onChangeMany={(v) => vm.setMapping(input.id, { kind: 'Literal', value: v })}
         />
       );
     }

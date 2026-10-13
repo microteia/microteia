@@ -9,6 +9,11 @@ import type { ITenantRepository } from '../../domain/repositories/ITenantReposit
 import type { ITextAnnotationRepository } from '../../domain/repositories/ITextAnnotationRepository';
 import type { IAuditLogRepository } from '../../domain/repositories/IAuditLogRepository';
 import type { IAuditLogService } from '../../domain/repositories/IAuditLogService';
+import type {
+  IDevicePushService,
+  INotificationEmailService,
+  INotificationInboxRepository,
+} from '../../domain/repositories/INotificationRepositories';
 import type { IScreenDefinitionRepository } from '../../domain/repositories/IScreenDefinitionRepository';
 import type {
   IRecordDocumentRepository,
@@ -56,6 +61,9 @@ export interface DIContainer {
   textAnnotationRepository: ITextAnnotationRepository;
   auditLogRepository: IAuditLogRepository;
   auditLogService: IAuditLogService;
+  notificationInboxRepository: INotificationInboxRepository;
+  devicePushService: IDevicePushService;
+  notificationEmailService: INotificationEmailService;
   screenDefinitionRepository: IScreenDefinitionRepository;
   recordRepository: IRecordRepository;
   lookupRepository: ILookupRepository;

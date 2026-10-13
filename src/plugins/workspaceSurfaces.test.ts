@@ -120,13 +120,22 @@ describe('o menu do usuário como contribuição', () => {
 
 describe('as regiões do shell', () => {
   /**
-   * O núcleo declara as regiões e não ocupa nenhuma: quem coloca conteúdo ali é a instalação. Um
-   * trecho nosso em qualquer uma delas seria vocabulário nosso no shell de todo escritório — a mesma
-   * razão pela qual a extensão do Painel não declara widget nenhum.
+   * O núcleo declara as regiões e ocupa UMA: o sino, que é o leitor do canal "no app" do passo
+   * Notificar — sem ele a entrega não chegaria a ninguém. Fora ele, quem coloca conteúdo ali é a
+   * instalação: um trecho nosso seria vocabulário nosso no shell de todo escritório, a mesma razão
+   * pela qual a extensão do Painel não declara widget nenhum. A lista é fechada de propósito — o
+   * próximo trecho do núcleo tem de passar por aqui e explicar por que é capacidade, e não marca.
    */
-  it('nenhuma vem ocupada pelo núcleo', () => {
+  it('só o sino vem ocupado pelo núcleo, e no plugin dono do passo que o alimenta', () => {
     const { host } = loadedHost();
-    expect(host.contributions.query(UI_SLOT_POINT)).toEqual([]);
+    const occupied = host.contributions.query(UI_SLOT_POINT).map((contribution) => ({
+      pluginId: contribution.pluginId,
+      surface: (contribution.metadata as { surface?: string }).surface,
+      key: (contribution.metadata as { key?: string }).key,
+    }));
+    expect(occupied).toEqual([
+      { pluginId: 'core.automation', surface: WORKSPACE_SLOT_SURFACES.topBarRight, key: 'notifications' },
+    ]);
   });
 
   it('são um nome só, declarado num lugar só', () => {

@@ -16,7 +16,7 @@ import { makeRegisterAuditStepDefinition } from '../../infrastructure/workflow/s
 import { makeSetVariableStepDefinition } from '../../infrastructure/workflow/steps/SetVariableStep';
 
 const factories: Record<string, StepFactory> = {
-  Notify: (deps) => makeNotifyStepDefinition(deps.createAuditLogUseCase),
+  Notify: (deps) => makeNotifyStepDefinition(deps.dispatchNotificationUseCase),
   RegisterAudit: (deps) => makeRegisterAuditStepDefinition(deps.createAuditLogUseCase),
   SetVariable: () => makeSetVariableStepDefinition(),
   Map: () => makeMapStepDefinition(),

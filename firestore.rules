@@ -79,6 +79,22 @@ service cloud.firestore {
       allow update: if isSystemAdmin();
     }
 
+    // ─── Push no navegador ────────────────────────────────────────────────────
+    // Os aparelhos em que a pessoa aceitou notificação. O aparelho é DELA, e não do escritório: a
+    // inscrição vale para todo escritório de que ela participa, e quem decide se um deles a alcança é
+    // a preferência dela naquele escritório. Só ela lê e grava. O servidor faz um POST para o
+    // `endpoint`, então ele só aceita `https` — sem isso, a inscrição seria uma forma de pôr a
+    // function para chamar um endereço interno.
+    match /users/{userId}/push_subscriptions/{subscriptionId} {
+      allow read, delete: if request.auth != null && request.auth.uid == userId;
+      allow create, update: if request.auth != null && request.auth.uid == userId
+        && request.resource.data.keys().hasOnly(['endpoint', 'keys', 'userAgent', 'createdAt'])
+        && request.resource.data.endpoint is string
+        && request.resource.data.endpoint.size() < 2048
+        && request.resource.data.endpoint.matches('^https://[^/]+/.*')
+        && request.resource.data.keys is map;
+    }
+
     // ─── Perfis de usuário ────────────────────────────────────────────────────
     
     match /userProfiles/{userId} {
@@ -318,6 +334,19 @@ service cloud.firestore {
         allow delete: if can(tenantId, 'settings.manage');
       }
 
+      // O sino — as notificações que o passo `notify` entrega, uma por destinatário. Só o servidor
+      // cria (Admin SDK). Cada pessoa lê as SUAS — a consulta precisa filtrar por `recipientId`, ou a
+      // regra a recusa inteira — e só pode marcá-las como lidas: título, mensagem e destinatário são
+      // do fluxo que as enviou, e reescrevê-los seria forjar um aviso. `isTenantMember`, e não
+      // `isMember`, na escrita: quem saiu do escritório não tem mais o que marcar ali.
+      match /notification_inbox/{notificationId} {
+        allow read: if isMember(tenantId) && resource.data.recipientId == request.auth.uid;
+        allow update: if isTenantMember(tenantId)
+          && resource.data.recipientId == request.auth.uid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read', 'readAt']);
+        allow create, delete: if false;
+      }
+
       // Event Bus do motor — qualquer membro com escrita pode publicar um evento;
       // coleção append-only, ninguém lê/edita/exclui pelo client (só a Cloud Function
       // onWorkflowEventCreated, via Admin SDK, que ignora estas regras).
@@ -393,7 +422,7 @@ service cloud.firestore {
         return name in [
         'actions', 'agentGrants', 'aggregate_backfills', 'aiConnections',
         'documentTypes', 'documents', 'extension_history', 'extension_migrations', 'extensions',
-        'installed_extensions', 'lookupDefinitions', 'members', 'notes',
+        'installed_extensions', 'lookupDefinitions', 'members', 'notes', 'notification_inbox',
         'reports', 'roles',
         // `plugin_installations` não tem mais código que a leia — foi a instalação de antes de
         // `installed_extensions`. Continua RESERVADA porque os documentos de então continuam nos

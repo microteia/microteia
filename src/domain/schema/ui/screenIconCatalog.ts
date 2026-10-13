@@ -189,6 +189,7 @@ export const SCREEN_ICON_KEYS = [
   'alarm',
   'alarmWarning',
   'alert',
+  'notification',
   'hourglass',
   'mapPin',
   'mapPin2',

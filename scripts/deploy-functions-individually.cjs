@@ -39,6 +39,8 @@ const ALL_FUNCTIONS = [
   'auditTenantDeleted',
   'backupDeletedAuditLog',
   'logClientError',
+  'manageNotificationEmail',
+  'getWebPushPublicKey',
   'onWorkflowEventCreated',
   'syncWorkflowClock',
   'runWorkflowClock',

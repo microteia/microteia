@@ -11,6 +11,15 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.96.0] — 2026-10-13
+
+- O passo "Notificar" das automações agora entrega o aviso de verdade: escolha se ele aparece no sino, chega por e-mail, vira uma notificação no navegador ou fica registrado na Auditoria — ou tudo isso ao mesmo tempo. Automações que já existiam continuam funcionando exatamente como antes.
+- Os avisos podem ser enviados para membros escolhidos, para a pessoa indicada num campo do registro ou para todos que têm uma determinada permissão.
+- Novo sino no alto da tela, com o número de notificações não lidas. Um clique abre o registro do aviso, e é possível marcar todas como lidas de uma vez.
+- Cada pessoa escolhe, em Configurações › Notificações, por quais canais quer ser avisada. Os avisos chegam no idioma de quem os recebe.
+- Nova aba "E-mail" nas configurações do Escritório, para cadastrar uma única vez o servidor de e-mail usado nos avisos, com envio de teste.
+- As notificações no navegador podem ser ativadas ou desativadas pelo próprio sino.
+
 #### [9.95.2] — 2026-10-12
 
 - A instalação ficou com um passo manual a menos: a limpeza automática do histórico de auditoria passa a ser configurada pela própria publicação, sem precisar ser ligada à mão no console do Firebase.

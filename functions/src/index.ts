@@ -31,6 +31,7 @@ export { auditNestedEntityChange } from './infrastructure/handlers/auditNestedEn
 export { auditTenantDeleted } from './infrastructure/handlers/auditTenantDeleted';
 export { backupDeletedAuditLog } from './infrastructure/handlers/backupDeletedAuditLog';
 export { logClientError } from './infrastructure/handlers/logClientError';
+export { manageNotificationEmail, getWebPushPublicKey } from './infrastructure/handlers/notifications';
 export { onWorkflowEventCreated } from './infrastructure/handlers/onWorkflowEventCreated';
 export { syncWorkflowClock, runWorkflowClock } from './infrastructure/handlers/workflowClock';
 export { getWorkflowStepCatalog } from './infrastructure/handlers/getWorkflowStepCatalog';

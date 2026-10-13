@@ -21,6 +21,7 @@ import { AGENT_GRANTS_COLLECTION } from './agent/agentGrant';
 import { AGGREGATE_BACKFILL_COLLECTION } from './aggregateBackfill';
 import { RECORD_KEY_ADOPTION_COLLECTION } from './recordKeyAdoption';
 import { WORKFLOW_CLOCK_COLLECTION, WORKFLOW_TRIGGER_MARKS_COLLECTION } from './workflowClock';
+import { NOTIFICATION_INBOX_COLLECTION } from './notifications';
 
 import type { AuditAction } from '../entities/AuditLog';
 import type { LocalizedMessage } from './i18n/localizedMessage';
@@ -520,6 +521,7 @@ export const RESERVED_COLLECTIONS: ReadonlySet<string> = new Set<string>([
   'settings',
   AGENT_GRANTS_COLLECTION,
   RECORD_KEYS_COLLECTION,
+  NOTIFICATION_INBOX_COLLECTION,
   ...LOOKUP_REGISTRY_LIST.map((lookup) => lookup.collection),
 ]);
 

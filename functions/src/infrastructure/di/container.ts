@@ -88,6 +88,16 @@ import { AGGREGATE_ENGINE_ACTOR } from '../../domain/schema/aggregateBackfill';
 import type { RecordKeyAdoptionDeps } from '../../domain/services/recordKeyAdoption';
 import { FirebaseRecordKeyAdoptionRepository } from '../../data/repositories/FirebaseRecordKeyAdoptionRepository';
 import { tenantTimeZone } from '../settings/tenantTimeZone';
+import {
+  FirestoreNotificationDirectory,
+  FirestoreNotificationEmailConfigRepository,
+  FirestoreNotificationInboxRepository,
+} from '../../data/repositories/FirestoreNotificationRepositories';
+import { SmtpEmailTransport, StandardWebPushSender, VapidKeyStore } from '../../data/services/NotificationTransports';
+import type { INotificationEmailConfigRepository } from '../../domain/repositories/INotificationDelivery';
+import { makeDispatchNotificationUseCase } from '../../domain/usecases/DispatchNotificationUseCase';
+import type { DispatchNotificationUseCase } from '../../domain/usecases/DispatchNotificationUseCase';
+import { makeNotificationTextCatalog } from '../notifications/notificationTextCatalog';
 
 class DIContainer {
   private static instance: DIContainer;
@@ -128,6 +138,9 @@ class DIContainer {
   private recordKeyAdoptionDeps?: RecordKeyAdoptionDeps;
   private workflowClockDeps?: WorkflowClockDeps;
   private workflowContextHydrator?: WorkflowContextHydrator;
+  private notificationEmailConfigRepo?: INotificationEmailConfigRepository;
+  private vapidKeyStore?: VapidKeyStore;
+  private dispatchNotificationUC?: DispatchNotificationUseCase;
   private workflowStepsRegistered = false;
   private extensionStatsRepo?: IExtensionStatsRepository;
   private recountExtensionInstallsUC?: RecountExtensionInstallsUseCase;
@@ -527,6 +540,35 @@ class DIContainer {
     return this.recordKeyAdoptionDeps;
   }
 
+  getNotificationEmailConfigRepository(): INotificationEmailConfigRepository {
+    if (!this.notificationEmailConfigRepo) {
+      this.notificationEmailConfigRepo = new FirestoreNotificationEmailConfigRepository(getDb());
+    }
+    return this.notificationEmailConfigRepo;
+  }
+
+  getVapidKeyStore(): VapidKeyStore {
+    if (!this.vapidKeyStore) this.vapidKeyStore = new VapidKeyStore(getDb());
+    return this.vapidKeyStore;
+  }
+
+  getDispatchNotificationUseCase(): DispatchNotificationUseCase {
+    if (!this.dispatchNotificationUC) {
+      this.dispatchNotificationUC = makeDispatchNotificationUseCase({
+        createAuditLog: this.getCreateAuditLogUseCase(),
+        directory: new FirestoreNotificationDirectory(getDb()),
+        inbox: new FirestoreNotificationInboxRepository(getDb()),
+        emailConfig: this.getNotificationEmailConfigRepository(),
+        emailTransport: new SmtpEmailTransport(),
+        push: new StandardWebPushSender(getDb(), this.getVapidKeyStore(), webPushSubject),
+        catalog: makeNotificationTextCatalog(this.getInstalledExtensionCache()),
+        tenantName: async (tenantId) => (await this.getTenantRepository().getById(tenantId))?.name ?? '',
+        now: () => new Date(),
+      });
+    }
+    return this.dispatchNotificationUC;
+  }
+
   getWorkflowContextHydrator(): WorkflowContextHydrator {
     if (!this.workflowContextHydrator) {
       this.workflowContextHydrator = new WorkflowContextHydrator(
@@ -578,6 +620,7 @@ class DIContainer {
     if (this.workflowStepsRegistered) return;
     registerStepsFromPlugins({
       createAuditLogUseCase: this.getCreateAuditLogUseCase(),
+      dispatchNotificationUseCase: this.getDispatchNotificationUseCase(),
       workflowQueryRepository: new FirestoreWorkflowQueryRepository(getDb()),
       workflowRecordFetcher: new FirestoreWorkflowRecordFetcher(getDb()),
       workflowMutationRepository: new FirestoreWorkflowMutationRepository(getDb()),
@@ -591,5 +634,14 @@ class DIContainer {
     this.workflowStepsRegistered = true;
   }
 }
+
+/**
+ * O contato que o padrão VAPID pede ao serviço de push. É o endereço do próprio projeto — o Firebase o
+ * expõe a toda function —, e não um domínio nosso: a instalação é do escritório.
+ */
+const webPushSubject = (): string => {
+  const projectId = process.env.GCLOUD_PROJECT ?? process.env.GCP_PROJECT ?? '';
+  return projectId ? `https://${projectId}.web.app` : 'mailto:postmaster@localhost';
+};
 
 export const getDI = (): DIContainer => DIContainer.getInstance();

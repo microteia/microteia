@@ -9,6 +9,12 @@ export interface EntityReferenceControlProps {
   input: InputDefinition;
   value: string;
   onChange: (value: string) => void;
+  /**
+   * A seleção MÚLTIPLA, quando o input declara `list: true`. Opcional para que quem só sabe lidar com
+   * um valor continue igual: sem `onChangeMany`, o controle é o de sempre.
+   */
+  values?: string[];
+  onChangeMany?: (values: string[]) => void;
 }
 
 export interface EntityReferenceControlViewModel {

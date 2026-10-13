@@ -24,7 +24,7 @@ export type InputOptionsSource =
  * O que um input NOMEIA, quando o valor dele é o id de outra coisa declarada no escritório. Faz o
  * editor oferecer a lista em vez de pedir um id digitado, e só quando o mapping é `Literal`.
  */
-export type InputPickerKind = 'workflow' | 'script' | 'ai-connection';
+export type InputPickerKind = 'workflow' | 'script' | 'ai-connection' | 'permission';
 
 export interface InputDefinition {
   id: string;
@@ -40,6 +40,8 @@ export interface InputDefinition {
   // FieldDefinition.refEntity: `members` (usuários do tenant) ou a coleção de uma tela do Form
   // Design ou de uma extensão. O kernel não conhece nenhuma coleção de negócio pelo nome.
   entityType?: string;
+  // O valor `Literal` é uma LISTA do que o input nomeia. Ver `InputDefinition.list` no catálogo.
+  list?: boolean;
   // Restringe os tipos de mapping permitidos. Se undefined, todos são permitidos.
   allowedMappingKinds?: Array<'Literal' | 'Event' | 'Expression' | 'Output' | 'Variable'>;
   // O que o valor deste input nomeia, para o editor oferecer a lista. Ver `InputPickerKind`.
