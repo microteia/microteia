@@ -11,6 +11,12 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.103.0] — 2026-10-14
+
+- As ferramentas do escritório saíram do menu do seu usuário e agora ficam no menu lateral, organizadas pelo que fazem: "Personalização" reúne Form Design, Modelos de documento e Extensões; "Automação" reúne Workflows, Scripts, Ações e o Processador de dados; e a Gestão de acessos se juntou a "Administração".
+- O menu do seu usuário ficou só com o que é seu: o seu perfil e a aparência do sistema.
+- O aviso de extensões com atualização disponível agora aparece direto no item Extensões do menu lateral.
+
 #### [9.102.0] — 2026-10-14
 
 - O menu lateral agora se organiza em grupos com título, que se recolhem com um clique. As telas de administração do escritório — Escritório, Configurações, Traduções e Auditoria — ficam juntas em "Administração", e Calendário e Dias úteis em "Agenda".

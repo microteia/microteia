@@ -5970,7 +5970,7 @@ provedores do ⌘K são **contribuições** de 12 plugins internos.
 | Ponto | Metadata | `impl` |
 |---|---|---|
 | `ui.page` | `key`, `keyPrefix`, `title`, `icon`, `fullBleed`, `requiredRole` | `code` (lazy) ou `widget` |
-| `ui.nav` | UM alvo (`key`, `screen` ou `screenSourceId` — ver "Item de menu que não leva a lugar nenhum"), `label`, `icon`, `order`, `requiredPermissions`, `badge`, `group` | nenhuma |
+| `ui.nav` | UM alvo (`key`, `screen` ou `screenSourceId` — ver "Item de menu que não leva a lugar nenhum"), `label`, `icon`, `order`, `requiredPermissions`, `requiresSystemAdmin`, `badge`, `group` | nenhuma |
 | `ui.nav.group` | `key`, `label`, `order`, `defaultCollapsed` | nenhuma |
 | `ui.command` | `group` | `code` |
 | `theme.definition` | `id`, `name`, `extends`, seções de paleta | nenhuma |
@@ -5995,8 +5995,19 @@ administração (110+) — substituindo o `splice` que antes procurava o índice
 **Grupos da barra lateral são declarados, nunca sabidos.** Com o catálogo crescendo, o menu virou uma
 lista longa sem título nenhum. O kernel não podia resolver isso escrevendo "Financeiro" ou "Agenda":
 o grupo é contribuição (`ui.nav.group`) de quem traz os itens, e o item escolhe o grupo pela `key`
-(`UiNavMetadata.group`). O núcleo declara um só, `ADMIN_NAV_GROUP` (no `core.ui`), porque
-administrar o escritório é conceito dele — Escritório, Configurações, Traduções e Auditoria estão nele.
+(`UiNavMetadata.group`). O núcleo declara três no `core.ui`, porque são conceitos dele, não de negócio:
+
+| Grupo | Itens do núcleo | `order` |
+|---|---|---|
+| `CUSTOMIZATION_NAV_GROUP` | Form Design, Modelos de documento, Extensões | 102 |
+| `AUTOMATION_NAV_GROUP` | Workflows, Scripts, Ações, Processador de dados | 106 |
+| `ADMIN_NAV_GROUP` | Escritório, Configurações, Traduções, Auditoria, Gestão de acessos | 110 |
+
+**O menu do usuário é da pessoa.** Ele guardava oito ferramentas do escritório ao lado do perfil, e
+ficava longe de quem as procurava. Hoje tem só o perfil (e a aparência, que o shell desenha): as
+ferramentas viraram `ui.nav` no grupo do objetivo delas, com a mesma permissão de antes. A Gestão de
+acessos é do administrador GLOBAL — por isso o `ui.nav` ganhou `requiresSystemAdmin`, o mesmo do
+`ui.menu`. O selo de extensões com atualização mudou junto, do menu do usuário para o item Extensões.
 
 `groupNavSections` (função pura, em `resolveUiContributions`) reparte os itens já filtrados:
 
@@ -7515,7 +7526,7 @@ registro. `StoreEvents.RECORD_DOCUMENTS_UPDATED` é emitido depois da geração,
 
 ### A tela de modelos
 
-`document-templates` (menu do usuário, `document-templates.manage`) lista a UNIÃO das chaves de pacote e
+`document-templates` (barra lateral, grupo Personalização, `document-templates.manage`) lista a UNIÃO das chaves de pacote e
 do escritório, com o estado de cada uma: **Extensão** (somente leitura — Personalizar ou Desligar),
 **Personalizado** (a cópia do escritório vale — Restaurar devolve o original), **Desligado** (Religar) e
 **Escritório**. O Markdown é editado como texto, com os problemas de gramática ao vivo; o Word é enviado
@@ -10422,6 +10433,12 @@ O que ficou no shell foi só o que é dele: a aparência (o submenu de temas, qu
 
 **A barra lateral não sabe mais quantos grupos existem.** `menuGroups` é uma lista de listas, e o
 divisor é o que aparece entre duas — quem contribui declara `group`, e o shell desenha.
+
+**Depois, as ferramentas saíram daqui.** Com os grupos da barra lateral (`ui.nav.group`), as sete
+ferramentas do escritório passaram a `ui.nav`, cada uma no grupo do objetivo dela, e o menu do usuário
+ficou com o Perfil — ver "Grupos da barra lateral são declarados, nunca sabidos". O `ui.menu` continua
+sendo o caminho de uma extensão para pôr item no menu da PESSOA, e `workspaceSurfaces.test.ts` fixa que
+o núcleo só põe o Perfil ali.
 
 ---
 

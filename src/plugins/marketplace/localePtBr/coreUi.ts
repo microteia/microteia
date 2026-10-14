@@ -662,6 +662,8 @@ export const CORE_UI: Record<string, string> = {
   'sidebar.group.expand': 'Expandir {group}',
   'sidebar.group.collapse': 'Recolher {group}',
   'nav.group.admin': 'Administração',
+  'nav.group.customization': 'Personalização',
+  'nav.group.automation': 'Automação',
   'modal.maximize': 'Maximizar',
   'modal.restore': 'Restaurar',
   'point.page': 'Tela do workspace',

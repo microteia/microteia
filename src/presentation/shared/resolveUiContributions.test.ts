@@ -140,15 +140,21 @@ describe('visibleNavItems', () => {
   ];
 
   it('ordena por order, não pela ordem das contribuições', () => {
-    expect(visibleNavItems(items, canAll).map((item) => item.key)).toEqual(['a', 'b', 'audit']);
+    expect(visibleNavItems(items, canAll, false).map((item) => item.key)).toEqual(['a', 'b', 'audit']);
   });
 
   it('esconde o item cuja permissão o usuário não tem', () => {
-    expect(visibleNavItems(items, canNothing).map((item) => item.key)).toEqual(['a', 'b']);
+    expect(visibleNavItems(items, canNothing, false).map((item) => item.key)).toEqual(['a', 'b']);
   });
 
   it('quem tem a permissão enxerga o item restrito', () => {
-    expect(visibleNavItems(items, canOnly('audit.read')).map((item) => item.key)).toContain('audit');
+    expect(visibleNavItems(items, canOnly('audit.read'), false).map((item) => item.key)).toContain('audit');
+  });
+
+  it('o item do administrador global não aparece por permissão de escritório', () => {
+    const global = [navContribution({ key: 'access', order: 10, requiresSystemAdmin: true })];
+    expect(visibleNavItems(global, canAll, false)).toEqual([]);
+    expect(visibleNavItems(global, canNothing, true).map((item) => item.key)).toEqual(['access']);
   });
 });
 

@@ -29,6 +29,9 @@ const PUBLISHED = [
   // O GRUPO da barra lateral. MOVE o `KERNEL_VERSION`: um ponto novo e um `group` no `ui.nav` são
   // forma nova de pacote instalado — um kernel antigo os aceitaria e desenharia o menu sem grupos.
   'UI_NAV_GROUP_POINT', 'ADMIN_NAV_GROUP', 'navGroup',
+  // Os outros dois grupos que o núcleo declara. Só AUTORIA: uma chave de grupo que o kernel não
+  // declara deixa o item solto, então não mudam a forma do pacote instalado.
+  'AUTOMATION_NAV_GROUP', 'CUSTOMIZATION_NAV_GROUP',
   'LOGIN_SLOT_SURFACES',
   'UI_MENU_POINT', 'UI_SETTINGS_POINT', 'UI_SLOT_POINT', 'UI_TAB_POINT', 'UI_WIDGET_POINT',
   'USER_MENU_SURFACE', 'WORKSPACE_SLOT_SURFACES', 'WIDGET_NODE_TYPES',

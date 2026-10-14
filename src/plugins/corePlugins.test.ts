@@ -9,7 +9,7 @@ import {
   resolvePageContribution,
   visibleNavItems,
 } from '../presentation/shared/resolveUiContributions';
-import { ADMIN_NAV_GROUP, UI_COMMAND_POINT, UI_NAV_GROUP_POINT, UI_NAV_POINT, UI_PAGE_POINT } from '../domain/schema/ui/uiExtensionPoints';
+import { ADMIN_NAV_GROUP, AUTOMATION_NAV_GROUP, CUSTOMIZATION_NAV_GROUP, UI_COMMAND_POINT, UI_NAV_GROUP_POINT, UI_NAV_POINT, UI_PAGE_POINT } from '../domain/schema/ui/uiExtensionPoints';
 import { CORE_PLUGINS } from './index';
 
 const hostWith = (records: PluginRecord[]) => {
@@ -109,29 +109,32 @@ describe('core plugins — paridade com o registro anterior', () => {
     }
   });
 
-  it('o menu preserva a ordem que tinha antes da migração', () => {
+  /**
+   * As ferramentas que moravam no menu do usuário vieram para a barra lateral, cada uma no grupo do
+   * objetivo dela. O menu do usuário ficou com o que é da PESSOA — o perfil e a aparência.
+   */
+  it('o menu do núcleo se reparte em Personalização, Automação e Administração, abaixo de Relatórios', () => {
     const { host } = hostWith(CORE_PLUGINS);
-    const items = visibleNavItems(host.contributions.query(UI_NAV_POINT), () => true);
-
-    expect(items.map((item) => item.key)).toEqual([
-      'reports', 'tenant-settings', 'settings', 'translations', 'audit-logs',
-    ]);
-  });
-
-  it('a administração do escritório é um grupo, abaixo de Relatórios', () => {
-    const { host } = hostWith(CORE_PLUGINS);
-    const items = visibleNavItems(host.contributions.query(UI_NAV_POINT), () => true);
+    const items = visibleNavItems(host.contributions.query(UI_NAV_POINT), () => true, true);
     const sections = groupNavSections(items, declaredNavGroups(host.contributions.query(UI_NAV_GROUP_POINT)));
 
     expect(sections.map((section) => [section.group?.key ?? null, section.items.map((item) => item.key)])).toEqual([
       [null, ['reports']],
-      [ADMIN_NAV_GROUP, ['tenant-settings', 'settings', 'translations', 'audit-logs']],
+      [CUSTOMIZATION_NAV_GROUP, ['screen-builder', 'document-templates', 'marketplace']],
+      [AUTOMATION_NAV_GROUP, ['workflows', 'scripts', 'actions', 'data-processor']],
+      [ADMIN_NAV_GROUP, ['tenant-settings', 'settings', 'translations', 'audit-logs', 'access-management']],
     ]);
+  });
+
+  it('a gestão de acessos só aparece para o administrador global', () => {
+    const { host } = hostWith(CORE_PLUGINS);
+    const keys = visibleNavItems(host.contributions.query(UI_NAV_POINT), () => true, false).map((item) => item.key);
+    expect(keys).not.toContain('access-management');
   });
 
   it('esconde Auditoria de quem não tem a permissão de leitura dela', () => {
     const { host } = hostWith(CORE_PLUGINS);
-    const items = visibleNavItems(host.contributions.query(UI_NAV_POINT), () => false);
+    const items = visibleNavItems(host.contributions.query(UI_NAV_POINT), () => false, false);
     expect(items.map((item) => item.key)).not.toContain('audit-logs');
   });
 });
@@ -185,7 +188,7 @@ describe('core plugins — remoção limpa (critério de aceite da Etapa 2)', ()
     const pages = host.contributions.query(UI_PAGE_POINT);
 
     expect(resolvePageContribution(pages, 'audit-logs')).toBeDefined();
-    expect(host.contributions.query(UI_NAV_POINT).length).toBe(5);
+    expect(host.contributions.query(UI_NAV_POINT).length).toBe(13);
   });
 
   it('remover core.ui derruba todos os módulos de UI, porque ninguém declara os pontos', () => {

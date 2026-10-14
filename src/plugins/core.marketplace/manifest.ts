@@ -1,8 +1,8 @@
 import type { PluginRecord } from '../../kernel';
-import { lazyView, menuItem, page } from '../contributionBuilders';
+import { lazyView, nav, page } from '../contributionBuilders';
 import { messageBundleContribution } from '../../domain/schema/i18n/extensionPoints';
 import { PERMISSION_EXTENSIONS_MANAGE } from '../../domain/schema/access';
-import { USER_MENU_SURFACE } from '../../domain/schema/ui/uiExtensionPoints';
+import { CUSTOMIZATION_NAV_GROUP } from '../../domain/schema/ui/uiExtensionPoints';
 import { coreMessage, CORE_MARKETPLACE_MESSAGES } from '../coreMessages';
 
 export const coreMarketplacePlugin: PluginRecord = {
@@ -23,15 +23,7 @@ export const coreMarketplacePlugin: PluginRecord = {
       page({ key: 'marketplace', title: '@core.marketplace/page.marketplace', icon: 'store' }, 'MarketplaceView'),
       page({ key: 'plugin-author', title: '@core.marketplace/page.plugin-author', icon: 'magic' }, 'PluginAuthorView'),
       page({ key: '', keyPrefix: 'plugin-author:', title: '@core.marketplace/page.plugin-author-edit', icon: 'magic' }, 'PluginAuthorView'),
-      menuItem({
-        surface: USER_MENU_SURFACE,
-        key: 'marketplace',
-        title: '@core.marketplace/page.marketplace',
-        icon: 'store',
-        order: 80,
-        requiredPermissions: [PERMISSION_EXTENSIONS_MANAGE],
-        action: { kind: 'openTab', tabKey: 'marketplace' },
-      }),
+      nav({ key: 'marketplace', label: '@core.marketplace/page.marketplace', icon: 'store', order: 104, group: CUSTOMIZATION_NAV_GROUP, requiredPermissions: [PERMISSION_EXTENSIONS_MANAGE] }),
     ],
   },
 };

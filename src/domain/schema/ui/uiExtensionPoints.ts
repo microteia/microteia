@@ -94,6 +94,8 @@ export interface UiNavMetadata extends UiNavTarget {
   order: number;
   /** Ver `UiPageMetadata.requiredPermissions`. */
   requiredPermissions?: string[];
+  /** Ver `UiPageMetadata.requiresSystemAdmin`. */
+  requiresSystemAdmin?: boolean;
   badge?: UiNavBadge;
   /**
    * A `key` de um `ui.nav.group` — deste pacote, de outro ou do kernel. Ausente, ou apontando para um
@@ -127,6 +129,12 @@ export interface UiNavGroupMetadata {
  * traz a própria tela de administração a põe aqui com `group: ADMIN_NAV_GROUP`.
  */
 export const ADMIN_NAV_GROUP = 'admin';
+
+/** O grupo das ferramentas que moldam o escritório: telas, modelos de documento, extensões. */
+export const CUSTOMIZATION_NAV_GROUP = 'customization';
+
+/** O grupo do que roda sozinho: automações, scripts, ações, processamento de dados. */
+export const AUTOMATION_NAV_GROUP = 'automation';
 
 export interface UiCommandMetadata {
   group: string;

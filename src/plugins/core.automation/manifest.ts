@@ -1,8 +1,8 @@
 import type { PluginRecord } from '../../kernel';
-import { command, lazyView, menuItem, page, settingsSection, surfaceSlot, surfaceTab } from '../contributionBuilders';
+import { command, lazyView, nav, page, settingsSection, surfaceSlot, surfaceTab } from '../contributionBuilders';
 import { messageBundleContribution } from '../../domain/schema/i18n/extensionPoints';
 import { PERMISSION_AUTOMATION_MANAGE, PERMISSION_SETTINGS_MANAGE } from '../../domain/schema/access';
-import { USER_MENU_SURFACE, WORKSPACE_SLOT_SURFACES } from '../../domain/schema/ui/uiExtensionPoints';
+import { AUTOMATION_NAV_GROUP, WORKSPACE_SLOT_SURFACES } from '../../domain/schema/ui/uiExtensionPoints';
 import { NOTIFICATION_SETTINGS_PROPERTIES } from '../../domain/schema/notifications';
 import { coreMessage, CORE_AUTOMATION_MESSAGES } from '../coreMessages';
 import { TENANT_SETTINGS_SURFACE } from '../core.tenant/surface';
@@ -76,33 +76,9 @@ export const coreAutomationPlugin: PluginRecord = {
         order: 32,
         requiredPermissions: [PERMISSION_SETTINGS_MANAGE],
       }, 'NotificationEmailTabView'),
-      menuItem({
-        surface: USER_MENU_SURFACE,
-        key: 'workflows',
-        title: '@core.automation/page.workflows',
-        icon: 'flowChart',
-        order: 40,
-        requiredPermissions: [PERMISSION_AUTOMATION_MANAGE],
-        action: { kind: 'openTab', tabKey: 'workflows' },
-      }),
-      menuItem({
-        surface: USER_MENU_SURFACE,
-        key: 'scripts',
-        title: '@core.automation/page.scripts',
-        icon: 'codeBox',
-        order: 50,
-        requiredPermissions: [PERMISSION_AUTOMATION_MANAGE],
-        action: { kind: 'openTab', tabKey: 'scripts' },
-      }),
-      menuItem({
-        surface: USER_MENU_SURFACE,
-        key: 'actions',
-        title: '@core.automation/page.actions',
-        icon: 'cursor',
-        order: 60,
-        requiredPermissions: [PERMISSION_AUTOMATION_MANAGE],
-        action: { kind: 'openTab', tabKey: 'actions' },
-      }),
+      nav({ key: 'workflows', label: '@core.automation/page.workflows', icon: 'flowChart', order: 106, group: AUTOMATION_NAV_GROUP, requiredPermissions: [PERMISSION_AUTOMATION_MANAGE] }),
+      nav({ key: 'scripts', label: '@core.automation/page.scripts', icon: 'codeBox', order: 107, group: AUTOMATION_NAV_GROUP, requiredPermissions: [PERMISSION_AUTOMATION_MANAGE] }),
+      nav({ key: 'actions', label: '@core.automation/page.actions', icon: 'cursor', order: 108, group: AUTOMATION_NAV_GROUP, requiredPermissions: [PERMISSION_AUTOMATION_MANAGE] }),
     ],
   },
 };

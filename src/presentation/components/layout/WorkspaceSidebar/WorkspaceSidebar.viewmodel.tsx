@@ -89,8 +89,6 @@ export interface SidebarMenuItem {
   label: string;
   icon: React.ReactNode;
   danger: boolean;
-  /** Contador do item, no mesmo contrato do `badge` da barra: `0` = sem selo. */
-  badge: number;
 }
 
 export interface WorkspaceSidebarViewModel {
@@ -105,11 +103,6 @@ export interface WorkspaceSidebarViewModel {
    * sabe quantos são nem o que há em cada um.
    */
   menuGroups: SidebarMenuItem[][];
-  /**
-   * Há selo em algum item do menu do usuário. O menu vive fechado, então sem isto o selo só apareceria
-   * para quem já tivesse aberto o menu — inútil justamente para o que ele existe: avisar antes.
-   */
-  hasMenuBadge: boolean;
   user: User | null;
   effectivePhotoURL: string | null;
   effectiveName: string;
@@ -154,22 +147,25 @@ export const useWorkspaceSidebarViewModel = (): WorkspaceSidebarViewModel => {
 
   /**
    * O selo de cada item. Duas origens: a DECLARADA (`badge` da contribuição), que é uma contagem de
-   * registros — e enxerga `user`, então conta também o que ESTE usuário não leu —, e a de baixo, que
-   * conta falhas críticas de auditoria ainda não vistas: o único selo que resta no kernel.
+   * registros — e enxerga `user`, então conta também o que ESTE usuário não leu —, e a do kernel:
+   * falhas críticas de auditoria ainda não vistas, e extensões com atualização à espera. Esta não se
+   * apaga ao entrar na tela, como a da auditoria: some quando a última atualização é aplicada, porque
+   * o que ela conta é uma pendência e não uma notícia.
    */
   const badgeCount = useNavBadgeCount();
   const resolveTarget = useNavTargetResolver();
   const kernelBadge = useCallback((key: string): number => {
     if (key === 'audit-logs') return unreadCriticalAuditCount;
+    if (key === 'marketplace') return extensionUpdates;
     return 0;
-  }, [unreadCriticalAuditCount]);
+  }, [unreadCriticalAuditCount, extensionUpdates]);
 
   const label = useLabel();
 
   const navItems = useMemo(() => {
     // O item que não leva a lugar nenhum neste escritório não aparece: a tela que ele aponta foi
     // desligada, ou a pessoa não pode lê-la.
-    const contributed = visibleNavItems(navContributions, canAny).flatMap((item) => {
+    const contributed = visibleNavItems(navContributions, canAny, isSystemAdmin).flatMap((item) => {
       const key = resolveTarget(item);
       if (key === null) return [];
       return [{
@@ -203,7 +199,7 @@ export const useWorkspaceSidebarViewModel = (): WorkspaceSidebarViewModel => {
     }));
 
     return [...contributed, ...dynamicItems].sort((a, b) => a.order - b.order);
-  }, [navContributions, canAny, can, sidebarScreens, badgeCount, kernelBadge, resolveTarget, label]);
+  }, [navContributions, canAny, isSystemAdmin, can, sidebarScreens, badgeCount, kernelBadge, resolveTarget, label]);
 
   const navGroups = useMemo(() => declaredNavGroups(navGroupContributions), [navGroupContributions]);
 
@@ -271,16 +267,6 @@ export const useWorkspaceSidebarViewModel = (): WorkspaceSidebarViewModel => {
       .filter((item) => item.action.kind !== 'openTab' || resolveTarget(menuActionTarget(item.action)) !== null);
   }, [registeredMenuItems, menuEntries, isSystemAdmin, canAny, resolveTarget]);
 
-  /**
-   * O selo de um item do MENU DO USUÁRIO. Hoje há um: as extensões com atualização à espera. Ele não
-   * se apaga ao entrar na tela, como o da auditoria: some quando a última atualização é aplicada,
-   * porque o que ele conta é uma pendência e não uma notícia.
-   */
-  const menuBadge = useCallback(
-    (key: string): number => (key === 'marketplace' ? extensionUpdates : 0),
-    [extensionUpdates],
-  );
-
   const menuGroups = useMemo<SidebarMenuItem[][]>(() => {
     const groups = new Map<string, SidebarMenuItem[]>();
     for (const item of visibleMenuItems) {
@@ -290,19 +276,13 @@ export const useWorkspaceSidebarViewModel = (): WorkspaceSidebarViewModel => {
         label: item.title,
         icon: item.icon ? getScreenIcon(item.icon, 16) : null,
         danger: item.danger === true,
-        badge: menuBadge(item.key),
       };
       const existing = groups.get(group);
       if (existing) existing.push(resolved);
       else groups.set(group, [resolved]);
     }
     return Array.from(groups.values());
-  }, [visibleMenuItems, menuBadge]);
-
-  const hasMenuBadge = useMemo(
-    () => menuGroups.some((group) => group.some((item) => item.badge > 0)),
-    [menuGroups],
-  );
+  }, [visibleMenuItems]);
 
   const handleMenuItemClick = useCallback((key: string) => {
     const item = visibleMenuItems.find((candidate) => candidate.key === key);
@@ -359,7 +339,6 @@ export const useWorkspaceSidebarViewModel = (): WorkspaceSidebarViewModel => {
     isMenuOpen,
     isThemeSubOpen,
     menuGroups,
-    hasMenuBadge,
     user,
     effectivePhotoURL,
     effectiveName,

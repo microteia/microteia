@@ -656,7 +656,7 @@ id is the whole of how an update recognises the same contribution across version
 
 | Constructor | Point | What it delivers |
 |---|---|---|
-| \`nav(metadata)\` | \`ui.nav\` | a menu entry — ONE target (\`key\`, \`screen\` or \`screenSourceId\`, below), \`label\`, \`icon\`, \`order\`, optional \`badge\` and \`group\` |
+| \`nav(metadata)\` | \`ui.nav\` | a menu entry — ONE target (\`key\`, \`screen\` or \`screenSourceId\`, below), \`label\`, \`icon\`, \`order\`, optional \`badge\`, \`group\`, \`requiredPermissions\` and \`requiresSystemAdmin\` |
 | \`navGroup(metadata)\` | \`ui.nav.group\` | a titled, collapsible group of the sidebar — \`key\`, \`label\`, \`order\`, optional \`defaultCollapsed\`; entries join it with \`group: '<key>'\` (below) |
 | \`page(metadata, viewKey)\` | \`ui.page\` | a workspace screen drawn by one of your \`views\` (§7) |
 | \`widgetPage(metadata, spec)\` | \`ui.page\` | a workspace screen declared in Widget DSL — no code, no review |
@@ -836,8 +836,17 @@ to be wrong.
 
 The sidebar is drawn in sections. An entry with \`group: '<key>'\` joins the \`navGroup()\` with that key;
 the group sits at its own \`order\`, on the same scale as the loose entries, and its entries follow
-their own \`order\` inside it. The platform declares one group, \`ADMIN_NAV_GROUP\`, for the
-organization's administration screens — put your own admin screen there.
+their own \`order\` inside it. The platform declares three groups — put a tool of yours in the one that
+matches its purpose:
+
+| Constant | Holds | \`order\` |
+|---|---|---|
+| \`CUSTOMIZATION_NAV_GROUP\` | what shapes the organization: screens, document templates, extensions | 102 |
+| \`AUTOMATION_NAV_GROUP\` | what runs on its own: workflows, scripts, actions, data processing | 106 |
+| \`ADMIN_NAV_GROUP\` | the organization's administration: its record, settings, translations, audit, access | 110 |
+
+The user menu is for the person, not for tools: their profile and appearance. A tool entry belongs in
+the sidebar.
 
 - **A group key is universal**, like a screen's \`sourceId\`. Two packages that declare the same key
   declare ONE group, labelled and placed by whichever loads first. So you may declare a group another

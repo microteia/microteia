@@ -1,8 +1,8 @@
 import type { PluginRecord } from '../../kernel';
-import { lazyView, menuItem, page, recordAction } from '../contributionBuilders';
+import { lazyView, nav, page, recordAction } from '../contributionBuilders';
 import { messageBundleContribution } from '../../domain/schema/i18n/extensionPoints';
 import { PERMISSION_DOCUMENT_TEMPLATES_MANAGE } from '../../domain/schema/access';
-import { USER_MENU_SURFACE } from '../../domain/schema/ui/uiExtensionPoints';
+import { CUSTOMIZATION_NAV_GROUP } from '../../domain/schema/ui/uiExtensionPoints';
 import { RECORD_ACTION_METADATA } from '../../domain/schema/ui/recordActionMetadata';
 import { DOCUMENT_EXTENSION_POINTS } from '../../domain/schema/document/documentTemplate';
 import { coreMessage, CORE_DOCUMENTS_MESSAGES } from '../coreMessages';
@@ -46,15 +46,7 @@ export const coreDocumentsPlugin: PluginRecord = {
         },
         'DocumentTemplatesView',
       ),
-      menuItem({
-        surface: USER_MENU_SURFACE,
-        key: 'document-templates',
-        title: '@core.documents/page.templates',
-        icon: 'fileText',
-        order: 65,
-        requiredPermissions: [PERMISSION_DOCUMENT_TEMPLATES_MANAGE],
-        action: { kind: 'openTab', tabKey: 'document-templates' },
-      }),
+      nav({ key: 'document-templates', label: '@core.documents/page.templates', icon: 'fileText', order: 103, group: CUSTOMIZATION_NAV_GROUP, requiredPermissions: [PERMISSION_DOCUMENT_TEMPLATES_MANAGE] }),
       recordAction(RECORD_ACTION_METADATA.generateDocument, 'GenerateDocumentRecordAction'),
     ],
     dependencies: { 'core.ui': '^1.0.0' },

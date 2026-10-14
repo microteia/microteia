@@ -3,7 +3,7 @@
   "workflows": [],
   "manifest": {
     "id": "com.microteia.locale-pt-br",
-    "version": "1.88.0",
+    "version": "1.89.0",
     "kernel": "^2.0.0",
     "name": "Português (Brasil)",
     "description": "Tradução da Microteia para português do Brasil.",
@@ -882,6 +882,8 @@
             "sidebar.group.expand": "Expandir {group}",
             "sidebar.group.collapse": "Recolher {group}",
             "nav.group.admin": "Administração",
+            "nav.group.customization": "Personalização",
+            "nav.group.automation": "Automação",
             "modal.maximize": "Maximizar",
             "modal.restore": "Restaurar",
             "point.page": "Tela do workspace",

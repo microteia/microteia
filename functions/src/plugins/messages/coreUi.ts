@@ -669,6 +669,8 @@ export const CORE_UI_MESSAGES: Record<string, string> = {
   'sidebar.group.expand': 'Expand {group}',
   'sidebar.group.collapse': 'Collapse {group}',
   'nav.group.admin': 'Administration',
+  'nav.group.customization': 'Customization',
+  'nav.group.automation': 'Automation',
   'modal.maximize': 'Maximize',
   'modal.restore': 'Restore',
   'point.page': 'Workspace screen',

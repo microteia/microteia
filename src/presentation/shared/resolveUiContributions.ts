@@ -68,9 +68,11 @@ export const homePageKey = (
 export const visibleNavItems = (
   contributions: QualifiedContribution[],
   canAny: CanAny,
+  isSystemAdmin: boolean,
 ): UiNavMetadata[] =>
   contributions
     .map(navMetadataOf)
+    .filter((metadata) => !metadata.requiresSystemAdmin || isSystemAdmin)
     .filter((metadata) => isPermitted(canAny, metadata.requiredPermissions))
     .sort((a, b) => a.order - b.order);
 

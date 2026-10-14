@@ -4,11 +4,13 @@ import { hasErrors } from '../domain/schema/plugin/diagnostics';
 import { CORE_PLUGINS } from './index';
 import {
   UI_MENU_POINT,
+  UI_NAV_POINT,
   UI_PAGE_POINT,
   UI_SLOT_POINT,
   USER_MENU_SURFACE,
   WORKSPACE_SLOT_SURFACES,
   type UiMenuItemMetadata,
+  type UiNavMetadata,
   type UiPageMetadata,
 } from '../domain/schema/ui/uiExtensionPoints';
 import { isScreenIconKey } from '../domain/schema/ui/screenIconCatalog';
@@ -34,21 +36,11 @@ describe('o menu do usuário como contribuição', () => {
   });
 
   /**
-   * As oito linhas que a barra lateral tinha escritas à mão viraram contribuição. O teste não afirma
-   * que são OITO — afirma que TODAS chegam por contribuição, e que a nona cabe pelo mesmo caminho.
+   * O menu do usuário é da PESSOA: o perfil dela (e a aparência, que o shell desenha à parte). As
+   * ferramentas do escritório que moravam aqui foram para a barra lateral, cada uma no seu grupo.
    */
-  it('traz os itens que a barra lateral escrevia à mão', () => {
-    expect(menuItemsOf(USER_MENU_SURFACE).map((item) => item.key).sort()).toEqual([
-      'access-management',
-      'actions',
-      'data-processor',
-      'document-templates',
-      'marketplace',
-      'screen-builder',
-      'scripts',
-      'workflows',
-      'profile',
-    ].sort());
+  it('traz só o que é da pessoa', () => {
+    expect(menuItemsOf(USER_MENU_SURFACE).map((item) => item.key)).toEqual(['profile']);
   });
 
   /**
@@ -83,31 +75,22 @@ describe('o menu do usuário como contribuição', () => {
     expect(misplaced).toEqual([]);
   });
 
-  it('preserva a permissão que cada linha exigia antes', () => {
-    const byKey = new Map(menuItemsOf(USER_MENU_SURFACE).map((item) => [item.key, item]));
-    expect(byKey.get('profile')?.requiredPermissions).toBeUndefined();
+  it('as ferramentas levadas para a barra lateral preservam a permissão que exigiam no menu', () => {
+    const { host } = loadedHost();
+    const byKey = new Map(
+      host.contributions
+        .query(UI_NAV_POINT)
+        .map((contribution) => contribution.metadata as unknown as UiNavMetadata)
+        .map((metadata) => [metadata.key, metadata]),
+    );
     expect(byKey.get('access-management')?.requiresSystemAdmin).toBe(true);
     expect(byKey.get('screen-builder')?.requiredPermissions).toEqual(['screens.manage']);
     expect(byKey.get('workflows')?.requiredPermissions).toEqual(['automation.manage']);
     expect(byKey.get('scripts')?.requiredPermissions).toEqual(['automation.manage']);
     expect(byKey.get('actions')?.requiredPermissions).toEqual(['automation.manage']);
+    expect(byKey.get('document-templates')?.requiredPermissions).toEqual(['document-templates.manage']);
     expect(byKey.get('data-processor')?.requiredPermissions).toEqual(['data-processor.use']);
     expect(byKey.get('marketplace')?.requiredPermissions).toEqual(['extensions.manage']);
-  });
-
-  it('mantém a ordem em que as linhas apareciam', () => {
-    const ordered = [...menuItemsOf(USER_MENU_SURFACE)].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-    expect(ordered.map((item) => item.key)).toEqual([
-      'profile',
-      'access-management',
-      'screen-builder',
-      'workflows',
-      'scripts',
-      'actions',
-      'document-templates',
-      'data-processor',
-      'marketplace',
-    ]);
   });
 
   /** Ícone é CHAVE do conjunto curado, nunca componente — é o que mantém a metadata serializável. */

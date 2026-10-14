@@ -122,9 +122,6 @@ export const WorkspaceSidebar: React.FC = () => {
                       >
                         {item.icon}
                         {item.label}
-                        {item.badge > 0 && (
-                          <S.MenuBadge>{item.badge > 99 ? '99+' : item.badge}</S.MenuBadge>
-                        )}
                       </S.MenuItem>
                     ))}
                   </S.MenuGroup>
@@ -182,7 +179,6 @@ export const WorkspaceSidebar: React.FC = () => {
             showBorder
             referrerPolicy="no-referrer"
           />
-          {vm.hasMenuBadge && <S.UserBadgeDot />}
 
           {!vm.collapsed && (
             <>

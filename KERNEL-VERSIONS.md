@@ -18,6 +18,14 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.103.0] — 2026-10-14
+
+- feat(ui.nav): `requiresSystemAdmin`, as on `ui.menu` and `ui.page` — the entry shows only to the global administrator. `KERNEL_VERSION` goes to `2.41.0` (additive).
+- feat(core.ui): declares two more sidebar groups, `CUSTOMIZATION_NAV_GROUP` (order 102) and `AUTOMATION_NAV_GROUP` (order 106), both exported by the SDK.
+- refactor(user-menu): the platform's tools moved from `ui.menu` (user menu) to `ui.nav`, keeping their permissions: Form Design, Document templates and Extensions join `customization`; Workflows, Scripts, Actions and Data processor join `automation`; Access management joins `admin`. The platform now puts only Profile in the user menu. A stored user-menu layout that lists the moved keys keeps working — the missing items are skipped.
+- refactor(sidebar): the pending-extension-updates badge moved from the user menu to the Extensions sidebar entry; the user-menu badge (and its dot on the avatar) is gone, having no other source.
+- chore(i18n): `com.microteia.locale-pt-br` 1.89.0 carries the new group names.
+
 #### [9.102.0] — 2026-10-14
 
 - feat(ui.nav.group): new extension point for titled, collapsible sidebar groups — `key`, `label`, `order`, `defaultCollapsed` — with the `navGroup()` constructor. A `ui.nav` entry joins one with the new optional `group`. Group keys are universal: the same key declared by several packages is one group, labelled and placed by the first loaded. An entry whose group is not declared stays loose at its own `order`; a group with one visible entry draws no header; a group with none is not drawn. `KERNEL_VERSION` goes to `2.40.0` (additive).
