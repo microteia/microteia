@@ -9,6 +9,11 @@ export interface FunctionDeployOptions {
   delaySeconds: number;
   /** `--force` deixa o Firebase configurar sozinho a política de limpeza do Artifact Registry. */
   force: boolean;
+  /**
+   * As functions que ainda têm cópia numa região abandonada, como `clearRegionOrphans` devolve;
+   * `null` quando não deu para saber. Só fora dele a recusa da política de repetição é contornada.
+   */
+  standingCopies: ReadonlySet<string> | null;
 }
 
 export interface FunctionDeployFailure {
@@ -138,6 +143,19 @@ export interface TerminalFailure {
   hint: string[];
 }
 
+/**
+ * A recusa do `firebase` sem terminal diante de uma function que passa a ter `retry`.
+ *
+ * Com terminal ele pergunta "Would you like to proceed with deployment?"; sem, recusa e pede
+ * `--force`. A pergunta é sobre o que o PRÓPRIO código declarou (`retry: true` no gatilho), e quem
+ * declarou já respondeu: repetir a entrega é o que torna o gatilho confiável. Por isso a recusa é
+ * contornada com `--force` naquela function, e só nela — e só quando não há cópia dela em outra
+ * região, porque o mesmo `--force` faria o `firebase` apagar essa cópia sem perguntar.
+ *
+ * A pergunta só existe na primeira vez: com a function no ar já com `retry`, ela não volta.
+ */
+export const FAILURE_POLICY_REFUSAL = /Pass the --force option to deploy functions with a failure policy/;
+
 const TERMINAL_FAILURES: TerminalFailure[] = [
   {
     match: /Aborting because deletion cannot proceed in non-interactive mode/,
@@ -145,6 +163,15 @@ const TERMINAL_FAILURES: TerminalFailure[] = [
       'The project holds a copy of this function that the source no longer declares — almost always',
       'a leftover in a region the package moved away from. The Firebase CLI will not deploy over it',
       'and cannot ask for permission here, so it refuses. Delete the old copy:',
+      '  microteia deploy --prune',
+    ],
+  },
+  {
+    match: FAILURE_POLICY_REFUSAL,
+    hint: [
+      'The function now retries failed deliveries, and the Firebase CLI asks to confirm that once.',
+      'It was not confirmed here because the project may still hold a copy of the function in another',
+      'region, which the same confirmation would delete without asking. Remove old copies first:',
       '  microteia deploy --prune',
     ],
   },
@@ -176,9 +203,10 @@ export const terminalFailure = (output: string): TerminalFailure | undefined => 
 const deployOne = async (
   name: string,
   options: FunctionDeployOptions,
+  force = options.force,
 ): Promise<{ ok: boolean; output: string; notices: string[]; seconds: number }> => {
   const args = ['deploy', '--only', `functions:${name}`, '--project', options.projectId];
-  if (options.force) args.push('--force');
+  if (force) args.push('--force');
 
   const startedAt = Date.now();
   const result = await capture(FIREBASE_BIN, args, { cwd: options.cwd });
@@ -191,6 +219,15 @@ const deployOne = async (
     seconds: Math.round((Date.now() - startedAt) / 1000),
   };
 };
+
+export const mayConfirmRetryPolicy = (
+  name: string,
+  output: string,
+  options: FunctionDeployOptions,
+): boolean => !options.force
+  && options.standingCopies !== null
+  && !options.standingCopies.has(name)
+  && FAILURE_POLICY_REFUSAL.test(stripVTControlCharacters(output));
 
 export const deployFunctionsOneByOne = async (
   names: string[],
@@ -221,8 +258,14 @@ export const deployFunctionsOneByOne = async (
       const label = `[${index + 1}/${remaining.length}] ${name}`;
 
       pending(label);
-      const { ok, output, notices: given, seconds } = await deployOne(name, options);
+      let { ok, output, notices: given, seconds } = await deployOne(name, options);
       for (const notice of given) notices.add(notice);
+
+      if (!ok && mayConfirmRetryPolicy(name, output, options)) {
+        info(`        ${name} now retries failed deliveries, as its source declares: confirming it`);
+        ({ ok, output, notices: given, seconds } = await deployOne(name, options, true));
+        for (const notice of given) notices.add(notice);
+      }
 
       if (ok) {
         success(`${label} (${seconds}s)`);

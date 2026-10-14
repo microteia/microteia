@@ -2,7 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { repoRoot } from '../shared/paths.js';
-import { failureReason, stripNotices, terminalFailure } from './deployFunctions.js';
+import {
+  failureReason,
+  mayConfirmRetryPolicy,
+  stripNotices,
+  terminalFailure,
+  type FunctionDeployOptions,
+} from './deployFunctions.js';
 
 /**
  * A saída de um `firebase deploy --only functions:<nome>` que falhou porque a mesma function ainda
@@ -187,5 +193,47 @@ describe('a segunda passada só volta ao que repetir pode consertar', () => {
 
     expect(source).toContain('if (terminal === undefined && pass === 1)');
     expect(source).toContain('retryable.push(name)');
+  });
+});
+
+describe('a política de repetição que a própria fonte declara é confirmada sem terminal', () => {
+  /**
+   * O caso real: `runAggregateBackfill` e `runRecordKeyAdoption` declaram `retry: true`. Com
+   * terminal, o `firebase` pergunta uma vez e o "Y" publica; sem terminal, ele recusa e pede
+   * `--force` — e as duas ficavam fora do ar em todo `microteia deploy`.
+   */
+  const refusal = [
+    '⚠  functions: The following functions will newly be retried in case of failure:'
+      + ' runAggregateBackfill(southamerica-east1).',
+    '',
+    'Error: Pass the --force option to deploy functions with a failure policy',
+  ].join('\n');
+
+  const options = (standingCopies: ReadonlySet<string> | null, force = false): FunctionDeployOptions => ({
+    projectId: 'office',
+    cwd: '.',
+    delaySeconds: 0,
+    force,
+    standingCopies,
+  });
+
+  it('confirma quando a function não tem cópia em outra região', () => {
+    expect(mayConfirmRetryPolicy('runAggregateBackfill', refusal, options(new Set()))).toBe(true);
+  });
+
+  it('não confirma quando há cópia de pé em outra região, que o mesmo --force apagaria', () => {
+    const standing = new Set(['runAggregateBackfill']);
+
+    expect(mayConfirmRetryPolicy('runAggregateBackfill', refusal, options(standing))).toBe(false);
+    expect(terminalFailure(refusal)?.hint.join(' ')).toContain('microteia deploy --prune');
+  });
+
+  it('não confirma quando não deu para saber o que o projeto roda', () => {
+    expect(mayConfirmRetryPolicy('runAggregateBackfill', refusal, options(null))).toBe(false);
+  });
+
+  it('não repete o que já subiu com --force, nem confirma outra recusa', () => {
+    expect(mayConfirmRetryPolicy('runAggregateBackfill', refusal, options(new Set(), true))).toBe(false);
+    expect(mayConfirmRetryPolicy('runAggregateBackfill', deletionAbortStdout, options(new Set()))).toBe(false);
   });
 });

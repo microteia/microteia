@@ -568,9 +568,9 @@ export const provisionBackend = async (options: ProvisionOptions): Promise<Provi
 
     // A extensão que mudou de região deixa a cópia antiga para trás igual ao kernel, e ali o efeito
     // é o mesmo: deploy recusado em toda tentativa, e gatilho disparando em duas regiões.
-    await clearRegionOrphans(projectId, toDeploy, region, options.prune, await projectFunctions());
+    const standingCopies = await clearRegionOrphans(projectId, toDeploy, region, options.prune, await projectFunctions());
 
-    const deployOptions = { projectId, cwd: install, delaySeconds, force: false };
+    const deployOptions = { projectId, cwd: install, delaySeconds, force: false, standingCopies };
     if (!probing) info(`  deploying ${toDeploy.length} function(s), one at a time…`);
     const report = probing
       ? await deployFunctionsThatChanged(toDeploy, deployOptions, {

@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.100.2] — 2026-10-14
+
+- Corrigida a instalação que deixava de publicar as rotinas de manutenção que se repetem sozinhas em caso de falha. Agora elas sobem no mesmo passo que as demais, sem precisar de nenhuma confirmação manual.
+
 #### [9.100.1] — 2026-10-14
 
 - Corrigida uma falha de segurança em que uma pessoa recém-cadastrada podia receber, por engano, acesso a todos os escritórios do sistema. Agora quem se cadastra tem acesso somente ao próprio escritório.

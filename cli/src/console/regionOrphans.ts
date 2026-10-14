@@ -98,8 +98,8 @@ export const settleRegionOrphans = async (
   projectId: string,
   orphans: RegionOrphan[],
   prune: boolean,
-): Promise<boolean> => {
-  if (orphans.length === 0) return true;
+): Promise<ReadonlySet<string>> => {
+  if (orphans.length === 0) return new Set();
 
   blank();
   warn(`${orphans.length} function(s) are still deployed in a region this package no longer uses:`);
@@ -116,12 +116,12 @@ export const settleRegionOrphans = async (
     info('  or one at a time:');
     bullets(orphans.map((orphan) => deleteCommand(projectId, orphan)));
     blank();
-    return false;
+    return new Set(orphans.map((orphan) => orphan.name));
   }
 
   const plural = orphans.length === 1 ? 'copy' : 'copies';
   info(`  --prune: removing the ${orphans.length} old ${plural} before deploying.`);
-  let cleared = true;
+  const standing = new Set<string>();
 
   for (const orphan of orphans) {
     const label = `${orphan.name} (${orphan.region})`;
@@ -139,17 +139,22 @@ export const settleRegionOrphans = async (
       failure(`${label} could not be removed`);
       info(`        ${failureReason(`${result.stdout}${result.stderr}`)}`);
       info(`        ${deleteCommand(projectId, orphan)}`);
-      cleared = false;
+      standing.add(orphan.name);
     }
   }
 
   blank();
-  return cleared;
+  return standing;
 };
 
 /**
- * O passo inteiro, para quem só quer chamá-lo antes de deployar. Devolve `true` quando o caminho está
- * livre — inclusive quando não deu para verificar, pela mesma razão de `listDeployedFunctions`.
+ * O passo inteiro, para quem só quer chamá-lo antes de deployar. Devolve os nomes cuja cópia antiga
+ * CONTINUA de pé, ou `null` quando não deu para verificar — e não bloqueia o deploy em nenhum dos dois
+ * casos, pela mesma razão de `listDeployedFunctions`.
+ *
+ * O conjunto é o que autoriza o `--force` pontual de `deployFunctionsOneByOne`: com ele o `firebase`
+ * aceita a política de repetição E apaga sem perguntar a cópia de outra região, e essa segunda decisão
+ * é do escritório, pedida com `--prune`. Não saber equivale a ter cópia.
  */
 export const clearRegionOrphans = async (
   projectId: string,
@@ -162,8 +167,8 @@ export const clearRegionOrphans = async (
    * decisão passa a depender de qual delas o código olhou.
    */
   listed?: DeployedFunction[] | null,
-): Promise<boolean> => {
+): Promise<ReadonlySet<string> | null> => {
   const deployed = listed === undefined ? await listDeployedFunctions(projectId) : listed;
-  if (deployed === null) return true;
+  if (deployed === null) return null;
   return settleRegionOrphans(projectId, regionOrphans(deployed, wanted, region), prune);
 };

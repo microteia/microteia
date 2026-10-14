@@ -18,6 +18,10 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.100.2] — 2026-10-14
+
+- fix(cli/deploy): ships with Console 2.28.1, which deploys `runAggregateBackfill` and `runRecordKeyAdoption` (both declare `retry: true`) instead of leaving them out of every `microteia deploy`. No kernel change.
+
 #### [9.100.1] — 2026-10-14
 
 - fix(functions/auth): `createUserIfMissing` no longer grants `SYSTEM` just because `system/bootstrap` is missing. Databases that predate the marker (introduced with tenant-defined roles, KERNEL_VERSION 2.0.0) do not have it, so the first sign-up after upgrading became a global `SYSTEM` user with access to every tenant. When the marker is absent, the same transaction now also checks that no `users` and no `tenants` document exists; otherwise the installation is treated as pre-existing, the marker is written with `claimedBy: null`, and the user is created as `USER`. Requires redeploying `onUserCreated` (`npm run deploy:auth`). Users wrongly promoted before the fix must be demoted by hand.

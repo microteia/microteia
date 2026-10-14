@@ -232,7 +232,7 @@ export const deploy = async (args: ParsedArgs): Promise<void> => {
       // ANTES de deployar: uma cópia da mesma function numa região que o pacote abandonou faz o
       // `firebase` recusar o deploy dela, tentativa após tentativa, e faz um gatilho de Firestore
       // disparar duas vezes por gravação enquanto ninguém percebe.
-      await clearRegionOrphans(projectId, own, region, hasFlag(args, 'prune'), deployedNow);
+      const standingCopies = await clearRegionOrphans(projectId, own, region, hasFlag(args, 'prune'), deployedNow);
 
       // Numa instalação nova não há carimbo nenhum com que comparar, e o mecanismo cai sozinho no
       // caminho de sempre — não é preciso um desvio para isso. `--all` é o pedido explícito de subir
@@ -242,6 +242,7 @@ export const deploy = async (args: ParsedArgs): Promise<void> => {
         cwd: install,
         delaySeconds,
         force: firstInstall,
+        standingCopies,
       }, { deployed: deployedNow, region, all: hasFlag(args, 'all') });
       refreshedStamps = report.refreshed;
       skippedFunctions = report.skipped.length;
