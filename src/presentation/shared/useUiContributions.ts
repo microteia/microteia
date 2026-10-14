@@ -21,6 +21,14 @@ export const usePageContributions = (): QualifiedContribution[] => useContributi
 
 export const useNavContributions = (): QualifiedContribution[] => useContributions(UI_NAV_POINT);
 
+// Um componente só, de módulo, para toda página em Widget DSL: a identidade não muda entre renders,
+// então o painel não desmonta a página (nem perde o estado dos filtros) quando o espaço de trabalho muda.
+const WidgetPage: PageComponent = ({ tabKey }) => {
+  const contributions = usePageContributions();
+  const impl = resolvePageContribution(contributions, tabKey)?.impl;
+  return React.createElement(WidgetRenderer, { spec: impl?.kind === 'widget' ? impl.spec : undefined });
+};
+
 export const useResolvePage = (): ((tabKey: string) => ResolvedPage | undefined) => {
   const { host } = useKernel();
   const contributions = usePageContributions();
@@ -40,8 +48,7 @@ export const useResolvePage = (): ((tabKey: string) => ResolvedPage | undefined)
           : (impl as PageComponent | undefined);
       } else if (contribution.impl?.kind === 'widget') {
         // Plugin de terceiro entrega tela declarativa: o Kernel a renderiza, sem JS do plugin.
-        const spec = contribution.impl.spec;
-        Component = () => React.createElement(WidgetRenderer, { spec });
+        Component = WidgetPage;
       }
       return { metadata: contribution.metadata as unknown as UiPageMetadata, Component };
     },

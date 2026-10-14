@@ -18,6 +18,10 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.100.3] — 2026-10-14
+
+- fix(ui/page): a `ui.page` contribution with `impl.kind: 'widget'` now resolves to one stable, module-level component that reads its spec from the tab key. The resolver used to create a new component on every call, and the workspace panel calls it on every render — so any workspace change unmounted the page: `report` prompts lost their value and focus, and every report ran again. `ui.tab`, `ui.widget` and `ui.slot` specs were not affected.
+
 #### [9.100.2] — 2026-10-14
 
 - fix(cli/deploy): ships with Console 2.28.1, which deploys `runAggregateBackfill` and `runRecordKeyAdoption` (both declare `retry: true`) instead of leaving them out of every `microteia deploy`. No kernel change.

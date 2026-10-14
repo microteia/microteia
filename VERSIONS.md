@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.100.3] — 2026-10-14
+
+- Corrigidas as páginas de relatórios montadas pelas extensões, como as do Painel e a Pauta de audiências: os filtros voltam a aceitar datas e seleções sem a página piscar, perder o que foi preenchido ou recarregar os relatórios.
+
 #### [9.100.2] — 2026-10-14
 
 - Corrigida a instalação que deixava de publicar as rotinas de manutenção que se repetem sozinhas em caso de falha. Agora elas sobem no mesmo passo que as demais, sem precisar de nenhuma confirmação manual.
