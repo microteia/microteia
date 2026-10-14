@@ -18,6 +18,10 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.100.1] — 2026-10-14
+
+- fix(functions/auth): `createUserIfMissing` no longer grants `SYSTEM` just because `system/bootstrap` is missing. Databases that predate the marker (introduced with tenant-defined roles, KERNEL_VERSION 2.0.0) do not have it, so the first sign-up after upgrading became a global `SYSTEM` user with access to every tenant. When the marker is absent, the same transaction now also checks that no `users` and no `tenants` document exists; otherwise the installation is treated as pre-existing, the marker is written with `claimedBy: null`, and the user is created as `USER`. Requires redeploying `onUserCreated` (`npm run deploy:auth`). Users wrongly promoted before the fix must be demoted by hand.
+
 #### [9.100.0] — 2026-10-13
 
 - feat(ui.nav, ui.menu): a menu entry names ONE target — `key` (a tab a `ui.page` draws), `screen` (the key of a screen of the package; opens its list) or `screenSourceId` (a screen's universal id, for a dependency's screen). `screen` is rewritten to `screenSourceId` when the package is loaded (`withResolvedNavScreens`), and the shell resolves it against the organization's screens AFTER key disambiguation, so the entry keeps working when the installed key becomes `products_2`. The author never writes `dyn:`. `badge` is unchanged. A `nav({ screen })` over a screen that does not hide itself replaces its automatic sidebar entry instead of adding a second one. New type `UiNavTarget` in `@microteia/sdk`; `KERNEL_VERSION` goes to `2.38.0` (additive).

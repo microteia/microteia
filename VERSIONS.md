@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.100.1] — 2026-10-14
+
+- Corrigida uma falha de segurança em que uma pessoa recém-cadastrada podia receber, por engano, acesso a todos os escritórios do sistema. Agora quem se cadastra tem acesso somente ao próprio escritório.
+
 #### [9.100.0] — 2026-10-13
 
 - Corrigido um problema em que um item do menu, trazido por uma extensão, abria uma aba em branco. Agora a extensão não é aceita enquanto o item não levar a uma página de verdade, e uma aba sem conteúdo explica o que aconteceu e qual extensão a abriu.

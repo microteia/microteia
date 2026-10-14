@@ -37,6 +37,11 @@ export class FirebaseUserRepository implements IUserRepository {
    *
    * `system/` é coleção de raiz sem regra nenhuma: o Firestore nega o que ninguém libera, então só o
    * Admin SDK a alcança.
+   *
+   * A AUSÊNCIA da marca não basta para provar que a instalação é nova: um banco anterior a ela não a
+   * tem, e o primeiro login novo depois do deploy virava `SYSTEM` — com acesso a todos os
+   * escritórios. Por isso, sem marca, ainda se confere na mesma transação que não há usuário nem
+   * escritório algum. Havendo, a instalação é antiga: a marca é gravada sem dono e a porta se fecha.
    */
   async createUserIfMissing(userId: string, data: CreateUserInput): Promise<boolean> {
     const userRef = this.db.collection('users').doc(userId);
@@ -47,9 +52,17 @@ export class FirebaseUserRepository implements IUserRepository {
       if (userSnap.exists) return false;
 
       const bootstrapSnap = await tx.get(bootstrapRef);
-      const isFirstUser = !bootstrapSnap.exists;
-      if (isFirstUser) {
-        tx.set(bootstrapRef, { claimedBy: userId, claimedAt: FieldValue.serverTimestamp() });
+      let isFirstUser = false;
+      if (!bootstrapSnap.exists) {
+        const [anyUser, anyTenant] = await Promise.all([
+          tx.get(this.db.collection('users').limit(1)),
+          tx.get(this.db.collection('tenants').limit(1)),
+        ]);
+        isFirstUser = anyUser.empty && anyTenant.empty;
+        tx.set(bootstrapRef, {
+          claimedBy: isFirstUser ? userId : null,
+          claimedAt: FieldValue.serverTimestamp(),
+        });
       }
 
       tx.set(userRef, {
