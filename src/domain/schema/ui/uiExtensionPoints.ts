@@ -60,8 +60,24 @@ export interface UiNavBadge {
   when?: string;
 }
 
-export interface UiNavMetadata {
-  key: string;
+/**
+ * PARA ONDE um item de menu leva — UM destes três, nunca dois.
+ *
+ * `key` é a chave de uma aba que um `ui.page` desenha (deste pacote, de uma dependência ou do kernel).
+ * `screen` é a chave de uma tela DESTE pacote, e abre a lista dela; `screenSourceId` é o id universal
+ * de uma tela, e serve para a de uma dependência. Os dois últimos existem porque a aba da lista de uma
+ * tela é `dyn:<chave instalada>`, e a chave instalada só se conhece depois da instalação — ela ganha
+ * sufixo quando o nome está ocupado. Quem escrevia `key: 'produtos'` ganhava um item que abria uma aba
+ * que nenhuma página desenha; quem escrevia `dyn:produtos` ganhava um que quebrava no escritório em que
+ * a tela virou `produtos_2`.
+ */
+export interface UiNavTarget {
+  key?: string;
+  screen?: string;
+  screenSourceId?: string;
+}
+
+export interface UiNavMetadata extends UiNavTarget {
   label: string;
   icon: string;
   order: number;
@@ -187,11 +203,12 @@ export interface UiSlotMetadata {
  * um item de menu que pudesse executar qualquer coisa exigiria código, e código é privilégio de
  * primeira parte — o menu deixaria de estar ao alcance de quem só declara.
  *
- * `openTab` abre uma tela do workspace pela chave dela; `url` abre um endereço, que é o que uma
- * instalação precisa para ligar o próprio intranet, o próprio suporte, o próprio manual.
+ * `openTab` abre uma tela do workspace pela chave dela (`tabKey`) ou a lista de uma tela de dados
+ * (`screen` / `screenSourceId`, ver `UiNavTarget`); `url` abre um endereço, que é o que uma instalação
+ * precisa para ligar o próprio intranet, o próprio suporte, o próprio manual.
  */
 export type UiMenuAction =
-  | { kind: 'openTab'; tabKey: string }
+  | { kind: 'openTab'; tabKey?: string; screen?: string; screenSourceId?: string }
   | { kind: 'url'; href: string; newTab?: boolean };
 
 /**

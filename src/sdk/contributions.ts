@@ -68,9 +68,14 @@ export const widgetPage = (metadata: UiPageMetadata, spec: WidgetSpec): Contribu
   impl: { kind: 'widget', spec: spec as unknown as Record<string, unknown> },
 });
 
+/**
+ * Um item da barra lateral. O alvo é UM de três: `key` (uma aba que um `ui.page` desenha), `screen` (a
+ * chave de uma tela deste pacote — abre a lista dela) ou `screenSourceId` (o id universal de uma tela,
+ * para a de uma dependência). Ver `UiNavTarget`.
+ */
 export const nav = (metadata: UiNavMetadata): Contribution => ({
   point: UI_NAV_POINT,
-  id: slug(metadata.key),
+  id: slug(metadata.key ?? metadata.screen ?? metadata.screenSourceId ?? ''),
   apiVersion: UI_API_VERSION,
   metadata: { ...metadata } as unknown as Record<string, unknown>,
 });

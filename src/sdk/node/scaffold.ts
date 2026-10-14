@@ -77,7 +77,11 @@ const pluginTs = (spec: PluginSpec): string => {
 
   const contributions = [
     ...(spec.screen
-      ? [`      nav({ key: COLLECTION, label: label('nav.label'), icon: 'star', order: 50 }),`]
+      ? [
+        `      // screen: opens the list of a screen of THIS package. Never key: the list is a tab only the`,
+        `      // installation can name, because the screen's key may change there.`,
+        `      nav({ screen: COLLECTION, label: label('nav.label'), icon: 'star', order: 50 }),`,
+      ]
       : []),
     ...(spec.view
       ? [`      page({ key: '${folder}-summary', title: label('page.summary'), icon: 'chart' }, '${folder}-summary'),`]

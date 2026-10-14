@@ -274,14 +274,21 @@ export const useSurfaceSlots = (surface: string): SurfaceSlotDescriptor[] =>
 
 /**
  * A `action` chega de metadata solta (o `.json` de um terceiro): só entra se for uma das formas
- * fechadas. Ação irreconhecível descarta o ITEM, e não o menu — um item que não sabe o que faz é
+ * fechadas — e a de `openTab` com UM alvo só, `tabKey`, `screen` ou `screenSourceId`. Ação irreconhecível descarta o ITEM, e não o menu — um item que não sabe o que faz é
  * pior que um item ausente, porque promete algo ao ser clicado.
  */
+const nonEmpty = (value: unknown): string | undefined =>
+  typeof value === 'string' && value !== '' ? value : undefined;
+
 const asMenuAction = (value: unknown): UiMenuAction | null => {
   if (!value || typeof value !== 'object') return null;
   const candidate = value as Record<string, unknown>;
-  if (candidate.kind === 'openTab' && typeof candidate.tabKey === 'string' && candidate.tabKey !== '') {
-    return { kind: 'openTab', tabKey: candidate.tabKey };
+  if (candidate.kind === 'openTab') {
+    const tabKey = nonEmpty(candidate.tabKey);
+    const screen = nonEmpty(candidate.screen);
+    const screenSourceId = nonEmpty(candidate.screenSourceId);
+    if ([tabKey, screen, screenSourceId].filter((target) => target !== undefined).length !== 1) return null;
+    return { kind: 'openTab', tabKey, screen, screenSourceId };
   }
   if (candidate.kind === 'url' && typeof candidate.href === 'string' && candidate.href !== '') {
     return { kind: 'url', href: candidate.href, newTab: candidate.newTab === true };

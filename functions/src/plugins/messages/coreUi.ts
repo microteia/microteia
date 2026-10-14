@@ -286,6 +286,11 @@ export const CORE_UI_MESSAGES: Record<string, string> = {
   'status.command-palette': '⌘K Command palette',
   'status.terms': 'Terms and Privacy',
   'workspace.empty': 'Click an item in the menu to open it',
+  'workspace.missing-page.title': 'Nothing draws this tab',
+  'workspace.missing-page':
+    'No page is registered for the tab "{key}". The item that opened it points at a page that is not installed in this organization.',
+  'workspace.missing-page.from':
+    'No page is registered for the tab "{key}", which the extension "{extension}" put in a menu. The extension needs to point the item at a page it draws, or at a screen with screen: "<screen key>".',
   'error.db-connect': 'Failed to connect to the database',
   'notification.hidden.one': '+{count} hidden message',
   'notification.hidden.other': '+{count} hidden messages',

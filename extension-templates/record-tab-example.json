@@ -1,8 +1,8 @@
 {
   "manifest": {
     "id": "com.microteia.record-tab-example",
-    "version": "1.0.1",
-    "kernel": "^2.19.0",
+    "version": "1.1.0",
+    "kernel": "^2.38.0",
     "name": "@com.microteia.record-tab-example/package.name",
     "description": "@com.microteia.record-tab-example/package.description",
     "category": "@com.microteia.record-tab-example/package.category",
@@ -29,6 +29,7 @@
             "screen.project.plural": "Projects",
             "screen.milestone": "Milestone",
             "screen.milestone.plural": "Milestones",
+            "nav.milestones": "Milestones",
             "field.name": "Name",
             "field.description": "Description",
             "field.title": "Title",
@@ -70,6 +71,7 @@
             "screen.project.plural": "Projetos",
             "screen.milestone": "Marco",
             "screen.milestone.plural": "Marcos",
+            "nav.milestones": "Marcos",
             "field.name": "Nome",
             "field.description": "Descrição",
             "field.title": "Título",
@@ -110,6 +112,21 @@
         "impl": {
           "kind": "code",
           "key": "timeline"
+        }
+      },
+      {
+        "point": "ui.nav",
+        "id": "recordtabmilestone",
+        "apiVersion": "1.0.0",
+        "metadata": {
+          "screen": "recordTabMilestone",
+          "label": "@com.microteia.record-tab-example/nav.milestones",
+          "icon": "flag",
+          "order": 60,
+          "badge": {
+            "collection": "recordTabMilestone",
+            "when": "done != true"
+          }
         }
       },
       {
@@ -239,7 +256,8 @@
         }
       ],
       "titleFieldKey": "title",
-      "eventPrefix": "recordTabMilestone"
+      "eventPrefix": "recordTabMilestone",
+      "hideFromSidebar": true
     }
   ],
   "views": [

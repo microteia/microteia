@@ -332,6 +332,16 @@ export const CORE_MARKETPLACE: Record<string, string> = {
   'issue.migration.version-invalid': 'A migração de dados "{id}" declara a versão "{version}", que não é um semver válido.',
   'issue.package.icon.unknown':
     'O ícone "{icon}" ({where}) não está no catálogo da plataforma. A instalação desenharia o marcador genérico no lugar dele. Peça `list_icons` ao servidor MCP microteia-plugin para ver todas as chaves.',
+  'issue.package.nav.dangling':
+    'O item de menu "{key}" abre uma aba que nenhuma página desenha; para abrir a lista de uma tela, use screen: "<chave da tela>".',
+  'issue.package.nav.dangling.screen':
+    'O item de menu "{key}" abre uma aba que nenhuma página desenha; para abrir a lista da tela "{screen}", use screen: "{screen}".',
+  'issue.package.nav.screen-unknown':
+    'O item de menu "{id}" abre a tela "{screen}", que este pacote não declara. screen: recebe a chave de uma das telas do próprio pacote.',
+  'issue.package.nav.source-id-unknown':
+    'O item de menu "{id}" abre a tela de sourceId "{sourceId}", que nem este pacote nem uma dependência declarada declaram.',
+  'issue.package.nav.target':
+    'O item de menu "{id}" ({where}) precisa nomear exatamente um alvo: key (tabKey, numa ação de ui.menu), screen ou screenSourceId.',
   'issue.package.near-limit':
     'O pacote tem {size}. Acima de {limit} ele deixa de caber no documento da instalação — convém dividi-lo antes de crescer mais.',
   'issue.package.no-manifest': 'A extensão não tem um manifest com "id".',

@@ -339,6 +339,16 @@ export const CORE_MARKETPLACE_MESSAGES: Record<string, string> = {
   'issue.migration.version-invalid': 'Data migration "{id}" declares version "{version}", which is not a valid semver.',
   'issue.package.icon.unknown':
     'Icon "{icon}" ({where}) is not in the platform catalogue. The installation would draw the generic marker instead. Ask the microteia-plugin MCP server for list_icons to see every key.',
+  'issue.package.nav.dangling':
+    'The menu item "{key}" opens a tab no page draws; to open the list of a screen, use screen: "<screen key>".',
+  'issue.package.nav.dangling.screen':
+    'The menu item "{key}" opens a tab no page draws; to open the list of the screen "{screen}", use screen: "{screen}".',
+  'issue.package.nav.screen-unknown':
+    'Menu item "{id}" opens the screen "{screen}", which this package does not declare. screen: takes the key of one of the package\'s own screens.',
+  'issue.package.nav.source-id-unknown':
+    'Menu item "{id}" opens the screen with sourceId "{sourceId}", which neither this package nor a declared dependency declares.',
+  'issue.package.nav.target':
+    'Menu item "{id}" ({where}) must name exactly one target: key (tabKey, in a ui.menu action), screen or screenSourceId.',
   'issue.package.near-limit':
     'The package is {size}. Above {limit} it stops fitting in the installation document — it is worth splitting it before it grows further.',
   'issue.package.no-manifest': 'The extension has no manifest with an "id".',

@@ -5,7 +5,7 @@ import type {
 } from '../../../../domain/entities/MarketplacePlugin';
 import type { WidgetSpec } from '../../../../domain/schema/ui/widgetSpec';
 import { recordSurface } from '../../../../domain/schema/ui/uiExtensionPoints';
-import { surfaceTab, surfaceTabSpec } from '../../../contributionBuilders';
+import { nav, surfaceTab, surfaceTabSpec } from '../../../contributionBuilders';
 import { mergeViewSources } from '../../../../sdk/mergeSources';
 import TIMELINE_VIEW from './views/Timeline.view.tsx?raw';
 import TIMELINE_VIEWMODEL from './views/Timeline.viewmodel.tsx?raw';
@@ -22,6 +22,7 @@ import { recordTabPtBrContribution } from './recordTabMessagesPtBr';
  * | a tab with its own look | `surfaceTab(metadata, viewKey)` + a view that receives `RecordTabProps` |
  * | a tab with no code | `surfaceTabSpec(metadata, spec)` — a Widget DSL tree, which receives no data |
  * | the children of the open record | `useEntityList(sourceId, { parent: { fieldKey, recordId } })` |
+ * | a menu entry, with a badge, for a screen with no view | `nav({ screen: '<screen key>', badge })` |
  *
  * The tab is addressed by the screen's `sourceId`, never by its installed key: the key may be
  * disambiguated on install, the `sourceId` does not change. That is also what lets a tab go on a screen
@@ -90,6 +91,8 @@ const MILESTONE_SCREEN: ScreenModuleTemplate = {
   fields: MILESTONE_FIELDS,
   titleFieldKey: 'title',
   eventPrefix: 'recordTabMilestone',
+  // The menu entry is declared below with `nav({ screen })`, because that is how it gets a badge.
+  hideFromSidebar: true,
 };
 
 const ABOUT: WidgetSpec = {
@@ -114,8 +117,8 @@ const TIMELINE_SOURCE = mergeViewSources({
 export const recordTabExamplePlugin: MarketplacePlugin = {
   manifest: {
     id: 'com.microteia.record-tab-example',
-    version: '1.0.1',
-    kernel: '^2.19.0',
+    version: '1.1.0',
+    kernel: '^2.38.0',
     name: message('package.name'),
     description: message('package.description'),
     category: message('package.category'),
@@ -141,6 +144,23 @@ export const recordTabExamplePlugin: MarketplacePlugin = {
         },
         'timeline',
       ),
+
+      /**
+       * A menu entry for a screen this package draws NO view for. `screen` names the screen by its key
+       * in this package, and the installation opens its list — whatever key the screen ends up with
+       * there. Writing `key: 'recordTabMilestone'` instead would open a tab no page draws: a screen's
+       * key is not a tab key, and `check` refuses it.
+       *
+       * The screen hides itself from the sidebar (`hideFromSidebar`) so this is its only entry: the one
+       * that carries the badge — the milestones still open.
+       */
+      nav({
+        screen: 'recordTabMilestone',
+        label: message('nav.milestones'),
+        icon: 'flag',
+        order: 60,
+        badge: { collection: 'recordTabMilestone', when: 'done != true' },
+      }),
 
       /** The declarative tab: no code, no trust gesture, and no data either. */
       surfaceTabSpec(

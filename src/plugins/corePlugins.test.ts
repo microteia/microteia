@@ -103,7 +103,7 @@ describe('core plugins — paridade com o registro anterior', () => {
 
     for (const contribution of host.contributions.query(UI_NAV_POINT)) {
       const target = navMetadataOf(contribution).key;
-      expect(resolvePageContribution(pages, target), `menu "${target}" sem tela`).toBeDefined();
+      expect(resolvePageContribution(pages, target ?? ''), `menu "${target}" sem tela`).toBeDefined();
     }
   });
 

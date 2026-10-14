@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.100.0] — 2026-10-13
+
+- Corrigido um problema em que um item do menu, trazido por uma extensão, abria uma aba em branco. Agora a extensão não é aceita enquanto o item não levar a uma página de verdade, e uma aba sem conteúdo explica o que aconteceu e qual extensão a abriu.
+- Os itens de menu que abrem uma lista de registros continuam funcionando mesmo quando a tela recebe outro nome ao ser instalada no escritório.
+
 #### [9.99.1] — 2026-10-13
 
 - Corrigida a ordem das listas exibidas dentro de um registro: quando uma extensão define a ordem de apresentação, ela passa a valer em qualquer lista da aba, e não só na que tem filtro.

@@ -9,6 +9,7 @@ import { useExtensionUpdates } from '../../../shared/useExtensionUpdates';
 import { navMetadataOf } from '../../../shared/resolveUiContributions';
 import { useLabel } from '../../../shared/i18n/useT';
 import { useNavBadgeCount } from '../../../shared/useNavBadgeCount';
+import { useNavTargetResolver } from '../../../shared/useNavTarget';
 import { getScreenIcon } from '../../../shared/screenIcons';
 import type { Tenant } from '../../../../domain/entities';
 
@@ -48,6 +49,7 @@ export const useTopBarViewModel = (): TopBarViewModel => {
   const { can } = useAuthorization();
   const navContributions = useNavContributions();
   const badgeCount = useNavBadgeCount();
+  const resolveTarget = useNavTargetResolver();
   const { pendingInUse: extensionUpdates } = useExtensionUpdates();
   const { unreadCriticalCount: unreadCriticalAuditCount } = useAuditLogAlert();
 
@@ -92,12 +94,16 @@ export const useTopBarViewModel = (): TopBarViewModel => {
     const contributed = navContributions
       .map(navMetadataOf)
       .filter((metadata) => !!metadata.badge)
-      .map((metadata) => ({
-        key: metadata.key,
-        label: label(metadata.label),
-        icon: getScreenIcon(metadata.icon, 18),
-        count: badgeCount(metadata.badge),
-      }));
+      .flatMap((metadata): TopBarShortcut[] => {
+        const key = resolveTarget(metadata);
+        if (key === null) return [];
+        return [{
+          key,
+          label: label(metadata.label),
+          icon: getScreenIcon(metadata.icon, 18),
+          count: badgeCount(metadata.badge),
+        }];
+      });
 
     const kernel: TopBarShortcut[] = [];
 
@@ -120,7 +126,7 @@ export const useTopBarViewModel = (): TopBarViewModel => {
     }
 
     return [...contributed, ...kernel];
-  }, [navContributions, badgeCount, label, canManageExtensions, extensionUpdates, unreadCriticalAuditCount]);
+  }, [navContributions, badgeCount, resolveTarget, label, canManageExtensions, extensionUpdates, unreadCriticalAuditCount]);
 
   const handleTenantButtonClick = useCallback(() => {
     if (availableTenants.length <= 1) return;

@@ -16,6 +16,8 @@ const RECORD_TAB_PT_BR: Record<string, string> = {
   'screen.milestone': 'Marco',
   'screen.milestone.plural': 'Marcos',
 
+  'nav.milestones': 'Marcos',
+
   'field.name': 'Nome',
   'field.description': 'Descrição',
   'field.title': 'Título',

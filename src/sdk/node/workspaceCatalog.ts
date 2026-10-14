@@ -4,6 +4,8 @@ import type { MarketplacePlugin } from '../../domain/entities/MarketplacePlugin'
 import type { SchemaLookup } from '../../domain/schema/screenEntity';
 import type { ExportedArtifact } from '../../domain/usecases/plugins/crossExtensionRefs';
 import { exportedSurface } from '../../domain/usecases/plugins/crossExtensionRefs';
+import type { NavTargetOwner } from '../../domain/usecases/plugins/navTargets';
+import { navTargetOwnerOf } from '../../domain/usecases/plugins/navTargets';
 import type { CatalogException, CatalogScreenInput, DomainCatalog } from '../domain/catalog';
 import { buildDomainCatalog, collectionOfScreen } from '../domain/catalog';
 import { DOMAIN_MODEL_FILE, parseDomainModel } from '../domain/domainModel';
@@ -119,7 +121,17 @@ export interface WorkspaceCatalog {
    * Aqui a lista vazia é AFIRMAÇÃO, ao contrário do retrato: o `plugin.ts` está na mão, e um pacote sem
    * `exports` não expõe nada mesmo.
    */
-  authored: { path: string; pluginId: string; version: string; exports: ExportedArtifact[] }[];
+  authored: {
+    path: string;
+    pluginId: string;
+    version: string;
+    exports: ExportedArtifact[];
+    /**
+     * As páginas e as telas do pacote — o que um item de menu de uma irmã que a declara em
+     * `dependencies` pode abrir. Ausente só num retrato montado à mão, e aí ela não é enxergada.
+     */
+    navTargets?: NavTargetOwner;
+  }[];
   /**
    * Os `plugin.ts` de `examples/`, como CAMINHO e nada mais.
    *
@@ -229,6 +241,7 @@ export const readWorkspaceCatalog = (
          * catálogo do pacote está em mãos neste ponto do laço e em nenhum dos dois.
          */
         exports: exportedSurface(pkg).map((one) => ({ ...one, name: describe(one.name) })),
+        navTargets: navTargetOwnerOf(pkg),
       });
     } catch (error) {
       failures.push({ path: relative(root, entry), error: error instanceof Error ? error.message : String(error) });

@@ -9,6 +9,7 @@ import { buildListTabKey } from '../../../../shared/constants/dynamicScreenKeys'
 import { getScreenIcon } from '../../../shared/screenIcons';
 import { useNavContributions } from '../../../shared/useUiContributions';
 import { useNavBadgeCount } from '../../../shared/useNavBadgeCount';
+import { menuActionTarget, useNavTargetResolver } from '../../../shared/useNavTarget';
 import { visibleNavItems } from '../../../shared/resolveUiContributions';
 import { screenReadPermission } from '../../../../domain/services/screenDataCollection';
 import { DYNAMIC_SCREEN_NAV_ORDER, USER_MENU_SURFACE } from '../../../../domain/schema/ui/uiExtensionPoints';
@@ -115,6 +116,7 @@ export const useWorkspaceSidebarViewModel = (): WorkspaceSidebarViewModel => {
    * conta falhas críticas de auditoria ainda não vistas: o único selo que resta no kernel.
    */
   const badgeCount = useNavBadgeCount();
+  const resolveTarget = useNavTargetResolver();
   const kernelBadge = useCallback((key: string): number => {
     if (key === 'audit-logs') return unreadCriticalAuditCount;
     return 0;
@@ -123,19 +125,31 @@ export const useWorkspaceSidebarViewModel = (): WorkspaceSidebarViewModel => {
   const label = useLabel();
 
   const navItems = useMemo(() => {
-    const contributed = visibleNavItems(navContributions, canAny).map((item) => ({
-      key: item.key,
-      label: label(item.label),
-      icon: getScreenIcon(item.icon, 20),
-      order: item.order,
-      badge: item.badge ? badgeCount(item.badge) : kernelBadge(item.key),
-    }));
+    // O item que não leva a lugar nenhum neste escritório não aparece: a tela que ele aponta foi
+    // desligada, ou a pessoa não pode lê-la.
+    const contributed = visibleNavItems(navContributions, canAny).flatMap((item) => {
+      const key = resolveTarget(item);
+      if (key === null) return [];
+      return [{
+        key,
+        label: label(item.label),
+        icon: getScreenIcon(item.icon, 20),
+        order: item.order,
+        badge: item.badge ? badgeCount(item.badge) : kernelBadge(key),
+      }];
+    });
+    const contributedKeys = new Set(contributed.map((item) => item.key));
 
     // Ver a tela é ler a coleção dela. O item aparecia para quem não tinha `<coleção>.read`, e o
     // que a pessoa encontrava ao clicar era uma lista permanentemente vazia — a regra do servidor
     // negava tudo, mas o menu prometia. Aqui não há `canAny` porque não há alternativa: é UMA
     // permissão, a mesma que o catálogo derivou da tela.
-    const dynamicItems = sidebarScreens.filter((def) => can(screenReadPermission(def))).map((def) => ({
+    // A tela que uma extensão já pôs no menu com `nav({ screen })` não ganha um segundo item: o
+    // declarado vence, porque é ele que carrega o selo e a posição.
+    const dynamicItems = sidebarScreens
+      .filter((def) => can(screenReadPermission(def)))
+      .filter((def) => !contributedKeys.has(buildListTabKey(def.id)))
+      .map((def) => ({
       key: buildListTabKey(def.id),
       // Tela do escritório: `titlePlural` é texto digitado por ele, nunca referência — `label` o
       // devolve intacto. Passa pela mesma função só para haver UM caminho de rótulo, não dois.
@@ -148,7 +162,7 @@ export const useWorkspaceSidebarViewModel = (): WorkspaceSidebarViewModel => {
     return [...contributed, ...dynamicItems]
       .sort((a, b) => a.order - b.order)
       .map(({ key, label, icon, badge }): NavItem => ({ key, label, icon, badge }));
-  }, [navContributions, canAny, can, sidebarScreens, badgeCount, kernelBadge, label]);
+  }, [navContributions, canAny, can, sidebarScreens, badgeCount, kernelBadge, resolveTarget, label]);
 
   const toggleCollapse = useCallback(() => setCollapsed(c => !c), []);
 
@@ -184,8 +198,9 @@ export const useWorkspaceSidebarViewModel = (): WorkspaceSidebarViewModel => {
       .map((entry) => byKey.get(entry.key))
       .filter((item): item is SurfaceMenuItemDescriptor => !!item)
       .filter((item) => !item.requiresSystemAdmin || isSystemAdmin)
-      .filter((item) => !item.requiredPermissions?.length || canAny(item.requiredPermissions));
-  }, [registeredMenuItems, menuEntries, isSystemAdmin, canAny]);
+      .filter((item) => !item.requiredPermissions?.length || canAny(item.requiredPermissions))
+      .filter((item) => item.action.kind !== 'openTab' || resolveTarget(menuActionTarget(item.action)) !== null);
+  }, [registeredMenuItems, menuEntries, isSystemAdmin, canAny, resolveTarget]);
 
   /**
    * O selo de um item do MENU DO USUÁRIO. Hoje há um: as extensões com atualização à espera. Ele não
@@ -225,14 +240,15 @@ export const useWorkspaceSidebarViewModel = (): WorkspaceSidebarViewModel => {
     closeMenu();
     if (!item) return;
     if (item.action.kind === 'openTab') {
-      openTab(item.action.tabKey);
+      const tabKey = resolveTarget(menuActionTarget(item.action));
+      if (tabKey !== null) openTab(tabKey);
       return;
     }
     // `noopener` sempre: o endereço é declarado por uma extensão, e a página aberta não pode alcançar
     // esta pela `window.opener`.
     if (item.action.newTab) window.open(item.action.href, '_blank', 'noopener,noreferrer');
     else window.location.assign(item.action.href);
-  }, [visibleMenuItems, openTab, closeMenu]);
+  }, [visibleMenuItems, openTab, closeMenu, resolveTarget]);
 
   const handleSetTheme = useCallback((id: string) => {
     setTheme(id);

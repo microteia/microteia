@@ -5,6 +5,7 @@ import type { PanelNode, PanelSplit } from '../../../../stores/useWorkspace';
 import { Spinner } from '../../ui/Spinner';
 import { useResolvePage } from '../../../shared/useUiContributions';
 import { TabBar } from '../TabBar';
+import { MissingPage } from '../MissingPage';
 import { useSplitResizerViewModel } from './WorkspacePanelNode.viewmodel';
 import { S } from './WorkspacePanelNode.styles';
 
@@ -41,7 +42,15 @@ const PanelLeaf: React.FC<{ panelId: string }> = ({ panelId }) => {
           </S.EmptyPanel>
         ) : (
           tabKeys.map((tabKey) => {
-            const PageComponent = resolvePage(tabKey)?.Component;
+            const resolved = resolvePage(tabKey);
+            if (!resolved) {
+              return (
+                <S.TabPane key={tabKey} $active={tabKey === activeKey}>
+                  <MissingPage tabKey={tabKey} />
+                </S.TabPane>
+              );
+            }
+            const PageComponent = resolved.Component;
             if (!PageComponent) return null;
             return (
               <S.TabPane key={tabKey} $active={tabKey === activeKey}>

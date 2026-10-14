@@ -532,9 +532,10 @@ Two points let an installation look like itself rather than like the platform, a
 code. \`ui.slot\` puts content into a named region of the shell — ${shellSurfaces()} — and
 \`ui.menu\` adds an entry to a menu, today \`${USER_MENU_SURFACE}\`.
 
-A menu entry declares what it does through \`action\`: \`{ kind: 'openTab', tabKey }\` opens one of your
-screens, \`{ kind: 'url', href, newTab }\` opens an address. Nothing else runs — which is why the menu
-is open to a package that ships no JavaScript at all.
+A menu entry declares what it does through \`action\`: \`{ kind: 'openTab', tabKey }\` opens a tab a
+\`ui.page\` draws, \`{ kind: 'openTab', screen }\` opens the list of one of your screens (the same target
+as \`nav()\`, see "Where a menu entry leads" below), \`{ kind: 'url', href, newTab }\` opens an address.
+Nothing else runs — which is why the menu is open to a package that ships no JavaScript at all.
 
 Both are toggled and ordered by the organization, from Settings, under the region's own key
 (\`<surface>.slots\`, \`<surface>.items\`). Declare \`order\` and \`defaultEnabled\` and you have said
@@ -655,13 +656,13 @@ id is the whole of how an update recognises the same contribution across version
 
 | Constructor | Point | What it delivers |
 |---|---|---|
-| \`nav(metadata)\` | \`ui.nav\` | a menu entry — \`key\`, \`label\`, \`icon\`, \`order\`, optional \`badge\` |
+| \`nav(metadata)\` | \`ui.nav\` | a menu entry — ONE target (\`key\`, \`screen\` or \`screenSourceId\`, below), \`label\`, \`icon\`, \`order\`, optional \`badge\` |
 | \`page(metadata, viewKey)\` | \`ui.page\` | a workspace screen drawn by one of your \`views\` (§7) |
 | \`widgetPage(metadata, spec)\` | \`ui.page\` | a workspace screen declared in Widget DSL — no code, no review |
 | \`surfaceTab(metadata, viewKey)\` · \`surfaceTabSpec(metadata, spec)\` | \`ui.tab\` | a tab on a surface, as code or as Widget DSL |
 | \`surfaceWidget(metadata, viewKey)\` · \`surfaceWidgetSpec(metadata, spec)\` | \`ui.widget\` | a widget on a surface, as code or as Widget DSL |
 | \`surfaceSlot(metadata, viewKey)\` · \`surfaceSlotSpec(metadata, spec)\` | \`ui.slot\` | content in a named region of the shell, as code or as Widget DSL |
-| \`menuItem(metadata)\` | \`ui.menu\` | an entry in a menu — the \`action\` *is* the contribution, so no code is involved |
+| \`menuItem(metadata)\` | \`ui.menu\` | an entry in a menu — the \`action\` *is* the contribution, so no code is involved; \`openTab\` takes ONE of \`tabKey\`, \`screen\` or \`screenSourceId\` |
 | \`authProvider(metadata)\` | \`auth.provider\` | a way of signing in, corporate SSO included — declaration only |
 | \`recordAction(metadata, viewKey)\` | \`ui.record.action\` | a gesture over one record, next to the platform's own |
 | \`command(id, metadata, viewKey)\` | \`ui.command\` | an entry in the command palette |
@@ -829,6 +830,37 @@ views: [{ key: 'summary', title: label('page.summary'), icon: 'lineChart', sourc
 \`sourceFile\` is an authoring field: the compiler replaces it with the file's contents. Keeping the
 code in a real \`.tsx\` is what lets \`tsc\` and your editor check the part of the extension most likely
 to be wrong.
+
+### Where a menu entry leads
+
+A \`nav()\` — and a \`menuItem()\` whose action is \`openTab\` — names exactly ONE target:
+
+| Target | Opens | Use it for |
+|---|---|---|
+| \`key: '<tab key>'\` (\`tabKey\` in a menu action) | the tab a \`ui.page\` draws — by \`key\`, or by \`keyPrefix\` | a page of this package, of a declared dependency, or of the platform (\`reports\`, \`marketplace\`, …) |
+| \`screen: '<screen key>'\` | the LIST of a screen of this package | a screen you draw no view for — usually with \`hideFromSidebar\` and a \`badge\` (§8) |
+| \`screenSourceId: '<sourceId>'\` | the list of a screen, found by its universal id | a screen of a dependency |
+
+**A screen's key is not a tab key.** The list of a screen lives in a tab only the installation can name:
+the key may gain a suffix there (\`products\` becomes \`products_2\` when the name is taken), or be the key
+of a screen the organization already had with the same \`sourceId\`. \`screen\` is resolved after all of
+that, so the entry keeps working; you never write the tab yourself.
+
+\`check\` — and the installation — refuse an entry that leads nowhere: a \`key\` that no page of this
+package, of a declared dependency or of the platform draws. When a screen of yours has that same key,
+the refusal says so and names the \`screen:\` you meant. A dependency \`check\` cannot see from here is
+reported as "cannot be checked here", never refused. And if a tab still opens with no page behind it,
+the workspace says so — the tab key and the extension that put the entry in the menu — instead of
+showing an empty panel.
+
+\`\`\`ts
+// Refused: 'recordTabMilestone' is a screen, and no page draws a tab with that key.
+nav({ key: 'recordTabMilestone', label: label('nav.milestones'), icon: 'flag', order: 60 }),
+
+// Opens the screen's list, whatever key it has in the organization.
+nav({ screen: 'recordTabMilestone', label: label('nav.milestones'), icon: 'flag', order: 60,
+  badge: { collection: 'recordTabMilestone', when: 'done != true' } }),
+\`\`\`
 
 ### A view is not a page until something points at it
 
@@ -1305,7 +1337,7 @@ is enforced at the two write paths, which is the same footing \`required\`, a ma
 | \`parentEntity\`, \`parentFieldKey\` | this screen is a CHILD: which screen, and the \`reference\` field that points at it. On an \`owned\` child the form hides that field only when it is opened from INSIDE the parent (the child tab, a list locked with \`useEntityList({ parent })\`), where it comes filled in; opened from the child's own screen, the field shows as declared, so a child with a menu of its own can still be created there |
 | \`parentRelation: 'owned' \\| 'related'\` | \`owned\` — it exists because of the parent; deleting the parent does NOT delete it (there is no cascade, see above), it is left orphaned. \`related\` — it merely points at the parent, and the gesture that fits is unlinking. A \`required\` link is treated as \`owned\` for the card gestures whatever this says: Unlink would empty a field the save refuses |
 | \`hideFromParentTabs\` | the child does not become a tab of the parent |
-| \`hideFromSidebar\`, \`sidebarOrder\` | whether a top-level screen gets its own menu entry, and where. Hide it when you declare the entry yourself with \`nav()\` — that is how a menu entry gets a badge |
+| \`hideFromSidebar\`, \`sidebarOrder\` | whether a top-level screen gets its own menu entry, and where. Hide it when you declare the entry yourself with \`nav({ screen: '<screen key>', badge })\` — that is how a menu entry gets a badge. Write \`screen\`, never \`key\`: a screen's key is not a tab key, and \`nav({ key: '<screen key>' })\` is refused (§4, "Where a menu entry leads"). A \`nav({ screen })\` over a screen that does NOT hide itself replaces its automatic entry instead of adding a second one |
 | \`hideRecordsFromCommandPalette\` | the records of this screen stay out of the command palette (⌘K) search. Declare it when a machine fills the collection — an ingestion, a mail feed — or its records crowd out what people are looking for. The screen itself is still offered ("Open …"), so a screen that also hides from the sidebar keeps one way in; lists, links, tabs and reference pickers are untouched |
 | \`recordTabPrefix\` | opening a record from outside (audit log, a mention, the command palette) lands on YOUR view instead of the form (§7) |
 | \`dataCollection\` | install the screen over a collection that already exists, instead of creating one. \`fields\` is still the complete schema of it |

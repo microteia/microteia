@@ -160,6 +160,7 @@ export type {
   UiMenuItemMetadata,
   UiNavBadge,
   UiNavMetadata,
+  UiNavTarget,
   UiPageMetadata,
   RecordTabProps,
   UiRecordActionMetadata,

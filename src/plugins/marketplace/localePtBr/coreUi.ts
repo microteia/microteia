@@ -279,6 +279,11 @@ export const CORE_UI: Record<string, string> = {
   'status.command-palette': '⌘K Paleta de comandos',
   'status.terms': 'Termos e Privacidade',
   'workspace.empty': 'Clique em um item do menu para abrir',
+  'workspace.missing-page.title': 'Nada desenha esta aba',
+  'workspace.missing-page':
+    'Nenhuma página está registrada para a aba "{key}". O item que a abriu aponta para uma página que não está instalada neste escritório.',
+  'workspace.missing-page.from':
+    'Nenhuma página está registrada para a aba "{key}", que a extensão "{extension}" pôs num menu. A extensão precisa apontar o item para uma página que ela desenhe, ou para uma tela com screen: "<chave da tela>".',
   'error.db-connect': 'Falha ao conectar ao banco de dados',
   'notification.hidden.one': '+{count} mensagem oculta',
   'notification.hidden.other': '+{count} mensagens ocultas',

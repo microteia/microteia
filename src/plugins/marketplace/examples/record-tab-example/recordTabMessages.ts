@@ -17,6 +17,8 @@ export const RECORD_TAB_MESSAGES: Record<string, string> = {
   'screen.milestone': 'Milestone',
   'screen.milestone.plural': 'Milestones',
 
+  'nav.milestones': 'Milestones',
+
   'field.name': 'Name',
   'field.description': 'Description',
   'field.title': 'Title',

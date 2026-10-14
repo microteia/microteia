@@ -5,6 +5,8 @@ import { validatePluginManifest } from '../domain/schema/plugin/pluginManifest';
 import type { PackageRef } from '../domain/usecases/plugins/pluginReferences';
 import { packageIssues, validatePackage } from '../domain/usecases/plugins/pluginReferences';
 import { workflowStepIssues } from '../domain/usecases/plugins/workflowIntegrity';
+import type { NavTargetOwner } from '../domain/usecases/plugins/navTargets';
+import { navTargetIssues } from '../domain/usecases/plugins/navTargets';
 
 /**
  * De qual das três checagens o problema veio. Quem exibe usa isso para escolher a frase — a
@@ -41,6 +43,13 @@ export interface ValidatePluginPackageOptions {
    */
   validateContributions?: boolean;
   kernelVersion?: string;
+  /**
+   * As OUTRAS extensões que quem pergunta enxerga — as páginas e as telas delas. É contra elas, além do
+   * próprio pacote e do kernel, que um item de menu é conferido. Uma dependência declarada que não está
+   * aqui não gera recusa: o item que poderia levar a ela é "não dá para conferir daqui", e quem tem um
+   * relatório de avisos o diz (`navTargetChecks`).
+   */
+  visiblePlugins?: NavTargetOwner[];
 }
 
 const fromDiagnostic = (diagnostic: PluginDiagnostic): SdkIssue => ({
@@ -80,6 +89,12 @@ export const validatePluginPackage = (
     ref: issue.ref,
   })),
   ...packageIssues(pkg).map((issue) => ({
+    source: 'package' as const,
+    message: issue.message,
+    messageParams: issue.messageParams,
+  })),
+  // O item de menu que não leva a lugar nenhum. Sem esta recusa ele instalava, e a aba abria em branco.
+  ...navTargetIssues(pkg, options.visiblePlugins).map((issue) => ({
     source: 'package' as const,
     message: issue.message,
     messageParams: issue.messageParams,

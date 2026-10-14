@@ -75,7 +75,7 @@ describe('o menu do usuário como contribuição', () => {
       }))
       .filter(({ metadata }) => metadata.action.kind === 'openTab')
       .filter(({ contribution, metadata }) => {
-        const tabKey = metadata.action.kind === 'openTab' ? metadata.action.tabKey : '';
+        const tabKey = metadata.action.kind === 'openTab' ? (metadata.action.tabKey ?? '') : '';
         return owners.get(tabKey) !== contribution.pluginId;
       })
       .map(({ metadata }) => metadata.key);

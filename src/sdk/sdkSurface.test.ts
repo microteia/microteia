@@ -161,7 +161,7 @@ const PUBLISHED_TYPES = [
   'UpsertStepConfig', 'ValidateStepConfig',
   'ThemeTagColor', 'ThemeTokenBundle', 'TranslateFn', 'UiCommandMetadata', 'UiMenuAction',
   'UiMenuItemMetadata', 'UiNavBadge',
-  'UiNavMetadata', 'UiPageMetadata', 'UiRecordActionMetadata', 'UiSlotMetadata', 'UiTabMetadata',
+  'UiNavMetadata', 'UiNavTarget', 'UiPageMetadata', 'UiRecordActionMetadata', 'UiSlotMetadata', 'UiTabMetadata',
   'UiWidgetMetadata',
   'ValidateManifestOptions', 'ValidateRule', 'VariableInputMapping', 'ViewModuleTemplate',
   'WidgetNodeType',

@@ -70,6 +70,7 @@ import { SCRIPT_ID_INPUT, TARGET_WORKFLOW_ID_INPUT } from '../../domain/usecases
 import type { ReferenceableArtifact } from './referenceable';
 import { crossRefReport, referenceableArtifacts } from './referenceable';
 import { recordSurfaceReport } from './recordSurfaces';
+import { navTargetReport } from './navTargetReport';
 import { eventRefReport } from './eventRefs';
 import { undeclaredPathReport } from './undeclaredPaths';
 import { readWorkspaceCatalog } from './workspaceCatalog';
@@ -190,6 +191,22 @@ const describeEventRefs = (pkg: MarketplacePlugin, root: string): string => {
  * As telas a que o pacote pendura abas (`record:<sourceId>`). Aviso, nunca recusa: a tela pode ser de
  * outra extensão, num escritório que este diretório não enxerga.
  */
+/**
+ * Os itens de menu que podem levar a uma dependência declarada — os únicos que o portão do pacote não
+ * responde sozinho. `refused` é a dependência lida aqui que não desenha aquela aba.
+ */
+const describeNavTargets = (pkg: MarketplacePlugin, root: string): string => {
+  const findings = navTargetReport(pkg, root);
+  if (findings.length === 0) return '';
+  const refused = findings.filter((one) => one.status === 'refused');
+  const head = refused.length === 0
+    ? `${findings.length} menu item(s) that may open a page of a dependency, none of them refused here:`
+    : `${refused.length} of ${findings.length} menu item(s) open a tab no page draws:`;
+  return `\n\n${head}\n${findings
+    .map((one) => `- [${one.status}] ${one.contributionId} (${one.target}) — ${one.detail}`)
+    .join('\n')}`;
+};
+
 const describeRecordSurfaces = (pkg: MarketplacePlugin, root: string): string => {
   const findings = recordSurfaceReport(pkg, root);
   if (findings.length === 0) return '';
@@ -374,13 +391,13 @@ const TOOLS: ToolDefinition[] = [
       if (typeof input.json === 'string') {
         const parsed = parsePackage(input.json);
         if (!parsed.ok) return `Not a valid package: ${describeMessage(parsed.error)}`;
-        return `${describeIssues(validatePluginPackage(parsed.package))}${describeCrossRefs(parsed.package, root)}${describeEventRefs(parsed.package, root)}${describeUndeclaredPaths(parsed.package, root)}${describeRecordSurfaces(parsed.package, root)}${describeNamespace(parsed.package, root)}`;
+        return `${describeIssues(validatePluginPackage(parsed.package))}${describeCrossRefs(parsed.package, root)}${describeEventRefs(parsed.package, root)}${describeUndeclaredPaths(parsed.package, root)}${describeRecordSurfaces(parsed.package, root)}${describeNavTargets(parsed.package, root)}${describeNamespace(parsed.package, root)}`;
       }
       const path = resolve(root, asString(input.path, 'path'));
       if (path.endsWith('.json')) {
         const parsed = parsePackage(readFileSync(path, 'utf8'));
         if (!parsed.ok) return `Not a valid package: ${describeMessage(parsed.error)}`;
-        return `${describeIssues(validatePluginPackage(parsed.package))}${describeCrossRefs(parsed.package, root)}${describeEventRefs(parsed.package, root)}${describeUndeclaredPaths(parsed.package, root)}${describeRecordSurfaces(parsed.package, root)}${describeNamespace(parsed.package, root)}`;
+        return `${describeIssues(validatePluginPackage(parsed.package))}${describeCrossRefs(parsed.package, root)}${describeEventRefs(parsed.package, root)}${describeUndeclaredPaths(parsed.package, root)}${describeRecordSurfaces(parsed.package, root)}${describeNavTargets(parsed.package, root)}${describeNamespace(parsed.package, root)}`;
       }
       const result = buildPlugin({ entry: path });
       return `${result.package.manifest.id} v${result.package.manifest.version}\n${describeIssues(result.issues)}`
@@ -388,6 +405,7 @@ const TOOLS: ToolDefinition[] = [
         + describeEventRefs(result.package, root)
         + describeUndeclaredPaths(result.package, root)
         + describeRecordSurfaces(result.package, root)
+        + describeNavTargets(result.package, root)
         + describeNamespace(result.package, root);
     },
   },

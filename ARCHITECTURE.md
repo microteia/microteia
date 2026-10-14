@@ -5970,7 +5970,7 @@ provedores do ⌘K são **contribuições** de 12 plugins internos.
 | Ponto | Metadata | `impl` |
 |---|---|---|
 | `ui.page` | `key`, `keyPrefix`, `title`, `icon`, `fullBleed`, `requiredRole` | `code` (lazy) ou `widget` |
-| `ui.nav` | `key`, `label`, `icon`, `order`, `requiresTenantAdmin` | nenhuma |
+| `ui.nav` | UM alvo (`key`, `screen` ou `screenSourceId` — ver "Item de menu que não leva a lugar nenhum"), `label`, `icon`, `order`, `requiredPermissions`, `badge` | nenhuma |
 | `ui.command` | `group` | `code` |
 | `theme.definition` | `id`, `name`, `extends`, seções de paleta | nenhuma |
 | `theme.tokens` | `light`, `dark`, `themes` | nenhuma |
@@ -10299,11 +10299,43 @@ ponto só: o trecho precisa renderizar algo, e por isso tem `impl`; o item preci
 por isso tem `action` — e ter `action` em vez de `impl` é o que o mantém ao alcance de um pacote que
 não entrega uma linha de JavaScript.
 
-**A `action` é uma união FECHADA:** `{ kind: 'openTab', tabKey }` e `{ kind: 'url', href, newTab }`.
+**A `action` é uma união FECHADA:** `{ kind: 'openTab', tabKey | screen | screenSourceId }` (um alvo só, o mesmo do `ui.nav`) e `{ kind: 'url', href, newTab }`.
 Fechada de propósito — um item que pudesse executar qualquer coisa exigiria `code`, e `code` é
 privilégio de primeira parte; o menu voltaria a ser inalcançável para quem só declara. Ação
 irreconhecível descarta o ITEM, não o menu: um item que não sabe o que faz é pior que um ausente,
 porque promete algo ao ser clicado.
+
+### Item de menu que não leva a lugar nenhum — fechado nas três pontas
+
+Um `ui.nav` (ou um `ui.menu` de `openTab`) podia abrir uma aba que nenhum `ui.page` desenha, e nada o
+recusava: a aba abria e o painel ficava em branco, sem erro e sem nome de quem o causou. O caso mais
+comum era o autor escrever a CHAVE DA TELA como chave de aba (`nav({ key: 'produtos' })` — o próprio
+scaffold do SDK gerava isso). A lista de uma tela é `dyn:<chave instalada>`, e a chave instalada só se
+conhece depois da instalação: ela ganha sufixo quando o nome está ocupado (`buildScreenKeyMap`), ou é
+a de uma tela que o escritório já tinha com o mesmo `sourceId`.
+
+1. **Um alvo que diz o que é** (`UiNavTarget`). O item nomeia UM de três: `key` (aba de um `ui.page`),
+   `screen` (chave de uma tela DO PACOTE — abre a lista dela) ou `screenSourceId` (id universal, para a
+   tela de uma dependência). Na carga do kernel, `withResolvedNavScreens` (`extensionRecordFrom`) troca
+   `screen` pelo `sourceId` da tela — o pacote instalado continua cópia fiel do publicado —, e o shell
+   (`useNavTargetResolver`) acha a tela do escritório por esse `sourceId`, DEPOIS da desambiguação, e
+   abre `dyn:<chave instalada>` (ou a página própria da extensão com a chave da tela, como
+   `useOpenScreenList`). Tela ausente, desligada ou ilegível para a pessoa: o item some. O `badge` não
+   mudou. O `nav({ screen })` sobre uma tela que não se esconde SUBSTITUI o item automático dela na
+   barra lateral, em vez de somar um segundo.
+2. **O portão recusa.** `navTargetIssues` entra em `validatePluginPackage`: a `key` precisa casar com
+   um `ui.page` (por `key` ou `keyPrefix`) do pacote, do kernel (`KERNEL_PAGES`) ou de uma dependência
+   declarada que quem pergunta enxerga (`visiblePlugins`); `screen`, com uma tela do pacote;
+   `screenSourceId`, com uma tela do pacote ou de dependência enxergada. Quando há tela com a chave
+   escrita, a recusa sugere o `screen:` pelo nome. Dependência declarada que não se enxerga vira
+   `unverifiable` — nunca recusa —, e o `check`/`validate_plugin` do SDK dizem "cannot be checked here"
+   (`navTargetReport`), confrontando com as irmãs do workspace quando elas estão lá.
+3. **O shell não desenha o vazio.** A aba que nenhum `ui.page` resolve mostra `MissingPage`: a chave e
+   a extensão dona do item de menu que a escreve (quando há uma).
+
+`KERNEL_PAGES` (`domain/schema/ui/kernelPages.ts`) é uma segunda escrita das páginas `core.*` — o
+portão roda no SDK e no terminal, que não importam `plugins/`. `kernelPages.test.ts` a confronta com
+`CORE_PLUGINS`: página do kernel que entra ou sai sem passar por ela reprova ali.
 
 ### A região é um NOME, e os nomes moram numa constante
 

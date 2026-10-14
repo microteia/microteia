@@ -18,6 +18,15 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.100.0] — 2026-10-13
+
+- feat(ui.nav, ui.menu): a menu entry names ONE target — `key` (a tab a `ui.page` draws), `screen` (the key of a screen of the package; opens its list) or `screenSourceId` (a screen's universal id, for a dependency's screen). `screen` is rewritten to `screenSourceId` when the package is loaded (`withResolvedNavScreens`), and the shell resolves it against the organization's screens AFTER key disambiguation, so the entry keeps working when the installed key becomes `products_2`. The author never writes `dyn:`. `badge` is unchanged. A `nav({ screen })` over a screen that does not hide itself replaces its automatic sidebar entry instead of adding a second one. New type `UiNavTarget` in `@microteia/sdk`; `KERNEL_VERSION` goes to `2.38.0` (additive).
+- feat(sdk/validate): `validatePluginPackage` refuses a menu entry that leads nowhere — a `key` that no `ui.page` of the package, of the kernel (`KERNEL_PAGES`) or of a declared dependency draws, a `screen` the package does not declare, a `screenSourceId` nobody declares, or an entry with zero or several targets. When a screen has the key written, the refusal names the `screen:` meant. A declared dependency the caller cannot see is never refused: new option `visiblePlugins`, and `check` / `validate_plugin` report such entries as "cannot be checked here", checking them against the dependencies authored in the same workspace.
+- feat(shell): a tab no `ui.page` resolves shows an error state naming the tab key and the extension whose menu entry opened it, instead of an empty panel.
+- fix(sdk/scaffold): a scaffolded screen got `nav({ key: COLLECTION })`, a menu entry that opened an empty tab; it is now `nav({ screen: COLLECTION })`.
+- docs(AUTHORING §4, §8): "Where a menu entry leads", the constructors table and `hideFromSidebar` describe `screen:`.
+- feat(examples/record-tab-example 1.1.0): the Milestone screen hides from the sidebar and gets `nav({ screen, badge })` counting the milestones still open.
+
 #### [9.99.1] — 2026-10-13
 
 - fix(entityScreen/useRecordListViewModel): `sortRecords` now orders `records` as well as `filteredRecords` (the filtered list inherits the order, so it is sorted once). Before, only `filteredRecords` was ordered and nothing in the contract said so: two record tabs drew `records` and came out in collection order. Without `sortRecords`, nothing changes.

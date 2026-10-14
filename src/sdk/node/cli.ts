@@ -12,6 +12,7 @@ import { serveMcp } from './mcp';
 import { crossRefReport } from './referenceable';
 import { eventRefReport } from './eventRefs';
 import { recordSurfaceReport } from './recordSurfaces';
+import { navTargetReport } from './navTargetReport';
 import { undeclaredPathReport } from './undeclaredPaths';
 import { syncWorkspace } from './workspace/sync';
 import {
@@ -186,6 +187,24 @@ const sayRecordSurfaces = (pkg: MarketplacePlugin, root: string): void => {
 };
 
 /**
+ * Os itens de menu que podem levar a uma página de dependência. Conta como problema só o `refused`: a
+ * dependência foi lida neste diretório e não desenha aquela aba. O que ele não enxerga é dito.
+ */
+const sayNavTargets = (pkg: MarketplacePlugin, root: string): number => {
+  const findings = navTargetReport(pkg, root);
+  if (findings.length === 0) return 0;
+
+  say();
+  say(`  ${DIM}${findings.length} menu item(s) that may open a page of a dependency${RESET}`);
+  for (const one of findings) {
+    const mark = one.status === 'ok' ? `${GREEN}ok${RESET}` : one.status === 'refused' ? `${RED}x${RESET}` : `${YELLOW}!${RESET}`;
+    say(`  ${mark} ${one.contributionId} ${DIM}(${one.target})${RESET}`);
+    say(`     ${DIM}${one.detail}${RESET}`);
+  }
+  return findings.filter((one) => one.status === 'refused').length;
+};
+
+/**
  * Aviso, nunca recusa: o id é permanente, e uma extensão publicada antes de o diretório ter namespace
  * não pode ser renomeada para caber nele. O que se evita aqui é a PRÓXIMA nascer fora.
  */
@@ -224,7 +243,8 @@ const build = (args: Args, write: boolean): number => {
   }
 
   const root = resolve(args.values.get('root') ?? process.cwd());
-  const refusedRefs = sayCrossRefs(result.package, root) + sayEventRefs(result.package, root);
+  const refusedRefs = sayCrossRefs(result.package, root) + sayEventRefs(result.package, root)
+    + sayNavTargets(result.package, root);
   sayUndeclaredPaths(result.package, root);
   sayRecordSurfaces(result.package, root);
   sayNamespace(manifest.id, root);
