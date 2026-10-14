@@ -1,7 +1,7 @@
 {
   "manifest": {
     "id": "com.microteia.dashboard",
-    "version": "1.2.0",
+    "version": "1.3.0",
     "kernel": "^2.0.0",
     "name": "@com.microteia.dashboard/package.name",
     "description": "@com.microteia.dashboard/package.description",
@@ -92,7 +92,8 @@
           "key": "dashboard",
           "title": "@com.microteia.dashboard/page.dashboard",
           "icon": "dashboard",
-          "fullBleed": true
+          "fullBleed": true,
+          "home": true
         },
         "impl": {
           "kind": "code",

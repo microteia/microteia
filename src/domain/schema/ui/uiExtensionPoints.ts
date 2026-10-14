@@ -24,6 +24,16 @@ export interface UiPageMetadata {
   title: string;
   icon: string;
   fullBleed?: boolean;
+  /**
+   * A tela INICIAL do espaço de trabalho: a aba aberta quando o escritório entra e nada mais foi
+   * aberto. É declaração, e não nome conhecido pelo kernel, porque a tela inicial é de quem a
+   * instala — o núcleo abria `dashboard` de cor, e o escritório sem aquela extensão ganhava uma aba
+   * vazia. Sem nenhuma declarada, o espaço de trabalho começa sem aba.
+   *
+   * Vale só para página de chave própria (sem `keyPrefix`) e que a pessoa pode ver. Se mais de uma
+   * declarar, vence a primeira na ordem de carga.
+   */
+  home?: boolean;
 /**
  * As PERMISSÕES exigidas para esta contribuição aparecer. Ausente = aparece para todo membro.
  *

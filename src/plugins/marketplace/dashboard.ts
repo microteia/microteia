@@ -32,7 +32,7 @@ const message = (key: string): string => `@com.microteia.dashboard/${key}`;
 export const dashboardPlugin: MarketplacePlugin = {
   manifest: {
     id: 'com.microteia.dashboard',
-    version: '1.2.0',
+    version: '1.3.0',
     kernel: '^2.0.0',
     name: message('package.name'),
     description: message('package.description'),
@@ -43,7 +43,7 @@ export const dashboardPlugin: MarketplacePlugin = {
       dashboardMessagesContribution(),
       dashboardPtBrContribution(),
       nav({ key: 'dashboard', label: message('nav.dashboard'), icon: 'dashboard', order: 10 }),
-      page({ key: 'dashboard', title: message('page.dashboard'), icon: 'dashboard', fullBleed: true }, 'dashboard'),
+      page({ key: 'dashboard', title: message('page.dashboard'), icon: 'dashboard', fullBleed: true, home: true }, 'dashboard'),
       settingsSection({
         key: 'dashboard',
         title: message('settings.section.title'),

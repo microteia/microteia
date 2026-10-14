@@ -212,7 +212,7 @@ function workspaceReducer(state: WorkspaceState, action: WorkspaceAction): Works
 }
 
 const initialState: WorkspaceState = {
-  panels: { [ROOT_PANEL_ID]: { id: ROOT_PANEL_ID, tabKeys: ['dashboard'], activeTabKey: 'dashboard' } },
+  panels: { [ROOT_PANEL_ID]: { id: ROOT_PANEL_ID, tabKeys: [], activeTabKey: null } },
   layout: { type: 'panel', panelId: ROOT_PANEL_ID },
   activePanelId: ROOT_PANEL_ID,
   tabTitleOverrides: {},

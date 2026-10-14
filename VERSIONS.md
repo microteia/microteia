@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.101.0] — 2026-10-14
+
+- O escritório que não instalou o Painel não abre mais numa aba vazia: a área de trabalho começa limpa, e a tela inicial passa a ser a que a extensão instalada indicar.
+
 #### [9.100.3] — 2026-10-14
 
 - Corrigidas as páginas de relatórios montadas pelas extensões, como as do Painel e a Pauta de audiências: os filtros voltam a aceitar datas e seleções sem a página piscar, perder o que foi preenchido ou recarregar os relatórios.

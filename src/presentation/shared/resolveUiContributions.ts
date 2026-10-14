@@ -57,6 +57,14 @@ export const navigablePages = (
     .filter((metadata) => !metadata.requiresSystemAdmin || isSystemAdmin)
     .filter((metadata) => isPermitted(canAny, metadata.requiredPermissions));
 
+/** A chave da tela inicial que esta pessoa pode abrir — ver `UiPageMetadata.home`. */
+export const homePageKey = (
+  contributions: QualifiedContribution[],
+  canAny: CanAny,
+  isSystemAdmin: boolean,
+): string | undefined =>
+  navigablePages(contributions, canAny, isSystemAdmin).find((metadata) => metadata.home)?.key;
+
 export const visibleNavItems = (
   contributions: QualifiedContribution[],
   canAny: CanAny,

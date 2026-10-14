@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import type { QualifiedContribution } from '../../domain/schema/plugin/contribution';
 import {
+  homePageKey,
   navigablePages,
   resolvePageContribution,
   visibleNavItems,
@@ -23,6 +24,36 @@ const navContribution = (metadata: Partial<UiNavMetadata>): QualifiedContributio
   id: metadata.key ?? 'x',
   apiVersion: '1.0.0',
   metadata: { key: 'x', label: 'X', icon: 'apps', order: 0, ...metadata } as unknown as Record<string, unknown>,
+});
+
+describe('homePageKey', () => {
+  const allowAll = () => true;
+
+  it('sem página declarada como inicial, não há tela inicial', () => {
+    expect(homePageKey([pageContribution('a', { key: 'reports' })], allowAll, false)).toBeUndefined();
+  });
+
+  it('devolve a chave da primeira página declarada como inicial', () => {
+    const pages = [
+      pageContribution('a', { key: 'reports' }),
+      pageContribution('b', { key: 'painel', home: true }),
+      pageContribution('c', { key: 'outra', home: true }),
+    ];
+    expect(homePageKey(pages, allowAll, false)).toBe('painel');
+  });
+
+  it('ignora a página inicial que a pessoa não pode ver', () => {
+    const pages = [
+      pageContribution('a', { key: 'restrita', home: true, requiredPermissions: ['x.read'] }),
+      pageContribution('b', { key: 'admin', home: true, requiresSystemAdmin: true }),
+      pageContribution('c', { key: 'livre', home: true }),
+    ];
+    expect(homePageKey(pages, () => false, false)).toBe('livre');
+  });
+
+  it('ignora página paramétrica, que não tem aba própria a abrir', () => {
+    expect(homePageKey([pageContribution('a', { keyPrefix: 'view:', home: true })], allowAll, false)).toBeUndefined();
+  });
 });
 
 describe('resolvePageContribution', () => {

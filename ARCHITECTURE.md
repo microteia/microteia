@@ -6205,6 +6205,14 @@ conhecem cada assunto. Instalar uma delas faz o cartão aparecer; remover, sumir
 embutido não contribui widget nenhum, porque as extensões que os traziam são mantidas fora deste
 repositório. O painel de um escritório é exatamente o que ele instalou.
 
+**A tela inicial é declarada, não sabida.** O `WorkspaceStore` começava com a aba `dashboard` aberta
+de cor — e o escritório sem a extensão ganhava uma aba vazia com a chave crua no título. Hoje o espaço
+de trabalho nasce sem aba, e a página que declarar `home: true` no `ui.page` é aberta quando a
+contribuição chega (`homePageKey`, em `resolveUiContributions`): só página de chave própria, só se a
+pessoa pode vê-la, e só num espaço de trabalho ainda vazio — um deep link aberto antes não perde o
+foco. A decisão é tomada uma vez: fechar todas as abas depois não reabre a inicial. Sem nenhuma
+declarada, não há tela inicial. A extensão Dashboard declara a dela.
+
 **A primitiva de gráfico ficou; o gráfico de prazos foi junto com Prazos.** `DeadlineCharts` sabia o
 que era vencimento, conclusão e prioridade — conhecimento de domínio dentro de `components/ui/`. Foi
 substituído por `TimeSeriesChart`/`DonutChart` (`components/ui/Chart/`), que recebem séries prontas

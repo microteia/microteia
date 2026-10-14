@@ -18,6 +18,11 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.101.0] — 2026-10-14
+
+- feat(ui.page): a page may declare `home: true` to be the workspace's start page — the tab opened when the organization is entered and nothing else is open. Only pages with their own `key` (no `keyPrefix`) that the person may see qualify; with several, the first loaded wins. `KERNEL_VERSION` goes to `2.39.0` (additive).
+- fix(workspace): the workspace no longer opens a hard-coded `dashboard` tab. An organization without the Dashboard extension got an empty tab titled with the raw key; with no start page declared, the workspace now starts with no tab. `com.microteia.dashboard` 1.3.0 declares `home: true` — an organization still on 1.2.0 starts empty until it updates the extension.
+
 #### [9.100.3] — 2026-10-14
 
 - fix(ui/page): a `ui.page` contribution with `impl.kind: 'widget'` now resolves to one stable, module-level component that reads its spec from the tab key. The resolver used to create a new component on every call, and the workspace panel calls it on every render — so any workspace change unmounted the page: `report` prompts lost their value and focus, and every report ran again. `ui.tab`, `ui.widget` and `ui.slot` specs were not affected.
