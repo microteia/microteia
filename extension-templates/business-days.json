@@ -1,8 +1,8 @@
 {
   "manifest": {
     "id": "com.microteia.business-days",
-    "version": "1.0.0",
-    "kernel": "^2.37.0",
+    "version": "1.1.0",
+    "kernel": "^2.40.0",
     "name": "@com.microteia.business-days/package.name",
     "description": "@com.microteia.business-days/package.description",
     "category": "@com.microteia.business-days/package.category",
@@ -27,6 +27,7 @@
             "package.description": "Business-day calendars: the office marks, year by year, the days that are not business days, and every formula counts with them.",
             "package.summary": "Keep one or more business-day calendars — national, regional, of a single client or court — and mark, on a grid of the twelve months, the days that are not business days. Formulas count with the union of the calendars a record names: a day that is not a business day in any of them is not one in the count.",
             "nav.business-days": "Business days",
+            "nav.group.schedule": "Schedule",
             "page.business-days": "Business days",
             "screen.singular": "Business-day calendar",
             "screen.plural": "Business-day calendars",
@@ -92,6 +93,7 @@
             "package.description": "Calendários de dias úteis: o escritório marca, ano a ano, os dias que não são úteis, e toda fórmula conta com eles.",
             "package.summary": "Mantenha um ou mais calendários de dias úteis — nacional, regional, de um cliente ou de um tribunal — e marque, numa grade dos doze meses, os dias que não são úteis. As fórmulas contam com a união dos calendários que o registro informa: um dia que não é útil em qualquer um deles não é útil na conta.",
             "nav.business-days": "Dias úteis",
+            "nav.group.schedule": "Agenda",
             "page.business-days": "Dias úteis",
             "screen.singular": "Calendário de dias úteis",
             "screen.plural": "Calendários de dias úteis",
@@ -153,6 +155,16 @@
         }
       },
       {
+        "point": "ui.nav.group",
+        "id": "schedule",
+        "apiVersion": "1.0.0",
+        "metadata": {
+          "key": "schedule",
+          "label": "@com.microteia.business-days/nav.group.schedule",
+          "order": 20
+        }
+      },
+      {
         "point": "ui.nav",
         "id": "business-days",
         "apiVersion": "1.0.0",
@@ -160,7 +172,8 @@
           "key": "business-days",
           "label": "@com.microteia.business-days/nav.business-days",
           "icon": "calendar",
-          "order": 21
+          "order": 21,
+          "group": "schedule"
         }
       },
       {

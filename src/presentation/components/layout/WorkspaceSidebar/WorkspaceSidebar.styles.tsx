@@ -159,6 +159,52 @@ export const S = {
     white-space: nowrap;
   `,
 
+  NavSection: styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  `,
+
+  NavGroupHeader: styled.button`
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    margin-top: ${({ theme }) => theme.spacing.sm};
+    padding: 6px 12px 4px 8px;
+    border-radius: ${({ theme }) => theme.borderRadius.sm};
+    font-size: ${({ theme }) => theme.fontSizes.xs};
+    font-weight: 600;
+    color: ${({ theme }) => theme.colors.textMuted};
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    white-space: nowrap;
+    text-align: left;
+    transition: color ${({ theme }) => theme.transitions.fast};
+
+    &:hover {
+      color: ${({ theme }) => theme.colors.text};
+    }
+  `,
+
+  NavGroupChevron: styled.span<{ $collapsed: boolean }>`
+    display: flex;
+    flex-shrink: 0;
+    transform: rotate(${({ $collapsed }) => ($collapsed ? '-90deg' : '0deg')});
+    transition: transform ${({ theme }) => theme.transitions.fast};
+  `,
+
+  NavGroupLabel: styled.span`
+    overflow: hidden;
+    text-overflow: ellipsis;
+  `,
+
+  NavGroupDivider: styled.div`
+    height: 1px;
+    margin: ${({ theme }) => theme.spacing.xs} 12px;
+    background: ${({ theme }) => theme.colors.borderSubtle};
+  `,
+
   NavItem: styled.button<{ $active: boolean }>`
     position: relative;
     display: flex;

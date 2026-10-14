@@ -7,6 +7,7 @@ import {
   RiMoreLine,
   RiPaletteLine,
   RiArrowRightSLine,
+  RiArrowDownSLine,
   RiSearchLine,
 } from 'react-icons/ri';
 import { useWorkspaceSidebarViewModel } from './WorkspaceSidebar.viewmodel';
@@ -65,23 +66,41 @@ export const WorkspaceSidebar: React.FC = () => {
 
       <S.Nav>
         {!vm.collapsed && <S.NavLabel>{t('sidebar.menu')}</S.NavLabel>}
-        {vm.navItems.map(({ key, label, icon, badge }) => {
-          return (
-            <S.NavItem
-              key={key}
-              $active={vm.activeKey === key}
-              onClick={() => vm.handleNavClick(key)}
-              title={vm.collapsed ? label : undefined}
-            >
-              {icon}
-              {!vm.collapsed && label}
-              {!vm.collapsed && badge > 0 && (
-                <S.NavBadge>{badge > 99 ? '99+' : badge}</S.NavBadge>
-              )}
-              {vm.collapsed && badge > 0 && <S.NavBadgeDot />}
-            </S.NavItem>
-          );
-        })}
+        {vm.navSections.map((section, index) => (
+          <S.NavSection key={section.key}>
+            {vm.collapsed && index > 0 && <S.NavGroupDivider />}
+            {!vm.collapsed && section.label !== null && (
+              <S.NavGroupHeader
+                onClick={() => vm.toggleNavGroup(section.key)}
+                aria-expanded={!section.collapsed}
+                title={t(section.collapsed ? 'sidebar.group.expand' : 'sidebar.group.collapse', { group: section.label })}
+              >
+                <S.NavGroupChevron $collapsed={section.collapsed}>
+                  <RiArrowDownSLine size={14} />
+                </S.NavGroupChevron>
+                <S.NavGroupLabel>{section.label}</S.NavGroupLabel>
+                {section.badge > 0 && (
+                  <S.NavBadge>{section.badge > 99 ? '99+' : section.badge}</S.NavBadge>
+                )}
+              </S.NavGroupHeader>
+            )}
+            {section.items.map(({ key, label, icon, badge }) => (
+              <S.NavItem
+                key={key}
+                $active={vm.activeKey === key}
+                onClick={() => vm.handleNavClick(key)}
+                title={vm.collapsed ? label : undefined}
+              >
+                {icon}
+                {!vm.collapsed && label}
+                {!vm.collapsed && badge > 0 && (
+                  <S.NavBadge>{badge > 99 ? '99+' : badge}</S.NavBadge>
+                )}
+                {vm.collapsed && badge > 0 && <S.NavBadgeDot />}
+              </S.NavItem>
+            ))}
+          </S.NavSection>
+        ))}
       </S.Nav>
 
       {!vm.collapsed && <SlotSurface surface={WORKSPACE_SLOT_SURFACES.sidebarFooter} />}

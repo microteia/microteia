@@ -1,5 +1,6 @@
 import type { PluginRecord } from '../../kernel';
-import { UI_EXTENSION_POINTS } from '../../domain/schema/ui/uiExtensionPoints';
+import { ADMIN_NAV_GROUP, UI_EXTENSION_POINTS } from '../../domain/schema/ui/uiExtensionPoints';
+import { navGroup } from '../contributionBuilders';
 import { messageBundleContribution } from '../../domain/schema/i18n/extensionPoints';
 import { coreMessage, CORE_UI_MESSAGES } from '../coreMessages';
 
@@ -16,6 +17,7 @@ export const coreUiPlugin: PluginRecord = {
     extensionPoints: UI_EXTENSION_POINTS,
     contributes: [
       messageBundleContribution(coreMessage('core.ui', CORE_UI_MESSAGES)),
+      navGroup({ key: ADMIN_NAV_GROUP, label: '@core.ui/nav.group.admin', order: 110 }),
     ],
   },
 };

@@ -46,6 +46,7 @@ const LACUNAS_CONFERIDAS = [
   // derivada de `KERNEL_EXTENSION_POINTS`, então um ponto novo aparece aqui sozinho.
   'extension-point\tui.page',
   'extension-point\tui.nav',
+  'extension-point\tui.nav.group',
   'extension-point\tui.record.action',
   'extension-point\tui.command',
   'extension-point\tui.widget',

@@ -1,6 +1,6 @@
 import type { MarketplacePlugin, ScreenModuleTemplate, TemplateField } from '../../domain/entities/MarketplacePlugin';
 import { businessCalendarContribution } from '../../domain/schema/time/extensionPoints';
-import { nav, page } from '../contributionBuilders';
+import { nav, navGroup, page } from '../contributionBuilders';
 import { businessDaysMessagesContribution } from './businessDaysMessages';
 import { businessDaysPtBrContribution } from './businessDaysMessagesPtBr';
 import { mergeViewSources } from '../../sdk/mergeSources';
@@ -85,8 +85,8 @@ const BUSINESS_CALENDAR_SCREEN: ScreenModuleTemplate = {
 export const businessDaysPlugin: MarketplacePlugin = {
   manifest: {
     id: 'com.microteia.business-days',
-    version: '1.0.0',
-    kernel: '^2.37.0',
+    version: '1.1.0',
+    kernel: '^2.40.0',
     name: message('package.name'),
     description: message('package.description'),
     category: message('package.category'),
@@ -96,7 +96,8 @@ export const businessDaysPlugin: MarketplacePlugin = {
       businessDaysMessagesContribution(),
       businessDaysPtBrContribution(),
       businessCalendarContribution({ collection: COLLECTION }),
-      nav({ key: 'business-days', label: message('nav.business-days'), icon: 'calendar', order: 21 }),
+      navGroup({ key: 'schedule', label: message('nav.group.schedule'), order: 20 }),
+      nav({ key: 'business-days', label: message('nav.business-days'), icon: 'calendar', order: 21, group: 'schedule' }),
       page({ key: 'business-days', title: message('page.business-days'), icon: 'calendar' }, 'business-days'),
     ],
   },

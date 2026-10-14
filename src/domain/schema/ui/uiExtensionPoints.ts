@@ -2,6 +2,7 @@ import type { ExtensionPointDefinition } from '../plugin/extensionPoint';
 
 export const UI_PAGE_POINT = 'ui.page';
 export const UI_NAV_POINT = 'ui.nav';
+export const UI_NAV_GROUP_POINT = 'ui.nav.group';
 export const UI_COMMAND_POINT = 'ui.command';
 export const UI_RECORD_ACTION_POINT = 'ui.record.action';
 
@@ -94,7 +95,38 @@ export interface UiNavMetadata extends UiNavTarget {
   /** Ver `UiPageMetadata.requiredPermissions`. */
   requiredPermissions?: string[];
   badge?: UiNavBadge;
+  /**
+   * A `key` de um `ui.nav.group` — deste pacote, de outro ou do kernel. Ausente, ou apontando para um
+   * grupo que ninguém declarou neste escritório, o item fica solto no menu, na posição do `order`
+   * dele: um item nunca some porque o grupo dele não foi instalado.
+   */
+  group?: string;
 }
+
+/**
+ * Um GRUPO da barra lateral — o título sob o qual itens de menu se juntam, e que a pessoa recolhe.
+ *
+ * O kernel não conhece grupo de negócio nenhum: "Financeiro" ou "Agenda" são declarados por quem traz
+ * os itens, e o item escolhe o grupo pela `key`. A `key` é universal, como o `sourceId` de uma tela —
+ * duas extensões que declaram a mesma `key` falam do MESMO grupo, e vale o rótulo e a posição da
+ * primeira na ordem de carga. É o que deixa uma extensão pôr item no grupo de outra sem depender dela.
+ *
+ * `order` posiciona o grupo inteiro entre os itens soltos, na mesma régua do `order` deles.
+ */
+export interface UiNavGroupMetadata {
+  key: string;
+  label: string;
+  order: number;
+  /** O grupo começa recolhido para quem nunca o abriu. */
+  defaultCollapsed?: boolean;
+}
+
+/**
+ * O grupo que o kernel declara para as telas de administração do escritório (o cadastro dele,
+ * Configurações, Traduções, Auditoria). É conceito do núcleo, não de negócio — e uma extensão que
+ * traz a própria tela de administração a põe aqui com `group: ADMIN_NAV_GROUP`.
+ */
+export const ADMIN_NAV_GROUP = 'admin';
 
 export interface UiCommandMetadata {
   group: string;
@@ -329,6 +361,16 @@ export const UI_EXTENSION_POINTS: ExtensionPointDefinition[] = [
     apiVersion: UI_API_VERSION,
     title: '@core.ui/point.nav',
     description: '@core.ui/point.nav.description',
+    ownerPluginId: 'core.ui',
+    allowedImplKinds: [],
+    implRequired: false,
+    multiple: true,
+  },
+  {
+    id: UI_NAV_GROUP_POINT,
+    apiVersion: UI_API_VERSION,
+    title: '@core.ui/point.nav-group',
+    description: '@core.ui/point.nav-group.description',
     ownerPluginId: 'core.ui',
     allowedImplKinds: [],
     implRequired: false,

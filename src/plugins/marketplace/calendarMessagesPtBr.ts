@@ -22,6 +22,7 @@ const CALENDAR_PT_BR: Record<string, string> = {
     'A agenda do escritório em colunas de dia, com o mês inteiro numa rolagem que abre no dia de hoje. Ela não conhece prazo, audiência nem parcela: qualquer extensão registra um item, continua dona dele e diz o que acontece quando o usuário o arrasta para outro dia.',
 
   'nav.calendar': 'Calendário',
+  'nav.group.schedule': 'Agenda',
   'page.calendar': 'Calendário',
 
   'screen.singular': 'Item do calendário',

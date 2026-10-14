@@ -15,6 +15,7 @@ import type { SettingsSection } from '../domain/schema/settings';
 import type {
   UiCommandMetadata,
   UiMenuItemMetadata,
+  UiNavGroupMetadata,
   UiNavMetadata,
   UiPageMetadata,
   UiRecordActionMetadata,
@@ -26,6 +27,7 @@ import {
   UI_API_VERSION,
   UI_COMMAND_POINT,
   UI_MENU_POINT,
+  UI_NAV_GROUP_POINT,
   UI_NAV_POINT,
   UI_PAGE_POINT,
   UI_RECORD_ACTION_POINT,
@@ -76,6 +78,18 @@ export const widgetPage = (metadata: UiPageMetadata, spec: WidgetSpec): Contribu
 export const nav = (metadata: UiNavMetadata): Contribution => ({
   point: UI_NAV_POINT,
   id: slug(metadata.key ?? metadata.screen ?? metadata.screenSourceId ?? ''),
+  apiVersion: UI_API_VERSION,
+  metadata: { ...metadata } as unknown as Record<string, unknown>,
+});
+
+/**
+ * Um GRUPO da barra lateral. Não tem `impl`: a declaração é a contribuição inteira, e os itens se
+ * juntam a ele pela `key` (`nav({ ..., group })`). O `id` sai da chave, que é universal — ver
+ * `UiNavGroupMetadata`.
+ */
+export const navGroup = (metadata: UiNavGroupMetadata): Contribution => ({
+  point: UI_NAV_GROUP_POINT,
+  id: slug(metadata.key),
   apiVersion: UI_API_VERSION,
   metadata: { ...metadata } as unknown as Record<string, unknown>,
 });

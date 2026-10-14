@@ -18,6 +18,13 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.102.0] — 2026-10-14
+
+- feat(ui.nav.group): new extension point for titled, collapsible sidebar groups — `key`, `label`, `order`, `defaultCollapsed` — with the `navGroup()` constructor. A `ui.nav` entry joins one with the new optional `group`. Group keys are universal: the same key declared by several packages is one group, labelled and placed by the first loaded. An entry whose group is not declared stays loose at its own `order`; a group with one visible entry draws no header; a group with none is not drawn. `KERNEL_VERSION` goes to `2.40.0` (additive).
+- feat(sidebar): the sidebar is drawn in sections; a group sits at its own `order` among the loose entries. Collapsing is per person, kept in `localStorage`, still shows the active tab's entry and sums the hidden badges in the header. With the sidebar collapsed, groups render as dividers.
+- feat(core.ui): declares `ADMIN_NAV_GROUP` (`admin`), exported by the SDK; Organization, Settings, Translations and Audit log join it.
+- feat(examples): `com.microteia.calendar` 1.5.0 and `com.microteia.business-days` 1.1.0 both declare the `schedule` group and join it; both now require kernel `^2.40.0`. `com.microteia.locale-pt-br` 1.88.0 carries the new strings.
+
 #### [9.101.0] — 2026-10-14
 
 - feat(ui.page): a page may declare `home: true` to be the workspace's start page — the tab opened when the organization is entered and nothing else is open. Only pages with their own `key` (no `keyPrefix`) that the person may see qualify; with several, the first loaded wins. `KERNEL_VERSION` goes to `2.39.0` (additive).

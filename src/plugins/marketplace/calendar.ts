@@ -6,7 +6,7 @@ import type {
 } from '../../domain/entities/MarketplacePlugin';
 import type { CustomFieldOption } from '../../domain/entities';
 import type { ExtensionPointDefinition } from '../../domain/schema/plugin/extensionPoint';
-import { nav, page, settingsSection } from '../contributionBuilders';
+import { nav, navGroup, page, settingsSection } from '../contributionBuilders';
 import { calendarMessagesContribution } from './calendarMessages';
 import { calendarPtBrContribution } from './calendarMessagesPtBr';
 import { mergeViewSources } from '../../sdk/mergeSources';
@@ -203,8 +203,8 @@ const EXTENSION_POINTS: ExtensionPointDefinition[] = [
 export const calendarPlugin: MarketplacePlugin = {
   manifest: {
     id: 'com.microteia.calendar',
-    version: '1.4.0',
-    kernel: '^2.26.0',
+    version: '1.5.0',
+    kernel: '^2.40.0',
     name: message('package.name'),
     description: message('package.description'),
     category: message('package.category'),
@@ -214,7 +214,13 @@ export const calendarPlugin: MarketplacePlugin = {
     contributes: [
       calendarMessagesContribution(),
       calendarPtBrContribution(),
-      nav({ key: 'calendar', label: message('nav.calendar'), icon: 'calendar', order: 20 }),
+      /**
+       * The sidebar group this entry joins. The group key is universal: Business days declares the
+       * same `schedule`, so either extension alone gets its entry in place, and both together share
+       * one group — the first one loaded names it. A group with a single entry draws no header.
+       */
+      navGroup({ key: 'schedule', label: message('nav.group.schedule'), order: 20 }),
+      nav({ key: 'calendar', label: message('nav.calendar'), icon: 'calendar', order: 20, group: 'schedule' }),
       page({ key: 'calendar', title: message('page.calendar'), icon: 'calendar' }, 'calendar'),
       settingsSection({
         key: 'calendar',

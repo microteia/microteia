@@ -2,12 +2,14 @@ import { describe, it, expect } from 'vitest';
 import { createPluginHost } from '../kernel';
 import type { PluginRecord } from '../kernel';
 import {
+  declaredNavGroups,
+  groupNavSections,
   navMetadataOf,
   pageMetadataOf,
   resolvePageContribution,
   visibleNavItems,
 } from '../presentation/shared/resolveUiContributions';
-import { UI_COMMAND_POINT, UI_NAV_POINT, UI_PAGE_POINT } from '../domain/schema/ui/uiExtensionPoints';
+import { ADMIN_NAV_GROUP, UI_COMMAND_POINT, UI_NAV_GROUP_POINT, UI_NAV_POINT, UI_PAGE_POINT } from '../domain/schema/ui/uiExtensionPoints';
 import { CORE_PLUGINS } from './index';
 
 const hostWith = (records: PluginRecord[]) => {
@@ -113,6 +115,17 @@ describe('core plugins — paridade com o registro anterior', () => {
 
     expect(items.map((item) => item.key)).toEqual([
       'reports', 'tenant-settings', 'settings', 'translations', 'audit-logs',
+    ]);
+  });
+
+  it('a administração do escritório é um grupo, abaixo de Relatórios', () => {
+    const { host } = hostWith(CORE_PLUGINS);
+    const items = visibleNavItems(host.contributions.query(UI_NAV_POINT), () => true);
+    const sections = groupNavSections(items, declaredNavGroups(host.contributions.query(UI_NAV_GROUP_POINT)));
+
+    expect(sections.map((section) => [section.group?.key ?? null, section.items.map((item) => item.key)])).toEqual([
+      [null, ['reports']],
+      [ADMIN_NAV_GROUP, ['tenant-settings', 'settings', 'translations', 'audit-logs']],
     ]);
   });
 

@@ -27,6 +27,7 @@ export const CALENDAR_MESSAGES: Record<string, string> = {
     'The office agenda in day columns, with the whole month on a single scroll that opens on today. It knows nothing about deadlines, hearings or instalments: any extension registers an item, stays its owner and decides what happens when someone drags it to another day.',
 
   'nav.calendar': 'Calendar',
+  'nav.group.schedule': 'Schedule',
   'page.calendar': 'Calendar',
 
   'screen.singular': 'Calendar item',

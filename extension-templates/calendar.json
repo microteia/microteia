@@ -1,8 +1,8 @@
 {
   "manifest": {
     "id": "com.microteia.calendar",
-    "version": "1.4.0",
-    "kernel": "^2.26.0",
+    "version": "1.5.0",
+    "kernel": "^2.40.0",
     "name": "@com.microteia.calendar/package.name",
     "description": "@com.microteia.calendar/package.description",
     "category": "@com.microteia.calendar/package.category",
@@ -48,6 +48,7 @@
             "package.description": "The office agenda, agnostic: any extension puts an item on it and stays its owner.",
             "package.summary": "The office agenda in day columns, with the whole month on a single scroll that opens on today. It knows nothing about deadlines, hearings or instalments: any extension registers an item, stays its owner and decides what happens when someone drags it to another day.",
             "nav.calendar": "Calendar",
+            "nav.group.schedule": "Schedule",
             "page.calendar": "Calendar",
             "screen.singular": "Calendar item",
             "screen.plural": "Calendar",
@@ -128,6 +129,7 @@
             "package.description": "A agenda do escritório, agnóstica: qualquer extensão põe um item nela e continua dona dele.",
             "package.summary": "A agenda do escritório em colunas de dia, com o mês inteiro numa rolagem que abre no dia de hoje. Ela não conhece prazo, audiência nem parcela: qualquer extensão registra um item, continua dona dele e diz o que acontece quando o usuário o arrasta para outro dia.",
             "nav.calendar": "Calendário",
+            "nav.group.schedule": "Agenda",
             "page.calendar": "Calendário",
             "screen.singular": "Item do calendário",
             "screen.plural": "Calendário",
@@ -196,6 +198,16 @@
         }
       },
       {
+        "point": "ui.nav.group",
+        "id": "schedule",
+        "apiVersion": "1.0.0",
+        "metadata": {
+          "key": "schedule",
+          "label": "@com.microteia.calendar/nav.group.schedule",
+          "order": 20
+        }
+      },
+      {
         "point": "ui.nav",
         "id": "calendar",
         "apiVersion": "1.0.0",
@@ -203,7 +215,8 @@
           "key": "calendar",
           "label": "@com.microteia.calendar/nav.calendar",
           "icon": "calendar",
-          "order": 20
+          "order": 20,
+          "group": "schedule"
         }
       },
       {

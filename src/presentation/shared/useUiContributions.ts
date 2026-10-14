@@ -8,7 +8,7 @@ import { useExtensionCommandProviders } from './extensions/extensionServices';
 import { isExtensionViewRef } from '../../domain/usecases/plugins/extensionViewRef';
 import { resolvePageContribution } from './resolveUiContributions';
 import type { UiPageMetadata } from '../../domain/schema/ui/uiExtensionPoints';
-import { UI_COMMAND_POINT, UI_NAV_POINT, UI_PAGE_POINT } from '../../domain/schema/ui/uiExtensionPoints';
+import { UI_COMMAND_POINT, UI_NAV_GROUP_POINT, UI_NAV_POINT, UI_PAGE_POINT } from '../../domain/schema/ui/uiExtensionPoints';
 
 export type PageComponent = React.ComponentType<{ tabKey: string }>;
 
@@ -20,6 +20,8 @@ export interface ResolvedPage {
 export const usePageContributions = (): QualifiedContribution[] => useContributions(UI_PAGE_POINT);
 
 export const useNavContributions = (): QualifiedContribution[] => useContributions(UI_NAV_POINT);
+
+export const useNavGroupContributions = (): QualifiedContribution[] => useContributions(UI_NAV_GROUP_POINT);
 
 // Um componente só, de módulo, para toda página em Widget DSL: a identidade não muda entre renders,
 // então o painel não desmonta a página (nem perde o estado dos filtros) quando o espaço de trabalho muda.

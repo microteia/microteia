@@ -656,7 +656,8 @@ id is the whole of how an update recognises the same contribution across version
 
 | Constructor | Point | What it delivers |
 |---|---|---|
-| \`nav(metadata)\` | \`ui.nav\` | a menu entry — ONE target (\`key\`, \`screen\` or \`screenSourceId\`, below), \`label\`, \`icon\`, \`order\`, optional \`badge\` |
+| \`nav(metadata)\` | \`ui.nav\` | a menu entry — ONE target (\`key\`, \`screen\` or \`screenSourceId\`, below), \`label\`, \`icon\`, \`order\`, optional \`badge\` and \`group\` |
+| \`navGroup(metadata)\` | \`ui.nav.group\` | a titled, collapsible group of the sidebar — \`key\`, \`label\`, \`order\`, optional \`defaultCollapsed\`; entries join it with \`group: '<key>'\` (below) |
 | \`page(metadata, viewKey)\` | \`ui.page\` | a workspace screen drawn by one of your \`views\` (§7) |
 | \`widgetPage(metadata, spec)\` | \`ui.page\` | a workspace screen declared in Widget DSL — no code, no review |
 | \`surfaceTab(metadata, viewKey)\` · \`surfaceTabSpec(metadata, spec)\` | \`ui.tab\` | a tab on a surface, as code or as Widget DSL |
@@ -830,6 +831,29 @@ views: [{ key: 'summary', title: label('page.summary'), icon: 'lineChart', sourc
 \`sourceFile\` is an authoring field: the compiler replaces it with the file's contents. Keeping the
 code in a real \`.tsx\` is what lets \`tsc\` and your editor check the part of the extension most likely
 to be wrong.
+
+### Grouping menu entries
+
+The sidebar is drawn in sections. An entry with \`group: '<key>'\` joins the \`navGroup()\` with that key;
+the group sits at its own \`order\`, on the same scale as the loose entries, and its entries follow
+their own \`order\` inside it. The platform declares one group, \`ADMIN_NAV_GROUP\`, for the
+organization's administration screens — put your own admin screen there.
+
+- **A group key is universal**, like a screen's \`sourceId\`. Two packages that declare the same key
+  declare ONE group, labelled and placed by whichever loads first. So you may declare a group another
+  extension also declares, and join it without depending on it.
+- **An entry never disappears because of its group.** A \`group\` nobody declared in the organization
+  leaves the entry loose, at its own \`order\`.
+- **A group draws a header only with two or more visible entries.** With one, the entry stands loose in
+  the group's place; with none — permissions, missing targets — the group is not drawn.
+- **Collapsing is the person's choice**, remembered on their device; \`defaultCollapsed\` is only where
+  it starts. A collapsed group still shows the entry of the open tab, and its header carries the sum
+  of the hidden badges.
+
+\`\`\`ts
+navGroup({ key: 'schedule', label: label('nav.group.schedule'), order: 20 }),
+nav({ key: 'calendar', label: label('nav.calendar'), icon: 'calendar', order: 20, group: 'schedule' }),
+\`\`\`
 
 ### Where a menu entry leads
 

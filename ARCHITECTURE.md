@@ -5970,7 +5970,8 @@ provedores do ⌘K são **contribuições** de 12 plugins internos.
 | Ponto | Metadata | `impl` |
 |---|---|---|
 | `ui.page` | `key`, `keyPrefix`, `title`, `icon`, `fullBleed`, `requiredRole` | `code` (lazy) ou `widget` |
-| `ui.nav` | UM alvo (`key`, `screen` ou `screenSourceId` — ver "Item de menu que não leva a lugar nenhum"), `label`, `icon`, `order`, `requiredPermissions`, `badge` | nenhuma |
+| `ui.nav` | UM alvo (`key`, `screen` ou `screenSourceId` — ver "Item de menu que não leva a lugar nenhum"), `label`, `icon`, `order`, `requiredPermissions`, `badge`, `group` | nenhuma |
+| `ui.nav.group` | `key`, `label`, `order`, `defaultCollapsed` | nenhuma |
 | `ui.command` | `group` | `code` |
 | `theme.definition` | `id`, `name`, `extends`, seções de paleta | nenhuma |
 | `theme.tokens` | `light`, `dark`, `themes` | nenhuma |
@@ -5990,6 +5991,32 @@ Remover uma linha dali remove a tela, o item de menu e os comandos daquele módu
 **Ordem do menu é `metadata.order`, não a ordem das contribuições.** As telas dinâmicas do
 escritório entram com `DYNAMIC_SCREEN_NAV_ORDER = 100`, entre os cadastros (10..90) e a
 administração (110+) — substituindo o `splice` que antes procurava o índice de `tenant-settings`.
+
+**Grupos da barra lateral são declarados, nunca sabidos.** Com o catálogo crescendo, o menu virou uma
+lista longa sem título nenhum. O kernel não podia resolver isso escrevendo "Financeiro" ou "Agenda":
+o grupo é contribuição (`ui.nav.group`) de quem traz os itens, e o item escolhe o grupo pela `key`
+(`UiNavMetadata.group`). O núcleo declara um só, `ADMIN_NAV_GROUP` (no `core.ui`), porque
+administrar o escritório é conceito dele — Escritório, Configurações, Traduções e Auditoria estão nele.
+
+`groupNavSections` (função pura, em `resolveUiContributions`) reparte os itens já filtrados:
+
+| Situação | Resultado |
+|---|---|
+| nenhum grupo declarado | uma seção solta — o menu de antes, intacto |
+| item sem `group`, ou com `group` que ninguém declarou | solto, na posição do `order` dele: um item nunca some por causa do grupo |
+| mesma `key` declarada por duas extensões | um grupo só; vale a primeira na ordem de carga (`declaredNavGroups`), a mesma regra de `home` |
+| grupo com um único item visível | sem título: o item fica solto, na posição do grupo |
+| grupo sem item visível | não aparece |
+
+O grupo ocupa o `order` DELE na mesma régua dos itens soltos — é o que mantém Relatórios (95) e as telas
+do escritório (100) acima da administração (110). Recolher é preferência de quem usa, guardada no
+`localStorage` (`microteia:sidebarCollapsedGroups`) e com `defaultCollapsed` como ponto de partida; o
+grupo recolhido continua mostrando o item da aba ativa, e o título soma os selos escondidos. Com a barra
+lateral recolhida não há título onde clicar, então nenhum grupo recolhe — os grupos viram divisores.
+
+A `key` do grupo é universal, como o `sourceId` de uma tela: Calendário e Dias úteis declaram ambos
+`schedule`, e cada um sozinho funciona. A tela criada no Screen Builder ainda entra solta — a extensão
+que quer agrupar a dela declara `nav({ screen, group })`, que substitui o item automático.
 
 **Resolução de aba** (`presentation/shared/resolveUiContributions.ts`, função pura e testada):
 chave exata primeiro, depois **o prefixo mais longo**. O critério de comprimento é o que faz

@@ -4,6 +4,7 @@ import { coreMessage, CORE_I18N_MESSAGES } from '../coreMessages';
 import { DEFAULT_LOCALE } from '../../domain/schema/i18n/localeNegotiation';
 import { lazyView, nav, page, settingsSection } from '../contributionBuilders';
 import { PERMISSION_TRANSLATIONS_MANAGE } from '../../domain/schema/access';
+import { ADMIN_NAV_GROUP } from '../../domain/schema/ui/uiExtensionPoints';
 
 /**
  * O núcleo do idioma. Declara o ponto onde as traduções chegam e as duas preferências que decidem
@@ -35,7 +36,7 @@ export const coreI18nPlugin: PluginRecord = {
     contributes: [
       messageBundleContribution(coreMessage('core.i18n', CORE_I18N_MESSAGES)),
       page({ key: 'translations', title: '@core.i18n/page.translations', icon: 'globe' }, 'TranslationsView'),
-      nav({ key: 'translations', label: '@core.i18n/nav.translations', icon: 'globe', order: 116, requiredPermissions: [PERMISSION_TRANSLATIONS_MANAGE] }),
+      nav({ key: 'translations', label: '@core.i18n/nav.translations', icon: 'globe', order: 116, group: ADMIN_NAV_GROUP, requiredPermissions: [PERMISSION_TRANSLATIONS_MANAGE] }),
       settingsSection({
         key: 'i18n',
         title: '@core.i18n/section.title',

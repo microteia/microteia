@@ -23,6 +23,7 @@ export {
   command,
   menuItem,
   nav,
+  navGroup,
   page,
   pointContribution,
   recordAction,

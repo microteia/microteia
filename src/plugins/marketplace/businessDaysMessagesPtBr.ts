@@ -16,6 +16,7 @@ const BUSINESS_DAYS_PT_BR: Record<string, string> = {
     'Mantenha um ou mais calendários de dias úteis — nacional, regional, de um cliente ou de um tribunal — e marque, numa grade dos doze meses, os dias que não são úteis. As fórmulas contam com a união dos calendários que o registro informa: um dia que não é útil em qualquer um deles não é útil na conta.',
 
   'nav.business-days': 'Dias úteis',
+  'nav.group.schedule': 'Agenda',
   'page.business-days': 'Dias úteis',
 
   'screen.singular': 'Calendário de dias úteis',

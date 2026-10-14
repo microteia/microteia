@@ -26,6 +26,9 @@ const PUBLISHED = [
   'SETTINGS_OPTIONS_SOURCE_KINDS', 'SETTINGS_SCOPES', 'THEME_API_VERSION', 'THEME_DEFINITION_POINT', 'THEME_EXTENSION_POINTS',
   'THEME_TOKENS_POINT', 'THIRD_PARTY_IMPL_KINDS', 'UI_API_VERSION', 'UI_COMMAND_POINT',
   'UI_EXTENSION_POINTS', 'UI_NAV_POINT', 'UI_PAGE_POINT', 'UI_RECORD_ACTION_POINT',
+  // O GRUPO da barra lateral. MOVE o `KERNEL_VERSION`: um ponto novo e um `group` no `ui.nav` são
+  // forma nova de pacote instalado — um kernel antigo os aceitaria e desenharia o menu sem grupos.
+  'UI_NAV_GROUP_POINT', 'ADMIN_NAV_GROUP', 'navGroup',
   'LOGIN_SLOT_SURFACES',
   'UI_MENU_POINT', 'UI_SETTINGS_POINT', 'UI_SLOT_POINT', 'UI_TAB_POINT', 'UI_WIDGET_POINT',
   'USER_MENU_SURFACE', 'WORKSPACE_SLOT_SURFACES', 'WIDGET_NODE_TYPES',
@@ -160,7 +163,7 @@ const PUBLISHED_TYPES = [
   'WorkflowStepMetadata', 'MapFieldMapping', 'MapStepConfig', 'RemoveStepConfig', 'UpsertSpec',
   'UpsertStepConfig', 'ValidateStepConfig',
   'ThemeTagColor', 'ThemeTokenBundle', 'TranslateFn', 'UiCommandMetadata', 'UiMenuAction',
-  'UiMenuItemMetadata', 'UiNavBadge',
+  'UiMenuItemMetadata', 'UiNavBadge', 'UiNavGroupMetadata',
   'UiNavMetadata', 'UiNavTarget', 'UiPageMetadata', 'UiRecordActionMetadata', 'UiSlotMetadata', 'UiTabMetadata',
   'UiWidgetMetadata',
   'ValidateManifestOptions', 'ValidateRule', 'VariableInputMapping', 'ViewModuleTemplate',
@@ -231,7 +234,7 @@ describe('a superfície publicada do SDK', () => {
   it('todo construtor de contribuição é chamável', () => {
     for (const name of ['page', 'nav', 'command', 'recordAction', 'settingsSection', 'widgetPage',
       'surfaceTab', 'surfaceTabSpec', 'surfaceWidget', 'surfaceWidgetSpec', 'surfaceSlot',
-      'surfaceSlotSpec', 'menuItem', 'authProvider', 'pointContribution']) {
+      'surfaceSlotSpec', 'menuItem', 'navGroup', 'authProvider', 'pointContribution']) {
       expect(typeof (sdk as unknown as Record<string, unknown>)[name], name).toBe('function');
     }
   });

@@ -1,6 +1,6 @@
 import type { QualifiedContribution } from '../../domain/schema/plugin/contribution';
 import type { SettingsSection } from '../../domain/schema/settings';
-import type { UiNavMetadata, UiPageMetadata } from '../../domain/schema/ui/uiExtensionPoints';
+import type { UiNavGroupMetadata, UiNavMetadata, UiPageMetadata } from '../../domain/schema/ui/uiExtensionPoints';
 
 export const pageMetadataOf = (contribution: QualifiedContribution): UiPageMetadata =>
   contribution.metadata as unknown as UiPageMetadata;
@@ -73,6 +73,72 @@ export const visibleNavItems = (
     .map(navMetadataOf)
     .filter((metadata) => isPermitted(canAny, metadata.requiredPermissions))
     .sort((a, b) => a.order - b.order);
+
+/**
+ * Os grupos declarados, um por `key`. Duas extensões que declaram a mesma `key` falam do mesmo grupo,
+ * e vale a primeira na ordem de carga — a mesma regra de `home`. A declaração sem `key` não forma
+ * grupo: o item que a apontasse não teria como encontrá-la.
+ */
+export const declaredNavGroups = (contributions: QualifiedContribution[]): UiNavGroupMetadata[] => {
+  const byKey = new Map<string, UiNavGroupMetadata>();
+  for (const contribution of contributions) {
+    const metadata = contribution.metadata as unknown as UiNavGroupMetadata;
+    if (typeof metadata.key !== 'string' || metadata.key === '' || byKey.has(metadata.key)) continue;
+    byKey.set(metadata.key, metadata);
+  }
+  return [...byKey.values()];
+};
+
+/** Um trecho da barra lateral: um grupo com título, ou itens soltos (`group: null`). */
+export interface NavSection<T> {
+  group: UiNavGroupMetadata | null;
+  items: T[];
+}
+
+/**
+ * Reparte os itens de menu em seções. Recebe os itens já filtrados por permissão e por alvo — é o que
+ * faz um grupo sem nenhum item visível simplesmente não aparecer.
+ *
+ * - O item sem `group`, ou com um `group` que ninguém declarou, fica solto: nunca some.
+ * - O grupo ocupa a posição do `order` DELE, na mesma régua dos itens soltos; dentro dele, os itens
+ *   seguem o `order` de cada um.
+ * - O grupo com um item só não ganha título: um cabeçalho para uma linha gasta espaço e esconde o item
+ *   atrás de um clique a mais. O item fica solto, na posição do grupo.
+ * - Itens soltos vizinhos formam uma seção só.
+ */
+export const groupNavSections = <T extends { order: number; group?: string }>(
+  items: T[],
+  groups: UiNavGroupMetadata[],
+): NavSection<T>[] => {
+  const declared = new Map(groups.map((group) => [group.key, group]));
+  const members = new Map<string, T[]>();
+  const blocks: { order: number; section: NavSection<T> }[] = [];
+
+  for (const item of items) {
+    const group = item.group ? declared.get(item.group) : undefined;
+    if (!group) {
+      blocks.push({ order: item.order, section: { group: null, items: [item] } });
+      continue;
+    }
+    const existing = members.get(group.key);
+    if (existing) existing.push(item);
+    else members.set(group.key, [item]);
+  }
+
+  for (const [key, grouped] of members) {
+    const group = declared.get(key)!;
+    const sorted = [...grouped].sort((a, b) => a.order - b.order);
+    blocks.push({ order: group.order, section: { group: sorted.length > 1 ? group : null, items: sorted } });
+  }
+
+  const sections: NavSection<T>[] = [];
+  for (const { section } of blocks.sort((a, b) => a.order - b.order)) {
+    const previous = sections[sections.length - 1];
+    if (section.group === null && previous?.group === null) previous.items.push(...section.items);
+    else sections.push(section);
+  }
+  return sections;
+};
 
 /**
  * As seções de Configurações que esta pessoa VÊ. Mesmo predicado de `visibleNavItems`, e é o ponto:

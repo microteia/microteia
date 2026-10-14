@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.102.0] — 2026-10-14
+
+- O menu lateral agora se organiza em grupos com título, que se recolhem com um clique. As telas de administração do escritório — Escritório, Configurações, Traduções e Auditoria — ficam juntas em "Administração", e Calendário e Dias úteis em "Agenda".
+- Cada pessoa escolhe quais grupos deixar recolhidos, e a escolha fica lembrada no aparelho. O grupo recolhido continua mostrando a tela em que se está, e o título dele avisa quantas pendências ficaram escondidas.
+
 #### [9.101.0] — 2026-10-14
 
 - O escritório que não instalou o Painel não abre mais numa aba vazia: a área de trabalho começa limpa, e a tela inicial passa a ser a que a extensão instalada indicar.

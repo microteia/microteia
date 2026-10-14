@@ -1,7 +1,7 @@
 import type { PluginRecord } from '../../kernel';
 import { lazyView, nav, page, settingsSection, surfaceTab } from '../contributionBuilders';
 import { messageBundleContribution } from '../../domain/schema/i18n/extensionPoints';
-import { UI_TAB_POINT } from '../../domain/schema/ui/uiExtensionPoints';
+import { ADMIN_NAV_GROUP, UI_TAB_POINT } from '../../domain/schema/ui/uiExtensionPoints';
 import { coreMessage, CORE_TENANT_MESSAGES } from '../coreMessages';
 import { coreTenantPtBrContribution } from './messagesPtBr';
 import { TENANT_SETTINGS_SURFACE } from './surface';
@@ -51,7 +51,7 @@ export const coreTenantPlugin: PluginRecord = {
       coreTenantPtBrContribution(),
       page({ key: 'tenant-settings', title: '@core.tenant/page.tenant-settings', icon: 'building', fullBleed: true }, 'TenantSettingsView'),
       page({ key: '', keyPrefix: 'tenant-settings:', title: '@core.tenant/page.tenant-settings', icon: 'building', fullBleed: true }, 'TenantSettingsView'),
-      nav({ key: 'tenant-settings', label: '@core.tenant/nav.tenant-settings', icon: 'building', order: 110 }),
+      nav({ key: 'tenant-settings', label: '@core.tenant/nav.tenant-settings', icon: 'building', order: 110, group: ADMIN_NAV_GROUP }),
       surfaceTab({
         surface: TENANT_SETTINGS_SURFACE,
         key: 'office',

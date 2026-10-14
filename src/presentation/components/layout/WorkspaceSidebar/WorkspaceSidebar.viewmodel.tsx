@@ -7,10 +7,10 @@ import { useCommandPalette } from '../../../../stores/useCommandPalette';
 import { useScreenDefinitions } from '../../../../stores/useScreenDefinitions';
 import { buildListTabKey } from '../../../../shared/constants/dynamicScreenKeys';
 import { getScreenIcon } from '../../../shared/screenIcons';
-import { useNavContributions } from '../../../shared/useUiContributions';
+import { useNavContributions, useNavGroupContributions } from '../../../shared/useUiContributions';
 import { useNavBadgeCount } from '../../../shared/useNavBadgeCount';
 import { menuActionTarget, useNavTargetResolver } from '../../../shared/useNavTarget';
-import { visibleNavItems } from '../../../shared/resolveUiContributions';
+import { declaredNavGroups, groupNavSections, visibleNavItems } from '../../../shared/resolveUiContributions';
 import { screenReadPermission } from '../../../../domain/services/screenDataCollection';
 import { DYNAMIC_SCREEN_NAV_ORDER, USER_MENU_SURFACE } from '../../../../domain/schema/ui/uiExtensionPoints';
 import { useSurfaceMenuItems, type SurfaceMenuItemDescriptor } from '../../../shared/settings/useSettingsCatalog';
@@ -28,6 +28,44 @@ export interface NavItem {
   badge: number;
   requiresTenantAdmin?: boolean;
 }
+
+/**
+ * Um trecho da barra lateral. `label` nulo é o trecho de itens soltos, sem título.
+ *
+ * `items` são os que aparecem: o grupo recolhido ainda mostra o item da aba ativa, para a pessoa não
+ * perder de vista onde está. Com a barra recolhida nenhum grupo recolhe — ali não há título onde
+ * clicar para abrir. `badge` soma os selos dos itens escondidos, e é o que o título mostra.
+ */
+export interface NavSectionView {
+  key: string;
+  label: string | null;
+  collapsed: boolean;
+  badge: number;
+  items: NavItem[];
+}
+
+const COLLAPSED_GROUPS_KEY = 'microteia:sidebarCollapsedGroups';
+
+/**
+ * O que a pessoa recolheu, por grupo. É conveniência de quem usa, e não dado: num navegador sem
+ * armazenamento, ou com ele limpo, vale o `defaultCollapsed` de cada grupo.
+ */
+const readCollapsedGroups = (): Record<string, boolean> => {
+  try {
+    const parsed: unknown = JSON.parse(localStorage.getItem(COLLAPSED_GROUPS_KEY) ?? '{}');
+    return parsed && typeof parsed === 'object' ? (parsed as Record<string, boolean>) : {};
+  } catch {
+    return {};
+  }
+};
+
+const writeCollapsedGroups = (value: Record<string, boolean>): void => {
+  try {
+    localStorage.setItem(COLLAPSED_GROUPS_KEY, JSON.stringify(value));
+  } catch {
+    // Sem armazenamento, o grupo continua recolhendo — só não lembra na próxima visita.
+  }
+};
 
 /**
  * Um tema como o menu o mostra. `labelKey` deixou de existir: o nome vem da própria contribuição,
@@ -57,7 +95,8 @@ export interface SidebarMenuItem {
 
 export interface WorkspaceSidebarViewModel {
   collapsed: boolean;
-  navItems: NavItem[];
+  /** O menu em trechos. Sem grupo declarado, é um trecho só, sem título — o menu de sempre. */
+  navSections: NavSectionView[];
   activeKey: string | null;
   isMenuOpen: boolean;
   isThemeSubOpen: boolean;
@@ -78,6 +117,7 @@ export interface WorkspaceSidebarViewModel {
   themeOptions: SidebarThemeOption[];
   searchShortcut: string;
   toggleCollapse: () => void;
+  toggleNavGroup: (key: string) => void;
   handleNavClick: (key: string) => void;
   openCommandPalette: () => void;
   toggleMenu: () => void;
@@ -92,6 +132,7 @@ export const useWorkspaceSidebarViewModel = (): WorkspaceSidebarViewModel => {
   const [collapsed, setCollapsed] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isThemeSubOpen, setIsThemeSubOpen] = useState(false);
+  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>(readCollapsedGroups);
 
   const { openTab, panels, activePanelId } = useWorkspace();
   const { userRole, user, effectivePhotoURL, effectiveName, signOut } = useAuth();
@@ -102,6 +143,7 @@ export const useWorkspaceSidebarViewModel = (): WorkspaceSidebarViewModel => {
   const { pendingInUse: extensionUpdates } = useExtensionUpdates();
   const { sidebarScreens } = useScreenDefinitions();
   const navContributions = useNavContributions();
+  const navGroupContributions = useNavGroupContributions();
   const registeredMenuItems = useSurfaceMenuItems(USER_MENU_SURFACE);
   const { entries: menuEntries } = useSurfaceMenuLayout(USER_MENU_SURFACE);
 
@@ -135,6 +177,7 @@ export const useWorkspaceSidebarViewModel = (): WorkspaceSidebarViewModel => {
         label: label(item.label),
         icon: getScreenIcon(item.icon, 20),
         order: item.order,
+        group: item.group,
         badge: item.badge ? badgeCount(item.badge) : kernelBadge(key),
       }];
     });
@@ -159,10 +202,36 @@ export const useWorkspaceSidebarViewModel = (): WorkspaceSidebarViewModel => {
       badge: 0,
     }));
 
-    return [...contributed, ...dynamicItems]
-      .sort((a, b) => a.order - b.order)
-      .map(({ key, label, icon, badge }): NavItem => ({ key, label, icon, badge }));
+    return [...contributed, ...dynamicItems].sort((a, b) => a.order - b.order);
   }, [navContributions, canAny, can, sidebarScreens, badgeCount, kernelBadge, resolveTarget, label]);
+
+  const navGroups = useMemo(() => declaredNavGroups(navGroupContributions), [navGroupContributions]);
+
+  const navSections = useMemo<NavSectionView[]>(
+    () => groupNavSections(navItems, navGroups).map((section, index): NavSectionView => {
+      const items = section.items.map(({ key, label, icon, badge }): NavItem => ({ key, label, icon, badge }));
+      if (!section.group) return { key: `loose-${index}`, label: null, collapsed: false, badge: 0, items };
+      const { group } = section;
+      const groupCollapsed = !collapsed && (collapsedGroups[group.key] ?? group.defaultCollapsed === true);
+      const hidden = groupCollapsed ? items.filter((item) => item.key !== activeKey) : [];
+      return {
+        key: group.key,
+        label: label(group.label),
+        collapsed: groupCollapsed,
+        badge: hidden.reduce((sum, item) => sum + item.badge, 0),
+        items: groupCollapsed ? items.filter((item) => item.key === activeKey) : items,
+      };
+    }),
+    [navItems, navGroups, collapsedGroups, activeKey, collapsed, label],
+  );
+
+  const toggleNavGroup = useCallback((key: string) => {
+    const section = navSections.find((candidate) => candidate.key === key);
+    if (!section) return;
+    const next = { ...collapsedGroups, [key]: !section.collapsed };
+    setCollapsedGroups(next);
+    writeCollapsedGroups(next);
+  }, [navSections, collapsedGroups]);
 
   const toggleCollapse = useCallback(() => setCollapsed(c => !c), []);
 
@@ -285,7 +354,7 @@ export const useWorkspaceSidebarViewModel = (): WorkspaceSidebarViewModel => {
 
   return {
     collapsed,
-    navItems,
+    navSections,
     activeKey,
     isMenuOpen,
     isThemeSubOpen,
@@ -298,6 +367,7 @@ export const useWorkspaceSidebarViewModel = (): WorkspaceSidebarViewModel => {
     themeOptions,
     searchShortcut,
     toggleCollapse,
+    toggleNavGroup,
     handleNavClick,
     openCommandPalette,
     toggleMenu,

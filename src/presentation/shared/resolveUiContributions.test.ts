@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import type { QualifiedContribution } from '../../domain/schema/plugin/contribution';
 import {
+  declaredNavGroups,
+  groupNavSections,
   homePageKey,
   navigablePages,
   resolvePageContribution,
@@ -8,7 +10,7 @@ import {
   visibleSettingsSections,
 } from './resolveUiContributions';
 import type { SettingsSection } from '../../domain/schema/settings';
-import type { UiNavMetadata, UiPageMetadata } from '../../domain/schema/ui/uiExtensionPoints';
+import type { UiNavGroupMetadata, UiNavMetadata, UiPageMetadata } from '../../domain/schema/ui/uiExtensionPoints';
 
 const pageContribution = (id: string, metadata: Partial<UiPageMetadata>): QualifiedContribution => ({
   pluginId: 'com.acme.x',
@@ -190,5 +192,73 @@ describe('visibleSettingsSections', () => {
 
   it('lista vazia de exigências é o mesmo que não exigir nada', () => {
     expect(visibleSettingsSections([section('x', [])], canNothing).map((s) => s.key)).toEqual(['x']);
+  });
+});
+
+describe('declaredNavGroups', () => {
+  const groupContribution = (pluginId: string, metadata: Partial<UiNavGroupMetadata>): QualifiedContribution => ({
+    pluginId,
+    point: 'ui.nav.group',
+    id: metadata.key ?? 'g',
+    apiVersion: '1.0.0',
+    metadata: { label: 'G', order: 0, ...metadata } as unknown as Record<string, unknown>,
+  });
+
+  it('a mesma chave declarada por duas extensões é UM grupo, com o rótulo da primeira carregada', () => {
+    const groups = declaredNavGroups([
+      groupContribution('com.acme.a', { key: 'agenda', label: 'Agenda', order: 20 }),
+      groupContribution('com.acme.b', { key: 'agenda', label: 'Outra', order: 90 }),
+    ]);
+    expect(groups).toEqual([{ key: 'agenda', label: 'Agenda', order: 20 }]);
+  });
+
+  it('a declaração sem chave não forma grupo', () => {
+    expect(declaredNavGroups([groupContribution('com.acme.a', { key: '' })])).toEqual([]);
+  });
+});
+
+describe('groupNavSections', () => {
+  type Item = { key: string; order: number; group?: string };
+  const item = (key: string, order: number, group?: string): Item => ({ key, order, group });
+  const group = (key: string, order: number): UiNavGroupMetadata => ({ key, label: key, order });
+  const shape = (sections: ReturnType<typeof groupNavSections<Item>>) =>
+    sections.map((section) => [section.group?.key ?? null, section.items.map((i) => i.key)]);
+
+  it('sem grupo declarado, o menu é uma seção solta na ordem de sempre', () => {
+    const items = [item('painel', 10), item('tarefas', 15), item('relatorios', 95)];
+    expect(shape(groupNavSections(items, []))).toEqual([[null, ['painel', 'tarefas', 'relatorios']]]);
+  });
+
+  it('o grupo ocupa a posição do order dele entre os itens soltos', () => {
+    const items = [
+      item('painel', 10),
+      item('calendario', 20, 'agenda'),
+      item('dias-uteis', 21, 'agenda'),
+      item('relatorios', 95),
+      item('configuracoes', 115, 'admin'),
+      item('escritorio', 110, 'admin'),
+    ];
+    expect(shape(groupNavSections(items, [group('agenda', 20), group('admin', 110)]))).toEqual([
+      [null, ['painel']],
+      ['agenda', ['calendario', 'dias-uteis']],
+      [null, ['relatorios']],
+      ['admin', ['escritorio', 'configuracoes']],
+    ]);
+  });
+
+  it('item que aponta para um grupo não instalado fica solto, na posição dele — nunca some', () => {
+    const items = [item('painel', 10), item('prazos', 30, 'juridico')];
+    expect(shape(groupNavSections(items, []))).toEqual([[null, ['painel', 'prazos']]]);
+  });
+
+  it('grupo sem item visível não aparece', () => {
+    expect(shape(groupNavSections([item('painel', 10)], [group('admin', 110)]))).toEqual([[null, ['painel']]]);
+  });
+
+  it('grupo com um item só não ganha título, e o item se junta aos soltos vizinhos', () => {
+    const items = [item('painel', 10), item('auditoria', 120, 'admin'), item('relatorios', 95)];
+    expect(shape(groupNavSections(items, [group('admin', 110)]))).toEqual([
+      [null, ['painel', 'relatorios', 'auditoria']],
+    ]);
   });
 });

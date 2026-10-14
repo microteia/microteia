@@ -159,6 +159,7 @@ export type {
   UiMenuAction,
   UiMenuItemMetadata,
   UiNavBadge,
+  UiNavGroupMetadata,
   UiNavMetadata,
   UiNavTarget,
   UiPageMetadata,
@@ -170,10 +171,12 @@ export type {
 } from '../domain/schema/ui/uiExtensionPoints';
 
 export {
+  ADMIN_NAV_GROUP,
   UI_API_VERSION,
   UI_COMMAND_POINT,
   UI_EXTENSION_POINTS,
   UI_MENU_POINT,
+  UI_NAV_GROUP_POINT,
   UI_NAV_POINT,
   UI_PAGE_POINT,
   UI_RECORD_ACTION_POINT,
@@ -451,6 +454,7 @@ export {
   command,
   menuItem,
   nav,
+  navGroup,
   page,
   pointContribution,
   recordAction,

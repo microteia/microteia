@@ -20,6 +20,7 @@ export const BUSINESS_DAYS_MESSAGES: Record<string, string> = {
     'Keep one or more business-day calendars — national, regional, of a single client or court — and mark, on a grid of the twelve months, the days that are not business days. Formulas count with the union of the calendars a record names: a day that is not a business day in any of them is not one in the count.',
 
   'nav.business-days': 'Business days',
+  'nav.group.schedule': 'Schedule',
   'page.business-days': 'Business days',
 
   'screen.singular': 'Business-day calendar',

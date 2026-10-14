@@ -3,7 +3,7 @@ import { lazyView, menuItem, nav, page } from '../contributionBuilders';
 import { messageBundleContribution } from '../../domain/schema/i18n/extensionPoints';
 import { coreMessage, CORE_ADMIN_MESSAGES } from '../coreMessages';
 import { PERMISSION_AUDIT_READ, PERMISSION_DATA_PROCESSOR_USE } from '../../domain/schema/access';
-import { USER_MENU_SURFACE } from '../../domain/schema/ui/uiExtensionPoints';
+import { ADMIN_NAV_GROUP, USER_MENU_SURFACE } from '../../domain/schema/ui/uiExtensionPoints';
 
 export const coreAdminPlugin: PluginRecord = {
   trusted: true,
@@ -24,7 +24,7 @@ export const coreAdminPlugin: PluginRecord = {
       page({ key: 'access-management', title: '@core.admin/page.access-management', icon: 'shieldUser', requiresSystemAdmin: true }, 'AccessManagementView'),
       page({ key: 'audit-logs', title: '@core.admin/page.audit-logs', icon: 'history', requiredPermissions: [PERMISSION_AUDIT_READ] }, 'AuditLogsView'),
       page({ key: 'data-processor', title: '@core.admin/page.data-processor', icon: 'sparkling', requiredPermissions: [PERMISSION_DATA_PROCESSOR_USE] }, 'DataProcessorView'),
-      nav({ key: 'audit-logs', label: '@core.admin/nav.audit-logs', icon: 'history', order: 120, requiredPermissions: [PERMISSION_AUDIT_READ] }),
+      nav({ key: 'audit-logs', label: '@core.admin/nav.audit-logs', icon: 'history', order: 120, group: ADMIN_NAV_GROUP, requiredPermissions: [PERMISSION_AUDIT_READ] }),
       menuItem({
         surface: USER_MENU_SURFACE,
         key: 'access-management',
