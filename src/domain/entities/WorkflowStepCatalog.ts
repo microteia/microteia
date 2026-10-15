@@ -158,4 +158,6 @@ export interface StepDefinitionSummary {
    * Ex: 'Chamar Workflow' expõe os parâmetros do workflow-alvo como inputs `param.<chave>`.
    */
   dynamicInputs?: DynamicInputsMetadata;
+  /** Os gatilhos em cuja automação o passo não pode entrar — ver `WorkflowStepMetadata.excludedTriggers`. */
+  excludedTriggers?: readonly string[];
 }

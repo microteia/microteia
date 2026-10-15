@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.111.0] — 2026-10-15
+
+- As automações ganham o gatilho **Ao registrar auditoria**: a cada registro na Auditoria causado por uma pessoa, a automação pode olhar a severidade, a ação e a entidade e decidir o que fazer — por exemplo, mandar um e-mail quando aparece um registro crítico.
+- Para que uma automação desse tipo nunca dispare a si mesma em sequência sem fim, o que o próprio sistema e as automações registram na Auditoria não a dispara, e os passos que gravariam de volta na Auditoria — como Registrar Auditoria e Excluir Registro — não ficam disponíveis nela.
+
 #### [9.110.0] — 2026-10-15
 
 - A extensão Brasil passa a oferecer o formato **Número de processo CNJ**: o campo ganha a máscara `0000000-00.0000.0.00.0000` e recusa, já na digitação, um número cujo dígito verificador não confere.

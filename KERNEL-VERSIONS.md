@@ -18,6 +18,13 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.111.0] — 2026-10-15
+
+- feat(workflow): new trigger `audit.recorded` — a workflow reacts to every Audit trail entry a person caused, with the entry as payload (`severity`, `action`, `type`, `entity`, `entityId`, `linkCollection`, `linkRecordId`, `userId`, `userName`, `title`/`text` plus their params). Published by the new Cloud Function `publishWorkflowEventOnAuditLog` (`onDocumentCreated('auditLogs/{logId}')`, `deploy:workflow` group), only when the tenant has an enabled workflow on that trigger. `KERNEL_VERSION` 2.45.0 (additive); packages using the trigger must declare `kernel: "^2.45.0"`.
+- feat(workflow/steps): `WorkflowStepMetadata.excludedTriggers` — a step declares the triggers whose workflows it cannot be part of. Enforced by the step editor, by package validation (`issue.step.excluded-trigger`) and by `WorkflowExecutor` at run time (`run.step.excluded-trigger`). `register-audit` and `remove` exclude `audit.recorded`.
+- feat(workflow): loop guard for the audit trigger — entries authored by the machine (`system`, `workflow-engine`) or with tenant `SYSTEM` never publish the event. An audit-triggered workflow runs without actor, so whatever it writes comes back as a machine entry and cannot re-fire it.
+- feat(rules): `workflow_events` created by a client can no longer be named `audit.recorded` — a forged event would raise the alert of an entry that does not exist. Requires `npm run deploy:rules`.
+
 #### [9.110.0] — 2026-10-15
 
 - feat(expressions): `mod97(text)` in both expression catalogs (field and workflow) — the ISO 7064 mod 97-10 remainder, computed character by character over the text (`iso7064Mod97`, shared `domain/schema/fieldRulePresets.ts`), so a 20-digit CNJ number or an IBAN keeps every digit instead of being rounded by `Number` above 2^53. Letters A–Z count 10–35, as the standard says; an empty text or any other character yields `null`. It returns the remainder, not a boolean, because each format moves different characters to the end before the check: `== 1` validates, `98 - mod97(base + "00")` computes the digits. `KERNEL_VERSION` goes to `2.44.0` (additive).

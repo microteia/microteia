@@ -338,6 +338,9 @@ Membro de tenant (`TenantMember`) é removido via Cloud Function callable (`remo
 
 O nome fica **congelado no `text` do log como era no momento do evento** — se a entidade referenciada for renomeada depois, o histórico não muda retroativamente (comportamento correto para uma trilha de auditoria). Coleções sem nenhum campo FK conhecido (`members`, `*Tags`, `pushes`, `screenDefinitions`) não disparam nenhuma leitura extra — `enrichDiff` retorna o diff inalterado assim que a tabela de schema resolvida está vazia.
 
+**Automações sobre a Auditoria.** Cada log que uma pessoa causa pode disparar uma automação
+(`audit.recorded`) — ver "Gatilho de Auditoria" no Workflow Engine, inclusive as travas contra laço.
+
 ### Retenção (TTL) e backup frio
 
 `expiresAt` é calculado como `createdAt + 30 dias`. A política de TTL é **declarada**: `"ttl": true` no
@@ -5837,6 +5840,60 @@ Uma regra que depende do estado de AGORA ("dois dias depois, se ainda estiver ab
 | `functions/src/domain/services/workflowClock.ts` → `dateReachedOnSave` | a metade do gatilho de data que corre na gravação |
 | `functions/src/domain/services/workflowSuspension.ts` | guardar a continuação de quem esperou, e retomá-la |
 | `functions/src/infrastructure/workflow/steps/DelayStep.ts` | o passo `delay` — só pede a pausa |
+
+### Gatilho de Auditoria — `audit.recorded`
+
+Uma automação pode reagir a cada log gravado na Auditoria do escritório e decidir pelo conteúdo dele —
+`severity`, `action`, `type`, `entity`, quem causou — o que fazer: o caso típico é o passo **Notificar**
+mandando e-mail quando aparece um log `CRITICAL`. A fonte única é `domain/schema/workflowAuditTrigger.ts`
+(compartilhado): o nome do evento, os campos do payload (com as opções de severidade/ação/tipo, para o
+editor de condição oferecer a lista) e a regra de elegibilidade. Entrou no `KERNEL_VERSION` 2.45.0
+(aditivo), e a validação de pacote cobra o intervalo de `kernel` como faz com os gatilhos de relógio.
+
+**Quem publica.** `publishWorkflowEventOnAuditLog` (`onDocumentCreated('auditLogs/{logId}')`, grupo
+`deploy:workflow`). O evento nasce do DOCUMENTO, como o de registro nasce do registro — nenhum dos caminhos
+que gravam log (gatilhos de auditoria, `logClientError`, jobs do kernel) conhece o motor. Antes de publicar,
+a function pergunta se o escritório tem automação de auditoria ligada (`findEnabledByEvent`): a Auditoria
+grava um log por gravação de registro, e um evento por log dobraria as escritas de todo escritório para
+servir a nenhum. O evento é publicado **sem ator** — quem causou está no payload (`userId`, `userName`).
+
+**O laço, e as duas travas.** Uma automação disparada pela Auditoria que grave na Auditoria se reacende.
+O caminho direto é o passo "Registrar Auditoria"; os indiretos são muitos — gravar um registro (que a
+auditoria automática registra), o destino Auditoria do "Notificar" (ligado por padrão), um Script, uma
+automação chamada. Por isso são duas travas, de naturezas diferentes:
+
+| Trava | Onde | O que fecha |
+|---|---|---|
+| **Causal** — log de máquina não publica | `isAuditEventEligible`: `userId` em `MACHINE_AUDIT_AUTHORS` (`system`, `workflow-engine`) ou `tenantId` `SYSTEM` | todo caminho em que a automação grava: ela roda sem ator, então o que grava sai como `workflow-engine` (registro) ou `system` (Registrar Auditoria, Notificar) |
+| **Declarativa** — `excludedTriggers` no catálogo de passos | `WorkflowStepMetadata.excludedTriggers` (não exibida, não editável) | o passo que realimentaria o gatilho nem entra na automação |
+
+A declarativa é propriedade do **passo**, não do gatilho: quem conhece o efeito colateral é quem o produz,
+e um passo futuro (de kernel ou de extensão, que contribui a própria metadata) declara os gatilhos que
+recusa sem que nada no núcleo mude. É cobrada em três pontas, pela mesma função
+`isStepExcludedFromTrigger`: o editor (`EditWorkflowStep` não oferece o passo e acusa o já gravado;
+`ViewWorkflow` não salva a troca de gatilho de uma automação que já o tem), a validação de pacote
+(`issue.step.excluded-trigger`, em `workflowIntegrity`) e o motor (`WorkflowExecutor` falha o passo com
+`run.step.excluded-trigger`, para o que entrou por fora das duas portas).
+
+Hoje declaram `audit.recorded`:
+
+- `register-audit` — grava log de máquina, que a trava causal já ignoraria; recusá-lo diz ao autor, antes
+  de salvar, que ali o passo não faria o que ele espera.
+- `remove` — aqui a trava causal **não basta**: a exclusão feita pelo motor não carimba `deletedBy`, e o
+  log dela sai atribuído ao último autor do registro, uma pessoa. Cada exclusão reacenderia a automação.
+
+**Limites conhecidos, deliberados:**
+
+- O erro do próprio pipeline (`logAuditError`, `type: 'ERROR'`, autor `system`) **não** dispara: uma
+  automação cuja gravação fizesse o pipeline falhar geraria um log de erro que a dispararia de novo. O erro
+  do NAVEGADOR (`logClientError`) dispara — o autor é a pessoa.
+- Uma exclusão feita por automação CHAMADA (`call-workflow`) ou por Script dentro de uma automação de
+  auditoria escapa da trava declarativa. O efeito é finito (cada registro se exclui uma vez), não laço.
+- `title` e `text` do payload costumam ser referências de mensagem (`@ns/chave`); seguem com `titleParams`/
+  `textParams` para que o passo seguinte as repasse inteiras (o "Notificar" aceita `messageParams`).
+
+**Firestore Rules.** `workflow_events` criado pelo cliente não pode ter `name == 'audit.recorded'`: um
+evento forjado dispararia o alerta de um log que não existe (`rules-tests/writeVia.test.ts`).
 
 ### `call-workflow` com alvo dinâmico e parâmetros em bloco
 

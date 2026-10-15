@@ -11,6 +11,7 @@ import type { WorkflowParameter } from '../entities/Workflow';
 import { isEntityCollection, resolveEntity } from './screenEntity';
 import { isLookupCollection as isBuiltinLookupCollection } from './lookupRegistry';
 import { DATE_REACHED_ACTION, WORKFLOW_SCHEDULE_EVENT } from './workflowClock';
+import { AUDIT_EVENT_FIELDS, WORKFLOW_AUDIT_EVENT } from './workflowAuditTrigger';
 
 export const WORKFLOW_CALLED_EVENT = 'workflow.called';
 
@@ -261,6 +262,16 @@ const workflowCalledEntry: WorkflowEventCatalogEntry = {
   root: { kind: 'fields', fields: [], hasOld: false },
 };
 
+/**
+ * O gatilho por log de Auditoria: o payload é o próprio log. Não há `old` — log não se altera.
+ */
+const auditEntry: WorkflowEventCatalogEntry = {
+  name: WORKFLOW_AUDIT_EVENT,
+  label: '@core.automation/event.audit-recorded',
+  fields: [ID_FIELD, ...flattenNativeFields(AUDIT_EVENT_FIELDS)],
+  root: { kind: 'fields', fields: AUDIT_EVENT_FIELDS, hasOld: false },
+};
+
 export const WORKFLOW_EVENT_CATALOG: WorkflowEventCatalogEntry[] = [
   ...orderedEntities.map((entity) => entityEntry(entity, 'saved')),
   lookupEntry('saved'),
@@ -270,6 +281,7 @@ export const WORKFLOW_EVENT_CATALOG: WorkflowEventCatalogEntry[] = [
   ...nestedEntries(DOCUMENT_PARENTS, 'document', '@core.automation/event.document', DOCUMENT_FIELDS),
   workflowCalledEntry,
   scheduleEntry,
+  auditEntry,
 ];
 
 const WORKFLOW_PARAM_TYPE_MAP: Record<Exclude<WorkflowParameter['type'], 'EntityReference' | 'Object'>, NativeFieldType> = {

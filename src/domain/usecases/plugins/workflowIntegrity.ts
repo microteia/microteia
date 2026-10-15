@@ -9,7 +9,9 @@ import {
   coreStepMetadata,
   isCoreStepDefinitionId,
   isPausingStepDefinition,
+  isStepExcludedFromTrigger,
 } from '../../schema/workflowStepCatalog';
+import { WORKFLOW_AUDIT_EVENT, WORKFLOW_AUDIT_SINCE_KERNEL } from '../../schema/workflowAuditTrigger';
 import type { PackageRef, PackageValidationIssue } from './pluginReferences';
 import {
   WORKFLOW_SCHEDULE_EVENT,
@@ -272,11 +274,45 @@ const workflowIssues = (
 
   return [
     ...triggerIssues(workflow, ref, pkg),
+    ...auditTriggerIssues(workflow, ref, pkg),
+    ...excludedStepIssues(workflow, steps, ref),
     ...delayIssues(workflow, steps, ref, pkg),
     ...steps.flatMap((step) => stepIssues(step, ref, hasDependencies)),
     ...outputRefIssues(steps, ref),
   ];
 };
+
+/**
+ * O passo do kernel que o catálogo declara incompatível com o gatilho do fluxo (`excludedTriggers`). O
+ * de extensão fica de fora pela mesma razão de `stepIssues`: a metadata dele não está aqui para ser lida.
+ */
+const excludedStepIssues = (
+  workflow: WorkflowModuleTemplate,
+  steps: WorkflowStep[],
+  ref: PackageRef,
+): PackageValidationIssue[] =>
+  steps
+    .filter((step) => isCoreStepDefinitionId(step.stepDefinitionId ?? ''))
+    .filter((step) => isStepExcludedFromTrigger(coreStepMetadata(step.stepDefinitionId ?? ''), workflow.eventName))
+    .map((step) => ({
+      ref,
+      message: '@core.marketplace/issue.step.excluded-trigger',
+      messageParams: { step: step.id, definition: step.stepDefinitionId ?? '', event: workflow.eventName },
+    }));
+
+/** O gatilho de auditoria num pacote que admite um kernel anterior a ele: instalaria e nunca dispararia. */
+const auditTriggerIssues = (
+  workflow: WorkflowModuleTemplate,
+  ref: PackageRef,
+  pkg: MarketplacePlugin,
+): PackageValidationIssue[] =>
+  workflow.eventName !== WORKFLOW_AUDIT_EVENT || rangeExcludesBelow(pkg.manifest?.kernel ?? '', WORKFLOW_AUDIT_SINCE_KERNEL)
+    ? []
+    : [{
+        ref,
+        message: '@core.marketplace/issue.workflow.trigger-kernel',
+        messageParams: { event: workflow.eventName, minimum: WORKFLOW_AUDIT_SINCE_KERNEL },
+      }];
 
 /**
  * Onde o passo `delay` não pode pausar — e falharia com o fluxo rodando:

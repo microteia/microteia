@@ -331,3 +331,51 @@ describe('integridade do passo de espera', () => {
     expect(issue?.message).toBe('@core.marketplace/issue.step.delay-kernel');
   });
 });
+
+describe('integridade do gatilho de auditoria', () => {
+  const deAuditoria = (steps: WorkflowStep[], kernel = '^2.45.0'): MarketplacePlugin => {
+    const base = pacote(steps);
+    return {
+      ...base,
+      manifest: { ...base.manifest, kernel },
+      workflows: [{ ...base.workflows[0], eventName: 'audit.recorded' }],
+    } as unknown as MarketplacePlugin;
+  };
+
+  const registrarAuditoria = (id: string): WorkflowStep => passo({
+    id,
+    stepDefinitionId: 'register-audit',
+    configuration: {
+      title: { kind: 'Literal', value: 'Oi' },
+      message: { kind: 'Literal', value: 'Olá' },
+      severity: { kind: 'Literal', value: 'LOW' },
+    },
+  });
+
+  it('aceita a notificação, que é o uso do gatilho', () => {
+    expect(workflowStepIssues(deAuditoria([passo({})]))).toEqual([]);
+  });
+
+  it('recusa o passo que declara o gatilho como proibido, mesmo dentro de um ramo', () => {
+    const condicao = passo({
+      id: 'cond',
+      type: 'Condition',
+      stepDefinitionId: '',
+      condition: { kind: 'AlwaysTrue' },
+      branches: { whenTrue: [registrarAuditoria('a')], whenFalse: [] },
+    });
+    const [issue] = workflowStepIssues(deAuditoria([condicao]));
+    expect(issue?.message).toBe('@core.marketplace/issue.step.excluded-trigger');
+    expect(issue?.messageParams).toEqual({ step: 'a', definition: 'register-audit', event: 'audit.recorded' });
+  });
+
+  it('o mesmo passo em outro gatilho continua aceito', () => {
+    expect(mensagens([registrarAuditoria('a')])).toEqual([]);
+  });
+
+  it('cobra o kernel que admite uma versão sem o gatilho', () => {
+    const [issue] = workflowStepIssues(deAuditoria([passo({})], '^2.44.0'));
+    expect(issue?.message).toBe('@core.marketplace/issue.workflow.trigger-kernel');
+    expect(issue?.messageParams?.minimum).toBe('2.45.0');
+  });
+});

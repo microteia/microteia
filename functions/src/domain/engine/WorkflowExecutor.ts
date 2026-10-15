@@ -12,6 +12,7 @@ import { resolveInputsSafe, resolveMapping } from './InputMapping';
 import { ruleIssueParams } from '../schema/fieldRules';
 import { collectRequiredIssues, formatAndValidateParameters } from '../schema/parameterRules';
 import { flattenSteps } from '../services/stepTree';
+import { isStepExcludedFromTrigger } from '../schema/workflowStepCatalog';
 
 const isPlainObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -357,6 +358,18 @@ export const runWorkflow = async ({
       const stepDefinition = registry.resolve(step.stepDefinitionId);
       if (!stepDefinition) {
         log('ERROR', `StepDefinition desconhecida: "${step.stepDefinitionId}"`, step.id);
+        return { ok: false };
+      }
+
+      // A automação que chegou por fora do editor e da validação de pacote — importada, gravada à mão —
+      // não executa o passo que o próprio catálogo declara incompatível com o gatilho dela.
+      if (isStepExcludedFromTrigger(stepDefinition, definition.eventName)) {
+        log(
+          'ERROR',
+          '@core.automation/run.step.excluded-trigger',
+          step.id, step.stepDefinitionId, context.input, undefined, undefined,
+          { step: stepDefinition.name, event: definition.eventName },
+        );
         return { ok: false };
       }
 

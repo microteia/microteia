@@ -391,6 +391,8 @@ export const CORE_MARKETPLACE: Record<string, string> = {
     'a automação roda quando uma data chega, e o relógio não consegue rodá-la: {detail} Ela seria instalada ligada e nunca dispararia.',
   'issue.workflow.trigger-kernel':
     'a automação é disparada por "{event}", que só existe a partir do kernel {minimum} — declare `kernel: "^{minimum}"` (ou posterior) no manifest, para que um kernel mais antigo recuse o pacote em vez de instalar uma automação que nunca dispara.',
+  'issue.step.excluded-trigger':
+    'o passo "{step}" ({definition}) não pode compor uma automação disparada por "{event}" — o próprio passo declara que realimentaria esse gatilho. Remova-o, ou dispare a automação por outro evento.',
   'issue.step.delay-nested':
     'o passo "{step}" espera dentro de um ramo de condição ou do corpo de uma repetição. A espera só pausa no nível principal da automação — ali o fluxo pararia com erro.',
   'issue.step.delay-in-action':

@@ -366,9 +366,12 @@ service cloud.firestore {
         // registro que o fluxo gravasse sairia com o autor forjado.
         // Sem `target` pelo mesmo motivo: o alvo acorda UMA automação sem passar pelo gatilho dela, e só
         // o relógio do kernel o escreve.
+        // Nem `audit.recorded`: o evento de auditoria só nasce de um log gravado pelo Admin SDK, e um
+        // forjado pelo cliente dispararia o alerta de um log que não existe.
         allow create: if can(tenantId, 'automation.run')
           && !('actor' in request.resource.data)
-          && !('target' in request.resource.data);
+          && !('target' in request.resource.data)
+          && request.resource.data.name != 'audit.recorded';
         allow read, update, delete: if false;
       }
 

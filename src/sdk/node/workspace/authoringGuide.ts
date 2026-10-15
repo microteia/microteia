@@ -19,6 +19,8 @@ import { AGGREGATION_OP_LABELS, NUMERIC_AGGREGATION_OPS } from '../../../domain/
 import type { WidgetNodeType } from '../../../domain/schema/ui/widgetSpec';
 import { STEP_TYPES } from '../../../domain/entities/Workflow';
 import type { WorkflowStepMetadata } from '../../../domain/schema/workflowStepCatalog';
+import { isStepExcludedFromTrigger } from '../../../domain/schema/workflowStepCatalog';
+import { WORKFLOW_AUDIT_EVENT, WORKFLOW_AUDIT_SINCE_KERNEL } from '../../../domain/schema/workflowAuditTrigger';
 import type { StepType } from '../../../domain/entities/Workflow';
 import { FIELD_EXPRESSION_FUNCTION_NAMES } from '../../../domain/schema/fieldExpression';
 import { BUSINESS_CALENDAR_FIELDS } from '../../../domain/schema/time/businessDays';
@@ -295,6 +297,11 @@ const STEP_CATALOG_NOTES: Record<string, string> = {
   remove: 'Deletes one record.',
   'render-document': 'Fills a document template (`document.template`, or the organization\'s own on the same key) with a record and attaches the PDF or Word file to its Documents tab. The template names the screen; `recordId` must be a record of it. Publishes `documentId`, `name`, `url`, `format` and `emptyFields`.',
 };
+
+const excludedStepList = (steps: readonly WorkflowStepMetadata[], eventName: string): string => steps
+  .filter((step) => isStepExcludedFromTrigger(step, eventName))
+  .map((step) => `\`${step.id}\``)
+  .join(', ');
 
 export interface AuthoringGuideInput {
   kernelVersion: string;
@@ -1674,8 +1681,13 @@ workflows: [{
 the organization designed, for a collection that already exists. Also \`lookup.saved\` / \`lookup.deleted\`
 (with \`lookupCollection\` naming which list), \`<parent>.note.saved\` / \`.deleted\`, the same for
 \`document\`, \`workflow.called\` for a workflow that only exists to be invoked — that one declares
-\`parameters\`, which become the \`event.\` it receives —, \`schedule\` for one the clock starts, and
-\`<collection>.dateReached\` for one that runs when a date of a record arrives.
+\`parameters\`, which become the \`event.\` it receives —, \`schedule\` for one the clock starts,
+\`<collection>.dateReached\` for one that runs when a date of a record arrives, and \`audit.recorded\` for
+one that reacts to an entry of the organization's Audit trail (\`event.severity\`, \`event.action\`,
+\`event.entity\`… — requires kernel ${WORKFLOW_AUDIT_SINCE_KERNEL} or later). Only entries a PERSON caused fire it: what the kernel
+or an automation writes to the trail never does, which is what keeps the trigger from feeding itself.
+Steps that would write back to the trail (${excludedStepList(input.steps, WORKFLOW_AUDIT_EVENT)}) are refused in that workflow —
+each step's catalog entry lists the triggers it refuses in \`excludedTriggers\`.
 
 ### A workflow that runs on a schedule
 

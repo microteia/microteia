@@ -3,6 +3,7 @@
 // GERADA por scripts/sync-schemas.cjs (npm run sync-schemas). Nunca edite a cópia.
 // ═══════════════════════════════════════════════════════════════════════════════
 
+import { WORKFLOW_AUDIT_EVENT } from './workflowAuditTrigger';
 import type { FieldRules } from './fieldRules';
 
 /**
@@ -209,7 +210,23 @@ export interface WorkflowStepMetadata {
    * isto o agente ouviria "seguro repetir" de uma automação que anexa uma cópia a cada chamada.
    */
   appendsEachRun?: true;
+  /**
+   * Os gatilhos (`eventName`) em cuja automação o passo NÃO pode entrar. É propriedade do passo, e não
+   * do gatilho, porque quem sabe o efeito colateral é quem o produz: o passo que grava na Auditoria sabe
+   * que, numa automação disparada pela Auditoria, ele se reacenderia.
+   *
+   * Não é exibida nem editada — é contrato do catálogo. Quem a cobra: o editor (não oferece o passo,
+   * nem deixa trocar o gatilho de um fluxo que já o tem), a validação de pacote e o motor, que recusa o
+   * passo em runtime para o que chegou por fora das duas portas.
+   */
+  excludedTriggers?: readonly string[];
 }
+
+/** O passo não pode compor uma automação disparada por `eventName`. */
+export const isStepExcludedFromTrigger = (
+  metadata: Pick<WorkflowStepMetadata, 'excludedTriggers'> | undefined,
+  eventName: string,
+): boolean => !!metadata?.excludedTriggers?.includes(eventName);
 
 const JS_RESERVED_WORDS = new Set([
   'await', 'break', 'case', 'catch', 'class', 'const', 'continue', 'debugger',
@@ -353,6 +370,9 @@ export const CORE_STEP_CATALOG: readonly WorkflowStepMetadata[] = [
     category: 'Action',
     type: 'Action',
     configurable: true,
+    // Grava um log que reacenderia a própria automação. O motor já ignora o log de máquina; recusar o
+    // passo na autoria é dizer ao autor, antes de salvar, que ali ele não faria nada.
+    excludedTriggers: [WORKFLOW_AUDIT_EVENT],
     inputs: [
       { id: 'title', label: '@core.automation/step.register-audit.label.titulo', required: true, type: 'String' },
       { id: 'message', label: '@core.automation/step.register-audit.label.mensagem', required: true, type: 'String' },
@@ -740,6 +760,10 @@ export const CORE_STEP_CATALOG: readonly WorkflowStepMetadata[] = [
     category: 'Data',
     type: 'Action',
     configurable: true,
+    // A exclusão feita pelo motor não carimba quem excluiu, e o log dela sai atribuído ao último autor
+    // do registro — uma pessoa. A trava causal não o distingue de um gesto humano, e cada exclusão
+    // reacenderia a automação que a fez.
+    excludedTriggers: [WORKFLOW_AUDIT_EVENT],
     inputs: [
       {
         id: 'remove',

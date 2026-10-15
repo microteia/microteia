@@ -37,6 +37,7 @@ export { onWorkflowEventCreated } from './infrastructure/handlers/onWorkflowEven
 export { syncWorkflowClock, runWorkflowClock } from './infrastructure/handlers/workflowClock';
 export { getWorkflowStepCatalog } from './infrastructure/handlers/getWorkflowStepCatalog';
 export { publishWorkflowEventOnEntityChange } from './infrastructure/handlers/publishWorkflowEventOnEntityChange';
+export { publishWorkflowEventOnAuditLog } from './infrastructure/handlers/publishWorkflowEventOnAuditLog';
 export { recomputeAggregatesOnEntityChange } from './infrastructure/handlers/recomputeAggregatesOnEntityChange';
 export {
   reconcileAggregatesOnScreenChange,

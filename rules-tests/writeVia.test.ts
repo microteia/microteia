@@ -110,4 +110,8 @@ describe('o evento de automação publicado pelo cliente', () => {
   it('é recusado se trouxer `target` — só o relógio do kernel acorda uma automação pelo id', async () => {
     await assertFails(setDoc(event('escritor', 'e3'), { name: 'schedule', payload: {}, target: 'wf-qualquer' }));
   });
+
+  it('é recusado se for `audit.recorded` — o evento de auditoria só nasce de um log gravado pelo servidor', async () => {
+    await assertFails(setDoc(event('escritor', 'e4'), { name: 'audit.recorded', payload: { severity: 'CRITICAL' } }));
+  });
 });

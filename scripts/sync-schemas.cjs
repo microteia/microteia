@@ -52,6 +52,7 @@ const SHARED_FILES = [
   'domain/schema/mapSpec.ts',
   'domain/schema/workflowStepCatalog.ts',
   'domain/schema/workflowClock.ts',
+  'domain/schema/workflowAuditTrigger.ts',
   'domain/schema/workflowReturn.ts',
   'domain/schema/dataExtensionPoints.ts',
   'domain/schema/settings.ts',

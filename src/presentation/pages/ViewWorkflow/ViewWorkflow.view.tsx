@@ -340,7 +340,8 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                 (vm.isLookupEvent && !vm.formData.lookupCollection) ||
                 (vm.isCalledEvent && vm.hasParameterErrors) ||
                 (vm.isScheduleEvent && !!vm.scheduleError) ||
-                (vm.isDateReachedEvent && !!vm.dateReachedError)
+                (vm.isDateReachedEvent && !!vm.dateReachedError) ||
+                !!vm.triggerStepsError
               }
               title={t(vm.isSaving ? 'core.ui/saving' : 'core.ui/action.save')}
             >
@@ -426,6 +427,7 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                   onChange={(eventName) => vm.setFormData({ eventName })}
                   placeholder={t('workflow.event.placeholder')}
                 />
+                {vm.triggerStepsError && <S.FieldError>{vm.triggerStepsError}</S.FieldError>}
               </InputGroup>
 
               {vm.isLookupEvent && (

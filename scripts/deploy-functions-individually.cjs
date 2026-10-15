@@ -46,6 +46,7 @@ const ALL_FUNCTIONS = [
   'runWorkflowClock',
   'getWorkflowStepCatalog',
   'publishWorkflowEventOnEntityChange',
+  'publishWorkflowEventOnAuditLog',
   'recomputeAggregatesOnEntityChange',
   'reconcileAggregatesOnScreenChange',
   'runAggregateBackfill',

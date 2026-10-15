@@ -549,3 +549,37 @@ describe('runWorkflow — Encerrar Workflow (halt)', () => {
     expect(result.outputs).toEqual({ value: 'B' });
   });
 });
+
+describe('runWorkflow — passo incompatível com o gatilho', () => {
+  const restrictedRegistry = (order: string[]): StepRegistry => {
+    const base = makeRegistry(order);
+    const record = base.resolve('record') as StepDefinition;
+    const restricted: StepDefinition = { ...record, excludedTriggers: ['custom.event'] };
+    return { ...base, resolve: (id) => (id === 'record' ? restricted : base.resolve(id)) };
+  };
+
+  it('recusa o passo que o catálogo declara proibido para o gatilho, sem executá-lo', async () => {
+    const order: string[] = [];
+    const result = await runWorkflow({
+      definition: makeDefinition(withOrder([recordStep('A')])),
+      event: makeEvent({}),
+      registry: restrictedRegistry(order),
+      services,
+    });
+    expect(result.status).toBe('FAILED');
+    expect(order).toEqual([]);
+    expect(result.logs.some((entry) => entry.message === '@core.automation/run.step.excluded-trigger')).toBe(true);
+  });
+
+  it('em outro gatilho o mesmo passo roda', async () => {
+    const order: string[] = [];
+    const result = await runWorkflow({
+      definition: { ...makeDefinition(withOrder([recordStep('A')])), eventName: 'other.event' },
+      event: makeEvent({}),
+      registry: restrictedRegistry(order),
+      services,
+    });
+    expect(result.status).toBe('SUCCESS');
+    expect(order).toEqual(['A']);
+  });
+});

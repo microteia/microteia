@@ -392,6 +392,8 @@ export const CORE_MARKETPLACE_MESSAGES: Record<string, string> = {
     'the workflow runs when a date arrives, and the clock cannot run it: {detail} It would install switched on and never fire.',
   'issue.workflow.trigger-kernel':
     'the workflow is triggered by "{event}", which only exists from kernel {minimum} on — declare `kernel: "^{minimum}"` (or later) in the manifest, so that an older kernel refuses the package instead of installing a workflow that never fires.',
+  'issue.step.excluded-trigger':
+    'step "{step}" ({definition}) cannot be part of a workflow triggered by "{event}" — the step itself declares that it would feed back into that trigger. Remove it, or fire the workflow from another event.',
   'issue.step.delay-nested':
     'step "{step}" waits inside a condition branch or a loop body. A wait only pauses at the top level of the workflow — there the flow would stop with an error.',
   'issue.step.delay-in-action':

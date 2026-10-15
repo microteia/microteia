@@ -38,6 +38,10 @@ const LACUNAS_CONFERIDAS = [
   'workflow-event\tlookup.saved',
   'workflow-event\tlookup.deleted',
 
+  // O gatilho de auditoria: "quando uma exclusão crítica é registrada, avise o responsável". O modelo
+  // fala de estados de registro, não da trilha que os observa.
+  'workflow-event\taudit.recorded',
+
   // Todos os pontos de contribuição menos um. O modelo alcança `access.permission` e nada mais —
   // tudo que uma regra precise além de dado e passagem está fora deste vocabulário. A lista é
   // derivada de `KERNEL_EXTENSION_POINTS`, então um ponto novo aparece aqui sozinho.

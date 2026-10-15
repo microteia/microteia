@@ -183,6 +183,8 @@ const EVENT_GAP_NOTES: Record<string, string> = {
     + 'records" has no trigger in the model — and there is no vocabulary for "when a list changes"',
   'lookup.deleted': 'fires when an option is removed. The records that stored that key keep it, and the model cannot '
     + 'declare what happens to them',
+  'audit.recorded': 'fires when a person causes an Audit trail entry. A rule like "a critical deletion alerts the '
+    + 'owner" has no trigger in the model — it speaks of record states, not of the trail that watches them',
 };
 
 const eventItems = (): CoverageItem[] => WORKFLOW_EVENT_CATALOG.map((entry) => {

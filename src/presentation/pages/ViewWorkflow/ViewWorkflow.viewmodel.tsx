@@ -61,6 +61,7 @@ import {
 import type { WorkflowClockStatus, WorkflowDateReached, WorkflowSchedule } from '../../../domain/schema/workflowClock';
 import { buildWorkflowClockInfo } from '../../shared/workflowClockInfo';
 import { entityDateFieldKeys, eventEntity } from '../../../domain/schema/eventCatalog';
+import { isStepExcludedFromTrigger } from '../../../domain/schema/workflowStepCatalog';
 import { resolveOfficeTimeZone, timeZoneOptions } from '../../../domain/schema/i18n/timeZone';
 import { useSettings } from '../../../stores/useSettings';
 
@@ -293,6 +294,8 @@ export interface ViewWorkflowViewModel {
   /** Os campos de data da tela do gatilho. */
   dateFieldOptions: { value: string; label: string }[];
   dateReachedError: string | null;
+  /** Passos já presentes que o gatilho escolhido não aceita. Bloqueia o salvar. */
+  triggerStepsError: string | null;
   parameterEntityOptions: { value: string; label: string }[];
   parameterLookupOptions: { value: string; label: string }[];
   parameterErrors: (string | undefined)[];
@@ -568,6 +571,18 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
   }, [isScheduleEvent, scheduleError, formData, officeTimeZone, locale, t]);
 
   const isDateReachedEvent = useMemo(() => dateReachedPrefix(formData.eventName) !== null, [formData.eventName]);
+
+  // O gatilho que um passo já presente declara incompatível não pode ser escolhido: a troca deixaria
+  // gravada uma automação que o motor recusa no primeiro passo proibido.
+  const triggerStepsError = useMemo(() => {
+    const steps = flattenSteps(workflow?.steps ?? cloneSource?.steps ?? []);
+    const excluded = steps
+      .map((step) => stepCatalog.find((definition) => definition.id === step.stepDefinitionId))
+      .filter((definition): definition is StepDefinitionSummary => isStepExcludedFromTrigger(definition, formData.eventName));
+    if (excluded.length === 0) return null;
+    const names = [...new Set(excluded.map((definition) => label(definition.name)))];
+    return t('workflow.event.excluded-steps', { steps: names.join(', ') });
+  }, [workflow, cloneSource, stepCatalog, formData.eventName, label, t]);
 
   const dateEntity = useMemo(
     () => (isDateReachedEvent ? eventEntity(formData.eventName, ctx) : undefined),
@@ -1266,6 +1281,7 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
     isDateReachedEvent,
     dateFieldOptions,
     dateReachedError,
+    triggerStepsError,
     parameterEntityOptions,
     parameterLookupOptions,
     parameterErrors,

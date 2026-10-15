@@ -49,7 +49,7 @@ import type { ValidateStepConfig } from '../../../domain/schema/validateSpec';
 import type { StepOutputField, WorkflowVariable } from '../../components/ui/ExpressionEditor/autocompleteHelpers';
 
 import { useT, useLabel, type TranslateFn } from '../../shared/i18n/useT';
-import { isPausingStepDefinition } from '../../../domain/schema/workflowStepCatalog';
+import { isPausingStepDefinition, isStepExcludedFromTrigger } from '../../../domain/schema/workflowStepCatalog';
 import { useResolvedDocumentTemplates } from '../../shared/documents/useResolvedDocumentTemplates';
 
 const queryProjectionOutputs = (
@@ -366,17 +366,23 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
   // Dentro de um ramo de condição ou de uma repetição o passo que PAUSA não é oferecido: o motor só
   // retoma no nível principal. O já gravado ali (vindo de importação) continua na lista, com o aviso.
   const atTopLevel = stepId ? existingSteps.some((step) => step.id === stepId) : insertTarget.kind === 'root';
+  // O passo que o catálogo declara incompatível com o gatilho também não é oferecido — pela mesma regra.
+  const triggerEventName = workflow?.eventName ?? '';
   const stepCatalogOptions = useMemo(
     () => stepCatalog
       .filter((s) => atTopLevel || !isPausingStepDefinition(s.id) || s.id === editingStep?.stepDefinitionId)
+      .filter((s) => !isStepExcludedFromTrigger(s, triggerEventName) || s.id === editingStep?.stepDefinitionId)
       .map((s) => ({ value: s.id, label: s.name, icon: getStepIcon(s.icon) })),
-    [stepCatalog, atTopLevel, editingStep],
+    [stepCatalog, atTopLevel, editingStep, triggerEventName],
   );
 
-  const placementError = useMemo(
-    () => (!atTopLevel && isPausingStepDefinition(selectedDefinitionId) ? t('step.delay.top-level-only') : null),
-    [atTopLevel, selectedDefinitionId, t],
-  );
+  const placementError = useMemo(() => {
+    if (!atTopLevel && isPausingStepDefinition(selectedDefinitionId)) return t('step.delay.top-level-only');
+    if (isStepExcludedFromTrigger(selectedDefinition, triggerEventName)) {
+      return t('step.excluded-trigger', { event: triggerEventName });
+    }
+    return null;
+  }, [atTopLevel, selectedDefinitionId, selectedDefinition, triggerEventName, t]);
 
   const dynamicTargetKind = useMemo<'workflow' | 'script' | null>(() => {
     const kind = selectedDefinition?.dynamicInputs?.kind;
