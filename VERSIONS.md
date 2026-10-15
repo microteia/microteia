@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.108.1] — 2026-10-15
+
+- Corrigido um problema em que automações deixavam em branco, sem aviso, informações de um registro vinculado quando elas eram usadas dentro de um mapeamento, de um filtro de busca, de uma exclusão ou de uma condição no meio do fluxo.
+
 #### [9.108.0] — 2026-10-15
 
 - O agente de IA conectado ao escritório agora enxerga também as automações que rodam sozinhas — por horário, por data de um registro ou ao gravar — e responde quando cada uma vai rodar e como foi a última vez, inclusive quando foi pulada e por quê.

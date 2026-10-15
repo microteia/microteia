@@ -18,6 +18,10 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.108.1] — 2026-10-15
+
+- fix(workflow/hydration): `collectReferencedPaths` now walks composite `Literal` values and collects every nested object shaped as an `Event` or `Expression` mapping (`map` `fields[].value`, `query` `where[].value`, `remove` `id`, and any extension step that nests mappings), and the `condition` of in-flow `Condition` nodes. Those paths never entered the hydration plan, so `event.ref.field` there resolved empty with no error; the workaround was reading the value in a first-level `set-variable`.
+
 #### [9.108.0] — 2026-10-15
 
 - feat(agent): `list_workflows` (sixteenth tool, `automation.run`, optional `trigger` filter: `called` | `record` | `date-reached` | `schedule` | `other` | `all`). Lists every automation of the office with `callable` and its `trigger`, described by `describeWorkflowTrigger` from the declaration. The `office/workflows` resource still lists only callable ones.

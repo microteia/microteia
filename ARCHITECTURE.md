@@ -5101,9 +5101,15 @@ O payload publicado é **cru** (só os dados do documento). Quem materializa FKs
 `WorkflowContextHydrator` (`functions/src/domain/engine/WorkflowContextHydrator.ts`), no momento
 da execução e **apenas para os caminhos que a automação realmente referencia**:
 
-1. `collectReferencedPaths(definition)` varre a árvore de `Condition` (fieldPath, eventField,
-   expressões), os `InputMapping`s `Event` e as expressões dos steps, normalizando as três
-   convenções de endereçamento (`event.payload.x`, `event.x`, `x`) via `stripEventPrefix`.
+1. `collectReferencedPaths(definition)` varre a árvore de `Condition` (a do fluxo **e** a de cada
+   nó `Condition` dos ramos), os `InputMapping`s `Event` e as expressões dos steps, normalizando as
+   três convenções de endereçamento (`event.payload.x`, `event.x`, `x`) via `stripEventPrefix`.
+   Um `Literal` composto é percorrido por inteiro, e todo objeto com a forma de um mapping `Event`
+   ou `Expression` lá dentro também entra — os `fields` de um `map`, os `where[].value` de um
+   `query`, o `id` de um `remove`. O reconhecimento é pela FORMA, não pelo tipo do passo: o coletor
+   não conhece passo nenhum, e um passo de extensão que aninhe mappings fica coberto sem declarar
+   nada. Antes disso, `event.ref.campo` aninhado saía vazio sem erro, e a saída era ler o valor num
+   `set-variable` (primeiro nível) e usar a variável.
 2. `buildHydrationPlan` (compartilhado, `domain/schema/hydrationPlan.ts`) resolve cada caminho
    contra o schema (`resolvePath`) e produz os saltos `FkHop[]` deduplicados em **níveis BFS**
    (1..`maxFkDepth`, default 3). A chave FK do salto seguinte é propagada para os campos do hop

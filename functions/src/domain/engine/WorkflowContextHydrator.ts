@@ -59,14 +59,32 @@ export class WorkflowContextHydrator {
 
     walkCondition(definition.condition);
 
+    // Um `Literal` composto carrega mappings aninhados (os `fields` de um `map`, os `where[].value`
+    // de um `query`, o `id` de um `remove`), que o passo resolve sozinho. Eles são achados pela FORMA,
+    // não pelo tipo do passo: o coletor não conhece passo nenhum, e um passo de extensão que aninhe
+    // mappings é coberto do mesmo jeito.
+    const walkLiteral = (value: unknown): void => {
+      if (Array.isArray(value)) {
+        value.forEach(walkLiteral);
+        return;
+      }
+      if (!value || typeof value !== 'object') return;
+      const candidate = value as Record<string, unknown>;
+      if (candidate.kind === 'Event' && typeof candidate.path === 'string') addRelative(candidate.path);
+      else if (candidate.kind === 'Expression' && typeof candidate.expression === 'string') addExpression(candidate.expression);
+      else Object.values(candidate).forEach(walkLiteral);
+    };
+
     const addMapping = (mapping: InputMapping): void => {
       if (mapping.kind === 'Event') addRelative(mapping.path);
       else if (mapping.kind === 'Expression') addExpression(mapping.expression);
+      else if (mapping.kind === 'Literal') walkLiteral(mapping.value);
     };
 
     // Percorre a árvore inteira (incluindo ramos de Condition e corpos de Loop), não só o nível raiz.
     for (const step of flattenSteps(definition.steps)) {
       for (const mapping of Object.values(step.configuration)) addMapping(mapping);
+      if (step.condition) walkCondition(step.condition);
       if (step.loop) addMapping(step.loop.source);
     }
 

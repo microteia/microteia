@@ -143,6 +143,115 @@ describe('collectReferencedPaths', () => {
       ].sort(),
     );
   });
+
+  it('coleta mappings aninhados em Literal composto: fields do map, where do query e id do remove', () => {
+    const definition = makeDefinition({
+      steps: [
+        {
+          id: 'map',
+          stepDefinitionId: 'map',
+          type: 'Action',
+          order: 0,
+          enabled: true,
+          configuration: {
+            map: {
+              kind: 'Literal',
+              value: {
+                name: 'resumo',
+                fields: [
+                  { name: 'cliente', value: { kind: 'Expression', expression: 'event.contract.client.name' } },
+                  { name: 'tarefa', value: { kind: 'Event', path: 'tarefa.nome' } },
+                  { name: 'fixo', value: { kind: 'Literal', value: 'x' } },
+                ],
+              },
+            },
+          },
+        },
+        {
+          id: 'query',
+          stepDefinitionId: 'query',
+          type: 'Action',
+          order: 1,
+          enabled: true,
+          configuration: {
+            query: {
+              kind: 'Literal',
+              value: {
+                table: 'contracts',
+                where: [{ path: 'status', op: 'eq', value: { kind: 'Expression', expression: 'event.contract.status' } }],
+                limit: 10,
+                projections: [],
+              },
+            },
+          },
+        },
+        {
+          id: 'remove',
+          stepDefinitionId: 'remove',
+          type: 'Action',
+          order: 2,
+          enabled: true,
+          configuration: {
+            remove: { kind: 'Literal', value: { table: 'tarefas', id: { kind: 'Event', path: 'tarefa.id' } } },
+          },
+        },
+      ],
+    });
+
+    const hydrator = new WorkflowContextHydrator(createFakeFetcher().fetcher, screenProvider);
+    expect(hydrator.collectReferencedPaths(definition).sort()).toStrictEqual(
+      ['contract.client.name', 'tarefa.nome', 'contract.status', 'tarefa.id'].sort(),
+    );
+  });
+
+  it('coleta a condição de um nó Condition, e não só a do fluxo', () => {
+    const definition = makeDefinition({
+      steps: [
+        {
+          id: 'if',
+          stepDefinitionId: '',
+          type: 'Condition',
+          order: 0,
+          enabled: true,
+          configuration: {},
+          condition: { kind: 'Expression', expression: 'event.contract.status == "Ativo"' },
+          branches: { whenTrue: [], whenFalse: [] },
+        },
+      ],
+    });
+
+    const hydrator = new WorkflowContextHydrator(createFakeFetcher().fetcher, screenProvider);
+    expect(hydrator.collectReferencedPaths(definition)).toStrictEqual(['contract.status']);
+  });
+
+  it('o caminho aninhado num map chega hidratado ao payload', async () => {
+    const definition = makeDefinition({
+      steps: [
+        {
+          id: 'map',
+          stepDefinitionId: 'map',
+          type: 'Action',
+          order: 0,
+          enabled: true,
+          configuration: {
+            map: {
+              kind: 'Literal',
+              value: { fields: [{ name: 'cliente', value: { kind: 'Expression', expression: 'event.contract.client.name' } }] },
+            },
+          },
+        },
+      ],
+    });
+
+    const hydrator = new WorkflowContextHydrator(createFakeFetcher().fetcher, screenProvider);
+    const hydrated = await hydrator.hydrate(
+      makeEvent({ id: 'k1', contractId: 'c1' }),
+      hydrator.collectReferencedPaths(definition),
+      createHydrationCache(),
+    );
+    const contract = hydrated.payload.contract as Record<string, unknown>;
+    expect((contract.client as Record<string, unknown>).name).toBe('Maria Silva');
+  });
 });
 
 describe('hydrate', () => {
