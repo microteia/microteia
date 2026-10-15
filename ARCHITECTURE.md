@@ -7404,11 +7404,19 @@ gesto de confiança — não há código a revisar.
 **O pacote aponta a tela pelo `sourceId`**, nunca pela chave: `screenSourceId` (vence `collection`) e
 `datasets[].fromSourceId` (vence `from`). A chave de uma tela de pacote pode ganhar sufixo na instalação
 (`contratos_2`), e um modelo preso à chave declarada deixaria de ser oferecido sem sintoma — é o mesmo
-motivo pelo qual a aba de registro é `record:<sourceId>`. `resolveDocumentTemplates` recebe o resolvedor
-`sourceId → chave instalada` (front: `ScreenDefinition.sourceId`; back: `SchemaScreen.sourceId`, que o
-`ScreenDefinitionCache` passou a carregar) e devolve `collection`/`from` já na chave instalada. Tela não
-instalada tira o modelo de circulação SEM tomar a chave: o próximo pacote na ordem pode declará-la. O
-exemplo de autoria é o `document-example`.
+motivo pelo qual a aba de registro é `record:<sourceId>`. Tela não instalada tira o modelo de circulação
+SEM tomar a chave: o próximo pacote na ordem pode declará-la. O exemplo de autoria é o `document-example`.
+
+**A autoria fala de TELA; o modelo resolvido fala de COLEÇÃO.** `resolveDocumentTemplates` recebe um
+`TemplateScreenIndex` (`templateScreenIndex(...)`, montado das `ScreenDefinition` no front e das
+`SchemaScreen` no back) e devolve `collection` e `datasets[].from` já na coleção FÍSICA
+(`dataCollection ?? chave`): `sourceId → chave instalada → coleção`. É a coleção que o esquema indexa,
+que o leitor de registros consulta e que a permissão `<coleção>.update` do `renderDocument` cobra — e o
+diálogo "Gerar documento" filtra por ela (`templatesForCollection(resolved, props.collection)`), não pela
+`screenKey`. Traduzir só até a chave quebrava toda tela cuja chave difere da coleção (`financeiro` →
+`financials`): o diálogo oferecia, e a geração respondia "tabela não existe". Um `collection` gravado que
+não é chave de tela nenhuma passa intacto — já é coleção. O editor de modelos continua mostrando a
+CHAVE (`useScreenKeyOfSource`), porque ali a escolha é de tela.
 
 ### A precedência — `resolveDocumentTemplates`
 

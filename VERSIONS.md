@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.105.1] — 2026-10-15
+
+- Corrigida a geração de documentos a partir de modelos em telas como Financeiro, Processos e Contratos: o modelo agora é oferecido no registro e gerado sem o aviso de que a tabela não existe, tanto pelo botão Gerar documento quanto pelas automações.
+
 #### [9.105.0] — 2026-10-15
 
 - As regras que desabilitam uma ação agora valem também nos cartões da listagem, da agenda e das notícias, e não só dentro do registro aberto. O botão desabilitado aparece esmaecido e não pode ser clicado.

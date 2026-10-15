@@ -2,19 +2,32 @@ import { useMemo } from 'react';
 import { useContributions } from '../../../stores/useKernel';
 import { useDocumentTemplates } from '../../../stores/useDocumentTemplates';
 import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
-import type { ResolvedDocumentTemplate, ScreenKeyOfSource } from '../../../domain/schema/document/documentTemplate';
-import { DOCUMENT_TEMPLATE_POINT, resolveDocumentTemplates } from '../../../domain/schema/document/documentTemplate';
+import type {
+  ResolvedDocumentTemplate,
+  ScreenKeyOfSource,
+  TemplateScreenIndex,
+} from '../../../domain/schema/document/documentTemplate';
+import {
+  DOCUMENT_TEMPLATE_POINT,
+  resolveDocumentTemplates,
+  templateScreenIndex,
+} from '../../../domain/schema/document/documentTemplate';
 
-/** A chave instalada da tela de cada `sourceId` — a mesma pergunta que o servidor faz ao esquema. */
-export const useScreenKeyOfSource = (): ScreenKeyOfSource => {
+/** A chave e a coleção de cada tela instalada — a mesma pergunta que o servidor faz ao esquema. */
+const useTemplateScreenIndex = (): TemplateScreenIndex => {
   const { definitions } = useScreenDefinitions();
-  return useMemo(() => {
-    const keyBySource = new Map(
-      definitions.filter((definition) => !!definition.sourceId).map((definition) => [definition.sourceId as string, definition.id]),
-    );
-    return (sourceId: string) => keyBySource.get(sourceId);
-  }, [definitions]);
+  return useMemo(
+    () => templateScreenIndex(definitions.map((definition) => ({
+      key: definition.id,
+      sourceId: definition.sourceId,
+      collection: definition.dataCollection,
+    }))),
+    [definitions],
+  );
 };
+
+/** A chave instalada da tela de cada `sourceId`. */
+export const useScreenKeyOfSource = (): ScreenKeyOfSource => useTemplateScreenIndex().keyOfSource;
 
 /**
  * Os modelos que VALEM no escritório: as contribuições `document.template` do host do escritório,
@@ -24,9 +37,9 @@ export const useScreenKeyOfSource = (): ScreenKeyOfSource => {
 export const useResolvedDocumentTemplates = (): ResolvedDocumentTemplate[] => {
   const { templates } = useDocumentTemplates();
   const contributions = useContributions(DOCUMENT_TEMPLATE_POINT);
-  const screenKeyOf = useScreenKeyOfSource();
+  const screens = useTemplateScreenIndex();
   return useMemo(
-    () => resolveDocumentTemplates(contributions, templates, screenKeyOf),
-    [contributions, templates, screenKeyOf],
+    () => resolveDocumentTemplates(contributions, templates, screens),
+    [contributions, templates, screens],
   );
 };

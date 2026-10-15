@@ -99,7 +99,10 @@ export interface DocumentTemplate extends DocumentTemplateSpec {
 
 export type DocumentTemplateOrigin = 'tenant' | 'plugin';
 
-/** O modelo que VALE para uma chave, com quem responde por ele. */
+/**
+ * O modelo que VALE para uma chave, com quem responde por ele. Aqui `collection` e `datasets[].from`
+ * já são a coleção FÍSICA (ver `resolveDocumentTemplates`).
+ */
 export interface ResolvedDocumentTemplate extends DocumentTemplateSpec {
   origin: DocumentTemplateOrigin;
   /** O pacote que declara a chave — presente também quando o escritório a sobrepôs. */
@@ -278,16 +281,40 @@ const specOfTenantTemplate = (template: DocumentTemplate): Omit<DocumentTemplate
   return spec as Omit<DocumentTemplate, 'enabled' | 'updatedAt' | 'updatedBy'>;
 };
 
-/**
- * O conjunto que VALE: um modelo por chave, com `collection` sempre a CHAVE instalada da tela.
- *
- * Os do pacote entram na ordem do registro (prioridade, depois `pluginId`) e o primeiro de cada
- * chave vence — a mesma regra de toda contribuição disputada. Depois o escritório: o documento dele
- * substitui o do pacote na mesma chave, e `enabled: false` tira a chave de circulação, que é como o
- * escritório recusa um modelo de pacote sem desinstalar a extensão inteira.
- */
 /** A chave INSTALADA da tela de um `sourceId`, ou nada quando ela não está no escritório. */
 export type ScreenKeyOfSource = (sourceId: string) => string | undefined;
+
+/** Uma tela instalada como o modelo a enxerga: a chave, o `sourceId` e a coleção onde os registros moram. */
+export interface TemplateScreen {
+  key: string;
+  sourceId?: string | null;
+  collection?: string | null;
+}
+
+/**
+ * As duas traduções que a resolução faz. A autoria fala de TELA (chave ou `sourceId`); a geração fala
+ * de COLEÇÃO física — é por ela que o esquema é indexado, que o registro é lido e que a permissão
+ * `<coleção>.update` é cobrada. A chave e a coleção só coincidem quando a tela não declara
+ * `dataCollection`.
+ */
+export interface TemplateScreenIndex {
+  keyOfSource: ScreenKeyOfSource;
+  /** A coleção da tela de chave `screenKey`; sem tela com essa chave, o próprio valor, que já é coleção. */
+  collectionOf: (screenKey: string) => string;
+}
+
+export const templateScreenIndex = (screens: readonly TemplateScreen[]): TemplateScreenIndex => {
+  const keyBySource = new Map<string, string>();
+  const collectionByKey = new Map<string, string>();
+  for (const screen of screens) {
+    if (screen.sourceId) keyBySource.set(screen.sourceId, screen.key);
+    collectionByKey.set(screen.key, screen.collection || screen.key);
+  }
+  return {
+    keyOfSource: (sourceId) => keyBySource.get(sourceId),
+    collectionOf: (screenKey) => collectionByKey.get(screenKey) ?? screenKey,
+  };
+};
 
 /**
  * A tela do modelo como CHAVE instalada. `screenSourceId` vence `collection`; sem tela instalada com
@@ -301,27 +328,46 @@ export const templateCollection = <T extends Pick<DocumentTemplateSpec, 'collect
   return spec.collection || null;
 };
 
+/** A coleção física da tela do modelo, ou `null` quando a tela não está no escritório. */
+const installedCollection = (
+  spec: Pick<DocumentTemplateSpec, 'collection' | 'screenSourceId'>,
+  screens: TemplateScreenIndex,
+): string | null => {
+  const key = templateCollection(spec, screens.keyOfSource);
+  return key === null ? null : screens.collectionOf(key);
+};
+
 /**
- * As listas com `from` na chave INSTALADA. `null` quando alguma aponta para uma tela que o escritório
- * não tem: o modelo repetiria uma lista que não existe, e a geração recusaria — melhor não oferecê-lo.
+ * As listas com `from` na coleção FÍSICA dos filhos. `null` quando alguma aponta para uma tela que o
+ * escritório não tem: o modelo repetiria uma lista que não existe, e a geração recusaria — melhor
+ * não oferecê-lo.
  */
 const installedDatasets = (
   datasets: readonly DocumentTemplateDataset[] | undefined,
-  screenKeyOf: ScreenKeyOfSource,
+  screens: TemplateScreenIndex,
 ): DocumentTemplateDataset[] | null => {
   const resolved: DocumentTemplateDataset[] = [];
   for (const dataset of datasets ?? []) {
-    const from = dataset.fromSourceId ? screenKeyOf(dataset.fromSourceId) : dataset.from;
+    const from = dataset.fromSourceId ? screens.keyOfSource(dataset.fromSourceId) : dataset.from;
     if (!from) return null;
-    resolved.push({ ...dataset, from });
+    resolved.push({ ...dataset, from: screens.collectionOf(from) });
   }
   return resolved;
 };
 
+/**
+ * O conjunto que VALE: um modelo por chave, com `collection` e `datasets[].from` sempre a COLEÇÃO
+ * física — a do registro sobre o qual o documento é gerado, e não a chave da tela que a descreve.
+ *
+ * Os do pacote entram na ordem do registro (prioridade, depois `pluginId`) e o primeiro de cada
+ * chave vence — a mesma regra de toda contribuição disputada. Depois o escritório: o documento dele
+ * substitui o do pacote na mesma chave, e `enabled: false` tira a chave de circulação, que é como o
+ * escritório recusa um modelo de pacote sem desinstalar a extensão inteira.
+ */
 export const resolveDocumentTemplates = (
   packaged: readonly QualifiedContribution[],
   tenant: readonly DocumentTemplate[],
-  screenKeyOf: ScreenKeyOfSource = () => undefined,
+  screens: TemplateScreenIndex = templateScreenIndex([]),
 ): ResolvedDocumentTemplate[] => {
   const byKey = new Map<string, ResolvedDocumentTemplate>();
 
@@ -329,8 +375,8 @@ export const resolveDocumentTemplates = (
     const spec = documentTemplateOf(contribution);
     if (!spec || byKey.has(spec.key)) continue;
     // A tela que não está no escritório tira o modelo de circulação, sem tomar a chave de ninguém.
-    const collection = templateCollection(spec, screenKeyOf);
-    const datasets = installedDatasets(spec.datasets, screenKeyOf);
+    const collection = installedCollection(spec, screens);
+    const datasets = installedDatasets(spec.datasets, screens);
     if (collection === null || datasets === null) continue;
     byKey.set(spec.key, {
       ...spec,
@@ -347,8 +393,8 @@ export const resolveDocumentTemplates = (
       byKey.delete(template.key);
       continue;
     }
-    const collection = templateCollection(template, screenKeyOf);
-    const datasets = installedDatasets(template.datasets, screenKeyOf);
+    const collection = installedCollection(template, screens);
+    const datasets = installedDatasets(template.datasets, screens);
     if (collection === null || datasets === null) {
       byKey.delete(template.key);
       continue;
@@ -365,7 +411,7 @@ export const resolveDocumentTemplates = (
   return [...byKey.values()].sort((left, right) => left.title.localeCompare(right.title));
 };
 
-/** Os modelos que servem a uma tela, e o que cada um sabe produzir. */
+/** Os modelos que servem aos registros de uma coleção física. */
 export const templatesForCollection = (
   templates: readonly ResolvedDocumentTemplate[],
   collection: string,

@@ -4,7 +4,7 @@ import { useNotification } from '../../../../stores/useNotification';
 import { useScreenDefinitions } from '../../../../stores/useScreenDefinitions';
 import type { RecordDialogProps } from '../../../../stores/useRecordDialog';
 import type { DocumentOutputFormat } from '../../../../domain/schema/document/documentTemplate';
-import { templateOutputs } from '../../../../domain/schema/document/documentTemplate';
+import { templateOutputs, templatesForCollection } from '../../../../domain/schema/document/documentTemplate';
 import { useResolvedDocumentTemplates } from '../../../shared/documents/useResolvedDocumentTemplates';
 import { useLabel, useT } from '../../../shared/i18n/useT';
 import type { SearchSelectOption } from '../SearchSelect';
@@ -29,7 +29,7 @@ const OUTPUT_LABELS: Record<DocumentOutputFormat, string> = {
 };
 
 export const useGenerateDocumentDialogViewModel = (props: RecordDialogProps): GenerateDocumentDialogViewModel => {
-  const { record, screenKey, onClose } = props;
+  const { record, collection, screenKey, onClose } = props;
   const t = useT('core.documents');
   const label = useLabel();
   const { notify } = useNotification();
@@ -37,10 +37,7 @@ export const useGenerateDocumentDialogViewModel = (props: RecordDialogProps): Ge
   const { generateDocument } = useDocumentTemplates();
   const resolved = useResolvedDocumentTemplates();
 
-  const templates = useMemo(
-    () => resolved.filter((template) => template.collection === screenKey),
-    [resolved, screenKey],
-  );
+  const templates = useMemo(() => templatesForCollection(resolved, collection), [resolved, collection]);
 
   const [chosenKey, setChosenKey] = useState('');
   const [chosenOutput, setChosenOutput] = useState('');

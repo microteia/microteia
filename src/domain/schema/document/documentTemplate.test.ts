@@ -6,6 +6,8 @@ import {
   documentTemplateOf,
   resolveDocumentTemplates,
   templateOutputs,
+  templateScreenIndex,
+  templatesForCollection,
 } from './documentTemplate';
 import type { DocumentTemplate, DocumentTemplateSpec } from './documentTemplate';
 
@@ -118,7 +120,7 @@ describe('resolveDocumentTemplates', () => {
     const [resolved] = resolveDocumentTemplates(
       [packaged('com.acme', spec({ collection: '', screenSourceId: 'acme:payments' }))],
       [],
-      (sourceId) => (sourceId === 'acme:payments' ? 'payments_2' : undefined),
+      templateScreenIndex([{ key: 'payments_2', sourceId: 'acme:payments' }]),
     );
 
     expect(resolved.collection).toBe('payments_2');
@@ -131,9 +133,59 @@ describe('resolveDocumentTemplates', () => {
         packaged('com.b', spec({ title: 'B' })),
       ],
       [],
-      () => undefined,
+      templateScreenIndex([]),
     );
 
     expect(resolved.pluginId).toBe('com.b');
+  });
+
+  describe('tela cuja chave difere da coleção', () => {
+    const screens = templateScreenIndex([
+      { key: 'financeiro', sourceId: 'microteia:financeiro', collection: 'financials' },
+      { key: 'parcelas', sourceId: 'microteia:parcelas', collection: 'installments' },
+    ]);
+
+    it('o screenSourceId e o fromSourceId viram a coleção FÍSICA, não a chave da tela', () => {
+      const [resolved] = resolveDocumentTemplates(
+        [packaged('com.acme', spec({
+          collection: '',
+          screenSourceId: 'microteia:financeiro',
+          datasets: [{ name: 'parcelas', from: '', fromSourceId: 'microteia:parcelas', via: 'paymentId' }],
+        }))],
+        [],
+        screens,
+      );
+
+      expect(resolved.collection).toBe('financials');
+      expect(resolved.datasets?.[0].from).toBe('installments');
+    });
+
+    it('o modelo do escritório gravado com a chave da tela também chega à coleção', () => {
+      const [resolved] = resolveDocumentTemplates(
+        [],
+        [tenant({ collection: 'financeiro', datasets: [{ name: 'parcelas', from: 'parcelas', via: 'paymentId' }] })],
+        screens,
+      );
+
+      expect(resolved.collection).toBe('financials');
+      expect(resolved.datasets?.[0].from).toBe('installments');
+    });
+
+    it('o valor que já é coleção passa intacto', () => {
+      const [resolved] = resolveDocumentTemplates([], [tenant({ collection: 'financials' })], screens);
+
+      expect(resolved.collection).toBe('financials');
+    });
+
+    it('o diálogo do registro acha o modelo pela coleção do registro', () => {
+      const resolved = resolveDocumentTemplates(
+        [packaged('com.acme', spec({ collection: '', screenSourceId: 'microteia:financeiro' }))],
+        [],
+        screens,
+      );
+
+      expect(templatesForCollection(resolved, 'financials').map((one) => one.key)).toEqual(['receipt']);
+      expect(templatesForCollection(resolved, 'financeiro')).toEqual([]);
+    });
   });
 });

@@ -18,6 +18,10 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.105.1] — 2026-10-15
+
+- fix(documents): `resolveDocumentTemplates` translated `screenSourceId` and `datasets[].fromSourceId` only up to the installed screen KEY (`screenDefinitions/{id}`), while generation reads the schema, the record and the `<collection>.update` permission by the PHYSICAL collection. Any screen whose key differs from its `dataCollection` (`financeiro` → `financials`) offered the template and failed with `@core.automation/mutation.table.unknown`. The resolver now takes a `TemplateScreenIndex` (`templateScreenIndex(screens)`, shared by the front and `FirestoreDocumentTemplateSource`) and returns `collection`/`from` as the physical collection; a stored value that is not a screen key passes through unchanged. The Generate document dialog filters by the record's `collection` (`templatesForCollection`) instead of `screenKey`.
+
 #### [9.105.0] — 2026-10-15
 
 - fix(records/card): `EntityListCard` action buttons had no `:disabled` style, so an action whose `disabledWhen` held looked and hovered like an enabled one. They now dim, show `not-allowed` and skip the hover.

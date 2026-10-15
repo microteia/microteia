@@ -2,7 +2,11 @@ import type { Firestore } from 'firebase-admin/firestore';
 import { Timestamp } from 'firebase-admin/firestore';
 import type { IDocumentTemplateSource } from '../../domain/repositories/IDocumentGenerationPorts';
 import type { DocumentTemplate, ResolvedDocumentTemplate } from '../../domain/schema/document/documentTemplate';
-import { DOCUMENT_TEMPLATES_COLLECTION, resolveDocumentTemplates } from '../../domain/schema/document/documentTemplate';
+import {
+  DOCUMENT_TEMPLATES_COLLECTION,
+  resolveDocumentTemplates,
+  templateScreenIndex,
+} from '../../domain/schema/document/documentTemplate';
 import type { InstalledExtensionCache } from './InstalledExtensionCache';
 import type { IScreenDefinitionProvider } from '../../domain/repositories/IScreenDefinitionProvider';
 
@@ -24,8 +28,8 @@ export class FirestoreDocumentTemplateSource implements IDocumentTemplateSource 
       this.db.collection(`tenants/${tenantId}/${DOCUMENT_TEMPLATES_COLLECTION}`).get(),
       this.screens.getScreens(tenantId),
     ]);
-    const keyBySource = new Map(
-      screens.filter((screen) => !!screen.sourceId).map((screen) => [screen.sourceId as string, screen.id]),
+    const index = templateScreenIndex(
+      screens.map((screen) => ({ key: screen.id, sourceId: screen.sourceId, collection: screen.collection })),
     );
     const tenant = snapshot.docs.map((doc): DocumentTemplate => {
       const data = doc.data();
@@ -35,6 +39,6 @@ export class FirestoreDocumentTemplateSource implements IDocumentTemplateSource 
         updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate() : null,
       };
     });
-    return resolveDocumentTemplates(packaged, tenant, (sourceId) => keyBySource.get(sourceId));
+    return resolveDocumentTemplates(packaged, tenant, index);
   }
 }
