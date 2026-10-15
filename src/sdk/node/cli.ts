@@ -14,6 +14,7 @@ import { eventRefReport } from './eventRefs';
 import { recordSurfaceReport } from './recordSurfaces';
 import { navTargetReport } from './navTargetReport';
 import { undeclaredPathReport } from './undeclaredPaths';
+import { navGroupReport } from './navGroups';
 import { syncWorkspace } from './workspace/sync';
 import {
   belongsToNamespace,
@@ -170,6 +171,22 @@ const sayUndeclaredPaths = (pkg: MarketplacePlugin, root: string): void => {
 };
 
 /**
+ * Os grupos da barra lateral que o pacote declara ou em que põe item. Só avisa, nunca reprova: o
+ * escritório pode ter uma extensão que este diretório não enxerga.
+ */
+const sayNavGroups = (pkg: MarketplacePlugin, root: string): void => {
+  const findings = navGroupReport(pkg, root);
+  if (findings.length === 0) return;
+
+  say();
+  say(`  ${DIM}${findings.length} sidebar group(s) to look at${RESET}`);
+  for (const one of findings) {
+    say(`  ${YELLOW}!${RESET} ${one.key} ${DIM}(${one.status})${RESET}`);
+    say(`     ${DIM}${one.detail}${RESET}`);
+  }
+};
+
+/**
  * As telas a que o pacote pendura abas (`record:<sourceId>`). Só avisa, nunca reprova: a tela pode ser
  * de outra extensão, num escritório que este diretório não enxerga.
  */
@@ -247,6 +264,7 @@ const build = (args: Args, write: boolean): number => {
     + sayNavTargets(result.package, root);
   sayUndeclaredPaths(result.package, root);
   sayRecordSurfaces(result.package, root);
+  sayNavGroups(result.package, root);
   sayNamespace(manifest.id, root);
   const problems = result.issues.length + refusedRefs;
 

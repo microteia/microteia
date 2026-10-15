@@ -858,6 +858,13 @@ the sidebar.
 - **A group key is universal**, like a screen's \`sourceId\`. Two packages that declare the same key
   declare ONE group, labelled and placed by whichever loads first. So you may declare a group another
   extension also declares, and join it without depending on it.
+- **A group is joined by KEY, never by name.** Two keys draw two groups, even when both are called
+  "Schedule". **Before declaring a group, read \`microteia://nav-groups\`**: every group this directory
+  can see — the platform's, the \`plugin.ts\` files here, the first-party extensions in \`examples/\`
+  and the extensions in the installation snapshot —, by key, with its name in each language and who
+  declares it. If one already serves the purpose, declare THAT key. A new key is for a purpose no
+  listed group serves. \`check\` and \`validate_plugin\` warn about a new key whose name another
+  visible group already has, and about an entry joining a group nothing here declares.
 - **An entry never disappears because of its group.** A \`group\` nobody declared in the organization
   leaves the entry loose, at its own \`order\`.
 - **A group draws a header only with two or more visible entries.** With one, the entry stands loose in
@@ -2795,6 +2802,7 @@ rather than a tool costing an input schema in every agent's context, in every se
 | \`microteia://record-commands\` | the record gestures an action may run through \`command\` |
 | \`microteia://expression-functions\` | the expression functions the installed platform resolves |
 | \`microteia://referenceable\` | every artifact another extension exports that you may point a step at, already in the form the reference takes (§3) |
+| \`microteia://nav-groups\` | every sidebar group this directory can see, by key, with its name in each language and who declares it — read it before declaring a group |
 | \`microteia://examples\` | the first-party extensions in \`examples/\`, and which mechanism each is the best one to read for |
 | \`microteia://example-coverage\` | every mechanism of this platform against those examples: which have one, which have none, and which are out of reach for an extension |
 | \`microteia://workspace/plugins\` | the extensions authored here, with their current problems and what each one exports |

@@ -184,3 +184,28 @@ describe('a superfície que se pode referenciar', () => {
       .toEqual([{ id: 'x', kind: 'unknown', name: 'X' }]);
   });
 });
+
+describe('os grupos da barra lateral do retrato', () => {
+  const calendar = (navGroups: unknown): Record<string, unknown> => ({
+    id: 'com.microteia.calendar', name: 'Calendar', version: '1.0.0', active: true, exports: [],
+    ...(navGroups === undefined ? {} : { navGroups }),
+  });
+
+  it('traz a chave, o nome em cada idioma e a ordem', () => {
+    write(snapshot({
+      extensions: [calendar([{ key: 'schedule', label: 'Schedule', translations: { en: 'Schedule', 'pt-BR': 'Agenda' }, order: 20 }])],
+    }));
+    const read = readInstalledCatalog(workspace, TAKEN_AT);
+    expect(read.navGroupsKnown).toBe(true);
+    expect(read.snapshot?.extensions[0].navGroups).toEqual([
+      { key: 'schedule', label: 'Schedule', translations: { en: 'Schedule', 'pt-BR': 'Agenda' }, order: 20 },
+    ]);
+  });
+
+  it('chave AUSENTE é silêncio de um Console antigo, e os grupos deixam de ser conhecidos', () => {
+    write(snapshot({ extensions: [calendar(undefined)] }));
+    const read = readInstalledCatalog(workspace, TAKEN_AT);
+    expect(read.navGroupsKnown).toBe(false);
+    expect(read.snapshot?.extensions[0].navGroups).toBeUndefined();
+  });
+});

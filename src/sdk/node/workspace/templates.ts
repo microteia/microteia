@@ -439,6 +439,9 @@ including the one that opened the editor only to validate a package.
   authored beside yours, which no snapshot can know about) and the extensions in the installation
   snapshot. **Read it before writing a qualified reference** — a name you cannot see is a name you
   cannot write
+- \`microteia://nav-groups\` — every sidebar group this directory can see, BY KEY, with its name in each
+  language and who declares it. **Read it before declaring a \`navGroup()\`**: a group is joined by key,
+  never by name, and a new key with an existing name draws the same title twice in the menu
 - \`microteia://examples\` — the first-party extensions that travel in \`examples/\` as source, and which
   MECHANISM each one is the best one to read for. **Read it before writing a mechanism for the first
   time**, and before deciding which folder to open; \`describe_extension\` answers the next question

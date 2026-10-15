@@ -111,6 +111,18 @@ export interface InstalledCatalogExport {
   name: string;
 }
 
+/**
+ * Um grupo da barra lateral que a extensão instalada declara (`ui.nav.group`), com o nome já
+ * resolvido em cada idioma que ela traz. É contrato, como o `exports`: a chave é o que outra extensão
+ * escreve para ENTRAR no grupo, e uma chave que não se enxerga vira um segundo grupo com o mesmo nome.
+ */
+export interface InstalledCatalogNavGroup {
+  key: string;
+  label: string;
+  translations: Record<string, string>;
+  order: number;
+}
+
 export interface InstalledCatalogExtension {
   id: string;
   name: string;
@@ -123,6 +135,8 @@ export interface InstalledCatalogExtension {
    * que impede o retrato de afirmar ausência quando o que houve foi silêncio.
    */
   exports?: InstalledCatalogExport[];
+  /** Os grupos da barra lateral que ela declara. Ausente, como `exports`, é silêncio de Console antigo. */
+  navGroups?: InstalledCatalogNavGroup[];
 }
 
 export interface InstalledCatalogFile {
@@ -157,6 +171,8 @@ export interface InstalledCatalogRead {
    * lida como "esta extensão não exporta nada", que é uma afirmação que ninguém fez.
    */
   exportsKnown: boolean;
+  /** O mesmo, para os grupos da barra lateral: `false` quando alguma extensão chegou sem `navGroups`. */
+  navGroupsKnown: boolean;
   /** Por que o arquivo não pôde ser usado — arquivo torto, formato de outra época, campo faltando. */
   problems: string[];
 }
@@ -169,6 +185,7 @@ const ABSENT = (path: string): InstalledCatalogRead => ({
   stale: false,
   kernelDiffers: false,
   exportsKnown: true,
+  navGroupsKnown: true,
   problems: [],
 });
 
@@ -271,6 +288,26 @@ const readExport = (raw: unknown): InstalledCatalogExport | null => {
   };
 };
 
+const readTranslations = (value: unknown): Record<string, string> => {
+  const record = asRecord(value);
+  if (record === null) return {};
+  return Object.fromEntries(Object.entries(record)
+    .filter((entry): entry is [string, string] => typeof entry[1] === 'string' && entry[1] !== ''));
+};
+
+const readNavGroup = (raw: unknown): InstalledCatalogNavGroup | null => {
+  const record = asRecord(raw);
+  if (record === null) return null;
+  const key = text(record.key);
+  if (key === '') return null;
+  return {
+    key,
+    label: text(record.label, key),
+    translations: readTranslations(record.translations),
+    order: typeof record.order === 'number' ? record.order : 0,
+  };
+};
+
 const readExtension = (raw: unknown): InstalledCatalogExtension | null => {
   const record = asRecord(raw);
   if (record === null) return null;
@@ -284,6 +321,9 @@ const readExtension = (raw: unknown): InstalledCatalogExtension | null => {
     // A chave AUSENTE é o silêncio de um Console antigo; a chave presente e vazia é a resposta "nada".
     ...(Array.isArray(record.exports)
       ? { exports: record.exports.map(readExport).filter((one): one is InstalledCatalogExport => one !== null) }
+      : {}),
+    ...(Array.isArray(record.navGroups)
+      ? { navGroups: record.navGroups.map(readNavGroup).filter((one): one is InstalledCatalogNavGroup => one !== null) }
       : {}),
   };
 };
@@ -375,6 +415,7 @@ export const readInstalledCatalog = (root: string, now: Date = new Date()): Inst
     stale: ageDays !== null && ageDays >= INSTALLED_CATALOG_STALE_DAYS,
     kernelDiffers: snapshot.kernelVersion !== KERNEL_VERSION,
     exportsKnown: snapshot.extensions.every((one) => one.exports !== undefined),
+    navGroupsKnown: snapshot.extensions.every((one) => one.navGroups !== undefined),
     problems: readable ? [] : [`${INSTALLED_CATALOG_FILE} has no readable "exportedAt", so there is no telling `
       + 'how old it is. Treat every entity it brings as possibly out of date.'],
   };

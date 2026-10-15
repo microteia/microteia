@@ -18,6 +18,14 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.112.0] — 2026-10-15
+
+- feat(sdk/mcp): new resource `microteia://nav-groups` — every sidebar group the authoring directory can see, by key, with its name in each language and who declares it (platform, `plugin.ts` here, `examples/`, installation snapshot), plus the names that appear under more than one key. A group is joined by key, never by name; without a list of existing keys an author invented a new one and the sidebar drew two groups with the same title (an office "Agenda" next to Calendar's `schedule`).
+- feat(sdk/check): `check` and `validate_plugin` warn (never refuse) about a new group key whose name another visible group already has — naming the key to join instead — and about a menu entry joining a group nothing visible declares.
+- feat(sdk/installed-catalog): extensions in `installed-catalog.json` may carry `navGroups` (`key`, `label`, `translations`, `order`). Additive: `INSTALLED_CATALOG_VERSION` stays 1, and an absent key reads as unknown (`navGroupsKnown: false`), never as "declares no group".
+- refactor(core.ui): the three platform groups moved to `plugins/core.ui/navGroups.ts` so the authoring tools read the same list the kernel registers.
+- docs(authoring): "Grouping menu entries" states the join-by-key rule and points at the new resource; `AGENTS.md` lists it.
+
 #### [9.111.0] — 2026-10-15
 
 - feat(workflow): new trigger `audit.recorded` — a workflow reacts to every Audit trail entry a person caused, with the entry as payload (`severity`, `action`, `type`, `entity`, `entityId`, `linkCollection`, `linkRecordId`, `userId`, `userName`, `title`/`text` plus their params). Published by the new Cloud Function `publishWorkflowEventOnAuditLog` (`onDocumentCreated('auditLogs/{logId}')`, `deploy:workflow` group), only when the tenant has an enabled workflow on that trigger. `KERNEL_VERSION` 2.45.0 (additive); packages using the trigger must declare `kernel: "^2.45.0"`.

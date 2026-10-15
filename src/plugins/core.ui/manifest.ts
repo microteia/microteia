@@ -1,8 +1,8 @@
 import type { PluginRecord } from '../../kernel';
-import { ADMIN_NAV_GROUP, AUTOMATION_NAV_GROUP, CUSTOMIZATION_NAV_GROUP, UI_EXTENSION_POINTS } from '../../domain/schema/ui/uiExtensionPoints';
-import { navGroup } from '../contributionBuilders';
+import { UI_EXTENSION_POINTS } from '../../domain/schema/ui/uiExtensionPoints';
 import { messageBundleContribution } from '../../domain/schema/i18n/extensionPoints';
 import { coreMessage, CORE_UI_MESSAGES } from '../coreMessages';
+import { CORE_UI_NAV_GROUPS } from './navGroups';
 
 export const coreUiPlugin: PluginRecord = {
   trusted: true,
@@ -17,9 +17,7 @@ export const coreUiPlugin: PluginRecord = {
     extensionPoints: UI_EXTENSION_POINTS,
     contributes: [
       messageBundleContribution(coreMessage('core.ui', CORE_UI_MESSAGES)),
-      navGroup({ key: CUSTOMIZATION_NAV_GROUP, label: '@core.ui/nav.group.customization', order: 102 }),
-      navGroup({ key: AUTOMATION_NAV_GROUP, label: '@core.ui/nav.group.automation', order: 106 }),
-      navGroup({ key: ADMIN_NAV_GROUP, label: '@core.ui/nav.group.admin', order: 110 }),
+      ...CORE_UI_NAV_GROUPS,
     ],
   },
 };

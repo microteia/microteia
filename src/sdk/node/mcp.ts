@@ -71,6 +71,7 @@ import type { ReferenceableArtifact } from './referenceable';
 import { crossRefReport, referenceableArtifacts } from './referenceable';
 import { recordSurfaceReport } from './recordSurfaces';
 import { navTargetReport } from './navTargetReport';
+import { navGroupReport, sameNameDifferentKeys, summarizeNavGroups, visibleNavGroups } from './navGroups';
 import { eventRefReport } from './eventRefs';
 import { undeclaredPathReport } from './undeclaredPaths';
 import { readWorkspaceCatalog } from './workspaceCatalog';
@@ -204,6 +205,18 @@ const describeNavTargets = (pkg: MarketplacePlugin, root: string): string => {
     : `${refused.length} of ${findings.length} menu item(s) open a tab no page draws:`;
   return `\n\n${head}\n${findings
     .map((one) => `- [${one.status}] ${one.contributionId} (${one.target}) — ${one.detail}`)
+    .join('\n')}`;
+};
+
+/**
+ * Os grupos da barra lateral: o nome que outro grupo já tem com outra chave, e o item que entra num
+ * grupo que nada aqui declara. Aviso, nunca recusa.
+ */
+const describeNavGroups = (pkg: MarketplacePlugin, root: string): string => {
+  const findings = navGroupReport(pkg, root);
+  if (findings.length === 0) return '';
+  return `\n\n${findings.length} sidebar group(s) to look at (warnings only, never refused):\n${findings
+    .map((one) => `- [${one.status}] ${one.key} — ${one.detail}`)
     .join('\n')}`;
 };
 
@@ -391,13 +404,13 @@ const TOOLS: ToolDefinition[] = [
       if (typeof input.json === 'string') {
         const parsed = parsePackage(input.json);
         if (!parsed.ok) return `Not a valid package: ${describeMessage(parsed.error)}`;
-        return `${describeIssues(validatePluginPackage(parsed.package))}${describeCrossRefs(parsed.package, root)}${describeEventRefs(parsed.package, root)}${describeUndeclaredPaths(parsed.package, root)}${describeRecordSurfaces(parsed.package, root)}${describeNavTargets(parsed.package, root)}${describeNamespace(parsed.package, root)}`;
+        return `${describeIssues(validatePluginPackage(parsed.package))}${describeCrossRefs(parsed.package, root)}${describeEventRefs(parsed.package, root)}${describeUndeclaredPaths(parsed.package, root)}${describeRecordSurfaces(parsed.package, root)}${describeNavTargets(parsed.package, root)}${describeNavGroups(parsed.package, root)}${describeNamespace(parsed.package, root)}`;
       }
       const path = resolve(root, asString(input.path, 'path'));
       if (path.endsWith('.json')) {
         const parsed = parsePackage(readFileSync(path, 'utf8'));
         if (!parsed.ok) return `Not a valid package: ${describeMessage(parsed.error)}`;
-        return `${describeIssues(validatePluginPackage(parsed.package))}${describeCrossRefs(parsed.package, root)}${describeEventRefs(parsed.package, root)}${describeUndeclaredPaths(parsed.package, root)}${describeRecordSurfaces(parsed.package, root)}${describeNavTargets(parsed.package, root)}${describeNamespace(parsed.package, root)}`;
+        return `${describeIssues(validatePluginPackage(parsed.package))}${describeCrossRefs(parsed.package, root)}${describeEventRefs(parsed.package, root)}${describeUndeclaredPaths(parsed.package, root)}${describeRecordSurfaces(parsed.package, root)}${describeNavTargets(parsed.package, root)}${describeNavGroups(parsed.package, root)}${describeNamespace(parsed.package, root)}`;
       }
       const result = buildPlugin({ entry: path });
       return `${result.package.manifest.id} v${result.package.manifest.version}\n${describeIssues(result.issues)}`
@@ -406,6 +419,7 @@ const TOOLS: ToolDefinition[] = [
         + describeUndeclaredPaths(result.package, root)
         + describeRecordSurfaces(result.package, root)
         + describeNavTargets(result.package, root)
+        + describeNavGroups(result.package, root)
         + describeNamespace(result.package, root);
     },
   },
@@ -1286,6 +1300,34 @@ const PURE_READS: ToolDefinition[] = [
     },
   },
   {
+    name: 'list_nav_groups',
+    description:
+      'Every sidebar group this directory can see, by KEY — the platform\'s, the plugin.ts files here, the '
+      + `first-party extensions in ${EXAMPLES_DIR}/ and the extensions in the installation snapshot —, with `
+      + 'the name it shows in each language and who declares it. A group is joined by key, never by name: two '
+      + 'keys draw two groups even when both are called the same. Read it BEFORE declaring a navGroup() or '
+      + 'writing `group:` on a menu entry, and reuse the key of a group that already serves the purpose.',
+    inputSchema: { type: 'object', properties: {} },
+    run: (_input, root) => {
+      const read = readWorkspaceCatalog(root);
+      const visible = visibleNavGroups(root, read);
+      return pretty({
+        groups: summarizeNavGroups(visible.declarations),
+        sameNameDifferentKeys: sameNameDifferentKeys(visible.declarations),
+        installationSnapshot: visible.installationKnown === null
+          ? `none — run "microteia export-catalog --tenant <tenantId>" in the installation to see the groups `
+            + 'of the extensions installed there, including third-party ones'
+          : visible.installationKnown
+            ? 'read'
+            : `${INSTALLED_CATALOG_FILE} was taken by a Console that did not record sidebar groups; export it again`,
+        ...(visible.failures.length === 0 ? {} : { notCompiled: visible.failures }),
+        rule: 'Declaring a key another package declares joins ONE group, labelled and placed by whichever loads '
+          + 'first — declare it anyway, so the entry stays grouped when that package is not installed. A new key '
+          + 'is for a purpose no listed group serves.',
+      });
+    },
+  },
+  {
     name: 'workspace_info',
     description:
       'What this workspace is bound to: the kernel contract version, whether an installation is '
@@ -1366,6 +1408,7 @@ const PURE_READ_URIS: Record<string, string> = {
   list_expression_functions: 'microteia://expression-functions',
   list_workspace_plugins: 'microteia://workspace/plugins',
   list_referenceable: 'microteia://referenceable',
+  list_nav_groups: 'microteia://nav-groups',
   workspace_info: 'microteia://workspace/info',
 };
 

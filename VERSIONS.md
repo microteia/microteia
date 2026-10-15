@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.112.0] — 2026-10-15
+
+- Quem cria extensões com ajuda da IA passa a ver os grupos do menu lateral que já existem, como Agenda, antes de criar um novo. Assim uma extensão nova entra no grupo certo em vez de criar um segundo grupo com o mesmo nome.
+- A conferência de uma extensão agora avisa quando ela cria um grupo de menu com o nome de um que já existe, e indica qual usar.
+
 #### [9.111.0] — 2026-10-15
 
 - As automações ganham o gatilho **Ao registrar auditoria**: a cada registro na Auditoria causado por uma pessoa, a automação pode olhar a severidade, a ação e a entidade e decidir o que fazer — por exemplo, mandar um e-mail quando aparece um registro crítico.

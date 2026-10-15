@@ -118,6 +118,21 @@ export interface CatalogExtensionExportedArtifact {
   name: string;
 }
 
+/**
+ * Um grupo da barra lateral que a extensão declara (`ui.nav.group`). Viaja porque a CHAVE é contrato:
+ * é o que outra extensão escreve para entrar no grupo, e quem autora sem enxergá-la inventa outra — e
+ * o menu passa a mostrar dois grupos com o mesmo nome.
+ *
+ * O nome vai resolvido em cada idioma que o próprio pacote traz, porque é pelo nome que o autor
+ * reconhece o grupo; o rótulo literal vai como está, com `translations` vazio.
+ */
+export interface CatalogExtensionNavGroup {
+  key: string;
+  label: string;
+  translations: Record<string, string>;
+  order: number;
+}
+
 export interface CatalogExtensionExport {
   id: string;
   name: string;
@@ -128,6 +143,8 @@ export interface CatalogExtensionExport {
    * a chave ausente é o silêncio de um Console anterior a este campo, e o kernel distingue as duas.
    */
   exports: CatalogExtensionExportedArtifact[];
+  /** Sempre escrita, mesmo vazia, pela mesma razão de `exports`. */
+  navGroups: CatalogExtensionNavGroup[];
 }
 
 export interface CatalogExport {
@@ -202,6 +219,54 @@ const exportedArtifacts = (extension: InstalledExtensionRecord): CatalogExtensio
     .filter((id): id is string => typeof id === 'string' && id !== '')
     .map((id) => named.get(id) ?? { id, kind: 'unknown' as const, name: id })
     .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+};
+
+const NAV_GROUP_POINT = 'ui.nav.group';
+const MESSAGES_POINT = 'i18n.messages';
+const DEFAULT_LOCALE = 'en';
+const MESSAGE_REFERENCE = /^@([a-z0-9.-]+)\/(.+)$/;
+
+/**
+ * Os grupos da barra lateral de uma cópia instalada, com o nome resolvido pelos `i18n.messages` do
+ * próprio manifesto. É a mesma leitura que `declaredNavGroupsOf` faz no kernel, repetida porque o
+ * Console não alcança `src/` — e é o teste que atravessa a fronteira que confere as duas.
+ */
+const navGroupsOf = (extension: InstalledExtensionRecord): CatalogExtensionNavGroup[] => {
+  const contributes = Array.isArray(extension.manifest?.contributes) ? extension.manifest.contributes : [];
+  const contributions = contributes.map(asRecord).filter((one): one is Record<string, unknown> => one !== undefined);
+  const bundles = contributions
+    .filter((one) => one.point === MESSAGES_POINT)
+    .map((one) => asRecord(one.metadata))
+    .filter((one): one is Record<string, unknown> => one !== undefined);
+
+  const translationsOf = (label: string): Record<string, string> => {
+    const match = MESSAGE_REFERENCE.exec(label);
+    if (!match) return {};
+    const found: Record<string, string> = {};
+    for (const bundle of bundles) {
+      const locale = text(bundle.locale);
+      const message = asRecord(bundle.messages)?.[match[2]];
+      if (bundle.namespace !== match[1] || locale === undefined || typeof message !== 'string' || message.trim() === '') continue;
+      if (found[locale] === undefined) found[locale] = message;
+    }
+    return found;
+  };
+
+  return contributions
+    .filter((one) => one.point === NAV_GROUP_POINT)
+    .flatMap((one): CatalogExtensionNavGroup[] => {
+      const metadata = asRecord(one.metadata) ?? {};
+      const key = text(metadata.key)?.trim();
+      if (key === undefined) return [];
+      const raw = text(metadata.label) ?? key;
+      const translations = translationsOf(raw);
+      return [{
+        key,
+        label: translations[DEFAULT_LOCALE] ?? Object.values(translations)[0] ?? raw,
+        translations,
+        order: typeof metadata.order === 'number' ? metadata.order : 0,
+      }];
+    });
 };
 
 /**
@@ -304,6 +369,7 @@ export const buildCatalogExport = (input: CatalogExportInput): CatalogExport => 
       version: one.version,
       active: one.active,
       exports: exportedArtifacts(one),
+      navGroups: navGroupsOf(one),
     }))
     .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)),
   screens: input.screens
@@ -449,6 +515,8 @@ export const exportCatalog = async (args: ParsedArgs): Promise<void> => {
     + `the rest the office built itself.`);
   const exported = document.extensions.reduce((total, one) => total + one.exports.length, 0);
   info(`  ${exported} artifact(s) are declared for other extensions to reference as <extension-id>/<id>.`);
+  const groups = document.extensions.reduce((total, one) => total + one.navGroups.length, 0);
+  info(`  ${groups} sidebar group(s) are declared, by key, for other extensions to join.`);
 
   blank();
   await checkIgnored(directory);

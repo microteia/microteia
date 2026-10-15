@@ -22,6 +22,10 @@
 - fix(command): what was broken, and what it did to whoever hit it.
 -->
 
+#### [2.29.0] — 2026-10-15
+
+- feat(export-catalog): each installed extension now carries `navGroups` — the sidebar groups it declares, by key, with the name resolved in every language the package ships and its order. The authoring tools list them in `microteia://nav-groups`, so an extension joins an existing group instead of drawing a second one with the same title. Always written, even empty; a snapshot taken by an older Console is read as "groups unknown".
+
 #### [2.28.1] — 2026-10-14
 
 - fix(console/deploy): a function whose source declares `retry: true` is no longer refused on its first deploy. Without a terminal the Firebase CLI does not ask "Would you like to proceed with deployment?" — it aborts with "Pass the --force option to deploy functions with a failure policy", so `runAggregateBackfill` and `runRecordKeyAdoption` never went up through `microteia deploy` or `provision`. That one function is now redeployed with `--force`, and only when the project is known to hold no copy of it in another region: the same flag would delete that copy without asking, which stays a `--prune` decision. When a copy stands or the project could not be listed, the refusal is terminal and the hint points to `microteia deploy --prune`.

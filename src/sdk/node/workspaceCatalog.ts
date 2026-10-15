@@ -1,6 +1,8 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import type { MarketplacePlugin } from '../../domain/entities/MarketplacePlugin';
+import type { DeclaredNavGroup } from '../../domain/usecases/plugins/declaredNavGroups';
+import { declaredNavGroupsOf } from '../../domain/usecases/plugins/declaredNavGroups';
 import type { SchemaLookup } from '../../domain/schema/screenEntity';
 import type { ExportedArtifact } from '../../domain/usecases/plugins/crossExtensionRefs';
 import { exportedSurface } from '../../domain/usecases/plugins/crossExtensionRefs';
@@ -91,6 +93,8 @@ export interface InstalledContribution {
    * exporta nada, diz que ninguém perguntou.
    */
   exportsKnown: boolean;
+  /** Se o retrato traz os grupos da barra lateral de TODAS as extensões — ver `navGroupsKnown`. */
+  navGroupsKnown: boolean;
   /** Coleções que SÓ existem na instalação — as que este catálogo não teria sem o retrato. */
   addedCollections: string[];
   /**
@@ -131,6 +135,8 @@ export interface WorkspaceCatalog {
      * `dependencies` pode abrir. Ausente só num retrato montado à mão, e aí ela não é enxergada.
      */
     navTargets?: NavTargetOwner;
+    /** Os grupos da barra lateral que o pacote declara, com o nome resolvido pelo catálogo dele. */
+    navGroups?: DeclaredNavGroup[];
   }[];
   /**
    * Os `plugin.ts` de `examples/`, como CAMINHO e nada mais.
@@ -242,6 +248,7 @@ export const readWorkspaceCatalog = (
          */
         exports: exportedSurface(pkg).map((one) => ({ ...one, name: describe(one.name) })),
         navTargets: navTargetOwnerOf(pkg),
+        navGroups: declaredNavGroupsOf(pkg.manifest.contributes),
       });
     } catch (error) {
       failures.push({ path: relative(root, entry), error: error instanceof Error ? error.message : String(error) });
@@ -295,6 +302,7 @@ export const readWorkspaceCatalog = (
       consoleVersion: snapshot.consoleVersion,
       extensions: snapshot.extensions,
       exportsKnown: installation.exportsKnown,
+      navGroupsKnown: installation.navGroupsKnown,
       addedCollections: addedCollections.sort(),
       shadowedCollections: shadowedCollections.sort(),
       lookups: addedLookups.length,

@@ -2349,6 +2349,7 @@ a validação é a mesma função que a instalação chama.
 | `describe_host_module` | um bloco de `sdk/types/microteia-host.d.ts` |
 | `list_workspace_plugins` | compila cada `plugin.ts` do diretório e devolve as pendências e o `exports` de cada um |
 | `list_referenceable` | `authored` (os `plugin.ts` daqui) + as extensões do retrato, casados com `manifest.exports` |
+| `list_nav_groups` (`microteia://nav-groups`) | `CORE_UI_NAV_GROUPS` + os `plugin.ts` daqui + `examples/` + `navGroups` do retrato |
 | `read_authoring_guide` | `AUTHORING.md`, por seção |
 | `workspace_info` | contrato, tipos, e se a instalação está conectada |
 | `list_entities` | `entityRegistry.ts` + os `plugin.ts` daqui + o retrato da instalação, quando há um |
@@ -6164,6 +6165,25 @@ lateral recolhida não há título onde clicar, então nenhum grupo recolhe — 
 A `key` do grupo é universal, como o `sourceId` de uma tela: Calendário e Dias úteis declaram ambos
 `schedule`, e cada um sozinho funciona. A tela criada no Screen Builder ainda entra solta — a extensão
 que quer agrupar a dela declara `nav({ screen, group })`, que substitui o item automático.
+
+**A chave do grupo é DESCOBERTA, nunca inventada.** A regra de cima tem o outro lado: duas chaves
+desenham dois grupos, mesmo com o mesmo nome. Uma extensão do escritório declarou "Agenda" com chave
+própria (`com.microteia.agenda`) ao lado de `schedule` — também "Agenda" em pt-BR —, e o menu ganhou dois
+títulos iguais. O defeito não era do autor: nenhuma resposta do caminho de autoria listava os grupos que
+já existiam. O retrato da instalação trazia só `exports`, e grupo é contribuição, não export.
+
+| Peça | Onde | Papel |
+|---|---|---|
+| `declaredNavGroupsOf` | `domain/usecases/plugins/declaredNavGroups.ts` | os grupos de uma lista de contribuições, com o nome resolvido pelos `i18n.messages` do próprio pacote |
+| `CORE_UI_NAV_GROUPS` | `plugins/core.ui/navGroups.ts` | os três do núcleo, fora do manifest para o SDK lê-los sem arrastar o kernel |
+| `navGroups` no retrato | `cli/src/console/exportCatalog.ts` → `sdk/node/installedCatalog.ts` | aditivo, como `exports`: chave ausente é `navGroupsKnown: false`, nunca "não declara grupo" |
+| `microteia://nav-groups` | `sdk/node/navGroups.ts` + `mcp.ts` | uma linha por chave, de quatro fontes: plataforma, `plugin.ts` daqui, `examples/` e retrato |
+| aviso no `check`/`validate_plugin` | `navGroupReport` | chave nova com nome de grupo visível (`same-name`, dizendo a chave a usar) e item em grupo que nada declara (`undeclared`) |
+
+Os exemplos entram porque são as extensões que o escritório mais provavelmente tem instaladas, e
+valem mesmo sem retrato. Nome compara sem caixa, acento nem espaço (`navGroupNameKey`), em qualquer
+idioma que o pacote traga. É AVISO, nunca recusa: o escritório pode ter extensão que o diretório não
+enxerga, e dois grupos com o mesmo nome podem ser intenção.
 
 **Resolução de aba** (`presentation/shared/resolveUiContributions.ts`, função pura e testada):
 chave exata primeiro, depois **o prefixo mais longo**. O critério de comprimento é o que faz

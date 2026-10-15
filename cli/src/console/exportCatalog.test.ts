@@ -171,7 +171,7 @@ describe('a exportação do catálogo instalado', () => {
       { collection: 'customerTags', label: 'Etiquetas', ownerPluginId: 'com.example.billing' },
     ]);
     expect(exported.extensions).toStrictEqual([
-      { id: 'com.example.billing', name: 'Billing', version: '2.1.0', active: true, exports: [] },
+      { id: 'com.example.billing', name: 'Billing', version: '2.1.0', active: true, exports: [], navGroups: [] },
     ]);
   });
 
@@ -271,6 +271,73 @@ describe('o que cada extensão declara para as outras referenciarem', () => {
       expect(read.exportsKnown).toBe(true);
       expect(read.snapshot?.extensions[0].exports).toStrictEqual([
         { id: 'normalize-tax-id', kind: 'script', name: 'Normalize tax id' },
+      ]);
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+});
+
+/**
+ * Os grupos da barra lateral atravessam pelo mesmo motivo do `exports`: a chave é o que outra extensão
+ * escreve para ENTRAR no grupo. Sem ela, quem autora inventa outra, e o menu ganha dois títulos iguais.
+ */
+describe('os grupos da barra lateral que cada extensão declara', () => {
+  const calendar: InstalledExtensionRecord = {
+    ...EXTENSIONS[0],
+    id: 'com.microteia.calendar',
+    manifest: {
+      id: 'com.microteia.calendar',
+      contributes: [
+        { point: 'i18n.messages', id: 'en.com.microteia.calendar', metadata: { locale: 'en', namespace: 'com.microteia.calendar', messages: { 'nav.group.schedule': 'Schedule' } } },
+        { point: 'i18n.messages', id: 'pt-br.com.microteia.calendar', metadata: { locale: 'pt-BR', namespace: 'com.microteia.calendar', messages: { 'nav.group.schedule': 'Agenda' } } },
+        { point: 'ui.nav.group', id: 'schedule', metadata: { key: 'schedule', label: '@com.microteia.calendar/nav.group.schedule', order: 20 } },
+        { point: 'ui.nav', id: 'calendar', metadata: { key: 'calendar', label: 'x', group: 'schedule' } },
+      ],
+    },
+  };
+  const literal: InstalledExtensionRecord = {
+    ...EXTENSIONS[0],
+    id: 'com.acme.menu',
+    manifest: { id: 'com.acme.menu', contributes: [{ point: 'ui.nav.group', id: 'x', metadata: { key: 'com.acme.cases', label: 'Processos', order: 20 } }] },
+  };
+
+  const buildWith = (extensions: InstalledExtensionRecord[]) => buildCatalogExport({
+    projectId: 'office-prod',
+    tenant: { id: 'tenant-1', name: 'Escritório Central' },
+    kernelVersion: '2.7.0',
+    exportedAt: EXPORTED_AT,
+    screens: [], lookups: [], tagLists: [],
+    extensions,
+  });
+
+  it('traz a chave, a ordem e o nome em cada idioma que o pacote traz', () => {
+    const calendarGroups = buildWith([calendar]).extensions[0].navGroups;
+    expect(calendarGroups).toStrictEqual([
+      { key: 'schedule', label: 'Schedule', translations: { en: 'Schedule', 'pt-BR': 'Agenda' }, order: 20 },
+    ]);
+  });
+
+  it('o rótulo literal viaja como está, sem tradução', () => {
+    expect(buildWith([literal]).extensions[0].navGroups).toStrictEqual([
+      { key: 'com.acme.cases', label: 'Processos', translations: {}, order: 20 },
+    ]);
+  });
+
+  it('sem grupo, a lista sai vazia — nunca a chave ausente', () => {
+    const groups = buildWith(EXTENSIONS).extensions[0];
+    expect(groups.navGroups).toStrictEqual([]);
+  });
+
+  it('o kernel lê os grupos de volta e os considera conhecidos', () => {
+    const directory = mkdtempSync(join(tmpdir(), 'microteia-export-groups-'));
+    try {
+      writeFileSync(join(directory, CATALOG_FILE), `${JSON.stringify(buildWith([calendar, literal]), null, 2)}\n`);
+      const read = readInstalledCatalog(directory, EXPORTED_AT);
+
+      expect(read.navGroupsKnown).toBe(true);
+      expect(read.snapshot?.extensions.find((one) => one.id === 'com.microteia.calendar')?.navGroups).toStrictEqual([
+        { key: 'schedule', label: 'Schedule', translations: { en: 'Schedule', 'pt-BR': 'Agenda' }, order: 20 },
       ]);
     } finally {
       rmSync(directory, { recursive: true, force: true });
