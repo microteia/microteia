@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.107.0] — 2026-10-15
+
+- Quem escreve extensões agora declara uma ação que só aciona um gesto da plataforma — copiar link, duplicar, excluir — sem precisar inventar uma automação vazia, e a verificação da extensão avisa quando uma ação não executa nada.
+
 #### [9.106.0] — 2026-10-15
 
 - No Form Design, os gestos da plataforma no card — copiar link, duplicar, etiquetas, gerar documento, excluir — passaram para a aba Ações, marcados como da plataforma, ao lado das ações do escritório. Agora dá para ligar, desligar e reordenar cada um, e o card os mostra na ordem escolhida.

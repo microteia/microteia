@@ -331,6 +331,8 @@ export const CORE_MARKETPLACE_MESSAGES: Record<string, string> = {
   'issue.migration.source-missing': 'Data migration "{id}" has no code.',
   'issue.migration.source-modules': 'Data migration "{id}" uses import/export/require, which the sandbox does not resolve.',
   'issue.migration.version-invalid': 'Data migration "{id}" declares version "{version}", which is not a valid semver.',
+  'issue.package.action.no-target':
+    'The action "{key}" ({where}) runs nothing: declare workflowId (a workflow templateId) or command (a platform record gesture).',
   'issue.package.icon.unknown':
     'Icon "{icon}" ({where}) is not in the platform catalogue. The installation would draw the generic marker instead. Ask the microteia-plugin MCP server for list_icons to see every key.',
   'issue.package.nav.dangling':

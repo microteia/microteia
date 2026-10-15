@@ -136,11 +136,24 @@ export type WorkflowModuleTemplate = { templateId: string } & Omit<
   'id' | 'tenantId' | 'createdAt' | 'updatedAt' | 'ownerPluginId' | 'enabled'
 >;
 
-/** Uma action do pacote. `workflowId` referencia o `templateId` de um workflow do pacote. */
+/**
+ * Uma action do pacote. `workflowId` referencia o `templateId` de um workflow do pacote.
+ *
+ * O QUE ela executa é uma união: um fluxo (`workflowId`) ou um gesto da plataforma (`command`). A
+ * entidade gravada continua com `workflowId: string` — vazio quando há comando —, mas quem ESCREVE o
+ * pacote não precisa mais do `workflowId: ''` só para compilar. Os dois campos existem nos dois
+ * ramos de propósito: `keyof` da união continua enxergando ambos, e um pacote antigo com
+ * `workflowId: ''` ao lado do `command` segue válido. A ação sem nenhum dos dois é recusada pelo
+ * `check` (`packageActionIssues`), porque o tipo não vê o `''` que o JSON carrega.
+ */
 export type ActionModuleTemplate = { templateId: string } & Omit<
   ActionDefinition,
-  'id' | 'tenantId' | 'createdAt' | 'createdBy' | 'updatedAt' | 'updatedBy' | 'updatedByName' | 'updatedByPhotoURL' | 'ownerPluginId'
->;
+  | 'id' | 'tenantId' | 'createdAt' | 'createdBy' | 'updatedAt' | 'updatedBy' | 'updatedByName' | 'updatedByPhotoURL'
+  | 'ownerPluginId' | 'workflowId' | 'command'
+> & (
+  | { workflowId: string; command?: null }
+  | { command: string; workflowId?: string | null }
+);
 
 /**
  * Um relatório do pacote.

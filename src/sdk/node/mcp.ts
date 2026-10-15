@@ -1125,7 +1125,8 @@ const PURE_READS: ToolDefinition[] = [
         requiresTags: action.requiresTags ?? false,
       })),
       note:
-        'In an action, `command` and `workflowId` are exclusive and `command` wins. A screen offers '
+        'In an action, `command` and `workflowId` are exclusive and `command` wins; with `command`, '
+        + '`workflowId` may be omitted, and an action with neither is refused. A screen offers '
         + 'the action by naming its templateId in `cardActionIds` or `viewActionIds`.',
     }),
   },

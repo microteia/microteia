@@ -119,7 +119,8 @@ export const actionInputFromTemplate = (
     ...rest,
     // Referência qualificada a outra extensão nunca está no mapa (ele é dos `templateId` deste
     // pacote, e nenhum deles tem `/`), então ela cai no fallback e viaja intacta até o motor.
-    workflowId: workflowMap.get(rest.workflowId) ?? rest.workflowId,
+    // A ação de `command` pode chegar sem `workflowId`; gravada, a entidade o tem sempre, vazio.
+    workflowId: rest.workflowId ? workflowMap.get(rest.workflowId) ?? rest.workflowId : '',
     ownerPluginId: pluginId,
     ownerPluginIds: [pluginId],
     sourceId: template.templateId,

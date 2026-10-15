@@ -1882,7 +1882,9 @@ actions: [{
 }]
 \`\`\`
 
-\`command\` instead of \`workflowId\` runs one of the platform's own record gestures — present, it wins.
+\`command\` instead of \`workflowId\` runs one of the platform's own record gestures — present, it wins,
+and \`workflowId\` may be left out (\`{ templateId: 'act-copy', key: 'copy', command: 'copyLink', ... }\`).
+An action with neither is refused by \`check\`.
 The ones the kernel brings are ${codeList(input.recordCommands)}, and anything contributed to
 \`ui.record.action\` joins them (\`microteia://record-commands\` on the MCP server answers for this
 installation). \`order\`, \`enabled\` and \`danger\` are REQUIRED on every action.

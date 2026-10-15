@@ -18,6 +18,11 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.107.0] — 2026-10-15
+
+- feat(sdk/actions): `ActionModuleTemplate` is now a union on what the action runs — `{ workflowId: string; command?: null } | { command: string; workflowId?: string | null }`. A command-only action no longer needs `workflowId: ''` to compile; a package that still carries it next to `command` stays valid. The stored `ActionDefinition` is unchanged: `actionInputFromTemplate` writes `workflowId: ''` when the template has none. `KERNEL_VERSION` goes to `2.42.0` (additive: an older kernel would not default the missing field).
+- feat(check): `packageActionIssues`, in `packageIssues`, refuses an action with neither a non-blank `workflowId` nor a non-blank `command` (`@core.marketplace/issue.package.action.no-target`). Installed, it was a button that found nothing to run when clicked. `com.microteia.locale-pt-br` 1.92.0 carries the translation.
+
 #### [9.106.0] — 2026-10-15
 
 - feat(form-design): the platform's record gestures (`ui.record.action`, enabled per screen in `listActions`) moved from the "Listing" tab — which held nothing but their checkboxes and was not recognisable as actions — to the "Actions" tab, as a "Platform gestures" group beside the office actions, each marked as platform-owned and with move up/down. The "Listing" tab is gone.
