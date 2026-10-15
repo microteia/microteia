@@ -230,6 +230,20 @@ export const S = {
     line-height: 1.4;
   `,
 
+  ClockRunLink: styled.button`
+    align-self: flex-start;
+    padding: 0;
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-size: ${({ theme }) => theme.fontSizes.xs};
+    color: ${({ theme }) => theme.colors.primary};
+
+    &:hover {
+      text-decoration: underline;
+    }
+  `,
+
   FieldError: styled.p`
     margin: 0;
     font-size: ${({ theme }) => theme.fontSizes.xs};

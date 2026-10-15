@@ -18,6 +18,12 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.104.0] — 2026-10-14
+
+- feat(workflow/clock): every clock pass records `lastRun` on the `workflow_clock` entry, in the same write that moves `nextRunAt` — `scheduledFor`, `ranAt`, `outcome` (`fired`/`skipped`), `skipReason` (`owners-deactivated`, `date-field-missing`), the schedule's `eventId` and, for `dateReached`, the records the window woke (summed across pages). Recalculating the schedule keeps it. `clockOccurrenceEventId` moves to the shared `workflowClock` schema.
+- feat(workflow/editor): "Server clock" block on schedule and date-reached automations, subscribed to `workflow_clock/{id}`: the server's next run, the due window, the last run with a link to its execution, skip reasons, the inactive and missing states, and a warning when the stored `nextRunAt` differs from the saved declaration (suppressed for 60 s after a save while `syncWorkflowClock` recalculates). Answers "did it run, and why not?" without per-tick auditing.
+- chore(locale-pt-br): 1.90.0 with the new `core.automation` keys.
+
 #### [9.103.1] — 2026-10-14
 
 - fix(workflow/schedule): the automation editor labelled "Office time zone" and previewed the next runs with the viewer's resolved zone (user → office → automatic), while the clock resolves it with no user. A user with `America/Sao_Paulo` (or `pt-BR`) only in their profile saw 17:53 promised and the clock fired at 17:53 UTC. New `resolveOfficeTimeZone(tenant)` in the shared `i18n/timeZone` schema is now the one rule for both the editor and `tenantTimeZone` without a user.

@@ -12,8 +12,10 @@ import type {
   WorkflowClockFireResult,
 } from '../../domain/repositories/IWorkflowClockRepository';
 import { normalizeFirestoreValue } from '../../domain/services/normalizeFirestoreValue';
+import type { WorkflowClockLastRun } from '../../domain/schema/workflowClock';
 import {
   RESUME_CLOCK_ID_PREFIX,
+  clockOccurrenceEventId,
   WORKFLOW_CLOCK_COLLECTION,
   WORKFLOW_SCHEDULE_EVENT,
   WORKFLOW_TRIGGER_MARKS_COLLECTION,
@@ -35,6 +37,29 @@ const mapPage = (value: unknown): DateReachedPage | null => {
   return { fromDay: page.fromDay, toDay: page.toDay, afterValue, afterId: page.afterId };
 };
 
+const SKIP_REASONS: ReadonlySet<string> = new Set(['owners-deactivated', 'date-field-missing']);
+
+const mapLastRun = (value: unknown): WorkflowClockLastRun | null => {
+  if (!value || typeof value !== 'object') return null;
+  const run = value as Record<string, unknown>;
+  const scheduledFor = toDate(run.scheduledFor);
+  const ranAt = toDate(run.ranAt);
+  if (!scheduledFor || !ranAt || (run.outcome !== 'fired' && run.outcome !== 'skipped')) return null;
+  return {
+    scheduledFor,
+    ranAt,
+    outcome: run.outcome,
+    skipReason: typeof run.skipReason === 'string' && SKIP_REASONS.has(run.skipReason)
+      ? (run.skipReason as WorkflowClockLastRun['skipReason'])
+      : null,
+    eventId: typeof run.eventId === 'string' ? run.eventId : null,
+    records: typeof run.records === 'number' ? run.records : null,
+  };
+};
+
+const lastRunDocument = (run: WorkflowClockLastRun | null | undefined): DocumentData | null =>
+  run ? { ...run, scheduledFor: Timestamp.fromDate(run.scheduledFor), ranAt: Timestamp.fromDate(run.ranAt) } : null;
+
 const mapEntry = (tenantId: string, definitionId: string, data: DocumentData): WorkflowClockEntry | null => {
   const nextRunAt = toDate(data.nextRunAt);
   if (!nextRunAt) return null;
@@ -45,6 +70,7 @@ const mapEntry = (tenantId: string, definitionId: string, data: DocumentData): W
     timeZone: typeof data.timeZone === 'string' ? data.timeZone : 'UTC',
     nextRunAt,
     ownerPluginIds: stringList(data.ownerPluginIds),
+    lastRun: mapLastRun(data.lastRun),
   };
   if (data.kind === 'resume') {
     const event = data.event && typeof data.event === 'object' ? (data.event as Record<string, unknown>) : null;
@@ -106,6 +132,7 @@ const entryDocument = (entry: WorkflowClockEntry): DocumentData => {
     timeZone: entry.timeZone,
     nextRunAt: Timestamp.fromDate(entry.nextRunAt),
     ownerPluginIds: entry.ownerPluginIds,
+    lastRun: lastRunDocument(entry.lastRun),
     updatedAt: Timestamp.now(),
   };
   if (entry.kind === 'schedule') return { ...base, cron: entry.cron };
@@ -132,12 +159,6 @@ const entryDocument = (entry: WorkflowClockEntry): DocumentData => {
     page: pageDocument(entry.page),
   };
 };
-
-/**
- * O id do evento de uma ocorrência de HORÁRIO é DETERMINÍSTICO: a automação e o instante previsto. É a
- * segunda trava contra o disparo duplo — a primeira é conferir `nextRunAt` dentro da transação.
- */
-const occurrenceEventId = (entry: ScheduleClockEntry): string => `clock_${entry.definitionId}_${entry.nextRunAt.getTime()}`;
 
 const pageKey = (data: DocumentData | undefined): string | null => {
   const page = data ? mapPage(data.page) : null;
@@ -182,9 +203,14 @@ export class FirebaseWorkflowClockRepository implements IWorkflowClockRepository
     return snapshot.docs.map(fromSnapshot).filter((entry): entry is WorkflowClockEntry => entry !== null);
   }
 
-  async fire(entry: ScheduleClockEntry, payload: Record<string, unknown>, next: Date | null): Promise<WorkflowClockFireResult> {
+  async fire(
+    entry: ScheduleClockEntry,
+    payload: Record<string, unknown>,
+    next: Date | null,
+    lastRun: WorkflowClockLastRun,
+  ): Promise<WorkflowClockFireResult> {
     const entryRef = this.entryRef(entry.tenantId, entry.definitionId);
-    const eventRef = workflowEventsRef(this.db, entry.tenantId).doc(occurrenceEventId(entry));
+    const eventRef = workflowEventsRef(this.db, entry.tenantId).doc(clockOccurrenceEventId(entry.definitionId, entry.nextRunAt));
 
     return this.db.runTransaction(async (tx) => {
       const [current, existingEvent] = await Promise.all([tx.get(entryRef), tx.get(eventRef)]);
@@ -193,7 +219,12 @@ export class FirebaseWorkflowClockRepository implements IWorkflowClockRepository
 
       tx.create(eventRef, workflowEventDocument(WORKFLOW_SCHEDULE_EVENT, payload, { target: entry.definitionId }));
       if (next) {
-        tx.update(entryRef, { nextRunAt: Timestamp.fromDate(next), timeZone: entry.timeZone, updatedAt: Timestamp.now() });
+        tx.update(entryRef, {
+          nextRunAt: Timestamp.fromDate(next),
+          timeZone: entry.timeZone,
+          lastRun: lastRunDocument(lastRun),
+          updatedAt: Timestamp.now(),
+        });
       } else {
         tx.delete(entryRef);
       }
@@ -226,6 +257,7 @@ export class FirebaseWorkflowClockRepository implements IWorkflowClockRepository
         timeZone: patch.timeZone,
         ...(patch.cursorDay !== undefined ? { cursorDay: patch.cursorDay } : {}),
         ...(patch.page !== undefined ? { page: pageDocument(patch.page) } : {}),
+        ...(patch.lastRun !== undefined ? { lastRun: lastRunDocument(patch.lastRun) } : {}),
         updatedAt: Timestamp.now(),
       });
       return 'fired';

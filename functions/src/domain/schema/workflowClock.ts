@@ -355,6 +355,44 @@ export const DATE_REACHED_CATCH_UP_DAYS = 7;
 /** Por quanto tempo a marca "já disparou" é guardada. Passado isso, ninguém volta a olhar aquele dia. */
 export const DATE_REACHED_MARK_TTL_DAYS = 400;
 
+/**
+ * Por que o relógio deixou de disparar uma ocorrência que venceu. A ocorrência pulada AVANÇA do mesmo
+ * jeito — o motivo é gravado para que a tela da automação responda "por que não rodou?" sem log nenhum.
+ */
+export type WorkflowClockSkipReason = 'owners-deactivated' | 'date-field-missing';
+
+/**
+ * A última passada do relógio por uma automação, gravada na MESMA escrita que move `nextRunAt` — o
+ * estado observável sai sem custo, e é ele que responde "rodou ou não?" sem auditoria a cada volta.
+ */
+export interface WorkflowClockLastRun {
+  /** A ocorrência que venceu. */
+  scheduledFor: Date;
+  /** Quando o relógio a tratou — até `WORKFLOW_CLOCK_TICK_MINUTES` depois. */
+  ranAt: Date;
+  outcome: 'fired' | 'skipped';
+  skipReason: WorkflowClockSkipReason | null;
+  /** O evento publicado, no horário; a execução nasce com ele. `null` na data, que publica um por registro. */
+  eventId: string | null;
+  /** Quantos registros a data acordou nesta janela. `null` no horário. */
+  records: number | null;
+}
+
+/** O que o editor lê de `workflow_clock/{definitionId}`: o que o SERVIDOR vai fazer, não a prévia. */
+export interface WorkflowClockStatus {
+  nextRunAt: Date;
+  timeZone: string;
+  updatedAt: Date | null;
+  lastRun: WorkflowClockLastRun | null;
+}
+
+/**
+ * O id do evento de uma ocorrência de HORÁRIO é DETERMINÍSTICO: a automação e o instante previsto. É a
+ * segunda trava contra o disparo duplo — a primeira é conferir `nextRunAt` dentro da transação.
+ */
+export const clockOccurrenceEventId = (definitionId: string, scheduledFor: Date): string =>
+  `clock_${definitionId}_${scheduledFor.getTime()}`;
+
 /** As marcas de "já disparou" do gatilho de data — coleção do kernel, que o cliente não lê nem escreve. */
 export const WORKFLOW_TRIGGER_MARKS_COLLECTION = 'workflow_trigger_marks';
 

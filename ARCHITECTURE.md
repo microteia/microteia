@@ -5622,6 +5622,24 @@ automação que não é nem foi de horário sai sem ler nada; regravar SEM mudar
 (renomear às 7h59 não pode adiar o disparo das 8h). As regras deixam o membro LER (o editor) e ninguém
 escrever; a coleção está em `RESERVED_COLLECTIONS`.
 
+**O relógio se explica na tela da automação — sem log.** Cada passada grava `lastRun` na própria
+entrada, NA MESMA escrita que move `nextRunAt` (custo zero): `scheduledFor`, `ranAt`, `outcome`
+(`fired`/`skipped`), `skipReason` (`owners-deactivated`, `date-field-missing`), o `eventId` do disparo de
+horário (`clockOccurrenceEventId`, compartilhado — é dele que a execução nasce) e, na data, quantos
+registros a janela acordou (somados entre as páginas). Recalcular o horário preserva o `lastRun`.
+
+O editor assina `workflow_clock/{id}` (`IWorkflowClockRepository` no front) e mostra, no bloco "Relógio do
+servidor", o que o SERVIDOR vai fazer — não a prévia: o próximo disparo gravado, "vencida, o relógio passa
+em até 5 min" entre o horário e a volta, o último disparo com link para a execução, o pulado com o motivo,
+a inativa, e a ausência de entrada. O aviso de DIVERGÊNCIA compara o `nextRunAt` com a próxima ocorrência da
+declaração SALVA no fuso do escritório; durante `CLOCK_SETTLE_MS` depois de salvar, ausência e divergência
+não são acusadas (o `syncWorkflowClock` ainda está recalculando). A decisão é pura e testada:
+`presentation/shared/workflowClockInfo.ts`.
+
+Foi a resposta a "o relógio rodou ou não?" em vez de uma auditoria por volta: 288 voltas por dia, quase
+todas vazias, e um interruptor ligado para depurar fica ligado para sempre. O caso que mais confunde —
+"salvei e o relógio marcou para amanhã" — nem aparece em log de volta; aparece no próximo disparo gravado.
+
 **Disparo exatamente uma vez.** `fire` roda numa transação: relê a entrada, confere que `nextRunAt` é o
 mesmo que a consulta viu, cria o evento com id DETERMINÍSTICO (`clock_<definição>_<instante previsto>`) e
 move `nextRunAt` para a próxima ocorrência. Duas voltas simultâneas: uma dispara, a outra vê `stale`.
@@ -5755,6 +5773,8 @@ Uma regra que depende do estado de AGORA ("dois dias depois, se ainda estiver ab
 | `functions/src/domain/services/workflowClock.ts` | `syncWorkflowClockEntry` e a volta do relógio |
 | `functions/src/data/repositories/FirebaseWorkflowClockRepository.ts` | a consulta de grupo e a transação do disparo |
 | `functions/src/infrastructure/handlers/workflowClock.ts` | `syncWorkflowClock` e `runWorkflowClock` |
+| `src/data/repositories/FirebaseWorkflowClockRepository.ts` | o editor assina a entrada do relógio |
+| `src/presentation/shared/workflowClockInfo.ts` | o que o bloco "Relógio do servidor" diz, e quando acusa |
 | `functions/src/domain/services/workflowClock.ts` → `dateReachedOnSave` | a metade do gatilho de data que corre na gravação |
 | `functions/src/domain/services/workflowSuspension.ts` | guardar a continuação de quem esperou, e retomá-la |
 | `functions/src/infrastructure/workflow/steps/DelayStep.ts` | o passo `delay` — só pede a pausa |

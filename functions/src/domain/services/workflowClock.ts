@@ -7,13 +7,14 @@ import type {
   WorkflowClockEntry,
 } from '../repositories/IWorkflowClockRepository';
 import type { WorkflowDefinition, WorkflowEvent } from '../entities/Workflow';
-import type { WorkflowDateReached, WorkflowSchedule } from '../schema/workflowClock';
+import type { WorkflowClockLastRun, WorkflowClockSkipReason, WorkflowDateReached, WorkflowSchedule } from '../schema/workflowClock';
 import {
   DATE_REACHED_CATCH_UP_DAYS,
   DATE_REACHED_MARK_TTL_DAYS,
   DEFAULT_DATE_REACHED_AT,
   WORKFLOW_SCHEDULE_EVENT,
   addDays,
+  clockOccurrenceEventId,
   dateReachedCron,
   dateReachedEventName,
   dateReachedFireDay,
@@ -118,6 +119,7 @@ const syncSchedule = async (
     timeZone,
     nextRunAt,
     ownerPluginIds: owners,
+    lastRun: current?.kind === 'schedule' ? current.lastRun ?? null : null,
   });
 };
 
@@ -161,6 +163,7 @@ const syncDateReached = async (
     timeZone,
     nextRunAt,
     ownerPluginIds: owners,
+    lastRun: current?.kind === 'dateReached' ? current.lastRun ?? null : null,
   });
 };
 
@@ -237,14 +240,31 @@ const followingOccurrence = async (
   return { next: parsed ? nextCronOccurrence(parsed, from, timeZone) : null, timeZone };
 };
 
+const skippedRun = (entry: WorkflowClockEntry, now: Date, skipReason: WorkflowClockSkipReason): WorkflowClockLastRun => ({
+  scheduledFor: entry.nextRunAt,
+  ranAt: now,
+  outcome: 'skipped',
+  skipReason,
+  eventId: null,
+  records: null,
+});
+
 const fireSchedule = async (entry: ScheduleClockEntry, deps: WorkflowClockDeps): Promise<'fired' | 'stale'> => {
   const now = deps.now();
   const { next, timeZone } = await followingOccurrence(entry, entry.cron, now, deps);
   if (await isSwitchedOff(entry, deps)) {
     if (!next) return 'stale';
-    return deps.repository.advance(entry, { nextRunAt: next, timeZone });
+    return deps.repository.advance(entry, { nextRunAt: next, timeZone, lastRun: skippedRun(entry, now, 'owners-deactivated') });
   }
-  return deps.repository.fire({ ...entry, timeZone }, { scheduledFor: entry.nextRunAt, firedAt: now }, next);
+  const lastRun: WorkflowClockLastRun = {
+    scheduledFor: entry.nextRunAt,
+    ranAt: now,
+    outcome: 'fired',
+    skipReason: null,
+    eventId: clockOccurrenceEventId(entry.definitionId, entry.nextRunAt),
+    records: null,
+  };
+  return deps.repository.fire({ ...entry, timeZone }, { scheduledFor: entry.nextRunAt, firedAt: now }, next, lastRun);
 };
 
 const markExpiry = (now: Date): Date => new Date(now.getTime() + DATE_REACHED_MARK_TTL_DAYS * 86_400_000);
@@ -284,22 +304,33 @@ const fireDateReached = async (entry: DateReachedClockEntry, deps: WorkflowClock
   const { next, timeZone } = await followingOccurrence(entry, dateReachedCron(entry), now, deps);
   const today = dayInTimeZone(now, timeZone);
   const lastTarget = dateReachedTargetDay(today, entry.offsetDays);
-  const settle = (cursorDay: string): Promise<'fired' | 'stale'> =>
-    next ? deps.repository.advance(entry, { nextRunAt: next, timeZone, cursorDay, page: null }) : Promise.resolve('stale');
+  const settle = (cursorDay: string, lastRun: WorkflowClockLastRun): Promise<'fired' | 'stale'> =>
+    next ? deps.repository.advance(entry, { nextRunAt: next, timeZone, cursorDay, page: null, lastRun }) : Promise.resolve('stale');
+  const sameWindowRecords = entry.page && entry.lastRun?.scheduledFor.getTime() === entry.nextRunAt.getTime()
+    ? entry.lastRun.records ?? 0
+    : 0;
+  const firedRun = (records: number): WorkflowClockLastRun => ({
+    scheduledFor: entry.nextRunAt,
+    ranAt: now,
+    outcome: 'fired',
+    skipReason: null,
+    eventId: null,
+    records: sameWindowRecords + records,
+  });
 
-  if (await isSwitchedOff(entry, deps)) return settle(lastTarget);
+  if (await isSwitchedOff(entry, deps)) return settle(lastTarget, skippedRun(entry, now, 'owners-deactivated'));
 
   const target = await deps.resolveDateField(entry.tenantId, dateReachedPrefix(entry.eventName) ?? '', entry.field);
   if (!target) {
     deps.logger.warn(
       `[workflow-clock] ${entry.tenantId}/${entry.definitionId}: "${entry.field}" não é campo de data de "${entry.eventName}" — nada a vigiar hoje`,
     );
-    return settle(lastTarget);
+    return settle(lastTarget, skippedRun(entry, now, 'date-field-missing'));
   }
 
   const fromDay = entry.page?.fromDay ?? [addDays(entry.cursorDay, 1), addDays(lastTarget, 1 - DATE_REACHED_CATCH_UP_DAYS)].sort()[1];
   const toDay = entry.page?.toDay ?? lastTarget;
-  if (fromDay > toDay) return settle(toDay);
+  if (fromDay > toDay) return settle(toDay, firedRun(0));
 
   const midnight = { hour: 0, minute: 0 };
   const records = await deps.repository.recordsInRange(
@@ -311,7 +342,7 @@ const fireDateReached = async (entry: DateReachedClockEntry, deps: WorkflowClock
     entry.page ? { value: entry.page.afterValue, id: entry.page.afterId } : null,
     DATE_REACHED_PAGE_SIZE,
   );
-  await claimRecords(entry, records, timeZone, now, deps);
+  const claimed = await claimRecords(entry, records, timeZone, now, deps);
 
   if (records.length === DATE_REACHED_PAGE_SIZE) {
     const last = records[records.length - 1];
@@ -319,9 +350,10 @@ const fireDateReached = async (entry: DateReachedClockEntry, deps: WorkflowClock
       nextRunAt: entry.nextRunAt,
       timeZone,
       page: { fromDay, toDay, afterValue: last.value, afterId: last.id },
+      lastRun: firedRun(claimed),
     });
   }
-  return settle(toDay);
+  return settle(toDay, firedRun(claimed));
 };
 
 const fireEntry = (entry: WorkflowClockEntry, deps: WorkflowClockDeps): Promise<'fired' | 'stale'> => {

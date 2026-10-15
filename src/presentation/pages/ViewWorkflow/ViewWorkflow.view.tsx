@@ -508,6 +508,21 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                 </>
               )}
 
+              {vm.clockInfo && (
+                <InputGroup>
+                  <Label>{t('workflow.clock.title')}</Label>
+                  {vm.clockInfo.warning && <InfoBanner variant="warning" message={vm.clockInfo.warning} />}
+                  {vm.clockInfo.lines.map((line) => (
+                    <S.FieldHint key={line}>{line}</S.FieldHint>
+                  ))}
+                  {vm.clockInfo.lastRunEventId && (
+                    <S.ClockRunLink type="button" onClick={vm.openLastClockRun}>
+                      {t('workflow.clock.open-run')}
+                    </S.ClockRunLink>
+                  )}
+                </InputGroup>
+              )}
+
               {vm.isCalledEvent && (
                 <InputGroup>
                   <Label>{t('field.parameters')}</Label>

@@ -48,15 +48,18 @@ import { artifactIdIssue, deriveArtifactId } from '../../../domain/services/arti
 import {
   DEFAULT_DATE_REACHED_AT,
   WORKFLOW_SCHEDULE_EVENT,
+  dateReachedCron,
   dateReachedIssues,
   dateReachedPrefix,
+  nextCronOccurrence,
   nextCronOccurrences,
   parseCron,
   parseOffsetDays,
   scheduleIssues,
   scheduleTimeZone,
 } from '../../../domain/schema/workflowClock';
-import type { WorkflowDateReached, WorkflowSchedule } from '../../../domain/schema/workflowClock';
+import type { WorkflowClockStatus, WorkflowDateReached, WorkflowSchedule } from '../../../domain/schema/workflowClock';
+import { buildWorkflowClockInfo } from '../../shared/workflowClockInfo';
 import { entityDateFieldKeys, eventEntity } from '../../../domain/schema/eventCatalog';
 import { resolveOfficeTimeZone, timeZoneOptions } from '../../../domain/schema/i18n/timeZone';
 import { useSettings } from '../../../stores/useSettings';
@@ -279,6 +282,13 @@ export interface ViewWorkflowViewModel {
   /** As próximas execuções que o horário pede, no fuso em que ele roda. */
   schedulePreview: string[];
   scheduleTimeZoneOptions: { value: string; label: string }[];
+  /**
+   * O relógio do SERVIDOR para esta automação: o próximo disparo gravado, o último (ou o motivo de ter
+   * sido pulado) e o aviso quando ele discorda da declaração salva. `null` fora dos gatilhos temporais.
+   */
+  clockInfo: { warning: string | null; lines: string[]; lastRunEventId: string | null } | null;
+  /** Abre, na aba de execuções, a execução que nasceu do último disparo do relógio. */
+  openLastClockRun: () => void;
   isDateReachedEvent: boolean;
   /** Os campos de data da tela do gatilho. */
   dateFieldOptions: { value: string; label: string }[];
@@ -340,6 +350,8 @@ const mapExecutionToRunResult = (
 
 const CLONE_PREFIX = 'new-workflow:clone:';
 
+const CLOCK_REFRESH_MS = 30_000;
+
 export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel => {
   const cloneSourceId = tabKey.startsWith(CLONE_PREFIX) ? tabKey.slice(CLONE_PREFIX.length) : null;
   const isNew = tabKey === 'new-workflow' || cloneSourceId !== null;
@@ -351,7 +363,7 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
   const { currentTenant } = useTenant();
   const { setTabTitle, closeTab, openTab, activePanelId } = useWorkspace();
   const { notify } = useNotification();
-  const { workflowExecutionRepository, dataProcessorRepository } = useDI();
+  const { workflowExecutionRepository, workflowClockRepository, dataProcessorRepository } = useDI();
   const { getDefinition } = useScreenDefinitions();
   const ctx = useSchemaContext();
   const tUi = useT('core.ui');
@@ -576,6 +588,62 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
     const [issue] = dateReachedIssues(dateReachedOf(formData), known);
     return issue ? label(issue.message, issue.messageParams) : null;
   }, [isDateReachedEvent, dateEntity, formData, label]);
+
+  const savedClockKind = useMemo<'schedule' | 'dateReached' | null>(() => {
+    if (!workflow) return null;
+    if (isScheduleEventName(workflow.eventName)) return 'schedule';
+    return dateReachedPrefix(workflow.eventName) !== null ? 'dateReached' : null;
+  }, [workflow]);
+
+  const [clockState, setClockState] = useState<{ definitionId: string; status: WorkflowClockStatus | null } | null>(null);
+  const [clockNow, setClockNow] = useState(() => new Date());
+
+  useEffect(() => {
+    if (!currentTenant || isNew || !savedClockKind) return;
+    return workflowClockRepository.subscribeToClockStatus(currentTenant.id, workflowId, (status) => {
+      setClockState({ definitionId: workflowId, status });
+      setClockNow(new Date());
+    });
+  }, [currentTenant, isNew, savedClockKind, workflowId, workflowClockRepository]);
+
+  useEffect(() => {
+    if (!savedClockKind) return;
+    const timer = setInterval(() => setClockNow(new Date()), CLOCK_REFRESH_MS);
+    return () => clearInterval(timer);
+  }, [savedClockKind]);
+
+  const clockInfo = useMemo(() => {
+    if (!workflow || !savedClockKind) return null;
+    const saved = buildForm(workflow);
+    const triggerPending = formData.eventName !== workflow.eventName
+      || (savedClockKind === 'schedule' && JSON.stringify(scheduleOf(formData)) !== JSON.stringify(scheduleOf(saved)))
+      || (savedClockKind === 'dateReached' && JSON.stringify(dateReachedOf(formData)) !== JSON.stringify(dateReachedOf(saved)));
+
+    const expectedZone = savedClockKind === 'schedule' ? scheduleTimeZone(scheduleOf(saved), officeTimeZone) : officeTimeZone;
+    const expectedCron = savedClockKind === 'schedule' ? parseCron(scheduleOf(saved).cron) : parseCron(dateReachedCron(dateReachedOf(saved)));
+    const expectedAt = expectedCron ? nextCronOccurrence(expectedCron, clockNow, expectedZone) : null;
+
+    const info = buildWorkflowClockInfo({
+      kind: savedClockKind,
+      enabled: workflow.enabled,
+      loaded: clockState?.definitionId === workflow.id,
+      status: clockState?.definitionId === workflow.id ? clockState.status : null,
+      triggerPending,
+      savedAt: workflow.updatedAt,
+      now: clockNow,
+      expected: expectedAt ? { at: expectedAt, timeZone: expectedZone } : null,
+      format: (instant, zone) => t('workflow.schedule.preview-item', {
+        when: formatDateFor(locale, instant, { dateStyle: 'full', timeStyle: 'medium', timeZone: zone }),
+        zone,
+      }),
+    });
+    if (!info) return null;
+    return {
+      warning: info.warning ? label(info.warning.message, info.warning.messageParams) : null,
+      lines: info.lines.map((line) => label(line.message, line.messageParams)),
+      lastRunEventId: info.lastRunEventId,
+    };
+  }, [workflow, savedClockKind, formData, officeTimeZone, clockState, clockNow, locale, t, label]);
 
   const scheduleTimeZoneOptions = useMemo(
     () => [
@@ -1049,6 +1117,10 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
     if (target) setExpandedExecutionOutputs((prev) => new Set(prev).add(target.id));
   }, [executions]);
 
+  const openLastClockRun = useCallback(() => {
+    if (clockInfo?.lastRunEventId) openRunExecution(clockInfo.lastRunEventId);
+  }, [clockInfo, openRunExecution]);
+
   const runWorkflowForModal = useCallback(
     async (providedParams: Record<string, unknown>, follow: RunModalFollow): Promise<RunModalResult> => {
       if (!currentTenant || !workflow) {
@@ -1189,6 +1261,8 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
     scheduleError,
     schedulePreview,
     scheduleTimeZoneOptions,
+    clockInfo,
+    openLastClockRun,
     isDateReachedEvent,
     dateFieldOptions,
     dateReachedError,

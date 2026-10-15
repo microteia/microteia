@@ -1,4 +1,5 @@
 import type { PublishedActor } from '../engine/workflowActor';
+import type { WorkflowClockLastRun } from '../schema/workflowClock';
 
 interface WorkflowClockEntryBase {
   tenantId: string;
@@ -10,6 +11,8 @@ interface WorkflowClockEntryBase {
   nextRunAt: Date;
   /** As extensões donas da automação — o relógio não acorda a de uma extensão desligada. */
   ownerPluginIds: string[];
+  /** A última passada do relógio — o que a tela da automação mostra como "último disparo". */
+  lastRun?: WorkflowClockLastRun | null;
 }
 
 /**
@@ -71,6 +74,7 @@ export interface ClockAdvance {
   timeZone: string;
   cursorDay?: string;
   page?: DateReachedPage | null;
+  lastRun?: WorkflowClockLastRun;
 }
 
 export interface DatedRecord {
@@ -92,11 +96,17 @@ export interface IWorkflowClockRepository {
   /** As entradas vencidas de TODOS os escritórios, as mais atrasadas primeiro. */
   due(now: Date, limit: number): Promise<WorkflowClockEntry[]>;
   /**
-   * Publica o evento da ocorrência `entry.nextRunAt` e move a entrada para `next` (ou a apaga, quando
-   * não há próxima) NUMA transação. `stale` quando outra passada já o fez — a entrada mudou, ou o evento
-   * daquela ocorrência já existe. É o que faz duas passadas simultâneas dispararem uma vez só.
+   * Publica o evento `lastRun.eventId` da ocorrência `entry.nextRunAt` e move a entrada para `next` (ou a
+   * apaga, quando não há próxima) NUMA transação, gravando `lastRun` junto. `stale` quando outra passada já
+   * o fez — a entrada mudou, ou o evento daquela ocorrência já existe. É o que faz duas passadas simultâneas
+   * dispararem uma vez só.
    */
-  fire(entry: ScheduleClockEntry, payload: Record<string, unknown>, next: Date | null): Promise<WorkflowClockFireResult>;
+  fire(
+    entry: ScheduleClockEntry,
+    payload: Record<string, unknown>,
+    next: Date | null,
+    lastRun: WorkflowClockLastRun,
+  ): Promise<WorkflowClockFireResult>;
   /**
    * Toma para si a retomada: apaga a entrada se ela ainda é a vista na consulta. `stale` quando outra
    * passada já a tomou — é o que faz uma execução continuar uma vez só.

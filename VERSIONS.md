@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.104.0] — 2026-10-14
+
+- As automações agendadas por horário ou por data agora mostram o "Relógio do servidor": quando ela vai rodar de fato, quando rodou pela última vez (com acesso direto à execução) e, se uma execução foi pulada, o motivo.
+- A tela avisa quando a automação está inativa, quando ainda não foi agendada e quando o horário que vai valer difere do que foi salvo, para você não precisar esperar o horário para descobrir.
+
 #### [9.103.1] — 2026-10-14
 
 - Corrigido o horário mostrado ao agendar uma automação: o "Fuso do escritório" e as próximas execuções agora mostram o fuso configurado para o escritório, e não o seu fuso pessoal. Antes, a tela podia prometer um horário diferente daquele em que a automação de fato rodava.

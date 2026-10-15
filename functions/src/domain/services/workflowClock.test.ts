@@ -42,13 +42,13 @@ const makeDeps = (now: string, officeTimeZone = 'America/Sao_Paulo') => {
         .filter((entry) => entry.nextRunAt.getTime() <= at.getTime())
         .sort((a, b) => a.nextRunAt.getTime() - b.nextRunAt.getTime())
         .slice(0, limit),
-    fire: async (entry, payload, next) => {
+    fire: async (entry, payload, next, lastRun) => {
       const occurrence = `${entry.definitionId}@${entry.nextRunAt.getTime()}`;
       const stored = entries.get(key(entry.tenantId, entry.definitionId));
       if (!stored || stored.nextRunAt.getTime() !== entry.nextRunAt.getTime() || firedOccurrences.has(occurrence)) return 'stale';
       firedOccurrences.add(occurrence);
       fired.push({ entry, payload, next });
-      if (next) entries.set(key(entry.tenantId, entry.definitionId), { ...stored, nextRunAt: next, timeZone: entry.timeZone });
+      if (next) entries.set(key(entry.tenantId, entry.definitionId), { ...stored, nextRunAt: next, timeZone: entry.timeZone, lastRun });
       else entries.delete(key(entry.tenantId, entry.definitionId));
       return 'fired';
     },
@@ -62,7 +62,12 @@ const makeDeps = (now: string, officeTimeZone = 'America/Sao_Paulo') => {
     advance: async (entry, patch) => {
       const stored = entries.get(key(entry.tenantId, entry.definitionId));
       if (!stored || stored.nextRunAt.getTime() !== entry.nextRunAt.getTime()) return 'stale';
-      const next = { ...stored, nextRunAt: patch.nextRunAt, timeZone: patch.timeZone } as WorkflowClockEntry;
+      const next = {
+        ...stored,
+        nextRunAt: patch.nextRunAt,
+        timeZone: patch.timeZone,
+        ...(patch.lastRun !== undefined ? { lastRun: patch.lastRun } : {}),
+      } as WorkflowClockEntry;
       if (next.kind === 'dateReached') {
         if (patch.cursorDay !== undefined) next.cursorDay = patch.cursorDay;
         if (patch.page !== undefined) next.page = patch.page;
@@ -206,14 +211,51 @@ describe('runWorkflowClockRound — horário', () => {
     expect(entries.get('t1/wf')?.nextRunAt.toISOString()).toBe('2026-10-14T11:00:00.000Z');
   });
 
+  it('grava o último disparo na entrada, com o evento de que a execução nasce', async () => {
+    const { deps, entries, clock } = makeDeps('2026-10-12T12:00:00Z');
+    await syncWorkflowClockEntry('t1', 'wf', scheduled('0 8 * * *'), deps);
+
+    clock.now = new Date('2026-10-13T11:04:00Z');
+    await runWorkflowClockRound(deps);
+    expect(entries.get('t1/wf')?.lastRun).toEqual({
+      scheduledFor: new Date('2026-10-13T11:00:00Z'),
+      ranAt: clock.now,
+      outcome: 'fired',
+      skipReason: null,
+      eventId: `clock_wf_${new Date('2026-10-13T11:00:00Z').getTime()}`,
+      records: null,
+    });
+  });
+
+  it('a ocorrência pulada pela extensão desligada fica registrada com o motivo', async () => {
+    const { deps, entries, clock, deactivated } = makeDeps('2026-10-12T12:00:00Z');
+    await syncWorkflowClockEntry('t1', 'wf', { ...scheduled('0 8 * * *'), ownerPluginIds: ['com.x.off'] }, deps);
+    deactivated.add('com.x.off');
+
+    clock.now = new Date('2026-10-13T11:00:00Z');
+    await runWorkflowClockRound(deps);
+    expect(entries.get('t1/wf')?.lastRun).toMatchObject({ outcome: 'skipped', skipReason: 'owners-deactivated', eventId: null });
+  });
+
+  it('mudar o horário recalcula o próximo disparo sem apagar o último', async () => {
+    const { deps, entries, clock } = makeDeps('2026-10-12T12:00:00Z');
+    await syncWorkflowClockEntry('t1', 'wf', scheduled('0 8 * * *'), deps);
+    clock.now = new Date('2026-10-13T11:00:00Z');
+    await runWorkflowClockRound(deps);
+
+    await syncWorkflowClockEntry('t1', 'wf', scheduled('0 9 * * *'), deps);
+    expect(entries.get('t1/wf')?.nextRunAt.toISOString()).toBe('2026-10-13T12:00:00.000Z');
+    expect(entries.get('t1/wf')?.lastRun?.scheduledFor.toISOString()).toBe('2026-10-13T11:00:00.000Z');
+  });
+
   it('uma falha não leva o turno das outras', async () => {
     const { deps, entries, clock } = makeDeps('2026-10-12T12:00:00Z');
     await syncWorkflowClockEntry('t1', 'bad', scheduled('0 8 * * *'), deps);
     await syncWorkflowClockEntry('t2', 'good', scheduled('0 8 * * *'), deps);
     const realFire = deps.repository.fire;
-    deps.repository.fire = async (entry, payload, next) => {
+    deps.repository.fire = async (entry, payload, next, lastRun) => {
       if (entry.definitionId === 'bad') throw new Error('boom');
-      return realFire(entry, payload, next);
+      return realFire(entry, payload, next, lastRun);
     };
 
     clock.now = new Date('2026-10-13T11:00:00Z');
@@ -288,6 +330,7 @@ describe('gatilho de data — o relógio', () => {
     expect(settled.page).toBeNull();
     expect(settled.cursorDay).toBe('2026-10-13');
     expect(settled.nextRunAt.toISOString()).toBe('2026-10-14T11:00:00.000Z');
+    expect(settled.lastRun).toMatchObject({ outcome: 'fired', records: DATE_REACHED_PAGE_SIZE + 5 });
   });
 
   it('o campo que não é data da tela não consulta nada, e o relógio segue', async () => {
@@ -299,6 +342,7 @@ describe('gatilho de data — o relógio', () => {
     await runWorkflowClockRound(deps);
     expect(published).toHaveLength(0);
     expect(entries.get('t1/wf')?.nextRunAt.toISOString()).toBe('2026-10-14T11:00:00.000Z');
+    expect(entries.get('t1/wf')?.lastRun).toMatchObject({ outcome: 'skipped', skipReason: 'date-field-missing' });
   });
 });
 

@@ -27,6 +27,7 @@ import type { ITagRepository } from '../../domain/repositories/ITagRepository';
 import type { ITagDefinitionRepository } from '../../domain/repositories/ITagDefinitionRepository';
 import type { IWorkflowDefinitionRepository } from '../../domain/repositories/IWorkflowDefinitionRepository';
 import type { IWorkflowExecutionRepository } from '../../domain/repositories/IWorkflowExecutionRepository';
+import type { IWorkflowClockRepository } from '../../domain/repositories/IWorkflowClockRepository';
 import type { IScriptRepository } from '../../domain/repositories/IScriptRepository';
 import type { IDataProcessorRepository } from '../../domain/repositories/IDataProcessorRepository';
 import type { IActionRepository } from '../../domain/repositories/IActionRepository';
@@ -76,6 +77,7 @@ export interface DIContainer {
   recordFileRepository: IRecordFileRepository;
   workflowDefinitionRepository: IWorkflowDefinitionRepository;
   workflowExecutionRepository: IWorkflowExecutionRepository;
+  workflowClockRepository: IWorkflowClockRepository;
   scriptRepository: IScriptRepository;
   dataProcessorRepository: IDataProcessorRepository;
   actionRepository: IActionRepository;
