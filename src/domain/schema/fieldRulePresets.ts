@@ -233,6 +233,30 @@ export const isValidCnpj = (value: string): boolean => {
   return digit === Number(cnpj.charAt(13));
 };
 
+/**
+ * ISO 7064 MOD 97-10 — o resto, por 97, do inteiro que o texto escreve.
+ *
+ * É o VERBO, não o substantivo: o número CNJ, o IBAN e o LEI usam a mesma conta e diferem só em
+ * QUAIS caracteres vão para o fim antes dela. Por isso o kernel devolve o resto, e quem declara o
+ * formato rearranja o texto e compara — `== 1` confere, `98 - mod97(base + "00")` calcula o dígito.
+ *
+ * A conta é feita sobre o TEXTO, um caractere por vez: um número CNJ tem 20 dígitos, e
+ * `Number('…')` acima de 2^53 arredonda em silêncio — o dígito "confere" para um número errado.
+ * Letra vale de 10 a 35 (A–Z), que é a conversão da própria norma. Vazio ou qualquer outro
+ * caractere é `null`: não há o que conferir, e quem escreveu a regra decide o que isso significa.
+ */
+export const iso7064Mod97 = (value: string): number | null => {
+  const text = value.toUpperCase();
+  if (!/^[0-9A-Z]+$/.test(text)) return null;
+  let remainder = 0;
+  for (const char of text) {
+    const code = char.charCodeAt(0);
+    const digit = code <= 57 ? code - 48 : code - 55;
+    remainder = (remainder * (digit >= 10 ? 100 : 10) + digit) % 97;
+  }
+  return remainder;
+};
+
 // ─── Catálogo do núcleo ───────────────────────────────────────────────────────
 
 /**

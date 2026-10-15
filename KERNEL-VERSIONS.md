@@ -18,6 +18,11 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.110.0] — 2026-10-15
+
+- feat(expressions): `mod97(text)` in both expression catalogs (field and workflow) — the ISO 7064 mod 97-10 remainder, computed character by character over the text (`iso7064Mod97`, shared `domain/schema/fieldRulePresets.ts`), so a 20-digit CNJ number or an IBAN keeps every digit instead of being rounded by `Number` above 2^53. Letters A–Z count 10–35, as the standard says; an empty text or any other character yields `null`. It returns the remainder, not a boolean, because each format moves different characters to the end before the check: `== 1` validates, `98 - mod97(base + "00")` computes the digits. `KERNEL_VERSION` goes to `2.44.0` (additive).
+- feat(brasil): field rule preset `cnj` — mask `#######-##.####.#.##.####`, stored formatted, validated by moving the check digits to the end and requiring `mod97(...) == 1` on exactly 20 digits. Opt-in per field, so a process number that also accepts other numbering simply does not declare it. `com.microteia.brasil` goes to `1.2.0` and requires kernel `^2.44.0`; `com.microteia.locale-pt-br` goes to `1.94.0` with the new function description.
+
 #### [9.109.0] — 2026-10-15
 
 - feat(report): `measures[].kind: 'computed'` is now executed. The `expression` is evaluated over the OTHER measures of the same group, by key, after aggregation — on every row, subtotal, pivot cell, column total and grand total — so a ratio is the ratio of the group's totals, never the average of per-record ratios. A computed measure may cite measures that `shape.values` does not show. A cited measure that is `null`, a division by zero or a non-numeric result yields `null` (an empty cell), never a made-up number. `measure.computed` joins `REPORT_CAPABILITIES`; an older kernel keeps refusing the report by that token. Validation refuses an empty or unparsable expression (`@core.reports/measure.expression.missing` / `.syntax`), a name that is not a measure of the report (`.unknown`) and a cycle between computed measures (`.cycle`). New shared module `domain/schema/report/reportComputedMeasure.ts`. `KERNEL_VERSION` goes to `2.43.0` (additive).

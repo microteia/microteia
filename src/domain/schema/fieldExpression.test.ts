@@ -351,6 +351,20 @@ describe('demais funções trazidas do catálogo do Workflow', () => {
     expect(evaluateFieldExpression("formatCNPJ('12345678000190')", ctx)).toBe('12.345.678/0001-90');
   });
 
+  it('mod97 calcula o resto ISO 7064 sobre o texto, sem perder dígito acima de 2^53', () => {
+    expect(evaluateFieldExpression("mod97('00000012023805000164')", ctx)).toBe(1);
+    expect(evaluateFieldExpression("mod97('00000012023805000165')", ctx)).toBe(2);
+    expect(evaluateFieldExpression("98 - mod97('00000012023805000100')", ctx)).toBe(64);
+    expect(evaluateFieldExpression("mod97('WEST12345698765432GB82')", ctx)).toBe(1);
+    expect(evaluateFieldExpression("mod97('west12345698765432gb82')", ctx)).toBe(1);
+  });
+
+  it('mod97 é null para texto vazio ou com caractere fora de 0-9 e A-Z', () => {
+    expect(evaluateFieldExpression("mod97('')", ctx)).toBe(null);
+    expect(evaluateFieldExpression("mod97('0000001-64.2023')", ctx)).toBe(null);
+    expect(evaluateFieldExpression('mod97(nulo)', { value: null, data: { nulo: null } })).toBe(null);
+  });
+
   /**
    * `formatMoney` sem argumento de idioma segue o AMBIENTE. O teste passa a montar esse ambiente em
    * vez de presumi-lo: antes ele afirmava o formato brasileiro sem configurar idioma nenhum, e só

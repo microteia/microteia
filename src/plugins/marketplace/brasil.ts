@@ -27,6 +27,17 @@ export const CPF_TEMPLATE = '###.###.###-##';
 export const CNPJ_TEMPLATE = '##.###.###/####-##';
 export const PHONE_TEMPLATES = ['(##) ####-####', '(##) #####-####'];
 export const CEP_TEMPLATE = '#####-###';
+export const CNJ_TEMPLATE = '#######-##.####.#.##.####';
+
+/**
+ * Numeração única do CNJ (Res. 65/2008): NNNNNNN-DD.AAAA.J.TR.OOOO. O DD é ISO 7064 mod 97-10 sobre
+ * o número com o DD levado para o FIM — por isso a expressão rearranja antes de chamar `mod97`, que
+ * no kernel só sabe o resto. O tamanho vem primeiro porque `and` para no lado que decide.
+ */
+const CNJ_DIGITS = 'onlyNumber(value)';
+const CNJ_CHECK =
+  `length(${CNJ_DIGITS}) == 20 and ` +
+  `mod97(concat(substring(${CNJ_DIGITS}, 0, 7), substring(${CNJ_DIGITS}, 9, 20), substring(${CNJ_DIGITS}, 7, 9))) == 1`;
 
 /**
  * Os formatos do país. `mask` é o que o campo mostra enquanto se digita; `format`, o que fica
@@ -67,6 +78,13 @@ export const BR_FIELD_RULE_PRESETS: FieldRulePreset[] = [
     mask: { templates: [CEP_TEMPLATE], inputMode: 'numeric' },
     format: [{ op: 'digits' }, { op: 'mask', templates: [CEP_TEMPLATE] }],
   },
+  {
+    key: 'cnj',
+    label: 'Processo CNJ (0000000-00.0000.0.00.0000)',
+    mask: { templates: [CNJ_TEMPLATE], inputMode: 'numeric' },
+    format: [{ op: 'digits' }, { op: 'mask', templates: [CNJ_TEMPLATE] }],
+    validate: { expression: CNJ_CHECK, message: 'Número de processo CNJ inválido' },
+  },
 ];
 
 const VIACEP: LookupProviderSpec = {
@@ -88,8 +106,8 @@ const VIACEP: LookupProviderSpec = {
 export const brasilPlugin: MarketplacePlugin = {
   manifest: {
     id: 'com.microteia.brasil',
-    version: '1.1.0',
-    kernel: '^2.0.0',
+    version: '1.2.0',
+    kernel: '^2.44.0',
     name: 'Brasil',
     description: 'Documentos, telefone, CEP e busca de endereço do Brasil — as regras de país que o sistema não embute.',
     category: '@core.i18n/category.localization',
@@ -101,7 +119,7 @@ export const brasilPlugin: MarketplacePlugin = {
     ],
   },
   summary:
-    'Traz CPF, CNPJ, telefone e CEP com máscara e conferência automática, mais o preenchimento de endereço a partir do CEP. É a base brasileira que outras extensões usam nos seus cadastros.',
+    'Traz CPF, CNPJ, telefone, CEP e número de processo CNJ com máscara e conferência automática, mais o preenchimento de endereço a partir do CEP. É a base brasileira que outras extensões usam nos seus cadastros.',
   overview: {
     type: 'stack',
     gap: 'lg',
@@ -109,19 +127,19 @@ export const brasilPlugin: MarketplacePlugin = {
       {
         type: 'markdown',
         content:
-          'A extensão **Brasil** ensina ao sistema os formatos daqui:\n\n- **CPF** e **CNPJ** com máscara e conferência do dígito verificador — documento inválido é recusado na digitação.\n- **Telefone** com DDD, fixo ou celular.\n- **CEP** com máscara.\n- **Endereço pelo CEP**: ao digitar o CEP, rua, bairro, cidade e estado se preenchem sozinhos.\n\nQualquer cadastro do escritório pode usar esses formatos nos seus campos — não só os que já vêm prontos.',
+          'A extensão **Brasil** ensina ao sistema os formatos daqui:\n\n- **CPF** e **CNPJ** com máscara e conferência do dígito verificador — documento inválido é recusado na digitação.\n- **Telefone** com DDD, fixo ou celular.\n- **CEP** com máscara.\n- **Número de processo CNJ** com máscara e conferência do dígito verificador.\n- **Endereço pelo CEP**: ao digitar o CEP, rua, bairro, cidade e estado se preenchem sozinhos.\n\nQualquer cadastro do escritório pode usar esses formatos nos seus campos — não só os que já vêm prontos.',
       },
       {
         type: 'keyValue',
         items: [
-          { label: 'Formatos', value: 'CPF, CNPJ, CPF ou CNPJ, telefone, CEP' },
+          { label: 'Formatos', value: 'CPF, CNPJ, CPF ou CNPJ, telefone, CEP, processo CNJ' },
           { label: 'Busca externa', value: 'Endereço pelo CEP (ViaCEP)' },
           { label: 'Usada por', value: 'Pessoas — e por qualquer tela que você criar' },
         ],
       },
       {
         type: 'banner',
-        message: 'Sem esta extensão, os campos de CPF, CNPJ, telefone e CEP continuam existindo e guardando o que já foi digitado — mas perdem a máscara, a conferência e o preenchimento pelo CEP.',
+        message: 'Sem esta extensão, os campos de CPF, CNPJ, telefone, CEP e processo CNJ continuam existindo e guardando o que já foi digitado — mas perdem a máscara, a conferência e o preenchimento pelo CEP.',
         variant: 'warning',
       },
     ],

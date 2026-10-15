@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.110.0] — 2026-10-15
+
+- A extensão Brasil passa a oferecer o formato **Número de processo CNJ**: o campo ganha a máscara `0000000-00.0000.0.00.0000` e recusa, já na digitação, um número cujo dígito verificador não confere.
+- As regras e automações ganham uma conta de dígito verificador capaz de lidar com números longos, como o do processo CNJ e o IBAN, sem perder precisão.
+
 #### [9.109.0] — 2026-10-15
 
 - Os relatórios agora calculam números a partir de outros números do próprio relatório — taxa de êxito, ticket médio, margem, percentual em aberto —, em cada linha, em cada subtotal e no total geral. A razão deixa de ficar por conta de quem lê.

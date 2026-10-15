@@ -4,7 +4,7 @@
 // ═══════════════════════════════════════════════════════════════════════════════
 
 import { Parser } from 'expr-eval';
-import { isEmptyRuleValue, isValidCnpj, isValidCpf, onlyDigits } from './fieldRulePresets';
+import { isEmptyRuleValue, isValidCnpj, isValidCpf, iso7064Mod97, onlyDigits } from './fieldRulePresets';
 import {
   ambientInstant,
   ambientTimeZone,
@@ -231,6 +231,7 @@ const FIELD_EXPRESSION_FUNCTIONS: Record<string, (...args: unknown[]) => unknown
   onlyNumber: (value) => onlyDigits(asText(value)),
   isCPF: (value) => isValidCpf(asText(value)),
   isCNPJ: (value) => isValidCnpj(asText(value)),
+  mod97: (value) => iso7064Mod97(asText(value)),
   isEmail: (value) => EMAIL_PATTERN.test(asText(value)),
   contains: (value, search) =>
     Array.isArray(value) ? value.some((item) => matchesItem(item, search)) : asText(value).includes(asText(search)),

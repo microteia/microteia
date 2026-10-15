@@ -66,6 +66,15 @@ describe('checkValue', () => {
     expect(checkValue('11.111.111/1111-11', { check: 'cnpj' }, 'CNPJ', br)).toEqual({ error: 'CNPJ inválido' });
   });
 
+  it('formata e confere o dígito ISO 7064 do número CNJ', () => {
+    const invalid = { error: 'Número de processo CNJ inválido' };
+    expect(applyFormat('00000016420238050001', { preset: 'cnj' }, br)).toBe('0000001-64.2023.8.05.0001');
+    expect(checkValue('0000001-64.2023.8.05.0001', { check: 'cnj' }, 'Processo', br)).toBeUndefined();
+    expect(checkValue('0000001-65.2023.8.05.0001', { check: 'cnj' }, 'Processo', br)).toEqual(invalid);
+    expect(checkValue('0000001-64.2023.8.05.0002', { check: 'cnj' }, 'Processo', br)).toEqual(invalid);
+    expect(checkValue('0000001-64.2023.8.05', { check: 'cnj' }, 'Processo', br)).toEqual(invalid);
+  });
+
   it('valida por regex com mensagem customizada', () => {
     const rule = { pattern: '^\\d{4}$', message: 'Precisa ter 4 dígitos' };
     expect(checkValue('1234', rule, 'Código')).toBeUndefined();

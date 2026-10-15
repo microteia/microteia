@@ -645,6 +645,8 @@ export const CORE_AUTOMATION_MESSAGES: Record<string, string> = {
   'expr.addBusinessDays.description': 'The Nth business day after a date (before it, if negative), counting the union of the given calendars',
   'expr.businessDaysBetween.description': 'How many business days there are from one date to another, by the given calendars',
   'expr.isBusinessDay.description': 'Whether a date is a business day in every given calendar',
+  'expr.mod97.description':
+    'Remainder modulo 97 (ISO 7064 mod 97-10) of the number a text writes, digit by digit, with letters A–Z as 10–35; null when the text is empty or has any other character',
   'expr.nextBusinessDay.description': 'The date itself if it is a business day, otherwise the next business day',
   'expr.and.description': 'Returns true when both conditions are true',
   'expr.and.name': 'Logical AND',

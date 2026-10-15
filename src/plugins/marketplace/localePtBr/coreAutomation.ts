@@ -648,6 +648,8 @@ export const CORE_AUTOMATION: Record<string, string> = {
   'expr.addBusinessDays.description': 'O enésimo dia útil depois de uma data (antes, se negativo), pela união dos calendários informados',
   'expr.businessDaysBetween.description': 'Quantos dias úteis há de uma data a outra, pelos calendários informados',
   'expr.isBusinessDay.description': 'Se a data é dia útil em todos os calendários informados',
+  'expr.mod97.description':
+    'Resto por 97 (ISO 7064 mod 97-10) do número que o texto escreve, dígito a dígito, com as letras A–Z valendo 10 a 35; null se o texto estiver vazio ou tiver outro caractere',
   'expr.nextBusinessDay.description': 'A própria data, se for dia útil; senão, o próximo dia útil',
   'expr.and.description': 'Retorna true se ambas as condições forem verdadeiras',
   'expr.and.name': 'E lógico',

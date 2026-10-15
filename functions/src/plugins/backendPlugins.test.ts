@@ -60,9 +60,13 @@ const REMOVIDAS_POR_SEREM_INALCANCAVEIS = ['abs', 'and', 'ceil', 'floor', 'not',
 /** As contas de dias úteis, que chegaram depois da migração — a mesma lista dos dois catálogos. */
 const FUNCOES_DE_DIAS_UTEIS = ['addBusinessDays', 'businessDaysBetween', 'isBusinessDay', 'nextBusinessDay'];
 
+/** O resto ISO 7064 mod 97-10, o verbo por trás do número CNJ e do IBAN — também dos dois catálogos. */
+const FUNCOES_DE_DIGITO_VERIFICADOR = ['mod97'];
+
 const FUNCOES_ESPERADAS = [
   ...FUNCOES_ANTES_DA_MIGRACAO.filter((name) => !REMOVIDAS_POR_SEREM_INALCANCAVEIS.includes(name)),
   ...FUNCOES_DE_DIAS_UTEIS,
+  ...FUNCOES_DE_DIGITO_VERIFICADOR,
 ].sort();
 
 describe('plugins do backend — carga', () => {

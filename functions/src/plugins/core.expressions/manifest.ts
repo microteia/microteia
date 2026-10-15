@@ -26,7 +26,7 @@ import {
   isEmptyFn, isNullFn, isNotNullFn, coalesceFn,
 } from '../../domain/engine/expression/builtins/logicFns';
 import {
-  isCPFFn, isCNPJFn, isEmailFn, formatCPFFn, formatCNPJFn,
+  isCPFFn, isCNPJFn, isEmailFn, formatCPFFn, formatCNPJFn, mod97Fn,
 } from '../../domain/engine/expression/builtins/validationFns';
 
 /**
@@ -49,7 +49,7 @@ const BUILTIN_FUNCTIONS: ExpressionFunction[] = [
   firstFn, lastFn, containsFn, indexOfFn, mapFn,
   objectFn, deleteFn,
   isEmptyFn, isNullFn, isNotNullFn, coalesceFn,
-  isCPFFn, isCNPJFn, isEmailFn, formatCPFFn, formatCNPJFn,
+  isCPFFn, isCNPJFn, isEmailFn, formatCPFFn, formatCNPJFn, mod97Fn,
 ];
 
 export const coreExpressionsPlugin: PluginRecord = {

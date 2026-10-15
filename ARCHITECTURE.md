@@ -3947,6 +3947,7 @@ existiam:
 | Declaração | Ponto de extensão | Antes |
 |---|---|---|
 | `cpf`, `cnpj`, `cpfCnpj`, `phone`, `cep` | `data.field.preset` | `CORE_FIELD_RULE_PRESETS` |
+| `cnj` | `data.field.preset` | — (nasceu na extensão, sobre o `mod97` do kernel) |
 | `viacep` | `data.external.lookup` | `CORE_LOOKUP_PROVIDERS` |
 
 O que **fica** no núcleo é o que vale em qualquer lugar: `digits`, `trim`, `upper`, `lower` — e o
@@ -11095,6 +11096,19 @@ avaliado pelo `fieldExpression.ts` — que já é compartilhado front/back e já
 trusted, quebrando a paridade que faz a regra valer igual na tela e na automação. `isValidCpf` e
 `isValidCnpj` continuam existindo, mas como **funções do catálogo de expressões**, não como ramos de
 `switch`: qualquer declaração de qualquer plugin pode chamá-las.
+
+**Dígito verificador de inteiro GRANDE é `mod97`, não aritmética.** O número CNJ (20 dígitos), o IBAN
+e o LEI conferem pelo ISO 7064 mod 97-10, e o inteiro que eles escrevem passa de 2^53: pela
+aritmética do `expr-eval`, `Number` arredonda em silêncio e o dígito "confere" para um número
+errado. `mod97(texto)` (`iso7064Mod97`, em `fieldRulePresets.ts`, compartilhado) faz a conta sobre
+o TEXTO, caractere a caractere, com A–Z valendo 10–35 como manda a norma, e devolve o **resto** —
+não um booleano. A escolha é deliberada: cada formato leva caracteres diferentes para o fim antes
+da conta (o DD do CNJ, os quatro primeiros do IBAN), e o resto serve tanto para conferir (`== 1`)
+quanto para calcular o dígito (`98 - mod97(base + "00")`). Um `isMod97(value)` cobriria só o
+formato que já chega rearranjado, e o próximo pediria outra função. Texto vazio ou com qualquer
+caractere fora de 0–9/A–Z é `null`: quem declara o formato limpa antes (`onlyNumber`). O preset
+`cnj` (`NNNNNNN-DD.AAAA.J.TR.OOOO`) é da extensão **Brasil**, e é opcional por campo — um número de
+processo que também precisa aceitar outra numeração (um PAD) simplesmente não o declara.
 
 **Resolução em runtime.** O catálogo entra no `SchemaContext` (`ctx.fieldRulePresets`), pelo mesmo
 caminho de telas, listas e etiquetas — `buildFieldRulePresetCatalog` funde `CORE_FIELD_RULE_PRESETS`

@@ -1,6 +1,8 @@
 import type { ExpressionFunction } from '../FunctionRegistry';
 
 import { LocalizedError } from '../../../errors/LocalizedError';
+import { iso7064Mod97 } from '../../../schema/fieldRulePresets';
+
 const isValidCPF = (cpf: string): boolean => {
   const clean = cpf.replace(/\D/g, '');
   if (clean.length !== 11) return false;
@@ -130,6 +132,24 @@ export const formatCNPJFn: ExpressionFunction = {
   signature: 'formatCNPJ(text)',
   example: 'formatCNPJ("12345678000190")',
   category: '@core.automation/expr.category.text',
+  minArgs: 1,
+  maxArgs: 1,
+};
+
+/**
+ * O resto ISO 7064 mod 97-10 — a conta é a MESMA da expressão de campo (`schema/fieldRulePresets.ts`,
+ * compartilhado). Não-texto é `null`, como texto com caractere fora de 0–9/A–Z: não há o que conferir.
+ */
+export const mod97Fn: ExpressionFunction = {
+  name: 'mod97',
+  call: ([value]) => {
+    if (typeof value !== 'string') return null;
+    return iso7064Mod97(value);
+  },
+  description: '@core.automation/expr.mod97.description',
+  signature: 'mod97(text)',
+  example: 'mod97("00000012023805000164") == 1',
+  category: '@core.automation/expr.category.math',
   minArgs: 1,
   maxArgs: 1,
 };

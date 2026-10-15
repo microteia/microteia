@@ -1579,6 +1579,7 @@ logical negation. On top of them:
 | Business days | \`addBusinessDays(v, n, calendars)\`, \`businessDaysBetween(a, b, calendars)\`, \`isBusinessDay(v, calendars)\`, \`nextBusinessDay(v, calendars)\` — see below |
 | Lists | \`first(a)\`, \`last(a)\`, \`map(a, path, compact)\`, \`contains(a, item)\`, \`length(a)\` |
 | Brazil, and formatting | \`isCPF\`, \`isCNPJ\`, \`isEmail\`, \`onlyNumber\`, \`formatCPF\`, \`formatCNPJ\`, \`formatMoney(v, locale)\` |
+| Check digits | \`mod97(text)\` — the ISO 7064 mod 97-10 remainder, computed over the text so a 20-digit number keeps every digit; letters A–Z count 10–35, anything else (or empty) is \`null\`. Move the check digits to the end first: \`mod97(concat(substring(d, 0, 7), substring(d, 9, 20), substring(d, 7, 9))) == 1\` checks a CNJ number, \`98 - mod97(base + "00")\` computes them |
 | Objects | \`object(k, v, ...)\`, \`delete(key, target)\` |
 | Access | \`hasPermission(pattern)\` |
 
