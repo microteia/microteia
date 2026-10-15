@@ -92,6 +92,10 @@ export const CORE_REPORTS: Record<string, string> = {
   'list.empty': 'Nenhum relatório ainda. Um relatório diz o que cobrir, o que calcular e como mostrar.',
   'list.filter.placeholder': 'Filtrar relatórios...',
   'list.filter.search': 'Nome ou cadastro',
+  'measure.expression.cycle': 'O número "{key}" é calculado a partir de si mesmo, diretamente ou por meio de outro número, então ele não tem valor.',
+  'measure.expression.missing': 'O número "{key}" é calculado, mas não diz como.',
+  'measure.expression.syntax': 'O cálculo do número "{key}" não está escrito corretamente: {detail}',
+  'measure.expression.unknown': 'O cálculo do número "{key}" cita "{name}", que não é um número deste relatório.',
   'measure.kind.unsupported':
     'O número "{key}" é de um tipo que esta versão não calcula ({kind}), então o relatório não pode ser executado aqui.',
   'measure.op.unsupported': 'O número "{key}" pede um cálculo que esta versão não tem ({op}).',

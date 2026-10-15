@@ -49,6 +49,7 @@ const REPORT_PT_BR: Record<string, string> = {
   'measure.total': 'Total',
   'measure.count': 'Lançamentos',
   'measure.open-total': 'Total em aberto',
+  'measure.open-share': 'Parcela em aberto',
   'measure.categories': 'Categorias',
 
   'dimension.label': 'Descrição',

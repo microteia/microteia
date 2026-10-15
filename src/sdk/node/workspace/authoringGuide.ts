@@ -2102,9 +2102,17 @@ mean, and treat a refusal as the platform telling you it cannot answer for them.
 - \`measures[].op\`: ${inlineList(MEASURE_OP_NAMES)} — the same words a field aggregate uses, minus \`latest\`, which copies a value instead of computing a number. \`path\` is required except for \`count\`; \`count\` with \`distinct: true\` and a \`path\`
   counts distinct values. \`filter\` restricts one measure and only it — that is how one column counts
   everything and the next counts only what is overdue, in the same table.
+- \`measures[].kind: 'computed'\` with an \`expression\` over OTHER measures of the same report, by key
+  — \`won / count * 100\`, \`total / quantity\`. It is evaluated AFTER aggregation, on every row,
+  subtotal, pivot cell and total, so a ratio is the ratio of that group's totals and never the average
+  of per-record ratios. It sees measures only, never the record; a measure it cites does not have to
+  be in \`values\`. A cited measure with no value, a division by zero or a non-numeric result leave
+  the cell empty instead of inventing a number. Citing a name that is not a measure, or a cycle
+  between computed measures, refuses the report.
 - \`measures[].format\`: \`{ kind, decimals, preset }\`. \`kind\` is \`number\`, \`integer\`,
   \`currency\`, \`percent\`, \`date\` or \`duration\`; \`preset\` names an entry of the SAME field-rule
-  preset catalogue a field uses, never a parallel one.
+  preset catalogue a field uses, never a parallel one. \`percent\` prints the number as it is,
+  followed by \`%\` — a ratio has to be multiplied by 100 in its expression.
 - \`dimensions[].granularity\`: ${inlineList(REPORT_GRANULARITIES)}. Only meaningful over a date. **Set \`timeZone\`**: without it the bucket is cut in UTC, and a sale at nine at night
   on the 31st lands in the wrong month — with nothing on screen saying so.
 - \`dimensions[].path\` may cross a reference (\`client.city\`), same grammar as a query projection.
@@ -2305,8 +2313,7 @@ is \`impl: { kind: 'code' }\`, so it waits for an administrator to read and trus
 
 ### What the contract names but this version does not run
 
-\`schedule\` (running on a timer), \`measures[].kind: 'computed'\` (a ratio over other measures) and
-\`dataset.kind: 'join'\`. Declaring one is not silently ignored: the platform refuses the report by
+\`schedule\` (running on a timer) and \`dataset.kind: 'join'\`. Declaring one is not silently ignored: the platform refuses the report by
 the name of what it lacks.
 
 These are read and not acted on, and each says so as a warning rather than doing nothing:

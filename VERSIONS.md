@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.109.0] — 2026-10-15
+
+- Os relatórios agora calculam números a partir de outros números do próprio relatório — taxa de êxito, ticket médio, margem, percentual em aberto —, em cada linha, em cada subtotal e no total geral. A razão deixa de ficar por conta de quem lê.
+
 #### [9.108.3] — 2026-10-15
 
 - As automações agora conseguem buscar um registro diretamente pelo identificador dele — por exemplo, um identificador recebido como parâmetro ou guardado em outro registro. Antes, essa busca voltava sempre vazia.

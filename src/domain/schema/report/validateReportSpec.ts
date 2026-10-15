@@ -9,6 +9,7 @@ import { NUMERIC_AGGREGATION_OPS } from '../fieldRules';
 import { parsePath, resolvePath } from '../pathResolver';
 import type { PathRoot, SchemaContext } from '../pathResolver';
 import { checkQueryPath, checkQueryPredicates, QUERY_OPERATORS, resolveQueryTable } from '../querySpec';
+import { computedMeasureCycles, computedMeasureReferences, isComputedMeasure } from './reportComputedMeasure';
 import {
   REPORT_CAPABILITIES,
   reportCapabilitySeverity,
@@ -151,12 +152,44 @@ export const validateReportSpecShape = (
     }
   });
 
+  const declaredMeasureKeys = new Set(measures.map((measure) => measure.key));
+
   measures.forEach((measure, index) => {
+    if (isComputedMeasure(measure)) {
+      const field = `dataset.measures[${index}].expression`;
+      const expression = typeof measure.expression === 'string' ? measure.expression.trim() : '';
+      if (!expression) {
+        issues.push({ field, error: '@core.reports/measure.expression.missing', errorParams: { key: measure.key } });
+        return;
+      }
+      const syntax = fieldExpressionSyntaxError(expression);
+      if (syntax) {
+        issues.push({
+          field,
+          error: '@core.reports/measure.expression.syntax',
+          errorParams: { key: measure.key, detail: syntax },
+        });
+        return;
+      }
+      // A expressão só enxerga MEDIDAS. Um nome que não é medida do relatório — um campo, uma
+      // dimensão, um erro de digitação — chegaria ao avaliador vazio, e a célula sairia em branco
+      // sem ninguém saber por quê.
+      for (const reference of computedMeasureReferences(measure)) {
+        if (declaredMeasureKeys.has(reference)) continue;
+        issues.push({
+          field,
+          error: '@core.reports/measure.expression.unknown',
+          errorParams: { key: measure.key, name: reference },
+        });
+      }
+      return;
+    }
     if (!isAggregateMeasure(measure)) {
+      const unknown = measure as { key: string; kind?: unknown };
       issues.push({
         field: `dataset.measures[${index}].kind`,
         error: '@core.reports/measure.kind.unsupported',
-        errorParams: { key: measure.key, kind: String(measure.kind) },
+        errorParams: { key: unknown.key, kind: String(unknown.kind) },
       });
       return;
     }
@@ -174,6 +207,16 @@ export const validateReportSpecShape = (
         errorParams: { key: measure.key },
       });
     }
+  });
+
+  const cyclic = new Set(computedMeasureCycles(measures));
+  measures.forEach((measure, index) => {
+    if (!cyclic.has(measure.key)) return;
+    issues.push({
+      field: `dataset.measures[${index}].expression`,
+      error: '@core.reports/measure.expression.cycle',
+      errorParams: { key: measure.key },
+    });
   });
 
   // Um relatório sem NÚMERO não tem o que dizer, e recusar isto aqui é o que dá motivo ao botão

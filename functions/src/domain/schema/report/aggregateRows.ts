@@ -14,6 +14,7 @@ import { getValueAtPath, parsePath } from '../pathResolver';
 import { matchesResolvedPredicates } from '../predicateMatch';
 import type { ResolvedPredicate } from '../predicateMatch';
 import { bucketDateValue } from './reportBuckets';
+import { computedMeasureReferences, evaluateComputedMeasure, isComputedMeasure } from './reportComputedMeasure';
 import type { ReportGroupKey, ReportResult, ReportRow, ReportTotals } from './reportResult';
 import { isAggregateMeasure, reportGranularityOf } from './reportSpec';
 import type { ReportDimension, ReportGroupLevel, ReportMeasure, ReportSpec } from './reportSpec';
@@ -121,8 +122,8 @@ const measureValue = (
   rows: Record<string, unknown>[],
   filters: ResolvedPredicate[],
 ): number | null => {
-  // Medida CALCULADA é prevista no contrato e não executada aqui: quem a declara é recusado antes,
-  // pelo nome da capacidade que falta. Devolver `null` é a segunda linha de defesa, nunca a primeira.
+  // Um `kind` que este kernel não conhece é recusado antes, pelo nome da capacidade que falta.
+  // Devolver `null` é a segunda linha de defesa, nunca a primeira.
   if (!isAggregateMeasure(measure)) return null;
 
   const selected = filters.length > 0
@@ -208,16 +209,42 @@ const sortedChildren = (
   return { shown: children.slice(0, limit), dropped: children.length > (limit as number) };
 };
 
+/**
+ * Os valores das medidas pedidas, sobre as linhas de UM grupo.
+ *
+ * A medida calculada lê as medidas que cita no MESMO grupo — inclusive as que a dobra não exibe: uma
+ * taxa de êxito precisa do total de casos sem que a coluna dele apareça. Por isso o valor de cada
+ * medida é resolvido sob demanda e lembrado, e só as pedidas saem no resultado.
+ */
 const valuesOf = (
   measures: ReportMeasure[],
   keys: string[],
   rows: Record<string, unknown>[],
   filters: Record<string, ResolvedPredicate[]>,
 ): Record<string, number | null> => {
+  const byKey = new Map(measures.map((measure) => [measure.key, measure] as const));
+  const resolved = new Map<string, number | null>();
+  const resolving = new Set<string>();
+
+  const valueOf = (key: string): number | null => {
+    if (resolved.has(key)) return resolved.get(key) ?? null;
+    const measure = byKey.get(key);
+    if (!measure || resolving.has(key)) return null;
+
+    resolving.add(key);
+    const value = isComputedMeasure(measure)
+      ? evaluateComputedMeasure(measure, Object.fromEntries(
+        computedMeasureReferences(measure).map((reference) => [reference, valueOf(reference)]),
+      ))
+      : measureValue(measure, rows, filters[key] ?? []);
+    resolving.delete(key);
+    resolved.set(key, value);
+    return value;
+  };
+
   const values: Record<string, number | null> = {};
   for (const key of keys) {
-    const measure = measures.find((candidate) => candidate.key === key);
-    if (measure) values[key] = measureValue(measure, rows, filters[key] ?? []);
+    if (byKey.has(key)) values[key] = valueOf(key);
   }
   return values;
 };

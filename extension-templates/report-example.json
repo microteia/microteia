@@ -1,7 +1,7 @@
 {
   "manifest": {
     "id": "com.microteia.report-example",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "kernel": "^2.0.0",
     "name": "@com.microteia.report-example/package.name",
     "description": "@com.microteia.report-example/package.description",
@@ -47,6 +47,7 @@
             "measure.total": "Total",
             "measure.count": "Entries",
             "measure.open-total": "Total still open",
+            "measure.open-share": "Share still open",
             "measure.categories": "Categories",
             "dimension.label": "Label",
             "dimension.category": "Category",
@@ -93,6 +94,7 @@
             "measure.total": "Total",
             "measure.count": "Lançamentos",
             "measure.open-total": "Total em aberto",
+            "measure.open-share": "Parcela em aberto",
             "measure.categories": "Categorias",
             "dimension.label": "Descrição",
             "dimension.category": "Categoria",
@@ -327,6 +329,16 @@
                   }
                 }
               ]
+            },
+            {
+              "key": "openShare",
+              "kind": "computed",
+              "expression": "openTotal / total * 100",
+              "label": "@com.microteia.report-example/measure.open-share",
+              "format": {
+                "kind": "percent",
+                "decimals": 1
+              }
             }
           ]
         },
@@ -340,7 +352,8 @@
           "values": [
             "total",
             "count",
-            "openTotal"
+            "openTotal",
+            "openShare"
           ],
           "grandTotal": true
         },
@@ -361,6 +374,7 @@
           "dimension.granularity",
           "export.csv",
           "measure.aggregate",
+          "measure.computed",
           "measure.filter",
           "presentation.chart",
           "shape.summary"

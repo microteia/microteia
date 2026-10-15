@@ -48,7 +48,6 @@ describe('REPORT_CAPABILITIES', () => {
   });
 
   it('não anuncia o que o kernel ainda não executa', () => {
-    expect(REPORT_CAPABILITIES).not.toContain('measure.computed');
     expect(REPORT_CAPABILITIES).not.toContain('dataset.join');
     expect(REPORT_CAPABILITIES).not.toContain('schedule');
   });
@@ -110,18 +109,26 @@ describe('deriveReportRequires', () => {
   });
 
   it('emite token que este kernel NÃO tem, para ele poder recusar pelo nome', () => {
-    // É esse descompasso deliberado que faz um kernel velho dizer "não sei fazer medida calculada"
-    // em vez de somar sem ela e devolver um número diferente com o mesmo rótulo.
+    // É esse descompasso deliberado que faz um kernel velho dizer "não sei fazer join" em vez de
+    // ler um lado só e devolver um número diferente com o mesmo rótulo.
+    const juncao = { ...base, dataset: { ...base.dataset, kind: 'join' } } as ReportSpec;
+
+    expect(deriveReportRequires(juncao)).toContain('dataset.join');
+    expect(unsupportedReportCapabilities(juncao)).toEqual(['dataset.join']);
+  });
+
+  it('a medida calculada roda aqui, e um kernel que não a conhece a recusa pelo nome', () => {
     const calculada: ReportSpec = {
       ...base,
       dataset: {
         ...base.dataset,
-        measures: [{ key: 'ticket', kind: 'computed', expression: 'a / b' }],
+        measures: [...(base.dataset.measures ?? []), { key: 'ticket', kind: 'computed', expression: 'a / b' }],
       },
     };
 
     expect(deriveReportRequires(calculada)).toContain('measure.computed');
-    expect(unsupportedReportCapabilities(calculada)).toEqual(['measure.computed']);
+    expect(unsupportedReportCapabilities(calculada)).toEqual([]);
+    expect(unsupportedReportCapabilities(calculada, CAPABILITIES_1_0)).toEqual(['measure.computed']);
   });
 
   it('a propriedade que o contrato prevê e este kernel não lê emite token, para AVISAR', () => {

@@ -100,6 +100,10 @@ export const CORE_REPORTS_MESSAGES: Record<string, string> = {
   'list.empty': 'No report yet. A report says what to cover, what to calculate and how to show it.',
   'list.filter.placeholder': 'Filter reports...',
   'list.filter.search': 'Name or collection',
+  'measure.expression.cycle': 'The figure "{key}" is calculated from itself, directly or through another figure, so it has no value.',
+  'measure.expression.missing': 'The figure "{key}" is calculated, but does not say how.',
+  'measure.expression.syntax': 'The calculation of the figure "{key}" is not written correctly: {detail}',
+  'measure.expression.unknown': 'The calculation of the figure "{key}" mentions "{name}", which is not a figure of this report.',
   'measure.kind.unsupported':
     'The figure "{key}" is of a kind this version cannot calculate ({kind}), so the report cannot be run here.',
   'measure.op.unsupported': 'The figure "{key}" asks for a calculation this version does not have ({op}).',

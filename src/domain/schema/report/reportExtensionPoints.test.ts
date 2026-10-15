@@ -101,12 +101,9 @@ describe('reportOf', () => {
   });
 
   it('descarta o relatório que este kernel não pode responder por inteiro', () => {
-    const calculada: ReportSpec = {
-      ...spec,
-      dataset: { ...spec.dataset, measures: [{ key: 'ticket', kind: 'computed', expression: 'a / b' }] },
-    };
+    const juncao = { ...spec, dataset: { ...spec.dataset, kind: 'join' } } as ReportSpec;
 
-    expect(reportOf(reportContribution({ ...metadata, spec: calculada }))).toBeUndefined();
+    expect(reportOf(reportContribution({ ...metadata, spec: juncao }))).toBeUndefined();
   });
 
   it('MANTÉM o relatório que só traz avisos — é o que a degradação promete', () => {

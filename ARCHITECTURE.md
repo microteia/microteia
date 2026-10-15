@@ -7416,10 +7416,29 @@ todos os níveis e não precisa.
 
 ### O que o contrato prevê e a v1 não executa
 
-`schedule` já é tipado (com aviso `@core.reports/schedule.not-implemented`); medida calculada
-(`kind: 'computed'`) já está na união; join já tem discriminante em `dataset.kind`. Cada um entra de
-forma aditiva — e reservar o nome agora é o que impede um kernel velho de podar em silêncio o que uma
-ferramenta nova escreveu.
+`schedule` já é tipado (com aviso `@core.reports/schedule.not-implemented`); join já tem
+discriminante em `dataset.kind`. Cada um entra de forma aditiva — e reservar o nome agora é o que
+impede um kernel velho de podar em silêncio o que uma ferramenta nova escreveu.
+
+### Medida calculada (`measures[].kind: 'computed'`)
+
+Foi a primeira das reservas a ser executada (`KERNEL_VERSION` 2.43.0), e entrou exatamente pelo
+caminho previsto: o token `measure.computed` passou a constar de `REPORT_CAPABILITIES`, e o kernel
+anterior continua recusando o relatório pelo nome dele.
+
+- **O escopo são as OUTRAS medidas, por chave — nunca o registro.** A expressão é avaliada depois da
+  agregação, em cada linha, subtotal, célula do pivô, total da coluna e total geral
+  (`evaluateComputedMeasure`, chamada por `valuesOf` em `aggregateRows.ts`). É o que faz a taxa do
+  total ser a razão dos totais, e não a média das taxas das linhas.
+- **Lê medida que a dobra não mostra.** `valuesOf` resolve cada medida sob demanda e a lembra no grupo;
+  só as de `values` saem no resultado.
+- **Ausência não vira número.** Medida citada em `null`, divisão por zero ou resultado não numérico dão
+  `null` — o travessão da tela —, pela mesma razão de média de nada não ser zero.
+- **Recusa na validação:** expressão vazia ou que não parseia, nome citado que não é medida do
+  relatório (um campo ou uma dimensão chegariam vazios ao avaliador) e ciclo entre calculadas. O
+  agregador ainda devolve `null` num ciclo que escape, em vez de recursar.
+- **`format: { kind: 'percent' }` não multiplica por 100** — imprime o número seguido de `%`. A razão
+  multiplica na expressão (`openTotal / total * 100`, no exemplo de relatórios).
 
 **Relatório do pacote NÃO se mescla com edição do escritório** — o oposto do que vale para telas. Uma
 tela mescla porque o campo é unidade independente com dono próprio; um `ReportSpec` é uma afirmação

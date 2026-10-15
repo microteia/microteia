@@ -52,6 +52,13 @@ export { REPORT_CAPABILITIES, deriveReportRequires, unsupportedReportCapabilitie
 
 export { bucketDateValue } from './reportBuckets';
 
+export {
+  computedMeasureCycles,
+  computedMeasureReferences,
+  evaluateComputedMeasure,
+  isComputedMeasure,
+} from './reportComputedMeasure';
+
 export { isSingleSeriesChartKind, reportChartSplit, reportRowLevels } from './reportChartSplit';
 export type { ReportChartSplit } from './reportChartSplit';
 

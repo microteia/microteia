@@ -155,19 +155,59 @@ describe('validateReportSpec — os três níveis de recusa', () => {
   });
 
   it('capacidade que este kernel não tem recusa pelo NOME dela', () => {
-    const spec: ReportSpec = {
-      ...valid,
-      dataset: {
-        ...valid.dataset,
-        measures: [{ key: 'ticket', kind: 'computed', expression: 'a / b' }],
-      },
-    };
+    const spec = { ...valid, dataset: { ...valid.dataset, kind: 'join' } } as ReportSpec;
     const issues = validateReportSpec(spec, ctx);
 
     expect(issues[0]).toMatchObject({
       error: '@core.reports/spec.capability.unsupported',
-      errorParams: { capability: 'measure.computed' },
+      errorParams: { capability: 'dataset.join' },
     });
+  });
+});
+
+describe('validateReportSpec — a medida calculada', () => {
+  const comCalculada = (...extra: ReportSpec['dataset']['measures'] & object): ReportSpec => ({
+    ...valid,
+    dataset: {
+      ...valid.dataset,
+      measures: [
+        { key: 'total', label: 'Total', op: 'sum', path: 'valor' },
+        { key: 'quantidade', op: 'count' },
+        ...extra,
+      ],
+    },
+  });
+
+  it('aceita a expressão sobre as outras medidas, mesmo as que a dobra não mostra', () => {
+    const spec = comCalculada({ key: 'ticket', kind: 'computed', expression: 'total / quantidade' });
+
+    expect(validateReportSpec(spec, ctx)).toEqual([]);
+  });
+
+  it('recusa a expressão ausente e a que não parseia', () => {
+    expect(errors(validateReportSpecShape(comCalculada({ key: 'ticket', kind: 'computed', expression: ' ' }))))
+      .toContain('@core.reports/measure.expression.missing');
+    expect(errors(validateReportSpecShape(comCalculada({ key: 'ticket', kind: 'computed', expression: 'total /' }))))
+      .toContain('@core.reports/measure.expression.syntax');
+  });
+
+  it('recusa o nome que não é medida — um campo ou uma dimensão chegariam vazios', () => {
+    const issues = validateReportSpecShape(comCalculada({ key: 'ticket', kind: 'computed', expression: 'valor / situacao' }));
+
+    expect(issues.filter((issue) => issue.error === '@core.reports/measure.expression.unknown')
+      .map((issue) => issue.errorParams?.name)).toEqual(['valor', 'situacao']);
+  });
+
+  it('recusa o ciclo, direto ou por outra medida', () => {
+    const issues = validateReportSpecShape(comCalculada(
+      { key: 'a', kind: 'computed', expression: 'b + 1' },
+      { key: 'b', kind: 'computed', expression: 'a * 2' },
+      { key: 'c', kind: 'computed', expression: 'c' },
+      { key: 'd', kind: 'computed', expression: 'a / total' },
+    ));
+
+    expect(issues.filter((issue) => issue.error === '@core.reports/measure.expression.cycle')
+      .map((issue) => issue.errorParams?.key)).toEqual(['a', 'b', 'c']);
   });
 });
 

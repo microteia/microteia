@@ -122,11 +122,12 @@ export interface ReportAggregateMeasure extends ReportMeasureBase {
 }
 
 /**
- * A medida CALCULADA — razão, percentual, ticket médio. PREVISTA no contrato, executada depois: um
- * kernel que não a saiba fazer recusa pelo NOME dela (`requires`), em vez de somar sem ela.
+ * A medida CALCULADA — razão, percentual, ticket médio. Um kernel que não a saiba fazer recusa pelo
+ * NOME dela (`requires`), em vez de somar sem ela.
  *
  * A expressão vê as OUTRAS medidas, por chave, e nunca o registro: uma razão de médias não é a média
- * das razões, e deixar a expressão enxergar a linha convidaria exatamente esse erro.
+ * das razões, e deixar a expressão enxergar a linha convidaria exatamente esse erro. É avaliada
+ * depois da agregação, em cada linha, subtotal, célula e total (`evaluateComputedMeasure`).
  */
 export interface ReportComputedMeasure extends ReportMeasureBase {
   kind: 'computed';

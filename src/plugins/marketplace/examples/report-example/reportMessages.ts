@@ -52,6 +52,7 @@ export const REPORT_MESSAGES: Record<string, string> = {
   'measure.total': 'Total',
   'measure.count': 'Entries',
   'measure.open-total': 'Total still open',
+  'measure.open-share': 'Share still open',
   'measure.categories': 'Categories',
 
   'dimension.label': 'Label',

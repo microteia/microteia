@@ -483,22 +483,85 @@ describe('aggregateReportRows — tabular', () => {
 });
 
 describe('aggregateReportRows — medida calculada', () => {
-  it('devolve null em vez de somar sem ela — a segunda linha de defesa', () => {
-    // A PRIMEIRA é a recusa por capacidade: quem declara `measure.computed` num kernel que não a
-    // executa é recusado pelo nome dela, antes de chegar aqui.
+  const calculada = (expression: string, extra: Partial<ReportSpec> = {}): ReportSpec => ({
+    v: REPORT_SPEC_VERSION,
+    dataset: {
+      ...dataset,
+      measures: [
+        ...dataset.measures,
+        { key: 'pagos', op: 'count', filter: [{ path: 'status', op: 'eq', value: { kind: 'Literal', value: 'pago' } }] },
+        { key: 'ticket', label: 'Ticket', kind: 'computed', expression },
+      ],
+    },
+    shape: { kind: 'summary', groupBy: [{ dimension: 'status' }], values: ['ticket'] },
+    ...extra,
+  });
+
+  it('é a razão dos AGREGADOS do grupo, e lê medida que a dobra não mostra', () => {
+    const result = aggregateReportRows({ spec: calculada('total / quantidade'), rows });
+
+    expect(valuesByKey(result)).toEqual({
+      '': { ticket: 70 },
+      aberto: { ticket: 25 },
+      pago: { ticket: 150 },
+    });
+    expect(result.totals?.values).toEqual({ ticket: 84 });
+  });
+
+  it('o total é a razão dos totais, nunca a média das razões das linhas', () => {
+    const spec = calculada('pagos / quantidade * 100');
     const result = aggregateReportRows({
-      spec: {
-        v: REPORT_SPEC_VERSION,
-        dataset: {
-          ...dataset,
-          measures: [{ key: 'ticket', label: 'Ticket', kind: 'computed', expression: 'total / quantidade' }],
-        },
-        shape: { kind: 'summary', groupBy: [{ dimension: 'status' }], values: ['ticket'] },
-      },
+      spec,
+      rows,
+      measureFilters: { pagos: [{ path: 'status', op: 'eq', value: 'pago' }] },
+    });
+
+    expect(valuesByKey(result).pago).toEqual({ ticket: 100 });
+    expect(valuesByKey(result).aberto).toEqual({ ticket: 0 });
+    expect(result.totals?.values.ticket).toBe(40);
+  });
+
+  it('divisão por zero e medida citada sem valor saem vazias, não como número', () => {
+    const vazio = aggregateReportRows({ spec: calculada('total / 0'), rows });
+    expect(vazio.rows.every((row) => row.values.ticket === null)).toBe(true);
+
+    // `media` do grupo sem valor numérico nenhum é null; a razão sobre ela também.
+    const semMedia = aggregateReportRows({
+      spec: calculada('media * 2'),
+      rows: [{ id: '9', status: 'x', amount: 'texto' }],
+    });
+    expect(semMedia.rows[0].values.ticket).toBeNull();
+  });
+
+  it('é avaliada em cada célula, subtotal e total da coluna do pivô', () => {
+    const result = aggregateReportRows({
+      spec: calculada('total / quantidade', {
+        shape: { kind: 'matrix', rows: [{ dimension: 'cliente' }], columns: [{ dimension: 'mes' }], values: ['ticket'] },
+      }),
       rows,
     });
 
-    expect(result.rows.every((row) => row.values.ticket === null)).toBe(true);
+    const ana = result.rows.find((row) => row.keys[0].key === 'Ana');
+    expect(ana?.cells?.[reportCellKey([{ dimension: 'mes', key: '2026-01' }])]).toEqual({ ticket: 100 });
+    expect(ana?.cells?.[reportCellKey([{ dimension: 'mes', key: '2026-02' }])]).toEqual({ ticket: 25 });
+    expect(ana?.values).toEqual({ ticket: 50 });
+    expect(result.columnTotals?.[reportCellKey([{ dimension: 'mes', key: '2026-01' }])]).toEqual({ ticket: 150 });
+  });
+
+  it('um ciclo que escape da validação dá null, e não laço infinito', () => {
+    const spec: ReportSpec = {
+      v: REPORT_SPEC_VERSION,
+      dataset: {
+        ...dataset,
+        measures: [
+          { key: 'a', kind: 'computed', expression: 'b + 1' },
+          { key: 'b', kind: 'computed', expression: 'a + 1' },
+        ],
+      },
+      shape: { kind: 'summary', groupBy: [{ dimension: 'status' }], values: ['a', 'b'] },
+    };
+
+    expect(aggregateReportRows({ spec, rows }).totals?.values).toEqual({ a: null, b: null });
   });
 });
 

@@ -118,6 +118,13 @@ const BY_CATEGORY: ReportSpec = {
  *
  * `openTotal` is a FILTERED MEASURE: the restriction belongs to that measure and to nothing else,
  * which is how one line can carry both the whole total and the part of it still open.
+ *
+ * `openShare` is a COMPUTED MEASURE: an expression over the other measures of the same group, by key,
+ * evaluated after aggregation — on every row, subtotal and the grand total. That is what makes it the
+ * share of the month and not an average of per-entry shares. It sees measures only, never the record,
+ * and a measure it cites does not have to be shown. A `percent` format prints the number as it is,
+ * followed by `%`, so the ratio is multiplied by 100 in the expression. A month with nothing in it
+ * divides by zero, and that cell comes out empty instead of claiming a number.
  */
 const BY_MONTH: ReportSpec = {
   v: REPORT_SPEC_VERSION,
@@ -143,12 +150,19 @@ const BY_MONTH: ReportSpec = {
         format: { kind: 'currency' },
         filter: [{ path: 'archived', op: 'eq', value: { kind: 'Literal', value: false } }],
       },
+      {
+        key: 'openShare',
+        kind: 'computed',
+        expression: 'openTotal / total * 100',
+        label: message('measure.open-share'),
+        format: { kind: 'percent', decimals: 1 },
+      },
     ],
   },
   shape: {
     kind: 'summary',
     groupBy: [{ dimension: 'month' }],
-    values: ['total', 'count', 'openTotal'],
+    values: ['total', 'count', 'openTotal', 'openShare'],
     grandTotal: true,
   },
   presentation: {
@@ -272,7 +286,7 @@ const report = (
 export const reportExamplePlugin: MarketplacePlugin = {
   manifest: {
     id: 'com.microteia.report-example',
-    version: '1.0.0',
+    version: '1.1.0',
     kernel: '^2.0.0',
     name: message('package.name'),
     description: message('package.description'),

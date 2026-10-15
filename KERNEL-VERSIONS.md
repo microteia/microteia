@@ -18,6 +18,11 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.109.0] — 2026-10-15
+
+- feat(report): `measures[].kind: 'computed'` is now executed. The `expression` is evaluated over the OTHER measures of the same group, by key, after aggregation — on every row, subtotal, pivot cell, column total and grand total — so a ratio is the ratio of the group's totals, never the average of per-record ratios. A computed measure may cite measures that `shape.values` does not show. A cited measure that is `null`, a division by zero or a non-numeric result yields `null` (an empty cell), never a made-up number. `measure.computed` joins `REPORT_CAPABILITIES`; an older kernel keeps refusing the report by that token. Validation refuses an empty or unparsable expression (`@core.reports/measure.expression.missing` / `.syntax`), a name that is not a measure of the report (`.unknown`) and a cycle between computed measures (`.cycle`). New shared module `domain/schema/report/reportComputedMeasure.ts`. `KERNEL_VERSION` goes to `2.43.0` (additive).
+- docs(report-example): the monthly summary gains `openShare` (`openTotal / total * 100`, `format: { kind: 'percent' }`); the example goes to `1.1.0`. `AUTHORING.md` documents the computed measure and that `percent` prints the number as is, so a ratio multiplies by 100 in its expression.
+
 #### [9.108.3] — 2026-10-15
 
 - fix(workflow/query): a predicate on the root `id` with `eq` or `in` is now a direct document read (`fetchByIds` → `getAll`) instead of a Firestore equality filter on a field named `id`. Documents never store their own id, so `id == X` always came back empty and `id in [...]` only saw what fit under the 300-document scan ceiling; a workflow holding an id (a parameter, a field, another step's output) had no way to read that record. The remaining predicates of the same `where` are evaluated in memory over the records read; several id predicates intersect. Applies to every `runRecordQuery` caller: the `query` step, script `query()`, reports, the agent and document generation. Documented in AUTHORING §10.

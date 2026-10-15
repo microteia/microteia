@@ -27,6 +27,7 @@ export const REPORT_CAPABILITIES: readonly string[] = [
   'export.csv',
   'export.pdf',
   'measure.aggregate',
+  'measure.computed',
   'measure.distinct',
   'measure.filter',
   'presentation.chart',
@@ -46,8 +47,8 @@ const anySubtotal = (levels: ReportGroupLevel[]): boolean =>
  * As capacidades que o spec de fato usa. É DERIVADA: o autor nunca a escreve, e o portão do pacote
  * reprova a divergência entre `spec.requires` e esta função.
  *
- * Emite deliberadamente tokens que `REPORT_CAPABILITIES` ainda NÃO tem (`measure.computed`,
- * `dataset.join`, `schedule`). É esse descompasso que faz o kernel recusar pelo NOME do recurso que
+ * Emite deliberadamente tokens que `REPORT_CAPABILITIES` ainda NÃO tem (`dataset.join`,
+ * `schedule`). É esse descompasso que faz o kernel recusar pelo NOME do recurso que
  * lhe falta, em vez de somar sem ele e devolver um número diferente com o mesmo rótulo.
  *
  * O mesmo vale para a propriedade que o contrato PREVÊ e este kernel ainda não lê — `shape.limit`,
