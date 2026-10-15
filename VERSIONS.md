@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.103.1] — 2026-10-14
+
+- Corrigido o horário mostrado ao agendar uma automação: o "Fuso do escritório" e as próximas execuções agora mostram o fuso configurado para o escritório, e não o seu fuso pessoal. Antes, a tela podia prometer um horário diferente daquele em que a automação de fato rodava.
+
 #### [9.103.0] — 2026-10-14
 
 - As ferramentas do escritório saíram do menu do seu usuário e agora ficam no menu lateral, organizadas pelo que fazem: "Personalização" reúne Form Design, Modelos de documento e Extensões; "Automação" reúne Workflows, Scripts, Ações e o Processador de dados; e a Gestão de acessos se juntou a "Administração".

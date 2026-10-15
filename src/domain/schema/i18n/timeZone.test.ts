@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  resolveOfficeTimeZone,
   DEFAULT_TIME_ZONE,
   TIME_ZONE_SETTING,
   automaticTimeZone,
@@ -74,6 +75,23 @@ describe('resolveTimeZone — usuário → escritório → padrão', () => {
     expect(resolveTimeZone({ user: {}, tenant: {} })).toBe('UTC');
     expect(timeZoneForLocale('en')).toBe('UTC');
     expect(timeZoneForLocale('pt')).toBe('UTC');
+  });
+});
+
+describe('resolveOfficeTimeZone — o fuso do relógio das automações', () => {
+  it('ignora a preferência pessoal: quem dispara é o horário, não o usuário', () => {
+    expect(resolveOfficeTimeZone({ [TIME_ZONE_SETTING]: 'Europe/Lisbon' })).toBe('Europe/Lisbon');
+    expect(resolveTimeZone({ user: { [TIME_ZONE_SETTING]: 'America/Sao_Paulo' }, tenant: {} })).toBe('America/Sao_Paulo');
+    expect(resolveOfficeTimeZone({})).toBe('UTC');
+  });
+
+  it('o idioma do usuário não sugere o fuso do escritório', () => {
+    expect(resolveTimeZone({ user: { 'i18n.locale': 'pt-BR' }, tenant: {} })).toBe('America/Sao_Paulo');
+    expect(resolveOfficeTimeZone({})).toBe('UTC');
+  });
+
+  it('sem fuso gravado, o idioma do escritório sugere', () => {
+    expect(resolveOfficeTimeZone({ 'i18n.locale': 'pt-BR' })).toBe('America/Sao_Paulo');
   });
 });
 

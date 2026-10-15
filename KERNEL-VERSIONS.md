@@ -18,6 +18,10 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.103.1] — 2026-10-14
+
+- fix(workflow/schedule): the automation editor labelled "Office time zone" and previewed the next runs with the viewer's resolved zone (user → office → automatic), while the clock resolves it with no user. A user with `America/Sao_Paulo` (or `pt-BR`) only in their profile saw 17:53 promised and the clock fired at 17:53 UTC. New `resolveOfficeTimeZone(tenant)` in the shared `i18n/timeZone` schema is now the one rule for both the editor and `tenantTimeZone` without a user.
+
 #### [9.103.0] — 2026-10-14
 
 - feat(ui.nav): `requiresSystemAdmin`, as on `ui.menu` and `ui.page` — the entry shows only to the global administrator. `KERNEL_VERSION` goes to `2.41.0` (additive).

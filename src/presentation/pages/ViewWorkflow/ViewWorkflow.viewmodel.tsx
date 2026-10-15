@@ -58,8 +58,8 @@ import {
 } from '../../../domain/schema/workflowClock';
 import type { WorkflowDateReached, WorkflowSchedule } from '../../../domain/schema/workflowClock';
 import { entityDateFieldKeys, eventEntity } from '../../../domain/schema/eventCatalog';
-import { timeZoneOptions } from '../../../domain/schema/i18n/timeZone';
-import { ambientTimeZone } from '../../../domain/schema/clockGate';
+import { resolveOfficeTimeZone, timeZoneOptions } from '../../../domain/schema/i18n/timeZone';
+import { useSettings } from '../../../stores/useSettings';
 
 export type ViewWorkflowTab = 'general' | 'conditions' | 'steps' | 'executions';
 
@@ -533,6 +533,9 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
   const isCalledEvent = useMemo(() => isCalledEventName(formData.eventName), [formData.eventName]);
   const isScheduleEvent = useMemo(() => isScheduleEventName(formData.eventName), [formData.eventName]);
 
+  const { values: settingsValues } = useSettings();
+  const officeTimeZone = useMemo(() => resolveOfficeTimeZone(settingsValues.tenant), [settingsValues.tenant]);
+
   const scheduleError = useMemo(() => {
     if (!isScheduleEvent) return null;
     const [issue] = scheduleIssues(scheduleOf(formData));
@@ -543,14 +546,14 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
     if (!isScheduleEvent || scheduleError) return [];
     const parsed = parseCron(formData.scheduleCron);
     if (!parsed) return [];
-    const timeZone = scheduleTimeZone(scheduleOf(formData), ambientTimeZone());
+    const timeZone = scheduleTimeZone(scheduleOf(formData), officeTimeZone);
     return nextCronOccurrences(parsed, new Date(), timeZone, SCHEDULE_PREVIEW_COUNT).map((occurrence) =>
       t('workflow.schedule.preview-item', {
         when: formatDateFor(locale, occurrence, { dateStyle: 'full', timeStyle: 'short', timeZone }),
         zone: timeZone,
       }),
     );
-  }, [isScheduleEvent, scheduleError, formData, locale, t]);
+  }, [isScheduleEvent, scheduleError, formData, officeTimeZone, locale, t]);
 
   const isDateReachedEvent = useMemo(() => dateReachedPrefix(formData.eventName) !== null, [formData.eventName]);
 
@@ -576,10 +579,10 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
 
   const scheduleTimeZoneOptions = useMemo(
     () => [
-      { value: '', label: t('workflow.schedule.time-zone.office', { zone: ambientTimeZone() }) },
+      { value: '', label: t('workflow.schedule.time-zone.office', { zone: officeTimeZone }) },
       ...timeZoneOptions().map((zone) => ({ value: zone, label: zone })),
     ],
-    [t],
+    [officeTimeZone, t],
   );
 
   const parameterEntityOptions = useEntityReferenceOptions();

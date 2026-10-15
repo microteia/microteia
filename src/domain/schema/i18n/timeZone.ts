@@ -115,6 +115,14 @@ export const resolveTimeZone = (values: TimeZoneSettingValues): string => {
   return automaticTimeZone(values);
 };
 
+/**
+ * O fuso do ESCRITÓRIO, sem pessoa nenhuma: o que o relógio das automações usa, porque quem dispara é
+ * o horário, não um usuário. A tela que mostra quando uma automação vai rodar pergunta por aqui — e não
+ * pelo fuso resolvido para quem está olhando —, ou promete um horário que o relógio não cumpre.
+ */
+export const resolveOfficeTimeZone = (tenant: Record<string, unknown>): string =>
+  resolveTimeZone({ user: {}, tenant });
+
 /** O DIA (`YYYY-MM-DD`) em que um instante cai no fuso dado. Fuso inválido cai no padrão. */
 export const dayInTimeZone = (instant: Date, timeZone: string): string => {
   const zone = isValidTimeZone(timeZone) ? timeZone.trim() : DEFAULT_TIME_ZONE;

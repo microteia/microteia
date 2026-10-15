@@ -8939,6 +8939,13 @@ Como o fuso chega a cada ponta:
 | Derive/compute no servidor | `withAmbientTimeZone(context.services.timeZone, …)` em volta da avaliação SÍNCRONA (consulta, mutação, recálculo de agregado, `get_record` do agente) |
 | `includeWhen` de relatório | `ReportRowFilterInput.timeZone` |
 
+**O relógio das automações não tem pessoa.** `schedule` e `dateReached` disparam pelo horário, e o
+servidor resolve o fuso SEM usuário — `resolveOfficeTimeZone(tenant)`, a mesma regra com o escopo do
+usuário vazio. O editor de automação usa essa função (não o fuso do `clockGate`, que é o de quem está
+olhando) no rótulo "Fuso do escritório" e na prévia das próximas execuções. Com o fuso pessoal, a tela
+de quem tinha `America/Sao_Paulo` (ou idioma `pt-BR`) só no perfil prometia 17:53 enquanto o relógio,
+em UTC, marcava 14:53.
+
 No servidor o fuso nunca fica empurrado no módulo: uma instância atende escritórios diferentes ao mesmo
 tempo. `withAmbientTimeZone` só aceita trecho síncrono, onde nada se intercala. `now()` continua sendo
 um instante; `formatDate`/`day`/`month` sobre um instante seguem o fuso do processo. A paridade é

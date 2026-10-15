@@ -1,4 +1,4 @@
-import { resolveTimeZone } from '../../domain/schema/i18n/timeZone';
+import { resolveOfficeTimeZone, resolveTimeZone } from '../../domain/schema/i18n/timeZone';
 import { getDI } from '../di/container';
 
 /**
@@ -15,7 +15,8 @@ const cache = new Map<string, { timeZone: string; expiresAt: number }>();
  * O fuso do escritório no SERVIDOR: `user > tenant > padrão`, pela MESMA função que o cliente usa
  * (`resolveTimeZone`). É isso que faz `today()` responder o mesmo dia na tela e na automação.
  *
- * Sem pessoa (automação disparada por gatilho), vale o do escritório.
+ * Sem pessoa (automação disparada por gatilho), vale o do escritório — `resolveOfficeTimeZone`, a
+ * mesma que o editor de automação usa para dizer quando o relógio vai disparar.
  */
 export const tenantTimeZone = async (tenantId: string, userId?: string): Promise<string> => {
   const key = `${tenantId}:${userId ?? ''}`;
@@ -27,7 +28,7 @@ export const tenantTimeZone = async (tenantId: string, userId?: string): Promise
     userId ? settings.getUserValues(tenantId, userId) : Promise.resolve({}),
     settings.getTenantValues(tenantId),
   ]);
-  const timeZone = resolveTimeZone({ user, tenant });
+  const timeZone = userId ? resolveTimeZone({ user, tenant }) : resolveOfficeTimeZone(tenant);
   cache.set(key, { timeZone, expiresAt: Date.now() + CACHE_TTL_MS });
   return timeZone;
 };
