@@ -1582,6 +1582,13 @@ logical negation. On top of them:
 | Objects | \`object(k, v, ...)\`, \`delete(key, target)\` |
 | Access | \`hasPermission(pattern)\` |
 
+An empty value never makes an expression fail, on a screen or in a workflow: a member of \`null\` is
+\`null\`, so \`isEmpty(output.query.first.title)\` over a query that found nothing is \`true\`. A path
+that does not exist at all is still an error — \`event.payload.title\` in a workflow, where \`event\` is
+already the payload, fails the run instead of quietly writing nothing. \`and\` and \`or\` stop
+at the side that decides, and \`? :\` and \`if(cond, a, b)\` evaluate only the branch they pick — every
+other function receives its arguments already evaluated.
+
 ### Business days
 
 The kernel counts business days; it does not know where the calendars live. An extension tells it,

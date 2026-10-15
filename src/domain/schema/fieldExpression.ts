@@ -24,6 +24,7 @@ import {
 import { matchesPermission } from './access/permissionPattern';
 import { currencyForLocale, formatMoneyFor } from './i18n/localeFormat';
 import { NOT_OPERATOR } from './expressionSyntax';
+import { installSafeMemberOperator, withSafeEvaluation } from './expressionEvaluation';
 import {
   addBusinessDays,
   businessDaysBetween,
@@ -406,6 +407,7 @@ const buildParser = (): Parser => {
    */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- expr-eval não tipa parser.unaryOps
   (parser.unaryOps as any)[NOT_OPERATOR] = (value: unknown) => !value;
+  installSafeMemberOperator(parser);
   return parser;
 };
 
@@ -441,7 +443,7 @@ export const evaluateFieldExpression = (expr: string, ctx: FieldExprContext): un
   if (ctx.timeZone) setAmbientTimeZone(ctx.timeZone);
   if (pushesCalendars) setAmbientBusinessCalendars(ctx.businessCalendars ?? null);
   try {
-    return fieldParser.parse(expr).evaluate(buildScope(ctx) as never);
+    return withSafeEvaluation(fieldParser.parse(expr)).evaluate(buildScope(ctx) as never);
   } finally {
     setAmbientEntity(previousEntity);
     setAmbientPermissions(previousPermissions);

@@ -18,6 +18,11 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.108.2] — 2026-10-15
+
+- fix(expressions): member access on `null` now reads `null` instead of throwing "Cannot read properties of null", in both the workflow engine and screen expressions. `output.q.first.x` over an empty query threw before `isEmpty`/`coalesce` could see it, failing the step in exactly the case the condition was written for. A shared token rewrite (`domain/schema/expressionEvaluation.ts`) turns each `IMEMBER` into a null-safe binary operator; it replaces the `actor`-only special case in `ExpressionEngine`. Member access on `undefined` still throws on purpose: it marks a path that does not exist (typically `event.payload.x`, where `event` is already the payload), and reading it as empty would silently write blank fields.
+- fix(expressions): `if(cond, a, b)` now evaluates only the chosen branch — the 3-argument call is rewritten to expr-eval's lazy ternary. As a function, both branches were evaluated first and the discarded one could throw. `and`/`or`/`?:` already short-circuited in expr-eval 2.0.2 and are unchanged.
+
 #### [9.108.1] — 2026-10-15
 
 - fix(workflow/hydration): `collectReferencedPaths` now walks composite `Literal` values and collects every nested object shaped as an `Event` or `Expression` mapping (`map` `fields[].value`, `query` `where[].value`, `remove` `id`, and any extension step that nests mappings), and the `condition` of in-flow `Condition` nodes. Those paths never entered the hydration plan, so `event.ref.field` there resolved empty with no error; the workaround was reading the value in a first-level `set-variable`.

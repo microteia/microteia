@@ -5582,10 +5582,23 @@ a separação:
 **Nas expressões, `actor` é `{ id, name, via } | null`** (`toExpressionActor`) — sem foto nem
 permissões: é identidade, e o acesso continua perguntado por `hasPermission`. Entra no escopo DEPOIS das
 variáveis, para um `set-variable` chamado `actor` não passar a dizer quem disparou. Sem ator, `actor.id`
-lê `null` em vez de estourar: o `expr-eval` acessa membro sem guarda, e a condição `actor.via == "agent"`
-derrubaria o passo justamente no gatilho de gravação. A correção é nos TOKENS parseados e só para esta
-raiz (`nullAbsentActorChains`) — a cadeia `actor.x.y` vira a constante `null`, e `isEmpty(actor)` segue
-`true`. O Script recebe a mesma forma no global `actor`. O editor oferece a raiz onde oferece `event`.
+lê `null` em vez de estourar — pela regra geral de membro nulo (ver "Avaliação segura das expressões"),
+que nasceu aqui como exceção só desta raiz e deixou de ser exceção. O Script recebe a mesma forma no
+global `actor`. O editor oferece a raiz onde oferece `event`.
+
+**Avaliação segura das expressões** (`domain/schema/expressionEvaluation.ts`, compartilhado). O
+`expr-eval` lê membro sem guarda (`n1[item.value]`): `output.q.first.x` sobre uma consulta vazia lançava
+"Cannot read properties of null", e `isEmpty`/`coalesce` em volta não ajudavam — o argumento estoura antes
+de a função ser chamada. `withSafeEvaluation` reescreve os TOKENS já parseados, nas duas pontas
+(`ExpressionEngine` e `evaluateFieldExpression`): cada `IMEMBER` vira o operador binário `?.`, que devolve
+`null` sobre `null` e lê o membro como antes no resto. Sobre `undefined` ele CONTINUA estourando, de
+propósito: `null` é "existe e está vazio" (consulta sem resultado — `first: null` —, ator ausente,
+referência em branco), `undefined` é "esse caminho não existe", quase sempre `event.payload.x` onde
+`event` já é o payload. `declarativeWorkflow.test.ts` guarda essa rede: ler vazio ali gravaria campo
+em branco sem nada acusar. Na mesma passada, `if(c, a, b)` de três argumentos vira o ternário nativo — como
+função, os dois ramos eram avaliados antes da chamada. `and`/`or`/`?:` NÃO precisam de nada: o
+`expr-eval` 2.0.2 já os curto-circuita (os ramos são `IEXPR`, avaliados sob demanda). O recorte dos
+argumentos do `if` é feito pela profundidade da pilha da notação polonesa, sem reparsear.
 
 **Na gravação, o autor sai do contexto, e não de uma opção de quem chama.** `runWorkflowUpsert` lê
 `context.actor`: com pessoa, `createdBy`/`updatedBy` = uid, `createdByName`/`updatedByName` e a foto pela

@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.108.2] — 2026-10-15
+
+- Corrigido um problema em que uma automação parava com erro ao ler uma informação de algo vazio — por exemplo, o primeiro item de uma busca que não encontrou nada. Agora essa informação simplesmente vem vazia, nas automações e nas telas.
+- Nas fórmulas, a função `if` passou a calcular só o caminho escolhido, como já fazia a forma `? :`, e o caminho descartado não causa mais erro.
+
 #### [9.108.1] — 2026-10-15
 
 - Corrigido um problema em que automações deixavam em branco, sem aviso, informações de um registro vinculado quando elas eram usadas dentro de um mapeamento, de um filtro de busca, de uma exclusão ou de uma condição no meio do fluxo.

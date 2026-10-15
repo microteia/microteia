@@ -4,6 +4,7 @@ import { expressionFunctions } from './FunctionRegistry';
 import { registerExpressionFunctionsFromPlugins } from '../../../infrastructure/workflow/loadWorkflowPlugins';
 import { operatorRegistry } from './OperatorRegistry';
 import { NOT_OPERATOR } from '../../schema/expressionSyntax';
+import { installSafeMemberOperator, withSafeEvaluation } from '../../schema/expressionEvaluation';
 import { LocalizedError } from '../../errors/LocalizedError';
 import { toExpressionActor } from '../workflowActor';
 import {
@@ -108,38 +109,6 @@ const buildVariablesContext = (context: WorkflowContext): Record<string, unknown
 
 export const ACTOR_ROOT = 'actor';
 
-interface ExprToken {
-  type: string;
-  value: unknown;
-}
-
-/**
- * `actor.id` sem ator lê `null`, e não estoura.
- *
- * O `expr-eval` acessa membro sem guarda (`n1[item.value]`): sobre `null`, a expressão lançaria
- * "Cannot read properties of null" — e a condição `actor.via == "agent"` derrubaria o passo justamente
- * na automação de gatilho, onde não há pessoa. A troca é feita nos TOKENS já parseados, e só para esta
- * raiz: a cadeia `actor.x.y` inteira vira a constante `null`, e `isEmpty(actor)` continua `true`
- * porque a raiz sozinha já é `null` no escopo.
- */
-const nullAbsentActorChains = (tokens: ExprToken[]): ExprToken[] => {
-  const out: ExprToken[] = [];
-  for (let index = 0; index < tokens.length; index += 1) {
-    const token = tokens[index];
-    if (token.type === 'IEXPR' && Array.isArray(token.value)) {
-      out.push({ ...token, value: nullAbsentActorChains(token.value as ExprToken[]) });
-      continue;
-    }
-    if (token.type === 'IVAR' && token.value === ACTOR_ROOT && tokens[index + 1]?.type === 'IMEMBER') {
-      while (tokens[index + 1]?.type === 'IMEMBER') index += 1;
-      out.push({ type: 'INUMBER', value: null });
-      continue;
-    }
-    out.push(token);
-  }
-  return out;
-};
-
 /**
  * ÚNICO ponto de leitura do catálogo de funções. Garante que as contribuições dos plugins já
  * foram registradas antes de responder — a carga é preguiçosa porque o módulo dos plugins importa
@@ -165,6 +134,7 @@ export const buildEngineParser = (): Parser => {
   });
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- expr-eval não tipa parser.unaryOps
   (parser.unaryOps as any)[NOT_OPERATOR] = (value: unknown) => !value;
+  installSafeMemberOperator(parser);
   return parser;
 };
 
@@ -255,11 +225,7 @@ class ExpressionEngineImpl implements ExpressionEngine {
 
       // expr-eval originalmente suporta apenas number/string/function/object
       // mas estendemos para Date, boolean e outros tipos via nossas funções customizadas
-      const parsed = parser.parse(expression);
-      if (variables[ACTOR_ROOT] === null) {
-        const holder = parsed as unknown as { tokens: ExprToken[] };
-        holder.tokens = nullAbsentActorChains(holder.tokens);
-      }
+      const parsed = withSafeEvaluation(parser.parse(expression));
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const result = parsed.evaluate(variables as any);
       return result;
