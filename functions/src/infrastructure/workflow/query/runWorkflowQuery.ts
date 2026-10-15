@@ -119,6 +119,47 @@ const documentFieldPath = (resolution: PathResolution, path: string): string | n
   return hop.materializeAt === path && !hop.multi ? hop.atPath : null;
 };
 
+const isDocumentIdPath = (resolution: PathResolution, path: string): boolean =>
+  resolution.hops.length === 0 && path.trim() === 'id';
+
+/**
+ * Os ids que um predicado sobre o id DO DOCUMENTO pede, ou `null` quando ele não é uma busca por id.
+ *
+ * O documento não guarda o próprio id — o repositório o retira antes de gravar —, então `id == X`
+ * descido como filtro de campo voltava SEMPRE vazio, e `id in [...]` só via o que coubesse no teto
+ * de varredura. Ler por id é o que o banco responde sem índice nenhum e sem varredura: a pergunta
+ * "leia o registro X" deixa de depender de o id ter chegado por uma referência do evento.
+ */
+const requestedDocumentIds = (predicate: ResolvedPredicate): string[] | null => {
+  const value = predicate.resolvedValue;
+  if (predicate.op === 'eq') {
+    return typeof value === 'string' || typeof value === 'number' ? [String(value)] : null;
+  }
+  if (predicate.op === 'in' && Array.isArray(value)) {
+    return value
+      .filter((item): item is string | number => typeof item === 'string' || typeof item === 'number')
+      .map(String);
+  }
+  return null;
+};
+
+const intersectIds = (current: string[] | null, next: string[]): string[] =>
+  current === null ? [...new Set(next)] : current.filter((id) => next.includes(id));
+
+const rowsByDocumentId = async (
+  ids: string[],
+  tenantId: string,
+  collection: string,
+  fetcher: IWorkflowRecordFetcher,
+): Promise<WorkflowQueryRow[]> => {
+  if (ids.length === 0) return [];
+  const fetched = await fetcher.fetchByIds(tenantId, collection, ids);
+  return ids.flatMap((id) => {
+    const data = fetched.get(id);
+    return data ? [{ id, data }] : [];
+  });
+};
+
 /**
  * Traz os registros apontados pelos CAMINHOS e os põe no lugar dos ids — nível a nível, uma leitura
  * por coleção por nível. É o mesmo par do `WorkflowContextHydrator` (`buildHydrationPlan` +
@@ -247,8 +288,15 @@ export async function runRecordQuery(
 
   const equalityFilters: WorkflowEqualityFilter[] = [];
   const memoryPredicates: ResolvedPredicate[] = [];
+  let documentIds: string[] | null = null;
   for (const predicate of predicates) {
     const resolution = resolvePath(ctx, resolved.root, parsePath(predicate.path));
+    if (isDocumentIdPath(resolution, predicate.path)) {
+      const ids = requestedDocumentIds(predicate);
+      if (ids !== null) documentIds = intersectIds(documentIds, ids);
+      memoryPredicates.push(predicate);
+      continue;
+    }
     // Data contra TEXTO não desce: o documento guarda um Timestamp, e o Firestore compara tipos
     // diferentes como diferentes — "2026-10-01" nunca seria igual a nada. Em memória o texto vira o
     // dia inteiro, que é o que quem filtra por um dia está perguntando.
@@ -269,7 +317,16 @@ export async function runRecordQuery(
     else memoryPredicates.push(predicate);
   }
 
-  const rows = await deps.queryRepository.queryByEquality(tenantId, resolved.physicalCollection, equalityFilters, limits.maxScan);
+  // Com ids em mãos, a leitura é direta e a varredura não acontece: os demais filtros de igualdade
+  // são conferidos em memória, sobre os poucos registros pedidos.
+  const byId = documentIds !== null;
+  if (byId) {
+    memoryPredicates.push(...predicates.filter((predicate) => !memoryPredicates.includes(predicate)));
+  }
+  const requestedIds = documentIds?.slice(0, limits.maxScan) ?? [];
+  const rows = byId
+    ? await rowsByDocumentId(requestedIds, tenantId, resolved.physicalCollection, deps.fetcher)
+    : await deps.queryRepository.queryByEquality(tenantId, resolved.physicalCollection, equalityFilters, limits.maxScan);
 
   const pathsToHydrate = [
     ...new Set([
@@ -312,7 +369,7 @@ export async function runRecordQuery(
       count: limited.length,
       first: limited[0] ?? null,
       scanned: rows.length,
-      complete: rows.length < limits.maxScan,
+      complete: byId ? (documentIds?.length ?? 0) <= limits.maxScan : rows.length < limits.maxScan,
     },
   };
 }

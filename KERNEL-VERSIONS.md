@@ -18,6 +18,10 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.108.3] — 2026-10-15
+
+- fix(workflow/query): a predicate on the root `id` with `eq` or `in` is now a direct document read (`fetchByIds` → `getAll`) instead of a Firestore equality filter on a field named `id`. Documents never store their own id, so `id == X` always came back empty and `id in [...]` only saw what fit under the 300-document scan ceiling; a workflow holding an id (a parameter, a field, another step's output) had no way to read that record. The remaining predicates of the same `where` are evaluated in memory over the records read; several id predicates intersect. Applies to every `runRecordQuery` caller: the `query` step, script `query()`, reports, the agent and document generation. Documented in AUTHORING §10.
+
 #### [9.108.2] — 2026-10-15
 
 - fix(expressions): member access on `null` now reads `null` instead of throwing "Cannot read properties of null", in both the workflow engine and screen expressions. `output.q.first.x` over an empty query threw before `isEmpty`/`coalesce` could see it, failing the step in exactly the case the condition was written for. A shared token rewrite (`domain/schema/expressionEvaluation.ts`) turns each `IMEMBER` into a null-safe binary operator; it replaces the `actor`-only special case in `ExpressionEngine`. Member access on `undefined` still throws on purpose: it marks a path that does not exist (typically `event.payload.x`, where `event` is already the payload), and reading it as empty would silently write blank fields.

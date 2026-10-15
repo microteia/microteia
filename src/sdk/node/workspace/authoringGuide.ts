@@ -1955,6 +1955,11 @@ In scope: \`input\` (the declared \`inputParams\`), \`actor\` (as in §9 — \`{
 budget per run is **25 queries, 25 mutations and 10 seconds**; a script that needs more than that is a
 Cloud Function (§14), not a script.
 
+**Reading a record by its id** is a filter on \`id\`, in \`query()\` and in the \`query\` step alike:
+\`where: [{ path: 'id', op: 'eq', value: someId }]\` for one, \`op: 'in'\` with a list for several. It reads
+those documents directly — no scan, no index, no 300-record ceiling — and any other filter in the same
+\`where\` is checked against what was read. An id that does not exist is simply absent from \`results\`.
+
 **A script travels with both \`sourceTs\` and \`compiledJs\`,** and the compiler does not fill the second
 in for you: the sandbox never transpiles, on purpose. Produce it with the same transpiler the platform
 uses — \`sucrase\` is already a devDependency of this workspace:

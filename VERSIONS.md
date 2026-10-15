@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.108.3] — 2026-10-15
+
+- As automações agora conseguem buscar um registro diretamente pelo identificador dele — por exemplo, um identificador recebido como parâmetro ou guardado em outro registro. Antes, essa busca voltava sempre vazia.
+
 #### [9.108.2] — 2026-10-15
 
 - Corrigido um problema em que uma automação parava com erro ao ler uma informação de algo vazio — por exemplo, o primeiro item de uma busca que não encontrou nada. Agora essa informação simplesmente vem vazia, nas automações e nas telas.

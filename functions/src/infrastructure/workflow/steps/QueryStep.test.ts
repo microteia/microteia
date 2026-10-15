@@ -234,3 +234,76 @@ describe('QueryStep — campo derivado na leitura', () => {
     expect((outcome.outputs?.results as { id: string }[]).map((r) => r.id)).toEqual(['d1', 'd2']);
   });
 });
+
+/**
+ * O documento não guarda o próprio id: descido como filtro de campo, `id == X` voltava sempre vazio.
+ * A busca por id é uma leitura direta, sem varredura e sem índice.
+ */
+describe('QueryStep — busca pelo id do documento', () => {
+  it('id eq lê o documento direto, sem varrer a coleção', async () => {
+    const fetcher = new FakeFetcher({ c7: { status: 'ativo' } });
+    const { repo, result } = run(
+      baseSpec({ where: [{ path: 'id', op: 'eq', value: { kind: 'Literal', value: 'c7' } }] }),
+      [],
+      fetcher,
+    );
+
+    const outcome = await result;
+    expect(outcome.success).toBe(true);
+    expect(repo.calls).toEqual([]);
+    expect(fetcher.calls).toContainEqual({ collection: 'contracts', ids: ['c7'] });
+    expect(outcome.outputs?.first).toMatchObject({ id: 'c7', status: 'ativo' });
+  });
+
+  it('id in traz só os que existem, na ordem pedida', async () => {
+    const fetcher = new FakeFetcher({ c1: { status: 'ativo' }, c3: { status: 'ativo' } });
+    const { result } = run(
+      baseSpec({ where: [{ path: 'id', op: 'in', value: { kind: 'Literal', value: ['c3', 'c2', 'c1'] } }] }),
+      [],
+      fetcher,
+    );
+
+    const outcome = await result;
+    expect((outcome.outputs?.results as { id: string }[]).map((r) => r.id)).toEqual(['c3', 'c1']);
+  });
+
+  it('os demais filtros são conferidos em memória sobre o registro lido', async () => {
+    const fetcher = new FakeFetcher({ c1: { status: 'ativo' }, c2: { status: 'encerrado' } });
+    const { repo, result } = run(
+      baseSpec({
+        where: [
+          { path: 'id', op: 'in', value: { kind: 'Literal', value: ['c1', 'c2'] } },
+          { path: 'status', op: 'eq', value: { kind: 'Literal', value: 'encerrado' } },
+        ],
+      }),
+      [],
+      fetcher,
+    );
+
+    const outcome = await result;
+    expect(repo.calls).toEqual([]);
+    expect((outcome.outputs?.results as { id: string }[]).map((r) => r.id)).toEqual(['c2']);
+  });
+
+  it('id inexistente devolve vazio, sem erro', async () => {
+    const { result } = run(
+      baseSpec({ where: [{ path: 'id', op: 'eq', value: { kind: 'Literal', value: 'nada' } }] }),
+      [],
+    );
+
+    const outcome = await result;
+    expect(outcome.success).toBe(true);
+    expect(outcome.outputs?.count).toBe(0);
+  });
+
+  it('id neq nunca vira filtro de campo no servidor', async () => {
+    const { repo, result } = run(
+      baseSpec({ where: [{ path: 'id', op: 'neq', value: { kind: 'Literal', value: 'c1' } }] }),
+      [{ id: 'c1', data: {} }, { id: 'c2', data: {} }],
+    );
+
+    const outcome = await result;
+    expect(repo.calls[0].equalityFilters).toEqual([]);
+    expect((outcome.outputs?.results as { id: string }[]).map((r) => r.id)).toEqual(['c2']);
+  });
+});
