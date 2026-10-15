@@ -18,6 +18,12 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.106.0] — 2026-10-15
+
+- feat(form-design): the platform's record gestures (`ui.record.action`, enabled per screen in `listActions`) moved from the "Listing" tab — which held nothing but their checkboxes and was not recognisable as actions — to the "Actions" tab, as a "Platform gestures" group beside the office actions, each marked as platform-owned and with move up/down. The "Listing" tab is gone.
+- feat(records): the card renders gestures in `listActions` order (`inScreenOrder`); contribution `order` only breaks ties within a slot (delete/unlink). Gestures still precede `cardActionIds`. A stored slot whose action is not installed keeps its position and is skipped by reordering.
+- fix(form-design): the tags guard on toggling a gesture uses the declared `requiresTags` instead of the literal `manageTags`.
+
 #### [9.105.1] — 2026-10-15
 
 - fix(documents): `resolveDocumentTemplates` translated `screenSourceId` and `datasets[].fromSourceId` only up to the installed screen KEY (`screenDefinitions/{id}`), while generation reads the schema, the record and the `<collection>.update` permission by the PHYSICAL collection. Any screen whose key differs from its `dataCollection` (`financeiro` → `financials`) offered the template and failed with `@core.automation/mutation.table.unknown`. The resolver now takes a `TemplateScreenIndex` (`templateScreenIndex(screens)`, shared by the front and `FirestoreDocumentTemplateSource`) and returns `collection`/`from` as the physical collection; a stored value that is not a screen key passes through unchanged. The Generate document dialog filters by the record's `collection` (`templatesForCollection`) instead of `screenKey`.

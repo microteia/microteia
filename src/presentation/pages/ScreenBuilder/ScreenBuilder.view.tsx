@@ -474,16 +474,6 @@ export const ScreenBuilderView: React.FC = () => {
               </>
             )}
 
-            {vm.screenModalTab === 'list' && vm.modalListActionOptions.map((option) => (
-              <S.CheckboxCell key={option.key}>
-                <Checkbox
-                  label={option.label}
-                  checked={vm.screenForm.listActions.includes(option.key)}
-                  onChange={() => vm.toggleListAction(option.key)}
-                  disabled={!vm.screenModalIsBuiltin && option.requiresTags && !vm.screenForm.hasTags}
-                />
-              </S.CheckboxCell>
-            ))}
             {vm.screenModalTab === 'actions' && (
               <>
                 <InputGroup>
@@ -504,6 +494,45 @@ export const ScreenBuilderView: React.FC = () => {
                     placeholder={t('screen.actions.none')}
                   />
                 </InputGroup>
+                {vm.gestureRows.length > 0 && (
+                  <S.FullRow>
+                    <InputGroup>
+                      <Label>{t('screen.gestures')}</Label>
+                      <S.FieldList>
+                        {vm.gestureRows.map((row) => (
+                          <S.FieldRow key={row.key}>
+                            <S.FieldInfo>
+                              <Checkbox
+                                label={row.label}
+                                checked={row.enabled}
+                                onChange={() => vm.toggleListAction(row.key)}
+                                disabled={!vm.screenModalIsBuiltin && row.requiresTags && !vm.screenForm.hasTags}
+                              />
+                            </S.FieldInfo>
+                            <S.PluginBadge>{t('screen.gestures.badge')}</S.PluginBadge>
+                            <S.CardActions>
+                              <S.IconButton
+                                title={t('action.move-up')}
+                                disabled={!row.canMoveUp}
+                                onClick={() => vm.moveListAction(row.key, -1)}
+                              >
+                                <RiArrowUpSLine size={18} />
+                              </S.IconButton>
+                              <S.IconButton
+                                title={t('action.move-down')}
+                                disabled={!row.canMoveDown}
+                                onClick={() => vm.moveListAction(row.key, 1)}
+                              >
+                                <RiArrowDownSLine size={18} />
+                              </S.IconButton>
+                            </S.CardActions>
+                          </S.FieldRow>
+                        ))}
+                      </S.FieldList>
+                      <S.FieldHint>{t('screen.gestures.hint')}</S.FieldHint>
+                    </InputGroup>
+                  </S.FullRow>
+                )}
               </>
             )}
 

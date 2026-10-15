@@ -350,7 +350,7 @@ const SCREEN_NOTES: Record<string, string> = {
   memberWritableFields: 'which fields any member may write regardless of permission. It is authorization, and the model '
     + 'expresses authorization only on a transition',
   authorCanDelete: 'whether the author deletes what they created. Also authorization',
-  listActions: 'the built-in gestures of the card — copy link, manage tags, delete',
+  listActions: 'the built-in gestures of the card, in the order it shows them — copy link, manage tags, delete',
   sidebarOrder: 'HUMAN: an order is a statement about what matters most here',
   hideFromParentTabs: 'a child that should NOT show up as a tab. The model has one reading of "child" and it is the tab',
   hideRecordsFromCommandPalette: 'whether the records of this collection stay out of the command palette search. Like '

@@ -132,6 +132,51 @@ export const listActionOptionsFrom = (actions: ResolvedRecordAction[]): ListActi
   return [...bySlot.values()];
 };
 
+/**
+ * Os gestos da plataforma como o escritório os vê na aba "Ações": os ligados primeiro, na ordem em
+ * que o cartão os mostra, e depois os disponíveis. Eles ficavam numa aba "Listagem" feita só de
+ * caixas, longe das ações do escritório e sem ordem — e quem configurava a tela não os achava.
+ */
+export interface GestureRow extends ListActionOption {
+  enabled: boolean;
+  canMoveUp: boolean;
+  canMoveDown: boolean;
+}
+
+export const gestureRowsFrom = (options: ListActionOption[], listActions: ScreenListAction[]): GestureRow[] => {
+  const enabled = listActions.flatMap((key) => options.filter((option) => option.key === key));
+  const available = options.filter((option) => !listActions.includes(option.key));
+  return [
+    ...enabled.map((option, index) => ({
+      ...option,
+      enabled: true,
+      canMoveUp: index > 0,
+      canMoveDown: index < enabled.length - 1,
+    })),
+    ...available.map((option) => ({ ...option, enabled: false, canMoveUp: false, canMoveDown: false })),
+  ];
+};
+
+/**
+ * Troca o gesto de lugar com o vizinho VISÍVEL. Um slot gravado cuja ação não está mais instalada
+ * fica onde está: some da tela, mas não da configuração, e volta ao lugar se a extensão voltar.
+ */
+export const moveListActionSlot = (
+  listActions: ScreenListAction[],
+  visible: ReadonlySet<string>,
+  key: ScreenListAction,
+  delta: -1 | 1,
+): ScreenListAction[] => {
+  const from = listActions.indexOf(key);
+  if (from < 0) return listActions;
+  let to = from + delta;
+  while (to >= 0 && to < listActions.length && !visible.has(listActions[to])) to += delta;
+  if (to < 0 || to >= listActions.length) return listActions;
+  const next = [...listActions];
+  [next[from], next[to]] = [next[to], next[from]];
+  return next;
+};
+
 export interface FieldOptionFormItem {
   label: string;
   color?: string;
@@ -185,7 +230,7 @@ export interface FieldFormState {
   fileMaxSizeMb: string;
 }
 
-export type ScreenModalTab = 'general' | 'list' | 'actions' | 'children';
+export type ScreenModalTab = 'general' | 'actions' | 'children';
 export type FieldModalTab = 'general' | 'advanced';
 
 export interface ScreenBuilderViewModel {
@@ -216,13 +261,14 @@ export interface ScreenBuilderViewModel {
   screenModalTabs: { key: ScreenModalTab; label: string }[];
   screenModalTab: ScreenModalTab;
   setScreenModalTab: (tab: ScreenModalTab) => void;
-  modalListActionOptions: ListActionOption[];
+  gestureRows: GestureRow[];
   actionOptions: { value: string; label: string }[];
   setScreenViewActionIds: (ids: string[]) => void;
   setScreenCardActionIds: (ids: string[]) => void;
   screenForm: ScreenFormState;
   updateScreenForm: (patch: Partial<ScreenFormState>) => void;
   toggleListAction: (action: ScreenListAction) => void;
+  moveListAction: (action: ScreenListAction, delta: -1 | 1) => void;
   titleFieldOptions: SearchSelectOption[];
   subtitleFieldOptions: SearchSelectOption[];
   childCandidates: ChildCandidate[];
@@ -943,7 +989,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
 
   const toggleListAction = useCallback((action: ScreenListAction) => {
     setScreenForm((prev) => {
-      if (action === 'manageTags' && !screenModalIsBuiltin && !prev.hasTags) return prev;
+      if (tagDependentSlots.has(action) && !screenModalIsBuiltin && !prev.hasTags) return prev;
       return {
         ...prev,
         listActions: prev.listActions.includes(action)
@@ -951,7 +997,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
           : [...prev.listActions, action],
       };
     });
-  }, [screenModalIsBuiltin]);
+  }, [screenModalIsBuiltin, tagDependentSlots]);
 
   const updateFieldForm = useCallback((patch: Partial<FieldFormState>) => {
     setFieldForm((prev) => {
@@ -1148,11 +1194,20 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     return listActionOptions.filter((option) => supported.includes(option.key));
   }, [screenModalIsBuiltin, screenModal, listActionOptions]);
 
+  const gestureRows = useMemo(
+    () => gestureRowsFrom(modalListActionOptions, screenForm.listActions),
+    [modalListActionOptions, screenForm.listActions],
+  );
+
+  const moveListAction = useCallback((action: ScreenListAction, delta: -1 | 1) => {
+    const visible = new Set(modalListActionOptions.map((option) => option.key));
+    setScreenForm((prev) => ({ ...prev, listActions: moveListActionSlot(prev.listActions, visible, action, delta) }));
+  }, [modalListActionOptions]);
+
   // Nas telas do sistema não há "Geral" (título, ícone e abas são fixos), e "Registros filhos"
   // só existe quando alguma tela aponta para esta.
   const screenModalTabs = useMemo<{ key: ScreenModalTab; label: string }[]>(() => [
     ...(screenModalIsBuiltin ? [] : [{ key: 'general' as const, label: t('screen.tab.general') }]),
-    { key: 'list' as const, label: t('screen.tab.list') },
     { key: 'actions' as const, label: t('screen.tab.actions') },
     ...(!!screenModal?.screenKey && childCandidates.length > 0
       ? [{ key: 'children' as const, label: t('screen.tab.children') }]
@@ -2129,7 +2184,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     screenModalOpen: screenModal !== null,
     screenModalIsEdit: !!screenModal?.screenKey,
     screenModalIsBuiltin,
-    modalListActionOptions,
+    gestureRows,
     actionOptions,
     setScreenViewActionIds,
     setScreenCardActionIds,
@@ -2144,6 +2199,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     screenForm,
     updateScreenForm,
     toggleListAction,
+    moveListAction,
     titleFieldOptions,
     subtitleFieldOptions,
     imageFieldOptions,

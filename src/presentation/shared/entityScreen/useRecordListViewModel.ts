@@ -25,6 +25,7 @@ import { useExprViewer } from '../useExprViewer';
 import { useActionReferences } from '../useActionReferences';
 import { useSchemaContext } from '../useSchemaContext';
 import { useRecordActions } from '../recordActions/useRecordActions';
+import { inScreenOrder } from '../recordActions/screenOrder';
 import type { RecordActionHost } from '../recordActions/recordActionHost';
 import { deriveListRows } from '../deriveEntitySchema';
 import { consumeNavigationIntent, subscribeNavigationIntent } from '../../../infrastructure/navigation/navigationIntent';
@@ -472,15 +473,14 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
   const getCardActions = useCallback((record: EntityRecord): RecordCardAction[] => {
     const exprContext = cardExprContext(record);
 
-    // As ações que a tela habilitou, resolvidas pelo SLOT: `delete` traz excluir e desvincular, e
-    // o `hiddenWhen` de cada uma decide qual o usuário vê. O kernel não conhece nenhuma pelo nome.
-    const enabledSlots = new Set<string>(definition?.listActions ?? []);
+    // As ações que a tela habilitou, resolvidas pelo SLOT e na ordem que ela configurou: `delete`
+    // traz excluir e desvincular, e o `hiddenWhen` de cada uma decide qual o usuário vê. O kernel
+    // não conhece nenhuma pelo nome.
     // O portão de admin cede à declaração da tela: onde a autoria é a posse (`authorCanDelete`),
     // quem escreveu enxerga a ação sobre o que escreveu. Espelha o `firestore.rules` — a UI não
     // oferece o que o servidor recusaria, nem esconde o que ele aceita.
     const isAuthorOfRecord = !!definition?.authorCanDelete && record.createdBy === viewer.id;
-    const native = recordActions
-      .filter((action) => enabledSlots.has(action.slot))
+    const native = inScreenOrder(recordActions, definition?.listActions ?? [])
       .filter((action) => !action.metadata.requiresRecordPermission
         || can(`${collection}.${action.metadata.requiresRecordPermission}`)
         || isAuthorOfRecord)

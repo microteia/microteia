@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.106.0] — 2026-10-15
+
+- No Form Design, os gestos da plataforma no card — copiar link, duplicar, etiquetas, gerar documento, excluir — passaram para a aba Ações, marcados como da plataforma, ao lado das ações do escritório. Agora dá para ligar, desligar e reordenar cada um, e o card os mostra na ordem escolhida.
+
 #### [9.105.1] — 2026-10-15
 
 - Corrigida a geração de documentos a partir de modelos em telas como Financeiro, Processos e Contratos: o modelo agora é oferecido no registro e gerado sem o aviso de que a tabela não existe, tanto pelo botão Gerar documento quanto pelas automações.

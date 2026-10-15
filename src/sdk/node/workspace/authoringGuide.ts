@@ -1246,7 +1246,7 @@ screens: [{
   subtitleFieldKey: 'client',
   fields: FIELDS,
   hasNotes: true, hasDocuments: true, hasTags: true, tagCollection: 'invoiceTags',
-  listActions: ['copyLink', 'manageTags', 'delete'],
+  listActions: ['copyLink', 'manageTags', 'delete'],   // the card shows them in this order
   sidebarOrder: 60,
 }]
 \`\`\`

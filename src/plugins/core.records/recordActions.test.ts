@@ -9,7 +9,12 @@ import { SCREEN_ICON_KEYS } from '../../domain/schema/ui/screenIconCatalog';
 import { RECORD_ACTION_METADATA, unlinkCommand } from './recordActionCommands';
 import type { RecordActionHost } from '../../presentation/shared/recordActions/recordActionHost';
 import type { ResolvedRecordAction } from '../../presentation/shared/recordActions/useRecordActions';
-import { listActionOptionsFrom } from '../../presentation/pages/ScreenBuilder/ScreenBuilder.viewmodel';
+import {
+  gestureRowsFrom,
+  listActionOptionsFrom,
+  moveListActionSlot,
+} from '../../presentation/pages/ScreenBuilder/ScreenBuilder.viewmodel';
+import { inScreenOrder } from '../../presentation/shared/recordActions/screenOrder';
 
 /** As cinco do core.records na forma em que a tela as consome. */
 const builtinResolved = (): ResolvedRecordAction[] =>
@@ -102,7 +107,7 @@ describe('uma ação de extensão alcança a configuração da tela', () => {
     run: vi.fn(),
   };
 
-  it('a caixa da aba "Listagem" sai das contribuições, não de uma lista escrita à mão', () => {
+  it('o gesto do Form Design sai das contribuições, não de uma lista escrita à mão', () => {
     const options = listActionOptionsFrom([...builtinResolved(), extensionAction]);
     expect(options.map((option) => option.key)).toContain('exportPdf');
   });
@@ -118,6 +123,38 @@ describe('uma ação de extensão alcança a configuração da tela', () => {
     const options = listActionOptionsFrom(builtinResolved());
     expect(options.find((option) => option.key === 'manageTags')?.requiresTags).toBe(true);
     expect(options.find((option) => option.key === 'clone')?.requiresTags).toBe(false);
+  });
+});
+
+/**
+ * Os gestos ficavam numa aba "Listagem" feita só de caixas, longe da aba "Ações", e o cartão os
+ * desenhava na ordem da contribuição: quem configurava a tela não os achava, e não tinha como
+ * reordená-los.
+ */
+describe('o escritório ordena os gestos da plataforma', () => {
+  it('o cartão segue a ordem de listActions, não a da contribuição', () => {
+    const ordered = inScreenOrder(builtinResolved(), ['delete', 'copyLink']);
+    expect(ordered.map((action) => action.metadata.key)).toEqual(['delete', 'unlink', 'copyLink']);
+  });
+
+  it('o slot que a tela não habilitou não aparece', () => {
+    expect(inScreenOrder(builtinResolved(), ['clone']).map((action) => action.slot)).toEqual(['clone']);
+  });
+
+  it('os ligados vêm primeiro, na ordem configurada, e só eles se movem', () => {
+    const rows = gestureRowsFrom(listActionOptionsFrom(builtinResolved()), ['delete', 'copyLink']);
+    expect(rows.slice(0, 2).map((row) => [row.key, row.enabled, row.canMoveUp, row.canMoveDown])).toEqual([
+      ['delete', true, false, true],
+      ['copyLink', true, true, false],
+    ]);
+    expect(rows.slice(2).every((row) => !row.enabled && !row.canMoveUp && !row.canMoveDown)).toBe(true);
+  });
+
+  it('mover pula o slot gravado cuja ação não está instalada, e o mantém no lugar', () => {
+    const visible = new Set(['copyLink', 'delete']);
+    expect(moveListActionSlot(['copyLink', 'exportPdf', 'delete'], visible, 'delete', -1))
+      .toEqual(['delete', 'exportPdf', 'copyLink']);
+    expect(moveListActionSlot(['copyLink', 'delete'], visible, 'copyLink', -1)).toEqual(['copyLink', 'delete']);
   });
 });
 

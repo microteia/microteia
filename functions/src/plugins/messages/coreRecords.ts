@@ -66,10 +66,13 @@ export const CORE_RECORDS_MESSAGES: Record<string, string> = {
   'screen.detail-actions': 'Detail screen actions',
   'screen.card-actions': 'List card actions',
   'screen.actions.none': 'No action',
+  'screen.gestures': 'Platform gestures on the card',
+  'screen.gestures.badge': 'Platform',
+  'screen.gestures.hint':
+    'Operations the platform performs on the record itself. They show on the card before the office actions, in this order. To offer one on the detail screen, create an action that runs its command.',
   'screen.meta.fields': '{count} field(s)',
   'screen.meta.extra-fields': '{count} extra field(s)',
   'screen.tab.general': 'General',
-  'screen.tab.list': 'Listing',
   'screen.tab.actions': 'Actions',
   'screen.tab.children': 'Child records',
   'screen.tag-collection.hint':

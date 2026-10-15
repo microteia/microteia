@@ -59,10 +59,13 @@ export const CORE_RECORDS: Record<string, string> = {
   'screen.detail-actions': 'Ações da tela de detalhe',
   'screen.card-actions': 'Ações do card na listagem',
   'screen.actions.none': 'Nenhuma ação',
+  'screen.gestures': 'Gestos da plataforma no card',
+  'screen.gestures.badge': 'Plataforma',
+  'screen.gestures.hint':
+    'Operações que a plataforma executa sobre o próprio registro. Aparecem no card antes das ações do escritório, nesta ordem. Para oferecer uma delas na tela de detalhe, crie uma ação que execute o comando dela.',
   'screen.meta.fields': '{count} campo(s)',
   'screen.meta.extra-fields': '{count} campo(s) adicional(is)',
   'screen.tab.general': 'Geral',
-  'screen.tab.list': 'Listagem',
   'screen.tab.actions': 'Ações',
   'screen.tab.children': 'Registros filhos',
   'screen.tag-collection.hint':

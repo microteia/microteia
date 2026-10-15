@@ -4534,7 +4534,7 @@ das embutidas já existia.
 
 | Configuração | O que lista | Onde se configura |
 |---|---|---|
-| `listActions` | os SLOTS de ação de registro que a tela oferece | aba "Listagem" do Form Design (caixas) |
+| `listActions` | os SLOTS de ação de registro que a tela oferece, **na ordem do cartão** | aba "Ações" do Form Design, como "Gestos da plataforma" |
 | `cardActionIds` / `viewActionIds` | `ActionDefinition` do escritório | aba "Ações" do Form Design |
 
 `getCardActions` percorre as ações contribuídas e fica com aquelas cujo `slot` está em
@@ -4545,14 +4545,41 @@ Para que isso valesse também para uma ação NOVA, duas coisas tiveram de abrir
 
 - **`ScreenListAction` virou `string`**, pelo mesmo motivo de `EntityKey`: o conjunto é DADO, não
   união fechada. Fechado, o nome da ação de uma extensão nunca poderia ser gravado em `listActions`.
-- **As caixas da aba "Listagem" saem das contribuições** (`listActionOptionsFrom`), não de uma lista
+- **Os gestos do Form Design saem das contribuições** (`listActionOptionsFrom`), não de uma lista
   literal. Duas ações no mesmo slot são UMA caixa, e a caixa carrega a dependência de etiquetas que a
   ação declarou (`requiresTags`) — o Form Design não conhece mais a palavra `manageTags`.
 
 **O que ainda não é declaração:** o cabeçalho do detalhe continua com os botões fixos de
-gravar/copiar/duplicar/excluir, e `listActions` e "Ações" continuam sendo duas listas. Unificá-las
-exige criar documentos de `ActionDefinition` por escritório — migração de dados, não refatoração —, e
-é o passo seguinte.
+gravar/copiar/duplicar/excluir, e `listActions` e `cardActionIds` continuam sendo duas listas
+gravadas. Unificá-las exige criar documentos de `ActionDefinition` por escritório — migração de
+dados, não refatoração —, e é o passo seguinte.
+
+### Os gestos moram na aba "Ações", e a ordem deles é a do cartão
+
+Os gestos já eram configuráveis, mas ficavam numa aba "Listagem" feita SÓ das caixas — o nome não
+dizia "ação", e quem configurava a tela procurava em "Ações", onde estavam as do escritório, e
+concluía que os gestos não existiam no Form Design. E o cartão os desenhava na ordem da
+contribuição: ligar e desligar havia, reordenar não.
+
+A aba "Listagem" deixou de existir. Em "Ações", abaixo das listas do escritório, o grupo **Gestos da
+plataforma** mostra cada slot com a marca *Plataforma*, a caixa que o liga e as setas que o movem
+(`gestureRowsFrom`, `moveListActionSlot`). O cartão segue a ordem de `listActions`
+(`inScreenOrder`); a da contribuição só desempata o mesmo slot, em que no máximo uma aparece.
+
+Duas saídas foram descartadas, e o motivo de cada uma é o que fixa a fronteira:
+
+- **Gravar o gesto dentro de `cardActionIds`**, com um prefixo reservado, daria uma lista só com
+  ordem livre entre os dois tipos. Mas `cardActionIds` é lido como id de `ActionDefinition` pela
+  instalação (remapeia `templateId`), pela desinstalação, pelo `validatePackage`, pelo
+  `screenToPatch` e pelo `describe_screen` — cada um ganharia um caso especial, que é exatamente o
+  que o ponto `ui.record.action` tirou do kernel. A ordem fica: gestos primeiro, depois as do
+  escritório, cada grupo na ordem que o escritório deu.
+- **Documentar `listActions` como gesto que o escritório não configura** seria falso: a tela grava
+  e o Form Design edita. O gesto que se quer NO DETALHE, ou intercalado com as do escritório, é uma
+  Action com `command` — e esse caminho continua aberto, como a dica do grupo diz.
+
+Um slot gravado cuja ação não está instalada fica onde está: não aparece, as setas pulam por cima
+dele, e ele volta ao lugar se a extensão voltar.
 
 ### Quem abre um registro de fora não guarda a chave da aba
 
@@ -4679,7 +4706,7 @@ Para isso o `EntityListCard` ganhou slots opcionais — `belowHeader` (entre cab
 
 **Atenção:** `ui.list.icon` é string livre e um nome errado cai no ícone de fallback silenciosamente (aconteceu com `'money'`, que não existe — o correto é `'moneyDollar'`). Há teste em `deriveEntitySchema.test.ts` que varre os `ui.list` das cinco entidades e falha apontando campo e ícone.
 
-**Ações no card da listagem:** o `EntityListCard` aceita `actions` (ícone + `onClick`, `copyLink`/`clone`/`manageTags`/`delete`). Nas telas dinâmicas isso é **configurável**: `ScreenDefinition.listActions: ScreenListAction[]` (tipo em `entitySchemas.ts`, sincronizado; persistido em `screenDefinitions/{key}` e lido em `mapScreenDefinition`, default `[]`). No `ScreenBuilder`, o modal de tela tem o grupo "Ações no card da listagem" (`LIST_ACTION_OPTIONS` + `toggleListAction`; `manageTags` desabilitado sem `hasTags`). `DynamicRecordList` monta as ações via `getCardActions` filtrando por `listActions` (+ `delete` só admin, `manageTags` só com `hasTags`) e provê os modais `TagManager`/`ConfirmModal` — mesmo padrão de `Persons` (`PERSON_LIST_CONFIG.actions`). **Atenção:** `toSaveInput`/`builtinSaveInput` listam campos à mão — qualquer campo novo de `ScreenDefinition` precisa ser adicionado neles, senão salvamentos parciais o apagam.
+**Ações no card da listagem:** o `EntityListCard` aceita `actions` (ícone + `onClick`, `copyLink`/`clone`/`manageTags`/`delete`). Nas telas dinâmicas isso é **configurável**: `ScreenDefinition.listActions: ScreenListAction[]` (tipo em `entitySchemas.ts`, sincronizado; persistido em `screenDefinitions/{key}` e lido em `mapScreenDefinition`, default `[]`). No `ScreenBuilder`, a aba "Ações" do modal de tela tem o grupo "Gestos da plataforma" (`gestureRows` + `toggleListAction`/`moveListAction`; o gesto que declara `requiresTags` fica desabilitado sem `hasTags`). `DynamicRecordList` monta as ações via `getCardActions` na ordem de `listActions` (+ `delete` só admin, `manageTags` só com `hasTags`) e provê os modais `TagManager`/`ConfirmModal` — mesmo padrão de `Persons` (`PERSON_LIST_CONFIG.actions`). **Atenção:** `toSaveInput`/`builtinSaveInput` listam campos à mão — qualquer campo novo de `ScreenDefinition` precisa ser adicionado neles, senão salvamentos parciais o apagam.
 
 ### Actions Customizadas
 
@@ -7539,7 +7566,7 @@ anexar, e anexar altera o registro, a mesma cobrança de `attach_document`.
 ### O gesto — e o diálogo que ele abre
 
 `generateDocument` é uma ação de registro (`ui.record.action`) do `core.documents`, com
-`requiresRecordPermission: 'update'`. No cartão aparece pela caixa da aba "Listagem" do Form Design
+`requiresRecordPermission: 'update'`. No cartão aparece pelos "Gestos da plataforma" da aba "Ações" do Form Design
 (opt-in: a tela nova não nasce com ela); no detalhe, por uma Action do escritório com
 `command: 'generateDocument'`.
 
