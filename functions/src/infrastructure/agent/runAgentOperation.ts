@@ -8,7 +8,8 @@ import { WORKFLOW_CALLED_EVENT } from '../../domain/schema/eventCatalog';
 import type { RuleIssue } from '../../domain/schema/fieldRules';
 import { ruleIssueParams } from '../../domain/schema/fieldRules';
 import { checkAgentInput } from '../../domain/schema/agent/agentInput';
-import { AGENT_SEARCH_MAX_RESULTS } from '../../domain/schema/agent/agentOps';
+import { AGENT_SEARCH_MAX_RESULTS, AGENT_WORKFLOW_TRIGGERS } from '../../domain/schema/agent/agentOps';
+import type { AgentWorkflowTrigger } from '../../domain/schema/agent/agentOps';
 import { searchAuditLog } from './agentAuditLog';
 import { applyDerivedFields, tableMentionsBusinessDays } from '../../domain/schema/recordRules';
 import { withAmbientTimeZone } from '../../domain/schema/clockGate';
@@ -39,7 +40,7 @@ import { describeScreen, officeScreens } from './describeScreen';
 import { authorizeOperation, permissionCharge, resolveTool } from './agentAuthorization';
 import type { PreparedParameters } from './agentParameters';
 import { ACTION_SYSTEM_PARAMETERS, prepareParameters } from './agentParameters';
-import { describeAgentWorkflow, previewAgentWorkflow, screenActions } from './agentWorkflows';
+import { describeAgentWorkflow, listAgentWorkflows, previewAgentWorkflow, screenActions } from './agentWorkflows';
 import type { AgentDocumentOutcome } from './agentDocuments';
 import { attachAgentDocument, describeDocuments, listAgentDocuments } from './agentDocuments';
 
@@ -113,6 +114,9 @@ const asRecord = (value: unknown): Record<string, unknown> =>
     : {};
 
 const asText = (value: unknown): string => (typeof value === 'string' ? value.trim() : '');
+
+const agentTriggerFilter = (value: unknown): AgentWorkflowTrigger | 'all' =>
+  (AGENT_WORKFLOW_TRIGGERS as readonly unknown[]).includes(value) ? value as AgentWorkflowTrigger : 'all';
 
 /**
  * O filtro do agente vira o filtro do executor.
@@ -319,6 +323,14 @@ export const runAgentOperation = async (
     case 'run_report':
       return runAgentReport(input, session, catalog, schema);
 
+    case 'list_workflows':
+      return {
+        ok: true,
+        value: {
+          workflows: await listAgentWorkflows(session.tenantId, catalog, agentTriggerFilter(input.trigger)),
+        },
+      };
+
     case 'describe_workflow':
       return describeWorkflowOperation(input, session, catalog, schema);
 
@@ -455,11 +467,9 @@ const describeWorkflowOperation = async (
 ): Promise<AgentOperationOutcome> => {
   const definition = await getDI().getWorkflowDefinitionRepository()
     .findByRef(session.tenantId, asText(input.workflow));
-  // A mesma recusa para "não existe" e "não é chamável": a lista do recurso só mostra as chamáveis,
-  // e descrever uma de gatilho faria o agente tentar iniciá-la.
-  if (!definition || definition.eventName !== WORKFLOW_CALLED_EVENT) {
-    return refuse(catalog, '@core.admin/processor.workflow-not-found');
-  }
+  // A de gatilho também é descrita: `callable: false` e o `trigger` dizem que ela não se inicia, e o
+  // relógio responde "quando roda?" e "rodou?". Quem a tentar iniciar continua recusado em `run_workflow`.
+  if (!definition) return refuse(catalog, '@core.admin/processor.workflow-not-found');
   return { ok: true, value: await describeAgentWorkflow(definition, schema, catalog) };
 };
 
@@ -485,13 +495,16 @@ const readAgentWorkflowRun = async (
       // Vazio não é "nada vai acontecer": a publicação e a execução são invocações diferentes, e
       // dizê-lo evita o modelo concluir que a automação falhou quando ela ainda não começou.
       pending: executions.length === 0,
-      finished: executions.length > 0 && executions.every((execution) => execution.status !== 'RUNNING'),
+      // `WAITING` não terminou: a MESMA execução retoma em `resumeAt`, no mesmo histórico.
+      finished: executions.length > 0
+        && executions.every((execution) => execution.status !== 'RUNNING' && execution.status !== 'WAITING'),
       runs: executions.map((execution) => ({
         id: execution.id,
         workflow: execution.workflowDefinitionId,
         status: execution.status,
         startedAt: execution.startedAt.toISOString(),
         ...(execution.finishedAt ? { finishedAt: execution.finishedAt.toISOString() } : {}),
+        ...(execution.status === 'WAITING' && execution.resumeAt ? { resumeAt: execution.resumeAt.toISOString() } : {}),
         // O log do motor é escrito como REFERÊNCIA, e é aqui que ele vira frase. Sem isto o agente
         // receberia `@core.automation/condition.field.eval-failed` como explicação.
         log: execution.logs.map((entry) => ({

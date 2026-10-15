@@ -26,6 +26,7 @@ export const AGENT_OPERATIONS = [
   'list_documents',
   'attach_document',
   'run_report',
+  'list_workflows',
   'describe_workflow',
   'run_workflow',
   'get_workflow_run',
@@ -34,6 +35,14 @@ export const AGENT_OPERATIONS = [
 ] as const;
 
 export type AgentOperation = (typeof AGENT_OPERATIONS)[number];
+
+/**
+ * Como uma automação NASCE, no vocabulário que o agente lê. Só `called` é iniciável por ele; as
+ * outras disparam sozinhas, e descrevê-las é o que responde "quando roda?" e "rodou?".
+ */
+export const AGENT_WORKFLOW_TRIGGERS = ['called', 'record', 'date-reached', 'schedule', 'other'] as const;
+
+export type AgentWorkflowTrigger = (typeof AGENT_WORKFLOW_TRIGGERS)[number];
 
 /**
  * Como a permissão de uma operação é cobrada.
@@ -352,6 +361,27 @@ export const AGENT_TOOLS: readonly AgentToolDefinition[] = [
     writes: false,
   },
   {
+    name: 'list_workflows',
+    description:
+      'Every automation of the office, with how each one starts: "called" ones are started with '
+      + 'run_workflow; "record" ones run when a record of a collection is saved or deleted; '
+      + '"date-reached" ones when a date field of a record arrives; "schedule" ones on a clock (cron, '
+      + 'in the office time zone). Only "called" ones can be started — the others start by themselves, '
+      + 'and describe_workflow says when they run next and how the last run went.',
+    inputSchema: object(
+      {
+        trigger: {
+          type: 'string',
+          enum: [...AGENT_WORKFLOW_TRIGGERS, 'all'],
+          description: 'Only automations that start this way. Default: all.',
+        },
+      },
+      [],
+    ),
+    permission: { kind: 'fixed', id: PERMISSION_AUTOMATION_RUN },
+    writes: false,
+  },
+  {
     name: 'describe_workflow',
     description:
       'Everything needed to call one automation right the first time: every parameter with its key, '
@@ -359,9 +389,13 @@ export const AGENT_TOOLS: readonly AgentToolDefinition[] = [
       + 'example; the collections it reads, writes and deletes from; a summary of its steps with '
       + 'their inputs and conditions; the shape of its result; and whether running it twice is safe '
       + '("idempotent": yes / no / unknown, with "because": reads-only, keyed-writes — a repeat is '
-      + 'refused as a duplicate —, may-duplicate, notifies, or opaque-steps).',
+      + 'refused as a duplicate —, may-duplicate, notifies, appends — every run attaches a new file —, '
+      + 'or opaque-steps). "pausesAt" lists the steps where a run stops and resumes later on its own. '
+      + 'An automation that starts by itself ("callable": false) also says its "trigger" and, on a '
+      + 'date or a clock, its "clock": the next run, the time zone, and the last run — fired or skipped '
+      + 'and why, with the event id get_workflow_run reads.',
     inputSchema: object(
-      { workflow: { type: 'string', description: 'The automation id, as microteia://office/workflows lists it.' } },
+      { workflow: { type: 'string', description: 'The automation id, as list_workflows lists it.' } },
       ['workflow'],
     ),
     permission: { kind: 'fixed', id: PERMISSION_AUTOMATION_RUN },
@@ -401,7 +435,9 @@ export const AGENT_TOOLS: readonly AgentToolDefinition[] = [
     description:
       'How an automation started by run_workflow went: its status, its execution log and its '
       + 'outputs. "pending": true means the run has not started yet, and "finished": false that it is '
-      + 'still running — call again in both cases. An event id no run_workflow returned is refused.',
+      + 'still running or waiting — call again in both cases. A run with status WAITING is paused on '
+      + 'purpose and resumes by itself at "resumeAt"; CANCELLED means it had nothing left to resume. '
+      + 'An event id no run_workflow returned is refused.',
     inputSchema: object(
       { eventId: { type: 'string', description: 'The event id run_workflow returned.' } },
       ['eventId'],

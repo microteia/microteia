@@ -131,6 +131,8 @@ const STEP_INPUT_REACH: Record<string, string | null> = {
   'notify.message': null,
   'validate-object.validate': null,
   'call-workflow.targetWorkflowId': 'effect "call-automation" (target)',
+  'render-document.templateKey': 'effect "generate-document" (template)',
+  'render-document.recordId': 'effect "generate-document" — the record of the transition',
   'query.query': 'trigger "schedule" — the collection and the `from` of the transition, as the filter',
 };
 

@@ -57,6 +57,7 @@ export const EFFECT_KINDS = [
   'notify',
   'call-automation',
   'wait',
+  'generate-document',
 ] as const;
 export type EffectKind = (typeof EFFECT_KINDS)[number];
 
@@ -177,6 +178,13 @@ export interface BehaviorEffect {
    * seguintes veem o registro como estava na passagem — a espera não reconfere o estado.
    */
   duration?: string;
+  /**
+   * `generate-document`: a CHAVE do modelo de documento preenchido com o registro da transição — o
+   * modelo nomeia a tela, e por isso o registro é sempre o da própria entidade.
+   */
+  template?: string;
+  /** `generate-document`: `pdf` (padrão) ou `docx`. */
+  output?: string;
 }
 
 export interface BehaviorTransition {
@@ -388,6 +396,8 @@ const readEffect = (raw: unknown, name: string, issues: DomainIssue[]): Behavior
   if (str(raw.value) !== undefined) effect.value = str(raw.value) as string;
   if (str(raw.target) !== undefined) effect.target = str(raw.target) as string;
   if (str(raw.duration) !== undefined) effect.duration = str(raw.duration) as string;
+  if (str(raw.template) !== undefined) effect.template = str(raw.template) as string;
+  if (str(raw.output) !== undefined) effect.output = str(raw.output) as string;
   if (isRecord(raw.aggregation)) {
     const from = str(raw.aggregation.from);
     const via = str(raw.aggregation.via);

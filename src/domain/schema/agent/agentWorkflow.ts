@@ -1,10 +1,13 @@
-import type { Condition, InputMapping, WorkflowParameter, WorkflowStep } from '../../entities/Workflow';
+import type { Condition, InputMapping, WorkflowDefinition, WorkflowParameter, WorkflowStep } from '../../entities/Workflow';
 import type { MessageCatalog } from '../i18n/messages';
 import { resolveLabel } from '../i18n/messageRef';
 import type { WorkflowStepMetadata } from '../workflowStepCatalog';
-import { CORE_STEP_CATALOG } from '../workflowStepCatalog';
+import { CORE_STEP_CATALOG, isPausingStepDefinition } from '../workflowStepCatalog';
 import { returningStepsOf } from '../workflowReturn';
+import { WORKFLOW_CALLED_EVENT, splitEntityEventName } from '../eventCatalog';
+import { DEFAULT_DATE_REACHED_AT, WORKFLOW_SCHEDULE_EVENT } from '../workflowClock';
 import { agentParameterAccepts, agentParameterPlaceholder } from './agentOps';
+import type { AgentWorkflowTrigger } from './agentOps';
 
 /**
  * Uma automação como um agente precisa vê-la para chamá-la sem tentativa e erro.
@@ -266,12 +269,14 @@ const walk = (summaries: readonly AgentStepSummary[]): AgentStepSummary[] =>
  *   não vira um segundo registro.
  * - `may-duplicate` — grava numa coleção sem chave única; repetir pode criar registros a mais.
  * - `notifies` — um passo de notificação manda de novo a cada execução.
+ * - `appends` — um passo acrescenta um artefato novo a cada execução (`appendsEachRun` no catálogo),
+ *   como o documento gerado e anexado ao registro.
  * - `opaque-steps` — há Script, chamada de outra automação ou passo desconhecido, cujo efeito não se
  *   lê da declaração.
  */
 export type AgentIdempotency =
   | { idempotent: 'yes'; because: 'reads-only' | 'keyed-writes' }
-  | { idempotent: 'no'; because: 'may-duplicate' | 'notifies' }
+  | { idempotent: 'no'; because: 'may-duplicate' | 'notifies' | 'appends' }
   | { idempotent: 'unknown'; because: 'opaque-steps' };
 
 export interface AgentWorkflowDataAccess {
@@ -314,11 +319,24 @@ export const workflowIdempotency = (
   const notifies = enabled.some((one) => steps.get(one.step ?? '')?.category === 'Notification');
   if (notifies) return { idempotent: 'no', because: 'notifies' };
 
+  const appends = enabled.some((one) => steps.get(one.step ?? '')?.appendsEachRun === true);
+  if (appends) return { idempotent: 'no', because: 'appends' };
+
   if (access.writes.length === 0) return { idempotent: 'yes', because: 'reads-only' };
   return access.writes.every((write) => write.uniqueKeys.length > 0)
     ? { idempotent: 'yes', because: 'keyed-writes' }
     : { idempotent: 'no', because: 'may-duplicate' };
 };
+
+/**
+ * Onde a execução PAUSA e retoma depois (`get_workflow_run` responde `WAITING` com `resumeAt`). Só o
+ * nível principal pausa — é a regra do motor —, então só ele é lido. Sem isto o agente via a execução
+ * parada e concluía que tinha acabado, ou que travou.
+ */
+export const workflowPauses = (summaries: readonly AgentStepSummary[]): string[] =>
+  summaries
+    .filter((one) => one.kind === 'step' && one.enabled !== false && isPausingStepDefinition(one.step))
+    .map((one) => one.id);
 
 export interface AgentWorkflowOutput {
   /** O passo cujas saídas viram o resultado — mais de um quando depende do ramo que executar. */
@@ -358,3 +376,49 @@ export const workflowOutputs = (
 /** O catálogo de passos indexado, com os do kernel como base e os registrados por cima. */
 export const indexStepCatalog = (registered: readonly WorkflowStepMetadata[] = []): StepCatalog =>
   new Map([...CORE_STEP_CATALOG, ...registered].map((step) => [step.id, step]));
+
+export interface AgentTriggerDescription {
+  kind: AgentWorkflowTrigger;
+  /** O prefixo de evento da coleção (`record` e `date-reached`) — o mesmo nome que a tela emite. */
+  on?: string;
+  /** `record`: em que gesto sobre o registro. */
+  when?: 'saved' | 'deleted';
+  /** `date-reached`: o campo vigiado, o deslocamento em dias e a hora no fuso do escritório. */
+  field?: string;
+  offset?: string;
+  at?: string;
+  /** `schedule`: o cron, e o fuso só quando a automação sobrescreve o do escritório. */
+  cron?: string;
+  timeZone?: string;
+  /** `other`: o nome do evento, para o que não tem vocabulário próprio (lista de opções, nota, anexo). */
+  eventName?: string;
+}
+
+/**
+ * Como a automação nasce, lido da declaração. É a mesma regra de quem a dispara de verdade: o relógio
+ * (`schedule`, `dateReached`), o publicador de gravação (`saved`/`deleted`) e quem chama (`called`).
+ */
+export const describeWorkflowTrigger = (
+  definition: Pick<WorkflowDefinition, 'eventName' | 'schedule' | 'dateReached'>,
+): AgentTriggerDescription => {
+  if (definition.eventName === WORKFLOW_CALLED_EVENT) return { kind: 'called' };
+  if (definition.eventName === WORKFLOW_SCHEDULE_EVENT) {
+    return {
+      kind: 'schedule',
+      cron: definition.schedule?.cron ?? '',
+      ...(definition.schedule?.timeZone ? { timeZone: definition.schedule.timeZone } : {}),
+    };
+  }
+  const entity = splitEntityEventName(definition.eventName);
+  if (entity?.action === 'dateReached') {
+    return {
+      kind: 'date-reached',
+      on: entity.prefix,
+      field: definition.dateReached?.field ?? '',
+      offset: definition.dateReached?.offset ?? '0d',
+      at: definition.dateReached?.at ?? DEFAULT_DATE_REACHED_AT,
+    };
+  }
+  if (entity) return { kind: 'record', on: entity.prefix, when: entity.action };
+  return { kind: 'other', eventName: definition.eventName };
+};

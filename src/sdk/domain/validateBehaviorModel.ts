@@ -10,7 +10,7 @@ import type {
 } from './behaviorModel';
 import { A_STATE_IS_A_KEY, effectEntity, enforcementOfScope, isSelfLoop } from './behaviorModel';
 import type { MappedTransition } from './behaviorMapping';
-import { DESCRIPTION_REQUIRED_BECAUSE, mapTransition } from './behaviorMapping';
+import { DESCRIPTION_REQUIRED_BECAUSE, DOCUMENT_EFFECT_OUTPUTS, mapTransition } from './behaviorMapping';
 import {
   MAX_DELAY_DAYS,
   MIN_SCHEDULE_INTERVAL_MINUTES,
@@ -606,6 +606,43 @@ const waitIssues = (transition: BehaviorTransition): DomainIssue[] => transition
     return [];
   });
 
+/**
+ * O documento é gerado sobre o registro DA TRANSIÇÃO: o modelo de documento nomeia a tela, e o passo
+ * recusa um registro de outra. Numa exclusão não sobra registro em que anexar.
+ */
+const documentIssues = (transition: BehaviorTransition): DomainIssue[] => transition.effects
+  .filter((effect) => effect.kind === 'generate-document')
+  .flatMap((effect): DomainIssue[] => {
+    const at = { entity: transition.entity, field: transition.name };
+    const deleted = transition.trigger.kind === 'entity-event' && transition.trigger.event === 'deleted';
+    if (deleted || (effect.entity !== undefined && effect.entity !== transition.entity)) {
+      return [make('behavior.effect.document-unsupported', 'error', {
+        ...at,
+        message: deleted
+          ? `"${transition.name}" generates a document when the record is deleted: there is no record left to attach it to.`
+          : `"${transition.name}" generates a document for "${effect.entity}", and the template only fills a record of `
+            + `"${transition.entity}" — the model has no way to say WHICH "${effect.entity}".`,
+        suggestion: deleted
+          ? 'Generate it on the passage before the delete, or on the save that leads to it.'
+          : `Declare the effect on a transition of "${effect.entity}" (the one that should carry the file).`,
+        howToDeclareException: 'None.',
+      })];
+    }
+    const outputInvalid = effect.output !== undefined && !DOCUMENT_EFFECT_OUTPUTS.includes(effect.output);
+    if (effect.template === undefined || effect.template.trim() === '' || outputInvalid) {
+      return [make('behavior.effect.document-invalid', 'error', {
+        ...at,
+        message: outputInvalid
+          ? `"${transition.name}" asks for a "${effect.output}" document; the step produces ${DOCUMENT_EFFECT_OUTPUTS.join(' or ')}.`
+          : `"${transition.name}" generates a document without saying which template.`,
+        suggestion: `{ kind: "generate-document", template: "<template key>", output: "${DOCUMENT_EFFECT_OUTPUTS[0] ?? 'pdf'}" } — `
+          + 'the template is declared with documentTemplateContribution on the screen of the entity.',
+        howToDeclareException: 'None.',
+      })];
+    }
+    return [];
+  });
+
 const transitionIssues = (
   behavior: BehaviorModel,
   handles: ReadonlyMap<string, BehaviorEntityHandle>,
@@ -651,6 +688,7 @@ const transitionIssues = (
     }
 
     issues.push(...waitIssues(transition));
+    issues.push(...documentIssues(transition));
 
     if (transition.trigger.kind === 'date-reached') {
       const declared = [...handle.fields.entries()].filter(([, one]) => one.type === 'date').map(([key]) => key);

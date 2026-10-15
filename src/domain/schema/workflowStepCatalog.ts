@@ -203,6 +203,12 @@ export interface WorkflowStepMetadata {
    * Ex: 'Chamar Workflow' expõe os parâmetros do workflow-alvo como inputs `param.<chave>`.
    */
   dynamicInputs?: DynamicInputsMetadata;
+  /**
+   * Cada execução ACRESCENTA um artefato novo (um arquivo anexado, por exemplo) sem chave que recuse
+   * a repetição. Não se lê do tipo de input — o passo que gera documento não tem `Upsert` —, e sem
+   * isto o agente ouviria "seguro repetir" de uma automação que anexa uma cópia a cada chamada.
+   */
+  appendsEachRun?: true;
 }
 
 const JS_RESERVED_WORDS = new Set([
@@ -813,6 +819,7 @@ export const CORE_STEP_CATALOG: readonly WorkflowStepMetadata[] = [
       { id: 'format', label: '@core.automation/step.render-document.output.format', type: 'String' },
       { id: 'emptyFields', label: '@core.automation/step.render-document.output.empty-fields', type: 'Number' },
     ],
+    appendsEachRun: true,
   },
 ];
 

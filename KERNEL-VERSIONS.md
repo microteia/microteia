@@ -18,6 +18,15 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.108.0] — 2026-10-15
+
+- feat(agent): `list_workflows` (sixteenth tool, `automation.run`, optional `trigger` filter: `called` | `record` | `date-reached` | `schedule` | `other` | `all`). Lists every automation of the office with `callable` and its `trigger`, described by `describeWorkflowTrigger` from the declaration. The `office/workflows` resource still lists only callable ones.
+- feat(agent): `describe_workflow` accepts non-callable automations and returns `callable: false`, the `trigger` and, on schedule and date-reached triggers, `clock` — the same `workflow_clock` entry the editor reads: `nextRunAt`, the time zone used and `lastRun` (`fired` / `skipped`, `skipReason`, the `eventId` for `get_workflow_run`). No entry is `scheduled: false`. `run_workflow` still refuses them.
+- fix(agent): `get_workflow_run` no longer reports a `WAITING` execution as finished; `finished` stays `false` and the run carries `resumeAt`. `describe_workflow` returns `pausesAt`, the top-level steps in `PAUSING_STEP_DEFINITION_IDS`.
+- fix(agent): idempotency verdict `appends` (`idempotent: no`) for a step declaring `appendsEachRun` in its catalog metadata. `render-document` declares it: an automation that only generated a document used to be reported `reads-only`, safe to repeat, while each run attached a new file.
+- feat(sdk/domain): `generate-document` behavior effect, `{ template, output? }`, mapped to `render-document` over the record of the transition. `validate_domain_model` refuses it on a delete or for another entity (`behavior.effect.document-unsupported`) and without a template or with an output outside the step's options (`behavior.effect.document-invalid`; `DOCUMENT_EFFECT_OUTPUTS` is derived from the catalog). `render-document` leaves the coverage gaps.
+- fix(sdk/domain): the domain model JSON Schema did not publish the effect's `duration` under `additionalProperties: false`, so a `wait` effect could not be declared by following the schema. `duration`, `template` and `output` are published, and `jsonSchema.test.ts` pins the effect properties to `keyof BehaviorEffect`.
+
 #### [9.107.0] — 2026-10-15
 
 - feat(sdk/actions): `ActionModuleTemplate` is now a union on what the action runs — `{ workflowId: string; command?: null } | { command: string; workflowId?: string | null }`. A command-only action no longer needs `workflowId: ''` to compile; a package that still carries it next to `command` stays valid. The stored `ActionDefinition` is unchanged: `actionInputFromTemplate` writes `workflowId: ''` when the template has none. `KERNEL_VERSION` goes to `2.42.0` (additive: an older kernel would not default the missing field).

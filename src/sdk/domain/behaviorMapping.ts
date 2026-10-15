@@ -1,7 +1,7 @@
 import { ENTITY_EVENT_ACTIONS, WORKFLOW_CALLED_EVENT, WORKFLOW_EVENT_CATALOG } from '../../domain/schema/eventCatalog';
 import { DATE_REACHED_ACTION, WORKFLOW_SCHEDULE_EVENT } from '../../domain/schema/workflowClock';
 import type { WorkflowDateReached, WorkflowSchedule } from '../../domain/schema/workflowClock';
-import { CONTROL_STEP_TYPES } from '../../domain/schema/workflowStepCatalog';
+import { CONTROL_STEP_TYPES, CORE_STEP_CATALOG } from '../../domain/schema/workflowStepCatalog';
 import type { BehaviorEffect, BehaviorTransition, EffectKind } from './behaviorModel';
 import { effectEntity, isSelfLoop } from './behaviorModel';
 
@@ -191,6 +191,17 @@ export const BEHAVIOR_MECHANISMS: BehaviorMechanism[] = [
     supported: true,
   },
   {
+    concern: 'effect',
+    declares: 'generate-document',
+    mechanism: 'the step that fills a document template with the record of the transition and attaches the PDF or '
+      + 'Word file to its Documents tab. The template names the screen, so the record is always the one of the '
+      + 'entity of the transition — never on a delete, when there is no record left to attach to',
+    declaredAs: "a step { stepDefinitionId: 'render-document', configuration: { templateKey, recordId, output? } }, "
+      + 'with the template declared through documentTemplateContribution on the same screen',
+    stepIds: ['render-document'],
+    supported: true,
+  },
+  {
     concern: 'invariant',
     declares: "scope 'field'",
     mechanism: "the field's own rule — evaluated as the person types AND on the write path, which throws",
@@ -268,7 +279,19 @@ const EFFECT_STEPS: Record<EffectKind, string[]> = {
   notify: ['notify'],
   'call-automation': ['call-workflow'],
   wait: ['delay'],
+  'generate-document': ['render-document'],
 };
+
+/**
+ * Os arquivos que o efeito `generate-document` aceita — lidos das opções do input `output` do passo,
+ * e não escritos aqui: um formato novo no passo chega ao modelo sem uma segunda lista para esquecer.
+ */
+export const DOCUMENT_EFFECT_OUTPUTS: readonly string[] = (() => {
+  const options = CORE_STEP_CATALOG
+    .find((step) => step.id === 'render-document')?.inputs
+    .find((input) => input.id === 'output')?.options;
+  return options?.kind === 'Static' ? options.options.map((option) => option.value) : [];
+})();
 
 export const stepsOfEffect = (effect: BehaviorEffect): string[] => EFFECT_STEPS[effect.kind];
 

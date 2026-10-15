@@ -3,12 +3,14 @@ import type { InputMapping, WorkflowParameter, WorkflowStep } from '../../entiti
 import { buildMessageCatalog } from '../i18n/messages';
 import {
   describeParameters,
+  describeWorkflowTrigger,
   indexStepCatalog,
   summarizeSteps,
   unknownParameterKeys,
   workflowDataAccess,
   workflowIdempotency,
   workflowOutputs,
+  workflowPauses,
 } from './agentWorkflow';
 
 const catalog = buildMessageCatalog([], 'en');
@@ -150,5 +152,55 @@ describe('a automação lida pelos passos', () => {
     expect(output).toHaveLength(1);
     expect(output[0].step).toBe('u');
     expect(output[0].fields.map((one) => one.key)).toEqual(['id', 'created', 'record']);
+  });
+});
+
+describe('passos recentes do motor, como o agente os lê', () => {
+  it('gerar documento anexa um arquivo novo a cada execução: não é seguro repetir', () => {
+    const summary = summarizeSteps(catalog, steps, [
+      step('d', 'render-document', 0, { templateKey: literal('quote'), recordId: literal('r1') }),
+    ]);
+    expect(workflowIdempotency(summary, workflowDataAccess(summary, () => []), steps))
+      .toEqual({ idempotent: 'no', because: 'appends' });
+  });
+
+  it('a espera no nível principal é dita como ponto de pausa', () => {
+    const summary = summarizeSteps(catalog, steps, [
+      step('q', 'query', 0, { query: literal({ table: 'categories', where: [], limit: 10, projections: [] }) }),
+      step('w', 'delay', 1, { duration: literal('2d') }),
+    ]);
+    expect(workflowPauses(summary)).toEqual(['w']);
+  });
+
+  it('a espera desligada não pausa', () => {
+    const summary = summarizeSteps(catalog, steps, [{ ...step('w', 'delay', 0), enabled: false }]);
+    expect(workflowPauses(summary)).toEqual([]);
+  });
+});
+
+describe('describeWorkflowTrigger — como a automação nasce', () => {
+  it('a chamável é a única que o agente inicia', () => {
+    expect(describeWorkflowTrigger({ eventName: 'workflow.called' })).toEqual({ kind: 'called' });
+  });
+
+  it('a de horário diz o cron, e o fuso só quando sobrescreve o do escritório', () => {
+    expect(describeWorkflowTrigger({ eventName: 'schedule', schedule: { cron: '0 8 * * MON-FRI' } }))
+      .toEqual({ kind: 'schedule', cron: '0 8 * * MON-FRI' });
+    expect(describeWorkflowTrigger({ eventName: 'schedule', schedule: { cron: '@daily', timeZone: 'UTC' } }))
+      .toEqual({ kind: 'schedule', cron: '@daily', timeZone: 'UTC' });
+  });
+
+  it('a de data diz o campo, o deslocamento e a hora, com a hora padrão quando ausente', () => {
+    expect(describeWorkflowTrigger({ eventName: 'invoices.dateReached', dateReached: { field: 'dueDate', offset: '-3d' } }))
+      .toEqual({ kind: 'date-reached', on: 'invoices', field: 'dueDate', offset: '-3d', at: '08:00' });
+  });
+
+  it('a de gravação diz a coleção e o gesto', () => {
+    expect(describeWorkflowTrigger({ eventName: 'invoices.saved' })).toEqual({ kind: 'record', on: 'invoices', when: 'saved' });
+    expect(describeWorkflowTrigger({ eventName: 'invoices.deleted' })).toEqual({ kind: 'record', on: 'invoices', when: 'deleted' });
+  });
+
+  it('o que não tem vocabulário próprio sai com o nome do evento', () => {
+    expect(describeWorkflowTrigger({ eventName: 'lookup.saved' })).toEqual({ kind: 'other', eventName: 'lookup.saved' });
   });
 });

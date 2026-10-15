@@ -21,7 +21,7 @@ import {
   INVARIANT_SCOPES,
   TRIGGER_KINDS,
 } from './behaviorModel';
-import { BEHAVIOR_MECHANISMS, SCHEDULE_TRIGGER_SUPPORTED } from './behaviorMapping';
+import { BEHAVIOR_MECHANISMS, DOCUMENT_EFFECT_OUTPUTS, SCHEDULE_TRIGGER_SUPPORTED } from './behaviorMapping';
 
 /**
  * O SCHEMA do modelo, servido como recurso MCP (`microteia://domain-model/schema`).
@@ -332,6 +332,12 @@ export const domainModelJsonSchema = (): Record<string, unknown> => ({
         value: { type: 'string', description: 'The value or expression written. On kind "total" it is an ERROR: a total is not an expression.' },
         aggregation: { $ref: '#/$defs/aggregation' },
         target: { type: 'string', description: 'kind "call-automation": the name of the transition called.' },
+        duration: { type: 'string', description: 'kind "wait": how long before the effects after it — 30m, 4h, 2d.' },
+        template: {
+          type: 'string',
+          description: 'kind "generate-document": the key of the document template filled with the record of the transition.',
+        },
+        output: { enum: [...DOCUMENT_EFFECT_OUTPUTS], description: 'kind "generate-document": the file produced. Default: pdf.' },
       },
     },
     invariant: {

@@ -11,6 +11,14 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.108.0] — 2026-10-15
+
+- O agente de IA conectado ao escritório agora enxerga também as automações que rodam sozinhas — por horário, por data de um registro ou ao gravar — e responde quando cada uma vai rodar e como foi a última vez, inclusive quando foi pulada e por quê.
+- O agente deixa de dar como concluída uma automação que está apenas aguardando um tempo para continuar, e passa a dizer quando ela retoma.
+- O agente não trata mais como seguro repetir uma automação que gera documento: cada execução anexa um arquivo novo ao registro.
+- Quem escreve extensões a partir de regras de negócio agora pode dizer "ao aprovar, gere o documento", e a verificação recusa os casos em que não haveria registro onde anexá-lo.
+- Corrigido um problema que impedia o assistente de autoria de declarar uma espera dentro de uma regra.
+
 #### [9.107.0] — 2026-10-15
 
 - Quem escreve extensões agora declara uma ação que só aciona um gesto da plataforma — copiar link, duplicar, excluir — sem precisar inventar uma automação vazia, e a verificação da extensão avisa quando uma ação não executa nada.

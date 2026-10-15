@@ -547,6 +547,37 @@ describe('esperar no meio da passagem — o efeito wait', () => {
   });
 });
 
+describe('gerar documento na passagem — o efeito generate-document', () => {
+  const generating = (patch: Partial<BehaviorTransition>, effect: Record<string, unknown> = { template: 'invoice-pdf' }) =>
+    withBehavior((behavior) => replaceTransition(behavior, 'invoice', {
+      trigger: { kind: 'entity-event', event: 'saved' },
+      effects: [{ kind: 'generate-document', ...effect }],
+      ...patch,
+    }));
+
+  const mapped = (model: DomainModel) => check(model).transitions.find((one) => one.transition.name === 'invoice');
+  const documentCodes = (model: DomainModel) =>
+    codes(check(model).issues).filter((code) => code.startsWith('behavior.effect.document'));
+
+  it('vira o passo render-document, sem recusa', () => {
+    expect(documentCodes(generating({}))).toEqual([]);
+    expect(mapped(generating({}))?.steps).toEqual(['upsert', 'render-document']);
+  });
+
+  it('recusa o efeito sem modelo e o formato que o passo não produz', () => {
+    expect(documentCodes(generating({}, {}))).toEqual(['behavior.effect.document-invalid']);
+    expect(documentCodes(generating({}, { template: 'invoice-pdf', output: 'html' }))).toEqual(['behavior.effect.document-invalid']);
+    expect(documentCodes(generating({}, { template: 'invoice-pdf', output: 'docx' }))).toEqual([]);
+  });
+
+  it('recusa gerar na exclusão e para outra entidade', () => {
+    expect(documentCodes(generating({ trigger: { kind: 'entity-event', event: 'deleted' } })))
+      .toEqual(['behavior.effect.document-unsupported']);
+    expect(documentCodes(generating({}, { template: 'invoice-pdf', entity: 'FinancialEntry' })))
+      .toEqual(['behavior.effect.document-unsupported']);
+  });
+});
+
 describe('a transição sobre uma entidade que ninguém modelou', () => {
   it('pega a transição e o efeito que apontam para o vazio', () => {
     const result = check(withBehavior((behavior) => ({

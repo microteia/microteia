@@ -5790,6 +5790,18 @@ consequências da tradução, ambas por causa da regra do motor (só o nível pr
 - a espera é recusada (`behavior.effect.wait-unsupported`) no gatilho de botão (a ação aguarda a resposta) e
   no de horário (os efeitos rodam dentro do laço).
 
+Gerar documento também é efeito: `{ kind: 'generate-document', template, output? }` vira o passo
+`render-document` sobre o registro da transição. O modelo de documento nomeia a tela, então o efeito não
+aceita outra `entity` (o modelo não diria QUAL registro) e é recusado numa exclusão
+(`behavior.effect.document-unsupported`); sem `template`, ou com `output` fora das opções do passo
+(`DOCUMENT_EFFECT_OUTPUTS`, lidas do catálogo), é `behavior.effect.document-invalid`. O `render-document`
+saiu das lacunas do relatório de cobertura.
+
+O JSON Schema do modelo (`domainModelJsonSchema`) não publicava `duration` no efeito, com
+`additionalProperties: false`: o agente que seguisse o esquema não conseguia declarar a espera. O
+`jsonSchema.test.ts` agora compara as propriedades do efeito com um `Record<keyof BehaviorEffect, true>` —
+uma propriedade nova no tipo reprova na compilação até chegar ao esquema.
+
 Os efeitos depois da espera veem o registro como ele estava na passagem: a espera não reconfere o estado.
 Uma regra que depende do estado de AGORA ("dois dias depois, se ainda estiver aberta") é o gatilho
 `date-reached`, que olha o registro no dia — e é o que a validação sugere.
@@ -7780,7 +7792,7 @@ O caminho natural seria uma API por extensão instalada. Ele é impossível aqui
 de negócio seria o defeito que este projeto existe para não ter.
 
 A saída não é "uma API flexível o bastante". É que a superfície **não tem nome de negócio nenhum**:
-quinze ferramentas genéricas em que a coleção é ARGUMENTO, mais a descoberta de esquema que diz ao
+dezesseis ferramentas genéricas em que a coleção é ARGUMENTO, mais a descoberta de esquema que diz ao
 agente o que existe naquele escritório. `search_records(collection, …)`, nunca `search_processo`. É
 exatamente a propriedade que `FirebaseRecordRepository` e `RecordStore` já têm — recebem a coleção
 como argumento e servem qualquer uma — levada até a superfície de ferramentas.
@@ -7822,7 +7834,8 @@ dito duas vezes:
 | `run_workflow` | `publishEvent` — PUBLICA, não executa |
 | `run_action` | `RunCalledWorkflowUseCase` |
 | `list_screens` / `describe_screen` | `officeScreens` e `describeScreen`, sobre `ScreenDefinitionCache.getSchemaContext`; as ações vêm de `viewActionIds`/`cardActionIds` da tela |
-| `describe_workflow` | `describeAgentWorkflow`, sobre o catálogo de passos do `stepRegistry` |
+| `list_workflows` | `listAgentWorkflows` — toda automação, com o gatilho (`describeWorkflowTrigger`) |
+| `describe_workflow` | `describeAgentWorkflow`, sobre o catálogo de passos do `stepRegistry`; o relógio vem de `getWorkflowClockDeps().repository` |
 
 `runAgentOperation.ts` tem uma ordem só, e ela é o que o mantém adaptador: resolver a ferramenta,
 cobrar a permissão declarada, traduzir o argumento para a forma do executor, delegar, resolver a
@@ -7878,8 +7891,30 @@ kernel não precisa saber o nome de nenhum. O catálogo usado é o do `stepRegis
 
 **A idempotência é veredito com motivo de vocabulário fechado**, não frase: `reads-only` e
 `keyed-writes` (toda coleção gravada tem chave única — a repetição é recusada como duplicata) são
-`yes`; `may-duplicate` e `notifies` são `no`; `opaque-steps` (Script, chamada de outra automação,
-passo desconhecido) é `unknown`. Dizer `yes` onde há Script seria afirmar o que a declaração não diz.
+`yes`; `may-duplicate`, `notifies` e `appends` são `no`; `opaque-steps` (Script, chamada de outra
+automação, passo desconhecido) é `unknown`. Dizer `yes` onde há Script seria afirmar o que a declaração
+não diz.
+
+`appends` vem de `appendsEachRun` na metadata do passo, e não do tipo de input: gerar documento
+(`render-document`) não tem `Upsert`, e sem a marca a automação que só gera e anexa um arquivo saía
+`reads-only` — "seguro repetir" para algo que anexa uma cópia a cada chamada. A marca é declarativa,
+então um passo de extensão com o mesmo efeito a declara igual.
+
+**A automação de gatilho é DESCRITA, nunca iniciada.** O recurso `office/workflows` responde "o que
+posso iniciar?" e continua só com as chamáveis. Mas a automação de horário ou de data provoca outra
+pergunta — "quando roda?", "rodou ontem?" — e o agente não tinha como sequer saber que ela existia.
+`list_workflows` lista todas, cada uma com `callable` e `trigger` (`called`, `record`, `date-reached`,
+`schedule`, `other`), filtrável pelo gatilho. `describe_workflow` passou a aceitar a de gatilho: devolve
+`callable: false`, o `trigger` e, no horário e na data, o `clock` — a MESMA entrada de `workflow_clock` que
+o bloco "Relógio do servidor" do editor lê: `nextRunAt`, o fuso usado e o `lastRun` (`fired`/`skipped`, o
+`skipReason` e o `eventId` que `get_workflow_run` lê). Sem entrada, `scheduled: false`. `run_workflow`
+continua recusando a não chamável (`workflow-not-callable`): descrever não é convidar a iniciar, e o
+`callable` diz isso por extenso.
+
+**A espera é dita, dos dois lados.** `describe_workflow` devolve `pausesAt` (os passos de
+`PAUSING_STEP_DEFINITION_IDS` no nível principal), e `get_workflow_run` não conta `WAITING` como
+terminado: `finished` fica `false` e a execução traz `resumeAt`. Antes, a execução parada no `delay`
+saía `finished: true` sem saída nenhuma — o agente concluía que tinha acabado, ou que tinha travado.
 
 `run_workflow` com `dry_run: true` passa pela MESMA preparação e não recusa: devolve `valid`, os
 valores como o motor os receberia (já convertidos), os problemas, e o que seria gravado. É previsão
@@ -8245,7 +8280,7 @@ produto; onde não sabe, o token continua sendo a saída honesta.
 | Arquivo | O que é |
 |---|---|
 | `domain/schema/agent/agentGrant.ts` | formato do token, hash, validade, a INTERSEÇÃO (sincronizado) |
-| `domain/schema/agent/agentOps.ts` | as quinze ferramentas, os quatro recursos, a regra de cobrança de cada uma, e o texto de API (`accepts`, exemplos) |
+| `domain/schema/agent/agentOps.ts` | as dezesseis ferramentas, os quatro recursos, a regra de cobrança de cada uma, e o texto de API (`accepts`, exemplos) |
 | `domain/schema/agent/agentInput.ts` | a conferência dos argumentos contra o esquema publicado (sincronizado) |
 | `domain/schema/agent/agentWorkflow.ts` | a automação legível por agente: parâmetros, passos, efeitos, saída e idempotência (sincronizado) |
 | `domain/schema/workflowReturn.ts` | quais passos dão o retorno de uma automação — a regra do editor, agora alcançável pelo backend (sincronizado) |

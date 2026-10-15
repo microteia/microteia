@@ -21,7 +21,7 @@ import { AGENT_OPERATIONS, AGENT_RESOURCES, AGENT_TOOLS } from '../../domain/sch
  * deixa de ser encontrada. A URI é a mais frágil das duas, porque nada no cliente a valida.
  */
 describe('a superfície publicada', () => {
-  it('publica exatamente estas quinze ferramentas, nesta ordem', () => {
+  it('publica exatamente estas dezesseis ferramentas, nesta ordem', () => {
     expect(AGENT_TOOLS.map((tool) => tool.name)).toEqual([
       'list_screens',
       'describe_screen',
@@ -33,6 +33,7 @@ describe('a superfície publicada', () => {
       'list_documents',
       'attach_document',
       'run_report',
+      'list_workflows',
       'describe_workflow',
       'run_workflow',
       'get_workflow_run',

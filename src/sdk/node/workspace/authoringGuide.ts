@@ -1124,6 +1124,11 @@ Read the refusals as answers, not as gaps to route around:
   date trigger, and refused on a button (it waits for the answer) and on a schedule (its effects run inside a
   loop). The effects after the wait see the record AS IT WAS at the passage: "two days later, if it is still
   open, charge" is not a wait — it is \`date-reached\` on the date, with the state in the condition.
+- **Generating a document is an effect.** \`{ kind: 'generate-document', template: 'proposal', output: 'pdf' }\`
+  fills the template with the record of the transition and attaches the file to its Documents tab — the
+  \`render-document\` step. The template is declared with \`documentTemplateContribution\` on the screen of that
+  same entity, so the effect never names another entity (the model could not say WHICH record), and it is
+  refused on a delete, when there is no record left to attach to. \`output\` is \`pdf\` (default) or \`docx\`.
 - **Uniqueness is DECLARED, never computed.** It is the one rule that compares a record against the others, and
   the one you must not write as an expression: a field \`validate\` and a \`validate-object\` step both see a single
   record and never query, and a workflow on \`<collection>.saved\` finds the duplicate only after it exists — two
