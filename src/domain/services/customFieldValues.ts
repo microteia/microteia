@@ -344,3 +344,15 @@ export const setValueByPath = (
   const updated = setValueByPath(branch, rest.join('.'), value);
   return { ...values, [head]: updated as unknown as CustomFieldValue };
 };
+
+/**
+ * O registro GRAVADO na forma em que o formulário aberto o mostra — o escopo das expressões de ação
+ * (`hiddenWhen`, `disabledWhen`, `activeWhen`) fora do formulário. Os campos declarados saem como em
+ * `buildInitialFormValues` (data `aaaa-mm-dd`, vazio como `''`, caixa desmarcada como `false`); o resto
+ * do documento fica por baixo. Sem isso, a mesma declaração respondia diferente no cartão e no
+ * cabeçalho do registro: campo ausente estourava a avaliação e a ação nunca se desabilitava.
+ */
+export const recordExpressionValues = (
+  fields: FieldDefinition[],
+  record: object,
+): Record<string, unknown> => ({ ...record, ...buildInitialFormValues(fields, record) });

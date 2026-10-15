@@ -59,8 +59,13 @@ export const S = {
     transition: background 0.2s;
     text-align: left;
 
-    &:hover {
+    &:hover:not(:disabled) {
       background: ${({ theme }) => theme.colors.surface};
+    }
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
     }
 
     &:not(:last-child) {

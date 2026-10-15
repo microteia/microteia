@@ -1,5 +1,7 @@
 import { useCallback } from 'react';
 import { useAuthorization } from '../../../stores/useAuthorization';
+import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
+import { recordExpressionValues } from '../../../domain/services/customFieldValues';
 import { useExprViewer } from '../useExprViewer';
 import { useActionReferences } from '../useActionReferences';
 import { isActionHidden } from '../../../domain/schema/actionExpression';
@@ -24,9 +26,12 @@ export const useActionGate = (): ActionGate => {
   const { effectivePermissions } = useAuthorization();
   const viewer = useExprViewer();
   const references = useActionReferences();
+  const { getScreenFieldsFor } = useScreenDefinitions();
 
+  // Com a coleção dita, os campos chegam na forma do formulário, como no cartão nativo; sem ela, não
+  // há esquema a que recorrer, e o registro vai como veio.
   return useCallback((hiddenWhen, record, surface = 'list', entity = '') => !isActionHidden(hiddenWhen, {
-    values: record,
+    values: entity ? recordExpressionValues(getScreenFieldsFor(entity), record) : record,
     record,
     isNew: false,
     isDirty: false,
@@ -36,5 +41,5 @@ export const useActionGate = (): ActionGate => {
     relation: 'none',
     user: viewer,
     references,
-  }), [effectivePermissions, viewer, references]);
+  }), [effectivePermissions, viewer, references, getScreenFieldsFor]);
 };

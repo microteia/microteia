@@ -11,6 +11,12 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.105.0] — 2026-10-15
+
+- As regras que desabilitam uma ação agora valem também nos cartões da listagem, da agenda e das notícias, e não só dentro do registro aberto. O botão desabilitado aparece esmaecido e não pode ser clicado.
+- Uma regra de ação passa a dar a mesma resposta no cartão e no registro aberto, inclusive quando a condição envolve um campo ainda não preenchido, uma data ou uma caixa de marcação.
+- As ações que funcionam como interruptor (ligado/desligado) mostram o estado atual também nos cartões, com a mesma cor do registro aberto.
+
 #### [9.104.0] — 2026-10-14
 
 - As automações agendadas por horário ou por data agora mostram o "Relógio do servidor": quando ela vai rodar de fato, quando rodou pela última vez (com acesso direto à execução) e, se uma execução foi pulada, o motivo.

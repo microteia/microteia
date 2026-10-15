@@ -8,6 +8,8 @@ export interface EntityCardAction {
   onClick: () => void;
   danger?: boolean;
   disabled?: boolean;
+  /** Ação que é interruptor: `true` ligado, `false` desligado; ausente, botão comum. */
+  active?: boolean;
 }
 
 export interface EntityCardMetaRow {
@@ -66,7 +68,9 @@ export const EntityListCard: React.FC<EntityListCardProps> = ({
             disabled={action.disabled}
             onClick={action.onClick}
           >
-            {action.icon}
+            {action.active === undefined
+              ? action.icon
+              : <S.ToggleIcon $on={action.active}>{action.icon}</S.ToggleIcon>}
           </S.ActionButton>
         ))}
       </S.Actions>

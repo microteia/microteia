@@ -8,7 +8,7 @@ import { useActions } from '../../../stores/useActions';
 import { useRecordDialog } from '../../../stores/useRecordDialog';
 import { storeEvents, StoreEvents } from '../../../infrastructure/events/StoreEventEmitter';
 import type { ActionExprContext } from '../../../domain/schema/actionExpression';
-import { isActionDisabled, isActionHidden } from '../../../domain/schema/actionExpression';
+import { actionActiveState, isActionDisabled, isActionHidden } from '../../../domain/schema/actionExpression';
 import type { ActionRelation, ActionSurface } from '../../../domain/schema/actionExpression';
 import { dispatchActionOutcome } from './useScreenActions';
 import { useActionParameterPrompt } from './useActionParameterPrompt';
@@ -17,7 +17,7 @@ import { useCustomFieldListing } from '../../hooks/useCustomFieldListing';
 import { useRecordIdentityText } from './useRecordIdentityText';
 import type { CustomFieldCardItem } from '../../hooks/useCustomFieldListing';
 import { buildNewTabKey, buildViewTabKey, buildCloneTabKey, buildChildNewTabKey, recordTabKeyOf } from '../../../shared/constants/dynamicScreenKeys';
-import { readValueByPath, resolveRecordImageUrl, resolveRecordTitle, sortFieldsByOrder } from '../../../domain/services/customFieldValues';
+import { readValueByPath, recordExpressionValues, resolveRecordImageUrl, resolveRecordTitle, sortFieldsByOrder } from '../../../domain/services/customFieldValues';
 import { isBoundScreen, parentLinkRelation, screenDataCollection } from '../../../domain/services/screenDataCollection';
 import { collectionPermissionId } from '../../../domain/schema/access';
 import { screenForDisplay, useEntityFormFields, useResolvedFields } from '../useEntityFormFields';
@@ -47,6 +47,8 @@ export interface RecordCardAction {
   title: string;
   danger?: boolean;
   disabled?: boolean;
+  /** Estado do interruptor, quando a ação declara `activeWhen` — o mesmo que o cabeçalho do registro mostra. */
+  active?: boolean;
   /** Presente nas ações customizadas — a view resolve pelo registro de ícones das telas. */
   iconKey?: string;
   onClick: () => void;
@@ -444,7 +446,7 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
   }, [parameterPrompt, runCardAction]);
 
   const cardExprContext = useCallback((record: EntityRecord): ActionExprContext => ({
-    values: record,
+    values: recordExpressionValues(sortedFields, record),
     record,
     isNew: false,
     isDirty: false,
@@ -456,7 +458,7 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
     relation,
     user: viewer,
     references,
-  }), [effectivePermissions, collection, parent, relation, viewer, references]);
+  }), [sortedFields, effectivePermissions, collection, parent, relation, viewer, references]);
 
   const confirmPendingCardAction = useCallback(() => {
     if (!pendingCardAction) return;
@@ -499,6 +501,7 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
         danger: action.danger,
         iconKey: action.icon,
         disabled: runningActionId !== null || parameterPrompt.loading || isActionDisabled(action.disabledWhen, exprContext),
+        active: actionActiveState(action.activeWhen, exprContext),
         // Confirmar vem ANTES de perguntar parâmetro: a pergunta "tem certeza?" é sobre o gesto, e
         // abrir um formulário para só depois perguntar se era para fazer inverte a ordem do diálogo.
         onClick: () => {

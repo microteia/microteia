@@ -105,8 +105,11 @@ export default function NewsListView() {
                     items={card.actions.map((action) => ({
                       id: action.key,
                       label: action.title,
-                      icon: cardActionIcon(action),
+                      icon: action.active === undefined
+                        ? cardActionIcon(action)
+                        : <S.ToggleIcon $on={action.active}>{cardActionIcon(action)}</S.ToggleIcon>,
                       variant: action.danger ? 'danger' : 'default',
+                      disabled: action.disabled,
                       onClick: action.onClick,
                     }))}
                   />

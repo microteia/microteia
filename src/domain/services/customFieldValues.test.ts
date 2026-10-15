@@ -4,6 +4,7 @@ import {
   fileNameFromUrl,
   formValuesToStoredValues,
   readRecordText,
+  recordExpressionValues,
   resolveRecordImageUrl,
   resolveRecordTabTitle,
   resolveRecordTitle,
@@ -13,6 +14,7 @@ import {
   validateRequiredFields,
 } from './customFieldValues';
 import { qualifyKey, translate } from '../schema/i18n/messages';
+import { isActionDisabled } from '../schema/actionExpression';
 import type { CustomFieldValue, FieldDefinition } from '../entities/entitySchemas';
 
 type Values = Record<string, CustomFieldValue>;
@@ -41,6 +43,31 @@ describe('buildInitialFormValues — campo de data', () => {
   it('registro sem a data abre com o campo vazio', () => {
     expect(buildInitialFormValues([dateField], {}).filedAt).toBe('');
     expect(buildInitialFormValues([dateField], { filedAt: null }).filedAt).toBe('');
+  });
+});
+
+describe('recordExpressionValues — o cartão avalia como o registro aberto', () => {
+  const fields: FieldDefinition[] = [
+    dateField,
+    { key: 'status', label: 'Status', type: 'text', required: false, order: 1, origin: 'design' },
+    { key: 'done', label: 'Concluído', type: 'checkbox', required: false, order: 2, origin: 'design' },
+  ];
+  const stored = { id: 'r1', createdBy: 'u1', filedAt: new Date(2026, 6, 15) };
+  const disabled = (expr: string, values: Record<string, unknown>) => isActionDisabled(expr, {
+    values, record: stored, isNew: false, isDirty: false, permissions: [],
+  });
+
+  it('a mesma expressão responde igual sobre o registro gravado e sobre o formulário', () => {
+    const asCard = recordExpressionValues(fields, stored);
+    const asForm = buildInitialFormValues(fields, stored);
+    for (const expr of ['status == ""', 'isEmpty(status)', '!done', 'filedAt < "2026-08-01"']) {
+      expect(disabled(expr, asCard), expr).toBe(true);
+      expect(disabled(expr, asCard), expr).toBe(disabled(expr, asForm));
+    }
+  });
+
+  it('o que não é campo declarado continua na raiz', () => {
+    expect(recordExpressionValues(fields, stored)).toMatchObject({ id: 'r1', createdBy: 'u1' });
   });
 });
 

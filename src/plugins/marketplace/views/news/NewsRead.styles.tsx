@@ -113,9 +113,14 @@ const ActionBtn = styled.button`
   transition: color ${({ theme }) => theme.transitions.fast},
               background ${({ theme }) => theme.transitions.fast};
 
-  &:hover {
+  &:hover:not(:disabled) {
     background: ${({ theme }) => theme.colors.surfaceHover};
     color: ${({ theme }) => theme.colors.primary};
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
 `;
 
@@ -496,6 +501,15 @@ const Missing = styled.div`
   padding: ${({ theme }) => theme.spacing.lg};
 `;
 
+/**
+ * An action that is a switch (it declares activeWhen) shows the record's state by colour: on in
+ * success, off in danger - the same reading as the record header.
+ */
+const ToggleIcon = styled.span<{ $on: boolean }>`
+  display: inline-flex;
+  color: ${({ $on, theme }) => ($on ? theme.colors.success : theme.colors.danger)};
+`;
+
 export const S = {
   Missing,
   Root,
@@ -510,6 +524,7 @@ export const S = {
   TitleRow,
   Title,
   ActionBtn,
+  ToggleIcon,
   MetaChips,
   CategoryBadge,
   DateText,

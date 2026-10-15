@@ -8,6 +8,7 @@ export interface DropdownItem {
   icon?: React.ReactNode;
   onClick: () => void;
   variant?: 'default' | 'danger';
+  disabled?: boolean;
 }
 
 export interface DropdownProps {

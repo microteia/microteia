@@ -675,6 +675,8 @@ const UI_MODULE_DEFS = `declare module '@microteia/ui' {
     icon?: React.ReactNode;
     onClick: () => void;
     variant?: 'default' | 'danger';
+    /** Shown but not clickable - e.g. a record action whose disabledWhen holds. */
+    disabled?: boolean;
   }
   /** Props of Dropdown. */
   export interface DropdownProps {
@@ -1054,6 +1056,8 @@ const DATA_MODULE_DEFS = `declare module '@microteia/data' {
     title: string;
     danger?: boolean;
     disabled?: boolean;
+    /** Switch state when the action declares activeWhen: true on, false off; absent, a plain button. */
+    active?: boolean;
     /** Present on custom actions - the view resolves it against the curated screen icon set. */
     iconKey?: string;
     onClick: () => void;
@@ -1295,11 +1299,17 @@ const DATA_MODULE_DEFS = `declare module '@microteia/data' {
    * Evaluates an action's 'hiddenWhen' expression against a record, in the SAME scope as the native
    * card (the fields at the root, plus record, role, surface and user). Returns true when the action
    * should appear. With no expression, it appears - absence is not hiding.
+   *
+   * Pass the record's collection as entity: it is what "<entity>" becomes in hasPermission, and it
+   * shapes the fields the way the open record shows them (dates as yyyy-mm-dd, empty as '', unchecked
+   * as false), so the expression answers the same as on the native card. Without it the record is
+   * evaluated as it came.
    */
   export function useActionVisible(): (
     hiddenWhen: string | null | undefined,
     record: Record<string, any>,
     surface?: string,
+    entity?: string,
   ) => boolean;
 }`;
 

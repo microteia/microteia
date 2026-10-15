@@ -327,6 +327,15 @@ const CardActionButton = styled.button`
   }
 `;
 
+/**
+ * An action that is a switch (it declares activeWhen) shows the record's state by colour: on in
+ * success, off in danger - the same reading as the record header.
+ */
+const ToggleIcon = styled.span<{ $on: boolean }>`
+  display: inline-flex;
+  color: ${({ $on, theme }) => ($on ? theme.colors.success : theme.colors.danger)};
+`;
+
 const Legend = styled.div`
   display: flex;
   align-items: center;
@@ -400,6 +409,7 @@ export const S = {
   EventDescription,
   CardActions,
   CardActionButton,
+  ToggleIcon,
   Legend,
   LegendLabel,
   LegendItem,

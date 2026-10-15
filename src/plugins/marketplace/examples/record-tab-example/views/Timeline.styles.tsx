@@ -74,4 +74,13 @@ const Empty = styled.p`
   font-size: ${({ theme }) => theme.fontSizes.sm};
 `;
 
-export const S = { Wrapper, Toolbar, Line, Item, Dot, Body, Title, When, Actions, Empty };
+/**
+ * An action that is a switch (it declares activeWhen) shows the record's state by colour: on in
+ * success, off in danger - the same reading as the record header.
+ */
+const ToggleIcon = styled.span<{ $on: boolean }>`
+  display: inline-flex;
+  color: ${({ $on, theme }) => ($on ? theme.colors.success : theme.colors.danger)};
+`;
+
+export const S = { ToggleIcon, Wrapper, Toolbar, Line, Item, Dot, Body, Title, When, Actions, Empty };

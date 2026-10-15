@@ -18,6 +18,17 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.105.0] — 2026-10-15
+
+- fix(records/card): `EntityListCard` action buttons had no `:disabled` style, so an action whose `disabledWhen` held looked and hovered like an enabled one. They now dim, show `not-allowed` and skip the hover.
+- fix(records/card): card action expressions were evaluated over the raw stored record while the record header evaluates over the form values, so the same `hiddenWhen`/`disabledWhen`/`activeWhen` answered differently — an absent field made the evaluation fail (→ `false`), and dates compared as `Date` against `yyyy-mm-dd`. New `recordExpressionValues(fields, record)` (domain/services/customFieldValues) shapes the declared fields like `buildInitialFormValues`, with the rest of the document underneath; the list card and `useActionVisible` (when given `entity`) use it.
+- feat(records/card): `activeWhen` is evaluated on cards. `RecordCardAction.active` (also in the host type defs) carries the switch state, and `EntityListCard` colours the icon like the record header.
+- feat(ui/dropdown): `DropdownItem.disabled` — rendered dimmed and not clickable. Declared in `@microteia/ui`.
+- docs(host-api): `useActionVisible` declares its fourth parameter, `entity`, that the hook already accepted.
+- fix(news): 1.5.0 — list menu and reading-view actions honour `disabled` and show `active`.
+- feat(calendar): 1.6.0 — card actions show `active`.
+- feat(examples/record-tab-example): 1.2.0 — timeline actions show `active`.
+
 #### [9.104.0] — 2026-10-14
 
 - feat(workflow/clock): every clock pass records `lastRun` on the `workflow_clock` entry, in the same write that moves `nextRunAt` — `scheduledFor`, `ranAt`, `outcome` (`fired`/`skipped`), `skipReason` (`owners-deactivated`, `date-field-missing`), the schedule's `eventId` and, for `dateReached`, the records the window woke (summed across pages). Recalculating the schedule keeps it. `clockOccurrenceEventId` moves to the shared `workflowClock` schema.

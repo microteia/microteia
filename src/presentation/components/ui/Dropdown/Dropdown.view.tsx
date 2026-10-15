@@ -24,6 +24,8 @@ export const Dropdown: React.FC<DropdownProps> = (props) => {
           {props.items.map((item) => (
             <S.MenuItem
               key={item.id}
+              type="button"
+              disabled={item.disabled}
               onClick={() => vm.handleItemClick(item.onClick)}
               $variant={item.variant}
             >

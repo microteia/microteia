@@ -155,6 +155,7 @@ export const RecordListSurface: React.FC<RecordListSurfaceProps> = ({ vm, defini
               title: action.title,
               danger: action.danger,
               disabled: action.disabled,
+              active: action.active,
               onClick: action.onClick,
             }))}
             extra={items.length > 0 ? <CustomFieldMetaRows items={items} /> : undefined}

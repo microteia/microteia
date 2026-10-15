@@ -49,7 +49,9 @@ export default function TimelineTab(props: RecordTabProps) {
                 )}
                 {item.actions.map((action) => (
                   <Button key={action.key} variant="ghost" size="sm" title={action.title} disabled={action.disabled} onClick={action.onClick}>
-                    {cardActionIcon(action, 14)}
+                    {action.active === undefined
+                      ? cardActionIcon(action, 14)
+                      : <S.ToggleIcon $on={action.active}>{cardActionIcon(action, 14)}</S.ToggleIcon>}
                   </Button>
                 ))}
               </S.Actions>

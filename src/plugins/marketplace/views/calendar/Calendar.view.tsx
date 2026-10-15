@@ -162,7 +162,9 @@ export default function CalendarView() {
                             disabled={action.disabled}
                             onClick={(e) => { e.stopPropagation(); action.onClick(); }}
                           >
-                            {cardActionIcon(action, 11)}
+                            {action.active === undefined
+                              ? cardActionIcon(action, 11)
+                              : <S.ToggleIcon $on={action.active}>{cardActionIcon(action, 11)}</S.ToggleIcon>}
                           </S.CardActionButton>
                         ))}
                       </S.CardActions>

@@ -75,11 +75,21 @@ export const S = {
     cursor: pointer;
     transition: ${({ theme }) => theme.transitions.fast};
 
-    &:hover {
+    &:hover:not(:disabled) {
       background: ${({ theme, $danger }) => ($danger ? theme.colors.danger : theme.colors.surfaceHover)};
       color: ${({ theme, $danger }) => ($danger ? theme.colors.white : theme.colors.text)};
       border-color: ${({ theme, $danger }) => ($danger ? theme.colors.danger : theme.colors.primary)};
     }
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+  `,
+
+  ToggleIcon: styled.span<{ $on: boolean }>`
+    display: inline-flex;
+    color: ${({ $on, theme }) => ($on ? theme.colors.success : theme.colors.danger)};
   `,
 
   Header: styled.div`

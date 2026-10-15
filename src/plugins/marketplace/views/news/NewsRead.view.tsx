@@ -150,8 +150,10 @@ export default function NewsReadView({ tabKey }) {
                       </S.ActionBtn>
                     ) : null}
                     {article.actions.map((action) => (
-                      <S.ActionBtn key={action.key} onClick={action.onClick} title={action.title}>
-                        {cardActionIcon(action, 16)}
+                      <S.ActionBtn key={action.key} onClick={action.onClick} title={action.title} disabled={action.disabled}>
+                        {action.active === undefined
+                          ? cardActionIcon(action, 16)
+                          : <S.ToggleIcon $on={action.active}>{cardActionIcon(action, 16)}</S.ToggleIcon>}
                       </S.ActionBtn>
                     ))}
                   </S.TitleRow>
