@@ -39,6 +39,7 @@ const SHARED_FILES = [
   'domain/schema/eventCatalog.ts',
   'domain/schema/hydrationPlan.ts',
   'domain/schema/materialize.ts',
+  'domain/schema/storedReference.ts',
   'domain/schema/querySpec.ts',
   'domain/schema/mutationSpec.ts',
   'domain/schema/recordRules.ts',

@@ -3467,7 +3467,7 @@ Compatibilidade com expressões já escritas: referência vazia continua `null`/
 
 As expressões de uma Action (`hiddenWhen`, `disabledWhen`, `activeWhen` e os valores de `parameterDefaults`) também são front-only, e agora leem o registro apontado: `caseId.responsibleLawyerId`, `caseId.contractId.clientId`. A regra de troca, porém, **não é a do slot de campo**, e a diferença é deliberada.
 
-O slot de campo troca todo id de referência pelo registro. Na ação isso quebraria o que já está gravado nas instalações: `parameterDefaults: { clientId: 'clientId' }` passaria a pré-preencher o parâmetro com um objeto, e `caseId == "abc"` deixaria de casar. Por isso `navigateReferences` (`domain/schema/referenceScope.ts`) troca **só o nome que a expressão atravessa** — o caminho que tem algo depois dele. Lido sozinho, o nome segue sendo o id, em qualquer profundidade (`caseId.contractId` é o id do contrato). Numa expressão que lê o nome sozinho E o navega, ele é o registro, como no slot de campo, e o id fica em `caseId.id`.
+O slot de campo troca todo id de referência pelo registro. Na ação isso quebraria o que já está gravado nas instalações: `parameterDefaults: { clientId: 'clientId' }` passaria a pré-preencher o parâmetro com um objeto, e `caseId == "abc"` deixaria de casar. Por isso `navigateReferences` (`domain/schema/referenceScope.ts`) troca **só o nome que a expressão atravessa** — o caminho que tem algo depois dele. Lido sozinho, o nome segue sendo o id, em qualquer profundidade (`caseId.contractId` é o id do contrato) — inclusive numa expressão que também o navega: em `concat(caseId, " ", caseId.title)` o primeiro `caseId` é o id. Quem garante isso é o avaliador (`expressionEvaluation.ts`), e não o escopo: ver "Referência lida sozinha é o id" na hidratação do motor de automações, que é a mesma regra.
 
 | Situação | `caseId.title` | `caseId` sozinho |
 |---|---|---|
@@ -5129,6 +5129,39 @@ da execução e **apenas para os caminhos que a automação realmente referencia
    arrays (cap de 50 itens), navegáveis de duas formas: por índice, que fixa um item
    (`event.activePole.0.name`), ou pelo NOME do campo, que atravessa todos eles e colhe um valor
    por apontado (`event.activePole.name` → `['Maria', 'João']`); `old.*` também é hidratado.
+
+#### Referência lida sozinha é o id
+
+**O registro apontado só é lido quando o caminho informa um campo DEPOIS da referência.**
+`event.caseId.court` busca o processo e lê `court`; `event.caseId` sozinho é o id gravado, sempre — e
+`event.calendars` (referência `multi`) é a lista de ids como está armazenada. Vale para expressão,
+mapping `Event` e `FieldComparison`, e é a mesma regra das expressões de ação.
+
+Duas peças, porque uma só não basta:
+
+1. **O plano.** `buildHydrationPlan` não gera salto `replaceValue` para a referência que termina o
+   caminho (`fieldAccessedAfterHop` vazio): citar `event.caseId` não lê nada. O salto `denormKey`
+   continua — `contract` sozinho É o registro, o id mora em `contractId`.
+2. **A leitura.** A hidratação é do PAYLOAD, e não da expressão: se um passo navega `caseId.court`, o
+   `caseId` do payload vira registro para a automação inteira, e o passo que copia `event.caseId`
+   recebia o objeto. Por isso `materializeHops` marca o registro posto no lugar do id com o id gravado
+   (`STORED_REFERENCE_ID`, `storedReference.ts` — símbolo enumerável: some do JSON e da gravação,
+   sobrevive ao espalhamento), e a ÚLTIMA leitura de cada cadeia devolve o valor gravado
+   (`readAsStored`): no avaliador, o membro/índice final de `a.b.c` (e a variável lida sozinha, que é
+   como a expressão de ação cita `caseId`) vira um operador que desembrulha, e o intermediário continua
+   navegando; no motor, `resolveMapping` (`Event`) e o `FieldComparison`
+   desembrulham o fim do caminho.
+
+Foi escolhido no lugar de materializar o registro fora do caminho do id (como o `denormKey` faz) porque
+isso exigiria reescrever os caminhos de toda expressão para a chave escondida, e o avaliador já tinha o
+ponto certo para decidir: a reescrita de tokens que já existia para o membro de `null`.
+
+Quem lê o payload INTEIRO (o `upsert` com `source: 'event'` sem `property`, o `context.input` de um
+fluxo sem saída) ainda vê o registro onde houve navegação — o desembrulho é da leitura de caminho.
+
+Histórico: até a 9.108.1 o coletor não enxergava os `fields[].value` de um `map`, e a cópia
+`caseId: event.caseId` funcionava por acaso. Quando passou a enxergá-los, o salto terminal entrou no
+plano e o espelho do prazo na agenda passou a gravar o processo inteiro no lugar do id.
 
 As `ScreenDefinition`s do tenant vêm do `ScreenDefinitionCache` (`functions/src/data/services/`),
 cache em memória da instância com TTL de 5 min + invalidação best-effort quando o trigger de

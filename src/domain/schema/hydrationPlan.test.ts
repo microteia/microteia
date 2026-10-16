@@ -24,6 +24,7 @@ const ctx = createSchemaContext([
       field({ key: 'responsibleLawyerId', label: 'Advogado', type: 'reference', refEntity: 'persons', refDenormKey: 'responsibleLawyer' }),
       field({ key: 'activePoleIds', label: 'Polo ativo', type: 'reference', refEntity: 'persons', refDenormKey: 'activePole', multi: true }),
       field({ key: 'tarefa', label: 'Tarefa', type: 'reference', refEntity: 'tarefas' }),
+      field({ key: 'subtarefas', label: 'Subtarefas', type: 'reference', refEntity: 'tarefas', multi: true }),
     ],
   },
   {
@@ -94,5 +95,30 @@ describe('buildHydrationPlan', () => {
     const plan = buildHydrationPlan(ctx, casesRoot, ['contract.client.name'], { maxFkDepth: 1 });
     expect(plan.issues).toHaveLength(1);
     expect(plan.issues[0].error).toBe('@core.automation/path.max-depth');
+  });
+
+  describe('referência sem campo depois dela', () => {
+    const targets = (paths: string[]): string[] =>
+      buildHydrationPlan(ctx, casesRoot, paths).levels.flat().map((hop) => hop.materializeAt);
+
+    it('lida sozinha não gera salto: é o id, e nada é buscado', () => {
+      expect(targets(['tarefa'])).toStrictEqual([]);
+      expect(targets(['subtarefas'])).toStrictEqual([]);
+      expect(targets(['subtarefas.0'])).toStrictEqual([]);
+    });
+
+    it('com um campo depois, o salto entra, inclusive para o id explícito', () => {
+      expect(targets(['tarefa.nome'])).toStrictEqual(['tarefa']);
+      expect(targets(['tarefa.id'])).toStrictEqual(['tarefa']);
+      expect(targets(['subtarefas.nome'])).toStrictEqual(['subtarefas']);
+    });
+
+    it('a navegação de outro caminho não muda o plano da leitura sozinha', () => {
+      expect(targets(['tarefa', 'tarefa.nome'])).toStrictEqual(['tarefa']);
+    });
+
+    it('o registro denormalizado lido sozinho continua sendo buscado: ele não é o id', () => {
+      expect(targets(['contract'])).toStrictEqual(['contract']);
+    });
   });
 });

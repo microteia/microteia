@@ -3,7 +3,13 @@ import { WorkflowContextHydrator, createHydrationCache } from './WorkflowContext
 import type { IWorkflowRecordFetcher } from '../repositories/IWorkflowRecordFetcher';
 import type { IScreenDefinitionProvider } from '../repositories/IScreenDefinitionProvider';
 import type { SchemaScreen } from '../schema/pathResolver';
-import type { WorkflowDefinition, WorkflowEvent } from '../entities/Workflow';
+import type { InputMapping, WorkflowDefinition, WorkflowEvent, WorkflowStep } from '../entities/Workflow';
+import type { IWorkflowMutationRepository } from '../repositories/IWorkflowMutationRepository';
+import type { StepRegistry } from './StepRegistry';
+import type { StepDefinition } from './StepDefinition';
+import { hydrateAndRunWorkflow } from './hydrateAndRunWorkflow';
+import { makeMapStepDefinition } from '../../infrastructure/workflow/steps/MapStep';
+import { makeUpsertStepDefinition } from '../../infrastructure/workflow/steps/UpsertStep';
 import { fakeScreenProvider } from '../../domain/repositories/fakeScreenProvider';
 
 const screens: SchemaScreen[] = [
@@ -395,5 +401,240 @@ describe('hydrate', () => {
     const hydrated = await hydrator.hydrate(event, ['contract.number'], createHydrationCache());
     expect((hydrated.payload.contract as Record<string, unknown>).number).toBe('eager');
     expect(calls).toStrictEqual([]);
+  });
+});
+
+describe('referência lida sozinha numa automação é o id (regressão da 9.108.1)', () => {
+  const deadlineScreens: SchemaScreen[] = [
+    {
+      id: 'processos',
+      collection: 'cases',
+      eventPrefix: 'case',
+      titleSingular: 'Processo',
+      titleFieldKey: 'title',
+      fields: [{ key: 'court', label: 'Tribunal', type: 'text', required: false, order: 0, origin: 'plugin' }],
+    },
+    {
+      id: 'agendas',
+      collection: 'calendars',
+      titleSingular: 'Agenda',
+      titleFieldKey: 'name',
+      fields: [{ key: 'name', label: 'Nome', type: 'text', required: false, order: 0, origin: 'plugin' }],
+    },
+    {
+      id: 'persons',
+      titleSingular: 'Pessoa',
+      titleFieldKey: 'name',
+      fields: [{ key: 'name', label: 'Nome', type: 'text', required: false, order: 0, origin: 'plugin' }],
+    },
+    {
+      id: 'eventos',
+      collection: 'calendarEvents',
+      titleSingular: 'Evento',
+      titleFieldKey: 'title',
+      fields: [
+        { key: 'title', label: 'Título', type: 'text', required: false, order: 0, origin: 'plugin' },
+        { key: 'caseId', label: 'Processo', type: 'reference', refEntity: 'cases', required: false, order: 1, origin: 'plugin' },
+        { key: 'personId', label: 'Pessoa', type: 'reference', refEntity: 'persons', required: false, order: 2, origin: 'plugin' },
+      ],
+    },
+    {
+      id: 'prazos',
+      collection: 'deadlines',
+      eventPrefix: 'deadline',
+      titleSingular: 'Prazo',
+      titleFieldKey: 'title',
+      fields: [
+        { key: 'title', label: 'Título', type: 'text', required: false, order: 0, origin: 'plugin' },
+        { key: 'caseId', label: 'Processo', type: 'reference', refEntity: 'cases', required: false, order: 1, origin: 'plugin' },
+        { key: 'responsibleLawyerId', label: 'Responsável', type: 'reference', refEntity: 'persons', required: false, order: 2, origin: 'plugin' },
+        { key: 'calendars', label: 'Agendas', type: 'reference', refEntity: 'calendars', multi: true, required: false, order: 3, origin: 'plugin' },
+      ],
+    },
+  ];
+
+  const deadlineDatabase: Record<string, Record<string, Record<string, unknown>>> = {
+    cases: { k1: { title: 'Ação de cobrança', court: 'TJBA' } },
+    calendars: { a1: { name: 'Agenda A' }, a2: { name: 'Agenda B' } },
+    persons: { p1: { name: 'Maria Silva' } },
+  };
+
+  const countingFetcher = (): { fetcher: IWorkflowRecordFetcher; calls: string[] } => {
+    const calls: string[] = [];
+    return {
+      calls,
+      fetcher: {
+        fetchByIds: (_tenantId, collection, ids) => {
+          calls.push(`${collection}:${[...ids].sort().join(',')}`);
+          return Promise.resolve(new Map(ids.map((id) => [id, deadlineDatabase[collection]?.[id] ?? null])));
+        },
+      },
+    };
+  };
+
+  class MemoryMutationRepository implements IWorkflowMutationRepository {
+    readonly written: { collection: string; data: Record<string, unknown> }[] = [];
+
+    getById = () => Promise.resolve(null);
+
+    newId = () => 'novo';
+
+    create = (_tenantId: string, collection: string, data: Record<string, unknown>) => {
+      this.written.push({ collection, data });
+      return Promise.resolve('novo');
+    };
+
+    update = (_tenantId: string, collection: string, _id: string, data: Record<string, unknown>) => {
+      this.written.push({ collection, data });
+      return Promise.resolve();
+    };
+
+    delete = () => Promise.resolve();
+  }
+
+  const deadlineScreenProvider = fakeScreenProvider(deadlineScreens);
+  const logger = { info: () => undefined, warn: () => undefined, error: () => undefined };
+
+  const mapStep = (id: string, order: number, name: string, fields: Record<string, InputMapping>): WorkflowStep => ({
+    id,
+    stepDefinitionId: 'map',
+    type: 'Action',
+    order,
+    enabled: true,
+    configuration: {
+      map: {
+        kind: 'Literal',
+        value: { name, fields: Object.entries(fields).map(([field, value]) => ({ name: field, value })) },
+      },
+    },
+  });
+
+  const run = async (steps: WorkflowStep[], payload: Record<string, unknown>, repository = new MemoryMutationRepository()) => {
+    const { fetcher, calls } = countingFetcher();
+    let outputs: Record<string, Record<string, unknown>> = {};
+    const capture: StepDefinition = {
+      ...makeMapStepDefinition(),
+      id: 'capture',
+      inputs: [],
+      createExecutor: () => ({
+        execute: async (_inputs, context) => {
+          outputs = context.outputs;
+          return { success: true };
+        },
+      }),
+    };
+    const registry: StepRegistry = {
+      register: () => undefined,
+      resolve: (id) =>
+        id === 'map'
+          ? makeMapStepDefinition()
+          : id === 'upsert'
+            ? makeUpsertStepDefinition({ mutationRepository: repository, screenProvider: deadlineScreenProvider })
+            : id === 'capture'
+              ? capture
+              : undefined,
+      list: () => [],
+    };
+    const captureStep: WorkflowStep = { id: 'capture', stepDefinitionId: 'capture', type: 'Action', order: 99, enabled: true, configuration: {} };
+    const execution = await hydrateAndRunWorkflow(
+      makeDefinition({ eventName: 'deadline.saved', steps: [...steps, captureStep] }),
+      { id: 'evt1', tenantId: 'tenant1', name: 'deadline.saved', payload, timestamp: new Date() },
+      {
+        registry,
+        services: { logger, now: () => new Date('2026-10-15T12:00:00Z') },
+        hydrator: new WorkflowContextHydrator(fetcher, deadlineScreenProvider),
+      },
+    );
+    expect(execution.status).toBe('SUCCESS');
+    return { outputs, calls, repository };
+  };
+
+  const expression = (text: string): InputMapping => ({ kind: 'Expression', expression: text });
+
+  it('a referência copiada num map é o id, e nada é lido', async () => {
+    const { outputs, calls } = await run(
+      [mapStep('m', 0, 'agenda', { caseId: expression('event.caseId'), personId: { kind: 'Event', path: 'responsibleLawyerId' } })],
+      { id: 'd1', caseId: 'k1', responsibleLawyerId: 'p1' },
+    );
+
+    expect(outputs.m.agenda).toStrictEqual({ caseId: 'k1', personId: 'p1' });
+    expect(calls).toStrictEqual([]);
+  });
+
+  it('outro passo navegando a mesma referência recebe o campo, e o map continua recebendo o id', async () => {
+    const { outputs, calls } = await run(
+      [
+        mapStep('m1', 0, 'tribunal', { court: expression('event.caseId.court') }),
+        mapStep('m2', 1, 'agenda', {
+          caseId: expression('event.caseId'),
+          sameExpression: expression('concat(event.caseId, "@", event.caseId.court)'),
+          caseIdEvent: { kind: 'Event', path: 'caseId' },
+          explicitId: expression('event.caseId.id'),
+        }),
+      ],
+      { id: 'd1', caseId: 'k1' },
+    );
+
+    expect(outputs.m1.tribunal).toStrictEqual({ court: 'TJBA' });
+    expect(outputs.m2.agenda).toStrictEqual({ caseId: 'k1', sameExpression: 'k1@TJBA', caseIdEvent: 'k1', explicitId: 'k1' });
+    expect(calls).toStrictEqual(['cases:k1']);
+  });
+
+  it('referência vazia: sozinha é null, navegada é null, sem erro', async () => {
+    const { outputs } = await run(
+      [mapStep('m', 0, 'agenda', { caseId: expression('event.caseId'), court: expression('event.caseId.court') })],
+      { id: 'd1', caseId: null },
+    );
+
+    expect(outputs.m.agenda).toStrictEqual({ caseId: null, court: null });
+  });
+
+  it('referência múltipla: sozinha é a lista de ids, navegada colhe o campo de cada apontado', async () => {
+    const { outputs, calls } = await run(
+      [
+        mapStep('m', 0, 'agenda', {
+          calendars: expression('event.calendars'),
+          first: expression('event.calendars[0]'),
+          firstName: expression('event.calendars[0].name'),
+          names: { kind: 'Event', path: 'calendars.name' },
+          calendarsEvent: { kind: 'Event', path: 'calendars' },
+        }),
+      ],
+      { id: 'd1', calendars: ['a1', 'a2'] },
+    );
+
+    expect(outputs.m.agenda).toStrictEqual({
+      calendars: ['a1', 'a2'],
+      first: 'a1',
+      firstName: 'Agenda A',
+      names: ['Agenda A', 'Agenda B'],
+      calendarsEvent: ['a1', 'a2'],
+    });
+    expect(calls).toStrictEqual(['calendars:a1,a2']);
+  });
+
+  it('o espelho do prazo na agenda grava caseId e personId como texto, mesmo com o tribunal navegado no título', async () => {
+    const { repository } = await run(
+      [
+        mapStep('m', 0, 'evento', {
+          title: expression('concat(event.title, " - ", event.caseId.court)'),
+          caseId: expression('event.caseId'),
+          personId: expression('event.responsibleLawyerId'),
+        }),
+        {
+          id: 'u',
+          stepDefinitionId: 'upsert',
+          type: 'Action',
+          order: 1,
+          enabled: true,
+          configuration: { upsert: { kind: 'Literal', value: { table: 'calendarEvents', source: 'input', property: 'evento' } } },
+        },
+      ],
+      { id: 'd1', title: 'Contestação', caseId: 'k1', responsibleLawyerId: 'p1' },
+    );
+
+    expect(repository.written).toHaveLength(1);
+    expect(repository.written[0].collection).toBe('calendarEvents');
+    expect(repository.written[0].data).toMatchObject({ title: 'Contestação - TJBA', caseId: 'k1', personId: 'p1' });
   });
 });

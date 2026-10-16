@@ -6,6 +6,7 @@
 
 import type { FkHop, PathSegment } from './pathResolver';
 import { getValueAtPath, parsePath } from './pathResolver';
+import { tagStoredReference } from './storedReference';
 
 export const MULTI_FK_MATERIALIZE_LIMIT = 50;
 
@@ -75,6 +76,9 @@ const buildRecordValue = (
   data: Record<string, unknown> | null | undefined,
 ): Record<string, unknown> => (data ? pickFields(data, hop.fields, id) : { id });
 
+const buildReplacedValue = (hop: FkHop, id: string, records: RecordMap): Record<string, unknown> =>
+  tagStoredReference(buildRecordValue(hop, id, records.get(recordKey(hop.targetCollection, id))), id);
+
 const setValueAtPath = (target: unknown, segments: PathSegment[], value: unknown): unknown => {
   if (segments.length === 0) return value;
   const [segment, ...rest] = segments;
@@ -123,15 +127,12 @@ export const materializeHops = (
     if (hop.multi) {
       if (!Array.isArray(current)) continue;
       const replaced = current.map((item, index) =>
-        typeof item === 'string' && index < MULTI_FK_MATERIALIZE_LIMIT
-          ? buildRecordValue(hop, item, records.get(recordKey(hop.targetCollection, item)))
-          : item,
+        typeof item === 'string' && index < MULTI_FK_MATERIALIZE_LIMIT ? buildReplacedValue(hop, item, records) : item,
       );
       result = setValueAtPath(result, materializeSegments, replaced) as Record<string, unknown>;
     } else {
       if (typeof current !== 'string' || !current) continue;
-      const value = buildRecordValue(hop, current, records.get(recordKey(hop.targetCollection, current)));
-      result = setValueAtPath(result, materializeSegments, value) as Record<string, unknown>;
+      result = setValueAtPath(result, materializeSegments, buildReplacedValue(hop, current, records)) as Record<string, unknown>;
     }
   }
 

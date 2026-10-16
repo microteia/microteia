@@ -281,7 +281,7 @@ const stepCatalogTable = (steps: readonly WorkflowStepMetadata[]): string => [
  * tabela de voltar a ficar incompleta em silêncio.
  */
 const STEP_CATALOG_NOTES: Record<string, string> = {
-  notify: 'Notifies people in the app (the bell), by e-mail or by push, and/or writes it to the audit trail. With no channel set it only writes to the audit trail, as version 1 did. Recipients come from `recipientMembers`, `recipientsFrom` (a member id, or a record linked to one by `memberId`) and `recipientPermission`; each person keeps or refuses a channel in Settings, and `title`/`message` resolve in each recipient\'s language. Publishes `recipients`, `delivered.<channel>` and `failed.<channel>`.',
+  notify: 'Notifies people in the app (the bell), by e-mail or by push, and/or writes it to the audit trail. With no channel set it only writes to the audit trail, as version 1 did. Recipients come from `recipientMembers`, `recipientsFrom` (a member id, or a record linked to one by `memberId` — a reference read on its own is an id, so a person linked to a member is `event.personId.memberId`) and `recipientPermission`; each person keeps or refuses a channel in Settings, and `title`/`message` resolve in each recipient\'s language. Publishes `recipients`, `delivered.<channel>` and `failed.<channel>`.',
   'register-audit': 'Writes an entry in the audit trail. `severity` defaults to `LOW`.',
   'set-variable': 'Names a value for the rest of the flow. Read it back with `{ kind: \'Variable\' }`.',
   map: 'Assembles an object from other values — what a write step then writes.',
@@ -1510,8 +1510,9 @@ with \`isEmpty(actor)\`; \`actor.name\` there reads \`null\` instead of failing.
 single \`reference\` field reads the record it points at: \`caseId.title\`, and further,
 \`caseId.contractId.clientId\`. Only what the expression navigates is swapped — a reference read on its
 own is still the id, so \`parameterDefaults: { clientId: 'clientId' }\`, \`isEmpty(caseId)\` and
-\`caseId == "abc"\` mean what they always meant. Inside an expression that also navigates it, the bare
-name is the record; its id is \`caseId.id\`. A \`multi\` reference is not navigable here.
+\`caseId == "abc"\` mean what they always meant — even inside an expression that also navigates it:
+in \`concat(caseId, " ", caseId.title)\` the first \`caseId\` is the id. \`caseId.id\` is the id too. A
+\`multi\` reference is not navigable here. Workflows follow the same rule (§10).
 
 A path with nothing at the end of it is \`null\`, never an error: an empty reference, a deleted record,
 and a record in a collection the viewer cannot read all answer \`null\` along the way — a value only
@@ -1791,6 +1792,19 @@ nowhere to look, and the trigger is refused.
 | \`{ kind: 'Expression', expression }\` | an expression over the whole context (§9) — there \`event\` **is** the payload: \`event.title\`, never \`event.payload.title\` |
 | \`{ kind: 'Output', stepId, outputId }\` | what an earlier step produced |
 | \`{ kind: 'Variable', name }\` | a workflow variable |
+
+**Navigating a reference in a workflow.** The rule is the one actions follow (§9): the record a
+\`reference\` points at is read only when the path names a field AFTER the reference. In a workflow,
+\`event.<reference>\` on its own is the stored id — \`event.caseId\` is \`"k1"\`, never the case —
+and \`event.<reference>.<field>\` reads the record it points at: \`event.caseId.court\`. The same holds
+for \`{ kind: 'Event', path: 'caseId' }\` and for a \`FieldComparison\`. A \`multi\` reference read on
+its own is the list of ids as stored; \`event.calendars.name\` is one name per record it points at.
+An empty reference is \`null\` both ways, never an error.
+
+It holds for the whole run, not just for one expression: a step that navigates \`event.caseId.court\`
+does not change what another step copying \`event.caseId\` receives. So a \`map\` that mirrors a record
+into another (\`caseId: event.caseId\`) writes the id, and a recipient that is a person LINKED to a
+member is \`event.responsibleLawyerId.memberId\`, not \`event.responsibleLawyerId\`.
 
 ${describedTable('Step type', STEP_TYPES, STEP_KINDS)}
 

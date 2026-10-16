@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import type { FkHop } from './pathResolver';
 import { MULTI_FK_MATERIALIZE_LIMIT, collectHopRecordRefs, materializeHops, recordKey } from './materialize';
+import { STORED_REFERENCE_ID, readAsStored } from './storedReference';
 
 const contractHop: FkHop = {
   atPath: 'contractId',
@@ -84,7 +85,17 @@ describe('materializeHops', () => {
       id: 't1',
       nome: 'Elaborar petição',
       prazo: '2026-07-10',
+      [STORED_REFERENCE_ID]: 't1',
     });
+  });
+
+  it('o registro posto no lugar do id guarda o id gravado: lido como está, volta a ser o id', () => {
+    const records = new Map([[recordKey('tarefas', 't1'), { nome: 'Elaborar petição' }]]);
+    const result = materializeHops({ tarefa: 't1', outras: ['t1', 't2'] }, [tarefaHop, { ...tarefaHop, atPath: 'outras', materializeAt: 'outras', multi: true }], records);
+    expect(readAsStored(result.tarefa)).toBe('t1');
+    expect(readAsStored(result.outras)).toStrictEqual(['t1', 't2']);
+    expect(Object.keys(result.tarefa as object)).toStrictEqual(['id', 'nome']);
+    expect(JSON.parse(JSON.stringify(result.tarefa))).toStrictEqual({ id: 't1', nome: 'Elaborar petição' });
   });
 
   it('não substitui reference já enriquecida (objeto) nem valor vazio', () => {

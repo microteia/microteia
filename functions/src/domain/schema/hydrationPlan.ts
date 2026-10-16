@@ -49,17 +49,18 @@ export const buildHydrationPlan = (
       });
       continue;
     }
-    resolution.hops.forEach((hop, index) => {
+    for (const [index, hop] of resolution.hops.entries()) {
+      const accessed = fieldAccessedAfterHop(pathSegments, hop);
+      if (!accessed && hop.mode === 'replaceValue') break;
       if (!hopsByTarget.has(hop.materializeAt)) {
         hopsByTarget.set(hop.materializeAt, { hop, level: index + 1 });
       }
-      const accessed = fieldAccessedAfterHop(pathSegments, hop);
       if (accessed) {
         const set = accessedByTarget.get(hop.materializeAt) ?? new Set<string>();
         set.add(accessed);
         accessedByTarget.set(hop.materializeAt, set);
       }
-    });
+    }
   }
 
   for (const entry of hopsByTarget.values()) {

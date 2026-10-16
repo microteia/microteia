@@ -2,9 +2,10 @@ import type { Condition } from '../entities/Workflow';
 import type { WorkflowContext } from '../entities/WorkflowContext';
 import { expressionEngine } from './expression/ExpressionEngine';
 import { getValueAtPath, parsePath } from '../schema/pathResolver';
+import { readAsStored } from '../schema/storedReference';
 
 import { LocalizedError } from '../errors/LocalizedError';
-const getValueByPath = (obj: unknown, path: string): unknown => getValueAtPath(obj, parsePath(path));
+const getValueByPath = (obj: unknown, path: string): unknown => readAsStored(getValueAtPath(obj, parsePath(path)));
 
 /**
  * Avalia uma comparação de campo único

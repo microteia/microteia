@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.113.1] — 2026-10-15
+
+- Corrigido um problema em que as automações que copiam um vínculo para outro registro passaram a gravar o registro inteiro no lugar do vínculo. Com isso, as alterações dos prazos voltam a chegar à Agenda, e as parcelas e os eventos do Financeiro voltam a ficar ligados ao processo, ao contrato e à pessoa certos.
+
 #### [9.113.0] — 2026-10-15
 
 - Em Configurações, "Abas do registro" agora reúne todas as abas extras de uma tela: as das telas filhas (como Anexos dentro do Processo) e as que as extensões acrescentam. As duas são ligadas, desligadas e ordenadas do mesmo jeito, numa lista só, e uma pode ficar entre as outras.

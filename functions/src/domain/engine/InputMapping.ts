@@ -3,12 +3,13 @@ import type { WorkflowContext } from '../entities/WorkflowContext';
 import type { InputDefinition } from './StepDefinition';
 import { expressionEngine } from './expression/ExpressionEngine';
 import { getValueAtPath, parsePath } from '../schema/pathResolver';
+import { readAsStored } from '../schema/storedReference';
 import { applyFormat, checkValue, toEffectiveRules } from '../schema/fieldRules';
 
 import { LocalizedError } from '../errors/LocalizedError';
 import { errorParamsOf } from '../errors/LocalizedError';
 const resolveEventPath = (payload: Record<string, unknown>, path: string): unknown =>
-  getValueAtPath(payload, parsePath(path));
+  readAsStored(getValueAtPath(payload, parsePath(path)));
 
 const resolveOutputPath = (outputs: Record<string, unknown>, stepId: string, outputId: string): unknown => {
   const stepOutputs = outputs[stepId];

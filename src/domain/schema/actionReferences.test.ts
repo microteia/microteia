@@ -111,6 +111,11 @@ describe('o nome sozinho continua sendo o id', () => {
     expect(evaluateActionExpression('caseId.contractId', ctx({ caseId: 'c1' }))).toBe('k1');
   });
 
+  it('na expressão que também navega, o nome sozinho segue sendo o id', () => {
+    expect(evaluateActionExpression('concat(caseId, "|", caseId.title)', ctx({ caseId: 'c1' }))).toBe('c1|Ação de cobrança');
+    expect(isActionHidden('caseId == "c1" and caseId.title == "Ação de cobrança"', ctx({ caseId: 'c1' }))).toBe(true);
+  });
+
   it('sem navegador no contexto, nada muda', () => {
     expect(evaluateActionExpression('caseId', ctx({ caseId: 'c1' }, { references: undefined }))).toBe('c1');
   });
