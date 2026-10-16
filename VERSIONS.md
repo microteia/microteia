@@ -11,6 +11,12 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.114.0] — 2026-10-16
+
+- Novo grupo "Favoritos" no menu lateral. Ao passar o mouse sobre um item do menu, aparece um alfinete: clique nele para fixar o item no topo, em Favoritos. Para tirá-lo de lá, use o mesmo alfinete.
+- Os favoritos são seus e acompanham você em qualquer computador, separados por escritório. O grupo só aparece quando há ao menos um item fixado.
+- Favoritos se comporta como os outros grupos: pode ser recolhido, continua mostrando a tela aberta e soma os avisos dos itens escondidos.
+
 #### [9.113.2] — 2026-10-15
 
 - Corrigido: nas automações com espera, os passos que vêm depois da espera voltam a enxergar os dados dos registros vinculados, como o tribunal do processo.

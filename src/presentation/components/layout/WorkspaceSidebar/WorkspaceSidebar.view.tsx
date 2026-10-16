@@ -9,6 +9,8 @@ import {
   RiArrowRightSLine,
   RiArrowDownSLine,
   RiSearchLine,
+  RiPushpinLine,
+  RiUnpinLine,
 } from 'react-icons/ri';
 import { useWorkspaceSidebarViewModel } from './WorkspaceSidebar.viewmodel';
 import { S } from './WorkspaceSidebar.styles';
@@ -84,20 +86,31 @@ export const WorkspaceSidebar: React.FC = () => {
                 )}
               </S.NavGroupHeader>
             )}
-            {section.items.map(({ key, label, icon, badge }) => (
-              <S.NavItem
-                key={key}
-                $active={vm.activeKey === key}
-                onClick={() => vm.handleNavClick(key)}
-                title={vm.collapsed ? label : undefined}
-              >
-                {icon}
-                {!vm.collapsed && label}
-                {!vm.collapsed && badge > 0 && (
-                  <S.NavBadge>{badge > 99 ? '99+' : badge}</S.NavBadge>
+            {section.items.map(({ key, label, icon, badge, pinned }) => (
+              <S.NavRow key={key}>
+                <S.NavItem
+                  $active={vm.activeKey === key}
+                  onClick={() => vm.handleNavClick(key)}
+                  title={vm.collapsed ? label : undefined}
+                >
+                  {icon}
+                  {!vm.collapsed && label}
+                  {!vm.collapsed && badge > 0 && (
+                    <S.NavBadge>{badge > 99 ? '99+' : badge}</S.NavBadge>
+                  )}
+                  {vm.collapsed && badge > 0 && <S.NavBadgeDot />}
+                </S.NavItem>
+                {!vm.collapsed && (
+                  <S.NavPinButton
+                    $pinned={pinned}
+                    onClick={() => vm.toggleFavorite(key)}
+                    title={t(pinned ? 'sidebar.favorites.unpin' : 'sidebar.favorites.pin')}
+                    aria-label={t(pinned ? 'sidebar.favorites.unpin' : 'sidebar.favorites.pin')}
+                  >
+                    {pinned ? <RiUnpinLine /> : <RiPushpinLine />}
+                  </S.NavPinButton>
                 )}
-                {vm.collapsed && badge > 0 && <S.NavBadgeDot />}
-              </S.NavItem>
+              </S.NavRow>
             ))}
           </S.NavSection>
         ))}

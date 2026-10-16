@@ -18,6 +18,12 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.114.0] — 2026-10-16
+
+- feat(ui/sidebar): pinnable "Favorites" section at the top of the sidebar. Hovering a nav item reveals a pin button; a pinned item leaves its declared group and joins Favorites, in pin order (`splitFavoriteNavItems` in `resolveUiContributions`). The section collapses, keeps the active tab's item visible and rolls hidden badges up into its title, like any declared group; unlike one, it keeps its title with a single item and is absent when empty. Its section key is `@favorites`, which no declared group key can take.
+- feat(ui/sidebar): pinned keys are stored per user and per tenant in the `sidebar.favorites` user setting (`settings/user_<uid>`), not in `localStorage` — screen keys are tenant-specific and favorites follow the user across devices. A stored key whose item is no longer visible is hidden, not dropped.
+- feat(locale-pt-br): 1.97.0 — translations for the new sidebar strings.
+
 #### [9.113.2] — 2026-10-15
 
 - fix(workflow/delay): a run resumed after a `delay` ran without hydration — and without the called flow's `parameterDefaults` — because the continuation stores the raw event and `resumeWorkflowExecution` handed it straight to `runWorkflow`. Every `event.<reference>.<field>` read after the wait came back empty. The resume now goes through `prepareWorkflowEvent`, the same preparation as the start (extracted from `hydrateAndRunWorkflow`); `ResumeWorkflowDeps` gains `hydrator`. The event's own record is still the snapshot taken when the run started; the records it points at are read at resume time. Storing the hydrated payload instead would not work: the stored-id mark does not survive the continuation's JSON.

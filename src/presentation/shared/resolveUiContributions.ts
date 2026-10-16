@@ -143,6 +143,21 @@ export const groupNavSections = <T extends { order: number; group?: string }>(
 };
 
 /**
+ * Tira do menu os itens que a pessoa fixou, na ordem em que ela os fixou. A chave guardada que não
+ * corresponde a item visível (tela desligada, permissão retirada) não aparece, mas também não é
+ * descartada: o item volta aos favoritos no dia em que voltar ao menu.
+ */
+export const splitFavoriteNavItems = <T extends { key: string }>(
+  items: T[],
+  favoriteKeys: readonly string[],
+): { favorites: T[]; rest: T[] } => {
+  const byKey = new Map(items.map((item) => [item.key, item]));
+  const favorites = [...new Set(favoriteKeys)].flatMap((key) => byKey.get(key) ?? []);
+  const pinned = new Set(favorites.map((item) => item.key));
+  return { favorites, rest: items.filter((item) => !pinned.has(item.key)) };
+};
+
+/**
  * As seções de Configurações que esta pessoa VÊ. Mesmo predicado de `visibleNavItems`, e é o ponto:
  * uma seção era a única contribuição de UI sem `requiredPermissions`, então o que uma extensão
  * expunha ali ficava sob a permissão de configurar o escritório inteiro ou sob nenhuma.

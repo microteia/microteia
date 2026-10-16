@@ -10,11 +10,13 @@ import { getScreenIcon } from '../../../shared/screenIcons';
 import { useNavContributions, useNavGroupContributions } from '../../../shared/useUiContributions';
 import { useNavBadgeCount } from '../../../shared/useNavBadgeCount';
 import { menuActionTarget, useNavTargetResolver } from '../../../shared/useNavTarget';
-import { declaredNavGroups, groupNavSections, visibleNavItems } from '../../../shared/resolveUiContributions';
+import { declaredNavGroups, groupNavSections, splitFavoriteNavItems, visibleNavItems } from '../../../shared/resolveUiContributions';
 import { screenReadPermission } from '../../../../domain/services/screenDataCollection';
 import { DYNAMIC_SCREEN_NAV_ORDER, USER_MENU_SURFACE } from '../../../../domain/schema/ui/uiExtensionPoints';
 import { useSurfaceMenuItems, type SurfaceMenuItemDescriptor } from '../../../shared/settings/useSettingsCatalog';
 import { useSurfaceMenuLayout } from '../../../shared/settings/useSettingValue';
+import { useSettings } from '../../../../stores/useSettings';
+import { useNotification } from '../../../../stores/useNotification';
 import { useAuditLogAlert } from '../../../../stores/useAuditLogAlert';
 import { useExtensionUpdates } from '../../../shared/useExtensionUpdates';
 import type { User } from '../../../../domain/entities';
@@ -26,6 +28,8 @@ export interface NavItem {
   icon: React.ReactNode;
   /** Contador do item. `0` = sem selo. */
   badge: number;
+  /** Está nos favoritos. É o que decide se o botão ao lado do item fixa ou desafixa. */
+  pinned: boolean;
   requiresTenantAdmin?: boolean;
 }
 
@@ -45,6 +49,18 @@ export interface NavSectionView {
 }
 
 const COLLAPSED_GROUPS_KEY = 'microteia:sidebarCollapsedGroups';
+
+/**
+ * Os itens fixados vivem na configuração do USUÁRIO, por escritório: as chaves de tela de um
+ * escritório não existem no outro, e a pessoa encontra os mesmos favoritos em qualquer aparelho.
+ */
+const FAVORITES_SETTING_KEY = 'sidebar.favorites';
+
+/** A seção dos favoritos. O `@` a separa de qualquer `key` de grupo declarada por extensão. */
+const FAVORITES_SECTION_KEY = '@favorites';
+
+const readFavoriteKeys = (value: unknown): string[] =>
+  Array.isArray(value) ? value.filter((key): key is string => typeof key === 'string' && key !== '') : [];
 
 /**
  * O que a pessoa recolheu, por grupo. É conveniência de quem usa, e não dado: num navegador sem
@@ -111,6 +127,7 @@ export interface WorkspaceSidebarViewModel {
   searchShortcut: string;
   toggleCollapse: () => void;
   toggleNavGroup: (key: string) => void;
+  toggleFavorite: (key: string) => void;
   handleNavClick: (key: string) => void;
   openCommandPalette: () => void;
   toggleMenu: () => void;
@@ -139,6 +156,12 @@ export const useWorkspaceSidebarViewModel = (): WorkspaceSidebarViewModel => {
   const navGroupContributions = useNavGroupContributions();
   const registeredMenuItems = useSurfaceMenuItems(USER_MENU_SURFACE);
   const { entries: menuEntries } = useSurfaceMenuLayout(USER_MENU_SURFACE);
+  const { values: settingsValues, setValue: setSettingValue } = useSettings();
+  const { notify } = useNotification();
+  const favoriteKeys = useMemo(
+    () => readFavoriteKeys(settingsValues.user[FAVORITES_SETTING_KEY]),
+    [settingsValues.user],
+  );
 
   const searchShortcut = /Mac|iPhone|iPod|iPad/.test(navigator.platform) ? '⌘K' : 'Ctrl K';
 
@@ -203,23 +226,38 @@ export const useWorkspaceSidebarViewModel = (): WorkspaceSidebarViewModel => {
 
   const navGroups = useMemo(() => declaredNavGroups(navGroupContributions), [navGroupContributions]);
 
-  const navSections = useMemo<NavSectionView[]>(
-    () => groupNavSections(navItems, navGroups).map((section, index): NavSectionView => {
-      const items = section.items.map(({ key, label, icon, badge }): NavItem => ({ key, label, icon, badge }));
-      if (!section.group) return { key: `loose-${index}`, label: null, collapsed: false, badge: 0, items };
-      const { group } = section;
-      const groupCollapsed = !collapsed && (collapsedGroups[group.key] ?? group.defaultCollapsed === true);
+  /**
+   * Os favoritos são um grupo como os declarados — recolhem, mostram o item da aba ativa e somam os
+   * selos escondidos no título —, com duas diferenças: encabeçam o menu e têm título mesmo com um item
+   * só, porque são a pessoa quem os pediu. O item fixado SAI do grupo de origem.
+   */
+  const navSections = useMemo<NavSectionView[]>(() => {
+    const toSection = (key: string, sectionLabel: string, items: NavItem[], defaultCollapsed: boolean): NavSectionView => {
+      const groupCollapsed = !collapsed && (collapsedGroups[key] ?? defaultCollapsed);
       const hidden = groupCollapsed ? items.filter((item) => item.key !== activeKey) : [];
       return {
-        key: group.key,
-        label: label(group.label),
+        key,
+        label: sectionLabel,
         collapsed: groupCollapsed,
         badge: hidden.reduce((sum, item) => sum + item.badge, 0),
         items: groupCollapsed ? items.filter((item) => item.key === activeKey) : items,
       };
-    }),
-    [navItems, navGroups, collapsedGroups, activeKey, collapsed, label],
-  );
+    };
+
+    const { favorites, rest } = splitFavoriteNavItems(navItems, favoriteKeys);
+    const toItem = (pinned: boolean) => ({ key, label, icon, badge }: Omit<NavItem, 'pinned'>): NavItem => ({ key, label, icon, badge, pinned });
+
+    const sections = groupNavSections(rest, navGroups).map((section, index): NavSectionView => {
+      const items = section.items.map(toItem(false));
+      if (!section.group) return { key: `loose-${index}`, label: null, collapsed: false, badge: 0, items };
+      return toSection(section.group.key, label(section.group.label), items, section.group.defaultCollapsed === true);
+    });
+    if (favorites.length === 0) return sections;
+    return [
+      toSection(FAVORITES_SECTION_KEY, label('@core.ui/sidebar.favorites'), favorites.map(toItem(true)), false),
+      ...sections,
+    ];
+  }, [navItems, favoriteKeys, navGroups, collapsedGroups, activeKey, collapsed, label]);
 
   const toggleNavGroup = useCallback((key: string) => {
     const section = navSections.find((candidate) => candidate.key === key);
@@ -228,6 +266,14 @@ export const useWorkspaceSidebarViewModel = (): WorkspaceSidebarViewModel => {
     setCollapsedGroups(next);
     writeCollapsedGroups(next);
   }, [navSections, collapsedGroups]);
+
+  const toggleFavorite = useCallback((key: string) => {
+    const next = favoriteKeys.includes(key)
+      ? favoriteKeys.filter((candidate) => candidate !== key)
+      : [...favoriteKeys, key];
+    setSettingValue('user', FAVORITES_SETTING_KEY, next)
+      .catch(() => notify(label('@core.ui/sidebar.favorites.save-failed'), 'error'));
+  }, [favoriteKeys, setSettingValue, notify, label]);
 
   const toggleCollapse = useCallback(() => setCollapsed(c => !c), []);
 
@@ -347,6 +393,7 @@ export const useWorkspaceSidebarViewModel = (): WorkspaceSidebarViewModel => {
     searchShortcut,
     toggleCollapse,
     toggleNavGroup,
+    toggleFavorite,
     handleNavClick,
     openCommandPalette,
     toggleMenu,

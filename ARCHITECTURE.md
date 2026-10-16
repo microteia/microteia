@@ -6203,6 +6203,17 @@ do escritório (100) acima da administração (110). Recolher é preferência de
 grupo recolhido continua mostrando o item da aba ativa, e o título soma os selos escondidos. Com a barra
 lateral recolhida não há título onde clicar, então nenhum grupo recolhe — os grupos viram divisores.
 
+**Favoritos — o grupo que a pessoa monta.** Ao passar o mouse num item aparece o alfinete; fixado, o
+item SAI do grupo de origem e entra em "Favoritos", que encabeça o menu na ordem em que os itens foram
+fixados (`splitFavoriteNavItems`, em `resolveUiContributions`). Ele é tratado como os grupos declarados —
+recolhe, mantém visível o item da aba ativa e soma no título os selos escondidos —, com duas diferenças:
+tem título mesmo com um item só, porque foi pedido, e só existe com ao menos um item visível. As chaves
+ficam na configuração do USUÁRIO (`sidebar.favorites`, `settings/user_<uid>` do escritório), e não no
+`localStorage`: a chave de tela de um escritório não existe no outro, e a pessoa encontra os mesmos
+favoritos em qualquer aparelho. Chave guardada cujo item sumiu (tela desligada, permissão retirada) não
+aparece, mas não é apagada — o item volta aos favoritos se voltar ao menu. A seção usa a chave
+`@favorites`, que nenhuma `key` de grupo declarada pode ter.
+
 A `key` do grupo é universal, como o `sourceId` de uma tela: Calendário e Dias úteis declaram ambos
 `schedule`, e cada um sozinho funciona. A tela criada no Screen Builder ainda entra solta — a extensão
 que quer agrupar a dela declara `nav({ screen, group })`, que substitui o item automático.

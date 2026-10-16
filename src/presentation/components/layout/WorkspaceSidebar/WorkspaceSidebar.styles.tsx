@@ -5,6 +5,67 @@ const fadeScaleIn = keyframes`
   to   { opacity: 1; transform: scale(1) translateY(0); }
 `;
 
+const NavBadge = styled.span`
+  margin-left: auto;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: ${({ theme }) => theme.borderRadius.full};
+  background: ${({ theme }) => theme.colors.primary};
+  color: ${({ theme }) => theme.colors.white};
+  font-size: 10px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+`;
+
+const NavPinButton = styled.button<{ $pinned: boolean }>`
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: ${({ theme }) => theme.borderRadius.sm};
+  color: ${({ theme, $pinned }) => ($pinned ? theme.colors.primary : theme.colors.textMuted)};
+  opacity: 0;
+  pointer-events: none;
+  transition: all ${({ theme }) => theme.transitions.fast};
+
+  svg {
+    width: 15px;
+    height: 15px;
+  }
+
+  &:hover {
+    color: ${({ theme }) => theme.colors.text};
+    background: ${({ theme }) => theme.colors.borderSubtle};
+  }
+
+  &:focus-visible {
+    opacity: 1;
+    pointer-events: auto;
+  }
+`;
+
+const NavRow = styled.div`
+  position: relative;
+
+  &:hover ${NavPinButton}, &:focus-within ${NavPinButton} {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  &:hover ${NavBadge}, &:focus-within ${NavBadge} {
+    margin-right: 26px;
+  }
+`;
+
 export const S = {
   Container: styled.aside<{ $collapsed: boolean }>`
     width: ${({ $collapsed, theme }) =>
@@ -233,21 +294,11 @@ export const S = {
     }
   `,
 
-  NavBadge: styled.span`
-    margin-left: auto;
-    min-width: 18px;
-    height: 18px;
-    padding: 0 5px;
-    border-radius: ${({ theme }) => theme.borderRadius.full};
-    background: ${({ theme }) => theme.colors.primary};
-    color: ${({ theme }) => theme.colors.white};
-    font-size: 10px;
-    font-weight: 700;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-  `,
+  NavBadge,
+
+  NavRow,
+
+  NavPinButton,
 
   NavBadgeDot: styled.span`
     position: absolute;

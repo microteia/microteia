@@ -6,6 +6,7 @@ import {
   homePageKey,
   navigablePages,
   resolvePageContribution,
+  splitFavoriteNavItems,
   visibleNavItems,
   visibleSettingsSections,
 } from './resolveUiContributions';
@@ -266,5 +267,28 @@ describe('groupNavSections', () => {
     expect(shape(groupNavSections(items, [group('admin', 110)]))).toEqual([
       [null, ['painel', 'relatorios', 'auditoria']],
     ]);
+  });
+});
+
+describe('splitFavoriteNavItems', () => {
+  const items = [{ key: 'painel' }, { key: 'relatorios' }, { key: 'auditoria' }];
+  const keys = (list: { key: string }[]) => list.map((item) => item.key);
+
+  it('tira os fixados do menu, na ordem em que foram fixados', () => {
+    const { favorites, rest } = splitFavoriteNavItems(items, ['auditoria', 'painel']);
+    expect(keys(favorites)).toEqual(['auditoria', 'painel']);
+    expect(keys(rest)).toEqual(['relatorios']);
+  });
+
+  it('ignora a chave que não corresponde a item visível e a repetida', () => {
+    const { favorites, rest } = splitFavoriteNavItems(items, ['sumiu', 'painel', 'painel']);
+    expect(keys(favorites)).toEqual(['painel']);
+    expect(keys(rest)).toEqual(['relatorios', 'auditoria']);
+  });
+
+  it('sem favoritos, o menu fica intacto', () => {
+    const { favorites, rest } = splitFavoriteNavItems(items, []);
+    expect(favorites).toEqual([]);
+    expect(keys(rest)).toEqual(['painel', 'relatorios', 'auditoria']);
   });
 });
