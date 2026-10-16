@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.114.1] — 2026-10-16
+
+- Corrigidas as automações cuja condição verifica se uma data do registro foi preenchida: uma data preenchida era tratada como vazia, e a automação nunca chegava a rodar.
+
 #### [9.114.0] — 2026-10-16
 
 - Novo grupo "Favoritos" no menu lateral. Ao passar o mouse sobre um item do menu, aparece um alfinete: clique nele para fixar o item no topo, em Favoritos. Para tirá-lo de lá, use o mesmo alfinete.

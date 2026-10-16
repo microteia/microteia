@@ -18,6 +18,10 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.114.1] — 2026-10-16
+
+- fix(workflow/expressions): `isEmpty` counted every object without own keys as empty, and event dates arrive as `Date` (`normalizeFirestoreValue`), so `isEmpty(event.dueDate)` was always `true` and a condition such as `not isEmpty(event.dueDate)` never let the workflow run. Only plain objects are now empty when they have no keys; a `Date` is empty only when invalid, and other instances are never empty.
+
 #### [9.114.0] — 2026-10-16
 
 - feat(ui/sidebar): pinnable "Favorites" section at the top of the sidebar. Hovering a nav item reveals a pin button; a pinned item leaves its declared group and joins Favorites, in pin order (`splitFavoriteNavItems` in `resolveUiContributions`). The section collapses, keeps the active tab's item visible and rolls hidden badges up into its title, like any declared group; unlike one, it keeps its title with a single item and is absent when empty. Its section key is `@favorites`, which no declared group key can take.

@@ -13,7 +13,11 @@ export const isEmptyFn: ExpressionFunction = {
     if (value === null || value === undefined) return true;
     if (typeof value === 'string') return value.trim().length === 0;
     if (Array.isArray(value)) return value.length === 0;
-    if (typeof value === 'object') return Object.keys(value).length === 0;
+    if (value instanceof Date) return Number.isNaN(value.getTime());
+    if (typeof value === 'object') {
+      const proto = Object.getPrototypeOf(value);
+      return (proto === Object.prototype || proto === null) && Object.keys(value).length === 0;
+    }
     return false;
   },
   description: '@core.automation/expr.isEmpty.description',
