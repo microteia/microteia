@@ -98,6 +98,7 @@ export const CALENDAR_MESSAGES: Record<string, string> = {
   'view.previous-month': 'Previous month',
   'view.next-month': 'Next month',
   'view.today': 'Today',
+  'view.filter.origin': 'Origin',
   'view.filter.placeholder': 'Filter the agenda...',
   'view.legend.priority': 'Priority:',
   'view.legend.all': 'All',

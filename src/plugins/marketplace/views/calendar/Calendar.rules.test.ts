@@ -5,14 +5,18 @@ import {
   displayDate,
   fieldKeysOf,
   isOriginHidden,
+  knownOriginsOf,
+  ORIGIN_FILTER,
   linkOf,
   moveHandlerFor,
   originsOf,
   partOf,
+  pickedOriginsOf,
   positionOf,
   sourceFor,
   statsOf,
   subtitleOf,
+  withPickedOrigins,
   withoutMove,
 } from './Calendar.rules';
 
@@ -195,6 +199,24 @@ describe('como uma origem se apresenta', () => {
     expect(fieldKeysOf(['a', '', 3, 'b'])).toEqual(['a', 'b']);
     expect(fieldKeysOf('a')).toEqual([]);
     expect(fieldKeysOf(undefined)).toEqual([]);
+  });
+
+  it('o filtro conhece as origens declaradas, mesmo sem item, e as presentes que não declararam nada', () => {
+    const contributions = [source('a', 'hearings'), source('b', ''), source('c', 'deadlines'), source('d', 'hearings')];
+    const items = [record({ origem: 'tasks' }), record({ origem: 'deadlines' })];
+    expect(knownOriginsOf(contributions, items)).toEqual(['hearings', 'deadlines', 'tasks']);
+    expect(knownOriginsOf([], [])).toEqual([]);
+  });
+
+  /** A chave do filtro é da agenda, não de campo: a lista ignora o token, e só a agenda responde. */
+  it('as origens escolhidas vivem num token próprio, que some quando nada está escolhido', () => {
+    const others = [{ key: 'priority', values: ['high'] }];
+    const picked = withPickedOrigins(others, ['deadlines', 'hearings']);
+    expect(picked).toEqual([...others, { key: ORIGIN_FILTER, values: ['deadlines', 'hearings'] }]);
+    expect(pickedOriginsOf(picked)).toEqual(['deadlines', 'hearings']);
+    expect(withPickedOrigins(picked, ['tasks'])).toEqual([...others, { key: ORIGIN_FILTER, values: ['tasks'] }]);
+    expect(withPickedOrigins(picked, [])).toEqual(others);
+    expect(pickedOriginsOf(others)).toEqual([]);
   });
 
   it('as origens presentes aparecem uma vez cada, na ordem em que surgem', () => {

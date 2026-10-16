@@ -223,6 +223,37 @@ export const partOf = (key, value) => {
 export const subtitleOf = (record, keys, fieldText) =>
   keys.map((key) => partOf(key, fieldText(record, key))).filter((part) => part.text !== '');
 
+/**
+ * Every origin the agenda can show: the ones that declared themselves on `calendar.source` — even with no
+ * item yet this month, so the filter can offer them before they have a card — followed by the ones present
+ * in the records that declared nothing. Each once; a declaration with no `origem` names nothing.
+ */
+export const knownOriginsOf = (contributions, records) => {
+  const seen = [];
+  for (const contribution of contributions) {
+    const origem = text(contribution.metadata.origem);
+    if (origem && seen.indexOf(origem) === -1) seen.push(origem);
+  }
+  for (const origem of originsOf(records)) if (seen.indexOf(origem) === -1) seen.push(origem);
+  return seen;
+};
+
+/**
+ * The origin filter: the keys picked in it, read from the filter tokens. Its key is the agenda's own and
+ * names no field — the list's own filter skips it, and only the agenda answers it, with the EXACT origin.
+ */
+export const ORIGIN_FILTER = 'calendar.origin';
+
+export const pickedOriginsOf = (tokens) => {
+  const found = tokens.find((token) => token.key === ORIGIN_FILTER);
+  return found ? found.values : [];
+};
+
+export const withPickedOrigins = (tokens, origins) => {
+  const others = tokens.filter((token) => token.key !== ORIGIN_FILTER);
+  return origins.length === 0 ? others : others.concat([{ key: ORIGIN_FILTER, values: origins }]);
+};
+
 /** The origins present in the records, each once, in the order they first appear. */
 export const originsOf = (records) => {
   const seen = [];

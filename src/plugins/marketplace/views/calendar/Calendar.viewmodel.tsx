@@ -18,7 +18,10 @@ import {
   monthLabelOf,
   monthOf,
   moveHandlerFor,
-  originsOf,
+  knownOriginsOf,
+  ORIGIN_FILTER,
+  pickedOriginsOf,
+  withPickedOrigins,
   partOf,
   sourceFor,
   statsOf,
@@ -61,7 +64,6 @@ export const useCalendarViewModel = () => {
   const [dragOverKey, setDragOverKey] = useState(null);
   // The drag in flight: { [id]: { from, to } }. See positionOf.
   const [moves, setMoves] = useState({});
-  const [originFilter, setOriginFilter] = useState(null);
   const scrollerRef = useRef(null);
 
   /**
@@ -72,7 +74,7 @@ export const useCalendarViewModel = () => {
    */
   const sources = useMemo(() => {
     const byOrigin = {};
-    for (const origem of originsOf(list.records)) {
+    for (const origem of knownOriginsOf(sourceDeclarations, list.records)) {
       const declared = sourceFor(sourceDeclarations, origem, sourceLayout);
       const meta = declared ? declared.metadata : {};
       const identity = identityOf(origem);
@@ -90,11 +92,31 @@ export const useCalendarViewModel = () => {
     return byOrigin;
   }, [list.records, sourceDeclarations, sourceLayout, identityOf, label, theme]);
 
+  const pickedOrigins = useMemo(() => pickedOriginsOf(list.filterTokens), [list.filterTokens]);
+
   const records = useMemo(() => list.filteredRecords.filter((record) => {
     const source = sources[record.origem];
     if (source && source.hidden) return false;
-    return originFilter === null || record.origem === originFilter;
-  }), [list.filteredRecords, sources, originFilter]);
+    return pickedOrigins.length === 0 || pickedOrigins.indexOf(record.origem) !== -1;
+  }), [list.filteredRecords, sources, pickedOrigins]);
+
+  /**
+   * The filter offers the origins by NAME — "Deadlines", "Hearings" —, many at once, instead of the
+   * free-text box over the collection key that the `origem` field would give: nobody types a collection
+   * name. The options are the origins the agenda knows (see `knownOriginsOf`), minus the ones switched
+   * off in Settings, whose items are not on the agenda to be picked.
+   */
+  const filterDefs = useMemo(() => {
+    const options = Object.keys(sources)
+      .map((origem) => sources[origem])
+      .filter((source) => !source.hidden)
+      .map((source) => ({ value: source.key, label: source.label || source.key }))
+      .sort((a, b) => a.label.localeCompare(b.label, locale));
+    const fields = list.filterDefs.filter((def) => def.key !== 'origem');
+    return options.length === 0
+      ? fields
+      : fields.concat([{ key: ORIGIN_FILTER, label: t('view.filter.origin'), type: 'multiselect', options }]);
+  }, [sources, list.filterDefs, locale, t]);
 
   const sourceOf = useCallback((record) => sources[record.origem] || null, [sources]);
 
@@ -208,7 +230,9 @@ export const useCalendarViewModel = () => {
     if (record.origem && record.origemId) openRecord(record.origem, record.origemId);
   }, [openRecord]);
 
-  const filterByOrigin = useCallback((origem) => setOriginFilter(origem), []);
+  const filterByOrigin = useCallback((origem) => {
+    list.setFilterTokens(withPickedOrigins(list.filterTokens, origem === null ? [] : [origem]));
+  }, [list]);
 
   const stopClick = useCallback((event) => event.stopPropagation(), []);
 
@@ -227,9 +251,9 @@ export const useCalendarViewModel = () => {
         key: source.key,
         label: source.label,
         icon: source.icon,
-        dimmed: originFilter !== null && originFilter !== source.key,
+        dimmed: pickedOrigins.length > 0 && pickedOrigins.indexOf(source.key) === -1,
       }));
-  }, [sources, originFilter, locale]);
+  }, [sources, pickedOrigins, locale]);
 
   /**
    * The lines under the title. A source that named its fields gets exactly those, formatted by the
@@ -275,7 +299,7 @@ export const useCalendarViewModel = () => {
       late: theme.colors.danger,
     },
     filter: {
-      defs: list.filterDefs,
+      defs: filterDefs,
       tokens: list.filterTokens,
       onChange: list.setFilterTokens,
       screenKey: list.savedFiltersScreenKey,

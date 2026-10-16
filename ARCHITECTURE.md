@@ -6709,6 +6709,16 @@ origem, que é quem conhece a tela e o id do outro registro. Uma declaração no
 dela — e o valor já gravado bastaria. Endereço fora de `/microteia/` e `http(s)://` continua texto: o
 valor é dado, e um `javascript:` não pode virar coisa clicável.
 
+**Filtrar por origem é escolher, no filtro, POR NOME.** O campo `origem` guarda a chave da coleção, e
+o filtro de texto que ele renderia pedia que alguém digitasse `deadlines`. A agenda troca essa definição
+por uma multiseleção sob chave PRÓPRIA (`calendar.origin`), que não é nome de campo: o `matchesFilters`
+da lista a ignora, e é a agenda que responde, pela origem exata. As opções são as origens declaradas em
+`calendar.source` — oferecidas mesmo antes de terem item — mais as presentes nos itens sem declaração
+(`knownOriginsOf`), com o rótulo da declaração ou da tela; as desligadas em `calendar.sources` ficam de
+fora, porque não há o que escolher delas. A legenda de origem lê e grava o MESMO token: legenda, filtro e
+filtro salvo nunca discordam. Nenhuma linha do kernel mudou — token com chave que não é campo já passava
+intacto pela lista e pelo filtro salvo.
+
 **Desligar ESCONDE; não para a escrita.** A decisão é da agenda, que é quem exibe — e por isso mora
 nas Configurações dela, sobre o ponto de apresentação, e não em cada origem. A origem continua
 mantendo seus itens, então religar mostra tudo na hora, sem mutirão; e os números do mês contam só o

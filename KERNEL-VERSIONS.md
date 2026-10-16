@@ -18,6 +18,10 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.116.0] — 2026-10-16
+
+- feat(marketplace/calendar): origin filter in the agenda's `CompositeFilter` — a multiselect under its own token key `calendar.origin`, which names no field, so `matchesFilters` skips it and only the agenda answers it (exact `origem`). Options are the origins declared on `calendar.source` (offered even before they have an item) plus the undeclared ones present in the records (`knownOriginsOf`), labelled by the declaration or the origin screen's identity, minus the ones switched off in `calendar.sources`. The free-text filter over the raw `origem` field is no longer offered. The origin legend now reads and writes the same token instead of local state, so legend, filter and saved filters agree. Calendar 1.8.0.
+
 #### [9.115.0] — 2026-10-16
 
 - feat(host-api): `MarkdownLink` in `@microteia/ui` — one link drawn and followed exactly as inside `MarkdownContent` (`/microteia/<tab>` opens the workspace tab, any other href a new window), so an extension can show a `[label](href)` value without rendering a Markdown block. Declared in `extensionTypeDefs.ts`. `KERNEL_VERSION` 2.46.0.

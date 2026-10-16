@@ -93,6 +93,7 @@ const CALENDAR_PT_BR: Record<string, string> = {
   'view.previous-month': 'Mês anterior',
   'view.next-month': 'Próximo mês',
   'view.today': 'Hoje',
+  'view.filter.origin': 'Origem',
   'view.filter.placeholder': 'Filtrar a agenda...',
   'view.legend.priority': 'Prioridade:',
   'view.legend.all': 'Todas',
