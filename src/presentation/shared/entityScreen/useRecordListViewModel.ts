@@ -10,7 +10,7 @@ import { storeEvents, StoreEvents } from '../../../infrastructure/events/StoreEv
 import type { ActionExprContext } from '../../../domain/schema/actionExpression';
 import { actionActiveState, isActionDisabled, isActionHidden } from '../../../domain/schema/actionExpression';
 import type { ActionRelation, ActionSurface } from '../../../domain/schema/actionExpression';
-import { dispatchActionOutcome } from './useScreenActions';
+import { dispatchActionOutcome, localizeActionOutcome } from './useScreenActions';
 import { useActionParameterPrompt } from './useActionParameterPrompt';
 import type { ActionParameterPromptController } from './useActionParameterPrompt';
 import { useCustomFieldListing } from '../../hooks/useCustomFieldListing';
@@ -409,13 +409,14 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
         params,
       });
       if (response.error || !response.outcome) {
-        notify(response.error ?? t('action.run-failed'), 'error');
+        notify(response.error ? label(response.error, response.errorParams) : t('action.run-failed'), 'error');
         return;
       }
-      const { status } = response.outcome;
+      const outcome = localizeActionOutcome(response.outcome, label);
+      const { status } = outcome;
       if (status.message) notify(status.message, STATUS_TONE[status.code]);
 
-      await dispatchActionOutcome(response.outcome, record as Record<string, CustomFieldValue>, {
+      await dispatchActionOutcome(outcome, record as Record<string, CustomFieldValue>, {
         save: (override) => updateRecord(collection, record.id, override ?? record),
         clone: () => onClone(record),
         remove: () => setRecordToDelete(record),
@@ -427,7 +428,7 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
     } finally {
       setRunningActionId(null);
     }
-  }, [runAction, collection, notify, updateRecord, onClone, recordActions, buildActionHost, t]);
+  }, [runAction, collection, notify, updateRecord, onClone, recordActions, buildActionHost, t, label]);
 
   /**
    * Pergunta os parâmetros, se a ação os declara, e dispara. Extraído porque agora DOIS caminhos

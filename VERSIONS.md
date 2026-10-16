@@ -6,6 +6,15 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 
 <!-- Nova entrada vai aqui, acima das anteriores, no formato:
 
+#### [0.0.9] — AAAA-MM-DD
+
+- Descrição elegante da mudança, em linguagem simples.
+-->
+
+#### [9.116.1] — 2026-10-16
+
+- Corrigidos os avisos exibidos depois de executar uma ação: em vez da frase no seu idioma, alguns mostravam um código técnico começando por "@". O mesmo vale para as mensagens que uma ação aponta em campos específicos do formulário.
+
 #### [9.116.0] — 2026-10-16
 
 - O filtro do Calendário ganhou a opção "Origem": escolha uma ou mais — Prazos, Audiências, Tarefas — e a agenda mostra só o que vem delas. A legenda de origem e os filtros salvos seguem a mesma escolha.
@@ -13,11 +22,6 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 #### [9.115.0] — 2026-10-16
 
 - No Calendário, uma informação do cartão pode agora ser um link para outro cadastro: por exemplo, o número do processo de um prazo abre o processo direto, enquanto o clique no restante do cartão continua levando ao prazo.
-
-#### [0.0.9] — AAAA-MM-DD
-
-- Descrição elegante da mudança, em linguagem simples.
--->
 
 #### [9.114.1] — 2026-10-16
 

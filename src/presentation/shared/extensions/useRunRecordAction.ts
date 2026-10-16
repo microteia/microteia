@@ -3,7 +3,7 @@ import { useActions } from '../../../stores/useActions';
 import { useRecords } from '../../../stores/useRecords';
 import { useNotification } from '../../../stores/useNotification';
 import { storeEvents, StoreEvents } from '../../../infrastructure/events/StoreEventEmitter';
-import { dispatchActionOutcome } from '../entityScreen/useScreenActions';
+import { dispatchActionOutcome, localizeActionOutcome } from '../entityScreen/useScreenActions';
 import type { ActionStatusCode, CustomFieldValue } from '../../../domain/entities';
 
 import { useT, useLabel } from '../i18n/useT';
@@ -80,10 +80,11 @@ export const useRunRecordAction = (): ((request: RunRecordActionRequest) => Prom
         return { ok: false, message };
       }
 
-      const { status } = response.outcome;
+      const outcome = localizeActionOutcome(response.outcome, label);
+      const { status } = outcome;
       if (status.message) notify(status.message, STATUS_TONE[status.code]);
 
-      await dispatchActionOutcome(response.outcome, record as Record<string, CustomFieldValue>, {
+      await dispatchActionOutcome(outcome, record as Record<string, CustomFieldValue>, {
         save: (override) => updateRecord(collection, recordId, override ?? (record as Record<string, CustomFieldValue>)),
         refresh: () => storeEvents.emit(StoreEvents.RECORDS_UPDATED),
       });

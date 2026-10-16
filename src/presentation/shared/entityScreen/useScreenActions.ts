@@ -110,6 +110,27 @@ export const applyResult = (base: Values, result: Record<string, unknown> | null
   );
 
 /**
+ * Resolve o texto que o workflow devolveu em `status` — a mensagem e os erros por campo — pelo
+ * catálogo do idioma corrente. Uma referência `@namespace/chave` vira a frase traduzida; texto comum
+ * passa intacto, como em todo rótulo declarativo.
+ */
+export const localizeActionOutcome = (
+  outcome: ActionOutcome,
+  label: (value: string | null | undefined) => string,
+): ActionOutcome => {
+  const { status } = outcome;
+  const fieldErrors = status.fieldErrors
+    ? Object.fromEntries(Object.entries(status.fieldErrors).map(([path, message]) => [path, label(message)]))
+    : undefined;
+  return {
+    ...outcome,
+    status: fieldErrors
+      ? { ...status, message: label(status.message), fieldErrors }
+      : { ...status, message: label(status.message) },
+  };
+};
+
+/**
  * Aplica os comandos devolvidos pelo workflow na ordem canônica. Comandos sem callback correspondente
  * são ignorados: a listagem, por exemplo, não tem formulário para `merge` nem aba para `close`.
  */
@@ -206,14 +227,15 @@ export const useScreenActions = (target: ScreenActionTarget): ScreenActions => {
       });
 
       if (response.error || !response.outcome) {
-        notify(response.error ?? t('action.run-failed'), 'error');
+        notify(response.error ? label(response.error, response.errorParams) : t('action.run-failed'), 'error');
         return;
       }
 
-      const { status } = response.outcome;
+      const outcome = localizeActionOutcome(response.outcome, label);
+      const { status } = outcome;
       if (status.message) notify(status.message, STATUS_TONE[status.code]);
 
-      await dispatchActionOutcome(response.outcome, values as Values, {
+      await dispatchActionOutcome(outcome, values as Values, {
         applyValues, setFieldErrors, save, clone, remove, refresh, close,
       });
     } catch (error) {
@@ -222,7 +244,7 @@ export const useScreenActions = (target: ScreenActionTarget): ScreenActions => {
     } finally {
       setRunningActionId(null);
     }
-  }, [runAction, screenKey, values, recordId, isNew, notify, setFieldErrors, applyValues, save, refresh, clone, remove, close, runRecordCommand, t]);
+  }, [runAction, screenKey, values, recordId, isNew, notify, setFieldErrors, applyValues, save, refresh, clone, remove, close, runRecordCommand, t, label]);
 
   const parameterPrompt = useActionParameterPrompt();
 
