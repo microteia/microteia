@@ -6,6 +6,8 @@ import type { IWorkflowExecutionRepository } from '../repositories/IWorkflowExec
 import type { StepRegistry } from '../engine/StepRegistry';
 import type { WorkflowRun } from '../engine/WorkflowExecutor';
 import { runWorkflow } from '../engine/WorkflowExecutor';
+import { prepareWorkflowEvent } from '../engine/hydrateAndRunWorkflow';
+import type { WorkflowContextHydrator } from '../engine/WorkflowContextHydrator';
 import { withBusinessCalendars } from './businessCalendarScope';
 import { mentionsBusinessDays } from '../schema/time/businessDays';
 import { actorFromPublished, toPublishedActor } from '../engine/workflowActor';
@@ -88,6 +90,7 @@ export interface ResumeWorkflowDeps extends WorkflowSuspensionDeps {
   definitionRepository: IWorkflowDefinitionRepository;
   registry: StepRegistry;
   services: WorkflowServices;
+  hydrator: WorkflowContextHydrator;
   deactivatedPluginIds?(tenantId: string): Promise<ReadonlySet<string>>;
 }
 
@@ -150,7 +153,7 @@ export const resumeWorkflowExecution = async (
     );
     const run = await runWorkflow({
       definition,
-      event,
+      event: await prepareWorkflowEvent(definition, event, { hydrator: deps.hydrator, logger: deps.services.logger }),
       registry: deps.registry,
       services,
       ...(actor ? { actor } : {}),

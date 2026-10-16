@@ -3,6 +3,7 @@ import { coreStepMetadata } from '../../../domain/engine/StepDefinition';
 import type { IScreenDefinitionProvider } from '../../../domain/repositories/IScreenDefinitionProvider';
 import { ruleIssueParams } from '../../../domain/schema/fieldRules';
 import { getValueAtPath, parsePath } from '../../../domain/schema/pathResolver';
+import { toStored } from '../../../domain/schema/storedReference';
 import type { ValidateStepConfig } from '../../../domain/schema/validateSpec';
 import { validateObject } from '../../../domain/schema/validateSpec';
 
@@ -20,9 +21,9 @@ export const makeValidateStepDefinition = (screenProvider: IScreenDefinitionProv
       }
 
       const source = config.source === 'event' ? context.event.payload : context.input;
-      const raw = config.property?.trim()
+      const raw = toStored(config.property?.trim()
         ? getValueAtPath(source, parsePath(config.property))
-        : source;
+        : source);
 
       if (!isPlainObject(raw)) {
         return { success: false, message: '@core.automation/step.validate.invalid-source' };

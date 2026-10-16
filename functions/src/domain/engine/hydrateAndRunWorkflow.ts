@@ -21,11 +21,17 @@ export interface HydrateAndRunWorkflowDeps {
   suspendable?: boolean;
 }
 
-export const hydrateAndRunWorkflow = async (
+/**
+ * O evento como os passos o leem: os `parameterDefaults` de um fluxo chamado aplicados, e os registros
+ * que a automação navega trazidos. Roda na partida E na retomada depois de um `delay` — a continuação
+ * guarda o evento CRU (o registro apontado é lido de novo, e a marca do id gravado não sobreviveria ao
+ * JSON da continuação).
+ */
+export const prepareWorkflowEvent = async (
   definition: WorkflowDefinition,
   event: WorkflowEvent,
-  deps: HydrateAndRunWorkflowDeps,
-): Promise<WorkflowRun> => {
+  deps: Pick<HydrateAndRunWorkflowDeps, 'hydrator' | 'cache'> & { logger: WorkflowServices['logger'] },
+): Promise<WorkflowEvent> => {
   const referencedPaths = deps.hydrator.collectReferencedPaths(definition);
   const rootOverride =
     definition.eventName === WORKFLOW_CALLED_EVENT ? workflowParametersToRoot(definition.parameters) : undefined;
@@ -37,15 +43,24 @@ export const hydrateAndRunWorkflow = async (
     effectiveEvent,
     referencedPaths,
     deps.cache ?? createHydrationCache(),
-    deps.services.logger,
+    deps.logger,
     undefined,
     rootOverride,
   );
   if (hydratedEvent !== effectiveEvent) {
-    deps.services.logger.info(
+    deps.logger.info(
       `Payload hidratado (schema v${SCHEMA_VERSION}) para o workflow "${definition.id}" com ${referencedPaths.length} caminho(s)`,
     );
   }
+  return hydratedEvent;
+};
+
+export const hydrateAndRunWorkflow = async (
+  definition: WorkflowDefinition,
+  event: WorkflowEvent,
+  deps: HydrateAndRunWorkflowDeps,
+): Promise<WorkflowRun> => {
+  const hydratedEvent = await prepareWorkflowEvent(definition, event, { ...deps, logger: deps.services.logger });
   const timeZone =
     deps.services.timeZone ?? (await deps.services.timeZoneOf?.(event.tenantId, deps.actor?.userId));
   // A automação que cita uma conta de dias úteis (numa expressão, num Script) lê os calendários UMA

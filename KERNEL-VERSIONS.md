@@ -18,6 +18,11 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.113.2] — 2026-10-15
+
+- fix(workflow/delay): a run resumed after a `delay` ran without hydration — and without the called flow's `parameterDefaults` — because the continuation stores the raw event and `resumeWorkflowExecution` handed it straight to `runWorkflow`. Every `event.<reference>.<field>` read after the wait came back empty. The resume now goes through `prepareWorkflowEvent`, the same preparation as the start (extracted from `hydrateAndRunWorkflow`); `ResumeWorkflowDeps` gains `hydrator`. The event's own record is still the snapshot taken when the run started; the records it points at are read at resume time. Storing the hydrated payload instead would not work: the stored-id mark does not survive the continuation's JSON.
+- fix(workflow): consumers of a WHOLE object no longer receive hydrated records. `toStored` (`storedReference.ts`) unwraps in depth, and is applied to what `upsert` and `validate-object` read (`source` + `property`) and to the `context.input` of a run with no outputs yet (also what the execution log records). An `upsert` with `source: 'event'` in a flow that navigates `event.caseId.court` elsewhere used to write the case record into `caseId`.
+
 #### [9.113.1] — 2026-10-15
 
 - fix(workflow/hydration): fixes a **regression introduced in 9.108.1**. Since `collectReferencedPaths` started walking composite `Literal`s, a workflow that copies a reference inside a `map` (`caseId: event.caseId`) wrote the WHOLE pointed-at record instead of the id — the deadline-to-calendar mirror and the installment flows stopped sending ids. New rule, for every workflow read: **the pointed-at record is read only when the expression names a field after the reference; read on its own, the reference is the id.** `event.caseId` is the stored id, `event.caseId.court` reads the case, `event.calendars` (a `multi` reference) is the list of ids as stored, and an empty reference is `null` both ways. It holds for the whole run: a step navigating `event.caseId.court` no longer changes what another step copying `event.caseId` receives.

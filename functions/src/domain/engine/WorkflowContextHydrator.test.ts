@@ -637,4 +637,23 @@ describe('referência lida sozinha numa automação é o id (regressão da 9.108
     expect(repository.written[0].collection).toBe('calendarEvents');
     expect(repository.written[0].data).toMatchObject({ title: 'Contestação - TJBA', caseId: 'k1', personId: 'p1' });
   });
+
+  it('quem lê o payload inteiro recebe os ids, mesmo com a referência navegada noutro passo', async () => {
+    const { repository } = await run(
+      [
+        mapStep('m', 0, 'tribunal', { court: expression('event.caseId.court') }),
+        {
+          id: 'u',
+          stepDefinitionId: 'upsert',
+          type: 'Action',
+          order: 1,
+          enabled: true,
+          configuration: { upsert: { kind: 'Literal', value: { table: 'calendarEvents', source: 'event' } } },
+        },
+      ],
+      { title: 'Contestação', caseId: 'k1' },
+    );
+
+    expect(repository.written[0].data).toMatchObject({ title: 'Contestação', caseId: 'k1' });
+  });
 });

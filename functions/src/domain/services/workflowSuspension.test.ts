@@ -6,6 +6,8 @@ import type { StepRegistry } from '../engine/StepRegistry';
 import type { StepDefinition } from '../engine/StepDefinition';
 import type { WorkflowDefinition, WorkflowEvent, WorkflowExecution, WorkflowStep } from '../entities/Workflow';
 import type { IWorkflowClockRepository, ResumeClockEntry, WorkflowClockEntry } from '../repositories/IWorkflowClockRepository';
+import { WorkflowContextHydrator } from '../engine/WorkflowContextHydrator';
+import { fakeScreenProvider } from '../repositories/fakeScreenProvider';
 
 const NOW = new Date('2026-10-14T12:00:00Z');
 
@@ -32,7 +34,26 @@ const definition = (overrides: Partial<WorkflowDefinition> = {}): WorkflowDefini
   ...overrides,
 });
 
-const event: WorkflowEvent = { id: 'ev', tenantId: 't1', name: 'medico.saved', payload: { id: 'r1' }, timestamp: NOW };
+const event: WorkflowEvent = { id: 'ev', tenantId: 't1', name: 'medico.saved', payload: { id: 'r1', clinicaId: 'c1' }, timestamp: NOW };
+
+const hydrator = new WorkflowContextHydrator(
+  { fetchByIds: async (_tenantId, collection, ids) => new Map(ids.map((id) => [id, collection === 'clinicas' && id === 'c1' ? { nome: 'Clínica Sul' } : null])) },
+  fakeScreenProvider([
+    {
+      id: 'medicos',
+      eventPrefix: 'medico',
+      titleSingular: 'Médico',
+      titleFieldKey: 'nome',
+      fields: [{ key: 'clinicaId', label: 'Clínica', type: 'reference', refEntity: 'clinicas', required: false, order: 0, origin: 'design' }],
+    },
+    {
+      id: 'clinicas',
+      titleSingular: 'Clínica',
+      titleFieldKey: 'nome',
+      fields: [{ key: 'nome', label: 'Nome', type: 'text', required: false, order: 0, origin: 'design' }],
+    },
+  ]),
+);
 
 const setup = (stored: WorkflowDefinition | null, deactivated: string[] = []) => {
   const order: string[] = [];
@@ -79,6 +100,7 @@ const setup = (stored: WorkflowDefinition | null, deactivated: string[] = []) =>
       findByRef: async () => stored,
     },
     registry,
+    hydrator,
     services: { logger: { info: () => undefined, warn: () => undefined, error: () => undefined }, now: () => NOW, timeZone: 'UTC' },
     deactivatedPluginIds: async () => new Set(deactivated),
     now: () => NOW,
@@ -134,6 +156,21 @@ describe('resumeWorkflowExecution', () => {
     expect(execution?.status).toBe('SUCCESS');
     expect(execution?.logs[0].message).toBe('antes');
     expect(execution?.startedAt.toISOString()).toBe('2026-10-12T12:00:00.000Z');
+  });
+
+  it('depois da espera, a referência navegada é lida de novo, e a lida sozinha continua sendo o id', async () => {
+    const expression = (text: string) => ({ kind: 'Expression' as const, expression: text });
+    const stored = definition({
+      steps: [
+        recordStep('a', 0),
+        { ...recordStep('wait', 1), id: 'wait' },
+        { ...recordStep('b', 2), configuration: { tag: expression('concat(event.clinicaId, "=", event.clinicaId.nome)') } },
+      ],
+    });
+    const { deps, order, entry } = await prepare(stored);
+    expect(entry.event.payload).toStrictEqual({ id: 'r1', clinicaId: 'c1' });
+    await resumeWorkflowExecution(entry, deps);
+    expect(order).toEqual(['c1=Clínica Sul']);
   });
 
   it('continua uma vez só', async () => {

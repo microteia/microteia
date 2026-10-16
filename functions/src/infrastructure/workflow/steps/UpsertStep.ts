@@ -2,6 +2,7 @@ import type { StepDefinition, WorkflowStepExecutor } from '../../../domain/engin
 import { coreStepMetadata } from '../../../domain/engine/StepDefinition';
 import type { UpsertSpec, UpsertStepConfig } from '../../../domain/schema/mutationSpec';
 import { getValueAtPath, parsePath } from '../../../domain/schema/pathResolver';
+import { toStored } from '../../../domain/schema/storedReference';
 import { runWorkflowUpsert } from '../mutation/runWorkflowMutation';
 import type { WorkflowMutationDeps } from '../mutation/runWorkflowMutation';
 
@@ -19,9 +20,9 @@ export const makeUpsertStepDefinition = (deps: WorkflowMutationDeps): StepDefini
       }
 
       const source = config.source === 'event' ? context.event.payload : context.input;
-      const raw = config.property?.trim()
+      const raw = toStored(config.property?.trim()
         ? getValueAtPath(source, parsePath(config.property))
-        : source;
+        : source);
 
       if (!isPlainObject(raw)) {
         return { success: false, message: '@core.automation/step.upsert.invalid-source' };

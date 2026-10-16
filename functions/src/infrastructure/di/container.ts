@@ -467,6 +467,7 @@ class DIContainer {
             definitionRepository: this.getWorkflowDefinitionRepository(),
             registry: stepRegistry,
             services: this.getWorkflowServices(),
+            hydrator: this.getWorkflowContextHydrator(),
             deactivatedPluginIds: (tenantId) => this.getInstalledExtensionCache().deactivatedPluginIds(tenantId),
             now: () => new Date(),
           });

@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.113.2] — 2026-10-15
+
+- Corrigido: nas automações com espera, os passos que vêm depois da espera voltam a enxergar os dados dos registros vinculados, como o tribunal do processo.
+- Corrigido: uma automação que grava os dados do registro que a disparou não grava mais o registro vinculado inteiro no lugar do vínculo.
+
 #### [9.113.1] — 2026-10-15
 
 - Corrigido um problema em que as automações que copiam um vínculo para outro registro passaram a gravar o registro inteiro no lugar do vínculo. Com isso, as alterações dos prazos voltam a chegar à Agenda, e as parcelas e os eventos do Financeiro voltam a ficar ligados ao processo, ao contrato e à pessoa certos.

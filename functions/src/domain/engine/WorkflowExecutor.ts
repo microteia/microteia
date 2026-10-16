@@ -11,6 +11,7 @@ import { evaluateCondition } from './ConditionEvaluator';
 import { resolveInputsSafe, resolveMapping } from './InputMapping';
 import { ruleIssueParams } from '../schema/fieldRules';
 import { collectRequiredIssues, formatAndValidateParameters } from '../schema/parameterRules';
+import { toStored } from '../schema/storedReference';
 import { flattenSteps } from '../services/stepTree';
 import { isStepExcludedFromTrigger } from '../schema/workflowStepCatalog';
 
@@ -206,7 +207,7 @@ export const runWorkflow = async ({
     for (const stepOutputs of Object.values(context.outputs)) {
       Object.assign(flattenedOutputs, stepOutputs);
     }
-    context.input = Object.keys(flattenedOutputs).length > 0 ? flattenedOutputs : event.payload ?? {};
+    context.input = Object.keys(flattenedOutputs).length > 0 ? flattenedOutputs : (toStored(event.payload ?? {}) as Record<string, unknown>);
   };
 
   type StepsRunResult =

@@ -30,3 +30,27 @@ export const readAsStored = (value: unknown): unknown => {
   }
   return storedIdOf(value) ?? value;
 };
+
+/**
+ * O mesmo, em profundidade: para quem lê um objeto INTEIRO (o payload de um `upsert` com
+ * `source: 'event'`, a entrada de um passo). Só copia o que mudou — sem registro hidratado dentro,
+ * devolve o próprio valor.
+ */
+export const toStored = (value: unknown): unknown => {
+  const stored = readAsStored(value);
+  if (stored !== value) return Array.isArray(stored) ? stored.map(toStored) : stored;
+  if (Array.isArray(value)) {
+    const items = value.map(toStored);
+    return items.some((item, index) => item !== value[index]) ? items : value;
+  }
+  if (value === null || typeof value !== 'object' || Object.getPrototypeOf(value) !== Object.prototype) return value;
+  const source = value as Record<string, unknown>;
+  let copy: Record<string, unknown> | undefined;
+  for (const [key, item] of Object.entries(source)) {
+    const next = toStored(item);
+    if (next === item) continue;
+    copy ??= { ...source };
+    copy[key] = next;
+  }
+  return copy ?? value;
+};

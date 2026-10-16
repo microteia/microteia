@@ -5156,8 +5156,9 @@ Foi escolhido no lugar de materializar o registro fora do caminho do id (como o 
 isso exigiria reescrever os caminhos de toda expressão para a chave escondida, e o avaliador já tinha o
 ponto certo para decidir: a reescrita de tokens que já existia para o membro de `null`.
 
-Quem lê o payload INTEIRO (o `upsert` com `source: 'event'` sem `property`, o `context.input` de um
-fluxo sem saída) ainda vê o registro onde houve navegação — o desembrulho é da leitura de caminho.
+Quem lê um objeto INTEIRO também recebe os ids: `toStored` faz o mesmo desembrulho em profundidade, e
+é aplicado ao objeto que o `upsert` e o `validate-object` leem (`source` + `property`) e ao
+`context.input` de um fluxo que ainda não produziu saída — que é também o que o log da execução grava.
 
 Histórico: até a 9.108.1 o coletor não enxergava os `fields[].value` de um `map`, e a cópia
 `caseId: event.caseId` funcionava por acaso. Quando passou a enxergá-los, o salto terminal entrou no
@@ -5809,6 +5810,13 @@ pausa em duas condições, e recusa com mensagem nas outras:
 `nextRunAt = resumeAt`. `recordWorkflowRun` grava a continuação ANTES da execução — uma execução `WAITING`
 sem continuação esperaria para sempre. O estado que viaja é limitado (800 KB, abaixo do 1 MiB do documento):
 acima disso a execução termina `FAILED` dizendo o motivo, em vez de a gravação falhar sem rastro.
+
+**A continuação guarda o evento CRU, e a retomada o prepara de novo** (`prepareWorkflowEvent`, o mesmo
+da partida: `parameterDefaults` de um fluxo chamado + hidratação dos caminhos que a automação navega).
+Guardar o payload hidratado não serviria: a marca do id gravado (`STORED_REFERENCE_ID`) não sobrevive ao
+JSON da continuação, e toda referência navegada viraria registro lida sozinha. Antes, a retomada rodava
+sem hidratar — `event.caseId.court` depois da espera saía vazio. O registro do EVENTO continua sendo o
+retrato da passagem (ver abaixo); o APONTADO é lido na retomada.
 
 **Retomar é continuar a MESMA execução.** `resumeWorkflowExecution` toma a entrada numa transação (`claim`:
 duas voltas, uma retomada), relê o histórico da execução e roda `runWorkflow` com `resume` — sem reavaliar a
