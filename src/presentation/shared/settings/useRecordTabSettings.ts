@@ -8,16 +8,18 @@ import {
 } from '../../../domain/schema/ui/uiExtensionPoints';
 import type { SettingsProperty, SettingsSection } from '../../../domain/schema/settings';
 import { surfaceTabsProperty } from './useSettingValue';
+import { screenSourceIdOf, screensWithChildTabs } from '../../../domain/services/recordTabs';
 import { useLabel, useLocaleFormat, useT } from '../i18n/useT';
 
 export const RECORD_TABS_SECTION_KEY = 'record-tabs';
 
 /**
- * A seção de Configurações que liga, desliga e ordena as abas contribuídas no detalhe de um registro.
+ * A seção de Configurações que liga, desliga e ordena as abas do detalhe de um registro além de
+ * Dados, Anotações e Documentos: as de telas-filhas e as que extensões contribuíram, numa lista só.
  *
  * Existe derivada, e não declarada, porque a superfície é UMA POR TELA: nenhum manifest sabe de
  * antemão quais telas o escritório tem, e uma propriedade só faz sentido para a tela que de fato
- * recebeu aba. Cada propriedade é a MESMA de `surfaceTabsProperty` — a mesma chave
+ * tem aba — uma tela-filha ou uma contribuição. Cada propriedade é a MESMA de `surfaceTabsProperty` — a mesma chave
  * `record:<sourceId>.tabs` que o detalhe lê —, com o nome da tela no rótulo para o escritório saber
  * de qual se trata. Tela cuja propriedade alguém já declarou fica de fora: a declarada vence, como em
  * toda superfície.
@@ -32,7 +34,7 @@ export const useRecordTabSettingsSection = (declared: SettingsSection[]): Settin
   const { compareText } = useLocaleFormat();
 
   return useMemo(() => {
-    const sourceIds = new Set<string>();
+    const sourceIds = new Set<string>(screensWithChildTabs(dynamicScreens));
     for (const contribution of contributions) {
       const surface = contribution.metadata.surface;
       const sourceId = typeof surface === 'string' ? recordSurfaceSourceId(surface) : null;
@@ -43,7 +45,7 @@ export const useRecordTabSettingsSection = (declared: SettingsSection[]): Settin
       const surface = recordSurface(sourceId);
       const property = surfaceTabsProperty(declared, surface);
       if (declared.some((section) => section.properties.includes(property))) return [];
-      const screen = dynamicScreens.find((definition) => (definition.sourceId ?? definition.id) === sourceId);
+      const screen = dynamicScreens.find((definition) => screenSourceIdOf(definition) === sourceId);
       return [{
         ...property,
         label: screen ? label(screen.titlePlural || screen.titleSingular) : sourceId,

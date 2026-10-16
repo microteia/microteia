@@ -10675,9 +10675,11 @@ mesma regra de `useEntityList`: `screen.sourceId ?? screen.id`, da tela que CONF
 | Peça | Onde | O que faz |
 |---|---|---|
 | `useVisibleSurfaceTabs` | `shared/settings/useSettingValue.ts` | registradas + liga/desliga/ordem de `<superfície>.tabs` + permissão (uma basta). A MESMA regra do `TabSurface` — que passou a usá-la |
-| `useRecordSurfaceTabs` | `shared/entityScreen/` | as abas de `record:<sourceId>`, só para registro já gravado, com chave `surface:<key>` |
+| `useRecordTabCatalog` / `useRecordTabLayout` | `shared/settings/useRecordTabCatalog.ts` | o catálogo da faixa — telas-filhas e contribuídas numa lista só — e a conciliação com `record:<sourceId>.tabs` |
+| `useRecordSurfaceTabs` | `shared/entityScreen/` | a faixa do detalhe a partir do catálogo, só para registro já gravado, com a permissão de cada origem |
+| `childTabKey` / `childTabScreens` | `domain/services/recordTabs.ts` | quais telas viram aba de qual tela, e com que chave (`child:<sourceId da filha>`) |
 | `RecordSurfaceTab` | `components/layout/` | o limite de erro da aba; `impl: code` recebe `RecordTabProps`, `impl: widget` não recebe dado |
-| `useEntityDetail` | `shared/entityScreen/` | `childTabs` = telas-filhas **e depois** as contribuídas |
+| `useEntityDetail` | `shared/entityScreen/` | `childTabs` = a faixa, na ordem configurada |
 | `useRecordTabSettingsSection` | `shared/settings/useRecordTabSettings.ts` | a seção "Abas do registro" em Configurações |
 | `packageSurfaceIssues` | `domain/usecases/plugins/pluginSurfaces.ts` | o portão recusa `record:` sem `sourceId` |
 | `recordSurfaceFindings` | `sdk/node/recordSurfaces.ts` | o `check` AVISA do `sourceId` que não enxerga |
@@ -10686,7 +10688,33 @@ O exemplo de autoria é `examples/record-tab-example`: Projeto e Marco (este de 
 `parentEntity`), uma aba de código com a linha do tempo dos marcos — `useEntityList` com `parent`, a
 bolinha na cor da opção de prioridade como o escritório a configurou — e uma aba declarativa ao lado.
 
-As abas de tela-filha não mudaram: o recurso é um caminho a mais, não uma substituição. Como o
+### Tela-filha e aba contribuída são UMA lista
+
+A aba de tela-filha continua sendo o que era — a lista embutida, presa ao pai —, mas deixou de ter
+lugar fixo: ela entra no mesmo catálogo das contribuídas, e o escritório a liga, desliga e põe entre
+as outras pela mesma propriedade. O agrupamento em Configurações é POR TELA, e não por extensão: o que
+se configura é a faixa de uma tela, e ordem só faz sentido entre abas que aparecem lado a lado. A
+tela-filha que o escritório criou na Form Design não tem extensão dona, e não teria grupo.
+
+- **A chave da filha sai do `sourceId` dela** (`child:<sourceId>`), pelo motivo de sempre: a
+  configuração gravada tem de sobreviver a uma reinstalação. É a mesma chave no detalhe e no editor.
+- **Sem configuração, vale a ordem de antes:** filhas primeiro, contribuídas pela ordem delas. As duas
+  origens não compartilham escala de `order`, então o catálogo dá a cada item a POSIÇÃO como `order`.
+  Uma aba que surge depois de o escritório ter gravado a ordem entra no fim, como em toda superfície.
+- **O editor de Configurações lê o catálogo, e não as contribuições do ponto,** quando a superfície é
+  de registro (`ContributionListEditor`). Sem isso ele mostraria uma lista diferente da que o detalhe
+  desenha.
+- **A permissão é de cada origem:** a filha exige ler a coleção dela (`screenReadPermission`); a
+  contribuída, uma das que declarou.
+
+**Dados, Anotações e Documentos ficam fora, e é de propósito.** Dados é o registro — não se desliga.
+Anotações e Documentos são ligadas pela Form Design da própria tela (`hasNotes`, `hasDocuments`): uma
+segunda chave para a mesma decisão faria as duas discordarem, e o escritório não saberia qual vale. A
+regra geral é a mesma da filha que a Form Design tirou do pai (`hideFromParentTabs`), que nem aparece
+na lista: **a estrutura da tela decide o que EXISTE; Configurações escolhe, entre o que existe, o que
+aparece e em que ordem.** Nunca o contrário.
+
+Como o
 `useEntityDetailVM` da API curada passa pelo mesmo `useEntityDetail`, o editor próprio de uma extensão
 (`recordTabPrefix` + `RecordDetailSurface`) desenha as mesmas abas sem uma linha a mais.
 
@@ -10707,7 +10735,7 @@ kernel não o lê. Começar a lê-lo seria uma decisão de todas as superfícies
 A propriedade é a de sempre — `surfaceTabsProperty`, chave `record:<sourceId>.tabs`, escopos tenant e
 user. O que não existe é um manifest que a declare: nenhum sabe de antemão que telas o escritório tem.
 Por isso a tela de Configurações soma ao catálogo uma seção derivada, com uma propriedade por tela que
-de fato recebeu aba e o nome da tela no rótulo. Uma propriedade que alguém já declarou para a
+de fato tem aba — tela-filha ou contribuída — e o nome da tela no rótulo. Uma propriedade que alguém já declarou para a
 superfície vence e não se repete — a mesma precedência de toda superfície.
 
 A seção entra só na tela de Configurações (que roda dentro do escritório, com as telas carregadas), e

@@ -11,6 +11,12 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.113.0] — 2026-10-15
+
+- Em Configurações, "Abas do registro" agora reúne todas as abas extras de uma tela: as das telas filhas (como Anexos dentro do Processo) e as que as extensões acrescentam. As duas são ligadas, desligadas e ordenadas do mesmo jeito, numa lista só, e uma pode ficar entre as outras.
+- Quem nunca mexeu nessa configuração continua vendo as abas na mesma ordem de antes.
+- Dados, Anotações e Documentos continuam sendo definidos no Form Design da própria tela, como sempre.
+
 #### [9.112.0] — 2026-10-15
 
 - Quem cria extensões com ajuda da IA passa a ver os grupos do menu lateral que já existem, como Agenda, antes de criar um novo. Assim uma extensão nova entra no grupo certo em vez de criar um segundo grupo com o mesmo nome.

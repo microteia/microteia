@@ -18,6 +18,14 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.113.0] — 2026-10-15
+
+- feat(ui/record-tabs): child-screen tabs join the contributed tabs in ONE list on `record:<sourceId>`, toggled and ordered by the same `record:<sourceId>.tabs` property, so a child-screen tab can sit between two contributed ones. Previously child-screen tabs were always first, always on, and absent from Settings. The catalog (`useRecordTabCatalog`, `shared/settings/`) lists child screens first and contributed tabs after, by their order, and gives each item its POSITION as `order` — the two sources share no order scale — so an organization that never configured anything sees the same strip as before. A tab that appears after an order was saved goes to the end, as on every surface.
+- feat(ui/record-tabs): a child-screen tab is keyed `child:<child sourceId>` (was `child:<installed key>`), in the detail and in Settings, so a saved order survives a reinstall. Its visibility still requires reading the child's collection (`screenReadPermission`); a contributed tab still requires one of its `requiredPermissions`.
+- feat(settings): `ContributionListEditor` reads the record-tab catalog, not the point's contributions, when the surface is `record:<sourceId>`, so Settings lists exactly what the detail draws. The derived "Record tabs" section now also covers screens that only have child-screen tabs.
+- design: Data, Notes and Documents stay out of the list. Notes and Documents are switched by the screen's Form Design (`hasNotes`, `hasDocuments`), and a child screen hidden from its parent there (`hideFromParentTabs`) does not appear in the list either: the screen's structure decides what exists, Settings only chooses among it.
+- refactor: `useChildScreenTabs` is gone; `domain/services/recordTabs.ts` (`childTabKey`, `childTabScreens`, `screensWithChildTabs`) is the single place that decides which screens become tabs of which. `com.microteia.locale-pt-br` goes to `1.96.0`.
+
 #### [9.112.0] — 2026-10-15
 
 - feat(sdk/mcp): new resource `microteia://nav-groups` — every sidebar group the authoring directory can see, by key, with its name in each language and who declares it (platform, `plugin.ts` here, `examples/`, installation snapshot), plus the names that appear under more than one key. A group is joined by key, never by name; without a list of existing keys an author invented a new one and the sidebar drew two groups with the same title (an office "Agenda" next to Calendar's `schedule`).

@@ -1,6 +1,8 @@
 import { useCallback, useMemo } from 'react';
 import { usePointContributions } from '../../../shared/extensions/usePointContributions';
 import { useLabel } from '../../../shared/i18n/useT';
+import { useRecordTabCatalog } from '../../../shared/settings/useRecordTabCatalog';
+import { UI_TAB_POINT, recordSurfaceSourceId } from '../../../../domain/schema/ui/uiExtensionPoints';
 
 import {
   resolveContributionLayout,
@@ -37,6 +39,14 @@ export interface ContributionListEditorViewModel {
 
 const text = (value: unknown): string | undefined => (typeof value === 'string' ? value : undefined);
 
+/** Um item que a lista pode mostrar — de uma contribuição, ou do catálogo da faixa de um registro. */
+interface ContributionListOption extends ContributionLayoutDefaults {
+  title: string;
+  description?: string;
+  icon?: string;
+  pluginId: string;
+}
+
 /**
  * O editor de uma configuração `contributions`. Não conhece ponto nenhum: lê o que está registrado
  * naquele ponto e deixa o escritório escolher quem participa e em que ordem — o mesmo desenho do
@@ -47,44 +57,50 @@ export const useContributionListEditorViewModel = (
 ): ContributionListEditorViewModel => {
   const { point, surface, value, onChange } = props;
   const registered = usePointContributions(point);
-  const contributions = useMemo(
-    () => (surface === undefined
-      ? registered
-      : registered.filter((contribution) => contribution.metadata.surface === surface)),
-    [registered, surface],
-  );
   // O editor lista contribuições de QUALQUER ponto — nativas, que declaram referência, e de
   // extensão, que trazem o texto do autor. `label` é o caminho único que serve às duas.
   const label = useLabel();
 
-  const available = useMemo<ContributionLayoutDefaults[]>(
-    () => contributions.map((contribution) => ({
-      key: text(contribution.metadata.key) ?? contribution.id,
-      defaultEnabled: contribution.metadata.defaultEnabled !== false,
-      order: typeof contribution.metadata.order === 'number' ? contribution.metadata.order : 0,
-    })),
-    [contributions],
-  );
+  /**
+   * A faixa do detalhe de um registro é a única lista que não é feita só de contribuições: as abas de
+   * telas-filhas entram nela com a mesma chave que o detalhe usa. Ler o catálogo da faixa — e não as
+   * contribuições do ponto — é o que faz o escritório ver aqui exatamente as abas que verá lá.
+   */
+  const recordSourceId = point === UI_TAB_POINT && surface !== undefined ? recordSurfaceSourceId(surface) : null;
+  const recordCatalog = useRecordTabCatalog(recordSourceId ?? '');
 
-  const entries = useMemo(() => resolveContributionLayout(value, available), [value, available]);
+  const options = useMemo<ContributionListOption[]>(() => {
+    if (recordSourceId) return recordCatalog;
+    return registered
+      .filter((contribution) => surface === undefined || contribution.metadata.surface === surface)
+      .map((contribution) => ({
+        key: text(contribution.metadata.key) ?? contribution.id,
+        defaultEnabled: contribution.metadata.defaultEnabled !== false,
+        order: typeof contribution.metadata.order === 'number' ? contribution.metadata.order : 0,
+        title: text(contribution.metadata.title) ?? '',
+        description: text(contribution.metadata.description),
+        icon: text(contribution.metadata.icon),
+        pluginId: contribution.pluginId,
+      }));
+  }, [recordSourceId, recordCatalog, registered, surface]);
+
+  const entries = useMemo(() => resolveContributionLayout(value, options), [value, options]);
 
   const items = useMemo<ContributionListItem[]>(() => {
-    const byKey = new Map(
-      contributions.map((contribution) => [text(contribution.metadata.key) ?? contribution.id, contribution]),
-    );
+    const byKey = new Map(options.map((option) => [option.key, option]));
     return entries.map((entry, index) => {
-      const contribution = byKey.get(entry.key);
+      const option = byKey.get(entry.key);
       return {
         ...entry,
-        title: label(text(contribution?.metadata.title)) || entry.key,
-        description: label(text(contribution?.metadata.description)) || undefined,
-        icon: text(contribution?.metadata.icon),
-        pluginId: contribution?.pluginId ?? '',
+        title: label(option?.title) || entry.key,
+        description: label(option?.description) || undefined,
+        icon: option?.icon,
+        pluginId: option?.pluginId ?? '',
         isFirst: index === 0,
         isLast: index === entries.length - 1,
       };
     });
-  }, [entries, contributions, label]);
+  }, [entries, options, label]);
 
   const commit = useCallback((next: ContributionLayoutEntry[]) => {
     onChange(next.map(({ key, enabled }) => ({ key, enabled })));

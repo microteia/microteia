@@ -11,7 +11,6 @@ import type { ScreenActions } from './useScreenActions';
 import { setValueByPath } from '../../../domain/services/customFieldValues';
 import type { CustomFieldValue, EntityRecord } from '../../../domain/entities';
 import type { EntityDetailExtraTab, EntityDetailTab } from '../../components/layout/EntityDetailView';
-import { useChildScreenTabs } from './useChildScreenTabs';
 import { useRecordSurfaceTabs } from './useRecordSurfaceTabs';
 import { useEntityDetailChrome } from './useEntityDetailChrome';
 import { useEntityNotes } from './useEntityNotes';
@@ -113,8 +112,9 @@ export interface EntityDetail<TRecord extends { id: string }> {
   notesController: EntityNotesController;
   docsController: EntityDocumentsController;
   /**
-   * As abas além de Dados/Anotações/Documentos — as de telas-filhas e, depois delas, as que extensões
-   * contribuíram em `record:<sourceId>`. A view repassa em `extraTabs`.
+   * As abas além de Dados/Anotações/Documentos — as de telas-filhas e as que extensões contribuíram
+   * em `record:<sourceId>`, numa lista só, na ordem que o escritório escolheu. A view repassa em
+   * `extraTabs`.
    */
   childTabs: EntityDetailExtraTab[];
   /** Ações customizadas configuradas para o cabeçalho desta tela. */
@@ -220,16 +220,13 @@ export function useEntityDetail<TRecord extends { id: string }>(
   const notesController = useEntityNotes({ enabled: hasNotes && !!record, recordId: record?.id ?? null, port: notesPort });
   const docsController = useEntityDocuments({ enabled: hasDocuments && !!record, recordId: record?.id ?? null, port: documentsPort });
 
-  const childScreenTabs = useChildScreenTabs(entityKey, record?.id ?? null);
-
   // O endereço da superfície é o `sourceId` da tela que CONFIGURA o detalhe, pela mesma regra com que
   // `useEntityList` acha uma tela: o id universal, ou a chave quando a tela é anterior a ele.
   const screenSourceId = useMemo(() => {
     const screen = getDefinition(configScreenKey ?? entityKey);
     return screen ? (screen.sourceId ?? screen.id) : '';
   }, [getDefinition, configScreenKey, entityKey]);
-  const surfaceTabs = useRecordSurfaceTabs({ screenSourceId, record, collection: entityKey });
-  const childTabs = useMemo(() => [...childScreenTabs, ...surfaceTabs], [childScreenTabs, surfaceTabs]);
+  const childTabs = useRecordSurfaceTabs({ screenSourceId, record, collection: entityKey });
 
   const [isSaving, setIsSaving] = useState(false);
 

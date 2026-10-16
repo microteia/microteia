@@ -19,9 +19,9 @@ export const CORE_SETTINGS_MESSAGES: Record<string, string> = {
     'You cannot read {screen}, so this setting cannot be changed here. Ask for permission to read it.',
   'settings.options.unavailable': 'The list these options come from is not available in this organization.',
   'settings.record-tabs.description':
-    'Tabs that extensions add to the detail of a record. Choose, screen by screen, which ones appear and in what order.',
+    'The tabs of a record detail besides Data, Notes and Documents: child screens and those added by extensions. Choose, screen by screen, which ones appear and in what order.',
   'settings.record-tabs.property':
-    'Tabs added to the detail of a record of this screen.',
+    'Tabs shown in the detail of a record of this screen, after Data, Notes and Documents.',
   'settings.record-tabs.title':
     'Record tabs',
   'settings.reset': 'Restore default',

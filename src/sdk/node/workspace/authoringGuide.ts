@@ -552,8 +552,9 @@ where it starts; where it ends up is theirs to decide.
 
 Every record detail hosts a tab surface of its own, addressed by the screen's \`sourceId\`:
 \`recordSurface('<sourceId>')\` returns \`${RECORD_SURFACE_PREFIX}<sourceId>\`. Contribute a \`ui.tab\` there with
-\`surfaceTab\` or \`surfaceTabSpec\` and it appears after the native tabs and the child-screen tabs,
-on saved records only. Address the \`sourceId\`, never the installed key: the key may be disambiguated
+\`surfaceTab\` or \`surfaceTabSpec\` and it appears after Data, Notes and Documents, on saved records
+only, in the same list as the child-screen tabs — the organization orders and toggles both together in
+Settings, and by default child screens come first. Address the \`sourceId\`, never the installed key: the key may be disambiguated
 on install, the \`sourceId\` does not change. A screen of another extension is fair game — declare
 that extension in \`dependencies\`.
 

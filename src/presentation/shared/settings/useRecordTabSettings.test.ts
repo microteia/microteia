@@ -3,7 +3,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import type { SettingsSection } from '../../../domain/schema/settings';
 
-const state: { surfaces: string[]; screens: { id: string; sourceId?: string; titlePlural: string; titleSingular: string }[] } = {
+const state: { surfaces: string[]; screens: Record<string, unknown>[] } = {
   surfaces: [],
   screens: [],
 };
@@ -33,6 +33,15 @@ beforeEach(() => {
 });
 
 describe('a configuração das abas do detalhe de um registro', () => {
+  it('existe também para a tela que só tem aba de tela-filha', () => {
+    state.surfaces = [];
+    state.screens.push({
+      id: 'anexos', titlePlural: 'Anexos', titleSingular: 'Anexo', parentEntity: 'pessoas', parentFieldKey: 'pessoa',
+    });
+    const section = renderHook(() => useRecordTabSettingsSection(NONE)).result.current;
+    expect(section?.properties.map((property) => property.key)).toEqual(['record:microteia:pessoa.tabs']);
+  });
+
   it('rende uma propriedade por tela que recebeu aba, com a chave que o detalhe lê', () => {
     const section = renderHook(() => useRecordTabSettingsSection(NONE)).result.current;
     expect(section?.properties.map((property) => [property.key, property.label, property.surface])).toEqual([
