@@ -5,8 +5,10 @@ import {
   displayDate,
   fieldKeysOf,
   isOriginHidden,
+  linkOf,
   moveHandlerFor,
   originsOf,
+  partOf,
   positionOf,
   sourceFor,
   statsOf,
@@ -165,8 +167,28 @@ describe('como uma origem se apresenta', () => {
   it('o subtítulo junta o texto dos campos nomeados, na ordem, pulando os vazios', () => {
     const fieldText = (item, key) => (item[key] == null ? '' : String(item[key]));
     const item = record({ number: '0001', person: '', court: 'TJ' });
-    expect(subtitleOf(item, ['number', 'person', 'court'], fieldText)).toBe('0001 · TJ');
-    expect(subtitleOf(item, [], fieldText)).toBe('');
+    expect(subtitleOf(item, ['number', 'person', 'court'], fieldText).map((part) => part.text)).toEqual(['0001', 'TJ']);
+    expect(subtitleOf(item, [], fieldText)).toEqual([]);
+  });
+
+  it('um valor escrito como link Markdown vira link para o registro, com o texto dele', () => {
+    const fieldText = (item, key) => (item[key] == null ? '' : String(item[key]));
+    const item = record({ number: '[0001-23](/microteia/view-dyn:cases:abc)', court: 'TJ' });
+    expect(subtitleOf(item, ['number', 'court'], fieldText)).toEqual([
+      { key: 'number', text: '0001-23', href: '/microteia/view-dyn:cases:abc' },
+      { key: 'court', text: 'TJ', href: null },
+    ]);
+  });
+
+  it('só o valor INTEIRO no formato de link vira link, e só para endereço que se possa abrir', () => {
+    expect(linkOf('[Ana](https://example.com/a)')).toEqual({ label: 'Ana', href: 'https://example.com/a' });
+    expect(linkOf(' [Ana](/microteia/view-dyn:people:1) ')).toEqual({ label: 'Ana', href: '/microteia/view-dyn:people:1' });
+    expect(linkOf('veja [Ana](/microteia/view-dyn:people:1)')).toBeNull();
+    expect(linkOf('[Ana](javascript:alert(1))')).toBeNull();
+    expect(linkOf('[Ana](ftp://example.com)')).toBeNull();
+    expect(linkOf('[](/microteia/x)')).toBeNull();
+    expect(linkOf(undefined)).toBeNull();
+    expect(partOf('n', 'texto')).toEqual({ key: 'n', text: 'texto', href: null });
   });
 
   it('uma lista de campos declarada errada vira lista vazia, em vez de reprovar o render', () => {

@@ -116,7 +116,7 @@ const VERSAO_CONFERIDA: Record<string, { version: string; fingerprint: string }>
   'com.microteia.agent': { version: '1.2.0', fingerprint: 'b94b8d0f7e84' },
   'com.microteia.brasil': { version: '1.2.0', fingerprint: '42cba93caba7' },
   'com.microteia.dashboard': { version: '1.3.0', fingerprint: '3f24844aa47f' },
-  'com.microteia.calendar': { version: '1.6.0', fingerprint: 'bbe6ccf5b63a' },
+  'com.microteia.calendar': { version: '1.7.0', fingerprint: '8d78074576b4' },
   'com.microteia.business-days': { version: '1.1.0', fingerprint: '074db7a73bd5' },
   'com.microteia.news': { version: '1.5.0', fingerprint: 'e2a3d77f4ee2' },
   'com.microteia.theme-indigo': { version: '1.2.1', fingerprint: '2c65a329fe5d' },

@@ -1,4 +1,4 @@
-import { CompositeFilter, EntityListModals, Icon, InfoBanner, cardActionIcon } from '@microteia/ui';
+import { CompositeFilter, EntityListModals, Icon, InfoBanner, MarkdownLink, cardActionIcon } from '@microteia/ui';
 import { useCalendarViewModel } from './Calendar.viewmodel';
 import { S } from './Calendar.styles';
 
@@ -109,8 +109,18 @@ export default function CalendarView() {
 
                     <S.EventTitle>{vm.cardTitle(record)}</S.EventTitle>
 
-                    {vm.cardSubtitle(record) ? (
-                      <S.EventSubtitle>{vm.cardSubtitle(record)}</S.EventSubtitle>
+                    {/*
+                      A piece written as a Markdown link opens ITS record, not the card's: the click
+                      stops at the link, so the card's own click (the origin) does not run too.
+                    */}
+                    {vm.cardSubtitle(record).length > 0 ? (
+                      <S.EventSubtitle>
+                        {vm.cardSubtitle(record).map((part) => (
+                          <S.SubtitlePart key={part.key} onClick={part.href ? vm.stopClick : undefined}>
+                            {part.href ? <MarkdownLink href={part.href}>{part.text}</MarkdownLink> : part.text}
+                          </S.SubtitlePart>
+                        ))}
+                      </S.EventSubtitle>
                     ) : null}
 
                     <S.EventMeta>
@@ -126,7 +136,11 @@ export default function CalendarView() {
                       */}
                       {vm.cardItems(record).map((item) => (
                         <S.MetaRow key={item.key}>
-                          <span>{item.value}</span>
+                          {item.href ? (
+                            <span onClick={vm.stopClick}><MarkdownLink href={item.href}>{item.text}</MarkdownLink></span>
+                          ) : (
+                            <span>{item.text}</span>
+                          )}
                         </S.MetaRow>
                       ))}
 

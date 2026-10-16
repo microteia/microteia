@@ -6,6 +6,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 
 <!-- Nova entrada vai aqui, acima das anteriores, no formato:
 
+#### [9.115.0] — 2026-10-16
+
+- No Calendário, uma informação do cartão pode agora ser um link para outro cadastro: por exemplo, o número do processo de um prazo abre o processo direto, enquanto o clique no restante do cartão continua levando ao prazo.
+
 #### [0.0.9] — AAAA-MM-DD
 
 - Descrição elegante da mudança, em linguagem simples.

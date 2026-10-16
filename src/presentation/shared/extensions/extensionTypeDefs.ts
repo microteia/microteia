@@ -776,6 +776,19 @@ const UI_MODULE_DEFS = `declare module '@microteia/ui' {
   }
   export function MarkdownContent(props: MarkdownContentProps): JSX.Element;
 
+  /**
+   * One link, drawn and followed exactly as a link inside MarkdownContent: an href starting with
+   * '/microteia/' (e.g. '/microteia/view-dyn:<screen>:<recordId>', the address a mention writes) opens
+   * that tab in the workspace; any other href opens in a new window. Use it to show a value written as
+   * '[label](href)' without rendering a whole Markdown block. Inside a clickable parent, stop the click
+   * propagation around it, or the parent's click runs too.
+   */
+  export interface MarkdownLinkProps {
+    href?: string;
+    children?: React.ReactNode;
+  }
+  export function MarkdownLink(props: MarkdownLinkProps): JSX.Element;
+
   /** Markdown editor with a formatting bar, mentions (@) and preview. */
   export interface MarkdownEditorProps {
     value: string;

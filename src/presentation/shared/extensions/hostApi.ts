@@ -30,6 +30,7 @@ import { CustomFieldsSection } from '../../components/ui/CustomFieldsSection';
 import { FieldInput } from '../../components/ui/FieldInput';
 import { CardAtoms } from '../../components/ui/EntityListCard/atoms';
 import { MarkdownContent } from '../../components/ui/MarkdownContent';
+import { MarkdownLink } from '../../components/ui/MarkdownLink';
 import { MarkdownEditor } from '../../components/ui/MarkdownEditor';
 import { UserAvatar } from '../../components/ui/UserAvatar';
 import { WidgetSurface } from '../../components/ui/WidgetSurface';
@@ -272,6 +273,7 @@ const uiModule = {
   BarChart,
   CustomFieldMetaRows,
   MarkdownContent,
+  MarkdownLink,
   MarkdownEditor,
   UserAvatar,
   DocumentsPanel,

@@ -18,6 +18,12 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.115.0] — 2026-10-16
+
+- feat(host-api): `MarkdownLink` in `@microteia/ui` — one link drawn and followed exactly as inside `MarkdownContent` (`/microteia/<tab>` opens the workspace tab, any other href a new window), so an extension can show a `[label](href)` value without rendering a Markdown block. Declared in `extensionTypeDefs.ts`. `KERNEL_VERSION` 2.46.0.
+- feat(marketplace/calendar): a card field whose WHOLE value is a Markdown link (`[label](href)`) renders as a link to that address — in the subtitle (`calendar.source.subtitleFields`) and in the card lines (`metaFields` or the screen's list fields). The link's click stops propagation, so it opens its own record instead of the card's origin. Only `/microteia/` and `http(s)://` hrefs become links; anything else stays plain text. The writer of the item (the origin automation) decides the address; the calendar only recognizes the shape. `subtitleOf` now returns parts (`{ key, text, href }`), joined by ` · ` in CSS. Calendar 1.7.0, `kernel: ^2.46.0`.
+- compat: additive. Plain values render as before.
+
 #### [9.114.1] — 2026-10-16
 
 - fix(workflow/expressions): `isEmpty` counted every object without own keys as empty, and event dates arrive as `Date` (`normalizeFirestoreValue`), so `isEmpty(event.dueDate)` was always `true` and a condition such as `not isEmpty(event.dueDate)` never let the workflow run. Only plain objects are now empty when they have no keys; a `Date` is empty only when invalid, and other instances are never empty.

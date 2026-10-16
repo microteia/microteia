@@ -6624,8 +6624,8 @@ primeira gravação — sem item, `first` é `null`. Os dois ramos da condição
 passou.
 
 **O que a migração custou.** (1) O backfill é manual e por fatia: o admin roda o mutirão uma vez por
-situação, até 100 prazos por execução. (2) O número do processo, que era um link clicável no cartão, é hoje uma meta-linha comum —
-o clique no cartão leva ao prazo, e de lá ao processo. (3) `calendarToday`/`calendarEvent` continuam
+situação, até 100 prazos por execução. (2) O número do processo, que era um link clicável no cartão, voltou a ser link quando a automação
+o grava no formato `[número](/microteia/view-dyn:...)` — ver "Um campo pode ser LINK" abaixo. (3) `calendarToday`/`calendarEvent` continuam
 no tema, sem consumidor no kernel. (4) Os campos que uma extensão acrescenta ao item só aparecem se
 ela estiver instalada; sem o patch, o `upsert` descarta os valores com aviso no log, em vez de falhar.
 
@@ -6695,6 +6695,19 @@ todas as origens ao mesmo tempo, e o lançamento não precisa da linha vazia do 
 **Por que metadata, e não um componente da origem.** Um "template visual" em código seria
 implementação atravessando a ponte — código de um plugin rodando no contexto de outro —, e excluiria
 a extensão de terceiro, que não entrega código. O ponto é `allowedImplKinds: []`, como o do arrasto.
+
+**Um campo pode ser LINK para outro registro — e quem escreve o endereço é a origem.** Um valor que
+seja, INTEIRO, um link Markdown — `[0001234-56.2026](/microteia/view-dyn:<tela>:<id>)`, o mesmo formato
+que a menção grava nas anotações — é desenhado como link, no subtítulo e nas linhas do cartão. O clique
+nele abre o registro DELE (`MarkdownLink`, exposto em `@microteia/ui`: `/microteia/<aba>` abre a aba,
+`http(s)://` uma janela nova) e para ali, sem disparar o clique do cartão, que continua levando à origem.
+O caso que motivou: o cartão de um prazo leva ao prazo, e o número do processo, ao processo.
+
+A agenda só RECONHECE a forma (`linkOf` em `Calendar.rules.ts`); quem monta o endereço é a automação da
+origem, que é quem conhece a tela e o id do outro registro. Uma declaração nova em `calendar.source`
+("este campo é link para aquela coleção pelo campo tal") faria a agenda resolver referências que não são
+dela — e o valor já gravado bastaria. Endereço fora de `/microteia/` e `http(s)://` continua texto: o
+valor é dado, e um `javascript:` não pode virar coisa clicável.
 
 **Desligar ESCONDE; não para a escrita.** A decisão é da agenda, que é quem exibe — e por isso mora
 nas Configurações dela, sobre o ponto de apresentação, e não em cada origem. A origem continua

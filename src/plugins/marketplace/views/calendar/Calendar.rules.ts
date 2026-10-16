@@ -195,12 +195,33 @@ export const fieldKeysOf = (value) =>
   (Array.isArray(value) ? value.filter((key) => typeof key === 'string' && key !== '') : []);
 
 /**
- * The subtitle a source asked for: the text of each field it named, in order, the empty ones skipped.
- * The source names FIELDS and never writes the line itself — a template with words in it would be a
- * phrase no catalog translates.
+ * A field value written as a Markdown link — `[label](href)`, the whole value and nothing else — is a
+ * link to another record. It is the format notes already use, and whoever writes the item (the origin's
+ * automation) is who knows the address: the agenda only recognizes the shape. `/microteia/<tab>` opens a
+ * tab of the workspace and `http(s)://` a new window; any other href stays plain text, because the value
+ * is data and a `javascript:` address must not become something to click.
+ */
+const LINK = /^\[([^\]]+)\]\(([^()\s]+)\)$/;
+const LINK_TARGET = /^(\/microteia\/|https?:\/\/)/;
+
+export const linkOf = (value) => {
+  const match = LINK.exec(text(value).trim());
+  return match && LINK_TARGET.test(match[2]) ? { label: match[1], href: match[2] } : null;
+};
+
+/** One piece of a card line: its text, and the href when the value was written as a link. */
+export const partOf = (key, value) => {
+  const link = linkOf(value);
+  return link ? { key, text: link.label, href: link.href } : { key, text: text(value), href: null };
+};
+
+/**
+ * The subtitle a source asked for: one piece per field it named, in order, the empty ones skipped — the
+ * view draws them side by side, separated by ` · `. The source names FIELDS and never writes the line
+ * itself — a template with words in it would be a phrase no catalog translates.
  */
 export const subtitleOf = (record, keys, fieldText) =>
-  keys.map((key) => fieldText(record, key)).filter((value) => value !== '').join(' · ');
+  keys.map((key) => partOf(key, fieldText(record, key))).filter((part) => part.text !== '');
 
 /** The origins present in the records, each once, in the order they first appear. */
 export const originsOf = (records) => {

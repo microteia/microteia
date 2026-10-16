@@ -19,6 +19,7 @@ import {
   monthOf,
   moveHandlerFor,
   originsOf,
+  partOf,
   sourceFor,
   statsOf,
   subtitleOf,
@@ -209,6 +210,8 @@ export const useCalendarViewModel = () => {
 
   const filterByOrigin = useCallback((origem) => setOriginFilter(origem), []);
 
+  const stopClick = useCallback((event) => event.stopPropagation(), []);
+
   /**
    * The origin legend only earns its place when there is something to tell apart: with a single
    * origin on the agenda, it would repeat on every line what the card already says.
@@ -230,19 +233,20 @@ export const useCalendarViewModel = () => {
 
   /**
    * The lines under the title. A source that named its fields gets exactly those, formatted by the
-   * field's type; one that named none gets the screen's list fields, as every card always did.
+   * field's type; one that named none gets the screen's list fields, as every card always did. Either
+   * way a value written as a Markdown link comes out as a link (see `linkOf`).
    */
   const cardItems = useCallback((record) => {
     const source = sourceOf(record);
-    if (!source || source.metaFields === null) return list.getCardItems(record);
-    return source.metaFields
-      .map((key) => ({ key, value: list.getFieldText(record, key) }))
-      .filter((item) => item.value !== '');
+    const items = !source || source.metaFields === null
+      ? list.getCardItems(record)
+      : source.metaFields.map((key) => ({ key, value: list.getFieldText(record, key) }));
+    return items.map((item) => partOf(item.key, item.value)).filter((part) => part.text !== '');
   }, [sourceOf, list]);
 
   const cardSubtitle = useCallback((record) => {
     const source = sourceOf(record);
-    return source ? subtitleOf(record, source.subtitleFields, list.getFieldText) : '';
+    return source ? subtitleOf(record, source.subtitleFields, list.getFieldText) : [];
   }, [sourceOf, list]);
 
   const cardSource = useCallback((record) => {
@@ -287,6 +291,7 @@ export const useCalendarViewModel = () => {
     dragEnd,
     isDone: isClosed,
     openOrigin,
+    stopClick,
     cardTooltip: (record) => text(record.title),
     cardTitle: (record) => list.getCardTitle(record),
     cardItems,

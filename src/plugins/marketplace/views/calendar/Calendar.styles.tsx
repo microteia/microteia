@@ -241,6 +241,13 @@ const EventSubtitle = styled.div`
   text-overflow: ellipsis;
 `;
 
+/** One field of the subtitle; the ` · ` between two of them is drawn here, so no phrase lives in the view. */
+const SubtitlePart = styled.span`
+  & + &::before {
+    content: ' · ';
+  }
+`;
+
 const EventMeta = styled.div`
   font-size: 0.65rem;
   color: ${({ theme }) => theme.colors.textMuted};
@@ -402,6 +409,7 @@ export const S = {
   SourceTag,
   EventTitle,
   EventSubtitle,
+  SubtitlePart,
   EventMeta,
   MetaRow,
   BadgeRow,
