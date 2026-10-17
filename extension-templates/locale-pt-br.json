@@ -3,7 +3,7 @@
   "workflows": [],
   "manifest": {
     "id": "com.microteia.locale-pt-br",
-    "version": "1.99.0",
+    "version": "1.100.0",
     "kernel": "^2.0.0",
     "name": "Português (Brasil)",
     "description": "Tradução da Microteia para português do Brasil.",
@@ -99,6 +99,8 @@
             "permission.picker.search": "Buscar uma tela ou uma permissão...",
             "permission.picker.selected": "{selected} de {total} escolhidas",
             "permission.picker.group-count": "{selected}/{total}",
+            "permission.picker.select-all": "Selecionar tudo",
+            "permission.picker.select-matches": "Selecionar resultados",
             "permission.picker.clear": "Limpar",
             "permission.picker.no-matches": "Nada corresponde a essa busca.",
             "permission.picker.nothing-to-offer": "Você não tem permissão nenhuma neste escritório, então não há o que permitir aqui.",

@@ -40,6 +40,11 @@ export interface PermissionPickerViewModel {
   togglePermission: (id: string, checked: boolean) => void;
   toggleGroup: (resource: string, checked: boolean) => void;
   toggleExpanded: (resource: string) => void;
+  /** Há algo VISÍVEL ainda desmarcado — com busca, só o que ela achou conta. */
+  canSelectAll: boolean;
+  /** A busca está ativa, e "selecionar tudo" vale só para o que ela achou. */
+  selectsMatchesOnly: boolean;
+  selectAll: () => void;
   clearAll: () => void;
 }
 
@@ -193,6 +198,22 @@ export const usePermissionPickerViewModel = (
     });
   }, [allGroups]);
 
+  /**
+   * Marca tudo o que a pessoa está VENDO — com busca ativa, só o que ela achou.
+   *
+   * Selecionar o catálogo inteiro quando a lista mostra três linhas seria marcar o que ninguém viu.
+   * Passa pelo mesmo fecho de dependências que marcar um grupo.
+   */
+  const selectAll = useCallback(() => {
+    const visible = groups.flatMap((group) => group.rows.map((row) => row.id));
+    onChange(withDependencies(catalog, [...selected, ...visible]));
+  }, [catalog, groups, selected, onChange]);
+
+  const canSelectAll = useMemo(
+    () => groups.some((group) => group.rows.some((row) => !row.checked)),
+    [groups],
+  );
+
   const clearAll = useCallback(() => onChange([]), [onChange]);
 
   return {
@@ -206,6 +227,9 @@ export const usePermissionPickerViewModel = (
     togglePermission,
     toggleGroup,
     toggleExpanded,
+    canSelectAll,
+    selectsMatchesOnly: query.trim() !== '',
+    selectAll,
     clearAll,
   };
 };

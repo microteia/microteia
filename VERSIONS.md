@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.120.0] — 2026-10-17
+
+- A escolha de permissões de um assistente de IA ganhou o botão **Selecionar tudo**, que marca todas as permissões de uma vez. Com uma busca aberta, ele marca só o que a busca encontrou.
+
 #### [9.119.0] — 2026-10-17
 
 - Assistentes de IA conectados ao escritório agora administram os modelos de documento por completo: listam os modelos, leem o texto de cada um, criam modelos novos em Markdown ou Word, personalizam o modelo de uma extensão, restauram o original, desligam, religam, clonam e excluem.

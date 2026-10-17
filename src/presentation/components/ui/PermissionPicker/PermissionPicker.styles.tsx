@@ -25,6 +25,18 @@ const Count = styled.span`
   color: ${({ theme }) => theme.colors.textSecondary};
 `;
 
+const Actions = styled.div`
+  display: flex;
+  align-items: center;
+  gap: ${({ theme }) => theme.spacing.xs};
+  margin-left: auto;
+
+  svg {
+    font-size: ${({ theme }) => theme.fontSizes.sm};
+    color: ${({ theme }) => theme.colors.primary};
+  }
+`;
+
 const List = styled.div`
   display: flex;
   flex-direction: column;
@@ -105,6 +117,7 @@ export const S = {
   Toolbar,
   Search,
   Count,
+  Actions,
   List,
   Group,
   GroupHeader,

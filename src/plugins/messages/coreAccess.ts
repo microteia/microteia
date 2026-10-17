@@ -110,6 +110,8 @@ export const CORE_ACCESS_MESSAGES: Record<string, string> = {
   'permission.picker.search': 'Search a screen or a permission...',
   'permission.picker.selected': '{selected} of {total} chosen',
   'permission.picker.group-count': '{selected}/{total}',
+  'permission.picker.select-all': 'Select all',
+  'permission.picker.select-matches': 'Select matches',
   'permission.picker.clear': 'Clear',
   'permission.picker.no-matches': 'Nothing matches that search.',
   'permission.picker.nothing-to-offer':

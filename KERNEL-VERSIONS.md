@@ -18,6 +18,10 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.120.0] — 2026-10-17
+
+- feat(ui/permission-picker): a "Select all" button in the toolbar, beside "Clear", on the shared `PermissionPicker` (OAuth consent and the AI Agents tab). It selects what is visible — every offerable permission, or only the search matches while a query is active ("Select matches") — through the same `withDependencies` closure as a group checkbox, and hides once nothing visible is left unchecked. New keys `permission.picker.select-all` / `permission.picker.select-matches` in `core.access`, translated in `com.microteia.locale-pt-br` 1.100.0.
+
 #### [9.119.0] — 2026-10-17
 
 - feat(agent): seven tools give an AI agent full control of document templates over the execution MCP (`agentMcp`) — `list_document_templates` (union of packaged and organization keys with `state`, `outdated`, `screenMissing`, `canRender`), `get_document_template` (Markdown body, or the Word text as the kernel reads it plus the base64 `.docx` on request, with grammar issues and `pathWarnings`), `document_template_guide` (the grammar as `DOCUMENT_TEMPLATE_GRAMMAR`, derived from `TEMPLATE_BLOCKS`/`DOCUMENT_OUTPUTS_BY_FORMAT`/`DOCUMENT_TEMPLATE_MAX_BYTES`, the field-expression functions and, per collection, the exact tag for each field, candidate datasets and a starter template), `save_document_template` (create or patch an organization template, `dry_run`), `change_document_template` (`customize`, `keep-customization`, `restore`, `disable`, `enable`, `clone`, `delete` — the same documents and `basedOn` the Document Templates screen writes), `preview_document` (`<collection>.read`) and `render_document` (`<collection>.update`). Before this the agent had no tool over `documentTemplates` and no way to learn the grammar: it wrote `{{else}}`, guessed field keys and attached Word files to records instead of saving them as templates.

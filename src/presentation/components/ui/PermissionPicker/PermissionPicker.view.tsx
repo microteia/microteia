@@ -1,5 +1,5 @@
 import React from 'react';
-import { RiArrowDownSLine, RiArrowRightSLine } from 'react-icons/ri';
+import { RiArrowDownSLine, RiArrowRightSLine, RiCheckDoubleLine } from 'react-icons/ri';
 import type { PermissionPickerInput } from './PermissionPicker.viewmodel';
 import { usePermissionPickerViewModel } from './PermissionPicker.viewmodel';
 import { S } from './PermissionPicker.styles.tsx';
@@ -27,11 +27,19 @@ export const PermissionPicker: React.FC<PermissionPickerInput> = (input) => {
             total: String(vm.totalOfferable),
           })}
         </S.Count>
-        {vm.totalSelected > 0 && (
-          <Button variant="ghost" size="sm" onClick={vm.clearAll}>
-            {t('permission.picker.clear')}
-          </Button>
-        )}
+        <S.Actions>
+          {vm.canSelectAll && (
+            <Button type="button" variant="secondary" size="sm" onClick={vm.selectAll}>
+              <RiCheckDoubleLine />
+              {t(vm.selectsMatchesOnly ? 'permission.picker.select-matches' : 'permission.picker.select-all')}
+            </Button>
+          )}
+          {vm.totalSelected > 0 && (
+            <Button type="button" variant="ghost" size="sm" onClick={vm.clearAll}>
+              {t('permission.picker.clear')}
+            </Button>
+          )}
+        </S.Actions>
       </S.Toolbar>
 
       <S.List>

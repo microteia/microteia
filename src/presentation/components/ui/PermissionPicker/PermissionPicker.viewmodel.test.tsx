@@ -197,6 +197,30 @@ describe('o seletor de teto de permissões', () => {
     });
   });
 
+  describe('selecionar tudo', () => {
+    it('marca tudo o que é oferecido', () => {
+      const { result, onChange } = picker();
+      act(() => result.current.selectAll());
+      expect(onChange.mock.calls[0]![0]).toHaveLength(result.current.totalOfferable);
+    });
+
+    // Marcar o catálogo inteiro com três linhas na tela seria marcar o que ninguém viu.
+    it('com busca, marca só o que ela achou — e o que isso exige', () => {
+      const { result, onChange } = picker();
+      act(() => result.current.setQuery('prazos.create'));
+      expect(result.current.selectsMatchesOnly).toBe(true);
+      act(() => result.current.selectAll());
+      expect(onChange).toHaveBeenCalledWith(['prazos.create', 'prazos.read']);
+    });
+
+    it('some quando tudo o que está visível já foi marcado', () => {
+      unrestricted = false;
+      held = ['prazos.read', 'prazos.create'];
+      const { result } = picker(['prazos.read', 'prazos.create']);
+      expect(result.current.canSelectAll).toBe(false);
+    });
+  });
+
   it('limpar devolve seleção vazia', () => {
     const { result, onChange } = picker(['prazos.read']);
     act(() => result.current.clearAll());

@@ -110,6 +110,8 @@ export const CORE_ACCESS: Record<string, string> = {
   'permission.picker.search': 'Buscar uma tela ou uma permissão...',
   'permission.picker.selected': '{selected} de {total} escolhidas',
   'permission.picker.group-count': '{selected}/{total}',
+  'permission.picker.select-all': 'Selecionar tudo',
+  'permission.picker.select-matches': 'Selecionar resultados',
   'permission.picker.clear': 'Limpar',
   'permission.picker.no-matches': 'Nada corresponde a essa busca.',
   'permission.picker.nothing-to-offer':
