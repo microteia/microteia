@@ -5,7 +5,7 @@ import type {
 } from '../schema/document/documentTemplate';
 
 /** O que o escritório grava. A `key` é também o id do documento: um modelo do escritório por chave. */
-export type DocumentTemplateInput = DocumentTemplateSpec & { enabled?: boolean };
+export type DocumentTemplateInput = DocumentTemplateSpec & { enabled?: boolean; basedOn?: string };
 
 export interface GenerateDocumentInput {
   tenantId: string;

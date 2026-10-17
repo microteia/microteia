@@ -11,6 +11,13 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.118.0] — 2026-10-17
+
+- A tela de Modelos de documento ganhou visual novo: lista com busca e filtros por situação e por tela, cabeçalho com as informações do modelo e botões mais claros para personalizar, desligar e restaurar.
+- Quando uma extensão atualiza um modelo que você personalizou, ele passa a aparecer com o aviso "Atualização disponível". Você escolhe entre restaurar a versão nova da extensão ou manter a sua cópia.
+- Novo botão "Clonar": cria um modelo novo a partir de qualquer outro, para ter versões diferentes sem mexer no original.
+- A marca "Extensão" na lista de modelos agora segue o mesmo padrão das demais telas.
+
 #### [9.117.0] — 2026-10-17
 
 - As listas de Ações, Automações, Scripts e Relatórios passam a indicar, com a marca "Extensão", o que foi trazido por uma extensão. Ao passar o mouse sobre ela, aparece o nome da extensão.

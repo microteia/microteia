@@ -7,6 +7,7 @@ import type { Contribution, QualifiedContribution } from '../plugin/contribution
 import type { ExtensionPointDefinition } from '../plugin/extensionPoint';
 import type { TemplateIssue } from './templateGrammar';
 import { GRAMMAR_ISSUES, parseTemplate } from './templateGrammar';
+import { contentFingerprint } from '../contentFingerprint';
 
 /**
  * O modelo de documento — procuração, contrato, recibo, notificação — como DADO.
@@ -87,6 +88,12 @@ export interface DocumentTemplateSpec {
 export interface DocumentTemplate extends DocumentTemplateSpec {
   id: string;
   enabled?: boolean;
+  /**
+   * A impressão digital (`documentTemplateFingerprint`) do modelo da EXTENSÃO de que esta cópia saiu.
+   * Só existe na cópia personalizada; é ela que deixa a tela perceber que a extensão trocou o
+   * original depois da personalização. Ausente numa cópia anterior a este campo: não se sabe.
+   */
+  basedOn?: string;
   updatedAt?: Date | null;
   updatedBy?: string | null;
 }
@@ -121,7 +128,7 @@ export const DOCUMENT_TEMPLATE_MAX_BYTES = 512 * 1024;
 
 export const DOCUMENT_TEMPLATE_KEY_PATTERN = /^[a-z][a-z0-9-]*$/;
 
-const KEY_MAX_LENGTH = 60;
+export const DOCUMENT_TEMPLATE_KEY_MAX_LENGTH = 60;
 
 const IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
@@ -159,7 +166,7 @@ export const documentTemplateIssues = (spec: Partial<DocumentTemplateSpec>): Doc
   };
 
   const key = typeof spec.key === 'string' ? spec.key : '';
-  if (!DOCUMENT_TEMPLATE_KEY_PATTERN.test(key) || key.length > KEY_MAX_LENGTH) {
+  if (!DOCUMENT_TEMPLATE_KEY_PATTERN.test(key) || key.length > DOCUMENT_TEMPLATE_KEY_MAX_LENGTH) {
     push('key', '@core.documents/template.key.invalid', { key });
   }
   if (typeof spec.title !== 'string' || !spec.title.trim()) push('title', '@core.documents/template.title.missing');
@@ -266,14 +273,33 @@ export const documentTemplateOf = (contribution: Contribution): DocumentTemplate
   return documentTemplateIssues(spec).some((one) => !isGrammarIssue(one)) ? null : (spec as DocumentTemplateSpec);
 };
 
-/** O documento do escritório sem o que é só dele (o interruptor e o carimbo de quem gravou). */
-const specOfTenantTemplate = (template: DocumentTemplate): Omit<DocumentTemplate, 'enabled' | 'updatedAt' | 'updatedBy'> => {
+type TenantOnlyField = 'enabled' | 'basedOn' | 'updatedAt' | 'updatedBy';
+
+/** O documento do escritório sem o que é só dele (o interruptor, a origem e o carimbo de quem gravou). */
+const specOfTenantTemplate = (template: DocumentTemplate): Omit<DocumentTemplate, TenantOnlyField> => {
   const spec: Partial<DocumentTemplate> = { ...template };
   delete spec.enabled;
+  delete spec.basedOn;
   delete spec.updatedAt;
   delete spec.updatedBy;
-  return spec as Omit<DocumentTemplate, 'enabled' | 'updatedAt' | 'updatedBy'>;
+  return spec as Omit<DocumentTemplate, TenantOnlyField>;
 };
+
+/**
+ * A impressão digital do modelo COMO A EXTENSÃO O DECLARA — antes de qualquer tradução de tela.
+ * Subir a versão da extensão sem tocar o modelo não a move; trocar uma vírgula do texto, move.
+ */
+export const documentTemplateFingerprint = (spec: DocumentTemplateSpec): string =>
+  contentFingerprint(spec);
+
+/**
+ * A cópia do escritório ficou para trás do original da extensão. Sem `basedOn` (cópia anterior ao
+ * campo) a resposta é `false`: avisar sem saber seria alarme falso em toda cópia antiga.
+ */
+export const isTemplateCopyOutdated = (
+  copy: Pick<DocumentTemplate, 'basedOn'>,
+  packaged: DocumentTemplateSpec,
+): boolean => typeof copy.basedOn === 'string' && copy.basedOn !== documentTemplateFingerprint(packaged);
 
 /** A chave INSTALADA da tela de um `sourceId`, ou nada quando ela não está no escritório. */
 export type ScreenKeyOfSource = (sourceId: string) => string | undefined;

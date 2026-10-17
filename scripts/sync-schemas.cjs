@@ -80,6 +80,7 @@ const SHARED_FILES = [
   'domain/schema/plugin/kernelVersion.ts',
   'domain/schema/plugin/migration.ts',
   'domain/schema/plugin/index.ts',
+  'domain/schema/contentFingerprint.ts',
   'domain/schema/access/permission.ts',
   'domain/schema/access/resolvePermissions.ts',
   'domain/schema/access/extensionPoints.ts',

@@ -16,11 +16,15 @@ import type {
   DocumentTemplateSpec,
 } from '../../../domain/schema/document/documentTemplate';
 import {
+  DOCUMENT_TEMPLATE_KEY_MAX_LENGTH,
+  DOCUMENT_TEMPLATE_KEY_PATTERN,
   DOCUMENT_TEMPLATE_MAX_BYTES,
   DOCUMENT_TEMPLATE_POINT,
+  documentTemplateFingerprint,
   documentTemplateIssues,
   documentTemplateOf,
   isGrammarIssue,
+  isTemplateCopyOutdated,
   templateCollection,
 } from '../../../domain/schema/document/documentTemplate';
 import { useScreenKeyOfSource } from '../../shared/documents/useResolvedDocumentTemplates';
@@ -28,6 +32,7 @@ import { buildStarterTemplate } from '../../shared/documents/starterTemplate';
 import type { TemplateHelpGroup } from '../../shared/documents/templateHelp';
 import { templateHelpFor } from '../../shared/documents/templateHelp';
 import type { SearchSelectOption } from '../../components/ui/SearchSelect';
+import type { FilterDef, FilterToken } from '../../components/ui/CompositeFilter';
 import { useLabel, useT } from '../../shared/i18n/useT';
 import { useExtensionName } from '../../shared/extensions/useExtensionName';
 
@@ -49,6 +54,8 @@ export interface DocumentTemplateRow {
   pluginId: string | null;
   /** O nome da extensão que declara a chave, para quem pergunta de onde o modelo veio. */
   extension: string | null;
+  /** A cópia do escritório saiu de um original que a extensão já trocou. */
+  outdated: boolean;
 }
 
 export interface TemplateIssueLine {
@@ -65,8 +72,17 @@ export interface DatasetRowOptions {
 export interface DocumentTemplatesViewModel {
   canManage: boolean;
   rows: DocumentTemplateRow[];
+  /** As linhas que passam pelo filtro. */
+  visibleRows: DocumentTemplateRow[];
+  filterDefs: FilterDef[];
+  filterTokens: FilterToken[];
+  setFilterTokens: (tokens: FilterToken[]) => void;
+  savedFiltersScreenKey: string;
   selectedKey: string | null;
+  selectedRow: DocumentTemplateRow | null;
   isNew: boolean;
+  /** O título do modelo de que o rascunho novo é cópia — `null` quando o rascunho nasceu vazio. */
+  clonedFrom: string | null;
   selectedState: DocumentTemplateRowState | null;
   isEditable: boolean;
   form: DocumentTemplateSpec;
@@ -87,6 +103,10 @@ export interface DocumentTemplatesViewModel {
   startNew: () => void;
   handleSave: () => Promise<void>;
   handleCustomize: () => void;
+  /** Abre um modelo NOVO do escritório com o conteúdo do selecionado — chave própria, nada substituído. */
+  handleClone: () => void;
+  /** Dá a cópia personalizada por conferida diante do original atual da extensão, sem mudar o conteúdo. */
+  handleKeepCopy: () => Promise<void>;
   handleToggleDisabled: () => Promise<void>;
   requestDelete: () => void;
   cancelDelete: () => void;
@@ -106,12 +126,26 @@ export interface DocumentTemplatesViewModel {
   removeDataset: (index: number) => void;
 }
 
+const ROW_STATES: readonly DocumentTemplateRowState[] = ['plugin', 'override', 'disabled', 'tenant'];
+
+const OUTDATED_FILTER = 'outdated';
+
 const EMPTY_FORM: DocumentTemplateSpec = {
   key: '',
   title: '',
   collection: '',
   format: 'markdown',
   body: '',
+};
+
+/** A primeira chave livre a partir de `<chave>-copy`, dentro do teto e do padrão de chave. */
+const freeCopyKey = (key: string, taken: (candidate: string) => boolean): string => {
+  const base = `${key.slice(0, DOCUMENT_TEMPLATE_KEY_MAX_LENGTH - '-copy-99'.length)}-copy`;
+  if (!taken(base)) return base;
+  for (let suffix = 2; ; suffix += 1) {
+    const candidate = `${base}-${suffix}`;
+    if (!taken(candidate)) return candidate;
+  }
 };
 
 const specOf = (template: DocumentTemplateSpec): DocumentTemplateSpec => ({
@@ -202,6 +236,7 @@ export const useDocumentTemplatesViewModel = (): DocumentTemplatesViewModel => {
           : 'plugin';
         const shown = installedSpec(own && own.enabled !== false ? own : fromPackage?.spec ?? (own as DocumentTemplateSpec));
         return {
+          outdated: state === 'override' && !!own && !!fromPackage && isTemplateCopyOutdated(own, fromPackage.spec),
           key,
           title: label(shown.title),
           screenLabel: screenLabelOf(shown.collection),
@@ -220,6 +255,37 @@ export const useDocumentTemplatesViewModel = (): DocumentTemplatesViewModel => {
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [isStarterConfirmOpen, setIsStarterConfirmOpen] = useState(false);
+  const [filterTokens, setFilterTokens] = useState<FilterToken[]>([]);
+  const [clonedFrom, setClonedFrom] = useState<string | null>(null);
+
+  const filterDefs = useMemo<FilterDef[]>(() => {
+    const screens = [...new Set(rows.map((row) => row.screenLabel))].sort((left, right) => left.localeCompare(right));
+    return [
+      { key: 'search', label: t('core.ui/filter.search'), type: 'text', placeholder: t('template.search') },
+      {
+        key: 'state',
+        label: t('filter.state'),
+        type: 'multiselect',
+        options: [
+          ...ROW_STATES.map((state) => ({ value: state, label: t(`state.${state}`) })),
+          { value: OUTDATED_FILTER, label: t('state.outdated') },
+        ],
+      },
+      { key: 'screen', label: t('field.collection'), type: 'multiselect', options: screens.map((screen) => ({ value: screen, label: screen })) },
+    ];
+  }, [rows, t]);
+
+  const visibleRows = useMemo(() => {
+    const valuesOf = (key: string) => filterTokens.find((token) => token.key === key)?.values ?? [];
+    const needle = (valuesOf('search')[0] ?? '').trim().toLocaleLowerCase();
+    const states = valuesOf('state');
+    const screens = valuesOf('screen');
+    return rows.filter((row) =>
+      (!needle || [row.title, row.screenLabel, row.key, row.extension ?? '']
+        .some((text) => text.toLocaleLowerCase().includes(needle)))
+      && (states.length === 0 || states.includes(row.state) || (row.outdated && states.includes(OUTDATED_FILTER)))
+      && (screens.length === 0 || screens.includes(row.screenLabel)));
+  }, [rows, filterTokens]);
 
   const selectedRow = rows.find((row) => row.key === selectedKey) ?? null;
   const selectedState = isNew ? 'tenant' : selectedRow?.state ?? null;
@@ -308,12 +374,14 @@ export const useDocumentTemplatesViewModel = (): DocumentTemplatesViewModel => {
   const selectRow = useCallback((key: string) => {
     setSelectedKey(key);
     setIsNew(false);
+    setClonedFrom(null);
     setDraft(null);
   }, []);
 
   const startNew = useCallback(() => {
     setSelectedKey(null);
     setIsNew(true);
+    setClonedFrom(null);
     setDraft({ ...EMPTY_FORM });
   }, []);
 
@@ -322,17 +390,20 @@ export const useDocumentTemplatesViewModel = (): DocumentTemplatesViewModel => {
     if (documentTemplateIssues(form).some((one) => !isGrammarIssue(one))) return;
     setIsSaving(true);
     try {
-      await saveTemplate({ ...specOf(form), enabled: true });
+      // A cópia personalizada guarda de que original saiu; regravá-la sem isso apagaria o aviso.
+      const basedOn = isNew ? undefined : tenantByKey.get(form.key)?.basedOn;
+      await saveTemplate({ ...specOf(form), enabled: true, ...(basedOn ? { basedOn } : {}) });
       notify(t('template.saved'), 'success');
       setSelectedKey(form.key);
       setIsNew(false);
+      setClonedFrom(null);
       setDraft(null);
     } catch {
       notify(t('template.save-failed'), 'error');
     } finally {
       setIsSaving(false);
     }
-  }, [isEditable, keyTaken, form, saveTemplate, notify, t]);
+  }, [isEditable, keyTaken, form, isNew, tenantByKey, saveTemplate, notify, t]);
 
   /** Personalizar é COPIAR o da extensão para a mesma chave — a cópia vence, e apagá-la devolve o original. */
   const handleCustomize = useCallback(() => {
@@ -342,10 +413,35 @@ export const useDocumentTemplatesViewModel = (): DocumentTemplatesViewModel => {
     const copy = { ...installedSpec(fromPackage.spec), title: label(fromPackage.spec.title) };
     setDraft(copy);
     setIsNew(false);
-    void saveTemplate({ ...copy, enabled: true })
+    void saveTemplate({ ...copy, enabled: true, basedOn: documentTemplateFingerprint(fromPackage.spec) })
       .then(() => notify(t('template.customized'), 'success'))
       .catch(() => notify(t('template.save-failed'), 'error'));
   }, [selectedKey, packaged, installedSpec, saveTemplate, notify, t, label]);
+
+  const handleClone = useCallback(() => {
+    const source = label(form.title);
+    const key = freeCopyKey(
+      DOCUMENT_TEMPLATE_KEY_PATTERN.test(form.key) ? form.key : 'template',
+      (candidate) => tenantByKey.has(candidate) || packaged.has(candidate),
+    );
+    setDraft({ ...specOf(form), key, title: t('template.clone.title', { title: source }) });
+    setSelectedKey(null);
+    setIsNew(true);
+    setClonedFrom(source);
+  }, [form, label, tenantByKey, packaged, t]);
+
+  const handleKeepCopy = useCallback(async () => {
+    if (!selectedKey) return;
+    const own = tenantByKey.get(selectedKey);
+    const fromPackage = packaged.get(selectedKey);
+    if (!own || !fromPackage) return;
+    try {
+      await saveTemplate({ ...specOf(own), enabled: true, basedOn: documentTemplateFingerprint(fromPackage.spec) });
+      notify(t('template.outdated.kept'), 'success');
+    } catch {
+      notify(t('template.save-failed'), 'error');
+    }
+  }, [selectedKey, tenantByKey, packaged, saveTemplate, notify, t]);
 
   /** Desligar grava a chave com `enabled: false`; religar apaga essa gravação. */
   const handleToggleDisabled = useCallback(async () => {
@@ -480,8 +576,15 @@ export const useDocumentTemplatesViewModel = (): DocumentTemplatesViewModel => {
   return {
     canManage: can(PERMISSION_DOCUMENT_TEMPLATES_MANAGE),
     rows,
+    visibleRows,
+    filterDefs,
+    filterTokens,
+    setFilterTokens,
+    savedFiltersScreenKey: 'document-templates',
     selectedKey,
+    selectedRow: isNew ? null : selectedRow,
     isNew,
+    clonedFrom,
     selectedState,
     isEditable,
     form,
@@ -501,6 +604,8 @@ export const useDocumentTemplatesViewModel = (): DocumentTemplatesViewModel => {
     startNew,
     handleSave,
     handleCustomize,
+    handleClone,
+    handleKeepCopy,
     handleToggleDisabled,
     requestDelete,
     cancelDelete,

@@ -2,8 +2,10 @@ import { describe, it, expect } from 'vitest';
 import type { QualifiedContribution } from '../plugin/contribution';
 import {
   documentTemplateContribution,
+  documentTemplateFingerprint,
   documentTemplateIssues,
   documentTemplateOf,
+  isTemplateCopyOutdated,
   resolveDocumentTemplates,
   templateOutputs,
   templateScreenIndex,
@@ -187,5 +189,35 @@ describe('resolveDocumentTemplates', () => {
       expect(templatesForCollection(resolved, 'financials').map((one) => one.key)).toEqual(['receipt']);
       expect(templatesForCollection(resolved, 'financeiro')).toEqual([]);
     });
+  });
+});
+
+describe('documentTemplateFingerprint', () => {
+  it('não depende da ordem das chaves', () => {
+    const reordered = { body: 'Received from {{payer}}', format: 'markdown', collection: 'payments', title: 'Receipt', key: 'receipt' } as DocumentTemplateSpec;
+    expect(documentTemplateFingerprint(reordered)).toBe(documentTemplateFingerprint(spec()));
+  });
+
+  it('muda quando o texto muda', () => {
+    expect(documentTemplateFingerprint(spec({ body: 'Paid by {{payer}}' }))).not.toBe(documentTemplateFingerprint(spec()));
+  });
+});
+
+describe('isTemplateCopyOutdated', () => {
+  it('a cópia feita do original atual não está desatualizada', () => {
+    expect(isTemplateCopyOutdated({ basedOn: documentTemplateFingerprint(spec()) }, spec())).toBe(false);
+  });
+
+  it('a extensão trocou o original depois da personalização', () => {
+    expect(isTemplateCopyOutdated({ basedOn: documentTemplateFingerprint(spec()) }, spec({ body: 'New {{payer}}' }))).toBe(true);
+  });
+
+  it('cópia sem basedOn não é dada como desatualizada', () => {
+    expect(isTemplateCopyOutdated({}, spec({ body: 'New {{payer}}' }))).toBe(false);
+  });
+
+  it('basedOn não vaza para o modelo resolvido', () => {
+    const resolved = resolveDocumentTemplates([packaged('ext', spec())], [tenant({ key: 'receipt', basedOn: 'abc' })]);
+    expect(resolved[0]).not.toHaveProperty('basedOn');
   });
 });

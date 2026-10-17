@@ -1,11 +1,22 @@
 import React from 'react';
 import {
   RiAddLine,
+  RiArrowGoBackLine,
   RiArrowRightUpLine,
+  RiCheckLine,
   RiDeleteBinLine,
+  RiEdit2Line,
+  RiEyeLine,
+  RiEyeOffLine,
+  RiFileCopyLine,
+  RiFileList3Line,
   RiFileTextLine,
+  RiFileWordLine,
   RiMagicLine,
+  RiMarkdownLine,
   RiQuestionLine,
+  RiSaveLine,
+  RiSettings3Line,
   RiUploadLine,
 } from 'react-icons/ri';
 import { Button } from '../../components/ui/Button';
@@ -13,94 +24,196 @@ import { Input, Label } from '../../components/ui/Input';
 import { SearchSelect } from '../../components/ui/SearchSelect';
 import { InfoBanner } from '../../components/ui/InfoBanner';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
+import { CompositeFilter } from '../../components/ui/CompositeFilter';
+import { ExtensionBadge } from '../../components/ui/ExtensionBadge';
 import { useDocumentTemplatesViewModel } from './DocumentTemplates.viewmodel';
 import type { DocumentTemplateRowState } from './DocumentTemplates.viewmodel';
 import { S } from './DocumentTemplates.styles';
+import type { PillTone } from './DocumentTemplates.styles';
 import { useT } from '../../shared/i18n/useT';
 
-const STATE_TONE: Record<DocumentTemplateRowState, 'muted' | 'primary' | 'warning' | 'success'> = {
-  plugin: 'muted',
+const STATE_TONE: Record<DocumentTemplateRowState, PillTone> = {
+  plugin: 'neutral',
   override: 'primary',
   disabled: 'warning',
-  tenant: 'success',
+  tenant: 'neutral',
 };
+
+const FormatGlyph: React.FC<{ format: 'markdown' | 'docx' }> = ({ format }) =>
+  (format === 'docx' ? <RiFileWordLine /> : <RiMarkdownLine />);
 
 export const DocumentTemplatesView: React.FC = () => {
   const vm = useDocumentTemplatesViewModel();
   const t = useT('core.documents');
 
+  const header = (
+    <S.Header>
+      <S.HeaderText>
+        <S.Title>{t('page.templates')}</S.Title>
+        <S.Subtitle>{t('page.templates.subtitle')}</S.Subtitle>
+      </S.HeaderText>
+      {vm.canManage && (
+        <Button variant="primary" size="sm" onClick={vm.startNew}>
+          <RiAddLine size={16} /> {t('template.new')}
+        </Button>
+      )}
+    </S.Header>
+  );
+
   if (!vm.canManage) {
     return (
       <S.Page>
-        <S.Header>
-          <S.HeaderTitle><RiFileTextLine size={20} />{t('page.templates')}</S.HeaderTitle>
-        </S.Header>
-        <S.Editor>
+        {header}
+        <S.EditorInner>
           <InfoBanner variant="info" message={t('page.no-permission')} />
-        </S.Editor>
+        </S.EditorInner>
       </S.Page>
     );
   }
 
+  const state = vm.selectedState;
+  const row = vm.selectedRow;
+
   return (
     <S.Page>
-      <S.Header>
-        <S.HeaderTitle><RiFileTextLine size={20} />{t('page.templates')}</S.HeaderTitle>
-        <Button variant="primary" size="sm" onClick={vm.startNew}>
-          <RiAddLine size={14} /> {t('template.new')}
-        </Button>
-      </S.Header>
+      {header}
 
       <S.Body>
-        <S.List>
-          {vm.rows.length === 0 && <S.Empty>{t('template.empty')}</S.Empty>}
-          {vm.rows.map((row) => (
-            <S.Row key={row.key} $active={!vm.isNew && vm.selectedKey === row.key} onClick={() => vm.selectRow(row.key)}>
-              <S.RowTitle>{row.title}</S.RowTitle>
-              <S.RowMeta>
-                <span>{row.screenLabel}</span>
-                <S.Tag $tone="muted">{t(`format.${row.format}`)}</S.Tag>
-                <S.Tag $tone={STATE_TONE[row.state]} title={row.extension ?? undefined}>{t(`state.${row.state}`)}</S.Tag>
-              </S.RowMeta>
-            </S.Row>
-          ))}
-        </S.List>
+        <S.Sidebar>
+          <S.SidebarFilter>
+            <CompositeFilter
+              defs={vm.filterDefs}
+              tokens={vm.filterTokens}
+              onChange={vm.setFilterTokens}
+              placeholder={t('template.search')}
+              screenKey={vm.savedFiltersScreenKey}
+            />
+          </S.SidebarFilter>
+          <S.List>
+            {vm.rows.length === 0 && <S.ListEmpty>{t('template.empty')}</S.ListEmpty>}
+            {vm.rows.length > 0 && vm.visibleRows.length === 0 && <S.ListEmpty>{t('template.search.empty')}</S.ListEmpty>}
+            {vm.visibleRows.map((item) => (
+              <S.Row key={item.key} type="button" $active={!vm.isNew && vm.selectedKey === item.key} onClick={() => vm.selectRow(item.key)}>
+                <S.FormatIcon $format={item.format}><FormatGlyph format={item.format} /></S.FormatIcon>
+                <S.RowBody>
+                  <S.RowTop>
+                    <S.RowTitle>{item.title}</S.RowTitle>
+                    <ExtensionBadge owner={item.extension} />
+                  </S.RowTop>
+                  <S.RowMeta>{item.screenLabel} · {t(`format.${item.format}`)}</S.RowMeta>
+                  {(item.state === 'override' || item.state === 'disabled' || item.outdated) && (
+                    <S.Pills>
+                      {(item.state === 'override' || item.state === 'disabled') && (
+                        <S.Pill $tone={STATE_TONE[item.state]}>{t(`state.${item.state}`)}</S.Pill>
+                      )}
+                      {item.outdated && <S.Pill $tone="warning"><S.Dot />{t('state.outdated')}</S.Pill>}
+                    </S.Pills>
+                  )}
+                </S.RowBody>
+              </S.Row>
+            ))}
+          </S.List>
+        </S.Sidebar>
 
         <S.Editor>
           {!vm.isNew && !vm.selectedKey ? (
-            <InfoBanner variant="info" message={t('template.pick')} />
+            <S.EmptyEditor>
+              <S.EmptyIcon><RiFileTextLine /></S.EmptyIcon>
+              <S.EmptyText>{t('template.pick')}</S.EmptyText>
+              <Button variant="secondary" size="sm" onClick={vm.startNew}>
+                <RiAddLine size={14} /> {t('template.new')}
+              </Button>
+            </S.EmptyEditor>
           ) : (
-            <>
-              {vm.selectedState === 'plugin' && <InfoBanner variant="info" message={t('state.plugin.hint')} />}
-              {vm.selectedState === 'override' && <InfoBanner variant="info" message={t('state.override.hint')} />}
-              {vm.selectedState === 'disabled' && <InfoBanner message={t('state.disabled.hint')} />}
+            <S.EditorInner>
+              <S.Hero>
+                <S.HeroMain>
+                  <S.FormatIcon $format={vm.form.format} $size="lg"><FormatGlyph format={vm.form.format} /></S.FormatIcon>
+                  <S.HeroText>
+                    <S.HeroTitle>{vm.form.title.trim() || t('template.new')}</S.HeroTitle>
+                    <S.HeroMeta>
+                      {vm.form.key && <S.MetaKey>{vm.form.key}</S.MetaKey>}
+                      {row && <><S.MetaSeparator /><span>{row.screenLabel}</span></>}
+                      <S.MetaSeparator />
+                      <span>{t(`format.${vm.form.format}`)}</span>
+                      {row?.extension && <><S.MetaSeparator /><span>{t('template.from-extension', { extension: row.extension })}</span></>}
+                    </S.HeroMeta>
+                    {state && (
+                      <S.Pills>
+                        {state === 'plugin'
+                          ? <ExtensionBadge owner={row?.extension ?? null} />
+                          : <S.Pill $tone={STATE_TONE[state]}>{t(`state.${state}`)}</S.Pill>}
+                        {row?.outdated && <S.Pill $tone="warning"><S.Dot />{t('state.outdated')}</S.Pill>}
+                      </S.Pills>
+                    )}
+                  </S.HeroText>
+                </S.HeroMain>
 
-              <S.Toolbar>
-                {vm.isEditable && (
-                  <Button variant="primary" size="sm" disabled={!vm.canSave} onClick={() => void vm.handleSave()}>
-                    {t(vm.isSaving ? 'core.ui/saving' : 'core.ui/action.save')}
-                  </Button>
-                )}
-                {vm.selectedState === 'plugin' && (
-                  <Button variant="secondary" size="sm" onClick={vm.handleCustomize}>{t('template.customize')}</Button>
-                )}
-                {(vm.selectedState === 'plugin' || vm.selectedState === 'disabled') && (
-                  <Button variant="secondary" size="sm" onClick={() => void vm.handleToggleDisabled()}>
-                    {t(vm.selectedState === 'disabled' ? 'template.enable' : 'template.disable')}
-                  </Button>
-                )}
-                {vm.selectedState === 'override' && (
-                  <Button variant="secondary" size="sm" onClick={vm.requestDelete}>{t('template.restore')}</Button>
-                )}
-                {vm.selectedState === 'tenant' && !vm.isNew && (
-                  <Button variant="danger" size="sm" onClick={vm.requestDelete}>
-                    <RiDeleteBinLine size={14} /> {t('template.delete')}
-                  </Button>
-                )}
-              </S.Toolbar>
+                <S.Actions>
+                  {state === 'override' && (
+                    <Button variant="ghost" size="sm" onClick={vm.requestDelete}>
+                      <RiArrowGoBackLine size={14} /> {t('template.restore.short')}
+                    </Button>
+                  )}
+                  {state === 'plugin' && (
+                    <Button variant="ghost" size="sm" onClick={() => void vm.handleToggleDisabled()}>
+                      <RiEyeOffLine size={14} /> {t('template.disable')}
+                    </Button>
+                  )}
+                  {state === 'tenant' && !vm.isNew && (
+                    <S.DangerAction variant="ghost" size="sm" onClick={vm.requestDelete}>
+                      <RiDeleteBinLine size={14} /> {t('template.delete')}
+                    </S.DangerAction>
+                  )}
+                  {!vm.isNew && (
+                    <Button variant="secondary" size="sm" onClick={vm.handleClone}>
+                      <RiFileCopyLine size={14} /> {t('template.clone')}
+                    </Button>
+                  )}
+                  {state === 'plugin' && (
+                    <Button variant="primary" size="sm" onClick={vm.handleCustomize}>
+                      <RiEdit2Line size={14} /> {t('template.customize')}
+                    </Button>
+                  )}
+                  {state === 'disabled' && (
+                    <Button variant="primary" size="sm" onClick={() => void vm.handleToggleDisabled()}>
+                      <RiEyeLine size={14} /> {t('template.enable')}
+                    </Button>
+                  )}
+                  {vm.isEditable && (
+                    <Button variant="primary" size="sm" disabled={!vm.canSave} onClick={() => void vm.handleSave()}>
+                      <RiSaveLine size={14} /> {t(vm.isSaving ? 'core.ui/saving' : 'core.ui/action.save')}
+                    </Button>
+                  )}
+                </S.Actions>
+              </S.Hero>
+
+              {vm.isNew && vm.clonedFrom && <InfoBanner variant="info" message={t('template.clone.hint', { title: vm.clonedFrom })} />}
+              {state === 'plugin' && <InfoBanner variant="info" message={t('state.plugin.hint')} />}
+              {state === 'override' && !row?.outdated && <InfoBanner variant="info" message={t('state.override.hint')} />}
+              {state === 'disabled' && <InfoBanner message={t('state.disabled.hint')} />}
+              {row?.outdated && (
+                <S.Notice>
+                  <InfoBanner message={t('state.outdated.hint')} />
+                  <S.NoticeActions>
+                    <Button variant="secondary" size="sm" onClick={vm.requestDelete}>
+                      <RiArrowGoBackLine size={14} /> {t('template.restore')}
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => void vm.handleKeepCopy()}>
+                      <RiCheckLine size={14} /> {t('template.outdated.keep')}
+                    </Button>
+                  </S.NoticeActions>
+                </S.Notice>
+              )}
 
               <S.Section>
-                <S.SectionTitle>{t('section.general')}</S.SectionTitle>
+                <S.SectionHeading>
+                  <S.SectionIcon><RiSettings3Line size={16} /></S.SectionIcon>
+                  <S.SectionText>
+                    <S.SectionTitle>{t('section.general')}</S.SectionTitle>
+                    <S.Hint>{t('section.general.hint')}</S.Hint>
+                  </S.SectionText>
+                </S.SectionHeading>
                 <S.Grid>
                   <S.Field>
                     <Label>{t('field.title')}</Label>
@@ -157,7 +270,13 @@ export const DocumentTemplatesView: React.FC = () => {
 
               <S.Section>
                 <S.SectionHeader>
-                  <S.SectionTitle>{t('section.content')}</S.SectionTitle>
+                  <S.SectionHeading>
+                    <S.SectionIcon><RiFileTextLine size={16} /></S.SectionIcon>
+                    <S.SectionText>
+                      <S.SectionTitle>{t('section.content')}</S.SectionTitle>
+                      <S.Hint>{t('section.content.hint')}</S.Hint>
+                    </S.SectionText>
+                  </S.SectionHeading>
                   {vm.canInsertStarter && (
                     <Button variant="secondary" size="sm" onClick={vm.insertStarter}>
                       <RiMagicLine size={14} /> {t('starter.insert')}
@@ -175,7 +294,8 @@ export const DocumentTemplatesView: React.FC = () => {
                         onChange={(e) => vm.setForm({ body: e.target.value })}
                       />
                     ) : (
-                      <>
+                      <S.DocxDrop>
+                        <S.DocxIcon><RiFileWordLine /></S.DocxIcon>
                         <S.Hint>{t(vm.form.content ? 'field.docx.loaded' : 'field.docx.empty')}</S.Hint>
                         {!vm.isReadOnly && (
                           <S.FileLabel>
@@ -187,7 +307,7 @@ export const DocumentTemplatesView: React.FC = () => {
                             />
                           </S.FileLabel>
                         )}
-                      </>
+                      </S.DocxDrop>
                     )}
                     {[...vm.issuesFor('body'), ...vm.issuesFor('content'), ...vm.issuesFor('outputs')].map((one) => (
                       <S.Issue key={one.message} $grammar={one.isGrammar}>{one.message}</S.Issue>
@@ -217,65 +337,76 @@ export const DocumentTemplatesView: React.FC = () => {
               </S.Section>
 
               <S.Section>
-                <S.SectionTitle>{t('section.datasets')}</S.SectionTitle>
-                <S.Hint>{t('section.datasets.hint')}</S.Hint>
-                {(vm.form.datasets ?? []).map((dataset, index) => (
-                  <S.DatasetRow key={index}>
-                    <S.Field>
-                      <Label>{t('dataset.name')}</Label>
-                      <Input value={dataset.name} disabled={vm.isReadOnly} onChange={(e) => vm.updateDataset(index, { name: e.target.value })} />
-                    </S.Field>
-                    <S.Field>
-                      <Label>{t('dataset.from')}</Label>
-                      <SearchSelect
-                        options={vm.childScreenOptions}
-                        value={dataset.from}
-                        disabled={vm.isReadOnly}
-                        onChange={(from) => vm.updateDataset(index, { from, via: '', orderBy: undefined })}
-                      />
-                    </S.Field>
-                    <S.Field>
-                      <Label>{t('dataset.via')}</Label>
-                      <SearchSelect
-                        options={vm.datasetOptions[index]?.via ?? []}
-                        value={dataset.via}
-                        disabled={vm.isReadOnly}
-                        onChange={(via) => vm.updateDataset(index, { via })}
-                      />
-                    </S.Field>
-                    <S.Field>
-                      <Label>{t('dataset.order-by')}</Label>
-                      <SearchSelect
-                        options={vm.datasetOptions[index]?.orderBy ?? []}
-                        value={dataset.orderBy ?? ''}
-                        disabled={vm.isReadOnly}
-                        onChange={(orderBy) => vm.updateDataset(index, { orderBy: orderBy || undefined })}
-                      />
-                    </S.Field>
-                    {!vm.isReadOnly && (
-                      <Button variant="ghost" size="sm" title={t('dataset.remove')} onClick={() => vm.removeDataset(index)}>
-                        <RiDeleteBinLine size={14} />
-                      </Button>
-                    )}
-                  </S.DatasetRow>
-                ))}
-                {vm.issuesFor('datasets').map((one) => <S.Issue key={one.message} $grammar={one.isGrammar}>{one.message}</S.Issue>)}
-                {!vm.isReadOnly && (
-                  <Button variant="secondary" size="sm" onClick={vm.addDataset}>
-                    <RiAddLine size={14} /> {t('dataset.add')}
-                  </Button>
+                <S.SectionHeader>
+                  <S.SectionHeading>
+                    <S.SectionIcon><RiFileList3Line size={16} /></S.SectionIcon>
+                    <S.SectionText>
+                      <S.SectionTitle>{t('section.datasets')}</S.SectionTitle>
+                      <S.Hint>{t('section.datasets.hint')}</S.Hint>
+                    </S.SectionText>
+                  </S.SectionHeading>
+                  {!vm.isReadOnly && (
+                    <Button variant="secondary" size="sm" onClick={vm.addDataset}>
+                      <RiAddLine size={14} /> {t('dataset.add')}
+                    </Button>
+                  )}
+                </S.SectionHeader>
+                {(vm.form.datasets ?? []).length > 0 && (
+                  <S.DatasetList>
+                    {(vm.form.datasets ?? []).map((dataset, index) => (
+                      <S.DatasetRow key={index}>
+                        <S.Field>
+                          <Label>{t('dataset.name')}</Label>
+                          <Input value={dataset.name} disabled={vm.isReadOnly} onChange={(e) => vm.updateDataset(index, { name: e.target.value })} />
+                        </S.Field>
+                        <S.Field>
+                          <Label>{t('dataset.from')}</Label>
+                          <SearchSelect
+                            options={vm.childScreenOptions}
+                            value={dataset.from}
+                            disabled={vm.isReadOnly}
+                            onChange={(from) => vm.updateDataset(index, { from, via: '', orderBy: undefined })}
+                          />
+                        </S.Field>
+                        <S.Field>
+                          <Label>{t('dataset.via')}</Label>
+                          <SearchSelect
+                            options={vm.datasetOptions[index]?.via ?? []}
+                            value={dataset.via}
+                            disabled={vm.isReadOnly}
+                            onChange={(via) => vm.updateDataset(index, { via })}
+                          />
+                        </S.Field>
+                        <S.Field>
+                          <Label>{t('dataset.order-by')}</Label>
+                          <SearchSelect
+                            options={vm.datasetOptions[index]?.orderBy ?? []}
+                            value={dataset.orderBy ?? ''}
+                            disabled={vm.isReadOnly}
+                            onChange={(orderBy) => vm.updateDataset(index, { orderBy: orderBy || undefined })}
+                          />
+                        </S.Field>
+                        {!vm.isReadOnly && (
+                          <S.DangerAction variant="ghost" size="sm" title={t('dataset.remove')} onClick={() => vm.removeDataset(index)}>
+                            <RiDeleteBinLine size={14} />
+                          </S.DangerAction>
+                        )}
+                      </S.DatasetRow>
+                    ))}
+                  </S.DatasetList>
                 )}
+                {vm.issuesFor('datasets').map((one) => <S.Issue key={one.message} $grammar={one.isGrammar}>{one.message}</S.Issue>)}
               </S.Section>
-            </>
+            </S.EditorInner>
           )}
         </S.Editor>
       </S.Body>
 
       <ConfirmModal
         isOpen={vm.isDeleteOpen}
-        title={t(vm.selectedState === 'override' ? 'template.restore' : 'template.delete')}
-        message={t(vm.selectedState === 'override' ? 'template.restore.confirm' : 'template.delete.confirm')}
-        variant={vm.selectedState === 'override' ? 'default' : 'danger'}
+        title={t(state === 'override' ? 'template.restore' : 'template.delete')}
+        message={t(state === 'override' ? 'template.restore.confirm' : 'template.delete.confirm')}
+        variant={state === 'override' ? 'default' : 'danger'}
         onConfirm={() => void vm.confirmDelete()}
         onCancel={vm.cancelDelete}
       />

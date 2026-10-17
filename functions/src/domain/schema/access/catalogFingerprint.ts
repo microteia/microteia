@@ -6,6 +6,7 @@
 
 import { buildPermissionCatalog } from './resolvePermissions';
 import { KERNEL_PERMISSIONS, KERNEL_PERMISSION_RESOURCES } from './kernelPermissions';
+import { textFingerprint } from '../contentFingerprint';
 
 /**
  * A impressão digital do que o CÓDIGO diz sobre permissões — o que muda com a versão do kernel e
@@ -30,18 +31,6 @@ import { KERNEL_PERMISSIONS, KERNEL_PERMISSION_RESOURCES } from './kernelPermiss
  */
 const DERIVATION_PROBE = 'derivationProbe';
 
-const FNV_PRIME = 0x01000193;
-
-const fnv1a = (input: string, seed: number): number => {
-  let hash = seed;
-  for (let index = 0; index < input.length; index += 1) {
-    hash = Math.imul(hash ^ input.charCodeAt(index), FNV_PRIME);
-  }
-  return hash >>> 0;
-};
-
-const hex = (value: number): string => value.toString(16).padStart(8, '0');
-
 const catalogShape = (): string => {
   const catalog = buildPermissionCatalog(
     KERNEL_PERMISSIONS.map((permission) => ({ permission, source: 'core.access' })),
@@ -57,7 +46,4 @@ const catalogShape = (): string => {
  * tradução e não mudariam permissão nenhuma — incluí-los faria o escritório inteiro recalcular à
  * toa a cada ajuste de texto.
  */
-export const KERNEL_CATALOG_FINGERPRINT = ((): string => {
-  const shape = catalogShape();
-  return `${hex(fnv1a(shape, 0x811c9dc5))}${hex(fnv1a(shape, 0x1000193))}`;
-})();
+export const KERNEL_CATALOG_FINGERPRINT = textFingerprint(catalogShape());

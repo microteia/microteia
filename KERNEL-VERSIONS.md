@@ -18,6 +18,15 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.118.0] — 2026-10-17
+
+- feat(documents): a customized copy of an extension's document template records `basedOn` — the `documentTemplateFingerprint` of the packaged spec it was copied from. `isTemplateCopyOutdated` compares it with the currently installed spec, and the Document Templates screen flags the copy as "Update available", offering Restore (drop the copy, use the new original) or Keep my copy (re-stamp `basedOn` without touching the content). Before this, an extension update to a customized template was invisible: the copy kept winning and nobody knew a newer original existed. Copies saved before this field carry no `basedOn` and are never flagged.
+- feat(documents): Clone opens a new organization template from any template (packaged, customized, disabled or the organization's own) under a free `<key>-copy[-n]` key. Customize occupies the same key, so it could never produce two distinct templates from one base.
+- fix(documents): saving a customized copy keeps its `basedOn`; the repository writes with `setDoc`, which would otherwise drop it. `basedOn` is stripped from resolved templates alongside `enabled` and the update stamp.
+- refactor(schema): `contentFingerprint` / `textFingerprint` / `canonicalJson` (`domain/schema/contentFingerprint.ts`, synced to functions) — the FNV-1a pair that `KERNEL_CATALOG_FINGERPRINT` used inline, now shared. The catalog fingerprint value is unchanged. `DOCUMENT_TEMPLATE_KEY_MAX_LENGTH` is now exported.
+- feat(ui): the Document Templates screen is redesigned — `CompositeFilter` over the list (text, status, screen), the shared `ExtensionBadge` instead of an ad-hoc tag, format icons, a header with key, screen, format and source extension, and state-specific actions.
+- chore(i18n): `com.microteia.locale-pt-br` 1.98.0 with the new `core.documents` keys.
+
 #### [9.117.0] — 2026-10-17
 
 - feat(ui): `ExtensionBadge` marks extension-owned artifacts in the Actions, Workflows, Scripts and Reports lists, with the owning extension's name as the hover title. Previously nothing in those lists told an admin which extension an artifact came from.

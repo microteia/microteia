@@ -50,6 +50,7 @@ export const CORE_DOCUMENTS: Record<string, string> = {
 
   'page.templates': 'Modelos de documento',
   'page.no-permission': 'Só quem gerencia modelos de documento vê esta tela.',
+  'page.templates.subtitle': 'Transformam um registro em documento, pronto para baixar ou anexar.',
 
   'template.new': 'Novo modelo',
   'template.empty': 'Nenhum modelo ainda.',
@@ -70,6 +71,18 @@ export const CORE_DOCUMENTS: Record<string, string> = {
   'template.deleted': 'Modelo excluído.',
   'template.screen-missing': 'Tela não instalada',
   'template.delete-failed': 'Não foi possível excluir o modelo.',
+  'template.search': 'Buscar modelos',
+  'template.search.empty': 'Nenhum modelo corresponde ao filtro.',
+  'template.clone': 'Clonar',
+  'template.clone.title': '{title} (cópia)',
+  'template.clone.hint': 'Esta é uma cópia de “{title}”. Ajuste a chave e o nome e salve para criá-la.',
+  'template.restore.short': 'Restaurar original',
+  'template.from-extension': 'Da extensão {extension}',
+  'template.outdated.keep': 'Manter minha cópia',
+  'template.outdated.kept': 'A sua cópia foi marcada como conferida diante da versão nova.',
+  'filter.state': 'Situação',
+  'section.general.hint': 'Nome, tela e como o arquivo é produzido.',
+  'section.content.hint': 'Escreva o texto com os campos do registro, ou envie um arquivo Word.',
 
   'format.markdown': 'Texto (Markdown)',
   'format.docx': 'Word',
@@ -81,6 +94,8 @@ export const CORE_DOCUMENTS: Record<string, string> = {
   'state.plugin.hint': 'Este modelo vem de uma extensão. Personalize-o para editar uma cópia que o substitui, ou desligue-o.',
   'state.override.hint': 'Esta é a sua cópia do modelo de uma extensão, e é ela que vale. Restaure para voltar ao original.',
   'state.disabled.hint': 'Este modelo está desligado: não é oferecido e as automações não podem usá-lo.',
+  'state.outdated': 'Atualização disponível',
+  'state.outdated.hint': 'A extensão alterou este modelo depois que você o personalizou. A sua cópia continua valendo: restaure para usar a versão nova, ou mantenha a sua cópia.',
 
   'section.general': 'Geral',
   'section.content': 'Conteúdo',

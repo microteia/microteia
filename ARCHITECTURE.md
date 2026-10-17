@@ -7787,7 +7787,32 @@ registro. `StoreEvents.RECORD_DOCUMENTS_UPDATED` é emitido depois da geração,
 `document-templates` (barra lateral, grupo Personalização, `document-templates.manage`) lista a UNIÃO das chaves de pacote e
 do escritório, com o estado de cada uma: **Extensão** (somente leitura — Personalizar ou Desligar),
 **Personalizado** (a cópia do escritório vale — Restaurar devolve o original), **Desligado** (Religar) e
-**Escritório**. O Markdown é editado como texto, com os problemas de gramática ao vivo; o Word é enviado
+**Escritório**.
+
+A lista usa o `CompositeFilter` (texto, situação, tela), e a chave que vem de pacote leva o mesmo
+`ExtensionBadge` das listas de Ações, Automações, Scripts e Relatórios — o estado aparece como pílula
+só quando diz algo além disso (Personalizado, Desligado, Atualização disponível).
+
+**A cópia sabe de que original saiu (`basedOn`).** Personalizar grava, junto da cópia, a impressão
+digital do modelo da extensão (`documentTemplateFingerprint` = `contentFingerprint` do spec COMO O
+PACOTE O DECLARA, antes de qualquer tradução de tela). Quando a extensão troca o original, as duas
+impressões divergem (`isTemplateCopyOutdated`) e a tela mostra **Atualização disponível**, com duas
+saídas: Restaurar (apaga a cópia — vale o original NOVO) ou **Manter minha cópia** (regrava só o
+`basedOn` com a impressão atual, sem tocar o conteúdo). Sem a impressão, a cópia continuava valendo e
+o escritório nunca sabia que havia versão nova. Três decisões:
+
+- **Conteúdo, não versão.** Subir o `manifest.version` da extensão sem tocar o modelo não acende o
+  aviso; trocar uma vírgula do texto, acende.
+- **Cópia sem `basedOn` (anterior ao campo) não é dada como desatualizada** — avisar sem saber seria
+  alarme falso em toda cópia antiga.
+- **Salvar a cópia preserva o `basedOn`.** O repositório grava com `setDoc` (substitui o documento), e
+  regravar sem o campo apagaria o aviso em silêncio. `basedOn` é do escritório: `specOfTenantTemplate`
+  o retira do modelo resolvido.
+
+**Clonar** abre um modelo NOVO do escritório com o conteúdo do selecionado (de qualquer estado),
+chave livre `<chave>-copy[-n]` e título "(cópia)". Não grava nada até salvar, e não substitui chave
+nenhuma — é o caminho para ter dois modelos distintos tomando um como base, o que Personalizar não
+oferece (Personalizar ocupa a MESMA chave). O Markdown é editado como texto, com os problemas de gramática ao vivo; o Word é enviado
 como arquivo, e os campos são escritos no próprio documento.
 
 **A gramática é ensinada AO LADO do texto**, e não num documento à parte. A ajuda é dado

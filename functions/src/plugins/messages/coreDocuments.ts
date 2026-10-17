@@ -57,6 +57,7 @@ export const CORE_DOCUMENTS_MESSAGES: Record<string, string> = {
 
   'page.templates': 'Document templates',
   'page.no-permission': 'Only people who manage document templates can see this screen.',
+  'page.templates.subtitle': 'Turn a record into a document, ready to download or attach.',
 
   'template.new': 'New template',
   'template.empty': 'No templates yet.',
@@ -77,6 +78,18 @@ export const CORE_DOCUMENTS_MESSAGES: Record<string, string> = {
   'template.deleted': 'Template deleted.',
   'template.screen-missing': 'Screen not installed',
   'template.delete-failed': 'Could not delete the template.',
+  'template.search': 'Search templates',
+  'template.search.empty': 'No template matches the filter.',
+  'template.clone': 'Clone',
+  'template.clone.title': '{title} (copy)',
+  'template.clone.hint': 'This is a copy of “{title}”. Adjust the key and the name, then save to create it.',
+  'template.restore.short': 'Restore original',
+  'template.from-extension': 'From {extension}',
+  'template.outdated.keep': 'Keep my copy',
+  'template.outdated.kept': 'Your copy is marked as reviewed against the new version.',
+  'filter.state': 'Status',
+  'section.general.hint': 'Name, screen and how the file is produced.',
+  'section.content.hint': 'Write the text with the fields of the record, or upload a Word file.',
 
   'format.markdown': 'Text (Markdown)',
   'format.docx': 'Word',
@@ -88,6 +101,8 @@ export const CORE_DOCUMENTS_MESSAGES: Record<string, string> = {
   'state.plugin.hint': 'This template comes from an extension. Customize it to edit a copy that replaces it, or turn it off.',
   'state.override.hint': 'This is your copy of an extension\'s template, and it is the one used. Restore to go back to the original.',
   'state.disabled.hint': 'This template is turned off: it is not offered and automations cannot use it.',
+  'state.outdated': 'Update available',
+  'state.outdated.hint': 'The extension changed this template after you customized it. Your copy is still the one in use: restore to get the new version, or keep your copy.',
 
   'section.general': 'General',
   'section.content': 'Content',
