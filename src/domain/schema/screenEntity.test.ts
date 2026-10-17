@@ -357,3 +357,72 @@ describe('chaves da coleção', () => {
     expect(screenIdIssue(RECORD_KEYS_COLLECTION)?.message).toBe('@core.records/collection.key.reserved');
   });
 });
+
+/**
+ * A entidade que saiu do kernel fica com DUAS telas sobre a mesma coleção: a âncora
+ * `screenDefinitions/cases`, que existe só para as rules e nasce de `builtinScreenBaseline` — rótulo
+ * igual ao nome da coleção, nenhuma aba —, e a tela da extensão que o escritório de fato usa. Quando a
+ * âncora mandava, o servidor recusava gerar documento ("a tela cases não tem a aba Documentos") e o
+ * agente descrevia "cases" no lugar de "Processos".
+ */
+describe('a âncora das rules não responde pela coleção', () => {
+  const anchor: SchemaScreen = {
+    id: 'cases',
+    origin: 'builtin',
+    titleSingular: 'cases',
+    titlePlural: 'cases',
+    titleFieldKey: 'title',
+    hasDocuments: false,
+    fields: [field({ key: 'complemento', origin: 'plugin', ownerPluginId: 'com.acme.extra' })],
+  };
+  const extension: SchemaScreen = {
+    id: 'processos',
+    collection: 'cases',
+    origin: 'plugin',
+    titleSingular: 'Processo',
+    titlePlural: 'Processos',
+    titleFieldKey: 'title',
+    hasDocuments: true,
+    sourceId: 'com.acme.juridico/processos',
+    fields: [field({ key: 'title', origin: 'plugin' })],
+  };
+
+  it.each([
+    ['âncora primeiro', [anchor, extension]],
+    ['extensão primeiro', [extension, anchor]],
+  ])('a tela da extensão dá identidade, rótulos e abas — %s', (_order, screens) => {
+    const merged = createSchemaContext(screens).screens.get('cases');
+
+    expect(merged).toMatchObject({
+      id: 'processos',
+      collection: 'cases',
+      titleSingular: 'Processo',
+      titlePlural: 'Processos',
+      sourceId: 'com.acme.juridico/processos',
+      hasDocuments: true,
+    });
+    // Os campos continuam se somando: o complemento de outra extensão mora na âncora.
+    expect(merged?.fields.map((one) => one.key).sort()).toEqual(['complemento', 'title']);
+    expect(resolveEntity(createSchemaContext(screens), 'cases')?.labelPlural).toBe('Processos');
+  });
+
+  it('a aba Documentos é do registro: basta uma tela da coleção mostrá-la', () => {
+    const second: SchemaScreen = { ...extension, id: 'outra', hasDocuments: false, sourceId: null };
+    expect(createSchemaContext([extension, second]).screens.get('cases')?.hasDocuments).toBe(true);
+    expect(createSchemaContext([second, extension]).screens.get('cases')?.hasDocuments).toBe(true);
+    expect(createSchemaContext([anchor, second]).screens.get('cases')?.hasDocuments).toBe(false);
+  });
+
+  it('a âncora órfã — a extensão foi desinstalada — continua descrevendo a coleção', () => {
+    expect(createSchemaContext([anchor]).screens.get('cases')).toMatchObject({ id: 'cases', titleSingular: 'cases' });
+  });
+
+  it('o documento builtin de uma entidade do REGISTRO é a tela, e continua dono do nome', () => {
+    const adjusted: SchemaScreen = { id: 'members', origin: 'builtin', titleSingular: 'Integrante', titleFieldKey: 'name', fields: [] };
+    const bound: SchemaScreen = { ...extension, id: 'equipe', collection: 'members', titleSingular: 'Equipe' };
+
+    for (const screens of [[adjusted, bound], [bound, adjusted]]) {
+      expect(createSchemaContext(screens).screens.get('members')).toMatchObject({ id: 'members', titleSingular: 'Integrante' });
+    }
+  });
+});

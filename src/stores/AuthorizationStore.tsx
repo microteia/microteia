@@ -22,7 +22,7 @@ import {
   memberPermissions,
   setAmbientPermissions,
 } from '../domain/schema/access';
-import { screenDataCollection } from '../domain/services/screenDataCollection';
+import { presentedScreens, screenDataCollection } from '../domain/services/screenDataCollection';
 import { collectionPermissionResources } from '../domain/services/collectionPermissionResources';
 
 /**
@@ -52,7 +52,7 @@ export const AuthorizationStoreProvider: React.FC<{ children: React.ReactNode }>
    * uma de fora significaria uma coleção que ninguém consegue gravar — nem o administrador.
    */
   const catalog = useMemo(() => {
-    const screenResources: PermissionResource[] = definitions.map((definition) => ({
+    const screenResources: PermissionResource[] = presentedScreens(definitions).map((definition) => ({
       id: screenDataCollection(definition),
       name: definition.titlePlural || definition.titleSingular || definition.id,
       deriveCrud: true,

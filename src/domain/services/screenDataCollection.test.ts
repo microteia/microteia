@@ -4,6 +4,7 @@ import {
   isBoundScreen,
   isOwnedByParentScreen,
   parentLinkRelation,
+  presentedScreens,
   screenDataCollection,
   screenReadPermission,
   screenLookupCollections,
@@ -157,5 +158,29 @@ describe('hiddenParentFieldKey', () => {
 
   it('tela relacionada nunca esconde o vínculo', () => {
     expect(hiddenParentFieldKey({ ...possuida, parentRelation: 'related' }, { fieldKey: null })).toBeNull();
+  });
+});
+
+/**
+ * O catálogo de permissões e as listas de telas mostravam "financials" ao lado de "Financeiro": a
+ * âncora das rules entrava como se fosse uma tela do escritório.
+ */
+describe('presentedScreens', () => {
+  const anchor = { id: 'financials', origin: 'builtin' as const, dataCollection: null };
+  const extension = { id: 'financeiro', origin: 'plugin' as const, dataCollection: 'financials' };
+  const design = { id: 'medico', origin: 'design' as const, dataCollection: null };
+
+  it('tira a âncora de uma coleção que outra tela descreve', () => {
+    expect(presentedScreens([anchor, extension, design]).map((one) => one.id)).toEqual(['financeiro', 'medico']);
+  });
+
+  it('mantém a âncora órfã: é o único nome que a coleção ainda tem', () => {
+    expect(presentedScreens([anchor, design]).map((one) => one.id)).toEqual(['financials', 'medico']);
+  });
+
+  it('o documento builtin de uma entidade do registro é a tela, e fica', () => {
+    const members = { id: 'members', origin: 'builtin' as const, dataCollection: null };
+    const bound = { id: 'equipe', origin: 'plugin' as const, dataCollection: 'members' };
+    expect(presentedScreens([members, bound]).map((one) => one.id)).toEqual(['members', 'equipe']);
   });
 });

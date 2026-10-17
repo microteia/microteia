@@ -1,5 +1,6 @@
 import type { FieldDefinition, ScreenDefinition } from '../entities';
 import { collectionPermissionId } from '../schema/access/permission';
+import { isCollectionAnchor } from '../schema/screenEntity';
 
 export type ScreenCollectionSource = Pick<ScreenDefinition, 'id' | 'dataCollection'>;
 
@@ -32,6 +33,21 @@ export const isBoundScreen = (screen: ScreenCollectionSource): boolean =>
  */
 export const screenReadPermission = (screen: ScreenCollectionSource): string =>
   collectionPermissionId(screenDataCollection(screen), 'read');
+
+export type ScreenPresentationSource = ScreenCollectionSource & Pick<ScreenDefinition, 'origin'>;
+
+/**
+ * As telas que APRESENTAM uma coleção: todas, menos a âncora das rules (`isCollectionAnchor`) de uma
+ * coleção que outra tela já descreve. É o que uma lista de "telas do escritório" mostra.
+ *
+ * A âncora órfã — a extensão que descrevia a coleção foi desinstalada, e os registros ficaram —
+ * continua: ela é a única coisa que ainda dá nome à coleção, e sem ela a permissão de ler o que
+ * ficou sumiria do catálogo.
+ */
+export const presentedScreens = <T extends ScreenPresentationSource>(screens: readonly T[]): T[] => {
+  const described = new Set(screens.filter(isBoundScreen).map(screenDataCollection));
+  return screens.filter((screen) => !(isCollectionAnchor(screen) && described.has(screen.id)));
+};
 
 export type ScreenParentSource = Pick<ScreenDefinition, 'parentEntity' | 'parentRelation'>;
 

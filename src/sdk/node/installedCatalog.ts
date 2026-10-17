@@ -454,5 +454,6 @@ export const installedScreenInput = (screen: InstalledCatalogScreen): CatalogScr
   ...(screen.tagCollection === undefined ? {} : { tagCollection: screen.tagCollection }),
   ...(screen.eventPrefix === undefined ? {} : { eventPrefix: screen.eventPrefix }),
   ...(screen.ownerPluginId === undefined ? {} : { ownerPluginId: screen.ownerPluginId }),
+  origin: screen.origin,
   source: 'installation',
 });

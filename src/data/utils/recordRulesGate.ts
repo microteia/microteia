@@ -1,7 +1,7 @@
 import type { DocumentReference } from 'firebase/firestore';
 import { getDoc } from 'firebase/firestore';
 
-import type { FieldDefinition } from '../../domain/entities/entitySchemas';
+import type { FieldDefinition, FieldOrigin } from '../../domain/entities/entitySchemas';
 import type { RuleIssue } from '../../domain/schema/fieldRules';
 import { describeRuleIssues } from '../../domain/schema/fieldRules';
 import type { SchemaContext, SchemaScreen } from '../../domain/schema/pathResolver';
@@ -129,6 +129,8 @@ export const toSchemaScreens = (
     tagCollection?: string | null;
     dataCollection?: string | null;
     eventPrefix?: string | null;
+    hasDocuments?: boolean;
+    origin?: FieldOrigin;
   }[],
 ): SchemaScreen[] =>
   definitions.map((definition) => ({
@@ -141,6 +143,8 @@ export const toSchemaScreens = (
     keys: definition.keys,
     tagCollection: definition.tagCollection,
     eventPrefix: definition.eventPrefix,
+    hasDocuments: definition.hasDocuments,
+    origin: definition.origin,
   }));
 
 const tableHasComputedFields = (table: string): boolean =>

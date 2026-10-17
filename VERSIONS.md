@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.116.2] — 2026-10-17
+
+- Corrigida a geração de documentos em Processos, Financeiro, Contratos, Prazos e Pessoas, que era recusada com o aviso de que a tela não tinha a aba Documentos — mesmo com a aba ligada. O mesmo valia para anexar e listar documentos pelo assistente de IA.
+- Essas telas deixaram de aparecer duas vezes, com o nome técnico em inglês ao lado do nome de verdade, na escolha de permissões dos perfis e nas listas de telas dos modelos de documento e das automações.
+
 #### [9.116.1] — 2026-10-16
 
 - Corrigidos os avisos exibidos depois de executar uma ação: em vez da frase no seu idioma, alguns mostravam um código técnico começando por "@". O mesmo vale para as mensagens que uma ação aponta em campos específicos do formulário.

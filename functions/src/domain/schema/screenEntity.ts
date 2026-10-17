@@ -63,6 +63,11 @@ export interface SchemaScreen {
    */
   hasDocuments?: boolean;
   /**
+   * De onde a tela veio. Só `builtin` importa aqui: é o que distingue a ÂNCORA de uma coleção (ver
+   * `isCollectionAnchor`) de uma tela que alguém de fato declarou.
+   */
+  origin?: FieldOrigin | null;
+  /**
    * O id UNIVERSAL da tela. A chave instalada pode ganhar sufixo; o `sourceId` não muda, e é por ele
    * que um pacote aponta a tela de outro artefato dele — um modelo de documento, uma aba de registro.
    */
@@ -122,17 +127,31 @@ const BUILTIN_TAG_LISTS: SchemaTagList[] = Object.values(ENTITY_REGISTRY)
 const screenCollection = (screen: SchemaScreen): string => screen.collection ?? screen.id;
 
 /**
+ * O documento `screenDefinitions/<coleção>` que existe SÓ para as Security Rules lerem a permissão de
+ * uma coleção descrita por outra tela (`ensureTargetCollectionScreen`): nasce de
+ * `builtinScreenBaseline`, sem campos, sem UI, sem abas, e com o próprio nome da coleção como rótulo.
+ *
+ * A entidade que ainda mora no registro fica de fora: para ela, o documento `builtin` é o ajuste que o
+ * escritório fez na tela fixa pelo Form Design, e esse documento É a tela.
+ */
+export const isCollectionAnchor = (screen: { id: string; origin?: FieldOrigin | null }): boolean =>
+  screen.origin === 'builtin' && !(screen.id in ENTITY_REGISTRY);
+
+/**
  * Duas telas podem descrever a MESMA coleção: a que a possui pelo nome
- * (`screenDefinitions/cases`, onde vivem os ajustes do escritório) e uma tela de extensão que
- * declara o esquema dela. As duas declarações se somam por chave de campo, e a da tela DONA entra
- * por último — o ajuste do escritório prevalece sobre o que o pacote declara. Rótulos, campo-título
- * e etiquetas também vêm da dona quando ela existe; na falta dela, da declaração que sobrou. É o que
- * mantém a coleção descrita depois que a entidade sai do kernel.
+ * (`screenDefinitions/cases`) e uma tela de extensão que declara o esquema dela
+ * (`processos`, com `dataCollection: 'cases'`). As duas declarações se somam por chave de campo.
+ * Identidade, rótulos e campo-título vêm da DONA; na falta dela, da declaração que chegou primeiro.
+ *
+ * A dona é a tela que leva o nome da coleção — salvo quando ela é só a âncora das rules
+ * (`isCollectionAnchor`). A âncora nasce com o nome da coleção como rótulo e sem nenhuma aba, e
+ * deixá-la mandar fazia o servidor descrever "cases" sem a aba Documentos enquanto a tela que o
+ * escritório usa dizia "Processos" com a aba ligada.
  */
 const mergeSchemaScreens = (base: SchemaScreen, next: SchemaScreen, collection: string): SchemaScreen => {
-  // A tela DONA do nome dá rótulos e campo-título; a outra só acrescenta campos — assim uma
-  // segunda tela sobre a mesma coleção não renomeia a entidade.
-  const owner = next.id === collection ? next : base;
+  const ownsName = (screen: SchemaScreen): boolean =>
+    screen.id === collection && !isCollectionAnchor(screen);
+  const owner = ownsName(next) || (!ownsName(base) && isCollectionAnchor(base)) ? next : base;
   const byKey = new Map(base.fields.map((field) => [field.key, field]));
   for (const field of next.fields) byKey.set(field.key, field);
   // As chaves se somam por NOME, pela mesma razão dos campos: enquanto a entidade do kernel e a
@@ -153,6 +172,9 @@ const mergeSchemaScreens = (base: SchemaScreen, next: SchemaScreen, collection: 
     // Pela MESMA razão do prefixo de evento: quem sabe que a coleção é escrita por máquina é a
     // extensão que a trouxe, não o documento de baseline que leva o nome dela.
     auditActions: owner.auditActions ?? base.auditActions ?? next.auditActions,
+    // A aba é do REGISTRO: se alguma tela da coleção a mostra, o registro tem anexos que alguém vê,
+    // e anexar por automação ou pelo agente é anexar onde a pessoa vai procurar.
+    hasDocuments: base.hasDocuments === true || next.hasDocuments === true,
   };
 };
 

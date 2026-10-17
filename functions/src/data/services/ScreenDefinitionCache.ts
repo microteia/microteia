@@ -3,7 +3,7 @@ import type { IScreenDefinitionProvider } from '../../domain/repositories/IScree
 import type { SchemaContext, SchemaScreen } from '../../domain/schema/pathResolver';
 import { createSchemaContext } from '../../domain/schema/pathResolver';
 import type { SchemaLookup } from '../../domain/schema/screenEntity';
-import type { FieldDefinition } from '../../domain/entities/entitySchemas';
+import type { FieldDefinition, FieldOrigin } from '../../domain/entities/entitySchemas';
 import type { Contribution } from '../../domain/schema/plugin/contribution';
 import type { FieldRulePreset } from '../../domain/schema/fieldRulePresets';
 import {
@@ -71,6 +71,7 @@ export class ScreenDefinitionCache implements IScreenDefinitionProvider {
         tagCollection: typeof data.tagCollection === 'string' ? data.tagCollection : undefined,
         eventPrefix: typeof data.eventPrefix === 'string' ? data.eventPrefix : undefined,
         hasDocuments: data.hasDocuments === true,
+        origin: typeof data.origin === 'string' ? (data.origin as FieldOrigin) : null,
         sourceId: typeof data.sourceId === 'string' ? data.sourceId : null,
       };
     });

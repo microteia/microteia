@@ -8,6 +8,7 @@ import { useNotification } from '../../../stores/useNotification';
 import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
 import { useWorkspace } from '../../../stores/useWorkspace';
 import { PERMISSION_DOCUMENT_TEMPLATES_MANAGE } from '../../../domain/schema/access';
+import { presentedScreens } from '../../../domain/services/screenDataCollection';
 import type {
   DocumentTemplate,
   DocumentTemplateDataset,
@@ -261,10 +262,13 @@ export const useDocumentTemplatesViewModel = (): DocumentTemplatesViewModel => {
     [definitions, label],
   );
 
-  const childScreenOptions = useMemo(
-    () => definitions.map((definition) => ({ value: definition.id, label: label(definition.titlePlural), meta: definition.id })),
-    [definitions, label],
-  );
+  const childScreenOptions = useMemo(() => {
+    const chosen = new Set((form.datasets ?? []).map((dataset) => dataset.from));
+    const presented = new Set(presentedScreens(definitions).map((definition) => definition.id));
+    return definitions
+      .filter((definition) => presented.has(definition.id) || chosen.has(definition.id))
+      .map((definition) => ({ value: definition.id, label: label(definition.titlePlural), meta: definition.id }));
+  }, [definitions, form.datasets, label]);
 
   const formatOptions = useMemo(
     () => [

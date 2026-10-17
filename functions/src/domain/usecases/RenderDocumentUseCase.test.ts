@@ -49,7 +49,7 @@ const template = (overrides: Partial<ResolvedDocumentTemplate> = {}): ResolvedDo
   ...overrides,
 });
 
-const setup = (templates: ResolvedDocumentTemplate[] = [template()]) => {
+const setup = (templates: ResolvedDocumentTemplate[] = [template()], screens: SchemaScreen[] = SCREENS) => {
   const rendered: DocumentRenderInput[] = [];
   const attached: RecordDocumentFile[] = [];
   const childrenPaths: string[][] = [];
@@ -77,7 +77,7 @@ const setup = (templates: ResolvedDocumentTemplate[] = [template()]) => {
   };
   const deps: RenderDocumentDeps = {
     templates: { resolve: async () => templates },
-    screens: fakeScreenProvider(SCREENS),
+    screens: fakeScreenProvider(screens),
     records,
     renderer,
     writer,
@@ -167,5 +167,31 @@ describe('RenderDocumentUseCase', () => {
     expect(await broken.execute(request()))
       .toEqual({ ok: false, error: '@core.documents/render.docx-template', errorParams: { detail: 'x' } });
     expect(writer.attach).not.toHaveBeenCalled();
+  });
+
+  /**
+   * A entidade que saiu do kernel tem DUAS telas sobre a mesma coleção: a âncora `cases`, que só existe
+   * para as rules e nasce sem aba nenhuma, e a tela da extensão que o escritório usa. O modelo aponta
+   * a coleção física desde que o `screenSourceId` passou a resolver para ela — e a âncora não pode
+   * responder pela aba que a outra mostra.
+   */
+  it('gera na coleção descrita por uma tela de extensão, mesmo com a âncora das rules ao lado', async () => {
+    const anchor = {
+      id: 'cases',
+      origin: 'builtin',
+      titleSingular: 'cases',
+      titleFieldKey: 'name',
+      hasDocuments: false,
+      fields: [],
+    } as unknown as SchemaScreen;
+    const extension = { ...SCREENS[0], id: 'processos', collection: 'cases', origin: 'plugin' } as SchemaScreen;
+    const casesTemplate = template({ collection: 'cases', datasets: [] });
+
+    for (const screens of [[anchor, extension], [extension, anchor]]) {
+      const { useCase, attached } = setup([casesTemplate], screens);
+
+      expect(await useCase.execute(request())).toMatchObject({ ok: true });
+      expect(attached.at(-1)).toMatchObject({ physicalCollection: 'cases', recordId: 'c1' });
+    }
   });
 });

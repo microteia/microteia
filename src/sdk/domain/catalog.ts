@@ -1,4 +1,4 @@
-import type { FieldDefinition } from '../../domain/entities/entitySchemas';
+import type { FieldDefinition, FieldOrigin } from '../../domain/entities/entitySchemas';
 import type { EntityMetadata, NativeFieldSpec } from '../../domain/schema/entityRegistry';
 import type { QueryOrderBy } from '../../domain/schema/querySpec';
 import type { RecordKeySpec } from '../../domain/schema/recordKeys';
@@ -46,6 +46,8 @@ export interface CatalogScreenInput {
   tagCollection?: string | null;
   eventPrefix?: string | null;
   ownerPluginId?: string | null;
+  /** De onde a tela veio no escritório. É o que separa a âncora das rules de uma tela declarada. */
+  origin?: FieldOrigin | null;
   /**
    * De ONDE esta tela foi lida. Ausente vale `workspace`, que é o caso de quem passa telas à mão e o
    * dos `plugin.ts` do diretório de autoria.
@@ -172,6 +174,7 @@ export const toSchemaScreen = (screen: CatalogScreenInput): SchemaScreen => ({
   ...(screen.keys === undefined || screen.keys === null ? {} : { keys: screen.keys }),
   ...(screen.tagCollection === undefined ? {} : { tagCollection: screen.tagCollection }),
   ...(screen.eventPrefix === undefined ? {} : { eventPrefix: screen.eventPrefix }),
+  ...(screen.origin === undefined || screen.origin === null ? {} : { origin: screen.origin }),
 });
 
 /**
