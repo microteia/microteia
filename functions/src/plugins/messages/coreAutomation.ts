@@ -827,7 +827,7 @@ export const CORE_AUTOMATION_MESSAGES: Record<string, string> = {
   'step.render-document.description': 'Fills a document template with the data of a record and delivers the file (PDF or Word) to the record\'s Documents tab or to Downloads.',
   'step.render-document.label.template': 'Template',
   'step.render-document.label.record': 'Record',
-  'step.render-document.help.record': 'The id of the record the document describes — usually the id of the record that triggered the workflow. It must belong to the template\'s screen. Leave it empty for a template that reads data.',
+  'step.render-document.help.record': 'The id of the record the document describes — usually the id of the record that triggered the workflow. It must belong to the template\'s screen.',
   'step.render-document.label.output': 'Format',
   'step.render-document.help.output': 'Empty = the first format the template produces. A Word template only produces Word.',
   'step.render-document.output.pdf': 'PDF',

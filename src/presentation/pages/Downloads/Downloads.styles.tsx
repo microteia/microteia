@@ -33,6 +33,15 @@ export const S = {
     margin-top: 2px;
   `,
 
+  Toolbar: styled.div`
+    display: flex;
+    gap: ${({ theme }) => theme.spacing.sm};
+    padding: ${({ theme }) => theme.spacing.md} ${({ theme }) => theme.spacing.xl};
+    border-bottom: 1px solid ${({ theme }) => theme.colors.border};
+    flex-shrink: 0;
+    flex-wrap: wrap;
+  `,
+
   Content: styled.div`
     flex: 1;
     overflow-y: auto;
@@ -87,6 +96,17 @@ export const S = {
     white-space: nowrap;
   `,
 
+  VisibilityBadge: styled.span<{ $public: boolean }>`
+    font-size: ${({ theme }) => theme.fontSizes.xs};
+    font-weight: 600;
+    padding: 2px ${({ theme }) => theme.spacing.sm};
+    border-radius: ${({ theme }) => theme.borderRadius.full};
+    background: ${({ theme, $public }) => ($public ? theme.colors.primaryLight : theme.colors.surfaceHover)};
+    color: ${({ theme, $public }) => ($public ? theme.colors.primary : theme.colors.textMuted)};
+    flex-shrink: 0;
+    white-space: nowrap;
+  `,
+
   RowExpiry: styled.div`
     font-size: ${({ theme }) => theme.fontSizes.xs};
     color: ${({ theme }) => theme.colors.textMuted};
@@ -114,6 +134,27 @@ export const S = {
     cursor: pointer;
     flex-shrink: 0;
     text-decoration: none;
+    transition: ${({ theme }) => theme.transitions.fast};
+
+    &:hover {
+      background: ${({ theme }) => theme.colors.surfaceHover};
+      color: ${({ theme }) => theme.colors.text};
+      border-color: ${({ theme }) => theme.colors.primary};
+    }
+  `,
+
+  IconBtn: styled.button`
+    width: 32px;
+    height: 32px;
+    border-radius: ${({ theme }) => theme.borderRadius.md};
+    border: 1px solid ${({ theme }) => theme.colors.border};
+    background: ${({ theme }) => theme.colors.surface};
+    color: ${({ theme }) => theme.colors.textMuted};
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
     transition: ${({ theme }) => theme.transitions.fast};
 
     &:hover {

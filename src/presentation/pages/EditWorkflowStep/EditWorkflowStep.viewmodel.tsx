@@ -49,7 +49,7 @@ import type { ValidateStepConfig } from '../../../domain/schema/validateSpec';
 import type { StepOutputField, WorkflowVariable } from '../../components/ui/ExpressionEditor/autocompleteHelpers';
 
 import { useT, useLabel, type TranslateFn } from '../../shared/i18n/useT';
-import { isPausingStepDefinition, isStepExcludedFromTrigger } from '../../../domain/schema/workflowStepCatalog';
+import { isPausingStepDefinition, isStepExcludedFromTrigger, inputsForTemplateSource } from '../../../domain/schema/workflowStepCatalog';
 import { useResolvedDocumentTemplates } from '../../shared/documents/useResolvedDocumentTemplates';
 import { isPayloadTemplate } from '../../../domain/schema/document/documentTemplate';
 
@@ -421,18 +421,34 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
    */
   const documentTemplates = useResolvedDocumentTemplates();
 
-  /** O modelo `payload` escolhido no passo "Gerar documento": os parâmetros dele viram `param.<chave>`. */
-  const targetTemplate = useMemo(() => {
+  /** O modelo escolhido no passo "Gerar documento" — o que decide quais inputs servem. */
+  const chosenTemplate = useMemo(() => {
     if (dynamicTargetKind !== 'document-template' || !dynamicInputsSourceId) return null;
     const mapping = configuration[dynamicInputsSourceId];
     const key = mapping?.kind === 'Literal' ? String(mapping.value ?? '') : '';
-    const found = documentTemplates.find((one) => one.key === key);
-    return found && isPayloadTemplate(found) ? found : null;
+    return documentTemplates.find((one) => one.key === key) ?? null;
   }, [dynamicTargetKind, dynamicInputsSourceId, configuration, documentTemplates]);
+
+  /** O modelo `payload` escolhido: os parâmetros dele viram `param.<chave>`. */
+  const targetTemplate = chosenTemplate && isPayloadTemplate(chosenTemplate) ? chosenTemplate : null;
+
+  /**
+   * Os inputs que só valem para uma origem de modelo (`templateSource`): fora da origem escolhida
+   * somem — um modelo de dados não tem registro a pedir —, e na origem escolhida podem passar a ser
+   * obrigatórios. Sem modelo escolhido, todos aparecem e nenhum é cobrado.
+   */
+  const inputsForTemplate = useCallback(
+    (inputs: InputDefinition[]): InputDefinition[] =>
+      inputsForTemplateSource(inputs, chosenTemplate ? (isPayloadTemplate(chosenTemplate) ? 'payload' : 'record') : null),
+    [chosenTemplate],
+  );
 
   const effectiveInputs = useMemo<InputDefinition[]>(() => {
     if (!selectedDefinition) return [];
     if (!dynamicInputsSourceId) return selectedDefinition.inputs;
+    const declared = dynamicTargetKind === 'document-template'
+      ? inputsForTemplate(selectedDefinition.inputs)
+      : selectedDefinition.inputs;
     const source = dynamicTargetKind === 'script'
       ? (targetScript?.inputParams ?? [])
       : dynamicTargetKind === 'document-template'
@@ -441,8 +457,8 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
     const paramInputs = source.flatMap(
       (parameter) => flattenParameterInputs(label, parameterForDisplay(label, parameter)),
     );
-    return [...selectedDefinition.inputs, ...paramInputs];
-  }, [selectedDefinition, dynamicInputsSourceId, dynamicTargetKind, targetWorkflow, targetScript, targetTemplate, label]);
+    return [...declared, ...paramInputs];
+  }, [selectedDefinition, dynamicInputsSourceId, dynamicTargetKind, targetWorkflow, targetScript, targetTemplate, inputsForTemplate, label]);
 
   /**
    * As automações que este passo pode chamar: as CHAMÁVEIS, ativas, menos ela mesma.
@@ -642,19 +658,31 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
 
   const setPickerValue = useCallback(
     (inputId: string, value: string) => {
+      // Trocar o modelo do passo "Gerar documento" pode trocar a ORIGEM: o input que só valia para a
+      // outra (o registro, num modelo de dados) sai junto, em vez de ficar gravado e escondido.
+      const picked = dynamicTargetKind === 'document-template' && inputId === dynamicInputsSourceId
+        ? documentTemplates.find((one) => one.key === value)
+        : undefined;
+      const pickedSource = picked ? (isPayloadTemplate(picked) ? 'payload' : 'record') : null;
+      const foreign = new Set(
+        (selectedDefinition?.inputs ?? [])
+          .filter((input) => pickedSource && input.templateSource && input.templateSource.is !== pickedSource)
+          .map((input) => input.id),
+      );
       setConfiguration((prev) => {
         const next: Record<string, InputMapping> = {};
         for (const [key, mapping] of Object.entries(prev)) {
           // Trocar o alvo dos inputs DINÂMICOS invalida os `param.<chave>` do alvo anterior — e só
           // esse alvo: os outros seletores não geram input nenhum a limpar.
           if (key.startsWith('param.') && inputId === dynamicInputsSourceId) continue;
+          if (foreign.has(key)) continue;
           next[key] = mapping;
         }
         next[inputId] = { kind: 'Literal', value };
         return next;
       });
     },
-    [dynamicInputsSourceId],
+    [dynamicInputsSourceId, dynamicTargetKind, documentTemplates, selectedDefinition],
   );
 
   const stepOrder = useMemo(() => {

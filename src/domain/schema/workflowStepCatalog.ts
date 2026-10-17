@@ -86,6 +86,13 @@ export interface InputDefinition {
   /** O que o valor deste input nomeia, para o editor oferecer a lista. Ver `InputPickerKind`. */
   picker?: InputPickerKind;
   /**
+   * O input só vale para modelos de documento desta ORIGEM (`record` ou `payload`), no passo cujo alvo
+   * é um modelo (`dynamicInputs: from-target-document-template-parameters`). O editor o esconde quando o
+   * modelo escolhido é da outra origem, e o exige (`required`) quando é desta. Não vira `required` no
+   * catálogo porque o motor cobra `required` em toda execução — e aí o modelo da outra origem falharia.
+   */
+  templateSource?: { is: 'record' | 'payload'; required?: boolean };
+  /**
    * Validação por regex, só para `Literal` string. Mantido por compatibilidade: em runtime é lido
    * como um `rules.validate` equivalente (ver `toEffectiveRules` em `schema/fieldRules.ts`).
    */
@@ -814,6 +821,7 @@ export const CORE_STEP_CATALOG: readonly WorkflowStepMetadata[] = [
         description: '@core.automation/step.render-document.help.record',
         required: false,
         type: 'String',
+        templateSource: { is: 'record', required: true },
       },
       {
         /**
@@ -826,6 +834,7 @@ export const CORE_STEP_CATALOG: readonly WorkflowStepMetadata[] = [
         required: false,
         type: 'Expression',
         allowedMappingKinds: ['Expression', 'Output', 'Variable', 'Event'],
+        templateSource: { is: 'payload' },
       },
       {
         id: 'output',
@@ -939,3 +948,21 @@ export const PAUSING_STEP_DEFINITION_IDS: readonly string[] = ['delay'];
 
 export const isPausingStepDefinition = (stepDefinitionId: string | undefined): boolean =>
   !!stepDefinitionId && PAUSING_STEP_DEFINITION_IDS.includes(stepDefinitionId);
+
+/**
+ * Os inputs de um passo para um modelo de documento da origem `source`: o que só vale para a outra
+ * origem sai, e o que a origem exige passa a `required`. Sem origem (nenhum modelo escolhido), todos
+ * ficam como estão. Ver `templateSource`.
+ */
+export const inputsForTemplateSource = <T extends Pick<InputDefinition, 'required' | 'templateSource'>>(
+  inputs: readonly T[],
+  source: 'record' | 'payload' | null,
+): T[] =>
+  source === null
+    ? [...inputs]
+    : inputs.flatMap((input) => {
+      if (!input.templateSource) return [input];
+      if (input.templateSource.is !== source) return [];
+      return [input.templateSource.required ? { ...input, required: true } : input];
+    });
+

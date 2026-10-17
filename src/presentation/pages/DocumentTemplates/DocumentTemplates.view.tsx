@@ -9,6 +9,7 @@ import {
   RiEyeLine,
   RiEyeOffLine,
   RiFileCopyLine,
+  RiBracesLine,
   RiFileList3Line,
   RiFileTextLine,
   RiFileWordLine,
@@ -31,6 +32,7 @@ import type { DocumentTemplateRowState } from './DocumentTemplates.viewmodel';
 import { S } from './DocumentTemplates.styles';
 import type { PillTone } from './DocumentTemplates.styles';
 import { useT } from '../../shared/i18n/useT';
+import { AdvancedParametersEditor } from '../ViewWorkflow/components/AdvancedParametersEditor';
 
 const STATE_TONE: Record<DocumentTemplateRowState, PillTone> = {
   plugin: 'neutral',
@@ -227,16 +229,28 @@ export const DocumentTemplatesView: React.FC = () => {
                     {vm.issuesFor('key').map((one) => <S.Issue key={one.message} $grammar={one.isGrammar}>{one.message}</S.Issue>)}
                   </S.Field>
                   <S.Field>
-                    <Label>{t('field.collection')}</Label>
+                    <Label>{t('field.source')}</Label>
                     <SearchSelect
-                      options={vm.screenOptions}
-                      value={vm.form.collection}
+                      options={vm.sourceOptions}
+                      value={vm.isPayload ? 'payload' : 'record'}
                       disabled={vm.isReadOnly}
-                      onChange={(collection) => vm.setForm({ collection })}
+                      onChange={vm.setSource}
                     />
-                    <S.Hint>{t('field.collection.hint')}</S.Hint>
-                    {vm.issuesFor('collection').map((one) => <S.Issue key={one.message} $grammar={one.isGrammar}>{one.message}</S.Issue>)}
+                    <S.Hint>{t(vm.isPayload ? 'field.source.payload.hint' : 'field.source.record.hint')}</S.Hint>
                   </S.Field>
+                  {!vm.isPayload && (
+                    <S.Field>
+                      <Label>{t('field.collection')}</Label>
+                      <SearchSelect
+                        options={vm.screenOptions}
+                        value={vm.form.collection}
+                        disabled={vm.isReadOnly}
+                        onChange={(collection) => vm.setForm({ collection })}
+                      />
+                      <S.Hint>{t('field.collection.hint')}</S.Hint>
+                      {vm.issuesFor('collection').map((one) => <S.Issue key={one.message} $grammar={one.isGrammar}>{one.message}</S.Issue>)}
+                    </S.Field>
+                  )}
                   <S.Field>
                     <Label>{t('field.format')}</Label>
                     <SearchSelect
@@ -269,14 +283,14 @@ export const DocumentTemplatesView: React.FC = () => {
                     <Label>{t('field.destination')}</Label>
                     <SearchSelect
                       options={vm.destinationOptions}
-                      value={vm.form.destination ?? 'record'}
+                      value={vm.form.destination ?? (vm.isPayload ? 'downloads' : 'record')}
                       disabled={vm.isReadOnly}
                       onChange={(destination) => vm.setForm({ destination: destination === 'downloads' ? 'downloads' : 'record' })}
                     />
                     <S.Hint>{t('field.destination.hint')}</S.Hint>
                     {vm.issuesFor('destination').map((one) => <S.Issue key={one.message} $grammar={one.isGrammar}>{one.message}</S.Issue>)}
                   </S.Field>
-                  {vm.form.destination === 'downloads' && (
+                  {(vm.form.destination === 'downloads' || vm.isPayload) && (
                     <S.Field>
                       <Label>{t('field.retention')}</Label>
                       <Input
@@ -294,6 +308,51 @@ export const DocumentTemplatesView: React.FC = () => {
                 </S.Grid>
               </S.Section>
 
+              {vm.isPayload && (
+                <S.Section>
+                  <S.SectionHeading>
+                    <S.SectionIcon><RiBracesLine size={16} /></S.SectionIcon>
+                    <S.SectionText>
+                      <S.SectionTitle>{t('section.payload')}</S.SectionTitle>
+                      <S.Hint>{t('section.payload.hint')}</S.Hint>
+                    </S.SectionText>
+                  </S.SectionHeading>
+                  <AdvancedParametersEditor
+                    parameters={vm.payload.parameters}
+                    errors={vm.payload.parameterErrors}
+                    typeOptions={vm.payload.typeOptions}
+                    entityOptions={vm.payload.entityOptions}
+                    lookupOptions={vm.payload.lookupOptions}
+                    onAdd={vm.payload.addParameter}
+                    onUpdate={vm.payload.updateParameter}
+                    onRemove={vm.payload.removeParameter}
+                    onClone={vm.payload.cloneParameter}
+                    onReplace={vm.payload.replaceParameters}
+                  />
+                  {vm.issuesFor('parameters').map((one) => <S.Issue key={one.message} $grammar={one.isGrammar}>{one.message}</S.Issue>)}
+                  <S.SectionHeader>
+                    <S.Field>
+                      <Label>{t('field.sample')}</Label>
+                      <S.Hint>{t('field.sample.hint')}</S.Hint>
+                    </S.Field>
+                    {!vm.isReadOnly && vm.payload.parameters.length > 0 && (
+                      <Button variant="secondary" size="sm" onClick={vm.payload.fillSample}>
+                        <RiMagicLine size={14} /> {t('field.sample.fill')}
+                      </Button>
+                    )}
+                  </S.SectionHeader>
+                  <S.SampleText
+                    value={vm.payload.sampleText}
+                    readOnly={vm.isReadOnly}
+                    spellCheck={false}
+                    placeholder={t('field.sample.placeholder')}
+                    onChange={(e) => vm.payload.setSampleText(e.target.value)}
+                  />
+                  {vm.payload.sampleInvalid && <S.Issue $grammar={false}>{t('field.sample.invalid')}</S.Issue>}
+                  {vm.issuesFor('sample').map((one) => <S.Issue key={one.message} $grammar={one.isGrammar}>{one.message}</S.Issue>)}
+                </S.Section>
+              )}
+
               <S.Section>
                 <S.SectionHeader>
                   <S.SectionHeading>
@@ -305,7 +364,7 @@ export const DocumentTemplatesView: React.FC = () => {
                   </S.SectionHeading>
                   {vm.canInsertStarter && (
                     <Button variant="secondary" size="sm" onClick={vm.insertStarter}>
-                      <RiMagicLine size={14} /> {t('starter.insert')}
+                      <RiMagicLine size={14} /> {t(vm.isPayload ? 'starter.insert.payload' : 'starter.insert')}
                     </Button>
                   )}
                 </S.SectionHeader>
@@ -362,67 +421,69 @@ export const DocumentTemplatesView: React.FC = () => {
                 </S.ContentLayout>
               </S.Section>
 
-              <S.Section>
-                <S.SectionHeader>
-                  <S.SectionHeading>
-                    <S.SectionIcon><RiFileList3Line size={16} /></S.SectionIcon>
-                    <S.SectionText>
-                      <S.SectionTitle>{t('section.datasets')}</S.SectionTitle>
-                      <S.Hint>{t('section.datasets.hint')}</S.Hint>
-                    </S.SectionText>
-                  </S.SectionHeading>
-                  {!vm.isReadOnly && (
-                    <Button variant="secondary" size="sm" onClick={vm.addDataset}>
-                      <RiAddLine size={14} /> {t('dataset.add')}
-                    </Button>
+              {!vm.isPayload && (
+                <S.Section>
+                  <S.SectionHeader>
+                    <S.SectionHeading>
+                      <S.SectionIcon><RiFileList3Line size={16} /></S.SectionIcon>
+                      <S.SectionText>
+                        <S.SectionTitle>{t('section.datasets')}</S.SectionTitle>
+                        <S.Hint>{t('section.datasets.hint')}</S.Hint>
+                      </S.SectionText>
+                    </S.SectionHeading>
+                    {!vm.isReadOnly && (
+                      <Button variant="secondary" size="sm" onClick={vm.addDataset}>
+                        <RiAddLine size={14} /> {t('dataset.add')}
+                      </Button>
+                    )}
+                  </S.SectionHeader>
+                  {(vm.form.datasets ?? []).length > 0 && (
+                    <S.DatasetList>
+                      {(vm.form.datasets ?? []).map((dataset, index) => (
+                        <S.DatasetRow key={index}>
+                          <S.Field>
+                            <Label>{t('dataset.name')}</Label>
+                            <Input value={dataset.name} disabled={vm.isReadOnly} onChange={(e) => vm.updateDataset(index, { name: e.target.value })} />
+                          </S.Field>
+                          <S.Field>
+                            <Label>{t('dataset.from')}</Label>
+                            <SearchSelect
+                              options={vm.childScreenOptions}
+                              value={dataset.from}
+                              disabled={vm.isReadOnly}
+                              onChange={(from) => vm.updateDataset(index, { from, via: '', orderBy: undefined })}
+                            />
+                          </S.Field>
+                          <S.Field>
+                            <Label>{t('dataset.via')}</Label>
+                            <SearchSelect
+                              options={vm.datasetOptions[index]?.via ?? []}
+                              value={dataset.via}
+                              disabled={vm.isReadOnly}
+                              onChange={(via) => vm.updateDataset(index, { via })}
+                            />
+                          </S.Field>
+                          <S.Field>
+                            <Label>{t('dataset.order-by')}</Label>
+                            <SearchSelect
+                              options={vm.datasetOptions[index]?.orderBy ?? []}
+                              value={dataset.orderBy ?? ''}
+                              disabled={vm.isReadOnly}
+                              onChange={(orderBy) => vm.updateDataset(index, { orderBy: orderBy || undefined })}
+                            />
+                          </S.Field>
+                          {!vm.isReadOnly && (
+                            <S.DangerAction variant="ghost" size="sm" title={t('dataset.remove')} onClick={() => vm.removeDataset(index)}>
+                              <RiDeleteBinLine size={14} />
+                            </S.DangerAction>
+                          )}
+                        </S.DatasetRow>
+                      ))}
+                    </S.DatasetList>
                   )}
-                </S.SectionHeader>
-                {(vm.form.datasets ?? []).length > 0 && (
-                  <S.DatasetList>
-                    {(vm.form.datasets ?? []).map((dataset, index) => (
-                      <S.DatasetRow key={index}>
-                        <S.Field>
-                          <Label>{t('dataset.name')}</Label>
-                          <Input value={dataset.name} disabled={vm.isReadOnly} onChange={(e) => vm.updateDataset(index, { name: e.target.value })} />
-                        </S.Field>
-                        <S.Field>
-                          <Label>{t('dataset.from')}</Label>
-                          <SearchSelect
-                            options={vm.childScreenOptions}
-                            value={dataset.from}
-                            disabled={vm.isReadOnly}
-                            onChange={(from) => vm.updateDataset(index, { from, via: '', orderBy: undefined })}
-                          />
-                        </S.Field>
-                        <S.Field>
-                          <Label>{t('dataset.via')}</Label>
-                          <SearchSelect
-                            options={vm.datasetOptions[index]?.via ?? []}
-                            value={dataset.via}
-                            disabled={vm.isReadOnly}
-                            onChange={(via) => vm.updateDataset(index, { via })}
-                          />
-                        </S.Field>
-                        <S.Field>
-                          <Label>{t('dataset.order-by')}</Label>
-                          <SearchSelect
-                            options={vm.datasetOptions[index]?.orderBy ?? []}
-                            value={dataset.orderBy ?? ''}
-                            disabled={vm.isReadOnly}
-                            onChange={(orderBy) => vm.updateDataset(index, { orderBy: orderBy || undefined })}
-                          />
-                        </S.Field>
-                        {!vm.isReadOnly && (
-                          <S.DangerAction variant="ghost" size="sm" title={t('dataset.remove')} onClick={() => vm.removeDataset(index)}>
-                            <RiDeleteBinLine size={14} />
-                          </S.DangerAction>
-                        )}
-                      </S.DatasetRow>
-                    ))}
-                  </S.DatasetList>
-                )}
-                {vm.issuesFor('datasets').map((one) => <S.Issue key={one.message} $grammar={one.isGrammar}>{one.message}</S.Issue>)}
-              </S.Section>
+                  {vm.issuesFor('datasets').map((one) => <S.Issue key={one.message} $grammar={one.isGrammar}>{one.message}</S.Issue>)}
+                </S.Section>
+              )}
             </S.EditorInner>
           )}
         </S.Editor>

@@ -11,6 +11,15 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.123.0] — 2026-10-17
+
+- A tela Downloads ganhou filtros como as demais telas: busca, quem gerou, se foi uma pessoa, um agente de IA ou uma automação, de qual tela veio, modelo, visibilidade, formato, período e vencimento — e os filtros podem ser salvos.
+- Quem gerencia Downloads pode tornar um arquivo público, para que todos os membros o vejam ao lado dos próprios arquivos, e torná-lo privado de novo.
+- Um arquivo de Downloads pode ser anexado a um registro: ele passa a ficar de vez na aba Documentos e sai de Downloads.
+- Correção: um arquivo visível a todos podia ser excluído por qualquer membro; agora só quem o gerou ou quem gerencia Downloads pode excluí-lo.
+- No passo "Gerar Documento" das automações, o campo Registro só aparece quando o modelo escolhido é gerado a partir de um registro; com um modelo que recebe dados, aparecem os campos dos dados.
+- Na tela de modelos de documento, um modelo pode receber dados em vez de um registro: você declara as informações que ele espera — com grupos e listas —, dá um exemplo e pode começar o texto a partir delas.
+
 #### [9.122.0] — 2026-10-17
 
 - Modelos de documento agora podem ser preenchidos com dados enviados por uma automação ou por um agente de IA, sem depender de um registro de uma tela — ideal para recibos, propostas e comprovantes montados na hora. O documento vai para Downloads.

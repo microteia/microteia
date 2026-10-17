@@ -7778,7 +7778,11 @@ no caso de uso). O passo não cobra: a automação age como o motor, como em tod
 coleção: quem escolhe o modelo escolhe de que registro ele fala. Para o modelo de dados, `recordId`
 fica vazio e os dados vêm de `payload` (objeto em bloco) e dos `param.<chave>` que os parâmetros do
 modelo geram — `dynamicInputs: 'from-target-document-template-parameters'`, o mesmo desenho de
-"Chamar Workflow": o bloco primeiro, e cada `param.<chave>` por cima. Destino ou retenção que não existem
+"Chamar Workflow": o bloco primeiro, e cada `param.<chave>` por cima. Qual input aparece é DECLARADO:
+`templateSource: { is, required? }` diz que `recordId` só vale (e é obrigatório) para modelo de
+registro, e `payload` só para modelo de dados; `inputsForTemplateSource` aplica no editor, e trocar o
+modelo limpa o que era da outra origem. O catálogo não marca `recordId` como `required` porque o motor
+cobra `required` em toda execução — o modelo de dados falharia. Destino ou retenção que não existem
 reprovam o passo, em vez de cair no padrão.
 
 ### O destino — aba Documentos ou Downloads
@@ -7818,6 +7822,25 @@ ninguém volta a abrir. O destino é o terceiro eixo da geração, independente 
   link com token que a geração devolve.
 - **O vencido some da lista na hora.** O TTL apaga "em algum momento" (em geral em até um dia); a tela
   filtra `isDownloadExpired` com um relógio que anda a cada minuto.
+- **Público e privado.** Quem tem `downloads.manage` torna um item público (`visibility: 'everyone'`) —
+  todo membro passa a vê-lo ao lado dos próprios — e o devolve ao privado. "Privado" é
+  `privateVisibilityOf`: o dono quando há um, `managers` quando não há (automação sem pessoa); tornar
+  privado nunca esconde o arquivo de quem o gerou. É a ÚNICA escrita do cliente em `downloads`: a regra
+  exige `downloads.manage`, só a chave `visibility` alterada e o valor coerente com haver ou não dono.
+- **Ver não é apagar.** A leitura vale para o dono, o público e quem gerencia; apagar, só para o dono e
+  quem gerencia — tornar público não pode entregar a todo membro o poder de apagar o arquivo.
+- **Anexar a um registro** (callable `attachDownloadToRecord`, grupo `deploy:documents`,
+  `AttachDownloadToRecordUseCase`): o arquivo vai para a aba Documentos pelo `IRecordDocumentWriter` e
+  sai de Downloads — MOVER, não copiar. Cobra `<coleção>.update`, a aba e o registro; quem não vê o item
+  ouve "não existe" (`canSeeDownload`, a mesma frase da regra). Exceção: quem anexa o arquivo PÚBLICO de
+  outra pessoa copia (`moved: false`), pela mesma razão de "ver não é apagar". O diálogo lista só telas
+  com a aba cujos registros a pessoa edita, e sugere o registro de origem.
+- **Filtros** (`filterDownloads`, `domain/services/downloadFilters.ts`, puro e testado): busca (nome,
+  quem gerou, origem, modelo — sem acento), quem gerou, por onde (pessoa, agente, automação), origem
+  (tela, ou "sem registro" para o modelo de dados), modelo, visibilidade, formato (pelo tipo ou pela
+  extensão), período de geração (dia LOCAL, as duas pontas inclusive) e vencimento (24 h, 7 dias,
+  nunca). "E" entre filtros, "OU" dentro de um — o `CompositeFilter` das outras listagens, com filtros
+  salvos em `downloads`.
 - `destination`/`retentionDays` no modelo exigem kernel `^2.47.0` (`DOCUMENT_DESTINATION_SINCE_KERNEL`);
   um kernel anterior os ignora e anexa.
 
@@ -7849,6 +7872,14 @@ em como o ESCOPO é montado; gramática, avaliador, renderizador e destino não 
   (`render.payload-destination`) — na validação do modelo e na geração. `datasets` não existe: as listas
   vêm dentro do payload. Teto de `DOCUMENT_PAYLOAD_MAX_BYTES` (256 KB de JSON).
 - **`sample`** é o payload que a pré-visualização mescla quando ninguém entrega um.
+- **Na tela de modelos**, "Os dados vêm de" troca a origem e leva junto o que só faz sentido na outra
+  (tela, listas e anexo ao registro de um lado; parâmetros e exemplo do outro). Os parâmetros usam o
+  MESMO `AdvancedParametersEditor` de automações e scripts — visual e JSON, com grupos e listas —, e o
+  exemplo é JSON editado como texto: enquanto não fecha, o rascunho fica no campo e o modelo guarda o
+  último exemplo válido. "Começar pelos dados" (`buildPayloadStarterTemplate`) escreve o texto a partir
+  dos parâmetros — data por `formatDate`, booleano por `{{#if}}`, referência até o campo-título, grupo
+  como seção, lista de grupos como tabela —, e "Preencher pelos campos" (`samplePayloadFrom`) monta o
+  esqueleto do exemplo.
 - **Resolução:** o modelo de dados não depende de tela instalada — `resolveDocumentTemplates` o deixa
   passar com `collection: ''` — e `templatesForCollection` nunca o oferece no diálogo de um registro.
 - Exige kernel `^2.48.0` (`DOCUMENT_PAYLOAD_SINCE_KERNEL`): um anterior não acha a tela e descarta o
@@ -7934,7 +7965,11 @@ DERIVADOS das constantes (`TEMPLATE_BLOCKS`, `DOCUMENT_OUTPUTS_BY_FORMAT`, `DOCU
 | `domain/schema/document/documentDownloads.ts` | Destino, retenção, visibilidade, caminho no bucket (sincronizado) |
 | `functions/src/data/services/FirebaseDownloadWriter.ts` | A gravação em Downloads |
 | `functions/src/infrastructure/handlers/onDownloadDeleted.ts` | O arquivo sai do bucket quando o item sai |
-| `presentation/pages/Downloads/` | A tela Downloads |
+| `presentation/pages/Downloads/` | A tela Downloads (e o diálogo "Anexar a um registro") |
+| `functions/src/domain/usecases/AttachDownloadToRecordUseCase.ts` | Mover de Downloads para a aba Documentos |
+| `domain/services/downloadFilters.ts` | Os filtros da tela Downloads |
+| `domain/schema/document/payloadStarter.ts` | Modelo inicial e exemplo a partir dos parâmetros (só front) |
+| `presentation/shared/documents/useTemplatePayloadEditor.ts` | Parâmetros e exemplo no editor de modelos |
 | `functions/src/infrastructure/handlers/renderDocument.ts` | A callable do gesto |
 | `plugins/core.documents/` | Ponto, tela, item de menu, gesto |
 | `presentation/components/ui/GenerateDocumentDialog/` | O diálogo do gesto |

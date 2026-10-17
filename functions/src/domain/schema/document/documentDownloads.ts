@@ -147,3 +147,24 @@ export const downloadStoragePath = (tenantId: string, downloadId: string, name: 
 
 export const isDownloadStoragePath = (tenantId: string, downloadId: string, path: unknown): path is string =>
   typeof path === 'string' && path.startsWith(`tenants/${tenantId}/${DOWNLOADS_COLLECTION}/${downloadId}/`);
+
+/**
+ * Quem vê um item — a MESMA frase da regra do Firestore, para o servidor responder igual quando age
+ * em nome de alguém (anexar a um registro). Quem gerencia vê tudo; os demais, o próprio e o público.
+ */
+export const canSeeDownload = (
+  item: { ownerId: string | null; visibility: DownloadVisibility },
+  userId: string,
+  managesDownloads: boolean,
+): boolean => managesDownloads || item.ownerId === userId || item.visibility === 'everyone';
+
+/** O item está à vista de todo membro. */
+export const isPublicDownload = (item: { visibility: DownloadVisibility }): boolean => item.visibility === 'everyone';
+
+/**
+ * A visibilidade de volta ao privado: o dono, quando há um; sem dono (automação), só quem gerencia.
+ * Tornar privado nunca esconde o arquivo de quem o gerou.
+ */
+export const privateVisibilityOf = (item: { ownerId: string | null }): DownloadVisibility =>
+  item.ownerId ? 'owner' : 'managers';
+

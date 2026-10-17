@@ -15,6 +15,7 @@ export { runAction } from './infrastructure/handlers/runAction';
 export { runReport } from './infrastructure/handlers/runReport';
 export { renderDocument } from './infrastructure/handlers/renderDocument';
 export { onDownloadDeleted } from './infrastructure/handlers/onDownloadDeleted';
+export { attachDownloadToRecord } from './infrastructure/handlers/attachDownloadToRecord';
 export { getUserInfo } from './infrastructure/handlers/getUserInfo';
 export { checkNicknameAvailability } from './infrastructure/handlers/checkNicknameAvailability';
 export { claimNickname } from './infrastructure/handlers/claimNickname';

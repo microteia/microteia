@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, it } from 'vitest';
 import { assertFails, assertSucceeds, type RulesTestEnvironment } from '@firebase/rules-unit-testing';
-import { collection, deleteDoc, doc, getDoc, getDocs, limit, orderBy, query, setDoc, where } from 'firebase/firestore';
+import { collection, deleteDoc, doc, getDoc, getDocs, limit, orderBy, query, setDoc, updateDoc, where } from 'firebase/firestore';
 import { OTHER_TENANT, TENANT, asUser, seed, testEnv } from './helpers';
 
 /**
@@ -88,7 +88,31 @@ describe('escrita', () => {
 
   it('o dono apaga o seu; quem gerencia apaga qualquer um; os demais, não', async () => {
     await assertFails(deleteDoc(download('bia', 'daAna')));
+    await assertFails(deleteDoc(download('bia', 'livre')));
     await assertSucceeds(deleteDoc(download('ana', 'daAna')));
     await assertSucceeds(deleteDoc(download('gestor', 'restrito')));
+  });
+});
+
+describe('público e privado', () => {
+  it('quem gerencia torna público e devolve ao privado do dono', async () => {
+    await assertSucceeds(updateDoc(download('gestor', 'daAna'), { visibility: 'everyone' }));
+    await assertSucceeds(getDoc(download('bia', 'daAna')));
+    await assertSucceeds(updateDoc(download('gestor', 'daAna'), { visibility: 'owner' }));
+    await assertFails(getDoc(download('bia', 'daAna')));
+  });
+
+  it('o privado do arquivo sem dono é o de quem gerencia, e não o de um dono inexistente', async () => {
+    await assertFails(updateDoc(download('gestor', 'livre'), { visibility: 'owner' }));
+    await assertSucceeds(updateDoc(download('gestor', 'livre'), { visibility: 'managers' }));
+    await assertFails(updateDoc(download('gestor', 'daAna'), { visibility: 'managers' }));
+  });
+
+  it('quem não gerencia não muda a visibilidade — nem a do próprio arquivo', async () => {
+    await assertFails(updateDoc(download('ana', 'daAna'), { visibility: 'everyone' }));
+  });
+
+  it('só a visibilidade muda: o resto do item é do servidor', async () => {
+    await assertFails(updateDoc(download('gestor', 'daAna'), { visibility: 'everyone', ownerId: 'gestor' }));
   });
 });

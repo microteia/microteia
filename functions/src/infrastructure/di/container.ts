@@ -104,6 +104,9 @@ import { FirebaseRecordDocumentWriter } from '../../data/services/FirebaseRecord
 import type { IDownloadWriter } from '../../domain/repositories/IDownloadWriter';
 import { FirebaseDownloadWriter } from '../../data/services/FirebaseDownloadWriter';
 import { downloadPolicyOf } from '../../domain/schema/document/documentDownloads';
+import { FirebaseDownloadStore } from '../../data/services/FirebaseDownloadStore';
+import type { AttachDownloadToRecordUseCase } from '../../domain/usecases/AttachDownloadToRecordUseCase';
+import { makeAttachDownloadToRecordUseCase } from '../../domain/usecases/AttachDownloadToRecordUseCase';
 import { FirestoreDocumentTemplateSource } from '../../data/services/FirestoreDocumentTemplateSource';
 import { TemplateDocumentRenderer } from '../../data/services/document/TemplateDocumentRenderer';
 import { WorkflowDocumentRecordReader } from '../document/WorkflowDocumentRecordReader';
@@ -156,6 +159,7 @@ class DIContainer {
   private dispatchNotificationUC?: DispatchNotificationUseCase;
   private recordDocumentWriter?: IRecordDocumentWriter;
   private downloadWriter?: IDownloadWriter;
+  private attachDownloadUC?: AttachDownloadToRecordUseCase;
   private renderDocumentUC?: RenderDocumentUseCase;
   private workflowStepsRegistered = false;
   private extensionStatsRepo?: IExtensionStatsRepository;
@@ -605,6 +609,23 @@ class DIContainer {
   getDownloadWriter(): IDownloadWriter {
     if (!this.downloadWriter) this.downloadWriter = new FirebaseDownloadWriter();
     return this.downloadWriter;
+  }
+
+  getAttachDownloadToRecordUseCase(): AttachDownloadToRecordUseCase {
+    if (!this.attachDownloadUC) {
+      this.attachDownloadUC = makeAttachDownloadToRecordUseCase({
+        downloads: new FirebaseDownloadStore(),
+        screens: this.getScreenDefinitionCache(),
+        records: new WorkflowDocumentRecordReader(
+          new FirestoreWorkflowRecordFetcher(getDb()),
+          this.getScreenDefinitionCache(),
+          new FirestoreWorkflowQueryRepository(getDb()),
+        ),
+        writer: this.getRecordDocumentWriter(),
+        timeZoneOf: (tenantId) => tenantTimeZone(tenantId),
+      });
+    }
+    return this.attachDownloadUC;
   }
 
   getRenderDocumentUseCase(): RenderDocumentUseCase {

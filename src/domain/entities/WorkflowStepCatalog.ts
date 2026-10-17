@@ -46,6 +46,8 @@ export interface InputDefinition {
   allowedMappingKinds?: Array<'Literal' | 'Event' | 'Expression' | 'Output' | 'Variable'>;
   // O que o valor deste input nomeia, para o editor oferecer a lista. Ver `InputPickerKind`.
   picker?: InputPickerKind;
+  // Só para modelos de documento desta origem — ver `templateSource` em `schema/workflowStepCatalog.ts`.
+  templateSource?: { is: 'record' | 'payload'; required?: boolean };
   // Validação via regex (somente para Literal string). Mantido por compatibilidade: em runtime é
   // lido como um `rules.validate` equivalente.
   pattern?: string;

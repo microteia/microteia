@@ -88,6 +88,7 @@ A geração a partir de um modelo e a limpeza dos arquivos de Downloads vencidos
 
 **Functions:**
 - `renderDocument` — o gesto "Gerar documento" (aba Documentos ou Downloads)
+- `attachDownloadToRecord` — "Anexar a um registro" na tela Downloads: move o arquivo para a aba Documentos
 - `onDownloadDeleted` — apaga do bucket o arquivo do item de Downloads que o TTL (ou a pessoa) removeu
 
 **Deploy:**

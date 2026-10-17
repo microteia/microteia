@@ -382,6 +382,29 @@ export const S = {
     color: ${({ theme, $grammar }) => ($grammar ? theme.colors.warning : theme.colors.danger)};
   `,
 
+  SampleText: styled.textarea`
+    width: 100%;
+    min-height: 160px;
+    padding: ${({ theme }) => theme.spacing.md};
+    background: ${({ theme }) => theme.colors.inputBackground};
+    border: 1px solid ${({ theme }) => theme.colors.border};
+    border-radius: ${({ theme }) => theme.borderRadius.md};
+    color: ${({ theme }) => theme.colors.text};
+    font-family: ${({ theme }) => theme.fonts.mono};
+    font-size: ${({ theme }) => theme.fontSizes.sm};
+    line-height: 1.6;
+    resize: vertical;
+
+    &:focus {
+      outline: none;
+      border-color: ${({ theme }) => theme.colors.primary};
+    }
+
+    &:read-only {
+      color: ${({ theme }) => theme.colors.textSecondary};
+    }
+  `,
+
   TemplateText: styled.textarea`
     width: 100%;
     min-height: 420px;

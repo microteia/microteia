@@ -823,7 +823,7 @@ export const CORE_AUTOMATION: Record<string, string> = {
   'step.render-document.description': 'Preenche um modelo de documento com os dados de um registro e entrega o arquivo (PDF ou Word) na aba Documentos do registro ou em Downloads.',
   'step.render-document.label.template': 'Modelo',
   'step.render-document.label.record': 'Registro',
-  'step.render-document.help.record': 'O id do registro que o documento descreve — normalmente o do registro que disparou a automação. Ele precisa ser da tela do modelo. Deixe vazio para um modelo que lê dados.',
+  'step.render-document.help.record': 'O id do registro que o documento descreve — normalmente o do registro que disparou a automação. Ele precisa ser da tela do modelo.',
   'step.render-document.label.output': 'Formato',
   'step.render-document.help.output': 'Vazio = o primeiro formato que o modelo produz. Um modelo Word só produz Word.',
   'step.render-document.output.pdf': 'PDF',

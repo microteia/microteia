@@ -7,11 +7,18 @@ import {
   orderBy,
   query,
   Timestamp,
+  updateDoc,
   where,
 } from 'firebase/firestore';
+import { httpsCallable } from 'firebase/functions';
 import type { QueryConstraint } from 'firebase/firestore';
-import { db } from '../../infrastructure/firebase/config';
-import type { DownloadsScope, IDownloadRepository } from '../../domain/repositories/IDownloadRepository';
+import { db, functions } from '../../infrastructure/firebase/config';
+import type {
+  AttachDownloadInput,
+  AttachDownloadResult,
+  DownloadsScope,
+  IDownloadRepository,
+} from '../../domain/repositories/IDownloadRepository';
 import type { DownloadItem, DownloadVisibility } from '../../domain/schema/document/documentDownloads';
 import { DOWNLOADS_COLLECTION } from '../../domain/schema/document/documentDownloads';
 
@@ -86,5 +93,14 @@ export class FirebaseDownloadRepository implements IDownloadRepository {
 
   async delete(tenantId: string, downloadId: string): Promise<void> {
     await deleteDoc(doc(downloadsRef(tenantId), downloadId));
+  }
+
+  async setVisibility(tenantId: string, downloadId: string, visibility: DownloadVisibility): Promise<void> {
+    await updateDoc(doc(downloadsRef(tenantId), downloadId), { visibility });
+  }
+
+  async attachToRecord(input: AttachDownloadInput): Promise<AttachDownloadResult> {
+    const call = httpsCallable<AttachDownloadInput, AttachDownloadResult>(functions, 'attachDownloadToRecord');
+    return (await call(input)).data;
   }
 }

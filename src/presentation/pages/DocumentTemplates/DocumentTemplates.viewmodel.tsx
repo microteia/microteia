@@ -30,6 +30,11 @@ import {
 } from '../../../domain/schema/document/documentTemplate';
 import { useScreenKeyOfSource } from '../../shared/documents/useResolvedDocumentTemplates';
 import { buildStarterTemplate } from '../../../domain/schema/document/starterTemplate';
+import { buildPayloadStarterTemplate } from '../../../domain/schema/document/payloadStarter';
+import type { DocumentTemplateSource } from '../../../domain/schema/document/documentTemplate';
+import type { TemplatePayloadEditor } from '../../shared/documents/useTemplatePayloadEditor';
+import { useTemplatePayloadEditor } from '../../shared/documents/useTemplatePayloadEditor';
+import { screenDataCollection } from '../../../domain/services/screenDataCollection';
 import type { TemplateHelpGroup } from '../../shared/documents/templateHelp';
 import { templateHelpFor } from '../../shared/documents/templateHelp';
 import type { SearchSelectOption } from '../../components/ui/SearchSelect';
@@ -121,6 +126,12 @@ export interface DocumentTemplatesViewModel {
   helpGroups: TemplateHelpGroup[];
   openFunctionReference: () => void;
   /** O modelo inicial escrito a partir dos campos da tela escolhida. */
+  /** O modelo lê dados entregues por quem gera, e não um registro de tela. */
+  isPayload: boolean;
+  sourceOptions: SearchSelectOption[];
+  setSource: (source: string) => void;
+  /** Os parâmetros e o exemplo de um modelo de dados. */
+  payload: TemplatePayloadEditor;
   canInsertStarter: boolean;
   insertStarter: () => void;
   isStarterConfirmOpen: boolean;
@@ -345,12 +356,44 @@ export const useDocumentTemplatesViewModel = (): DocumentTemplatesViewModel => {
     [definitions, label, form.destination, form.collection],
   );
 
-  const destinationOptions = useMemo(
+  const isPayload = isPayloadTemplate(form);
+  const payload = useTemplatePayloadEditor(form, setForm);
+
+  const sourceOptions = useMemo(
     () => [
-      { value: 'record', label: t('destination.record') },
-      { value: 'downloads', label: t('destination.downloads') },
+      { value: 'record', label: t('source.record') },
+      { value: 'payload', label: t('source.payload') },
     ],
     [t],
+  );
+
+  /**
+   * Trocar a origem leva junto o que só faz sentido na outra: o modelo de dados não tem tela, lista
+   * filha nem anexo ao registro; o de registro não declara parâmetros nem exemplo.
+   */
+  const setSource = useCallback(
+    (value: string) => {
+      const source: DocumentTemplateSource = value === 'payload' ? 'payload' : 'record';
+      if (source === 'payload') {
+        setForm({
+          source,
+          collection: '',
+          datasets: undefined,
+          destination: 'downloads',
+        });
+      } else {
+        setForm({ source, parameters: undefined, sample: undefined });
+      }
+    },
+    [setForm],
+  );
+
+  const destinationOptions = useMemo(
+    () => [
+      ...(isPayload ? [] : [{ value: 'record', label: t('destination.record') }]),
+      { value: 'downloads', label: t('destination.downloads') },
+    ],
+    [t, isPayload],
   );
 
   const setRetentionText = useCallback(
@@ -534,13 +577,38 @@ export const useDocumentTemplatesViewModel = (): DocumentTemplatesViewModel => {
 
   const openFunctionReference = useCallback(() => openTab('function-reference'), [openTab]);
 
-  const starterScreen = form.format === 'markdown' ? getDefinition(form.collection) : undefined;
+  const starterScreen = form.format === 'markdown' && !isPayload ? getDefinition(form.collection) : undefined;
+
+  /** O campo-título da tela de uma coleção — o que o modelo inicial imprime de uma referência. */
+  const titleFieldOf = useCallback(
+    (collection: string) =>
+      (definitions.find((one) => screenDataCollection(one) === collection) ?? getDefinition(collection))?.titleFieldKey,
+    [definitions, getDefinition],
+  );
 
   /**
    * Aplica o modelo inicial. As listas que o escritório já declarou ficam — o modelo inicial só
    * ACRESCENTA as que faltam —, e o nome do arquivo só é sugerido quando ainda está vazio.
    */
   const applyStarter = useCallback(() => {
+    if (isPayload) {
+      setForm({
+        body: buildPayloadStarterTemplate({
+          title: label(form.title),
+          parameters: form.parameters ?? [],
+          titleFieldOf,
+          label,
+          texts: {
+            comment: t('starter.comment.payload'),
+            dateFormat,
+            yes: t('starter.yes'),
+            no: t('starter.no'),
+          },
+        }),
+      });
+      setIsStarterConfirmOpen(false);
+      return;
+    }
     if (!starterScreen) return;
     const starter = buildStarterTemplate({
       screen: starterScreen,
@@ -563,7 +631,7 @@ export const useDocumentTemplatesViewModel = (): DocumentTemplatesViewModel => {
       datasets: [...declared, ...starter.datasets.filter((dataset) => !names.has(dataset.name))],
     });
     setIsStarterConfirmOpen(false);
-  }, [starterScreen, definitions, label, t, dateFormat, form.datasets, form.fileName, setForm]);
+  }, [isPayload, form.title, form.parameters, titleFieldOf, starterScreen, definitions, label, t, dateFormat, form.datasets, form.fileName, setForm]);
 
   const insertStarter = useCallback(() => {
     if (form.body?.trim()) setIsStarterConfirmOpen(true);
@@ -635,7 +703,7 @@ export const useDocumentTemplatesViewModel = (): DocumentTemplatesViewModel => {
     setRetentionText,
     datasetOptions,
     isSaving,
-    canSave: isEditable && draft !== null && !blockingIssues && !keyTaken && !isSaving,
+    canSave: isEditable && draft !== null && !blockingIssues && !keyTaken && !isSaving && !payload.sampleInvalid,
     isDeleteOpen,
     selectRow,
     startNew,
@@ -650,7 +718,12 @@ export const useDocumentTemplatesViewModel = (): DocumentTemplatesViewModel => {
     handleDocxFile,
     helpGroups,
     openFunctionReference,
-    canInsertStarter: isEditable && !!starterScreen,
+    isPayload,
+    sourceOptions,
+    setSource,
+    payload,
+    canInsertStarter: isEditable && form.format === 'markdown'
+      && (isPayload ? (form.parameters ?? []).length > 0 : !!starterScreen),
     insertStarter,
     isStarterConfirmOpen,
     confirmStarter: applyStarter,

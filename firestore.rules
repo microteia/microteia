@@ -262,14 +262,26 @@ service cloud.firestore {
       // Downloads — os arquivos gerados que NÃO foram anexados a um registro. Quem grava é só o
       // servidor (a geração); o cliente lê e apaga, e o gatilho `onDownloadDeleted` leva o arquivo do
       // bucket junto. A visibilidade é carimbada na gravação, para a regra decidir pelo próprio
-      // documento: o dono vê o seu, `everyone` (automação sem pessoa, por configuração do escritório)
-      // vê todo membro, e `downloads.manage` vê tudo. A consulta da tela filtra por `ownerId` ou por
+      // documento: o dono vê o seu, `everyone` (público — automação sem pessoa por configuração do
+      // escritório, ou marcado por quem gerencia) vê todo membro, e `downloads.manage` vê tudo. A consulta da tela filtra por `ownerId` ou por
       // `visibility`, e é isso que deixa a regra provar a lista sem ler documento nenhum.
       match /downloads/{downloadId} {
-        allow read, delete: if (isMember(tenantId)
+        allow read: if (isMember(tenantId)
             && (resource.data.ownerId == request.auth.uid || resource.data.visibility == 'everyone'))
           || can(tenantId, 'downloads.manage');
-        allow create, update: if false;
+        // Apagar é do dono e de quem gerencia. Ver não basta: tornar um arquivo público não pode
+        // entregar a todo membro o poder de apagá-lo.
+        allow delete: if (isMember(tenantId) && resource.data.ownerId == request.auth.uid)
+          || can(tenantId, 'downloads.manage');
+        // Tornar público ou privado é gesto de quem gerencia, e só muda a visibilidade. "Privado" volta
+        // ao dono quando há um, e a quem gerencia quando não há (automação sem pessoa): tornar privado
+        // nunca esconde o arquivo de quem o gerou.
+        allow update: if can(tenantId, 'downloads.manage')
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['visibility'])
+          && (request.resource.data.visibility == 'everyone'
+              || (resource.data.ownerId != null && request.resource.data.visibility == 'owner')
+              || (resource.data.ownerId == null && request.resource.data.visibility == 'managers'));
+        allow create: if false;
       }
 
       // Extensões PRIVADAS do escritório (criadas na tela "Criar extensão"). Todo membro lê —
