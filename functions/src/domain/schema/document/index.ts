@@ -11,5 +11,6 @@
 
 export * from './templateGrammar';
 export * from './documentTemplate';
+export * from './documentDownloads';
 export * from './templatePaths';
 export * from './starterTemplate';

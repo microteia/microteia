@@ -39,10 +39,12 @@ service firebase.storage {
     // existe em runtime, então o curinga vale para todas.
     //
     // `logs` fica de fora porque tem regra PRÓPRIA e mais estrita logo abaixo (só admin lê, ninguém
-    // escreve) e, como o Storage libera quando qualquer regra libera, o curinga a afrouxaria. As
+    // escreve) e, como o Storage libera quando qualquer regra libera, o curinga a afrouxaria. Pelo
+    // mesmo motivo, `downloads`: o arquivo é pessoal (ou só de quem gerencia), quem grava e apaga é o
+    // servidor, e quem baixa usa o link com token que a geração devolve — nenhum caminho pelo SDK. As
     // entidades fixas não precisam ser excluídas: o modelo de acesso delas é idêntico ao daqui.
     function isReservedStoragePath(collection) {
-      return collection in ['logs'];
+      return collection in ['logs', 'downloads'];
     }
 
     match /tenants/{tenantId}/{collection}/{recordId}/{allPaths=**} {

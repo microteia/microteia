@@ -100,6 +100,7 @@ npm run verify          # typecheck + lint + verify-schemas
 | `Role` (perfil de acesso) | `tenants/{tenantId}/roles/{roleId}` | Sim |
 | `DocumentTypeConfig` (compartilhado por todas as telas que anexam documento) | `tenants/{tenantId}/documentTypes/{id}` | Sim |
 | `DocumentTemplate` (modelo de documento do ESCRITÓRIO; os de pacote vêm de `document.template`) | `tenants/{tenantId}/documentTemplates/{key}` — o id É a chave | Sim |
+| `DownloadItem` (arquivo gerado para baixar, temporário; escrito só pelo servidor) | `tenants/{tenantId}/downloads/{id}` — TTL em `expiresAt` | Sim |
 | `Notícia` (extensão `com.microteia.news`) | `tenants/{tenantId}/news/{id}` | Sim |
 | `Comentário` (extensão `com.microteia.news`) | `tenants/{tenantId}/newsComments/{id}` | Sim |
 | `SavedFilter` | `savedFilters/{uid}_{screenKey}` | Não |
@@ -7611,13 +7612,15 @@ e o kernel não conhece o nome de modelo nenhum.
 |---|---|---|
 | Ponto `document.template` | O modelo como DADO, contribuído por um pacote | `domain/schema/document/documentTemplate.ts` (sincronizado) |
 | Coleção `documentTemplates` | O modelo do ESCRITÓRIO, um por chave | `tenants/{t}/documentTemplates/{key}` |
-| Passo `render-document` + gesto `generateDocument` | Gerar e anexar à aba Documentos | um caso de uso só: `RenderDocumentUseCase` |
+| Passo `render-document` + gesto `generateDocument` | Gerar e entregar no destino | um caso de uso só: `RenderDocumentUseCase` |
+| Coleção `downloads` | O destino TEMPORÁRIO, que não precisa de registro com aba | `tenants/{t}/downloads/{id}` |
 
 ### O modelo é DADO, e tem uma forma só
 
 `DocumentTemplateSpec` é a mesma na contribuição do pacote e no documento do escritório: `key`, `title`,
 `collection` (a tela cujos registros ele descreve), `format` (`markdown` com `body`, ou `docx` com
-`content` em base64), `outputs`, `fileName`, `documentType` e `datasets`. Sem conversão entre os dois, e
+`content` em base64), `outputs`, `fileName`, `documentType`, `datasets`, `destination` e
+`retentionDays` (ver "O destino"). Sem conversão entre os dois, e
 é isso que faz "personalizar o modelo da extensão" ser COPIAR para a mesma chave, e "voltar ao da
 extensão" ser APAGAR a cópia.
 
@@ -7735,9 +7738,11 @@ da pergunta que se faria à mão, e nada é gravado antes de todas passarem:
 2. a tela pedida é a do modelo (`render.collection-mismatch`) — sem isso a permissão de uma tela daria
    acesso a gerar sobre outra;
 3. o modelo produz o formato pedido (`render.output-unsupported`);
-4. a tela tem a aba Documentos (`render.documents-disabled`) — não há onde anexar;
-5. o registro existe (`@core.records/record.not-found`);
-6. as listas leem (`render.dataset-invalid`); o modelo é legível (`render.docx-template`).
+4. quem pede pode entregar no destino (`@core.access/permission.denied`) — só quando a porta pede
+   `chargePermissions`;
+5. destino `record`: a tela tem a aba Documentos (`render.documents-disabled`) — não há onde anexar;
+6. o registro existe (`@core.records/record.not-found`);
+7. as listas leem (`render.dataset-invalid`); o modelo é legível (`render.docx-template`).
 
 - **A leitura é a das automações.** `WorkflowDocumentRecordReader` usa `hydrateRecords` (o par
   `buildHydrationPlan` + `materializeHops`) para o registro e `runRecordQuery` para os filhos; campo
@@ -7758,13 +7763,59 @@ da pergunta que se faria à mão, e nada é gravado antes de todas passarem:
   sem — e aí `createdBy: 'workflow-engine'` sem nome, para a aba não atribuir a ninguém o que a
   automação fez.
 
-**A callable** `renderDocument` (grupo `deploy:documents`, 512 MiB) cobra `<coleção>.update` — gerar é
-anexar, e anexar altera o registro, a mesma cobrança de `attach_document`.
+**A callable** `renderDocument` (grupo `deploy:documents`, 512 MiB) cobra na porta só `<coleção>.read`,
+e o caso de uso cobra o que o DESTINO exige (`chargePermissions`): anexar altera o registro e cobra
+`<coleção>.update`, a mesma cobrança de `attach_document`; Downloads não altera nada e fica na leitura.
+É o caso de uso que cobra porque só ele sabe o destino quando quem chama não o diz — o padrão é do
+modelo. A ferramenta MCP `render_document` segue o mesmo desenho (regra `collection`/`read` + cobrança
+no caso de uso). O passo não cobra: a automação age como o motor, como em toda gravação de registro.
 
 **O passo** `render-document` (`core.steps`, categoria `Data`): `templateKey` (seletor
 `picker: 'document-template'`, que lista os modelos que VALEM, com a tela de cada um), `recordId`,
-`output`, `fileName`, `documentType` (lista `documentTypes`). Saídas `documentId`, `name`, `url`,
-`format`, `emptyFields`. Não há input de coleção: quem escolhe o modelo escolhe de que registro ele fala.
+`output`, `fileName`, `documentType` (lista `documentTypes`), `destination` e `expiresInDays`. Saídas
+`documentId`, `name`, `url`, `format`, `emptyFields`, `destination` e `expiresAt`. Não há input de
+coleção: quem escolhe o modelo escolhe de que registro ele fala. Destino ou retenção que não existem
+reprovam o passo, em vez de cair no padrão.
+
+### O destino — aba Documentos ou Downloads
+
+Nem todo documento gerado é do registro. O recibo que se entrega ao cliente, o extrato que se manda
+por e-mail, o relatório de uma reunião: anexá-los à aba Documentos acumularia, no registro, cópias que
+ninguém volta a abrir. O destino é o terceiro eixo da geração, independente do modelo e do registro:
+
+| Destino | Onde | Vida | Permissão |
+|---|---|---|---|
+| `record` | `tenants/{t}/{coleção}/{id}/documents` | permanente; segue a cascata do registro | `<coleção>.update` |
+| `downloads` | `tenants/{t}/downloads/{id}` | vence em `expiresAt` (TTL) | `<coleção>.read` |
+
+- **Precedência:** o pedido (gesto, passo, agente) vence `destination` do modelo, e sem nenhum vale
+  `record` — o comportamento anterior ao campo. A retenção segue a mesma escada: `expiresInDays` do
+  pedido → `retentionDays` do modelo → configuração do escritório (`downloads.retentionDays`, 7 dias).
+  `0` é "não expira" e não cai para o próximo nível; valor fora de `0..365` é pulado, como numa
+  configuração (`resolveRetentionDays`).
+- **O motor NUNCA troca o destino sozinho.** Pedir `record` numa tela sem a aba continua sendo recusa:
+  uma automação que esperava o anexo seguiria em frente com um arquivo que expira. Quem oferece
+  Downloads no lugar é a TELA: o diálogo "Gerar documento" só lista "Aba Documentos" a quem tem a aba e
+  `<coleção>.update`, e para os demais mostra só Downloads, com uma tarja dizendo por quê. Por isso o
+  gesto passou a exigir só `requiresRecordPermission: 'read'`.
+- **Visibilidade carimbada na gravação** (`DownloadVisibility`): `owner` quando há pessoa por trás
+  (gesto, agente, automação disparada por alguém); sem pessoa, o que o escritório configurou em
+  `downloads.automationVisibility` — `managers` (padrão) ou `everyone`. Carimbar, e não resolver na
+  leitura, é o que deixa a regra do Firestore decidir pelo próprio documento.
+- **Regras:** só o servidor grava; lê e apaga o dono, todo membro quando `visibility == 'everyone'`, e
+  `downloads.manage` (permissão do kernel). A tela faz DUAS consultas para quem não gerencia — por
+  `ownerId` e por `visibility == 'everyone'` — porque a regra só aprova a lista que consegue provar pelo
+  filtro (`rules-tests/downloads.test.ts`). `downloads` é coleção reservada.
+- **O arquivo sai junto.** O TTL do Firestore apaga o documento e não sabe do arquivo. O gatilho
+  `onDownloadDeleted` (grupo `deploy:documents`) apaga do bucket o `storagePath` — e só se ele estiver
+  sob `tenants/{t}/downloads/{id}/`, a pasta do próprio item: o id nasce ANTES do upload justamente
+  para ser a pasta. A exclusão pela tela passa pelo mesmo caminho: o cliente apaga o documento e nunca
+  toca o bucket. No Storage, `downloads` é caminho reservado (fora do curinga), e o download é pelo
+  link com token que a geração devolve.
+- **O vencido some da lista na hora.** O TTL apaga "em algum momento" (em geral em até um dia); a tela
+  filtra `isDownloadExpired` com um relógio que anda a cada minuto.
+- `destination`/`retentionDays` no modelo exigem kernel `^2.47.0` (`DOCUMENT_DESTINATION_SINCE_KERNEL`);
+  um kernel anterior os ignora e anexa.
 
 ### O gesto — e o diálogo que ele abre
 
@@ -7843,6 +7894,10 @@ DERIVADOS das constantes (`TEMPLATE_BLOCKS`, `DOCUMENT_OUTPUTS_BY_FORMAT`, `DOCU
 | `functions/src/data/services/document/` | Markdown → blocos → PDF/DOCX; DOCX → DOCX |
 | `functions/src/infrastructure/document/WorkflowDocumentRecordReader.ts` | Registro e filhos pela leitura das automações |
 | `functions/src/data/services/FirebaseRecordDocumentWriter.ts` | O anexo do servidor, uma porta só |
+| `domain/schema/document/documentDownloads.ts` | Destino, retenção, visibilidade, caminho no bucket (sincronizado) |
+| `functions/src/data/services/FirebaseDownloadWriter.ts` | A gravação em Downloads |
+| `functions/src/infrastructure/handlers/onDownloadDeleted.ts` | O arquivo sai do bucket quando o item sai |
+| `presentation/pages/Downloads/` | A tela Downloads |
 | `functions/src/infrastructure/handlers/renderDocument.ts` | A callable do gesto |
 | `plugins/core.documents/` | Ponto, tela, item de menu, gesto |
 | `presentation/components/ui/GenerateDocumentDialog/` | O diálogo do gesto |
@@ -11574,6 +11629,8 @@ daquela instalação. Ver "Artefatos de backend por extensão".
 | `tenants/{id}/workflow_executions` | `workflowDefinitionId` ASC, `startedAt` DESC | kernel | Aba "Execuções" de um workflow, mais recente primeiro |
 | `tenants/{id}/notification_inbox` | `recipientId` ASC, `createdAt` DESC | kernel | O sino — as notificações de quem está conectado, mais recente primeiro |
 | `tenants/{id}/notification_inbox` | `recipientId` ASC, `read` ASC, `createdAt` DESC | kernel | A contagem de não lidas do sino e o "marcar todas como lidas" |
+| `tenants/{id}/downloads` | `ownerId` ASC, `createdAt` DESC | kernel | Downloads — os arquivos da pessoa, mais recente primeiro |
+| `tenants/{id}/downloads` | `visibility` ASC, `createdAt` DESC | kernel | Downloads — os da automação liberados para todos (a regra só aprova a lista provada pelo filtro) |
 
 **Quatro índices de negócio saíram deste arquivo.** Três (`deadlines status+dueDate`,
 `financials status+dueDate`, `pushes emailId+processNumber`) eram declarados pelas extensões que os
@@ -11591,7 +11648,7 @@ runtime na primeira execução. Foi a separação por dono que os encontrou — 
 `orderBy` em campos diferentes tem de declarar o índice no `manifest.backend.indexes` dela; sem isso ela
 instala, aparece no menu e falha na primeira execução.
 
-Além dos compostos, o arquivo declara cinco `fieldOverrides`:
+Além dos compostos, o arquivo declara seis `fieldOverrides`:
 
 | Coleção | Campo | Motivo |
 |---|---|---|
@@ -11600,6 +11657,7 @@ Além dos compostos, o arquivo declara cinco `fieldOverrides`:
 | `workflow_clock` (collectionGroup) | `nextRunAt` ASC | `runWorkflowClock` pergunta, em todos os escritórios de uma vez, quais automações temporais venceram |
 | `workflow_trigger_marks` | `expiresAt` | TTL — a marca de "já disparou" do gatilho de data expira sozinha; sem índice, porque ninguém consulta por ela |
 | `notification_inbox` | `expiresAt` | TTL — o sino guarda o recente (90 dias), não o histórico; o histórico é a Auditoria |
+| `downloads` | `expiresAt` | TTL — o arquivo gerado para Downloads vence sozinho; o gatilho `onDownloadDeleted` leva o arquivo do bucket. Sem índice: a lista filtra o vencido no cliente |
 
 ---
 

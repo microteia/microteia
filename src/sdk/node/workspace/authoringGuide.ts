@@ -28,7 +28,9 @@ import { BUSINESS_CALENDAR_POINT } from '../../../domain/schema/time/extensionPo
 import {
   DOCUMENT_OUTPUTS_BY_FORMAT,
   DOCUMENT_TEMPLATE_MAX_BYTES,
+  DOCUMENT_DESTINATION_SINCE_KERNEL,
   DOCUMENT_TEMPLATE_SINCE_KERNEL,
+  DOWNLOAD_RETENTION_MAX_DAYS,
   TEMPLATE_BLOCKS,
   TEMPLATE_LOOP_VARIABLES,
 } from '../../../domain/schema/document';
@@ -2364,7 +2366,7 @@ Reading any of this here is how you know it is coming, not permission to use it 
 A document template — a power of attorney, a fee agreement, a receipt, a notice — is **data**: a
 \`document.template\` contribution, no code, no trust gesture. The organization generates it from the
 record (the "Generate document" gesture) or from an automation (the \`render-document\` step), and the
-file lands in that record's Documents tab. Requires kernel \`^${DOCUMENT_TEMPLATE_SINCE_KERNEL}\`.
+file lands in that record's Documents tab or in Downloads. Requires kernel \`^${DOCUMENT_TEMPLATE_SINCE_KERNEL}\`.
 
 \`\`\`ts
 import { documentTemplateContribution } from '@microteia/sdk';
@@ -2384,8 +2386,16 @@ contributes: [
 ],
 \`\`\`
 
-The screen must declare \`hasDocuments: true\` — without the tab there is nowhere to attach the file,
-and the generation refuses.
+Where the file goes is the template's default, and whoever generates it may ask for the other:
+
+- \`destination: 'record'\` (the default) attaches it to the record's Documents tab. The screen must
+  declare \`hasDocuments: true\` — without the tab there is nowhere to attach the file, and the generation
+  refuses instead of sending it elsewhere.
+- \`destination: 'downloads'\` saves it to the organization's Downloads, a temporary area that needs no
+  tab: a receipt to hand over, a statement to send. \`retentionDays\` (0 to ${DOWNLOAD_RETENTION_MAX_DAYS}, 0 = never
+  expires) overrides the organization's retention setting; past it, the file is deleted.
+
+Both fields require kernel \`^${DOCUMENT_DESTINATION_SINCE_KERNEL}\`; an older kernel ignores them and attaches.
 
 ### The grammar
 

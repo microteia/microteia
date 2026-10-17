@@ -35,6 +35,7 @@ export const PERMISSION_DATA_PROCESSOR_USE = 'data-processor.use';
 export const PERMISSION_DOCUMENT_TYPES_MANAGE = 'document-types.manage';
 export const PERMISSION_REPORTS_MANAGE = 'reports.manage';
 export const PERMISSION_DOCUMENT_TEMPLATES_MANAGE = 'document-templates.manage';
+export const PERMISSION_DOWNLOADS_MANAGE = 'downloads.manage';
 
 /**
  * O nome e a descrição vão por extenso, e não montados a partir do `id`. Uma referência composta em
@@ -130,6 +131,13 @@ export const KERNEL_PERMISSIONS: AccessPermission[] = [
     name: '@core.access/permission.document-templates.manage',
     description: '@core.access/permission.document-templates.manage.description',
   },
+  {
+    // Ver e apagar TODO item de Downloads, inclusive o de outra pessoa e o da automação restrito a
+    // quem gerencia. Gerar não depende dela: Downloads cobra a leitura do registro de origem.
+    id: PERMISSION_DOWNLOADS_MANAGE,
+    name: '@core.access/permission.downloads.manage',
+    description: '@core.access/permission.downloads.manage.description',
+  },
 ];
 
 export const KERNEL_PERMISSION_RESOURCES: PermissionResource[] = [
@@ -148,4 +156,5 @@ export const KERNEL_PERMISSION_RESOURCES: PermissionResource[] = [
   { id: 'document-types', name: '@core.access/resource.document-types' },
   { id: 'reports', name: '@core.access/resource.reports' },
   { id: 'document-templates', name: '@core.access/resource.document-templates' },
+  { id: 'downloads', name: '@core.access/resource.downloads' },
 ];

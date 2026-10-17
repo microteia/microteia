@@ -83,6 +83,20 @@ npm run deploy:workflow
 
 ---
 
+### 📄 DOCUMENTS — Geração de Documentos e Downloads
+A geração a partir de um modelo e a limpeza dos arquivos de Downloads vencidos.
+
+**Functions:**
+- `renderDocument` — o gesto "Gerar documento" (aba Documentos ou Downloads)
+- `onDownloadDeleted` — apaga do bucket o arquivo do item de Downloads que o TTL (ou a pessoa) removeu
+
+**Deploy:**
+```bash
+npm run deploy:documents
+```
+
+---
+
 ### 🛠️ UTIL — Utilitários Gerais
 Proxy de IA e registro de falhas do frontend.
 

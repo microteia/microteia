@@ -3,6 +3,8 @@ import {
   DOCUMENT_OUTPUTS_BY_FORMAT,
   DOCUMENT_TEMPLATE_MAX_BYTES,
   DOCUMENT_TEMPLATE_SINCE_KERNEL,
+  DOCUMENT_DESTINATION_SINCE_KERNEL,
+  DOWNLOAD_RETENTION_MAX_DAYS,
   TEMPLATE_BLOCKS,
 } from '../../../domain/schema/document';
 import { PACKAGE_ADVISORY_BYTES, PACKAGE_MAX_BYTES } from '../../../domain/usecases/plugins/pluginReferences';
@@ -928,6 +930,8 @@ describe('a seção de documentos', () => {
     }
     expect(guide).toContain(`at most ${DOCUMENT_TEMPLATE_MAX_BYTES / 1024} KB`);
     expect(guide).toContain(`Requires kernel \`^${DOCUMENT_TEMPLATE_SINCE_KERNEL}\``);
+    expect(guide).toContain(`Both fields require kernel \`^${DOCUMENT_DESTINATION_SINCE_KERNEL}\``);
+    expect(guide).toContain(`0 to ${DOWNLOAD_RETENTION_MAX_DAYS}, 0 = never`);
   });
 
   it('as seções seguintes andaram uma casa, e as referências andaram junto', () => {

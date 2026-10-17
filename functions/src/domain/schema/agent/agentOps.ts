@@ -16,6 +16,7 @@ import {
   DOCUMENT_TEMPLATE_MAX_BYTES,
   DOCUMENT_OUTPUT_FORMATS,
 } from '../document/documentTemplate';
+import { DOCUMENT_DESTINATIONS, DOWNLOAD_RETENTION_MAX_DAYS } from '../document/documentDownloads';
 import { TEMPLATE_BLOCKS, TEMPLATE_LOOP_VARIABLES } from '../document/templateGrammar';
 import { QUERY_OPERATORS } from '../querySpec';
 import { AGENT_DOCUMENT_MAX_MB } from './agentDocument';
@@ -805,9 +806,12 @@ export const AGENT_TOOLS: readonly AgentToolDefinition[] = [
   {
     name: 'render_document',
     description:
-      'Generate a document from a template for one record and attach it to the record\'s Documents tab, exactly '
-      + 'as the "Generate document" button does. Returns the attached document with its download link, and how '
-      + 'many tags came out empty. Every call attaches a new file — do not repeat it to retry a success.',
+      'Generate a document from a template for one record, exactly as the "Generate document" button does, and '
+      + 'deliver it to the record\'s Documents tab (destination "record", permanent, needs update permission on '
+      + 'the collection) or to Downloads (destination "downloads", temporary, needs only read permission). '
+      + 'Without destination, the template\'s default applies, and the Documents tab when it declares none. '
+      + 'Returns the file with its download link, where it went, when it expires, and how many tags came out '
+      + 'empty. Every call creates a new file — do not repeat it to retry a success.',
     inputSchema: object(
       {
         collection: { ...COLLECTION, description: 'The collection of the record — the one the template describes.' },
@@ -816,11 +820,23 @@ export const AGENT_TOOLS: readonly AgentToolDefinition[] = [
         output: { type: 'string', enum: [...DOCUMENT_OUTPUT_FORMATS], description: 'The file to produce. Default: the first the template produces.' },
         fileName: { type: 'string', description: 'Replace the template file name for this document. Same grammar, no extension.' },
         documentType: { type: 'string', description: 'Replace the document type of the template for this document.' },
+        destination: {
+          type: 'string',
+          enum: [...DOCUMENT_DESTINATIONS],
+          description: 'Where the file goes. "downloads" works also on screens without the Documents tab.',
+        },
+        expiresInDays: {
+          type: 'integer',
+          minimum: 0,
+          maximum: DOWNLOAD_RETENTION_MAX_DAYS,
+          description: 'Only for downloads: days until the file is deleted; 0 = never. Default: the template\'s, then the office\'s setting.',
+        },
       },
       ['collection', 'recordId', 'template'],
     ),
-    // A MESMA cobrança da callable `renderDocument` e de `attach_document`: gerar é anexar.
-    permission: { kind: 'collection', action: 'update' },
+    // O mínimo, como a callable `renderDocument`: o caso de uso cobra o que o DESTINO exige — anexar
+    // (`update`) ou Downloads (`read`) —, porque só ele sabe o destino quando o agente não o diz.
+    permission: { kind: 'collection', action: 'read' },
     writes: true,
   },
 ];

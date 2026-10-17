@@ -781,8 +781,8 @@ export const CORE_STEP_CATALOG: readonly WorkflowStepMetadata[] = [
   {
     /**
      * Gera o documento de um registro a partir de um modelo (`document.template` ou o do escritório,
-     * que vence na mesma chave) e o anexa à aba Documentos. A tela é a do MODELO: quem escolhe o
-     * modelo escolhe de que registro ele fala, e por isso não há input de coleção.
+     * que vence na mesma chave) e o entrega na aba Documentos ou em Downloads. A tela é a do MODELO:
+     * quem escolhe o modelo escolhe de que registro ele fala, e por isso não há input de coleção.
      */
     id: 'render-document',
     version: 1,
@@ -835,6 +835,27 @@ export const CORE_STEP_CATALOG: readonly WorkflowStepMetadata[] = [
         type: 'String',
         options: { kind: 'Lookup', lookup: 'documentTypes' },
       },
+      {
+        id: 'destination',
+        label: '@core.automation/step.render-document.label.destination',
+        description: '@core.automation/step.render-document.help.destination',
+        required: false,
+        type: 'String',
+        options: {
+          kind: 'Static',
+          options: [
+            { value: 'record', label: '@core.automation/step.render-document.destination.record' },
+            { value: 'downloads', label: '@core.automation/step.render-document.destination.downloads' },
+          ],
+        },
+      },
+      {
+        id: 'expiresInDays',
+        label: '@core.automation/step.render-document.label.expires-in-days',
+        description: '@core.automation/step.render-document.help.expires-in-days',
+        required: false,
+        type: 'Number',
+      },
     ],
     outputDefinitions: [
       { id: 'documentId', label: '@core.automation/step.render-document.output.document-id', type: 'String' },
@@ -842,6 +863,8 @@ export const CORE_STEP_CATALOG: readonly WorkflowStepMetadata[] = [
       { id: 'url', label: '@core.automation/step.render-document.output.url', type: 'String' },
       { id: 'format', label: '@core.automation/step.render-document.output.format', type: 'String' },
       { id: 'emptyFields', label: '@core.automation/step.render-document.output.empty-fields', type: 'Number' },
+      { id: 'destination', label: '@core.automation/step.render-document.output.destination', type: 'String' },
+      { id: 'expiresAt', label: '@core.automation/step.render-document.output.expires-at', type: 'String' },
     ],
     appendsEachRun: true,
   },

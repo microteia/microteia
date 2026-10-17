@@ -5,6 +5,8 @@ import { identifyActor } from '../workflow/identifyActor';
 import { collectionPermissionId } from '../../domain/schema/access/permission';
 import type { DocumentOutputFormat } from '../../domain/schema/document/documentTemplate';
 import { DOCUMENT_OUTPUT_FORMATS } from '../../domain/schema/document/documentTemplate';
+import type { DocumentDestination } from '../../domain/schema/document/documentDownloads';
+import { isDocumentDestination, isRetentionDays } from '../../domain/schema/document/documentDownloads';
 
 interface RenderDocumentRequest {
   tenantId: string;
@@ -12,10 +14,15 @@ interface RenderDocumentRequest {
   collection: string;
   recordId: string;
   output?: string;
+  destination?: string;
+  expiresInDays?: number;
 }
 
 interface RenderDocumentResponse {
   document: { id: string; name: string; url: string } | null;
+  destination?: DocumentDestination;
+  /** ISO; só em Downloads, e `null` quando o item não expira. */
+  expiresAt?: string | null;
   /** Quantas marcas saíram vazias porque a expressão falhou. */
   emptyFields: number;
   /** REFERÊNCIA de mensagem; `errorParams` traz o que a frase interpola. */
@@ -29,9 +36,10 @@ const textOf = (value: unknown): string => (typeof value === 'string' ? value.tr
  * O gesto "Gerar documento" do registro. É o MESMO caso de uso do passo `render-document` — o
  * documento que a pessoa gera na tela é o que a automação gera de madrugada.
  *
- * A cobrança é a da aba Documentos: `<coleção>.update`, porque gerar é anexar, e anexar altera o
- * registro. A coleção vem de quem chama e é conferida contra a do modelo dentro do caso de uso — sem
- * isso, a permissão de uma tela daria acesso a gerar sobre outra.
+ * A porta cobra o mínimo — ler o registro — e o caso de uso cobra o que o DESTINO exige: anexar
+ * altera o registro (`<coleção>.update`), Downloads não. Só o caso de uso sabe o destino quando quem
+ * chama não o diz. A coleção vem de quem chama e é conferida contra a do modelo dentro do caso de
+ * uso — sem isso, a permissão de uma tela daria acesso a gerar sobre outra.
  *
  * Falha de geração volta em `error` e não lança, como `runAction`: a tela mostra a frase do motivo.
  */
@@ -46,6 +54,8 @@ export const renderDocument = onCall(
     const collection = textOf(data.collection);
     const recordId = textOf(data.recordId);
     const output = textOf(data.output);
+    const destination = textOf(data.destination);
+    const expiresInDays = data.expiresInDays;
 
     if (!tenantId) throw new HttpsError('invalid-argument', '@core.automation/handler.tenant.missing');
     if (!templateKey || !collection || !recordId) {
@@ -55,7 +65,14 @@ export const renderDocument = onCall(
       throw new HttpsError('invalid-argument', '@core.documents/render.request-invalid');
     }
 
-    const permissions = await requirePermission(tenantId, request.auth.uid, collectionPermissionId(collection, 'update'));
+    if (destination && !isDocumentDestination(destination)) {
+      throw new HttpsError('invalid-argument', '@core.documents/render.request-invalid');
+    }
+    if (expiresInDays !== undefined && expiresInDays !== null && !isRetentionDays(expiresInDays)) {
+      throw new HttpsError('invalid-argument', '@core.documents/render.request-invalid');
+    }
+
+    const permissions = await requirePermission(tenantId, request.auth.uid, collectionPermissionId(collection, 'read'));
     const actor = await identifyActor(request.auth.uid, 'ui', permissions);
 
     const result = await getDI().getRenderDocumentUseCase().execute({
@@ -64,6 +81,9 @@ export const renderDocument = onCall(
       collection,
       recordId,
       ...(output ? { output: output as DocumentOutputFormat } : {}),
+      ...(destination ? { destination: destination as DocumentDestination } : {}),
+      ...(isRetentionDays(expiresInDays) ? { expiresInDays } : {}),
+      chargePermissions: true,
       author: { uid: actor.userId, name: actor.name, photoUrl: actor.photoURL, via: 'ui' },
       permissions,
     });
@@ -78,6 +98,8 @@ export const renderDocument = onCall(
     }
     return {
       document: { id: result.document.id, name: result.document.name, url: result.document.url },
+      destination: result.destination,
+      ...(result.destination === 'downloads' ? { expiresAt: result.document.expiresAt?.toISOString() ?? null } : {}),
       emptyFields: result.issues.length,
       error: null,
     };

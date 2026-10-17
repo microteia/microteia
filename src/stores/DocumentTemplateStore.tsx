@@ -91,7 +91,7 @@ export const DocumentTemplateStoreProvider: React.FC<{ children: React.ReactNode
   const generateDocument = useCallback(async (input: Omit<GenerateDocumentInput, 'tenantId'>) => {
     if (!currentTenant) throw new LocalizedError('@core.ui/tenant.none-selected');
     const result = await uc.generate.execute({ ...input, tenantId: currentTenant.id });
-    if (result.document) storeEvents.emit(StoreEvents.RECORD_DOCUMENTS_UPDATED);
+    if (result.document && result.destination !== 'downloads') storeEvents.emit(StoreEvents.RECORD_DOCUMENTS_UPDATED);
     return result;
   }, [currentTenant, uc.generate]);
 

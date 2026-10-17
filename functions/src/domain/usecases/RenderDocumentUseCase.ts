@@ -7,17 +7,18 @@ import { resolveQueryTable } from '../schema/querySpec';
 import { agentDocumentName, AGENT_DOCUMENT_MAX_BYTES } from '../schema/agent/agentDocument';
 import type { DocumentOutputFormat, ResolvedDocumentTemplate } from '../schema/document/documentTemplate';
 import { templateOutputs } from '../schema/document/documentTemplate';
+import type { DocumentDestination, DownloadPolicy, DownloadVisibility } from '../schema/document/documentDownloads';
+import { downloadExpiresAt, resolveRetentionDays } from '../schema/document/documentDownloads';
+import { grants } from '../schema/access';
+import { collectionPermissionId } from '../schema/access/permission';
 import type { RenderIssue, TemplateEvaluator } from '../schema/document/templateGrammar';
 import { collectTemplatePaths, escapeMarkdownValue, parseTemplate, renderTemplate } from '../schema/document/templateGrammar';
 import type { IScreenDefinitionProvider } from '../repositories/IScreenDefinitionProvider';
 import type { IDocumentRenderer } from '../repositories/IDocumentRenderer';
 import { DocumentRenderError } from '../repositories/IDocumentRenderer';
-import type {
-  AttachedRecordDocument,
-  IRecordDocumentWriter,
-  RecordDocumentAuthor,
-} from '../repositories/IRecordDocumentWriter';
+import type { IRecordDocumentWriter, RecordDocumentAuthor } from '../repositories/IRecordDocumentWriter';
 import type { IDocumentRecordReader, IDocumentTemplateSource } from '../repositories/IDocumentGenerationPorts';
+import type { IDownloadWriter } from '../repositories/IDownloadWriter';
 
 export interface RenderDocumentRequest {
   tenantId: string;
@@ -32,10 +33,36 @@ export interface RenderDocumentRequest {
   author: RecordDocumentAuthor;
   /** As permissões de quem gera — o que `hasPermission` responde dentro do modelo. */
   permissions?: readonly string[];
+  /** Ausente = o destino que o modelo declara, e `record` quando nem ele diz. */
+  destination?: DocumentDestination;
+  /** Dias em Downloads (`0` = não expira). Ausente = o do modelo, depois o do escritório. */
+  expiresInDays?: number;
+  /**
+   * Cobrar de `permissions` a permissão que o DESTINO exige: `<coleção>.update` para anexar ao
+   * registro, `<coleção>.read` para Downloads, que não altera o registro. É o caso de uso que cobra,
+   * e não a porta, porque só ele sabe o destino quando quem chama não o diz — o padrão é do modelo.
+   * A automação sem pessoa não cobra: ela age como o motor, como em toda gravação de registro.
+   */
+  chargePermissions?: boolean;
+}
+
+/** O arquivo gerado, onde quer que tenha ido parar. */
+export interface GeneratedDocument {
+  id: string;
+  name: string;
+  url: string;
+  /** Só em Downloads: quando o item vence; `null` = não expira. */
+  expiresAt?: Date | null;
 }
 
 export type RenderDocumentResult =
-  | { ok: true; document: AttachedRecordDocument; output: DocumentOutputFormat; issues: RenderIssue[] }
+  | {
+    ok: true;
+    destination: DocumentDestination;
+    document: GeneratedDocument;
+    output: DocumentOutputFormat;
+    issues: RenderIssue[];
+  }
   | { ok: false; error: string; errorParams?: Record<string, string> };
 
 export interface RenderDocumentDeps {
@@ -44,6 +71,10 @@ export interface RenderDocumentDeps {
   records: IDocumentRecordReader;
   renderer: IDocumentRenderer;
   writer: IRecordDocumentWriter;
+  downloads: IDownloadWriter;
+  /** A retenção e a visibilidade que o escritório configurou para Downloads. */
+  downloadPolicyOf(tenantId: string): Promise<DownloadPolicy>;
+  now?: () => Date;
   /** O idioma e o fuso do ESCRITÓRIO: o documento é dele, e `formatMoney(valor)` fala a língua dele. */
   localeOf(tenantId: string): Promise<string>;
   timeZoneOf(tenantId: string): Promise<string>;
@@ -101,17 +132,20 @@ const evaluatorFor = (
 };
 
 /**
- * Gerar o documento de um registro a partir de um modelo e anexá-lo à aba Documentos.
+ * Gerar o documento de um registro a partir de um modelo e entregá-lo no DESTINO: a aba Documentos
+ * do registro ou a tela Downloads.
  *
- * É UM caminho para as duas portas — o passo "Gerar documento" e o gesto do registro —, e por isso o
- * documento que a pessoa gera na tela é o mesmo que a automação gera de madrugada.
+ * É UM caminho para as três portas — o passo "Gerar documento", o gesto do registro e o agente —, e
+ * por isso o documento que a pessoa gera na tela é o mesmo que a automação gera de madrugada.
  *
  * A ordem das recusas é a da pergunta que se faria a mão: o modelo existe, ele produz o formato
- * pedido, a tela tem a aba Documentos, o registro existe. Só então os filhos são lidos e o arquivo é
+ * pedido, quem pede pode entregar ali, a tela tem a aba Documentos (só quando o destino é ela), o
+ * registro existe. Só então os filhos são lidos e o arquivo é
  * montado — nada é gravado antes de tudo ter dado certo.
  */
 interface PreparedDocument {
   template: ResolvedDocumentTemplate;
+  destination: DocumentDestination;
   output: DocumentOutputFormat;
   physicalCollection: string;
   templateText: string;
@@ -149,7 +183,15 @@ const prepare = async (
     if (!table || !documentsScreen(schema, collection)) {
       return failure('@core.automation/mutation.table.unknown', { table: collection });
     }
-    if (documentsScreen(schema, collection)?.hasDocuments !== true) {
+
+    const destination = request.destination ?? template.destination ?? 'record';
+    if (request.chargePermissions) {
+      const permission = collectionPermissionId(collection, destination === 'record' ? 'update' : 'read');
+      if (!grants(request.permissions ?? [], permission)) {
+        return failure('@core.access/permission.denied', { permission });
+      }
+    }
+    if (destination === 'record' && documentsScreen(schema, collection)?.hasDocuments !== true) {
       return failure('@core.documents/render.documents-disabled', { collection });
     }
 
@@ -217,7 +259,7 @@ const prepare = async (
 
     return {
       ok: true,
-      value: { template, output, physicalCollection: table.physicalCollection, templateText, fileNameTemplate, scope, evaluate },
+      value: { template, destination, output, physicalCollection: table.physicalCollection, templateText, fileNameTemplate, scope, evaluate },
     };
 };
 
@@ -252,6 +294,33 @@ export const makeRenderDocumentUseCase = (deps: RenderDocumentDeps): RenderDocum
     const name = agentDocumentName(`${(baseName || template.title).replace(/[/\\]/g, '-')}.${rendered.extension}`)
       ?? `${template.key}.${rendered.extension}`;
 
+    if (prepared.value.destination === 'downloads') {
+      const policy = await deps.downloadPolicyOf(request.tenantId);
+      const retentionDays = resolveRetentionDays(request.expiresInDays, template.retentionDays, policy);
+      // Sem pessoa por trás não há dono: quem vê o arquivo é o que o escritório configurou.
+      const unattended = request.author.via === 'automation';
+      const visibility: DownloadVisibility = unattended ? policy.automationVisibility : 'owner';
+      const saved = await deps.downloads.save({
+        tenantId: request.tenantId,
+        name,
+        contentType: rendered.contentType,
+        data: rendered.data,
+        ownerId: unattended ? null : request.author.uid,
+        visibility,
+        expiresAt: downloadExpiresAt((deps.now ?? (() => new Date()))(), retentionDays),
+        templateKey: template.key,
+        origin: { collection: prepared.value.physicalCollection, recordId: request.recordId },
+        author: request.author,
+      });
+      return {
+        ok: true,
+        destination: 'downloads',
+        document: { id: saved.id, name: saved.name, url: saved.url, expiresAt: saved.expiresAt },
+        output,
+        issues: rendered.issues,
+      };
+    }
+
     const document = await deps.writer.attach({
       tenantId: request.tenantId,
       physicalCollection: prepared.value.physicalCollection,
@@ -263,7 +332,7 @@ export const makeRenderDocumentUseCase = (deps: RenderDocumentDeps): RenderDocum
       author: request.author,
     });
 
-    return { ok: true, document, output, issues: rendered.issues };
+    return { ok: true, destination: 'record', document, output, issues: rendered.issues };
   },
 
   preview: async (request) => {

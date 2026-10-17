@@ -95,6 +95,10 @@ export interface DocumentTemplatesViewModel {
   childScreenOptions: SearchSelectOption[];
   formatOptions: SearchSelectOption[];
   documentTypeOptions: SearchSelectOption[];
+  destinationOptions: SearchSelectOption[];
+  /** A retenção como texto do campo: vazio = a do escritório. */
+  retentionText: string;
+  setRetentionText: (text: string) => void;
   datasetOptions: DatasetRowOptions[];
   isSaving: boolean;
   canSave: boolean;
@@ -161,6 +165,8 @@ const specOf = (template: DocumentTemplateSpec): DocumentTemplateSpec => ({
   ...(template.fileName ? { fileName: template.fileName } : {}),
   ...(template.documentType ? { documentType: template.documentType } : {}),
   ...(template.datasets ? { datasets: template.datasets } : {}),
+  ...(template.destination ? { destination: template.destination } : {}),
+  ...(template.retentionDays !== undefined ? { retentionDays: template.retentionDays } : {}),
 });
 
 /** O arquivo lido como base64, sem o prefixo `data:` que o `FileReader` acrescenta. */
@@ -328,9 +334,27 @@ export const useDocumentTemplatesViewModel = (): DocumentTemplatesViewModel => {
 
   const screenOptions = useMemo(
     () => definitions
-      .filter((definition) => definition.hasDocuments)
+      // Sem a aba Documentos a tela ainda gera — para Downloads. Ela só entra quando é esse o destino.
+      .filter((definition) =>
+        definition.hasDocuments || form.destination === 'downloads' || definition.id === form.collection)
       .map((definition) => ({ value: definition.id, label: label(definition.titlePlural), meta: definition.id })),
-    [definitions, label],
+    [definitions, label, form.destination, form.collection],
+  );
+
+  const destinationOptions = useMemo(
+    () => [
+      { value: 'record', label: t('destination.record') },
+      { value: 'downloads', label: t('destination.downloads') },
+    ],
+    [t],
+  );
+
+  const setRetentionText = useCallback(
+    (text: string) => {
+      const trimmed = text.trim();
+      setForm({ retentionDays: trimmed === '' ? undefined : Number(trimmed) });
+    },
+    [setForm],
   );
 
   const childScreenOptions = useMemo(() => {
@@ -602,6 +626,9 @@ export const useDocumentTemplatesViewModel = (): DocumentTemplatesViewModel => {
     childScreenOptions,
     formatOptions,
     documentTypeOptions,
+    destinationOptions,
+    retentionText: form.retentionDays === undefined ? '' : String(form.retentionDays),
+    setRetentionText,
     datasetOptions,
     isSaving,
     canSave: isEditable && draft !== null && !blockingIssues && !keyTaken && !isSaving,

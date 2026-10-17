@@ -265,6 +265,32 @@ export const DocumentTemplatesView: React.FC = () => {
                       onChange={(documentType) => vm.setForm({ documentType })}
                     />
                   </S.Field>
+                  <S.Field>
+                    <Label>{t('field.destination')}</Label>
+                    <SearchSelect
+                      options={vm.destinationOptions}
+                      value={vm.form.destination ?? 'record'}
+                      disabled={vm.isReadOnly}
+                      onChange={(destination) => vm.setForm({ destination: destination === 'downloads' ? 'downloads' : 'record' })}
+                    />
+                    <S.Hint>{t('field.destination.hint')}</S.Hint>
+                    {vm.issuesFor('destination').map((one) => <S.Issue key={one.message} $grammar={one.isGrammar}>{one.message}</S.Issue>)}
+                  </S.Field>
+                  {vm.form.destination === 'downloads' && (
+                    <S.Field>
+                      <Label>{t('field.retention')}</Label>
+                      <Input
+                        type="number"
+                        min={0}
+                        value={vm.retentionText}
+                        disabled={vm.isReadOnly}
+                        placeholder={t('field.retention.placeholder')}
+                        onChange={(e) => vm.setRetentionText(e.target.value)}
+                      />
+                      <S.Hint>{t('field.retention.hint')}</S.Hint>
+                      {vm.issuesFor('retentionDays').map((one) => <S.Issue key={one.message} $grammar={one.isGrammar}>{one.message}</S.Issue>)}
+                    </S.Field>
+                  )}
                 </S.Grid>
               </S.Section>
 

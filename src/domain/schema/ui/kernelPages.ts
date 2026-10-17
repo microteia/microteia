@@ -30,6 +30,7 @@ export const KERNEL_PAGES: PageAddress[] = [
   { key: 'report-design' },
   { key: '', keyPrefix: 'report-design:' },
   { key: 'document-templates' },
+  { key: 'downloads' },
   { key: 'workflows' },
   { key: 'new-workflow' },
   { key: '', keyPrefix: 'new-workflow:clone:' },

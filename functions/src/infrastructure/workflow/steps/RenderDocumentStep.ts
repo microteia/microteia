@@ -5,6 +5,7 @@ import type { RenderDocumentUseCase } from '../../../domain/usecases/RenderDocum
 import type { RecordDocumentAuthor } from '../../../domain/repositories/IRecordDocumentWriter';
 import type { DocumentOutputFormat } from '../../../domain/schema/document/documentTemplate';
 import { DOCUMENT_OUTPUT_FORMATS } from '../../../domain/schema/document/documentTemplate';
+import { DOWNLOAD_RETENTION_MAX_DAYS, isDocumentDestination, isRetentionDays } from '../../../domain/schema/document/documentDownloads';
 
 const WORKFLOW_ACTOR = 'workflow-engine';
 
@@ -25,10 +26,11 @@ const outputOf = (value: unknown): DocumentOutputFormat | undefined => {
 };
 
 /**
- * O passo `render-document`: gera o documento do registro e o anexa à aba Documentos.
+ * O passo `render-document`: gera o documento do registro e o entrega no destino — a aba Documentos
+ * ou Downloads.
  *
- * Um formato pedido que não é PDF nem DOCX reprova o passo em vez de cair no padrão: o fluxo pediu
- * uma coisa, e entregar outra em silêncio seria pior que dizer que não dá.
+ * Um formato, um destino ou uma retenção pedidos que não existem reprovam o passo em vez de cair no
+ * padrão: o fluxo pediu uma coisa, e entregar outra em silêncio seria pior que dizer que não dá.
  *
  * Expressão do modelo que falha não reprova: o campo sai vazio, o log diz qual foi, e a saída
  * `emptyFields` deixa o fluxo decidir — reenviar, avisar alguém, seguir.
@@ -47,6 +49,24 @@ export const makeRenderDocumentStepDefinition = (renderDocument: RenderDocumentU
         };
       }
 
+      const destination = textOf(inputs.destination);
+      if (destination && !isDocumentDestination(destination)) {
+        return {
+          success: false,
+          message: '@core.documents/render.destination-unsupported',
+          messageParams: { destination },
+        };
+      }
+      const retention = textOf(inputs.expiresInDays);
+      const expiresInDays = retention === '' ? undefined : Number(retention);
+      if (expiresInDays !== undefined && !isRetentionDays(expiresInDays)) {
+        return {
+          success: false,
+          message: '@core.documents/template.retention.invalid',
+          messageParams: { value: retention, max: String(DOWNLOAD_RETENTION_MAX_DAYS) },
+        };
+      }
+
       const fileName = textOf(inputs.fileName);
       const documentType = textOf(inputs.documentType);
       const result = await renderDocument.execute({
@@ -56,6 +76,8 @@ export const makeRenderDocumentStepDefinition = (renderDocument: RenderDocumentU
         ...(output ? { output } : {}),
         ...(fileName ? { fileName } : {}),
         ...(documentType ? { documentType } : {}),
+        ...(isDocumentDestination(destination) ? { destination } : {}),
+        ...(expiresInDays !== undefined ? { expiresInDays } : {}),
         author: authorOf(context),
         ...(context.actor ? { permissions: context.actor.permissions } : {}),
       });
@@ -68,7 +90,9 @@ export const makeRenderDocumentStepDefinition = (renderDocument: RenderDocumentU
 
       return {
         success: true,
-        message: '@core.automation/step.render-document.done',
+        message: result.destination === 'downloads'
+          ? '@core.automation/step.render-document.done-downloads'
+          : '@core.automation/step.render-document.done',
         messageParams: { name: result.document.name },
         outputs: {
           documentId: result.document.id,
@@ -76,6 +100,8 @@ export const makeRenderDocumentStepDefinition = (renderDocument: RenderDocumentU
           url: result.document.url,
           format: result.output,
           emptyFields: result.issues.length,
+          destination: result.destination,
+          expiresAt: result.document.expiresAt ? result.document.expiresAt.toISOString() : null,
         },
       };
     },

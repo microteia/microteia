@@ -259,6 +259,19 @@ service cloud.firestore {
         allow delete: if can(tenantId, 'document-templates.manage');
       }
 
+      // Downloads — os arquivos gerados que NÃO foram anexados a um registro. Quem grava é só o
+      // servidor (a geração); o cliente lê e apaga, e o gatilho `onDownloadDeleted` leva o arquivo do
+      // bucket junto. A visibilidade é carimbada na gravação, para a regra decidir pelo próprio
+      // documento: o dono vê o seu, `everyone` (automação sem pessoa, por configuração do escritório)
+      // vê todo membro, e `downloads.manage` vê tudo. A consulta da tela filtra por `ownerId` ou por
+      // `visibility`, e é isso que deixa a regra provar a lista sem ler documento nenhum.
+      match /downloads/{downloadId} {
+        allow read, delete: if (isMember(tenantId)
+            && (resource.data.ownerId == request.auth.uid || resource.data.visibility == 'everyone'))
+          || can(tenantId, 'downloads.manage');
+        allow create, update: if false;
+      }
+
       // Extensões PRIVADAS do escritório (criadas na tela "Criar extensão"). Todo membro lê —
       // as ativas contribuem telas/menu no Kernel do tenant; só admin cria/edita/remove.
       //
@@ -434,7 +447,7 @@ service cloud.firestore {
       function isReservedCollection(name) {
         return name in [
         'actions', 'agentGrants', 'aggregate_backfills', 'aiConnections',
-        'documentTemplates', 'documentTypes', 'documents', 'extension_history', 'extension_migrations', 'extensions',
+        'documentTemplates', 'documentTypes', 'documents', 'downloads', 'extension_history', 'extension_migrations', 'extensions',
         'installed_extensions', 'lookupDefinitions', 'members', 'notes', 'notification_inbox',
         'reports', 'roles',
         // `plugin_installations` não tem mais código que a leia — foi a instalação de antes de

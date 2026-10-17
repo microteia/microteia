@@ -101,6 +101,9 @@ import type { DispatchNotificationUseCase } from '../../domain/usecases/Dispatch
 import { makeNotificationTextCatalog } from '../notifications/notificationTextCatalog';
 import type { IRecordDocumentWriter } from '../../domain/repositories/IRecordDocumentWriter';
 import { FirebaseRecordDocumentWriter } from '../../data/services/FirebaseRecordDocumentWriter';
+import type { IDownloadWriter } from '../../domain/repositories/IDownloadWriter';
+import { FirebaseDownloadWriter } from '../../data/services/FirebaseDownloadWriter';
+import { downloadPolicyOf } from '../../domain/schema/document/documentDownloads';
 import { FirestoreDocumentTemplateSource } from '../../data/services/FirestoreDocumentTemplateSource';
 import { TemplateDocumentRenderer } from '../../data/services/document/TemplateDocumentRenderer';
 import { WorkflowDocumentRecordReader } from '../document/WorkflowDocumentRecordReader';
@@ -152,6 +155,7 @@ class DIContainer {
   private vapidKeyStore?: VapidKeyStore;
   private dispatchNotificationUC?: DispatchNotificationUseCase;
   private recordDocumentWriter?: IRecordDocumentWriter;
+  private downloadWriter?: IDownloadWriter;
   private renderDocumentUC?: RenderDocumentUseCase;
   private workflowStepsRegistered = false;
   private extensionStatsRepo?: IExtensionStatsRepository;
@@ -598,6 +602,11 @@ class DIContainer {
     return this.recordDocumentWriter;
   }
 
+  getDownloadWriter(): IDownloadWriter {
+    if (!this.downloadWriter) this.downloadWriter = new FirebaseDownloadWriter();
+    return this.downloadWriter;
+  }
+
   getRenderDocumentUseCase(): RenderDocumentUseCase {
     if (!this.renderDocumentUC) {
       this.renderDocumentUC = makeRenderDocumentUseCase({
@@ -614,6 +623,9 @@ class DIContainer {
         ),
         renderer: new TemplateDocumentRenderer(),
         writer: this.getRecordDocumentWriter(),
+        downloads: this.getDownloadWriter(),
+        downloadPolicyOf: async (tenantId) =>
+          downloadPolicyOf(await this.getTenantSettingsRepository().getTenantValues(tenantId)),
         // O documento é do ESCRITÓRIO: o idioma é o dele, não o de quem apertou o botão.
         localeOf: async (tenantId) => preferredLocale({}, await this.getTenantSettingsRepository().getTenantValues(tenantId)),
         timeZoneOf: (tenantId) => tenantTimeZone(tenantId),

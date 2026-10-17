@@ -11,6 +11,13 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.121.0] — 2026-10-17
+
+- Nova tela **Downloads**: documentos gerados que não precisam ficar guardados no registro — um recibo para entregar, um extrato para enviar — vão para lá, prontos para baixar, e são excluídos sozinhos quando vencem.
+- Ao gerar um documento, agora dá para escolher onde salvá-lo: na aba Documentos do registro ou em Downloads. Telas sem a aba Documentos também passam a gerar documentos, direto para Downloads.
+- Cada modelo de documento pode dizer para onde vai por padrão e por quantos dias fica em Downloads.
+- Nas Configurações, o escritório define por quantos dias os arquivos ficam em Downloads (7, se nada for dito) e quem vê os arquivos gerados por automações: só quem gerencia ou todos.
+
 #### [9.120.0] — 2026-10-17
 
 - A escolha de permissões de um assistente de IA ganhou o botão **Selecionar tudo**, que marca todas as permissões de uma vez. Com uma busca aberta, ele marca só o que a busca encontrou.

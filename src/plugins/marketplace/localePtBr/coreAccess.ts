@@ -187,7 +187,10 @@ export const CORE_ACCESS: Record<string, string> = {
     'Instalar, atualizar, ativar e remover extensões do escritório.',
   'permission.document-templates.manage': 'Gerenciar modelos de documento',
   'permission.document-templates.manage.description':
-    'Criar, editar e remover os modelos de documento do escritório, e personalizar ou desligar os que as extensões trazem. Para GERAR um documento a partir de um registro continua sendo preciso poder editar aquele registro.',
+    'Criar, editar e remover os modelos de documento do escritório, e personalizar ou desligar os que as extensões trazem. Para GERAR um documento a partir de um registro continua sendo preciso poder editar aquele registro para anexá-lo, ou lê-lo para salvá-lo em Downloads.',
+  'permission.downloads.manage': 'Gerenciar downloads',
+  'permission.downloads.manage.description':
+    'Ver e excluir todo arquivo em Downloads, inclusive os que outras pessoas geraram e os que as automações geraram só para quem gerencia.',
   'permission.members.manage': 'Gerenciar membros',
   'permission.members.manage.description':
     'Incluir e remover pessoas do escritório, e escolher os perfis de acesso de cada uma.',
@@ -226,6 +229,7 @@ export const CORE_ACCESS: Record<string, string> = {
   'resource.members': 'Membros',
   'resource.reports': 'Relatórios',
   'resource.document-templates': 'Modelos de documento',
+  'resource.downloads': 'Downloads',
   'resource.roles': 'Perfis de acesso',
   'resource.screens': 'Telas',
   'resource.settings': 'Configurações',

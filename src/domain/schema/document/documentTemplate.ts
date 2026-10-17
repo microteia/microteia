@@ -8,6 +8,8 @@ import type { ExtensionPointDefinition } from '../plugin/extensionPoint';
 import type { TemplateIssue } from './templateGrammar';
 import { GRAMMAR_ISSUES, parseTemplate } from './templateGrammar';
 import { contentFingerprint } from '../contentFingerprint';
+import type { DocumentDestination } from './documentDownloads';
+import { DOWNLOAD_RETENTION_MAX_DAYS, isDocumentDestination, isRetentionDays } from './documentDownloads';
 
 /**
  * O modelo de documento — procuração, contrato, recibo, notificação — como DADO.
@@ -82,6 +84,16 @@ export interface DocumentTemplateSpec {
   /** Chave de `documentTypes` com que o arquivo é anexado. */
   documentType?: string;
   datasets?: DocumentTemplateDataset[];
+  /**
+   * Para onde o arquivo vai quando quem gera não diz. Ausente = `record`, o comportamento de antes
+   * do campo. É só o PADRÃO: o gesto, o passo e o agente podem pedir o outro destino.
+   */
+  destination?: DocumentDestination;
+  /**
+   * Quantos dias o arquivo fica em Downloads (`0` = não expira). Ausente = o que o escritório
+   * configurou. Não vale para `record`: o anexo do registro é permanente.
+   */
+  retentionDays?: number;
 }
 
 /** O modelo como o ESCRITÓRIO o grava. `enabled: false` desliga a chave — inclusive a de um pacote. */
@@ -203,6 +215,16 @@ export const documentTemplateIssues = (spec: Partial<DocumentTemplateSpec>): Doc
 
   if (typeof spec.fileName === 'string' && spec.fileName.trim()) {
     issues.push(...at('fileName', parseTemplate(spec.fileName).issues));
+  }
+
+  if (spec.destination !== undefined && !isDocumentDestination(spec.destination)) {
+    push('destination', '@core.documents/template.destination.invalid', { destination: String(spec.destination) });
+  }
+  if (spec.retentionDays !== undefined && !isRetentionDays(spec.retentionDays)) {
+    push('retentionDays', '@core.documents/template.retention.invalid', {
+      value: String(spec.retentionDays),
+      max: String(DOWNLOAD_RETENTION_MAX_DAYS),
+    });
   }
 
   const names = new Set<string>();

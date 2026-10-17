@@ -37,8 +37,9 @@ export const RECORD_ACTION_METADATA: Record<string, UiRecordActionMetadata> = {
     title: '@core.documents/action.generate',
     icon: 'fileText',
     order: 2,
-    // Gerar é anexar, e anexar altera o registro: a mesma cobrança da aba Documentos.
-    requiresRecordPermission: 'update',
+    // Ler basta para gerar em Downloads. Anexar à aba Documentos cobra a edição, e o diálogo só
+    // oferece esse destino a quem a tem — o servidor cobra de novo.
+    requiresRecordPermission: 'read',
   },
   unlink: {
     key: 'unlink',

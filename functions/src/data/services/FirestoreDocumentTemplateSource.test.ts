@@ -87,6 +87,8 @@ describe('FirestoreDocumentTemplateSource', () => {
         render: async () => ({ data: Buffer.from('%PDF'), contentType: 'application/pdf', extension: 'pdf', issues: [] }),
       },
       writer,
+      downloads: { save: vi.fn() },
+      downloadPolicyOf: async () => ({ retentionDays: 7, automationVisibility: 'managers' }),
       localeOf: async () => 'pt-BR',
       timeZoneOf: async () => 'America/Sao_Paulo',
     });

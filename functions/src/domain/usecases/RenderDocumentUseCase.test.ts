@@ -8,6 +8,17 @@ import type { DocumentRenderInput, IDocumentRenderer } from '../repositories/IDo
 import { DocumentRenderError } from '../repositories/IDocumentRenderer';
 import type { IDocumentRecordReader } from '../repositories/IDocumentGenerationPorts';
 import type { IRecordDocumentWriter, RecordDocumentFile } from '../repositories/IRecordDocumentWriter';
+import type { DownloadFileInput, IDownloadWriter } from '../repositories/IDownloadWriter';
+import type { DownloadPolicy } from '../schema/document/documentDownloads';
+
+const NOW = new Date('2026-10-17T12:00:00Z');
+
+const fakeDownloads = (saved: DownloadFileInput[]): IDownloadWriter => ({
+  save: vi.fn(async (file: DownloadFileInput) => {
+    saved.push(file);
+    return { id: 'dl1', name: file.name, url: 'https://dl', storagePath: 'p', contentType: file.contentType, size: 1, expiresAt: file.expiresAt };
+  }),
+});
 
 const SCREENS: SchemaScreen[] = [
   {
@@ -49,9 +60,15 @@ const template = (overrides: Partial<ResolvedDocumentTemplate> = {}): ResolvedDo
   ...overrides,
 });
 
-const setup = (templates: ResolvedDocumentTemplate[] = [template()], screens: SchemaScreen[] = SCREENS) => {
+const setup = (
+  templates: ResolvedDocumentTemplate[] = [template()],
+  screens: SchemaScreen[] = SCREENS,
+  policy: DownloadPolicy = { retentionDays: 7, automationVisibility: 'managers' },
+) => {
   const rendered: DocumentRenderInput[] = [];
   const attached: RecordDocumentFile[] = [];
+  const saved: DownloadFileInput[] = [];
+  const downloads = fakeDownloads(saved);
   const childrenPaths: string[][] = [];
 
   const renderer: IDocumentRenderer = {
@@ -81,10 +98,13 @@ const setup = (templates: ResolvedDocumentTemplate[] = [template()], screens: Sc
     records,
     renderer,
     writer,
+    downloads,
+    downloadPolicyOf: async () => policy,
+    now: () => NOW,
     localeOf: async () => 'pt-BR',
     timeZoneOf: async () => 'America/Sao_Paulo',
   };
-  return { useCase: makeRenderDocumentUseCase(deps), rendered, attached, childrenPaths, writer };
+  return { useCase: makeRenderDocumentUseCase(deps), rendered, attached, childrenPaths, writer, saved, downloads };
 };
 
 const request = (overrides: Partial<RenderDocumentRequest> = {}): RenderDocumentRequest => ({
@@ -160,6 +180,8 @@ describe('RenderDocumentUseCase', () => {
         render: async () => { throw new DocumentRenderError('@core.documents/render.docx-template', { detail: 'x' }); },
       },
       writer,
+      downloads: fakeDownloads([]),
+      downloadPolicyOf: async () => ({ retentionDays: 7, automationVisibility: 'managers' }),
       localeOf: async () => 'en',
       timeZoneOf: async () => 'UTC',
     });
@@ -213,5 +235,71 @@ describe('RenderDocumentUseCase', () => {
 
     expect(await useCase.preview(request({ recordId: 'ghost' })))
       .toEqual({ ok: false, error: '@core.records/record.not-found' });
+  });
+
+  describe('destino Downloads', () => {
+    const SCREENS_WITHOUT_TAB = SCREENS.map((one) => ({ ...one, hasDocuments: false }));
+
+    it('vai para Downloads sem exigir a aba Documentos, com o dono e o vencimento do escritório', async () => {
+      const { useCase, attached, saved } = setup([template()], SCREENS_WITHOUT_TAB);
+
+      const result = await useCase.execute(request({ destination: 'downloads' }));
+
+      expect(result).toMatchObject({ ok: true, destination: 'downloads', document: { id: 'dl1' } });
+      expect(attached).toHaveLength(0);
+      expect(saved[0]).toMatchObject({
+        ownerId: 'u1',
+        visibility: 'owner',
+        templateKey: 'receipt',
+        origin: { collection: 'contracts', recordId: 'c1' },
+        expiresAt: new Date('2026-10-24T12:00:00Z'),
+      });
+    });
+
+    it('o destino do modelo vale quando quem pede não diz, e o pedido vence o modelo', async () => {
+      const { useCase, attached, saved } = setup([template({ destination: 'downloads' })]);
+
+      await useCase.execute(request());
+      expect(saved).toHaveLength(1);
+
+      await useCase.execute(request({ destination: 'record' }));
+      expect(attached).toHaveLength(1);
+    });
+
+    it('a retenção é a do pedido, depois a do modelo, depois a do escritório — e 0 não expira', async () => {
+      const { useCase, saved } = setup([template({ retentionDays: 30 })]);
+
+      await useCase.execute(request({ destination: 'downloads' }));
+      await useCase.execute(request({ destination: 'downloads', expiresInDays: 0 }));
+
+      expect(saved[0].expiresAt).toEqual(new Date('2026-11-16T12:00:00Z'));
+      expect(saved[1].expiresAt).toBeNull();
+    });
+
+    it('a automação sem pessoa não tem dono, e a visibilidade é a configurada pelo escritório', async () => {
+      const { useCase, saved } = setup([template()], SCREENS, { retentionDays: 7, automationVisibility: 'everyone' });
+
+      await useCase.execute(request({ destination: 'downloads', author: { uid: 'workflow-engine', name: null, via: 'automation' } }));
+
+      expect(saved[0]).toMatchObject({ ownerId: null, visibility: 'everyone' });
+    });
+
+    it('anexar ao registro sem a aba continua sendo recusa — o motor não troca o destino sozinho', async () => {
+      const { useCase, saved } = setup([template()], SCREENS_WITHOUT_TAB);
+
+      expect(await useCase.execute(request({ destination: 'record' })))
+        .toMatchObject({ ok: false, error: '@core.documents/render.documents-disabled' });
+      expect(saved).toHaveLength(0);
+    });
+
+    it('cobrando permissão, Downloads pede a leitura e o registro pede a edição', async () => {
+      const { useCase } = setup();
+      const charged = { chargePermissions: true, permissions: ['contracts.read'] };
+
+      expect(await useCase.execute(request({ ...charged, destination: 'downloads' })))
+        .toMatchObject({ ok: true });
+      expect(await useCase.execute(request({ ...charged, destination: 'record' })))
+        .toMatchObject({ ok: false, error: '@core.access/permission.denied', errorParams: { permission: 'contracts.update' } });
+    });
   });
 });

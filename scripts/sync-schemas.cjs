@@ -113,6 +113,7 @@ const SHARED_FILES = [
   'domain/schema/report/index.ts',
   'domain/schema/document/templateGrammar.ts',
   'domain/schema/document/documentTemplate.ts',
+  'domain/schema/document/documentDownloads.ts',
   'domain/schema/document/templatePaths.ts',
   'domain/schema/document/starterTemplate.ts',
   'domain/schema/document/index.ts',

@@ -198,7 +198,10 @@ export const CORE_ACCESS_MESSAGES: Record<string, string> = {
     'Install, update, activate and remove extensions in the organization.',
   'permission.document-templates.manage': 'Manage document templates',
   'permission.document-templates.manage.description':
-    'Create, edit and remove the document templates of the organization, and customize or turn off the ones extensions bring. Generating a document from a record still requires being able to edit that record.',
+    'Create, edit and remove the document templates of the organization, and customize or turn off the ones extensions bring. Generating a document from a record still requires being able to edit that record to attach it, or to read it to save it to Downloads.',
+  'permission.downloads.manage': 'Manage downloads',
+  'permission.downloads.manage.description':
+    'See and delete every file in Downloads, including the ones other people generated and the ones automations generated for managers only.',
   'permission.members.manage': 'Manage members',
   'permission.members.manage.description':
     'Add and remove people from the organization, and choose the access profiles of each one.',
@@ -237,6 +240,7 @@ export const CORE_ACCESS_MESSAGES: Record<string, string> = {
   'resource.members': 'Members',
   'resource.reports': 'Reports',
   'resource.document-templates': 'Document templates',
+  'resource.downloads': 'Downloads',
   'resource.roles': 'Access profiles',
   'resource.screens': 'Screens',
   'resource.settings': 'Settings',

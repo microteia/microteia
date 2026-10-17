@@ -53,6 +53,7 @@ import {
   saveAgentDocumentTemplate,
 } from './agentDocumentTemplates';
 import type { DocumentOutputFormat } from '../../domain/schema/document/documentTemplate';
+import { DOWNLOAD_RETENTION_MAX_DAYS, isDocumentDestination, isRetentionDays } from '../../domain/schema/document/documentDownloads';
 
 /**
  * Os tetos da varredura para uma pergunta de agente.
@@ -436,7 +437,7 @@ const previewAgentDocument = async (
   };
 };
 
-/** Gerar e anexar, pela porta da callable `renderDocument`: o anexo do agente é o anexo da tela. */
+/** Gerar e entregar, pela porta da callable `renderDocument`: o arquivo do agente é o arquivo da tela. */
 const renderAgentDocument = async (
   input: Record<string, unknown>,
   session: AgentSession,
@@ -445,6 +446,17 @@ const renderAgentDocument = async (
   const output = asText(input.output);
   const fileName = asText(input.fileName);
   const documentType = asText(input.documentType);
+  const destination = asText(input.destination);
+  if (destination && !isDocumentDestination(destination)) {
+    return refuse(catalog, '@core.documents/render.destination-unsupported', { destination });
+  }
+  const expiresInDays = input.expiresInDays;
+  if (expiresInDays !== undefined && expiresInDays !== null && !isRetentionDays(expiresInDays)) {
+    return refuse(catalog, '@core.documents/template.retention.invalid', {
+      value: String(expiresInDays),
+      max: String(DOWNLOAD_RETENTION_MAX_DAYS),
+    });
+  }
   const result = await getDI().getRenderDocumentUseCase().execute({
     tenantId: session.tenantId,
     templateKey: asText(input.template),
@@ -453,6 +465,9 @@ const renderAgentDocument = async (
     ...(output ? { output: output as DocumentOutputFormat } : {}),
     ...(fileName ? { fileName } : {}),
     ...(documentType ? { documentType } : {}),
+    ...(isDocumentDestination(destination) ? { destination } : {}),
+    ...(isRetentionDays(expiresInDays) ? { expiresInDays } : {}),
+    chargePermissions: true,
     author: await agentDocumentAuthor(session),
     permissions: session.permissions,
   });
@@ -461,6 +476,10 @@ const renderAgentDocument = async (
     ok: true,
     value: {
       document: { id: result.document.id, name: result.document.name, url: result.document.url },
+      destination: result.destination,
+      ...(result.destination === 'downloads'
+        ? { expiresAt: result.document.expiresAt ? result.document.expiresAt.toISOString() : null }
+        : {}),
       format: result.output,
       emptyFields: result.issues.length,
       ...(result.issues.length > 0 ? { empty: emptyFieldDetails(catalog, result.issues) } : {}),
