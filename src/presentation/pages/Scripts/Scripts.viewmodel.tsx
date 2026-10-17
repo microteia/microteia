@@ -6,9 +6,11 @@ import type { Script } from '../../../domain/entities/Script';
 import type { FilterDef, FilterToken } from '../../components/ui/CompositeFilter';
 
 import { useT, useLabel } from '../../shared/i18n/useT';
+import { useExtensionName } from '../../shared/extensions/useExtensionName';
 export interface ScriptsViewModel {
   filteredScripts: Script[];
   nameOf: (script: Script | null) => string;
+  extensionOf: (pluginId: string | null | undefined) => string | null;
   descriptionOf: (script: Script) => string;
   isLoading: boolean;
   filterTokens: FilterToken[];
@@ -26,6 +28,7 @@ export interface ScriptsViewModel {
 export const useScriptsViewModel = (): ScriptsViewModel => {
   const t = useT('core.automation');
   const label = useLabel();
+  const extensionOf = useExtensionName();
   const { scripts, isLoading, deleteScript } = useScriptStore();
   const { openTab } = useWorkspace();
   const { notify } = useNotification();
@@ -79,6 +82,7 @@ export const useScriptsViewModel = (): ScriptsViewModel => {
   return {
     filteredScripts,
     nameOf,
+    extensionOf,
     descriptionOf,
     isLoading,
     filterTokens,

@@ -6,10 +6,12 @@ import type { WorkflowDefinition } from '../../../domain/entities/Workflow';
 import type { FilterDef, FilterToken, FilterOption } from '../../components/ui/CompositeFilter';
 
 import { useT, useLabel } from '../../shared/i18n/useT';
+import { useExtensionName } from '../../shared/extensions/useExtensionName';
 
 export interface WorkflowsViewModel {
   filteredWorkflows: WorkflowDefinition[];
   nameOf: (workflow: WorkflowDefinition | null) => string;
+  extensionOf: (pluginId: string | null | undefined) => string | null;
   isLoading: boolean;
   filterTokens: FilterToken[];
   filterDefs: FilterDef[];
@@ -30,6 +32,7 @@ export const useWorkflowsViewModel = (): WorkflowsViewModel => {
   const { notify } = useNotification();
   const t = useT('core.automation');
   const label = useLabel();
+  const extensionOf = useExtensionName();
 
   const [filterTokens, setFilterTokens] = useState<FilterToken[]>([]);
   const [workflowToDelete, setWorkflowToDelete] = useState<WorkflowDefinition | null>(null);
@@ -106,6 +109,7 @@ export const useWorkflowsViewModel = (): WorkflowsViewModel => {
   return {
     filteredWorkflows,
     nameOf,
+    extensionOf,
     isLoading,
     filterTokens,
     filterDefs,

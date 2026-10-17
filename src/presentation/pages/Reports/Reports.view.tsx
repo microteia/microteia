@@ -6,6 +6,7 @@ import { Button } from '../../components/ui/Button';
 import { CompositeFilter } from '../../components/ui/CompositeFilter';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { Spinner } from '../../components/ui/Spinner';
+import { ExtensionBadge } from '../../components/ui/ExtensionBadge';
 import { getScreenIcon } from '../../shared/screenIcons';
 
 /** A lista de relatórios. Só aparece aqui o que esta pessoa poderia executar de fato. */
@@ -56,6 +57,7 @@ export const ReportsView: React.FC = () => {
                   <S.RowName>{report.title}</S.RowName>
                   <S.RowDescription>{report.description ?? report.covers}</S.RowDescription>
                 </S.RowInfo>
+                <ExtensionBadge owner={report.extension} />
                 {vm.canManage && !report.managed && (
                   <S.RowActions>
                     <S.IconBtn

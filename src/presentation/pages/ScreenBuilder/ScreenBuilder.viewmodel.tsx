@@ -42,6 +42,7 @@ import type { SearchSelectOption } from '../../components/ui/SearchSelect';
 import type { ColorSwatchOption } from '../../components/ui/ColorSwatchPicker';
 
 import { useLabel, useT, type TranslateFn } from '../../shared/i18n/useT';
+import { useExtensionName } from '../../shared/extensions/useExtensionName';
 
 export interface BuiltinScreenRow {
   key: string;
@@ -709,6 +710,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
   const { definitions, dynamicScreens, isLoading, saveDefinition, deleteDefinition } = useScreenDefinitions();
   const recordActions = useRecordActions();
   const label = useLabel();
+  const extensionName = useExtensionName();
   const t = useT('core.records');
 
   /** Os slots cujas ações só fazem sentido numa tela com etiquetas — declarado, não presumido. */
@@ -829,8 +831,8 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     [pluginFieldKeysByScreen],
   );
   const managedScreenOwner = useCallback(
-    (screenKey: string) => dynamicDefinitions.find((def) => def.id === screenKey)?.ownerPluginId ?? null,
-    [dynamicDefinitions],
+    (screenKey: string) => extensionName(dynamicDefinitions.find((def) => def.id === screenKey)?.ownerPluginId),
+    [dynamicDefinitions, extensionName],
   );
 
   // O rótulo de uma tela fixa é declarado no registro como REFERÊNCIA (`@core.tenant/entity.plural`),

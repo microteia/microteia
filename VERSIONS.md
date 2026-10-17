@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.117.0] — 2026-10-17
+
+- As listas de Ações, Automações, Scripts e Relatórios passam a indicar, com a marca "Extensão", o que foi trazido por uma extensão. Ao passar o mouse sobre ela, aparece o nome da extensão.
+- Em Modelos de documento e no Form Design, passar o mouse sobre a marca de extensão mostra o nome dela, e não mais um código técnico.
+
 #### [9.116.2] — 2026-10-17
 
 - Corrigida a geração de documentos em Processos, Financeiro, Contratos, Prazos e Pessoas, que era recusada com o aviso de que a tela não tinha a aba Documentos — mesmo com a aba ligada. O mesmo valia para anexar e listar documentos pelo assistente de IA.

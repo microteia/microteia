@@ -6,6 +6,7 @@ import { CompositeFilter } from '../../components/ui/CompositeFilter';
 import { Button } from '../../components/ui/Button';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { Spinner } from '../../components/ui/Spinner';
+import { ExtensionBadge } from '../../components/ui/ExtensionBadge';
 
 import { useT } from '../../shared/i18n/useT';
 export const ScriptsView: React.FC = () => {
@@ -52,6 +53,7 @@ export const ScriptsView: React.FC = () => {
                   <S.RowName>{vm.nameOf(s)}</S.RowName>
                   {s.description && <S.RowDescription>{vm.descriptionOf(s)}</S.RowDescription>}
                 </S.RowInfo>
+                <ExtensionBadge owner={vm.extensionOf(s.ownerPluginId)} />
                 <S.DeleteBtn
                   title={t('script.delete')}
                   onClick={(e) => { e.stopPropagation(); vm.handleDelete(s); }}

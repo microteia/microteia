@@ -24,6 +24,7 @@ vi.mock('../../../stores/useAuthorization', () => ({
 }));
 vi.mock('../../../stores/useNotification', () => ({ useNotification: () => ({ notify }) }));
 vi.mock('../../../stores/useActions', () => ({ useActions: () => ({ actions: [] }) }));
+vi.mock('../../../stores/useInstalledExtensions', () => ({ useInstalledExtensions: () => ({ installed: [] }) }));
 vi.mock('../../../stores/useLookups', () => ({
   useLookups: () => ({ availableLookups: [], declareLookup: vi.fn() }),
 }));

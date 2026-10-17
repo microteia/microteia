@@ -7,11 +7,13 @@ import { useNotification } from '../../../stores/useNotification';
 import type { ActionDefinition } from '../../../domain/entities';
 import type { FilterDef, FilterToken } from '../../components/ui/CompositeFilter';
 import { useT, useLabel } from '../../shared/i18n/useT';
+import { useExtensionName } from '../../shared/extensions/useExtensionName';
 
 export interface ActionsViewModel {
   isAdmin: boolean;
   filteredActions: ActionDefinition[];
   titleOf: (action: ActionDefinition | null) => string;
+  extensionOf: (pluginId: string | null | undefined) => string | null;
   isLoading: boolean;
   filterTokens: FilterToken[];
   filterDefs: FilterDef[];
@@ -28,6 +30,7 @@ export interface ActionsViewModel {
 export const useActionsViewModel = (): ActionsViewModel => {
   const t = useT('core.automation');
   const label = useLabel();
+  const extensionOf = useExtensionName();
   const { actions, isLoading, deleteAction } = useActions();
   const { can } = useAuthorization();
   const { openTab } = useWorkspace();
@@ -82,6 +85,7 @@ export const useActionsViewModel = (): ActionsViewModel => {
     isAdmin: can(PERMISSION_AUTOMATION_MANAGE),
     filteredActions,
     titleOf,
+    extensionOf,
     isLoading,
     filterTokens,
     filterDefs,

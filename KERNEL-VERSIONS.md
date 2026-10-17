@@ -18,6 +18,11 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.117.0] — 2026-10-17
+
+- feat(ui): `ExtensionBadge` marks extension-owned artifacts in the Actions, Workflows, Scripts and Reports lists, with the owning extension's name as the hover title. Previously nothing in those lists told an admin which extension an artifact came from.
+- feat(ui): `useExtensionName` resolves an `ownerPluginId` to the installed extension's translated manifest name (falling back to the id once the extension is gone), built once per change of the installed set. Form Design and Document Templates now show that name on hover instead of the raw plugin id.
+
 #### [9.116.2] — 2026-10-17
 
 - fix(schema/screenEntity): the rules anchor no longer speaks for its collection. An entity that left the kernel has two `screenDefinitions` over one collection — the anchor `<collection>`, written from `builtinScreenBaseline` only so the Security Rules can read the permission (label = collection name, no tabs), and the extension screen bound to it through `dataCollection`. `mergeSchemaScreens` made the screen named after the collection the owner, so the anchor's `hasDocuments: false` and raw labels won. Since 9.105.1 resolved a template's `screenSourceId` to the physical collection, `RenderDocumentUseCase` read that merged view and refused with `@core.documents/render.documents-disabled` on every such entity; `attach_document`/`list_documents` were refused the same way, and `describe_screen` showed the collection name as label, no document operations, and looked up Actions under the anchor's id. New `isCollectionAnchor` (`origin: 'builtin'` and not in `ENTITY_REGISTRY`): an anchor never owns a merge, so id, labels, `titleFieldKey` and `sourceId` come from the declaring screen whatever the arrival order. `hasDocuments` is now the union across the screens of the collection. A `builtin` document of a registry entity is still the screen and still owns the name. `SchemaScreen` and `CatalogScreenInput` gain an optional `origin`, filled by `ScreenDefinitionCache`, `toSchemaScreens` and `installedScreenInput`. `hasNotes`/`hasTags` are not part of the schema view, and every screen reads them from its own definition.

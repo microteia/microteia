@@ -7,6 +7,7 @@ import { CompositeFilter } from '../../components/ui/CompositeFilter';
 import { Button } from '../../components/ui/Button';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { Spinner } from '../../components/ui/Spinner';
+import { ExtensionBadge } from '../../components/ui/ExtensionBadge';
 
 import { useT } from '../../shared/i18n/useT';
 
@@ -59,6 +60,7 @@ export const WorkflowsView: React.FC = () => {
                     <S.RowName>{vm.nameOf(w)}</S.RowName>
                     <S.RowEvent>{w.eventName}</S.RowEvent>
                   </S.RowInfo>
+                  <ExtensionBadge owner={vm.extensionOf(w.ownerPluginId)} />
                   <S.EnabledBadge
                     $enabled={w.enabled}
                     onClick={(e) => { e.stopPropagation(); vm.toggleEnabled(w); }}

@@ -6,6 +6,7 @@ import { CompositeFilter } from '../../components/ui/CompositeFilter';
 import { Button } from '../../components/ui/Button';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { InfoBanner } from '../../components/ui/InfoBanner';
+import { ExtensionBadge } from '../../components/ui/ExtensionBadge';
 import { Spinner } from '../../components/ui/Spinner';
 import { getScreenIcon } from '../../shared/screenIcons';
 import { useT } from '../../shared/i18n/useT';
@@ -73,6 +74,7 @@ export const ActionsView: React.FC = () => {
                   </S.RowName>
                   <S.RowDescription>{action.key}</S.RowDescription>
                 </S.RowInfo>
+                <ExtensionBadge owner={vm.extensionOf(action.ownerPluginId)} />
                 <S.DeleteBtn
                   title={t('action.delete')}
                   onClick={(e) => { e.stopPropagation(); vm.handleDelete(action); }}

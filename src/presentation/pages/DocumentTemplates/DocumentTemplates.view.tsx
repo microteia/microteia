@@ -60,7 +60,7 @@ export const DocumentTemplatesView: React.FC = () => {
               <S.RowMeta>
                 <span>{row.screenLabel}</span>
                 <S.Tag $tone="muted">{t(`format.${row.format}`)}</S.Tag>
-                <S.Tag $tone={STATE_TONE[row.state]}>{t(`state.${row.state}`)}</S.Tag>
+                <S.Tag $tone={STATE_TONE[row.state]} title={row.extension ?? undefined}>{t(`state.${row.state}`)}</S.Tag>
               </S.RowMeta>
             </S.Row>
           ))}

@@ -29,6 +29,7 @@ import type { TemplateHelpGroup } from '../../shared/documents/templateHelp';
 import { templateHelpFor } from '../../shared/documents/templateHelp';
 import type { SearchSelectOption } from '../../components/ui/SearchSelect';
 import { useLabel, useT } from '../../shared/i18n/useT';
+import { useExtensionName } from '../../shared/extensions/useExtensionName';
 
 /**
  * O estado de uma chave, do ponto de vista de quem administra:
@@ -46,6 +47,8 @@ export interface DocumentTemplateRow {
   format: DocumentTemplateFormat;
   state: DocumentTemplateRowState;
   pluginId: string | null;
+  /** O nome da extensão que declara a chave, para quem pergunta de onde o modelo veio. */
+  extension: string | null;
 }
 
 export interface TemplateIssueLine {
@@ -146,6 +149,7 @@ export const useDocumentTemplatesViewModel = (): DocumentTemplatesViewModel => {
   const { openTab } = useWorkspace();
   const contributions = useContributions(DOCUMENT_TEMPLATE_POINT);
   const screenKeyOf = useScreenKeyOfSource();
+  const extensionOf = useExtensionName();
 
   const packaged = useMemo(() => {
     const byKey = new Map<string, { spec: DocumentTemplateSpec; pluginId: string }>();
@@ -204,10 +208,11 @@ export const useDocumentTemplatesViewModel = (): DocumentTemplatesViewModel => {
           format: shown.format,
           state,
           pluginId: fromPackage?.pluginId ?? null,
+          extension: extensionOf(fromPackage?.pluginId),
         };
       })
       .sort((left, right) => left.title.localeCompare(right.title));
-  }, [packaged, tenantByKey, label, screenLabelOf, installedSpec]);
+  }, [packaged, tenantByKey, label, screenLabelOf, installedSpec, extensionOf]);
 
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [isNew, setIsNew] = useState(false);

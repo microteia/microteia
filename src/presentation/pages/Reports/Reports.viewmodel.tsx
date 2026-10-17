@@ -5,6 +5,7 @@ import { useWorkspace } from '../../../stores/useWorkspace';
 import { useNotification } from '../../../stores/useNotification';
 import { useSchemaContext } from '../../shared/useSchemaContext';
 import { useLabel, useT } from '../../shared/i18n/useT';
+import { useExtensionName } from '../../shared/extensions/useExtensionName';
 import type { FilterDef, FilterToken } from '../../components/ui/CompositeFilter';
 import { PERMISSION_REPORTS_MANAGE } from '../../../domain/schema/access';
 import { reportRequiredPermissions } from '../../../domain/schema/report/reportSpec';
@@ -20,6 +21,8 @@ export interface ReportsListItem {
   icon: string;
   /** Relatório de PACOTE não se edita nem se exclui: o dono dele é a extensão. */
   managed: boolean;
+  /** O nome da extensão que trouxe o relatório; `null` quando ele é do escritório. */
+  extension: string | null;
   /** O que o relatório cobre, mostrado como a linha de baixo do item. */
   covers: string;
 }
@@ -75,6 +78,7 @@ export const useReportsViewModel = (): ReportsViewModel => {
   const { notify } = useNotification();
   const schema = useSchemaContext();
   const label = useLabel();
+  const extensionOf = useExtensionName();
   const t = useT('core.reports');
 
   const [filterTokens, setFilterTokens] = useState<FilterToken[]>([]);
@@ -92,9 +96,10 @@ export const useReportsViewModel = (): ReportsViewModel => {
         description: report.description ? label(report.description) : null,
         icon: report.icon ?? 'fileChart',
         managed: report.managed === true,
+        extension: extensionOf(report.ownerPluginId),
         covers: report.spec.dataset.table,
       })),
-    [reports, canAll, schema, label],
+    [reports, canAll, schema, label, extensionOf],
   );
 
   const filterDefs = useMemo<FilterDef[]>(() => [
