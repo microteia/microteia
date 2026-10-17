@@ -9,6 +9,8 @@ import {
   DOCUMENT_TEMPLATE_KEY_MAX_LENGTH,
   DOCUMENT_TEMPLATE_MAX_BYTES,
   DOCUMENT_OUTPUT_FORMATS,
+  DOCUMENT_PARAMETER_TYPES,
+  DOCUMENT_TEMPLATE_SOURCES,
 } from '../document/documentTemplate';
 import { DOCUMENT_DESTINATIONS, DOWNLOAD_RETENTION_MAX_DAYS } from '../document/documentDownloads';
 import { TEMPLATE_BLOCKS, TEMPLATE_LOOP_VARIABLES } from '../document/templateGrammar';
@@ -235,6 +237,23 @@ const TEMPLATE_KEY = {
   description: 'The template key, as list_document_templates lists it.',
 };
 
+const DOCUMENT_PAYLOAD = {
+  type: 'object',
+  description:
+    'Only for a template whose source is "payload": the data it merges, checked against the template\'s '
+    + 'parameters (get_document_template lists them). An EntityReference parameter takes the record id and '
+    + 'the template reads that record\'s fields. Send it INSTEAD of collection and recordId.',
+};
+
+/**
+ * Registro OU payload: a cobrança depende do modelo, que só o caso de uso conhece — `<coleção>.read`
+ * ou `.update` sobre o registro, `documents.generate` sobre o payload, mais a leitura de cada registro
+ * que o payload aponta. Por isso as duas ferramentas são `delegated`, e o caso de uso cobra
+ * (`chargePermissions`), como o relatório.
+ */
+const RECORD_OR_PAYLOAD_NOTE =
+  'A template has a source: "record" (give collection and recordId) or "payload" (give payload). ';
+
 const DOCUMENT_TEMPLATE_MAX_KB = DOCUMENT_TEMPLATE_MAX_BYTES / 1024;
 
 const OUTPUTS_BY_FORMAT_TEXT = DOCUMENT_TEMPLATE_FORMATS
@@ -322,8 +341,34 @@ export const DOCUMENT_TEMPLATE_GRAMMAR = {
     ],
   },
   outputsByFormat: OUTPUTS_BY_FORMAT_TEXT,
+  payload: {
+    summary:
+      'A template with source "payload" has no screen and no record: whoever generates it (an automation, an '
+      + 'agent) sends the data as "payload", and the paths start at the payload. It always goes to Downloads, '
+      + 'and generating it needs the documents.generate permission.',
+    notes: [
+      'Declare the shape of the payload in "parameters" — the same parameters as a called automation: key, '
+      + 'label, type, required, list, and for type Object the nested "fields". A required parameter that is '
+      + 'missing refuses the generation; without parameters, any object is accepted as it comes.',
+      'A parameter of type EntityReference (with entityType = a collection) takes the RECORD ID, and the '
+      + 'template reads the fields of that record: {{client.name}}. With list: true it takes a list of ids, '
+      + 'and {{#each client}} repeats over the records. Only first-level references are read.',
+      'A list parameter is repeated with {{#each}} as any list; Object fields are read with a dot ({{address.city}}).',
+      'Give a "sample" payload: preview_document merges it when called without payload.',
+      'There are no "datasets" in a payload template: send the lists inside the payload.',
+    ],
+  },
   key: `Lowercase letters, digits and hyphens, starting with a letter, at most ${DOCUMENT_TEMPLATE_KEY_MAX_LENGTH} characters.`,
 } as const;
+
+const TEMPLATE_PARAMETERS = {
+  type: 'array',
+  description:
+    'Only for source "payload": the shape of the payload. Each item is { key, label, type, required?, list?, '
+    + `entityType?, lookupCollection?, fields? }, with type one of ${DOCUMENT_PARAMETER_TYPES.join(', ')}. `
+    + 'Object needs "fields" (items of the same shape); EntityReference needs "entityType" (a collection).',
+  items: { type: 'object' },
+};
 
 const TEMPLATE_DATASETS = {
   type: 'array',
@@ -734,7 +779,28 @@ export const AGENT_TOOLS: readonly AgentToolDefinition[] = [
         key: { type: 'string', description: `The template key. ${DOCUMENT_TEMPLATE_GRAMMAR.key}` },
         title: { type: 'string', description: 'The name people see when choosing the template.' },
         description: { type: 'string', description: 'An optional note about when to use it.' },
-        collection: { ...COLLECTION, description: 'The collection whose records the template describes. Its screen must have a Documents tab.' },
+        source: {
+          type: 'string',
+          enum: [...DOCUMENT_TEMPLATE_SOURCES],
+          description: 'record (default): the data is a record of "collection". payload: the data is sent by whoever generates — see document_template_guide.',
+        },
+        collection: {
+          ...COLLECTION,
+          description: 'Only for source record: the collection whose records the template describes. To attach to the record, its screen needs a Documents tab.',
+        },
+        parameters: TEMPLATE_PARAMETERS,
+        sample: { type: 'object', description: 'Only for source payload: an example payload, merged by preview_document.' },
+        destination: {
+          type: 'string',
+          enum: [...DOCUMENT_DESTINATIONS],
+          description: 'Where the file goes by default: record (the Documents tab; not for payload) or downloads.',
+        },
+        retentionDays: {
+          type: 'integer',
+          minimum: 0,
+          maximum: DOWNLOAD_RETENTION_MAX_DAYS,
+          description: 'Days a file stays in Downloads; 0 = never expires. Omit for the office setting.',
+        },
         format: { type: 'string', enum: [...DOCUMENT_TEMPLATE_FORMATS], description: 'markdown (text in "body") or docx (a Word file in "content").' },
         body: { type: 'string', description: 'The Markdown text of the template, when format is markdown.' },
         content: { type: 'string', description: `The .docx file as base64, when format is docx. At most ${DOCUMENT_TEMPLATE_MAX_KB} KB.` },
@@ -782,28 +848,32 @@ export const AGENT_TOOLS: readonly AgentToolDefinition[] = [
   {
     name: 'preview_document',
     description:
-      'The text a template produces for one record, with the values merged in, WITHOUT generating a file or '
-      + 'attaching anything: the Markdown with the values in place, or the text of a Word template. Also '
-      + 'returns the tags that came out empty and why, and the file name. Use it to check a template you '
-      + 'wrote or changed against a real record before render_document.',
+      'The text a template produces for one record or payload, with the values merged in, WITHOUT generating '
+      + 'a file or attaching anything: the Markdown with the values in place, or the text of a Word template. '
+      + 'Also returns the tags that came out empty and why, and the file name. Use it to check a template you '
+      + 'wrote or changed against real data before render_document. ' + RECORD_OR_PAYLOAD_NOTE
+      + 'A payload template without payload previews its sample.',
     inputSchema: object(
       {
         collection: { ...COLLECTION, description: 'The collection of the record — the one the template describes.' },
         recordId: RECORD_ID,
+        payload: DOCUMENT_PAYLOAD,
         template: TEMPLATE_KEY,
       },
-      ['collection', 'recordId', 'template'],
+      ['template'],
     ),
-    permission: { kind: 'collection', action: 'read' },
+    permission: { kind: 'delegated' },
     writes: false,
   },
   {
     name: 'render_document',
     description:
-      'Generate a document from a template for one record, exactly as the "Generate document" button does, and '
-      + 'deliver it to the record\'s Documents tab (destination "record", permanent, needs update permission on '
-      + 'the collection) or to Downloads (destination "downloads", temporary, needs only read permission). '
+      'Generate a document from a template, exactly as the "Generate document" button does, and deliver it to '
+      + 'the record\'s Documents tab (destination "record", permanent, needs update permission on the collection) '
+      + 'or to Downloads (destination "downloads", temporary, needs only read permission). '
       + 'Without destination, the template\'s default applies, and the Documents tab when it declares none. '
+      + RECORD_OR_PAYLOAD_NOTE
+      + 'A payload template always goes to Downloads and needs the documents.generate permission. '
       + 'Returns the file with its download link, where it went, when it expires, and how many tags came out '
       + 'empty. Every call creates a new file — do not repeat it to retry a success.',
     inputSchema: object(
@@ -814,6 +884,7 @@ export const AGENT_TOOLS: readonly AgentToolDefinition[] = [
         output: { type: 'string', enum: [...DOCUMENT_OUTPUT_FORMATS], description: 'The file to produce. Default: the first the template produces.' },
         fileName: { type: 'string', description: 'Replace the template file name for this document. Same grammar, no extension.' },
         documentType: { type: 'string', description: 'Replace the document type of the template for this document.' },
+        payload: DOCUMENT_PAYLOAD,
         destination: {
           type: 'string',
           enum: [...DOCUMENT_DESTINATIONS],
@@ -826,11 +897,10 @@ export const AGENT_TOOLS: readonly AgentToolDefinition[] = [
           description: 'Only for downloads: days until the file is deleted; 0 = never. Default: the template\'s, then the office\'s setting.',
         },
       },
-      ['collection', 'recordId', 'template'],
+      ['template'],
     ),
-    // O mínimo, como a callable `renderDocument`: o caso de uso cobra o que o DESTINO exige — anexar
-    // (`update`) ou Downloads (`read`) —, porque só ele sabe o destino quando o agente não o diz.
-    permission: { kind: 'collection', action: 'read' },
+    // Ver RECORD_OR_PAYLOAD_NOTE: quem cobra é o caso de uso, que sabe a origem e o destino.
+    permission: { kind: 'delegated' },
     writes: true,
   },
 ];

@@ -24,6 +24,7 @@ import {
   documentTemplateIssues,
   documentTemplateOf,
   isGrammarIssue,
+  isPayloadTemplate,
   isTemplateCopyOutdated,
   templateCollection,
 } from '../../../domain/schema/document/documentTemplate';
@@ -165,6 +166,9 @@ const specOf = (template: DocumentTemplateSpec): DocumentTemplateSpec => ({
   ...(template.fileName ? { fileName: template.fileName } : {}),
   ...(template.documentType ? { documentType: template.documentType } : {}),
   ...(template.datasets ? { datasets: template.datasets } : {}),
+  ...(template.source ? { source: template.source } : {}),
+  ...(template.parameters ? { parameters: template.parameters } : {}),
+  ...(template.sample ? { sample: template.sample } : {}),
   ...(template.destination ? { destination: template.destination } : {}),
   ...(template.retentionDays !== undefined ? { retentionDays: template.retentionDays } : {}),
 });
@@ -245,7 +249,7 @@ export const useDocumentTemplatesViewModel = (): DocumentTemplatesViewModel => {
           outdated: state === 'override' && !!own && !!fromPackage && isTemplateCopyOutdated(own, fromPackage.spec),
           key,
           title: label(shown.title),
-          screenLabel: screenLabelOf(shown.collection),
+          screenLabel: isPayloadTemplate(shown) ? t('source.payload') : screenLabelOf(shown.collection),
           format: shown.format,
           state,
           pluginId: fromPackage?.pluginId ?? null,
@@ -253,7 +257,7 @@ export const useDocumentTemplatesViewModel = (): DocumentTemplatesViewModel => {
         };
       })
       .sort((left, right) => left.title.localeCompare(right.title));
-  }, [packaged, tenantByKey, label, screenLabelOf, installedSpec, extensionOf]);
+  }, [packaged, tenantByKey, label, screenLabelOf, installedSpec, extensionOf, t]);
 
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [isNew, setIsNew] = useState(false);

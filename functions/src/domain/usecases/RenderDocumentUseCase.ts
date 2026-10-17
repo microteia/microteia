@@ -6,7 +6,10 @@ import type { SchemaContext } from '../schema/pathResolver';
 import { resolveQueryTable } from '../schema/querySpec';
 import { agentDocumentName, AGENT_DOCUMENT_MAX_BYTES } from '../schema/agent/agentDocument';
 import type { DocumentOutputFormat, ResolvedDocumentTemplate } from '../schema/document/documentTemplate';
-import { templateOutputs } from '../schema/document/documentTemplate';
+import { DOCUMENT_PAYLOAD_MAX_BYTES, isPayloadTemplate, templateOutputs } from '../schema/document/documentTemplate';
+import type { TemplatePaths } from '../schema/document/templateGrammar';
+import { collectRequiredIssues, formatAndValidateParameters } from '../schema/parameterRules';
+import { PERMISSION_DOCUMENTS_GENERATE } from '../schema/access';
 import type { DocumentDestination, DownloadPolicy, DownloadVisibility } from '../schema/document/documentDownloads';
 import { downloadExpiresAt, resolveRetentionDays } from '../schema/document/documentDownloads';
 import { grants } from '../schema/access';
@@ -23,7 +26,10 @@ import type { IDownloadWriter } from '../repositories/IDownloadWriter';
 export interface RenderDocumentRequest {
   tenantId: string;
   templateKey: string;
-  recordId: string;
+  /** O registro do modelo `record`. Ausente no modelo `payload`. */
+  recordId?: string;
+  /** Os dados do modelo `payload`, conferidos contra os `parameters` dele. */
+  payload?: Record<string, unknown>;
   /** Quando quem chama já sabe a tela, ela tem de ser a do modelo. */
   collection?: string;
   /** Ausente = o primeiro formato que o modelo produz. */
@@ -132,51 +138,102 @@ const evaluatorFor = (
 };
 
 /**
- * Gerar o documento de um registro a partir de um modelo e entregá-lo no DESTINO: a aba Documentos
- * do registro ou a tela Downloads.
+ * Gerar um documento a partir de um modelo — sobre um REGISTRO ou sobre um PAYLOAD — e entregá-lo
+ * no DESTINO: a aba Documentos do registro ou a tela Downloads.
  *
  * É UM caminho para as três portas — o passo "Gerar documento", o gesto do registro e o agente —, e
  * por isso o documento que a pessoa gera na tela é o mesmo que a automação gera de madrugada.
  *
  * A ordem das recusas é a da pergunta que se faria a mão: o modelo existe, ele produz o formato
  * pedido, quem pede pode entregar ali, a tela tem a aba Documentos (só quando o destino é ela), o
- * registro existe. Só então os filhos são lidos e o arquivo é
- * montado — nada é gravado antes de tudo ter dado certo.
+ * registro existe — ou, no payload, ele cumpre o contrato e as referências existem. Só então o
+ * arquivo é montado — nada é gravado antes de tudo ter dado certo.
  */
 interface PreparedDocument {
   template: ResolvedDocumentTemplate;
   destination: DocumentDestination;
   output: DocumentOutputFormat;
-  physicalCollection: string;
+  /** A coleção do registro de origem; `null` no modelo `payload`, que não tem registro. */
+  physicalCollection: string | null;
   templateText: string;
   fileNameTemplate: string;
   scope: Record<string, unknown>;
   evaluate: TemplateEvaluator;
 }
 
+type PrepareMode = 'render' | 'preview';
+
+type Prepared = { ok: true; value: PreparedDocument } | Failure;
+
+const isPlainObject = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+
+/** O texto do modelo e o do nome do arquivo, e os caminhos que os dois leem. */
+const readTemplateText = (
+  deps: RenderDocumentDeps,
+  template: ResolvedDocumentTemplate,
+  request: Omit<RenderDocumentRequest, 'author'>,
+): { ok: true; templateText: string; fileNameTemplate: string; paths: TemplatePaths } | Failure => {
+  let templateText: string;
+  try {
+    templateText = deps.renderer.templateText(template);
+  } catch (cause) {
+    if (cause instanceof DocumentRenderError) return failure(cause.reference, cause.params);
+    throw cause;
+  }
+  const fileNameTemplate = (request.fileName ?? template.fileName ?? '').trim();
+  const paths = collectTemplatePaths([
+    ...parseTemplate(templateText).nodes,
+    ...parseTemplate(fileNameTemplate).nodes,
+  ]);
+  return { ok: true, templateText, fileNameTemplate, paths };
+};
+
+const charge = (request: Omit<RenderDocumentRequest, 'author'>, permission: string): Failure | null =>
+  request.chargePermissions && !grants(request.permissions ?? [], permission)
+    ? failure('@core.access/permission.denied', { permission })
+    : null;
+
 /**
  * Tudo o que vem antes de montar o arquivo: as recusas, na ordem da pergunta que se faria à mão, e a
- * leitura do registro e das listas. A geração e a pré-visualização partem DAQUI, e por isso o texto
- * pré-visualizado é o texto que o documento terá.
+ * leitura dos dados. A geração e a pré-visualização partem DAQUI, e por isso o texto pré-visualizado
+ * é o texto que o documento terá.
+ *
+ * Os dois caminhos — registro e payload — só diferem em COMO o escopo é montado. O que vem depois
+ * (gramática, avaliador, renderizador, destino) não sabe de qual deles o escopo veio.
  */
 const prepare = async (
   deps: RenderDocumentDeps,
   request: Omit<RenderDocumentRequest, 'author'>,
-): Promise<{ ok: true; value: PreparedDocument } | Failure> => {
-    const templates = await deps.templates.resolve(request.tenantId);
-    const template = templates.find((one) => one.key === request.templateKey);
-    if (!template) return failure('@core.documents/render.template-not-found', { key: request.templateKey });
+  mode: PrepareMode,
+): Promise<Prepared> => {
+  const templates = await deps.templates.resolve(request.tenantId);
+  const template = templates.find((one) => one.key === request.templateKey);
+  if (!template) return failure('@core.documents/render.template-not-found', { key: request.templateKey });
 
+  const outputs = templateOutputs(template);
+  const output = request.output ?? outputs[0];
+  if (!output || !outputs.includes(output)) {
+    return failure('@core.documents/render.output-unsupported', { format: template.format, output: String(output ?? '') });
+  }
+
+  return isPayloadTemplate(template)
+    ? preparePayload(deps, request, template, output, mode)
+    : prepareRecord(deps, request, template, output, mode);
+};
+
+const prepareRecord = async (
+  deps: RenderDocumentDeps,
+  request: Omit<RenderDocumentRequest, 'author'>,
+  template: ResolvedDocumentTemplate,
+  output: DocumentOutputFormat,
+  mode: PrepareMode,
+): Promise<Prepared> => {
     const collection = template.collection;
     if (request.collection && request.collection !== collection) {
       return failure('@core.documents/render.collection-mismatch', { key: template.key, collection: request.collection });
     }
-
-    const outputs = templateOutputs(template);
-    const output = request.output ?? outputs[0];
-    if (!output || !outputs.includes(output)) {
-      return failure('@core.documents/render.output-unsupported', { format: template.format, output: String(output ?? '') });
-    }
+    if (!request.recordId) return failure('@core.documents/render.record-missing', { key: template.key });
 
     const schema = await deps.screens.getSchemaContext(request.tenantId);
     const table = resolveQueryTable(collection, schema);
@@ -185,29 +242,17 @@ const prepare = async (
     }
 
     const destination = request.destination ?? template.destination ?? 'record';
-    if (request.chargePermissions) {
-      const permission = collectionPermissionId(collection, destination === 'record' ? 'update' : 'read');
-      if (!grants(request.permissions ?? [], permission)) {
-        return failure('@core.access/permission.denied', { permission });
-      }
-    }
-    if (destination === 'record' && documentsScreen(schema, collection)?.hasDocuments !== true) {
+    // A pré-visualização não entrega nada: cobra só a leitura, qualquer que seja o destino.
+    const attaches = mode === 'render' && destination === 'record';
+    const denied = charge(request, collectionPermissionId(collection, attaches ? 'update' : 'read'));
+    if (denied) return denied;
+    if (attaches && documentsScreen(schema, collection)?.hasDocuments !== true) {
       return failure('@core.documents/render.documents-disabled', { collection });
     }
 
-    let templateText: string;
-    try {
-      templateText = deps.renderer.templateText(template);
-    } catch (cause) {
-      if (cause instanceof DocumentRenderError) return failure(cause.reference, cause.params);
-      throw cause;
-    }
-
-    const fileNameTemplate = (request.fileName ?? template.fileName ?? '').trim();
-    const paths = collectTemplatePaths([
-      ...parseTemplate(templateText).nodes,
-      ...parseTemplate(fileNameTemplate).nodes,
-    ]);
+    const text = readTemplateText(deps, template, request);
+    if (!text.ok) return text;
+    const { templateText, fileNameTemplate, paths } = text;
 
     const countsBusinessDays =
       mentionsBusinessDays(templateText) ||
@@ -263,6 +308,116 @@ const prepare = async (
     };
 };
 
+/** Os caminhos que o modelo lê A PARTIR de `key` — `cliente.nome` vira `nome` para o registro do cliente. */
+const pathsUnder = (paths: readonly string[], key: string): string[] =>
+  paths.filter((path) => path.startsWith(`${key}.`)).map((path) => path.slice(key.length + 1));
+
+/**
+ * O payload, conferido contra o contrato do modelo e com as referências hidratadas.
+ *
+ * É o caminho do registro com a leitura trocada: em vez de buscar um registro e seguir os vínculos
+ * dele, o escopo É o payload, e só os `EntityReference` do primeiro nível viram registro — o mesmo
+ * passo a mais que um campo de referência dá. A leitura de cada registro apontado cobra
+ * `<coleção>.read` de quem gera: o payload não pode servir de atalho para ler o que a pessoa não lê.
+ */
+const preparePayload = async (
+  deps: RenderDocumentDeps,
+  request: Omit<RenderDocumentRequest, 'author'>,
+  template: ResolvedDocumentTemplate,
+  output: DocumentOutputFormat,
+  mode: PrepareMode,
+): Promise<Prepared> => {
+  if (request.recordId || request.collection) {
+    return failure('@core.documents/render.payload-template-record', { key: template.key });
+  }
+  const payload = request.payload ?? (mode === 'preview' ? template.sample : undefined);
+  if (!isPlainObject(payload)) return failure('@core.documents/render.payload-missing', { key: template.key });
+  if (JSON.stringify(payload).length > DOCUMENT_PAYLOAD_MAX_BYTES) {
+    return failure('@core.documents/render.payload-too-large', { limitKb: String(DOCUMENT_PAYLOAD_MAX_BYTES / 1024) });
+  }
+
+  const destination = request.destination ?? template.destination ?? 'downloads';
+  if (destination === 'record') return failure('@core.documents/render.payload-destination', { key: template.key });
+  const denied = charge(request, PERMISSION_DOCUMENTS_GENERATE);
+  if (denied) return denied;
+
+  const parameters = template.parameters ?? [];
+  const [missing] = collectRequiredIssues(parameters, payload);
+  if (missing) return failure(missing.error, missing.errorParams);
+  const checked = formatAndValidateParameters(parameters, payload);
+  const [invalid] = checked.issues;
+  if (invalid) return failure(invalid.error, invalid.errorParams);
+
+  const text = readTemplateText(deps, template, request);
+  if (!text.ok) return text;
+  const { templateText, fileNameTemplate, paths } = text;
+
+  const countsBusinessDays = mentionsBusinessDays(templateText) || mentionsBusinessDays(fileNameTemplate);
+  const [locale, timeZone, businessCalendars] = await Promise.all([
+    deps.localeOf(request.tenantId),
+    deps.timeZoneOf(request.tenantId),
+    countsBusinessDays
+      ? (deps.businessCalendarsOf?.(request.tenantId) ?? Promise.resolve(null))
+      : Promise.resolve(undefined),
+  ]);
+
+  const scope: Record<string, unknown> = { ...checked.data };
+  const references = parameters.filter((parameter) => parameter.type === 'EntityReference' && parameter.entityType);
+  if (references.length > 0) {
+    const schema = await deps.screens.getSchemaContext(request.tenantId);
+    for (const parameter of references) {
+      const value = scope[parameter.key];
+      if (value === undefined || value === null || value === '') continue;
+      const table = resolveQueryTable(parameter.entityType ?? '', schema);
+      if (!table) return failure('@core.automation/mutation.table.unknown', { table: parameter.entityType ?? '' });
+      const readDenied = charge(request, collectionPermissionId(table.physicalCollection, 'read'));
+      if (readDenied) return readDenied;
+
+      const read = async (
+        id: unknown,
+        recordPaths: readonly string[],
+      ): Promise<{ ok: true; value: Record<string, unknown> } | Failure> => {
+        const outcome = await deps.records.record(
+          request.tenantId,
+          table.physicalCollection,
+          String(id),
+          recordPaths,
+          timeZone,
+          businessCalendars,
+        );
+        if (!outcome.ok) return failure(outcome.error, outcome.errorParams);
+        if (!outcome.value) {
+          return failure('@core.documents/render.payload-reference-not-found', { key: parameter.key, id: String(id) });
+        }
+        return { ok: true, value: outcome.value };
+      };
+
+      if (parameter.list) {
+        if (!Array.isArray(value)) continue;
+        const loopPaths = paths.loops.get(parameter.key) ?? [];
+        const items: Record<string, unknown>[] = [];
+        for (const id of value) {
+          const item = await read(id, loopPaths);
+          if (!item.ok) return item;
+          items.push(item.value);
+        }
+        scope[parameter.key] = items;
+      } else {
+        const item = await read(value, pathsUnder(paths.root, parameter.key));
+        if (!item.ok) return item;
+        scope[parameter.key] = item.value;
+      }
+    }
+  }
+
+  const evaluate = evaluatorFor('', locale, timeZone, request.permissions, businessCalendars);
+
+  return {
+    ok: true,
+    value: { template, destination, output, physicalCollection: null, templateText, fileNameTemplate, scope, evaluate },
+  };
+};
+
 const baseNameOf = (prepared: PreparedDocument): string =>
   (prepared.fileNameTemplate
     ? renderTemplate(parseTemplate(prepared.fileNameTemplate).nodes, prepared.scope, { evaluate: prepared.evaluate }).text.trim()
@@ -270,9 +425,9 @@ const baseNameOf = (prepared: PreparedDocument): string =>
 
 export const makeRenderDocumentUseCase = (deps: RenderDocumentDeps): RenderDocumentUseCase => ({
   execute: async (request) => {
-    const prepared = await prepare(deps, request);
+    const prepared = await prepare(deps, request, 'render');
     if (!prepared.ok) return prepared;
-    const { template, output, scope, evaluate } = prepared.value;
+    const { template, output, scope, evaluate, physicalCollection } = prepared.value;
 
     let rendered;
     try {
@@ -309,7 +464,9 @@ export const makeRenderDocumentUseCase = (deps: RenderDocumentDeps): RenderDocum
         visibility,
         expiresAt: downloadExpiresAt((deps.now ?? (() => new Date()))(), retentionDays),
         templateKey: template.key,
-        origin: { collection: prepared.value.physicalCollection, recordId: request.recordId },
+        ...(physicalCollection && request.recordId
+          ? { origin: { collection: physicalCollection, recordId: request.recordId } }
+          : {}),
         author: request.author,
       });
       return {
@@ -321,9 +478,11 @@ export const makeRenderDocumentUseCase = (deps: RenderDocumentDeps): RenderDocum
       };
     }
 
+    // Só o caminho do registro chega aqui: o do payload recusa `record` antes de ler qualquer coisa.
+    if (!physicalCollection || !request.recordId) return failure('@core.documents/render.payload-destination', { key: template.key });
     const document = await deps.writer.attach({
       tenantId: request.tenantId,
-      physicalCollection: prepared.value.physicalCollection,
+      physicalCollection,
       recordId: request.recordId,
       name,
       contentType: rendered.contentType,
@@ -336,7 +495,7 @@ export const makeRenderDocumentUseCase = (deps: RenderDocumentDeps): RenderDocum
   },
 
   preview: async (request) => {
-    const prepared = await prepare(deps, request);
+    const prepared = await prepare(deps, request, 'preview');
     if (!prepared.ok) return prepared;
     const { template, output, templateText, scope, evaluate } = prepared.value;
     // O texto que o renderizador LÊ — no Word, o remontado —, mesclado pela mesma gramática. O Markdown

@@ -51,6 +51,7 @@ import type { StepOutputField, WorkflowVariable } from '../../components/ui/Expr
 import { useT, useLabel, type TranslateFn } from '../../shared/i18n/useT';
 import { isPausingStepDefinition, isStepExcludedFromTrigger } from '../../../domain/schema/workflowStepCatalog';
 import { useResolvedDocumentTemplates } from '../../shared/documents/useResolvedDocumentTemplates';
+import { isPayloadTemplate } from '../../../domain/schema/document/documentTemplate';
 
 const queryProjectionOutputs = (
   t: TranslateFn,
@@ -384,10 +385,11 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
     return null;
   }, [atTopLevel, selectedDefinitionId, selectedDefinition, triggerEventName, t]);
 
-  const dynamicTargetKind = useMemo<'workflow' | 'script' | null>(() => {
+  const dynamicTargetKind = useMemo<'workflow' | 'script' | 'document-template' | null>(() => {
     const kind = selectedDefinition?.dynamicInputs?.kind;
     if (kind === 'from-target-workflow-parameters') return 'workflow';
     if (kind === 'from-target-script-parameters') return 'script';
+    if (kind === 'from-target-document-template-parameters') return 'document-template';
     return null;
   }, [selectedDefinition]);
 
@@ -413,17 +415,34 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
     return findByArtifactRef(scripts, id) ?? null;
   }, [dynamicTargetKind, dynamicInputsSourceId, configuration, scripts]);
 
+  /**
+   * Os modelos que VALEM no escritório — os de pacote sobrepostos pelos dele —, com a tela de cada
+   * um ao lado (ou a marca de que o modelo é de dados): é o que o seletor do passo lista.
+   */
+  const documentTemplates = useResolvedDocumentTemplates();
+
+  /** O modelo `payload` escolhido no passo "Gerar documento": os parâmetros dele viram `param.<chave>`. */
+  const targetTemplate = useMemo(() => {
+    if (dynamicTargetKind !== 'document-template' || !dynamicInputsSourceId) return null;
+    const mapping = configuration[dynamicInputsSourceId];
+    const key = mapping?.kind === 'Literal' ? String(mapping.value ?? '') : '';
+    const found = documentTemplates.find((one) => one.key === key);
+    return found && isPayloadTemplate(found) ? found : null;
+  }, [dynamicTargetKind, dynamicInputsSourceId, configuration, documentTemplates]);
+
   const effectiveInputs = useMemo<InputDefinition[]>(() => {
     if (!selectedDefinition) return [];
     if (!dynamicInputsSourceId) return selectedDefinition.inputs;
     const source = dynamicTargetKind === 'script'
       ? (targetScript?.inputParams ?? [])
-      : (targetWorkflow?.parameters ?? []);
+      : dynamicTargetKind === 'document-template'
+        ? (targetTemplate?.parameters ?? [])
+        : (targetWorkflow?.parameters ?? []);
     const paramInputs = source.flatMap(
       (parameter) => flattenParameterInputs(label, parameterForDisplay(label, parameter)),
     );
     return [...selectedDefinition.inputs, ...paramInputs];
-  }, [selectedDefinition, dynamicInputsSourceId, dynamicTargetKind, targetWorkflow, targetScript, label]);
+  }, [selectedDefinition, dynamicInputsSourceId, dynamicTargetKind, targetWorkflow, targetScript, targetTemplate, label]);
 
   /**
    * As automações que este passo pode chamar: as CHAMÁVEIS, ativas, menos ela mesma.
@@ -508,14 +527,13 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
     [permissionCatalog, label],
   );
 
-  /**
-   * Os modelos que VALEM no escritório — os de pacote sobrepostos pelos dele —, com a tela de cada
-   * um ao lado: o passo gera o documento do registro que o modelo descreve, e a tela é o que diz qual.
-   */
-  const documentTemplates = useResolvedDocumentTemplates();
   const documentTemplateOptions = useMemo(
-    () => documentTemplates.map((template) => ({ value: template.key, label: label(template.title), meta: template.collection })),
-    [documentTemplates, label],
+    () => documentTemplates.map((template) => ({
+      value: template.key,
+      label: label(template.title),
+      meta: isPayloadTemplate(template) ? t('step.render-document.meta.payload') : template.collection,
+    })),
+    [documentTemplates, label, t],
   );
 
   const aiConnectionOptions = useMemo(

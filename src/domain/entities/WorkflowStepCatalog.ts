@@ -130,6 +130,12 @@ export type DynamicInputsMetadata =
       /** ID do input (Literal) que guarda o id do Script cujos inputParams viram inputs `param.<chave>`. */
       sourceInputId: string;
       description?: string;
+    }
+  | {
+      kind: 'from-target-document-template-parameters';
+      /** ID do input (Literal) que guarda a chave do modelo `payload` cujos parâmetros viram inputs `param.<chave>`. */
+      sourceInputId: string;
+      description?: string;
     };
 
 /**

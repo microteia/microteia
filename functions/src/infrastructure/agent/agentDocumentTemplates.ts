@@ -5,7 +5,7 @@ import type { QualifiedContribution } from '../../domain/schema/plugin/contribut
 import type { SchemaContext, SchemaScreen } from '../../domain/schema/screenEntity';
 import { collectionPermissionId } from '../../domain/schema/access/permission';
 import { grants } from '../../domain/schema/access/memberPermissions';
-import { PERMISSION_DOCUMENT_TEMPLATES_MANAGE } from '../../domain/schema/access/kernelPermissions';
+import { PERMISSION_DOCUMENT_TEMPLATES_MANAGE, PERMISSION_DOCUMENTS_GENERATE } from '../../domain/schema/access/kernelPermissions';
 import { FIELD_EXPRESSION_FUNCTION_NAMES } from '../../domain/schema/fieldExpression';
 import type {
   DocumentTemplate,
@@ -24,6 +24,7 @@ import {
   documentTemplateIssues,
   documentTemplateOf,
   isGrammarIssue,
+  isPayloadTemplate,
   isTemplateCopyOutdated,
   resolveDocumentTemplates,
   templateCollection,
@@ -124,8 +125,9 @@ const shownSpec = (world: TemplateWorld, key: string): DocumentTemplateSpec | nu
   return world.packaged.get(key)?.spec ?? own ?? null;
 };
 
-/** A coleção física da tela do modelo, ou `null` quando a tela não está instalada. */
+/** A coleção física da tela do modelo, ou `null` quando a tela não está instalada — ou não há tela. */
 const physicalCollectionOf = (world: TemplateWorld, spec: DocumentTemplateSpec): string | null => {
+  if (isPayloadTemplate(spec)) return null;
   const key = templateCollection(spec, world.index.keyOfSource);
   return key === null ? null : world.index.collectionOf(key);
 };
@@ -152,7 +154,12 @@ const agentSpec = (world: TemplateWorld, spec: DocumentTemplateSpec, catalog: Me
   key: spec.key,
   title: resolveLabel(catalog, spec.title),
   ...(spec.description ? { description: resolveLabel(catalog, spec.description) } : {}),
-  collection: physicalCollectionOf(world, spec),
+  source: spec.source ?? 'record',
+  ...(isPayloadTemplate(spec) ? {} : { collection: physicalCollectionOf(world, spec) }),
+  ...(spec.parameters ? { parameters: spec.parameters } : {}),
+  ...(spec.sample ? { sample: spec.sample } : {}),
+  ...(spec.destination ? { destination: spec.destination } : {}),
+  ...(spec.retentionDays !== undefined ? { retentionDays: spec.retentionDays } : {}),
   format: spec.format,
   outputs: templateOutputs(spec),
   ...(spec.fileName ? { fileName: spec.fileName } : {}),
@@ -171,8 +178,11 @@ const agentSpec = (world: TemplateWorld, spec: DocumentTemplateSpec, catalog: Me
     : {}),
 });
 
-const canRender = (session: AgentSession, collection: string | null): boolean =>
-  collection !== null && grants(session.permissions, collectionPermissionId(collection, 'update'));
+/** Pode gerar pelo caminho mais comum: anexar ao registro, ou — no modelo de dados — gerar em Downloads. */
+const canRender = (session: AgentSession, spec: DocumentTemplateSpec, collection: string | null): boolean =>
+  isPayloadTemplate(spec)
+    ? grants(session.permissions, PERMISSION_DOCUMENTS_GENERATE)
+    : collection !== null && grants(session.permissions, collectionPermissionId(collection, 'update'));
 
 const canManage = (session: AgentSession): boolean => grants(session.permissions, PERMISSION_DOCUMENT_TEMPLATES_MANAGE);
 
@@ -199,7 +209,8 @@ export const listAgentDocumentTemplates = async (
       const state = stateOf(world, key);
       if (!spec || !state) return [];
       const view = agentSpec(world, spec, catalog);
-      if (wantedCollection && view.collection !== wantedCollection) return [];
+      const collection = physicalCollectionOf(world, spec);
+      if (wantedCollection && collection !== wantedCollection) return [];
       if (wantedState !== 'all' && state !== wantedState) return [];
       const own = world.office.get(key);
       const original = world.packaged.get(key);
@@ -211,7 +222,7 @@ export const listAgentDocumentTemplates = async (
         // Fora de circulação sem ter sido desligado: a tela (ou uma lista) é de uma extensão que este
         // escritório não tem. O modelo existe, mas não é oferecido em registro nenhum.
         ...(state !== 'disabled' && !resolvable.has(key) ? { screenMissing: true } : {}),
-        canRender: state !== 'disabled' && resolvable.has(key) && canRender(session, view.collection),
+        canRender: state !== 'disabled' && resolvable.has(key) && canRender(session, spec, collection),
       }];
     })
     .sort((left, right) => left.title.localeCompare(right.title));
@@ -231,6 +242,18 @@ const readableText = (spec: DocumentTemplateSpec): { ok: true; text: string } | 
   }
 };
 
+/**
+ * O caminho de um modelo `payload` que não começa num parâmetro declarado sai vazio. Sem parâmetros
+ * declarados não há contra o que conferir — qualquer objeto é aceito —, e nada é dito.
+ */
+const payloadPathWarnings = (spec: DocumentTemplateSpec, rootPaths: readonly string[], catalog: MessageCatalog) => {
+  const declared = new Set((spec.parameters ?? []).map((parameter) => parameter.key));
+  if (declared.size === 0) return [];
+  return rootPaths
+    .filter((path) => !declared.has(path.split('.')[0]))
+    .map((path) => ({ path, scope: 'payload', ...agentText(catalog, '@core.documents/template.payload.path-unknown', { path }) }));
+};
+
 /** O que um agente precisa saber de um texto de modelo antes de confiar nele. */
 const inspect = (
   world: TemplateWorld,
@@ -241,7 +264,9 @@ const inspect = (
 ) => {
   const collection = physicalCollectionOf(world, spec);
   const paths = collectTemplatePaths(parseTemplate(text).nodes);
-  const pathWarnings = collection === null
+  const pathWarnings = isPayloadTemplate(spec)
+    ? payloadPathWarnings(spec, paths.root, catalog)
+    : collection === null
     ? []
     : templatePathIssues(schema, collection, physicalDatasets(world, spec.datasets), [text, spec.fileName ?? ''])
       .map((issue) => ({ path: issue.path, scope: issue.scope, ...agentText(catalog, issue.error, issue.errorParams) }));
@@ -337,6 +362,7 @@ export const agentDocumentTemplateGuide = async (
       blocks: DOCUMENT_TEMPLATE_GRAMMAR.blocks,
       rules: DOCUMENT_TEMPLATE_GRAMMAR.rules,
       key: DOCUMENT_TEMPLATE_GRAMMAR.key,
+      payload: DOCUMENT_TEMPLATE_GRAMMAR.payload,
       ...(format === 'markdown' ? { markdown: DOCUMENT_TEMPLATE_GRAMMAR.markdown } : { docx: DOCUMENT_TEMPLATE_GRAMMAR.docx }),
     },
     functions: templateFunctions(catalog),
@@ -398,7 +424,10 @@ export const agentDocumentTemplateGuide = async (
 const normalizedContent = (value: unknown): string | undefined =>
   (typeof value === 'string' ? value.replace(/^data:[^,]*,/, '').replace(/\s+/g, '') : undefined);
 
-const SPEC_FIELDS = ['title', 'description', 'format', 'body', 'outputs', 'fileName', 'documentType'] as const;
+const SPEC_FIELDS = [
+  'title', 'description', 'format', 'body', 'outputs', 'fileName', 'documentType',
+  'source', 'parameters', 'sample', 'destination', 'retentionDays',
+] as const;
 
 type DatasetResolution = { ok: true; datasets: DocumentTemplateDataset[] } | { ok: false; collection: string };
 
@@ -469,13 +498,18 @@ export const saveAgentDocumentTemplate = async (
 
   const merged: DocumentTemplateSpec = { ...(own ? contentOf(own) : {}), ...patch, key } as DocumentTemplateSpec;
 
-  if (input.collection !== undefined) {
+  // O modelo de dados não tem tela nem lista filha: o que sobrou de quando ele era de registro sai.
+  if (isPayloadTemplate(merged)) {
+    merged.collection = '';
+    delete merged.screenSourceId;
+    delete merged.datasets;
+  } else if (input.collection !== undefined) {
     const screenKey = screenKeyOfCollection(world.screens, asText(input.collection));
     if (screenKey === null) return refuse('@core.automation/mutation.table.unknown', { table: asText(input.collection) });
     merged.collection = screenKey;
     delete merged.screenSourceId;
   }
-  if (input.datasets !== undefined) {
+  if (input.datasets !== undefined && !isPayloadTemplate(merged)) {
     const datasets = datasetsFromAgent(world.screens, input.datasets);
     if (!datasets.ok) return refuse('@core.automation/mutation.table.unknown', { table: datasets.collection });
     merged.datasets = datasets.datasets;
@@ -500,7 +534,9 @@ export const saveAgentDocumentTemplate = async (
   const shapeIssues = documentTemplateIssues(merged).filter((issue) => !isGrammarIssue(issue));
   const collection = physicalCollectionOf(world, merged);
   const screen = collection === null ? undefined : schema.screens.get(collection);
-  if (shapeIssues.length === 0 && collection !== null && screen?.hasDocuments !== true) {
+  // A aba só é exigida de quem, por padrão, anexa: um modelo que vai para Downloads serve a qualquer tela.
+  const attaches = (merged.destination ?? 'record') === 'record';
+  if (shapeIssues.length === 0 && attaches && collection !== null && screen?.hasDocuments !== true) {
     shapeIssues.push({ field: 'collection', error: '@core.documents/render.documents-disabled', errorParams: { collection } });
   }
   const read = shapeIssues.length === 0 ? readableText(merged) : null;

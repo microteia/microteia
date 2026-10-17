@@ -194,6 +194,9 @@ export const CORE_ACCESS_MESSAGES: Record<string, string> = {
   'permission.document-templates.manage.description':
     'Create, edit and remove the document templates of the organization, and customize or turn off the ones extensions bring. Generating a document from a record still requires being able to edit that record to attach it, or to read it to save it to Downloads.',
   'permission.downloads.manage': 'Manage downloads',
+  'permission.documents.generate': 'Generate documents from data',
+  'permission.documents.generate.description':
+    'Generate documents from templates that take their data from whoever generates them — an automation, an AI agent — instead of from a record. The file goes to Downloads; records the data points to still require permission to read them.',
   'permission.downloads.manage.description':
     'See and delete every file in Downloads, including the ones other people generated and the ones automations generated for managers only.',
   'permission.members.manage': 'Manage members',
@@ -235,6 +238,7 @@ export const CORE_ACCESS_MESSAGES: Record<string, string> = {
   'resource.reports': 'Reports',
   'resource.document-templates': 'Document templates',
   'resource.downloads': 'Downloads',
+  'resource.documents': 'Documents',
   'resource.roles': 'Access profiles',
   'resource.screens': 'Screens',
   'resource.settings': 'Settings',

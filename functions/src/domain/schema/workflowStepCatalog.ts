@@ -183,6 +183,12 @@ export type DynamicInputsMetadata =
       /** ID do input (Literal) que guarda o id do workflow-alvo cujos parâmetros viram inputs. */
       sourceInputId: string;
       description?: string;
+    }
+  | {
+      kind: 'from-target-document-template-parameters';
+      /** ID do input (Literal) que guarda a chave do modelo `payload` cujos parâmetros viram inputs `param.<chave>`. */
+      sourceInputId: string;
+      description?: string;
     };
 
 /**
@@ -788,7 +794,9 @@ export const CORE_STEP_CATALOG: readonly WorkflowStepMetadata[] = [
     /**
      * Gera o documento de um registro a partir de um modelo (`document.template` ou o do escritório,
      * que vence na mesma chave) e o entrega na aba Documentos ou em Downloads. A tela é a do MODELO:
-     * quem escolhe o modelo escolhe de que registro ele fala, e por isso não há input de coleção.
+     * quem escolhe o modelo escolhe de que registro ele fala, e por isso não há input de coleção. O
+     * modelo `payload` não tem registro: os dados vêm de `payload` e dos `param.<chave>` que os
+     * parâmetros dele geram.
      */
     id: 'render-document',
     version: 1,
@@ -810,8 +818,20 @@ export const CORE_STEP_CATALOG: readonly WorkflowStepMetadata[] = [
         id: 'recordId',
         label: '@core.automation/step.render-document.label.record',
         description: '@core.automation/step.render-document.help.record',
-        required: true,
+        required: false,
         type: 'String',
+      },
+      {
+        /**
+         * Os dados de um modelo `payload` EM BLOCO — tipicamente o que um passo anterior montou. Os
+         * `param.<chave>` declarados um a um vencem chave por chave, como em "Chamar Workflow".
+         */
+        id: 'payload',
+        label: '@core.automation/step.render-document.label.payload',
+        description: '@core.automation/step.render-document.help.payload',
+        required: false,
+        type: 'Expression',
+        allowedMappingKinds: ['Expression', 'Output', 'Variable', 'Event'],
       },
       {
         id: 'output',
@@ -872,6 +892,7 @@ export const CORE_STEP_CATALOG: readonly WorkflowStepMetadata[] = [
       { id: 'destination', label: '@core.automation/step.render-document.output.destination', type: 'String' },
       { id: 'expiresAt', label: '@core.automation/step.render-document.output.expires-at', type: 'String' },
     ],
+    dynamicInputs: { kind: 'from-target-document-template-parameters', sourceInputId: 'templateKey' },
     appendsEachRun: true,
   },
 ];

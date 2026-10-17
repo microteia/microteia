@@ -1,5 +1,7 @@
 import type { StepDefinition, WorkflowStepExecutor } from '../../../domain/engine/StepDefinition';
 import { coreStepMetadata } from '../../../domain/engine/StepDefinition';
+import { resolveMapping } from '../../../domain/engine/InputMapping';
+import { buildNestedParams } from '../../../domain/engine/nestedParams';
 import type { WorkflowContext, WorkflowResult } from '../../../domain/entities/WorkflowContext';
 import type { RenderDocumentUseCase } from '../../../domain/usecases/RenderDocumentUseCase';
 import type { RecordDocumentAuthor } from '../../../domain/repositories/IRecordDocumentWriter';
@@ -8,6 +10,11 @@ import { DOCUMENT_OUTPUT_FORMATS } from '../../../domain/schema/document/documen
 import { DOWNLOAD_RETENTION_MAX_DAYS, isDocumentDestination, isRetentionDays } from '../../../domain/schema/document/documentDownloads';
 
 const WORKFLOW_ACTOR = 'workflow-engine';
+
+const PARAM_PREFIX = 'param.';
+
+const isPlainObject = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
 
 const textOf = (value: unknown): string => (value === undefined || value === null ? '' : String(value).trim());
 
@@ -67,12 +74,22 @@ export const makeRenderDocumentStepDefinition = (renderDocument: RenderDocumentU
         };
       }
 
+      // Sem registro, os dados são o payload: o bloco primeiro, e os `param.<chave>` por cima — o gesto
+      // mais específico manda, como em "Chamar Workflow". Com registro, nada disso é enviado, e o caso
+      // de uso recusa o modelo `payload` dizendo por quê.
+      const recordId = textOf(inputs.recordId);
+      const paramEntries: [string, unknown][] = [];
+      for (const [key, mapping] of Object.entries(context.stepConfiguration ?? {})) {
+        if (key.startsWith(PARAM_PREFIX)) paramEntries.push([key.slice(PARAM_PREFIX.length), resolveMapping(mapping, context)]);
+      }
+      const payload = { ...(isPlainObject(inputs.payload) ? inputs.payload : {}), ...buildNestedParams(paramEntries) };
+
       const fileName = textOf(inputs.fileName);
       const documentType = textOf(inputs.documentType);
       const result = await renderDocument.execute({
         tenantId: context.execution.tenantId,
         templateKey: textOf(inputs.templateKey),
-        recordId: textOf(inputs.recordId),
+        ...(recordId ? { recordId } : { payload }),
         ...(output ? { output } : {}),
         ...(fileName ? { fileName } : {}),
         ...(documentType ? { documentType } : {}),

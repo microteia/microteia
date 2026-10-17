@@ -29,6 +29,9 @@ import {
   DOCUMENT_OUTPUTS_BY_FORMAT,
   DOCUMENT_TEMPLATE_MAX_BYTES,
   DOCUMENT_DESTINATION_SINCE_KERNEL,
+  DOCUMENT_PARAMETER_TYPES,
+  DOCUMENT_PAYLOAD_MAX_BYTES,
+  DOCUMENT_PAYLOAD_SINCE_KERNEL,
   DOCUMENT_TEMPLATE_SINCE_KERNEL,
   DOWNLOAD_RETENTION_MAX_DAYS,
   TEMPLATE_BLOCKS,
@@ -2396,6 +2399,43 @@ Where the file goes is the template's default, and whoever generates it may ask 
   expires) overrides the organization's retention setting; past it, the file is deleted.
 
 Both fields require kernel \`^${DOCUMENT_DESTINATION_SINCE_KERNEL}\`; an older kernel ignores them and attaches.
+
+### Templates of data — \`source: 'payload'\`
+
+Not every document is about a record. A template with \`source: 'payload'\` has no screen: whoever
+generates it — an automation, an AI agent — sends the data, and the paths start at that object. It
+always goes to Downloads, and generating it needs the \`documents.generate\` permission.
+
+\`\`\`ts
+documentTemplateContribution({
+  key: 'acme-quote',
+  title: label('template.quote'),
+  source: 'payload',
+  collection: '',                           // no screen
+  format: 'markdown',
+  body: QUOTE,                              // {{customer.name}}, {{#each lines}}…{{/each}}
+  parameters: [
+    { key: 'customer', label: 'Customer', type: 'EntityReference', entityType: 'acmeCustomer', required: true },
+    { key: 'lines', label: 'Lines', type: 'Object', list: true, fields: [
+      { key: 'description', label: 'Description', type: 'String', required: true },
+      { key: 'amount', label: 'Amount', type: 'Number' },
+    ] },
+  ],
+  sample: { customer: '', lines: [{ description: 'Setup', amount: 100 }] },
+}),
+\`\`\`
+
+- \`parameters\` are the parameters of a called automation — types ${DOCUMENT_PARAMETER_TYPES.map((type) => `\`${type}\``).join(', ')},
+  \`Object\` + \`fields\` for nesting, \`list\` for collections, \`required\` and \`rules\`. A missing
+  required parameter refuses the generation; without parameters any object is accepted as it comes.
+- A first-level \`EntityReference\` takes the record id and is hydrated like a reference field:
+  \`{{customer.name}}\` reads the record. Reading it charges \`<collection>.read\` of whoever generates.
+- No \`datasets\` and no \`destination: 'record'\` — there is no record. The payload is at most
+  ${DOCUMENT_PAYLOAD_MAX_BYTES / 1024} KB of JSON. \`sample\` is what the preview merges.
+- The \`render-document\` step offers each parameter as its own input (\`param.<key>\`), plus a \`payload\`
+  input for a whole object.
+
+Requires kernel \`^${DOCUMENT_PAYLOAD_SINCE_KERNEL}\`; an older kernel finds no screen and drops the template.
 
 ### The grammar
 

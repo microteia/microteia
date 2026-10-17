@@ -401,6 +401,24 @@ export const runAgentOperation = async (
   }
 };
 
+/**
+ * O modelo e os dados que ele mescla: o registro (`collection` + `recordId`) ou o `payload`. Só o que
+ * veio é repassado — o caso de uso recusa a combinação que não serve ao modelo, com a frase dele.
+ */
+const documentDataOf = (input: Record<string, unknown>) => {
+  const collection = asText(input.collection);
+  const recordId = asText(input.recordId);
+  const payload = input.payload;
+  return {
+    templateKey: asText(input.template),
+    ...(collection ? { collection } : {}),
+    ...(recordId ? { recordId } : {}),
+    ...(typeof payload === 'object' && payload !== null && !Array.isArray(payload)
+      ? { payload: payload as Record<string, unknown> }
+      : {}),
+  };
+};
+
 /** As marcas que saíram vazias, com a frase de cada uma — é o que diz ao agente o que corrigir. */
 const emptyFieldDetails = (catalog: MessageCatalog, issues: readonly { expression: string; detail: string }[]) =>
   issues.map((issue) => ({
@@ -419,9 +437,8 @@ const previewAgentDocument = async (
 ): Promise<AgentOperationOutcome> => {
   const result = await getDI().getRenderDocumentUseCase().preview({
     tenantId: session.tenantId,
-    templateKey: asText(input.template),
-    collection: asText(input.collection),
-    recordId: asText(input.recordId),
+    ...documentDataOf(input),
+    chargePermissions: true,
     permissions: session.permissions,
   });
   if (!result.ok) return refuse(catalog, result.error, result.errorParams);
@@ -459,9 +476,7 @@ const renderAgentDocument = async (
   }
   const result = await getDI().getRenderDocumentUseCase().execute({
     tenantId: session.tenantId,
-    templateKey: asText(input.template),
-    collection: asText(input.collection),
-    recordId: asText(input.recordId),
+    ...documentDataOf(input),
     ...(output ? { output: output as DocumentOutputFormat } : {}),
     ...(fileName ? { fileName } : {}),
     ...(documentType ? { documentType } : {}),

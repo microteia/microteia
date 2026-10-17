@@ -7,12 +7,15 @@ import type { DocumentOutputFormat } from '../../domain/schema/document/document
 import { DOCUMENT_OUTPUT_FORMATS } from '../../domain/schema/document/documentTemplate';
 import type { DocumentDestination } from '../../domain/schema/document/documentDownloads';
 import { isDocumentDestination, isRetentionDays } from '../../domain/schema/document/documentDownloads';
+import { PERMISSION_DOCUMENTS_GENERATE } from '../../domain/schema/access';
 
 interface RenderDocumentRequest {
   tenantId: string;
   templateKey: string;
-  collection: string;
-  recordId: string;
+  collection?: string;
+  recordId?: string;
+  /** Os dados de um modelo `payload` — no lugar de `collection` + `recordId`. */
+  payload?: Record<string, unknown>;
   output?: string;
   destination?: string;
   expiresInDays?: number;
@@ -41,6 +44,9 @@ const textOf = (value: unknown): string => (typeof value === 'string' ? value.tr
  * chama não o diz. A coleção vem de quem chama e é conferida contra a do modelo dentro do caso de
  * uso — sem isso, a permissão de uma tela daria acesso a gerar sobre outra.
  *
+ * Com `payload`, o modelo é de dados e não de registro: a porta cobra `documents.generate`, e o caso
+ * de uso cobra ainda a leitura de cada registro que o payload aponta.
+ *
  * Falha de geração volta em `error` e não lança, como `runAction`: a tela mostra a frase do motivo.
  */
 export const renderDocument = onCall(
@@ -58,7 +64,10 @@ export const renderDocument = onCall(
     const expiresInDays = data.expiresInDays;
 
     if (!tenantId) throw new HttpsError('invalid-argument', '@core.automation/handler.tenant.missing');
-    if (!templateKey || !collection || !recordId) {
+    const payload = typeof data.payload === 'object' && data.payload !== null && !Array.isArray(data.payload)
+      ? data.payload
+      : undefined;
+    if (!templateKey || (!payload && (!collection || !recordId))) {
       throw new HttpsError('invalid-argument', '@core.documents/render.request-invalid');
     }
     if (output && !(DOCUMENT_OUTPUT_FORMATS as readonly string[]).includes(output)) {
@@ -72,14 +81,17 @@ export const renderDocument = onCall(
       throw new HttpsError('invalid-argument', '@core.documents/render.request-invalid');
     }
 
-    const permissions = await requirePermission(tenantId, request.auth.uid, collectionPermissionId(collection, 'read'));
+    const permissions = await requirePermission(
+      tenantId,
+      request.auth.uid,
+      payload ? PERMISSION_DOCUMENTS_GENERATE : collectionPermissionId(collection, 'read'),
+    );
     const actor = await identifyActor(request.auth.uid, 'ui', permissions);
 
     const result = await getDI().getRenderDocumentUseCase().execute({
       tenantId,
       templateKey,
-      collection,
-      recordId,
+      ...(payload ? { payload } : { collection, recordId }),
       ...(output ? { output: output as DocumentOutputFormat } : {}),
       ...(destination ? { destination: destination as DocumentDestination } : {}),
       ...(isRetentionDays(expiresInDays) ? { expiresInDays } : {}),

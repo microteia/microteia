@@ -11,6 +11,12 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.122.0] — 2026-10-17
+
+- Modelos de documento agora podem ser preenchidos com dados enviados por uma automação ou por um agente de IA, sem depender de um registro de uma tela — ideal para recibos, propostas e comprovantes montados na hora. O documento vai para Downloads.
+- Esses modelos dizem quais informações esperam, inclusive grupos e listas, e avisam quando falta alguma obrigatória. Quando a informação aponta para um registro, como um cliente, o documento lê os dados dele.
+- Nas automações, o passo "Gerar Documento" mostra um campo para cada informação que o modelo espera.
+
 #### [9.121.0] — 2026-10-17
 
 - Nova tela **Downloads**: documentos gerados que não precisam ficar guardados no registro — um recibo para entregar, um extrato para enviar — vão para lá, prontos para baixar, e são excluídos sozinhos quando vencem.

@@ -36,6 +36,7 @@ export const PERMISSION_DOCUMENT_TYPES_MANAGE = 'document-types.manage';
 export const PERMISSION_REPORTS_MANAGE = 'reports.manage';
 export const PERMISSION_DOCUMENT_TEMPLATES_MANAGE = 'document-templates.manage';
 export const PERMISSION_DOWNLOADS_MANAGE = 'downloads.manage';
+export const PERMISSION_DOCUMENTS_GENERATE = 'documents.generate';
 
 /**
  * O nome e a descrição vão por extenso, e não montados a partir do `id`. Uma referência composta em
@@ -138,6 +139,13 @@ export const KERNEL_PERMISSIONS: AccessPermission[] = [
     name: '@core.access/permission.downloads.manage',
     description: '@core.access/permission.downloads.manage.description',
   },
+  {
+    // Gerar a partir de DADOS entregues (modelo `payload`), sem registro por trás. Não dá acesso a
+    // registro nenhum: o que o payload aponta continua cobrando `<coleção>.read` de quem gera.
+    id: PERMISSION_DOCUMENTS_GENERATE,
+    name: '@core.access/permission.documents.generate',
+    description: '@core.access/permission.documents.generate.description',
+  },
 ];
 
 export const KERNEL_PERMISSION_RESOURCES: PermissionResource[] = [
@@ -157,4 +165,5 @@ export const KERNEL_PERMISSION_RESOURCES: PermissionResource[] = [
   { id: 'reports', name: '@core.access/resource.reports' },
   { id: 'document-templates', name: '@core.access/resource.document-templates' },
   { id: 'downloads', name: '@core.access/resource.downloads' },
+  { id: 'documents', name: '@core.access/resource.documents' },
 ];

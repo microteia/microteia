@@ -10,6 +10,7 @@ import { GRAMMAR_ISSUES, parseTemplate } from './templateGrammar';
 import { contentFingerprint } from '../contentFingerprint';
 import type { DocumentDestination } from './documentDownloads';
 import { DOWNLOAD_RETENTION_MAX_DAYS, isDocumentDestination, isRetentionDays } from './documentDownloads';
+import type { WorkflowParameter, WorkflowParameterType } from '../../entities/Workflow';
 
 /**
  * O modelo de documento — procuração, contrato, recibo, notificação — como DADO.
@@ -23,6 +24,24 @@ import { DOWNLOAD_RETENTION_MAX_DAYS, isDocumentDestination, isRetentionDays } f
 export type DocumentTemplateFormat = 'markdown' | 'docx';
 
 export type DocumentOutputFormat = 'pdf' | 'docx';
+
+/**
+ * De onde vêm os dados que o modelo mescla.
+ *
+ * - `record`: um registro da tela do modelo, lido e hidratado pelos caminhos que o texto usa.
+ * - `payload`: um objeto entregue por quem gera — uma automação, um agente — e conferido contra os
+ *   `parameters` que o modelo declara. Não há tela, nem registro, nem aba Documentos: o arquivo vai
+ *   para Downloads.
+ *
+ * O registro é o payload depois de um passo a mais: a hidratação. A gramática, o avaliador e o
+ * renderizador não sabem de qual dos dois o escopo veio.
+ */
+export type DocumentTemplateSource = 'record' | 'payload';
+
+export const DOCUMENT_TEMPLATE_SOURCES: readonly DocumentTemplateSource[] = ['record', 'payload'];
+
+/** O teto do payload, em bytes de JSON. Mais que isso não é um documento, é uma carga de dados. */
+export const DOCUMENT_PAYLOAD_MAX_BYTES = 256 * 1024;
 
 export const DOCUMENT_TEMPLATE_FORMATS: readonly DocumentTemplateFormat[] = ['markdown', 'docx'];
 
@@ -64,7 +83,12 @@ export interface DocumentTemplateSpec {
   key: string;
   title: string;
   description?: string;
-  /** A tela cujos registros o modelo descreve (a chave dela). Os caminhos partem dela. */
+  /** Ausente = `record`, o comportamento de antes do campo. */
+  source?: DocumentTemplateSource;
+  /**
+   * A tela cujos registros o modelo descreve (a chave dela). Os caminhos partem dela. Num modelo
+   * `payload` fica vazia: os caminhos partem do payload.
+   */
   collection: string;
   /**
    * A tela de um PACOTE, pelo `sourceId` — vence `collection`. A chave de uma tela de pacote pode
@@ -89,6 +113,15 @@ export interface DocumentTemplateSpec {
    * do campo. É só o PADRÃO: o gesto, o passo e o agente podem pedir o outro destino.
    */
   destination?: DocumentDestination;
+  /**
+   * O contrato do payload, quando `source` é `payload`: os mesmos parâmetros das automações — com
+   * `Object` + `fields` para o aninhado, `list` para as coleções, `required` e `rules`. Um
+   * `EntityReference` é hidratado como o campo de referência de um registro: o payload traz o id, e
+   * `{{cliente.nome}}` lê o registro apontado. Sem parâmetros, qualquer objeto é aceito como vem.
+   */
+  parameters?: WorkflowParameter[];
+  /** Um payload de exemplo — o que a pré-visualização mescla quando ninguém entrega um. */
+  sample?: Record<string, unknown>;
   /**
    * Quantos dias o arquivo fica em Downloads (`0` = não expira). Ausente = o que o escritório
    * configurou. Não vale para `record`: o anexo do registro é permanente.
@@ -131,6 +164,9 @@ export const DOCUMENT_TEMPLATES_COLLECTION = 'documentTemplates';
 /** O kernel que entende `document.template`. Um pacote que o contribui declara `kernel: '^<esta>'`. */
 export const DOCUMENT_TEMPLATE_SINCE_KERNEL = '2.36.0';
 
+/** O kernel que entende `source: 'payload'`, `parameters` e `sample`. Um anterior descarta o modelo sem tela. */
+export const DOCUMENT_PAYLOAD_SINCE_KERNEL = '2.48.0';
+
 /**
  * O teto do arquivo `.docx`. O modelo é guardado num documento do Firestore (limite de 1 MiB) e
  * viaja num pacote (teto de 800 KB): 512 KB decodificados são ~683 KB de base64, e cabem nos dois.
@@ -162,6 +198,74 @@ export interface DocumentTemplateIssue extends TemplateIssue {
   field: string;
 }
 
+export const isPayloadTemplate = (spec: Pick<Partial<DocumentTemplateSpec>, 'source'>): boolean =>
+  spec.source === 'payload';
+
+/** Os tipos de parâmetro de um modelo `payload` — os mesmos das automações. */
+export const DOCUMENT_PARAMETER_TYPES: readonly WorkflowParameterType[] = [
+  'String', 'Number', 'Date', 'Boolean', 'select', 'lookup', 'EntityReference', 'Object',
+];
+
+const isPlainObject = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+
+/**
+ * A FORMA dos parâmetros — a mesma conferência do editor de parâmetros das automações, em versão que
+ * não depende do catálogo de telas: chave de identificador, sem repetição entre irmãos, tipo
+ * conhecido, `Object` com campos e `EntityReference` com a coleção. Desce em `fields`.
+ */
+const parameterIssues = (parameters: unknown, prefix: string): DocumentTemplateIssue[] => {
+  const issues: DocumentTemplateIssue[] = [];
+  if (!Array.isArray(parameters)) {
+    return [{ field: 'parameters', error: '@core.documents/template.parameters.invalid' }];
+  }
+  const seen = new Set<string>();
+  for (const parameter of parameters as Partial<WorkflowParameter>[]) {
+    const key = typeof parameter?.key === 'string' ? parameter.key : '';
+    const path = prefix ? `${prefix}.${key}` : key;
+    const add = (error: string, errorParams: Record<string, string>): void => {
+      issues.push({ field: 'parameters', error, errorParams });
+    };
+    if (!IDENTIFIER.test(key)) {
+      add('@core.documents/template.parameter.key.invalid', { key: path });
+      continue;
+    }
+    if (seen.has(key)) add('@core.documents/template.parameter.duplicated', { key: path });
+    seen.add(key);
+    if (!DOCUMENT_PARAMETER_TYPES.includes(parameter.type as WorkflowParameterType)) {
+      add('@core.documents/template.parameter.type.invalid', { key: path, type: String(parameter.type ?? '') });
+      continue;
+    }
+    if (parameter.type === 'EntityReference' && !parameter.entityType?.trim()) {
+      add('@core.documents/template.parameter.entity-missing', { key: path });
+    }
+    if (parameter.type === 'Object') {
+      if (!Array.isArray(parameter.fields) || parameter.fields.length === 0) {
+        add('@core.documents/template.parameter.object-empty', { key: path });
+      } else {
+        issues.push(...parameterIssues(parameter.fields, path));
+      }
+    }
+  }
+  return issues;
+};
+
+/** O que só um modelo `payload` precisa respeitar: não há tela, não há lista filha, não há registro. */
+const payloadContractIssues = (spec: Partial<DocumentTemplateSpec>): DocumentTemplateIssue[] => {
+  const issues: DocumentTemplateIssue[] = [];
+  if ((spec.datasets ?? []).length > 0) {
+    issues.push({ field: 'datasets', error: '@core.documents/template.payload.datasets' });
+  }
+  if (spec.destination === 'record') {
+    issues.push({ field: 'destination', error: '@core.documents/template.payload.destination' });
+  }
+  if (spec.parameters !== undefined) issues.push(...parameterIssues(spec.parameters, ''));
+  if (spec.sample !== undefined && !isPlainObject(spec.sample)) {
+    issues.push({ field: 'sample', error: '@core.documents/template.payload.sample.invalid' });
+  }
+  return issues;
+};
+
 const at = (field: string, issues: TemplateIssue[]): DocumentTemplateIssue[] =>
   issues.map((one) => ({ field, ...one }));
 
@@ -182,9 +286,17 @@ export const documentTemplateIssues = (spec: Partial<DocumentTemplateSpec>): Doc
     push('key', '@core.documents/template.key.invalid', { key });
   }
   if (typeof spec.title !== 'string' || !spec.title.trim()) push('title', '@core.documents/template.title.missing');
-  const hasScreen = (typeof spec.collection === 'string' && spec.collection.trim() !== '')
-    || (typeof spec.screenSourceId === 'string' && spec.screenSourceId.trim() !== '');
-  if (!hasScreen) push('collection', '@core.documents/template.collection.missing');
+  if (spec.source !== undefined && !DOCUMENT_TEMPLATE_SOURCES.includes(spec.source)) {
+    push('source', '@core.documents/template.source.invalid', { source: String(spec.source) });
+  }
+  if (isPayloadTemplate(spec)) {
+    issues.push(...payloadContractIssues(spec));
+  } else {
+    const hasScreen = (typeof spec.collection === 'string' && spec.collection.trim() !== '')
+      || (typeof spec.screenSourceId === 'string' && spec.screenSourceId.trim() !== '');
+    if (!hasScreen) push('collection', '@core.documents/template.collection.missing');
+    if (spec.parameters !== undefined) push('parameters', '@core.documents/template.parameters.record-source');
+  }
 
   const format = spec.format;
   if (!format || !DOCUMENT_TEMPLATE_FORMATS.includes(format)) {
@@ -416,6 +528,10 @@ export const resolveDocumentTemplates = (
   for (const contribution of packaged) {
     const spec = documentTemplateOf(contribution);
     if (!spec || byKey.has(spec.key)) continue;
+    if (isPayloadTemplate(spec)) {
+      byKey.set(spec.key, { ...spec, collection: '', origin: 'plugin', pluginId: contribution.pluginId });
+      continue;
+    }
     // A tela que não está no escritório tira o modelo de circulação, sem tomar a chave de ninguém.
     const collection = installedCollection(spec, screens);
     const datasets = installedDatasets(spec.datasets, screens);
@@ -435,6 +551,11 @@ export const resolveDocumentTemplates = (
       byKey.delete(template.key);
       continue;
     }
+    const overrides = packagedOne ? { pluginId: packagedOne.pluginId, overridesPlugin: true } : {};
+    if (isPayloadTemplate(template)) {
+      byKey.set(template.key, { ...specOfTenantTemplate(template), collection: '', origin: 'tenant', ...overrides });
+      continue;
+    }
     const collection = installedCollection(template, screens);
     const datasets = installedDatasets(template.datasets, screens);
     if (collection === null || datasets === null) {
@@ -446,15 +567,16 @@ export const resolveDocumentTemplates = (
       collection,
       ...(template.datasets ? { datasets } : {}),
       origin: 'tenant',
-      ...(packagedOne ? { pluginId: packagedOne.pluginId, overridesPlugin: true } : {}),
+      ...overrides,
     });
   }
 
   return [...byKey.values()].sort((left, right) => left.title.localeCompare(right.title));
 };
 
-/** Os modelos que servem aos registros de uma coleção física. */
+/** Os modelos que servem aos registros de uma coleção física. Um modelo `payload` não serve a registro nenhum. */
 export const templatesForCollection = (
   templates: readonly ResolvedDocumentTemplate[],
   collection: string,
-): ResolvedDocumentTemplate[] => templates.filter((template) => template.collection === collection);
+): ResolvedDocumentTemplate[] =>
+  templates.filter((template) => !isPayloadTemplate(template) && template.collection === collection);

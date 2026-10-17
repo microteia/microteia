@@ -7620,7 +7620,7 @@ e o kernel não conhece o nome de modelo nenhum.
 `DocumentTemplateSpec` é a mesma na contribuição do pacote e no documento do escritório: `key`, `title`,
 `collection` (a tela cujos registros ele descreve), `format` (`markdown` com `body`, ou `docx` com
 `content` em base64), `outputs`, `fileName`, `documentType`, `datasets`, `destination` e
-`retentionDays` (ver "O destino"). Sem conversão entre os dois, e
+`retentionDays` (ver "O destino"), e `source`, `parameters` e `sample` (ver "O modelo de dados"). Sem conversão entre os dois, e
 é isso que faz "personalizar o modelo da extensão" ser COPIAR para a mesma chave, e "voltar ao da
 extensão" ser APAGAR a cópia.
 
@@ -7739,7 +7739,8 @@ da pergunta que se faria à mão, e nada é gravado antes de todas passarem:
    acesso a gerar sobre outra;
 3. o modelo produz o formato pedido (`render.output-unsupported`);
 4. quem pede pode entregar no destino (`@core.access/permission.denied`) — só quando a porta pede
-   `chargePermissions`;
+   `chargePermissions`; no modelo de dados, aqui entram ainda a forma do pedido (payload, não registro)
+   e o contrato dos `parameters`;
 5. destino `record`: a tela tem a aba Documentos (`render.documents-disabled`) — não há onde anexar;
 6. o registro existe (`@core.records/record.not-found`);
 7. as listas leem (`render.dataset-invalid`); o modelo é legível (`render.docx-template`).
@@ -7774,7 +7775,10 @@ no caso de uso). O passo não cobra: a automação age como o motor, como em tod
 `picker: 'document-template'`, que lista os modelos que VALEM, com a tela de cada um), `recordId`,
 `output`, `fileName`, `documentType` (lista `documentTypes`), `destination` e `expiresInDays`. Saídas
 `documentId`, `name`, `url`, `format`, `emptyFields`, `destination` e `expiresAt`. Não há input de
-coleção: quem escolhe o modelo escolhe de que registro ele fala. Destino ou retenção que não existem
+coleção: quem escolhe o modelo escolhe de que registro ele fala. Para o modelo de dados, `recordId`
+fica vazio e os dados vêm de `payload` (objeto em bloco) e dos `param.<chave>` que os parâmetros do
+modelo geram — `dynamicInputs: 'from-target-document-template-parameters'`, o mesmo desenho de
+"Chamar Workflow": o bloco primeiro, e cada `param.<chave>` por cima. Destino ou retenção que não existem
 reprovam o passo, em vez de cair no padrão.
 
 ### O destino — aba Documentos ou Downloads
@@ -7816,6 +7820,39 @@ ninguém volta a abrir. O destino é o terceiro eixo da geração, independente 
   filtra `isDownloadExpired` com um relógio que anda a cada minuto.
 - `destination`/`retentionDays` no modelo exigem kernel `^2.47.0` (`DOCUMENT_DESTINATION_SINCE_KERNEL`);
   um kernel anterior os ignora e anexa.
+
+### O modelo de dados — `source: 'payload'`
+
+Uma automação ou um agente nem sempre tem um registro para dar: o recibo de um pagamento recebido por
+webhook, a proposta montada a partir de uma conversa. `source: 'payload'` é o modelo SEM tela: quem gera
+entrega o objeto, e os caminhos partem dele. O registro, visto daqui, é o payload depois de um passo a
+mais — a hidratação. O caso de uso tem dois `prepare` (`prepareRecord`/`preparePayload`) que só diferem
+em como o ESCOPO é montado; gramática, avaliador, renderizador e destino não sabem de qual veio.
+
+- **O contrato é o das automações.** `parameters` é `WorkflowParameter[]` — `Object` + `fields` para o
+  aninhado, `list` para as coleções, `required` e `rules` —, e a conferência é a MESMA de um workflow
+  chamado: `collectRequiredIssues` + `formatAndValidateParameters` (`parameterRules.ts`). A primeira
+  falha é a recusa, com a frase dela. Sem parâmetros, qualquer objeto passa como veio. A FORMA dos
+  parâmetros (chave, tipo, repetição, `Object` vazio, `EntityReference` sem coleção) é conferida em
+  `documentTemplateIssues`, que não depende do catálogo de telas e por isso roda no empacotamento.
+- **A referência é hidratada.** Um `EntityReference` do PRIMEIRO nível recebe o id, e o modelo lê o
+  registro: `{{cliente.nome}}` pede `nome` ao leitor de registros, como um campo de referência; com
+  `list`, `{{#each clientes}}` repete sobre os registros. Referência inexistente é recusa
+  (`render.payload-reference-not-found`), e não um campo vazio. Referências dentro de `Object` não são
+  seguidas — o payload que precisa delas manda o dado pronto.
+- **Cobrança:** `documents.generate` (permissão do kernel) para gerar de dados, mais `<coleção>.read` de
+  cada coleção que o payload aponta — o payload não pode ser atalho para ler o que a pessoa não lê. A
+  callable decide a porta pelo pedido (`payload` → `documents.generate`; senão, `<coleção>.read`); as
+  ferramentas MCP `render_document` e `preview_document` passaram a `delegated` e o caso de uso cobra
+  tudo (`chargePermissions`).
+- **Sem registro, sem aba:** o destino padrão é `downloads`, e `record` é recusa
+  (`render.payload-destination`) — na validação do modelo e na geração. `datasets` não existe: as listas
+  vêm dentro do payload. Teto de `DOCUMENT_PAYLOAD_MAX_BYTES` (256 KB de JSON).
+- **`sample`** é o payload que a pré-visualização mescla quando ninguém entrega um.
+- **Resolução:** o modelo de dados não depende de tela instalada — `resolveDocumentTemplates` o deixa
+  passar com `collection: ''` — e `templatesForCollection` nunca o oferece no diálogo de um registro.
+- Exige kernel `^2.48.0` (`DOCUMENT_PAYLOAD_SINCE_KERNEL`): um anterior não acha a tela e descarta o
+  modelo.
 
 ### O gesto — e o diálogo que ele abre
 

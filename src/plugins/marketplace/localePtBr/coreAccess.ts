@@ -189,6 +189,9 @@ export const CORE_ACCESS: Record<string, string> = {
   'permission.document-templates.manage.description':
     'Criar, editar e remover os modelos de documento do escritório, e personalizar ou desligar os que as extensões trazem. Para GERAR um documento a partir de um registro continua sendo preciso poder editar aquele registro para anexá-lo, ou lê-lo para salvá-lo em Downloads.',
   'permission.downloads.manage': 'Gerenciar downloads',
+  'permission.documents.generate': 'Gerar documentos a partir de dados',
+  'permission.documents.generate.description':
+    'Gerar documentos com modelos que recebem os dados de quem gera — uma automação, um agente de IA — em vez de um registro. O arquivo vai para Downloads; os registros que os dados apontam continuam exigindo permissão de leitura.',
   'permission.downloads.manage.description':
     'Ver e excluir todo arquivo em Downloads, inclusive os que outras pessoas geraram e os que as automações geraram só para quem gerencia.',
   'permission.members.manage': 'Gerenciar membros',
@@ -230,6 +233,7 @@ export const CORE_ACCESS: Record<string, string> = {
   'resource.reports': 'Relatórios',
   'resource.document-templates': 'Modelos de documento',
   'resource.downloads': 'Downloads',
+  'resource.documents': 'Documentos',
   'resource.roles': 'Perfis de acesso',
   'resource.screens': 'Telas',
   'resource.settings': 'Configurações',

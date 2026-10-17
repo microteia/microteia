@@ -302,4 +302,89 @@ describe('RenderDocumentUseCase', () => {
         .toMatchObject({ ok: false, error: '@core.access/permission.denied', errorParams: { permission: 'contracts.update' } });
     });
   });
+
+  describe('modelo de dados (payload)', () => {
+    const receipt = (overrides: Partial<ResolvedDocumentTemplate> = {}) => template({
+      key: 'payment-receipt',
+      source: 'payload',
+      collection: '',
+      datasets: undefined,
+      body: '{{payer}} {{formatMoney(amount)}} {{contract.name}}{{#each items}}{{description}}{{/each}}',
+      fileName: 'Receipt {{payer}}',
+      parameters: [
+        { key: 'payer', label: 'Payer', type: 'String', required: true },
+        { key: 'amount', label: 'Amount', type: 'Number' },
+        { key: 'contract', label: 'Contract', type: 'EntityReference', entityType: 'contracts' },
+        { key: 'items', label: 'Items', type: 'Object', list: true, fields: [{ key: 'description', label: 'Description', type: 'String' }] },
+      ],
+      sample: { payer: 'Sample', amount: 1 },
+      ...overrides,
+    });
+    const payload = { payer: 'Ana', amount: 10, contract: 'c1', items: [{ description: 'Fee' }] };
+
+    it('gera em Downloads com o payload no escopo, sem registro de origem', async () => {
+      const { useCase, rendered, saved } = setup([receipt()]);
+
+      const result = await useCase.execute(request({ templateKey: 'payment-receipt', recordId: undefined, payload }));
+
+      expect(result).toMatchObject({ ok: true, destination: 'downloads' });
+      expect(rendered[0].scope).toMatchObject({ payer: 'Ana', amount: 10, items: [{ description: 'Fee' }] });
+      expect(saved[0]).toMatchObject({ name: 'Receipt Ana.pdf', templateKey: 'payment-receipt' });
+      expect(saved[0].origin).toBeUndefined();
+    });
+
+    it('a referência é hidratada: o payload traz o id e o modelo lê o registro apontado', async () => {
+      const { useCase, rendered } = setup([receipt()]);
+
+      await useCase.execute(request({ templateKey: 'payment-receipt', recordId: undefined, payload }));
+
+      expect(rendered[0].scope.contract).toMatchObject({ id: 'c1', name: 'Ana/Bia' });
+    });
+
+    it('a referência que não existe é recusa, e não um campo vazio', async () => {
+      const { useCase, saved } = setup([receipt()]);
+
+      expect(await useCase.execute(request({ templateKey: 'payment-receipt', recordId: undefined, payload: { ...payload, contract: 'ghost' } })))
+        .toMatchObject({ ok: false, error: '@core.documents/render.payload-reference-not-found', errorParams: { key: 'contract', id: 'ghost' } });
+      expect(saved).toHaveLength(0);
+    });
+
+    it('o contrato é cobrado: o parâmetro obrigatório ausente recusa', async () => {
+      const { useCase } = setup([receipt()]);
+
+      expect(await useCase.execute(request({ templateKey: 'payment-receipt', recordId: undefined, payload: { amount: 1 } })))
+        .toMatchObject({ ok: false, error: '@core.automation/parameter.required' });
+    });
+
+    it('registro no lugar do payload, payload ausente e destino no registro são recusas', async () => {
+      const { useCase } = setup([receipt()]);
+      const asked = { templateKey: 'payment-receipt' };
+
+      expect(await useCase.execute(request({ ...asked, payload })))
+        .toMatchObject({ ok: false, error: '@core.documents/render.payload-template-record' });
+      expect(await useCase.execute(request({ ...asked, recordId: undefined })))
+        .toMatchObject({ ok: false, error: '@core.documents/render.payload-missing' });
+      expect(await useCase.execute(request({ ...asked, recordId: undefined, payload, destination: 'record' })))
+        .toMatchObject({ ok: false, error: '@core.documents/render.payload-destination' });
+    });
+
+    it('cobrando permissão: gerar de dados pede documents.generate, e ler a referência pede a leitura dela', async () => {
+      const { useCase } = setup([receipt()]);
+      const asked = { templateKey: 'payment-receipt', recordId: undefined, payload, chargePermissions: true };
+
+      expect(await useCase.execute(request({ ...asked, permissions: ['contracts.read'] })))
+        .toMatchObject({ ok: false, errorParams: { permission: 'documents.generate' } });
+      expect(await useCase.execute(request({ ...asked, permissions: ['documents.generate'] })))
+        .toMatchObject({ ok: false, errorParams: { permission: 'contracts.read' } });
+      expect(await useCase.execute(request({ ...asked, permissions: ['documents.generate', 'contracts.read'] })))
+        .toMatchObject({ ok: true });
+    });
+
+    it('a pré-visualização sem payload mescla o exemplo do modelo', async () => {
+      const { useCase } = setup([receipt({ body: '{{payer}}', parameters: [] })]);
+
+      expect(await useCase.preview({ tenantId: 't1', templateKey: 'payment-receipt' }))
+        .toMatchObject({ ok: true, text: 'Sample' });
+    });
+  });
 });
