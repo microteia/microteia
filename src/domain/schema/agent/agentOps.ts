@@ -1,4 +1,16 @@
-import { PERMISSION_AUDIT_READ, PERMISSION_AUTOMATION_RUN } from '../access/kernelPermissions';
+import {
+  PERMISSION_AUDIT_READ,
+  PERMISSION_AUTOMATION_RUN,
+  PERMISSION_DOCUMENT_TEMPLATES_MANAGE,
+} from '../access/kernelPermissions';
+import {
+  DOCUMENT_OUTPUTS_BY_FORMAT,
+  DOCUMENT_TEMPLATE_FORMATS,
+  DOCUMENT_TEMPLATE_KEY_MAX_LENGTH,
+  DOCUMENT_TEMPLATE_MAX_BYTES,
+  DOCUMENT_OUTPUT_FORMATS,
+} from '../document/documentTemplate';
+import { TEMPLATE_BLOCKS, TEMPLATE_LOOP_VARIABLES } from '../document/templateGrammar';
 import { QUERY_OPERATORS } from '../querySpec';
 import { AGENT_DOCUMENT_MAX_MB } from './agentDocument';
 import type { CrudAction } from '../access/permission';
@@ -32,6 +44,13 @@ export const AGENT_OPERATIONS = [
   'get_workflow_run',
   'run_action',
   'search_audit_log',
+  'list_document_templates',
+  'get_document_template',
+  'document_template_guide',
+  'save_document_template',
+  'change_document_template',
+  'preview_document',
+  'render_document',
 ] as const;
 
 export type AgentOperation = (typeof AGENT_OPERATIONS)[number];
@@ -182,6 +201,145 @@ export const agentParameterPlaceholder = (type: WorkflowParameterType, target?: 
   if (type === 'lookup') return `<key of an item of ${target ?? 'the list'}>`;
   if (type === 'EntityReference') return `<id of a record of ${target ?? 'the collection'}>`;
   return 'text';
+};
+
+/**
+ * Os estados de um modelo de documento no vocabulário do agente. É o mesmo da tela de modelos, com
+ * nomes que dizem a origem: `extension` (só a extensão declara), `customized` (a cópia do escritório
+ * vale no lugar do original), `disabled` (o escritório desligou a chave) e `office` (do escritório,
+ * sem extensão por trás).
+ */
+export const AGENT_TEMPLATE_STATES = ['extension', 'customized', 'disabled', 'office'] as const;
+
+export type AgentTemplateState = (typeof AGENT_TEMPLATE_STATES)[number];
+
+/**
+ * Os gestos sobre um modelo que não são "escrever o conteúdo" — os mesmos botões da tela de modelos.
+ * `keep-customization` é o "Manter minha cópia" do aviso de atualização.
+ */
+export const AGENT_TEMPLATE_CHANGES = [
+  'customize',
+  'keep-customization',
+  'restore',
+  'disable',
+  'enable',
+  'clone',
+  'delete',
+] as const;
+
+export type AgentTemplateChange = (typeof AGENT_TEMPLATE_CHANGES)[number];
+
+const TEMPLATE_KEY = {
+  type: 'string',
+  description: 'The template key, as list_document_templates lists it.',
+};
+
+const DOCUMENT_TEMPLATE_MAX_KB = DOCUMENT_TEMPLATE_MAX_BYTES / 1024;
+
+const OUTPUTS_BY_FORMAT_TEXT = DOCUMENT_TEMPLATE_FORMATS
+  .map((format) => `${format} → ${DOCUMENT_OUTPUTS_BY_FORMAT[format].join(' or ')}`)
+  .join('; ');
+
+/**
+ * A gramática dos modelos, dita a um AGENTE. A tela a ensina ao lado do editor; um modelo de IA não
+ * tem a tela, e escrevia `{{else}}`, `{{cliente.nome}}` sem conferir a tela e Word com marca partida.
+ *
+ * Os fatos sobre o kernel são DERIVADOS das constantes — blocos, variáveis de laço, formatos de saída,
+ * teto do `.docx` —, como no §12 do `AUTHORING.md`: um bloco novo na gramática aparece aqui sozinho.
+ */
+export const DOCUMENT_TEMPLATE_GRAMMAR = {
+  summary:
+    'A template is text with merge tags between double braces. What goes inside {{ }} is a FIELD '
+    + 'EXPRESSION — the same language as computed fields: field paths, operators and the functions '
+    + 'listed under "functions". The paths start at the record the document is generated for.',
+  tags: [
+    { code: '{{name}}', meaning: 'The value of a field of the record, by its key (describe_screen lists the keys).' },
+    {
+      code: '{{clientId.name}}',
+      meaning: 'Follow a reference field to a field of the referenced record. A reference alone ({{clientId}}) '
+        + 'prints nothing — always name the field to print.',
+    },
+    { code: '{{formatDate(dueDate, "DD/MM/YYYY")}}', meaning: 'Format a date with a pattern.' },
+    { code: '{{formatMoney(amount)}}', meaning: 'Format a number as money in the office language.' },
+    { code: '{{upper(name)}}', meaning: 'Any function of the expression language works inside the braces.' },
+  ],
+  blocks: TEMPLATE_BLOCKS.map((block) => (block === 'each'
+    ? {
+      block,
+      code: '{{#each installments}} … {{/each}}',
+      meaning: 'Repeat for each item of a list: a list declared in "datasets" (records of another screen '
+        + 'that point to this one) or a multi-value field of the record. Inside, the item fields are read '
+        + `directly, the outer record stays readable, and ${TEMPLATE_LOOP_VARIABLES.map((name) => `{{${name}}}`).join(' / ')} `
+        + 'are the whole item (the only way to print a list of texts) and its position starting at 1.',
+    }
+    : {
+      block,
+      code: '{{#if paid}} … {{/if}}   {{#if not paid}} … {{/if}}   {{#if status == "draft"}} … {{/if}}',
+      meaning: 'Include the content only when the expression is true. There is NO {{else}}: write a second '
+        + '{{#if not …}} block.',
+    })),
+  rules: [
+    `The only blocks are ${TEMPLATE_BLOCKS.map((block) => `{{#${block}}}`).join(' and ')}; every block must be closed by its own {{/…}}.`,
+    'A select field stores the OPTION KEY, not its label: compare with the key ({{#if status == "draft"}}) and '
+    + 'print a label with a chain of {{#if}} blocks. describe_screen lists the options with key and label.',
+    'Values merged into a Markdown template are escaped: data never becomes formatting (a name with "*" does '
+    + 'not open bold), and a line break in the data becomes a forced line break.',
+    'A tag whose expression fails is left EMPTY in the document and reported as an empty field; it does not '
+    + 'stop the generation. Use preview_document to see them before generating.',
+    'Dates, money and numbers are formatted in the language of the OFFICE, not of who generates.',
+    'The file name uses the same grammar ("Power of attorney - {{name}}"), without extension.',
+  ],
+  markdown: {
+    produces: DOCUMENT_OUTPUTS_BY_FORMAT.markdown,
+    layout: [
+      { code: '# Title', meaning: 'The document title, centered. Use it once, at the top.' },
+      { code: '## Section', meaning: 'A section heading.' },
+      { code: '**bold**  *italic*', meaning: 'Emphasis.' },
+      { code: '- item', meaning: 'A bulleted list (1. for numbered).' },
+      { code: '| a | b |\n|---|---|', meaning: 'A table. A {{#each}} around one row repeats the row.' },
+      { code: '---', meaning: 'A horizontal rule.' },
+      { code: '<!-- pagebreak -->', meaning: 'A page break.' },
+      { code: '<!-- note -->', meaning: 'Any other HTML comment is a note for whoever edits; it never prints.' },
+    ],
+    notes: [
+      'Paragraphs are justified — the layout of a contract or a letter.',
+      'The PDF uses the standard PDF fonts (Times, Courier): characters outside Latin-1 do not print.',
+    ],
+  },
+  docx: {
+    produces: DOCUMENT_OUTPUTS_BY_FORMAT.docx,
+    notes: [
+      'Write the tags directly in the Word document, with the same grammar. The layout, fonts, header and '
+      + 'footer are the document\'s own; tags work in the body, the header and the footer.',
+      'Type each tag in one go, with a single formatting: Word splits a tag into pieces when the formatting '
+      + 'changes in the middle, and get_document_template returns the text as the platform reads it — check '
+      + 'there that every tag came out whole.',
+      'A {{#each}} around a table row repeats the row; {{#each}} and {{/each}} must be in the same row.',
+      'A Word template does not produce PDF — converting Word needs an office suite that the server does not run. '
+      + 'For a PDF, write the template in Markdown.',
+      `Send the .docx as base64 in "content" (a "data:…;base64," prefix is accepted). At most ${DOCUMENT_TEMPLATE_MAX_KB} KB.`,
+    ],
+  },
+  outputsByFormat: OUTPUTS_BY_FORMAT_TEXT,
+  key: `Lowercase letters, digits and hyphens, starting with a letter, at most ${DOCUMENT_TEMPLATE_KEY_MAX_LENGTH} characters.`,
+} as const;
+
+const TEMPLATE_DATASETS = {
+  type: 'array',
+  description:
+    'Lists of child records for {{#each}}: the records of another screen whose reference field points to '
+    + 'the record of the document. document_template_guide lists the candidates for a screen.',
+  items: object(
+    {
+      name: { type: 'string', description: 'How the template reads the list: {{#each <name>}}. Letters, digits and _.' },
+      from: { type: 'string', description: 'The collection of the child records, as list_screens returns it.' },
+      via: { type: 'string', description: 'The reference field, in the child, that points to the record of the document.' },
+      orderBy: { type: 'string', description: 'A field of the child to order by.' },
+      direction: { type: 'string', enum: ['asc', 'desc'] },
+      limit: { type: 'integer', minimum: 1, maximum: 100, description: 'At most 100 items.' },
+    },
+    ['name', 'from', 'via'],
+  ),
 };
 
 /**
@@ -495,6 +653,169 @@ export const AGENT_TOOLS: readonly AgentToolDefinition[] = [
     // um acesso podia receber sem nenhuma ferramenta que a usasse.
     permission: { kind: 'fixed', id: PERMISSION_AUDIT_READ },
     writes: false,
+  },
+  {
+    name: 'list_document_templates',
+    description:
+      'The document templates of the office — the texts that generate a power of attorney, a contract, a '
+      + 'receipt or a letter from a record. Each one says its key, title, the collection whose records it '
+      + 'describes, its format (markdown or docx), the files it produces, and its state: "extension" (comes '
+      + 'from an installed extension, read-only — customize it to change it), "customized" (the office copy '
+      + 'replaces the extension original; "outdated": true means the extension changed the original since), '
+      + '"disabled" (turned off) or "office" (written by the office). Also says whether this access can '
+      + 'render each one and manage templates. Content is not included: get_document_template reads it.',
+    inputSchema: object(
+      {
+        collection: { ...COLLECTION, description: 'Only templates for the records of this collection.' },
+        state: { type: 'string', enum: [...AGENT_TEMPLATE_STATES, 'all'], description: 'Only templates in this state. Default: all.' },
+      },
+      [],
+    ),
+    // `delegated`: a regra do Firestore libera a leitura dos modelos a todo membro — o modelo é texto,
+    // não dado de registro. Gerar e administrar continuam cobrados nas ferramentas que fazem isso.
+    permission: { kind: 'delegated' },
+    writes: false,
+  },
+  {
+    name: 'get_document_template',
+    description:
+      'One document template in full: the Markdown text, or for a Word template the text as the platform '
+      + 'reads it (to check that every tag came out whole) and, on request, the .docx itself as base64. '
+      + 'Also returns the field paths it reads, its grammar problems, and the paths the screen does not have '
+      + '("pathWarnings") — those print empty. version "extension" reads the original of an extension even '
+      + 'when the office customized it; "office" reads the office copy; the default is the one in effect.',
+    inputSchema: object(
+      {
+        key: TEMPLATE_KEY,
+        version: { type: 'string', enum: ['effective', 'extension', 'office'], description: 'Which version to read. Default: effective.' },
+        includeContent: {
+          type: 'boolean',
+          description: `Word templates only: also return the .docx as base64 in "content" (up to ${DOCUMENT_TEMPLATE_MAX_KB} KB). Default: false.`,
+        },
+      },
+      ['key'],
+    ),
+    permission: { kind: 'delegated' },
+    writes: false,
+  },
+  {
+    name: 'document_template_guide',
+    description:
+      'How to write a document template: the full grammar (tags, {{#each}}, {{#if}}, layout, Word rules), '
+      + 'the formats and what each produces, the limits, and every function usable inside the tags with its '
+      + 'signature and an example. With a collection, also the exact tag that prints each field of that '
+      + 'screen, the child lists that can be declared, and a starter template written from its fields — '
+      + 'call this before writing a template, instead of guessing field keys.',
+    inputSchema: object(
+      {
+        format: { type: 'string', enum: [...DOCUMENT_TEMPLATE_FORMATS], description: 'The format of the template to write.' },
+        collection: { ...COLLECTION, description: 'The collection whose records the template will describe.' },
+      },
+      ['format'],
+    ),
+    // A gramática é pública a quem tem o acesso; a parte da tela cobra a leitura da coleção lá dentro,
+    // a mesma de `describe_screen` — os campos de uma tela são esquema dela.
+    permission: { kind: 'delegated' },
+    writes: false,
+  },
+  {
+    name: 'save_document_template',
+    description:
+      'Create a template of the office, or change one the office already has (an "office" or a "customized" '
+      + 'one). On a change only the fields you pass are touched. Shape problems (key, title, collection, format, '
+      + 'content) are refused; grammar problems and paths the screen does not have are saved and returned as '
+      + 'warnings — fix them, they print empty. A Word template is read on save, and a file the platform cannot '
+      + 'read is refused. The key of an extension template cannot be written directly: customize it first with '
+      + 'change_document_template, or use another key. Pass dry_run: true to check everything without saving. '
+      + `Grammar: document_template_guide. Formats and outputs: ${OUTPUTS_BY_FORMAT_TEXT}.`,
+    inputSchema: object(
+      {
+        key: { type: 'string', description: `The template key. ${DOCUMENT_TEMPLATE_GRAMMAR.key}` },
+        title: { type: 'string', description: 'The name people see when choosing the template.' },
+        description: { type: 'string', description: 'An optional note about when to use it.' },
+        collection: { ...COLLECTION, description: 'The collection whose records the template describes. Its screen must have a Documents tab.' },
+        format: { type: 'string', enum: [...DOCUMENT_TEMPLATE_FORMATS], description: 'markdown (text in "body") or docx (a Word file in "content").' },
+        body: { type: 'string', description: 'The Markdown text of the template, when format is markdown.' },
+        content: { type: 'string', description: `The .docx file as base64, when format is docx. At most ${DOCUMENT_TEMPLATE_MAX_KB} KB.` },
+        outputs: {
+          type: 'array',
+          items: { type: 'string', enum: [...DOCUMENT_OUTPUT_FORMATS] },
+          description: 'The files it may produce. Omit for everything the format produces.',
+        },
+        fileName: { type: 'string', description: 'The generated file name, same grammar, no extension — "Contract - {{title}}".' },
+        documentType: {
+          type: 'string',
+          description: 'The document type the file is attached with: a key of the list describe_screen shows under "documents".',
+        },
+        datasets: TEMPLATE_DATASETS,
+        dry_run: { type: 'boolean', description: 'Check the template and return the problems without saving it.' },
+      },
+      ['key'],
+    ),
+    permission: { kind: 'fixed', id: PERMISSION_DOCUMENT_TEMPLATES_MANAGE },
+    writes: true,
+  },
+  {
+    name: 'change_document_template',
+    description:
+      'The other gestures on a template. "customize": copy an extension template to the office under the same '
+      + 'key — the copy replaces the original and can then be changed with save_document_template. '
+      + '"keep-customization": mark a customized copy as reviewed against a new extension original, without '
+      + 'changing it. "restore": discard the customized copy and use the extension original again. "disable" / '
+      + '"enable": take a key out of circulation and put it back, without losing a customization. "clone": a NEW '
+      + 'office template with the content of this one, under "newKey" (default <key>-copy) and "title". '
+      + '"delete": delete an office template — extension templates cannot be deleted. restore and delete cannot '
+      + 'be undone: confirm with the person first.',
+    inputSchema: object(
+      {
+        key: TEMPLATE_KEY,
+        action: { type: 'string', enum: [...AGENT_TEMPLATE_CHANGES] },
+        newKey: { type: 'string', description: 'clone only: the key of the new template.' },
+        title: { type: 'string', description: 'clone only: the name of the new template.' },
+      },
+      ['key', 'action'],
+    ),
+    permission: { kind: 'fixed', id: PERMISSION_DOCUMENT_TEMPLATES_MANAGE },
+    writes: true,
+  },
+  {
+    name: 'preview_document',
+    description:
+      'The text a template produces for one record, with the values merged in, WITHOUT generating a file or '
+      + 'attaching anything: the Markdown with the values in place, or the text of a Word template. Also '
+      + 'returns the tags that came out empty and why, and the file name. Use it to check a template you '
+      + 'wrote or changed against a real record before render_document.',
+    inputSchema: object(
+      {
+        collection: { ...COLLECTION, description: 'The collection of the record — the one the template describes.' },
+        recordId: RECORD_ID,
+        template: TEMPLATE_KEY,
+      },
+      ['collection', 'recordId', 'template'],
+    ),
+    permission: { kind: 'collection', action: 'read' },
+    writes: false,
+  },
+  {
+    name: 'render_document',
+    description:
+      'Generate a document from a template for one record and attach it to the record\'s Documents tab, exactly '
+      + 'as the "Generate document" button does. Returns the attached document with its download link, and how '
+      + 'many tags came out empty. Every call attaches a new file — do not repeat it to retry a success.',
+    inputSchema: object(
+      {
+        collection: { ...COLLECTION, description: 'The collection of the record — the one the template describes.' },
+        recordId: RECORD_ID,
+        template: TEMPLATE_KEY,
+        output: { type: 'string', enum: [...DOCUMENT_OUTPUT_FORMATS], description: 'The file to produce. Default: the first the template produces.' },
+        fileName: { type: 'string', description: 'Replace the template file name for this document. Same grammar, no extension.' },
+        documentType: { type: 'string', description: 'Replace the document type of the template for this document.' },
+      },
+      ['collection', 'recordId', 'template'],
+    ),
+    // A MESMA cobrança da callable `renderDocument` e de `attach_document`: gerar é anexar.
+    permission: { kind: 'collection', action: 'update' },
+    writes: true,
   },
 ];
 

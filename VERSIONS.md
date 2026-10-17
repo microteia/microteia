@@ -11,6 +11,14 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.119.0] — 2026-10-17
+
+- Assistentes de IA conectados ao escritório agora administram os modelos de documento por completo: listam os modelos, leem o texto de cada um, criam modelos novos em Markdown ou Word, personalizam o modelo de uma extensão, restauram o original, desligam, religam, clonam e excluem.
+- O assistente aprende a escrever modelos certos de primeira: recebe a explicação completa dos campos, das repetições e das condições, a lista de funções disponíveis e, para cada tela, o campo exato a usar e um modelo inicial pronto.
+- Antes de salvar, o assistente é avisado de campos que não existem na tela e de arquivos Word que não podem ser lidos — em vez de descobrir o problema só no documento gerado.
+- O assistente pode pré-visualizar o texto de um documento com os dados de um registro antes de gerá-lo, e gerar o documento direto na aba Documentos.
+- Corrigido: desligar e religar um modelo do escritório fazia o modelo sumir, e desligar uma cópia personalizada descartava a personalização.
+
 #### [9.118.0] — 2026-10-17
 
 - A tela de Modelos de documento ganhou visual novo: lista com busca e filtros por situação e por tela, cabeçalho com as informações do modelo e botões mais claros para personalizar, desligar e restaurar.

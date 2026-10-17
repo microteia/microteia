@@ -8008,7 +8008,7 @@ O caminho natural seria uma API por extensão instalada. Ele é impossível aqui
 de negócio seria o defeito que este projeto existe para não ter.
 
 A saída não é "uma API flexível o bastante". É que a superfície **não tem nome de negócio nenhum**:
-dezesseis ferramentas genéricas em que a coleção é ARGUMENTO, mais a descoberta de esquema que diz ao
+vinte e três ferramentas genéricas em que a coleção é ARGUMENTO, mais a descoberta de esquema que diz ao
 agente o que existe naquele escritório. `search_records(collection, …)`, nunca `search_processo`. É
 exatamente a propriedade que `FirebaseRecordRepository` e `RecordStore` já têm — recebem a coleção
 como argumento e servem qualquer uma — levada até a superfície de ferramentas.
@@ -8049,6 +8049,8 @@ dito duas vezes:
 | `run_report` | `runReportQuery`, com `reportSourceCollections` para enumerar o que ele alcança |
 | `run_workflow` | `publishEvent` — PUBLICA, não executa |
 | `run_action` | `RunCalledWorkflowUseCase` |
+| `preview_document` / `render_document` | `RenderDocumentUseCase` — `preview` e `execute`, a mesma preparação |
+| `list_document_templates` … `change_document_template` | `agentDocumentTemplates.ts`, sobre os MESMOS documentos de `documentTemplates` que a tela de modelos grava |
 | `list_screens` / `describe_screen` | `officeScreens` e `describeScreen`, sobre `ScreenDefinitionCache.getSchemaContext`; as ações vêm de `viewActionIds`/`cardActionIds` da tela |
 | `list_workflows` | `listAgentWorkflows` — toda automação, com o gatilho (`describeWorkflowTrigger`) |
 | `describe_workflow` | `describeAgentWorkflow`, sobre o catálogo de passos do `stepRegistry`; o relógio vem de `getWorkflowClockDeps().repository` |
@@ -8300,6 +8302,54 @@ agente diz o mesmo — não por conveniência, mas porque dizer o contrário far
 duas respostas, e obrigaria quem emite um acesso a listar cada uma das dezenas de listas do escritório
 para que um único campo de seleção pudesse ser preenchido. A ESCRITA continua cobrada.
 
+### Modelos de documento pelo agente
+
+O agente gerava nada e escrevia modelo nenhum: a superfície não tinha uma ferramenta sobre
+`documentTemplates`, e nada dizia a ele a gramática. O resultado era o previsível — `{{else}}`, que não
+existe; `{{cliente.nome}}` sem conferir a tela; Word enviado como anexo de registro em vez de modelo.
+Sete ferramentas fecham o ciclo inteiro, e nenhuma tem nome de negócio:
+
+| Ferramenta | O que faz | Cobrança |
+|---|---|---|
+| `list_document_templates` | a UNIÃO das chaves de extensão e do escritório, com o estado (`extension`, `customized`, `disabled`, `office`), `outdated`, `screenMissing` e `canRender` | nenhuma — a regra libera a leitura a todo membro |
+| `get_document_template` | o conteúdo: Markdown, ou o texto do Word COMO O KERNEL O LÊ (e o `.docx` em base64 a pedido); os caminhos lidos, os problemas de gramática e os `pathWarnings` | idem |
+| `document_template_guide` | a gramática (`DOCUMENT_TEMPLATE_GRAMMAR`), as funções da expressão de campo e, com uma coleção, a marca exata de cada campo, as listas possíveis e o modelo inicial | a leitura da coleção, quando ela é pedida |
+| `save_document_template` | cria ou altera (só os campos enviados), com `dry_run` | `document-templates.manage` |
+| `change_document_template` | `customize`, `keep-customization`, `restore`, `disable`, `enable`, `clone`, `delete` | `document-templates.manage` |
+| `preview_document` | o texto mesclado contra um registro, sem arquivo e sem anexo | `<coleção>.read` |
+| `render_document` | gerar e anexar — o gesto "Gerar documento" | `<coleção>.update` |
+
+- **Os mesmos gestos da tela, sobre os mesmos documentos.** Personalizar grava a cópia com `basedOn`;
+  restaurar a apaga; desligar grava `enabled: false`. Nada inventa um estado que a tela não saiba mostrar.
+- **A chave de uma extensão não se grava direto.** `save_document_template` recusa
+  (`agent.template.extension-key`) e manda personalizar primeiro: uma cópia gravada sem `basedOn` nunca
+  avisaria de uma versão nova do original.
+- **Forma recusa; gramática e caminho avisam.** É a regra da tela (`isGrammarIssue`), mais uma: os
+  caminhos são conferidos contra a tela (`templatePathIssues`), porque quem escreve sem ver o
+  formulário só descobriria o erro de digitação depois de gerar — e em silêncio, com o campo vazio. O
+  resolvedor responde `unknown` (válido) ao campo que a entidade não tem; é essa resposta que vira
+  aviso, a mesma leitura que faz `mutationSpec` recusar a gravação num campo inexistente. Dentro de um
+  laço o nome vale se resolver no item OU no registro de fora, a tolerância da hidratação.
+- **O Word é LIDO ao salvar.** `TemplateDocumentRenderer.templateText` roda no save: um arquivo que o
+  docxtemplater não abre é recusado ali, e não na primeira geração de alguém.
+- **O agente fala de COLEÇÃO; o modelo gravado fala de TELA.** A tradução mora nas duas pontas de
+  `agentDocumentTemplates.ts` (`screenKeyOfCollection` na entrada, `agentSpec` na saída), e o endereço
+  por `sourceId` nunca aparece para o agente.
+- **A pré-visualização é a geração parada antes do arquivo.** `RenderDocumentUseCase` foi partido em
+  `prepare` (as recusas e a leitura) e duas saídas: `execute` monta e anexa, `preview` mescla o texto
+  pela mesma gramática, com o Markdown escapado como sai no arquivo. São duas ferramentas, e não um
+  `preview: true`, porque a cobrança difere — e a cobrança é declarada por ferramenta.
+- **O modelo inicial desceu para o domínio.** `buildStarterTemplate` saiu de `presentation/shared` para
+  `domain/schema/document/starterTemplate.ts` (sincronizado), com a tela como tipo ESTRUTURAL: a tela de
+  modelos passa a `ScreenDefinition`, o agente a `SchemaScreen`. O guia não ensina um exemplo genérico —
+  devolve o modelo verdadeiro daquele escritório.
+- `describe_screen` lista, na seção `documents`, os modelos que geram sobre aquela tela.
+
+> **Desligar e religar não apaga mais.** A tela de modelos gravava a marca de desligado com o spec da
+> EXTENSÃO por cima da cópia personalizada, e religar apagava o documento — um modelo do escritório
+> desligado e religado sumia. Agora desligar guarda o conteúdo do escritório, e religar só apaga a marca
+> de um modelo de extensão sem cópia (`basedOn`). Agente e tela fazem a mesma coisa.
+
 ### Anexos pela aba Documentos
 
 O agente lia e gravava registros, e não alcançava a aba Documentos de jeito nenhum: a subcoleção
@@ -8496,7 +8546,9 @@ produto; onde não sabe, o token continua sendo a saída honesta.
 | Arquivo | O que é |
 |---|---|
 | `domain/schema/agent/agentGrant.ts` | formato do token, hash, validade, a INTERSEÇÃO (sincronizado) |
-| `domain/schema/agent/agentOps.ts` | as dezesseis ferramentas, os quatro recursos, a regra de cobrança de cada uma, e o texto de API (`accepts`, exemplos) |
+| `domain/schema/agent/agentOps.ts` | as vinte e três ferramentas, os quatro recursos, a regra de cobrança de cada uma, e o texto de API (`accepts`, exemplos, a gramática dos modelos em `DOCUMENT_TEMPLATE_GRAMMAR`) |
+| `functions/src/infrastructure/agent/agentDocumentTemplates.ts` | os modelos de documento pelo agente: listar, ler, guia, salvar e os gestos da tela de modelos |
+| `domain/schema/document/templatePaths.ts` | a conferência dos caminhos de um modelo contra a tela (sincronizado) |
 | `domain/schema/agent/agentInput.ts` | a conferência dos argumentos contra o esquema publicado (sincronizado) |
 | `domain/schema/agent/agentWorkflow.ts` | a automação legível por agente: parâmetros, passos, efeitos, saída e idempotência (sincronizado) |
 | `domain/schema/workflowReturn.ts` | quais passos dão o retorno de uma automação — a regra do editor, agora alcançável pelo backend (sincronizado) |

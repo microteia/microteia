@@ -5,10 +5,10 @@ import { configuredLocale, setAmbientLocale } from '../schema/i18n/localeGate';
 import type { SchemaContext } from '../schema/pathResolver';
 import { resolveQueryTable } from '../schema/querySpec';
 import { agentDocumentName, AGENT_DOCUMENT_MAX_BYTES } from '../schema/agent/agentDocument';
-import type { DocumentOutputFormat } from '../schema/document/documentTemplate';
+import type { DocumentOutputFormat, ResolvedDocumentTemplate } from '../schema/document/documentTemplate';
 import { templateOutputs } from '../schema/document/documentTemplate';
 import type { RenderIssue, TemplateEvaluator } from '../schema/document/templateGrammar';
-import { collectTemplatePaths, parseTemplate, renderTemplate } from '../schema/document/templateGrammar';
+import { collectTemplatePaths, escapeMarkdownValue, parseTemplate, renderTemplate } from '../schema/document/templateGrammar';
 import type { IScreenDefinitionProvider } from '../repositories/IScreenDefinitionProvider';
 import type { IDocumentRenderer } from '../repositories/IDocumentRenderer';
 import { DocumentRenderError } from '../repositories/IDocumentRenderer';
@@ -51,13 +51,25 @@ export interface RenderDocumentDeps {
   businessCalendarsOf?(tenantId: string): Promise<BusinessCalendarSet | null>;
 }
 
+/**
+ * O documento MESCLADO como texto, sem gerar arquivo nem anexar. No Markdown é o próprio Markdown com
+ * os valores no lugar das marcas; no Word, o texto do documento remontado. É o que deixa quem escreve
+ * o modelo — uma pessoa ou um agente de IA — conferir o resultado contra um registro de verdade antes
+ * de deixar uma cópia na aba Documentos.
+ */
+export type PreviewDocumentResult =
+  | { ok: true; text: string; fileName: string; output: DocumentOutputFormat; issues: RenderIssue[] }
+  | { ok: false; error: string; errorParams?: Record<string, string> };
+
 export interface RenderDocumentUseCase {
   execute(request: RenderDocumentRequest): Promise<RenderDocumentResult>;
+  preview(request: Omit<RenderDocumentRequest, 'author'>): Promise<PreviewDocumentResult>;
 }
 
-const failure = (error: string, errorParams?: Record<string, string>): RenderDocumentResult =>
-  errorParams ? { ok: false, error, errorParams } : { ok: false, error };
+type Failure = { ok: false; error: string; errorParams?: Record<string, string> };
 
+const failure = (error: string, errorParams?: Record<string, string>): Failure =>
+  errorParams ? { ok: false, error, errorParams } : { ok: false, error };
 const documentsScreen = (schema: SchemaContext, collection: string) => schema.screens.get(collection);
 
 /**
@@ -98,8 +110,25 @@ const evaluatorFor = (
  * pedido, a tela tem a aba Documentos, o registro existe. Só então os filhos são lidos e o arquivo é
  * montado — nada é gravado antes de tudo ter dado certo.
  */
-export const makeRenderDocumentUseCase = (deps: RenderDocumentDeps): RenderDocumentUseCase => ({
-  execute: async (request) => {
+interface PreparedDocument {
+  template: ResolvedDocumentTemplate;
+  output: DocumentOutputFormat;
+  physicalCollection: string;
+  templateText: string;
+  fileNameTemplate: string;
+  scope: Record<string, unknown>;
+  evaluate: TemplateEvaluator;
+}
+
+/**
+ * Tudo o que vem antes de montar o arquivo: as recusas, na ordem da pergunta que se faria à mão, e a
+ * leitura do registro e das listas. A geração e a pré-visualização partem DAQUI, e por isso o texto
+ * pré-visualizado é o texto que o documento terá.
+ */
+const prepare = async (
+  deps: RenderDocumentDeps,
+  request: Omit<RenderDocumentRequest, 'author'>,
+): Promise<{ ok: true; value: PreparedDocument } | Failure> => {
     const templates = await deps.templates.resolve(request.tenantId);
     const template = templates.find((one) => one.key === request.templateKey);
     if (!template) return failure('@core.documents/render.template-not-found', { key: request.templateKey });
@@ -186,6 +215,23 @@ export const makeRenderDocumentUseCase = (deps: RenderDocumentDeps): RenderDocum
 
     const evaluate = evaluatorFor(collection, locale, timeZone, request.permissions, businessCalendars);
 
+    return {
+      ok: true,
+      value: { template, output, physicalCollection: table.physicalCollection, templateText, fileNameTemplate, scope, evaluate },
+    };
+};
+
+const baseNameOf = (prepared: PreparedDocument): string =>
+  (prepared.fileNameTemplate
+    ? renderTemplate(parseTemplate(prepared.fileNameTemplate).nodes, prepared.scope, { evaluate: prepared.evaluate }).text.trim()
+    : '');
+
+export const makeRenderDocumentUseCase = (deps: RenderDocumentDeps): RenderDocumentUseCase => ({
+  execute: async (request) => {
+    const prepared = await prepare(deps, request);
+    if (!prepared.ok) return prepared;
+    const { template, output, scope, evaluate } = prepared.value;
+
     let rendered;
     try {
       rendered = await deps.renderer.render({ template, output, scope, evaluate });
@@ -200,9 +246,7 @@ export const makeRenderDocumentUseCase = (deps: RenderDocumentDeps): RenderDocum
       });
     }
 
-    const baseName = fileNameTemplate
-      ? renderTemplate(parseTemplate(fileNameTemplate).nodes, scope, { evaluate }).text.trim()
-      : '';
+    const baseName = baseNameOf(prepared.value);
     // A barra de um valor ("Contrato 01/2026") não pode virar diretório: o nome é saneado para o
     // último segmento, e o documento se chamaria "2026.pdf".
     const name = agentDocumentName(`${(baseName || template.title).replace(/[/\\]/g, '-')}.${rendered.extension}`)
@@ -210,7 +254,7 @@ export const makeRenderDocumentUseCase = (deps: RenderDocumentDeps): RenderDocum
 
     const document = await deps.writer.attach({
       tenantId: request.tenantId,
-      physicalCollection: table.physicalCollection,
+      physicalCollection: prepared.value.physicalCollection,
       recordId: request.recordId,
       name,
       contentType: rendered.contentType,
@@ -220,5 +264,25 @@ export const makeRenderDocumentUseCase = (deps: RenderDocumentDeps): RenderDocum
     });
 
     return { ok: true, document, output, issues: rendered.issues };
+  },
+
+  preview: async (request) => {
+    const prepared = await prepare(deps, request);
+    if (!prepared.ok) return prepared;
+    const { template, output, templateText, scope, evaluate } = prepared.value;
+    // O texto que o renderizador LÊ — no Word, o remontado —, mesclado pela mesma gramática. O Markdown
+    // sai com o valor ESCAPADO, como sai no arquivo: um nome com `*` não vira negrito na prévia.
+    const merged = renderTemplate(
+      parseTemplate(templateText).nodes,
+      scope,
+      { evaluate, ...(template.format === 'markdown' ? { write: escapeMarkdownValue } : {}) },
+    );
+    return {
+      ok: true,
+      text: merged.text,
+      fileName: (baseNameOf(prepared.value) || template.title).replace(/[/\\]/g, '-'),
+      output,
+      issues: merged.issues,
+    };
   },
 });

@@ -194,4 +194,24 @@ describe('RenderDocumentUseCase', () => {
       expect(attached.at(-1)).toMatchObject({ physicalCollection: 'cases', recordId: 'c1' });
     }
   });
+
+  it('a pré-visualização mescla o texto pela mesma preparação, sem montar arquivo nem anexar', async () => {
+    const { useCase, rendered, attached } = setup([template({ body: '**{{name}}** {{#each installments}}{{amount}};{{/each}}{{missing.deep()}}' })]);
+
+    const result = await useCase.preview(request());
+
+    expect(result).toMatchObject({ ok: true, fileName: 'Receipt Ana-Bia', output: 'pdf' });
+    if (!result.ok) return;
+    expect(result.text).toContain('Ana/Bia');
+    expect(result.text).toContain('10;');
+    expect(rendered).toHaveLength(0);
+    expect(attached).toHaveLength(0);
+  });
+
+  it('a pré-visualização recusa como a geração recusa', async () => {
+    const { useCase } = setup();
+
+    expect(await useCase.preview(request({ recordId: 'ghost' })))
+      .toEqual({ ok: false, error: '@core.records/record.not-found' });
+  });
 });

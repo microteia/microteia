@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import type { ScreenDefinition } from '../../../domain/entities/entitySchemas';
-import { parseTemplate } from '../../../domain/schema/document/templateGrammar';
-import { documentTemplateIssues } from '../../../domain/schema/document/documentTemplate';
+import type { ScreenDefinition } from '../../entities/entitySchemas';
+import { parseTemplate } from './templateGrammar';
+import { documentTemplateIssues } from './documentTemplate';
 import { buildStarterTemplate } from './starterTemplate';
 
 const screen = (id: string, overrides: Partial<ScreenDefinition>): ScreenDefinition =>

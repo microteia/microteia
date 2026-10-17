@@ -88,7 +88,7 @@ export type RecordWriteVia = 'ui' | 'agent' | 'automation';
 export const RECORD_CREATED_VIA_FIELD = 'createdVia';
 export const RECORD_UPDATED_VIA_FIELD = 'updatedVia';
 
-const SYSTEM_MANAGED_KEYS: ReadonlySet<string> = new Set([
+export const SYSTEM_MANAGED_KEYS: ReadonlySet<string> = new Set([
   'id',
   'createdAt',
   'updatedAt',

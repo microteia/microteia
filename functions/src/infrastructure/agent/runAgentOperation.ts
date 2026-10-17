@@ -43,6 +43,16 @@ import { ACTION_SYSTEM_PARAMETERS, prepareParameters } from './agentParameters';
 import { describeAgentWorkflow, listAgentWorkflows, previewAgentWorkflow, screenActions } from './agentWorkflows';
 import type { AgentDocumentOutcome } from './agentDocuments';
 import { attachAgentDocument, describeDocuments, listAgentDocuments } from './agentDocuments';
+import type { TemplateOutcome } from './agentDocumentTemplates';
+import {
+  agentDocumentAuthor,
+  agentDocumentTemplateGuide,
+  changeAgentDocumentTemplate,
+  getAgentDocumentTemplate,
+  listAgentDocumentTemplates,
+  saveAgentDocumentTemplate,
+} from './agentDocumentTemplates';
+import type { DocumentOutputFormat } from '../../domain/schema/document/documentTemplate';
 
 /**
  * Os tetos da varredura para uma pergunta de agente.
@@ -107,6 +117,9 @@ const refuseParameters = (
 
 const fromDocumentOutcome = (catalog: MessageCatalog, outcome: AgentDocumentOutcome): AgentOperationOutcome =>
   (outcome.ok ? outcome : refuse(catalog, outcome.error, outcome.params));
+
+const fromTemplateOutcome = (catalog: MessageCatalog, outcome: TemplateOutcome): AgentOperationOutcome =>
+  (outcome.ok ? outcome : refuse(catalog, outcome.error, outcome.params, outcome.details));
 
 const asRecord = (value: unknown): Record<string, unknown> =>
   (typeof value === 'object' && value !== null && !Array.isArray(value))
@@ -203,16 +216,29 @@ export const runAgentOperation = async (
         return refuse(catalog, '@core.automation/mutation.table.unknown', { table: collection });
       }
       const screen = schema.screens.get(collection);
-      const [actions, documents] = await Promise.all([
+      const [actions, documents, templates] = await Promise.all([
         screen ? screenActions(session.tenantId, screen.id, catalog) : Promise.resolve([]),
         describeDocuments(schema, session.tenantId, collection, catalog),
+        screen?.hasDocuments === true
+          ? listAgentDocumentTemplates({ collection }, session, catalog)
+          : Promise.resolve(null),
       ]);
+      // Os modelos que geram documento sobre ESTA tela, para o agente não precisar adivinhar que
+      // existe `list_document_templates` quando a pessoa pede "a procuração deste registro".
+      const documentTemplates = templates?.ok
+        ? (templates.value as { templates: { key: string; title: string; outputs: string[]; state: string; canRender: boolean }[] })
+          .templates
+          .filter((template) => template.state !== 'disabled')
+          .map(({ key, title, outputs, canRender }) => ({ key, title, outputs, canRender }))
+        : [];
       return {
         ok: true,
         value: {
           ...described,
           ...(actions.length > 0 ? { actions } : {}),
-          ...(documents ? { documents } : {}),
+          ...(documents
+            ? { documents: { ...documents, ...(documentTemplates.length > 0 ? { templates: documentTemplates } : {}) } }
+            : {}),
         },
       };
     }
@@ -348,9 +374,98 @@ export const runAgentOperation = async (
       return outcome.ok ? outcome : refuse(catalog, outcome.error, outcome.params);
     }
 
+    case 'list_document_templates':
+      return fromTemplateOutcome(catalog, await listAgentDocumentTemplates(input, session, catalog));
+
+    case 'get_document_template':
+      return fromTemplateOutcome(catalog, await getAgentDocumentTemplate(input, session, catalog, schema));
+
+    case 'document_template_guide':
+      return fromTemplateOutcome(catalog, await agentDocumentTemplateGuide(input, session, catalog));
+
+    case 'save_document_template':
+      return fromTemplateOutcome(catalog, await saveAgentDocumentTemplate(input, session, catalog, schema));
+
+    case 'change_document_template':
+      return fromTemplateOutcome(catalog, await changeAgentDocumentTemplate(input, session, catalog));
+
+    case 'preview_document':
+      return previewAgentDocument(input, session, catalog);
+
+    case 'render_document':
+      return renderAgentDocument(input, session, catalog);
+
     default:
       return refuse(catalog, '@core.automation/handler.action.not-found');
   }
+};
+
+/** As marcas que saíram vazias, com a frase de cada uma — é o que diz ao agente o que corrigir. */
+const emptyFieldDetails = (catalog: MessageCatalog, issues: readonly { expression: string; detail: string }[]) =>
+  issues.map((issue) => ({
+    expression: issue.expression,
+    ...agentText(catalog, '@core.documents/render.field-empty', { expression: issue.expression, detail: issue.detail }),
+  }));
+
+/**
+ * O MESMO caso de uso do gesto e do passo, parado antes de montar o arquivo: o texto pré-visualizado é
+ * o texto que o documento terá. Cobra só a leitura, porque nada é anexado.
+ */
+const previewAgentDocument = async (
+  input: Record<string, unknown>,
+  session: AgentSession,
+  catalog: MessageCatalog,
+): Promise<AgentOperationOutcome> => {
+  const result = await getDI().getRenderDocumentUseCase().preview({
+    tenantId: session.tenantId,
+    templateKey: asText(input.template),
+    collection: asText(input.collection),
+    recordId: asText(input.recordId),
+    permissions: session.permissions,
+  });
+  if (!result.ok) return refuse(catalog, result.error, result.errorParams);
+  return {
+    ok: true,
+    value: {
+      fileName: result.fileName,
+      output: result.output,
+      text: result.text,
+      emptyFields: result.issues.length,
+      ...(result.issues.length > 0 ? { empty: emptyFieldDetails(catalog, result.issues) } : {}),
+    },
+  };
+};
+
+/** Gerar e anexar, pela porta da callable `renderDocument`: o anexo do agente é o anexo da tela. */
+const renderAgentDocument = async (
+  input: Record<string, unknown>,
+  session: AgentSession,
+  catalog: MessageCatalog,
+): Promise<AgentOperationOutcome> => {
+  const output = asText(input.output);
+  const fileName = asText(input.fileName);
+  const documentType = asText(input.documentType);
+  const result = await getDI().getRenderDocumentUseCase().execute({
+    tenantId: session.tenantId,
+    templateKey: asText(input.template),
+    collection: asText(input.collection),
+    recordId: asText(input.recordId),
+    ...(output ? { output: output as DocumentOutputFormat } : {}),
+    ...(fileName ? { fileName } : {}),
+    ...(documentType ? { documentType } : {}),
+    author: await agentDocumentAuthor(session),
+    permissions: session.permissions,
+  });
+  if (!result.ok) return refuse(catalog, result.error, result.errorParams);
+  return {
+    ok: true,
+    value: {
+      document: { id: result.document.id, name: result.document.name, url: result.document.url },
+      format: result.output,
+      emptyFields: result.issues.length,
+      ...(result.issues.length > 0 ? { empty: emptyFieldDetails(catalog, result.issues) } : {}),
+    },
+  };
 };
 
 /**

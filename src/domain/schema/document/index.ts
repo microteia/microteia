@@ -5,3 +5,5 @@
 
 export * from './templateGrammar';
 export * from './documentTemplate';
+export * from './templatePaths';
+export * from './starterTemplate';

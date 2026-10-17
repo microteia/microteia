@@ -28,7 +28,7 @@ import {
   templateCollection,
 } from '../../../domain/schema/document/documentTemplate';
 import { useScreenKeyOfSource } from '../../shared/documents/useResolvedDocumentTemplates';
-import { buildStarterTemplate } from '../../shared/documents/starterTemplate';
+import { buildStarterTemplate } from '../../../domain/schema/document/starterTemplate';
 import type { TemplateHelpGroup } from '../../shared/documents/templateHelp';
 import { templateHelpFor } from '../../shared/documents/templateHelp';
 import type { SearchSelectOption } from '../../components/ui/SearchSelect';
@@ -443,17 +443,23 @@ export const useDocumentTemplatesViewModel = (): DocumentTemplatesViewModel => {
     }
   }, [selectedKey, tenantByKey, packaged, saveTemplate, notify, t]);
 
-  /** Desligar grava a chave com `enabled: false`; religar apaga essa gravação. */
+  /**
+   * Desligar grava a chave com `enabled: false` — a cópia do escritório COM o conteúdo dela. Religar
+   * apaga só a marca de um modelo de extensão; uma cópia personalizada ou um modelo do escritório
+   * volta a valer como estava, em vez de ser apagado.
+   */
   const handleToggleDisabled = useCallback(async () => {
     if (!selectedKey) return;
+    const own = tenantByKey.get(selectedKey);
     try {
       if (selectedState === 'disabled') {
-        await deleteTemplate(selectedKey);
+        if (packaged.has(selectedKey) && !own?.basedOn) await deleteTemplate(selectedKey);
+        else if (own) await saveTemplate({ ...specOf(own), enabled: true, ...(own.basedOn ? { basedOn: own.basedOn } : {}) });
         notify(t('template.enabled'), 'success');
       } else {
-        const spec = packaged.get(selectedKey)?.spec ?? tenantByKey.get(selectedKey);
+        const spec = own ?? packaged.get(selectedKey)?.spec;
         if (!spec) return;
-        await saveTemplate({ ...specOf(spec), enabled: false });
+        await saveTemplate({ ...specOf(spec), enabled: false, ...(own?.basedOn ? { basedOn: own.basedOn } : {}) });
         notify(t('template.disabled'), 'success');
       }
       setDraft(null);

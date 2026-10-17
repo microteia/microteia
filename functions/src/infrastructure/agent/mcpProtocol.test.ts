@@ -21,7 +21,7 @@ import { AGENT_OPERATIONS, AGENT_RESOURCES, AGENT_TOOLS } from '../../domain/sch
  * deixa de ser encontrada. A URI é a mais frágil das duas, porque nada no cliente a valida.
  */
 describe('a superfície publicada', () => {
-  it('publica exatamente estas dezesseis ferramentas, nesta ordem', () => {
+  it('publica exatamente estas vinte e três ferramentas, nesta ordem', () => {
     expect(AGENT_TOOLS.map((tool) => tool.name)).toEqual([
       'list_screens',
       'describe_screen',
@@ -39,6 +39,13 @@ describe('a superfície publicada', () => {
       'get_workflow_run',
       'run_action',
       'search_audit_log',
+      'list_document_templates',
+      'get_document_template',
+      'document_template_guide',
+      'save_document_template',
+      'change_document_template',
+      'preview_document',
+      'render_document',
     ]);
   });
 
@@ -98,7 +105,9 @@ describe('a superfície publicada', () => {
 
   // `run_workflow` conta como escrita mesmo publicando um evento: o que ele dispara grava. Contá-lo
   // como leitura faria um acesso somente-leitura poder mudar dado por via indireta.
-  it('as que gravam são exatamente estas seis', () => {
+  // `render_document` grava porque anexa um arquivo novo a cada chamada; `preview_document` não, e é
+  // por isso que são duas — a mesma geração com cobranças diferentes.
+  it('as que gravam são exatamente estas nove', () => {
     expect(AGENT_TOOLS.filter((tool) => tool.writes).map((tool) => tool.name)).toEqual([
       'create_record',
       'update_record',
@@ -106,6 +115,9 @@ describe('a superfície publicada', () => {
       'attach_document',
       'run_workflow',
       'run_action',
+      'save_document_template',
+      'change_document_template',
+      'render_document',
     ]);
   });
 });

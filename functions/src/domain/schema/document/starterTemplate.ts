@@ -1,5 +1,16 @@
-import type { FieldDefinition, ScreenDefinition } from '../../../domain/entities/entitySchemas';
-import type { DocumentTemplateDataset } from '../../../domain/schema/document/documentTemplate';
+// ═══════════════════════════════════════════════════════════════════════════
+// ⚠️  ARQUIVO GERADO POR scripts/sync-schemas.cjs — NÃO EDITE.
+// Fonte única: src/domain/schema/document/starterTemplate.ts
+// Para alterar, edite a fonte e rode: npm run sync-schemas
+// ═══════════════════════════════════════════════════════════════════════════
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// FONTE ÚNICA — a cópia em functions/src/domain/schema/document/starterTemplate.ts é
+// GERADA por scripts/sync-schemas.cjs (npm run sync-schemas). Nunca edite a cópia.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+import type { FieldDefinition } from '../../entities/entitySchemas';
+import type { DocumentTemplateDataset } from './documentTemplate';
 
 /**
  * O MODELO INICIAL de uma tela — escrito a partir dos campos DELA, e não de um exemplo genérico.
@@ -26,10 +37,22 @@ export interface StarterTexts {
   generatedOn: string;
 }
 
+/**
+ * A tela como o modelo inicial a lê. É estrutural de propósito: a tela de modelos passa a
+ * `ScreenDefinition` e o agente de IA passa a `SchemaScreen` do backend — o mesmo modelo nas duas pontas.
+ */
+export interface StarterScreen {
+  id: string;
+  titleSingular: string;
+  titlePlural?: string;
+  titleFieldKey?: string | null;
+  fields: readonly FieldDefinition[];
+}
+
 export interface StarterInput {
-  screen: ScreenDefinition;
+  screen: StarterScreen;
   /** Todas as telas do escritório: de onde saem os vínculos navegados e as listas filhas. */
-  screens: readonly ScreenDefinition[];
+  screens: readonly StarterScreen[];
   /** Resolve o rótulo (referência de mensagem ou texto do escritório). */
   label: (value: string) => string;
   texts: StarterTexts;
@@ -52,10 +75,13 @@ const identifier = (raw: string): string => {
   return /^[A-Za-z_]/.test(clean) ? clean : `list_${clean}`;
 };
 
-/** A expressão que imprime o campo como TEXTO de documento, ou `null` quando não há tradução fiel. */
-const printed = (
+/**
+ * A expressão que imprime o campo como TEXTO de documento, ou `null` quando não há tradução fiel. É
+ * a mesma que o modelo inicial escreve, e a que o guia do agente de IA mostra campo a campo.
+ */
+export const starterFieldExpression = (
   field: FieldDefinition,
-  screens: readonly ScreenDefinition[],
+  screens: readonly StarterScreen[],
   texts: StarterTexts,
   label: (value: string) => string,
 ): string | null => {
@@ -89,7 +115,7 @@ export const buildStarterTemplate = ({ screen, screens, label, texts }: StarterI
   const lines: string[] = [`# ${label(screen.titleSingular)}`, '', `<!-- ${texts.fieldsComment} -->`, ''];
 
   for (const field of ordered(screen.fields)) {
-    const value = printed(field, screens, texts, label);
+    const value = starterFieldExpression(field, screens, texts, label);
     if (value !== null) lines.push(`**${label(field.label)}:** ${value}  `);
   }
 
@@ -101,7 +127,7 @@ export const buildStarterTemplate = ({ screen, screens, label, texts }: StarterI
 
     const columns = ordered(child.fields)
       .filter((field) => field.key !== via.key)
-      .map((field) => ({ field, value: printed(field, screens, texts, label) }))
+      .map((field) => ({ field, value: starterFieldExpression(field, screens, texts, label) }))
       .filter((column): column is { field: FieldDefinition; value: string } => column.value !== null)
       .slice(0, MAX_LIST_COLUMNS);
     if (columns.length === 0) continue;
@@ -112,7 +138,7 @@ export const buildStarterTemplate = ({ screen, screens, label, texts }: StarterI
 
     lines.push(
       '',
-      `## ${label(child.titlePlural)}`,
+      `## ${label(child.titlePlural ?? child.titleSingular)}`,
       '',
       `<!-- ${texts.listComment} -->`,
       '',
