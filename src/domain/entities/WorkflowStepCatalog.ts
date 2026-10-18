@@ -24,7 +24,13 @@ export type InputOptionsSource =
  * O que um input NOMEIA, quando o valor dele é o id de outra coisa declarada no escritório. Faz o
  * editor oferecer a lista em vez de pedir um id digitado, e só quando o mapping é `Literal`.
  */
-export type InputPickerKind = 'workflow' | 'script' | 'ai-connection' | 'permission' | 'document-template';
+export type InputPickerKind =
+  | 'workflow'
+  | 'script'
+  | 'ai-connection'
+  | 'permission'
+  | 'document-template'
+  | 'document-template-reference';
 
 export interface InputDefinition {
   id: string;

@@ -28,6 +28,7 @@ import { BUSINESS_CALENDAR_POINT } from '../../../domain/schema/time/extensionPo
 import {
   DOCUMENT_OUTPUTS_BY_FORMAT,
   DOCUMENT_TEMPLATE_MAX_BYTES,
+  DOCUMENT_BELONGS_TO_SINCE_KERNEL,
   DOCUMENT_DESTINATION_SINCE_KERNEL,
   DOCUMENT_PARAMETER_TYPES,
   DOCUMENT_PAYLOAD_MAX_BYTES,
@@ -2404,7 +2405,8 @@ Both fields require kernel \`^${DOCUMENT_DESTINATION_SINCE_KERNEL}\`; an older k
 
 Not every document is about a record. A template with \`source: 'payload'\` has no screen: whoever
 generates it — an automation, an AI agent — sends the data, and the paths start at that object. It
-always goes to Downloads, and generating it needs the \`documents.generate\` permission.
+goes to Downloads unless whoever generates it says which record owns it (\`belongsTo\`, below), and
+generating it needs the \`documents.generate\` permission.
 
 \`\`\`ts
 documentTemplateContribution({
@@ -2430,10 +2432,35 @@ documentTemplateContribution({
   required parameter refuses the generation; without parameters any object is accepted as it comes.
 - A first-level \`EntityReference\` takes the record id and is hydrated like a reference field:
   \`{{customer.name}}\` reads the record. Reading it charges \`<collection>.read\` of whoever generates.
-- No \`datasets\` and no \`destination: 'record'\` — there is no record. The payload is at most
-  ${DOCUMENT_PAYLOAD_MAX_BYTES / 1024} KB of JSON. \`sample\` is what the preview merges.
+- No \`datasets\` and no \`destination: 'record'\` in the template — it has no record of its own. The
+  payload is at most ${DOCUMENT_PAYLOAD_MAX_BYTES / 1024} KB of JSON. \`sample\` is what the preview merges.
 - The \`render-document\` step offers each parameter as its own input (\`param.<key>\`), plus a \`payload\`
   input for a whole object.
+
+**Where the file lives — \`belongsTo\`.** A document with sources almost always has a record it
+belongs to, and the same template may be generated from more than one screen. So the home is decided
+by **whoever generates**, not by the template: the \`render-document\` step (and the agent's
+\`render_document\`) takes \`belongsTo\`, the key of one of the template's single \`EntityReference\`
+parameters.
+
+\`\`\`ts
+configuration: {
+  templateKey: { kind: 'Literal', value: 'acme-quote' },
+  'param.customer': { kind: 'Event', path: 'customerId' },
+  belongsTo: { kind: 'Literal', value: 'customer' },     // the parameter whose record owns the file
+  destination: { kind: 'Literal', value: 'record' },     // attach it to that record's Documents tab
+},
+\`\`\`
+
+- With \`destination: 'record'\` the file is attached to that record. Its screen must have the Documents
+  tab, and an agent or a person generating needs \`<collection>.update\` on it — the same as attaching.
+- With Downloads, that record is remembered as the file's **origin**, and "Attach to a record" suggests
+  it: the copy that goes out to be signed comes back to the right place. Without \`belongsTo\`, the first
+  filled single reference is the suggested origin — and only that: attaching never guesses.
+- A list reference, an empty one, or a key that is not a reference is refused, and so is
+  \`belongsTo\` on a record template, whose document already belongs to its record.
+
+\`belongsTo\` requires kernel \`^${DOCUMENT_BELONGS_TO_SINCE_KERNEL}\`.
 
 Requires kernel \`^${DOCUMENT_PAYLOAD_SINCE_KERNEL}\`; an older kernel finds no screen and drops the template.
 

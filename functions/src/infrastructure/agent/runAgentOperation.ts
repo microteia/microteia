@@ -463,6 +463,7 @@ const renderAgentDocument = async (
   const output = asText(input.output);
   const fileName = asText(input.fileName);
   const documentType = asText(input.documentType);
+  const belongsTo = asText(input.belongsTo);
   const destination = asText(input.destination);
   if (destination && !isDocumentDestination(destination)) {
     return refuse(catalog, '@core.documents/render.destination-unsupported', { destination });
@@ -480,6 +481,7 @@ const renderAgentDocument = async (
     ...(output ? { output: output as DocumentOutputFormat } : {}),
     ...(fileName ? { fileName } : {}),
     ...(documentType ? { documentType } : {}),
+    ...(belongsTo ? { belongsTo } : {}),
     ...(isDocumentDestination(destination) ? { destination } : {}),
     ...(isRetentionDays(expiresInDays) ? { expiresInDays } : {}),
     chargePermissions: true,

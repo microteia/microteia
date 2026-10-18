@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.125.0] — 2026-10-18
+
+- Um documento gerado a partir de dados — como uma procuração montada com a pessoa e o contrato — agora pode ser anexado direto na aba Documentos do registro a que pertence. Na automação, basta dizer em "Pertence a" qual dos registros é o dono do documento.
+- Quando esse documento vai para Downloads, o registro de origem fica lembrado: ao anexar o arquivo depois, o registro certo já vem sugerido.
+
 #### [9.124.1] — 2026-10-17
 
 - Corrigido: nos passos de uma automação, o "x" ao lado da origem de um campo agora apaga de fato o valor, deixando o campo vazio como antes de qualquer escolha — em vez de voltar para "Valor fixo".

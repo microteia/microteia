@@ -552,6 +552,14 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
     [documentTemplates, label, t],
   );
 
+  /** As referências únicas do modelo de dados escolhido: os registros a que o documento pode pertencer. */
+  const templateReferenceOptions = useMemo(
+    () => (targetTemplate?.parameters ?? [])
+      .filter((parameter) => parameter.type === 'EntityReference' && !!parameter.entityType && !parameter.list)
+      .map((parameter) => ({ value: parameter.key, label: label(parameter.label) || parameter.key, meta: parameter.entityType })),
+    [targetTemplate, label],
+  );
+
   const aiConnectionOptions = useMemo(
     () => [
       { value: '', label: t('step.ai-connection.default') },
@@ -602,6 +610,14 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
           ? { options: documentTemplateOptions }
           : { options: documentTemplateOptions, orphanMessage: t('step.target.document-template.missing', { key: stored }) };
       }
+      if (kind === 'document-template-reference') {
+        return !stored || templateReferenceOptions.some((option) => option.value === stored)
+          ? { options: templateReferenceOptions }
+          : {
+            options: templateReferenceOptions,
+            orphanMessage: t('step.target.document-template-reference.missing', { key: stored }),
+          };
+      }
       if (kind === 'permission') {
         return !stored || permissionOptions.some((option) => option.value === stored)
           ? { options: permissionOptions }
@@ -624,6 +640,7 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
     [
       aiConnectionOptions,
       documentTemplateOptions,
+      templateReferenceOptions,
       t,
       permissionOptions,
       callableScriptOptions,
@@ -646,7 +663,9 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
               ? 'step.target.permission'
               : kind === 'document-template'
                 ? 'step.target.document-template'
-                : 'step.target.workflow',
+                : kind === 'document-template-reference'
+                  ? 'step.target.document-template-reference'
+                  : 'step.target.workflow',
       ),
     [t],
   );

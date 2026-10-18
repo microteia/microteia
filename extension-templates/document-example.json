@@ -1,8 +1,8 @@
 {
   "manifest": {
     "id": "com.microteia.document-example",
-    "version": "1.0.0",
-    "kernel": "^2.36.0",
+    "version": "1.1.0",
+    "kernel": "^2.49.0",
     "name": "@com.microteia.document-example/package.name",
     "description": "@com.microteia.document-example/package.description",
     "category": "@com.microteia.document-example/package.category",
@@ -21,7 +21,7 @@
             "package.name": "Documents, by example",
             "package.category": "Documents",
             "package.description": "A document template over two small screens: an agreement and its installments, generated as PDF or Word and attached to the agreement.",
-            "package.summary": "What a document template can say, with no business in the way. It installs an agreement screen with the Documents tab, a screen of installments linked to it, and one template that reads fields, formats dates and money, repeats the installments in a table and includes a line only when a condition holds. Generate it from the agreement, or from an automation with the \"Generate Document\" step.",
+            "package.summary": "What a document template can say, with no business in the way. It installs an agreement screen with the Documents tab, a screen of installments linked to it, and one template that reads fields, formats dates and money, repeats the installments in a table and includes a line only when a condition holds. Generate it from the agreement, or from an automation with the \"Generate Document\" step. A second template reads data instead of a record — the receipt of an installment —, and the automation that comes with it generates it and attaches it to the agreement.",
             "screen.agreement": "Agreement",
             "screen.agreement.plural": "Agreements",
             "screen.installment": "Installment",
@@ -33,7 +33,12 @@
             "field.amount": "Amount",
             "field.dueDate": "Due date",
             "field.paid": "Paid",
-            "template.payment-plan": "Payment plan"
+            "field.paidOn": "Paid on",
+            "field.note": "Note",
+            "template.payment-plan": "Payment plan",
+            "template.installment-receipt": "Installment receipt",
+            "workflow.receipt": "Generate installment receipt",
+            "workflow.receipt.description": "Generates the receipt of a payment from the data it receives and attaches it to the Documents tab of the agreement the data points to."
           }
         }
       },
@@ -48,7 +53,7 @@
             "package.name": "Documentos, pelo exemplo",
             "package.category": "Documentos",
             "package.description": "Um modelo de documento sobre duas telas pequenas: um acordo e as parcelas dele, gerado em PDF ou Word e anexado ao acordo.",
-            "package.summary": "O que um modelo de documento consegue dizer, sem negócio no caminho. Instala uma tela de acordo com a aba Documentos, uma tela de parcelas ligada a ela, e um modelo que lê campos, formata datas e valores, repete as parcelas numa tabela e inclui uma linha só quando uma condição vale. Gere-o a partir do acordo, ou de uma automação com o passo \"Gerar Documento\".",
+            "package.summary": "O que um modelo de documento consegue dizer, sem negócio no caminho. Instala uma tela de acordo com a aba Documentos, uma tela de parcelas ligada a ela, e um modelo que lê campos, formata datas e valores, repete as parcelas numa tabela e inclui uma linha só quando uma condição vale. Gere-o a partir do acordo, ou de uma automação com o passo \"Gerar Documento\". Um segundo modelo lê dados em vez de um registro — o recibo de uma parcela —, e a automação que o acompanha o gera e o anexa ao acordo.",
             "screen.agreement": "Acordo",
             "screen.agreement.plural": "Acordos",
             "screen.installment": "Parcela",
@@ -60,7 +65,12 @@
             "field.amount": "Valor",
             "field.dueDate": "Vencimento",
             "field.paid": "Pago",
-            "template.payment-plan": "Plano de pagamento"
+            "field.paidOn": "Pago em",
+            "field.note": "Observação",
+            "template.payment-plan": "Plano de pagamento",
+            "template.installment-receipt": "Recibo de parcela",
+            "workflow.receipt": "Gerar recibo de parcela",
+            "workflow.receipt.description": "Gera o recibo de um pagamento a partir dos dados que recebe e o anexa à aba Documentos do acordo para o qual os dados apontam."
           }
         }
       },
@@ -86,11 +96,137 @@
             }
           ]
         }
+      },
+      {
+        "point": "document.template",
+        "id": "installment-receipt",
+        "apiVersion": "1.0.0",
+        "metadata": {
+          "key": "installment-receipt",
+          "title": "@com.microteia.document-example/template.installment-receipt",
+          "source": "payload",
+          "collection": "",
+          "format": "markdown",
+          "body": "# Receipt\n\nReceived from **{{agreement.party}}** the amount of **{{formatMoney(amount)}}** on {{formatDate(paidOn, \"DD/MM/YYYY\")}}, for the agreement signed on {{formatDate(agreement.signedOn, \"DD/MM/YYYY\")}}.\n{{#if note}}\n\n{{note}}\n{{/if}}\n",
+          "fileName": "Receipt - {{agreement.party}}",
+          "parameters": [
+            {
+              "key": "agreement",
+              "label": "@com.microteia.document-example/field.agreement",
+              "type": "EntityReference",
+              "entityType": "docAgreement",
+              "required": true
+            },
+            {
+              "key": "amount",
+              "label": "@com.microteia.document-example/field.amount",
+              "type": "Number",
+              "required": true
+            },
+            {
+              "key": "paidOn",
+              "label": "@com.microteia.document-example/field.paidOn",
+              "type": "Date",
+              "required": true
+            },
+            {
+              "key": "note",
+              "label": "@com.microteia.document-example/field.note",
+              "type": "String"
+            }
+          ],
+          "sample": {
+            "agreement": "",
+            "amount": 150,
+            "paidOn": "2026-10-18",
+            "note": ""
+          }
+        }
       }
     ]
   },
   "summary": "@com.microteia.document-example/package.summary",
-  "workflows": [],
+  "workflows": [
+    {
+      "templateId": "wf-installment-receipt",
+      "name": "@com.microteia.document-example/workflow.receipt",
+      "description": "@com.microteia.document-example/workflow.receipt.description",
+      "eventName": "workflow.called",
+      "version": 1,
+      "condition": {
+        "kind": "AlwaysTrue"
+      },
+      "parameters": [
+        {
+          "key": "agreementId",
+          "label": "@com.microteia.document-example/field.agreement",
+          "type": "EntityReference",
+          "entityType": "docAgreement",
+          "required": true
+        },
+        {
+          "key": "amount",
+          "label": "@com.microteia.document-example/field.amount",
+          "type": "Number",
+          "required": true
+        },
+        {
+          "key": "paidOn",
+          "label": "@com.microteia.document-example/field.paidOn",
+          "type": "Date",
+          "required": true
+        },
+        {
+          "key": "note",
+          "label": "@com.microteia.document-example/field.note",
+          "type": "String"
+        }
+      ],
+      "steps": [
+        {
+          "id": "renderReceipt",
+          "stepDefinitionId": "render-document",
+          "type": "Action",
+          "order": 0,
+          "enabled": true,
+          "configuration": {
+            "templateKey": {
+              "kind": "Literal",
+              "value": "installment-receipt"
+            },
+            "param.agreement": {
+              "kind": "Event",
+              "path": "agreementId"
+            },
+            "param.amount": {
+              "kind": "Event",
+              "path": "amount"
+            },
+            "param.paidOn": {
+              "kind": "Event",
+              "path": "paidOn"
+            },
+            "param.note": {
+              "kind": "Event",
+              "path": "note"
+            },
+            "belongsTo": {
+              "kind": "Literal",
+              "value": "agreement"
+            },
+            "destination": {
+              "kind": "Literal",
+              "value": "record"
+            },
+            "output": {
+              "kind": "Literal",
+              "value": "pdf"
+            }
+          }
+        }
+      ]
+    }
+  ],
   "screens": [
     {
       "key": "docAgreement",

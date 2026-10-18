@@ -18,6 +18,11 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.125.0] — 2026-10-18
+
+- feat(documents): payload templates can now be delivered to a record. `RenderDocumentRequest.belongsTo` names one of the template's single `EntityReference` parameters; the record it points to owns the document. With `destination: 'record'` the file is attached there (charging `<collection>.update` and requiring `hasDocuments` on that screen, like any attachment); with Downloads it becomes the item's `origin`, which "Attach to a record" suggests. Without `belongsTo`, the first filled single reference is stored as the suggested origin only — `record` without `belongsTo` is still `render.payload-destination`. New refusals `render.belongs-to-invalid`, `render.belongs-to-empty`, `render.belongs-to-record-template`. A payload template still cannot declare `destination: 'record'` itself: the home belongs to whoever generates, since one template serves several screens.
+- feat(workflow): `render-document` gains the `belongsTo` input (`templateSource: payload`, Literal only) with the new picker kind `document-template-reference`, listing the chosen template's single references. The MCP tool `render_document` takes `belongsTo` too, and `describe_workflow_step` now publishes `onlyForTemplateSource` per input. `DOCUMENT_BELONGS_TO_SINCE_KERNEL`; KERNEL_VERSION 2.49.0; `com.microteia.document-example` 1.1.0 ships a payload template (`installment-receipt`) and a called workflow that attaches it to the agreement; `com.microteia.locale-pt-br` 1.105.0. Deploy: `npm run deploy:documents`, `npm run deploy:workflow`, `npm run deploy:agent`.
+
 #### [9.124.1] — 2026-10-17
 
 - fix(ui/workflow-step): clearing a step input's source selector (the "x") now removes the input from `configuration` instead of resetting it to `{ kind: 'Literal', value: '' }`. `setMappingKind('')` used to fall through `emptyMappingFor`'s default branch, so an input once set could never return to absent — and conditions comparing against an unset value never matched again.

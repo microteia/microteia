@@ -7,6 +7,7 @@ import {
   DOWNLOAD_RETENTION_MAX_DAYS,
   DOCUMENT_PARAMETER_TYPES,
   DOCUMENT_PAYLOAD_SINCE_KERNEL,
+  DOCUMENT_BELONGS_TO_SINCE_KERNEL,
   TEMPLATE_BLOCKS,
 } from '../../../domain/schema/document';
 import { PACKAGE_ADVISORY_BYTES, PACKAGE_MAX_BYTES } from '../../../domain/usecases/plugins/pluginReferences';
@@ -936,6 +937,7 @@ describe('a seção de documentos', () => {
     expect(guide).toContain(`0 to ${DOWNLOAD_RETENTION_MAX_DAYS}, 0 = never`);
     expect(guide).toContain(`Requires kernel \`^${DOCUMENT_PAYLOAD_SINCE_KERNEL}\`; an older kernel finds no screen`);
     for (const type of DOCUMENT_PARAMETER_TYPES) expect(guide).toContain(`\`${type}\``);
+    expect(guide).toContain(`\`belongsTo\` requires kernel \`^${DOCUMENT_BELONGS_TO_SINCE_KERNEL}\``);
   });
 
   it('as seções seguintes andaram uma casa, e as referências andaram junto', () => {

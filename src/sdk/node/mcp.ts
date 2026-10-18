@@ -620,6 +620,12 @@ const TOOLS: ToolDefinition[] = [
               .map(referenceableLine),
           }),
           shape: COMPOSITE_INPUT_SHAPE[one.type] ?? null,
+          // Sem isto, quem escreve o passo "Gerar documento" não sabia que `recordId` é do modelo de
+          // registro e `payload`/`belongsTo` do modelo de dados — e só descobria pela recusa em runtime.
+          ...(one.templateSource ? { onlyForTemplateSource: one.templateSource.is } : {}),
+          ...(one.picker === 'document-template-reference'
+            ? { names: 'The key of one of the chosen payload template\'s single EntityReference parameters.' }
+            : {}),
           acceptsMappingKinds: one.allowedMappingKinds ?? ALL_MAPPING_KINDS,
           defaultValue: one.defaultValue,
           pattern: one.pattern,

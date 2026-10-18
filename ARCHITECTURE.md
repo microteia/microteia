@@ -7782,7 +7782,9 @@ modelo geram — `dynamicInputs: 'from-target-document-template-parameters'`, o 
 `templateSource: { is, required? }` diz que `recordId` só vale (e é obrigatório) para modelo de
 registro, e `payload` só para modelo de dados; `inputsForTemplateSource` aplica no editor, e trocar o
 modelo limpa o que era da outra origem. O catálogo não marca `recordId` como `required` porque o motor
-cobra `required` em toda execução — o modelo de dados falharia. Destino ou retenção que não existem
+cobra `required` em toda execução — o modelo de dados falharia. `belongsTo` (só modelo de dados) usa o
+seletor `picker: 'document-template-reference'`, que lista as referências únicas do modelo escolhido; o
+`describe_workflow_step` publica `onlyForTemplateSource` de cada input. Destino ou retenção que não existem
 reprovam o passo, em vez de cair no padrão.
 
 ### O destino — aba Documentos ou Downloads
@@ -7868,9 +7870,28 @@ em como o ESCOPO é montado; gramática, avaliador, renderizador e destino não 
   callable decide a porta pelo pedido (`payload` → `documents.generate`; senão, `<coleção>.read`); as
   ferramentas MCP `render_document` e `preview_document` passaram a `delegated` e o caso de uso cobra
   tudo (`chargePermissions`).
-- **Sem registro, sem aba:** o destino padrão é `downloads`, e `record` é recusa
-  (`render.payload-destination`) — na validação do modelo e na geração. `datasets` não existe: as listas
-  vêm dentro do payload. Teto de `DOCUMENT_PAYLOAD_MAX_BYTES` (256 KB de JSON).
+- **Sem registro próprio, sem aba própria:** o destino padrão é `downloads`. O MODELO não pode declarar
+  `destination: 'record'` (`documentTemplateIssues`), e `datasets` não existe: as listas vêm dentro do
+  payload. Teto de `DOCUMENT_PAYLOAD_MAX_BYTES` (256 KB de JSON).
+- **O dono é de quem gera — `belongsTo`.** Um documento de várias origens quase sempre tem um registro
+  onde morar, e o mesmo modelo serve a mais de uma tela (a procuração gerada da pessoa ou do contrato).
+  Por isso o lugar não é do modelo: o pedido (passo, agente) diz `belongsTo`, a CHAVE de um parâmetro
+  `EntityReference` único do modelo, e o registro que ele aponta é o dono. Com destino `record`, o
+  arquivo é anexado a ele — cobrando `<coleção>.update` e a aba Documentos da tela dele, como no anexo
+  comum; com Downloads, ele vira o `origin` do item, e "Anexar a um registro" o sugere. Sem `belongsTo`,
+  a primeira referência única preenchida é a origem SUGERIDA — e só isso: pedir `record` sem
+  `belongsTo` continua sendo `render.payload-destination`, porque o motor não adivinha onde escrever.
+  Lista, referência vazia ou chave que não é referência são recusa (`render.belongs-to-invalid`,
+  `render.belongs-to-empty`), e `belongsTo` num modelo de registro também
+  (`render.belongs-to-record-template`): o documento dele já pertence ao registro.
+- **Por que a chave do parâmetro, e não `collection` + `recordId`.** O registro dono já está no payload,
+  já foi validado pelo contrato e já é lido (e cobrado) na hidratação. Nomear o parâmetro não acrescenta
+  nome de coleção à automação — que, num pacote, quebraria com o sufixo da chave instalada — e não abre
+  um segundo caminho para escrever num registro que o documento não menciona. Exige kernel `^2.49.0`
+  (`DOCUMENT_BELONGS_TO_SINCE_KERNEL`).
+- **Não há passo "anexar de Downloads".** Todo item de Downloads nasce de um modelo, e numa automação
+  nada acontece ao arquivo entre gerar e anexar: quem sabe o dono gera direto nele. A via ASSINADA é
+  outro arquivo, que uma pessoa sobe — e é a ela que o `origin` serve, pela sugestão do diálogo.
 - **`sample`** é o payload que a pré-visualização mescla quando ninguém entrega um.
 - **Na tela de modelos**, "Os dados vêm de" troca a origem e leva junto o que só faz sentido na outra
   (tela, listas e anexo ao registro de um lado; parâmetros e exemplo do outro). Os parâmetros usam o

@@ -879,7 +879,8 @@ export const AGENT_TOOLS: readonly AgentToolDefinition[] = [
       + 'or to Downloads (destination "downloads", temporary, needs only read permission). '
       + 'Without destination, the template\'s default applies, and the Documents tab when it declares none. '
       + RECORD_OR_PAYLOAD_NOTE
-      + 'A payload template always goes to Downloads and needs the documents.generate permission. '
+      + 'A payload template needs the documents.generate permission and goes to Downloads, unless belongsTo names '
+      + 'which record it points to owns the file — then destination "record" attaches it there. '
       + 'Returns the file with its download link, where it went, when it expires, and how many tags came out '
       + 'empty. Every call creates a new file — do not repeat it to retry a success.',
     inputSchema: object(
@@ -891,6 +892,12 @@ export const AGENT_TOOLS: readonly AgentToolDefinition[] = [
         fileName: { type: 'string', description: 'Replace the template file name for this document. Same grammar, no extension.' },
         documentType: { type: 'string', description: 'Replace the document type of the template for this document.' },
         payload: DOCUMENT_PAYLOAD,
+        belongsTo: {
+          type: 'string',
+          description: 'Only for a payload template: the key of one of its single EntityReference parameters. The record '
+            + 'that parameter points to owns the document: destination "record" attaches the file to it (needs update '
+            + 'permission on its collection and the Documents tab), and in Downloads it is remembered as the origin.',
+        },
         destination: {
           type: 'string',
           enum: [...DOCUMENT_DESTINATIONS],

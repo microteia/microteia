@@ -64,7 +64,13 @@ export type InputOptionsSource =
  * O seletor só é oferecido quando o mapping é `Literal`: um alvo que só se conhece em runtime não
  * tem lista a mostrar em design-time.
  */
-export type InputPickerKind = 'workflow' | 'script' | 'ai-connection' | 'permission' | 'document-template';
+export type InputPickerKind =
+  | 'workflow'
+  | 'script'
+  | 'ai-connection'
+  | 'permission'
+  | 'document-template'
+  | 'document-template-reference';
 
 export interface InputDefinition {
   id: string;
@@ -840,6 +846,21 @@ export const CORE_STEP_CATALOG: readonly WorkflowStepMetadata[] = [
         required: false,
         type: 'Expression',
         allowedMappingKinds: ['Expression', 'Output', 'Variable', 'Event'],
+        templateSource: { is: 'payload' },
+      },
+      {
+        /**
+         * O dono do documento de dados: a chave de um parâmetro `EntityReference` do modelo. Com destino
+         * `record`, o arquivo é anexado ao registro que ele aponta; com Downloads, esse registro vira a
+         * origem do item. É de quem gera, não do modelo — o mesmo modelo serve a mais de uma tela.
+         */
+        id: 'belongsTo',
+        label: '@core.automation/step.render-document.label.belongs-to',
+        description: '@core.automation/step.render-document.help.belongs-to',
+        required: false,
+        type: 'String',
+        allowedMappingKinds: ['Literal'],
+        picker: 'document-template-reference',
         templateSource: { is: 'payload' },
       },
       {

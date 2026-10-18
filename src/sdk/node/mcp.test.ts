@@ -127,6 +127,18 @@ describe('o servidor MCP de autoria', () => {
     expect(query.inputs.find((one) => one.id === 'query')?.shape).toBe('QuerySpec');
   });
 
+  it('diz de qual origem de modelo é cada input do passo "Gerar documento"', () => {
+    const answer = JSON.parse(runMcpTool('describe_workflow_step', { stepDefinitionId: 'render-document' }, ROOT)) as {
+      inputs: { id: string; onlyForTemplateSource?: string; names?: string }[];
+    };
+    const byId = new Map(answer.inputs.map((one) => [one.id, one]));
+    expect(byId.get('recordId')?.onlyForTemplateSource).toBe('record');
+    expect(byId.get('payload')?.onlyForTemplateSource).toBe('payload');
+    expect(byId.get('belongsTo')?.onlyForTemplateSource).toBe('payload');
+    expect(byId.get('belongsTo')?.names).toMatch(/EntityReference/);
+    expect(byId.get('output')?.onlyForTemplateSource).toBeUndefined();
+  });
+
   it('um id de passo que não existe volta com a lista do que existe', () => {
     const answer = runMcpTool('describe_workflow_step', { stepDefinitionId: 'notificar' }, ROOT);
     expect(answer).toMatch(/is not in the kernel catalog/);

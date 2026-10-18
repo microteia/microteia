@@ -84,12 +84,14 @@ export const makeRenderDocumentStepDefinition = (renderDocument: RenderDocumentU
       }
       const payload = { ...(isPlainObject(inputs.payload) ? inputs.payload : {}), ...buildNestedParams(paramEntries) };
 
+      const belongsTo = textOf(inputs.belongsTo);
       const fileName = textOf(inputs.fileName);
       const documentType = textOf(inputs.documentType);
       const result = await renderDocument.execute({
         tenantId: context.execution.tenantId,
         templateKey: textOf(inputs.templateKey),
         ...(recordId ? { recordId } : { payload }),
+        ...(belongsTo ? { belongsTo } : {}),
         ...(output ? { output } : {}),
         ...(fileName ? { fileName } : {}),
         ...(documentType ? { documentType } : {}),

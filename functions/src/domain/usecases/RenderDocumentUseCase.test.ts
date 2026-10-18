@@ -322,7 +322,7 @@ describe('RenderDocumentUseCase', () => {
     });
     const payload = { payer: 'Ana', amount: 10, contract: 'c1', items: [{ description: 'Fee' }] };
 
-    it('gera em Downloads com o payload no escopo, sem registro de origem', async () => {
+    it('gera em Downloads com o payload no escopo', async () => {
       const { useCase, rendered, saved } = setup([receipt()]);
 
       const result = await useCase.execute(request({ templateKey: 'payment-receipt', recordId: undefined, payload }));
@@ -330,7 +330,6 @@ describe('RenderDocumentUseCase', () => {
       expect(result).toMatchObject({ ok: true, destination: 'downloads' });
       expect(rendered[0].scope).toMatchObject({ payer: 'Ana', amount: 10, items: [{ description: 'Fee' }] });
       expect(saved[0]).toMatchObject({ name: 'Receipt Ana.pdf', templateKey: 'payment-receipt' });
-      expect(saved[0].origin).toBeUndefined();
     });
 
     it('a referência é hidratada: o payload traz o id e o modelo lê o registro apontado', async () => {
@@ -378,6 +377,84 @@ describe('RenderDocumentUseCase', () => {
         .toMatchObject({ ok: false, errorParams: { permission: 'contracts.read' } });
       expect(await useCase.execute(request({ ...asked, permissions: ['documents.generate', 'contracts.read'] })))
         .toMatchObject({ ok: true });
+    });
+
+    describe('o dono do documento (belongsTo)', () => {
+      const asked = { templateKey: 'payment-receipt', recordId: undefined, payload };
+
+      it('com destino no registro, anexa ao registro que o parâmetro aponta', async () => {
+        const { useCase, attached, saved } = setup([receipt()]);
+
+        const result = await useCase.execute(request({ ...asked, belongsTo: 'contract', destination: 'record' }));
+
+        expect(result).toMatchObject({ ok: true, destination: 'record' });
+        expect(attached[0]).toMatchObject({ physicalCollection: 'contracts', recordId: 'c1', name: 'Receipt Ana.pdf' });
+        expect(saved).toHaveLength(0);
+      });
+
+      it('em Downloads, o dono vira a origem do item', async () => {
+        const { useCase, saved } = setup([receipt({ parameters: [
+          { key: 'payer', label: 'Payer', type: 'String', required: true },
+          { key: 'note', label: 'Note', type: 'EntityReference', entityType: 'notes' },
+          { key: 'contract', label: 'Contract', type: 'EntityReference', entityType: 'contracts' },
+        ] })]);
+
+        await useCase.execute(request({ ...asked, payload: { payer: 'Ana', note: 'c1', contract: 'c1' }, belongsTo: 'contract' }));
+
+        expect(saved[0].origin).toEqual({ collection: 'contracts', recordId: 'c1' });
+      });
+
+      it('sem belongsTo, a primeira referência única preenchida é a origem sugerida — e não autoriza anexar', async () => {
+        const { useCase, saved } = setup([receipt()]);
+
+        await useCase.execute(request(asked));
+        expect(saved[0].origin).toEqual({ collection: 'contracts', recordId: 'c1' });
+
+        await useCase.execute(request({ ...asked, payload: { payer: 'Ana' } }));
+        expect(saved[1].origin).toBeUndefined();
+
+        expect(await useCase.execute(request({ ...asked, destination: 'record' })))
+          .toMatchObject({ ok: false, error: '@core.documents/render.payload-destination' });
+      });
+
+      it('nomear o que não é referência única, ou uma referência vazia, é recusa', async () => {
+        const { useCase } = setup([receipt()]);
+
+        expect(await useCase.execute(request({ ...asked, belongsTo: 'items', destination: 'record' })))
+          .toMatchObject({ ok: false, error: '@core.documents/render.belongs-to-invalid', errorParams: { parameter: 'items' } });
+        expect(await useCase.execute(request({ ...asked, belongsTo: 'ghost' })))
+          .toMatchObject({ ok: false, error: '@core.documents/render.belongs-to-invalid' });
+        expect(await useCase.execute(request({ ...asked, payload: { payer: 'Ana' }, belongsTo: 'contract' })))
+          .toMatchObject({ ok: false, error: '@core.documents/render.belongs-to-empty' });
+      });
+
+      it('a tela dona precisa da aba Documentos', async () => {
+        const { useCase, attached } = setup([receipt({ parameters: [
+          { key: 'payer', label: 'Payer', type: 'String', required: true },
+          { key: 'note', label: 'Note', type: 'EntityReference', entityType: 'notes' },
+        ] })]);
+
+        expect(await useCase.execute(request({ ...asked, payload: { payer: 'Ana', note: 'c1' }, belongsTo: 'note', destination: 'record' })))
+          .toMatchObject({ ok: false, error: '@core.documents/render.documents-disabled', errorParams: { collection: 'notes' } });
+        expect(attached).toHaveLength(0);
+      });
+
+      it('cobrando permissão, anexar pede a edição do registro dono, além de gerar e ler', async () => {
+        const { useCase } = setup([receipt()]);
+        const charged = { ...asked, belongsTo: 'contract', destination: 'record' as const, chargePermissions: true };
+
+        expect(await useCase.execute(request({ ...charged, permissions: ['documents.generate', 'contracts.read'] })))
+          .toMatchObject({ ok: false, errorParams: { permission: 'contracts.update' } });
+        expect(await useCase.execute(request({ ...charged, permissions: ['documents.generate', 'contracts.read', 'contracts.update'] })))
+          .toMatchObject({ ok: true, destination: 'record' });
+      });
+
+      it('no modelo de registro, belongsTo é recusa: o documento já pertence ao registro', async () => {
+        const { useCase } = setup();
+
+        expect(await useCase.execute(request({ belongsTo: 'contract' })))
+          .toMatchObject({ ok: false, error: '@core.documents/render.belongs-to-record-template' });
+      });
     });
 
     it('a pré-visualização sem payload mescla o exemplo do modelo', async () => {

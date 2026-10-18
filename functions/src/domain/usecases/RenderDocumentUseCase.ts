@@ -10,12 +10,13 @@ import { DOCUMENT_PAYLOAD_MAX_BYTES, isPayloadTemplate, templateOutputs } from '
 import type { TemplatePaths } from '../schema/document/templateGrammar';
 import { collectRequiredIssues, formatAndValidateParameters } from '../schema/parameterRules';
 import { PERMISSION_DOCUMENTS_GENERATE } from '../schema/access';
-import type { DocumentDestination, DownloadPolicy, DownloadVisibility } from '../schema/document/documentDownloads';
+import type { DocumentDestination, DownloadOrigin, DownloadPolicy, DownloadVisibility } from '../schema/document/documentDownloads';
 import { downloadExpiresAt, resolveRetentionDays } from '../schema/document/documentDownloads';
 import { grants } from '../schema/access';
 import { collectionPermissionId } from '../schema/access/permission';
 import type { RenderIssue, TemplateEvaluator } from '../schema/document/templateGrammar';
 import { collectTemplatePaths, escapeMarkdownValue, parseTemplate, renderTemplate } from '../schema/document/templateGrammar';
+import type { WorkflowParameter } from '../entities/Workflow';
 import type { IScreenDefinitionProvider } from '../repositories/IScreenDefinitionProvider';
 import type { IDocumentRenderer } from '../repositories/IDocumentRenderer';
 import { DocumentRenderError } from '../repositories/IDocumentRenderer';
@@ -30,6 +31,12 @@ export interface RenderDocumentRequest {
   recordId?: string;
   /** Os dados do modelo `payload`, conferidos contra os `parameters` dele. */
   payload?: Record<string, unknown>;
+  /**
+   * Só no modelo `payload`: a chave do parâmetro `EntityReference` cujo registro é o DONO do documento.
+   * Com destino `record`, o arquivo é anexado a ele; com Downloads, ele vira a origem do item. Quem
+   * decide é quem gera, não o modelo — o mesmo modelo serve a mais de uma tela.
+   */
+  belongsTo?: string;
   /**
    * Só na pré-visualização: o modelo como está no EDITOR, ainda não gravado. Vence `templateKey` — é o
    * que deixa conferir o texto antes de salvar.
@@ -158,8 +165,12 @@ interface PreparedDocument {
   template: ResolvedDocumentTemplate;
   destination: DocumentDestination;
   output: DocumentOutputFormat;
-  /** A coleção do registro de origem; `null` no modelo `payload`, que não tem registro. */
-  physicalCollection: string | null;
+  /**
+   * O registro a que o documento pertence: onde ele é anexado, ou a origem guardada em Downloads. No
+   * modelo de registro é o próprio registro; no `payload`, o parâmetro que `belongsTo` nomeia ou, sem
+   * ele, a primeira referência preenchida — que só serve de origem, nunca de lugar de anexo.
+   */
+  home: DownloadOrigin | null;
   templateText: string;
   fileNameTemplate: string;
   scope: Record<string, unknown>;
@@ -242,6 +253,7 @@ const prepareRecord = async (
       return failure('@core.documents/render.collection-mismatch', { key: template.key, collection: request.collection });
     }
     if (!request.recordId) return failure('@core.documents/render.record-missing', { key: template.key });
+    if (request.belongsTo) return failure('@core.documents/render.belongs-to-record-template', { key: template.key });
 
     const schema = await deps.screens.getSchemaContext(request.tenantId);
     const table = resolveQueryTable(collection, schema);
@@ -312,8 +324,46 @@ const prepareRecord = async (
 
     return {
       ok: true,
-      value: { template, destination, output, physicalCollection: table.physicalCollection, templateText, fileNameTemplate, scope, evaluate },
+      value: {
+        template,
+        destination,
+        output,
+        home: { collection: table.physicalCollection, recordId: request.recordId },
+        templateText,
+        fileNameTemplate,
+        scope,
+        evaluate,
+      },
     };
+};
+
+const isSingleReference = (parameter: WorkflowParameter): boolean =>
+  parameter.type === 'EntityReference' && !!parameter.entityType && !parameter.list;
+
+const isFilled = (value: unknown): boolean => value !== undefined && value !== null && value !== '';
+
+/**
+ * O parâmetro que responde pelo dono do documento. Pedido por `belongsTo`, ele tem de ser uma
+ * referência ÚNICA preenchida — uma lista não diz a qual dos registros o arquivo pertence. Sem pedido,
+ * a primeira referência única preenchida, na ordem do contrato, serve só de origem sugerida.
+ */
+const homeParameterOf = (
+  template: ResolvedDocumentTemplate,
+  data: Record<string, unknown>,
+  belongsTo: string | undefined,
+): { ok: true; value: WorkflowParameter | null } | Failure => {
+  const parameters = template.parameters ?? [];
+  if (!belongsTo) {
+    return { ok: true, value: parameters.find((one) => isSingleReference(one) && isFilled(data[one.key])) ?? null };
+  }
+  const named = parameters.find((one) => one.key === belongsTo);
+  if (!named || !isSingleReference(named)) {
+    return failure('@core.documents/render.belongs-to-invalid', { key: template.key, parameter: belongsTo });
+  }
+  if (!isFilled(data[named.key])) {
+    return failure('@core.documents/render.belongs-to-empty', { key: template.key, parameter: belongsTo });
+  }
+  return { ok: true, value: named };
 };
 
 /** Os caminhos que o modelo lê A PARTIR de `key` — `cliente.nome` vira `nome` para o registro do cliente. */
@@ -345,7 +395,9 @@ const preparePayload = async (
   }
 
   const destination = request.destination ?? template.destination ?? 'downloads';
-  if (destination === 'record') return failure('@core.documents/render.payload-destination', { key: template.key });
+  // Anexar pede um dono declarado: o motor nunca adivinha em qual dos registros apontados escrever.
+  const attaches = mode === 'render' && destination === 'record';
+  if (attaches && !request.belongsTo) return failure('@core.documents/render.payload-destination', { key: template.key });
   // Pré-visualizar não gera nada: a permissão de gerar só é cobrada de quem gera. A leitura de cada
   // registro apontado continua cobrada abaixo, nos dois modos.
   const denied = mode === 'render' ? charge(request, PERMISSION_DOCUMENTS_GENERATE) : null;
@@ -357,6 +409,8 @@ const preparePayload = async (
   const checked = formatAndValidateParameters(parameters, payload);
   const [invalid] = checked.issues;
   if (invalid) return failure(invalid.error, invalid.errorParams);
+  const homeParameter = homeParameterOf(template, checked.data, mode === 'render' ? request.belongsTo : undefined);
+  if (!homeParameter.ok) return homeParameter;
 
   const text = readTemplateText(deps, template, request);
   if (!text.ok) return text;
@@ -373,8 +427,23 @@ const preparePayload = async (
 
   const scope: Record<string, unknown> = { ...checked.data };
   const references = parameters.filter((parameter) => parameter.type === 'EntityReference' && parameter.entityType);
+  let home: DownloadOrigin | null = null;
   if (references.length > 0) {
     const schema = await deps.screens.getSchemaContext(request.tenantId);
+    if (homeParameter.value) {
+      const owner = homeParameter.value;
+      const table = resolveQueryTable(owner.entityType ?? '', schema);
+      if (!table) return failure('@core.automation/mutation.table.unknown', { table: owner.entityType ?? '' });
+      // Anexar altera o registro dono, e a cobrança é a do gesto: `<coleção>.update` e a aba Documentos.
+      if (attaches) {
+        const denied = charge(request, collectionPermissionId(table.physicalCollection, 'update'));
+        if (denied) return denied;
+        if (documentsScreen(schema, table.physicalCollection)?.hasDocuments !== true) {
+          return failure('@core.documents/render.documents-disabled', { collection: table.physicalCollection });
+        }
+      }
+      home = { collection: table.physicalCollection, recordId: String(checked.data[owner.key]) };
+    }
     for (const parameter of references) {
       const value = scope[parameter.key];
       if (value === undefined || value === null || value === '') continue;
@@ -424,7 +493,7 @@ const preparePayload = async (
 
   return {
     ok: true,
-    value: { template, destination, output, physicalCollection: null, templateText, fileNameTemplate, scope, evaluate },
+    value: { template, destination, output, home, templateText, fileNameTemplate, scope, evaluate },
   };
 };
 
@@ -437,7 +506,7 @@ export const makeRenderDocumentUseCase = (deps: RenderDocumentDeps): RenderDocum
   execute: async (request) => {
     const prepared = await prepare(deps, request, 'render');
     if (!prepared.ok) return prepared;
-    const { template, output, scope, evaluate, physicalCollection } = prepared.value;
+    const { template, output, scope, evaluate, home } = prepared.value;
 
     let rendered;
     try {
@@ -474,9 +543,7 @@ export const makeRenderDocumentUseCase = (deps: RenderDocumentDeps): RenderDocum
         visibility,
         expiresAt: downloadExpiresAt((deps.now ?? (() => new Date()))(), retentionDays),
         templateKey: template.key,
-        ...(physicalCollection && request.recordId
-          ? { origin: { collection: physicalCollection, recordId: request.recordId } }
-          : {}),
+        ...(home ? { origin: home } : {}),
         author: request.author,
       });
       return {
@@ -488,12 +555,12 @@ export const makeRenderDocumentUseCase = (deps: RenderDocumentDeps): RenderDocum
       };
     }
 
-    // Só o caminho do registro chega aqui: o do payload recusa `record` antes de ler qualquer coisa.
-    if (!physicalCollection || !request.recordId) return failure('@core.documents/render.payload-destination', { key: template.key });
+    // O payload sem `belongsTo` recusa `record` antes de ler qualquer coisa: aqui sempre há um dono.
+    if (!home) return failure('@core.documents/render.payload-destination', { key: template.key });
     const document = await deps.writer.attach({
       tenantId: request.tenantId,
-      physicalCollection,
-      recordId: request.recordId,
+      physicalCollection: home.collection,
+      recordId: home.recordId,
       name,
       contentType: rendered.contentType,
       data: rendered.data,

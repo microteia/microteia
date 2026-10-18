@@ -16,7 +16,7 @@ export const DOCUMENT_MESSAGES: Record<string, string> = {
   'package.description':
     'A document template over two small screens: an agreement and its installments, generated as PDF or Word and attached to the agreement.',
   'package.summary':
-    'What a document template can say, with no business in the way. It installs an agreement screen with the Documents tab, a screen of installments linked to it, and one template that reads fields, formats dates and money, repeats the installments in a table and includes a line only when a condition holds. Generate it from the agreement, or from an automation with the "Generate Document" step.',
+    'What a document template can say, with no business in the way. It installs an agreement screen with the Documents tab, a screen of installments linked to it, and one template that reads fields, formats dates and money, repeats the installments in a table and includes a line only when a condition holds. Generate it from the agreement, or from an automation with the "Generate Document" step. A second template reads data instead of a record — the receipt of an installment —, and the automation that comes with it generates it and attaches it to the agreement.',
 
   'screen.agreement': 'Agreement',
   'screen.agreement.plural': 'Agreements',
@@ -29,8 +29,15 @@ export const DOCUMENT_MESSAGES: Record<string, string> = {
   'field.amount': 'Amount',
   'field.dueDate': 'Due date',
   'field.paid': 'Paid',
+  'field.paidOn': 'Paid on',
+  'field.note': 'Note',
 
   'template.payment-plan': 'Payment plan',
+  'template.installment-receipt': 'Installment receipt',
+
+  'workflow.receipt': 'Generate installment receipt',
+  'workflow.receipt.description':
+    'Generates the receipt of a payment from the data it receives and attaches it to the Documents tab of the agreement the data points to.',
 };
 
 export const documentMessagesContribution = (): Contribution =>

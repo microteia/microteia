@@ -2,18 +2,22 @@ import type {
   MarketplacePlugin,
   ScreenModuleTemplate,
   TemplateField,
+  WorkflowModuleTemplate,
 } from '../../../../domain/entities/MarketplacePlugin';
 import { documentTemplateContribution } from '../../../../domain/schema/document';
 import { documentMessagesContribution } from './documentMessages';
 import { documentPtBrContribution } from './documentMessagesPtBr';
 
 /**
- * **Documents, by example** — one template over two small screens.
+ * **Documents, by example** — two templates over two small screens.
  *
  * A document template is DATA: a `document.template` contribution, with no code and no trust gesture.
  * The organization generates it from the record (the "Generate document" gesture) or from an automation
  * (the `render-document` step), and the file lands in the record's Documents tab. If the organization
  * writes its own template under the same `key`, theirs wins — and deleting theirs brings this one back.
+ *
+ * The second template reads DATA instead of a record (`source: 'payload'`), and the automation below
+ * generates it and attaches it to the agreement the data points to (`belongsTo`).
  *
  * The screens are deliberately anonymous — an "agreement" with installments — because a document
  * example that also taught a business would teach the business instead.
@@ -92,11 +96,70 @@ const PAYMENT_PLAN = `# Payment plan
 Generated on {{formatDate(today(), "DD/MM/YYYY")}}.
 `;
 
+/**
+ * A template of DATA: no screen, the paths start at the object whoever generates it sends. `agreement`
+ * is a single-record reference, hydrated like a reference field — `{{agreement.party}}` reads the
+ * agreement. That same reference is what lets the file have a home: the step names it in `belongsTo`.
+ */
+const INSTALLMENT_RECEIPT = `# Receipt
+
+Received from **{{agreement.party}}** the amount of **{{formatMoney(amount)}}** on {{formatDate(paidOn, "DD/MM/YYYY")}}, for the agreement signed on {{formatDate(agreement.signedOn, "DD/MM/YYYY")}}.
+{{#if note}}
+
+{{note}}
+{{/if}}
+`;
+
+const WORKFLOWS: WorkflowModuleTemplate[] = [
+  /**
+   * A CALLED flow: its `parameters` are what the caller sends, and the step hands them to the template
+   * one by one (`param.<key>`), as "Call Workflow" does.
+   *
+   * `belongsTo: 'agreement'` names the template parameter whose record OWNS the document. With
+   * `destination: 'record'` the file is attached to that agreement's Documents tab; with Downloads, the
+   * agreement would be remembered as the file's origin and suggested when someone attaches it later.
+   * The template itself has no screen: where the file goes is decided by whoever generates it.
+   */
+  {
+    templateId: 'wf-installment-receipt',
+    name: message('workflow.receipt'),
+    description: message('workflow.receipt.description'),
+    eventName: 'workflow.called',
+    version: 1,
+    condition: { kind: 'AlwaysTrue' },
+    parameters: [
+      { key: 'agreementId', label: message('field.agreement'), type: 'EntityReference', entityType: 'docAgreement', required: true },
+      { key: 'amount', label: message('field.amount'), type: 'Number', required: true },
+      { key: 'paidOn', label: message('field.paidOn'), type: 'Date', required: true },
+      { key: 'note', label: message('field.note'), type: 'String' },
+    ],
+    steps: [
+      {
+        id: 'renderReceipt',
+        stepDefinitionId: 'render-document',
+        type: 'Action',
+        order: 0,
+        enabled: true,
+        configuration: {
+          templateKey: { kind: 'Literal', value: 'installment-receipt' },
+          'param.agreement': { kind: 'Event', path: 'agreementId' },
+          'param.amount': { kind: 'Event', path: 'amount' },
+          'param.paidOn': { kind: 'Event', path: 'paidOn' },
+          'param.note': { kind: 'Event', path: 'note' },
+          belongsTo: { kind: 'Literal', value: 'agreement' },
+          destination: { kind: 'Literal', value: 'record' },
+          output: { kind: 'Literal', value: 'pdf' },
+        },
+      },
+    ],
+  },
+];
+
 export const documentExamplePlugin: MarketplacePlugin = {
   manifest: {
     id: 'com.microteia.document-example',
-    version: '1.0.0',
-    kernel: '^2.36.0',
+    version: '1.1.0',
+    kernel: '^2.49.0',
     name: message('package.name'),
     description: message('package.description'),
     category: message('package.category'),
@@ -124,9 +187,25 @@ export const documentExamplePlugin: MarketplacePlugin = {
           orderBy: 'dueDate',
         }],
       }),
+      documentTemplateContribution({
+        key: 'installment-receipt',
+        title: message('template.installment-receipt'),
+        source: 'payload',
+        collection: '',
+        format: 'markdown',
+        body: INSTALLMENT_RECEIPT,
+        fileName: 'Receipt - {{agreement.party}}',
+        parameters: [
+          { key: 'agreement', label: message('field.agreement'), type: 'EntityReference', entityType: 'docAgreement', required: true },
+          { key: 'amount', label: message('field.amount'), type: 'Number', required: true },
+          { key: 'paidOn', label: message('field.paidOn'), type: 'Date', required: true },
+          { key: 'note', label: message('field.note'), type: 'String' },
+        ],
+        sample: { agreement: '', amount: 150, paidOn: '2026-10-18', note: '' },
+      }),
     ],
   },
   summary: message('package.summary'),
-  workflows: [],
+  workflows: WORKFLOWS,
   screens: [AGREEMENT_SCREEN, INSTALLMENT_SCREEN],
 };

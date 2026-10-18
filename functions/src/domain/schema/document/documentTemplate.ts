@@ -174,6 +174,12 @@ export const DOCUMENT_TEMPLATE_SINCE_KERNEL = '2.36.0';
 export const DOCUMENT_PAYLOAD_SINCE_KERNEL = '2.48.0';
 
 /**
+ * O kernel que entende `belongsTo` no passo "Gerar documento": anexar o arquivo de um modelo de dados
+ * ao registro que um parâmetro dele aponta. Um anterior ignora o input e recusa o destino `record`.
+ */
+export const DOCUMENT_BELONGS_TO_SINCE_KERNEL = '2.49.0';
+
+/**
  * O teto do arquivo `.docx`. O modelo é guardado num documento do Firestore (limite de 1 MiB) e
  * viaja num pacote (teto de 800 KB): 512 KB decodificados são ~683 KB de base64, e cabem nos dois.
  * Um modelo maior que isso quase sempre carrega imagens que deveriam estar comprimidas.

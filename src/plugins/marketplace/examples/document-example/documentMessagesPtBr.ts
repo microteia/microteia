@@ -12,7 +12,7 @@ const DOCUMENT_PT_BR: Record<string, string> = {
   'package.description':
     'Um modelo de documento sobre duas telas pequenas: um acordo e as parcelas dele, gerado em PDF ou Word e anexado ao acordo.',
   'package.summary':
-    'O que um modelo de documento consegue dizer, sem negócio no caminho. Instala uma tela de acordo com a aba Documentos, uma tela de parcelas ligada a ela, e um modelo que lê campos, formata datas e valores, repete as parcelas numa tabela e inclui uma linha só quando uma condição vale. Gere-o a partir do acordo, ou de uma automação com o passo "Gerar Documento".',
+    'O que um modelo de documento consegue dizer, sem negócio no caminho. Instala uma tela de acordo com a aba Documentos, uma tela de parcelas ligada a ela, e um modelo que lê campos, formata datas e valores, repete as parcelas numa tabela e inclui uma linha só quando uma condição vale. Gere-o a partir do acordo, ou de uma automação com o passo "Gerar Documento". Um segundo modelo lê dados em vez de um registro — o recibo de uma parcela —, e a automação que o acompanha o gera e o anexa ao acordo.',
 
   'screen.agreement': 'Acordo',
   'screen.agreement.plural': 'Acordos',
@@ -25,8 +25,15 @@ const DOCUMENT_PT_BR: Record<string, string> = {
   'field.amount': 'Valor',
   'field.dueDate': 'Vencimento',
   'field.paid': 'Pago',
+  'field.paidOn': 'Pago em',
+  'field.note': 'Observação',
 
   'template.payment-plan': 'Plano de pagamento',
+  'template.installment-receipt': 'Recibo de parcela',
+
+  'workflow.receipt': 'Gerar recibo de parcela',
+  'workflow.receipt.description':
+    'Gera o recibo de um pagamento a partir dos dados que recebe e o anexa à aba Documentos do acordo para o qual os dados apontam.',
 };
 
 export const documentPtBrContribution = (): Contribution =>
