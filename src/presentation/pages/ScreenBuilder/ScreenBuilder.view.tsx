@@ -16,6 +16,7 @@ import type { ScreenBuilderViewModel, SelectedScreenState } from './ScreenBuilde
 import { Button } from '../../components/ui/Button';
 import { Checkbox } from '../../components/ui/Checkbox';
 import { Input, InputGroup, Label } from '../../components/ui/Input';
+import { PrefixedNameInput } from '../../components/ui/PrefixedNameInput';
 import { LabelInput } from '../../components/ui/LabelInput';
 import { SearchSelect } from '../../components/ui/SearchSelect';
 import { MultiSearchSelect } from '../../components/ui/MultiSearchSelect';
@@ -322,12 +323,17 @@ export const ScreenBuilderView: React.FC = () => {
                 </InputGroup>
                 <InputGroup>
                   <Label>{t('screen.key')}</Label>
-                  <Input
-                    value={vm.screenForm.screenKey}
-                    onChange={(e) => vm.updateScreenForm({ screenKey: e.target.value })}
-                    placeholder={t('screen.key.placeholder')}
-                    disabled={vm.screenModalIsEdit}
-                  />
+                  {vm.screenModalIsEdit ? (
+                    <Input value={vm.screenForm.screenKey} disabled />
+                  ) : (
+                    <PrefixedNameInput
+                      prefix={vm.artifactPrefix}
+                      kind="collection"
+                      value={vm.screenForm.screenKey}
+                      onChange={(screenKey) => vm.updateScreenForm({ screenKey })}
+                      placeholder={t('screen.key.placeholder')}
+                    />
+                  )}
                   <S.FieldHint>
                     {t(vm.screenModalIsEdit ? 'screen.key.locked' : 'screen.key.hint')}
                   </S.FieldHint>

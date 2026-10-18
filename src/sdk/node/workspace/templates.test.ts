@@ -10,6 +10,7 @@ import {
   DOCUMENT_BELONGS_TO_SINCE_KERNEL,
   TEMPLATE_BLOCKS,
 } from '../../../domain/schema/document';
+import { ARTIFACT_PREFIX_SINCE_KERNEL } from '../../../domain/schema/plugin/artifactPrefix';
 import { PACKAGE_ADVISORY_BYTES, PACKAGE_MAX_BYTES } from '../../../domain/usecases/plugins/pluginReferences';
 import { UI_EXTENSION_POINTS } from '../../../domain/schema/ui/uiExtensionPoints';
 import { ACCESS_EXTENSION_POINTS } from '../../../domain/schema/access';
@@ -938,6 +939,14 @@ describe('a seção de documentos', () => {
     expect(guide).toContain(`Requires kernel \`^${DOCUMENT_PAYLOAD_SINCE_KERNEL}\`; an older kernel finds no screen`);
     for (const type of DOCUMENT_PARAMETER_TYPES) expect(guide).toContain(`\`${type}\``);
     expect(guide).toContain(`\`belongsTo\` requires kernel \`^${DOCUMENT_BELONGS_TO_SINCE_KERNEL}\``);
+  });
+
+  it('ensina o prefixo, com a versão do kernel derivada', () => {
+    const guide = authoringGuide(AGENTS);
+
+    expect(guide).toContain('### Prefix');
+    expect(guide).toContain(`Requires kernel \`^${ARTIFACT_PREFIX_SINCE_KERNEL}\`; an older kernel ignores the field.`);
+    expect(guide).toContain('microteia.keepIds');
   });
 
   it('as seções seguintes andaram uma casa, e as referências andaram junto', () => {

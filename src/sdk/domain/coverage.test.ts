@@ -133,6 +133,7 @@ const LACUNAS_CONFERIDAS = [
   'manifest-property\timage',
   'manifest-property\thomepage',
   'manifest-property\tpublisher',
+  'manifest-property\tprefix',
   'manifest-property\tlicense',
   'manifest-property\tdependencies',
   'manifest-property\texports',

@@ -53,6 +53,17 @@ service cloud.firestore {
       return request.auth != null
         && get(/databases/$(database)/documents/tenants/$(tenantId)).data.ownerId == request.auth.uid;
     }
+    // O prefixo gravado em `settings/tenant` — '' quando o documento ou a chave não existem.
+    function tenantPrefixOf(doc) {
+      return doc == null ? '' : doc.data.get('values', {}).get('customization.prefix', '');
+    }
+
+    function tenantPrefixWriteAllowed(tenantId) {
+      let after = tenantPrefixOf(request.resource);
+      return after == tenantPrefixOf(resource)
+        || (can(tenantId, 'tenant.change-prefix') && after is string && after.matches('^[a-z][a-z0-9]{1,7}$'));
+    }
+
     function can(tenantId, permission) {
       return isSystemAdmin()
         || (isTenantMember(tenantId) && memberPermissions(tenantId).hasAny([permission, '*']))
@@ -361,12 +372,17 @@ service cloud.firestore {
       // `tenant` é o padrão do escritório (só admin) e `user_{uid}` é a preferência pessoal, que só
       // o dono escreve. Todo membro LÊ os dois — a resolução (usuário vence escritório) acontece no
       // cliente, e sem ler o padrão ninguém saberia o que herdar.
+      //
+      // O PREFIXO do escritório (`customization.prefix`) mora no mesmo documento, mas não é preferência:
+      // é o começo de todo nome que o escritório cria. Mudá-lo — ou apagá-lo junto com o documento —
+      // cobra `tenant.change-prefix`, e o valor novo tem de estar no formato de `artifactPrefix.ts`.
       match /settings/{settingsDocId} {
         allow read: if isMember(tenantId);
         allow create, update: if settingsDocId == 'tenant'
-          ? can(tenantId, 'settings.manage')
+          ? can(tenantId, 'settings.manage') && tenantPrefixWriteAllowed(tenantId)
           : settingsDocId == 'user_' + request.auth.uid && isMember(tenantId);
-        allow delete: if can(tenantId, 'settings.manage');
+        allow delete: if can(tenantId, 'settings.manage')
+          && (tenantPrefixOf(resource) == '' || can(tenantId, 'tenant.change-prefix'));
       }
 
       // O sino — as notificações que o passo `notify` entrega, uma por destinatário. Só o servidor

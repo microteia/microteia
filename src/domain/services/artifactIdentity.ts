@@ -1,5 +1,6 @@
 import type { TranslateFn } from '../schema/i18n/messages';
 import { MAX_ARTIFACT_ID_LENGTH, isArtifactId } from '../schema/plugin/artifactRef';
+import { hasArtifactPrefix, isArtifactPrefix, prefixHead, withoutArtifactPrefix } from '../schema/plugin/artifactPrefix';
 /**
  * O IDENTIFICADOR de um artefato de id gerado — automação, ação e script.
  *
@@ -87,3 +88,18 @@ export const installedArtifactId = (
   isArtifactId(templateId) && !taken.has(templateId.trim())
     ? templateId.trim()
     : deriveArtifactId(name, taken);
+
+/**
+ * O identificador derivado do nome SOB o prefixo do escritório — devolve só o pedaço depois do prefixo,
+ * que é o que a pessoa vê e edita. O desempate olha os ids que já têm esse prefixo: `abcd-avisar` ocupado
+ * faz o próximo ser `avisar-2`, e um `avisar` sem prefixo, criado antes dele existir, não conta.
+ */
+export const deriveArtifactIdUnderPrefix = (prefix: unknown, name: string, taken: ReadonlySet<string>): string => {
+  if (!isArtifactPrefix(prefix)) return deriveArtifactId(name, taken);
+  const rests = new Set(
+    [...taken]
+      .filter((id) => hasArtifactPrefix(prefix, 'artifact', id))
+      .map((id) => withoutArtifactPrefix(prefix, 'artifact', id)),
+  );
+  return deriveArtifactId(name, rests).slice(0, MAX_ARTIFACT_ID_LENGTH - prefixHead(prefix, 'artifact').length);
+};

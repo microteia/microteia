@@ -54,6 +54,7 @@ export const CORE_SETTINGS: Record<string, string> = {
   'setting.string-list': 'Informe uma lista de textos.',
   'setting.string-list.item': 'Cada item precisa ser um texto não vazio.',
   'setting.string-list.pattern': 'Há item fora do formato esperado.',
+  'setting.text.pattern': 'O valor está fora do formato esperado.',
   'setting.text': 'Informe um texto.',
   'setting.widgets': 'Informe uma lista de widgets.',
   'setting.widgets.item': 'Cada item precisa ter uma chave e, se informada, largura entre 1 e 3.',

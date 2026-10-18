@@ -11,6 +11,12 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.126.0] — 2026-10-18
+
+- Cada escritório passa a ter um prefixo próprio, que inicia o nome de toda tela, lista, automação, script, relatório e modelo criado daqui em diante. Assim, o que um escritório exporta nunca se confunde com o que outro criou. O prefixo fica em Configurações e só pode ser trocado por quem tem a permissão para isso.
+- Ao instalar uma extensão cujo nome de tela ou de lista já é usado no escritório, a instalação agora é recusada com uma explicação, em vez de criar uma cópia com outro nome.
+- Duas extensões diferentes que trazem uma automação com o mesmo nome passam a ter, cada uma, a sua — uma não substitui mais a outra.
+
 #### [9.125.0] — 2026-10-18
 
 - Um documento gerado a partir de dados — como uma procuração montada com a pessoa e o contrato — agora pode ser anexado direto na aba Documentos do registro a que pertence. Na automação, basta dizer em "Pertence a" qual dos registros é o dono do documento.

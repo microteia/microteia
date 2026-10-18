@@ -3,7 +3,8 @@ import { InstalledExtensionStoreContext, type InstallExtensionInput } from './us
 import { useTenant } from './useTenant';
 import { useAuth } from './useAuth';
 import { useDI } from '../infrastructure/di/useDI';
-import { applyPackageArtifacts, releasePackageArtifacts, type ArtifactDeps } from '../domain/usecases/plugins/MarketplaceInstallUseCases';
+import { applyPackageArtifacts, packageInstallIssues, releasePackageArtifacts, type ArtifactDeps } from '../domain/usecases/plugins/MarketplaceInstallUseCases';
+import { prefixChangeIssue } from '../domain/usecases/plugins/installCollisions';
 import { storeEvents, StoreEvents } from '../infrastructure/events/StoreEventEmitter';
 import type { InstalledExtension } from '../domain/entities/InstalledExtension';
 import { hashExtensionCode } from '../domain/usecases/plugins/extensionCodeTrust';
@@ -229,6 +230,15 @@ export const InstalledExtensionStoreProvider: React.FC<{ children: React.ReactNo
       existing?.package,
     );
     if (brokenDependent) throw new LocalizedError(brokenDependent.message, brokenDependent.messageParams);
+    /**
+     * O prefixo declarado não muda entre versões, e um nome que o escritório já usa para outra coisa é
+     * recusa — antes viraria `nome_2`, e quem dependesse do nome declarado leria a coleção de outro dono.
+     * As duas perguntas são feitas aqui, antes de qualquer gravação.
+     */
+    const prefixChange = prefixChangeIssue(input.package, existing?.package);
+    if (prefixChange) throw new LocalizedError(prefixChange.message, prefixChange.messageParams);
+    const [collision] = await packageInstallIssues(artifactDeps, input.package, currentTenant.id);
+    if (collision) throw new LocalizedError(collision.message, collision.messageParams);
     // Cópia independente e fiel: preserva apenas o estado local `active`; todo o resto vem da fonte.
     const extension: InstalledExtension = {
       id,

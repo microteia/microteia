@@ -37,6 +37,19 @@ describe('o molde de uma extensão', () => {
     for (const directory of directories.splice(0)) rmSync(directory, { recursive: true, force: true });
   });
 
+  it('com prefixo, o manifest o declara e a coleção que o molde gera já nasce com ele', () => {
+    const { directory } = scaffold({ ...SPEC, prefix: 'acme' });
+    const plugin = fileOf(directory, 'plugin.ts');
+    expect(plugin).toContain("prefix: 'acme',");
+    expect(plugin).toContain("const COLLECTION = 'acme_helloWorldItems';");
+  });
+
+  it('sem prefixo, o molde continua como sempre foi', () => {
+    const plugin = fileOf(scaffold().directory, 'plugin.ts');
+    expect(plugin).not.toContain('prefix:');
+    expect(plugin).toContain("const COLLECTION = 'helloWorldItems';");
+  });
+
   it('nasce com um VERSIONS.md, e não com o histórico começando na segunda versão', () => {
     const { directory, files } = scaffold();
     expect(files).toContain('VERSIONS.md');

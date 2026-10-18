@@ -2,6 +2,7 @@ import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import type { ITenantRepository, AddTenantMemberInput, CreateTenantInput } from '../../domain/repositories/ITenantRepository';
 import type { Tenant } from '../../domain/entities/Tenant';
 import { alreadyExists, notFound } from '../../domain/errors/DomainError';
+import { ARTIFACT_PREFIX_SETTING } from '../../domain/schema/plugin/artifactPrefix';
 
 export class FirebaseTenantRepository implements ITenantRepository {
   private readonly db = getFirestore();
@@ -24,7 +25,17 @@ export class FirebaseTenantRepository implements ITenantRepository {
       createdAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),
     };
-    await ref.set(payload);
+    // O escritório e o prefixo nascem no mesmo lote: não existe escritório sem prefixo para alguém
+    // criar a primeira tela nele.
+    const batch = this.db.batch();
+    batch.set(ref, payload);
+    batch.set(ref.collection('settings').doc('tenant'), {
+      scope: 'tenant',
+      values: { [ARTIFACT_PREFIX_SETTING]: data.artifactPrefix },
+      updatedAt: FieldValue.serverTimestamp(),
+      updatedBy: data.ownerId,
+    });
+    await batch.commit();
     return { id: ref.id, ...payload, createdAt: now, updatedAt: now };
   }
 

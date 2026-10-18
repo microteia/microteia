@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { withArtifactPrefix } from '../../../domain/schema/plugin/artifactPrefix';
+import { useArtifactPrefix } from '../../shared/settings/useArtifactPrefix';
 import { useNotification } from '../../../stores/useNotification';
 import { useReportDefinitions } from '../../../stores/useReportDefinitions';
 import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
@@ -372,8 +374,8 @@ export const tabularShapeOf = (
  * Sem isto, salvar dois relatórios de nome parecido devolvia `artifact.id-taken` — uma recusa
  * correta do repositório e inútil para quem só quis dar o mesmo nome de novo.
  */
-export const uniqueReportKey = (title: string, taken: Set<string>): string => {
-  const base = slug(title.trim().toLowerCase()).slice(0, 60) || 'report';
+export const uniqueReportKey = (title: string, taken: Set<string>, prefix: string | null = null): string => {
+  const base = withArtifactPrefix(prefix, 'artifact', slug(title.trim().toLowerCase()).slice(0, 60) || 'report');
   let key = base;
   let index = 2;
   while (taken.has(key)) { key = `${base}_${index}`; index += 1; }
@@ -819,6 +821,8 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
     }
   }, [issues, spec, runReport, label]);
 
+  const artifactPrefix = useArtifactPrefix();
+
   const save = useCallback(async () => {
     if (hasBlockingReportIssue(issues) || draft.title.trim() === '') return;
     setIsSaving(true);
@@ -827,7 +831,7 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
         await updateReport(editing.id, { title: draft.title.trim(), spec });
       } else {
         const taken = new Set(reports.map((report) => report.key));
-        const key = uniqueReportKey(draft.title, taken);
+        const key = uniqueReportKey(draft.title, taken, artifactPrefix);
         const created = await createReport({
           key,
           title: draft.title.trim(),
@@ -845,7 +849,7 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
     } finally {
       setIsSaving(false);
     }
-  }, [issues, draft, spec, editing, reports, createReport, updateReport, notify, t, reportProblem]);
+  }, [artifactPrefix, issues, draft, spec, editing, reports, createReport, updateReport, notify, t, reportProblem]);
 
   const confirmDelete = useCallback(async () => {
     if (!editing) return;

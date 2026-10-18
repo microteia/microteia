@@ -23,6 +23,7 @@ import {
 } from 'react-icons/ri';
 import { Button } from '../../components/ui/Button';
 import { Input, Label } from '../../components/ui/Input';
+import { PrefixedNameInput } from '../../components/ui/PrefixedNameInput';
 import { SearchSelect } from '../../components/ui/SearchSelect';
 import { InfoBanner } from '../../components/ui/InfoBanner';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
@@ -229,7 +230,17 @@ export const DocumentTemplatesView: React.FC = () => {
                   </S.Field>
                   <S.Field>
                     <Label>{t('field.key')}</Label>
-                    <Input value={vm.form.key} disabled={!vm.isNew} onChange={(e) => vm.setForm({ key: e.target.value })} />
+                    {vm.isNew ? (
+                      <PrefixedNameInput
+                        prefix={vm.artifactPrefix}
+                        kind="artifact"
+                        value={vm.keyRest}
+                        onChange={vm.setKeyRest}
+                        hasError={vm.issuesFor('key').length > 0}
+                      />
+                    ) : (
+                      <Input value={vm.form.key} disabled />
+                    )}
                     <S.Hint>{t(vm.isNew ? 'field.key.hint' : 'field.key.locked')}</S.Hint>
                     {vm.issuesFor('key').map((one) => <S.Issue key={one.message} $grammar={one.isGrammar}>{one.message}</S.Issue>)}
                   </S.Field>

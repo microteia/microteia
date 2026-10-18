@@ -273,6 +273,7 @@ const PLUGIN_MANIFEST_REACH: Record<keyof PluginManifest, string | null> = {
   image: null,
   homepage: null,
   publisher: null,
+  prefix: null,
   license: null,
   dependencies: null,
   exports: null,
@@ -293,6 +294,7 @@ const MANIFEST_NOTES: Record<string, string> = {
   icon: 'the icon of the extension in the Marketplace. HUMAN, and a visual choice',
   homepage: 'a URL for the extension. Nothing in a business rule implies one',
   publisher: 'who wrote the extension, and how the office reaches them',
+  prefix: 'the start of every name the extension creates. It belongs to whoever writes the extension, never to a rule',
   license: 'the terms the author sets with the office. A legal decision, never a derived one',
   dependencies: 'other extensions this one needs. A model that referenced another extension\'s collection would imply '
     + 'one, and nothing in the vocabulary says so',

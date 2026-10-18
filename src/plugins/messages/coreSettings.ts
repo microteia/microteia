@@ -55,6 +55,7 @@ export const CORE_SETTINGS_MESSAGES: Record<string, string> = {
   'setting.string-list': 'Enter a list of texts.',
   'setting.string-list.item': 'Each item must be a non-empty text.',
   'setting.string-list.pattern': 'There is an item outside the expected format.',
+  'setting.text.pattern': 'The value is outside the expected format.',
   'setting.text': 'Enter a text.',
   'setting.widgets': 'Enter a list of widgets.',
   'setting.widgets.item': 'Each item needs a key and, when given, a width between 1 and 3.',

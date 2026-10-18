@@ -27,6 +27,7 @@ import type { InsertTarget, BranchKey } from '../../shared/workflowHelpers';
 import { Button } from '../../components/ui/Button';
 import { InputGroup, Label, Input } from '../../components/ui/Input';
 import { LabelInput } from '../../components/ui/LabelInput';
+import { PrefixedNameInput } from '../../components/ui/PrefixedNameInput';
 import { SearchSelect } from '../../components/ui/SearchSelect';
 import { TimeInput } from '../../components/ui/TimeInput';
 import { InfoBanner } from '../../components/ui/InfoBanner';
@@ -389,12 +390,18 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
 
               <InputGroup>
                 <Label>{t('core.marketplace/author.field.id')}</Label>
-                <Input
-                  value={vm.isNew ? vm.formData.workflowId : vm.workflowIdValue}
-                  onChange={(e) => vm.setFormData({ workflowId: e.target.value })}
-                  placeholder={vm.suggestedWorkflowId || t('workflow.id.placeholder')}
-                  disabled={!vm.isNew}
-                />
+                {vm.isNew ? (
+                  <PrefixedNameInput
+                    prefix={vm.artifactPrefix}
+                    kind="artifact"
+                    value={vm.formData.workflowId}
+                    onChange={(workflowId) => vm.setFormData({ workflowId })}
+                    placeholder={vm.suggestedWorkflowId || t('workflow.id.placeholder')}
+                    hasError={!!vm.workflowIdError}
+                  />
+                ) : (
+                  <Input value={vm.workflowIdValue} disabled />
+                )}
                 <S.FieldHint>
                   {vm.isNew
                     ? t('workflow.identifier.new')

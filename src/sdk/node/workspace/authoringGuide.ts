@@ -25,6 +25,7 @@ import type { StepType } from '../../../domain/entities/Workflow';
 import { FIELD_EXPRESSION_FUNCTION_NAMES } from '../../../domain/schema/fieldExpression';
 import { BUSINESS_CALENDAR_FIELDS } from '../../../domain/schema/time/businessDays';
 import { BUSINESS_CALENDAR_POINT } from '../../../domain/schema/time/extensionPoints';
+import { ARTIFACT_PREFIX_SINCE_KERNEL } from '../../../domain/schema/plugin/artifactPrefix';
 import {
   DOCUMENT_OUTPUTS_BY_FORMAT,
   DOCUMENT_TEMPLATE_MAX_BYTES,
@@ -450,6 +451,28 @@ package carries everything it shows, and a remote image would tell a third-party
 list. Without an image the list draws \`manifest.icon\`, and without that, the icon of the first menu
 entry or page the extension contributes. Installs, stars and the verified-publisher seal are not
 declared: the platform counts and grants them.
+
+### Prefix
+
+\`manifest.prefix\` starts every name your extension creates in the organization that installs it. A
+collection — screen, option list, tag set, a field you add to someone else's screen — takes it with
+\`_\` (\`acme_client\`); an automation, action, script, report or document template takes it with \`-\`
+(\`acme-notify-client\`). 2 to 8 lowercase letters or digits, starting with a letter.
+
+Why it exists: the collections of an organization are ONE namespace. Two extensions that both create
+\`client\` cannot live in the same office, and the installation refuses the second one rather than
+renaming it — a renamed collection would silently be read by whoever expected the declared name.
+
+- \`create\` asks for the prefix once, records it in \`package.json\` under \`microteia.prefix\`, writes it
+  in the manifest and in the names it generates.
+- Declared, it is enforced: \`check\` and the installation refuse a created name that does not start
+  with it. Absent — extensions written before it existed — nothing is refused, and \`check\` warns.
+- It never changes. An update with another prefix is refused: it would rename everything you created.
+- The id of the extension must be inside the directory's namespace (\`microteia.namespace\`). An id
+  outside it is refused by \`build\` — the copy of somebody else's extension still carrying their id.
+  An id that was published before the namespace existed goes in \`microteia.keepIds\`.
+
+Requires kernel \`^${ARTIFACT_PREFIX_SINCE_KERNEL}\`; an older kernel ignores the field.
 
 Every change to an extension raises \`manifest.version\`, and records itself as one entry at the top of
 that extension's \`VERSIONS.md\` — the file \`create\` generates next to \`plugin.ts\`. The entry is

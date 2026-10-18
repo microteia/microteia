@@ -44,7 +44,9 @@ import type { WorkflowDefinition, WorkflowExecution, WorkflowStep, Condition, Wo
 import type { RunModalFollow, RunModalResult } from '../../components/ui/RunModal';
 import { followWorkflowExecution } from '../../shared/followWorkflowExecution';
 import type { StepDefinitionSummary, StepCategory } from '../../../domain/entities/WorkflowStepCatalog';
-import { artifactIdIssue, deriveArtifactId } from '../../../domain/services/artifactIdentity';
+import { artifactIdIssue, deriveArtifactIdUnderPrefix } from '../../../domain/services/artifactIdentity';
+import { withArtifactPrefix } from '../../../domain/schema/plugin/artifactPrefix';
+import { useArtifactPrefix } from '../../shared/settings/useArtifactPrefix';
 import {
   DEFAULT_DATE_REACHED_AT,
   WORKFLOW_SCHEDULE_EVENT,
@@ -214,6 +216,8 @@ export interface ViewWorkflowViewModel {
   isNew: boolean;
   /** Identificador da automação já criada — o que as Ações guardam. */
   workflowIdValue: string;
+  /** O prefixo do escritório, fixo à frente do id na criação; `null` sem prefixo. */
+  artifactPrefix: string | null;
   suggestedWorkflowId: string;
   workflowIdError: string | undefined;
   workflow: WorkflowDefinition | null;
@@ -525,16 +529,18 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
    */
   const takenWorkflowIds = useMemo(() => new Set(workflows.map((w) => w.id)), [workflows]);
 
+  const artifactPrefix = useArtifactPrefix();
+
   const suggestedWorkflowId = useMemo(
-    () => (formData.name.trim() ? deriveArtifactId(formData.name, takenWorkflowIds) : ''),
-    [formData.name, takenWorkflowIds],
+    () => (formData.name.trim() ? deriveArtifactIdUnderPrefix(artifactPrefix, formData.name, takenWorkflowIds) : ''),
+    [formData.name, takenWorkflowIds, artifactPrefix],
   );
 
   const workflowIdError = useMemo(
     () => (isNew && formData.workflowId.trim()
-      ? artifactIdIssue(t, formData.workflowId, takenWorkflowIds)
+      ? artifactIdIssue(t, withArtifactPrefix(artifactPrefix, 'artifact', formData.workflowId), takenWorkflowIds)
       : undefined),
-    [isNew, formData.workflowId, takenWorkflowIds, t],
+    [isNew, formData.workflowId, takenWorkflowIds, t, artifactPrefix],
   );
 
   const isLookupEvent = useMemo(() => isLookupEventName(formData.eventName), [formData.eventName]);
@@ -752,7 +758,11 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
         if (schedule) createData.schedule = schedule;
         if (dateReached) createData.dateReached = dateReached;
 
-        const chosenId = formData.workflowId.trim() || deriveArtifactId(formData.name, takenWorkflowIds);
+        const chosenId = withArtifactPrefix(
+          artifactPrefix,
+          'artifact',
+          formData.workflowId.trim() || deriveArtifactIdUnderPrefix(artifactPrefix, formData.name, takenWorkflowIds),
+        );
         const created = await createWorkflow(createData as Parameters<typeof createWorkflow>[0], chosenId);
         notify(t('workflow.created'), 'success');
         closeTab(tabKey, activePanelId ?? 'main');
@@ -777,7 +787,7 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
     } finally {
       setIsSaving(false);
     }
-  }, [takenWorkflowIds, currentTenant, isNew, formData, isLookupEvent, isCalledEvent, isScheduleEvent, isDateReachedEvent, cloneSource, createWorkflow, updateWorkflow, workflow, notify, closeTab, tabKey, activePanelId, openTab, t]);
+  }, [takenWorkflowIds, artifactPrefix, currentTenant, isNew, formData, isLookupEvent, isCalledEvent, isScheduleEvent, isDateReachedEvent, cloneSource, createWorkflow, updateWorkflow, workflow, notify, closeTab, tabKey, activePanelId, openTab, t]);
 
   const toggleEnabled = useCallback(() => {
     if (!workflow) return;
@@ -1210,6 +1220,7 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
   return {
     isNew,
     workflowIdValue: workflowId,
+    artifactPrefix,
     suggestedWorkflowId,
     workflowIdError,
     workflow,

@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useActions } from '../../../stores/useActions';
-import { artifactIdIssue, deriveArtifactId } from '../../../domain/services/artifactIdentity';
+import { artifactIdIssue, deriveArtifactIdUnderPrefix } from '../../../domain/services/artifactIdentity';
+import { withArtifactPrefix } from '../../../domain/schema/plugin/artifactPrefix';
+import { useArtifactPrefix } from '../../shared/settings/useArtifactPrefix';
 import { useWorkflowStore } from '../../../stores/useWorkflowStore';
 import { useAuthorization } from '../../../stores/useAuthorization';
 import { PERMISSION_AUTOMATION_MANAGE } from '../../../domain/schema/access';
@@ -90,6 +92,8 @@ export interface ViewActionViewModel {
   isAdmin: boolean;
   isNew: boolean;
   /** O identificador do documento: editável só na inclusão, sugerido a partir do título. */
+  /** O prefixo do escritório, fixo à frente do id na criação; `null` sem prefixo. */
+  artifactPrefix: string | null;
   suggestedActionId: string;
   actionIdError: string | undefined;
   /** O identificador já gravado — a tela o mostra em modo leitura depois da criação. */
@@ -212,16 +216,18 @@ export const useViewActionViewModel = (tabKey: string): ViewActionViewModel => {
   // o fluxo — não há o que rodar no servidor.
   const takenActionIds = useMemo(() => new Set(actions.map((item) => item.id)), [actions]);
 
+  const artifactPrefix = useArtifactPrefix();
+
   const suggestedActionId = useMemo(
-    () => (formData.title.trim() ? deriveArtifactId(formData.title, takenActionIds) : ''),
-    [formData.title, takenActionIds],
+    () => (formData.title.trim() ? deriveArtifactIdUnderPrefix(artifactPrefix, formData.title, takenActionIds) : ''),
+    [formData.title, takenActionIds, artifactPrefix],
   );
 
   const actionIdError = useMemo(
     () => (isNew && formData.actionId.trim()
-      ? artifactIdIssue(t, formData.actionId, takenActionIds, 'action')
+      ? artifactIdIssue(t, withArtifactPrefix(artifactPrefix, 'artifact', formData.actionId), takenActionIds, 'action')
       : undefined),
-    [isNew, formData.actionId, takenActionIds, t],
+    [isNew, formData.actionId, takenActionIds, t, artifactPrefix],
   );
 
   const canSave = !actionIdError
@@ -251,7 +257,11 @@ export const useViewActionViewModel = (tabKey: string): ViewActionViewModel => {
         order: formData.order,
       };
       if (isNew) {
-        const chosenId = formData.actionId.trim() || deriveArtifactId(formData.title, takenActionIds);
+        const chosenId = withArtifactPrefix(
+          artifactPrefix,
+          'artifact',
+          formData.actionId.trim() || deriveArtifactIdUnderPrefix(artifactPrefix, formData.title, takenActionIds),
+        );
         const created = await createAction(payload, chosenId);
         notify(t('action.created'), 'success');
         closeTab(tabKey, activePanelId);
@@ -266,7 +276,7 @@ export const useViewActionViewModel = (tabKey: string): ViewActionViewModel => {
     } finally {
       setIsSaving(false);
     }
-  }, [canSave, formData, isNew, action, takenActionIds, createAction, updateAction, notify, closeTab, openTab, tabKey, activePanelId, t]);
+  }, [canSave, formData, isNew, action, takenActionIds, artifactPrefix, createAction, updateAction, notify, closeTab, openTab, tabKey, activePanelId, t]);
 
   const handleDelete = useCallback(() => setActionToDelete(action), [action]);
   const cancelDelete = useCallback(() => setActionToDelete(null), []);
@@ -287,6 +297,7 @@ export const useViewActionViewModel = (tabKey: string): ViewActionViewModel => {
   return {
     isAdmin: can(PERMISSION_AUTOMATION_MANAGE),
     isNew,
+    artifactPrefix,
     suggestedActionId,
     actionIdError,
     actionId: action?.id ?? '',

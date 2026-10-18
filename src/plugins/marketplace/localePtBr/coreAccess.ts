@@ -209,6 +209,9 @@ export const CORE_ACCESS: Record<string, string> = {
   'permission.settings.manage': 'Alterar as configurações do escritório',
   'permission.settings.manage.description':
     'Definir os padrões que valem para todo mundo no escritório.',
+  'permission.tenant.change-prefix': 'Alterar o prefixo do escritório',
+  'permission.tenant.change-prefix.description':
+    'Escolher o prefixo que inicia o nome de toda tela, lista, automação, script, relatório e modelo que o escritório criar daqui em diante.',
   'permission.tenant.update': 'Alterar o cadastro do escritório',
   'permission.tenant.update.description': 'Editar o nome, o logotipo e os demais dados do escritório.',
   'permission.translations.manage': 'Gerenciar traduções',

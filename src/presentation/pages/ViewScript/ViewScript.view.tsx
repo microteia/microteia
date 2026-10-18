@@ -4,6 +4,7 @@ import { S } from './ViewScript.styles';
 import { useViewScriptViewModel } from './ViewScript.viewmodel';
 import { Input, Label } from '../../components/ui/Input';
 import { LabelInput } from '../../components/ui/LabelInput';
+import { PrefixedNameInput } from '../../components/ui/PrefixedNameInput';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { RunModal } from '../../components/ui/RunModal';
 import { InfoBanner } from '../../components/ui/InfoBanner';
@@ -64,12 +65,18 @@ export const ViewScriptView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
               </S.Field>
               <S.Field>
                 <Label>{t('core.ui/field.identifier')}</Label>
-                <Input
-                  value={vm.formData.scriptId}
-                  onChange={(e) => vm.setFormData({ scriptId: e.target.value })}
-                  placeholder={vm.suggestedScriptId || t('script.id.placeholder')}
-                  disabled={!vm.isNew}
-                />
+                {vm.isNew ? (
+                  <PrefixedNameInput
+                    prefix={vm.artifactPrefix}
+                    kind="artifact"
+                    value={vm.formData.scriptId}
+                    onChange={(scriptId) => vm.setFormData({ scriptId })}
+                    placeholder={vm.suggestedScriptId || t('script.id.placeholder')}
+                    hasError={!!vm.scriptIdError}
+                  />
+                ) : (
+                  <Input value={vm.formData.scriptId} disabled />
+                )}
                 <S.SectionHint>
                   {vm.isNew ? t('script.id.hint') : t('script.id.locked')}
                 </S.SectionHint>

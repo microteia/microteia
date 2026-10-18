@@ -1,4 +1,5 @@
 import { DEFAULT_LOCALE } from '../schema/i18n/localeNegotiation';
+import { ARTIFACT_PREFIX_SETTING, isArtifactPrefix } from '../schema/plugin/artifactPrefix';
 
 /**
  * O formato do documento de configurações do escritório (`tenants/{tid}/settings/tenant`), visto do
@@ -34,4 +35,10 @@ export const preferredLocale = (
     if (typeof chosen === 'string' && chosen.trim() !== '') return chosen;
   }
   return DEFAULT_LOCALE;
+};
+
+/** O prefixo do escritório sobre valores já lidos de `settings/tenant`; `null` quando não há um válido. */
+export const officePrefixOf = (office: Record<string, unknown>): string | null => {
+  const prefix = office[ARTIFACT_PREFIX_SETTING];
+  return isArtifactPrefix(prefix) ? prefix : null;
 };

@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { isValidPluginId } from '../../domain/schema/plugin/pluginManifest';
 import { KERNEL_VERSION } from '../../domain/schema/plugin/kernelVersion';
+import { withArtifactPrefix } from '../../domain/schema/plugin/artifactPrefix';
 
 /**
  * O molde de uma extensão. Um molde que COMPILA e PASSA no `check` desde o primeiro segundo — porque a
@@ -18,6 +19,10 @@ const camelOf = (id: string): string => {
   return last.replace(/[-_]+(.)/g, (_match, char: string) => char.toUpperCase());
 };
 
+/** A coleção que o molde gera: `helloWorldItems`, com o prefixo do diretório quando há um. */
+const collectionOf = (spec: Pick<PluginSpec, 'id' | 'prefix'>): string =>
+  withArtifactPrefix(spec.prefix, 'collection', `${camelOf(spec.id)}Items`);
+
 /** `com.example.hello-world` -> `hello-world`; é o nome da pasta. */
 export const folderOf = (id: string): string => id.split('.').pop() ?? id;
 
@@ -26,6 +31,11 @@ export interface PluginSpec {
   name: string;
   summary: string;
   publisher: string;
+  /**
+   * O prefixo do diretório. Vai para o manifest e para a coleção que o molde gera — `acme_helloItems` —,
+   * para o molde já nascer passando no gate que o prefixo declarado liga.
+   */
+  prefix?: string;
   /** Declara uma ENTIDADE: coleção, campos, e a listagem/detalhe que o Kernel desenha. */
   screen: boolean;
   /** Uma página em CÓDIGO, num `.tsx` de verdade. */
@@ -73,7 +83,7 @@ export const MESSAGES: MessageBundle[] = [
 const pluginTs = (spec: PluginSpec): string => {
   const name = camelOf(spec.id);
   const folder = folderOf(spec.id);
-  const collection = `${name}Items`;
+  const collection = collectionOf(spec);
 
   const contributions = [
     ...(spec.screen
@@ -181,7 +191,7 @@ export const ${name}Plugin: AuthoredPlugin = {
     kernel: '^${KERNEL_VERSION}',
     name: label('extension.name'),
     description: label('extension.description'),
-    publisher: { name: '${spec.publisher.replace(/'/g, "\\'")}' },${backend}
+    publisher: { name: '${spec.publisher.replace(/'/g, "\\'")}' },${spec.prefix ? `\n    // The start of every name this extension creates. The gate checks it, and it never changes.\n    prefix: '${spec.prefix}',` : ''}${backend}
     contributes: [
 ${contributions.join('\n')}
     ],
@@ -202,7 +212,7 @@ export default ${name}Plugin;
  * chamável; e o quinto é o teste dela, que roda em um segundo em vez de exigir a extensão instalada.
  */
 const viewFiles = (spec: PluginSpec): Record<string, string> => {
-  const collection = `${camelOf(spec.id)}Items`;
+  const collection = collectionOf(spec);
   const reads = spec.screen ? collection : 'persons';
 
   return {

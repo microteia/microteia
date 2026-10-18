@@ -776,7 +776,11 @@ export const AGENT_TOOLS: readonly AgentToolDefinition[] = [
       + `Grammar: document_template_guide. Formats and outputs: ${OUTPUTS_BY_FORMAT_TEXT}.`,
     inputSchema: object(
       {
-        key: { type: 'string', description: `The template key. ${DOCUMENT_TEMPLATE_GRAMMAR.key}` },
+        key: {
+          type: 'string',
+          description: `The template key. ${DOCUMENT_TEMPLATE_GRAMMAR.key} A NEW key gets the organization's prefix `
+            + '("receipt" is saved as "abcd-receipt"): use the key the answer returns from then on.',
+        },
         title: { type: 'string', description: 'The name people see when choosing the template.' },
         description: { type: 'string', description: 'An optional note about when to use it.' },
         source: {
@@ -837,7 +841,7 @@ export const AGENT_TOOLS: readonly AgentToolDefinition[] = [
       {
         key: TEMPLATE_KEY,
         action: { type: 'string', enum: [...AGENT_TEMPLATE_CHANGES] },
-        newKey: { type: 'string', description: 'clone only: the key of the new template.' },
+        newKey: { type: 'string', description: 'clone only: the key of the new template. It gets the organization\'s prefix, like any new key.' },
         title: { type: 'string', description: 'clone only: the name of the new template.' },
       },
       ['key', 'action'],

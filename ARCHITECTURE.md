@@ -6894,10 +6894,11 @@ relacionamentos, cálculos, master-detail — reusando **inteiramente** o sistem
   mesmo `sourceId`? usa a chave DELA (dedup, e instalação antiga em chave longa fica onde está);
   (2) senão reivindica a chave declarada; (3) se o nome estiver ocupado — outra tela, **lista de
   opções** ou **conjunto de etiquetas**, que disputam o mesmo espaço de nomes — ou for
-  `RESERVED_COLLECTIONS`, ganha sufixo via `ensureUniqueKey`: `produtos` → `produtos_2`. É a mesma
-  convenção do Form Design, e o resultado é sempre um nome válido por `COLLECTION_NAME_PATTERN` (o
-  esquema antigo, com hífens, não era). `buildScreenKeyMap` acumula as chaves reivindicadas para que
-  duas telas do mesmo pacote não disputem uma só.
+  `RESERVED_COLLECTIONS`, a instalação é **RECUSADA** (`installCollisionIssues`, ver "Prefixo de quem
+  cria"). Antes ganhava sufixo (`produtos` → `produtos_2`), e quem dependesse do nome declarado — outra
+  extensão, um modelo, uma configuração — lia a coleção de outro dono sem erro nenhum. Instalações
+  antigas que já estão num `_2` continuam lá: a tela é reconhecida pelo `sourceId`. `installedScreenKey`
+  ainda desempata por segurança, mas a recusa vem antes de qualquer gravação.
 - **Tela ADOTADA — a desinstalação DEVOLVE, não apaga** (`isAdoptedScreen`/`handBackScreen`): quando
   a deduplicação por `sourceId` encontra no tenant uma tela que **não** nasceu de extensão (Form
   Design ou kernel), a instalação reusa a chave dela **e preserva o `origin`** (`design`/`builtin`) e
@@ -7600,6 +7601,75 @@ só, e metade do pacote com metade do escritório produziria um número que ning
 duplicar para editar.
 
 ---
+
+## Prefixo de quem cria — e o fim da fusão e do `_2`
+
+**O problema.** As coleções de um escritório são um espaço de nomes ÚNICO, e o identificador universal
+de um artefato criado à mão é o próprio id (`sourceId ?? id` na exportação, `packageBuilder.ts`). Dois
+escritórios ou duas extensões que escolhem `clientes` ou `avisar-cliente` produziam o mesmo nome, e a
+instalação no destino fazia uma de três coisas, todas silenciosas:
+
+| Artefato | O que acontecia | Efeito |
+|---|---|---|
+| Tela | ganhava `_2` | quem dependia do nome declarado lia a coleção de outro dono |
+| Tela exportada pelo Form Design | era ADOTADA pela tela homônima do destino | os campos de uma entravam na outra |
+| Automação, ação, script, relatório | fundia por `sourceId`, com dois donos | a de revisão maior reescrevia a outra |
+| Lista de opções, etiquetas | fundia pelo nome | as opções se misturavam |
+
+**A peça central é o prefixo** (`domain/schema/plugin/artifactPrefix.ts`, sincronizado): o começo de todo
+nome que alguém CRIA. Coleção leva `_` (`abcd_clientes`), artefato leva `-` (`abcd-avisar-cliente`),
+porque os padrões de nome diferem. Vale só para o que é criado depois de escolhido: trocar o prefixo de
+algo que existe trocaria a coleção e o identificador universal.
+
+**O prefixo do escritório.** Configuração `customization.prefix` em `settings/tenant`, declarada pelo
+`core.tenant` (seção "Prefixo"). Sorteado na criação do escritório (`BootstrapUserUseCase`, 4 letras, no
+mesmo lote do documento do tenant). Trocá-lo exige `tenant.change-prefix` (que depende de
+`settings.manage`): a regra do Firestore (`tenantPrefixWriteAllowed`) cobra a permissão quando ESSA chave
+muda, e o formato do valor novo — `settings.manage` sozinho grava o resto do documento levando o prefixo
+como está. Testado em `rules-tests/tenantPrefix.test.ts`. A propriedade `text` de configuração ganhou
+`pattern` para isso.
+
+- **Quem aplica é o domínio, em todo caminho de criação**: Form Design (chave da tela; lista e conjunto
+  de etiquetas NOVOS — os que já existem são compartilhamento e vão como estão), automação, ação, script,
+  relatório e modelo de documento (tela e agente: `save_document_template` com chave nova e o `clone`).
+  `PrefixedNameInput` (`components/ui/`) mostra o prefixo FIXO e a pessoa digita o resto;
+  `deriveArtifactIdUnderPrefix` desempata só entre os ids que já têm o prefixo. `useArtifactPrefix` lê o
+  escopo do escritório; no backend, `officePrefixOf`. Sem prefixo válido, o nome nasce como sempre nasceu.
+- **Instalar não é criar**: o que vem de um pacote mantém o nome que o pacote declarou.
+
+**O prefixo do pacote.** `manifest.prefix`, opcional. Declarado, `packagePrefixIssues` (dentro de
+`packageIssues`, portanto no `check`, no import e na instalação) recusa todo nome CRIADO que não comece
+por ele: chave e `eventPrefix` de tela, lista e etiquetas (fora as do kernel), campo de complemento,
+`templateId` de automação/ação/script/relatório e chave de modelo. Ausente, nada é recusado — as extensões
+anteriores ao campo seguem instalando — e o `build` avisa (`lacksPackagePrefix`). Não muda entre versões
+(`prefixChangeIssue`); acrescentar a quem não tinha passa, porque as telas existentes são achadas pelo
+`sourceId`. Exige kernel `^2.50.0` (`ARTIFACT_PREFIX_SINCE_KERNEL`).
+
+**No SDK**, o `create` pergunta `publisher` e `prefix` UMA vez e os grava no `package.json` da pasta
+(`microteia.publisher`, `microteia.prefix`), como já fazia com o namespace; o molde nasce com o prefixo no
+manifest e na coleção. O `build` passou a RECUSAR id fora do namespace da pasta — é o que pega a cópia
+distraída de uma extensão de outro autor —, com a exceção declarada em `microteia.keepIds` para o id
+publicado antes de a pasta ter namespace. Não impede quem quer burlar; impede o engano.
+
+**A rede de segurança na instalação** — feita antes de qualquer gravação, no `install` do
+`InstalledExtensionStore` (a porta única):
+
+- **Tela:** mesmo `sourceId` é a mesma tela (reinstalação, atualização, adoção); nome tomado por outra
+  tela, lista, etiqueta ou nome do sistema é recusa (`install.collision.screen`).
+- **Lista e etiquetas:** declarar uma que existe é compartilhar — legítimo quando o dono é a própria
+  extensão, uma dependência declarada ou o escritório (sem dono); de outra extensão sem relação é recusa
+  (`install.collision.list`).
+- **Automação, ação, script, relatório:** casam por `sourceId` E dono (`claimable`): sem dono, dela, ou de
+  uma dependência declarada. Duas extensões sem relação com o mesmo `templateId` passam a ter cada uma o
+  seu documento — o id local da segunda desempata (`installedArtifactId`), e a referência entre extensões
+  já resolvia por dono.
+
+**O que não foi feito, e por quê.** Recusar o pacote importado que tem o MESMO id de uma extensão
+embutida (`builtin`) instalada. Seria a defesa contra a cópia que mantém o id; não foi possível confirmar
+que nenhuma atualização legítima troca a origem de uma embutida, e uma recusa errada ali travaria
+atualizações. Reservar o namespace `com.microteia` foi descartado: o Curatino o usa. As extensões
+agnósticas que viajam como exemplo (`calendar`, `brasil`…) continuam sem prefixo: um prefixo nelas seria
+copiado junto com o código, e não protegeria nada.
 
 ## Documentos — modelos e geração
 

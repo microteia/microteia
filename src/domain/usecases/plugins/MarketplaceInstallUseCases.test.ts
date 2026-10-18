@@ -570,9 +570,13 @@ describe('Upgrade — atualização de versão', () => {
 });
 
 describe('Dedup + refcount — extensões que compartilham artefatos', () => {
+  /**
+   * `com.b` declara `com.a` como dependência: é o compartilhamento entre extensões que se conhecem. Sem
+   * essa relação, o mesmo `templateId` não funde mais nada — ver o bloco seguinte.
+   */
   const shared = (id: string): MarketplacePlugin => ({
     summary: 'S',
-    manifest: { id, version: '1.0.0', kernel: '^2.0.0', name: id },
+    manifest: { id, version: '1.0.0', kernel: '^2.0.0', name: id, ...(id === 'com.b' ? { dependencies: { 'com.a': '^1.0.0' } } : {}) },
     scripts: [{ templateId: 'scr-shared', name: 'Sc', sourceTs: 'x', compiledJs: 'y', inputParams: [], outputParams: [] }],
     workflows: [{
       templateId: 'wf-shared', name: 'Wf', eventName: 'workflow.called', version: 1, condition: { kind: 'AlwaysTrue' },
@@ -590,7 +594,7 @@ describe('Dedup + refcount — extensões que compartilham artefatos', () => {
     await applyPackageArtifacts(deps(), shared('com.b'), actor);
   };
 
-  it('instalar duas extensões com o mesmo artefato NÃO duplica; ambas viram donas', async () => {
+  it('instalar a dependente com o mesmo artefato da dependência NÃO duplica; ambas viram donas', async () => {
     await installTwo();
 
     const s = await scripts.getScripts('t1');
@@ -636,6 +640,39 @@ describe('Dedup + refcount — extensões que compartilham artefatos', () => {
     const after = screens.store.get(key)!;
     expect(after.fields.map((f) => f.key)).toEqual(expect.arrayContaining(['n', 'meu']));
     expect(after.ownerPluginIds).toEqual(['com.a', 'com.b']);
+  });
+});
+
+describe('Mesmo templateId em extensões SEM relação — cada uma fica com o seu', () => {
+  const unrelated = (id: string, rev: number, body: string): MarketplacePlugin => ({
+    summary: 'S',
+    manifest: { id, version: '1.0.0', kernel: '^2.0.0', name: id },
+    scripts: [{ templateId: 'notify', name: 'Notify', sourceTs: body, compiledJs: body, inputParams: [], outputParams: [], sourceRev: rev }],
+    workflows: [],
+  });
+
+  it('a segunda não reescreve a primeira: nasce outro documento, do outro dono', async () => {
+    await applyPackageArtifacts(deps(), unrelated('com.a', 1, 'email'), actor);
+    await applyPackageArtifacts(deps(), unrelated('com.c', 3, 'audit'), actor);
+
+    const all = await scripts.getScripts('t1');
+    expect(all).toHaveLength(2);
+    const ofA = all.find((one) => one.ownerPluginIds?.includes('com.a'));
+    const ofC = all.find((one) => one.ownerPluginIds?.includes('com.c'));
+    expect(ofA?.compiledJs).toBe('email');
+    expect(ofC?.compiledJs).toBe('audit');
+    expect(ofA?.id).not.toBe(ofC?.id);
+    expect(ofA?.ownerPluginIds).toEqual(['com.a']);
+  });
+
+  it('reinstalar a mesma extensão continua reusando o documento dela', async () => {
+    await applyPackageArtifacts(deps(), unrelated('com.a', 1, 'email'), actor);
+    await applyPackageArtifacts(deps(), unrelated('com.c', 1, 'audit'), actor);
+    await applyPackageArtifacts(deps(), unrelated('com.a', 2, 'email v2'), actor);
+
+    const all = await scripts.getScripts('t1');
+    expect(all).toHaveLength(2);
+    expect(all.find((one) => one.ownerPluginIds?.includes('com.a'))?.compiledJs).toBe('email v2');
   });
 });
 
@@ -747,9 +784,10 @@ describe('Identificador legível — o templateId do pacote vira o id do artefat
 });
 
 describe('Atualização por sourceRev — reescrita in-place, sem duplicar nem regredir', () => {
+  // `com.b` depende de `com.a`: é o compartilhamento legítimo, que continua fundindo.
   const rev = (id: string, sourceRev: number | undefined, name: string): MarketplacePlugin => ({
     summary: 'S',
-    manifest: { id, version: '1.0.0', kernel: '^2.0.0', name: id },
+    manifest: { id, version: '1.0.0', kernel: '^2.0.0', name: id, ...(id === 'com.b' ? { dependencies: { 'com.a': '^1.0.0' } } : {}) },
     scripts: [{ templateId: 'scr-shared', sourceRev, name: `${name}-s`, sourceTs: 'x', compiledJs: 'y', inputParams: [], outputParams: [] }],
     workflows: [{
       templateId: 'wf-shared', sourceRev, name, eventName: 'workflow.called', version: 1, condition: { kind: 'AlwaysTrue' },
@@ -1356,9 +1394,9 @@ describe('Relatórios do pacote', () => {
     shape: { kind: 'summary' as const, groupBy: [{ dimension: 'categoria' }], values: ['total'] },
   });
 
-  const reportPlugin = (id: string, templateIds: string[] = ['vendas']): MarketplacePlugin => ({
+  const reportPlugin = (id: string, templateIds: string[] = ['vendas'], dependsOn?: string): MarketplacePlugin => ({
     summary: 'Com relatório',
-    manifest: { id, version: '1.0.0', kernel: '^2.0.0', name: 'R' },
+    manifest: { id, version: '1.0.0', kernel: '^2.0.0', name: 'R', ...(dependsOn ? { dependencies: { [dependsOn]: '^1.0.0' } } : {}) },
     workflows: [],
     screens: [{
       key: 'produtos', sourceId: `src-produtos-${id}`, titleSingular: 'Produto', titlePlural: 'Produtos',
@@ -1416,13 +1454,22 @@ describe('Relatórios do pacote', () => {
     expect(reports.items).toHaveLength(1);
   });
 
-  it('duas extensões trazendo o MESMO relatório somam donos, sem duplicar', async () => {
+  it('a dependente trazendo o MESMO relatório da dependência soma donos, sem duplicar', async () => {
     const d = deps();
     await applyPackageArtifacts(d, reportPlugin('com.acme.vendas'), actor);
-    await applyPackageArtifacts(d, reportPlugin('com.acme.outra'), actor);
+    await applyPackageArtifacts(d, reportPlugin('com.acme.outra', ['vendas'], 'com.acme.vendas'), actor);
 
     expect(reports.items).toHaveLength(1);
     expect(reports.items[0].ownerPluginIds).toEqual(['com.acme.vendas', 'com.acme.outra']);
+  });
+
+  it('extensão SEM relação trazendo o mesmo relatório fica com o seu, sem tocar no da outra', async () => {
+    const d = deps();
+    await applyPackageArtifacts(d, reportPlugin('com.acme.vendas'), actor);
+    await applyPackageArtifacts(d, reportPlugin('com.outro.vendas'), actor);
+
+    expect(reports.items).toHaveLength(2);
+    expect(reports.items.map((report) => report.ownerPluginIds)).toEqual([['com.acme.vendas'], ['com.outro.vendas']]);
   });
 
   it('o relatório que SUMIU da versão nova perde este dono', async () => {

@@ -21,11 +21,20 @@ import {
   invalidNamespaceMessage,
   isValidNamespace,
   outsideNamespaceMessage,
+  invalidPrefixMessage,
   qualifyPluginId,
   recordNamespace,
+  recordPrefix,
+  recordPublisher,
+  storedKeepIds,
   storedNamespace,
+  storedPrefix,
+  storedPublisher,
+  suggestedPrefix,
   workspaceNamespace,
 } from './workspace/namespace';
+import { isArtifactPrefix } from '../../domain/schema/plugin/artifactPrefix';
+import { lacksPackagePrefix } from '../../domain/usecases/plugins/pluginPrefix';
 
 /**
  * `microteia-plugin` — a ferramenta de quem escreve extensão fora deste repositório.
@@ -222,15 +231,34 @@ const sayNavTargets = (pkg: MarketplacePlugin, root: string): number => {
 };
 
 /**
- * Aviso, nunca recusa: o id é permanente, e uma extensão publicada antes de o diretório ter namespace
- * não pode ser renomeada para caber nele. O que se evita aqui é a PRÓXIMA nascer fora.
+ * O id fora do namespace do diretório é RECUSA — é o que pega a cópia distraída de uma extensão de outro
+ * autor, que compilaria com o id do original. A exceção é declarada: o id é permanente, e uma extensão
+ * publicada antes de o diretório ter namespace não pode ser renomeada para caber nele. Ela entra em
+ * `microteia.keepIds`, e aí o build só avisa. Não impede quem quer burlar — basta editar o package.json
+ * —; impede o engano.
  */
-const sayNamespace = (id: string, root: string): void => {
+const sayNamespace = (id: string, root: string): number => {
   const namespace = workspaceNamespace(root);
-  if (namespace === null || belongsToNamespace(id, namespace)) return;
+  if (namespace === null || belongsToNamespace(id, namespace)) return 0;
   say();
-  warn(outsideNamespaceMessage(id, namespace));
-  say(`  ${DIM}Keep it if this extension is already installed somewhere — its id cannot change.${RESET}`);
+  if (storedKeepIds(root).includes(id)) {
+    warn(outsideNamespaceMessage(id, namespace));
+    say(`  ${DIM}Kept: it is listed in package.json, under microteia.keepIds.${RESET}`);
+    return 0;
+  }
+  problem(outsideNamespaceMessage(id, namespace));
+  say(`  ${DIM}If this extension is already installed somewhere, its id cannot change: add it to${RESET}`);
+  say(`  ${DIM}package.json, under microteia.keepIds. If it is a copy, give it an id of your own.${RESET}`);
+  return 1;
+};
+
+/** Aviso, nunca recusa: as extensões anteriores ao prefixo continuam válidas. */
+const sayPrefix = (pkg: Parameters<typeof lacksPackagePrefix>[0]): void => {
+  if (!lacksPackagePrefix(pkg)) return;
+  say();
+  warn('this extension declares no manifest.prefix.');
+  say(`  ${DIM}Every name it creates may collide with another extension's in the organization that${RESET}`);
+  say(`  ${DIM}installs both — and there the installation is refused. See AUTHORING.md, "Prefix".${RESET}`);
 };
 
 const build = (args: Args, write: boolean): number => {
@@ -265,8 +293,9 @@ const build = (args: Args, write: boolean): number => {
   sayUndeclaredPaths(result.package, root);
   sayRecordSurfaces(result.package, root);
   sayNavGroups(result.package, root);
-  sayNamespace(manifest.id, root);
-  const problems = result.issues.length + refusedRefs;
+  const outsideNamespace = sayNamespace(manifest.id, root);
+  sayPrefix(result.package);
+  const problems = result.issues.length + refusedRefs + outsideNamespace;
 
   if (problems > 0) {
     if (!write) return 1;
@@ -371,7 +400,24 @@ const createPlugin = async (args: Args): Promise<number> => {
       { key: 'summary', text: 'summary', hint: 'One line, shown next to the name.' },
       'What this extension does, in one line.',
     );
-    const publisher = await asker.text({ key: 'publisher', text: 'publisher' }, 'Your organization');
+    const publisher = storedPublisher(workspace) ?? await (async () => {
+      const answer = await asker.text(
+        { key: 'publisher', text: 'publisher', hint: 'Who answers for the extensions of this directory. Asked once.' },
+        'Your organization',
+      );
+      recordPublisher(workspace, answer);
+      return answer.trim();
+    })();
+    const prefix = storedPrefix(workspace) ?? await (async () => {
+      const answer = (await asker.text({
+        key: 'prefix',
+        text: 'prefix',
+        hint: 'Starts every name your extensions create — acme_client, acme-notify. Asked once; it never changes.',
+      }, suggestedPrefix(namespace))).trim();
+      if (!isArtifactPrefix(answer)) throw new Error(invalidPrefixMessage(answer));
+      recordPrefix(workspace, answer);
+      return answer;
+    })();
 
     say();
     asker.note('What should it carry? Each answer adds only what it needs — nothing to delete afterwards.');
@@ -394,7 +440,7 @@ const createPlugin = async (args: Args): Promise<number> => {
     await asker.close();
 
     const result = scaffoldPlugin(
-      { id, name, summary, publisher, screen, view, functions },
+      { id, name, summary, publisher, prefix, screen, view, functions },
       workspace,
       args.flags.has('force'),
     );

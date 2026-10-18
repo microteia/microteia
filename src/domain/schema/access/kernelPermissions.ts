@@ -21,6 +21,7 @@ export const PERMISSION_AUTOMATION_MANAGE = 'automation.manage';
 export const PERMISSION_AUTOMATION_RUN = 'automation.run';
 export const PERMISSION_EXTENSIONS_MANAGE = 'extensions.manage';
 export const PERMISSION_SETTINGS_MANAGE = 'settings.manage';
+export const PERMISSION_TENANT_PREFIX_MANAGE = 'tenant.change-prefix';
 export const PERMISSION_AUDIT_READ = 'audit.read';
 export const PERMISSION_AI_MANAGE = 'ai.manage';
 export const PERMISSION_AGENT_MANAGE = 'agent.manage';
@@ -80,6 +81,14 @@ export const KERNEL_PERMISSIONS: AccessPermission[] = [
     id: PERMISSION_SETTINGS_MANAGE,
     name: '@core.access/permission.settings.manage',
     description: '@core.access/permission.settings.manage.description',
+  },
+  {
+    // À parte de `settings.manage` porque o prefixo não é uma preferência: é o começo de todo nome que
+    // o escritório cria e exporta, e trocá-lo muda o que outros escritórios recebem dele.
+    id: PERMISSION_TENANT_PREFIX_MANAGE,
+    name: '@core.access/permission.tenant.change-prefix',
+    description: '@core.access/permission.tenant.change-prefix.description',
+    requires: [PERMISSION_SETTINGS_MANAGE],
   },
   {
     id: PERMISSION_AUDIT_READ,

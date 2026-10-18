@@ -5,7 +5,13 @@ import { ADMIN_NAV_GROUP, UI_TAB_POINT } from '../../domain/schema/ui/uiExtensio
 import { coreMessage, CORE_TENANT_MESSAGES } from '../coreMessages';
 import { coreTenantPtBrContribution } from './messagesPtBr';
 import { TENANT_SETTINGS_SURFACE } from './surface';
-import { PERMISSION_AI_MANAGE, PERMISSION_MEMBERS_MANAGE, PERMISSION_ROLES_MANAGE } from '../../domain/schema/access';
+import {
+  PERMISSION_AI_MANAGE,
+  PERMISSION_MEMBERS_MANAGE,
+  PERMISSION_ROLES_MANAGE,
+  PERMISSION_TENANT_PREFIX_MANAGE,
+} from '../../domain/schema/access';
+import { ARTIFACT_PREFIX_PATTERN, ARTIFACT_PREFIX_SETTING } from '../../domain/schema/plugin/artifactPrefix';
 
 /**
  * **O Escritório** — o cadastro da organização, os membros e as conexões de IA.
@@ -120,6 +126,28 @@ export const coreTenantPlugin: PluginRecord = {
             scopes: ['tenant', 'user'],
             point: UI_TAB_POINT,
             surface: TENANT_SETTINGS_SURFACE,
+          },
+        ],
+      }),
+      // O prefixo de tudo o que o escritório cria. Sorteado na criação do escritório; trocá-lo vale só
+      // para o que for criado depois. A regra do Firestore cobra a permissão própria quando ESTA chave
+      // muda — `settings.manage` sozinha não basta.
+      settingsSection({
+        key: 'customization',
+        title: '@core.tenant/settings.prefix.section.title',
+        description: '@core.tenant/settings.prefix.section.description',
+        icon: 'codeBox',
+        order: 8,
+        requiredPermissions: [PERMISSION_TENANT_PREFIX_MANAGE],
+        properties: [
+          {
+            key: ARTIFACT_PREFIX_SETTING,
+            label: '@core.tenant/settings.prefix.label',
+            description: '@core.tenant/settings.prefix.description',
+            type: 'text',
+            default: '',
+            pattern: ARTIFACT_PREFIX_PATTERN.source,
+            scopes: ['tenant'],
           },
         ],
       }),

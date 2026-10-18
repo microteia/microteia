@@ -105,6 +105,11 @@ export interface SettingsProperty {
    * não pode impedir a configuração de ser editada.
    */
   itemPattern?: string;
+  /**
+   * Expressão regular que o valor de um `text` precisa satisfazer, em texto como `itemPattern` e pela
+   * mesma razão. Padrão inválido é ignorado.
+   */
+  pattern?: string;
   /** Escopos que aceitam valor. Sem escopo de usuário, a preferência é só do escritório. */
   scopes: SettingsScope[];
   /** Superfície cujos widgets esta propriedade ordena. Só faz sentido em `type: 'widgets'`. */
@@ -226,14 +231,18 @@ const isWidgetLayoutEntry = (item: unknown): boolean => {
  * O padrão de um `stringList`, compilado com tolerância: regex inválida vira "sem padrão", e não
  * exceção — a declaração vem de uma extensão, e uma expressão quebrada não pode derrubar a tela.
  */
-export const stringListPattern = (property: SettingsProperty): RegExp | null => {
-  if (!property.itemPattern) return null;
+const compiledPattern = (source: string | undefined): RegExp | null => {
+  if (!source) return null;
   try {
-    return new RegExp(property.itemPattern);
+    return new RegExp(source);
   } catch {
     return null;
   }
 };
+
+export const stringListPattern = (property: SettingsProperty): RegExp | null => compiledPattern(property.itemPattern);
+
+export const textPattern = (property: SettingsProperty): RegExp | null => compiledPattern(property.pattern);
 
 const isContributionLayoutEntry = (item: unknown): boolean => {
   if (typeof item !== 'object' || item === null) return false;
@@ -272,8 +281,11 @@ export const validateSettingValue = (
       }
       return null;
     }
-    case 'text':
-      return typeof value === 'string' ? null : { message: 'setting.text' };
+    case 'text': {
+      if (typeof value !== 'string') return { message: 'setting.text' };
+      const pattern = textPattern(property);
+      return pattern && !pattern.test(value) ? { message: 'setting.text.pattern' } : null;
+    }
     case 'select':
       return validateSelectValue(property, value);
     case 'stringList': {

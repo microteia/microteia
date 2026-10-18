@@ -1,7 +1,9 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { transpileScriptSource as transpile } from '../../../domain/services/scriptSource';
 import { useScriptStore } from '../../../stores/useScriptStore';
-import { artifactIdIssue, deriveArtifactId } from '../../../domain/services/artifactIdentity';
+import { artifactIdIssue, deriveArtifactIdUnderPrefix } from '../../../domain/services/artifactIdentity';
+import { withArtifactPrefix } from '../../../domain/schema/plugin/artifactPrefix';
+import { useArtifactPrefix } from '../../shared/settings/useArtifactPrefix';
 import { useDI } from '../../../infrastructure/di/useDI';
 import { useTenant } from '../../../stores/useTenant';
 import { useWorkspace } from '../../../stores/useWorkspace';
@@ -72,6 +74,8 @@ const buildForm = (script: Script | null, t: TranslateFn): ScriptFormData => ({
 export interface ViewScriptViewModel {
   isNew: boolean;
   /** O identificador: editável só na inclusão, sugerido a partir do nome. */
+  /** O prefixo do escritório, fixo à frente do id na criação; `null` sem prefixo. */
+  artifactPrefix: string | null;
   suggestedScriptId: string;
   scriptIdError: string | undefined;
   script: Script | null;
@@ -133,16 +137,18 @@ export const useViewScriptViewModel = (tabKey: string): ViewScriptViewModel => {
 
   const [formData, setFormDataState] = useState<ScriptFormData>(() => buildForm(null, t));
 
+  const artifactPrefix = useArtifactPrefix();
+
   const suggestedScriptId = useMemo(
-    () => (formData.name.trim() ? deriveArtifactId(formData.name, takenScriptIds) : ''),
-    [formData.name, takenScriptIds],
+    () => (formData.name.trim() ? deriveArtifactIdUnderPrefix(artifactPrefix, formData.name, takenScriptIds) : ''),
+    [formData.name, takenScriptIds, artifactPrefix],
   );
 
   const scriptIdError = useMemo(
     () => (isNew && formData.scriptId.trim()
-      ? artifactIdIssue(t, formData.scriptId, takenScriptIds, 'script')
+      ? artifactIdIssue(t, withArtifactPrefix(artifactPrefix, 'artifact', formData.scriptId), takenScriptIds, 'script')
       : undefined),
-    [isNew, formData.scriptId, takenScriptIds, t],
+    [isNew, formData.scriptId, takenScriptIds, t, artifactPrefix],
   );
   const [isSaving, setIsSaving] = useState(false);
   const [runModalOpen, setRunModalOpen] = useState(false);
@@ -276,7 +282,11 @@ export const useViewScriptViewModel = (tabKey: string): ViewScriptViewModel => {
       };
 
       if (isNew) {
-        const chosenId = formData.scriptId.trim() || deriveArtifactId(formData.name, takenScriptIds);
+        const chosenId = withArtifactPrefix(
+          artifactPrefix,
+          'artifact',
+          formData.scriptId.trim() || deriveArtifactIdUnderPrefix(artifactPrefix, formData.name, takenScriptIds),
+        );
         const created = await createScript(data, chosenId);
         notify(t('script.created'), 'success');
         closeTab(tabKey, activePanelId ?? 'main');
@@ -291,7 +301,7 @@ export const useViewScriptViewModel = (tabKey: string): ViewScriptViewModel => {
     } finally {
       setIsSaving(false);
     }
-  }, [currentTenant, formData, isNew, script, scriptIdError, takenScriptIds, createScript, updateScript, notify, closeTab, tabKey, activePanelId, openTab, t]);
+  }, [currentTenant, formData, isNew, script, scriptIdError, takenScriptIds, artifactPrefix, createScript, updateScript, notify, closeTab, tabKey, activePanelId, openTab, t]);
 
   const openRunModal = useCallback(() => {
     const compiled = transpile(formData.sourceTs);
@@ -360,6 +370,7 @@ export const useViewScriptViewModel = (tabKey: string): ViewScriptViewModel => {
 
   return {
     isNew,
+    artifactPrefix,
     suggestedScriptId,
     scriptIdError,
     script,

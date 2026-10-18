@@ -24,6 +24,8 @@ import type { ILookupRepository } from '../../repositories/ILookupRepository';
 import { isLookupCollection } from '../../schema/lookupRegistry';
 import type { ITagDefinitionRepository } from '../../repositories/ITagDefinitionRepository';
 import { ENTITY_REGISTRY_LIST } from '../../schema/entityRegistry';
+import type { LocalizedIssue } from './pluginReferences';
+import { installCollisionIssues } from './installCollisions';
 
 /** Coleções de etiquetas declaradas em código — não recebem documento de declaração. */
 const BUILTIN_TAG_COLLECTIONS = new Set(
@@ -44,6 +46,44 @@ export interface ArtifactDeps {
   lookupRepository: ILookupRepository;
   reportRepository: IReportDefinitionRepository;
 }
+
+/**
+ * O artefato de id gerado que esta extensão pode REUSAR: o mesmo `sourceId` E sem dono (criado pelo
+ * escritório, adotado), já dela, ou de uma dependência que ela declara — o compartilhamento entre
+ * extensões que se conhecem. Casar só pelo `sourceId` fundia duas extensões SEM relação nenhuma que
+ * escolhessem o mesmo `templateId` num documento com dois donos — e a de revisão maior reescrevia o
+ * conteúdo da outra, sem erro: uma passava a executar a lógica da outra. Agora cada uma fica com a sua.
+ */
+const claimable = (
+  artifact: { sourceId?: string | null; ownerPluginId?: string | null; ownerPluginIds?: string[] | null },
+  sourceId: string,
+  related: ReadonlySet<string>,
+): boolean => {
+  if (artifact.sourceId !== sourceId) return false;
+  const owners = ownerSet(artifact);
+  return owners.length === 0 || owners.some((owner) => related.has(owner));
+};
+
+/** A própria extensão e as que ela declara em `dependencies`. */
+const relatedPlugins = (plugin: MarketplacePlugin): ReadonlySet<string> =>
+  new Set([plugin.manifest.id, ...Object.keys(plugin.manifest.dependencies ?? {})]);
+
+/**
+ * As recusas que dependem do que o escritório JÁ TEM — lidas antes de qualquer gravação, para que uma
+ * instalação recusada não deixe metade dos artefatos para trás. Ver `installCollisionIssues`.
+ */
+export const packageInstallIssues = async (
+  deps: Pick<ArtifactDeps, 'screenRepository' | 'lookupDefinitionRepository' | 'tagDefinitionRepository'>,
+  plugin: MarketplacePlugin,
+  tenantId: string,
+): Promise<LocalizedIssue[]> => {
+  const [screens, lookups, tagLists] = await Promise.all([
+    deps.screenRepository.getAll(tenantId),
+    deps.lookupDefinitionRepository.getAll(tenantId),
+    deps.tagDefinitionRepository.getAll(tenantId),
+  ]);
+  return installCollisionIssues(plugin, { screens, lookups, tagLists });
+};
 
 const deletionActor = (actor: LifecycleActor): DeletionActor => ({
   uid: actor.userId,
@@ -136,12 +176,13 @@ const materializeArtifacts = async (
   existingScreens: ScreenDefinition[],
 ): Promise<{ actionMap: Map<string, string>; screenKeyMap: Map<string, string> }> => {
   const pluginId = plugin.manifest.id;
+  const related = relatedPlugins(plugin);
 
   const existingScripts = await deps.scriptRepository.getScripts(tenantId);
   const scriptMap = new Map<string, string>();
   const takenScriptIds = new Set(existingScripts.map((script) => script.id));
   for (const template of plugin.scripts ?? []) {
-    const existing = existingScripts.find((s) => s.sourceId === template.templateId);
+    const existing = existingScripts.find((s) => claimable(s, template.templateId, related));
     if (existing) {
       scriptMap.set(template.templateId, existing.id);
       const owners = addOwner(ownerSet(existing), pluginId);
@@ -180,7 +221,7 @@ const materializeArtifacts = async (
   // Workflows TOCADOS (criados OU reescritos in-place) — os que a passada 2 precisa remapear.
   const touchedWorkflows: { templateId: string; id: string }[] = [];
   for (const template of plugin.workflows) {
-    const existing = existingWorkflows.find((w) => w.sourceId === template.templateId);
+    const existing = existingWorkflows.find((w) => claimable(w, template.templateId, related));
     if (existing) {
       workflowMap.set(template.templateId, existing.id);
       const owners = addOwner(ownerSet(existing), pluginId);
@@ -222,7 +263,7 @@ const materializeArtifacts = async (
   const actionMap = new Map<string, string>();
   const takenActionIds = new Set(existingActions.map((action) => action.id));
   for (const template of plugin.actions ?? []) {
-    const existing = existingActions.find((a) => a.sourceId === template.templateId);
+    const existing = existingActions.find((a) => claimable(a, template.templateId, related));
     if (existing) {
       actionMap.set(template.templateId, existing.id);
       const owners = addOwner(ownerSet(existing), pluginId);
@@ -278,7 +319,7 @@ const materializeReports = async (
 
   for (const template of plugin.reports ?? []) {
     const sourceId = reportTemplateSourceId(template);
-    const existing = existingReports.find((report) => (report.sourceId ?? '') === sourceId);
+    const existing = existingReports.find((report) => claimable({ ...report, sourceId: report.sourceId ?? '' }, sourceId, relatedPlugins(plugin)));
     const input = reportInputFromTemplate(template, pluginId, screenKeyMap, userId);
 
     if (existing) {

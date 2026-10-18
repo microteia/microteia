@@ -6,7 +6,13 @@ import {
   belongsToNamespace,
   qualifyPluginId,
   recordNamespace,
+  recordPrefix,
+  recordPublisher,
+  storedKeepIds,
   storedNamespace,
+  storedPrefix,
+  storedPublisher,
+  suggestedPrefix,
   workspaceNamespace,
 } from './namespace';
 
@@ -63,5 +69,37 @@ describe('o namespace do diretório de extensões', () => {
     expect(belongsToNamespace('com.acmex.billing', 'com.acme')).toBe(false);
     expect(belongsToNamespace('com.acme', 'com.acme')).toBe(false);
     expect(belongsToNamespace('com.microteia.billing', 'com.acme')).toBe(false);
+  });
+});
+
+describe('publicador, prefixo e ids mantidos — perguntados uma vez, como o namespace', () => {
+  it('publicador e prefixo são gravados sem tocar no resto, e lidos de volta', () => {
+    const root = workspace({ name: 'x', microteia: { namespace: 'com.acme' } });
+    recordPublisher(root, ' Acme Ltda ');
+    recordPrefix(root, 'acme');
+    expect(storedPublisher(root)).toBe('Acme Ltda');
+    expect(storedPrefix(root)).toBe('acme');
+    expect(JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).microteia).toEqual({
+      namespace: 'com.acme',
+      publisher: 'Acme Ltda',
+      prefix: 'acme',
+    });
+  });
+
+  it('prefixo fora do formato não é gravado nem lido', () => {
+    const root = workspace({ microteia: { prefix: 'ACME' } });
+    expect(storedPrefix(root)).toBeNull();
+    expect(() => recordPrefix(root, 'a_b')).toThrow(/not a valid prefix/);
+  });
+
+  it('o prefixo sugerido sai do namespace quando serve, senão é sorteado', () => {
+    expect(suggestedPrefix('com.acme')).toBe('acme');
+    expect(suggestedPrefix('br.com.minha-empresa')).toBe('minhaemp');
+    expect(suggestedPrefix('com.x', () => 0)).toBe('aaaa');
+  });
+
+  it('os ids mantidos são uma lista de textos, vazia quando falta', () => {
+    expect(storedKeepIds(workspace({ microteia: { keepIds: ['com.old.x', 3] } }))).toEqual(['com.old.x']);
+    expect(storedKeepIds(workspace({ name: 'x' }))).toEqual([]);
   });
 });

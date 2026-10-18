@@ -40,6 +40,8 @@ import { templateHelpFor } from '../../shared/documents/templateHelp';
 import type { SearchSelectOption } from '../../components/ui/SearchSelect';
 import type { FilterDef, FilterToken } from '../../components/ui/CompositeFilter';
 import { useLabel, useT } from '../../shared/i18n/useT';
+import { withArtifactPrefix, withoutArtifactPrefix } from '../../../domain/schema/plugin/artifactPrefix';
+import { useArtifactPrefix } from '../../shared/settings/useArtifactPrefix';
 import { useExtensionName } from '../../shared/extensions/useExtensionName';
 
 /**
@@ -93,6 +95,11 @@ export interface DocumentTemplatesViewModel {
   isEditable: boolean;
   form: DocumentTemplateSpec;
   setForm: (patch: Partial<DocumentTemplateSpec>) => void;
+  /** O prefixo do escritório, fixo à frente da chave de um modelo novo; `null` sem prefixo. */
+  artifactPrefix: string | null;
+  /** A chave sem o prefixo — o pedaço que a pessoa digita num modelo novo. */
+  keyRest: string;
+  setKeyRest: (rest: string) => void;
   issues: TemplateIssueLine[];
   /** Os problemas de um campo — e, para uma lista (`datasets`), os de cada item dela. */
   issuesFor: (field: string) => TemplateIssueLine[];
@@ -342,6 +349,13 @@ export const useDocumentTemplatesViewModel = (): DocumentTemplatesViewModel => {
     [form],
   );
 
+  const artifactPrefix = useArtifactPrefix();
+  const keyRest = withoutArtifactPrefix(artifactPrefix, 'artifact', form.key);
+  const setKeyRest = useCallback(
+    (rest: string) => setForm({ key: withArtifactPrefix(artifactPrefix, 'artifact', rest) }),
+    [setForm, artifactPrefix],
+  );
+
   const issues = useMemo(
     () => (isEditable
       ? documentTemplateIssues(form).map((one) => ({
@@ -499,15 +513,16 @@ export const useDocumentTemplatesViewModel = (): DocumentTemplatesViewModel => {
 
   const handleClone = useCallback(() => {
     const source = label(form.title);
+    // A cópia é um modelo NOVO do escritório: nasce com o prefixo dele, venha o original de onde vier.
     const key = freeCopyKey(
-      DOCUMENT_TEMPLATE_KEY_PATTERN.test(form.key) ? form.key : 'template',
+      withArtifactPrefix(artifactPrefix, 'artifact', DOCUMENT_TEMPLATE_KEY_PATTERN.test(form.key) ? form.key : 'template'),
       (candidate) => tenantByKey.has(candidate) || packaged.has(candidate),
     );
     setDraft({ ...specOf(form), key, title: t('template.clone.title', { title: source }) });
     setSelectedKey(null);
     setIsNew(true);
     setClonedFrom(source);
-  }, [form, label, tenantByKey, packaged, t]);
+  }, [form, label, tenantByKey, packaged, t, artifactPrefix]);
 
   const handleKeepCopy = useCallback(async () => {
     if (!selectedKey) return;
@@ -699,6 +714,9 @@ export const useDocumentTemplatesViewModel = (): DocumentTemplatesViewModel => {
     isEditable,
     form,
     setForm,
+    artifactPrefix,
+    keyRest,
+    setKeyRest,
     issues: allIssues,
     issuesFor,
     isReadOnly: !isEditable,

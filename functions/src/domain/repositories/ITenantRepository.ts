@@ -16,6 +16,8 @@ export interface CreateTenantInput {
   email: string;
   plan: string;
   memberLimit: number | null;
+  /** O prefixo de tudo o que o escritório vai criar, gravado em `settings/tenant` junto com o escritório. */
+  artifactPrefix: string;
 }
 
 export interface ITenantRepository {

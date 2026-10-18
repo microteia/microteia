@@ -220,6 +220,9 @@ export const CORE_ACCESS_MESSAGES: Record<string, string> = {
   'permission.settings.manage': 'Change the organization settings',
   'permission.settings.manage.description':
     'Set the defaults that apply to everyone in the organization.',
+  'permission.tenant.change-prefix': 'Change the organization prefix',
+  'permission.tenant.change-prefix.description':
+    'Choose the prefix that starts the name of every screen, list, automation, script, report and template the organization creates from now on.',
   'permission.tenant.update': 'Change the organization record',
   'permission.tenant.update.description': 'Edit the name, the logo and the other data of the organization.',
   'permission.translations.manage': 'Manage translations',

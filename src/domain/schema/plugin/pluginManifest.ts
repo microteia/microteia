@@ -81,6 +81,13 @@ export interface PluginManifest {
   homepage?: string;
   publisher?: PluginPublisher;
   /**
+   * O PREFIXO de todo nome que a extensão cria: telas, listas, etiquetas, campos de complemento
+   * (`acme_cliente`), automações, ações, scripts, relatórios e modelos (`acme-avisar`). Declarado,
+   * é cobrado pelo gate (`packagePrefixIssues`) e não muda entre versões — trocá-lo trocaria as
+   * coleções de quem já instalou. Ausente nas extensões anteriores ao campo. Ver `artifactPrefix.ts`.
+   */
+  prefix?: string;
+  /**
    * Os TERMOS DE LICENÇA da extensão, em Widget DSL — o contrato de quem a escreveu com o escritório
    * que a instala.
    *

@@ -160,6 +160,7 @@ const MANIFEST_NOTES: Record<keyof PluginManifest, string> = {
   image: 'the logo shown in the Extensions list — a small data: URI, never a URL',
   homepage: 'where to read more about it',
   publisher: 'who answers for it',
+  prefix: 'the start of every name it creates — collections with "_", automations and templates with "-"',
   license: 'the terms it adds to the ones Microteia already asks',
   dependencies: 'the extensions it needs installed, with ranges',
   exports: 'the artifacts another extension may point at. ABSENT IS AN EMPTY SURFACE',

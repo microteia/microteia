@@ -42,6 +42,8 @@ import { DocumentRenderError } from '../../domain/repositories/IDocumentRenderer
 import { TemplateDocumentRenderer } from '../../data/services/document/TemplateDocumentRenderer';
 import { loadedExpressionFunctions } from '../../domain/engine/expression/ExpressionEngine';
 import { getDb } from '../firebase/initFirebase';
+import { officePrefixOf, settingsValuesOf } from '../../domain/services/tenantSettings';
+import { withArtifactPrefix } from '../../domain/schema/plugin/artifactPrefix';
 import { getDI } from '../di/container';
 import { identifyActor } from '../workflow/identifyActor';
 import { documentTypeOptions } from './agentDocuments';
@@ -87,14 +89,17 @@ interface TemplateWorld {
   contributions: QualifiedContribution[];
   screens: SchemaScreen[];
   index: TemplateScreenIndex;
+  /** O prefixo do escritório, para o que o agente cria; `null` sem um válido. */
+  prefix: string | null;
 }
 
 const loadWorld = async (tenantId: string): Promise<TemplateWorld> => {
   const di = getDI();
-  const [contributions, snapshot, screens] = await Promise.all([
+  const [contributions, snapshot, screens, settings] = await Promise.all([
     di.getInstalledExtensionCache().documentTemplates(tenantId),
     getDb().collection(templatesPath(tenantId)).get(),
     di.getScreenDefinitionCache().getScreens(tenantId),
+    getDb().doc(`tenants/${tenantId}/settings/tenant`).get(),
   ]);
   const packaged = new Map<string, { spec: DocumentTemplateSpec; pluginId: string }>();
   for (const contribution of contributions) {
@@ -109,7 +114,7 @@ const loadWorld = async (tenantId: string): Promise<TemplateWorld> => {
   const index = templateScreenIndex(
     screens.map((screen) => ({ key: screen.id, sourceId: screen.sourceId, collection: screen.collection })),
   );
-  return { packaged, office, contributions, screens, index };
+  return { packaged, office, contributions, screens, index, prefix: officePrefixOf(settingsValuesOf(settings.data())) };
 };
 
 const stateOf = (world: TemplateWorld, key: string): AgentTemplateState | null => {
@@ -482,7 +487,10 @@ export const saveAgentDocumentTemplate = async (
   schema: SchemaContext,
 ): Promise<TemplateOutcome> => {
   const world = await loadWorld(session.tenantId);
-  const key = asText(input.key);
+  const asked = asText(input.key);
+  // Uma chave que já existe é a que se altera, venha de onde vier. Uma NOVA nasce com o prefixo do
+  // escritório, como na tela — e a resposta devolve a chave como ficou, para o agente usá-la depois.
+  const key = world.office.has(asked) || world.packaged.has(asked) ? asked : withArtifactPrefix(world.prefix, 'artifact', asked);
   const own = world.office.get(key);
 
   if (own?.enabled === false) return refuse('@core.documents/agent.template.disabled', { key });
@@ -655,7 +663,12 @@ export const changeAgentDocumentTemplate = async (
       const source = shownSpec(world, key);
       if (!source) return refuse('@core.documents/render.template-not-found', { key });
       const taken = (candidate: string): boolean => world.office.has(candidate) || world.packaged.has(candidate);
-      const newKey = asText(input.newKey) || freeCopyKey(DOCUMENT_TEMPLATE_KEY_PATTERN.test(key) ? key : 'template', taken);
+      // A cópia é um modelo NOVO do escritório: nasce com o prefixo dele, venha o original de onde vier.
+      const newKey = withArtifactPrefix(
+        world.prefix,
+        'artifact',
+        asText(input.newKey) || freeCopyKey(withArtifactPrefix(world.prefix, 'artifact', DOCUMENT_TEMPLATE_KEY_PATTERN.test(key) ? key : 'template'), taken),
+      );
       if (!DOCUMENT_TEMPLATE_KEY_PATTERN.test(newKey) || newKey.length > DOCUMENT_TEMPLATE_KEY_MAX_LENGTH) {
         return refuse('@core.documents/template.key.invalid', { key: newKey });
       }

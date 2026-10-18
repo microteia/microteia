@@ -22,6 +22,7 @@ import { packageActionIssues } from './pluginActions';
 import { packageImageIssues } from './pluginImage';
 import { packageSurfaceIssues } from './pluginSurfaces';
 import { packageSettingsIssues, settingsOutRefs } from './pluginSettings';
+import { packagePrefixIssues } from './pluginPrefix';
 import { screenEventPrefix, templateCollection } from './screenModule';
 
 export type RefKind = 'screen' | 'lookup' | 'action' | 'workflow' | 'script';
@@ -443,6 +444,7 @@ export const packageIssues = (pkg: MarketplacePlugin): LocalizedIssue[] => [
   ...packageSettingsIssues(pkg),
   ...packageReportIssues(pkg),
   ...packageAggregationIssues(pkg),
+  ...packagePrefixIssues(pkg),
 ];
 
 /** O aviso de que o pacote está grande, mas ainda instala. Para a tela de autoria, não para o import. */

@@ -4,6 +4,7 @@ import { S } from './ViewAction.styles';
 import { useViewActionViewModel } from './ViewAction.viewmodel';
 import { Input, Label } from '../../components/ui/Input';
 import { LabelInput } from '../../components/ui/LabelInput';
+import { PrefixedNameInput } from '../../components/ui/PrefixedNameInput';
 import { Checkbox } from '../../components/ui/Checkbox';
 import { SearchSelect } from '../../components/ui/SearchSelect';
 import { ExpressionEditor } from '../../components/ui/ExpressionEditor';
@@ -71,12 +72,18 @@ export const ViewActionView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
           <S.SectionBody>
             <S.Field>
               <Label>{t('core.marketplace/author.field.id')}</Label>
-              <Input
-                value={vm.isNew ? vm.formData.actionId : vm.actionId}
-                onChange={(e) => vm.setFormData({ actionId: e.target.value })}
-                placeholder={vm.suggestedActionId || t('action.id.placeholder')}
-                disabled={!vm.isNew}
-              />
+              {vm.isNew ? (
+                <PrefixedNameInput
+                  prefix={vm.artifactPrefix}
+                  kind="artifact"
+                  value={vm.formData.actionId}
+                  onChange={(actionId) => vm.setFormData({ actionId })}
+                  placeholder={vm.suggestedActionId || t('action.id.placeholder')}
+                  hasError={!!vm.actionIdError}
+                />
+              ) : (
+                <Input value={vm.actionId} disabled />
+              )}
               <S.SectionHint>
                 {t(vm.isNew ? 'action.id.hint' : 'action.id.locked')}
               </S.SectionHint>

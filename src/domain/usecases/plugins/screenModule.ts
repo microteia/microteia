@@ -14,10 +14,16 @@ import { ensureUniqueKey, slugifyFieldKey } from '../../services/customFieldValu
  * sufixo: `produtos` → `produtos_2`. É a mesma convenção que o Form Design aplica quando o usuário
  * cria duas telas de título parecido, e o resultado é sempre um nome de coleção válido.
  */
-export const installedScreenKey = (templateKey: string, taken: ReadonlySet<string> = new Set()): string => {
+export const installedScreenKey = (templateKey: string, taken: ReadonlySet<string> = new Set()): string =>
+  ensureUniqueKey(declaredScreenKey(templateKey), new Set([...taken, ...RESERVED_COLLECTIONS]));
+
+/**
+ * A chave que a tela do pacote REIVINDICA, antes de qualquer desempate: a declarada quando é um nome
+ * válido, senão a versão saneada dela. É contra ela que a instalação confere a colisão.
+ */
+export const declaredScreenKey = (templateKey: string): string => {
   const declared = templateKey.trim();
-  const base = (screenIdIssue(declared) === undefined ? declared : slugifyFieldKey(declared)) || 'tela';
-  return ensureUniqueKey(base, new Set([...taken, ...RESERVED_COLLECTIONS]));
+  return (screenIdIssue(declared) === undefined ? declared : slugifyFieldKey(declared)) || 'tela';
 };
 
 /** A coleção que a tela do pacote opera: a que ela declara descrever ou, no silêncio, a própria chave. */

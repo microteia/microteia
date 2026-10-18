@@ -21,6 +21,10 @@ import { EXAMPLE_NOTES } from '../src/sdk/node/exampleNotes';
  * fica. As duas são decisões; o que não é decisão é a lacuna aparecer sozinha.
  */
 const LACUNAS_RECONHECIDAS: Record<string, string> = {
+  'manifest-property/prefix':
+    'o começo dos nomes que a extensão cria. Um exemplo é molde: o prefixo dele seria copiado junto com o código, '
+    + 'e duas cópias com o mesmo prefixo colidiriam igual. O create sorteia ou sugere o prefixo de quem escreve, '
+    + 'e o AUTHORING o ensina — o exemplo que o mostrasse ensinaria a copiá-lo.',
   'manifest-property/image':
     'o logotipo da extensão. Um exemplo é molde, e um logotipo copiado de molde vira a identidade de outra '
     + 'extensão; quem não declara imagem já ganha o ícone derivado do menu ou da tela que contribui.',

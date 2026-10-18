@@ -1,5 +1,6 @@
 import type { IUserRepository } from '../repositories/IUserRepository';
 import type { ITenantRepository } from '../repositories/ITenantRepository';
+import { generateArtifactPrefix } from '../schema/plugin/artifactPrefix';
 
 export interface BootstrapUserInput {
   userId: string;
@@ -19,6 +20,7 @@ export type BootstrapUserUseCase = {
 export const makeBootstrapUserUseCase = (
   userRepo: IUserRepository,
   tenantRepo: ITenantRepository,
+  random: () => number = Math.random,
 ): BootstrapUserUseCase => ({
   execute: async ({ userId, email, displayName, photoURL }) => {
     const created = await userRepo.createUserIfMissing(userId, { email, displayName, photoURL });
@@ -36,6 +38,9 @@ export const makeBootstrapUserUseCase = (
       email,
       plan: 'solo',
       memberLimit: 1,
+      // Sorteado: o escritório ainda não escolheu nada, e quatro letras ao acaso bastam para que o que
+      // ele criar não colida com o de outro. Quem tem a permissão troca depois, em Configurações.
+      artifactPrefix: generateArtifactPrefix(random),
     });
 
     // Sem perfil nenhum, e é de propósito: quem dá poder ao DONO é o curinga que

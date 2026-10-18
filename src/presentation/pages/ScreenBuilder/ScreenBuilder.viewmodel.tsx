@@ -33,6 +33,8 @@ import { useSchemaContext } from '../../shared/useSchemaContext';
 import { useLookups } from '../../../stores/useLookups';
 import { useTags } from '../../../stores/useTags';
 import { deriveFormFields } from '../../shared/deriveEntitySchema';
+import { withArtifactPrefix } from '../../../domain/schema/plugin/artifactPrefix';
+import { useArtifactPrefix } from '../../shared/settings/useArtifactPrefix';
 import { RESERVED_COLLECTIONS, builtinScreenBaseline, derivedLookupCollection, derivedTagCollection, lookupIdIssue, screenIdIssue, tagListIdIssue } from '../../../domain/schema/screenEntity';
 import { isBoundScreen, screenDataCollection } from '../../../domain/services/screenDataCollection';
 import type { EntityKey } from '../../../domain/schema/entityRegistry';
@@ -256,6 +258,8 @@ export interface ScreenBuilderViewModel {
   restoreNativeField: (screenKey: string, fieldKey: string) => Promise<void>;
   screenModalOpen: boolean;
   screenModalIsEdit: boolean;
+  /** O prefixo do escritório, fixo à frente da chave de uma tela nova; `null` sem prefixo. */
+  artifactPrefix: string | null;
   /** Modal aberto para uma tela do sistema: só configura os registros filhos. */
   screenModalIsBuiltin: boolean;
   screenModalTitle: string;
@@ -705,6 +709,26 @@ const buildDynamicMeta = (t: TranslateFn, def: ScreenDefinition, fieldCount: num
  *  complemento de extensão usa, para que os dois caminhos gravem a tela do kernel do mesmo jeito. */
 const builtinSaveInput = (key: string): ScreenDefinitionSaveInput => builtinScreenBaseline(key);
 
+
+/**
+ * A chave de uma tela NOVA: a que a pessoa digitou, senão a derivada do título — as duas com o prefixo
+ * do escritório. A derivada desempata com sufixo; a digitada não: colidir é recusa, porque quem escolheu
+ * o nome precisa saber que ele já estava tomado.
+ */
+const newScreenKeyOf = (
+  prefix: string | null,
+  typed: string,
+  titlePlural: string,
+  existingKeys: ReadonlySet<string>,
+): { key: string; typed: boolean } => {
+  const chosen = slugifyFieldKey(typed.trim());
+  if (chosen) return { key: withArtifactPrefix(prefix, 'collection', chosen), typed: true };
+  return {
+    key: ensureUniqueKey(withArtifactPrefix(prefix, 'collection', slugifyFieldKey(titlePlural)), new Set(existingKeys)),
+    typed: false,
+  };
+};
+
 export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
   const { can } = useAuthorization();
   const { definitions, dynamicScreens, isLoading, saveDefinition, deleteDefinition } = useScreenDefinitions();
@@ -719,6 +743,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     [recordActions],
   );
   const schemaContext = useSchemaContext();
+  const artifactPrefix = useArtifactPrefix();
   const fieldRulePresets = useFieldRulePresets();
   const { availableLookups, declareLookup } = useLookups();
   const { availableTagLists, declareTagList } = useTags();
@@ -1283,15 +1308,18 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       // apontam em comum para compartilhá-las. Na criação, o nome sai da chave que a tela vai
       // receber — a mesma derivação do ramo de baixo.
       const screenKeyForTags = screenModal?.screenKey
-        ?? (slugifyFieldKey(screenForm.screenKey.trim())
-        || ensureUniqueKey(slugifyFieldKey(screenForm.titlePlural), new Set([
+        ?? newScreenKeyOf(artifactPrefix, screenForm.screenKey, screenForm.titlePlural, new Set([
           ...definitions.map((def) => def.id),
           ...BUILTIN_SCREENS.map((b) => b.key),
           ...RESERVED_COLLECTIONS,
-        ])));
-      const tagCollection = screenForm.hasTags
+        ])).key;
+      const requestedTagCollection = screenForm.hasTags
         ? (screenForm.tagCollection.trim() || derivedTagCollection(screenKeyForTags))
         : (screenForm.tagCollection.trim() || null);
+      // Um conjunto que já existe é escolha de compartilhar, e vai como está; um NOVO nasce com o prefixo.
+      const tagCollection = requestedTagCollection && !schemaContext.tagLists.has(requestedTagCollection)
+        ? withArtifactPrefix(artifactPrefix, 'collection', requestedTagCollection)
+        : requestedTagCollection;
       const isNewTagList = !!tagCollection && !schemaContext.tagLists.has(tagCollection);
       if (isNewTagList) {
         const issue = tagListIdIssue(tagCollection as string, schemaContext);
@@ -1346,13 +1374,12 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
         // O identificador é do USUÁRIO quando ele o informa: colidir com uma tela existente é
         // recusado em vez de silenciosamente virar `pet1_2` — quem escolheu o nome precisa saber
         // que ele já estava tomado.
-        const chosenKey = slugifyFieldKey(screenForm.screenKey.trim());
-        if (chosenKey && existingKeys.has(chosenKey)) {
+        const { key: screenKey, typed } = newScreenKeyOf(artifactPrefix, screenForm.screenKey, screenForm.titlePlural, existingKeys);
+        if (typed && existingKeys.has(screenKey)) {
           setScreenModalTab('general');
-          notify(t('screen.error.key-taken', { key: chosenKey }), 'error');
+          notify(t('screen.error.key-taken', { key: screenKey }), 'error');
           return;
         }
-        const screenKey = chosenKey || ensureUniqueKey(slugifyFieldKey(screenForm.titlePlural), existingKeys);
         const keyIssue = screenIdIssue(screenKey, schemaContext);
         if (keyIssue) {
           setScreenModalTab('general');
@@ -1399,7 +1426,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     } finally {
       setSavingScreen(false);
     }
-  }, [screenForm, screenModal, getDefinitionByKey, saveDefinition, definitions, dynamicDefinitions, childCandidates, persistChildLinks, notify, schemaContext, declareTagList, t, label]);
+  }, [artifactPrefix, screenForm, screenModal, getDefinitionByKey, saveDefinition, definitions, dynamicDefinitions, childCandidates, persistChildLinks, notify, schemaContext, declareTagList, t, label]);
 
   const toggleScreenEnabled = useCallback(async (screenKey: string) => {
     const def = getDefinitionByKey(screenKey);
@@ -1601,15 +1628,19 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
   );
 
   const suggestedTagCollection = useMemo(
-    () => derivedTagCollection(screenModal?.screenKey || slugifyFieldKey(screenForm.titlePlural.trim())),
-    [screenModal, screenForm.titlePlural],
+    () => withArtifactPrefix(
+      artifactPrefix,
+      'collection',
+      derivedTagCollection(screenModal?.screenKey || slugifyFieldKey(screenForm.titlePlural.trim())),
+    ),
+    [screenModal, screenForm.titlePlural, artifactPrefix],
   );
 
   const suggestedLookupCollection = useMemo(() => {
     if (!fieldModal) return '';
     const key = fieldModal.fieldKey || fieldForm.fieldKey.trim() || slugifyFieldKey(fieldForm.label.trim());
-    return key ? derivedLookupCollection(fieldModal.screenKey, key) : '';
-  }, [fieldModal, fieldForm.fieldKey, fieldForm.label]);
+    return key ? withArtifactPrefix(artifactPrefix, 'collection', derivedLookupCollection(fieldModal.screenKey, key)) : '';
+  }, [fieldModal, fieldForm.fieldKey, fieldForm.label, artifactPrefix]);
 
   // Só faz sentido agregar de uma tela que aponte de volta para esta: é o vínculo pai/filho que
   // define quais registros pertencem ao agregado.
@@ -1823,9 +1854,13 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
 
     // Uma seleção cujas opções vêm de uma LISTA não precisa de opções declaradas no campo — é o
     // caso de vários campos do kernel. A checagem vale só para quem tira as opções do próprio campo.
-    const lookupCollection = fieldForm.type === 'select' && fieldForm.optionsAllowUserAdd
+    const requestedLookupCollection = fieldForm.type === 'select' && fieldForm.optionsAllowUserAdd
       ? (fieldForm.lookupCollection.trim() || derivedLookupCollection(fieldModal.screenKey, fieldKeyForLookup))
       : (fieldForm.lookupCollection.trim() || null);
+    // Uma lista que já existe é escolha de compartilhar, e vai como está; uma NOVA nasce com o prefixo.
+    const lookupCollection = requestedLookupCollection && !schemaContext.lookups.has(requestedLookupCollection)
+      ? withArtifactPrefix(artifactPrefix, 'collection', requestedLookupCollection)
+      : requestedLookupCollection;
     if (
       fieldForm.type === 'select'
       && !lookupCollection
@@ -2037,7 +2072,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     } finally {
       setSavingField(false);
     }
-  }, [fieldModal, fieldForm, fieldModalIsTitleField, fieldSupportsUnique, getDefinitionByKey, saveDefinition, notify, schemaContext, resolvedField, resolvedFieldsByScreen, declareLookup, t, label]);
+  }, [artifactPrefix, fieldModal, fieldForm, fieldModalIsTitleField, fieldSupportsUnique, getDefinitionByKey, saveDefinition, notify, schemaContext, resolvedField, resolvedFieldsByScreen, declareLookup, t, label]);
 
   /**
    * Grava a ordem da lista como posições absolutas em `fields[]`. Um campo já gravado viaja como
@@ -2185,6 +2220,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     restoreNativeField,
     screenModalOpen: screenModal !== null,
     screenModalIsEdit: !!screenModal?.screenKey,
+    artifactPrefix,
     screenModalIsBuiltin,
     gestureRows,
     actionOptions,
