@@ -18,6 +18,10 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.127.0] — 2026-10-18
+
+- feat(ui): `ArtifactPrefixBadge` (`components/ui/`) renders the organization prefix inside `PrefixedNameInput`; for members with `tenant.change-prefix` it adds a shortcut to the prefix section of Settings, and with no prefix set it becomes a "Set prefix" invitation. Settings now accepts a deep-link tab key `settings:<scope>:<section>` (`settingsTabKey` / `settingsTabTarget`, page `keyPrefix: 'settings:'`, listed in `kernelPages`). Optional authorization and workspace contexts: outside the workspace the badge only shows the prefix.
+
 #### [9.126.0] — 2026-10-18
 
 - feat(tenant): organization prefix. New `artifactPrefix.ts` (synced): `withArtifactPrefix` (collections take `_`, artifacts take `-`), `generateArtifactPrefix`, `ARTIFACT_PREFIX_SETTING` (`customization.prefix`). `BootstrapUserUseCase` draws 4 letters and `FirebaseTenantRepository.createTenant` writes `settings/tenant` in the same batch. New kernel permission `tenant.change-prefix` (requires `settings.manage`); `firestore.rules` charges it, and the format, whenever that key changes or the document is deleted (`rules-tests/tenantPrefix.test.ts`). Settings `text` properties gain `pattern`.

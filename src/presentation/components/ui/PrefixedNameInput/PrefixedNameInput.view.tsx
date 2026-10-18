@@ -1,5 +1,5 @@
 import type { PrefixedNameKind } from '../../../../domain/schema/plugin/artifactPrefix';
-import { prefixHead } from '../../../../domain/schema/plugin/artifactPrefix';
+import { ArtifactPrefixBadge } from '../ArtifactPrefixBadge';
 import { S } from './PrefixedNameInput.styles';
 
 export interface PrefixedNameInputProps {
@@ -24,7 +24,7 @@ export const PrefixedNameInput = ({
   hasError,
 }: PrefixedNameInputProps) => (
   <S.Group $hasError={hasError} $disabled={disabled}>
-    {prefix && <S.Prefix>{prefixHead(prefix, kind)}</S.Prefix>}
+    <ArtifactPrefixBadge prefix={prefix} kind={kind} />
     <S.Field
       value={value}
       onChange={(event) => onChange(event.target.value)}

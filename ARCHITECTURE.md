@@ -7632,7 +7632,12 @@ como está. Testado em `rules-tests/tenantPrefix.test.ts`. A propriedade `text` 
 - **Quem aplica é o domínio, em todo caminho de criação**: Form Design (chave da tela; lista e conjunto
   de etiquetas NOVOS — os que já existem são compartilhamento e vão como estão), automação, ação, script,
   relatório e modelo de documento (tela e agente: `save_document_template` com chave nova e o `clone`).
-  `PrefixedNameInput` (`components/ui/`) mostra o prefixo FIXO e a pessoa digita o resto;
+  `PrefixedNameInput` (`components/ui/`) mostra o prefixo FIXO e a pessoa digita o resto. O prefixo
+  em si é o `ArtifactPrefixBadge`: para quem tem `tenant.change-prefix`, um atalho abre Configurações
+  já na seção do prefixo (`settingsTabKey('tenant', 'customization')`, aba `settings:<escopo>:<seção>`,
+  que a tela de Configurações passou a entender); sem prefixo definido, o selo vira o convite
+  "Definir prefixo" — é o momento de defini-lo, ANTES de criar. Sem prefixo e sem a permissão, não
+  aparece;
   `deriveArtifactIdUnderPrefix` desempata só entre os ids que já têm o prefixo. `useArtifactPrefix` lê o
   escopo do escritório; no backend, `officePrefixOf`. Sem prefixo válido, o nome nasce como sempre nasceu.
 - **Instalar não é criar**: o que vem de um pacote mantém o nome que o pacote declarou.

@@ -16,18 +16,6 @@ const Group = styled.div<{ $hasError?: boolean; $disabled?: boolean }>`
   }
 `;
 
-const Prefix = styled.span`
-  display: flex;
-  align-items: center;
-  padding: 0 ${({ theme }) => theme.spacing.sm};
-  background: ${({ theme }) => theme.colors.surfaceHover};
-  border-right: 1px solid ${({ theme }) => theme.colors.border};
-  color: ${({ theme }) => theme.colors.textSecondary};
-  font-family: ${({ theme }) => theme.fonts.mono};
-  font-size: ${({ theme }) => theme.fontSizes.sm};
-  user-select: none;
-`;
-
 const Field = styled.input`
   flex: 1;
   min-width: 0;
@@ -50,4 +38,4 @@ const Field = styled.input`
   }
 `;
 
-export const S = { Group, Prefix, Field };
+export const S = { Group, Field };

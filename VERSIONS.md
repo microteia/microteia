@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.127.0] — 2026-10-18
+
+- Ao criar uma tela, automação, ação, script ou modelo, quem pode alterar o prefixo do escritório encontra, ao lado dele, um atalho que leva direto à configuração do prefixo. Se o escritório ainda não tem um, o atalho convida a defini-lo antes de criar.
+
 #### [9.126.0] — 2026-10-18
 
 - Cada escritório passa a ter um prefixo próprio, que inicia o nome de toda tela, lista, automação, script, relatório e modelo criado daqui em diante. Assim, o que um escritório exporta nunca se confunde com o que outro criou. O prefixo fica em Configurações e só pode ser trocado por quem tem a permissão para isso.

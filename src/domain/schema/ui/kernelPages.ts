@@ -48,6 +48,7 @@ export const KERNEL_PAGES: PageAddress[] = [
   { key: 'audit-logs' },
   { key: 'data-processor' },
   { key: 'tenant-settings' },
+  { key: '', keyPrefix: 'settings:' },
   { key: '', keyPrefix: 'tenant-settings:' },
   { key: 'marketplace' },
   { key: 'plugin-author' },

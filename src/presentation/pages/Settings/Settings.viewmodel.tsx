@@ -1,5 +1,6 @@
 import type React from 'react';
 import { useCallback, useMemo, useState } from 'react';
+import { settingsTabTarget } from '../../shared/settings/settingsTabKey';
 import { useSettings } from '../../../stores/useSettings';
 import { useAuthorization } from '../../../stores/useAuthorization';
 import { PERMISSION_SETTINGS_MANAGE } from '../../../domain/schema/access';
@@ -66,7 +67,7 @@ export interface SettingsViewModel {
   discardJson: () => void;
 }
 
-export const useSettingsViewModel = (): SettingsViewModel => {
+export const useSettingsViewModel = (tabKey?: string): SettingsViewModel => {
   const t = useT('core.settings');
   const { values, isLoading, setValue, clearValue, replaceScope } = useSettings();
   const { can, canAny } = useAuthorization();
@@ -87,9 +88,11 @@ export const useSettingsViewModel = (): SettingsViewModel => {
   const sections = useMemo(() => visibleSettingsSections(catalog, canAny), [catalog, canAny]);
 
   const [query, setQuery] = useState('');
-  const [scope, setScope] = useState<SettingsScope>('user');
+  // Aberta por `settingsTabKey`, a tela nasce no escopo e na seção pedidos.
+  const [target] = useState(() => settingsTabTarget(tabKey));
+  const [scope, setScope] = useState<SettingsScope>(target?.scope ?? 'user');
   const [mode, setMode] = useState<SettingsMode>('visual');
-  const [selectedKey, setSelectedKey] = useState<string | null>(null);
+  const [selectedKey, setSelectedKey] = useState<string | null>(target?.sectionKey ?? null);
   const [draft, setDraft] = useState<{ scope: SettingsScope; text: string } | null>(null);
 
   const activeSectionKey = useMemo(() => {

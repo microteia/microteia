@@ -26,6 +26,9 @@ export const coreSettingsPlugin: PluginRecord = {
     contributes: [
       messageBundleContribution(coreMessage('core.settings', CORE_SETTINGS_MESSAGES)),
       page({ key: 'settings', title: '@core.settings/page.settings', icon: 'settings', fullBleed: true }, 'SettingsView'),
+      // A mesma tela, aberta já numa seção e num escopo (`settingsTabKey`): é por onde outra tela leva
+      // a pessoa direto ao ajuste — o prefixo, antes de criar.
+      page({ key: '', keyPrefix: 'settings:', title: '@core.settings/page.settings', icon: 'settings', fullBleed: true }, 'SettingsView'),
       nav({ key: 'settings', label: '@core.settings/nav.settings', icon: 'settings', order: 115, group: ADMIN_NAV_GROUP }),
     ],
   },

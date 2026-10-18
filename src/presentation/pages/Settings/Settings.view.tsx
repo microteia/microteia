@@ -16,10 +16,10 @@ import { useT, useLabel } from '../../shared/i18n/useT';
  * escopos (escritório e usuário) e duas formas de editar (visual e JSON), gravando no mesmo lugar.
  * O kernel não conhece nenhuma configuração em particular: tudo aqui vem de declaração.
  */
-export const SettingsView: React.FC = () => {
+export const SettingsView: React.FC<{ tabKey?: string }> = ({ tabKey }) => {
   const t = useT('core.settings');
   const label = useLabel();
-  const vm = useSettingsViewModel();
+  const vm = useSettingsViewModel(tabKey);
   const ActiveEditor = vm.activeEditor;
 
   if (vm.isLoading && vm.sections.length === 0) {
