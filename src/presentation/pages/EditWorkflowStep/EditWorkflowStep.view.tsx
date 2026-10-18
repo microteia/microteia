@@ -443,7 +443,7 @@ export const EditWorkflowStepView: React.FC<{ tabKey: string }> = ({ tabKey }) =
                 <SearchSelect
                   options={getMappingKindOptions(LOOP_SOURCE_INPUT, t)}
                   value={vm.configuration.source?.kind ?? ''}
-                  onChange={(kind) => vm.setMappingKind('source', kind as InputMapping['kind'])}
+                  onChange={(kind) => vm.setMappingKind('source', kind as InputMapping['kind'] | '')}
                   placeholder={t('mapping.source.placeholder')}
                 />
                 {renderMappingControl(LOOP_SOURCE_INPUT)}
@@ -550,7 +550,7 @@ export const EditWorkflowStepView: React.FC<{ tabKey: string }> = ({ tabKey }) =
                     <SearchSelect
                       options={mappingKindOptions}
                       value={vm.configuration[input.id]?.kind ?? 'Literal'}
-                      onChange={(kind) => vm.setMappingKind(input.id, kind as InputMapping['kind'])}
+                      onChange={(kind) => vm.setMappingKind(input.id, kind as InputMapping['kind'] | '')}
                       placeholder={t('mapping.source.placeholder')}
                     />
                     {renderPicker(input, pickerKind)}
@@ -570,7 +570,7 @@ export const EditWorkflowStepView: React.FC<{ tabKey: string }> = ({ tabKey }) =
                     <SearchSelect
                       options={mappingKindOptions}
                       value={vm.configuration[input.id]?.kind ?? ''}
-                      onChange={(kind) => vm.setMappingKind(input.id, kind as InputMapping['kind'])}
+                      onChange={(kind) => vm.setMappingKind(input.id, kind as InputMapping['kind'] | '')}
                       placeholder={t('mapping.source.placeholder')}
                       disabled={isMappingKindLocked}
                     />

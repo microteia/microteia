@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.124.1] — 2026-10-17
+
+- Corrigido: nos passos de uma automação, o "x" ao lado da origem de um campo agora apaga de fato o valor, deixando o campo vazio como antes de qualquer escolha — em vez de voltar para "Valor fixo".
+
 #### [9.124.0] — 2026-10-17
 
 - Os modelos de documento ganharam pré-visualização: o botão "Pré-visualizar" mostra, numa folha, o documento como ele vai sair — com um registro à sua escolha ou com o exemplo do modelo —, mesmo antes de salvar, e avisa quais campos ficariam vazios.

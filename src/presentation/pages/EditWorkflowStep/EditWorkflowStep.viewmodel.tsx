@@ -200,7 +200,7 @@ export interface EditWorkflowStepViewModel {
   setPickerValue: (inputId: string, value: string) => void;
   /** O valor `Literal` de um input `list: true`, como lista — o gravado antes da lista vira um item. */
   literalList: (value: unknown) => string[];
-  setMappingKind: (inputId: string, kind: InputMapping['kind']) => void;
+  setMappingKind: (inputId: string, kind: InputMapping['kind'] | '') => void;
   setMapping: (inputId: string, mapping: InputMapping) => void;
   enabled: boolean;
   setEnabled: (enabled: boolean) => void;
@@ -766,7 +766,15 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
     setConfiguration((prev) => ({ ...prev, [inputId]: mapping }));
   }, []);
 
-  const setMappingKind = useCallback((inputId: string, kind: InputMapping['kind']) => {
+  const setMappingKind = useCallback((inputId: string, kind: InputMapping['kind'] | '') => {
+    if (!kind) {
+      setConfiguration((prev) => {
+        const next = { ...prev };
+        delete next[inputId];
+        return next;
+      });
+      return;
+    }
     setMapping(inputId, emptyMappingFor(kind));
   }, [setMapping]);
 

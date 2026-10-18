@@ -18,6 +18,10 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.124.1] — 2026-10-17
+
+- fix(ui/workflow-step): clearing a step input's source selector (the "x") now removes the input from `configuration` instead of resetting it to `{ kind: 'Literal', value: '' }`. `setMappingKind('')` used to fall through `emptyMappingFor`'s default branch, so an input once set could never return to absent — and conditions comparing against an unset value never matched again.
+
 #### [9.124.0] — 2026-10-17
 
 - feat(documents): template preview in the Document Templates screen. New callable `previewDocument` (group `deploy:documents`) takes the editor's DRAFT spec and merges it through `RenderDocumentUseCase.preview` with the new `draft` request field — resolved by `IDocumentTemplateSource.resolveDraft` (same `resolveDocumentTemplates` rule as saved ones) — against a chosen record or the template's `sample`. `draft` is ignored by `execute`: files always come from saved templates. Door charges `document-templates.manage`; the use case charges reading the record or the records the sample points to; previewing a payload template no longer charges `documents.generate`.
