@@ -848,6 +848,18 @@ portal: {
 | `{ field }` | um campo `reference` leva ao sujeito — ou a outra tela do portal, que leva até ele |
 | `'parent'` | herda do pai (`parentEntity`/`parentFieldKey`), como o *Parent scope* do Power Pages |
 
+**Duas portas para declarar, o mesmo dado.** A extensão escreve `portal` na tela do pacote; o
+escritório usa a aba **"Portal"** do Form Design (`ScreenBuilder/components/ScreenPortalPanel`), que
+aparece para quem tem `portal.manage`, numa tela que já existe e não é do sistema — somente-leitura na
+tela gerenciada por extensão. A aba confere a declaração com `portalDeclarationIssues` antes de
+gravar, e só grava se foi tocada.
+
+**Declarar é decisão de exposição, e a regra cobra.** `screenDefinitions` aceita a chave `portal`
+nova ou alterada só de quem tem `portal.manage` (ou `extensions.manage`, que é quem instala pacote);
+`screens.manage` sozinho continua editando todo o resto. Por isso `screenDefinitionMapper` devolve o
+`portal` EXATAMENTE como está gravado: uma forma normalizada voltaria ao salvar como "alterada", e o
+desenhista seria barrado ao mexer só no título.
+
 A corrente é seguida até `PORTAL_SUBJECT_MAX_DEPTH` saltos. Uma tela no caminho que não declare
 portal **corta** a corrente: o registro fica sem sujeito, e sem sujeito ele não pertence a ninguém de
 fora. A função é uma só, `resolvePortalSubjectKeys` (`domain/schema/portal.ts`, sincronizada), e o
@@ -857,7 +869,7 @@ kernel continua sem conhecer "cliente" ou "empresa".
 
 O Firestore não esconde campo: quem lê o documento lê o documento inteiro. Por isso o convidado
 **nunca** lê a coleção original. Um gatilho (`projectPortalRecord`) grava
-`portalRecords/{coleção}__{id}` com só os `fields` declarados, o título, os rótulos das referências
+`portalRecords/{coleção}__{id}` com só os `fields` declarados, o título (só se o campo de título estiver entre eles — `portalExposedTitle`), os rótulos das referências
 expostas (o id não diz nada a quem é de fora) e `audience` — os uids que podem vê-la.
 
 | Gatilho | Quando | O que faz |

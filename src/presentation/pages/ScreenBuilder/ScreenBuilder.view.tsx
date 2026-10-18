@@ -27,6 +27,7 @@ import { ExpressionEditor } from '../../components/ui/ExpressionEditor';
 import { ColorSwatchPicker } from '../../components/ui/ColorSwatchPicker';
 import { ColorDot } from '../../components/ui/Badge';
 import { getScreenIcon } from '../../shared/screenIcons';
+import { ScreenPortalPanel } from './components/ScreenPortalPanel';
 import type { FieldDefinition } from '../../../domain/entities';
 
 import { useT, useLabel } from '../../shared/i18n/useT';
@@ -480,6 +481,22 @@ export const ScreenBuilderView: React.FC = () => {
               </>
             )}
 
+            {vm.screenModalTab === 'portal' && (
+              <ScreenPortalPanel
+                form={vm.screenForm.portal}
+                fieldOptions={vm.portalPanel.fieldOptions}
+                referenceFieldOptions={vm.portalPanel.referenceFieldOptions}
+                hasParent={vm.portalPanel.hasParent}
+                hasDocuments={vm.portalPanel.hasDocuments}
+                readOnly={vm.portalPanel.readOnly}
+                issues={vm.portalPanel.issues}
+                onToggleEnabled={vm.setPortalEnabled}
+                onSubjectKind={vm.setPortalSubjectKind}
+                onSubjectField={vm.setPortalSubjectField}
+                onToggleField={vm.togglePortalField}
+                onToggleDocuments={vm.setPortalDocuments}
+              />
+            )}
             {vm.screenModalTab === 'actions' && (
               <>
                 <InputGroup>

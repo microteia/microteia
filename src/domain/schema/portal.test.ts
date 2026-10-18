@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   asPortalDeclaration,
   parsePortalSubjectKey,
+  portalDeclarationIssues,
+  portalExposedTitle,
   portalFieldKeys,
   portalSubjectKey,
   projectPortalData,
@@ -105,5 +107,56 @@ describe('sujeito do registro', () => {
       getRecord: async () => ({ companyId: 'c1' }),
     };
     expect(await resolvePortalSubjectKeys(item, 'x1', { invoiceId: 'i1' }, deps)).toEqual([]);
+  });
+});
+
+describe('título exposto', () => {
+  it('a lista só mostra o título quando o campo de título está entre os expostos', () => {
+    expect(portalExposedTitle(company, { name: 'Acme' })).toBe('Acme');
+    expect(portalExposedTitle({ ...company, portal: { subject: 'self', fields: ['taxId'] } }, { name: 'Acme' })).toBe('');
+  });
+});
+
+describe('problemas da declaração', () => {
+  const all = [company, invoice, item];
+  const keys = (screen: PortalScreenLike, screens = all) =>
+    portalDeclarationIssues(screen, screens).map((issue) => issue.message);
+
+  it('declarações coerentes não têm problema — direto, por campo e pelo pai', () => {
+    expect(keys(company)).toEqual([]);
+    expect(keys(invoice)).toEqual([]);
+    expect(keys({ ...item, portal: { subject: 'parent', fields: ['invoiceId'] } })).toEqual([]);
+  });
+
+  it('sem campo exposto, ou com campo que não existe mais', () => {
+    expect(keys({ ...company, portal: { subject: 'self', fields: [] } })).toContain('@core.records/portal.issue.no-fields');
+    expect(keys({ ...company, portal: { subject: 'self', fields: ['ghost'] } })).toContain('@core.records/portal.issue.field.unknown');
+  });
+
+  it('o campo do sujeito precisa ser referência', () => {
+    expect(keys({ ...invoice, portal: { subject: { field: 'number' }, fields: ['number'] } }))
+      .toContain('@core.records/portal.issue.subject.not-reference');
+  });
+
+  it('herdar do pai exige ter pai', () => {
+    expect(keys({ ...company, portal: { subject: 'parent', fields: ['name'] } }))
+      .toContain('@core.records/portal.issue.parent.missing');
+  });
+
+  it('apontar para uma tela fora do portal corta a corrente — e o escritório fica sabendo', () => {
+    const withoutCompany = [{ ...company, portal: null }, invoice, item];
+    expect(keys(invoice, withoutCompany)).toContain('@core.records/portal.issue.target.no-portal');
+  });
+
+  it('um ciclo entre telas não chega a sujeito nenhum', () => {
+    const a: PortalScreenLike = {
+      id: 'a', collection: 'a', fields: [{ key: 'b', type: 'reference', refEntity: 'b' }],
+      portal: { subject: { field: 'b' }, fields: ['b'] },
+    };
+    const b: PortalScreenLike = {
+      id: 'b', collection: 'b', fields: [{ key: 'a', type: 'reference', refEntity: 'a' }],
+      portal: { subject: { field: 'a' }, fields: ['a'] },
+    };
+    expect(keys(a, [a, b])).toContain('@core.records/portal.issue.too-deep');
   });
 });

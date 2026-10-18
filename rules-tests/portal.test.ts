@@ -158,3 +158,30 @@ describe('compartilhar um documento', () => {
     await assertSucceeds(setDoc(doc(asUser(env, 'fiscal'), `tenants/${TENANT}/invoices/nf1/documents/d3`), { name: 'x' }));
   });
 });
+
+describe('declarar o portal de uma tela', () => {
+  beforeEach(async () => {
+    await seed(env, {
+      members: {
+        [TENANT]: {
+          desenhista: ['screens.manage'],
+          gestorPortal: ['screens.manage', 'portal.manage'],
+        },
+      },
+    });
+  });
+
+  const screen = (uid: string, key = 'invoices') => doc(asUser(env, uid), `tenants/${TENANT}/screenDefinitions/${key}`);
+  const portal = { subject: 'self', fields: ['number'] };
+
+  it('quem só desenha telas edita a tela, mas não o que ela expõe', async () => {
+    await assertSucceeds(updateDoc(screen('desenhista'), { titleSingular: 'Nota' }));
+    await assertFails(updateDoc(screen('desenhista'), { portal }));
+    await assertFails(setDoc(screen('desenhista', 'novaTela'), { titleSingular: 'X', fields: [], portal }));
+  });
+
+  it('quem gerencia o portal declara e retira', async () => {
+    await assertSucceeds(updateDoc(screen('gestorPortal'), { portal }));
+    await assertSucceeds(updateDoc(screen('gestorPortal'), { portal: null }));
+  });
+});

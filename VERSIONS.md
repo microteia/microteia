@@ -11,6 +11,12 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.129.0] — 2026-10-18
+
+- O Form Design ganhou a aba "Portal": nela se escolhe, sem programar, se uma tela aparece no portal, de quem são os registros dela e quais campos podem ser vistos por quem é de fora. A aba avisa na hora quando a escolha não levaria os registros a ninguém.
+- Só quem tem a permissão de gerenciar o portal pode decidir o que uma tela mostra a quem é de fora.
+- A lista do portal passou a mostrar o nome do registro apenas quando esse campo foi escolhido para aparecer.
+
 #### [9.128.0] — 2026-10-18
 
 - Novo Portal: o escritório pode convidar pessoas de fora — um cliente, um fornecedor, a empresa atendida por uma prefeitura — para acompanharem, numa tela própria e simples de usar no celular, só os registros vinculados a elas. Cada tela escolhe quais informações saem do escritório; nada além delas é mostrado.

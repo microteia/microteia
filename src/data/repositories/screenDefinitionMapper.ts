@@ -2,7 +2,7 @@ import type { AuditAction } from '../../domain/entities/AuditLog';
 import { Timestamp } from 'firebase/firestore';
 import type { FieldDefinition, FieldOrigin, ScreenDefinition } from '../../domain/entities';
 import { CUSTOM_FIELD_ENABLED_ENTITIES } from '../../domain/entities/entitySchemas';
-import { asPortalDeclaration } from '../../domain/schema/portal';
+import { asPortalDeclaration, type PortalDeclaration } from '../../domain/schema/portal';
 
 const toDate = (v: unknown): Date =>
   v instanceof Timestamp ? v.toDate() : (v as Date);
@@ -69,7 +69,9 @@ export const mapScreenDefinition = (
   recordTabPrefix: (d.recordTabPrefix as string | null | undefined) ?? null,
   memberWritableFields: (d.memberWritableFields as string[] | null | undefined) ?? null,
   authorCanDelete: (d.authorCanDelete as boolean | null | undefined) ?? null,
-  portal: asPortalDeclaration(d.portal),
+  // Validado, mas devolvido COMO ESTÁ gravado: a regra cobra `portal.manage` de quem altera a chave, e
+  // uma forma normalizada voltaria ao salvar como "alterada" — barrando quem só mexeu no título.
+  portal: asPortalDeclaration(d.portal) ? (d.portal as PortalDeclaration) : undefined,
   listActions: (d.listActions as ScreenDefinition['listActions'] | undefined) ?? [],
   viewActionIds: (d.viewActionIds as string[] | undefined) ?? [],
   cardActionIds: (d.cardActionIds as string[] | undefined) ?? [],

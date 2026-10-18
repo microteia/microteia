@@ -2,6 +2,7 @@ import type { IPortalRepository, PortalProjection, PortalScreen } from '../repos
 import {
   PORTAL_SUBJECT_MAX_DEPTH,
   parsePortalSubjectKey,
+  portalExposedTitle,
   portalFieldKeys,
   portalRecordDocId,
   portalRecordTitle,
@@ -105,7 +106,7 @@ export const makeProjectPortalRecordUseCase = (repo: IPortalRepository): Project
         screenId: screen.id,
         subjectKeys,
         audience: await repo.audienceFor(tenantId, subjectKeys),
-        title: portalRecordTitle(screen, data),
+        title: portalExposedTitle(screen, data),
         data: projectPortalData(screen, data),
         labels,
       };

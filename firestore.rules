@@ -497,9 +497,20 @@ service cloud.firestore {
 
       // ─── Telas Dinâmicas (Personalização) ────────────────────────────────────
       // Definições de telas e campos customizados — membro lê; só admin configura
+      //
+      // O `portal` da tela decide o que SAI do escritório, e por isso não é ato de Form Design comum:
+      // declará-lo ou mudá-lo cobra `portal.manage` — ou `extensions.manage`, que é quem instala o
+      // pacote que o traz. Sem isto, quem só desenha telas poderia expor a coleção inteira a quem é de
+      // fora, e a aba que a tela esconde não protegeria nada.
       match /screenDefinitions/{screenId} {
         allow read: if isMember(tenantId);
-        allow create, update, delete: if can(tenantId, 'screens.manage')
+        allow create: if (can(tenantId, 'screens.manage') || can(tenantId, 'extensions.manage'))
+          && (request.resource.data.get('portal', null) == null
+              || can(tenantId, 'portal.manage') || can(tenantId, 'extensions.manage'));
+        allow update: if (can(tenantId, 'screens.manage') || can(tenantId, 'extensions.manage'))
+          && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['portal'])
+              || can(tenantId, 'portal.manage') || can(tenantId, 'extensions.manage'));
+        allow delete: if can(tenantId, 'screens.manage')
           || can(tenantId, 'extensions.manage');
       }
 

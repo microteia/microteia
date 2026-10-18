@@ -18,6 +18,12 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.129.0] — 2026-10-18
+
+- feat(form-design): "Portal" tab in the screen modal (`components/ScreenPortalPanel`, `screenPortalForm.ts`), shown to `portal.manage` on existing non-builtin screens; read-only on managed (extension) screens. `portalDeclarationIssues` (synced `portal.ts`) validates before saving: no fields, unknown field, subject field not a reference, `parent` without parent, target screen outside the portal, chain too deep or cyclic. The declaration is written only when the tab was touched.
+- feat(rules): declaring or changing `screenDefinitions.portal` requires `portal.manage` (or `extensions.manage`, the install path); `screens.manage` alone keeps editing everything else. `screenDefinitionMapper` returns `portal` exactly as stored, so a Form Design save never rewrites a normalized shape and trips that rule.
+- fix(portal): the projection's `title` is written only when the title field is among the exposed fields (`portalExposedTitle`) — it used to leak an undeclared field into the portal list. `com.microteia.locale-pt-br` 1.108.0. Deploy: `npm run deploy:rules`, `npm run deploy:portal`.
+
 #### [9.128.0] — 2026-10-18
 
 - feat(portal): external guests scoped per record, inside the same organization. A guest is NOT a member: a new principal at `tenants/{t}/portalUsers/{uid}`, so every existing `isMember` rule keeps denying them. Screens declare `portal: { subject: 'self' | { field } | 'parent', fields, documents }` (`ScreenDefinition`, `ScreenModuleTemplate`, new synced `domain/schema/portal.ts` with `resolvePortalSubjectKeys` / `projectPortalData`). KERNEL_VERSION 2.51.0.

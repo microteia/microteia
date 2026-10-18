@@ -169,8 +169,86 @@ export const resolvePortalSubjectKeys = async (
   return [...keys];
 };
 
-/** O campo de título do registro, como texto — o que a lista do portal mostra. */
+/** O campo de título do registro, como texto. */
 export const portalRecordTitle = (screen: PortalScreenLike, data: Record<string, unknown>): string => {
   const value = screen.titleFieldKey ? data[screen.titleFieldKey] : undefined;
   return typeof value === 'string' ? value : typeof value === 'number' ? String(value) : '';
+};
+
+/**
+ * O título que a lista do PORTAL mostra — só quando o campo de título está entre os expostos. O
+ * título é um campo como outro qualquer: mostrá-lo sem a tela ter escolhido seria a porta lateral por
+ * onde sai o que a declaração não deixou sair.
+ */
+export const portalExposedTitle = (screen: PortalScreenLike, data: Record<string, unknown>): string =>
+  screen.titleFieldKey && portalFieldKeys(screen).includes(screen.titleFieldKey)
+    ? portalRecordTitle(screen, data)
+    : '';
+
+/** Um problema da declaração, como CHAVE de `core.records` — quem exibe traduz. */
+export interface PortalDeclarationIssue {
+  message: string;
+  messageParams?: Record<string, string>;
+}
+
+/**
+ * O que impede a declaração de entregar algo a alguém — conferido ANTES de gravar, para que o
+ * escritório saiba na hora. O servidor, diante da mesma declaração, simplesmente não projeta nada: é
+ * a resposta fechada, e calada. Aqui ela ganha voz.
+ */
+export const portalDeclarationIssues = (
+  screen: PortalScreenLike,
+  screens: readonly PortalScreenLike[],
+): PortalDeclarationIssue[] => {
+  const portal = screen.portal;
+  if (!portal) return [];
+  const issues: PortalDeclarationIssue[] = [];
+  const declared = new Set(screen.fields.map((field) => field.key));
+  const screenFor = (key: string) =>
+    screens.find((one) => one.id === key) ?? screens.find((one) => one.collection === key);
+
+  if (portal.fields.length === 0) issues.push({ message: '@core.records/portal.issue.no-fields' });
+  for (const key of portal.fields) {
+    if (!declared.has(key)) issues.push({ message: '@core.records/portal.issue.field.unknown', messageParams: { field: key } });
+  }
+
+  const subject = portal.subject;
+  if (subject === 'self') return issues;
+
+  let targetKey: string | null | undefined;
+  if (subject === 'parent') {
+    if (!screen.parentEntity || !screen.parentFieldKey) {
+      issues.push({ message: '@core.records/portal.issue.parent.missing' });
+      return issues;
+    }
+    targetKey = screen.parentEntity;
+  } else {
+    const field = screen.fields.find((one) => one.key === subject.field);
+    if (!field || field.type !== 'reference' || !field.refEntity) {
+      issues.push({ message: '@core.records/portal.issue.subject.not-reference', messageParams: { field: subject.field } });
+      return issues;
+    }
+    targetKey = field.refEntity;
+  }
+
+  const visited = new Set<string>([screen.id]);
+  for (let depth = 0; depth < PORTAL_SUBJECT_MAX_DEPTH && targetKey; depth += 1) {
+    const target = screenFor(targetKey);
+    if (!target?.portal) {
+      issues.push({ message: '@core.records/portal.issue.target.no-portal', messageParams: { screen: targetKey } });
+      return issues;
+    }
+    if (target.portal.subject === 'self') return issues;
+    if (visited.has(target.id)) break;
+    visited.add(target.id);
+    const next = target.portal.subject;
+    if (next === 'parent') targetKey = target.parentEntity;
+    else targetKey = target.fields.find((one) => one.key === next.field)?.refEntity;
+    if (!targetKey) {
+      issues.push({ message: '@core.records/portal.issue.target.no-portal', messageParams: { screen: target.id } });
+      return issues;
+    }
+  }
+  issues.push({ message: '@core.records/portal.issue.too-deep' });
+  return issues;
 };
