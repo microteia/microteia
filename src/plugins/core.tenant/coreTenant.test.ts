@@ -39,7 +39,7 @@ describe('core.tenant — o escritório como plugin', () => {
    */
   it('entrega as abas como contribuição, não como código da tela', () => {
     const tabs = tabsOf(TENANT_SETTINGS_SURFACE);
-    expect(tabs.map((tab) => tab.key).sort()).toEqual(['agent', 'ai', 'email', 'members', 'office', 'roles']);
+    expect(tabs.map((tab) => tab.key).sort()).toEqual(['agent', 'ai', 'email', 'members', 'office', 'portal', 'roles']);
   });
 
   it('deixa a aba de dados aberta a todo membro e as de gestão atrás de uma permissão', () => {
@@ -47,6 +47,7 @@ describe('core.tenant — o escritório como plugin', () => {
     expect(byKey.get('office')?.requiredPermissions).toBeUndefined();
     expect(byKey.get('members')?.requiredPermissions).toEqual(['members.manage']);
     expect(byKey.get('roles')?.requiredPermissions).toEqual(['roles.manage']);
+    expect(byKey.get('portal')?.requiredPermissions).toEqual(['portal.manage']);
     expect(byKey.get('ai')?.requiredPermissions).toEqual(['ai.manage']);
     // A dos agentes de IA é a segunda aberta a todo membro, e por um motivo próprio: emitir um
     // acesso para si mesmo não concede nada — a interseção garante que ele nunca exceda quem o

@@ -102,6 +102,9 @@ npm run verify          # typecheck + lint + verify-schemas
 | `DocumentTypeConfig` (compartilhado por todas as telas que anexam documento) | `tenants/{tenantId}/documentTypes/{id}` | Sim |
 | `DocumentTemplate` (modelo de documento do ESCRITÓRIO; os de pacote vêm de `document.template`) | `tenants/{tenantId}/documentTemplates/{key}` — o id É a chave | Sim |
 | `DownloadItem` (arquivo gerado para baixar, temporário; escrito só pelo servidor) | `tenants/{tenantId}/downloads/{id}` — TTL em `expiresAt` | Sim |
+| `PortalUser` (convidado de FORA do escritório; escrito só pelo servidor) | `tenants/{tenantId}/portalUsers/{uid}` | Sim |
+| `PortalRecord` (projeção do que uma tela expõe no portal; escrita só pelo servidor) | `tenants/{tenantId}/portalRecords/{coleção}__{id}` (+ `documents/{id}`) | Sim |
+| Marca de convite do portal (o bootstrap a lê para não abrir escritório) | `portalInvites/{e-mail}` | Não (só servidor) |
 | `Notícia` (extensão `com.microteia.news`) | `tenants/{tenantId}/news/{id}` | Sim |
 | `Comentário` (extensão `com.microteia.news`) | `tenants/{tenantId}/newsComments/{id}` | Sim |
 | `SavedFilter` | `savedFilters/{uid}_{screenKey}` | Não |
@@ -399,23 +402,22 @@ Em vez de replicar o padrão de leitura por item (um vetor de ids no próprio do
 ## Fluxo Multi-Tenant
 
 ```
-Login Google
+Login (provedor declarado em auth.provider, ou link por e-mail do portal)
     ↓
-AuthContext (onAuthStateChanged)
+AuthContext (onAuthStateChanged → waitForProvisioning: users/{uid} com tenantIds, ou origin 'portal')
     ↓
-TenantStore.loadTenantsForUser(userId)
-    ├── usa collectionGroup('members').where('userId', '==', userId)
-    ├── se nenhum tenant → cria automaticamente "Escritório de [displayName]"
-    │       com o usuário como TenantMember { role: 'admin' }
-    └── salva lista em tenants[]
+TenantStore (getTenantsForUser: users.tenantIds ∪ collectionGroup('members'))
+    ├── nenhum escritório, mas convites de portal → portalOnly → WorkspaceShell leva a /portal
+    ├── nenhum dos dois → initError (o bootstrap falhou)
+    └── escolhe: localStorage['microteia:lastTenantId'] → o escritório do qual é dono → o primeiro
          ↓
-TenantSelector (usuário escolhe qual escritório)
-    ↓
-setCurrentTenant(tenant)
-    ├── persiste tenantId em localStorage['microteia:lastTenantId']
-    └── RecordStore, LookupStore, TagStore
-          iniciam onSnapshot() do tenant selecionado
+selectTenant (seletor do TopBar)
+    └── RecordStore, LookupStore, TagStore… assinam o escritório corrente
 ```
+
+O escritório nasce no SERVIDOR (`onUserCreated` → `BootstrapUserUseCase`), nunca no cliente, e o
+membro não tem papel: tem `roleIds` (ver "RBAC"). Quem chegou por convite do portal não ganha
+escritório (ver "Portal").
 
 ---
 
@@ -785,6 +787,7 @@ regra que tem uma decisão a defender:
 | `recordKeyAdoptions.test.ts` | o job da adoção lido por todo membro e escrito por ninguém do cliente — quem escrevesse `adopted` daria por única uma chave com duplicatas embaixo |
 | `reports.test.ts` | definição lida por todo membro, escrita por quem gerencia — e o acesso ao DADO que a regra deliberadamente não decide |
 | `backendState.test.ts` | o cliente lê e nunca escreve: escrita liberada deixaria forjar a lista de órfãs do provisionamento |
+| `portal.test.ts` | o convidado não é membro: não lê registro original, membros, perfis, telas nem configurações; a projeção só se lista filtrada pelo próprio uid; revogar fecha na hora; ninguém grava projeção nem convite do cliente |
 
 Ela fica **fora do `npm test`**, com configuração própria (`vitest.rules.config.ts`), porque exige um
 JDK — e um teste que não roda na máquina de quem o herda vira ruído até alguém apagá-lo. A semeadura
@@ -809,6 +812,126 @@ dono continua podendo tudo dentro do dele.
 `functions/src/domain/usecases/MaterializeMemberPermissionsUseCase.ts` ·
 `functions/src/infrastructure/handlers/{materializeMemberPermissions,syncTenantPermissions,shared/requirePermission}.ts` ·
 `functions/src/domain/engine/expression/builtins/accessFns.ts`
+
+---
+
+## Portal — quem é de FORA do escritório
+
+O cliente do escritório, a empresa contribuinte de uma prefeitura, o paciente de uma clínica: alguém
+que não trabalha ali, mas a quem uma parte dos registros pertence. O portal o deixa ver **só** o que é
+dele, dentro do MESMO escritório — a prefeitura é um escritório "Salvador/BA", cada empresa é um
+registro, e as pessoas da empresa são convidadas desse registro.
+
+### O convidado não é membro — e é isso que torna o resto seguro
+
+Ser membro já dá muito: toda regra `isMember` libera perfis, membros, telas, configurações, execuções.
+Um "membro com perfil restrito" herdaria tudo isso. O convidado é OUTRO principal, em
+`tenants/{t}/portalUsers/{uid}`, e por isso **nenhuma regra existente muda**: o que ele não pode ler
+continua fechado sem que ninguém precise lembrar de fechar.
+
+Escritório por empresa foi descartado: a prefeitura não consolidaria dado entre escritórios,
+administraria milhares deles, e cada um nasceria com limite e configuração próprios.
+
+### O vínculo é declarado pela TELA — `ScreenDefinition.portal`
+
+```ts
+portal: {
+  subject: 'self' | { field: 'companyId' } | 'parent',
+  fields: ['number', 'amount'],   // os ÚNICOS campos que saem do escritório
+  documents: true,                // expõe os documentos marcados como compartilhados
+}
+```
+
+| `subject` | Significa |
+|---|---|
+| `'self'` | a tela-SUJEITO: cada registro dela recebe convidados (a empresa, o cliente) |
+| `{ field }` | um campo `reference` leva ao sujeito — ou a outra tela do portal, que leva até ele |
+| `'parent'` | herda do pai (`parentEntity`/`parentFieldKey`), como o *Parent scope* do Power Pages |
+
+A corrente é seguida até `PORTAL_SUBJECT_MAX_DEPTH` saltos. Uma tela no caminho que não declare
+portal **corta** a corrente: o registro fica sem sujeito, e sem sujeito ele não pertence a ninguém de
+fora. A função é uma só, `resolvePortalSubjectKeys` (`domain/schema/portal.ts`, sincronizada), e o
+kernel continua sem conhecer "cliente" ou "empresa".
+
+### Projeção, não exposição — `portalRecords`
+
+O Firestore não esconde campo: quem lê o documento lê o documento inteiro. Por isso o convidado
+**nunca** lê a coleção original. Um gatilho (`projectPortalRecord`) grava
+`portalRecords/{coleção}__{id}` com só os `fields` declarados, o título, os rótulos das referências
+expostas (o id não diz nada a quem é de fora) e `audience` — os uids que podem vê-la.
+
+| Gatilho | Quando | O que faz |
+|---|---|---|
+| `projectPortalRecord` | registro escrito | refaz a projeção; sem sujeito, apaga. Se o sujeito MUDOU, refaz os dependentes (o filho, a nota do pedido) |
+| `projectPortalDocument` | documento do registro escrito | copia os metadados do documento compartilhado; sem a marca, apaga |
+| `refreshPortalAudience` | convite alterado | refaz só o `audience`, varrendo as PROJEÇÕES do sujeito — nunca a coleção original |
+| `reprojectPortalOnScreenChange` | declaração `portal` mudou | refaz todas as coleções do portal do escritório: o sujeito de uma tela chega pelas outras |
+
+A regra é a de Downloads: a lista só é aprovada filtrada por `audience array-contains uid`, e o
+convidado precisa ter o convite vivo (`isPortalUser`). O segundo termo é o que torna a revogação
+**imediata** — o `audience` é refeito segundos depois; a exclusão do convite vale no instante. O
+documento projetado não leva `audience` próprio: a regra o lê do registro-pai, para não haver uma
+segunda cópia que ficasse para trás.
+
+**Custo aceito:** cada gravação numa coleção do portal custa uma leitura de projeção e uma escrita, e
+o portal vê a mudança alguns segundos depois. Convidar alguém para uma empresa com dez mil notas
+custa ler dez mil projeções, uma vez, em lotes.
+
+### Convite — a marca antes da conta
+
+`invitePortalUser` cobra `portal.manage` E a leitura da coleção do sujeito: quem não vê o registro
+não o entrega a ninguém. Quando a pessoa não tem conta, a callable grava `portalInvites/{e-mail}`
+**antes** de criar a conta no Auth — criar a conta dispara `onUserCreated`, e é essa marca que faz o
+bootstrap não abrir um escritório para o convidado (`users/{uid}.origin = 'portal'`). Gravada
+depois, ela perderia a corrida para o gatilho.
+
+O link de acesso é o do próprio Firebase Auth (`sendSignInLinkToEmail`), e volta para
+`/portal/signin`. **Exige o provedor "Link por e-mail" ligado no Firebase Auth do projeto** — sem ele,
+convidar funciona e o e-mail não sai.
+
+### A casca — `/portal`
+
+Fora da pilha de stores do espaço de trabalho, de propósito: o convidado não lê telas, perfis nem
+extensões, e cada assinatura daquela pilha seria uma leitura recusada. `PortalStore` assina só as
+projeções; `getPortalContext` entrega o nome do escritório e as telas expostas — só os campos
+expostos, com rótulos e opções já no idioma de quem entrou (o catálogo do núcleo mais o das extensões
+instaladas, como o gateway de agente).
+
+Quem só tem portal e abre o app cai em `/portal` (`TenantStore.portalOnly`). Quem é membro de um
+escritório e convidado de outro entra pelo link do e-mail.
+
+### Documentos
+
+O documento sai do escritório só com três condições: a tela declara `documents: true`, alguém com
+`<coleção>.update` o marcou (`portalShared` — a regra deixa mudar só a marca, com o autor verdadeiro)
+e o registro já está no portal. A URL do arquivo **nunca** vai para a projeção: `getPortalDocumentUrl`
+confere convite, `audience` e marca, e só então a devolve. Toda recusa é a mesma frase — dizer qual
+das três faltou ajudaria a descobrir o que existe no escritório.
+
+### Agente de IA e MCP
+
+O convidado não emite acesso de agente: `issueAgentGrant` recusa quem não tem permissão nenhuma, e
+`grantedPermissions` é vazio para quem não é membro. O gateway MCP, as automações e os relatórios leem
+pelo Admin SDK e continuam escopados pelo escritório — nenhum deles tem um convidado como ator.
+
+### O que ainda não faz
+
+- **Gravar pelo portal** (o pedido do cliente, a nota emitida pela empresa). Será uma callable que só
+  aceita telas com `portal.create` declarado e carimba o vínculo a partir do convite — o vínculo nunca
+  pode vir do cliente.
+- **View própria por extensão.** A casca é genérica; um ponto `portal.page` deixará uma extensão
+  trocar a tela dela.
+- `storage.rules` deixa qualquer MEMBRO ler qualquer arquivo de registro, independentemente de
+  `<coleção>.read` — achado à parte, que o portal não usa: o convidado não é membro e baixa pela
+  callable.
+
+### Arquivos-chave
+
+`domain/schema/portal.ts` · `domain/entities/Portal.ts` · `data/repositories/FirebasePortalRepository.ts` ·
+`stores/{PortalStore.tsx,usePortal.ts}` · `presentation/pages/{Portal,PortalSignIn}/` ·
+`presentation/pages/TenantSettings/PortalTab/` ·
+`functions/src/domain/usecases/{PortalProjectionUseCases,PortalAccessUseCases}.ts` ·
+`functions/src/infrastructure/handlers/{portalProjection,portalAccess}.ts` · `rules-tests/portal.test.ts`
 
 ---
 
@@ -929,6 +1052,7 @@ As Cloud Functions são organizadas em **5 grupos** para facilitar deploys selet
 | **audit** | Sistema de auditoria | Quando adicionar nova entidade auditada |
 | **auth** | Autenticação e usuários | Raras alterações |
 | **tenant** | Gestão de membros | Raras alterações |
+| **portal** | Convidados externos: convite, projeção e acesso a documentos | Quando o portal muda |
 | **util** | Utilitários gerais | Proxy AI, logs de erro, cascata |
 
 Havia um sexto — **gmail**, com as cinco functions da ingestão de intimações. Ele saiu junto com a
@@ -11869,6 +11993,7 @@ daquela instalação. Ver "Artefatos de backend por extensão".
 | `tenants/{id}/notification_inbox` | `recipientId` ASC, `read` ASC, `createdAt` DESC | kernel | A contagem de não lidas do sino e o "marcar todas como lidas" |
 | `tenants/{id}/downloads` | `ownerId` ASC, `createdAt` DESC | kernel | Downloads — os arquivos da pessoa, mais recente primeiro |
 | `tenants/{id}/downloads` | `visibility` ASC, `createdAt` DESC | kernel | Downloads — os da automação liberados para todos (a regra só aprova a lista provada pelo filtro) |
+| `tenants/{id}/portalRecords` | `audience` CONTAINS, `collection` ASC, `updatedAt` DESC | kernel | Portal — a lista de uma tela para o convidado, mais recente primeiro. O filtro por `audience` é o que a regra exige para aprovar a lista |
 
 **Quatro índices de negócio saíram deste arquivo.** Três (`deadlines status+dueDate`,
 `financials status+dueDate`, `pushes emailId+processNumber`) eram declarados pelas extensões que os
@@ -11886,12 +12011,13 @@ runtime na primeira execução. Foi a separação por dono que os encontrou — 
 `orderBy` em campos diferentes tem de declarar o índice no `manifest.backend.indexes` dela; sem isso ela
 instala, aparece no menu e falha na primeira execução.
 
-Além dos compostos, o arquivo declara seis `fieldOverrides`:
+Além dos compostos, o arquivo declara sete `fieldOverrides`:
 
 | Coleção | Campo | Motivo |
 |---|---|---|
 | `auditLogs` | `expiresAt` | TTL — o Firestore expurga o log automaticamente na data |
 | `members` (collectionGroup) | `userId` ASC | `getTenantsForUser` consulta `collectionGroup('members')` para descobrir os escritórios do usuário |
+| `portalUsers` (collectionGroup) | `userId` ASC | `listMemberships` descobre em quais escritórios a pessoa é convidada do portal |
 | `workflow_clock` (collectionGroup) | `nextRunAt` ASC | `runWorkflowClock` pergunta, em todos os escritórios de uma vez, quais automações temporais venceram |
 | `workflow_trigger_marks` | `expiresAt` | TTL — a marca de "já disparou" do gatilho de data expira sozinha; sem índice, porque ninguém consulta por ela |
 | `notification_inbox` | `expiresAt` | TTL — o sino guarda o recente (90 dias), não o histórico; o histórico é a Auditoria |

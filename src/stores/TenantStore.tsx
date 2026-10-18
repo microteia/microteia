@@ -11,6 +11,7 @@ import {
   makeGetTenantMembersUseCase,
 } from '../domain/usecases/tenants/ManageTenantMembersUseCase';
 import { makeUpdateTenantUseCase } from '../domain/usecases/tenants/UpdateTenantUseCase';
+import { makeListPortalMembershipsUseCase } from '../domain/usecases/portal/PortalUseCases';
 import type { Tenant, TenantMember, TenantUpdate } from '../domain/entities';
 import { LocalizedError } from '../domain/errors/LocalizedError';
 
@@ -18,7 +19,7 @@ const TENANT_STORAGE_KEY = 'microteia:lastTenantId';
 
 export const TenantStoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, userRole, effectiveName } = useAuth();
-  const { tenantRepository } = useDI();
+  const { tenantRepository, portalRepository } = useDI();
 
   // SYSTEM enxerga e administra todos os escritórios, mesmo sem ser membro.
   const isElevated = userRole === 'SYSTEM';
@@ -28,6 +29,7 @@ export const TenantStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const [members, setMembers] = useState<TenantMember[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [initError, setInitError] = useState<string | null>(null);
+  const [portalOnly, setPortalOnly] = useState(false);
 
   const uc = useMemo(() => ({
     getForUser: makeGetTenantsForUserUseCase(tenantRepository),
@@ -37,7 +39,8 @@ export const TenantStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
     updateRoles: makeUpdateTenantMemberRolesUseCase(tenantRepository),
     removeMember: makeRemoveTenantMemberUseCase(tenantRepository),
     getMembers: makeGetTenantMembersUseCase(tenantRepository),
-  }), [tenantRepository]);
+    portalMemberships: makeListPortalMembershipsUseCase(portalRepository),
+  }), [tenantRepository, portalRepository]);
 
   const loadMembers = useCallback(async (tenantId: string) => {
     const list = await uc.getMembers.execute(tenantId);
@@ -108,6 +111,7 @@ export const TenantStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
       setAvailableTenants([]);
       setCurrentTenant(null);
       setMembers([]);
+      setPortalOnly(false);
       setIsLoading(false);
       return;
     }
@@ -124,7 +128,13 @@ export const TenantStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
         // O onboarding (users/, userProfiles/ e o tenant próprio) é feito inteiramente
         // pela Cloud Function onUserCreated antes do AuthContext liberar o usuário —
         // chegar aqui sem nenhum tenant indica falha no provisionamento server-side.
+        // A não ser para quem é só CONVIDADO: ele não tem escritório nenhum, e o lugar dele é o portal.
         if (tenants.length === 0) {
+          const memberships = await uc.portalMemberships.execute(user.id);
+          if (memberships.length > 0) {
+            setPortalOnly(true);
+            return;
+          }
           throw new LocalizedError('@core.workspace/tenant.none-found');
         }
 
@@ -156,6 +166,7 @@ export const TenantStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
       members,
       isLoading,
       initError,
+      portalOnly,
       selectTenant,
       updateTenant,
       addMember,

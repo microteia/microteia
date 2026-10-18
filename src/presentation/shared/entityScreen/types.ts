@@ -22,6 +22,7 @@ export interface EntityDocument {
   createdByName: string;
   createdByPhotoUrl?: string;
   createdAt: Date;
+  portalShared?: boolean;
 }
 
 // ─── Ports: o adapter embrulha os use cases da entidade (tenant/usuário/screenKey ficam presos no closure) ──
@@ -40,6 +41,8 @@ export interface DocumentsPort {
     input: { name: string; type?: string; url: string; storagePath: string },
   ) => Promise<EntityDocument>;
   remove: (recordId: string, doc: EntityDocument) => Promise<void>;
+  /** Ausente onde não há portal — o anexo de uma tela de extensão, por exemplo. */
+  setPortalShared?: (recordId: string, doc: EntityDocument, shared: boolean) => Promise<void>;
 }
 
 /**
@@ -105,4 +108,7 @@ export interface EntityDocumentsController {
   documentTypeDynamicOptions: DynamicSelectOption[];
   handleAddDocumentType: (name: string) => Promise<void>;
   handleDeleteDocumentType: (key: string) => Promise<void>;
+  /** A tela expõe documentos no portal, e quem vê pode editar o registro. */
+  canShareInPortal: boolean;
+  togglePortalShared: (doc: EntityDocument) => Promise<void>;
 }

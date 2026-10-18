@@ -16,6 +16,7 @@ import type {
   FieldRules,
 } from '../schema/fieldRules';
 import type { RecordKeySpec } from '../schema/recordKeys';
+import type { PortalDeclaration } from '../schema/portal';
 
 // ─── Tipos de Campos Customizados ─────────────────────────────────────────────
 
@@ -268,6 +269,11 @@ export interface ScreenDefinition {
    * `firestore.rules` a lê do documento da tela, e a UI mostra a ação de excluir por ela.
    */
   authorCanDelete?: boolean | null;
+  /**
+   * O que esta tela expõe no PORTAL — a quem é de fora do escritório, só o que é dele. Ausente (o
+   * normal) = nada desta tela sai do escritório. Ver `domain/schema/portal.ts`.
+   */
+  portal?: PortalDeclaration | null;
   listActions: ScreenListAction[];
   /** Ids de `ActionDefinition` exibidos no cabeçalho da tela de detalhe. */
   viewActionIds: string[];

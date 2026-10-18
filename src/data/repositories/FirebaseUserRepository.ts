@@ -47,7 +47,9 @@ export class FirebaseUserRepository implements IUserRepository {
           if (settled || !snap.exists()) return;
           const data = snap.data();
           const tenantIds = (data.tenantIds as string[] | undefined) ?? [];
-          if (tenantIds.length === 0) return;
+          // O convidado do portal não ganha escritório: o sinal de que o bootstrap terminou, para ele,
+          // é a origem carimbada no documento.
+          if (tenantIds.length === 0 && data.origin !== 'portal') return;
           settled = true;
           clearTimeout(timeoutId);
           unsubscribe();

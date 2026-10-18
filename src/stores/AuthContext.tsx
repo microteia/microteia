@@ -7,6 +7,7 @@ import { makeSignUpWithEmailUseCase } from '../domain/usecases/auth/SignUpWithEm
 import { makeSendEmailVerificationUseCase } from '../domain/usecases/auth/SendEmailVerificationUseCase';
 import { makeSendPasswordResetEmailUseCase } from '../domain/usecases/auth/SendPasswordResetEmailUseCase';
 import { makeSignOutUseCase } from '../domain/usecases/auth/SignOutUseCase';
+import { makeSendSignInLinkUseCase, makeSignInWithLinkUseCase } from '../domain/usecases/auth/SignInWithLinkUseCase';
 import type { User, UserRole } from '../domain/entities';
 import { authErrorKey, type AuthProviderSpec } from '../domain/schema/auth';
 import { AuthContext } from './useAuth';
@@ -29,6 +30,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const sendEmailVerificationUseCase = useMemo(() => makeSendEmailVerificationUseCase(authRepository), [authRepository]);
   const sendPasswordResetEmailUseCase = useMemo(() => makeSendPasswordResetEmailUseCase(authRepository), [authRepository]);
   const signOutUseCase = useMemo(() => makeSignOutUseCase(authRepository), [authRepository]);
+  const sendSignInLinkUseCase = useMemo(() => makeSendSignInLinkUseCase(authRepository), [authRepository]);
+  const signInWithLinkUseCase = useMemo(() => makeSignInWithLinkUseCase(authRepository), [authRepository]);
 
   const loadUserProfile = useCallback(async (userId: string) => {
     try {
@@ -159,6 +162,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await sendEmailVerificationUseCase.execute();
   };
 
+  const sendSignInLink = useCallback(
+    (email: string, continueUrl: string) => sendSignInLinkUseCase.execute(email, continueUrl),
+    [sendSignInLinkUseCase],
+  );
+
+  const isSignInLink = useCallback((url: string) => signInWithLinkUseCase.isSignInLink(url), [signInWithLinkUseCase]);
+
+  const signInWithLink = async (email: string, url: string) => {
+    const u = await signInWithLinkUseCase.execute(email, url);
+    setLoading(true);
+    setUser(u);
+    setIsEmailVerified(authRepository.isEmailVerified());
+  };
+
   const sendEmailVerification = async () => {
     await sendEmailVerificationUseCase.execute();
   };
@@ -182,6 +199,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       redirectErrorKey, clearRedirectError,
       effectivePhotoURL, effectiveName, reloadUserProfile,
       signInWithProvider, signInWithEmail, signUpWithEmail,
+      sendSignInLink, isSignInLink, signInWithLink,
       sendEmailVerification, sendPasswordResetEmail, checkEmailVerification,
       signOut,
     }}>

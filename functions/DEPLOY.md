@@ -44,6 +44,27 @@ npm run deploy:tenant
 
 ---
 
+### 🚪 PORTAL — Acesso de convidados externos
+Quem é de FORA do escritório vê só os registros vinculados a ele, por uma projeção que o servidor
+mantém.
+
+**Functions:**
+- `invitePortalUser` (onCall) — convida e vincula a um registro-sujeito; cria a conta, se preciso, depois de gravar a marca em `portalInvites` (é o que faz o `onUserCreated` não abrir escritório)
+- `revokePortalUser` (onCall) — revoga um vínculo ou o convite inteiro
+- `getPortalContext` (onCall) — o nome do escritório e as telas expostas, já traduzidas
+- `getPortalDocumentUrl` (onCall) — a URL de um documento compartilhado, depois de conferir o acesso
+- `projectPortalRecord` (Firestore `tenants/{t}/{coleção}/{id}`) — grava/apaga a projeção em `portalRecords`
+- `projectPortalDocument` (Firestore `tenants/{t}/{coleção}/{id}/documents/{doc}`) — o documento compartilhado
+- `refreshPortalAudience` (Firestore `tenants/{t}/portalUsers/{uid}`) — refaz o `audience` quando o convite muda
+- `reprojectPortalOnScreenChange` (Firestore `tenants/{t}/screenDefinitions/{id}`) — refaz as coleções do portal quando a declaração muda
+
+**Deploy:**
+```bash
+npm run deploy:portal
+```
+
+---
+
 ### 📋 AUDIT — Sistema de Auditoria
 Registro do histórico de alterações e o backup frio do que expira.
 

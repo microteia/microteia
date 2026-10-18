@@ -2,6 +2,7 @@ import type { MarketplacePlugin, ScreenModuleTemplate } from '../../entities/Mar
 import type { ScreenDefinition } from '../../entities';
 import type { ScreenDefinitionInput } from '../../repositories/IScreenDefinitionRepository';
 import { RESERVED_COLLECTIONS, screenIdIssue } from '../../schema/screenEntity';
+import { asPortalDeclaration } from '../../schema/portal';
 import { ensureUniqueKey, slugifyFieldKey } from '../../services/customFieldValues';
 
 /**
@@ -169,6 +170,7 @@ export const materializeScreen = (
     recordTabPrefix: template.recordTabPrefix ?? null,
     memberWritableFields: template.memberWritableFields ?? null,
     authorCanDelete: template.authorCanDelete ?? null,
+    portal: asPortalDeclaration(template.portal),
     listActions: template.listActions ?? [],
     viewActionIds: mapActionIds(template.viewActionIds),
     cardActionIds: mapActionIds(template.cardActionIds),

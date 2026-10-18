@@ -1442,6 +1442,7 @@ is enforced at the two write paths, which is the same footing \`required\`, a ma
 | \`listActions\`, \`viewActionIds\`, \`cardActionIds\` | the platform's own record gestures by key; your \`actions\` by \`templateId\` |
 | \`memberWritableFields\` | fields ANY member may write on a record someone else created — the door for per-person state (read, liked, saved) that the default permission would close |
 | \`authorCanDelete\` | whoever created the record deletes it, without an administrator |
+| \`portal\` | what an outside guest sees: \`subject\` (\`'self'\` for the screen whose records receive guests, \`{ field }\` for a reference that leads to it, \`'parent'\` to inherit from the parent), the \`fields\` that leave the organization — nothing else does — and \`documents\` to expose the documents someone marked as shared |
 | \`auditActions\` | which actions are audited. Absent = all. Declare it when a machine writes the collection, or the audit log drowns in one entry per ingested document |
 
 ### Option lists

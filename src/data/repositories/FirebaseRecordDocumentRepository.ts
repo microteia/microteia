@@ -8,6 +8,7 @@ import {
   query,
   serverTimestamp,
   Timestamp,
+  updateDoc,
 } from 'firebase/firestore';
 import { deleteObject, getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 import { db, storage } from '../../infrastructure/firebase/config';
@@ -39,6 +40,7 @@ const mapDoc = (
   createdByName: d.createdByName as string,
   createdByPhotoUrl: (d.createdByPhotoUrl as string | undefined) ?? undefined,
   createdAt: d.createdAt instanceof Timestamp ? d.createdAt.toDate() : (d.createdAt as Date),
+  portalShared: d.portalShared === true,
 });
 
 export class FirebaseRecordDocumentRepository implements IRecordDocumentRepository {
@@ -77,6 +79,21 @@ export class FirebaseRecordDocumentRepository implements IRecordDocumentReposito
       createdAt: serverTimestamp(),
     });
     return { id: docRef.id, recordId, collection, tenantId, ...data, createdAt: new Date() };
+  }
+
+  async setPortalShared(
+    tenantId: string,
+    collection: string,
+    recordId: string,
+    documentId: string,
+    shared: boolean,
+    actorUid: string,
+  ): Promise<void> {
+    await updateDoc(doc(docsRef(tenantId, collection, recordId), documentId), {
+      portalShared: shared,
+      portalSharedBy: actorUid,
+      portalSharedAt: serverTimestamp(),
+    });
   }
 
   async deleteDocument(

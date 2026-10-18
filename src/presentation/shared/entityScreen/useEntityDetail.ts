@@ -4,6 +4,8 @@ import { useNotification } from '../../../stores/useNotification';
 import { useTenant } from '../../../stores/useTenant';
 import { useRecordDialog } from '../../../stores/useRecordDialog';
 import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
+import { useAuthorization } from '../../../stores/useAuthorization';
+import { collectionPermissionId } from '../../../domain/schema/access/permission';
 import { useRecords } from '../../../stores/useRecords';
 import { useRecordActions } from '../recordActions/useRecordActions';
 import { applyResult, useScreenActions } from './useScreenActions';
@@ -218,7 +220,16 @@ export function useEntityDetail<TRecord extends { id: string }>(
   });
 
   const notesController = useEntityNotes({ enabled: hasNotes && !!record, recordId: record?.id ?? null, port: notesPort });
-  const docsController = useEntityDocuments({ enabled: hasDocuments && !!record, recordId: record?.id ?? null, port: documentsPort });
+  // Compartilhar no portal é editar o registro, e só existe onde a tela expõe documentos lá.
+  const { can } = useAuthorization();
+  const canShareInPortal = getDefinition(configScreenKey ?? entityKey)?.portal?.documents === true
+    && can(collectionPermissionId(entityKey, 'update'));
+  const docsController = useEntityDocuments({
+    enabled: hasDocuments && !!record,
+    recordId: record?.id ?? null,
+    port: documentsPort,
+    canShareInPortal,
+  });
 
   // O endereço da superfície é o `sourceId` da tela que CONFIGURA o detalhe, pela mesma regra com que
   // `useEntityList` acha uma tela: o id universal, ou a chave quando a tela é anterior a ele.

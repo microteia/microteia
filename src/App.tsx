@@ -44,6 +44,10 @@ import { BusinessCalendarBridge } from './presentation/shared/BusinessCalendarBr
 import { AppErrorBoundary } from './presentation/components/layout/AppErrorBoundary';
 import { OAuthConsentView } from './presentation/pages/OAuthConsent';
 import { OAUTH_CONSENT_PATH } from './domain/schema/agent/agentOAuth';
+import { PortalStoreProvider } from './stores/PortalStore';
+import { PortalView } from './presentation/pages/Portal';
+import { PortalSignInView } from './presentation/pages/PortalSignIn';
+import { PORTAL_PATH, PORTAL_SIGN_IN_PATH } from './presentation/pages/Portal/portalPaths';
 
 const App: React.FC = () => {
   return (
@@ -58,6 +62,25 @@ const App: React.FC = () => {
               <Route path="/" element={<Navigate to="/login" replace />} />
               <Route path="/login" element={<LoginView />} />
               <Route path="/license" element={<LicenseView />} />
+              {/*
+                O portal é a casca de quem é de FORA do escritório, e fica fora da pilha de stores do
+                espaço de trabalho de propósito: o convidado não lê telas, perfis nem extensões, e
+                cada uma daquelas assinaturas seria uma leitura recusada.
+              */}
+              <Route path={PORTAL_SIGN_IN_PATH} element={<PortalSignInView />} />
+              {[PORTAL_PATH, `${PORTAL_PATH}/:tenantId`].map((path) => (
+                <Route
+                  key={path}
+                  path={path}
+                  element={
+                    <ProtectedRoute loginPath={PORTAL_SIGN_IN_PATH}>
+                      <PortalStoreProvider>
+                        <PortalView />
+                      </PortalStoreProvider>
+                    </ProtectedRoute>
+                  }
+                />
+              ))}
               <Route
                 path="/*"
                 element={

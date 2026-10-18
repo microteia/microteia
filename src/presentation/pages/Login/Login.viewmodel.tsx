@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { PORTAL_SIGN_IN_PATH } from '../Portal/portalPaths';
 import { useAuth } from '../../../stores/useAuth';
 import { authErrorKey, authProviderSpecOf } from '../../../domain/schema/auth';
 import { useAuthProviders, type AuthProviderDescriptor } from '../../shared/auth/useAuthProviders';
@@ -46,6 +47,8 @@ export interface LoginViewModel {
   goToSignUp: () => void;
   goToLogin: () => void;
   goToForgotPassword: () => void;
+  /** Quem é convidado do portal entra por link no e-mail, sem senha. */
+  goToPortalSignIn: () => void;
 }
 
 const TERMS_NOT_ACCEPTED_ERROR = 'login.error.terms-required';
@@ -284,5 +287,6 @@ export const useLoginViewModel = (): LoginViewModel => {
     goToSignUp,
     goToLogin,
     goToForgotPassword,
+    goToPortalSignIn: () => navigate(PORTAL_SIGN_IN_PATH),
   };
 };

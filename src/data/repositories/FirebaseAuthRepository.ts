@@ -12,6 +12,9 @@ import {
   updateProfile,
   sendEmailVerification as firebaseSendEmailVerification,
   sendPasswordResetEmail as firebaseSendPasswordResetEmail,
+  sendSignInLinkToEmail,
+  isSignInWithEmailLink,
+  signInWithEmailLink,
   signOut as firebaseSignOut,
   onAuthStateChanged as firebaseOnAuthStateChanged,
 } from 'firebase/auth';
@@ -99,6 +102,19 @@ export class FirebaseAuthRepository implements IAuthRepository {
 
   async sendPasswordResetEmail(email: string): Promise<void> {
     await firebaseSendPasswordResetEmail(auth, email);
+  }
+
+  async sendSignInLink(email: string, continueUrl: string): Promise<void> {
+    await sendSignInLinkToEmail(auth, email, { url: continueUrl, handleCodeInApp: true });
+  }
+
+  isSignInLink(url: string): boolean {
+    return isSignInWithEmailLink(auth, url);
+  }
+
+  async signInWithLink(email: string, url: string): Promise<User> {
+    const result = await signInWithEmailLink(auth, email, url);
+    return mapUser(result.user);
   }
 
   isEmailVerified(): boolean {

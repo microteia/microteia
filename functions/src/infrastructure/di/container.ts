@@ -1,4 +1,31 @@
 import { getDb } from '../firebase/initFirebase';
+import { getAuth } from 'firebase-admin/auth';
+import { FirebasePortalAccountService, FirebasePortalRepository } from '../../data/repositories/FirebasePortalRepository';
+import type { IPortalRepository } from '../../domain/repositories/IPortalRepository';
+import {
+  makeProjectPortalDocumentUseCase,
+  makeProjectPortalRecordUseCase,
+  makeRefreshPortalAudienceUseCase,
+  makeReprojectPortalCollectionUseCase,
+} from '../../domain/usecases/PortalProjectionUseCases';
+import type {
+  ProjectPortalDocumentUseCase,
+  ProjectPortalRecordUseCase,
+  RefreshPortalAudienceUseCase,
+  ReprojectPortalCollectionUseCase,
+} from '../../domain/usecases/PortalProjectionUseCases';
+import {
+  makeGetPortalContextUseCase,
+  makeGetPortalDocumentUrlUseCase,
+  makeInvitePortalUserUseCase,
+  makeRevokePortalUserUseCase,
+} from '../../domain/usecases/PortalAccessUseCases';
+import type {
+  GetPortalContextUseCase,
+  GetPortalDocumentUrlUseCase,
+  InvitePortalUserUseCase,
+  RevokePortalUserUseCase,
+} from '../../domain/usecases/PortalAccessUseCases';
 import { FirebaseAuditLogRepository } from '../../data/repositories/FirebaseAuditLogRepository';
 import { FirebaseExtensionStatsRepository } from '../../data/repositories/FirebaseExtensionStatsRepository';
 import {
@@ -118,6 +145,8 @@ class DIContainer {
   private static instance: DIContainer;
 
   private aiProviders: IAIProviderService[];
+  private portalRepo?: IPortalRepository;
+  private projectPortalRecordUC?: ProjectPortalRecordUseCase;
   private aiConnectionRepo?: IAIConnectionRepository;
   private permissionCatalogCache?: PermissionCatalogCache;
   private materializeMemberPermissionsUC?: MaterializeMemberPermissionsUseCase;
@@ -217,9 +246,56 @@ class DIContainer {
 
   getBootstrapUserUseCase(): BootstrapUserUseCase {
     if (!this.bootstrapUserUC) {
-      this.bootstrapUserUC = makeBootstrapUserUseCase(this.getUserRepository(), this.getTenantRepository());
+      this.bootstrapUserUC = makeBootstrapUserUseCase(
+        this.getUserRepository(),
+        this.getTenantRepository(),
+        Math.random,
+        this.getPortalRepository(),
+      );
     }
     return this.bootstrapUserUC;
+  }
+
+  getPortalRepository(): IPortalRepository {
+    if (!this.portalRepo) {
+      this.portalRepo = new FirebasePortalRepository(getDb());
+    }
+    return this.portalRepo;
+  }
+
+  getProjectPortalRecordUseCase(): ProjectPortalRecordUseCase {
+    if (!this.projectPortalRecordUC) {
+      this.projectPortalRecordUC = makeProjectPortalRecordUseCase(this.getPortalRepository());
+    }
+    return this.projectPortalRecordUC;
+  }
+
+  getProjectPortalDocumentUseCase(): ProjectPortalDocumentUseCase {
+    return makeProjectPortalDocumentUseCase(this.getPortalRepository());
+  }
+
+  getRefreshPortalAudienceUseCase(): RefreshPortalAudienceUseCase {
+    return makeRefreshPortalAudienceUseCase(this.getPortalRepository());
+  }
+
+  getReprojectPortalCollectionUseCase(): ReprojectPortalCollectionUseCase {
+    return makeReprojectPortalCollectionUseCase(this.getPortalRepository(), this.getProjectPortalRecordUseCase());
+  }
+
+  getInvitePortalUserUseCase(): InvitePortalUserUseCase {
+    return makeInvitePortalUserUseCase(this.getPortalRepository(), new FirebasePortalAccountService(getAuth()));
+  }
+
+  getRevokePortalUserUseCase(): RevokePortalUserUseCase {
+    return makeRevokePortalUserUseCase(this.getPortalRepository());
+  }
+
+  getPortalDocumentUrlUseCase(): GetPortalDocumentUrlUseCase {
+    return makeGetPortalDocumentUrlUseCase(this.getPortalRepository());
+  }
+
+  getPortalContextUseCase(): GetPortalContextUseCase {
+    return makeGetPortalContextUseCase(this.getPortalRepository());
   }
 
   getCheckNicknameAvailabilityUseCase(): CheckNicknameAvailabilityUseCase {

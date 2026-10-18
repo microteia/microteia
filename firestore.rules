@@ -64,6 +64,22 @@ service cloud.firestore {
         || (can(tenantId, 'tenant.change-prefix') && after is string && after.matches('^[a-z][a-z0-9]{1,7}$'));
     }
 
+    // O convidado do PORTAL. Não é membro, e é de propósito: nenhuma regra `isMember` o deixa passar,
+    // então tudo o que o escritório guarda continua fechado para ele sem que regra nenhuma mude. O que
+    // ele lê é a projeção (`portalRecords`), e só a que o carimba no `audience`.
+    //
+    // Ler o documento dele em cada consulta é o que torna a revogação IMEDIATA: o `audience` é refeito
+    // por um gatilho, alguns segundos depois; a exclusão do convite vale no instante.
+    function isPortalUser(tenantId) {
+      return request.auth != null &&
+        exists(/databases/$(database)/documents/tenants/$(tenantId)/portalUsers/$(request.auth.uid));
+    }
+    function isInPortalAudience(tenantId) {
+      return request.auth != null
+        && request.auth.uid in resource.data.audience
+        && isPortalUser(tenantId);
+    }
+
     function can(tenantId, permission) {
       return isSystemAdmin()
         || (isTenantMember(tenantId) && memberPermissions(tenantId).hasAny([permission, '*']))
@@ -218,6 +234,34 @@ service cloud.firestore {
         allow update: if can(tenantId, 'members.manage')
           && !request.resource.data.diff(resource.data).affectedKeys()
                .hasAny(['permissions', 'permissionsCatalog']);
+      }
+
+      // ─── Portal ──────────────────────────────────────────────────────────────
+      // Quem é de FORA do escritório. Só o servidor grava (as callables de convite e revogação), e o
+      // convidado lê o próprio convite — é dele que a casca do portal tira o nome do escritório.
+      match /portalUsers/{portalUserId} {
+        allow read: if (request.auth != null && request.auth.uid == portalUserId)
+          || can(tenantId, 'portal.manage');
+        allow write: if false;
+      }
+
+      // A PROJEÇÃO do que cada tela expõe: só os campos declarados, carimbada com quem pode ver. A
+      // consulta do portal filtra por `audience array-contains uid`, e é isso que deixa a regra provar
+      // a lista sem ler documento nenhum — a mesma forma de Downloads. Ninguém grava do cliente: quem
+      // escrevesse o `audience` daria a si mesmo o registro de outro.
+      match /portalRecords/{projectionId} {
+        allow read: if isInPortalAudience(tenantId);
+        allow write: if false;
+
+        // O documento compartilhado não leva o `audience` consigo: a regra o lê do registro-pai. Uma
+        // cópia por documento seria uma segunda coisa para o gatilho manter em dia — e a que ficasse
+        // para trás manteria aberto o arquivo de quem já perdeu o registro.
+        match /documents/{documentId} {
+          allow read: if request.auth != null
+            && request.auth.uid in get(/databases/$(database)/documents/tenants/$(tenantId)/portalRecords/$(projectionId)).data.get('audience', [])
+            && isPortalUser(tenantId);
+          allow write: if false;
+        }
       }
 
       // Tipos de documento — a lista compartilhada por toda tela que anexa arquivo
@@ -477,7 +521,7 @@ service cloud.firestore {
         'actions', 'agentGrants', 'aggregate_backfills', 'aiConnections',
         'documentTemplates', 'documentTypes', 'documents', 'downloads', 'extension_history', 'extension_migrations', 'extensions',
         'installed_extensions', 'lookupDefinitions', 'members', 'notes', 'notification_inbox',
-        'reports', 'roles',
+        'portalRecords', 'portalUsers', 'reports', 'roles',
         // `plugin_installations` não tem mais código que a leia — foi a instalação de antes de
         // `installed_extensions`. Continua RESERVADA porque os documentos de então continuam nos
         // escritórios, e liberar o nome deixaria uma tela nova nascer por cima deles.
@@ -636,18 +680,31 @@ service cloud.firestore {
           allow delete: if isWritableScreen(screenCollection) && canOnCollection(screenCollection, 'delete');
         }
 
-        // Documentos do registro — mesmo modelo das anotações
+        // Documentos do registro — mesmo modelo das anotações. Compartilhar no portal é EDITAR o
+        // registro, e só mexe na marca: o arquivo, o nome e a autoria continuam de quem anexou.
         match /documents/{documentId} {
           allow read: if !isReservedCollection(screenCollection)
             && isMember(tenantId)
             && canOnCollection(screenCollection, 'read');
-          allow create: if isWritableScreen(screenCollection) && canOnCollection(screenCollection, 'update');
+          allow create: if isWritableScreen(screenCollection) && canOnCollection(screenCollection, 'update')
+            && request.resource.data.get('portalShared', false) == false;
+          allow update: if isWritableScreen(screenCollection) && canOnCollection(screenCollection, 'update')
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['portalShared', 'portalSharedBy', 'portalSharedAt'])
+            && request.resource.data.portalShared is bool
+            && request.resource.data.portalSharedBy == request.auth.uid;
           allow update: if isWritableScreen(screenCollection) && canOnCollection(screenCollection, 'delete')
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deletedBy', 'deletedByName', 'deletedByPhotoURL'])
             && request.resource.data.deletedBy == request.auth.uid;
           allow delete: if isWritableScreen(screenCollection) && canOnCollection(screenCollection, 'delete');
         }
       }
+    }
+
+    // ─── Os portais de quem entra ─────────────────────────────────────────────
+    // A consulta de GRUPO que descobre em quais escritórios a pessoa é convidada. Ela filtra por
+    // `userId`, e é por ele que a regra decide — cada um acha só os próprios convites.
+    match /{path=**}/portalUsers/{portalUserId} {
+      allow read: if request.auth != null && resource.data.userId == request.auth.uid;
     }
 
     // ─── Filtros salvos ───────────────────────────────────────────────────────

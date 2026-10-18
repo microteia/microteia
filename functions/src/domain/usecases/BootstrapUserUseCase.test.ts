@@ -40,6 +40,17 @@ describe('BootstrapUserUseCase', () => {
     expect(created[0].artifactPrefix).toMatch(/^[a-z]{4}$/);
   });
 
+  it('quem chega por convite do portal não ganha escritório próprio', async () => {
+    const { users, tenants, created } = setup();
+    const invites = { hasInvite: vi.fn(async (email: string) => email === 'ana@x.com') };
+
+    await makeBootstrapUserUseCase(users, tenants, Math.random, invites).execute({ ...input, email: ' Ana@X.com ' });
+
+    expect(created).toHaveLength(0);
+    expect(users.createUserIfMissing).toHaveBeenCalledWith('u1', expect.objectContaining({ origin: 'portal' }));
+    expect(users.createUserProfileIfMissing).toHaveBeenCalled();
+  });
+
   it('usuário já provisionado não cria outro escritório', async () => {
     const { users, tenants, created } = setup(true);
 

@@ -11,6 +11,13 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.128.0] — 2026-10-18
+
+- Novo Portal: o escritório pode convidar pessoas de fora — um cliente, um fornecedor, a empresa atendida por uma prefeitura — para acompanharem, numa tela própria e simples de usar no celular, só os registros vinculados a elas. Cada tela escolhe quais informações saem do escritório; nada além delas é mostrado.
+- O convidado entra por um link enviado ao e-mail, sem precisar criar senha, e não ganha um escritório próprio.
+- Os convites ficam numa nova aba "Portal" das configurações do escritório, onde é possível convidar, reenviar o link de acesso e revogar o acesso a qualquer momento — a revogação vale na hora.
+- Documentos anexados a um registro podem ser compartilhados no portal com um clique, e só os marcados ficam visíveis para o convidado.
+
 #### [9.128.0] — 2026-10-20
 
 - Uma aba dentro de um registro agora pode listar tudo em que ele aparece, mesmo quando o vínculo admite vários registros ao mesmo tempo ou passa por mais de um campo — por exemplo, os processos em que uma pessoa é parte, seja no polo ativo, seja no polo passivo.

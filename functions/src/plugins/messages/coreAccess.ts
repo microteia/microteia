@@ -208,6 +208,9 @@ export const CORE_ACCESS_MESSAGES: Record<string, string> = {
   'permission.members.manage': 'Manage members',
   'permission.members.manage.description':
     'Add and remove people from the organization, and choose the access profiles of each one.',
+  'permission.portal.manage': 'Manage the portal',
+  'permission.portal.manage.description':
+    'Invite people from outside the organization to the portal and revoke their access. Each guest only sees the records linked to them, and only the fields each screen chose to expose. Linking a guest to a record still requires being able to read that record.',
   'permission.reports.manage': 'Manage reports',
   'permission.reports.manage.description':
     'Create, edit and remove the reports of the organization. Reading each collection a report covers is still required to run it.',
@@ -244,6 +247,7 @@ export const CORE_ACCESS_MESSAGES: Record<string, string> = {
   'resource.document-types': 'Document types',
   'resource.extensions': 'Extensions',
   'resource.members': 'Members',
+  'resource.portal': 'Portal',
   'resource.reports': 'Reports',
   'resource.document-templates': 'Document templates',
   'resource.downloads': 'Downloads',

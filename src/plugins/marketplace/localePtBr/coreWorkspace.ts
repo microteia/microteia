@@ -8,6 +8,8 @@ export const CORE_WORKSPACE: Record<string, string> = {
   'login.signing-in': 'Entrando...',
   'login.divider': 'ou',
   'login.forgot-password': 'Esqueci minha senha',
+  'login.portal.prompt': 'Recebeu um convite para um portal?',
+  'login.portal.link': 'Entrar com um link',
   'login.signup.title': 'Criar conta',
   'login.switch.have-account': 'Já tem conta?',
   'login.switch.no-account': 'Não tem conta?',

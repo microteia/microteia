@@ -30,6 +30,8 @@ export const useRecordDocumentsPort = (collection: string): DocumentsPort => {
       recordDocumentRepository.addDocument(tenantId, collection, recordId, data),
     deleteDocument: (tenantId, recordId, documentId, storagePath, actor) =>
       recordDocumentRepository.deleteDocument(tenantId, collection, recordId, documentId, storagePath, actor),
+    setPortalShared: (tenantId, recordId, documentId, shared, actorUid) =>
+      recordDocumentRepository.setPortalShared(tenantId, collection, recordId, documentId, shared, actorUid),
   }), [recordDocumentRepository, collection]);
   return useDocumentsPort(bound);
 };

@@ -7,6 +7,8 @@ export interface TenantContextValue {
   members: TenantMember[];
   isLoading: boolean;
   initError: string | null;
+  /** A pessoa não é membro de escritório nenhum, só convidada de portal — o lugar dela é `/portal`. */
+  portalOnly: boolean;
   selectTenant: (tenantId: string) => Promise<void>;
   updateTenant: (data: TenantUpdate) => Promise<void>;
   addMember: (member: Omit<TenantMember, 'addedAt' | 'permissions'>) => Promise<void>;

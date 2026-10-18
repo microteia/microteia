@@ -1,6 +1,7 @@
 import type { IUserRepository } from '../repositories/IUserRepository';
 import type { ITenantRepository } from '../repositories/ITenantRepository';
 import { generateArtifactPrefix } from '../schema/plugin/artifactPrefix';
+import { normalizePortalEmail } from '../schema/portal';
 
 export interface BootstrapUserInput {
   userId: string;
@@ -21,12 +22,23 @@ export const makeBootstrapUserUseCase = (
   userRepo: IUserRepository,
   tenantRepo: ITenantRepository,
   random: () => number = Math.random,
+  portalInvites: { hasInvite: (email: string) => Promise<boolean> } = { hasInvite: async () => false },
 ): BootstrapUserUseCase => ({
   execute: async ({ userId, email, displayName, photoURL }) => {
-    const created = await userRepo.createUserIfMissing(userId, { email, displayName, photoURL });
+    // Quem chegou por um convite do PORTAL é de fora: entra no escritório que o convidou, como
+    // convidado, e não ganha um escritório próprio. A marca é gravada antes de a conta existir, por
+    // isso está aqui quando o gatilho roda.
+    const fromPortal = email !== '' && await portalInvites.hasInvite(normalizePortalEmail(email));
+    const created = await userRepo.createUserIfMissing(userId, {
+      email,
+      displayName,
+      photoURL,
+      ...(fromPortal ? { origin: 'portal' as const } : {}),
+    });
     if (!created) return; // já provisionado (execução duplicada do trigger)
 
     await userRepo.createUserProfileIfMissing(userId);
+    if (fromPortal) return;
 
     const tenant = await tenantRepo.createTenant({
       // O nome do escritório é DADO gravado, não texto de interface: nasce uma vez e o escritório

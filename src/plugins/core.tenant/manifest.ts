@@ -8,6 +8,7 @@ import { TENANT_SETTINGS_SURFACE } from './surface';
 import {
   PERMISSION_AI_MANAGE,
   PERMISSION_MEMBERS_MANAGE,
+  PERMISSION_PORTAL_MANAGE,
   PERMISSION_ROLES_MANAGE,
   PERMISSION_TENANT_PREFIX_MANAGE,
 } from '../../domain/schema/access';
@@ -41,6 +42,7 @@ export const coreTenantPlugin: PluginRecord = {
     RolesTabView: lazyView(() => import('../../presentation/pages/TenantSettings/RolesTab/RolesTab.view'), 'RolesTabView'),
     AITabView: lazyView(() => import('../../presentation/pages/TenantSettings/AITab/AITab.view'), 'AITabView'),
     AgentTabView: lazyView(() => import('../../presentation/pages/TenantSettings/AgentTab/AgentTab.view'), 'AgentTabView'),
+    PortalTabView: lazyView(() => import('../../presentation/pages/TenantSettings/PortalTab/PortalTab.view'), 'PortalTabView'),
   },
   manifest: {
     id: 'core.tenant',
@@ -73,6 +75,16 @@ export const coreTenantPlugin: PluginRecord = {
         order: 20,
         requiredPermissions: [PERMISSION_MEMBERS_MANAGE],
       }, 'MembersTabView'),
+      // Quem é de FORA do escritório. Ao lado de Membros porque é a mesma pergunta — quem entra aqui —
+      // com a resposta oposta: o convidado não é membro, e só vê o que é dele.
+      surfaceTab({
+        surface: TENANT_SETTINGS_SURFACE,
+        key: 'portal',
+        title: '@core.tenant/tenant.tab.portal',
+        icon: 'team',
+        order: 22,
+        requiredPermissions: [PERMISSION_PORTAL_MANAGE],
+      }, 'PortalTabView'),
       surfaceTab({
         surface: TENANT_SETTINGS_SURFACE,
         key: 'roles',

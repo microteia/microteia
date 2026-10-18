@@ -31,6 +31,7 @@ import { FirebaseActionRepository } from '../../data/repositories/FirebaseAction
 import { FirebaseReportDefinitionRepository } from '../../data/repositories/FirebaseReportDefinitionRepository';
 import { FirebaseDocumentTemplateRepository } from '../../data/repositories/FirebaseDocumentTemplateRepository';
 import { FirebaseDownloadRepository } from '../../data/repositories/FirebaseDownloadRepository';
+import { FirebasePortalRepository } from '../../data/repositories/FirebasePortalRepository';
 import { FirebaseRoleRepository } from '../../data/repositories/FirebaseRoleRepository';
 import { FirebaseAgentGrantRepository } from '../../data/repositories/FirebaseAgentGrantRepository';
 import { FirebaseAgentAuthRequestRepository } from '../../data/repositories/FirebaseAgentAuthRequestRepository';
@@ -97,6 +98,7 @@ export const DIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
     backendResidueRepository: new FirebaseBackendResidueRepository(),
     aggregateBackfillRepository: new FirebaseAggregateBackfillRepository(),
     recordKeyAdoptionRepository: new FirebaseRecordKeyAdoptionRepository(),
+    portalRepository:         new FirebasePortalRepository(),
   }), [host]);
 
   return <DIContext.Provider value={container}>{children}</DIContext.Provider>;

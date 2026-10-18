@@ -269,6 +269,11 @@ export const LoginView: React.FC = () => {
           </S.SwitchModeText>
         )}
 
+        <S.SwitchModeText>
+          {t('login.portal.prompt')}{' '}
+          <S.SwitchModeLink onClick={vm.goToPortalSignIn}>{t('login.portal.link')}</S.SwitchModeLink>
+        </S.SwitchModeText>
+
         <SlotSurface surface={LOGIN_SLOT_SURFACES.footer} />
       </S.Card>
     </S.Page>

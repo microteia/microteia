@@ -134,6 +134,7 @@ const screenToTemplate = (screen: ScreenDefinition): ScreenModuleTemplate =>
     recordTabPrefix: screen.recordTabPrefix ?? undefined,
     memberWritableFields: screen.memberWritableFields ?? undefined,
     authorCanDelete: screen.authorCanDelete ?? undefined,
+    portal: screen.portal ?? undefined,
     listActions: screen.listActions,
     sidebarOrder: screen.sidebarOrder,
     enabled: screen.enabled,

@@ -95,6 +95,7 @@ const LACUNAS_CONFERIDAS = [
   'screen-property\trecordTabPrefix',
   'screen-property\tmemberWritableFields',
   'screen-property\tauthorCanDelete',
+  'screen-property\tportal',
   'screen-property\tlistActions',
   'screen-property\tsidebarOrder',
   'screen-property\thideFromParentTabs',

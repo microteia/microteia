@@ -44,6 +44,7 @@ const SHARED_FILES = [
   'domain/schema/mutationSpec.ts',
   'domain/schema/recordRules.ts',
   'domain/schema/recordKeys.ts',
+  'domain/schema/portal.ts',
   'domain/schema/aggregationSpec.ts',
   'domain/schema/aggregateBackfill.ts',
   'domain/schema/recordKeyAdoption.ts',

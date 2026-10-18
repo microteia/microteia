@@ -24,6 +24,18 @@ export { addTenantMember } from './infrastructure/handlers/addTenantMember';
 export { removeTenantMember } from './infrastructure/handlers/removeTenantMember';
 export { onUserCreated } from './infrastructure/handlers/onUserCreated';
 export {
+  invitePortalUser,
+  revokePortalUser,
+  getPortalContext,
+  getPortalDocumentUrl,
+} from './infrastructure/handlers/portalAccess';
+export {
+  projectPortalRecord,
+  projectPortalDocument,
+  refreshPortalAudience,
+  reprojectPortalOnScreenChange,
+} from './infrastructure/handlers/portalProjection';
+export {
   materializePermissionsOnExtensionChange,
   materializePermissionsOnMemberChange,
   materializePermissionsOnRoleChange,

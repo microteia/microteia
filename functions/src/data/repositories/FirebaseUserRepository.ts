@@ -70,6 +70,7 @@ export class FirebaseUserRepository implements IUserRepository {
         displayName: data.displayName,
         photoURL: data.photoURL,
         role: isFirstUser ? 'SYSTEM' : 'USER',
+        ...(data.origin ? { origin: data.origin } : {}),
         createdAt: FieldValue.serverTimestamp(),
       });
       return true;
