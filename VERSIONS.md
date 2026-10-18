@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.124.0] — 2026-10-17
+
+- Os modelos de documento ganharam pré-visualização: o botão "Pré-visualizar" mostra, numa folha, o documento como ele vai sair — com um registro à sua escolha ou com o exemplo do modelo —, mesmo antes de salvar, e avisa quais campos ficariam vazios.
+
 #### [9.123.0] — 2026-10-17
 
 - A tela Downloads ganhou filtros como as demais telas: busca, quem gerou, se foi uma pessoa, um agente de IA ou uma automação, de qual tela veio, modelo, visibilidade, formato, período e vencimento — e os filtros podem ser salvos.

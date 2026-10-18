@@ -4,6 +4,8 @@ import type {
   DocumentTemplateInput,
   GenerateDocumentInput,
   GenerateDocumentResult,
+  PreviewDocumentInput,
+  PreviewDocumentResult,
 } from '../domain/repositories/IDocumentTemplateRepository';
 
 export interface DocumentTemplateStoreState {
@@ -14,6 +16,8 @@ export interface DocumentTemplateStoreState {
   deleteTemplate: (key: string) => Promise<void>;
   /** Gera no servidor. O `tenantId` é do escritório corrente — quem chama não o informa. */
   generateDocument: (input: Omit<GenerateDocumentInput, 'tenantId'>) => Promise<GenerateDocumentResult>;
+  /** A pré-visualização do rascunho do editor. O `tenantId` é do escritório corrente. */
+  previewDocument: (input: Omit<PreviewDocumentInput, 'tenantId'>) => Promise<PreviewDocumentResult>;
   refresh: () => Promise<void>;
 }
 

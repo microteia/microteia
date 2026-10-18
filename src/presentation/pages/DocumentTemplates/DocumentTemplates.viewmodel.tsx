@@ -132,6 +132,11 @@ export interface DocumentTemplatesViewModel {
   setSource: (source: string) => void;
   /** Os parâmetros e o exemplo de um modelo de dados. */
   payload: TemplatePayloadEditor;
+  /** Há texto para mesclar e nenhum erro de forma: a pré-visualização tem o que mostrar. */
+  canPreview: boolean;
+  isPreviewOpen: boolean;
+  openPreview: () => void;
+  closePreview: () => void;
   canInsertStarter: boolean;
   insertStarter: () => void;
   isStarterConfirmOpen: boolean;
@@ -278,6 +283,9 @@ export const useDocumentTemplatesViewModel = (): DocumentTemplatesViewModel => {
   const [isStarterConfirmOpen, setIsStarterConfirmOpen] = useState(false);
   const [filterTokens, setFilterTokens] = useState<FilterToken[]>([]);
   const [clonedFrom, setClonedFrom] = useState<string | null>(null);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const openPreview = useCallback(() => setIsPreviewOpen(true), []);
+  const closePreview = useCallback(() => setIsPreviewOpen(false), []);
 
   const filterDefs = useMemo<FilterDef[]>(() => {
     const screens = [...new Set(rows.map((row) => row.screenLabel))].sort((left, right) => left.localeCompare(right));
@@ -718,6 +726,11 @@ export const useDocumentTemplatesViewModel = (): DocumentTemplatesViewModel => {
     handleDocxFile,
     helpGroups,
     openFunctionReference,
+    canPreview: !blockingIssues && !payload.sampleInvalid
+      && (form.format === 'docx' ? !!form.content : !!form.body?.trim()),
+    isPreviewOpen,
+    openPreview,
+    closePreview,
     isPayload,
     sourceOptions,
     setSource,

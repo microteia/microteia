@@ -93,7 +93,7 @@ const setup = (
     }),
   };
   const deps: RenderDocumentDeps = {
-    templates: { resolve: async () => templates },
+    templates: { resolve: async () => templates, resolveDraft: async (_tenantId, draft) => ({ ...draft, origin: 'tenant' }) },
     screens: fakeScreenProvider(screens),
     records,
     renderer,
@@ -172,7 +172,7 @@ describe('RenderDocumentUseCase', () => {
   it('o modelo ilegível volta como recusa com o motivo, e nada é anexado', async () => {
     const { writer } = setup();
     const broken = makeRenderDocumentUseCase({
-      templates: { resolve: async () => [template()] },
+      templates: { resolve: async () => [template()], resolveDraft: async () => null },
       screens: fakeScreenProvider(SCREENS),
       records: { record: async () => ({ ok: true, value: { id: 'c1' } }), children: async () => ({ ok: true, value: [] }) },
       renderer: {
@@ -385,6 +385,40 @@ describe('RenderDocumentUseCase', () => {
 
       expect(await useCase.preview({ tenantId: 't1', templateKey: 'payment-receipt' }))
         .toMatchObject({ ok: true, text: 'Sample' });
+    });
+  });
+
+  describe('pré-visualização do rascunho', () => {
+    it('mescla o modelo como está no editor, sem precisar gravá-lo', async () => {
+      const { useCase } = setup([template()]);
+
+      expect(await useCase.preview({ tenantId: 't1', templateKey: '', recordId: 'c1', draft: template({ body: 'Draft {{name}}', datasets: [] }) }))
+        .toMatchObject({ ok: true, text: 'Draft Ana/Bia' });
+    });
+
+    it('gerar ignora o rascunho: arquivo é sempre de um modelo gravado', async () => {
+      const { useCase, rendered } = setup([template()]);
+
+      await useCase.execute(request({ draft: template({ body: 'Draft' }) }));
+
+      expect(rendered[0].template.body).not.toBe('Draft');
+    });
+
+    it('pré-visualizar dados não cobra a permissão de gerar, mas cobra a leitura do registro apontado', async () => {
+      const draft = template({
+        key: 'x',
+        source: 'payload',
+        collection: '',
+        datasets: undefined,
+        body: '{{contract.name}}',
+        parameters: [{ key: 'contract', label: 'Contract', type: 'EntityReference', entityType: 'contracts' }],
+      });
+      const { useCase } = setup([]);
+      const asked = { tenantId: 't1', templateKey: '', draft, payload: { contract: 'c1' }, chargePermissions: true };
+
+      expect(await useCase.preview({ ...asked, permissions: ['contracts.read'] })).toMatchObject({ ok: true, text: 'Ana/Bia' });
+      expect(await useCase.preview({ ...asked, permissions: [] }))
+        .toMatchObject({ ok: false, errorParams: { permission: 'contracts.read' } });
     });
   });
 });

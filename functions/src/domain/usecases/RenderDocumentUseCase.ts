@@ -5,7 +5,7 @@ import { configuredLocale, setAmbientLocale } from '../schema/i18n/localeGate';
 import type { SchemaContext } from '../schema/pathResolver';
 import { resolveQueryTable } from '../schema/querySpec';
 import { agentDocumentName, AGENT_DOCUMENT_MAX_BYTES } from '../schema/agent/agentDocument';
-import type { DocumentOutputFormat, ResolvedDocumentTemplate } from '../schema/document/documentTemplate';
+import type { DocumentOutputFormat, DocumentTemplateSpec, ResolvedDocumentTemplate } from '../schema/document/documentTemplate';
 import { DOCUMENT_PAYLOAD_MAX_BYTES, isPayloadTemplate, templateOutputs } from '../schema/document/documentTemplate';
 import type { TemplatePaths } from '../schema/document/templateGrammar';
 import { collectRequiredIssues, formatAndValidateParameters } from '../schema/parameterRules';
@@ -30,6 +30,11 @@ export interface RenderDocumentRequest {
   recordId?: string;
   /** Os dados do modelo `payload`, conferidos contra os `parameters` dele. */
   payload?: Record<string, unknown>;
+  /**
+   * Só na pré-visualização: o modelo como está no EDITOR, ainda não gravado. Vence `templateKey` — é o
+   * que deixa conferir o texto antes de salvar.
+   */
+  draft?: DocumentTemplateSpec;
   /** Quando quem chama já sabe a tela, ela tem de ser a do modelo. */
   collection?: string;
   /** Ausente = o primeiro formato que o modelo produz. */
@@ -207,9 +212,12 @@ const prepare = async (
   request: Omit<RenderDocumentRequest, 'author'>,
   mode: PrepareMode,
 ): Promise<Prepared> => {
-  const templates = await deps.templates.resolve(request.tenantId);
-  const template = templates.find((one) => one.key === request.templateKey);
-  if (!template) return failure('@core.documents/render.template-not-found', { key: request.templateKey });
+  // O rascunho do editor só vale na pré-visualização: gerar um arquivo é sempre de um modelo gravado.
+  const draft = mode === 'preview' ? request.draft : undefined;
+  const template = draft
+    ? await deps.templates.resolveDraft(request.tenantId, draft)
+    : (await deps.templates.resolve(request.tenantId)).find((one) => one.key === request.templateKey);
+  if (!template) return failure('@core.documents/render.template-not-found', { key: draft?.key ?? request.templateKey });
 
   const outputs = templateOutputs(template);
   const output = request.output ?? outputs[0];
@@ -338,7 +346,9 @@ const preparePayload = async (
 
   const destination = request.destination ?? template.destination ?? 'downloads';
   if (destination === 'record') return failure('@core.documents/render.payload-destination', { key: template.key });
-  const denied = charge(request, PERMISSION_DOCUMENTS_GENERATE);
+  // Pré-visualizar não gera nada: a permissão de gerar só é cobrada de quem gera. A leitura de cada
+  // registro apontado continua cobrada abaixo, nos dois modos.
+  const denied = mode === 'render' ? charge(request, PERMISSION_DOCUMENTS_GENERATE) : null;
   if (denied) return denied;
 
   const parameters = template.parameters ?? [];

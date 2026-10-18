@@ -7,6 +7,7 @@ import { storeEvents, StoreEvents } from '../infrastructure/events/StoreEventEmi
 import {
   makeDeleteDocumentTemplateUseCase,
   makeGenerateDocumentUseCase,
+  makePreviewDocumentUseCase,
   makeGetDocumentTemplatesUseCase,
   makeSaveDocumentTemplateUseCase,
   makeSubscribeToDocumentTemplatesUseCase,
@@ -15,6 +16,7 @@ import type { DocumentTemplate } from '../domain/schema/document/documentTemplat
 import type {
   DocumentTemplateInput,
   GenerateDocumentInput,
+  PreviewDocumentInput,
 } from '../domain/repositories/IDocumentTemplateRepository';
 import { LocalizedError } from '../domain/errors/LocalizedError';
 
@@ -39,6 +41,7 @@ export const DocumentTemplateStoreProvider: React.FC<{ children: React.ReactNode
     save: makeSaveDocumentTemplateUseCase(documentTemplateRepository),
     delete: makeDeleteDocumentTemplateUseCase(documentTemplateRepository),
     generate: makeGenerateDocumentUseCase(documentTemplateRepository),
+    preview: makePreviewDocumentUseCase(documentTemplateRepository),
   }), [documentTemplateRepository]);
 
   const refresh = useCallback(async () => {
@@ -95,6 +98,11 @@ export const DocumentTemplateStoreProvider: React.FC<{ children: React.ReactNode
     return result;
   }, [currentTenant, uc.generate]);
 
+  const previewDocument = useCallback(async (input: Omit<PreviewDocumentInput, 'tenantId'>) => {
+    if (!currentTenant) throw new LocalizedError('@core.ui/tenant.none-selected');
+    return uc.preview.execute({ ...input, tenantId: currentTenant.id });
+  }, [currentTenant, uc.preview]);
+
   return (
     <DocumentTemplateContext.Provider value={{
       templates,
@@ -102,6 +110,7 @@ export const DocumentTemplateStoreProvider: React.FC<{ children: React.ReactNode
       saveTemplate,
       deleteTemplate,
       generateDocument,
+      previewDocument,
       refresh,
     }}>
       {children}

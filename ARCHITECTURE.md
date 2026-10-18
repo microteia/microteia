@@ -7880,6 +7880,28 @@ em como o ESCOPO é montado; gramática, avaliador, renderizador e destino não 
   dos parâmetros — data por `formatDate`, booleano por `{{#if}}`, referência até o campo-título, grupo
   como seção, lista de grupos como tabela —, e "Preencher pelos campos" (`samplePayloadFrom`) monta o
   esqueleto do exemplo.
+
+### A pré-visualização — o rascunho, mesclado no servidor
+
+"Pré-visualizar", no topo do editor, abre um diálogo à parte — o editor já tem texto, ajuda, dados e
+listas, e uma quarta coluna o apertaria. A folha mostra o RASCUNHO, sem precisar salvar: a callable
+`previewDocument` (grupo `deploy:documents`) recebe o modelo como está no editor e o passa como `draft`
+ao `RenderDocumentUseCase.preview`, que o resolve pela mesma regra dos gravados
+(`IDocumentTemplateSource.resolveDraft` → `resolveDocumentTemplates`). É a mesma mesclagem da geração,
+então o texto que se vê é o que o arquivo terá. `draft` só vale em `preview`: gerar arquivo é sempre de
+um modelo gravado.
+
+- **Contra o quê:** um registro escolhido no próprio diálogo (modelo de tela; o primeiro da lista vem
+  pré-selecionado) ou o `sample` (modelo de dados). Cada escolha é uma nova mesclagem; uma resposta
+  velha não pinta o pedido novo (a resposta guarda a chave do pedido).
+- **Cobrança:** `document-templates.manage` na porta — o rascunho é texto de autoria — mais a leitura
+  do registro ou dos registros que o exemplo aponta. Pré-visualizar um modelo de dados NÃO cobra
+  `documents.generate`: nada é gerado.
+- **A folha** é a superfície do tema sobre o fundo, com a tipografia do arquivo: `#` centralizado,
+  parágrafos justificados, tabela com grade. O Markdown sai pelo `react-markdown` com `skipHtml` e SEM
+  `rehype-raw` (o `MarkdownContent` comum o tem): nenhum HTML do texto é executado, e os comentários —
+  quebra de página, notas — somem como no PDF. Modelo Word sai como o texto remontado, com aviso.
+- Os campos que saíram vazios ficam num `<details>` abaixo da folha, com o motivo de cada um.
 - **Resolução:** o modelo de dados não depende de tela instalada — `resolveDocumentTemplates` o deixa
   passar com `collection: ''` — e `templatesForCollection` nunca o oferece no diálogo de um registro.
 - Exige kernel `^2.48.0` (`DOCUMENT_PAYLOAD_SINCE_KERNEL`): um anterior não acha a tela e descarta o

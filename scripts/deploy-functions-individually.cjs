@@ -64,6 +64,7 @@ const ALL_FUNCTIONS = [
   'renderDocument',
   'onDownloadDeleted',
   'attachDownloadToRecord',
+  'previewDocument',
   'materializePermissionsOnMemberChange',
   'materializePermissionsOnRoleChange',
   'materializePermissionsOnScreenChange',

@@ -32,6 +32,25 @@ export interface GenerateDocumentResult {
   errorParams?: Record<string, string>;
 }
 
+export interface PreviewDocumentInput {
+  tenantId: string;
+  /** O modelo como está no editor — gravado ou não. */
+  template: DocumentTemplateSpec;
+  /** O registro, num modelo de tela. */
+  recordId?: string;
+  /** Os dados, num modelo de dados. Ausente = o exemplo do modelo. */
+  payload?: Record<string, unknown>;
+}
+
+export interface PreviewDocumentResult {
+  preview: { text: string; fileName: string; output: DocumentOutputFormat } | null;
+  /** As marcas que saíram vazias e por quê. */
+  empty: { expression: string; detail: string }[];
+  /** REFERÊNCIA de mensagem; `errorParams` traz o que a frase interpola. */
+  error: string | null;
+  errorParams?: Record<string, string>;
+}
+
 export interface IDocumentTemplateRepository {
   subscribe(tenantId: string, onUpdate: (templates: DocumentTemplate[]) => void): () => void;
   getAll(tenantId: string): Promise<DocumentTemplate[]>;
@@ -43,4 +62,6 @@ export interface IDocumentTemplateRepository {
    * mesmo documento tem de sair do gesto e da automação, e é lá que a permissão é cobrada.
    */
   generate(input: GenerateDocumentInput): Promise<GenerateDocumentResult>;
+  /** O texto que o modelo produz, mesclado no SERVIDOR pelo mesmo caso de uso que gera — sem arquivo. */
+  preview(input: PreviewDocumentInput): Promise<PreviewDocumentResult>;
 }

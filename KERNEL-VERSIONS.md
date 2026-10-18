@@ -18,6 +18,11 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.124.0] — 2026-10-17
+
+- feat(documents): template preview in the Document Templates screen. New callable `previewDocument` (group `deploy:documents`) takes the editor's DRAFT spec and merges it through `RenderDocumentUseCase.preview` with the new `draft` request field — resolved by `IDocumentTemplateSource.resolveDraft` (same `resolveDocumentTemplates` rule as saved ones) — against a chosen record or the template's `sample`. `draft` is ignored by `execute`: files always come from saved templates. Door charges `document-templates.manage`; the use case charges reading the record or the records the sample points to; previewing a payload template no longer charges `documents.generate`.
+- feat(ui/document-templates): "Preview" opens `TemplatePreviewDialog` (record picker or sample, file name, a themed "sheet" with the generated document's typography, empty fields in a `<details>`). Markdown is rendered with `react-markdown` + `skipHtml` and without `rehype-raw`, so no HTML in a template runs and comments vanish as in the PDF; Word templates show the reassembled text. `com.microteia.locale-pt-br` 1.104.0. Deploy: `npm run deploy:documents`.
+
 #### [9.123.0] — 2026-10-17
 
 - feat(downloads): public/private — whoever has `downloads.manage` sets `visibility` to `everyone` (every member sees it next to their own files) or back to private (`privateVisibilityOf`: `owner` when there is one, `managers` for an owner-less automation file). The only client write on `downloads`: rules require `downloads.manage`, `visibility` as the sole affected key and a value coherent with `ownerId`.

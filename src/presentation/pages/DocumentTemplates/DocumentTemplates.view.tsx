@@ -11,6 +11,7 @@ import {
   RiFileCopyLine,
   RiBracesLine,
   RiFileList3Line,
+  RiFileSearchLine,
   RiFileTextLine,
   RiFileWordLine,
   RiMagicLine,
@@ -33,6 +34,7 @@ import { S } from './DocumentTemplates.styles';
 import type { PillTone } from './DocumentTemplates.styles';
 import { useT } from '../../shared/i18n/useT';
 import { AdvancedParametersEditor } from '../ViewWorkflow/components/AdvancedParametersEditor';
+import { TemplatePreviewDialog } from './components/TemplatePreviewDialog';
 
 const STATE_TONE: Record<DocumentTemplateRowState, PillTone> = {
   plugin: 'neutral',
@@ -182,6 +184,9 @@ export const DocumentTemplatesView: React.FC = () => {
                       <RiEyeLine size={14} /> {t('template.enable')}
                     </Button>
                   )}
+                  <Button variant="secondary" size="sm" disabled={!vm.canPreview} onClick={vm.openPreview}>
+                    <RiFileSearchLine size={14} /> {t('preview.open')}
+                  </Button>
                   {vm.isEditable && (
                     <Button variant="primary" size="sm" disabled={!vm.canSave} onClick={() => void vm.handleSave()}>
                       <RiSaveLine size={14} /> {t(vm.isSaving ? 'core.ui/saving' : 'core.ui/action.save')}
@@ -488,6 +493,8 @@ export const DocumentTemplatesView: React.FC = () => {
           )}
         </S.Editor>
       </S.Body>
+
+      {vm.isPreviewOpen && <TemplatePreviewDialog template={vm.form} onClose={vm.closePreview} />}
 
       <ConfirmModal
         isOpen={vm.isDeleteOpen}

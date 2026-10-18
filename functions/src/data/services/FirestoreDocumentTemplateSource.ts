@@ -1,7 +1,11 @@
 import type { Firestore } from 'firebase-admin/firestore';
 import { Timestamp } from 'firebase-admin/firestore';
 import type { IDocumentTemplateSource } from '../../domain/repositories/IDocumentGenerationPorts';
-import type { DocumentTemplate, ResolvedDocumentTemplate } from '../../domain/schema/document/documentTemplate';
+import type {
+  DocumentTemplate,
+  DocumentTemplateSpec,
+  ResolvedDocumentTemplate,
+} from '../../domain/schema/document/documentTemplate';
 import {
   DOCUMENT_TEMPLATES_COLLECTION,
   resolveDocumentTemplates,
@@ -22,15 +26,24 @@ export class FirestoreDocumentTemplateSource implements IDocumentTemplateSource 
     private readonly screens: IScreenDefinitionProvider,
   ) {}
 
-  async resolve(tenantId: string): Promise<ResolvedDocumentTemplate[]> {
-    const [packaged, snapshot, screens] = await Promise.all([
-      this.extensions.documentTemplates(tenantId),
-      this.db.collection(`tenants/${tenantId}/${DOCUMENT_TEMPLATES_COLLECTION}`).get(),
-      this.screens.getScreens(tenantId),
-    ]);
-    const index = templateScreenIndex(
+  private async screenIndex(tenantId: string) {
+    const screens = await this.screens.getScreens(tenantId);
+    return templateScreenIndex(
       screens.map((screen) => ({ key: screen.id, sourceId: screen.sourceId, collection: screen.collection })),
     );
+  }
+
+  async resolveDraft(tenantId: string, draft: DocumentTemplateSpec): Promise<ResolvedDocumentTemplate | null> {
+    const [resolved] = resolveDocumentTemplates([], [{ ...draft, id: draft.key, enabled: true }], await this.screenIndex(tenantId));
+    return resolved ?? null;
+  }
+
+  async resolve(tenantId: string): Promise<ResolvedDocumentTemplate[]> {
+    const [packaged, snapshot, index] = await Promise.all([
+      this.extensions.documentTemplates(tenantId),
+      this.db.collection(`tenants/${tenantId}/${DOCUMENT_TEMPLATES_COLLECTION}`).get(),
+      this.screenIndex(tenantId),
+    ]);
     const tenant = snapshot.docs.map((doc): DocumentTemplate => {
       const data = doc.data();
       return {

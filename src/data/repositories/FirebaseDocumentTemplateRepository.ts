@@ -15,6 +15,8 @@ import type {
   GenerateDocumentInput,
   GenerateDocumentResult,
   IDocumentTemplateRepository,
+  PreviewDocumentInput,
+  PreviewDocumentResult,
 } from '../../domain/repositories/IDocumentTemplateRepository';
 import type { DocumentTemplate } from '../../domain/schema/document/documentTemplate';
 import { DOCUMENT_TEMPLATES_COLLECTION } from '../../domain/schema/document/documentTemplate';
@@ -60,5 +62,10 @@ export class FirebaseDocumentTemplateRepository implements IDocumentTemplateRepo
     const call = httpsCallable<GenerateDocumentInput, GenerateDocumentResult>(functions, 'renderDocument');
     const response = await call(input);
     return response.data;
+  }
+
+  async preview(input: PreviewDocumentInput): Promise<PreviewDocumentResult> {
+    const call = httpsCallable<PreviewDocumentInput, PreviewDocumentResult>(functions, 'previewDocument');
+    return (await call(input)).data;
   }
 }

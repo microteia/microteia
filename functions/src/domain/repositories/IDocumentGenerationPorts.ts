@@ -1,9 +1,18 @@
 import type { BusinessCalendarSet } from '../schema/time/businessDays';
-import type { DocumentTemplateDataset, ResolvedDocumentTemplate } from '../schema/document/documentTemplate';
+import type {
+  DocumentTemplateDataset,
+  DocumentTemplateSpec,
+  ResolvedDocumentTemplate,
+} from '../schema/document/documentTemplate';
 
 /** Os modelos que VALEM no escritório: os do pacote, sobrepostos pelos dele. */
 export interface IDocumentTemplateSource {
   resolve(tenantId: string): Promise<ResolvedDocumentTemplate[]>;
+  /**
+   * Um modelo AINDA NÃO GRAVADO — o rascunho do editor —, resolvido pela mesma regra dos gravados:
+   * tela pelo `sourceId`, chave para coleção física. `null` quando a tela dele não está no escritório.
+   */
+  resolveDraft(tenantId: string, draft: DocumentTemplateSpec): Promise<ResolvedDocumentTemplate | null>;
 }
 
 export type RecordReadOutcome<T> =
