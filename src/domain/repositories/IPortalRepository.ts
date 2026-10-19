@@ -9,7 +9,8 @@ import type {
 export interface IPortalRepository {
   /** Os escritórios em que a pessoa é convidada. */
   listMemberships(userId: string): Promise<PortalMembership[]>;
-  getContext(tenantId: string): Promise<PortalContext>;
+  /** `locale` é o do navegador — vale quando ninguém escolheu um idioma. */
+  getContext(tenantId: string, locale: string): Promise<PortalContext>;
   subscribeRecords(
     tenantId: string,
     userId: string,

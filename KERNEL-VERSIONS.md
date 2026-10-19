@@ -18,6 +18,10 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.129.3] — 2026-10-18
+
+- fix(portal): `getPortalContext` returned the product default (`en`) when no locale was configured, and `PortalLocaleProvider` let it override the browser. It now returns `locale` only when chosen (`configuredLocale`, user > organization) and receives the browser locale from the client to resolve labels when nothing was chosen.
+
 #### [9.129.2] — 2026-10-18
 
 - fix(portal): `/portal/signin` consumed nothing when a session already existed — it navigated on `user && isEmailVerified`, so a link opened in a browser signed in with the organization account landed in the portal as that account. It now navigates only after `signInWithEmailLink` succeeds (`status: 'signed-in'`), replacing the open session. `portalSignInUrl` carries `email` and `lang`: the invited e-mail completes the link automatically (Firebase asks for it whenever the link opens in a browser other than the one that requested it — always, since the organization requests it), and `UrlLocaleProvider` renders the page in the inviter's locale.

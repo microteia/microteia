@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.129.3] — 2026-10-18
+
+- O portal deixou de aparecer em inglês quando o escritório não escolheu um idioma: nesse caso ele segue o idioma do navegador de quem acessa, inclusive nas datas.
+
 #### [9.129.2] — 2026-10-18
 
 - O link de acesso ao portal agora entra direto: não pede mais para redigitar o e-mail e funciona mesmo quando o navegador já está conectado com outra conta — antes, nesse caso, o portal abria na conta errada.

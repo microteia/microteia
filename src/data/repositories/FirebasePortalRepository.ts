@@ -55,9 +55,9 @@ export class FirebasePortalRepository implements IPortalRepository {
       .sort((a, b) => a.tenantName.localeCompare(b.tenantName));
   }
 
-  async getContext(tenantId: string): Promise<PortalContext> {
-    const call = httpsCallable<{ tenantId: string }, PortalContext>(functions, 'getPortalContext');
-    return (await call({ tenantId })).data;
+  async getContext(tenantId: string, locale: string): Promise<PortalContext> {
+    const call = httpsCallable<{ tenantId: string; locale: string }, PortalContext>(functions, 'getPortalContext');
+    return (await call({ tenantId, locale })).data;
   }
 
   subscribeRecords(

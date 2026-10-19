@@ -123,7 +123,7 @@ export interface PortalContextScreen {
 }
 
 export interface PortalContext {
-  /** O idioma em que os rótulos foram resolvidos — a casca do portal fala o mesmo. */
+  /** O idioma ESCOLHIDO para este convidado (dele ou do escritório); vazio quando ninguém escolheu. */
   locale: string;
   tenantName: string;
   logoURL: string | null;

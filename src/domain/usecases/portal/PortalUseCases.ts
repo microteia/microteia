@@ -10,11 +10,11 @@ export const makeListPortalMembershipsUseCase = (repo: IPortalRepository): ListP
 });
 
 export type GetPortalContextUseCase = {
-  execute: (tenantId: string) => Promise<PortalContext>;
+  execute: (tenantId: string, locale: string) => Promise<PortalContext>;
 };
 
 export const makeGetPortalContextUseCase = (repo: IPortalRepository): GetPortalContextUseCase => ({
-  execute: (tenantId) => repo.getContext(tenantId),
+  execute: (tenantId, locale) => repo.getContext(tenantId, locale),
 });
 
 export type GetPortalDocumentsUseCase = {

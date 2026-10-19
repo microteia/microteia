@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from './useAuth';
 import { useDI } from '../infrastructure/di/useDI';
+import { useOptionalLocale } from './useLocale';
 import { PortalStoreContext } from './usePortal';
 import {
   makeGetPortalContextUseCase,
@@ -15,6 +16,7 @@ const CONTEXT_FAILED = '@core.tenant/portal.not-invited';
 export const PortalStoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user } = useAuth();
   const { portalRepository } = useDI();
+  const { locale } = useOptionalLocale();
 
   const uc = useMemo(() => ({
     memberships: makeListPortalMembershipsUseCase(portalRepository),
@@ -71,7 +73,7 @@ export const PortalStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
     setContext(null);
     setError(null);
     setCollection(null);
-    uc.context.execute(tenantId)
+    uc.context.execute(tenantId, locale)
       .then((loaded) => {
         if (!active) return;
         setContext(loaded);
@@ -85,7 +87,7 @@ export const PortalStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
         if (active) setContextLoading(false);
       });
     return () => { active = false; };
-  }, [tenantId, uc.context]);
+  }, [tenantId, uc.context, locale]);
 
   useEffect(() => {
     if (!tenantId || !collection || !user) {

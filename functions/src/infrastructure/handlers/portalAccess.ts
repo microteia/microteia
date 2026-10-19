@@ -6,7 +6,8 @@ import { collectionPermissionId } from '../../domain/schema/access/permission';
 import { parsePortalSubjectKey } from '../../domain/schema/portal';
 import { domainErrorCode } from '../../domain/errors/DomainError';
 import { agentCatalog, agentText } from '../agent/agentMessages';
-import { agentLocale } from '../agent/agentLocale';
+import { configuredLocale } from '../../domain/services/tenantSettings';
+import { DEFAULT_LOCALE } from '../../domain/schema/i18n/localeNegotiation';
 
 const REGION = 'southamerica-east1';
 
@@ -83,18 +84,28 @@ export const revokePortalUser = onCall({ region: REGION, cors: true }, async (re
  */
 export const getPortalContext = onCall({ region: REGION, cors: true }, async (request) => {
   const userId = authenticated(request.auth);
-  const tenantId = requireString((request.data as Record<string, unknown> | undefined)?.tenantId, '@core.automation/handler.tenant.missing');
+  const data = (request.data ?? {}) as Record<string, unknown>;
+  const tenantId = requireString(data.tenantId, '@core.automation/handler.tenant.missing');
+  // O idioma do navegador do convidado: vale quando nem ele nem o escritório escolheram um. Sem isso o
+  // padrão do produto (`en`) passava por cima do navegador, e o portal de um escritório brasileiro
+  // sem a configuração gravada abria em inglês.
+  const browserLocale = typeof data.locale === 'string' ? data.locale : '';
   try {
     const di = getDI();
     const tenant = await di.getTenantRepository().getById(tenantId);
     if (!tenant) throw new HttpsError('permission-denied', '@core.tenant/portal.not-invited');
-    const locale = await agentLocale(tenantId, userId);
-    const catalog = agentCatalog(await di.getInstalledExtensionCache().messageBundles(tenantId), locale);
+    const settings = di.getTenantSettingsRepository();
+    const [own, office] = await Promise.all([settings.getUserValues(tenantId, userId), settings.getTenantValues(tenantId)]);
+    const configured = configuredLocale(own, office);
+    const catalog = agentCatalog(
+      await di.getInstalledExtensionCache().messageBundles(tenantId),
+      configured ?? (browserLocale || DEFAULT_LOCALE),
+    );
     return await di.getPortalContextUseCase().execute({
       tenantId,
       userId,
       tenant: { name: tenant.name, logoURL: tenant.logoURL ?? null },
-      locale,
+      locale: configured ?? '',
       resolve: (value) => agentText(catalog, value).text,
     });
   } catch (error) {
