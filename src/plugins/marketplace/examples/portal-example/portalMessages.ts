@@ -29,6 +29,8 @@ export const PORTAL_EXAMPLE_MESSAGES: Record<string, string> = {
   'portal.orders.empty': 'No orders yet.',
   'portal.orders.new': 'Place an order',
   'portal.orders.quantity': '{count} × {item}',
+  'portal.widget.orders': 'Your orders',
+  'portal.widget.orders.caption': 'orders placed in the portal',
 };
 
 export const portalExampleMessagesContribution = (): Contribution =>

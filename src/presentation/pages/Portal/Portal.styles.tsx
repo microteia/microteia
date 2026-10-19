@@ -1,5 +1,11 @@
 import styled from 'styled-components';
 
+/**
+ * O ponto de quebra do portal: abaixo dele, celular — menu na barra de baixo; acima, abas no topo. Um
+ * só valor, para a casca e as regras de autoria das views dizerem a mesma coisa.
+ */
+const BREAKPOINT = '768px';
+
 export const S = {
   Page: styled.div`
     min-height: 100vh;
@@ -48,12 +54,20 @@ export const S = {
     flex-shrink: 0;
   `,
 
+  /**
+   * As ABAS do topo — o menu no computador. Abaixo do ponto de quebra elas somem e o menu vira a barra
+   * de baixo: o polegar alcança a barra, não o topo.
+   */
   Nav: styled.nav`
-    display: flex;
-    gap: ${({ theme }) => theme.spacing.xs};
-    padding: ${({ theme }) => theme.spacing.sm} ${({ theme }) => theme.spacing.md};
-    overflow-x: auto;
-    border-bottom: 1px solid ${({ theme }) => theme.colors.borderSubtle};
+    display: none;
+
+    @media (min-width: ${BREAKPOINT}) {
+      display: flex;
+      gap: ${({ theme }) => theme.spacing.xs};
+      padding: ${({ theme }) => theme.spacing.sm} ${({ theme }) => theme.spacing.md};
+      overflow-x: auto;
+      border-bottom: 1px solid ${({ theme }) => theme.colors.borderSubtle};
+    }
   `,
 
   NavItem: styled.button<{ $active: boolean }>`
@@ -76,15 +90,173 @@ export const S = {
     }
   `,
 
+  /**
+   * O conteúdo. No celular ele reserva embaixo a altura da barra — sem isso, a última linha de uma
+   * lista ficaria escondida atrás dela.
+   */
   Main: styled.main`
     flex: 1;
     width: 100%;
     max-width: 960px;
     margin: 0 auto;
     padding: ${({ theme }) => theme.spacing.md};
+    padding-bottom: calc(${({ theme }) => theme.spacing['2xl']} + ${({ theme }) => theme.spacing.xl} + env(safe-area-inset-bottom));
     display: flex;
     flex-direction: column;
     gap: ${({ theme }) => theme.spacing.md};
+
+    @media (min-width: ${BREAKPOINT}) {
+      padding: ${({ theme }) => theme.spacing.lg};
+    }
+  `,
+
+  /** A barra de baixo — o menu no celular: Início, os primeiros itens e "Mais". */
+  BottomBar: styled.nav`
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 10;
+    display: flex;
+    justify-content: space-around;
+    padding: ${({ theme }) => theme.spacing.xs} ${({ theme }) => theme.spacing.xs} calc(${({ theme }) => theme.spacing.xs} + env(safe-area-inset-bottom));
+    background: ${({ theme }) => theme.colors.surface};
+    border-top: 1px solid ${({ theme }) => theme.colors.border};
+
+    @media (min-width: ${BREAKPOINT}) {
+      display: none;
+    }
+  `,
+
+  BottomItem: styled.button<{ $active: boolean }>`
+    flex: 1;
+    min-width: 0;
+    min-height: ${({ theme }) => theme.spacing['2xl']};
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    border: none;
+    background: none;
+    color: ${({ theme, $active }) => ($active ? theme.colors.primary : theme.colors.textSecondary)};
+    font-size: ${({ theme }) => theme.fontSizes.xs};
+    cursor: pointer;
+
+    span {
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  `,
+
+  /** O "Mais" do celular: o resto do menu, numa folha que sobe de baixo. */
+  SheetBackdrop: styled.div`
+    position: fixed;
+    inset: 0;
+    z-index: 20;
+    background: ${({ theme }) => theme.colors.overlay};
+    display: flex;
+    align-items: flex-end;
+  `,
+
+  Sheet: styled.div`
+    width: 100%;
+    max-height: 70vh;
+    overflow-y: auto;
+    padding: ${({ theme }) => theme.spacing.md} ${({ theme }) => theme.spacing.md} calc(${({ theme }) => theme.spacing.md} + env(safe-area-inset-bottom));
+    background: ${({ theme }) => theme.colors.surface};
+    border-radius: ${({ theme }) => theme.borderRadius.lg} ${({ theme }) => theme.borderRadius.lg} 0 0;
+    display: flex;
+    flex-direction: column;
+    gap: ${({ theme }) => theme.spacing.xs};
+  `,
+
+  SheetItem: styled.button<{ $active: boolean }>`
+    display: flex;
+    align-items: center;
+    gap: ${({ theme }) => theme.spacing.sm};
+    min-height: ${({ theme }) => theme.spacing['2xl']};
+    padding: 0 ${({ theme }) => theme.spacing.md};
+    border: none;
+    border-radius: ${({ theme }) => theme.borderRadius.md};
+    background: ${({ theme, $active }) => ($active ? theme.colors.primaryLight : 'transparent')};
+    color: ${({ theme, $active }) => ($active ? theme.colors.primary : theme.colors.text)};
+    font-size: ${({ theme }) => theme.fontSizes.md};
+    text-align: left;
+    cursor: pointer;
+  `,
+
+  /** A home: boas-vindas, o menu em blocos e os cartões das extensões. */
+  Welcome: styled.p`
+    font-size: ${({ theme }) => theme.fontSizes.md};
+    color: ${({ theme }) => theme.colors.textSecondary};
+    white-space: pre-wrap;
+  `,
+
+  Tiles: styled.div`
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: ${({ theme }) => theme.spacing.sm};
+
+    @media (min-width: ${BREAKPOINT}) {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+  `,
+
+  Tile: styled.button`
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: ${({ theme }) => theme.spacing.sm};
+    min-height: calc(${({ theme }) => theme.spacing['2xl']} * 2);
+    padding: ${({ theme }) => theme.spacing.md};
+    border: 1px solid ${({ theme }) => theme.colors.border};
+    border-radius: ${({ theme }) => theme.borderRadius.lg};
+    background: ${({ theme }) => theme.colors.surface};
+    color: ${({ theme }) => theme.colors.text};
+    font-size: ${({ theme }) => theme.fontSizes.sm};
+    font-weight: 600;
+    text-align: left;
+    cursor: pointer;
+    transition: background ${({ theme }) => theme.transitions.fast};
+
+    &:hover {
+      background: ${({ theme }) => theme.colors.cardHover};
+    }
+  `,
+
+  TileIcon: styled.span`
+    display: inline-flex;
+    color: ${({ theme }) => theme.colors.primary};
+  `,
+
+  Widgets: styled.div`
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: ${({ theme }) => theme.spacing.md};
+
+    @media (min-width: ${BREAKPOINT}) {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  `,
+
+  WidgetCard: styled.section`
+    display: flex;
+    flex-direction: column;
+    gap: ${({ theme }) => theme.spacing.sm};
+    min-width: 0;
+    padding: ${({ theme }) => theme.spacing.md};
+    border: 1px solid ${({ theme }) => theme.colors.border};
+    border-radius: ${({ theme }) => theme.borderRadius.lg};
+    background: ${({ theme }) => theme.colors.surface};
+  `,
+
+  WidgetTitle: styled.h3`
+    font-size: ${({ theme }) => theme.fontSizes.sm};
+    font-weight: 600;
+    color: ${({ theme }) => theme.colors.textSecondary};
   `,
 
   Centered: styled.div`

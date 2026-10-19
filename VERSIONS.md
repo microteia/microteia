@@ -11,6 +11,13 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.133.0] — 2026-10-19
+
+- O portal ganhou uma página inicial, com mensagem de boas-vindas, o menu em blocos e cartões de resumo trazidos pelas extensões.
+- No computador, o menu do portal fica em abas no topo; no celular, numa barra fixa embaixo, com "Mais" para o restante.
+- Na aba Portal das configurações, o escritório escreve as boas-vindas e escolhe o que aparece no menu e na página inicial, e em que ordem.
+- Extensões podem trazer páginas inteiras e cartões para o portal, além de substituir telas.
+
 #### [9.132.0] — 2026-10-19
 
 - Extensões agora podem trazer telas próprias para o portal: a lista ou o registro de uma tela aparece para o convidado do jeito que a extensão desenhou. Essas telas só são enviadas ao convidado quando o escritório confia no código da extensão; caso contrário, o portal mostra a tela padrão.

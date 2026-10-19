@@ -4,6 +4,10 @@ export const PORTAL_SIGN_IN_PATH = '/portal/signin';
 
 export const portalTenantPath = (tenantId: string): string => `${PORTAL_PATH}/${encodeURIComponent(tenantId)}`;
 
+/** Um item do menu: a tela (pelo nome da coleção) ou a página de extensão (`page.<plugin>.<chave>`). */
+export const portalEntryPath = (tenantId: string, entryId: string): string =>
+  `${portalTenantPath(tenantId)}/${encodeURIComponent(entryId)}`;
+
 /**
  * Para onde o link do e-mail devolve quem foi convidado.
  *

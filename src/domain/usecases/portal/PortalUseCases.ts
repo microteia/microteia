@@ -1,4 +1,5 @@
 import type { IPortalRepository } from '../../repositories/IPortalRepository';
+import type { PortalHomeSettings } from '../../schema/portalExtensionPoints';
 import type { PortalContext, PortalDocument, PortalLinkOption, PortalMembership } from '../../entities/Portal';
 
 export type ListPortalMembershipsUseCase = {
@@ -69,4 +70,16 @@ export type SubmitPortalRecordUseCase = {
 
 export const makeSubmitPortalRecordUseCase = (repo: IPortalRepository): SubmitPortalRecordUseCase => ({
   execute: (input) => repo.submit(input),
+});
+
+export type GetPortalHomeSettingsUseCase = { execute: (tenantId: string) => Promise<PortalHomeSettings> };
+
+export const makeGetPortalHomeSettingsUseCase = (repo: IPortalRepository): GetPortalHomeSettingsUseCase => ({
+  execute: (tenantId) => repo.getHomeSettings(tenantId),
+});
+
+export type SavePortalHomeSettingsUseCase = { execute: (tenantId: string, settings: PortalHomeSettings) => Promise<void> };
+
+export const makeSavePortalHomeSettingsUseCase = (repo: IPortalRepository): SavePortalHomeSettingsUseCase => ({
+  execute: (tenantId, settings) => repo.saveHomeSettings(tenantId, settings),
 });

@@ -8,6 +8,7 @@ import { mergeViewSources } from '../../../../sdk/mergeSources';
 import CLIENT_PORTAL_VIEW from './views/ClientPortal.view.tsx?raw';
 import CLIENT_PORTAL_VIEWMODEL from './views/ClientPortal.viewmodel.tsx?raw';
 import CLIENT_PORTAL_STYLES from './views/ClientPortal.styles.tsx?raw';
+import OPEN_ORDERS_WIDGET from './views/OpenOrdersWidget.view.tsx?raw';
 import { portalExampleMessagesContribution } from './portalMessages';
 import { portalExamplePtBrContribution } from './portalMessagesPtBr';
 
@@ -21,7 +22,8 @@ import { portalExamplePtBrContribution } from './portalMessagesPtBr';
  * | the guest creates records there | `portal.create: { fields }` — the link is stamped by the server |
  * | the only fields that leave the organization | `portal.fields` — `internal` below never does |
  * | a page of your own in the portal | `portalView({ collection, surface: 'detail' }, viewKey)` |
- * | what that page can read | `@microteia/portal` — never `@microteia/data` |
+ * | a card on the portal home | `portalView({ surface: 'widget', key, title }, viewKey)` |
+ * | what those can read | `@microteia/portal` — never `@microteia/data` |
  *
  * Guests are invited by the organization, in Settings > Portal, to a Client. Each one then sees that
  * client and its orders — nothing else in the organization, not even that other clients exist.
@@ -89,8 +91,8 @@ const CLIENT_PORTAL_SOURCE = mergeViewSources({
 export const portalExamplePlugin: MarketplacePlugin = {
   manifest: {
     id: 'com.microteia.portal-example',
-    version: '1.0.0',
-    kernel: '^2.53.0',
+    version: '1.1.0',
+    kernel: '^2.54.0',
     name: message('package.name'),
     description: message('package.description'),
     category: message('package.category'),
@@ -106,6 +108,13 @@ export const portalExamplePlugin: MarketplacePlugin = {
        * screen shows, and sends nothing otherwise; the standard page is drawn instead.
        */
       portalView({ collection: 'portalExampleClient', surface: 'detail' }, 'clientPortal'),
+
+      /**
+       * A card on the portal HOME. The organization decides whether it shows and where (Settings >
+       * Portal); `order` is only a suggestion. A card is narrow on a phone and half the width on a
+       * computer — draw it for the phone first.
+       */
+      portalView({ surface: 'widget', key: 'open-orders', title: message('portal.widget.orders'), order: 10 }, 'openOrdersWidget'),
     ],
   },
   summary: message('package.summary'),
@@ -113,5 +122,6 @@ export const portalExamplePlugin: MarketplacePlugin = {
   screens: [CLIENT_SCREEN, ORDER_SCREEN],
   views: [
     { key: 'clientPortal', title: message('screen.client'), icon: 'team', source: CLIENT_PORTAL_SOURCE },
+    { key: 'openOrdersWidget', title: message('portal.widget.orders'), icon: 'shoppingBag', source: OPEN_ORDERS_WIDGET },
   ],
 };

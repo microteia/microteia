@@ -28,6 +28,8 @@ const PORTAL_EXAMPLE_PT_BR: Record<string, string> = {
   'portal.orders.empty': 'Nenhum pedido ainda.',
   'portal.orders.new': 'Fazer um pedido',
   'portal.orders.quantity': '{count} × {item}',
+  'portal.widget.orders': 'Seus pedidos',
+  'portal.widget.orders.caption': 'pedidos feitos pelo portal',
 };
 
 export const portalExamplePtBrContribution = (): Contribution =>

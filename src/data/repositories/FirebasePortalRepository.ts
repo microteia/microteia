@@ -1,7 +1,10 @@
 import {
   collection,
   collectionGroup,
+  doc,
+  getDoc,
   getDocs,
+  setDoc,
   limit,
   onSnapshot,
   orderBy,
@@ -25,6 +28,7 @@ import {
   PORTAL_RECORDS_COLLECTION,
   PORTAL_USERS_COLLECTION,
 } from '../../domain/schema/portal';
+import { PORTAL_SETTINGS_DOC, asPortalHomeSettings, type PortalHomeSettings } from '../../domain/schema/portalExtensionPoints';
 
 const PAGE_LIMIT = 200;
 
@@ -136,6 +140,15 @@ export class FirebasePortalRepository implements IPortalRepository {
   }): Promise<{ id: string }> {
     const call = httpsCallable<typeof input, { id: string }>(functions, 'submitPortalRecord');
     return (await call(input)).data;
+  }
+
+  async getHomeSettings(tenantId: string): Promise<PortalHomeSettings> {
+    const snapshot = await getDoc(doc(db, 'tenants', tenantId, 'settings', PORTAL_SETTINGS_DOC));
+    return asPortalHomeSettings(snapshot.data());
+  }
+
+  async saveHomeSettings(tenantId: string, settings: PortalHomeSettings): Promise<void> {
+    await setDoc(doc(db, 'tenants', tenantId, 'settings', PORTAL_SETTINGS_DOC), settings);
   }
 
   subscribeGuests(

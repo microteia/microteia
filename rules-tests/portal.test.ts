@@ -185,3 +185,24 @@ describe('declarar o portal de uma tela', () => {
     await assertSucceeds(updateDoc(screen('gestorPortal'), { portal: null }));
   });
 });
+
+describe('a home do portal (settings/portal)', () => {
+  beforeEach(async () => {
+    await seed(env, {
+      members: { [TENANT]: { gestorPortal: ['portal.manage'], configurador: ['settings.manage'] } },
+    });
+  });
+
+  const home = (uid: string) => doc(asUser(env, uid), `tenants/${TENANT}/settings/portal`);
+  const value = { welcome: 'Olá', menu: { order: [], hidden: [] }, widgets: { order: [], hidden: [] } };
+
+  it('quem gerencia o portal configura a home', async () => {
+    await assertSucceeds(setDoc(home('gestorPortal'), value));
+  });
+
+  it('configurar o escritório não basta, e o convidado não alcança', async () => {
+    await assertFails(setDoc(home('configurador'), value));
+    await assertFails(setDoc(home('ana'), value));
+    await assertFails(getDoc(home('ana')));
+  });
+});

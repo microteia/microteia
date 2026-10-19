@@ -422,11 +422,19 @@ service cloud.firestore {
       // cobra `tenant.change-prefix`, e o valor novo tem de estar no formato de `artifactPrefix.ts`.
       match /settings/{settingsDocId} {
         allow read: if isMember(tenantId);
+        //
+        // `portal` é a home do PORTAL — boas-vindas, ordem do menu e dos widgets. Quem a configura é quem
+        // decide o que sai do escritório (`portal.manage`), e não quem configura o escritório: as duas
+        // permissões costumam estar em mãos diferentes. O convidado não a lê; o servidor a entrega.
         allow create, update: if settingsDocId == 'tenant'
           ? can(tenantId, 'settings.manage') && tenantPrefixWriteAllowed(tenantId)
-          : settingsDocId == 'user_' + request.auth.uid && isMember(tenantId);
-        allow delete: if can(tenantId, 'settings.manage')
-          && (tenantPrefixOf(resource) == '' || can(tenantId, 'tenant.change-prefix'));
+          : settingsDocId == 'portal'
+            ? can(tenantId, 'portal.manage')
+            : settingsDocId == 'user_' + request.auth.uid && isMember(tenantId);
+        allow delete: if settingsDocId == 'portal'
+          ? can(tenantId, 'portal.manage')
+          : can(tenantId, 'settings.manage')
+            && (tenantPrefixOf(resource) == '' || can(tenantId, 'tenant.change-prefix'));
       }
 
       // O sino — as notificações que o passo `notify` entrega, uma por destinatário. Só o servidor

@@ -18,6 +18,12 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.133.0] — 2026-10-19
+
+- feat(portal): portal home and menu. `portal.view` gains surfaces `page` (`key`, `title`, `icon`, `order` — a menu entry), `widget` (a home card) and `home` (the whole home); `PORTAL_API_VERSION` 1.1.0, KERNEL_VERSION 2.54.0. The descriptor separates `viewKey` (the code) from `key` (the entry). `getPortalContext` returns `home: { welcome, menu, widgets, view }` already ordered by the organization (`applyPortalPreference`: ordered first, then the rest by suggested order, hidden removed; new entries show), with root screens before extension pages by default.
+- feat(portal): `tenants/{t}/settings/portal` (`PortalHomeSettings`: welcome, menu and widget order/visibility), written with `portal.manage` (`firestore.rules`, tested) and edited in the Portal tab ("Portal home"). Routes `/portal/:tenantId` (home) and `/portal/:tenantId/:entryId` (screen by collection, page by `page.<plugin>.<key>`); navigation stack scoped per entry.
+- feat(ui): responsive shell — top tabs from 768px, a fixed bottom bar below it (Home, three entries, "More" sheet), home tiles and card grid; `env(safe-area-inset-bottom)` respected. The authoring guide gains "Your own screens in the portal" with the responsive rules for portal views. `examples/portal-example` 1.1.0 adds a home card. Deploy: `npm run deploy:rules`, `npm run deploy:portal`.
+
 #### [9.132.0] — 2026-10-19
 
 - feat(portal): extension point `portal.view` (`PORTAL_EXTENSION_POINTS`, owner `core.tenant`, code only; metadata `{ collection, surface: 'list' | 'detail' }`) and SDK builder `portalView` (types `PortalViewMetadata`, `PortalViewSurface`). KERNEL_VERSION 2.53.0.

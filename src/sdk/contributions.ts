@@ -233,13 +233,19 @@ export const pointContribution = (
 });
 
 /**
- * A tela PRÓPRIA de uma coleção no portal — no lugar da lista (`surface: 'list'`) ou do registro
- * aberto (`'detail'`) genéricos. Código, e só de extensão cujo código o escritório confia: ela roda no
- * navegador do convidado, que recebe dela apenas o que `@microteia/portal` lê.
+ * Uma tela da extensão no PORTAL:
+ *
+ * - `list` / `detail` (+ `collection`): no lugar da lista ou do registro genéricos daquela coleção;
+ * - `page` (+ `key`, `title`, `icon`, `order`): uma página com entrada no menu do portal;
+ * - `widget` (+ `key`, `title`, `order`): um cartão na home;
+ * - `home`: a home inteira.
+ *
+ * Código, e só de extensão cujo código o escritório confia: ela roda no navegador do convidado, que
+ * recebe dela apenas o que `@microteia/portal` lê. A ordem é SUGESTÃO — quem decide é o escritório.
  */
 export const portalView = (metadata: PortalViewMetadata, implKey: string): Contribution => ({
   point: PORTAL_VIEW_POINT,
-  id: slug(`${metadata.collection}-${metadata.surface}`),
+  id: slug(`${metadata.surface}-${metadata.key ?? metadata.collection ?? 'home'}`),
   apiVersion: PORTAL_API_VERSION,
   metadata: { ...metadata } as unknown as Record<string, unknown>,
   impl: { kind: 'code', key: implKey },

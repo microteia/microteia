@@ -90,6 +90,7 @@ const App: React.FC = () => {
               >
                 <Route index element={<PortalView />} />
                 <Route path=":tenantId" element={<PortalView />} />
+                <Route path=":tenantId/:entryId" element={<PortalView />} />
               </Route>
               <Route
                 path="/*"

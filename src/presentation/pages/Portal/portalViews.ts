@@ -24,7 +24,7 @@ const cache = new Map<string, { source: string; Component: PortalViewComponent }
  * as views do escritório; um erro de compilação vira o aviso no lugar da view, e não derruba a casca.
  */
 export const evaluatePortalView = (view: PortalViewInfo): PortalViewComponent => {
-  const cacheKey = `${view.pluginId}::${view.key}`;
+  const cacheKey = `${view.pluginId}::${view.viewKey}`;
   const cached = cache.get(cacheKey);
   if (cached && cached.source === view.source) return cached.Component;
 

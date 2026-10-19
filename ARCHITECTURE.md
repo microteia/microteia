@@ -992,10 +992,35 @@ em volta da view de detalhe é da casca. `examples/portal-example` é o molde.
 
 `portal.view` move o `KERNEL_VERSION` (2.53.0): é ponto novo que o pacote instalado contribui.
 
+### A home e o menu do portal
+
+`/portal/<escritório>` é a HOME: boas-vindas, o MENU em blocos e os cartões (`widget`) das extensões.
+Os itens ficam em `/portal/<escritório>/<item>` — a tela pelo nome da coleção, a página de extensão por
+`page.<plugin>.<chave>` (nome de coleção não leva ponto, então não colidem) —, e um link para "Notas"
+abre Notas.
+
+O menu é UMA lista — as telas de topo do portal mais as páginas (`surface: 'page'`) — e três lugares a
+leem: os blocos da home, as abas do topo no computador e a barra fixa de baixo no celular (Início, os
+três primeiros, "Mais"). O ponto de quebra é um só, 768px, e é o mesmo que o guia de autoria manda as
+views respeitarem: o portal é usado primeiro no celular.
+
+| Quem | Decide |
+|---|---|
+| a extensão | QUE página, cartão ou home traz, e uma ordem SUGERIDA |
+| o escritório (`portal.manage`) | o que aparece e em que ordem, e as boas-vindas — em `settings/portal`, pela seção "Página inicial do portal" da aba Portal |
+| o servidor | monta o menu e a home já ordenados (`applyPortalPreference`): o convidado não lê configuração |
+
+Entrada nova (uma extensão instalada ontem) APARECE: esconder é gesto do escritório, não padrão. As
+telas vêm antes das páginas por padrão. `settings/portal` é gravado com `portal.manage`, e não com
+`settings.manage`: quem decide o que sai do escritório não é, em geral, quem o configura.
+
+A pilha de registros abertos é do item do menu (`PortalNavigationProvider`, escopo `escritório|item`):
+ir para o Extrato não carrega a pilha do prestador.
+
 ### O que ainda não faz
 
 - **Editar, excluir ou anexar arquivo pelo portal.** Só criar.
-- **View de portal declarativa** (Widget DSL): `portal.view` é só `code`. O `WidgetRenderer` lê os
+- **View de portal declarativa** (Widget DSL): `portal.view` — inclusive `page`, `widget` e `home` — é só `code`. O `WidgetRenderer` lê os
   stores do escritório, e o convidado não os tem.
 - `storage.rules` deixa qualquer MEMBRO ler qualquer arquivo de registro, independentemente de
   `<coleção>.read` — achado à parte, que o portal não usa: o convidado não é membro e baixa pela

@@ -1,4 +1,5 @@
 import type { PortalScreenLike } from '../schema/portal';
+import type { PortalHomeSettings } from '../schema/portalExtensionPoints';
 
 /** Uma tela do escritório como o portal a lê — com os rótulos, para o contexto que a casca recebe. */
 export interface PortalScreen extends PortalScreenLike {
@@ -75,6 +76,8 @@ export interface RecordPage {
 }
 
 export interface IPortalRepository {
+  /** O que o escritório configurou na home do portal — boas-vindas, menu e widgets. */
+  getHomeSettings(tenantId: string): Promise<PortalHomeSettings>;
   /** Todas as telas do escritório, com a declaração `portal` de cada uma (ou nenhuma). */
   getScreens(tenantId: string, options?: { fresh?: boolean }): Promise<PortalScreen[]>;
   getRecord(tenantId: string, collection: string, recordId: string): Promise<Record<string, unknown> | undefined>;

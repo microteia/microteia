@@ -1,5 +1,5 @@
 import React from 'react';
-import { RiAddLine, RiArrowLeftLine, RiExternalLinkLine, RiLogoutBoxRLine } from 'react-icons/ri';
+import { RiAddLine, RiArrowLeftLine, RiExternalLinkLine, RiHome5Line, RiLogoutBoxRLine, RiMoreLine } from 'react-icons/ri';
 import { usePortalViewModel } from './Portal.viewmodel';
 import { S } from './Portal.styles';
 import { Button } from '../../components/ui/Button';
@@ -94,22 +94,158 @@ export const PortalView: React.FC = () => {
     </S.List>
   );
 
+  const backButton = (
+    <div>
+      <Button variant="ghost" size="sm" onClick={vm.goBack}>
+        <RiArrowLeftLine size={14} />
+        {t('portal.record.back')}
+      </Button>
+    </div>
+  );
+
+  const homeContent = vm.home.Component ? (
+    <vm.home.Component collection="" />
+  ) : (
+    <>
+      <S.Title>{vm.home.title}</S.Title>
+      {vm.home.welcome && <S.Welcome>{vm.home.welcome}</S.Welcome>}
+      {vm.menu.length > 0 && (
+        <S.Tiles>
+          {vm.menu.map((item) => (
+            <S.Tile key={item.id} onClick={() => vm.openEntry(item.id)}>
+              <S.TileIcon>{getScreenIcon(item.icon, 22)}</S.TileIcon>
+              {item.title}
+            </S.Tile>
+          ))}
+        </S.Tiles>
+      )}
+      {vm.home.widgets.length > 0 && (
+        <S.Widgets>
+          {vm.home.widgets.map((widget) => (
+            <S.WidgetCard key={widget.id}>
+              {widget.title && <S.WidgetTitle>{widget.title}</S.WidgetTitle>}
+              <widget.Component collection="" />
+            </S.WidgetCard>
+          ))}
+        </S.Widgets>
+      )}
+    </>
+  );
+
+  const entryContent = vm.entryMissing ? (
+    <S.Centered>
+      {t('portal.entry-missing')}
+      <Button size="sm" onClick={vm.goHome}>{t('portal.home')}</Button>
+    </S.Centered>
+  ) : vm.pageView ? (
+    <vm.pageView collection="" />
+  ) : vm.detailView ? (
+    <S.Detail>
+      {backButton}
+      <vm.detailView.Component collection={vm.detailView.collection} recordId={vm.detailView.recordId} />
+    </S.Detail>
+  ) : vm.selected ? (
+    <S.Detail>
+      {backButton}
+      <S.DetailTitle>{vm.selected.title}</S.DetailTitle>
+      <S.Fields>
+        {vm.selected.fields.map((field) => (
+          <S.Field key={field.key}>
+            <S.FieldLabel>{field.label}</S.FieldLabel>
+            <S.FieldValue>
+              {field.href
+                ? <S.Link href={field.href} target="_blank" rel="noopener noreferrer">{field.value}</S.Link>
+                : field.value}
+            </S.FieldValue>
+          </S.Field>
+        ))}
+      </S.Fields>
+      {vm.selected.children.map((child) => (
+        <S.ChildSection key={child.collection}>
+          <S.ChildHeader>
+            <S.SectionTitle>{child.title}</S.SectionTitle>
+            {child.createLabel && (
+              <Button size="sm" onClick={() => vm.startCreate(child.collection)}>
+                <RiAddLine size={14} />
+                {child.createLabel}
+              </Button>
+            )}
+          </S.ChildHeader>
+          {child.loading ? (
+            <Spinner size={20} />
+          ) : child.records.length === 0 ? (
+            <S.Muted>{t('portal.records.empty')}</S.Muted>
+          ) : recordList(child.records)}
+        </S.ChildSection>
+      ))}
+      {vm.selected.hasDocuments && (
+        <>
+          <S.SectionTitle>{t('portal.documents')}</S.SectionTitle>
+          {vm.documentError && <S.ErrorText>{t('portal.document.unavailable')}</S.ErrorText>}
+          {vm.selected.documentsLoading ? (
+            <Spinner size={20} />
+          ) : vm.selected.documents.length === 0 ? (
+            <S.Muted>{t('portal.documents.empty')}</S.Muted>
+          ) : vm.selected.documents.map((document) => (
+            <S.DocumentRow key={document.id}>
+              <S.DocumentInfo>
+                <S.DocumentName title={document.name}>{document.name}</S.DocumentName>
+                {document.meta && <S.Muted>{document.meta}</S.Muted>}
+              </S.DocumentInfo>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => void vm.openDocument(document.id)}
+                disabled={vm.openingDocumentId === document.id}
+              >
+                <RiExternalLinkLine size={14} />
+                {t('portal.document.open')}
+              </Button>
+            </S.DocumentRow>
+          ))}
+        </>
+      )}
+    </S.Detail>
+  ) : vm.listView ? (
+    <vm.listView.Component collection={vm.listView.collection} />
+  ) : (
+    <>
+      {vm.rootCreateLabel && (
+        <S.Toolbar>
+          <Button size="sm" onClick={vm.startRootCreate}>
+            <RiAddLine size={14} />
+            {vm.rootCreateLabel}
+          </Button>
+        </S.Toolbar>
+      )}
+      {vm.recordsLoading ? (
+        <S.Centered><Spinner size={28} /></S.Centered>
+      ) : vm.records.length === 0 ? (
+        <S.Centered>{t('portal.records.empty')}</S.Centered>
+      ) : recordList(vm.records)}
+    </>
+  );
+
   return (
     <S.Page>
       {header}
-      {vm.screens.length > 1 && (
+      {vm.menu.length > 0 && (
         <S.Nav>
-          {vm.screens.map((screen) => (
-            <S.NavItem key={screen.collection} $active={screen.active} onClick={() => vm.selectScreen(screen.collection)}>
-              {getScreenIcon(screen.icon, 16)}
-              {screen.label}
+          <S.NavItem $active={vm.atHome} onClick={vm.goHome}>
+            <RiHome5Line size={16} />
+            {t('portal.home')}
+          </S.NavItem>
+          {vm.menu.map((item) => (
+            <S.NavItem key={item.id} $active={item.active} onClick={() => vm.openEntry(item.id)}>
+              {getScreenIcon(item.icon, 16)}
+              {item.title}
             </S.NavItem>
           ))}
         </S.Nav>
       )}
       <S.Main>
         {vm.justSubmitted && !vm.creating && <S.Success>{t('portal.create.sent')}</S.Success>}
-        {vm.emptyScreens ? (
+        {vm.emptyScreens && vm.menu.length === 0 ? (
           <S.Centered>{t('portal.empty-screens')}</S.Centered>
         ) : vm.creating ? (
           <PortalCreateForm
@@ -118,103 +254,40 @@ export const PortalView: React.FC = () => {
             onCancel={vm.cancelCreate}
             onSubmitted={vm.handleSubmitted}
           />
-        ) : vm.detailView ? (
-          <S.Detail>
-            <div>
-              <Button variant="ghost" size="sm" onClick={vm.goBack}>
-                <RiArrowLeftLine size={14} />
-                {t('portal.record.back')}
-              </Button>
-            </div>
-            <vm.detailView.Component collection={vm.detailView.collection} recordId={vm.detailView.recordId} />
-          </S.Detail>
-        ) : vm.selected ? (
-          <S.Detail>
-            <div>
-              <Button variant="ghost" size="sm" onClick={vm.goBack}>
-                <RiArrowLeftLine size={14} />
-                {t('portal.record.back')}
-              </Button>
-            </div>
-            <S.DetailTitle>{vm.selected.title}</S.DetailTitle>
-            <S.Fields>
-              {vm.selected.fields.map((field) => (
-                <S.Field key={field.key}>
-                  <S.FieldLabel>{field.label}</S.FieldLabel>
-                  <S.FieldValue>
-                    {field.href
-                      ? <S.Link href={field.href} target="_blank" rel="noopener noreferrer">{field.value}</S.Link>
-                      : field.value}
-                  </S.FieldValue>
-                </S.Field>
-              ))}
-            </S.Fields>
-            {vm.selected.children.map((child) => (
-              <S.ChildSection key={child.collection}>
-                <S.ChildHeader>
-                  <S.SectionTitle>{child.title}</S.SectionTitle>
-                  {child.createLabel && (
-                    <Button size="sm" onClick={() => vm.startCreate(child.collection)}>
-                      <RiAddLine size={14} />
-                      {child.createLabel}
-                    </Button>
-                  )}
-                </S.ChildHeader>
-                {child.loading ? (
-                  <Spinner size={20} />
-                ) : child.records.length === 0 ? (
-                  <S.Muted>{t('portal.records.empty')}</S.Muted>
-                ) : recordList(child.records)}
-              </S.ChildSection>
-            ))}
-            {vm.selected.hasDocuments && (
-              <>
-                <S.SectionTitle>{t('portal.documents')}</S.SectionTitle>
-                {vm.documentError && <S.ErrorText>{t('portal.document.unavailable')}</S.ErrorText>}
-                {vm.selected.documentsLoading ? (
-                  <Spinner size={20} />
-                ) : vm.selected.documents.length === 0 ? (
-                  <S.Muted>{t('portal.documents.empty')}</S.Muted>
-                ) : vm.selected.documents.map((document) => (
-                  <S.DocumentRow key={document.id}>
-                    <S.DocumentInfo>
-                      <S.DocumentName title={document.name}>{document.name}</S.DocumentName>
-                      {document.meta && <S.Muted>{document.meta}</S.Muted>}
-                    </S.DocumentInfo>
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      onClick={() => void vm.openDocument(document.id)}
-                      disabled={vm.openingDocumentId === document.id}
-                    >
-                      <RiExternalLinkLine size={14} />
-                      {t('portal.document.open')}
-                    </Button>
-                  </S.DocumentRow>
-                ))}
-              </>
-            )}
-          </S.Detail>
-        ) : vm.listView ? (
-          <vm.listView.Component collection={vm.listView.collection} />
-        ) : (
-          <>
-            {vm.rootCreateLabel && (
-              <S.Toolbar>
-                <Button size="sm" onClick={vm.startRootCreate}>
-                  <RiAddLine size={14} />
-                  {vm.rootCreateLabel}
-                </Button>
-              </S.Toolbar>
-            )}
-            {vm.recordsLoading ? (
-              <S.Centered><Spinner size={28} /></S.Centered>
-            ) : vm.records.length === 0 ? (
-              <S.Centered>{t('portal.records.empty')}</S.Centered>
-            ) : recordList(vm.records)}
-          </>
-        )}
+        ) : vm.atHome ? homeContent : entryContent}
       </S.Main>
+      {vm.menu.length > 0 && (
+        <S.BottomBar>
+          <S.BottomItem $active={vm.atHome} onClick={vm.goHome}>
+            <RiHome5Line size={20} />
+            <span>{t('portal.home')}</span>
+          </S.BottomItem>
+          {vm.bottomBar.map((item) => (
+            <S.BottomItem key={item.id} $active={item.active} onClick={() => vm.openEntry(item.id)}>
+              {getScreenIcon(item.icon, 20)}
+              <span>{item.title}</span>
+            </S.BottomItem>
+          ))}
+          {vm.hasMore && (
+            <S.BottomItem $active={vm.moreOpen} onClick={vm.toggleMore}>
+              <RiMoreLine size={20} />
+              <span>{t('portal.more')}</span>
+            </S.BottomItem>
+          )}
+        </S.BottomBar>
+      )}
+      {vm.moreOpen && (
+        <S.SheetBackdrop onClick={vm.toggleMore}>
+          <S.Sheet onClick={(event) => event.stopPropagation()}>
+            {vm.menu.map((item) => (
+              <S.SheetItem key={item.id} $active={item.active} onClick={() => vm.openEntry(item.id)}>
+                {getScreenIcon(item.icon, 20)}
+                {item.title}
+              </S.SheetItem>
+            ))}
+          </S.Sheet>
+        </S.SheetBackdrop>
+      )}
     </S.Page>
   );
 };

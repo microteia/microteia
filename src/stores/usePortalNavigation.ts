@@ -18,12 +18,10 @@ export interface PortalCreating {
  * mesma pilha que a casca genérica mostra.
  */
 export interface PortalNavigationValue {
-  rootChoice: string | null;
-  /** A pilha do que foi aberto: o prestador, depois a nota dele. */
+  /** A pilha do que foi aberto, DENTRO do item do menu aberto: o prestador, depois a nota dele. */
   stack: PortalOpenRecord[];
   creating: PortalCreating | null;
   justSubmitted: boolean;
-  selectRoot: (collection: string) => void;
   openRecord: (collection: string, projectionId: string) => void;
   back: () => void;
   startCreate: (collection: string, parentRecordId: string | null) => void;

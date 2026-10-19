@@ -6,6 +6,7 @@ import type {
   PortalMembership,
   PortalRecord,
 } from '../entities/Portal';
+import type { PortalHomeSettings } from '../schema/portalExtensionPoints';
 
 export interface IPortalRepository {
   /** Os escritórios em que a pessoa é convidada. */
@@ -31,6 +32,10 @@ export interface IPortalRepository {
     data: Record<string, unknown>;
     locale: string;
   }): Promise<{ id: string }>;
+
+  /** Do lado do ESCRITÓRIO: a home do portal — boas-vindas, ordem do menu e dos widgets. */
+  getHomeSettings(tenantId: string): Promise<PortalHomeSettings>;
+  saveHomeSettings(tenantId: string, settings: PortalHomeSettings): Promise<void>;
 
   /** Do lado do ESCRITÓRIO: quem é convidado, e de quê. */
   subscribeGuests(

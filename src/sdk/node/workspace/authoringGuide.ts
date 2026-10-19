@@ -614,23 +614,50 @@ The organization toggles and orders these tabs from Settings (\`<surface>.tabs\`
 cannot find in your package, in a dependency authored beside it, or in the installation snapshot.
 \`examples/record-tab-example\` has both kinds of tab, and the list locked to the open record.
 
-### A page of your own in the portal
+### Your own screens in the portal
 
 People from OUTSIDE the organization — a client, a supplier — see what screens declare in \`portal\`
 (the \`subject\`, the \`fields\` that leave, \`create\` for what they may submit). The portal draws a
-standard list and record for them. \`portalView({ collection, surface: 'list' | 'detail' }, viewKey)\`
-replaces one of those with a view of yours.
+home, a menu and a standard list and record for them. \`portalView(metadata, viewKey)\` adds yours:
 
-A portal view runs in the guest's browser, and it reaches a smaller API: \`@microteia/ui\`,
-\`@microteia/i18n\`, \`@microteia/format\`, \`@microteia/theme\` and \`@microteia/portal\` —
-\`usePortalRecords(collection, { parent })\`, \`usePortalRecord\`, \`usePortalScreen\`,
-\`usePortalNavigation\`, \`usePortalDocuments\`, \`usePortalSubmit\`. Importing \`@microteia/data\` (or
-report, settings, functions) fails when the view is compiled: the guest has none of the organization's
-data stores. The view receives \`{ collection, recordId? }\` and asks \`@microteia/portal\` for the rest.
+| \`surface\` | Also declare | What it is |
+|---|---|---|
+| \`list\` / \`detail\` | \`collection\` | replaces the standard list, or the open record, of that collection |
+| \`page\` | \`key\`, \`title\`, \`icon\`, \`order\` | a page of its own, with an entry in the portal MENU |
+| \`widget\` | \`key\`, \`title\`, \`order\` | a card on the portal HOME |
+| \`home\` | — | the whole home, in place of the standard one |
+
+\`order\` is a suggestion. The organization decides what shows and where, in Settings > Portal — the
+menu's order and which entries and cards are visible. Your package never forces a place.
+
+A portal view reaches a smaller API: \`@microteia/ui\`, \`@microteia/i18n\`, \`@microteia/format\`,
+\`@microteia/theme\` and \`@microteia/portal\` — \`usePortalRecords(collection, { parent })\`,
+\`usePortalRecord\`, \`usePortalScreen\`, \`usePortalNavigation\`, \`usePortalDocuments\`,
+\`usePortalSubmit\`. Importing \`@microteia/data\` (or report, settings, functions) fails when the view is
+compiled: the guest has none of the organization's data stores. A view receives \`{ collection, recordId? }\`
+and asks \`@microteia/portal\` for the rest.
 
 It is sent to the guest only when the organization trusts your package's code — the same trust the
-Extensions screen shows. Without it, the standard page is drawn. \`examples/portal-example\` has both
-sides: the declarations on two screens, and the page.
+Extensions screen shows. Without it, the standard page is drawn.
+
+#### The portal is used on a phone first — design for it
+
+Most guests open the portal on a phone. The portal is responsive, and your view has to be too:
+
+- **One breakpoint, 768px.** Below it the menu is a bar FIXED at the bottom of the screen (Home, the first
+  entries, More); above it, tabs at the top. Do not draw a menu of your own, and never use
+  \`position: fixed\` at the bottom — it would sit under the bar.
+- **Fluid widths.** No fixed widths and no horizontal scroll: use \`width: 100%\`, \`minmax(0, 1fr)\` grids
+  and \`flex-wrap\`. Grow into columns with \`@media (min-width: 768px)\`, never the other way around.
+- **A card is narrow.** A \`widget\` takes the whole width on a phone and half of it on a computer —
+  keep it to a number, a short list or one call to action.
+- **Tap targets of at least 44px** (\`theme.spacing['2xl']\` is 48px). Text never below
+  \`theme.fontSizes.sm\` on a phone.
+- **Theme only.** Colours, sizes and spaces come from the theme — the organization's theme is what the
+  guest sees, in light or dark.
+- **Check it at 360px wide** before publishing.
+
+\`examples/portal-example\` has the declarations on two screens, a \`detail\` page and a home card.
 
 ### Settings whose options are the organization's data
 

@@ -41,10 +41,36 @@ export interface PortalLinkOption {
 /** Uma tela de EXTENSÃO para o portal, entregue pelo servidor só se o escritório confia no código. */
 export interface PortalViewInfo {
   pluginId: string;
-  key: string;
-  collection: string;
-  surface: 'list' | 'detail';
+  /** A view em `views` — o código. */
+  viewKey: string;
+  surface: 'list' | 'detail' | 'page' | 'widget' | 'home';
+  collection?: string;
+  /** A entrada no menu ou na home (`page`, `widget`). */
+  key?: string;
+  title?: string;
+  icon?: string;
+  order?: number;
   source: string;
+}
+
+/** Uma entrada do menu do portal: uma tela de topo, ou uma página de extensão. */
+export interface PortalMenuEntry {
+  id: string;
+  kind: 'screen' | 'page';
+  title: string;
+  icon: string;
+  collection?: string;
+  pluginId?: string;
+  viewKey?: string;
+}
+
+export interface PortalHome {
+  /** As boas-vindas que o escritório escreveu — vazio = a frase padrão. */
+  welcome: string;
+  /** O menu, já na ordem do escritório e sem o que ele escondeu. */
+  menu: PortalMenuEntry[];
+  widgets: Array<{ id: string; title: string; pluginId: string; viewKey: string }>;
+  view: { pluginId: string; viewKey: string } | null;
 }
 
 export interface PortalContext {
@@ -56,6 +82,7 @@ export interface PortalContext {
   views: PortalViewInfo[];
   /** Os textos das extensões que trazem view — o catálogo do escritório não chega ao portal. */
   bundles: Array<{ locale: string; namespace: string; messages: Record<string, string> }>;
+  home: PortalHome;
 }
 
 /** A PROJEÇÃO de um registro — o que saiu do escritório para o convidado, e nada além. */

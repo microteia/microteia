@@ -9,6 +9,7 @@ import { ConfirmModal } from '../../../components/ui/ConfirmModal';
 import { Spinner } from '../../../components/ui/Spinner';
 import { InfoBanner } from '../../../components/ui/InfoBanner';
 import { useT } from '../../../shared/i18n/useT';
+import { PortalHomeSettings } from './components/PortalHomeSettings';
 
 export const PortalTabView: React.FC = () => {
   const t = useT('core.tenant');
@@ -94,6 +95,8 @@ export const PortalTabView: React.FC = () => {
           ))}
         </S.GuestList>
       )}
+
+      {vm.hasSubjectScreens && <PortalHomeSettings />}
 
       <ConfirmModal
         isOpen={!!vm.guestToRevoke}

@@ -6,6 +6,7 @@ import type {
   PortalUserRecord,
   SharedRecordDocument,
 } from './IPortalRepository';
+import type { PortalHomeSettings } from '../schema/portalExtensionPoints';
 
 /** Um escritório inteiro em memória — telas, registros, convites e projeções. */
 export const makeFakePortalRepository = (screens: PortalScreen[]) => {
@@ -15,8 +16,10 @@ export const makeFakePortalRepository = (screens: PortalScreen[]) => {
   const projectedDocuments = new Map<string, PortalDocumentProjection>();
   const users = new Map<string, PortalUserRecord>();
   const invites: string[] = [];
+  const homeSettings: PortalHomeSettings = { welcome: '', menu: { order: [], hidden: [] }, widgets: { order: [], hidden: [] } };
 
   const repo: IPortalRepository = {
+    getHomeSettings: async () => homeSettings,
     getScreens: async () => screens,
     getRecord: async (_t, collection, id) => records.get(`${collection}/${id}`),
     getRecordsReferencing: async (_t, collection, fieldKey, recordId) =>
@@ -107,7 +110,7 @@ export const makeFakePortalRepository = (screens: PortalScreen[]) => {
     hasInvite: async (email) => invites.includes(email),
   };
 
-  return { repo, records, documents, projections, projectedDocuments, users, invites };
+  return { repo, records, documents, projections, projectedDocuments, users, invites, homeSettings };
 };
 
 const field = (key: string, extra: Partial<PortalScreen['fields'][number]> = {}) => ({ key, label: key, type: 'text', ...extra });

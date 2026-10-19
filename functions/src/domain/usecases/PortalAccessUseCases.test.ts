@@ -133,7 +133,7 @@ describe('contexto do portal', () => {
   it('entrega só as views de extensão de coleções expostas', async () => {
     const fake = makeFakePortalRepository(CITY_SCREENS);
     fake.users.set('ana', { userId: 'ana', email: 'ana@acme.com', displayName: 'Ana', subjectKeys: ['companies/acme'] });
-    const view = (collection: string) => ({ pluginId: 'com.acme', key: `v-${collection}`, collection, surface: 'list' as const, source: 'x' });
+    const view = (collection: string) => ({ pluginId: 'com.acme', viewKey: `v-${collection}`, collection, surface: 'list' as const, source: 'x' });
 
     const context = await makeGetPortalContextUseCase(fake.repo).execute({
       tenantId: TENANT, userId: 'ana', tenant: { name: 'Salvador', logoURL: null }, locale: 'pt-BR', resolve: (value) => value,
@@ -142,6 +142,34 @@ describe('contexto do portal', () => {
 
     expect(context.views.map((one) => one.collection)).toEqual(['invoices']);
     expect(context.bundles).toHaveLength(1);
+  });
+
+  it('monta o menu: telas de topo e páginas de extensão, na ordem e sem o que o escritório escondeu', async () => {
+    const fake = makeFakePortalRepository(CITY_SCREENS);
+    fake.users.set('ana', { userId: 'ana', email: 'ana@acme.com', displayName: 'Ana', subjectKeys: ['companies/acme'] });
+    fake.homeSettings.welcome = 'Bem-vindo';
+    fake.homeSettings.menu = { order: ['page.com.acme.statement'], hidden: ['page.com.acme.hidden'] };
+    const page = (key: string, order?: number) => ({
+      pluginId: 'com.acme', viewKey: key, key, title: `@com.acme/${key}`, icon: 'file', surface: 'page' as const, source: 'x', order,
+    });
+
+    const context = await makeGetPortalContextUseCase(fake.repo).execute({
+      tenantId: TENANT, userId: 'ana', tenant: { name: 'Salvador', logoURL: null }, locale: 'pt-BR', resolve: (value) => value.toUpperCase(),
+      extensionViews: {
+        views: [
+          page('statement', 50), page('hidden'), page('schedule', 1),
+          { pluginId: 'com.acme', viewKey: 'w', key: 'pending', surface: 'widget' as const, source: 'x' },
+        ],
+        bundles: [],
+      },
+    });
+
+    // As notas e os itens têm pai exposto: não são raiz. A página que o escritório ordenou vem primeiro.
+    expect(context.home.menu.map((entry) => entry.id)).toEqual(['page.com.acme.statement', 'companies', 'page.com.acme.schedule']);
+    expect(context.home.menu[0]).toMatchObject({ kind: 'page', title: '@COM.ACME/STATEMENT', viewKey: 'statement' });
+    expect(context.home.widgets.map((entry) => entry.id)).toEqual(['com.acme.pending']);
+    expect(context.home.welcome).toBe('Bem-vindo');
+    expect(context.home.view).toBeNull();
   });
 
   it('quem não é convidado não recebe nada', async () => {

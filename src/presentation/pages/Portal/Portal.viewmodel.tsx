@@ -6,7 +6,7 @@ import { usePortalNavigation } from '../../../stores/usePortalNavigation';
 import { useLocaleFormat, useT } from '../../shared/i18n/useT';
 import type { PortalDocument, PortalRecord, PortalScreenInfo } from '../../../domain/entities/Portal';
 import { portalSubjectKey } from '../../../domain/schema/portal';
-import { PORTAL_PATH, portalTenantPath } from './portalPaths';
+import { PORTAL_PATH, portalEntryPath, portalTenantPath } from './portalPaths';
 import { evaluatePortalView, type PortalViewComponent } from './portalViews';
 
 const SUMMARY_FIELDS = 3;
@@ -33,12 +33,23 @@ export interface PortalDocumentView {
   meta: string;
 }
 
-export interface PortalScreenTab {
-  collection: string;
-  label: string;
+/** Uma entrada do menu, como o menu a desenha — nos blocos da home, nas abas e na barra. */
+export interface PortalMenuItem {
+  id: string;
+  title: string;
   icon: string;
   active: boolean;
 }
+
+/** Um cartão da home: a view da extensão, com o título que ela declarou. */
+export interface PortalWidgetItem {
+  id: string;
+  title: string;
+  Component: PortalViewComponent;
+}
+
+/** Quantos itens cabem na barra do celular antes do "Mais" — além do "Início". */
+const BOTTOM_BAR_ITEMS = 3;
 
 /** Uma tela-filha dentro do registro aberto: as notas do prestador. */
 export interface PortalChildSection {
@@ -66,9 +77,31 @@ export interface PortalViewModel {
   goToChooser: () => void;
   tenantName: string;
   logoURL: string | null;
-  /** Só as telas de TOPO: as filhas aparecem dentro do pai. */
-  screens: PortalScreenTab[];
-  selectScreen: (collection: string) => void;
+  /**
+   * O MENU: as telas de topo e as páginas de extensão, na ordem do escritório. É uma lista só, e os
+   * três lugares onde ele aparece — blocos da home, abas no computador, barra no celular — a leem.
+   */
+  menu: PortalMenuItem[];
+  /** A barra do celular: os primeiros itens; o resto vai para o "Mais". */
+  bottomBar: PortalMenuItem[];
+  hasMore: boolean;
+  moreOpen: boolean;
+  toggleMore: () => void;
+  openEntry: (id: string) => void;
+  atHome: boolean;
+  goHome: () => void;
+  home: {
+    title: string;
+    /** As boas-vindas do escritório — dado dele, sem tradução. */
+    welcome: string;
+    widgets: PortalWidgetItem[];
+    /** A home inteira de uma extensão, quando há uma. */
+    Component: PortalViewComponent | null;
+  };
+  /** A página de extensão aberta pelo menu. */
+  pageView: PortalViewComponent | null;
+  /** O item do link não existe mais — saiu do menu, ou a extensão foi desligada. */
+  entryMissing: boolean;
   records: PortalRecordCard[];
   recordsLoading: boolean;
   /** A tela de topo aceita registros do convidado — o pai é escolhido no formulário. */
@@ -107,7 +140,7 @@ const optionLabel = (field: PortalScreenInfo['fields'][number], key: unknown): s
   field.options?.find((option) => option.key === key)?.label ?? String(key);
 
 export const usePortalViewModel = (): PortalViewModel => {
-  const { tenantId: routeTenantId } = useParams<{ tenantId?: string }>();
+  const { tenantId: routeTenantId, entryId } = useParams<{ tenantId?: string; entryId?: string }>();
   const navigate = useNavigate();
   const { signOut, user } = useAuth();
   const portal = usePortal();
@@ -115,7 +148,8 @@ export const usePortalViewModel = (): PortalViewModel => {
   const { formatDate, formatMoney, formatNumber } = useLocaleFormat();
 
   const navigation = usePortalNavigation();
-  const { rootChoice, stack, creating, justSubmitted } = navigation;
+  const { stack, creating, justSubmitted } = navigation;
+  const [moreOpen, setMoreOpen] = useState(false);
   const [documents, setDocuments] = useState<PortalDocument[]>([]);
   const [documentsLoading, setDocumentsLoading] = useState(false);
   const [openingDocumentId, setOpeningDocumentId] = useState<string | null>(null);
@@ -139,13 +173,15 @@ export const usePortalViewModel = (): PortalViewModel => {
     [screens],
   );
 
-  // Raiz é a tela sem pai NO PORTAL. Uma nota cujo prestador não está exposto continua de topo: não
-  // há pai onde mostrá-la.
-  const roots = useMemo(() => screens.filter((one) => !one.parent || !screenOf(one.parent.collection)), [screens, screenOf]);
-  const rootCollection = rootChoice && roots.some((one) => one.collection === rootChoice)
-    ? rootChoice
-    : roots[0]?.collection ?? null;
-  const rootScreen = rootCollection ? screenOf(rootCollection) : null;
+  // O menu chega pronto do servidor — telas de topo e páginas, na ordem do escritório. O item aberto é
+  // o do ENDEREÇO: um link para "Notas" abre Notas, e voltar no navegador volta de verdade.
+  const menuEntries = useMemo(() => portal.context?.home?.menu ?? [], [portal.context]);
+  const entry = useMemo(
+    () => (entryId ? menuEntries.find((one) => one.id === entryId) ?? null : null),
+    [entryId, menuEntries],
+  );
+  const rootCollection = entry?.kind === 'screen' ? entry.collection ?? null : null;
+  const rootScreen = useMemo(() => (rootCollection ? screenOf(rootCollection) : null), [rootCollection, screenOf]);
 
   const formatValue = useCallback((field: PortalScreenInfo['fields'][number], record: PortalRecord): PortalFieldView => {
     const raw = record.data[field.key];
@@ -262,7 +298,7 @@ export const usePortalViewModel = (): PortalViewModel => {
 
   const chooseTenant = useCallback((tenantId: string) => navigate(portalTenantPath(tenantId)), [navigate]);
 
-  const { selectRoot, openRecord: pushRecord, back, startCreate: openCreate } = navigation;
+  const { openRecord: pushRecord, back, startCreate: openCreate } = navigation;
 
   const openRecord = useCallback((collection: string, id: string) => {
     setDocumentError(false);
@@ -285,6 +321,33 @@ export const usePortalViewModel = (): PortalViewModel => {
     const view = views.find((one) => one.collection === collection && one.surface === surface);
     return view ? evaluatePortalView(view) : null;
   }, [views]);
+  const viewByKey = useCallback((pluginId: string | undefined, viewKey: string | undefined) => {
+    const view = views.find((one) => one.pluginId === pluginId && one.viewKey === viewKey);
+    return view ? evaluatePortalView(view) : null;
+  }, [views]);
+
+  const tenantPath = routeTenantId ?? '';
+  const openEntry = useCallback((id: string) => {
+    setMoreOpen(false);
+    navigate(portalEntryPath(tenantPath, id));
+  }, [navigate, tenantPath]);
+  const goHome = useCallback(() => {
+    setMoreOpen(false);
+    navigate(portalTenantPath(tenantPath));
+  }, [navigate, tenantPath]);
+
+  const menu = useMemo<PortalMenuItem[]>(
+    () => menuEntries.map((one) => ({ id: one.id, title: one.title, icon: one.icon, active: one.id === entryId })),
+    [menuEntries, entryId],
+  );
+  const homeConfig = portal.context?.home;
+  const homeWidgets = useMemo<PortalWidgetItem[]>(
+    () => (homeConfig?.widgets ?? []).flatMap((widget) => {
+      const Component = viewByKey(widget.pluginId, widget.viewKey);
+      return Component ? [{ id: widget.id, title: widget.title, Component }] : [];
+    }),
+    [homeConfig, viewByKey],
+  );
   const ListComponent = rootCollection ? viewFor(rootCollection, 'list') : null;
   const DetailComponent = topRecord && topScreen ? viewFor(topScreen.collection, 'detail') : null;
 
@@ -310,13 +373,22 @@ export const usePortalViewModel = (): PortalViewModel => {
     goToChooser: () => navigate(PORTAL_PATH),
     tenantName: portal.context?.tenantName ?? '',
     logoURL: portal.context?.logoURL ?? null,
-    screens: roots.map((one) => ({
-      collection: one.collection,
-      label: one.titlePlural,
-      icon: one.icon,
-      active: one.collection === rootCollection,
-    })),
-    selectScreen: selectRoot,
+    menu,
+    bottomBar: menu.slice(0, BOTTOM_BAR_ITEMS),
+    hasMore: menu.length > BOTTOM_BAR_ITEMS,
+    moreOpen,
+    toggleMore: () => setMoreOpen((open) => !open),
+    openEntry,
+    atHome: !entryId,
+    goHome,
+    home: {
+      title: t('portal.home.title', { tenant: portal.context?.tenantName ?? '' }),
+      welcome: homeConfig?.welcome ?? '',
+      widgets: homeWidgets,
+      Component: homeConfig?.view ? viewByKey(homeConfig.view.pluginId, homeConfig.view.viewKey) : null,
+    },
+    pageView: entry?.kind === 'page' ? viewByKey(entry.pluginId, entry.viewKey) : null,
+    entryMissing: !!entryId && !!portal.context && !entry,
     records,
     recordsLoading: rootCollection ? isCollectionLoading(rootCollection) : false,
     rootCreateLabel: rootScreen?.create ? t('portal.create.new', { screen: rootScreen.titleSingular }) : null,

@@ -20,6 +20,7 @@ import {
   PORTAL_USERS_COLLECTION,
   asPortalDeclaration,
 } from '../../domain/schema/portal';
+import { PORTAL_SETTINGS_DOC, asPortalHomeSettings, type PortalHomeSettings } from '../../domain/schema/portalExtensionPoints';
 
 const SCREENS_TTL_MS = 30_000;
 /** O teto do `array-contains-any` do Firestore. */
@@ -96,6 +97,11 @@ export class FirebasePortalRepository implements IPortalRepository {
 
   private portalUsers(tenantId: string) {
     return this.tenant(tenantId).collection(PORTAL_USERS_COLLECTION);
+  }
+
+  async getHomeSettings(tenantId: string): Promise<PortalHomeSettings> {
+    const snapshot = await this.tenant(tenantId).collection('settings').doc(PORTAL_SETTINGS_DOC).get();
+    return asPortalHomeSettings(snapshot.data());
   }
 
   async getScreens(tenantId: string, options?: { fresh?: boolean }): Promise<PortalScreen[]> {

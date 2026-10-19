@@ -5,6 +5,13 @@ import type {
 } from '../repositories/IPortalRepository';
 import { invalidArgument, permissionDenied } from '../errors/DomainError';
 import {
+  applyPortalPreference,
+  portalPageEntryId,
+  portalScreenEntryId,
+  portalWidgetEntryId,
+  type PortalViewDescriptor,
+} from '../schema/portalExtensionPoints';
+import {
   buildPortalSubmission,
   normalizePortalEmail,
   portalCreateFieldKeys,
@@ -136,12 +143,37 @@ export interface PortalContextScreen {
 }
 
 /** Uma view de portal de extensão, entregue ao convidado. */
-export interface PortalContextView {
+export type PortalContextView = PortalViewDescriptor;
+
+/** Uma entrada do MENU do portal: uma tela de topo, ou uma página de extensão. */
+export interface PortalMenuEntry {
+  id: string;
+  kind: 'screen' | 'page';
+  title: string;
+  icon: string;
+  /** `screen`: a coleção da tela. */
+  collection?: string;
+  /** `page`: a view que desenha a página. */
+  pluginId?: string;
+  viewKey?: string;
+}
+
+/** Um cartão da home. */
+export interface PortalWidgetEntry {
+  id: string;
+  title: string;
   pluginId: string;
-  key: string;
-  collection: string;
-  surface: 'list' | 'detail';
-  source: string;
+  viewKey: string;
+}
+
+export interface PortalHome {
+  /** As boas-vindas que o escritório escreveu — vazio = a frase padrão do produto. */
+  welcome: string;
+  /** O menu, já na ordem do escritório e sem o que ele escondeu. */
+  menu: PortalMenuEntry[];
+  widgets: PortalWidgetEntry[];
+  /** A home inteira de uma extensão, quando há uma. */
+  view: { pluginId: string; viewKey: string } | null;
 }
 
 export interface PortalContext {
@@ -150,10 +182,11 @@ export interface PortalContext {
   tenantName: string;
   logoURL: string | null;
   screens: PortalContextScreen[];
-  /** As views das extensões para as telas DESTE portal — só as de coleção exposta. */
+  /** As views das extensões para ESTE portal — de coleção, só as de coleção exposta. */
   views: PortalContextView[];
   /** Os textos dessas extensões, em todos os idiomas que elas trazem. */
   bundles: Array<{ locale: string; namespace: string; messages: Record<string, string> }>;
+  home: PortalHome;
 }
 
 export type GetPortalContextUseCase = {
@@ -169,20 +202,75 @@ export type GetPortalContextUseCase = {
 
 /**
  * O que a casca do portal precisa saber para desenhar — e só isso. O convidado não lê
- * `screenDefinitions`: recebe daqui as telas que o portal expõe, cada uma só com os campos expostos,
- * e os rótulos já no idioma dele.
+ * `screenDefinitions` nem as configurações: recebe daqui as telas que o portal expõe, cada uma só com
+ * os campos expostos, o menu e a home já na ordem do escritório, e os rótulos já no idioma dele.
  */
+/** A ordem sugerida só serve para ordenar; ao convidado vai a lista já na ordem. */
+const withoutOrder = <T extends { order?: number }>(value: T): Omit<T, 'order'> => {
+  const copy = { ...value };
+  delete copy.order;
+  return copy;
+};
+
 export const makeGetPortalContextUseCase = (repo: IPortalRepository): GetPortalContextUseCase => ({
   execute: async ({ tenantId, userId, tenant, locale, resolve, extensionViews }) => {
     if (!(await repo.getPortalUser(tenantId, userId))) {
       throw permissionDenied('@core.tenant/portal.not-invited');
     }
-    const screens = (await repo.getScreens(tenantId)).filter((screen) => !!screen.portal);
+    const [allScreens, settings] = await Promise.all([repo.getScreens(tenantId), repo.getHomeSettings(tenantId)]);
+    const screens = allScreens.filter((screen) => !!screen.portal);
     const exposed = new Set(screens.map((screen) => screen.collection));
-    const views = (extensionViews?.views ?? []).filter((view) => exposed.has(view.collection));
+    const views = (extensionViews?.views ?? [])
+      .filter((view) => !view.collection || exposed.has(view.collection));
+
+    const screenFor = (entity: string) =>
+      screens.find((one) => one.id === entity) ?? screens.find((one) => one.collection === entity);
+    // Raiz é a tela sem pai NO PORTAL: a nota de um prestador exposto aparece dentro dele, não no menu.
+    const roots = screens.filter((screen) => {
+      const link = portalLinkOf(screen);
+      return !link || !screenFor(link.targetEntity);
+    });
+    const menu = applyPortalPreference<PortalMenuEntry & { order?: number }>([
+      // As telas vêm antes por padrão — são o portal; as páginas de extensão o completam.
+      ...roots.map((screen, index) => ({
+        order: index - roots.length,
+        id: portalScreenEntryId(screen.collection),
+        kind: 'screen' as const,
+        title: resolve(screen.titlePlural),
+        icon: screen.icon,
+        collection: screen.collection,
+      })),
+      ...views.filter((view) => view.surface === 'page' && view.key).map((view) => ({
+        id: portalPageEntryId(view.pluginId, view.key as string),
+        kind: 'page' as const,
+        title: view.title ? resolve(view.title) : view.key as string,
+        icon: view.icon ?? 'apps',
+        pluginId: view.pluginId,
+        viewKey: view.viewKey,
+        order: view.order,
+      })),
+    ], settings.menu).map(withoutOrder);
+    const widgets = applyPortalPreference(
+      views.filter((view) => view.surface === 'widget' && view.key).map((view) => ({
+        id: portalWidgetEntryId(view.pluginId, view.key as string),
+        title: view.title ? resolve(view.title) : '',
+        pluginId: view.pluginId,
+        viewKey: view.viewKey,
+        order: view.order,
+      })),
+      settings.widgets,
+    ).map(withoutOrder);
+    const homeView = views.find((view) => view.surface === 'home');
+
     return {
       views,
       bundles: views.length > 0 ? extensionViews?.bundles ?? [] : [],
+      home: {
+        welcome: settings.welcome,
+        menu,
+        widgets,
+        view: homeView ? { pluginId: homeView.pluginId, viewKey: homeView.viewKey } : null,
+      },
       locale,
       tenantName: tenant.name,
       logoURL: tenant.logoURL,
