@@ -6,6 +6,7 @@ import {
   portalDeclarationIssues,
   portalExposedTitle,
   portalFieldKeys,
+  portalUploadTypes,
   portalSubjectKey,
   projectPortalData,
   resolvePortalSubjectKeys,
@@ -193,5 +194,29 @@ describe('criação pelo portal', () => {
     expect(issues).toContainEqual({ message: '@core.records/portal.issue.create.required-missing', messageParams: { field: 'title' } });
     expect(issues.some((issue) => issue.messageParams?.field === 'status')).toBe(false);
     expect(portalDeclarationIssues(orders, [company, orders])).toEqual([]);
+  });
+});
+
+describe('anexos pelo portal', () => {
+  const docs = [{ key: 'Recibo', label: 'Recibo' }, { key: 'Nota', label: 'Nota' }];
+  const withUploads = (types: string[]): PortalScreenLike => ({
+    ...invoice,
+    portal: { ...invoice.portal!, documents: true, uploads: { types } },
+  });
+
+  it('o convidado escolhe entre os tipos do escritório — os restritos, ou todos', () => {
+    expect(portalUploadTypes(withUploads([]), docs).map((one) => one.key)).toEqual(['Recibo', 'Nota']);
+    expect(portalUploadTypes(withUploads(['Nota', 'Apagado']), docs).map((one) => one.key)).toEqual(['Nota']);
+  });
+
+  it('anexar exige ver os documentos', () => {
+    const blind = { ...invoice, portal: { ...invoice.portal!, documents: false, uploads: { types: [] } } };
+    expect(portalDeclarationIssues(blind, [company, blind]).map((issue) => issue.message))
+      .toContain('@core.records/portal.issue.uploads.documents');
+  });
+
+  it('a declaração malformada não vira permissão', () => {
+    expect(asPortalDeclaration({ subject: 'self', fields: ['a'] })?.uploads).toBeUndefined();
+    expect(asPortalDeclaration({ subject: 'self', fields: ['a'], uploads: { types: ['X', 3] } })?.uploads).toEqual({ types: ['X'] });
   });
 });

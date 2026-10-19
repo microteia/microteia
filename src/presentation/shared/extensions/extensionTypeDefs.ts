@@ -1429,6 +1429,8 @@ const PORTAL_MODULE_DEFS = `declare module '@microteia/portal' {
     parent: { collection: string } | null;
     fields: Array<{ key: string; label: string; type?: string; required?: boolean; options?: Array<{ key: string; label: string }> }>;
     create: { fields: PortalScreen['fields']; link: { collection: string; label: string } } | null;
+    /** Guests may attach documents here, choosing one of these types — never a new one. */
+    uploads: { types: Array<{ key: string; label: string }> } | null;
   }
 
   export interface PortalDocument {
@@ -1461,11 +1463,17 @@ const PORTAL_MODULE_DEFS = `declare module '@microteia/portal' {
     create(collection: string, parentRecordId?: string): void;
   };
 
-  /** The shared documents of a record, and the gesture that opens one. */
+  /**
+   * The shared documents of a record, the gesture that opens one and — when the screen allows it — the
+   * one that attaches a file with one of the offered types (\`uploadTypes\`, \`null\` when not allowed).
+   * There is no delete: a guest never removes a document.
+   */
   export function usePortalDocuments(collection: string, recordId: string): {
     documents: PortalDocument[];
     loading: boolean;
     open(documentId: string): Promise<void>;
+    uploadTypes: Array<{ key: string; label: string }> | null;
+    upload(file: File, type: string): Promise<void>;
   };
 
   /**

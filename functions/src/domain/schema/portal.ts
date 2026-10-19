@@ -27,6 +27,16 @@ export const PORTAL_INVITES_COLLECTION = 'portalInvites';
 export const PORTAL_SUBJECT_MAX_DEPTH = 3;
 
 /**
+ * A área de ESPERA de um anexo do convidado no Storage — só dele, e só para criar. O arquivo sai dali
+ * para o registro pela callable, que confere tudo antes; o convidado não lê, não troca e não apaga.
+ */
+export const PORTAL_UPLOADS_STORAGE_FOLDER = 'portalUploads';
+export const PORTAL_UPLOAD_MAX_BYTES = 20 * 1024 * 1024;
+
+export const portalUploadStagingPath = (tenantId: string, userId: string, uploadId: string): string =>
+  `tenants/${tenantId}/${PORTAL_UPLOADS_STORAGE_FOLDER}/${userId}/${uploadId}`;
+
+/**
  * Como os registros de uma tela chegam a quem os vê.
  *
  * - `self`: a tela É o sujeito. Cada registro dela recebe convidados.
@@ -48,6 +58,13 @@ export interface PortalDeclaration {
    * vale para a tela-sujeito: o convidado cria PARA a empresa dele, nunca uma empresa nova.
    */
   create?: { fields: string[] } | null;
+  /**
+   * O convidado ANEXA documentos ao registro — escolhendo o tipo entre os que o escritório já tem (os
+   * de `types`, ou qualquer um quando a lista está vazia), e nunca criando um tipo novo. Ver
+   * documentos (`documents`) não dá o direito de anexar; anexar exige ver, para o convidado enxergar o
+   * que enviou. Excluir não existe para ele, em caso nenhum.
+   */
+  uploads?: { types: string[] } | null;
 }
 
 /** O mínimo de uma tela que o portal precisa ler. */
@@ -107,7 +124,31 @@ export const asPortalDeclaration = (value: unknown): PortalDeclaration | null =>
     ? { fields: [...new Set(rawCreate.fields.filter(isNonEmptyString).map((key) => key.trim()))] }
     : null;
 
-  return { subject, fields, documents: raw.documents === true, ...(create ? { create } : {}) };
+  const rawUploads = raw.uploads as Record<string, unknown> | null | undefined;
+  const uploads = rawUploads && typeof rawUploads === 'object'
+    ? { types: Array.isArray(rawUploads.types) ? [...new Set(rawUploads.types.filter(isNonEmptyString))] : [] }
+    : null;
+
+  return {
+    subject,
+    fields,
+    documents: raw.documents === true,
+    ...(create ? { create } : {}),
+    ...(uploads ? { uploads } : {}),
+  };
+};
+
+/**
+ * Os tipos que o convidado pode escolher ao anexar: os que a tela restringiu, entre os que o
+ * escritório TEM — um tipo apagado do escritório sai daqui junto. Sem restrição, todos os dele. Nunca
+ * um tipo que não esteja na lista do escritório: o convidado escolhe, não cria.
+ */
+export const portalUploadTypes = <T extends { key: string }>(
+  screen: PortalScreenLike,
+  available: readonly T[],
+): T[] => {
+  const declared = screen.portal?.uploads?.types ?? [];
+  return declared.length === 0 ? [...available] : available.filter((option) => declared.includes(option.key));
 };
 
 /**
@@ -275,6 +316,10 @@ export const portalDeclarationIssues = (
   if (portal.fields.length === 0) issues.push({ message: '@core.records/portal.issue.no-fields' });
   for (const key of portal.fields) {
     if (!declared.has(key)) issues.push({ message: '@core.records/portal.issue.field.unknown', messageParams: { field: key } });
+  }
+
+  if (portal.uploads && portal.documents !== true) {
+    issues.push({ message: '@core.records/portal.issue.uploads.documents' });
   }
 
   if (portal.create) {

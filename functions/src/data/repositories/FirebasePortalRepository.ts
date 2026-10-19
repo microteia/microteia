@@ -19,7 +19,9 @@ import {
   PORTAL_RECORDS_COLLECTION,
   PORTAL_USERS_COLLECTION,
   asPortalDeclaration,
+  portalUploadStagingPath,
 } from '../../domain/schema/portal';
+import { getBucket } from '../../infrastructure/firebase/initFirebase';
 import { PORTAL_SETTINGS_DOC, asPortalHomeSettings, type PortalHomeSettings } from '../../domain/schema/portalExtensionPoints';
 
 const SCREENS_TTL_MS = 30_000;
@@ -292,6 +294,18 @@ export class FirebasePortalRepository implements IPortalRepository {
       }
       transaction.update(reference, { subjectKeys: remaining, updatedAt: FieldValue.serverTimestamp() });
     });
+  }
+
+  async readStagedUpload(tenantId: string, userId: string, uploadId: string) {
+    const file = getBucket().file(portalUploadStagingPath(tenantId, userId, uploadId));
+    const [exists] = await file.exists();
+    if (!exists) return null;
+    const [[data], [metadata]] = await Promise.all([file.download(), file.getMetadata()]);
+    return { data, contentType: typeof metadata.contentType === 'string' ? metadata.contentType : 'application/octet-stream' };
+  }
+
+  async deleteStagedUpload(tenantId: string, userId: string, uploadId: string): Promise<void> {
+    await getBucket().file(portalUploadStagingPath(tenantId, userId, uploadId)).delete({ ignoreNotFound: true });
   }
 
   async markInvite(email: string, tenantId: string): Promise<void> {

@@ -12,6 +12,8 @@ export interface ScreenPortalPanelProps {
   fieldOptions: Array<{ value: string; label: string }>;
   /** Os campos que o convidado pode preencher — todos, menos o do vínculo, que o servidor carimba. */
   createFieldOptions: Array<{ value: string; label: string }>;
+  /** Os tipos de documento do escritório — o convidado só escolhe entre os marcados. */
+  documentTypeOptions: Array<{ value: string; label: string }>;
   referenceFieldOptions: Array<{ value: string; label: string }>;
   hasParent: boolean;
   hasDocuments: boolean;
@@ -26,6 +28,8 @@ export interface ScreenPortalPanelProps {
   onToggleDocuments: (documents: boolean) => void;
   onToggleCreate: (allowCreate: boolean) => void;
   onToggleCreateField: (fieldKey: string, fillable: boolean) => void;
+  onToggleUploads: (allowUploads: boolean) => void;
+  onToggleUploadType: (typeKey: string, allowed: boolean) => void;
 }
 
 /** A aba "Portal" da tela: o que sai do escritório, e para quem. Só desenha o que recebe. */
@@ -104,6 +108,29 @@ export const ScreenPortalPanel: React.FC<ScreenPortalPanelProps> = (props) => {
               disabled={readOnly || !props.hasDocuments}
             />
             <S.Hint>{props.hasDocuments ? t('portal.documents.hint') : t('portal.documents.unavailable')}</S.Hint>
+            <Checkbox
+              checked={form.allowUploads && form.documents}
+              onChange={props.onToggleUploads}
+              label={t('portal.uploads.enabled')}
+              disabled={readOnly || !form.documents}
+            />
+            <S.Hint>{form.documents ? t('portal.uploads.hint') : t('portal.uploads.requires-documents')}</S.Hint>
+            {form.allowUploads && form.documents && (
+              <>
+                <S.Hint>{t('portal.uploads.types-hint')}</S.Hint>
+                <S.FieldGrid>
+                  {props.documentTypeOptions.map((option) => (
+                    <Checkbox
+                      key={option.value}
+                      checked={form.uploadTypes.includes(option.value)}
+                      onChange={(allowed) => props.onToggleUploadType(option.value, allowed)}
+                      label={option.label}
+                      disabled={readOnly}
+                    />
+                  ))}
+                </S.FieldGrid>
+              </>
+            )}
           </S.Section>
 
           <S.Section>

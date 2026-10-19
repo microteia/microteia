@@ -34,7 +34,7 @@ vi.mock('../../../stores/useNotification', () => ({ useNotification: () => ({ no
 vi.mock('../../../stores/useActions', () => ({ useActions: () => ({ actions: [] }) }));
 vi.mock('../../../stores/useInstalledExtensions', () => ({ useInstalledExtensions: () => ({ installed: [] }) }));
 vi.mock('../../../stores/useLookups', () => ({
-  useLookups: () => ({ availableLookups: [], declareLookup: vi.fn() }),
+  useLookups: () => ({ availableLookups: [], declareLookup: vi.fn(), getOptions: () => [] }),
 }));
 vi.mock('../../../stores/useTags', () => ({
   useTags: () => ({ availableTagLists: [], declareTagList: vi.fn() }),

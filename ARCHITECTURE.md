@@ -1017,9 +1017,33 @@ telas vêm antes das páginas por padrão. `settings/portal` é gravado com `por
 A pilha de registros abertos é do item do menu (`PortalNavigationProvider`, escopo `escritório|item`):
 ir para o Extrato não carrega a pilha do prestador.
 
+### Anexar pelo portal — `portal.uploads`
+
+```ts
+portal: { ..., documents: true, uploads: { types: ['Nota fiscal', 'Recibo'] } }
+```
+
+**Ver não é anexar.** `documents` mostra os documentos compartilhados; só `uploads` deixa o convidado
+anexar — e exige `documents`, para ele ver o que enviou. Três regras do escritório, cobradas no
+servidor e não só na tela:
+
+| Regra | Onde |
+|---|---|
+| o tipo é ESCOLHIDO entre os da tela (`types`, ou todos quando vazio), dentre os que o escritório tem; nunca criado | `portalUploadTypes` + `attachPortalDocument`, contra a mesma mescla do front (`documentTypeOptions`) |
+| o convidado NUNCA exclui | não há callable de exclusão, e o Storage não lhe dá `delete` em lugar nenhum |
+| o arquivo passa por uma área de ESPERA só dele | `storage.rules`: `tenants/{t}/portalUploads/{uid}/{id}` só aceita `create`, enquanto o convite existe, até 20 MB; ler, trocar e apagar são `false` |
+
+A callable confere convite, `audience` do registro, tela e tipo ANTES de o arquivo sair da espera, e
+então anexa pela mesma porta do agente e da automação (`IRecordDocumentWriter`, `via: 'portal'`,
+`portalShared: true` — o que o convidado envia ele vê). A espera é limpa em todo caso. O escritório
+recebe o documento na aba Documentos do registro, com o autor e o tipo, e o evento de documento
+dispara as automações dele.
+
+`portalUploads` é reservado no Storage: pelo curinga de registros, qualquer membro leria e gravaria ali.
+
 ### O que ainda não faz
 
-- **Editar, excluir ou anexar arquivo pelo portal.** Só criar.
+- **Editar ou excluir pelo portal.** O convidado cria registros e anexa documentos; não altera nem apaga.
 - **View de portal declarativa** (Widget DSL): `portal.view` — inclusive `page`, `widget` e `home` — é só `code`. O `WidgetRenderer` lê os
   stores do escritório, e o convidado não os tem.
 - `storage.rules` deixa qualquer MEMBRO ler qualquer arquivo de registro, independentemente de

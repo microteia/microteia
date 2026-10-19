@@ -16,6 +16,7 @@ export const makeFakePortalRepository = (screens: PortalScreen[]) => {
   const projectedDocuments = new Map<string, PortalDocumentProjection>();
   const users = new Map<string, PortalUserRecord>();
   const invites: string[] = [];
+  const staged = new Map<string, { data: Buffer; contentType: string }>();
   const homeSettings: PortalHomeSettings = { welcome: '', menu: { order: [], hidden: [] }, widgets: { order: [], hidden: [] } };
 
   const repo: IPortalRepository = {
@@ -106,11 +107,13 @@ export const makeFakePortalRepository = (screens: PortalScreen[]) => {
       if (remaining.length === 0) users.delete(userId);
       else users.set(userId, { ...current, subjectKeys: remaining });
     },
+    readStagedUpload: async (_t, userId, uploadId) => staged.get(`${userId}/${uploadId}`) ?? null,
+    deleteStagedUpload: async (_t, userId, uploadId) => { staged.delete(`${userId}/${uploadId}`); },
     markInvite: async (email) => { invites.push(email); },
     hasInvite: async (email) => invites.includes(email),
   };
 
-  return { repo, records, documents, projections, projectedDocuments, users, invites, homeSettings };
+  return { repo, records, documents, projections, projectedDocuments, users, invites, homeSettings, staged };
 };
 
 const field = (key: string, extra: Partial<PortalScreen['fields'][number]> = {}) => ({ key, label: key, type: 'text', ...extra });

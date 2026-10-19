@@ -13,7 +13,8 @@ import {
   where,
 } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
-import { db, functions } from '../../infrastructure/firebase/config';
+import { ref, uploadBytes } from 'firebase/storage';
+import { db, functions, storage } from '../../infrastructure/firebase/config';
 import type { IPortalRepository } from '../../domain/repositories/IPortalRepository';
 import type {
   PortalContext,
@@ -27,6 +28,7 @@ import {
   PORTAL_DOCUMENTS_SUBCOLLECTION,
   PORTAL_RECORDS_COLLECTION,
   PORTAL_USERS_COLLECTION,
+  portalUploadStagingPath,
 } from '../../domain/schema/portal';
 import { PORTAL_SETTINGS_DOC, asPortalHomeSettings, type PortalHomeSettings } from '../../domain/schema/portalExtensionPoints';
 
@@ -115,6 +117,32 @@ export class FirebasePortalRepository implements IPortalRepository {
       'getPortalDocumentUrl',
     );
     return (await call({ tenantId, projectionId, documentId })).data.url;
+  }
+
+  async uploadDocument(input: {
+    tenantId: string;
+    userId: string;
+    collection: string;
+    recordId: string;
+    file: File;
+    type: string;
+  }): Promise<{ id: string }> {
+    const uploadId = crypto.randomUUID();
+    await uploadBytes(ref(storage, portalUploadStagingPath(input.tenantId, input.userId, uploadId)), input.file, {
+      contentType: input.file.type || 'application/octet-stream',
+    });
+    const call = httpsCallable<
+      { tenantId: string; collection: string; recordId: string; uploadId: string; name: string; type: string },
+      { id: string }
+    >(functions, 'attachPortalDocument');
+    return (await call({
+      tenantId: input.tenantId,
+      collection: input.collection,
+      recordId: input.recordId,
+      uploadId,
+      name: input.file.name,
+      type: input.type,
+    })).data;
   }
 
   async listLinkOptions(tenantId: string, userId: string, collectionName: string): Promise<PortalLinkOption[]> {

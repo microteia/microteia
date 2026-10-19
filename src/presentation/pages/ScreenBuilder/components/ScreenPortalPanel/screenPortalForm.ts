@@ -12,6 +12,9 @@ export interface PortalFormState {
   /** O convidado cria registros, preenchendo só `createFields`. */
   allowCreate: boolean;
   createFields: string[];
+  /** O convidado anexa documentos, escolhendo entre `uploadTypes` — vazio = todos os do escritório. */
+  allowUploads: boolean;
+  uploadTypes: string[];
 }
 
 export const EMPTY_PORTAL_FORM: PortalFormState = {
@@ -22,6 +25,8 @@ export const EMPTY_PORTAL_FORM: PortalFormState = {
   documents: false,
   allowCreate: false,
   createFields: [],
+  allowUploads: false,
+  uploadTypes: [],
 };
 
 export const toPortalForm = (portal: PortalDeclaration | null | undefined): PortalFormState => {
@@ -35,6 +40,8 @@ export const toPortalForm = (portal: PortalDeclaration | null | undefined): Port
     documents: portal.documents === true,
     allowCreate: !!portal.create,
     createFields: [...(portal.create?.fields ?? [])],
+    allowUploads: !!portal.uploads,
+    uploadTypes: [...(portal.uploads?.types ?? [])],
   };
 };
 
@@ -46,5 +53,7 @@ export const fromPortalForm = (form: PortalFormState): PortalDeclaration | null 
     fields: form.fields,
     documents: form.documents,
     ...(form.allowCreate && form.subjectKind !== 'self' ? { create: { fields: form.createFields } } : {}),
+    // Anexar exige ver: sem `documents`, o convidado não enxergaria o que enviou.
+    ...(form.allowUploads && form.documents ? { uploads: { types: form.uploadTypes } } : {}),
   };
 };

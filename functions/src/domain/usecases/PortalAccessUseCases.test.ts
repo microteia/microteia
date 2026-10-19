@@ -4,6 +4,7 @@ import {
   makeGetPortalDocumentUrlUseCase,
   makeInvitePortalUserUseCase,
   makeSubmitPortalRecordUseCase,
+  makeAttachPortalDocumentUseCase,
 } from './PortalAccessUseCases';
 import { makeProjectPortalRecordUseCase } from './PortalProjectionUseCases';
 import { CITY_SCREENS, makeFakePortalRepository } from '../repositories/fakePortalRepository';
@@ -247,5 +248,60 @@ describe('o convidado cria um registro', () => {
     await expect(makeSubmitPortalRecordUseCase(fake.repo, write).execute({
       tenantId: TENANT, userId: 'ana', collection: 'invoices', linkRecordId: 'acme', data: {},
     })).rejects.toMatchObject({ name: 'PortalSubmissionInvalid', params: { detail: 'number' } });
+  });
+});
+
+describe('o convidado anexa um documento', () => {
+  const TYPES = [{ key: 'Recibo', label: 'Recibo' }, { key: 'Nota', label: 'Nota' }];
+
+  const setup = (uploads: { types: string[] } | null = { types: ['Nota'] }, documents = true) => {
+    const screens = CITY_SCREENS.map((screen) => (screen.id === 'invoices'
+      ? { ...screen, portal: { ...screen.portal!, documents, uploads } }
+      : screen));
+    const fake = makeFakePortalRepository(screens);
+    fake.users.set('ana', { userId: 'ana', email: 'ana@acme.com', displayName: 'Ana', subjectKeys: ['companies/acme'] });
+    fake.projections.set('invoices__nf1', {
+      collection: 'invoices', recordId: 'nf1', screenId: 'invoices', subjectKeys: ['companies/acme'],
+      audience: ['ana'], title: '', data: {}, labels: {}, parentKeys: ['companies/acme'],
+    });
+    fake.staged.set('ana/up1', { data: Buffer.from('pdf'), contentType: 'application/pdf' });
+    const attach = vi.fn(async () => ({ id: 'doc-1' }));
+    const useCase = makeAttachPortalDocumentUseCase(fake.repo, { documentTypes: async () => TYPES, attach });
+    const input = { tenantId: TENANT, userId: 'ana', userName: 'Ana', collection: 'invoices', recordId: 'nf1', uploadId: 'up1', name: 'nota.pdf', type: 'Nota' };
+    return { fake, attach, useCase, input };
+  };
+
+  it('anexa com um tipo permitido, e limpa a espera', async () => {
+    const { useCase, input, attach, fake } = setup();
+    expect(await useCase.execute(input)).toEqual({ id: 'doc-1' });
+    expect(attach).toHaveBeenCalledWith(expect.objectContaining({ type: 'Nota', contentType: 'application/pdf', userId: 'ana' }));
+    expect(fake.staged.size).toBe(0);
+  });
+
+  it('o tipo é escolhido entre os da tela — nunca um novo, nem um que a tela não oferece', async () => {
+    const { useCase, input, attach } = setup();
+    await expect(useCase.execute({ ...input, type: 'Inventado' })).rejects.toThrow('@core.tenant/portal.upload.type-invalid');
+    await expect(useCase.execute({ ...input, type: 'Recibo' })).rejects.toThrow('@core.tenant/portal.upload.type-invalid');
+    expect(attach).not.toHaveBeenCalled();
+  });
+
+  it('ver documentos não dá o direito de anexar', async () => {
+    const { useCase, input } = setup(null);
+    await expect(useCase.execute(input)).rejects.toThrow('@core.tenant/portal.upload.denied');
+  });
+
+  it('o registro de outra pessoa é recusado', async () => {
+    const { useCase, input, fake } = setup();
+    fake.users.set('bia', { userId: 'bia', email: 'bia@globex.com', displayName: 'Bia', subjectKeys: ['companies/globex'] });
+    fake.staged.set('bia/up1', { data: Buffer.from('x'), contentType: 'application/pdf' });
+    await expect(useCase.execute({ ...input, userId: 'bia' })).rejects.toThrow('@core.tenant/portal.upload.denied');
+  });
+
+  it('sem o arquivo na espera, recusa — e grande demais, recusa e limpa', async () => {
+    const { useCase, input, fake } = setup();
+    await expect(useCase.execute({ ...input, uploadId: 'nada' })).rejects.toThrow('@core.tenant/portal.upload.missing');
+    fake.staged.set('ana/big', { data: Buffer.alloc(21 * 1024 * 1024), contentType: 'application/pdf' });
+    await expect(useCase.execute({ ...input, uploadId: 'big' })).rejects.toThrow('@core.tenant/portal.upload.too-large');
+    expect(fake.staged.has('ana/big')).toBe(false);
   });
 });

@@ -16,6 +16,8 @@ import {
   normalizePortalEmail,
   portalCreateFieldKeys,
   portalLinkOf,
+  portalUploadTypes,
+  PORTAL_UPLOAD_MAX_BYTES,
   parsePortalSubjectKey,
   portalFieldKeys,
   portalRecordDocId,
@@ -127,6 +129,8 @@ export const makeGetPortalDocumentUrlUseCase = (repo: IPortalRepository): GetPor
 
 export interface PortalContextScreen {
   id: string;
+  /** O convidado anexa documentos aqui — escolhendo o tipo entre estes, nunca criando um. */
+  uploads: { types: Array<{ key: string; label: string }> } | null;
   /** A tela-PAI no portal — a do registro a que os desta apontam. Os desta aparecem dentro dele. */
   parent: { collection: string } | null;
   /** O que o convidado preenche ao criar, e a que tipo de registro o novo se vincula. */
@@ -197,6 +201,8 @@ export type GetPortalContextUseCase = {
     locale: string;
     resolve: (value: string) => string;
     extensionViews?: { views: PortalContextView[]; bundles: PortalContext['bundles'] };
+    /** Os tipos de documento do escritório — os fixos mais os cadastrados, já com rótulo. */
+    documentTypes?: Array<{ key: string; label: string }>;
   }) => Promise<PortalContext>;
 };
 
@@ -213,7 +219,7 @@ const withoutOrder = <T extends { order?: number }>(value: T): Omit<T, 'order'> 
 };
 
 export const makeGetPortalContextUseCase = (repo: IPortalRepository): GetPortalContextUseCase => ({
-  execute: async ({ tenantId, userId, tenant, locale, resolve, extensionViews }) => {
+  execute: async ({ tenantId, userId, tenant, locale, resolve, extensionViews, documentTypes = [] }) => {
     if (!(await repo.getPortalUser(tenantId, userId))) {
       throw permissionDenied('@core.tenant/portal.not-invited');
     }
@@ -290,6 +296,9 @@ export const makeGetPortalContextUseCase = (repo: IPortalRepository): GetPortalC
         });
         return {
           id: screen.id,
+          uploads: screen.portal?.uploads && screen.portal.documents === true
+            ? { types: portalUploadTypes(screen, documentTypes) }
+            : null,
           parent: linkTarget?.portal ? { collection: linkTarget.collection } : null,
           collection: screen.collection,
           titleSingular: resolve(screen.titleSingular),
@@ -390,5 +399,78 @@ export const makeSubmitPortalRecordUseCase = (
     const outcome = await write({ tenantId, collection, data: submission, userId });
     if (!outcome.ok) throw new PortalSubmissionInvalid(outcome.error, outcome.errorParams);
     return { id: outcome.id };
+  },
+});
+
+export interface AttachPortalDocumentInput {
+  tenantId: string;
+  userId: string;
+  userName: string;
+  collection: string;
+  recordId: string;
+  /** O id do arquivo na área de espera do convidado. */
+  uploadId: string;
+  name: string;
+  type: string;
+}
+
+export interface AttachPortalDocumentDeps {
+  documentTypes: (tenantId: string) => Promise<Array<{ key: string; label: string }>>;
+  attach: (file: {
+    tenantId: string;
+    collection: string;
+    recordId: string;
+    name: string;
+    contentType: string;
+    data: Buffer;
+    type: string;
+    userId: string;
+    userName: string;
+  }) => Promise<{ id: string }>;
+}
+
+export type AttachPortalDocumentUseCase = {
+  execute: (input: AttachPortalDocumentInput) => Promise<{ id: string }>;
+};
+
+/**
+ * O convidado ANEXA um documento a um registro que é dele.
+ *
+ * Tudo é conferido antes de o arquivo sair da área de espera, e na ordem em que o escritório o diria:
+ * é convidado; o registro está no portal dele; a tela deixa anexar; o tipo é um dos que a tela
+ * oferece, entre os que o escritório tem — escolher, nunca criar —; e o arquivo cabe. Só então ele vai
+ * para o registro, já compartilhado (o que o convidado envia ele vê), e a espera é limpa.
+ *
+ * Não há o caminho inverso: excluir um documento não existe para o convidado, em caso nenhum.
+ */
+export const makeAttachPortalDocumentUseCase = (
+  repo: IPortalRepository,
+  deps: AttachPortalDocumentDeps,
+): AttachPortalDocumentUseCase => ({
+  execute: async ({ tenantId, userId, userName, collection, recordId, uploadId, name, type }) => {
+    const denied = permissionDenied('@core.tenant/portal.upload.denied');
+    if (!(await repo.getPortalUser(tenantId, userId))) throw denied;
+
+    const projection = await repo.getProjection(tenantId, portalRecordDocId(collection, recordId));
+    if (!projection || !projection.audience.includes(userId)) throw denied;
+
+    const screens = await repo.getScreens(tenantId);
+    const screen = screens.find((one) => one.collection === collection && one.portal);
+    if (!screen?.portal?.uploads || screen.portal.documents !== true) throw denied;
+
+    const allowed = portalUploadTypes(screen, await deps.documentTypes(tenantId));
+    if (!allowed.some((option) => option.key === type)) throw invalidArgument('@core.tenant/portal.upload.type-invalid');
+
+    const file = await repo.readStagedUpload(tenantId, userId, uploadId);
+    if (!file) throw invalidArgument('@core.tenant/portal.upload.missing');
+    try {
+      if (file.data.length > PORTAL_UPLOAD_MAX_BYTES) throw invalidArgument('@core.tenant/portal.upload.too-large');
+      const cleanName = name.trim().slice(0, 200) || uploadId;
+      return await deps.attach({
+        tenantId, collection, recordId, name: cleanName, contentType: file.contentType, data: file.data, type, userId, userName,
+      });
+    } finally {
+      await repo.deleteStagedUpload(tenantId, userId, uploadId);
+    }
   },
 });

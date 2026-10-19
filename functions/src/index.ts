@@ -29,6 +29,7 @@ export {
   getPortalContext,
   getPortalDocumentUrl,
   submitPortalRecord,
+  attachPortalDocument,
 } from './infrastructure/handlers/portalAccess';
 export {
   projectPortalRecord,

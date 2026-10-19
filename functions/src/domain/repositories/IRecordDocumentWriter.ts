@@ -1,5 +1,5 @@
 /** Por onde o anexo chegou à aba Documentos — o mesmo carimbo `createdVia` de um registro. */
-export type RecordDocumentVia = 'agent' | 'automation' | 'ui';
+export type RecordDocumentVia = 'agent' | 'automation' | 'ui' | 'portal';
 
 /**
  * Quem responde pelo anexo. Sem pessoa por trás, o autor é o motor (`workflow-engine`) e o nome fica
@@ -24,6 +24,8 @@ export interface RecordDocumentFile {
   type?: string | null;
   description?: string | null;
   author: RecordDocumentAuthor;
+  /** O anexo já nasce compartilhado no portal — o que o convidado envia ele vê. */
+  portalShared?: boolean;
 }
 
 export interface AttachedRecordDocument {

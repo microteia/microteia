@@ -8,6 +8,8 @@ import { parsePortalSubjectKey } from '../../domain/schema/portal';
 import { domainErrorCode } from '../../domain/errors/DomainError';
 import { PortalSubmissionInvalid } from '../../domain/usecases/PortalAccessUseCases';
 import { agentCatalog, agentText } from '../agent/agentMessages';
+import { documentTypeOptions } from '../agent/agentDocuments';
+import { identifyActor } from '../workflow/identifyActor';
 import { configuredLocale } from '../../domain/services/tenantSettings';
 import { DEFAULT_LOCALE } from '../../domain/schema/i18n/localeNegotiation';
 
@@ -129,6 +131,7 @@ export const getPortalContext = onCall({ region: REGION, cors: true }, async (re
       locale: configured ?? '',
       resolve: (value) => agentText(catalog, value).text,
       extensionViews: await di.getInstalledExtensionCache().portalViews(tenantId),
+      documentTypes: await documentTypeOptions(tenantId, catalog),
     });
   } catch (error) {
     throw asHttpsError(error, 'getPortalContext');
@@ -183,5 +186,30 @@ export const submitPortalRecord = onCall({ region: REGION, cors: true }, async (
       throw new HttpsError('invalid-argument', agentText(catalog, error.message, error.params).text);
     }
     throw asHttpsError(error, 'submitPortalRecord');
+  }
+});
+
+/**
+ * O convidado anexa um documento que deixou na área de espera. A callable é a ÚNICA porta: o Storage
+ * o deixa só criar ali, e é aqui que se confere se ele pode anexar àquele registro e com aquele tipo.
+ */
+export const attachPortalDocument = onCall({ region: REGION, cors: true, memory: '512MiB' }, async (request) => {
+  const userId = authenticated(request.auth);
+  const data = (request.data ?? {}) as Record<string, unknown>;
+  const tenantId = requireString(data.tenantId, '@core.automation/handler.tenant.missing');
+  const collection = requireString(data.collection, '@core.tenant/portal.upload.denied');
+  const recordId = requireString(data.recordId, '@core.tenant/portal.upload.denied');
+  const uploadId = requireString(data.uploadId, '@core.tenant/portal.upload.missing');
+  const name = requireString(data.name, '@core.tenant/portal.upload.missing');
+  const type = requireString(data.type, '@core.tenant/portal.upload.type-invalid');
+  try {
+    const di = getDI();
+    const catalog = agentCatalog(await di.getInstalledExtensionCache().messageBundles(tenantId), DEFAULT_LOCALE);
+    const actor = await identifyActor(userId, 'portal', []);
+    return await di.getAttachPortalDocumentUseCase((id) => documentTypeOptions(id, catalog)).execute({
+      tenantId, userId, userName: actor.name, collection, recordId, uploadId, name, type,
+    });
+  } catch (error) {
+    throw asHttpsError(error, 'attachPortalDocument');
   }
 });

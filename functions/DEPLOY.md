@@ -53,6 +53,7 @@ mantém.
 - `revokePortalUser` (onCall) — revoga um vínculo ou o convite inteiro
 - `getPortalContext` (onCall) — o nome do escritório e as telas expostas, já traduzidas
 - `getPortalDocumentUrl` (onCall) — a URL de um documento compartilhado, depois de conferir o acesso
+- `attachPortalDocument` (onCall) — o convidado anexa um documento deixado na área de espera do Storage; confere convite, registro, tela e tipo, e grava pelo mesmo gravador de anexo do servidor
 - `submitPortalRecord` (onCall) — o convidado cria um registro; o vínculo é carimbado pelo servidor e a gravação passa pelo motor de registros (`via: 'portal'`)
 - `projectPortalRecord` (Firestore `tenants/{t}/{coleção}/{id}`) — grava/apaga a projeção em `portalRecords`
 - `projectPortalDocument` (Firestore `tenants/{t}/{coleção}/{id}/documents/{doc}`) — o documento compartilhado

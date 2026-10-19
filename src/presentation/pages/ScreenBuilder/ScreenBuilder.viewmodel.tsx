@@ -293,6 +293,7 @@ export interface ScreenBuilderViewModel {
   portalPanel: {
     fieldOptions: Array<{ value: string; label: string }>;
     createFieldOptions: Array<{ value: string; label: string }>;
+    documentTypeOptions: Array<{ value: string; label: string }>;
     referenceFieldOptions: Array<{ value: string; label: string }>;
     hasParent: boolean;
     hasDocuments: boolean;
@@ -306,6 +307,8 @@ export interface ScreenBuilderViewModel {
   setPortalDocuments: (documents: boolean) => void;
   setPortalAllowCreate: (allowCreate: boolean) => void;
   togglePortalCreateField: (fieldKey: string, fillable: boolean) => void;
+  setPortalAllowUploads: (allowUploads: boolean) => void;
+  togglePortalUploadType: (typeKey: string, allowed: boolean) => void;
   toggleChildScreen: (childKey: string) => void;
   setChildLinkField: (childKey: string, fieldKey: string) => void;
   iconOptions: SearchSelectOption[];
@@ -776,7 +779,9 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
   const schemaContext = useSchemaContext();
   const artifactPrefix = useArtifactPrefix();
   const fieldRulePresets = useFieldRulePresets();
-  const { availableLookups, declareLookup } = useLookups();
+  const { availableLookups, declareLookup, getOptions: getLookupOptions } = useLookups();
+  // Os tipos de documento do escritório — o convidado do portal só escolhe entre eles.
+  const documentTypes = getLookupOptions('documentTypes');
   const { availableTagLists, declareTagList } = useTags();
   const externalLookupProviders = useExternalLookupOptions();
   const { notify } = useNotification();
@@ -1313,6 +1318,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       createFieldOptions: fields
         .filter((field) => field.key !== linkField)
         .map((field) => ({ value: field.key, label: label(field.label) })),
+      documentTypeOptions: documentTypes.map((option) => ({ value: option.key, label: label(option.label) })),
       referenceFieldOptions: fields
         .filter((field) => field.type === 'reference' && !!field.refEntity)
         .map((field) => ({ value: field.key, label: label(field.label) })),
@@ -1321,7 +1327,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       readOnly: def?.managed === true,
       issues,
     };
-  }, [screenModal, getDefinitionByKey, definitions, screenForm.portal, label]);
+  }, [screenModal, getDefinitionByKey, definitions, screenForm.portal, label, documentTypes]);
 
   const updatePortal = useCallback((patch: Partial<PortalFormState>) => {
     setScreenForm((prev) => ({ ...prev, portal: { ...prev.portal, ...patch }, portalTouched: true }));
@@ -1330,6 +1336,19 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
   const setPortalSubjectKind = useCallback((subjectKind: PortalSubjectKind) => updatePortal({ subjectKind }), [updatePortal]);
   const setPortalSubjectField = useCallback((subjectField: string) => updatePortal({ subjectField }), [updatePortal]);
   const setPortalDocuments = useCallback((documents: boolean) => updatePortal({ documents }), [updatePortal]);
+  const setPortalAllowUploads = useCallback((allowUploads: boolean) => updatePortal({ allowUploads }), [updatePortal]);
+  const togglePortalUploadType = useCallback((typeKey: string, allowed: boolean) => {
+    setScreenForm((prev) => ({
+      ...prev,
+      portalTouched: true,
+      portal: {
+        ...prev.portal,
+        uploadTypes: allowed
+          ? [...new Set([...prev.portal.uploadTypes, typeKey])]
+          : prev.portal.uploadTypes.filter((key) => key !== typeKey),
+      },
+    }));
+  }, []);
   const setPortalAllowCreate = useCallback((allowCreate: boolean) => updatePortal({ allowCreate }), [updatePortal]);
   const togglePortalCreateField = useCallback((fieldKey: string, fillable: boolean) => {
     setScreenForm((prev) => ({
@@ -2387,6 +2406,8 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     setPortalDocuments,
     setPortalAllowCreate,
     togglePortalCreateField,
+    setPortalAllowUploads,
+    togglePortalUploadType,
     toggleChildScreen,
     setChildLinkField,
     iconOptions,

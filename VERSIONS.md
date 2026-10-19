@@ -11,6 +11,12 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.134.0] — 2026-10-19
+
+- O convidado do portal pode anexar documentos aos registros dele, quando o escritório permitir — por exemplo, o prestador enviando o PDF da nota. Ver documentos não dá, por si só, o direito de anexar.
+- Ao anexar, o convidado escolhe o tipo do documento entre os que o escritório definiu para aquela tela, sem poder criar um tipo novo. Ele nunca pode excluir documentos.
+- No Form Design, a aba "Portal" de cada tela define se o convidado pode anexar e quais tipos ele pode escolher.
+
 #### [9.133.0] — 2026-10-19
 
 - O portal ganhou uma página inicial, com mensagem de boas-vindas, o menu em blocos e cartões de resumo trazidos pelas extensões.

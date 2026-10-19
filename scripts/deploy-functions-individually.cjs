@@ -36,6 +36,7 @@ const ALL_FUNCTIONS = [
   'getPortalContext',
   'getPortalDocumentUrl',
   'submitPortalRecord',
+  'attachPortalDocument',
   'projectPortalRecord',
   'projectPortalDocument',
   'refreshPortalAudience',

@@ -22,6 +22,18 @@ export interface IPortalRepository {
   ): () => void;
   getDocuments(tenantId: string, projectionId: string): Promise<PortalDocument[]>;
   getDocumentUrl(tenantId: string, projectionId: string, documentId: string): Promise<string>;
+  /**
+   * Anexa um documento pelo portal: o arquivo vai para a área de espera do convidado, e a callable o
+   * confere e o leva ao registro. Não existe o gesto inverso.
+   */
+  uploadDocument(input: {
+    tenantId: string;
+    userId: string;
+    collection: string;
+    recordId: string;
+    file: File;
+    type: string;
+  }): Promise<{ id: string }>;
   /** Os registros desta coleção que o convidado enxerga — a que um registro novo pode pertencer. */
   listLinkOptions(tenantId: string, userId: string, collection: string): Promise<PortalLinkOption[]>;
   /** Cria um registro pelo portal. A recusa de validação chega já traduzida no `message`. */

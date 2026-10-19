@@ -14,6 +14,8 @@ export interface PortalScreenInfo {
   titlePlural: string;
   icon: string;
   documents: boolean;
+  /** O convidado anexa documentos aqui, escolhendo o tipo entre estes — nunca criando um. */
+  uploads: { types: Array<{ key: string; label: string }> } | null;
   /** A tela-pai no portal: os registros desta aparecem DENTRO dos dela, e não soltos no menu. */
   parent: { collection: string } | null;
   fields: PortalFieldInfo[];

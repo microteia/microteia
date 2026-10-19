@@ -18,6 +18,12 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.134.0] — 2026-10-19
+
+- feat(portal): guest uploads. `PortalDeclaration.uploads: { types }` (requires `documents`; empty types = every organization type) with `portalUploadTypes` and the `portal.issue.uploads.documents` check; `getPortalContext` describes each screen's `uploads` with labelled types (`documentTypeOptions`, the same merge as the client). KERNEL_VERSION 2.55.0.
+- feat(portal): callable `attachPortalDocument`. The guest uploads to `tenants/{t}/portalUploads/{uid}/{uploadId}` — `storage.rules` allows only `create`, only to that guest's folder, only while the invitation exists, below 20 MB; read, update and delete are false, and `portalUploads` is reserved from the record wildcard. The callable checks invitation, record `audience`, screen and type before moving the file, attaches through `IRecordDocumentWriter` (`RecordDocumentVia` gains `'portal'`; `portalShared` stamped) and always clears the staging file. There is no guest delete path anywhere.
+- feat(ui): `PortalUploadForm` in the portal record (closed type list, no "add type"), `usePortalDocuments().upload` / `uploadTypes` in `@microteia/portal`, and the uploads section in the Form Design Portal tab. `com.microteia.locale-pt-br` 1.111.0. Deploy: `npm run deploy:rules` (Firestore and Storage), `npm run deploy:portal`.
+
 #### [9.133.0] — 2026-10-19
 
 - feat(portal): portal home and menu. `portal.view` gains surfaces `page` (`key`, `title`, `icon`, `order` — a menu entry), `widget` (a home card) and `home` (the whole home); `PORTAL_API_VERSION` 1.1.0, KERNEL_VERSION 2.54.0. The descriptor separates `viewKey` (the code) from `key` (the entry). `getPortalContext` returns `home: { welcome, menu, widgets, view }` already ordered by the organization (`applyPortalPreference`: ordered first, then the rest by suggested order, hidden removed; new entries show), with root screens before extension pages by default.

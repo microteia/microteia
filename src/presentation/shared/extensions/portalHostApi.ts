@@ -69,12 +69,23 @@ const usePortalNavigation = () => {
   }), [navigation]);
 };
 
-/** Os documentos compartilhados de um registro, e o gesto de abrir um deles. */
+/**
+ * Os documentos compartilhados de um registro, o gesto de abrir um deles e — quando a tela deixa — o
+ * de anexar, com um dos tipos que ela oferece. Excluir não existe.
+ */
 const usePortalDocuments = (
   collection: string,
   recordId: string,
-): { documents: PortalDocument[]; loading: boolean; open: (documentId: string) => Promise<void> } => {
-  const { getDocuments, getDocumentUrl } = usePortal();
+): {
+  documents: PortalDocument[];
+  loading: boolean;
+  open: (documentId: string) => Promise<void>;
+  uploadTypes: Array<{ key: string; label: string }> | null;
+  upload: (file: File, type: string) => Promise<void>;
+} => {
+  const { getDocuments, getDocumentUrl, uploadDocument } = usePortal();
+  const screen = usePortalScreen(collection);
+  const [revision, setRevision] = useState(0);
   const projectionId = portalRecordDocId(collection, recordId);
   const [documents, setDocuments] = useState<PortalDocument[]>([]);
   const [loading, setLoading] = useState(true);
@@ -88,7 +99,7 @@ const usePortalDocuments = (
       .catch(() => { if (active) setDocuments([]); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [projectionId, getDocuments]);
+  }, [projectionId, getDocuments, revision]);
 
   const open = useCallback(async (documentId: string) => {
     // A janela abre antes da espera: aberta depois de uma promessa, o navegador a bloqueia.
@@ -102,7 +113,13 @@ const usePortalDocuments = (
     }
   }, [projectionId, getDocumentUrl]);
 
-  return { documents, loading, open };
+  const upload = useCallback(async (file: File, type: string) => {
+    await uploadDocument(collection, recordId, file, type);
+    // O documento chega pela projeção, segundos depois.
+    setTimeout(() => setRevision((current) => current + 1), 2500);
+  }, [uploadDocument, collection, recordId]);
+
+  return { documents, loading, open, uploadTypes: screen?.uploads?.types ?? null, upload };
 };
 
 /** Cria um registro pelo portal. A recusa de validação chega já traduzida, no `message`. */

@@ -31,6 +31,8 @@ export interface PortalStoreValue {
   getDocumentUrl: (projectionId: string, documentId: string) => Promise<string>;
   listLinkOptions: (collection: string) => Promise<PortalLinkOption[]>;
   submit: (collection: string, linkRecordId: string, data: Record<string, unknown>) => Promise<void>;
+  /** Anexa um documento a um registro, com um dos tipos que a tela oferece. */
+  uploadDocument: (collection: string, recordId: string, file: File, type: string) => Promise<void>;
 }
 
 export const PortalStoreContext = createContext<PortalStoreValue | null>(null);

@@ -102,6 +102,17 @@ export interface PortalViewModel {
   pageView: PortalViewComponent | null;
   /** O item do link não existe mais — saiu do menu, ou a extensão foi desligada. */
   entryMissing: boolean;
+  /**
+   * Anexar ao registro aberto — só quando a tela deixa. O tipo é escolhido entre os oferecidos, sem
+   * gesto de criar outro; e não há gesto de excluir.
+   */
+  upload: {
+    collection: string;
+    recordId: string;
+    types: Array<{ value: string; label: string }>;
+  } | null;
+  /** O documento chega ao portal pela projeção, segundos depois: a lista é relida. */
+  handleUploaded: () => void;
   records: PortalRecordCard[];
   recordsLoading: boolean;
   /** A tela de topo aceita registros do convidado — o pai é escolhido no formulário. */
@@ -154,6 +165,7 @@ export const usePortalViewModel = (): PortalViewModel => {
   const [documentsLoading, setDocumentsLoading] = useState(false);
   const [openingDocumentId, setOpeningDocumentId] = useState<string | null>(null);
   const [documentError, setDocumentError] = useState(false);
+  const [documentsRevision, setDocumentsRevision] = useState(0);
 
   const { memberships, membershipsLoading, selectTenant, getDocuments, getDocumentUrl, recordsByCollection, isCollectionLoading } = portal;
   const screens = useMemo(() => portal.context?.screens ?? [], [portal.context]);
@@ -246,7 +258,7 @@ export const usePortalViewModel = (): PortalViewModel => {
       .catch(() => { if (active) setDocuments([]); })
       .finally(() => { if (active) setDocumentsLoading(false); });
     return () => { active = false; };
-  }, [topRecordId, exposesDocuments, getDocuments]);
+  }, [topRecordId, exposesDocuments, getDocuments, documentsRevision]);
 
   const selected = useMemo(() => {
     if (!topRecord || !topScreen) return null;
@@ -295,6 +307,11 @@ export const usePortalViewModel = (): PortalViewModel => {
       setOpeningDocumentId(null);
     }
   }, [topRecord, getDocumentUrl]);
+
+  const handleUploaded = useCallback(() => {
+    setTimeout(() => setDocumentsRevision((current) => current + 1), 2500);
+    setTimeout(() => setDocumentsRevision((current) => current + 1), 6000);
+  }, []);
 
   const chooseTenant = useCallback((tenantId: string) => navigate(portalTenantPath(tenantId)), [navigate]);
 
@@ -389,6 +406,14 @@ export const usePortalViewModel = (): PortalViewModel => {
     },
     pageView: entry?.kind === 'page' ? viewByKey(entry.pluginId, entry.viewKey) : null,
     entryMissing: !!entryId && !!portal.context && !entry,
+    upload: topScreen?.uploads && topRecord
+      ? {
+        collection: topRecord.collection,
+        recordId: topRecord.recordId,
+        types: topScreen.uploads.types.map((option) => ({ value: option.key, label: option.label })),
+      }
+      : null,
+    handleUploaded,
     records,
     recordsLoading: rootCollection ? isCollectionLoading(rootCollection) : false,
     rootCreateLabel: rootScreen?.create ? t('portal.create.new', { screen: rootScreen.titleSingular }) : null,

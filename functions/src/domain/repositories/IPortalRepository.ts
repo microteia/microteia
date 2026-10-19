@@ -122,6 +122,10 @@ export interface IPortalRepository {
   /** Tira o sujeito do convite; sem sujeito nenhum, o convite deixa de existir. */
   revokeSubject(tenantId: string, userId: string, subjectKey: string | null): Promise<void>;
 
+  /** O arquivo que o convidado deixou na área de espera — `null` quando não está lá. */
+  readStagedUpload(tenantId: string, userId: string, uploadId: string): Promise<{ data: Buffer; contentType: string } | null>;
+  deleteStagedUpload(tenantId: string, userId: string, uploadId: string): Promise<void>;
+
   /** A marca gravada ANTES de a conta existir — é ela que diz ao bootstrap que não há escritório a criar. */
   markInvite(email: string, tenantId: string): Promise<void>;
   hasInvite(email: string): Promise<boolean>;

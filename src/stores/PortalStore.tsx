@@ -10,6 +10,7 @@ import {
   makeListPortalLinkOptionsUseCase,
   makeListPortalMembershipsUseCase,
   makeSubmitPortalRecordUseCase,
+  makeUploadPortalDocumentUseCase,
 } from '../domain/usecases/portal/PortalUseCases';
 import type { PortalContext, PortalMembership, PortalRecord } from '../domain/entities/Portal';
 
@@ -63,6 +64,7 @@ export const PortalStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
     documentUrl: makeGetPortalDocumentUrlUseCase(portalRepository),
     linkOptions: makeListPortalLinkOptionsUseCase(portalRepository),
     submit: makeSubmitPortalRecordUseCase(portalRepository),
+    upload: makeUploadPortalDocumentUseCase(portalRepository),
   }), [portalRepository]);
 
   const [memberships, setMemberships] = useState<PortalMembership[]>([]);
@@ -207,6 +209,11 @@ export const PortalStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
     await uc.submit.execute({ tenantId, collection: targetCollection, linkRecordId, data, locale });
   }, [tenantId, uc.submit, locale]);
 
+  const uploadDocument = useCallback(async (targetCollection: string, recordId: string, file: File, type: string) => {
+    if (!tenantId || !userId) return;
+    await uc.upload.execute({ tenantId, userId, collection: targetCollection, recordId, file, type });
+  }, [tenantId, userId, uc.upload]);
+
   const value = useMemo(() => ({
     memberships,
     membershipsLoading,
@@ -225,10 +232,11 @@ export const PortalStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
     getDocumentUrl,
     listLinkOptions,
     submit,
+    uploadDocument,
   }), [
     memberships, membershipsLoading, membershipsFailed, tenantId, context, contextLoading, error, errorCode,
     retryContext, retryMemberships, recordsByCollection, isCollectionLoading, getDocuments, getDocumentUrl,
-    listLinkOptions, submit,
+    listLinkOptions, submit, uploadDocument,
   ]);
 
   return <PortalStoreContext.Provider value={value}>{children}</PortalStoreContext.Provider>;

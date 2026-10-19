@@ -20,6 +20,7 @@ import {
   makeInvitePortalUserUseCase,
   makeRevokePortalUserUseCase,
   makeSubmitPortalRecordUseCase,
+  makeAttachPortalDocumentUseCase,
 } from '../../domain/usecases/PortalAccessUseCases';
 import { portalRecordWriter } from '../portal/portalRecordWriter';
 import type {
@@ -28,6 +29,8 @@ import type {
   InvitePortalUserUseCase,
   RevokePortalUserUseCase,
   SubmitPortalRecordUseCase,
+  AttachPortalDocumentUseCase,
+  AttachPortalDocumentDeps,
 } from '../../domain/usecases/PortalAccessUseCases';
 import { FirebaseAuditLogRepository } from '../../data/repositories/FirebaseAuditLogRepository';
 import { FirebaseExtensionStatsRepository } from '../../data/repositories/FirebaseExtensionStatsRepository';
@@ -299,6 +302,25 @@ class DIContainer {
 
   getSubmitPortalRecordUseCase(): SubmitPortalRecordUseCase {
     return makeSubmitPortalRecordUseCase(this.getPortalRepository(), portalRecordWriter);
+  }
+
+  getAttachPortalDocumentUseCase(documentTypes: AttachPortalDocumentDeps['documentTypes']): AttachPortalDocumentUseCase {
+    return makeAttachPortalDocumentUseCase(this.getPortalRepository(), {
+      documentTypes,
+      // A MESMA porta de anexo do agente e da automação: mesmo caminho no bucket, mesma subcoleção, e
+      // a cascata e a auditoria o alcançam sem saber que veio do portal.
+      attach: async (file) => this.getRecordDocumentWriter().attach({
+        tenantId: file.tenantId,
+        physicalCollection: file.collection,
+        recordId: file.recordId,
+        name: file.name,
+        contentType: file.contentType,
+        data: file.data,
+        type: file.type,
+        author: { uid: file.userId, name: file.userName, via: 'portal' },
+        portalShared: true,
+      }),
+    });
   }
 
   getPortalContextUseCase(): GetPortalContextUseCase {

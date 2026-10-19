@@ -6,6 +6,7 @@ import { Button } from '../../components/ui/Button';
 import { Spinner } from '../../components/ui/Spinner';
 import { getScreenIcon } from '../../shared/screenIcons';
 import { PortalCreateForm } from './components/PortalCreateForm';
+import { PortalUploadForm } from './components/PortalUploadForm';
 import { useT } from '../../shared/i18n/useT';
 
 export const PortalView: React.FC = () => {
@@ -181,6 +182,14 @@ export const PortalView: React.FC = () => {
       {vm.selected.hasDocuments && (
         <>
           <S.SectionTitle>{t('portal.documents')}</S.SectionTitle>
+          {vm.upload && (
+            <PortalUploadForm
+              collection={vm.upload.collection}
+              recordId={vm.upload.recordId}
+              types={vm.upload.types}
+              onUploaded={vm.handleUploaded}
+            />
+          )}
           {vm.documentError && <S.ErrorText>{t('portal.document.unavailable')}</S.ErrorText>}
           {vm.selected.documentsLoading ? (
             <Spinner size={20} />

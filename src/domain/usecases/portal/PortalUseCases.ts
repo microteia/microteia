@@ -83,3 +83,11 @@ export type SavePortalHomeSettingsUseCase = { execute: (tenantId: string, settin
 export const makeSavePortalHomeSettingsUseCase = (repo: IPortalRepository): SavePortalHomeSettingsUseCase => ({
   execute: (tenantId, settings) => repo.saveHomeSettings(tenantId, settings),
 });
+
+export type UploadPortalDocumentUseCase = {
+  execute: (input: { tenantId: string; userId: string; collection: string; recordId: string; file: File; type: string }) => Promise<{ id: string }>;
+};
+
+export const makeUploadPortalDocumentUseCase = (repo: IPortalRepository): UploadPortalDocumentUseCase => ({
+  execute: (input) => repo.uploadDocument(input),
+});
