@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.130.1] — 2026-10-19
+
+- A aba "Portal" do Form Design agora explica por que uma tela só oferece a opção de receber convidados, e como ligar os registros dela a outra tela para que o convidado possa criá-los.
+
 #### [9.130.0] — 2026-10-18
 
 - O convidado do portal agora também pode enviar registros — um pedido do cliente, uma nota emitida pela empresa. No Form Design, a aba "Portal" de cada tela define se ela aceita esses envios e quais campos o convidado preenche.

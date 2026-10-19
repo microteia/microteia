@@ -18,6 +18,10 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.130.1] — 2026-10-19
+
+- fix(form-design): the Portal tab explains its disabled states. A screen with no reference field and no parent shows why `'self'` is the only subject (`portal.subject.only-self`), and the disabled "guests can create" option on a `'self'` screen now says how to model creation — a reference field on the other screen, chosen there as the subject (`portal.create.self-hint`). `com.microteia.locale-pt-br` 1.110.0.
+
 #### [9.130.0] — 2026-10-18
 
 - feat(portal): guests create records. `PortalDeclaration.create: { fields }` (refused on `'self'`); synced `portal.ts` gains `portalLinkOf`, `portalCreateFieldKeys`, `buildPortalSubmission` and the `portal.issue.create.*` checks (create on the subject screen, no fillable fields, required field without default left out). KERNEL_VERSION 2.52.0.

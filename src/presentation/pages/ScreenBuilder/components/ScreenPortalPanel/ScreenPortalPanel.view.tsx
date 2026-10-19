@@ -66,6 +66,9 @@ export const ScreenPortalPanel: React.FC<ScreenPortalPanelProps> = (props) => {
                 options={subjectOptions}
               />
             )}
+            {props.referenceFieldOptions.length === 0 && !props.hasParent && (
+              <S.Hint>{t('portal.subject.only-self')}</S.Hint>
+            )}
             {form.subjectKind === 'field' && (
               <SearchSelect
                 options={props.referenceFieldOptions}
