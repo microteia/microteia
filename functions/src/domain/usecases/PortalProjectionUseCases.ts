@@ -2,6 +2,8 @@ import type { IPortalRepository, PortalProjection, PortalScreen } from '../repos
 import {
   PORTAL_SUBJECT_MAX_DEPTH,
   parsePortalSubjectKey,
+  portalLinkOf,
+  portalSubjectKey,
   portalExposedTitle,
   portalFieldKeys,
   portalRecordDocId,
@@ -100,6 +102,12 @@ export const makeProjectPortalRecordUseCase = (repo: IPortalRepository): Project
         labels[key] = titles.filter((title) => title !== '').join(', ');
       }
 
+      const link = portalLinkOf(screen);
+      const linkTarget = link ? screenFor(link.targetEntity) : undefined;
+      const parentKeys = link && linkTarget
+        ? referencedIds(data[link.fieldKey]).map((id) => portalSubjectKey(linkTarget.collection, id))
+        : [];
+
       const projection: PortalProjection = {
         collection: screen.collection,
         recordId,
@@ -109,6 +117,7 @@ export const makeProjectPortalRecordUseCase = (repo: IPortalRepository): Project
         title: portalExposedTitle(screen, data),
         data: projectPortalData(screen, data),
         labels,
+        parentKeys,
       };
       await repo.writeProjection(tenantId, projectionId, projection);
 

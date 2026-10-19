@@ -34,6 +34,7 @@ describe('projeção do portal', () => {
     expect(projection?.data).not.toHaveProperty('auditNote');
     expect(projection?.audience).toEqual(['ana']);
     expect(projection?.labels).toEqual({ companyId: 'Acme' });
+    expect(projection?.parentKeys).toEqual(['companies/acme']);
   });
 
   it('a coleção que não declara portal não é projetada', async () => {
@@ -61,6 +62,7 @@ describe('projeção do portal', () => {
     await write('invoices', 'nf1', { number: 'NF-1', companyId: 'acme' });
     await write('invoiceItems', 'it1', { description: 'Serviço', invoiceId: 'nf1' });
     expect(projections.get('invoiceItems__it1')?.audience).toEqual(['ana']);
+    expect(projections.get('invoiceItems__it1')?.parentKeys).toEqual(['invoices/nf1']);
 
     await write('invoices', 'nf1', { number: 'NF-1', companyId: 'globex' });
     expect(projections.get('invoices__nf1')?.audience).toEqual(['bia']);

@@ -11,6 +11,13 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.131.0] — 2026-10-19
+
+- O portal passou a mostrar os registros na hierarquia certa: o menu mostra só os principais — como os prestadores de serviço —, e as notas fiscais de cada prestador aparecem dentro dele. A nota criada ali já nasce vinculada ao prestador aberto, sem perguntar.
+- O portal ficou bem mais rápido: abre com as informações da última visita enquanto atualiza, e trocar de aba ou abrir um registro não espera mais pela rede.
+- Uma falha passageira ao abrir o portal é tentada de novo automaticamente, sem exigir que a pessoa clique em "Tentar de novo".
+- Os textos do portal deixaram de aparecer em inglês nas telas de carregamento e de aviso.
+
 #### [9.130.4] — 2026-10-19
 
 - Ao abrir o link de acesso, o portal mostra "Entrando…" em vez de exibir por um instante a tela de login.

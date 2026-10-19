@@ -215,6 +215,18 @@ export const PortalLocaleProvider: React.FC<{ children: React.ReactNode }> = ({ 
     const normalized = normalizeLocale(context?.locale || invitation);
     return normalized === '' ? undefined : normalized;
   }, [context, memberships, tenantId]);
+
+  // O mesmo ESPELHO do escritório: o idioma conhecido fica no navegador, e é ele que fala nas telas que
+  // aparecem antes de haver convite ou contexto na próxima visita — o "carregando", o erro.
+  useEffect(() => {
+    if (!preferred) return;
+    try {
+      localStorage.setItem(STORAGE_KEY, preferred);
+    } catch {
+      // Sem armazenamento, a próxima visita começa no idioma do navegador — só isso.
+    }
+  }, [preferred]);
+
   return <LocaleProvider preferred={preferred}>{children}</LocaleProvider>;
 };
 
@@ -228,5 +240,14 @@ export const UrlLocaleProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const normalized = normalizeLocale(params.get('locale') ?? '');
     return normalized === '' ? undefined : normalized;
   }, [params]);
+
+  useEffect(() => {
+    if (!preferred) return;
+    try {
+      localStorage.setItem(STORAGE_KEY, preferred);
+    } catch {
+      // Idem: só conveniência.
+    }
+  }, [preferred]);
   return <LocaleProvider preferred={preferred}>{children}</LocaleProvider>;
 };

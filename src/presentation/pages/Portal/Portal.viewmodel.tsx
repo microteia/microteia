@@ -4,6 +4,7 @@ import { useAuth } from '../../../stores/useAuth';
 import { usePortal } from '../../../stores/usePortal';
 import { useLocaleFormat, useT } from '../../shared/i18n/useT';
 import type { PortalDocument, PortalRecord, PortalScreenInfo } from '../../../domain/entities/Portal';
+import { portalSubjectKey } from '../../../domain/schema/portal';
 import { PORTAL_PATH, portalTenantPath } from './portalPaths';
 
 const SUMMARY_FIELDS = 3;
@@ -17,6 +18,7 @@ export interface PortalFieldView {
 }
 
 export interface PortalRecordCard {
+  collection: string;
   id: string;
   title: string;
   summary: string;
@@ -36,6 +38,22 @@ export interface PortalScreenTab {
   active: boolean;
 }
 
+/** Uma tela-filha dentro do registro aberto: as notas do prestador. */
+export interface PortalChildSection {
+  collection: string;
+  title: string;
+  /** O rótulo do botão, já com o nome da tela. */
+  createLabel: string | null;
+  loading: boolean;
+  records: PortalRecordCard[];
+}
+
+/** O que está sendo criado, e — quando nasce dentro de um pai — a que registro ele pertence. */
+interface CreatingState {
+  collection: string;
+  parentRecordId: string | null;
+}
+
 export interface PortalViewModel {
   loading: boolean;
   error: 'no-access' | 'load-failed' | 'not-invited' | 'context-failed' | null;
@@ -52,10 +70,13 @@ export interface PortalViewModel {
   goToChooser: () => void;
   tenantName: string;
   logoURL: string | null;
+  /** Só as telas de TOPO: as filhas aparecem dentro do pai. */
   screens: PortalScreenTab[];
   selectScreen: (collection: string) => void;
   records: PortalRecordCard[];
   recordsLoading: boolean;
+  /** A tela de topo aceita registros do convidado — o pai é escolhido no formulário. */
+  rootCreateLabel: string | null;
   emptyScreens: boolean;
   selected: {
     title: string;
@@ -63,20 +84,22 @@ export interface PortalViewModel {
     hasDocuments: boolean;
     documents: PortalDocumentView[];
     documentsLoading: boolean;
+    children: PortalChildSection[];
   } | null;
-  openRecord: (id: string) => void;
-  closeRecord: () => void;
+  openRecord: (collection: string, id: string) => void;
+  goBack: () => void;
   openDocument: (documentId: string) => Promise<void>;
   openingDocumentId: string | null;
   documentError: boolean;
   signOut: () => Promise<void>;
-  /** A tela aceita registros do convidado — e, se aceita, a tela é esta. */
-  createScreen: PortalScreenInfo | null;
-  creating: boolean;
-  startCreate: () => void;
+  /** O formulário aberto: a tela, e o registro-pai já fixado quando ele nasce dentro de um. */
+  creating: { screen: PortalScreenInfo; parentRecordId: string | null } | null;
+  startCreate: (collection: string) => void;
+  /** "Novo" na lista de topo: o formulário pergunta a qual registro do convidado o novo pertence. */
+  startRootCreate: () => void;
   cancelCreate: () => void;
   handleSubmitted: () => void;
-  /** O registro enviado aparece na lista quando o servidor o projeta — segundos depois. */
+  /** O registro enviado aparece quando o servidor o projeta — segundos depois. */
   justSubmitted: boolean;
 }
 
@@ -91,15 +114,18 @@ export const usePortalViewModel = (): PortalViewModel => {
   const t = useT('core.tenant');
   const { formatDate, formatMoney, formatNumber } = useLocaleFormat();
 
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [rootChoice, setRootChoice] = useState<string | null>(null);
+  /** A pilha do que foi aberto: o prestador, depois a nota dele. "Voltar" desempilha. */
+  const [stack, setStack] = useState<Array<{ collection: string; id: string }>>([]);
   const [documents, setDocuments] = useState<PortalDocument[]>([]);
   const [documentsLoading, setDocumentsLoading] = useState(false);
   const [openingDocumentId, setOpeningDocumentId] = useState<string | null>(null);
   const [documentError, setDocumentError] = useState(false);
-  const [creating, setCreating] = useState(false);
+  const [creating, setCreating] = useState<CreatingState | null>(null);
   const [justSubmitted, setJustSubmitted] = useState(false);
 
-  const { memberships, membershipsLoading, selectTenant, getDocuments, getDocumentUrl, selectCollection } = portal;
+  const { memberships, membershipsLoading, selectTenant, getDocuments, getDocumentUrl, recordsByCollection, isCollectionLoading } = portal;
+  const screens = useMemo(() => portal.context?.screens ?? [], [portal.context]);
 
   useEffect(() => {
     if (routeTenantId) {
@@ -111,10 +137,18 @@ export const usePortalViewModel = (): PortalViewModel => {
     }
   }, [routeTenantId, membershipsLoading, memberships, selectTenant, navigate]);
 
-  const screen = useMemo(
-    () => portal.context?.screens.find((one) => one.collection === portal.collection) ?? null,
-    [portal.context, portal.collection],
+  const screenOf = useCallback(
+    (collection: string) => screens.find((one) => one.collection === collection) ?? null,
+    [screens],
   );
+
+  // Raiz é a tela sem pai NO PORTAL. Uma nota cujo prestador não está exposto continua de topo: não
+  // há pai onde mostrá-la.
+  const roots = useMemo(() => screens.filter((one) => !one.parent || !screenOf(one.parent.collection)), [screens, screenOf]);
+  const rootCollection = rootChoice && roots.some((one) => one.collection === rootChoice)
+    ? rootChoice
+    : roots[0]?.collection ?? null;
+  const rootScreen = rootCollection ? screenOf(rootCollection) : null;
 
   const formatValue = useCallback((field: PortalScreenInfo['fields'][number], record: PortalRecord): PortalFieldView => {
     const raw = record.data[field.key];
@@ -140,45 +174,54 @@ export const usePortalViewModel = (): PortalViewModel => {
     }
   }, [t, formatDate, formatMoney, formatNumber]);
 
-  const records = useMemo<PortalRecordCard[]>(() => portal.records.map((record) => ({
+  const cardOf = useCallback((screen: PortalScreenInfo, record: PortalRecord): PortalRecordCard => ({
+    collection: screen.collection,
     id: record.id,
     title: record.title || t('portal.record.untitled'),
-    summary: (screen?.fields ?? [])
+    summary: screen.fields
       .map((field) => formatValue(field, record))
       .filter((field) => field.value !== '' && field.href === null)
       .slice(0, SUMMARY_FIELDS)
       .map((field) => `${field.label}: ${field.value}`)
       .join(' · '),
     updatedAt: record.updatedAt ? t('portal.record.updated', { date: formatDate(record.updatedAt) }) : '',
-  })), [portal.records, screen, formatValue, formatDate, t]);
+  }), [formatValue, formatDate, t]);
 
-  const selectedRecord = useMemo(
-    () => portal.records.find((record) => record.id === selectedId) ?? null,
-    [portal.records, selectedId],
+  const records = useMemo<PortalRecordCard[]>(
+    () => (rootScreen ? (recordsByCollection[rootScreen.collection] ?? []).map((record) => cardOf(rootScreen, record)) : []),
+    [rootScreen, recordsByCollection, cardOf],
   );
 
-  const selectedRecordId = selectedRecord?.id ?? null;
-  const exposesDocuments = screen?.documents === true;
+  const top = stack.length > 0 ? stack[stack.length - 1] : null;
+  const topScreen = top ? screenOf(top.collection) : null;
+  const topRecord = useMemo(
+    () => (top ? (recordsByCollection[top.collection] ?? []).find((record) => record.id === top.id) ?? null : null),
+    [top, recordsByCollection],
+  );
+
+  const topRecordId = topRecord?.id ?? null;
+  const exposesDocuments = topScreen?.documents === true;
 
   useEffect(() => {
-    if (!selectedRecordId || !exposesDocuments) return;
+    if (!topRecordId || !exposesDocuments) return;
     let active = true;
     // eslint-disable-next-line react-hooks/set-state-in-effect -- abrir outro registro troca a lista de documentos
     setDocumentsLoading(true);
     setDocuments([]);
-    getDocuments(selectedRecordId)
+    getDocuments(topRecordId)
       .then((loaded) => { if (active) setDocuments(loaded); })
       .catch(() => { if (active) setDocuments([]); })
       .finally(() => { if (active) setDocumentsLoading(false); });
     return () => { active = false; };
-  }, [selectedRecordId, exposesDocuments, getDocuments]);
+  }, [topRecordId, exposesDocuments, getDocuments]);
 
   const selected = useMemo(() => {
-    if (!selectedRecord || !screen) return null;
+    if (!topRecord || !topScreen) return null;
+    const parentKey = portalSubjectKey(topScreen.collection, topRecord.recordId);
     return {
-      title: selectedRecord.title || t('portal.record.untitled'),
-      fields: screen.fields.map((field) => formatValue(field, selectedRecord)).filter((field) => field.value !== ''),
-      hasDocuments: screen.documents,
+      title: topRecord.title || t('portal.record.untitled'),
+      fields: topScreen.fields.map((field) => formatValue(field, topRecord)).filter((field) => field.value !== ''),
+      hasDocuments: topScreen.documents,
       documents: documents.map((document) => ({
         id: document.id,
         name: document.name,
@@ -187,18 +230,29 @@ export const usePortalViewModel = (): PortalViewModel => {
           .join(' · '),
       })),
       documentsLoading,
+      children: screens
+        .filter((child) => child.parent?.collection === topScreen.collection)
+        .map((child) => ({
+          collection: child.collection,
+          title: child.titlePlural,
+          createLabel: child.create ? t('portal.create.new', { screen: child.titleSingular }) : null,
+          loading: isCollectionLoading(child.collection),
+          records: (recordsByCollection[child.collection] ?? [])
+            .filter((record) => record.parentKeys.includes(parentKey))
+            .map((record) => cardOf(child, record)),
+        })),
     };
-  }, [selectedRecord, screen, documents, documentsLoading, formatValue, formatDate, t]);
+  }, [topRecord, topScreen, documents, documentsLoading, screens, recordsByCollection, isCollectionLoading, formatValue, formatDate, cardOf, t]);
 
   const openDocument = useCallback(async (documentId: string) => {
-    if (!selectedRecord) return;
+    if (!topRecord) return;
     // A janela abre ANTES da espera: aberta depois de uma promessa, o navegador a trata como pop-up
     // não pedido e a bloqueia.
     const opened = window.open('', '_blank');
     setOpeningDocumentId(documentId);
     setDocumentError(false);
     try {
-      const url = await getDocumentUrl(selectedRecord.id, documentId);
+      const url = await getDocumentUrl(topRecord.id, documentId);
       if (opened) opened.location.href = url;
       else window.location.href = url;
     } catch {
@@ -207,20 +261,40 @@ export const usePortalViewModel = (): PortalViewModel => {
     } finally {
       setOpeningDocumentId(null);
     }
-  }, [selectedRecord, getDocumentUrl]);
+  }, [topRecord, getDocumentUrl]);
 
   const chooseTenant = useCallback((tenantId: string) => navigate(portalTenantPath(tenantId)), [navigate]);
 
   const selectScreen = useCallback((collection: string) => {
-    setSelectedId(null);
-    setCreating(false);
+    setRootChoice(collection);
+    setStack([]);
+    setCreating(null);
     setJustSubmitted(false);
-    selectCollection(collection);
-  }, [selectCollection]);
+  }, []);
+
+  const openRecord = useCallback((collection: string, id: string) => {
+    setCreating(null);
+    setJustSubmitted(false);
+    setDocumentError(false);
+    setStack((prev) => [...prev, { collection, id }]);
+  }, []);
+
+  const goBack = useCallback(() => {
+    setDocumentError(false);
+    setStack((prev) => prev.slice(0, -1));
+  }, []);
+
+  // Criar DENTRO de um registro já fixa o pai: a nota nasce do prestador aberto, sem pergunta. Na
+  // lista de topo, o formulário pergunta a qual dos registros do convidado o novo pertence.
+  const startCreate = useCallback((collection: string) => {
+    setJustSubmitted(false);
+    setCreating({ collection, parentRecordId: topRecord && topScreen?.collection !== collection ? topRecord.recordId : null });
+  }, [topRecord, topScreen]);
 
   const showChooser = !routeTenantId;
   const noAccess = !membershipsLoading && memberships.length === 0;
   const loadFailed = !membershipsLoading && portal.membershipsFailed;
+  const creatingScreen = creating ? screenOf(creating.collection) : null;
 
   return {
     loading: membershipsLoading || (!showChooser && portal.contextLoading),
@@ -239,33 +313,34 @@ export const usePortalViewModel = (): PortalViewModel => {
     goToChooser: () => navigate(PORTAL_PATH),
     tenantName: portal.context?.tenantName ?? '',
     logoURL: portal.context?.logoURL ?? null,
-    screens: (portal.context?.screens ?? []).map((one) => ({
+    screens: roots.map((one) => ({
       collection: one.collection,
       label: one.titlePlural,
       icon: one.icon,
-      active: one.collection === portal.collection,
+      active: one.collection === rootCollection,
     })),
     selectScreen,
     records,
-    recordsLoading: portal.recordsLoading,
-    emptyScreens: !!portal.context && portal.context.screens.length === 0,
+    recordsLoading: rootCollection ? isCollectionLoading(rootCollection) : false,
+    rootCreateLabel: rootScreen?.create ? t('portal.create.new', { screen: rootScreen.titleSingular }) : null,
+    emptyScreens: !!portal.context && screens.length === 0,
     selected,
-    openRecord: setSelectedId,
-    closeRecord: () => setSelectedId(null),
+    openRecord,
+    goBack,
     openDocument,
     openingDocumentId,
     documentError,
     signOut,
-    createScreen: screen?.create ? screen : null,
-    creating,
-    startCreate: () => {
-      setSelectedId(null);
+    creating: creating && creatingScreen ? { screen: creatingScreen, parentRecordId: creating.parentRecordId } : null,
+    startCreate,
+    startRootCreate: () => {
+      if (!rootCollection) return;
       setJustSubmitted(false);
-      setCreating(true);
+      setCreating({ collection: rootCollection, parentRecordId: null });
     },
-    cancelCreate: () => setCreating(false),
+    cancelCreate: () => setCreating(null),
     handleSubmitted: () => {
-      setCreating(false);
+      setCreating(null);
       setJustSubmitted(true);
     },
     justSubmitted,

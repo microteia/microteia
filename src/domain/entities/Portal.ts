@@ -14,6 +14,8 @@ export interface PortalScreenInfo {
   titlePlural: string;
   icon: string;
   documents: boolean;
+  /** A tela-pai no portal: os registros desta aparecem DENTRO dos dela, e não soltos no menu. */
+  parent: { collection: string } | null;
   fields: PortalFieldInfo[];
   /** O convidado cria registros desta tela: o que ele preenche, e a que o novo se vincula. */
   create: {
@@ -54,6 +56,8 @@ export interface PortalRecord {
   title: string;
   data: Record<string, unknown>;
   labels: Record<string, string>;
+  /** O registro-pai no portal (`colecao/id`) — o prestador de uma nota. */
+  parentKeys: string[];
   updatedAt: Date | null;
 }
 

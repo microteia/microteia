@@ -126,6 +126,8 @@ describe('contexto do portal', () => {
     const invoices = context.screens.find((screen) => screen.id === 'invoices');
     expect(invoices?.fields.map((field) => field.key)).toEqual(['number', 'amount', 'companyId']);
     expect(invoices?.titlePlural).toBe('INVOICES');
+    expect(invoices?.parent).toEqual({ collection: 'companies' });
+    expect(context.screens.find((screen) => screen.id === 'companies')?.parent).toBeNull();
   });
 
   it('quem não é convidado não recebe nada', async () => {
@@ -185,7 +187,7 @@ describe('o convidado cria um registro', () => {
     fake.users.set('ana', { userId: 'ana', email: 'ana@acme.com', displayName: 'Ana', subjectKeys: ['companies/acme'] });
     fake.projections.set('invoices__nf1', {
       collection: 'invoices', recordId: 'nf1', screenId: 'invoices', subjectKeys: ['companies/acme'],
-      audience: ['ana'], title: '', data: {}, labels: {},
+      audience: ['ana'], title: '', data: {}, labels: {}, parentKeys: ['companies/acme'],
     });
     const write = vi.fn(async () => ({ ok: true as const, id: 'it-1' }));
     const submit = makeSubmitPortalRecordUseCase(fake.repo, write);

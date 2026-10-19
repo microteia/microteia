@@ -18,6 +18,12 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.131.0] — 2026-10-19
+
+- feat(portal): master-detail navigation. Projections carry `parentKeys` (the linked record as `collection/id`, from `portalLinkOf`; older projections fall back to `subjectKeys` on the client) and `getPortalContext` describes each screen's `parent`. The shell's menu lists only root screens; a record's detail shows its child screens filtered by `parentKeys`, with a navigation stack for "Back", and creating inside a parent fixes the link (`PortalCreateForm.fixedLinkRecordId`).
+- perf(portal): `PortalStore` subscribes every exposed collection at once (`recordsByCollection`, `isCollectionLoading`) instead of one per tab click; the context is cached per user and organization in `localStorage` and revalidated in the background; transient callable failures are retried (800 ms, 2 s); a `permission-denied` clears the cache.
+- fix(portal): the portal locale is mirrored to the browser (`PortalLocaleProvider`, `UrlLocaleProvider`), so loading and error screens follow it on the next visit. Callables log unexpected errors through `firebase-functions/v2` `logger` — `console.error` reached `functions:log` as a blank line. Deploy: `npm run deploy:portal`.
+
 #### [9.130.4] — 2026-10-19
 
 - fix(portal): `/portal` and `/portal/:tenantId` were sibling routes, each mounting its own `PortalStoreProvider`; every step between them remounted the store and reloaded invitations and context. They are now children of a single `/portal` route rendering an `<Outlet />` inside one provider.

@@ -225,6 +225,20 @@ export const S = {
     white-space: nowrap;
   `,
 
+  ChildSection: styled.section`
+    display: flex;
+    flex-direction: column;
+    gap: ${({ theme }) => theme.spacing.sm};
+  `,
+
+  ChildHeader: styled.div`
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: ${({ theme }) => theme.spacing.sm};
+    flex-wrap: wrap;
+  `,
+
   Toolbar: styled.div`
     display: flex;
     justify-content: flex-end;

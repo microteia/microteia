@@ -82,6 +82,18 @@ export const PortalView: React.FC = () => {
     );
   }
 
+  const recordList = (cards: typeof vm.records) => (
+    <S.List>
+      {cards.map((record) => (
+        <S.Card key={record.id} onClick={() => vm.openRecord(record.collection, record.id)}>
+          <S.CardTitle>{record.title}</S.CardTitle>
+          {record.summary && <S.CardMeta>{record.summary}</S.CardMeta>}
+          {record.updatedAt && <S.Muted>{record.updatedAt}</S.Muted>}
+        </S.Card>
+      ))}
+    </S.List>
+  );
+
   return (
     <S.Page>
       {header}
@@ -96,23 +108,20 @@ export const PortalView: React.FC = () => {
         </S.Nav>
       )}
       <S.Main>
-        {vm.createScreen && !vm.creating && !vm.selected && (
-          <S.Toolbar>
-            <Button size="sm" onClick={vm.startCreate}>
-              <RiAddLine size={14} />
-              {t('portal.create.new', { screen: vm.createScreen.titleSingular })}
-            </Button>
-          </S.Toolbar>
-        )}
         {vm.justSubmitted && !vm.creating && <S.Success>{t('portal.create.sent')}</S.Success>}
         {vm.emptyScreens ? (
           <S.Centered>{t('portal.empty-screens')}</S.Centered>
-        ) : vm.creating && vm.createScreen ? (
-          <PortalCreateForm screen={vm.createScreen} onCancel={vm.cancelCreate} onSubmitted={vm.handleSubmitted} />
+        ) : vm.creating ? (
+          <PortalCreateForm
+            screen={vm.creating.screen}
+            fixedLinkRecordId={vm.creating.parentRecordId}
+            onCancel={vm.cancelCreate}
+            onSubmitted={vm.handleSubmitted}
+          />
         ) : vm.selected ? (
           <S.Detail>
             <div>
-              <Button variant="ghost" size="sm" onClick={vm.closeRecord}>
+              <Button variant="ghost" size="sm" onClick={vm.goBack}>
                 <RiArrowLeftLine size={14} />
                 {t('portal.record.back')}
               </Button>
@@ -130,6 +139,24 @@ export const PortalView: React.FC = () => {
                 </S.Field>
               ))}
             </S.Fields>
+            {vm.selected.children.map((child) => (
+              <S.ChildSection key={child.collection}>
+                <S.ChildHeader>
+                  <S.SectionTitle>{child.title}</S.SectionTitle>
+                  {child.createLabel && (
+                    <Button size="sm" onClick={() => vm.startCreate(child.collection)}>
+                      <RiAddLine size={14} />
+                      {child.createLabel}
+                    </Button>
+                  )}
+                </S.ChildHeader>
+                {child.loading ? (
+                  <Spinner size={20} />
+                ) : child.records.length === 0 ? (
+                  <S.Muted>{t('portal.records.empty')}</S.Muted>
+                ) : recordList(child.records)}
+              </S.ChildSection>
+            ))}
             {vm.selected.hasDocuments && (
               <>
                 <S.SectionTitle>{t('portal.documents')}</S.SectionTitle>
@@ -158,20 +185,22 @@ export const PortalView: React.FC = () => {
               </>
             )}
           </S.Detail>
-        ) : vm.recordsLoading ? (
-          <S.Centered><Spinner size={28} /></S.Centered>
-        ) : vm.records.length === 0 ? (
-          <S.Centered>{t('portal.records.empty')}</S.Centered>
         ) : (
-          <S.List>
-            {vm.records.map((record) => (
-              <S.Card key={record.id} onClick={() => vm.openRecord(record.id)}>
-                <S.CardTitle>{record.title}</S.CardTitle>
-                {record.summary && <S.CardMeta>{record.summary}</S.CardMeta>}
-                {record.updatedAt && <S.Muted>{record.updatedAt}</S.Muted>}
-              </S.Card>
-            ))}
-          </S.List>
+          <>
+            {vm.rootCreateLabel && (
+              <S.Toolbar>
+                <Button size="sm" onClick={vm.startRootCreate}>
+                  <RiAddLine size={14} />
+                  {vm.rootCreateLabel}
+                </Button>
+              </S.Toolbar>
+            )}
+            {vm.recordsLoading ? (
+              <S.Centered><Spinner size={28} /></S.Centered>
+            ) : vm.records.length === 0 ? (
+              <S.Centered>{t('portal.records.empty')}</S.Centered>
+            ) : recordList(vm.records)}
+          </>
         )}
       </S.Main>
     </S.Page>

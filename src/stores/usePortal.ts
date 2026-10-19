@@ -19,11 +19,14 @@ export interface PortalStoreValue {
   errorCode: string | null;
   retryContext: () => void;
   retryMemberships: () => void;
-  collection: string | null;
-  records: PortalRecord[];
-  recordsLoading: boolean;
+  /**
+   * Os registros de TODAS as telas do portal, assinados juntos. Trocar de aba ou abrir um pai não
+   * espera rede: era cada clique abrindo uma consulta do zero que deixava a navegação lenta.
+   */
+  recordsByCollection: Record<string, PortalRecord[]>;
+  /** A coleção ainda não recebeu o primeiro retrato. */
+  isCollectionLoading: (collection: string) => boolean;
   selectTenant: (tenantId: string) => void;
-  selectCollection: (collection: string) => void;
   getDocuments: (projectionId: string) => Promise<PortalDocument[]>;
   getDocumentUrl: (projectionId: string, documentId: string) => Promise<string>;
   listLinkOptions: (collection: string) => Promise<PortalLinkOption[]>;

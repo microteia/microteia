@@ -41,6 +41,9 @@ const mapRecord = (id: string, data: Record<string, unknown>): PortalRecord => (
   title: textOf(data.title),
   data: (data.data as Record<string, unknown> | undefined) ?? {},
   labels: (data.labels as Record<string, string> | undefined) ?? {},
+  // Projeções gravadas antes do campo: o sujeito é o pai de quem aponta direto para a tela-sujeito,
+  // que é o caso comum. O resto se acerta na próxima gravação do registro.
+  parentKeys: stringsOf(data.parentKeys).length > 0 ? stringsOf(data.parentKeys) : stringsOf(data.subjectKeys),
   updatedAt: dateOf(data.updatedAt),
 });
 

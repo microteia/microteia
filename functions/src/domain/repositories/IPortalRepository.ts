@@ -45,6 +45,11 @@ export interface PortalProjection {
   data: Record<string, unknown>;
   /** O rótulo do registro APONTADO por cada campo `reference` exposto — o id não diz nada a quem é de fora. */
   labels: Record<string, string>;
+  /**
+   * O registro-PAI no portal (`colecao/id`): o prestador de uma nota, a nota de um item. É por ele que
+   * a casca mostra os filhos dentro do pai, em vez de soltos numa aba.
+   */
+  parentKeys: string[];
 }
 
 export interface PortalDocumentProjection {

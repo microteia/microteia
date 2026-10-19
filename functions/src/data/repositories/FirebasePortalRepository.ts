@@ -69,6 +69,7 @@ const toProjection = (data: DocumentData): PortalProjection => ({
   title: asString(data.title),
   data: (data.data as Record<string, unknown> | undefined) ?? {},
   labels: (data.labels as Record<string, string> | undefined) ?? {},
+  parentKeys: asStrings(data.parentKeys),
 });
 
 const toSharedDocument = (id: string, data: DocumentData): SharedRecordDocument => ({

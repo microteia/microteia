@@ -120,6 +120,8 @@ export const makeGetPortalDocumentUrlUseCase = (repo: IPortalRepository): GetPor
 
 export interface PortalContextScreen {
   id: string;
+  /** A tela-PAI no portal — a do registro a que os desta apontam. Os desta aparecem dentro dele. */
+  parent: { collection: string } | null;
   /** O que o convidado preenche ao criar, e a que tipo de registro o novo se vincula. */
   create: {
     fields: Array<{ key: string; label: string; type?: string; required: boolean; options?: Array<{ key: string; label: string }> }>;
@@ -182,6 +184,7 @@ export const makeGetPortalContextUseCase = (repo: IPortalRepository): GetPortalC
         });
         return {
           id: screen.id,
+          parent: linkTarget?.portal ? { collection: linkTarget.collection } : null,
           collection: screen.collection,
           titleSingular: resolve(screen.titleSingular),
           titlePlural: resolve(screen.titlePlural),

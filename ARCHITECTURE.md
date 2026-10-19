@@ -912,6 +912,26 @@ instaladas, como o gateway de agente).
 Quem só tem portal e abre o app cai em `/portal` (`TenantStore.portalOnly`). Quem é membro de um
 escritório e convidado de outro entra pelo link do e-mail.
 
+### Navegação mestre-detalhe — o filho aparece DENTRO do pai
+
+A casca não lista toda tela no menu. A tela cujo vínculo aponta para outra tela do PORTAL é filha
+dela (`PortalContextScreen.parent`): as Notas Fiscais aparecem dentro do Prestador aberto, e
+"Nova nota fiscal" ali já nasce vinculada a ele — o formulário não pergunta a qual prestador. O menu
+mostra só as raízes; a filha cujo pai não está exposto continua raiz, e aí o formulário pergunta.
+
+A projeção grava `parentKeys` (`colecao/id` do registro apontado pelo vínculo), e é por ele que a
+casca filtra os filhos de um pai. Projeção anterior ao campo cai em `subjectKeys`, que é o pai de quem
+aponta direto para a tela-sujeito.
+
+### Rapidez — o que a casca evita esperar
+
+| O que | Como |
+|---|---|
+| A function de contexto acordando (início a frio) | o contexto da última visita fica no navegador e a casca abre com ele; o novo chega em segundo plano. Falha transitória (`internal`, `unavailable`, `deadline-exceeded`) é tentada de novo sozinha |
+| Trocar de aba, abrir um pai | todas as telas do portal são assinadas juntas (`recordsByCollection`), e não uma por clique |
+| `/portal` ↔ `/portal/:tenantId` | uma rota-mãe só: o store não remonta entre os dois |
+| Idioma antes do contexto | o do convite (`PortalMembership.locale`) e o espelho no navegador, como o escritório faz |
+
 ### Documentos
 
 O documento sai do escritório só com três condições: a tela declara `documents: true`, alguém com

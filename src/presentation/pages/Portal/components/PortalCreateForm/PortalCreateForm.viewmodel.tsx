@@ -4,6 +4,8 @@ import type { PortalFieldInfo, PortalLinkOption, PortalScreenInfo } from '../../
 
 export interface PortalCreateFormProps {
   screen: PortalScreenInfo;
+  /** Criado DENTRO de um registro: o pai já é este, e não há o que escolher. */
+  fixedLinkRecordId?: string | null;
   onCancel: () => void;
   onSubmitted: () => void;
 }
@@ -30,18 +32,18 @@ export interface PortalCreateFormViewModel {
 const isEmpty = (value: unknown): boolean =>
   value === undefined || value === null || value === '' || (Array.isArray(value) && value.length === 0);
 
-export const usePortalCreateFormViewModel = ({ screen, onSubmitted }: PortalCreateFormProps): PortalCreateFormViewModel => {
+export const usePortalCreateFormViewModel = ({ screen, fixedLinkRecordId, onSubmitted }: PortalCreateFormProps): PortalCreateFormViewModel => {
   const { listLinkOptions, submit: submitRecord } = usePortal();
   const create = screen.create;
 
   const [values, setValues] = useState<Record<string, unknown>>({});
   const [options, setOptions] = useState<PortalLinkOption[]>([]);
-  const [linkLoading, setLinkLoading] = useState(true);
+  const [linkLoading, setLinkLoading] = useState(!fixedLinkRecordId);
   const [chosenLink, setChosenLink] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const linkCollection = create?.link.collection ?? '';
+  const linkCollection = fixedLinkRecordId ? '' : create?.link.collection ?? '';
 
   useEffect(() => {
     if (!linkCollection) return;
@@ -53,7 +55,7 @@ export const usePortalCreateFormViewModel = ({ screen, onSubmitted }: PortalCrea
     return () => { active = false; };
   }, [linkCollection, listLinkOptions]);
 
-  const linkRecordId = chosenLink || (options.length === 1 ? options[0].recordId : '');
+  const linkRecordId = fixedLinkRecordId || chosenLink || (options.length === 1 ? options[0].recordId : '');
   const fields = useMemo(() => create?.fields ?? [], [create]);
   const missingRequired = fields.some((field) => field.required && isEmpty(values[field.key]));
 
@@ -86,7 +88,7 @@ export const usePortalCreateFormViewModel = ({ screen, onSubmitted }: PortalCrea
     linkRecordId,
     setLinkRecordId: setChosenLink,
     linkLoading,
-    noLinkOptions: !linkLoading && options.length === 0,
+    noLinkOptions: !fixedLinkRecordId && !linkLoading && options.length === 0,
     missingRequired,
     submitting,
     error,

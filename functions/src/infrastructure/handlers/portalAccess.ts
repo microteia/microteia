@@ -1,4 +1,5 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
+import { logger } from 'firebase-functions/v2';
 import { getDI } from '../di/container';
 import { requirePermission } from './shared/requirePermission';
 import { PERMISSION_PORTAL_MANAGE } from '../../domain/schema/access/kernelPermissions';
@@ -30,7 +31,14 @@ const requireString = (value: unknown, message: string): string => {
 const asHttpsError = (error: unknown, operation: string): HttpsError => {
   if (error instanceof HttpsError) return error;
   const code = domainErrorCode(error);
-  if (!code) console.error(`[portal] ${operation} falhou:`, error);
+  if (!code) {
+    // Pelo `logger`, e não `console.error`: a entrada estruturada leva a mensagem no campo que o
+    // `firebase functions:log` exibe — o erro antes saía como uma linha em branco.
+    logger.error(`[portal] ${operation} falhou: ${error instanceof Error ? error.message : String(error)}`, {
+      operation,
+      stack: error instanceof Error ? error.stack : undefined,
+    });
+  }
   const message = error instanceof Error ? error.message : '@core.tenant/portal.failed';
   return new HttpsError(code ?? 'internal', message);
 };
