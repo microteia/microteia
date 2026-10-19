@@ -55,6 +55,7 @@ Os metadados de entidades são **compartilhados** entre frontend e Cloud Functio
 | `domain/entities/entitySchemas.ts` | Tipos (`FieldDefinition`, `ScreenDefinition`, `CustomFieldType`…) e derivações do registry (`ENTITY_FK_SCHEMA`, `CUSTOM_FIELD_ENABLED_ENTITIES`, `BUILTIN_REF_ENTITIES`, `resolveRefEntityCollection`). |
 | `domain/schema/recordKeys.ts` | Chave primária e chave única de registro: `RecordKeySpec`, a normalização, `buildRecordKeyId` (o id da reserva — ponto único, e as três pontas precisam concordar sobre ele), o planejamento (`planRecordKeys`, `diffRecordKeys`) e a validação de autoria. Ver "Chave primária e chave única". |
 | `domain/schema/recordKeyAdoption.ts` | A adoção de chave sobre os registros que já existiam: assinatura da chave, estado do job, plano. Ver "Adoção sobre dados que já existem". |
+| `domain/schema/tenantCollections.ts` | Coleções do escritório: `screenDataCollection`, `presentedScreens`, listas e etiquetas disponíveis (`tenantLookupCollections`, `tenantTagCollections`) e os recursos que elas rendem no catálogo de permissões (`tenantCollectionPermissionResources`). Compartilhado para o catálogo do servidor ser o mesmo do navegador. |
 | `domain/schema/settings.ts` | Contrato de configuração (`SettingsSection`, `SettingsProperty`, `resolveSetting`). Compartilhado porque o backend precisa saber em que idioma falar — ver "Idioma". |
 | `domain/schema/i18n/*` | O motor de idioma inteiro: negociação, catálogo de mensagens, referência `@`, formatação por `Intl` e o gate do idioma ambiente. Ver "Idioma — tradução como contribuição". |
 
@@ -505,6 +506,26 @@ carregamento seria impossível de explicar.
 
 A soma entra **nas duas contas** (`AuthorizationStore` e `PermissionCatalogCache`). Somar só no
 navegador daria a tela que oferece o que a regra recusa.
+
+### Os recursos de COLEÇÃO são uma conta só — `tenantCollectionPermissionResources`
+
+Telas, listas de opções e conjuntos de etiquetas viram recursos do catálogo por
+`tenantCollectionPermissionResources` (`domain/schema/tenantCollections.ts`, sincronizado), e as duas
+pontas a chamam: o `AuthorizationStore` — que alimenta Perfis, a aba de Agentes de IA e o consentimento
+de OAuth, os três pelo mesmo catálogo — e o `PermissionCatalogCache`, que confere a emissão de acesso
+(`issueAgentGrant`) e materializa o conjunto lido pelas rules.
+
+As listas e etiquetas disponíveis também saem dali (`tenantLookupCollections`,
+`tenantTagCollections`): as do núcleo, as que um campo de tela referencia ou uma tela declara, e as
+gravadas em `lookupDefinitions`/`tagDefinitions`. O servidor lia só as gravadas, e o defeito era
+exatamente o que esta seção existe para evitar: o seletor oferecia `<lista>.read` de uma lista
+referenciada por campo, a emissão a recusava como desconhecida, e o consentimento de OAuth falhava
+inteiro com 400.
+
+**Quem RECUSA lê fresco.** O cache tem TTL de 5 minutos e é por instância: a invalidação dos gatilhos
+só alcança a instância em que eles rodam. Por isso `issueAgentGrant` usa
+`PermissionCatalogCache.fresh()` — a emissão é rara, e recusar a tela criada há um minuto é pior que
+três leituras a mais.
 
 ### Não confundir com `manifest.permissions`
 

@@ -18,6 +18,12 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.127.1] — 2026-10-19
+
+- fix(access): the server permission catalog (`PermissionCatalogCache`) now derives collection resources with the same function as the browser (`tenantCollectionPermissionResources`, new shared `domain/schema/tenantCollections.ts`). It used to read only `lookupDefinitions`/`tagDefinitions`, missing lookups referenced by screen fields, tag lists declared by screens and the kernel lists — so the permission picker (Roles, AI agents, OAuth consent) offered ids that `issueAgentGrant` rejected as `agent.permission.unknown`, failing the whole OAuth consent with HTTP 400, and the materialized member permissions read by the Security Rules lacked them.
+- fix(agent): `issueAgentGrant` reads the catalog through `PermissionCatalogCache.fresh()`. Trigger invalidation only reaches the instance it runs on, so a screen or list created minutes before was still unknown to the emitting instance for up to the 5-minute TTL.
+- refactor(schema): `screenDataCollection`, `isBoundScreen`, `presentedScreens`, `screenTagCollections`, `screenLookupCollections` and `collectionPermissionResources` move to the shared schema (re-exported from `domain/services/screenDataCollection`); `BUILTIN_LOOKUPS`/`BUILTIN_TAG_LISTS` are exported from `screenEntity` instead of being rebuilt in `LookupStore`/`TagStore`.
+
 #### [9.127.0] — 2026-10-18
 
 - feat(ui): `ArtifactPrefixBadge` (`components/ui/`) renders the organization prefix inside `PrefixedNameInput`; for members with `tenant.change-prefix` it adds a shortcut to the prefix section of Settings, and with no prefix set it becomes a "Set prefix" invitation. Settings now accepts a deep-link tab key `settings:<scope>:<section>` (`settingsTabKey` / `settingsTabTarget`, page `keyPrefix: 'settings:'`, listed in `kernelPages`). Optional authorization and workspace contexts: outside the workspace the badge only shows the prefix.

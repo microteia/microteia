@@ -12,18 +12,12 @@ import {
   makeSubscribeLookupDefinitionsUseCase,
   makeSubscribeLookupOptionsUseCase,
 } from '../domain/usecases/lookups';
-import { LOOKUP_REGISTRY_LIST } from '../domain/schema/lookupRegistry';
 import { setRecordRulesLookups } from '../data/utils/recordRulesGate';
-import { screenLookupCollections } from '../domain/services/screenDataCollection';
+import { tenantLookupCollections } from '../domain/schema/tenantCollections';
 import type { SchemaLookup } from '../domain/schema/screenEntity';
 import type { LookupDefinition, LookupOption } from '../domain/entities';
 
 import { LocalizedError } from '../domain/errors/LocalizedError';
-const BUILTIN_LOOKUPS: SchemaLookup[] = LOOKUP_REGISTRY_LIST.map((lookup) => ({
-  collection: lookup.collection,
-  label: '@core.data/lookup.qualified',
-  labelParams: { screen: lookup.screenLabel, entity: lookup.entityLabel },
-}));
 
 const EMPTY_OPTIONS: LookupOption[] = [];
 
@@ -62,24 +56,12 @@ export const LookupStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
     return uc.subscribeDefinitions.execute(currentTenant.id, setDefinitions);
   }, [currentTenant, uc.subscribeDefinitions]);
 
-  const screenLookups = useMemo<SchemaLookup[]>(() => screenLookupCollections(screens), [screens]);
-
   const availableLookups = useMemo<SchemaLookup[]>(
-    () => {
-      const byCollection = new Map<string, SchemaLookup>();
-      for (const lookup of [
-        ...BUILTIN_LOOKUPS,
-        ...screenLookups,
-        ...definitions.map((definition) => ({
-          collection: definition.collection,
-          label: definition.label,
-        })),
-      ]) {
-        byCollection.set(lookup.collection, lookup);
-      }
-      return [...byCollection.values()];
-    },
-    [definitions, screenLookups],
+    () => tenantLookupCollections(
+      screens,
+      definitions.map((definition) => ({ collection: definition.collection, label: definition.label })),
+    ),
+    [definitions, screens],
   );
 
   const subscribedCollections = useMemo(

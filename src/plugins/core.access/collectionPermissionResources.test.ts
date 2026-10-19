@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { buildMessageCatalog, translate } from '../../domain/schema/i18n/messages';
 import { resolveLabel } from '../../domain/schema/i18n/messageRef';
 import { buildPermissionCatalog } from '../../domain/schema/access';
-import { collectionPermissionResources } from '../../domain/services/collectionPermissionResources';
+import { collectionPermissionResources } from '../../domain/schema/tenantCollections';
 import { screenTagCollections } from '../../domain/services/screenDataCollection';
 import { LOOKUP_REGISTRY_LIST } from '../../domain/schema/lookupRegistry';
 import { CORE_DATA_MESSAGES, CORE_RECORDS_MESSAGES, coreMessage } from '../coreMessages';

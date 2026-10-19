@@ -7,7 +7,6 @@ import { useScreenDefinitions } from './useScreenDefinitions';
 import { useLookups } from './useLookups';
 import { useTags } from './useTags';
 import { useContributions } from './useKernel';
-import type { PermissionResource } from '../domain/schema/access';
 import {
   ACCESS_PERMISSION_POINT,
   ACCESS_REQUIREMENT_POINT,
@@ -22,8 +21,7 @@ import {
   memberPermissions,
   setAmbientPermissions,
 } from '../domain/schema/access';
-import { presentedScreens, screenDataCollection } from '../domain/services/screenDataCollection';
-import { collectionPermissionResources } from '../domain/services/collectionPermissionResources';
+import { tenantCollectionPermissionResources } from '../domain/schema/tenantCollections';
 
 /**
  * Quem responde "pode?" — e a razão de o resto do sistema nunca precisar saber quem é quem.
@@ -50,22 +48,19 @@ export const AuthorizationStoreProvider: React.FC<{ children: React.ReactNode }>
    * O catálogo deriva de TODA coleção que o escritório tem: as telas, as listas de opções e os
    * conjuntos de etiquetas. As três passam pelo mesmo curinga das Security Rules, e deixar qualquer
    * uma de fora significaria uma coleção que ninguém consegue gravar — nem o administrador.
+   *
+   * A conta é a de `tenantCollectionPermissionResources`, a mesma do `PermissionCatalogCache`: o que
+   * este catálogo oferece em Perfis, na aba de Agentes de IA e no consentimento de OAuth é o que o
+   * servidor aceita ao gravar.
    */
-  const catalog = useMemo(() => {
-    const screenResources: PermissionResource[] = presentedScreens(definitions).map((definition) => ({
-      id: screenDataCollection(definition),
-      name: definition.titlePlural || definition.titleSingular || definition.id,
-      deriveCrud: true,
-      ...(definition.ownerPluginId ? { source: definition.ownerPluginId } : {}),
-    }));
-    const listResources = collectionPermissionResources(availableLookups, availableTagLists);
-
-    return buildPermissionCatalog(
-      declaredPermissionsOf(permissionContributions),
-      [...declaredResourcesOf(resourceContributions), ...listResources, ...screenResources],
-      declaredRequirementsOf(requirementContributions),
-    );
-  }, [
+  const catalog = useMemo(() => buildPermissionCatalog(
+    declaredPermissionsOf(permissionContributions),
+    [
+      ...declaredResourcesOf(resourceContributions),
+      ...tenantCollectionPermissionResources(definitions, availableLookups, availableTagLists),
+    ],
+    declaredRequirementsOf(requirementContributions),
+  ), [
     permissionContributions,
     resourceContributions,
     requirementContributions,

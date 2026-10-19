@@ -104,13 +104,13 @@ export interface SchemaContext {
   version: number;
 }
 
-const BUILTIN_LOOKUPS: SchemaLookup[] = LOOKUP_REGISTRY_LIST.map((lookup) => ({
+export const BUILTIN_LOOKUPS: SchemaLookup[] = LOOKUP_REGISTRY_LIST.map((lookup) => ({
   collection: lookup.collection,
   label: '@core.data/lookup.qualified',
   labelParams: { screen: lookup.screenLabel, entity: lookup.entityLabel },
 }));
 
-const BUILTIN_TAG_LISTS: SchemaTagList[] = Object.values(ENTITY_REGISTRY)
+export const BUILTIN_TAG_LISTS: SchemaTagList[] = Object.values(ENTITY_REGISTRY)
   .filter((entity) => !!entity.tagCollection)
   .map((entity) => ({
     collection: entity.tagCollection as string,

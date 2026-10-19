@@ -11,6 +11,12 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.127.1] — 2026-10-19
+
+- Corrigida a autorização de assistentes de IA (OAuth) e a emissão de acesso, que podiam ser recusadas quando o escritório marcava permissões de listas de opções ou etiquetas criadas a partir de uma tela. As permissões oferecidas na escolha agora são sempre as mesmas que o sistema aceita.
+- Perfis de acesso passam a valer de fato para essas listas e etiquetas: quem não é dono do escritório e recebeu a permissão consegue usá-las normalmente.
+- Uma tela ou lista recém-criada já pode ser incluída num acesso de IA na mesma hora, sem esperar alguns minutos.
+
 #### [9.127.0] — 2026-10-18
 
 - Ao criar uma tela, automação, ação, script ou modelo, quem pode alterar o prefixo do escritório encontra, ao lado dele, um atalho que leva direto à configuração do prefixo. Se o escritório ainda não tem um, o atalho convida a defini-lo antes de criar.

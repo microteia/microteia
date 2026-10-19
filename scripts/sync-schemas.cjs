@@ -92,6 +92,7 @@ const SHARED_FILES = [
   'domain/schema/access/permissionPattern.ts',
   'domain/schema/access/permissionSelection.ts',
   'domain/schema/access/index.ts',
+  'domain/schema/tenantCollections.ts',
   'domain/schema/agent/agentBackend.ts',
   'domain/schema/agent/agentGrant.ts',
   'domain/schema/agent/agentOAuth.ts',

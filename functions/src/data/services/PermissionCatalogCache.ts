@@ -1,6 +1,13 @@
 import type { Firestore } from 'firebase-admin/firestore';
 import type { Contribution, QualifiedContribution } from '../../domain/schema/plugin/contribution';
-import type { PermissionCatalog, PermissionResource } from '../../domain/schema/access';
+import type { PermissionCatalog } from '../../domain/schema/access';
+import type { FieldDefinition } from '../../domain/entities/entitySchemas';
+import type { CatalogScreenSource } from '../../domain/schema/tenantCollections';
+import {
+  tenantCollectionPermissionResources,
+  tenantLookupCollections,
+  tenantTagCollections,
+} from '../../domain/schema/tenantCollections';
 import {
   ACCESS_PERMISSION_POINT,
   ACCESS_REQUIREMENT_POINT,
@@ -19,6 +26,25 @@ interface CacheEntry {
   catalog: PermissionCatalog;
   loadedAt: number;
 }
+
+const text = (value: unknown): string | undefined =>
+  typeof value === 'string' && value !== '' ? value : undefined;
+
+const screenOf = (id: string, data: Record<string, unknown>): CatalogScreenSource => ({
+  id,
+  dataCollection: text(data.dataCollection) ?? null,
+  origin: data.origin === 'builtin' || data.origin === 'plugin' ? data.origin : 'design',
+  titleSingular: text(data.titleSingular) ?? '',
+  titlePlural: text(data.titlePlural),
+  tagCollection: text(data.tagCollection) ?? null,
+  ownerPluginId: text(data.ownerPluginId) ?? null,
+  fields: Array.isArray(data.fields) ? (data.fields as FieldDefinition[]) : [],
+});
+
+const declarationOf = (id: string, data: Record<string, unknown>) => ({
+  collection: id,
+  label: text(data.label) ?? id,
+});
 
 const qualify = (contributes: unknown, pluginId: string): QualifiedContribution[] =>
   Array.isArray(contributes)
@@ -54,26 +80,15 @@ export class PermissionCatalogCache {
       this.db.collection(`tenants/${tenantId}/installed_extensions`).get(),
     ]);
 
-    const screenResources: PermissionResource[] = screenSnapshot.docs.map((doc) => {
-      const data = doc.data();
-      return {
-        id: typeof data.dataCollection === 'string' && data.dataCollection ? data.dataCollection : doc.id,
-        name:
-          (typeof data.titlePlural === 'string' && data.titlePlural) ||
-          (typeof data.titleSingular === 'string' && data.titleSingular) ||
-          doc.id,
-        deriveCrud: true,
-        ...(typeof data.ownerPluginId === 'string' ? { source: data.ownerPluginId } : {}),
-      };
-    });
-
-    // Lista de opções e conjunto de etiquetas também são coleções, e passam pelo mesmo curinga das
-    // regras: sem permissão derivada delas, ninguém acrescentaria uma opção a uma lista.
-    const listResources: PermissionResource[] = [...lookupSnapshot.docs, ...tagSnapshot.docs].map((doc) => ({
-      id: doc.id,
-      name: typeof doc.data().label === 'string' ? (doc.data().label as string) : doc.id,
-      deriveCrud: true,
-    }));
+    const screens = screenSnapshot.docs.map((doc) => screenOf(doc.id, doc.data()));
+    const lookups = tenantLookupCollections(
+      screens,
+      lookupSnapshot.docs.map((doc) => declarationOf(doc.id, doc.data())),
+    );
+    const tagLists = tenantTagCollections(
+      screens,
+      tagSnapshot.docs.map((doc) => declarationOf(doc.id, doc.data())),
+    );
 
     const extensionContributions = extensionSnapshot.docs.flatMap((doc) => {
       const data = doc.data();
@@ -91,8 +106,10 @@ export class PermissionCatalogCache {
       [
         ...KERNEL_PERMISSION_RESOURCES,
         ...declaredResourcesOf(extensionContributions.filter((c) => c.point === ACCESS_RESOURCE_POINT)),
-        ...listResources,
-        ...screenResources,
+        // A MESMA conta do `AuthorizationStore`. Ler só `lookupDefinitions` deixava de fora a lista
+        // que um campo de tela referencia e as do núcleo: o seletor as oferecia e a emissão as
+        // recusava como desconhecidas — no consentimento de OAuth, o acesso inteiro.
+        ...tenantCollectionPermissionResources(screens, lookups, tagLists),
       ],
       // A soma ao fecho tem de entrar aqui TAMBÉM, e não é simetria: o que sai deste catálogo é o
       // campo materializado que as Security Rules leem. Somar só no navegador daria a tela que
@@ -104,6 +121,16 @@ export class PermissionCatalogCache {
 
     this.entries.set(tenantId, { catalog, loadedAt: Date.now() });
     return catalog;
+  }
+
+  /**
+   * O catálogo lido AGORA, sem o cache. É o que quem RECUSA precisa: a invalidação dos gatilhos só
+   * alcança a instância em que eles rodam, e numa instância qualquer a tela criada há um minuto
+   * seguiria desconhecida por até `ttlMs`.
+   */
+  async fresh(tenantId: string): Promise<PermissionCatalog> {
+    this.invalidate(tenantId);
+    return this.get(tenantId);
   }
 
   invalidate(tenantId: string): void {

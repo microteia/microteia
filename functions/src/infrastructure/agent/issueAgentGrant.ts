@@ -90,7 +90,7 @@ export const issueAgentGrant = async (input: IssueAgentGrantInput): Promise<Issu
     throw new HttpsError('invalid-argument', '@core.access/agent.permissions.unrestricted');
   }
 
-  const catalog = await di.getPermissionCatalogCache().get(tenantId);
+  const catalog = await di.getPermissionCatalogCache().fresh(tenantId);
   for (const permission of declared) {
     // Um id que não existe concederia NADA em silêncio, porque a interseção o descartaria — e quem
     // emitiu ficaria com um acesso que não funciona sem nunca saber que digitou errado.
