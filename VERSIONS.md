@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.129.1] — 2026-10-18
+
+- Quando o convite ao portal é feito mas o link de acesso não consegue ser enviado, a mensagem agora deixa claro que o convidado já está cadastrado, explica o motivo — como o login por link desligado no projeto — e indica como reenviar.
+
 #### [9.129.0] — 2026-10-18
 
 - O Form Design ganhou a aba "Portal": nela se escolhe, sem programar, se uma tela aparece no portal, de quem são os registros dela e quais campos podem ser vistos por quem é de fora. A aba avisa na hora quando a escolha não levaria os registros a ninguém.

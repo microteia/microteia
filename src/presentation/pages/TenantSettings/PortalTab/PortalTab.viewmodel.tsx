@@ -130,31 +130,47 @@ export const usePortalTabViewModel = (): PortalTabViewModel => {
     await sendSignInLink(target, portalSignInUrl(window.location.origin, tenantId));
   }, [tenantId, sendSignInLink]);
 
+  /**
+   * O link é OUTRO passo, e pode falhar sozinho: o convite já está gravado quando o Firebase recusa o
+   * envio. Dizer só "falhou" fazia parecer que o convite inteiro não existia — e o motivo mais comum,
+   * o login por link desligado no projeto, é configuração, não defeito.
+   */
+  const linkFailureMessage = useCallback((error: unknown, target: string): string =>
+    ((error as { code?: string } | null)?.code === 'auth/operation-not-allowed'
+      ? t('portal.link.not-enabled', { email: target })
+      : t('portal.link.failed', { email: target })), [t]);
+
   const invite = useCallback(async () => {
     const typed = email.trim();
     if (!tenantId || !screen || !recordId || !typed) return;
     setIsInviting(true);
     try {
       await uc.invite.execute(tenantId, typed, portalSubjectKey(collectionOf(screen), recordId));
-      await sendLink(typed);
-      notify(t('portal.invited', { email: typed }), 'success');
-      setEmail('');
-      setRecordId('');
     } catch (error) {
       notify(label(error instanceof Error ? error.message : '@core.tenant/portal.failed'), 'error');
+      setIsInviting(false);
+      return;
+    }
+    setEmail('');
+    setRecordId('');
+    try {
+      await sendLink(typed);
+      notify(t('portal.invited', { email: typed }), 'success');
+    } catch (error) {
+      notify(linkFailureMessage(error, typed), 'error');
     } finally {
       setIsInviting(false);
     }
-  }, [email, tenantId, screen, recordId, uc.invite, sendLink, notify, t, label]);
+  }, [email, tenantId, screen, recordId, uc.invite, sendLink, notify, t, label, linkFailureMessage]);
 
   const resendLink = useCallback(async (guest: PortalGuestRow) => {
     try {
       await sendLink(guest.email);
       notify(t('portal.link.sent', { email: guest.email }), 'success');
-    } catch {
-      notify(t('portal.failed'), 'error');
+    } catch (error) {
+      notify(linkFailureMessage(error, guest.email), 'error');
     }
-  }, [sendLink, notify, t]);
+  }, [sendLink, notify, t, linkFailureMessage]);
 
   const removeSubject = useCallback(async (guest: PortalGuestRow, subjectKey: string) => {
     if (!tenantId) return;

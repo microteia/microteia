@@ -119,6 +119,8 @@ export const CORE_TENANT_MESSAGES: Record<string, string> = {
   'portal.invited': 'Invitation sent to {email}.',
   'portal.link.resend': 'Send a new sign-in link',
   'portal.link.sent': 'Sign-in link sent to {email}.',
+  'portal.link.not-enabled': '{email} was invited, but the sign-in link was not sent: e-mail link sign-in is turned off in this project. In Firebase Authentication, open the Email/Password provider and turn on "Email link (passwordless sign-in)". Then resend the link from the list.',
+  'portal.link.failed': '{email} was invited, but the sign-in link could not be sent. Resend it from the list.',
   'portal.guests.empty': 'No one from outside the organization has been invited yet.',
   'portal.revoke': 'Revoke access',
   'portal.revoke.title': 'Revoke portal access',

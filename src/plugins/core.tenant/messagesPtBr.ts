@@ -130,6 +130,8 @@ const CORE_TENANT_PT_BR: Record<string, string> = {
   'portal.invited': 'Convite enviado para {email}.',
   'portal.link.resend': 'Enviar um novo link de acesso',
   'portal.link.sent': 'Link de acesso enviado para {email}.',
+  'portal.link.not-enabled': '{email} foi convidado, mas o link de acesso não foi enviado: o login por link de e-mail está desligado neste projeto. No Firebase Authentication, abra o provedor E-mail/senha e ligue "Link de e-mail (login sem senha)". Depois, reenvie o link pela lista.',
+  'portal.link.failed': '{email} foi convidado, mas não foi possível enviar o link de acesso. Reenvie-o pela lista.',
   'portal.guests.empty': 'Ninguém de fora do escritório foi convidado ainda.',
   'portal.revoke': 'Revogar acesso',
   'portal.revoke.title': 'Revogar acesso ao portal',

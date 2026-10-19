@@ -18,6 +18,10 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.129.1] — 2026-10-18
+
+- fix(portal): the Portal tab reports the invitation and the sign-in link separately. A refused `sendSignInLinkToEmail` used to surface as the raw Firebase error, as if the invitation itself had failed; `auth/operation-not-allowed` now explains that e-mail link sign-in must be enabled under the Email/Password provider (`portal.link.not-enabled`), any other failure points to resending (`portal.link.failed`).
+
 #### [9.129.0] — 2026-10-18
 
 - feat(form-design): "Portal" tab in the screen modal (`components/ScreenPortalPanel`, `screenPortalForm.ts`), shown to `portal.manage` on existing non-builtin screens; read-only on managed (extension) screens. `portalDeclarationIssues` (synced `portal.ts`) validates before saving: no fields, unknown field, subject field not a reference, `parent` without parent, target screen outside the portal, chain too deep or cyclic. The declaration is written only when the tab was touched.
