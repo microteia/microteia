@@ -9,6 +9,8 @@ import { setAmbientTimeZone } from '../domain/schema/clockGate';
 import { LocaleContext } from './useLocale';
 import { useContributions } from './useKernel';
 import { useSettings } from './useSettings';
+import { usePortal } from './usePortal';
+import { useSearchParams } from 'react-router-dom';
 
 const STORAGE_KEY = 'microteia:locale';
 
@@ -196,4 +198,32 @@ export const TenantLocaleProvider: React.FC<{ children: React.ReactNode }> = ({ 
       {children}
     </LocaleProvider>
   );
+};
+
+/**
+ * O idioma no PORTAL. O convidado não lê as configurações do escritório, então quem diz o idioma é o
+ * servidor, que já resolveu nele os rótulos das telas (`getPortalContext`): a casca fala o mesmo
+ * idioma que o conteúdo. Antes de haver contexto — a escolha do escritório, o "sem acesso" —, vale o
+ * do navegador, como em toda tela pública.
+ */
+export const PortalLocaleProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { context } = usePortal();
+  const preferred = useMemo(() => {
+    const normalized = normalizeLocale(context?.locale ?? '');
+    return normalized === '' ? undefined : normalized;
+  }, [context]);
+  return <LocaleProvider preferred={preferred}>{children}</LocaleProvider>;
+};
+
+/**
+ * O idioma vindo do ENDEREÇO (`?lang=`): o link de acesso ao portal o carrega, porque a página de
+ * entrada abre antes de haver sessão ou escritório para dizer em que idioma falar.
+ */
+export const UrlLocaleProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [params] = useSearchParams();
+  const preferred = useMemo(() => {
+    const normalized = normalizeLocale(params.get('lang') ?? '');
+    return normalized === '' ? undefined : normalized;
+  }, [params]);
+  return <LocaleProvider preferred={preferred}>{children}</LocaleProvider>;
 };

@@ -18,6 +18,12 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.129.2] — 2026-10-18
+
+- fix(portal): `/portal/signin` consumed nothing when a session already existed — it navigated on `user && isEmailVerified`, so a link opened in a browser signed in with the organization account landed in the portal as that account. It now navigates only after `signInWithEmailLink` succeeds (`status: 'signed-in'`), replacing the open session. `portalSignInUrl` carries `email` and `lang`: the invited e-mail completes the link automatically (Firebase asks for it whenever the link opens in a browser other than the one that requested it — always, since the organization requests it), and `UrlLocaleProvider` renders the page in the inviter's locale.
+- fix(portal): the shell speaks the locale the server resolved the labels in. `getPortalContext` returns `locale` (`agentLocale`: user > organization > default) and `PortalLocaleProvider` feeds it to `LocaleProvider`; before, the portal followed the browser while the screen labels followed the organization.
+- fix(portal): a failed membership query (`membershipsFailed`) shows `portal.load-failed` instead of "no access", and the no-access screen states the signed-in e-mail with a "Use another account" action — the most common cause is being signed in with the organization account instead of the invited one.
+
 #### [9.129.1] — 2026-10-18
 
 - fix(portal): the Portal tab reports the invitation and the sign-in link separately. A refused `sendSignInLinkToEmail` used to surface as the raw Firebase error, as if the invitation itself had failed; `auth/operation-not-allowed` now explains that e-mail link sign-in must be enabled under the Email/Password provider (`portal.link.not-enabled`), any other failure points to resending (`portal.link.failed`).

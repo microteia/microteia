@@ -14,6 +14,7 @@ import type { ScreenDefinition } from '../../../../domain/entities';
 import { parsePortalSubjectKey, portalSubjectKey } from '../../../../domain/schema/portal';
 import { portalSignInUrl } from '../../Portal/portalPaths';
 import { useLabel, useT } from '../../../shared/i18n/useT';
+import { useOptionalLocale } from '../../../../stores/useLocale';
 
 export interface PortalSubjectChip {
   key: string;
@@ -66,6 +67,7 @@ export const usePortalTabViewModel = (): PortalTabViewModel => {
   const { definitions } = useScreenDefinitions();
   const { recordsByCollection } = useRecords();
   const { portalRepository } = useDI();
+  const { locale } = useOptionalLocale();
 
   const uc = useMemo(() => ({
     invite: makeInvitePortalGuestUseCase(portalRepository),
@@ -127,8 +129,8 @@ export const usePortalTabViewModel = (): PortalTabViewModel => {
 
   const sendLink = useCallback(async (target: string) => {
     if (!tenantId) return;
-    await sendSignInLink(target, portalSignInUrl(window.location.origin, tenantId));
-  }, [tenantId, sendSignInLink]);
+    await sendSignInLink(target, portalSignInUrl(window.location.origin, tenantId, { email: target, lang: locale }));
+  }, [tenantId, sendSignInLink, locale]);
 
   /**
    * O link é OUTRO passo, e pode falhar sozinho: o convite já está gravado quando o Firebase recusa o

@@ -45,7 +45,15 @@ export const PortalView: React.FC = () => {
         {header}
         <S.Centered>
           <S.Title>{t('portal.title')}</S.Title>
-          <p>{vm.error === 'no-access' ? t('portal.no-access') : t('portal.not-invited')}</p>
+          <p>
+            {vm.error === 'load-failed'
+              ? t('portal.load-failed')
+              : vm.error === 'no-access' ? t('portal.no-access') : t('portal.not-invited')}
+          </p>
+          {vm.signedInAs && <S.Muted>{t('portal.signed-in-as', { email: vm.signedInAs })}</S.Muted>}
+          <Button variant="secondary" size="sm" onClick={() => void vm.signOut()}>
+            {t('portal.use-another-account')}
+          </Button>
         </S.Centered>
       </S.Page>
     );

@@ -11,6 +11,12 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.129.2] — 2026-10-18
+
+- O link de acesso ao portal agora entra direto: não pede mais para redigitar o e-mail e funciona mesmo quando o navegador já está conectado com outra conta — antes, nesse caso, o portal abria na conta errada.
+- O portal, inclusive a página de acesso, passa a aparecer no idioma do escritório, o mesmo das informações que ele mostra.
+- Quando a conta não tem acesso ao portal, a tela mostra com qual e-mail a pessoa está conectada e oferece entrar com outra conta. Uma falha ao carregar o acesso também deixou de ser confundida com a falta de convite.
+
 #### [9.129.1] — 2026-10-18
 
 - Quando o convite ao portal é feito mas o link de acesso não consegue ser enviado, a mensagem agora deixa claro que o convidado já está cadastrado, explica o motivo — como o login por link desligado no projeto — e indica como reenviar.

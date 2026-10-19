@@ -25,6 +25,7 @@ export const PortalStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   const [memberships, setMemberships] = useState<PortalMembership[]>([]);
   const [membershipsLoading, setMembershipsLoading] = useState(true);
+  const [membershipsFailed, setMembershipsFailed] = useState(false);
   const [tenantId, setTenantId] = useState<string | null>(null);
   const [context, setContext] = useState<PortalContext | null>(null);
   const [contextLoading, setContextLoading] = useState(false);
@@ -39,10 +40,16 @@ export const PortalStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
     if (!user) return;
     let active = true;
     uc.memberships.execute(user.id)
-      .then((loaded) => { if (active) setMemberships(loaded); })
+      .then((loaded) => {
+        if (!active) return;
+        setMemberships(loaded);
+        setMembershipsFailed(false);
+      })
       .catch((err: unknown) => {
         console.error('[PortalStore] memberships error:', err);
-        if (active) setMemberships([]);
+        if (!active) return;
+        setMemberships([]);
+        setMembershipsFailed(true);
       })
       .finally(() => { if (active) setMembershipsLoading(false); });
     return () => { active = false; };
@@ -117,6 +124,7 @@ export const PortalStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const value = useMemo(() => ({
     memberships,
     membershipsLoading,
+    membershipsFailed,
     tenantId,
     context,
     contextLoading,
@@ -129,7 +137,7 @@ export const PortalStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
     getDocuments,
     getDocumentUrl,
   }), [
-    memberships, membershipsLoading, tenantId, context, contextLoading, error,
+    memberships, membershipsLoading, membershipsFailed, tenantId, context, contextLoading, error,
     collection, records, recordsLoading, getDocuments, getDocumentUrl,
   ]);
 

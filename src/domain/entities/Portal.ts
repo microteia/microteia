@@ -21,6 +21,8 @@ export interface PortalScreenInfo {
 }
 
 export interface PortalContext {
+  /** O idioma do escritório para este convidado — o mesmo em que os rótulos chegaram resolvidos. */
+  locale: string;
   tenantName: string;
   logoURL: string | null;
   screens: PortalScreenInfo[];

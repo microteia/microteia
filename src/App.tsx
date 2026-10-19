@@ -5,7 +5,7 @@ import { KernelProvider } from './stores/KernelContext';
 import { TenantKernelProvider } from './stores/TenantKernelProvider';
 import { BOOT_PLUGINS } from './plugins/bootPlugins';
 import { ThemeProvider } from './stores/ThemeContext';
-import { LocaleProvider, TenantLocaleProvider } from './stores/LocaleContext';
+import { LocaleProvider, PortalLocaleProvider, TenantLocaleProvider, UrlLocaleProvider } from './stores/LocaleContext';
 import { TenantThemeBridge } from './stores/TenantThemeBridge';
 import { AuthProvider } from './stores/AuthContext';
 import { TenantStoreProvider } from './stores/TenantStore';
@@ -67,7 +67,7 @@ const App: React.FC = () => {
                 espaço de trabalho de propósito: o convidado não lê telas, perfis nem extensões, e
                 cada uma daquelas assinaturas seria uma leitura recusada.
               */}
-              <Route path={PORTAL_SIGN_IN_PATH} element={<PortalSignInView />} />
+              <Route path={PORTAL_SIGN_IN_PATH} element={<UrlLocaleProvider><PortalSignInView /></UrlLocaleProvider>} />
               {[PORTAL_PATH, `${PORTAL_PATH}/:tenantId`].map((path) => (
                 <Route
                   key={path}
@@ -75,7 +75,9 @@ const App: React.FC = () => {
                   element={
                     <ProtectedRoute loginPath={PORTAL_SIGN_IN_PATH}>
                       <PortalStoreProvider>
-                        <PortalView />
+                        <PortalLocaleProvider>
+                          <PortalView />
+                        </PortalLocaleProvider>
                       </PortalStoreProvider>
                     </ProtectedRoute>
                   }

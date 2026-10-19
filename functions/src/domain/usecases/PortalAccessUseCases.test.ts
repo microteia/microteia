@@ -105,7 +105,7 @@ describe('contexto do portal', () => {
     fake.users.set('ana', { userId: 'ana', email: 'ana@acme.com', displayName: 'Ana', subjectKeys: ['companies/acme'] });
 
     const context = await makeGetPortalContextUseCase(fake.repo).execute({
-      tenantId: TENANT, userId: 'ana', tenant: { name: 'Salvador', logoURL: null }, resolve: (value) => value.toUpperCase(),
+      tenantId: TENANT, userId: 'ana', tenant: { name: 'Salvador', logoURL: null }, locale: 'pt-BR', resolve: (value) => value.toUpperCase(),
     });
 
     expect(context.screens.map((screen) => screen.id)).toEqual(['companies', 'invoices', 'invoiceItems']);
@@ -117,7 +117,7 @@ describe('contexto do portal', () => {
   it('quem não é convidado não recebe nada', async () => {
     const fake = makeFakePortalRepository(CITY_SCREENS);
     await expect(makeGetPortalContextUseCase(fake.repo).execute({
-      tenantId: TENANT, userId: 'intruso', tenant: { name: 'Salvador', logoURL: null }, resolve: (value) => value,
+      tenantId: TENANT, userId: 'intruso', tenant: { name: 'Salvador', logoURL: null }, locale: 'pt-BR', resolve: (value) => value,
     })).rejects.toThrow('@core.tenant/portal.not-invited');
   });
 });

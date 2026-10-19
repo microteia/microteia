@@ -123,6 +123,8 @@ export interface PortalContextScreen {
 }
 
 export interface PortalContext {
+  /** O idioma em que os rótulos foram resolvidos — a casca do portal fala o mesmo. */
+  locale: string;
   tenantName: string;
   logoURL: string | null;
   screens: PortalContextScreen[];
@@ -133,6 +135,7 @@ export type GetPortalContextUseCase = {
     tenantId: string;
     userId: string;
     tenant: { name: string; logoURL: string | null };
+    locale: string;
     resolve: (value: string) => string;
   }) => Promise<PortalContext>;
 };
@@ -143,12 +146,13 @@ export type GetPortalContextUseCase = {
  * e os rótulos já no idioma dele.
  */
 export const makeGetPortalContextUseCase = (repo: IPortalRepository): GetPortalContextUseCase => ({
-  execute: async ({ tenantId, userId, tenant, resolve }) => {
+  execute: async ({ tenantId, userId, tenant, locale, resolve }) => {
     if (!(await repo.getPortalUser(tenantId, userId))) {
       throw permissionDenied('@core.tenant/portal.not-invited');
     }
     const screens = (await repo.getScreens(tenantId)).filter((screen) => !!screen.portal);
     return {
+      locale,
       tenantName: tenant.name,
       logoURL: tenant.logoURL,
       screens: screens.map((screen) => {

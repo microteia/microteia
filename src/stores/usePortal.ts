@@ -4,6 +4,8 @@ import type { PortalContext, PortalDocument, PortalMembership, PortalRecord } fr
 export interface PortalStoreValue {
   memberships: PortalMembership[];
   membershipsLoading: boolean;
+  /** A consulta dos convites FALHOU — diferente de não haver convite nenhum. */
+  membershipsFailed: boolean;
   tenantId: string | null;
   context: PortalContext | null;
   contextLoading: boolean;

@@ -88,14 +88,13 @@ export const getPortalContext = onCall({ region: REGION, cors: true }, async (re
     const di = getDI();
     const tenant = await di.getTenantRepository().getById(tenantId);
     if (!tenant) throw new HttpsError('permission-denied', '@core.tenant/portal.not-invited');
-    const catalog = agentCatalog(
-      await di.getInstalledExtensionCache().messageBundles(tenantId),
-      await agentLocale(tenantId, userId),
-    );
+    const locale = await agentLocale(tenantId, userId);
+    const catalog = agentCatalog(await di.getInstalledExtensionCache().messageBundles(tenantId), locale);
     return await di.getPortalContextUseCase().execute({
       tenantId,
       userId,
       tenant: { name: tenant.name, logoURL: tenant.logoURL ?? null },
+      locale,
       resolve: (value) => agentText(catalog, value).text,
     });
   } catch (error) {

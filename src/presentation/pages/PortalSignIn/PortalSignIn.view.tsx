@@ -8,7 +8,7 @@ import { useT } from '../../shared/i18n/useT';
 export const PortalSignInView: React.FC = () => {
   const vm = usePortalSignInViewModel();
   const t = useT('core.tenant');
-  const busy = vm.status === 'sending' || vm.status === 'signing-in';
+  const busy = vm.status === 'sending' || vm.status === 'signing-in' || vm.status === 'signed-in';
 
   return (
     <S.Page>

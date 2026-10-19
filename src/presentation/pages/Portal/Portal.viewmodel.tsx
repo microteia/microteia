@@ -38,7 +38,9 @@ export interface PortalScreenTab {
 
 export interface PortalViewModel {
   loading: boolean;
-  error: 'no-access' | 'not-invited' | null;
+  error: 'no-access' | 'load-failed' | 'not-invited' | null;
+  /** Com que conta a pessoa entrou — o "sem acesso" mais comum é estar na conta errada. */
+  signedInAs: string;
   showChooser: boolean;
   memberships: Array<{ tenantId: string; tenantName: string }>;
   chooseTenant: (tenantId: string) => void;
@@ -71,7 +73,7 @@ const optionLabel = (field: PortalScreenInfo['fields'][number], key: unknown): s
 export const usePortalViewModel = (): PortalViewModel => {
   const { tenantId: routeTenantId } = useParams<{ tenantId?: string }>();
   const navigate = useNavigate();
-  const { signOut } = useAuth();
+  const { signOut, user } = useAuth();
   const portal = usePortal();
   const t = useT('core.tenant');
   const { formatDate, formatMoney, formatNumber } = useLocaleFormat();
@@ -201,10 +203,12 @@ export const usePortalViewModel = (): PortalViewModel => {
 
   const showChooser = !routeTenantId;
   const noAccess = !membershipsLoading && memberships.length === 0;
+  const loadFailed = !membershipsLoading && portal.membershipsFailed;
 
   return {
     loading: membershipsLoading || (!showChooser && portal.contextLoading),
-    error: noAccess ? 'no-access' : portal.error ? 'not-invited' : null,
+    error: loadFailed ? 'load-failed' : noAccess ? 'no-access' : portal.error ? 'not-invited' : null,
+    signedInAs: user?.email ?? '',
     showChooser,
     memberships,
     chooseTenant,
