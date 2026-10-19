@@ -129,7 +129,7 @@ export const usePortalTabViewModel = (): PortalTabViewModel => {
 
   const sendLink = useCallback(async (target: string) => {
     if (!tenantId) return;
-    await sendSignInLink(target, portalSignInUrl(window.location.origin, tenantId, { email: target, lang: locale }));
+    await sendSignInLink(target, portalSignInUrl(window.location.origin, tenantId, { email: target, locale }), locale);
   }, [tenantId, sendSignInLink, locale]);
 
   /**

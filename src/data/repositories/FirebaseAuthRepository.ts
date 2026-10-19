@@ -104,8 +104,16 @@ export class FirebaseAuthRepository implements IAuthRepository {
     await firebaseSendPasswordResetEmail(auth, email);
   }
 
-  async sendSignInLink(email: string, continueUrl: string): Promise<void> {
-    await sendSignInLinkToEmail(auth, email, { url: continueUrl, handleCodeInApp: true });
+  async sendSignInLink(email: string, continueUrl: string, locale?: string): Promise<void> {
+    // O idioma da instância é global, e é também o da recuperação de senha e da verificação de
+    // e-mail: ele é posto só para este envio e devolvido em seguida.
+    const previous = auth.languageCode;
+    if (locale) auth.languageCode = locale;
+    try {
+      await sendSignInLinkToEmail(auth, email, { url: continueUrl, handleCodeInApp: true });
+    } finally {
+      auth.languageCode = previous;
+    }
   }
 
   isSignInLink(url: string): boolean {

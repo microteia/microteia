@@ -20,7 +20,7 @@ export interface AuthContextValue {
   signInWithEmail: (email: string, password: string) => Promise<void>;
   signUpWithEmail: (email: string, password: string, displayName: string) => Promise<void>;
   /** O link de entrada sem senha — o caminho de quem é convidado do portal. */
-  sendSignInLink: (email: string, continueUrl: string) => Promise<void>;
+  sendSignInLink: (email: string, continueUrl: string, locale?: string) => Promise<void>;
   isSignInLink: (url: string) => boolean;
   signInWithLink: (email: string, url: string) => Promise<void>;
   sendEmailVerification: () => Promise<void>;

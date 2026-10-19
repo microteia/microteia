@@ -163,7 +163,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const sendSignInLink = useCallback(
-    (email: string, continueUrl: string) => sendSignInLinkUseCase.execute(email, continueUrl),
+    (email: string, continueUrl: string, locale?: string) => sendSignInLinkUseCase.execute(email, continueUrl, locale),
     [sendSignInLinkUseCase],
   );
 
@@ -171,6 +171,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signInWithLink = async (email: string, url: string) => {
     const u = await signInWithLinkUseCase.execute(email, url);
+    setIsEmailVerified(authRepository.isEmailVerified());
+    // A MESMA conta que já estava aberta: o Firebase não avisa troca de usuário, porque não houve, e
+    // esperar o provisionamento por `onAuthStateChanged` deixaria a tela presa para sempre.
+    if (u.id === user?.id) return;
     setLoading(true);
     setUser(u);
     setIsEmailVerified(authRepository.isEmailVerified());

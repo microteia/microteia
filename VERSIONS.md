@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.130.3] — 2026-10-19
+
+- O link de acesso ao portal não fica mais parado na tela de confirmação quando a pessoa já está conectada com a conta convidada: ela segue direto para o portal.
+- O e-mail com o link de acesso e a página de confirmação passam a vir no idioma de quem fez o convite.
+
 #### [9.130.2] — 2026-10-19
 
 - O portal passa a usar o idioma de quem fez o convite quando nem o convidado nem o escritório escolheram um. Antes, nesse caso, ele seguia o idioma do navegador do convidado, e podia aparecer em inglês para um escritório que usa o sistema em português.

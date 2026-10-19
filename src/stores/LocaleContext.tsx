@@ -216,13 +216,13 @@ export const PortalLocaleProvider: React.FC<{ children: React.ReactNode }> = ({ 
 };
 
 /**
- * O idioma vindo do ENDEREÇO (`?lang=`): o link de acesso ao portal o carrega, porque a página de
+ * O idioma vindo do ENDEREÇO (`?locale=`; `lang` é do Firebase, que o acrescenta ao devolver): o link de acesso ao portal o carrega, porque a página de
  * entrada abre antes de haver sessão ou escritório para dizer em que idioma falar.
  */
 export const UrlLocaleProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [params] = useSearchParams();
   const preferred = useMemo(() => {
-    const normalized = normalizeLocale(params.get('lang') ?? '');
+    const normalized = normalizeLocale(params.get('locale') ?? '');
     return normalized === '' ? undefined : normalized;
   }, [params]);
   return <LocaleProvider preferred={preferred}>{children}</LocaleProvider>;

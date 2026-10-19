@@ -1,10 +1,10 @@
 import type { IAuthRepository } from '../../repositories/IAuthRepository';
 import type { User } from '../../entities';
 
-export type SendSignInLinkUseCase = { execute: (email: string, continueUrl: string) => Promise<void> };
+export type SendSignInLinkUseCase = { execute: (email: string, continueUrl: string, locale?: string) => Promise<void> };
 
 export const makeSendSignInLinkUseCase = (repo: IAuthRepository): SendSignInLinkUseCase => ({
-  execute: (email, continueUrl) => repo.sendSignInLink(email, continueUrl),
+  execute: (email, continueUrl, locale) => repo.sendSignInLink(email, continueUrl, locale),
 });
 
 export type SignInWithLinkUseCase = {

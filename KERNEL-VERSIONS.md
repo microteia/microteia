@@ -18,6 +18,11 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.130.3] — 2026-10-19
+
+- fix(portal): signing in again with the account already open never left `/portal/signin`. `signInWithEmailLink` for the same uid fires no `onAuthStateChanged`, and `AuthContext.signInWithLink` had set `loading` waiting for it. It now returns early for the same uid, and the page skips the link entirely when the open session already is the invited e-mail.
+- fix(portal): the sign-in URL carries `locale` instead of `lang` — Firebase appends its own `lang` when redirecting to `continueUrl`, and the page read Firebase's. `sendSignInLink` takes the locale and sets `auth.languageCode` for that call only, so the e-mail and Firebase's action page follow it too.
+
 #### [9.130.2] — 2026-10-19
 
 - fix(portal): the invitation records the inviter's UI locale (`portalUsers.locale`, sent by `invitePortalUser`), and `getPortalContext` / `submitPortalRecord` resolve guest > organization > invitation > browser. An organization whose Portuguese came from the administrator's personal preference had no organization default, so a guest with an English browser got the portal in English. Existing guests pick it up when invited again.

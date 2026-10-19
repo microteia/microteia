@@ -25,7 +25,8 @@ export interface IAuthRepository {
    * O link de entrada por e-mail, sem senha — o caminho de quem é convidado do portal. Quem envia é o
    * próprio Firebase Auth, e o link volta para `continueUrl`.
    */
-  sendSignInLink(email: string, continueUrl: string): Promise<void>;
+  /** `locale` vira o idioma do e-mail e da página intermediária do próprio Firebase. */
+  sendSignInLink(email: string, continueUrl: string, locale?: string): Promise<void>;
   isSignInLink(url: string): boolean;
   signInWithLink(email: string, url: string): Promise<User>;
   isEmailVerified(): boolean;

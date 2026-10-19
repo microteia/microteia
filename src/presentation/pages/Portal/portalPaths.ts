@@ -9,16 +9,18 @@ export const portalTenantPath = (tenantId: string): string => `${PORTAL_PATH}/${
  *
  * Leva o E-MAIL porque o Firebase exige confirmá-lo quando o link abre num navegador diferente do que o
  * pediu — e quem pede é sempre o escritório, nunca o convidado. Sem ele, todo convidado tinha de
- * redigitar o próprio e-mail. E leva o IDIOMA de quem convidou: a página abre antes de haver sessão
+ * redigitar o próprio e-mail. E leva o IDIOMA de quem convidou (`locale`): a página abre antes de haver sessão
  * ou escritório, e sem ele falaria a língua do navegador.
  */
 export const portalSignInUrl = (
   origin: string,
   tenantId: string,
-  options: { email?: string; lang?: string } = {},
+  options: { email?: string; locale?: string } = {},
 ): string => {
   const query = new URLSearchParams({ tenant: tenantId });
   if (options.email) query.set('email', options.email);
-  if (options.lang) query.set('lang', options.lang);
+  // `locale`, e não `lang`: o Firebase acrescenta o PRÓPRIO `lang` ao devolver para cá, e os dois
+  // colidiam — a página lia o do Firebase.
+  if (options.locale) query.set('locale', options.locale);
   return `${origin}${PORTAL_SIGN_IN_PATH}?${query.toString()}`;
 };
