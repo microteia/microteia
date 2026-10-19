@@ -18,6 +18,10 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.130.2] — 2026-10-19
+
+- fix(portal): the invitation records the inviter's UI locale (`portalUsers.locale`, sent by `invitePortalUser`), and `getPortalContext` / `submitPortalRecord` resolve guest > organization > invitation > browser. An organization whose Portuguese came from the administrator's personal preference had no organization default, so a guest with an English browser got the portal in English. Existing guests pick it up when invited again.
+
 #### [9.130.1] — 2026-10-19
 
 - fix(form-design): the Portal tab explains its disabled states. A screen with no reference field and no parent shows why `'self'` is the only subject (`portal.subject.only-self`), and the disabled "guests can create" option on a `'self'` screen now says how to model creation — a reference field on the other screen, chosen there as the subject (`portal.create.self-hint`). `com.microteia.locale-pt-br` 1.110.0.

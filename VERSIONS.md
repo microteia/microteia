@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.130.2] — 2026-10-19
+
+- O portal passa a usar o idioma de quem fez o convite quando nem o convidado nem o escritório escolheram um. Antes, nesse caso, ele seguia o idioma do navegador do convidado, e podia aparecer em inglês para um escritório que usa o sistema em português.
+
 #### [9.130.1] — 2026-10-19
 
 - A aba "Portal" do Form Design agora explica por que uma tela só oferece a opção de receber convidados, e como ligar os registros dela a outra tela para que o convidado possa criá-los.

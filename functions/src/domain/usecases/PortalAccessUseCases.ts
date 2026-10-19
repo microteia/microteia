@@ -24,6 +24,8 @@ export interface InvitePortalUserInput {
   email: string;
   subjectKey: string;
   invitedBy: string;
+  /** O idioma em que quem convidou usa o produto. */
+  locale?: string;
 }
 
 export type InvitePortalUserUseCase = {
@@ -42,7 +44,7 @@ export const makeInvitePortalUserUseCase = (
   repo: IPortalRepository,
   accounts: IPortalAccountService,
 ): InvitePortalUserUseCase => ({
-  execute: async ({ tenantId, tenantName, email, subjectKey, invitedBy }) => {
+  execute: async ({ tenantId, tenantName, email, subjectKey, invitedBy, locale }) => {
     const normalized = normalizePortalEmail(email);
     if (!EMAIL_PATTERN.test(normalized)) throw invalidArgument('@core.tenant/portal.email.invalid');
 
@@ -69,6 +71,7 @@ export const makeInvitePortalUserUseCase = (
       displayName: account.displayName ?? normalized,
       tenantName,
       invitedBy,
+      ...(locale ? { locale } : {}),
     }, portalSubjectKey(subject.collection, subject.recordId));
 
     return { userId: account.userId, created };

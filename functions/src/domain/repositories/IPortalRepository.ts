@@ -22,6 +22,8 @@ export interface PortalUserRecord {
   email: string;
   displayName: string;
   subjectKeys: string[];
+  /** O idioma de quem convidou — o do portal, quando ninguém escolheu outro. */
+  locale?: string;
 }
 
 export interface PortalUserGrant {
@@ -30,6 +32,7 @@ export interface PortalUserGrant {
   displayName: string;
   tenantName: string;
   invitedBy: string;
+  locale?: string;
 }
 
 export interface PortalProjection {

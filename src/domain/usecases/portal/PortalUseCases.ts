@@ -34,11 +34,11 @@ export const makeGetPortalDocumentUrlUseCase = (repo: IPortalRepository): GetPor
 });
 
 export type InvitePortalGuestUseCase = {
-  execute: (tenantId: string, email: string, subjectKey: string) => Promise<{ userId: string; created: boolean }>;
+  execute: (tenantId: string, email: string, subjectKey: string, locale: string) => Promise<{ userId: string; created: boolean }>;
 };
 
 export const makeInvitePortalGuestUseCase = (repo: IPortalRepository): InvitePortalGuestUseCase => ({
-  execute: (tenantId, email, subjectKey) => repo.invite(tenantId, email, subjectKey),
+  execute: (tenantId, email, subjectKey, locale) => repo.invite(tenantId, email, subjectKey, locale),
 });
 
 export type RevokePortalGuestUseCase = {

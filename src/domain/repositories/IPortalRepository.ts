@@ -38,6 +38,7 @@ export interface IPortalRepository {
     onUpdate: (guests: PortalGuest[]) => void,
     onError?: (error: Error) => void,
   ): () => void;
-  invite(tenantId: string, email: string, subjectKey: string): Promise<{ userId: string; created: boolean }>;
+  /** `locale` é o de quem convida: vira o idioma do portal do convidado enquanto ninguém escolher outro. */
+  invite(tenantId: string, email: string, subjectKey: string, locale: string): Promise<{ userId: string; created: boolean }>;
   revoke(tenantId: string, userId: string, subjectKey: string | null): Promise<void>;
 }

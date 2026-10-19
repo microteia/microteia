@@ -44,6 +44,19 @@ describe('convite do portal', () => {
     expect(fake.users.get('uid-ana@acme.com')?.subjectKeys).toEqual(['companies/acme']);
   });
 
+  it('o convite guarda o idioma de quem convidou — o do portal enquanto ninguém escolher outro', async () => {
+    const fake = makeFakePortalRepository(CITY_SCREENS);
+    fake.records.set('companies/acme', { name: 'Acme' });
+    const grant = vi.spyOn(fake.repo, 'grantSubject');
+    const { accounts } = accountsWith({ 'ana@acme.com': 'ana' });
+
+    await makeInvitePortalUserUseCase(fake.repo, accounts).execute({
+      tenantId: TENANT, tenantName: 'Salvador', email: 'ana@acme.com', subjectKey: 'companies/acme', invitedBy: 'fiscal', locale: 'pt-BR',
+    });
+
+    expect(grant).toHaveBeenCalledWith(TENANT, expect.objectContaining({ locale: 'pt-BR' }), 'companies/acme');
+  });
+
   it('quem já tem conta é só vinculado', async () => {
     const fake = makeFakePortalRepository(CITY_SCREENS);
     fake.records.set('companies/acme', { name: 'Acme' });

@@ -147,7 +147,7 @@ export const usePortalTabViewModel = (): PortalTabViewModel => {
     if (!tenantId || !screen || !recordId || !typed) return;
     setIsInviting(true);
     try {
-      await uc.invite.execute(tenantId, typed, portalSubjectKey(collectionOf(screen), recordId));
+      await uc.invite.execute(tenantId, typed, portalSubjectKey(collectionOf(screen), recordId), locale);
     } catch (error) {
       notify(label(error instanceof Error ? error.message : '@core.tenant/portal.failed'), 'error');
       setIsInviting(false);
@@ -163,7 +163,7 @@ export const usePortalTabViewModel = (): PortalTabViewModel => {
     } finally {
       setIsInviting(false);
     }
-  }, [email, tenantId, screen, recordId, uc.invite, sendLink, notify, t, label, linkFailureMessage]);
+  }, [email, tenantId, screen, recordId, uc.invite, sendLink, notify, t, label, linkFailureMessage, locale]);
 
   const resendLink = useCallback(async (guest: PortalGuestRow) => {
     try {

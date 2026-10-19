@@ -229,6 +229,7 @@ export class FirebasePortalRepository implements IPortalRepository {
       email: asString(data.email),
       displayName: asString(data.displayName),
       subjectKeys: asStrings(data.subjectKeys),
+      ...(asString(data.locale) ? { locale: asString(data.locale) } : {}),
     };
   }
 
@@ -250,6 +251,7 @@ export class FirebasePortalRepository implements IPortalRepository {
         transaction.update(reference, {
           subjectKeys: FieldValue.arrayUnion(subjectKey),
           tenantName: grant.tenantName,
+          ...(grant.locale ? { locale: grant.locale } : {}),
           updatedAt: FieldValue.serverTimestamp(),
         });
         return;
@@ -262,6 +264,7 @@ export class FirebasePortalRepository implements IPortalRepository {
         tenantName: grant.tenantName,
         subjectKeys: [subjectKey],
         invitedBy: grant.invitedBy,
+        ...(grant.locale ? { locale: grant.locale } : {}),
         addedAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),
       });

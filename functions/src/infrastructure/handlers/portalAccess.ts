@@ -56,6 +56,7 @@ export const invitePortalUser = onCall({ region: REGION, cors: true }, async (re
       email,
       subjectKey,
       invitedBy: userId,
+      ...(typeof data.locale === 'string' && data.locale ? { locale: data.locale } : {}),
     });
   } catch (error) {
     throw asHttpsError(error);
@@ -97,7 +98,11 @@ export const getPortalContext = onCall({ region: REGION, cors: true }, async (re
     if (!tenant) throw new HttpsError('permission-denied', '@core.tenant/portal.not-invited');
     const settings = di.getTenantSettingsRepository();
     const [own, office] = await Promise.all([settings.getUserValues(tenantId, userId), settings.getTenantValues(tenantId)]);
-    const configured = configuredLocale(own, office);
+    const guest = await di.getPortalRepository().getPortalUser(tenantId, userId);
+    // Escolhido pelo convidado ou pelo escritório; senão, o de quem convidou — o escritório que usa o
+    // produto em português pela preferência pessoal de quem administra não tem padrão gravado, e sem
+    // isto o convidado caía no navegador dele.
+    const configured = configuredLocale(own, office) ?? guest?.locale ?? null;
     const catalog = agentCatalog(
       await di.getInstalledExtensionCache().messageBundles(tenantId),
       configured ?? (browserLocale || DEFAULT_LOCALE),
@@ -150,10 +155,14 @@ export const submitPortalRecord = onCall({ region: REGION, cors: true }, async (
   } catch (error) {
     if (error instanceof PortalSubmissionInvalid) {
       const settings = di.getTenantSettingsRepository();
-      const [own, office] = await Promise.all([settings.getUserValues(tenantId, userId), settings.getTenantValues(tenantId)]);
+      const [own, office, guest] = await Promise.all([
+        settings.getUserValues(tenantId, userId),
+        settings.getTenantValues(tenantId),
+        di.getPortalRepository().getPortalUser(tenantId, userId),
+      ]);
       const catalog = agentCatalog(
         await di.getInstalledExtensionCache().messageBundles(tenantId),
-        configuredLocale(own, office) ?? (browserLocale || DEFAULT_LOCALE),
+        configuredLocale(own, office) ?? guest?.locale ?? (browserLocale || DEFAULT_LOCALE),
       );
       throw new HttpsError('invalid-argument', agentText(catalog, error.message, error.params).text);
     }

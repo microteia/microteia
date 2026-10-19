@@ -155,12 +155,12 @@ export class FirebasePortalRepository implements IPortalRepository {
     );
   }
 
-  async invite(tenantId: string, email: string, subjectKey: string): Promise<{ userId: string; created: boolean }> {
+  async invite(tenantId: string, email: string, subjectKey: string, locale: string): Promise<{ userId: string; created: boolean }> {
     const call = httpsCallable<
-      { tenantId: string; email: string; subjectKey: string },
+      { tenantId: string; email: string; subjectKey: string; locale: string },
       { userId: string; created: boolean }
     >(functions, 'invitePortalUser');
-    return (await call({ tenantId, email, subjectKey })).data;
+    return (await call({ tenantId, email, subjectKey, locale })).data;
   }
 
   async revoke(tenantId: string, userId: string, subjectKey: string | null): Promise<void> {
