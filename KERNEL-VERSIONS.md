@@ -18,6 +18,12 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.130.4] — 2026-10-19
+
+- fix(portal): `/portal` and `/portal/:tenantId` were sibling routes, each mounting its own `PortalStoreProvider`; every step between them remounted the store and reloaded invitations and context. They are now children of a single `/portal` route rendering an `<Outlet />` inside one provider.
+- fix(portal): every `getPortalContext` failure was reported as "not invited". The store now distinguishes `not-invited` (server `permission-denied`) from `failed` (anything else), exposes `errorCode`, `retryContext` and `retryMemberships`, and the shell offers a retry with the code. The callables log unexpected errors with the operation name (`asHttpsError(error, operation)`); the function log used to hold a blank error line.
+- fix(portal): `/portal/signin` renders a "Signing you in…" state while it consumes a link that carries the e-mail, instead of flashing the confirmation form. `PortalMembership` carries the invitation `locale`, and `PortalLocaleProvider` uses it before the context exists, so the chooser and error screens follow the invitation language.
+
 #### [9.130.3] — 2026-10-19
 
 - fix(portal): signing in again with the account already open never left `/portal/signin`. `signInWithEmailLink` for the same uid fires no `onAuthStateChanged`, and `AuthContext.signInWithLink` had set `loading` waiting for it. It now returns early for the same uid, and the page skips the link entirely when the open session already is the invited e-mail.

@@ -13,7 +13,8 @@ import {
 } from '../domain/usecases/portal/PortalUseCases';
 import type { PortalContext, PortalMembership, PortalRecord } from '../domain/entities/Portal';
 
-const CONTEXT_FAILED = '@core.tenant/portal.not-invited';
+const codeOf = (err: unknown): string =>
+  typeof (err as { code?: unknown } | null)?.code === 'string' ? (err as { code: string }).code : 'unknown';
 
 export const PortalStoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user } = useAuth();
@@ -35,7 +36,9 @@ export const PortalStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const [tenantId, setTenantId] = useState<string | null>(null);
   const [context, setContext] = useState<PortalContext | null>(null);
   const [contextLoading, setContextLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<'not-invited' | 'failed' | null>(null);
+  const [errorCode, setErrorCode] = useState<string | null>(null);
+  const [contextRevision, setContextRevision] = useState(0);
   const [collection, setCollection] = useState<string | null>(null);
   const [records, setRecords] = useState<PortalRecord[]>([]);
   const [recordsLoading, setRecordsLoading] = useState(false);
@@ -76,6 +79,7 @@ export const PortalStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
     setContextLoading(true);
     setContext(null);
     setError(null);
+    setErrorCode(null);
     setCollection(null);
     uc.context.execute(tenantId, locale)
       .then((loaded) => {
@@ -85,13 +89,22 @@ export const PortalStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
       })
       .catch((err: unknown) => {
         console.error('[PortalStore] context error:', err);
-        if (active) setError(CONTEXT_FAILED);
+        if (!active) return;
+        const code = codeOf(err);
+        setError(code === 'functions/permission-denied' ? 'not-invited' : 'failed');
+        setErrorCode(code);
       })
       .finally(() => {
         if (active) setContextLoading(false);
       });
     return () => { active = false; };
-  }, [tenantId, uc.context, locale]);
+  }, [tenantId, uc.context, locale, contextRevision]);
+
+  const retryContext = useCallback(() => setContextRevision((current) => current + 1), []);
+  const retryMemberships = useCallback(() => {
+    setMembershipsLoading(true);
+    setMembershipsRevision((current) => current + 1);
+  }, []);
 
   useEffect(() => {
     if (!tenantId || !collection || !user) {
@@ -145,6 +158,9 @@ export const PortalStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
     context,
     contextLoading,
     error,
+    errorCode,
+    retryContext,
+    retryMemberships,
     collection,
     records,
     recordsLoading,
@@ -155,7 +171,7 @@ export const PortalStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
     listLinkOptions,
     submit,
   }), [
-    memberships, membershipsLoading, membershipsFailed, tenantId, context, contextLoading, error,
+    memberships, membershipsLoading, membershipsFailed, tenantId, context, contextLoading, error, errorCode, retryContext, retryMemberships,
     collection, records, recordsLoading, getDocuments, getDocumentUrl, listLinkOptions, submit,
   ]);
 

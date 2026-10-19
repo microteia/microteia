@@ -51,6 +51,7 @@ export class FirebasePortalRepository implements IPortalRepository {
       .map((one) => ({
         tenantId: one.ref.parent.parent?.id ?? '',
         tenantName: textOf(one.get('tenantName')),
+        ...(textOf(one.get('locale')) ? { locale: textOf(one.get('locale')) } : {}),
       }))
       .filter((membership) => membership.tenantId !== '')
       .sort((a, b) => a.tenantName.localeCompare(b.tenantName));

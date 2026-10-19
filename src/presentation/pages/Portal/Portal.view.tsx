@@ -47,10 +47,14 @@ export const PortalView: React.FC = () => {
         <S.Centered>
           <S.Title>{t('portal.title')}</S.Title>
           <p>
-            {vm.error === 'load-failed'
+            {vm.error === 'load-failed' || vm.error === 'context-failed'
               ? t('portal.load-failed')
               : vm.error === 'no-access' ? t('portal.no-access') : t('portal.not-invited')}
           </p>
+          {vm.errorCode && <S.Muted>{t('portal.error.code', { code: vm.errorCode })}</S.Muted>}
+          {vm.canRetry && (
+            <Button size="sm" onClick={vm.retry}>{t('portal.retry')}</Button>
+          )}
           {vm.signedInAs && <S.Muted>{t('portal.signed-in-as', { email: vm.signedInAs })}</S.Muted>}
           <Button variant="secondary" size="sm" onClick={() => void vm.signOut()}>
             {t('portal.use-another-account')}

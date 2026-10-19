@@ -11,6 +11,13 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.130.4] — 2026-10-19
+
+- Ao abrir o link de acesso, o portal mostra "Entrando…" em vez de exibir por um instante a tela de login.
+- O portal não recarrega mais tudo ao escolher o escritório ou ao entrar nele, e o carregamento contínuo deixou de aparecer a cada tela.
+- Quando o portal não consegue carregar, ele diz isso — com um botão para tentar de novo e o código do erro —, em vez de afirmar que a pessoa não tem acesso.
+- As telas de aviso do portal aparecem no idioma do convite desde o início.
+
 #### [9.130.3] — 2026-10-19
 
 - O link de acesso ao portal não fica mais parado na tela de confirmação quando a pessoa já está conectada com a conta convidada: ela segue direto para o portal.

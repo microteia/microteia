@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { DIProvider } from './infrastructure/di/DIContainer';
 import { KernelProvider } from './stores/KernelContext';
 import { TenantKernelProvider } from './stores/TenantKernelProvider';
@@ -68,21 +68,26 @@ const App: React.FC = () => {
                 cada uma daquelas assinaturas seria uma leitura recusada.
               */}
               <Route path={PORTAL_SIGN_IN_PATH} element={<UrlLocaleProvider><PortalSignInView /></UrlLocaleProvider>} />
-              {[PORTAL_PATH, `${PORTAL_PATH}/:tenantId`].map((path) => (
-                <Route
-                  key={path}
-                  path={path}
-                  element={
-                    <ProtectedRoute loginPath={PORTAL_SIGN_IN_PATH}>
-                      <PortalStoreProvider>
-                        <PortalLocaleProvider>
-                          <PortalView />
-                        </PortalLocaleProvider>
-                      </PortalStoreProvider>
-                    </ProtectedRoute>
-                  }
-                />
-              ))}
+              {/*
+                Uma rota-mãe para o portal inteiro: o store fica montado entre a escolha do escritório
+                e o escritório. Duas rotas irmãs remontavam o store a cada passo — e cada remontagem
+                recarregava convites e contexto, com o spinner de volta.
+              */}
+              <Route
+                path={PORTAL_PATH}
+                element={
+                  <ProtectedRoute loginPath={PORTAL_SIGN_IN_PATH}>
+                    <PortalStoreProvider>
+                      <PortalLocaleProvider>
+                        <Outlet />
+                      </PortalLocaleProvider>
+                    </PortalStoreProvider>
+                  </ProtectedRoute>
+                }
+              >
+                <Route index element={<PortalView />} />
+                <Route path=":tenantId" element={<PortalView />} />
+              </Route>
               <Route
                 path="/*"
                 element={

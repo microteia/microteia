@@ -207,11 +207,14 @@ export const TenantLocaleProvider: React.FC<{ children: React.ReactNode }> = ({ 
  * do navegador, como em toda tela pública.
  */
 export const PortalLocaleProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { context } = usePortal();
+  const { context, memberships, tenantId } = usePortal();
+  // O escolhido (contexto); senão o do convite deste escritório, ou de qualquer convite — é o que
+  // vale nas telas que aparecem ANTES do contexto: a escolha do escritório e os erros.
   const preferred = useMemo(() => {
-    const normalized = normalizeLocale(context?.locale ?? '');
+    const invitation = memberships.find((one) => one.tenantId === tenantId)?.locale ?? memberships[0]?.locale ?? '';
+    const normalized = normalizeLocale(context?.locale || invitation);
     return normalized === '' ? undefined : normalized;
-  }, [context]);
+  }, [context, memberships, tenantId]);
   return <LocaleProvider preferred={preferred}>{children}</LocaleProvider>;
 };
 

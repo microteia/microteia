@@ -22,10 +22,17 @@ const requireString = (value: unknown, message: string): string => {
   return value.trim();
 };
 
-const asHttpsError = (error: unknown): HttpsError => {
+/**
+ * A recusa prevista (HttpsError, DomainError) volta como está. A IMPREVISTA vai para o log com a pilha
+ * e o gesto que a causou: sem isto o log da function registrava só uma linha de erro em branco, e o
+ * convidado via "você não tem acesso" sem que ninguém conseguisse dizer por quê.
+ */
+const asHttpsError = (error: unknown, operation: string): HttpsError => {
   if (error instanceof HttpsError) return error;
+  const code = domainErrorCode(error);
+  if (!code) console.error(`[portal] ${operation} falhou:`, error);
   const message = error instanceof Error ? error.message : '@core.tenant/portal.failed';
-  return new HttpsError(domainErrorCode(error) ?? 'internal', message);
+  return new HttpsError(code ?? 'internal', message);
 };
 
 /**
@@ -59,7 +66,7 @@ export const invitePortalUser = onCall({ region: REGION, cors: true }, async (re
       ...(typeof data.locale === 'string' && data.locale ? { locale: data.locale } : {}),
     });
   } catch (error) {
-    throw asHttpsError(error);
+    throw asHttpsError(error, 'invitePortalUser');
   }
 });
 
@@ -76,7 +83,7 @@ export const revokePortalUser = onCall({ region: REGION, cors: true }, async (re
     await getDI().getRevokePortalUserUseCase().execute(tenantId, portalUserId, subjectKey);
     return { revoked: true };
   } catch (error) {
-    throw asHttpsError(error);
+    throw asHttpsError(error, 'revokePortalUser');
   }
 });
 
@@ -115,7 +122,7 @@ export const getPortalContext = onCall({ region: REGION, cors: true }, async (re
       resolve: (value) => agentText(catalog, value).text,
     });
   } catch (error) {
-    throw asHttpsError(error);
+    throw asHttpsError(error, 'getPortalContext');
   }
 });
 
@@ -130,7 +137,7 @@ export const getPortalDocumentUrl = onCall({ region: REGION, cors: true }, async
     const url = await getDI().getPortalDocumentUrlUseCase().execute({ tenantId, userId, projectionId, documentId });
     return { url };
   } catch (error) {
-    throw asHttpsError(error);
+    throw asHttpsError(error, 'getPortalDocumentUrl');
   }
 });
 
@@ -166,6 +173,6 @@ export const submitPortalRecord = onCall({ region: REGION, cors: true }, async (
       );
       throw new HttpsError('invalid-argument', agentText(catalog, error.message, error.params).text);
     }
-    throw asHttpsError(error);
+    throw asHttpsError(error, 'submitPortalRecord');
   }
 });

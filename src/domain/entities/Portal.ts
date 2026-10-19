@@ -2,6 +2,8 @@
 export interface PortalMembership {
   tenantId: string;
   tenantName: string;
+  /** O idioma de quem convidou — vale antes de haver contexto, e nas telas de erro. */
+  locale?: string;
 }
 
 /** Uma tela exposta, como o portal a recebe: só os campos expostos, com os rótulos já traduzidos. */

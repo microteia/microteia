@@ -38,7 +38,12 @@ export interface PortalScreenTab {
 
 export interface PortalViewModel {
   loading: boolean;
-  error: 'no-access' | 'load-failed' | 'not-invited' | null;
+  error: 'no-access' | 'load-failed' | 'not-invited' | 'context-failed' | null;
+  /** O código técnico de uma falha — o que a pessoa repassa a quem a atende. */
+  errorCode: string | null;
+  /** Há o que tentar de novo: a falha não foi uma recusa. */
+  canRetry: boolean;
+  retry: () => void;
   /** Com que conta a pessoa entrou — o "sem acesso" mais comum é estar na conta errada. */
   signedInAs: string;
   showChooser: boolean;
@@ -219,7 +224,14 @@ export const usePortalViewModel = (): PortalViewModel => {
 
   return {
     loading: membershipsLoading || (!showChooser && portal.contextLoading),
-    error: loadFailed ? 'load-failed' : noAccess ? 'no-access' : portal.error ? 'not-invited' : null,
+    error: loadFailed
+      ? 'load-failed'
+      : noAccess
+        ? 'no-access'
+        : portal.error === 'not-invited' ? 'not-invited' : portal.error === 'failed' ? 'context-failed' : null,
+    errorCode: portal.errorCode,
+    canRetry: loadFailed || portal.error === 'failed',
+    retry: loadFailed ? portal.retryMemberships : portal.retryContext,
     signedInAs: user?.email ?? '',
     showChooser,
     memberships,

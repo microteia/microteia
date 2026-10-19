@@ -9,8 +9,16 @@ export interface PortalStoreValue {
   tenantId: string | null;
   context: PortalContext | null;
   contextLoading: boolean;
-  /** Chave de mensagem — o convite pode ter sido revogado, ou o escritório não expõe nada. */
-  error: string | null;
+  /**
+   * Por que o contexto não veio. `not-invited` só quando o SERVIDOR disse que a pessoa não é
+   * convidada; qualquer outra falha — função iniciando, rede, erro interno — é `failed`, com nova
+   * tentativa. Juntar as duas mostrava "você não tem acesso" a quem tinha.
+   */
+  error: 'not-invited' | 'failed' | null;
+  /** O código do erro, para quem precisa reportá-lo. */
+  errorCode: string | null;
+  retryContext: () => void;
+  retryMemberships: () => void;
   collection: string | null;
   records: PortalRecord[];
   recordsLoading: boolean;

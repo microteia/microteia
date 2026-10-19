@@ -3,12 +3,25 @@ import { usePortalSignInViewModel } from './PortalSignIn.viewmodel';
 import { S } from './PortalSignIn.styles';
 import { Button } from '../../components/ui/Button';
 import { Input, InputGroup, Label } from '../../components/ui/Input';
+import { Spinner } from '../../components/ui/Spinner';
 import { useT } from '../../shared/i18n/useT';
 
 export const PortalSignInView: React.FC = () => {
   const vm = usePortalSignInViewModel();
   const t = useT('core.tenant');
   const busy = vm.status === 'sending' || vm.status === 'signing-in' || vm.status === 'signed-in';
+
+  if (vm.processing) {
+    return (
+      <S.Page>
+        <S.Card as="div">
+          <S.Title>{t('portal.title')}</S.Title>
+          <Spinner size={28} />
+          <S.Text>{t('portal.signin.processing')}</S.Text>
+        </S.Card>
+      </S.Page>
+    );
+  }
 
   return (
     <S.Page>

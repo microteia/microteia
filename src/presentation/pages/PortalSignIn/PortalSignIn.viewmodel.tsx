@@ -15,6 +15,11 @@ export interface PortalSignInViewModel {
   email: string;
   setEmail: (value: string) => void;
   submit: (event: FormEvent) => Promise<void>;
+  /**
+   * O link está sendo consumido sozinho — com o e-mail no endereço, não há o que perguntar. A página
+   * mostra o progresso, e não o formulário: era ele aparecendo e sumindo que parecia "pedir login".
+   */
+  processing: boolean;
 }
 
 const readStoredEmail = (): string => {
@@ -111,5 +116,7 @@ export const usePortalSignInViewModel = (): PortalSignInViewModel => {
     }
   }, [email, mode, completeLink, sendSignInLink, tenantId, locale]);
 
-  return { mode, status, email, setEmail, submit };
+  const processing = mode === 'confirm' && !!invitedEmail && status !== 'failed';
+
+  return { mode, status, email, setEmail, submit, processing };
 };
