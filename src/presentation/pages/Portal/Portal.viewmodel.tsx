@@ -65,6 +65,14 @@ export interface PortalViewModel {
   openingDocumentId: string | null;
   documentError: boolean;
   signOut: () => Promise<void>;
+  /** A tela aceita registros do convidado — e, se aceita, a tela é esta. */
+  createScreen: PortalScreenInfo | null;
+  creating: boolean;
+  startCreate: () => void;
+  cancelCreate: () => void;
+  handleSubmitted: () => void;
+  /** O registro enviado aparece na lista quando o servidor o projeta — segundos depois. */
+  justSubmitted: boolean;
 }
 
 const optionLabel = (field: PortalScreenInfo['fields'][number], key: unknown): string =>
@@ -83,6 +91,8 @@ export const usePortalViewModel = (): PortalViewModel => {
   const [documentsLoading, setDocumentsLoading] = useState(false);
   const [openingDocumentId, setOpeningDocumentId] = useState<string | null>(null);
   const [documentError, setDocumentError] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [justSubmitted, setJustSubmitted] = useState(false);
 
   const { memberships, membershipsLoading, selectTenant, getDocuments, getDocumentUrl, selectCollection } = portal;
 
@@ -198,6 +208,8 @@ export const usePortalViewModel = (): PortalViewModel => {
 
   const selectScreen = useCallback((collection: string) => {
     setSelectedId(null);
+    setCreating(false);
+    setJustSubmitted(false);
     selectCollection(collection);
   }, [selectCollection]);
 
@@ -232,5 +244,18 @@ export const usePortalViewModel = (): PortalViewModel => {
     openingDocumentId,
     documentError,
     signOut,
+    createScreen: screen?.create ? screen : null,
+    creating,
+    startCreate: () => {
+      setSelectedId(null);
+      setJustSubmitted(false);
+      setCreating(true);
+    },
+    cancelCreate: () => setCreating(false),
+    handleSubmitted: () => {
+      setCreating(false);
+      setJustSubmitted(true);
+    },
+    justSubmitted,
   };
 };

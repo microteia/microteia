@@ -48,6 +48,8 @@ const toScreen = (id: string, data: DocumentData): PortalScreen => ({
       type: asString(field.type) || undefined,
       refEntity: asString(field.refEntity) || null,
       multi: field.multi === true,
+      required: field.required === true,
+      ...(field.defaultValue !== undefined ? { defaultValue: field.defaultValue } : {}),
       ...(Array.isArray(field.options)
         ? {
           options: (field.options as DocumentData[])

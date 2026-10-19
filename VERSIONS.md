@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.130.0] — 2026-10-18
+
+- O convidado do portal agora também pode enviar registros — um pedido do cliente, uma nota emitida pela empresa. No Form Design, a aba "Portal" de cada tela define se ela aceita esses envios e quais campos o convidado preenche.
+- O registro enviado é sempre vinculado ao que já pertence ao convidado, nunca a outra empresa ou cliente, e passa pelas mesmas validações de quando alguém do escritório o cadastra. As automações do escritório podem avisar a equipe a cada envio.
+
 #### [9.129.3] — 2026-10-18
 
 - O portal deixou de aparecer em inglês quando o escritório não escolheu um idioma: nesse caso ele segue o idioma do navegador de quem acessa, inclusive nas datas.

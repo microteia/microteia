@@ -3,6 +3,7 @@ import {
   makeGetPortalContextUseCase,
   makeGetPortalDocumentUrlUseCase,
   makeInvitePortalUserUseCase,
+  makeSubmitPortalRecordUseCase,
 } from './PortalAccessUseCases';
 import { makeProjectPortalRecordUseCase } from './PortalProjectionUseCases';
 import { CITY_SCREENS, makeFakePortalRepository } from '../repositories/fakePortalRepository';
@@ -119,5 +120,75 @@ describe('contexto do portal', () => {
     await expect(makeGetPortalContextUseCase(fake.repo).execute({
       tenantId: TENANT, userId: 'intruso', tenant: { name: 'Salvador', logoURL: null }, locale: 'pt-BR', resolve: (value) => value,
     })).rejects.toThrow('@core.tenant/portal.not-invited');
+  });
+});
+
+describe('o convidado cria um registro', () => {
+  const screens = CITY_SCREENS.map((screen) => (screen.id === 'invoices'
+    ? { ...screen, portal: { ...screen.portal!, create: { fields: ['number', 'amount'] } } }
+    : screen));
+
+  const setup = () => {
+    const fake = makeFakePortalRepository(screens);
+    fake.users.set('ana', { userId: 'ana', email: 'ana@acme.com', displayName: 'Ana', subjectKeys: ['companies/acme'] });
+    const written: Array<{ collection: string; data: Record<string, unknown>; userId: string }> = [];
+    const write = vi.fn(async (input: { collection: string; data: Record<string, unknown>; userId: string }) => {
+      written.push(input);
+      return { ok: true as const, id: 'new-1' };
+    });
+    return { fake, written, submit: makeSubmitPortalRecordUseCase(fake.repo, write) };
+  };
+
+  it('grava só os campos preenchíveis, com o vínculo carimbado pelo servidor', async () => {
+    const { submit, written } = setup();
+    const result = await submit.execute({
+      tenantId: TENANT, userId: 'ana', collection: 'invoices', linkRecordId: 'acme',
+      data: { number: 'NF-9', amount: 50, auditNote: 'forjado', companyId: 'globex' },
+    });
+    expect(result).toEqual({ id: 'new-1' });
+    expect(written[0]).toEqual({ tenantId: TENANT, collection: 'invoices', userId: 'ana', data: { number: 'NF-9', amount: 50, companyId: 'acme' } });
+  });
+
+  it('recusa vincular a uma empresa que não é do convidado', async () => {
+    const { submit, written } = setup();
+    await expect(submit.execute({ tenantId: TENANT, userId: 'ana', collection: 'invoices', linkRecordId: 'globex', data: { number: 'X' } }))
+      .rejects.toThrow('@core.tenant/portal.create.denied');
+    expect(written).toEqual([]);
+  });
+
+  it('recusa quem não é convidado, e a tela que não aceita criação', async () => {
+    const { submit } = setup();
+    await expect(submit.execute({ tenantId: TENANT, userId: 'intruso', collection: 'invoices', linkRecordId: 'acme', data: {} }))
+      .rejects.toThrow('@core.tenant/portal.create.denied');
+    await expect(submit.execute({ tenantId: TENANT, userId: 'ana', collection: 'companies', linkRecordId: 'acme', data: {} }))
+      .rejects.toThrow('@core.tenant/portal.create.denied');
+  });
+
+  it('pelo pai, só vincula a uma projeção em que o convidado está', async () => {
+    const childScreens = screens.map((screen) => (screen.id === 'invoiceItems'
+      ? { ...screen, portal: { ...screen.portal!, create: { fields: ['description'] } } }
+      : screen));
+    const fake = makeFakePortalRepository(childScreens);
+    fake.users.set('ana', { userId: 'ana', email: 'ana@acme.com', displayName: 'Ana', subjectKeys: ['companies/acme'] });
+    fake.projections.set('invoices__nf1', {
+      collection: 'invoices', recordId: 'nf1', screenId: 'invoices', subjectKeys: ['companies/acme'],
+      audience: ['ana'], title: '', data: {}, labels: {},
+    });
+    const write = vi.fn(async () => ({ ok: true as const, id: 'it-1' }));
+    const submit = makeSubmitPortalRecordUseCase(fake.repo, write);
+
+    await submit.execute({ tenantId: TENANT, userId: 'ana', collection: 'invoiceItems', linkRecordId: 'nf1', data: { description: 'Serviço' } });
+    expect(write).toHaveBeenCalledWith(expect.objectContaining({ data: { description: 'Serviço', invoiceId: 'nf1' } }));
+    await expect(submit.execute({ tenantId: TENANT, userId: 'ana', collection: 'invoiceItems', linkRecordId: 'nf2', data: {} }))
+      .rejects.toThrow('@core.tenant/portal.create.denied');
+  });
+
+  it('a recusa da validação sobe com os parâmetros, para ser traduzida', async () => {
+    const fake = makeFakePortalRepository(screens);
+    fake.users.set('ana', { userId: 'ana', email: 'ana@acme.com', displayName: 'Ana', subjectKeys: ['companies/acme'] });
+    const write = vi.fn(async () => ({ ok: false as const, error: '@core.automation/mutation.upsert.invalid', errorParams: { detail: 'number' } }));
+    await expect(makeSubmitPortalRecordUseCase(fake.repo, write).execute({
+      tenantId: TENANT, userId: 'ana', collection: 'invoices', linkRecordId: 'acme', data: {},
+    })).rejects.toMatchObject({ name: 'PortalSubmissionInvalid', params: { detail: 'number' } });
   });
 });

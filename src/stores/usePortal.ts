@@ -1,5 +1,5 @@
 import { createContext, useContext } from 'react';
-import type { PortalContext, PortalDocument, PortalMembership, PortalRecord } from '../domain/entities/Portal';
+import type { PortalContext, PortalDocument, PortalLinkOption, PortalMembership, PortalRecord } from '../domain/entities/Portal';
 
 export interface PortalStoreValue {
   memberships: PortalMembership[];
@@ -18,6 +18,8 @@ export interface PortalStoreValue {
   selectCollection: (collection: string) => void;
   getDocuments: (projectionId: string) => Promise<PortalDocument[]>;
   getDocumentUrl: (projectionId: string, documentId: string) => Promise<string>;
+  listLinkOptions: (collection: string) => Promise<PortalLinkOption[]>;
+  submit: (collection: string, linkRecordId: string, data: Record<string, unknown>) => Promise<void>;
 }
 
 export const PortalStoreContext = createContext<PortalStoreValue | null>(null);

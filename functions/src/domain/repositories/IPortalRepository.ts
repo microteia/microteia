@@ -11,6 +11,8 @@ export interface PortalScreen extends PortalScreenLike {
     type?: string;
     refEntity?: string | null;
     multi?: boolean;
+    required?: boolean;
+    defaultValue?: unknown;
     options?: Array<{ key: string; label: string }>;
   }>;
 }

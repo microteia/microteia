@@ -1,5 +1,5 @@
 import type { IPortalRepository } from '../../repositories/IPortalRepository';
-import type { PortalContext, PortalDocument, PortalMembership } from '../../entities/Portal';
+import type { PortalContext, PortalDocument, PortalLinkOption, PortalMembership } from '../../entities/Portal';
 
 export type ListPortalMembershipsUseCase = {
   execute: (userId: string) => Promise<PortalMembership[]>;
@@ -47,4 +47,26 @@ export type RevokePortalGuestUseCase = {
 
 export const makeRevokePortalGuestUseCase = (repo: IPortalRepository): RevokePortalGuestUseCase => ({
   execute: (tenantId, userId, subjectKey) => repo.revoke(tenantId, userId, subjectKey),
+});
+
+export type ListPortalLinkOptionsUseCase = {
+  execute: (tenantId: string, userId: string, collection: string) => Promise<PortalLinkOption[]>;
+};
+
+export const makeListPortalLinkOptionsUseCase = (repo: IPortalRepository): ListPortalLinkOptionsUseCase => ({
+  execute: (tenantId, userId, collection) => repo.listLinkOptions(tenantId, userId, collection),
+});
+
+export type SubmitPortalRecordUseCase = {
+  execute: (input: {
+    tenantId: string;
+    collection: string;
+    linkRecordId: string;
+    data: Record<string, unknown>;
+    locale: string;
+  }) => Promise<{ id: string }>;
+};
+
+export const makeSubmitPortalRecordUseCase = (repo: IPortalRepository): SubmitPortalRecordUseCase => ({
+  execute: (input) => repo.submit(input),
 });

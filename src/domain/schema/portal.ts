@@ -36,6 +36,12 @@ export interface PortalDeclaration {
   fields: string[];
   /** Expõe os documentos do registro que alguém do escritório marcou como compartilhados. */
   documents?: boolean | null;
+  /**
+   * O convidado CRIA registros desta tela — e só preenche estes campos. O vínculo com o dono não
+   * está entre eles: quem o carimba é o servidor, a partir do que o convidado de fato enxerga. Não
+   * vale para a tela-sujeito: o convidado cria PARA a empresa dele, nunca uma empresa nova.
+   */
+  create?: { fields: string[] } | null;
 }
 
 /** O mínimo de uma tela que o portal precisa ler. */
@@ -44,7 +50,14 @@ export interface PortalScreenLike {
   /** A coleção onde os registros vivem — `dataCollection` ou o próprio id. */
   collection: string;
   titleFieldKey?: string | null;
-  fields: ReadonlyArray<{ key: string; type?: string; refEntity?: string | null }>;
+  fields: ReadonlyArray<{
+    key: string;
+    type?: string;
+    refEntity?: string | null;
+    multi?: boolean;
+    required?: boolean;
+    defaultValue?: unknown;
+  }>;
   parentEntity?: string | null;
   parentFieldKey?: string | null;
   portal?: PortalDeclaration | null;
@@ -83,7 +96,59 @@ export const asPortalDeclaration = (value: unknown): PortalDeclaration | null =>
     ? [...new Set(raw.fields.filter(isNonEmptyString).map((key) => key.trim()))]
     : [];
 
-  return { subject, fields, documents: raw.documents === true };
+  const rawCreate = raw.create as Record<string, unknown> | null | undefined;
+  const create = subject !== 'self' && rawCreate && typeof rawCreate === 'object' && Array.isArray(rawCreate.fields)
+    ? { fields: [...new Set(rawCreate.fields.filter(isNonEmptyString).map((key) => key.trim()))] }
+    : null;
+
+  return { subject, fields, documents: raw.documents === true, ...(create ? { create } : {}) };
+};
+
+/**
+ * O campo que liga um registro ao dono dele, e a tela para onde aponta: o campo de referência, ou o
+ * do pai. `null` para a tela-sujeito — ela não aponta para ninguém.
+ */
+export const portalLinkOf = (
+  screen: PortalScreenLike,
+): { fieldKey: string; targetEntity: string; multi: boolean } | null => {
+  const subject = screen.portal?.subject;
+  if (!subject || subject === 'self') return null;
+  if (subject === 'parent') {
+    return screen.parentEntity && screen.parentFieldKey
+      ? { fieldKey: screen.parentFieldKey, targetEntity: screen.parentEntity, multi: false }
+      : null;
+  }
+  const field = screen.fields.find((one) => one.key === subject.field);
+  return field?.type === 'reference' && field.refEntity
+    ? { fieldKey: field.key, targetEntity: field.refEntity, multi: field.multi === true }
+    : null;
+};
+
+/** Os campos que o convidado preenche ao criar — os declarados que existem, sem o vínculo. */
+export const portalCreateFieldKeys = (screen: PortalScreenLike): string[] => {
+  const declared = new Set(screen.fields.map((field) => field.key));
+  const link = portalLinkOf(screen)?.fieldKey;
+  return (screen.portal?.create?.fields ?? []).filter((key) => declared.has(key) && key !== link);
+};
+
+/**
+ * O que o convidado manda vira o que se grava: só os campos que a tela deixa ele preencher, mais o
+ * vínculo carimbado pelo servidor. Qualquer outra chave — inclusive o próprio vínculo, se ele o
+ * mandar — é descartada, e é isso que impede um convidado de criar um registro para outra empresa.
+ */
+export const buildPortalSubmission = (
+  screen: PortalScreenLike,
+  data: Record<string, unknown>,
+  linkRecordId: string,
+): Record<string, unknown> | null => {
+  const link = portalLinkOf(screen);
+  if (!link) return null;
+  const submission: Record<string, unknown> = {};
+  for (const key of portalCreateFieldKeys(screen)) {
+    if (data[key] !== undefined) submission[key] = data[key];
+  }
+  submission[link.fieldKey] = link.multi ? [linkRecordId] : linkRecordId;
+  return submission;
 };
 
 export const isPortalSubjectScreen = (screen: PortalScreenLike): boolean => screen.portal?.subject === 'self';
@@ -204,6 +269,22 @@ export const portalDeclarationIssues = (
   if (portal.fields.length === 0) issues.push({ message: '@core.records/portal.issue.no-fields' });
   for (const key of portal.fields) {
     if (!declared.has(key)) issues.push({ message: '@core.records/portal.issue.field.unknown', messageParams: { field: key } });
+  }
+
+  if (portal.create) {
+    if (portal.subject === 'self') {
+      issues.push({ message: '@core.records/portal.issue.create.self' });
+    } else if (portalCreateFieldKeys(screen).length === 0) {
+      issues.push({ message: '@core.records/portal.issue.create.no-fields' });
+    } else {
+      const fillable = new Set([...portalCreateFieldKeys(screen), portalLinkOf(screen)?.fieldKey]);
+      for (const field of screen.fields) {
+        const hasDefault = field.defaultValue !== undefined && field.defaultValue !== null && field.defaultValue !== '';
+        if (field.required && !hasDefault && !fillable.has(field.key)) {
+          issues.push({ message: '@core.records/portal.issue.create.required-missing', messageParams: { field: field.key } });
+        }
+      }
+    }
   }
 
   const subject = portal.subject;

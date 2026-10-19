@@ -18,6 +18,12 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.130.0] — 2026-10-18
+
+- feat(portal): guests create records. `PortalDeclaration.create: { fields }` (refused on `'self'`); synced `portal.ts` gains `portalLinkOf`, `portalCreateFieldKeys`, `buildPortalSubmission` and the `portal.issue.create.*` checks (create on the subject screen, no fillable fields, required field without default left out). KERNEL_VERSION 2.52.0.
+- feat(portal): callable `submitPortalRecord`. The link record must be visible to the guest (an invitation subject, or a projection with the guest in `audience`); the server stamps the link field and drops every other key outside `create.fields`. Writes through `runWorkflowUpsert` with actor `via: 'portal'` and no permissions (`RecordWriteVia` and `ActorVia` gain `'portal'`); `RenderDocumentStep` treats a portal actor as unattended. Validation refusals are resolved server-side in the guest's locale. `getPortalContext` describes `create` (fillable fields, link target).
+- feat(ui): `PortalCreateForm` in the portal shell (link chooser hidden when there is a single option) and a "Guests can create records" section in the Form Design Portal tab. `com.microteia.locale-pt-br` 1.109.0. Deploy: `npm run deploy:portal`.
+
 #### [9.129.3] — 2026-10-18
 
 - fix(portal): `getPortalContext` returned the product default (`en`) when no locale was configured, and `PortalLocaleProvider` let it override the browser. It now returns `locale` only when chosen (`configuredLocale`, user > organization) and receives the browser locale from the client to resolve labels when nothing was chosen.

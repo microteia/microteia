@@ -19,12 +19,15 @@ import {
   makeGetPortalDocumentUrlUseCase,
   makeInvitePortalUserUseCase,
   makeRevokePortalUserUseCase,
+  makeSubmitPortalRecordUseCase,
 } from '../../domain/usecases/PortalAccessUseCases';
+import { portalRecordWriter } from '../portal/portalRecordWriter';
 import type {
   GetPortalContextUseCase,
   GetPortalDocumentUrlUseCase,
   InvitePortalUserUseCase,
   RevokePortalUserUseCase,
+  SubmitPortalRecordUseCase,
 } from '../../domain/usecases/PortalAccessUseCases';
 import { FirebaseAuditLogRepository } from '../../data/repositories/FirebaseAuditLogRepository';
 import { FirebaseExtensionStatsRepository } from '../../data/repositories/FirebaseExtensionStatsRepository';
@@ -292,6 +295,10 @@ class DIContainer {
 
   getPortalDocumentUrlUseCase(): GetPortalDocumentUrlUseCase {
     return makeGetPortalDocumentUrlUseCase(this.getPortalRepository());
+  }
+
+  getSubmitPortalRecordUseCase(): SubmitPortalRecordUseCase {
+    return makeSubmitPortalRecordUseCase(this.getPortalRepository(), portalRecordWriter);
   }
 
   getPortalContextUseCase(): GetPortalContextUseCase {

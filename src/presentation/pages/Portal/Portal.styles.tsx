@@ -225,6 +225,16 @@ export const S = {
     white-space: nowrap;
   `,
 
+  Toolbar: styled.div`
+    display: flex;
+    justify-content: flex-end;
+  `,
+
+  Success: styled.p`
+    font-size: ${({ theme }) => theme.fontSizes.sm};
+    color: ${({ theme }) => theme.colors.success};
+  `,
+
   ErrorText: styled.p`
     font-size: ${({ theme }) => theme.fontSizes.sm};
     color: ${({ theme }) => theme.colors.danger};

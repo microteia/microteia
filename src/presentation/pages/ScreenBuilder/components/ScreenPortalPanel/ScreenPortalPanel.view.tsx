@@ -10,6 +10,8 @@ import type { PortalFormState, PortalSubjectKind } from './screenPortalForm';
 export interface ScreenPortalPanelProps {
   form: PortalFormState;
   fieldOptions: Array<{ value: string; label: string }>;
+  /** Os campos que o convidado pode preencher — todos, menos o do vínculo, que o servidor carimba. */
+  createFieldOptions: Array<{ value: string; label: string }>;
   referenceFieldOptions: Array<{ value: string; label: string }>;
   hasParent: boolean;
   hasDocuments: boolean;
@@ -22,6 +24,8 @@ export interface ScreenPortalPanelProps {
   onSubjectField: (fieldKey: string) => void;
   onToggleField: (fieldKey: string, exposed: boolean) => void;
   onToggleDocuments: (documents: boolean) => void;
+  onToggleCreate: (allowCreate: boolean) => void;
+  onToggleCreateField: (fieldKey: string, fillable: boolean) => void;
 }
 
 /** A aba "Portal" da tela: o que sai do escritório, e para quem. Só desenha o que recebe. */
@@ -97,6 +101,29 @@ export const ScreenPortalPanel: React.FC<ScreenPortalPanelProps> = (props) => {
               disabled={readOnly || !props.hasDocuments}
             />
             <S.Hint>{props.hasDocuments ? t('portal.documents.hint') : t('portal.documents.unavailable')}</S.Hint>
+          </S.Section>
+
+          <S.Section>
+            <Checkbox
+              checked={form.allowCreate && form.subjectKind !== 'self'}
+              onChange={props.onToggleCreate}
+              label={t('portal.create.enabled')}
+              disabled={readOnly || form.subjectKind === 'self'}
+            />
+            <S.Hint>{form.subjectKind === 'self' ? t('portal.create.self-hint') : t('portal.create.hint')}</S.Hint>
+            {form.allowCreate && form.subjectKind !== 'self' && (
+              <S.FieldGrid>
+                {props.createFieldOptions.map((option) => (
+                  <Checkbox
+                    key={option.value}
+                    checked={form.createFields.includes(option.value)}
+                    onChange={(fillable) => props.onToggleCreateField(option.value, fillable)}
+                    label={option.label}
+                    disabled={readOnly}
+                  />
+                ))}
+              </S.FieldGrid>
+            )}
           </S.Section>
 
           {props.issues.length > 0 && (

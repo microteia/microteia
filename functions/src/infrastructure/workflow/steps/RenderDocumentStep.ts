@@ -19,11 +19,14 @@ const isPlainObject = (value: unknown): value is Record<string, unknown> =>
 const textOf = (value: unknown): string => (value === undefined || value === null ? '' : String(value).trim());
 
 /**
- * O autor do anexo pela regra da gravação de registro: com uma pessoa por trás, ela; sem pessoa, o
- * motor — e sem nome, para a aba não atribuir a ninguém o que a automação fez.
+ * O autor do anexo pela regra da gravação de registro: com uma pessoa DO ESCRITÓRIO por trás, ela; sem
+ * pessoa, o motor — e sem nome, para a aba não atribuir a ninguém o que a automação fez.
+ *
+ * O convidado do portal conta como "sem pessoa": o que ele disparou foi a automação do escritório, e
+ * um anexo assinado por quem é de fora diria que foi ele quem o produziu.
  */
 const authorOf = (context: WorkflowContext): RecordDocumentAuthor =>
-  context.actor
+  context.actor && context.actor.via !== 'portal'
     ? { uid: context.actor.userId, name: context.actor.name, photoUrl: context.actor.photoURL, via: context.actor.via }
     : { uid: WORKFLOW_ACTOR, name: null, via: 'automation' };
 

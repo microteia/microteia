@@ -5,6 +5,7 @@ import { PERMISSION_PORTAL_MANAGE } from '../../domain/schema/access/kernelPermi
 import { collectionPermissionId } from '../../domain/schema/access/permission';
 import { parsePortalSubjectKey } from '../../domain/schema/portal';
 import { domainErrorCode } from '../../domain/errors/DomainError';
+import { PortalSubmissionInvalid } from '../../domain/usecases/PortalAccessUseCases';
 import { agentCatalog, agentText } from '../agent/agentMessages';
 import { configuredLocale } from '../../domain/services/tenantSettings';
 import { DEFAULT_LOCALE } from '../../domain/schema/i18n/localeNegotiation';
@@ -124,6 +125,38 @@ export const getPortalDocumentUrl = onCall({ region: REGION, cors: true }, async
     const url = await getDI().getPortalDocumentUrlUseCase().execute({ tenantId, userId, projectionId, documentId });
     return { url };
   } catch (error) {
+    throw asHttpsError(error);
+  }
+});
+
+/**
+ * O convidado cria um registro. A recusa da VALIDAÇÃO volta já traduzida, e no idioma do convidado:
+ * as frases do motor de gravação são do núcleo, e o pacote de idioma do escritório não chega ao
+ * portal — sem isto, o convidado de um escritório brasileiro leria o motivo em inglês.
+ */
+export const submitPortalRecord = onCall({ region: REGION, cors: true }, async (request) => {
+  const userId = authenticated(request.auth);
+  const data = (request.data ?? {}) as Record<string, unknown>;
+  const tenantId = requireString(data.tenantId, '@core.automation/handler.tenant.missing');
+  const collection = requireString(data.collection, '@core.tenant/portal.create.denied');
+  const linkRecordId = requireString(data.linkRecordId, '@core.tenant/portal.create.denied');
+  const values = data.data && typeof data.data === 'object' && !Array.isArray(data.data)
+    ? (data.data as Record<string, unknown>)
+    : {};
+  const browserLocale = typeof data.locale === 'string' ? data.locale : '';
+  const di = getDI();
+  try {
+    return await di.getSubmitPortalRecordUseCase().execute({ tenantId, userId, collection, linkRecordId, data: values });
+  } catch (error) {
+    if (error instanceof PortalSubmissionInvalid) {
+      const settings = di.getTenantSettingsRepository();
+      const [own, office] = await Promise.all([settings.getUserValues(tenantId, userId), settings.getTenantValues(tenantId)]);
+      const catalog = agentCatalog(
+        await di.getInstalledExtensionCache().messageBundles(tenantId),
+        configuredLocale(own, office) ?? (browserLocale || DEFAULT_LOCALE),
+      );
+      throw new HttpsError('invalid-argument', agentText(catalog, error.message, error.params).text);
+    }
     throw asHttpsError(error);
   }
 });

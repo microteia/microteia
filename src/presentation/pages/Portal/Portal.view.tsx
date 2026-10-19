@@ -1,10 +1,11 @@
 import React from 'react';
-import { RiArrowLeftLine, RiExternalLinkLine, RiLogoutBoxRLine } from 'react-icons/ri';
+import { RiAddLine, RiArrowLeftLine, RiExternalLinkLine, RiLogoutBoxRLine } from 'react-icons/ri';
 import { usePortalViewModel } from './Portal.viewmodel';
 import { S } from './Portal.styles';
 import { Button } from '../../components/ui/Button';
 import { Spinner } from '../../components/ui/Spinner';
 import { getScreenIcon } from '../../shared/screenIcons';
+import { PortalCreateForm } from './components/PortalCreateForm';
 import { useT } from '../../shared/i18n/useT';
 
 export const PortalView: React.FC = () => {
@@ -91,8 +92,19 @@ export const PortalView: React.FC = () => {
         </S.Nav>
       )}
       <S.Main>
+        {vm.createScreen && !vm.creating && !vm.selected && (
+          <S.Toolbar>
+            <Button size="sm" onClick={vm.startCreate}>
+              <RiAddLine size={14} />
+              {t('portal.create.new', { screen: vm.createScreen.titleSingular })}
+            </Button>
+          </S.Toolbar>
+        )}
+        {vm.justSubmitted && !vm.creating && <S.Success>{t('portal.create.sent')}</S.Success>}
         {vm.emptyScreens ? (
           <S.Centered>{t('portal.empty-screens')}</S.Centered>
+        ) : vm.creating && vm.createScreen ? (
+          <PortalCreateForm screen={vm.createScreen} onCancel={vm.cancelCreate} onSubmitted={vm.handleSubmitted} />
         ) : vm.selected ? (
           <S.Detail>
             <div>

@@ -35,6 +35,7 @@ const ALL_FUNCTIONS = [
   'revokePortalUser',
   'getPortalContext',
   'getPortalDocumentUrl',
+  'submitPortalRecord',
   'projectPortalRecord',
   'projectPortalDocument',
   'refreshPortalAudience',

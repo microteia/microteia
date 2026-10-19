@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   asPortalDeclaration,
+  buildPortalSubmission,
   parsePortalSubjectKey,
   portalDeclarationIssues,
   portalExposedTitle,
@@ -158,5 +159,39 @@ describe('problemas da declaração', () => {
       portal: { subject: { field: 'a' }, fields: ['a'] },
     };
     expect(keys(a, [a, b])).toContain('@core.records/portal.issue.too-deep');
+  });
+});
+
+describe('criação pelo portal', () => {
+  const orders: PortalScreenLike = {
+    id: 'orders',
+    collection: 'orders',
+    fields: [
+      { key: 'title', type: 'text', required: true },
+      { key: 'notes', type: 'text' },
+      { key: 'status', type: 'text', required: true, defaultValue: 'open' },
+      { key: 'internal', type: 'text' },
+      { key: 'companyId', type: 'reference', refEntity: 'companies', required: true },
+    ],
+    portal: { subject: { field: 'companyId' }, fields: ['title'], create: { fields: ['title', 'notes', 'companyId'] } },
+  };
+
+  it('o vínculo é carimbado pelo servidor, e o que não é preenchível some', () => {
+    expect(buildPortalSubmission(orders, { title: 'Pedido', internal: 'x', companyId: 'outra' }, 'acme'))
+      .toEqual({ title: 'Pedido', companyId: 'acme' });
+  });
+
+  it('a tela-sujeito não aceita criação — nem pela declaração', () => {
+    expect(asPortalDeclaration({ subject: 'self', fields: ['a'], create: { fields: ['a'] } })?.create).toBeUndefined();
+    expect(portalDeclarationIssues({ ...company, portal: { subject: 'self', fields: ['name'], create: { fields: ['name'] } } }, [company]).map((issue) => issue.message))
+      .toContain('@core.records/portal.issue.create.self');
+  });
+
+  it('campo obrigatório sem padrão precisa estar entre os preenchíveis', () => {
+    const missingTitle = { ...orders, portal: { ...orders.portal!, create: { fields: ['notes'] } } };
+    const issues = portalDeclarationIssues(missingTitle, [company, missingTitle]);
+    expect(issues).toContainEqual({ message: '@core.records/portal.issue.create.required-missing', messageParams: { field: 'title' } });
+    expect(issues.some((issue) => issue.messageParams?.field === 'status')).toBe(false);
+    expect(portalDeclarationIssues(orders, [company, orders])).toEqual([]);
   });
 });

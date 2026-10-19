@@ -292,6 +292,7 @@ export interface ScreenBuilderViewModel {
   /** A aba "Portal": opções, problemas da declaração (já traduzidos) e os gestos. */
   portalPanel: {
     fieldOptions: Array<{ value: string; label: string }>;
+    createFieldOptions: Array<{ value: string; label: string }>;
     referenceFieldOptions: Array<{ value: string; label: string }>;
     hasParent: boolean;
     hasDocuments: boolean;
@@ -303,6 +304,8 @@ export interface ScreenBuilderViewModel {
   setPortalSubjectField: (fieldKey: string) => void;
   togglePortalField: (fieldKey: string, exposed: boolean) => void;
   setPortalDocuments: (documents: boolean) => void;
+  setPortalAllowCreate: (allowCreate: boolean) => void;
+  togglePortalCreateField: (fieldKey: string, fillable: boolean) => void;
   toggleChildScreen: (childKey: string) => void;
   setChildLinkField: (childKey: string, fieldKey: string) => void;
   iconOptions: SearchSelectOption[];
@@ -1302,8 +1305,14 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
         return label(issue.message, params);
       })
       : [];
+    const linkField = screenForm.portal.subjectKind === 'field'
+      ? screenForm.portal.subjectField
+      : screenForm.portal.subjectKind === 'parent' ? def?.parentFieldKey ?? '' : '';
     return {
       fieldOptions: fields.map((field) => ({ value: field.key, label: label(field.label) })),
+      createFieldOptions: fields
+        .filter((field) => field.key !== linkField)
+        .map((field) => ({ value: field.key, label: label(field.label) })),
       referenceFieldOptions: fields
         .filter((field) => field.type === 'reference' && !!field.refEntity)
         .map((field) => ({ value: field.key, label: label(field.label) })),
@@ -1321,6 +1330,19 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
   const setPortalSubjectKind = useCallback((subjectKind: PortalSubjectKind) => updatePortal({ subjectKind }), [updatePortal]);
   const setPortalSubjectField = useCallback((subjectField: string) => updatePortal({ subjectField }), [updatePortal]);
   const setPortalDocuments = useCallback((documents: boolean) => updatePortal({ documents }), [updatePortal]);
+  const setPortalAllowCreate = useCallback((allowCreate: boolean) => updatePortal({ allowCreate }), [updatePortal]);
+  const togglePortalCreateField = useCallback((fieldKey: string, fillable: boolean) => {
+    setScreenForm((prev) => ({
+      ...prev,
+      portalTouched: true,
+      portal: {
+        ...prev.portal,
+        createFields: fillable
+          ? [...new Set([...prev.portal.createFields, fieldKey])]
+          : prev.portal.createFields.filter((key) => key !== fieldKey),
+      },
+    }));
+  }, []);
   const togglePortalField = useCallback((fieldKey: string, exposed: boolean) => {
     setScreenForm((prev) => ({
       ...prev,
@@ -2363,6 +2385,8 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     setPortalSubjectField,
     togglePortalField,
     setPortalDocuments,
+    setPortalAllowCreate,
+    togglePortalCreateField,
     toggleChildScreen,
     setChildLinkField,
     iconOptions,

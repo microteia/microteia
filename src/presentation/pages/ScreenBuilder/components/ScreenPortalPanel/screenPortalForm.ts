@@ -9,6 +9,9 @@ export interface PortalFormState {
   subjectField: string;
   fields: string[];
   documents: boolean;
+  /** O convidado cria registros, preenchendo só `createFields`. */
+  allowCreate: boolean;
+  createFields: string[];
 }
 
 export const EMPTY_PORTAL_FORM: PortalFormState = {
@@ -17,6 +20,8 @@ export const EMPTY_PORTAL_FORM: PortalFormState = {
   subjectField: '',
   fields: [],
   documents: false,
+  allowCreate: false,
+  createFields: [],
 };
 
 export const toPortalForm = (portal: PortalDeclaration | null | undefined): PortalFormState => {
@@ -28,6 +33,8 @@ export const toPortalForm = (portal: PortalDeclaration | null | undefined): Port
     subjectField: typeof subject === 'object' ? subject.field : '',
     fields: [...portal.fields],
     documents: portal.documents === true,
+    allowCreate: !!portal.create,
+    createFields: [...(portal.create?.fields ?? [])],
   };
 };
 
@@ -38,5 +45,6 @@ export const fromPortalForm = (form: PortalFormState): PortalDeclaration | null 
     subject: form.subjectKind === 'field' ? { field: form.subjectField } : form.subjectKind,
     fields: form.fields,
     documents: form.documents,
+    ...(form.allowCreate && form.subjectKind !== 'self' ? { create: { fields: form.createFields } } : {}),
   };
 };

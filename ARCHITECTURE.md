@@ -926,11 +926,34 @@ O convidado não emite acesso de agente: `issueAgentGrant` recusa quem não tem 
 `grantedPermissions` é vazio para quem não é membro. O gateway MCP, as automações e os relatórios leem
 pelo Admin SDK e continuam escopados pelo escritório — nenhum deles tem um convidado como ator.
 
+### Gravar pelo portal — `portal.create`
+
+```ts
+portal: { subject: { field: 'companyId' }, fields: [...], create: { fields: ['number', 'amount'] } }
+```
+
+O convidado CRIA registros da tela (o pedido do cliente, a nota emitida pela empresa), preenchendo só
+`create.fields`. Nunca na tela-sujeito: ele cria PARA a empresa dele, não uma empresa nova.
+
+O vínculo é o ponto inteiro, e ele **nunca vem do cliente**. O convidado aponta a qual registro o novo
+pertence; `submitPortalRecord` só aceita se ele o enxerga — é sujeito do convite dele (`self`), ou uma
+projeção em que ele está no `audience` (o item de uma nota) —, e então o servidor carimba o campo de
+vínculo (`buildPortalSubmission`). Qualquer outra chave no pedido, inclusive o próprio vínculo, é
+descartada.
+
+A gravação passa pelo MESMO motor das automações e do agente (`runWorkflowUpsert`): obrigatório,
+máscara, regra, chave única e campo calculado valem igual. O ator é o convidado, com `via: 'portal'`
+(`RecordWriteVia`/`ActorVia`) e permissão NENHUMA — um `hasPermission` disparado por essa gravação
+responde "não". O resto vem de graça: auditoria, o evento `.saved` (é por uma automação que o escritório
+é avisado) e a projeção de volta ao portal. A recusa de validação volta traduzida pelo servidor, no
+idioma do convidado: o pacote de idioma do escritório não chega ao portal.
+
+O Form Design confere antes de gravar: criação na tela-sujeito, nenhum campo preenchível, e campo
+obrigatório sem valor padrão fora dos preenchíveis (`portal.issue.create.*`).
+
 ### O que ainda não faz
 
-- **Gravar pelo portal** (o pedido do cliente, a nota emitida pela empresa). Será uma callable que só
-  aceita telas com `portal.create` declarado e carimba o vínculo a partir do convite — o vínculo nunca
-  pode vir do cliente.
+- **Editar, excluir ou anexar arquivo pelo portal.** Só criar.
 - **View própria por extensão.** A casca é genérica; um ponto `portal.page` deixará uma extensão
   trocar a tela dela.
 - `storage.rules` deixa qualquer MEMBRO ler qualquer arquivo de registro, independentemente de

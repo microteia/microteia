@@ -12,12 +12,26 @@ export interface PortalScreenInfo {
   titlePlural: string;
   icon: string;
   documents: boolean;
-  fields: Array<{
-    key: string;
-    label: string;
-    type?: string;
-    options?: Array<{ key: string; label: string }>;
-  }>;
+  fields: PortalFieldInfo[];
+  /** O convidado cria registros desta tela: o que ele preenche, e a que o novo se vincula. */
+  create: {
+    fields: PortalFieldInfo[];
+    link: { collection: string; label: string };
+  } | null;
+}
+
+export interface PortalFieldInfo {
+  key: string;
+  label: string;
+  type?: string;
+  required?: boolean;
+  options?: Array<{ key: string; label: string }>;
+}
+
+/** Um registro a que o novo pode se vincular — dos que o convidado já enxerga. */
+export interface PortalLinkOption {
+  recordId: string;
+  label: string;
 }
 
 export interface PortalContext {

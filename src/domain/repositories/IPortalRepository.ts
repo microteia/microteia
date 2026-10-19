@@ -2,6 +2,7 @@ import type {
   PortalContext,
   PortalDocument,
   PortalGuest,
+  PortalLinkOption,
   PortalMembership,
   PortalRecord,
 } from '../entities/Portal';
@@ -20,6 +21,16 @@ export interface IPortalRepository {
   ): () => void;
   getDocuments(tenantId: string, projectionId: string): Promise<PortalDocument[]>;
   getDocumentUrl(tenantId: string, projectionId: string, documentId: string): Promise<string>;
+  /** Os registros desta coleção que o convidado enxerga — a que um registro novo pode pertencer. */
+  listLinkOptions(tenantId: string, userId: string, collection: string): Promise<PortalLinkOption[]>;
+  /** Cria um registro pelo portal. A recusa de validação chega já traduzida no `message`. */
+  submit(input: {
+    tenantId: string;
+    collection: string;
+    linkRecordId: string;
+    data: Record<string, unknown>;
+    locale: string;
+  }): Promise<{ id: string }>;
 
   /** Do lado do ESCRITÓRIO: quem é convidado, e de quê. */
   subscribeGuests(

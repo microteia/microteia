@@ -5,7 +5,10 @@ import type {
 } from '../repositories/IPortalRepository';
 import { invalidArgument, permissionDenied } from '../errors/DomainError';
 import {
+  buildPortalSubmission,
   normalizePortalEmail,
+  portalCreateFieldKeys,
+  portalLinkOf,
   parsePortalSubjectKey,
   portalFieldKeys,
   portalRecordDocId,
@@ -114,6 +117,11 @@ export const makeGetPortalDocumentUrlUseCase = (repo: IPortalRepository): GetPor
 
 export interface PortalContextScreen {
   id: string;
+  /** O que o convidado preenche ao criar, e a que tipo de registro o novo se vincula. */
+  create: {
+    fields: Array<{ key: string; label: string; type?: string; required: boolean; options?: Array<{ key: string; label: string }> }>;
+    link: { collection: string; label: string };
+  } | null;
   collection: string;
   titleSingular: string;
   titlePlural: string;
@@ -157,6 +165,18 @@ export const makeGetPortalContextUseCase = (repo: IPortalRepository): GetPortalC
       logoURL: tenant.logoURL,
       screens: screens.map((screen) => {
         const exposed = new Set(portalFieldKeys(screen));
+        const fillable = new Set(portalCreateFieldKeys(screen));
+        const link = portalLinkOf(screen);
+        const linkTarget = link
+          ? screens.find((one) => one.id === link.targetEntity) ?? screens.find((one) => one.collection === link.targetEntity)
+          : undefined;
+        const describe = (field: PortalScreen['fields'][number]) => ({
+          key: field.key,
+          label: resolve(field.label),
+          type: field.type,
+          required: field.required === true,
+          ...(field.options ? { options: field.options.map((option) => ({ key: option.key, label: resolve(option.label) })) } : {}),
+        });
         return {
           id: screen.id,
           collection: screen.collection,
@@ -172,8 +192,91 @@ export const makeGetPortalContextUseCase = (repo: IPortalRepository): GetPortalC
               type: field.type,
               ...(field.options ? { options: field.options.map((option) => ({ key: option.key, label: resolve(option.label) })) } : {}),
             })),
+          create: fillable.size > 0 && linkTarget
+            ? {
+              fields: screen.fields.filter((field) => fillable.has(field.key)).map(describe),
+              link: { collection: linkTarget.collection, label: resolve(linkTarget.titleSingular) },
+            }
+            : null,
         };
       }),
     };
+  },
+});
+
+/**
+ * A recusa da VALIDAÇÃO — campo obrigatório, formato, chave repetida —, com os parâmetros que a frase
+ * interpola. É a única recusa que o convidado precisa ler em detalhe: as outras são de acesso, e
+ * dizem todas a mesma coisa.
+ */
+export class PortalSubmissionInvalid extends Error {
+  constructor(message: string, readonly params: Record<string, string> = {}) {
+    super(message);
+    this.name = 'PortalSubmissionInvalid';
+  }
+}
+
+/** A gravação em si — o motor de registros do backend, com validação, chaves e autoria `portal`. */
+export type PortalRecordWriter = (input: {
+  tenantId: string;
+  collection: string;
+  data: Record<string, unknown>;
+  userId: string;
+}) => Promise<{ ok: true; id: string } | { ok: false; error: string; errorParams?: Record<string, string> }>;
+
+export interface SubmitPortalRecordInput {
+  tenantId: string;
+  userId: string;
+  collection: string;
+  /** O registro a que o novo pertence — a empresa, ou a nota de um item. */
+  linkRecordId: string;
+  data: Record<string, unknown>;
+}
+
+export type SubmitPortalRecordUseCase = {
+  execute: (input: SubmitPortalRecordInput) => Promise<{ id: string }>;
+};
+
+/**
+ * O convidado CRIA um registro — sempre para algo que já é dele.
+ *
+ * O vínculo é a única coisa que importa aqui, e ele NUNCA vem do cliente: o convidado aponta o
+ * registro a que o novo pertence, e só passa se ele o enxerga — é sujeito do convite dele, ou uma
+ * projeção em que ele está no `audience`. O campo de vínculo é então carimbado pelo servidor, e o que
+ * mais vier no pedido fora dos campos preenchíveis é descartado.
+ *
+ * Toda recusa de acesso é a mesma frase, pelo motivo de sempre: dizer qual condição faltou ajudaria a
+ * descobrir o que existe no escritório.
+ */
+export const makeSubmitPortalRecordUseCase = (
+  repo: IPortalRepository,
+  write: PortalRecordWriter,
+): SubmitPortalRecordUseCase => ({
+  execute: async ({ tenantId, userId, collection, linkRecordId, data }) => {
+    const denied = permissionDenied('@core.tenant/portal.create.denied');
+    const guest = await repo.getPortalUser(tenantId, userId);
+    if (!guest) throw denied;
+
+    const screens = await repo.getScreens(tenantId);
+    const screen = screens.find((one) => one.collection === collection && one.portal?.create);
+    const link = screen ? portalLinkOf(screen) : null;
+    if (!screen || !link || portalCreateFieldKeys(screen).length === 0) throw denied;
+
+    const target = screens.find((one) => one.id === link.targetEntity)
+      ?? screens.find((one) => one.collection === link.targetEntity);
+    if (!target?.portal || !linkRecordId) throw denied;
+
+    const visible = target.portal.subject === 'self'
+      ? guest.subjectKeys.includes(portalSubjectKey(target.collection, linkRecordId))
+      : (await repo.getProjection(tenantId, portalRecordDocId(target.collection, linkRecordId)))
+        ?.audience.includes(userId) === true;
+    if (!visible) throw denied;
+
+    const submission = buildPortalSubmission(screen, data, linkRecordId);
+    if (!submission) throw denied;
+
+    const outcome = await write({ tenantId, collection, data: submission, userId });
+    if (!outcome.ok) throw new PortalSubmissionInvalid(outcome.error, outcome.errorParams);
+    return { id: outcome.id };
   },
 });

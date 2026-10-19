@@ -7,7 +7,9 @@ import {
   makeGetPortalContextUseCase,
   makeGetPortalDocumentsUseCase,
   makeGetPortalDocumentUrlUseCase,
+  makeListPortalLinkOptionsUseCase,
   makeListPortalMembershipsUseCase,
+  makeSubmitPortalRecordUseCase,
 } from '../domain/usecases/portal/PortalUseCases';
 import type { PortalContext, PortalMembership, PortalRecord } from '../domain/entities/Portal';
 
@@ -23,6 +25,8 @@ export const PortalStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
     context: makeGetPortalContextUseCase(portalRepository),
     documents: makeGetPortalDocumentsUseCase(portalRepository),
     documentUrl: makeGetPortalDocumentUrlUseCase(portalRepository),
+    linkOptions: makeListPortalLinkOptionsUseCase(portalRepository),
+    submit: makeSubmitPortalRecordUseCase(portalRepository),
   }), [portalRepository]);
 
   const [memberships, setMemberships] = useState<PortalMembership[]>([]);
@@ -123,6 +127,16 @@ export const PortalStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
     [tenantId, uc.documentUrl],
   );
 
+  const listLinkOptions = useCallback(
+    (linkCollection: string) => (tenantId && user ? uc.linkOptions.execute(tenantId, user.id, linkCollection) : Promise.resolve([])),
+    [tenantId, user, uc.linkOptions],
+  );
+
+  const submit = useCallback(async (targetCollection: string, linkRecordId: string, data: Record<string, unknown>) => {
+    if (!tenantId) return;
+    await uc.submit.execute({ tenantId, collection: targetCollection, linkRecordId, data, locale });
+  }, [tenantId, uc.submit, locale]);
+
   const value = useMemo(() => ({
     memberships,
     membershipsLoading,
@@ -138,9 +152,11 @@ export const PortalStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
     selectCollection: setCollection,
     getDocuments,
     getDocumentUrl,
+    listLinkOptions,
+    submit,
   }), [
     memberships, membershipsLoading, membershipsFailed, tenantId, context, contextLoading, error,
-    collection, records, recordsLoading, getDocuments, getDocumentUrl,
+    collection, records, recordsLoading, getDocuments, getDocumentUrl, listLinkOptions, submit,
   ]);
 
   return <PortalStoreContext.Provider value={value}>{children}</PortalStoreContext.Provider>;

@@ -16,6 +16,7 @@ import type {
   PortalContext,
   PortalDocument,
   PortalGuest,
+  PortalLinkOption,
   PortalMembership,
   PortalRecord,
 } from '../../domain/entities/Portal';
@@ -106,6 +107,31 @@ export class FirebasePortalRepository implements IPortalRepository {
       'getPortalDocumentUrl',
     );
     return (await call({ tenantId, projectionId, documentId })).data.url;
+  }
+
+  async listLinkOptions(tenantId: string, userId: string, collectionName: string): Promise<PortalLinkOption[]> {
+    const snapshot = await getDocs(query(
+      collection(db, 'tenants', tenantId, PORTAL_RECORDS_COLLECTION),
+      where('audience', 'array-contains', userId),
+      where('collection', '==', collectionName),
+      orderBy('updatedAt', 'desc'),
+      limit(PAGE_LIMIT),
+    ));
+    return snapshot.docs.map((one) => {
+      const record = mapRecord(one.id, one.data());
+      return { recordId: record.recordId, label: record.title || record.recordId };
+    });
+  }
+
+  async submit(input: {
+    tenantId: string;
+    collection: string;
+    linkRecordId: string;
+    data: Record<string, unknown>;
+    locale: string;
+  }): Promise<{ id: string }> {
+    const call = httpsCallable<typeof input, { id: string }>(functions, 'submitPortalRecord');
+    return (await call(input)).data;
   }
 
   subscribeGuests(
