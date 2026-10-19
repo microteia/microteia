@@ -2,10 +2,12 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../../stores/useAuth';
 import { usePortal } from '../../../stores/usePortal';
+import { usePortalNavigation } from '../../../stores/usePortalNavigation';
 import { useLocaleFormat, useT } from '../../shared/i18n/useT';
 import type { PortalDocument, PortalRecord, PortalScreenInfo } from '../../../domain/entities/Portal';
 import { portalSubjectKey } from '../../../domain/schema/portal';
 import { PORTAL_PATH, portalTenantPath } from './portalPaths';
+import { evaluatePortalView, type PortalViewComponent } from './portalViews';
 
 const SUMMARY_FIELDS = 3;
 
@@ -46,12 +48,6 @@ export interface PortalChildSection {
   createLabel: string | null;
   loading: boolean;
   records: PortalRecordCard[];
-}
-
-/** O que está sendo criado, e — quando nasce dentro de um pai — a que registro ele pertence. */
-interface CreatingState {
-  collection: string;
-  parentRecordId: string | null;
 }
 
 export interface PortalViewModel {
@@ -101,6 +97,10 @@ export interface PortalViewModel {
   handleSubmitted: () => void;
   /** O registro enviado aparece quando o servidor o projeta — segundos depois. */
   justSubmitted: boolean;
+  /** A tela de EXTENSÃO para a lista de topo, quando há uma — no lugar da lista genérica. */
+  listView: { Component: PortalViewComponent; collection: string } | null;
+  /** A tela de extensão para o registro aberto, quando há uma. */
+  detailView: { Component: PortalViewComponent; collection: string; recordId: string } | null;
 }
 
 const optionLabel = (field: PortalScreenInfo['fields'][number], key: unknown): string =>
@@ -114,15 +114,12 @@ export const usePortalViewModel = (): PortalViewModel => {
   const t = useT('core.tenant');
   const { formatDate, formatMoney, formatNumber } = useLocaleFormat();
 
-  const [rootChoice, setRootChoice] = useState<string | null>(null);
-  /** A pilha do que foi aberto: o prestador, depois a nota dele. "Voltar" desempilha. */
-  const [stack, setStack] = useState<Array<{ collection: string; id: string }>>([]);
+  const navigation = usePortalNavigation();
+  const { rootChoice, stack, creating, justSubmitted } = navigation;
   const [documents, setDocuments] = useState<PortalDocument[]>([]);
   const [documentsLoading, setDocumentsLoading] = useState(false);
   const [openingDocumentId, setOpeningDocumentId] = useState<string | null>(null);
   const [documentError, setDocumentError] = useState(false);
-  const [creating, setCreating] = useState<CreatingState | null>(null);
-  const [justSubmitted, setJustSubmitted] = useState(false);
 
   const { memberships, membershipsLoading, selectTenant, getDocuments, getDocumentUrl, recordsByCollection, isCollectionLoading } = portal;
   const screens = useMemo(() => portal.context?.screens ?? [], [portal.context]);
@@ -195,7 +192,7 @@ export const usePortalViewModel = (): PortalViewModel => {
   const top = stack.length > 0 ? stack[stack.length - 1] : null;
   const topScreen = top ? screenOf(top.collection) : null;
   const topRecord = useMemo(
-    () => (top ? (recordsByCollection[top.collection] ?? []).find((record) => record.id === top.id) ?? null : null),
+    () => (top ? (recordsByCollection[top.collection] ?? []).find((record) => record.id === top.projectionId) ?? null : null),
     [top, recordsByCollection],
   );
 
@@ -265,31 +262,31 @@ export const usePortalViewModel = (): PortalViewModel => {
 
   const chooseTenant = useCallback((tenantId: string) => navigate(portalTenantPath(tenantId)), [navigate]);
 
-  const selectScreen = useCallback((collection: string) => {
-    setRootChoice(collection);
-    setStack([]);
-    setCreating(null);
-    setJustSubmitted(false);
-  }, []);
+  const { selectRoot, openRecord: pushRecord, back, startCreate: openCreate } = navigation;
 
   const openRecord = useCallback((collection: string, id: string) => {
-    setCreating(null);
-    setJustSubmitted(false);
     setDocumentError(false);
-    setStack((prev) => [...prev, { collection, id }]);
-  }, []);
+    pushRecord(collection, id);
+  }, [pushRecord]);
 
   const goBack = useCallback(() => {
     setDocumentError(false);
-    setStack((prev) => prev.slice(0, -1));
-  }, []);
+    back();
+  }, [back]);
 
   // Criar DENTRO de um registro já fixa o pai: a nota nasce do prestador aberto, sem pergunta. Na
   // lista de topo, o formulário pergunta a qual dos registros do convidado o novo pertence.
   const startCreate = useCallback((collection: string) => {
-    setJustSubmitted(false);
-    setCreating({ collection, parentRecordId: topRecord && topScreen?.collection !== collection ? topRecord.recordId : null });
-  }, [topRecord, topScreen]);
+    openCreate(collection, topRecord && topScreen?.collection !== collection ? topRecord.recordId : null);
+  }, [openCreate, topRecord, topScreen]);
+
+  const views = useMemo(() => portal.context?.views ?? [], [portal.context]);
+  const viewFor = useCallback((collection: string, surface: 'list' | 'detail') => {
+    const view = views.find((one) => one.collection === collection && one.surface === surface);
+    return view ? evaluatePortalView(view) : null;
+  }, [views]);
+  const ListComponent = rootCollection ? viewFor(rootCollection, 'list') : null;
+  const DetailComponent = topRecord && topScreen ? viewFor(topScreen.collection, 'detail') : null;
 
   const showChooser = !routeTenantId;
   const noAccess = !membershipsLoading && memberships.length === 0;
@@ -319,7 +316,7 @@ export const usePortalViewModel = (): PortalViewModel => {
       icon: one.icon,
       active: one.collection === rootCollection,
     })),
-    selectScreen,
+    selectScreen: selectRoot,
     records,
     recordsLoading: rootCollection ? isCollectionLoading(rootCollection) : false,
     rootCreateLabel: rootScreen?.create ? t('portal.create.new', { screen: rootScreen.titleSingular }) : null,
@@ -334,15 +331,14 @@ export const usePortalViewModel = (): PortalViewModel => {
     creating: creating && creatingScreen ? { screen: creatingScreen, parentRecordId: creating.parentRecordId } : null,
     startCreate,
     startRootCreate: () => {
-      if (!rootCollection) return;
-      setJustSubmitted(false);
-      setCreating({ collection: rootCollection, parentRecordId: null });
+      if (rootCollection) openCreate(rootCollection, null);
     },
-    cancelCreate: () => setCreating(null),
-    handleSubmitted: () => {
-      setCreating(null);
-      setJustSubmitted(true);
-    },
+    cancelCreate: navigation.cancelCreate,
+    handleSubmitted: navigation.submitted,
+    listView: ListComponent && rootCollection ? { Component: ListComponent, collection: rootCollection } : null,
+    detailView: DetailComponent && topRecord
+      ? { Component: DetailComponent, collection: topRecord.collection, recordId: topRecord.recordId }
+      : null,
     justSubmitted,
   };
 };

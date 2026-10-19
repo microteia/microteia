@@ -22,6 +22,10 @@
 - fix(command): what was broken, and what it did to whoever hit it.
 -->
 
+#### [2.29.1] — 2026-10-19
+
+- feat(vendor): `portal-example` joins the examples that travel to `extensions/examples/` — two screens with `portal` declared, guest-created records and a `portalView` written against `@microteia/portal`.
+
 #### [2.29.0] — 2026-10-15
 
 - feat(export-catalog): each installed extension now carries `navGroups` — the sidebar groups it declares, by key, with the name resolved in every language the package ships and its order. The authoring tools list them in `microteia://nav-groups`, so an extension joins an existing group instead of drawing a second one with the same title. Always written, even empty; a snapshot taken by an older Console is read as "groups unknown".

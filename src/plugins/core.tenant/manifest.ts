@@ -5,6 +5,7 @@ import { ADMIN_NAV_GROUP, UI_TAB_POINT } from '../../domain/schema/ui/uiExtensio
 import { coreMessage, CORE_TENANT_MESSAGES } from '../coreMessages';
 import { coreTenantPtBrContribution } from './messagesPtBr';
 import { TENANT_SETTINGS_SURFACE } from './surface';
+import { PORTAL_EXTENSION_POINTS } from '../../domain/schema/portalExtensionPoints';
 import {
   PERMISSION_AI_MANAGE,
   PERMISSION_MEMBERS_MANAGE,
@@ -54,6 +55,7 @@ export const coreTenantPlugin: PluginRecord = {
       // eslint-disable-next-line no-restricted-syntax -- metadado do plugin do NÚCLEO: não é renderizado.
       'The organization record, its members and its AI connections, on a tab surface any extension can join.',
     dependencies: { 'core.ui': '^1.0.0', 'core.access': '^1.0.0' },
+    extensionPoints: PORTAL_EXTENSION_POINTS,
     contributes: [
       messageBundleContribution(coreMessage('core.tenant', CORE_TENANT_MESSAGES)),
       coreTenantPtBrContribution(),

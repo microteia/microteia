@@ -130,6 +130,20 @@ describe('contexto do portal', () => {
     expect(context.screens.find((screen) => screen.id === 'companies')?.parent).toBeNull();
   });
 
+  it('entrega só as views de extensão de coleções expostas', async () => {
+    const fake = makeFakePortalRepository(CITY_SCREENS);
+    fake.users.set('ana', { userId: 'ana', email: 'ana@acme.com', displayName: 'Ana', subjectKeys: ['companies/acme'] });
+    const view = (collection: string) => ({ pluginId: 'com.acme', key: `v-${collection}`, collection, surface: 'list' as const, source: 'x' });
+
+    const context = await makeGetPortalContextUseCase(fake.repo).execute({
+      tenantId: TENANT, userId: 'ana', tenant: { name: 'Salvador', logoURL: null }, locale: 'pt-BR', resolve: (value) => value,
+      extensionViews: { views: [view('invoices'), view('inspections')], bundles: [{ locale: 'pt-BR', namespace: 'com.acme', messages: {} }] },
+    });
+
+    expect(context.views.map((one) => one.collection)).toEqual(['invoices']);
+    expect(context.bundles).toHaveLength(1);
+  });
+
   it('quem não é convidado não recebe nada', async () => {
     const fake = makeFakePortalRepository(CITY_SCREENS);
     await expect(makeGetPortalContextUseCase(fake.repo).execute({

@@ -38,12 +38,24 @@ export interface PortalLinkOption {
   label: string;
 }
 
+/** Uma tela de EXTENSÃO para o portal, entregue pelo servidor só se o escritório confia no código. */
+export interface PortalViewInfo {
+  pluginId: string;
+  key: string;
+  collection: string;
+  surface: 'list' | 'detail';
+  source: string;
+}
+
 export interface PortalContext {
   /** O idioma escolhido para este convidado (dele ou do escritório); vazio = o do navegador. */
   locale: string;
   tenantName: string;
   logoURL: string | null;
   screens: PortalScreenInfo[];
+  views: PortalViewInfo[];
+  /** Os textos das extensões que trazem view — o catálogo do escritório não chega ao portal. */
+  bundles: Array<{ locale: string; namespace: string; messages: Record<string, string> }>;
 }
 
 /** A PROJEÇÃO de um registro — o que saiu do escritório para o convidado, e nada além. */

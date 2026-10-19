@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.132.0] — 2026-10-19
+
+- Extensões agora podem trazer telas próprias para o portal: a lista ou o registro de uma tela aparece para o convidado do jeito que a extensão desenhou. Essas telas só são enviadas ao convidado quando o escritório confia no código da extensão; caso contrário, o portal mostra a tela padrão.
+- Novo exemplo de extensão para quem desenvolve: clientes que acompanham e fazem os próprios pedidos pelo portal.
+
 #### [9.131.0] — 2026-10-19
 
 - O portal passou a mostrar os registros na hierarquia certa: o menu mostra só os principais — como os prestadores de serviço —, e as notas fiscais de cada prestador aparecem dentro dele. A nota criada ali já nasce vinculada ao prestador aberto, sem perguntar.

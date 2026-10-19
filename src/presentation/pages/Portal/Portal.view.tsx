@@ -118,6 +118,16 @@ export const PortalView: React.FC = () => {
             onCancel={vm.cancelCreate}
             onSubmitted={vm.handleSubmitted}
           />
+        ) : vm.detailView ? (
+          <S.Detail>
+            <div>
+              <Button variant="ghost" size="sm" onClick={vm.goBack}>
+                <RiArrowLeftLine size={14} />
+                {t('portal.record.back')}
+              </Button>
+            </div>
+            <vm.detailView.Component collection={vm.detailView.collection} recordId={vm.detailView.recordId} />
+          </S.Detail>
         ) : vm.selected ? (
           <S.Detail>
             <div>
@@ -185,6 +195,8 @@ export const PortalView: React.FC = () => {
               </>
             )}
           </S.Detail>
+        ) : vm.listView ? (
+          <vm.listView.Component collection={vm.listView.collection} />
         ) : (
           <>
             {vm.rootCreateLabel && (

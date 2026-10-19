@@ -45,6 +45,7 @@ import { AppErrorBoundary } from './presentation/components/layout/AppErrorBound
 import { OAuthConsentView } from './presentation/pages/OAuthConsent';
 import { OAUTH_CONSENT_PATH } from './domain/schema/agent/agentOAuth';
 import { PortalStoreProvider } from './stores/PortalStore';
+import { PortalNavigationProvider } from './stores/PortalNavigationContext';
 import { PortalView } from './presentation/pages/Portal';
 import { PortalSignInView } from './presentation/pages/PortalSignIn';
 import { PORTAL_PATH, PORTAL_SIGN_IN_PATH } from './presentation/pages/Portal/portalPaths';
@@ -78,9 +79,11 @@ const App: React.FC = () => {
                 element={
                   <ProtectedRoute loginPath={PORTAL_SIGN_IN_PATH}>
                     <PortalStoreProvider>
-                      <PortalLocaleProvider>
-                        <Outlet />
-                      </PortalLocaleProvider>
+                      <PortalNavigationProvider>
+                        <PortalLocaleProvider>
+                          <Outlet />
+                        </PortalLocaleProvider>
+                      </PortalNavigationProvider>
                     </PortalStoreProvider>
                   </ProtectedRoute>
                 }

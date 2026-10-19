@@ -614,6 +614,24 @@ The organization toggles and orders these tabs from Settings (\`<surface>.tabs\`
 cannot find in your package, in a dependency authored beside it, or in the installation snapshot.
 \`examples/record-tab-example\` has both kinds of tab, and the list locked to the open record.
 
+### A page of your own in the portal
+
+People from OUTSIDE the organization — a client, a supplier — see what screens declare in \`portal\`
+(the \`subject\`, the \`fields\` that leave, \`create\` for what they may submit). The portal draws a
+standard list and record for them. \`portalView({ collection, surface: 'list' | 'detail' }, viewKey)\`
+replaces one of those with a view of yours.
+
+A portal view runs in the guest's browser, and it reaches a smaller API: \`@microteia/ui\`,
+\`@microteia/i18n\`, \`@microteia/format\`, \`@microteia/theme\` and \`@microteia/portal\` —
+\`usePortalRecords(collection, { parent })\`, \`usePortalRecord\`, \`usePortalScreen\`,
+\`usePortalNavigation\`, \`usePortalDocuments\`, \`usePortalSubmit\`. Importing \`@microteia/data\` (or
+report, settings, functions) fails when the view is compiled: the guest has none of the organization's
+data stores. The view receives \`{ collection, recordId? }\` and asks \`@microteia/portal\` for the rest.
+
+It is sent to the guest only when the organization trusts your package's code — the same trust the
+Extensions screen shows. Without it, the standard page is drawn. \`examples/portal-example\` has both
+sides: the declarations on two screens, and the page.
+
 ### Settings whose options are the organization's data
 
 A \`select\` in a \`settingsSection\` takes either \`options\` — a closed list, written in your package —

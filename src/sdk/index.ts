@@ -459,6 +459,7 @@ export {
   navGroup,
   page,
   pointContribution,
+  portalView,
   recordAction,
   settingsSection,
   surfaceSlot,
@@ -469,6 +470,7 @@ export {
   surfaceWidgetSpec,
   widgetPage,
 } from './contributions';
+export type { PortalViewMetadata, PortalViewSurface } from '../domain/schema/portalExtensionPoints';
 
 // ─── Validação e serialização ─────────────────────────────────────────────────
 

@@ -24,7 +24,7 @@ const makeFallback = (message: string): ExtensionPageComponent => {
  * Compila a fonte (`sucrase`) e a avalia num `new Function` cujo `require` só resolve os módulos da
  * API curada (`HOST_MODULES`), devolvendo o export `default`. Base comum das views e do `startup`.
  */
-const compileDefaultExport = (source: string): unknown => {
+const compileDefaultExport = (source: string, modules: Record<string, unknown> = HOST_MODULES): unknown => {
   const { code } = transform(source, {
     transforms: ['typescript', 'jsx', 'imports'],
     jsxRuntime: 'automatic',
@@ -32,7 +32,7 @@ const compileDefaultExport = (source: string): unknown => {
   });
 
   const requireHost = (name: string): unknown => {
-    if (Object.prototype.hasOwnProperty.call(HOST_MODULES, name)) return HOST_MODULES[name];
+    if (Object.prototype.hasOwnProperty.call(modules, name)) return modules[name];
     throw new Error(`module "${name}" is not available to extensions.`);
   };
 
@@ -45,6 +45,23 @@ const compileDefaultExport = (source: string): unknown => {
   factory(requireHost, moduleObject, moduleObject.exports);
 
   return (moduleObject.exports.default ?? moduleObject.exports) as unknown;
+};
+
+/**
+ * O mesmo compilador, com OUTRO conjunto de módulos — o do portal, que não tem os stores do
+ * escritório. Uma view que importe o que o mapa não tem falha AQUI, com a mensagem, e não ao render.
+ */
+export const compileComponentWith = <P,>(
+  source: string,
+  modules: Record<string, unknown>,
+): { ok: true; Component: React.ComponentType<P> } | { ok: false; error: string } => {
+  try {
+    const exported = compileDefaultExport(source, modules);
+    if (typeof exported !== 'function') throw new Error('a view precisa exportar um componente React como `default`.');
+    return { ok: true, Component: exported as React.ComponentType<P> };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : String(err) };
+  }
 };
 
 const compile = (source: string): ExtensionPageComponent => {

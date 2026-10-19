@@ -971,11 +971,32 @@ idioma do convidado: o pacote de idioma do escritório não chega ao portal.
 O Form Design confere antes de gravar: criação na tela-sujeito, nenhum campo preenchível, e campo
 obrigatório sem valor padrão fora dos preenchíveis (`portal.issue.create.*`).
 
+### A tela da EXTENSÃO no portal — `portal.view`
+
+```ts
+portalView({ collection: 'portalExampleClient', surface: 'detail' }, 'clientPortal')
+```
+
+Uma extensão troca a lista (`list`) ou o registro aberto (`detail`) genéricos de uma coleção por uma
+view dela. Três decisões fazem disso algo seguro, e todas vêm de o convidado NÃO ser membro:
+
+| Decisão | Por quê |
+|---|---|
+| **O servidor entrega a view** (`getPortalContext.views`), e não o navegador | o convidado não lê `installed_extensions`. `InstalledExtensionCache.portalViews` monta as views das extensões LIGADAS cujo código o escritório confia — a MESMA régua da tela de Extensões, agora compartilhada (`schema/plugin/codeTrust.ts`); sem confiança, nada vai, e vale a tela genérica |
+| **Outro mapa de módulos** (`PORTAL_HOST_MODULES`) | `@microteia/data` supõe os stores do escritório e quebraria na tela do convidado. A view recebe as primitivas (ui, i18n, format, theme) e `@microteia/portal`, que lê só as projeções; importar o resto falha NA COMPILAÇÃO (`compileComponentWith`), com a mensagem |
+| **Os textos vêm junto** (`getPortalContext.bundles`) | o catálogo do escritório não chega ao portal; `LocaleProvider.extraBundles` os acrescenta |
+
+A navegação (`PortalNavigationProvider`) mora num contexto, e não no ViewModel da casca, porque a view
+navega também: `usePortalNavigation()` abre, volta e cria na mesma pilha que a casca mostra. O "Voltar"
+em volta da view de detalhe é da casca. `examples/portal-example` é o molde.
+
+`portal.view` move o `KERNEL_VERSION` (2.53.0): é ponto novo que o pacote instalado contribui.
+
 ### O que ainda não faz
 
 - **Editar, excluir ou anexar arquivo pelo portal.** Só criar.
-- **View própria por extensão.** A casca é genérica; um ponto `portal.page` deixará uma extensão
-  trocar a tela dela.
+- **View de portal declarativa** (Widget DSL): `portal.view` é só `code`. O `WidgetRenderer` lê os
+  stores do escritório, e o convidado não os tem.
 - `storage.rules` deixa qualquer MEMBRO ler qualquer arquivo de registro, independentemente de
   `<coleção>.read` — achado à parte, que o portal não usa: o convidado não é membro e baixa pela
   callable.

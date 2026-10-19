@@ -128,6 +128,7 @@ export const getPortalContext = onCall({ region: REGION, cors: true }, async (re
       tenant: { name: tenant.name, logoURL: tenant.logoURL ?? null },
       locale: configured ?? '',
       resolve: (value) => agentText(catalog, value).text,
+      extensionViews: await di.getInstalledExtensionCache().portalViews(tenantId),
     });
   } catch (error) {
     throw asHttpsError(error, 'getPortalContext');

@@ -54,6 +54,7 @@ export const EXAMPLE_SOURCES: Record<string, string> = {
   'command-example': 'examples/command-example',
   'settings-example': 'examples/settings-example',
   'record-tab-example': 'examples/record-tab-example',
+  'portal-example': 'examples/portal-example',
   'document-example': 'examples/document-example',
 };
 

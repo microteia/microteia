@@ -37,6 +37,8 @@ import {
   UI_WIDGET_POINT,
 } from '../domain/schema/ui/uiExtensionPoints';
 
+import { PORTAL_API_VERSION, PORTAL_VIEW_POINT, type PortalViewMetadata } from '../domain/schema/portalExtensionPoints';
+
 const slug = (value: string): string =>
   value
     .replace(/:$/, '')
@@ -228,4 +230,17 @@ export const pointContribution = (
   id: slug(id),
   apiVersion,
   metadata: { ...metadata },
+});
+
+/**
+ * A tela PRÓPRIA de uma coleção no portal — no lugar da lista (`surface: 'list'`) ou do registro
+ * aberto (`'detail'`) genéricos. Código, e só de extensão cujo código o escritório confia: ela roda no
+ * navegador do convidado, que recebe dela apenas o que `@microteia/portal` lê.
+ */
+export const portalView = (metadata: PortalViewMetadata, implKey: string): Contribution => ({
+  point: PORTAL_VIEW_POINT,
+  id: slug(`${metadata.collection}-${metadata.surface}`),
+  apiVersion: PORTAL_API_VERSION,
+  metadata: { ...metadata } as unknown as Record<string, unknown>,
+  impl: { kind: 'code', key: implKey },
 });

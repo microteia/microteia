@@ -18,6 +18,13 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.132.0] — 2026-10-19
+
+- feat(portal): extension point `portal.view` (`PORTAL_EXTENSION_POINTS`, owner `core.tenant`, code only; metadata `{ collection, surface: 'list' | 'detail' }`) and SDK builder `portalView` (types `PortalViewMetadata`, `PortalViewSurface`). KERNEL_VERSION 2.53.0.
+- feat(portal): the server delivers the views. `InstalledExtensionCache.portalViews` collects the `portal.view` contributions of active extensions whose code is trusted — the trust rule moved to the synced `schema/plugin/codeTrust.ts` (`extensionCodeOf`, `isCodeTrusted`), used by the client's `extensionCodeTrust` and by the function alike — and `getPortalContext` returns `views` (exposed collections only) plus those extensions' `bundles`; `LocaleProvider` takes `extraBundles`.
+- feat(portal): `@microteia/portal` (`usePortalScreen`, `usePortalRecords`, `usePortalRecord`, `usePortalNavigation`, `usePortalDocuments`, `usePortalSubmit`) and `PORTAL_HOST_MODULES`, a reduced module map without `@microteia/data`, `report`, `settings` and `functions`; `compileComponentWith(source, modules)` compiles against it, so a forbidden import fails at compile time. Navigation moved to `PortalNavigationProvider`, shared by the shell and the views. Declared in `extensionTypeDefs.ts` (English) and published in `microteia-host.d.ts`.
+- docs(examples): `examples/portal-example` — `portal` on two screens, guest-created records, and a `portalView` detail page. Deploy: `npm run deploy:portal`.
+
 #### [9.131.0] — 2026-10-19
 
 - feat(portal): master-detail navigation. Projections carry `parentKeys` (the linked record as `collection/id`, from `portalLinkOf`; older projections fall back to `subjectKeys` on the client) and `getPortalContext` describes each screen's `parent`. The shell's menu lists only root screens; a record's detail shows its child screens filtered by `parentKeys`, with a navigation stack for "Back", and creating inside a parent fixes the link (`PortalCreateForm.fixedLinkRecordId`).

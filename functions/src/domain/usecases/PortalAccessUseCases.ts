@@ -135,12 +135,25 @@ export interface PortalContextScreen {
   fields: PortalScreen['fields'];
 }
 
+/** Uma view de portal de extensão, entregue ao convidado. */
+export interface PortalContextView {
+  pluginId: string;
+  key: string;
+  collection: string;
+  surface: 'list' | 'detail';
+  source: string;
+}
+
 export interface PortalContext {
   /** O idioma ESCOLHIDO para este convidado (dele ou do escritório); vazio quando ninguém escolheu. */
   locale: string;
   tenantName: string;
   logoURL: string | null;
   screens: PortalContextScreen[];
+  /** As views das extensões para as telas DESTE portal — só as de coleção exposta. */
+  views: PortalContextView[];
+  /** Os textos dessas extensões, em todos os idiomas que elas trazem. */
+  bundles: Array<{ locale: string; namespace: string; messages: Record<string, string> }>;
 }
 
 export type GetPortalContextUseCase = {
@@ -150,6 +163,7 @@ export type GetPortalContextUseCase = {
     tenant: { name: string; logoURL: string | null };
     locale: string;
     resolve: (value: string) => string;
+    extensionViews?: { views: PortalContextView[]; bundles: PortalContext['bundles'] };
   }) => Promise<PortalContext>;
 };
 
@@ -159,12 +173,16 @@ export type GetPortalContextUseCase = {
  * e os rótulos já no idioma dele.
  */
 export const makeGetPortalContextUseCase = (repo: IPortalRepository): GetPortalContextUseCase => ({
-  execute: async ({ tenantId, userId, tenant, locale, resolve }) => {
+  execute: async ({ tenantId, userId, tenant, locale, resolve, extensionViews }) => {
     if (!(await repo.getPortalUser(tenantId, userId))) {
       throw permissionDenied('@core.tenant/portal.not-invited');
     }
     const screens = (await repo.getScreens(tenantId)).filter((screen) => !!screen.portal);
+    const exposed = new Set(screens.map((screen) => screen.collection));
+    const views = (extensionViews?.views ?? []).filter((view) => exposed.has(view.collection));
     return {
+      views,
+      bundles: views.length > 0 ? extensionViews?.bundles ?? [] : [],
       locale,
       tenantName: tenant.name,
       logoURL: tenant.logoURL,

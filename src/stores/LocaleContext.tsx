@@ -3,6 +3,7 @@ import { I18N_MESSAGES_POINT, messageBundlesOf } from '../domain/schema/i18n/ext
 import type { LocaleCode } from '../domain/schema/i18n/localeNegotiation';
 import { DEFAULT_LOCALE, negotiateFromCandidates, normalizeLocale } from '../domain/schema/i18n/localeNegotiation';
 import { buildMessageCatalog, localesOf } from '../domain/schema/i18n/messages';
+import type { MessageBundle } from '../domain/schema/i18n/messages';
 import { setAmbientCatalog, setAmbientLocale } from '../domain/schema/i18n/localeGate';
 import { resolveTimeZone } from '../domain/schema/i18n/timeZone';
 import { setAmbientTimeZone } from '../domain/schema/clockGate';
@@ -43,6 +44,11 @@ interface LocaleProviderProps {
    * `TenantLocaleProvider` passa depois de resolver a configuração do escritório.
    */
   preferred?: LocaleCode | null;
+  /**
+   * Textos que não chegam por contribuição do kernel ao alcance — os das extensões no PORTAL, que o
+   * servidor entrega junto com o contexto, porque o convidado não lê as extensões instaladas.
+   */
+  extraBundles?: readonly MessageBundle[];
 }
 
 /**
@@ -53,11 +59,14 @@ interface LocaleProviderProps {
  * para as telas públicas; montado de novo dentro do escritório, enxerga também os pacotes de tradução
  * instalados e sombreia o de cima. É exatamente o que o Kernel já faz com `TenantKernelProvider`.
  */
-export const LocaleProvider: React.FC<LocaleProviderProps> = ({ children, preferred }) => {
+export const LocaleProvider: React.FC<LocaleProviderProps> = ({ children, preferred, extraBundles }) => {
   const contributions = useContributions(I18N_MESSAGES_POINT);
   const [chosen, setChosen] = useState<LocaleCode | null>(storedLocale);
 
-  const bundles = useMemo(() => messageBundlesOf(contributions), [contributions]);
+  const bundles = useMemo(
+    () => [...messageBundlesOf(contributions), ...(extraBundles ?? [])],
+    [contributions, extraBundles],
+  );
 
   /**
    * O idioma-fonte entra na lista mesmo sem catálogo declarado: ele é o idioma em que os textos
@@ -227,7 +236,7 @@ export const PortalLocaleProvider: React.FC<{ children: React.ReactNode }> = ({ 
     }
   }, [preferred]);
 
-  return <LocaleProvider preferred={preferred}>{children}</LocaleProvider>;
+  return <LocaleProvider preferred={preferred} extraBundles={context?.bundles}>{children}</LocaleProvider>;
 };
 
 /**
