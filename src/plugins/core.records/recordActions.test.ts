@@ -169,11 +169,14 @@ describe('desvincular', () => {
       createdAt: new Date(),
       createdBy: 'u1',
       updatedAt: new Date(),
+      contractId: 'c1',
+      activePoleIds: ['c1', 'x2'],
+      passivePoleIds: ['x3'],
     },
     collection: 'cases',
     screenKey: 'processos',
     surface: 'parentTab',
-    parent: { fieldKey: 'contractId', recordId: 'c1', required: false },
+    parent: { fieldKeys: ['contractId'], recordId: 'c1', required: false },
     recordTabKey: 'view-dyn:processos:r1',
     cloneTabKey: 'new-dyn:processos:clone:r1',
     openTab: vi.fn(),
@@ -194,10 +197,22 @@ describe('desvincular', () => {
   });
 
   it('vínculo obrigatório é recusado com aviso, sem gravar nada', async () => {
-    const h = host({ parent: { fieldKey: 'caseId', recordId: 'p1', required: true } });
+    const h = host({ parent: { fieldKeys: ['caseId'], recordId: 'p1', required: true } });
     await unlinkCommand(h);
     expect(h.patchRecord).not.toHaveBeenCalled();
     expect(h.notify).toHaveBeenCalledWith('action.unlink.required', 'error');
+  });
+
+  it('num campo multi, tira só o id do pai e deixa as outras partes', async () => {
+    const h = host({ parent: { fieldKeys: ['activePoleIds'], recordId: 'c1', required: false } });
+    await unlinkCommand(h);
+    expect(h.patchRecord).toHaveBeenCalledWith({ activePoleIds: ['x2'] });
+  });
+
+  it('preso por vários campos, desfaz em todos os que apontam — e só neles', async () => {
+    const h = host({ parent: { fieldKeys: ['activePoleIds', 'passivePoleIds', 'contractId'], recordId: 'c1', required: false } });
+    await unlinkCommand(h);
+    expect(h.patchRecord).toHaveBeenCalledWith({ activePoleIds: ['x2'], contractId: null });
   });
 
   it('sem pai não faz nada: não há vínculo a desfazer', async () => {

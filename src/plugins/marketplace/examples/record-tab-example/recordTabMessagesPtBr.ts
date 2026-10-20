@@ -28,9 +28,10 @@ const RECORD_TAB_PT_BR: Record<string, string> = {
   'field.priority.medium': 'Média',
   'field.priority.low': 'Baixa',
   'field.done': 'Concluído',
+  'field.relatedProjects': 'Também afeta',
 
   'tab.timeline': 'Linha do tempo',
-  'tab.timeline.description': 'Os marcos deste projeto, do mais recente para o mais antigo.',
+  'tab.timeline.description': 'Os marcos deste projeto, e os que também o afetam, do mais recente para o mais antigo.',
   'tab.about': 'Sobre estas abas',
   'tab.about.description': 'Uma aba declarativa, que não recebe dado.',
 
@@ -43,7 +44,7 @@ const RECORD_TAB_PT_BR: Record<string, string> = {
 
   'about.heading': 'Posto por uma extensão',
   'about.body':
-    'As duas abas são contribuições `ui.tab` em `recordSurface(\'microteia:record-tab-example:project\')`. O endereço é o `sourceId` da tela, nunca a chave instalada — é o que permite a uma extensão acrescentar uma aba à tela de OUTRA extensão.\n\nA linha do tempo é uma view de código: recebe `RecordTabProps` e lista os marcos com `useEntityList(sourceId, { parent: { fieldKey, recordId } })`, então a lista fica presa a este projeto e um marco novo já nasce ligado a ele.\n\nEsta aba é uma árvore do Widget DSL, e por isso não recebe dado.',
+    'As duas abas são contribuições `ui.tab` em `recordSurface(\'microteia:record-tab-example:project\')`. O endereço é o `sourceId` da tela, nunca a chave instalada — é o que permite a uma extensão acrescentar uma aba à tela de OUTRA extensão.\n\nA linha do tempo é uma view de código: recebe `RecordTabProps` e lista os marcos com `useEntityList(sourceId, { parent: { fieldKeys: [\'project\', \'relatedProjects\'], recordId } })`, então a lista fica presa a este projeto — os marcos que são dele e os que o citam no campo `multi` \'Também afeta\' — e um marco novo já nasce ligado a ele.\n\nEsta aba é uma árvore do Widget DSL, e por isso não recebe dado.',
 };
 
 export const recordTabPtBrContribution = (): Contribution =>

@@ -40,12 +40,32 @@ describe('a lista presa ao registro pai', () => {
 
   it('acha a entidade do pai no alvo do campo de referência', () => {
     renderHook(() => useEntityList('microteia:prazo', { parent: { fieldKey: 'processo', recordId: 'p1' } }));
-    expect(lastParent()).toEqual({ entityKey: 'processos', fieldKey: 'processo', recordId: 'p1' });
+    expect(lastParent()).toEqual({ entityKey: 'processos', fieldKeys: ['processo'], recordId: 'p1' });
   });
 
   it('cai no parentEntity da tela quando o campo é o vínculo dela', () => {
     renderHook(() => useEntityList('microteia:prazo', { parent: { fieldKey: 'contrato', recordId: 'c1' } }));
-    expect(lastParent()).toEqual({ entityKey: 'contratos', fieldKey: 'contrato', recordId: 'c1' });
+    expect(lastParent()).toEqual({ entityKey: 'contratos', fieldKeys: ['contrato'], recordId: 'c1' });
+  });
+
+  it('com vários campos, a entidade do pai é a do PRIMEIRO, e a lista sai sem repetição', () => {
+    renderHook(() => useEntityList('microteia:prazo', {
+      parent: { fieldKeys: ['processo', 'contrato', 'processo', ''], recordId: 'p1' },
+    }));
+    expect(lastParent()).toEqual({ entityKey: 'processos', fieldKeys: ['processo', 'contrato'], recordId: 'p1' });
+  });
+
+  it('sem campo nenhum, não há trava', () => {
+    renderHook(() => useEntityList('microteia:prazo', { parent: { fieldKeys: [], recordId: 'p1' } }));
+    expect(lastParent()).toBeUndefined();
+  });
+
+  it('a trava por vários campos também é estável entre renders', () => {
+    const { rerender } = renderHook(() => useEntityList('microteia:prazo', {
+      parent: { fieldKeys: ['processo', 'contrato'], recordId: 'p1' },
+    }));
+    rerender();
+    expect(state.sources[0].parent).toBe(state.sources[state.sources.length - 1].parent);
   });
 
   /** A view passa um literal novo a cada render; a trava não pode recomeçar a lista por isso. */

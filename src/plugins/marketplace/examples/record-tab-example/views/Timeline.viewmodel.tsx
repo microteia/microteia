@@ -12,6 +12,8 @@ import { getConfigColor } from '@microteia/theme';
 const MILESTONE_SOURCE_ID = 'microteia:record-tab-example:milestone';
 /** The reference field that points a milestone at its project. */
 const PROJECT_FIELD = 'project';
+/** A reference with `multi: true`: the other projects the milestone also affects. */
+const RELATED_PROJECTS_FIELD = 'relatedProjects';
 const PRIORITY_FIELD = 'priority';
 
 const timeOf = (value: unknown): number => {
@@ -39,9 +41,12 @@ export const useTimelineViewModel = ({ recordId }: RecordTabProps) => {
   const updateRecord = useUpdateRecord();
 
   // `parent` is a LOCK, not a filter: the person cannot clear it, the card actions see
-  // `surface: 'parentTab'`, and `openNewRecord()` opens the form with the project already filled in.
+  // `surface: 'parentTab'`, and `openNewRecord()` opens the form with the FIRST field filled in.
+  // A milestone enters when ANY field points at this project: equality on `project`, "contains" on
+  // the `multi` `relatedProjects`. Unlink on a related milestone takes this project out of the list
+  // and leaves the other ids where they are.
   const list = useEntityList(MILESTONE_SOURCE_ID, {
-    parent: { fieldKey: PROJECT_FIELD, recordId },
+    parent: { fieldKeys: [PROJECT_FIELD, RELATED_PROJECTS_FIELD], recordId },
     sortRecords: byDueDateDesc,
   });
 

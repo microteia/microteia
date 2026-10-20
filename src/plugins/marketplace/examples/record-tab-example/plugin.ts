@@ -22,6 +22,7 @@ import { recordTabPtBrContribution } from './recordTabMessagesPtBr';
  * | a tab with its own look | `surfaceTab(metadata, viewKey)` + a view that receives `RecordTabProps` |
  * | a tab with no code | `surfaceTabSpec(metadata, spec)` — a Widget DSL tree, which receives no data |
  * | the children of the open record | `useEntityList(sourceId, { parent: { fieldKey, recordId } })` |
+ * | ...also through a `multi` field, or any of several | `parent: { fieldKeys: [...], recordId }` — "contains" on a `multi` |
  * | a menu entry, with a badge, for a screen with no view | `nav({ screen: '<screen key>', badge })` |
  *
  * The tab is addressed by the screen's `sourceId`, never by its installed key: the key may be
@@ -57,7 +58,9 @@ const PROJECT_SCREEN: ScreenModuleTemplate = {
 };
 
 /**
- * `project` is a plain reference — the field the timeline locks its list to. `refEntity` names the
+ * `project` is a plain reference — the project the milestone belongs to. `relatedProjects` is a
+ * reference with `multi: true` — other projects the milestone also affects. The timeline locks its list
+ * to BOTH: a project shows its own milestones and the ones that cite it. `refEntity` names the
  * collection pointed at, which for a screen of this package is its template key.
  */
 const MILESTONE_FIELDS: TemplateField[] = [
@@ -79,12 +82,21 @@ const MILESTONE_FIELDS: TemplateField[] = [
     ],
   },
   { key: 'done', label: message('field.done'), type: 'checkbox', required: false, order: 4 },
+  {
+    key: 'relatedProjects',
+    label: message('field.relatedProjects'),
+    type: 'reference',
+    multi: true,
+    required: false,
+    order: 5,
+    refEntity: 'recordTabProject',
+  },
 ];
 
 const MILESTONE_SCREEN: ScreenModuleTemplate = {
   key: 'recordTabMilestone',
   sourceId: 'microteia:record-tab-example:milestone',
-  sourceRev: 1,
+  sourceRev: 2,
   titleSingular: message('screen.milestone'),
   titlePlural: message('screen.milestone.plural'),
   icon: 'flag',
@@ -117,8 +129,8 @@ const TIMELINE_SOURCE = mergeViewSources({
 export const recordTabExamplePlugin: MarketplacePlugin = {
   manifest: {
     id: 'com.microteia.record-tab-example',
-    version: '1.2.0',
-    kernel: '^2.38.0',
+    version: '1.3.0',
+    kernel: '^2.51.0',
     name: message('package.name'),
     description: message('package.description'),
     category: message('package.category'),

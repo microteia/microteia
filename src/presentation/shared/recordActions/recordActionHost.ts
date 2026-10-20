@@ -16,10 +16,11 @@ export interface RecordActionHost {
   screenKey: string;
   surface: ActionSurface;
   /**
-   * Vínculo com o registro-pai quando a ação acontece dentro da aba dele. `required` diz se o campo
-   * que liga é obrigatório — e um vínculo obrigatório não se desfaz.
+   * Vínculo com o registro-pai quando a ação acontece dentro da aba dele: os campos que prendem a
+   * lista (um, ou vários; único ou `multi`). `required` diz se desfazer o vínculo DESTE registro
+   * deixaria vazio um campo obrigatório — e um vínculo assim não se desfaz.
    */
-  parent: { fieldKey: string; recordId: string; required: boolean } | null;
+  parent: { fieldKeys: string[]; recordId: string; required: boolean } | null;
   /**
    * Como o registro é ENDEREÇADO nesta tela: a aba que o abre e a que abre uma cópia dele. Vêm do
    * host, e não do comando, porque cada tela sabe o próprio esquema de abas — a genérica usa

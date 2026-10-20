@@ -29,9 +29,10 @@ export const RECORD_TAB_MESSAGES: Record<string, string> = {
   'field.priority.medium': 'Medium',
   'field.priority.low': 'Low',
   'field.done': 'Done',
+  'field.relatedProjects': 'Also affects',
 
   'tab.timeline': 'Timeline',
-  'tab.timeline.description': 'The milestones of this project, newest first.',
+  'tab.timeline.description': 'The milestones of this project, and the ones that also affect it, newest first.',
   'tab.about': 'About these tabs',
   'tab.about.description': 'A declarative tab, which receives no data.',
 
@@ -44,7 +45,7 @@ export const RECORD_TAB_MESSAGES: Record<string, string> = {
 
   'about.heading': 'Placed by an extension',
   'about.body':
-    'Both tabs are `ui.tab` contributions on `recordSurface(\'microteia:record-tab-example:project\')`. The address is the screen\'s `sourceId`, never its installed key — which is what lets an extension add a tab to a screen of ANOTHER extension.\n\nThe timeline is a code view: it receives `RecordTabProps` and lists the milestones with `useEntityList(sourceId, { parent: { fieldKey, recordId } })`, so the list is locked to this project and a new milestone is born linked to it.\n\nThis tab is a Widget DSL tree, so it receives no data.',
+    'Both tabs are `ui.tab` contributions on `recordSurface(\'microteia:record-tab-example:project\')`. The address is the screen\'s `sourceId`, never its installed key — which is what lets an extension add a tab to a screen of ANOTHER extension.\n\nThe timeline is a code view: it receives `RecordTabProps` and lists the milestones with `useEntityList(sourceId, { parent: { fieldKeys: [\'project\', \'relatedProjects\'], recordId } })`, so the list is locked to this project — the milestones that belong to it and the ones whose `multi` field \'Also affects\' contains it — and a new milestone is born linked to it.\n\nThis tab is a Widget DSL tree, so it receives no data.',
 };
 
 export const recordTabMessagesContribution = (): Contribution =>

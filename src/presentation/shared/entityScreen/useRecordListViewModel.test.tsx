@@ -29,7 +29,8 @@ vi.mock('../../../stores/useRecords', () => ({
     deleteRecord: vi.fn(),
   }),
 }));
-vi.mock('../../../stores/useWorkspace', () => ({ useWorkspace: () => ({ openTab: vi.fn() }) }));
+const abertas: string[] = [];
+vi.mock('../../../stores/useWorkspace', () => ({ useWorkspace: () => ({ openTab: (key: string) => abertas.push(key) }) }));
 vi.mock('../../../stores/useTenant', () => ({ useTenant: () => ({ members: [] }) }));
 vi.mock('../../../infrastructure/di/useDI', () => ({ useDI: () => ({ recordRepository: { getById: vi.fn() } }) }));
 // `granted: null` é "pode tudo", que é o que quase todo teste daqui pressupõe; a lista fecha o cerco
@@ -57,6 +58,7 @@ vi.mock('../../../stores/useLookups', () => ({ useLookups: () => ({ getOptions: 
 vi.mock('../../../stores/useTags', () => ({ useTags: () => ({ getTags: () => [], availableTagLists: [], declareTagList: vi.fn(), setTags: vi.fn() }) }));
 vi.mock('../../../stores/useWorkflowStore', () => ({ useWorkflowStore: () => ({ workflows: [] }) }));
 let copiado = '';
+let hostDoGesto: { parent: unknown; record: unknown } | null = null;
 vi.mock('../recordActions/useRecordActions', async () => {
   const { RECORD_ACTION_METADATA } = await import('../../../domain/schema/ui/recordActionMetadata');
   return {
@@ -69,7 +71,7 @@ vi.mock('../recordActions/useRecordActions', async () => {
       ...(['delete', 'unlink'] as const).map((key) => ({
         slot: RECORD_ACTION_METADATA[key].slot ?? key,
         metadata: RECORD_ACTION_METADATA[key],
-        run: vi.fn(),
+        run: (host: { parent: unknown; record: unknown }) => { hostDoGesto = host; },
       })),
     ],
   };
@@ -113,6 +115,8 @@ const listar = (source: Parameters<typeof useRecordListViewModel>[0]) =>
   renderHook(() => useRecordListViewModel(source));
 
 beforeEach(() => {
+  abertas.length = 0;
+  hostDoGesto = null;
   actionStore.actions = [];
   auth.effectivePermissions = [];
   auth.granted = null;
@@ -180,7 +184,7 @@ describe('useRecordListViewModel — ordenação', () => {
     const porVencimento = (x: EntityRecord, y: EntityRecord) =>
       (x.dueDate as Date).getTime() - (y.dueDate as Date).getTime();
     const { result } = listar(source({
-      parent: { entityKey: 'cases', fieldKey: 'caseId', recordId: 'p1' },
+      parent: { entityKey: 'cases', fieldKeys: ['caseId'], recordId: 'p1' },
       sortRecords: porVencimento,
     }));
 
@@ -402,7 +406,7 @@ describe('useRecordListViewModel — relação com o pai', () => {
     } as ScreenDefinition;
     state.records = [{ id: 'r1', type: 'Recurso', caseId: 'p1' } as unknown as EntityRecord];
   };
-  const naAbaDoPai = () => listar(source({ parent: { entityKey: 'cases', fieldKey: 'caseId', recordId: 'p1' } }));
+  const naAbaDoPai = () => listar(source({ parent: { entityKey: 'cases', fieldKeys: ['caseId'], recordId: 'p1' } }));
   const gestos = (result: ReturnType<typeof naAbaDoPai>['result']) =>
     result.current.getCardActions(state.records[0]).map((a) => a.key);
 
@@ -423,5 +427,93 @@ describe('useRecordListViewModel — relação com o pai', () => {
     const keys = gestos(naAbaDoPai().result);
     expect(keys).toContain('unlink');
     expect(keys).not.toContain('delete');
+  });
+});
+
+/**
+ * O lado de lá de um vínculo muitos-para-muitos: os processos de que uma pessoa é parte, em qualquer
+ * polo. A trava comparava UM campo por igualdade — num `multi` a lista ficava vazia, Desvincular
+ * gravava `null` e apagava todas as partes, e o registro novo nascia solto.
+ */
+describe('useRecordListViewModel — trava por campo multi e por vários campos', () => {
+  const comPolos = (extra: { required?: boolean } = {}) => {
+    const base = definition();
+    state.definition = {
+      ...base,
+      listActions: ['delete'],
+      fields: [
+        ...base.fields,
+        { key: 'activePoleIds', label: 'Polo ativo', type: 'reference', refEntity: 'persons', multi: true, required: !!extra.required, order: 2, origin: 'plugin' },
+        { key: 'passivePoleIds', label: 'Polo passivo', type: 'reference', refEntity: 'persons', multi: true, required: false, order: 3, origin: 'plugin' },
+        { key: 'lawyerId', label: 'Advogado', type: 'reference', refEntity: 'persons', required: false, order: 4, origin: 'plugin' },
+      ],
+    } as ScreenDefinition;
+    state.records = [
+      { id: 'ativo', type: 'A', activePoleIds: ['pe1', 'pe2'], passivePoleIds: ['pe3'] },
+      { id: 'passivo', type: 'B', activePoleIds: ['pe9'], passivePoleIds: ['pe1'] },
+      { id: 'sozinho', type: 'C', activePoleIds: ['pe1'], passivePoleIds: [] },
+      { id: 'alheio', type: 'D', activePoleIds: ['pe2'], passivePoleIds: ['pe3'] },
+      { id: 'antigo', type: 'E', activePoleIds: 'pe1' },
+    ] as unknown as EntityRecord[];
+  };
+  const dePessoa = (fieldKeys: string[]) =>
+    listar(source({ parent: { entityKey: 'persons', fieldKeys, recordId: 'pe1' } }));
+  const doRegistro = (id: string) => state.records.find((r) => r.id === id)!;
+
+  it('num campo multi, entra o registro cuja lista CONTÉM o pai', () => {
+    comPolos();
+    expect(dePessoa(['activePoleIds']).result.current.records.map((r) => r.id))
+      .toEqual(['ativo', 'sozinho', 'antigo']);
+  });
+
+  it('com vários campos, basta UM apontar — e nada se repete', () => {
+    comPolos();
+    expect(dePessoa(['activePoleIds', 'passivePoleIds']).result.current.records.map((r) => r.id))
+      .toEqual(['ativo', 'passivo', 'sozinho', 'antigo']);
+  });
+
+  it('o campo multi continua no cartão e no filtro: os outros ids informam', () => {
+    comPolos();
+    const { result } = dePessoa(['activePoleIds']);
+    expect(result.current.definition?.fields.map((f) => f.key)).toContain('activePoleIds');
+    expect(result.current.getFieldText(doRegistro('ativo'), 'activePoleIds')).not.toBe('');
+  });
+
+  it('o registro novo nasce preso pelo PRIMEIRO campo', () => {
+    comPolos();
+    dePessoa(['passivePoleIds', 'activePoleIds']).result.current.openNewRecord();
+    expect(abertas).toEqual(['new-dyn:prazos:parent:persons:pe1:passivePoleIds']);
+  });
+
+  it('Desvincular recebe todos os campos da trava', () => {
+    comPolos();
+    const { result } = dePessoa(['activePoleIds', 'passivePoleIds']);
+    result.current.getCardActions(doRegistro('ativo')).find((a) => a.key === 'unlink')!.onClick();
+    expect(hostDoGesto?.parent).toEqual({ fieldKeys: ['activePoleIds', 'passivePoleIds'], recordId: 'pe1', required: false });
+  });
+
+  it('multi obrigatório com outras partes: ainda é relação, e Desvincular aparece', () => {
+    comPolos({ required: true });
+    const keys = dePessoa(['activePoleIds']).result.current
+      .getCardActions(doRegistro('ativo')).map((a) => a.key);
+    expect(keys).toContain('unlink');
+    expect(keys).not.toContain('delete');
+  });
+
+  it('multi obrigatório em que o pai é o ÚNICO id: posse, e Desvincular some', () => {
+    comPolos({ required: true });
+    const keys = dePessoa(['activePoleIds']).result.current
+      .getCardActions(doRegistro('sozinho')).map((a) => a.key);
+    expect(keys).toContain('delete');
+    expect(keys).not.toContain('unlink');
+  });
+
+  it('um campo único continua escondido do cartão, como sempre', () => {
+    comPolos();
+    state.records = [{ id: 'r', type: 'A', lawyerId: 'pe1' } as unknown as EntityRecord];
+    const { result } = dePessoa(['lawyerId']);
+    expect(result.current.records.map((r) => r.id)).toEqual(['r']);
+    expect(result.current.getFieldText(state.records[0], 'lawyerId')).toBe('');
+    expect(result.current.getFieldText(state.records[0], 'type')).toBe('A');
   });
 });

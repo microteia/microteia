@@ -9,7 +9,7 @@ import { useRecordDialog } from '../../../stores/useRecordDialog';
 import { storeEvents, StoreEvents } from '../../../infrastructure/events/StoreEventEmitter';
 import type { ActionExprContext } from '../../../domain/schema/actionExpression';
 import { actionActiveState, isActionDisabled, isActionHidden } from '../../../domain/schema/actionExpression';
-import type { ActionRelation, ActionSurface } from '../../../domain/schema/actionExpression';
+import type { ActionSurface } from '../../../domain/schema/actionExpression';
 import { dispatchActionOutcome, localizeActionOutcome } from './useScreenActions';
 import { useActionParameterPrompt } from './useActionParameterPrompt';
 import type { ActionParameterPromptController } from './useActionParameterPrompt';
@@ -18,7 +18,9 @@ import { useRecordIdentityText } from './useRecordIdentityText';
 import type { CustomFieldCardItem } from '../../hooks/useCustomFieldListing';
 import { buildNewTabKey, buildViewTabKey, buildCloneTabKey, buildChildNewTabKey, recordTabKeyOf } from '../../../shared/constants/dynamicScreenKeys';
 import { readValueByPath, recordExpressionValues, resolveRecordImageUrl, resolveRecordTitle, sortFieldsByOrder } from '../../../domain/services/customFieldValues';
-import { isBoundScreen, parentLinkRelation, screenDataCollection } from '../../../domain/services/screenDataCollection';
+import { isBoundScreen, screenDataCollection } from '../../../domain/services/screenDataCollection';
+import { parentLinkRequired, parentLockRelation, pointsToParent } from '../../../domain/services/parentLock';
+import type { ParentLockField } from '../../../domain/services/parentLock';
 import { collectionPermissionId } from '../../../domain/schema/access';
 import { screenForDisplay, useEntityFormFields, useResolvedFields } from '../useEntityFormFields';
 import { useExprViewer } from '../useExprViewer';
@@ -58,7 +60,12 @@ export interface RecordCardAction {
 /** Registro pai quando a listagem é a aba de filhos de um registro. */
 export interface RecordListParent {
   entityKey: string;
-  fieldKey: string;
+  /**
+   * Os campos que prendem a lista: entra o registro em que ALGUM aponta para `recordId` — igualdade
+   * num vínculo único, *contém* num `multi`. O primeiro é o que o registro novo nasce preenchendo.
+   * Nunca vazio.
+   */
+  fieldKeys: string[];
   recordId: string;
 }
 
@@ -202,19 +209,22 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
   const boundFields = useEntityFormFields(isBound ? collection : '');
   const schemaContext = useSchemaContext();
 
-  // Na aba do pai, todos os registros têm o mesmo vínculo: filtrar ou exibir esse campo não
-  // informa nada. É o mesmo motivo pelo qual ele não vai ao formulário do filho.
   const allFields = useMemo(
     () => (!definition ? [] : isBound ? boundFields.fields : sortFieldsByOrder(definition.fields)),
     [definition, isBound, boundFields.fields],
   );
-  const declaredFields = useMemo(
-    () => (parent ? allFields.filter((field) => field.key !== parent.fieldKey) : allFields),
+  const lockFields = useMemo<ParentLockField[]>(
+    () => (parent?.fieldKeys ?? []).map((key) => ({ key, field: allFields.find((field) => field.key === key) })),
     [allFields, parent],
   );
-  const parentLinkField = useMemo(
-    () => (parent ? allFields.find((field) => field.key === parent.fieldKey) : undefined),
-    [allFields, parent],
+  // Na aba do pai presa por UM campo único, todos os registros têm o mesmo valor nele: filtrar ou
+  // exibir esse campo não informa nada — o mesmo motivo pelo qual ele não vai ao formulário do filho.
+  // Numa lista (`multi`) ou com vários campos, os OUTROS valores informam: quem mais é parte, em que
+  // polo esta pessoa está. Ali o campo fica.
+  const hiddenLinkKey = lockFields.length === 1 && !lockFields[0].field?.multi ? lockFields[0].key : null;
+  const declaredFields = useMemo(
+    () => (hiddenLinkKey ? allFields.filter((field) => field.key !== hiddenLinkKey) : allFields),
+    [allFields, hiddenLinkKey],
   );
   // Rótulo declarativo resolve NOS DOIS ramos — é dele que saem os filtros e as linhas do cartão, e
   // uma referência crua apareceria no filtro salvo do escritório. Ver `useResolvedFields`.
@@ -236,7 +246,7 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
   // desenhando `records`.
   const records = useMemo(() => {
     const all = recordsByCollection[collection] ?? [];
-    const locked = parent ? all.filter((record) => record[parent.fieldKey] === parent.recordId) : all;
+    const locked = parent ? all.filter((record) => pointsToParent(record, parent.fieldKeys, parent.recordId)) : all;
     return sortRecords ? [...locked].sort(sortRecords) : locked;
   }, [recordsByCollection, collection, parent, sortRecords]);
 
@@ -314,13 +324,15 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
     [sortedFields, definition],
   );
 
+  // O registro novo nasce preso pelo PRIMEIRO campo da trava — com vários, é o que quem declarou
+  // pôs à frente.
   const openNewRecord = useCallback(
     () => openTab(parent
       ? buildChildNewTabKey(
           screenKey,
           parent.entityKey,
           parent.recordId,
-          parent.fieldKey === definition?.parentFieldKey ? undefined : parent.fieldKey,
+          parent.fieldKeys[0] === definition?.parentFieldKey ? undefined : parent.fieldKeys[0],
         )
       : buildNewTabKey(screenKey)),
     [openTab, screenKey, parent, definition],
@@ -335,15 +347,6 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
     [openTab, screenKey],
   );
 
-  /**
-   * O que o registro é para o pai da aba em que aparece. É o que decide, por expressão declarada,
-   * se a ação destrutiva do card apaga o registro ou apenas o desliga do pai — e um vínculo
-   * obrigatório nunca se desliga (`parentLinkRelation`).
-   */
-  const relation: ActionRelation = !parent || !definition
-    ? 'none'
-    : parentLinkRelation(definition, parent.fieldKey, parentLinkField);
-
   const recordActions = useRecordActions();
   const { open: openRecordDialog } = useRecordDialog();
 
@@ -357,7 +360,7 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
     screenKey,
     surface: parent ? 'parentTab' : 'list',
     parent: parent
-      ? { fieldKey: parent.fieldKey, recordId: parent.recordId, required: !!parentLinkField?.required }
+      ? { fieldKeys: parent.fieldKeys, recordId: parent.recordId, required: parentLinkRequired(record, lockFields, parent.recordId) }
       : null,
     // O endereço do registro é o que a TELA declara (`recordTabPrefix`), e não a aba genérica: a
     // notícia se lê em `news-read:`, e era esse link que "copiar link" tinha de pôr na área de
@@ -373,7 +376,7 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
     requestDelete: () => setRecordToDelete(record),
     openDialog: (component) => openRecordDialog({ component, props: { record, collection, screenKey } }),
     t,
-  }), [collection, screenKey, definition, parent, parentLinkField, openTab, notify, updateRecord, recordTabKeys, openRecordDialog, t]);
+  }), [collection, screenKey, definition, parent, lockFields, openTab, notify, updateRecord, recordTabKeys, openRecordDialog, t]);
 
   const cardActionDefs = useMemo(
     () => getActionsByIds(definition?.cardActionIds ?? []),
@@ -455,12 +458,14 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
     permissions: effectivePermissions,
     entity: collection,
     // Onde a ação está sendo desenhada, e o que o registro é para o pai da aba. É o que permite
-    // uma extensão esconder a própria ação dentro da aba de outro registro.
+    // uma extensão esconder a própria ação dentro da aba de outro registro — e o que decide se a
+    // ação destrutiva apaga o registro ou só o desliga do pai. Por REGISTRO: preso por vários campos
+    // ou por um `multi`, um vínculo obrigatório pode ficar vazio num e não no outro.
     surface: (parent ? 'parentTab' : 'list') as ActionSurface,
-    relation,
+    relation: !parent || !definition ? 'none' : parentLockRelation(definition, record, lockFields, parent.recordId),
     user: viewer,
     references,
-  }), [sortedFields, effectivePermissions, collection, parent, relation, viewer, references]);
+  }), [sortedFields, effectivePermissions, collection, parent, definition, lockFields, viewer, references]);
 
   const confirmPendingCardAction = useCallback(() => {
     if (!pendingCardAction) return;

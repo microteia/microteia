@@ -18,7 +18,7 @@ export const useChildRecordListViewModel = (params: ChildRecordListParams): Reco
   const { screenKey, parentEntity, parentFieldKey, parentId } = params;
 
   const parent = useMemo(
-    () => ({ entityKey: parentEntity, fieldKey: parentFieldKey, recordId: parentId }),
+    () => ({ entityKey: parentEntity, fieldKeys: [parentFieldKey], recordId: parentId }),
     [parentEntity, parentFieldKey, parentId],
   );
 

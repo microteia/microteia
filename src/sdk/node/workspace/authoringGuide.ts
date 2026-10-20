@@ -594,7 +594,18 @@ data, as on every surface. To list the children of the open record, pass
 actions see \`surface: 'parentTab'\`, and \`openNewRecord()\` opens the form with the field filled in.
 Their \`relation\` is \`owned\` when \`fieldKey\` is the screen's declared ownership OR a \`required\`
 field — a link that cannot be emptied is never offered as Unlink, so the card shows Delete — and
-\`related\` only when the link is optional. Draw \`filteredRecords\` — the list after the person's filter, in
+\`related\` only when the link is optional.
+
+The other side of a many-to-many link gets the same lock. Pass \`parent: { fieldKeys: [...], recordId }\`
+and a record enters when ANY of those fields points at \`recordId\` — equality on a single \`reference\`,
+"contains" on one with \`multi: true\`: the projects a person works on, the cases where a person is a
+party on either side. \`openNewRecord()\` fills the FIRST field (a one-id list when it is \`multi\`).
+Unlink takes \`recordId\` out of every field that points at it — out of the list on a \`multi\` field,
+leaving the other ids — and \`relation\` is decided per record: a \`required\` \`multi\` field that
+still has other ids stays \`related\`, and turns \`owned\` only where \`recordId\` is its last id. Only a
+lock by ONE single field hides that field from the card and the filters, because there every record
+has the same value; a \`multi\` field or a second field tells something, and stays. Requires kernel
+\`^2.51.0\`. Draw \`filteredRecords\` — the list after the person's filter, in
 the order of \`sortRecords\` —, and keep \`records\` (the whole list, same order) for counting, finding by id
 and totals; declare \`sortRecords\` instead of sorting by hand.
 

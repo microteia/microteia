@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.128.0] — 2026-10-20
+
+- Uma aba dentro de um registro agora pode listar tudo em que ele aparece, mesmo quando o vínculo admite vários registros ao mesmo tempo ou passa por mais de um campo — por exemplo, os processos em que uma pessoa é parte, seja no polo ativo, seja no polo passivo.
+- Nessas abas, desvincular tira apenas o registro aberto da lista, mantendo os demais; e o novo cadastro feito a partir da aba já nasce ligado a ele.
+
 #### [9.127.2] — 2026-10-19
 
 - Corrigido um problema que, desde 17/10, deixava de atualizar os campos calculados a partir dos registros filhos — como o resultado e a data do último andamento de um processo — quando a tela pertence a uma extensão. Os registros afetados são recalculados automaticamente após a atualização.

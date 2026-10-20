@@ -37,6 +37,7 @@ import type { TagStoreAdapter } from '../../components/ui/TagManager';
 import type { EntityDetailExtraTab, EntityDetailTab } from '../../components/layout/EntityDetailView';
 import { useTagAdapter } from '../../shared/entityScreen/useTagAdapter';
 import { hiddenParentFieldKey, isBoundScreen, isOwnedByParentScreen, screenDataCollection } from '../../../domain/services/screenDataCollection';
+import { parentLinkValue } from '../../../domain/services/parentLock';
 import { autoValueFields, generateAutoValue } from '../../../domain/services/autoValue';
 import { screenForDisplay, useEntityFormFields, useResolvedFields } from '../../shared/useEntityFormFields';
 import { useLabel, useT } from '../../shared/i18n/useT';
@@ -174,10 +175,12 @@ export const useViewDynamicRecordViewModel = (tabKey: string): ViewDynamicRecord
     (record: EntityRecord | null) => {
       const values = buildInitialFormValues(sortedFields, record);
       // Registro filho novo já nasce vinculado ao pai que abriu a aba — pelo campo que a chave
-      // carrega, ou pelo `parentFieldKey` da tela.
+      // carrega, ou pelo `parentFieldKey` da tela. Num `multi`, como lista: uma string ali era
+      // descartada ao gravar, e o registro nascia solto.
       const linkFieldKey = parentContext?.fieldKey ?? definition?.parentFieldKey;
       if (parentContext && linkFieldKey) {
-        values[linkFieldKey] = parentContext.id;
+        const linkField = sortedFields.find((field) => field.key === linkFieldKey);
+        values[linkFieldKey] = parentLinkValue(linkField, parentContext.id);
       }
       return values;
     },

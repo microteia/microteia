@@ -11175,6 +11175,32 @@ precisaram generalizar, porque o campo agora pode não ser o `parentFieldKey` da
 A entidade do pai sai da declaração — o `refEntity` do campo, ou o `parentEntity` da tela —, e não de
 quem chama.
 
+#### Campo `multi` e vários campos — `parent: { fieldKeys, recordId }`
+
+O lado de lá de um vínculo muitos-para-muitos (os processos de que uma pessoa é parte, em qualquer
+polo) não cabia na trava de UM campo por IGUALDADE. Pior: passar um `multi` em `fieldKey` não era
+recusado — a lista saía vazia (array `===` string), Desvincular gravava `null` e apagava TODAS as
+partes, e o registro novo nascia solto (a string no campo `multi` era descartada ao gravar).
+
+`RecordListParent` passou a carregar `fieldKeys` (nunca vazio); `useEntityList` aceita `fieldKey` ou
+`fieldKeys`, e a aba de tela-filha passa `[parentFieldKey]`. As regras moram em
+`domain/services/parentLock.ts`, puras e testadas:
+
+- **apontar** é igualdade num valor único e *contém* numa lista — decidido pelo FORMATO do valor
+  gravado, para o registro anterior a uma troca de `multi` continuar onde estava;
+- **o registro novo** nasce pelo PRIMEIRO campo, e num `multi` como `[id]` (`parentLinkValue`);
+- **desvincular** (`unlinkFromParentPatch`) tira o id das listas e anula os campos únicos que
+  apontam; o que não aponta fica fora do patch;
+- **a `relation` é por registro** (`parentLockRelation`): com um campo único ela é, registro a
+  registro, o `parentLinkRelation` de sempre (o teste compara as duas); num `multi` obrigatório com
+  outros ids continua `related`, e só vira `owned` onde o pai é o último id;
+- **só a trava por UM campo único esconde o campo** do cartão e dos filtros. Num `multi`, ou com vários
+  campos, os outros valores informam.
+
+Não há consulta por pai no servidor: o `RecordStore` assina a coleção inteira, e a trava — antes e
+agora — é um filtro no cliente. Levar a trava ao servidor (`array-contains` por campo `multi`, `==`
+por campo único, união) é decisão do `RecordStore` inteiro, não desta opção.
+
 ### O que o `check` diz, e por que só diz
 
 Recusar `record:` sem tela é do portão do pacote: a aba instalaria e nunca apareceria. Um `sourceId`

@@ -28,13 +28,31 @@ export interface EntityListOptions {
    */
   sortRecords?: (a: EntityRecord, b: EntityRecord) => number;
   /**
-   * Prende a lista aos registros de UM pai: só entram os que têm `fieldKey == recordId`. É uma trava,
-   * não um filtro — a pessoa não a apaga —, e é o mesmo efeito da lista embutida na aba de tela-filha:
-   * as expressões das ações veem `surface: 'parentTab'` e a relação com o pai, e o registro novo já
-   * nasce com o campo preenchido. Feita para a aba contribuída no detalhe de um registro.
+   * Prende a lista aos registros de UM pai. É uma trava, não um filtro — a pessoa não a apaga —, e é
+   * o mesmo efeito da lista embutida na aba de tela-filha: as expressões das ações veem
+   * `surface: 'parentTab'` e a relação com o pai, e o registro novo já nasce com o campo preenchido.
+   * Feita para a aba contribuída no detalhe de um registro.
+   *
+   * `fieldKey` prende por um campo; `fieldKeys`, por vários — entra o registro em que ALGUM aponta
+   * para `recordId`. Apontar é igualdade num `reference` único e *contém* num `multi`: é o que dá aba
+   * ao lado de lá de um vínculo muitos-para-muitos (os processos de que uma pessoa é parte, em qualquer
+   * polo). O registro novo nasce preenchendo o primeiro.
    */
-  parent?: { fieldKey: string; recordId: string };
+  parent?: EntityListParent;
 }
+
+export type EntityListParent =
+  | { fieldKey: string; recordId: string }
+  | { fieldKeys: string[]; recordId: string };
+
+/** Os campos da trava, na ordem declarada e sem repetição — `fieldKey` é a forma de um campo só. */
+export const parentLockFieldKeys = (parent: EntityListParent | undefined): string[] => {
+  if (!parent) return [];
+  const keys = 'fieldKeys' in parent ? parent.fieldKeys : [parent.fieldKey];
+  return [...new Set(keys.filter((key) => typeof key === 'string' && key !== ''))];
+};
+
+const FIELD_KEYS_SEPARATOR = '\n';
 
 /**
  * Versão para EXTENSÕES do view model padrão de listagem: resolve a tela dinâmica pelo `sourceId`
@@ -57,20 +75,23 @@ export const useEntityList = (sourceId: string, options: EntityListOptions = {})
   const screenKey = screen?.id ?? '';
 
   /**
-   * A entidade do pai sai da DECLARAÇÃO, não de quem chama: o alvo do campo de referência, ou o
-   * `parentEntity` da tela quando o campo é o vínculo dela. As chaves primitivas — e não o objeto —
-   * entram nas dependências porque a view passa um literal novo a cada render.
+   * A entidade do pai sai da DECLARAÇÃO, não de quem chama: o alvo do PRIMEIRO campo de referência
+   * — o que o registro novo preenche —, ou o `parentEntity` da tela quando ele é o vínculo dela.
+   * Valores primitivos — e não o objeto — entram nas dependências porque a view passa um literal novo
+   * a cada render; os campos viajam juntados numa string pelo mesmo motivo.
    */
-  const parentFieldKey = options.parent?.fieldKey ?? '';
+  const parentFieldKeysText = parentLockFieldKeys(options.parent).join(FIELD_KEYS_SEPARATOR);
   const parentRecordId = options.parent?.recordId ?? '';
   const parent = useMemo(() => {
-    if (!parentFieldKey || !parentRecordId) return undefined;
-    const field = screen?.fields.find((candidate) => candidate.key === parentFieldKey);
+    if (!parentFieldKeysText || !parentRecordId) return undefined;
+    const fieldKeys = parentFieldKeysText.split(FIELD_KEYS_SEPARATOR);
+    const primaryKey = fieldKeys[0];
+    const field = screen?.fields.find((candidate) => candidate.key === primaryKey);
     const entityKey = field?.refEntity
-      ?? (screen?.parentFieldKey === parentFieldKey ? screen.parentEntity : null)
+      ?? (screen?.parentFieldKey === primaryKey ? screen.parentEntity : null)
       ?? '';
-    return { entityKey, fieldKey: parentFieldKey, recordId: parentRecordId };
-  }, [screen, parentFieldKey, parentRecordId]);
+    return { entityKey, fieldKeys, recordId: parentRecordId };
+  }, [screen, parentFieldKeysText, parentRecordId]);
 
   /**
    * O endereço do registro NESTA extensão. Antes as ações de duplicar e copiar link eram

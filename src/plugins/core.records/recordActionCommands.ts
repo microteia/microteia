@@ -1,4 +1,5 @@
 import { generateDeepLink } from '../../infrastructure/deeplink/deepLinkUtils';
+import { unlinkFromParentPatch } from '../../domain/services/parentLock';
 import type { RecordActionCommand } from '../../presentation/shared/recordActions/recordActionHost';
 // A metadata dos gestos é declaração, e mora no domínio — ver `recordActionMetadata.ts`.
 export { RECORD_ACTION_COMMANDS, RECORD_ACTION_METADATA } from '../../domain/schema/ui/recordActionMetadata';
@@ -33,7 +34,8 @@ export const deleteCommand: RecordActionCommand = (host) => {
 
 /**
  * Desvincular é uma gravação comum — limpa o campo que aponta para o pai —, e por isso não exige
- * admin: quem pode editar o registro pode tirá-lo de um contrato.
+ * admin: quem pode editar o registro pode tirá-lo de um contrato. Num `multi`, tira só o id do pai
+ * da lista; preso por vários campos, desfaz em todos os que apontam (`unlinkFromParentPatch`).
  */
 export const unlinkCommand: RecordActionCommand = async (host) => {
   if (!host.parent) return;
@@ -44,7 +46,8 @@ export const unlinkCommand: RecordActionCommand = async (host) => {
     return;
   }
   try {
-    await host.patchRecord({ [host.parent.fieldKey]: null });
+    const patch = unlinkFromParentPatch(host.record, host.parent.fieldKeys, host.parent.recordId);
+    if (Object.keys(patch).length > 0) await host.patchRecord(patch);
     host.notify(host.t('action.unlink.done'), 'success');
   } catch {
     host.notify(host.t('action.unlink.failed'), 'error');

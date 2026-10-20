@@ -1154,12 +1154,18 @@ const DATA_MODULE_DEFS = `declare module '@microteia/data' {
      */
     sortRecords?: (a: any, b: any) => number;
     /**
-     * Locks the list to the children of ONE record: only records whose fieldKey equals recordId.
-     * A lock, not a filter the user can clear. Card actions see surface 'parentTab' and the relation
-     * to the parent, and openNewRecord() opens the form with that field already filled. Made for a
-     * tab contributed to a record's detail (see RecordTabProps).
+     * Locks the list to ONE record. A lock, not a filter the user can clear. Card actions see surface
+     * 'parentTab' and the relation to the parent, and openNewRecord() opens the form with the field
+     * already filled. Made for a tab contributed to a record's detail (see RecordTabProps).
+     *
+     * fieldKey locks by one field; fieldKeys by several - a record enters when ANY of them points at
+     * recordId. "Points" is equality on a single reference and "contains" on a reference with
+     * multi: true, which is what gives the other side of a many-to-many link its tab (the projects a
+     * person works on, whichever role). openNewRecord() fills the FIRST field (as a one-id list when it
+     * is multi), and Unlink removes recordId from every field that points at it - from the list, on a
+     * multi field, leaving the other ids where they are.
      */
-    parent?: { fieldKey: string; recordId: string };
+    parent?: { fieldKey: string; recordId: string } | { fieldKeys: string[]; recordId: string };
   }
   /**
    * List a dynamic entity, with filters and card actions.
