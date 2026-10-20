@@ -9,7 +9,7 @@ import type { ExtensionPointDefinition } from './plugin/extensionPoint';
 
 export const PORTAL_VIEW_POINT = 'portal.view';
 
-export const PORTAL_API_VERSION = '1.1.0';
+export const PORTAL_API_VERSION = '1.2.0';
 
 /**
  * Onde a view entra no portal:

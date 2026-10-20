@@ -10,6 +10,7 @@ import { PortalSubmissionInvalid } from '../../domain/usecases/PortalAccessUseCa
 import { agentCatalog, agentText } from '../agent/agentMessages';
 import { documentTypeOptions } from '../agent/agentDocuments';
 import { identifyActor } from '../workflow/identifyActor';
+import { tenantTimeZone } from '../settings/tenantTimeZone';
 import { configuredLocale } from '../../domain/services/tenantSettings';
 import { DEFAULT_LOCALE } from '../../domain/schema/i18n/localeNegotiation';
 
@@ -154,7 +155,7 @@ export const getPortalDocumentUrl = onCall({ region: REGION, cors: true }, async
 });
 
 /**
- * O convidado cria um registro. A recusa da VALIDAÇÃO volta já traduzida, e no idioma do convidado:
+ * O convidado cria um registro — ou, com `recordId`, altera um que é dele. A recusa da VALIDAÇÃO volta já traduzida, e no idioma do convidado:
  * as frases do motor de gravação são do núcleo, e o pacote de idioma do escritório não chega ao
  * portal — sem isto, o convidado de um escritório brasileiro leria o motivo em inglês.
  */
@@ -163,13 +164,19 @@ export const submitPortalRecord = onCall({ region: REGION, cors: true }, async (
   const data = (request.data ?? {}) as Record<string, unknown>;
   const tenantId = requireString(data.tenantId, '@core.automation/handler.tenant.missing');
   const collection = requireString(data.collection, '@core.tenant/portal.create.denied');
-  const linkRecordId = requireString(data.linkRecordId, '@core.tenant/portal.create.denied');
+  const recordId = typeof data.recordId === 'string' && data.recordId.trim() !== '' ? data.recordId.trim() : null;
   const values = data.data && typeof data.data === 'object' && !Array.isArray(data.data)
     ? (data.data as Record<string, unknown>)
     : {};
   const browserLocale = typeof data.locale === 'string' ? data.locale : '';
   const di = getDI();
   try {
+    if (recordId) {
+      return await di.getUpdatePortalRecordUseCase().execute({
+        tenantId, userId, collection, recordId, data: values, timeZone: await tenantTimeZone(tenantId, userId),
+      });
+    }
+    const linkRecordId = requireString(data.linkRecordId, '@core.tenant/portal.create.denied');
     return await di.getSubmitPortalRecordUseCase().execute({ tenantId, userId, collection, linkRecordId, data: values });
   } catch (error) {
     if (error instanceof PortalSubmissionInvalid) {

@@ -14,8 +14,14 @@ import {
 import {
   buildPortalSubmission,
   normalizePortalEmail,
+  buildPortalEdit,
+  canPortalUserEdit,
+  evaluatePortalCondition,
+  isPortalEditOpen,
   portalCreateFieldKeys,
+  portalEditFieldKeys,
   portalLinkOf,
+  portalOwnerOf,
   portalUploadTypes,
   PORTAL_UPLOAD_MAX_BYTES,
   parsePortalSubjectKey,
@@ -137,6 +143,11 @@ export interface PortalContextScreen {
   create: {
     fields: Array<{ key: string; label: string; type?: string; required: boolean; options?: Array<{ key: string; label: string }> }>;
     link: { collection: string; label: string };
+  } | null;
+  /** O que o convidado altera, e se só no que ele mesmo criou. */
+  edit: {
+    fields: Array<{ key: string; label: string; type?: string; required: boolean; options?: Array<{ key: string; label: string }> }>;
+    onlyOwn: boolean;
   } | null;
   collection: string;
   titleSingular: string;
@@ -283,6 +294,7 @@ export const makeGetPortalContextUseCase = (repo: IPortalRepository): GetPortalC
       screens: screens.map((screen) => {
         const exposed = new Set(portalFieldKeys(screen));
         const fillable = new Set(portalCreateFieldKeys(screen));
+        const editable = new Set(portalEditFieldKeys(screen));
         const link = portalLinkOf(screen);
         const linkTarget = link
           ? screens.find((one) => one.id === link.targetEntity) ?? screens.find((one) => one.collection === link.targetEntity)
@@ -319,6 +331,12 @@ export const makeGetPortalContextUseCase = (repo: IPortalRepository): GetPortalC
               link: { collection: linkTarget.collection, label: resolve(linkTarget.titleSingular) },
             }
             : null,
+          edit: editable.size > 0
+            ? {
+              fields: screen.fields.filter((field) => editable.has(field.key)).map(describe),
+              onlyOwn: screen.portal?.edit?.onlyOwn === true,
+            }
+            : null,
         };
       }),
     };
@@ -343,6 +361,8 @@ export type PortalRecordWriter = (input: {
   collection: string;
   data: Record<string, unknown>;
   userId: string;
+  /** Presente, ALTERA este registro em vez de criar um. */
+  recordId?: string;
 }) => Promise<{ ok: true; id: string } | { ok: false; error: string; errorParams?: Record<string, string> }>;
 
 export interface SubmitPortalRecordInput {
@@ -397,6 +417,60 @@ export const makeSubmitPortalRecordUseCase = (
     if (!submission) throw denied;
 
     const outcome = await write({ tenantId, collection, data: submission, userId });
+    if (!outcome.ok) throw new PortalSubmissionInvalid(outcome.error, outcome.errorParams);
+    return { id: outcome.id };
+  },
+});
+
+export interface UpdatePortalRecordInput {
+  tenantId: string;
+  userId: string;
+  collection: string;
+  recordId: string;
+  data: Record<string, unknown>;
+  /** O fuso do escritório — o `today()` da condição responde nele. */
+  timeZone?: string;
+}
+
+export type UpdatePortalRecordUseCase = {
+  execute: (input: UpdatePortalRecordInput) => Promise<{ id: string }>;
+};
+
+/**
+ * O convidado ALTERA um registro que é dele.
+ *
+ * Tudo é conferido de novo, sobre o registro como está AGORA — a projeção que desenhou o botão pode
+ * ter ficado para trás: ele enxerga o registro; a tela deixa alterar; a condição do escritório vale
+ * para o registro inteiro, inclusive o que o convidado não vê; e, se a tela pede, foi ele quem o
+ * criou. Do que ele manda, só os campos editáveis passam — o vínculo nunca está entre eles, e é isso
+ * que impede passar o registro para outra empresa.
+ */
+export const makeUpdatePortalRecordUseCase = (
+  repo: IPortalRepository,
+  write: PortalRecordWriter,
+): UpdatePortalRecordUseCase => ({
+  execute: async ({ tenantId, userId, collection, recordId, data, timeZone }) => {
+    const denied = permissionDenied('@core.tenant/portal.edit.denied');
+    if (!(await repo.getPortalUser(tenantId, userId))) throw denied;
+
+    const projection = await repo.getProjection(tenantId, portalRecordDocId(collection, recordId));
+    if (!projection || !projection.audience.includes(userId)) throw denied;
+
+    const screens = await repo.getScreens(tenantId);
+    const screen = screens.find((one) => one.collection === collection && one.portal);
+    if (!screen?.portal?.edit) throw denied;
+
+    const record = await repo.getRecord(tenantId, collection, recordId);
+    if (!record) throw denied;
+    const open = isPortalEditOpen(screen, record, (expression, values) => evaluatePortalCondition(expression, values, timeZone));
+    if (!open || !canPortalUserEdit(screen, userId, { editable: open, portalOwner: portalOwnerOf(record) })) {
+      throw denied;
+    }
+
+    const changes = buildPortalEdit(screen, data);
+    if (Object.keys(changes).length === 0) return { id: recordId };
+
+    const outcome = await write({ tenantId, collection, data: changes, userId, recordId });
     if (!outcome.ok) throw new PortalSubmissionInvalid(outcome.error, outcome.errorParams);
     return { id: outcome.id };
   },

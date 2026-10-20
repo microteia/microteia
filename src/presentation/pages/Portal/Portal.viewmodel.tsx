@@ -4,7 +4,7 @@ import { useAuth } from '../../../stores/useAuth';
 import { usePortal } from '../../../stores/usePortal';
 import { usePortalNavigation } from '../../../stores/usePortalNavigation';
 import { useLocaleFormat, useT } from '../../shared/i18n/useT';
-import type { PortalDocument, PortalRecord, PortalScreenInfo } from '../../../domain/entities/Portal';
+import { canEditPortalRecord, type PortalDocument, type PortalRecord, type PortalScreenInfo } from '../../../domain/entities/Portal';
 import { portalSubjectKey } from '../../../domain/schema/portal';
 import { PORTAL_PATH, portalEntryPath, portalTenantPath } from './portalPaths';
 import { evaluatePortalView, type PortalViewComponent } from './portalViews';
@@ -125,7 +125,10 @@ export interface PortalViewModel {
     documents: PortalDocumentView[];
     documentsLoading: boolean;
     children: PortalChildSection[];
+    /** O convidado pode alterar o registro aberto — o rótulo do botão; `null`, sem botão. */
+    editLabel: string | null;
   } | null;
+  startEdit: () => void;
   openRecord: (collection: string, id: string) => void;
   goBack: () => void;
   openDocument: (documentId: string) => Promise<void>;
@@ -133,7 +136,12 @@ export interface PortalViewModel {
   documentError: boolean;
   signOut: () => Promise<void>;
   /** O formulário aberto: a tela, e o registro-pai já fixado quando ele nasce dentro de um. */
-  creating: { screen: PortalScreenInfo; parentRecordId: string | null } | null;
+  creating: {
+    screen: PortalScreenInfo;
+    parentRecordId: string | null;
+    /** Alterando um registro: o id dele e o que o convidado vê dele, de onde o formulário parte. */
+    editing: { recordId: string; values: Record<string, unknown> } | null;
+  } | null;
   startCreate: (collection: string) => void;
   /** "Novo" na lista de topo: o formulário pergunta a qual registro do convidado o novo pertence. */
   startRootCreate: () => void;
@@ -141,6 +149,9 @@ export interface PortalViewModel {
   handleSubmitted: () => void;
   /** O registro enviado aparece quando o servidor o projeta — segundos depois. */
   justSubmitted: boolean;
+  handleSaved: () => void;
+  /** A alteração foi gravada — aparece quando o servidor refaz a projeção, segundos depois. */
+  justSaved: boolean;
   /** A tela de EXTENSÃO para a lista de topo, quando há uma — no lugar da lista genérica. */
   listView: { Component: PortalViewComponent; collection: string } | null;
   /** A tela de extensão para o registro aberto, quando há uma. */
@@ -159,7 +170,7 @@ export const usePortalViewModel = (): PortalViewModel => {
   const { formatDate, formatMoney, formatNumber } = useLocaleFormat();
 
   const navigation = usePortalNavigation();
-  const { stack, creating, justSubmitted } = navigation;
+  const { stack, creating, justSubmitted, justSaved } = navigation;
   const [moreOpen, setMoreOpen] = useState(false);
   const [documents, setDocuments] = useState<PortalDocument[]>([]);
   const [documentsLoading, setDocumentsLoading] = useState(false);
@@ -286,8 +297,9 @@ export const usePortalViewModel = (): PortalViewModel => {
             .filter((record) => record.parentKeys.includes(parentKey))
             .map((record) => cardOf(child, record)),
         })),
+      editLabel: canEditPortalRecord(topScreen, topRecord, portal.userId) ? t('portal.edit.open') : null,
     };
-  }, [topRecord, topScreen, documents, documentsLoading, screens, recordsByCollection, isCollectionLoading, formatValue, formatDate, cardOf, t]);
+  }, [topRecord, topScreen, documents, documentsLoading, screens, recordsByCollection, isCollectionLoading, formatValue, formatDate, cardOf, t, portal.userId]);
 
   const openDocument = useCallback(async (documentId: string) => {
     if (!topRecord) return;
@@ -315,7 +327,11 @@ export const usePortalViewModel = (): PortalViewModel => {
 
   const chooseTenant = useCallback((tenantId: string) => navigate(portalTenantPath(tenantId)), [navigate]);
 
-  const { openRecord: pushRecord, back, startCreate: openCreate } = navigation;
+  const { openRecord: pushRecord, back, startCreate: openCreate, startEdit: openEdit } = navigation;
+
+  const startEdit = useCallback(() => {
+    if (topRecord) openEdit(topRecord.collection, topRecord.recordId);
+  }, [openEdit, topRecord]);
 
   const openRecord = useCallback((collection: string, id: string) => {
     setDocumentError(false);
@@ -372,6 +388,9 @@ export const usePortalViewModel = (): PortalViewModel => {
   const noAccess = !membershipsLoading && memberships.length === 0;
   const loadFailed = !membershipsLoading && portal.membershipsFailed;
   const creatingScreen = creating ? screenOf(creating.collection) : null;
+  const editingRecord = creating?.recordId
+    ? (recordsByCollection[creating.collection] ?? []).find((record) => record.recordId === creating.recordId) ?? null
+    : null;
 
   return {
     loading: membershipsLoading || (!showChooser && portal.contextLoading),
@@ -425,13 +444,22 @@ export const usePortalViewModel = (): PortalViewModel => {
     openingDocumentId,
     documentError,
     signOut,
-    creating: creating && creatingScreen ? { screen: creatingScreen, parentRecordId: creating.parentRecordId } : null,
+    creating: creating && creatingScreen && (!creating.recordId || editingRecord)
+      ? {
+        screen: creatingScreen,
+        parentRecordId: creating.parentRecordId,
+        editing: editingRecord ? { recordId: editingRecord.recordId, values: editingRecord.data } : null,
+      }
+      : null,
+    startEdit,
     startCreate,
     startRootCreate: () => {
       if (rootCollection) openCreate(rootCollection, null);
     },
     cancelCreate: navigation.cancelCreate,
     handleSubmitted: navigation.submitted,
+    handleSaved: navigation.saved,
+    justSaved,
     listView: ListComponent && rootCollection ? { Component: ListComponent, collection: rootCollection } : null,
     detailView: DetailComponent && topRecord
       ? { Component: DetailComponent, collection: topRecord.collection, recordId: topRecord.recordId }

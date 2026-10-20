@@ -20,6 +20,7 @@ import { portalExamplePtBrContribution } from './portalMessagesPtBr';
  * | the screen whose records receive guests | `portal: { subject: 'self', fields }` |
  * | records that belong to one of those | `portal: { subject: { field: '<reference>' }, fields }` |
  * | the guest creates records there | `portal.create: { fields }` — the link is stamped by the server |
+ * | the guest changes records there | `portal.edit: { fields, when?, onlyOwn? }` — only fields they see |
  * | the only fields that leave the organization | `portal.fields` — `internal` below never does |
  * | a page of your own in the portal | `portalView({ collection, surface: 'detail' }, viewKey)` |
  * | a card on the portal home | `portalView({ surface: 'widget', key, title }, viewKey)` |
@@ -79,6 +80,8 @@ const ORDER_SCREEN: ScreenModuleTemplate = {
     subject: { field: 'client' },
     fields: ['item', 'quantity', 'notes'],
     create: { fields: ['item', 'quantity', 'notes'] },
+    // A guest fixes the quantity or the notes of an order THEY placed — never the client it belongs to.
+    edit: { fields: ['quantity', 'notes'], onlyOwn: true },
   },
 };
 
@@ -91,8 +94,8 @@ const CLIENT_PORTAL_SOURCE = mergeViewSources({
 export const portalExamplePlugin: MarketplacePlugin = {
   manifest: {
     id: 'com.microteia.portal-example',
-    version: '1.1.0',
-    kernel: '^2.55.0',
+    version: '1.2.0',
+    kernel: '^2.57.0',
     name: message('package.name'),
     description: message('package.description'),
     category: message('package.category'),

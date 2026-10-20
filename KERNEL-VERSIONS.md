@@ -18,6 +18,12 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.136.0] — 2026-10-20
+
+- feat(portal): guest edits. `PortalDeclaration.edit: { fields, when?, onlyOwn? }` — editable fields must also be exposed (`portalEditFieldKeys` drops the hidden ones and the link field); `when` is a field expression evaluated on the WHOLE record (`evaluatePortalCondition`, closed on error); `onlyOwn` limits edits to records created through the portal (`portalOwnerOf`: `createdVia == 'portal'`). Allowed on the `self` screen too. New declaration checks `portal.issue.edit.no-fields`, `.field.hidden`, `.when-invalid`. KERNEL_VERSION 2.57.0.
+- feat(portal): projections carry `editable` (the condition when the record was last written) and `portalOwner`, only to draw the gesture. `submitPortalRecord` with `recordId` routes to `makeUpdatePortalRecordUseCase`, which re-checks invitation, `audience`, screen, the condition on the current record (in the organization's time zone) and ownership, keeps only editable fields (`buildPortalEdit`) and writes through `runWorkflowUpsert` with the record `id` (`portal.update`, `via: 'portal'`). No new function.
+- feat(ui): edit button and form in the portal record (`PortalCreateForm` in edit mode; a cleared field goes as `null`), navigation `startEdit`/`justSaved`, the edit section in the Form Design Portal tab. `@microteia/portal`: `PortalViewRecord.canEdit`, `PortalScreen.edit`, `usePortalNavigation().edit`, `usePortalUpdate`; `PORTAL_API_VERSION` 1.2.0. `examples/portal-example` 1.2.0 (orders editable by whoever placed them). `com.microteia.locale-pt-br` 1.112.0. Deploy: `npm run deploy:portal`.
+
 #### [9.135.0] — 2026-10-19
 
 - feat(portal): guest uploads. `PortalDeclaration.uploads: { types }` (requires `documents`; empty types = every organization type) with `portalUploadTypes` and the `portal.issue.uploads.documents` check; `getPortalContext` describes each screen's `uploads` with labelled types (`documentTypeOptions`, the same merge as the client). KERNEL_VERSION 2.56.0.

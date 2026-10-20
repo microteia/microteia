@@ -50,6 +50,8 @@ const mapRecord = (id: string, data: Record<string, unknown>): PortalRecord => (
   // Projeções gravadas antes do campo: o sujeito é o pai de quem aponta direto para a tela-sujeito,
   // que é o caso comum. O resto se acerta na próxima gravação do registro.
   parentKeys: stringsOf(data.parentKeys).length > 0 ? stringsOf(data.parentKeys) : stringsOf(data.subjectKeys),
+  editable: data.editable === true,
+  portalOwner: textOf(data.portalOwner) || null,
   updatedAt: dateOf(data.updatedAt),
 });
 
@@ -163,6 +165,17 @@ export class FirebasePortalRepository implements IPortalRepository {
     tenantId: string;
     collection: string;
     linkRecordId: string;
+    data: Record<string, unknown>;
+    locale: string;
+  }): Promise<{ id: string }> {
+    const call = httpsCallable<typeof input, { id: string }>(functions, 'submitPortalRecord');
+    return (await call(input)).data;
+  }
+
+  async update(input: {
+    tenantId: string;
+    collection: string;
+    recordId: string;
     data: Record<string, unknown>;
     locale: string;
   }): Promise<{ id: string }> {

@@ -1041,9 +1041,36 @@ dispara as automações dele.
 
 `portalUploads` é reservado no Storage: pelo curinga de registros, qualquer membro leria e gravaria ali.
 
+### Alterar pelo portal — `portal.edit`
+
+```ts
+portal: { ..., fields: ['number', 'amount', 'notes'], edit: { fields: ['amount', 'notes'], when: 'status == "draft"', onlyOwn: true } }
+```
+
+O escritório decide três coisas, e o servidor cobra as três a cada pedido:
+
+| Decisão | Regra | Onde |
+|---|---|---|
+| **quais campos** | só os que também estão em `fields` — o convidado não sobrescreve o que não vê —, e nunca o vínculo com o dono | `portalEditFieldKeys`, `buildPortalEdit` |
+| **em que momento** | `when` é expressão de campo sobre o registro INTEIRO (inclusive o que não sai do escritório), no fuso do escritório; ausente = sempre; inválida = fechada | `isPortalEditOpen` + `evaluatePortalCondition` |
+| **de quem** | `onlyOwn`: só quem criou o registro PELO portal (`createdVia == 'portal'`); o criado no escritório não tem dono de fora | `portalOwnerOf`, `canPortalUserEdit` |
+
+Vale também na tela-sujeito (a empresa corrigindo o próprio endereço), ao contrário de `create`.
+
+A projeção carrega `editable` (a condição avaliada na última gravação) e `portalOwner` — **só para
+desenhar o botão**. A condição pode depender do relógio ou mudar sem o registro ser gravado; por isso a
+callable relê o registro e confere tudo de novo. Não há callable nova: `submitPortalRecord` com
+`recordId` vai para `makeUpdatePortalRecordUseCase`, e grava pelo mesmo `runWorkflowUpsert` (com o `id`)
+— validação, chave única e campo calculado valem igual, e a recusa de validação volta traduzida pelo
+mesmo caminho da criação. As automações do escritório veem a alteração com `updatedVia: 'portal'`.
+
+Na casca, o formulário de criação serve à edição (`PortalCreateForm` com `editing`): parte do que o
+convidado vê, e campo apagado vai como `null`. Views de extensão usam `canEdit`,
+`usePortalNavigation().edit` e `usePortalUpdate`.
+
 ### O que ainda não faz
 
-- **Editar ou excluir pelo portal.** O convidado cria registros e anexa documentos; não altera nem apaga.
+- **Excluir pelo portal.** O convidado cria, altera e anexa; não apaga registro nem documento.
 - **View de portal declarativa** (Widget DSL): `portal.view` — inclusive `page`, `widget` e `home` — é só `code`. O `WidgetRenderer` lê os
   stores do escritório, e o convidado não os tem.
 - `storage.rules` deixa qualquer MEMBRO ler qualquer arquivo de registro, independentemente de

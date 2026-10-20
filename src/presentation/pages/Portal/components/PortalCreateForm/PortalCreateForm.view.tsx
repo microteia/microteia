@@ -57,7 +57,11 @@ export const PortalCreateForm: React.FC<PortalCreateFormProps> = (props) => {
 
   return (
     <S.Form onSubmit={(event) => { event.preventDefault(); void vm.submit(); }}>
-      <S.Title>{t('portal.create.title', { screen: props.screen.titleSingular })}</S.Title>
+      <S.Title>
+        {vm.isEditing
+          ? t('portal.edit.title', { screen: props.screen.titleSingular })
+          : t('portal.create.title', { screen: props.screen.titleSingular })}
+      </S.Title>
 
       {vm.linkLoading ? (
         <Spinner size={20} />
@@ -94,9 +98,15 @@ export const PortalCreateForm: React.FC<PortalCreateFormProps> = (props) => {
         <Button type="button" variant="ghost" onClick={props.onCancel} disabled={vm.submitting}>
           {t('portal.create.cancel')}
         </Button>
-        <Button type="submit" disabled={vm.submitting || !vm.linkRecordId || vm.missingRequired}>
-          {vm.submitting ? t('portal.create.sending') : t('portal.create.send')}
-        </Button>
+        {vm.isEditing ? (
+          <Button type="submit" disabled={vm.submitting || vm.missingRequired}>
+            {vm.submitting ? t('portal.edit.saving') : t('portal.edit.save')}
+          </Button>
+        ) : (
+          <Button type="submit" disabled={vm.submitting || !vm.linkRecordId || vm.missingRequired}>
+            {vm.submitting ? t('portal.create.sending') : t('portal.create.send')}
+          </Button>
+        )}
       </S.Actions>
     </S.Form>
   );

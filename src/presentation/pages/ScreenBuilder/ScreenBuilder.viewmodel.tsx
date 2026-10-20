@@ -295,6 +295,7 @@ export interface ScreenBuilderViewModel {
     createFieldOptions: Array<{ value: string; label: string }>;
     documentTypeOptions: Array<{ value: string; label: string }>;
     referenceFieldOptions: Array<{ value: string; label: string }>;
+    editFieldOptions: Array<{ value: string; label: string }>;
     hasParent: boolean;
     hasDocuments: boolean;
     readOnly: boolean;
@@ -309,6 +310,10 @@ export interface ScreenBuilderViewModel {
   togglePortalCreateField: (fieldKey: string, fillable: boolean) => void;
   setPortalAllowUploads: (allowUploads: boolean) => void;
   togglePortalUploadType: (typeKey: string, allowed: boolean) => void;
+  setPortalAllowEdit: (allowEdit: boolean) => void;
+  togglePortalEditField: (fieldKey: string, editable: boolean) => void;
+  setPortalEditWhen: (expression: string) => void;
+  setPortalEditOnlyOwn: (onlyOwn: boolean) => void;
   toggleChildScreen: (childKey: string) => void;
   setChildLinkField: (childKey: string, fieldKey: string) => void;
   iconOptions: SearchSelectOption[];
@@ -1322,6 +1327,9 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       referenceFieldOptions: fields
         .filter((field) => field.type === 'reference' && !!field.refEntity)
         .map((field) => ({ value: field.key, label: label(field.label) })),
+      editFieldOptions: fields
+        .filter((field) => field.key !== linkField && screenForm.portal.fields.includes(field.key))
+        .map((field) => ({ value: field.key, label: label(field.label) })),
       hasParent: !!def?.parentEntity && !!def.parentFieldKey,
       hasDocuments: !!def?.hasDocuments,
       readOnly: def?.managed === true,
@@ -1346,6 +1354,21 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
         uploadTypes: allowed
           ? [...new Set([...prev.portal.uploadTypes, typeKey])]
           : prev.portal.uploadTypes.filter((key) => key !== typeKey),
+      },
+    }));
+  }, []);
+  const setPortalAllowEdit = useCallback((allowEdit: boolean) => updatePortal({ allowEdit }), [updatePortal]);
+  const setPortalEditWhen = useCallback((editWhen: string) => updatePortal({ editWhen }), [updatePortal]);
+  const setPortalEditOnlyOwn = useCallback((editOnlyOwn: boolean) => updatePortal({ editOnlyOwn }), [updatePortal]);
+  const togglePortalEditField = useCallback((fieldKey: string, editable: boolean) => {
+    setScreenForm((prev) => ({
+      ...prev,
+      portalTouched: true,
+      portal: {
+        ...prev.portal,
+        editFields: editable
+          ? [...new Set([...prev.portal.editFields, fieldKey])]
+          : prev.portal.editFields.filter((key) => key !== fieldKey),
       },
     }));
   }, []);
@@ -2408,6 +2431,10 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     togglePortalCreateField,
     setPortalAllowUploads,
     togglePortalUploadType,
+    setPortalAllowEdit,
+    togglePortalEditField,
+    setPortalEditWhen,
+    setPortalEditOnlyOwn,
     toggleChildScreen,
     setChildLinkField,
     iconOptions,

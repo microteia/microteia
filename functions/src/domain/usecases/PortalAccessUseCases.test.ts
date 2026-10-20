@@ -5,6 +5,7 @@ import {
   makeInvitePortalUserUseCase,
   makeSubmitPortalRecordUseCase,
   makeAttachPortalDocumentUseCase,
+  makeUpdatePortalRecordUseCase,
 } from './PortalAccessUseCases';
 import { makeProjectPortalRecordUseCase } from './PortalProjectionUseCases';
 import { CITY_SCREENS, makeFakePortalRepository } from '../repositories/fakePortalRepository';
@@ -230,7 +231,7 @@ describe('o convidado cria um registro', () => {
     fake.users.set('ana', { userId: 'ana', email: 'ana@acme.com', displayName: 'Ana', subjectKeys: ['companies/acme'] });
     fake.projections.set('invoices__nf1', {
       collection: 'invoices', recordId: 'nf1', screenId: 'invoices', subjectKeys: ['companies/acme'],
-      audience: ['ana'], title: '', data: {}, labels: {}, parentKeys: ['companies/acme'],
+      audience: ['ana'], title: '', data: {}, labels: {}, parentKeys: ['companies/acme'], editable: false, portalOwner: null,
     });
     const write = vi.fn(async () => ({ ok: true as const, id: 'it-1' }));
     const submit = makeSubmitPortalRecordUseCase(fake.repo, write);
@@ -262,7 +263,7 @@ describe('o convidado anexa um documento', () => {
     fake.users.set('ana', { userId: 'ana', email: 'ana@acme.com', displayName: 'Ana', subjectKeys: ['companies/acme'] });
     fake.projections.set('invoices__nf1', {
       collection: 'invoices', recordId: 'nf1', screenId: 'invoices', subjectKeys: ['companies/acme'],
-      audience: ['ana'], title: '', data: {}, labels: {}, parentKeys: ['companies/acme'],
+      audience: ['ana'], title: '', data: {}, labels: {}, parentKeys: ['companies/acme'], editable: false, portalOwner: null,
     });
     fake.staged.set('ana/up1', { data: Buffer.from('pdf'), contentType: 'application/pdf' });
     const attach = vi.fn(async () => ({ id: 'doc-1' }));
@@ -303,5 +304,72 @@ describe('o convidado anexa um documento', () => {
     fake.staged.set('ana/big', { data: Buffer.alloc(21 * 1024 * 1024), contentType: 'application/pdf' });
     await expect(useCase.execute({ ...input, uploadId: 'big' })).rejects.toThrow('@core.tenant/portal.upload.too-large');
     expect(fake.staged.has('ana/big')).toBe(false);
+  });
+});
+
+describe('o convidado altera um registro', () => {
+  const setup = (edit: { fields: string[]; when?: string; onlyOwn?: boolean } | null, record: Record<string, unknown> = {}) => {
+    const screens = CITY_SCREENS.map((screen) => (screen.id === 'invoices'
+      ? { ...screen, portal: { ...screen.portal!, ...(edit ? { edit } : {}) } }
+      : screen));
+    const fake = makeFakePortalRepository(screens);
+    fake.users.set('ana', { userId: 'ana', email: 'ana@acme.com', displayName: 'Ana', subjectKeys: ['companies/acme'] });
+    fake.users.set('bia', { userId: 'bia', email: 'bia@acme.com', displayName: 'Bia', subjectKeys: ['companies/acme'] });
+    fake.records.set('invoices/nf1', { number: '1', amount: 10, auditNote: 'x', companyId: 'acme', status: 'draft', ...record });
+    fake.projections.set('invoices__nf1', {
+      collection: 'invoices', recordId: 'nf1', screenId: 'invoices', subjectKeys: ['companies/acme'],
+      audience: ['ana', 'bia'], title: '', data: {}, labels: {}, parentKeys: ['companies/acme'], editable: true, portalOwner: null,
+    });
+    const write = vi.fn(async () => ({ ok: true as const, id: 'nf1' }));
+    const useCase = makeUpdatePortalRecordUseCase(fake.repo, write);
+    const input = { tenantId: TENANT, userId: 'ana', collection: 'invoices', recordId: 'nf1', data: {} as Record<string, unknown> };
+    return { fake, write, useCase, input };
+  };
+
+  it('grava só os campos editáveis — o vínculo e o que não está exposto são descartados', async () => {
+    const { useCase, input, write } = setup({ fields: ['amount'] });
+    await useCase.execute({ ...input, data: { amount: 20, companyId: 'globex', auditNote: 'hack' } });
+    expect(write).toHaveBeenCalledWith(expect.objectContaining({ recordId: 'nf1', data: { amount: 20 } }));
+  });
+
+  it('a tela sem edição declarada recusa', async () => {
+    const { useCase, input, write } = setup(null);
+    await expect(useCase.execute({ ...input, data: { amount: 20 } })).rejects.toThrow('@core.tenant/portal.edit.denied');
+    expect(write).not.toHaveBeenCalled();
+  });
+
+  it('a condição vale sobre o registro INTEIRO de agora, e a inválida fecha', async () => {
+    const open = setup({ fields: ['amount'], when: 'status == "draft"' });
+    await open.useCase.execute({ ...open.input, data: { amount: 20 } });
+    expect(open.write).toHaveBeenCalled();
+
+    const closed = setup({ fields: ['amount'], when: 'status == "draft"' }, { status: 'filed' });
+    await expect(closed.useCase.execute({ ...closed.input, data: { amount: 20 } })).rejects.toThrow('@core.tenant/portal.edit.denied');
+
+    const broken = setup({ fields: ['amount'], when: 'status ==' });
+    await expect(broken.useCase.execute({ ...broken.input, data: { amount: 20 } })).rejects.toThrow('@core.tenant/portal.edit.denied');
+  });
+
+  it('com onlyOwn, só quem criou o registro pelo portal altera', async () => {
+    const { useCase, input, write } = setup({ fields: ['amount'], onlyOwn: true }, { createdBy: 'ana', createdVia: 'portal' });
+    await useCase.execute({ ...input, data: { amount: 20 } });
+    expect(write).toHaveBeenCalledTimes(1);
+    await expect(useCase.execute({ ...input, userId: 'bia', data: { amount: 30 } })).rejects.toThrow('@core.tenant/portal.edit.denied');
+
+    const office = setup({ fields: ['amount'], onlyOwn: true }, { createdBy: 'ana', createdVia: 'ui' });
+    await expect(office.useCase.execute({ ...office.input, data: { amount: 20 } })).rejects.toThrow('@core.tenant/portal.edit.denied');
+  });
+
+  it('quem não vê o registro é recusado', async () => {
+    const { useCase, input, fake } = setup({ fields: ['amount'] });
+    fake.users.set('caio', { userId: 'caio', email: 'caio@globex.com', displayName: 'Caio', subjectKeys: ['companies/globex'] });
+    await expect(useCase.execute({ ...input, userId: 'caio', data: { amount: 1 } })).rejects.toThrow('@core.tenant/portal.edit.denied');
+  });
+
+  it('a recusa da validação sobe com os parâmetros, para ser traduzida', async () => {
+    const { useCase, input, write } = setup({ fields: ['amount'] });
+    write.mockResolvedValueOnce({ ok: false as const, error: '@core.automation/mutation.upsert.invalid', errorParams: { detail: 'amount' } } as never);
+    await expect(useCase.execute({ ...input, data: { amount: -1 } }))
+      .rejects.toMatchObject({ name: 'PortalSubmissionInvalid', params: { detail: 'amount' } });
   });
 });

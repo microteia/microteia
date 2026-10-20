@@ -16,9 +16,9 @@ const silent: WorkflowLogger = { info: () => undefined, warn: () => undefined, e
  * `via: 'portal'` e permissão NENHUMA: uma expressão `hasPermission(...)` disparada por essa gravação
  * responde "não", como deve responder para quem é de fora.
  */
-export const portalRecordWriter: PortalRecordWriter = async ({ tenantId, collection, data, userId }) => {
+export const portalRecordWriter: PortalRecordWriter = async ({ tenantId, collection, data, userId, recordId }) => {
   const context: WorkflowContext = {
-    event: { id: '', tenantId, name: 'portal.submit', payload: {}, timestamp: new Date() },
+    event: { id: '', tenantId, name: recordId ? 'portal.update' : 'portal.submit', payload: {}, timestamp: new Date() },
     outputs: {},
     variables: {},
     services: {
@@ -33,7 +33,7 @@ export const portalRecordWriter: PortalRecordWriter = async ({ tenantId, collect
     input: {},
   };
   const outcome = await runWorkflowUpsert(
-    { table: collection, data },
+    { table: collection, data, ...(recordId ? { id: recordId } : {}) },
     context,
     { mutationRepository: new FirestoreWorkflowMutationRepository(getDb()), screenProvider: getDI().getScreenDefinitionCache() },
   );

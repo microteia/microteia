@@ -1,6 +1,9 @@
 import type { IPortalRepository, PortalProjection, PortalScreen } from '../repositories/IPortalRepository';
 import {
   PORTAL_SUBJECT_MAX_DEPTH,
+  evaluatePortalCondition,
+  isPortalEditOpen,
+  portalOwnerOf,
   parsePortalSubjectKey,
   portalLinkOf,
   portalSubjectKey,
@@ -118,6 +121,8 @@ export const makeProjectPortalRecordUseCase = (repo: IPortalRepository): Project
         data: projectPortalData(screen, data),
         labels,
         parentKeys,
+        editable: isPortalEditOpen(screen, data, evaluatePortalCondition),
+        portalOwner: portalOwnerOf(data),
       };
       await repo.writeProjection(tenantId, projectionId, projection);
 

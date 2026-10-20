@@ -20,6 +20,7 @@ import {
   makeInvitePortalUserUseCase,
   makeRevokePortalUserUseCase,
   makeSubmitPortalRecordUseCase,
+  makeUpdatePortalRecordUseCase,
   makeAttachPortalDocumentUseCase,
 } from '../../domain/usecases/PortalAccessUseCases';
 import { portalRecordWriter } from '../portal/portalRecordWriter';
@@ -29,6 +30,7 @@ import type {
   InvitePortalUserUseCase,
   RevokePortalUserUseCase,
   SubmitPortalRecordUseCase,
+  UpdatePortalRecordUseCase,
   AttachPortalDocumentUseCase,
   AttachPortalDocumentDeps,
 } from '../../domain/usecases/PortalAccessUseCases';
@@ -298,6 +300,10 @@ class DIContainer {
 
   getPortalDocumentUrlUseCase(): GetPortalDocumentUrlUseCase {
     return makeGetPortalDocumentUrlUseCase(this.getPortalRepository());
+  }
+
+  getUpdatePortalRecordUseCase(): UpdatePortalRecordUseCase {
+    return makeUpdatePortalRecordUseCase(this.getPortalRepository(), portalRecordWriter);
   }
 
   getSubmitPortalRecordUseCase(): SubmitPortalRecordUseCase {

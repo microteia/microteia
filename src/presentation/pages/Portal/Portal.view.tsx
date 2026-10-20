@@ -1,5 +1,5 @@
 import React from 'react';
-import { RiAddLine, RiArrowLeftLine, RiExternalLinkLine, RiHome5Line, RiLogoutBoxRLine, RiMoreLine } from 'react-icons/ri';
+import { RiAddLine, RiArrowLeftLine, RiEditLine, RiExternalLinkLine, RiHome5Line, RiLogoutBoxRLine, RiMoreLine } from 'react-icons/ri';
 import { usePortalViewModel } from './Portal.viewmodel';
 import { S } from './Portal.styles';
 import { Button } from '../../components/ui/Button';
@@ -148,7 +148,15 @@ export const PortalView: React.FC = () => {
   ) : vm.selected ? (
     <S.Detail>
       {backButton}
-      <S.DetailTitle>{vm.selected.title}</S.DetailTitle>
+      <S.DetailHeader>
+        <S.DetailTitle>{vm.selected.title}</S.DetailTitle>
+        {vm.selected.editLabel && (
+          <Button size="sm" variant="secondary" onClick={vm.startEdit}>
+            <RiEditLine size={14} />
+            {vm.selected.editLabel}
+          </Button>
+        )}
+      </S.DetailHeader>
       <S.Fields>
         {vm.selected.fields.map((field) => (
           <S.Field key={field.key}>
@@ -254,14 +262,16 @@ export const PortalView: React.FC = () => {
       )}
       <S.Main>
         {vm.justSubmitted && !vm.creating && <S.Success>{t('portal.create.sent')}</S.Success>}
+        {vm.justSaved && !vm.creating && <S.Success>{t('portal.edit.saved')}</S.Success>}
         {vm.emptyScreens && vm.menu.length === 0 ? (
           <S.Centered>{t('portal.empty-screens')}</S.Centered>
         ) : vm.creating ? (
           <PortalCreateForm
             screen={vm.creating.screen}
             fixedLinkRecordId={vm.creating.parentRecordId}
+            editing={vm.creating.editing}
             onCancel={vm.cancelCreate}
-            onSubmitted={vm.handleSubmitted}
+            onSubmitted={vm.creating.editing ? vm.handleSaved : vm.handleSubmitted}
           />
         ) : vm.atHome ? homeContent : entryContent}
       </S.Main>

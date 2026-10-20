@@ -23,7 +23,12 @@ export default function ClientPortal(props: { collection: string; recordId?: str
 
       {!vm.loading && vm.items.length === 0 && <S.Muted>{vm.t('portal.orders.empty')}</S.Muted>}
       {vm.items.map((item) => (
-        <S.Order key={item.id} type="button" onClick={() => vm.open(item.id)}>{item.text}</S.Order>
+        <S.Row key={item.id}>
+          <S.Order type="button" onClick={() => vm.open(item.id)}>{item.text}</S.Order>
+          {item.canEdit && (
+            <Button size="sm" variant="secondary" onClick={() => vm.edit(item.id)}>{vm.t('portal.orders.edit')}</Button>
+          )}
+        </S.Row>
       ))}
     </S.Wrapper>
   );

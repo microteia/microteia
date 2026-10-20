@@ -488,6 +488,7 @@ export const ScreenBuilderView: React.FC = () => {
                 createFieldOptions={vm.portalPanel.createFieldOptions}
                 documentTypeOptions={vm.portalPanel.documentTypeOptions}
                 referenceFieldOptions={vm.portalPanel.referenceFieldOptions}
+                editFieldOptions={vm.portalPanel.editFieldOptions}
                 hasParent={vm.portalPanel.hasParent}
                 hasDocuments={vm.portalPanel.hasDocuments}
                 readOnly={vm.portalPanel.readOnly}
@@ -501,6 +502,10 @@ export const ScreenBuilderView: React.FC = () => {
                 onToggleCreateField={vm.togglePortalCreateField}
                 onToggleUploads={vm.setPortalAllowUploads}
                 onToggleUploadType={vm.togglePortalUploadType}
+                onToggleEdit={vm.setPortalAllowEdit}
+                onToggleEditField={vm.togglePortalEditField}
+                onEditWhen={vm.setPortalEditWhen}
+                onToggleEditOnlyOwn={vm.setPortalEditOnlyOwn}
               />
             )}
             {vm.screenModalTab === 'actions' && (

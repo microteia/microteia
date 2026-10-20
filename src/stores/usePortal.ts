@@ -31,6 +31,10 @@ export interface PortalStoreValue {
   getDocumentUrl: (projectionId: string, documentId: string) => Promise<string>;
   listLinkOptions: (collection: string) => Promise<PortalLinkOption[]>;
   submit: (collection: string, linkRecordId: string, data: Record<string, unknown>) => Promise<void>;
+  /** Altera um registro do convidado — o servidor confere campos, momento e dono. */
+  update: (collection: string, recordId: string, data: Record<string, unknown>) => Promise<void>;
+  /** O uid do convidado — o dono de um registro criado por ele (`onlyOwn`). */
+  userId: string | null;
   /** Anexa um documento a um registro, com um dos tipos que a tela oferece. */
   uploadDocument: (collection: string, recordId: string, file: File, type: string) => Promise<void>;
 }

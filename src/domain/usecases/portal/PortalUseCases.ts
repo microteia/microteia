@@ -72,6 +72,20 @@ export const makeSubmitPortalRecordUseCase = (repo: IPortalRepository): SubmitPo
   execute: (input) => repo.submit(input),
 });
 
+export type UpdatePortalRecordUseCase = {
+  execute: (input: {
+    tenantId: string;
+    collection: string;
+    recordId: string;
+    data: Record<string, unknown>;
+    locale: string;
+  }) => Promise<{ id: string }>;
+};
+
+export const makeUpdatePortalRecordUseCase = (repo: IPortalRepository): UpdatePortalRecordUseCase => ({
+  execute: (input) => repo.update(input),
+});
+
 export type GetPortalHomeSettingsUseCase = { execute: (tenantId: string) => Promise<PortalHomeSettings> };
 
 export const makeGetPortalHomeSettingsUseCase = (repo: IPortalRepository): GetPortalHomeSettingsUseCase => ({

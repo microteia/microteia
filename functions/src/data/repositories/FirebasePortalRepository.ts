@@ -73,6 +73,8 @@ const toProjection = (data: DocumentData): PortalProjection => ({
   data: (data.data as Record<string, unknown> | undefined) ?? {},
   labels: (data.labels as Record<string, string> | undefined) ?? {},
   parentKeys: asStrings(data.parentKeys),
+  editable: data.editable === true,
+  portalOwner: asString(data.portalOwner) || null,
 });
 
 const toSharedDocument = (id: string, data: DocumentData): SharedRecordDocument => ({

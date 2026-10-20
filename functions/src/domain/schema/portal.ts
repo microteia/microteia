@@ -17,6 +17,9 @@
  * cliente, uma empresa —; as demais chegam a ela por um campo `reference` ou pelo pai.
  */
 
+import { evaluateFieldBoolean, fieldExpressionSyntaxError } from './fieldExpression';
+import { RECORD_CREATED_VIA_FIELD } from './mutationSpec';
+
 export const PORTAL_USERS_COLLECTION = 'portalUsers';
 export const PORTAL_RECORDS_COLLECTION = 'portalRecords';
 export const PORTAL_DOCUMENTS_SUBCOLLECTION = 'documents';
@@ -65,6 +68,22 @@ export interface PortalDeclaration {
    * que enviou. Excluir não existe para ele, em caso nenhum.
    */
   uploads?: { types: string[] } | null;
+  /**
+   * O convidado ALTERA registros desta tela — só estes campos, e só os que ele já vê (um campo que não
+   * está em `fields` não é editável, porque ele não saberia o que está trocando). O vínculo com o dono
+   * nunca está entre eles.
+   *
+   * - `when`: a condição, sobre o registro INTEIRO, em que a edição está aberta — `status == "draft"`.
+   *   Avaliada no servidor a cada pedido; ausente, sempre aberta; inválida, fechada.
+   * - `onlyOwn`: só os registros que o próprio convidado criou pelo portal.
+   */
+  edit?: PortalEditDeclaration | null;
+}
+
+export interface PortalEditDeclaration {
+  fields: string[];
+  when?: string | null;
+  onlyOwn?: boolean;
 }
 
 /** O mínimo de uma tela que o portal precisa ler. */
@@ -129,12 +148,22 @@ export const asPortalDeclaration = (value: unknown): PortalDeclaration | null =>
     ? { types: Array.isArray(rawUploads.types) ? [...new Set(rawUploads.types.filter(isNonEmptyString))] : [] }
     : null;
 
+  const rawEdit = raw.edit as Record<string, unknown> | null | undefined;
+  const edit: PortalEditDeclaration | null = rawEdit && typeof rawEdit === 'object' && Array.isArray(rawEdit.fields)
+    ? {
+      fields: [...new Set(rawEdit.fields.filter(isNonEmptyString).map((key) => key.trim()))],
+      ...(isNonEmptyString(rawEdit.when) ? { when: rawEdit.when.trim() } : {}),
+      ...(rawEdit.onlyOwn === true ? { onlyOwn: true } : {}),
+    }
+    : null;
+
   return {
     subject,
     fields,
     documents: raw.documents === true,
     ...(create ? { create } : {}),
     ...(uploads ? { uploads } : {}),
+    ...(edit ? { edit } : {}),
   };
 };
 
@@ -196,6 +225,59 @@ export const buildPortalSubmission = (
   }
   submission[link.fieldKey] = link.multi ? [linkRecordId] : linkRecordId;
   return submission;
+};
+
+/**
+ * Os campos que o convidado altera — os declarados que ele VÊ, sem o vínculo. Um campo editável fora
+ * dos expostos não entra: alterar às cegas o que não se enxerga não é edição, é sobrescrita.
+ */
+export const portalEditFieldKeys = (screen: PortalScreenLike): string[] => {
+  const exposed = new Set(portalFieldKeys(screen));
+  const link = portalLinkOf(screen)?.fieldKey;
+  return (screen.portal?.edit?.fields ?? []).filter((key) => exposed.has(key) && key !== link);
+};
+
+/**
+ * A edição está aberta para ESTE registro, independentemente de quem pede: a condição do escritório
+ * vale. Expressão que estoura fecha — na dúvida, o convidado não altera.
+ */
+export const isPortalEditOpen = (
+  screen: PortalScreenLike,
+  data: Record<string, unknown>,
+  evaluate: (expression: string, data: Record<string, unknown>) => boolean,
+): boolean => {
+  const edit = screen.portal?.edit;
+  if (!edit || portalEditFieldKeys(screen).length === 0) return false;
+  return !edit.when || evaluate(edit.when, data);
+};
+
+/** A condição do escritório sobre o registro, como o servidor a avalia: estourou, é `false`. */
+export const evaluatePortalCondition = (expression: string, data: Record<string, unknown>, timeZone?: string): boolean =>
+  evaluateFieldBoolean(expression, { value: undefined, data, ...(timeZone ? { timeZone } : {}) }, false);
+
+/** O convidado que criou o registro pelo portal — o "dono" de `onlyOwn`. Criado no escritório, ninguém. */
+export const portalOwnerOf = (data: Record<string, unknown>): string | null =>
+  data[RECORD_CREATED_VIA_FIELD] === 'portal' && isNonEmptyString(data.createdBy) ? data.createdBy : null;
+
+/** Quem, entre os que veem, pode alterar: todos, ou só o dono quando a tela pede `onlyOwn`. */
+export const canPortalUserEdit = (
+  screen: PortalScreenLike,
+  userId: string,
+  projection: { editable?: boolean; portalOwner?: string | null },
+): boolean =>
+  projection.editable === true
+  && (screen.portal?.edit?.onlyOwn !== true || projection.portalOwner === userId);
+
+/** O que o convidado manda numa edição vira o que se grava: só os campos editáveis. Nada mais passa. */
+export const buildPortalEdit = (
+  screen: PortalScreenLike,
+  data: Record<string, unknown>,
+): Record<string, unknown> => {
+  const changes: Record<string, unknown> = {};
+  for (const key of portalEditFieldKeys(screen)) {
+    if (data[key] !== undefined) changes[key] = data[key];
+  }
+  return changes;
 };
 
 export const isPortalSubjectScreen = (screen: PortalScreenLike): boolean => screen.portal?.subject === 'self';
@@ -320,6 +402,20 @@ export const portalDeclarationIssues = (
 
   if (portal.uploads && portal.documents !== true) {
     issues.push({ message: '@core.records/portal.issue.uploads.documents' });
+  }
+
+  if (portal.edit) {
+    const exposed = new Set(portal.fields);
+    const link = portalLinkOf(screen)?.fieldKey;
+    if (portalEditFieldKeys(screen).length === 0) issues.push({ message: '@core.records/portal.issue.edit.no-fields' });
+    for (const key of portal.edit.fields) {
+      if (!exposed.has(key) || key === link) {
+        issues.push({ message: '@core.records/portal.issue.edit.field.hidden', messageParams: { field: key } });
+      }
+    }
+    if (portal.edit.when && fieldExpressionSyntaxError(portal.edit.when)) {
+      issues.push({ message: '@core.records/portal.issue.edit.when-invalid' });
+    }
   }
 
   if (portal.create) {

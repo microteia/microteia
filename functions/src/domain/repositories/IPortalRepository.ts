@@ -51,6 +51,13 @@ export interface PortalProjection {
    * a casca mostra os filhos dentro do pai, em vez de soltos numa aba.
    */
   parentKeys: string[];
+  /**
+   * A edição está aberta para este registro AGORA — a condição do escritório, avaliada quando ele foi
+   * gravado. Serve só para a casca mostrar o botão: a callable confere tudo de novo a cada pedido.
+   */
+  editable: boolean;
+  /** Quem o criou pelo portal — o dono de `onlyOwn`. Criado no escritório, `null`. */
+  portalOwner: string | null;
 }
 
 export interface PortalDocumentProjection {

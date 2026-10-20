@@ -10,6 +10,8 @@ export interface PortalCreating {
   collection: string;
   /** O registro-pai, quando o novo nasce dentro dele — e aí o formulário não pergunta. */
   parentRecordId: string | null;
+  /** Presente, o formulário ALTERA este registro (o id do registro, não da projeção). */
+  recordId?: string | null;
 }
 
 /**
@@ -22,11 +24,15 @@ export interface PortalNavigationValue {
   stack: PortalOpenRecord[];
   creating: PortalCreating | null;
   justSubmitted: boolean;
+  /** A alteração acabou de ser gravada — a casca avisa até o próximo gesto. */
+  justSaved: boolean;
   openRecord: (collection: string, projectionId: string) => void;
   back: () => void;
   startCreate: (collection: string, parentRecordId: string | null) => void;
+  startEdit: (collection: string, recordId: string) => void;
   cancelCreate: () => void;
   submitted: () => void;
+  saved: () => void;
 }
 
 export const PortalNavigationContext = createContext<PortalNavigationValue | null>(null);

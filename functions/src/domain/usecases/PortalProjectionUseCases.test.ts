@@ -37,6 +37,19 @@ describe('projeção do portal', () => {
     expect(projection?.parentKeys).toEqual(['companies/acme']);
   });
 
+  it('carimba se a edição está aberta e quem criou pelo portal — só para desenhar o botão', async () => {
+    const screens = CITY_SCREENS.map((screen) => (screen.id === 'invoices'
+      ? { ...screen, portal: { ...screen.portal!, edit: { fields: ['amount'], when: 'status == "draft"' } } }
+      : screen));
+    const { write, projections } = setup(screens);
+    await write('invoices', 'nf1', { number: 'NF-1', companyId: 'acme', status: 'draft', createdBy: 'ana', createdVia: 'portal' });
+    expect(projections.get('invoices__nf1')).toMatchObject({ editable: true, portalOwner: 'ana' });
+    expect(projections.get('invoices__nf1')?.data).not.toHaveProperty('status');
+
+    await write('invoices', 'nf1', { number: 'NF-1', companyId: 'acme', status: 'filed', createdBy: 'fiscal', createdVia: 'ui' });
+    expect(projections.get('invoices__nf1')).toMatchObject({ editable: false, portalOwner: null });
+  });
+
   it('a coleção que não declara portal não é projetada', async () => {
     const { write, projections } = setup();
     expect(await write('inspections', 'i1', { title: 'Fiscalização', companyId: 'acme' })).toBe(false);

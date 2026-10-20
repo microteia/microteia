@@ -326,6 +326,14 @@ export const S = {
     border-radius: ${({ theme }) => theme.borderRadius.lg};
   `,
 
+  DetailHeader: styled.div`
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: ${({ theme }) => theme.spacing.sm};
+    flex-wrap: wrap;
+  `,
+
   DetailTitle: styled.h2`
     font-size: ${({ theme }) => theme.fontSizes.xl};
     font-weight: 700;

@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
   asPortalDeclaration,
+  buildPortalEdit,
   buildPortalSubmission,
+  canPortalUserEdit,
+  evaluatePortalCondition,
+  isPortalEditOpen,
+  portalEditFieldKeys,
+  portalOwnerOf,
   parsePortalSubjectKey,
   portalDeclarationIssues,
   portalExposedTitle,
@@ -218,5 +224,53 @@ describe('anexos pelo portal', () => {
   it('a declaração malformada não vira permissão', () => {
     expect(asPortalDeclaration({ subject: 'self', fields: ['a'] })?.uploads).toBeUndefined();
     expect(asPortalDeclaration({ subject: 'self', fields: ['a'], uploads: { types: ['X', 3] } })?.uploads).toEqual({ types: ['X'] });
+  });
+});
+
+describe('edição pelo portal', () => {
+  const editing = (edit: { fields: string[]; when?: string; onlyOwn?: boolean }): PortalScreenLike => ({
+    ...invoice,
+    portal: { ...invoice.portal!, fields: ['number', 'amount', 'companyId'], edit },
+  });
+
+  it('lê a declaração com desconfiança: campos repetidos somem, onlyOwn só quando true', () => {
+    expect(asPortalDeclaration({ subject: 'self', fields: ['a'], edit: { fields: ['a', 'a', ''], when: ' x ', onlyOwn: 'yes' } })?.edit)
+      .toEqual({ fields: ['a'], when: 'x' });
+    expect(asPortalDeclaration({ subject: 'self', fields: ['a'], edit: { when: 'x' } })?.edit).toBeUndefined();
+  });
+
+  it('só é editável o que o convidado vê — e nunca o vínculo', () => {
+    expect(portalEditFieldKeys(editing({ fields: ['amount', 'internalNote', 'companyId'] }))).toEqual(['amount']);
+    expect(buildPortalEdit(editing({ fields: ['amount'] }), { amount: 5, companyId: 'globex', internalNote: 'x' }))
+      .toEqual({ amount: 5 });
+  });
+
+  it('a condição abre, fecha — e a quebrada fecha', () => {
+    const evaluate = (expression: string, data: Record<string, unknown>) => evaluatePortalCondition(expression, data);
+    expect(isPortalEditOpen(editing({ fields: ['amount'] }), {}, evaluate)).toBe(true);
+    expect(isPortalEditOpen(editing({ fields: ['amount'], when: 'status == "draft"' }), { status: 'draft' }, evaluate)).toBe(true);
+    expect(isPortalEditOpen(editing({ fields: ['amount'], when: 'status == "draft"' }), { status: 'filed' }, evaluate)).toBe(false);
+    expect(isPortalEditOpen(editing({ fields: ['amount'], when: 'status ==' }), { status: 'draft' }, evaluate)).toBe(false);
+    expect(isPortalEditOpen(editing({ fields: ['internalNote'] }), {}, evaluate)).toBe(false);
+  });
+
+  it('o dono é quem criou PELO portal; onlyOwn só deixa ele', () => {
+    expect(portalOwnerOf({ createdBy: 'ana', createdVia: 'portal' })).toBe('ana');
+    expect(portalOwnerOf({ createdBy: 'ana', createdVia: 'ui' })).toBeNull();
+    const own = editing({ fields: ['amount'], onlyOwn: true });
+    expect(canPortalUserEdit(own, 'ana', { editable: true, portalOwner: 'ana' })).toBe(true);
+    expect(canPortalUserEdit(own, 'bia', { editable: true, portalOwner: 'ana' })).toBe(false);
+    expect(canPortalUserEdit(editing({ fields: ['amount'] }), 'bia', { editable: true, portalOwner: 'ana' })).toBe(true);
+    expect(canPortalUserEdit(editing({ fields: ['amount'] }), 'ana', { editable: false, portalOwner: 'ana' })).toBe(false);
+  });
+
+  it('a declaração aponta campo escondido, vínculo e condição inválida', () => {
+    const screen: PortalScreenLike = { ...invoice, portal: { ...invoice.portal!, edit: { fields: ['internalNote', 'amount'], when: 'a ==' } } };
+    const messages = portalDeclarationIssues(screen, [company, screen]).map((issue) => issue.message);
+    expect(messages).toContain('@core.records/portal.issue.edit.field.hidden');
+    expect(messages).toContain('@core.records/portal.issue.edit.when-invalid');
+    const empty: PortalScreenLike = { ...invoice, portal: { ...invoice.portal!, edit: { fields: [] } } };
+    expect(portalDeclarationIssues(empty, [company, empty]).map((issue) => issue.message))
+      .toContain('@core.records/portal.issue.edit.no-fields');
   });
 });

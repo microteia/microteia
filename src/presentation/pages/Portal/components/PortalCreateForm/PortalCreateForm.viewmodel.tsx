@@ -6,11 +6,14 @@ export interface PortalCreateFormProps {
   screen: PortalScreenInfo;
   /** Criado DENTRO de um registro: o pai já é este, e não há o que escolher. */
   fixedLinkRecordId?: string | null;
+  /** ALTERA este registro, partindo do que o convidado vê dele — sem vínculo a escolher. */
+  editing?: { recordId: string; values: Record<string, unknown> } | null;
   onCancel: () => void;
   onSubmitted: () => void;
 }
 
 export interface PortalCreateFormViewModel {
+  isEditing: boolean;
   fields: PortalFieldInfo[];
   values: Record<string, unknown>;
   setValue: (key: string, value: unknown) => void;
@@ -32,18 +35,23 @@ export interface PortalCreateFormViewModel {
 const isEmpty = (value: unknown): boolean =>
   value === undefined || value === null || value === '' || (Array.isArray(value) && value.length === 0);
 
-export const usePortalCreateFormViewModel = ({ screen, fixedLinkRecordId, onSubmitted }: PortalCreateFormProps): PortalCreateFormViewModel => {
-  const { listLinkOptions, submit: submitRecord } = usePortal();
+export const usePortalCreateFormViewModel = ({ screen, fixedLinkRecordId, editing, onSubmitted }: PortalCreateFormProps): PortalCreateFormViewModel => {
+  const { listLinkOptions, submit: submitRecord, update: updateRecord } = usePortal();
   const create = screen.create;
+  const isEditing = !!editing;
+  const noLinkNeeded = isEditing || !!fixedLinkRecordId;
 
-  const [values, setValues] = useState<Record<string, unknown>>({});
+  const [values, setValues] = useState<Record<string, unknown>>(() => {
+    if (!editing) return {};
+    return Object.fromEntries((screen.edit?.fields ?? []).map((field) => [field.key, editing.values[field.key]]));
+  });
   const [options, setOptions] = useState<PortalLinkOption[]>([]);
-  const [linkLoading, setLinkLoading] = useState(!fixedLinkRecordId);
+  const [linkLoading, setLinkLoading] = useState(!noLinkNeeded);
   const [chosenLink, setChosenLink] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const linkCollection = fixedLinkRecordId ? '' : create?.link.collection ?? '';
+  const linkCollection = noLinkNeeded ? '' : create?.link.collection ?? '';
 
   useEffect(() => {
     if (!linkCollection) return;
@@ -56,7 +64,10 @@ export const usePortalCreateFormViewModel = ({ screen, fixedLinkRecordId, onSubm
   }, [linkCollection, listLinkOptions]);
 
   const linkRecordId = fixedLinkRecordId || chosenLink || (options.length === 1 ? options[0].recordId : '');
-  const fields = useMemo(() => create?.fields ?? [], [create]);
+  const fields = useMemo(
+    () => (isEditing ? screen.edit?.fields ?? [] : create?.fields ?? []),
+    [isEditing, screen.edit, create],
+  );
   const missingRequired = fields.some((field) => field.required && isEmpty(values[field.key]));
 
   const setValue = useCallback((key: string, value: unknown) => {
@@ -64,10 +75,17 @@ export const usePortalCreateFormViewModel = ({ screen, fixedLinkRecordId, onSubm
   }, []);
 
   const submit = useCallback(async () => {
-    if (!linkRecordId || missingRequired) return;
+    if ((!editing && !linkRecordId) || missingRequired) return;
     setSubmitting(true);
     setError(null);
     try {
+      if (editing) {
+        // Na edição, apagar um campo é uma alteração: vai como `null`, e não some do pedido.
+        const data = Object.fromEntries(fields.map((field) => [field.key, isEmpty(values[field.key]) ? null : values[field.key]]));
+        await updateRecord(screen.collection, editing.recordId, data);
+        onSubmitted();
+        return;
+      }
       const data = Object.fromEntries(Object.entries(values).filter(([, value]) => !isEmpty(value)));
       await submitRecord(screen.collection, linkRecordId, data);
       onSubmitted();
@@ -76,9 +94,10 @@ export const usePortalCreateFormViewModel = ({ screen, fixedLinkRecordId, onSubm
     } finally {
       setSubmitting(false);
     }
-  }, [linkRecordId, missingRequired, values, submitRecord, screen.collection, onSubmitted]);
+  }, [editing, linkRecordId, missingRequired, values, fields, updateRecord, submitRecord, screen.collection, onSubmitted]);
 
   return {
+    isEditing,
     fields,
     values,
     setValue,
@@ -88,7 +107,7 @@ export const usePortalCreateFormViewModel = ({ screen, fixedLinkRecordId, onSubm
     linkRecordId,
     setLinkRecordId: setChosenLink,
     linkLoading,
-    noLinkOptions: !fixedLinkRecordId && !linkLoading && options.length === 0,
+    noLinkOptions: !noLinkNeeded && !linkLoading && options.length === 0,
     missingRequired,
     submitting,
     error,

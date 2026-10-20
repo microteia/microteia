@@ -3,7 +3,7 @@ import { HOST_MODULES } from './hostApi';
 import { usePortal } from '../../../stores/usePortal';
 import { usePortalNavigation as useNavigationStore } from '../../../stores/usePortalNavigation';
 import { portalRecordDocId, portalSubjectKey } from '../../../domain/schema/portal';
-import type { PortalDocument, PortalRecord, PortalScreenInfo } from '../../../domain/entities/Portal';
+import { canEditPortalRecord, type PortalDocument, type PortalRecord, type PortalScreenInfo } from '../../../domain/entities/Portal';
 
 /** Um registro como a view de portal o recebe: a projeção, endereçada pelo id do REGISTRO. */
 export interface PortalViewRecord {
@@ -13,15 +13,18 @@ export interface PortalViewRecord {
   data: Record<string, unknown>;
   labels: Record<string, string>;
   updatedAt: Date | null;
+  /** Mostra o gesto de alterar — quem decide de verdade é a callable. */
+  canEdit: boolean;
 }
 
-const toViewRecord = (record: PortalRecord): PortalViewRecord => ({
+const toViewRecord = (record: PortalRecord, screen: PortalScreenInfo | null, userId: string | null): PortalViewRecord => ({
   collection: record.collection,
   recordId: record.recordId,
   title: record.title,
   data: record.data,
   labels: record.labels,
   updatedAt: record.updatedAt,
+  canEdit: canEditPortalRecord(screen, record, userId),
 });
 
 /** A tela exposta: títulos, campos expostos e o que o convidado preenche ao criar. */
@@ -38,24 +41,26 @@ const usePortalRecords = (
   collection: string,
   options: { parent?: { collection: string; recordId: string } } = {},
 ): { records: PortalViewRecord[]; loading: boolean } => {
-  const { recordsByCollection, isCollectionLoading } = usePortal();
+  const { recordsByCollection, isCollectionLoading, userId } = usePortal();
+  const screen = usePortalScreen(collection);
   const parentKey = options.parent ? portalSubjectKey(options.parent.collection, options.parent.recordId) : null;
   const records = useMemo(
     () => (recordsByCollection[collection] ?? [])
       .filter((record) => parentKey === null || record.parentKeys.includes(parentKey))
-      .map(toViewRecord),
-    [recordsByCollection, collection, parentKey],
+      .map((record) => toViewRecord(record, screen, userId)),
+    [recordsByCollection, collection, parentKey, screen, userId],
   );
   return { records, loading: isCollectionLoading(collection) };
 };
 
 const usePortalRecord = (collection: string, recordId: string): PortalViewRecord | null => {
-  const { recordsByCollection } = usePortal();
+  const { recordsByCollection, userId } = usePortal();
+  const screen = usePortalScreen(collection);
   return useMemo(() => {
     const id = portalRecordDocId(collection, recordId);
     const found = (recordsByCollection[collection] ?? []).find((record) => record.id === id);
-    return found ? toViewRecord(found) : null;
-  }, [recordsByCollection, collection, recordId]);
+    return found ? toViewRecord(found, screen, userId) : null;
+  }, [recordsByCollection, collection, recordId, screen, userId]);
 };
 
 /** Abrir, voltar e criar — a MESMA pilha que a casca genérica mostra. */
@@ -66,6 +71,7 @@ const usePortalNavigation = () => {
     back: navigation.back,
     /** `parentRecordId` fixa o pai — o formulário não pergunta. Sem ele, pergunta. */
     create: (collection: string, parentRecordId?: string) => navigation.startCreate(collection, parentRecordId ?? null),
+    edit: (collection: string, recordId: string) => navigation.startEdit(collection, recordId),
   }), [navigation]);
 };
 
@@ -125,6 +131,9 @@ const usePortalDocuments = (
 /** Cria um registro pelo portal. A recusa de validação chega já traduzida, no `message`. */
 const usePortalSubmit = () => usePortal().submit;
 
+/** Altera um registro pelo portal — o servidor confere campos, momento e dono a cada pedido. */
+const usePortalUpdate = () => usePortal().update;
+
 const portalModule = {
   usePortalScreen,
   usePortalRecords,
@@ -132,6 +141,7 @@ const portalModule = {
   usePortalNavigation,
   usePortalDocuments,
   usePortalSubmit,
+  usePortalUpdate,
 } as const;
 
 /**

@@ -24,6 +24,8 @@ export interface PortalScreenInfo {
     fields: PortalFieldInfo[];
     link: { collection: string; label: string };
   } | null;
+  /** O convidado altera estes campos — dos que ele vê —, e só no que criou quando `onlyOwn`. */
+  edit: { fields: PortalFieldInfo[]; onlyOwn: boolean } | null;
 }
 
 export interface PortalFieldInfo {
@@ -99,8 +101,23 @@ export interface PortalRecord {
   labels: Record<string, string>;
   /** O registro-pai no portal (`colecao/id`) — o prestador de uma nota. */
   parentKeys: string[];
+  /** A condição do escritório deixava alterar quando o registro foi gravado. Quem decide é o servidor. */
+  editable: boolean;
+  /** O convidado que o criou pelo portal — vazio quando nasceu no escritório. */
+  portalOwner: string | null;
   updatedAt: Date | null;
 }
+
+/**
+ * O convidado vê o botão de alterar este registro. É só o DESENHO: a condição foi avaliada quando o
+ * registro foi gravado, e a callable confere tudo de novo — o que vale é a resposta dela.
+ */
+export const canEditPortalRecord = (
+  screen: Pick<PortalScreenInfo, 'edit'> | null | undefined,
+  record: Pick<PortalRecord, 'editable' | 'portalOwner'>,
+  userId: string | null,
+): boolean =>
+  !!screen?.edit && record.editable && (!screen.edit.onlyOwn || (!!userId && record.portalOwner === userId));
 
 export interface PortalDocument {
   id: string;

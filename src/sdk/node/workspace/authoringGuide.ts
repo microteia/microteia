@@ -617,8 +617,8 @@ cannot find in your package, in a dependency authored beside it, or in the insta
 ### Your own screens in the portal
 
 People from OUTSIDE the organization — a client, a supplier — see what screens declare in \`portal\`
-(the \`subject\`, the \`fields\` that leave, \`create\` for what they may submit, \`uploads\` for the
-documents they may attach). The portal draws a
+(the \`subject\`, the \`fields\` that leave, \`create\` for what they may submit, \`edit\` for what they
+may change, \`uploads\` for the documents they may attach). The portal draws a
 home, a menu and a standard list and record for them. \`portalView(metadata, viewKey)\` adds yours:
 
 | \`surface\` | Also declare | What it is |
@@ -634,7 +634,8 @@ menu's order and which entries and cards are visible. Your package never forces 
 A portal view reaches a smaller API: \`@microteia/ui\`, \`@microteia/i18n\`, \`@microteia/format\`,
 \`@microteia/theme\` and \`@microteia/portal\` — \`usePortalRecords(collection, { parent })\`,
 \`usePortalRecord\`, \`usePortalScreen\`, \`usePortalNavigation\`, \`usePortalDocuments\`,
-\`usePortalSubmit\`. Importing \`@microteia/data\` (or report, settings, functions) fails when the view is
+\`usePortalSubmit\`, \`usePortalUpdate\`. Show an edit gesture only when the record's \`canEdit\` is true
+(\`usePortalNavigation().edit\` opens the standard form). Importing \`@microteia/data\` (or report, settings, functions) fails when the view is
 compiled: the guest has none of the organization's data stores. A view receives \`{ collection, recordId? }\`
 and asks \`@microteia/portal\` for the rest.
 
@@ -1488,7 +1489,7 @@ is enforced at the two write paths, which is the same footing \`required\`, a ma
 | \`listActions\`, \`viewActionIds\`, \`cardActionIds\` | the platform's own record gestures by key; your \`actions\` by \`templateId\` |
 | \`memberWritableFields\` | fields ANY member may write on a record someone else created — the door for per-person state (read, liked, saved) that the default permission would close |
 | \`authorCanDelete\` | whoever created the record deletes it, without an administrator |
-| \`portal\` | what an outside guest sees: \`subject\` (\`'self'\` for the screen whose records receive guests, \`{ field }\` for a reference that leads to it, \`'parent'\` to inherit from the parent), the \`fields\` that leave the organization — nothing else does — and \`documents\` to expose the documents someone marked as shared. \`create: { fields }\` lets the guest create records, filling only those fields — the link to the subject is set by the server from what the guest already sees, never from what they send; it is refused on the \`'self'\` screen. \`uploads: { types }\` lets the guest ATTACH documents — choosing one of those types (none listed = any the organization has), never creating one, and never deleting; it requires \`documents\` |
+| \`portal\` | what an outside guest sees: \`subject\` (\`'self'\` for the screen whose records receive guests, \`{ field }\` for a reference that leads to it, \`'parent'\` to inherit from the parent), the \`fields\` that leave the organization — nothing else does — and \`documents\` to expose the documents someone marked as shared. \`create: { fields }\` lets the guest create records, filling only those fields — the link to the subject is set by the server from what the guest already sees, never from what they send; it is refused on the \`'self'\` screen. \`uploads: { types }\` lets the guest ATTACH documents — choosing one of those types (none listed = any the organization has), never creating one, and never deleting; it requires \`documents\`. \`edit: { fields, when?, onlyOwn? }\` lets the guest CHANGE records: only those fields, and only fields that are also in \`fields\` (a guest never overwrites what they cannot see); never the link to the subject; \`when\` is a field expression on the WHOLE record (\`status == "draft"\`) checked by the server on every change — invalid means closed —, and \`onlyOwn\` limits it to records the guest created in the portal |
 | \`auditActions\` | which actions are audited. Absent = all. Declare it when a machine writes the collection, or the audit log drowns in one entry per ingested document |
 
 ### Option lists

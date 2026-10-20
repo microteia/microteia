@@ -26,9 +26,16 @@ const Muted = styled.p`
   color: ${({ theme }) => theme.colors.textMuted};
 `;
 
+const Row = styled.div`
+  display: flex;
+  align-items: center;
+  gap: ${({ theme }) => theme.spacing.sm};
+`;
+
 const Order = styled.button`
   display: block;
-  width: 100%;
+  flex: 1;
+  min-width: 0;
   text-align: left;
   padding: ${({ theme }) => theme.spacing.md};
   border: 1px solid ${({ theme }) => theme.colors.border};
@@ -38,4 +45,4 @@ const Order = styled.button`
   cursor: pointer;
 `;
 
-export const S = { Wrapper, Header, Title, Muted, Order };
+export const S = { Wrapper, Header, Title, Muted, Row, Order };

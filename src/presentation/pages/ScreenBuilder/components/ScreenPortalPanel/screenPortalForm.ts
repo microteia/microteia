@@ -15,6 +15,11 @@ export interface PortalFormState {
   /** O convidado anexa documentos, escolhendo entre `uploadTypes` — vazio = todos os do escritório. */
   allowUploads: boolean;
   uploadTypes: string[];
+  /** O convidado altera `editFields`, quando `editWhen` vale, e só o que criou se `editOnlyOwn`. */
+  allowEdit: boolean;
+  editFields: string[];
+  editWhen: string;
+  editOnlyOwn: boolean;
 }
 
 export const EMPTY_PORTAL_FORM: PortalFormState = {
@@ -27,6 +32,10 @@ export const EMPTY_PORTAL_FORM: PortalFormState = {
   createFields: [],
   allowUploads: false,
   uploadTypes: [],
+  allowEdit: false,
+  editFields: [],
+  editWhen: '',
+  editOnlyOwn: false,
 };
 
 export const toPortalForm = (portal: PortalDeclaration | null | undefined): PortalFormState => {
@@ -42,6 +51,10 @@ export const toPortalForm = (portal: PortalDeclaration | null | undefined): Port
     createFields: [...(portal.create?.fields ?? [])],
     allowUploads: !!portal.uploads,
     uploadTypes: [...(portal.uploads?.types ?? [])],
+    allowEdit: !!portal.edit,
+    editFields: [...(portal.edit?.fields ?? [])],
+    editWhen: portal.edit?.when ?? '',
+    editOnlyOwn: portal.edit?.onlyOwn === true,
   };
 };
 
@@ -55,5 +68,15 @@ export const fromPortalForm = (form: PortalFormState): PortalDeclaration | null 
     ...(form.allowCreate && form.subjectKind !== 'self' ? { create: { fields: form.createFields } } : {}),
     // Anexar exige ver: sem `documents`, o convidado não enxergaria o que enviou.
     ...(form.allowUploads && form.documents ? { uploads: { types: form.uploadTypes } } : {}),
+    ...(form.allowEdit
+      ? {
+        edit: {
+          // Só o que o convidado vê é editável: desmarcar um campo exposto o tira da edição também.
+          fields: form.editFields.filter((key) => form.fields.includes(key)),
+          ...(form.editWhen.trim() ? { when: form.editWhen.trim() } : {}),
+          ...(form.editOnlyOwn ? { onlyOwn: true } : {}),
+        },
+      }
+      : {}),
   };
 };

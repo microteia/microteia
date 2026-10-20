@@ -11,6 +11,13 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.136.0] — 2026-10-20
+
+- O convidado do portal pode corrigir registros, quando o escritório permitir — por exemplo, ajustar o valor de uma nota antes da análise.
+- O escritório escolhe quais campos podem ser alterados (sempre entre os que o convidado já vê), em que momento a alteração é permitida (por exemplo, só enquanto o registro está em rascunho) e se o convidado altera só o que ele mesmo criou.
+- A quem o registro pertence nunca pode ser alterado pelo convidado.
+- No Form Design, a aba "Portal" de cada tela ganhou essas opções de alteração.
+
 #### [9.135.0] — 2026-10-19
 
 - O convidado do portal pode anexar documentos aos registros dele, quando o escritório permitir — por exemplo, o prestador enviando o PDF da nota. Ver documentos não dá, por si só, o direito de anexar.

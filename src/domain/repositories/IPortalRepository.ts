@@ -44,6 +44,14 @@ export interface IPortalRepository {
     data: Record<string, unknown>;
     locale: string;
   }): Promise<{ id: string }>;
+  /** Altera um registro pelo portal — só os campos que a tela deixa. A recusa chega já traduzida. */
+  update(input: {
+    tenantId: string;
+    collection: string;
+    recordId: string;
+    data: Record<string, unknown>;
+    locale: string;
+  }): Promise<{ id: string }>;
 
   /** Do lado do ESCRITÓRIO: a home do portal — boas-vindas, ordem do menu e dos widgets. */
   getHomeSettings(tenantId: string): Promise<PortalHomeSettings>;

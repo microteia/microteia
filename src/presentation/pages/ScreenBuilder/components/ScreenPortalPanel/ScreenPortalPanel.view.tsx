@@ -4,6 +4,7 @@ import { Checkbox } from '../../../../components/ui/Checkbox';
 import { RadioGroup } from '../../../../components/ui/RadioButton';
 import { SearchSelect } from '../../../../components/ui/SearchSelect';
 import { InfoBanner } from '../../../../components/ui/InfoBanner';
+import { Input } from '../../../../components/ui/Input';
 import { useT } from '../../../../shared/i18n/useT';
 import type { PortalFormState, PortalSubjectKind } from './screenPortalForm';
 
@@ -15,6 +16,8 @@ export interface ScreenPortalPanelProps {
   /** Os tipos de documento do escritório — o convidado só escolhe entre os marcados. */
   documentTypeOptions: Array<{ value: string; label: string }>;
   referenceFieldOptions: Array<{ value: string; label: string }>;
+  /** Os campos que o convidado pode alterar — os expostos, menos o do vínculo. */
+  editFieldOptions: Array<{ value: string; label: string }>;
   hasParent: boolean;
   hasDocuments: boolean;
   /** Declarado por uma extensão: o escritório vê, e quem muda é ela. */
@@ -30,6 +33,10 @@ export interface ScreenPortalPanelProps {
   onToggleCreateField: (fieldKey: string, fillable: boolean) => void;
   onToggleUploads: (allowUploads: boolean) => void;
   onToggleUploadType: (typeKey: string, allowed: boolean) => void;
+  onToggleEdit: (allowEdit: boolean) => void;
+  onToggleEditField: (fieldKey: string, editable: boolean) => void;
+  onEditWhen: (expression: string) => void;
+  onToggleEditOnlyOwn: (onlyOwn: boolean) => void;
 }
 
 /** A aba "Portal" da tela: o que sai do escritório, e para quem. Só desenha o que recebe. */
@@ -153,6 +160,51 @@ export const ScreenPortalPanel: React.FC<ScreenPortalPanelProps> = (props) => {
                   />
                 ))}
               </S.FieldGrid>
+            )}
+          </S.Section>
+
+          <S.Section>
+            <Checkbox
+              checked={form.allowEdit}
+              onChange={props.onToggleEdit}
+              label={t('portal.edit.enabled')}
+              disabled={readOnly}
+            />
+            <S.Hint>{t('portal.edit.hint')}</S.Hint>
+            {form.allowEdit && (
+              <>
+                {props.editFieldOptions.length === 0 ? (
+                  <S.Hint>{t('portal.edit.no-exposed')}</S.Hint>
+                ) : (
+                  <S.FieldGrid>
+                    {props.editFieldOptions.map((option) => (
+                      <Checkbox
+                        key={option.value}
+                        checked={form.editFields.includes(option.value)}
+                        onChange={(editable) => props.onToggleEditField(option.value, editable)}
+                        label={option.label}
+                        disabled={readOnly}
+                      />
+                    ))}
+                  </S.FieldGrid>
+                )}
+                <S.SectionTitle>{t('portal.edit.when')}</S.SectionTitle>
+                <Input
+                  value={form.editWhen}
+                  onChange={(event) => props.onEditWhen(event.target.value)}
+                  placeholder={t('portal.edit.when.placeholder')}
+                  disabled={readOnly}
+                />
+                <S.Hint>{t('portal.edit.when.hint')}</S.Hint>
+                {form.subjectKind !== 'self' && (
+                  <Checkbox
+                    checked={form.editOnlyOwn}
+                    onChange={props.onToggleEditOnlyOwn}
+                    label={t('portal.edit.only-own')}
+                    disabled={readOnly}
+                  />
+                )}
+              </>
             )}
           </S.Section>
 

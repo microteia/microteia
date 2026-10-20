@@ -25,6 +25,8 @@ export const useClientPortalViewModel = ({ collection, recordId }: { collection:
       count: String(order.data.quantity ?? 1),
       item: String(order.data.item ?? order.title),
     }),
+    // `canEdit` only decides whether to SHOW the gesture; the server checks again on every change.
+    canEdit: order.canEdit,
   })), [orders.records, t]);
 
   return {
@@ -37,5 +39,6 @@ export const useClientPortalViewModel = ({ collection, recordId }: { collection:
     canOrder: !!orderScreen?.create && !!recordId,
     order: () => navigation.create(ORDER_COLLECTION, recordId),
     open: (orderId: string) => navigation.openRecord(ORDER_COLLECTION, orderId),
+    edit: (orderId: string) => navigation.edit(ORDER_COLLECTION, orderId),
   };
 };
