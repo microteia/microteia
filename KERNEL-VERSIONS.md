@@ -18,6 +18,14 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.127.2] — 2026-10-19
+
+- fix(schema/aggregationSpec): `collectAggregationsFor` keys the parent by the `ctx.screens` map key (the collection), not by `screen.id`. Since 9.116.2 the merged view of a collection described by another screen (a `builtin` rules anchor plus an extension screen bound through `dataCollection`) carries the declaring screen's id; `resolveWritableTable(screen.id)` did not find it and every target on such a collection was dropped, so creating or editing a child no longer recomputed the parent's aggregates — with no error anywhere. New optional `onUnresolved` callback reports a declared aggregation whose parent does not resolve; `recomputeAggregatesForChildChange` sends it to the engine logger instead of dropping it silently.
+- fix(functions/aggregateBackfill): `reconcileAggregateBackfills` keys the declared signatures by collection as well, matching `pendingTargets`, `isWritableEntity` and the `aggregateBackfills/{table}` trigger. Under the wrong key, the collection's job was settled to an empty `reconciled` and a second job under the screen id was marked done without touching any parent. With the right key back, the next reconcile finds the collection's aggregates pending and starts a full pass, which repairs every parent; the stray screen-id job is settled empty.
+- fix(entityScreen): `useAggregateBackfillNotice` subscribes to the job of the screen's data collection, the key the server writes.
+- fix(ScreenBuilder): the aggregation editor compares `refEntity` with the screen's data collection and offers the child's collection as `from` (deduplicated), so a bound screen no longer shows "record not found" in the child link field; the cycle check and the child-field validation use the same collection.
+- fix(schema/document/starterTemplate): child datasets and reference titles resolve by collection (`collection` / `dataCollection`), preferring the screen that has a title field over the rules anchor.
+
 #### [9.127.1] — 2026-10-19
 
 - fix(access): the server permission catalog (`PermissionCatalogCache`) now derives collection resources with the same function as the browser (`tenantCollectionPermissionResources`, new shared `domain/schema/tenantCollections.ts`). It used to read only `lookupDefinitions`/`tagDefinitions`, missing lookups referenced by screen fields, tag lists declared by screens and the kernel lists — so the permission picker (Roles, AI agents, OAuth consent) offered ids that `issueAgentGrant` rejected as `agent.permission.unknown`, failing the whole OAuth consent with HTTP 400, and the materialized member permissions read by the Security Rules lacked them.

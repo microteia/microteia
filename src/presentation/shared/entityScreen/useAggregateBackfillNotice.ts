@@ -5,6 +5,7 @@ import { declaredAggregationSignatures, planAggregateBackfill } from '../../../d
 import type { AggregateBackfillState } from '../../../domain/schema/aggregateBackfill';
 import { aggregateBackfillNotice } from '../../../domain/services/aggregateBackfillNotice';
 import type { ScreenDefinition } from '../../../domain/entities';
+import { screenDataCollection } from '../../../domain/services/screenDataCollection';
 import { useLabel, useT } from '../i18n/useT';
 
 export interface AggregateBackfillNoticeView {
@@ -36,7 +37,8 @@ export const useAggregateBackfillNotice = (
   const label = useLabel();
 
   const tenantId = currentTenant?.id ?? null;
-  const table = definition?.id ?? null;
+  // O job é da COLEÇÃO, que é a chave que o servidor grava — não da chave da tela.
+  const table = definition ? screenDataCollection(definition) : null;
   const jobKey = tenantId && table ? `${tenantId}/${table}` : null;
 
   const [snapshot, setSnapshot] = useState<JobSnapshot | null>(null);

@@ -331,9 +331,11 @@ export const reconcileAggregateBackfills = async (
   const states = await deps.backfillRepository.listStates(tenantId);
 
   const declared = new Map<string, Record<string, string>>();
-  for (const screen of ctx.screens.values()) {
+  // A chave do job é a COLEÇÃO (a chave do mapa), a mesma que `pendingTargets` e o gatilho leem —
+  // nunca o `id` da tela, que numa coleção descrita por outra tela não é o nome dela.
+  for (const [table, screen] of ctx.screens) {
     const signatures = declaredAggregationSignatures(screen.fields);
-    if (Object.keys(signatures).length > 0) declared.set(screen.id, signatures);
+    if (Object.keys(signatures).length > 0) declared.set(table, signatures);
   }
 
   const allows = (plan: AggregateBackfillPlan): boolean =>

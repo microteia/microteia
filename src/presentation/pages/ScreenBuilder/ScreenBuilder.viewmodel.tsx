@@ -1642,61 +1642,74 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     return key ? withArtifactPrefix(artifactPrefix, 'collection', derivedLookupCollection(fieldModal.screenKey, key)) : '';
   }, [fieldModal, fieldForm.fieldKey, fieldForm.label, artifactPrefix]);
 
+  // Os agregados falam de COLEÇÕES: o `from` é a coleção dos filhos e o vínculo deles aponta para a
+  // coleção desta tela. Numa tela ligada (`processos` sobre `cases`), comparar com a chave da tela
+  // não acharia vínculo nenhum.
+  const aggregationParentCollection = useMemo(() => {
+    const key = fieldModal?.screenKey;
+    if (!key) return null;
+    const owner = getDefinitionByKey(key);
+    return owner ? screenDataCollection(owner) : key;
+  }, [fieldModal, getDefinitionByKey]);
+
   // Só faz sentido agregar de uma tela que aponte de volta para esta: é o vínculo pai/filho que
   // define quais registros pertencem ao agregado.
   const aggregationChildScreens = useMemo(
     () => {
       const key = fieldModal?.screenKey;
-      if (!key) return [];
-      const owner = getDefinitionByKey(key);
-      const collection = owner ? screenDataCollection(owner) : key;
+      if (!key || !aggregationParentCollection) return [];
       return dynamicScreens.filter(
-        (def) => def.id !== key && def.fields.some((f) => f.type === 'reference' && f.refEntity === collection),
+        (def) => def.id !== key
+          && def.fields.some((f) => f.type === 'reference' && f.refEntity === aggregationParentCollection),
       );
     },
-    [dynamicScreens, fieldModal, getDefinitionByKey],
+    [dynamicScreens, fieldModal, aggregationParentCollection],
   );
 
-  const aggregationFromOptions = useMemo<SearchSelectOption[]>(
-    () => [
-      { value: '', label: t('field.aggregation.none') },
-      ...aggregationChildScreens.map((def) => ({ value: def.id, label: def.titlePlural })),
-    ],
-    [aggregationChildScreens, t],
+  const aggregationChildScreen = useMemo(
+    () => aggregationChildScreens.find((def) => screenDataCollection(def) === fieldForm.aggregationFrom) ?? null,
+    [aggregationChildScreens, fieldForm.aggregationFrom],
   );
 
-  const aggregationViaOptions = useMemo<SearchSelectOption[]>(() => {
-    const child = aggregationChildScreens.find((def) => def.id === fieldForm.aggregationFrom);
-    return (child?.fields ?? [])
-      .filter((f) => f.type === 'reference' && f.refEntity === fieldModal?.screenKey)
-      .map((f) => ({ value: f.key, label: f.label }));
-  }, [aggregationChildScreens, fieldForm.aggregationFrom, fieldModal]);
+  const aggregationFromOptions = useMemo<SearchSelectOption[]>(() => {
+    const byCollection = new Map<string, SearchSelectOption>();
+    for (const def of aggregationChildScreens) {
+      const collection = screenDataCollection(def);
+      if (!byCollection.has(collection)) byCollection.set(collection, { value: collection, label: def.titlePlural });
+    }
+    return [{ value: '', label: t('field.aggregation.none') }, ...byCollection.values()];
+  }, [aggregationChildScreens, t]);
+
+  const aggregationViaOptions = useMemo<SearchSelectOption[]>(
+    () => (aggregationChildScreen?.fields ?? [])
+      .filter((f) => f.type === 'reference' && f.refEntity === aggregationParentCollection)
+      .map((f) => ({ value: f.key, label: f.label })),
+    [aggregationChildScreen, aggregationParentCollection],
+  );
 
   // `latest` copia o valor: o filho oferecido é o que grava a mesma forma que este campo. As demais
   // operações calculam, e só um número entra nelas.
   const aggregationFieldOptions = useMemo<SearchSelectOption[]>(() => {
-    const child = aggregationChildScreens.find((def) => def.id === fieldForm.aggregationFrom);
     const parent = formAggregationShape(fieldForm);
-    return (child?.fields ?? [])
+    return (aggregationChildScreen?.fields ?? [])
       .filter((f) => fieldForm.aggregationOp === 'latest'
         ? !f.logic?.derive && aggregationTypesCompatible(parent, f)
         : f.type === 'number' || f.type === 'currency')
       .map((f) => ({ value: f.key, label: f.label }));
-  }, [aggregationChildScreens, fieldForm]);
+  }, [aggregationChildScreen, fieldForm]);
 
   const aggregationOrderOptions = useMemo<SearchSelectOption[]>(() => {
-    const child = aggregationChildScreens.find((def) => def.id === fieldForm.aggregationFrom);
     const systemLabels: Record<string, string> = {
       createdAt: t('field.aggregation.order.created-at'),
       updatedAt: t('field.aggregation.order.updated-at'),
     };
     return [
-      ...(child?.fields ?? [])
+      ...(aggregationChildScreen?.fields ?? [])
         .filter((f) => !f.logic?.derive)
         .map((f) => ({ value: f.key, label: f.label })),
       ...AGGREGATION_ORDER_SYSTEM_KEYS.map((key) => ({ value: key, label: systemLabels[key] ?? key })),
     ];
-  }, [aggregationChildScreens, fieldForm.aggregationFrom, t]);
+  }, [aggregationChildScreen, t]);
 
   const aggregationDirOptions = useMemo<SearchSelectOption[]>(
     () => [
@@ -1756,10 +1769,10 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
   );
 
   // O filtro é avaliado sobre o FILHO: as sugestões são os campos da tela filha, não desta.
-  const aggregationFilterVariables = useMemo<WorkflowVariable[]>(() => {
-    const child = aggregationChildScreens.find((def) => def.id === fieldForm.aggregationFrom);
-    return (child?.fields ?? []).map((f) => ({ name: f.key, definedBy: f.label }));
-  }, [aggregationChildScreens, fieldForm.aggregationFrom]);
+  const aggregationFilterVariables = useMemo<WorkflowVariable[]>(
+    () => (aggregationChildScreen?.fields ?? []).map((f) => ({ name: f.key, definedBy: f.label })),
+    [aggregationChildScreen],
+  );
 
   const addStaticOption = useCallback(() => {
     setFieldForm((prev) => {
@@ -1952,11 +1965,11 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
         reject('advanced', t('field.error.aggregation-field'));
         return;
       }
-      if (aggregationCreatesCycle(schemaContext, fieldModal.screenKey, aggregation.from)) {
+      if (aggregationCreatesCycle(schemaContext, aggregationParentCollection ?? fieldModal.screenKey, aggregation.from)) {
         reject('advanced', t('field.error.aggregation-cycle'));
         return;
       }
-      const childFields = getDefinitionByKey(aggregation.from)?.fields ?? [];
+      const childFields = (aggregationChildScreen ?? getDefinitionByKey(aggregation.from))?.fields ?? [];
       const orderKeys = (aggregation.orderBy ?? []).map((order) => order.path);
       const derivedKey = derivedKeyIn(childFields, [aggregation.field ?? '', ...orderKeys].filter(Boolean));
       if (derivedKey) {
@@ -2072,7 +2085,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     } finally {
       setSavingField(false);
     }
-  }, [artifactPrefix, fieldModal, fieldForm, fieldModalIsTitleField, fieldSupportsUnique, getDefinitionByKey, saveDefinition, notify, schemaContext, resolvedField, resolvedFieldsByScreen, declareLookup, t, label]);
+  }, [artifactPrefix, fieldModal, fieldForm, fieldModalIsTitleField, fieldSupportsUnique, getDefinitionByKey, saveDefinition, notify, schemaContext, resolvedField, resolvedFieldsByScreen, declareLookup, t, label, aggregationParentCollection, aggregationChildScreen]);
 
   /**
    * Grava a ordem da lista como posições absolutas em `fields[]`. Um campo já gravado viaja como

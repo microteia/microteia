@@ -210,7 +210,11 @@ export const recomputeAggregatesForChildChange = async (
   const childTable = resolveChildTable(childCollection);
 
   const ctx = await deps.screenProvider.getSchemaContext(tenantId);
-  const targets = collectAggregationsFor(ctx, childTable);
+  const targets = collectAggregationsFor(ctx, childTable, (unresolved) =>
+    deps.logger?.warn(
+      `Agregado ${unresolved.parentTable}.${unresolved.fieldKey} (de ${unresolved.from}) ignorado: o pai não resolve para uma coleção gravável.`,
+    ),
+  );
   if (targets.length === 0) return;
 
   for (const target of targets) {

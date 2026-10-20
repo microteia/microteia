@@ -394,3 +394,35 @@ describe('recomputeAggregatesForChildChange — latest', () => {
     expect(s.updates).toHaveLength(0);
   });
 });
+
+describe('recomputeAggregatesForChildChange — coleção descrita por uma tela de chave diferente', () => {
+  const anchor: SchemaScreen = { id: 'vendas', origin: 'builtin', titleSingular: 'vendas', titleFieldKey: '', fields: [] };
+  const bound: SchemaScreen = { ...screens[0], id: 'painelVendas', collection: 'vendas' };
+
+  it.each([
+    ['a âncora chega antes da tela', [anchor, bound, screens[1]]],
+    ['a âncora chega depois da tela', [bound, anchor, screens[1]]],
+  ])('o filho que muda grava o agregado no pai quando %s', async (_, schema) => {
+    const h = harness({ v1: { numero: '001' } }, [item('i1', 'v1', 10), item('i2', 'v1', 25)], schema);
+
+    await recomputeAggregatesForChildChange('t1', 'itens', null, { venda: 'v1', total: 25 }, h.deps);
+
+    expect(h.updates).toHaveLength(1);
+    expect(h.updates[0]).toMatchObject({ id: 'v1', data: { totalItens: 35 } });
+  });
+
+  it('avisa no log o agregado cujo pai não resolve', async () => {
+    const readOnly: SchemaScreen = { ...screens[0], id: 'members' };
+    const h = harness({}, [], [readOnly, screens[1]]);
+    const warnings: string[] = [];
+
+    await recomputeAggregatesForChildChange('t1', 'itens', null, { venda: 'v1', total: 1 }, {
+      ...h.deps,
+      logger: { warn: (message) => warnings.push(message) },
+    });
+
+    expect(h.updates).toEqual([]);
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]).toContain('members.totalItens');
+  });
+});

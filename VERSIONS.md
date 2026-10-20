@@ -11,6 +11,12 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.127.2] — 2026-10-19
+
+- Corrigido um problema que, desde 17/10, deixava de atualizar os campos calculados a partir dos registros filhos — como o resultado e a data do último andamento de um processo — quando a tela pertence a uma extensão. Os registros afetados são recalculados automaticamente após a atualização.
+- No editor de telas, a escolha do campo que liga o registro filho ao pai volta a mostrar as opções corretas, em vez de "Registro não encontrado".
+- O modelo inicial de documento passa a incluir as listas de registros filhos também nas telas que vêm de extensões.
+
 #### [9.127.1] — 2026-10-19
 
 - Corrigida a autorização de assistentes de IA (OAuth) e a emissão de acesso, que podiam ser recusadas quando o escritório marcava permissões de listas de opções ou etiquetas criadas a partir de uma tela. As permissões oferecidas na escolha agora são sempre as mesmas que o sistema aceita.

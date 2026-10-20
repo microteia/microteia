@@ -29,26 +29,44 @@ const parentPathFor = (ctx: SchemaContext, table: string, fieldKey: string): str
   return fieldKey;
 };
 
+/** Um campo que declara agregar sobre o filho, mas cujo pai não resolve para uma coleção gravável. */
+export interface UnresolvedAggregation {
+  parentTable: string;
+  fieldKey: string;
+  from: string;
+}
+
 /**
  * Todos os campos (de qualquer tela do tenant) que agregam sobre `childTable`. É o índice invertido
  * que o motor usa ao ver um filho mudar: dependência declarada, não inferida.
+ *
+ * O pai é a CHAVE do mapa, que é a coleção — nunca o `id` da tela. Quando duas telas descrevem a
+ * mesma coleção (a âncora `cases` e a tela `processos` com `dataCollection: 'cases'`), a junção leva o
+ * `id` da tela declarante, e tratar esse `id` como tabela fazia o alvo sumir sem aviso.
+ *
+ * O campo cujo pai não resolve é entregue a `onUnresolved` em vez de desaparecer: foi o silêncio que
+ * deixou um agregado parado por dias sem nenhuma linha de log.
  */
 export const collectAggregationsFor = (
   ctx: SchemaContext,
   childTable: string,
+  onUnresolved?: (unresolved: UnresolvedAggregation) => void,
 ): AggregationTarget[] => {
   const targets: AggregationTarget[] = [];
 
-  for (const screen of ctx.screens.values()) {
+  for (const [parentTable, screen] of ctx.screens) {
     for (const field of screen.fields) {
       const aggregation = field.aggregation;
       if (!aggregation || aggregation.from !== childTable || !aggregation.via) continue;
 
-      const parentPath = parentPathFor(ctx, screen.id, field.key);
-      if (!parentPath) continue;
+      const parentPath = parentPathFor(ctx, parentTable, field.key);
+      if (!parentPath) {
+        onUnresolved?.({ parentTable, fieldKey: field.key, from: childTable });
+        continue;
+      }
 
       targets.push({
-        parentTable: screen.id,
+        parentTable,
         parentPath,
         fieldKey: field.key,
         label: field.label,

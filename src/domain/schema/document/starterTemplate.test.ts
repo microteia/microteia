@@ -75,3 +75,31 @@ describe('buildStarterTemplate', () => {
     })).toEqual([]);
   });
 });
+
+describe('buildStarterTemplate — tela ligada a uma coleção de outro nome', () => {
+  const anchor = screen('contract', { origin: 'builtin', titleFieldKey: '' } as Partial<ScreenDefinition>);
+  const bound = { ...CONTRACT, id: 'contractPanel', dataCollection: 'contract' } as ScreenDefinition;
+  const starter = (screens: ScreenDefinition[]) => buildStarterTemplate({
+    screen: bound,
+    screens,
+    label: (value) => value,
+    texts: TEXTS,
+  });
+
+  it.each([
+    ['a âncora chega antes da tela', [CLIENT, anchor, bound, INSTALLMENT]],
+    ['a âncora chega depois da tela', [CLIENT, bound, anchor, INSTALLMENT]],
+  ])('acha os filhos que apontam para a coleção quando %s', (_, screens) => {
+    expect(starter(screens).datasets).toEqual([{ name: 'installment', from: 'installment', via: 'contract', orderBy: 'dueDate' }]);
+  });
+
+  it('o vínculo para a coleção segue até o título da tela que a descreve, não da âncora', () => {
+    const { body } = buildStarterTemplate({
+      screen: INSTALLMENT,
+      screens: [anchor, bound, INSTALLMENT],
+      label: (value) => value,
+      texts: TEXTS,
+    });
+    expect(body).toContain('**Contract:** {{contract.title}}');
+  });
+});

@@ -360,3 +360,47 @@ describe('fieldAggregationIssues', () => {
     expect(codes({ from: 'movimentos', via: 'processo', op: 'count' })).toEqual([]);
   });
 });
+
+describe('collectAggregationsFor — coleção descrita por uma tela de chave diferente', () => {
+  const anchor: SchemaScreen = { id: 'vendas', origin: 'builtin', titleSingular: 'vendas', titleFieldKey: '', fields: [] };
+  const bound: SchemaScreen = {
+    id: 'painelVendas',
+    collection: 'vendas',
+    titleSingular: 'Venda',
+    titleFieldKey: 'numero',
+    fields: [
+      field({ key: 'numero', label: 'Número' }),
+      field({
+        key: 'ultimoItem',
+        label: 'Último item',
+        aggregation: { from: 'itens', via: 'venda', op: 'latest', field: 'descricao', orderBy: [{ path: 'createdAt', dir: 'desc' }] },
+      }),
+    ],
+  };
+  const child = screens.find((screen) => screen.id === 'itens')!;
+
+  it.each([
+    ['a âncora chega antes da tela', [anchor, bound, child]],
+    ['a âncora chega depois da tela', [bound, anchor, child]],
+  ])('o pai é a coleção, e não a chave da tela, quando %s', (_, ordered) => {
+    const merged = createSchemaContext(ordered);
+    expect(merged.screens.get('vendas')?.id).toBe('painelVendas');
+
+    const targets = collectAggregationsFor(merged, 'itens');
+    expect(targets.map((target) => [target.parentTable, target.fieldKey])).toEqual([['vendas', 'ultimoItem']]);
+  });
+
+  it('entrega o campo cujo pai não resolve, em vez de descartá-lo calado', () => {
+    const readOnly: SchemaScreen = {
+      id: 'members',
+      titleSingular: 'Membro',
+      titleFieldKey: 'name',
+      fields: [field({ key: 'qtd', label: 'Qtd', type: 'number', aggregation: { from: 'itens', via: 'venda', op: 'count' } })],
+    };
+    const unresolved: unknown[] = [];
+    const targets = collectAggregationsFor(createSchemaContext([readOnly, child]), 'itens', (one) => unresolved.push(one));
+
+    expect(targets).toEqual([]);
+    expect(unresolved).toEqual([{ parentTable: 'members', fieldKey: 'qtd', from: 'itens' }]);
+  });
+});

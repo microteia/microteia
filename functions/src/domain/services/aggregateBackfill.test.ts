@@ -7,6 +7,7 @@ import type { AggregateBackfillParent, IAggregateBackfillRepository } from '../r
 import {
   AGGREGATE_BACKFILL_MAX_ATTEMPTS,
   AGGREGATE_BACKFILL_VIA,
+  declaredAggregationSignatures,
   readAggregateBackfillState,
 } from '../schema/aggregateBackfill';
 import type { AggregateBackfillState } from '../schema/aggregateBackfill';
@@ -291,5 +292,40 @@ describe('a gravação do recálculo — o que não publica evento nem auditoria
   it('não é a que não traz a marca', () => {
     const after = { ...before, totalItens: 10 };
     expect(isAggregateBackfillWrite(ctx, 'vendas', before, after)).toBe(false);
+  });
+});
+
+describe('coleção descrita por uma tela de chave diferente', () => {
+  const anchor: SchemaScreen = { id: 'vendas', origin: 'builtin', titleSingular: 'vendas', titleFieldKey: '', fields: [] };
+  const bound = (): SchemaScreen => ({ ...vendas(), id: 'painelVendas', collection: 'vendas' });
+
+  it.each([
+    ['a âncora chega antes da tela', () => [anchor, bound(), itens]],
+    ['a âncora chega depois da tela', () => [bound(), anchor, itens]],
+  ])('o job é o da coleção e recalcula os pais quando %s', async (_, schema) => {
+    const w = world(schema(), { v1: {} }, [item('i1', 'v1', 10), item('i2', 'v1', 5)]);
+
+    expect(await reconcileAggregateBackfills('t1', w.deps)).toBe(1);
+    expect(Object.keys(w.jobs.get('vendas')?.pending ?? {})).toEqual(['totalItens']);
+    expect(w.jobs.has('painelVendas')).toBe(false);
+    await drain(w);
+
+    expect(w.parents.get('v1')?.totalItens).toBe(15);
+  });
+
+  it('o estado deixado pela chave errada não impede a passada: a coleção volta a ter o que recalcular', async () => {
+    const w = world([anchor, bound(), itens], { v1: {} }, [item('i1', 'v1', 10)]);
+    const signature = declaredAggregationSignatures(vendas().fields);
+    // O que o defeito gravou: a coleção esvaziada pelo `settle` e a chave da tela "recalculada" sem
+    // ter tocado em pai nenhum.
+    w.jobs.set('vendas', { ...readAggregateBackfillState({}), status: 'done', reconciled: {} });
+    w.jobs.set('painelVendas', { ...readAggregateBackfillState({}), status: 'done', reconciled: signature });
+
+    await reconcileAggregateBackfills('t1', w.deps);
+    expect(w.jobs.get('vendas')?.status).toBe('running');
+    expect(w.jobs.get('painelVendas')?.reconciled).toEqual({});
+    await drain(w);
+
+    expect(w.parents.get('v1')?.totalItens).toBe(10);
   });
 });

@@ -37,6 +37,9 @@ export interface StarterTexts {
  */
 export interface StarterScreen {
   id: string;
+  /** A coleção que a tela descreve, quando não é o `id`: `collection` no backend, `dataCollection` na tela. */
+  collection?: string | null;
+  dataCollection?: string | null;
   titleSingular: string;
   titlePlural?: string;
   titleFieldKey?: string | null;
@@ -70,6 +73,18 @@ const identifier = (raw: string): string => {
 };
 
 /**
+ * Uma referência aponta para a COLEÇÃO, não para a chave da tela: `refEntity: 'cases'` é atendido pela
+ * tela `processos` ligada a `cases`, e a âncora `cases` (sem campos) não serve de alvo.
+ */
+const starterCollection = (screen: StarterScreen): string =>
+  screen.collection?.trim() || screen.dataCollection?.trim() || screen.id;
+
+const screenOfCollection = (screens: readonly StarterScreen[], collection: string): StarterScreen | undefined => {
+  const serving = screens.filter((screen) => starterCollection(screen) === collection);
+  return serving.find((screen) => !!screen.titleFieldKey) ?? serving[0];
+};
+
+/**
  * A expressão que imprime o campo como TEXTO de documento, ou `null` quando não há tradução fiel. É
  * a mesma que o modelo inicial escreve, e a que o guia do agente de IA mostra campo a campo.
  */
@@ -89,7 +104,7 @@ export const starterFieldExpression = (
     case 'checkbox':
       return `{{#if ${field.key}}}${texts.yes}{{/if}}{{#if not ${field.key}}}${texts.no}{{/if}}`;
     case 'reference': {
-      const target = screens.find((one) => one.id === field.refEntity);
+      const target = field.refEntity ? screenOfCollection(screens, field.refEntity) : undefined;
       return target?.titleFieldKey ? `{{${field.key}.${target.titleFieldKey}}}` : null;
     }
     case 'select': {
@@ -114,9 +129,10 @@ export const buildStarterTemplate = ({ screen, screens, label, texts }: StarterI
   }
 
   const datasets: DocumentTemplateDataset[] = [];
+  const collection = starterCollection(screen);
   for (const child of screens) {
     if (child.id === screen.id) continue;
-    const via = child.fields.find((field) => field.type === 'reference' && field.refEntity === screen.id);
+    const via = child.fields.find((field) => field.type === 'reference' && field.refEntity === collection);
     if (!via) continue;
 
     const columns = ordered(child.fields)
