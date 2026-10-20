@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import React from 'react';
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render } from '@testing-library/react';
 import { ThemeProvider } from 'styled-components';
 import { baseDarkTheme } from '../../../shared/styles/theme';
@@ -83,5 +83,35 @@ describe('evaluateExtensionView', () => {
     const Component = evaluateExtensionView('t::merged', source);
     const { getByText } = renderThemed(<Component tabKey="t" />);
     expect(getByText('7')).toBeTruthy();
+  });
+
+  /**
+   * Quem pede a view está RENDERIZANDO (o painel, o catálogo de configurações). Avaliar o módulo ali
+   * rodava os `styled.div` dele no meio do render, e a sonda do styled-components entrava como hook a
+   * mais no componente pai — "change in the order of Hooks called by PanelLeaf".
+   */
+  it('avalia o módulo fora do render de quem a pede — o styled da extensão não vira hook do pai', () => {
+    const source = [
+      "import { styled } from 'styled-components';",
+      'const Box = styled.div`padding: 4px;`;',
+      'export default function View() { return <Box>painel</Box>; }',
+    ].join('\n');
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const warnings = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const Host = () => {
+      const [count] = React.useState(1);
+      const View = evaluateExtensionView('t::in-render', source);
+      return <div>{count}<View tabKey="t" /></div>;
+    };
+    try {
+      const { getByText, rerender } = renderThemed(<Host />);
+      rerender(<ThemeProvider theme={baseDarkTheme}><Host /></ThemeProvider>);
+      expect(getByText('painel')).toBeTruthy();
+      const logged = [...errors.mock.calls, ...warnings.mock.calls].map((call) => String(call[0]));
+      expect(logged.filter((line) => /order of Hooks|created dynamically|Invalid hook/i.test(line))).toEqual([]);
+    } finally {
+      errors.mockRestore();
+      warnings.mockRestore();
+    }
   });
 });

@@ -1,5 +1,5 @@
 import React from 'react';
-import { compileComponentWith } from '../../shared/extensions/evaluateExtensionView';
+import { compileComponentWith, deferredComponent } from '../../shared/extensions/evaluateExtensionView';
 import { PORTAL_HOST_MODULES } from '../../shared/extensions/portalHostApi';
 import { PortalViewFallback } from './components/PortalViewFallback';
 import type { PortalViewInfo } from '../../../domain/entities/Portal';
@@ -28,10 +28,13 @@ export const evaluatePortalView = (view: PortalViewInfo): PortalViewComponent =>
   const cached = cache.get(cacheKey);
   if (cached && cached.source === view.source) return cached.Component;
 
-  const result = compileComponentWith<PortalListViewProps & Partial<PortalDetailViewProps>>(view.source, PORTAL_HOST_MODULES);
-  const Component: PortalViewComponent = result.ok
-    ? result.Component
-    : () => React.createElement(PortalViewFallback, { message: result.error });
+  // Avaliada fora do render, pelo mesmo motivo das views do escritório (`deferredComponent`).
+  const Component: PortalViewComponent = deferredComponent<PortalListViewProps & Partial<PortalDetailViewProps>>(() => {
+    const result = compileComponentWith<PortalListViewProps & Partial<PortalDetailViewProps>>(view.source, PORTAL_HOST_MODULES);
+    return result.ok
+      ? result.Component
+      : () => React.createElement(PortalViewFallback, { message: result.error });
+  }, `PortalView(${cacheKey})`);
   cache.set(cacheKey, { source: view.source, Component });
   return Component;
 };

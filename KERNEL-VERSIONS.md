@@ -32,6 +32,10 @@
 - feat(ui): the document template editor edits order keys per list (field, direction, "Then by", remove). One complete key is saved in the text form, so single-key templates are unchanged; two or more are saved as a list.
 - docs: AUTHORING §12 documents the list form and its tie-break; `examples/document-example` 1.2.0 (`kernel: '^2.58.0'`) adds an optional `dueTime` to the installment and orders the payment plan by `dueDate`, then `dueTime`. `com.microteia.locale-pt-br` 1.113.0.
 
+#### [9.136.2] — 2026-10-20
+
+- fix(extensions): extension view modules were evaluated DURING the render of whoever asked for them (`useUiContributions`, the `useMemo` in `useSettingsCatalog`, the portal shell). A module-level `styled.div` then ran styled-components' dev-only "created dynamically" probe, which calls a hook — added to the parent's hook list: "change in the order of Hooks called by PanelLeaf". `evaluateExtensionView` and `evaluatePortalView` now return a stable `deferredComponent` that evaluates the module on its first `useSyncExternalStore` subscription (commit phase); the result is still cached per key and source, and a compile error still becomes the fallback. Regression test in `evaluateExtensionView.test.tsx`.
+
 #### [9.136.1] — 2026-10-20
 
 - fix(schema): import cycle `portal.ts → mutationSpec.ts → pathResolver.ts → screenEntity.ts → portal.ts`, introduced in 9.136.0, threw `Cannot access 'PORTAL_USERS_COLLECTION' before initialization` when `portal.ts` loaded first — the app did not start, and the same chain would break the functions on a cold start. The portal collection names moved to the leaf module `portalCollections.ts` (re-exported by `portal.ts`), which `screenEntity.ts` imports directly. Regression test `portalCollections.test.ts` (Vitest silently left `undefined` in `RESERVED_COLLECTIONS` instead of throwing).
