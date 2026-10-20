@@ -20,11 +20,12 @@
 import { evaluateFieldBoolean, fieldExpressionSyntaxError } from './fieldExpression';
 import { RECORD_CREATED_VIA_FIELD } from './mutationSpec';
 
-export const PORTAL_USERS_COLLECTION = 'portalUsers';
-export const PORTAL_RECORDS_COLLECTION = 'portalRecords';
-export const PORTAL_DOCUMENTS_SUBCOLLECTION = 'documents';
-/** Coleção de RAIZ, só do servidor: a marca do convite que precisa existir antes da conta. */
-export const PORTAL_INVITES_COLLECTION = 'portalInvites';
+export {
+  PORTAL_DOCUMENTS_SUBCOLLECTION,
+  PORTAL_INVITES_COLLECTION,
+  PORTAL_RECORDS_COLLECTION,
+  PORTAL_USERS_COLLECTION,
+} from './portalCollections';
 
 /** Quantos saltos de referência separam um registro da tela-sujeito, no máximo. */
 export const PORTAL_SUBJECT_MAX_DEPTH = 3;

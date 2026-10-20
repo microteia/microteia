@@ -21,6 +21,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - A ordem das listas ficou estável: itens sem o campo de ordenação vão para o fim, e itens empatados aparecem sempre na mesma sequência, a cada geração.
 - Na tela de modelos de documento, cada lista ganhou a escolha de sentido (crescente ou decrescente) e o botão "Depois por", para acrescentar um critério de desempate.
 
+#### [9.136.1] — 2026-10-20
+
+- Corrigido um erro que impedia o sistema de abrir depois da última atualização.
+
 #### [9.136.0] — 2026-10-20
 
 - O convidado do portal pode corrigir registros, quando o escritório permitir — por exemplo, ajustar o valor de uma nota antes da análise.

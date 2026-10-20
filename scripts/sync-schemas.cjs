@@ -45,6 +45,7 @@ const SHARED_FILES = [
   'domain/schema/recordRules.ts',
   'domain/schema/recordKeys.ts',
   'domain/schema/portal.ts',
+  'domain/schema/portalCollections.ts',
   'domain/schema/portalExtensionPoints.ts',
   'domain/schema/plugin/codeTrust.ts',
   'domain/schema/aggregationSpec.ts',

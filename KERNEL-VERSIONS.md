@@ -32,6 +32,10 @@
 - feat(ui): the document template editor edits order keys per list (field, direction, "Then by", remove). One complete key is saved in the text form, so single-key templates are unchanged; two or more are saved as a list.
 - docs: AUTHORING §12 documents the list form and its tie-break; `examples/document-example` 1.2.0 (`kernel: '^2.58.0'`) adds an optional `dueTime` to the installment and orders the payment plan by `dueDate`, then `dueTime`. `com.microteia.locale-pt-br` 1.113.0.
 
+#### [9.136.1] — 2026-10-20
+
+- fix(schema): import cycle `portal.ts → mutationSpec.ts → pathResolver.ts → screenEntity.ts → portal.ts`, introduced in 9.136.0, threw `Cannot access 'PORTAL_USERS_COLLECTION' before initialization` when `portal.ts` loaded first — the app did not start, and the same chain would break the functions on a cold start. The portal collection names moved to the leaf module `portalCollections.ts` (re-exported by `portal.ts`), which `screenEntity.ts` imports directly. Regression test `portalCollections.test.ts` (Vitest silently left `undefined` in `RESERVED_COLLECTIONS` instead of throwing).
+
 #### [9.136.0] — 2026-10-20
 
 - feat(portal): guest edits. `PortalDeclaration.edit: { fields, when?, onlyOwn? }` — editable fields must also be exposed (`portalEditFieldKeys` drops the hidden ones and the link field); `when` is a field expression evaluated on the WHOLE record (`evaluatePortalCondition`, closed on error); `onlyOwn` limits edits to records created through the portal (`portalOwnerOf`: `createdVia == 'portal'`). Allowed on the `self` screen too. New declaration checks `portal.issue.edit.no-fields`, `.field.hidden`, `.when-invalid`. KERNEL_VERSION 2.57.0.
