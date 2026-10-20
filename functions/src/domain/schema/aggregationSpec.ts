@@ -14,8 +14,8 @@ import { evaluateFieldBoolean } from './fieldExpression';
 import type { AggregationOp, FieldAggregation, NumericAggregationOp } from './fieldRules';
 import { resolveWritableTable } from './mutationSpec';
 import type { SchemaContext } from './pathResolver';
-import { compareValues } from './predicateMatch';
 import type { QueryOrderBy } from './querySpec';
+import { deterministicRecordOrder } from './recordOrder';
 import { buildRecordFieldScope } from './recordRules';
 
 export interface AggregationTarget {
@@ -183,36 +183,6 @@ export interface AggregationChild {
  */
 export const AGGREGATION_ORDER_SYSTEM_KEYS: readonly string[] = ['createdAt', 'updatedAt'];
 
-const isEmptyOrderValue = (value: unknown): boolean =>
-  value === null
-  || value === undefined
-  || (typeof value === 'string' && value.trim() === '')
-  || (Array.isArray(value) && value.length === 0);
-
-/** O carimbo do Firestore chega como `Timestamp`; ordená-lo é ordenar o instante dele. */
-const asComparable = (value: unknown): unknown => {
-  if (value && typeof value === 'object' && typeof (value as { toDate?: unknown }).toDate === 'function') {
-    return (value as { toDate: () => Date }).toDate();
-  }
-  return value;
-};
-
-/**
- * Ordem entre dois valores de uma chave do `orderBy`, já na direção pedida. Vazio vai para o FIM nas
- * duas direções — um filho sem data não é nem o mais antigo nem o mais recente, e deixá-lo vencer um
- * `asc` faria o "primeiro" ser justamente o registro incompleto. Valores incomparáveis empatam e
- * passam para a chave seguinte.
- */
-const compareOrderValue = (left: unknown, right: unknown, dir: QueryOrderBy['dir']): number => {
-  const leftEmpty = isEmptyOrderValue(left);
-  const rightEmpty = isEmptyOrderValue(right);
-  if (leftEmpty || rightEmpty) return leftEmpty === rightEmpty ? 0 : leftEmpty ? 1 : -1;
-  const order = compareValues(asComparable(left), asComparable(right)) ?? 0;
-  return dir === 'desc' ? -order : order;
-};
-
-const compareIds = (left: string, right: string): number => (left < right ? -1 : left > right ? 1 : 0);
-
 /**
  * Ordena os filhos para o `latest`. O desempate é FIXO, para que o valor não mude de uma recomputação
  * para a outra só porque o banco devolveu os irmãos em outra ordem: depois das chaves declaradas vem
@@ -225,20 +195,11 @@ export const sortChildrenForLatest = (
   orderBy: readonly QueryOrderBy[],
   children: readonly AggregationChild[],
 ): AggregationChild[] => {
-  const tieDir = orderBy[orderBy.length - 1]?.dir ?? 'desc';
   const keyed = children.map((child) => ({
     child,
     scope: buildRecordFieldScope(ctx, childTable, child.data),
   }));
-  keyed.sort((left, right) => {
-    for (const order of orderBy) {
-      const result = compareOrderValue(left.scope[order.path], right.scope[order.path], order.dir);
-      if (result !== 0) return result;
-    }
-    const created = compareOrderValue(left.scope.createdAt, right.scope.createdAt, tieDir);
-    if (created !== 0) return created;
-    return compareIds(left.child.id, right.child.id);
-  });
+  keyed.sort(deterministicRecordOrder(orderBy, (entry, path) => entry.scope[path], (entry) => entry.child.id));
   return keyed.map((entry) => entry.child);
 };
 

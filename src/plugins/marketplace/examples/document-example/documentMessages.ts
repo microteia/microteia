@@ -28,6 +28,7 @@ export const DOCUMENT_MESSAGES: Record<string, string> = {
   'field.agreement': 'Agreement',
   'field.amount': 'Amount',
   'field.dueDate': 'Due date',
+  'field.dueTime': 'Due time',
   'field.paid': 'Paid',
   'field.paidOn': 'Paid on',
   'field.note': 'Note',

@@ -11,6 +11,12 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.137.0] — 2026-10-20
+
+- As listas de um modelo de documento agora podem ser ordenadas por mais de um campo — por exemplo, pela data e, no mesmo dia, pela hora. Um relatório de andamento passa a mostrar as movimentações de cada dia na ordem em que aconteceram, e o limite de itens sempre fica com as mais recentes.
+- A ordem das listas ficou estável: itens sem o campo de ordenação vão para o fim, e itens empatados aparecem sempre na mesma sequência, a cada geração.
+- Na tela de modelos de documento, cada lista ganhou a escolha de sentido (crescente ou decrescente) e o botão "Depois por", para acrescentar um critério de desempate.
+
 #### [9.136.0] — 2026-10-20
 
 - O convidado do portal pode corrigir registros, quando o escritório permitir — por exemplo, ajustar o valor de uma nota antes da análise.

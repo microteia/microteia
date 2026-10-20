@@ -30,6 +30,7 @@ import {
   DOCUMENT_OUTPUTS_BY_FORMAT,
   DOCUMENT_TEMPLATE_MAX_BYTES,
   DOCUMENT_BELONGS_TO_SINCE_KERNEL,
+  DOCUMENT_DATASET_ORDER_LIST_SINCE_KERNEL,
   DOCUMENT_DESTINATION_SINCE_KERNEL,
   DOCUMENT_PARAMETER_TYPES,
   DOCUMENT_PAYLOAD_MAX_BYTES,
@@ -2585,8 +2586,25 @@ grammar adds only what an expression cannot say: ${DOCUMENT_BLOCKS}.
 
 A loop repeats a list. A list field of the record works as is; records of ANOTHER screen that point
 here come from \`datasets\`, in the vocabulary of an aggregated field: \`from\` (the child screen), \`via\`
-(its reference field to this record), \`orderBy\`, \`direction\`, \`limit\` (at most 100 — more than that is
-a report, §11). Address \`from\` by \`fromSourceId\` for the same reason as the screen.
+(its reference field to this record), \`orderBy\`, \`limit\` (at most 100 — more than that is a report,
+§11). Address \`from\` by \`fromSourceId\` for the same reason as the screen.
+
+\`orderBy\` is one field with \`direction\` (\`orderBy: 'dueDate', direction: 'desc'\`), or a list of keys in the
+form of an aggregation's \`orderBy\` — the first decides, the next break ties:
+
+\`\`\`ts
+datasets: [{ name: 'movements', from: 'movement', fromSourceId: MOVEMENT_SOURCE, via: 'case',
+  orderBy: [{ path: 'date', dir: 'desc' }, { path: 'time', dir: 'desc' }], limit: 30 }]
+\`\`\`
+
+Use the list whenever the day and the time live in separate fields: ordering by the day alone leaves
+the records of one day in whatever order the database returns them, and with \`limit\` that order
+decides WHICH records make it into the document. Both forms end in the same fixed tie-break as
+\`latest\`: an empty key sorts last in both directions, then \`createdAt\` in the direction of the last
+key, then the document id. Each key is a field of the \`from\` screen (or \`createdAt\` / \`updatedAt\`),
+and \`validate_plugin\` checks it when that screen comes in your package. \`direction\` does not go
+with the list — each key carries its own \`dir\`.
+The list of keys requires kernel \`^${DOCUMENT_DATASET_ORDER_LIST_SINCE_KERNEL}\`; an older kernel would read it as a field name.
 
 ### Formats
 

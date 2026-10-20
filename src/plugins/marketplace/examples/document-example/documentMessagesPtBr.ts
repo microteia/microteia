@@ -24,6 +24,7 @@ const DOCUMENT_PT_BR: Record<string, string> = {
   'field.agreement': 'Acordo',
   'field.amount': 'Valor',
   'field.dueDate': 'Vencimento',
+  'field.dueTime': 'Hora do vencimento',
   'field.paid': 'Pago',
   'field.paidOn': 'Pago em',
   'field.note': 'Observação',

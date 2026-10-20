@@ -548,15 +548,38 @@ export const S = {
     gap: ${({ theme }) => theme.spacing.sm};
   `,
 
-  DatasetRow: styled.div`
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)) auto;
-    align-items: end;
+  Dataset: styled.div`
+    display: flex;
+    flex-direction: column;
     gap: ${({ theme }) => theme.spacing.sm};
     padding: ${({ theme }) => theme.spacing.md};
     border: 1px solid ${({ theme }) => theme.colors.borderSubtle};
     border-radius: ${({ theme }) => theme.borderRadius.md};
     background: ${({ theme }) => theme.colors.background};
+  `,
+
+  DatasetRow: styled.div`
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)) auto;
+    align-items: end;
+    gap: ${({ theme }) => theme.spacing.sm};
+  `,
+
+  OrderList: styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: ${({ theme }) => theme.spacing.xs};
+  `,
+
+  OrderKey: styled.div`
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) auto;
+    align-items: center;
+    gap: ${({ theme }) => theme.spacing.sm};
+  `,
+
+  OrderAdd: styled.div`
+    display: flex;
   `,
 
   HiddenFile: styled.input`

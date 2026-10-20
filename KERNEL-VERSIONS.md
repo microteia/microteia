@@ -18,6 +18,15 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.137.0] — 2026-10-20
+
+- feat(documents): `DocumentTemplateDataset.orderBy` also accepts a list of `{ path, dir }` keys — the shape of `aggregation.orderBy` — next to the existing text form with `direction`. `datasetOrder` normalizes both; `datasetOrderIssues` (run by `documentTemplateIssues`) refuses an empty list, a key without path or with a `dir` other than `asc`/`desc`, `direction` together with the list, and an `orderBy` that is neither text nor list (`template.dataset.order.*`). `DOCUMENT_DATASET_ORDER_LIST_SINCE_KERNEL` 2.58.0; KERNEL_VERSION 2.58.0.
+- feat(documents): dataset children are sorted with the `latest` tie-break in both forms — empty key last in both directions, then `createdAt` in the direction of the last key, then document id — so `limit` no longer picks records by database order. The comparator moved to `domain/schema/recordOrder.ts` (`deterministicRecordOrder`), shared by `sortChildrenForLatest`. `runRecordQuery` gains an opt-in `RecordQueryOptions.deterministicOrder`, used only by `WorkflowDocumentRecordReader.children`; automations and Script keep their ordering unchanged. Sorting stays in memory over the equality scan: no composite index, no extra reads.
+- feat(marketplace): package gate `packageDocumentTemplateIssues` — each order key must be a field of the `from` screen (or `createdAt`/`updatedAt`) when that screen ships in the package (`issue.document.order.unknown`), the list shape is checked (`issue.document.order.invalid`), and a package using the list must declare `kernel` from 2.58.0 (`issue.document.order.kernel`), so an older kernel refuses it instead of failing at generation.
+- feat(agent): `save_document_template` takes `orderBy` as text or list (the schema no longer types it as string), and `datasetsFromAgent` keeps the list instead of dropping it — a template read and saved back by an agent kept no order before.
+- feat(ui): the document template editor edits order keys per list (field, direction, "Then by", remove). One complete key is saved in the text form, so single-key templates are unchanged; two or more are saved as a list.
+- docs: AUTHORING §12 documents the list form and its tie-break; `examples/document-example` 1.2.0 (`kernel: '^2.58.0'`) adds an optional `dueTime` to the installment and orders the payment plan by `dueDate`, then `dueTime`. `com.microteia.locale-pt-br` 1.113.0.
+
 #### [9.136.0] — 2026-10-20
 
 - feat(portal): guest edits. `PortalDeclaration.edit: { fields, when?, onlyOwn? }` — editable fields must also be exposed (`portalEditFieldKeys` drops the hidden ones and the link field); `when` is a field expression evaluated on the WHOLE record (`evaluatePortalCondition`, closed on error); `onlyOwn` limits edits to records created through the portal (`portalOwnerOf`: `createdVia == 'portal'`). Allowed on the `self` screen too. New declaration checks `portal.issue.edit.no-fields`, `.field.hidden`, `.when-invalid`. KERNEL_VERSION 2.57.0.

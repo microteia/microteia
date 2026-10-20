@@ -10,6 +10,7 @@ import {
   RiEyeOffLine,
   RiFileCopyLine,
   RiBracesLine,
+  RiCloseLine,
   RiFileList3Line,
   RiFileSearchLine,
   RiFileTextLine,
@@ -456,44 +457,70 @@ export const DocumentTemplatesView: React.FC = () => {
                   {(vm.form.datasets ?? []).length > 0 && (
                     <S.DatasetList>
                       {(vm.form.datasets ?? []).map((dataset, index) => (
-                        <S.DatasetRow key={index}>
-                          <S.Field>
-                            <Label>{t('dataset.name')}</Label>
-                            <Input value={dataset.name} disabled={vm.isReadOnly} onChange={(e) => vm.updateDataset(index, { name: e.target.value })} />
-                          </S.Field>
-                          <S.Field>
-                            <Label>{t('dataset.from')}</Label>
-                            <SearchSelect
-                              options={vm.childScreenOptions}
-                              value={dataset.from}
-                              disabled={vm.isReadOnly}
-                              onChange={(from) => vm.updateDataset(index, { from, via: '', orderBy: undefined })}
-                            />
-                          </S.Field>
-                          <S.Field>
-                            <Label>{t('dataset.via')}</Label>
-                            <SearchSelect
-                              options={vm.datasetOptions[index]?.via ?? []}
-                              value={dataset.via}
-                              disabled={vm.isReadOnly}
-                              onChange={(via) => vm.updateDataset(index, { via })}
-                            />
-                          </S.Field>
+                        <S.Dataset key={index}>
+                          <S.DatasetRow>
+                            <S.Field>
+                              <Label>{t('dataset.name')}</Label>
+                              <Input value={dataset.name} disabled={vm.isReadOnly} onChange={(e) => vm.updateDataset(index, { name: e.target.value })} />
+                            </S.Field>
+                            <S.Field>
+                              <Label>{t('dataset.from')}</Label>
+                              <SearchSelect
+                                options={vm.childScreenOptions}
+                                value={dataset.from}
+                                disabled={vm.isReadOnly}
+                                onChange={(from) => vm.updateDataset(index, { from, via: '', orderBy: undefined, direction: undefined })}
+                              />
+                            </S.Field>
+                            <S.Field>
+                              <Label>{t('dataset.via')}</Label>
+                              <SearchSelect
+                                options={vm.datasetOptions[index]?.via ?? []}
+                                value={dataset.via}
+                                disabled={vm.isReadOnly}
+                                onChange={(via) => vm.updateDataset(index, { via })}
+                              />
+                            </S.Field>
+                            {!vm.isReadOnly && (
+                              <S.DangerAction variant="ghost" size="sm" title={t('dataset.remove')} onClick={() => vm.removeDataset(index)}>
+                                <RiDeleteBinLine size={14} />
+                              </S.DangerAction>
+                            )}
+                          </S.DatasetRow>
                           <S.Field>
                             <Label>{t('dataset.order-by')}</Label>
-                            <SearchSelect
-                              options={vm.datasetOptions[index]?.orderBy ?? []}
-                              value={dataset.orderBy ?? ''}
-                              disabled={vm.isReadOnly}
-                              onChange={(orderBy) => vm.updateDataset(index, { orderBy: orderBy || undefined })}
-                            />
+                            <S.OrderList>
+                              {(vm.datasetOptions[index]?.order ?? []).map((order, position) => (
+                                <S.OrderKey key={position}>
+                                  <SearchSelect
+                                    options={vm.datasetOptions[index]?.orderBy ?? []}
+                                    value={order.path}
+                                    disabled={vm.isReadOnly}
+                                    onChange={(path) => vm.updateOrderKey(index, position, { path })}
+                                  />
+                                  <SearchSelect
+                                    options={vm.orderDirectionOptions}
+                                    value={order.dir}
+                                    disabled={vm.isReadOnly}
+                                    onChange={(dir) => vm.updateOrderKey(index, position, { dir: dir === 'desc' ? 'desc' : 'asc' })}
+                                  />
+                                  {!vm.isReadOnly && (
+                                    <S.DangerAction variant="ghost" size="sm" title={t('dataset.order.remove')} onClick={() => vm.removeOrderKey(index, position)}>
+                                      <RiCloseLine size={14} />
+                                    </S.DangerAction>
+                                  )}
+                                </S.OrderKey>
+                              ))}
+                              {!vm.isReadOnly && (
+                                <S.OrderAdd>
+                                  <Button variant="ghost" size="sm" onClick={() => vm.addOrderKey(index)}>
+                                    <RiAddLine size={14} /> {t((vm.datasetOptions[index]?.order ?? []).length > 0 ? 'dataset.order.then' : 'dataset.order.add')}
+                                  </Button>
+                                </S.OrderAdd>
+                              )}
+                            </S.OrderList>
                           </S.Field>
-                          {!vm.isReadOnly && (
-                            <S.DangerAction variant="ghost" size="sm" title={t('dataset.remove')} onClick={() => vm.removeDataset(index)}>
-                              <RiDeleteBinLine size={14} />
-                            </S.DangerAction>
-                          )}
-                        </S.DatasetRow>
+                        </S.Dataset>
                       ))}
                     </S.DatasetList>
                   )}

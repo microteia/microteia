@@ -11,6 +11,7 @@ import { contentFingerprint } from '../contentFingerprint';
 import type { DocumentDestination } from './documentDownloads';
 import { DOWNLOAD_RETENTION_MAX_DAYS, isDocumentDestination, isRetentionDays } from './documentDownloads';
 import type { WorkflowParameter, WorkflowParameterType } from '../../entities/Workflow';
+import type { QueryOrderBy } from '../querySpec';
 
 /**
  * O modelo de documento — procuração, contrato, recibo, notificação — como DADO.
@@ -73,7 +74,13 @@ export interface DocumentTemplateDataset {
   fromSourceId?: string;
   /** O campo de referência, no filho, que aponta para o registro do documento. */
   via: string;
-  orderBy?: string;
+  /**
+   * A ordem dos itens. Em texto, uma chave só, no sentido de `direction`; em lista, `{ path, dir }`
+   * como o `aggregation.orderBy` — a primeira chave decide, as seguintes desempatam. As duas formas
+   * terminam no mesmo desempate fixo do `latest` (ver `datasetOrder`).
+   */
+  orderBy?: string | QueryOrderBy[];
+  /** O sentido do `orderBy` em TEXTO. Com a lista, cada chave traz o seu `dir`. */
   direction?: 'asc' | 'desc';
   limit?: number;
 }
@@ -164,6 +171,13 @@ export const DOCUMENT_TEMPLATES_COLLECTION = 'documentTemplates';
 /** O kernel que entende `document.template`. Um pacote que o contribui declara `kernel: '^<esta>'`. */
 export const DOCUMENT_TEMPLATE_SINCE_KERNEL = '2.36.0';
 
+/**
+ * O kernel que entende o `orderBy` de um dataset em LISTA. Um anterior lê a lista como se fosse o nome
+ * de um campo e a geração falha — por isso o pacote que a usa declara `kernel` a partir desta, e o
+ * kernel antigo recusa a instalação pelo intervalo.
+ */
+export const DOCUMENT_DATASET_ORDER_LIST_SINCE_KERNEL = '2.58.0';
+
 /** O kernel que entende `source: 'payload'`, `parameters` e `sample`. Um anterior descarta o modelo sem tela. */
 export const DOCUMENT_PAYLOAD_SINCE_KERNEL = '2.48.0';
 
@@ -185,6 +199,56 @@ export const DOCUMENT_TEMPLATE_KEY_PATTERN = /^[a-z][a-z0-9-]*$/;
 export const DOCUMENT_TEMPLATE_KEY_MAX_LENGTH = 60;
 
 const IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/;
+
+const ORDER_DIRECTIONS: readonly QueryOrderBy['dir'][] = ['asc', 'desc'];
+
+/**
+ * A ordem do dataset como LISTA, qualquer que seja a forma declarada: o texto vira uma chave no
+ * sentido de `direction` (crescente quando ausente). Sem ordem, lista vazia — e a geração não ordena.
+ */
+export const datasetOrder = (dataset: Pick<DocumentTemplateDataset, 'orderBy' | 'direction'>): QueryOrderBy[] => {
+  const { orderBy } = dataset;
+  if (typeof orderBy === 'string') {
+    const path = orderBy.trim();
+    return path ? [{ path, dir: dataset.direction === 'desc' ? 'desc' : 'asc' }] : [];
+  }
+  if (!Array.isArray(orderBy)) return [];
+  return orderBy.map((order) => ({ path: String(order?.path ?? '').trim(), dir: order?.dir }));
+};
+
+/** O dataset ordena pela forma em LISTA — a que exige `DOCUMENT_DATASET_ORDER_LIST_SINCE_KERNEL`. */
+export const usesDatasetOrderList = (dataset: Pick<DocumentTemplateDataset, 'orderBy'> | null | undefined): boolean =>
+  Array.isArray(dataset?.orderBy);
+
+/**
+ * A FORMA da ordem de um dataset. A forma em texto continua aceita como sempre foi; a lista precisa
+ * de ao menos uma chave, cada uma com caminho e sentido, e não convive com `direction` — que diria um
+ * sentido para todas e contradiria o `dir` de cada uma.
+ */
+export const datasetOrderIssues = (
+  dataset: Pick<DocumentTemplateDataset, 'orderBy' | 'direction'>,
+  field: string,
+): DocumentTemplateIssue[] => {
+  const { orderBy } = dataset;
+  if (orderBy === undefined || orderBy === null || typeof orderBy === 'string') return [];
+  if (!Array.isArray(orderBy)) return [{ field, error: '@core.documents/template.dataset.order.invalid' }];
+  const issues: DocumentTemplateIssue[] = [];
+  if (orderBy.length === 0) issues.push({ field, error: '@core.documents/template.dataset.order.empty' });
+  orderBy.forEach((order, index) => {
+    const path = typeof order?.path === 'string' ? order.path.trim() : '';
+    if (!path || !ORDER_DIRECTIONS.includes(order?.dir)) {
+      issues.push({
+        field,
+        error: '@core.documents/template.dataset.order.key.invalid',
+        errorParams: { position: String(index + 1), path, dir: String(order?.dir ?? '') },
+      });
+    }
+  });
+  if (dataset.direction !== undefined) {
+    issues.push({ field, error: '@core.documents/template.dataset.order.direction' });
+  }
+  return issues;
+};
 
 const BASE64 = /^[A-Za-z0-9+/]+={0,2}$/;
 
@@ -358,6 +422,7 @@ export const documentTemplateIssues = (spec: Partial<DocumentTemplateSpec>): Doc
     if ((!dataset?.from?.trim() && !dataset?.fromSourceId?.trim()) || !dataset?.via?.trim()) {
       push(field, '@core.documents/template.dataset.source.missing');
     }
+    if (dataset) issues.push(...datasetOrderIssues(dataset, field));
   });
 
   return issues;

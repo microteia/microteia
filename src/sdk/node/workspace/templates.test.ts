@@ -4,6 +4,7 @@ import {
   DOCUMENT_TEMPLATE_MAX_BYTES,
   DOCUMENT_TEMPLATE_SINCE_KERNEL,
   DOCUMENT_DESTINATION_SINCE_KERNEL,
+  DOCUMENT_DATASET_ORDER_LIST_SINCE_KERNEL,
   DOWNLOAD_RETENTION_MAX_DAYS,
   DOCUMENT_PARAMETER_TYPES,
   DOCUMENT_PAYLOAD_SINCE_KERNEL,
@@ -939,6 +940,7 @@ describe('a seção de documentos', () => {
     expect(guide).toContain(`Requires kernel \`^${DOCUMENT_PAYLOAD_SINCE_KERNEL}\`; an older kernel finds no screen`);
     for (const type of DOCUMENT_PARAMETER_TYPES) expect(guide).toContain(`\`${type}\``);
     expect(guide).toContain(`\`belongsTo\` requires kernel \`^${DOCUMENT_BELONGS_TO_SINCE_KERNEL}\``);
+    expect(guide).toContain(`The list of keys requires kernel \`^${DOCUMENT_DATASET_ORDER_LIST_SINCE_KERNEL}\``);
   });
 
   it('ensina o prefixo, com a versão do kernel derivada', () => {

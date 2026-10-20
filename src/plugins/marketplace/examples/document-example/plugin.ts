@@ -52,14 +52,15 @@ const AGREEMENT_SCREEN: ScreenModuleTemplate = {
 const INSTALLMENT_FIELDS: TemplateField[] = [
   { key: 'agreement', label: message('field.agreement'), type: 'reference', required: true, order: 0, refEntity: 'docAgreement' },
   { key: 'dueDate', label: message('field.dueDate'), type: 'date', required: true, order: 1 },
-  { key: 'amount', label: message('field.amount'), type: 'currency', required: true, order: 2 },
-  { key: 'paid', label: message('field.paid'), type: 'checkbox', required: false, order: 3 },
+  { key: 'dueTime', label: message('field.dueTime'), type: 'time', required: false, order: 2 },
+  { key: 'amount', label: message('field.amount'), type: 'currency', required: true, order: 3 },
+  { key: 'paid', label: message('field.paid'), type: 'checkbox', required: false, order: 4 },
 ];
 
 const INSTALLMENT_SCREEN: ScreenModuleTemplate = {
   key: 'docInstallment',
   sourceId: INSTALLMENT_SOURCE_ID,
-  sourceRev: 1,
+  sourceRev: 2,
   titleSingular: message('screen.installment'),
   titlePlural: message('screen.installment.plural'),
   icon: 'bank',
@@ -86,7 +87,7 @@ const PAYMENT_PLAN = `# Payment plan
 
 | # | Due date | Amount | |
 |---|---|--:|---|
-{{#each installments}}| {{index}} | {{formatDate(dueDate, "DD/MM/YYYY")}} | {{formatMoney(amount)}} | {{#if paid}}paid{{/if}} |
+{{#each installments}}| {{index}} | {{formatDate(dueDate, "DD/MM/YYYY")}}{{#if dueTime}} {{dueTime}}{{/if}} | {{formatMoney(amount)}} | {{#if paid}}paid{{/if}} |
 {{/each}}
 
 **Total:** {{formatMoney(total)}}
@@ -158,8 +159,8 @@ const WORKFLOWS: WorkflowModuleTemplate[] = [
 export const documentExamplePlugin: MarketplacePlugin = {
   manifest: {
     id: 'com.microteia.document-example',
-    version: '1.1.0',
-    kernel: '^2.49.0',
+    version: '1.2.0',
+    kernel: '^2.58.0',
     name: message('package.name'),
     description: message('package.description'),
     category: message('package.category'),
@@ -184,7 +185,13 @@ export const documentExamplePlugin: MarketplacePlugin = {
           from: 'docInstallment',
           fromSourceId: INSTALLMENT_SOURCE_ID,
           via: 'agreement',
-          orderBy: 'dueDate',
+          /**
+           * Day and time live in two fields, so the order is a LIST of keys: the first decides, the
+           * next breaks ties. Ordering by `dueDate` alone would leave two installments due the same
+           * day in whatever order the database returned them — and with `limit`, that order decides
+           * which ones make it in. A list of keys needs kernel 2.58.0, hence the `kernel` above.
+           */
+          orderBy: [{ path: 'dueDate', dir: 'asc' }, { path: 'dueTime', dir: 'asc' }],
         }],
       }),
       documentTemplateContribution({

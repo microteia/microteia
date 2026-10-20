@@ -51,6 +51,7 @@ const SHARED_FILES = [
   'domain/schema/aggregateBackfill.ts',
   'domain/schema/recordKeyAdoption.ts',
   'domain/schema/predicateMatch.ts',
+  'domain/schema/recordOrder.ts',
   'domain/schema/parameterRules.ts',
   'domain/schema/validateSpec.ts',
   'domain/schema/mapSpec.ts',

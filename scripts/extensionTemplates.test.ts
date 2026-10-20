@@ -112,7 +112,7 @@ describe('pacotes distribuíveis das extensões de primeira parte', () => {
  * avisou".
  */
 const VERSAO_CONFERIDA: Record<string, { version: string; fingerprint: string }> = {
-  'com.microteia.locale-pt-br': { version: '1.112.0', fingerprint: 'ccbfa3715ef7' },
+  'com.microteia.locale-pt-br': { version: '1.113.0', fingerprint: '6e227ef22b9a' },
   'com.microteia.agent': { version: '1.2.0', fingerprint: 'b94b8d0f7e84' },
   'com.microteia.brasil': { version: '1.2.0', fingerprint: '42cba93caba7' },
   'com.microteia.dashboard': { version: '1.3.0', fingerprint: '3f24844aa47f' },
