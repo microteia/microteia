@@ -92,7 +92,7 @@ export const portalExamplePlugin: MarketplacePlugin = {
   manifest: {
     id: 'com.microteia.portal-example',
     version: '1.1.0',
-    kernel: '^2.54.0',
+    kernel: '^2.55.0',
     name: message('package.name'),
     description: message('package.description'),
     category: message('package.category'),

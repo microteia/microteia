@@ -990,7 +990,7 @@ A navegação (`PortalNavigationProvider`) mora num contexto, e não no ViewMode
 navega também: `usePortalNavigation()` abre, volta e cria na mesma pilha que a casca mostra. O "Voltar"
 em volta da view de detalhe é da casca. `examples/portal-example` é o molde.
 
-`portal.view` move o `KERNEL_VERSION` (2.53.0): é ponto novo que o pacote instalado contribui.
+`portal.view` move o `KERNEL_VERSION` (2.54.0): é ponto novo que o pacote instalado contribui.
 
 ### A home e o menu do portal
 

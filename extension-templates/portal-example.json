@@ -2,7 +2,7 @@
   "manifest": {
     "id": "com.microteia.portal-example",
     "version": "1.1.0",
-    "kernel": "^2.54.0",
+    "kernel": "^2.55.0",
     "name": "@com.microteia.portal-example/package.name",
     "description": "@com.microteia.portal-example/package.description",
     "category": "@com.microteia.portal-example/package.category",
