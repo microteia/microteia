@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.137.1] — 2026-10-20
+
+- A publicação de novas versões do sistema ficou bem mais rápida e não trava mais esperando uma confirmação que ninguém pode dar; o que falha é tentado de novo automaticamente, sem atrasar o resto.
+
 #### [9.137.0] — 2026-10-20
 
 - As listas de um modelo de documento agora podem ser ordenadas por mais de um campo — por exemplo, pela data e, no mesmo dia, pela hora. Um relatório de andamento passa a mostrar as movimentações de cada dia na ordem em que aconteceram, e o limite de itens sempre fica com as mais recentes.

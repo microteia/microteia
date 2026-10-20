@@ -18,6 +18,11 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.137.1] — 2026-10-20
+
+- fix(scripts/deploy-functions-individually): build the functions once and deploy each one with a temporary `firebase.json` that drops the functions `predeploy` — every `firebase deploy` used to recompile the whole backend, ~60 times per run, which stretched a full deploy into hours.
+- fix(scripts/deploy-functions-individually): failed functions go to the end of the queue and passes repeat until all are up or each failure reaches `--attempts` (default 5); deploys run with `--non-interactive`, closed stdin and a per-deploy `--timeout`, so a Firebase CLI prompt is refused at once instead of hanging, and known refusals are not retried. The failure reason is printed as it happens and saved to `.deploy-log.json`.
+
 #### [9.137.0] — 2026-10-20
 
 - feat(documents): `DocumentTemplateDataset.orderBy` also accepts a list of `{ path, dir }` keys — the shape of `aggregation.orderBy` — next to the existing text form with `direction`. `datasetOrder` normalizes both; `datasetOrderIssues` (run by `documentTemplateIssues`) refuses an empty list, a key without path or with a `dir` other than `asc`/`desc`, `direction` together with the list, and an `orderBy` that is neither text nor list (`template.dataset.order.*`). `DOCUMENT_DATASET_ORDER_LIST_SINCE_KERNEL` 2.58.0; KERNEL_VERSION 2.58.0.
