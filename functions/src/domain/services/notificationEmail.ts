@@ -1,44 +1,48 @@
 import type { EmailMessage } from '../repositories/INotificationDelivery';
+import {
+  buildNotificationEmailHtml,
+  buildNotificationEmailText,
+  DEFAULT_NOTIFICATION_EMAIL_LAYOUT,
+  type NotificationEmailLayout,
+} from '../schema/notificationTemplate';
 
 export interface NotificationEmailContent {
   to: string;
   title: string;
+  /** Markdown seguro: o que veio de registro já chega escapado (`escapeMarkdown`). */
   message: string;
   linkUrl: string;
   linkLabel: string;
   footer: string;
+  tenantName?: string;
+  logoURL?: string | null;
+  layout?: NotificationEmailLayout;
 }
-
-const escapeHtml = (value: string): string =>
-  value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-
-const paragraphs = (value: string): string =>
-  value
-    .split(/\n{2,}/)
-    .map((block) => `<p>${escapeHtml(block).replace(/\n/g, '<br>')}</p>`)
-    .join('');
 
 /** Uma linha de cabeçalho não pode carregar quebra: seria a porta de injeção de cabeçalho no SMTP. */
 const singleLine = (value: string): string => value.replace(/[\r\n]+/g, ' ').trim();
 
 /**
- * O e-mail de uma notificação, em texto e em HTML. Tudo o que vem do fluxo é ESCAPADO: o título e a
- * mensagem podem carregar valor de registro, e um registro é escrito por qualquer membro.
+ * O e-mail de uma notificação, em texto e em HTML, com o LAYOUT do escritório (logo, cor, assinatura,
+ * rodapé). O HTML sai de `buildNotificationEmailHtml` — o mesmo que a pré-visualização da tela monta.
+ * O cabeçalho não carrega quebra de linha: seria a porta de injeção de cabeçalho no SMTP.
  */
 export const renderNotificationEmail = (content: NotificationEmailContent): EmailMessage => {
-  const link = content.linkUrl
-    ? `<p><a href="${escapeHtml(content.linkUrl)}">${escapeHtml(content.linkLabel)}</a></p>`
-    : '';
+  const parts = {
+    title: singleLine(content.title),
+    body: content.message,
+    linkUrl: content.linkUrl,
+    linkLabel: content.linkLabel,
+    footer: content.footer,
+    tenantName: content.tenantName ?? '',
+    logoURL: content.logoURL ?? null,
+    layout: content.layout ?? DEFAULT_NOTIFICATION_EMAIL_LAYOUT,
+  };
   return {
     to: singleLine(content.to),
-    subject: singleLine(content.title),
-    text: [content.message, content.linkUrl, content.footer].filter(Boolean).join('\n\n'),
-    html: `<div>${paragraphs(content.message)}${link}<hr><p><small>${escapeHtml(content.footer)}</small></p></div>`,
+    subject: parts.title,
+    text: buildNotificationEmailText(parts),
+    html: buildNotificationEmailHtml(parts),
   };
 };
 

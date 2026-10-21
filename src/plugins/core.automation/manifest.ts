@@ -76,6 +76,7 @@ export const coreAutomationPlugin: PluginRecord = {
         title: '@core.records/portal.activity.category',
         description: '@core.records/portal.activity.category.description',
         icon: 'team',
+        variables: ['guest', 'screen', 'record'],
       }),
       page({ key: NOTIFICATIONS_PAGE_KEY, title: '@core.automation/page.notifications', icon: 'notification' }, 'NotificationsView'),
       settingsSection({

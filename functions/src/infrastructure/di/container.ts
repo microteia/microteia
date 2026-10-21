@@ -126,6 +126,7 @@ import type { RecordKeyAdoptionDeps } from '../../domain/services/recordKeyAdopt
 import { FirebaseRecordKeyAdoptionRepository } from '../../data/repositories/FirebaseRecordKeyAdoptionRepository';
 import { tenantTimeZone } from '../settings/tenantTimeZone';
 import {
+  FirestoreNotificationAppearance,
   FirestoreNotificationDirectory,
   FirestoreNotificationDispatchLog,
   FirestoreNotificationEmailConfigRepository,
@@ -708,6 +709,7 @@ class DIContainer {
         push: new StandardWebPushSender(getDb(), this.getVapidKeyStore(), webPushSubject),
         catalog: makeNotificationTextCatalog(this.getInstalledExtensionCache()),
         dispatches: new FirestoreNotificationDispatchLog(getDb()),
+        appearance: new FirestoreNotificationAppearance(getDb()),
         tenantName: async (tenantId) => (await this.getTenantRepository().getById(tenantId))?.name ?? '',
         now: () => new Date(),
       });

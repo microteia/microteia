@@ -35,6 +35,11 @@ const setup = (members: NotificationRecipient[], extra: Partial<DispatchNotifica
   const sent: EmailMessage[] = [];
   const pushed = new Map<string, unknown>();
   const claimed = new Set<string>();
+  const look: Awaited<ReturnType<DispatchNotificationDeps['appearance']['get']>> = {
+    layout: { showLogo: true, accentColor: '', signature: '', footer: '' },
+    templates: {},
+    logoURL: null,
+  };
   const deps: DispatchNotificationDeps = {
     createAuditLog: { execute: audit },
     directory: {
@@ -57,12 +62,13 @@ const setup = (members: NotificationRecipient[], extra: Partial<DispatchNotifica
       },
     },
     catalog: { resolverFor: async (_tenantId, locale) => (value, params) => `${locale}:${value}:${params.name ?? ''}` },
+    appearance: { get: async () => look },
     dispatches: { claim: async (_tenantId, id) => { if (claimed.has(id)) return false; claimed.add(id); return true; } },
     tenantName: async () => 'Acme',
     now: () => new Date('2026-10-13T12:00:00Z'),
     ...extra,
   };
-  return { uc: makeDispatchNotificationUseCase(deps), audit, delivered, sent, pushed };
+  return { uc: makeDispatchNotificationUseCase(deps), audit, delivered, sent, pushed, look };
 };
 
 describe('DispatchNotificationUseCase', () => {
@@ -229,4 +235,46 @@ describe('DispatchNotificationUseCase', () => {
     expect(sent).toHaveLength(1);
     expect(again.issues.map((issue) => issue.message)).toEqual(['@core.automation/step.notify.duplicate']);
   });
+
+  it('o modelo do tipo vale por canal, e o valor de registro entra escapado no Markdown do e-mail', async () => {
+    const { uc, look, sent, pushed, delivered } = setup([recipient('u1', { locale: 'pt-BR' })]);
+    look.templates = {
+      'ext/order': {
+        email: { subject: 'Pedido de {name}', body: '**Olá**, {name} mandou: {message}' },
+        push: { title: 'Pedido', body: 'de {name}' },
+        inApp: { title: '{name} pediu', message: 'no escritório {tenant}' },
+      },
+    };
+    look.layout = { showLogo: true, accentColor: '#ff0000', signature: '*Equipe*', footer: 'Rodapé de {tenant}' };
+    await uc.execute(request({
+      category: 'ext/order',
+      params: { name: '[clique](https://evil.test)' },
+      channels: { audit: false, inApp: true, email: true, push: true },
+      recipientIds: ['u1'],
+    }));
+    expect(sent[0].subject).toBe('Pedido de [clique](https://evil.test)');
+    expect(sent[0].html).toContain('<strong>Olá</strong>');
+    expect(sent[0].html).not.toContain('href="https://evil.test"');
+    expect(sent[0].html).toContain('#ff0000');
+    expect(sent[0].html).toContain('<em>Equipe</em>');
+    expect(sent[0].html).toContain('Rodapé de Acme');
+    expect(pushed.get('u1')).toMatchObject({ title: 'Pedido', body: 'de [clique](https://evil.test)' });
+    expect(delivered[0]).toMatchObject({ title: '[clique](https://evil.test) pediu', message: 'no escritório Acme', params: {} });
+  });
+
+  it('sem modelo do tipo, vale o Geral; sem nenhum, o texto de sempre', async () => {
+    const { uc, look, sent, delivered } = setup([recipient('u1')]);
+    look.templates = { '': { email: { subject: 'Aviso: {title}', body: '{message}' } } };
+    await uc.execute(request({ category: 'ext/none', channels: { audit: false, inApp: true, email: true, push: false }, recipientIds: ['u1'] }));
+    expect(sent[0].subject).toBe('Aviso: en:@ext/title:Ana');
+    expect(delivered[0]).toMatchObject({ title: '@ext/title', params: { name: 'Ana' } });
+  });
+
+  it('a aparência que não pode ser lida não impede o aviso', async () => {
+    const { uc, sent } = setup([recipient('u1')], { appearance: { get: async () => { throw new Error('down'); } } });
+    const result = await uc.execute(request({ channels: { audit: false, inApp: false, email: true, push: false }, recipientIds: ['u1'] }));
+    expect(result.delivered.email).toBe(1);
+    expect(sent[0].subject).toBe('en:@ext/title:Ana');
+  });
 });
+

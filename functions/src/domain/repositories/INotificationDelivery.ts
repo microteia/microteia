@@ -5,6 +5,7 @@ import type {
   PersonalNotificationChannel,
   WebPushPayload,
 } from '../schema/notifications';
+import type { NotificationEmailLayout, NotificationTemplates } from '../schema/notificationTemplate';
 
 /** Um destinatário já conferido: é membro do escritório, e as preferências e o idioma são os dele. */
 export interface NotificationRecipient {
@@ -25,6 +26,11 @@ export interface INotificationDirectory {
   recipients(tenantId: string, userIds: readonly string[]): Promise<NotificationRecipient[]>;
   /** Os membros com a permissão, ou com o curinga do dono — a mesma pergunta das Security Rules. */
   memberIdsGranting(tenantId: string, permission: string, limit: number): Promise<string[]>;
+}
+
+/** O que o escritório escolheu para a cara dos avisos — ver `notificationTemplate.ts`. */
+export interface INotificationAppearance {
+  get(tenantId: string): Promise<{ layout: NotificationEmailLayout; templates: NotificationTemplates; logoURL: string | null }>;
 }
 
 /** As marcas de despacho já feito. `claim` devolve `false` quando a chave já foi usada. */

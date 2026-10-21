@@ -1,6 +1,7 @@
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 import type { Firestore } from 'firebase-admin/firestore';
 import type {
+  INotificationAppearance,
   INotificationDirectory,
   INotificationDispatchLog,
   INotificationEmailConfigRepository,
@@ -20,6 +21,12 @@ import {
   notificationChannelProperty,
 } from '../../domain/schema/notifications';
 import { resolveSetting } from '../../domain/schema/settings';
+import {
+  asNotificationEmailLayout,
+  asNotificationTemplates,
+  NOTIFICATION_EMAIL_LAYOUT_SETTING,
+  NOTIFICATION_TEMPLATES_SETTING,
+} from '../../domain/schema/notificationTemplate';
 import { UNRESTRICTED_PERMISSION } from '../../domain/schema/access';
 import { preferredLocale, settingsValuesOf } from '../../domain/services/tenantSettings';
 
@@ -79,6 +86,23 @@ export class FirestoreNotificationDirectory implements INotificationDirectory {
     // Security Rules. A conferência de que ele é membro fica com `recipients`.
     if (typeof ownerId === 'string' && ownerId && !ids.includes(ownerId)) ids.push(ownerId);
     return ids;
+  }
+}
+
+/** A cara dos avisos: o que o escritório gravou nas configurações dele, e o logo do escritório. */
+export class FirestoreNotificationAppearance implements INotificationAppearance {
+  constructor(private readonly db: Firestore) {}
+
+  async get(tenantId: string) {
+    const tenantRef = this.db.collection('tenants').doc(tenantId);
+    const [office, tenant] = await Promise.all([tenantRef.collection('settings').doc('tenant').get(), tenantRef.get()]);
+    const values = settingsValuesOf(office.data());
+    const logoURL = tenant.data()?.logoURL;
+    return {
+      layout: asNotificationEmailLayout(values[NOTIFICATION_EMAIL_LAYOUT_SETTING]),
+      templates: asNotificationTemplates(values[NOTIFICATION_TEMPLATES_SETTING]),
+      logoURL: typeof logoURL === 'string' && logoURL ? logoURL : null,
+    };
   }
 }
 

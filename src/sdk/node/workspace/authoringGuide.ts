@@ -617,11 +617,14 @@ cannot find in your package, in a dependency authored beside it, or in the insta
 
 ### Notification types
 
-\`notificationCategory({ key, title, description?, icon? })\` declares a TYPE of notice your package sends —
+\`notificationCategory({ key, title, description?, icon?, variables? })\` declares a TYPE of notice your package sends —
 "deadline approaching", "contract ending". It is data only. A \`notify\` step that sets
 \`category: '<package id>/<key>'\` sends that type, and each person chooses on the Notifications page by
 which channels (app, e-mail, browser) it reaches them — muting your type never mutes the others. Write
 the title and message as message references, never fixed text: they are translated for each recipient.
+List in \`variables\` the \`messageParams\` keys your notices carry (\`['client', 'dueDate']\`): the organization
+uses them, as \`{client}\`, when it writes its own text for your type and each channel in Settings >
+Notifications > Templates — besides \`{title}\`, \`{message}\` and \`{tenant}\`, which every notice has.
 
 ### Your own screens in the portal
 

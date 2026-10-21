@@ -309,6 +309,11 @@ export interface NotificationCategoryMetadata {
   description?: string;
   /** Do conjunto curado de ícones de tela. */
   icon?: string;
+  /**
+   * As variáveis que os avisos deste tipo trazem (`guest`, `record`) — o que o escritório pode usar
+   * nos modelos (`{guest}`), além de `title`, `message` e `tenant`, que todo aviso tem.
+   */
+  variables?: string[];
 }
 
 export const NOTIFICATION_EXTENSION_POINTS: ExtensionPointDefinition[] = [
@@ -339,6 +344,9 @@ export const asNotificationCategory = (metadata: unknown): NotificationCategoryM
     title,
     ...(text(raw.description) ? { description: text(raw.description) } : {}),
     ...(text(raw.icon) ? { icon: text(raw.icon) } : {}),
+    ...(Array.isArray(raw.variables)
+      ? { variables: [...new Set(raw.variables.filter((one): one is string => typeof one === 'string' && /^[a-zA-Z][a-zA-Z0-9_.-]*$/.test(one)))] }
+      : {}),
   };
 };
 

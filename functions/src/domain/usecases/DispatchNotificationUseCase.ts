@@ -3,6 +3,7 @@ import type {
   EmailMessage,
   IEmailTransport,
   INotificationDirectory,
+  INotificationAppearance,
   INotificationDispatchLog,
   INotificationEmailConfigRepository,
   INotificationInboxRepository,
@@ -23,6 +24,14 @@ import {
 } from '../schema/notifications';
 import { notificationLinkUrl, renderNotificationEmail } from '../services/notificationEmail';
 import { appDeepLinkPath, recordLinkTabKey, type RecordLinkTarget } from '../schema/recordLink';
+import {
+  DEFAULT_NOTIFICATION_EMAIL_LAYOUT,
+  escapeMarkdown,
+  fillNotificationTemplate,
+  notificationTemplateFor,
+  type NotificationEmailLayout,
+  type NotificationTemplates,
+} from '../schema/notificationTemplate';
 
 /**
  * Um pedido de aviso — de QUALQUER origem. O passo "Notificar" é uma delas; o portal é outra; uma
@@ -78,6 +87,8 @@ export interface DispatchNotificationDeps {
   push: IWebPushSender;
   catalog: INotificationTextCatalog;
   dispatches: INotificationDispatchLog;
+  /** O layout do e-mail, os modelos por tipo e canal, e o logo — o que o ESCRITÓRIO escolheu. */
+  appearance: INotificationAppearance;
   tenantName: (tenantId: string) => Promise<string>;
   now: () => Date;
 }
@@ -92,6 +103,12 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 /** O caminho que abre o aviso FORA do app — no push e no e-mail —, com o escritório junto. */
 const deepLinkOf = (request: DispatchNotificationRequest): string =>
   appDeepLinkPath(request.target ? recordLinkTabKey(request.target) : request.link, request.tenantId);
+
+interface Appearance {
+  layout: NotificationEmailLayout;
+  templates: NotificationTemplates;
+  logoURL: string | null;
+}
 
 const zeroCounts = (): ChannelCounts =>
   Object.fromEntries(NOTIFICATION_CHANNELS.map((channel) => [channel, 0])) as ChannelCounts;
@@ -188,14 +205,24 @@ export const makeDispatchNotificationUseCase = (deps: DispatchNotificationDeps):
     }
   };
 
-  const toInbox = async (request: DispatchNotificationRequest, recipients: NotificationRecipient[]): Promise<boolean> => {
+  const toInbox = async (
+    request: DispatchNotificationRequest,
+    recipients: NotificationRecipient[],
+    look: Appearance,
+    variablesFor: (recipient: NotificationRecipient) => Promise<Record<string, string>>,
+  ): Promise<boolean> => {
     const createdAt = deps.now();
     const expiresAt = new Date(createdAt.getTime() + NOTIFICATION_INBOX_RETENTION_DAYS * DAY_MS);
-    const documents: InboxNotificationDocument[] = recipients.map((recipient) => ({
-      recipientId: recipient.userId,
-      title: clip(request.title, NOTIFICATION_TITLE_MAX_LENGTH),
-      message: clip(request.message, NOTIFICATION_MESSAGE_MAX_LENGTH),
-      params: request.params,
+    const template = notificationTemplateFor(look.templates, request.category ?? '', 'inApp');
+    // Sem modelo, o sino guarda a REFERÊNCIA e resolve na tela, no idioma de quem lê. Com modelo, o
+    // texto é do escritório e já sai preenchido para cada pessoa — as variáveis no idioma dela.
+    const documents: InboxNotificationDocument[] = await Promise.all(recipients.map(async (recipient) => {
+      const variables = template ? await variablesFor(recipient) : {};
+      return {
+        recipientId: recipient.userId,
+        title: clip(template?.title ? fillNotificationTemplate(template.title, variables) : request.title, NOTIFICATION_TITLE_MAX_LENGTH),
+        message: clip(template?.message ? fillNotificationTemplate(template.message, variables) : request.message, NOTIFICATION_MESSAGE_MAX_LENGTH),
+        params: template ? {} : request.params,
       link: request.link,
       target: request.target ?? null,
       category: request.category ?? '',
@@ -204,8 +231,9 @@ export const makeDispatchNotificationUseCase = (deps: DispatchNotificationDeps):
       createdAt,
       readAt: null,
       expiresAt,
-      workflowId: request.workflowId ?? '',
-      executionId: request.executionId ?? '',
+        workflowId: request.workflowId ?? '',
+        executionId: request.executionId ?? '',
+      };
     }));
     try {
       await deps.inbox.deliver(request.tenantId, documents);
@@ -220,6 +248,8 @@ export const makeDispatchNotificationUseCase = (deps: DispatchNotificationDeps):
     recipients: NotificationRecipient[],
     resolverFor: (locale: string) => Promise<NotificationTextResolver>,
     issues: DispatchIssue[],
+    look: Appearance,
+    variablesFor: (recipient: NotificationRecipient) => Promise<Record<string, string>>,
   ): Promise<{ delivered: number; failed: number }> => {
     const credential = await deps.emailConfig.get(request.tenantId);
     if (!credential) {
@@ -235,13 +265,25 @@ export const makeDispatchNotificationUseCase = (deps: DispatchNotificationDeps):
     try {
       await runLimited(recipients, EMAIL_CONCURRENCY, async (recipient) => {
         const resolve = await resolverFor(recipient.locale);
+        const variables = await variablesFor(recipient);
+        const template = notificationTemplateFor(look.templates, request.category ?? '', 'email');
+        // O corpo é Markdown; o que vem do registro entra ESCAPADO — um valor digitado por qualquer
+        // membro não vira link num e-mail que sai com a cara do escritório.
         const message: EmailMessage = renderNotificationEmail({
           to: recipient.email,
-          title: clip(resolve(request.title, request.params), NOTIFICATION_TITLE_MAX_LENGTH),
-          message: clip(resolve(request.message, request.params), NOTIFICATION_MESSAGE_MAX_LENGTH),
+          title: clip(template?.subject ? fillNotificationTemplate(template.subject, variables) : variables.title, NOTIFICATION_TITLE_MAX_LENGTH),
+          message: clip(
+            template?.body ? fillNotificationTemplate(template.body, variables, escapeMarkdown) : escapeMarkdown(variables.message),
+            NOTIFICATION_MESSAGE_MAX_LENGTH,
+          ),
           linkUrl,
           linkLabel: resolve('@core.automation/notifications.email.open', {}),
-          footer: resolve('@core.automation/notifications.email.footer', { tenant }),
+          footer: look.layout.footer
+            ? fillNotificationTemplate(look.layout.footer, variables)
+            : resolve('@core.automation/notifications.email.footer', { tenant }),
+          tenantName: tenant,
+          logoURL: look.logoURL,
+          layout: look.layout,
         });
         try {
           await session.send(message);
@@ -263,14 +305,16 @@ export const makeDispatchNotificationUseCase = (deps: DispatchNotificationDeps):
   const toPush = async (
     request: DispatchNotificationRequest,
     recipients: NotificationRecipient[],
-    resolverFor: (locale: string) => Promise<NotificationTextResolver>,
+    look: Appearance,
+    variablesFor: (recipient: NotificationRecipient) => Promise<Record<string, string>>,
   ): Promise<{ delivered: number; failed: number }> => {
     const payloads = new Map<string, WebPushPayload>();
+    const template = notificationTemplateFor(look.templates, request.category ?? '', 'push');
     for (const recipient of recipients) {
-      const resolve = await resolverFor(recipient.locale);
+      const variables = await variablesFor(recipient);
       payloads.set(recipient.userId, {
-        title: clip(resolve(request.title, request.params), NOTIFICATION_TITLE_MAX_LENGTH),
-        body: clip(resolve(request.message, request.params), NOTIFICATION_TITLE_MAX_LENGTH * 2),
+        title: clip(template?.title ? fillNotificationTemplate(template.title, variables) : variables.title, NOTIFICATION_TITLE_MAX_LENGTH),
+        body: clip(template?.body ? fillNotificationTemplate(template.body, variables) : variables.message, NOTIFICATION_TITLE_MAX_LENGTH * 2),
         link: deepLinkOf(request),
         tenantId: request.tenantId,
         tag: request.dedupKey || `${request.source}:${request.executionId ?? ''}:${request.workflowId ?? ''}`,
@@ -310,6 +354,23 @@ export const makeDispatchNotificationUseCase = (deps: DispatchNotificationDeps):
       }
 
       const resolverFor = resolverCache(request.tenantId);
+      // A aparência é enfeite: se não puder ser lida, o aviso sai com o texto e o layout padrão.
+      const [appearance, tenant] = await Promise.all([
+        deps.appearance.get(request.tenantId)
+          .catch((): Appearance => ({ layout: DEFAULT_NOTIFICATION_EMAIL_LAYOUT, templates: {}, logoURL: null })),
+        deps.tenantName(request.tenantId),
+      ]);
+      // As variáveis de um modelo, no idioma de cada destinatário: título e mensagem já resolvidos,
+      // os parâmetros do aviso, e o nome do escritório.
+      const variablesFor = async (recipient: NotificationRecipient): Promise<Record<string, string>> => {
+        const resolve = await resolverFor(recipient.locale);
+        return {
+          ...request.params,
+          title: resolve(request.title, request.params),
+          message: resolve(request.message, request.params),
+          tenant,
+        };
+      };
       const category = request.category ?? '';
       const wants = (channel: 'inApp' | 'email' | 'push') =>
         request.channels[channel]
@@ -321,12 +382,12 @@ export const makeDispatchNotificationUseCase = (deps: DispatchNotificationDeps):
       const push = wants('push');
 
       const [inboxDelivered, emailResult, pushResult] = await Promise.all([
-        inApp.length > 0 ? toInbox(request, inApp) : Promise.resolve(true),
+        inApp.length > 0 ? toInbox(request, inApp, appearance, variablesFor) : Promise.resolve(true),
         email.length > 0
-          ? toEmail(request, email, resolverFor, issues).catch(() => ({ delivered: 0, failed: email.length }))
+          ? toEmail(request, email, resolverFor, issues, appearance, variablesFor).catch(() => ({ delivered: 0, failed: email.length }))
           : Promise.resolve({ delivered: 0, failed: 0 }),
         push.length > 0
-          ? toPush(request, push, resolverFor).catch(() => ({ delivered: 0, failed: push.length }))
+          ? toPush(request, push, appearance, variablesFor).catch(() => ({ delivered: 0, failed: push.length }))
           : Promise.resolve({ delivered: 0, failed: 0 }),
       ]);
 

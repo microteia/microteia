@@ -5823,6 +5823,24 @@ no idioma do escritório (é parâmetro, e parâmetro é texto). Os textos moram
 o pt-BR dele viaja no pacote de idioma, que o servidor lê; o de `core.tenant` mora no plugin, e o
 e-mail sairia em inglês. Falhar ao avisar nunca desfaz o que o convidado fez.
 
+**A aparência é do escritório** (`domain/schema/notificationTemplate.ts`, compartilhado: a
+pré-visualização e o envio montam o MESMO HTML). Em Configurações do escritório > Notificações, com
+abas verticais (`ui/SideTabs`): Servidor de e-mail, Aparência e Modelos.
+
+| Camada | Onde | O que faz |
+|---|---|---|
+| Layout do e-mail | `settings/tenant` → `notifications.email.layout` | logo (o do escritório, só `https`), cor de destaque (`#rrggbb`), assinatura (Markdown) e rodapé (`{tenant}`). Vale para todo e-mail, inclusive o de teste. |
+| Modelo por tipo e canal | `settings/tenant` → `notifications.templates` | `{ "<tipo>" \| "": { email: {subject, body}, inApp: {title, message}, push: {title, body} } }`. O do tipo vence; sem ele, o "Geral" (`""`); sem nenhum, o título e a mensagem de sempre. |
+
+As variáveis são `{title}`, `{message}`, `{tenant}` e as que o tipo declara (`variables` no
+`notification.category`), preenchidas no idioma de cada destinatário. O texto do modelo é do escritório
+e não se traduz. No e-mail o corpo é Markdown SEGURO (negrito, itálico, listas, links `http(s)`), e o
+valor que vem de registro entra ESCAPADO (`escapeMarkdown`): o que um membro digitou num campo não vira
+link num e-mail que sai com a cara do escritório. O sino com modelo grava o texto já preenchido (sem
+`params`); sem modelo, continua gravando a referência, resolvida na tela. A aparência é enfeite: se não
+puder ser lida, o aviso sai com o layout e o texto padrão. Não há regra nova — `settings/tenant` já cobra
+`settings.manage`.
+
 **A página de Notificações** (`notifications`, aberta pelo "Ver todas" do sino): caixa de entrada
 agrupada por dia, filtros por lidas e por tipo (consulta no servidor, com índice), "carregar mais"
 que aumenta o limite da assinatura ao vivo, marcar como lida/não lida; e a aba Preferências, com os

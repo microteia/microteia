@@ -8,6 +8,9 @@ import {
 } from '../../domain/schema/notifications';
 import { notificationLinkUrl, renderNotificationEmail } from '../../domain/services/notificationEmail';
 import { SmtpEmailTransport } from '../../data/services/NotificationTransports';
+import { FirestoreNotificationAppearance } from '../../data/repositories/FirestoreNotificationRepositories';
+import { fillNotificationTemplate } from '../../domain/schema/notificationTemplate';
+import { getDb } from '../firebase/initFirebase';
 import { agentLocale } from '../agent/agentLocale';
 import { makeNotificationTextCatalog } from '../notifications/notificationTextCatalog';
 import { getDI } from '../di/container';
@@ -55,6 +58,8 @@ const sendTest = async (tenantId: string, userId: string, email: unknown): Promi
   const resolve = await makeNotificationTextCatalog(getDI().getInstalledExtensionCache())
     .resolverFor(tenantId, await agentLocale(tenantId, userId));
   const tenant = (await getDI().getTenantRepository().getById(tenantId))?.name ?? '';
+  // O teste sai com a MESMA cara dos avisos — é o que o escritório quer conferir ao testar.
+  const look = await new FirestoreNotificationAppearance(getDb()).get(tenantId);
   const session = new SmtpEmailTransport().open(credential);
   try {
     await session.send(renderNotificationEmail({
@@ -63,7 +68,12 @@ const sendTest = async (tenantId: string, userId: string, email: unknown): Promi
       message: resolve('@core.automation/notifications.email.test.body', {}),
       linkUrl: notificationLinkUrl(credential.settings.appUrl, '/'),
       linkLabel: resolve('@core.automation/notifications.email.open', {}),
-      footer: resolve('@core.automation/notifications.email.footer', { tenant }),
+      footer: look.layout.footer
+        ? fillNotificationTemplate(look.layout.footer, { tenant })
+        : resolve('@core.automation/notifications.email.footer', { tenant }),
+      tenantName: tenant,
+      logoURL: look.logoURL,
+      layout: look.layout,
     }));
   } catch (error) {
     throw new HttpsError('failed-precondition', '@core.automation/notifications.email.test.failed', {

@@ -11,6 +11,13 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.139.0] — 2026-10-21
+
+- A aba "E-mail" das configurações do escritório passou a se chamar "Notificações", organizada em três partes: Servidor de e-mail, Aparência e Modelos.
+- Em Aparência, o escritório escolhe como seus e-mails chegam: com o logo, uma cor de destaque, uma assinatura e um rodapé próprios, e vê o resultado na hora.
+- Em Modelos, é possível escrever um texto diferente para cada tipo de aviso e para cada canal — e-mail, app e navegador —, usando variáveis como o nome do convidado ou do registro.
+- Os e-mails de aviso ganharam uma aparência nova, mais clara e com o botão para abrir o registro em destaque.
+
 #### [9.138.1] — 2026-10-21
 
 - O link de um aviso recebido por e-mail agora abre o registro, e não só o sistema.

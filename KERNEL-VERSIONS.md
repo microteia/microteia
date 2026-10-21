@@ -18,6 +18,12 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.139.0] — 2026-10-21
+
+- feat(notifications): per-tenant appearance (`domain/schema/notificationTemplate.ts`, synced). `notifications.email.layout` (`showLogo`, `accentColor` `#rrggbb`, `signature` Markdown, `footer`) and `notifications.templates` (per category or `""` General, per channel: `email {subject, body}`, `inApp {title, message}`, `push {title, body}`), both in `settings/tenant`. `buildNotificationEmailHtml`/`Text` render the e-mail for both the preview and `renderNotificationEmail`; safe Markdown subset (`renderNotificationMarkdown`); `fillNotificationTemplate` with `{variable}`; record values enter the Markdown escaped (`escapeMarkdown`). KERNEL_VERSION 2.59.0.
+- feat(notifications): `DispatchNotificationUseCase` takes `appearance: INotificationAppearance` (`FirestoreNotificationAppearance`: settings + tenant logo) and applies the category template per channel, per recipient locale; unreadable appearance falls back to defaults. The SMTP test e-mail uses the same layout. `NotificationCategoryMetadata.variables` lists the params a type carries (`core.automation/portal-activity`: `guest`, `screen`, `record`).
+- feat(ui): `ui/SideTabs` (vertical tabs inside a tab, a scrollable row on narrow screens). Tenant Settings tab `email` is now "Notifications" with Server (the former form, now `EmailServer`), Appearance (`EmailAppearance`, live preview) and Templates (`NotificationTemplates`: type picker, channel segmented control, variable chips, preview, reset). `com.microteia.locale-pt-br` 1.115.0. Deploy: `npm run deploy:workflow`, `npm run deploy:portal`, `npm run deploy:notifications`.
+
 #### [9.138.1] — 2026-10-21
 
 - fix(workspace): an external record link (`/microteia/record:<collection>:<id>`) was consumed on the first render, while `ScreenDefinitionStore.isLoading` was still its initial `false` with an empty list — no screen matched the collection, nothing opened, and the URL was replaced by `/app`. The store now exposes `isLoaded` (definitions of the CURRENT tenant arrived at least once) and the shell waits for it before opening a record link. Tested in `WorkspaceShell.viewmodel.test.tsx`.
