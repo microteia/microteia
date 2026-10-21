@@ -35,6 +35,8 @@ describe('projeção do portal', () => {
     expect(projection?.audience).toEqual(['ana']);
     expect(projection?.labels).toEqual({ companyId: 'Acme' });
     expect(projection?.parentKeys).toEqual(['companies/acme']);
+    // O pai principal como campo simples: é por ele que o portal pede só os filhos do registro aberto.
+    expect(projection?.parentKey).toBe('companies/acme');
   });
 
   it('carimba se a edição está aberta e quem criou pelo portal — só para desenhar o botão', async () => {

@@ -4,12 +4,11 @@ import { useAuth } from '../../../stores/useAuth';
 import { usePortal } from '../../../stores/usePortal';
 import { usePortalNavigation } from '../../../stores/usePortalNavigation';
 import { useLocaleFormat, useT } from '../../shared/i18n/useT';
-import { canEditPortalRecord, type PortalDocument, type PortalRecord, type PortalScreenInfo } from '../../../domain/entities/Portal';
+import { canEditPortalRecord, type PortalDocument, type PortalScreenInfo } from '../../../domain/entities/Portal';
 import { portalSubjectKey } from '../../../domain/schema/portal';
 import { portalTenantPath } from './portalPaths';
+import { usePortalRecordFormat } from './usePortalRecordFormat';
 import { evaluatePortalView, type PortalViewComponent } from './portalViews';
-
-const SUMMARY_FIELDS = 3;
 
 export interface PortalFieldView {
   key: string;
@@ -44,15 +43,28 @@ export interface PortalWidgetItem {
 }
 
 
-/** Uma tela-filha dentro do registro aberto: as notas do prestador. */
+/**
+ * Uma tela-filha dentro do registro aberto: as notas do prestador. Não carrega os registros — quem
+ * os pede ao servidor, só os deste pai e com limite, é a aba (`PortalChildList`).
+ */
 export interface PortalChildSection {
   collection: string;
   title: string;
-  /** O rótulo do botão, já com o nome da tela. */
+  screen: PortalScreenInfo;
+  /** O pai, como a projeção o grava (`colecao/id`). */
+  parentKey: string;
+  /** O rótulo do botão "+", já com o nome da tela. */
   createLabel: string | null;
-  loading: boolean;
-  records: PortalRecordCard[];
 }
+
+/** Uma aba do registro aberto: um filho, ou os documentos. */
+export interface PortalRecordTab {
+  key: string;
+  label: string;
+}
+
+/** A aba dos documentos — a chave não colide com coleção nenhuma. */
+export const PORTAL_DOCUMENTS_TAB = '#documents';
 
 export interface PortalViewModel {
   loading: boolean;
@@ -111,11 +123,14 @@ export interface PortalViewModel {
     documents: PortalDocumentView[];
     documentsLoading: boolean;
     children: PortalChildSection[];
+    tabs: PortalRecordTab[];
+    activeTab: string;
     /** O convidado pode alterar o registro aberto — o rótulo do botão; `null`, sem botão. */
     editLabel: string | null;
   } | null;
   startEdit: () => void;
   openRecord: (collection: string, id: string) => void;
+  setActiveTab: (tab: string) => void;
   goBack: () => void;
   openDocument: (documentId: string) => Promise<void>;
   openingDocumentId: string | null;
@@ -144,16 +159,13 @@ export interface PortalViewModel {
   detailView: { Component: PortalViewComponent; collection: string; recordId: string } | null;
 }
 
-const optionLabel = (field: PortalScreenInfo['fields'][number], key: unknown): string =>
-  field.options?.find((option) => option.key === key)?.label ?? String(key);
-
 export const usePortalViewModel = (): PortalViewModel => {
   const { tenantId: routeTenantId, entryId } = useParams<{ tenantId?: string; entryId?: string }>();
   const navigate = useNavigate();
   const { signOut, user } = useAuth();
   const portal = usePortal();
   const t = useT('core.tenant');
-  const { formatDate, formatMoney, formatNumber } = useLocaleFormat();
+  const { formatDate } = useLocaleFormat();
 
   const navigation = usePortalNavigation();
   const { stack, creating, justSubmitted, justSaved } = navigation;
@@ -162,6 +174,7 @@ export const usePortalViewModel = (): PortalViewModel => {
   const [openingDocumentId, setOpeningDocumentId] = useState<string | null>(null);
   const [documentError, setDocumentError] = useState(false);
   const [documentsRevision, setDocumentsRevision] = useState(0);
+  const [tabChoice, setTabChoice] = useState<{ recordId: string; tab: string }>({ recordId: '', tab: '' });
 
   const { memberships, membershipsLoading, selectTenant, getDocuments, getDocumentUrl, recordsByCollection, isCollectionLoading } = portal;
   const screens = useMemo(() => portal.context?.screens ?? [], [portal.context]);
@@ -191,42 +204,7 @@ export const usePortalViewModel = (): PortalViewModel => {
   const rootCollection = entry?.kind === 'screen' ? entry.collection ?? null : null;
   const rootScreen = useMemo(() => (rootCollection ? screenOf(rootCollection) : null), [rootCollection, screenOf]);
 
-  const formatValue = useCallback((field: PortalScreenInfo['fields'][number], record: PortalRecord): PortalFieldView => {
-    const raw = record.data[field.key];
-    const base = { key: field.key, label: field.label, href: null };
-    if (raw === undefined || raw === null || raw === '') return { ...base, value: '' };
-    switch (field.type) {
-      case 'reference':
-        return { ...base, value: record.labels[field.key] ?? '' };
-      case 'select':
-        return { ...base, value: Array.isArray(raw) ? raw.map((key) => optionLabel(field, key)).join(', ') : optionLabel(field, raw) };
-      case 'checkbox':
-        return { ...base, value: raw === true ? t('portal.value.yes') : t('portal.value.no') };
-      case 'date':
-        return { ...base, value: formatDate(raw) };
-      case 'currency':
-        return { ...base, value: typeof raw === 'number' ? formatMoney(raw) : String(raw) };
-      case 'number':
-        return { ...base, value: typeof raw === 'number' ? formatNumber(raw) : String(raw) };
-      case 'file':
-        return { ...base, value: t('portal.document.open'), href: typeof raw === 'string' ? raw : null };
-      default:
-        return { ...base, value: Array.isArray(raw) ? raw.join(', ') : String(raw) };
-    }
-  }, [t, formatDate, formatMoney, formatNumber]);
-
-  const cardOf = useCallback((screen: PortalScreenInfo, record: PortalRecord): PortalRecordCard => ({
-    collection: screen.collection,
-    id: record.id,
-    title: record.title || t('portal.record.untitled'),
-    summary: screen.fields
-      .map((field) => formatValue(field, record))
-      .filter((field) => field.value !== '' && field.href === null)
-      .slice(0, SUMMARY_FIELDS)
-      .map((field) => `${field.label}: ${field.value}`)
-      .join(' · '),
-    updatedAt: record.updatedAt ? t('portal.record.updated', { date: formatDate(record.updatedAt) }) : '',
-  }), [formatValue, formatDate, t]);
+  const { formatValue, cardOf } = usePortalRecordFormat();
 
   const records = useMemo<PortalRecordCard[]>(
     () => (rootScreen ? (recordsByCollection[rootScreen.collection] ?? []).map((record) => cardOf(rootScreen, record)) : []),
@@ -259,6 +237,19 @@ export const usePortalViewModel = (): PortalViewModel => {
   const selected = useMemo(() => {
     if (!topRecord || !topScreen) return null;
     const parentKey = portalSubjectKey(topScreen.collection, topRecord.recordId);
+    const children: PortalChildSection[] = screens
+      .filter((child) => child.parent?.collection === topScreen.collection)
+      .map((child) => ({
+        collection: child.collection,
+        title: child.titlePlural,
+        screen: child,
+        parentKey,
+        createLabel: child.create ? t('portal.create.new', { screen: child.titleSingular }) : null,
+      }));
+    const tabs: PortalRecordTab[] = [
+      ...children.map((child) => ({ key: child.collection, label: child.title })),
+      ...(topScreen.documents ? [{ key: PORTAL_DOCUMENTS_TAB, label: t('portal.documents') }] : []),
+    ];
     return {
       title: topRecord.title || t('portal.record.untitled'),
       fields: topScreen.fields.map((field) => formatValue(field, topRecord)).filter((field) => field.value !== ''),
@@ -271,20 +262,15 @@ export const usePortalViewModel = (): PortalViewModel => {
           .join(' · '),
       })),
       documentsLoading,
-      children: screens
-        .filter((child) => child.parent?.collection === topScreen.collection)
-        .map((child) => ({
-          collection: child.collection,
-          title: child.titlePlural,
-          createLabel: child.create ? t('portal.create.new', { screen: child.titleSingular }) : null,
-          loading: isCollectionLoading(child.collection),
-          records: (recordsByCollection[child.collection] ?? [])
-            .filter((record) => record.parentKeys.includes(parentKey))
-            .map((record) => cardOf(child, record)),
-        })),
+      children,
+      tabs,
+      // A aba escolhida vale para ESTE registro; abrir outro volta à primeira.
+      activeTab: tabChoice.recordId === topRecord.id && tabs.some((tab) => tab.key === tabChoice.tab)
+        ? tabChoice.tab
+        : tabs[0]?.key ?? '',
       editLabel: canEditPortalRecord(topScreen, topRecord, portal.userId) ? t('portal.edit.open') : null,
     };
-  }, [topRecord, topScreen, documents, documentsLoading, screens, recordsByCollection, isCollectionLoading, formatValue, formatDate, cardOf, t, portal.userId]);
+  }, [topRecord, topScreen, documents, documentsLoading, screens, formatValue, formatDate, t, portal.userId, tabChoice]);
 
   const openDocument = useCallback(async (documentId: string) => {
     if (!topRecord) return;
@@ -409,6 +395,7 @@ export const usePortalViewModel = (): PortalViewModel => {
     emptyScreens: !!portal.context && menuEntries.length === 0,
     selected,
     openRecord,
+    setActiveTab: (tab: string) => setTabChoice({ recordId: topRecord?.id ?? '', tab }),
     goBack,
     openDocument,
     openingDocumentId,

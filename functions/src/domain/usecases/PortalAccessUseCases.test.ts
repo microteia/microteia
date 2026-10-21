@@ -231,7 +231,7 @@ describe('o convidado cria um registro', () => {
     fake.users.set('ana', { userId: 'ana', email: 'ana@acme.com', displayName: 'Ana', subjectKeys: ['companies/acme'] });
     fake.projections.set('invoices__nf1', {
       collection: 'invoices', recordId: 'nf1', screenId: 'invoices', subjectKeys: ['companies/acme'],
-      audience: ['ana'], title: '', data: {}, labels: {}, parentKeys: ['companies/acme'], editable: false, portalOwner: null,
+      audience: ['ana'], title: '', data: {}, labels: {}, parentKeys: ['companies/acme'], parentKey: 'companies/acme', editable: false, portalOwner: null,
     });
     const write = vi.fn(async () => ({ ok: true as const, id: 'it-1' }));
     const submit = makeSubmitPortalRecordUseCase(fake.repo, write);
@@ -263,7 +263,7 @@ describe('o convidado anexa um documento', () => {
     fake.users.set('ana', { userId: 'ana', email: 'ana@acme.com', displayName: 'Ana', subjectKeys: ['companies/acme'] });
     fake.projections.set('invoices__nf1', {
       collection: 'invoices', recordId: 'nf1', screenId: 'invoices', subjectKeys: ['companies/acme'],
-      audience: ['ana'], title: '', data: {}, labels: {}, parentKeys: ['companies/acme'], editable: false, portalOwner: null,
+      audience: ['ana'], title: '', data: {}, labels: {}, parentKeys: ['companies/acme'], parentKey: 'companies/acme', editable: false, portalOwner: null,
     });
     fake.staged.set('ana/up1', { data: Buffer.from('pdf'), contentType: 'application/pdf' });
     const attach = vi.fn(async () => ({ id: 'doc-1' }));
@@ -318,7 +318,7 @@ describe('o convidado altera um registro', () => {
     fake.records.set('invoices/nf1', { number: '1', amount: 10, auditNote: 'x', companyId: 'acme', status: 'draft', ...record });
     fake.projections.set('invoices__nf1', {
       collection: 'invoices', recordId: 'nf1', screenId: 'invoices', subjectKeys: ['companies/acme'],
-      audience: ['ana', 'bia'], title: '', data: {}, labels: {}, parentKeys: ['companies/acme'], editable: true, portalOwner: null,
+      audience: ['ana', 'bia'], title: '', data: {}, labels: {}, parentKeys: ['companies/acme'], parentKey: 'companies/acme', editable: true, portalOwner: null,
     });
     const write = vi.fn(async () => ({ ok: true as const, id: 'nf1' }));
     const useCase = makeUpdatePortalRecordUseCase(fake.repo, write);
@@ -385,7 +385,7 @@ describe('o convite vale no instante, não quando o audience for refeito', () =>
     fake.records.set('invoices/nf1', { number: '1', amount: 1, companyId: 'acme' });
     fake.projections.set('invoices__nf1', {
       collection: 'invoices', recordId: 'nf1', screenId: 'invoices', subjectKeys: ['companies/acme'],
-      audience: ['ana'], title: '', data: {}, labels: {}, parentKeys: ['companies/acme'], editable: true, portalOwner: null,
+      audience: ['ana'], title: '', data: {}, labels: {}, parentKeys: ['companies/acme'], parentKey: 'companies/acme', editable: true, portalOwner: null,
     });
     fake.documents.set('invoices/nf1/d1', { name: 'x.pdf', portalShared: true, url: 'https://x' });
     fake.staged.set('ana/up1', { data: Buffer.from('pdf'), contentType: 'application/pdf' });

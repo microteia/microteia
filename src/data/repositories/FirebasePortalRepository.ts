@@ -95,6 +95,29 @@ export class FirebasePortalRepository implements IPortalRepository {
     );
   }
 
+  subscribeChildren(
+    tenantId: string,
+    userId: string,
+    collectionName: string,
+    parentKey: string,
+    max: number,
+    onUpdate: (records: PortalRecord[]) => void,
+    onError?: (error: Error) => void,
+  ): () => void {
+    return onSnapshot(
+      query(
+        collection(db, 'tenants', tenantId, PORTAL_RECORDS_COLLECTION),
+        where('audience', 'array-contains', userId),
+        where('collection', '==', collectionName),
+        where('parentKey', '==', parentKey),
+        orderBy('updatedAt', 'desc'),
+        limit(max),
+      ),
+      (snapshot) => onUpdate(snapshot.docs.map((one) => mapRecord(one.id, one.data()))),
+      (error) => onError?.(error),
+    );
+  }
+
   async getDocuments(tenantId: string, projectionId: string): Promise<PortalDocument[]> {
     const snapshot = await getDocs(
       collection(db, 'tenants', tenantId, PORTAL_RECORDS_COLLECTION, projectionId, PORTAL_DOCUMENTS_SUBCOLLECTION),

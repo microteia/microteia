@@ -20,6 +20,19 @@ export interface IPortalRepository {
     onUpdate: (records: PortalRecord[]) => void,
     onError?: (error: Error) => void,
   ): () => void;
+  /**
+   * Os FILHOS de um registro (`parentKey` = `colecao/id`), os mais recentes primeiro, até `max` — é o
+   * servidor que limita, e não a tela: a empresa de dez mil notas entrega as 15 de cima.
+   */
+  subscribeChildren(
+    tenantId: string,
+    userId: string,
+    collection: string,
+    parentKey: string,
+    max: number,
+    onUpdate: (records: PortalRecord[]) => void,
+    onError?: (error: Error) => void,
+  ): () => void;
   getDocuments(tenantId: string, projectionId: string): Promise<PortalDocument[]>;
   getDocumentUrl(tenantId: string, projectionId: string, documentId: string): Promise<string>;
   /**

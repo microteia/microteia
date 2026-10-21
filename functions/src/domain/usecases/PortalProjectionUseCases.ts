@@ -129,6 +129,7 @@ export const makeProjectPortalRecordUseCase = (repo: IPortalRepository): Project
         data: projectPortalData(screen, data),
         labels,
         parentKeys,
+        parentKey: parentKeys[0] ?? '',
         editable: isPortalEditOpen(screen, data, evaluatePortalCondition),
         portalOwner: portalOwnerOf(data),
       };

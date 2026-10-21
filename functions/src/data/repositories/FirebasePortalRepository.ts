@@ -73,6 +73,7 @@ const toProjection = (data: DocumentData): PortalProjection => ({
   data: (data.data as Record<string, unknown> | undefined) ?? {},
   labels: (data.labels as Record<string, string> | undefined) ?? {},
   parentKeys: asStrings(data.parentKeys),
+  parentKey: asString(data.parentKey),
   editable: data.editable === true,
   portalOwner: asString(data.portalOwner) || null,
 });

@@ -195,6 +195,16 @@ export const PortalStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
     [tenantId, uc.documents],
   );
 
+  const subscribeChildren = useCallback((
+    childCollection: string,
+    parentKey: string,
+    max: number,
+    onUpdate: (records: PortalRecord[]) => void,
+    onError: () => void,
+  ) => (tenantId && userId
+    ? portalRepository.subscribeChildren(tenantId, userId, childCollection, parentKey, max, onUpdate, onError)
+    : () => undefined), [tenantId, userId, portalRepository]);
+
   const getDocumentUrl = useCallback(
     (projectionId: string, documentId: string) =>
       (tenantId ? uc.documentUrl.execute(tenantId, projectionId, documentId) : Promise.resolve('')),
@@ -237,6 +247,7 @@ export const PortalStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
     selectTenant: setTenantId,
     getDocuments,
     getDocumentUrl,
+    subscribeChildren,
     listLinkOptions,
     submit,
     update,
@@ -244,7 +255,7 @@ export const PortalStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
     uploadDocument,
   }), [
     memberships, membershipsLoading, membershipsFailed, tenantId, context, contextLoading, error, errorCode,
-    retryContext, retryMemberships, recordsByCollection, isCollectionLoading, getDocuments, getDocumentUrl,
+    retryContext, retryMemberships, recordsByCollection, isCollectionLoading, getDocuments, getDocumentUrl, subscribeChildren,
     listLinkOptions, submit, update, userId, uploadDocument,
   ]);
 

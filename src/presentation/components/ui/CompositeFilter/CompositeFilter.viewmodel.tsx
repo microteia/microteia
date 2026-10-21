@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
-import { useSavedFilter } from '../../../../stores/useSavedFilter';
+import { useOptionalSavedFilter } from '../../../../stores/useSavedFilter';
 import type { SavedFilter } from '../../../../domain/entities';
 import { useAnchoredDropdown, type AnchoredDropdownPosition } from '../../../hooks/useAnchoredDropdown';
 
@@ -27,6 +27,12 @@ export interface FilterToken {
 export type { SavedFilter };
 
 type Phase = 'idle' | 'filter-select' | 'value-select';
+
+const NO_SAVED_FILTERS = {
+  filters: [] as SavedFilter[],
+  saveFilter: (): Promise<SavedFilter> => Promise.reject(new Error('saved filters are not available here')),
+  removeFilter: (): Promise<void> => Promise.resolve(),
+};
 
 export interface CompositeFilterViewModel {
   phase: Phase;
@@ -72,7 +78,9 @@ export const useCompositeFilterViewModel = (
   onChange: (tokens: FilterToken[]) => void,
   screenKey?: string | null,
 ): CompositeFilterViewModel => {
-  const { filters, saveFilter, removeFilter } = useSavedFilter();
+  // Sem o store (o portal), não há filtro salvo: a lista fica vazia e `screenKey` não é passado.
+  const savedStore = useOptionalSavedFilter() ?? NO_SAVED_FILTERS;
+  const { filters, saveFilter, removeFilter } = savedStore;
 
   const [phase, setPhase] = useState<Phase>('idle');
   const [inputValue, setInputValue] = useState('');

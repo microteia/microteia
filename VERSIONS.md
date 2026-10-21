@@ -11,6 +11,12 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.142.0] — 2026-10-21
+
+- No portal, um registro aberto mostra seus dados no topo e, abaixo, uma aba para cada lista ligada a ele (como "Notas Fiscais") e uma aba de Documentos.
+- Cada lista mostra só os registros mais recentes e ganhou um filtro para encontrar os demais, o que deixa o portal rápido mesmo para quem tem milhares de notas.
+- O botão de criar virou só o "+", como no restante do sistema.
+
 #### [9.141.0] — 2026-10-21
 
 - O portal ganhou um visual novo: o menu fica numa coluna à esquerda, com o logo e o nome do escritório no topo, e cada página mostra seu título numa barra superior. No celular, o menu vira uma gaveta.

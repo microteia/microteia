@@ -1,7 +1,8 @@
 import React from 'react';
 import { RiAddLine, RiArrowLeftLine, RiEditLine, RiExternalLinkLine } from 'react-icons/ri';
 import { S } from './PortalContent.styles';
-import type { PortalViewModel } from '../../Portal.viewmodel';
+import { PORTAL_DOCUMENTS_TAB, type PortalViewModel } from '../../Portal.viewmodel';
+import { PortalChildList } from '../PortalChildList';
 import { Button } from '../../../../components/ui/Button';
 import { Spinner } from '../../../../components/ui/Spinner';
 import { PortalCreateForm } from '../PortalCreateForm';
@@ -91,27 +92,29 @@ export const PortalContent: React.FC<{ vm: PortalViewModel }> = ({ vm }) => {
           </S.Field>
         ))}
       </S.Fields>
-      {vm.selected.children.map((child) => (
-        <S.ChildSection key={child.collection}>
-          <S.ChildHeader>
-            <S.SectionTitle>{child.title}</S.SectionTitle>
-            {child.createLabel && (
-              <Button size="sm" onClick={() => vm.startCreate(child.collection)}>
-                <RiAddLine size={14} />
-                {child.createLabel}
-              </Button>
-            )}
-          </S.ChildHeader>
-          {child.loading ? (
-            <Spinner size={20} />
-          ) : child.records.length === 0 ? (
-            <S.Muted>{t('portal.records.empty')}</S.Muted>
-          ) : recordList(child.records)}
-        </S.ChildSection>
-      ))}
-      {vm.selected.hasDocuments && (
+      {vm.selected.tabs.length > 0 && (
+        <S.Tabs role="tablist">
+          {vm.selected.tabs.map((tab) => (
+            <S.Tab
+              key={tab.key}
+              type="button"
+              role="tab"
+              aria-selected={tab.key === vm.selected?.activeTab}
+              $active={tab.key === vm.selected?.activeTab}
+              onClick={() => vm.setActiveTab(tab.key)}
+            >
+              {tab.label}
+            </S.Tab>
+          ))}
+        </S.Tabs>
+      )}
+      {vm.selected.children
+        .filter((child) => child.collection === vm.selected?.activeTab)
+        .map((child) => (
+          <PortalChildList key={`${child.parentKey}|${child.collection}`} child={child} onOpen={vm.openRecord} onCreate={vm.startCreate} />
+        ))}
+      {vm.selected.hasDocuments && vm.selected.activeTab === PORTAL_DOCUMENTS_TAB && (
         <>
-          <S.SectionTitle>{t('portal.documents')}</S.SectionTitle>
           {vm.upload && (
             <PortalUploadForm
               collection={vm.upload.collection}
@@ -151,9 +154,8 @@ export const PortalContent: React.FC<{ vm: PortalViewModel }> = ({ vm }) => {
     <>
       {vm.rootCreateLabel && (
         <S.Toolbar>
-          <Button size="sm" onClick={vm.startRootCreate}>
-            <RiAddLine size={14} />
-            {vm.rootCreateLabel}
+          <Button size="sm" onClick={vm.startRootCreate} title={vm.rootCreateLabel} aria-label={vm.rootCreateLabel}>
+            <RiAddLine size={16} />
           </Button>
         </S.Toolbar>
       )}

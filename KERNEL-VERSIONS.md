@@ -18,6 +18,11 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.142.0] — 2026-10-21
+
+- feat(portal): server-side child lists. Projections carry `parentKey` (the primary parent, `parentKeys[0]`) — Firestore allows one `array-contains` per query and `audience` takes it. `IPortalRepository.subscribeChildren` queries `audience` + `collection` + `parentKey` + `updatedAt desc` + `limit` (new composite index on `portalRecords`). `PortalChildList` loads the 15 most recent children of the open record, widening to 300 while a `CompositeFilter` is active (filtering runs over that window, as in the office list) and says when the ceiling was hit. Previously every child of the collection (up to 200) was loaded and filtered in the browser.
+- feat(ui): the open record shows its fields as a header and one tab per child screen plus Documents; create buttons are icon-only ("+", label in the tooltip). `usePortalRecordFormat` holds field and card formatting for both lists. `CompositeFilter` works without `SavedFilterStoreProvider` (`useOptionalSavedFilter`). Deploy: `npm run deploy:indexes`, `npm run deploy:portal`; existing projections gain `parentKey` when reprojected (saving the screen's portal declaration).
+
 #### [9.141.0] — 2026-10-21
 
 - feat(portal): the shell is a layout. `portal.view` gains surface `layout` (`key`, `title`; `PORTAL_API_VERSION` 1.3.0, KERNEL_VERSION 2.60.0): the component receives the page as `children`. `@microteia/portal` adds `usePortalShell()` (brand, menu, page title, guest, themes from `ThemeProvider`, switch organization, sign out, drawer and account-menu state), `PortalBrand` and `PortalUserMenu`. `settings/portal.layout` (`sidebar` default, `top`, or `layout.<plugin>.<key>`; `PORTAL_BUILTIN_LAYOUTS`, `portalLayoutId`) is resolved by `getPortalContext` into `home.layout`, falling back to the default when the extension is gone or untrusted.

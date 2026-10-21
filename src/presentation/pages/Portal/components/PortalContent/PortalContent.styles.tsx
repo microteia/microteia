@@ -95,6 +95,27 @@ export const S = {
     color: ${({ theme }) => theme.colors.textSecondary};
   `,
 
+  Tabs: styled.div`
+    display: flex;
+    gap: ${({ theme }) => theme.spacing.lg};
+    border-bottom: 1px solid ${({ theme }) => theme.colors.border};
+    overflow-x: auto;
+  `,
+
+  Tab: styled.button<{ $active: boolean }>`
+    padding: ${({ theme }) => theme.spacing.sm} 0;
+    margin-bottom: -1px;
+    border-bottom: 2px solid ${({ theme, $active }) => ($active ? theme.colors.primary : 'transparent')};
+    font-size: ${({ theme }) => theme.fontSizes.sm};
+    font-weight: 600;
+    color: ${({ theme, $active }) => ($active ? theme.colors.text : theme.colors.textMuted)};
+    white-space: nowrap;
+
+    &:hover {
+      color: ${({ theme }) => theme.colors.text};
+    }
+  `,
+
   Detail: styled.section`
     display: flex;
     flex-direction: column;
@@ -153,12 +174,6 @@ export const S = {
     color: ${({ theme }) => theme.colors.primary};
   `,
 
-  SectionTitle: styled.h3`
-    font-size: ${({ theme }) => theme.fontSizes.md};
-    font-weight: 600;
-    padding-top: ${({ theme }) => theme.spacing.sm};
-    border-top: 1px solid ${({ theme }) => theme.colors.borderSubtle};
-  `,
 
   DocumentRow: styled.div`
     display: flex;
@@ -184,19 +199,7 @@ export const S = {
     white-space: nowrap;
   `,
 
-  ChildSection: styled.section`
-    display: flex;
-    flex-direction: column;
-    gap: ${({ theme }) => theme.spacing.sm};
-  `,
 
-  ChildHeader: styled.div`
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: ${({ theme }) => theme.spacing.sm};
-    flex-wrap: wrap;
-  `,
 
   Toolbar: styled.div`
     display: flex;

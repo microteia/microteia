@@ -1014,6 +1014,17 @@ Entrada nova (uma extensão instalada ontem) APARECE: esconder é gesto do escri
 telas vêm antes das páginas por padrão. `settings/portal` é gravado com `portal.manage`, e não com
 `settings.manage`: quem decide o que sai do escritório não é, em geral, quem o configura.
 
+**Os filhos de um registro vêm do servidor, com limite.** O registro aberto mostra os dados dele no
+cabeçalho e, abaixo, uma ABA por tela-filha e uma de Documentos. Cada aba de filho (`PortalChildList`)
+pede ao servidor só os filhos DAQUELE pai (`subscribeChildren`: `audience array-contains uid` +
+`collection` + `parentKey` + `updatedAt desc` + `limit`): os 15 mais recentes, e até 300 quando há filtro
+(`CompositeFilter`, que roda sobre essa janela, como na listagem do escritório; a tela avisa quando o
+teto foi alcançado). `parentKey` é o pai principal como campo simples — o Firestore aceita um
+`array-contains` por consulta, e o `audience` já ocupa o lugar; um filho com vários pais aparece no
+primeiro. Projeções gravadas antes do campo só aparecem nas abas depois de reprojetadas (salvar a
+declaração de portal da tela dispara a reprojeção). O `CompositeFilter` funciona sem o store de filtros
+salvos (`useOptionalSavedFilter`): no portal não há filtro salvo.
+
 **A casca é um layout, e o layout é escolha.** O conteúdo da página (`PortalContent`: home, lista,
 registro, formulário) é um só; onde ficam a marca, o menu e a conta é do LAYOUT. O kernel traz dois
 (`SidebarLayout` — o padrão — e `TopLayout`), e uma extensão contribui outro por `portal.view` de

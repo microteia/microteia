@@ -52,6 +52,12 @@ export interface PortalProjection {
    */
   parentKeys: string[];
   /**
+   * O pai PRINCIPAL, como campo simples — o primeiro de `parentKeys`. Existe porque o Firestore aceita
+   * um `array-contains` por consulta, e o `audience` já ocupa o lugar: é por este campo que o portal
+   * pede ao servidor só os filhos do registro aberto, os mais recentes primeiro e com limite.
+   */
+  parentKey: string;
+  /**
    * A edição está aberta para este registro AGORA — a condição do escritório, avaliada quando ele foi
    * gravado. Serve só para a casca mostrar o botão: a callable confere tudo de novo a cada pedido.
    */

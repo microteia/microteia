@@ -27,6 +27,14 @@ export interface PortalStoreValue {
   /** A coleção ainda não recebeu o primeiro retrato. */
   isCollectionLoading: (collection: string) => boolean;
   selectTenant: (tenantId: string) => void;
+  /** Os filhos de um registro, os mais recentes primeiro, até `max` — ver `subscribeChildren`. */
+  subscribeChildren: (
+    collection: string,
+    parentKey: string,
+    max: number,
+    onUpdate: (records: PortalRecord[]) => void,
+    onError: () => void,
+  ) => () => void;
   getDocuments: (projectionId: string) => Promise<PortalDocument[]>;
   getDocumentUrl: (projectionId: string, documentId: string) => Promise<string>;
   listLinkOptions: (collection: string) => Promise<PortalLinkOption[]>;
