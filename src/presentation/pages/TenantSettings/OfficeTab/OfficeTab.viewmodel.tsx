@@ -7,6 +7,12 @@ import { useEntityFormFields } from '../../../shared/useEntityFormFields';
 import { collectRequiredErrors, setValueByPath } from '../../../../domain/services/customFieldValues';
 import { useT } from '../../../shared/i18n/useT';
 import type { CustomFieldValue, FieldDefinition } from '../../../../domain/entities';
+import { useDI } from '../../../../infrastructure/di/useDI';
+import { makeUploadTenantLogoUseCase } from '../../../../domain/usecases/tenants/UploadTenantLogoUseCase';
+import { TENANT_LOGO_MAX_BYTES } from '../../../../domain/schema/tenantBranding';
+
+/** O `<input type="file">` do logo, aberto pelo botão — sem ref lida no render. */
+export const TENANT_LOGO_INPUT_ID = 'tenant-logo-file-input';
 
 export type OfficeValues = Record<string, CustomFieldValue>;
 
@@ -18,6 +24,16 @@ export interface OfficeTabViewModel {
   isSaving: boolean;
   setFieldValue: (fieldKey: string, value: CustomFieldValue) => void;
   handleSave: () => Promise<void>;
+  /** O logo do escritório — o do topo do portal e do cabeçalho dos e-mails. */
+  logoURL: string | null;
+  logoBusy: boolean;
+  logoError: string | null;
+  cropSrc: string | null;
+  chooseLogo: () => void;
+  handleLogoFile: (event: React.ChangeEvent<HTMLInputElement>) => void;
+  confirmLogoCrop: (image: Blob) => Promise<void>;
+  cancelLogoCrop: () => void;
+  removeLogo: () => Promise<void>;
 }
 
 /**
@@ -34,6 +50,11 @@ export const useOfficeTabViewModel = (): OfficeTabViewModel => {
   const { can } = useAuthorization();
   const { notify } = useNotification();
   const { fields } = useEntityFormFields('tenant');
+  const { tenantRepository } = useDI();
+  const uploadLogoUC = useMemo(() => makeUploadTenantLogoUseCase(tenantRepository), [tenantRepository]);
+  const [cropSrc, setCropSrc] = useState<string | null>(null);
+  const [logoBusy, setLogoBusy] = useState(false);
+  const [logoError, setLogoError] = useState<string | null>(null);
 
   const isAdmin = can(PERMISSION_TENANT_UPDATE);
 
@@ -88,7 +109,72 @@ export const useOfficeTabViewModel = (): OfficeTabViewModel => {
     }
   }, [fields, values, editableKeys, updateTenant, notify, t]);
 
+  const chooseLogo = useCallback(() => {
+    (document.getElementById(TENANT_LOGO_INPUT_ID) as HTMLInputElement | null)?.click();
+  }, []);
+
+  const handleLogoFile = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    setLogoError(null);
+    if (!file.type.startsWith('image/')) {
+      setLogoError(t('office.logo.invalid'));
+      return;
+    }
+    if (file.size > TENANT_LOGO_MAX_BYTES * 4) {
+      // O arquivo original pode ser maior: o recorte reduz. Acima disso, nem o recorte salva.
+      setLogoError(t('office.logo.too-large'));
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (loaded) => {
+      if (loaded.target?.result) setCropSrc(loaded.target.result as string);
+    };
+    reader.readAsDataURL(file);
+  }, [t]);
+
+  const confirmLogoCrop = useCallback(async (image: Blob) => {
+    if (!currentTenant) return;
+    setCropSrc(null);
+    if (image.size > TENANT_LOGO_MAX_BYTES) {
+      setLogoError(t('office.logo.too-large'));
+      return;
+    }
+    setLogoBusy(true);
+    try {
+      const logoURL = await uploadLogoUC.execute(currentTenant.id, image);
+      await updateTenant({ logoURL });
+      notify(t('office.logo.saved'), 'success');
+    } catch {
+      setLogoError(t('office.logo.failed'));
+    } finally {
+      setLogoBusy(false);
+    }
+  }, [currentTenant, uploadLogoUC, updateTenant, notify, t]);
+
+  const removeLogo = useCallback(async () => {
+    setLogoBusy(true);
+    try {
+      await updateTenant({ logoURL: null });
+      notify(t('office.logo.removed'), 'success');
+    } catch {
+      setLogoError(t('office.logo.failed'));
+    } finally {
+      setLogoBusy(false);
+    }
+  }, [updateTenant, notify, t]);
+
   return {
+    logoURL: currentTenant?.logoURL ?? null,
+    logoBusy,
+    logoError,
+    cropSrc,
+    chooseLogo,
+    handleLogoFile,
+    confirmLogoCrop,
+    cancelLogoCrop: () => setCropSrc(null),
+    removeLogo,
     isAdmin,
     fields,
     values,

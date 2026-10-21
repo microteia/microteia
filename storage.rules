@@ -46,8 +46,11 @@ service firebase.storage {
     //
     // `portalUploads` é a área de ESPERA dos anexos do convidado do portal (regra própria abaixo): pelo
     // curinga, qualquer membro leria e gravaria nela.
+    //
+    // `branding` guarda o LOGO do escritório (regra própria abaixo): pelo curinga, qualquer membro o
+    // trocaria — e o logo vai no topo do portal e de todo e-mail que o escritório envia.
     function isReservedStoragePath(collection) {
-      return collection in ['logs', 'downloads', 'portalUploads'];
+      return collection in ['logs', 'downloads', 'portalUploads', 'branding'];
     }
 
     match /tenants/{tenantId}/{collection}/{recordId}/{allPaths=**} {
@@ -61,6 +64,29 @@ service firebase.storage {
       allow delete: if request.auth != null
         && !isReservedStoragePath(collection)
         && isTenantAdminOrElevated(tenantId);
+    }
+
+    // ─── Logo do escritório ──────────────────────────────────────────────────
+    // Path: tenants/{tenantId}/branding/logo/{fileName}
+    //
+    // Envia quem ALTERA o escritório — o dono, ou o membro com `tenant.update` materializado em
+    // `permissions` (ou o curinga `*`) —, só imagem e até 2 MB. Cada envio é um arquivo NOVO: trocar ou
+    // apagar o anterior quebraria o logo dos e-mails já enviados, que apontam para ele. O e-mail e o
+    // portal abrem pela URL de download, que carrega o próprio token; a leitura aqui é a dos membros.
+    function canChangeTenant(tenantId) {
+      let memberPath = /databases/(default)/documents/tenants/$(tenantId)/members/$(request.auth.uid);
+      return firestore.get(/databases/(default)/documents/tenants/$(tenantId)).data.ownerId == request.auth.uid
+        || (firestore.exists(memberPath)
+            && firestore.get(memberPath).data.get('permissions', []).hasAny(['tenant.update', '*']));
+    }
+
+    match /tenants/{tenantId}/branding/logo/{fileName} {
+      allow read: if request.auth != null && isTenantMemberOrElevated(tenantId);
+      allow create: if request.auth != null
+        && canChangeTenant(tenantId)
+        && request.resource.size < 2 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+      allow update, delete: if false;
     }
 
     // ─── Anexos do convidado do portal (área de espera) ─────────────────────

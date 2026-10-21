@@ -18,6 +18,11 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.140.0] — 2026-10-21
+
+- feat(tenant): the organization logo had a field (`tenants/{id}.logoURL`, read by the portal shell and the notification e-mail) but no way to set it. Office tab gains a Logo block (upload with `ImageCropModal`, change, remove): `ITenantRepository.uploadLogo` stores it at `tenants/{t}/branding/logo/{file}` (`domain/schema/tenantBranding.ts`) and `updateTenant({ logoURL })` saves the download URL. It is a kernel concept, not a Form Design field — the kernel itself reads it.
+- fix(storage): `branding` is reserved from the record wildcard; `tenants/{t}/branding/logo/{file}` allows create only to the owner or a member with `tenant.update` (or `*`) in `permissions`, images under 2 MB; no update or delete, so e-mails already sent keep their logo. Deploy: `npm run deploy:rules`.
+
 #### [9.139.0] — 2026-10-21
 
 - feat(notifications): per-tenant appearance (`domain/schema/notificationTemplate.ts`, synced). `notifications.email.layout` (`showLogo`, `accentColor` `#rrggbb`, `signature` Markdown, `footer`) and `notifications.templates` (per category or `""` General, per channel: `email {subject, body}`, `inApp {title, message}`, `push {title, body}`), both in `settings/tenant`. `buildNotificationEmailHtml`/`Text` render the e-mail for both the preview and `renderNotificationEmail`; safe Markdown subset (`renderNotificationMarkdown`); `fillNotificationTemplate` with `{variable}`; record values enter the Markdown escaped (`escapeMarkdown`). KERNEL_VERSION 2.59.0.

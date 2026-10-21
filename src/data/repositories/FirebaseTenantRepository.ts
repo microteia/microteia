@@ -11,7 +11,9 @@ import {
   serverTimestamp,
 } from 'firebase/firestore';
 import { httpsCallable, FunctionsError } from 'firebase/functions';
-import { db, functions } from '../../infrastructure/firebase/config';
+import { db, functions, storage } from '../../infrastructure/firebase/config';
+import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
+import { tenantLogoStoragePath } from '../../domain/schema/tenantBranding';
 import type { ITenantRepository, TenantMemberRoleActor } from '../../domain/repositories/ITenantRepository';
 import type { Tenant, TenantMember, TenantUpdate } from '../../domain/entities';
 import { TenantMemberLimitReachedError } from '../../domain/errors';
@@ -52,6 +54,12 @@ export class FirebaseTenantRepository implements ITenantRepository {
     const snap = await getDoc(doc(db, 'tenants', tenantId));
     if (!snap.exists()) return null;
     return mapTenant(snap.id, snap.data());
+  }
+
+  async uploadLogo(tenantId: string, image: Blob, fileName: string): Promise<string> {
+    const logoRef = ref(storage, tenantLogoStoragePath(tenantId, fileName));
+    await uploadBytes(logoRef, image, { contentType: image.type || 'image/png' });
+    return getDownloadURL(logoRef);
   }
 
   async updateTenant(tenantId: string, data: TenantUpdate): Promise<void> {

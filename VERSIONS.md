@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.140.0] — 2026-10-21
+
+- Agora é possível enviar o logo do escritório em Dados do Escritório, com recorte na hora. Ele aparece no topo do portal e nos e-mails de aviso.
+
 #### [9.139.0] — 2026-10-21
 
 - A aba "E-mail" das configurações do escritório passou a se chamar "Notificações", organizada em três partes: Servidor de e-mail, Aparência e Modelos.

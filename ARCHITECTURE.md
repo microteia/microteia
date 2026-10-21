@@ -5829,7 +5829,7 @@ abas verticais (`ui/SideTabs`): Servidor de e-mail, Aparência e Modelos.
 
 | Camada | Onde | O que faz |
 |---|---|---|
-| Layout do e-mail | `settings/tenant` → `notifications.email.layout` | logo (o do escritório, só `https`), cor de destaque (`#rrggbb`), assinatura (Markdown) e rodapé (`{tenant}`). Vale para todo e-mail, inclusive o de teste. |
+| Layout do e-mail | `settings/tenant` → `notifications.email.layout` | logo (o do escritório — `tenants/{id}.logoURL`, enviado em Dados do Escritório para `tenants/{t}/branding/logo/` no Storage, pasta reservada que só quem tem `tenant.update` grava; só `https`), cor de destaque (`#rrggbb`), assinatura (Markdown) e rodapé (`{tenant}`). Vale para todo e-mail, inclusive o de teste. |
 | Modelo por tipo e canal | `settings/tenant` → `notifications.templates` | `{ "<tipo>" \| "": { email: {subject, body}, inApp: {title, message}, push: {title, body} } }`. O do tipo vence; sem ele, o "Geral" (`""`); sem nenhum, o título e a mensagem de sempre. |
 
 As variáveis são `{title}`, `{message}`, `{tenant}` e as que o tipo declara (`variables` no
