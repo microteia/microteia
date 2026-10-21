@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.142.1] — 2026-10-21
+
+- Corrigido um aviso técnico que aparecia ao carregar as listas de um registro no portal.
+
 #### [9.142.0] — 2026-10-21
 
 - No portal, um registro aberto mostra seus dados no topo e, abaixo, uma aba para cada lista ligada a ele (como "Notas Fiscais") e uma aba de Documentos.

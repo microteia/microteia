@@ -64,7 +64,7 @@ export const S = {
     white-space: nowrap;
   `,
 
-  Empty: styled.p`
+  Empty: styled.div`
     padding: ${({ theme }) => theme.spacing.lg} 0;
     text-align: center;
     font-size: ${({ theme }) => theme.fontSizes.sm};

@@ -18,6 +18,10 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.142.1] — 2026-10-21
+
+- fix(portal): `PortalChildList` rendered the loading `Spinner` (a `div`) inside its empty-state `p` — invalid nesting React reports as a hydration hazard. `Empty` is now a `div`.
+
 #### [9.142.0] — 2026-10-21
 
 - feat(portal): server-side child lists. Projections carry `parentKey` (the primary parent, `parentKeys[0]`) — Firestore allows one `array-contains` per query and `audience` takes it. `IPortalRepository.subscribeChildren` queries `audience` + `collection` + `parentKey` + `updatedAt desc` + `limit` (new composite index on `portalRecords`). `PortalChildList` loads the 15 most recent children of the open record, widening to 300 while a `CompositeFilter` is active (filtering runs over that window, as in the office list) and says when the ceiling was hit. Previously every child of the collection (up to 200) was loaded and filtered in the browser.
