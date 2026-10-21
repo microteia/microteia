@@ -164,6 +164,10 @@ export class FirebasePortalRepository implements IPortalRepository {
     await this.db.recursiveDelete(reference);
   }
 
+  async clearDocumentProjections(tenantId: string, projectionId: string): Promise<void> {
+    await this.db.recursiveDelete(this.projections(tenantId).doc(projectionId).collection(PORTAL_DOCUMENTS_SUBCOLLECTION));
+  }
+
   private async page(query: Query, after: string | null, pageSize: number): Promise<ProjectionPage> {
     let ordered = query.orderBy(FieldPath.documentId()).limit(pageSize);
     if (after) ordered = ordered.startAfter(after);

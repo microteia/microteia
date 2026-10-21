@@ -33,6 +33,19 @@ import { isValidPortalSubject } from './PortalProjectionUseCases';
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+/**
+ * O convidado enxerga a projeção AGORA: está no `audience` dela E ainda tem, no convite, um dos
+ * sujeitos dela. O `audience` é refeito por um gatilho, segundos depois de uma revogação — e para
+ * sempre atrasado se o gatilho falhar —; o convite é lido aqui, e vale no instante.
+ */
+const guestSees = (
+  guest: { userId: string; subjectKeys: string[] },
+  projection: { audience: string[]; subjectKeys: string[] } | null | undefined,
+): boolean =>
+  !!projection
+  && projection.audience.includes(guest.userId)
+  && projection.subjectKeys.some((key) => guest.subjectKeys.includes(key));
+
 export interface InvitePortalUserInput {
   tenantId: string;
   tenantName: string;
@@ -117,10 +130,11 @@ export type GetPortalDocumentUrlUseCase = {
 export const makeGetPortalDocumentUrlUseCase = (repo: IPortalRepository): GetPortalDocumentUrlUseCase => ({
   execute: async ({ tenantId, userId, projectionId, documentId }) => {
     const denied = permissionDenied('@core.tenant/portal.document.unavailable');
-    if (!(await repo.getPortalUser(tenantId, userId))) throw denied;
+    const guest = await repo.getPortalUser(tenantId, userId);
+    if (!guest) throw denied;
 
     const projection = await repo.getProjection(tenantId, projectionId);
-    if (!projection || !projection.audience.includes(userId)) throw denied;
+    if (!projection || !guestSees(guest, projection)) throw denied;
     if (portalRecordDocId(projection.collection, projection.recordId) !== projectionId) throw denied;
 
     const screens = await repo.getScreens(tenantId);
@@ -409,8 +423,7 @@ export const makeSubmitPortalRecordUseCase = (
 
     const visible = target.portal.subject === 'self'
       ? guest.subjectKeys.includes(portalSubjectKey(target.collection, linkRecordId))
-      : (await repo.getProjection(tenantId, portalRecordDocId(target.collection, linkRecordId)))
-        ?.audience.includes(userId) === true;
+      : guestSees(guest, await repo.getProjection(tenantId, portalRecordDocId(target.collection, linkRecordId)));
     if (!visible) throw denied;
 
     const submission = buildPortalSubmission(screen, data, linkRecordId);
@@ -451,10 +464,11 @@ export const makeUpdatePortalRecordUseCase = (
 ): UpdatePortalRecordUseCase => ({
   execute: async ({ tenantId, userId, collection, recordId, data, timeZone }) => {
     const denied = permissionDenied('@core.tenant/portal.edit.denied');
-    if (!(await repo.getPortalUser(tenantId, userId))) throw denied;
+    const guest = await repo.getPortalUser(tenantId, userId);
+    if (!guest) throw denied;
 
     const projection = await repo.getProjection(tenantId, portalRecordDocId(collection, recordId));
-    if (!projection || !projection.audience.includes(userId)) throw denied;
+    if (!guestSees(guest, projection)) throw denied;
 
     const screens = await repo.getScreens(tenantId);
     const screen = screens.find((one) => one.collection === collection && one.portal);
@@ -523,21 +537,24 @@ export const makeAttachPortalDocumentUseCase = (
 ): AttachPortalDocumentUseCase => ({
   execute: async ({ tenantId, userId, userName, collection, recordId, uploadId, name, type }) => {
     const denied = permissionDenied('@core.tenant/portal.upload.denied');
-    if (!(await repo.getPortalUser(tenantId, userId))) throw denied;
-
-    const projection = await repo.getProjection(tenantId, portalRecordDocId(collection, recordId));
-    if (!projection || !projection.audience.includes(userId)) throw denied;
-
-    const screens = await repo.getScreens(tenantId);
-    const screen = screens.find((one) => one.collection === collection && one.portal);
-    if (!screen?.portal?.uploads || screen.portal.documents !== true) throw denied;
-
-    const allowed = portalUploadTypes(screen, await deps.documentTypes(tenantId));
-    if (!allowed.some((option) => option.key === type)) throw invalidArgument('@core.tenant/portal.upload.type-invalid');
-
-    const file = await repo.readStagedUpload(tenantId, userId, uploadId);
-    if (!file) throw invalidArgument('@core.tenant/portal.upload.missing');
+    // A espera é limpa em TODO desfecho, inclusive nas recusas: um arquivo recusado que ficasse lá
+    // seria espaço do escritório ocupado para sempre, por quem quisesse repetir a recusa.
     try {
+      const guest = await repo.getPortalUser(tenantId, userId);
+      if (!guest) throw denied;
+
+      const projection = await repo.getProjection(tenantId, portalRecordDocId(collection, recordId));
+      if (!guestSees(guest, projection)) throw denied;
+
+      const screens = await repo.getScreens(tenantId);
+      const screen = screens.find((one) => one.collection === collection && one.portal);
+      if (!screen?.portal?.uploads || screen.portal.documents !== true) throw denied;
+
+      const allowed = portalUploadTypes(screen, await deps.documentTypes(tenantId));
+      if (!allowed.some((option) => option.key === type)) throw invalidArgument('@core.tenant/portal.upload.type-invalid');
+
+      const file = await repo.readStagedUpload(tenantId, userId, uploadId);
+      if (!file) throw invalidArgument('@core.tenant/portal.upload.missing');
       if (file.data.length > PORTAL_UPLOAD_MAX_BYTES) throw invalidArgument('@core.tenant/portal.upload.too-large');
       const cleanName = name.trim().slice(0, 200) || uploadId;
       return await deps.attach({

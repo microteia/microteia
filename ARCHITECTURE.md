@@ -1069,11 +1069,34 @@ Na casca, o formulário de criação serve à edição (`PortalCreateForm` com `
 convidado vê, e campo apagado vai como `null`. Views de extensão usam `canEdit`,
 `usePortalNavigation().edit` e `usePortalUpdate`.
 
+### Garantias que a revisão da branch acrescentou
+
+- **O convite vale no instante.** As callables (alterar, anexar, URL de documento, criar dentro de
+  um pai) conferem `audience` E os `subjectKeys` atuais do convite (`guestSees`): revogar um sujeito
+  corta o acesso antes de o gatilho refazer o `audience` — e mesmo que ele falhe. A LEITURA pelas
+  regras ainda depende do `audience`, que o gatilho refaz em segundos.
+- **Rótulo de referência só de tela do portal**, e só quando ela expõe o título (`portalExposedTitle`):
+  apontar para uma tela interna não leva o nome do registro apontado.
+- **Documentos acompanham a declaração.** A reprojeção (`syncDocuments`) traz os já compartilhados
+  quando `documents` é ligado e apaga os projetados quando é desligado.
+- **A área de espera é limpa em toda recusa**, não só depois de ler o arquivo.
+- **Na tela que já está no portal**, mudar `dataCollection`, `parentEntity`, `parentFieldKey` ou
+  `titleFieldKey` também cobra `portal.manage` (regra de `screenDefinitions`).
+- A reprojeção também dispara quando muda a chave, o tipo, o `refEntity` ou a multiplicidade de um
+  campo; e o convite consulta o `audience` uma vez por combinação de sujeitos, não por projeção.
+
 ### O que ainda não faz
 
 - **Excluir pelo portal.** O convidado cria, altera e anexa; não apaga registro nem documento.
 - **View de portal declarativa** (Widget DSL): `portal.view` — inclusive `page`, `widget` e `home` — é só `code`. O `WidgetRenderer` lê os
   stores do escritório, e o convidado não os tem.
+- **Escala.** A lista do portal traz as 200 projeções mais recentes por coleção, sem paginação por
+  cursor; a reprojeção de uma mudança de declaração roda numa invocação só (540 s); e os gatilhos de
+  projeção leem as telas por um cache de 30 s por instância — uma gravação logo depois de mudar a
+  declaração pode projetar pela declaração anterior, até a próxima gravação daquele registro.
+- **`refEntity` do campo-sujeito** muda pelo Form Design sem `portal.manage` (incluir `fields` na
+  regra travaria qualquer edição de campo das telas do portal). Exige que a tela apontada também
+  esteja no portal, o que já cobra `portal.manage`.
 - `storage.rules` deixa qualquer MEMBRO ler qualquer arquivo de registro, independentemente de
   `<coleção>.read` — achado à parte, que o portal não usa: o convidado não é membro e baixa pela
   callable.

@@ -10,7 +10,6 @@ import {
   portalExposedTitle,
   portalFieldKeys,
   portalRecordDocId,
-  portalRecordTitle,
   projectPortalData,
   referencedIds,
   resolvePortalSubjectKeys,
@@ -50,6 +49,12 @@ export interface ProjectPortalRecordInput {
   recordId: string;
   /** `null` quando o registro foi apagado. */
   data: Record<string, unknown> | null;
+  /**
+   * Refaz também os documentos projetados — a declaração mudou, e `documents` pode ter sido ligado
+   * (traz os já compartilhados) ou desligado (tira os que tinham saído). Na gravação comum, não:
+   * cada documento tem o próprio gatilho.
+   */
+  syncDocuments?: boolean;
 }
 
 export type ProjectPortalRecordUseCase = {
@@ -76,6 +81,7 @@ export const makeProjectPortalRecordUseCase = (repo: IPortalRepository): Project
     recordId: string,
     data: Record<string, unknown> | null,
     depth: number,
+    syncDocuments: boolean,
   ): Promise<void> => {
     const projectionId = portalRecordDocId(screen.collection, recordId);
     const existing = await repo.getProjection(tenantId, projectionId);
@@ -97,10 +103,12 @@ export const makeProjectPortalRecordUseCase = (repo: IPortalRepository): Project
         if (field?.type !== 'reference' || !field.refEntity) continue;
         const target = screenFor(field.refEntity);
         const ids = referencedIds(data[key]);
-        if (!target || ids.length === 0) continue;
+        // O rótulo é o TÍTULO do registro apontado — e título só sai de tela que está no portal e o
+        // expõe. Apontar para uma tela interna (o funcionário responsável) não leva o nome dele junto.
+        if (!target?.portal || ids.length === 0) continue;
         const titles = await Promise.all(ids.map(async (id) => {
           const referenced = await repo.getRecord(tenantId, target.collection, id);
-          return referenced ? portalRecordTitle(target, referenced) : '';
+          return referenced ? portalExposedTitle(target, referenced) : '';
         }));
         labels[key] = titles.filter((title) => title !== '').join(', ');
       }
@@ -126,7 +134,11 @@ export const makeProjectPortalRecordUseCase = (repo: IPortalRepository): Project
       };
       await repo.writeProjection(tenantId, projectionId, projection);
 
-      if (!existing && screen.portal?.documents) {
+      if (existing && syncDocuments && !screen.portal?.documents) {
+        // A tela deixou de expor documentos: o que já tinha saído volta para dentro.
+        await repo.clearDocumentProjections(tenantId, projectionId);
+      }
+      if ((!existing || syncDocuments) && screen.portal?.documents) {
         for (const document of await repo.sharedDocuments(tenantId, screen.collection, recordId)) {
           await repo.writeDocumentProjection(tenantId, projectionId, document.id, {
             name: document.name,
@@ -145,17 +157,17 @@ export const makeProjectPortalRecordUseCase = (repo: IPortalRepository): Project
         tenantId, dependent.screen.collection, dependent.fieldKey, recordId, dependent.multi,
       );
       for (const child of children) {
-        await project(tenantId, screens, dependent.screen, child.id, child.data, depth + 1);
+        await project(tenantId, screens, dependent.screen, child.id, child.data, depth + 1, false);
       }
     }
   };
 
   return {
-    execute: async ({ tenantId, collection, recordId, data }) => {
+    execute: async ({ tenantId, collection, recordId, data, syncDocuments = false }) => {
       const screens = await repo.getScreens(tenantId);
       const screen = portalScreenOf(screens, collection);
       if (!screen) return false;
-      await project(tenantId, screens, screen, recordId, data, 0);
+      await project(tenantId, screens, screen, recordId, data, 0, syncDocuments);
       return true;
     },
   };
@@ -174,13 +186,21 @@ export type RefreshPortalAudienceUseCase = {
 export const makeRefreshPortalAudienceUseCase = (repo: IPortalRepository): RefreshPortalAudienceUseCase => ({
   execute: async (tenantId, subjectKeys) => {
     let changed = 0;
+    const audiences = new Map<string, string[]>();
     for (const subjectKey of new Set(subjectKeys)) {
       let after: string | null = null;
       do {
         const page = await repo.projectionsForSubject(tenantId, subjectKey, after, PAGE_SIZE);
         const changes: Array<{ projectionId: string; audience: string[] }> = [];
         for (const item of page.items) {
-          const audience = await repo.audienceFor(tenantId, item.subjectKeys);
+          // As projeções de um sujeito quase sempre têm os MESMOS sujeitos: uma consulta por
+          // combinação, e não uma por projeção — dez mil notas da mesma empresa são uma consulta só.
+          const signature = [...item.subjectKeys].sort().join('\u0000');
+          let audience = audiences.get(signature);
+          if (!audience) {
+            audience = await repo.audienceFor(tenantId, item.subjectKeys);
+            audiences.set(signature, audience);
+          }
           if (!sameMembers(audience, item.audience)) changes.push({ projectionId: item.id, audience });
         }
         if (changes.length > 0) await repo.setAudiences(tenantId, changes);
@@ -220,7 +240,7 @@ export const makeReprojectPortalCollectionUseCase = (
     do {
       const page = await repo.listRecords(tenantId, collection, after, PAGE_SIZE);
       for (const record of page.items) {
-        await projectRecord.execute({ tenantId, collection, recordId: record.id, data: record.data });
+        await projectRecord.execute({ tenantId, collection, recordId: record.id, data: record.data, syncDocuments: true });
       }
       after = page.next;
     } while (after);

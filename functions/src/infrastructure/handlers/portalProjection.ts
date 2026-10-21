@@ -60,12 +60,20 @@ export const refreshPortalAudience = onDocumentWritten(
   },
 );
 
-/** O que, numa tela, decide o que o portal projeta dela. */
-const portalShape = (data: Record<string, unknown> | undefined): string =>
-  data
-    ? JSON.stringify([data.portal ?? null, data.dataCollection ?? null, data.titleFieldKey ?? null,
-      data.parentEntity ?? null, data.parentFieldKey ?? null])
-    : '';
+/**
+ * O que, numa tela, decide o que o portal projeta dela. Dos campos, só o que muda o vínculo ou o que
+ * existe: trocar o `refEntity` do campo-sujeito, ou apagar um campo exposto, refaz a projeção; mudar
+ * um rótulo, não.
+ */
+const portalShape = (data: Record<string, unknown> | undefined): string => {
+  if (!data) return '';
+  const fields = Array.isArray(data.fields)
+    ? (data.fields as Array<Record<string, unknown>>).map((field) =>
+      [field.key ?? null, field.type ?? null, field.refEntity ?? null, field.multi === true])
+    : null;
+  return JSON.stringify([data.portal ?? null, data.dataCollection ?? null, data.titleFieldKey ?? null,
+    data.parentEntity ?? null, data.parentFieldKey ?? null, fields]);
+};
 
 /**
  * A declaração de portal de uma tela mudou. Refaz TODAS as coleções do portal do escritório, e não

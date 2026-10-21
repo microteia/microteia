@@ -50,6 +50,41 @@ describe('projeção do portal', () => {
     expect(projections.get('invoices__nf1')).toMatchObject({ editable: false, portalOwner: null });
   });
 
+  it('o rótulo de referência só sai de tela do portal que expõe o título', async () => {
+    const screens = CITY_SCREENS.map((screen) => {
+      if (screen.id === 'invoices') {
+        return {
+          ...screen,
+          fields: [...screen.fields, { key: 'inspectionId', label: 'Inspection', type: 'reference', refEntity: 'inspections', required: false }],
+          portal: { ...screen.portal!, fields: [...screen.portal!.fields, 'inspectionId'] },
+        };
+      }
+      return screen;
+    }) as typeof CITY_SCREENS;
+    const { write, projections, records } = setup(screens);
+    records.set('inspections/i1', { title: 'Fiscal Joana — suspeita de fraude', companyId: 'acme' });
+    await write('invoices', 'nf1', { number: 'NF-1', companyId: 'acme', inspectionId: 'i1' });
+    expect(projections.get('invoices__nf1')?.labels).toEqual({ companyId: 'Acme' });
+  });
+
+  it('ligar documentos traz os já compartilhados; desligar tira os que tinham saído', async () => {
+    const withDocs = (documents: boolean) => CITY_SCREENS.map((screen) => (screen.id === 'invoices'
+      ? { ...screen, portal: { ...screen.portal!, documents } }
+      : screen));
+    const off = setup(withDocs(false));
+    off.records.set('invoices/nf1', { number: 'NF-1', companyId: 'acme' });
+    off.documents.set('invoices/nf1/d1', { name: 'nota.pdf', portalShared: true, url: 'https://x' });
+    await off.project.execute({ tenantId: TENANT, collection: 'invoices', recordId: 'nf1', data: off.records.get('invoices/nf1')! });
+    expect(off.projectedDocuments.size).toBe(0);
+
+    const on = makeProjectPortalRecordUseCase({ ...off.repo, getScreens: async () => withDocs(true) });
+    await on.execute({ tenantId: TENANT, collection: 'invoices', recordId: 'nf1', data: off.records.get('invoices/nf1')!, syncDocuments: true });
+    expect([...off.projectedDocuments.keys()]).toEqual(['invoices__nf1/d1']);
+
+    await off.project.execute({ tenantId: TENANT, collection: 'invoices', recordId: 'nf1', data: off.records.get('invoices/nf1')!, syncDocuments: true });
+    expect(off.projectedDocuments.size).toBe(0);
+  });
+
   it('a coleção que não declara portal não é projetada', async () => {
     const { write, projections } = setup();
     expect(await write('inspections', 'i1', { title: 'Fiscalização', companyId: 'acme' })).toBe(false);

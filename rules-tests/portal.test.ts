@@ -168,6 +168,11 @@ describe('declarar o portal de uma tela', () => {
           gestorPortal: ['screens.manage', 'portal.manage'],
         },
       },
+      screens: {
+        [TENANT]: {
+          exposta: { titleSingular: 'Empresa', titleFieldKey: 'name', fields: [], portal: { subject: 'self', fields: ['name'] } },
+        },
+      },
     });
   });
 
@@ -178,6 +183,16 @@ describe('declarar o portal de uma tela', () => {
     await assertSucceeds(updateDoc(screen('desenhista'), { titleSingular: 'Nota' }));
     await assertFails(updateDoc(screen('desenhista'), { portal }));
     await assertFails(setDoc(screen('desenhista', 'novaTela'), { titleSingular: 'X', fields: [], portal }));
+  });
+
+  it('numa tela do portal, trocar coleção, pai ou título também é decidir o que sai', async () => {
+    await assertSucceeds(updateDoc(screen('desenhista', 'exposta'), { titleSingular: 'Companhia' }));
+    await assertFails(updateDoc(screen('desenhista', 'exposta'), { dataCollection: 'interna' }));
+    await assertFails(updateDoc(screen('desenhista', 'exposta'), { titleFieldKey: 'cpf' }));
+    await assertFails(updateDoc(screen('desenhista', 'exposta'), { parentEntity: 'outra', parentFieldKey: 'x' }));
+    await assertSucceeds(updateDoc(screen('gestorPortal', 'exposta'), { dataCollection: 'empresas' }));
+    // Fora do portal, a coleção continua sendo só Form Design.
+    await assertSucceeds(updateDoc(screen('desenhista'), { dataCollection: 'notas' }));
   });
 
   it('quem gerencia o portal declara e retira', async () => {

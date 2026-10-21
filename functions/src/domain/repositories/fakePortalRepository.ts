@@ -83,6 +83,9 @@ export const makeFakePortalRepository = (screens: PortalScreen[]) => {
         portalShared: data.portalShared === true,
       };
     },
+    clearDocumentProjections: async (_t, id) => {
+      for (const key of [...projectedDocuments.keys()]) if (key.startsWith(`${id}/`)) projectedDocuments.delete(key);
+    },
     writeDocumentProjection: async (_t, projectionId, documentId, projection) => {
       projectedDocuments.set(`${projectionId}/${documentId}`, projection);
     },

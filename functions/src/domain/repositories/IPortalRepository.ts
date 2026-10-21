@@ -104,6 +104,8 @@ export interface IPortalRepository {
   writeProjection(tenantId: string, projectionId: string, projection: PortalProjection): Promise<void>;
   /** Apaga a projeção e os documentos projetados dela. */
   deleteProjection(tenantId: string, projectionId: string): Promise<void>;
+  /** Apaga só os documentos projetados — a tela deixou de expor documentos. */
+  clearDocumentProjections(tenantId: string, projectionId: string): Promise<void>;
   projectionsForSubject(tenantId: string, subjectKey: string, after: string | null, pageSize: number): Promise<ProjectionPage>;
   projectionsOfCollection(tenantId: string, collection: string, after: string | null, pageSize: number): Promise<ProjectionPage>;
   setAudiences(tenantId: string, changes: Array<{ projectionId: string; audience: string[] }>): Promise<void>;

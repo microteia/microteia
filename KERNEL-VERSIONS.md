@@ -18,6 +18,15 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.137.5] — 2026-10-20
+
+- fix(portal): callables (edit, attach, document URL, create under a parent) now require the guest's CURRENT `subjectKeys` to intersect the projection's (`guestSees`), not just `audience` — revoking one subject is immediate even if `refreshPortalAudience` is late or failed.
+- fix(portal): reference labels are built only from portal screens and only when they expose their title (`portalExposedTitle`); an exposed reference to an internal screen leaked that record's title.
+- fix(portal): reprojection passes `syncDocuments` — turning `documents` on backfills the already shared documents, turning it off clears the projected ones (`IPortalRepository.clearDocumentProjections`).
+- fix(portal): `attachPortalDocument` deletes the staged file on every outcome, refusals included.
+- fix(rules): on a screen that already has `portal`, changing `dataCollection`, `parentEntity`, `parentFieldKey` or `titleFieldKey` requires `portal.manage` (or `extensions.manage`). Tested in `rules-tests/portal.test.ts`.
+- perf(portal): `refreshPortalAudience` memoizes `audienceFor` per subject-key combination; `reprojectPortalOnScreenChange` also fires on field key/type/`refEntity`/`multi` changes. Deploy: `npm run deploy:rules`, `npm run deploy:portal`.
+
 #### [9.137.4] — 2026-10-20
 
 - fix(portal): a guest edit could RECREATE a record deleted between the use case's checks and the write — `runWorkflowUpsert` with an `id` that no longer exists creates it, here holding only the guest's fields. New `UpsertOptions.updateOnly` refuses with `@core.automation/mutation.upsert.not-found` instead; `portalRecordWriter` sets it on every edit. `com.microteia.locale-pt-br` 1.113.0.

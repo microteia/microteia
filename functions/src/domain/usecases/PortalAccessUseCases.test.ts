@@ -373,3 +373,38 @@ describe('o convidado altera um registro', () => {
       .rejects.toMatchObject({ name: 'PortalSubmissionInvalid', params: { detail: 'amount' } });
   });
 });
+
+describe('o convite vale no instante, não quando o audience for refeito', () => {
+  it('sujeito revogado: o audience ainda o lista, e mesmo assim tudo é recusado', async () => {
+    const screens = CITY_SCREENS.map((screen) => (screen.id === 'invoices'
+      ? { ...screen, portal: { ...screen.portal!, documents: true, uploads: { types: [] }, edit: { fields: ['amount'] } } }
+      : screen));
+    const fake = makeFakePortalRepository(screens);
+    // Ana perdeu a Acme e ficou só com a Globex; o gatilho ainda não refez o audience da nota.
+    fake.users.set('ana', { userId: 'ana', email: 'ana@acme.com', displayName: 'Ana', subjectKeys: ['companies/globex'] });
+    fake.records.set('invoices/nf1', { number: '1', amount: 1, companyId: 'acme' });
+    fake.projections.set('invoices__nf1', {
+      collection: 'invoices', recordId: 'nf1', screenId: 'invoices', subjectKeys: ['companies/acme'],
+      audience: ['ana'], title: '', data: {}, labels: {}, parentKeys: ['companies/acme'], editable: true, portalOwner: null,
+    });
+    fake.documents.set('invoices/nf1/d1', { name: 'x.pdf', portalShared: true, url: 'https://x' });
+    fake.staged.set('ana/up1', { data: Buffer.from('pdf'), contentType: 'application/pdf' });
+    const write = vi.fn(async () => ({ ok: true as const, id: 'nf1' }));
+    const attach = vi.fn(async () => ({ id: 'doc' }));
+
+    await expect(makeUpdatePortalRecordUseCase(fake.repo, write).execute({
+      tenantId: TENANT, userId: 'ana', collection: 'invoices', recordId: 'nf1', data: { amount: 2 },
+    })).rejects.toThrow('@core.tenant/portal.edit.denied');
+    await expect(makeGetPortalDocumentUrlUseCase(fake.repo).execute({
+      tenantId: TENANT, userId: 'ana', projectionId: 'invoices__nf1', documentId: 'd1',
+    })).rejects.toThrow('@core.tenant/portal.document.unavailable');
+    await expect(makeAttachPortalDocumentUseCase(fake.repo, { documentTypes: async () => [{ key: 'Nota', label: 'Nota' }], attach }).execute({
+      tenantId: TENANT, userId: 'ana', userName: 'Ana', collection: 'invoices', recordId: 'nf1', uploadId: 'up1', name: 'a.pdf', type: 'Nota',
+    })).rejects.toThrow('@core.tenant/portal.upload.denied');
+    expect(write).not.toHaveBeenCalled();
+    expect(attach).not.toHaveBeenCalled();
+    // A recusa também limpa a espera — o arquivo não fica ocupando o escritório.
+    expect(fake.staged.size).toBe(0);
+  });
+});
+

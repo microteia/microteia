@@ -11,6 +11,13 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.137.5] — 2026-10-20
+
+- Ao retirar o acesso de um convidado a uma empresa, ele deixa na hora de poder alterar registros, anexar documentos e abrir documentos dela.
+- O portal não mostra mais, ao convidado, nomes de registros internos do escritório que apareciam ao lado de campos de referência.
+- Ligar ou desligar a exibição de documentos no portal passa a valer também para os documentos já compartilhados.
+- Arquivos recusados no envio pelo portal não ficam mais ocupando espaço do escritório.
+
 #### [9.137.4] — 2026-10-20
 
 - Quando o convidado do portal tenta alterar um registro que acabou de ser excluído pelo escritório, ele agora vê um aviso claro, em vez de o registro ser recriado.

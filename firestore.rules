@@ -515,8 +515,14 @@ service cloud.firestore {
         allow create: if (can(tenantId, 'screens.manage') || can(tenantId, 'extensions.manage'))
           && (request.resource.data.get('portal', null) == null
               || can(tenantId, 'portal.manage') || can(tenantId, 'extensions.manage'));
+        // Numa tela que JÁ está no portal, a coleção, o pai e o título também decidem o que sai: trocar
+        // o `dataCollection` projetaria outra coleção para os mesmos convidados, sem tocar no `portal`.
         allow update: if (can(tenantId, 'screens.manage') || can(tenantId, 'extensions.manage'))
           && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['portal'])
+              || can(tenantId, 'portal.manage') || can(tenantId, 'extensions.manage'))
+          && (resource.data.get('portal', null) == null
+              || !request.resource.data.diff(resource.data).affectedKeys()
+                .hasAny(['dataCollection', 'parentEntity', 'parentFieldKey', 'titleFieldKey'])
               || can(tenantId, 'portal.manage') || can(tenantId, 'extensions.manage'));
         allow delete: if can(tenantId, 'screens.manage')
           || can(tenantId, 'extensions.manage');
