@@ -1,4 +1,4 @@
-import type { DevicePushStatus, InboxNotification } from '../entities/InboxNotification';
+import type { DevicePushStatus, InboxNotification, InboxNotificationFilter } from '../entities/InboxNotification';
 import type { NotificationEmailSettings, NotificationEmailSettingsView } from '../schema/notifications';
 
 export interface INotificationInboxRepository {
@@ -9,7 +9,17 @@ export interface INotificationInboxRepository {
     onChange: (notifications: InboxNotification[]) => void,
   ): () => void;
   subscribeUnreadCount(tenantId: string, userId: string, cap: number, onChange: (count: number) => void): () => void;
+  /** A página: até `max` avisos do filtro, ao vivo. "Carregar mais" é pedir de novo com `max` maior. */
+  subscribeFiltered(
+    tenantId: string,
+    userId: string,
+    filter: InboxNotificationFilter,
+    max: number,
+    onChange: (notifications: InboxNotification[]) => void,
+    onError: () => void,
+  ): () => void;
   markRead(tenantId: string, ids: readonly string[]): Promise<void>;
+  markUnread(tenantId: string, ids: readonly string[]): Promise<void>;
   markAllRead(tenantId: string, userId: string): Promise<void>;
 }
 

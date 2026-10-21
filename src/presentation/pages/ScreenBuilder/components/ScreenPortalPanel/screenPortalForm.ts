@@ -20,6 +20,8 @@ export interface PortalFormState {
   editFields: string[];
   editWhen: string;
   editOnlyOwn: boolean;
+  /** Avisar o escritório da atividade do convidado — ligado por padrão. */
+  notifyOffice: boolean;
 }
 
 export const EMPTY_PORTAL_FORM: PortalFormState = {
@@ -36,6 +38,7 @@ export const EMPTY_PORTAL_FORM: PortalFormState = {
   editFields: [],
   editWhen: '',
   editOnlyOwn: false,
+  notifyOffice: true,
 };
 
 export const toPortalForm = (portal: PortalDeclaration | null | undefined): PortalFormState => {
@@ -55,6 +58,7 @@ export const toPortalForm = (portal: PortalDeclaration | null | undefined): Port
     editFields: [...(portal.edit?.fields ?? [])],
     editWhen: portal.edit?.when ?? '',
     editOnlyOwn: portal.edit?.onlyOwn === true,
+    notifyOffice: portal.notifyOffice !== false,
   };
 };
 
@@ -78,5 +82,6 @@ export const fromPortalForm = (form: PortalFormState): PortalDeclaration | null 
         },
       }
       : {}),
+    ...(form.notifyOffice ? {} : { notifyOffice: false }),
   };
 };

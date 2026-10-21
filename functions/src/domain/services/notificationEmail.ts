@@ -45,5 +45,7 @@ export const renderNotificationEmail = (content: NotificationEmailContent): Emai
 /** O endereço que o link do e-mail abre: a aplicação do escritório mais a chave da aba. */
 export const notificationLinkUrl = (appUrl: string, link: string): string => {
   if (!appUrl || !link) return '';
-  return `${appUrl.replace(/\/+$/, '')}/${encodeURI(link.replace(/^\/+/, ''))}`;
+  // `link` já é o caminho pronto (`appDeepLinkPath`), com a aba codificada: codificar de novo
+  // transformaria o `%3A` da aba em `%253A`, e o link abriria nada.
+  return `${appUrl.replace(/\/+$/, '')}/${link.replace(/^\/+/, '')}`;
 };

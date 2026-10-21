@@ -457,6 +457,7 @@ export {
   menuItem,
   nav,
   navGroup,
+  notificationCategory,
   page,
   pointContribution,
   portalView,
@@ -471,6 +472,7 @@ export {
   widgetPage,
 } from './contributions';
 export type { PortalViewMetadata, PortalViewSurface } from '../domain/schema/portalExtensionPoints';
+export type { NotificationCategoryMetadata } from '../domain/schema/notifications';
 
 // ─── Validação e serialização ─────────────────────────────────────────────────
 

@@ -3,6 +3,9 @@ import { useDI } from '../../../../infrastructure/di/useDI';
 import { useAuth } from '../../../../stores/useAuth';
 import { useTenant } from '../../../../stores/useTenant';
 import { useWorkspace } from '../../../../stores/useWorkspace';
+import { useOpenLink } from '../../../shared/useOpenLink';
+import { recordLinkTabKey } from '../../../../domain/schema/recordLink';
+import { NOTIFICATIONS_PAGE_KEY } from '../../../../domain/schema/notifications';
 import { useNotification } from '../../../../stores/useNotification';
 import { useLabel, useLocaleFormat } from '../../../shared/i18n/useT';
 import type { DevicePushStatus, InboxNotification } from '../../../../domain/entities/InboxNotification';
@@ -34,6 +37,8 @@ export interface NotificationBellViewModel {
   toggle: () => void;
   openItem: (id: string) => void;
   markAllRead: () => void;
+  /** A página com todos os avisos, filtros e preferências por tipo. */
+  seeAll: () => void;
   enablePush: () => void;
   disablePush: () => void;
 }
@@ -43,6 +48,7 @@ export const useNotificationBellViewModel = (): NotificationBellViewModel => {
   const { user } = useAuth();
   const { currentTenant } = useTenant();
   const { openTab } = useWorkspace();
+  const openLink = useOpenLink();
   const { notify } = useNotification();
   const label = useLabel();
   const { formatDateTime } = useLocaleFormat();
@@ -107,7 +113,7 @@ export const useNotificationBellViewModel = (): NotificationBellViewModel => {
       message: label(notification.message, notification.params),
       when: formatDateTime(notification.createdAt),
       read: notification.read,
-      hasLink: notification.link !== '',
+      hasLink: notification.link !== '' || notification.target !== null,
     })),
     [notifications, label, formatDateTime],
   );
@@ -118,11 +124,17 @@ export const useNotificationBellViewModel = (): NotificationBellViewModel => {
     const notification = notifications.find((one) => one.id === id);
     if (!notification || !tenantId) return;
     if (!notification.read) uc.markRead.execute(tenantId, [id]).catch(() => undefined);
-    if (notification.link) {
+    const tabKey = notification.target ? recordLinkTabKey(notification.target) : notification.link;
+    if (tabKey) {
       setOpen(false);
-      openTab(notification.link);
+      openLink(tabKey);
     }
-  }, [notifications, tenantId, uc, openTab]);
+  }, [notifications, tenantId, uc, openLink]);
+
+  const seeAll = useCallback(() => {
+    setOpen(false);
+    openTab(NOTIFICATIONS_PAGE_KEY);
+  }, [openTab]);
 
   const markAllRead = useCallback(() => {
     if (!tenantId || !userId) return;
@@ -156,6 +168,7 @@ export const useNotificationBellViewModel = (): NotificationBellViewModel => {
     toggle,
     openItem,
     markAllRead,
+    seeAll,
     enablePush,
     disablePush,
   };

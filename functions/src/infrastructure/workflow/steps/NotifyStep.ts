@@ -4,6 +4,9 @@ import type { DispatchNotificationUseCase } from '../../../domain/usecases/Dispa
 import type { InputMapping } from '../../../domain/entities/Workflow';
 import type { WorkflowResult } from '../../../domain/entities/WorkflowContext';
 import { isChannelEnabled, notificationRecipientCandidates } from '../../../domain/schema/notifications';
+import type { IScreenDefinitionProvider } from '../../../domain/repositories/IScreenDefinitionProvider';
+import type { WorkflowEvent } from '../../../domain/entities/Workflow';
+import type { RecordLinkTarget } from '../../../domain/schema/recordLink';
 
 const RECIPIENT_INPUTS = ['recipientMembers', 'recipientsFrom', 'recipientPermission'] as const;
 
@@ -33,7 +36,29 @@ const isConfigured = (mapping: InputMapping | undefined): boolean => {
  * reprova o passo. Origem configurada que não rende ninguém nesta execução — o campo veio vazio, a
  * permissão não tem membros — não é erro: o passo segue, e o log diz por quê.
  */
-export const makeNotifyStepDefinition = (dispatch: DispatchNotificationUseCase): StepDefinition => ({
+/**
+ * O registro que disparou a automação — o prazo que venceu, a nota que mudou. O evento de registro
+ * é `<prefixo>.<o que houve>` com o registro inteiro no payload; o prefixo diz a tela, e a tela diz
+ * a coleção. Evento que não é de registro (manual, agendado) não tem alvo, e o aviso só não abre nada.
+ */
+const eventRecordOf = async (
+  screens: IScreenDefinitionProvider,
+  tenantId: string,
+  event: WorkflowEvent,
+): Promise<RecordLinkTarget | null> => {
+  const recordId = typeof event.payload?.id === 'string' ? event.payload.id : '';
+  const dot = event.name.lastIndexOf('.');
+  if (!recordId || dot <= 0) return null;
+  const prefix = event.name.slice(0, dot);
+  const screen = (await screens.getScreens(tenantId))
+    .find((one) => (one.eventPrefix ?? one.collection ?? one.id) === prefix);
+  return screen ? { collection: screen.collection ?? screen.id, recordId } : null;
+};
+
+export const makeNotifyStepDefinition = (
+  dispatch: DispatchNotificationUseCase,
+  screens: IScreenDefinitionProvider,
+): StepDefinition => ({
   ...coreStepMetadata('notify'),
   createExecutor: (): WorkflowStepExecutor => ({
     execute: async (inputs, context): Promise<WorkflowResult> => {
@@ -50,20 +75,31 @@ export const makeNotifyStepDefinition = (dispatch: DispatchNotificationUseCase):
         return { success: false, message: '@core.automation/step.notify.recipients.missing' };
       }
 
+      // Abrir o registro do evento é o PADRÃO: o aviso de um prazo abre o prazo sem que quem escreveu
+      // a automação precise montar chave de aba nenhuma.
+      const opensRecord = inputs.openRecord === undefined || isChannelEnabled(inputs.openRecord);
+      const target = opensRecord
+        ? await eventRecordOf(screens, context.execution.tenantId, context.event).catch(() => null)
+        : null;
+      const permission = textOf(inputs.recipientPermission);
+
       const result = await dispatch.execute({
         tenantId: context.execution.tenantId,
+        source: 'workflow',
         workflowId: context.execution.workflowDefinitionId,
         executionId: context.execution.id,
         title: textOf(inputs.title),
         message: textOf(inputs.message),
         params: paramsOf(inputs.messageParams),
         link: textOf(inputs.link),
+        target,
+        category: textOf(inputs.category),
         channels,
         recipientIds: [
           ...notificationRecipientCandidates(inputs.recipientMembers),
           ...notificationRecipientCandidates(inputs.recipientsFrom),
         ],
-        recipientPermission: textOf(inputs.recipientPermission),
+        recipientPermissions: permission ? [permission] : [],
       });
 
       for (const issue of result.issues) context.logger.warn(issue.message, issue.params);

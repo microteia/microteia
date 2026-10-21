@@ -15,6 +15,8 @@ export const AUTOMATION_MESSAGES: Record<string, string> = {
   'package.category': 'Automation',
   'package.description':
     'A worked automation: a workflow on save, a branch, a query, a write that does not duplicate, a script, and an action that asks for a value.',
+  'notification.large-request': 'Large request',
+  'notification.large-request.description': 'A request above the approval limit was saved.',
   'package.summary':
     'The mechanics of automation, with no business in the way. It installs one screen and every kind of automation the platform runs, so each can be read as source: a workflow that fires on save, a control node that branches, a query that asks whether a record already exists, a write that stays idempotent on a second run, a sandbox script, and a button that asks a person for a value before firing a flow.',
 

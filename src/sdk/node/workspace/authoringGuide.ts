@@ -289,7 +289,7 @@ const stepCatalogTable = (steps: readonly WorkflowStepMetadata[]): string => [
  * tabela de voltar a ficar incompleta em silêncio.
  */
 const STEP_CATALOG_NOTES: Record<string, string> = {
-  notify: 'Notifies people in the app (the bell), by e-mail or by push, and/or writes it to the audit trail. With no channel set it only writes to the audit trail, as version 1 did. Recipients come from `recipientMembers`, `recipientsFrom` (a member id, or a record linked to one by `memberId` — a reference read on its own is an id, so a person linked to a member is `event.personId.memberId`) and `recipientPermission`; each person keeps or refuses a channel in Settings, and `title`/`message` resolve in each recipient\'s language. Publishes `recipients`, `delivered.<channel>` and `failed.<channel>`.',
+  notify: 'Notifies people in the app (the bell), by e-mail or by push, and/or writes it to the audit trail. With no channel set it only writes to the audit trail, as version 1 did. Recipients come from `recipientMembers`, `recipientsFrom` (a member id, or a record linked to one by `memberId` — a reference read on its own is an id, so a person linked to a member is `event.personId.memberId`) and `recipientPermission`; each person keeps or refuses a channel in Settings, and `title`/`message` resolve in each recipient\'s language. Clicking it opens the record that triggered the flow (`openRecord`, on by default) — in the app, in the browser notification and in the e-mail. Set `category` to one of your declared notification types (`<package id>/<key>`, see `notificationCategory`) so each person can choose, on the Notifications page, which channels bring them that type. Publishes `recipients`, `delivered.<channel>` and `failed.<channel>`.',
   'register-audit': 'Writes an entry in the audit trail. `severity` defaults to `LOW`.',
   'set-variable': 'Names a value for the rest of the flow. Read it back with `{ kind: \'Variable\' }`.',
   map: 'Assembles an object from other values — what a write step then writes.',
@@ -614,6 +614,14 @@ The organization toggles and orders these tabs from Settings (\`<surface>.tabs\`
 \`${RECORD_SURFACE_PREFIX}\` with no \`sourceId\`, and warns — without refusing — about a \`sourceId\` it
 cannot find in your package, in a dependency authored beside it, or in the installation snapshot.
 \`examples/record-tab-example\` has both kinds of tab, and the list locked to the open record.
+
+### Notification types
+
+\`notificationCategory({ key, title, description?, icon? })\` declares a TYPE of notice your package sends —
+"deadline approaching", "contract ending". It is data only. A \`notify\` step that sets
+\`category: '<package id>/<key>'\` sends that type, and each person chooses on the Notifications page by
+which channels (app, e-mail, browser) it reaches them — muting your type never mutes the others. Write
+the title and message as message references, never fixed text: they are translated for each recipient.
 
 ### Your own screens in the portal
 

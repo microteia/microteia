@@ -74,6 +74,9 @@ const LACUNAS_CONFERIDAS = [
   // A tela do PORTAL. O modelo descreve o que o negócio É; como o convidado o vê é escolha de
   // apresentação de quem escreve a extensão, e nenhuma regra a implica.
   'extension-point\tportal.view',
+  // Os TIPOS de aviso. O modelo diz o que acontece no negócio (um prazo vence), não como cada
+  // pessoa prefere ser avisada de cada coisa — a categoria é escolha de quem escreve a extensão.
+  'extension-point\tnotification.category',
 
   // Os artefatos de pacote que o plano nunca preenche.
   'package-artifact\tsummary',

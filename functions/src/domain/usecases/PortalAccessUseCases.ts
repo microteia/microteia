@@ -379,6 +379,29 @@ export type PortalRecordWriter = (input: {
   recordId?: string;
 }) => Promise<{ ok: true; id: string } | { ok: false; error: string; errorParams?: Record<string, string> }>;
 
+/** O que o convidado fez, contado ao escritório. Quem decide quem recebe é o notificador. */
+export type PortalActivityKind = 'created' | 'updated' | 'attached';
+
+export type PortalActivityNotifier = (activity: {
+  tenantId: string;
+  userId: string;
+  kind: PortalActivityKind;
+  screen: PortalScreen;
+  recordId: string;
+  /** Repetir o mesmo fato não avisa duas vezes — um anexo é um aviso, por mais que o pedido se repita. */
+  dedupKey?: string;
+}) => Promise<void>;
+
+/** Avisar nunca desfaz o que o convidado fez: a falha fica no log, e a resposta segue. */
+const tellOffice = async (notify: PortalActivityNotifier | undefined, activity: Parameters<PortalActivityNotifier>[0]) => {
+  if (!notify) return;
+  try {
+    await notify(activity);
+  } catch {
+    // O aviso é consequência, não condição.
+  }
+};
+
 export interface SubmitPortalRecordInput {
   tenantId: string;
   userId: string;
@@ -406,6 +429,7 @@ export type SubmitPortalRecordUseCase = {
 export const makeSubmitPortalRecordUseCase = (
   repo: IPortalRepository,
   write: PortalRecordWriter,
+  notify?: PortalActivityNotifier,
 ): SubmitPortalRecordUseCase => ({
   execute: async ({ tenantId, userId, collection, linkRecordId, data }) => {
     const denied = permissionDenied('@core.tenant/portal.create.denied');
@@ -431,6 +455,9 @@ export const makeSubmitPortalRecordUseCase = (
 
     const outcome = await write({ tenantId, collection, data: submission, userId });
     if (!outcome.ok) throw new PortalSubmissionInvalid(outcome.error, outcome.errorParams);
+    await tellOffice(notify, {
+      tenantId, userId, kind: 'created', screen, recordId: outcome.id, dedupKey: `portal:created:${collection}:${outcome.id}`,
+    });
     return { id: outcome.id };
   },
 });
@@ -461,6 +488,7 @@ export type UpdatePortalRecordUseCase = {
 export const makeUpdatePortalRecordUseCase = (
   repo: IPortalRepository,
   write: PortalRecordWriter,
+  notify?: PortalActivityNotifier,
 ): UpdatePortalRecordUseCase => ({
   execute: async ({ tenantId, userId, collection, recordId, data, timeZone }) => {
     const denied = permissionDenied('@core.tenant/portal.edit.denied');
@@ -486,6 +514,7 @@ export const makeUpdatePortalRecordUseCase = (
 
     const outcome = await write({ tenantId, collection, data: changes, userId, recordId });
     if (!outcome.ok) throw new PortalSubmissionInvalid(outcome.error, outcome.errorParams);
+    await tellOffice(notify, { tenantId, userId, kind: 'updated', screen, recordId });
     return { id: outcome.id };
   },
 });
@@ -534,6 +563,7 @@ export type AttachPortalDocumentUseCase = {
 export const makeAttachPortalDocumentUseCase = (
   repo: IPortalRepository,
   deps: AttachPortalDocumentDeps,
+  notify?: PortalActivityNotifier,
 ): AttachPortalDocumentUseCase => ({
   execute: async ({ tenantId, userId, userName, collection, recordId, uploadId, name, type }) => {
     const denied = permissionDenied('@core.tenant/portal.upload.denied');
@@ -557,9 +587,13 @@ export const makeAttachPortalDocumentUseCase = (
       if (!file) throw invalidArgument('@core.tenant/portal.upload.missing');
       if (file.data.length > PORTAL_UPLOAD_MAX_BYTES) throw invalidArgument('@core.tenant/portal.upload.too-large');
       const cleanName = name.trim().slice(0, 200) || uploadId;
-      return await deps.attach({
+      const attached = await deps.attach({
         tenantId, collection, recordId, name: cleanName, contentType: file.contentType, data: file.data, type, userId, userName,
       });
+      await tellOffice(notify, {
+        tenantId, userId, kind: 'attached', screen, recordId, dedupKey: `portal:attached:${collection}:${recordId}:${attached.id}`,
+      });
+      return attached;
     } finally {
       await repo.deleteStagedUpload(tenantId, userId, uploadId);
     }

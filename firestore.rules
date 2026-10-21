@@ -545,7 +545,7 @@ service cloud.firestore {
         return name in [
         'actions', 'agentGrants', 'aggregate_backfills', 'aiConnections',
         'documentTemplates', 'documentTypes', 'documents', 'downloads', 'extension_history', 'extension_migrations', 'extensions',
-        'installed_extensions', 'lookupDefinitions', 'members', 'notes', 'notification_inbox',
+        'installed_extensions', 'lookupDefinitions', 'members', 'notes', 'notification_inbox', 'notification_dispatches',
         'portalRecords', 'portalUsers', 'reports', 'roles',
         // `plugin_installations` não tem mais código que a leia — foi a instalação de antes de
         // `installed_extensions`. Continua RESERVADA porque os documentos de então continuam nos

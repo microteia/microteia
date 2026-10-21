@@ -18,6 +18,17 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.138.0] — 2026-10-21
+
+- feat(notifications): `DispatchNotificationUseCase` is the kernel's single notification port. Requests carry `source`, optional `workflowId`/`executionId`, `target: { collection, recordId }`, `category`, `dedupKey`, and `recipientPermissions: string[]` (members holding ALL of them). Inbox documents store `target`, `category` and `source`; the audit channel sets `linkCollection`/`linkRecordId`. KERNEL_VERSION 2.58.0.
+- feat(notifications): extension point `notification.category` (data only, owner `core.automation`; `asNotificationCategory`, `notificationCategoryId`) and SDK builder `notificationCategory`. Per-user, per-type channel mutes in `notifications.muted` (`settings/user_<uid>`), honoured by the dispatch (`isNotificationMuted`).
+- feat(notifications): `dedupKey` claims `tenants/{t}/notification_dispatches/{hash}` with `create()` (server only, reserved, TTL `expiresAt`); a repeated key is skipped with `step.notify.duplicate`.
+- fix(notifications): push and e-mail links were `/<tabKey>`, which the app does not parse — clicking opened the root. They are now `/microteia/<tabKey>?tenant=<id>` (`domain/schema/recordLink.ts`: `record:<collection>:<id>`, `appDeepLinkPath`); `notificationLinkUrl` no longer re-encodes the path. `WorkspaceShell` switches to the linked tenant (members only) and waits for screen definitions before opening a record link; `useOpenLink` opens either kind.
+- feat(workflow): `notify` gains `openRecord` (default true: the event's record, resolved from the event prefix to the screen's collection) and `category`.
+- feat(portal): guest create/update/attach dispatch `core.automation/portal-activity` to members with `<collection>.update` AND the new kernel permission `portal.activity`; `portal.notifyOffice: false` opts a screen out (Form Design Portal tab). Notifier failures never undo the guest's write.
+- feat(ui): Notifications page (`notifications`): day-grouped inbox, unread and per-type filters (server-side, new composite indexes), live "load more", mark read/unread, and per-type channel preferences plus this browser's push. Bell gains "See all" and opens record targets. Inbox retention 90 → 30 days.
+- docs(examples): `automation-example` 1.2.0 declares a notification type. `com.microteia.locale-pt-br` 1.114.0. Deploy: `npm run deploy:rules`, `npm run deploy:indexes`, `npm run deploy:workflow`, `npm run deploy:portal`, `npm run deploy:notifications`.
+
 #### [9.137.5] — 2026-10-20
 
 - fix(portal): callables (edit, attach, document URL, create under a parent) now require the guest's CURRENT `subjectKeys` to intersect the projection's (`guestSees`), not just `audience` — revoking one subject is immediate even if `refreshPortalAudience` is late or failed.

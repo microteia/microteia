@@ -3,6 +3,7 @@ import type {
   EmailMessage,
   IEmailTransport,
   INotificationDirectory,
+  INotificationDispatchLog,
   INotificationEmailConfigRepository,
   INotificationInboxRepository,
   INotificationTextCatalog,
@@ -12,6 +13,8 @@ import type {
 } from '../repositories/INotificationDelivery';
 import type { InboxNotificationDocument, NotificationChannel, WebPushPayload } from '../schema/notifications';
 import {
+  isNotificationMuted,
+  notificationDedupDocId,
   NOTIFICATION_CHANNELS,
   NOTIFICATION_INBOX_RETENTION_DAYS,
   NOTIFICATION_MAX_RECIPIENTS,
@@ -19,18 +22,36 @@ import {
   NOTIFICATION_TITLE_MAX_LENGTH,
 } from '../schema/notifications';
 import { notificationLinkUrl, renderNotificationEmail } from '../services/notificationEmail';
+import { appDeepLinkPath, recordLinkTabKey, type RecordLinkTarget } from '../schema/recordLink';
 
+/**
+ * Um pedido de aviso — de QUALQUER origem. O passo "Notificar" é uma delas; o portal é outra; uma
+ * extensão de backend pode ser a próxima. Todas passam pela mesma porta, e por isso as mesmas
+ * garantias valem para todas: só membro recebe, a preferência da pessoa vence, cada canal falha
+ * sozinho, e o mesmo `dedupKey` não avisa duas vezes.
+ */
 export interface DispatchNotificationRequest {
   tenantId: string;
-  workflowId: string;
-  executionId: string;
+  /** Quem avisa: `workflow`, ou o módulo (`core.tenant/portal`). Vai para o aviso e para a Auditoria. */
+  source: string;
+  /** Só quando a origem é uma automação. */
+  workflowId?: string;
+  executionId?: string;
   title: string;
   message: string;
   params: Record<string, string>;
+  /** Uma aba qualquer, para o que não é registro. `target` vence quando os dois vêm. */
   link: string;
+  /** O registro de que o aviso fala — o clique o abre, no app, no push e no e-mail. */
+  target?: RecordLinkTarget | null;
+  /** O tipo (`<plugin>/<chave>`): é por ele que a pessoa silencia um canal. */
+  category?: string;
+  /** Mesma chave, um aviso só — a reexecução não repete o e-mail. */
+  dedupKey?: string;
   channels: Record<NotificationChannel, boolean>;
   recipientIds: readonly string[];
-  recipientPermission: string;
+  /** Recebem os membros que têm TODAS estas permissões — "pode alterar" E "é responsável". */
+  recipientPermissions: readonly string[];
 }
 
 export type ChannelCounts = Record<NotificationChannel, number>;
@@ -56,6 +77,7 @@ export interface DispatchNotificationDeps {
   emailTransport: IEmailTransport;
   push: IWebPushSender;
   catalog: INotificationTextCatalog;
+  dispatches: INotificationDispatchLog;
   tenantName: (tenantId: string) => Promise<string>;
   now: () => Date;
 }
@@ -66,6 +88,10 @@ export type DispatchNotificationUseCase = {
 
 const EMAIL_CONCURRENCY = 5;
 const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** O caminho que abre o aviso FORA do app — no push e no e-mail —, com o escritório junto. */
+const deepLinkOf = (request: DispatchNotificationRequest): string =>
+  appDeepLinkPath(request.target ? recordLinkTabKey(request.target) : request.link, request.tenantId);
 
 const zeroCounts = (): ChannelCounts =>
   Object.fromEntries(NOTIFICATION_CHANNELS.map((channel) => [channel, 0])) as ChannelCounts;
@@ -108,13 +134,17 @@ export const makeDispatchNotificationUseCase = (deps: DispatchNotificationDeps):
 
   const recipientsOf = async (request: DispatchNotificationRequest, issues: DispatchIssue[]): Promise<NotificationRecipient[]> => {
     const ids = new Set(request.recipientIds);
-    if (request.recipientPermission) {
-      const granted = await deps.directory.memberIdsGranting(
-        request.tenantId,
-        request.recipientPermission,
-        NOTIFICATION_MAX_RECIPIENTS + 1,
-      );
-      granted.forEach((id) => ids.add(id));
+    const permissions = [...new Set(request.recipientPermissions.filter((permission) => permission !== ''))];
+    if (permissions.length > 0) {
+      // A interseção: quem tem a primeira E a segunda. O teto é por permissão, e a de cima pode ser
+      // larga ("pode alterar empresas") — por isso cada consulta vai até um acima do teto.
+      const holdersOf = await Promise.all(permissions.map(async (permission) => new Set<string>(
+        await deps.directory.memberIdsGranting(request.tenantId, permission, NOTIFICATION_MAX_RECIPIENTS * permissions.length + 1),
+      )));
+      const [first, ...rest] = holdersOf;
+      for (const id of first) {
+        if (rest.every((holders) => holders.has(id))) ids.add(id);
+      }
     }
     const candidates = [...ids];
     if (candidates.length > NOTIFICATION_MAX_RECIPIENTS) {
@@ -146,9 +176,10 @@ export const makeDispatchNotificationUseCase = (deps: DispatchNotificationDeps):
         action: 'SYSTEM',
         severity: 'CRITICAL',
         type: 'AUDIT',
-        entity: 'workflow',
-        entityId: request.workflowId,
+        entity: request.workflowId ? 'workflow' : request.source,
+        entityId: request.workflowId || request.target?.recordId || '',
         ...(request.link ? { entityLink: request.link } : {}),
+        ...(request.target ? { linkCollection: request.target.collection, linkRecordId: request.target.recordId } : {}),
         text: request.message,
       });
       return true;
@@ -166,12 +197,15 @@ export const makeDispatchNotificationUseCase = (deps: DispatchNotificationDeps):
       message: clip(request.message, NOTIFICATION_MESSAGE_MAX_LENGTH),
       params: request.params,
       link: request.link,
+      target: request.target ?? null,
+      category: request.category ?? '',
+      source: request.source,
       read: false,
       createdAt,
       readAt: null,
       expiresAt,
-      workflowId: request.workflowId,
-      executionId: request.executionId,
+      workflowId: request.workflowId ?? '',
+      executionId: request.executionId ?? '',
     }));
     try {
       await deps.inbox.deliver(request.tenantId, documents);
@@ -193,7 +227,7 @@ export const makeDispatchNotificationUseCase = (deps: DispatchNotificationDeps):
       return { delivered: 0, failed: recipients.length };
     }
     const tenant = await deps.tenantName(request.tenantId);
-    const linkUrl = notificationLinkUrl(credential.settings.appUrl, request.link);
+    const linkUrl = notificationLinkUrl(credential.settings.appUrl, deepLinkOf(request));
     const session = deps.emailTransport.open(credential);
     let delivered = 0;
     let failed = 0;
@@ -237,9 +271,9 @@ export const makeDispatchNotificationUseCase = (deps: DispatchNotificationDeps):
       payloads.set(recipient.userId, {
         title: clip(resolve(request.title, request.params), NOTIFICATION_TITLE_MAX_LENGTH),
         body: clip(resolve(request.message, request.params), NOTIFICATION_TITLE_MAX_LENGTH * 2),
-        link: request.link,
+        link: deepLinkOf(request),
         tenantId: request.tenantId,
-        tag: `${request.executionId}:${request.workflowId}`,
+        tag: request.dedupKey || `${request.source}:${request.executionId ?? ''}:${request.workflowId ?? ''}`,
       });
     }
     const result = await deps.push.send(payloads);
@@ -251,6 +285,15 @@ export const makeDispatchNotificationUseCase = (deps: DispatchNotificationDeps):
       const delivered = zeroCounts();
       const failed = zeroCounts();
       const issues: DispatchIssue[] = [];
+
+      if (request.dedupKey) {
+        const expiresAt = new Date(deps.now().getTime() + NOTIFICATION_INBOX_RETENTION_DAYS * DAY_MS);
+        const first = await deps.dispatches.claim(request.tenantId, notificationDedupDocId(request.dedupKey), expiresAt);
+        if (!first) {
+          issues.push({ message: '@core.automation/step.notify.duplicate' });
+          return { recipients: 0, delivered, failed, issues };
+        }
+      }
 
       if (request.channels.audit) {
         if (await toAudit(request)) delivered.audit = 1;
@@ -267,8 +310,11 @@ export const makeDispatchNotificationUseCase = (deps: DispatchNotificationDeps):
       }
 
       const resolverFor = resolverCache(request.tenantId);
+      const category = request.category ?? '';
       const wants = (channel: 'inApp' | 'email' | 'push') =>
-        request.channels[channel] ? recipients.filter((recipient) => recipient.channels[channel]) : [];
+        request.channels[channel]
+          ? recipients.filter((recipient) => recipient.channels[channel] && !isNotificationMuted(recipient.mutes, category, channel))
+          : [];
 
       const inApp = wants('inApp');
       const email = wants('email').filter((recipient) => recipient.email);

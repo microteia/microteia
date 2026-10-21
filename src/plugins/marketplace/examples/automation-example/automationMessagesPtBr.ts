@@ -11,6 +11,8 @@ const AUTOMATION_PT_BR: Record<string, string> = {
   'package.category': 'Automação',
   'package.description':
     'Uma automação inteira: fluxo ao salvar, ramificação, consulta, gravação que não duplica, script e um botão que pede um valor.',
+  'notification.large-request': 'Pedido grande',
+  'notification.large-request.description': 'Um pedido acima do limite de aprovação foi salvo.',
   'package.summary':
     'A mecânica da automação, sem negócio no caminho. Instala uma tela e cada tipo de automação que a plataforma executa, para que todos possam ser lidos como fonte: um fluxo que dispara ao salvar, um nó de controle que ramifica, uma consulta que pergunta se o registro já existe, uma gravação que continua idempotente na segunda execução, um script no sandbox, e um botão que pede um valor a uma pessoa antes de disparar o fluxo.',
 

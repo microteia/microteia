@@ -2,6 +2,7 @@ import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 import type { Firestore } from 'firebase-admin/firestore';
 import type {
   INotificationDirectory,
+  INotificationDispatchLog,
   INotificationEmailConfigRepository,
   INotificationInboxRepository,
   NotificationEmailCredential,
@@ -9,7 +10,10 @@ import type {
 } from '../../domain/repositories/INotificationDelivery';
 import type { InboxNotificationDocument, NotificationEmailSettings } from '../../domain/schema/notifications';
 import {
+  asNotificationMutes,
   EMPTY_NOTIFICATION_EMAIL_SETTINGS,
+  NOTIFICATION_DISPATCHES_COLLECTION,
+  NOTIFICATION_MUTED_SETTING_KEY,
   NOTIFICATION_EMAIL_SECRET_ID,
   NOTIFICATION_INBOX_COLLECTION,
   PERSONAL_NOTIFICATION_CHANNELS,
@@ -53,6 +57,7 @@ export class FirestoreNotificationDirectory implements INotificationDirectory {
               resolveSetting(notificationChannelProperty(channel), values).value === true,
             ]),
           ) as NotificationRecipient['channels'],
+          mutes: asNotificationMutes(own[NOTIFICATION_MUTED_SETTING_KEY]),
         };
       });
   }
@@ -74,6 +79,24 @@ export class FirestoreNotificationDirectory implements INotificationDirectory {
     // Security Rules. A conferência de que ele é membro fica com `recipients`.
     if (typeof ownerId === 'string' && ownerId && !ids.includes(ownerId)) ids.push(ownerId);
     return ids;
+  }
+}
+
+/** Firestore responde ALREADY_EXISTS (6) quando o `create` acha o documento. */
+const ALREADY_EXISTS = 6;
+
+export class FirestoreNotificationDispatchLog implements INotificationDispatchLog {
+  constructor(private readonly db: Firestore) {}
+
+  async claim(tenantId: string, dispatchId: string, expiresAt: Date): Promise<boolean> {
+    try {
+      await this.db.collection('tenants').doc(tenantId).collection(NOTIFICATION_DISPATCHES_COLLECTION).doc(dispatchId)
+        .create({ createdAt: FieldValue.serverTimestamp(), expiresAt: Timestamp.fromDate(expiresAt) });
+      return true;
+    } catch (error) {
+      if ((error as { code?: unknown }).code === ALREADY_EXISTS) return false;
+      throw error;
+    }
   }
 }
 

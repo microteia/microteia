@@ -24,6 +24,7 @@ import {
   makeAttachPortalDocumentUseCase,
 } from '../../domain/usecases/PortalAccessUseCases';
 import { portalRecordWriter } from '../portal/portalRecordWriter';
+import { portalActivityNotifier } from '../portal/portalActivityNotifier';
 import type {
   GetPortalContextUseCase,
   GetPortalDocumentUrlUseCase,
@@ -126,6 +127,7 @@ import { FirebaseRecordKeyAdoptionRepository } from '../../data/repositories/Fir
 import { tenantTimeZone } from '../settings/tenantTimeZone';
 import {
   FirestoreNotificationDirectory,
+  FirestoreNotificationDispatchLog,
   FirestoreNotificationEmailConfigRepository,
   FirestoreNotificationInboxRepository,
 } from '../../data/repositories/FirestoreNotificationRepositories';
@@ -303,11 +305,11 @@ class DIContainer {
   }
 
   getUpdatePortalRecordUseCase(): UpdatePortalRecordUseCase {
-    return makeUpdatePortalRecordUseCase(this.getPortalRepository(), portalRecordWriter);
+    return makeUpdatePortalRecordUseCase(this.getPortalRepository(), portalRecordWriter, portalActivityNotifier);
   }
 
   getSubmitPortalRecordUseCase(): SubmitPortalRecordUseCase {
-    return makeSubmitPortalRecordUseCase(this.getPortalRepository(), portalRecordWriter);
+    return makeSubmitPortalRecordUseCase(this.getPortalRepository(), portalRecordWriter, portalActivityNotifier);
   }
 
   getAttachPortalDocumentUseCase(documentTypes: AttachPortalDocumentDeps['documentTypes']): AttachPortalDocumentUseCase {
@@ -326,7 +328,7 @@ class DIContainer {
         author: { uid: file.userId, name: file.userName, via: 'portal' },
         portalShared: true,
       }),
-    });
+    }, portalActivityNotifier);
   }
 
   getPortalContextUseCase(): GetPortalContextUseCase {
@@ -705,6 +707,7 @@ class DIContainer {
         emailTransport: new SmtpEmailTransport(),
         push: new StandardWebPushSender(getDb(), this.getVapidKeyStore(), webPushSubject),
         catalog: makeNotificationTextCatalog(this.getInstalledExtensionCache()),
+        dispatches: new FirestoreNotificationDispatchLog(getDb()),
         tenantName: async (tenantId) => (await this.getTenantRepository().getById(tenantId))?.name ?? '',
         now: () => new Date(),
       });

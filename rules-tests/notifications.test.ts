@@ -60,6 +60,19 @@ describe('notification_inbox', () => {
     await assertFails(updateDoc(doc(asUser(env, 'outra'), DELA), { read: true }));
   });
 
+  it('marcar como NÃO lida também passa — e o alvo e o tipo do aviso não se reescrevem', async () => {
+    await assertSucceeds(updateDoc(doc(asUser(env, 'dela'), DELA), { read: true }));
+    await assertSucceeds(updateDoc(doc(asUser(env, 'dela'), DELA), { read: false, readAt: null }));
+    await assertFails(updateDoc(doc(asUser(env, 'dela'), DELA), { target: { collection: 'x', recordId: 'y' } }));
+    await assertFails(updateDoc(doc(asUser(env, 'dela'), DELA), { category: 'outro/tipo' }));
+  });
+
+  it('a página filtra por tipo e por não lidas, sempre da própria pessoa', async () => {
+    await assertSucceeds(getDocs(query(
+      collection(asUser(env, 'dela'), INBOX), where('recipientId', '==', 'dela'), where('category', '==', ''), where('read', '==', false),
+    )));
+  });
+
   it('ninguém cria nem apaga pelo cliente', async () => {
     await assertFails(addDoc(collection(asUser(env, 'dono'), INBOX), { recipientId: 'dela', title: 'x' }));
     await assertFails(deleteDoc(doc(asUser(env, 'dela'), DELA)));
@@ -92,3 +105,12 @@ describe('push_subscriptions', () => {
     await assertFails(getDoc(doc(asUser(env, 'outra'), 'users/dela/push_subscriptions/s1')));
   });
 });
+
+describe('notification_dispatches', () => {
+  it('as marcas de despacho são só do servidor — nem o dono lê ou grava', async () => {
+    const marca = doc(asUser(env, 'dono'), `tenants/${TENANT}/notification_dispatches/abc`);
+    await assertFails(getDoc(marca));
+    await assertFails(setDoc(marca, { createdAt: new Date() }));
+  });
+});
+

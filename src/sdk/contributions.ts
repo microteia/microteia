@@ -38,6 +38,7 @@ import {
 } from '../domain/schema/ui/uiExtensionPoints';
 
 import { PORTAL_API_VERSION, PORTAL_VIEW_POINT, type PortalViewMetadata } from '../domain/schema/portalExtensionPoints';
+import { notificationCategoryContribution, type NotificationCategoryMetadata } from '../domain/schema/notifications';
 
 const slug = (value: string): string =>
   value
@@ -250,3 +251,12 @@ export const portalView = (metadata: PortalViewMetadata, implKey: string): Contr
   metadata: { ...metadata } as unknown as Record<string, unknown>,
   impl: { kind: 'code', key: implKey },
 });
+
+/**
+ * Um TIPO de aviso da extensão — "prazo próximo", "contrato vencendo". Quem notifica (o passo
+ * Notificar, com `category: '<id do pacote>/<chave>'`) diz o tipo; cada pessoa escolhe, na página de
+ * Notificações, por quais canais recebe cada um. Só dado: não há código a rodar.
+ */
+export const notificationCategory = (metadata: NotificationCategoryMetadata): Contribution =>
+  notificationCategoryContribution(metadata);
+

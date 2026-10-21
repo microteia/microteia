@@ -11,6 +11,15 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.138.0] — 2026-10-21
+
+- Nova página de Notificações, aberta pelo "Ver todas" do sino: todos os seus avisos agrupados por dia, com filtros por não lidas e por tipo, e a opção de marcar cada um como lido ou não lido.
+- Na mesma página, em Preferências, você escolhe por quais canais quer receber cada tipo de aviso — no app, por e-mail ou no navegador — sem desligar os demais.
+- Clicar num aviso agora abre o registro de que ele fala, também na notificação do navegador e no link do e-mail, e já no escritório certo para quem participa de mais de um.
+- O escritório passa a ser avisado quando um convidado do portal cria, altera ou anexa algo. Recebe quem pode alterar aqueles registros e tem a nova permissão "Receber a atividade do portal".
+- Um mesmo aviso não é mais enviado duas vezes quando uma automação se repete.
+- Os avisos passam a ficar guardados por 30 dias.
+
 #### [9.137.5] — 2026-10-20
 
 - Ao retirar o acesso de um convidado a uma empresa, ele deixa na hora de poder alterar registros, anexar documentos e abrir documentos dela.

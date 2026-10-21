@@ -314,6 +314,7 @@ export interface ScreenBuilderViewModel {
   togglePortalEditField: (fieldKey: string, editable: boolean) => void;
   setPortalEditWhen: (expression: string) => void;
   setPortalEditOnlyOwn: (onlyOwn: boolean) => void;
+  setPortalNotifyOffice: (notify: boolean) => void;
   toggleChildScreen: (childKey: string) => void;
   setChildLinkField: (childKey: string, fieldKey: string) => void;
   iconOptions: SearchSelectOption[];
@@ -1360,6 +1361,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
   const setPortalAllowEdit = useCallback((allowEdit: boolean) => updatePortal({ allowEdit }), [updatePortal]);
   const setPortalEditWhen = useCallback((editWhen: string) => updatePortal({ editWhen }), [updatePortal]);
   const setPortalEditOnlyOwn = useCallback((editOnlyOwn: boolean) => updatePortal({ editOnlyOwn }), [updatePortal]);
+  const setPortalNotifyOffice = useCallback((notifyOffice: boolean) => updatePortal({ notifyOffice }), [updatePortal]);
   const togglePortalEditField = useCallback((fieldKey: string, editable: boolean) => {
     setScreenForm((prev) => ({
       ...prev,
@@ -2435,6 +2437,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     togglePortalEditField,
     setPortalEditWhen,
     setPortalEditOnlyOwn,
+    setPortalNotifyOffice,
     toggleChildScreen,
     setChildLinkField,
     iconOptions,

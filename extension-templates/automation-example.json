@@ -1,8 +1,8 @@
 {
   "manifest": {
     "id": "com.microteia.automation-example",
-    "version": "1.1.0",
-    "kernel": "^2.0.0",
+    "version": "1.2.0",
+    "kernel": "^2.58.0",
     "name": "@com.microteia.automation-example/package.name",
     "description": "@com.microteia.automation-example/package.description",
     "category": "@com.microteia.automation-example/package.category",
@@ -21,6 +21,8 @@
             "package.name": "Automation, by example",
             "package.category": "Automation",
             "package.description": "A worked automation: a workflow on save, a branch, a query, a write that does not duplicate, a script, and an action that asks for a value.",
+            "notification.large-request": "Large request",
+            "notification.large-request.description": "A request above the approval limit was saved.",
             "package.summary": "The mechanics of automation, with no business in the way. It installs one screen and every kind of automation the platform runs, so each can be read as source: a workflow that fires on save, a control node that branches, a query that asks whether a record already exists, a write that stays idempotent on a second run, a sandbox script, and a button that asks a person for a value before firing a flow.",
             "screen.request": "Request",
             "screen.request.plural": "Requests",
@@ -73,6 +75,8 @@
             "package.name": "Automação, pelo exemplo",
             "package.category": "Automação",
             "package.description": "Uma automação inteira: fluxo ao salvar, ramificação, consulta, gravação que não duplica, script e um botão que pede um valor.",
+            "notification.large-request": "Pedido grande",
+            "notification.large-request.description": "Um pedido acima do limite de aprovação foi salvo.",
             "package.summary": "A mecânica da automação, sem negócio no caminho. Instala uma tela e cada tipo de automação que a plataforma executa, para que todos possam ser lidos como fonte: um fluxo que dispara ao salvar, um nó de controle que ramifica, uma consulta que pergunta se o registro já existe, uma gravação que continua idempotente na segunda execução, um script no sandbox, e um botão que pede um valor a uma pessoa antes de disparar o fluxo.",
             "screen.request": "Solicitação",
             "screen.request.plural": "Solicitações",
@@ -112,6 +116,17 @@
             "field.openTotal": "Total em aberto",
             "field.openCount": "Solicitações em aberto"
           }
+        }
+      },
+      {
+        "point": "notification.category",
+        "id": "notification-category.large-request",
+        "apiVersion": "1.0.0",
+        "metadata": {
+          "key": "large-request",
+          "title": "@com.microteia.automation-example/notification.large-request",
+          "description": "@com.microteia.automation-example/notification.large-request.description",
+          "icon": "notification"
         }
       }
     ]

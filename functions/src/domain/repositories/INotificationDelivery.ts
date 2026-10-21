@@ -1,6 +1,7 @@
 import type {
   InboxNotificationDocument,
   NotificationEmailSettings,
+  NotificationMutes,
   PersonalNotificationChannel,
   WebPushPayload,
 } from '../schema/notifications';
@@ -11,6 +12,8 @@ export interface NotificationRecipient {
   email: string;
   locale: string;
   channels: Record<PersonalNotificationChannel, boolean>;
+  /** Os canais que a pessoa silenciou, por tipo de aviso. */
+  mutes: NotificationMutes;
 }
 
 /**
@@ -22,6 +25,11 @@ export interface INotificationDirectory {
   recipients(tenantId: string, userIds: readonly string[]): Promise<NotificationRecipient[]>;
   /** Os membros com a permissão, ou com o curinga do dono — a mesma pergunta das Security Rules. */
   memberIdsGranting(tenantId: string, permission: string, limit: number): Promise<string[]>;
+}
+
+/** As marcas de despacho já feito. `claim` devolve `false` quando a chave já foi usada. */
+export interface INotificationDispatchLog {
+  claim(tenantId: string, dispatchId: string, expiresAt: Date): Promise<boolean>;
 }
 
 export interface INotificationInboxRepository {

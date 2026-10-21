@@ -8,6 +8,7 @@ import type {
 import type { QuerySpec } from '../../../../domain/schema/querySpec';
 import type { UpsertStepConfig } from '../../../../domain/schema/mutationSpec';
 import type { MapStepConfig } from '../../../../domain/schema/mapSpec';
+import { notificationCategory } from '../../../contributionBuilders';
 import { automationMessagesContribution } from './automationMessages';
 import { automationPtBrContribution } from './automationMessagesPtBr';
 
@@ -29,6 +30,9 @@ import { automationPtBrContribution } from './automationMessagesPtBr';
  *    that difference is the single most expensive trap in authoring an automation.
  * 5. A `workflow.called` flow with `parameters`, which is what an action fires.
  * 6. An action with `promptParameters`, so a person supplies the value before the flow runs.
+ * 7. A notification TYPE (`notificationCategory`). A `notify` step that sets
+ *    `category: 'com.microteia.automation-example/large-request'` lets each person choose, on the
+ *    Notifications page, which channels bring them that type — without muting everything else.
  *
  * Read the shapes with `describe_workflow_step` on the MCP server; read the ids that exist with
  * `list_workflow_steps`. Neither answer is written here — both are derived from the kernel.
@@ -385,8 +389,8 @@ const ACTIONS: ActionModuleTemplate[] = [
 export const automationExamplePlugin: MarketplacePlugin = {
   manifest: {
     id: 'com.microteia.automation-example',
-    version: '1.1.0',
-    kernel: '^2.0.0',
+    version: '1.2.0',
+    kernel: '^2.58.0',
     name: message('package.name'),
     description: message('package.description'),
     category: message('package.category'),
@@ -394,6 +398,12 @@ export const automationExamplePlugin: MarketplacePlugin = {
     contributes: [
       automationMessagesContribution(),
       automationPtBrContribution(),
+      notificationCategory({
+        key: 'large-request',
+        title: message('notification.large-request'),
+        description: message('notification.large-request.description'),
+        icon: 'notification',
+      }),
     ],
   },
   summary: message('package.summary'),

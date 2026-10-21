@@ -73,6 +73,11 @@ export interface PortalDeclaration {
    * - `onlyOwn`: só os registros que o próprio convidado criou pelo portal.
    */
   edit?: PortalEditDeclaration | null;
+  /**
+   * Avisar o escritório do que o convidado faz aqui — criar, alterar, anexar. Ligado por padrão:
+   * `false` desliga. Recebe quem pode alterar a coleção E tem `portal.activity`.
+   */
+  notifyOffice?: boolean;
 }
 
 export interface PortalEditDeclaration {
@@ -159,6 +164,7 @@ export const asPortalDeclaration = (value: unknown): PortalDeclaration | null =>
     ...(create ? { create } : {}),
     ...(uploads ? { uploads } : {}),
     ...(edit ? { edit } : {}),
+    ...(raw.notifyOffice === false ? { notifyOffice: false } : {}),
   };
 };
 

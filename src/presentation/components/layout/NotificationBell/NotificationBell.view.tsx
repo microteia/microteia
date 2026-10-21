@@ -51,6 +51,8 @@ export const NotificationBell: React.FC = () => {
             )}
           </S.List>
 
+          <S.SeeAll type="button" onClick={vm.seeAll}>{t('notifications.bell.see-all')}</S.SeeAll>
+
           {vm.pushStatus !== 'unsupported' && (
             <S.Footer>
               <S.FooterText>

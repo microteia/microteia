@@ -22,7 +22,8 @@ describe('renderNotificationEmail', () => {
 
 describe('notificationLinkUrl', () => {
   it('junta o endereço da aplicação à chave da aba, e some quando falta um dos dois', () => {
-    expect(notificationLinkUrl('https://app.test/', '/view-record:1')).toBe('https://app.test/view-record:1');
+    expect(notificationLinkUrl('https://app.test/', '/microteia/record%3Ainvoices%3A1?tenant=t1'))
+      .toBe('https://app.test/microteia/record%3Ainvoices%3A1?tenant=t1');
     expect(notificationLinkUrl('', 'view-record:1')).toBe('');
     expect(notificationLinkUrl('https://app.test', '')).toBe('');
   });

@@ -5765,7 +5765,7 @@ interpola referência.
 **O sino.** `tenants/{tid}/notification_inbox/{id}`, um documento por destinatário, escrito só pelo
 Admin SDK. A regra libera a LEITURA do próprio (`recipientId == uid` — a consulta precisa do filtro) e
 a ESCRITA só de `read`/`readAt`: título e destinatário são do fluxo, e reescrevê-los seria forjar um
-aviso. TTL de 90 dias em `expiresAt` (declarado no `firestore.indexes.json`). A coleção entrou em
+aviso. TTL de 30 dias em `expiresAt` (declarado no `firestore.indexes.json`). A coleção entrou em
 `RESERVED_COLLECTIONS` nas duas pontas — sem isso, a escrita do servidor acordaria a auditoria e o
 barramento de eventos como se fosse uma tela. O sino é um `ui.slot` do `core.automation`: o ÚNICO
 trecho de shell que o núcleo ocupa, porque é o leitor de um canal do núcleo — sem ele a entrega não
@@ -5798,6 +5798,35 @@ do navegador (pedir permissão), não um dado que Configurações saiba editar.
 `MultiSearchSelect` em vez de `SearchSelect` e grava `string[]`; `picker: 'permission'` oferece o
 catálogo de permissões do escritório com o nome qualificado. Nenhuma das duas é do `notify`: qualquer
 passo de extensão as declara. `KERNEL_VERSION` foi a `2.35.0` (aditivo — também o ícone `notification`).
+
+### Notificar, de qualquer origem — a porta única, o alvo e os tipos
+
+O passo é UMA das origens. `DispatchNotificationUseCase` é a porta do kernel para avisar alguém, e o
+pedido diz `source` (`workflow`, `core.tenant/portal`, …): o portal a usa direto, e uma extensão de
+backend pode ser a próxima. As garantias são as mesmas para todas — só membro recebe, a preferência
+vence, cada canal falha sozinho.
+
+| Peça | O que resolve |
+|---|---|
+| `target: { collection, recordId }` | O aviso fala de um REGISTRO, como a Auditoria (`linkCollection`/`linkRecordId`). O clique o abre pela tela que descreve a coleção, resolvida na hora (`useOpenLink` → `useOpenRecord`) — nenhuma chave de aba gravada. O passo preenche com o registro do EVENTO por padrão (`openRecord`, ligado): `<prefixo>.<o que houve>` → tela pelo `eventPrefix` → coleção. |
+| `record:<coleção>:<id>` | A forma do alvo como link (`domain/schema/recordLink.ts`), entendida por `useOpenLink` em todo lugar. |
+| `/microteia/<aba>?tenant=<id>` | O link de FORA (push e e-mail). Antes eram `/<aba>`, que o app não reconhecia — o clique abria a raiz. O `?tenant=` faz o shell trocar de escritório antes de abrir (só para um de que a pessoa é membro), e o link de registro espera as telas carregarem. |
+| `category` (`<plugin>/<chave>`) | O TIPO do aviso, declarado no ponto `notification.category` (dado, sem código; dono `core.automation`). Cada pessoa silencia canais POR TIPO na página de Notificações (`notifications.muted` em `settings/user_<uid>`), e o despacho respeita (`isNotificationMuted`). Os tipos do kernel moram em `core.automation`, dono do ponto: um plugin que carrega antes dele não teria onde contribuir. |
+| `dedupKey` | Mesma chave, um aviso só: `notification_dispatches/{hash}` é criado com `create()`; a segunda vez é recusa calada (`step.notify.duplicate`), sem e-mail repetido. Servidor só; TTL como o do sino. |
+| `recipientPermissions: string[]` | Recebe quem tem TODAS — a interseção. O passo manda uma só; o portal manda duas. |
+
+**O portal avisa o escritório.** Criar, alterar e anexar pelo portal despacham
+`core.automation/portal-activity` para quem tem `<coleção>.update` E `portal.activity` — numa
+prefeitura, muitos alteram os dados de uma empresa; poucos são os responsáveis técnicos. A tela
+desliga com `portal.notifyOffice: false` (aba Portal do Form Design). O nome da tela vai já traduzido
+no idioma do escritório (é parâmetro, e parâmetro é texto). Os textos moram em `core.records` porque
+o pt-BR dele viaja no pacote de idioma, que o servidor lê; o de `core.tenant` mora no plugin, e o
+e-mail sairia em inglês. Falhar ao avisar nunca desfaz o que o convidado fez.
+
+**A página de Notificações** (`notifications`, aberta pelo "Ver todas" do sino): caixa de entrada
+agrupada por dia, filtros por lidas e por tipo (consulta no servidor, com índice), "carregar mais"
+que aumenta o limite da assinatura ao vivo, marcar como lida/não lida; e a aba Preferências, com os
+canais de cada tipo e o push deste navegador. A retenção caiu de 90 para 30 dias (TTL).
 
 ### Step "Script" — código do usuário em sandbox QuickJS
 
@@ -12167,6 +12196,8 @@ daquela instalação. Ver "Artefatos de backend por extensão".
 | `tenants/{id}/workflow_executions` | `workflowDefinitionId` ASC, `startedAt` DESC | kernel | Aba "Execuções" de um workflow, mais recente primeiro |
 | `tenants/{id}/notification_inbox` | `recipientId` ASC, `createdAt` DESC | kernel | O sino — as notificações de quem está conectado, mais recente primeiro |
 | `tenants/{id}/notification_inbox` | `recipientId` ASC, `read` ASC, `createdAt` DESC | kernel | A contagem de não lidas do sino e o "marcar todas como lidas" |
+| `tenants/{id}/notification_inbox` | `recipientId` ASC, `category` ASC, `createdAt` DESC | kernel | A página de Notificações filtrada por tipo |
+| `tenants/{id}/notification_inbox` | `recipientId` ASC, `category` ASC, `read` ASC, `createdAt` DESC | kernel | A página filtrada por tipo e só não lidas |
 | `tenants/{id}/downloads` | `ownerId` ASC, `createdAt` DESC | kernel | Downloads — os arquivos da pessoa, mais recente primeiro |
 | `tenants/{id}/downloads` | `visibility` ASC, `createdAt` DESC | kernel | Downloads — os da automação liberados para todos (a regra só aprova a lista provada pelo filtro) |
 | `tenants/{id}/portalRecords` | `audience` CONTAINS, `collection` ASC, `updatedAt` DESC | kernel | Portal — a lista de uma tela para o convidado, mais recente primeiro. O filtro por `audience` é o que a regra exige para aprovar a lista |
@@ -12196,7 +12227,8 @@ Além dos compostos, o arquivo declara sete `fieldOverrides`:
 | `portalUsers` (collectionGroup) | `userId` ASC | `listMemberships` descobre em quais escritórios a pessoa é convidada do portal |
 | `workflow_clock` (collectionGroup) | `nextRunAt` ASC | `runWorkflowClock` pergunta, em todos os escritórios de uma vez, quais automações temporais venceram |
 | `workflow_trigger_marks` | `expiresAt` | TTL — a marca de "já disparou" do gatilho de data expira sozinha; sem índice, porque ninguém consulta por ela |
-| `notification_inbox` | `expiresAt` | TTL — o sino guarda o recente (90 dias), não o histórico; o histórico é a Auditoria |
+| `notification_inbox` | `expiresAt` | TTL — o sino guarda o recente (30 dias), não o histórico; o histórico é a Auditoria |
+| `notification_dispatches` | `expiresAt` | TTL — a marca de "este aviso já saiu" (`dedupKey`) vale o mesmo que o aviso |
 | `downloads` | `expiresAt` | TTL — o arquivo gerado para Downloads vence sozinho; o gatilho `onDownloadDeleted` leva o arquivo do bucket. Sem índice: a lista filtra o vencido no cliente |
 
 ---

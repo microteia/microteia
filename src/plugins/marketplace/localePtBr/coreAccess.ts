@@ -198,6 +198,9 @@ export const CORE_ACCESS: Record<string, string> = {
   'permission.members.manage.description':
     'Incluir e remover pessoas do escritório, e escolher os perfis de acesso de cada uma.',
   'permission.portal.manage': 'Gerenciar o portal',
+  'permission.portal.activity': 'Receber a atividade do portal',
+  'permission.portal.activity.description':
+    'Ser avisado quando um convidado cria, altera ou anexa algo no portal — nas telas em que também pode alterar registros.',
   'permission.portal.manage.description':
     'Convidar pessoas de fora do escritório para o portal e revogar o acesso delas. Cada convidado vê só os registros vinculados a ele, e só os campos que cada tela escolheu expor. Vincular um convidado a um registro continua exigindo poder ver esse registro.',
   'permission.reports.manage': 'Gerenciar relatórios',

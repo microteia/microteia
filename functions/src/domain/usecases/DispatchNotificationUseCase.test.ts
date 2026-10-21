@@ -10,11 +10,13 @@ const recipient = (userId: string, overrides: Partial<NotificationRecipient> = {
   email: `${userId}@example.com`,
   locale: 'en',
   channels: { inApp: true, email: true, push: true },
+  mutes: {},
   ...overrides,
 });
 
 const request = (overrides: Partial<DispatchNotificationRequest> = {}): DispatchNotificationRequest => ({
   tenantId: 't1',
+  source: 'workflow',
   workflowId: 'wf1',
   executionId: 'ex1',
   title: '@ext/title',
@@ -23,7 +25,7 @@ const request = (overrides: Partial<DispatchNotificationRequest> = {}): Dispatch
   link: 'view-record:abc',
   channels: { audit: false, inApp: false, email: false, push: false },
   recipientIds: [],
-  recipientPermission: '',
+  recipientPermissions: [],
   ...overrides,
 });
 
@@ -32,6 +34,7 @@ const setup = (members: NotificationRecipient[], extra: Partial<DispatchNotifica
   const delivered: InboxNotificationDocument[] = [];
   const sent: EmailMessage[] = [];
   const pushed = new Map<string, unknown>();
+  const claimed = new Set<string>();
   const deps: DispatchNotificationDeps = {
     createAuditLog: { execute: audit },
     directory: {
@@ -54,6 +57,7 @@ const setup = (members: NotificationRecipient[], extra: Partial<DispatchNotifica
       },
     },
     catalog: { resolverFor: async (_tenantId, locale) => (value, params) => `${locale}:${value}:${params.name ?? ''}` },
+    dispatches: { claim: async (_tenantId, id) => { if (claimed.has(id)) return false; claimed.add(id); return true; } },
     tenantName: async () => 'Acme',
     now: () => new Date('2026-10-13T12:00:00Z'),
     ...extra,
@@ -112,8 +116,8 @@ describe('DispatchNotificationUseCase', () => {
     }));
     expect(sent.find((message) => message.to === 'u1@example.com')?.subject).toBe('pt-BR:@ext/title:Ana');
     expect(sent.find((message) => message.to === 'u2@example.com')?.subject).toBe('en:@ext/title:Ana');
-    expect(sent[0].html).toContain('https://app.test/view-record:abc');
-    expect(pushed.get('u1')).toMatchObject({ title: 'pt-BR:@ext/title:Ana', link: 'view-record:abc', tenantId: 't1' });
+    expect(sent[0].html).toContain('https://app.test/microteia/view-record%3Aabc?tenant=t1');
+    expect(pushed.get('u1')).toMatchObject({ title: 'pt-BR:@ext/title:Ana', link: '/microteia/view-record%3Aabc?tenant=t1', tenantId: 't1' });
   });
 
   it('e-mail sem credencial conta como falha, e os outros canais seguem', async () => {
@@ -153,7 +157,7 @@ describe('DispatchNotificationUseCase', () => {
     const { uc } = setup(many);
     const result = await uc.execute(request({
       channels: { audit: false, inApp: true, email: false, push: false },
-      recipientPermission: 'deadlines.update',
+      recipientPermissions: ['deadlines.update'],
     }));
     expect(result.recipients).toBe(NOTIFICATION_MAX_RECIPIENTS);
     expect(result.issues.map((issue) => issue.message)).toContain('@core.automation/step.notify.recipients.truncated');
@@ -170,5 +174,59 @@ describe('DispatchNotificationUseCase', () => {
     expect(result.failed.inApp).toBe(1);
     expect(result.delivered.push).toBe(1);
     expect(pushed.size).toBe(1);
+  });
+
+  it('o alvo vai para o aviso e para a Auditoria, e o link de fora abre o registro no escritório certo', async () => {
+    const { uc, delivered, pushed, sent, audit } = setup([recipient('u1')]);
+    await uc.execute(request({
+      link: '',
+      target: { collection: 'invoices', recordId: 'nf1' },
+      category: 'core.automation/portal-activity',
+      channels: { audit: true, inApp: true, email: true, push: true },
+      recipientIds: ['u1'],
+    }));
+    expect(delivered[0]).toMatchObject({
+      target: { collection: 'invoices', recordId: 'nf1' }, category: 'core.automation/portal-activity', source: 'workflow',
+    });
+    expect(pushed.get('u1')).toMatchObject({ link: '/microteia/record%3Ainvoices%3Anf1?tenant=t1' });
+    expect(sent[0].text).toContain('https://app.test/microteia/record%3Ainvoices%3Anf1?tenant=t1');
+    expect(audit).toHaveBeenCalledWith(expect.objectContaining({ linkCollection: 'invoices', linkRecordId: 'nf1' }));
+  });
+
+  it('o canal silenciado pela pessoa para AQUELE tipo não chega — os outros tipos sim', async () => {
+    const quiet = recipient('u1', { mutes: { 'core.automation/portal-activity': ['email'] } });
+    const { uc, sent, delivered } = setup([quiet]);
+    const all = { audit: false, inApp: true, email: true, push: false };
+    await uc.execute(request({ channels: all, recipientIds: ['u1'], category: 'core.automation/portal-activity' }));
+    expect(sent).toHaveLength(0);
+    expect(delivered).toHaveLength(1);
+    await uc.execute(request({ channels: all, recipientIds: ['u1'], category: 'ext/other' }));
+    expect(sent).toHaveLength(1);
+  });
+
+  it('várias permissões: recebe só quem tem TODAS', async () => {
+    const members = [recipient('u1'), recipient('u2'), recipient('u3')];
+    const holders: Record<string, string[]> = { 'invoices.update': ['u1', 'u2'], 'portal.activity': ['u2', 'u3'] };
+    const { uc, delivered } = setup(members, {
+      directory: {
+        recipients: async (_tenantId, ids) => members.filter((member) => ids.includes(member.userId)),
+        memberIdsGranting: async (_tenantId, permission) => holders[permission] ?? [],
+      },
+    });
+    await uc.execute(request({
+      channels: { audit: false, inApp: true, email: false, push: false },
+      recipientPermissions: ['invoices.update', 'portal.activity'],
+    }));
+    expect(delivered.map((doc) => doc.recipientId)).toEqual(['u2']);
+  });
+
+  it('a mesma chave não avisa duas vezes', async () => {
+    const { uc, delivered, sent } = setup([recipient('u1')]);
+    const once = request({ channels: { audit: false, inApp: true, email: true, push: false }, recipientIds: ['u1'], dedupKey: 'nf1:created' });
+    await uc.execute(once);
+    const again = await uc.execute(once);
+    expect(delivered).toHaveLength(1);
+    expect(sent).toHaveLength(1);
+    expect(again.issues.map((issue) => issue.message)).toEqual(['@core.automation/step.notify.duplicate']);
   });
 });

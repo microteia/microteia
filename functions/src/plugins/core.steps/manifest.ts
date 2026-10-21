@@ -17,7 +17,7 @@ import { makeSetVariableStepDefinition } from '../../infrastructure/workflow/ste
 import { makeRenderDocumentStepDefinition } from '../../infrastructure/workflow/steps/RenderDocumentStep';
 
 const factories: Record<string, StepFactory> = {
-  Notify: (deps) => makeNotifyStepDefinition(deps.dispatchNotificationUseCase),
+  Notify: (deps) => makeNotifyStepDefinition(deps.dispatchNotificationUseCase, deps.screenDefinitionProvider),
   RegisterAudit: (deps) => makeRegisterAuditStepDefinition(deps.createAuditLogUseCase),
   SetVariable: () => makeSetVariableStepDefinition(),
   Map: () => makeMapStepDefinition(),

@@ -2,7 +2,8 @@ import {
   collection, doc, getDocs, limit, onSnapshot, orderBy, query, serverTimestamp, Timestamp, where, writeBatch,
 } from 'firebase/firestore';
 import { db } from '../../infrastructure/firebase/config';
-import type { InboxNotification } from '../../domain/entities/InboxNotification';
+import type { InboxNotification, InboxNotificationFilter } from '../../domain/entities/InboxNotification';
+import type { RecordLinkTarget } from '../../domain/schema/recordLink';
 import type { INotificationInboxRepository } from '../../domain/repositories/INotificationRepositories';
 import { NOTIFICATION_INBOX_COLLECTION } from '../../domain/schema/notifications';
 
@@ -17,12 +18,22 @@ const paramsOf = (value: unknown): Record<string, string> =>
     ? Object.fromEntries(Object.entries(value as Record<string, unknown>).map(([key, item]) => [key, String(item)]))
     : {};
 
+const targetOf = (value: unknown): RecordLinkTarget | null => {
+  if (!value || typeof value !== 'object') return null;
+  const { collection, recordId } = value as Record<string, unknown>;
+  return typeof collection === 'string' && collection && typeof recordId === 'string' && recordId
+    ? { collection, recordId }
+    : null;
+};
+
 const toNotification = (id: string, data: Record<string, unknown>): InboxNotification => ({
   id,
   title: textOf(data.title),
   message: textOf(data.message),
   params: paramsOf(data.params),
   link: textOf(data.link),
+  target: targetOf(data.target),
+  category: textOf(data.category),
   read: data.read === true,
   createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : new Date(0),
 });
@@ -51,6 +62,36 @@ export class FirebaseNotificationInboxRepository implements INotificationInboxRe
       limit(cap),
     );
     return onSnapshot(unread, (snap) => onChange(snap.size), () => onChange(0));
+  }
+
+  subscribeFiltered(
+    tenantId: string,
+    userId: string,
+    filter: InboxNotificationFilter,
+    max: number,
+    onChange: (notifications: InboxNotification[]) => void,
+    onError: () => void,
+  ): () => void {
+    // Cada filtro tem o índice dele (`recipientId` + `category`? + `read`? + `createdAt`), e o
+    // `createdAt` decrescente vem do servidor — nada é ordenado ou filtrado em memória.
+    const constraints = [
+      where('recipientId', '==', userId),
+      ...(filter.category !== null ? [where('category', '==', filter.category)] : []),
+      ...(filter.unreadOnly ? [where('read', '==', false)] : []),
+      orderBy('createdAt', 'desc'),
+      limit(max),
+    ];
+    return onSnapshot(
+      query(inbox(tenantId), ...constraints),
+      (snap) => onChange(snap.docs.map((one) => toNotification(one.id, one.data()))),
+      () => onError(),
+    );
+  }
+
+  async markUnread(tenantId: string, ids: readonly string[]): Promise<void> {
+    const batch = writeBatch(db);
+    for (const id of ids) batch.update(doc(inbox(tenantId), id), { read: false, readAt: null });
+    await batch.commit();
   }
 
   async markRead(tenantId: string, ids: readonly string[]): Promise<void> {

@@ -37,6 +37,7 @@ export interface ScreenPortalPanelProps {
   onToggleEditField: (fieldKey: string, editable: boolean) => void;
   onEditWhen: (expression: string) => void;
   onToggleEditOnlyOwn: (onlyOwn: boolean) => void;
+  onToggleNotifyOffice: (notify: boolean) => void;
 }
 
 /** A aba "Portal" da tela: o que sai do escritório, e para quem. Só desenha o que recebe. */
@@ -206,6 +207,16 @@ export const ScreenPortalPanel: React.FC<ScreenPortalPanelProps> = (props) => {
                 )}
               </>
             )}
+          </S.Section>
+
+          <S.Section>
+            <Checkbox
+              checked={form.notifyOffice}
+              onChange={props.onToggleNotifyOffice}
+              label={t('portal.notify.enabled')}
+              disabled={readOnly}
+            />
+            <S.Hint>{t('portal.notify.hint')}</S.Hint>
           </S.Section>
 
           {props.issues.length > 0 && (

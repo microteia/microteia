@@ -39,6 +39,12 @@ export const PERMISSION_DOCUMENT_TEMPLATES_MANAGE = 'document-templates.manage';
 export const PERMISSION_DOWNLOADS_MANAGE = 'downloads.manage';
 export const PERMISSION_DOCUMENTS_GENERATE = 'documents.generate';
 export const PERMISSION_PORTAL_MANAGE = 'portal.manage';
+/**
+ * Quem RESPONDE pelo que chega do portal. Recebe o aviso de atividade do convidado — junto com
+ * `<coleção>.update` da tela, que diz quem pode agir sobre o registro. Numa prefeitura, muitos alteram
+ * os dados de uma empresa; poucos são os responsáveis técnicos que precisam ser avisados.
+ */
+export const PERMISSION_PORTAL_ACTIVITY = 'portal.activity';
 
 /**
  * O nome e a descrição vão por extenso, e não montados a partir do `id`. Uma referência composta em
@@ -162,6 +168,11 @@ export const KERNEL_PERMISSIONS: AccessPermission[] = [
     id: PERMISSION_PORTAL_MANAGE,
     name: '@core.access/permission.portal.manage',
     description: '@core.access/permission.portal.manage.description',
+  },
+  {
+    id: PERMISSION_PORTAL_ACTIVITY,
+    name: '@core.access/permission.portal.activity',
+    description: '@core.access/permission.portal.activity.description',
   },
 ];
 

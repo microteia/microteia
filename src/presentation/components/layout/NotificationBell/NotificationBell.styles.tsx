@@ -162,6 +162,20 @@ export const S = {
     color: ${({ theme }) => theme.colors.textMuted};
   `,
 
+  SeeAll: styled.button`
+    width: 100%;
+    padding: ${({ theme }) => theme.spacing.sm} ${({ theme }) => theme.spacing.md};
+    border-top: 1px solid ${({ theme }) => theme.colors.borderSubtle};
+    font-size: ${({ theme }) => theme.fontSizes.xs};
+    font-weight: 600;
+    color: ${({ theme }) => theme.colors.primary};
+    text-align: center;
+
+    &:hover {
+      background: ${({ theme }) => theme.colors.surfaceHover};
+    }
+  `,
+
   Footer: styled.div`
     display: flex;
     align-items: center;

@@ -3,7 +3,12 @@ import { command, lazyView, nav, page, settingsSection, surfaceSlot, surfaceTab 
 import { messageBundleContribution } from '../../domain/schema/i18n/extensionPoints';
 import { PERMISSION_AUTOMATION_MANAGE, PERMISSION_SETTINGS_MANAGE } from '../../domain/schema/access';
 import { AUTOMATION_NAV_GROUP, WORKSPACE_SLOT_SURFACES } from '../../domain/schema/ui/uiExtensionPoints';
-import { NOTIFICATION_SETTINGS_PROPERTIES } from '../../domain/schema/notifications';
+import {
+  NOTIFICATION_EXTENSION_POINTS,
+  NOTIFICATION_SETTINGS_PROPERTIES,
+  NOTIFICATIONS_PAGE_KEY,
+  notificationCategoryContribution,
+} from '../../domain/schema/notifications';
 import { coreMessage, CORE_AUTOMATION_MESSAGES } from '../coreMessages';
 import { TENANT_SETTINGS_SURFACE } from '../core.tenant/surface';
 import { WorkflowCommandProvider } from '../../presentation/components/ui/CommandPalette/providers/WorkflowCommandProvider';
@@ -23,6 +28,7 @@ export const coreAutomationPlugin: PluginRecord = {
     DataFunctionReferenceView: lazyView(() => import('../../presentation/pages/DataFunctionReference/DataFunctionReference.view'), 'DataFunctionReferenceView'),
     WorkflowCommandProvider,
     NotificationBell,
+    NotificationsView: lazyView(() => import('../../presentation/pages/Notifications/Notifications.view'), 'NotificationsView'),
     NotificationEmailTabView: lazyView(() => import('../../presentation/pages/TenantSettings/EmailTab/EmailTab.view'), 'EmailTabView'),
   },
   manifest: {
@@ -32,6 +38,7 @@ export const coreAutomationPlugin: PluginRecord = {
     // eslint-disable-next-line no-restricted-syntax -- metadado do plugin do NÚCLEO: não é renderizado.
     name: 'Automations',
     dependencies: { 'core.ui': '^1.0.0', 'core.tenant': '^1.0.0' },
+    extensionPoints: NOTIFICATION_EXTENSION_POINTS,
     contributes: [
       messageBundleContribution(coreMessage('core.automation', CORE_AUTOMATION_MESSAGES)),
       page({ key: 'workflows', title: '@core.automation/page.workflows', icon: 'flowChart' }, 'WorkflowsView'),
@@ -60,6 +67,17 @@ export const coreAutomationPlugin: PluginRecord = {
         order: 10,
         defaultEnabled: true,
       }, 'NotificationBell'),
+      // A página com TODOS os avisos — o sino mostra os recentes e leva para cá —, e onde cada pessoa
+      // escolhe, por tipo de aviso, por quais canais quer recebê-los.
+      // Os tipos de aviso do PRÓPRIO kernel moram aqui, com o dono do ponto: `core.tenant` carrega
+      // antes deste plugin, e uma contribuição dele cairia num ponto que ainda não existe.
+      notificationCategoryContribution({
+        key: 'portal-activity',
+        title: '@core.records/portal.activity.category',
+        description: '@core.records/portal.activity.category.description',
+        icon: 'team',
+      }),
+      page({ key: NOTIFICATIONS_PAGE_KEY, title: '@core.automation/page.notifications', icon: 'notification' }, 'NotificationsView'),
       settingsSection({
         key: 'notifications',
         title: '@core.automation/notifications.settings.title',

@@ -39,7 +39,7 @@ const PAGE_KEYS_ANTES_DA_MIGRACAO = [
   // Adicionadas depois da migração (a lista é o guarda de "nenhuma tela some", não um congelamento):
   'marketplace', 'plugin-author', 'plugin-author:', 'rep:', 'report-design', 'report-design:',
   'reports', 'settings', 'translations',
-  'license', 'document-templates', 'downloads', 'settings:',
+  'license', 'document-templates', 'downloads', 'settings:', 'notifications',
 ].sort();
 
 describe('core plugins — carga', () => {

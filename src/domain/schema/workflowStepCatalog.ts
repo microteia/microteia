@@ -311,6 +311,23 @@ export const CORE_STEP_CATALOG: readonly WorkflowStepMetadata[] = [
         type: 'String',
       },
       {
+        id: 'openRecord',
+        label: '@core.automation/step.notify.label.open-record',
+        description: '@core.automation/step.notify.help.open-record',
+        required: false,
+        type: 'Boolean',
+        defaultValue: true,
+        allowedMappingKinds: ['Literal'],
+      },
+      {
+        id: 'category',
+        label: '@core.automation/step.notify.label.category',
+        description: '@core.automation/step.notify.help.category',
+        required: false,
+        type: 'String',
+        allowedMappingKinds: ['Literal'],
+      },
+      {
         id: 'toAudit',
         label: '@core.automation/step.notify.label.to-audit',
         required: false,

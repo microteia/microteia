@@ -24,6 +24,7 @@ export {
   menuItem,
   nav,
   navGroup,
+  notificationCategory,
   page,
   pointContribution,
   portalView,
