@@ -85,6 +85,12 @@ export interface UpsertOptions {
   // Usado pelo Step "Gravar Registro", que recebe um objeto inteiro (ex.: um registro já
   // existente) e não deve falhar por ele carregar campos que o sistema gerencia.
   ignoreUnwritableFields?: boolean;
+  /**
+   * Só ALTERA: com `id` de um registro que não existe, recusa em vez de criar. Quem já decidiu que o
+   * registro existe (a alteração pelo portal, que conferiu dono e condição sobre ele) não pode, por um
+   * registro apagado no meio do caminho, fazer nascer outro só com os campos que mandou.
+   */
+  updateOnly?: boolean;
 }
 
 interface WritableLeavesOutcome {
@@ -185,6 +191,9 @@ export async function runWorkflowUpsert(
   // sem a qual um update parcial recalcularia com as dependências ausentes do payload.
   const id = effectiveSpec.id?.trim();
   const existing = id ? await deps.mutationRepository.getById(tenantId, collection, id) : null;
+  if (options.updateOnly && !existing) {
+    return { ok: false, error: '@core.automation/mutation.upsert.not-found' };
+  }
 
   const calendars = await businessCalendarsFor(
     context.services,

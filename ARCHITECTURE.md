@@ -1062,7 +1062,8 @@ desenhar o botão**. A condição pode depender do relógio ou mudar sem o regis
 callable relê o registro e confere tudo de novo. Não há callable nova: `submitPortalRecord` com
 `recordId` vai para `makeUpdatePortalRecordUseCase`, e grava pelo mesmo `runWorkflowUpsert` (com o `id`)
 — validação, chave única e campo calculado valem igual, e a recusa de validação volta traduzida pelo
-mesmo caminho da criação. As automações do escritório veem a alteração com `updatedVia: 'portal'`.
+mesmo caminho da criação. A gravação vai com `updateOnly`: um registro apagado entre a conferência e a
+escrita é recusado (`mutation.upsert.not-found`), e não recriado só com os campos do convidado. As automações do escritório veem a alteração com `updatedVia: 'portal'`.
 
 Na casca, o formulário de criação serve à edição (`PortalCreateForm` com `editing`): parte do que o
 convidado vê, e campo apagado vai como `null`. Views de extensão usam `canEdit`,

@@ -36,6 +36,8 @@ export const portalRecordWriter: PortalRecordWriter = async ({ tenantId, collect
     { table: collection, data, ...(recordId ? { id: recordId } : {}) },
     context,
     { mutationRepository: new FirestoreWorkflowMutationRepository(getDb()), screenProvider: getDI().getScreenDefinitionCache() },
+    // Alterar nunca cria: o registro apagado depois da conferência não renasce com os campos do convidado.
+    recordId ? { updateOnly: true } : {},
   );
   return outcome.ok
     ? { ok: true, id: outcome.value.id }

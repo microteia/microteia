@@ -418,6 +418,22 @@ describe('runWorkflowUpsert', () => {
     expect(repo.createCalls[0].collection).toBe('processos');
     expect(repo.store.get('outra/r1')).toMatchObject({ title: 'De outra tela' });
   });
+
+  it('com updateOnly, um id que não existe é recusado — não nasce registro nenhum', async () => {
+    const repo = new FakeMutationRepository();
+    const outcome = await runWorkflowUpsert(
+      { table: 'processos', id: 'apagado', data: { title: 'X' } },
+      context(),
+      deps(repo),
+      { updateOnly: true },
+    );
+    expect(outcome).toEqual({ ok: false, error: '@core.automation/mutation.upsert.not-found' });
+    expect(repo.createCalls).toHaveLength(0);
+
+    repo.seed('processos', 'r1', { title: 'Antes' });
+    const updated = await runWorkflowUpsert({ table: 'processos', id: 'r1', data: { title: 'Depois' } }, context(), deps(repo), { updateOnly: true });
+    expect(updated.ok).toBe(true);
+  });
 });
 
 describe('runWorkflowRemove', () => {
