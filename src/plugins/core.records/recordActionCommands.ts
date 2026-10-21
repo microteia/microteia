@@ -1,4 +1,5 @@
 import { generateDeepLink } from '../../infrastructure/deeplink/deepLinkUtils';
+import { recordLinkTabKey } from '../../domain/schema/recordLink';
 import { unlinkFromParentPatch } from '../../domain/services/parentLock';
 import type { RecordActionCommand } from '../../presentation/shared/recordActions/recordActionHost';
 // A metadata dos gestos é declaração, e mora no domínio — ver `recordActionMetadata.ts`.
@@ -16,7 +17,9 @@ export { RECORD_ACTION_COMMANDS, RECORD_ACTION_METADATA } from '../../domain/sch
  */
 
 export const copyLinkCommand: RecordActionCommand = async (host) => {
-  await host.copyText(generateDeepLink(host.recordTabKey));
+  // O link do REGISTRO, não da aba desta tela: é o mesmo formato do aviso e do e-mail, e abre pela
+  // tela que descrever a coleção quando alguém clicar — inclusive outra, se a extensão mudar.
+  await host.copyText(generateDeepLink(recordLinkTabKey({ collection: host.collection, recordId: host.record.id })));
   host.notify(host.t('action.copy-link.done'), 'success');
 };
 

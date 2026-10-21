@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.138.1] — 2026-10-21
+
+- O link de um aviso recebido por e-mail agora abre o registro, e não só o sistema.
+- O "Copiar link" de um registro passa a gerar o mesmo tipo de link dos avisos: ele já leva o escritório e continua abrindo o registro mesmo que a tela que o apresenta mude. Links copiados antes continuam funcionando.
+
 #### [9.138.0] — 2026-10-21
 
 - Nova página de Notificações, aberta pelo "Ver todas" do sino: todos os seus avisos agrupados por dia, com filtros por não lidas e por tipo, e a opção de marcar cada um como lido ou não lido.

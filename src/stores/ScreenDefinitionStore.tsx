@@ -20,6 +20,9 @@ export const ScreenDefinitionStoreProvider: React.FC<{ children: React.ReactNode
 
   const [definitions, setDefinitions] = useState<ScreenDefinition[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  // De QUAL escritório são as telas em mãos. `isLoading` começa `false` e só vira `true` quando o
+  // efeito roda: no primeiro render, "não carregando" com a lista vazia parecia "carregado e vazio".
+  const [loadedTenantId, setLoadedTenantId] = useState<string | null>(null);
 
   const uc = useMemo(() => ({
     get: makeGetScreenDefinitionsUseCase(screenDefinitionRepository),
@@ -33,6 +36,7 @@ export const ScreenDefinitionStoreProvider: React.FC<{ children: React.ReactNode
     try {
       const list = await uc.get.execute(currentTenant.id);
       setDefinitions(list);
+      setLoadedTenantId(currentTenant.id);
     } finally {
       setIsLoading(false);
     }
@@ -128,6 +132,7 @@ export const ScreenDefinitionStoreProvider: React.FC<{ children: React.ReactNode
       getDefinition,
       getScreenFieldsFor,
       isLoading,
+      isLoaded: !!currentTenant && loadedTenantId === currentTenant.id,
       saveDefinition,
       deleteDefinition,
       refresh,

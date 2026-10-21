@@ -14,6 +14,7 @@ import { makeUpdateTenantUseCase } from '../domain/usecases/tenants/UpdateTenant
 import { makeListPortalMembershipsUseCase } from '../domain/usecases/portal/PortalUseCases';
 import type { Tenant, TenantMember, TenantUpdate } from '../domain/entities';
 import { LocalizedError } from '../domain/errors/LocalizedError';
+import { setDeepLinkTenant } from '../infrastructure/deeplink/deepLinkUtils';
 
 const TENANT_STORAGE_KEY = 'microteia:lastTenantId';
 
@@ -50,6 +51,7 @@ export const TenantStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const applyTenant = useCallback(async (tenant: Tenant) => {
     setCurrentTenant(tenant);
     localStorage.setItem(TENANT_STORAGE_KEY, tenant.id);
+    setDeepLinkTenant(tenant.id);
     // Nenhum papel é lido aqui: quem responde o que esta pessoa pode é o `AuthorizationStore`, a
     // partir dos perfis do escritório e do documento de membro que `loadMembers` traz.
     if (user) await loadMembers(tenant.id);

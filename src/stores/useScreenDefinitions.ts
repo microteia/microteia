@@ -13,6 +13,8 @@ export interface ScreenDefinitionStoreState {
   /** Campos que a tela do tenant declara para a coleção (sem os fixos do código). */
   getScreenFieldsFor: (collection: string) => FieldDefinition[];
   isLoading: boolean;
+  /** As telas do escritório ATUAL já chegaram ao menos uma vez — "vazio" deixa de ser "ainda não sei". */
+  isLoaded: boolean;
   saveDefinition: (screenKey: string, data: ScreenDefinitionSaveInput) => Promise<ScreenDefinition>;
   deleteDefinition: (screenKey: string) => Promise<void>;
   refresh: () => Promise<void>;

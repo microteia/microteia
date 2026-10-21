@@ -1,5 +1,5 @@
 import React from 'react';
-import { useWorkspace } from '../../../../stores/useWorkspace';
+import { useOpenLink } from '../../../shared/useOpenLink';
 import { isMicroteiaLink, parseMicroteiaTabKey } from '../../../../infrastructure/deeplink/deepLinkUtils';
 import { S } from './MarkdownLink.styles';
 
@@ -9,14 +9,14 @@ export interface MarkdownLinkProps {
 }
 
 export const MarkdownLink: React.FC<MarkdownLinkProps> = ({ href, children }) => {
-  const { openTab } = useWorkspace();
+  const openLink = useOpenLink();
 
   if (isMicroteiaLink(href)) {
     const tabKey = parseMicroteiaTabKey(href);
     return (
       <S.Link
         href={href}
-        onClick={(e) => { e.preventDefault(); openTab(tabKey); }}
+        onClick={(e) => { e.preventDefault(); openLink(tabKey); }}
       >
         {children}
       </S.Link>

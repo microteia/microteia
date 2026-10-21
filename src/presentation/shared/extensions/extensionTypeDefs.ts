@@ -1280,8 +1280,13 @@ const DATA_MODULE_DEFS = `declare module '@microteia/data' {
    */
   export function useSavedViewState<T>(key: string, initial: T): [T, (value: T) => void];
 
-  /** Builds a deeplink to a route of the system. */
-  export function generateDeepLink(path: string): string;
+  /**
+   * Builds the universal link to a tab of the system — the same format notifications use in e-mails
+   * and browser notifications: \`<origin>/microteia/<tab>?tenant=<current organization>\`. For a record,
+   * pass \`record:<collection>:<recordId>\`: it opens through whichever screen describes that collection
+   * when someone clicks, so the link survives a screen being replaced.
+   */
+  export function generateDeepLink(tabKey: string, tenantId?: string): string;
 
   export interface PointContribution {
     /** Who declared the contribution. */

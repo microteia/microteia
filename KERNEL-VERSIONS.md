@@ -18,6 +18,11 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.138.1] — 2026-10-21
+
+- fix(workspace): an external record link (`/microteia/record:<collection>:<id>`) was consumed on the first render, while `ScreenDefinitionStore.isLoading` was still its initial `false` with an empty list — no screen matched the collection, nothing opened, and the URL was replaced by `/app`. The store now exposes `isLoaded` (definitions of the CURRENT tenant arrived at least once) and the shell waits for it before opening a record link. Tested in `WorkspaceShell.viewmodel.test.tsx`.
+- feat(deeplink): one universal link format. `generateDeepLink(tabKey, tenantId?)` now returns `<origin>/microteia/<tab>?tenant=<id>` (the current tenant, set by `TenantStore` via `setDeepLinkTenant`) — the same as e-mail and push. Record "Copy link" (`copyLinkCommand`, `useEntityDetailChrome` via `linkCollection`) copies `record:<collection>:<id>` instead of the screen's own tab key, so the link survives a screen being replaced. `isMicroteiaLink`/`parseMicroteiaTabKey` accept same-origin absolute links, decode the tab and drop the query; `MarkdownLink` opens through `useOpenLink`. Old `#tab=` links are still read.
+
 #### [9.138.0] — 2026-10-21
 
 - feat(notifications): `DispatchNotificationUseCase` is the kernel's single notification port. Requests carry `source`, optional `workflowId`/`executionId`, `target: { collection, recordId }`, `category`, `dedupKey`, and `recipientPermissions: string[]` (members holding ALL of them). Inbox documents store `target`, `category` and `source`; the audit channel sets `linkCollection`/`linkRecordId`. KERNEL_VERSION 2.58.0.

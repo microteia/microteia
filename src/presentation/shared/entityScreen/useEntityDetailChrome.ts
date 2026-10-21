@@ -2,10 +2,13 @@ import { useCallback, useState } from 'react';
 import { useWorkspace } from '../../../stores/useWorkspace';
 import { useNotification } from '../../../stores/useNotification';
 import { generateDeepLink } from '../../../infrastructure/deeplink/deepLinkUtils';
+import { recordLinkTabKey } from '../../../domain/schema/recordLink';
 import type { EntityDetailTab } from '../../components/layout/EntityDetailView';
 
 interface UseEntityDetailChromeParams {
   recordId: string | null;
+  /** A coleção do registro: com ela, o link copiado é o universal (`record:`), e não a aba da tela. */
+  linkCollection?: string;
   deepLinkKey: (recordId: string) => string;
   cloneKey: (recordId: string) => string;
   remove: (recordId: string) => Promise<void>;
@@ -36,7 +39,7 @@ export interface EntityDetailChrome {
  * são parametrizados por entidade.
  */
 export const useEntityDetailChrome = (params: UseEntityDetailChromeParams): EntityDetailChrome => {
-  const { recordId, deepLinkKey, cloneKey, remove, onRemoved, removedMessage, removeErrorMessage } = params;
+  const { recordId, linkCollection, deepLinkKey, cloneKey, remove, onRemoved, removedMessage, removeErrorMessage } = params;
   const { openTab } = useWorkspace();
   const { notify } = useNotification();
 
@@ -48,10 +51,11 @@ export const useEntityDetailChrome = (params: UseEntityDetailChromeParams): Enti
 
   const handleCopyDeepLink = useCallback(() => {
     if (!recordId) return;
-    void navigator.clipboard.writeText(generateDeepLink(deepLinkKey(recordId)));
+    const tabKey = linkCollection ? recordLinkTabKey({ collection: linkCollection, recordId }) : deepLinkKey(recordId);
+    void navigator.clipboard.writeText(generateDeepLink(tabKey));
     setCopyLinkDone(true);
     setTimeout(() => setCopyLinkDone(false), 2000);
-  }, [recordId, deepLinkKey]);
+  }, [recordId, linkCollection, deepLinkKey]);
 
   const handleClone = useCallback(() => {
     if (!recordId) return;

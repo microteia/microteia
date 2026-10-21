@@ -211,6 +211,7 @@ export function useEntityDetail<TRecord extends { id: string }>(
 
   const chrome = useEntityDetailChrome({
     recordId: record?.id ?? null,
+    linkCollection: entityKey,
     deepLinkKey,
     cloneKey,
     remove: remove ?? (() => Promise.resolve()),

@@ -15,7 +15,7 @@ import { parseRecordLinkTabKey, TENANT_LINK_PARAM } from '../../../../domain/sch
 export const useWorkspaceShellViewModel = () => {
   const { openTab, panels } = useWorkspace();
   const openLink = useOpenLink();
-  const { isLoading: screensLoading } = useScreenDefinitions();
+  const { isLoaded: screensLoaded } = useScreenDefinitions();
   const { userRole } = useAuth();
   const { canAny } = useAuthorization();
   const pageContributions = usePageContributions();
@@ -61,8 +61,8 @@ export const useWorkspaceShellViewModel = () => {
   }, [switchingTenant, linkTenant, selectTenant]);
 
   const readyFor = useCallback(
-    (tabKey: string) => !switchingTenant && !(parseRecordLinkTabKey(tabKey) && screensLoading),
-    [switchingTenant, screensLoading],
+    (tabKey: string) => !switchingTenant && !(parseRecordLinkTabKey(tabKey) && !screensLoaded),
+    [switchingTenant, screensLoaded],
   );
 
   const consumeHashDeepLink = useCallback(() => {
