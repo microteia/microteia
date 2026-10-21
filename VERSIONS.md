@@ -11,6 +11,18 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.137.4] — 2026-10-20
+
+- Quando o convidado do portal tenta alterar um registro que acabou de ser excluído pelo escritório, ele agora vê um aviso claro, em vez de o registro ser recriado.
+
+#### [9.137.3] — 2026-10-20
+
+- Corrigido um erro que podia aparecer ao abrir painéis e telas trazidos por extensões, como o Painel.
+
+#### [9.137.2] — 2026-10-20
+
+- Corrigido um erro que impedia o sistema de abrir depois da última atualização.
+
 #### [9.137.1] — 2026-10-20
 
 - A publicação de novas versões do sistema ficou bem mais rápida e não trava mais esperando uma confirmação que ninguém pode dar; o que falha é tentado de novo automaticamente, sem atrasar o resto.
@@ -20,18 +32,6 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - As listas de um modelo de documento agora podem ser ordenadas por mais de um campo — por exemplo, pela data e, no mesmo dia, pela hora. Um relatório de andamento passa a mostrar as movimentações de cada dia na ordem em que aconteceram, e o limite de itens sempre fica com as mais recentes.
 - A ordem das listas ficou estável: itens sem o campo de ordenação vão para o fim, e itens empatados aparecem sempre na mesma sequência, a cada geração.
 - Na tela de modelos de documento, cada lista ganhou a escolha de sentido (crescente ou decrescente) e o botão "Depois por", para acrescentar um critério de desempate.
-
-#### [9.136.3] — 2026-10-20
-
-- Quando o convidado do portal tenta alterar um registro que acabou de ser excluído pelo escritório, ele agora vê um aviso claro, em vez de o registro ser recriado.
-
-#### [9.136.2] — 2026-10-20
-
-- Corrigido um erro que podia aparecer ao abrir painéis e telas trazidos por extensões, como o Painel.
-
-#### [9.136.1] — 2026-10-20
-
-- Corrigido um erro que impedia o sistema de abrir depois da última atualização.
 
 #### [9.136.0] — 2026-10-20
 

@@ -18,6 +18,18 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.137.4] — 2026-10-20
+
+- fix(portal): a guest edit could RECREATE a record deleted between the use case's checks and the write — `runWorkflowUpsert` with an `id` that no longer exists creates it, here holding only the guest's fields. New `UpsertOptions.updateOnly` refuses with `@core.automation/mutation.upsert.not-found` instead; `portalRecordWriter` sets it on every edit. `com.microteia.locale-pt-br` 1.113.0.
+
+#### [9.137.3] — 2026-10-20
+
+- fix(extensions): extension view modules were evaluated DURING the render of whoever asked for them (`useUiContributions`, the `useMemo` in `useSettingsCatalog`, the portal shell). A module-level `styled.div` then ran styled-components' dev-only "created dynamically" probe, which calls a hook — added to the parent's hook list: "change in the order of Hooks called by PanelLeaf". `evaluateExtensionView` and `evaluatePortalView` now return a stable `deferredComponent` that evaluates the module on its first `useSyncExternalStore` subscription (commit phase); the result is still cached per key and source, and a compile error still becomes the fallback. Regression test in `evaluateExtensionView.test.tsx`.
+
+#### [9.137.2] — 2026-10-20
+
+- fix(schema): import cycle `portal.ts → mutationSpec.ts → pathResolver.ts → screenEntity.ts → portal.ts`, introduced in 9.136.0, threw `Cannot access 'PORTAL_USERS_COLLECTION' before initialization` when `portal.ts` loaded first — the app did not start, and the same chain would break the functions on a cold start. The portal collection names moved to the leaf module `portalCollections.ts` (re-exported by `portal.ts`), which `screenEntity.ts` imports directly. Regression test `portalCollections.test.ts` (Vitest silently left `undefined` in `RESERVED_COLLECTIONS` instead of throwing).
+
 #### [9.137.1] — 2026-10-20
 
 - fix(scripts/deploy-functions-individually): build the functions once and deploy each one with a temporary `firebase.json` that drops the functions `predeploy` — every `firebase deploy` used to recompile the whole backend, ~60 times per run, which stretched a full deploy into hours.
@@ -31,18 +43,6 @@
 - feat(agent): `save_document_template` takes `orderBy` as text or list (the schema no longer types it as string), and `datasetsFromAgent` keeps the list instead of dropping it — a template read and saved back by an agent kept no order before.
 - feat(ui): the document template editor edits order keys per list (field, direction, "Then by", remove). One complete key is saved in the text form, so single-key templates are unchanged; two or more are saved as a list.
 - docs: AUTHORING §12 documents the list form and its tie-break; `examples/document-example` 1.2.0 (`kernel: '^2.58.0'`) adds an optional `dueTime` to the installment and orders the payment plan by `dueDate`, then `dueTime`. `com.microteia.locale-pt-br` 1.113.0.
-
-#### [9.136.3] — 2026-10-20
-
-- fix(portal): a guest edit could RECREATE a record deleted between the use case's checks and the write — `runWorkflowUpsert` with an `id` that no longer exists creates it, here holding only the guest's fields. New `UpsertOptions.updateOnly` refuses with `@core.automation/mutation.upsert.not-found` instead; `portalRecordWriter` sets it on every edit. `com.microteia.locale-pt-br` 1.113.0.
-
-#### [9.136.2] — 2026-10-20
-
-- fix(extensions): extension view modules were evaluated DURING the render of whoever asked for them (`useUiContributions`, the `useMemo` in `useSettingsCatalog`, the portal shell). A module-level `styled.div` then ran styled-components' dev-only "created dynamically" probe, which calls a hook — added to the parent's hook list: "change in the order of Hooks called by PanelLeaf". `evaluateExtensionView` and `evaluatePortalView` now return a stable `deferredComponent` that evaluates the module on its first `useSyncExternalStore` subscription (commit phase); the result is still cached per key and source, and a compile error still becomes the fallback. Regression test in `evaluateExtensionView.test.tsx`.
-
-#### [9.136.1] — 2026-10-20
-
-- fix(schema): import cycle `portal.ts → mutationSpec.ts → pathResolver.ts → screenEntity.ts → portal.ts`, introduced in 9.136.0, threw `Cannot access 'PORTAL_USERS_COLLECTION' before initialization` when `portal.ts` loaded first — the app did not start, and the same chain would break the functions on a cold start. The portal collection names moved to the leaf module `portalCollections.ts` (re-exported by `portal.ts`), which `screenEntity.ts` imports directly. Regression test `portalCollections.test.ts` (Vitest silently left `undefined` in `RESERVED_COLLECTIONS` instead of throwing).
 
 #### [9.136.0] — 2026-10-20
 
