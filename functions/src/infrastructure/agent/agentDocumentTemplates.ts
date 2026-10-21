@@ -3,6 +3,7 @@ import type { MessageCatalog } from '../../domain/schema/i18n/messages';
 import { resolveLabel } from '../../domain/schema/i18n/messageRef';
 import type { QualifiedContribution } from '../../domain/schema/plugin/contribution';
 import type { SchemaContext, SchemaScreen } from '../../domain/schema/screenEntity';
+import type { QueryOrderBy } from '../../domain/schema/querySpec';
 import { collectionPermissionId } from '../../domain/schema/access/permission';
 import { grants } from '../../domain/schema/access/memberPermissions';
 import { PERMISSION_DOCUMENT_TEMPLATES_MANAGE, PERMISSION_DOCUMENTS_GENERATE } from '../../domain/schema/access/kernelPermissions';
@@ -434,6 +435,20 @@ const SPEC_FIELDS = [
   'source', 'parameters', 'sample', 'destination', 'retentionDays',
 ] as const;
 
+/**
+ * A ordem como o agente a escreveu: o texto passa como texto, e a lista passa chave a chave para que
+ * `documentTemplateIssues` aponte a chave errada em vez de ela sumir. Ler a lista como texto a
+ * apagava — e um modelo lido e regravado pelo agente perdia a ordem sem ninguém ver.
+ */
+const orderByFromAgent = (value: unknown): DocumentTemplateDataset['orderBy'] => {
+  if (typeof value === 'string') return value.trim() || undefined;
+  if (!Array.isArray(value)) return undefined;
+  return value.map((raw) => {
+    const order = asRecord(raw);
+    return { path: asText(order.path), dir: order.dir } as QueryOrderBy;
+  });
+};
+
 type DatasetResolution = { ok: true; datasets: DocumentTemplateDataset[] } | { ok: false; collection: string };
 
 const datasetsFromAgent = (screens: readonly SchemaScreen[], value: unknown): DatasetResolution => {
@@ -446,7 +461,7 @@ const datasetsFromAgent = (screens: readonly SchemaScreen[], value: unknown): Da
       name: asText(item.name),
       from,
       via: asText(item.via),
-      orderBy: asText(item.orderBy) || undefined,
+      orderBy: orderByFromAgent(item.orderBy),
       direction: item.direction === 'desc' || item.direction === 'asc' ? item.direction : undefined,
       limit: typeof item.limit === 'number' ? item.limit : undefined,
     }) as unknown as DocumentTemplateDataset);

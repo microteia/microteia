@@ -93,6 +93,7 @@ const PLUGIN_CATALOG_BY_NS = {
   'com.microteia.command-example': { dir: 'marketplace/examples/command-example', source: 'commandMessages', ptBr: 'commandMessagesPtBr' },
   'com.microteia.settings-example': { dir: 'marketplace/examples/settings-example', source: 'settingsMessages', ptBr: 'settingsMessagesPtBr' },
   'com.microteia.record-tab-example': { dir: 'marketplace/examples/record-tab-example', source: 'recordTabMessages', ptBr: 'recordTabMessagesPtBr' },
+  'com.microteia.portal-example': { dir: 'marketplace/examples/portal-example', source: 'portalMessages', ptBr: 'portalMessagesPtBr' },
   'com.microteia.document-example': { dir: 'marketplace/examples/document-example', source: 'documentMessages', ptBr: 'documentMessagesPtBr' },
 };
 

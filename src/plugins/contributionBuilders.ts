@@ -26,6 +26,7 @@ export {
   navGroup,
   page,
   pointContribution,
+  portalView,
   recordAction,
   settingsSection,
   surfaceSlot,

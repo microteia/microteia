@@ -75,6 +75,15 @@ export interface IRecordDocumentRepository {
     storagePath: string,
     actor: DeletionActor,
   ): Promise<void>;
+  /** Compartilha (ou deixa de compartilhar) o documento no portal. Só a marca muda. */
+  setPortalShared(
+    tenantId: string,
+    collection: string,
+    recordId: string,
+    documentId: string,
+    shared: boolean,
+    actorUid: string,
+  ): Promise<void>;
 }
 
 /**

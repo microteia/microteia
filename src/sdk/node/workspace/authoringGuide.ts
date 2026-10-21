@@ -30,6 +30,7 @@ import {
   DOCUMENT_OUTPUTS_BY_FORMAT,
   DOCUMENT_TEMPLATE_MAX_BYTES,
   DOCUMENT_BELONGS_TO_SINCE_KERNEL,
+  DOCUMENT_DATASET_ORDER_LIST_SINCE_KERNEL,
   DOCUMENT_DESTINATION_SINCE_KERNEL,
   DOCUMENT_PARAMETER_TYPES,
   DOCUMENT_PAYLOAD_MAX_BYTES,
@@ -613,6 +614,53 @@ The organization toggles and orders these tabs from Settings (\`<surface>.tabs\`
 \`${RECORD_SURFACE_PREFIX}\` with no \`sourceId\`, and warns — without refusing — about a \`sourceId\` it
 cannot find in your package, in a dependency authored beside it, or in the installation snapshot.
 \`examples/record-tab-example\` has both kinds of tab, and the list locked to the open record.
+
+### Your own screens in the portal
+
+People from OUTSIDE the organization — a client, a supplier — see what screens declare in \`portal\`
+(the \`subject\`, the \`fields\` that leave, \`create\` for what they may submit, \`edit\` for what they
+may change, \`uploads\` for the documents they may attach). The portal draws a
+home, a menu and a standard list and record for them. \`portalView(metadata, viewKey)\` adds yours:
+
+| \`surface\` | Also declare | What it is |
+|---|---|---|
+| \`list\` / \`detail\` | \`collection\` | replaces the standard list, or the open record, of that collection |
+| \`page\` | \`key\`, \`title\`, \`icon\`, \`order\` | a page of its own, with an entry in the portal MENU |
+| \`widget\` | \`key\`, \`title\`, \`order\` | a card on the portal HOME |
+| \`home\` | — | the whole home, in place of the standard one |
+
+\`order\` is a suggestion. The organization decides what shows and where, in Settings > Portal — the
+menu's order and which entries and cards are visible. Your package never forces a place.
+
+A portal view reaches a smaller API: \`@microteia/ui\`, \`@microteia/i18n\`, \`@microteia/format\`,
+\`@microteia/theme\` and \`@microteia/portal\` — \`usePortalRecords(collection, { parent })\`,
+\`usePortalRecord\`, \`usePortalScreen\`, \`usePortalNavigation\`, \`usePortalDocuments\`,
+\`usePortalSubmit\`, \`usePortalUpdate\`. Show an edit gesture only when the record's \`canEdit\` is true
+(\`usePortalNavigation().edit\` opens the standard form). Importing \`@microteia/data\` (or report, settings, functions) fails when the view is
+compiled: the guest has none of the organization's data stores. A view receives \`{ collection, recordId? }\`
+and asks \`@microteia/portal\` for the rest.
+
+It is sent to the guest only when the organization trusts your package's code — the same trust the
+Extensions screen shows. Without it, the standard page is drawn.
+
+#### The portal is used on a phone first — design for it
+
+Most guests open the portal on a phone. The portal is responsive, and your view has to be too:
+
+- **One breakpoint, 768px.** Below it the menu is a bar FIXED at the bottom of the screen (Home, the first
+  entries, More); above it, tabs at the top. Do not draw a menu of your own, and never use
+  \`position: fixed\` at the bottom — it would sit under the bar.
+- **Fluid widths.** No fixed widths and no horizontal scroll: use \`width: 100%\`, \`minmax(0, 1fr)\` grids
+  and \`flex-wrap\`. Grow into columns with \`@media (min-width: 768px)\`, never the other way around.
+- **A card is narrow.** A \`widget\` takes the whole width on a phone and half of it on a computer —
+  keep it to a number, a short list or one call to action.
+- **Tap targets of at least 44px** (\`theme.spacing['2xl']\` is 48px). Text never below
+  \`theme.fontSizes.sm\` on a phone.
+- **Theme only.** Colours, sizes and spaces come from the theme — the organization's theme is what the
+  guest sees, in light or dark.
+- **Check it at 360px wide** before publishing.
+
+\`examples/portal-example\` has the declarations on two screens, a \`detail\` page and a home card.
 
 ### Settings whose options are the organization's data
 
@@ -1442,6 +1490,7 @@ is enforced at the two write paths, which is the same footing \`required\`, a ma
 | \`listActions\`, \`viewActionIds\`, \`cardActionIds\` | the platform's own record gestures by key; your \`actions\` by \`templateId\` |
 | \`memberWritableFields\` | fields ANY member may write on a record someone else created — the door for per-person state (read, liked, saved) that the default permission would close |
 | \`authorCanDelete\` | whoever created the record deletes it, without an administrator |
+| \`portal\` | what an outside guest sees: \`subject\` (\`'self'\` for the screen whose records receive guests, \`{ field }\` for a reference that leads to it, \`'parent'\` to inherit from the parent), the \`fields\` that leave the organization — nothing else does — and \`documents\` to expose the documents someone marked as shared. \`create: { fields }\` lets the guest create records, filling only those fields — the link to the subject is set by the server from what the guest already sees, never from what they send; it is refused on the \`'self'\` screen. \`uploads: { types }\` lets the guest ATTACH documents — choosing one of those types (none listed = any the organization has), never creating one, and never deleting; it requires \`documents\`. \`edit: { fields, when?, onlyOwn? }\` lets the guest CHANGE records: only those fields, and only fields that are also in \`fields\` (a guest never overwrites what they cannot see); never the link to the subject; \`when\` is a field expression on the WHOLE record (\`status == "draft"\`) checked by the server on every change — invalid means closed —, and \`onlyOwn\` limits it to records the guest created in the portal |
 | \`auditActions\` | which actions are audited. Absent = all. Declare it when a machine writes the collection, or the audit log drowns in one entry per ingested document |
 
 ### Option lists
@@ -2537,8 +2586,25 @@ grammar adds only what an expression cannot say: ${DOCUMENT_BLOCKS}.
 
 A loop repeats a list. A list field of the record works as is; records of ANOTHER screen that point
 here come from \`datasets\`, in the vocabulary of an aggregated field: \`from\` (the child screen), \`via\`
-(its reference field to this record), \`orderBy\`, \`direction\`, \`limit\` (at most 100 — more than that is
-a report, §11). Address \`from\` by \`fromSourceId\` for the same reason as the screen.
+(its reference field to this record), \`orderBy\`, \`limit\` (at most 100 — more than that is a report,
+§11). Address \`from\` by \`fromSourceId\` for the same reason as the screen.
+
+\`orderBy\` is one field with \`direction\` (\`orderBy: 'dueDate', direction: 'desc'\`), or a list of keys in the
+form of an aggregation's \`orderBy\` — the first decides, the next break ties:
+
+\`\`\`ts
+datasets: [{ name: 'movements', from: 'movement', fromSourceId: MOVEMENT_SOURCE, via: 'case',
+  orderBy: [{ path: 'date', dir: 'desc' }, { path: 'time', dir: 'desc' }], limit: 30 }]
+\`\`\`
+
+Use the list whenever the day and the time live in separate fields: ordering by the day alone leaves
+the records of one day in whatever order the database returns them, and with \`limit\` that order
+decides WHICH records make it into the document. Both forms end in the same fixed tie-break as
+\`latest\`: an empty key sorts last in both directions, then \`createdAt\` in the direction of the last
+key, then the document id. Each key is a field of the \`from\` screen (or \`createdAt\` / \`updatedAt\`),
+and \`validate_plugin\` checks it when that screen comes in your package. \`direction\` does not go
+with the list — each key carries its own \`dir\`.
+The list of keys requires kernel \`^${DOCUMENT_DATASET_ORDER_LIST_SINCE_KERNEL}\`; an older kernel would read it as a field name.
 
 ### Formats
 

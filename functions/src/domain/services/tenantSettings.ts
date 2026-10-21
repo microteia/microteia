@@ -26,6 +26,18 @@ const LOCALE_SETTING = 'i18n.locale';
  * O idioma de uma pessoa sobre valores já lidos: `user > tenant > default`, a ordem do cliente. Existe
  * separada da leitura porque quem resolve o idioma de VÁRIOS destinatários lê os documentos em lote.
  */
+/** O idioma ESCOLHIDO — pela pessoa ou pelo escritório —, ou `null` quando ninguém escolheu. */
+export const configuredLocale = (
+  own: Record<string, unknown>,
+  office: Record<string, unknown>,
+): string | null => {
+  for (const values of [own, office]) {
+    const chosen = values[LOCALE_SETTING];
+    if (typeof chosen === 'string' && chosen.trim() !== '') return chosen;
+  }
+  return null;
+};
+
 export const preferredLocale = (
   own: Record<string, unknown>,
   office: Record<string, unknown>,

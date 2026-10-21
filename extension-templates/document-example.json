@@ -1,8 +1,8 @@
 {
   "manifest": {
     "id": "com.microteia.document-example",
-    "version": "1.1.0",
-    "kernel": "^2.49.0",
+    "version": "1.2.0",
+    "kernel": "^2.58.0",
     "name": "@com.microteia.document-example/package.name",
     "description": "@com.microteia.document-example/package.description",
     "category": "@com.microteia.document-example/package.category",
@@ -32,6 +32,7 @@
             "field.agreement": "Agreement",
             "field.amount": "Amount",
             "field.dueDate": "Due date",
+            "field.dueTime": "Due time",
             "field.paid": "Paid",
             "field.paidOn": "Paid on",
             "field.note": "Note",
@@ -64,6 +65,7 @@
             "field.agreement": "Acordo",
             "field.amount": "Valor",
             "field.dueDate": "Vencimento",
+            "field.dueTime": "Hora do vencimento",
             "field.paid": "Pago",
             "field.paidOn": "Pago em",
             "field.note": "Observação",
@@ -84,7 +86,7 @@
           "collection": "docAgreement",
           "screenSourceId": "microteia:document-example:agreement",
           "format": "markdown",
-          "body": "# Payment plan\n\n**Party:** {{party}}\n**Signed on:** {{formatDate(signedOn, \"DD/MM/YYYY\")}}\n\n| # | Due date | Amount | |\n|---|---|--:|---|\n{{#each installments}}| {{index}} | {{formatDate(dueDate, \"DD/MM/YYYY\")}} | {{formatMoney(amount)}} | {{#if paid}}paid{{/if}} |\n{{/each}}\n\n**Total:** {{formatMoney(total)}}\n\n<!-- pagebreak -->\n\nGenerated on {{formatDate(today(), \"DD/MM/YYYY\")}}.\n",
+          "body": "# Payment plan\n\n**Party:** {{party}}\n**Signed on:** {{formatDate(signedOn, \"DD/MM/YYYY\")}}\n\n| # | Due date | Amount | |\n|---|---|--:|---|\n{{#each installments}}| {{index}} | {{formatDate(dueDate, \"DD/MM/YYYY\")}}{{#if dueTime}} {{dueTime}}{{/if}} | {{formatMoney(amount)}} | {{#if paid}}paid{{/if}} |\n{{/each}}\n\n**Total:** {{formatMoney(total)}}\n\n<!-- pagebreak -->\n\nGenerated on {{formatDate(today(), \"DD/MM/YYYY\")}}.\n",
           "fileName": "Payment plan - {{party}}",
           "datasets": [
             {
@@ -92,7 +94,16 @@
               "from": "docInstallment",
               "fromSourceId": "microteia:document-example:installment",
               "via": "agreement",
-              "orderBy": "dueDate"
+              "orderBy": [
+                {
+                  "path": "dueDate",
+                  "dir": "asc"
+                },
+                {
+                  "path": "dueTime",
+                  "dir": "asc"
+                }
+              ]
             }
           ]
         }
@@ -265,7 +276,7 @@
     {
       "key": "docInstallment",
       "sourceId": "microteia:document-example:installment",
-      "sourceRev": 1,
+      "sourceRev": 2,
       "titleSingular": "@com.microteia.document-example/screen.installment",
       "titlePlural": "@com.microteia.document-example/screen.installment.plural",
       "icon": "bank",
@@ -286,18 +297,25 @@
           "order": 1
         },
         {
+          "key": "dueTime",
+          "label": "@com.microteia.document-example/field.dueTime",
+          "type": "time",
+          "required": false,
+          "order": 2
+        },
+        {
           "key": "amount",
           "label": "@com.microteia.document-example/field.amount",
           "type": "currency",
           "required": true,
-          "order": 2
+          "order": 3
         },
         {
           "key": "paid",
           "label": "@com.microteia.document-example/field.paid",
           "type": "checkbox",
           "required": false,
-          "order": 3
+          "order": 4
         }
       ],
       "titleFieldKey": "dueDate",

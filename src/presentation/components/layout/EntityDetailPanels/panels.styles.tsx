@@ -299,6 +299,16 @@ export const S = {
     flex-shrink: 0;
   `,
 
+  PortalBadge: styled.span`
+    font-size: ${({ theme }) => theme.fontSizes.xs};
+    color: ${({ theme }) => theme.colors.primary};
+    padding: 2px 8px;
+    border-radius: ${({ theme }) => theme.borderRadius.md};
+    background: ${({ theme }) => theme.colors.primaryLight};
+    white-space: nowrap;
+    flex-shrink: 0;
+  `,
+
   DocActions: styled.div`
     display: flex;
     align-items: center;

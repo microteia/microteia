@@ -1,0 +1,236 @@
+{
+  "manifest": {
+    "id": "com.microteia.portal-example",
+    "version": "1.2.0",
+    "kernel": "^2.57.0",
+    "name": "@com.microteia.portal-example/package.name",
+    "description": "@com.microteia.portal-example/package.description",
+    "category": "@com.microteia.portal-example/package.category",
+    "publisher": {
+      "name": "Microteia"
+    },
+    "dependencies": {
+      "core.ui": "^1.0.0",
+      "core.tenant": "^1.0.0"
+    },
+    "contributes": [
+      {
+        "point": "i18n.messages",
+        "id": "en.com.microteia.portal-example",
+        "apiVersion": "1.0.0",
+        "metadata": {
+          "locale": "en",
+          "namespace": "com.microteia.portal-example",
+          "messages": {
+            "package.name": "Portal, by example",
+            "package.category": "Interface",
+            "package.description": "Clients see their own orders in the portal, and place new ones — on a page of the extension, not the standard one.",
+            "package.summary": "How an extension opens part of the organization to people from OUTSIDE it. Each Client receives guests; Orders point at the client, so each guest sees only the orders of their own client, and places new ones there. The Client record in the portal is a view of this package, written against @microteia/portal — the only API a portal view reaches.",
+            "screen.client": "Client",
+            "screen.client.plural": "Clients",
+            "screen.order": "Order",
+            "screen.order.plural": "Orders",
+            "field.name": "Name",
+            "field.city": "City",
+            "field.client": "Client",
+            "field.item": "Item",
+            "field.quantity": "Quantity",
+            "field.notes": "Notes",
+            "field.internal": "Internal note",
+            "portal.orders": "Your orders",
+            "portal.orders.empty": "No orders yet.",
+            "portal.orders.new": "Place an order",
+            "portal.orders.edit": "Edit",
+            "portal.orders.quantity": "{count} × {item}",
+            "portal.widget.orders": "Your orders",
+            "portal.widget.orders.caption": "orders placed in the portal"
+          }
+        }
+      },
+      {
+        "point": "i18n.messages",
+        "id": "pt-br.com.microteia.portal-example",
+        "apiVersion": "1.0.0",
+        "metadata": {
+          "locale": "pt-BR",
+          "namespace": "com.microteia.portal-example",
+          "messages": {
+            "package.name": "Portal, pelo exemplo",
+            "package.category": "Interface",
+            "package.description": "Os clientes veem os próprios pedidos no portal, e fazem pedidos novos — numa página da extensão, e não na padrão.",
+            "package.summary": "Como uma extensão abre parte do escritório a pessoas de FORA dele. Cada Cliente recebe convidados; os Pedidos apontam para o cliente, então cada convidado vê só os pedidos do próprio cliente, e faz pedidos novos ali. O registro do Cliente no portal é uma view deste pacote, escrita com @microteia/portal — a única API que uma view de portal alcança.",
+            "screen.client": "Cliente",
+            "screen.client.plural": "Clientes",
+            "screen.order": "Pedido",
+            "screen.order.plural": "Pedidos",
+            "field.name": "Nome",
+            "field.city": "Cidade",
+            "field.client": "Cliente",
+            "field.item": "Item",
+            "field.quantity": "Quantidade",
+            "field.notes": "Observações",
+            "field.internal": "Nota interna",
+            "portal.orders": "Seus pedidos",
+            "portal.orders.empty": "Nenhum pedido ainda.",
+            "portal.orders.new": "Fazer um pedido",
+            "portal.orders.edit": "Editar",
+            "portal.orders.quantity": "{count} × {item}",
+            "portal.widget.orders": "Seus pedidos",
+            "portal.widget.orders.caption": "pedidos feitos pelo portal"
+          }
+        }
+      },
+      {
+        "point": "portal.view",
+        "id": "detail-portalexampleclient",
+        "apiVersion": "1.2.0",
+        "metadata": {
+          "collection": "portalExampleClient",
+          "surface": "detail"
+        },
+        "impl": {
+          "kind": "code",
+          "key": "clientPortal"
+        }
+      },
+      {
+        "point": "portal.view",
+        "id": "widget-open-orders",
+        "apiVersion": "1.2.0",
+        "metadata": {
+          "surface": "widget",
+          "key": "open-orders",
+          "title": "@com.microteia.portal-example/portal.widget.orders",
+          "order": 10
+        },
+        "impl": {
+          "kind": "code",
+          "key": "openOrdersWidget"
+        }
+      }
+    ]
+  },
+  "summary": "@com.microteia.portal-example/package.summary",
+  "workflows": [],
+  "screens": [
+    {
+      "key": "portalExampleClient",
+      "sourceId": "microteia:portal-example:client",
+      "sourceRev": 1,
+      "titleSingular": "@com.microteia.portal-example/screen.client",
+      "titlePlural": "@com.microteia.portal-example/screen.client.plural",
+      "icon": "team",
+      "fields": [
+        {
+          "key": "name",
+          "label": "@com.microteia.portal-example/field.name",
+          "type": "text",
+          "required": true,
+          "order": 0
+        },
+        {
+          "key": "city",
+          "label": "@com.microteia.portal-example/field.city",
+          "type": "text",
+          "required": false,
+          "order": 1
+        }
+      ],
+      "titleFieldKey": "name",
+      "eventPrefix": "portalExampleClient",
+      "portal": {
+        "subject": "self",
+        "fields": [
+          "name",
+          "city"
+        ]
+      }
+    },
+    {
+      "key": "portalExampleOrder",
+      "sourceId": "microteia:portal-example:order",
+      "sourceRev": 1,
+      "titleSingular": "@com.microteia.portal-example/screen.order",
+      "titlePlural": "@com.microteia.portal-example/screen.order.plural",
+      "icon": "shoppingBag",
+      "fields": [
+        {
+          "key": "item",
+          "label": "@com.microteia.portal-example/field.item",
+          "type": "text",
+          "required": true,
+          "order": 0
+        },
+        {
+          "key": "quantity",
+          "label": "@com.microteia.portal-example/field.quantity",
+          "type": "number",
+          "required": false,
+          "order": 1
+        },
+        {
+          "key": "notes",
+          "label": "@com.microteia.portal-example/field.notes",
+          "type": "textarea",
+          "required": false,
+          "order": 2
+        },
+        {
+          "key": "client",
+          "label": "@com.microteia.portal-example/field.client",
+          "type": "reference",
+          "required": true,
+          "order": 3,
+          "refEntity": "portalExampleClient"
+        },
+        {
+          "key": "internal",
+          "label": "@com.microteia.portal-example/field.internal",
+          "type": "textarea",
+          "required": false,
+          "order": 4
+        }
+      ],
+      "titleFieldKey": "item",
+      "eventPrefix": "portalExampleOrder",
+      "portal": {
+        "subject": {
+          "field": "client"
+        },
+        "fields": [
+          "item",
+          "quantity",
+          "notes"
+        ],
+        "create": {
+          "fields": [
+            "item",
+            "quantity",
+            "notes"
+          ]
+        },
+        "edit": {
+          "fields": [
+            "quantity",
+            "notes"
+          ],
+          "onlyOwn": true
+        }
+      }
+    }
+  ],
+  "views": [
+    {
+      "key": "clientPortal",
+      "title": "@com.microteia.portal-example/screen.client",
+      "icon": "team",
+      "source": "// --- ClientPortal.view.tsx ---\nimport { Button } from '@microteia/ui';\n\n\n\n/**\n * The Client record IN THE PORTAL, contributed by `portalView({ collection, surface: 'detail' }, ...)`.\n * The portal draws \"Back\" around it; this file only draws what the view model returns.\n */\nexport default function ClientPortal(props: { collection: string; recordId?: string }) {\n  const vm = useClientPortalViewModel(props);\n\n  return (\n    <S.Wrapper>\n      <S.Header>\n        <S.Title>{vm.title}</S.Title>\n        {vm.city && <S.Muted>{vm.city}</S.Muted>}\n      </S.Header>\n\n      <S.Header>\n        <S.Muted>{vm.t('portal.orders')}</S.Muted>\n        {vm.canOrder && <Button size=\"sm\" onClick={vm.order}>{vm.t('portal.orders.new')}</Button>}\n      </S.Header>\n\n      {!vm.loading && vm.items.length === 0 && <S.Muted>{vm.t('portal.orders.empty')}</S.Muted>}\n      {vm.items.map((item) => (\n        <S.Row key={item.id}>\n          <S.Order type=\"button\" onClick={() => vm.open(item.id)}>{item.text}</S.Order>\n          {item.canEdit && (\n            <Button size=\"sm\" variant=\"secondary\" onClick={() => vm.edit(item.id)}>{vm.t('portal.orders.edit')}</Button>\n          )}\n        </S.Row>\n      ))}\n    </S.Wrapper>\n  );\n}\n\n// --- ClientPortal.viewmodel.tsx ---\nimport { useMemo } from 'react';\nimport { useT } from '@microteia/i18n';\nimport { usePortalNavigation, usePortalRecord, usePortalRecords, usePortalScreen } from '@microteia/portal';\n\n/** The Orders collection — the installed key of this package's screen. */\nconst ORDER_COLLECTION = 'portalExampleOrder';\n\n/**\n * Everything the page decides, so the view only draws. A portal view receives the open record as\n * props (`collection`, `recordId`) and asks @microteia/portal for the rest: it never reaches\n * @microteia/data — the guest has none of the organization's stores.\n */\nexport const useClientPortalViewModel = ({ collection, recordId }: { collection: string; recordId?: string }) => {\n  const t = useT('com.microteia.portal-example');\n  const client = usePortalRecord(collection, recordId ?? '');\n  const orderScreen = usePortalScreen(ORDER_COLLECTION);\n  const navigation = usePortalNavigation();\n\n  // `parent` filters to the orders of THIS client — the same link the server stamped on each order.\n  const orders = usePortalRecords(ORDER_COLLECTION, { parent: { collection, recordId: recordId ?? '' } });\n\n  const items = useMemo(() => orders.records.map((order) => ({\n    id: order.recordId,\n    text: t('portal.orders.quantity', {\n      count: String(order.data.quantity ?? 1),\n      item: String(order.data.item ?? order.title),\n    }),\n    // `canEdit` only decides whether to SHOW the gesture; the server checks again on every change.\n    canEdit: order.canEdit,\n  })), [orders.records, t]);\n\n  return {\n    t,\n    title: client?.title ?? '',\n    city: typeof client?.data.city === 'string' ? client.data.city : '',\n    loading: orders.loading,\n    items,\n    // Only offered when the Orders screen lets guests create — the declaration decides, not the view.\n    canOrder: !!orderScreen?.create && !!recordId,\n    order: () => navigation.create(ORDER_COLLECTION, recordId),\n    open: (orderId: string) => navigation.openRecord(ORDER_COLLECTION, orderId),\n    edit: (orderId: string) => navigation.edit(ORDER_COLLECTION, orderId),\n  };\n};\n\n// --- ClientPortal.styles.tsx ---\nimport { styled } from 'styled-components';\n\n/** Every colour, size and space comes from the theme. */\nconst Wrapper = styled.div`\n  display: flex;\n  flex-direction: column;\n  gap: ${({ theme }) => theme.spacing.md};\n`;\n\nconst Header = styled.div`\n  display: flex;\n  align-items: baseline;\n  justify-content: space-between;\n  gap: ${({ theme }) => theme.spacing.sm};\n  flex-wrap: wrap;\n`;\n\nconst Title = styled.h2`\n  font-size: ${({ theme }) => theme.fontSizes.xl};\n  font-weight: 700;\n  color: ${({ theme }) => theme.colors.text};\n`;\n\nconst Muted = styled.p`\n  font-size: ${({ theme }) => theme.fontSizes.sm};\n  color: ${({ theme }) => theme.colors.textMuted};\n`;\n\nconst Row = styled.div`\n  display: flex;\n  align-items: center;\n  gap: ${({ theme }) => theme.spacing.sm};\n`;\n\nconst Order = styled.button`\n  display: block;\n  flex: 1;\n  min-width: 0;\n  text-align: left;\n  padding: ${({ theme }) => theme.spacing.md};\n  border: 1px solid ${({ theme }) => theme.colors.border};\n  border-radius: ${({ theme }) => theme.borderRadius.md};\n  background: ${({ theme }) => theme.colors.surface};\n  color: ${({ theme }) => theme.colors.text};\n  cursor: pointer;\n`;\n\nexport const S = { Wrapper, Header, Title, Muted, Row, Order };\n"
+    },
+    {
+      "key": "openOrdersWidget",
+      "title": "@com.microteia.portal-example/portal.widget.orders",
+      "icon": "shoppingBag",
+      "source": "import { styled } from 'styled-components';\nimport { useT } from '@microteia/i18n';\nimport { usePortalRecords } from '@microteia/portal';\n\nconst Count = styled.span`\n  font-weight: 700;\n  font-size: ${({ theme }) => theme.fontSizes['2xl']};\n  color: ${({ theme }) => theme.colors.text};\n`;\n\nconst Caption = styled.p`\n  font-size: ${({ theme }) => theme.fontSizes.sm};\n  color: ${({ theme }) => theme.colors.textMuted};\n`;\n\n/**\n * A card on the portal home: how many orders the guest has. Small on purpose — a card shares the row\n * with others on a computer and takes the whole width on a phone, so it never sets a width of its own.\n */\nexport default function OpenOrdersWidget() {\n  const t = useT('com.microteia.portal-example');\n  const { records, loading } = usePortalRecords('portalExampleOrder');\n\n  return (\n    <div>\n      <Count>{loading ? '…' : records.length}</Count>\n      <Caption>{t('portal.widget.orders.caption')}</Caption>\n    </div>\n  );\n}\n"
+    }
+  ]
+}

@@ -6,6 +6,7 @@ import type {
   RecordReadOutcome,
 } from '../../domain/repositories/IDocumentGenerationPorts';
 import type { DocumentTemplateDataset } from '../../domain/schema/document/documentTemplate';
+import { datasetOrder } from '../../domain/schema/document/documentTemplate';
 import type { QuerySpec } from '../../domain/schema/querySpec';
 import { resolveQueryTable } from '../../domain/schema/querySpec';
 import { parsePath, resolvePath } from '../../domain/schema/pathResolver';
@@ -14,7 +15,7 @@ import { applyDerivedFields, collectDerivedFieldKeys } from '../../domain/schema
 import { withAmbientTimeZone } from '../../domain/schema/clockGate';
 import { withAmbientBusinessCalendars } from '../../domain/schema/time/businessDaysGate';
 import type { BusinessCalendarSet } from '../../domain/schema/time/businessDays';
-import { hydrateRecords, runRecordQuery } from '../workflow/query/runWorkflowQuery';
+import { DEFAULT_WORKFLOW_QUERY_LIMITS, hydrateRecords, runRecordQuery } from '../workflow/query/runWorkflowQuery';
 
 /**
  * O teto de filhos de um documento: o mesmo de "Buscar Registros". Uma lista de parcelas que passe
@@ -90,10 +91,11 @@ export class WorkflowDocumentRecordReader implements IDocumentRecordReader {
     const table = resolveQueryTable(dataset.from, ctx);
     if (!table) return { ok: false, error: '@core.automation/mutation.table.unknown', errorParams: { table: dataset.from } };
 
+    const orderBy = datasetOrder(dataset);
     const spec: QuerySpec = {
       table: dataset.from,
       where: [{ path: dataset.via, op: 'eq', value: { kind: 'Literal', value: parentId } }],
-      ...(dataset.orderBy ? { orderBy: [{ path: dataset.orderBy, dir: dataset.direction ?? 'asc' }] } : {}),
+      ...(orderBy.length > 0 ? { orderBy } : {}),
       limit: Math.min(Math.max(dataset.limit ?? MAX_CHILDREN, 1), MAX_CHILDREN),
       projections: reachable(ctx, table.root, paths),
     };
@@ -102,6 +104,8 @@ export class WorkflowDocumentRecordReader implements IDocumentRecordReader {
       [parentId],
       { tenantId, timeZone, ...(businessCalendars !== undefined ? { businessCalendars } : {}) },
       { queryRepository: this.queryRepository, fetcher: this.fetcher, screenProvider: this.screens },
+      DEFAULT_WORKFLOW_QUERY_LIMITS,
+      { deterministicOrder: true },
     );
     if (!outcome.ok) return outcome;
     return { ok: true, value: outcome.value.results };

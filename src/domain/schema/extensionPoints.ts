@@ -8,6 +8,7 @@ import { THEME_EXTENSION_POINTS } from './theme/extensionPoints';
 import { ACCESS_EXTENSION_POINTS } from './access/extensionPoints';
 import { AUTH_EXTENSION_POINTS } from './auth/authExtensionPoints';
 import { TIME_EXTENSION_POINTS } from './time/extensionPoints';
+import { PORTAL_EXTENSION_POINTS } from './portalExtensionPoints';
 
 /**
  * TODOS os pontos de extensão do kernel, num lugar só.
@@ -31,4 +32,5 @@ export const KERNEL_EXTENSION_POINTS: ExtensionPointDefinition[] = [
   ...ACCESS_EXTENSION_POINTS,
   ...AUTH_EXTENSION_POINTS,
   ...TIME_EXTENSION_POINTS,
+  ...PORTAL_EXTENSION_POINTS,
 ];

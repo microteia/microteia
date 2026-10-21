@@ -5,9 +5,11 @@ import { ADMIN_NAV_GROUP, UI_TAB_POINT } from '../../domain/schema/ui/uiExtensio
 import { coreMessage, CORE_TENANT_MESSAGES } from '../coreMessages';
 import { coreTenantPtBrContribution } from './messagesPtBr';
 import { TENANT_SETTINGS_SURFACE } from './surface';
+import { PORTAL_EXTENSION_POINTS } from '../../domain/schema/portalExtensionPoints';
 import {
   PERMISSION_AI_MANAGE,
   PERMISSION_MEMBERS_MANAGE,
+  PERMISSION_PORTAL_MANAGE,
   PERMISSION_ROLES_MANAGE,
   PERMISSION_TENANT_PREFIX_MANAGE,
 } from '../../domain/schema/access';
@@ -41,6 +43,7 @@ export const coreTenantPlugin: PluginRecord = {
     RolesTabView: lazyView(() => import('../../presentation/pages/TenantSettings/RolesTab/RolesTab.view'), 'RolesTabView'),
     AITabView: lazyView(() => import('../../presentation/pages/TenantSettings/AITab/AITab.view'), 'AITabView'),
     AgentTabView: lazyView(() => import('../../presentation/pages/TenantSettings/AgentTab/AgentTab.view'), 'AgentTabView'),
+    PortalTabView: lazyView(() => import('../../presentation/pages/TenantSettings/PortalTab/PortalTab.view'), 'PortalTabView'),
   },
   manifest: {
     id: 'core.tenant',
@@ -52,6 +55,7 @@ export const coreTenantPlugin: PluginRecord = {
       // eslint-disable-next-line no-restricted-syntax -- metadado do plugin do NÚCLEO: não é renderizado.
       'The organization record, its members and its AI connections, on a tab surface any extension can join.',
     dependencies: { 'core.ui': '^1.0.0', 'core.access': '^1.0.0' },
+    extensionPoints: PORTAL_EXTENSION_POINTS,
     contributes: [
       messageBundleContribution(coreMessage('core.tenant', CORE_TENANT_MESSAGES)),
       coreTenantPtBrContribution(),
@@ -73,6 +77,16 @@ export const coreTenantPlugin: PluginRecord = {
         order: 20,
         requiredPermissions: [PERMISSION_MEMBERS_MANAGE],
       }, 'MembersTabView'),
+      // Quem é de FORA do escritório. Ao lado de Membros porque é a mesma pergunta — quem entra aqui —
+      // com a resposta oposta: o convidado não é membro, e só vê o que é dele.
+      surfaceTab({
+        surface: TENANT_SETTINGS_SURFACE,
+        key: 'portal',
+        title: '@core.tenant/tenant.tab.portal',
+        icon: 'team',
+        order: 22,
+        requiredPermissions: [PERMISSION_PORTAL_MANAGE],
+      }, 'PortalTabView'),
       surfaceTab({
         surface: TENANT_SETTINGS_SURFACE,
         key: 'roles',

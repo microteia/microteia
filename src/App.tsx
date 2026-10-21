@@ -1,11 +1,11 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { DIProvider } from './infrastructure/di/DIContainer';
 import { KernelProvider } from './stores/KernelContext';
 import { TenantKernelProvider } from './stores/TenantKernelProvider';
 import { BOOT_PLUGINS } from './plugins/bootPlugins';
 import { ThemeProvider } from './stores/ThemeContext';
-import { LocaleProvider, TenantLocaleProvider } from './stores/LocaleContext';
+import { LocaleProvider, PortalLocaleProvider, TenantLocaleProvider, UrlLocaleProvider } from './stores/LocaleContext';
 import { TenantThemeBridge } from './stores/TenantThemeBridge';
 import { AuthProvider } from './stores/AuthContext';
 import { TenantStoreProvider } from './stores/TenantStore';
@@ -44,6 +44,11 @@ import { BusinessCalendarBridge } from './presentation/shared/BusinessCalendarBr
 import { AppErrorBoundary } from './presentation/components/layout/AppErrorBoundary';
 import { OAuthConsentView } from './presentation/pages/OAuthConsent';
 import { OAUTH_CONSENT_PATH } from './domain/schema/agent/agentOAuth';
+import { PortalStoreProvider } from './stores/PortalStore';
+import { PortalNavigationProvider } from './stores/PortalNavigationContext';
+import { PortalView } from './presentation/pages/Portal';
+import { PortalSignInView } from './presentation/pages/PortalSignIn';
+import { PORTAL_PATH, PORTAL_SIGN_IN_PATH } from './presentation/pages/Portal/portalPaths';
 
 const App: React.FC = () => {
   return (
@@ -58,6 +63,35 @@ const App: React.FC = () => {
               <Route path="/" element={<Navigate to="/login" replace />} />
               <Route path="/login" element={<LoginView />} />
               <Route path="/license" element={<LicenseView />} />
+              {/*
+                O portal é a casca de quem é de FORA do escritório, e fica fora da pilha de stores do
+                espaço de trabalho de propósito: o convidado não lê telas, perfis nem extensões, e
+                cada uma daquelas assinaturas seria uma leitura recusada.
+              */}
+              <Route path={PORTAL_SIGN_IN_PATH} element={<UrlLocaleProvider><PortalSignInView /></UrlLocaleProvider>} />
+              {/*
+                Uma rota-mãe para o portal inteiro: o store fica montado entre a escolha do escritório
+                e o escritório. Duas rotas irmãs remontavam o store a cada passo — e cada remontagem
+                recarregava convites e contexto, com o spinner de volta.
+              */}
+              <Route
+                path={PORTAL_PATH}
+                element={
+                  <ProtectedRoute loginPath={PORTAL_SIGN_IN_PATH}>
+                    <PortalStoreProvider>
+                      <PortalNavigationProvider>
+                        <PortalLocaleProvider>
+                          <Outlet />
+                        </PortalLocaleProvider>
+                      </PortalNavigationProvider>
+                    </PortalStoreProvider>
+                  </ProtectedRoute>
+                }
+              >
+                <Route index element={<PortalView />} />
+                <Route path=":tenantId" element={<PortalView />} />
+                <Route path=":tenantId/:entryId" element={<PortalView />} />
+              </Route>
               <Route
                 path="/*"
                 element={

@@ -43,8 +43,11 @@ service firebase.storage {
     // mesmo motivo, `downloads`: o arquivo é pessoal (ou só de quem gerencia), quem grava e apaga é o
     // servidor, e quem baixa usa o link com token que a geração devolve — nenhum caminho pelo SDK. As
     // entidades fixas não precisam ser excluídas: o modelo de acesso delas é idêntico ao daqui.
+    //
+    // `portalUploads` é a área de ESPERA dos anexos do convidado do portal (regra própria abaixo): pelo
+    // curinga, qualquer membro leria e gravaria nela.
     function isReservedStoragePath(collection) {
-      return collection in ['logs', 'downloads'];
+      return collection in ['logs', 'downloads', 'portalUploads'];
     }
 
     match /tenants/{tenantId}/{collection}/{recordId}/{allPaths=**} {
@@ -58,6 +61,20 @@ service firebase.storage {
       allow delete: if request.auth != null
         && !isReservedStoragePath(collection)
         && isTenantAdminOrElevated(tenantId);
+    }
+
+    // ─── Anexos do convidado do portal (área de espera) ─────────────────────
+    // Path: tenants/{tenantId}/portalUploads/{userId}/{uploadId}
+    //
+    // O convidado só CRIA aqui, na pasta dele, e só enquanto o convite existe. Não lê, não troca e não
+    // apaga — nunca: quem move o arquivo para o registro é a callable `attachPortalDocument`, depois de
+    // conferir registro, tela e tipo, e é ela que limpa a espera. O limite é o mesmo do escritório.
+    match /tenants/{tenantId}/portalUploads/{userId}/{uploadId} {
+      allow create: if request.auth != null
+        && request.auth.uid == userId
+        && firestore.exists(/databases/(default)/documents/tenants/$(tenantId)/portalUsers/$(userId))
+        && request.resource.size < 20 * 1024 * 1024;
+      allow read, update, delete: if false;
     }
 
     // ─── Backup frio de Logs de Auditoria ────────────────────────────────────

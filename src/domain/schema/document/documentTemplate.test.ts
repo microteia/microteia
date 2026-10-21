@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import type { QualifiedContribution } from '../plugin/contribution';
 import {
+  datasetOrder,
   documentTemplateContribution,
   documentTemplateFingerprint,
   documentTemplateIssues,
@@ -64,6 +65,32 @@ describe('documentTemplateIssues', () => {
       '@core.documents/template.dataset.name.duplicated',
       '@core.documents/template.dataset.name.invalid',
     ]);
+  });
+
+  it('aceita a ordem em texto e em lista, e recusa a lista malformada', () => {
+    const errors = (orderBy: unknown, direction?: 'asc' | 'desc') =>
+      documentTemplateIssues(spec({
+        datasets: [{ name: 'itens', from: 'items', via: 'orderId', orderBy: orderBy as never, ...(direction ? { direction } : {}) }],
+      })).map((one) => one.error);
+
+    expect(errors('date', 'desc')).toEqual([]);
+    expect(errors([{ path: 'date', dir: 'desc' }, { path: 'time', dir: 'desc' }])).toEqual([]);
+    expect(errors([])).toEqual(['@core.documents/template.dataset.order.empty']);
+    expect(errors([{ path: 'date', dir: 'down' }, { path: '', dir: 'asc' }])).toEqual([
+      '@core.documents/template.dataset.order.key.invalid',
+      '@core.documents/template.dataset.order.key.invalid',
+    ]);
+    expect(errors([{ path: 'date', dir: 'desc' }], 'asc')).toEqual(['@core.documents/template.dataset.order.direction']);
+    expect(errors(42)).toEqual(['@core.documents/template.dataset.order.invalid']);
+  });
+
+  it('datasetOrder lê as duas formas como lista', () => {
+    expect(datasetOrder({ orderBy: 'date' })).toEqual([{ path: 'date', dir: 'asc' }]);
+    expect(datasetOrder({ orderBy: ' date ', direction: 'desc' })).toEqual([{ path: 'date', dir: 'desc' }]);
+    expect(datasetOrder({ orderBy: [{ path: 'date', dir: 'desc' }, { path: 'time', dir: 'asc' }] }))
+      .toEqual([{ path: 'date', dir: 'desc' }, { path: 'time', dir: 'asc' }]);
+    expect(datasetOrder({})).toEqual([]);
+    expect(datasetOrder({ orderBy: '' })).toEqual([]);
   });
 
   it('leva a gramática do texto e do nome do arquivo para o campo certo', () => {

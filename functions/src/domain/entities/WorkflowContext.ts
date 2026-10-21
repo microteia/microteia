@@ -39,8 +39,11 @@ export interface WorkflowServices {
   businessCalendarsOf?(tenantId: string): Promise<BusinessCalendarSet | null>;
 }
 
-/** De onde partiu o gesto de uma PESSOA: o app ou um agente de IA, pelo MCP, em nome dela. */
-export type ActorVia = 'ui' | 'agent';
+/**
+ * De onde partiu o gesto de uma PESSOA: o app, um agente de IA pelo MCP em nome dela, ou o portal —
+ * e aí a pessoa é de fora do escritório, sem permissão nenhuma.
+ */
+export type ActorVia = 'ui' | 'agent' | 'portal';
 
 /**
  * A pessoa que causou a execução: a IDENTIDADE (uid, nome efetivo, foto, por onde veio) e o ACESSO

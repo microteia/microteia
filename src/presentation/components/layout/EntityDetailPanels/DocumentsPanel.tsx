@@ -4,6 +4,7 @@ import {
   RiDeleteBinLine,
   RiExternalLinkLine,
   RiFileTextLine,
+  RiShareForwardLine,
   RiUploadLine,
 } from 'react-icons/ri';
 import { S } from './panels.styles';
@@ -132,7 +133,18 @@ export const DocumentsPanel: React.FC<DocumentsPanelProps> = ({ controller: vm, 
                 </S.DocUploaderRow>
               </S.DocContent>
               {docItem.type && <S.DocTypeBadge>{docItem.type}</S.DocTypeBadge>}
+              {docItem.portalShared && <S.PortalBadge>{t('documents.portal.badge')}</S.PortalBadge>}
               <S.DocActions>
+                {vm.canShareInPortal && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => void vm.togglePortalShared(docItem)}
+                    title={docItem.portalShared ? t('documents.portal.unshare') : t('documents.portal.share')}
+                  >
+                    <RiShareForwardLine size={14} />
+                  </Button>
+                )}
                 <Button variant="ghost" size="sm" onClick={() => window.open(docItem.url, '_blank', 'noopener,noreferrer')} title={t('documents.open')}>
                   <RiExternalLinkLine size={14} />
                 </Button>

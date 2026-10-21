@@ -5,6 +5,7 @@ import type { ReportModuleTemplate as ReportModuleTemplateType } from './Report'
 import type { WorkflowDefinition } from './Workflow';
 import type { Script } from './Script';
 import type { ActionDefinition } from './Action';
+import type { PortalDeclaration } from '../schema/portal';
 import type { CustomFieldOption, FieldDefinition, RecordKeySpec, ScreenListAction } from './entitySchemas';
 
 /**
@@ -76,6 +77,8 @@ export interface ScreenModuleTemplate {
   memberWritableFields?: string[] | null;
   /** O autor exclui o que criou. Ver `ScreenDefinition.authorCanDelete`. */
   authorCanDelete?: boolean | null;
+  /** O que a tela expõe no portal. Ver `ScreenDefinition.portal`. */
+  portal?: PortalDeclaration | null;
   listActions?: ScreenListAction[];
   sidebarOrder?: number;
   enabled?: boolean;

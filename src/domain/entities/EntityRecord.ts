@@ -66,6 +66,8 @@ export interface RecordDocument {
   createdByName: string;
   createdByPhotoUrl?: string;
   createdAt: Date;
+  /** Marcado por alguém do escritório para aparecer no PORTAL de quem o registro pertence. */
+  portalShared?: boolean;
 }
 
 /** Etiqueta de uma tela, guardada em `screenDefinitions/{collection}/tags`. */

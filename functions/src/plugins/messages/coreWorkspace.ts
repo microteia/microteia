@@ -15,6 +15,8 @@ export const CORE_WORKSPACE_MESSAGES: Record<string, string> = {
   'login.signing-in': 'Signing in…',
   'login.divider': 'or',
   'login.forgot-password': 'I forgot my password',
+  'login.portal.prompt': 'Invited to a portal?',
+  'login.portal.link': 'Sign in with a link',
   'login.signup.title': 'Create account',
   'login.switch.have-account': 'Already have an account?',
   'login.switch.no-account': 'No account yet?',

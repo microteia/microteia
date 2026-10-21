@@ -380,8 +380,13 @@ const TEMPLATE_DATASETS = {
       name: { type: 'string', description: 'How the template reads the list: {{#each <name>}}. Letters, digits and _.' },
       from: { type: 'string', description: 'The collection of the child records, as list_screens returns it.' },
       via: { type: 'string', description: 'The reference field, in the child, that points to the record of the document.' },
-      orderBy: { type: 'string', description: 'A field of the child to order by.' },
-      direction: { type: 'string', enum: ['asc', 'desc'] },
+      orderBy: {
+        description:
+          'How to order the items. A field of the child, with "direction" — or a list of keys '
+          + '[{ "path": "date", "dir": "desc" }, { "path": "time", "dir": "desc" }]: the first decides, the next '
+          + 'break ties. Empty values go last; equal items fall to the creation date, then the record id.',
+      },
+      direction: { type: 'string', enum: ['asc', 'desc'], description: 'Only with orderBy as a single field.' },
       limit: { type: 'integer', minimum: 1, maximum: 100, description: 'At most 100 items.' },
     },
     ['name', 'from', 'via'],

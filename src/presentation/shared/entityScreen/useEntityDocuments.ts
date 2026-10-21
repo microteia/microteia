@@ -16,9 +16,16 @@ interface UseEntityDocumentsParams {
   enabled: boolean;
   recordId: string | null;
   port: DocumentsPort;
+  /** A tela expõe documentos no portal e quem vê pode editar o registro. */
+  canShareInPortal?: boolean;
 }
 
-export const useEntityDocuments = ({ enabled, recordId, port }: UseEntityDocumentsParams): EntityDocumentsController => {
+export const useEntityDocuments = ({
+  enabled,
+  recordId,
+  port,
+  canShareInPortal = false,
+}: UseEntityDocumentsParams): EntityDocumentsController => {
   const { notify } = useNotification();
   const t = useT('core.ui');
   const { getOptions, addOption, removeOption } = useLookups();
@@ -132,6 +139,18 @@ export const useEntityDocuments = ({ enabled, recordId, port }: UseEntityDocumen
     }
   }, [docToDelete, recordId, port, notify, t]);
 
+  const togglePortalShared = useCallback(async (doc: EntityDocument) => {
+    if (!recordId || !port.setPortalShared) return;
+    const shared = !doc.portalShared;
+    try {
+      await port.setPortalShared(recordId, doc, shared);
+      setDocuments((prev) => prev.map((d) => (d.id === doc.id ? { ...d, portalShared: shared } : d)));
+      notify(shared ? t('documents.portal.shared') : t('documents.portal.unshared'), 'success');
+    } catch {
+      notify(t('documents.portal.failed'), 'error');
+    }
+  }, [recordId, port, notify, t]);
+
   const documentTypeOptions = useMemo<DynamicSelectOption[]>(
     () => typeConfigs.filter((c) => c.isStatic !== false).map((c) => ({ value: c.key, label: c.label })),
     [typeConfigs],
@@ -161,5 +180,7 @@ export const useEntityDocuments = ({ enabled, recordId, port }: UseEntityDocumen
     documentTypeDynamicOptions,
     handleAddDocumentType,
     handleDeleteDocumentType,
+    canShareInPortal: canShareInPortal && !!port.setPortalShared,
+    togglePortalShared,
   };
 };

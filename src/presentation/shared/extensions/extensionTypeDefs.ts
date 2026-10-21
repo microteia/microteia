@@ -1399,6 +1399,108 @@ const I18N_MODULE_DEFS = `declare module '@microteia/i18n' {
   };
 }`;
 
+const PORTAL_MODULE_DEFS = `declare module '@microteia/portal' {
+  /**
+   * What a PORTAL view reaches. A portal view runs in the browser of a guest from outside the
+   * organization: it has no access to @microteia/data, @microteia/report, @microteia/settings or
+   * @microteia/functions — importing them fails at compile time. It reads only the projections the
+   * portal already exposes to that guest.
+   */
+
+  /** A record as a portal view sees it: the projection, addressed by the RECORD id. */
+  export interface PortalViewRecord {
+    collection: string;
+    recordId: string;
+    title: string;
+    /** Only the fields the screen exposes in the portal. */
+    data: Record<string, unknown>;
+    /** The label of the record each exposed reference field points to. */
+    labels: Record<string, string>;
+    updatedAt: Date | null;
+    /**
+     * The guest may change this record now: the screen allows edits, the organization's condition held
+     * when the record was last saved and, with \`onlyOwn\`, the guest created it. It only decides whether
+     * to SHOW an edit gesture — the server checks everything again on every change.
+     */
+    canEdit: boolean;
+  }
+
+  export interface PortalScreen {
+    id: string;
+    collection: string;
+    titleSingular: string;
+    titlePlural: string;
+    icon: string;
+    documents: boolean;
+    parent: { collection: string } | null;
+    fields: Array<{ key: string; label: string; type?: string; required?: boolean; options?: Array<{ key: string; label: string }> }>;
+    create: { fields: PortalScreen['fields']; link: { collection: string; label: string } } | null;
+    /** Guests may attach documents here, choosing one of these types — never a new one. */
+    uploads: { types: Array<{ key: string; label: string }> } | null;
+    /** What a guest may change — only fields they see —, and whether only on records they created. */
+    edit: { fields: PortalScreen['fields']; onlyOwn: boolean } | null;
+  }
+
+  export interface PortalDocument {
+    id: string;
+    name: string;
+    type: string | null;
+    description: string | null;
+    createdAt: Date | null;
+  }
+
+  /** The exposed screen of a collection: titles, exposed fields and what a guest fills in to create. */
+  export function usePortalScreen(collection: string): PortalScreen | null;
+
+  /**
+   * The records of a collection the guest sees — all of them, or only the children of one record
+   * (\`parent\`), such as the invoices of the open supplier.
+   */
+  export function usePortalRecords(
+    collection: string,
+    options?: { parent?: { collection: string; recordId: string } },
+  ): { records: PortalViewRecord[]; loading: boolean };
+
+  export function usePortalRecord(collection: string, recordId: string): PortalViewRecord | null;
+
+  /** Open, go back and create — the same navigation stack the standard portal shows. */
+  export function usePortalNavigation(): {
+    openRecord(collection: string, recordId: string): void;
+    back(): void;
+    /** With \`parentRecordId\`, the new record is linked to it and the form does not ask. */
+    create(collection: string, parentRecordId?: string): void;
+    /** Opens the standard edit form for a record the guest may change (\`canEdit\`). */
+    edit(collection: string, recordId: string): void;
+  };
+
+  /**
+   * The shared documents of a record, the gesture that opens one and — when the screen allows it — the
+   * one that attaches a file with one of the offered types (\`uploadTypes\`, \`null\` when not allowed).
+   * There is no delete: a guest never removes a document.
+   */
+  export function usePortalDocuments(collection: string, recordId: string): {
+    documents: PortalDocument[];
+    loading: boolean;
+    open(documentId: string): Promise<void>;
+    uploadTypes: Array<{ key: string; label: string }> | null;
+    upload(file: File, type: string): Promise<void>;
+  };
+
+  /**
+   * Creates a record through the portal. The link is stamped by the server from what the guest sees;
+   * a validation refusal arrives already translated in the error message.
+   */
+  export function usePortalSubmit(): (collection: string, linkRecordId: string, data: Record<string, unknown>) => Promise<void>;
+
+  /**
+   * Changes a record through the portal. Only the screen's editable fields are kept — whose the record
+   * is can never change —, and the server refuses when the organization's condition no longer holds
+   * or, with \`onlyOwn\`, the guest did not create the record. A cleared field goes as \`null\`. A
+   * validation refusal arrives already translated in the error message.
+   */
+  export function usePortalUpdate(): (collection: string, recordId: string, data: Record<string, unknown>) => Promise<void>;
+}`;
+
 const THEME_MODULE_DEFS = `declare module '@microteia/theme' {
   /**
    * Resolves a colour to hex, accepting both theme colours and plain hex.
@@ -1673,5 +1775,6 @@ export const buildExtensionTypeDefs = (): string => [
   REPORT_MODULE_DEFS,
   SETTINGS_MODULE_DEFS,
   FUNCTIONS_MODULE_DEFS,
+  PORTAL_MODULE_DEFS,
   HOST_DEFS,
 ].join('\n\n');

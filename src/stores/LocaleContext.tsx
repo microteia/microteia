@@ -3,12 +3,15 @@ import { I18N_MESSAGES_POINT, messageBundlesOf } from '../domain/schema/i18n/ext
 import type { LocaleCode } from '../domain/schema/i18n/localeNegotiation';
 import { DEFAULT_LOCALE, negotiateFromCandidates, normalizeLocale } from '../domain/schema/i18n/localeNegotiation';
 import { buildMessageCatalog, localesOf } from '../domain/schema/i18n/messages';
+import type { MessageBundle } from '../domain/schema/i18n/messages';
 import { setAmbientCatalog, setAmbientLocale } from '../domain/schema/i18n/localeGate';
 import { resolveTimeZone } from '../domain/schema/i18n/timeZone';
 import { setAmbientTimeZone } from '../domain/schema/clockGate';
 import { LocaleContext } from './useLocale';
 import { useContributions } from './useKernel';
 import { useSettings } from './useSettings';
+import { usePortal } from './usePortal';
+import { useSearchParams } from 'react-router-dom';
 
 const STORAGE_KEY = 'microteia:locale';
 
@@ -41,6 +44,11 @@ interface LocaleProviderProps {
    * `TenantLocaleProvider` passa depois de resolver a configuração do escritório.
    */
   preferred?: LocaleCode | null;
+  /**
+   * Textos que não chegam por contribuição do kernel ao alcance — os das extensões no PORTAL, que o
+   * servidor entrega junto com o contexto, porque o convidado não lê as extensões instaladas.
+   */
+  extraBundles?: readonly MessageBundle[];
 }
 
 /**
@@ -51,11 +59,14 @@ interface LocaleProviderProps {
  * para as telas públicas; montado de novo dentro do escritório, enxerga também os pacotes de tradução
  * instalados e sombreia o de cima. É exatamente o que o Kernel já faz com `TenantKernelProvider`.
  */
-export const LocaleProvider: React.FC<LocaleProviderProps> = ({ children, preferred }) => {
+export const LocaleProvider: React.FC<LocaleProviderProps> = ({ children, preferred, extraBundles }) => {
   const contributions = useContributions(I18N_MESSAGES_POINT);
   const [chosen, setChosen] = useState<LocaleCode | null>(storedLocale);
 
-  const bundles = useMemo(() => messageBundlesOf(contributions), [contributions]);
+  const bundles = useMemo(
+    () => [...messageBundlesOf(contributions), ...(extraBundles ?? [])],
+    [contributions, extraBundles],
+  );
 
   /**
    * O idioma-fonte entra na lista mesmo sem catálogo declarado: ele é o idioma em que os textos
@@ -196,4 +207,56 @@ export const TenantLocaleProvider: React.FC<{ children: React.ReactNode }> = ({ 
       {children}
     </LocaleProvider>
   );
+};
+
+/**
+ * O idioma no PORTAL. O convidado não lê as configurações do escritório, então quem diz o idioma é o
+ * servidor, que já resolveu nele os rótulos das telas (`getPortalContext`): a casca fala o mesmo
+ * idioma que o conteúdo. Antes de haver contexto — a escolha do escritório, o "sem acesso" —, vale o
+ * do navegador, como em toda tela pública.
+ */
+export const PortalLocaleProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { context, memberships, tenantId } = usePortal();
+  // O escolhido (contexto); senão o do convite deste escritório, ou de qualquer convite — é o que
+  // vale nas telas que aparecem ANTES do contexto: a escolha do escritório e os erros.
+  const preferred = useMemo(() => {
+    const invitation = memberships.find((one) => one.tenantId === tenantId)?.locale ?? memberships[0]?.locale ?? '';
+    const normalized = normalizeLocale(context?.locale || invitation);
+    return normalized === '' ? undefined : normalized;
+  }, [context, memberships, tenantId]);
+
+  // O mesmo ESPELHO do escritório: o idioma conhecido fica no navegador, e é ele que fala nas telas que
+  // aparecem antes de haver convite ou contexto na próxima visita — o "carregando", o erro.
+  useEffect(() => {
+    if (!preferred) return;
+    try {
+      localStorage.setItem(STORAGE_KEY, preferred);
+    } catch {
+      // Sem armazenamento, a próxima visita começa no idioma do navegador — só isso.
+    }
+  }, [preferred]);
+
+  return <LocaleProvider preferred={preferred} extraBundles={context?.bundles}>{children}</LocaleProvider>;
+};
+
+/**
+ * O idioma vindo do ENDEREÇO (`?locale=`; `lang` é do Firebase, que o acrescenta ao devolver): o link de acesso ao portal o carrega, porque a página de
+ * entrada abre antes de haver sessão ou escritório para dizer em que idioma falar.
+ */
+export const UrlLocaleProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [params] = useSearchParams();
+  const preferred = useMemo(() => {
+    const normalized = normalizeLocale(params.get('locale') ?? '');
+    return normalized === '' ? undefined : normalized;
+  }, [params]);
+
+  useEffect(() => {
+    if (!preferred) return;
+    try {
+      localStorage.setItem(STORAGE_KEY, preferred);
+    } catch {
+      // Idem: só conveniência.
+    }
+  }, [preferred]);
+  return <LocaleProvider preferred={preferred}>{children}</LocaleProvider>;
 };

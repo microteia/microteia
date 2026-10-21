@@ -71,6 +71,9 @@ const LACUNAS_CONFERIDAS = [
   // Onde moram os calendários de dias úteis. O modelo do negócio diz QUE um prazo conta dias úteis
   // (pela fórmula do campo), não onde o escritório guarda os calendários — isso é da extensão.
   'extension-point\ttime.business.calendar',
+  // A tela do PORTAL. O modelo descreve o que o negócio É; como o convidado o vê é escolha de
+  // apresentação de quem escreve a extensão, e nenhuma regra a implica.
+  'extension-point\tportal.view',
 
   // Os artefatos de pacote que o plano nunca preenche.
   'package-artifact\tsummary',
@@ -95,6 +98,7 @@ const LACUNAS_CONFERIDAS = [
   'screen-property\trecordTabPrefix',
   'screen-property\tmemberWritableFields',
   'screen-property\tauthorCanDelete',
+  'screen-property\tportal',
   'screen-property\tlistActions',
   'screen-property\tsidebarOrder',
   'screen-property\thideFromParentTabs',

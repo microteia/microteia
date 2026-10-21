@@ -12,6 +12,9 @@ import {
   updateProfile,
   sendEmailVerification as firebaseSendEmailVerification,
   sendPasswordResetEmail as firebaseSendPasswordResetEmail,
+  sendSignInLinkToEmail,
+  isSignInWithEmailLink,
+  signInWithEmailLink,
   signOut as firebaseSignOut,
   onAuthStateChanged as firebaseOnAuthStateChanged,
 } from 'firebase/auth';
@@ -99,6 +102,27 @@ export class FirebaseAuthRepository implements IAuthRepository {
 
   async sendPasswordResetEmail(email: string): Promise<void> {
     await firebaseSendPasswordResetEmail(auth, email);
+  }
+
+  async sendSignInLink(email: string, continueUrl: string, locale?: string): Promise<void> {
+    // O idioma da instância é global, e é também o da recuperação de senha e da verificação de
+    // e-mail: ele é posto só para este envio e devolvido em seguida.
+    const previous = auth.languageCode;
+    if (locale) auth.languageCode = locale;
+    try {
+      await sendSignInLinkToEmail(auth, email, { url: continueUrl, handleCodeInApp: true });
+    } finally {
+      auth.languageCode = previous;
+    }
+  }
+
+  isSignInLink(url: string): boolean {
+    return isSignInWithEmailLink(auth, url);
+  }
+
+  async signInWithLink(email: string, url: string): Promise<User> {
+    const result = await signInWithEmailLink(auth, email, url);
+    return mapUser(result.user);
   }
 
   isEmailVerified(): boolean {

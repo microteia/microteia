@@ -53,7 +53,7 @@ const PUBLISHED = [
   'isValidContributionId', 'isValidExtensionPointId', 'isValidMessageKey', 'isValidPermission',
   'isValidPluginId', 'isValidRange', 'isValidSemVer', 'isWidgetSpec', 'lookupProviderContribution',
   'menuItem', 'messageBundleContribution', 'nav', 'packageFingerprint', 'packageIssues', 'packageOutRefs',
-  'packageSizeAdvisory', 'page', 'parsePackage', 'parseSemVer', 'pointContribution', 'qualifyKey',
+  'packageSizeAdvisory', 'page', 'parsePackage', 'parseSemVer', 'pointContribution', 'portalView', 'qualifyKey',
   'recordAction', 'satisfiesRange', 'serializePackage', 'settingsSection', 'sortContributions',
   'surfaceSlot', 'surfaceSlotSpec', 'surfaceTab', 'surfaceTabSpec', 'surfaceWidget',
   'surfaceWidgetSpec', 'themeContribution', 'themeTokensContribution',
@@ -155,7 +155,7 @@ const PUBLISHED_TYPES = [
   'MigrationPhase', 'NumericAggregationOp', 'OutputInputMapping', 'PackageRef', 'PackageValidationIssue', 'ParsePackageResult',
   'ParsedPermission', 'PermissionDomain', 'PluginBackendRequirement', 'PluginDiagnostic',
   'PluginDependency',
-  'PluginLifecycle', 'PluginLifecycleHook', 'PluginManifest', 'PluginMigration', 'PluginPublisher',
+  'PluginLifecycle', 'PluginLifecycleHook', 'PluginManifest', 'PluginMigration', 'PluginPublisher', 'PortalViewMetadata', 'PortalViewSurface',
   'QueryOperator', 'QueryOrderBy', 'QueryPredicate', 'QuerySpec', 'RecordKeyKind', 'RecordTabProps', 'RecordKeyNormalization',
   'RecordKeyScope', 'RecordKeySpec', 'RecordKeyStatus', 'RefKind', 'ScreenListAction',
   'ScreenModuleTemplate', 'ScreenPatchTemplate', 'Script', 'ScriptModuleTemplate', 'ScriptOutputParam',
@@ -237,7 +237,7 @@ describe('a superfície publicada do SDK', () => {
   it('todo construtor de contribuição é chamável', () => {
     for (const name of ['page', 'nav', 'command', 'recordAction', 'settingsSection', 'widgetPage',
       'surfaceTab', 'surfaceTabSpec', 'surfaceWidget', 'surfaceWidgetSpec', 'surfaceSlot',
-      'surfaceSlotSpec', 'menuItem', 'navGroup', 'authProvider', 'pointContribution']) {
+      'surfaceSlotSpec', 'menuItem', 'navGroup', 'authProvider', 'pointContribution', 'portalView']) {
       expect(typeof (sdk as unknown as Record<string, unknown>)[name], name).toBe('function');
     }
   });

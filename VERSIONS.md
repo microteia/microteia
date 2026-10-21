@@ -11,6 +11,119 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.137.5] — 2026-10-20
+
+- Ao retirar o acesso de um convidado a uma empresa, ele deixa na hora de poder alterar registros, anexar documentos e abrir documentos dela.
+- O portal não mostra mais, ao convidado, nomes de registros internos do escritório que apareciam ao lado de campos de referência.
+- Ligar ou desligar a exibição de documentos no portal passa a valer também para os documentos já compartilhados.
+- Arquivos recusados no envio pelo portal não ficam mais ocupando espaço do escritório.
+
+#### [9.137.4] — 2026-10-20
+
+- Quando o convidado do portal tenta alterar um registro que acabou de ser excluído pelo escritório, ele agora vê um aviso claro, em vez de o registro ser recriado.
+
+#### [9.137.3] — 2026-10-20
+
+- Corrigido um erro que podia aparecer ao abrir painéis e telas trazidos por extensões, como o Painel.
+
+#### [9.137.2] — 2026-10-20
+
+- Corrigido um erro que impedia o sistema de abrir depois da última atualização.
+
+#### [9.137.1] — 2026-10-20
+
+- A publicação de novas versões do sistema ficou bem mais rápida e não trava mais esperando uma confirmação que ninguém pode dar; o que falha é tentado de novo automaticamente, sem atrasar o resto.
+
+#### [9.137.0] — 2026-10-20
+
+- As listas de um modelo de documento agora podem ser ordenadas por mais de um campo — por exemplo, pela data e, no mesmo dia, pela hora. Um relatório de andamento passa a mostrar as movimentações de cada dia na ordem em que aconteceram, e o limite de itens sempre fica com as mais recentes.
+- A ordem das listas ficou estável: itens sem o campo de ordenação vão para o fim, e itens empatados aparecem sempre na mesma sequência, a cada geração.
+- Na tela de modelos de documento, cada lista ganhou a escolha de sentido (crescente ou decrescente) e o botão "Depois por", para acrescentar um critério de desempate.
+
+#### [9.136.0] — 2026-10-20
+
+- O convidado do portal pode corrigir registros, quando o escritório permitir — por exemplo, ajustar o valor de uma nota antes da análise.
+- O escritório escolhe quais campos podem ser alterados (sempre entre os que o convidado já vê), em que momento a alteração é permitida (por exemplo, só enquanto o registro está em rascunho) e se o convidado altera só o que ele mesmo criou.
+- A quem o registro pertence nunca pode ser alterado pelo convidado.
+- No Form Design, a aba "Portal" de cada tela ganhou essas opções de alteração.
+
+#### [9.135.0] — 2026-10-19
+
+- O convidado do portal pode anexar documentos aos registros dele, quando o escritório permitir — por exemplo, o prestador enviando o PDF da nota. Ver documentos não dá, por si só, o direito de anexar.
+- Ao anexar, o convidado escolhe o tipo do documento entre os que o escritório definiu para aquela tela, sem poder criar um tipo novo. Ele nunca pode excluir documentos.
+- No Form Design, a aba "Portal" de cada tela define se o convidado pode anexar e quais tipos ele pode escolher.
+
+#### [9.134.0] — 2026-10-19
+
+- O portal ganhou uma página inicial, com mensagem de boas-vindas, o menu em blocos e cartões de resumo trazidos pelas extensões.
+- No computador, o menu do portal fica em abas no topo; no celular, numa barra fixa embaixo, com "Mais" para o restante.
+- Na aba Portal das configurações, o escritório escreve as boas-vindas e escolhe o que aparece no menu e na página inicial, e em que ordem.
+- Extensões podem trazer páginas inteiras e cartões para o portal, além de substituir telas.
+
+#### [9.133.0] — 2026-10-19
+
+- Extensões agora podem trazer telas próprias para o portal: a lista ou o registro de uma tela aparece para o convidado do jeito que a extensão desenhou. Essas telas só são enviadas ao convidado quando o escritório confia no código da extensão; caso contrário, o portal mostra a tela padrão.
+- Novo exemplo de extensão para quem desenvolve: clientes que acompanham e fazem os próprios pedidos pelo portal.
+
+#### [9.132.0] — 2026-10-19
+
+- O portal passou a mostrar os registros na hierarquia certa: o menu mostra só os principais — como os prestadores de serviço —, e as notas fiscais de cada prestador aparecem dentro dele. A nota criada ali já nasce vinculada ao prestador aberto, sem perguntar.
+- O portal ficou bem mais rápido: abre com as informações da última visita enquanto atualiza, e trocar de aba ou abrir um registro não espera mais pela rede.
+- Uma falha passageira ao abrir o portal é tentada de novo automaticamente, sem exigir que a pessoa clique em "Tentar de novo".
+- Os textos do portal deixaram de aparecer em inglês nas telas de carregamento e de aviso.
+
+#### [9.131.4] — 2026-10-19
+
+- Ao abrir o link de acesso, o portal mostra "Entrando…" em vez de exibir por um instante a tela de login.
+- O portal não recarrega mais tudo ao escolher o escritório ou ao entrar nele, e o carregamento contínuo deixou de aparecer a cada tela.
+- Quando o portal não consegue carregar, ele diz isso — com um botão para tentar de novo e o código do erro —, em vez de afirmar que a pessoa não tem acesso.
+- As telas de aviso do portal aparecem no idioma do convite desde o início.
+
+#### [9.131.3] — 2026-10-19
+
+- O link de acesso ao portal não fica mais parado na tela de confirmação quando a pessoa já está conectada com a conta convidada: ela segue direto para o portal.
+- O e-mail com o link de acesso e a página de confirmação passam a vir no idioma de quem fez o convite.
+
+#### [9.131.2] — 2026-10-19
+
+- O portal passa a usar o idioma de quem fez o convite quando nem o convidado nem o escritório escolheram um. Antes, nesse caso, ele seguia o idioma do navegador do convidado, e podia aparecer em inglês para um escritório que usa o sistema em português.
+
+#### [9.131.1] — 2026-10-19
+
+- A aba "Portal" do Form Design agora explica por que uma tela só oferece a opção de receber convidados, e como ligar os registros dela a outra tela para que o convidado possa criá-los.
+
+#### [9.131.0] — 2026-10-18
+
+- O convidado do portal agora também pode enviar registros — um pedido do cliente, uma nota emitida pela empresa. No Form Design, a aba "Portal" de cada tela define se ela aceita esses envios e quais campos o convidado preenche.
+- O registro enviado é sempre vinculado ao que já pertence ao convidado, nunca a outra empresa ou cliente, e passa pelas mesmas validações de quando alguém do escritório o cadastra. As automações do escritório podem avisar a equipe a cada envio.
+
+#### [9.130.3] — 2026-10-18
+
+- O portal deixou de aparecer em inglês quando o escritório não escolheu um idioma: nesse caso ele segue o idioma do navegador de quem acessa, inclusive nas datas.
+
+#### [9.130.2] — 2026-10-18
+
+- O link de acesso ao portal agora entra direto: não pede mais para redigitar o e-mail e funciona mesmo quando o navegador já está conectado com outra conta — antes, nesse caso, o portal abria na conta errada.
+- O portal, inclusive a página de acesso, passa a aparecer no idioma do escritório, o mesmo das informações que ele mostra.
+- Quando a conta não tem acesso ao portal, a tela mostra com qual e-mail a pessoa está conectada e oferece entrar com outra conta. Uma falha ao carregar o acesso também deixou de ser confundida com a falta de convite.
+
+#### [9.130.1] — 2026-10-18
+
+- Quando o convite ao portal é feito mas o link de acesso não consegue ser enviado, a mensagem agora deixa claro que o convidado já está cadastrado, explica o motivo — como o login por link desligado no projeto — e indica como reenviar.
+
+#### [9.130.0] — 2026-10-18
+
+- O Form Design ganhou a aba "Portal": nela se escolhe, sem programar, se uma tela aparece no portal, de quem são os registros dela e quais campos podem ser vistos por quem é de fora. A aba avisa na hora quando a escolha não levaria os registros a ninguém.
+- Só quem tem a permissão de gerenciar o portal pode decidir o que uma tela mostra a quem é de fora.
+- A lista do portal passou a mostrar o nome do registro apenas quando esse campo foi escolhido para aparecer.
+
+#### [9.129.0] — 2026-10-18
+
+- Novo Portal: o escritório pode convidar pessoas de fora — um cliente, um fornecedor, a empresa atendida por uma prefeitura — para acompanharem, numa tela própria e simples de usar no celular, só os registros vinculados a elas. Cada tela escolhe quais informações saem do escritório; nada além delas é mostrado.
+- O convidado entra por um link enviado ao e-mail, sem precisar criar senha, e não ganha um escritório próprio.
+- Os convites ficam numa nova aba "Portal" das configurações do escritório, onde é possível convidar, reenviar o link de acesso e revogar o acesso a qualquer momento — a revogação vale na hora.
+- Documentos anexados a um registro podem ser compartilhados no portal com um clique, e só os marcados ficam visíveis para o convidado.
+
 #### [9.128.0] — 2026-10-20
 
 - Uma aba dentro de um registro agora pode listar tudo em que ele aparece, mesmo quando o vínculo admite vários registros ao mesmo tempo ou passa por mais de um campo — por exemplo, os processos em que uma pessoa é parte, seja no polo ativo, seja no polo passivo.

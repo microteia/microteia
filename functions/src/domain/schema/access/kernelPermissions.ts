@@ -38,6 +38,7 @@ export const PERMISSION_REPORTS_MANAGE = 'reports.manage';
 export const PERMISSION_DOCUMENT_TEMPLATES_MANAGE = 'document-templates.manage';
 export const PERMISSION_DOWNLOADS_MANAGE = 'downloads.manage';
 export const PERMISSION_DOCUMENTS_GENERATE = 'documents.generate';
+export const PERMISSION_PORTAL_MANAGE = 'portal.manage';
 
 /**
  * O nome e a descrição vão por extenso, e não montados a partir do `id`. Uma referência composta em
@@ -155,6 +156,13 @@ export const KERNEL_PERMISSIONS: AccessPermission[] = [
     name: '@core.access/permission.documents.generate',
     description: '@core.access/permission.documents.generate.description',
   },
+  {
+    // Convidar e revogar quem é de FORA. Não dá acesso a registro nenhum: escolher o registro a que
+    // o convidado se vincula continua cobrando `<coleção>.read` dele, na callable.
+    id: PERMISSION_PORTAL_MANAGE,
+    name: '@core.access/permission.portal.manage',
+    description: '@core.access/permission.portal.manage.description',
+  },
 ];
 
 export const KERNEL_PERMISSION_RESOURCES: PermissionResource[] = [
@@ -175,4 +183,5 @@ export const KERNEL_PERMISSION_RESOURCES: PermissionResource[] = [
   { id: 'document-templates', name: '@core.access/resource.document-templates' },
   { id: 'downloads', name: '@core.access/resource.downloads' },
   { id: 'documents', name: '@core.access/resource.documents' },
+  { id: 'portal', name: '@core.access/resource.portal' },
 ];

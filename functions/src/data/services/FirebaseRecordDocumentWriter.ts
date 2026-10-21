@@ -56,6 +56,9 @@ export class FirebaseRecordDocumentWriter implements IRecordDocumentWriter {
           ...(input.author.photoUrl ? { createdByPhotoUrl: input.author.photoUrl } : {}),
           createdVia: input.author.via,
           createdAt: FieldValue.serverTimestamp(),
+          ...(input.portalShared
+            ? { portalShared: true, portalSharedBy: input.author.uid, portalSharedAt: FieldValue.serverTimestamp() }
+            : {}),
         });
       return {
         id: created.id,

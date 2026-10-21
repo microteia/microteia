@@ -79,11 +79,11 @@ const NON_WRITABLE_ENTITY_KEYS: ReadonlySet<EntityKey> = new Set<EntityKey>([
 export const LOOKUP_WRITABLE_FIELDS: readonly string[] = ['key', 'label', 'color'];
 
 /**
- * POR ONDE a gravação entrou: o app (`ui`), um agente de IA pelo MCP (`agent`) ou uma automação sem
- * pessoa por trás (`automation`). Mora num campo À PARTE do autor — `createdBy` continua sendo o uid de
+ * POR ONDE a gravação entrou: o app (`ui`), um agente de IA pelo MCP (`agent`), uma automação sem
+ * pessoa por trás (`automation`) ou um convidado de FORA do escritório, pelo portal (`portal`). Mora num campo À PARTE do autor — `createdBy` continua sendo o uid de
  * quem responde pela gravação, porque é o único valor que a auditoria resolve em nome.
  */
-export type RecordWriteVia = 'ui' | 'agent' | 'automation';
+export type RecordWriteVia = 'ui' | 'agent' | 'automation' | 'portal';
 
 export const RECORD_CREATED_VIA_FIELD = 'createdVia';
 export const RECORD_UPDATED_VIA_FIELD = 'updatedVia';

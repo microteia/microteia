@@ -17,6 +17,7 @@ import { validateMigrations } from '../../schema/plugin/migration';
 import { validateReportSpecShape } from '../../schema/report/validateReportSpec';
 import { deriveReportRequires } from '../../schema/report/reportCapabilities';
 import { packageAggregationIssues } from './pluginAggregations';
+import { packageDocumentTemplateIssues } from './pluginDocumentTemplates';
 import { packageIconIssues } from './pluginIcons';
 import { packageActionIssues } from './pluginActions';
 import { packageImageIssues } from './pluginImage';
@@ -444,6 +445,7 @@ export const packageIssues = (pkg: MarketplacePlugin): LocalizedIssue[] => [
   ...packageSettingsIssues(pkg),
   ...packageReportIssues(pkg),
   ...packageAggregationIssues(pkg),
+  ...packageDocumentTemplateIssues(pkg),
   ...packagePrefixIssues(pkg),
 ];
 

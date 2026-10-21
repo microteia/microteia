@@ -20,6 +20,7 @@ import {
   DOCUMENT_TEMPLATE_KEY_PATTERN,
   DOCUMENT_TEMPLATE_MAX_BYTES,
   DOCUMENT_TEMPLATE_POINT,
+  datasetOrder,
   documentTemplateFingerprint,
   documentTemplateIssues,
   documentTemplateOf,
@@ -32,6 +33,7 @@ import { useScreenKeyOfSource } from '../../shared/documents/useResolvedDocument
 import { buildStarterTemplate } from '../../../domain/schema/document/starterTemplate';
 import { buildPayloadStarterTemplate } from '../../../domain/schema/document/payloadStarter';
 import type { DocumentTemplateSource } from '../../../domain/schema/document/documentTemplate';
+import type { QueryOrderBy } from '../../../domain/schema/querySpec';
 import type { TemplatePayloadEditor } from '../../shared/documents/useTemplatePayloadEditor';
 import { useTemplatePayloadEditor } from '../../shared/documents/useTemplatePayloadEditor';
 import { screenDataCollection } from '../../../domain/services/screenDataCollection';
@@ -75,6 +77,8 @@ export interface TemplateIssueLine {
 export interface DatasetRowOptions {
   via: SearchSelectOption[];
   orderBy: SearchSelectOption[];
+  /** As chaves de ordem da lista, já como lista — a forma em texto vira uma chave. */
+  order: QueryOrderBy[];
 }
 
 export interface DocumentTemplatesViewModel {
@@ -113,6 +117,7 @@ export interface DocumentTemplatesViewModel {
   retentionText: string;
   setRetentionText: (text: string) => void;
   datasetOptions: DatasetRowOptions[];
+  orderDirectionOptions: SearchSelectOption[];
   isSaving: boolean;
   canSave: boolean;
   isDeleteOpen: boolean;
@@ -152,6 +157,9 @@ export interface DocumentTemplatesViewModel {
   addDataset: () => void;
   updateDataset: (index: number, patch: Partial<DocumentTemplateDataset>) => void;
   removeDataset: (index: number) => void;
+  addOrderKey: (index: number) => void;
+  updateOrderKey: (index: number, position: number, patch: Partial<QueryOrderBy>) => void;
+  removeOrderKey: (index: number, position: number) => void;
 }
 
 const ROW_STATES: readonly DocumentTemplateRowState[] = ['plugin', 'override', 'disabled', 'tenant'];
@@ -459,6 +467,7 @@ export const useDocumentTemplatesViewModel = (): DocumentTemplatesViewModel => {
           .filter((field) => field.type === 'reference' && field.refEntity === form.collection)
           .map((field) => ({ value: field.key, label: label(field.label), meta: field.key })),
         orderBy: fields.map((field) => ({ value: field.key, label: label(field.label), meta: field.key })),
+        order: datasetOrder(dataset),
       };
     }),
     [form.datasets, form.collection, getDefinition, label],
@@ -686,6 +695,60 @@ export const useDocumentTemplatesViewModel = (): DocumentTemplatesViewModel => {
     [form.datasets, setForm],
   );
 
+  const orderDirectionOptions = useMemo(
+    () => [
+      { value: 'asc', label: t('dataset.order.asc') },
+      { value: 'desc', label: t('dataset.order.desc') },
+    ],
+    [t],
+  );
+
+  /**
+   * Grava a ordem de uma lista na forma mais simples que a diz: uma chave completa vira o texto de
+   * sempre (`orderBy` + `direction`), e só duas ou mais — ou uma ainda sem campo — viram a lista.
+   * Assim o modelo de uma chave continua igual ao que era, e não passa a exigir kernel novo.
+   */
+  const writeOrder = useCallback(
+    (index: number, order: QueryOrderBy[]) =>
+      setForm({
+        datasets: (form.datasets ?? []).map((dataset, at) => {
+          if (at !== index) return dataset;
+          const rest = { ...dataset };
+          delete rest.orderBy;
+          delete rest.direction;
+          if (order.length === 0) return rest;
+          if (order.length === 1 && order[0].path) {
+            return { ...rest, orderBy: order[0].path, ...(order[0].dir === 'desc' ? { direction: 'desc' as const } : {}) };
+          }
+          return { ...rest, orderBy: order };
+        }),
+      }),
+    [form.datasets, setForm],
+  );
+
+  const addOrderKey = useCallback(
+    (index: number) => {
+      const current = datasetOrder(form.datasets?.[index] ?? {});
+      writeOrder(index, [...current, { path: '', dir: current[current.length - 1]?.dir ?? 'asc' }]);
+    },
+    [form.datasets, writeOrder],
+  );
+
+  const updateOrderKey = useCallback(
+    (index: number, position: number, patch: Partial<QueryOrderBy>) =>
+      writeOrder(
+        index,
+        datasetOrder(form.datasets?.[index] ?? {}).map((order, at) => (at === position ? { ...order, ...patch } : order)),
+      ),
+    [form.datasets, writeOrder],
+  );
+
+  const removeOrderKey = useCallback(
+    (index: number, position: number) =>
+      writeOrder(index, datasetOrder(form.datasets?.[index] ?? {}).filter((_order, at) => at !== position)),
+    [form.datasets, writeOrder],
+  );
+
   const blockingIssues = issues.some((one) => !one.isGrammar);
   const allIssues = useMemo<TemplateIssueLine[]>(
     () => (keyTaken
@@ -725,6 +788,7 @@ export const useDocumentTemplatesViewModel = (): DocumentTemplatesViewModel => {
     formatOptions,
     documentTypeOptions,
     destinationOptions,
+    orderDirectionOptions,
     retentionText: form.retentionDays === undefined ? '' : String(form.retentionDays),
     setRetentionText,
     datasetOptions,
@@ -762,5 +826,8 @@ export const useDocumentTemplatesViewModel = (): DocumentTemplatesViewModel => {
     addDataset,
     updateDataset,
     removeDataset,
+    addOrderKey,
+    updateOrderKey,
+    removeOrderKey,
   };
 };

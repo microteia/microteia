@@ -46,6 +46,7 @@ import type { IRecordKeyAdoptionRepository } from '../../domain/repositories/IRe
 import type { IBackendResidueRepository } from '../../domain/repositories/IBackendResidueRepository';
 import type { IAgentAuthRequestRepository } from '../../domain/repositories/IAgentAuthRequestRepository';
 import type { IAgentGrantRepository } from '../../domain/repositories/IAgentGrantRepository';
+import type { IPortalRepository } from '../../domain/repositories/IPortalRepository';
 
 export interface DIContainer {
   /**
@@ -97,6 +98,7 @@ export interface DIContainer {
   backendResidueRepository: IBackendResidueRepository;
   aggregateBackfillRepository: IAggregateBackfillRepository;
   recordKeyAdoptionRepository: IRecordKeyAdoptionRepository;
+  portalRepository: IPortalRepository;
 }
 
 export const DIContext = createContext<DIContainer | null>(null);

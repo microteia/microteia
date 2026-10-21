@@ -1,6 +1,15 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { useTheme } from 'styled-components';
 import { useAuthorization } from '../../../stores/useAuthorization';
+import { PERMISSION_PORTAL_MANAGE } from '../../../domain/schema/access/kernelPermissions';
+import { portalDeclarationIssues, type PortalScreenLike } from '../../../domain/schema/portal';
+import {
+  EMPTY_PORTAL_FORM,
+  fromPortalForm,
+  toPortalForm,
+  type PortalFormState,
+  type PortalSubjectKind,
+} from './components/ScreenPortalPanel/screenPortalForm';
 import { PERMISSION_SCREENS_MANAGE } from '../../../domain/schema/access';
 import { errorParamsOf } from '../../../domain/errors/LocalizedError';
 import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
@@ -104,6 +113,9 @@ export interface ScreenFormState {
   titleFieldKey: string;
   subtitleFieldKey: string;
   imageFieldKey: string;
+  /** O que a tela expõe no portal. Só é gravado quando a aba foi tocada — ver `handleSaveScreen`. */
+  portal: PortalFormState;
+  portalTouched: boolean;
 }
 
 /**
@@ -233,7 +245,7 @@ export interface FieldFormState {
   fileMaxSizeMb: string;
 }
 
-export type ScreenModalTab = 'general' | 'actions' | 'children';
+export type ScreenModalTab = 'general' | 'actions' | 'children' | 'portal';
 export type FieldModalTab = 'general' | 'advanced';
 
 export interface ScreenBuilderViewModel {
@@ -277,6 +289,31 @@ export interface ScreenBuilderViewModel {
   titleFieldOptions: SearchSelectOption[];
   subtitleFieldOptions: SearchSelectOption[];
   childCandidates: ChildCandidate[];
+  /** A aba "Portal": opções, problemas da declaração (já traduzidos) e os gestos. */
+  portalPanel: {
+    fieldOptions: Array<{ value: string; label: string }>;
+    createFieldOptions: Array<{ value: string; label: string }>;
+    documentTypeOptions: Array<{ value: string; label: string }>;
+    referenceFieldOptions: Array<{ value: string; label: string }>;
+    editFieldOptions: Array<{ value: string; label: string }>;
+    hasParent: boolean;
+    hasDocuments: boolean;
+    readOnly: boolean;
+    issues: string[];
+  };
+  setPortalEnabled: (enabled: boolean) => void;
+  setPortalSubjectKind: (kind: PortalSubjectKind) => void;
+  setPortalSubjectField: (fieldKey: string) => void;
+  togglePortalField: (fieldKey: string, exposed: boolean) => void;
+  setPortalDocuments: (documents: boolean) => void;
+  setPortalAllowCreate: (allowCreate: boolean) => void;
+  togglePortalCreateField: (fieldKey: string, fillable: boolean) => void;
+  setPortalAllowUploads: (allowUploads: boolean) => void;
+  togglePortalUploadType: (typeKey: string, allowed: boolean) => void;
+  setPortalAllowEdit: (allowEdit: boolean) => void;
+  togglePortalEditField: (fieldKey: string, editable: boolean) => void;
+  setPortalEditWhen: (expression: string) => void;
+  setPortalEditOnlyOwn: (onlyOwn: boolean) => void;
   toggleChildScreen: (childKey: string) => void;
   setChildLinkField: (childKey: string, fieldKey: string) => void;
   iconOptions: SearchSelectOption[];
@@ -407,6 +444,8 @@ const EMPTY_SCREEN_FORM: ScreenFormState = {
   titleFieldKey: '',
   subtitleFieldKey: '',
   imageFieldKey: '',
+  portal: EMPTY_PORTAL_FORM,
+  portalTouched: false,
 };
 
 const EMPTY_FIELD_FORM: FieldFormState = {
@@ -745,7 +784,9 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
   const schemaContext = useSchemaContext();
   const artifactPrefix = useArtifactPrefix();
   const fieldRulePresets = useFieldRulePresets();
-  const { availableLookups, declareLookup } = useLookups();
+  const { availableLookups, declareLookup, getOptions: getLookupOptions } = useLookups();
+  // Os tipos de documento do escritório — o convidado do portal só escolhe entre eles.
+  const documentTypes = getLookupOptions('documentTypes');
   const { availableTagLists, declareTagList } = useTags();
   const externalLookupProviders = useExternalLookupOptions();
   const { notify } = useNotification();
@@ -753,6 +794,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
   const theme = useTheme();
 
   const isAdmin = can(PERMISSION_SCREENS_MANAGE);
+  const canManagePortal = can(PERMISSION_PORTAL_MANAGE);
   const tagColors = theme.tagColors;
   const defaultTagColor = useMemo(() => getDefaultTagColor(theme), [theme]);
 
@@ -1088,6 +1130,8 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       titleFieldKey: def.titleFieldKey,
       subtitleFieldKey: def.subtitleFieldKey ?? '',
       imageFieldKey: def.imageFieldKey ?? '',
+      portal: toPortalForm(def.portal),
+      portalTouched: false,
     });
     setScreenModal({ screenKey });
   }, [getDefinitionByKey, dynamicDefinitions, tagDependentSlots]);
@@ -1239,7 +1283,120 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     ...(!!screenModal?.screenKey && childCandidates.length > 0
       ? [{ key: 'children' as const, label: t('screen.tab.children') }]
       : []),
-  ], [screenModalIsBuiltin, screenModal, childCandidates, t]);
+    // O portal é decisão de EXPOSIÇÃO, e a regra a cobra de quem tem `portal.manage`; a aba segue a
+    // regra. Só em tela que já existe: numa tela nova não há ainda campo a escolher.
+    ...(!screenModalIsBuiltin && !!screenModal?.screenKey && canManagePortal
+      ? [{ key: 'portal' as const, label: t('portal.tab') }]
+      : []),
+  ], [screenModalIsBuiltin, screenModal, childCandidates, canManagePortal, t]);
+
+  const portalPanel = useMemo(() => {
+    const def = screenModal?.screenKey ? getDefinitionByKey(screenModal.screenKey) : undefined;
+    const fields = def?.fields ?? [];
+    const asPortalScreen = (one: ScreenDefinition, portal = one.portal): PortalScreenLike => ({
+      id: one.id,
+      collection: one.dataCollection || one.id,
+      titleFieldKey: one.titleFieldKey,
+      fields: one.fields,
+      parentEntity: one.parentEntity,
+      parentFieldKey: one.parentFieldKey,
+      portal,
+    });
+    const declaration = fromPortalForm(screenForm.portal);
+    const issues = def && declaration
+      ? portalDeclarationIssues(
+        asPortalScreen(def, declaration),
+        definitions.map((one) => (one.id === def.id ? asPortalScreen(one, declaration) : asPortalScreen(one))),
+      ).map((issue) => {
+        const params = { ...issue.messageParams };
+        const screenRef = params.screen ? definitions.find((one) => one.id === params.screen) : undefined;
+        if (screenRef) params.screen = label(screenRef.titlePlural);
+        if (params.field) params.field = label(fields.find((one) => one.key === params.field)?.label ?? params.field);
+        return label(issue.message, params);
+      })
+      : [];
+    const linkField = screenForm.portal.subjectKind === 'field'
+      ? screenForm.portal.subjectField
+      : screenForm.portal.subjectKind === 'parent' ? def?.parentFieldKey ?? '' : '';
+    return {
+      fieldOptions: fields.map((field) => ({ value: field.key, label: label(field.label) })),
+      createFieldOptions: fields
+        .filter((field) => field.key !== linkField)
+        .map((field) => ({ value: field.key, label: label(field.label) })),
+      documentTypeOptions: documentTypes.map((option) => ({ value: option.key, label: label(option.label) })),
+      referenceFieldOptions: fields
+        .filter((field) => field.type === 'reference' && !!field.refEntity)
+        .map((field) => ({ value: field.key, label: label(field.label) })),
+      editFieldOptions: fields
+        .filter((field) => field.key !== linkField && screenForm.portal.fields.includes(field.key))
+        .map((field) => ({ value: field.key, label: label(field.label) })),
+      hasParent: !!def?.parentEntity && !!def.parentFieldKey,
+      hasDocuments: !!def?.hasDocuments,
+      readOnly: def?.managed === true,
+      issues,
+    };
+  }, [screenModal, getDefinitionByKey, definitions, screenForm.portal, label, documentTypes]);
+
+  const updatePortal = useCallback((patch: Partial<PortalFormState>) => {
+    setScreenForm((prev) => ({ ...prev, portal: { ...prev.portal, ...patch }, portalTouched: true }));
+  }, []);
+  const setPortalEnabled = useCallback((enabled: boolean) => updatePortal({ enabled }), [updatePortal]);
+  const setPortalSubjectKind = useCallback((subjectKind: PortalSubjectKind) => updatePortal({ subjectKind }), [updatePortal]);
+  const setPortalSubjectField = useCallback((subjectField: string) => updatePortal({ subjectField }), [updatePortal]);
+  const setPortalDocuments = useCallback((documents: boolean) => updatePortal({ documents }), [updatePortal]);
+  const setPortalAllowUploads = useCallback((allowUploads: boolean) => updatePortal({ allowUploads }), [updatePortal]);
+  const togglePortalUploadType = useCallback((typeKey: string, allowed: boolean) => {
+    setScreenForm((prev) => ({
+      ...prev,
+      portalTouched: true,
+      portal: {
+        ...prev.portal,
+        uploadTypes: allowed
+          ? [...new Set([...prev.portal.uploadTypes, typeKey])]
+          : prev.portal.uploadTypes.filter((key) => key !== typeKey),
+      },
+    }));
+  }, []);
+  const setPortalAllowEdit = useCallback((allowEdit: boolean) => updatePortal({ allowEdit }), [updatePortal]);
+  const setPortalEditWhen = useCallback((editWhen: string) => updatePortal({ editWhen }), [updatePortal]);
+  const setPortalEditOnlyOwn = useCallback((editOnlyOwn: boolean) => updatePortal({ editOnlyOwn }), [updatePortal]);
+  const togglePortalEditField = useCallback((fieldKey: string, editable: boolean) => {
+    setScreenForm((prev) => ({
+      ...prev,
+      portalTouched: true,
+      portal: {
+        ...prev.portal,
+        editFields: editable
+          ? [...new Set([...prev.portal.editFields, fieldKey])]
+          : prev.portal.editFields.filter((key) => key !== fieldKey),
+      },
+    }));
+  }, []);
+  const setPortalAllowCreate = useCallback((allowCreate: boolean) => updatePortal({ allowCreate }), [updatePortal]);
+  const togglePortalCreateField = useCallback((fieldKey: string, fillable: boolean) => {
+    setScreenForm((prev) => ({
+      ...prev,
+      portalTouched: true,
+      portal: {
+        ...prev.portal,
+        createFields: fillable
+          ? [...new Set([...prev.portal.createFields, fieldKey])]
+          : prev.portal.createFields.filter((key) => key !== fieldKey),
+      },
+    }));
+  }, []);
+  const togglePortalField = useCallback((fieldKey: string, exposed: boolean) => {
+    setScreenForm((prev) => ({
+      ...prev,
+      portalTouched: true,
+      portal: {
+        ...prev.portal,
+        fields: exposed
+          ? [...new Set([...prev.portal.fields, fieldKey])]
+          : prev.portal.fields.filter((key) => key !== fieldKey),
+      },
+    }));
+  }, []);
 
   const activeScreenModalTab = useMemo<ScreenModalTab>(
     () => (screenModalTabs.some((tab) => tab.key === screenModalTab)
@@ -1286,6 +1443,12 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       const label = childCandidates.find((c) => c.key === childMissingField[0])?.label ?? t('screen.fallback');
       setScreenModalTab('children');
       notify(t('screen.error.link-field-required', { label }), 'error');
+      return;
+    }
+    const portalChanged = canManagePortal && screenForm.portalTouched && !portalPanel.readOnly;
+    if (portalChanged && screenForm.portal.enabled && portalPanel.issues.length > 0) {
+      setScreenModalTab('portal');
+      notify(portalPanel.issues[0], 'error');
       return;
     }
     setSavingScreen(true);
@@ -1358,6 +1521,9 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
           titleFieldKey,
           subtitleFieldKey,
           imageFieldKey,
+          // Só quando a aba foi tocada: regravar o que foi lido mudaria a forma do valor, e a regra
+          // cobraria `portal.manage` de quem só mexeu no título.
+          ...(portalChanged ? { portal: fromPortalForm(screenForm.portal) } : {}),
         });
 
         await persistChildLinks(def.id);
@@ -1426,7 +1592,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     } finally {
       setSavingScreen(false);
     }
-  }, [artifactPrefix, screenForm, screenModal, getDefinitionByKey, saveDefinition, definitions, dynamicDefinitions, childCandidates, persistChildLinks, notify, schemaContext, declareTagList, t, label]);
+  }, [artifactPrefix, screenForm, screenModal, getDefinitionByKey, saveDefinition, definitions, dynamicDefinitions, childCandidates, persistChildLinks, notify, schemaContext, declareTagList, t, label, canManagePortal, portalPanel]);
 
   const toggleScreenEnabled = useCallback(async (screenKey: string) => {
     const def = getDefinitionByKey(screenKey);
@@ -2255,6 +2421,20 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     subtitleFieldOptions,
     imageFieldOptions,
     childCandidates,
+    portalPanel,
+    setPortalEnabled,
+    setPortalSubjectKind,
+    setPortalSubjectField,
+    togglePortalField,
+    setPortalDocuments,
+    setPortalAllowCreate,
+    togglePortalCreateField,
+    setPortalAllowUploads,
+    togglePortalUploadType,
+    setPortalAllowEdit,
+    togglePortalEditField,
+    setPortalEditWhen,
+    setPortalEditOnlyOwn,
     toggleChildScreen,
     setChildLinkField,
     iconOptions,

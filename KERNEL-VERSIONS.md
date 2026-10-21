@@ -18,6 +18,124 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.137.5] — 2026-10-20
+
+- fix(portal): callables (edit, attach, document URL, create under a parent) now require the guest's CURRENT `subjectKeys` to intersect the projection's (`guestSees`), not just `audience` — revoking one subject is immediate even if `refreshPortalAudience` is late or failed.
+- fix(portal): reference labels are built only from portal screens and only when they expose their title (`portalExposedTitle`); an exposed reference to an internal screen leaked that record's title.
+- fix(portal): reprojection passes `syncDocuments` — turning `documents` on backfills the already shared documents, turning it off clears the projected ones (`IPortalRepository.clearDocumentProjections`).
+- fix(portal): `attachPortalDocument` deletes the staged file on every outcome, refusals included.
+- fix(rules): on a screen that already has `portal`, changing `dataCollection`, `parentEntity`, `parentFieldKey` or `titleFieldKey` requires `portal.manage` (or `extensions.manage`). Tested in `rules-tests/portal.test.ts`.
+- perf(portal): `refreshPortalAudience` memoizes `audienceFor` per subject-key combination; `reprojectPortalOnScreenChange` also fires on field key/type/`refEntity`/`multi` changes. Deploy: `npm run deploy:rules`, `npm run deploy:portal`.
+
+#### [9.137.4] — 2026-10-20
+
+- fix(portal): a guest edit could RECREATE a record deleted between the use case's checks and the write — `runWorkflowUpsert` with an `id` that no longer exists creates it, here holding only the guest's fields. New `UpsertOptions.updateOnly` refuses with `@core.automation/mutation.upsert.not-found` instead; `portalRecordWriter` sets it on every edit. `com.microteia.locale-pt-br` 1.113.0.
+
+#### [9.137.3] — 2026-10-20
+
+- fix(extensions): extension view modules were evaluated DURING the render of whoever asked for them (`useUiContributions`, the `useMemo` in `useSettingsCatalog`, the portal shell). A module-level `styled.div` then ran styled-components' dev-only "created dynamically" probe, which calls a hook — added to the parent's hook list: "change in the order of Hooks called by PanelLeaf". `evaluateExtensionView` and `evaluatePortalView` now return a stable `deferredComponent` that evaluates the module on its first `useSyncExternalStore` subscription (commit phase); the result is still cached per key and source, and a compile error still becomes the fallback. Regression test in `evaluateExtensionView.test.tsx`.
+
+#### [9.137.2] — 2026-10-20
+
+- fix(schema): import cycle `portal.ts → mutationSpec.ts → pathResolver.ts → screenEntity.ts → portal.ts`, introduced in 9.136.0, threw `Cannot access 'PORTAL_USERS_COLLECTION' before initialization` when `portal.ts` loaded first — the app did not start, and the same chain would break the functions on a cold start. The portal collection names moved to the leaf module `portalCollections.ts` (re-exported by `portal.ts`), which `screenEntity.ts` imports directly. Regression test `portalCollections.test.ts` (Vitest silently left `undefined` in `RESERVED_COLLECTIONS` instead of throwing).
+
+#### [9.137.1] — 2026-10-20
+
+- fix(scripts/deploy-functions-individually): build the functions once and deploy each one with a temporary `firebase.json` that drops the functions `predeploy` — every `firebase deploy` used to recompile the whole backend, ~60 times per run, which stretched a full deploy into hours.
+- fix(scripts/deploy-functions-individually): failed functions go to the end of the queue and passes repeat until all are up or each failure reaches `--attempts` (default 5); deploys run with `--non-interactive`, closed stdin and a per-deploy `--timeout`, so a Firebase CLI prompt is refused at once instead of hanging, and known refusals are not retried. The failure reason is printed as it happens and saved to `.deploy-log.json`.
+
+#### [9.137.0] — 2026-10-20
+
+- feat(documents): `DocumentTemplateDataset.orderBy` also accepts a list of `{ path, dir }` keys — the shape of `aggregation.orderBy` — next to the existing text form with `direction`. `datasetOrder` normalizes both; `datasetOrderIssues` (run by `documentTemplateIssues`) refuses an empty list, a key without path or with a `dir` other than `asc`/`desc`, `direction` together with the list, and an `orderBy` that is neither text nor list (`template.dataset.order.*`). `DOCUMENT_DATASET_ORDER_LIST_SINCE_KERNEL` 2.58.0; KERNEL_VERSION 2.58.0.
+- feat(documents): dataset children are sorted with the `latest` tie-break in both forms — empty key last in both directions, then `createdAt` in the direction of the last key, then document id — so `limit` no longer picks records by database order. The comparator moved to `domain/schema/recordOrder.ts` (`deterministicRecordOrder`), shared by `sortChildrenForLatest`. `runRecordQuery` gains an opt-in `RecordQueryOptions.deterministicOrder`, used only by `WorkflowDocumentRecordReader.children`; automations and Script keep their ordering unchanged. Sorting stays in memory over the equality scan: no composite index, no extra reads.
+- feat(marketplace): package gate `packageDocumentTemplateIssues` — each order key must be a field of the `from` screen (or `createdAt`/`updatedAt`) when that screen ships in the package (`issue.document.order.unknown`), the list shape is checked (`issue.document.order.invalid`), and a package using the list must declare `kernel` from 2.58.0 (`issue.document.order.kernel`), so an older kernel refuses it instead of failing at generation.
+- feat(agent): `save_document_template` takes `orderBy` as text or list (the schema no longer types it as string), and `datasetsFromAgent` keeps the list instead of dropping it — a template read and saved back by an agent kept no order before.
+- feat(ui): the document template editor edits order keys per list (field, direction, "Then by", remove). One complete key is saved in the text form, so single-key templates are unchanged; two or more are saved as a list.
+- docs: AUTHORING §12 documents the list form and its tie-break; `examples/document-example` 1.2.0 (`kernel: '^2.58.0'`) adds an optional `dueTime` to the installment and orders the payment plan by `dueDate`, then `dueTime`. `com.microteia.locale-pt-br` 1.113.0.
+
+#### [9.136.0] — 2026-10-20
+
+- feat(portal): guest edits. `PortalDeclaration.edit: { fields, when?, onlyOwn? }` — editable fields must also be exposed (`portalEditFieldKeys` drops the hidden ones and the link field); `when` is a field expression evaluated on the WHOLE record (`evaluatePortalCondition`, closed on error); `onlyOwn` limits edits to records created through the portal (`portalOwnerOf`: `createdVia == 'portal'`). Allowed on the `self` screen too. New declaration checks `portal.issue.edit.no-fields`, `.field.hidden`, `.when-invalid`. KERNEL_VERSION 2.57.0.
+- feat(portal): projections carry `editable` (the condition when the record was last written) and `portalOwner`, only to draw the gesture. `submitPortalRecord` with `recordId` routes to `makeUpdatePortalRecordUseCase`, which re-checks invitation, `audience`, screen, the condition on the current record (in the organization's time zone) and ownership, keeps only editable fields (`buildPortalEdit`) and writes through `runWorkflowUpsert` with the record `id` (`portal.update`, `via: 'portal'`). No new function.
+- feat(ui): edit button and form in the portal record (`PortalCreateForm` in edit mode; a cleared field goes as `null`), navigation `startEdit`/`justSaved`, the edit section in the Form Design Portal tab. `@microteia/portal`: `PortalViewRecord.canEdit`, `PortalScreen.edit`, `usePortalNavigation().edit`, `usePortalUpdate`; `PORTAL_API_VERSION` 1.2.0. `examples/portal-example` 1.2.0 (orders editable by whoever placed them). `com.microteia.locale-pt-br` 1.112.0. Deploy: `npm run deploy:portal`.
+
+#### [9.135.0] — 2026-10-19
+
+- feat(portal): guest uploads. `PortalDeclaration.uploads: { types }` (requires `documents`; empty types = every organization type) with `portalUploadTypes` and the `portal.issue.uploads.documents` check; `getPortalContext` describes each screen's `uploads` with labelled types (`documentTypeOptions`, the same merge as the client). KERNEL_VERSION 2.56.0.
+- feat(portal): callable `attachPortalDocument`. The guest uploads to `tenants/{t}/portalUploads/{uid}/{uploadId}` — `storage.rules` allows only `create`, only to that guest's folder, only while the invitation exists, below 20 MB; read, update and delete are false, and `portalUploads` is reserved from the record wildcard. The callable checks invitation, record `audience`, screen and type before moving the file, attaches through `IRecordDocumentWriter` (`RecordDocumentVia` gains `'portal'`; `portalShared` stamped) and always clears the staging file. There is no guest delete path anywhere.
+- feat(ui): `PortalUploadForm` in the portal record (closed type list, no "add type"), `usePortalDocuments().upload` / `uploadTypes` in `@microteia/portal`, and the uploads section in the Form Design Portal tab. `com.microteia.locale-pt-br` 1.111.0. Deploy: `npm run deploy:rules` (Firestore and Storage), `npm run deploy:portal`.
+
+#### [9.134.0] — 2026-10-19
+
+- feat(portal): portal home and menu. `portal.view` gains surfaces `page` (`key`, `title`, `icon`, `order` — a menu entry), `widget` (a home card) and `home` (the whole home); `PORTAL_API_VERSION` 1.1.0, KERNEL_VERSION 2.55.0. The descriptor separates `viewKey` (the code) from `key` (the entry). `getPortalContext` returns `home: { welcome, menu, widgets, view }` already ordered by the organization (`applyPortalPreference`: ordered first, then the rest by suggested order, hidden removed; new entries show), with root screens before extension pages by default.
+- feat(portal): `tenants/{t}/settings/portal` (`PortalHomeSettings`: welcome, menu and widget order/visibility), written with `portal.manage` (`firestore.rules`, tested) and edited in the Portal tab ("Portal home"). Routes `/portal/:tenantId` (home) and `/portal/:tenantId/:entryId` (screen by collection, page by `page.<plugin>.<key>`); navigation stack scoped per entry.
+- feat(ui): responsive shell — top tabs from 768px, a fixed bottom bar below it (Home, three entries, "More" sheet), home tiles and card grid; `env(safe-area-inset-bottom)` respected. The authoring guide gains "Your own screens in the portal" with the responsive rules for portal views. `examples/portal-example` 1.1.0 adds a home card. Deploy: `npm run deploy:rules`, `npm run deploy:portal`.
+
+#### [9.133.0] — 2026-10-19
+
+- feat(portal): extension point `portal.view` (`PORTAL_EXTENSION_POINTS`, owner `core.tenant`, code only; metadata `{ collection, surface: 'list' | 'detail' }`) and SDK builder `portalView` (types `PortalViewMetadata`, `PortalViewSurface`). KERNEL_VERSION 2.54.0.
+- feat(portal): the server delivers the views. `InstalledExtensionCache.portalViews` collects the `portal.view` contributions of active extensions whose code is trusted — the trust rule moved to the synced `schema/plugin/codeTrust.ts` (`extensionCodeOf`, `isCodeTrusted`), used by the client's `extensionCodeTrust` and by the function alike — and `getPortalContext` returns `views` (exposed collections only) plus those extensions' `bundles`; `LocaleProvider` takes `extraBundles`.
+- feat(portal): `@microteia/portal` (`usePortalScreen`, `usePortalRecords`, `usePortalRecord`, `usePortalNavigation`, `usePortalDocuments`, `usePortalSubmit`) and `PORTAL_HOST_MODULES`, a reduced module map without `@microteia/data`, `report`, `settings` and `functions`; `compileComponentWith(source, modules)` compiles against it, so a forbidden import fails at compile time. Navigation moved to `PortalNavigationProvider`, shared by the shell and the views. Declared in `extensionTypeDefs.ts` (English) and published in `microteia-host.d.ts`.
+- docs(examples): `examples/portal-example` — `portal` on two screens, guest-created records, and a `portalView` detail page. Deploy: `npm run deploy:portal`.
+
+#### [9.132.0] — 2026-10-19
+
+- feat(portal): master-detail navigation. Projections carry `parentKeys` (the linked record as `collection/id`, from `portalLinkOf`; older projections fall back to `subjectKeys` on the client) and `getPortalContext` describes each screen's `parent`. The shell's menu lists only root screens; a record's detail shows its child screens filtered by `parentKeys`, with a navigation stack for "Back", and creating inside a parent fixes the link (`PortalCreateForm.fixedLinkRecordId`).
+- perf(portal): `PortalStore` subscribes every exposed collection at once (`recordsByCollection`, `isCollectionLoading`) instead of one per tab click; the context is cached per user and organization in `localStorage` and revalidated in the background; transient callable failures are retried (800 ms, 2 s); a `permission-denied` clears the cache.
+- fix(portal): the portal locale is mirrored to the browser (`PortalLocaleProvider`, `UrlLocaleProvider`), so loading and error screens follow it on the next visit. Callables log unexpected errors through `firebase-functions/v2` `logger` — `console.error` reached `functions:log` as a blank line. Deploy: `npm run deploy:portal`.
+
+#### [9.131.4] — 2026-10-19
+
+- fix(portal): `/portal` and `/portal/:tenantId` were sibling routes, each mounting its own `PortalStoreProvider`; every step between them remounted the store and reloaded invitations and context. They are now children of a single `/portal` route rendering an `<Outlet />` inside one provider.
+- fix(portal): every `getPortalContext` failure was reported as "not invited". The store now distinguishes `not-invited` (server `permission-denied`) from `failed` (anything else), exposes `errorCode`, `retryContext` and `retryMemberships`, and the shell offers a retry with the code. The callables log unexpected errors with the operation name (`asHttpsError(error, operation)`); the function log used to hold a blank error line.
+- fix(portal): `/portal/signin` renders a "Signing you in…" state while it consumes a link that carries the e-mail, instead of flashing the confirmation form. `PortalMembership` carries the invitation `locale`, and `PortalLocaleProvider` uses it before the context exists, so the chooser and error screens follow the invitation language.
+
+#### [9.131.3] — 2026-10-19
+
+- fix(portal): signing in again with the account already open never left `/portal/signin`. `signInWithEmailLink` for the same uid fires no `onAuthStateChanged`, and `AuthContext.signInWithLink` had set `loading` waiting for it. It now returns early for the same uid, and the page skips the link entirely when the open session already is the invited e-mail.
+- fix(portal): the sign-in URL carries `locale` instead of `lang` — Firebase appends its own `lang` when redirecting to `continueUrl`, and the page read Firebase's. `sendSignInLink` takes the locale and sets `auth.languageCode` for that call only, so the e-mail and Firebase's action page follow it too.
+
+#### [9.131.2] — 2026-10-19
+
+- fix(portal): the invitation records the inviter's UI locale (`portalUsers.locale`, sent by `invitePortalUser`), and `getPortalContext` / `submitPortalRecord` resolve guest > organization > invitation > browser. An organization whose Portuguese came from the administrator's personal preference had no organization default, so a guest with an English browser got the portal in English. Existing guests pick it up when invited again.
+
+#### [9.131.1] — 2026-10-19
+
+- fix(form-design): the Portal tab explains its disabled states. A screen with no reference field and no parent shows why `'self'` is the only subject (`portal.subject.only-self`), and the disabled "guests can create" option on a `'self'` screen now says how to model creation — a reference field on the other screen, chosen there as the subject (`portal.create.self-hint`). `com.microteia.locale-pt-br` 1.110.0.
+
+#### [9.131.0] — 2026-10-18
+
+- feat(portal): guests create records. `PortalDeclaration.create: { fields }` (refused on `'self'`); synced `portal.ts` gains `portalLinkOf`, `portalCreateFieldKeys`, `buildPortalSubmission` and the `portal.issue.create.*` checks (create on the subject screen, no fillable fields, required field without default left out). KERNEL_VERSION 2.53.0.
+- feat(portal): callable `submitPortalRecord`. The link record must be visible to the guest (an invitation subject, or a projection with the guest in `audience`); the server stamps the link field and drops every other key outside `create.fields`. Writes through `runWorkflowUpsert` with actor `via: 'portal'` and no permissions (`RecordWriteVia` and `ActorVia` gain `'portal'`); `RenderDocumentStep` treats a portal actor as unattended. Validation refusals are resolved server-side in the guest's locale. `getPortalContext` describes `create` (fillable fields, link target).
+- feat(ui): `PortalCreateForm` in the portal shell (link chooser hidden when there is a single option) and a "Guests can create records" section in the Form Design Portal tab. `com.microteia.locale-pt-br` 1.109.0. Deploy: `npm run deploy:portal`.
+
+#### [9.130.3] — 2026-10-18
+
+- fix(portal): `getPortalContext` returned the product default (`en`) when no locale was configured, and `PortalLocaleProvider` let it override the browser. It now returns `locale` only when chosen (`configuredLocale`, user > organization) and receives the browser locale from the client to resolve labels when nothing was chosen.
+
+#### [9.130.2] — 2026-10-18
+
+- fix(portal): `/portal/signin` consumed nothing when a session already existed — it navigated on `user && isEmailVerified`, so a link opened in a browser signed in with the organization account landed in the portal as that account. It now navigates only after `signInWithEmailLink` succeeds (`status: 'signed-in'`), replacing the open session. `portalSignInUrl` carries `email` and `lang`: the invited e-mail completes the link automatically (Firebase asks for it whenever the link opens in a browser other than the one that requested it — always, since the organization requests it), and `UrlLocaleProvider` renders the page in the inviter's locale.
+- fix(portal): the shell speaks the locale the server resolved the labels in. `getPortalContext` returns `locale` (`agentLocale`: user > organization > default) and `PortalLocaleProvider` feeds it to `LocaleProvider`; before, the portal followed the browser while the screen labels followed the organization.
+- fix(portal): a failed membership query (`membershipsFailed`) shows `portal.load-failed` instead of "no access", and the no-access screen states the signed-in e-mail with a "Use another account" action — the most common cause is being signed in with the organization account instead of the invited one.
+
+#### [9.130.1] — 2026-10-18
+
+- fix(portal): the Portal tab reports the invitation and the sign-in link separately. A refused `sendSignInLinkToEmail` used to surface as the raw Firebase error, as if the invitation itself had failed; `auth/operation-not-allowed` now explains that e-mail link sign-in must be enabled under the Email/Password provider (`portal.link.not-enabled`), any other failure points to resending (`portal.link.failed`).
+
+#### [9.130.0] — 2026-10-18
+
+- feat(form-design): "Portal" tab in the screen modal (`components/ScreenPortalPanel`, `screenPortalForm.ts`), shown to `portal.manage` on existing non-builtin screens; read-only on managed (extension) screens. `portalDeclarationIssues` (synced `portal.ts`) validates before saving: no fields, unknown field, subject field not a reference, `parent` without parent, target screen outside the portal, chain too deep or cyclic. The declaration is written only when the tab was touched.
+- feat(rules): declaring or changing `screenDefinitions.portal` requires `portal.manage` (or `extensions.manage`, the install path); `screens.manage` alone keeps editing everything else. `screenDefinitionMapper` returns `portal` exactly as stored, so a Form Design save never rewrites a normalized shape and trips that rule.
+- fix(portal): the projection's `title` is written only when the title field is among the exposed fields (`portalExposedTitle`) — it used to leak an undeclared field into the portal list. `com.microteia.locale-pt-br` 1.108.0. Deploy: `npm run deploy:rules`, `npm run deploy:portal`.
+
+#### [9.129.0] — 2026-10-18
+
+- feat(portal): external guests scoped per record, inside the same organization. A guest is NOT a member: a new principal at `tenants/{t}/portalUsers/{uid}`, so every existing `isMember` rule keeps denying them. Screens declare `portal: { subject: 'self' | { field } | 'parent', fields, documents }` (`ScreenDefinition`, `ScreenModuleTemplate`, new synced `domain/schema/portal.ts` with `resolvePortalSubjectKeys` / `projectPortalData`). KERNEL_VERSION 2.52.0.
+- feat(portal): projection instead of exposure. `projectPortalRecord` writes `portalRecords/{collection}__{id}` with only the declared fields, the reference labels and `audience`; `refreshPortalAudience` rewrites `audience` when an invitation changes; `reprojectPortalOnScreenChange` rebuilds every portal collection when a declaration changes; `projectPortalDocument` mirrors documents flagged `portalShared`. Rules: lists require `audience array-contains uid` plus a live invitation (`isPortalUser`), which makes revocation immediate; projected documents read the parent's `audience`; nothing is client-writable (`rules-tests/portal.test.ts`). Composite index `portalRecords (audience, collection, updatedAt desc)`, collection-group override `portalUsers.userId`; `portalUsers` and `portalRecords` are reserved collection names.
+- feat(portal): callables `invitePortalUser` (requires `portal.manage` AND `<collection>.read` of the subject), `revokePortalUser`, `getPortalContext` (exposed screens and fields, labels resolved in the viewer's locale) and `getPortalDocumentUrl` (checks invitation, audience and flag; the URL never lands in the projection). The invitation writes `portalInvites/{email}` BEFORE creating the Auth account, and `BootstrapUserUseCase` reads it to skip the default organization (`users/{uid}.origin = 'portal'`). New kernel permission `portal.manage`; new deploy group `deploy:portal`.
+- feat(ui): `/portal` shell outside the workspace provider stack (`PortalStore`, mobile-first list/detail/documents) and the public `/portal/signin` page (Firebase email-link sign-in; requires the "Email link" provider enabled in Firebase Auth). `TenantStore.portalOnly` sends guest-only accounts to `/portal`; `ProtectedRoute` takes `loginPath`. Organization settings gain the "Portal" tab (invite, resend link, unlink, revoke); the record documents panel gains "Share in the portal" where the screen exposes documents. `IAuthRepository` gains `sendSignInLink` / `isSignInLink` / `signInWithLink`. `com.microteia.locale-pt-br` 1.107.0. Deploy: `npm run deploy:rules`, `npm run deploy:indexes`, `npm run deploy:portal`, `npm run deploy:auth`.
+
 #### [9.128.0] — 2026-10-20
 
 - feat(host-api/data): `useEntityList(sourceId, { parent: { fieldKeys, recordId } })` — a list locked by several fields, where a record enters when ANY of them points at `recordId`: equality on a single `reference`, "contains" on a `reference` with `multi: true`. `{ fieldKey, recordId }` keeps working unchanged. `openNewRecord()` fills the first field (`[recordId]` when it is `multi`); Unlink removes `recordId` from every pointing field — from the array on a `multi` one, leaving the other ids. Declared in `extensionTypeDefs.ts`; AUTHORING "A tab inside a record" documents it. KERNEL_VERSION 2.51.0.

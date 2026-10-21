@@ -4,6 +4,8 @@ export interface CreateUserInput {
   email: string;
   displayName: string;
   photoURL: string | null;
+  /** `portal` quando a conta nasceu de um convite do portal — ela não ganha escritório próprio. */
+  origin?: 'portal';
 }
 
 export interface IUserRepository {

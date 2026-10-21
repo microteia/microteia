@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { HOST_MODULES } from './hostApi';
+import { HOST_MODULES as WORKSPACE_MODULES } from './hostApi';
+import { PORTAL_HOST_MODULES } from './portalHostApi';
+
+/** O escritório e o portal: dois conjuntos de módulos, e um só arquivo de tipos que os descreve. */
+const HOST_MODULES: Record<string, unknown> = { ...WORKSPACE_MODULES, ...PORTAL_HOST_MODULES };
 import { buildExtensionTypeDefs } from './extensionTypeDefs';
 // O contexto real chega como TEXTO, e não como tipo: o que precisa ser comparado é a lista de campos,
 // e um tipo não existe em tempo de execução. `?raw` é o mesmo caminho pelo qual as fontes de view das

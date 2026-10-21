@@ -16,6 +16,7 @@ import type { BusinessCalendarSet } from '../../../domain/schema/time/businessDa
 import { tableMentionsBusinessDays } from '../../../domain/schema/recordRules';
 import { businessCalendarsFor } from '../../../domain/services/businessCalendarScope';
 import { compareValues, evaluateResolvedPredicate } from '../../../domain/schema/predicateMatch';
+import { deterministicRecordOrder } from '../../../domain/schema/recordOrder';
 import type { ResolvedPredicate as SharedResolvedPredicate } from '../../../domain/schema/predicateMatch';
 
 const MAX_SCAN = 300;
@@ -84,6 +85,26 @@ const applyOrdering = (records: Record<string, unknown>[], orderBy: QueryOrderBy
     }
     return 0;
   });
+
+const applyDeterministicOrdering = (
+  records: Record<string, unknown>[],
+  orderBy: QueryOrderBy[],
+): Record<string, unknown>[] =>
+  [...records].sort(deterministicRecordOrder(
+    orderBy,
+    (record, path) => getValueAtPath(record, parsePath(path)),
+    (record) => String(record.id ?? ''),
+  ));
+
+/**
+ * Como quem chama quer a ordem. `deterministicOrder` troca a ordem simples pela do `latest` — vazio
+ * por último, depois `createdAt`, depois o id — e é o que um documento usa: com `limit`, um empate
+ * resolvido ao acaso decide QUAIS registros entram. Fica opcional para que a automação e o Script
+ * continuem recebendo exatamente a ordem de sempre.
+ */
+export interface RecordQueryOptions {
+  deterministicOrder?: boolean;
+}
 
 /**
  * O caminho como um campo DO DOCUMENTO, ou `null` quando o banco não pode responder por ele.
@@ -252,6 +273,7 @@ export async function runRecordQuery(
   scope: RecordQueryScope,
   deps: WorkflowQueryDeps,
   limits: WorkflowQueryLimits = DEFAULT_WORKFLOW_QUERY_LIMITS,
+  options: RecordQueryOptions = {},
 ): Promise<WorkflowQueryOutcome> {
   const tenantId = scope.tenantId;
   const ctx = await deps.screenProvider.getSchemaContext(tenantId);
@@ -358,7 +380,9 @@ export async function runRecordQuery(
     memoryPredicates.every((predicate) => evaluateResolvedPredicate(record, asShared(predicate))),
   );
   if (spec.orderBy && spec.orderBy.length > 0) {
-    results = applyOrdering(results, spec.orderBy);
+    results = options.deterministicOrder
+      ? applyDeterministicOrdering(results, spec.orderBy)
+      : applyOrdering(results, spec.orderBy);
   }
   const limited = results.slice(0, Math.min(spec.limit, limits.maxResults));
 

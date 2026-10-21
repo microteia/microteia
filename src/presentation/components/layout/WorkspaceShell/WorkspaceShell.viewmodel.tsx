@@ -3,6 +3,8 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useWorkspace } from '../../../../stores/useWorkspace';
 import { useAuth } from '../../../../stores/useAuth';
 import { useAuthorization } from '../../../../stores/useAuthorization';
+import { useTenant } from '../../../../stores/useTenant';
+import { PORTAL_PATH } from '../../../pages/Portal/portalPaths';
 import { parseDeepLink, parseDeepLinkFromPath } from '../../../../infrastructure/deeplink/deepLinkUtils';
 import { usePageContributions } from '../../../shared/useUiContributions';
 import { homePageKey } from '../../../shared/resolveUiContributions';
@@ -15,6 +17,11 @@ export const useWorkspaceShellViewModel = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const homeOpenedRef = useRef(false);
+  const { portalOnly } = useTenant();
+
+  useEffect(() => {
+    if (portalOnly) navigate(PORTAL_PATH, { replace: true });
+  }, [portalOnly, navigate]);
 
   const homeKey = useMemo(
     () => homePageKey(pageContributions, canAny, userRole === 'SYSTEM'),

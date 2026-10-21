@@ -5,6 +5,9 @@ import { DOCUMENT_TEMPLATE_POINT } from '../../domain/schema/document/documentTe
 import type { MessageBundle } from '../../domain/schema/i18n/messages';
 import { messageBundlesOf } from '../../domain/schema/i18n/extensionPoints';
 import { businessCalendarCollectionsOf } from '../../domain/schema/time/extensionPoints';
+import { createHash } from 'node:crypto';
+import { extensionCodeOf, isCodeTrusted } from '../../domain/schema/plugin/codeTrust';
+import { portalViewsOf, type PortalViewDescriptor } from '../../domain/schema/portalExtensionPoints';
 
 interface CacheEntry {
   /** Os nomes de Cloud Function que as extensões LIGADAS deste escritório reivindicam. */
@@ -16,8 +19,14 @@ interface CacheEntry {
   documentTemplates: QualifiedContribution[];
   /** As coleções em que as extensões ligadas dizem guardar calendários de dias úteis. */
   businessCalendarCollections: string[];
+  /** As views de portal das extensões ligadas cujo CÓDIGO o escritório confia. */
+  portalViews: PortalViewDescriptor[];
+  /** Os textos das extensões que trazem view de portal — o portal não lê o catálogo do escritório. */
+  portalBundles: MessageBundle[];
   loadedAt: number;
 }
+
+const sha256 = (text: string): string => createHash('sha256').update(text).digest('hex');
 
 const DEFAULT_TTL_MS = 5 * 60_000;
 
@@ -89,6 +98,16 @@ export class InstalledExtensionCache {
     return (await this.load(tenantId)).businessCalendarCollections;
   }
 
+  /**
+   * As views de portal que o convidado pode receber, e os textos delas. Só de extensão LIGADA e com o
+   * código confiável pela mesma régua da tela de Extensões (`isCodeTrusted`): a view roda no navegador
+   * de quem é de fora, e o escritório não confiar no código é motivo de sobra para não mandá-lo.
+   */
+  async portalViews(tenantId: string): Promise<{ views: PortalViewDescriptor[]; bundles: MessageBundle[] }> {
+    const entry = await this.load(tenantId);
+    return { views: entry.portalViews, bundles: entry.portalBundles };
+  }
+
   invalidate(tenantId: string): void {
     this.entries.delete(tenantId);
   }
@@ -103,6 +122,8 @@ export class InstalledExtensionCache {
     const deactivatedPluginIds = new Set<string>();
     const contributions: Contribution[] = [];
     const documentTemplates: QualifiedContribution[] = [];
+    const portalViews: PortalViewDescriptor[] = [];
+    const portalBundleContributions: Contribution[] = [];
 
     for (const doc of snapshot.docs) {
       const data = doc.data();
@@ -124,6 +145,16 @@ export class InstalledExtensionCache {
         for (const contribution of contributes as Contribution[]) {
           if (contribution?.point === DOCUMENT_TEMPLATE_POINT) documentTemplates.push({ ...contribution, pluginId: doc.id });
         }
+
+        const pkg = (data.package ?? {}) as { views?: Array<{ key: string; source: string }>; startup?: string };
+        const code = extensionCodeOf(pkg);
+        if (isCodeTrusted(data, code !== null, code === null ? null : sha256(code))) {
+          const views = portalViewsOf(doc.id, contributes as Contribution[], Array.isArray(pkg.views) ? pkg.views : []);
+          if (views.length > 0) {
+            portalViews.push(...views);
+            portalBundleContributions.push(...(contributes as Contribution[]));
+          }
+        }
       }
     }
 
@@ -133,6 +164,8 @@ export class InstalledExtensionCache {
       messageBundles: messageBundlesOf(contributions),
       documentTemplates: sortContributions(documentTemplates),
       businessCalendarCollections: businessCalendarCollectionsOf(contributions),
+      portalViews,
+      portalBundles: messageBundlesOf(portalBundleContributions),
       loadedAt: Date.now(),
     };
     this.entries.set(tenantId, entry);

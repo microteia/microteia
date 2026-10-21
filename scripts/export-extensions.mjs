@@ -52,6 +52,7 @@ const TEMPLATES = {
   'command-example.json': 'commandExamplePlugin',
   'settings-example.json': 'settingsExamplePlugin',
   'record-tab-example.json': 'recordTabExamplePlugin',
+  'portal-example.json': 'portalExamplePlugin',
   'document-example.json': 'documentExamplePlugin',
 };
 
