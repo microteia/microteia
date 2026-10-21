@@ -6,6 +6,9 @@ import type {
 import { invalidArgument, permissionDenied } from '../errors/DomainError';
 import {
   applyPortalPreference,
+  DEFAULT_PORTAL_LAYOUT,
+  isBuiltinPortalLayout,
+  portalLayoutId,
   portalPageEntryId,
   portalScreenEntryId,
   portalWidgetEntryId,
@@ -203,6 +206,12 @@ export interface PortalHome {
   widgets: PortalWidgetEntry[];
   /** A home inteira de uma extensão, quando há uma. */
   view: { pluginId: string; viewKey: string } | null;
+  /**
+   * A casca: um layout do kernel (`sidebar`, `top`) ou o de uma extensão (`pluginId` + `viewKey`).
+   * Escolha do escritório; o de uma extensão que saiu, ou cujo código deixou de ser confiável, volta
+   * ao padrão.
+   */
+  layout: { id: string; pluginId?: string; viewKey?: string };
 }
 
 export interface PortalContext {
@@ -292,6 +301,11 @@ export const makeGetPortalContextUseCase = (repo: IPortalRepository): GetPortalC
       settings.widgets,
     ).map(withoutOrder);
     const homeView = views.find((view) => view.surface === 'home');
+    const layoutView = views.find((view) =>
+      view.surface === 'layout' && view.key && portalLayoutId(view.pluginId, view.key) === settings.layout);
+    const layout = layoutView
+      ? { id: settings.layout, pluginId: layoutView.pluginId, viewKey: layoutView.viewKey }
+      : { id: isBuiltinPortalLayout(settings.layout) ? settings.layout : DEFAULT_PORTAL_LAYOUT };
 
     return {
       views,
@@ -301,6 +315,7 @@ export const makeGetPortalContextUseCase = (repo: IPortalRepository): GetPortalC
         menu,
         widgets,
         view: homeView ? { pluginId: homeView.pluginId, viewKey: homeView.viewKey } : null,
+        layout,
       },
       locale,
       tenantName: tenant.name,

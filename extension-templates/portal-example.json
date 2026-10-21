@@ -1,7 +1,7 @@
 {
   "manifest": {
     "id": "com.microteia.portal-example",
-    "version": "1.2.0",
+    "version": "1.2.1",
     "kernel": "^2.57.0",
     "name": "@com.microteia.portal-example/package.name",
     "description": "@com.microteia.portal-example/package.description",
@@ -83,7 +83,7 @@
       {
         "point": "portal.view",
         "id": "detail-portalexampleclient",
-        "apiVersion": "1.2.0",
+        "apiVersion": "1.3.0",
         "metadata": {
           "collection": "portalExampleClient",
           "surface": "detail"
@@ -96,7 +96,7 @@
       {
         "point": "portal.view",
         "id": "widget-open-orders",
-        "apiVersion": "1.2.0",
+        "apiVersion": "1.3.0",
         "metadata": {
           "surface": "widget",
           "key": "open-orders",

@@ -18,6 +18,11 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.141.0] — 2026-10-21
+
+- feat(portal): the shell is a layout. `portal.view` gains surface `layout` (`key`, `title`; `PORTAL_API_VERSION` 1.3.0, KERNEL_VERSION 2.60.0): the component receives the page as `children`. `@microteia/portal` adds `usePortalShell()` (brand, menu, page title, guest, themes from `ThemeProvider`, switch organization, sign out, drawer and account-menu state), `PortalBrand` and `PortalUserMenu`. `settings/portal.layout` (`sidebar` default, `top`, or `layout.<plugin>.<key>`; `PORTAL_BUILTIN_LAYOUTS`, `portalLayoutId`) is resolved by `getPortalContext` into `home.layout`, falling back to the default when the extension is gone or untrusted.
+- feat(ui): `SidebarLayout` (side menu, sticky top bar with page title and account) and `TopLayout` (horizontal menu); both fold into a drawer below 900px. `PortalContent` holds the page content for any layout; the home no longer repeats the menu as tiles and greets the guest instead of repeating the organization name; the bottom bar and "More" sheet are gone. Settings > Portal gains the layout choice. The authoring guide documents layouts and the updated responsive rules. `examples/portal-example` 1.2.1 (portal API 1.3.0). Deploy: `npm run deploy:portal`.
+
 #### [9.140.0] — 2026-10-21
 
 - feat(tenant): the organization logo had a field (`tenants/{id}.logoURL`, read by the portal shell and the notification e-mail) but no way to set it. Office tab gains a Logo block (upload with `ImageCropModal`, change, remove): `ITenantRepository.uploadLogo` stores it at `tenants/{t}/branding/logo/{file}` (`domain/schema/tenantBranding.ts`) and `updateTenant({ logoURL })` saves the download URL. It is a kernel concept, not a Form Design field — the kernel itself reads it.

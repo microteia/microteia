@@ -1014,6 +1014,20 @@ Entrada nova (uma extensão instalada ontem) APARECE: esconder é gesto do escri
 telas vêm antes das páginas por padrão. `settings/portal` é gravado com `portal.manage`, e não com
 `settings.manage`: quem decide o que sai do escritório não é, em geral, quem o configura.
 
+**A casca é um layout, e o layout é escolha.** O conteúdo da página (`PortalContent`: home, lista,
+registro, formulário) é um só; onde ficam a marca, o menu e a conta é do LAYOUT. O kernel traz dois
+(`SidebarLayout` — o padrão — e `TopLayout`), e uma extensão contribui outro por `portal.view` de
+superfície `layout` (`key`, `title`): o componente recebe a página como `children` e lê o resto de
+`usePortalShell()` (= `usePortalShellViewModel`: marca, menu, título da página, convidado, temas, trocar de
+escritório, sair, e o abrir/fechar da gaveta e do menu da conta), com `PortalBrand` e `PortalUserMenu`
+prontos para reaproveitar. A escolha mora em `settings/portal.layout` (`sidebar`, `top` ou
+`layout.<plugin>.<chave>`); o servidor a resolve no contexto (`home.layout`) e devolve o padrão quando
+a extensão saiu ou o código dela deixou de ser confiável. Abaixo de 900px os dois layouts do kernel
+viram gaveta. O tema do convidado segue a regra do app (`ThemeProvider`: escolha no navegador, senão o
+claro/escuro do sistema), entre os temas embutidos — os instalados pelo escritório não chegam a quem
+não é membro. O menu existe num lugar só, e a home cumprimenta a pessoa: o nome do escritório está na
+marca.
+
 A pilha de registros abertos é do item do menu (`PortalNavigationProvider`, escopo `escritório|item`):
 ir para o Extrato não carrega a pilha do prestador.
 

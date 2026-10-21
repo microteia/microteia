@@ -1504,6 +1504,44 @@ const PORTAL_MODULE_DEFS = `declare module '@microteia/portal' {
    * validation refusal arrives already translated in the error message.
    */
   export function usePortalUpdate(): (collection: string, recordId: string, data: Record<string, unknown>) => Promise<void>;
+
+  /**
+   * Everything a portal LAYOUT needs to draw itself (\`portalView({ surface: 'layout', key, title }, viewKey)\`).
+   * The layout component receives the page as \`children\` and places it; brand, menu, user and theme
+   * come from here. The organization picks the layout in Settings > Portal. Keep it responsive: the
+   * menu must stay reachable below 900px (a drawer, a sheet) — \`navOpen\`/\`toggleNav\` are there for it.
+   */
+  export interface PortalShell {
+    tenant: { name: string; logoURL: string | null };
+    home: { title: string; active: boolean };
+    menu: Array<{ id: string; title: string; icon: string; active: boolean }>;
+    /** The title of what is open — "Home", or the menu entry. */
+    pageTitle: string;
+    openEntry(id: string): void;
+    goHome(): void;
+    user: { name: string; email: string; initials: string; photoURL: string | null };
+    /** "Automatic" plus the themes available, as the main app offers them; the choice stays in this browser. */
+    themes: Array<{ id: string; label: string; primaryColor: string; backgroundColor: string; active: boolean }>;
+    setTheme(id: string): void;
+    canSwitchOrganization: boolean;
+    switchOrganization(): void;
+    signOut(): void;
+    navOpen: boolean;
+    toggleNav(): void;
+    closeNav(): void;
+    userMenuOpen: boolean;
+    toggleUserMenu(): void;
+    /** Pass to the user-menu element (\`ref\`): a click outside it closes the menu. */
+    attachUserMenu(node: HTMLElement | null): void;
+  }
+
+  export function usePortalShell(): PortalShell;
+
+  /** The organization's logo (or initial) and name; clicking goes home. */
+  export function PortalBrand(props: { name: string; logoURL: string | null; onClick: () => void }): JSX.Element;
+
+  /** The standard user corner: who is signed in, theme, switch organization, sign out. */
+  export function PortalUserMenu(props: { shell: PortalShell }): JSX.Element;
 }`;
 
 const THEME_MODULE_DEFS = `declare module '@microteia/theme' {

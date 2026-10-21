@@ -639,6 +639,7 @@ home, a menu and a standard list and record for them. \`portalView(metadata, vie
 | \`page\` | \`key\`, \`title\`, \`icon\`, \`order\` | a page of its own, with an entry in the portal MENU |
 | \`widget\` | \`key\`, \`title\`, \`order\` | a card on the portal HOME |
 | \`home\` | — | the whole home, in place of the standard one |
+| \`layout\` | \`key\`, \`title\` | the whole SHELL — where brand, menu and the guest's account sit |
 
 \`order\` is a suggestion. The organization decides what shows and where, in Settings > Portal — the
 menu's order and which entries and cards are visible. Your package never forces a place.
@@ -654,15 +655,46 @@ and asks \`@microteia/portal\` for the rest.
 It is sent to the guest only when the organization trusts your package's code — the same trust the
 Extensions screen shows. Without it, the standard page is drawn.
 
+#### A layout of your own
+
+The kernel draws two shells — a side menu (the default) and a top menu — and the organization picks one,
+or yours, in Settings > Portal. A \`layout\` view receives the page as \`children\` and decides only where
+things go; what the page shows is never its business. Everything else comes from \`usePortalShell()\`:
+
+\`\`\`tsx
+import { usePortalShell, PortalBrand, PortalUserMenu } from '@microteia/portal';
+
+export default function CompactLayout({ children }: { children: React.ReactNode }) {
+  const shell = usePortalShell();
+  return (
+    <Frame>
+      <Bar>
+        <PortalBrand name={shell.tenant.name} logoURL={shell.tenant.logoURL} onClick={shell.goHome} />
+        {shell.menu.map((item) => <Entry key={item.id} $active={item.active} onClick={() => shell.openEntry(item.id)}>{item.title}</Entry>)}
+        <PortalUserMenu shell={shell} />
+      </Bar>
+      <main>{children}</main>
+    </Frame>
+  );
+}
+\`\`\`
+
+\`shell\` carries the brand, the menu, the page title, the guest, the themes (the same "Automatic" plus
+installed themes the main app offers, remembered in the browser), switching organization, signing out,
+and the open/closed state of a drawer (\`navOpen\`, \`toggleNav\`) and of the account menu. A layout that
+drops the menu, the account or the theme leaves the guest without them — keep all three reachable.
+
 #### The portal is used on a phone first — design for it
 
 Most guests open the portal on a phone. The portal is responsive, and your view has to be too:
 
-- **One breakpoint, 768px.** Below it the menu is a bar FIXED at the bottom of the screen (Home, the first
-  entries, More); above it, tabs at the top. Do not draw a menu of your own, and never use
-  \`position: fixed\` at the bottom — it would sit under the bar.
+- **The shell owns the menu.** Below 900px the standard shells fold the menu into a drawer opened from
+  the top bar. A page, list, detail or widget never draws a menu of its own and never uses
+  \`position: fixed\` — that belongs to the layout. A \`layout\` of yours must keep the menu reachable on a
+  phone the same way.
 - **Fluid widths.** No fixed widths and no horizontal scroll: use \`width: 100%\`, \`minmax(0, 1fr)\` grids
-  and \`flex-wrap\`. Grow into columns with \`@media (min-width: 768px)\`, never the other way around.
+  and \`flex-wrap\`. Grow into columns with \`@media (min-width: 768px)\`, never the other way around —
+the content area is about 1040px wide at most.
 - **A card is narrow.** A \`widget\` takes the whole width on a phone and half of it on a computer —
   keep it to a number, a short list or one call to action.
 - **Tap targets of at least 44px** (\`theme.spacing['2xl']\` is 48px). Text never below

@@ -7,6 +7,7 @@ import { Checkbox } from '../../../../../components/ui/Checkbox';
 import { Label, Textarea } from '../../../../../components/ui/Input';
 import { InfoBanner } from '../../../../../components/ui/InfoBanner';
 import { Spinner } from '../../../../../components/ui/Spinner';
+import { RadioGroup } from '../../../../../components/ui/RadioButton';
 import { getScreenIcon } from '../../../../../shared/screenIcons';
 import { useT } from '../../../../../shared/i18n/useT';
 
@@ -44,6 +45,10 @@ export const PortalHomeSettings: React.FC = () => {
         <Spinner />
       ) : (
         <>
+          <Label>{t('portal.settings.layout')}</Label>
+          <RadioGroup name="portal-layout" value={vm.layout} onChange={vm.setLayout} options={vm.layouts} />
+          <S.Hint>{t('portal.settings.layout.hint')}</S.Hint>
+
           <Label htmlFor="portal-welcome">{t('portal.settings.welcome')}</Label>
           <Textarea
             id="portal-welcome"

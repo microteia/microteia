@@ -11,6 +11,13 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.141.0] — 2026-10-21
+
+- O portal ganhou um visual novo: o menu fica numa coluna à esquerda, com o logo e o nome do escritório no topo, e cada página mostra seu título numa barra superior. No celular, o menu vira uma gaveta.
+- No canto superior direito, o convidado tem o próprio menu: vê com que conta entrou, escolhe o tema (automático, claro, escuro…), troca de escritório quando participa de mais de um e sai.
+- O menu deixou de aparecer duas vezes na página inicial, e o nome do escritório aparece num lugar só. A página inicial agora cumprimenta o convidado pelo nome.
+- Em Configurações > Portal, o escritório escolhe o layout: menu lateral, menu no topo ou um layout trazido por uma extensão.
+
 #### [9.140.0] — 2026-10-21
 
 - Agora é possível enviar o logo do escritório em Dados do Escritório, com recorte na hora. Ele aparece no topo do portal e nos e-mails de aviso.

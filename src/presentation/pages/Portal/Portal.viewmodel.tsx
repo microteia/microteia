@@ -6,7 +6,7 @@ import { usePortalNavigation } from '../../../stores/usePortalNavigation';
 import { useLocaleFormat, useT } from '../../shared/i18n/useT';
 import { canEditPortalRecord, type PortalDocument, type PortalRecord, type PortalScreenInfo } from '../../../domain/entities/Portal';
 import { portalSubjectKey } from '../../../domain/schema/portal';
-import { PORTAL_PATH, portalEntryPath, portalTenantPath } from './portalPaths';
+import { portalTenantPath } from './portalPaths';
 import { evaluatePortalView, type PortalViewComponent } from './portalViews';
 
 const SUMMARY_FIELDS = 3;
@@ -33,13 +33,8 @@ export interface PortalDocumentView {
   meta: string;
 }
 
-/** Uma entrada do menu, como o menu a desenha — nos blocos da home, nas abas e na barra. */
-export interface PortalMenuItem {
-  id: string;
-  title: string;
-  icon: string;
-  active: boolean;
-}
+/** A casca de uma extensão: recebe a página como `children`. */
+export type PortalLayoutComponent = React.ComponentType<{ children: React.ReactNode }>;
 
 /** Um cartão da home: a view da extensão, com o título que ela declarou. */
 export interface PortalWidgetItem {
@@ -48,8 +43,6 @@ export interface PortalWidgetItem {
   Component: PortalViewComponent;
 }
 
-/** Quantos itens cabem na barra do celular antes do "Mais" — além do "Início". */
-const BOTTOM_BAR_ITEMS = 3;
 
 /** Uma tela-filha dentro do registro aberto: as notas do prestador. */
 export interface PortalChildSection {
@@ -74,20 +67,13 @@ export interface PortalViewModel {
   showChooser: boolean;
   memberships: Array<{ tenantId: string; tenantName: string }>;
   chooseTenant: (tenantId: string) => void;
-  goToChooser: () => void;
-  tenantName: string;
-  logoURL: string | null;
   /**
-   * O MENU: as telas de topo e as páginas de extensão, na ordem do escritório. É uma lista só, e os
-   * três lugares onde ele aparece — blocos da home, abas no computador, barra no celular — a leem.
+   * A CASCA escolhida pelo escritório: a de uma extensão (`portal.view` de superfície `layout`), ou
+   * `null` para um dos layouts do kernel — `sidebar` ou `top`, em `builtinLayout`. O menu, a marca e o
+   * usuário moram nela (`usePortalShell`), e não aqui: aqui fica só o conteúdo da página.
    */
-  menu: PortalMenuItem[];
-  /** A barra do celular: os primeiros itens; o resto vai para o "Mais". */
-  bottomBar: PortalMenuItem[];
-  hasMore: boolean;
-  moreOpen: boolean;
-  toggleMore: () => void;
-  openEntry: (id: string) => void;
+  Layout: PortalLayoutComponent | null;
+  builtinLayout: 'sidebar' | 'top';
   atHome: boolean;
   goHome: () => void;
   home: {
@@ -171,7 +157,6 @@ export const usePortalViewModel = (): PortalViewModel => {
 
   const navigation = usePortalNavigation();
   const { stack, creating, justSubmitted, justSaved } = navigation;
-  const [moreOpen, setMoreOpen] = useState(false);
   const [documents, setDocuments] = useState<PortalDocument[]>([]);
   const [documentsLoading, setDocumentsLoading] = useState(false);
   const [openingDocumentId, setOpeningDocumentId] = useState<string | null>(null);
@@ -360,20 +345,11 @@ export const usePortalViewModel = (): PortalViewModel => {
   }, [views]);
 
   const tenantPath = routeTenantId ?? '';
-  const openEntry = useCallback((id: string) => {
-    setMoreOpen(false);
-    navigate(portalEntryPath(tenantPath, id));
-  }, [navigate, tenantPath]);
-  const goHome = useCallback(() => {
-    setMoreOpen(false);
-    navigate(portalTenantPath(tenantPath));
-  }, [navigate, tenantPath]);
-
-  const menu = useMemo<PortalMenuItem[]>(
-    () => menuEntries.map((one) => ({ id: one.id, title: one.title, icon: one.icon, active: one.id === entryId })),
-    [menuEntries, entryId],
-  );
+  const goHome = useCallback(() => navigate(portalTenantPath(tenantPath)), [navigate, tenantPath]);
   const homeConfig = portal.context?.home;
+  const layoutChoice = homeConfig?.layout;
+  const displayName = user?.displayName && !user.displayName.includes('@') ? user.displayName.trim() : '';
+  const firstName = displayName.split(/\s+/)[0] ?? '';
   const homeWidgets = useMemo<PortalWidgetItem[]>(
     () => (homeConfig?.widgets ?? []).flatMap((widget) => {
       const Component = viewByKey(widget.pluginId, widget.viewKey);
@@ -406,19 +382,13 @@ export const usePortalViewModel = (): PortalViewModel => {
     showChooser,
     memberships,
     chooseTenant,
-    goToChooser: () => navigate(PORTAL_PATH),
-    tenantName: portal.context?.tenantName ?? '',
-    logoURL: portal.context?.logoURL ?? null,
-    menu,
-    bottomBar: menu.slice(0, BOTTOM_BAR_ITEMS),
-    hasMore: menu.length > BOTTOM_BAR_ITEMS,
-    moreOpen,
-    toggleMore: () => setMoreOpen((open) => !open),
-    openEntry,
+    Layout: layoutChoice?.pluginId ? viewByKey(layoutChoice.pluginId, layoutChoice.viewKey) as PortalLayoutComponent | null : null,
+    builtinLayout: layoutChoice?.id === 'top' ? 'top' : 'sidebar',
     atHome: !entryId,
     goHome,
     home: {
-      title: t('portal.home.title', { tenant: portal.context?.tenantName ?? '' }),
+      // O nome do escritório já está na marca: a home cumprimenta a PESSOA.
+      title: firstName ? t('portal.home.greeting', { name: firstName }) : t('portal.home.greeting.anonymous'),
       welcome: homeConfig?.welcome ?? '',
       widgets: homeWidgets,
       Component: homeConfig?.view ? viewByKey(homeConfig.view.pluginId, homeConfig.view.viewKey) : null,
@@ -436,7 +406,7 @@ export const usePortalViewModel = (): PortalViewModel => {
     records,
     recordsLoading: rootCollection ? isCollectionLoading(rootCollection) : false,
     rootCreateLabel: rootScreen?.create ? t('portal.create.new', { screen: rootScreen.titleSingular }) : null,
-    emptyScreens: !!portal.context && screens.length === 0,
+    emptyScreens: !!portal.context && menuEntries.length === 0,
     selected,
     openRecord,
     goBack,

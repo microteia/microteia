@@ -4,6 +4,9 @@ import { usePortal } from '../../../stores/usePortal';
 import { usePortalNavigation as useNavigationStore } from '../../../stores/usePortalNavigation';
 import { portalRecordDocId, portalSubjectKey } from '../../../domain/schema/portal';
 import { canEditPortalRecord, type PortalDocument, type PortalRecord, type PortalScreenInfo } from '../../../domain/entities/Portal';
+import { usePortalShellViewModel } from '../../pages/Portal/components/PortalShell/PortalShell.viewmodel';
+import { PortalBrand } from '../../pages/Portal/components/PortalBrand';
+import { PortalUserMenu } from '../../pages/Portal/components/PortalUserMenu';
 
 /** Um registro como a view de portal o recebe: a projeção, endereçada pelo id do REGISTRO. */
 export interface PortalViewRecord {
@@ -142,6 +145,10 @@ const portalModule = {
   usePortalDocuments,
   usePortalSubmit,
   usePortalUpdate,
+  /** Para um LAYOUT de extensão: a marca, o menu, o usuário, os temas — e o abrir/fechar de cada um. */
+  usePortalShell: usePortalShellViewModel,
+  PortalBrand,
+  PortalUserMenu,
 } as const;
 
 /**

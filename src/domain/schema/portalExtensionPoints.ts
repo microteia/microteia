@@ -3,7 +3,7 @@ import type { ExtensionPointDefinition } from './plugin/extensionPoint';
 
 export const PORTAL_VIEW_POINT = 'portal.view';
 
-export const PORTAL_API_VERSION = '1.2.0';
+export const PORTAL_API_VERSION = '1.3.0';
 
 /**
  * Onde a view entra no portal:
@@ -12,16 +12,18 @@ export const PORTAL_API_VERSION = '1.2.0';
  * - `page`: uma página da extensão, com entrada no MENU do portal (blocos da home, abas no
  *   computador, barra no celular);
  * - `widget`: um cartão na home;
- * - `home`: a home inteira, no lugar da padrão.
+ * - `home`: a home inteira, no lugar da padrão;
+ * - `layout`: a CASCA inteira — onde ficam a marca, o menu e o usuário. Recebe o conteúdo da página
+ *   como `children` e lê o resto de `usePortalShell()`. Quem escolhe o layout é o escritório.
  */
-export type PortalViewSurface = 'list' | 'detail' | 'page' | 'widget' | 'home';
+export type PortalViewSurface = 'list' | 'detail' | 'page' | 'widget' | 'home' | 'layout';
 
-export const PORTAL_VIEW_SURFACES: readonly PortalViewSurface[] = ['list', 'detail', 'page', 'widget', 'home'];
+export const PORTAL_VIEW_SURFACES: readonly PortalViewSurface[] = ['list', 'detail', 'page', 'widget', 'home', 'layout'];
 
 /** As superfícies que pertencem a UMA coleção — e por isso exigem `collection`. */
 const COLLECTION_SURFACES: ReadonlySet<PortalViewSurface> = new Set(['list', 'detail']);
 /** As que entram numa lista ordenável pelo escritório — e por isso exigem `key`. */
-const KEYED_SURFACES: ReadonlySet<PortalViewSurface> = new Set(['page', 'widget']);
+const KEYED_SURFACES: ReadonlySet<PortalViewSurface> = new Set(['page', 'widget', 'layout']);
 
 export interface PortalViewMetadata {
   surface: PortalViewSurface;
@@ -122,6 +124,21 @@ export const portalPageEntryId = (pluginId: string, key: string): string => `pag
 
 export const portalWidgetEntryId = (pluginId: string, key: string): string => `${pluginId}.${key}`;
 
+/**
+ * Os layouts do kernel. `sidebar`: o menu numa coluna à esquerda; `top`: o menu numa faixa no topo.
+ * Os dois viram gaveta no celular. O de uma extensão é `layout.<plugin>.<chave>`.
+ */
+export const PORTAL_BUILTIN_LAYOUTS = ['sidebar', 'top'] as const;
+
+export type PortalBuiltinLayout = (typeof PORTAL_BUILTIN_LAYOUTS)[number];
+
+export const DEFAULT_PORTAL_LAYOUT: PortalBuiltinLayout = 'sidebar';
+
+export const portalLayoutId = (pluginId: string, key: string): string => `layout.${pluginId}.${key}`;
+
+export const isBuiltinPortalLayout = (id: string): id is PortalBuiltinLayout =>
+  (PORTAL_BUILTIN_LAYOUTS as readonly string[]).includes(id);
+
 /** Ordem e visibilidade de uma lista do portal, como o escritório gravou. */
 export interface PortalListPreference {
   order: string[];
@@ -134,6 +151,8 @@ export interface PortalHomeSettings {
   welcome: string;
   menu: PortalListPreference;
   widgets: PortalListPreference;
+  /** O layout escolhido: `sidebar`, `top`, ou `layout.<plugin>.<chave>`. Vazio = o padrão. */
+  layout: string;
 }
 
 export const PORTAL_SETTINGS_DOC = 'portal';
@@ -152,6 +171,7 @@ export const asPortalHomeSettings = (value: unknown): PortalHomeSettings => {
     welcome: typeof raw.welcome === 'string' ? raw.welcome : '',
     menu: asPreference(raw.menu),
     widgets: asPreference(raw.widgets),
+    layout: typeof raw.layout === 'string' ? raw.layout : '',
   };
 };
 

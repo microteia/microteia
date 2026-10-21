@@ -11,8 +11,10 @@ import {
 } from '../../../../../../domain/usecases/portal/PortalUseCases';
 import { portalLinkOf, type PortalScreenLike } from '../../../../../../domain/schema/portal';
 import {
+  DEFAULT_PORTAL_LAYOUT,
   PORTAL_VIEW_POINT,
   applyPortalPreference,
+  portalLayoutId,
   asPortalViewMetadata,
   portalPageEntryId,
   portalScreenEntryId,
@@ -34,6 +36,10 @@ export interface PortalHomeSettingsViewModel {
   loading: boolean;
   welcome: string;
   setWelcome: (value: string) => void;
+  /** Os layouts: os dois do kernel e os das extensões instaladas. */
+  layouts: Array<{ value: string; label: string }>;
+  layout: string;
+  setLayout: (value: string) => void;
   menu: PortalHomeListItem[];
   widgets: PortalHomeListItem[];
   move: (list: 'menu' | 'widgets', index: number, delta: -1 | 1) => void;
@@ -90,6 +96,7 @@ export const usePortalHomeSettingsViewModel = (): PortalHomeSettingsViewModel =>
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [welcome, setWelcome] = useState('');
+  const [layout, setLayout] = useState<string>(DEFAULT_PORTAL_LAYOUT);
   const [menuPreference, setMenuPreference] = useState<PortalListPreference>({ order: [], hidden: [] });
   const [widgetPreference, setWidgetPreference] = useState<PortalListPreference>({ order: [], hidden: [] });
 
@@ -100,6 +107,7 @@ export const usePortalHomeSettingsViewModel = (): PortalHomeSettingsViewModel =>
       .then((settings) => {
         if (!active) return;
         setWelcome(settings.welcome);
+        setLayout(settings.layout || DEFAULT_PORTAL_LAYOUT);
         setMenuPreference(settings.menu);
         setWidgetPreference(settings.widgets);
       })
@@ -138,6 +146,17 @@ export const usePortalHomeSettingsViewModel = (): PortalHomeSettingsViewModel =>
       ...pages,
     ];
   }, [definitions, contributions, label, t]);
+
+  const layouts = useMemo(() => [
+    { value: 'sidebar', label: t('portal.settings.layout.sidebar') },
+    { value: 'top', label: t('portal.settings.layout.top') },
+    ...contributions.flatMap((contribution) => {
+      const metadata = asPortalViewMetadata(contribution.metadata);
+      return metadata?.surface === 'layout' && metadata.key
+        ? [{ value: portalLayoutId(contribution.pluginId, metadata.key), label: label(metadata.title ?? metadata.key) }]
+        : [];
+    }),
+  ], [contributions, label, t]);
 
   const widgetCandidates = useMemo<Candidate[]>(() => contributions.flatMap((contribution) => {
     const metadata = asPortalViewMetadata(contribution.metadata);
@@ -179,14 +198,14 @@ export const usePortalHomeSettingsViewModel = (): PortalHomeSettingsViewModel =>
     if (!tenantId) return;
     setSaving(true);
     try {
-      await uc.save.execute(tenantId, { welcome: welcome.trim(), menu: preferenceOf(menu), widgets: preferenceOf(widgets) });
+      await uc.save.execute(tenantId, { welcome: welcome.trim(), menu: preferenceOf(menu), widgets: preferenceOf(widgets), layout });
       notify(t('portal.settings.saved'), 'success');
     } catch {
       notify(t('portal.failed'), 'error');
     } finally {
       setSaving(false);
     }
-  }, [tenantId, uc.save, welcome, menu, widgets, notify, t]);
+  }, [tenantId, uc.save, welcome, menu, widgets, layout, notify, t]);
 
-  return { loading, welcome, setWelcome, menu, widgets, move, toggle, saving, save };
+  return { loading, welcome, setWelcome, layouts, layout, setLayout, menu, widgets, move, toggle, saving, save };
 };

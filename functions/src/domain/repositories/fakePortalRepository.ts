@@ -17,7 +17,7 @@ export const makeFakePortalRepository = (screens: PortalScreen[]) => {
   const users = new Map<string, PortalUserRecord>();
   const invites: string[] = [];
   const staged = new Map<string, { data: Buffer; contentType: string }>();
-  const homeSettings: PortalHomeSettings = { welcome: '', menu: { order: [], hidden: [] }, widgets: { order: [], hidden: [] } };
+  const homeSettings: PortalHomeSettings = { welcome: '', menu: { order: [], hidden: [] }, widgets: { order: [], hidden: [] }, layout: '' };
 
   const repo: IPortalRepository = {
     getHomeSettings: async () => homeSettings,

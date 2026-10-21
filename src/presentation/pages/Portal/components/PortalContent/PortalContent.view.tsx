@@ -1,0 +1,185 @@
+import React from 'react';
+import { RiAddLine, RiArrowLeftLine, RiEditLine, RiExternalLinkLine } from 'react-icons/ri';
+import { S } from './PortalContent.styles';
+import type { PortalViewModel } from '../../Portal.viewmodel';
+import { Button } from '../../../../components/ui/Button';
+import { Spinner } from '../../../../components/ui/Spinner';
+import { PortalCreateForm } from '../PortalCreateForm';
+import { PortalUploadForm } from '../PortalUploadForm';
+import { useT } from '../../../../shared/i18n/useT';
+
+/**
+ * O CONTEÚDO da página — a home, a lista, o registro aberto, o formulário. É o mesmo em qualquer
+ * layout: a casca (do kernel ou de uma extensão) decide onde ele fica, e nunca o que ele mostra.
+ */
+export const PortalContent: React.FC<{ vm: PortalViewModel }> = ({ vm }) => {
+  const t = useT('core.tenant');
+
+  const recordList = (cards: typeof vm.records) => (
+    <S.List>
+      {cards.map((record) => (
+        <S.Card key={record.id} onClick={() => vm.openRecord(record.collection, record.id)}>
+          <S.CardTitle>{record.title}</S.CardTitle>
+          {record.summary && <S.CardMeta>{record.summary}</S.CardMeta>}
+          {record.updatedAt && <S.Muted>{record.updatedAt}</S.Muted>}
+        </S.Card>
+      ))}
+    </S.List>
+  );
+
+  const backButton = (
+    <div>
+      <Button variant="ghost" size="sm" onClick={vm.goBack}>
+        <RiArrowLeftLine size={14} />
+        {t('portal.record.back')}
+      </Button>
+    </div>
+  );
+
+  const homeContent = vm.home.Component ? (
+    <vm.home.Component collection="" />
+  ) : (
+    <>
+      <S.Title>{vm.home.title}</S.Title>
+      {vm.home.welcome && <S.Welcome>{vm.home.welcome}</S.Welcome>}
+      {vm.home.widgets.length > 0 ? (
+        <S.Widgets>
+          {vm.home.widgets.map((widget) => (
+            <S.WidgetCard key={widget.id}>
+              {widget.title && <S.WidgetTitle>{widget.title}</S.WidgetTitle>}
+              <widget.Component collection="" />
+            </S.WidgetCard>
+          ))}
+        </S.Widgets>
+      ) : !vm.home.welcome && <S.Muted>{t('portal.home.empty')}</S.Muted>}
+    </>
+  );
+
+  const entryContent = vm.entryMissing ? (
+    <S.Centered>
+      {t('portal.entry-missing')}
+      <Button size="sm" onClick={vm.goHome}>{t('portal.home')}</Button>
+    </S.Centered>
+  ) : vm.pageView ? (
+    <vm.pageView collection="" />
+  ) : vm.detailView ? (
+    <S.Detail>
+      {backButton}
+      <vm.detailView.Component collection={vm.detailView.collection} recordId={vm.detailView.recordId} />
+    </S.Detail>
+  ) : vm.selected ? (
+    <S.Detail>
+      {backButton}
+      <S.DetailHeader>
+        <S.DetailTitle>{vm.selected.title}</S.DetailTitle>
+        {vm.selected.editLabel && (
+          <Button size="sm" variant="secondary" onClick={vm.startEdit}>
+            <RiEditLine size={14} />
+            {vm.selected.editLabel}
+          </Button>
+        )}
+      </S.DetailHeader>
+      <S.Fields>
+        {vm.selected.fields.map((field) => (
+          <S.Field key={field.key}>
+            <S.FieldLabel>{field.label}</S.FieldLabel>
+            <S.FieldValue>
+              {field.href
+                ? <S.Link href={field.href} target="_blank" rel="noopener noreferrer">{field.value}</S.Link>
+                : field.value}
+            </S.FieldValue>
+          </S.Field>
+        ))}
+      </S.Fields>
+      {vm.selected.children.map((child) => (
+        <S.ChildSection key={child.collection}>
+          <S.ChildHeader>
+            <S.SectionTitle>{child.title}</S.SectionTitle>
+            {child.createLabel && (
+              <Button size="sm" onClick={() => vm.startCreate(child.collection)}>
+                <RiAddLine size={14} />
+                {child.createLabel}
+              </Button>
+            )}
+          </S.ChildHeader>
+          {child.loading ? (
+            <Spinner size={20} />
+          ) : child.records.length === 0 ? (
+            <S.Muted>{t('portal.records.empty')}</S.Muted>
+          ) : recordList(child.records)}
+        </S.ChildSection>
+      ))}
+      {vm.selected.hasDocuments && (
+        <>
+          <S.SectionTitle>{t('portal.documents')}</S.SectionTitle>
+          {vm.upload && (
+            <PortalUploadForm
+              collection={vm.upload.collection}
+              recordId={vm.upload.recordId}
+              types={vm.upload.types}
+              onUploaded={vm.handleUploaded}
+            />
+          )}
+          {vm.documentError && <S.ErrorText>{t('portal.document.unavailable')}</S.ErrorText>}
+          {vm.selected.documentsLoading ? (
+            <Spinner size={20} />
+          ) : vm.selected.documents.length === 0 ? (
+            <S.Muted>{t('portal.documents.empty')}</S.Muted>
+          ) : vm.selected.documents.map((document) => (
+            <S.DocumentRow key={document.id}>
+              <S.DocumentInfo>
+                <S.DocumentName title={document.name}>{document.name}</S.DocumentName>
+                {document.meta && <S.Muted>{document.meta}</S.Muted>}
+              </S.DocumentInfo>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => void vm.openDocument(document.id)}
+                disabled={vm.openingDocumentId === document.id}
+              >
+                <RiExternalLinkLine size={14} />
+                {t('portal.document.open')}
+              </Button>
+            </S.DocumentRow>
+          ))}
+        </>
+      )}
+    </S.Detail>
+  ) : vm.listView ? (
+    <vm.listView.Component collection={vm.listView.collection} />
+  ) : (
+    <>
+      {vm.rootCreateLabel && (
+        <S.Toolbar>
+          <Button size="sm" onClick={vm.startRootCreate}>
+            <RiAddLine size={14} />
+            {vm.rootCreateLabel}
+          </Button>
+        </S.Toolbar>
+      )}
+      {vm.recordsLoading ? (
+        <S.Centered><Spinner size={28} /></S.Centered>
+      ) : vm.records.length === 0 ? (
+        <S.Centered>{t('portal.records.empty')}</S.Centered>
+      ) : recordList(vm.records)}
+    </>
+  );
+
+  return (
+    <>
+      {vm.justSubmitted && !vm.creating && <S.Success>{t('portal.create.sent')}</S.Success>}
+      {vm.justSaved && !vm.creating && <S.Success>{t('portal.edit.saved')}</S.Success>}
+      {vm.emptyScreens ? (
+        <S.Centered>{t('portal.empty-screens')}</S.Centered>
+      ) : vm.creating ? (
+        <PortalCreateForm
+          screen={vm.creating.screen}
+          fixedLinkRecordId={vm.creating.parentRecordId}
+          editing={vm.creating.editing}
+          onCancel={vm.cancelCreate}
+          onSubmitted={vm.creating.editing ? vm.handleSaved : vm.handleSubmitted}
+        />
+      ) : vm.atHome ? homeContent : entryContent}
+    </>
+  );
+};

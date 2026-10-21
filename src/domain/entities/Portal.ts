@@ -47,7 +47,7 @@ export interface PortalViewInfo {
   pluginId: string;
   /** A view em `views` — o código. */
   viewKey: string;
-  surface: 'list' | 'detail' | 'page' | 'widget' | 'home';
+  surface: 'list' | 'detail' | 'page' | 'widget' | 'home' | 'layout';
   collection?: string;
   /** A entrada no menu ou na home (`page`, `widget`). */
   key?: string;
@@ -75,6 +75,8 @@ export interface PortalHome {
   menu: PortalMenuEntry[];
   widgets: Array<{ id: string; title: string; pluginId: string; viewKey: string }>;
   view: { pluginId: string; viewKey: string } | null;
+  /** A casca: `sidebar`, `top`, ou a de uma extensão. Ausente num contexto guardado antes dela. */
+  layout?: { id: string; pluginId?: string; viewKey?: string };
 }
 
 export interface PortalContext {
