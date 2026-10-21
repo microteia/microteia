@@ -1122,9 +1122,6 @@ convidado vê, e campo apagado vai como `null`. Views de extensão usam `canEdit
 - **`refEntity` do campo-sujeito** muda pelo Form Design sem `portal.manage` (incluir `fields` na
   regra travaria qualquer edição de campo das telas do portal). Exige que a tela apontada também
   esteja no portal, o que já cobra `portal.manage`.
-- `storage.rules` deixa qualquer MEMBRO ler qualquer arquivo de registro, independentemente de
-  `<coleção>.read` — achado à parte, que o portal não usa: o convidado não é membro e baixa pela
-  callable.
 
 ### Arquivos-chave
 
@@ -12201,7 +12198,12 @@ O `firebase.json` aponta para esse arquivo. Deploy: `npm run deploy:rules` — q
 `firestore:rules` e `storage` juntos, com o `--project` do ambiente. Publicar só um dos dois
 deixa as regras em versões diferentes daquilo que o código espera.
 
-Não documente as regras neste arquivo — a fonte de verdade é `storage.rules`.
+Não documente as regras neste arquivo — a fonte de verdade é `storage.rules`. O princípio, só: pelo
+SDK, o arquivo de um registro segue a PERMISSÃO da coleção (`<coleção>.read` lê; `.create`/`.update`
+envia; `.update`/`.delete` apaga), pela mesma pergunta do `can()` do Firestore (dono, ou `permissions`
+materializado com a pedida ou `*`). O link de download com `token=` não passa por regra nenhuma — é ele
+que o portal, os e-mails e quem recebe um link usam, e por isso apertar a regra não os quebra. Os testes
+(`rules-tests/storage.test.ts`) rodam no emulador do Storage, junto com o do Firestore (`npm run test:rules`).
 
 ---
 

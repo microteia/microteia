@@ -59,8 +59,8 @@ O erro frequente **"Cannot access refs during render"** é a regra `react-hooks/
 Use o atalho do `package.json` quando existir: `npm run verify` (= `typecheck` + `lint` +
 `verify-schemas` + `build:host-types` + `build:sdk` + `verify-extensions` + `verify-messages`).
 
-> **Mexeu no `firestore.rules`?** Rode **também** `npm run test:rules`. Ele sobe o emulador do
-> Firestore, exercita o arquivo REAL de regras e o derruba. Fica FORA do `npm test` de propósito:
+> **Mexeu no `firestore.rules` ou no `storage.rules`?** Rode **também** `npm run test:rules`. Ele sobe
+> os emuladores do Firestore e do Storage, exercita os arquivos REAIS de regras e os derruba. Fica FORA do `npm test` de propósito:
 > exige um JDK, e um teste que não roda na máquina de quem o herda vira ruído até alguém apagá-lo.
 > Sem JDK: `brew install --cask temurin`.
 

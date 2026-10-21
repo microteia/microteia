@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.142.2] — 2026-10-21
+
+- Os arquivos anexados a um registro passam a seguir as mesmas permissões do registro: dentro do sistema, só os vê quem pode ver aquela tela. Os links de download compartilhados continuam abrindo para quem os recebe.
+
 #### [9.142.1] — 2026-10-21
 
 - Corrigido um aviso técnico que aparecia ao carregar as listas de um registro no portal.

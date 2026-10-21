@@ -18,6 +18,10 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.142.2] — 2026-10-21
+
+- fix(storage): the record wildcard (`tenants/{t}/{collection}/{recordId}/**`) let any member read any record file through the SDK, regardless of `<collection>.read`, and its delete checked `members.role == 'admin'` — a field that no longer exists, so only SYSTEM could delete. Read now requires `<collection>.read`, create `.create` or `.update`, delete `.update` or `.delete`, through `canInTenant` (owner, or materialized `permissions` with the permission or `*`), as Firestore's `can()`. Tokenized download URLs bypass rules and keep working. Audit-log backups are explicitly SYSTEM/SUPPORT only. `npm run test:rules` now runs the Storage emulator too (`rules-tests/storage.test.ts`). Deploy: `npm run deploy:rules`.
+
 #### [9.142.1] — 2026-10-21
 
 - fix(portal): `PortalChildList` rendered the loading `Spinner` (a `div`) inside its empty-state `p` — invalid nesting React reports as a hydration hazard. `Empty` is now a `div`.

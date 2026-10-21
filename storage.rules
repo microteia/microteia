@@ -24,9 +24,18 @@ service firebase.storage {
       return isSystemOrSupportUser()
         || firestore.exists(/databases/(default)/documents/tenants/$(tenantId)/members/$(request.auth.uid));
     }
-    function isTenantAdminOrElevated(tenantId) {
-      return isSystemOrSupportUser()
-        || firestore.get(/databases/(default)/documents/tenants/$(tenantId)/members/$(request.auth.uid)).data.role == 'admin';
+    // A MESMA pergunta do `can()` do Firestore: o dono do escritório, ou o membro cuja lista EFETIVA de
+    // permissões (`permissions`, materializada pelo servidor) tem a pedida ou o curinga `*`. Antes, a
+    // exclusão perguntava `role == 'admin'` — um campo que não existe mais, e que só deixava o SYSTEM.
+    function canInTenant(tenantId, permission) {
+      let memberPath = /databases/(default)/documents/tenants/$(tenantId)/members/$(request.auth.uid);
+      return firestore.get(/databases/(default)/documents/tenants/$(tenantId)).data.ownerId == request.auth.uid
+        || (firestore.exists(memberPath)
+            && firestore.get(memberPath).data.get('permissions', []).hasAny([permission, '*']));
+    }
+
+    function canOnCollection(tenantId, collection, action) {
+      return isSystemOrSupportUser() || canInTenant(tenantId, collection + '.' + action);
     }
 
     // As coleções de entidade que saíram do kernel (`cases`, `persons`, `contracts`, `financials`) NÃO
@@ -53,17 +62,25 @@ service firebase.storage {
       return collection in ['logs', 'downloads', 'portalUploads', 'branding'];
     }
 
+    //
+    // Pelo SDK, o arquivo de um registro segue a PERMISSÃO da coleção dele, como o registro: lê quem tem
+    // `<coleção>.read`, envia quem cria ou altera registros dela, apaga quem altera ou exclui. Antes,
+    // qualquer membro lia o arquivo de qualquer tela — inclusive das que ele não pode abrir.
+    //
+    // Isto NÃO afeta o link de download (a URL com `token=` que o sistema guarda no documento): ele não
+    // passa por regra nenhuma, e quem o tem abre o arquivo — é o que o portal e os e-mails usam, e o que
+    // permite mandar o link a quem não tem conta.
     match /tenants/{tenantId}/{collection}/{recordId}/{allPaths=**} {
       allow read: if request.auth != null
         && !isReservedStoragePath(collection)
-        && isTenantMemberOrElevated(tenantId);
+        && canOnCollection(tenantId, collection, 'read');
       allow create: if request.auth != null
         && !isReservedStoragePath(collection)
-        && isTenantMemberOrElevated(tenantId)
+        && (canOnCollection(tenantId, collection, 'create') || canOnCollection(tenantId, collection, 'update'))
         && request.resource.size < 20 * 1024 * 1024;     // máximo 20 MB
       allow delete: if request.auth != null
         && !isReservedStoragePath(collection)
-        && isTenantAdminOrElevated(tenantId);
+        && (canOnCollection(tenantId, collection, 'update') || canOnCollection(tenantId, collection, 'delete'));
     }
 
     // ─── Logo do escritório ──────────────────────────────────────────────────
@@ -74,10 +91,7 @@ service firebase.storage {
     // apagar o anterior quebraria o logo dos e-mails já enviados, que apontam para ele. O e-mail e o
     // portal abrem pela URL de download, que carrega o próprio token; a leitura aqui é a dos membros.
     function canChangeTenant(tenantId) {
-      let memberPath = /databases/(default)/documents/tenants/$(tenantId)/members/$(request.auth.uid);
-      return firestore.get(/databases/(default)/documents/tenants/$(tenantId)).data.ownerId == request.auth.uid
-        || (firestore.exists(memberPath)
-            && firestore.get(memberPath).data.get('permissions', []).hasAny(['tenant.update', '*']));
+      return canInTenant(tenantId, 'tenant.update');
     }
 
     match /tenants/{tenantId}/branding/logo/{fileName} {
@@ -107,7 +121,8 @@ service firebase.storage {
     // Path: tenants/{tenantId}/logs/{entity}/{logId}.json
     // Escrito somente pela Cloud Function backupDeletedAuditLog (Admin SDK).
     match /tenants/{tenantId}/logs/{entity}/{allPaths=**} {
-      allow read: if request.auth != null && isTenantAdminOrElevated(tenantId);
+      // Só o suporte do sistema: o `role == 'admin'` de antes não existia mais, e na prática já era só ele.
+      allow read: if request.auth != null && isSystemOrSupportUser();
       allow write: if false;
     }
     // Path: systemLogs/{entity}/{logId}.json — logs sem tenant (erros globais do pipeline)

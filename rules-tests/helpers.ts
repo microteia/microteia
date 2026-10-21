@@ -23,6 +23,13 @@ export const testEnv = (): Promise<RulesTestEnvironment> =>
       host: '127.0.0.1',
       port: 8080,
     },
+    // As regras do Storage leem o Firestore (`firestore.get`): o emulador dele, que roda junto, é o
+    // mesmo que a semente preenche.
+    storage: {
+      rules: readFileSync('storage.rules', 'utf8'),
+      host: '127.0.0.1',
+      port: 9199,
+    },
   });
 
 export interface Seed {
