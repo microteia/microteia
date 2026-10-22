@@ -7,6 +7,7 @@ import { useRecords } from '../../../../stores/useRecords';
 import { useDI } from '../../../../infrastructure/di/useDI';
 import {
   makeInvitePortalGuestUseCase,
+  makeReprojectPortalUseCase,
   makeRevokePortalGuestUseCase,
 } from '../../../../domain/usecases/portal/PortalUseCases';
 import type { PortalGuest } from '../../../../domain/entities/Portal';
@@ -49,6 +50,8 @@ export interface PortalTabViewModel {
   requestRevoke: (guest: PortalGuestRow) => void;
   confirmRevoke: () => Promise<void>;
   cancelRevoke: () => void;
+  isReprojecting: boolean;
+  reproject: () => Promise<void>;
 }
 
 const collectionOf = (screen: ScreenDefinition): string => screen.dataCollection || screen.id;
@@ -72,12 +75,14 @@ export const usePortalTabViewModel = (): PortalTabViewModel => {
   const uc = useMemo(() => ({
     invite: makeInvitePortalGuestUseCase(portalRepository),
     revoke: makeRevokePortalGuestUseCase(portalRepository),
+    reproject: makeReprojectPortalUseCase(portalRepository),
   }), [portalRepository]);
 
   const [screenId, setScreenIdState] = useState('');
   const [recordId, setRecordId] = useState('');
   const [email, setEmail] = useState('');
   const [isInviting, setIsInviting] = useState(false);
+  const [isReprojecting, setIsReprojecting] = useState(false);
   const [guests, setGuests] = useState<PortalGuest[]>([]);
   const [guestsLoading, setGuestsLoading] = useState(true);
   const [guestToRevoke, setGuestToRevoke] = useState<PortalGuestRow | null>(null);
@@ -195,6 +200,19 @@ export const usePortalTabViewModel = (): PortalTabViewModel => {
     }
   }, [tenantId, guestToRevoke, uc.revoke, notify, t]);
 
+  const reproject = useCallback(async () => {
+    if (!tenantId) return;
+    setIsReprojecting(true);
+    try {
+      await uc.reproject.execute(tenantId);
+      notify(t('portal.reproject.started'), 'success');
+    } catch (error) {
+      notify(label(error instanceof Error ? error.message : '@core.tenant/portal.failed'), 'error');
+    } finally {
+      setIsReprojecting(false);
+    }
+  }, [tenantId, uc.reproject, notify, t, label]);
+
   const setScreenId = useCallback((value: string) => {
     setScreenIdState(value);
     setRecordId('');
@@ -221,5 +239,7 @@ export const usePortalTabViewModel = (): PortalTabViewModel => {
     requestRevoke: setGuestToRevoke,
     confirmRevoke,
     cancelRevoke: () => setGuestToRevoke(null),
+    isReprojecting,
+    reproject,
   };
 };

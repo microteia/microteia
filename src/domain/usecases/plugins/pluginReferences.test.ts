@@ -187,6 +187,21 @@ describe('validatePackage', () => {
     expect(validatePackage(pkg)).toEqual([]);
   });
 
+  it('a coleção que uma tela do próprio pacote descreve (dataCollection) satisfaz a referência pelo nome dela', () => {
+    const pkg = base({
+      screens: [
+        { key: 'site', titleSingular: 'S', titlePlural: 'S', icon: 'apps', titleFieldKey: 'n', dataCollection: 'sites', fields: [
+          { key: 'n', label: 'N', type: 'text', required: true, order: 0 },
+        ] },
+        { key: 'visit', titleSingular: 'V', titlePlural: 'V', icon: 'apps', titleFieldKey: 'n', parentEntity: 'sites', parentFieldKey: 'site', fields: [
+          { key: 'n', label: 'N', type: 'text', required: true, order: 0 },
+          { key: 'site', label: 'Site', type: 'reference', refEntity: 'sites', required: true, order: 1 },
+        ] },
+      ],
+    });
+    expect(validatePackage(pkg)).toEqual([]);
+  });
+
   it('a mesma referência sem a dependência declarada é pendente', () => {
     const pkg = base({
       screens: [{ key: 'processo', titleSingular: 'P', titlePlural: 'P', icon: 'apps', titleFieldKey: 'n', fields: [

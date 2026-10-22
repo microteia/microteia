@@ -88,4 +88,9 @@ export interface IPortalRepository {
   /** `locale` é o de quem convida: vira o idioma do portal do convidado enquanto ninguém escolher outro. */
   invite(tenantId: string, email: string, subjectKey: string, locale: string): Promise<{ userId: string; created: boolean }>;
   revoke(tenantId: string, userId: string, subjectKey: string | null): Promise<void>;
+  /**
+   * Refaz o portal inteiro: uma passada em cada coleção do portal, com o andamento em
+   * `subscribeReprojections`. Devolve em quantas coleções a passada foi aberta.
+   */
+  reproject(tenantId: string): Promise<number>;
 }

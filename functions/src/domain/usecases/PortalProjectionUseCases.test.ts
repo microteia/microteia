@@ -4,7 +4,7 @@ import {
   makeProjectPortalRecordUseCase,
   makeRefreshPortalAudienceUseCase,
 } from './PortalProjectionUseCases';
-import { CITY_SCREENS, makeFakePortalRepository } from '../repositories/fakePortalRepository';
+import { CITY_SCREENS, EXTENSION_CITY_SCREENS, makeFakePortalRepository } from '../repositories/fakePortalRepository';
 
 const TENANT = 'salvador';
 
@@ -115,6 +115,36 @@ describe('projeção do portal', () => {
 
     await write('invoices', 'nf1', { number: 'NF-1', companyId: 'globex' });
     expect(projections.get('invoices__nf1')?.audience).toEqual(['bia']);
+    expect(projections.get('invoiceItems__it1')?.audience).toEqual(['bia']);
+  });
+});
+
+describe('vínculo para uma coleção com mais de uma tela', () => {
+  it('o vínculo pela coleção chega à tela que está no portal, e não à âncora sem portal', async () => {
+    const { write, projections } = setup(EXTENSION_CITY_SCREENS);
+    await write('companies', 'acme', { name: 'Acme', taxId: '123' });
+    await write('invoices', 'nf1', { number: 'NF-1', companyId: 'acme' });
+    await write('invoiceItems', 'it1', { description: 'Serviço', invoiceId: 'nf1' });
+
+    expect(projections.get('invoices__nf1')).toMatchObject({
+      screenId: 'city_invoices',
+      subjectKeys: ['companies/acme'],
+      audience: ['ana'],
+      labels: { companyId: 'Acme' },
+      parentKeys: ['companies/acme'],
+    });
+    expect(projections.get('invoiceItems__it1')).toMatchObject({
+      subjectKeys: ['companies/acme'],
+      parentKeys: ['invoices/nf1'],
+    });
+  });
+
+  it('o filho que aponta para a coleção muda de dono junto com o pai', async () => {
+    const { write, projections } = setup(EXTENSION_CITY_SCREENS);
+    await write('invoices', 'nf1', { number: 'NF-1', companyId: 'acme' });
+    await write('invoiceItems', 'it1', { description: 'Serviço', invoiceId: 'nf1' });
+
+    await write('invoices', 'nf1', { number: 'NF-1', companyId: 'globex' });
     expect(projections.get('invoiceItems__it1')?.audience).toEqual(['bia']);
   });
 });

@@ -26,6 +26,7 @@ import { portalExamplePtBrContribution } from './portalMessagesPtBr';
  * | a page of your own in the portal | `portalView({ collection, surface: 'detail' }, viewKey)` |
  * | a card on the portal home | `portalView({ surface: 'widget', key, title }, viewKey)` |
  * | what those can read | `@microteia/portal` — never `@microteia/data` |
+ * | a screen over a collection named apart from its key | `dataCollection` — links point at the COLLECTION |
  *
  * Guests are invited by the organization, in Settings > Portal, to a Client. Each one then sees that
  * client and its orders — nothing else in the organization, not even that other clients exist.
@@ -93,6 +94,60 @@ const ORDER_SCREEN: ScreenModuleTemplate = {
   },
 };
 
+/**
+ * A Site keeps its records in a collection named apart from the screen (`dataCollection`) — the way a
+ * package takes over a collection that already exists. Installing it also writes a bare screen under
+ * the collection's own name, so the organization ends up with TWO screens over `portalExampleSites`;
+ * only this one is in the portal.
+ */
+const SITE_COLLECTION = 'portalExampleSites';
+
+const SITE_FIELDS: TemplateField[] = [
+  { key: 'name', label: message('field.name'), type: 'text', required: true, order: 0 },
+  { key: 'client', label: message('field.client'), type: 'reference', required: true, order: 1, refEntity: 'portalExampleClient' },
+];
+
+const SITE_SCREEN: ScreenModuleTemplate = {
+  key: 'portalExampleSite',
+  sourceId: 'microteia:portal-example:site',
+  sourceRev: 1,
+  titleSingular: message('screen.site'),
+  titlePlural: message('screen.site.plural'),
+  icon: 'mapPin',
+  dataCollection: SITE_COLLECTION,
+  fields: SITE_FIELDS,
+  titleFieldKey: 'name',
+  eventPrefix: 'portalExampleSite',
+  portal: { subject: { field: 'client' }, fields: ['name'] },
+};
+
+/**
+ * A Visit hangs from a Site by the COLLECTION name, as every child does (`parentEntity`), and reaches
+ * the guest through it: Visit → Site → Client. The portal follows the link to the screen that is in the
+ * portal for that collection, never to the bare one.
+ */
+const VISIT_FIELDS: TemplateField[] = [
+  { key: 'date', label: message('field.date'), type: 'date', required: true, order: 0 },
+  { key: 'summary', label: message('field.summary'), type: 'textarea', required: false, order: 1 },
+  { key: 'site', label: message('field.site'), type: 'reference', required: true, order: 2, refEntity: SITE_COLLECTION },
+];
+
+const VISIT_SCREEN: ScreenModuleTemplate = {
+  key: 'portalExampleVisit',
+  sourceId: 'microteia:portal-example:visit',
+  sourceRev: 1,
+  titleSingular: message('screen.visit'),
+  titlePlural: message('screen.visit.plural'),
+  icon: 'calendar',
+  fields: VISIT_FIELDS,
+  titleFieldKey: 'date',
+  parentEntity: SITE_COLLECTION,
+  parentFieldKey: 'site',
+  parentRelation: 'owned',
+  eventPrefix: 'portalExampleVisit',
+  portal: { subject: 'parent', fields: ['date', 'summary'] },
+};
+
 const CLIENT_PORTAL_SOURCE = mergeViewSources({
   'ClientPortal.view.tsx': CLIENT_PORTAL_VIEW,
   'ClientPortal.viewmodel.tsx': CLIENT_PORTAL_VIEWMODEL,
@@ -102,8 +157,8 @@ const CLIENT_PORTAL_SOURCE = mergeViewSources({
 export const portalExamplePlugin: MarketplacePlugin = {
   manifest: {
     id: 'com.microteia.portal-example',
-    version: '1.3.0',
-    kernel: '^2.61.0',
+    version: '1.4.0',
+    kernel: '^2.62.0',
     name: message('package.name'),
     description: message('package.description'),
     category: message('package.category'),
@@ -130,7 +185,7 @@ export const portalExamplePlugin: MarketplacePlugin = {
   },
   summary: message('package.summary'),
   workflows: [],
-  screens: [CLIENT_SCREEN, ORDER_SCREEN],
+  screens: [CLIENT_SCREEN, ORDER_SCREEN, SITE_SCREEN, VISIT_SCREEN],
   views: [
     { key: 'clientPortal', title: message('screen.client'), icon: 'team', source: CLIENT_PORTAL_SOURCE },
     { key: 'openOrdersWidget', title: message('portal.widget.orders'), icon: 'shoppingBag', source: OPEN_ORDERS_WIDGET },

@@ -16,6 +16,10 @@ export const PORTAL_EXAMPLE_MESSAGES: Record<string, string> = {
   'screen.client.plural': 'Clients',
   'screen.order': 'Order',
   'screen.order.plural': 'Orders',
+  'screen.site': 'Site',
+  'screen.site.plural': 'Sites',
+  'screen.visit': 'Visit',
+  'screen.visit.plural': 'Visits',
 
   'field.name': 'Name',
   'field.city': 'City',
@@ -24,6 +28,9 @@ export const PORTAL_EXAMPLE_MESSAGES: Record<string, string> = {
   'field.quantity': 'Quantity',
   'field.notes': 'Notes',
   'field.internal': 'Internal note',
+  'field.site': 'Site',
+  'field.date': 'Date',
+  'field.summary': 'Summary',
   'field.officeOnly': 'Office only — never shown in the portal',
 
   'portal.orders': 'Your orders',

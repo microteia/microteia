@@ -100,6 +100,15 @@ export const PortalTabView: React.FC = () => {
 
       {vm.hasSubjectScreens && <PortalHomeSettings />}
 
+      {vm.hasSubjectScreens && (
+        <S.ReprojectRow>
+          <S.Empty>{t('portal.reproject.description')}</S.Empty>
+          <Button variant="secondary" onClick={() => void vm.reproject()} disabled={vm.isReprojecting}>
+            {vm.isReprojecting ? t('portal.reprojecting') : t('portal.reproject')}
+          </Button>
+        </S.ReprojectRow>
+      )}
+
       <ConfirmModal
         isOpen={!!vm.guestToRevoke}
         onConfirm={() => void vm.confirmRevoke()}

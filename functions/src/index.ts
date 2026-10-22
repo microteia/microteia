@@ -26,6 +26,7 @@ export { onUserCreated } from './infrastructure/handlers/onUserCreated';
 export {
   invitePortalUser,
   revokePortalUser,
+  reprojectPortal,
   getPortalContext,
   getPortalDocumentUrl,
   submitPortalRecord,

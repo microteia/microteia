@@ -34,6 +34,13 @@ export {
  */
 export const PORTAL_VISIBLE_WHEN_SINCE_KERNEL = '2.61.0';
 
+/**
+ * O kernel a partir do qual o vínculo do portal chega à tela que está NO PORTAL para a coleção
+ * apontada (`portalTargetScreen`). Um kernel anterior resolve pela tela de id igual à coleção — a âncora
+ * sem portal de uma tela com `dataCollection` — e corta a corrente: o registro não aparece a ninguém.
+ */
+export const PORTAL_LINK_BY_COLLECTION_SINCE_KERNEL = '2.62.0';
+
 /** Quantos saltos de referência separam um registro da tela-sujeito, no máximo. */
 export const PORTAL_SUBJECT_MAX_DEPTH = 3;
 
@@ -222,6 +229,23 @@ export const portalLinkOf = (
     : null;
 };
 
+/** A tela que declara `portal` para os registros desta coleção. */
+export const portalScreenOf = <T extends PortalScreenLike>(screens: readonly T[], collection: string): T | undefined =>
+  screens.find((screen) => screen.collection === collection && !!screen.portal);
+
+/**
+ * A tela do portal para onde um vínculo (`refEntity`, `parentEntity`) aponta.
+ *
+ * O vínculo aponta para REGISTROS, e registro é da coleção: a chave pode ser o nome dela (`cases`) ou
+ * a chave de uma tela (`processos`), e as duas levam à tela que está no portal para aquela coleção.
+ * Uma coleção costuma ter mais de uma tela — a de extensão com `dataCollection` e a âncora das rules
+ * que a instalação grava com o nome da coleção, sem portal —, e procurar pelo id primeiro achava a
+ * âncora e cortava a corrente em silêncio.
+ */
+export const portalTargetScreen = <T extends PortalScreenLike>(screens: readonly T[], entityKey: string): T | undefined =>
+  portalScreenOf(screens, entityKey)
+  ?? portalScreenOf(screens, screens.find((screen) => screen.id === entityKey)?.collection ?? entityKey);
+
 /** Os campos que o convidado preenche ao criar — os declarados que existem, sem o vínculo. */
 export const portalCreateFieldKeys = (screen: PortalScreenLike): string[] => {
   const declared = new Set(screen.fields.map((field) => field.key));
@@ -352,7 +376,7 @@ export const referencedIds = (value: unknown): string[] => {
 };
 
 export interface PortalSubjectDeps {
-  /** A tela do portal declarada por esta chave de entidade (`refEntity`, `parentEntity`). */
+  /** A tela do portal para onde esta chave de entidade (`refEntity`, `parentEntity`) aponta — `portalTargetScreen`. */
   screenFor: (entityKey: string) => PortalScreenLike | undefined;
   getRecord: (collection: string, recordId: string) => Promise<Record<string, unknown> | undefined>;
 }
@@ -469,8 +493,6 @@ export const portalDeclarationIssues = (
   if (!portal) return [];
   const issues: PortalDeclarationIssue[] = [];
   const declared = new Set(screen.fields.map((field) => field.key));
-  const screenFor = (key: string) =>
-    screens.find((one) => one.id === key) ?? screens.find((one) => one.collection === key);
 
   if (portal.fields.length === 0) issues.push({ message: '@core.records/portal.issue.no-fields' });
   for (const key of portal.fields) {
@@ -535,7 +557,7 @@ export const portalDeclarationIssues = (
 
   const visited = new Set<string>([screen.id]);
   for (let depth = 0; depth < PORTAL_SUBJECT_MAX_DEPTH && targetKey; depth += 1) {
-    const target = screenFor(targetKey);
+    const target: PortalScreenLike | undefined = portalTargetScreen(screens, targetKey);
     if (!target?.portal) {
       issues.push({ message: '@core.records/portal.issue.target.no-portal', messageParams: { screen: targetKey } });
       return issues;

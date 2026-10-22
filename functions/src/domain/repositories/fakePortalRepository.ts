@@ -191,3 +191,25 @@ export const CITY_SCREENS: PortalScreen[] = [
     portal: null,
   },
 ];
+
+/** A âncora das rules que a instalação grava com o nome da coleção: sem campos, sem portal. */
+const anchorScreen = (collection: string): PortalScreen => ({
+  id: collection,
+  collection,
+  titleSingular: collection,
+  titlePlural: collection,
+  icon: 'table',
+  fields: [],
+  portal: null,
+});
+
+/**
+ * A mesma prefeitura, com as telas trazidas por uma extensão sobre coleções que já existem
+ * (`dataCollection`). Os vínculos continuam apontando para a COLEÇÃO (`companies`, `invoices`), e cada
+ * coleção-alvo tem também a âncora, com o nome dela e sem portal — listada ANTES, como no Firestore.
+ */
+export const EXTENSION_CITY_SCREENS: PortalScreen[] = [
+  anchorScreen('companies'),
+  anchorScreen('invoices'),
+  ...CITY_SCREENS.map((screen) => ({ ...screen, id: `city_${screen.id}` })),
+];

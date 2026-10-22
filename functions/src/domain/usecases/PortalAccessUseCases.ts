@@ -32,6 +32,7 @@ import {
   portalFieldKeys,
   portalRecordDocId,
   portalSubjectKey,
+  portalTargetScreen,
 } from '../schema/portal';
 import { isValidPortalSubject } from './PortalProjectionUseCases';
 
@@ -264,8 +265,7 @@ export const makeGetPortalContextUseCase = (repo: IPortalRepository): GetPortalC
     const views = (extensionViews?.views ?? [])
       .filter((view) => !view.collection || exposed.has(view.collection));
 
-    const screenFor = (entity: string) =>
-      screens.find((one) => one.id === entity) ?? screens.find((one) => one.collection === entity);
+    const screenFor = (entity: string) => portalTargetScreen(screens, entity);
     // Raiz é a tela sem pai NO PORTAL: a nota de um prestador exposto aparece dentro dele, não no menu.
     const roots = screens.filter((screen) => {
       const link = portalLinkOf(screen);
@@ -326,9 +326,7 @@ export const makeGetPortalContextUseCase = (repo: IPortalRepository): GetPortalC
         const fillable = new Set(portalCreateFieldKeys(screen));
         const editable = new Set(portalEditFieldKeys(screen));
         const link = portalLinkOf(screen);
-        const linkTarget = link
-          ? screens.find((one) => one.id === link.targetEntity) ?? screens.find((one) => one.collection === link.targetEntity)
-          : undefined;
+        const linkTarget = link ? screenFor(link.targetEntity) : undefined;
         const describe = (field: PortalScreen['fields'][number]) => ({
           key: field.key,
           label: resolve(field.label),
@@ -457,8 +455,7 @@ export const makeSubmitPortalRecordUseCase = (
     const link = screen ? portalLinkOf(screen) : null;
     if (!screen || !link || portalCreateFieldKeys(screen).length === 0) throw denied;
 
-    const target = screens.find((one) => one.id === link.targetEntity)
-      ?? screens.find((one) => one.collection === link.targetEntity);
+    const target = portalTargetScreen(screens, link.targetEntity);
     if (!target?.portal || !linkRecordId) throw denied;
 
     const visible = target.portal.subject === 'self'

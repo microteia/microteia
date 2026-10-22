@@ -4,11 +4,12 @@ import {
   PORTAL_REPROJECTION_MAX_ATTEMPTS,
   PORTAL_REPROJECTION_PAGE_SIZE,
   makeNudgePortalReprojectionsUseCase,
+  makeReprojectWholePortalUseCase,
   makeRunPortalReprojectionRoundUseCase,
   makeStartPortalReprojectionUseCase,
   portalReprojectionScope,
 } from './PortalReprojectionUseCases';
-import { CITY_SCREENS, makeFakePortalRepository } from '../repositories/fakePortalRepository';
+import { CITY_SCREENS, EXTENSION_CITY_SCREENS, makeFakePortalRepository } from '../repositories/fakePortalRepository';
 import type { PortalScreen } from '../repositories/IPortalRepository';
 import { PORTAL_REPROJECTION_STALL_MS } from '../schema/portalReprojection';
 
@@ -141,6 +142,21 @@ describe('a passada anda por rodadas', () => {
     await makeRunPortalReprojectionRoundUseCase(repo, makeProjectPortalRecordUseCase(repo), fake.now).execute(TENANT, 'invoices');
     expect(fake.projections.has('invoices__nf1')).toBe(true);
     expect(referencing).toBe(0);
+  });
+});
+
+describe('refazer o portal inteiro', () => {
+  it('abre uma passada em cada coleção do portal — e só nelas — e a passada grava o que faltava', async () => {
+    const fake = setup(EXTENSION_CITY_SCREENS);
+    fake.records.set('invoices/nf1', { number: 'NF-1', companyId: 'acme' });
+    fake.records.set('invoiceItems/it1', { description: 'Serviço', invoiceId: 'nf1' });
+
+    const collections = await makeReprojectWholePortalUseCase(fake.repo, fake.start).execute(TENANT);
+    expect(collections.sort()).toEqual(['companies', 'invoiceItems', 'invoices']);
+    for (const collection of collections) await fake.drain(collection);
+
+    expect(fake.projections.get('invoices__nf1')?.audience).toEqual(['ana']);
+    expect(fake.projections.get('invoiceItems__it1')?.audience).toEqual(['ana']);
   });
 });
 

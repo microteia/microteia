@@ -1,7 +1,7 @@
 {
   "name": "microteia",
   "private": true,
-  "version": "9.143.0",
+  "version": "9.144.0",
   "type": "module",
   "bin": {
     "microteia": "cli/lib/index.js"
@@ -45,7 +45,7 @@
     "deploy:auth": "npm run build:functions && firebase deploy --only functions:getUserInfo,functions:checkNicknameAvailability,functions:claimNickname,functions:onUserCreated --project ${TARGET:-dev}",
     "deploy:access": "npm run build:functions && firebase deploy --only functions:materializePermissionsOnMemberChange,functions:materializePermissionsOnRoleChange,functions:materializePermissionsOnScreenChange,functions:materializePermissionsOnExtensionChange,functions:syncTenantPermissions --project ${TARGET:-dev}",
     "deploy:tenant": "npm run build:functions && firebase deploy --only functions:addTenantMember,functions:removeTenantMember --project ${TARGET:-dev}",
-    "deploy:portal": "npm run build:functions && firebase deploy --only functions:invitePortalUser,functions:revokePortalUser,functions:getPortalContext,functions:getPortalDocumentUrl,functions:submitPortalRecord,functions:attachPortalDocument,functions:projectPortalRecord,functions:projectPortalDocument,functions:refreshPortalAudience,functions:reprojectPortalOnScreenChange,functions:runPortalReprojection --project ${TARGET:-dev}",
+    "deploy:portal": "npm run build:functions && firebase deploy --only functions:invitePortalUser,functions:revokePortalUser,functions:reprojectPortal,functions:getPortalContext,functions:getPortalDocumentUrl,functions:submitPortalRecord,functions:attachPortalDocument,functions:projectPortalRecord,functions:projectPortalDocument,functions:refreshPortalAudience,functions:reprojectPortalOnScreenChange,functions:runPortalReprojection --project ${TARGET:-dev}",
     "deploy:agent": "npm run build:functions && firebase deploy --only functions:agentMcp,functions:createAgentGrant,functions:revokeAgentGrant,functions:agentOAuth,functions:getAgentAuthRequest,functions:consentAgentAuthRequest --project ${TARGET:-dev}",
     "deploy:marketplace": "npm run build:functions && firebase deploy --only functions:countExtensionInstalls,functions:aggregateExtensionRatings --project ${TARGET:-dev}",
     "deploy:util": "npm run build:functions && firebase deploy --only functions:callAIProxy,functions:logClientError --project ${TARGET:-dev}",

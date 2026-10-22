@@ -1,8 +1,8 @@
 {
   "manifest": {
     "id": "com.microteia.portal-example",
-    "version": "1.3.0",
-    "kernel": "^2.61.0",
+    "version": "1.4.0",
+    "kernel": "^2.62.0",
     "name": "@com.microteia.portal-example/package.name",
     "description": "@com.microteia.portal-example/package.description",
     "category": "@com.microteia.portal-example/package.category",
@@ -30,6 +30,10 @@
             "screen.client.plural": "Clients",
             "screen.order": "Order",
             "screen.order.plural": "Orders",
+            "screen.site": "Site",
+            "screen.site.plural": "Sites",
+            "screen.visit": "Visit",
+            "screen.visit.plural": "Visits",
             "field.name": "Name",
             "field.city": "City",
             "field.client": "Client",
@@ -37,6 +41,9 @@
             "field.quantity": "Quantity",
             "field.notes": "Notes",
             "field.internal": "Internal note",
+            "field.site": "Site",
+            "field.date": "Date",
+            "field.summary": "Summary",
             "field.officeOnly": "Office only — never shown in the portal",
             "portal.orders": "Your orders",
             "portal.orders.empty": "No orders yet.",
@@ -64,6 +71,10 @@
             "screen.client.plural": "Clientes",
             "screen.order": "Pedido",
             "screen.order.plural": "Pedidos",
+            "screen.site": "Local",
+            "screen.site.plural": "Locais",
+            "screen.visit": "Visita",
+            "screen.visit.plural": "Visitas",
             "field.name": "Nome",
             "field.city": "Cidade",
             "field.client": "Cliente",
@@ -71,6 +82,9 @@
             "field.quantity": "Quantidade",
             "field.notes": "Observações",
             "field.internal": "Nota interna",
+            "field.site": "Local",
+            "field.date": "Data",
+            "field.summary": "Resumo",
             "field.officeOnly": "Só do escritório — nunca aparece no portal",
             "portal.orders": "Seus pedidos",
             "portal.orders.empty": "Nenhum pedido ainda.",
@@ -226,6 +240,86 @@
           ],
           "onlyOwn": true
         }
+      }
+    },
+    {
+      "key": "portalExampleSite",
+      "sourceId": "microteia:portal-example:site",
+      "sourceRev": 1,
+      "titleSingular": "@com.microteia.portal-example/screen.site",
+      "titlePlural": "@com.microteia.portal-example/screen.site.plural",
+      "icon": "mapPin",
+      "dataCollection": "portalExampleSites",
+      "fields": [
+        {
+          "key": "name",
+          "label": "@com.microteia.portal-example/field.name",
+          "type": "text",
+          "required": true,
+          "order": 0
+        },
+        {
+          "key": "client",
+          "label": "@com.microteia.portal-example/field.client",
+          "type": "reference",
+          "required": true,
+          "order": 1,
+          "refEntity": "portalExampleClient"
+        }
+      ],
+      "titleFieldKey": "name",
+      "eventPrefix": "portalExampleSite",
+      "portal": {
+        "subject": {
+          "field": "client"
+        },
+        "fields": [
+          "name"
+        ]
+      }
+    },
+    {
+      "key": "portalExampleVisit",
+      "sourceId": "microteia:portal-example:visit",
+      "sourceRev": 1,
+      "titleSingular": "@com.microteia.portal-example/screen.visit",
+      "titlePlural": "@com.microteia.portal-example/screen.visit.plural",
+      "icon": "calendar",
+      "fields": [
+        {
+          "key": "date",
+          "label": "@com.microteia.portal-example/field.date",
+          "type": "date",
+          "required": true,
+          "order": 0
+        },
+        {
+          "key": "summary",
+          "label": "@com.microteia.portal-example/field.summary",
+          "type": "textarea",
+          "required": false,
+          "order": 1
+        },
+        {
+          "key": "site",
+          "label": "@com.microteia.portal-example/field.site",
+          "type": "reference",
+          "required": true,
+          "order": 2,
+          "refEntity": "portalExampleSites"
+        }
+      ],
+      "titleFieldKey": "date",
+      "parentEntity": "portalExampleSites",
+      "parentFieldKey": "site",
+      "parentRelation": "owned",
+      "eventPrefix": "portalExampleVisit",
+      "portal": {
+        "subject": "parent",
+        "fields": [
+          "date",
+          "summary"
+        ]
       }
     }
   ],

@@ -108,6 +108,29 @@ export const makeStartPortalReprojectionUseCase = (
   },
 });
 
+export type ReprojectWholePortalUseCase = {
+  /** Devolve as coleções em que uma passada foi aberta. */
+  execute: (tenantId: string) => Promise<string[]>;
+};
+
+/**
+ * Refaz o portal INTEIRO do escritório, a pedido de quem o administra — uma passada em cada coleção que
+ * está no portal. A reprojeção automática só olha a DECLARAÇÃO: quando o que muda é a forma como o
+ * kernel lê uma declaração que ficou igual (uma correção, uma atualização), nada a acordaria, e cada
+ * registro esperaria ser gravado de novo para ganhar a projeção certa.
+ */
+export const makeReprojectWholePortalUseCase = (
+  repo: IPortalRepository,
+  start: StartPortalReprojectionUseCase,
+): ReprojectWholePortalUseCase => ({
+  execute: async (tenantId) => {
+    const screens = await repo.getScreens(tenantId, { fresh: true });
+    const collections = [...new Set(screens.filter((screen) => !!screen.portal).map((screen) => screen.collection))];
+    await start.execute(tenantId, collections);
+    return collections;
+  },
+});
+
 interface RoundResult {
   processed: number;
   failed: number;

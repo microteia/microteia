@@ -26,7 +26,7 @@ import { FIELD_EXPRESSION_FUNCTION_NAMES } from '../../../domain/schema/fieldExp
 import { BUSINESS_CALENDAR_FIELDS } from '../../../domain/schema/time/businessDays';
 import { BUSINESS_CALENDAR_POINT } from '../../../domain/schema/time/extensionPoints';
 import { ARTIFACT_PREFIX_SINCE_KERNEL } from '../../../domain/schema/plugin/artifactPrefix';
-import { PORTAL_VISIBLE_WHEN_SINCE_KERNEL } from '../../../domain/schema/portal';
+import { PORTAL_LINK_BY_COLLECTION_SINCE_KERNEL, PORTAL_VISIBLE_WHEN_SINCE_KERNEL } from '../../../domain/schema/portal';
 import {
   DOCUMENT_OUTPUTS_BY_FORMAT,
   DOCUMENT_TEMPLATE_MAX_BYTES,
@@ -733,7 +733,23 @@ portal: { subject: { field: 'client' }, fields: ['description', 'amount', 'dueDa
 - Requires \`kernel: "^${PORTAL_VISIBLE_WHEN_SINCE_KERNEL}"\`. An older kernel ignores the condition and
   would show every record, so the package gate refuses the package without it.
 
-\`examples/portal-example\` has the declarations on two screens, a \`detail\` page and a home card.
+#### Links point at the collection
+
+A link in the portal — the \`refEntity\` of \`subject: { field }\`, the \`parentEntity\` of
+\`subject: 'parent'\` — names the COLLECTION the records live in, as every link does. The portal
+follows it to the screen that is in the portal for that collection, whatever its key.
+
+That matters for a screen over a collection named apart from its key (\`dataCollection\`): installing it
+also writes a bare screen under the collection's own name, so the organization has two screens over the
+same records, and only yours declares \`portal\`. Point at the collection (\`parentEntity: 'sites'\`),
+not at your screen's key — the key may get a suffix where it is installed, and the parent's record tabs
+are found by the collection too.
+
+Requires \`kernel: "^${PORTAL_LINK_BY_COLLECTION_SINCE_KERNEL}"\`. An older kernel stops at the bare screen,
+and the records behind that link reach nobody.
+
+\`examples/portal-example\` has the declarations on four screens — one of them over a \`dataCollection\` —,
+a \`detail\` page and a home card.
 
 ### Settings whose options are the organization's data
 

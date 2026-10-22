@@ -8,7 +8,7 @@ import {
   makeUpdatePortalRecordUseCase,
 } from './PortalAccessUseCases';
 import { makeProjectPortalRecordUseCase } from './PortalProjectionUseCases';
-import { CITY_SCREENS, makeFakePortalRepository } from '../repositories/fakePortalRepository';
+import { CITY_SCREENS, EXTENSION_CITY_SCREENS, makeFakePortalRepository } from '../repositories/fakePortalRepository';
 import type { IPortalAccountService } from '../repositories/IPortalRepository';
 
 const TENANT = 'salvador';
@@ -240,6 +240,20 @@ describe('o convidado cria um registro', () => {
     expect(write).toHaveBeenCalledWith(expect.objectContaining({ data: { description: 'Serviço', invoiceId: 'nf1' } }));
     await expect(submit.execute({ tenantId: TENANT, userId: 'ana', collection: 'invoiceItems', linkRecordId: 'nf2', data: {} }))
       .rejects.toThrow('@core.tenant/portal.create.denied');
+  });
+
+  it('o vínculo pela coleção chega à tela do portal, mesmo com a âncora sem portal listada antes', async () => {
+    const extensionScreens = EXTENSION_CITY_SCREENS.map((screen) => (screen.id === 'city_invoices'
+      ? { ...screen, portal: { ...screen.portal!, create: { fields: ['number'] } } }
+      : screen));
+    const fake = makeFakePortalRepository(extensionScreens);
+    fake.users.set('ana', { userId: 'ana', email: 'ana@acme.com', displayName: 'Ana', subjectKeys: ['companies/acme'] });
+    const write = vi.fn(async () => ({ ok: true as const, id: 'nf-9' }));
+
+    await makeSubmitPortalRecordUseCase(fake.repo, write).execute({
+      tenantId: TENANT, userId: 'ana', collection: 'invoices', linkRecordId: 'acme', data: { number: 'NF-9' },
+    });
+    expect(write).toHaveBeenCalledWith(expect.objectContaining({ data: { number: 'NF-9', companyId: 'acme' } }));
   });
 
   it('a recusa da validação sobe com os parâmetros, para ser traduzida', async () => {

@@ -9,11 +9,13 @@ import {
 } from '../../domain/usecases/PortalProjectionUseCases';
 import {
   makeNudgePortalReprojectionsUseCase,
+  makeReprojectWholePortalUseCase,
   makeRunPortalReprojectionRoundUseCase,
   makeStartPortalReprojectionUseCase,
 } from '../../domain/usecases/PortalReprojectionUseCases';
 import type {
   NudgePortalReprojectionsUseCase,
+  ReprojectWholePortalUseCase,
   RunPortalReprojectionRoundUseCase,
   StartPortalReprojectionUseCase,
 } from '../../domain/usecases/PortalReprojectionUseCases';
@@ -307,6 +309,10 @@ class DIContainer {
 
   getNudgePortalReprojectionsUseCase(): NudgePortalReprojectionsUseCase {
     return makeNudgePortalReprojectionsUseCase(this.getPortalRepository());
+  }
+
+  getReprojectWholePortalUseCase(): ReprojectWholePortalUseCase {
+    return makeReprojectWholePortalUseCase(this.getPortalRepository(), this.getStartPortalReprojectionUseCase());
   }
 
   getInvitePortalUserUseCase(): InvitePortalUserUseCase {

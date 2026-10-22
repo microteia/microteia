@@ -15,6 +15,7 @@ import {
   portalFieldKeys,
   portalUploadTypes,
   portalSubjectKey,
+  portalTargetScreen,
   projectPortalData,
   resolvePortalSubjectKeys,
   type PortalScreenLike,
@@ -116,6 +117,34 @@ describe('sujeito do registro', () => {
       getRecord: async () => ({ companyId: 'c1' }),
     };
     expect(await resolvePortalSubjectKeys(item, 'x1', { invoiceId: 'i1' }, deps)).toEqual([]);
+  });
+});
+
+describe('tela-alvo do vínculo', () => {
+  const anchor = (collection: string): PortalScreenLike => ({ id: collection, collection, fields: [], portal: null });
+  const extensionCompany: PortalScreenLike = { ...company, id: 'cityCompanies' };
+  const extensionInvoice: PortalScreenLike = { ...invoice, id: 'cityInvoices' };
+  const withAnchors = [anchor('companies'), anchor('invoices'), extensionCompany, extensionInvoice, item];
+
+  it('a coleção com âncora e tela de extensão leva à que está no portal — pelo nome da coleção ou pela chave', () => {
+    expect(portalTargetScreen(withAnchors, 'companies')).toBe(extensionCompany);
+    expect(portalTargetScreen(withAnchors, 'cityCompanies')).toBe(extensionCompany);
+    expect(portalTargetScreen([anchor('companies')], 'companies')).toBeUndefined();
+  });
+
+  it('a corrente atravessa a coleção que tem âncora', async () => {
+    const deps: PortalSubjectDeps = {
+      screenFor: (key) => portalTargetScreen(withAnchors, key),
+      getRecord: async () => ({ companyId: 'c9' }),
+    };
+    expect(await resolvePortalSubjectKeys(item, 'x1', { invoiceId: 'i1' }, deps)).toEqual(['companies/c9']);
+  });
+
+  it('a declaração resolve o alvo como o servidor: sem aviso com a âncora, com aviso sem tela no portal', () => {
+    const lineItem = { ...item, portal: { subject: 'parent' as const, fields: ['invoiceId'] } };
+    expect(portalDeclarationIssues(lineItem, withAnchors)).toEqual([]);
+    expect(portalDeclarationIssues(extensionInvoice, [anchor('companies'), extensionInvoice]).map((issue) => issue.message))
+      .toEqual(['@core.records/portal.issue.target.no-portal']);
   });
 });
 

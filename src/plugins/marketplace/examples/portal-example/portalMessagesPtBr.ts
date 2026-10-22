@@ -15,6 +15,10 @@ const PORTAL_EXAMPLE_PT_BR: Record<string, string> = {
   'screen.client.plural': 'Clientes',
   'screen.order': 'Pedido',
   'screen.order.plural': 'Pedidos',
+  'screen.site': 'Local',
+  'screen.site.plural': 'Locais',
+  'screen.visit': 'Visita',
+  'screen.visit.plural': 'Visitas',
 
   'field.name': 'Nome',
   'field.city': 'Cidade',
@@ -23,6 +27,9 @@ const PORTAL_EXAMPLE_PT_BR: Record<string, string> = {
   'field.quantity': 'Quantidade',
   'field.notes': 'Observações',
   'field.internal': 'Nota interna',
+  'field.site': 'Local',
+  'field.date': 'Data',
+  'field.summary': 'Resumo',
   'field.officeOnly': 'Só do escritório — nunca aparece no portal',
 
   'portal.orders': 'Seus pedidos',

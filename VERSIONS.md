@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.144.0] — 2026-10-22
+
+- Corrigido o portal deixando de mostrar ao convidado os registros ligados a telas instaladas por extensões sobre cadastros que já existiam: os registros vinculados (e os filhos deles) voltam a aparecer para quem foi convidado.
+- Nova opção "Refazer o portal", em Configurações › Portal, para reconstruir de uma vez tudo o que os convidados veem — útil depois de uma atualização, ou quando um registro que devia estar no portal não aparece. O andamento aparece no topo da página.
+
 #### [9.143.0] — 2026-10-22
 
 - O portal agora pode mostrar só parte dos registros de uma tela. Na aba Portal do Form Design, o campo "Quais registros aparecem" recebe uma condição — por exemplo, só as receitas — e o que não a atende nunca chega ao convidado, nem os registros que pertencem a ele. Assim uma tela que mistura o que é do cliente com o que é só do escritório pode ir para o portal sem expor o lado interno.

@@ -10,6 +10,8 @@ import {
   portalExposedTitle,
   portalFieldKeys,
   portalRecordDocId,
+  portalScreenOf,
+  portalTargetScreen,
   projectPortalData,
   referencedIds,
   resolvePortalSubjectKeys,
@@ -20,26 +22,16 @@ const PAGE_SIZE = 300;
 const sameMembers = (a: readonly string[], b: readonly string[]): boolean =>
   a.length === b.length && [...a].sort().join('\u0000') === [...b].sort().join('\u0000');
 
-/** A tela que declara `portal` para os registros desta coleção. */
-const portalScreenOf = (screens: PortalScreen[], collection: string): PortalScreen | undefined =>
-  screens.find((screen) => screen.collection === collection && !!screen.portal);
-
-const screenForEntity = (screens: PortalScreen[]) => (entityKey: string): PortalScreen | undefined =>
-  screens.find((screen) => screen.id === entityKey) ?? screens.find((screen) => screen.collection === entityKey);
-
-/** As telas cujo sujeito chega PELA tela dada — elas precisam ser refeitas quando o sujeito dela muda. */
+/**
+ * As telas cujo sujeito chega PELA tela dada — elas precisam ser refeitas quando o sujeito dela muda.
+ * O vínculo é resolvido pela MESMA regra da corrente (`portalTargetScreen`): o filho que aponta para a
+ * coleção, e não para a chave da tela, também é dependente.
+ */
 const dependentsOf = (screens: PortalScreen[], screen: PortalScreen) =>
   screens.flatMap((candidate) => {
-    const subject = candidate.portal?.subject;
-    if (!subject || subject === 'self') return [];
-    if (subject === 'parent') {
-      return candidate.parentEntity === screen.id && candidate.parentFieldKey
-        ? [{ screen: candidate, fieldKey: candidate.parentFieldKey, multi: false }]
-        : [];
-    }
-    const field = candidate.fields.find((one) => one.key === subject.field);
-    return field?.type === 'reference' && (field.refEntity === screen.id || field.refEntity === screen.collection)
-      ? [{ screen: candidate, fieldKey: field.key, multi: field.multi === true }]
+    const link = portalLinkOf(candidate);
+    return link && portalTargetScreen(screens, link.targetEntity) === screen
+      ? [{ screen: candidate, fieldKey: link.fieldKey, multi: link.multi }]
       : [];
   });
 
@@ -93,7 +85,7 @@ export const makeProjectPortalRecordUseCase = (repo: IPortalRepository): Project
   ): Promise<void> => {
     const projectionId = portalRecordDocId(screen.collection, recordId);
     const existing = await repo.getProjection(tenantId, projectionId);
-    const screenFor = screenForEntity(screens);
+    const screenFor = (entityKey: string) => portalTargetScreen(screens, entityKey);
 
     const subjectKeys = data
       ? await resolvePortalSubjectKeys(screen, recordId, data, {
@@ -113,7 +105,7 @@ export const makeProjectPortalRecordUseCase = (repo: IPortalRepository): Project
         const ids = referencedIds(data[key]);
         // O rótulo é o TÍTULO do registro apontado — e título só sai de tela que está no portal e o
         // expõe. Apontar para uma tela interna (o funcionário responsável) não leva o nome dele junto.
-        if (!target?.portal || ids.length === 0) continue;
+        if (!target || ids.length === 0) continue;
         const titles = await Promise.all(ids.map(async (id) => {
           const referenced = await repo.getRecord(tenantId, target.collection, id);
           return referenced ? portalExposedTitle(target, referenced) : '';

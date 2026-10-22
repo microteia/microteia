@@ -462,15 +462,16 @@ export const packageSizeAdvisory = (pkg: MarketplacePlugin): LocalizedIssue | un
 };
 
 /**
- * O que cobre uma referência a TELA sem sair do pacote: a chave dele, ou o que as dependências
- * declaram trazer — a coleção pelo nome GLOBAL, ou a chave namespaced `<slug-do-plugin>__x`.
+ * O que cobre uma referência a TELA sem sair do pacote: a chave dele, a coleção que uma tela dele
+ * descreve (`dataCollection`), ou o que as dependências declaram trazer — a coleção pelo nome GLOBAL,
+ * ou a chave namespaced `<slug-do-plugin>__x`.
  *
  * Uma entidade que saiu do kernel mantém o nome global (`persons`) — não ganha o prefixo da extensão
  * que a descreve, senão os registros mudariam de lugar —, então é a declaração que liga o nome à
  * extensão que o instala.
  */
 const screenCoverage = (pkg: MarketplacePlugin): ((id: string) => boolean) => {
-  const screenKeys = new Set((pkg.screens ?? []).map((s) => s.key));
+  const screenKeys = new Set((pkg.screens ?? []).flatMap((s) => [s.key, templateCollection(s)]));
   const dependencies = Object.entries(pkg.manifest.dependencies ?? {});
   const dependencySlugs = dependencies.map(([id]) => slug(id));
   const dependencyCollectionNames = new Set(

@@ -9,7 +9,7 @@ import {
   makeGetPortalHomeSettingsUseCase,
   makeSavePortalHomeSettingsUseCase,
 } from '../../../../../../domain/usecases/portal/PortalUseCases';
-import { portalLinkOf, type PortalScreenLike } from '../../../../../../domain/schema/portal';
+import { portalLinkOf, portalTargetScreen, type PortalScreenLike } from '../../../../../../domain/schema/portal';
 import {
   DEFAULT_PORTAL_LAYOUT,
   PORTAL_VIEW_POINT,
@@ -117,11 +117,10 @@ export const usePortalHomeSettingsViewModel = (): PortalHomeSettingsViewModel =>
 
   const menuCandidates = useMemo<Candidate[]>(() => {
     const screens = definitions.filter((screen) => !!screen.portal).map(asScreenLike);
-    const screenFor = (entity: string) => screens.find((one) => one.id === entity || one.collection === entity);
     const rootDefinitions = definitions.filter((screen) => {
       if (!screen.portal) return false;
       const link = portalLinkOf(asScreenLike(screen));
-      return !link || !screenFor(link.targetEntity);
+      return !link || !portalTargetScreen(screens, link.targetEntity);
     });
     const pages = contributions.flatMap((contribution) => {
       const metadata = asPortalViewMetadata(contribution.metadata);

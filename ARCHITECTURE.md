@@ -868,6 +868,25 @@ portal **corta** a corrente: o registro fica sem sujeito, e sem sujeito ele não
 fora. A função é uma só, `resolvePortalSubjectKeys` (`domain/schema/portal.ts`, sincronizada), e o
 kernel continua sem conhecer "cliente" ou "empresa".
 
+**O vínculo chega à tela que está NO PORTAL para a coleção — `portalTargetScreen`.** `refEntity` e
+`parentEntity` nomeiam a COLEÇÃO (é assim que `childTabScreens` acha as abas do pai), e uma coleção
+costuma ter mais de uma tela: a de extensão com `dataCollection` e a âncora das rules que
+`ensureTargetCollectionScreen` grava com o nome da coleção, sem portal. A busca antiga — id primeiro,
+coleção depois — achava a âncora, via que ela não estava no portal e cortava a corrente: nenhuma
+projeção, sem erro nem aviso, para todo filho e toda referência que apontasse para uma tela com
+`dataCollection`. Agora a regra é uma só, em `domain/schema/portal.ts` (sincronizada): a tela com
+`portal` cuja coleção é a chave apontada; senão, a da tela cujo id é a chave. Ela serve a corrente
+(`resolvePortalSubjectKeys`), os rótulos, o pai da projeção, os dependentes da cascata
+(`dependentsOf`, que antes comparava `parentEntity` só com o id da tela), o pai na criação pelo
+convidado (`makeSubmitPortalRecordUseCase`), o menu do portal e `portalDeclarationIssues` — que por
+isso avisa `target.no-portal` exatamente quando o servidor cortaria a corrente. O pacote que depende
+disso declara `kernel` a partir de `PORTAL_LINK_BY_COLLECTION_SINCE_KERNEL` (2.62.0); um kernel anterior
+falha FECHADO (mostra menos), e por isso não há recusa no empacotamento, como há para `visibleWhen`.
+
+Pela mesma razão, `screenCoverage` (`pluginReferences.ts`) passou a contar a `dataCollection` das telas
+do próprio pacote: o filho que aponta para a coleção de uma tela do mesmo pacote era recusado como
+referência externa, embora a mesma coleção trazida por uma dependência fosse aceita.
+
 ### Projeção, não exposição — `portalRecords`
 
 O Firestore não esconde campo: quem lê o documento lê o documento inteiro. Por isso o convidado
@@ -926,6 +945,14 @@ PROJEÇÕES, e cada uma é apagada.
 **A janela continua existindo, e agora tem tamanho.** Entre salvar a declaração e a passada chegar ao
 registro, a projeção é a da declaração anterior — mas a passada sempre termina, e não depende do
 tamanho da coleção. Numa tela que ENTRA no portal, a janela é só de falta: toda projeção nasce filtrada.
+
+**Refazer o portal inteiro — `reprojectPortal`.** A reprojeção automática só olha a DECLARAÇÃO
+(`portalShape`). Quando o que muda é a forma como o kernel LÊ uma declaração que ficou igual — uma
+correção, uma atualização —, nada a acordaria, e cada registro esperaria ser gravado de novo. A callable
+`reprojectPortal` (`portal.manage`, grupo `deploy:portal`) abre uma passada em cada coleção que está no
+portal (`makeReprojectWholePortalUseCase`), pelo mesmo `StartPortalReprojectionUseCase`; o botão
+"Refazer o portal" fica em Configurações › Portal, e o andamento é o mesmo `PortalReprojectionStatus`.
+Refazer não expõe nada que a declaração já não exponha: é idempotente.
 
 O job é do servidor: `firestore.rules` deixa ler quem tem `portal.manage` e não deixa ninguém gravar
 (`rules-tests/portalReprojections.test.ts`). O tamanho da passada é contado ao abri-la (`count()` dos
