@@ -398,6 +398,10 @@ and every check it runs is \`microteia://domain-model/rules\` — both derived f
 \`check\` is not an approximation of the platform's validation — it *is* the platform's validation, the
 same function, the same messages. If \`check\` passes, the package installs.
 
+\`tsc\` also checks \`examples/\`, so the editor can resolve them. An error there is ours, not yours:
+leave the file alone — the next \`sync\` replaces it — and report it with kernel contract
+${input.kernelVersion}. What must be clean is everything outside \`examples/\`.
+
 Then import the \`.json\` on the **Extensions** screen.
 
 An imported extension is used there — activated, installed, published to the catalogue — but never

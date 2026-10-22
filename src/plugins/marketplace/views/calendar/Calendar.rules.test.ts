@@ -119,7 +119,7 @@ describe('a conta do mês', () => {
 
 describe('quem responde ao arrasto', () => {
   const visible = () => true;
-  const contribution = (id, origem, key) => ({ id, metadata: { origem, key } });
+  const contribution = (id, origem, key = undefined) => ({ id, metadata: { origem, key } });
 
   it('é a primeira contribuição que serve àquela origem', () => {
     const contributions = [contribution('a', 'contracts'), contribution('b', '')];
@@ -145,7 +145,7 @@ describe('quem responde ao arrasto', () => {
  * que faz uma mudança de etiqueta ou de subtítulo alcançar os itens que já estão na agenda.
  */
 describe('como uma origem se apresenta', () => {
-  const source = (id, origem, key) => ({ id, metadata: { origem, key } });
+  const source = (id, origem, key = undefined) => ({ id, metadata: { origem, key } });
 
   it('casa a origem EXATA — uma declaração vazia não veste os cartões dos outros', () => {
     const contributions = [source('a', ''), source('b', 'invoices')];

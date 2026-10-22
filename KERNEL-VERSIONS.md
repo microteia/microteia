@@ -18,6 +18,12 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.142.4] — 2026-10-22
+
+- fix(calendar): the `contribution` and `source` helpers in `Calendar.rules.test.ts` declared `key` as required and were called with two arguments, so `npx tsc --noEmit` failed in every office's `extensions/` on a file shipped under `examples/` that the office cannot fix.
+- fix(typecheck): `tsconfig.extsrc.json` excluded every `*.test.ts`, including the `.rules.test.ts` files that ship as examples and that the office's `tsconfig.json` does check. Only the root `views/*.test.ts` is excluded now, so a broken example fails here before it is packed.
+- docs(sdk/workspace): `AGENTS.md` and `AUTHORING.md` state that an error under `examples/` is not the author's: leave the file alone, do not count it against the gate, and report it with the kernel contract version. `examples/` stays inside the project on purpose — excluding it left the files without a project in the editor.
+
 #### [9.142.3] — 2026-10-22
 
 - fix(settings): a `text` property with a declared `pattern` no longer saves on every keystroke regardless of the value. A value that does not match stays on screen with an inline warning and is written only once valid. Before, every intermediate value reached Firestore: on an organization without a prefix, the first letter typed into `customization.prefix` was rejected by the rule (2–8 characters), the snapshot reverted the field to empty, and the prefix could not be set at all.

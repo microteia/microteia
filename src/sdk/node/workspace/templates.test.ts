@@ -343,6 +343,17 @@ describe('o que é gerado em extensions/', () => {
     });
 
     /**
+     * O `tsc` do escritório cobre `examples/` de propósito — excluí-los deixava o exemplo sem projeto
+     * no editor. O preço é o erro de um exemplo nosso aparecer no gate de quem não pode corrigi-lo; a
+     * saída é dizer de quem é o erro, e pedir que ele volte para nós com a versão do contrato.
+     */
+    it('tira os erros de examples/ do gate, e pede que sejam relatados com a versão do contrato', () => {
+      expect(agents).toContain('an error inside `examples/` is not yours');
+      expect(agents).toContain(`kernel contract ${AGENTS.kernelVersion}`);
+      expect(authoringGuide(AGENTS)).toContain('What must be clean is everything outside `examples/`.');
+    });
+
+    /**
      * A extensão que precisa de algo que o kernel não tem sempre tem como fingir — e a IA finge, porque
      * fingir destrava a tarefa. Aconteceu com `isNew` na expressão de campo: agnóstico, necessário a
      * qualquer formulário, contornado em silêncio. O contorno some no código de uma extensão e o kernel

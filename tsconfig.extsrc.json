@@ -29,6 +29,8 @@
     }
   },
   "include": ["src/plugins/marketplace/views", "src/plugins/marketplace/examples/*/views"],
-  // Os testes são do vitest e usam `import.meta.glob` — não são fonte de extensão.
-  "exclude": ["**/*.test.ts", "**/*.test.tsx"]
+  // Só o teste da RAIZ de `views/` fica de fora: ele é nosso, usa `import.meta.glob` e não viaja. O
+  // `.rules.test.ts` ao lado de uma view viaja no pacote como exemplo, e o `tsconfig.json` do
+  // escritório o confere — excluí-lo aqui deixava passar o que reprova lá.
+  "exclude": ["src/plugins/marketplace/views/*.test.ts"]
 }

@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.142.4] — 2026-10-22
+
+- Corrigido um exemplo de extensão do Calendário que acusava erro na verificação de tipos da pasta de extensões do escritório.
+- O assistente que escreve extensões passa a saber que um erro nos exemplos não é dele: não os altera, não deixa de entregar por causa deles, e avisa para que o defeito chegue a quem pode corrigi-lo.
+
 #### [9.142.3] — 2026-10-22
 
 - Corrigido o campo de Prefixo em Configurações, que não deixava digitar um prefixo novo quando o escritório ainda não tinha um. Agora o valor só é salvo quando está no formato aceito, e um aviso explica o que falta enquanto isso.

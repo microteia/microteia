@@ -252,6 +252,16 @@ for", not as "done, one test still red" — while any of the three commands abov
 is wrong and you fix it, or the test is wrong and you say so and fix *it*; a red test is never
 something to hand over and explain.
 
+**One exception: an error inside \`examples/\` is not yours.** \`tsc\` and \`npm test\` cover the whole
+directory, examples included, and that is on purpose — it is what lets your editor resolve them. But
+those files are ours, shipped with kernel contract ${input.kernelVersion}, and replaced on the next \`sync\`:
+
+- Do not edit them, and do not bend your own code to make their error go away.
+- Do not count them against the gate. The gate is: no error and no failing test **outside**
+  \`examples/\`.
+- Do tell the person you are working for: the file, the error and kernel contract ${input.kernelVersion}. It is
+  a defect in the installed package, and that report is how it reaches whoever can fix it.
+
 ## What you may and may not touch
 
 | Path | |
