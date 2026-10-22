@@ -1,6 +1,6 @@
 import type { IPortalRepository, PortalReprojectionState, PortalScreen } from '../repositories/IPortalRepository';
 import { portalFieldKeys } from '../schema/portal';
-import { isPortalReprojectionStalled } from '../schema/portalReprojection';
+import { PORTAL_PROJECTION_REVISION, isPortalReprojectionStalled } from '../schema/portalReprojection';
 import type { ProjectPortalRecordUseCase } from './PortalProjectionUseCases';
 
 /** Registros por rodada. Uma rodada é uma invocação: pequena o bastante para caber com folga no timeout. */
@@ -76,6 +76,7 @@ const freshPass = (generation: number, attempts: number, total: number | null, n
   failed: 0,
   failedIds: [],
   attempts,
+  revision: PORTAL_PROJECTION_REVISION,
 });
 
 export type StartPortalReprojectionUseCase = {
@@ -108,26 +109,38 @@ export const makeStartPortalReprojectionUseCase = (
   },
 });
 
-export type ReprojectWholePortalUseCase = {
+export type EnsurePortalProjectionRevisionUseCase = {
   /** Devolve as coleções em que uma passada foi aberta. */
   execute: (tenantId: string) => Promise<string[]>;
 };
 
 /**
- * Refaz o portal INTEIRO do escritório, a pedido de quem o administra — uma passada em cada coleção que
- * está no portal. A reprojeção automática só olha a DECLARAÇÃO: quando o que muda é a forma como o
- * kernel lê uma declaração que ficou igual (uma correção, uma atualização), nada a acordaria, e cada
- * registro esperaria ser gravado de novo para ganhar a projeção certa.
+ * Abre uma passada em cada coleção do portal cuja última passada é de uma
+ * `PORTAL_PROJECTION_REVISION` anterior — ou que nunca teve passada. É o que leva ao escritório uma
+ * correção na forma de projetar sem que ninguém precise mexer na declaração, nem saber da correção.
+ *
+ * A conferência é refeita dentro da transação: duas instâncias que chegam juntas abrem UMA passada.
  */
-export const makeReprojectWholePortalUseCase = (
+export const makeEnsurePortalProjectionRevisionUseCase = (
   repo: IPortalRepository,
-  start: StartPortalReprojectionUseCase,
-): ReprojectWholePortalUseCase => ({
+  now: () => number = Date.now,
+): EnsurePortalProjectionRevisionUseCase => ({
   execute: async (tenantId) => {
-    const screens = await repo.getScreens(tenantId, { fresh: true });
-    const collections = [...new Set(screens.filter((screen) => !!screen.portal).map((screen) => screen.collection))];
-    await start.execute(tenantId, collections);
-    return collections;
+    const isCurrent = (state: PortalReprojectionState | null | undefined): boolean =>
+      (state?.revision ?? 0) >= PORTAL_PROJECTION_REVISION;
+    const screens = await repo.getScreens(tenantId);
+    const inPortal = [...new Set(screens.filter((screen) => !!screen.portal).map((screen) => screen.collection))];
+    if (inPortal.length === 0) return [];
+
+    const states = await repo.listReprojections(tenantId);
+    const opened: string[] = [];
+    for (const collection of inPortal.filter((one) => !isCurrent(states.get(one)))) {
+      const total = await repo.countRecords(tenantId, collection).catch(() => null);
+      const next = await repo.updateReprojection(tenantId, collection, (current) =>
+        isCurrent(current) ? null : freshPass((current?.generation ?? 0) + 1, 0, total, now()));
+      if (next) opened.push(collection);
+    }
+    return opened;
   },
 });
 

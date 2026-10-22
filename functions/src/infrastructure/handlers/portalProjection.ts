@@ -3,6 +3,7 @@ import { getDI } from '../di/container';
 import { RESERVED_COLLECTIONS } from '../../domain/schema/screenEntity';
 import { PORTAL_REPROJECTIONS_COLLECTION } from '../../domain/schema/portal';
 import { portalReprojectionScope } from '../../domain/usecases/PortalReprojectionUseCases';
+import { ensurePortalProjectionRevision } from '../portal/portalProjectionRevision';
 
 const REGION = 'southamerica-east1';
 
@@ -24,7 +25,8 @@ export const projectPortalRecord = onDocumentWritten(
     try {
       const after = event.data?.after;
       const data = after?.exists ? (after.data() as Record<string, unknown>) : null;
-      await getDI().getProjectPortalRecordUseCase().execute({ tenantId, collection, recordId: docId, data });
+      const inPortal = await getDI().getProjectPortalRecordUseCase().execute({ tenantId, collection, recordId: docId, data });
+      if (inPortal) await ensurePortalProjectionRevision(tenantId);
     } catch (error) {
       console.error(`[portal] Falha ao projetar ${tenantId}/${collection}/${docId}:`, error);
     }
@@ -122,6 +124,7 @@ export const reprojectPortalOnScreenChange = onDocumentWritten(
     if (portalShape(before) !== portalShape(after) && (before?.portal || after?.portal)) {
       await startReprojection(tenantId, screenId, before, after);
     }
+    await ensurePortalProjectionRevision(tenantId);
     try {
       await di.getNudgePortalReprojectionsUseCase().execute(tenantId);
     } catch (error) {

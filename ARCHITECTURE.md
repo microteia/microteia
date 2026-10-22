@@ -946,13 +946,24 @@ PROJEÇÕES, e cada uma é apagada.
 registro, a projeção é a da declaração anterior — mas a passada sempre termina, e não depende do
 tamanho da coleção. Numa tela que ENTRA no portal, a janela é só de falta: toda projeção nasce filtrada.
 
-**Refazer o portal inteiro — `reprojectPortal`.** A reprojeção automática só olha a DECLARAÇÃO
-(`portalShape`). Quando o que muda é a forma como o kernel LÊ uma declaração que ficou igual — uma
-correção, uma atualização —, nada a acordaria, e cada registro esperaria ser gravado de novo. A callable
-`reprojectPortal` (`portal.manage`, grupo `deploy:portal`) abre uma passada em cada coleção que está no
-portal (`makeReprojectWholePortalUseCase`), pelo mesmo `StartPortalReprojectionUseCase`; o botão
-"Refazer o portal" fica em Configurações › Portal, e o andamento é o mesmo `PortalReprojectionStatus`.
-Refazer não expõe nada que a declaração já não exponha: é idempotente.
+**Mudou a forma de projetar, não a declaração — `PORTAL_PROJECTION_REVISION`.** A reprojeção por
+declaração só olha `portalShape`. Quando o que muda é a forma como o kernel LÊ uma declaração que ficou
+igual (uma correção na corrente, no rótulo, no filtro), nada a acordaria, e cada registro esperaria ser
+gravado de novo. Por isso toda passada grava no job a `PORTAL_PROJECTION_REVISION` com que foi aberta
+(`domain/schema/portalReprojection.ts`, compartilhado), e `makeEnsurePortalProjectionRevisionUseCase`
+abre uma passada em cada coleção do portal cujo job é de revisão anterior — ou que nunca teve passada —,
+reconferindo dentro da transação para que duas instâncias abram uma só.
+
+Quem confere é `ensurePortalProjectionRevision` (`infrastructure/portal/`), uma vez por escritório e
+por instância (a revisão só muda com deploy, que troca a instância): na gravação de um registro de
+coleção do portal (`projectPortalRecord`), na gravação de tela (`reprojectPortalOnScreenChange`) e
+quando o convidado abre o portal (`getPortalContext`). A falha é registrada e não derruba quem chamou.
+O andamento é o mesmo `PortalReprojectionStatus`.
+
+**Não há botão de "refazer o portal", de propósito.** Ele chegou a existir (9.144.0) e saiu: um gesto
+que "conserta tudo" vira o primeiro reflexo do escritório diante de qualquer coisa que não aparece, e o
+defeito que ele cobria é do kernel — quem o corrige é quem sobe a revisão. **Corrigiu a forma de
+projetar? Suba `PORTAL_PROJECTION_REVISION` e registre o motivo na lista do JSDoc.**
 
 O job é do servidor: `firestore.rules` deixa ler quem tem `portal.manage` e não deixa ninguém gravar
 (`rules-tests/portalReprojections.test.ts`). O tamanho da passada é contado ao abri-la (`count()` dos

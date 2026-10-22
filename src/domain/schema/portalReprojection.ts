@@ -4,6 +4,16 @@
  * reserva o job, processa uma página a partir do `cursor` e fecha gravando o cursor novo, e é essa
  * gravação que dispara a rodada seguinte. O app só a lê, para mostrar o andamento.
  */
+/**
+ * A revisão da FORMA como o kernel projeta. Sobe quando o kernel passa a projetar diferente uma
+ * declaração que ficou igual — uma correção na corrente, no rótulo, no filtro. A reprojeção por
+ * declaração não percebe essa mudança (a declaração é a mesma); a coleção do portal cuja última passada
+ * foi aberta com uma revisão anterior ganha uma passada nova, sozinha, uma vez.
+ *
+ * - 1: o vínculo chega à tela que está no portal para a coleção (`portalTargetScreen`).
+ */
+export const PORTAL_PROJECTION_REVISION = 1;
+
 export interface PortalReprojectionState {
   status: 'running' | 'done';
   /** Sobe a cada passada nova: a rodada de uma passada abandonada é descartada ao fechar. */
@@ -22,6 +32,8 @@ export interface PortalReprojectionState {
   failedIds: string[];
   /** Quantas vezes a passada recomeçou por falha. */
   attempts: number;
+  /** A `PORTAL_PROJECTION_REVISION` com que a passada foi aberta; `0` = antes de existir. */
+  revision: number;
 }
 
 /** Passada em curso sem gravação no job há mais que isto está parada — e a próxima conferência a acorda. */
@@ -43,6 +55,7 @@ export const readPortalReprojectionState = (data: Record<string, unknown>): Port
   failed: numberOr(data.failed, 0),
   failedIds: Array.isArray(data.failedIds) ? data.failedIds.filter((id): id is string => typeof id === 'string') : [],
   attempts: numberOr(data.attempts, 0),
+  revision: numberOr(data.revision, 0),
 });
 
 /** Parada: em curso, sem gravação há mais que `PORTAL_REPROJECTION_STALL_MS` e sem reserva válida. */

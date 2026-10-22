@@ -4,14 +4,14 @@ import {
   PORTAL_REPROJECTION_MAX_ATTEMPTS,
   PORTAL_REPROJECTION_PAGE_SIZE,
   makeNudgePortalReprojectionsUseCase,
-  makeReprojectWholePortalUseCase,
+  makeEnsurePortalProjectionRevisionUseCase,
   makeRunPortalReprojectionRoundUseCase,
   makeStartPortalReprojectionUseCase,
   portalReprojectionScope,
 } from './PortalReprojectionUseCases';
 import { CITY_SCREENS, EXTENSION_CITY_SCREENS, makeFakePortalRepository } from '../repositories/fakePortalRepository';
 import type { PortalScreen } from '../repositories/IPortalRepository';
-import { PORTAL_REPROJECTION_STALL_MS } from '../schema/portalReprojection';
+import { PORTAL_PROJECTION_REVISION, PORTAL_REPROJECTION_STALL_MS } from '../schema/portalReprojection';
 
 const TENANT = 'salvador';
 
@@ -145,18 +145,33 @@ describe('a passada anda por rodadas', () => {
   });
 });
 
-describe('refazer o portal inteiro', () => {
-  it('abre uma passada em cada coleção do portal — e só nelas — e a passada grava o que faltava', async () => {
+describe('revisão da forma de projetar', () => {
+  it('a coleção projetada por uma revisão anterior ganha uma passada — uma vez — e ela grava o que faltava', async () => {
     const fake = setup(EXTENSION_CITY_SCREENS);
     fake.records.set('invoices/nf1', { number: 'NF-1', companyId: 'acme' });
     fake.records.set('invoiceItems/it1', { description: 'Serviço', invoiceId: 'nf1' });
+    const ensure = makeEnsurePortalProjectionRevisionUseCase(fake.repo, fake.now);
 
-    const collections = await makeReprojectWholePortalUseCase(fake.repo, fake.start).execute(TENANT);
-    expect(collections.sort()).toEqual(['companies', 'invoiceItems', 'invoices']);
-    for (const collection of collections) await fake.drain(collection);
+    const opened = await ensure.execute(TENANT);
+    expect(opened.sort()).toEqual(['companies', 'invoiceItems', 'invoices']);
+    for (const collection of opened) await fake.drain(collection);
 
     expect(fake.projections.get('invoices__nf1')?.audience).toEqual(['ana']);
     expect(fake.projections.get('invoiceItems__it1')?.audience).toEqual(['ana']);
+    expect(fake.reprojections.get('invoices')).toMatchObject({ status: 'done', revision: PORTAL_PROJECTION_REVISION });
+    expect(await ensure.execute(TENANT)).toEqual([]);
+  });
+
+  it('a passada aberta pela declaração já nasce na revisão atual, e a da revisão antiga é refeita', async () => {
+    const fake = setup();
+    await fake.start.execute(TENANT, ['invoices']);
+    await fake.drain('invoices');
+    const before = fake.reprojections.get('invoices')!;
+    fake.reprojections.set('companies', { ...before, revision: PORTAL_PROJECTION_REVISION - 1 });
+
+    const opened = await makeEnsurePortalProjectionRevisionUseCase(fake.repo, fake.now).execute(TENANT);
+    expect(opened.sort()).toEqual(['companies', 'invoiceItems']);
+    expect(fake.reprojections.get('invoices')).toEqual(before);
   });
 });
 

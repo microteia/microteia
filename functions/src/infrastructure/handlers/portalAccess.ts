@@ -13,6 +13,7 @@ import { identifyActor } from '../workflow/identifyActor';
 import { tenantTimeZone } from '../settings/tenantTimeZone';
 import { configuredLocale } from '../../domain/services/tenantSettings';
 import { DEFAULT_LOCALE } from '../../domain/schema/i18n/localeNegotiation';
+import { ensurePortalProjectionRevision } from '../portal/portalProjectionRevision';
 
 const REGION = 'southamerica-east1';
 
@@ -99,25 +100,6 @@ export const revokePortalUser = onCall({ region: REGION, cors: true }, async (re
 });
 
 /**
- * Refaz o portal inteiro do escritório — uma passada por coleção do portal, com o andamento em
- * Configurações › Portal. É o gesto de quem administra o portal: refazer não expõe nada que a
- * declaração já não exponha.
- */
-export const reprojectPortal = onCall({ region: REGION, cors: true }, async (request) => {
-  const userId = authenticated(request.auth);
-  const data = (request.data ?? {}) as Record<string, unknown>;
-  const tenantId = requireString(data.tenantId, '@core.automation/handler.tenant.missing');
-
-  await requirePermission(tenantId, userId, PERMISSION_PORTAL_MANAGE);
-  try {
-    const collections = await getDI().getReprojectWholePortalUseCase().execute(tenantId);
-    return { collections: collections.length };
-  } catch (error) {
-    throw asHttpsError(error, 'reprojectPortal');
-  }
-});
-
-/**
  * O que a casca do portal precisa para desenhar: o nome e a marca do escritório e as telas expostas,
  * já no idioma de quem entrou. Quem não é convidado daquele escritório não recebe nada.
  */
@@ -136,6 +118,7 @@ export const getPortalContext = onCall({ region: REGION, cors: true }, async (re
     const settings = di.getTenantSettingsRepository();
     const [own, office] = await Promise.all([settings.getUserValues(tenantId, userId), settings.getTenantValues(tenantId)]);
     const guest = await di.getPortalRepository().getPortalUser(tenantId, userId);
+    if (guest) await ensurePortalProjectionRevision(tenantId);
     // Escolhido pelo convidado ou pelo escritório; senão, o de quem convidou — o escritório que usa o
     // produto em português pela preferência pessoal de quem administra não tem padrão gravado, e sem
     // isto o convidado caía no navegador dele.

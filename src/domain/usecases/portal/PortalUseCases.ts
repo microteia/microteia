@@ -50,14 +50,6 @@ export const makeRevokePortalGuestUseCase = (repo: IPortalRepository): RevokePor
   execute: (tenantId, userId, subjectKey) => repo.revoke(tenantId, userId, subjectKey),
 });
 
-export type ReprojectPortalUseCase = {
-  execute: (tenantId: string) => Promise<number>;
-};
-
-export const makeReprojectPortalUseCase = (repo: IPortalRepository): ReprojectPortalUseCase => ({
-  execute: (tenantId) => repo.reproject(tenantId),
-});
-
 export type ListPortalLinkOptionsUseCase = {
   execute: (tenantId: string, userId: string, collection: string) => Promise<PortalLinkOption[]>;
 };

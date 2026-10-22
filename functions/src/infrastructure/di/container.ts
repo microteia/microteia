@@ -8,14 +8,14 @@ import {
   makeRefreshPortalAudienceUseCase,
 } from '../../domain/usecases/PortalProjectionUseCases';
 import {
+  makeEnsurePortalProjectionRevisionUseCase,
   makeNudgePortalReprojectionsUseCase,
-  makeReprojectWholePortalUseCase,
   makeRunPortalReprojectionRoundUseCase,
   makeStartPortalReprojectionUseCase,
 } from '../../domain/usecases/PortalReprojectionUseCases';
 import type {
+  EnsurePortalProjectionRevisionUseCase,
   NudgePortalReprojectionsUseCase,
-  ReprojectWholePortalUseCase,
   RunPortalReprojectionRoundUseCase,
   StartPortalReprojectionUseCase,
 } from '../../domain/usecases/PortalReprojectionUseCases';
@@ -311,8 +311,8 @@ class DIContainer {
     return makeNudgePortalReprojectionsUseCase(this.getPortalRepository());
   }
 
-  getReprojectWholePortalUseCase(): ReprojectWholePortalUseCase {
-    return makeReprojectWholePortalUseCase(this.getPortalRepository(), this.getStartPortalReprojectionUseCase());
+  getEnsurePortalProjectionRevisionUseCase(): EnsurePortalProjectionRevisionUseCase {
+    return makeEnsurePortalProjectionRevisionUseCase(this.getPortalRepository());
   }
 
   getInvitePortalUserUseCase(): InvitePortalUserUseCase {

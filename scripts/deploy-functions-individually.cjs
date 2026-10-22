@@ -46,7 +46,6 @@ const ALL_FUNCTIONS = [
   'claimNickname',
   'invitePortalUser',
   'revokePortalUser',
-  'reprojectPortal',
   'getPortalContext',
   'getPortalDocumentUrl',
   'submitPortalRecord',

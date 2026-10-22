@@ -265,9 +265,4 @@ export class FirebasePortalRepository implements IPortalRepository {
     );
     await call({ tenantId, userId, subjectKey });
   }
-
-  async reproject(tenantId: string): Promise<number> {
-    const call = httpsCallable<{ tenantId: string }, { collections: number }>(functions, 'reprojectPortal');
-    return (await call({ tenantId })).data.collections;
-  }
 }
