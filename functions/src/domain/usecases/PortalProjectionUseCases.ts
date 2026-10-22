@@ -55,6 +55,12 @@ export interface ProjectPortalRecordInput {
    * cada documento tem o próprio gatilho.
    */
   syncDocuments?: boolean;
+  /**
+   * Refaz os dependentes quando o sujeito muda (padrão). A reprojeção desliga: a coleção deles já está
+   * no escopo da passada e será percorrida por ela, e um pai com milhares de filhos faria uma rodada
+   * sem tamanho previsível.
+   */
+  cascade?: boolean;
 }
 
 export type ProjectPortalRecordUseCase = {
@@ -66,7 +72,8 @@ export type ProjectPortalRecordUseCase = {
  * Mantém a projeção de UM registro em dia: só os campos expostos, o sujeito a que ele pertence e
  * quem pode vê-lo.
  *
- * Sem sujeito — o vínculo foi apagado, a tela-sujeito saiu do portal — a projeção some. É a resposta
+ * Sem sujeito — o vínculo foi apagado, a tela-sujeito saiu do portal, o registro (ou um elo da
+ * corrente) não passa no `visibleWhen` — a projeção some. É a resposta
  * fechada: o registro que não sabe a quem pertence não pertence a ninguém de fora.
  *
  * Quando o sujeito MUDA, as telas que chegam a ele por esta (o filho, a nota que aponta para o
@@ -82,6 +89,7 @@ export const makeProjectPortalRecordUseCase = (repo: IPortalRepository): Project
     data: Record<string, unknown> | null,
     depth: number,
     syncDocuments: boolean,
+    cascade: boolean,
   ): Promise<void> => {
     const projectionId = portalRecordDocId(screen.collection, recordId);
     const existing = await repo.getProjection(tenantId, projectionId);
@@ -152,23 +160,23 @@ export const makeProjectPortalRecordUseCase = (repo: IPortalRepository): Project
     }
 
     const subjectChanged = !sameMembers(existing?.subjectKeys ?? [], subjectKeys);
-    if (!subjectChanged || depth >= PORTAL_SUBJECT_MAX_DEPTH) return;
+    if (!cascade || !subjectChanged || depth >= PORTAL_SUBJECT_MAX_DEPTH) return;
     for (const dependent of dependentsOf(screens, screen)) {
       const children = await repo.getRecordsReferencing(
         tenantId, dependent.screen.collection, dependent.fieldKey, recordId, dependent.multi,
       );
       for (const child of children) {
-        await project(tenantId, screens, dependent.screen, child.id, child.data, depth + 1, false);
+        await project(tenantId, screens, dependent.screen, child.id, child.data, depth + 1, false, true);
       }
     }
   };
 
   return {
-    execute: async ({ tenantId, collection, recordId, data, syncDocuments = false }) => {
+    execute: async ({ tenantId, collection, recordId, data, syncDocuments = false, cascade = true }) => {
       const screens = await repo.getScreens(tenantId);
       const screen = portalScreenOf(screens, collection);
       if (!screen) return false;
-      await project(tenantId, screens, screen, recordId, data, 0, syncDocuments);
+      await project(tenantId, screens, screen, recordId, data, 0, syncDocuments, cascade);
       return true;
     },
   };
@@ -210,41 +218,6 @@ export const makeRefreshPortalAudienceUseCase = (repo: IPortalRepository): Refre
       } while (after);
     }
     return changed;
-  },
-});
-
-export type ReprojectPortalCollectionUseCase = {
-  execute: (tenantId: string, collection: string) => Promise<void>;
-};
-
-/**
- * A declaração da tela mudou: o que antes saía pode não sair mais, e o contrário. Refaz a coleção
- * inteira — e, se ela deixou o portal, apaga o que tinha sido projetado dela.
- */
-export const makeReprojectPortalCollectionUseCase = (
-  repo: IPortalRepository,
-  projectRecord: ProjectPortalRecordUseCase,
-): ReprojectPortalCollectionUseCase => ({
-  execute: async (tenantId, collection) => {
-    const screens = await repo.getScreens(tenantId, { fresh: true });
-    if (!portalScreenOf(screens, collection)) {
-      let after: string | null = null;
-      do {
-        const page = await repo.projectionsOfCollection(tenantId, collection, after, PAGE_SIZE);
-        for (const item of page.items) await repo.deleteProjection(tenantId, item.id);
-        after = page.next;
-      } while (after);
-      return;
-    }
-
-    let after: string | null = null;
-    do {
-      const page = await repo.listRecords(tenantId, collection, after, PAGE_SIZE);
-      for (const record of page.items) {
-        await projectRecord.execute({ tenantId, collection, recordId: record.id, data: record.data, syncDocuments: true });
-      }
-      after = page.next;
-    } while (after);
   },
 });
 

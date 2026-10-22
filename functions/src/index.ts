@@ -36,6 +36,7 @@ export {
   projectPortalDocument,
   refreshPortalAudience,
   reprojectPortalOnScreenChange,
+  runPortalReprojection,
 } from './infrastructure/handlers/portalProjection';
 export {
   materializePermissionsOnExtensionChange,

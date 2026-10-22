@@ -493,10 +493,12 @@ export const ScreenBuilderView: React.FC = () => {
                 hasDocuments={vm.portalPanel.hasDocuments}
                 readOnly={vm.portalPanel.readOnly}
                 issues={vm.portalPanel.issues}
+                collection={vm.portalPanel.collection}
                 onToggleEnabled={vm.setPortalEnabled}
                 onSubjectKind={vm.setPortalSubjectKind}
                 onSubjectField={vm.setPortalSubjectField}
                 onToggleField={vm.togglePortalField}
+                onVisibleWhen={vm.setPortalVisibleWhen}
                 onToggleDocuments={vm.setPortalDocuments}
                 onToggleCreate={vm.setPortalAllowCreate}
                 onToggleCreateField={vm.togglePortalCreateField}

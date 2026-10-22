@@ -27,9 +27,11 @@ import type {
 import {
   PORTAL_DOCUMENTS_SUBCOLLECTION,
   PORTAL_RECORDS_COLLECTION,
+  PORTAL_REPROJECTIONS_COLLECTION,
   PORTAL_USERS_COLLECTION,
   portalUploadStagingPath,
 } from '../../domain/schema/portal';
+import { readPortalReprojectionState, type PortalReprojectionState } from '../../domain/schema/portalReprojection';
 import { PORTAL_SETTINGS_DOC, asPortalHomeSettings, type PortalHomeSettings } from '../../domain/schema/portalExtensionPoints';
 
 const PAGE_LIMIT = 200;
@@ -233,6 +235,18 @@ export class FirebasePortalRepository implements IPortalRepository {
           .sort((a, b) => a.email.localeCompare(b.email)),
       ),
       (error) => onError?.(error),
+    );
+  }
+
+  subscribeReprojections(
+    tenantId: string,
+    onUpdate: (states: Map<string, PortalReprojectionState>) => void,
+  ): () => void {
+    return onSnapshot(
+      collection(db, 'tenants', tenantId, PORTAL_REPROJECTIONS_COLLECTION),
+      (snapshot) => onUpdate(new Map(snapshot.docs.map((one) => [one.id, readPortalReprojectionState(one.data())]))),
+      // O documento existe para AVISAR: uma leitura recusada não pode derrubar a aba.
+      () => onUpdate(new Map()),
     );
   }
 

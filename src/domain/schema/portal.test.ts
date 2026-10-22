@@ -6,6 +6,7 @@ import {
   canPortalUserEdit,
   evaluatePortalCondition,
   isPortalEditOpen,
+  isPortalRecordVisible,
   portalEditFieldKeys,
   portalOwnerOf,
   parsePortalSubjectKey,
@@ -272,5 +273,80 @@ describe('edição pelo portal', () => {
     const empty: PortalScreenLike = { ...invoice, portal: { ...invoice.portal!, edit: { fields: [] } } };
     expect(portalDeclarationIssues(empty, [company, empty]).map((issue) => issue.message))
       .toContain('@core.records/portal.issue.edit.no-fields');
+  });
+});
+
+describe('visibilidade por registro — visibleWhen', () => {
+  const filtered = (screen: PortalScreenLike, visibleWhen: string): PortalScreenLike => ({
+    ...screen,
+    portal: { ...screen.portal!, visibleWhen },
+  });
+
+  it('lê a condição aparada, e a vazia é ausente', () => {
+    expect(asPortalDeclaration({ subject: 'self', fields: ['a'], visibleWhen: ' a == 1 ' })?.visibleWhen).toBe('a == 1');
+    expect(asPortalDeclaration({ subject: 'self', fields: ['a'], visibleWhen: '  ' })).not.toHaveProperty('visibleWhen');
+  });
+
+  it('sem condição, todos passam; a falsa e a quebrada escondem', () => {
+    expect(isPortalRecordVisible(invoice, {})).toBe(true);
+    expect(isPortalRecordVisible(filtered(invoice, 'kind == "revenue"'), { kind: 'revenue' })).toBe(true);
+    expect(isPortalRecordVisible(filtered(invoice, 'kind == "revenue"'), { kind: 'expense' })).toBe(false);
+    expect(isPortalRecordVisible(filtered(invoice, 'kind =='), { kind: 'revenue' })).toBe(false);
+  });
+
+  it('o campo que o registro não tem vale vazio — não fecha por não existir', () => {
+    expect(isPortalRecordVisible(filtered(invoice, 'officeOnly != true'), {})).toBe(true);
+    expect(isPortalRecordVisible(filtered(invoice, 'officeOnly != true'), { officeOnly: true })).toBe(false);
+    expect(isPortalRecordVisible(filtered(invoice, 'kind == "revenue"'), {})).toBe(false);
+  });
+
+  it('o registro escondido fica sem sujeito — e corta a corrente de quem chega por ele', async () => {
+    const hiddenInvoices = filtered(invoice, 'kind == "revenue"');
+    const deps: PortalSubjectDeps = {
+      screenFor: (key) => (key === 'invoices' ? hiddenInvoices : screens.get(key)),
+      getRecord: async (collection, id) => ({
+        'invoices/nf1': { companyId: 'acme', kind: 'revenue' },
+        'invoices/nf2': { companyId: 'acme', kind: 'expense' },
+      } as Record<string, Record<string, unknown>>)[`${collection}/${id}`],
+    };
+    expect(await resolvePortalSubjectKeys(hiddenInvoices, 'nf2', { companyId: 'acme', kind: 'expense' }, deps)).toEqual([]);
+    expect(await resolvePortalSubjectKeys(item, 'i1', { invoiceId: 'nf1' }, deps)).toEqual(['companies/acme']);
+    expect(await resolvePortalSubjectKeys(item, 'i2', { invoiceId: 'nf2' }, deps)).toEqual([]);
+  });
+
+  it('o sujeito escondido não recebe nada; sem filtro, nem é lido', async () => {
+    const reads: string[] = [];
+    const hiddenCompanies = filtered(company, 'active == true');
+    const deps = (target: PortalScreenLike): PortalSubjectDeps => ({
+      screenFor: (key) => (key === 'companies' ? target : screens.get(key)),
+      getRecord: async (collection, id) => {
+        reads.push(`${collection}/${id}`);
+        return { active: id === 'acme' };
+      },
+    });
+    expect(await resolvePortalSubjectKeys(invoice, 'nf1', { companyId: ['acme', 'globex'] }, deps(hiddenCompanies)))
+      .toEqual(['companies/acme']);
+    reads.length = 0;
+    expect(await resolvePortalSubjectKeys(invoice, 'nf1', { companyId: 'globex' }, deps(company))).toEqual(['companies/globex']);
+    expect(reads).toEqual([]);
+  });
+
+  it('a declaração confere a sintaxe e os campos citados — os de sistema valem', () => {
+    const issuesOf = (visibleWhen: string) => {
+      const screen = filtered(invoice, visibleWhen);
+      return portalDeclarationIssues(screen, [company, screen]);
+    };
+    expect(issuesOf('internalNote == "" and createdVia != "portal"')).toEqual([]);
+    expect(issuesOf('kind ==').map((issue) => issue.message)).toEqual(['@core.records/portal.issue.visible-when.invalid']);
+    expect(issuesOf('kind == "revenue" and isEmpty(companyId.city)')).toEqual([
+      { message: '@core.records/portal.issue.visible-when.field.unknown', messageParams: { field: 'kind' } },
+    ]);
+  });
+
+  it('a condição de edição também aponta o campo que a tela não tem', () => {
+    const screen: PortalScreenLike = { ...invoice, portal: { ...invoice.portal!, edit: { fields: ['amount'], when: 'stage == "draft"' } } };
+    expect(portalDeclarationIssues(screen, [company, screen])).toContainEqual(
+      { message: '@core.records/portal.issue.edit.when.field.unknown', messageParams: { field: 'stage' } },
+    );
   });
 });

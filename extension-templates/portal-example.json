@@ -1,8 +1,8 @@
 {
   "manifest": {
     "id": "com.microteia.portal-example",
-    "version": "1.2.1",
-    "kernel": "^2.57.0",
+    "version": "1.3.0",
+    "kernel": "^2.61.0",
     "name": "@com.microteia.portal-example/package.name",
     "description": "@com.microteia.portal-example/package.description",
     "category": "@com.microteia.portal-example/package.category",
@@ -37,6 +37,7 @@
             "field.quantity": "Quantity",
             "field.notes": "Notes",
             "field.internal": "Internal note",
+            "field.officeOnly": "Office only — never shown in the portal",
             "portal.orders": "Your orders",
             "portal.orders.empty": "No orders yet.",
             "portal.orders.new": "Place an order",
@@ -70,6 +71,7 @@
             "field.quantity": "Quantidade",
             "field.notes": "Observações",
             "field.internal": "Nota interna",
+            "field.officeOnly": "Só do escritório — nunca aparece no portal",
             "portal.orders": "Seus pedidos",
             "portal.orders.empty": "Nenhum pedido ainda.",
             "portal.orders.new": "Fazer um pedido",
@@ -189,6 +191,13 @@
           "type": "textarea",
           "required": false,
           "order": 4
+        },
+        {
+          "key": "officeOnly",
+          "label": "@com.microteia.portal-example/field.officeOnly",
+          "type": "checkbox",
+          "required": false,
+          "order": 5
         }
       ],
       "titleFieldKey": "item",
@@ -202,6 +211,7 @@
           "quantity",
           "notes"
         ],
+        "visibleWhen": "officeOnly != true",
         "create": {
           "fields": [
             "item",

@@ -10,6 +10,7 @@ import { Spinner } from '../../../components/ui/Spinner';
 import { InfoBanner } from '../../../components/ui/InfoBanner';
 import { useT } from '../../../shared/i18n/useT';
 import { PortalHomeSettings } from './components/PortalHomeSettings';
+import { PortalReprojectionStatus } from '../../../components/ui/PortalReprojectionStatus';
 
 export const PortalTabView: React.FC = () => {
   const t = useT('core.tenant');
@@ -18,6 +19,7 @@ export const PortalTabView: React.FC = () => {
   return (
     <S.Container>
       <InfoBanner variant="info" message={t('portal.tab.description')} />
+      <PortalReprojectionStatus />
 
       {!vm.hasSubjectScreens ? (
         <S.Empty>{t('portal.no-subject-screens')}</S.Empty>

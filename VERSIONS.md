@@ -11,6 +11,13 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.143.0] — 2026-10-22
+
+- O portal agora pode mostrar só parte dos registros de uma tela. Na aba Portal do Form Design, o campo "Quais registros aparecem" recebe uma condição — por exemplo, só as receitas — e o que não a atende nunca chega ao convidado, nem os registros que pertencem a ele. Assim uma tela que mistura o que é do cliente com o que é só do escritório pode ir para o portal sem expor o lado interno.
+- Mudar o que uma tela mostra no portal agora se aplica a todos os registros dela, por maior que seja a tela: a atualização é feita aos poucos e continua de onde parou se algo falhar no caminho. Antes, numa tela com muitos registros, parte deles podia ficar com o que valia antes da mudança. Enquanto a atualização acontece, a aba Portal (em Configurações e no Form Design) mostra quanto já foi feito.
+- A aba Portal passa a avisar quando uma condição cita um campo que a tela não tem.
+- A condição para o convidado alterar um registro deixou de bloquear a alteração quando o campo citado está vazio no registro.
+
 #### [9.142.4] — 2026-10-22
 
 - Corrigido um exemplo de extensão do Calendário que acusava erro na verificação de tipos da pasta de extensões do escritório.

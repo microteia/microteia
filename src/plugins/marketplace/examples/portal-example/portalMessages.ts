@@ -24,6 +24,7 @@ export const PORTAL_EXAMPLE_MESSAGES: Record<string, string> = {
   'field.quantity': 'Quantity',
   'field.notes': 'Notes',
   'field.internal': 'Internal note',
+  'field.officeOnly': 'Office only — never shown in the portal',
 
   'portal.orders': 'Your orders',
   'portal.orders.empty': 'No orders yet.',

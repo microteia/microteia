@@ -9,6 +9,7 @@ import type {
   PortalScreen,
   PortalUserGrant,
   PortalUserRecord,
+  PortalReprojectionState,
   ProjectionPage,
   RecordPage,
   SharedRecordDocument,
@@ -17,10 +18,12 @@ import {
   PORTAL_DOCUMENTS_SUBCOLLECTION,
   PORTAL_INVITES_COLLECTION,
   PORTAL_RECORDS_COLLECTION,
+  PORTAL_REPROJECTIONS_COLLECTION,
   PORTAL_USERS_COLLECTION,
   asPortalDeclaration,
   portalUploadStagingPath,
 } from '../../domain/schema/portal';
+import { readPortalReprojectionState } from '../../domain/schema/portalReprojection';
 import { getBucket } from '../../infrastructure/firebase/initFirebase';
 import { PORTAL_SETTINGS_DOC, asPortalHomeSettings, type PortalHomeSettings } from '../../domain/schema/portalExtensionPoints';
 
@@ -98,6 +101,10 @@ export class FirebasePortalRepository implements IPortalRepository {
 
   private projections(tenantId: string) {
     return this.tenant(tenantId).collection(PORTAL_RECORDS_COLLECTION);
+  }
+
+  private reprojections(tenantId: string) {
+    return this.tenant(tenantId).collection(PORTAL_REPROJECTIONS_COLLECTION);
   }
 
   private portalUsers(tenantId: string) {
@@ -189,6 +196,35 @@ export class FirebasePortalRepository implements IPortalRepository {
 
   projectionsOfCollection(tenantId: string, collection: string, after: string | null, pageSize: number) {
     return this.page(this.projections(tenantId).where('collection', '==', collection), after, pageSize);
+  }
+
+  async countRecords(tenantId: string, collection: string): Promise<number> {
+    const snapshot = await this.tenant(tenantId).collection(collection).count().get();
+    return snapshot.data().count;
+  }
+
+  async countProjectionsOfCollection(tenantId: string, collection: string): Promise<number> {
+    const snapshot = await this.projections(tenantId).where('collection', '==', collection).count().get();
+    return snapshot.data().count;
+  }
+
+  async listReprojections(tenantId: string): Promise<Map<string, PortalReprojectionState>> {
+    const snapshot = await this.reprojections(tenantId).get();
+    return new Map(snapshot.docs.map((doc) => [doc.id, readPortalReprojectionState(doc.data())]));
+  }
+
+  async updateReprojection(
+    tenantId: string,
+    collection: string,
+    mutate: (current: PortalReprojectionState | null) => PortalReprojectionState | null,
+  ): Promise<PortalReprojectionState | null> {
+    const reference = this.reprojections(tenantId).doc(collection);
+    return this.db.runTransaction(async (transaction) => {
+      const snapshot = await transaction.get(reference);
+      const next = mutate(snapshot.exists ? readPortalReprojectionState(snapshot.data() ?? {}) : null);
+      if (next) transaction.set(reference, { ...next });
+      return next;
+    });
   }
 
   async setAudiences(tenantId: string, changes: Array<{ projectionId: string; audience: string[] }>): Promise<void> {

@@ -308,9 +308,13 @@ describe('o convidado anexa um documento', () => {
 });
 
 describe('o convidado altera um registro', () => {
-  const setup = (edit: { fields: string[]; when?: string; onlyOwn?: boolean } | null, record: Record<string, unknown> = {}) => {
+  const setup = (
+    edit: { fields: string[]; when?: string; onlyOwn?: boolean } | null,
+    record: Record<string, unknown> = {},
+    visibleWhen?: string,
+  ) => {
     const screens = CITY_SCREENS.map((screen) => (screen.id === 'invoices'
-      ? { ...screen, portal: { ...screen.portal!, ...(edit ? { edit } : {}) } }
+      ? { ...screen, portal: { ...screen.portal!, ...(edit ? { edit } : {}), ...(visibleWhen ? { visibleWhen } : {}) } }
       : screen));
     const fake = makeFakePortalRepository(screens);
     fake.users.set('ana', { userId: 'ana', email: 'ana@acme.com', displayName: 'Ana', subjectKeys: ['companies/acme'] });
@@ -348,6 +352,16 @@ describe('o convidado altera um registro', () => {
 
     const broken = setup({ fields: ['amount'], when: 'status ==' });
     await expect(broken.useCase.execute({ ...broken.input, data: { amount: 20 } })).rejects.toThrow('@core.tenant/portal.edit.denied');
+  });
+
+  it('o registro que deixou de passar no visibleWhen é recusado, mesmo com a projeção ainda de pé', async () => {
+    const visible = setup({ fields: ['amount'] }, { kind: 'revenue' }, 'kind == "revenue"');
+    await visible.useCase.execute({ ...visible.input, data: { amount: 20 } });
+    expect(visible.write).toHaveBeenCalled();
+
+    const hidden = setup({ fields: ['amount'] }, { kind: 'expense' }, 'kind == "revenue"');
+    await expect(hidden.useCase.execute({ ...hidden.input, data: { amount: 20 } })).rejects.toThrow('@core.tenant/portal.edit.denied');
+    expect(hidden.write).not.toHaveBeenCalled();
   });
 
   it('com onlyOwn, só quem criou o registro pelo portal altera', async () => {

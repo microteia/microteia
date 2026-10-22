@@ -26,6 +26,7 @@ import { FIELD_EXPRESSION_FUNCTION_NAMES } from '../../../domain/schema/fieldExp
 import { BUSINESS_CALENDAR_FIELDS } from '../../../domain/schema/time/businessDays';
 import { BUSINESS_CALENDAR_POINT } from '../../../domain/schema/time/extensionPoints';
 import { ARTIFACT_PREFIX_SINCE_KERNEL } from '../../../domain/schema/plugin/artifactPrefix';
+import { PORTAL_VISIBLE_WHEN_SINCE_KERNEL } from '../../../domain/schema/portal';
 import {
   DOCUMENT_OUTPUTS_BY_FORMAT,
   DOCUMENT_TEMPLATE_MAX_BYTES,
@@ -633,9 +634,10 @@ Notifications > Templates — besides \`{title}\`, \`{message}\` and \`{tenant}\
 ### Your own screens in the portal
 
 People from OUTSIDE the organization — a client, a supplier — see what screens declare in \`portal\`
-(the \`subject\`, the \`fields\` that leave, \`create\` for what they may submit, \`edit\` for what they
-may change, \`uploads\` for the documents they may attach). The portal draws a
-home, a menu and a standard list and record for them. \`portalView(metadata, viewKey)\` adds yours:
+(the \`subject\`, the \`fields\` that leave, \`visibleWhen\` for which records leave, \`create\` for what
+they may submit, \`edit\` for what they may change, \`uploads\` for the documents they may attach). The
+portal draws a home, a menu and a standard list and record for them. \`portalView(metadata, viewKey)\`
+adds yours:
 
 | \`surface\` | Also declare | What it is |
 |---|---|---|
@@ -706,6 +708,30 @@ the content area is about 1040px wide at most.
 - **Theme only.** Colours, sizes and spaces come from the theme — the organization's theme is what the
   guest sees, in light or dark.
 - **Check it at 360px wide** before publishing.
+
+#### Which records leave — \`visibleWhen\`
+
+\`fields\` decides which COLUMNS leave; \`visibleWhen\` decides which ROWS. A screen that mixes the
+internal and the external — revenue and expenses for the same client, an accountant's entries, a
+clinical note next to the appointment — keeps the internal ones inside:
+
+\`\`\`ts
+portal: { subject: { field: 'client' }, fields: ['description', 'amount', 'dueDate'], visibleWhen: 'type == "revenue"' }
+\`\`\`
+
+- It is a field expression (section 9) on the WHOLE record, fields the guest never sees included,
+  evaluated by the server every time the guest's copy is written. False, or invalid, and the record has
+  no copy in the portal; if it had one, it is deleted. A field the record does not have is \`null\`, so
+  \`officeOnly != true\` lets through the records where nobody checked it.
+- **A hidden record cuts the chain.** A record that reaches the guest THROUGH a hidden one — the child
+  of \`subject: 'parent'\`, the item that points at it — does not appear either. On the \`'self'\` screen
+  it hides the subject itself, and everything that belongs to it.
+- It is evaluated when the record is WRITTEN, not when the guest looks. Do not make it depend on the
+  clock (\`today()\`): the answer would only change on the next write.
+- A guest's own records obey it too: write the condition so that what they create passes — or it
+  disappears from their portal the moment it is saved.
+- Requires \`kernel: "^${PORTAL_VISIBLE_WHEN_SINCE_KERNEL}"\`. An older kernel ignores the condition and
+  would show every record, so the package gate refuses the package without it.
 
 \`examples/portal-example\` has the declarations on two screens, a \`detail\` page and a home card.
 
@@ -1537,7 +1563,7 @@ is enforced at the two write paths, which is the same footing \`required\`, a ma
 | \`listActions\`, \`viewActionIds\`, \`cardActionIds\` | the platform's own record gestures by key; your \`actions\` by \`templateId\` |
 | \`memberWritableFields\` | fields ANY member may write on a record someone else created — the door for per-person state (read, liked, saved) that the default permission would close |
 | \`authorCanDelete\` | whoever created the record deletes it, without an administrator |
-| \`portal\` | what an outside guest sees: \`subject\` (\`'self'\` for the screen whose records receive guests, \`{ field }\` for a reference that leads to it, \`'parent'\` to inherit from the parent), the \`fields\` that leave the organization — nothing else does — and \`documents\` to expose the documents someone marked as shared. \`create: { fields }\` lets the guest create records, filling only those fields — the link to the subject is set by the server from what the guest already sees, never from what they send; it is refused on the \`'self'\` screen. \`uploads: { types }\` lets the guest ATTACH documents — choosing one of those types (none listed = any the organization has), never creating one, and never deleting; it requires \`documents\`. \`edit: { fields, when?, onlyOwn? }\` lets the guest CHANGE records: only those fields, and only fields that are also in \`fields\` (a guest never overwrites what they cannot see); never the link to the subject; \`when\` is a field expression on the WHOLE record (\`status == "draft"\`) checked by the server on every change — invalid means closed —, and \`onlyOwn\` limits it to records the guest created in the portal |
+| \`portal\` | what an outside guest sees: \`subject\` (\`'self'\` for the screen whose records receive guests, \`{ field }\` for a reference that leads to it, \`'parent'\` to inherit from the parent), the \`fields\` that leave the organization — nothing else does — and \`documents\` to expose the documents someone marked as shared. \`visibleWhen\` is a field expression on the WHOLE record that decides which records leave (\`type == "revenue"\`) — false or invalid, the record is not in the portal, and neither is anything that reaches the guest through it; requires \`kernel: "^${PORTAL_VISIBLE_WHEN_SINCE_KERNEL}"\`. \`create: { fields }\` lets the guest create records, filling only those fields — the link to the subject is set by the server from what the guest already sees, never from what they send; it is refused on the \`'self'\` screen. \`uploads: { types }\` lets the guest ATTACH documents — choosing one of those types (none listed = any the organization has), never creating one, and never deleting; it requires \`documents\`. \`edit: { fields, when?, onlyOwn? }\` lets the guest CHANGE records: only those fields, and only fields that are also in \`fields\` (a guest never overwrites what they cannot see); never the link to the subject; \`when\` is a field expression on the WHOLE record (\`status == "draft"\`) checked by the server on every change — invalid means closed —, and \`onlyOwn\` limits it to records the guest created in the portal |
 | \`auditActions\` | which actions are audited. Absent = all. Declare it when a machine writes the collection, or the audit log drowns in one entry per ingested document |
 
 ### Option lists

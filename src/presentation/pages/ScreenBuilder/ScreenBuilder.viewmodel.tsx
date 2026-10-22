@@ -300,11 +300,14 @@ export interface ScreenBuilderViewModel {
     hasDocuments: boolean;
     readOnly: boolean;
     issues: string[];
+    /** A coleção da tela — é por ela que a aba mostra o andamento da atualização do portal. */
+    collection: string;
   };
   setPortalEnabled: (enabled: boolean) => void;
   setPortalSubjectKind: (kind: PortalSubjectKind) => void;
   setPortalSubjectField: (fieldKey: string) => void;
   togglePortalField: (fieldKey: string, exposed: boolean) => void;
+  setPortalVisibleWhen: (expression: string) => void;
   setPortalDocuments: (documents: boolean) => void;
   setPortalAllowCreate: (allowCreate: boolean) => void;
   togglePortalCreateField: (fieldKey: string, fillable: boolean) => void;
@@ -1335,6 +1338,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       hasDocuments: !!def?.hasDocuments,
       readOnly: def?.managed === true,
       issues,
+      collection: def ? def.dataCollection || def.id : '',
     };
   }, [screenModal, getDefinitionByKey, definitions, screenForm.portal, label, documentTypes]);
 
@@ -1344,6 +1348,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
   const setPortalEnabled = useCallback((enabled: boolean) => updatePortal({ enabled }), [updatePortal]);
   const setPortalSubjectKind = useCallback((subjectKind: PortalSubjectKind) => updatePortal({ subjectKind }), [updatePortal]);
   const setPortalSubjectField = useCallback((subjectField: string) => updatePortal({ subjectField }), [updatePortal]);
+  const setPortalVisibleWhen = useCallback((visibleWhen: string) => updatePortal({ visibleWhen }), [updatePortal]);
   const setPortalDocuments = useCallback((documents: boolean) => updatePortal({ documents }), [updatePortal]);
   const setPortalAllowUploads = useCallback((allowUploads: boolean) => updatePortal({ allowUploads }), [updatePortal]);
   const togglePortalUploadType = useCallback((typeKey: string, allowed: boolean) => {
@@ -2428,6 +2433,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     setPortalSubjectKind,
     setPortalSubjectField,
     togglePortalField,
+    setPortalVisibleWhen,
     setPortalDocuments,
     setPortalAllowCreate,
     togglePortalCreateField,

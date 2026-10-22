@@ -11,15 +11,22 @@
  * cliente, uma empresa —; as demais chegam a ela por um campo `reference` ou pelo pai.
  */
 
-import { evaluateFieldBoolean, fieldExpressionSyntaxError } from './fieldExpression';
-import { RECORD_CREATED_VIA_FIELD } from './mutationSpec';
+import { evaluateFieldBoolean, extractFieldExpressionPaths, fieldExpressionSyntaxError } from './fieldExpression';
+import { RECORD_CREATED_VIA_FIELD, SYSTEM_MANAGED_KEYS } from './mutationSpec';
 
 export {
   PORTAL_DOCUMENTS_SUBCOLLECTION,
   PORTAL_INVITES_COLLECTION,
   PORTAL_RECORDS_COLLECTION,
+  PORTAL_REPROJECTIONS_COLLECTION,
   PORTAL_USERS_COLLECTION,
 } from './portalCollections';
+
+/**
+ * O kernel a partir do qual `visibleWhen` é lido. Um kernel anterior DESCARTA a chave ao ler a
+ * declaração — e projeta todos os registros. Por isso o pacote que a usa tem de exigir este kernel.
+ */
+export const PORTAL_VISIBLE_WHEN_SINCE_KERNEL = '2.61.0';
 
 /** Quantos saltos de referência separam um registro da tela-sujeito, no máximo. */
 export const PORTAL_SUBJECT_MAX_DEPTH = 3;
@@ -48,6 +55,13 @@ export interface PortalDeclaration {
   subject: PortalSubject;
   /** Os ÚNICOS campos que saem do escritório. O que não está aqui não chega ao portal. */
   fields: string[];
+  /**
+   * QUAIS registros saem — `type == "revenue"`. Expressão de campo sobre o registro INTEIRO (inclusive
+   * o que não sai), avaliada no servidor sempre que a projeção é escrita. Falsa ou inválida, a
+   * projeção não existe; e o registro escondido corta a corrente: o filho que só chegava ao sujeito
+   * por ele também não aparece. Ausente, todos saem.
+   */
+  visibleWhen?: string | null;
   /** Expõe os documentos do registro que alguém do escritório marcou como compartilhados. */
   documents?: boolean | null;
   /**
@@ -160,6 +174,7 @@ export const asPortalDeclaration = (value: unknown): PortalDeclaration | null =>
   return {
     subject,
     fields,
+    ...(isNonEmptyString(raw.visibleWhen) ? { visibleWhen: raw.visibleWhen.trim() } : {}),
     documents: raw.documents === true,
     ...(create ? { create } : {}),
     ...(uploads ? { uploads } : {}),
@@ -252,9 +267,31 @@ export const isPortalEditOpen = (
   return !edit.when || evaluate(edit.when, data);
 };
 
-/** A condição do escritório sobre o registro, como o servidor a avalia: estourou, é `false`. */
-export const evaluatePortalCondition = (expression: string, data: Record<string, unknown>, timeZone?: string): boolean =>
-  evaluateFieldBoolean(expression, { value: undefined, data, ...(timeZone ? { timeZone } : {}) }, false);
+/**
+ * A condição do escritório sobre o registro, como o servidor a avalia: estourou, é `false`.
+ *
+ * O campo citado que o registro não tem vale `null`, e não estoura: o Firestore não grava o campo
+ * vazio, e `officeOnly != true` sobre o pedido que o convidado criou — sem `officeOnly` — tem de
+ * responder sobre o vazio, e não fechar por um nome que o avaliador não encontrou.
+ */
+export const evaluatePortalCondition = (expression: string, data: Record<string, unknown>, timeZone?: string): boolean => {
+  const absent = extractFieldExpressionPaths(expression).map((path) => [path.split('.')[0], null] as const);
+  const scope = { ...Object.fromEntries(absent), ...data };
+  return evaluateFieldBoolean(expression, { value: undefined, data: scope, ...(timeZone ? { timeZone } : {}) }, false);
+};
+
+/**
+ * O registro passa pelo filtro da tela — e só então pode haver projeção dele. Sem `visibleWhen`, todos
+ * passam; expressão que estoura esconde: na dúvida, o registro não sai do escritório.
+ */
+export const isPortalRecordVisible = (
+  screen: PortalScreenLike,
+  data: Record<string, unknown>,
+  evaluate: (expression: string, data: Record<string, unknown>) => boolean = evaluatePortalCondition,
+): boolean => {
+  const visibleWhen = screen.portal?.visibleWhen;
+  return !visibleWhen || evaluate(visibleWhen, data);
+};
 
 /** O convidado que criou o registro pelo portal — o "dono" de `onlyOwn`. Criado no escritório, ninguém. */
 export const portalOwnerOf = (data: Record<string, unknown>): string | null =>
@@ -319,7 +356,9 @@ export interface PortalSubjectDeps {
  *
  * Segue a corrente declarada até a tela-sujeito: a nota aponta para a empresa (`self`); o prazo
  * aponta para o processo, que aponta para o cliente. Uma tela no caminho que não declare portal
- * corta a corrente — e o registro fica sem sujeito, que é a resposta fechada.
+ * corta a corrente — e o registro fica sem sujeito, que é a resposta fechada. Um registro que não
+ * passa no `visibleWhen` da tela dele corta do mesmo jeito, seja ele o próprio, um elo do meio ou o
+ * sujeito: o que está escondido não leva ninguém a lugar nenhum.
  */
 export const resolvePortalSubjectKeys = async (
   screen: PortalScreenLike,
@@ -329,7 +368,7 @@ export const resolvePortalSubjectKeys = async (
   depth = 0,
 ): Promise<string[]> => {
   const subject = screen.portal?.subject;
-  if (!subject) return [];
+  if (!subject || !isPortalRecordVisible(screen, data)) return [];
   if (subject === 'self') return [portalSubjectKey(screen.collection, recordId)];
   if (depth >= PORTAL_SUBJECT_MAX_DEPTH) return [];
 
@@ -347,7 +386,11 @@ export const resolvePortalSubjectKeys = async (
 
   const target = deps.screenFor(entityKey);
   if (!target?.portal) return [];
-  if (target.portal.subject === 'self') return ids.map((id) => portalSubjectKey(target.collection, id));
+  // A tela-sujeito sem filtro dispensa a leitura: o id já é a chave. Com filtro, o sujeito é lido
+  // como qualquer elo, para saber se ele mesmo está no portal.
+  if (target.portal.subject === 'self' && !target.portal.visibleWhen) {
+    return ids.map((id) => portalSubjectKey(target.collection, id));
+  }
 
   const keys = new Set<string>();
   for (const id of ids) {
@@ -381,6 +424,33 @@ export interface PortalDeclarationIssue {
 }
 
 /**
+ * Uma condição da declaração (`visibleWhen`, `edit.when`): a sintaxe e os campos que ela cita. Campo
+ * que a tela não tem é sempre vazio — a condição nunca vale, ou vale sempre —, e o escritório só
+ * descobriria vendo o portal de um convidado. Os campos de sistema (`createdVia`, `createdAt`…) são do
+ * registro inteiro, e valem. Do caminho `cliente.cidade` conta o primeiro segmento.
+ */
+const portalConditionIssues = (
+  screen: PortalScreenLike,
+  expression: string | null | undefined,
+  messages: { invalid: string; unknownField: string },
+): PortalDeclarationIssue[] => {
+  if (!expression) return [];
+  if (fieldExpressionSyntaxError(expression)) return [{ message: messages.invalid }];
+  const declared = new Set(screen.fields.map((field) => field.key));
+  const cited = [...new Set(extractFieldExpressionPaths(expression).map((path) => path.split('.')[0]))];
+  return cited
+    .filter((key) => !declared.has(key) && !SYSTEM_MANAGED_KEYS.has(key))
+    .map((field) => ({ message: messages.unknownField, messageParams: { field } }));
+};
+
+/** Os problemas do `visibleWhen` sozinho — o que o empacotamento consegue conferir sem as outras telas. */
+export const portalVisibilityIssues = (screen: PortalScreenLike): PortalDeclarationIssue[] =>
+  portalConditionIssues(screen, screen.portal?.visibleWhen, {
+    invalid: '@core.records/portal.issue.visible-when.invalid',
+    unknownField: '@core.records/portal.issue.visible-when.field.unknown',
+  });
+
+/**
  * O que impede a declaração de entregar algo a alguém — conferido ANTES de gravar, para que o
  * escritório saiba na hora. O servidor, diante da mesma declaração, simplesmente não projeta nada: é
  * a resposta fechada, e calada. Aqui ela ganha voz.
@@ -401,6 +471,8 @@ export const portalDeclarationIssues = (
     if (!declared.has(key)) issues.push({ message: '@core.records/portal.issue.field.unknown', messageParams: { field: key } });
   }
 
+  issues.push(...portalVisibilityIssues(screen));
+
   if (portal.uploads && portal.documents !== true) {
     issues.push({ message: '@core.records/portal.issue.uploads.documents' });
   }
@@ -414,9 +486,10 @@ export const portalDeclarationIssues = (
         issues.push({ message: '@core.records/portal.issue.edit.field.hidden', messageParams: { field: key } });
       }
     }
-    if (portal.edit.when && fieldExpressionSyntaxError(portal.edit.when)) {
-      issues.push({ message: '@core.records/portal.issue.edit.when-invalid' });
-    }
+    issues.push(...portalConditionIssues(screen, portal.edit.when, {
+      invalid: '@core.records/portal.issue.edit.when-invalid',
+      unknownField: '@core.records/portal.issue.edit.when.field.unknown',
+    }));
   }
 
   if (portal.create) {

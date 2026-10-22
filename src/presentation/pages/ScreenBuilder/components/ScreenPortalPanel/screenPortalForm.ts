@@ -8,6 +8,8 @@ export interface PortalFormState {
   subjectKind: PortalSubjectKind;
   subjectField: string;
   fields: string[];
+  /** Só os registros em que esta condição vale saem — vazio = todos. */
+  visibleWhen: string;
   documents: boolean;
   /** O convidado cria registros, preenchendo só `createFields`. */
   allowCreate: boolean;
@@ -29,6 +31,7 @@ export const EMPTY_PORTAL_FORM: PortalFormState = {
   subjectKind: 'self',
   subjectField: '',
   fields: [],
+  visibleWhen: '',
   documents: false,
   allowCreate: false,
   createFields: [],
@@ -49,6 +52,7 @@ export const toPortalForm = (portal: PortalDeclaration | null | undefined): Port
     subjectKind: subject === 'self' || subject === 'parent' ? subject : 'field',
     subjectField: typeof subject === 'object' ? subject.field : '',
     fields: [...portal.fields],
+    visibleWhen: portal.visibleWhen ?? '',
     documents: portal.documents === true,
     allowCreate: !!portal.create,
     createFields: [...(portal.create?.fields ?? [])],
@@ -68,6 +72,7 @@ export const fromPortalForm = (form: PortalFormState): PortalDeclaration | null 
   return {
     subject: form.subjectKind === 'field' ? { field: form.subjectField } : form.subjectKind,
     fields: form.fields,
+    ...(form.visibleWhen.trim() ? { visibleWhen: form.visibleWhen.trim() } : {}),
     documents: form.documents,
     ...(form.allowCreate && form.subjectKind !== 'self' ? { create: { fields: form.createFields } } : {}),
     // Anexar exige ver: sem `documents`, o convidado não enxergaria o que enviou.

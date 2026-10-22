@@ -7,6 +7,7 @@ import type {
   PortalRecord,
 } from '../entities/Portal';
 import type { PortalHomeSettings } from '../schema/portalExtensionPoints';
+import type { PortalReprojectionState } from '../schema/portalReprojection';
 
 export interface IPortalRepository {
   /** Os escritórios em que a pessoa é convidada. */
@@ -75,6 +76,14 @@ export interface IPortalRepository {
     tenantId: string,
     onUpdate: (guests: PortalGuest[]) => void,
     onError?: (error: Error) => void,
+  ): () => void;
+  /**
+   * Do lado do ESCRITÓRIO: as passadas que atualizam o portal depois que uma declaração mudou, por
+   * coleção. Só quem tem `portal.manage` as lê; a leitura recusada entrega o mapa vazio.
+   */
+  subscribeReprojections(
+    tenantId: string,
+    onUpdate: (states: Map<string, PortalReprojectionState>) => void,
   ): () => void;
   /** `locale` é o de quem convida: vira o idioma do portal do convidado enquanto ninguém escolher outro. */
   invite(tenantId: string, email: string, subjectKey: string, locale: string): Promise<{ userId: string; created: boolean }>;

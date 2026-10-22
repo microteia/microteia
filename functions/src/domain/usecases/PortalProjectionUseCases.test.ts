@@ -3,7 +3,6 @@ import {
   makeProjectPortalDocumentUseCase,
   makeProjectPortalRecordUseCase,
   makeRefreshPortalAudienceUseCase,
-  makeReprojectPortalCollectionUseCase,
 } from './PortalProjectionUseCases';
 import { CITY_SCREENS, makeFakePortalRepository } from '../repositories/fakePortalRepository';
 
@@ -120,6 +119,64 @@ describe('projeção do portal', () => {
   });
 });
 
+describe('visibilidade por registro — visibleWhen', () => {
+  const filtering = (screenId: string, visibleWhen: string) => CITY_SCREENS.map((screen) => (screen.id === screenId
+    ? { ...screen, portal: { ...screen.portal!, visibleWhen } }
+    : screen));
+
+  it('só o registro que passa é projetado — e o que deixa de passar some', async () => {
+    const { write, projections } = setup(filtering('invoices', 'kind == "revenue"'));
+    await write('invoices', 'nf1', { number: 'NF-1', companyId: 'acme', kind: 'revenue' });
+    await write('invoices', 'nf2', { number: 'NF-2', companyId: 'acme', kind: 'expense' });
+    expect(projections.has('invoices__nf1')).toBe(true);
+    expect(projections.has('invoices__nf2')).toBe(false);
+    expect(projections.get('invoices__nf1')?.data).not.toHaveProperty('kind');
+
+    await write('invoices', 'nf1', { number: 'NF-1', companyId: 'acme', kind: 'expense' });
+    expect(projections.has('invoices__nf1')).toBe(false);
+  });
+
+  it('o filho do registro escondido some junto — e volta com ele', async () => {
+    const { write, projections } = setup(filtering('invoices', 'kind == "revenue"'));
+    await write('invoices', 'nf1', { number: 'NF-1', companyId: 'acme', kind: 'revenue' });
+    await write('invoiceItems', 'it1', { description: 'Serviço', invoiceId: 'nf1' });
+    expect(projections.has('invoiceItems__it1')).toBe(true);
+
+    await write('invoices', 'nf1', { number: 'NF-1', companyId: 'acme', kind: 'expense' });
+    expect(projections.has('invoiceItems__it1')).toBe(false);
+
+    await write('invoices', 'nf1', { number: 'NF-1', companyId: 'acme', kind: 'revenue' });
+    expect(projections.get('invoiceItems__it1')?.audience).toEqual(['ana']);
+  });
+
+  it('o filho pode ser filtrado sozinho — e o pai continua', async () => {
+    const { write, projections } = setup(filtering('invoiceItems', 'internal != true'));
+    await write('invoices', 'nf1', { number: 'NF-1', companyId: 'acme' });
+    await write('invoiceItems', 'it1', { description: 'Serviço', invoiceId: 'nf1' });
+    await write('invoiceItems', 'it2', { description: 'Correspondente', invoiceId: 'nf1', internal: true });
+    expect(projections.has('invoices__nf1')).toBe(true);
+    expect(projections.has('invoiceItems__it1')).toBe(true);
+    expect(projections.has('invoiceItems__it2')).toBe(false);
+  });
+
+  it('na tela-sujeito, esconde o sujeito e tudo o que chega a ele', async () => {
+    const { write, projections } = setup(filtering('companies', 'active == true'));
+    await write('companies', 'acme', { name: 'Acme', active: true });
+    await write('invoices', 'nf1', { number: 'NF-1', companyId: 'acme' });
+    expect(projections.get('invoices__nf1')?.audience).toEqual(['ana']);
+
+    await write('companies', 'acme', { name: 'Acme', active: false });
+    expect(projections.has('companies__acme')).toBe(false);
+    expect(projections.has('invoices__nf1')).toBe(false);
+  });
+
+  it('a condição inválida não projeta nada', async () => {
+    const { write, projections } = setup(filtering('invoices', 'kind == '));
+    await write('invoices', 'nf1', { number: 'NF-1', companyId: 'acme', kind: 'revenue' });
+    expect(projections.has('invoices__nf1')).toBe(false);
+  });
+});
+
 describe('audiência do portal', () => {
   it('convidar refaz quem vê, sem tocar no que é visto', async () => {
     const { write, projections, users, repo } = setup();
@@ -138,21 +195,6 @@ describe('audiência do portal', () => {
     users.delete('ana');
     await makeRefreshPortalAudienceUseCase(repo).execute(TENANT, ['companies/acme']);
     expect(projections.get('invoices__nf1')?.audience).toEqual([]);
-  });
-});
-
-describe('reprojeção de uma coleção', () => {
-  it('a tela que sai do portal leva as projeções dela junto', async () => {
-    const fake = setup();
-    await fake.write('invoices', 'nf1', { number: 'NF-1', companyId: 'acme' });
-
-    const withoutPortal = CITY_SCREENS.map((screen) => (screen.id === 'invoices' ? { ...screen, portal: null } : screen));
-    const after = makeFakePortalRepository(withoutPortal);
-    for (const [id, projection] of fake.projections) after.projections.set(id, projection);
-
-    await makeReprojectPortalCollectionUseCase(after.repo, makeProjectPortalRecordUseCase(after.repo))
-      .execute(TENANT, 'invoices');
-    expect(after.projections.size).toBe(0);
   });
 });
 

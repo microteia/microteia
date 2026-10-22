@@ -2,11 +2,19 @@ import type {
   IPortalRepository,
   PortalDocumentProjection,
   PortalProjection,
+  PortalReprojectionState,
   PortalScreen,
   PortalUserRecord,
   SharedRecordDocument,
 } from './IPortalRepository';
 import type { PortalHomeSettings } from '../schema/portalExtensionPoints';
+
+/** Uma página por id de documento, como o Firestore a entrega: `startAfter(after)`, `limit(pageSize)`. */
+const pageOf = <T extends { id: string }>(items: T[], after: string | null, pageSize: number) => {
+  const sorted = [...items].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  const page = sorted.filter((item) => after === null || item.id > after).slice(0, pageSize);
+  return { items: page, next: page.length === pageSize ? page[page.length - 1].id : null };
+};
 
 /** Um escritório inteiro em memória — telas, registros, convites e projeções. */
 export const makeFakePortalRepository = (screens: PortalScreen[]) => {
@@ -17,6 +25,7 @@ export const makeFakePortalRepository = (screens: PortalScreen[]) => {
   const users = new Map<string, PortalUserRecord>();
   const invites: string[] = [];
   const staged = new Map<string, { data: Buffer; contentType: string }>();
+  const reprojections = new Map<string, PortalReprojectionState>();
   const homeSettings: PortalHomeSettings = { welcome: '', menu: { order: [], hidden: [] }, widgets: { order: [], hidden: [] }, layout: '' };
 
   const repo: IPortalRepository = {
@@ -27,12 +36,13 @@ export const makeFakePortalRepository = (screens: PortalScreen[]) => {
       [...records.entries()]
         .filter(([key, data]) => key.startsWith(`${collection}/`) && data[fieldKey] === recordId)
         .map(([key, data]) => ({ id: key.slice(collection.length + 1), data })),
-    listRecords: async (_t, collection) => ({
-      items: [...records.entries()]
+    listRecords: async (_t, collection, after, pageSize) => pageOf(
+      [...records.entries()]
         .filter(([key]) => key.startsWith(`${collection}/`))
         .map(([key, data]) => ({ id: key.slice(collection.length + 1), data })),
-      next: null,
-    }),
+      after,
+      pageSize,
+    ),
     audienceFor: async (_t, subjectKeys) =>
       [...users.values()].filter((user) => user.subjectKeys.some((key) => subjectKeys.includes(key))).map((user) => user.userId).sort(),
     getProjection: async (_t, id) => projections.get(id) ?? null,
@@ -47,12 +57,22 @@ export const makeFakePortalRepository = (screens: PortalScreen[]) => {
         .map(([id, projection]) => ({ id, subjectKeys: projection.subjectKeys, audience: projection.audience })),
       next: null,
     }),
-    projectionsOfCollection: async (_t, collection) => ({
-      items: [...projections.entries()]
+    projectionsOfCollection: async (_t, collection, after, pageSize) => pageOf(
+      [...projections.entries()]
         .filter(([, projection]) => projection.collection === collection)
         .map(([id, projection]) => ({ id, subjectKeys: projection.subjectKeys, audience: projection.audience })),
-      next: null,
-    }),
+      after,
+      pageSize,
+    ),
+    countRecords: async (_t, collection) => [...records.keys()].filter((key) => key.startsWith(`${collection}/`)).length,
+    countProjectionsOfCollection: async (_t, collection) =>
+      [...projections.values()].filter((projection) => projection.collection === collection).length,
+    listReprojections: async () => new Map(reprojections),
+    updateReprojection: async (_t, collection, mutate) => {
+      const next = mutate(reprojections.get(collection) ?? null);
+      if (next) reprojections.set(collection, next);
+      return next;
+    },
     setAudiences: async (_t, changes) => {
       for (const change of changes) {
         const current = projections.get(change.projectionId);
@@ -116,7 +136,7 @@ export const makeFakePortalRepository = (screens: PortalScreen[]) => {
     hasInvite: async (email) => invites.includes(email),
   };
 
-  return { repo, records, documents, projections, projectedDocuments, users, invites, homeSettings, staged };
+  return { repo, records, documents, projections, projectedDocuments, users, invites, homeSettings, staged, reprojections };
 };
 
 const field = (key: string, extra: Partial<PortalScreen['fields'][number]> = {}) => ({ key, label: key, type: 'text', ...extra });

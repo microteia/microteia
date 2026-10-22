@@ -1,5 +1,8 @@
 import type { PortalScreenLike } from '../schema/portal';
 import type { PortalHomeSettings } from '../schema/portalExtensionPoints';
+import type { PortalReprojectionState } from '../schema/portalReprojection';
+
+export type { PortalReprojectionState };
 
 /** Uma tela do escritório como o portal a lê — com os rótulos, para o contexto que a casca recebe. */
 export interface PortalScreen extends PortalScreenLike {
@@ -115,6 +118,20 @@ export interface IPortalRepository {
   projectionsForSubject(tenantId: string, subjectKey: string, after: string | null, pageSize: number): Promise<ProjectionPage>;
   projectionsOfCollection(tenantId: string, collection: string, after: string | null, pageSize: number): Promise<ProjectionPage>;
   setAudiences(tenantId: string, changes: Array<{ projectionId: string; audience: string[] }>): Promise<void>;
+  /** Quantos registros a coleção tem, ou quantas projeções dela existem — o tamanho de uma passada. */
+  countRecords(tenantId: string, collection: string): Promise<number>;
+  countProjectionsOfCollection(tenantId: string, collection: string): Promise<number>;
+
+  listReprojections(tenantId: string): Promise<Map<string, PortalReprojectionState>>;
+  /**
+   * Lê e grava o job da coleção numa transação. `mutate` devolve o estado novo, ou `null` para não
+   * gravar nada — e o que ele devolveu é o que volta.
+   */
+  updateReprojection(
+    tenantId: string,
+    collection: string,
+    mutate: (current: PortalReprojectionState | null) => PortalReprojectionState | null,
+  ): Promise<PortalReprojectionState | null>;
 
   sharedDocuments(tenantId: string, collection: string, recordId: string): Promise<SharedRecordDocument[]>;
   getRecordDocument(

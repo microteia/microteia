@@ -22,6 +22,7 @@ import { portalExamplePtBrContribution } from './portalMessagesPtBr';
  * | the guest creates records there | `portal.create: { fields }` — the link is stamped by the server |
  * | the guest changes records there | `portal.edit: { fields, when?, onlyOwn? }` — only fields they see |
  * | the only fields that leave the organization | `portal.fields` — `internal` below never does |
+ * | the only RECORDS that leave the organization | `portal.visibleWhen` — an office-only order never does |
  * | a page of your own in the portal | `portalView({ collection, surface: 'detail' }, viewKey)` |
  * | a card on the portal home | `portalView({ surface: 'widget', key, title }, viewKey)` |
  * | what those can read | `@microteia/portal` — never `@microteia/data` |
@@ -57,6 +58,10 @@ const CLIENT_SCREEN: ScreenModuleTemplate = {
  * `internal` is a field of the record that the guest never sees: it is not in `portal.fields`, so it
  * is not in the projection the guest reads. That is the whole exposure model — what is not declared
  * does not leave.
+ *
+ * `officeOnly` does the same for a whole RECORD: an order the organization logs against the client for
+ * itself (a supplier's cost, say) has it checked, and `portal.visibleWhen` keeps it inside. The
+ * condition reads the whole record, even fields the guest never sees.
  */
 const ORDER_FIELDS: TemplateField[] = [
   { key: 'item', label: message('field.item'), type: 'text', required: true, order: 0 },
@@ -64,6 +69,7 @@ const ORDER_FIELDS: TemplateField[] = [
   { key: 'notes', label: message('field.notes'), type: 'textarea', required: false, order: 2 },
   { key: 'client', label: message('field.client'), type: 'reference', required: true, order: 3, refEntity: 'portalExampleClient' },
   { key: 'internal', label: message('field.internal'), type: 'textarea', required: false, order: 4 },
+  { key: 'officeOnly', label: message('field.officeOnly'), type: 'checkbox', required: false, order: 5 },
 ];
 
 const ORDER_SCREEN: ScreenModuleTemplate = {
@@ -79,6 +85,8 @@ const ORDER_SCREEN: ScreenModuleTemplate = {
   portal: {
     subject: { field: 'client' },
     fields: ['item', 'quantity', 'notes'],
+    // Checked in the office, the order never reaches the portal; a guest's own order leaves it empty.
+    visibleWhen: 'officeOnly != true',
     create: { fields: ['item', 'quantity', 'notes'] },
     // A guest fixes the quantity or the notes of an order THEY placed — never the client it belongs to.
     edit: { fields: ['quantity', 'notes'], onlyOwn: true },
@@ -94,8 +102,8 @@ const CLIENT_PORTAL_SOURCE = mergeViewSources({
 export const portalExamplePlugin: MarketplacePlugin = {
   manifest: {
     id: 'com.microteia.portal-example',
-    version: '1.2.1',
-    kernel: '^2.57.0',
+    version: '1.3.0',
+    kernel: '^2.61.0',
     name: message('package.name'),
     description: message('package.description'),
     category: message('package.category'),

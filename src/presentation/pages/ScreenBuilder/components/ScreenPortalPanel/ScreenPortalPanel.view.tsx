@@ -5,6 +5,7 @@ import { RadioGroup } from '../../../../components/ui/RadioButton';
 import { SearchSelect } from '../../../../components/ui/SearchSelect';
 import { InfoBanner } from '../../../../components/ui/InfoBanner';
 import { Input } from '../../../../components/ui/Input';
+import { PortalReprojectionStatus } from '../../../../components/ui/PortalReprojectionStatus';
 import { useT } from '../../../../shared/i18n/useT';
 import type { PortalFormState, PortalSubjectKind } from './screenPortalForm';
 
@@ -24,10 +25,13 @@ export interface ScreenPortalPanelProps {
   readOnly: boolean;
   /** Já traduzidos. */
   issues: string[];
+  /** A coleção da tela: o andamento da atualização do portal é o dela. */
+  collection: string;
   onToggleEnabled: (enabled: boolean) => void;
   onSubjectKind: (kind: PortalSubjectKind) => void;
   onSubjectField: (fieldKey: string) => void;
   onToggleField: (fieldKey: string, exposed: boolean) => void;
+  onVisibleWhen: (expression: string) => void;
   onToggleDocuments: (documents: boolean) => void;
   onToggleCreate: (allowCreate: boolean) => void;
   onToggleCreateField: (fieldKey: string, fillable: boolean) => void;
@@ -55,6 +59,7 @@ export const ScreenPortalPanel: React.FC<ScreenPortalPanelProps> = (props) => {
     <S.Panel>
       <InfoBanner variant="info" message={t('portal.panel.description')} />
       {readOnly && <InfoBanner variant="warning" message={t('portal.panel.managed')} />}
+      {props.collection && <PortalReprojectionStatus collection={props.collection} />}
 
       <Checkbox
         checked={form.enabled}
@@ -106,6 +111,17 @@ export const ScreenPortalPanel: React.FC<ScreenPortalPanelProps> = (props) => {
                 />
               ))}
             </S.FieldGrid>
+          </S.Section>
+
+          <S.Section>
+            <S.SectionTitle>{t('portal.visible-when')}</S.SectionTitle>
+            <Input
+              value={form.visibleWhen}
+              onChange={(event) => props.onVisibleWhen(event.target.value)}
+              placeholder={t('portal.visible-when.placeholder')}
+              disabled={readOnly}
+            />
+            <S.Hint>{t('portal.visible-when.hint')}</S.Hint>
           </S.Section>
 
           <S.Section>

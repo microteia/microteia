@@ -6,13 +6,21 @@ import {
   makeProjectPortalDocumentUseCase,
   makeProjectPortalRecordUseCase,
   makeRefreshPortalAudienceUseCase,
-  makeReprojectPortalCollectionUseCase,
 } from '../../domain/usecases/PortalProjectionUseCases';
+import {
+  makeNudgePortalReprojectionsUseCase,
+  makeRunPortalReprojectionRoundUseCase,
+  makeStartPortalReprojectionUseCase,
+} from '../../domain/usecases/PortalReprojectionUseCases';
+import type {
+  NudgePortalReprojectionsUseCase,
+  RunPortalReprojectionRoundUseCase,
+  StartPortalReprojectionUseCase,
+} from '../../domain/usecases/PortalReprojectionUseCases';
 import type {
   ProjectPortalDocumentUseCase,
   ProjectPortalRecordUseCase,
   RefreshPortalAudienceUseCase,
-  ReprojectPortalCollectionUseCase,
 } from '../../domain/usecases/PortalProjectionUseCases';
 import {
   makeGetPortalContextUseCase,
@@ -289,8 +297,16 @@ class DIContainer {
     return makeRefreshPortalAudienceUseCase(this.getPortalRepository());
   }
 
-  getReprojectPortalCollectionUseCase(): ReprojectPortalCollectionUseCase {
-    return makeReprojectPortalCollectionUseCase(this.getPortalRepository(), this.getProjectPortalRecordUseCase());
+  getStartPortalReprojectionUseCase(): StartPortalReprojectionUseCase {
+    return makeStartPortalReprojectionUseCase(this.getPortalRepository());
+  }
+
+  getRunPortalReprojectionRoundUseCase(): RunPortalReprojectionRoundUseCase {
+    return makeRunPortalReprojectionRoundUseCase(this.getPortalRepository(), this.getProjectPortalRecordUseCase());
+  }
+
+  getNudgePortalReprojectionsUseCase(): NudgePortalReprojectionsUseCase {
+    return makeNudgePortalReprojectionsUseCase(this.getPortalRepository());
   }
 
   getInvitePortalUserUseCase(): InvitePortalUserUseCase {

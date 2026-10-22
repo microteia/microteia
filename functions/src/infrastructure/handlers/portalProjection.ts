@@ -1,6 +1,8 @@
 import { onDocumentWritten } from 'firebase-functions/v2/firestore';
 import { getDI } from '../di/container';
 import { RESERVED_COLLECTIONS } from '../../domain/schema/screenEntity';
+import { PORTAL_REPROJECTIONS_COLLECTION } from '../../domain/schema/portal';
+import { portalReprojectionScope } from '../../domain/usecases/PortalReprojectionUseCases';
 
 const REGION = 'southamerica-east1';
 
@@ -76,32 +78,74 @@ const portalShape = (data: Record<string, unknown> | undefined): string => {
 };
 
 /**
- * A declaração de portal de uma tela mudou. Refaz TODAS as coleções do portal do escritório, e não
- * só a desta tela: o sujeito de uma tela chega pelas outras, e tirar a tela-sujeito do portal tem de
- * levar junto o que só chegava a alguém por ela. Mudar declaração é raro; deixar uma projeção para
- * trás seria entregar a alguém o que já não é dele.
+ * Entrega do gatilho mais velha que isto não é refeita: com `retry`, o Firebase reentrega uma falha
+ * por dias, e uma rodada que falha sempre do mesmo jeito viraria custo sem fim. A passada parada é
+ * acordada pela próxima mudança de declaração (`nudge`), não pela insistência.
+ */
+const MAX_EVENT_AGE_MS = 15 * 60_000;
+
+/** As coleções que a mudança alcança, cada uma com uma passada nova. */
+const startReprojection = async (
+  tenantId: string,
+  screenId: string,
+  before: Record<string, unknown> | undefined,
+  after: Record<string, unknown> | undefined,
+): Promise<void> => {
+  const di = getDI();
+  const collectionOf = (data: Record<string, unknown> | undefined) =>
+    typeof data?.dataCollection === 'string' && data.dataCollection ? data.dataCollection : screenId;
+
+  const screens = await di.getPortalRepository().getScreens(tenantId, { fresh: true });
+  const collections = portalReprojectionScope(screens, {
+    screenId,
+    collections: [...new Set([collectionOf(before), collectionOf(after)])],
+  });
+  await di.getStartPortalReprojectionUseCase().execute(tenantId, collections);
+};
+
+/**
+ * A declaração de portal de uma tela mudou. Abre uma passada nas coleções que a mudança alcança — a
+ * desta tela e as que chegam ao sujeito por ela, ou mostram o título dela (`portalReprojectionScope`) —
+ * e não em todas as do portal. A passada anda sozinha, uma página por rodada (`runPortalReprojection`),
+ * e por isso o tamanho da coleção não esbarra no tempo de uma invocação.
+ *
+ * É também aqui que uma passada que parou é acordada: mudar declaração é o que o escritório faz quando
+ * mexe no portal, e a conferência custa uma leitura de coleção.
  */
 export const reprojectPortalOnScreenChange = onDocumentWritten(
-  { document: 'tenants/{tenantId}/screenDefinitions/{screenId}', region: REGION, timeoutSeconds: 540, memory: '512MiB' },
+  { document: 'tenants/{tenantId}/screenDefinitions/{screenId}', region: REGION },
   async (event) => {
     const { tenantId, screenId } = event.params;
     const before = event.data?.before?.exists ? (event.data.before.data() as Record<string, unknown>) : undefined;
     const after = event.data?.after?.exists ? (event.data.after.data() as Record<string, unknown>) : undefined;
-    if (portalShape(before) === portalShape(after)) return;
-    if (!before?.portal && !after?.portal) return;
-
-    const collectionOf = (data: Record<string, unknown> | undefined) =>
-      typeof data?.dataCollection === 'string' && data.dataCollection ? data.dataCollection : screenId;
-
     const di = getDI();
-    const screens = await di.getPortalRepository().getScreens(tenantId, { fresh: true });
-    const collections = new Set<string>([
-      collectionOf(before),
-      collectionOf(after),
-      ...screens.filter((screen) => !!screen.portal).map((screen) => screen.collection),
-    ]);
-    for (const collection of collections) {
-      await di.getReprojectPortalCollectionUseCase().execute(tenantId, collection);
+    if (portalShape(before) !== portalShape(after) && (before?.portal || after?.portal)) {
+      await startReprojection(tenantId, screenId, before, after);
     }
+    try {
+      await di.getNudgePortalReprojectionsUseCase().execute(tenantId);
+    } catch (error) {
+      console.error(`[portal] Falha ao acordar as reprojeções paradas de ${tenantId}:`, error);
+    }
+  },
+);
+
+/**
+ * Uma rodada por gravação no job. A rodada fecha gravando o cursor — e é essa gravação que dispara a
+ * seguinte. As gravações que não abrem rodada (a reserva, o fim da passada) saem sem fazer nada.
+ */
+export const runPortalReprojection = onDocumentWritten(
+  {
+    document: `tenants/{tenantId}/${PORTAL_REPROJECTIONS_COLLECTION}/{collection}`,
+    region: REGION,
+    retry: true,
+    timeoutSeconds: 300,
+    memory: '512MiB',
+  },
+  async (event) => {
+    if (!event.data?.after.exists) return;
+    if (Date.now() - new Date(event.time).getTime() > MAX_EVENT_AGE_MS) return;
+    const { tenantId, collection } = event.params;
+    await getDI().getRunPortalReprojectionRoundUseCase().execute(tenantId, collection);
   },
 );

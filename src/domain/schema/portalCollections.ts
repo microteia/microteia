@@ -6,5 +6,10 @@
 export const PORTAL_USERS_COLLECTION = 'portalUsers';
 export const PORTAL_RECORDS_COLLECTION = 'portalRecords';
 export const PORTAL_DOCUMENTS_SUBCOLLECTION = 'documents';
+/**
+ * A reprojeção de uma coleção depois que uma declaração mudou — um documento por coleção, só do
+ * servidor. O cursor gravado ali é o gatilho da rodada seguinte.
+ */
+export const PORTAL_REPROJECTIONS_COLLECTION = 'portal_reprojections';
 /** Coleção de RAIZ, só do servidor: a marca do convite que precisa existir antes da conta. */
 export const PORTAL_INVITES_COLLECTION = 'portalInvites';

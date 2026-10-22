@@ -54,6 +54,7 @@ const ALL_FUNCTIONS = [
   'projectPortalDocument',
   'refreshPortalAudience',
   'reprojectPortalOnScreenChange',
+  'runPortalReprojection',
   'addTenantMember',
   'removeTenantMember',
   'onUserCreated',

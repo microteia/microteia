@@ -381,6 +381,15 @@ service cloud.firestore {
         allow write: if false;
       }
 
+      // A reprojeção do portal depois que uma declaração mudou (um documento por coleção). Lê quem
+      // decide o que sai do escritório — o que o documento expõe são nomes de coleção, contagens e
+      // ids. Ninguém grava do cliente: o cursor e a reserva são do servidor, e um cliente que os
+      // escrevesse poderia dar por refeita a passada que ainda tem projeção para apagar.
+      match /portal_reprojections/{collection} {
+        allow read: if can(tenantId, 'portal.manage');
+        allow write: if false;
+      }
+
       // A adoção das chaves sobre os registros que já existiam (um documento por coleção). Todo
       // membro lê — a listagem tira dele o aviso, e o que ele expõe (nomes de chave, ids, os valores
       // repetidos) quem lê a coleção já vê. Ninguém grava do cliente: quem escrevesse `adopted` daria
@@ -546,7 +555,7 @@ service cloud.firestore {
         'actions', 'agentGrants', 'aggregate_backfills', 'aiConnections',
         'documentTemplates', 'documentTypes', 'documents', 'downloads', 'extension_history', 'extension_migrations', 'extensions',
         'installed_extensions', 'lookupDefinitions', 'members', 'notes', 'notification_inbox', 'notification_dispatches',
-        'portalRecords', 'portalUsers', 'reports', 'roles',
+        'portalRecords', 'portalUsers', 'portal_reprojections', 'reports', 'roles',
         // `plugin_installations` não tem mais código que a leia — foi a instalação de antes de
         // `installed_extensions`. Continua RESERVADA porque os documentos de então continuam nos
         // escritórios, e liberar o nome deixaria uma tela nova nascer por cima deles.

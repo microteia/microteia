@@ -21,6 +21,7 @@ import {
   canPortalUserEdit,
   evaluatePortalCondition,
   isPortalEditOpen,
+  isPortalRecordVisible,
   portalCreateFieldKeys,
   portalEditFieldKeys,
   portalLinkOf,
@@ -495,7 +496,8 @@ export type UpdatePortalRecordUseCase = {
  * O convidado ALTERA um registro que é dele.
  *
  * Tudo é conferido de novo, sobre o registro como está AGORA — a projeção que desenhou o botão pode
- * ter ficado para trás: ele enxerga o registro; a tela deixa alterar; a condição do escritório vale
+ * ter ficado para trás: ele enxerga o registro, e o registro ainda passa no `visibleWhen`; a tela
+ * deixa alterar; a condição do escritório vale
  * para o registro inteiro, inclusive o que o convidado não vê; e, se a tela pede, foi ele quem o
  * criou. Do que ele manda, só os campos editáveis passam — o vínculo nunca está entre eles, e é isso
  * que impede passar o registro para outra empresa.
@@ -519,7 +521,8 @@ export const makeUpdatePortalRecordUseCase = (
 
     const record = await repo.getRecord(tenantId, collection, recordId);
     if (!record) throw denied;
-    const open = isPortalEditOpen(screen, record, (expression, values) => evaluatePortalCondition(expression, values, timeZone));
+    const evaluate = (expression: string, values: Record<string, unknown>) => evaluatePortalCondition(expression, values, timeZone);
+    const open = isPortalRecordVisible(screen, record, evaluate) && isPortalEditOpen(screen, record, evaluate);
     if (!open || !canPortalUserEdit(screen, userId, { editable: open, portalOwner: portalOwnerOf(record) })) {
       throw denied;
     }

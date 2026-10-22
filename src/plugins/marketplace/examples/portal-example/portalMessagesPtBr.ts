@@ -23,6 +23,7 @@ const PORTAL_EXAMPLE_PT_BR: Record<string, string> = {
   'field.quantity': 'Quantidade',
   'field.notes': 'Observações',
   'field.internal': 'Nota interna',
+  'field.officeOnly': 'Só do escritório — nunca aparece no portal',
 
   'portal.orders': 'Seus pedidos',
   'portal.orders.empty': 'Nenhum pedido ainda.',

@@ -104,6 +104,7 @@ npm run verify          # typecheck + lint + verify-schemas
 | `DownloadItem` (arquivo gerado para baixar, temporário; escrito só pelo servidor) | `tenants/{tenantId}/downloads/{id}` — TTL em `expiresAt` | Sim |
 | `PortalUser` (convidado de FORA do escritório; escrito só pelo servidor) | `tenants/{tenantId}/portalUsers/{uid}` | Sim |
 | `PortalRecord` (projeção do que uma tela expõe no portal; escrita só pelo servidor) | `tenants/{tenantId}/portalRecords/{coleção}__{id}` (+ `documents/{id}`) | Sim |
+| Reprojeção do portal (a passada que refaz as projeções de uma coleção; escrita só pelo servidor) | `tenants/{tenantId}/portal_reprojections/{coleção}` | Sim |
 | Marca de convite do portal (o bootstrap a lê para não abrir escritório) | `portalInvites/{e-mail}` | Não (só servidor) |
 | `Notícia` (extensão `com.microteia.news`) | `tenants/{tenantId}/news/{id}` | Sim |
 | `Comentário` (extensão `com.microteia.news`) | `tenants/{tenantId}/newsComments/{id}` | Sim |
@@ -787,6 +788,7 @@ regra que tem uma decisão a defender:
 | `recordKeyAdoptions.test.ts` | o job da adoção lido por todo membro e escrito por ninguém do cliente — quem escrevesse `adopted` daria por única uma chave com duplicatas embaixo |
 | `reports.test.ts` | definição lida por todo membro, escrita por quem gerencia — e o acesso ao DADO que a regra deliberadamente não decide |
 | `backendState.test.ts` | o cliente lê e nunca escreve: escrita liberada deixaria forjar a lista de órfãs do provisionamento |
+| `portalReprojections.test.ts` | o job da reprojeção: lê só quem tem `portal.manage`; ninguém grava do cliente |
 | `portal.test.ts` | o convidado não é membro: não lê registro original, membros, perfis, telas nem configurações; a projeção só se lista filtrada pelo próprio uid; revogar fecha na hora; ninguém grava projeção nem convite do cliente |
 
 Ela fica **fora do `npm test`**, com configuração própria (`vitest.rules.config.ts`), porque exige um
@@ -838,6 +840,7 @@ administraria milhares deles, e cada um nasceria com limite e configuração pr�
 portal: {
   subject: 'self' | { field: 'companyId' } | 'parent',
   fields: ['number', 'amount'],   // os ÚNICOS campos que saem do escritório
+  visibleWhen: 'type == "revenue"', // os ÚNICOS registros que saem (opcional)
   documents: true,                // expõe os documentos marcados como compartilhados
 }
 ```
@@ -877,7 +880,8 @@ expostas (o id não diz nada a quem é de fora) e `audience` — os uids que pod
 | `projectPortalRecord` | registro escrito | refaz a projeção; sem sujeito, apaga. Se o sujeito MUDOU, refaz os dependentes (o filho, a nota do pedido) |
 | `projectPortalDocument` | documento do registro escrito | copia os metadados do documento compartilhado; sem a marca, apaga |
 | `refreshPortalAudience` | convite alterado | refaz só o `audience`, varrendo as PROJEÇÕES do sujeito — nunca a coleção original |
-| `reprojectPortalOnScreenChange` | declaração `portal` mudou | refaz todas as coleções do portal do escritório: o sujeito de uma tela chega pelas outras |
+| `reprojectPortalOnScreenChange` | declaração `portal` mudou | abre uma passada nas coleções que a mudança ALCANÇA (`portalReprojectionScope`), e acorda passadas paradas |
+| `runPortalReprojection` | job de reprojeção gravado | uma rodada: uma página da coleção, e o cursor gravado dispara a seguinte |
 
 A regra é a de Downloads: a lista só é aprovada filtrada por `audience array-contains uid`, e o
 convidado precisa ter o convite vivo (`isPortalUser`). O segundo termo é o que torna a revogação
@@ -888,6 +892,92 @@ segunda cópia que ficasse para trás.
 **Custo aceito:** cada gravação numa coleção do portal custa uma leitura de projeção e uma escrita, e
 o portal vê a mudança alguns segundos depois. Convidar alguém para uma empresa com dez mil notas
 custa ler dez mil projeções, uma vez, em lotes.
+
+### Mudou a declaração — a reprojeção por rodadas (`portal_reprojections`)
+
+Mudar a declaração de uma tela (ligar o portal, expor um campo, escrever um `visibleWhen`) muda a
+projeção de registros que ninguém gravou. Antes, uma invocação só percorria todas as coleções do
+portal do escritório, em sequência, contra o teto de 540 s — e a que estourava parava no meio, sem
+reentrega: o resto ficava como estava até cada registro ser gravado de novo. Numa tela que já estava no
+portal e ganhou um `visibleWhen`, "como estava" é o registro que devia sumir continuando à vista.
+
+**Só o que a mudança alcança.** `portalReprojectionScope` devolve a coleção da tela (pelo nome de antes
+e de depois: mudar `dataCollection` deixa projeções no nome velho), as telas que chegam ao sujeito
+ATRAVÉS dela em qualquer profundidade (o sujeito delas pode ter mudado, e um registro escondido corta a
+corrente de todas) e as que mostram o título dela no rótulo de uma referência exposta — só um salto: o
+rótulo não muda o sujeito de quem aponta. Mudar o filho não refaz o pai nem o avô.
+
+**Por rodadas, no molde de `aggregate_backfills`.** Um documento por coleção guarda `generation`,
+`round`, `cursor`, a reserva (`leaseUntil`, 6 min) e as contagens. A rodada reserva o job em transação,
+relê as telas sem cache, processa uma página de 200 com concorrência 8 e fecha gravando o cursor — e
+essa gravação é o gatilho da rodada seguinte. Com a coleção ainda no portal, a página é de REGISTROS,
+reprojetados com `cascade: false` (os dependentes estão no escopo e têm a passada deles; com cascata,
+um pai de cinco mil filhos faria uma rodada sem tamanho previsível). Fora do portal, a página é de
+PROJEÇÕES, e cada uma é apagada.
+
+| Situação | O que acontece |
+|---|---|
+| a declaração muda de novo no meio | passada nova, `generation` + 1, do começo; a rodada em voo é descartada ao fechar |
+| entrega duplicada do gatilho | a reserva válida a recusa |
+| a rodada inteira falha (timeout, cota, deploy) | solta a reserva e sobe; `retry` reentrega do mesmo cursor. Entrega com mais de 15 min é ignorada |
+| um registro falha | conta e guarda até 50 ids; a página segue. No fim, a passada recomeça até 3 vezes (refazer projeção é idempotente) e então para com a contagem |
+| a passada parou (sem gravação há 10 min, reserva vencida) | a próxima mudança de declaração de qualquer tela do escritório a acorda, e ela continua do cursor |
+
+**A janela continua existindo, e agora tem tamanho.** Entre salvar a declaração e a passada chegar ao
+registro, a projeção é a da declaração anterior — mas a passada sempre termina, e não depende do
+tamanho da coleção. Numa tela que ENTRA no portal, a janela é só de falta: toda projeção nasce filtrada.
+
+O job é do servidor: `firestore.rules` deixa ler quem tem `portal.manage` e não deixa ninguém gravar
+(`rules-tests/portalReprojections.test.ts`). O tamanho da passada é contado ao abri-la (`count()` dos
+registros, ou das projeções quando a coleção saiu do portal) só para mostrar o andamento; a contagem
+que falha não segura a passada.
+
+**O andamento é do ESCRITÓRIO, nunca do convidado.** `PortalReprojectionStatus` (`components/ui/`)
+assina os jobs e mostra um `InfoBanner` por coleção quando há o que dizer — em curso ("3.200 de
+10.000"), parada, ou terminada com falhas; a passada que terminou limpa não diz nada. Ele aparece em
+Configurações › Portal (todas as coleções) e na aba Portal do Form Design (a coleção da tela). A
+decisão do que dizer é pura (`portalReprojectionNotice`, `domain/services/`), e "parada" é o MESMO
+critério do servidor (`isPortalReprojectionStalled`, `domain/schema/portalReprojection.ts`,
+compartilhado); o relógio é conferido a cada minuto, porque o job não avisa que parou.
+
+Por isso o andamento é agnóstico da home do portal: não passa por `getPortalContext`, por layout, nem
+por view de extensão. A home pode ser inteiramente de uma extensão (`portal.view` de superfície
+`home` ou `layout`) e nada muda — o convidado não lê `portal_reprojections`, e para ele a passada é
+só a projeção chegando ou saindo, registro a registro.
+
+### Quais registros saem — `portal.visibleWhen`
+
+`fields` escolhe as COLUNAS; `visibleWhen` escolhe as LINHAS. É o que deixa no portal uma tela que
+mistura o interno e o externo — a receita e a despesa do mesmo cliente, o lançamento do contador, a
+anotação clínica ao lado da consulta.
+
+A condição é expressão de campo sobre o registro INTEIRO (inclusive o que não sai), avaliada no
+servidor sempre que a projeção é escrita, pelo mesmo `evaluatePortalCondition` do `edit.when`. Ela não
+é um passo a mais do gatilho: mora em `resolvePortalSubjectKeys`, e por isso tudo o que já valia para
+"sem sujeito" vale para "escondido" sem uma linha nova:
+
+| Situação | O que acontece |
+|---|---|
+| o registro não passa (ou a condição é inválida) | fica sem sujeito → a projeção não existe; se existia, é apagada (com os documentos projetados) |
+| um ELO da corrente não passa (o pai de `subject: 'parent'`, a nota apontada) | o filho fica sem sujeito também — o escondido não leva ninguém a lugar nenhum |
+| a tela-SUJEITO tem filtro | o sujeito é lido como qualquer elo; escondido, nada chega a ele. Sem filtro, continua sem leitura |
+| o registro passa a não passar | os sujeitos MUDARAM, e o gatilho já refaz os dependentes — os filhos somem junto, e voltam junto. Na reprojeção por mudança de declaração, quem os refaz é a passada da coleção deles |
+| o convidado tenta alterar um registro que acabou de sair | `makeUpdatePortalRecordUseCase` relê o registro e confere `visibleWhen` antes de `edit.when` |
+
+Campo citado que o registro não tem vale `null` (`evaluatePortalCondition` completa o escopo com os
+caminhos que a expressão lê, como `reportRowScope`): o Firestore não grava o campo vazio, e
+`officeOnly != true` sobre o pedido criado pelo convidado tem de responder sobre o vazio. Isso vale
+também para `edit.when`, que antes fechava por um nome ausente.
+
+**Avaliada na gravação, não na leitura** — como `editable`. Condição que pergunta ao relógio só muda na
+próxima gravação do registro; o guia de autoria manda não fazer isso.
+
+**O pacote que declara `visibleWhen` exige `kernel ^2.61.0`** (`PORTAL_VISIBLE_WHEN_SINCE_KERNEL`,
+cobrado por `packagePortalIssues`). Não é forma, é exposição: um kernel anterior descarta a chave em
+`asPortalDeclaration` e projetaria TODOS os registros da tela. O mesmo gate confere a sintaxe e os
+campos citados (os da tela, os dos `screenPatches` do pacote e os de sistema). No Form Design,
+`portalDeclarationIssues` faz as mesmas duas conferências — e passou a conferir os campos citados em
+`edit.when` também.
 
 ### Convite — a marca antes da conta
 
@@ -1116,8 +1206,7 @@ convidado vê, e campo apagado vai como `null`. Views de extensão usam `canEdit
 - **View de portal declarativa** (Widget DSL): `portal.view` — inclusive `page`, `widget` e `home` — é só `code`. O `WidgetRenderer` lê os
   stores do escritório, e o convidado não os tem.
 - **Escala.** A lista do portal traz as 200 projeções mais recentes por coleção, sem paginação por
-  cursor; a reprojeção de uma mudança de declaração roda numa invocação só (540 s); e os gatilhos de
-  projeção leem as telas por um cache de 30 s por instância — uma gravação logo depois de mudar a
+  cursor; e os gatilhos de projeção leem as telas por um cache de 30 s por instância — uma gravação logo depois de mudar a
   declaração pode projetar pela declaração anterior, até a próxima gravação daquele registro.
 - **`refEntity` do campo-sujeito** muda pelo Form Design sem `portal.manage` (incluir `fields` na
   regra travaria qualquer edição de campo das telas do portal). Exige que a tela apontada também
@@ -1128,8 +1217,9 @@ convidado vê, e campo apagado vai como `null`. Views de extensão usam `canEdit
 `domain/schema/portal.ts` · `domain/entities/Portal.ts` · `data/repositories/FirebasePortalRepository.ts` ·
 `stores/{PortalStore.tsx,usePortal.ts}` · `presentation/pages/{Portal,PortalSignIn}/` ·
 `presentation/pages/TenantSettings/PortalTab/` ·
-`functions/src/domain/usecases/{PortalProjectionUseCases,PortalAccessUseCases}.ts` ·
-`functions/src/infrastructure/handlers/{portalProjection,portalAccess}.ts` · `rules-tests/portal.test.ts`
+`functions/src/domain/usecases/{PortalProjectionUseCases,PortalReprojectionUseCases,PortalAccessUseCases}.ts` ·
+`functions/src/infrastructure/handlers/{portalProjection,portalAccess}.ts` ·
+`rules-tests/{portal,portalReprojections}.test.ts`
 
 ---
 
