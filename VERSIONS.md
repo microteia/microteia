@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.142.3] — 2026-10-22
+
+- Corrigido o campo de Prefixo em Configurações, que não deixava digitar um prefixo novo quando o escritório ainda não tinha um. Agora o valor só é salvo quando está no formato aceito, e um aviso explica o que falta enquanto isso.
+
 #### [9.142.2] — 2026-10-21
 
 - Os arquivos anexados a um registro passam a seguir as mesmas permissões do registro: dentro do sistema, só os vê quem pode ver aquela tela. Os links de download compartilhados continuam abrindo para quem os recebe.

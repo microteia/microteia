@@ -18,6 +18,10 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.142.3] — 2026-10-22
+
+- fix(settings): a `text` property with a declared `pattern` no longer saves on every keystroke regardless of the value. A value that does not match stays on screen with an inline warning and is written only once valid. Before, every intermediate value reached Firestore: on an organization without a prefix, the first letter typed into `customization.prefix` was rejected by the rule (2–8 characters), the snapshot reverted the field to empty, and the prefix could not be set at all.
+
 #### [9.142.2] — 2026-10-21
 
 - fix(storage): the record wildcard (`tenants/{t}/{collection}/{recordId}/**`) let any member read any record file through the SDK, regardless of `<collection>.read`, and its delete checked `members.role == 'admin'` — a field that no longer exists, so only SYSTEM could delete. Read now requires `<collection>.read`, create `.create` or `.update`, delete `.update` or `.delete`, through `canInTenant` (owner, or materialized `permissions` with the permission or `*`), as Firestore's `can()`. Tokenized download URLs bypass rules and keep working. Audit-log backups are explicitly SYSTEM/SUPPORT only. `npm run test:rules` now runs the Storage emulator too (`rules-tests/storage.test.ts`). Deploy: `npm run deploy:rules`.

@@ -17,6 +17,7 @@ import {
   propertyAcceptsScope,
   resolveSetting,
   settingsToJson,
+  validateSettingValue,
   type SettingsProperty,
   type SettingsScope,
 } from '../../../domain/schema/settings';
@@ -38,6 +39,8 @@ export interface SettingsRow {
   isEditable: boolean;
   /** O escritório está definido, mas a preferência do usuário é que vale. */
   isOverriddenByUser: boolean;
+  /** O valor digitado que ainda não serve — mostrado, mas não gravado. */
+  issue: SettingsValueIssue | null;
 }
 
 export interface SettingsViewModel {
@@ -67,6 +70,8 @@ export interface SettingsViewModel {
   discardJson: () => void;
 }
 
+const invalidTextKey = (scope: SettingsScope, key: string): string => `${scope}:${key}`;
+
 export const useSettingsViewModel = (tabKey?: string): SettingsViewModel => {
   const t = useT('core.settings');
   const { values, isLoading, setValue, clearValue, replaceScope } = useSettings();
@@ -94,6 +99,12 @@ export const useSettingsViewModel = (tabKey?: string): SettingsViewModel => {
   const [mode, setMode] = useState<SettingsMode>('visual');
   const [selectedKey, setSelectedKey] = useState<string | null>(target?.sectionKey ?? null);
   const [draft, setDraft] = useState<{ scope: SettingsScope; text: string } | null>(null);
+  /**
+   * O texto que ainda não casa com o `pattern` declarado fica só na tela. Gravá-lo a cada tecla mandava
+   * ao servidor todo valor intermediário — a primeira letra de um prefixo vazio já é recusada pela regra
+   * —, e a resposta do banco desfazia o que a pessoa acabara de digitar.
+   */
+  const [invalidTexts, setInvalidTexts] = useState<Record<string, string>>({});
 
   const activeSectionKey = useMemo(() => {
     if (selectedKey && sections.some((section) => section.key === selectedKey)) return selectedKey;
@@ -113,20 +124,22 @@ export const useSettingsViewModel = (tabKey?: string): SettingsViewModel => {
         .map((property) => {
           const resolved = resolveSetting(property, values);
           const stored = values[scope][property.key];
+          const invalidText = invalidTexts[invalidTextKey(scope, property.key)];
           return {
             sectionKey: section.key,
             sectionTitle: section.title,
             pluginId: section.pluginId,
             property,
-            value: stored === undefined ? resolved.value : stored,
+            value: invalidText ?? (stored === undefined ? resolved.value : stored),
             originScope: resolved.scope,
             isSetHere: stored !== undefined,
             isEditable: propertyAcceptsScope(property, scope) && (scope === 'tenant' ? canEditTenant : true),
             isOverriddenByUser: scope === 'tenant' && values.user[property.key] !== undefined,
+            issue: invalidText === undefined ? null : validateSettingValue(property, invalidText),
           };
         }),
     );
-  }, [sections, activeSectionKey, isSearching, query, values, scope, canEditTenant]);
+  }, [sections, activeSectionKey, isSearching, query, values, scope, canEditTenant, invalidTexts]);
 
   const activeEditor = useMemo(() => {
     if (isSearching) return null;
@@ -134,17 +147,33 @@ export const useSettingsViewModel = (tabKey?: string): SettingsViewModel => {
     return section?.editor ?? null;
   }, [sections, activeSectionKey, isSearching]);
 
+  const forgetInvalidText = useCallback((property: SettingsProperty) => {
+    const key = invalidTextKey(scope, property.key);
+    setInvalidTexts((prev) => {
+      if (!(key in prev)) return prev;
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+  }, [scope]);
+
   const changeValue = useCallback((property: SettingsProperty, value: unknown) => {
+    if (property.type === 'text' && typeof value === 'string' && validateSettingValue(property, value)) {
+      setInvalidTexts((prev) => ({ ...prev, [invalidTextKey(scope, property.key)]: value }));
+      return;
+    }
+    forgetInvalidText(property);
     void setValue(scope, property.key, value).catch(() =>
       notify(t('settings.save-failed'), 'error'),
     );
-  }, [setValue, scope, notify, t]);
+  }, [setValue, scope, notify, t, forgetInvalidText]);
 
   const resetValue = useCallback((property: SettingsProperty) => {
+    forgetInvalidText(property);
     void clearValue(scope, property.key).catch(() =>
       notify(t('settings.reset-failed'), 'error'),
     );
-  }, [clearValue, scope, notify, t]);
+  }, [clearValue, scope, notify, t, forgetInvalidText]);
 
   const storedJson = useMemo(() => settingsToJson(values[scope]), [values, scope]);
   const jsonText = draft?.scope === scope ? draft.text : storedJson;

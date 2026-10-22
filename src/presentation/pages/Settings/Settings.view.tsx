@@ -171,6 +171,9 @@ export const SettingsView: React.FC<{ tabKey?: string }> = ({ tabKey }) => {
                           disabled={!row.isEditable}
                           onChange={(value) => vm.changeValue(row.property, value)}
                         />
+                        {row.issue && (
+                          <InfoBanner message={t(row.issue.message, row.issue.messageParams)} variant="warning" />
+                        )}
                       </S.PropertyControl>
                     </S.Property>
                   ))
