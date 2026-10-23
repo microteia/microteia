@@ -3,6 +3,7 @@ import {
   makeProjectPortalDocumentUseCase,
   makeProjectPortalRecordUseCase,
   makeRefreshPortalAudienceUseCase,
+  samePortalValue,
 } from './PortalProjectionUseCases';
 import { CITY_SCREENS, EXTENSION_CITY_SCREENS, makeFakePortalRepository } from '../repositories/fakePortalRepository';
 
@@ -243,5 +244,35 @@ describe('documento no portal', () => {
 
     await projectDocument.execute({ ...input, data: { name: 'nota.pdf', portalShared: false } });
     expect(projectedDocuments.size).toBe(0);
+  });
+});
+
+describe('igualdade da projeção gravada', () => {
+  const stamp = (ms: number) => ({ ms, isEqual: (other: unknown) => (other as { ms?: number }).ms === ms });
+
+  it('data como o Firestore devolve se compara pelo valor, e a chave com undefined vale ausente', () => {
+    expect(samePortalValue({ at: stamp(1), note: undefined }, { at: stamp(1) })).toBe(true);
+    expect(samePortalValue({ at: stamp(1) }, { at: stamp(2) })).toBe(false);
+    expect(samePortalValue({ tags: ['a', 'b'] }, { tags: ['b', 'a'] })).toBe(false);
+  });
+
+  it('o campo que falta no documento gravado obriga a regravar, mesmo que o padrão dele seja igual', async () => {
+    const fake = setup();
+    await fake.write('invoices', 'nf1', { number: 'NF-1', companyId: 'acme' });
+    const stored = { ...fake.projections.get('invoices__nf1')! } as Record<string, unknown>;
+    delete stored.parentKeys;
+    let writes = 0;
+    const repo = {
+      ...fake.repo,
+      getStoredProjection: async () => ({ projection: fake.projections.get('invoices__nf1')!, stored }),
+      writeProjection: async (...args: Parameters<typeof fake.repo.writeProjection>) => {
+        writes += 1;
+        return fake.repo.writeProjection(...args);
+      },
+    };
+    await makeProjectPortalRecordUseCase(repo).execute({
+      tenantId: TENANT, collection: 'invoices', recordId: 'nf1', data: { number: 'NF-1', companyId: 'acme' },
+    });
+    expect(writes).toBe(1);
   });
 });

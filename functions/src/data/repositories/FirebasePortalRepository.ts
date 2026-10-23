@@ -185,6 +185,14 @@ export class FirebasePortalRepository implements IPortalRepository {
     return snapshot.exists ? toProjection(snapshot.data() ?? {}) : null;
   }
 
+  async getStoredProjection(tenantId: string, projectionId: string) {
+    const snapshot = await this.projections(tenantId).doc(projectionId).get();
+    if (!snapshot.exists) return null;
+    const stored: Record<string, unknown> = { ...snapshot.data() };
+    delete stored.updatedAt;
+    return { projection: toProjection(stored), stored };
+  }
+
   async writeProjection(tenantId: string, projectionId: string, projection: PortalProjection): Promise<void> {
     await this.projections(tenantId).doc(projectionId).set({ ...projection, updatedAt: FieldValue.serverTimestamp() });
   }
@@ -249,6 +257,18 @@ export class FirebasePortalRepository implements IPortalRepository {
     });
   }
 
+  async updateReprojections(
+    tenantId: string,
+    mutate: (states: ReadonlyMap<string, PortalReprojectionState>) => Map<string, PortalReprojectionState>,
+  ): Promise<Map<string, PortalReprojectionState>> {
+    return this.db.runTransaction(async (transaction) => {
+      const snapshot = await transaction.get(this.reprojections(tenantId));
+      const changed = mutate(new Map(snapshot.docs.map((doc) => [doc.id, readPortalReprojectionState(doc.data())])));
+      for (const [collection, state] of changed) transaction.set(this.reprojections(tenantId).doc(collection), { ...state });
+      return changed;
+    });
+  }
+
   async setAudiences(tenantId: string, changes: Array<{ projectionId: string; audience: string[] }>): Promise<void> {
     for (let index = 0; index < changes.length; index += BATCH_LIMIT) {
       const batch = this.db.batch();
@@ -276,6 +296,16 @@ export class FirebasePortalRepository implements IPortalRepository {
     if (!snapshot.exists) return null;
     const data = snapshot.data() ?? {};
     return { ...toSharedDocument(snapshot.id, data), portalShared: data.portalShared === true && !data.deletedBy };
+  }
+
+  async getDocumentProjections(tenantId: string, projectionId: string): Promise<Map<string, PortalDocumentProjection>> {
+    const snapshot = await this.projections(tenantId).doc(projectionId).collection(PORTAL_DOCUMENTS_SUBCOLLECTION).get();
+    return new Map(snapshot.docs.map((doc) => [doc.id, {
+      name: asString(doc.get('name')),
+      type: asString(doc.get('type')) || null,
+      description: asString(doc.get('description')) || null,
+      createdAt: doc.get('createdAt') ?? null,
+    }]));
   }
 
   async writeDocumentProjection(

@@ -5,8 +5,11 @@ import type { ProjectPortalRecordUseCase } from './PortalProjectionUseCases';
 
 /** Registros por rodada. Uma rodada é uma invocação: pequena o bastante para caber com folga no timeout. */
 export const PORTAL_REPROJECTION_PAGE_SIZE = 200;
-/** Registros projetados ao mesmo tempo dentro de uma rodada. */
-const RECORD_CONCURRENCY = 8;
+/**
+ * Registros projetados ao mesmo tempo dentro de uma rodada. Cada projeção gravada acorda os gatilhos
+ * que escutam o tenant inteiro: o paralelismo daqui é multiplicado por eles em instâncias.
+ */
+const RECORD_CONCURRENCY = 4;
 /** Reserva de uma rodada. Maior que o timeout da function que a executa. */
 export const PORTAL_REPROJECTION_LEASE_MS = 6 * 60_000;
 /** Quantas vezes uma passada com falha recomeça antes de parar com a contagem à vista. */
@@ -64,13 +67,20 @@ export const portalReprojectionScope = (
   return [...collections];
 };
 
-const freshPass = (generation: number, attempts: number, total: number | null, now: number): PortalReprojectionState => ({
-  status: 'running',
+const freshPass = (
+  status: 'queued' | 'running',
+  generation: number,
+  attempts: number,
+  total: number | null,
+  now: number,
+): PortalReprojectionState => ({
+  status,
   generation,
   round: 0,
   cursor: null,
   leaseUntil: null,
   touchedAt: now,
+  openedAt: now,
   total,
   processed: 0,
   failed: 0,
@@ -79,8 +89,38 @@ const freshPass = (generation: number, attempts: number, total: number | null, n
   revision: PORTAL_PROJECTION_REVISION,
 });
 
+/**
+ * A passada nova entra na fila — a não ser que a da mesma coleção já esteja andando: então ela segue
+ * andando, do começo, e a rodada em voo da passada anterior é descartada pela geração.
+ */
+const queuedPass = (current: PortalReprojectionState | null, total: number | null, now: number): PortalReprojectionState =>
+  freshPass(current?.status === 'running' ? 'running' : 'queued', (current?.generation ?? 0) + 1, 0, total, now);
+
+/** A próxima da fila — a aberta há mais tempo —, ou nenhuma, se alguma passada já anda. */
+export const nextQueuedReprojection = (states: ReadonlyMap<string, PortalReprojectionState>): string | null => {
+  const all = [...states.entries()];
+  if (all.some(([, state]) => state.status === 'running')) return null;
+  const queued = all
+    .filter(([, state]) => state.status === 'queued')
+    .sort(([a, one], [b, other]) => one.openedAt - other.openedAt || a.localeCompare(b));
+  return queued[0]?.[0] ?? null;
+};
+
+/**
+ * Põe a próxima da fila para andar, quando nenhuma anda. A gravação é o que dispara a primeira rodada
+ * dela. A transação lê os jobs do escritório inteiro: duas chamadas juntas não põem duas para andar.
+ */
+const promoteNextReprojection = async (repo: IPortalRepository, tenantId: string, now: number): Promise<string | null> => {
+  const changed = await repo.updateReprojections(tenantId, (states) => {
+    const next = nextQueuedReprojection(states);
+    const state = next ? states.get(next) : undefined;
+    return next && state ? new Map([[next, { ...state, status: 'running', touchedAt: now }]]) : new Map();
+  });
+  return [...changed.keys()][0] ?? null;
+};
+
 export type StartPortalReprojectionUseCase = {
-  /** Abre uma passada nova em cada coleção. A gravação do job é o que dispara a primeira rodada. */
+  /** Abre uma passada nova em cada coleção, na fila do escritório. */
   execute: (tenantId: string, collections: readonly string[]) => Promise<void>;
 };
 
@@ -103,9 +143,9 @@ export const makeStartPortalReprojectionUseCase = (
       const inPortal = screens.some((screen) => screen.collection === collection && !!screen.portal);
       const total = await (inPortal ? repo.countRecords(tenantId, collection) : repo.countProjectionsOfCollection(tenantId, collection))
         .catch(() => null);
-      await repo.updateReprojection(tenantId, collection, (current) =>
-        freshPass((current?.generation ?? 0) + 1, 0, total, now()));
+      await repo.updateReprojection(tenantId, collection, (current) => queuedPass(current, total, now()));
     }
+    await promoteNextReprojection(repo, tenantId, now());
   },
 });
 
@@ -137,9 +177,10 @@ export const makeEnsurePortalProjectionRevisionUseCase = (
     for (const collection of inPortal.filter((one) => !isCurrent(states.get(one)))) {
       const total = await repo.countRecords(tenantId, collection).catch(() => null);
       const next = await repo.updateReprojection(tenantId, collection, (current) =>
-        isCurrent(current) ? null : freshPass((current?.generation ?? 0) + 1, 0, total, now()));
+        isCurrent(current) ? null : queuedPass(current, total, now()));
       if (next) opened.push(collection);
     }
+    if (opened.length > 0) await promoteNextReprojection(repo, tenantId, now());
     return opened;
   },
 });
@@ -187,7 +228,7 @@ export const completePortalReprojectionRound = (
   if (result.next !== null) return { ...totals, cursor: result.next, round: state.round + 1 };
   if (totals.failed === 0) return { ...totals, status: 'done', cursor: null, attempts: 0 };
   const attempts = state.attempts + 1;
-  if (attempts < PORTAL_REPROJECTION_MAX_ATTEMPTS) return freshPass(state.generation + 1, attempts, state.total, now);
+  if (attempts < PORTAL_REPROJECTION_MAX_ATTEMPTS) return freshPass('running', state.generation + 1, attempts, state.total, now);
   return { ...totals, status: 'done', cursor: null, attempts };
 };
 
@@ -244,8 +285,9 @@ export const makeRunPortalReprojectionRoundUseCase = (
         result.next = page.next;
       }
 
-      await repo.updateReprojection(tenantId, collection, (current) =>
+      const closed = await repo.updateReprojection(tenantId, collection, (current) =>
         current && isSameRound(current, claimed) ? completePortalReprojectionRound(current, result, now()) : null);
+      if (closed?.status === 'done') await promoteNextReprojection(repo, tenantId, now());
     } catch (error) {
       await repo
         .updateReprojection(tenantId, collection, (current) =>
@@ -264,7 +306,8 @@ export type NudgePortalReprojectionsUseCase = {
 /**
  * Acorda a passada que parou — a rodada falhou além da janela de reentrega, ou a function caiu sem
  * soltar a reserva. Tocar o job (sem reserva, com `touchedAt` novo) é o que dispara a rodada, e ela
- * continua do cursor: nada do que já foi feito é refeito.
+ * continua do cursor: nada do que já foi feito é refeito. E, se nenhuma anda, a fila anda: a promoção
+ * que falhou ao fim de uma passada não deixa as outras esperando para sempre.
  */
 export const makeNudgePortalReprojectionsUseCase = (
   repo: IPortalRepository,
@@ -280,6 +323,7 @@ export const makeNudgePortalReprojectionsUseCase = (
         isStalled(current) ? { ...current, leaseUntil: null, touchedAt: now() } : null);
       if (touched) woken += 1;
     }
+    if (await promoteNextReprojection(repo, tenantId, now())) woken += 1;
     return woken;
   },
 });

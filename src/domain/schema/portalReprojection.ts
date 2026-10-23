@@ -3,6 +3,11 @@
  * gravado em `portal_reprojections/{coleção}`. Quem anda com ela é o servidor, por rodadas: cada uma
  * reserva o job, processa uma página a partir do `cursor` e fecha gravando o cursor novo, e é essa
  * gravação que dispara a rodada seguinte. O app só a lê, para mostrar o andamento.
+ *
+ * Num escritório anda UMA passada por vez: as outras esperam em `queued`, e a que termina chama a
+ * próxima. Cada projeção gravada acorda os gatilhos que escutam o tenant inteiro, e passadas em paralelo
+ * somavam instâncias até esgotar a cota de CPU da região — e aí caía tudo, inclusive o que nada tinha com
+ * o portal.
  */
 /**
  * A revisão da FORMA como o kernel projeta. Sobe quando o kernel passa a projetar diferente uma
@@ -15,7 +20,7 @@
 export const PORTAL_PROJECTION_REVISION = 1;
 
 export interface PortalReprojectionState {
-  status: 'running' | 'done';
+  status: 'queued' | 'running' | 'done';
   /** Sobe a cada passada nova: a rodada de uma passada abandonada é descartada ao fechar. */
   generation: number;
   round: number;
@@ -25,6 +30,8 @@ export interface PortalReprojectionState {
   leaseUntil: number | null;
   /** A última gravação no job, em ms: passada sem gravação há muito tempo está parada. */
   touchedAt: number;
+  /** Quando a passada foi aberta, em ms — é a ordem da fila, e o que junta as passadas de uma mesma leva no andamento. */
+  openedAt: number;
   /** Quantos a passada tem a percorrer, contados ao abri-la; `null` quando a contagem falhou. */
   total: number | null;
   processed: number;
@@ -44,12 +51,13 @@ const numberOr = (value: unknown, fallback: number): number =>
 
 /** O documento lido com desconfiança: o que faltar vale o começo de uma passada encerrada. */
 export const readPortalReprojectionState = (data: Record<string, unknown>): PortalReprojectionState => ({
-  status: data.status === 'running' ? 'running' : 'done',
+  status: data.status === 'running' || data.status === 'queued' ? data.status : 'done',
   generation: numberOr(data.generation, 0),
   round: numberOr(data.round, 0),
   cursor: typeof data.cursor === 'string' && data.cursor !== '' ? data.cursor : null,
   leaseUntil: typeof data.leaseUntil === 'number' ? data.leaseUntil : null,
   touchedAt: numberOr(data.touchedAt, 0),
+  openedAt: numberOr(data.openedAt, numberOr(data.touchedAt, 0)),
   total: typeof data.total === 'number' && Number.isFinite(data.total) ? data.total : null,
   processed: numberOr(data.processed, 0),
   failed: numberOr(data.failed, 0),

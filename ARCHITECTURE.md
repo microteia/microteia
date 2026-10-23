@@ -928,7 +928,7 @@ rótulo não muda o sujeito de quem aponta. Mudar o filho não refaz o pai nem o
 
 **Por rodadas, no molde de `aggregate_backfills`.** Um documento por coleção guarda `generation`,
 `round`, `cursor`, a reserva (`leaseUntil`, 6 min) e as contagens. A rodada reserva o job em transação,
-relê as telas sem cache, processa uma página de 200 com concorrência 8 e fecha gravando o cursor — e
+relê as telas sem cache, processa uma página de 200 com concorrência 4 e fecha gravando o cursor — e
 essa gravação é o gatilho da rodada seguinte. Com a coleção ainda no portal, a página é de REGISTROS,
 reprojetados com `cascade: false` (os dependentes estão no escopo e têm a passada deles; com cascata,
 um pai de cinco mil filhos faria uma rodada sem tamanho previsível). Fora do portal, a página é de
@@ -936,11 +936,32 @@ PROJEÇÕES, e cada uma é apagada.
 
 | Situação | O que acontece |
 |---|---|
-| a declaração muda de novo no meio | passada nova, `generation` + 1, do começo; a rodada em voo é descartada ao fechar |
+| a declaração muda de novo no meio | passada nova, `generation` + 1, do começo, e continua andando (não volta para a fila); a rodada em voo é descartada ao fechar |
 | entrega duplicada do gatilho | a reserva válida a recusa |
 | a rodada inteira falha (timeout, cota, deploy) | solta a reserva e sobe; `retry` reentrega do mesmo cursor. Entrega com mais de 15 min é ignorada |
 | um registro falha | conta e guarda até 50 ids; a página segue. No fim, a passada recomeça até 3 vezes (refazer projeção é idempotente) e então para com a contagem |
 | a passada parou (sem gravação há 10 min, reserva vencida) | a próxima mudança de declaração de qualquer tela do escritório a acorda, e ela continua do cursor |
+| a fila ficou sem ninguém andando (a promoção falhou ao fim de uma passada) | a mesma conferência (`nudge`) põe a próxima para andar |
+
+**Uma passada por vez em cada escritório (9.148.0).** A passada nasce `queued`, e só uma por escritório
+fica `running`: a que termina chama a próxima, a aberta há mais tempo (`openedAt`). A escolha é feita
+numa transação que lê os jobs do escritório inteiro (`updateReprojections`), e por isso duas aberturas
+simultâneas não põem duas para andar. O motivo é custo de PLATAFORMA, não de Firestore: cada projeção
+gravada em `portalRecords` acorda os cinco gatilhos que escutam `tenants/{t}/{coleção}/{doc}` — eles saem
+na primeira linha, porque a coleção é reservada, mas cada um pede uma instância. Em 23/10/2026, a subida
+de `PORTAL_PROJECTION_REVISION` abriu as nove coleções do portal de dois escritórios ao mesmo tempo
+(18 cadeias, 8 registros simultâneos em cada), e a soma de instâncias esgotou a cota regional de CPU do
+Cloud Run (20 vCPU em `southamerica-east1`): o 503 caiu sobre tudo, inclusive o convite do portal e a
+própria rodada — que por isso não andava.
+
+**A projeção igual não é regravada.** `project` lê o documento como está GRAVADO
+(`getStoredProjection`, sem o `updatedAt`) e só grava se ele difere da projeção nova
+(`samePortalValue`: `Timestamp` pelo `isEqual`, chave `undefined` como ausente, e na dúvida diferente).
+Compara com o gravado, e não com o lido por `toProjection`, porque a leitura completa com padrão o campo
+que falta — e um documento sem `parentKeys` pareceria igual ao novo para sempre. O mesmo vale para a
+projeção de cada documento compartilhado (`getDocumentProjections`). Uma passada sobre uma declaração
+que pouco mudou passa a ser quase só leitura, e o `updatedAt` passa a dizer quando o convidado viu algo
+mudar, não quando a passada passou.
 
 **A janela continua existindo, e agora tem tamanho.** Entre salvar a declaração e a passada chegar ao
 registro, a projeção é a da declaração anterior — mas a passada sempre termina, e não depende do
@@ -971,10 +992,12 @@ registros, ou das projeções quando a coleção saiu do portal) só para mostra
 que falha não segura a passada.
 
 **O andamento é do ESCRITÓRIO, nunca do convidado.** `PortalReprojectionStatus` (`components/ui/`)
-assina os jobs e mostra um `InfoBanner` por coleção quando há o que dizer — em curso ("3.200 de
-10.000"), parada, ou terminada com falhas; a passada que terminou limpa não diz nada. Ele aparece em
-Configurações › Portal (todas as coleções) e na aba Portal do Form Design (a coleção da tela). A
-decisão do que dizer é pura (`portalReprojectionNotice`, `domain/services/`), e "parada" é o MESMO
+assina os jobs e mostra UM `InfoBanner` de andamento, com barra (`progress`), somando a leva inteira —
+o que anda, o que está na fila e o que terminou depois que a mais antiga delas foi aberta (sem isso, a
+coleção que termina sairia da soma e o andamento andaria para trás). Coleção vazia não aparece. Por
+coleção, só o que pede atenção: a passada parada e a que terminou com falhas; a que terminou limpa não
+diz nada. Ele aparece em Configurações › Portal (todas as coleções) e na aba Portal do Form Design (a
+coleção da tela). A decisão do que dizer é pura (`portalReprojectionSummary`, `domain/services/`), e "parada" é o MESMO
 critério do servidor (`isPortalReprojectionStalled`, `domain/schema/portalReprojection.ts`,
 compartilhado); o relógio é conferido a cada minuto, porque o job não avisa que parou.
 

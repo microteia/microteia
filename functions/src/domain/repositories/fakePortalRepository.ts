@@ -49,6 +49,10 @@ export const makeFakePortalRepository = (screens: PortalScreen[]) => {
     audienceFor: async (_t, subjectKeys) =>
       [...users.values()].filter((user) => user.subjectKeys.some((key) => subjectKeys.includes(key))).map((user) => user.userId).sort(),
     getProjection: async (_t, id) => projections.get(id) ?? null,
+    getStoredProjection: async (_t, id) => {
+      const projection = projections.get(id);
+      return projection ? { projection, stored: { ...projection } } : null;
+    },
     writeProjection: async (_t, id, projection) => { projections.set(id, projection); },
     deleteProjection: async (_t, id) => {
       projections.delete(id);
@@ -75,6 +79,11 @@ export const makeFakePortalRepository = (screens: PortalScreen[]) => {
       const next = mutate(reprojections.get(collection) ?? null);
       if (next) reprojections.set(collection, next);
       return next;
+    },
+    updateReprojections: async (_t, mutate) => {
+      const changed = mutate(new Map(reprojections));
+      for (const [collection, state] of changed) reprojections.set(collection, state);
+      return changed;
     },
     setAudiences: async (_t, changes) => {
       for (const change of changes) {
@@ -109,6 +118,11 @@ export const makeFakePortalRepository = (screens: PortalScreen[]) => {
     clearDocumentProjections: async (_t, id) => {
       for (const key of [...projectedDocuments.keys()]) if (key.startsWith(`${id}/`)) projectedDocuments.delete(key);
     },
+    getDocumentProjections: async (_t, projectionId) => new Map(
+      [...projectedDocuments.entries()]
+        .filter(([key]) => key.startsWith(`${projectionId}/`))
+        .map(([key, projection]) => [key.slice(projectionId.length + 1), projection]),
+    ),
     writeDocumentProjection: async (_t, projectionId, documentId, projection) => {
       projectedDocuments.set(`${projectionId}/${documentId}`, projection);
     },

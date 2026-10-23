@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.148.0] — 2026-10-23
+
+- A atualização do portal depois de uma mudança numa tela agora aparece numa só tarja, com uma barra de andamento que soma todas as telas, em vez de uma tarja por tela. Telas sem registros não aparecem mais.
+- A atualização do portal passou a ser feita uma tela de cada vez e só regrava o que de fato mudou para o convidado. Antes, ela podia sobrecarregar o servidor a ponto de fazer falhar outras ações ao mesmo tempo, como o convite de uma pessoa para o portal.
+
 #### [9.147.0] — 2026-10-23
 
 - A conferência de uma extensão agora avisa, antes da instalação, quando uma automação que gera um documento preenche um campo que o modelo não tem, aponta o dono do documento para um campo que não é um registro, ou deixa de preencher um dado obrigatório. Antes, esses enganos só apareciam no escritório: um documento com um campo em branco, ou uma recusa ao gerar.

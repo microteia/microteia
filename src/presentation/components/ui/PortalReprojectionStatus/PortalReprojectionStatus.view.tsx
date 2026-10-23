@@ -11,10 +11,11 @@ export interface PortalReprojectionStatusProps {
 /** O andamento da atualização do portal depois que uma declaração mudou. Sem nada a dizer, não desenha. */
 export const PortalReprojectionStatus: React.FC<PortalReprojectionStatusProps> = ({ collection }) => {
   const vm = usePortalReprojectionStatusViewModel(collection);
-  if (vm.items.length === 0) return null;
+  if (!vm.progress && vm.warnings.length === 0) return null;
   return (
     <S.List>
-      {vm.items.map((item) => <InfoBanner key={item.collection} variant={item.variant} message={item.message} />)}
+      {vm.progress && <InfoBanner variant="info" message={vm.progress.message} progress={vm.progress.ratio} />}
+      {vm.warnings.map((item) => <InfoBanner key={item.collection} variant="warning" message={item.message} />)}
     </S.List>
   );
 };

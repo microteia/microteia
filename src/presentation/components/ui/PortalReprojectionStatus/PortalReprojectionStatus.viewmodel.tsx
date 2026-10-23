@@ -3,21 +3,27 @@ import { useDI } from '../../../../infrastructure/di/useDI';
 import { useTenant } from '../../../../stores/useTenant';
 import { useScreenDefinitions } from '../../../../stores/useScreenDefinitions';
 import type { PortalReprojectionState } from '../../../../domain/schema/portalReprojection';
-import { portalReprojectionNotice } from '../../../../domain/services/portalReprojectionNotice';
+import { portalReprojectionSummary } from '../../../../domain/services/portalReprojectionNotice';
 import { screenDataCollection } from '../../../../domain/services/screenDataCollection';
 import { useLabel, useLocaleFormat, useT } from '../../../shared/i18n/useT';
 
 /** De quanto em quanto tempo a aba reconfere se uma passada parou — o job não avisa que parou. */
 const CLOCK_TICK_MS = 60_000;
 
-export interface PortalReprojectionStatusItem {
+export interface PortalReprojectionStatusProgress {
+  message: string;
+  /** De 0 a 1; `null` sem o total — a tarja fica sem barra. */
+  ratio: number | null;
+}
+
+export interface PortalReprojectionStatusWarning {
   collection: string;
   message: string;
-  variant: 'info' | 'warning';
 }
 
 export interface PortalReprojectionStatusViewModel {
-  items: PortalReprojectionStatusItem[];
+  progress: PortalReprojectionStatusProgress | null;
+  warnings: PortalReprojectionStatusWarning[];
 }
 
 interface Snapshot {
@@ -56,26 +62,30 @@ export const usePortalReprojectionStatusViewModel = (collection?: string): Porta
     };
   }, []);
 
-  const items = useMemo(() => {
-    if (!snapshot || snapshot.tenantId !== tenantId) return [];
+  return useMemo(() => {
+    if (!snapshot || snapshot.tenantId !== tenantId) return { progress: null, warnings: [] };
     const screenName = (key: string): string => {
       const screen = definitions.find((one) => screenDataCollection(one) === key);
       return screen ? label(screen.titlePlural) : key;
     };
-    return [...snapshot.states.entries()]
-      .filter(([key]) => !collection || key === collection)
-      .flatMap(([key, state]): PortalReprojectionStatusItem[] => {
-        const notice = portalReprojectionNotice(state, now ?? 0);
-        if (!notice) return [];
-        const message = t(notice.messageKey, {
-          screen: screenName(key),
-          processed: formatNumber(notice.counts.processed),
-          total: formatNumber(notice.counts.total),
-          failed: formatNumber(notice.counts.failed),
-        });
-        return [{ collection: key, message, variant: notice.variant }];
-      });
+    const states = new Map([...snapshot.states].filter(([key]) => !collection || key === collection));
+    const summary = portalReprojectionSummary(states, now ?? 0);
+    return {
+      progress: summary.progress && {
+        message: t(summary.progress.messageKey, {
+          processed: formatNumber(summary.progress.processed),
+          total: formatNumber(summary.progress.total ?? 0),
+        }),
+        ratio: summary.progress.ratio,
+      },
+      warnings: summary.warnings.map((warning) => ({
+        collection: warning.collection,
+        message: t(warning.messageKey, {
+          screen: screenName(warning.collection),
+          processed: formatNumber(warning.counts.processed),
+          failed: formatNumber(warning.counts.failed),
+        }),
+      })),
+    };
   }, [snapshot, tenantId, collection, definitions, label, t, formatNumber, now]);
-
-  return { items };
 };

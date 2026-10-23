@@ -15,4 +15,21 @@ export const S = {
     line-height: 1.5;
     margin: 0;
   `,
+
+  Track: styled.span`
+    display: block;
+    height: ${({ theme }) => theme.spacing.xs};
+    margin-top: ${({ theme }) => theme.spacing.sm};
+    background: ${({ theme }) => theme.colors.border};
+    border-radius: ${({ theme }) => theme.borderRadius.full};
+    overflow: hidden;
+  `,
+
+  Fill: styled.span<{ $ratio: number }>`
+    display: block;
+    height: 100%;
+    width: ${({ $ratio }) => $ratio * 100}%;
+    background: ${({ theme }) => theme.colors.primary};
+    transition: width ${({ theme }) => theme.transitions.normal};
+  `,
 };

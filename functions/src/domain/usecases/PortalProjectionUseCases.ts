@@ -1,4 +1,4 @@
-import type { IPortalRepository, PortalProjection, PortalScreen } from '../repositories/IPortalRepository';
+import type { IPortalRepository, PortalDocumentProjection, PortalProjection, PortalScreen } from '../repositories/IPortalRepository';
 import {
   PORTAL_SUBJECT_MAX_DEPTH,
   evaluatePortalCondition,
@@ -21,6 +21,28 @@ const PAGE_SIZE = 300;
 
 const sameMembers = (a: readonly string[], b: readonly string[]): boolean =>
   a.length === b.length && [...a].sort().join('\u0000') === [...b].sort().join('\u0000');
+
+const hasIsEqual = (value: unknown): value is { isEqual: (other: unknown) => boolean } =>
+  typeof value === 'object' && value !== null && typeof (value as { isEqual?: unknown }).isEqual === 'function';
+
+/**
+ * Igualdade do valor como o Firestore o devolve: `Timestamp` e afins se comparam pelo `isEqual` deles, e
+ * chave com `undefined` vale ausente (a gravação a descarta). Na dúvida, diferente — o custo do engano
+ * é uma gravação a mais, nunca um convidado vendo dado velho.
+ */
+export const samePortalValue = (a: unknown, b: unknown): boolean => {
+  if (a === b) return true;
+  if (hasIsEqual(a)) return hasIsEqual(b) && a.isEqual(b);
+  if (Array.isArray(a) || Array.isArray(b)) {
+    return Array.isArray(a) && Array.isArray(b) && a.length === b.length && a.every((item, index) => samePortalValue(item, b[index]));
+  }
+  if (typeof a !== 'object' || typeof b !== 'object' || a === null || b === null) return false;
+  if (Object.getPrototypeOf(a) !== Object.prototype || Object.getPrototypeOf(b) !== Object.prototype) return false;
+  const one = a as Record<string, unknown>;
+  const other = b as Record<string, unknown>;
+  const keys = new Set([...Object.keys(one), ...Object.keys(other)].filter((key) => one[key] !== undefined || other[key] !== undefined));
+  return [...keys].every((key) => samePortalValue(one[key], other[key]));
+};
 
 /**
  * As telas cujo sujeito chega PELA tela dada — elas precisam ser refeitas quando o sujeito dela muda.
@@ -84,7 +106,8 @@ export const makeProjectPortalRecordUseCase = (repo: IPortalRepository): Project
     cascade: boolean,
   ): Promise<void> => {
     const projectionId = portalRecordDocId(screen.collection, recordId);
-    const existing = await repo.getProjection(tenantId, projectionId);
+    const read = await repo.getStoredProjection(tenantId, projectionId);
+    const existing = read?.projection ?? null;
     const screenFor = (entityKey: string) => portalTargetScreen(screens, entityKey);
 
     const subjectKeys = data
@@ -133,20 +156,27 @@ export const makeProjectPortalRecordUseCase = (repo: IPortalRepository): Project
         editable: isPortalEditOpen(screen, data, evaluatePortalCondition),
         portalOwner: portalOwnerOf(data),
       };
-      await repo.writeProjection(tenantId, projectionId, projection);
+      // Regravar o que ficou igual não muda nada para o convidado, e cada gravação acorda os gatilhos
+      // que escutam o tenant inteiro — numa passada, milhares de invocações para nada.
+      if (!read || !samePortalValue(read.stored, projection)) await repo.writeProjection(tenantId, projectionId, projection);
 
       if (existing && syncDocuments && !screen.portal?.documents) {
         // A tela deixou de expor documentos: o que já tinha saído volta para dentro.
         await repo.clearDocumentProjections(tenantId, projectionId);
       }
       if ((!existing || syncDocuments) && screen.portal?.documents) {
+        const projected = existing
+          ? await repo.getDocumentProjections(tenantId, projectionId)
+          : new Map<string, PortalDocumentProjection>();
         for (const document of await repo.sharedDocuments(tenantId, screen.collection, recordId)) {
-          await repo.writeDocumentProjection(tenantId, projectionId, document.id, {
+          const documentProjection: PortalDocumentProjection = {
             name: document.name,
             type: document.type,
             description: document.description,
             createdAt: document.createdAt,
-          });
+          };
+          if (samePortalValue(projected.get(document.id), documentProjection)) continue;
+          await repo.writeDocumentProjection(tenantId, projectionId, document.id, documentProjection);
         }
       }
     }

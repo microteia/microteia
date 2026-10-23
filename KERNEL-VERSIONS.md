@@ -18,6 +18,14 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.148.0] — 2026-10-23
+
+- fix(portal/reprojection): one pass runs per tenant at a time. A pass now opens as `queued`; the one that finishes promotes the next (oldest `openedAt`) inside a transaction over all of the tenant's jobs (`IPortalRepository.updateReprojections`), and `nudge` promotes it too when nothing is running. Every projection written to `portalRecords` wakes the five triggers that listen on `tenants/{t}/{collection}/{doc}`. Opening every portal collection of two tenants at once (the `PORTAL_PROJECTION_REVISION` 1 rollout) added up to enough instances to exhaust the regional Cloud Run CPU quota, and every function in the region returned 503, including `invitePortalUser` and the reprojection round itself. Round concurrency drops from 8 to 4.
+- fix(portal/projection): an unchanged projection is not rewritten. `project` compares against the document as stored (`getStoredProjection`, without `updatedAt`) through `samePortalValue` (`Timestamp` by `isEqual`, `undefined` keys as absent, unequal when in doubt), and shared-document projections against `getDocumentProjections`. A pass over a mostly unchanged declaration is now mostly reads, and `updatedAt` now records when the guest saw a change.
+- feat(portal/status): `PortalReprojectionStatus` shows one progress banner for the whole wave (running + queued + finished since the oldest one opened) instead of one per collection; empty collections are hidden; stalled and failed passes still warn per collection. `portalReprojectionNotice` is replaced by `portalReprojectionSummary`; the schema gains `status: 'queued'` and `openedAt`.
+- feat(host-api): `InfoBanner.progress` (0–1) draws a progress bar under the message. Declared in `@microteia/ui`.
+- chore(locale-pt-br): 1.118.0 (`portal.reprojection.running*` replaced by `portal.reprojection.progress*`).
+
 #### [9.147.0] — 2026-10-23
 
 - fix(marketplace/gate): a `render-document` step whose `templateKey` is a `Literal` naming a template of the SAME package is now checked against that template by `workflowStepIssues`, so `validatePluginPackage` (`check`, `validate_plugin`, install) refuses it. Until now `acceptsDynamicKey` accepted any `param.*` key without reading the template: a misspelled parameter was silently dropped at generation (the field came out blank), and `belongsTo` on a non-reference, `recordId` on a payload template or a missing required parameter were only refused when someone generated the document. New refusals `issue.step.document.{unknown-parameter, belongs-to-invalid, parameter-required, record-only, payload-only, input-required, destination-without-owner}`; the source rules are `inputsForTemplateSource`, the same the step editor applies. A template the package does not declare is never refused by the gate — the organization may have its own on that key.

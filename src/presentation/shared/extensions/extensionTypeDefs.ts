@@ -519,6 +519,8 @@ const UI_MODULE_DEFS = `declare module '@microteia/ui' {
   export interface InfoBannerProps {
     message: string;
     variant?: 'warning' | 'info';
+    /** From 0 to 1: draws a progress bar under the message. Null or absent, no bar. */
+    progress?: number | null;
   }
   export function InfoBanner(props: InfoBannerProps): JSX.Element;
 

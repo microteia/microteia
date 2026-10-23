@@ -22,8 +22,8 @@ const withPortal = (screenId: string, patch: Partial<NonNullable<PortalScreen['p
   });
 
 /**
- * O escritório com o relógio na mão. `drain` faz o papel do gatilho: enquanto o job está em curso,
- * roda a rodada seguinte — e conta quantas foram.
+ * O escritório com o relógio na mão. `drain` faz o papel do gatilho: enquanto alguma passada anda, roda
+ * a rodada seguinte dela — e, como a fila anda sozinha, esvazia todas. Devolve quantas rodadas foram.
  */
 const setup = (screens: PortalScreen[] = CITY_SCREENS) => {
   const fake = makeFakePortalRepository(screens);
@@ -33,9 +33,10 @@ const setup = (screens: PortalScreen[] = CITY_SCREENS) => {
   const project = makeProjectPortalRecordUseCase(fake.repo);
   const start = makeStartPortalReprojectionUseCase(fake.repo, now);
   const round = makeRunPortalReprojectionRoundUseCase(fake.repo, project, now);
-  const drain = async (collection: string) => {
+  const running = () => [...fake.reprojections.entries()].find(([, state]) => state.status === 'running')?.[0];
+  const drain = async () => {
     let rounds = 0;
-    while (fake.reprojections.get(collection)?.status === 'running' && rounds < 1000) {
+    for (let collection = running(); collection && rounds < 1000; collection = running()) {
       await round.execute(TENANT, collection);
       rounds += 1;
     }
@@ -89,7 +90,7 @@ describe('a passada anda por rodadas', () => {
     seedInvoices(fake.records, total, (index) => ({ kind: index % 2 === 0 ? 'revenue' : 'expense' }));
 
     await fake.start.execute(TENANT, ['invoices']);
-    const rounds = await fake.drain('invoices');
+    const rounds = await fake.drain();
 
     expect(rounds).toBe(3);
     expect(fake.reprojections.get('invoices')).toMatchObject({ status: 'done', total, processed: total, failed: 0, cursor: null });
@@ -154,7 +155,7 @@ describe('revisão da forma de projetar', () => {
 
     const opened = await ensure.execute(TENANT);
     expect(opened.sort()).toEqual(['companies', 'invoiceItems', 'invoices']);
-    for (const collection of opened) await fake.drain(collection);
+    await fake.drain();
 
     expect(fake.projections.get('invoices__nf1')?.audience).toEqual(['ana']);
     expect(fake.projections.get('invoiceItems__it1')?.audience).toEqual(['ana']);
@@ -165,7 +166,7 @@ describe('revisão da forma de projetar', () => {
   it('a passada aberta pela declaração já nasce na revisão atual, e a da revisão antiga é refeita', async () => {
     const fake = setup();
     await fake.start.execute(TENANT, ['invoices']);
-    await fake.drain('invoices');
+    await fake.drain();
     const before = fake.reprojections.get('invoices')!;
     fake.reprojections.set('companies', { ...before, revision: PORTAL_PROJECTION_REVISION - 1 });
 
@@ -215,9 +216,9 @@ describe('concorrência e falha', () => {
     const fake = setup();
     fake.records.set('invoices/nf1', { number: 'NF-1', companyId: 'acme' });
     fake.records.set('invoices/nf2', { number: 'NF-2', companyId: 'acme' });
-    const repo = { ...fake.repo, getProjection: async (tenantId: string, id: string) => {
+    const repo = { ...fake.repo, getStoredProjection: async (tenantId: string, id: string) => {
       if (id === 'invoices__nf2') throw new Error('boom');
-      return fake.repo.getProjection(tenantId, id);
+      return fake.repo.getStoredProjection(tenantId, id);
     } };
     await makeStartPortalReprojectionUseCase(repo, fake.now).execute(TENANT, ['invoices']);
     const round = makeRunPortalReprojectionRoundUseCase(repo, makeProjectPortalRecordUseCase(repo), fake.now);
@@ -231,14 +232,83 @@ describe('concorrência e falha', () => {
     expect(fake.reprojections.get('invoices')).toMatchObject({ status: 'done', failed: 1, failedIds: ['nf2'] });
   });
 
-  it('a passada parada é acordada e continua do cursor; a que anda não é tocada', async () => {
+  it('a passada parada é acordada e continua do cursor; a que espera na fila continua esperando', async () => {
     const fake = setup();
     await fake.start.execute(TENANT, ['invoices', 'companies']);
-    fake.reprojections.set('invoices', { ...fake.reprojections.get('invoices')!, cursor: 'nf00100', leaseUntil: fake.now() + 1 });
+    const runningOne = [...fake.reprojections.entries()].find(([, state]) => state.status === 'running')![0];
+    fake.reprojections.set(runningOne, { ...fake.reprojections.get(runningOne)!, cursor: 'nf00100', leaseUntil: fake.now() + 1 });
     fake.advance(PORTAL_REPROJECTION_STALL_MS + 1);
-    fake.reprojections.set('companies', { ...fake.reprojections.get('companies')!, touchedAt: fake.now() });
 
     expect(await makeNudgePortalReprojectionsUseCase(fake.repo, fake.now).execute(TENANT)).toBe(1);
-    expect(fake.reprojections.get('invoices')).toMatchObject({ cursor: 'nf00100', leaseUntil: null, touchedAt: fake.now() });
+    expect(fake.reprojections.get(runningOne)).toMatchObject({ cursor: 'nf00100', leaseUntil: null, touchedAt: fake.now() });
+    expect([...fake.reprojections.values()].filter((state) => state.status === 'running')).toHaveLength(1);
+  });
+
+  it('a fila que ficou sem ninguém andando é posta para andar pela conferência', async () => {
+    const fake = setup();
+    await fake.start.execute(TENANT, ['invoices']);
+    const queued = { ...fake.reprojections.get('invoices')!, status: 'queued' as const };
+    fake.reprojections.set('invoices', queued);
+
+    expect(await makeNudgePortalReprojectionsUseCase(fake.repo, fake.now).execute(TENANT)).toBe(1);
+    expect(fake.reprojections.get('invoices')?.status).toBe('running');
+  });
+});
+
+describe('uma passada por vez', () => {
+  it('as coleções abertas juntas esperam na fila, andam uma de cada vez, e todas terminam', async () => {
+    const fake = setup();
+    fake.records.set('companies/acme', { name: 'Acme' });
+    fake.records.set('invoices/nf1', { number: 'NF-1', companyId: 'acme' });
+    fake.records.set('invoiceItems/it1', { description: 'Serviço', invoiceId: 'nf1' });
+    const observed: number[] = [];
+    const round = makeRunPortalReprojectionRoundUseCase({
+      ...fake.repo,
+      listRecords: async (...args: Parameters<typeof fake.repo.listRecords>) => {
+        observed.push([...fake.reprojections.values()].filter((state) => state.status === 'running').length);
+        return fake.repo.listRecords(...args);
+      },
+    }, fake.project, fake.now);
+
+    await fake.start.execute(TENANT, ['companies', 'invoices', 'invoiceItems']);
+    expect([...fake.reprojections.values()].map((state) => state.status).sort()).toEqual(['queued', 'queued', 'running']);
+
+    for (let guard = 0; guard < 10; guard += 1) {
+      const next = [...fake.reprojections.entries()].find(([, state]) => state.status === 'running')?.[0];
+      if (!next) break;
+      await round.execute(TENANT, next);
+    }
+    expect(observed).toEqual([1, 1, 1]);
+    expect([...fake.reprojections.values()].every((state) => state.status === 'done')).toBe(true);
+    expect(fake.projections.has('invoiceItems__it1')).toBe(true);
+  });
+
+  it('a declaração que muda de novo durante a passada a recomeça andando, sem voltar para a fila', async () => {
+    const fake = setup();
+    await fake.start.execute(TENANT, ['invoices']);
+    await fake.start.execute(TENANT, ['invoices']);
+    expect(fake.reprojections.get('invoices')).toMatchObject({ status: 'running', generation: 2 });
+  });
+});
+
+describe('gravar só o que mudou', () => {
+  it('a segunda passada sobre registros iguais não regrava nenhuma projeção', async () => {
+    const fake = setup();
+    fake.records.set('invoices/nf1', { number: 'NF-1', companyId: 'acme' });
+    fake.records.set('invoices/nf2', { number: 'NF-2', companyId: 'acme' });
+    await fake.start.execute(TENANT, ['invoices']);
+    await fake.drain();
+
+    let writes = 0;
+    const repo = { ...fake.repo, writeProjection: async (...args: Parameters<typeof fake.repo.writeProjection>) => {
+      writes += 1;
+      return fake.repo.writeProjection(...args);
+    } };
+    fake.records.set('invoices/nf2', { number: 'NF-2B', companyId: 'acme' });
+    await makeStartPortalReprojectionUseCase(repo, fake.now).execute(TENANT, ['invoices']);
+    await makeRunPortalReprojectionRoundUseCase(repo, makeProjectPortalRecordUseCase(repo), fake.now).execute(TENANT, 'invoices');
+
+    expect(writes).toBe(1);
+    expect(fake.projections.get('invoices__nf2')?.title).toBe('NF-2B');
   });
 });

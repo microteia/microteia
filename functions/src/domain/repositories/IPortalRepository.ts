@@ -122,6 +122,15 @@ export interface IPortalRepository {
   /** Quem é convidado de algum destes sujeitos. */
   audienceFor(tenantId: string, subjectKeys: string[]): Promise<string[]>;
   getProjection(tenantId: string, projectionId: string): Promise<PortalProjection | null>;
+  /**
+   * A projeção lida E o documento como está gravado (sem o carimbo `updatedAt`). O gravado é o que diz
+   * se regravar muda alguma coisa: a leitura completa com padrão o campo que falta, e um documento sem
+   * ele pareceria igual ao novo para sempre.
+   */
+  getStoredProjection(
+    tenantId: string,
+    projectionId: string,
+  ): Promise<{ projection: PortalProjection; stored: Record<string, unknown> } | null>;
   writeProjection(tenantId: string, projectionId: string, projection: PortalProjection): Promise<void>;
   /** Apaga a projeção e os documentos projetados dela. */
   deleteProjection(tenantId: string, projectionId: string): Promise<void>;
@@ -144,6 +153,14 @@ export interface IPortalRepository {
     collection: string,
     mutate: (current: PortalReprojectionState | null) => PortalReprojectionState | null,
   ): Promise<PortalReprojectionState | null>;
+  /**
+   * Lê os jobs de TODAS as coleções do escritório e grava numa transação só. `mutate` devolve só os
+   * jobs que mudam — vazio, nada é gravado. É o que garante uma passada andando por vez.
+   */
+  updateReprojections(
+    tenantId: string,
+    mutate: (states: ReadonlyMap<string, PortalReprojectionState>) => Map<string, PortalReprojectionState>,
+  ): Promise<Map<string, PortalReprojectionState>>;
 
   sharedDocuments(tenantId: string, collection: string, recordId: string): Promise<SharedRecordDocument[]>;
   getRecordDocument(
@@ -152,6 +169,8 @@ export interface IPortalRepository {
     recordId: string,
     documentId: string,
   ): Promise<(SharedRecordDocument & { portalShared: boolean }) | null>;
+  /** Os documentos já projetados no registro do portal, por id. */
+  getDocumentProjections(tenantId: string, projectionId: string): Promise<Map<string, PortalDocumentProjection>>;
   writeDocumentProjection(
     tenantId: string,
     projectionId: string,
