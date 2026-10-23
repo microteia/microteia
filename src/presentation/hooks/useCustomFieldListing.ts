@@ -3,7 +3,7 @@ import { useTheme } from 'styled-components';
 import { useLookups } from '../../stores/useLookups';
 import { useReferenceOptions } from './useReferenceOptions';
 import { formatCurrencyBRL } from '../../utils/formatters';
-import { fileNameFromUrl, readValueByPath, toDateFieldInput } from '../../domain/services/customFieldValues';
+import { FILTER_RANGE_TO_SUFFIX, fileNameFromUrl, readValueByPath, toDateFieldInput } from '../../domain/services/customFieldValues';
 import { resolveColor, resolveFieldOptionColor } from '../../shared/styles/colorUtils';
 import type { CustomFieldValue, FieldDefinition } from '../../domain/entities';
 import type { FilterDef, FilterOption } from '../components/ui/CompositeFilter';
@@ -11,15 +11,7 @@ import type { FilterDef, FilterOption } from '../components/ui/CompositeFilter';
 import { useT } from '../shared/i18n/useT';
 export const CUSTOM_FIELD_FILTER_PREFIX = 'cf-';
 
-/**
- * Sufixo da metade "até" de um filtro de data. Um campo de data filtra por INTERVALO: uma data exata
- * quase nunca é o que se procura numa listagem (vencimento no mês, distribuição no ano), e era o que
- * obrigava a tela de Financeiro a montar `dueDateFrom`/`dueDateTo` em código.
- *
- * `:` não aparece em chave de campo (que é slug, com `.` só para campo dentro de objeto), então o
- * sufixo nunca colide com um campo de verdade.
- */
-export const FILTER_RANGE_TO_SUFFIX = ':ate';
+export { FILTER_RANGE_TO_SUFFIX };
 
 /**
  * O REGISTRO inteiro: filtrar e exibir é ler pela chave do campo. É `object` (e não

@@ -18,6 +18,15 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.151.0] — 2026-10-23
+
+- feat(ui.nav): `nav({ screen | screenSourceId, filter })` — a menu entry declares the filter its screen list opens with (`{ key, values }[]`, the shape of `useEntityList`'s `defaultFilterTokens`). It rides the existing navigation intent (`setNavigationIntent`, consumed by `useRecordListViewModel`), addressed to the INSTALLED screen key, so it is an ordinary filter: visible and removable. Without it a badge counted one slice (`badge.when: status == "waiting"`) and the click opened the whole collection.
+- feat(shell): `useNavEntryResolver` / `useOpenNavEntry` (`presentation/shared/useNavTarget.ts`) resolve an entry into tab + intent; the sidebar and the top-bar shortcuts open through them. `useNavTargetResolver` now derives from the entry resolver. The filter belongs to the entry: the automatic menu item, a saved tab and a link still open the list unfiltered.
+- feat(sdk/validate): `navFilterIssues` in `validatePluginPackage` refuses a filter on a `key` target, a malformed filter, a key that is not a `filterable` field of the package's own screen (never a `file` field; a date also as `<key>:ate`) and a value the field cannot hold (a declared option KEY, `true`/`false`, `YYYY-MM-DD`). A dependency's screen and a `lookupCollection` option list are not judged. New messages `issue.package.nav.filter.{shape,target,not-filterable,value}`.
+- refactor(domain): `FILTER_RANGE_TO_SUFFIX` moves to `domain/services/customFieldValues.ts` (re-exported by `useCustomFieldListing`) so the gate and the list share one rule.
+- feat(kernel): `KERNEL_VERSION` 2.65.0 (additive: `ui.nav` `filter`). An older kernel ignores the field and opens the whole list. `com.microteia.locale-pt-br` 1.121.0.
+- docs(sdk): AUTHORING §7 "The list the entry opens — `filter`", with a badge and a filter over the same slice; §8.1 says a screen declares no opening filter of its own.
+
 #### [9.150.0] — 2026-10-23
 
 - fix(expressions): `formatDate` formats an instant on the organization's clock (`i18n.timezone`, the same `ambientTimeZone` / `WorkflowServices.timeZone` that `today()` uses) instead of the process clock (`Date.getHours()`, `getDate()`…). On a Cloud Function that was UTC, so `formatDate(now(), "HH:mm")` stamped 14:32 for a message received at 11:32 in Brasília, and `formatDate(now(), "YYYY-MM-DD")` wrote the next day after 9 p.m. — with no error, in every organization outside UTC. Covers the form, a server `derive`, workflows, Script `fn.formatDate`, report `includeWhen` and document templates. Records already written keep the UTC hour.

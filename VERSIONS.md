@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.151.0] — 2026-10-23
+
+- Um item do menu que mostra quantas coisas esperam por você agora pode abrir a lista já mostrando exatamente essas coisas. O filtro aparece na barra de filtros, como qualquer outro, e pode ser removido para ver a lista inteira.
+
 #### [9.150.0] — 2026-10-23
 
 - Corrigida a hora registrada pelas automações: o horário de uma mensagem, de uma movimentação ou de um número de atendimento agora sai no fuso do escritório, e não mais três horas adiantado. Também deixa de cair no dia seguinte o que é registrado à noite. Os registros gravados antes desta correção continuam com a hora antiga.

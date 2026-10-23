@@ -9,7 +9,7 @@ import { buildListTabKey } from '../../../../shared/constants/dynamicScreenKeys'
 import { getScreenIcon } from '../../../shared/screenIcons';
 import { useNavContributions, useNavGroupContributions } from '../../../shared/useUiContributions';
 import { useNavBadgeCount } from '../../../shared/useNavBadgeCount';
-import { menuActionTarget, useNavTargetResolver } from '../../../shared/useNavTarget';
+import { menuActionTarget, useNavEntryResolver, useNavTargetResolver, useOpenNavEntry } from '../../../shared/useNavTarget';
 import { declaredNavGroups, groupNavSections, splitFavoriteNavItems, visibleNavItems } from '../../../shared/resolveUiContributions';
 import { screenReadPermission } from '../../../../domain/services/screenDataCollection';
 import { DYNAMIC_SCREEN_NAV_ORDER, USER_MENU_SURFACE } from '../../../../domain/schema/ui/uiExtensionPoints';
@@ -177,6 +177,8 @@ export const useWorkspaceSidebarViewModel = (): WorkspaceSidebarViewModel => {
    */
   const badgeCount = useNavBadgeCount();
   const resolveTarget = useNavTargetResolver();
+  const resolveEntry = useNavEntryResolver();
+  const openEntry = useOpenNavEntry();
   const kernelBadge = useCallback((key: string): number => {
     if (key === 'audit-logs') return unreadCriticalAuditCount;
     if (key === 'marketplace') return extensionUpdates;
@@ -189,8 +191,9 @@ export const useWorkspaceSidebarViewModel = (): WorkspaceSidebarViewModel => {
     // O item que não leva a lugar nenhum neste escritório não aparece: a tela que ele aponta foi
     // desligada, ou a pessoa não pode lê-la.
     const contributed = visibleNavItems(navContributions, canAny, isSystemAdmin).flatMap((item) => {
-      const key = resolveTarget(item);
-      if (key === null) return [];
+      const entry = resolveEntry(item);
+      if (entry === null) return [];
+      const key = entry.tabKey;
       return [{
         key,
         label: label(item.label),
@@ -198,6 +201,7 @@ export const useWorkspaceSidebarViewModel = (): WorkspaceSidebarViewModel => {
         order: item.order,
         group: item.group,
         badge: item.badge ? badgeCount(item.badge) : kernelBadge(key),
+        intent: entry.intent,
       }];
     });
     const contributedKeys = new Set(contributed.map((item) => item.key));
@@ -219,10 +223,11 @@ export const useWorkspaceSidebarViewModel = (): WorkspaceSidebarViewModel => {
       icon: getScreenIcon(def.icon, 18),
       order: DYNAMIC_SCREEN_NAV_ORDER,
       badge: 0,
+      intent: undefined,
     }));
 
     return [...contributed, ...dynamicItems].sort((a, b) => a.order - b.order);
-  }, [navContributions, canAny, isSystemAdmin, can, sidebarScreens, badgeCount, kernelBadge, resolveTarget, label]);
+  }, [navContributions, canAny, isSystemAdmin, can, sidebarScreens, badgeCount, kernelBadge, resolveEntry, label]);
 
   const navGroups = useMemo(() => declaredNavGroups(navGroupContributions), [navGroupContributions]);
 
@@ -293,8 +298,8 @@ export const useWorkspaceSidebarViewModel = (): WorkspaceSidebarViewModel => {
   const toggleThemeSub = useCallback(() => setIsThemeSubOpen(s => !s), []);
 
   const handleNavClick = useCallback((key: string) => {
-    openTab(key);
-  }, [openTab]);
+    openEntry({ tabKey: key, intent: navItems.find((item) => item.key === key)?.intent });
+  }, [openEntry, navItems]);
 
   /**
    * Os itens que ESTA pessoa vê, na ordem que a configuração mandar, agrupados. O item que a extensão

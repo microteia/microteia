@@ -1,9 +1,11 @@
 import { useCallback, useMemo } from 'react';
 import type { ScreenDefinition } from '../../domain/entities';
-import type { UiMenuAction, UiNavTarget, UiPageMetadata } from '../../domain/schema/ui/uiExtensionPoints';
+import type { UiMenuAction, UiNavFilter, UiNavTarget, UiPageMetadata } from '../../domain/schema/ui/uiExtensionPoints';
+import { setNavigationIntent } from '../../infrastructure/navigation/navigationIntent';
 import { screenReadPermission } from '../../domain/services/screenDataCollection';
 import { buildListTabKey } from '../../shared/constants/dynamicScreenKeys';
 import { useAuthorization } from '../../stores/useAuthorization';
+import { useWorkspace } from '../../stores/useWorkspace';
 import { useScreenDefinitions } from '../../stores/useScreenDefinitions';
 import { usePageContributions } from './useUiContributions';
 
@@ -46,10 +48,26 @@ export const resolveNavTarget = (
 };
 
 /**
+ * Um item de menu pronto para abrir: a aba e, quando ele declara `filter`, o recado para a lista.
+ * O recado é endereçado à tela RESOLVIDA, pela mesma razão de `useOpenScreenList` — a chave
+ * instalada só se conhece aqui.
+ */
+export interface NavEntry {
+  tabKey: string;
+  intent?: { screenKey: string; tokens: UiNavFilter[] };
+}
+
+/** O filtro só acompanha o item que abre a lista de uma tela — uma página não tem a quem entregá-lo. */
+export const navEntryOf = (target: { filter?: UiNavFilter[] }, resolved: ResolvedNavTarget): NavEntry =>
+  resolved.screen && target.filter?.length
+    ? { tabKey: resolved.tabKey, intent: { screenKey: resolved.screen.id, tokens: target.filter } }
+    : { tabKey: resolved.tabKey };
+
+/**
  * O resolvedor que o shell usa, com a permissão já conferida: o alvo que é a lista de uma tela que
  * esta pessoa não pode LER também volta `null`, como o item automático da barra lateral.
  */
-export const useNavTargetResolver = (): ((target: UiNavTarget) => string | null) => {
+export const useNavEntryResolver = (): ((target: UiNavTarget & { filter?: UiNavFilter[] }) => NavEntry | null) => {
   const { dynamicScreens } = useScreenDefinitions();
   const pages = usePageContributions();
   const { can } = useAuthorization();
@@ -64,8 +82,26 @@ export const useNavTargetResolver = (): ((target: UiNavTarget) => string | null)
       const resolved = resolveNavTarget(target, dynamicScreens, pageKeys);
       if (!resolved) return null;
       if (resolved.screen && !can(screenReadPermission(resolved.screen))) return null;
-      return resolved.tabKey;
+      return navEntryOf(target, resolved);
     },
     [dynamicScreens, pageKeys, can],
   );
+};
+
+/** Só a aba — para quem pergunta se o item leva a algum lugar. Ver `useNavEntryResolver`. */
+export const useNavTargetResolver = (): ((target: UiNavTarget) => string | null) => {
+  const resolveEntry = useNavEntryResolver();
+  return useCallback((target) => resolveEntry(target)?.tabKey ?? null, [resolveEntry]);
+};
+
+/**
+ * Abre um item de menu. O recado vai ANTES da aba: a lista que ainda vai montar o consome, e a que
+ * já está aberta o recebe pela assinatura — clicar de novo no atalho traz o recorte de volta.
+ */
+export const useOpenNavEntry = (): ((entry: NavEntry) => void) => {
+  const { openTab } = useWorkspace();
+  return useCallback((entry) => {
+    if (entry.intent) setNavigationIntent(entry.intent.screenKey, entry.intent.tokens);
+    openTab(entry.tabKey);
+  }, [openTab]);
 };

@@ -845,7 +845,7 @@ id is the whole of how an update recognises the same contribution across version
 
 | Constructor | Point | What it delivers |
 |---|---|---|
-| \`nav(metadata)\` | \`ui.nav\` | a menu entry — ONE target (\`key\`, \`screen\` or \`screenSourceId\`, below), \`label\`, \`icon\`, \`order\`, optional \`badge\`, \`group\`, \`requiredPermissions\` and \`requiresSystemAdmin\` |
+| \`nav(metadata)\` | \`ui.nav\` | a menu entry — ONE target (\`key\`, \`screen\` or \`screenSourceId\`, below), \`label\`, \`icon\`, \`order\`, optional \`badge\`, \`filter\`, \`group\`, \`requiredPermissions\` and \`requiresSystemAdmin\` |
 | \`navGroup(metadata)\` | \`ui.nav.group\` | a titled, collapsible group of the sidebar — \`key\`, \`label\`, \`order\`, optional \`defaultCollapsed\`; entries join it with \`group: '<key>'\` (below) |
 | \`page(metadata, viewKey)\` | \`ui.page\` | a workspace screen drawn by one of your \`views\` (§7) |
 | \`widgetPage(metadata, spec)\` | \`ui.page\` | a workspace screen declared in Widget DSL — no code, no review |
@@ -1091,6 +1091,40 @@ nav({ screen: 'recordTabMilestone', label: label('nav.milestones'), icon: 'flag'
   badge: { collection: 'recordTabMilestone', when: 'done != true' } }),
 \`\`\`
 
+#### The list the entry opens — \`filter\`
+
+An entry that leads to a screen's list may say how that list opens. It is what makes a queue read
+right: the badge says "3", and the click shows those 3 — not the whole collection.
+
+\`\`\`ts
+const WAITING = 'waiting_on_us';
+
+nav({ screen: 'conversations', label: label('nav.conversations'), icon: 'message', order: 30,
+  badge: { collection: 'conversations', when: \`status == "\${WAITING}"\` },
+  filter: [{ key: 'status', values: [WAITING] }] }),
+\`\`\`
+
+- **Each term is \`{ key, values }\`** — the key of a field the screen declares \`filterable: true\`, and the
+  values it accepts. An option list compares by the option KEY, never the label, the same as \`when\`
+  does; a checkbox takes \`"true"\` / \`"false"\`; a date filters by range, \`key\` the first day and
+  \`<key>:ate\` the last (\`YYYY-MM-DD\`). Several terms all apply; several values in one term, any of them.
+- **It is an ordinary filter**, shown in the filter bar and removable like one the person picked. It is
+  where the list starts, never a restriction: the person can always widen it.
+- **It belongs to the ENTRY, not to the screen.** The automatic menu entry, a saved tab and a link open
+  the list unfiltered; clicking this entry again brings its slice back. Two entries over the same screen
+  cannot each carry a filter — they resolve to the same tab, and the first one declared wins.
+- **Write the badge and the filter over the same slice.** They are two declarations of one idea, and
+  nothing keeps them in step but you: a badge counting \`status == "open"\` over a list opening on
+  \`overdue\` is the mismatch this exists to close.
+- **There is no relative date.** A filter is fixed values, so "overdue" (\`dueDate < today()\`) is a
+  badge, not a filter — open that list on a status field instead.
+
+\`check\` refuses a filter on an entry whose target is a \`key\` (a page has no list to hand it to), a
+key that is not a filterable field of the screen, an option key the field does not declare and a value
+a checkbox or a date cannot hold. Over a dependency's screen the fields are not visible from here, and
+the filter installs unchecked; an option list of the organization's (\`lookupCollection\`) is checked
+only for the key, because its values exist only there.
+
 ### A view is not a page until something points at it
 
 \`views\` is a registry, not a menu. The entry sits there, keyed, until a contribution names that key:
@@ -1118,7 +1152,8 @@ Two things follow from the same wiring:
   the person may see wins.
 - **\`nav().badge\`** counts records without any code: \`badge: { collection: 'invoices', when: 'status
   == "open"' }\`. The expression sees each record's fields plus \`user\` (§9), which is what lets a badge
-  count what *this* person has not dealt with.
+  count what *this* person has not dealt with. Give the entry the same slice as a \`filter\` (above, "The
+  list the entry opens") and the click shows what the badge counted.
 
 ### Several files, one module
 
@@ -1452,6 +1487,11 @@ screens: [{
 }]
 \`\`\`
 
+**A screen declares no opening filter.** Its list opens whole from wherever it is reached; a queue
+that should open on "waiting" says so on the menu entry that leads to it — \`nav({ screen, badge, filter
+})\`, §7 "The list the entry opens" — which is also where the badge counting the same slice lives. Mark
+the fields that slice is cut by \`filterable: true\`: the filter takes no other key.
+
 \`key\` is what your own artifacts use. \`sourceId\` is what *updates* use: it is universal, so the same
 screen arriving from a new version — or from a second extension — is recognised instead of duplicated.
 
@@ -1575,7 +1615,7 @@ is enforced at the two write paths, which is the same footing \`required\`, a ma
 | \`parentEntity\`, \`parentFieldKey\` | this screen is a CHILD: which screen, and the \`reference\` field that points at it. On an \`owned\` child the form hides that field only when it is opened from INSIDE the parent (the child tab, a list locked with \`useEntityList({ parent })\`), where it comes filled in; opened from the child's own screen, the field shows as declared, so a child with a menu of its own can still be created there |
 | \`parentRelation: 'owned' \\| 'related'\` | \`owned\` — it exists because of the parent; deleting the parent does NOT delete it (there is no cascade, see above), it is left orphaned. \`related\` — it merely points at the parent, and the gesture that fits is unlinking. A \`required\` link is treated as \`owned\` for the card gestures whatever this says: Unlink would empty a field the save refuses |
 | \`hideFromParentTabs\` | the child does not become a tab of the parent |
-| \`hideFromSidebar\`, \`sidebarOrder\` | whether a top-level screen gets its own menu entry, and where. Hide it when you declare the entry yourself with \`nav({ screen: '<screen key>', badge })\` — that is how a menu entry gets a badge. Write \`screen\`, never \`key\`: a screen's key is not a tab key, and \`nav({ key: '<screen key>' })\` is refused (§4, "Where a menu entry leads"). A \`nav({ screen })\` over a screen that does NOT hide itself replaces its automatic entry instead of adding a second one |
+| \`hideFromSidebar\`, \`sidebarOrder\` | whether a top-level screen gets its own menu entry, and where. Hide it when you declare the entry yourself with \`nav({ screen: '<screen key>', badge })\` — that is how a menu entry gets a badge, and a \`filter\` that opens the list on the slice the badge counts. Write \`screen\`, never \`key\`: a screen's key is not a tab key, and \`nav({ key: '<screen key>' })\` is refused (§4, "Where a menu entry leads"). A \`nav({ screen })\` over a screen that does NOT hide itself replaces its automatic entry instead of adding a second one |
 | \`hideRecordsFromCommandPalette\` | the records of this screen stay out of the command palette (⌘K) search. Declare it when a machine fills the collection — an ingestion, a mail feed — or its records crowd out what people are looking for. The screen itself is still offered ("Open …"), so a screen that also hides from the sidebar keeps one way in; lists, links, tabs and reference pickers are untouched |
 | \`recordTabPrefix\` | opening a record from outside (audit log, a mention, the command palette) lands on YOUR view instead of the form (§7) |
 | \`dataCollection\` | install the screen over a collection that already exists, instead of creating one. \`fields\` is still the complete schema of it |

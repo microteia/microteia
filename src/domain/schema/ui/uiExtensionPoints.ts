@@ -88,6 +88,16 @@ export interface UiNavTarget {
   screenSourceId?: string;
 }
 
+/**
+ * Um termo do filtro inicial de um atalho: a chave de um campo `filterable` da tela e os valores
+ * aceitos — as CHAVES das opções, como em toda comparação de estado. Campo de data filtra por
+ * intervalo: `key` é o início (`AAAA-MM-DD`), e `<key>:ate` o fim.
+ */
+export interface UiNavFilter {
+  key: string;
+  values: string[];
+}
+
 export interface UiNavMetadata extends UiNavTarget {
   label: string;
   icon: string;
@@ -97,6 +107,15 @@ export interface UiNavMetadata extends UiNavTarget {
   /** Ver `UiPageMetadata.requiresSystemAdmin`. */
   requiresSystemAdmin?: boolean;
   badge?: UiNavBadge;
+  /**
+   * O filtro com que ESTE atalho abre a lista da tela — o mesmo recado que o painel deixa por
+   * `useOpenScreenList`. Entra como filtro comum, à vista e removível: é o ponto de partida da lista,
+   * nunca uma restrição escondida. Só vale para alvo `screen` / `screenSourceId`.
+   *
+   * Existe para o selo e a lista falarem do mesmo recorte: o menu dizia "3 aguardando", e o clique
+   * abria a lista inteira.
+   */
+  filter?: UiNavFilter[];
   /**
    * A `key` de um `ui.nav.group` — deste pacote, de outro ou do kernel. Ausente, ou apontando para um
    * grupo que ninguém declarou neste escritório, o item fica solto no menu, na posição do `order`

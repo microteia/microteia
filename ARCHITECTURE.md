@@ -11621,7 +11621,7 @@ a de uma tela que o escritório já tinha com o mesmo `sourceId`.
    `screen` (chave de uma tela DO PACOTE — abre a lista dela) ou `screenSourceId` (id universal, para a
    tela de uma dependência). Na carga do kernel, `withResolvedNavScreens` (`extensionRecordFrom`) troca
    `screen` pelo `sourceId` da tela — o pacote instalado continua cópia fiel do publicado —, e o shell
-   (`useNavTargetResolver`) acha a tela do escritório por esse `sourceId`, DEPOIS da desambiguação, e
+   (`useNavEntryResolver`) acha a tela do escritório por esse `sourceId`, DEPOIS da desambiguação, e
    abre `dyn:<chave instalada>` (ou a página própria da extensão com a chave da tela, como
    `useOpenScreenList`). Tela ausente, desligada ou ilegível para a pessoa: o item some. O `badge` não
    mudou. O `nav({ screen })` sobre uma tela que não se esconde SUBSTITUI o item automático dela na
@@ -11639,6 +11639,29 @@ a de uma tela que o escritório já tinha com o mesmo `sourceId`.
 `KERNEL_PAGES` (`domain/schema/ui/kernelPages.ts`) é uma segunda escrita das páginas `core.*` — o
 portão roda no SDK e no terminal, que não importam `plugins/`. `kernelPages.test.ts` a confronta com
 `CORE_PLUGINS`: página do kernel que entra ou sai sem passar por ela reprova ali.
+
+### O atalho abre a lista no recorte que o selo conta — `nav().filter`
+
+O `badge` do item contava "3 aguardando o escritório", e o clique abria a lista inteira: para ver o
+que o número contou, a pessoa montava o filtro à mão, toda vez. O recado de abertura filtrada já
+existia (`setNavigationIntent`, consumido pelo `useRecordListViewModel` — é por ele que o painel abre
+"prazos vencidos"); faltava o menu poder deixá-lo.
+
+- **`UiNavMetadata.filter`** (`{ key, values }[]`, a forma dos `defaultFilterTokens`). O shell resolve o
+  item em `NavEntry` (`useNavEntryResolver`): a aba e, quando o alvo é a lista de uma tela, o recado
+  endereçado à chave INSTALADA dela. `useOpenNavEntry` deixa o recado e abre a aba — a barra lateral e
+  os atalhos do alto (que são os itens com selo) passam pela mesma porta.
+- **É do ATALHO, não da tela.** O filtro é um filtro comum, à vista e removível; o item automático, a
+  aba salva e o link abrem a lista inteira. Um `defaultFilter` na tela foi considerado e descartado:
+  mexeria no `ScreenDefinition` persistido (schema compartilhado, Form Design) para valer em toda
+  entrada na lista — inclusive onde a pessoa não pediu recorte nenhum — e a dor era só do atalho.
+- **O portão recusa** (`navFilterIssues`, em `validatePluginPackage`): filtro em alvo `key`, forma
+  errada, chave que não é de campo `filterable` (nem arquivo; data também por `<chave>:ate`) e valor
+  que o campo não aceita (chave de opção declarada, `true`/`false`, `AAAA-MM-DD`). Sem a recusa, a
+  chave errada não falhava em lugar nenhum: a lista abria inteira. Só a tela do PRÓPRIO pacote é
+  conferida campo a campo; a de uma dependência e a lista de opções do escritório passam sem veredito.
+- **Selo e filtro são duas declarações** (`when` é expressão; `filter`, valores fixos) e nada as amarra
+  além do autor. Também não há data relativa no filtro: "vencidos" continua sendo só selo.
 
 ### A região é um NOME, e os nomes moram numa constante
 

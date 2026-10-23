@@ -7,6 +7,7 @@ import { packageIssues, validatePackage } from '../domain/usecases/plugins/plugi
 import { workflowStepIssues } from '../domain/usecases/plugins/workflowIntegrity';
 import type { NavTargetOwner } from '../domain/usecases/plugins/navTargets';
 import { navTargetIssues } from '../domain/usecases/plugins/navTargets';
+import { navFilterIssues } from '../domain/usecases/plugins/navFilters';
 
 /**
  * De qual das três checagens o problema veio. Quem exibe usa isso para escolher a frase — a
@@ -95,6 +96,13 @@ export const validatePluginPackage = (
   })),
   // O item de menu que não leva a lugar nenhum. Sem esta recusa ele instalava, e a aba abria em branco.
   ...navTargetIssues(pkg, options.visiblePlugins).map((issue) => ({
+    source: 'package' as const,
+    message: issue.message,
+    messageParams: issue.messageParams,
+  })),
+  // O filtro com que o atalho abre a lista. Uma chave que a lista não reconhece abria a lista inteira,
+  // e o selo voltava a contar um recorte que o clique não mostrava.
+  ...navFilterIssues(pkg).map((issue) => ({
     source: 'package' as const,
     message: issue.message,
     messageParams: issue.messageParams,

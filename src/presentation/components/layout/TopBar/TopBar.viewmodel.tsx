@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useWorkspace } from '../../../../stores/useWorkspace';
 import { useTenant } from '../../../../stores/useTenant';
 import { useAuthorization } from '../../../../stores/useAuthorization';
 import { PERMISSION_EXTENSIONS_MANAGE } from '../../../../domain/schema/access';
@@ -9,7 +8,8 @@ import { useExtensionUpdates } from '../../../shared/useExtensionUpdates';
 import { navMetadataOf } from '../../../shared/resolveUiContributions';
 import { useLabel } from '../../../shared/i18n/useT';
 import { useNavBadgeCount } from '../../../shared/useNavBadgeCount';
-import { useNavTargetResolver } from '../../../shared/useNavTarget';
+import type { NavEntry } from '../../../shared/useNavTarget';
+import { useNavEntryResolver, useOpenNavEntry } from '../../../shared/useNavTarget';
 import { getScreenIcon } from '../../../shared/screenIcons';
 import type { Tenant } from '../../../../domain/entities';
 
@@ -24,6 +24,8 @@ export interface TopBarShortcut {
   label: string;
   icon: React.ReactNode;
   count: number;
+  /** O recado do `filter` do item, quando ele declara um. Ver `NavEntry`. */
+  intent?: NavEntry['intent'];
 }
 
 export interface TopBarViewModel {
@@ -44,12 +46,12 @@ export interface TopBarViewModel {
 }
 
 export const useTopBarViewModel = (): TopBarViewModel => {
-  const { openTab } = useWorkspace();
   const { currentTenant, availableTenants, selectTenant } = useTenant();
   const { can } = useAuthorization();
   const navContributions = useNavContributions();
   const badgeCount = useNavBadgeCount();
-  const resolveTarget = useNavTargetResolver();
+  const resolveEntry = useNavEntryResolver();
+  const openEntry = useOpenNavEntry();
   const { pendingInUse: extensionUpdates } = useExtensionUpdates();
   const { unreadCriticalCount: unreadCriticalAuditCount } = useAuditLogAlert();
 
@@ -68,10 +70,6 @@ export const useTopBarViewModel = (): TopBarViewModel => {
       tenant.name.toLowerCase().includes(query)
     );
   }, [availableTenants, searchQuery]);
-
-  const handleShortcutClick = useCallback((key: string) => {
-    openTab(key);
-  }, [openTab]);
 
   const label = useLabel();
 
@@ -95,13 +93,14 @@ export const useTopBarViewModel = (): TopBarViewModel => {
       .map(navMetadataOf)
       .filter((metadata) => !!metadata.badge)
       .flatMap((metadata): TopBarShortcut[] => {
-        const key = resolveTarget(metadata);
-        if (key === null) return [];
+        const entry = resolveEntry(metadata);
+        if (entry === null) return [];
         return [{
-          key,
+          key: entry.tabKey,
           label: label(metadata.label),
           icon: getScreenIcon(metadata.icon, 18),
           count: badgeCount(metadata.badge),
+          intent: entry.intent,
         }];
       });
 
@@ -126,7 +125,11 @@ export const useTopBarViewModel = (): TopBarViewModel => {
     }
 
     return [...contributed, ...kernel];
-  }, [navContributions, badgeCount, resolveTarget, label, canManageExtensions, extensionUpdates, unreadCriticalAuditCount]);
+  }, [navContributions, badgeCount, resolveEntry, label, canManageExtensions, extensionUpdates, unreadCriticalAuditCount]);
+
+  const handleShortcutClick = useCallback((key: string) => {
+    openEntry({ tabKey: key, intent: shortcuts.find((shortcut) => shortcut.key === key)?.intent });
+  }, [openEntry, shortcuts]);
 
   const handleTenantButtonClick = useCallback(() => {
     if (availableTenants.length <= 1) return;
