@@ -8,6 +8,8 @@ import type { InstalledExtensionRecord } from './installedExtensions.js';
 import { decodeFields, documentId } from './firestoreRest.js';
 import type { FirestoreDocument } from './firestoreRest.js';
 import { readInstalledCatalog } from '../../../src/sdk/node/installedCatalog';
+import { declaredDocumentTemplates } from '../../../src/domain/usecases/plugins/documentStepIntegrity';
+import { documentExamplePlugin } from '../../../src/plugins/marketplace/examples/document-example/plugin';
 
 /**
  * O RETRATO, montado a partir do que o Firestore devolve — e lido de volta pelo SDK.
@@ -171,7 +173,7 @@ describe('a exportação do catálogo instalado', () => {
       { collection: 'customerTags', label: 'Etiquetas', ownerPluginId: 'com.example.billing' },
     ]);
     expect(exported.extensions).toStrictEqual([
-      { id: 'com.example.billing', name: 'Billing', version: '2.1.0', active: true, exports: [], navGroups: [] },
+      { id: 'com.example.billing', name: 'Billing', version: '2.1.0', active: true, exports: [], navGroups: [], documentTemplates: [] },
     ]);
   });
 
@@ -339,6 +341,56 @@ describe('os grupos da barra lateral que cada extensão declara', () => {
       expect(read.snapshot?.extensions.find((one) => one.id === 'com.microteia.calendar')?.navGroups).toStrictEqual([
         { key: 'schedule', label: 'Schedule', translations: { en: 'Schedule', 'pt-BR': 'Agenda' }, order: 20 },
       ]);
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+});
+
+/**
+ * Os modelos de documento atravessam como CONTRATO: é contra eles que o passo `render-document` de
+ * outra extensão é conferido. A leitura do Console é uma cópia da do kernel — o Console não alcança
+ * `src/` —, e este teste é o que impede as duas de divergirem.
+ */
+describe('os modelos de documento que cada extensão declara', () => {
+  const documents: InstalledExtensionRecord = {
+    ...EXTENSIONS[0],
+    id: documentExamplePlugin.manifest.id,
+    manifest: JSON.parse(JSON.stringify(documentExamplePlugin.manifest)) as Record<string, unknown>,
+  };
+
+  const buildWith = (extensions: InstalledExtensionRecord[]) => buildCatalogExport({
+    projectId: 'office-prod',
+    tenant: { id: 'tenant-1', name: 'Escritório Central' },
+    kernelVersion: '2.7.0',
+    exportedAt: EXPORTED_AT,
+    screens: [], lookups: [], tagLists: [],
+    extensions,
+  });
+
+  it('o Console lê o mesmo contrato que o kernel lê do manifesto', () => {
+    const exported = buildWith([documents]).extensions[0].documentTemplates;
+    const kernel = declaredDocumentTemplates(documentExamplePlugin.manifest.contributes)
+      .sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
+    expect(exported).toStrictEqual(kernel);
+    expect(exported.map((one) => one.key)).toStrictEqual(['installment-receipt', 'payment-plan']);
+  });
+
+  it('leva a forma, nunca o texto do modelo', () => {
+    const written = JSON.stringify(buildWith([documents]).extensions[0].documentTemplates);
+    expect(written).not.toContain('Receipt');
+    expect(written).not.toContain('@com.microteia.document-example/');
+  });
+
+  it('o kernel lê os modelos de volta e os considera conhecidos', () => {
+    const directory = mkdtempSync(join(tmpdir(), 'microteia-export-templates-'));
+    try {
+      writeFileSync(join(directory, CATALOG_FILE), `${JSON.stringify(buildWith([documents, EXTENSIONS[0]]), null, 2)}\n`);
+      const read = readInstalledCatalog(directory, EXPORTED_AT);
+
+      expect(read.documentTemplatesKnown).toBe(true);
+      expect(read.snapshot?.extensions.find((one) => one.id === documents.id)?.documentTemplates)
+        .toStrictEqual(buildWith([documents]).extensions[0].documentTemplates);
     } finally {
       rmSync(directory, { recursive: true, force: true });
     }

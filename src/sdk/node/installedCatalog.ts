@@ -3,6 +3,8 @@ import { join } from 'node:path';
 import type { FieldDefinition } from '../../domain/entities/entitySchemas';
 import type { CustomFieldType, FieldAggregation, FieldOrigin } from '../../domain/schema/fieldRules';
 import { KERNEL_VERSION } from '../../domain/schema/plugin/kernelVersion';
+import type { DocumentTemplateContract } from '../../domain/usecases/plugins/documentStepIntegrity';
+import { documentTemplateContractOf } from '../../domain/usecases/plugins/documentStepIntegrity';
 import type { CatalogScreenInput, ParentRelation } from '../domain/catalog';
 
 /**
@@ -137,6 +139,12 @@ export interface InstalledCatalogExtension {
   exports?: InstalledCatalogExport[];
   /** Os grupos da barra lateral que ela declara. Ausente, como `exports`, é silêncio de Console antigo. */
   navGroups?: InstalledCatalogNavGroup[];
+  /**
+   * Os modelos de documento que ela declara, como CONTRATO: chave, origem e a forma dos parâmetros —
+   * nunca o texto. É contra eles que o passo `render-document` de outra extensão é conferido. Ausente,
+   * como `exports`, é silêncio de Console antigo.
+   */
+  documentTemplates?: DocumentTemplateContract[];
 }
 
 export interface InstalledCatalogFile {
@@ -173,6 +181,8 @@ export interface InstalledCatalogRead {
   exportsKnown: boolean;
   /** O mesmo, para os grupos da barra lateral: `false` quando alguma extensão chegou sem `navGroups`. */
   navGroupsKnown: boolean;
+  /** O mesmo, para os modelos de documento: `false` quando alguma extensão chegou sem `documentTemplates`. */
+  documentTemplatesKnown: boolean;
   /** Por que o arquivo não pôde ser usado — arquivo torto, formato de outra época, campo faltando. */
   problems: string[];
 }
@@ -186,6 +196,7 @@ const ABSENT = (path: string): InstalledCatalogRead => ({
   kernelDiffers: false,
   exportsKnown: true,
   navGroupsKnown: true,
+  documentTemplatesKnown: true,
   problems: [],
 });
 
@@ -325,6 +336,13 @@ const readExtension = (raw: unknown): InstalledCatalogExtension | null => {
     ...(Array.isArray(record.navGroups)
       ? { navGroups: record.navGroups.map(readNavGroup).filter((one): one is InstalledCatalogNavGroup => one !== null) }
       : {}),
+    ...(Array.isArray(record.documentTemplates)
+      ? {
+          documentTemplates: record.documentTemplates
+            .map(documentTemplateContractOf)
+            .filter((one): one is DocumentTemplateContract => one !== null),
+        }
+      : {}),
   };
 };
 
@@ -416,6 +434,7 @@ export const readInstalledCatalog = (root: string, now: Date = new Date()): Inst
     kernelDiffers: snapshot.kernelVersion !== KERNEL_VERSION,
     exportsKnown: snapshot.extensions.every((one) => one.exports !== undefined),
     navGroupsKnown: snapshot.extensions.every((one) => one.navGroups !== undefined),
+    documentTemplatesKnown: snapshot.extensions.every((one) => one.documentTemplates !== undefined),
     problems: readable ? [] : [`${INSTALLED_CATALOG_FILE} has no readable "exportedAt", so there is no telling `
       + 'how old it is. Treat every entity it brings as possibly out of date.'],
   };

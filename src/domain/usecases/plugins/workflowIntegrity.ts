@@ -24,6 +24,7 @@ import {
 } from '../../schema/workflowClock';
 import { rangeExcludesBelow } from '../../schema/plugin/semver';
 import { screenEventPrefix } from './screenModule';
+import { declaredDocumentTemplates, renderDocumentStepIssues, renderDocumentTemplateKey } from './documentStepIntegrity';
 
 /**
  * A integridade de um passo de automação.
@@ -55,7 +56,8 @@ const isMapping = (value: unknown): value is InputMapping =>
 /**
  * Um input dinâmico não está em `inputs`: ele nasce do alvo escolhido em design-time. `call-workflow`
  * e `script` os recebem como `param.<chave>`, e reprovar essas chaves reprovaria todo passo que passa
- * argumento — que é o uso normal dos dois.
+ * argumento — que é o uso normal dos dois. Aqui só o prefixo é conferido; o `render-document` tem as
+ * chaves conferidas contra o modelo, quando ele se enxerga (`documentStepIntegrity.ts`).
  */
 const acceptsDynamicKey = (metadata: WorkflowStepMetadata, key: string): boolean =>
   metadata.dynamicInputs !== undefined && key.startsWith('param.');
@@ -279,7 +281,26 @@ const workflowIssues = (
     ...delayIssues(workflow, steps, ref, pkg),
     ...steps.flatMap((step) => stepIssues(step, ref, hasDependencies)),
     ...outputRefIssues(steps, ref),
+    ...documentStepIssues(steps, ref, pkg),
   ];
+};
+
+/**
+ * O passo que gera um modelo DO PRÓPRIO pacote, conferido contra ele. O modelo de uma dependência ou
+ * do escritório não está aqui para ser lido — quem o enxerga são as ferramentas de autoria
+ * (`documentSteps.ts` do SDK), e lá a ausência é dita, não recusada.
+ */
+const documentStepIssues = (
+  steps: WorkflowStep[],
+  ref: PackageRef,
+  pkg: MarketplacePlugin,
+): PackageValidationIssue[] => {
+  const own = new Map(declaredDocumentTemplates(pkg.manifest?.contributes).map((template) => [template.key, template]));
+  return steps.flatMap((step) => {
+    const key = renderDocumentTemplateKey(step);
+    const template = key === null ? undefined : own.get(key);
+    return template === undefined ? [] : renderDocumentStepIssues(step, template, ref);
+  });
 };
 
 /**

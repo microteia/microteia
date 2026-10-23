@@ -2636,6 +2636,32 @@ configuration: {
 
 Requires kernel \`^${DOCUMENT_PAYLOAD_SINCE_KERNEL}\`; an older kernel finds no screen and drops the template.
 
+### The step is checked against the template
+
+The \`param.<key>\` inputs of \`render-document\` are not in the step catalog: they come from the template.
+When \`templateKey\` is a \`Literal\`, \`check\` and \`validate_plugin\` find that template and hold the step
+to it — the same rules the step editor and the engine apply, so a typo stops being a blank field in a
+document generated at the organization:
+
+1. every \`param.<key>\` is a parameter of the template — the first segment: \`param.customer.name\` fills
+   \`customer\`. A payload template without \`parameters\` accepts any key, and none is checked;
+2. \`recordId\` only on a record template, which needs it; \`payload\`, \`belongsTo\` and \`param.*\` only on
+   a payload template;
+3. \`belongsTo\` names a single \`EntityReference\` parameter (no \`list\`), and \`destination: 'record'\` on a
+   payload template needs it;
+4. every \`required\` parameter is filled — by \`param.<key>\`, or by \`payload\`, whose content is only known
+   when the step runs.
+
+Where the template is found decides what the answer means:
+
+| The template is… | The answer |
+|---|---|
+| in your package | refused, here and on install |
+| in another \`plugin.ts\` of this directory, or in an installed extension of \`installed-catalog.json\` | refused by \`check\` / \`validate_plugin\`, saying where it was read |
+| nowhere visible | a warning, never a refusal — the organization may have its own template on that key |
+
+A \`templateKey\` that only exists at run time (an expression, the output of a step) is not checked.
+
 ### The grammar
 
 What sits between \`{{ }}\` is a **field expression** (§9): the same paths (\`{{agreement.party.name}}\`

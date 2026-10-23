@@ -8401,6 +8401,24 @@ seletor `picker: 'document-template-reference'`, que lista as referências únic
 `describe_workflow_step` publica `onlyForTemplateSource` de cada input. Destino ou retenção que não existem
 reprovam o passo, em vez de cair no padrão.
 
+**O passo é conferido contra o modelo que cita — no pacote, não só no editor.** O seletor do editor
+aplica essas regras na tela, mas o pacote não passa pela tela: `acceptsDynamicKey` (`workflowIntegrity`)
+só olhava o prefixo `param.`, e um `param.<chave>` com erro de digitação era ignorado em runtime (o campo
+saía em branco), enquanto `belongsTo` errado, `recordId` num modelo de dados ou obrigatório sem valor só
+eram recusados na geração. `documentStepIntegrity.ts` confere o passo cujo `templateKey` é `Literal`
+contra o CONTRATO do modelo (`DocumentTemplateContract`: chave, origem e a forma dos parâmetros —
+nunca o texto), reusando `inputsForTemplateSource` e `isSingleRecordParameter` (agora no schema
+compartilhado, a mesma função no motor, no seletor e no gate). Onde o modelo é achado decide o veredito:
+
+| Modelo | Quem confere | Veredito |
+|---|---|---|
+| do próprio pacote | `workflowStepIssues` (porta única: `check`, MCP, instalação) | recusa (`issue.step.document.*`) |
+| de outro `plugin.ts` do diretório, ou de extensão no `installed-catalog.json` | `documentSteps.ts` do SDK (`check` / `validate_plugin`) | recusa, dizendo de onde leu |
+| invisível daqui | idem | aviso "não dá para conferir" — o escritório pode ter o seu na mesma chave |
+
+O retrato leva `documentTemplates` por extensão (Console 2.30.0); a chave ausente é silêncio de Console
+antigo (`documentTemplatesKnown: false`), nunca "não declara modelo". `INSTALLED_CATALOG_VERSION` segue 1.
+
 ### O destino — aba Documentos ou Downloads
 
 Nem todo documento gerado é do registro. O recibo que se entrega ao cliente, o extrato que se manda

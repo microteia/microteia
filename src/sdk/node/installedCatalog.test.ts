@@ -209,3 +209,34 @@ describe('os grupos da barra lateral do retrato', () => {
     expect(read.snapshot?.extensions[0].navGroups).toBeUndefined();
   });
 });
+
+describe('os modelos de documento do retrato', () => {
+  const contratos = (documentTemplates: unknown): Record<string, unknown> => ({
+    id: 'com.example.docs', name: 'Docs', version: '1.0.0', active: true, exports: [], navGroups: [],
+    ...(documentTemplates === undefined ? {} : { documentTemplates }),
+  });
+
+  it('traz a chave, a origem e a forma dos parâmetros', () => {
+    write(snapshot({
+      extensions: [contratos([{
+        key: 'procuracao',
+        source: 'payload',
+        parameters: [{ key: 'outorgante', type: 'EntityReference', entityType: 'pessoas', required: true }],
+      }])],
+    }));
+    const read = readInstalledCatalog(workspace, TAKEN_AT);
+    expect(read.documentTemplatesKnown).toBe(true);
+    expect(read.snapshot?.extensions[0].documentTemplates).toEqual([{
+      key: 'procuracao',
+      source: 'payload',
+      parameters: [{ key: 'outorgante', type: 'EntityReference', entityType: 'pessoas', required: true }],
+    }]);
+  });
+
+  it('chave AUSENTE é silêncio de um Console antigo, e os modelos deixam de ser conhecidos', () => {
+    write(snapshot({ extensions: [contratos(undefined)] }));
+    const read = readInstalledCatalog(workspace, TAKEN_AT);
+    expect(read.documentTemplatesKnown).toBe(false);
+    expect(read.snapshot?.extensions[0].documentTemplates).toBeUndefined();
+  });
+});

@@ -277,6 +277,16 @@ export interface DocumentTemplateIssue extends TemplateIssue {
 export const isPayloadTemplate = (spec: Pick<Partial<DocumentTemplateSpec>, 'source'>): boolean =>
   spec.source === 'payload';
 
+/**
+ * O parâmetro que pode ser o DONO do documento de um modelo `payload` (`belongsTo`): uma referência a
+ * UM registro. Uma lista não diz a qual dos registros o arquivo pertence. É a mesma regra no motor que
+ * gera, no seletor do editor do passo e na validação do pacote — por isso mora aqui, uma vez.
+ */
+export const isSingleRecordParameter = (
+  parameter: Pick<WorkflowParameter, 'type' | 'entityType' | 'list'>,
+): boolean =>
+  parameter.type === 'EntityReference' && !!parameter.entityType && !parameter.list;
+
 /** Os tipos de parâmetro de um modelo `payload` — os mesmos das automações. */
 export const DOCUMENT_PARAMETER_TYPES: readonly WorkflowParameterType[] = [
   'String', 'Number', 'Date', 'Boolean', 'select', 'lookup', 'EntityReference', 'Object',

@@ -406,6 +406,20 @@ export const CORE_MARKETPLACE: Record<string, string> = {
     'o passo "{step}" espera, e o passo de espera só existe a partir do kernel {minimum} — declare `kernel: "^{minimum}"` (ou posterior) no manifest, para que um kernel mais antigo recuse o pacote em vez de falhar no passo.',
   'issue.step.unknown-input':
     'o passo "{step}" ({definition}) preenche a entrada "{input}", que esse passo não tem. Ele recebe: {expected}.',
+  'issue.step.document.record-only':
+    'o passo "{step}" preenche "{input}", que só um modelo sobre um registro recebe — o modelo de documento "{template}" lê dados, e gerá-lo seria recusado.',
+  'issue.step.document.payload-only':
+    'o passo "{step}" preenche "{input}", que só um modelo que lê dados recebe — o modelo de documento "{template}" é sobre um registro, e o valor nunca chegaria a ele.',
+  'issue.step.document.input-required':
+    'o passo "{step}" gera o modelo de documento "{template}" e deixa vazio "{input}", de que esse modelo precisa — gerá-lo seria recusado.',
+  'issue.step.document.unknown-parameter':
+    'o passo "{step}" preenche "{input}", e o modelo de documento "{template}" não tem o parâmetro "{parameter}" — o valor seria ignorado e o campo sairia em branco. Os parâmetros dele: {expected}.',
+  'issue.step.document.belongs-to-invalid':
+    'o passo "{step}" diz que o documento pertence a "{parameter}", que não é um parâmetro de registro único do modelo de documento "{template}" — gerá-lo seria recusado. Ele pode nomear: {expected}.',
+  'issue.step.document.parameter-required':
+    'o passo "{step}" gera o modelo de documento "{template}" sem o parâmetro obrigatório "{parameter}" — preencha "param.{parameter}", ou passe os dados em bloco por "payload".',
+  'issue.step.document.destination-without-owner':
+    'o passo "{step}" salva o modelo de documento "{template}" na aba Documentos do registro sem dizer qual registro é o dono — preencha "belongsTo", ou salve em Downloads.',
   'install.dependency-missing':
     'Esta extensão referencia {kind} "{id}" da extensão "{plugin}", que não está instalada — instale-a antes.',
   'install.dependent-breaks':

@@ -51,7 +51,7 @@ import type { StepOutputField, WorkflowVariable } from '../../components/ui/Expr
 import { useT, useLabel, type TranslateFn } from '../../shared/i18n/useT';
 import { isPausingStepDefinition, isStepExcludedFromTrigger, inputsForTemplateSource } from '../../../domain/schema/workflowStepCatalog';
 import { useResolvedDocumentTemplates } from '../../shared/documents/useResolvedDocumentTemplates';
-import { isPayloadTemplate } from '../../../domain/schema/document/documentTemplate';
+import { isPayloadTemplate, isSingleRecordParameter } from '../../../domain/schema/document/documentTemplate';
 
 const queryProjectionOutputs = (
   t: TranslateFn,
@@ -555,7 +555,7 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
   /** As referências únicas do modelo de dados escolhido: os registros a que o documento pode pertencer. */
   const templateReferenceOptions = useMemo(
     () => (targetTemplate?.parameters ?? [])
-      .filter((parameter) => parameter.type === 'EntityReference' && !!parameter.entityType && !parameter.list)
+      .filter(isSingleRecordParameter)
       .map((parameter) => ({ value: parameter.key, label: label(parameter.label) || parameter.key, meta: parameter.entityType })),
     [targetTemplate, label],
   );

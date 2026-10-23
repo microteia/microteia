@@ -73,6 +73,7 @@ import { recordSurfaceReport } from './recordSurfaces';
 import { navTargetReport } from './navTargetReport';
 import { navGroupReport, sameNameDifferentKeys, summarizeNavGroups, visibleNavGroups } from './navGroups';
 import { eventRefReport } from './eventRefs';
+import { documentStepReport } from './documentSteps';
 import { undeclaredPathReport } from './undeclaredPaths';
 import { readWorkspaceCatalog } from './workspaceCatalog';
 import type { WorkspaceCatalog } from './workspaceCatalog';
@@ -185,6 +186,22 @@ const describeEventRefs = (pkg: MarketplacePlugin, root: string): string => {
     : `${refused.length} of ${findings.length} trigger(s) on an event another extension emits would NOT install:`;
   return `\n\n${head}\n${findings
     .map((one) => `- [${one.status}] ${one.prefix}.* (from ${one.writtenBy}) — ${one.detail}`)
+    .join('\n')}`;
+};
+
+/**
+ * O passo `render-document` que cita o modelo de OUTRO pacote. `refused` é o modelo lido aqui cujo
+ * contrato o passo não cumpre; o que não se enxerga é dito, nunca recusado — pode ser o do escritório.
+ */
+const describeDocumentSteps = (pkg: MarketplacePlugin, root: string): string => {
+  const findings = documentStepReport(pkg, root);
+  if (findings.length === 0) return '';
+  const refused = findings.filter((one) => one.status === 'refused');
+  const head = refused.length === 0
+    ? `${findings.length} step(s) generating a document template of another package, none of them refused here:`
+    : `${refused.length} of ${findings.length} step(s) generating a document template of another package do NOT fill its contract:`;
+  return `\n\n${head}\n${findings
+    .map((one) => `- [${one.status}] ${one.templateKey} (step "${one.step}" of ${one.writtenBy}) — ${one.detail}`)
     .join('\n')}`;
 };
 
@@ -404,18 +421,19 @@ const TOOLS: ToolDefinition[] = [
       if (typeof input.json === 'string') {
         const parsed = parsePackage(input.json);
         if (!parsed.ok) return `Not a valid package: ${describeMessage(parsed.error)}`;
-        return `${describeIssues(validatePluginPackage(parsed.package))}${describeCrossRefs(parsed.package, root)}${describeEventRefs(parsed.package, root)}${describeUndeclaredPaths(parsed.package, root)}${describeRecordSurfaces(parsed.package, root)}${describeNavTargets(parsed.package, root)}${describeNavGroups(parsed.package, root)}${describeNamespace(parsed.package, root)}`;
+        return `${describeIssues(validatePluginPackage(parsed.package))}${describeCrossRefs(parsed.package, root)}${describeEventRefs(parsed.package, root)}${describeDocumentSteps(parsed.package, root)}${describeUndeclaredPaths(parsed.package, root)}${describeRecordSurfaces(parsed.package, root)}${describeNavTargets(parsed.package, root)}${describeNavGroups(parsed.package, root)}${describeNamespace(parsed.package, root)}`;
       }
       const path = resolve(root, asString(input.path, 'path'));
       if (path.endsWith('.json')) {
         const parsed = parsePackage(readFileSync(path, 'utf8'));
         if (!parsed.ok) return `Not a valid package: ${describeMessage(parsed.error)}`;
-        return `${describeIssues(validatePluginPackage(parsed.package))}${describeCrossRefs(parsed.package, root)}${describeEventRefs(parsed.package, root)}${describeUndeclaredPaths(parsed.package, root)}${describeRecordSurfaces(parsed.package, root)}${describeNavTargets(parsed.package, root)}${describeNavGroups(parsed.package, root)}${describeNamespace(parsed.package, root)}`;
+        return `${describeIssues(validatePluginPackage(parsed.package))}${describeCrossRefs(parsed.package, root)}${describeEventRefs(parsed.package, root)}${describeDocumentSteps(parsed.package, root)}${describeUndeclaredPaths(parsed.package, root)}${describeRecordSurfaces(parsed.package, root)}${describeNavTargets(parsed.package, root)}${describeNavGroups(parsed.package, root)}${describeNamespace(parsed.package, root)}`;
       }
       const result = buildPlugin({ entry: path });
       return `${result.package.manifest.id} v${result.package.manifest.version}\n${describeIssues(result.issues)}`
         + describeCrossRefs(result.package, root)
         + describeEventRefs(result.package, root)
+        + describeDocumentSteps(result.package, root)
         + describeUndeclaredPaths(result.package, root)
         + describeRecordSurfaces(result.package, root)
         + describeNavTargets(result.package, root)
@@ -642,6 +660,20 @@ const TOOLS: ToolDefinition[] = [
           type: one.type,
         })),
         dynamicInputs: step.dynamicInputs ?? null,
+        // Os `param.<chave>` deste passo não estão em `inputs`: nascem do modelo. Sem dizer que eles são
+        // conferidos contra ele, quem escreve o passo só descobria o nome errado no documento em branco.
+        ...(step.dynamicInputs?.kind === 'from-target-document-template-parameters'
+          ? {
+            checkedAgainstTemplate: 'With a `Literal` `templateKey`, validate_plugin and `check` hold the step to that '
+              + 'template: each `param.<key>` must be one of its parameters (the first segment — `param.customer.name` '
+              + 'fills `customer`), every `required` parameter filled by `param.<key>` or by `payload`, `recordId` only '
+              + 'for a record template, `payload` / `belongsTo` / `param.*` only for a payload template, `belongsTo` a '
+              + 'single `EntityReference` parameter, and `destination: "record"` on a payload template only with '
+              + '`belongsTo`. A template of your package is refused on install too; one another plugin.ts here or the '
+              + 'installation snapshot declares is refused by validate_plugin; one nothing visible declares is reported '
+              + 'as not checkable, never refused — the organization may have its own on that key.',
+          }
+          : {}),
         dynamicOutputs: step.dynamicOutputs ?? null,
       });
     },

@@ -407,6 +407,20 @@ export const CORE_MARKETPLACE_MESSAGES: Record<string, string> = {
     'step "{step}" waits, and the wait step only exists from kernel {minimum} on — declare `kernel: "^{minimum}"` (or later) in the manifest, so that an older kernel refuses the package instead of failing at the step.',
   'issue.step.unknown-input':
     'step "{step}" ({definition}) sets input "{input}", which that step does not have. It takes: {expected}.',
+  'issue.step.document.record-only':
+    'step "{step}" sets "{input}", which only a template about a record takes — the document template "{template}" reads data instead, and generating it would be refused.',
+  'issue.step.document.payload-only':
+    'step "{step}" sets "{input}", which only a template that reads data takes — the document template "{template}" is about a record, and the value would never reach it.',
+  'issue.step.document.input-required':
+    'step "{step}" generates the document template "{template}" and leaves "{input}" empty, which that template needs — generating it would be refused.',
+  'issue.step.document.unknown-parameter':
+    'step "{step}" fills "{input}", and the document template "{template}" has no parameter "{parameter}" — the value would be ignored and the field would come out blank. Its parameters: {expected}.',
+  'issue.step.document.belongs-to-invalid':
+    'step "{step}" says the document belongs to "{parameter}", which is not a single-record parameter of the document template "{template}" — generating it would be refused. It can name: {expected}.',
+  'issue.step.document.parameter-required':
+    'step "{step}" generates the document template "{template}" without its required parameter "{parameter}" — fill "param.{parameter}", or pass the data in bulk through "payload".',
+  'issue.step.document.destination-without-owner':
+    'step "{step}" saves the document template "{template}" to the record\'s Documents tab without saying which record owns it — set "belongsTo", or save it to Downloads.',
   'install.dependency-missing':
     'This extension references {kind} "{id}" of extension "{plugin}", which is not installed — install it first.',
   'install.dependent-breaks':

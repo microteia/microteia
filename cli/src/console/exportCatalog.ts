@@ -133,6 +133,28 @@ export interface CatalogExtensionNavGroup {
   order: number;
 }
 
+/**
+ * Um modelo de documento que a extensão declara (`document.template`), como CONTRATO: a chave, a origem
+ * e a forma de cada parâmetro. Viaja porque outra extensão GERA esse modelo pelo passo
+ * `render-document`, com `param.<chave>` e `belongsTo`, e um nome trocado ali só aparece na geração —
+ * com o campo em branco, ou com a recusa no clique.
+ *
+ * O que NÃO viaja é o texto do modelo, o rótulo, a regra e a amostra: é conteúdo, e o passo não os lê.
+ */
+export interface CatalogExtensionDocumentParameter {
+  key: string;
+  type: string;
+  required?: boolean;
+  list?: boolean;
+  entityType?: string;
+}
+
+export interface CatalogExtensionDocumentTemplate {
+  key: string;
+  source: 'record' | 'payload';
+  parameters: CatalogExtensionDocumentParameter[];
+}
+
 export interface CatalogExtensionExport {
   id: string;
   name: string;
@@ -145,6 +167,8 @@ export interface CatalogExtensionExport {
   exports: CatalogExtensionExportedArtifact[];
   /** Sempre escrita, mesmo vazia, pela mesma razão de `exports`. */
   navGroups: CatalogExtensionNavGroup[];
+  /** Sempre escrita, mesmo vazia, pela mesma razão de `exports`. */
+  documentTemplates: CatalogExtensionDocumentTemplate[];
 }
 
 export interface CatalogExport {
@@ -269,6 +293,46 @@ const navGroupsOf = (extension: InstalledExtensionRecord): CatalogExtensionNavGr
     });
 };
 
+const DOCUMENT_TEMPLATE_POINT = 'document.template';
+
+const documentParameterOf = (raw: unknown): CatalogExtensionDocumentParameter[] => {
+  const record = asRecord(raw);
+  const key = text(record?.key);
+  const type = text(record?.type);
+  if (record === undefined || key === undefined || type === undefined) return [];
+  const entityType = text(record.entityType);
+  return [{
+    key,
+    type,
+    ...(record.required === true ? { required: true } : {}),
+    ...(record.list === true ? { list: true } : {}),
+    ...(entityType === undefined ? {} : { entityType }),
+  }];
+};
+
+/**
+ * Os modelos de documento de uma cópia instalada, como contrato. É a mesma leitura que
+ * `documentTemplateContractOf` faz no kernel, repetida porque o Console não alcança `src/` — e é o
+ * teste que atravessa a fronteira que confere as duas.
+ */
+const documentTemplatesOf = (extension: InstalledExtensionRecord): CatalogExtensionDocumentTemplate[] => {
+  const contributes = Array.isArray(extension.manifest?.contributes) ? extension.manifest.contributes : [];
+  return contributes
+    .map(asRecord)
+    .filter((one): one is Record<string, unknown> => one?.point === DOCUMENT_TEMPLATE_POINT)
+    .flatMap((one): CatalogExtensionDocumentTemplate[] => {
+      const metadata = asRecord(one.metadata);
+      const key = text(metadata?.key);
+      if (metadata === undefined || key === undefined) return [];
+      return [{
+        key,
+        source: metadata.source === 'payload' ? 'payload' : 'record',
+        parameters: (Array.isArray(metadata.parameters) ? metadata.parameters : []).flatMap(documentParameterOf),
+      }];
+    })
+    .sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
+};
+
 /**
  * A mesma dedução que a aplicação faz ao ler a tela (`screenDefinitionMapper.ts`): o `origin` gravado
  * quando ele existe, senão `plugin` para quem tem dono e `design` para o que o escritório criou. Ela é
@@ -370,6 +434,7 @@ export const buildCatalogExport = (input: CatalogExportInput): CatalogExport => 
       active: one.active,
       exports: exportedArtifacts(one),
       navGroups: navGroupsOf(one),
+      documentTemplates: documentTemplatesOf(one),
     }))
     .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)),
   screens: input.screens
@@ -517,6 +582,8 @@ export const exportCatalog = async (args: ParsedArgs): Promise<void> => {
   info(`  ${exported} artifact(s) are declared for other extensions to reference as <extension-id>/<id>.`);
   const groups = document.extensions.reduce((total, one) => total + one.navGroups.length, 0);
   info(`  ${groups} sidebar group(s) are declared, by key, for other extensions to join.`);
+  const templates = document.extensions.reduce((total, one) => total + one.documentTemplates.length, 0);
+  info(`  ${templates} document template(s) are declared, with the shape of their parameters, for other extensions to generate.`);
 
   blank();
   await checkIgnored(directory);

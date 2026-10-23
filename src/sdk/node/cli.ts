@@ -11,6 +11,7 @@ import type { Asker } from './prompt';
 import { serveMcp } from './mcp';
 import { crossRefReport } from './referenceable';
 import { eventRefReport } from './eventRefs';
+import { documentStepReport } from './documentSteps';
 import { recordSurfaceReport } from './recordSurfaces';
 import { navTargetReport } from './navTargetReport';
 import { undeclaredPathReport } from './undeclaredPaths';
@@ -164,6 +165,25 @@ const sayEventRefs = (pkg: MarketplacePlugin, root: string): number => {
 };
 
 /**
+ * O passo `render-document` que cita o modelo de OUTRO pacote. Conta como problema só o `refused` — o
+ * modelo foi lido aqui e o passo não cumpre o contrato dele. O modelo que não se enxerga é dito: pode
+ * ser o do escritório, na mesma chave.
+ */
+const sayDocumentSteps = (pkg: MarketplacePlugin, root: string): number => {
+  const findings = documentStepReport(pkg, root);
+  if (findings.length === 0) return 0;
+
+  say();
+  say(`  ${DIM}${findings.length} step(s) generating a document template of another package${RESET}`);
+  for (const one of findings) {
+    const mark = one.status === 'ok' ? `${GREEN}ok${RESET}` : one.status === 'refused' ? `${RED}x${RESET}` : `${YELLOW}!${RESET}`;
+    say(`  ${mark} ${one.templateKey} ${DIM}(step "${one.step}" of ${one.writtenBy})${RESET}`);
+    say(`     ${DIM}${one.detail}${RESET}`);
+  }
+  return findings.filter((one) => one.status === 'refused').length;
+};
+
+/**
  * Os caminhos de relatório e de consulta que nenhum campo das telas visíveis declara. Só avisa, nunca
  * reprova: a plataforma os aceita porque o escritório pode ter criado o campo no Form Design.
  */
@@ -289,7 +309,7 @@ const build = (args: Args, write: boolean): number => {
 
   const root = resolve(args.values.get('root') ?? process.cwd());
   const refusedRefs = sayCrossRefs(result.package, root) + sayEventRefs(result.package, root)
-    + sayNavTargets(result.package, root);
+    + sayNavTargets(result.package, root) + sayDocumentSteps(result.package, root);
   sayUndeclaredPaths(result.package, root);
   sayRecordSurfaces(result.package, root);
   sayNavGroups(result.package, root);

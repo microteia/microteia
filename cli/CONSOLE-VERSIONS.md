@@ -22,6 +22,10 @@
 - fix(command): what was broken, and what it did to whoever hit it.
 -->
 
+#### [2.30.0] — 2026-10-23
+
+- feat(export-catalog): each installed extension now carries `documentTemplates` — every `document.template` it declares as a contract (`key`, `source`, and each parameter's `key`, `type`, `required`, `list`, `entityType`), never the template text, labels or sample. The authoring tools check a `render-document` step of another extension against it, so a misspelled `param.<key>` or a `belongsTo` that is not a single-record parameter is refused by `check` instead of reaching the office as a blank field. Always written, even empty; a snapshot taken by an older Console is read as "templates unknown".
+
 #### [2.29.1] — 2026-10-19
 
 - feat(vendor): `portal-example` joins the examples that travel to `extensions/examples/` — two screens with `portal` declared, guest-created records and a `portalView` written against `@microteia/portal`.

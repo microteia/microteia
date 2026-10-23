@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.147.0] — 2026-10-23
+
+- A conferência de uma extensão agora avisa, antes da instalação, quando uma automação que gera um documento preenche um campo que o modelo não tem, aponta o dono do documento para um campo que não é um registro, ou deixa de preencher um dado obrigatório. Antes, esses enganos só apareciam no escritório: um documento com um campo em branco, ou uma recusa ao gerar.
+
 #### [9.146.0] — 2026-10-22
 
 - Corrigido o portal mostrando campos de escolha vazios ao convidado quando as opções vêm de uma lista cadastrada pelo escritório: agora ele escolhe entre as mesmas opções que o escritório vê, ao criar e ao alterar um registro, e na leitura aparece o nome da opção, com a cor dela, em vez de um código.

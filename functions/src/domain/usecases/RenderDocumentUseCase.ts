@@ -6,7 +6,7 @@ import type { SchemaContext } from '../schema/pathResolver';
 import { resolveQueryTable } from '../schema/querySpec';
 import { agentDocumentName, AGENT_DOCUMENT_MAX_BYTES } from '../schema/agent/agentDocument';
 import type { DocumentOutputFormat, DocumentTemplateSpec, ResolvedDocumentTemplate } from '../schema/document/documentTemplate';
-import { DOCUMENT_PAYLOAD_MAX_BYTES, isPayloadTemplate, templateOutputs } from '../schema/document/documentTemplate';
+import { DOCUMENT_PAYLOAD_MAX_BYTES, isPayloadTemplate, isSingleRecordParameter, templateOutputs } from '../schema/document/documentTemplate';
 import type { TemplatePaths } from '../schema/document/templateGrammar';
 import { collectRequiredIssues, formatAndValidateParameters } from '../schema/parameterRules';
 import { PERMISSION_DOCUMENTS_GENERATE } from '../schema/access';
@@ -337,9 +337,6 @@ const prepareRecord = async (
     };
 };
 
-const isSingleReference = (parameter: WorkflowParameter): boolean =>
-  parameter.type === 'EntityReference' && !!parameter.entityType && !parameter.list;
-
 const isFilled = (value: unknown): boolean => value !== undefined && value !== null && value !== '';
 
 /**
@@ -354,10 +351,10 @@ const homeParameterOf = (
 ): { ok: true; value: WorkflowParameter | null } | Failure => {
   const parameters = template.parameters ?? [];
   if (!belongsTo) {
-    return { ok: true, value: parameters.find((one) => isSingleReference(one) && isFilled(data[one.key])) ?? null };
+    return { ok: true, value: parameters.find((one) => isSingleRecordParameter(one) && isFilled(data[one.key])) ?? null };
   }
   const named = parameters.find((one) => one.key === belongsTo);
-  if (!named || !isSingleReference(named)) {
+  if (!named || !isSingleRecordParameter(named)) {
     return failure('@core.documents/render.belongs-to-invalid', { key: template.key, parameter: belongsTo });
   }
   if (!isFilled(data[named.key])) {

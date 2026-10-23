@@ -3,6 +3,8 @@ import { dirname, join, relative } from 'node:path';
 import type { MarketplacePlugin } from '../../domain/entities/MarketplacePlugin';
 import type { DeclaredNavGroup } from '../../domain/usecases/plugins/declaredNavGroups';
 import { declaredNavGroupsOf } from '../../domain/usecases/plugins/declaredNavGroups';
+import type { DocumentTemplateContract } from '../../domain/usecases/plugins/documentStepIntegrity';
+import { declaredDocumentTemplates } from '../../domain/usecases/plugins/documentStepIntegrity';
 import type { SchemaLookup } from '../../domain/schema/screenEntity';
 import type { ExportedArtifact } from '../../domain/usecases/plugins/crossExtensionRefs';
 import { exportedSurface } from '../../domain/usecases/plugins/crossExtensionRefs';
@@ -137,6 +139,8 @@ export interface WorkspaceCatalog {
     navTargets?: NavTargetOwner;
     /** Os grupos da barra lateral que o pacote declara, com o nome resolvido pelo catálogo dele. */
     navGroups?: DeclaredNavGroup[];
+    /** Os modelos de documento que o pacote declara, como contrato — o que um passo de uma irmã cita. */
+    documentTemplates?: DocumentTemplateContract[];
   }[];
   /**
    * Os `plugin.ts` de `examples/`, como CAMINHO e nada mais.
@@ -249,6 +253,7 @@ export const readWorkspaceCatalog = (
         exports: exportedSurface(pkg).map((one) => ({ ...one, name: describe(one.name) })),
         navTargets: navTargetOwnerOf(pkg),
         navGroups: declaredNavGroupsOf(pkg.manifest.contributes),
+        documentTemplates: declaredDocumentTemplates(pkg.manifest.contributes),
       });
     } catch (error) {
       failures.push({ path: relative(root, entry), error: error instanceof Error ? error.message : String(error) });
