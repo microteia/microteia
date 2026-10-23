@@ -13,7 +13,14 @@ import {
   setAmbientInstant,
   setAmbientTimeZone,
 } from './clockGate';
-import { dayInTimeZone } from './i18n/timeZone';
+import {
+  dayInTimeZone,
+  formatWallClock,
+  isValidTimeZone,
+  wallClockInTimeZone,
+  wallClockOfDay,
+  type WallClock,
+} from './i18n/timeZone';
 import { ambientLocale } from './i18n/localeGate';
 import {
   ambientEntity,
@@ -136,6 +143,22 @@ const toDate = (value: unknown): Date | null => {
 
 const isDayOnly = (value: unknown): boolean =>
   typeof value === 'string' && DAY_ONLY_PATTERN.test(value.trim());
+
+/**
+ * O dia e a hora que o valor mostra NO FUSO dado. Um dia (`YYYY-MM-DD`) não tem fuso: sai o mesmo dia,
+ * à meia-noite, onde quer que se avalie. Um instante é lido no relógio do fuso — e nunca pelos getters
+ * de `Date`, que no servidor respondem em UTC.
+ */
+const wallClockOf = (value: unknown, timeZone: string): WallClock | null => {
+  if (isDayOnly(value)) {
+    const [year, month, day] = asText(value).trim().split('-').map(Number);
+    return wallClockOfDay(year, month, day);
+  }
+  const date = toDate(value);
+  return date ? wallClockInTimeZone(date, timeZone) : null;
+};
+
+const officeWallClock = (value: unknown): WallClock | null => wallClockOf(value, ambientTimeZone());
 
 const padded = (value: number): string => String(value).padStart(2, '0');
 
@@ -320,16 +343,20 @@ const FIELD_EXPRESSION_FUNCTIONS: Record<string, (...args: unknown[]) => unknown
     shifted.setDate(shifted.getDate() + amount);
     return isDayOnly(value) ? asDayText(shifted) : shifted.toISOString();
   },
-  formatDate: (value, format) => {
-    const date = toDate(value);
-    if (!date) return '';
-    return asText(format)
-      .replace('YYYY', String(date.getFullYear()))
-      .replace('MM', padded(date.getMonth() + 1))
-      .replace('DD', padded(date.getDate()))
-      .replace('HH', padded(date.getHours()))
-      .replace('mm', padded(date.getMinutes()))
-      .replace('ss', padded(date.getSeconds()));
+  /**
+   * No relógio do ESCRITÓRIO, o mesmo fuso de `today()`: a mensagem recebida às 11:32 em Brasília sai
+   * 11:32 na tela e no fluxo. O terceiro argumento, um fuso IANA, troca o relógio; fuso que a
+   * plataforma não reconhece dá texto vazio, como uma data inválida — cair calado no fuso do escritório
+   * gravaria a hora errada sem ninguém ver.
+   */
+  formatDate: (value, format, timeZone) => {
+    if (timeZone === undefined) {
+      const clock = officeWallClock(value);
+      return clock ? formatWallClock(clock, asText(format)) : '';
+    }
+    if (!isValidTimeZone(timeZone)) return '';
+    const clock = wallClockOf(value, timeZone);
+    return clock ? formatWallClock(clock, asText(format)) : '';
   },
   dateDiff: (first, second, unit) => {
     const from = toDate(first);
@@ -349,18 +376,14 @@ const FIELD_EXPRESSION_FUNCTIONS: Record<string, (...args: unknown[]) => unknown
     businessDaysBetween(businessDaysEnvironment(), from, to, calendars),
   isBusinessDay: (date, calendars) => isBusinessDay(businessDaysEnvironment(), date, calendars),
   nextBusinessDay: (date, calendars) => nextBusinessDay(businessDaysEnvironment(), date, calendars),
-  dayOfWeek: (value) => toDate(value)?.getDay() ?? null,
+  dayOfWeek: (value) => officeWallClock(value)?.weekday ?? null,
   isWeekend: (value) => {
-    const date = toDate(value);
-    if (!date) return false;
-    return date.getDay() === 0 || date.getDay() === 6;
+    const clock = officeWallClock(value);
+    return clock ? clock.weekday === 0 || clock.weekday === 6 : false;
   },
-  year: (value) => toDate(value)?.getFullYear() ?? null,
-  month: (value) => {
-    const date = toDate(value);
-    return date ? date.getMonth() + 1 : null;
-  },
-  day: (value) => toDate(value)?.getDate() ?? null,
+  year: (value) => officeWallClock(value)?.year ?? null,
+  month: (value) => officeWallClock(value)?.month ?? null,
+  day: (value) => officeWallClock(value)?.day ?? null,
   // `expr-eval` tem literal de array mas não de objeto — daí a forma por pares, mesma solução já
   // adotada no status compacto das Actions. object('preco', 10) → { preco: 10 }.
   object: (...args) => {

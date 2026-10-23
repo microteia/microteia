@@ -18,6 +18,15 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.150.0] — 2026-10-23
+
+- fix(expressions): `formatDate` formats an instant on the organization's clock (`i18n.timezone`, the same `ambientTimeZone` / `WorkflowServices.timeZone` that `today()` uses) instead of the process clock (`Date.getHours()`, `getDate()`…). On a Cloud Function that was UTC, so `formatDate(now(), "HH:mm")` stamped 14:32 for a message received at 11:32 in Brasília, and `formatDate(now(), "YYYY-MM-DD")` wrote the next day after 9 p.m. — with no error, in every organization outside UTC. Covers the form, a server `derive`, workflows, Script `fn.formatDate`, report `includeWhen` and document templates. Records already written keep the UTC hour.
+- fix(expressions): `year`, `month`, `day`, `dayOfWeek` and `isWeekend` read the same clock, so `day(now())` agrees with `formatDate(now(), "DD")` on both ends.
+- feat(expressions): optional third argument of `formatDate`, an IANA time zone (`formatDate(now(), "HH:mm", "UTC")`). An unknown name yields `''` in a field expression and fails the step with `expr.arg.third.time-zone` in a workflow — never the hour of another zone. Workflow catalog: `maxArgs` 3, signature `formatDate(date, format, timeZone?)`.
+- refactor(schema): one implementation of the pattern for both ends — `wallClockInTimeZone`, `wallClockOfDay` and `formatWallClock` in the shared `domain/schema/i18n/timeZone.ts`. A day (`YYYY-MM-DD`) is never converted; a stored date (noon UTC) reads as the same day between UTC-11 and UTC+11.
+- feat(kernel): `KERNEL_VERSION` 2.64.0 (additive: the third argument). An older kernel rejects `formatDate` with three arguments. `com.microteia.locale-pt-br` 1.120.0.
+- docs(sdk): AUTHORING §9 "`formatDate` writes the organization's clock".
+
 #### [9.149.0] — 2026-10-23
 
 - feat(workflow/notify): `portalGuests` notifies the portal guests who can see a record instead of members, by e-mail and on the portal bell. Recipients are resolved when the step runs (`makeResolvePortalGuestsUseCase`): `resolvePortalSubjectKeys` over the stored record, then `audienceFor` and each live invite — never the projection, whose `audience` lags a revocation by seconds and may not exist yet for a new record. A record outside the portal (screen not exposed, hidden by `visibleWhen`, chain cut) notifies nobody. Before this, the step could only reach members, and no automation could tell a client that anything had happened.

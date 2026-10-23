@@ -10160,7 +10160,7 @@ preferência de quem escolheu espanhol ser descartada no dia em que o pacote fos
 sozinha ao inglês. Idioma sem tradução instalada simplesmente cai no idioma-fonte ao resolver o texto.
 
 `i18n.timezone` é o FUSO DO ESCRITÓRIO, e é ele que decide o dia de `today()` — na expressão de campo
-e na automação. Tipo `timezone` (lista IANA do `Intl`, mais "Automático" = vazio). A regra de resolução
+e na automação — e o RELÓGIO de `formatDate`, `year`, `month`, `day`, `dayOfWeek` e `isWeekend`. Tipo `timezone` (lista IANA do `Intl`, mais "Automático" = vazio). A regra de resolução
 vive em `domain/schema/i18n/timeZone.ts`, compartilhado com `functions/`, e é UMA função
 (`resolveTimeZone`): usuário → escritório → automático. O automático lê a região do `i18n.locale`
 GRAVADO do escritório (depois o do usuário; `BR` → `America/Sao_Paulo`) e cai em `UTC` — nunca o idioma
@@ -10176,6 +10176,18 @@ Como o fuso chega a cada ponta:
 | Workflow | `WorkflowServices.timeZone`, resolvido uma vez por execução (`timeZoneOf` em `hydrateAndRunWorkflow`; direto nos contextos de agente, relatório e script) → `anchorDay(now, timeZone)` |
 | Derive/compute no servidor | `withAmbientTimeZone(context.services.timeZone, …)` em volta da avaliação SÍNCRONA (consulta, mutação, recálculo de agregado, `get_record` do agente) |
 | `includeWhen` de relatório | `ReportRowFilterInput.timeZone` |
+
+**`formatDate` lê o relógio de parede do fuso, nunca os getters de `Date`.** `getHours()`/`getDate()`
+respondem pelo fuso do PROCESSO — UTC numa Cloud Function, a máquina de quem olha no navegador —, e a
+mesma expressão carimbava 23:00 na tela e 02:00 do dia seguinte no fluxo. As duas pontas passam por
+`wallClockInTimeZone` e `formatWallClock` (`i18n/timeZone.ts`): UMA implementação do padrão
+`YYYY MM DD HH mm ss`, a mesma na expressão de campo e no `formatDateFn` do workflow (que o Script
+expõe como `fn.formatDate`). Um dia (`YYYY-MM-DD`) não tem fuso e sai o mesmo dia (`wallClockOfDay`);
+um dia gravado é meio-dia UTC, que se lê o mesmo dia entre UTC-11 e UTC+11 (`parseDateOnly`). O
+terceiro argumento opcional é um fuso IANA; inválido dá `''` na expressão de campo (leniente, como
+data inválida) e `expr.arg.third.time-zone` no workflow. Nunca caia calado no fuso do escritório: seria
+a hora errada sem sintoma, que é o defeito que a regra elimina. `formatDateParity.test.ts` cobra as
+pontas às 23h de Brasília.
 
 **O relógio das automações não tem pessoa.** `schedule` e `dateReached` disparam pelo horário, e o
 servidor resolve o fuso SEM usuário — `resolveOfficeTimeZone(tenant)`, a mesma regra com o escopo do

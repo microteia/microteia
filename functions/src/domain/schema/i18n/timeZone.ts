@@ -129,6 +129,78 @@ export const resolveTimeZone = (values: TimeZoneSettingValues): string => {
 export const resolveOfficeTimeZone = (tenant: Record<string, unknown>): string =>
   resolveTimeZone({ user: {}, tenant });
 
+/**
+ * O que um RELÓGIO DE PAREDE mostra num instante: dia e hora como alguém naquele fuso os lê. É o que
+ * `formatDate` escreve e o que `year`/`month`/`day` respondem — e nunca os getters de `Date`, que
+ * respondem pelo fuso do PROCESSO: no servidor, UTC; no navegador, o da máquina de quem olha.
+ */
+export interface WallClock {
+  year: number;
+  month: number;
+  day: number;
+  hour: number;
+  minute: number;
+  second: number;
+  /** 0 = domingo … 6 = sábado, como `Date.getDay()`. */
+  weekday: number;
+}
+
+const clockFormatters = new Map<string, Intl.DateTimeFormat>();
+
+const clockFormatter = (timeZone: string): Intl.DateTimeFormat => {
+  const cached = clockFormatters.get(timeZone);
+  if (cached) return cached;
+  const created = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hourCycle: 'h23',
+  });
+  clockFormatters.set(timeZone, created);
+  return created;
+};
+
+/** O relógio de parede de um DIA, sem fuso nenhum: o dia que entra é o dia que sai, à meia-noite. */
+export const wallClockOfDay = (year: number, month: number, day: number): WallClock => ({
+  year,
+  month,
+  day,
+  hour: 0,
+  minute: 0,
+  second: 0,
+  weekday: new Date(Date.UTC(year, month - 1, day)).getUTCDay(),
+});
+
+/** O relógio de parede de um instante no fuso dado. Fuso inválido cai no padrão. */
+export const wallClockInTimeZone = (instant: Date, timeZone: string): WallClock => {
+  const zone = isValidTimeZone(timeZone) ? timeZone.trim() : DEFAULT_TIME_ZONE;
+  const parts = clockFormatter(zone).formatToParts(instant);
+  const part = (type: Intl.DateTimeFormatPartTypes): number =>
+    Number(parts.find((entry) => entry.type === type)?.value ?? 0);
+  const clock = wallClockOfDay(part('year'), part('month'), part('day'));
+  return { ...clock, hour: part('hour') % 24, minute: part('minute'), second: part('second') };
+};
+
+const twoDigits = (value: number): string => String(value).padStart(2, '0');
+
+/**
+ * O padrão de `formatDate` (`YYYY`, `MM`, `DD`, `HH`, `mm`, `ss`) aplicado a um relógio de parede. Uma
+ * implementação só para a expressão de campo e para a automação: a mesma frase não pode sair com uma
+ * forma na tela e outra no fluxo.
+ */
+export const formatWallClock = (clock: WallClock, pattern: string): string =>
+  pattern
+    .replace('YYYY', String(clock.year))
+    .replace('MM', twoDigits(clock.month))
+    .replace('DD', twoDigits(clock.day))
+    .replace('HH', twoDigits(clock.hour))
+    .replace('mm', twoDigits(clock.minute))
+    .replace('ss', twoDigits(clock.second));
+
 /** O DIA (`YYYY-MM-DD`) em que um instante cai no fuso dado. Fuso inválido cai no padrão. */
 export const dayInTimeZone = (instant: Date, timeZone: string): string => {
   const zone = isValidTimeZone(timeZone) ? timeZone.trim() : DEFAULT_TIME_ZONE;

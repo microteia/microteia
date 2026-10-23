@@ -11,6 +11,12 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.150.0] — 2026-10-23
+
+- Corrigida a hora registrada pelas automações: o horário de uma mensagem, de uma movimentação ou de um número de atendimento agora sai no fuso do escritório, e não mais três horas adiantado. Também deixa de cair no dia seguinte o que é registrado à noite. Os registros gravados antes desta correção continuam com a hora antiga.
+- A mesma fórmula de data agora mostra a mesma hora na tela, nas automações, nos relatórios e nos documentos gerados.
+- Quem precisa de outro fuso pode informá-lo na fórmula — por exemplo, para registrar a hora em UTC.
+
 #### [9.149.0] — 2026-10-23
 
 - As automações agora podem avisar os clientes do portal. Quando o escritório responde, agenda uma visita ou registra uma novidade, o cliente recebe um e-mail e um aviso no sino do próprio portal, com um link que abre o registro direto no portal.

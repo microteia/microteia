@@ -1745,6 +1745,22 @@ screen and false in the automation that acts on it. Do not compensate for the ti
 \`now()\` stays an **instant**. Compare it with other instants (\`dateDiff(now(), createdAt, "hours")\`);
 when you need a day, ask \`today()\` instead of cutting one out of \`now()\`.
 
+### \`formatDate\` writes the organization's clock
+
+\`formatDate(v, fmt)\` reads an instant on the clock of the same time zone \`today()\` uses, everywhere
+the expression runs — the form, a \`derive\` on the server, a workflow, a Script's \`fn.formatDate\`, a
+report's \`includeWhen\` and a document template. \`formatDate(now(), "YYYY-MM-DD HH:mm")\` at 11 p.m. in
+Brasília is \`2026-03-30 23:00\` on the screen and in the automation alike; without it, a server in UTC
+would stamp the next day at 02:00. \`year\`, \`month\`, \`day\`, \`dayOfWeek\` and \`isWeekend\` read the
+same clock.
+
+A day is not converted: \`formatDate("2026-03-31", "DD/MM/YYYY")\` is \`31/03/2026\` in every time zone,
+and so is a date field, which is stored at noon UTC. A third argument, an IANA time zone, reads another
+clock: \`formatDate(now(), "HH:mm", "UTC")\`. A name the platform does not know is an empty text in a
+field expression and a named refusal in a workflow — never the hour of some other zone. Do not shift the
+hour yourself (\`addDays(now(), -0.125)\`): it is wrong for every organization outside one zone, and
+wrong for that one the day it changes its setting.
+
 ### Asking about permission
 
 \`hasPermission("...")\` is the one function that answers about who is looking, and it takes patterns:
@@ -1773,7 +1789,7 @@ logical negation. On top of them:
 | Logic | \`if(cond, a, b)\`, \`coalesce(...)\`, \`isEmpty(v)\`, \`isNull(v)\`, \`isNotNull(v)\` |
 | Text | \`concat(...)\`, \`lower\`, \`upper\`, \`trim\`, \`length\`, \`contains(v, s)\`, \`startsWith\`, \`endsWith\`, \`indexOf\`, \`substring(v, start, end)\`, \`replace(v, s, r)\`, \`split(v, sep)\`, \`join(a, sep)\`, \`interpolate(template, ...)\` |
 | Numbers | \`round(v, decimals)\`, \`sum(a)\`, \`avg(a)\`, \`min\`, \`max\`, \`abs\`, \`ceil\`, \`floor\`, \`sqrt\` |
-| Dates | \`today()\`, \`now()\`, \`addDays(v, n)\`, \`formatDate(v, fmt)\`, \`dateDiff(a, b, unit)\`, \`dayOfWeek\`, \`isWeekend\`, \`year\`, \`month\`, \`day\` |
+| Dates | \`today()\`, \`now()\`, \`addDays(v, n)\`, \`formatDate(v, fmt, timeZone?)\`, \`dateDiff(a, b, unit)\`, \`dayOfWeek\`, \`isWeekend\`, \`year\`, \`month\`, \`day\` |
 | Business days | \`addBusinessDays(v, n, calendars)\`, \`businessDaysBetween(a, b, calendars)\`, \`isBusinessDay(v, calendars)\`, \`nextBusinessDay(v, calendars)\` — see below |
 | Lists | \`first(a)\`, \`last(a)\`, \`map(a, path, compact)\`, \`contains(a, item)\`, \`length(a)\` |
 | Brazil, and formatting | \`isCPF\`, \`isCNPJ\`, \`isEmail\`, \`onlyNumber\`, \`formatCPF\`, \`formatCNPJ\`, \`formatMoney(v, locale)\` |
