@@ -1,8 +1,12 @@
 import type {
   IPortalAccountService,
   IPortalRepository,
+  PortalFieldOption,
   PortalScreen,
 } from '../repositories/IPortalRepository';
+import { DECLARED_LOOKUP_OPTIONS, mergeLookupDefaults } from '../schema/lookupDefaults';
+import { isLookupCollection } from '../schema/lookupRegistry';
+import { RESERVED_COLLECTIONS } from '../schema/screenEntity';
 import { invalidArgument, permissionDenied } from '../errors/DomainError';
 import {
   applyPortalPreference,
@@ -160,12 +164,12 @@ export interface PortalContextScreen {
   parent: { collection: string } | null;
   /** O que o convidado preenche ao criar, e a que tipo de registro o novo se vincula. */
   create: {
-    fields: Array<{ key: string; label: string; type?: string; required: boolean; options?: Array<{ key: string; label: string }> }>;
+    fields: Array<{ key: string; label: string; type?: string; required: boolean; options?: PortalFieldOption[] }>;
     link: { collection: string; label: string };
   } | null;
   /** O que o convidado altera, e se só no que ele mesmo criou. */
   edit: {
-    fields: Array<{ key: string; label: string; type?: string; required: boolean; options?: Array<{ key: string; label: string }> }>;
+    fields: Array<{ key: string; label: string; type?: string; required: boolean; options?: PortalFieldOption[] }>;
     onlyOwn: boolean;
   } | null;
   collection: string;
@@ -242,6 +246,47 @@ export type GetPortalContextUseCase = {
   }) => Promise<PortalContext>;
 };
 
+type PortalField = PortalScreen['fields'][number];
+
+/**
+ * Uma lista só sai se for LISTA: a do kernel, ou uma coleção que nenhuma tela usa como registro e que
+ * não é do sistema. Sem isso, um `lookupCollection` apontado (por engano ou não) para a coleção de uma
+ * tela entregaria ao convidado o rótulo de registros que o portal não expõe.
+ */
+const isPortalLookupList = (collection: string, screens: PortalScreen[]): boolean =>
+  isLookupCollection(collection)
+  || (!RESERVED_COLLECTIONS.has(collection)
+    && !screens.some((screen) => screen.id === collection || screen.collection === collection));
+
+/**
+ * As opções das listas que os campos EXPOSTOS usam — os que o convidado vê, cria ou altera —, e só
+ * delas. O convidado não lê lista nenhuma: o servidor as lê com o acesso do escritório, pela mesma
+ * mescla do front (as do kernel primeiro, depois as cadastradas). A lista que falha ao ser lida fica só
+ * com as do kernel, como no escritório: o portal não deixa de abrir por uma lista.
+ */
+const portalLookupOptions = async (
+  repo: IPortalRepository,
+  tenantId: string,
+  allScreens: PortalScreen[],
+  portalScreens: PortalScreen[],
+): Promise<Map<string, PortalFieldOption[]>> => {
+  const collections = new Set<string>();
+  for (const screen of portalScreens) {
+    const shown = new Set([...portalFieldKeys(screen), ...portalCreateFieldKeys(screen), ...portalEditFieldKeys(screen)]);
+    for (const field of screen.fields) {
+      if (shown.has(field.key) && field.lookupCollection && isPortalLookupList(field.lookupCollection, allScreens)) {
+        collections.add(field.lookupCollection);
+      }
+    }
+  }
+  const entries = await Promise.all([...collections].map(async (collection) => {
+    const declared = [...(DECLARED_LOOKUP_OPTIONS[collection] ?? [])];
+    const office = await repo.getLookupOptions(tenantId, collection).catch(() => []);
+    return [collection, mergeLookupDefaults<PortalFieldOption>(declared, office)] as const;
+  }));
+  return new Map(entries);
+};
+
 /**
  * O que a casca do portal precisa saber para desenhar — e só isso. O convidado não lê
  * `screenDefinitions` nem as configurações: recebe daqui as telas que o portal expõe, cada uma só com
@@ -261,6 +306,22 @@ export const makeGetPortalContextUseCase = (repo: IPortalRepository): GetPortalC
     }
     const [allScreens, settings] = await Promise.all([repo.getScreens(tenantId), repo.getHomeSettings(tenantId)]);
     const screens = allScreens.filter((screen) => !!screen.portal);
+    const lookups = await portalLookupOptions(repo, tenantId, allScreens, screens);
+    // As declaradas no campo primeiro (cor só em lista colorida), depois as da lista — a mesma ordem
+    // do formulário do escritório. A chave repetida fica com a primeira.
+    const optionsOf = (field: PortalField): { options?: PortalFieldOption[] } => {
+      const declared = (field.options ?? []).map((option) => ({
+        key: option.key,
+        label: option.label,
+        ...(field.optionsColored && option.color ? { color: option.color } : {}),
+      }));
+      const listed = field.lookupCollection ? lookups.get(field.lookupCollection) ?? [] : [];
+      if (declared.length === 0 && listed.length === 0) return {};
+      const declaredKeys = new Set(declared.map((option) => option.key));
+      const options = [...declared, ...listed.filter((option) => !declaredKeys.has(option.key))]
+        .map((option) => ({ ...option, label: resolve(option.label) }));
+      return { options };
+    };
     const exposed = new Set(screens.map((screen) => screen.collection));
     const views = (extensionViews?.views ?? [])
       .filter((view) => !view.collection || exposed.has(view.collection));
@@ -327,12 +388,12 @@ export const makeGetPortalContextUseCase = (repo: IPortalRepository): GetPortalC
         const editable = new Set(portalEditFieldKeys(screen));
         const link = portalLinkOf(screen);
         const linkTarget = link ? screenFor(link.targetEntity) : undefined;
-        const describe = (field: PortalScreen['fields'][number]) => ({
+        const describe = (field: PortalField) => ({
           key: field.key,
           label: resolve(field.label),
           type: field.type,
           required: field.required === true,
-          ...(field.options ? { options: field.options.map((option) => ({ key: option.key, label: resolve(option.label) })) } : {}),
+          ...optionsOf(field),
         });
         return {
           id: screen.id,
@@ -351,7 +412,7 @@ export const makeGetPortalContextUseCase = (repo: IPortalRepository): GetPortalC
               key: field.key,
               label: resolve(field.label),
               type: field.type,
-              ...(field.options ? { options: field.options.map((option) => ({ key: option.key, label: resolve(option.label) })) } : {}),
+              ...optionsOf(field),
             })),
           create: fillable.size > 0 && linkTarget
             ? {

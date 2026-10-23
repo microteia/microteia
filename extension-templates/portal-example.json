@@ -1,7 +1,7 @@
 {
   "manifest": {
     "id": "com.microteia.portal-example",
-    "version": "1.4.0",
+    "version": "1.5.0",
     "kernel": "^2.62.0",
     "name": "@com.microteia.portal-example/package.name",
     "description": "@com.microteia.portal-example/package.description",
@@ -45,6 +45,11 @@
             "field.date": "Date",
             "field.summary": "Summary",
             "field.officeOnly": "Office only — never shown in the portal",
+            "field.urgency": "Urgency",
+            "lookup.urgencies": "Order urgencies",
+            "urgency.routine": "Routine",
+            "urgency.soon": "Soon",
+            "urgency.urgent": "Urgent",
             "portal.orders": "Your orders",
             "portal.orders.empty": "No orders yet.",
             "portal.orders.new": "Place an order",
@@ -86,6 +91,11 @@
             "field.date": "Data",
             "field.summary": "Resumo",
             "field.officeOnly": "Só do escritório — nunca aparece no portal",
+            "field.urgency": "Urgência",
+            "lookup.urgencies": "Urgências do pedido",
+            "urgency.routine": "Rotina",
+            "urgency.soon": "Em breve",
+            "urgency.urgent": "Urgente",
             "portal.orders": "Seus pedidos",
             "portal.orders.empty": "Nenhum pedido ainda.",
             "portal.orders.new": "Fazer um pedido",
@@ -185,18 +195,27 @@
           "order": 1
         },
         {
+          "key": "urgency",
+          "label": "@com.microteia.portal-example/field.urgency",
+          "type": "select",
+          "required": false,
+          "order": 2,
+          "lookupCollection": "portalExampleUrgencies",
+          "optionsColored": true
+        },
+        {
           "key": "notes",
           "label": "@com.microteia.portal-example/field.notes",
           "type": "textarea",
           "required": false,
-          "order": 2
+          "order": 3
         },
         {
           "key": "client",
           "label": "@com.microteia.portal-example/field.client",
           "type": "reference",
           "required": true,
-          "order": 3,
+          "order": 4,
           "refEntity": "portalExampleClient"
         },
         {
@@ -204,14 +223,14 @@
           "label": "@com.microteia.portal-example/field.internal",
           "type": "textarea",
           "required": false,
-          "order": 4
+          "order": 5
         },
         {
           "key": "officeOnly",
           "label": "@com.microteia.portal-example/field.officeOnly",
           "type": "checkbox",
           "required": false,
-          "order": 5
+          "order": 6
         }
       ],
       "titleFieldKey": "item",
@@ -223,6 +242,7 @@
         "fields": [
           "item",
           "quantity",
+          "urgency",
           "notes"
         ],
         "visibleWhen": "officeOnly != true",
@@ -230,12 +250,14 @@
           "fields": [
             "item",
             "quantity",
+            "urgency",
             "notes"
           ]
         },
         "edit": {
           "fields": [
             "quantity",
+            "urgency",
             "notes"
           ],
           "onlyOwn": true
@@ -323,12 +345,35 @@
       }
     }
   ],
+  "lookups": [
+    {
+      "collection": "portalExampleUrgencies",
+      "label": "@com.microteia.portal-example/lookup.urgencies",
+      "options": [
+        {
+          "key": "routine",
+          "label": "@com.microteia.portal-example/urgency.routine",
+          "color": "success"
+        },
+        {
+          "key": "soon",
+          "label": "@com.microteia.portal-example/urgency.soon",
+          "color": "warning"
+        },
+        {
+          "key": "urgent",
+          "label": "@com.microteia.portal-example/urgency.urgent",
+          "color": "danger"
+        }
+      ]
+    }
+  ],
   "views": [
     {
       "key": "clientPortal",
       "title": "@com.microteia.portal-example/screen.client",
       "icon": "team",
-      "source": "// --- ClientPortal.view.tsx ---\nimport { Button } from '@microteia/ui';\n\n\n\n/**\n * The Client record IN THE PORTAL, contributed by `portalView({ collection, surface: 'detail' }, ...)`.\n * The portal draws \"Back\" around it; this file only draws what the view model returns.\n */\nexport default function ClientPortal(props: { collection: string; recordId?: string }) {\n  const vm = useClientPortalViewModel(props);\n\n  return (\n    <S.Wrapper>\n      <S.Header>\n        <S.Title>{vm.title}</S.Title>\n        {vm.city && <S.Muted>{vm.city}</S.Muted>}\n      </S.Header>\n\n      <S.Header>\n        <S.Muted>{vm.t('portal.orders')}</S.Muted>\n        {vm.canOrder && <Button size=\"sm\" onClick={vm.order}>{vm.t('portal.orders.new')}</Button>}\n      </S.Header>\n\n      {!vm.loading && vm.items.length === 0 && <S.Muted>{vm.t('portal.orders.empty')}</S.Muted>}\n      {vm.items.map((item) => (\n        <S.Row key={item.id}>\n          <S.Order type=\"button\" onClick={() => vm.open(item.id)}>{item.text}</S.Order>\n          {item.canEdit && (\n            <Button size=\"sm\" variant=\"secondary\" onClick={() => vm.edit(item.id)}>{vm.t('portal.orders.edit')}</Button>\n          )}\n        </S.Row>\n      ))}\n    </S.Wrapper>\n  );\n}\n\n// --- ClientPortal.viewmodel.tsx ---\nimport { useMemo } from 'react';\nimport { useT } from '@microteia/i18n';\nimport { usePortalNavigation, usePortalRecord, usePortalRecords, usePortalScreen } from '@microteia/portal';\n\n/** The Orders collection — the installed key of this package's screen. */\nconst ORDER_COLLECTION = 'portalExampleOrder';\n\n/**\n * Everything the page decides, so the view only draws. A portal view receives the open record as\n * props (`collection`, `recordId`) and asks @microteia/portal for the rest: it never reaches\n * @microteia/data — the guest has none of the organization's stores.\n */\nexport const useClientPortalViewModel = ({ collection, recordId }: { collection: string; recordId?: string }) => {\n  const t = useT('com.microteia.portal-example');\n  const client = usePortalRecord(collection, recordId ?? '');\n  const orderScreen = usePortalScreen(ORDER_COLLECTION);\n  const navigation = usePortalNavigation();\n\n  // `parent` filters to the orders of THIS client — the same link the server stamped on each order.\n  const orders = usePortalRecords(ORDER_COLLECTION, { parent: { collection, recordId: recordId ?? '' } });\n\n  const items = useMemo(() => orders.records.map((order) => ({\n    id: order.recordId,\n    text: t('portal.orders.quantity', {\n      count: String(order.data.quantity ?? 1),\n      item: String(order.data.item ?? order.title),\n    }),\n    // `canEdit` only decides whether to SHOW the gesture; the server checks again on every change.\n    canEdit: order.canEdit,\n  })), [orders.records, t]);\n\n  return {\n    t,\n    title: client?.title ?? '',\n    city: typeof client?.data.city === 'string' ? client.data.city : '',\n    loading: orders.loading,\n    items,\n    // Only offered when the Orders screen lets guests create — the declaration decides, not the view.\n    canOrder: !!orderScreen?.create && !!recordId,\n    order: () => navigation.create(ORDER_COLLECTION, recordId),\n    open: (orderId: string) => navigation.openRecord(ORDER_COLLECTION, orderId),\n    edit: (orderId: string) => navigation.edit(ORDER_COLLECTION, orderId),\n  };\n};\n\n// --- ClientPortal.styles.tsx ---\nimport { styled } from 'styled-components';\n\n/** Every colour, size and space comes from the theme. */\nconst Wrapper = styled.div`\n  display: flex;\n  flex-direction: column;\n  gap: ${({ theme }) => theme.spacing.md};\n`;\n\nconst Header = styled.div`\n  display: flex;\n  align-items: baseline;\n  justify-content: space-between;\n  gap: ${({ theme }) => theme.spacing.sm};\n  flex-wrap: wrap;\n`;\n\nconst Title = styled.h2`\n  font-size: ${({ theme }) => theme.fontSizes.xl};\n  font-weight: 700;\n  color: ${({ theme }) => theme.colors.text};\n`;\n\nconst Muted = styled.p`\n  font-size: ${({ theme }) => theme.fontSizes.sm};\n  color: ${({ theme }) => theme.colors.textMuted};\n`;\n\nconst Row = styled.div`\n  display: flex;\n  align-items: center;\n  gap: ${({ theme }) => theme.spacing.sm};\n`;\n\nconst Order = styled.button`\n  display: block;\n  flex: 1;\n  min-width: 0;\n  text-align: left;\n  padding: ${({ theme }) => theme.spacing.md};\n  border: 1px solid ${({ theme }) => theme.colors.border};\n  border-radius: ${({ theme }) => theme.borderRadius.md};\n  background: ${({ theme }) => theme.colors.surface};\n  color: ${({ theme }) => theme.colors.text};\n  cursor: pointer;\n`;\n\nexport const S = { Wrapper, Header, Title, Muted, Row, Order };\n"
+      "source": "// --- ClientPortal.view.tsx ---\nimport { Button } from '@microteia/ui';\n\n\n\n/**\n * The Client record IN THE PORTAL, contributed by `portalView({ collection, surface: 'detail' }, ...)`.\n * The portal draws \"Back\" around it; this file only draws what the view model returns.\n */\nexport default function ClientPortal(props: { collection: string; recordId?: string }) {\n  const vm = useClientPortalViewModel(props);\n\n  return (\n    <S.Wrapper>\n      <S.Header>\n        <S.Title>{vm.title}</S.Title>\n        {vm.city && <S.Muted>{vm.city}</S.Muted>}\n      </S.Header>\n\n      <S.Header>\n        <S.Muted>{vm.t('portal.orders')}</S.Muted>\n        {vm.canOrder && <Button size=\"sm\" onClick={vm.order}>{vm.t('portal.orders.new')}</Button>}\n      </S.Header>\n\n      {!vm.loading && vm.items.length === 0 && <S.Muted>{vm.t('portal.orders.empty')}</S.Muted>}\n      {vm.items.map((item) => (\n        <S.Row key={item.id}>\n          <S.Order type=\"button\" onClick={() => vm.open(item.id)}>\n            {item.text}\n            {item.urgency && <S.Detail>{item.urgency}</S.Detail>}\n          </S.Order>\n          {item.canEdit && (\n            <Button size=\"sm\" variant=\"secondary\" onClick={() => vm.edit(item.id)}>{vm.t('portal.orders.edit')}</Button>\n          )}\n        </S.Row>\n      ))}\n    </S.Wrapper>\n  );\n}\n\n// --- ClientPortal.viewmodel.tsx ---\nimport { useMemo } from 'react';\nimport { useT } from '@microteia/i18n';\nimport { usePortalNavigation, usePortalRecord, usePortalRecords, usePortalScreen } from '@microteia/portal';\n\n/** The Orders collection — the installed key of this package's screen. */\nconst ORDER_COLLECTION = 'portalExampleOrder';\n\n/**\n * Everything the page decides, so the view only draws. A portal view receives the open record as\n * props (`collection`, `recordId`) and asks @microteia/portal for the rest: it never reaches\n * @microteia/data — the guest has none of the organization's stores.\n */\nexport const useClientPortalViewModel = ({ collection, recordId }: { collection: string; recordId?: string }) => {\n  const t = useT('com.microteia.portal-example');\n  const client = usePortalRecord(collection, recordId ?? '');\n  const orderScreen = usePortalScreen(ORDER_COLLECTION);\n  const navigation = usePortalNavigation();\n\n  // `parent` filters to the orders of THIS client — the same link the server stamped on each order.\n  const orders = usePortalRecords(ORDER_COLLECTION, { parent: { collection, recordId: recordId ?? '' } });\n\n  // A record stores the option KEY. The screen carries the options of the organization's list, already\n  // in the guest's language — so the label is read there, never written in the view.\n  const urgencies = useMemo(\n    () => orderScreen?.fields.find((field) => field.key === 'urgency')?.options ?? [],\n    [orderScreen],\n  );\n\n  const items = useMemo(() => orders.records.map((order) => ({\n    id: order.recordId,\n    text: t('portal.orders.quantity', {\n      count: String(order.data.quantity ?? 1),\n      item: String(order.data.item ?? order.title),\n    }),\n    urgency: urgencies.find((option) => option.key === order.data.urgency)?.label ?? '',\n    // `canEdit` only decides whether to SHOW the gesture; the server checks again on every change.\n    canEdit: order.canEdit,\n  })), [orders.records, urgencies, t]);\n\n  return {\n    t,\n    title: client?.title ?? '',\n    city: typeof client?.data.city === 'string' ? client.data.city : '',\n    loading: orders.loading,\n    items,\n    // Only offered when the Orders screen lets guests create — the declaration decides, not the view.\n    canOrder: !!orderScreen?.create && !!recordId,\n    order: () => navigation.create(ORDER_COLLECTION, recordId),\n    open: (orderId: string) => navigation.openRecord(ORDER_COLLECTION, orderId),\n    edit: (orderId: string) => navigation.edit(ORDER_COLLECTION, orderId),\n  };\n};\n\n// --- ClientPortal.styles.tsx ---\nimport { styled } from 'styled-components';\n\n/** Every colour, size and space comes from the theme. */\nconst Wrapper = styled.div`\n  display: flex;\n  flex-direction: column;\n  gap: ${({ theme }) => theme.spacing.md};\n`;\n\nconst Header = styled.div`\n  display: flex;\n  align-items: baseline;\n  justify-content: space-between;\n  gap: ${({ theme }) => theme.spacing.sm};\n  flex-wrap: wrap;\n`;\n\nconst Title = styled.h2`\n  font-size: ${({ theme }) => theme.fontSizes.xl};\n  font-weight: 700;\n  color: ${({ theme }) => theme.colors.text};\n`;\n\nconst Muted = styled.p`\n  font-size: ${({ theme }) => theme.fontSizes.sm};\n  color: ${({ theme }) => theme.colors.textMuted};\n`;\n\nconst Row = styled.div`\n  display: flex;\n  align-items: center;\n  gap: ${({ theme }) => theme.spacing.sm};\n`;\n\nconst Order = styled.button`\n  display: block;\n  flex: 1;\n  min-width: 0;\n  text-align: left;\n  padding: ${({ theme }) => theme.spacing.md};\n  border: 1px solid ${({ theme }) => theme.colors.border};\n  border-radius: ${({ theme }) => theme.borderRadius.md};\n  background: ${({ theme }) => theme.colors.surface};\n  color: ${({ theme }) => theme.colors.text};\n  cursor: pointer;\n`;\n\nconst Detail = styled.span`\n  display: block;\n  font-size: ${({ theme }) => theme.fontSizes.sm};\n  color: ${({ theme }) => theme.colors.textMuted};\n`;\n\nexport const S = { Wrapper, Header, Title, Muted, Row, Order, Detail };\n"
     },
     {
       "key": "openOrdersWidget",

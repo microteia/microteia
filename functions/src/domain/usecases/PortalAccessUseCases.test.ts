@@ -9,7 +9,7 @@ import {
 } from './PortalAccessUseCases';
 import { makeProjectPortalRecordUseCase } from './PortalProjectionUseCases';
 import { CITY_SCREENS, EXTENSION_CITY_SCREENS, makeFakePortalRepository } from '../repositories/fakePortalRepository';
-import type { IPortalAccountService } from '../repositories/IPortalRepository';
+import type { IPortalAccountService, PortalScreen } from '../repositories/IPortalRepository';
 
 const TENANT = 'salvador';
 
@@ -172,6 +172,119 @@ describe('contexto do portal', () => {
     expect(context.home.widgets.map((entry) => entry.id)).toEqual(['com.acme.pending']);
     expect(context.home.welcome).toBe('Bem-vindo');
     expect(context.home.view).toBeNull();
+  });
+
+  describe('opções de lista', () => {
+    const select = (key: string, extra: Partial<PortalScreen['fields'][number]> = {}) =>
+      ({ key, label: key, type: 'select', ...extra });
+    const screensWith = (fields: PortalScreen['fields'], portal: NonNullable<PortalScreen['portal']>) =>
+      CITY_SCREENS.map((screen) => (screen.id === 'invoices'
+        ? { ...screen, fields: [...screen.fields, ...fields], portal: { ...screen.portal!, ...portal } }
+        : screen));
+    const contextOf = async (fake: ReturnType<typeof makeFakePortalRepository>) => {
+      fake.users.set('ana', { userId: 'ana', email: 'ana@acme.com', displayName: 'Ana', subjectKeys: ['companies/acme'] });
+      const context = await makeGetPortalContextUseCase(fake.repo).execute({
+        tenantId: TENANT, userId: 'ana', tenant: { name: 'Salvador', logoURL: null }, locale: 'pt-BR', resolve: (value) => value.toUpperCase(),
+      });
+      return context.screens.find((screen) => screen.id === 'invoices')!;
+    };
+
+    it('o campo exposto leva as opções da lista do escritório, com rótulo traduzido e cor', async () => {
+      const fake = makeFakePortalRepository(screensWith(
+        [select('kind', { lookupCollection: 'invoiceKinds' })],
+        { subject: { field: 'companyId' }, fields: ['number', 'kind'] },
+      ));
+      fake.lookups.set('invoiceKinds', [{ key: 'service', label: '@acme/kind.service', color: 'success' }, { key: 'goods', label: 'Goods' }]);
+
+      const invoices = await contextOf(fake);
+
+      expect(invoices.fields.find((field) => field.key === 'kind')?.options).toEqual([
+        { key: 'service', label: '@ACME/KIND.SERVICE', color: 'success' },
+        { key: 'goods', label: 'GOODS' },
+      ]);
+    });
+
+    it('criar e alterar levam as opções também — inclusive de campo que só se preenche', async () => {
+      const fake = makeFakePortalRepository(screensWith(
+        [select('kind', { lookupCollection: 'invoiceKinds' }), select('presence', { lookupCollection: 'presences' })],
+        { subject: { field: 'companyId' }, fields: ['number', 'presence'], create: { fields: ['kind'] }, edit: { fields: ['presence'] } },
+      ));
+      fake.lookups.set('invoiceKinds', [{ key: 'service', label: 'Service' }]);
+      fake.lookups.set('presences', [{ key: 'online', label: 'Online' }]);
+
+      const invoices = await contextOf(fake);
+
+      expect(invoices.create?.fields.find((field) => field.key === 'kind')?.options).toEqual([{ key: 'service', label: 'SERVICE' }]);
+      expect(invoices.edit?.fields.find((field) => field.key === 'presence')?.options).toEqual([{ key: 'online', label: 'ONLINE' }]);
+    });
+
+    it('só as listas dos campos expostos são lidas', async () => {
+      const fake = makeFakePortalRepository(screensWith(
+        [select('kind', { lookupCollection: 'invoiceKinds' }), select('risk', { lookupCollection: 'riskLevels' })],
+        { subject: { field: 'companyId' }, fields: ['number', 'kind'] },
+      ));
+      const read = vi.spyOn(fake.repo, 'getLookupOptions');
+
+      await contextOf(fake);
+
+      expect(read.mock.calls.map(([, collection]) => collection)).toEqual(['invoiceKinds']);
+    });
+
+    it('nunca lê como lista a coleção de uma tela, nem uma do sistema', async () => {
+      const fake = makeFakePortalRepository(screensWith(
+        [select('kind', { lookupCollection: 'inspections' }), select('who', { lookupCollection: 'portalUsers' })],
+        { subject: { field: 'companyId' }, fields: ['number', 'kind', 'who'] },
+      ));
+      const read = vi.spyOn(fake.repo, 'getLookupOptions');
+
+      const invoices = await contextOf(fake);
+
+      expect(read).not.toHaveBeenCalled();
+      expect(invoices.fields.find((field) => field.key === 'kind')?.options).toBeUndefined();
+    });
+
+    it('as declaradas no campo vêm antes, e a cor delas só sai em lista colorida', async () => {
+      const declared = [{ key: 'urgent', label: 'Urgent', color: 'danger' }];
+      const fake = makeFakePortalRepository(screensWith(
+        [
+          select('kind', { lookupCollection: 'invoiceKinds', options: declared }),
+          select('flag', { options: declared, optionsColored: true }),
+        ],
+        { subject: { field: 'companyId' }, fields: ['number', 'kind', 'flag'] },
+      ));
+      fake.lookups.set('invoiceKinds', [{ key: 'urgent', label: 'Repetida' }, { key: 'normal', label: 'Normal' }]);
+
+      const invoices = await contextOf(fake);
+
+      expect(invoices.fields.find((field) => field.key === 'kind')?.options).toEqual([
+        { key: 'urgent', label: 'URGENT' },
+        { key: 'normal', label: 'NORMAL' },
+      ]);
+      expect(invoices.fields.find((field) => field.key === 'flag')?.options).toEqual([{ key: 'urgent', label: 'URGENT', color: 'danger' }]);
+    });
+
+    it('a lista do kernel chega com as opções fixas, mesmo sem nada cadastrado', async () => {
+      const fake = makeFakePortalRepository(screensWith(
+        [select('docType', { lookupCollection: 'documentTypes' })],
+        { subject: { field: 'companyId' }, fields: ['number', 'docType'] },
+      ));
+
+      const invoices = await contextOf(fake);
+
+      expect(invoices.fields.find((field) => field.key === 'docType')?.options?.[0]).toEqual({ key: 'Contrato', label: 'CONTRATO' });
+    });
+
+    it('a lista que falha ao ser lida não derruba o portal', async () => {
+      const fake = makeFakePortalRepository(screensWith(
+        [select('kind', { lookupCollection: 'invoiceKinds' })],
+        { subject: { field: 'companyId' }, fields: ['number', 'kind'] },
+      ));
+      vi.spyOn(fake.repo, 'getLookupOptions').mockRejectedValue(new Error('unavailable'));
+
+      const invoices = await contextOf(fake);
+
+      expect(invoices.fields.find((field) => field.key === 'kind')?.options).toBeUndefined();
+    });
   });
 
   it('quem não é convidado não recebe nada', async () => {

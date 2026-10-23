@@ -18,6 +18,12 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.146.0] — 2026-10-22
+
+- fix(portal): a `select` backed by an organization list (`lookupCollection`) reached the guest with no options — `FirebasePortalRepository.toScreen` copied only `field.options` —, so the create and edit forms offered nothing and the read view showed the option KEY. `getPortalContext` now reads, server-side, the lists of the fields a portal screen exposes (`portal.fields`, `create.fields`, `edit.fields`) and only those (`IPortalRepository.getLookupOptions`, ordered by label, capped at 500), merged with the kernel's declared options by `mergeLookupDefaults` as in the office. Each field's options are the declared ones first, then the list's, keyed once, labels resolved in the guest's language. A collection that is a screen's records or a reserved one is never read as a list. A list that fails to read degrades to the kernel defaults instead of failing the context.
+- feat(portal): portal field options carry `color` (theme token or hex) — from the list, or from the field's own options when `optionsColored`. The generic shell draws it in the record view and in the form's `SearchSelect`; extension views get it on `PortalScreen.fields[].options` of `@microteia/portal`. Additive: no `KERNEL_VERSION` change, and projections are untouched, so no `PORTAL_PROJECTION_REVISION` bump.
+- docs(examples): `portal-example` 1.5.0 — Orders get an `urgency` select over its own `portalExampleUrgencies` list, which guests see, fill in on create and change on edit; the Client page shows its label.
+
 #### [9.145.0] — 2026-10-22
 
 - feat(portal): `PORTAL_PROJECTION_REVISION` (shared `domain/schema/portalReprojection.ts`, currently 1 — link resolution by `portalTargetScreen`). Every reprojection pass stamps it on its job (`PortalReprojectionState.revision`, read as `0` when absent). `makeEnsurePortalProjectionRevisionUseCase` opens a pass on every portal collection whose job is from an older revision or has none, re-checking inside the transaction so concurrent instances open one pass. `ensurePortalProjectionRevision` (`infrastructure/portal/`) runs it once per tenant per instance from `projectPortalRecord` (portal collections only), `reprojectPortalOnScreenChange` and `getPortalContext` (invited guests); failures are logged and never fail the caller. A kernel fix that changes how an unchanged declaration is projected now reaches existing tenants by bumping the revision.

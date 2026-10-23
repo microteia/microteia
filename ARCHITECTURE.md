@@ -1040,6 +1040,26 @@ instaladas, como o gateway de agente).
 Quem só tem portal e abre o app cai em `/portal` (`TenantStore.portalOnly`). Quem é membro de um
 escritório e convidado de outro entra pelo link do e-mail.
 
+### Opções de lista — o servidor leva só as dos campos expostos
+
+Um `select` com `lookupCollection` tem as opções numa COLEÇÃO do escritório, e o convidado não lê
+coleção nenhuma. Até a 9.146.0 a tela do portal levava só `field.options`, e um campo de lista
+chegava vazio: o formulário não oferecia escolha e a leitura mostrava a chave.
+
+`getPortalContext` lê no servidor, com o acesso do escritório (`IPortalRepository.getLookupOptions`),
+as listas dos campos que alguma tela expõe — em `fields`, `create.fields` ou `edit.fields` — e
+nenhuma outra. A mescla é a do front: as do kernel (`DECLARED_LOOKUP_OPTIONS`) e depois as
+cadastradas, por `mergeLookupDefaults`; no campo, as declaradas nele vêm antes, e a chave repetida
+fica com a primeira. Cada opção leva chave, rótulo (no idioma do convidado) e `color` quando há — a
+do campo só em lista colorida (`optionsColored`). A casca mostra a cor no registro aberto e no
+formulário; a view de extensão a recebe em `PortalScreen.fields[].options`.
+
+| Situação | O que acontece |
+|---|---|
+| `lookupCollection` aponta para a coleção de uma TELA, ou para uma reservada | não é lida (`isPortalLookupList`): seria entregar o rótulo de registros que o portal não expõe |
+| a leitura da lista falha | fica com as opções do kernel; o portal abre do mesmo jeito |
+| o escritório renomeia ou acrescenta uma opção | o convidado vê no próximo contexto — a projeção guarda a CHAVE, e por isso nada precisa ser reprojetado |
+
 ### Navegação mestre-detalhe — o filho aparece DENTRO do pai
 
 A casca não lista toda tela no menu. A tela cujo vínculo aponta para outra tela do PORTAL é filha

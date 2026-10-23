@@ -5,6 +5,7 @@ import type {
   IPortalAccountService,
   IPortalRepository,
   PortalDocumentProjection,
+  PortalFieldOption,
   PortalProjection,
   PortalScreen,
   PortalUserGrant,
@@ -31,10 +32,18 @@ const SCREENS_TTL_MS = 30_000;
 /** O teto do `array-contains-any` do Firestore. */
 const ANY_CHUNK = 30;
 const BATCH_LIMIT = 400;
+/** Uma lista de opções é vocabulário, não registro: o teto só protege o contexto de uma coleção errada. */
+const LOOKUP_OPTIONS_LIMIT = 500;
 
 const asString = (value: unknown, fallback = ''): string => (typeof value === 'string' ? value : fallback);
 const asStrings = (value: unknown): string[] =>
   Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
+
+const toOption = (option: DocumentData): PortalFieldOption => ({
+  key: option.key as string,
+  label: asString(option.label, option.key as string),
+  ...(asString(option.color) ? { color: asString(option.color) } : {}),
+});
 
 const toScreen = (id: string, data: DocumentData): PortalScreen => ({
   id,
@@ -60,9 +69,11 @@ const toScreen = (id: string, data: DocumentData): PortalScreen => ({
         ? {
           options: (field.options as DocumentData[])
             .filter((option) => typeof option?.key === 'string')
-            .map((option) => ({ key: option.key as string, label: asString(option.label, option.key as string) })),
+            .map(toOption),
         }
         : {}),
+      ...(asString(field.lookupCollection) ? { lookupCollection: asString(field.lookupCollection) } : {}),
+      ...(field.optionsColored === true ? { optionsColored: true } : {}),
     })),
 });
 
@@ -123,6 +134,17 @@ export class FirebasePortalRepository implements IPortalRepository {
     const screens = snapshot.docs.map((doc) => toScreen(doc.id, doc.data()));
     this.screens.set(tenantId, { screens, loadedAt: Date.now() });
     return screens;
+  }
+
+  async getLookupOptions(tenantId: string, collection: string): Promise<PortalFieldOption[]> {
+    const snapshot = await this.tenant(tenantId).collection(collection)
+      .orderBy('label', 'asc')
+      .limit(LOOKUP_OPTIONS_LIMIT)
+      .get();
+    return snapshot.docs
+      .map((doc) => doc.data())
+      .filter((data) => typeof data.key === 'string' && typeof data.label === 'string')
+      .map(toOption);
   }
 
   async getRecord(tenantId: string, collection: string, recordId: string) {

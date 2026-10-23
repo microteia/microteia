@@ -1,6 +1,7 @@
 import type {
   IPortalRepository,
   PortalDocumentProjection,
+  PortalFieldOption,
   PortalProjection,
   PortalReprojectionState,
   PortalScreen,
@@ -26,11 +27,13 @@ export const makeFakePortalRepository = (screens: PortalScreen[]) => {
   const invites: string[] = [];
   const staged = new Map<string, { data: Buffer; contentType: string }>();
   const reprojections = new Map<string, PortalReprojectionState>();
+  const lookups = new Map<string, PortalFieldOption[]>();
   const homeSettings: PortalHomeSettings = { welcome: '', menu: { order: [], hidden: [] }, widgets: { order: [], hidden: [] }, layout: '' };
 
   const repo: IPortalRepository = {
     getHomeSettings: async () => homeSettings,
     getScreens: async () => screens,
+    getLookupOptions: async (_t, collection) => lookups.get(collection) ?? [],
     getRecord: async (_t, collection, id) => records.get(`${collection}/${id}`),
     getRecordsReferencing: async (_t, collection, fieldKey, recordId) =>
       [...records.entries()]
@@ -136,7 +139,7 @@ export const makeFakePortalRepository = (screens: PortalScreen[]) => {
     hasInvite: async (email) => invites.includes(email),
   };
 
-  return { repo, records, documents, projections, projectedDocuments, users, invites, homeSettings, staged, reprojections };
+  return { repo, records, documents, projections, projectedDocuments, users, invites, homeSettings, staged, reprojections, lookups };
 };
 
 const field = (key: string, extra: Partial<PortalScreen['fields'][number]> = {}) => ({ key, label: key, type: 'text', ...extra });

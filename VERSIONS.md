@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.146.0] — 2026-10-22
+
+- Corrigido o portal mostrando campos de escolha vazios ao convidado quando as opções vêm de uma lista cadastrada pelo escritório: agora ele escolhe entre as mesmas opções que o escritório vê, ao criar e ao alterar um registro, e na leitura aparece o nome da opção, com a cor dela, em vez de um código.
+
 #### [9.145.0] — 2026-10-22
 
 - O portal agora se atualiza sozinho depois de uma correção na forma como os registros chegam aos convidados — sem que ninguém precise fazer nada. Por isso a opção "Refazer o portal" saiu de Configurações › Portal. O andamento continua aparecendo no topo da página enquanto a atualização acontece.

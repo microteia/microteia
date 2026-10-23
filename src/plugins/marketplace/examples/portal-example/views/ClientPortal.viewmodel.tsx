@@ -19,15 +19,23 @@ export const useClientPortalViewModel = ({ collection, recordId }: { collection:
   // `parent` filters to the orders of THIS client — the same link the server stamped on each order.
   const orders = usePortalRecords(ORDER_COLLECTION, { parent: { collection, recordId: recordId ?? '' } });
 
+  // A record stores the option KEY. The screen carries the options of the organization's list, already
+  // in the guest's language — so the label is read there, never written in the view.
+  const urgencies = useMemo(
+    () => orderScreen?.fields.find((field) => field.key === 'urgency')?.options ?? [],
+    [orderScreen],
+  );
+
   const items = useMemo(() => orders.records.map((order) => ({
     id: order.recordId,
     text: t('portal.orders.quantity', {
       count: String(order.data.quantity ?? 1),
       item: String(order.data.item ?? order.title),
     }),
+    urgency: urgencies.find((option) => option.key === order.data.urgency)?.label ?? '',
     // `canEdit` only decides whether to SHOW the gesture; the server checks again on every change.
     canEdit: order.canEdit,
-  })), [orders.records, t]);
+  })), [orders.records, urgencies, t]);
 
   return {
     t,

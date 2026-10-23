@@ -17,8 +17,18 @@ export interface PortalScreen extends PortalScreenLike {
     multi?: boolean;
     required?: boolean;
     defaultValue?: unknown;
-    options?: Array<{ key: string; label: string }>;
+    options?: PortalFieldOption[];
+    /** A lista do escritório de onde vêm as opções que o campo não declara. */
+    lookupCollection?: string | null;
+    optionsColored?: boolean;
   }>;
+}
+
+/** Uma opção de campo `select` como o convidado a recebe: chave, rótulo e — quando há — a cor. */
+export interface PortalFieldOption {
+  key: string;
+  label: string;
+  color?: string;
 }
 
 export interface PortalUserRecord {
@@ -96,6 +106,8 @@ export interface IPortalRepository {
   getHomeSettings(tenantId: string): Promise<PortalHomeSettings>;
   /** Todas as telas do escritório, com a declaração `portal` de cada uma (ou nenhuma). */
   getScreens(tenantId: string, options?: { fresh?: boolean }): Promise<PortalScreen[]>;
+  /** As opções que o escritório cadastrou numa lista (`lookupCollection`) — só chave, rótulo e cor. */
+  getLookupOptions(tenantId: string, collection: string): Promise<PortalFieldOption[]>;
   getRecord(tenantId: string, collection: string, recordId: string): Promise<Record<string, unknown> | undefined>;
   /** Os registros que apontam para `recordId` pelo campo — os dependentes que herdam o sujeito dele. */
   getRecordsReferencing(

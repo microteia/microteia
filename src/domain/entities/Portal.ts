@@ -33,7 +33,8 @@ export interface PortalFieldInfo {
   label: string;
   type?: string;
   required?: boolean;
-  options?: Array<{ key: string; label: string }>;
+  /** As do campo e as da lista do escritório; a cor é token do tema ou hex, e só existe quando há. */
+  options?: Array<{ key: string; label: string; color?: string }>;
 }
 
 /** Um registro a que o novo pode se vincular — dos que o convidado já enxerga. */

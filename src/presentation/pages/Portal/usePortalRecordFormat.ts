@@ -1,12 +1,17 @@
 import { useCallback } from 'react';
+import { useTheme } from 'styled-components';
 import { useLocaleFormat, useT } from '../../shared/i18n/useT';
+import { resolveColor } from '../../../shared/styles/colorUtils';
 import type { PortalRecord, PortalScreenInfo } from '../../../domain/entities/Portal';
 import type { PortalFieldView, PortalRecordCard } from './Portal.viewmodel';
 
 const SUMMARY_FIELDS = 3;
 
+const optionOf = (field: PortalScreenInfo['fields'][number], key: unknown) =>
+  field.options?.find((option) => option.key === key);
+
 const optionLabel = (field: PortalScreenInfo['fields'][number], key: unknown): string =>
-  field.options?.find((option) => option.key === key)?.label ?? String(key);
+  optionOf(field, key)?.label ?? String(key);
 
 /**
  * Como um registro do portal vira texto: o valor de cada campo exposto, no idioma de quem lê, e o
@@ -16,16 +21,19 @@ const optionLabel = (field: PortalScreenInfo['fields'][number], key: unknown): s
 export const usePortalRecordFormat = () => {
   const t = useT('core.tenant');
   const { formatDate, formatMoney, formatNumber } = useLocaleFormat();
+  const theme = useTheme();
 
   const formatValue = useCallback((field: PortalScreenInfo['fields'][number], record: PortalRecord): PortalFieldView => {
     const raw = record.data[field.key];
-    const base = { key: field.key, label: field.label, href: null };
+    const base = { key: field.key, label: field.label, href: null, color: null };
     if (raw === undefined || raw === null || raw === '') return { ...base, value: '' };
     switch (field.type) {
       case 'reference':
         return { ...base, value: record.labels[field.key] ?? '' };
       case 'select':
-        return { ...base, value: Array.isArray(raw) ? raw.map((key) => optionLabel(field, key)).join(', ') : optionLabel(field, raw) };
+        return Array.isArray(raw)
+          ? { ...base, value: raw.map((key) => optionLabel(field, key)).join(', ') }
+          : { ...base, value: optionLabel(field, raw), color: resolveColor(optionOf(field, raw)?.color, theme, false) ?? null };
       case 'checkbox':
         return { ...base, value: raw === true ? t('portal.value.yes') : t('portal.value.no') };
       case 'date':
@@ -39,7 +47,7 @@ export const usePortalRecordFormat = () => {
       default:
         return { ...base, value: Array.isArray(raw) ? raw.join(', ') : String(raw) };
     }
-  }, [t, formatDate, formatMoney, formatNumber]);
+  }, [t, formatDate, formatMoney, formatNumber, theme]);
 
   const cardOf = useCallback((screen: PortalScreenInfo, record: PortalRecord): PortalRecordCard => ({
     collection: screen.collection,

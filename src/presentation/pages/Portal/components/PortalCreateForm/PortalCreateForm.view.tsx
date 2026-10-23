@@ -43,7 +43,7 @@ export const PortalCreateForm: React.FC<PortalCreateFormProps> = (props) => {
       case 'select':
         return (
           <SearchSelect
-            options={(field.options ?? []).map((option) => ({ value: option.key, label: option.label }))}
+            options={vm.selectOptions(field)}
             value={textOf(value)}
             onChange={(next) => vm.setValue(field.key, next)}
           />

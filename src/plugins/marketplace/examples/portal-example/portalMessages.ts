@@ -32,6 +32,12 @@ export const PORTAL_EXAMPLE_MESSAGES: Record<string, string> = {
   'field.date': 'Date',
   'field.summary': 'Summary',
   'field.officeOnly': 'Office only — never shown in the portal',
+  'field.urgency': 'Urgency',
+
+  'lookup.urgencies': 'Order urgencies',
+  'urgency.routine': 'Routine',
+  'urgency.soon': 'Soon',
+  'urgency.urgent': 'Urgent',
 
   'portal.orders': 'Your orders',
   'portal.orders.empty': 'No orders yet.',

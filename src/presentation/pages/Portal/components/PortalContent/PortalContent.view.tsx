@@ -87,7 +87,9 @@ export const PortalContent: React.FC<{ vm: PortalViewModel }> = ({ vm }) => {
             <S.FieldValue>
               {field.href
                 ? <S.Link href={field.href} target="_blank" rel="noopener noreferrer">{field.value}</S.Link>
-                : field.value}
+                : field.color
+                  ? <S.OptionValue><S.OptionDot $color={field.color} />{field.value}</S.OptionValue>
+                  : field.value}
             </S.FieldValue>
           </S.Field>
         ))}

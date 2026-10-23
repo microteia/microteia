@@ -45,4 +45,10 @@ const Order = styled.button`
   cursor: pointer;
 `;
 
-export const S = { Wrapper, Header, Title, Muted, Row, Order };
+const Detail = styled.span`
+  display: block;
+  font-size: ${({ theme }) => theme.fontSizes.sm};
+  color: ${({ theme }) => theme.colors.textMuted};
+`;
+
+export const S = { Wrapper, Header, Title, Muted, Row, Order, Detail };

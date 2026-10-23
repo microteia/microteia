@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTheme } from 'styled-components';
 import { usePortal } from '../../../../../stores/usePortal';
+import { resolveColor } from '../../../../../shared/styles/colorUtils';
+import type { SearchSelectOption } from '../../../../components/ui/SearchSelect';
 import type { PortalFieldInfo, PortalLinkOption, PortalScreenInfo } from '../../../../../domain/entities/Portal';
 
 export interface PortalCreateFormProps {
@@ -17,6 +20,8 @@ export interface PortalCreateFormViewModel {
   fields: PortalFieldInfo[];
   values: Record<string, unknown>;
   setValue: (key: string, value: unknown) => void;
+  /** As opções de um `select`, com a cor já resolvida pelo tema. */
+  selectOptions: (field: PortalFieldInfo) => SearchSelectOption[];
   linkLabel: string;
   linkOptions: Array<{ value: string; label: string }>;
   /** Uma opção só não pede escolha: ela é a resposta. */
@@ -37,6 +42,7 @@ const isEmpty = (value: unknown): boolean =>
 
 export const usePortalCreateFormViewModel = ({ screen, fixedLinkRecordId, editing, onSubmitted }: PortalCreateFormProps): PortalCreateFormViewModel => {
   const { listLinkOptions, submit: submitRecord, update: updateRecord } = usePortal();
+  const theme = useTheme();
   const create = screen.create;
   const isEditing = !!editing;
   const noLinkNeeded = isEditing || !!fixedLinkRecordId;
@@ -74,6 +80,13 @@ export const usePortalCreateFormViewModel = ({ screen, fixedLinkRecordId, editin
     setValues((prev) => ({ ...prev, [key]: value }));
   }, []);
 
+  const selectOptions = useCallback((field: PortalFieldInfo): SearchSelectOption[] =>
+    (field.options ?? []).map((option) => ({
+      value: option.key,
+      label: option.label,
+      color: resolveColor(option.color, theme, false),
+    })), [theme]);
+
   const submit = useCallback(async () => {
     if ((!editing && !linkRecordId) || missingRequired) return;
     setSubmitting(true);
@@ -101,6 +114,7 @@ export const usePortalCreateFormViewModel = ({ screen, fixedLinkRecordId, editin
     fields,
     values,
     setValue,
+    selectOptions,
     linkLabel: create?.link.label ?? '',
     linkOptions: options.map((option) => ({ value: option.recordId, label: option.label })),
     showLinkSelect: options.length > 1,

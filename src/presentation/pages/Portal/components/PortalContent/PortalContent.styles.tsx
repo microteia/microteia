@@ -170,6 +170,20 @@ export const S = {
     white-space: pre-wrap;
   `,
 
+  OptionValue: styled.span`
+    display: inline-flex;
+    align-items: center;
+    gap: ${({ theme }) => theme.spacing.xs};
+  `,
+
+  OptionDot: styled.span<{ $color: string }>`
+    width: ${({ theme }) => theme.spacing.sm};
+    height: ${({ theme }) => theme.spacing.sm};
+    border-radius: ${({ theme }) => theme.borderRadius.full};
+    background: ${({ $color }) => $color};
+    flex-shrink: 0;
+  `,
+
   Link: styled.a`
     color: ${({ theme }) => theme.colors.primary};
   `,

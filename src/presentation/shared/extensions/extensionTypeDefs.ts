@@ -1438,7 +1438,11 @@ const PORTAL_MODULE_DEFS = `declare module '@microteia/portal' {
     icon: string;
     documents: boolean;
     parent: { collection: string } | null;
-    fields: Array<{ key: string; label: string; type?: string; required?: boolean; options?: Array<{ key: string; label: string }> }>;
+    /**
+     * A select's options are the field's own plus those of the organization's list, already labelled.
+     * Its color is a theme token or a hex, present only when the option has one.
+     */
+    fields: Array<{ key: string; label: string; type?: string; required?: boolean; options?: Array<{ key: string; label: string; color?: string }> }>;
     create: { fields: PortalScreen['fields']; link: { collection: string; label: string } } | null;
     /** Guests may attach documents here, choosing one of these types — never a new one. */
     uploads: { types: Array<{ key: string; label: string }> } | null;

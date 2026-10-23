@@ -1,4 +1,5 @@
 import type {
+  LookupModuleTemplate,
   MarketplacePlugin,
   ScreenModuleTemplate,
   TemplateField,
@@ -21,6 +22,7 @@ import { portalExamplePtBrContribution } from './portalMessagesPtBr';
  * | records that belong to one of those | `portal: { subject: { field: '<reference>' }, fields }` |
  * | the guest creates records there | `portal.create: { fields }` — the link is stamped by the server |
  * | the guest changes records there | `portal.edit: { fields, when?, onlyOwn? }` — only fields they see |
+ * | a choice fed by the organization's own list | `lookupCollection` — the guest gets its options, labels and colours |
  * | the only fields that leave the organization | `portal.fields` — `internal` below never does |
  * | the only RECORDS that leave the organization | `portal.visibleWhen` — an office-only order never does |
  * | a page of your own in the portal | `portalView({ collection, surface: 'detail' }, viewKey)` |
@@ -56,6 +58,22 @@ const CLIENT_SCREEN: ScreenModuleTemplate = {
 };
 
 /**
+ * A list of options this package brings. The KEYS are stable; from install time on the list belongs to
+ * the organization — it renames, recolours and adds options, and the portal shows the guest the list as
+ * it is THEN, read by the server. A guest never reads a list, and only the lists of fields the portal
+ * exposes leave the organization.
+ */
+const URGENCIES: LookupModuleTemplate = {
+  collection: 'portalExampleUrgencies',
+  label: message('lookup.urgencies'),
+  options: [
+    { key: 'routine', label: message('urgency.routine'), color: 'success' },
+    { key: 'soon', label: message('urgency.soon'), color: 'warning' },
+    { key: 'urgent', label: message('urgency.urgent'), color: 'danger' },
+  ],
+};
+
+/**
  * `internal` is a field of the record that the guest never sees: it is not in `portal.fields`, so it
  * is not in the projection the guest reads. That is the whole exposure model — what is not declared
  * does not leave.
@@ -67,10 +85,19 @@ const CLIENT_SCREEN: ScreenModuleTemplate = {
 const ORDER_FIELDS: TemplateField[] = [
   { key: 'item', label: message('field.item'), type: 'text', required: true, order: 0 },
   { key: 'quantity', label: message('field.quantity'), type: 'number', required: false, order: 1 },
-  { key: 'notes', label: message('field.notes'), type: 'textarea', required: false, order: 2 },
-  { key: 'client', label: message('field.client'), type: 'reference', required: true, order: 3, refEntity: 'portalExampleClient' },
-  { key: 'internal', label: message('field.internal'), type: 'textarea', required: false, order: 4 },
-  { key: 'officeOnly', label: message('field.officeOnly'), type: 'checkbox', required: false, order: 5 },
+  {
+    key: 'urgency',
+    label: message('field.urgency'),
+    type: 'select',
+    required: false,
+    order: 2,
+    lookupCollection: URGENCIES.collection,
+    optionsColored: true,
+  },
+  { key: 'notes', label: message('field.notes'), type: 'textarea', required: false, order: 3 },
+  { key: 'client', label: message('field.client'), type: 'reference', required: true, order: 4, refEntity: 'portalExampleClient' },
+  { key: 'internal', label: message('field.internal'), type: 'textarea', required: false, order: 5 },
+  { key: 'officeOnly', label: message('field.officeOnly'), type: 'checkbox', required: false, order: 6 },
 ];
 
 const ORDER_SCREEN: ScreenModuleTemplate = {
@@ -85,12 +112,13 @@ const ORDER_SCREEN: ScreenModuleTemplate = {
   eventPrefix: 'portalExampleOrder',
   portal: {
     subject: { field: 'client' },
-    fields: ['item', 'quantity', 'notes'],
+    fields: ['item', 'quantity', 'urgency', 'notes'],
     // Checked in the office, the order never reaches the portal; a guest's own order leaves it empty.
     visibleWhen: 'officeOnly != true',
-    create: { fields: ['item', 'quantity', 'notes'] },
-    // A guest fixes the quantity or the notes of an order THEY placed — never the client it belongs to.
-    edit: { fields: ['quantity', 'notes'], onlyOwn: true },
+    create: { fields: ['item', 'quantity', 'urgency', 'notes'] },
+    // A guest fixes the quantity, the urgency or the notes of an order THEY placed — never the client
+    // it belongs to.
+    edit: { fields: ['quantity', 'urgency', 'notes'], onlyOwn: true },
   },
 };
 
@@ -157,7 +185,7 @@ const CLIENT_PORTAL_SOURCE = mergeViewSources({
 export const portalExamplePlugin: MarketplacePlugin = {
   manifest: {
     id: 'com.microteia.portal-example',
-    version: '1.4.0',
+    version: '1.5.0',
     kernel: '^2.62.0',
     name: message('package.name'),
     description: message('package.description'),
@@ -186,6 +214,7 @@ export const portalExamplePlugin: MarketplacePlugin = {
   summary: message('package.summary'),
   workflows: [],
   screens: [CLIENT_SCREEN, ORDER_SCREEN, SITE_SCREEN, VISIT_SCREEN],
+  lookups: [URGENCIES],
   views: [
     { key: 'clientPortal', title: message('screen.client'), icon: 'team', source: CLIENT_PORTAL_SOURCE },
     { key: 'openOrdersWidget', title: message('portal.widget.orders'), icon: 'shoppingBag', source: OPEN_ORDERS_WIDGET },

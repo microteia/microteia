@@ -31,6 +31,12 @@ const PORTAL_EXAMPLE_PT_BR: Record<string, string> = {
   'field.date': 'Data',
   'field.summary': 'Resumo',
   'field.officeOnly': 'Só do escritório — nunca aparece no portal',
+  'field.urgency': 'Urgência',
+
+  'lookup.urgencies': 'Urgências do pedido',
+  'urgency.routine': 'Rotina',
+  'urgency.soon': 'Em breve',
+  'urgency.urgent': 'Urgente',
 
   'portal.orders': 'Seus pedidos',
   'portal.orders.empty': 'Nenhum pedido ainda.',

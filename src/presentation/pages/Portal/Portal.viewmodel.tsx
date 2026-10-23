@@ -16,6 +16,8 @@ export interface PortalFieldView {
   value: string;
   /** Presente quando o valor é um arquivo — o campo exposto é o link dele. */
   href: string | null;
+  /** A cor da opção escolhida num `select`, já resolvida pelo tema. */
+  color: string | null;
 }
 
 export interface PortalRecordCard {
