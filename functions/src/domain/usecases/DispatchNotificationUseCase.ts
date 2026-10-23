@@ -12,7 +12,9 @@ import type {
   NotificationRecipient,
   NotificationTextResolver,
 } from '../repositories/INotificationDelivery';
-import type { InboxNotificationDocument, NotificationChannel, WebPushPayload } from '../schema/notifications';
+import type { InboxNotificationDocument, NotificationAudience, NotificationChannel, WebPushPayload } from '../schema/notifications';
+import type { ResolvePortalGuestsUseCase } from './ResolvePortalGuestsUseCase';
+import { portalRecordPath } from '../schema/portal';
 import {
   isNotificationMuted,
   notificationDedupDocId,
@@ -58,6 +60,11 @@ export interface DispatchNotificationRequest {
   /** Mesma chave, um aviso só — a reexecução não repete o e-mail. */
   dedupKey?: string;
   channels: Record<NotificationChannel, boolean>;
+  /**
+   * `portal`: recebem os convidados do portal que veem `target` — e só eles; `recipientIds` e
+   * `recipientPermissions` não valem. Ausente, os membros.
+   */
+  audience?: NotificationAudience;
   recipientIds: readonly string[];
   /** Recebem os membros que têm TODAS estas permissões — "pode alterar" E "é responsável". */
   recipientPermissions: readonly string[];
@@ -89,6 +96,8 @@ export interface DispatchNotificationDeps {
   dispatches: INotificationDispatchLog;
   /** O layout do e-mail, os modelos por tipo e canal, e o logo — o que o ESCRITÓRIO escolheu. */
   appearance: INotificationAppearance;
+  /** Quem do portal vê um registro agora — a porta pela qual um convidado vira destinatário. */
+  portalGuests: ResolvePortalGuestsUseCase;
   tenantName: (tenantId: string) => Promise<string>;
   now: () => Date;
 }
@@ -100,9 +109,16 @@ export type DispatchNotificationUseCase = {
 const EMAIL_CONCURRENCY = 5;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-/** O caminho que abre o aviso FORA do app — no push e no e-mail —, com o escritório junto. */
+const toPortal = (request: DispatchNotificationRequest): boolean => request.audience === 'portal';
+
+/**
+ * O caminho que abre o aviso FORA do app — no push e no e-mail —, com o escritório junto. O do
+ * convidado é o registro NO PORTAL: o espaço de trabalho do escritório ele não abre.
+ */
 const deepLinkOf = (request: DispatchNotificationRequest): string =>
-  appDeepLinkPath(request.target ? recordLinkTabKey(request.target) : request.link, request.tenantId);
+  toPortal(request) && request.target
+    ? portalRecordPath(request.tenantId, request.target.collection, request.target.recordId)
+    : appDeepLinkPath(request.target ? recordLinkTabKey(request.target) : request.link, request.tenantId);
 
 interface Appearance {
   layout: NotificationEmailLayout;
@@ -149,7 +165,27 @@ export const makeDispatchNotificationUseCase = (deps: DispatchNotificationDeps):
     };
   };
 
+  const guestsOf = async (request: DispatchNotificationRequest, issues: DispatchIssue[]): Promise<NotificationRecipient[]> => {
+    if (!request.target) {
+      issues.push({ message: '@core.automation/step.notify.portal.no-record' });
+      return [];
+    }
+    const seen = await deps.portalGuests.execute(request.tenantId, request.target);
+    if (!seen.inPortal) {
+      issues.push({ message: '@core.automation/step.notify.portal.not-in-portal' });
+      return [];
+    }
+    if (seen.guests.length > NOTIFICATION_MAX_RECIPIENTS) {
+      issues.push({
+        message: '@core.automation/step.notify.recipients.truncated',
+        params: { max: String(NOTIFICATION_MAX_RECIPIENTS) },
+      });
+    }
+    return deps.directory.guests(request.tenantId, seen.guests.slice(0, NOTIFICATION_MAX_RECIPIENTS));
+  };
+
   const recipientsOf = async (request: DispatchNotificationRequest, issues: DispatchIssue[]): Promise<NotificationRecipient[]> => {
+    if (toPortal(request)) return guestsOf(request, issues);
     const ids = new Set(request.recipientIds);
     const permissions = [...new Set(request.recipientPermissions.filter((permission) => permission !== ''))];
     if (permissions.length > 0) {
@@ -205,6 +241,33 @@ export const makeDispatchNotificationUseCase = (deps: DispatchNotificationDeps):
     }
   };
 
+  /**
+   * O que saiu do escritório fica registrado nele: para quantos convidados, sobre qual registro, e o
+   * que dizia. Não depende de `toAudit` — aquele é o aviso AO escritório; este é o rastro do que foi
+   * dito para fora.
+   */
+  const auditPortalDelivery = async (request: DispatchNotificationRequest, count: number): Promise<void> => {
+    try {
+      await deps.createAuditLog.execute({
+        tenantId: request.tenantId,
+        title: '@core.automation/notifications.portal.audit',
+        titleParams: { count: String(count) },
+        userId: 'system',
+        userName: '@core.automation/run.actor',
+        photoURL: '',
+        action: 'SYSTEM',
+        type: 'AUDIT',
+        entity: request.workflowId ? 'workflow' : request.source,
+        entityId: request.workflowId || request.target?.recordId || '',
+        ...(request.target ? { linkCollection: request.target.collection, linkRecordId: request.target.recordId } : {}),
+        text: request.title,
+        ...(Object.keys(request.params).length > 0 ? { textParams: request.params } : {}),
+      });
+    } catch {
+      // O rastro é do escritório; o convidado já foi avisado, e isso não se desfaz.
+    }
+  };
+
   const toInbox = async (
     request: DispatchNotificationRequest,
     recipients: NotificationRecipient[],
@@ -214,16 +277,22 @@ export const makeDispatchNotificationUseCase = (deps: DispatchNotificationDeps):
     const createdAt = deps.now();
     const expiresAt = new Date(createdAt.getTime() + NOTIFICATION_INBOX_RETENTION_DAYS * DAY_MS);
     const template = notificationTemplateFor(look.templates, request.category ?? '', 'inApp');
+    const portal = toPortal(request);
     // Sem modelo, o sino guarda a REFERÊNCIA e resolve na tela, no idioma de quem lê. Com modelo, o
-    // texto é do escritório e já sai preenchido para cada pessoa — as variáveis no idioma dela.
+    // texto é do escritório e já sai preenchido para cada pessoa — as variáveis no idioma dela. O do
+    // convidado sai sempre resolvido: o portal não tem o catálogo de toda extensão.
+    const resolved = !!template || portal;
     const documents: InboxNotificationDocument[] = await Promise.all(recipients.map(async (recipient) => {
-      const variables = template ? await variablesFor(recipient) : {};
+      const variables = resolved ? await variablesFor(recipient) : {};
+      const title = template?.title ? fillNotificationTemplate(template.title, variables) : resolved ? variables.title : request.title;
+      const message = template?.message ? fillNotificationTemplate(template.message, variables) : resolved ? variables.message : request.message;
       return {
+        audience: portal ? 'portal' : 'members',
         recipientId: recipient.userId,
-        title: clip(template?.title ? fillNotificationTemplate(template.title, variables) : request.title, NOTIFICATION_TITLE_MAX_LENGTH),
-        message: clip(template?.message ? fillNotificationTemplate(template.message, variables) : request.message, NOTIFICATION_MESSAGE_MAX_LENGTH),
-        params: template ? {} : request.params,
-      link: request.link,
+        title: clip(title, NOTIFICATION_TITLE_MAX_LENGTH),
+        message: clip(message, NOTIFICATION_MESSAGE_MAX_LENGTH),
+        params: resolved ? {} : request.params,
+      link: portal ? '' : request.link,
       target: request.target ?? null,
       category: request.category ?? '',
       source: request.source,
@@ -380,6 +449,9 @@ export const makeDispatchNotificationUseCase = (deps: DispatchNotificationDeps):
       const inApp = wants('inApp');
       const email = wants('email').filter((recipient) => recipient.email);
       const push = wants('push');
+      if (toPortal(request) && request.channels.push) {
+        issues.push({ message: '@core.automation/step.notify.portal.push-unsupported' });
+      }
 
       const [inboxDelivered, emailResult, pushResult] = await Promise.all([
         inApp.length > 0 ? toInbox(request, inApp, appearance, variablesFor) : Promise.resolve(true),
@@ -397,6 +469,9 @@ export const makeDispatchNotificationUseCase = (deps: DispatchNotificationDeps):
       failed.email = emailResult.failed;
       delivered.push = pushResult.delivered;
       failed.push = pushResult.failed;
+
+      const reachedGuests = Math.max(delivered.inApp, delivered.email);
+      if (toPortal(request) && reachedGuests > 0) await auditPortalDelivery(request, reachedGuests);
 
       return { recipients: recipients.length, delivered, failed, issues };
     },

@@ -384,6 +384,23 @@ export const CORE_STEP_CATALOG: readonly WorkflowStepMetadata[] = [
         picker: 'permission',
         allowedMappingKinds: ['Literal'],
       },
+      {
+        id: 'portalGuests',
+        label: '@core.automation/step.notify.label.portal-guests',
+        description: '@core.automation/step.notify.help.portal-guests',
+        required: false,
+        type: 'Boolean',
+        defaultValue: false,
+        allowedMappingKinds: ['Literal'],
+      },
+      {
+        id: 'portalRecord',
+        label: '@core.automation/step.notify.label.portal-record',
+        description: '@core.automation/step.notify.help.portal-record',
+        required: false,
+        type: 'Expression',
+        allowedMappingKinds: ['Event'],
+      },
     ],
     outputDefinitions: [
       { id: 'recipients', label: '@core.automation/step.notify.output.recipients', type: 'Number' },

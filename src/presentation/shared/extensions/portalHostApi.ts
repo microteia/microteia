@@ -7,6 +7,7 @@ import { canEditPortalRecord, type PortalDocument, type PortalRecord, type Porta
 import { usePortalShellViewModel } from '../../pages/Portal/components/PortalShell/PortalShell.viewmodel';
 import { PortalBrand } from '../../pages/Portal/components/PortalBrand';
 import { PortalUserMenu } from '../../pages/Portal/components/PortalUserMenu';
+import { PortalNotificationBell } from '../../pages/Portal/components/PortalNotificationBell';
 
 /** Um registro como a view de portal o recebe: a projeção, endereçada pelo id do REGISTRO. */
 export interface PortalViewRecord {
@@ -149,6 +150,7 @@ const portalModule = {
   usePortalShell: usePortalShellViewModel,
   PortalBrand,
   PortalUserMenu,
+  PortalNotificationBell,
 } as const;
 
 /**

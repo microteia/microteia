@@ -451,10 +451,15 @@ service cloud.firestore {
       // regra a recusa inteira — e só pode marcá-las como lidas: título, mensagem e destinatário são
       // do fluxo que as enviou, e reescrevê-los seria forjar um aviso. `isTenantMember`, e não
       // `isMember`, na escrita: quem saiu do escritório não tem mais o que marcar ali.
+      //
+      // O convidado do portal lê e marca os SEUS avisos ao portal (`audience == 'portal'`), e só
+      // enquanto o convite existe — a consulta dele precisa filtrar pelos dois campos. Um aviso de
+      // membro nunca chega a ele, nem que o `recipientId` coincida.
       match /notification_inbox/{notificationId} {
-        allow read: if isMember(tenantId) && resource.data.recipientId == request.auth.uid;
-        allow update: if isTenantMember(tenantId)
-          && resource.data.recipientId == request.auth.uid
+        allow read: if resource.data.recipientId == request.auth.uid
+          && (isMember(tenantId) || (resource.data.audience == 'portal' && isPortalUser(tenantId)));
+        allow update: if resource.data.recipientId == request.auth.uid
+          && (isTenantMember(tenantId) || (resource.data.audience == 'portal' && isPortalUser(tenantId)))
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read', 'readAt']);
         allow create, delete: if false;
       }

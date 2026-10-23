@@ -18,6 +18,18 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.149.0] — 2026-10-23
+
+- feat(workflow/notify): `portalGuests` notifies the portal guests who can see a record instead of members, by e-mail and on the portal bell. Recipients are resolved when the step runs (`makeResolvePortalGuestsUseCase`): `resolvePortalSubjectKeys` over the stored record, then `audienceFor` and each live invite — never the projection, whose `audience` lags a revocation by seconds and may not exist yet for a new record. A record outside the portal (screen not exposed, hidden by `visibleWhen`, chain cut) notifies nobody. Before this, the step could only reach members, and no automation could tell a client that anything had happened.
+- feat(workflow/notify): `portalRecord` (an `Event` path) names the record when it is not the event's; the collection comes from the path's type. A path that does not lead to a record fails the step (`step.notify.portal.record-invalid`); `portalGuests` together with any member source fails it too (`step.notify.portal.mixed`), so text written for the organization cannot leave it by mistake; so does having neither e-mail nor the bell (`portal.no-channel`). Push does not reach guests and logs `portal.push-unsupported`.
+- feat(notifications): `DispatchNotificationRequest.audience` (`members` | `portal`), `INotificationDirectory.guests` (the organization's channel defaults, the invite's locale, no push) and `InboxNotificationDocument.audience`. A portal bell entry is stored already resolved in the guest's language, since the portal does not carry every installed extension's catalog. Every delivery to guests writes `notifications.portal.audit` to the Audit trail, regardless of `toAudit`.
+- feat(portal): `portalRecordPath` (`/portal/<tenant>/<collection>?record=<id>`) is the link in the e-mail and the bell; `PortalNavigationProvider` opens the record from `?record=`, a child screen opens on its own and its Back goes home, and the shell says when the record is loading or no longer available. Signing in keeps the destination (`state.from`, and `next` in the sign-in link, accepted only as a portal path by `isPortalReturnPath`).
+- feat(host-api): `PortalNotificationBell` in `@microteia/portal`, rendered by both built-in portal layouts.
+- feat(rules): `notification_inbox` lets a portal guest read and mark as read their own `audience == 'portal'` entries while the invite exists. New index `recipientId` + `audience` + `createdAt` — needs `npm run deploy:rules` and `npm run deploy:indexes`.
+- feat(kernel): `KERNEL_VERSION` 2.63.0 (`PORTAL_GUEST_NOTIFY_SINCE_KERNEL`). An older kernel ignores `portalGuests` and fails the step for lack of recipients.
+- docs(sdk): AUTHORING §10 "Telling the portal's guests"; `portal-example` 1.6.0 notifies the client when a visit is scheduled.
+- chore(locale-pt-br): 1.119.0 (`step.notify.portal.*`, `notifications.portal.audit`).
+
 #### [9.148.0] — 2026-10-23
 
 - fix(portal/reprojection): one pass runs per tenant at a time. A pass now opens as `queued`; the one that finishes promotes the next (oldest `openedAt`) inside a transaction over all of the tenant's jobs (`IPortalRepository.updateReprojections`), and `nudge` promotes it too when nothing is running. Every projection written to `portalRecords` wakes the five triggers that listen on `tenants/{t}/{collection}/{doc}`. Opening every portal collection of two tenants at once (the `PORTAL_PROJECTION_REVISION` 1 rollout) added up to enough instances to exhaust the regional Cloud Run CPU quota, and every function in the region returned 503, including `invitePortalUser` and the reprojection round itself. Round concurrency drops from 8 to 4.

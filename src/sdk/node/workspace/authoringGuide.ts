@@ -26,7 +26,11 @@ import { FIELD_EXPRESSION_FUNCTION_NAMES } from '../../../domain/schema/fieldExp
 import { BUSINESS_CALENDAR_FIELDS } from '../../../domain/schema/time/businessDays';
 import { BUSINESS_CALENDAR_POINT } from '../../../domain/schema/time/extensionPoints';
 import { ARTIFACT_PREFIX_SINCE_KERNEL } from '../../../domain/schema/plugin/artifactPrefix';
-import { PORTAL_LINK_BY_COLLECTION_SINCE_KERNEL, PORTAL_VISIBLE_WHEN_SINCE_KERNEL } from '../../../domain/schema/portal';
+import {
+  PORTAL_GUEST_NOTIFY_SINCE_KERNEL,
+  PORTAL_LINK_BY_COLLECTION_SINCE_KERNEL,
+  PORTAL_VISIBLE_WHEN_SINCE_KERNEL,
+} from '../../../domain/schema/portal';
 import {
   DOCUMENT_OUTPUTS_BY_FORMAT,
   DOCUMENT_TEMPLATE_MAX_BYTES,
@@ -290,7 +294,7 @@ const stepCatalogTable = (steps: readonly WorkflowStepMetadata[]): string => [
  * tabela de voltar a ficar incompleta em silêncio.
  */
 const STEP_CATALOG_NOTES: Record<string, string> = {
-  notify: 'Notifies people in the app (the bell), by e-mail or by push, and/or writes it to the audit trail. With no channel set it only writes to the audit trail, as version 1 did. Recipients come from `recipientMembers`, `recipientsFrom` (a member id, or a record linked to one by `memberId` — a reference read on its own is an id, so a person linked to a member is `event.personId.memberId`) and `recipientPermission`; each person keeps or refuses a channel in Settings, and `title`/`message` resolve in each recipient\'s language. Clicking it opens the record that triggered the flow (`openRecord`, on by default) — in the app, in the browser notification and in the e-mail. Set `category` to one of your declared notification types (`<package id>/<key>`, see `notificationCategory`) so each person can choose, on the Notifications page, which channels bring them that type. Publishes `recipients`, `delivered.<channel>` and `failed.<channel>`.',
+  notify: 'Notifies people in the app (the bell), by e-mail or by push, and/or writes it to the audit trail. With no channel set it only writes to the audit trail, as version 1 did. Recipients come from `recipientMembers`, `recipientsFrom` (a member id, or a record linked to one by `memberId` — a reference read on its own is an id, so a person linked to a member is `event.personId.memberId`) and `recipientPermission`; each person keeps or refuses a channel in Settings, and `title`/`message` resolve in each recipient\'s language. Clicking it opens the record that triggered the flow (`openRecord`, on by default) — in the app, in the browser notification and in the e-mail. Set `category` to one of your declared notification types (`<package id>/<key>`, see `notificationCategory`) so each person can choose, on the Notifications page, which channels bring them that type. With `portalGuests` it notifies the portal guests who can see the record instead of members (see "Telling the portal\'s guests" in section 10). Publishes `recipients`, `delivered.<channel>` and `failed.<channel>`.',
   'register-audit': 'Writes an entry in the audit trail. `severity` defaults to `LOW`.',
   'set-variable': 'Names a value for the rest of the flow. Read it back with `{ kind: \'Variable\' }`.',
   map: 'Assembles an object from other values — what a write step then writes.',
@@ -2023,6 +2027,53 @@ returns nothing and the flow carries on as if the records did not exist.
 Ask the MCP server rather than guessing any of this: \`microteia://workflow/steps\` for the catalog,
 \`describe_workflow_step\` for one step's exact inputs and outputs, \`list_workflow_events\` for the
 trigger names. All three are derived from this installation.
+
+### Telling the portal's guests
+
+A \`notify\` step with \`portalGuests\` notifies the people OUTSIDE the organization who can see a record
+in the portal — the client of a case, the supplier of an invoice — instead of members:
+
+\`\`\`ts
+{
+  id: 'tellClient',
+  stepDefinitionId: 'notify',
+  type: 'Action',
+  order: 0,
+  enabled: true,
+  configuration: {
+    title: { kind: 'Literal', value: label('notify.reply.title') },
+    message: { kind: 'Literal', value: label('notify.reply.message') },
+    portalGuests: { kind: 'Literal', value: true },
+    toEmail: { kind: 'Literal', value: true },
+    toInApp: { kind: 'Literal', value: true },        // the bell of the PORTAL
+    toAudit: { kind: 'Literal', value: false },
+    portalRecord: { kind: 'Event', path: 'caseId' },  // optional — see below
+  },
+}
+\`\`\`
+
+- **Who receives** is decided when the step runs, by the same chain that decides what the portal shows
+  (section 8, \`portal\`): the active guests of the subject the record reaches, with \`visibleWhen\` on every
+  link. A record that is not in the portal notifies nobody — not even that it exists. A revoked invite
+  stops receiving at once. You never name a guest, and an e-mail typed in a field is never used.
+- **Which record.** By default, the record of the event. \`portalRecord\` names another one as an \`Event\`
+  path (\`caseId\`, \`conversationId.personId\`): the path has a type, and that is how the step knows the
+  collection. A path that does not lead to a record fails the step; the right path that came empty in
+  this run only notifies nobody, and the log says so.
+- **Never members in the same step.** \`portalGuests\` with \`recipientMembers\`, \`recipientsFrom\` or
+  \`recipientPermission\` fails the step. One step for the organization, another for the portal: the text
+  is written for someone outside, so keep in it only what that screen's \`portal.fields\` already show —
+  a value read from the record in \`messageParams\` leaves the organization in the e-mail.
+- **Channels.** E-mail and the portal's bell. Push does not reach guests, and they have no preferences of
+  their own: the organization's channel defaults apply. The link opens the record IN THE PORTAL. \`title\`
+  and \`message\` resolve on the server in the language of the invite, so your \`@<package>/<key>\`
+  references work even if the package draws nothing in the portal.
+- **It leaves a trace.** Every delivery to guests writes an entry in the organization's Audit trail —
+  how many, about which record, what it said —, whatever \`toAudit\` says.
+- Requires \`kernel: "^${PORTAL_GUEST_NOTIFY_SINCE_KERNEL}"\`. An older kernel ignores \`portalGuests\`, and
+  the step fails for lack of recipients.
+
+\`examples/portal-example\` tells the client when a visit is scheduled.
 
 ### Waiting inside a workflow — the \`delay\` step
 

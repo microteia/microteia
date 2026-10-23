@@ -145,6 +145,7 @@ import {
 import { SmtpEmailTransport, StandardWebPushSender, VapidKeyStore } from '../../data/services/NotificationTransports';
 import type { INotificationEmailConfigRepository } from '../../domain/repositories/INotificationDelivery';
 import { makeDispatchNotificationUseCase } from '../../domain/usecases/DispatchNotificationUseCase';
+import { makeResolvePortalGuestsUseCase } from '../../domain/usecases/ResolvePortalGuestsUseCase';
 import type { DispatchNotificationUseCase } from '../../domain/usecases/DispatchNotificationUseCase';
 import { makeNotificationTextCatalog } from '../notifications/notificationTextCatalog';
 import type { IRecordDocumentWriter } from '../../domain/repositories/IRecordDocumentWriter';
@@ -732,6 +733,7 @@ class DIContainer {
         catalog: makeNotificationTextCatalog(this.getInstalledExtensionCache()),
         dispatches: new FirestoreNotificationDispatchLog(getDb()),
         appearance: new FirestoreNotificationAppearance(getDb()),
+        portalGuests: makeResolvePortalGuestsUseCase(this.getPortalRepository()),
         tenantName: async (tenantId) => (await this.getTenantRepository().getById(tenantId))?.name ?? '',
         now: () => new Date(),
       });

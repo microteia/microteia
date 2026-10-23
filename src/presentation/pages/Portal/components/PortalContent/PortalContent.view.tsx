@@ -63,6 +63,13 @@ export const PortalContent: React.FC<{ vm: PortalViewModel }> = ({ vm }) => {
     </S.Centered>
   ) : vm.pageView ? (
     <vm.pageView collection="" />
+  ) : vm.openedRecord === 'loading' ? (
+    <S.Centered><Spinner size={28} /></S.Centered>
+  ) : vm.openedRecord === 'missing' ? (
+    <S.Centered>
+      {t('portal.record.unavailable')}
+      <Button size="sm" onClick={vm.goHome}>{t('portal.home')}</Button>
+    </S.Centered>
   ) : vm.detailView ? (
     <S.Detail>
       {backButton}

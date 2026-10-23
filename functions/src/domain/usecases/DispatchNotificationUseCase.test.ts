@@ -4,6 +4,7 @@ import type { DispatchNotificationDeps, DispatchNotificationRequest } from './Di
 import type { EmailMessage, NotificationRecipient } from '../repositories/INotificationDelivery';
 import type { InboxNotificationDocument } from '../schema/notifications';
 import { NOTIFICATION_MAX_RECIPIENTS } from '../schema/notifications';
+import type { PortalGuestsOfRecord } from './ResolvePortalGuestsUseCase';
 
 const recipient = (userId: string, overrides: Partial<NotificationRecipient> = {}): NotificationRecipient => ({
   userId,
@@ -29,7 +30,11 @@ const request = (overrides: Partial<DispatchNotificationRequest> = {}): Dispatch
   ...overrides,
 });
 
-const setup = (members: NotificationRecipient[], extra: Partial<DispatchNotificationDeps> = {}) => {
+const setup = (
+  members: NotificationRecipient[],
+  extra: Partial<DispatchNotificationDeps> = {},
+  portal: PortalGuestsOfRecord = { inPortal: false, guests: [] },
+) => {
   const audit = vi.fn(async () => undefined);
   const delivered: InboxNotificationDocument[] = [];
   const sent: EmailMessage[] = [];
@@ -45,7 +50,13 @@ const setup = (members: NotificationRecipient[], extra: Partial<DispatchNotifica
     directory: {
       recipients: async (_tenantId, ids) => members.filter((member) => ids.includes(member.userId)),
       memberIdsGranting: async () => members.map((member) => member.userId),
+      guests: async (_tenantId, contacts) => contacts.map((contact) => recipient(contact.userId, {
+        email: contact.email,
+        locale: contact.locale ?? 'en',
+        channels: { inApp: true, email: true, push: false },
+      })),
     },
+    portalGuests: { execute: async () => portal },
     inbox: { deliver: async (_tenantId, docs) => { delivered.push(...docs); } },
     emailConfig: {
       get: async () => ({ settings: {
@@ -217,6 +228,7 @@ describe('DispatchNotificationUseCase', () => {
       directory: {
         recipients: async (_tenantId, ids) => members.filter((member) => ids.includes(member.userId)),
         memberIdsGranting: async (_tenantId, permission) => holders[permission] ?? [],
+        guests: async () => [],
       },
     });
     await uc.execute(request({
@@ -276,5 +288,78 @@ describe('DispatchNotificationUseCase', () => {
     expect(result.delivered.email).toBe(1);
     expect(sent[0].subject).toBe('en:@ext/title:Ana');
   });
-});
 
+  describe('aos convidados do portal', () => {
+    const target = { collection: 'conversations', recordId: 'c1' };
+    const seen: PortalGuestsOfRecord = {
+      inPortal: true,
+      guests: [{ userId: 'g1', email: 'cliente@example.com', locale: 'pt-BR' }],
+    };
+    const portalRequest = (overrides: Partial<DispatchNotificationRequest> = {}) => request({
+      audience: 'portal',
+      target,
+      channels: { audit: false, inApp: true, email: true, push: false },
+      ...overrides,
+    });
+
+    it('avisa só quem vê o registro, com o link dele NO PORTAL e o texto já no idioma do convite', async () => {
+      const { uc, delivered, sent } = setup([recipient('u1')], {}, seen);
+      const result = await uc.execute(portalRequest({ recipientIds: ['u1'], recipientPermissions: ['x.update'] }));
+      expect(result.recipients).toBe(1);
+      expect(delivered).toHaveLength(1);
+      expect(delivered[0]).toMatchObject({
+        audience: 'portal',
+        recipientId: 'g1',
+        title: 'pt-BR:@ext/title:Ana',
+        params: {},
+        link: '',
+        target,
+      });
+      expect(sent.map((message) => message.to)).toEqual(['cliente@example.com']);
+      expect(sent[0].html).toContain('https://app.test/portal/t1/conversations?record=c1');
+      expect(sent[0].html).not.toContain('/microteia/');
+    });
+
+    it('o registro fora do portal não leva aviso a ninguém', async () => {
+      const { uc, delivered, sent } = setup([], {}, { inPortal: false, guests: [] });
+      const result = await uc.execute(portalRequest());
+      expect(result.recipients).toBe(0);
+      expect(delivered).toEqual([]);
+      expect(sent).toEqual([]);
+      expect(result.issues.map((issue) => issue.message)).toContain('@core.automation/step.notify.portal.not-in-portal');
+    });
+
+    it('sem registro, não há de quem perguntar quem vê', async () => {
+      const { uc } = setup([], {}, seen);
+      const result = await uc.execute(portalRequest({ target: null }));
+      expect(result.recipients).toBe(0);
+      expect(result.issues.map((issue) => issue.message)).toContain('@core.automation/step.notify.portal.no-record');
+    });
+
+    it('registra na Auditoria o que saiu do escritório, mesmo sem toAudit', async () => {
+      const { uc, audit } = setup([], {}, seen);
+      await uc.execute(portalRequest());
+      expect(audit).toHaveBeenCalledTimes(1);
+      expect(audit).toHaveBeenCalledWith(expect.objectContaining({
+        title: '@core.automation/notifications.portal.audit',
+        titleParams: { count: '1' },
+        text: '@ext/title',
+        linkCollection: 'conversations',
+        linkRecordId: 'c1',
+      }));
+    });
+
+    it('push não existe para o convidado, e o log diz por quê', async () => {
+      const { uc, pushed } = setup([], {}, seen);
+      const result = await uc.execute(portalRequest({ channels: { audit: false, inApp: false, email: false, push: true } }));
+      expect(pushed.size).toBe(0);
+      expect(result.issues.map((issue) => issue.message)).toContain('@core.automation/step.notify.portal.push-unsupported');
+    });
+
+    it('o aviso ao membro continua com a referência crua e marcado como do escritório', async () => {
+      const { uc, delivered } = setup([recipient('u1')], {}, seen);
+      await uc.execute(request({ channels: { audit: false, inApp: true, email: false, push: false }, recipientIds: ['u1'] }));
+      expect(delivered[0]).toMatchObject({ audience: 'members', recipientId: 'u1', title: '@ext/title' });
+    });
+  });
+});

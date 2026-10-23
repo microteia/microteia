@@ -79,6 +79,47 @@ describe('notification_inbox', () => {
   });
 });
 
+describe('notification_inbox — o convidado do portal', () => {
+  const DO_PORTAL = `${INBOX}/p1`;
+  const DE_MEMBRO = `${INBOX}/m1`;
+
+  beforeEach(async () => {
+    await env.withSecurityRulesDisabled(async (context) => {
+      const db = context.firestore() as never;
+      await setDoc(doc(db, `tenants/${TENANT}/portalUsers/ana`), { userId: 'ana', email: 'ana@acme.com', subjectKeys: ['companies/acme'] });
+      const aviso = { recipientId: 'ana', title: 'Novo andamento', message: 'texto', params: {}, link: '', read: false, readAt: null };
+      await setDoc(doc(db, DO_PORTAL), { ...aviso, audience: 'portal' });
+      await setDoc(doc(db, DE_MEMBRO), { ...aviso, audience: 'members' });
+    });
+  });
+
+  it('lê e marca como lido o seu aviso ao portal, e só esse', async () => {
+    await assertSucceeds(getDoc(doc(asUser(env, 'ana'), DO_PORTAL)));
+    await assertSucceeds(updateDoc(doc(asUser(env, 'ana'), DO_PORTAL), { read: true }));
+    await assertFails(updateDoc(doc(asUser(env, 'ana'), DO_PORTAL), { title: 'forjado' }));
+    await assertFails(getDoc(doc(asUser(env, 'ana'), DE_MEMBRO)));
+    await assertFails(updateDoc(doc(asUser(env, 'ana'), DE_MEMBRO), { read: true }));
+  });
+
+  it('a consulta do portal precisa filtrar pelo destinatário E pelo portal', async () => {
+    await assertSucceeds(getDocs(query(
+      collection(asUser(env, 'ana'), INBOX), where('recipientId', '==', 'ana'), where('audience', '==', 'portal'),
+    )));
+    await assertFails(getDocs(query(collection(asUser(env, 'ana'), INBOX), where('recipientId', '==', 'ana'))));
+  });
+
+  it('convite revogado, aviso fechado — no instante', async () => {
+    await env.withSecurityRulesDisabled(async (context) => {
+      await deleteDoc(doc(context.firestore() as never, `tenants/${TENANT}/portalUsers/ana`));
+    });
+    await assertFails(getDoc(doc(asUser(env, 'ana'), DO_PORTAL)));
+  });
+
+  it('outro convidado não lê o aviso de ninguém', async () => {
+    await assertFails(getDoc(doc(asUser(env, 'outra'), DO_PORTAL)));
+  });
+});
+
 describe('push_subscriptions', () => {
   const inscricao = (endpoint: string) => ({
     endpoint,

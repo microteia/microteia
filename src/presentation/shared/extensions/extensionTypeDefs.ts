@@ -1548,6 +1548,12 @@ const PORTAL_MODULE_DEFS = `declare module '@microteia/portal' {
 
   /** The standard user corner: who is signed in, theme, switch organization, sign out. */
   export function PortalUserMenu(props: { shell: PortalShell }): JSX.Element;
+
+  /**
+   * The guest's bell: the notifications the organization's automations sent to this guest, newest
+   * first. Clicking one opens its record in the portal. Renders nothing outside an organization.
+   */
+  export function PortalNotificationBell(): JSX.Element | null;
 }`;
 
 const THEME_MODULE_DEFS = `declare module '@microteia/theme' {

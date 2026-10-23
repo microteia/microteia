@@ -11,6 +11,13 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.149.0] — 2026-10-23
+
+- As automações agora podem avisar os clientes do portal. Quando o escritório responde, agenda uma visita ou registra uma novidade, o cliente recebe um e-mail e um aviso no sino do próprio portal, com um link que abre o registro direto no portal.
+- O aviso chega só a quem foi convidado e enxerga aquele registro no portal. Quem teve o acesso revogado deixa de receber na hora, e um registro que não sai do escritório não gera aviso a ninguém.
+- Todo aviso enviado a clientes do portal fica registrado na Auditoria do escritório, com quantas pessoas o receberam e sobre qual registro.
+- Quem abre o link de um aviso sem estar conectado ao portal entra e volta direto ao registro, em vez de cair na página inicial.
+
 #### [9.148.0] — 2026-10-23
 
 - A atualização do portal depois de uma mudança numa tela agora aparece numa só tarja, com uma barra de andamento que soma todas as telas, em vez de uma tarja por tela. Telas sem registros não aparecem mais.

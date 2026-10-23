@@ -1,7 +1,8 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useLocation, useParams, useSearchParams } from 'react-router-dom';
 import { usePortal } from './usePortal';
 import { PortalNavigationContext, type PortalCreating, type PortalOpenRecord } from './usePortalNavigation';
+import { PORTAL_RECORD_PARAM, portalRecordDocId } from '../domain/schema/portal';
 
 interface NavigationState {
   /**
@@ -15,21 +16,33 @@ interface NavigationState {
   justSaved: boolean;
 }
 
-const EMPTY = (scope: string): NavigationState => ({ scope, stack: [], creating: null, justSubmitted: false, justSaved: false });
+const EMPTY = (scope: string, stack: PortalOpenRecord[] = []): NavigationState => ({
+  scope, stack, creating: null, justSubmitted: false, justSaved: false,
+});
 
 export const PortalNavigationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { tenantId } = usePortal();
   const { entryId } = useParams<{ entryId?: string }>();
-  const scope = `${tenantId ?? ''}|${entryId ?? ''}`;
-  const [stored, setStored] = useState<NavigationState>(() => EMPTY(scope));
-  const state = stored.scope === scope ? stored : EMPTY(scope);
+  const [searchParams] = useSearchParams();
+  const { key: locationKey } = useLocation();
+  // O endereço de um registro (`?record=`, o link de um aviso) abre a pilha JÁ com ele, sob a coleção
+  // dele. A chave da navegação entra no escopo para que abrir o mesmo aviso de novo o reabra, mesmo
+  // depois de o convidado ter voltado ou ido a um filho.
+  const linkedRecordId = entryId ? searchParams.get(PORTAL_RECORD_PARAM) ?? '' : '';
+  const scope = `${tenantId ?? ''}|${entryId ?? ''}|${linkedRecordId ? `${linkedRecordId}|${locationKey}` : ''}`;
+  const initialStack = useMemo<PortalOpenRecord[]>(
+    () => (entryId && linkedRecordId ? [{ collection: entryId, projectionId: portalRecordDocId(entryId, linkedRecordId) }] : []),
+    [entryId, linkedRecordId],
+  );
+  const [stored, setStored] = useState<NavigationState>(() => EMPTY(scope, initialStack));
+  const state = stored.scope === scope ? stored : EMPTY(scope, initialStack);
 
   const update = useCallback((patch: (current: NavigationState) => Partial<NavigationState>) => {
     setStored((prev) => {
-      const current = prev.scope === scope ? prev : EMPTY(scope);
+      const current = prev.scope === scope ? prev : EMPTY(scope, initialStack);
       return { ...current, ...patch(current) };
     });
-  }, [scope]);
+  }, [scope, initialStack]);
 
   const openRecord = useCallback((collection: string, projectionId: string) => update((current) => ({
     stack: [...current.stack, { collection, projectionId }], creating: null, justSubmitted: false, justSaved: false,

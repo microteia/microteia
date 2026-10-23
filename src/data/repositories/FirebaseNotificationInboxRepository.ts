@@ -53,6 +53,26 @@ export class FirebaseNotificationInboxRepository implements INotificationInboxRe
     );
   }
 
+  subscribePortal(
+    tenantId: string,
+    userId: string,
+    max: number,
+    onChange: (notifications: InboxNotification[]) => void,
+  ): () => void {
+    const recent = query(
+      inbox(tenantId),
+      where('recipientId', '==', userId),
+      where('audience', '==', 'portal'),
+      orderBy('createdAt', 'desc'),
+      limit(max),
+    );
+    return onSnapshot(
+      recent,
+      (snap) => onChange(snap.docs.map((one) => toNotification(one.id, one.data()))),
+      () => onChange([]),
+    );
+  }
+
   subscribeUnreadCount(tenantId: string, userId: string, cap: number, onChange: (count: number) => void): () => void {
     const unread = query(
       inbox(tenantId),

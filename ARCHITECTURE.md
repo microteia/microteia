@@ -1281,8 +1281,59 @@ convidado vê, e campo apagado vai como `null`. Views de extensão usam `canEdit
 - A reprojeção também dispara quando muda a chave, o tipo, o `refEntity` ou a multiplicidade de um
   campo; e o convite consulta o `audience` uma vez por combinação de sujeitos, não por projeção.
 
+### Avisar o convidado — `notify` com `portalGuests`
+
+O escritório responde, registra um andamento, marca uma visita — e o convidado só ficava sabendo quando
+abria o portal por conta própria. O passo `notify` só alcançava membros: `INotificationDirectory.recipients`
+descarta quem não tem documento em `members`, e a regra do sino exigia `isMember`. Mandar e-mail a um
+endereço digitado num registro não servia de contorno: alcançaria quem nunca foi convidado, ou teve o
+acesso revogado.
+
+**Quem recebe é quem VÊ o registro, e não quem é convidado de uma raiz.** A primeira forma pensada era
+uma expressão que desse o registro-sujeito e alcançasse todo convidado dele. Ela tinha dois defeitos: o
+aviso fala de um registro (a conversa, a visita), e nada garantia que o convidado o enxergasse — fora do
+portal, ou escondido por `visibleWhen`, ele receberia um link para o que não abre, e o aviso confirmaria
+que aquilo existe; e um id solto não diz de que coleção ele é. Por isso a pergunta é feita sobre o
+registro de que o aviso fala (`target`), pela MESMA corrente da projeção:
+
+| Peça | O que faz |
+|---|---|
+| `makeResolvePortalGuestsUseCase` (`functions/src/domain/usecases/`) | `resolvePortalSubjectKeys` sobre o registro como está gravado, e então `audienceFor` + o convite de cada um. Não lê a projeção: o aviso de um registro recém-criado não espera ela existir, e o `audience` dela é refeito segundos depois de uma revogação — o convite, não |
+| `INotificationDirectory.guests` | o convidado como destinatário: sem preferências próprias (valem os padrões de canal do escritório), idioma do convite, e push nunca — o portal não tem onde ativá-lo |
+| `DispatchNotificationRequest.audience: 'portal'` | a porta única continua uma só: `recipientIds` e `recipientPermissions` não valem; o link do e-mail é `portalRecordPath` (`/portal/<escritório>/<coleção>?record=<id>`); o sino recebe `audience: 'portal'` e o texto JÁ resolvido no idioma do convidado — o portal não tem o catálogo de toda extensão instalada |
+| a Auditoria | toda entrega a convidados grava `notifications.portal.audit` (quantos, qual registro, o título), independente de `toAudit`: aquele é o aviso AO escritório; este, o rastro do que saiu dele |
+
+**O passo.** `portalGuests` (Literal, `false` por padrão) e `portalRecord` (só `Event`). O registro é o
+do evento; `portalRecord` aponta outro por um caminho do evento — e é o TIPO do caminho
+(`resolvePath` sobre o `stepConfiguration`) que diz a coleção, como o editor já sabe. Caminho que não
+leva a um registro reprova o passo; o caminho certo que veio vazio só não avisa ninguém, e o log diz.
+Junto com `recipientMembers`, `recipientsFrom` ou `recipientPermission` o passo reprova
+(`step.notify.portal.mixed`): o texto escrito para dentro do escritório não pode sair para fora por
+engano. Sem sino nem e-mail marcado, também (`portal.no-channel`).
+
+**O sino do convidado.** `PortalNotificationBell` (nas duas cascas do kernel, e em `@microteia/portal`
+para a casca de extensão) assina `recipientId == uid` + `audience == 'portal'`, com índice; as não lidas
+são contadas sobre essa janela, sem segunda consulta. A regra de `notification_inbox` deixa o convidado
+ler e marcar como lido o SEU aviso ao portal enquanto o convite existe (`isPortalUser`) — um aviso de
+membro nunca chega a ele. Não há página de avisos nem preferências no portal (fase 2).
+
+**O link de um registro no portal.** `?record=<id>` no item `<coleção>` abre a pilha de navegação já com
+o registro (`PortalNavigationProvider`); a chave da navegação entra no escopo para que o mesmo aviso,
+aberto de novo, reabra o registro. A tela-filha abre sozinha, e o "Voltar" dela vai para a home. O
+registro que ainda não chegou mostra espera; o que saiu do alcance do convidado diz que não está mais
+disponível. Quem chega sem sessão entra pelo acesso do portal e volta ao registro: o destino viaja no
+`state` da porta e, no link de acesso, em `next` — aceito só se for um caminho do portal
+(`isPortalReturnPath`), para o link não virar redirecionamento aberto.
+
+O pacote que usa `portalGuests` declara `kernel` a partir de `PORTAL_GUEST_NOTIFY_SINCE_KERNEL` (2.63.0).
+Um kernel anterior ignora o input e reprova o passo por falta de destinatário — falha FECHADO, e por isso
+não há recusa no empacotamento. `examples/portal-example` avisa o cliente de uma visita agendada.
+
 ### O que ainda não faz
 
+- **Preferências do convidado.** Ele não escolhe canal nem silencia tipo — valem os padrões do
+  escritório —, e o e-mail não leva um "não quero mais receber". Pede uma callable e um campo em
+  `portalUsers` (que só o servidor grava): o convidado não escreve em `settings/user_*`.
 - **Excluir pelo portal.** O convidado cria, altera e anexa; não apaga registro nem documento.
 - **View de portal declarativa** (Widget DSL): `portal.view` — inclusive `page`, `widget` e `home` — é só `code`. O `WidgetRenderer` lê os
   stores do escritório, e o convidado não os tem.
@@ -5931,6 +5982,10 @@ lendo os documentos de membro em lote (`getAll`) — um id que não é membro fi
 vier. A permissão é a pergunta das Security Rules: `permissions array-contains-any [perm, '*']`, mais o
 `ownerId` do escritório. Teto: `NOTIFICATION_MAX_RECIPIENTS = 200` por execução — o envio é síncrono, e
 uma permissão dada ao escritório inteiro alcançaria todo mundo.
+
+**Os convidados do portal — uma quarta origem, que exclui as outras.** `portalGuests` troca o público
+do passo: recebem os convidados do portal que veem o registro, e nenhum membro. Ver "Avisar o
+convidado" na seção do Portal.
 
 Canal pessoal marcado sem NENHUMA origem configurada (`context.stepConfiguration`) reprova o passo — é
 erro de configuração. Origem configurada que não rende ninguém NESTA execução não reprova: o log diz por
@@ -12432,6 +12487,7 @@ daquela instalação. Ver "Artefatos de backend por extensão".
 | `tenants/{id}/notification_inbox` | `recipientId` ASC, `read` ASC, `createdAt` DESC | kernel | A contagem de não lidas do sino e o "marcar todas como lidas" |
 | `tenants/{id}/notification_inbox` | `recipientId` ASC, `category` ASC, `createdAt` DESC | kernel | A página de Notificações filtrada por tipo |
 | `tenants/{id}/notification_inbox` | `recipientId` ASC, `category` ASC, `read` ASC, `createdAt` DESC | kernel | A página filtrada por tipo e só não lidas |
+| `tenants/{id}/notification_inbox` | `recipientId` ASC, `audience` ASC, `createdAt` DESC | kernel | O sino do CONVIDADO do portal — a regra exige que a consulta filtre pelo portal; as não lidas são contadas sobre essa mesma janela |
 | `tenants/{id}/downloads` | `ownerId` ASC, `createdAt` DESC | kernel | Downloads — os arquivos da pessoa, mais recente primeiro |
 | `tenants/{id}/downloads` | `visibility` ASC, `createdAt` DESC | kernel | Downloads — os da automação liberados para todos (a regra só aprova a lista provada pelo filtro) |
 | `tenants/{id}/portalRecords` | `audience` CONTAINS, `collection` ASC, `updatedAt` DESC | kernel | Portal — a lista de uma tela para o convidado, mais recente primeiro. O filtro por `audience` é o que a regra exige para aprovar a lista |

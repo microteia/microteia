@@ -46,6 +46,11 @@ export const PORTAL_EXAMPLE_MESSAGES: Record<string, string> = {
   'portal.orders.quantity': '{count} × {item}',
   'portal.widget.orders': 'Your orders',
   'portal.widget.orders.caption': 'orders placed in the portal',
+
+  'workflow.visit-scheduled': 'Tell the client about a new visit',
+  'workflow.visit-scheduled.description': 'When a visit is scheduled, notifies the client\'s portal guests by e-mail and on the portal bell.',
+  'notify.visit.title': 'A visit was scheduled',
+  'notify.visit.message': 'Open it in the portal to see the date and the summary.',
 };
 
 export const portalExampleMessagesContribution = (): Contribution =>

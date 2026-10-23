@@ -103,6 +103,11 @@ export interface PortalViewModel {
   /** O item do link não existe mais — saiu do menu, ou a extensão foi desligada. */
   entryMissing: boolean;
   /**
+   * O registro aberto (o do link de um aviso, tipicamente) ainda não chegou — `loading` — ou não está
+   * mais à vista do convidado — `missing`. `null` quando não há registro aberto, ou ele está à mão.
+   */
+  openedRecord: 'loading' | 'missing' | null;
+  /**
    * Anexar ao registro aberto — só quando a tela deixa. O tipo é escolhido entre os oferecidos, sem
    * gesto de criar outro; e não há gesto de excluir.
    */
@@ -311,10 +316,13 @@ export const usePortalViewModel = (): PortalViewModel => {
     pushRecord(collection, id);
   }, [pushRecord]);
 
+  // O registro aberto por link, fora do menu (o filho de um aviso), não tem lista para onde voltar.
+  const backLeavesEntry = stack.length <= 1 && !entry;
   const goBack = useCallback(() => {
     setDocumentError(false);
-    back();
-  }, [back]);
+    if (backLeavesEntry) navigate(portalTenantPath(routeTenantId ?? ''));
+    else back();
+  }, [back, backLeavesEntry, navigate, routeTenantId]);
 
   // Criar DENTRO de um registro já fixa o pai: a nota nasce do prestador aberto, sem pergunta. Na
   // lista de topo, o formulário pergunta a qual dos registros do convidado o novo pertence.
@@ -382,7 +390,10 @@ export const usePortalViewModel = (): PortalViewModel => {
       Component: homeConfig?.view ? viewByKey(homeConfig.view.pluginId, homeConfig.view.viewKey) : null,
     },
     pageView: entry?.kind === 'page' ? viewByKey(entry.pluginId, entry.viewKey) : null,
-    entryMissing: !!entryId && !!portal.context && !entry,
+    entryMissing: !!entryId && !!portal.context && !entry && !topScreen,
+    openedRecord: top && topScreen && !topRecord
+      ? (isCollectionLoading(top.collection) ? 'loading' : 'missing')
+      : null,
     upload: topScreen?.uploads && topRecord
       ? {
         collection: topRecord.collection,

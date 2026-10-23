@@ -145,11 +145,25 @@ export const notificationChannelProperty = (channel: PersonalNotificationChannel
   ?? channelProperty(channel);
 
 /**
+ * A quem um aviso se dirige: aos MEMBROS do escritório, ou aos convidados do PORTAL que veem o
+ * registro de que ele fala. Nunca aos dois de uma vez — o texto escrito para dentro do escritório não
+ * pode sair para fora por engano.
+ */
+export const NOTIFICATION_AUDIENCES = ['members', 'portal'] as const;
+
+export type NotificationAudience = (typeof NOTIFICATION_AUDIENCES)[number];
+
+/**
  * O documento do sino. Título e mensagem ficam como o passo os recebeu — referência de mensagem ou
  * texto do escritório — e são resolvidos na TELA, no idioma de quem lê; é por isso que não há um
  * idioma gravado aqui.
+ *
+ * O aviso ao convidado (`audience: 'portal'`) é a exceção: sai JÁ resolvido no idioma dele, porque o
+ * portal não recebe o catálogo de toda extensão instalada, e uma referência ficaria crua na tela.
  */
 export interface InboxNotificationDocument {
+  /** Ausente nos avisos gravados antes dela: são de membro. */
+  audience: NotificationAudience;
   recipientId: string;
   title: string;
   message: string;
