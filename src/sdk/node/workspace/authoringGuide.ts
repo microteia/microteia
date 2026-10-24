@@ -658,7 +658,11 @@ A portal view reaches a smaller API: \`@microteia/ui\`, \`@microteia/i18n\`, \`@
 \`@microteia/theme\` and \`@microteia/portal\` — \`usePortalRecords(collection, { parent })\`,
 \`usePortalRecord\`, \`usePortalScreen\`, \`usePortalNavigation\`, \`usePortalDocuments\`,
 \`usePortalSubmit\`, \`usePortalUpdate\`. Show an edit gesture only when the record's \`canEdit\` is true
-(\`usePortalNavigation().edit\` opens the standard form). Importing \`@microteia/data\` (or report, settings, functions) fails when the view is
+(\`usePortalNavigation().edit\` opens the standard form). \`usePortalNavigation().openRecord(collection,
+recordId)\` opens a record from any surface: inside a menu entry (a \`list\`, \`detail\` or \`page\`) it
+stacks the record over what is open, and Back returns there; from the home (a \`widget\` or the \`home\`)
+it takes the guest to the record's own address — the one the e-mail and the bell use —, and Back returns
+to the home. \`back()\` with nothing open does nothing. Importing \`@microteia/data\` (or report, settings, functions) fails when the view is
 compiled: the guest has none of the organization's data stores. A view receives \`{ collection, recordId? }\`
 and asks \`@microteia/portal\` for the rest.
 

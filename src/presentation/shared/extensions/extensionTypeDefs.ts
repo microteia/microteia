@@ -1476,7 +1476,12 @@ const PORTAL_MODULE_DEFS = `declare module '@microteia/portal' {
 
   /** Open, go back and create — the same navigation stack the standard portal shows. */
   export function usePortalNavigation(): {
+    /**
+     * Opens a record from any surface. Inside a menu entry it is stacked over what is open; from the
+     * home (a \`widget\` or the \`home\`) the guest is taken to the record's address, and Back returns home.
+     */
     openRecord(collection: string, recordId: string): void;
+    /** Closes the open record. With nothing open, it does nothing. */
     back(): void;
     /** With \`parentRecordId\`, the new record is linked to it and the form does not ask. */
     create(collection: string, parentRecordId?: string): void;

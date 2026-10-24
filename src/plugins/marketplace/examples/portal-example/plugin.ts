@@ -229,7 +229,7 @@ const CLIENT_PORTAL_SOURCE = mergeViewSources({
 export const portalExamplePlugin: MarketplacePlugin = {
   manifest: {
     id: 'com.microteia.portal-example',
-    version: '1.6.0',
+    version: '1.7.0',
     kernel: '^2.63.0',
     name: message('package.name'),
     description: message('package.description'),

@@ -18,6 +18,12 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.152.0] — 2026-10-24
+
+- fix(portal): `@microteia/portal` `usePortalNavigation().openRecord` now works from any surface. The navigation stack is scoped to a menu entry and the home has none, so a `widget` (or `home`) calling it pushed onto a stack nothing drew — the tap did nothing, with no error. At the home it now navigates to the record's `portalRecordPath` (the address the e-mail and the bell use), marking the history entry (`state.portalOpenedFromHome`); Back from a one-record stack returns home through history (`navigate(-1)`) instead of falling to the entry's list. `back()` with nothing open is a no-op.
+- fix(portal): a record opened from an extension `page` is drawn over the page instead of being hidden behind it; Back returns to the page.
+- feat(examples/portal-example 1.7.0): the home card lists the latest orders, and tapping one opens it.
+
 #### [9.151.1] — 2026-10-23
 
 - fix(portal): `getPortalContext` now returns the `theme.definition` / `theme.tokens` contributions of the active installed extensions (`InstalledExtensionCache.themes`), and `PortalThemeBridge` publishes them to the top-level theme provider. Guests cannot read `installed_extensions`, so the portal theme menu offered only the bundled themes. The guest's choice stays in the browser (`ThemeSource.save` is now optional).

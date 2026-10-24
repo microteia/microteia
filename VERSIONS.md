@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.152.0] — 2026-10-24
+
+- No portal de convidados, tocar num item listado num cartão da página inicial agora abre esse item. O botão Voltar leva de volta à página inicial.
+- Em páginas próprias de extensões no portal, abrir um item também passou a mostrá-lo; o Voltar retorna à página.
+
 #### [9.151.1] — 2026-10-23
 
 - O portal de convidados agora oferece, na escolha de tema, também os temas instalados pelo escritório — não só os que vêm com o sistema.

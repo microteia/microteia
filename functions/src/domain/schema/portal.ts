@@ -149,6 +149,12 @@ export const parsePortalSubjectKey = (key: string): { collection: string; record
 
 export const portalRecordDocId = (collection: string, recordId: string): string => `${collection}__${recordId}`;
 
+/** O inverso de `portalRecordDocId`: o id do REGISTRO, a partir da projeção dele. */
+export const portalRecordIdOf = (collection: string, projectionId: string): string => {
+  const prefix = `${collection}__`;
+  return projectionId.startsWith(prefix) ? projectionId.slice(prefix.length) : projectionId;
+};
+
 /** O endereço do portal — fora do espaço de trabalho do escritório, e da pilha de stores dele. */
 export const PORTAL_BASE_PATH = '/portal';
 

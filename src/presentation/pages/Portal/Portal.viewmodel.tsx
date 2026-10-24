@@ -316,8 +316,9 @@ export const usePortalViewModel = (): PortalViewModel => {
     pushRecord(collection, id);
   }, [pushRecord]);
 
-  // O registro aberto por link, fora do menu (o filho de um aviso), não tem lista para onde voltar.
-  const backLeavesEntry = stack.length <= 1 && !entry;
+  // O registro aberto por link, fora do menu (o filho de um aviso), não tem lista para onde voltar. O
+  // aberto de um cartão da home volta pelo histórico — quem decide é a pilha.
+  const backLeavesEntry = stack.length <= 1 && !entry && !navigation.returnsHome;
   const goBack = useCallback(() => {
     setDocumentError(false);
     if (backLeavesEntry) navigate(portalTenantPath(routeTenantId ?? ''));
@@ -389,7 +390,8 @@ export const usePortalViewModel = (): PortalViewModel => {
       widgets: homeWidgets,
       Component: homeConfig?.view ? viewByKey(homeConfig.view.pluginId, homeConfig.view.viewKey) : null,
     },
-    pageView: entry?.kind === 'page' ? viewByKey(entry.pluginId, entry.viewKey) : null,
+    // Um registro aberto de dentro da página fica por cima dela; o Voltar a devolve.
+    pageView: entry?.kind === 'page' && !top ? viewByKey(entry.pluginId, entry.viewKey) : null,
     entryMissing: !!entryId && !!portal.context && !entry && !topScreen,
     openedRecord: top && topScreen && !topRecord
       ? (isCollectionLoading(top.collection) ? 'loading' : 'missing')

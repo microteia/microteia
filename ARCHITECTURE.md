@@ -1161,6 +1161,13 @@ A navegação (`PortalNavigationProvider`) mora num contexto, e não no ViewMode
 navega também: `usePortalNavigation()` abre, volta e cria na mesma pilha que a casca mostra. O "Voltar"
 em volta da view de detalhe é da casca. `examples/portal-example` é o molde.
 
+A pilha é por item do menu, e a HOME não tem item: lá, `openRecord` não empilha — navega para o
+`portalRecordPath` do registro (o endereço do e-mail e do sino), marcando a entrada do histórico
+(`state.portalOpenedFromHome`). O item abre com o registro, e o "Voltar" de uma pilha de um só volta
+pelo histórico (`navigate(-1)`), à home — não à lista do item. Antes, o cartão empilhava numa pilha que a
+home não desenha, e o toque não fazia nada, sem erro. Numa página de extensão (`surface: 'page'`), o
+registro aberto fica POR CIMA da página, e o "Voltar" a devolve. `back()` sem nada aberto não faz nada.
+
 `portal.view` move o `KERNEL_VERSION` (2.54.0): é ponto novo que o pacote instalado contribui.
 
 ### A home e o menu do portal
