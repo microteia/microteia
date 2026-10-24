@@ -146,6 +146,20 @@ describe('contexto do portal', () => {
     expect(context.bundles).toHaveLength(1);
   });
 
+  it('entrega os temas instalados, mesmo sem view de extensão', async () => {
+    const fake = makeFakePortalRepository(CITY_SCREENS);
+    fake.users.set('ana', { userId: 'ana', email: 'ana@acme.com', displayName: 'Ana', subjectKeys: ['companies/acme'] });
+    const theme = { id: 'indigo', point: 'theme.definition', apiVersion: '1.0.0', pluginId: 'com.acme.theme', metadata: { id: 'indigo', name: 'Indigo', extends: 'dark' } };
+
+    const context = await makeGetPortalContextUseCase(fake.repo).execute({
+      tenantId: TENANT, userId: 'ana', tenant: { name: 'Salvador', logoURL: null }, locale: 'pt-BR', resolve: (value) => value,
+      themes: [theme],
+    });
+
+    expect(context.views).toEqual([]);
+    expect(context.themes).toEqual([theme]);
+  });
+
   it('monta o menu: telas de topo e páginas de extensão, na ordem e sem o que o escritório escondeu', async () => {
     const fake = makeFakePortalRepository(CITY_SCREENS);
     fake.users.set('ana', { userId: 'ana', email: 'ana@acme.com', displayName: 'Ana', subjectKeys: ['companies/acme'] });

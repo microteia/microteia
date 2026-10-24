@@ -8,6 +8,7 @@ import { DECLARED_LOOKUP_OPTIONS, mergeLookupDefaults } from '../schema/lookupDe
 import { isLookupCollection } from '../schema/lookupRegistry';
 import { RESERVED_COLLECTIONS } from '../schema/screenEntity';
 import { invalidArgument, permissionDenied } from '../errors/DomainError';
+import type { QualifiedContribution } from '../schema/plugin/contribution';
 import {
   applyPortalPreference,
   DEFAULT_PORTAL_LAYOUT,
@@ -230,6 +231,8 @@ export interface PortalContext {
   views: PortalContextView[];
   /** Os textos dessas extensões, em todos os idiomas que elas trazem. */
   bundles: Array<{ locale: string; namespace: string; messages: Record<string, string> }>;
+  /** Os temas das extensões ligadas — o convidado não lê as extensões instaladas. */
+  themes: QualifiedContribution[];
   home: PortalHome;
 }
 
@@ -241,6 +244,7 @@ export type GetPortalContextUseCase = {
     locale: string;
     resolve: (value: string) => string;
     extensionViews?: { views: PortalContextView[]; bundles: PortalContext['bundles'] };
+    themes?: QualifiedContribution[];
     /** Os tipos de documento do escritório — os fixos mais os cadastrados, já com rótulo. */
     documentTypes?: Array<{ key: string; label: string }>;
   }) => Promise<PortalContext>;
@@ -300,7 +304,7 @@ const withoutOrder = <T extends { order?: number }>(value: T): Omit<T, 'order'> 
 };
 
 export const makeGetPortalContextUseCase = (repo: IPortalRepository): GetPortalContextUseCase => ({
-  execute: async ({ tenantId, userId, tenant, locale, resolve, extensionViews, documentTypes = [] }) => {
+  execute: async ({ tenantId, userId, tenant, locale, resolve, extensionViews, themes = [], documentTypes = [] }) => {
     if (!(await repo.getPortalUser(tenantId, userId))) {
       throw permissionDenied('@core.tenant/portal.not-invited');
     }
@@ -372,6 +376,7 @@ export const makeGetPortalContextUseCase = (repo: IPortalRepository): GetPortalC
     return {
       views,
       bundles: views.length > 0 ? extensionViews?.bundles ?? [] : [],
+      themes,
       home: {
         welcome: settings.welcome,
         menu,

@@ -4,9 +4,9 @@ import type { ThemeSpec } from './themeSpec';
 import { asThemeSpec } from './themeSpec';
 import type { ThemeTokenBundle } from './themeTokens';
 import { asThemeTokenBundle } from './themeTokens';
+import { THEME_DEFINITION_POINT, THEME_TOKENS_POINT } from './themePoints';
 
-export const THEME_DEFINITION_POINT = 'theme.definition';
-export const THEME_TOKENS_POINT = 'theme.tokens';
+export { THEME_DEFINITION_POINT, THEME_TOKENS_POINT };
 
 export const THEME_API_VERSION = '1.0.0';
 

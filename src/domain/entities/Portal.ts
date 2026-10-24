@@ -1,3 +1,5 @@
+import type { QualifiedContribution } from '../schema/plugin/contribution';
+
 /** Um escritório em que a pessoa é convidada do portal. */
 export interface PortalMembership {
   tenantId: string;
@@ -89,6 +91,8 @@ export interface PortalContext {
   views: PortalViewInfo[];
   /** Os textos das extensões que trazem view — o catálogo do escritório não chega ao portal. */
   bundles: Array<{ locale: string; namespace: string; messages: Record<string, string> }>;
+  /** Os temas das extensões ligadas — o convidado não lê as extensões instaladas. */
+  themes?: QualifiedContribution[];
   home: PortalHome;
 }
 

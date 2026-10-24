@@ -18,6 +18,11 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.151.1] — 2026-10-23
+
+- fix(portal): `getPortalContext` now returns the `theme.definition` / `theme.tokens` contributions of the active installed extensions (`InstalledExtensionCache.themes`), and `PortalThemeBridge` publishes them to the top-level theme provider. Guests cannot read `installed_extensions`, so the portal theme menu offered only the bundled themes. The guest's choice stays in the browser (`ThemeSource.save` is now optional).
+- refactor(theme): the two theme point ids moved to `domain/schema/theme/themePoints.ts`, the only theme file synced to `functions/`.
+
 #### [9.151.0] — 2026-10-23
 
 - feat(ui.nav): `nav({ screen | screenSourceId, filter })` — a menu entry declares the filter its screen list opens with (`{ key, values }[]`, the shape of `useEntityList`'s `defaultFilterTokens`). It rides the existing navigation intent (`setNavigationIntent`, consumed by `useRecordListViewModel`), addressed to the INSTALLED screen key, so it is an ordinary filter: visible and removable. Without it a badge counted one slice (`badge.when: status == "waiting"`) and the click opened the whole collection.

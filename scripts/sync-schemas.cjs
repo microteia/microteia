@@ -27,6 +27,7 @@ const SHARED_FILES = [
   'domain/schema/time/businessDays.ts',
   'domain/schema/time/businessDaysGate.ts',
   'domain/schema/time/extensionPoints.ts',
+  'domain/schema/theme/themePoints.ts',
   'domain/schema/expressionSyntax.ts',
   'domain/schema/expressionEvaluation.ts',
   'domain/schema/fieldExpression.ts',

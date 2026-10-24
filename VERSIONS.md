@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.151.1] — 2026-10-23
+
+- O portal de convidados agora oferece, na escolha de tema, também os temas instalados pelo escritório — não só os que vêm com o sistema.
+
 #### [9.151.0] — 2026-10-23
 
 - Um item do menu que mostra quantas coisas esperam por você agora pode abrir a lista já mostrando exatamente essas coisas. O filtro aparece na barra de filtros, como qualquer outro, e pode ser removido para ver a lista inteira.
