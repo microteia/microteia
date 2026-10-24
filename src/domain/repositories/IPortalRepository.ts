@@ -7,6 +7,7 @@ import type {
   PortalRecord,
 } from '../entities/Portal';
 import type { PortalHomeSettings } from '../schema/portalExtensionPoints';
+import type { PortalProfile } from '../schema/portal';
 import type { PortalReprojectionState } from '../schema/portalReprojection';
 
 export interface IPortalRepository {
@@ -14,6 +15,8 @@ export interface IPortalRepository {
   listMemberships(userId: string): Promise<PortalMembership[]>;
   /** `locale` é o do navegador — vale quando ninguém escolheu um idioma. */
   getContext(tenantId: string, locale: string): Promise<PortalContext>;
+  /** O convidado grava o PRÓPRIO perfil neste escritório — as rules deixam mudar só ele. */
+  saveProfile(tenantId: string, userId: string, profile: PortalProfile): Promise<void>;
   subscribeRecords(
     tenantId: string,
     userId: string,

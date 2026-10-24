@@ -1,4 +1,5 @@
 import type { QualifiedContribution } from '../schema/plugin/contribution';
+import { PORTAL_PROFILE_KEYS, portalGuestName, type PortalProfile } from '../schema/portal';
 
 /** Um escritório em que a pessoa é convidada do portal. */
 export interface PortalMembership {
@@ -6,6 +7,8 @@ export interface PortalMembership {
   tenantName: string;
   /** O idioma de quem convidou — vale antes de haver contexto, e nas telas de erro. */
   locale?: string;
+  /** O que o convidado informou a ESTE escritório. */
+  profile: PortalProfile;
 }
 
 /** Uma tela exposta, como o portal a recebe: só os campos expostos, com os rótulos já traduzidos. */
@@ -143,3 +146,43 @@ export interface PortalGuest {
   displayName: string;
   subjectKeys: string[];
 }
+
+/**
+ * Os marcadores que as boas-vindas do escritório aceitam — a mesma sintaxe `{nome}` do catálogo de
+ * mensagens. Os fixos são o que o portal sabe sem perguntar; cada chave do perfil do convidado vira
+ * `{profile.<chave>}` sozinha, e por isso o perfil cresce sem que esta lista precise mudar.
+ */
+export const PORTAL_WELCOME_PLACEHOLDERS: readonly string[] = [
+  'firstName',
+  'name',
+  'email',
+  'office',
+  ...PORTAL_PROFILE_KEYS.map((key) => `profile.${key}`),
+];
+
+/**
+ * Os valores dos marcadores. O nome é o do perfil, senão o da conta, senão o e-mail — a frase nunca
+ * fica com um buraco no lugar do nome.
+ */
+export const portalWelcomeValues = (input: {
+  profile: PortalProfile;
+  accountName: string;
+  email: string;
+  office: string;
+}): Record<string, string> => {
+  const known = portalGuestName(input.profile, input.accountName);
+  return {
+    firstName: known ? known.split(/\s+/)[0] : input.email,
+    name: known || input.email,
+    email: input.email,
+    office: input.office,
+    ...Object.fromEntries(PORTAL_PROFILE_KEYS.map((key) => [`profile.${key}`, input.profile[key] ?? ''])),
+  };
+};
+
+/**
+ * Preenche os marcadores conhecidos. O desconhecido fica como está: chave entre chaves pode ser
+ * texto do escritório, e apagá-la mudaria o que ele escreveu.
+ */
+export const fillPortalWelcome = (text: string, values: Readonly<Record<string, string>>): string =>
+  text.replace(/\{([\w.]+)\}/g, (match, token: string) => (Object.hasOwn(values, token) ? values[token] : match));

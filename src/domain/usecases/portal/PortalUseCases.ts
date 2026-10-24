@@ -1,5 +1,6 @@
 import type { IPortalRepository } from '../../repositories/IPortalRepository';
 import type { PortalHomeSettings } from '../../schema/portalExtensionPoints';
+import type { PortalProfile } from '../../schema/portal';
 import type { PortalContext, PortalDocument, PortalLinkOption, PortalMembership } from '../../entities/Portal';
 
 export type ListPortalMembershipsUseCase = {
@@ -104,4 +105,12 @@ export type UploadPortalDocumentUseCase = {
 
 export const makeUploadPortalDocumentUseCase = (repo: IPortalRepository): UploadPortalDocumentUseCase => ({
   execute: (input) => repo.uploadDocument(input),
+});
+
+export type SavePortalProfileUseCase = {
+  execute: (tenantId: string, userId: string, profile: PortalProfile) => Promise<void>;
+};
+
+export const makeSavePortalProfileUseCase = (repo: IPortalRepository): SavePortalProfileUseCase => ({
+  execute: (tenantId, userId, profile) => repo.saveProfile(tenantId, userId, profile),
 });

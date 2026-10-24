@@ -4,9 +4,9 @@ import { useAuth } from '../../../stores/useAuth';
 import { usePortal } from '../../../stores/usePortal';
 import { usePortalNavigation } from '../../../stores/usePortalNavigation';
 import { useLocaleFormat, useT } from '../../shared/i18n/useT';
-import { canEditPortalRecord, type PortalDocument, type PortalScreenInfo } from '../../../domain/entities/Portal';
+import { canEditPortalRecord, fillPortalWelcome, portalWelcomeValues, type PortalDocument, type PortalScreenInfo } from '../../../domain/entities/Portal';
 import { portalSubjectKey } from '../../../domain/schema/portal';
-import { portalTenantPath } from './portalPaths';
+import { PORTAL_PROFILE_ENTRY, portalTenantPath } from './portalPaths';
 import { usePortalRecordFormat } from './usePortalRecordFormat';
 import { evaluatePortalView, type PortalViewComponent } from './portalViews';
 
@@ -89,10 +89,12 @@ export interface PortalViewModel {
   Layout: PortalLayoutComponent | null;
   builtinLayout: 'sidebar' | 'top';
   atHome: boolean;
+  /** O perfil do convidado está aberto, no lugar de um item do menu. */
+  atProfile: boolean;
   goHome: () => void;
   home: {
     title: string;
-    /** As boas-vindas do escritório — dado dele, sem tradução. */
+    /** As boas-vindas do escritório — dado dele, sem tradução, com os marcadores já preenchidos. */
     welcome: string;
     widgets: PortalWidgetItem[];
     /** A home inteira de uma extensão, quando há uma. */
@@ -345,8 +347,15 @@ export const usePortalViewModel = (): PortalViewModel => {
   const goHome = useCallback(() => navigate(portalTenantPath(tenantPath)), [navigate, tenantPath]);
   const homeConfig = portal.context?.home;
   const layoutChoice = homeConfig?.layout;
-  const displayName = user?.displayName && !user.displayName.includes('@') ? user.displayName.trim() : '';
-  const firstName = displayName.split(/\s+/)[0] ?? '';
+  const accountName = user?.displayName && !user.displayName.includes('@') ? user.displayName.trim() : '';
+  const welcomeValues = portalWelcomeValues({
+    profile: portal.profile,
+    accountName,
+    email: user?.email ?? '',
+    office: portal.context?.tenantName ?? '',
+  });
+  const greetsByName = !!(portal.profile.name || accountName);
+  const atProfile = entryId === PORTAL_PROFILE_ENTRY;
   const homeWidgets = useMemo<PortalWidgetItem[]>(
     () => (homeConfig?.widgets ?? []).flatMap((widget) => {
       const Component = viewByKey(widget.pluginId, widget.viewKey);
@@ -382,17 +391,18 @@ export const usePortalViewModel = (): PortalViewModel => {
     Layout: layoutChoice?.pluginId ? viewByKey(layoutChoice.pluginId, layoutChoice.viewKey) as PortalLayoutComponent | null : null,
     builtinLayout: layoutChoice?.id === 'top' ? 'top' : 'sidebar',
     atHome: !entryId,
+    atProfile,
     goHome,
     home: {
       // O nome do escritório já está na marca: a home cumprimenta a PESSOA.
-      title: firstName ? t('portal.home.greeting', { name: firstName }) : t('portal.home.greeting.anonymous'),
-      welcome: homeConfig?.welcome ?? '',
+      title: greetsByName ? t('portal.home.greeting', { name: welcomeValues.firstName }) : t('portal.home.greeting.anonymous'),
+      welcome: fillPortalWelcome(homeConfig?.welcome ?? '', welcomeValues),
       widgets: homeWidgets,
       Component: homeConfig?.view ? viewByKey(homeConfig.view.pluginId, homeConfig.view.viewKey) : null,
     },
     // Um registro aberto de dentro da página fica por cima dela; o Voltar a devolve.
     pageView: entry?.kind === 'page' && !top ? viewByKey(entry.pluginId, entry.viewKey) : null,
-    entryMissing: !!entryId && !!portal.context && !entry && !topScreen,
+    entryMissing: !!entryId && !atProfile && !!portal.context && !entry && !topScreen,
     openedRecord: top && topScreen && !topRecord
       ? (isCollectionLoading(top.collection) ? 'loading' : 'missing')
       : null,

@@ -1555,7 +1555,10 @@ const PORTAL_MODULE_DEFS = `declare module '@microteia/portal' {
     pageTitle: string;
     openEntry(id: string): void;
     goHome(): void;
+    /** The guest's name is the one they filled in their profile, else their account's; empty when neither has one. */
     user: { name: string; email: string; initials: string; photoURL: string | null };
+    /** Opens the guest's profile page, where they tell this organization their name. Offer it in a custom user corner. */
+    openProfile(): void;
     /** "Automatic" plus the themes available, as the main app offers them; the choice stays in this browser. */
     themes: Array<{ id: string; label: string; primaryColor: string; backgroundColor: string; active: boolean }>;
     setTheme(id: string): void;
@@ -1576,7 +1579,7 @@ const PORTAL_MODULE_DEFS = `declare module '@microteia/portal' {
   /** The organization's logo (or initial) and name; clicking goes home. */
   export function PortalBrand(props: { name: string; logoURL: string | null; onClick: () => void }): JSX.Element;
 
-  /** The standard user corner: who is signed in, theme, switch organization, sign out. */
+  /** The standard user corner: who is signed in, profile, theme, switch organization, sign out. */
   export function PortalUserMenu(props: { shell: PortalShell }): JSX.Element;
 
   /**

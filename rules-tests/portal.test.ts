@@ -131,6 +131,18 @@ describe('o convite', () => {
     await assertFails(setDoc(doc(asUser(env, 'gestor'), `tenants/${TENANT}/portalUsers/x`), portalUser('x', ['companies/acme'])));
   });
 
+  it('o convidado altera do próprio convite só o perfil, e só as chaves conhecidas', async () => {
+    const ana = asUser(env, 'ana');
+    await assertSucceeds(updateDoc(doc(ana, `tenants/${TENANT}/portalUsers/ana`), { profile: { name: 'Ana Souza' } }));
+    await assertSucceeds(updateDoc(doc(ana, `tenants/${TENANT}/portalUsers/ana`), { profile: {} }));
+    await assertFails(updateDoc(doc(ana, `tenants/${TENANT}/portalUsers/ana`), { profile: { name: 'x'.repeat(121) } }));
+    await assertFails(updateDoc(doc(ana, `tenants/${TENANT}/portalUsers/ana`), { profile: { name: 'Ana', cpf: '1' } }));
+    await assertFails(updateDoc(doc(ana, `tenants/${TENANT}/portalUsers/ana`), { profile: { name: 7 } }));
+    await assertFails(updateDoc(doc(ana, `tenants/${TENANT}/portalUsers/ana`), { profile: { name: 'Ana' }, subjectKeys: ['companies/globex'] }));
+    await assertFails(updateDoc(doc(ana, `tenants/${TENANT}/portalUsers/bia`), { profile: { name: 'Bia' } }));
+    await assertFails(updateDoc(doc(asUser(env, 'gestor'), `tenants/${TENANT}/portalUsers/ana`), { profile: { name: 'Outra' } }));
+  });
+
   it('a consulta de grupo acha só os próprios convites', async () => {
     await assertSucceeds(getDocs(query(collectionGroup(asUser(env, 'ana'), 'portalUsers'), where('userId', '==', 'ana'))));
     await assertFails(getDocs(query(collectionGroup(asUser(env, 'ana'), 'portalUsers'), where('userId', '==', 'bia'))));

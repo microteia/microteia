@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.154.0] — 2026-10-24
+
+- O convidado do portal ganhou a página **Meu perfil**, no menu da conta, onde informa o nome com que quer ser chamado. O escritório passa a ver esse nome na lista de convidados e nos avisos de atividade.
+- A mensagem de boas-vindas do portal aceita marcadores: `{firstName}`, `{name}`, `{email}`, `{office}` e `{profile.name}` são trocados pelos dados do convidado e do escritório. A tela de configuração mostra quais estão disponíveis.
+
 #### [9.153.0] — 2026-10-24
 
 - No portal de convidados, os campos de data voltaram a aparecer nas listas e nos detalhes dos registros — antes ficavam em branco.

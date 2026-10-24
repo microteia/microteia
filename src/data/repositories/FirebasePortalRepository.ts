@@ -5,6 +5,7 @@ import {
   getDoc,
   getDocs,
   setDoc,
+  updateDoc,
   limit,
   onSnapshot,
   orderBy,
@@ -27,8 +28,12 @@ import {
   PORTAL_DOCUMENTS_SUBCOLLECTION,
   PORTAL_RECORDS_COLLECTION,
   PORTAL_REPROJECTIONS_COLLECTION,
+  PORTAL_PROFILE_FIELD,
   PORTAL_USERS_COLLECTION,
+  asPortalProfile,
+  portalGuestName,
   portalUploadStagingPath,
+  type PortalProfile,
 } from '../../domain/schema/portal';
 import { readPortalReprojectionState, type PortalReprojectionState } from '../../domain/schema/portalReprojection';
 import { dateOf, mapPortalRecord, stringsOf, textOf } from './portalRecordMapping';
@@ -44,6 +49,7 @@ export class FirebasePortalRepository implements IPortalRepository {
         tenantId: one.ref.parent.parent?.id ?? '',
         tenantName: textOf(one.get('tenantName')),
         ...(textOf(one.get('locale')) ? { locale: textOf(one.get('locale')) } : {}),
+        profile: asPortalProfile(one.get(PORTAL_PROFILE_FIELD)),
       }))
       .filter((membership) => membership.tenantId !== '')
       .sort((a, b) => a.tenantName.localeCompare(b.tenantName));
@@ -52,6 +58,12 @@ export class FirebasePortalRepository implements IPortalRepository {
   async getContext(tenantId: string, locale: string): Promise<PortalContext> {
     const call = httpsCallable<{ tenantId: string; locale: string }, PortalContext>(functions, 'getPortalContext');
     return (await call({ tenantId, locale })).data;
+  }
+
+  async saveProfile(tenantId: string, userId: string, profile: PortalProfile): Promise<void> {
+    await updateDoc(doc(db, 'tenants', tenantId, PORTAL_USERS_COLLECTION, userId), {
+      [PORTAL_PROFILE_FIELD]: asPortalProfile(profile),
+    });
   }
 
   subscribeRecords(
@@ -208,7 +220,7 @@ export class FirebasePortalRepository implements IPortalRepository {
           .map((one) => ({
             userId: one.id,
             email: textOf(one.get('email')),
-            displayName: textOf(one.get('displayName')),
+            displayName: portalGuestName(asPortalProfile(one.get(PORTAL_PROFILE_FIELD)), textOf(one.get('displayName'))),
             subjectKeys: stringsOf(one.get('subjectKeys')),
           }))
           .sort((a, b) => a.email.localeCompare(b.email)),

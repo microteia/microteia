@@ -1,5 +1,6 @@
 import { createContext, useContext } from 'react';
 import type { PortalContext, PortalDocument, PortalLinkOption, PortalMembership, PortalRecord } from '../domain/entities/Portal';
+import type { PortalProfile } from '../domain/schema/portal';
 
 export interface PortalStoreValue {
   memberships: PortalMembership[];
@@ -43,6 +44,9 @@ export interface PortalStoreValue {
   update: (collection: string, recordId: string, data: Record<string, unknown>) => Promise<void>;
   /** O uid do convidado — o dono de um registro criado por ele (`onlyOwn`). */
   userId: string | null;
+  /** O perfil do convidado no escritório aberto — vazio enquanto ele não o preencher. */
+  profile: PortalProfile;
+  saveProfile: (profile: PortalProfile) => Promise<void>;
   /** Anexa um documento a um registro, com um dos tipos que a tela oferece. */
   uploadDocument: (collection: string, recordId: string, file: File, type: string) => Promise<void>;
 }

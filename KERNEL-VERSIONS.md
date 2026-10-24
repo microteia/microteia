@@ -18,6 +18,13 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.154.0] — 2026-10-24
+
+- feat(portal): guest profile per organization, stored in the guest's own invite (`portalUsers/{uid}.profile`). The guest edits it on the new "My profile" page (`/portal/<org>/account.profile`, from the account menu); `firestore.rules` lets the guest update only `profile`, limited to `PORTAL_PROFILE_KEYS` (`name`) and `PORTAL_PROFILE_VALUE_MAX` (120), and `scripts/portalProfileRules.test.ts` fails when the rule and the constants diverge. Accounts created by email link or password had no name, so the portal greeted guests by their email address.
+- feat(portal): the guest name is resolved by `portalGuestName` (profile first, then the account's display name) in the portal shell, the organization's guest list and the portal activity notification (`getPortalUser` / `listPortalUsers`).
+- feat(portal): the welcome message accepts placeholders in the catalog's `{name}` syntax — `{firstName}`, `{name}`, `{email}`, `{office}` and one `{profile.<key>}` per profile key, derived from `PORTAL_PROFILE_KEYS`, so a new profile key becomes a placeholder on its own. Unknown placeholders are left as written. The settings screen lists them.
+- feat(portal): `PortalShell.openProfile()` in `@microteia/portal`, and `PortalUserMenu` offers the profile. KERNEL_VERSION 2.67.0.
+
 #### [9.153.0] — 2026-10-24
 
 - fix(portal): the portal projection now reaches the view in the same shape as the office records — every Firestore Timestamp inside `PortalViewRecord.data` becomes a `Date` (`toPlainValues`, now shared by `FirebaseRecordRepository` and `FirebasePortalRepository`). The raw Timestamp made date fields blank in the native portal list and detail, and made extension cards that compare dates silently show fewer records.

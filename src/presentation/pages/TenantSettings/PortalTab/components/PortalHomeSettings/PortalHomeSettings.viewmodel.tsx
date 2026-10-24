@@ -22,6 +22,9 @@ import {
   type PortalListPreference,
 } from '../../../../../../domain/schema/portalExtensionPoints';
 import type { ScreenDefinition } from '../../../../../../domain/entities';
+import { PORTAL_WELCOME_PLACEHOLDERS } from '../../../../../../domain/entities/Portal';
+
+const welcomePlaceholders = PORTAL_WELCOME_PLACEHOLDERS.map((token) => `{${token}}`).join(', ');
 
 export interface PortalHomeListItem {
   id: string;
@@ -35,6 +38,8 @@ export interface PortalHomeListItem {
 export interface PortalHomeSettingsViewModel {
   loading: boolean;
   welcome: string;
+  /** Os marcadores aceitos nas boas-vindas, já escritos como o escritório os digita. */
+  welcomePlaceholders: string;
   setWelcome: (value: string) => void;
   /** Os layouts: os dois do kernel e os das extensões instaladas. */
   layouts: Array<{ value: string; label: string }>;
@@ -206,5 +211,5 @@ export const usePortalHomeSettingsViewModel = (): PortalHomeSettingsViewModel =>
     }
   }, [tenantId, uc.save, welcome, menu, widgets, layout, notify, t]);
 
-  return { loading, welcome, setWelcome, layouts, layout, setLayout, menu, widgets, move, toggle, saving, save };
+  return { loading, welcome, setWelcome, welcomePlaceholders, layouts, layout, setLayout, menu, widgets, move, toggle, saving, save };
 };

@@ -1243,6 +1243,29 @@ marca.
 A pilha de registros abertos é do item do menu (`PortalNavigationProvider`, escopo `escritório|item`):
 ir para o Extrato não carrega a pilha do prestador.
 
+### O perfil do convidado e os marcadores das boas-vindas
+
+O nome que o portal mostra era o da CONTA: quem entra por e-mail e senha ou por link não tem nome
+nenhum, e a home dizia "Olá, alexnaldo@…". O convidado agora o informa em **Meu perfil** (menu da
+conta, `PortalUserMenu` → `/portal/<escritório>/account.profile` — item de menu é coleção, sem ponto,
+ou `page.<plugin>.<chave>`, e este não colide com nenhum).
+
+| Decisão | Por quê |
+|---|---|
+| O perfil mora no CONVITE (`portalUsers/{uid}.profile`), e não na conta | cada escritório lê só o que o convidado informou a ELE; dado novo entra sem tocar na autenticação |
+| O convidado grava direto, sem callable | a regra deixa mudar do próprio convite só `profile`, com as chaves de `PORTAL_PROFILE_KEYS` e até `PORTAL_PROFILE_VALUE_MAX`; vínculos, escritório e quem convidou continuam do servidor. `scripts/portalProfileRules.test.ts` reprova a regra que divergir das constantes |
+| O e-mail não está no perfil | é com ele que a pessoa entra; trocá-lo é da autenticação |
+| O nome vale em todo lugar | `portalGuestName` (perfil, senão conta): a casca, a lista de convidados do escritório e o aviso de atividade (`getPortalUser`/`listPortalUsers` no servidor) |
+
+As boas-vindas aceitam marcadores, na sintaxe `{nome}` do catálogo (`fillPortalWelcome`):
+`{firstName}`, `{name}`, `{email}`, `{office}` e um `{profile.<chave>}` por chave do perfil — gerado de
+`PORTAL_PROFILE_KEYS`, e por isso a chave nova do perfil vira marcador sem mudar o resto. O nome cai no
+da conta e depois no e-mail, para a frase nunca ficar com um buraco; o marcador desconhecido fica como
+o escritório o escreveu. A dica da configuração lista os marcadores a partir da mesma constante.
+
+`PortalShell.openProfile` (KERNEL_VERSION 2.67.0) leva ao perfil a casca de uma extensão que desenhe o
+próprio canto da conta.
+
 ### Anexar pelo portal — `portal.uploads`
 
 ```ts

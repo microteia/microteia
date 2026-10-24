@@ -56,6 +56,7 @@ export const PortalHomeSettings: React.FC = () => {
             onChange={(event) => vm.setWelcome(event.target.value)}
             placeholder={t('portal.settings.welcome.placeholder')}
           />
+          <S.Hint>{t('portal.settings.welcome.hint', { placeholders: vm.welcomePlaceholders })}</S.Hint>
 
           <Label>{t('portal.settings.menu')}</Label>
           {vm.menu.length === 0 ? <S.Hint>{t('portal.settings.menu.empty')}</S.Hint> : list('menu', vm.menu)}

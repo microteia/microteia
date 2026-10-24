@@ -237,12 +237,22 @@ service cloud.firestore {
       }
 
       // ─── Portal ──────────────────────────────────────────────────────────────
-      // Quem é de FORA do escritório. Só o servidor grava (as callables de convite e revogação), e o
+      // Quem é de FORA do escritório. O servidor cria e apaga (as callables de convite e revogação), e o
       // convidado lê o próprio convite — é dele que a casca do portal tira o nome do escritório.
+      // O convidado altera do próprio convite só o `profile`, com as chaves de `PORTAL_PROFILE_KEYS`
+      // (`domain/schema/portal.ts`) e o limite de `PORTAL_PROFILE_VALUE_MAX`: o resto — vínculos,
+      // escritório, quem convidou — continua do servidor.
       match /portalUsers/{portalUserId} {
         allow read: if (request.auth != null && request.auth.uid == portalUserId)
           || can(tenantId, 'portal.manage');
-        allow write: if false;
+        allow update: if request.auth != null && request.auth.uid == portalUserId
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['profile'])
+          && request.resource.data.profile is map
+          && request.resource.data.profile.keys().hasOnly(['name'])
+          && (!('name' in request.resource.data.profile)
+              || (request.resource.data.profile.name is string
+                  && request.resource.data.profile.name.size() <= 120));
+        allow create, delete: if false;
       }
 
       // A PROJEÇÃO do que cada tela expõe: só os campos declarados, carimbada com quem pode ver. A
