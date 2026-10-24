@@ -551,6 +551,31 @@ describe('Upgrade — atualização de versão', () => {
     expect(keys).toContain('n');
   });
 
+  it('a janela de edição que o escritório pôs sobrevive à atualização que não declara nenhuma', async () => {
+    await applyPackageArtifacts(deps(), version('1.0.0', [screenT('a')]), actor);
+    screens.store.set(KEY_A, { ...screens.store.get(KEY_A)!, editWindow: { minutes: 15, delete: true } });
+
+    await applyPackageArtifacts(deps(), version('1.1.0', [screenT('a')]), actor);
+
+    expect(screens.store.get(KEY_A)!.editWindow).toEqual({ minutes: 15, delete: true });
+  });
+
+  it('a janela que o PACOTE declara vence a que estava', async () => {
+    await applyPackageArtifacts(deps(), version('1.0.0', [screenT('a')]), actor);
+    screens.store.set(KEY_A, { ...screens.store.get(KEY_A)!, editWindow: { minutes: 15 } });
+
+    await applyPackageArtifacts(deps(), version('1.1.0', [{ ...screenT('a'), editWindow: { minutes: 30 } }]), actor);
+
+    expect(screens.store.get(KEY_A)!.editWindow).toEqual({ minutes: 30 });
+  });
+
+  it('a versão que retira a própria janela não a retira do escritório — retirar é gesto de pessoa', async () => {
+    await applyPackageArtifacts(deps(), version('1.0.0', [{ ...screenT('a'), editWindow: { minutes: 15 } }]), actor);
+    await applyPackageArtifacts(deps(), version('1.1.0', [screenT('a')]), actor);
+
+    expect(screens.store.get(KEY_A)!.editWindow).toEqual({ minutes: 15 });
+  });
+
   it('atualiza in-place PRESERVANDO os ids (sem regenerar) quando a revisão não muda', async () => {
     await applyPackageArtifacts(deps(), version('1.0.0', [screenT('a')]), actor);
     const actionIdBefore = (await actions.getAll('t1'))[0].id;

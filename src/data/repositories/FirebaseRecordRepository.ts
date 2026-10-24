@@ -26,6 +26,8 @@ import { toPlainValues } from '../utils/plainValues';
 import type { RecordKeyConflict } from '../utils/recordRulesGate';
 import {
   applyRecordRules,
+  editWindowFor,
+  EditWindowClosedError,
   loadRecordBaseline,
   makeRecordDeriver,
   planRecordKeysFor,
@@ -34,6 +36,7 @@ import {
   tableHasRecordKeys,
 } from '../utils/recordRulesGate';
 import type { RecordKeyEntry } from '../../domain/schema/recordKeys';
+import { changedRecordKeys, editWindowAllowsDelete, editWindowAllowsUpdate } from '../../domain/schema/editWindow';
 import {
   diffRecordKeys,
   recordKeyRefs,
@@ -257,13 +260,23 @@ export class FirebaseRecordRepository implements IRecordRepository {
     data: EntityRecordValues,
   ): Promise<void> {
     const hasKeys = tableHasRecordKeys(collection);
+    const editWindow = editWindowFor(collection);
     // A coleção com chave precisa do registro inteiro de qualquer jeito: uma chave composta cujo
     // update toca um campo só continua sendo a mesma chave, e planejar sobre o payload parcial
-    // reservaria metade dos valores vazios.
-    const baseline = hasKeys
+    // reservaria metade dos valores vazios. A janela de edição também: ela pergunta o que MUDA, e
+    // quando o registro nasceu.
+    const baseline = hasKeys || editWindow
       ? await this.readRaw(tenantId, collection, recordId)
       : await loadRecordBaseline(collection, doc(recordsRef(tenantId, collection), recordId));
     const ruled = applyRecordRules(collection, stripIdentity(data), baseline);
+
+    if (editWindow && baseline) {
+      const allowed = editWindowAllowsUpdate(editWindow.spec, baseline.createdAt, new Date(), {
+        changedKeys: changedRecordKeys(baseline, ruled as Record<string, unknown>),
+        memberWritableFields: editWindow.memberWritableFields,
+      });
+      if (!allowed) throw new EditWindowClosedError(editWindow.spec.minutes, 'update');
+    }
 
     if (!hasKeys) {
       await updateDoc(doc(recordsRef(tenantId, collection), recordId), {
@@ -314,12 +327,27 @@ export class FirebaseRecordRepository implements IRecordRepository {
     return snap.exists() ? (snap.data() as Record<string, unknown>) : undefined;
   }
 
+  /**
+   * Recusa a exclusão que a janela de edição trava, ANTES de qualquer escrita. Existe separado de
+   * `delete` porque a cascata do caso de uso apaga anotações e documentos primeiro: conferir só no
+   * fim deixaria a prova sem os anexos dela.
+   */
+  async ensureDeletable(tenantId: string, collection: string, recordId: string): Promise<void> {
+    const editWindow = editWindowFor(collection);
+    if (!editWindow || editWindow.spec.delete !== true) return;
+    const raw = await this.readRaw(tenantId, collection, recordId);
+    if (raw && !editWindowAllowsDelete(editWindow.spec, raw.createdAt, new Date())) {
+      throw new EditWindowClosedError(editWindow.spec.minutes, 'delete');
+    }
+  }
+
   async delete(
     tenantId: string,
     collection: string,
     recordId: string,
     actor: DeletionActor,
   ): Promise<void> {
+    await this.ensureDeletable(tenantId, collection, recordId);
     const ref = doc(recordsRef(tenantId, collection), recordId);
     await stampDeletionActor(ref, actor);
     if (!tableHasRecordKeys(collection)) {

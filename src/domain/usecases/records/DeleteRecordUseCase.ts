@@ -9,13 +9,17 @@ export type DeleteRecordUseCase = {
   execute: (tenantId: string, collection: string, recordId: string, actor: DeletionActor) => Promise<void>;
 };
 
-/** Cascata: anotações e documentos do registro saem antes dele. */
+/**
+ * Cascata: anotações e documentos do registro saem antes dele — e por isso a recusa da janela de
+ * edição vem antes de tudo.
+ */
 export const makeDeleteRecordUseCase = (
   repo: IRecordRepository,
   noteRepo: IRecordNoteRepository,
   documentRepo: IRecordDocumentRepository,
 ): DeleteRecordUseCase => ({
   execute: async (tenantId, collection, recordId, actor) => {
+    await repo.ensureDeletable(tenantId, collection, recordId);
     const [notes, documents] = await Promise.all([
       noteRepo.getNotes(tenantId, collection, recordId),
       documentRepo.getDocuments(tenantId, collection, recordId),

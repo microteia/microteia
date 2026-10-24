@@ -37,6 +37,12 @@ export interface IRecordRepository {
     recordId: string,
     data: EntityRecordValues,
   ): Promise<void>;
+  /**
+   * Recusa, antes de qualquer escrita, a exclusão que a tela não permite mais — a janela de edição com
+   * `delete: true`. É o que a cascata chama primeiro, para não apagar os anexos de um registro que
+   * fica.
+   */
+  ensureDeletable(tenantId: string, collection: string, recordId: string): Promise<void>;
   delete(tenantId: string, collection: string, recordId: string, actor: DeletionActor): Promise<void>;
   hasRecords(tenantId: string, collection: string): Promise<boolean>;
 }

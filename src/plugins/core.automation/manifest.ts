@@ -78,6 +78,15 @@ export const coreAutomationPlugin: PluginRecord = {
         icon: 'team',
         variables: ['guest', 'screen', 'record'],
       }),
+      // A adoção de chaves acha duplicatas antigas por vários gatilhos, e nenhum deles é um gesto de
+      // quem resolve: sem este aviso, só sabia quem abrisse a listagem.
+      notificationCategoryContribution({
+        key: 'record-key-conflicts',
+        title: '@core.records/key.adoption.notice.category',
+        description: '@core.records/key.adoption.notice.category.description',
+        icon: 'key',
+        variables: ['screen', 'keys', 'count'],
+      }),
       page({ key: NOTIFICATIONS_PAGE_KEY, title: '@core.automation/page.notifications', icon: 'notification' }, 'NotificationsView'),
       settingsSection({
         key: 'notifications',

@@ -17,6 +17,7 @@ import type {
 } from '../schema/fieldRules';
 import type { RecordKeySpec } from '../schema/recordKeys';
 import type { PortalDeclaration } from '../schema/portal';
+import type { EditWindowSpec } from '../schema/editWindow';
 
 // ─── Tipos de Campos Customizados ─────────────────────────────────────────────
 
@@ -269,6 +270,20 @@ export interface ScreenDefinition {
    * `firestore.rules` a lê do documento da tela, e a UI mostra a ação de excluir por ela.
    */
   authorCanDelete?: boolean | null;
+  /**
+   * Por quanto tempo, a partir de `createdAt`, um registro pode ser alterado — e, com `delete: true`,
+   * excluído. Ausente (o normal) = sem prazo. É para o registro que vale como prova do que foi dito ou
+   * feito: depois de lido, mudar o texto muda a prova.
+   *
+   * Vale nas três pontas: o formulário trava, os caminhos de gravação recusam, e o `firestore.rules`
+   * recusa quem grava direto no banco. Ninguém passa por cima em tempo de execução — nem o dono —; o
+   * que muda a janela é mudar a declaração, e isso exige `screens.edit-window` (no Form Design) ou
+   * `extensions.manage`, e fica na auditoria.
+   *
+   * Guardado COMO ESTÁ gravado (o Form Design reenviaria uma forma normalizada como alteração); quem a
+   * interpreta passa por `readEditWindow`. Ver `domain/schema/editWindow.ts`.
+   */
+  editWindow?: EditWindowSpec | null;
   /**
    * O que esta tela expõe no PORTAL — a quem é de fora do escritório, só o que é dele. Ausente (o
    * normal) = nada desta tela sai do escritório. Ver `domain/schema/portal.ts`.

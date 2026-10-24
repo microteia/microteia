@@ -23,6 +23,7 @@ import { useRecordDocumentsPort, useRecordNotesPort } from '../entityScreen/useR
 import type { RecordDetailViewModel } from '../../components/layout/RecordDetailSurface';
 import type { CustomFieldValue, EntityRecord } from '../../../domain/entities';
 import { useTagAdapter } from '../entityScreen/useTagAdapter';
+import { useEditWindow } from '../entityScreen/useEditWindow';
 import { isBoundScreen, screenDataCollection } from '../../../domain/services/screenDataCollection';
 import { screenForDisplay, useEntityFormFields, useResolvedFields } from '../useEntityFormFields';
 
@@ -214,10 +215,16 @@ export const useEntityDetailVM = (
   // posse. Espelha o `firestore.rules`.
   // Gravar um registro NOVO é criar; gravar um que já existe é alterar. São permissões diferentes, e
   // a mesma tela serve às duas — é por isso que a conta é feita aqui, e não uma vez só.
-  const canSave = can(`${collection}.${detail.isNew ? 'create' : 'update'}`);
+  //
+  // A janela de edição soma às permissões, nunca as substitui: depois do prazo, nem quem tem
+  // `update` grava — e a regra do Firestore recusaria do mesmo jeito.
+  const editWindow = useEditWindow(definition?.editWindow, sourceRecord?.createdAt, detail.isNew);
+  const isEditLocked = editWindow !== null && !editWindow.isOpen;
+  const canSave = can(`${collection}.${detail.isNew ? 'create' : 'update'}`) && !isEditLocked;
 
-  const canDelete = canDeleteRecords
-    || (!!definition?.authorCanDelete && !!sourceRecord && sourceRecord.createdBy === user?.id);
+  const canDelete = (canDeleteRecords
+    || (!!definition?.authorCanDelete && !!sourceRecord && sourceRecord.createdBy === user?.id))
+    && (editWindow?.canDelete ?? true);
 
   return {
     definition,
@@ -230,6 +237,8 @@ export const useEntityDetailVM = (
     canDeleteRecordParts: canDeleteRecords,
     canManageDocumentTypes,
     canDelete,
+    editWindow,
+    isEditLocked,
     screenKey,
     recordId,
     recordNotFound: detail.recordNotFound,

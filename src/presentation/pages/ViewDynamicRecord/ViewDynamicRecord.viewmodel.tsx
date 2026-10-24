@@ -36,6 +36,8 @@ import type {
 import type { TagStoreAdapter } from '../../components/ui/TagManager';
 import type { EntityDetailExtraTab, EntityDetailTab } from '../../components/layout/EntityDetailView';
 import { useTagAdapter } from '../../shared/entityScreen/useTagAdapter';
+import { useEditWindow } from '../../shared/entityScreen/useEditWindow';
+import type { EditWindowState } from '../../shared/entityScreen/useEditWindow';
 import { hiddenParentFieldKey, isBoundScreen, isOwnedByParentScreen, screenDataCollection } from '../../../domain/services/screenDataCollection';
 import { parentLinkValue } from '../../../domain/services/parentLock';
 import { autoValueFields, generateAutoValue } from '../../../domain/services/autoValue';
@@ -65,6 +67,10 @@ export interface ViewDynamicRecordViewModel {
   canManageDocumentTypes: boolean;
   /** Excluir é de admin — ou do autor, quando a tela declara `authorCanDelete`. */
   canDelete: boolean;
+  /** A janela de edição do registro. `null` = a tela não declara prazo, ou o registro é novo. */
+  editWindow: EditWindowState | null;
+  /** O prazo passou: os campos travam e salvar some, com o motivo à vista. */
+  isEditLocked: boolean;
   screenKey: string;
   recordId: string | null;
   activeTab: EntityDetailTab;
@@ -342,10 +348,16 @@ export const useViewDynamicRecordViewModel = (tabKey: string): ViewDynamicRecord
   // posse. Espelha o `firestore.rules`.
   // Gravar um registro NOVO é criar; gravar um que já existe é alterar. São permissões diferentes, e
   // a mesma tela serve às duas — é por isso que a conta é feita aqui, e não uma vez só.
-  const canSave = can(`${collection}.${detail.isNew ? 'create' : 'update'}`);
+  //
+  // A janela de edição soma às permissões, nunca as substitui: depois do prazo, nem quem tem
+  // `update` grava — e a regra do Firestore recusaria do mesmo jeito.
+  const editWindow = useEditWindow(definition?.editWindow, sourceRecord?.createdAt, detail.isNew);
+  const isEditLocked = editWindow !== null && !editWindow.isOpen;
+  const canSave = can(`${collection}.${detail.isNew ? 'create' : 'update'}`) && !isEditLocked;
 
-  const canDelete = canDeleteRecords
-    || (!!definition?.authorCanDelete && !!sourceRecord && sourceRecord.createdBy === user?.id);
+  const canDelete = (canDeleteRecords
+    || (!!definition?.authorCanDelete && !!sourceRecord && sourceRecord.createdBy === user?.id))
+    && (editWindow?.canDelete ?? true);
 
   return {
     definition,
@@ -359,6 +371,8 @@ export const useViewDynamicRecordViewModel = (tabKey: string): ViewDynamicRecord
     canDeleteRecordParts: canDeleteRecords,
     canManageDocumentTypes,
     canDelete,
+    editWindow,
+    isEditLocked,
     screenKey,
     recordId,
     activeTab: detail.activeTab,

@@ -1069,6 +1069,8 @@ export const CORE_AUTOMATION: Record<string, string> = {
   'mutation.remove.invalid': 'Exclusão inválida: {detail}',
   'mutation.upsert.invalid': 'Gravação inválida: {detail}',
   'mutation.upsert.not-found': 'O registro a alterar não existe mais.',
+  'mutation.upsert.edit-window-closed': 'Este registro não pode mais ser alterado: a tela dele só permite alterações até {minutes} minutos depois da criação.',
+  'mutation.remove.edit-window-closed': 'Este registro não pode mais ser excluído: a tela dele só permite excluí-lo até {minutes} minutos depois da criação.',
   'mutation.upsert.key-conflict':
     'Outro registro já ocupa a chave "{key}" com o valor {value}.',
   'mutation.upsert.key-required': 'A chave "{key}" precisa de valor: {fields}.',

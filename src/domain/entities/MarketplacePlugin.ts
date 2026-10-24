@@ -6,6 +6,7 @@ import type { WorkflowDefinition } from './Workflow';
 import type { Script } from './Script';
 import type { ActionDefinition } from './Action';
 import type { PortalDeclaration } from '../schema/portal';
+import type { EditWindowSpec } from '../schema/editWindow';
 import type { CustomFieldOption, FieldDefinition, RecordKeySpec, ScreenListAction } from './entitySchemas';
 
 /**
@@ -77,6 +78,8 @@ export interface ScreenModuleTemplate {
   memberWritableFields?: string[] | null;
   /** O autor exclui o que criou. Ver `ScreenDefinition.authorCanDelete`. */
   authorCanDelete?: boolean | null;
+  /** Prazo para alterar (e excluir) o registro depois de criado. Ver `ScreenDefinition.editWindow`. */
+  editWindow?: EditWindowSpec | null;
   /** O que a tela expõe no portal. Ver `ScreenDefinition.portal`. */
   portal?: PortalDeclaration | null;
   listActions?: ScreenListAction[];

@@ -24,6 +24,7 @@ import { recordTabPtBrContribution } from './recordTabMessagesPtBr';
  * | the children of the open record | `useEntityList(sourceId, { parent: { fieldKey, recordId } })` |
  * | ...also through a `multi` field, or any of several | `parent: { fieldKeys: [...], recordId }` — "contains" on a `multi` |
  * | a menu entry, with a badge, for a screen with no view | `nav({ screen: '<screen key>', badge })` |
+ * | a record that freezes after a while | `editWindow: { minutes, delete? }` on the screen |
  *
  * The tab is addressed by the screen's `sourceId`, never by its installed key: the key may be
  * disambiguated on install, the `sourceId` does not change. That is also what lets a tab go on a screen
@@ -107,6 +108,41 @@ const MILESTONE_SCREEN: ScreenModuleTemplate = {
   hideFromSidebar: true,
 };
 
+const UPDATE_FIELDS: TemplateField[] = [
+  { key: 'project', label: message('field.project'), type: 'reference', required: true, order: 0, refEntity: 'recordTabProject' },
+  { key: 'text', label: message('field.update'), type: 'textarea', required: true, order: 1 },
+];
+
+/**
+ * A status update posted on a project: a record that is EVIDENCE of what was said. It can be fixed for
+ * 15 minutes after it is created — a typo, a wrong number — and then it stays as it is. `delete: true`
+ * freezes deleting too: an update that can vanish proves nothing either.
+ *
+ * The window is enforced in three places, all derived from this one declaration: the form locks its
+ * fields and says until when, every write path (an automation, a script, the AI agent, the portal)
+ * refuses, and the security rules refuse whoever writes to the database directly. Nobody overrides it
+ * at run time; the only way to reopen it is to change the declaration — in the Form Design, with the
+ * `screens.edit-window` permission, or with a version of this extension that declares another window.
+ *
+ * Unlike Milestone, this screen IS a child of Project, so it shows up as the generic child-screen tab:
+ * no code is needed to list the updates of the open project.
+ */
+const UPDATE_SCREEN: ScreenModuleTemplate = {
+  key: 'recordTabUpdate',
+  sourceId: 'microteia:record-tab-example:update',
+  sourceRev: 1,
+  titleSingular: message('screen.update'),
+  titlePlural: message('screen.update.plural'),
+  icon: 'message',
+  fields: UPDATE_FIELDS,
+  titleFieldKey: 'text',
+  eventPrefix: 'recordTabUpdate',
+  parentEntity: 'recordTabProject',
+  parentFieldKey: 'project',
+  parentRelation: 'owned',
+  editWindow: { minutes: 15, delete: true },
+};
+
 const ABOUT: WidgetSpec = {
   type: 'stack',
   gap: 'lg',
@@ -129,8 +165,9 @@ const TIMELINE_SOURCE = mergeViewSources({
 export const recordTabExamplePlugin: MarketplacePlugin = {
   manifest: {
     id: 'com.microteia.record-tab-example',
-    version: '1.3.0',
-    kernel: '^2.51.0',
+    version: '1.4.0',
+    // `editWindow` exists from kernel 2.68.0 on; an older kernel would ignore it, and `check` refuses.
+    kernel: '^2.68.0',
     name: message('package.name'),
     description: message('package.description'),
     category: message('package.category'),
@@ -190,7 +227,7 @@ export const recordTabExamplePlugin: MarketplacePlugin = {
   },
   summary: message('package.summary'),
   workflows: [],
-  screens: [PROJECT_SCREEN, MILESTONE_SCREEN],
+  screens: [PROJECT_SCREEN, MILESTONE_SCREEN, UPDATE_SCREEN],
   views: [
     { key: 'timeline', title: message('tab.timeline'), icon: 'calendarSchedule', source: TIMELINE_SOURCE },
   ],

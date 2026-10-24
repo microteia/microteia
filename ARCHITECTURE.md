@@ -6117,6 +6117,9 @@ vence, cada canal falha sozinho.
 | `dedupKey` | Mesma chave, um aviso só: `notification_dispatches/{hash}` é criado com `create()`; a segunda vez é recusa calada (`step.notify.duplicate`), sem e-mail repetido. Servidor só; TTL como o do sino. |
 | `recipientPermissions: string[]` | Recebe quem tem TODAS — a interseção. O passo manda uma só; o portal manda duas. |
 
+**A adoção de chaves avisa quem administra as telas** (`core.automation/record-key-conflicts`): ver
+"Adoção sobre dados que já existem".
+
 **O portal avisa o escritório.** Criar, alterar e anexar pelo portal despacham
 `core.automation/portal-activity` para quem tem `<coleção>.update` E `portal.activity` — numa
 prefeitura, muitos alteram os dados de uma empresa; poucos são os responsáveis técnicos. A tela
@@ -12245,6 +12248,19 @@ formatação que falta (`blocked` — a gravação da tela que a traz retoma), o
 registros sem valor. Quem só usa a tela não vê nada: o valor novo repetido já é recusado com a mensagem
 de sempre.
 
+**E a notificação, porque a adoção não tem dono do gesto.** Ela roda por vários gatilhos — salvar uma tela,
+instalar uma extensão, alguém abrir a lista — e nenhum deles é um gesto de quem resolve; o aviso da
+listagem só chega a quem a abre, e a linha da Auditoria é HIGH (não acende o selo, que é de falha). Por
+isso a passada que termina com conflitos despacha o tipo `core.automation/record-key-conflicts`
+(`recordKeyConflictNotice`, pura; `notifyRecordKeyConflicts`, que resolve a tela e os rótulos dos campos
+no idioma do escritório) para quem tem `screens.manage`, com link para a listagem. Um aviso por passada
+(`dedupKey` com `generation`): as reconferências de cada registro corrigido não o repetem. Passada que só
+reservou, ou pendente só por falha de leitura, não avisa. Cada pessoa silencia o tipo, por canal, em
+Notificações; falhar ao avisar não toca a adoção.
+
+Não é uma automação no gatilho `audit.recorded`, e não por acaso: o log da adoção é de autor `system`, e a
+trava causal daquele gatilho descarta log de máquina — de propósito, contra laço.
+
 **O limite.** Um cliente com a declaração antiga em memória por um instante pode gravar sem reservar; um
 registro novo cujo id cai antes do cursor da passada não é visto por ela. É a mesma janela que qualquer
 chave declarada sempre teve, e a reconferência não a fecha. Uma assinatura nova (mudar a declaração)
@@ -12286,6 +12302,128 @@ A frase "não há restrição de unicidade nesta plataforma" era **derivada** e 
 prompt de modelagem e o `AUTHORING.md`. Todas viraram a declaração da chave, cada uma no seu tom. Uma
 afirmação sobre o kernel num documento gerado é derivada, nunca escrita à mão — e este foi o teste dessa
 regra em escala.
+
+---
+
+## Janela de edição — o registro que vale como prova
+
+Uma mensagem ao cliente, um apontamento de horas, um lançamento: depois de lido, mudar o texto muda a
+prova. Nenhuma peça que existia fechava a conta — `disabledWhen` trava só a tela, `rules.validate` vale no
+formulário e no `upsert` mas o Firestore não o conhece, e a expressão de campo nem enxerga `createdAt`. Cada
+extensão inventaria a própria trava, e nenhuma seria segurança. A tela agora **declara**:
+
+```ts
+editWindow: { minutes: 15, delete: true }
+```
+
+Contada de `createdAt`. `delete` ausente = excluir segue só a permissão da coleção.
+
+### Três pontas, uma declaração
+
+| Ponta | Onde | O que faz |
+|---|---|---|
+| Formulário | `useEditWindow` (`shared/entityScreen/`), nos dois VMs de detalhe e na lista | trava os campos (`CustomFieldsSection disabled`), tira salvar e excluir, e diz até quando — aberta, "pode ser alterado até…"; fechada, o motivo. Um temporizador fecha o formulário no instante exato, sem relógio no render |
+| Caminhos de gravação | `FirebaseRecordRepository` (front) e `runWorkflowUpsert`/`runWorkflowRemove` (backend) | recusam antes de escrever. O backend é o ponto único por onde passam passo de automação, `upsert()` de Script, agente (MCP) e portal |
+| `firestore.rules` | curinga das telas | recusa `update` (e `delete`) quando `request.time >= createdAt + minutos`. É a única que alcança quem grava direto no banco |
+
+A conta das duas primeiras é a mesma função (`domain/schema/editWindow.ts`, sincronizada) e espelha a
+regra linha a linha — inclusive no que ela faz com o defeito: **fecha**. Declaração malformada vira
+`minutes: 0` (a regra nega o `minutes` que não é inteiro positivo), e registro sem `createdAt` legível está
+fechado, não aberto para sempre (`is timestamp` falha no ausente).
+
+### As três travas da regra
+
+1. **Na criação, `createdAt == request.time`.** Sem isso, nascer com `createdAt` no ano 3000 compraria uma
+   janela eterna. Só nas telas com janela: o repositório já grava `serverTimestamp()`.
+2. **Na alteração, `createdAt` não muda** — regravá-lo reabriria a janela. Vale também dentro do prazo.
+3. **Fora do prazo, só passa o que não é conteúdo:** os `memberWritableFields` (marcar como lida, curtir) mais
+   `updatedAt`/`updatedVia`, e — com a exclusão livre — o carimbo `deletedBy*` que `stampDeletionActor` grava
+   logo antes da exclusão. Sem essa última isenção, a janela travaria por tabela a exclusão que não declarou
+   travar. Com `delete: true`, o carimbo também é recusado, e a exclusão nem começa.
+
+A janela e os campos de membro são lidos de `screenDefinitions/<coleção>`, o documento que a regra lê. Quando
+outra tela descreve a coleção (`dataCollection`), `ensureTargetCollectionScreen` copia `editWindow` para esse
+documento como já copiava `memberWritableFields` e `authorCanDelete`, e `indexScreens` faz o `SchemaContext`
+responder pelo mesmo documento — senão o backend aceitaria o que a regra recusa, ou o contrário.
+
+### O que "alterar" quer dizer
+
+É o `diff(...).affectedKeys()` da regra: a chave cujo valor de fato muda. `changedRecordKeys` reproduz isso
+nas duas pontas, comparando instantes pelo instante (o `Timestamp` gravado contra o `Date` reenviado). O
+formulário manda todos os campos; reenviar o mesmo valor não é alteração.
+
+### O que NÃO é barrado
+
+- **Criar.** A janela começa no registro.
+- **O que não é gravação de negócio**: o recálculo de agregados e a adoção de chave gravam pelo Admin SDK sem
+  passar por `runWorkflowUpsert`, e de propósito não conferem a janela.
+- **O carimbo do fluxo logo depois da criação** (o lado e o autor de uma mensagem): cabe na janela.
+
+### Ninguém passa por cima — a decisão
+
+Nem o dono, nem `SYSTEM`, nem uma permissão declarada. A prova vale porque ninguém de dentro do produto a
+reescreve; um "administrador passa por cima" reduziria a garantia à confiança em quem tem o perfil mais alto,
+que é exatamente quem a prova precisa alcançar. O registro que precisa de correção depois do prazo ganha
+OUTRO registro que o corrige, como num lançamento contábil. E a decisão é assimétrica a favor de começar
+fechado: acrescentar uma permissão de exceção depois seria aditivo; retirá-la quebraria escritórios que já
+dependessem dela.
+
+O que reabre a janela é **mudar a declaração** — e isso exige `screens.edit-window` (permissão própria do
+kernel, que arrasta `screens.manage`) ou `extensions.manage`. A regra de `screenDefinitions` compara o VALOR
+de `editWindow` (ausente == `null`, porque o Form Design reenvia a tela inteira): quem só tem
+`screens.manage` salva a tela normalmente, mas não abre, não alarga e não retira a janela. A troca fica na
+auditoria, como toda gravação em `screenDefinitions`.
+
+### No Form Design — a aba "Prazo para alteração"
+
+Mesmo molde da aba Portal: aparece para quem tem `screens.edit-window` (a regra que a cobra), em tela nova
+ou existente, e só grava quando foi tocada — reenviar o valor lido mudaria a forma dele, e a regra
+cobraria a permissão de quem só mexeu no título. `null` desliga e apaga (a gravação é `updateDoc`). Minutos
+passam pelo mesmo portão do `check` (`editWindowIssue`).
+
+- **Tela com `dataCollection`.** A regra lê o documento da COLEÇÃO; salvar só na tela deixaria o prazo no
+  formulário e fora da regra. O Form Design grava também nesse documento.
+- **Tela de extensão.** Fica editável — na Curatino, toda tela é de extensão, e só leitura ali seria não ter
+  o recurso. A aba avisa a regra da atualização: **o que o pacote declara vence; a ausência não apaga**
+  (`upsertPluginScreens` e `ensureTargetCollectionScreen`: `input.editWindow ?? existing.editWindow`). Uma
+  versão que retira a própria janela deixa a que valia: retirar uma trava de prova é gesto de pessoa, com a
+  permissão, nunca efeito colateral de atualizar.
+
+### A exclusão e a cascata
+
+`DeleteRecordUseCase` apaga anotações e documentos ANTES do registro, e `FirestoreWorkflowMutationRepository.delete`
+também. Recusar só no fim deixaria a prova sem os anexos. Por isso `IRecordRepository.ensureDeletable` é a
+primeira chamada do caso de uso, e `runWorkflowRemove` confere antes de chamar o repositório.
+
+### O limite, dito com todas as letras
+
+- **Anotações e documentos do registro têm regra própria** e não estão sob a janela: ela protege o documento do
+  registro. O que a cascata faria com eles está coberto acima; a exclusão direta de uma anotação, não.
+- **Sem `delete: true`, apagar e recriar continua possível** — com `createdAt` novo, e a auditoria registra as
+  duas pontas.
+- **O relógio do navegador decide o que a tela mostra; o do servidor, o que grava.** Com o relógio local
+  atrasado, o formulário pode parecer aberto e a regra recusar — a recusa chega como `permission-denied`.
+- **O backend lê a declaração por um cache de 5 minutos** (`ScreenDefinitionCache`); a regra, na hora. Uma
+  janela recém-instalada vale imediatamente contra o cliente e em até 5 minutos na automação.
+
+### Kernel e pacote
+
+**Kernel `2.68.0`** (`EDIT_WINDOW_SINCE_KERNEL`, citado no AUTHORING §8). `packageEditWindowIssues` recusa
+`minutes` que não é inteiro positivo, `delete` que não é booleano, e um `kernel` que admita versão anterior —
+um kernel antigo descarta a chave ao materializar a tela, e o registro que a extensão promete congelar ficaria
+editável para sempre, sem aviso. É recusa de GARANTIA, como a de `portal.visibleWhen`.
+
+| Arquivo | Papel |
+|---|---|
+| `domain/schema/editWindow.ts` | declaração, leitura como a regra lê, prazo, o que passa, `changedRecordKeys` (compartilhado) |
+| `domain/usecases/plugins/pluginEditWindow.ts` | o `check` do pacote |
+| `data/repositories/FirebaseRecordRepository.ts` | recusa no update, no delete e em `ensureDeletable` (`EditWindowClosedError`) |
+| `functions/src/infrastructure/workflow/mutation/runWorkflowMutation.ts` | recusa no backend |
+| `presentation/shared/entityScreen/useEditWindow.ts` | estado, aviso e temporizador do formulário; relógio da lista |
+| `pages/ScreenBuilder/components/ScreenEditWindowPanel/` | a aba do Form Design |
+| `functions/src/infrastructure/agent/describeScreen.ts` | o agente vê a janela antes de tentar |
+| `rules-tests/editWindow.test.ts` | a regra, contra o emulador |
+| `examples/record-tab-example` | a tela "Atualização", que congela 15 minutos depois de criada |
 
 ---
 

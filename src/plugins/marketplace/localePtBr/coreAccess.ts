@@ -197,6 +197,9 @@ export const CORE_ACCESS: Record<string, string> = {
   'permission.members.manage': 'Gerenciar membros',
   'permission.members.manage.description':
     'Incluir e remover pessoas do escritório, e escolher os perfis de acesso de cada uma.',
+  'permission.screens.edit-window': 'Definir o prazo para alterar registros',
+  'permission.screens.edit-window.description':
+    'Definir, mudar ou retirar no Form Design o prazo de uma tela — por quanto tempo depois de criado um registro ainda pode ser alterado ou excluído.',
   'permission.portal.manage': 'Gerenciar o portal',
   'permission.portal.activity': 'Receber a atividade do portal',
   'permission.portal.activity.description':

@@ -54,6 +54,9 @@ export const ViewDynamicRecordView: React.FC<{ tabKey: string }> = ({ tabKey }) 
 
   const dataContent = (
     <S.FormWrapper>
+      {vm.editWindow && (
+        <InfoBanner variant={vm.isEditLocked ? 'warning' : 'info'} message={vm.editWindow.notice} />
+      )}
       <CustomFieldsSection
         entity={vm.collection}
         fields={vm.sortedFields}
@@ -64,6 +67,7 @@ export const ViewDynamicRecordView: React.FC<{ tabKey: string }> = ({ tabKey }) 
         fileUpload={vm.fileUpload ?? undefined}
         isNew={vm.isNew}
         isDirty={vm.isDirty}
+        disabled={vm.isEditLocked}
       />
     </S.FormWrapper>
   );

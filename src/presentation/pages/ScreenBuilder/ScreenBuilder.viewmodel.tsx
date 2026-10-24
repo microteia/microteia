@@ -1,7 +1,14 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { useTheme } from 'styled-components';
 import { useAuthorization } from '../../../stores/useAuthorization';
-import { PERMISSION_PORTAL_MANAGE } from '../../../domain/schema/access/kernelPermissions';
+import { PERMISSION_PORTAL_MANAGE, PERMISSION_SCREENS_EDIT_WINDOW } from '../../../domain/schema/access/kernelPermissions';
+import {
+  EMPTY_EDIT_WINDOW_FORM,
+  editWindowFormIsValid,
+  fromEditWindowForm,
+  toEditWindowForm,
+} from './components/ScreenEditWindowPanel/screenEditWindowForm';
+import type { EditWindowFormState } from './components/ScreenEditWindowPanel/screenEditWindowForm';
 import { portalDeclarationIssues, type PortalScreenLike } from '../../../domain/schema/portal';
 import {
   EMPTY_PORTAL_FORM,
@@ -116,6 +123,9 @@ export interface ScreenFormState {
   /** O que a tela expõe no portal. Só é gravado quando a aba foi tocada — ver `handleSaveScreen`. */
   portal: PortalFormState;
   portalTouched: boolean;
+  /** A janela de edição. Como o portal, só é gravada quando a aba foi tocada. */
+  editWindow: EditWindowFormState;
+  editWindowTouched: boolean;
 }
 
 /**
@@ -245,7 +255,7 @@ export interface FieldFormState {
   fileMaxSizeMb: string;
 }
 
-export type ScreenModalTab = 'general' | 'actions' | 'children' | 'portal';
+export type ScreenModalTab = 'general' | 'actions' | 'children' | 'portal' | 'editWindow';
 export type FieldModalTab = 'general' | 'advanced';
 
 export interface ScreenBuilderViewModel {
@@ -284,6 +294,9 @@ export interface ScreenBuilderViewModel {
   setScreenCardActionIds: (ids: string[]) => void;
   screenForm: ScreenFormState;
   updateScreenForm: (patch: Partial<ScreenFormState>) => void;
+  updateEditWindowForm: (patch: Partial<EditWindowFormState>) => void;
+  /** A tela aberta veio de uma extensão — o prazo que ela declarar vence na atualização. */
+  editWindowFromExtension: boolean;
   toggleListAction: (action: ScreenListAction) => void;
   moveListAction: (action: ScreenListAction, delta: -1 | 1) => void;
   titleFieldOptions: SearchSelectOption[];
@@ -450,6 +463,8 @@ const EMPTY_SCREEN_FORM: ScreenFormState = {
   imageFieldKey: '',
   portal: EMPTY_PORTAL_FORM,
   portalTouched: false,
+  editWindow: EMPTY_EDIT_WINDOW_FORM,
+  editWindowTouched: false,
 };
 
 const EMPTY_FIELD_FORM: FieldFormState = {
@@ -799,6 +814,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
 
   const isAdmin = can(PERMISSION_SCREENS_MANAGE);
   const canManagePortal = can(PERMISSION_PORTAL_MANAGE);
+  const canManageEditWindow = can(PERMISSION_SCREENS_EDIT_WINDOW);
   const tagColors = theme.tagColors;
   const defaultTagColor = useMemo(() => getDefaultTagColor(theme), [theme]);
 
@@ -1029,6 +1045,10 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
 
   // Sem etiquetas na tela não há o que gerenciar pelo card: desligar "Habilitar Etiquetas"
   // retira a ação da configuração, para não gravar uma combinação que a listagem ignoraria.
+  const updateEditWindowForm = useCallback((patch: Partial<EditWindowFormState>) => {
+    setScreenForm((prev) => ({ ...prev, editWindow: { ...prev.editWindow, ...patch }, editWindowTouched: true }));
+  }, []);
+
   const updateScreenForm = useCallback((patch: Partial<ScreenFormState>) => {
     setScreenForm((prev) => {
       const next = { ...prev, ...patch };
@@ -1136,6 +1156,8 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       imageFieldKey: def.imageFieldKey ?? '',
       portal: toPortalForm(def.portal),
       portalTouched: false,
+      editWindow: toEditWindowForm(def.editWindow),
+      editWindowTouched: false,
     });
     setScreenModal({ screenKey });
   }, [getDefinitionByKey, dynamicDefinitions, tagDependentSlots]);
@@ -1292,7 +1314,12 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     ...(!screenModalIsBuiltin && !!screenModal?.screenKey && canManagePortal
       ? [{ key: 'portal' as const, label: t('portal.tab') }]
       : []),
-  ], [screenModalIsBuiltin, screenModal, childCandidates, canManagePortal, t]);
+    // A janela é garantia de prova, e a regra a cobra de quem tem `screens.edit-window`; a aba segue a
+    // regra. Vale também na criação: o primeiro registro já nasce sob o prazo.
+    ...(!screenModalIsBuiltin && canManageEditWindow
+      ? [{ key: 'editWindow' as const, label: t('screen.tab.edit-window') }]
+      : []),
+  ], [screenModalIsBuiltin, screenModal, childCandidates, canManagePortal, canManageEditWindow, t]);
 
   const portalPanel = useMemo(() => {
     const def = screenModal?.screenKey ? getDefinitionByKey(screenModal.screenKey) : undefined;
@@ -1452,6 +1479,13 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       notify(t('screen.error.link-field-required', { label }), 'error');
       return;
     }
+    const editWindowChanged = canManageEditWindow && screenForm.editWindowTouched;
+    if (editWindowChanged && !editWindowFormIsValid(screenForm.editWindow)) {
+      setScreenModalTab('editWindow');
+      notify(t('edit-window.panel.minutes-invalid'), 'error');
+      return;
+    }
+    const editWindowValue = editWindowChanged ? fromEditWindowForm(screenForm.editWindow) : undefined;
     const portalChanged = canManagePortal && screenForm.portalTouched && !portalPanel.readOnly;
     if (portalChanged && screenForm.portal.enabled && portalPanel.issues.length > 0) {
       setScreenModalTab('portal');
@@ -1531,7 +1565,17 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
           // Só quando a aba foi tocada: regravar o que foi lido mudaria a forma do valor, e a regra
           // cobraria `portal.manage` de quem só mexeu no título.
           ...(portalChanged ? { portal: fromPortalForm(screenForm.portal) } : {}),
+          ...(editWindowValue !== undefined ? { editWindow: editWindowValue } : {}),
         });
+
+        // A regra lê a janela do documento da COLEÇÃO. Numa tela que descreve outra (`dataCollection`),
+        // gravar só nela deixaria o prazo no formulário e fora da regra.
+        const ruleDocument = editWindowValue !== undefined && def.dataCollection && def.dataCollection !== def.id
+          ? getDefinitionByKey(def.dataCollection)
+          : undefined;
+        if (ruleDocument) {
+          await saveDefinition(ruleDocument.id, { ...toSaveInput(ruleDocument), editWindow: editWindowValue });
+        }
 
         await persistChildLinks(def.id);
 
@@ -1588,6 +1632,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
           parentFieldKey: null,
           sidebarOrder: maxOrder + 1,
           enabled: true,
+          ...(editWindowValue ? { editWindow: editWindowValue } : {}),
         });
         notify(t('screen.created'), 'success');
         setSelectedKeyState(screenKey);
@@ -1599,7 +1644,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     } finally {
       setSavingScreen(false);
     }
-  }, [artifactPrefix, screenForm, screenModal, getDefinitionByKey, saveDefinition, definitions, dynamicDefinitions, childCandidates, persistChildLinks, notify, schemaContext, declareTagList, t, label, canManagePortal, portalPanel]);
+  }, [artifactPrefix, screenForm, screenModal, getDefinitionByKey, saveDefinition, definitions, dynamicDefinitions, childCandidates, persistChildLinks, notify, schemaContext, declareTagList, t, label, canManagePortal, portalPanel, canManageEditWindow]);
 
   const toggleScreenEnabled = useCallback(async (screenKey: string) => {
     const def = getDefinitionByKey(screenKey);
@@ -2413,6 +2458,8 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     setScreenViewActionIds,
     setScreenCardActionIds,
     screenModalTabs,
+    updateEditWindowForm,
+    editWindowFromExtension: !!screenModal?.screenKey && getDefinitionByKey(screenModal.screenKey)?.managed === true,
     screenModalTab: activeScreenModalTab,
     setScreenModalTab,
     screenModalTitle: screenModalIsBuiltin

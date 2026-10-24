@@ -3,6 +3,7 @@ import { getDoc } from 'firebase/firestore';
 
 import type { FieldDefinition, FieldOrigin } from '../../domain/entities/entitySchemas';
 import type { RuleIssue } from '../../domain/schema/fieldRules';
+import { LocalizedError } from '../../domain/errors/LocalizedError';
 import { describeRuleIssues } from '../../domain/schema/fieldRules';
 import type { SchemaContext, SchemaScreen } from '../../domain/schema/pathResolver';
 import { createSchemaContext } from '../../domain/schema/pathResolver';
@@ -11,6 +12,8 @@ import { resolveEntityKeys } from '../../domain/schema/screenEntity';
 import type { RecordKeyPlan, RecordKeySpec } from '../../domain/schema/recordKeys';
 import { planRecordKeys } from '../../domain/schema/recordKeys';
 import { declaredRecordKeySignatures } from '../../domain/schema/recordKeyAdoption';
+import { readEditWindow, resolveEditWindow } from '../../domain/schema/editWindow';
+import type { ResolvedEditWindow } from '../../domain/schema/editWindow';
 import type { FieldRulePreset } from '../../domain/schema/fieldRulePresets';
 import { applyDerivedFields, collectFieldLogicTargets, formatAndValidateRecord } from '../../domain/schema/recordRules';
 
@@ -63,6 +66,22 @@ export class RecordKeyMissingError extends RecordRulesError {
       errorParams: { key: gap.name },
     }))));
     this.name = 'RecordKeyMissingError';
+  }
+}
+
+/**
+ * A gravação que a janela de edição da tela recusa. Chega como `LocalizedError` porque é assim que a
+ * tela já mostra um erro com parâmetros — nenhuma via nova de mensagem. A mesma recusa vem do
+ * `firestore.rules` quando o relógio do navegador está atrasado; esta é a que chega antes da rede, com
+ * o motivo dito.
+ */
+export class EditWindowClosedError extends LocalizedError {
+  constructor(minutes: number, gesture: 'update' | 'delete') {
+    super(
+      gesture === 'update' ? '@core.records/edit-window.update-closed' : '@core.records/edit-window.delete-closed',
+      { minutes: String(minutes) },
+    );
+    this.name = 'EditWindowClosedError';
   }
 }
 
@@ -131,6 +150,8 @@ export const toSchemaScreens = (
     eventPrefix?: string | null;
     hasDocuments?: boolean;
     origin?: FieldOrigin;
+    editWindow?: unknown;
+    memberWritableFields?: string[] | null;
   }[],
 ): SchemaScreen[] =>
   definitions.map((definition) => ({
@@ -145,6 +166,8 @@ export const toSchemaScreens = (
     eventPrefix: definition.eventPrefix,
     hasDocuments: definition.hasDocuments,
     origin: definition.origin,
+    editWindow: readEditWindow(definition.editWindow),
+    memberWritableFields: definition.memberWritableFields ?? null,
   }));
 
 const tableHasComputedFields = (table: string): boolean =>
@@ -240,3 +263,6 @@ export const applyRecordRules = <T extends object>(
   if (outcome.issues.length > 0) throw new RecordRulesError(outcome.issues);
   return outcome.data as T;
 };
+
+/** A janela de edição da coleção, como a gravação a vê. `null` = sem prazo. */
+export const editWindowFor = (table: string): ResolvedEditWindow | null => resolveEditWindow(schemaContext, table);

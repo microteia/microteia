@@ -202,6 +202,9 @@ export const CORE_ACCESS_MESSAGES: Record<string, string> = {
   'permission.members.manage': 'Manage members',
   'permission.members.manage.description':
     'Add and remove people from the organization, and choose the access profiles of each one.',
+  'permission.screens.edit-window': 'Set how long records can be changed',
+  'permission.screens.edit-window.description':
+    'Set, change or remove the edit window of a screen in the Form Design — how long after creation a record can still be changed or deleted.',
   'permission.portal.manage': 'Manage the portal',
   'permission.portal.manage.description':
     'Invite people from outside the organization to the portal and revoke their access. Each guest only sees the records linked to them, and only the fields each screen chose to expose. Linking a guest to a record still requires being able to read that record.',

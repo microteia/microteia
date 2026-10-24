@@ -331,6 +331,7 @@ const SCREEN_REACH: Record<keyof ScreenModuleTemplate, string | null> = {
   recordTabPrefix: null,
   memberWritableFields: null,
   authorCanDelete: null,
+  editWindow: null,
   portal: null,
   listActions: null,
   sidebarOrder: null,
@@ -357,6 +358,9 @@ const SCREEN_NOTES: Record<string, string> = {
   memberWritableFields: 'which fields any member may write regardless of permission. It is authorization, and the model '
     + 'expresses authorization only on a transition',
   authorCanDelete: 'whether the author deletes what they created. Also authorization',
+  editWindow: 'how long after creation a record may still be changed — and, with `delete`, deleted. A guarantee '
+    + 'about evidence, enforced by the security rules, and the model has no vocabulary for a record that freezes '
+    + 'after a while',
   portal: 'what an outside guest sees of this collection, and through which link to the subject record. Authorization '
     + 'again, and an exposure decision the model cannot make on behalf of the organization',
   listActions: 'the built-in gestures of the card, in the order it shows them — copy link, manage tags, delete',

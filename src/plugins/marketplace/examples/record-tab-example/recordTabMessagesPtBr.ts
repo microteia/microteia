@@ -9,12 +9,14 @@ const RECORD_TAB_PT_BR: Record<string, string> = {
   'package.description':
     'Uma aba própria dentro do registro de outra tela: a linha do tempo dos marcos de cada projeto, com visual próprio.',
   'package.summary':
-    'Como uma extensão mostra algo DENTRO de um registro que não é dela. Acrescenta duas abas ao detalhe de um Projeto: a linha do tempo dos marcos daquele projeto, desenhada por uma view de código que recebe o registro aberto, e uma aba declarativa desenhada a partir de uma árvore do Widget DSL. A tela de Marcos NÃO é filha de Projeto — a aba não é a lista genérica de tela-filha, é o que a extensão desenhar.',
+    'Como uma extensão mostra algo DENTRO de um registro que não é dela. Acrescenta duas abas ao detalhe de um Projeto: a linha do tempo dos marcos daquele projeto, desenhada por uma view de código que recebe o registro aberto, e uma aba declarativa desenhada a partir de uma árvore do Widget DSL. A tela de Marcos NÃO é filha de Projeto — a aba não é a lista genérica de tela-filha, é o que a extensão desenhar. A de Atualizações é, e os registros dela congelam 15 minutos depois de criados (`editWindow`).',
 
   'screen.project': 'Projeto',
   'screen.project.plural': 'Projetos',
   'screen.milestone': 'Marco',
   'screen.milestone.plural': 'Marcos',
+  'screen.update': 'Atualização',
+  'screen.update.plural': 'Atualizações',
 
   'nav.milestones': 'Marcos',
 
@@ -29,6 +31,7 @@ const RECORD_TAB_PT_BR: Record<string, string> = {
   'field.priority.low': 'Baixa',
   'field.done': 'Concluído',
   'field.relatedProjects': 'Também afeta',
+  'field.update': 'Atualização',
 
   'tab.timeline': 'Linha do tempo',
   'tab.timeline.description': 'Os marcos deste projeto, e os que também o afetam, do mais recente para o mais antigo.',

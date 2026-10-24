@@ -17,6 +17,12 @@ export const PERMISSION_ROLES_MANAGE = 'roles.manage';
 export const PERMISSION_MEMBERS_MANAGE = 'members.manage';
 export const PERMISSION_TENANT_UPDATE = 'tenant.update';
 export const PERMISSION_SCREENS_MANAGE = 'screens.manage';
+/**
+ * Definir, mudar ou retirar a JANELA DE EDIÇÃO de uma tela (`editWindow`). É separada de
+ * `screens.manage` porque a janela é garantia de prova: quem só desenha telas não pode reabrir o
+ * registro que outra pessoa já leu. O `firestore.rules` a cobra na gravação de `screenDefinitions`.
+ */
+export const PERMISSION_SCREENS_EDIT_WINDOW = 'screens.edit-window';
 export const PERMISSION_AUTOMATION_MANAGE = 'automation.manage';
 export const PERMISSION_AUTOMATION_RUN = 'automation.run';
 export const PERMISSION_EXTENSIONS_MANAGE = 'extensions.manage';
@@ -68,6 +74,13 @@ export const KERNEL_PERMISSIONS: AccessPermission[] = [
     id: PERMISSION_SCREENS_MANAGE,
     name: '@core.access/permission.screens.manage',
     description: '@core.access/permission.screens.manage.description',
+  },
+  {
+    // Quem define o prazo o faz no Form Design, que é de `screens.manage`.
+    id: PERMISSION_SCREENS_EDIT_WINDOW,
+    name: '@core.access/permission.screens.edit-window',
+    description: '@core.access/permission.screens.edit-window.description',
+    requires: [PERMISSION_SCREENS_MANAGE],
   },
   {
     id: PERMISSION_AUTOMATION_MANAGE,

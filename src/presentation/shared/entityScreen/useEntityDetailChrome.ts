@@ -4,6 +4,8 @@ import { useNotification } from '../../../stores/useNotification';
 import { generateDeepLink } from '../../../infrastructure/deeplink/deepLinkUtils';
 import { recordLinkTabKey } from '../../../domain/schema/recordLink';
 import type { EntityDetailTab } from '../../components/layout/EntityDetailView';
+import { LocalizedError } from '../../../domain/errors/LocalizedError';
+import { useLabel } from '../i18n/useT';
 
 interface UseEntityDetailChromeParams {
   recordId: string | null;
@@ -42,6 +44,7 @@ export const useEntityDetailChrome = (params: UseEntityDetailChromeParams): Enti
   const { recordId, linkCollection, deepLinkKey, cloneKey, remove, onRemoved, removedMessage, removeErrorMessage } = params;
   const { openTab } = useWorkspace();
   const { notify } = useNotification();
+  const label = useLabel();
 
   const [activeTab, setActiveTab] = useState<EntityDetailTab>('data');
   const [copyLinkDone, setCopyLinkDone] = useState(false);
@@ -78,12 +81,12 @@ export const useEntityDetailChrome = (params: UseEntityDetailChromeParams): Enti
       notify(removedMessage, 'success');
       setIsDeleteOpen(false);
       onRemoved();
-    } catch {
-      notify(removeErrorMessage, 'error');
+    } catch (err) {
+      notify(err instanceof LocalizedError ? label(err.message, err.messageParams) : removeErrorMessage, 'error');
     } finally {
       setIsDeleting(false);
     }
-  }, [recordId, remove, onRemoved, removedMessage, removeErrorMessage, notify]);
+  }, [recordId, remove, onRemoved, removedMessage, removeErrorMessage, notify, label]);
 
   return {
     activeTab,
