@@ -48,12 +48,14 @@ import { useEntityList } from './useEntityList';
 import { useEntityForm } from './useEntityForm';
 import { useEntityDetailVM } from './useEntityDetailVM';
 import {
+  dayOf,
   formatCurrency,
   formatCurrencyBRL,
   formatDate,
   onlyNumbers,
   parseCurrencyDigits,
   toDateInputValue,
+  today,
 } from '../../../utils/formatters';
 import { useLabel, useLocaleFormat, useT } from '../i18n/useT';
 import { useWorkspace } from '../../../stores/useWorkspace';
@@ -353,6 +355,8 @@ const formatModule = {
   formatCurrencyBRL,
   formatCurrency,
   formatDate,
+  dayOf,
+  today,
   parseCurrencyDigits,
   toDateInputValue,
   applyMask: applyMaskTemplate,

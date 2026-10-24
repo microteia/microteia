@@ -13,6 +13,7 @@ import { identifyActor } from '../workflow/identifyActor';
 import { tenantTimeZone } from '../settings/tenantTimeZone';
 import { configuredLocale } from '../../domain/services/tenantSettings';
 import { DEFAULT_LOCALE } from '../../domain/schema/i18n/localeNegotiation';
+import { resolveTimeZone } from '../../domain/schema/i18n/timeZone';
 import { ensurePortalProjectionRevision } from '../portal/portalProjectionRevision';
 
 const REGION = 'southamerica-east1';
@@ -132,6 +133,7 @@ export const getPortalContext = onCall({ region: REGION, cors: true }, async (re
       userId,
       tenant: { name: tenant.name, logoURL: tenant.logoURL ?? null },
       locale: configured ?? '',
+      timeZone: resolveTimeZone({ user: own, tenant: office }),
       resolve: (value) => agentText(catalog, value).text,
       extensionViews: await di.getInstalledExtensionCache().portalViews(tenantId),
       themes: await di.getInstalledExtensionCache().themes(tenantId),

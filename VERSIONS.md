@@ -11,6 +11,13 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.153.0] — 2026-10-24
+
+- No portal de convidados, os campos de data voltaram a aparecer nas listas e nos detalhes dos registros — antes ficavam em branco.
+- Os cartões do portal que dependem de datas, como próximas audiências e vencimentos, passam a enxergar as datas gravadas pelo escritório.
+- No portal, "hoje" passa a ser o dia do fuso do escritório: à noite, o portal não antecipa mais o dia seguinte.
+- Datas informadas sem horário não aparecem mais com um dia a menos em telas de extensões.
+
 #### [9.152.0] — 2026-10-24
 
 - No portal de convidados, tocar num item listado num cartão da página inicial agora abre esse item. O botão Voltar leva de volta à página inicial.

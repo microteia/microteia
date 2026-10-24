@@ -18,6 +18,14 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.153.0] — 2026-10-24
+
+- fix(portal): the portal projection now reaches the view in the same shape as the office records — every Firestore Timestamp inside `PortalViewRecord.data` becomes a `Date` (`toPlainValues`, now shared by `FirebaseRecordRepository` and `FirebasePortalRepository`). The raw Timestamp made date fields blank in the native portal list and detail, and made extension cards that compare dates silently show fewer records.
+- feat(format): `@microteia/format` gains `today()` and `dayOf(value)` — the organization's day and the day of any date value as `YYYY-MM-DD`, on the organization's time zone, with the same answers as `today()` and `formatDate(v, "YYYY-MM-DD")` in expressions. `dayOf(r.dueDate) >= today()` replaces the per-view helpers every author was writing. KERNEL_VERSION 2.66.0.
+- fix(format): `formatDate` reads a Firestore Timestamp (it returned `''`) and reads a day text (`2026-12-15`) as that day in every time zone (it was parsed as midnight UTC and printed the day before in the Americas).
+- feat(portal): `getPortalContext` returns the organization's `timeZone`, and the portal pushes it into the clock gate, so `today()` in a portal view no longer turns the page at 9 p.m. in Brasília.
+- docs(authoring): one statement on how a `date` field is stored (the day at noon UTC — the §8 table said "never a timestamp") and a new "Dates in a view" section on what a view receives and how to compare days.
+
 #### [9.152.0] — 2026-10-24
 
 - fix(portal): `@microteia/portal` `usePortalNavigation().openRecord` now works from any surface. The navigation stack is scoped to a menu entry and the home has none, so a `widget` (or `home`) calling it pushed onto a stack nothing drew — the tap did nothing, with no error. At the home it now navigates to the record's `portalRecordPath` (the address the e-mail and the bell use), marking the history entry (`state.portalOpenedFromHome`); Back from a one-record stack returns home through history (`navigate(-1)`) instead of falling to the entry's list. `back()` with nothing open is a no-op.

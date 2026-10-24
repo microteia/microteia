@@ -199,7 +199,7 @@ const FIELD_TYPES: Record<CustomFieldType, string> = {
   textarea: 'Several lines of plain text.',
   number: 'A number. `rules.validate` can bound it.',
   currency: 'A number shown and typed as money, in the locale of whoever is looking.',
-  date: 'A day, stored as `YYYY-MM-DD` — never a timestamp, so the day that goes in is the day that comes out.',
+  date: 'A day. It is stored as that day at noon UTC, so the day that goes in is the day that comes out in every time zone; a view receives it as a `Date` (§7, "Dates in a view").',
   time: 'A time of day, stored as `HH:mm`.',
   checkbox: 'True or false.',
   select: 'One option — or several with `multi: true`. The options come from `options` (yours, fixed) or from `lookupCollection` (a list the organization owns and edits).',
@@ -1279,6 +1279,29 @@ name.
 
 And §5 still has no exception, least of all here: no string a person reads is written in a view.
 
+### Dates in a view
+
+A view receives every date as a \`Date\`, by every road — \`useCollection\` in the office,
+\`usePortalRecords\` and \`usePortalRecord\` in the portal. An instant (\`createdAt\`, \`updatedAt\`, a
+timestamp you wrote) is that instant; a \`date\` field is its day at noon UTC. Nothing arrives as a
+Firestore Timestamp, and nothing arrives as text.
+
+"Has it passed?", "what is due this week" and "most recent first" are questions about DAYS, so ask them
+in days, with the two functions \`@microteia/format\` keeps for it:
+
+\`\`\`ts
+import { dayOf, today } from '@microteia/format';
+
+const upcoming = records.filter((r) => dayOf(r.hearingDate) >= today());
+\`\`\`
+
+\`today()\` is the organization's day — the same answer as \`today()\` in an expression, on the same time
+zone, in the office and in the portal. \`dayOf(v)\` is the day of a value on that clock, as
+\`YYYY-MM-DD\`, and \`YYYY-MM-DD\` sorts in calendar order. Do not compare a date as text (a \`Date\` turned
+into a string does not sort), and do not write \`new Date("2026-12-15")\`: that is midnight UTC, which is
+still the 14th everywhere in the Americas. \`formatDate(v)\` from the same module writes any of these
+forms in the reader's locale.
+
 ## 8. Screens — the data your extension owns
 
 ### 8.0 Model before you declare
@@ -1799,7 +1822,7 @@ would stamp the next day at 02:00. \`year\`, \`month\`, \`day\`, \`dayOfWeek\` a
 same clock.
 
 A day is not converted: \`formatDate("2026-03-31", "DD/MM/YYYY")\` is \`31/03/2026\` in every time zone,
-and so is a date field, which is stored at noon UTC. A third argument, an IANA time zone, reads another
+and so is a date field. A third argument, an IANA time zone, reads another
 clock: \`formatDate(now(), "HH:mm", "UTC")\`. A name the platform does not know is an empty text in a
 field expression and a named refusal in a workflow — never the hour of some other zone. Do not shift the
 hour yourself (\`addDays(now(), -0.125)\`): it is wrong for every organization outside one zone, and

@@ -14,6 +14,7 @@ export interface PortalViewRecord {
   collection: string;
   recordId: string;
   title: string;
+  /** Na mesma forma que `useCollection` entrega: campo de data é `Date`, nunca o Timestamp. */
   data: Record<string, unknown>;
   labels: Record<string, string>;
   updatedAt: Date | null;

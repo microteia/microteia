@@ -22,6 +22,7 @@ import type { IRecordRepository } from '../../domain/repositories/IRecordReposit
 import type { EntityRecord, EntityRecordValues } from '../../domain/entities/EntityRecord';
 import type { DeletionActor } from '../../domain/entities';
 import { stampDeletionActor } from '../utils/stampDeletionActor';
+import { toPlainValues } from '../utils/plainValues';
 import type { RecordKeyConflict } from '../utils/recordRulesGate';
 import {
   applyRecordRules,
@@ -44,22 +45,6 @@ import {
 const RECORDS_PAGE_LIMIT = 500;
 
 const toDate = (v: unknown): Date => (v instanceof Timestamp ? v.toDate() : (v as Date));
-
-const isPlainObject = (v: unknown): v is Record<string, unknown> =>
-  !!v && typeof v === 'object' && Object.getPrototypeOf(v) === Object.prototype;
-
-/**
- * Um campo de data chega do Firestore como Timestamp. Como a coleção não tem mapper escrito à mão,
- * a conversão é genérica e recursiva — nada acima desta camada precisa conhecer o tipo do Firestore.
- */
-const toPlainValues = (value: unknown): unknown => {
-  if (value instanceof Timestamp) return value.toDate();
-  if (Array.isArray(value)) return value.map(toPlainValues);
-  if (isPlainObject(value)) {
-    return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, toPlainValues(item)]));
-  }
-  return value;
-};
 
 const recordsRef = (tenantId: string, collection: string) =>
   firestoreCollection(db, 'tenants', tenantId, collection);

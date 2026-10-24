@@ -224,6 +224,8 @@ export interface PortalHome {
 export interface PortalContext {
   /** O idioma ESCOLHIDO para este convidado (dele ou do escritório); vazio quando ninguém escolheu. */
   locale: string;
+  /** O fuso em que o portal diz que dia é — o mesmo que o escritório e as automações usam. */
+  timeZone?: string;
   tenantName: string;
   logoURL: string | null;
   screens: PortalContextScreen[];
@@ -242,6 +244,7 @@ export type GetPortalContextUseCase = {
     userId: string;
     tenant: { name: string; logoURL: string | null };
     locale: string;
+    timeZone?: string;
     resolve: (value: string) => string;
     extensionViews?: { views: PortalContextView[]; bundles: PortalContext['bundles'] };
     themes?: QualifiedContribution[];
@@ -304,7 +307,7 @@ const withoutOrder = <T extends { order?: number }>(value: T): Omit<T, 'order'> 
 };
 
 export const makeGetPortalContextUseCase = (repo: IPortalRepository): GetPortalContextUseCase => ({
-  execute: async ({ tenantId, userId, tenant, locale, resolve, extensionViews, themes = [], documentTypes = [] }) => {
+  execute: async ({ tenantId, userId, tenant, locale, timeZone, resolve, extensionViews, themes = [], documentTypes = [] }) => {
     if (!(await repo.getPortalUser(tenantId, userId))) {
       throw permissionDenied('@core.tenant/portal.not-invited');
     }
@@ -385,6 +388,7 @@ export const makeGetPortalContextUseCase = (repo: IPortalRepository): GetPortalC
         layout,
       },
       locale,
+      ...(timeZone ? { timeZone } : {}),
       tenantName: tenant.name,
       logoURL: tenant.logoURL,
       screens: screens.map((screen) => {

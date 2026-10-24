@@ -85,6 +85,8 @@ export interface PortalHome {
 export interface PortalContext {
   /** O idioma escolhido para este convidado (dele ou do escritório); vazio = o do navegador. */
   locale: string;
+  /** O fuso do escritório — é nele que o portal diz que dia é. Ausente num contexto anterior a ele. */
+  timeZone?: string;
   tenantName: string;
   logoURL: string | null;
   screens: PortalScreenInfo[];

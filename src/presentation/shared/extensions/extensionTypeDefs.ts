@@ -971,7 +971,11 @@ const UI_MODULE_DEFS = `declare module '@microteia/ui' {
 const DATA_MODULE_DEFS = `declare module '@microteia/data' {
   import { CustomFieldMetaRowsProps, FieldFileUpload, FilterDef, FilterToken } from '@microteia/ui';
 
-  /** Records of any collection described by a screen in the organization. */
+  /**
+   * Records of any collection described by a screen in the organization. Every date value arrives as
+   * a Date: an instant (createdAt, updatedAt) as itself, a date field as the day at noon UTC. To ask
+   * "has it passed?", compare days: dayOf(r.dueDate) < today(), both from @microteia/format.
+   */
   export function useCollection(collection: string): any[];
 
   /** Writes fields of a record in any collection. */
@@ -1357,8 +1361,26 @@ const FORMAT_MODULE_DEFS = `declare module '@microteia/format' {
   /** Converts a Date to the ISO string an input[type=date] expects (YYYY-MM-DD). */
   export function toDateInputValue(date: Date): string;
 
-  /** A date in the format of the locale in effect. Takes a Date or a string; invalid becomes ''. */
+  /**
+   * A date in the format of the locale in effect. Takes a Date, a Firestore Timestamp, an ISO string or
+   * a day ('2026-12-15', which stays that day in every time zone); invalid becomes ''.
+   */
   export function formatDate(value: unknown): string;
+
+  /**
+   * The organization's day, as 'YYYY-MM-DD' - the same answer as today() in an expression, on the
+   * organization's time zone. The right-hand side of "is it overdue?": dayOf(r.dueDate) < today().
+   */
+  export function today(): string;
+
+  /**
+   * The day ('YYYY-MM-DD') of a date value, on the organization's clock - text that compares with
+   * today() and with each other in the right order. Takes the Date a view receives, a Firestore
+   * Timestamp or a string; a day already in text passes through. Invalid becomes ''.
+   * Never compare a Date field as text, and never new Date('YYYY-MM-DD'): that is midnight UTC, the
+   * day before in the Americas.
+   */
+  export function dayOf(value: unknown): string;
 
   /** Applies a template mask ('###.###.###-##'). */
   export function applyMask(value: string, templates: string[]): string;
@@ -1419,7 +1441,10 @@ const PORTAL_MODULE_DEFS = `declare module '@microteia/portal' {
     collection: string;
     recordId: string;
     title: string;
-    /** Only the fields the screen exposes in the portal. */
+    /**
+     * Only the fields the screen exposes in the portal, in the same shape useCollection delivers: a
+     * date field arrives as a Date (the day at noon UTC) - read it with dayOf() from @microteia/format.
+     */
     data: Record<string, unknown>;
     /** The label of the record each exposed reference field points to. */
     labels: Record<string, string>;

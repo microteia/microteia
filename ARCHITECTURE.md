@@ -912,6 +912,29 @@ segunda cópia que ficasse para trás.
 o portal vê a mudança alguns segundos depois. Convidar alguém para uma empresa com dez mil notas
 custa ler dez mil projeções, uma vez, em lotes.
 
+### Data na fronteira com a view — uma forma só, pelos dois caminhos
+
+Um campo `date` é gravado como o dia ao **meio-dia UTC** (`coerceWriteValue` → `parseDateOnly`); um
+instante (`createdAt`, `updatedAt`) é o próprio instante. No Firestore os dois são Timestamp, e só a
+tela sabe qual é qual.
+
+A view recebe **`Date`** pelos dois caminhos: `useCollection` (escritório) e `usePortalRecords` /
+`usePortalRecord` (portal). A conversão é genérica e mora na camada de dados — `toPlainValues`
+(`src/data/utils/plainValues.ts`), usado por `FirebaseRecordRepository` e por `mapPortalRecord`
+(`portalRecordMapping.ts`). A projeção do portal entregava o Timestamp cru: a lista nativa do portal
+mostrava o campo de data em branco (`formatDate` não lia Timestamp), e o cartão de extensão que
+comparava datas mostrava menos do que devia, sem erro.
+
+**Por que `Date` e não o texto `YYYY-MM-DD`.** Texto exigiria conhecer o tipo do campo na fronteira, e
+— pior — mudaria em silêncio o que `useCollection` entrega há anos: uma view do escritório que faz
+`new Date(valor)` passaria a ler meia-noite UTC, a véspera nas Américas. O que faltava não era outra
+forma, era a pergunta de DIA: `today()` e `dayOf(v)` em `@microteia/format`, as mesmas respostas de
+`today()` e `formatDate(v, "YYYY-MM-DD")` nas expressões, no fuso do escritório (`clockGate`). Para o
+portal acertar o dia, `getPortalContext` devolve `timeZone` e o `PortalLocaleProvider` o empurra.
+
+**Limite conhecido:** a âncora do meio-dia lê o mesmo dia entre UTC−11 e UTC+11; é a mesma fronteira do
+motor de expressões.
+
 ### Mudou a declaração — a reprojeção por rodadas (`portal_reprojections`)
 
 Mudar a declaração de uma tela (ligar o portal, expor um campo, escrever um `visibleWhen`) muda a
@@ -4605,6 +4628,7 @@ do kernel as capacidades abaixo.
 | Uma tela dentro de outra, sem virar filha | `ScreenDefinition.parentRelation: 'related'` | declarar a aba rebaixaria Processos a tela filha: sem menu, sem ⌘K e sem o campo "Contrato" no formulário |
 | Linha de cartão que a declaração não alcança | slot `renderMetaRows` do `RecordListSurface` | a vigência ("início – fim") é composição de dois campos; separadas, as duas datas ficam sem sentido no cartão |
 | Data no formato do escritório, nas extensões | `formatDate` em `@microteia/format` | cada view de extensão reescreveria o próprio formatador |
+| O dia de uma data e o dia de hoje, nas extensões | `dayOf` e `today` em `@microteia/format` | cada view compararia datas do seu jeito — quatro cópias numa instalação só |
 
 **`autoValue` — o código que ninguém quer digitar.** O padrão descreve a forma caractere a caractere
 (`A` letra, `0` dígito, `*` alfanumérico; o resto é literal), e o valor sorteado não se repete entre
