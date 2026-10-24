@@ -236,6 +236,14 @@ export const PortalLocaleProvider: React.FC<{ children: React.ReactNode }> = ({ 
     }
   }, [preferred]);
 
+  // O FUSO do escritório, pelo mesmo gate do relógio: sem ele, `today()` numa view de portal virava a
+  // página às 21h em Brasília, quando UTC já é amanhã.
+  const timeZone = context?.timeZone ?? null;
+  useEffect(() => {
+    setAmbientTimeZone(timeZone);
+    return () => setAmbientTimeZone(null);
+  }, [timeZone]);
+
   return <LocaleProvider preferred={preferred} extraBundles={context?.bundles}>{children}</LocaleProvider>;
 };
 

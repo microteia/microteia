@@ -8,6 +8,7 @@ import type {
   INotificationInboxRepository,
   NotificationEmailCredential,
   NotificationRecipient,
+  PortalGuestContact,
 } from '../../domain/repositories/INotificationDelivery';
 import type { InboxNotificationDocument, NotificationEmailSettings } from '../../domain/schema/notifications';
 import {
@@ -67,6 +68,25 @@ export class FirestoreNotificationDirectory implements INotificationDirectory {
           mutes: asNotificationMutes(own[NOTIFICATION_MUTED_SETTING_KEY]),
         };
       });
+  }
+
+  async guests(tenantId: string, contacts: readonly PortalGuestContact[]): Promise<NotificationRecipient[]> {
+    if (contacts.length === 0) return [];
+    const officeSettings = await this.db.collection('tenants').doc(tenantId).collection('settings').doc('tenant').get();
+    const office = settingsValuesOf(officeSettings.data());
+    const values = { user: {}, tenant: office };
+    const officeLocale = preferredLocale({}, office);
+    return contacts.map((contact) => ({
+      userId: contact.userId,
+      email: contact.email.trim(),
+      locale: contact.locale || officeLocale,
+      channels: {
+        inApp: resolveSetting(notificationChannelProperty('inApp'), values).value === true,
+        email: resolveSetting(notificationChannelProperty('email'), values).value === true,
+        push: false,
+      },
+      mutes: {},
+    }));
   }
 
   async memberIdsGranting(tenantId: string, permission: string, limit: number): Promise<string[]> {

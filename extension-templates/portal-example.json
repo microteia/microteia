@@ -1,8 +1,8 @@
 {
   "manifest": {
     "id": "com.microteia.portal-example",
-    "version": "1.5.0",
-    "kernel": "^2.62.0",
+    "version": "1.7.0",
+    "kernel": "^2.63.0",
     "name": "@com.microteia.portal-example/package.name",
     "description": "@com.microteia.portal-example/package.description",
     "category": "@com.microteia.portal-example/package.category",
@@ -56,7 +56,11 @@
             "portal.orders.edit": "Edit",
             "portal.orders.quantity": "{count} × {item}",
             "portal.widget.orders": "Your orders",
-            "portal.widget.orders.caption": "orders placed in the portal"
+            "portal.widget.orders.caption": "orders placed in the portal",
+            "workflow.visit-scheduled": "Tell the client about a new visit",
+            "workflow.visit-scheduled.description": "When a visit is scheduled, notifies the client's portal guests by e-mail and on the portal bell.",
+            "notify.visit.title": "A visit was scheduled",
+            "notify.visit.message": "Open it in the portal to see the date and the summary."
           }
         }
       },
@@ -102,7 +106,11 @@
             "portal.orders.edit": "Editar",
             "portal.orders.quantity": "{count} × {item}",
             "portal.widget.orders": "Seus pedidos",
-            "portal.widget.orders.caption": "pedidos feitos pelo portal"
+            "portal.widget.orders.caption": "pedidos feitos pelo portal",
+            "workflow.visit-scheduled": "Avisar o cliente de uma visita nova",
+            "workflow.visit-scheduled.description": "Quando uma visita é agendada, avisa os convidados do portal do cliente por e-mail e no sino do portal.",
+            "notify.visit.title": "Uma visita foi agendada",
+            "notify.visit.message": "Abra no portal para ver a data e o resumo."
           }
         }
       },
@@ -137,7 +145,57 @@
     ]
   },
   "summary": "@com.microteia.portal-example/package.summary",
-  "workflows": [],
+  "workflows": [
+    {
+      "templateId": "wf-visit-scheduled",
+      "name": "@com.microteia.portal-example/workflow.visit-scheduled",
+      "description": "@com.microteia.portal-example/workflow.visit-scheduled.description",
+      "eventName": "portalExampleVisit.saved",
+      "version": 1,
+      "condition": {
+        "kind": "FieldComparison",
+        "fieldPath": "event.payload.changeType",
+        "operator": "==",
+        "value": "created",
+        "valueType": "literal"
+      },
+      "steps": [
+        {
+          "id": "tellClient",
+          "stepDefinitionId": "notify",
+          "type": "Action",
+          "order": 0,
+          "enabled": true,
+          "configuration": {
+            "title": {
+              "kind": "Literal",
+              "value": "@com.microteia.portal-example/notify.visit.title"
+            },
+            "message": {
+              "kind": "Literal",
+              "value": "@com.microteia.portal-example/notify.visit.message"
+            },
+            "portalGuests": {
+              "kind": "Literal",
+              "value": true
+            },
+            "toEmail": {
+              "kind": "Literal",
+              "value": true
+            },
+            "toInApp": {
+              "kind": "Literal",
+              "value": true
+            },
+            "toAudit": {
+              "kind": "Literal",
+              "value": false
+            }
+          }
+        }
+      ]
+    }
+  ],
   "screens": [
     {
       "key": "portalExampleClient",
@@ -379,7 +437,7 @@
       "key": "openOrdersWidget",
       "title": "@com.microteia.portal-example/portal.widget.orders",
       "icon": "shoppingBag",
-      "source": "import { styled } from 'styled-components';\nimport { useT } from '@microteia/i18n';\nimport { usePortalRecords } from '@microteia/portal';\n\nconst Count = styled.span`\n  font-weight: 700;\n  font-size: ${({ theme }) => theme.fontSizes['2xl']};\n  color: ${({ theme }) => theme.colors.text};\n`;\n\nconst Caption = styled.p`\n  font-size: ${({ theme }) => theme.fontSizes.sm};\n  color: ${({ theme }) => theme.colors.textMuted};\n`;\n\n/**\n * A card on the portal home: how many orders the guest has. Small on purpose — a card shares the row\n * with others on a computer and takes the whole width on a phone, so it never sets a width of its own.\n */\nexport default function OpenOrdersWidget() {\n  const t = useT('com.microteia.portal-example');\n  const { records, loading } = usePortalRecords('portalExampleOrder');\n\n  return (\n    <div>\n      <Count>{loading ? '…' : records.length}</Count>\n      <Caption>{t('portal.widget.orders.caption')}</Caption>\n    </div>\n  );\n}\n"
+      "source": "import { styled } from 'styled-components';\nimport { useT } from '@microteia/i18n';\nimport { usePortalNavigation, usePortalRecords } from '@microteia/portal';\n\nconst ORDER_COLLECTION = 'portalExampleOrder';\nconst SHOWN = 3;\n\nconst Count = styled.span`\n  font-weight: 700;\n  font-size: ${({ theme }) => theme.fontSizes['2xl']};\n  color: ${({ theme }) => theme.colors.text};\n`;\n\nconst Caption = styled.p`\n  font-size: ${({ theme }) => theme.fontSizes.sm};\n  color: ${({ theme }) => theme.colors.textMuted};\n`;\n\nconst Rows = styled.ul`\n  list-style: none;\n  margin: ${({ theme }) => theme.spacing.sm} 0 0;\n  padding: 0;\n`;\n\nconst Row = styled.button`\n  display: block;\n  width: 100%;\n  min-height: 44px;\n  padding: ${({ theme }) => theme.spacing.sm} 0;\n  border: none;\n  border-top: 1px solid ${({ theme }) => theme.colors.border};\n  background: none;\n  text-align: left;\n  font-size: ${({ theme }) => theme.fontSizes.sm};\n  color: ${({ theme }) => theme.colors.text};\n  cursor: pointer;\n  overflow: hidden;\n  text-overflow: ellipsis;\n  white-space: nowrap;\n`;\n\n/**\n * A card on the portal home: how many orders the guest has, and the latest ones. Tapping one opens it\n * — `openRecord` works from the home too: the portal takes the guest to the order, and Back returns\n * here. Small on purpose — a card shares the row with others on a computer and takes the whole width\n * on a phone, so it never sets a width of its own.\n */\nexport default function OpenOrdersWidget() {\n  const t = useT('com.microteia.portal-example');\n  const { records, loading } = usePortalRecords(ORDER_COLLECTION);\n  const navigation = usePortalNavigation();\n\n  const latest = [...records]\n    .sort((a, b) => (b.updatedAt?.getTime() ?? 0) - (a.updatedAt?.getTime() ?? 0))\n    .slice(0, SHOWN);\n\n  return (\n    <div>\n      <Count>{loading ? '…' : records.length}</Count>\n      <Caption>{t('portal.widget.orders.caption')}</Caption>\n      {latest.length > 0 && (\n        <Rows>\n          {latest.map((order) => (\n            <li key={order.recordId}>\n              <Row type=\"button\" onClick={() => navigation.openRecord(ORDER_COLLECTION, order.recordId)}>\n                {t('portal.orders.quantity', {\n                  count: String(order.data.quantity ?? 1),\n                  item: String(order.data.item ?? order.title),\n                })}\n              </Row>\n            </li>\n          ))}\n        </Rows>\n      )}\n    </div>\n  );\n}\n"
     }
   ]
 }

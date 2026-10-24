@@ -4,6 +4,7 @@ import { S } from './TopLayout.styles';
 import { usePortalShellViewModel } from '../PortalShell/PortalShell.viewmodel';
 import { PortalBrand } from '../PortalBrand';
 import { PortalUserMenu } from '../PortalUserMenu';
+import { PortalNotificationBell } from '../PortalNotificationBell';
 import { getScreenIcon } from '../../../../shared/screenIcons';
 import { useT } from '../../../../shared/i18n/useT';
 
@@ -39,6 +40,7 @@ export const TopLayout: React.FC<{ children: React.ReactNode }> = ({ children })
           </S.Nav>
         ) : <S.Grow />}
         {hasMenu && <S.Spacer />}
+        <PortalNotificationBell />
         <PortalUserMenu shell={shell} />
       </S.Header>
 

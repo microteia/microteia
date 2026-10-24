@@ -1,7 +1,17 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { usePortal } from './usePortal';
 import { PortalNavigationContext, type PortalCreating, type PortalOpenRecord } from './usePortalNavigation';
+import { PORTAL_RECORD_PARAM, portalRecordDocId, portalRecordIdOf, portalRecordPath } from '../domain/schema/portal';
+
+/**
+ * Marca, no histórico, a entrada aberta de um cartão da HOME: o "Voltar" do registro devolve à home
+ * pelo próprio histórico, em vez de cair na lista do item.
+ */
+const OPENED_FROM_HOME = 'portalOpenedFromHome';
+
+const openedFromHome = (state: unknown): boolean =>
+  !!state && typeof state === 'object' && (state as Record<string, unknown>)[OPENED_FROM_HOME] === true;
 
 interface NavigationState {
   /**
@@ -15,26 +25,60 @@ interface NavigationState {
   justSaved: boolean;
 }
 
-const EMPTY = (scope: string): NavigationState => ({ scope, stack: [], creating: null, justSubmitted: false, justSaved: false });
+const EMPTY = (scope: string, stack: PortalOpenRecord[] = []): NavigationState => ({
+  scope, stack, creating: null, justSubmitted: false, justSaved: false,
+});
 
 export const PortalNavigationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { tenantId } = usePortal();
-  const { entryId } = useParams<{ entryId?: string }>();
-  const scope = `${tenantId ?? ''}|${entryId ?? ''}`;
-  const [stored, setStored] = useState<NavigationState>(() => EMPTY(scope));
-  const state = stored.scope === scope ? stored : EMPTY(scope);
+  const { tenantId: routeTenantId, entryId } = useParams<{ tenantId?: string; entryId?: string }>();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const { key: locationKey, state: locationState } = useLocation();
+  // O endereço de um registro (`?record=`, o link de um aviso) abre a pilha JÁ com ele, sob a coleção
+  // dele. A chave da navegação entra no escopo para que abrir o mesmo aviso de novo o reabra, mesmo
+  // depois de o convidado ter voltado ou ido a um filho.
+  const linkedRecordId = entryId ? searchParams.get(PORTAL_RECORD_PARAM) ?? '' : '';
+  const scope = `${tenantId ?? ''}|${entryId ?? ''}|${linkedRecordId ? `${linkedRecordId}|${locationKey}` : ''}`;
+  const initialStack = useMemo<PortalOpenRecord[]>(
+    () => (entryId && linkedRecordId ? [{ collection: entryId, projectionId: portalRecordDocId(entryId, linkedRecordId) }] : []),
+    [entryId, linkedRecordId],
+  );
+  const [stored, setStored] = useState<NavigationState>(() => EMPTY(scope, initialStack));
+  const state = stored.scope === scope ? stored : EMPTY(scope, initialStack);
 
   const update = useCallback((patch: (current: NavigationState) => Partial<NavigationState>) => {
     setStored((prev) => {
-      const current = prev.scope === scope ? prev : EMPTY(scope);
+      const current = prev.scope === scope ? prev : EMPTY(scope, initialStack);
       return { ...current, ...patch(current) };
     });
-  }, [scope]);
+  }, [scope, initialStack]);
 
-  const openRecord = useCallback((collection: string, projectionId: string) => update((current) => ({
-    stack: [...current.stack, { collection, projectionId }], creating: null, justSubmitted: false, justSaved: false,
-  })), [update]);
-  const back = useCallback(() => update((current) => ({ stack: current.stack.slice(0, -1), justSaved: false })), [update]);
+  const returnsHome = !!entryId && openedFromHome(locationState);
+
+  // A home não tem pilha: o registro tocado num cartão dela abre no ENDEREÇO dele — o mesmo do e-mail e
+  // do sino —, e o item do menu o mostra com tudo o que a pilha já sabe desenhar.
+  const openRecord = useCallback((collection: string, projectionId: string) => {
+    if (!entryId) {
+      if (routeTenantId) {
+        navigate(
+          portalRecordPath(routeTenantId, collection, portalRecordIdOf(collection, projectionId)),
+          { state: { [OPENED_FROM_HOME]: true } },
+        );
+      }
+      return;
+    }
+    update((current) => ({
+      stack: [...current.stack, { collection, projectionId }], creating: null, justSubmitted: false, justSaved: false,
+    }));
+  }, [entryId, routeTenantId, navigate, update]);
+  const back = useCallback(() => {
+    if (returnsHome && state.stack.length <= 1) {
+      navigate(-1);
+      return;
+    }
+    update((current) => (current.stack.length === 0 ? {} : { stack: current.stack.slice(0, -1), justSaved: false }));
+  }, [returnsHome, state.stack.length, navigate, update]);
   const startCreate = useCallback((collection: string, parentRecordId: string | null) => update(() => ({
     creating: { collection, parentRecordId }, justSubmitted: false, justSaved: false,
   })), [update]);
@@ -50,6 +94,7 @@ export const PortalNavigationProvider: React.FC<{ children: React.ReactNode }> =
     creating: state.creating,
     justSubmitted: state.justSubmitted,
     justSaved: state.justSaved,
+    returnsHome,
     openRecord,
     back,
     startCreate,
@@ -57,7 +102,7 @@ export const PortalNavigationProvider: React.FC<{ children: React.ReactNode }> =
     cancelCreate,
     submitted,
     saved,
-  }), [state, openRecord, back, startCreate, startEdit, cancelCreate, submitted, saved]);
+  }), [state, returnsHome, openRecord, back, startCreate, startEdit, cancelCreate, submitted, saved]);
 
   return <PortalNavigationContext.Provider value={value}>{children}</PortalNavigationContext.Provider>;
 };

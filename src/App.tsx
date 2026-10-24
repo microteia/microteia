@@ -7,6 +7,7 @@ import { BOOT_PLUGINS } from './plugins/bootPlugins';
 import { ThemeProvider } from './stores/ThemeContext';
 import { LocaleProvider, PortalLocaleProvider, TenantLocaleProvider, UrlLocaleProvider } from './stores/LocaleContext';
 import { TenantThemeBridge } from './stores/TenantThemeBridge';
+import { PortalThemeBridge } from './stores/PortalThemeBridge';
 import { AuthProvider } from './stores/AuthContext';
 import { TenantStoreProvider } from './stores/TenantStore';
 import { TagStoreProvider } from './stores/TagStore';
@@ -79,6 +80,7 @@ const App: React.FC = () => {
                 element={
                   <ProtectedRoute loginPath={PORTAL_SIGN_IN_PATH}>
                     <PortalStoreProvider>
+                      <PortalThemeBridge />
                       <PortalNavigationProvider>
                         <PortalLocaleProvider>
                           <Outlet />

@@ -18,6 +18,16 @@ export interface INotificationInboxRepository {
     onChange: (notifications: InboxNotification[]) => void,
     onError: () => void,
   ): () => void;
+  /**
+   * Os avisos ao PORTAL da pessoa — o sino do convidado. A consulta filtra pelo destinatário E pelo
+   * portal, que é o que a regra exige de quem não é membro.
+   */
+  subscribePortal(
+    tenantId: string,
+    userId: string,
+    max: number,
+    onChange: (notifications: InboxNotification[]) => void,
+  ): () => void;
   markRead(tenantId: string, ids: readonly string[]): Promise<void>;
   markUnread(tenantId: string, ids: readonly string[]): Promise<void>;
   markAllRead(tenantId: string, userId: string): Promise<void>;

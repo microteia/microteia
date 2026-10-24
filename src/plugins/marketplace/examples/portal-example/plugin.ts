@@ -3,6 +3,7 @@ import type {
   MarketplacePlugin,
   ScreenModuleTemplate,
   TemplateField,
+  WorkflowModuleTemplate,
 } from '../../../../domain/entities/MarketplacePlugin';
 import { portalView } from '../../../contributionBuilders';
 import { mergeViewSources } from '../../../../sdk/mergeSources';
@@ -29,6 +30,7 @@ import { portalExamplePtBrContribution } from './portalMessagesPtBr';
  * | a card on the portal home | `portalView({ surface: 'widget', key, title }, viewKey)` |
  * | what those can read | `@microteia/portal` — never `@microteia/data` |
  * | a screen over a collection named apart from its key | `dataCollection` — links point at the COLLECTION |
+ * | telling the guests something happened | a `notify` step with `portalGuests` — never members in the same step |
  *
  * Guests are invited by the organization, in Settings > Portal, to a Client. Each one then sees that
  * client and its orders — nothing else in the organization, not even that other clients exist.
@@ -176,6 +178,48 @@ const VISIT_SCREEN: ScreenModuleTemplate = {
   portal: { subject: 'parent', fields: ['date', 'summary'] },
 };
 
+/**
+ * Telling the client. A `notify` step with `portalGuests` reaches the people OUTSIDE the organization
+ * who can see the record — here, the new Visit, which reaches them through its Site and Client. Nobody
+ * is named: the guests are whoever is invited to that client WHEN the step runs, so a revoked invite
+ * stops receiving at once, and an office-only record (hidden by `visibleWhen`) tells nobody.
+ *
+ * The same step never notifies members too: the text is written for someone outside. It goes by e-mail
+ * and to the portal bell, in the language of the invite, and the link opens the visit IN THE PORTAL.
+ * `toAudit` is off because every delivery to guests already leaves its own entry in the Audit trail.
+ * To announce a different record than the one that fired — the Site of a visit —, add
+ * `portalRecord: { kind: 'Event', path: 'site' }`.
+ */
+const WORKFLOWS: WorkflowModuleTemplate[] = [{
+  templateId: 'wf-visit-scheduled',
+  name: message('workflow.visit-scheduled'),
+  description: message('workflow.visit-scheduled.description'),
+  eventName: 'portalExampleVisit.saved',
+  version: 1,
+  condition: {
+    kind: 'FieldComparison',
+    fieldPath: 'event.payload.changeType',
+    operator: '==',
+    value: 'created',
+    valueType: 'literal',
+  },
+  steps: [{
+    id: 'tellClient',
+    stepDefinitionId: 'notify',
+    type: 'Action',
+    order: 0,
+    enabled: true,
+    configuration: {
+      title: { kind: 'Literal', value: message('notify.visit.title') },
+      message: { kind: 'Literal', value: message('notify.visit.message') },
+      portalGuests: { kind: 'Literal', value: true },
+      toEmail: { kind: 'Literal', value: true },
+      toInApp: { kind: 'Literal', value: true },
+      toAudit: { kind: 'Literal', value: false },
+    },
+  }],
+}];
+
 const CLIENT_PORTAL_SOURCE = mergeViewSources({
   'ClientPortal.view.tsx': CLIENT_PORTAL_VIEW,
   'ClientPortal.viewmodel.tsx': CLIENT_PORTAL_VIEWMODEL,
@@ -185,8 +229,8 @@ const CLIENT_PORTAL_SOURCE = mergeViewSources({
 export const portalExamplePlugin: MarketplacePlugin = {
   manifest: {
     id: 'com.microteia.portal-example',
-    version: '1.5.0',
-    kernel: '^2.62.0',
+    version: '1.7.0',
+    kernel: '^2.63.0',
     name: message('package.name'),
     description: message('package.description'),
     category: message('package.category'),
@@ -212,7 +256,7 @@ export const portalExamplePlugin: MarketplacePlugin = {
     ],
   },
   summary: message('package.summary'),
-  workflows: [],
+  workflows: WORKFLOWS,
   screens: [CLIENT_SCREEN, ORDER_SCREEN, SITE_SCREEN, VISIT_SCREEN],
   lookups: [URGENCIES],
   views: [

@@ -9,7 +9,6 @@ import {
   onSnapshot,
   orderBy,
   query,
-  Timestamp,
   where,
 } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
@@ -32,30 +31,10 @@ import {
   portalUploadStagingPath,
 } from '../../domain/schema/portal';
 import { readPortalReprojectionState, type PortalReprojectionState } from '../../domain/schema/portalReprojection';
+import { dateOf, mapPortalRecord, stringsOf, textOf } from './portalRecordMapping';
 import { PORTAL_SETTINGS_DOC, asPortalHomeSettings, type PortalHomeSettings } from '../../domain/schema/portalExtensionPoints';
 
 const PAGE_LIMIT = 200;
-
-const textOf = (value: unknown): string => (typeof value === 'string' ? value : '');
-const dateOf = (value: unknown): Date | null => (value instanceof Timestamp ? value.toDate() : null);
-const stringsOf = (value: unknown): string[] =>
-  Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
-
-const mapRecord = (id: string, data: Record<string, unknown>): PortalRecord => ({
-  id,
-  collection: textOf(data.collection),
-  recordId: textOf(data.recordId),
-  screenId: textOf(data.screenId),
-  title: textOf(data.title),
-  data: (data.data as Record<string, unknown> | undefined) ?? {},
-  labels: (data.labels as Record<string, string> | undefined) ?? {},
-  // Projeções gravadas antes do campo: o sujeito é o pai de quem aponta direto para a tela-sujeito,
-  // que é o caso comum. O resto se acerta na próxima gravação do registro.
-  parentKeys: stringsOf(data.parentKeys).length > 0 ? stringsOf(data.parentKeys) : stringsOf(data.subjectKeys),
-  editable: data.editable === true,
-  portalOwner: textOf(data.portalOwner) || null,
-  updatedAt: dateOf(data.updatedAt),
-});
 
 export class FirebasePortalRepository implements IPortalRepository {
   async listMemberships(userId: string): Promise<PortalMembership[]> {
@@ -92,7 +71,7 @@ export class FirebasePortalRepository implements IPortalRepository {
         orderBy('updatedAt', 'desc'),
         limit(PAGE_LIMIT),
       ),
-      (snapshot) => onUpdate(snapshot.docs.map((one) => mapRecord(one.id, one.data()))),
+      (snapshot) => onUpdate(snapshot.docs.map((one) => mapPortalRecord(one.id, one.data()))),
       (error) => onError?.(error),
     );
   }
@@ -115,7 +94,7 @@ export class FirebasePortalRepository implements IPortalRepository {
         orderBy('updatedAt', 'desc'),
         limit(max),
       ),
-      (snapshot) => onUpdate(snapshot.docs.map((one) => mapRecord(one.id, one.data()))),
+      (snapshot) => onUpdate(snapshot.docs.map((one) => mapPortalRecord(one.id, one.data()))),
       (error) => onError?.(error),
     );
   }
@@ -181,7 +160,7 @@ export class FirebasePortalRepository implements IPortalRepository {
       limit(PAGE_LIMIT),
     ));
     return snapshot.docs.map((one) => {
-      const record = mapRecord(one.id, one.data());
+      const record = mapPortalRecord(one.id, one.data());
       return { recordId: record.recordId, label: record.title || record.recordId };
     });
   }

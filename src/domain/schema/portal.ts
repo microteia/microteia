@@ -35,6 +35,13 @@ export const PORTAL_VISIBLE_WHEN_SINCE_KERNEL = '2.61.0';
  */
 export const PORTAL_LINK_BY_COLLECTION_SINCE_KERNEL = '2.62.0';
 
+/**
+ * O kernel a partir do qual o passo `notify` avisa os convidados do portal (`portalGuests`). Um kernel
+ * anterior ignora o input e reprova o passo por falta de destinatário: ninguém de fora é avisado, e
+ * ninguém de dentro também — falha FECHADO, por isso não há recusa no empacotamento.
+ */
+export const PORTAL_GUEST_NOTIFY_SINCE_KERNEL = '2.63.0';
+
 /** Quantos saltos de referência separam um registro da tela-sujeito, no máximo. */
 export const PORTAL_SUBJECT_MAX_DEPTH = 3;
 
@@ -135,6 +142,28 @@ export const parsePortalSubjectKey = (key: string): { collection: string; record
 };
 
 export const portalRecordDocId = (collection: string, recordId: string): string => `${collection}__${recordId}`;
+
+/** O inverso de `portalRecordDocId`: o id do REGISTRO, a partir da projeção dele. */
+export const portalRecordIdOf = (collection: string, projectionId: string): string => {
+  const prefix = `${collection}__`;
+  return projectionId.startsWith(prefix) ? projectionId.slice(prefix.length) : projectionId;
+};
+
+/** O endereço do portal — fora do espaço de trabalho do escritório, e da pilha de stores dele. */
+export const PORTAL_BASE_PATH = '/portal';
+
+/** O parâmetro do endereço que abre um registro no portal. */
+export const PORTAL_RECORD_PARAM = 'record';
+
+/**
+ * O endereço de UM registro no portal: `/portal/<escritório>/<coleção>?record=<id>`. É o link dos
+ * avisos ao convidado — no e-mail e no sino —, e nunca o do escritório, que ele não abre. A coleção
+ * ocupa o lugar do item do menu (o item de uma tela é o nome da coleção dela): a tela de topo abre
+ * dentro do próprio item, e a filha abre sozinha.
+ */
+export const portalRecordPath = (tenantId: string, collection: string, recordId: string): string =>
+  `${PORTAL_BASE_PATH}/${encodeURIComponent(tenantId)}/${encodeURIComponent(collection)}`
+  + `?${PORTAL_RECORD_PARAM}=${encodeURIComponent(recordId)}`;
 
 export const normalizePortalEmail = (email: string): string => email.trim().toLowerCase();
 

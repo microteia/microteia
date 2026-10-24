@@ -11,6 +11,39 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.153.0] — 2026-10-24
+
+- No portal de convidados, os campos de data voltaram a aparecer nas listas e nos detalhes dos registros — antes ficavam em branco.
+- Os cartões do portal que dependem de datas, como próximas audiências e vencimentos, passam a enxergar as datas gravadas pelo escritório.
+- No portal, "hoje" passa a ser o dia do fuso do escritório: à noite, o portal não antecipa mais o dia seguinte.
+- Datas informadas sem horário não aparecem mais com um dia a menos em telas de extensões.
+
+#### [9.152.0] — 2026-10-24
+
+- No portal de convidados, tocar num item listado num cartão da página inicial agora abre esse item. O botão Voltar leva de volta à página inicial.
+- Em páginas próprias de extensões no portal, abrir um item também passou a mostrá-lo; o Voltar retorna à página.
+
+#### [9.151.1] — 2026-10-23
+
+- O portal de convidados agora oferece, na escolha de tema, também os temas instalados pelo escritório — não só os que vêm com o sistema.
+
+#### [9.151.0] — 2026-10-23
+
+- Um item do menu que mostra quantas coisas esperam por você agora pode abrir a lista já mostrando exatamente essas coisas. O filtro aparece na barra de filtros, como qualquer outro, e pode ser removido para ver a lista inteira.
+
+#### [9.150.0] — 2026-10-23
+
+- Corrigida a hora registrada pelas automações: o horário de uma mensagem, de uma movimentação ou de um número de atendimento agora sai no fuso do escritório, e não mais três horas adiantado. Também deixa de cair no dia seguinte o que é registrado à noite. Os registros gravados antes desta correção continuam com a hora antiga.
+- A mesma fórmula de data agora mostra a mesma hora na tela, nas automações, nos relatórios e nos documentos gerados.
+- Quem precisa de outro fuso pode informá-lo na fórmula — por exemplo, para registrar a hora em UTC.
+
+#### [9.149.0] — 2026-10-23
+
+- As automações agora podem avisar os clientes do portal. Quando o escritório responde, agenda uma visita ou registra uma novidade, o cliente recebe um e-mail e um aviso no sino do próprio portal, com um link que abre o registro direto no portal.
+- O aviso chega só a quem foi convidado e enxerga aquele registro no portal. Quem teve o acesso revogado deixa de receber na hora, e um registro que não sai do escritório não gera aviso a ninguém.
+- Todo aviso enviado a clientes do portal fica registrado na Auditoria do escritório, com quantas pessoas o receberam e sobre qual registro.
+- Quem abre o link de um aviso sem estar conectado ao portal entra e volta direto ao registro, em vez de cair na página inicial.
+
 #### [9.148.0] — 2026-10-23
 
 - A atualização do portal depois de uma mudança numa tela agora aparece numa só tarja, com uma barra de andamento que soma todas as telas, em vez de uma tarja por tela. Telas sem registros não aparecem mais.

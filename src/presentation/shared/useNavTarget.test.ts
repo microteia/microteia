@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { ScreenDefinition } from '../../domain/entities';
-import { menuActionTarget, resolveNavTarget } from './useNavTarget';
+import { menuActionTarget, navEntryOf, resolveNavTarget } from './useNavTarget';
 
 const screen = (id: string, sourceId?: string): ScreenDefinition =>
   ({ id, ...(sourceId ? { sourceId } : {}) }) as unknown as ScreenDefinition;
@@ -29,5 +29,22 @@ describe('resolveNavTarget', () => {
 
   it('lê o openTab do menu na mesma forma', () => {
     expect(menuActionTarget({ kind: 'openTab', tabKey: 'profile' })).toEqual({ key: 'profile', screen: undefined, screenSourceId: undefined });
+  });
+});
+
+describe('navEntryOf', () => {
+  const filter = [{ key: 'status', values: ['waiting'] }];
+
+  /** O recado vai para a chave INSTALADA, que é a que a lista assina — não a do pacote. */
+  it('endereça o filtro à tela resolvida', () => {
+    const installed = screen('conversas_2', 'acme:conversas');
+    expect(navEntryOf({ filter }, { tabKey: 'dyn:conversas_2', screen: installed }))
+      .toEqual({ tabKey: 'dyn:conversas_2', intent: { screenKey: 'conversas_2', tokens: filter } });
+  });
+
+  it('não leva recado quando o item não declara filtro, ou quando o alvo é uma página', () => {
+    expect(navEntryOf({}, { tabKey: 'dyn:conversas', screen: screen('conversas') })).toEqual({ tabKey: 'dyn:conversas' });
+    expect(navEntryOf({ filter: [] }, { tabKey: 'dyn:conversas', screen: screen('conversas') })).toEqual({ tabKey: 'dyn:conversas' });
+    expect(navEntryOf({ filter }, { tabKey: 'reports' })).toEqual({ tabKey: 'reports' });
   });
 });

@@ -912,6 +912,29 @@ segunda cópia que ficasse para trás.
 o portal vê a mudança alguns segundos depois. Convidar alguém para uma empresa com dez mil notas
 custa ler dez mil projeções, uma vez, em lotes.
 
+### Data na fronteira com a view — uma forma só, pelos dois caminhos
+
+Um campo `date` é gravado como o dia ao **meio-dia UTC** (`coerceWriteValue` → `parseDateOnly`); um
+instante (`createdAt`, `updatedAt`) é o próprio instante. No Firestore os dois são Timestamp, e só a
+tela sabe qual é qual.
+
+A view recebe **`Date`** pelos dois caminhos: `useCollection` (escritório) e `usePortalRecords` /
+`usePortalRecord` (portal). A conversão é genérica e mora na camada de dados — `toPlainValues`
+(`src/data/utils/plainValues.ts`), usado por `FirebaseRecordRepository` e por `mapPortalRecord`
+(`portalRecordMapping.ts`). A projeção do portal entregava o Timestamp cru: a lista nativa do portal
+mostrava o campo de data em branco (`formatDate` não lia Timestamp), e o cartão de extensão que
+comparava datas mostrava menos do que devia, sem erro.
+
+**Por que `Date` e não o texto `YYYY-MM-DD`.** Texto exigiria conhecer o tipo do campo na fronteira, e
+— pior — mudaria em silêncio o que `useCollection` entrega há anos: uma view do escritório que faz
+`new Date(valor)` passaria a ler meia-noite UTC, a véspera nas Américas. O que faltava não era outra
+forma, era a pergunta de DIA: `today()` e `dayOf(v)` em `@microteia/format`, as mesmas respostas de
+`today()` e `formatDate(v, "YYYY-MM-DD")` nas expressões, no fuso do escritório (`clockGate`). Para o
+portal acertar o dia, `getPortalContext` devolve `timeZone` e o `PortalLocaleProvider` o empurra.
+
+**Limite conhecido:** a âncora do meio-dia lê o mesmo dia entre UTC−11 e UTC+11; é a mesma fronteira do
+motor de expressões.
+
 ### Mudou a declaração — a reprojeção por rodadas (`portal_reprojections`)
 
 Mudar a declaração de uma tela (ligar o portal, expor um campo, escrever um `visibleWhen`) muda a
@@ -1161,6 +1184,13 @@ A navegação (`PortalNavigationProvider`) mora num contexto, e não no ViewMode
 navega também: `usePortalNavigation()` abre, volta e cria na mesma pilha que a casca mostra. O "Voltar"
 em volta da view de detalhe é da casca. `examples/portal-example` é o molde.
 
+A pilha é por item do menu, e a HOME não tem item: lá, `openRecord` não empilha — navega para o
+`portalRecordPath` do registro (o endereço do e-mail e do sino), marcando a entrada do histórico
+(`state.portalOpenedFromHome`). O item abre com o registro, e o "Voltar" de uma pilha de um só volta
+pelo histórico (`navigate(-1)`), à home — não à lista do item. Antes, o cartão empilhava numa pilha que a
+home não desenha, e o toque não fazia nada, sem erro. Numa página de extensão (`surface: 'page'`), o
+registro aberto fica POR CIMA da página, e o "Voltar" a devolve. `back()` sem nada aberto não faz nada.
+
 `portal.view` move o `KERNEL_VERSION` (2.54.0): é ponto novo que o pacote instalado contribui.
 
 ### A home e o menu do portal
@@ -1281,8 +1311,59 @@ convidado vê, e campo apagado vai como `null`. Views de extensão usam `canEdit
 - A reprojeção também dispara quando muda a chave, o tipo, o `refEntity` ou a multiplicidade de um
   campo; e o convite consulta o `audience` uma vez por combinação de sujeitos, não por projeção.
 
+### Avisar o convidado — `notify` com `portalGuests`
+
+O escritório responde, registra um andamento, marca uma visita — e o convidado só ficava sabendo quando
+abria o portal por conta própria. O passo `notify` só alcançava membros: `INotificationDirectory.recipients`
+descarta quem não tem documento em `members`, e a regra do sino exigia `isMember`. Mandar e-mail a um
+endereço digitado num registro não servia de contorno: alcançaria quem nunca foi convidado, ou teve o
+acesso revogado.
+
+**Quem recebe é quem VÊ o registro, e não quem é convidado de uma raiz.** A primeira forma pensada era
+uma expressão que desse o registro-sujeito e alcançasse todo convidado dele. Ela tinha dois defeitos: o
+aviso fala de um registro (a conversa, a visita), e nada garantia que o convidado o enxergasse — fora do
+portal, ou escondido por `visibleWhen`, ele receberia um link para o que não abre, e o aviso confirmaria
+que aquilo existe; e um id solto não diz de que coleção ele é. Por isso a pergunta é feita sobre o
+registro de que o aviso fala (`target`), pela MESMA corrente da projeção:
+
+| Peça | O que faz |
+|---|---|
+| `makeResolvePortalGuestsUseCase` (`functions/src/domain/usecases/`) | `resolvePortalSubjectKeys` sobre o registro como está gravado, e então `audienceFor` + o convite de cada um. Não lê a projeção: o aviso de um registro recém-criado não espera ela existir, e o `audience` dela é refeito segundos depois de uma revogação — o convite, não |
+| `INotificationDirectory.guests` | o convidado como destinatário: sem preferências próprias (valem os padrões de canal do escritório), idioma do convite, e push nunca — o portal não tem onde ativá-lo |
+| `DispatchNotificationRequest.audience: 'portal'` | a porta única continua uma só: `recipientIds` e `recipientPermissions` não valem; o link do e-mail é `portalRecordPath` (`/portal/<escritório>/<coleção>?record=<id>`); o sino recebe `audience: 'portal'` e o texto JÁ resolvido no idioma do convidado — o portal não tem o catálogo de toda extensão instalada |
+| a Auditoria | toda entrega a convidados grava `notifications.portal.audit` (quantos, qual registro, o título), independente de `toAudit`: aquele é o aviso AO escritório; este, o rastro do que saiu dele |
+
+**O passo.** `portalGuests` (Literal, `false` por padrão) e `portalRecord` (só `Event`). O registro é o
+do evento; `portalRecord` aponta outro por um caminho do evento — e é o TIPO do caminho
+(`resolvePath` sobre o `stepConfiguration`) que diz a coleção, como o editor já sabe. Caminho que não
+leva a um registro reprova o passo; o caminho certo que veio vazio só não avisa ninguém, e o log diz.
+Junto com `recipientMembers`, `recipientsFrom` ou `recipientPermission` o passo reprova
+(`step.notify.portal.mixed`): o texto escrito para dentro do escritório não pode sair para fora por
+engano. Sem sino nem e-mail marcado, também (`portal.no-channel`).
+
+**O sino do convidado.** `PortalNotificationBell` (nas duas cascas do kernel, e em `@microteia/portal`
+para a casca de extensão) assina `recipientId == uid` + `audience == 'portal'`, com índice; as não lidas
+são contadas sobre essa janela, sem segunda consulta. A regra de `notification_inbox` deixa o convidado
+ler e marcar como lido o SEU aviso ao portal enquanto o convite existe (`isPortalUser`) — um aviso de
+membro nunca chega a ele. Não há página de avisos nem preferências no portal (fase 2).
+
+**O link de um registro no portal.** `?record=<id>` no item `<coleção>` abre a pilha de navegação já com
+o registro (`PortalNavigationProvider`); a chave da navegação entra no escopo para que o mesmo aviso,
+aberto de novo, reabra o registro. A tela-filha abre sozinha, e o "Voltar" dela vai para a home. O
+registro que ainda não chegou mostra espera; o que saiu do alcance do convidado diz que não está mais
+disponível. Quem chega sem sessão entra pelo acesso do portal e volta ao registro: o destino viaja no
+`state` da porta e, no link de acesso, em `next` — aceito só se for um caminho do portal
+(`isPortalReturnPath`), para o link não virar redirecionamento aberto.
+
+O pacote que usa `portalGuests` declara `kernel` a partir de `PORTAL_GUEST_NOTIFY_SINCE_KERNEL` (2.63.0).
+Um kernel anterior ignora o input e reprova o passo por falta de destinatário — falha FECHADO, e por isso
+não há recusa no empacotamento. `examples/portal-example` avisa o cliente de uma visita agendada.
+
 ### O que ainda não faz
 
+- **Preferências do convidado.** Ele não escolhe canal nem silencia tipo — valem os padrões do
+  escritório —, e o e-mail não leva um "não quero mais receber". Pede uma callable e um campo em
+  `portalUsers` (que só o servidor grava): o convidado não escreve em `settings/user_*`.
 - **Excluir pelo portal.** O convidado cria, altera e anexa; não apaga registro nem documento.
 - **View de portal declarativa** (Widget DSL): `portal.view` — inclusive `page`, `widget` e `home` — é só `code`. O `WidgetRenderer` lê os
   stores do escritório, e o convidado não os tem.
@@ -4547,6 +4628,7 @@ do kernel as capacidades abaixo.
 | Uma tela dentro de outra, sem virar filha | `ScreenDefinition.parentRelation: 'related'` | declarar a aba rebaixaria Processos a tela filha: sem menu, sem ⌘K e sem o campo "Contrato" no formulário |
 | Linha de cartão que a declaração não alcança | slot `renderMetaRows` do `RecordListSurface` | a vigência ("início – fim") é composição de dois campos; separadas, as duas datas ficam sem sentido no cartão |
 | Data no formato do escritório, nas extensões | `formatDate` em `@microteia/format` | cada view de extensão reescreveria o próprio formatador |
+| O dia de uma data e o dia de hoje, nas extensões | `dayOf` e `today` em `@microteia/format` | cada view compararia datas do seu jeito — quatro cópias numa instalação só |
 
 **`autoValue` — o código que ninguém quer digitar.** O padrão descreve a forma caractere a caractere
 (`A` letra, `0` dígito, `*` alfanumérico; o resto é literal), e o valor sorteado não se repete entre
@@ -5931,6 +6013,10 @@ lendo os documentos de membro em lote (`getAll`) — um id que não é membro fi
 vier. A permissão é a pergunta das Security Rules: `permissions array-contains-any [perm, '*']`, mais o
 `ownerId` do escritório. Teto: `NOTIFICATION_MAX_RECIPIENTS = 200` por execução — o envio é síncrono, e
 uma permissão dada ao escritório inteiro alcançaria todo mundo.
+
+**Os convidados do portal — uma quarta origem, que exclui as outras.** `portalGuests` troca o público
+do passo: recebem os convidados do portal que veem o registro, e nenhum membro. Ver "Avisar o
+convidado" na seção do Portal.
 
 Canal pessoal marcado sem NENHUMA origem configurada (`context.stepConfiguration`) reprova o passo — é
 erro de configuração. Origem configurada que não rende ninguém NESTA execução não reprova: o log diz por
@@ -10105,7 +10191,7 @@ preferência de quem escolheu espanhol ser descartada no dia em que o pacote fos
 sozinha ao inglês. Idioma sem tradução instalada simplesmente cai no idioma-fonte ao resolver o texto.
 
 `i18n.timezone` é o FUSO DO ESCRITÓRIO, e é ele que decide o dia de `today()` — na expressão de campo
-e na automação. Tipo `timezone` (lista IANA do `Intl`, mais "Automático" = vazio). A regra de resolução
+e na automação — e o RELÓGIO de `formatDate`, `year`, `month`, `day`, `dayOfWeek` e `isWeekend`. Tipo `timezone` (lista IANA do `Intl`, mais "Automático" = vazio). A regra de resolução
 vive em `domain/schema/i18n/timeZone.ts`, compartilhado com `functions/`, e é UMA função
 (`resolveTimeZone`): usuário → escritório → automático. O automático lê a região do `i18n.locale`
 GRAVADO do escritório (depois o do usuário; `BR` → `America/Sao_Paulo`) e cai em `UTC` — nunca o idioma
@@ -10121,6 +10207,18 @@ Como o fuso chega a cada ponta:
 | Workflow | `WorkflowServices.timeZone`, resolvido uma vez por execução (`timeZoneOf` em `hydrateAndRunWorkflow`; direto nos contextos de agente, relatório e script) → `anchorDay(now, timeZone)` |
 | Derive/compute no servidor | `withAmbientTimeZone(context.services.timeZone, …)` em volta da avaliação SÍNCRONA (consulta, mutação, recálculo de agregado, `get_record` do agente) |
 | `includeWhen` de relatório | `ReportRowFilterInput.timeZone` |
+
+**`formatDate` lê o relógio de parede do fuso, nunca os getters de `Date`.** `getHours()`/`getDate()`
+respondem pelo fuso do PROCESSO — UTC numa Cloud Function, a máquina de quem olha no navegador —, e a
+mesma expressão carimbava 23:00 na tela e 02:00 do dia seguinte no fluxo. As duas pontas passam por
+`wallClockInTimeZone` e `formatWallClock` (`i18n/timeZone.ts`): UMA implementação do padrão
+`YYYY MM DD HH mm ss`, a mesma na expressão de campo e no `formatDateFn` do workflow (que o Script
+expõe como `fn.formatDate`). Um dia (`YYYY-MM-DD`) não tem fuso e sai o mesmo dia (`wallClockOfDay`);
+um dia gravado é meio-dia UTC, que se lê o mesmo dia entre UTC-11 e UTC+11 (`parseDateOnly`). O
+terceiro argumento opcional é um fuso IANA; inválido dá `''` na expressão de campo (leniente, como
+data inválida) e `expr.arg.third.time-zone` no workflow. Nunca caia calado no fuso do escritório: seria
+a hora errada sem sintoma, que é o defeito que a regra elimina. `formatDateParity.test.ts` cobra as
+pontas às 23h de Brasília.
 
 **O relógio das automações não tem pessoa.** `schedule` e `dateReached` disparam pelo horário, e o
 servidor resolve o fuso SEM usuário — `resolveOfficeTimeZone(tenant)`, a mesma regra com o escopo do
@@ -11554,7 +11652,7 @@ a de uma tela que o escritório já tinha com o mesmo `sourceId`.
    `screen` (chave de uma tela DO PACOTE — abre a lista dela) ou `screenSourceId` (id universal, para a
    tela de uma dependência). Na carga do kernel, `withResolvedNavScreens` (`extensionRecordFrom`) troca
    `screen` pelo `sourceId` da tela — o pacote instalado continua cópia fiel do publicado —, e o shell
-   (`useNavTargetResolver`) acha a tela do escritório por esse `sourceId`, DEPOIS da desambiguação, e
+   (`useNavEntryResolver`) acha a tela do escritório por esse `sourceId`, DEPOIS da desambiguação, e
    abre `dyn:<chave instalada>` (ou a página própria da extensão com a chave da tela, como
    `useOpenScreenList`). Tela ausente, desligada ou ilegível para a pessoa: o item some. O `badge` não
    mudou. O `nav({ screen })` sobre uma tela que não se esconde SUBSTITUI o item automático dela na
@@ -11572,6 +11670,29 @@ a de uma tela que o escritório já tinha com o mesmo `sourceId`.
 `KERNEL_PAGES` (`domain/schema/ui/kernelPages.ts`) é uma segunda escrita das páginas `core.*` — o
 portão roda no SDK e no terminal, que não importam `plugins/`. `kernelPages.test.ts` a confronta com
 `CORE_PLUGINS`: página do kernel que entra ou sai sem passar por ela reprova ali.
+
+### O atalho abre a lista no recorte que o selo conta — `nav().filter`
+
+O `badge` do item contava "3 aguardando o escritório", e o clique abria a lista inteira: para ver o
+que o número contou, a pessoa montava o filtro à mão, toda vez. O recado de abertura filtrada já
+existia (`setNavigationIntent`, consumido pelo `useRecordListViewModel` — é por ele que o painel abre
+"prazos vencidos"); faltava o menu poder deixá-lo.
+
+- **`UiNavMetadata.filter`** (`{ key, values }[]`, a forma dos `defaultFilterTokens`). O shell resolve o
+  item em `NavEntry` (`useNavEntryResolver`): a aba e, quando o alvo é a lista de uma tela, o recado
+  endereçado à chave INSTALADA dela. `useOpenNavEntry` deixa o recado e abre a aba — a barra lateral e
+  os atalhos do alto (que são os itens com selo) passam pela mesma porta.
+- **É do ATALHO, não da tela.** O filtro é um filtro comum, à vista e removível; o item automático, a
+  aba salva e o link abrem a lista inteira. Um `defaultFilter` na tela foi considerado e descartado:
+  mexeria no `ScreenDefinition` persistido (schema compartilhado, Form Design) para valer em toda
+  entrada na lista — inclusive onde a pessoa não pediu recorte nenhum — e a dor era só do atalho.
+- **O portão recusa** (`navFilterIssues`, em `validatePluginPackage`): filtro em alvo `key`, forma
+  errada, chave que não é de campo `filterable` (nem arquivo; data também por `<chave>:ate`) e valor
+  que o campo não aceita (chave de opção declarada, `true`/`false`, `AAAA-MM-DD`). Sem a recusa, a
+  chave errada não falhava em lugar nenhum: a lista abria inteira. Só a tela do PRÓPRIO pacote é
+  conferida campo a campo; a de uma dependência e a lista de opções do escritório passam sem veredito.
+- **Selo e filtro são duas declarações** (`when` é expressão; `filter`, valores fixos) e nada as amarra
+  além do autor. Também não há data relativa no filtro: "vencidos" continua sendo só selo.
 
 ### A região é um NOME, e os nomes moram numa constante
 
@@ -12432,6 +12553,7 @@ daquela instalação. Ver "Artefatos de backend por extensão".
 | `tenants/{id}/notification_inbox` | `recipientId` ASC, `read` ASC, `createdAt` DESC | kernel | A contagem de não lidas do sino e o "marcar todas como lidas" |
 | `tenants/{id}/notification_inbox` | `recipientId` ASC, `category` ASC, `createdAt` DESC | kernel | A página de Notificações filtrada por tipo |
 | `tenants/{id}/notification_inbox` | `recipientId` ASC, `category` ASC, `read` ASC, `createdAt` DESC | kernel | A página filtrada por tipo e só não lidas |
+| `tenants/{id}/notification_inbox` | `recipientId` ASC, `audience` ASC, `createdAt` DESC | kernel | O sino do CONVIDADO do portal — a regra exige que a consulta filtre pelo portal; as não lidas são contadas sobre essa mesma janela |
 | `tenants/{id}/downloads` | `ownerId` ASC, `createdAt` DESC | kernel | Downloads — os arquivos da pessoa, mais recente primeiro |
 | `tenants/{id}/downloads` | `visibility` ASC, `createdAt` DESC | kernel | Downloads — os da automação liberados para todos (a regra só aprova a lista provada pelo filtro) |
 | `tenants/{id}/portalRecords` | `audience` CONTAINS, `collection` ASC, `updatedAt` DESC | kernel | Portal — a lista de uma tela para o convidado, mais recente primeiro. O filtro por `audience` é o que a regra exige para aprovar a lista |

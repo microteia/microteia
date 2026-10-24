@@ -26,6 +26,9 @@ export interface PortalNavigationValue {
   justSubmitted: boolean;
   /** A alteração acabou de ser gravada — a casca avisa até o próximo gesto. */
   justSaved: boolean;
+  /** O registro foi aberto de um cartão da home: voltar da pilha de um só devolve à home. */
+  returnsHome: boolean;
+  /** Na home, que não tem pilha, navega para o endereço do registro (`portalRecordPath`). */
   openRecord: (collection: string, projectionId: string) => void;
   back: () => void;
   startCreate: (collection: string, parentRecordId: string | null) => void;

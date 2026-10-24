@@ -1,6 +1,21 @@
+import { PORTAL_BASE_PATH } from '../../../domain/schema/portal';
+
 /** Os endereços do portal — fora do espaço de trabalho, e por isso fora da pilha de stores dele. */
-export const PORTAL_PATH = '/portal';
-export const PORTAL_SIGN_IN_PATH = '/portal/signin';
+export const PORTAL_PATH = PORTAL_BASE_PATH;
+export const PORTAL_SIGN_IN_PATH = `${PORTAL_BASE_PATH}/signin`;
+
+/** O parâmetro do acesso que diz para onde voltar depois de entrar — o registro de um aviso. */
+export const PORTAL_NEXT_PARAM = 'next';
+
+/**
+ * Se o endereço pode ser o destino depois do acesso: só um caminho DENTRO do portal, e nunca a
+ * própria página de acesso. Um destino livre faria do link de acesso um redirecionamento aberto.
+ */
+export const isPortalReturnPath = (value: string | null | undefined): value is string =>
+  typeof value === 'string'
+  && value.startsWith(`${PORTAL_PATH}/`)
+  && !value.includes('\\')
+  && !value.startsWith(PORTAL_SIGN_IN_PATH);
 
 export const portalTenantPath = (tenantId: string): string => `${PORTAL_PATH}/${encodeURIComponent(tenantId)}`;
 
@@ -19,10 +34,11 @@ export const portalEntryPath = (tenantId: string, entryId: string): string =>
 export const portalSignInUrl = (
   origin: string,
   tenantId: string,
-  options: { email?: string; locale?: string } = {},
+  options: { email?: string; locale?: string; next?: string } = {},
 ): string => {
   const query = new URLSearchParams({ tenant: tenantId });
   if (options.email) query.set('email', options.email);
+  if (isPortalReturnPath(options.next)) query.set(PORTAL_NEXT_PARAM, options.next);
   // `locale`, e não `lang`: o Firebase acrescenta o PRÓPRIO `lang` ao devolver para cá, e os dois
   // colidiam — a página lia o do Firebase.
   if (options.locale) query.set('locale', options.locale);

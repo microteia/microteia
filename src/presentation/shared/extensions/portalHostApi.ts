@@ -7,12 +7,14 @@ import { canEditPortalRecord, type PortalDocument, type PortalRecord, type Porta
 import { usePortalShellViewModel } from '../../pages/Portal/components/PortalShell/PortalShell.viewmodel';
 import { PortalBrand } from '../../pages/Portal/components/PortalBrand';
 import { PortalUserMenu } from '../../pages/Portal/components/PortalUserMenu';
+import { PortalNotificationBell } from '../../pages/Portal/components/PortalNotificationBell';
 
 /** Um registro como a view de portal o recebe: a projeção, endereçada pelo id do REGISTRO. */
 export interface PortalViewRecord {
   collection: string;
   recordId: string;
   title: string;
+  /** Na mesma forma que `useCollection` entrega: campo de data é `Date`, nunca o Timestamp. */
   data: Record<string, unknown>;
   labels: Record<string, string>;
   updatedAt: Date | null;
@@ -149,6 +151,7 @@ const portalModule = {
   usePortalShell: usePortalShellViewModel,
   PortalBrand,
   PortalUserMenu,
+  PortalNotificationBell,
 } as const;
 
 /**

@@ -1,30 +1,26 @@
 import type { ExpressionFunction } from '../FunctionRegistry';
+import type { WorkflowContext } from '../../../entities/WorkflowContext';
 import { anchorDay } from '../../../schema/mutationSpec';
+import {
+  DEFAULT_TIME_ZONE,
+  formatWallClock,
+  isValidTimeZone,
+  wallClockInTimeZone,
+  type WallClock,
+} from '../../../schema/i18n/timeZone';
 
 import { LocalizedError } from '../../../errors/LocalizedError';
-const formatDate = (date: Date, format: string): string => {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  const hours = String(date.getHours()).padStart(2, '0');
-  const minutes = String(date.getMinutes()).padStart(2, '0');
-  const seconds = String(date.getSeconds()).padStart(2, '0');
 
-  return format
-    .replace('YYYY', String(year))
-    .replace('MM', month)
-    .replace('DD', day)
-    .replace('HH', hours)
-    .replace('mm', minutes)
-    .replace('ss', seconds);
-};
+/**
+ * O relógio do ESCRITÓRIO (`i18n.timezone`, resolvido no começo da execução), o mesmo de `today()`.
+ * Os getters de `Date` respondiam pelo fuso do processo — UTC numa Cloud Function —, e a mensagem
+ * recebida às 11:32 em Brasília era carimbada 14:32. Um dia gravado (meio-dia UTC) se lê o mesmo dia
+ * em qualquer fuso entre UTC-11 e UTC+11 — ver `parseDateOnly`.
+ */
+const officeClock = (date: Date, context: WorkflowContext): WallClock =>
+  wallClockInTimeZone(date, context.services.timeZone ?? DEFAULT_TIME_ZONE);
 
-const dayOfWeek = (date: Date): number => date.getDay();
-
-const isWeekend = (date: Date): boolean => {
-  const day = date.getDay();
-  return day === 0 || day === 6;
-};
+const isWeekendClock = (clock: WallClock): boolean => clock.weekday === 0 || clock.weekday === 6;
 
 const dateDiff = (date1: Date, date2: Date, unit: string): number => {
   const diffMs = date1.getTime() - date2.getTime();
@@ -83,30 +79,34 @@ export const nowFn: ExpressionFunction = {
 
 export const formatDateFn: ExpressionFunction = {
   name: 'formatDate',
-  call: ([date, format]) => {
+  call: ([date, format, timeZone], context) => {
     if (!(date instanceof Date)) {
       throw new LocalizedError('@core.automation/expr.arg.first.date', { fn: 'formatDate' });
     }
     if (typeof format !== 'string') {
       throw new LocalizedError('@core.automation/expr.arg.second.string', { fn: 'formatDate' });
     }
-    return formatDate(date, format);
+    if (timeZone === undefined) return formatWallClock(officeClock(date, context), format);
+    if (!isValidTimeZone(timeZone)) {
+      throw new LocalizedError('@core.automation/expr.arg.third.time-zone', { fn: 'formatDate' });
+    }
+    return formatWallClock(wallClockInTimeZone(date, timeZone), format);
   },
   description: '@core.automation/expr.formatDate.description',
-  signature: 'formatDate(date, format)',
-  example: 'formatDate(today(), "DD/MM/YYYY")',
+  signature: 'formatDate(date, format, timeZone?)',
+  example: 'formatDate(now(), "DD/MM/YYYY HH:mm")',
   category: '@core.automation/expr.category.date',
   minArgs: 2,
-  maxArgs: 2,
+  maxArgs: 3,
 };
 
 export const dayOfWeekFn: ExpressionFunction = {
   name: 'dayOfWeek',
-  call: ([date]) => {
+  call: ([date], context) => {
     if (!(date instanceof Date)) {
       throw new LocalizedError('@core.automation/expr.arg.date', { fn: 'dayOfWeek' });
     }
-    return dayOfWeek(date);
+    return officeClock(date, context).weekday;
   },
   description: '@core.automation/expr.dayOfWeek.description',
   signature: 'dayOfWeek(date)',
@@ -118,11 +118,11 @@ export const dayOfWeekFn: ExpressionFunction = {
 
 export const isWeekendFn: ExpressionFunction = {
   name: 'isWeekend',
-  call: ([date]) => {
+  call: ([date], context) => {
     if (!(date instanceof Date)) {
       throw new LocalizedError('@core.automation/expr.arg.date', { fn: 'isWeekend' });
     }
-    return isWeekend(date);
+    return isWeekendClock(officeClock(date, context));
   },
   description: '@core.automation/expr.isWeekend.description',
   signature: 'isWeekend(date)',
@@ -156,11 +156,11 @@ export const dateDiffFn: ExpressionFunction = {
 
 export const yearFn: ExpressionFunction = {
   name: 'year',
-  call: ([date]) => {
+  call: ([date], context) => {
     if (!(date instanceof Date)) {
       throw new LocalizedError('@core.automation/expr.arg.date', { fn: 'year' });
     }
-    return date.getFullYear();
+    return officeClock(date, context).year;
   },
   description: '@core.automation/expr.year.description',
   signature: 'year(date)',
@@ -172,11 +172,11 @@ export const yearFn: ExpressionFunction = {
 
 export const monthFn: ExpressionFunction = {
   name: 'month',
-  call: ([date]) => {
+  call: ([date], context) => {
     if (!(date instanceof Date)) {
       throw new LocalizedError('@core.automation/expr.arg.date', { fn: 'month' });
     }
-    return date.getMonth() + 1;
+    return officeClock(date, context).month;
   },
   description: '@core.automation/expr.month.description',
   signature: 'month(date)',
@@ -188,11 +188,11 @@ export const monthFn: ExpressionFunction = {
 
 export const dayFn: ExpressionFunction = {
   name: 'day',
-  call: ([date]) => {
+  call: ([date], context) => {
     if (!(date instanceof Date)) {
       throw new LocalizedError('@core.automation/expr.arg.date', { fn: 'day' });
     }
-    return date.getDate();
+    return officeClock(date, context).day;
   },
   description: '@core.automation/expr.day.description',
   signature: 'day(date)',

@@ -21,6 +21,14 @@ describe('formatDateFor', () => {
     expect(formatDateFor('pt-BR', day)).toBe('13/08/2026');
   });
 
+  it('o texto de um dia é aquele dia em qualquer fuso — nunca a véspera da meia-noite UTC', () => {
+    expect(formatDateFor('pt-BR', '2026-08-13')).toBe('13/08/2026');
+  });
+
+  it('lê o Timestamp do Firestore, que antes virava vazio', () => {
+    expect(formatDateFor('pt-BR', { toDate: () => day, seconds: day.getTime() / 1000 })).toBe('13/08/2026');
+  });
+
   it('devolve vazio — nunca "Invalid Date" — para o irreconhecível', () => {
     expect(formatDateFor('pt-BR', 'nem data')).toBe('');
     expect(formatDateFor('pt-BR', null)).toBe('');

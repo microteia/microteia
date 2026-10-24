@@ -22,8 +22,21 @@ export interface NotificationRecipient {
  * escritório fica de fora aqui, venha de onde vier — de um campo do registro, de uma expressão, da
  * saída de outro passo.
  */
+/** Um convidado do portal que vê o registro AGORA — o convite conferido, não o `audience` da projeção. */
+export interface PortalGuestContact {
+  userId: string;
+  email: string;
+  /** O idioma do convite. Ausente, vale o do escritório. */
+  locale?: string;
+}
+
 export interface INotificationDirectory {
   recipients(tenantId: string, userIds: readonly string[]): Promise<NotificationRecipient[]>;
+  /**
+   * Os convidados como destinatários. O convidado não tem preferências próprias: valem os padrões de
+   * canal do ESCRITÓRIO. Push não existe para ele — o portal não tem onde ativá-lo.
+   */
+  guests(tenantId: string, contacts: readonly PortalGuestContact[]): Promise<NotificationRecipient[]>;
   /** Os membros com a permissão, ou com o curinga do dono — a mesma pergunta das Security Rules. */
   memberIdsGranting(tenantId: string, permission: string, limit: number): Promise<string[]>;
 }

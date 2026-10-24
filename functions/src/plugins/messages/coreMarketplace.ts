@@ -350,6 +350,14 @@ export const CORE_MARKETPLACE_MESSAGES: Record<string, string> = {
     'The menu item "{key}" opens a tab no page draws; to open the list of a screen, use screen: "<screen key>".',
   'issue.package.nav.dangling.screen':
     'The menu item "{key}" opens a tab no page draws; to open the list of the screen "{screen}", use screen: "{screen}".',
+  'issue.package.nav.filter.not-filterable':
+    'Menu item "{id}" opens the list filtered by "{key}", which is not a filterable field of the screen "{screen}". filter: takes the key of a field declared with filterable: true (a date also as "<key>:ate", the end of the range).',
+  'issue.package.nav.filter.shape':
+    'Menu item "{id}" ({where}) declares a filter that is not a list of { key, values }, each with at least one value.',
+  'issue.package.nav.filter.target':
+    'Menu item "{id}" ({where}) declares a filter, but opens no screen list: a filter only applies to screen or screenSourceId.',
+  'issue.package.nav.filter.value':
+    'Menu item "{id}" filters "{key}" by "{value}", which the field does not accept. An option list compares by the option KEY; a checkbox takes "true" or "false"; a date, YYYY-MM-DD.',
   'issue.package.nav.screen-unknown':
     'Menu item "{id}" opens the screen "{screen}", which this package does not declare. screen: takes the key of one of the package\'s own screens.',
   'issue.package.nav.source-id-unknown':

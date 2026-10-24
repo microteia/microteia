@@ -1,3 +1,5 @@
+import type { QualifiedContribution } from '../schema/plugin/contribution';
+
 /** Um escritório em que a pessoa é convidada do portal. */
 export interface PortalMembership {
   tenantId: string;
@@ -83,12 +85,16 @@ export interface PortalHome {
 export interface PortalContext {
   /** O idioma escolhido para este convidado (dele ou do escritório); vazio = o do navegador. */
   locale: string;
+  /** O fuso do escritório — é nele que o portal diz que dia é. Ausente num contexto anterior a ele. */
+  timeZone?: string;
   tenantName: string;
   logoURL: string | null;
   screens: PortalScreenInfo[];
   views: PortalViewInfo[];
   /** Os textos das extensões que trazem view — o catálogo do escritório não chega ao portal. */
   bundles: Array<{ locale: string; namespace: string; messages: Record<string, string> }>;
+  /** Os temas das extensões ligadas — o convidado não lê as extensões instaladas. */
+  themes?: QualifiedContribution[];
   home: PortalHome;
 }
 

@@ -8,6 +8,9 @@ import { businessCalendarCollectionsOf } from '../../domain/schema/time/extensio
 import { createHash } from 'node:crypto';
 import { extensionCodeOf, isCodeTrusted } from '../../domain/schema/plugin/codeTrust';
 import { portalViewsOf, type PortalViewDescriptor } from '../../domain/schema/portalExtensionPoints';
+import { THEME_DEFINITION_POINT, THEME_TOKENS_POINT } from '../../domain/schema/theme/themePoints';
+
+const THEME_POINTS = new Set([THEME_DEFINITION_POINT, THEME_TOKENS_POINT]);
 
 interface CacheEntry {
   /** Os nomes de Cloud Function que as extensões LIGADAS deste escritório reivindicam. */
@@ -23,6 +26,8 @@ interface CacheEntry {
   portalViews: PortalViewDescriptor[];
   /** Os textos das extensões que trazem view de portal — o portal não lê o catálogo do escritório. */
   portalBundles: MessageBundle[];
+  /** As contribuições de tema das extensões ligadas, qualificadas e na ordem do registro. */
+  themes: QualifiedContribution[];
   loadedAt: number;
 }
 
@@ -108,6 +113,15 @@ export class InstalledExtensionCache {
     return { views: entry.portalViews, bundles: entry.portalBundles };
   }
 
+  /**
+   * Os temas instalados — definições e pacotes de tokens —, para o portal. O convidado não lê as
+   * extensões instaladas, e sem isto o portal só oferecia os temas embutidos no bundle. Tema é
+   * declaração de cor, não código: vale para toda extensão ligada, sem a régua de confiança das views.
+   */
+  async themes(tenantId: string): Promise<QualifiedContribution[]> {
+    return (await this.load(tenantId)).themes;
+  }
+
   invalidate(tenantId: string): void {
     this.entries.delete(tenantId);
   }
@@ -124,6 +138,7 @@ export class InstalledExtensionCache {
     const documentTemplates: QualifiedContribution[] = [];
     const portalViews: PortalViewDescriptor[] = [];
     const portalBundleContributions: Contribution[] = [];
+    const themes: QualifiedContribution[] = [];
 
     for (const doc of snapshot.docs) {
       const data = doc.data();
@@ -144,6 +159,7 @@ export class InstalledExtensionCache {
         contributions.push(...(contributes as Contribution[]));
         for (const contribution of contributes as Contribution[]) {
           if (contribution?.point === DOCUMENT_TEMPLATE_POINT) documentTemplates.push({ ...contribution, pluginId: doc.id });
+          if (THEME_POINTS.has(contribution?.point)) themes.push({ ...contribution, pluginId: doc.id });
         }
 
         const pkg = (data.package ?? {}) as { views?: Array<{ key: string; source: string }>; startup?: string };
@@ -166,6 +182,7 @@ export class InstalledExtensionCache {
       businessCalendarCollections: businessCalendarCollectionsOf(contributions),
       portalViews,
       portalBundles: messageBundlesOf(portalBundleContributions),
+      themes: sortContributions(themes),
       loadedAt: Date.now(),
     };
     this.entries.set(tenantId, entry);

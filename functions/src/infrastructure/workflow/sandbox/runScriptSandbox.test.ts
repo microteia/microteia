@@ -124,6 +124,19 @@ describe('runScriptSandbox — compatibilidade fn.* (Expression) com QuickJS', (
     expect(out.d).toBe('dd/07/yyyy');
   });
 
+  it('fn.formatDate escreve a hora no relógio do escritório, e não no UTC do servidor', async () => {
+    const input = { sentAt: new Date('2026-07-12T02:00:00.000Z') };
+    const context = makeContext(input);
+    const out = await runScriptSandbox(
+      wrapMain('return { d: fn.formatDate(input.sentAt, "DD/MM/YYYY HH:mm") };'),
+      input,
+      { ...context, services: { ...context.services, timeZone: 'America/Sao_Paulo' } },
+      deps,
+      mutationDeps,
+    );
+    expect(out.d).toBe('11/07/2026 23:00');
+  });
+
   it('fn.hasPermission enxerga o ATOR da execução através da ponte host<->VM', async () => {
     const out = await run(
       wrapMain('return { pode: fn.hasPermission("finance.write"), naoPode: fn.hasPermission("finance.delete") };'),

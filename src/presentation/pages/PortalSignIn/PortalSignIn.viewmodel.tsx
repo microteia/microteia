@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../../stores/useAuth';
-import { PORTAL_PATH, portalSignInUrl, portalTenantPath } from '../Portal/portalPaths';
+import { isPortalReturnPath, PORTAL_NEXT_PARAM, PORTAL_PATH, portalSignInUrl, portalTenantPath } from '../Portal/portalPaths';
 
 const EMAIL_STORAGE_KEY = 'microteia:portalSignInEmail';
 
@@ -42,6 +42,7 @@ const storeEmail = (email: string | null): void => {
 export const usePortalSignInViewModel = (): PortalSignInViewModel => {
   const { user, isEmailVerified, loading, isSignInLink, signInWithLink, sendSignInLink } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [params] = useSearchParams();
   const tenantId = params.get('tenant');
   const invitedEmail = params.get('email');
@@ -52,7 +53,15 @@ export const usePortalSignInViewModel = (): PortalSignInViewModel => {
   const [email, setEmail] = useState(() => invitedEmail ?? readStoredEmail());
   const autoStartedRef = useRef(false);
 
-  const target = useMemo(() => (tenantId ? portalTenantPath(tenantId) : PORTAL_PATH), [tenantId]);
+  // Para onde a pessoa ia: o registro do aviso que ela abriu. Vem no endereço quando ela volta pelo
+  // link de acesso, e no `state` quando a porta do portal a mandou entrar.
+  const fromState = (location.state as { from?: unknown } | null)?.from;
+  const returnPath = [params.get(PORTAL_NEXT_PARAM), typeof fromState === 'string' ? fromState : null]
+    .find(isPortalReturnPath) ?? null;
+  const target = useMemo(
+    () => returnPath ?? (tenantId ? portalTenantPath(tenantId) : PORTAL_PATH),
+    [returnPath, tenantId],
+  );
 
   /**
    * Segue para o portal só depois de CONSUMIR o link. Enquanto ele não foi usado, a sessão aberta é
@@ -106,7 +115,11 @@ export const usePortalSignInViewModel = (): PortalSignInViewModel => {
       setStatus('sending');
       await sendSignInLink(
         typed,
-        portalSignInUrl(window.location.origin, tenantId ?? '', { email: typed, locale: locale ?? undefined }),
+        portalSignInUrl(window.location.origin, tenantId ?? '', {
+          email: typed,
+          locale: locale ?? undefined,
+          ...(returnPath ? { next: returnPath } : {}),
+        }),
         locale ?? undefined,
       );
       storeEmail(typed);
@@ -114,7 +127,7 @@ export const usePortalSignInViewModel = (): PortalSignInViewModel => {
     } catch {
       setStatus('failed');
     }
-  }, [email, mode, completeLink, sendSignInLink, tenantId, locale]);
+  }, [email, mode, completeLink, sendSignInLink, tenantId, locale, returnPath]);
 
   const processing = mode === 'confirm' && !!invitedEmail && status !== 'failed';
 

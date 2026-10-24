@@ -4,6 +4,7 @@ import { S } from './SidebarLayout.styles';
 import { usePortalShellViewModel } from '../PortalShell/PortalShell.viewmodel';
 import { PortalBrand } from '../PortalBrand';
 import { PortalUserMenu } from '../PortalUserMenu';
+import { PortalNotificationBell } from '../PortalNotificationBell';
 import { getScreenIcon } from '../../../../shared/screenIcons';
 import { useT } from '../../../../shared/i18n/useT';
 
@@ -37,6 +38,7 @@ export const SidebarLayout: React.FC<{ children: React.ReactNode }> = ({ childre
             <RiMenuLine size={20} />
           </S.MenuButton>
           <S.PageTitle>{shell.pageTitle}</S.PageTitle>
+          <PortalNotificationBell />
           <PortalUserMenu shell={shell} />
         </S.Topbar>
         <S.Content>{children}</S.Content>

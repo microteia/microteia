@@ -21,14 +21,28 @@ const memo = <T>(key: string, build: () => T): T => {
 
 const safeLocale = (locale: LocaleCode): LocaleCode => normalizeLocale(locale) || DEFAULT_LOCALE;
 
+const DAY_ONLY = /^(\d{4})-(\d{2})-(\d{2})$/;
+
+const isTimestampLike = (value: unknown): value is { toDate: () => Date } =>
+  !!value && typeof value === 'object' && typeof (value as { toDate?: unknown }).toDate === 'function';
+
 /**
- * Toda entrada de data do sistema atravessa aqui. Aceita `Date`, ISO ou o que já foi convertido de um
- * Timestamp, porque a mesma coleção guarda documentos de épocas diferentes e quem exibe não deveria
+ * Toda entrada de data do sistema atravessa aqui. Aceita `Date`, ISO, o texto de um DIA e o Timestamp
+ * do Firestore, porque a mesma coleção guarda documentos de épocas diferentes e quem exibe não deveria
  * precisar se defender disso. Valor irreconhecível vira string vazia, nunca "Invalid Date".
+ *
+ * O dia (`YYYY-MM-DD`) vira meia-noite LOCAL: `new Date('2026-12-15')` é meia-noite em UTC, que em
+ * Brasília ainda é dia 14 — e o texto de dia escrevia a véspera.
  */
 const toDate = (value: unknown): Date | null => {
   if (value === null || value === undefined || value === '') return null;
-  const date = value instanceof Date ? value : new Date(String(value));
+  if (isTimestampLike(value)) return toDate(value.toDate());
+  const dayOnly = typeof value === 'string' ? DAY_ONLY.exec(value.trim()) : null;
+  const date = value instanceof Date
+    ? value
+    : dayOnly
+      ? new Date(Number(dayOnly[1]), Number(dayOnly[2]) - 1, Number(dayOnly[3]))
+      : new Date(String(value));
   return Number.isNaN(date.getTime()) ? null : date;
 };
 

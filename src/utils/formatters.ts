@@ -1,6 +1,8 @@
 import { onlyDigits } from '../domain/schema/fieldRules';
 import { ambientLocale } from '../domain/schema/i18n/localeGate';
 import { currencyForLocale, formatDateFor, formatMoneyFor } from '../domain/schema/i18n/localeFormat';
+import { dayInTimeZone } from '../domain/schema/i18n/timeZone';
+import { ambientInstant, ambientTimeZone } from '../domain/schema/clockGate';
 
 export const onlyNumbers = onlyDigits;
 
@@ -44,6 +46,37 @@ export const parseCurrencyDigits = (raw: string): number | null => {
  * disso. Valor irreconhecível vira string vazia, nunca "Invalid Date".
  */
 export const formatDate = (value: unknown): string => formatDateFor(ambientLocale(), value);
+
+const DAY_ONLY = /^\d{4}-\d{2}-\d{2}$/;
+
+const isTimestampLike = (value: unknown): value is { toDate: () => Date } =>
+  !!value && typeof value === 'object' && typeof (value as { toDate?: unknown }).toDate === 'function';
+
+/**
+ * O DIA DO ESCRITÓRIO (`YYYY-MM-DD`) — a mesma resposta de `today()` numa expressão, no mesmo fuso
+ * (`i18n.timezone`). É o lado direito de "já venceu?" numa view: `dayOf(r.dueDate) < today()`.
+ */
+export const today = (): string => dayInTimeZone(ambientInstant(), ambientTimeZone());
+
+/**
+ * O DIA (`YYYY-MM-DD`) de um valor de data, no relógio do escritório — o texto que se compara com
+ * `today()` e entre si, na ordem certa. Aceita o que uma view recebe (`Date`), o Timestamp do Firestore
+ * e texto; um dia já em texto passa intacto. Irreconhecível vira texto vazio.
+ *
+ * Existe porque cada autor escrevia a sua: quatro cópias numa instalação só, e a primeira escrita
+ * comparou o Timestamp como texto — vazio, que é "menor que tudo" e esconde o registro sem erro.
+ */
+export const dayOf = (value: unknown): string => {
+  if (typeof value === 'string' && DAY_ONLY.test(value.trim())) return value.trim();
+  const date = value instanceof Date
+    ? value
+    : isTimestampLike(value)
+      ? value.toDate()
+      : typeof value === 'number' || (typeof value === 'string' && value.trim() !== '')
+        ? new Date(value)
+        : null;
+  return date && !Number.isNaN(date.getTime()) ? dayInTimeZone(date, ambientTimeZone()) : '';
+};
 
 /**
  * Converte um Date para o formato aaaa-mm-dd de um <input type="date">, usando os componentes de

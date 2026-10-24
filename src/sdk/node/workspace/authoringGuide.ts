@@ -26,7 +26,11 @@ import { FIELD_EXPRESSION_FUNCTION_NAMES } from '../../../domain/schema/fieldExp
 import { BUSINESS_CALENDAR_FIELDS } from '../../../domain/schema/time/businessDays';
 import { BUSINESS_CALENDAR_POINT } from '../../../domain/schema/time/extensionPoints';
 import { ARTIFACT_PREFIX_SINCE_KERNEL } from '../../../domain/schema/plugin/artifactPrefix';
-import { PORTAL_LINK_BY_COLLECTION_SINCE_KERNEL, PORTAL_VISIBLE_WHEN_SINCE_KERNEL } from '../../../domain/schema/portal';
+import {
+  PORTAL_GUEST_NOTIFY_SINCE_KERNEL,
+  PORTAL_LINK_BY_COLLECTION_SINCE_KERNEL,
+  PORTAL_VISIBLE_WHEN_SINCE_KERNEL,
+} from '../../../domain/schema/portal';
 import {
   DOCUMENT_OUTPUTS_BY_FORMAT,
   DOCUMENT_TEMPLATE_MAX_BYTES,
@@ -195,7 +199,7 @@ const FIELD_TYPES: Record<CustomFieldType, string> = {
   textarea: 'Several lines of plain text.',
   number: 'A number. `rules.validate` can bound it.',
   currency: 'A number shown and typed as money, in the locale of whoever is looking.',
-  date: 'A day, stored as `YYYY-MM-DD` — never a timestamp, so the day that goes in is the day that comes out.',
+  date: 'A day. It is stored as that day at noon UTC, so the day that goes in is the day that comes out in every time zone; a view receives it as a `Date` (§7, "Dates in a view").',
   time: 'A time of day, stored as `HH:mm`.',
   checkbox: 'True or false.',
   select: 'One option — or several with `multi: true`. The options come from `options` (yours, fixed) or from `lookupCollection` (a list the organization owns and edits).',
@@ -290,7 +294,7 @@ const stepCatalogTable = (steps: readonly WorkflowStepMetadata[]): string => [
  * tabela de voltar a ficar incompleta em silêncio.
  */
 const STEP_CATALOG_NOTES: Record<string, string> = {
-  notify: 'Notifies people in the app (the bell), by e-mail or by push, and/or writes it to the audit trail. With no channel set it only writes to the audit trail, as version 1 did. Recipients come from `recipientMembers`, `recipientsFrom` (a member id, or a record linked to one by `memberId` — a reference read on its own is an id, so a person linked to a member is `event.personId.memberId`) and `recipientPermission`; each person keeps or refuses a channel in Settings, and `title`/`message` resolve in each recipient\'s language. Clicking it opens the record that triggered the flow (`openRecord`, on by default) — in the app, in the browser notification and in the e-mail. Set `category` to one of your declared notification types (`<package id>/<key>`, see `notificationCategory`) so each person can choose, on the Notifications page, which channels bring them that type. Publishes `recipients`, `delivered.<channel>` and `failed.<channel>`.',
+  notify: 'Notifies people in the app (the bell), by e-mail or by push, and/or writes it to the audit trail. With no channel set it only writes to the audit trail, as version 1 did. Recipients come from `recipientMembers`, `recipientsFrom` (a member id, or a record linked to one by `memberId` — a reference read on its own is an id, so a person linked to a member is `event.personId.memberId`) and `recipientPermission`; each person keeps or refuses a channel in Settings, and `title`/`message` resolve in each recipient\'s language. Clicking it opens the record that triggered the flow (`openRecord`, on by default) — in the app, in the browser notification and in the e-mail. Set `category` to one of your declared notification types (`<package id>/<key>`, see `notificationCategory`) so each person can choose, on the Notifications page, which channels bring them that type. With `portalGuests` it notifies the portal guests who can see the record instead of members (see "Telling the portal\'s guests" in section 10). Publishes `recipients`, `delivered.<channel>` and `failed.<channel>`.',
   'register-audit': 'Writes an entry in the audit trail. `severity` defaults to `LOW`.',
   'set-variable': 'Names a value for the rest of the flow. Read it back with `{ kind: \'Variable\' }`.',
   map: 'Assembles an object from other values — what a write step then writes.',
@@ -654,7 +658,11 @@ A portal view reaches a smaller API: \`@microteia/ui\`, \`@microteia/i18n\`, \`@
 \`@microteia/theme\` and \`@microteia/portal\` — \`usePortalRecords(collection, { parent })\`,
 \`usePortalRecord\`, \`usePortalScreen\`, \`usePortalNavigation\`, \`usePortalDocuments\`,
 \`usePortalSubmit\`, \`usePortalUpdate\`. Show an edit gesture only when the record's \`canEdit\` is true
-(\`usePortalNavigation().edit\` opens the standard form). Importing \`@microteia/data\` (or report, settings, functions) fails when the view is
+(\`usePortalNavigation().edit\` opens the standard form). \`usePortalNavigation().openRecord(collection,
+recordId)\` opens a record from any surface: inside a menu entry (a \`list\`, \`detail\` or \`page\`) it
+stacks the record over what is open, and Back returns there; from the home (a \`widget\` or the \`home\`)
+it takes the guest to the record's own address — the one the e-mail and the bell use —, and Back returns
+to the home. \`back()\` with nothing open does nothing. Importing \`@microteia/data\` (or report, settings, functions) fails when the view is
 compiled: the guest has none of the organization's data stores. A view receives \`{ collection, recordId? }\`
 and asks \`@microteia/portal\` for the rest.
 
@@ -841,7 +849,7 @@ id is the whole of how an update recognises the same contribution across version
 
 | Constructor | Point | What it delivers |
 |---|---|---|
-| \`nav(metadata)\` | \`ui.nav\` | a menu entry — ONE target (\`key\`, \`screen\` or \`screenSourceId\`, below), \`label\`, \`icon\`, \`order\`, optional \`badge\`, \`group\`, \`requiredPermissions\` and \`requiresSystemAdmin\` |
+| \`nav(metadata)\` | \`ui.nav\` | a menu entry — ONE target (\`key\`, \`screen\` or \`screenSourceId\`, below), \`label\`, \`icon\`, \`order\`, optional \`badge\`, \`filter\`, \`group\`, \`requiredPermissions\` and \`requiresSystemAdmin\` |
 | \`navGroup(metadata)\` | \`ui.nav.group\` | a titled, collapsible group of the sidebar — \`key\`, \`label\`, \`order\`, optional \`defaultCollapsed\`; entries join it with \`group: '<key>'\` (below) |
 | \`page(metadata, viewKey)\` | \`ui.page\` | a workspace screen drawn by one of your \`views\` (§7) |
 | \`widgetPage(metadata, spec)\` | \`ui.page\` | a workspace screen declared in Widget DSL — no code, no review |
@@ -1087,6 +1095,40 @@ nav({ screen: 'recordTabMilestone', label: label('nav.milestones'), icon: 'flag'
   badge: { collection: 'recordTabMilestone', when: 'done != true' } }),
 \`\`\`
 
+#### The list the entry opens — \`filter\`
+
+An entry that leads to a screen's list may say how that list opens. It is what makes a queue read
+right: the badge says "3", and the click shows those 3 — not the whole collection.
+
+\`\`\`ts
+const WAITING = 'waiting_on_us';
+
+nav({ screen: 'conversations', label: label('nav.conversations'), icon: 'message', order: 30,
+  badge: { collection: 'conversations', when: \`status == "\${WAITING}"\` },
+  filter: [{ key: 'status', values: [WAITING] }] }),
+\`\`\`
+
+- **Each term is \`{ key, values }\`** — the key of a field the screen declares \`filterable: true\`, and the
+  values it accepts. An option list compares by the option KEY, never the label, the same as \`when\`
+  does; a checkbox takes \`"true"\` / \`"false"\`; a date filters by range, \`key\` the first day and
+  \`<key>:ate\` the last (\`YYYY-MM-DD\`). Several terms all apply; several values in one term, any of them.
+- **It is an ordinary filter**, shown in the filter bar and removable like one the person picked. It is
+  where the list starts, never a restriction: the person can always widen it.
+- **It belongs to the ENTRY, not to the screen.** The automatic menu entry, a saved tab and a link open
+  the list unfiltered; clicking this entry again brings its slice back. Two entries over the same screen
+  cannot each carry a filter — they resolve to the same tab, and the first one declared wins.
+- **Write the badge and the filter over the same slice.** They are two declarations of one idea, and
+  nothing keeps them in step but you: a badge counting \`status == "open"\` over a list opening on
+  \`overdue\` is the mismatch this exists to close.
+- **There is no relative date.** A filter is fixed values, so "overdue" (\`dueDate < today()\`) is a
+  badge, not a filter — open that list on a status field instead.
+
+\`check\` refuses a filter on an entry whose target is a \`key\` (a page has no list to hand it to), a
+key that is not a filterable field of the screen, an option key the field does not declare and a value
+a checkbox or a date cannot hold. Over a dependency's screen the fields are not visible from here, and
+the filter installs unchecked; an option list of the organization's (\`lookupCollection\`) is checked
+only for the key, because its values exist only there.
+
 ### A view is not a page until something points at it
 
 \`views\` is a registry, not a menu. The entry sits there, keyed, until a contribution names that key:
@@ -1114,7 +1156,8 @@ Two things follow from the same wiring:
   the person may see wins.
 - **\`nav().badge\`** counts records without any code: \`badge: { collection: 'invoices', when: 'status
   == "open"' }\`. The expression sees each record's fields plus \`user\` (§9), which is what lets a badge
-  count what *this* person has not dealt with.
+  count what *this* person has not dealt with. Give the entry the same slice as a \`filter\` (above, "The
+  list the entry opens") and the click shows what the badge counted.
 
 ### Several files, one module
 
@@ -1235,6 +1278,29 @@ phase or a tag arrives as a value, so pass it in as a \`$\`-prefixed prop and ap
 name.
 
 And §5 still has no exception, least of all here: no string a person reads is written in a view.
+
+### Dates in a view
+
+A view receives every date as a \`Date\`, by every road — \`useCollection\` in the office,
+\`usePortalRecords\` and \`usePortalRecord\` in the portal. An instant (\`createdAt\`, \`updatedAt\`, a
+timestamp you wrote) is that instant; a \`date\` field is its day at noon UTC. Nothing arrives as a
+Firestore Timestamp, and nothing arrives as text.
+
+"Has it passed?", "what is due this week" and "most recent first" are questions about DAYS, so ask them
+in days, with the two functions \`@microteia/format\` keeps for it:
+
+\`\`\`ts
+import { dayOf, today } from '@microteia/format';
+
+const upcoming = records.filter((r) => dayOf(r.hearingDate) >= today());
+\`\`\`
+
+\`today()\` is the organization's day — the same answer as \`today()\` in an expression, on the same time
+zone, in the office and in the portal. \`dayOf(v)\` is the day of a value on that clock, as
+\`YYYY-MM-DD\`, and \`YYYY-MM-DD\` sorts in calendar order. Do not compare a date as text (a \`Date\` turned
+into a string does not sort), and do not write \`new Date("2026-12-15")\`: that is midnight UTC, which is
+still the 14th everywhere in the Americas. \`formatDate(v)\` from the same module writes any of these
+forms in the reader's locale.
 
 ## 8. Screens — the data your extension owns
 
@@ -1448,6 +1514,11 @@ screens: [{
 }]
 \`\`\`
 
+**A screen declares no opening filter.** Its list opens whole from wherever it is reached; a queue
+that should open on "waiting" says so on the menu entry that leads to it — \`nav({ screen, badge, filter
+})\`, §7 "The list the entry opens" — which is also where the badge counting the same slice lives. Mark
+the fields that slice is cut by \`filterable: true\`: the filter takes no other key.
+
 \`key\` is what your own artifacts use. \`sourceId\` is what *updates* use: it is universal, so the same
 screen arriving from a new version — or from a second extension — is recognised instead of duplicated.
 
@@ -1571,7 +1642,7 @@ is enforced at the two write paths, which is the same footing \`required\`, a ma
 | \`parentEntity\`, \`parentFieldKey\` | this screen is a CHILD: which screen, and the \`reference\` field that points at it. On an \`owned\` child the form hides that field only when it is opened from INSIDE the parent (the child tab, a list locked with \`useEntityList({ parent })\`), where it comes filled in; opened from the child's own screen, the field shows as declared, so a child with a menu of its own can still be created there |
 | \`parentRelation: 'owned' \\| 'related'\` | \`owned\` — it exists because of the parent; deleting the parent does NOT delete it (there is no cascade, see above), it is left orphaned. \`related\` — it merely points at the parent, and the gesture that fits is unlinking. A \`required\` link is treated as \`owned\` for the card gestures whatever this says: Unlink would empty a field the save refuses |
 | \`hideFromParentTabs\` | the child does not become a tab of the parent |
-| \`hideFromSidebar\`, \`sidebarOrder\` | whether a top-level screen gets its own menu entry, and where. Hide it when you declare the entry yourself with \`nav({ screen: '<screen key>', badge })\` — that is how a menu entry gets a badge. Write \`screen\`, never \`key\`: a screen's key is not a tab key, and \`nav({ key: '<screen key>' })\` is refused (§4, "Where a menu entry leads"). A \`nav({ screen })\` over a screen that does NOT hide itself replaces its automatic entry instead of adding a second one |
+| \`hideFromSidebar\`, \`sidebarOrder\` | whether a top-level screen gets its own menu entry, and where. Hide it when you declare the entry yourself with \`nav({ screen: '<screen key>', badge })\` — that is how a menu entry gets a badge, and a \`filter\` that opens the list on the slice the badge counts. Write \`screen\`, never \`key\`: a screen's key is not a tab key, and \`nav({ key: '<screen key>' })\` is refused (§4, "Where a menu entry leads"). A \`nav({ screen })\` over a screen that does NOT hide itself replaces its automatic entry instead of adding a second one |
 | \`hideRecordsFromCommandPalette\` | the records of this screen stay out of the command palette (⌘K) search. Declare it when a machine fills the collection — an ingestion, a mail feed — or its records crowd out what people are looking for. The screen itself is still offered ("Open …"), so a screen that also hides from the sidebar keeps one way in; lists, links, tabs and reference pickers are untouched |
 | \`recordTabPrefix\` | opening a record from outside (audit log, a mention, the command palette) lands on YOUR view instead of the form (§7) |
 | \`dataCollection\` | install the screen over a collection that already exists, instead of creating one. \`fields\` is still the complete schema of it |
@@ -1741,6 +1812,22 @@ screen and false in the automation that acts on it. Do not compensate for the ti
 \`now()\` stays an **instant**. Compare it with other instants (\`dateDiff(now(), createdAt, "hours")\`);
 when you need a day, ask \`today()\` instead of cutting one out of \`now()\`.
 
+### \`formatDate\` writes the organization's clock
+
+\`formatDate(v, fmt)\` reads an instant on the clock of the same time zone \`today()\` uses, everywhere
+the expression runs — the form, a \`derive\` on the server, a workflow, a Script's \`fn.formatDate\`, a
+report's \`includeWhen\` and a document template. \`formatDate(now(), "YYYY-MM-DD HH:mm")\` at 11 p.m. in
+Brasília is \`2026-03-30 23:00\` on the screen and in the automation alike; without it, a server in UTC
+would stamp the next day at 02:00. \`year\`, \`month\`, \`day\`, \`dayOfWeek\` and \`isWeekend\` read the
+same clock.
+
+A day is not converted: \`formatDate("2026-03-31", "DD/MM/YYYY")\` is \`31/03/2026\` in every time zone,
+and so is a date field. A third argument, an IANA time zone, reads another
+clock: \`formatDate(now(), "HH:mm", "UTC")\`. A name the platform does not know is an empty text in a
+field expression and a named refusal in a workflow — never the hour of some other zone. Do not shift the
+hour yourself (\`addDays(now(), -0.125)\`): it is wrong for every organization outside one zone, and
+wrong for that one the day it changes its setting.
+
 ### Asking about permission
 
 \`hasPermission("...")\` is the one function that answers about who is looking, and it takes patterns:
@@ -1769,7 +1856,7 @@ logical negation. On top of them:
 | Logic | \`if(cond, a, b)\`, \`coalesce(...)\`, \`isEmpty(v)\`, \`isNull(v)\`, \`isNotNull(v)\` |
 | Text | \`concat(...)\`, \`lower\`, \`upper\`, \`trim\`, \`length\`, \`contains(v, s)\`, \`startsWith\`, \`endsWith\`, \`indexOf\`, \`substring(v, start, end)\`, \`replace(v, s, r)\`, \`split(v, sep)\`, \`join(a, sep)\`, \`interpolate(template, ...)\` |
 | Numbers | \`round(v, decimals)\`, \`sum(a)\`, \`avg(a)\`, \`min\`, \`max\`, \`abs\`, \`ceil\`, \`floor\`, \`sqrt\` |
-| Dates | \`today()\`, \`now()\`, \`addDays(v, n)\`, \`formatDate(v, fmt)\`, \`dateDiff(a, b, unit)\`, \`dayOfWeek\`, \`isWeekend\`, \`year\`, \`month\`, \`day\` |
+| Dates | \`today()\`, \`now()\`, \`addDays(v, n)\`, \`formatDate(v, fmt, timeZone?)\`, \`dateDiff(a, b, unit)\`, \`dayOfWeek\`, \`isWeekend\`, \`year\`, \`month\`, \`day\` |
 | Business days | \`addBusinessDays(v, n, calendars)\`, \`businessDaysBetween(a, b, calendars)\`, \`isBusinessDay(v, calendars)\`, \`nextBusinessDay(v, calendars)\` — see below |
 | Lists | \`first(a)\`, \`last(a)\`, \`map(a, path, compact)\`, \`contains(a, item)\`, \`length(a)\` |
 | Brazil, and formatting | \`isCPF\`, \`isCNPJ\`, \`isEmail\`, \`onlyNumber\`, \`formatCPF\`, \`formatCNPJ\`, \`formatMoney(v, locale)\` |
@@ -2023,6 +2110,53 @@ returns nothing and the flow carries on as if the records did not exist.
 Ask the MCP server rather than guessing any of this: \`microteia://workflow/steps\` for the catalog,
 \`describe_workflow_step\` for one step's exact inputs and outputs, \`list_workflow_events\` for the
 trigger names. All three are derived from this installation.
+
+### Telling the portal's guests
+
+A \`notify\` step with \`portalGuests\` notifies the people OUTSIDE the organization who can see a record
+in the portal — the client of a case, the supplier of an invoice — instead of members:
+
+\`\`\`ts
+{
+  id: 'tellClient',
+  stepDefinitionId: 'notify',
+  type: 'Action',
+  order: 0,
+  enabled: true,
+  configuration: {
+    title: { kind: 'Literal', value: label('notify.reply.title') },
+    message: { kind: 'Literal', value: label('notify.reply.message') },
+    portalGuests: { kind: 'Literal', value: true },
+    toEmail: { kind: 'Literal', value: true },
+    toInApp: { kind: 'Literal', value: true },        // the bell of the PORTAL
+    toAudit: { kind: 'Literal', value: false },
+    portalRecord: { kind: 'Event', path: 'caseId' },  // optional — see below
+  },
+}
+\`\`\`
+
+- **Who receives** is decided when the step runs, by the same chain that decides what the portal shows
+  (section 8, \`portal\`): the active guests of the subject the record reaches, with \`visibleWhen\` on every
+  link. A record that is not in the portal notifies nobody — not even that it exists. A revoked invite
+  stops receiving at once. You never name a guest, and an e-mail typed in a field is never used.
+- **Which record.** By default, the record of the event. \`portalRecord\` names another one as an \`Event\`
+  path (\`caseId\`, \`conversationId.personId\`): the path has a type, and that is how the step knows the
+  collection. A path that does not lead to a record fails the step; the right path that came empty in
+  this run only notifies nobody, and the log says so.
+- **Never members in the same step.** \`portalGuests\` with \`recipientMembers\`, \`recipientsFrom\` or
+  \`recipientPermission\` fails the step. One step for the organization, another for the portal: the text
+  is written for someone outside, so keep in it only what that screen's \`portal.fields\` already show —
+  a value read from the record in \`messageParams\` leaves the organization in the e-mail.
+- **Channels.** E-mail and the portal's bell. Push does not reach guests, and they have no preferences of
+  their own: the organization's channel defaults apply. The link opens the record IN THE PORTAL. \`title\`
+  and \`message\` resolve on the server in the language of the invite, so your \`@<package>/<key>\`
+  references work even if the package draws nothing in the portal.
+- **It leaves a trace.** Every delivery to guests writes an entry in the organization's Audit trail —
+  how many, about which record, what it said —, whatever \`toAudit\` says.
+- Requires \`kernel: "^${PORTAL_GUEST_NOTIFY_SINCE_KERNEL}"\`. An older kernel ignores \`portalGuests\`, and
+  the step fails for lack of recipients.
+
+\`examples/portal-example\` tells the client when a visit is scheduled.
 
 ### Waiting inside a workflow — the \`delay\` step
 

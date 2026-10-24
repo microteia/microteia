@@ -18,6 +18,55 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.153.0] — 2026-10-24
+
+- fix(portal): the portal projection now reaches the view in the same shape as the office records — every Firestore Timestamp inside `PortalViewRecord.data` becomes a `Date` (`toPlainValues`, now shared by `FirebaseRecordRepository` and `FirebasePortalRepository`). The raw Timestamp made date fields blank in the native portal list and detail, and made extension cards that compare dates silently show fewer records.
+- feat(format): `@microteia/format` gains `today()` and `dayOf(value)` — the organization's day and the day of any date value as `YYYY-MM-DD`, on the organization's time zone, with the same answers as `today()` and `formatDate(v, "YYYY-MM-DD")` in expressions. `dayOf(r.dueDate) >= today()` replaces the per-view helpers every author was writing. KERNEL_VERSION 2.66.0.
+- fix(format): `formatDate` reads a Firestore Timestamp (it returned `''`) and reads a day text (`2026-12-15`) as that day in every time zone (it was parsed as midnight UTC and printed the day before in the Americas).
+- feat(portal): `getPortalContext` returns the organization's `timeZone`, and the portal pushes it into the clock gate, so `today()` in a portal view no longer turns the page at 9 p.m. in Brasília.
+- docs(authoring): one statement on how a `date` field is stored (the day at noon UTC — the §8 table said "never a timestamp") and a new "Dates in a view" section on what a view receives and how to compare days.
+
+#### [9.152.0] — 2026-10-24
+
+- fix(portal): `@microteia/portal` `usePortalNavigation().openRecord` now works from any surface. The navigation stack is scoped to a menu entry and the home has none, so a `widget` (or `home`) calling it pushed onto a stack nothing drew — the tap did nothing, with no error. At the home it now navigates to the record's `portalRecordPath` (the address the e-mail and the bell use), marking the history entry (`state.portalOpenedFromHome`); Back from a one-record stack returns home through history (`navigate(-1)`) instead of falling to the entry's list. `back()` with nothing open is a no-op.
+- fix(portal): a record opened from an extension `page` is drawn over the page instead of being hidden behind it; Back returns to the page.
+- feat(examples/portal-example 1.7.0): the home card lists the latest orders, and tapping one opens it.
+
+#### [9.151.1] — 2026-10-23
+
+- fix(portal): `getPortalContext` now returns the `theme.definition` / `theme.tokens` contributions of the active installed extensions (`InstalledExtensionCache.themes`), and `PortalThemeBridge` publishes them to the top-level theme provider. Guests cannot read `installed_extensions`, so the portal theme menu offered only the bundled themes. The guest's choice stays in the browser (`ThemeSource.save` is now optional).
+- refactor(theme): the two theme point ids moved to `domain/schema/theme/themePoints.ts`, the only theme file synced to `functions/`.
+
+#### [9.151.0] — 2026-10-23
+
+- feat(ui.nav): `nav({ screen | screenSourceId, filter })` — a menu entry declares the filter its screen list opens with (`{ key, values }[]`, the shape of `useEntityList`'s `defaultFilterTokens`). It rides the existing navigation intent (`setNavigationIntent`, consumed by `useRecordListViewModel`), addressed to the INSTALLED screen key, so it is an ordinary filter: visible and removable. Without it a badge counted one slice (`badge.when: status == "waiting"`) and the click opened the whole collection.
+- feat(shell): `useNavEntryResolver` / `useOpenNavEntry` (`presentation/shared/useNavTarget.ts`) resolve an entry into tab + intent; the sidebar and the top-bar shortcuts open through them. `useNavTargetResolver` now derives from the entry resolver. The filter belongs to the entry: the automatic menu item, a saved tab and a link still open the list unfiltered.
+- feat(sdk/validate): `navFilterIssues` in `validatePluginPackage` refuses a filter on a `key` target, a malformed filter, a key that is not a `filterable` field of the package's own screen (never a `file` field; a date also as `<key>:ate`) and a value the field cannot hold (a declared option KEY, `true`/`false`, `YYYY-MM-DD`). A dependency's screen and a `lookupCollection` option list are not judged. New messages `issue.package.nav.filter.{shape,target,not-filterable,value}`.
+- refactor(domain): `FILTER_RANGE_TO_SUFFIX` moves to `domain/services/customFieldValues.ts` (re-exported by `useCustomFieldListing`) so the gate and the list share one rule.
+- feat(kernel): `KERNEL_VERSION` 2.65.0 (additive: `ui.nav` `filter`). An older kernel ignores the field and opens the whole list. `com.microteia.locale-pt-br` 1.121.0.
+- docs(sdk): AUTHORING §7 "The list the entry opens — `filter`", with a badge and a filter over the same slice; §8.1 says a screen declares no opening filter of its own.
+
+#### [9.150.0] — 2026-10-23
+
+- fix(expressions): `formatDate` formats an instant on the organization's clock (`i18n.timezone`, the same `ambientTimeZone` / `WorkflowServices.timeZone` that `today()` uses) instead of the process clock (`Date.getHours()`, `getDate()`…). On a Cloud Function that was UTC, so `formatDate(now(), "HH:mm")` stamped 14:32 for a message received at 11:32 in Brasília, and `formatDate(now(), "YYYY-MM-DD")` wrote the next day after 9 p.m. — with no error, in every organization outside UTC. Covers the form, a server `derive`, workflows, Script `fn.formatDate`, report `includeWhen` and document templates. Records already written keep the UTC hour.
+- fix(expressions): `year`, `month`, `day`, `dayOfWeek` and `isWeekend` read the same clock, so `day(now())` agrees with `formatDate(now(), "DD")` on both ends.
+- feat(expressions): optional third argument of `formatDate`, an IANA time zone (`formatDate(now(), "HH:mm", "UTC")`). An unknown name yields `''` in a field expression and fails the step with `expr.arg.third.time-zone` in a workflow — never the hour of another zone. Workflow catalog: `maxArgs` 3, signature `formatDate(date, format, timeZone?)`.
+- refactor(schema): one implementation of the pattern for both ends — `wallClockInTimeZone`, `wallClockOfDay` and `formatWallClock` in the shared `domain/schema/i18n/timeZone.ts`. A day (`YYYY-MM-DD`) is never converted; a stored date (noon UTC) reads as the same day between UTC-11 and UTC+11.
+- feat(kernel): `KERNEL_VERSION` 2.64.0 (additive: the third argument). An older kernel rejects `formatDate` with three arguments. `com.microteia.locale-pt-br` 1.120.0.
+- docs(sdk): AUTHORING §9 "`formatDate` writes the organization's clock".
+
+#### [9.149.0] — 2026-10-23
+
+- feat(workflow/notify): `portalGuests` notifies the portal guests who can see a record instead of members, by e-mail and on the portal bell. Recipients are resolved when the step runs (`makeResolvePortalGuestsUseCase`): `resolvePortalSubjectKeys` over the stored record, then `audienceFor` and each live invite — never the projection, whose `audience` lags a revocation by seconds and may not exist yet for a new record. A record outside the portal (screen not exposed, hidden by `visibleWhen`, chain cut) notifies nobody. Before this, the step could only reach members, and no automation could tell a client that anything had happened.
+- feat(workflow/notify): `portalRecord` (an `Event` path) names the record when it is not the event's; the collection comes from the path's type. A path that does not lead to a record fails the step (`step.notify.portal.record-invalid`); `portalGuests` together with any member source fails it too (`step.notify.portal.mixed`), so text written for the organization cannot leave it by mistake; so does having neither e-mail nor the bell (`portal.no-channel`). Push does not reach guests and logs `portal.push-unsupported`.
+- feat(notifications): `DispatchNotificationRequest.audience` (`members` | `portal`), `INotificationDirectory.guests` (the organization's channel defaults, the invite's locale, no push) and `InboxNotificationDocument.audience`. A portal bell entry is stored already resolved in the guest's language, since the portal does not carry every installed extension's catalog. Every delivery to guests writes `notifications.portal.audit` to the Audit trail, regardless of `toAudit`.
+- feat(portal): `portalRecordPath` (`/portal/<tenant>/<collection>?record=<id>`) is the link in the e-mail and the bell; `PortalNavigationProvider` opens the record from `?record=`, a child screen opens on its own and its Back goes home, and the shell says when the record is loading or no longer available. Signing in keeps the destination (`state.from`, and `next` in the sign-in link, accepted only as a portal path by `isPortalReturnPath`).
+- feat(host-api): `PortalNotificationBell` in `@microteia/portal`, rendered by both built-in portal layouts.
+- feat(rules): `notification_inbox` lets a portal guest read and mark as read their own `audience == 'portal'` entries while the invite exists. New index `recipientId` + `audience` + `createdAt` — needs `npm run deploy:rules` and `npm run deploy:indexes`.
+- feat(kernel): `KERNEL_VERSION` 2.63.0 (`PORTAL_GUEST_NOTIFY_SINCE_KERNEL`). An older kernel ignores `portalGuests` and fails the step for lack of recipients.
+- docs(sdk): AUTHORING §10 "Telling the portal's guests"; `portal-example` 1.6.0 notifies the client when a visit is scheduled.
+- chore(locale-pt-br): 1.119.0 (`step.notify.portal.*`, `notifications.portal.audit`).
+
 #### [9.148.0] — 2026-10-23
 
 - fix(portal/reprojection): one pass runs per tenant at a time. A pass now opens as `queued`; the one that finishes promotes the next (oldest `openedAt`) inside a transaction over all of the tenant's jobs (`IPortalRepository.updateReprojections`), and `nudge` promotes it too when nothing is running. Every projection written to `portalRecords` wakes the five triggers that listen on `tenants/{t}/{collection}/{doc}`. Opening every portal collection of two tenants at once (the `PORTAL_PROJECTION_REVISION` 1 rollout) added up to enough instances to exhaust the regional Cloud Run CPU quota, and every function in the region returned 503, including `invitePortalUser` and the reprojection round itself. Round concurrency drops from 8 to 4.

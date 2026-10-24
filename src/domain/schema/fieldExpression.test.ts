@@ -279,7 +279,8 @@ describe('funções de data', () => {
   });
 
   it('aceita Date e Timestamp do Firestore, não só texto', () => {
-    const data = { asDate: new Date(2026, 7, 12), asTimestamp: { toDate: () => new Date(2026, 7, 12) } };
+    const anchored = new Date(Date.UTC(2026, 7, 12, 12));
+    const data = { asDate: anchored, asTimestamp: { toDate: () => anchored } };
     expect(evaluateFieldExpression("formatDate(asDate, 'DD/MM/YYYY')", { value: null, data })).toBe('12/08/2026');
     expect(evaluateFieldExpression("formatDate(asTimestamp, 'DD/MM/YYYY')", { value: null, data })).toBe('12/08/2026');
   });

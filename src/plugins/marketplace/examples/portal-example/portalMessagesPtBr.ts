@@ -45,6 +45,11 @@ const PORTAL_EXAMPLE_PT_BR: Record<string, string> = {
   'portal.orders.quantity': '{count} × {item}',
   'portal.widget.orders': 'Seus pedidos',
   'portal.widget.orders.caption': 'pedidos feitos pelo portal',
+
+  'workflow.visit-scheduled': 'Avisar o cliente de uma visita nova',
+  'workflow.visit-scheduled.description': 'Quando uma visita é agendada, avisa os convidados do portal do cliente por e-mail e no sino do portal.',
+  'notify.visit.title': 'Uma visita foi agendada',
+  'notify.visit.message': 'Abra no portal para ver a data e o resumo.',
 };
 
 export const portalExamplePtBrContribution = (): Contribution =>

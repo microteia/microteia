@@ -27,8 +27,11 @@ export interface ThemeSource {
    * Sem isto, escolher pela barra lateral gravaria só no navegador e a configuração continuaria
    * mandando no render seguinte — o clique voltaria atrás sozinho, na frente de quem clicou. Há um
    * lugar só para a resposta, e todos os gestos escrevem nele.
+   *
+   * Ausente onde não há configuração a gravar — o portal, cujo convidado não lê as configurações do
+   * escritório: ali a escolha volta a morar no navegador, como nas telas públicas.
    */
-  save: (id: string) => void;
+  save?: (id: string) => void;
 }
 
 export interface ThemeSourceContextValue {
