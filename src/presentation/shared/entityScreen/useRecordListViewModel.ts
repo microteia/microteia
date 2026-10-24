@@ -38,6 +38,9 @@ import { useTagAdapter, useTagCollection } from './useTagAdapter';
 import { useTags } from '../../../stores/useTags';
 
 import { useT, useLabel } from '../i18n/useT';
+import { LocalizedError } from '../../../domain/errors/LocalizedError';
+import { editWindowAllowsDelete, isEditWindowOpen, readEditWindow } from '../../../domain/schema/editWindow';
+import { useEditWindowClock } from './useEditWindow';
 
 const STATUS_TONE: Record<ActionStatusCode, 'success' | 'warning' | 'error'> = {
   SUCCESS: 'success',
@@ -197,6 +200,8 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
 
   const stored = useMemo(() => getDefinition(screenKey) ?? null, [getDefinition, screenKey]);
   const definition = useMemo(() => screenForDisplay(stored, label), [stored, label]);
+  const editWindow = useMemo(() => readEditWindow(stored?.editWindow), [stored]);
+  const editWindowNow = useEditWindowClock(editWindow !== null);
   const isAvailable = !!definition && definition.origin !== 'builtin' && definition.enabled;
 
   // Onde os registros vivem. Numa tela BOUND é a coleção de outra entidade — daí toda leitura,
@@ -486,10 +491,19 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
     // quem escreveu enxerga a ação sobre o que escreveu. Espelha o `firestore.rules` — a UI não
     // oferece o que o servidor recusaria, nem esconde o que ele aceita.
     const isAuthorOfRecord = !!definition?.authorCanDelete && record.createdBy === viewer.id;
+    // A janela de edição corta por cima da permissão, pelo mesmo marcador: o gesto que pede `update`
+    // ou `delete` some quando o prazo para ele passou — a regra do Firestore o recusaria.
+    const closedByEditWindow = (permission: string | undefined): boolean => {
+      if (!editWindow || (permission !== 'update' && permission !== 'delete')) return false;
+      return permission === 'delete'
+        ? !editWindowAllowsDelete(editWindow, record.createdAt, editWindowNow)
+        : !isEditWindowOpen(editWindow, record.createdAt, editWindowNow);
+    };
     const native = inScreenOrder(recordActions, definition?.listActions ?? [])
       .filter((action) => !action.metadata.requiresRecordPermission
         || can(`${collection}.${action.metadata.requiresRecordPermission}`)
         || isAuthorOfRecord)
+      .filter((action) => !closedByEditWindow(action.metadata.requiresRecordPermission))
       .filter((action) => !action.metadata.requiresTags || !!definition?.hasTags)
       .filter((action) => !isActionHidden(action.metadata.hiddenWhen, exprContext))
       .map<RecordCardAction>((action) => ({
@@ -520,7 +534,7 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
       }));
 
     return [...native, ...custom];
-  }, [definition, collection, can, cardExprContext, recordActions, buildActionHost, cardActionDefs, viewer, runningActionId, parameterPrompt.loading, askAndRunCardAction, label]);
+  }, [definition, collection, can, cardExprContext, recordActions, buildActionHost, cardActionDefs, viewer, runningActionId, parameterPrompt.loading, askAndRunCardAction, label, editWindow, editWindowNow]);
 
   const tagIdsOf = useCallback((entityId: string) => records.find((r) => r.id === entityId)?.tagIds ?? [], [records]);
   const setRecordTags = useCallback(
@@ -539,12 +553,12 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
       await deleteRecord(collection, recordToDelete.id);
       notify(t('record.deleted'), 'success');
       setRecordToDelete(null);
-    } catch {
-      notify(t('record.delete-failed'), 'error');
+    } catch (err) {
+      notify(err instanceof LocalizedError ? label(err.message, err.messageParams) : t('record.delete-failed'), 'error');
     } finally {
       setIsDeleting(false);
     }
-  }, [recordToDelete, deleteRecord, collection, notify, t]);
+  }, [recordToDelete, deleteRecord, collection, notify, t, label]);
 
   return {
     definition,

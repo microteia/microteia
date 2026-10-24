@@ -28,6 +28,7 @@ import { ColorSwatchPicker } from '../../components/ui/ColorSwatchPicker';
 import { ColorDot } from '../../components/ui/Badge';
 import { getScreenIcon } from '../../shared/screenIcons';
 import { ScreenPortalPanel } from './components/ScreenPortalPanel';
+import { ScreenEditWindowPanel } from './components/ScreenEditWindowPanel';
 import type { FieldDefinition } from '../../../domain/entities';
 
 import { useT, useLabel } from '../../shared/i18n/useT';
@@ -509,6 +510,13 @@ export const ScreenBuilderView: React.FC = () => {
                 onEditWhen={vm.setPortalEditWhen}
                 onToggleEditOnlyOwn={vm.setPortalEditOnlyOwn}
                 onToggleNotifyOffice={vm.setPortalNotifyOffice}
+              />
+            )}
+            {vm.screenModalTab === 'editWindow' && (
+              <ScreenEditWindowPanel
+                form={vm.screenForm.editWindow}
+                fromExtension={vm.editWindowFromExtension}
+                onChange={vm.updateEditWindowForm}
               />
             )}
             {vm.screenModalTab === 'actions' && (

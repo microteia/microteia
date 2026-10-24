@@ -27,6 +27,12 @@ import {
   storedRecordKeyRefs,
 } from '../../../domain/schema/recordKeys';
 import { resolveEntityKeys } from '../../../domain/schema/screenEntity';
+import {
+  changedRecordKeys,
+  editWindowAllowsDelete,
+  editWindowAllowsUpdate,
+  resolveEditWindow,
+} from '../../../domain/schema/editWindow';
 import { RecordKeyTakenError } from '../../../domain/repositories/IWorkflowMutationRepository';
 import type { RecordKeyMutation } from '../../../domain/repositories/IWorkflowMutationRepository';
 
@@ -218,6 +224,26 @@ export async function runWorkflowUpsert(
 
   const payload = buildFieldPayload(ruledSpec, target, ctx);
 
+  // A janela de edição é conferida AQUI, e não em cada porta: o passo "Gravar Registro", o `upsert`
+  // do Script, o agente e o portal passam todos por este ponto. O Admin SDK ignora o
+  // `firestore.rules`, então a regra que a tela declara só vale do lado do servidor se valer aqui.
+  // Quem não passa por aqui — o recálculo de agregados, a adoção de chave — não é gravação de negócio,
+  // e de propósito não é barrado.
+  const editWindow = resolveEditWindow(ctx, collection);
+  if (editWindow && existing) {
+    const allowed = editWindowAllowsUpdate(editWindow.spec, existing.createdAt, new Date(), {
+      changedKeys: changedRecordKeys(existing, payload),
+      memberWritableFields: editWindow.memberWritableFields,
+    });
+    if (!allowed) {
+      return {
+        ok: false,
+        error: '@core.automation/mutation.upsert.edit-window-closed',
+        errorParams: { minutes: String(editWindow.spec.minutes) },
+      };
+    }
+  }
+
   // A automação passa pelo MESMO planejamento do formulário, e sobre o registro inteiro: uma chave
   // composta cujo upsert toca um campo só continua sendo a mesma chave. Sem isto, o caminho do
   // backend furaria a chave que o front respeita — e uma unicidade que um dos dois caminhos ignora
@@ -319,6 +345,16 @@ export async function runWorkflowRemove(
   const existing = await deps.mutationRepository.getById(tenantId, collection, id);
   if (!existing) {
     return { ok: true, value: { id, removed: false } };
+  }
+  // Antes da cascata: a exclusão do backend apaga anotações e documentos ANTES do registro, e
+  // recusar depois deixaria a prova sem os anexos dela.
+  const editWindow = resolveEditWindow(ctx, collection);
+  if (editWindow && !editWindowAllowsDelete(editWindow.spec, existing.createdAt, new Date())) {
+    return {
+      ok: false,
+      error: '@core.automation/mutation.remove.edit-window-closed',
+      errorParams: { minutes: String(editWindow.spec.minutes) },
+    };
   }
   // As reservas saem no mesmo gesto do registro — e são achadas pelo que o REGISTRO cita, nunca
   // recomputadas: uma reserva feita sob a declaração anterior só existe em `keyRefs`.

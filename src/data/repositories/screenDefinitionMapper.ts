@@ -69,6 +69,10 @@ export const mapScreenDefinition = (
   recordTabPrefix: (d.recordTabPrefix as string | null | undefined) ?? null,
   memberWritableFields: (d.memberWritableFields as string[] | null | undefined) ?? null,
   authorCanDelete: (d.authorCanDelete as boolean | null | undefined) ?? null,
+  // Como está gravado, pela mesma razão do `portal` logo abaixo; `readEditWindow` interpreta.
+  editWindow: typeof d.editWindow === 'object' && d.editWindow !== null
+    ? (d.editWindow as ScreenDefinition['editWindow'])
+    : null,
   // Validado, mas devolvido COMO ESTÁ gravado: a regra cobra `portal.manage` de quem altera a chave, e
   // uma forma normalizada voltaria ao salvar como "alterada" — barrando quem só mexeu no título.
   portal: asPortalDeclaration(d.portal) ? (d.portal as PortalDeclaration) : undefined,

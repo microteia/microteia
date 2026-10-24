@@ -9,6 +9,7 @@ import { EntityDetailView } from '../EntityDetailView';
 import type { EntityDetailExtraTab, EntityDetailTab } from '../EntityDetailView';
 import { getScreenIcon } from '../../../shared/screenIcons';
 import type { ScreenActions } from '../../../shared/entityScreen/useScreenActions';
+import type { EditWindowState } from '../../../shared/entityScreen/useEditWindow';
 import type { EntityDocumentsController, EntityNotesController, FieldFileUpload } from '../../../shared/entityScreen/types';
 import type { TagStoreAdapter } from '../../ui/TagManager';
 import type { CustomFieldValue, EntityRecord, FieldDefinition, ScreenDefinition } from '../../../../domain/entities';
@@ -32,6 +33,10 @@ export interface RecordDetailViewModel {
   canManageDocumentTypes: boolean;
   /** Excluir é de admin — ou do autor, quando a tela declara `authorCanDelete`. */
   canDelete: boolean;
+  /** A janela de edição do registro. `null` = a tela não declara prazo, ou o registro é novo. */
+  editWindow: EditWindowState | null;
+  /** O prazo passou: os campos travam e salvar some, com o motivo à vista. */
+  isEditLocked: boolean;
   /** A COLEÇÃO do registro — o que `<entity>` vira nas expressões dos campos. */
   collection: string;
   canSave: boolean;
@@ -104,18 +109,26 @@ export const RecordDetailSurface: React.FC<RecordDetailSurfaceProps> = ({ vm, re
 
   const appliedTags = !vm.isNew ? vm.tagAdapter.getAppliedTags(vm.recordId ?? '') : [];
 
-  const dataContent = renderData ? renderData(vm) : (
-    <CustomFieldsSection
-      entity={vm.collection}
-      fields={vm.sortedFields}
-      values={vm.formValues}
-      onChange={vm.setFieldValue}
-      onMergeValues={vm.mergeValues}
-      errors={vm.fieldErrors}
-      fileUpload={vm.fileUpload ?? undefined}
-      isNew={vm.isNew}
-      isDirty={vm.isDirty}
-    />
+  const dataContent = (
+    <>
+      {vm.editWindow && (
+        <InfoBanner variant={vm.isEditLocked ? 'warning' : 'info'} message={vm.editWindow.notice} />
+      )}
+      {renderData ? renderData(vm) : (
+        <CustomFieldsSection
+          entity={vm.collection}
+          fields={vm.sortedFields}
+          values={vm.formValues}
+          onChange={vm.setFieldValue}
+          onMergeValues={vm.mergeValues}
+          errors={vm.fieldErrors}
+          fileUpload={vm.fileUpload ?? undefined}
+          isNew={vm.isNew}
+          isDirty={vm.isDirty}
+          disabled={vm.isEditLocked}
+        />
+      )}
+    </>
   );
 
   const modals = (

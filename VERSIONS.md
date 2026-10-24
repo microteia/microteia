@@ -11,6 +11,15 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.155.0] — 2026-10-24
+
+- Telas podem passar a ter um **prazo para alteração**: depois de alguns minutos da criação, o registro fica como está e não pode mais ser editado — e, quando a tela pede, nem excluído. É o que torna mensagens, apontamentos e lançamentos confiáveis como registro do que foi dito ou feito. O formulário avisa até quando o registro pode ser alterado e, depois do prazo, mostra por que os campos estão travados.
+- O prazo pode ser definido pelo próprio escritório, na tela de personalização (aba **Prazo para alteração**), por quem tiver a nova permissão **Definir o prazo para alterar registros**. Atualizar uma extensão nunca retira um prazo que já valia.
+- A trava vale para todos: para quem usa a tela, para as automações, para o assistente de IA, para os convidados do portal e até para quem tentasse alterar os dados por fora do sistema.
+- Quando a alteração ou a exclusão de um registro é recusada, a mensagem passa a explicar o motivo, em vez de um erro genérico.
+- Corrigido: valores que não podem se repetir — como CPF, CNPJ e número de processo — só eram conferidos quando o cadastro era feito pela tela. Agora valem também quando o registro é criado ou alterado por uma automação, pelo assistente de IA ou pelo portal, e os cadastros que já existem passam a ser conferidos automaticamente.
+- Quando a conferência automática encontra cadastros antigos com valores repetidos, quem administra as telas recebe um aviso no sino, com link para a lista. Cada pessoa pode desligar esse tipo de aviso, ou só o e-mail, em Notificações.
+
 #### [9.154.0] — 2026-10-24
 
 - O convidado do portal ganhou a página **Meu perfil**, no menu da conta, onde informa o nome com que quer ser chamado. O escritório passa a ver esse nome na lista de convidados e nos avisos de atividade.

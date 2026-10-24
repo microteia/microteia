@@ -456,6 +456,10 @@ export const CORE_MARKETPLACE: Record<string, string> = {
   'issue.portal.visible-when.invalid': 'A condição de portal (`visibleWhen`) da tela "{screen}" não é uma expressão válida — nenhum registro dela chegaria ao portal.',
   'issue.portal.visible-when.unknown': 'A condição de portal (`visibleWhen`) da tela "{screen}" usa "{field}", que não é campo dessa tela.',
   'issue.portal.visible-when.kernel': 'A tela "{screen}" limita quais registros chegam ao portal (`visibleWhen`), o que só existe a partir do kernel {minimum} — declare `kernel: "^{minimum}"` (ou posterior) no manifest. Um kernel mais antigo ignora a condição e mostraria todos os registros.',
+  'issue.edit-window.shape': 'A janela de edição (`editWindow`) da tela "{screen}" precisa ser um objeto: `{ minutes, delete? }`.',
+  'issue.edit-window.minutes': 'A janela de edição (`editWindow`) da tela "{screen}" precisa de `minutes` como número inteiro maior que zero.',
+  'issue.edit-window.delete': 'A janela de edição (`editWindow`) da tela "{screen}" tem um `delete` que não é verdadeiro nem falso.',
+  'issue.edit-window.kernel': 'A tela "{screen}" declara uma janela de edição (`editWindow`), que só existe a partir do kernel {minimum} — declare `kernel: "^{minimum}"` (ou posterior) no manifest. Um kernel mais antigo ignora a janela, e os registros continuariam editáveis para sempre.',
   'issue.ref.event-undeclared':
     '{origin} "{name}" escuta o prefixo de evento "{prefix}", que uma tela da extensão "{plugin}" emite — declare-a em `dependencies`.',
   'issue.ref.event-unresolved':

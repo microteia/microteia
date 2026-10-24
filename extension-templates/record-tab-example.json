@@ -1,8 +1,8 @@
 {
   "manifest": {
     "id": "com.microteia.record-tab-example",
-    "version": "1.3.0",
-    "kernel": "^2.51.0",
+    "version": "1.4.0",
+    "kernel": "^2.68.0",
     "name": "@com.microteia.record-tab-example/package.name",
     "description": "@com.microteia.record-tab-example/package.description",
     "category": "@com.microteia.record-tab-example/package.category",
@@ -24,11 +24,13 @@
             "package.name": "Record tabs, by example",
             "package.category": "Interface",
             "package.description": "A tab of its own inside a record of another screen: a timeline of milestones in each project, with its own look.",
-            "package.summary": "How an extension shows something INSIDE a record it does not own. It adds two tabs to the detail of a Project: a timeline of the milestones of that project, drawn by a code view that receives the open record, and a declarative tab drawn from a Widget DSL tree. The Milestone screen is NOT a child of Project — the tab is not the generic child-screen list, it is whatever the extension draws.",
+            "package.summary": "How an extension shows something INSIDE a record it does not own. It adds two tabs to the detail of a Project: a timeline of the milestones of that project, drawn by a code view that receives the open record, and a declarative tab drawn from a Widget DSL tree. The Milestone screen is NOT a child of Project — the tab is not the generic child-screen list, it is whatever the extension draws. The Update screen is, and its records freeze 15 minutes after they are created (`editWindow`).",
             "screen.project": "Project",
             "screen.project.plural": "Projects",
             "screen.milestone": "Milestone",
             "screen.milestone.plural": "Milestones",
+            "screen.update": "Update",
+            "screen.update.plural": "Updates",
             "nav.milestones": "Milestones",
             "field.name": "Name",
             "field.description": "Description",
@@ -41,6 +43,7 @@
             "field.priority.low": "Low",
             "field.done": "Done",
             "field.relatedProjects": "Also affects",
+            "field.update": "Update",
             "tab.timeline": "Timeline",
             "tab.timeline.description": "The milestones of this project, and the ones that also affect it, newest first.",
             "tab.about": "About these tabs",
@@ -67,11 +70,13 @@
             "package.name": "Abas no registro, pelo exemplo",
             "package.category": "Interface",
             "package.description": "Uma aba própria dentro do registro de outra tela: a linha do tempo dos marcos de cada projeto, com visual próprio.",
-            "package.summary": "Como uma extensão mostra algo DENTRO de um registro que não é dela. Acrescenta duas abas ao detalhe de um Projeto: a linha do tempo dos marcos daquele projeto, desenhada por uma view de código que recebe o registro aberto, e uma aba declarativa desenhada a partir de uma árvore do Widget DSL. A tela de Marcos NÃO é filha de Projeto — a aba não é a lista genérica de tela-filha, é o que a extensão desenhar.",
+            "package.summary": "Como uma extensão mostra algo DENTRO de um registro que não é dela. Acrescenta duas abas ao detalhe de um Projeto: a linha do tempo dos marcos daquele projeto, desenhada por uma view de código que recebe o registro aberto, e uma aba declarativa desenhada a partir de uma árvore do Widget DSL. A tela de Marcos NÃO é filha de Projeto — a aba não é a lista genérica de tela-filha, é o que a extensão desenhar. A de Atualizações é, e os registros dela congelam 15 minutos depois de criados (`editWindow`).",
             "screen.project": "Projeto",
             "screen.project.plural": "Projetos",
             "screen.milestone": "Marco",
             "screen.milestone.plural": "Marcos",
+            "screen.update": "Atualização",
+            "screen.update.plural": "Atualizações",
             "nav.milestones": "Marcos",
             "field.name": "Nome",
             "field.description": "Descrição",
@@ -84,6 +89,7 @@
             "field.priority.low": "Baixa",
             "field.done": "Concluído",
             "field.relatedProjects": "Também afeta",
+            "field.update": "Atualização",
             "tab.timeline": "Linha do tempo",
             "tab.timeline.description": "Os marcos deste projeto, e os que também o afetam, do mais recente para o mais antigo.",
             "tab.about": "Sobre estas abas",
@@ -269,6 +275,40 @@
       "titleFieldKey": "title",
       "eventPrefix": "recordTabMilestone",
       "hideFromSidebar": true
+    },
+    {
+      "key": "recordTabUpdate",
+      "sourceId": "microteia:record-tab-example:update",
+      "sourceRev": 1,
+      "titleSingular": "@com.microteia.record-tab-example/screen.update",
+      "titlePlural": "@com.microteia.record-tab-example/screen.update.plural",
+      "icon": "message",
+      "fields": [
+        {
+          "key": "project",
+          "label": "@com.microteia.record-tab-example/field.project",
+          "type": "reference",
+          "required": true,
+          "order": 0,
+          "refEntity": "recordTabProject"
+        },
+        {
+          "key": "text",
+          "label": "@com.microteia.record-tab-example/field.update",
+          "type": "textarea",
+          "required": true,
+          "order": 1
+        }
+      ],
+      "titleFieldKey": "text",
+      "eventPrefix": "recordTabUpdate",
+      "parentEntity": "recordTabProject",
+      "parentFieldKey": "project",
+      "parentRelation": "owned",
+      "editWindow": {
+        "minutes": 15,
+        "delete": true
+      }
     }
   ],
   "views": [

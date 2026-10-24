@@ -3,6 +3,8 @@ import type { IScreenDefinitionProvider } from '../../domain/repositories/IScree
 import type { SchemaContext, SchemaScreen } from '../../domain/schema/pathResolver';
 import { createSchemaContext } from '../../domain/schema/pathResolver';
 import type { SchemaLookup } from '../../domain/schema/screenEntity';
+import { readEditWindow } from '../../domain/schema/editWindow';
+import type { RecordKeySpec } from '../../domain/schema/recordKeys';
 import type { FieldDefinition, FieldOrigin } from '../../domain/entities/entitySchemas';
 import type { Contribution } from '../../domain/schema/plugin/contribution';
 import type { FieldRulePreset } from '../../domain/schema/fieldRulePresets';
@@ -19,6 +21,21 @@ interface CacheEntry {
 }
 
 const DEFAULT_TTL_MS = 5 * 60_000;
+
+/**
+ * As chaves declaradas na tela, como estão gravadas. Só fica a entrada que tem a forma mínima que a
+ * conta da chave lê — nome e lista de campos —: uma entrada estragada no documento não pode derrubar
+ * a gravação de toda a coleção.
+ */
+const recordKeysOf = (value: unknown): RecordKeySpec[] | null => {
+  if (!Array.isArray(value)) return null;
+  const keys = value.filter((key): key is RecordKeySpec =>
+    typeof key === 'object' && key !== null
+    && typeof (key as RecordKeySpec).name === 'string'
+    && Array.isArray((key as RecordKeySpec).fields)
+    && (key as RecordKeySpec).fields.every((field) => typeof field === 'string'));
+  return keys.length > 0 ? keys : null;
+};
 
 export class ScreenDefinitionCache implements IScreenDefinitionProvider {
   private readonly entries = new Map<string, CacheEntry>();
@@ -73,6 +90,13 @@ export class ScreenDefinitionCache implements IScreenDefinitionProvider {
         hasDocuments: data.hasDocuments === true,
         origin: typeof data.origin === 'string' ? (data.origin as FieldOrigin) : null,
         sourceId: typeof data.sourceId === 'string' ? data.sourceId : null,
+        // Sem `keys`, a automação, o agente, o portal e a adoção viam só o açúcar `unique` de campo: a
+        // chave declarada na TELA — a forma das chaves compostas — valia no formulário e em mais nada.
+        keys: recordKeysOf(data.keys),
+        editWindow: readEditWindow(data.editWindow),
+        memberWritableFields: Array.isArray(data.memberWritableFields)
+          ? (data.memberWritableFields as unknown[]).filter((field): field is string => typeof field === 'string')
+          : null,
       };
     });
 

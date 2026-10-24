@@ -642,3 +642,96 @@ describe('chaves de registro na gravação por automação', () => {
     expect(repo.store.get('processos/gen-1')).not.toHaveProperty('keyRefs');
   });
 });
+
+describe('janela de edição na gravação por automação, agente e portal', () => {
+  const mensagensScreen: SchemaScreen = {
+    id: 'mensagens',
+    titleSingular: 'Mensagem',
+    titleFieldKey: 'texto',
+    fields: [
+      { key: 'texto', label: 'Texto', type: 'text', required: true, order: 0, origin: 'plugin' },
+      { key: 'lida', label: 'Lida', type: 'checkbox', required: false, order: 1, origin: 'plugin' },
+    ],
+    editWindow: { minutes: 15, delete: true },
+    memberWritableFields: ['lida'],
+  };
+  const notasScreen: SchemaScreen = {
+    id: 'notas',
+    titleSingular: 'Nota',
+    titleFieldKey: 'texto',
+    fields: [{ key: 'texto', label: 'Texto', type: 'text', required: true, order: 0, origin: 'plugin' }],
+    editWindow: { minutes: 15 },
+  };
+  const windowDeps = (repo: FakeMutationRepository): WorkflowMutationDeps => ({
+    mutationRepository: repo,
+    screenProvider: fakeScreenProvider([mensagensScreen, notasScreen]),
+  });
+  const hourAgo = (): Date => new Date(Date.now() - 60 * 60_000);
+  const minuteAgo = (): Date => new Date(Date.now() - 60_000);
+
+  it('recusa alterar o conteúdo depois do prazo, sem gravar nada', async () => {
+    const repo = new FakeMutationRepository();
+    repo.seed('mensagens', 'm1', { texto: 'oi', createdAt: hourAgo() });
+    const outcome = await runWorkflowUpsert(
+      { table: 'mensagens', id: 'm1', data: { texto: 'olá' } } as UpsertSpec, context(), windowDeps(repo));
+    expect(outcome).toEqual({
+      ok: false,
+      error: '@core.automation/mutation.upsert.edit-window-closed',
+      errorParams: { minutes: '15' },
+    });
+    expect(repo.updateCalls).toHaveLength(0);
+  });
+
+  it('altera dentro do prazo — o carimbo do fluxo logo depois da criação cabe na janela', async () => {
+    const repo = new FakeMutationRepository();
+    repo.seed('mensagens', 'm1', { texto: 'oi', createdAt: minuteAgo() });
+    const outcome = await runWorkflowUpsert(
+      { table: 'mensagens', id: 'm1', data: { texto: 'olá' } } as UpsertSpec, context(), windowDeps(repo));
+    expect(outcome.ok).toBe(true);
+  });
+
+  it('depois do prazo, só passa o que qualquer membro grava — e o valor reenviado igual não é alteração', async () => {
+    const repo = new FakeMutationRepository();
+    repo.seed('mensagens', 'm1', { texto: 'oi', lida: false, createdAt: hourAgo() });
+    const lida = await runWorkflowUpsert(
+      { table: 'mensagens', id: 'm1', data: { lida: true } } as UpsertSpec, context(), windowDeps(repo));
+    expect(lida.ok).toBe(true);
+    const mesmoTexto = await runWorkflowUpsert(
+      { table: 'mensagens', id: 'm1', data: { texto: 'oi', lida: true } } as UpsertSpec, context(), windowDeps(repo));
+    expect(mesmoTexto.ok).toBe(true);
+  });
+
+  it('registro sem `createdAt` está fechado, como na regra', async () => {
+    const repo = new FakeMutationRepository();
+    repo.seed('mensagens', 'm1', { texto: 'oi' });
+    const outcome = await runWorkflowUpsert(
+      { table: 'mensagens', id: 'm1', data: { texto: 'olá' } } as UpsertSpec, context(), windowDeps(repo));
+    expect(outcome.ok).toBe(false);
+  });
+
+  it('criar nunca é barrado', async () => {
+    const repo = new FakeMutationRepository();
+    const outcome = await runWorkflowUpsert({ table: 'mensagens', data: { texto: 'oi' } } as UpsertSpec, context(), windowDeps(repo));
+    expect(outcome.ok).toBe(true);
+  });
+
+  it('com `delete: true`, recusa excluir depois do prazo ANTES da cascata', async () => {
+    const repo = new FakeMutationRepository();
+    repo.seed('mensagens', 'm1', { texto: 'oi', createdAt: hourAgo() });
+    const outcome = await runWorkflowRemove({ table: 'mensagens', id: 'm1' } as RemoveSpec, context(), windowDeps(repo));
+    expect(outcome).toEqual({
+      ok: false,
+      error: '@core.automation/mutation.remove.edit-window-closed',
+      errorParams: { minutes: '15' },
+    });
+    expect(repo.deleteCalls).toHaveLength(0);
+  });
+
+  it('sem `delete`, excluir segue livre depois do prazo', async () => {
+    const repo = new FakeMutationRepository();
+    repo.seed('notas', 'n1', { texto: 'oi', createdAt: hourAgo() });
+    const outcome = await runWorkflowRemove({ table: 'notas', id: 'n1' } as RemoveSpec, context(), windowDeps(repo));
+    expect(outcome.ok).toBe(true);
+    expect(repo.deleteCalls).toHaveLength(1);
+  });
+});

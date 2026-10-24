@@ -537,11 +537,18 @@ service cloud.firestore {
       match /screenDefinitions/{screenId} {
         allow read: if isMember(tenantId);
         allow create: if (can(tenantId, 'screens.manage') || can(tenantId, 'extensions.manage'))
+          && (request.resource.data.get('editWindow', null) == null
+              || can(tenantId, 'screens.edit-window') || can(tenantId, 'extensions.manage'))
           && (request.resource.data.get('portal', null) == null
               || can(tenantId, 'portal.manage') || can(tenantId, 'extensions.manage'));
         // Numa tela que JÁ está no portal, a coleção, o pai e o título também decidem o que sai: trocar
         // o `dataCollection` projetaria outra coleção para os mesmos convidados, sem tocar no `portal`.
+        // A janela de edição é a garantia de que um registro-prova não muda depois do prazo. Quem só
+        // desenha telas não a abre: ela é de `screens.edit-window` (no Form Design) ou de quem instala
+        // extensões. Compara-se o VALOR (ausente == null): o Form Design reenvia a tela inteira.
         allow update: if (can(tenantId, 'screens.manage') || can(tenantId, 'extensions.manage'))
+          && (request.resource.data.get('editWindow', null) == resource.data.get('editWindow', null)
+              || can(tenantId, 'screens.edit-window') || can(tenantId, 'extensions.manage'))
           && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['portal'])
               || can(tenantId, 'portal.manage') || can(tenantId, 'extensions.manage'))
           && (resource.data.get('portal', null) == null
@@ -657,6 +664,52 @@ service cloud.firestore {
               || changed.hasOnly(['deletedBy', 'deletedByName', 'deletedByPhotoURL']));
       }
 
+      // ─── Janela de edição (`editWindow`) ────────────────────────────────────
+      //
+      // O registro que vale como PROVA só muda até N minutos depois de criado. É AQUI que isso vale
+      // como segurança: o formulário e a gravação do backend conferem a mesma conta
+      // (`domain/schema/editWindow.ts`), mas só esta regra alcança quem grava direto no banco.
+      //
+      // Três travas, e nenhuma dispensável:
+      // - na criação, `createdAt` é o relógio do SERVIDOR — sem isso, nascer com `createdAt` no ano
+      //   3000 compraria uma janela eterna;
+      // - na alteração, `createdAt` não muda — regravá-lo reabriria a janela;
+      // - fora do prazo, só passa o que não é conteúdo: os campos de membro (marcar como lida) e, com a
+      //   exclusão livre, o carimbo de quem exclui (`stampDeletionActor`, gravado logo antes).
+      //
+      // Declaração malformada e registro sem `createdAt` FECHAM: `minutes` que não é inteiro positivo
+      // nega, e `is timestamp` falha no ausente. Ninguém passa por cima — nem o dono: o que muda a
+      // janela é mudar a declaração, que exige `screens.edit-window` ou `extensions.manage` (ver
+      // `screenDefinitions`).
+      function editWindowOf(name) {
+        return isDeclaredScreen(name) ? screenData(name).get('editWindow', null) : null;
+      }
+      function insideEditWindow(spec) {
+        return spec.get('minutes', null) is int
+          && spec.minutes > 0
+          && resource.data.get('createdAt', null) is timestamp
+          && request.time < resource.data.createdAt + duration.value(spec.minutes, 'm');
+      }
+      function editWindowExemptChange(name, spec) {
+        let changed = request.resource.data.diff(resource.data).affectedKeys();
+        return changed.hasOnly(screenMemberWritableFields(name).concat(['updatedAt', 'updatedVia']))
+          || (spec.get('delete', false) != true
+              && changed.hasOnly(['deletedBy', 'deletedByName', 'deletedByPhotoURL']));
+      }
+      function respectsEditWindowOnCreate(name) {
+        return editWindowOf(name) == null || request.resource.data.get('createdAt', null) == request.time;
+      }
+      function respectsEditWindowOnUpdate(name) {
+        let spec = editWindowOf(name);
+        return spec == null
+          || (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['createdAt'])
+              && (insideEditWindow(spec) || editWindowExemptChange(name, spec)));
+      }
+      function respectsEditWindowOnDelete(name) {
+        let spec = editWindowOf(name);
+        return spec == null || spec.get('delete', false) != true || insideEditWindow(spec);
+      }
+
       // Uma LISTA DE OPÇÕES e um CONJUNTO DE ETIQUETAS são vocabulário, não dado: toda tela que os
       // referencia precisa deles para desenhar um `select` ou um chip, e exigir permissão de leitura
       // própria só produziria a tela meio carregada de quem tem acesso ao registro mas não à lista
@@ -705,12 +758,15 @@ service cloud.firestore {
           && (canOnCollection(screenCollection, 'read') || isDeclaredVocabulary(screenCollection));
         allow create: if isWritableScreen(screenCollection)
           && canOnCollection(screenCollection, 'create')
-          && declaresOnlyUiOnCreate();
+          && declaresOnlyUiOnCreate()
+          && respectsEditWindowOnCreate(screenCollection);
         allow update: if isWritableScreen(screenCollection)
           && keepsWriteViaOnUpdate()
+          && respectsEditWindowOnUpdate(screenCollection)
           && (canOnCollection(screenCollection, 'update')
               || (isMember(tenantId) && touchesOnlyMemberWritableFields(screenCollection)));
         allow delete: if isWritableScreen(screenCollection)
+          && respectsEditWindowOnDelete(screenCollection)
           && (canOnCollection(screenCollection, 'delete')
               || (canOnCollection(screenCollection, 'update')
                   && screenAuthorCanDelete(screenCollection)

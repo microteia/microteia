@@ -17,7 +17,8 @@ import { useRecordSurfaceTabs } from './useRecordSurfaceTabs';
 import { useEntityDetailChrome } from './useEntityDetailChrome';
 import { useEntityNotes } from './useEntityNotes';
 import { useEntityDocuments } from './useEntityDocuments';
-import { useT } from '../i18n/useT';
+import { useLabel, useT } from '../i18n/useT';
+import { LocalizedError } from '../../../domain/errors/LocalizedError';
 
 import type {
   DocumentsPort,
@@ -136,6 +137,7 @@ export function useEntityDetail<TRecord extends { id: string }>(
   const { setTabTitle, closeTab, openTab, activePanelId } = useWorkspace();
   const { notify } = useNotification();
   const t = useT('core.records');
+  const label = useLabel();
   const { currentTenant } = useTenant();
   const { getDefinition } = useScreenDefinitions();
   const { updateRecord } = useRecords();
@@ -296,11 +298,12 @@ export function useEntityDetail<TRecord extends { id: string }>(
       }
     } catch (err) {
       console.error('[useEntityDetail save]', err);
-      notify(messages.error, 'error');
+      // A recusa com motivo (a janela de edição que fechou) diz o motivo; o resto, a frase da tela.
+      notify(err instanceof LocalizedError ? label(err.message, err.messageParams) : messages.error, 'error');
     } finally {
       setIsSaving(false);
     }
-  }, [validate, values, currentTenant, isNew, record, create, update, messages, deepLinkKey, resolveTitleFromValues, tabKey, activePanelId, closeTab, openTab, setTabTitle, notify, afterCreate, returnTabKey, draftRecordId]);
+  }, [validate, values, currentTenant, isNew, record, create, update, messages, deepLinkKey, resolveTitleFromValues, tabKey, activePanelId, closeTab, openTab, setTabTitle, notify, afterCreate, returnTabKey, draftRecordId, label]);
 
   const refetch = useCallback(async () => {
     const targetId = record?.id ?? null;

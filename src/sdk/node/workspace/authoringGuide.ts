@@ -15,6 +15,7 @@ import {
 import { AGGREGATION_OP_SINCE_KERNEL } from '../../../domain/schema/aggregationSpec';
 import { AGGREGATE_BACKFILL_SINCE_KERNEL, AGGREGATION_MAX_CHILDREN } from '../../../domain/schema/aggregateBackfill';
 import { RECORD_KEY_ADOPTION_SINCE_KERNEL } from '../../../domain/schema/recordKeyAdoption';
+import { EDIT_WINDOW_SINCE_KERNEL } from '../../../domain/schema/editWindow';
 import { AGGREGATION_OP_LABELS, NUMERIC_AGGREGATION_OPS } from '../../../domain/schema/fieldRules';
 import type { WidgetNodeType } from '../../../domain/schema/ui/widgetSpec';
 import { STEP_TYPES } from '../../../domain/entities/Workflow';
@@ -1637,6 +1638,49 @@ runtime data, so a rule cannot compute an id from a list of fields it does not k
 is enforced at the two write paths, which is the same footing \`required\`, a mask and
 \`rules.validate\` already stand on.
 
+### Edit window — what cannot change after the fact
+
+Some records are EVIDENCE of what was said or done: a message to a client, a timesheet entry, a ledger
+line. Once somebody has read one, changing its text changes the evidence. Declare how long it stays
+editable:
+
+\`\`\`ts
+{ key: 'messages', /* ... */ editWindow: { minutes: 15, delete: true } }
+\`\`\`
+
+Counted from \`createdAt\`, which the platform stamps with the server's clock. After the window:
+
+- the form locks its fields and the gesture to delete (with \`delete: true\`), and says until when it
+  was open — while it is open, it says until when it will be;
+- every write path refuses: an automation's \`upsert\`, a script, the AI agent (\`update_record\`,
+  \`delete_record\`, and \`describe_screen\` reports the window), a portal guest;
+- the security rules refuse whoever writes to the database directly. That is what makes it a guarantee,
+  and not a suggestion the form makes.
+
+| | |
+|---|---|
+| \`minutes\` | a whole number greater than zero. Anything else is refused by \`check\` — and, if it ever reaches the database, the security rules treat it as a window that is already closed |
+| \`delete\` | \`true\` freezes deleting too. Absent, deleting follows the collection's permission only — which also means a record can be deleted and created again, which the audit log shows as exactly that |
+
+What still passes after the window: creating (never barred), the fields any member may write
+(\`memberWritableFields\` — mark as read, like), and the platform's own bookkeeping, which is not a
+business write (recounting an aggregate, adopting a key). A workflow that stamps the record right after
+it is created fits inside the window. \`createdAt\` itself never changes, not even inside it.
+
+**Nobody overrides it at run time — not even the owner of the organization.** The only way to reopen a
+window is to change the declaration, which takes \`screens.edit-window\` (in the Form Design) or
+\`extensions.manage\` — somebody who only designs screens cannot — and lands in the audit log. A record
+that needs correcting after the window gets a new record that corrects it, the way a ledger does.
+
+**The organization can set a window too**, in the Form Design ("Edit window" tab), on its own screens
+and on yours. On an update of your extension, what your package declares wins; what it does NOT declare
+removes nothing — a version that drops its window leaves the one that was in force, because removing a
+lock on evidence is a person's decision, not a side effect of updating.
+
+A record without a readable \`createdAt\` is closed, not open forever. Requires
+\`kernel: "^${EDIT_WINDOW_SINCE_KERNEL}"\`: an older kernel ignores the declaration and the records would
+stay editable forever, so \`check\` refuses the package instead.
+
 ### Relationships, and where a screen shows up
 
 | | |
@@ -1652,6 +1696,7 @@ is enforced at the two write paths, which is the same footing \`required\`, a ma
 | \`listActions\`, \`viewActionIds\`, \`cardActionIds\` | the platform's own record gestures by key; your \`actions\` by \`templateId\` |
 | \`memberWritableFields\` | fields ANY member may write on a record someone else created — the door for per-person state (read, liked, saved) that the default permission would close |
 | \`authorCanDelete\` | whoever created the record deletes it, without an administrator |
+| \`editWindow\` | how long after creation the record may still be changed — and, with \`delete: true\`, deleted. Enforced by the security rules, not only the form; see "Edit window" above |
 | \`portal\` | what an outside guest sees: \`subject\` (\`'self'\` for the screen whose records receive guests, \`{ field }\` for a reference that leads to it, \`'parent'\` to inherit from the parent), the \`fields\` that leave the organization — nothing else does — and \`documents\` to expose the documents someone marked as shared. \`visibleWhen\` is a field expression on the WHOLE record that decides which records leave (\`type == "revenue"\`) — false or invalid, the record is not in the portal, and neither is anything that reaches the guest through it; requires \`kernel: "^${PORTAL_VISIBLE_WHEN_SINCE_KERNEL}"\`. \`create: { fields }\` lets the guest create records, filling only those fields — the link to the subject is set by the server from what the guest already sees, never from what they send; it is refused on the \`'self'\` screen. \`uploads: { types }\` lets the guest ATTACH documents — choosing one of those types (none listed = any the organization has), never creating one, and never deleting; it requires \`documents\`. \`edit: { fields, when?, onlyOwn? }\` lets the guest CHANGE records: only those fields, and only fields that are also in \`fields\` (a guest never overwrites what they cannot see); never the link to the subject; \`when\` is a field expression on the WHOLE record (\`status == "draft"\`) checked by the server on every change — invalid means closed —, and \`onlyOwn\` limits it to records the guest created in the portal |
 | \`auditActions\` | which actions are audited. Absent = all. Declare it when a machine writes the collection, or the audit log drowns in one entry per ingested document |
 

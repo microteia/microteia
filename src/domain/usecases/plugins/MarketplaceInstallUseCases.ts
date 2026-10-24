@@ -390,6 +390,10 @@ const upsertPluginScreens = async (
           // sem isso, reinstalar/atualizar as apagaria, já que o template não as traz.
           viewActionIds: unionIds(input.viewActionIds, existing.viewActionIds),
           cardActionIds: unionIds(input.cardActionIds, existing.cardActionIds),
+          // A janela que o PACOTE declara vence; sem declaração, fica a que já valia — inclusive a que
+          // o escritório pôs no Form Design. Retirar uma trava de prova é gesto de pessoa, com
+          // `screens.edit-window`, nunca efeito colateral de atualizar uma extensão.
+          editWindow: input.editWindow ?? existing.editWindow ?? null,
         }
       : input;
     await deps.screenRepository.upsert(tenantId, screenKey, merged);
@@ -428,6 +432,7 @@ const ensureTargetCollectionScreen = async (
   const declared = {
     memberWritableFields: input.memberWritableFields ?? null,
     authorCanDelete: input.authorCanDelete ?? null,
+    editWindow: input.editWindow ?? null,
     titleFieldKey: input.titleFieldKey,
     subtitleFieldKey: input.subtitleFieldKey ?? null,
     imageFieldKey: input.imageFieldKey ?? null,
@@ -438,6 +443,7 @@ const ensureTargetCollectionScreen = async (
       ...screenToInput(existing),
       memberWritableFields: declared.memberWritableFields,
       authorCanDelete: declared.authorCanDelete,
+      editWindow: declared.editWindow ?? existing.editWindow ?? null,
       titleFieldKey: existing.titleFieldKey || declared.titleFieldKey,
       subtitleFieldKey: existing.subtitleFieldKey ?? declared.subtitleFieldKey,
       imageFieldKey: existing.imageFieldKey ?? declared.imageFieldKey,

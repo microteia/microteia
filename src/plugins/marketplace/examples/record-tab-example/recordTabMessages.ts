@@ -10,12 +10,14 @@ export const RECORD_TAB_MESSAGES: Record<string, string> = {
   'package.description':
     'A tab of its own inside a record of another screen: a timeline of milestones in each project, with its own look.',
   'package.summary':
-    'How an extension shows something INSIDE a record it does not own. It adds two tabs to the detail of a Project: a timeline of the milestones of that project, drawn by a code view that receives the open record, and a declarative tab drawn from a Widget DSL tree. The Milestone screen is NOT a child of Project — the tab is not the generic child-screen list, it is whatever the extension draws.',
+    'How an extension shows something INSIDE a record it does not own. It adds two tabs to the detail of a Project: a timeline of the milestones of that project, drawn by a code view that receives the open record, and a declarative tab drawn from a Widget DSL tree. The Milestone screen is NOT a child of Project — the tab is not the generic child-screen list, it is whatever the extension draws. The Update screen is, and its records freeze 15 minutes after they are created (`editWindow`).',
 
   'screen.project': 'Project',
   'screen.project.plural': 'Projects',
   'screen.milestone': 'Milestone',
   'screen.milestone.plural': 'Milestones',
+  'screen.update': 'Update',
+  'screen.update.plural': 'Updates',
 
   'nav.milestones': 'Milestones',
 
@@ -30,6 +32,7 @@ export const RECORD_TAB_MESSAGES: Record<string, string> = {
   'field.priority.low': 'Low',
   'field.done': 'Done',
   'field.relatedProjects': 'Also affects',
+  'field.update': 'Update',
 
   'tab.timeline': 'Timeline',
   'tab.timeline.description': 'The milestones of this project, and the ones that also affect it, newest first.',

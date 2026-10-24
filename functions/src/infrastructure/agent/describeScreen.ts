@@ -1,3 +1,4 @@
+import { resolveEditWindow } from '../../domain/schema/editWindow';
 import type { MessageCatalog } from '../../domain/schema/i18n/messages';
 import { resolveLabel } from '../../domain/schema/i18n/messageRef';
 import type { NativeFieldSpec } from '../../domain/schema/entityRegistry';
@@ -55,6 +56,12 @@ export interface AgentScreenDescription {
   fields: AgentField[];
   /** O que não pode se repetir. Gravar um valor repetido é recusado, não sobrescrito. */
   uniqueKeys: { name: string; fields: string[]; primary: boolean }[];
+  /**
+   * Por quantos minutos depois de criado um registro aceita `update_record` — e, com `delete`,
+   * `delete_record`. Ausente = sem prazo. Fora dele a gravação é recusada; o agente que precisa
+   * corrigir um registro congelado cria outro que o corrige, como se faz com um lançamento.
+   */
+  editWindow?: { minutes: number; delete: boolean };
   allowedOperations: string[];
 }
 
@@ -181,6 +188,7 @@ export const describeScreen = (
   if (!entity) return null;
 
   const screen = ctx.screens.get(collection);
+  const editWindow = resolveEditWindow(ctx, collection);
   return {
     collection,
     labelSingular: resolveLabel(catalog, entity.labelSingular),
@@ -192,6 +200,7 @@ export const describeScreen = (
       fields: [...key.fields],
       primary: key.kind === 'primary',
     })),
+    ...(editWindow ? { editWindow: { minutes: editWindow.spec.minutes, delete: editWindow.spec.delete === true } } : {}),
     allowedOperations: allowedOperations(ctx, session, collection),
   };
 };

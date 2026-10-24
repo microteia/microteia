@@ -170,6 +170,9 @@ export const materializeScreen = (
     recordTabPrefix: template.recordTabPrefix ?? null,
     memberWritableFields: template.memberWritableFields ?? null,
     authorCanDelete: template.authorCanDelete ?? null,
+    // Na INSTALAÇÃO, é a do pacote. Na atualização, a ausência não apaga a janela que já valia
+    // (`upsertPluginScreens`): retirá-la é gesto de pessoa no Form Design.
+    editWindow: template.editWindow ?? null,
     portal: asPortalDeclaration(template.portal),
     listActions: template.listActions ?? [],
     viewActionIds: mapActionIds(template.viewActionIds),

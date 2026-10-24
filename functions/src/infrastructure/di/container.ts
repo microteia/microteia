@@ -161,7 +161,8 @@ import { TemplateDocumentRenderer } from '../../data/services/document/TemplateD
 import { WorkflowDocumentRecordReader } from '../document/WorkflowDocumentRecordReader';
 import { makeRenderDocumentUseCase } from '../../domain/usecases/RenderDocumentUseCase';
 import type { RenderDocumentUseCase } from '../../domain/usecases/RenderDocumentUseCase';
-import { preferredLocale } from '../../domain/services/tenantSettings';
+import { configuredLocale, preferredLocale, settingsValuesOf } from '../../domain/services/tenantSettings';
+import { notifyRecordKeyConflicts } from '../recordKeys/recordKeyConflictNotifier';
 
 class DIContainer {
   private static instance: DIContainer;
@@ -702,6 +703,20 @@ class DIContainer {
             });
           } catch (error) {
             console.error(`[record-key-adoption] Falha ao registrar a auditoria de ${tenantId}/${collection}:`, error);
+          }
+          // Falhar ao avisar nunca desfaz nem trava a adoção: o aviso da listagem continua lá.
+          try {
+            await notifyRecordKeyConflicts({
+              schemaContext: (id) => this.getScreenDefinitionCache().getSchemaContext(id),
+              messageBundles: (id) => this.getInstalledExtensionCache().messageBundles(id),
+              officeLocale: async (id) => {
+                const office = await getDb().collection('tenants').doc(id).collection('settings').doc('tenant').get();
+                return configuredLocale({}, settingsValuesOf(office.data())) ?? undefined;
+              },
+              dispatch: this.getDispatchNotificationUseCase(),
+            }, tenantId, collection, state);
+          } catch (error) {
+            console.error(`[record-key-adoption] Falha ao avisar os conflitos de ${tenantId}/${collection}:`, error);
           }
         },
       };

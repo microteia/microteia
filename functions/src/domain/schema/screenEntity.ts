@@ -16,6 +16,7 @@ import { LOOKUP_REGISTRY_LIST } from './lookupRegistry';
 import type { FieldRulePreset, FieldRulePresetCatalog } from './fieldRulePresets';
 import { buildFieldRulePresetCatalog } from './fieldRulePresets';
 import type { RecordKeySpec } from './recordKeys';
+import type { EditWindowSpec } from './editWindow';
 import { RECORD_KEYS_COLLECTION } from './recordKeys';
 import { AGENT_GRANTS_COLLECTION } from './agent/agentGrant';
 import { AGGREGATE_BACKFILL_COLLECTION } from './aggregateBackfill';
@@ -57,6 +58,16 @@ export interface SchemaScreen {
   auditActions?: AuditAction[] | null;
   /** As chaves declaradas para a COLEÇÃO. Ver `ScreenDefinition.keys`. */
   keys?: RecordKeySpec[] | null;
+  /**
+   * A janela de edição dos registros da coleção, já lida como a regra a lê (`readEditWindow`). Ver
+   * `ScreenDefinition.editWindow`.
+   */
+  editWindow?: EditWindowSpec | null;
+  /**
+   * Os campos que qualquer membro grava. Estão aqui porque a janela de edição os deixa passar depois
+   * do prazo, e a gravação do backend precisa da mesma lista que a regra lê.
+   */
+  memberWritableFields?: string[] | null;
   /**
    * O registro tem a aba Documentos. Está no schema, e não só na tela, porque o agente que anexa
    * um arquivo precisa da mesma resposta que a tela dá — sem ela, anexaria a um registro cuja aba
@@ -179,9 +190,27 @@ const mergeSchemaScreens = (base: SchemaScreen, next: SchemaScreen, collection: 
   };
 };
 
+/**
+ * A janela de edição e os campos de membro de uma coleção são os do documento
+ * `screenDefinitions/<coleção>` — o único que o `firestore.rules` lê. Quando outra tela descreve a
+ * coleção (`dataCollection`), a instalação copia as duas declarações para esse documento
+ * (`ensureTargetCollectionScreen`); ler daqui, e não da dona do merge, é o que impede o backend de
+ * aceitar uma gravação que a regra recusaria, ou o contrário.
+ */
+const withRuleDeclarations = (merged: SchemaScreen, ruleDocument: SchemaScreen | undefined): SchemaScreen =>
+  ruleDocument
+    ? {
+      ...merged,
+      editWindow: ruleDocument.editWindow ?? null,
+      memberWritableFields: ruleDocument.memberWritableFields ?? null,
+    }
+    : merged;
+
 const indexScreens = (screens: Iterable<SchemaScreen>): Map<string, SchemaScreen> => {
   const map = new Map<string, SchemaScreen>();
+  const byId = new Map<string, SchemaScreen>();
   for (const screen of screens) {
+    byId.set(screen.id, screen);
     const collection = screenCollection(screen);
     const existing = map.get(collection);
     map.set(
@@ -189,6 +218,7 @@ const indexScreens = (screens: Iterable<SchemaScreen>): Map<string, SchemaScreen
       existing ? mergeSchemaScreens(existing, screen, collection) : { ...screen, collection },
     );
   }
+  for (const [collection, merged] of map) map.set(collection, withRuleDeclarations(merged, byId.get(collection)));
   return map;
 };
 
