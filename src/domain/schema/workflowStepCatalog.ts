@@ -58,13 +58,22 @@ export type InputOptionsSource =
  * O seletor só é oferecido quando o mapping é `Literal`: um alvo que só se conhece em runtime não
  * tem lista a mostrar em design-time.
  */
+/**
+ * O kernel a partir do qual existem o passo `share-documents` e a entrada `portalShared` de
+ * `render-document`. Um pacote que admite kernel anterior instalaria um fluxo que reprova no passo.
+ */
+export const PORTAL_DOCUMENT_SHARING_SINCE_KERNEL = '2.70.0';
+
+export const SHARE_DOCUMENTS_STEP_ID = 'share-documents';
+
 export type InputPickerKind =
   | 'workflow'
   | 'script'
   | 'ai-connection'
   | 'permission'
   | 'document-template'
-  | 'document-template-reference';
+  | 'document-template-reference'
+  | 'documents-collection';
 
 export interface InputDefinition {
   id: string;
@@ -940,6 +949,19 @@ export const CORE_STEP_CATALOG: readonly WorkflowStepMetadata[] = [
         required: false,
         type: 'Number',
       },
+      {
+        /**
+         * O documento gerado já nasce compartilhado com o portal — o mesmo `portalShared` que o upload
+         * do convidado e a marca da tela gravam. Só vale para a aba Documentos: Downloads não está no
+         * portal, e pedir os dois reprova o passo em vez de entregar metade.
+         */
+        id: 'portalShared',
+        label: '@core.automation/step.render-document.label.portal-shared',
+        description: '@core.automation/step.render-document.help.portal-shared',
+        required: false,
+        type: 'Boolean',
+        defaultValue: false,
+      },
     ],
     outputDefinitions: [
       { id: 'documentId', label: '@core.automation/step.render-document.output.document-id', type: 'String' },
@@ -952,6 +974,68 @@ export const CORE_STEP_CATALOG: readonly WorkflowStepMetadata[] = [
     ],
     dynamicInputs: { kind: 'from-target-document-template-parameters', sourceInputId: 'templateKey' },
     appendsEachRun: true,
+  },
+  {
+    /**
+     * Compartilhar (ou deixar de compartilhar) com o portal os documentos que um registro JÁ tem — o
+     * gesto que a liberação "na hora certa" pede: ao confirmar, ao abrir, ao assinar. Sem
+     * `documentId`, vale para todos os documentos do registro (filtrados por `documentType`), porque
+     * quem reage ao evento do registro não conhece os ids dos anexos. Idempotente: o documento que já
+     * está no estado pedido não é regravado.
+     */
+    id: 'share-documents',
+    version: 1,
+    name: '@core.automation/step.share-documents.name',
+    description: '@core.automation/step.share-documents.description',
+    icon: 'RiShareLine',
+    category: 'Data',
+    type: 'Action',
+    configurable: true,
+    inputs: [
+      {
+        id: 'collection',
+        label: '@core.automation/step.share-documents.label.collection',
+        description: '@core.automation/step.share-documents.help.collection',
+        required: true,
+        type: 'String',
+        allowedMappingKinds: ['Literal'],
+        picker: 'documents-collection',
+      },
+      {
+        id: 'recordId',
+        label: '@core.automation/step.share-documents.label.record',
+        required: true,
+        type: 'String',
+      },
+      {
+        id: 'shared',
+        label: '@core.automation/step.share-documents.label.shared',
+        description: '@core.automation/step.share-documents.help.shared',
+        required: false,
+        type: 'Boolean',
+        defaultValue: true,
+      },
+      {
+        id: 'documentId',
+        label: '@core.automation/step.share-documents.label.document',
+        description: '@core.automation/step.share-documents.help.document',
+        required: false,
+        type: 'String',
+      },
+      {
+        id: 'documentType',
+        label: '@core.automation/step.share-documents.label.document-type',
+        description: '@core.automation/step.share-documents.help.document-type',
+        required: false,
+        type: 'String',
+        options: { kind: 'Lookup', lookup: 'documentTypes' },
+      },
+    ],
+    outputDefinitions: [
+      { id: 'matched', label: '@core.automation/step.share-documents.output.matched', type: 'Number' },
+      { id: 'changed', label: '@core.automation/step.share-documents.output.changed', type: 'Number' },
+      { id: 'shared', label: '@core.automation/step.share-documents.output.shared', type: 'Boolean' },
+    ],
   },
 ];
 

@@ -56,6 +56,12 @@ export interface RenderDocumentRequest {
   /** Dias em Downloads (`0` = não expira). Ausente = o do modelo, depois o do escritório. */
   expiresInDays?: number;
   /**
+   * O documento anexado já nasce compartilhado com o portal (`portalShared`). Só vale para a aba
+   * Documentos, e só numa tela que mostra documentos no portal — nos dois casos contrários o pedido é
+   * recusado antes de gerar, em vez de entregar um documento que ninguém de fora vê.
+   */
+  portalShared?: boolean;
+  /**
    * Cobrar de `permissions` a permissão que o DESTINO exige: `<coleção>.update` para anexar ao
    * registro, `<coleção>.read` para Downloads, que não altera o registro. É o caso de uso que cobra,
    * e não a porta, porque só ele sabe o destino quando quem chama não o diz — o padrão é do modelo.
@@ -98,6 +104,8 @@ export interface RenderDocumentDeps {
   timeZoneOf(tenantId: string): Promise<string>;
   /** Os calendários de dias úteis, lidos só quando o modelo ou um campo derivado conta dias úteis. */
   businessCalendarsOf?(tenantId: string): Promise<BusinessCalendarSet | null>;
+  /** A tela da coleção mostra documentos no portal? Só consultado quando o pedido é `portalShared`. */
+  portalShowsDocuments?(tenantId: string, physicalCollection: string): Promise<boolean>;
 }
 
 /**
@@ -505,6 +513,13 @@ export const makeRenderDocumentUseCase = (deps: RenderDocumentDeps): RenderDocum
     if (!prepared.ok) return prepared;
     const { template, output, scope, evaluate, home } = prepared.value;
 
+    if (request.portalShared) {
+      if (prepared.value.destination !== 'record') return failure('@core.documents/render.portal-shared-destination');
+      if (home && !(await deps.portalShowsDocuments?.(request.tenantId, home.collection))) {
+        return failure('@core.documents/share.portal-off', { collection: home.collection });
+      }
+    }
+
     let rendered;
     try {
       rendered = await deps.renderer.render({ template, output, scope, evaluate });
@@ -563,6 +578,7 @@ export const makeRenderDocumentUseCase = (deps: RenderDocumentDeps): RenderDocum
       data: rendered.data,
       type: request.documentType ?? template.documentType ?? null,
       author: request.author,
+      ...(request.portalShared ? { portalShared: true } : {}),
     });
 
     return { ok: true, destination: 'record', document, output, issues: rendered.issues };

@@ -100,6 +100,7 @@ export const makeRenderDocumentStepDefinition = (renderDocument: RenderDocumentU
         ...(documentType ? { documentType } : {}),
         ...(isDocumentDestination(destination) ? { destination } : {}),
         ...(expiresInDays !== undefined ? { expiresInDays } : {}),
+        ...(inputs.portalShared === true || textOf(inputs.portalShared).toLowerCase() === 'true' ? { portalShared: true } : {}),
         author: authorOf(context),
         ...(context.actor ? { permissions: context.actor.permissions } : {}),
       });

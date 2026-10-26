@@ -11,6 +11,12 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.157.0] — 2026-10-26
+
+- As automações agora podem liberar documentos para o portal: um documento gerado pode já nascer visível ao convidado, e um novo passo compartilha (ou recolhe) os documentos de um registro na hora certa, por exemplo quando um pedido é confirmado.
+- O documento compartilhado continua chegando só a quem já vê o registro no portal, e nada que não foi compartilhado aparece.
+- A Auditoria passou a registrar corretamente quem compartilhou ou deixou de compartilhar um documento com o portal. Antes ela atribuía o gesto a quem tinha anexado o arquivo.
+
 #### [9.156.0] — 2026-10-25
 
 - As automações agora podem reagir a notas e documentos de qualquer tela: ao anexar um arquivo ou escrever uma nota num registro, o fluxo correspondente é disparado. Antes isso só funcionava para algumas telas fixas.

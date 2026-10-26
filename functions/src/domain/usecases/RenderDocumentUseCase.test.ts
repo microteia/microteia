@@ -64,6 +64,7 @@ const setup = (
   templates: ResolvedDocumentTemplate[] = [template()],
   screens: SchemaScreen[] = SCREENS,
   policy: DownloadPolicy = { retentionDays: 7, automationVisibility: 'managers' },
+  portalShowsDocuments: (tenantId: string, collection: string) => Promise<boolean> = async () => true,
 ) => {
   const rendered: DocumentRenderInput[] = [];
   const attached: RecordDocumentFile[] = [];
@@ -103,6 +104,7 @@ const setup = (
     now: () => NOW,
     localeOf: async () => 'pt-BR',
     timeZoneOf: async () => 'America/Sao_Paulo',
+    portalShowsDocuments,
   };
   return { useCase: makeRenderDocumentUseCase(deps), rendered, attached, childrenPaths, writer, saved, downloads };
 };
@@ -152,6 +154,29 @@ describe('RenderDocumentUseCase', () => {
     expect(await useCase.execute(request({ collection: 'notes' })))
       .toMatchObject({ ok: false, error: '@core.documents/render.collection-mismatch' });
     expect(writer.attach).not.toHaveBeenCalled();
+  });
+
+  it('portalShared anexa o documento já compartilhado com o portal, pela marca de sempre', async () => {
+    const { useCase, attached } = setup();
+    expect((await useCase.execute(request({ portalShared: true }))).ok).toBe(true);
+    expect(attached[0].portalShared).toBe(true);
+
+    const plain = setup();
+    await plain.useCase.execute(request());
+    expect(plain.attached[0].portalShared).toBeUndefined();
+  });
+
+  it('portalShared recusa Downloads e a tela que não mostra documentos no portal, antes de gerar', async () => {
+    const downloads = setup();
+    expect(await downloads.useCase.execute(request({ portalShared: true, destination: 'downloads' })))
+      .toEqual({ ok: false, error: '@core.documents/render.portal-shared-destination' });
+    expect(downloads.rendered).toEqual([]);
+
+    const off = setup(undefined, undefined, undefined, async () => false);
+    expect(await off.useCase.execute(request({ portalShared: true })))
+      .toEqual({ ok: false, error: '@core.documents/share.portal-off', errorParams: { collection: 'contracts' } });
+    expect(off.rendered).toEqual([]);
+    expect(off.attached).toEqual([]);
   });
 
   it('recusa a tela sem aba Documentos — não há onde anexar', async () => {

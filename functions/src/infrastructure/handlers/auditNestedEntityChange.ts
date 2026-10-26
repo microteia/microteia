@@ -3,6 +3,7 @@ import { getDI } from '../di/container';
 import { resolveNestedEntityConfig } from '../../domain/services/auditableEntities';
 import { computeChangedFields, normalizeAllFields, buildAuditText, resolveSeverity, ACTION_TITLE } from '../../domain/services/auditDiff';
 import { logAuditError } from './shared/logAuditError';
+import { nestedAuditActor } from '../../domain/services/nestedAuditActor';
 import type { AuditAction } from '../../domain/entities/AuditLog';
 
 /**
@@ -44,18 +45,10 @@ export const auditNestedEntityChange = onDocumentWritten(
       const displayName = config.getDisplayName(referenceData);
       const severity = resolveSeverity(action, sub, changedKeys);
 
-      const actorUid = action === 'DELETE'
-        ? ((beforeData.deletedBy as string | undefined) || (beforeData.createdBy as string | undefined) || '')
-        : ((afterData.createdBy as string | undefined) || '');
-      const denormalizedName = action === 'DELETE'
-        ? (beforeData.deletedByName as string | undefined)
-        : (afterData.createdByName as string | undefined);
-      const denormalizedPhoto = action === 'DELETE'
-        ? (beforeData.deletedByPhotoURL as string | undefined)
-        : (afterData.createdByPhotoUrl as string | undefined);
-
-      const actor = denormalizedName
-        ? { name: denormalizedName, photoURL: denormalizedPhoto ?? '' }
+      const author = nestedAuditActor(action, beforeData, afterData);
+      const actorUid = author.uid;
+      const actor = author.name
+        ? { name: author.name, photoURL: author.photoURL ?? '' }
         : await getDI().getUserProfileLookupService().resolveActor(actorUid);
 
       const auditText = buildAuditText(action, displayName, actor.name, diff);

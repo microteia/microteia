@@ -10,7 +10,10 @@ import {
   isCoreStepDefinitionId,
   isPausingStepDefinition,
   isStepExcludedFromTrigger,
+  PORTAL_DOCUMENT_SHARING_SINCE_KERNEL,
+  SHARE_DOCUMENTS_STEP_ID,
 } from '../../schema/workflowStepCatalog';
+import { CHILD_RECORD_EVENTS_SINCE_KERNEL, splitChildRecordEventName } from '../../schema/eventCatalog';
 import { WORKFLOW_AUDIT_EVENT, WORKFLOW_AUDIT_SINCE_KERNEL } from '../../schema/workflowAuditTrigger';
 import type { PackageRef, PackageValidationIssue } from './pluginReferences';
 import {
@@ -24,7 +27,7 @@ import {
 } from '../../schema/workflowClock';
 import { rangeExcludesBelow } from '../../schema/plugin/semver';
 import { screenEventPrefix } from './screenModule';
-import { declaredDocumentTemplates, renderDocumentStepIssues, renderDocumentTemplateKey } from './documentStepIntegrity';
+import { RENDER_DOCUMENT_STEP_ID, declaredDocumentTemplates, renderDocumentStepIssues, renderDocumentTemplateKey } from './documentStepIntegrity';
 
 /**
  * A integridade de um passo de automação.
@@ -277,12 +280,51 @@ const workflowIssues = (
   return [
     ...triggerIssues(workflow, ref, pkg),
     ...auditTriggerIssues(workflow, ref, pkg),
+    ...childEventKernelIssues(workflow, ref, pkg),
+    ...portalSharingKernelIssues(steps, ref, pkg),
     ...excludedStepIssues(workflow, steps, ref),
     ...delayIssues(workflow, steps, ref, pkg),
     ...steps.flatMap((step) => stepIssues(step, ref, hasDependencies)),
     ...outputRefIssues(steps, ref),
     ...documentStepIssues(steps, ref, pkg),
   ];
+};
+
+/** O evento de nota ou documento num pacote que admite um kernel em que ele não existe para toda tela. */
+const childEventKernelIssues = (
+  workflow: WorkflowModuleTemplate,
+  ref: PackageRef,
+  pkg: MarketplacePlugin,
+): PackageValidationIssue[] =>
+  !splitChildRecordEventName(workflow.eventName) || rangeExcludesBelow(pkg.manifest?.kernel ?? '', CHILD_RECORD_EVENTS_SINCE_KERNEL)
+    ? []
+    : [{
+        ref,
+        message: '@core.marketplace/issue.workflow.trigger-kernel',
+        messageParams: { event: workflow.eventName, minimum: CHILD_RECORD_EVENTS_SINCE_KERNEL },
+      }];
+
+/**
+ * Compartilhar documento com o portal por automação — o passo `share-documents` e o `portalShared`
+ * de `render-document` — num pacote que admite um kernel anterior: o passo reprovaria por ser
+ * desconhecido, e a entrada seria ignorada, anexando um documento que o convidado nunca vê.
+ */
+const portalSharingKernelIssues = (
+  steps: WorkflowStep[],
+  ref: PackageRef,
+  pkg: MarketplacePlugin,
+): PackageValidationIssue[] => {
+  if (rangeExcludesBelow(pkg.manifest?.kernel ?? '', PORTAL_DOCUMENT_SHARING_SINCE_KERNEL)) return [];
+  const minimum = PORTAL_DOCUMENT_SHARING_SINCE_KERNEL;
+  return steps.flatMap((step): PackageValidationIssue[] => {
+    if (step.stepDefinitionId === SHARE_DOCUMENTS_STEP_ID) {
+      return [{ ref, message: '@core.marketplace/issue.step.definition-kernel', messageParams: { step: step.id, definition: SHARE_DOCUMENTS_STEP_ID, minimum } }];
+    }
+    if (step.stepDefinitionId === RENDER_DOCUMENT_STEP_ID && step.configuration?.portalShared !== undefined) {
+      return [{ ref, message: '@core.marketplace/issue.step.input-kernel', messageParams: { step: step.id, input: 'portalShared', minimum } }];
+    }
+    return [];
+  });
 };
 
 /**

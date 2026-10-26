@@ -30,7 +30,8 @@ export type InputPickerKind =
   | 'ai-connection'
   | 'permission'
   | 'document-template'
-  | 'document-template-reference';
+  | 'document-template-reference'
+  | 'documents-collection';
 
 export interface InputDefinition {
   id: string;

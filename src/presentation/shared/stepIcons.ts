@@ -16,6 +16,7 @@ import {
   RiRobot2Line,
   RiAiGenerate,
   RiHourglassLine,
+  RiShareLine,
 } from 'react-icons/ri';
 
 const STEP_ICONS: Record<string, IconType> = {
@@ -34,6 +35,7 @@ const STEP_ICONS: Record<string, IconType> = {
   RiRobot2Line,
   RiAiGenerate,
   RiHourglassLine,
+  RiShareLine,
 };
 
 export const getStepIcon = (icon: string): IconType => STEP_ICONS[icon] ?? RiToolsLine;

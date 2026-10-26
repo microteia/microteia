@@ -412,6 +412,10 @@ export const CORE_MARKETPLACE: Record<string, string> = {
     'o passo "{step}" espera, e a ação "{action}" roda esta automação. Um botão aguarda a resposta e não consegue aguardar uma pausa — o fluxo pararia com erro. Dispare-a por um evento, ou faça a ação chamar uma automação que não espere.',
   'issue.step.delay-kernel':
     'o passo "{step}" espera, e o passo de espera só existe a partir do kernel {minimum} — declare `kernel: "^{minimum}"` (ou posterior) no manifest, para que um kernel mais antigo recuse o pacote em vez de falhar no passo.',
+  'issue.step.definition-kernel':
+    'o passo "{step}" é do tipo "{definition}", que só existe a partir do kernel {minimum} — declare `kernel: "^{minimum}"` (ou posterior) no manifest, para que um kernel mais antigo recuse o pacote em vez de falhar no passo.',
+  'issue.step.input-kernel':
+    'o passo "{step}" preenche "{input}", que só existe a partir do kernel {minimum} — declare `kernel: "^{minimum}"` (ou posterior) no manifest, para que um kernel mais antigo recuse o pacote em vez de ignorar a entrada.',
   'issue.step.unknown-input':
     'o passo "{step}" ({definition}) preenche a entrada "{input}", que esse passo não tem. Ele recebe: {expected}.',
   'issue.step.document.record-only':

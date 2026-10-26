@@ -10,6 +10,7 @@ import type { LifecycleActor } from '../../services/pluginLifecycle';
 import { buildScreenKeyMap, isAdoptedScreen, materializeScreen, ownerSet } from './screenModule';
 import {
   actionInputFromTemplate,
+  buildScreenCollectionMap,
   buildScreenEventMap,
   rewriteStepLiteral,
   scriptInputFromTemplate,
@@ -214,6 +215,7 @@ const materializeArtifacts = async (
   ]);
   const screenKeyMap = buildScreenKeyMap(plugin.screens ?? [], existingScreens, takenCollections);
   const screenEventMap = buildScreenEventMap(plugin.screens ?? [], screenKeyMap);
+  const screenCollectionMap = buildScreenCollectionMap(plugin.screens ?? [], screenKeyMap);
 
   const existingWorkflows = await deps.workflowRepository.getWorkflowDefinitions(tenantId);
   const workflowMap = new Map<string, string>();
@@ -226,7 +228,7 @@ const materializeArtifacts = async (
       workflowMap.set(template.templateId, existing.id);
       const owners = addOwner(ownerSet(existing), pluginId);
       if (shouldRewriteContent(template, existing)) {
-        const input = workflowInputFromTemplate(template, pluginId, scriptMap, screenEventMap);
+        const input = workflowInputFromTemplate(template, pluginId, scriptMap, screenEventMap, screenCollectionMap);
         // Reescreve o conteúdo mas PRESERVA o estado local do tenant (`enabled`) e o dono primário.
         await deps.workflowRepository.updateWorkflowDefinition(tenantId, existing.id, {
           ...input,
@@ -239,7 +241,7 @@ const materializeArtifacts = async (
         await deps.workflowRepository.updateWorkflowDefinition(tenantId, existing.id, { ownerPluginIds: owners, ownerPluginId: existing.ownerPluginId ?? pluginId });
       }
     } else {
-      const input = workflowInputFromTemplate(template, pluginId, scriptMap, screenEventMap);
+      const input = workflowInputFromTemplate(template, pluginId, scriptMap, screenEventMap, screenCollectionMap);
       const localId = installedArtifactId(template.templateId, template.name, takenWorkflowIds);
       const created = await deps.workflowRepository.createWorkflowDefinition(tenantId, input, localId);
       takenWorkflowIds.add(created.id);
@@ -254,7 +256,7 @@ const materializeArtifacts = async (
     if (!workflowOutRefs(template).some((ref) => ref.kind === 'workflow')) continue;
     const touched = touchedWorkflows.find((w) => w.templateId === template.templateId);
     if (!touched) continue;
-    const input = workflowInputFromTemplate(template, pluginId, scriptMap, screenEventMap);
+    const input = workflowInputFromTemplate(template, pluginId, scriptMap, screenEventMap, screenCollectionMap);
     const steps = rewriteStepLiteral(input.steps, 'targetWorkflowId', workflowMap);
     await deps.workflowRepository.updateWorkflowSteps(tenantId, touched.id, steps);
   }

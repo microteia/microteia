@@ -31,6 +31,7 @@ import { portalExamplePtBrContribution } from './portalMessagesPtBr';
  * | what those can read | `@microteia/portal` — never `@microteia/data` |
  * | a screen over a collection named apart from its key | `dataCollection` — links point at the COLLECTION |
  * | telling the guests something happened | a `notify` step with `portalGuests` — never members in the same step |
+ * | the documents the guest sees | `portal.documents` — and only the SHARED ones, shared by hand or by `share-documents` |
  *
  * Guests are invited by the organization, in Settings > Portal, to a Client. Each one then sees that
  * client and its orders — nothing else in the organization, not even that other clients exist.
@@ -100,21 +101,25 @@ const ORDER_FIELDS: TemplateField[] = [
   { key: 'client', label: message('field.client'), type: 'reference', required: true, order: 4, refEntity: 'portalExampleClient' },
   { key: 'internal', label: message('field.internal'), type: 'textarea', required: false, order: 5 },
   { key: 'officeOnly', label: message('field.officeOnly'), type: 'checkbox', required: false, order: 6 },
+  { key: 'confirmed', label: message('field.confirmed'), type: 'checkbox', required: false, order: 7 },
 ];
 
 const ORDER_SCREEN: ScreenModuleTemplate = {
   key: 'portalExampleOrder',
   sourceId: 'microteia:portal-example:order',
-  sourceRev: 1,
+  sourceRev: 2,
   titleSingular: message('screen.order'),
   titlePlural: message('screen.order.plural'),
   icon: 'shoppingBag',
   fields: ORDER_FIELDS,
   titleFieldKey: 'item',
   eventPrefix: 'portalExampleOrder',
+  hasDocuments: true,
   portal: {
     subject: { field: 'client' },
     fields: ['item', 'quantity', 'urgency', 'notes'],
+    // The guest sees the order's documents — only the ones the organization SHARED. See `wf-order-confirmed`.
+    documents: true,
     // Checked in the office, the order never reaches the portal; a guest's own order leaves it empty.
     visibleWhen: 'officeOnly != true',
     create: { fields: ['item', 'quantity', 'urgency', 'notes'] },
@@ -190,7 +195,7 @@ const VISIT_SCREEN: ScreenModuleTemplate = {
  * To announce a different record than the one that fired — the Site of a visit —, add
  * `portalRecord: { kind: 'Event', path: 'site' }`.
  */
-const WORKFLOWS: WorkflowModuleTemplate[] = [{
+const VISIT_SCHEDULED: WorkflowModuleTemplate = {
   templateId: 'wf-visit-scheduled',
   name: message('workflow.visit-scheduled'),
   description: message('workflow.visit-scheduled.description'),
@@ -218,7 +223,46 @@ const WORKFLOWS: WorkflowModuleTemplate[] = [{
       toAudit: { kind: 'Literal', value: false },
     },
   }],
-}];
+};
+
+/**
+ * Releasing the documents at the right moment. What the organization attaches to an order stays
+ * inside while it works on it; checking `confirmed` (an office-only field) shares every document of
+ * the order with the client's guests at once. `share-documents` writes the same mark as the Documents
+ * tab, so who sees it is still the portal's rule — the guests of that client, and only while the
+ * order is not office-only. It is idempotent: saving the confirmed order again changes nothing, and
+ * every change is in the Audit trail with who made it.
+ *
+ * To share a document the flow GENERATES, set `portalShared: true` on `render-document` instead.
+ */
+const ORDER_CONFIRMED: WorkflowModuleTemplate = {
+  templateId: 'wf-order-confirmed',
+  name: message('workflow.order-confirmed'),
+  description: message('workflow.order-confirmed.description'),
+  eventName: 'portalExampleOrder.saved',
+  version: 1,
+  condition: {
+    kind: 'FieldComparison',
+    fieldPath: 'event.payload.confirmed',
+    operator: '==',
+    value: true,
+    valueType: 'literal',
+  },
+  steps: [{
+    id: 'releaseDocuments',
+    stepDefinitionId: 'share-documents',
+    type: 'Action',
+    order: 0,
+    enabled: true,
+    configuration: {
+      collection: { kind: 'Literal', value: 'portalExampleOrder' },
+      recordId: { kind: 'Event', path: 'id' },
+      shared: { kind: 'Literal', value: true },
+    },
+  }],
+};
+
+const WORKFLOWS: WorkflowModuleTemplate[] = [VISIT_SCHEDULED, ORDER_CONFIRMED];
 
 const CLIENT_PORTAL_SOURCE = mergeViewSources({
   'ClientPortal.view.tsx': CLIENT_PORTAL_VIEW,
@@ -229,8 +273,8 @@ const CLIENT_PORTAL_SOURCE = mergeViewSources({
 export const portalExamplePlugin: MarketplacePlugin = {
   manifest: {
     id: 'com.microteia.portal-example',
-    version: '1.7.0',
-    kernel: '^2.63.0',
+    version: '1.8.0',
+    kernel: '^2.70.0',
     name: message('package.name'),
     description: message('package.description'),
     category: message('package.category'),

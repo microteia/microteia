@@ -87,18 +87,38 @@ export const buildScreenEventMap = (
 };
 
 /**
+ * A coleção de cada tela do pacote que leva o nome DELA: é a que muda quando a chave ganha sufixo na
+ * instalação. A tela com `dataCollection` descreve uma coleção de nome global, que não muda.
+ */
+export const buildScreenCollectionMap = (screens: ScreenModuleTemplate[], screenKeyMap: IdMap): IdMap => {
+  const collectionMap: IdMap = new Map();
+  for (const screen of screens) {
+    if (screen.dataCollection) continue;
+    const installed = screenKeyMap.get(screen.key);
+    if (installed && installed !== screen.key) collectionMap.set(screen.key, installed);
+  }
+  return collectionMap;
+};
+
+/**
  * Passada 1 do workflow: remove `templateId`, marca o dono, nasce habilitado, reescreve `scriptId`
- * pelos ids reais dos scripts e acerta o gatilho pela tela instalada. `targetWorkflowId` continua em
- * template (só é remapeado na passada 2, quando todos os workflows já têm id).
+ * pelos ids reais dos scripts, a coleção de `share-documents` pela tela instalada e acerta o gatilho
+ * pela tela instalada. `targetWorkflowId` continua em template (só é remapeado na passada 2, quando
+ * todos os workflows já têm id).
  */
 export const workflowInputFromTemplate = (
   template: WorkflowModuleTemplate,
   pluginId: string,
   scriptMap: IdMap,
   screenEventMap: IdMap,
+  screenCollectionMap: IdMap = new Map(),
 ): WorkflowInput => {
   const rest = withoutTemplateId(template);
-  const steps = rewriteStepLiteral(rest.steps ?? [], 'scriptId', scriptMap);
+  const steps = rewriteStepLiteral(
+    rewriteStepLiteral(rest.steps ?? [], 'scriptId', scriptMap),
+    'collection',
+    screenCollectionMap,
+  );
   const event = splitEntityEventName(rest.eventName);
   const child = splitChildRecordEventName(rest.eventName);
   const childParent = child ? screenEventMap.get(child.parentPrefix) : undefined;

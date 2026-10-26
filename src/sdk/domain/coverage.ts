@@ -97,6 +97,8 @@ const STEP_GAP_NOTES: Record<string, string> = {
   'ai-extract-parameters': 'pulls parameters out of a text. The model has no notion of an incoming message to read',
   'render-document': 'fills a document template with a record and attaches the file. The model has no effect for '
     + '"produce a document" — "when the order is approved, generate the receipt" cannot be said',
+  'share-documents': 'shares the documents a record already has with the portal. The model has no notion of the portal, '
+    + 'so "the guest sees the attachments once the order is confirmed" cannot be said',
 };
 
 const stepItems = (): CoverageItem[] => {

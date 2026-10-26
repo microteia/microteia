@@ -1,8 +1,8 @@
 {
   "manifest": {
     "id": "com.microteia.portal-example",
-    "version": "1.7.0",
-    "kernel": "^2.63.0",
+    "version": "1.8.0",
+    "kernel": "^2.70.0",
     "name": "@com.microteia.portal-example/package.name",
     "description": "@com.microteia.portal-example/package.description",
     "category": "@com.microteia.portal-example/package.category",
@@ -41,6 +41,7 @@
             "field.quantity": "Quantity",
             "field.notes": "Notes",
             "field.internal": "Internal note",
+            "field.confirmed": "Confirmed",
             "field.site": "Site",
             "field.date": "Date",
             "field.summary": "Summary",
@@ -59,6 +60,8 @@
             "portal.widget.orders.caption": "orders placed in the portal",
             "workflow.visit-scheduled": "Tell the client about a new visit",
             "workflow.visit-scheduled.description": "When a visit is scheduled, notifies the client's portal guests by e-mail and on the portal bell.",
+            "workflow.order-confirmed": "Release the documents of a confirmed order",
+            "workflow.order-confirmed.description": "When an order is confirmed, shares all its documents with the client's portal guests.",
             "notify.visit.title": "A visit was scheduled",
             "notify.visit.message": "Open it in the portal to see the date and the summary."
           }
@@ -91,6 +94,7 @@
             "field.quantity": "Quantidade",
             "field.notes": "Observações",
             "field.internal": "Nota interna",
+            "field.confirmed": "Confirmado",
             "field.site": "Local",
             "field.date": "Data",
             "field.summary": "Resumo",
@@ -109,6 +113,8 @@
             "portal.widget.orders.caption": "pedidos feitos pelo portal",
             "workflow.visit-scheduled": "Avisar o cliente de uma visita nova",
             "workflow.visit-scheduled.description": "Quando uma visita é agendada, avisa os convidados do portal do cliente por e-mail e no sino do portal.",
+            "workflow.order-confirmed": "Liberar os documentos de um pedido confirmado",
+            "workflow.order-confirmed.description": "Quando um pedido é confirmado, compartilha todos os documentos dele com os convidados do portal do cliente.",
             "notify.visit.title": "Uma visita foi agendada",
             "notify.visit.message": "Abra no portal para ver a data e o resumo."
           }
@@ -194,6 +200,43 @@
           }
         }
       ]
+    },
+    {
+      "templateId": "wf-order-confirmed",
+      "name": "@com.microteia.portal-example/workflow.order-confirmed",
+      "description": "@com.microteia.portal-example/workflow.order-confirmed.description",
+      "eventName": "portalExampleOrder.saved",
+      "version": 1,
+      "condition": {
+        "kind": "FieldComparison",
+        "fieldPath": "event.payload.confirmed",
+        "operator": "==",
+        "value": true,
+        "valueType": "literal"
+      },
+      "steps": [
+        {
+          "id": "releaseDocuments",
+          "stepDefinitionId": "share-documents",
+          "type": "Action",
+          "order": 0,
+          "enabled": true,
+          "configuration": {
+            "collection": {
+              "kind": "Literal",
+              "value": "portalExampleOrder"
+            },
+            "recordId": {
+              "kind": "Event",
+              "path": "id"
+            },
+            "shared": {
+              "kind": "Literal",
+              "value": true
+            }
+          }
+        }
+      ]
     }
   ],
   "screens": [
@@ -233,7 +276,7 @@
     {
       "key": "portalExampleOrder",
       "sourceId": "microteia:portal-example:order",
-      "sourceRev": 1,
+      "sourceRev": 2,
       "titleSingular": "@com.microteia.portal-example/screen.order",
       "titlePlural": "@com.microteia.portal-example/screen.order.plural",
       "icon": "shoppingBag",
@@ -289,10 +332,18 @@
           "type": "checkbox",
           "required": false,
           "order": 6
+        },
+        {
+          "key": "confirmed",
+          "label": "@com.microteia.portal-example/field.confirmed",
+          "type": "checkbox",
+          "required": false,
+          "order": 7
         }
       ],
       "titleFieldKey": "item",
       "eventPrefix": "portalExampleOrder",
+      "hasDocuments": true,
       "portal": {
         "subject": {
           "field": "client"
@@ -303,6 +354,7 @@
           "urgency",
           "notes"
         ],
+        "documents": true,
         "visibleWhen": "officeOnly != true",
         "create": {
           "fields": [

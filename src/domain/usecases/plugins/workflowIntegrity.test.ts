@@ -379,3 +379,50 @@ describe('integridade do gatilho de auditoria', () => {
     expect(issue?.messageParams?.minimum).toBe('2.45.0');
   });
 });
+
+describe('compartilhar documento com o portal e eventos de nota e documento', () => {
+  const comKernel = (steps: WorkflowStep[], kernel: string, eventName = 'records.saved'): MarketplacePlugin => {
+    const base = pacote(steps);
+    const [workflow] = base.workflows ?? [];
+    return { ...base, manifest: { ...base.manifest, kernel }, workflows: [{ ...workflow, eventName }] } as unknown as MarketplacePlugin;
+  };
+  const compartilhar = passo({
+    id: 'share',
+    stepDefinitionId: 'share-documents',
+    configuration: {
+      collection: { kind: 'Literal', value: 'records' },
+      recordId: { kind: 'Event', path: 'id' },
+    },
+  });
+  const gerar = passo({
+    id: 'render',
+    stepDefinitionId: 'render-document',
+    configuration: {
+      templateKey: { kind: 'Literal', value: 'qualquer' },
+      recordId: { kind: 'Event', path: 'id' },
+      portalShared: { kind: 'Literal', value: true },
+    },
+  });
+
+  it('o passo e a entrada exigem o kernel em que existem', () => {
+    const issues = workflowStepIssues(comKernel([compartilhar, gerar], '^2.69.0'));
+    expect(issues.map((issue) => [issue.message, issue.messageParams?.minimum])).toEqual([
+      ['@core.marketplace/issue.step.definition-kernel', '2.70.0'],
+      ['@core.marketplace/issue.step.input-kernel', '2.70.0'],
+    ]);
+    expect(workflowStepIssues(comKernel([compartilhar, gerar], '^2.70.0'))).toEqual([]);
+  });
+
+  it('o passo cobra as entradas obrigatórias', () => {
+    const semRegistro = passo({ id: 'share', stepDefinitionId: 'share-documents', configuration: { collection: { kind: 'Literal', value: 'records' } } });
+    expect(workflowStepIssues(comKernel([semRegistro], '^2.70.0')).map((issue) => issue.message))
+      .toEqual(['@core.marketplace/issue.step.missing-input']);
+  });
+
+  it('o gatilho de documento exige o kernel em que ele vale para toda tela', () => {
+    const [issue] = workflowStepIssues(comKernel([passo({})], '^2.68.0', 'records_document.saved'));
+    expect(issue?.message).toBe('@core.marketplace/issue.workflow.trigger-kernel');
+    expect(issue?.messageParams?.minimum).toBe('2.69.0');
+    expect(workflowStepIssues(comKernel([passo({})], '^2.69.0', 'records_document.saved'))).toEqual([]);
+  });
+});

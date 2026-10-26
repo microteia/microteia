@@ -28,6 +28,7 @@ export const PORTAL_EXAMPLE_MESSAGES: Record<string, string> = {
   'field.quantity': 'Quantity',
   'field.notes': 'Notes',
   'field.internal': 'Internal note',
+  'field.confirmed': 'Confirmed',
   'field.site': 'Site',
   'field.date': 'Date',
   'field.summary': 'Summary',
@@ -49,6 +50,8 @@ export const PORTAL_EXAMPLE_MESSAGES: Record<string, string> = {
 
   'workflow.visit-scheduled': 'Tell the client about a new visit',
   'workflow.visit-scheduled.description': 'When a visit is scheduled, notifies the client\'s portal guests by e-mail and on the portal bell.',
+  'workflow.order-confirmed': 'Release the documents of a confirmed order',
+  'workflow.order-confirmed.description': 'When an order is confirmed, shares all its documents with the client\'s portal guests.',
   'notify.visit.title': 'A visit was scheduled',
   'notify.visit.message': 'Open it in the portal to see the date and the summary.',
 };

@@ -7,6 +7,7 @@ import {
   rewriteStepLiteral,
   scriptInputFromTemplate,
   workflowInputFromTemplate,
+  buildScreenCollectionMap,
 } from './packageMaterialize';
 
 const step = (inputId: string, value: string, extra: Partial<WorkflowStep> = {}): WorkflowStep => ({
@@ -151,5 +152,34 @@ describe('actionInputFromTemplate', () => {
     expect(input.workflowId).toBe('wf-real');
     expect(input.ownerPluginId).toBe('com.acme.x');
     expect(input.createdBy).toBe('u1');
+  });
+});
+
+describe('buildScreenCollectionMap', () => {
+  const screen = (overrides: Partial<ScreenModuleTemplate> & { key: string }): ScreenModuleTemplate => ({
+    titleSingular: 'T', titlePlural: 'T', icon: 'apps', titleFieldKey: 'n',
+    fields: [{ key: 'n', label: 'N', type: 'text', required: true, order: 0 }],
+    ...overrides,
+  });
+
+  it('a coleção de share-documents acompanha a tela que ganhou sufixo; a de nome global, não', () => {
+    const map = buildScreenCollectionMap(
+      [screen({ key: 'venda' }), screen({ key: 'pedido', dataCollection: 'orders' })],
+      new Map([['venda', 'venda_2'], ['pedido', 'pedido_2']]),
+    );
+    expect([...map]).toEqual([['venda', 'venda_2']]);
+
+    const shareStep = {
+      id: 's', stepDefinitionId: 'share-documents', type: 'Action' as const, order: 0, enabled: true,
+      configuration: { collection: { kind: 'Literal' as const, value: 'venda' } },
+    };
+    const input = workflowInputFromTemplate(
+      { templateId: 't', name: 'W', eventName: 'venda.saved', version: 1, condition: { kind: 'AlwaysTrue' }, steps: [shareStep] },
+      'com.acme.x',
+      new Map(),
+      new Map(),
+      map,
+    );
+    expect(input.steps[0].configuration.collection).toEqual({ kind: 'Literal', value: 'venda_2' });
   });
 });

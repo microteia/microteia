@@ -1134,6 +1134,20 @@ e o registro já está no portal. A URL do arquivo **nunca** vai para a projeç�
 confere convite, `audience` e marca, e só então a devolve. Toda recusa é a mesma frase — dizer qual
 das três faltou ajudaria a descobrir o que existe no escritório.
 
+**A marca tem quatro escritores, e um campo só.** A tela (gravação direta, que a regra restringe à
+marca e ao autor verdadeiro), o upload do convidado (`attachPortalDocument`, que já nasce marcado), e
+a automação por dois caminhos: `render-document` com `portalShared: true` e o passo `share-documents`
+(`ShareRecordDocumentsUseCase` → `IRecordDocumentSharing`). Nenhum deles decide quem vê: todos gravam
+`portalShared`/`portalSharedBy`/`portalSharedAt`, e a projeção faz o resto. O passo existe porque a
+liberação "na hora certa" (ao confirmar, ao abrir) é um fato do REGISTRO, e quem reage ao evento dele
+não conhece os ids dos anexos — sem `documentId`, ele vale para todos. É idempotente: o documento que
+já está no estado pedido não é regravado, e por isso não gera linha de auditoria. Compartilhar exige
+`portal.documents` na tela; recolher, nunca.
+
+A auditoria da troca é a do gatilho da subcoleção (`auditNestedEntityChange`), e o ator é
+`portalSharedBy` (`nestedAuditActor`) — antes era o `createdBy`, e a linha dizia que o autor do arquivo
+o tinha exposto ao convidado.
+
 ### Agente de IA e MCP
 
 O convidado não emite acesso de agente: `issueAgentGrant` recusa quem não tem permissão nenhuma, e

@@ -419,6 +419,10 @@ export const CORE_MARKETPLACE_MESSAGES: Record<string, string> = {
     'step "{step}" waits, and the action "{action}" runs this workflow. A button waits for the answer and cannot wait for a pause — the flow would stop with an error. Fire it from an event, or have the action call a workflow that does not wait.',
   'issue.step.delay-kernel':
     'step "{step}" waits, and the wait step only exists from kernel {minimum} on — declare `kernel: "^{minimum}"` (or later) in the manifest, so that an older kernel refuses the package instead of failing at the step.',
+  'issue.step.definition-kernel':
+    'step "{step}" is a "{definition}" step, which only exists from kernel {minimum} on — declare `kernel: "^{minimum}"` (or later) in the manifest, so that an older kernel refuses the package instead of failing at the step.',
+  'issue.step.input-kernel':
+    'step "{step}" sets "{input}", which only exists from kernel {minimum} on — declare `kernel: "^{minimum}"` (or later) in the manifest, so that an older kernel refuses the package instead of ignoring it.',
   'issue.step.unknown-input':
     'step "{step}" ({definition}) sets input "{input}", which that step does not have. It takes: {expected}.',
   'issue.step.document.record-only':

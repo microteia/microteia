@@ -20,7 +20,8 @@ import { AGGREGATION_OP_LABELS, NUMERIC_AGGREGATION_OPS } from '../../../domain/
 import type { WidgetNodeType } from '../../../domain/schema/ui/widgetSpec';
 import { STEP_TYPES } from '../../../domain/entities/Workflow';
 import type { WorkflowStepMetadata } from '../../../domain/schema/workflowStepCatalog';
-import { isStepExcludedFromTrigger } from '../../../domain/schema/workflowStepCatalog';
+import { PORTAL_DOCUMENT_SHARING_SINCE_KERNEL, isStepExcludedFromTrigger } from '../../../domain/schema/workflowStepCatalog';
+import { CHILD_RECORD_EVENTS_SINCE_KERNEL } from '../../../domain/schema/eventCatalog';
 import { WORKFLOW_AUDIT_EVENT, WORKFLOW_AUDIT_SINCE_KERNEL } from '../../../domain/schema/workflowAuditTrigger';
 import type { StepType } from '../../../domain/entities/Workflow';
 import { FIELD_EXPRESSION_FUNCTION_NAMES } from '../../../domain/schema/fieldExpression';
@@ -309,7 +310,8 @@ const STEP_CATALOG_NOTES: Record<string, string> = {
   query: 'Asks the database. Publishes `count`, `results`, `first`, plus `first.<projection>`.',
   upsert: 'Writes one record. An `id` in the object means update, no `id` means insert.',
   remove: 'Deletes one record.',
-  'render-document': 'Fills a document template (`document.template`, or the organization\'s own on the same key) with a record and attaches the PDF or Word file to its Documents tab. The template names the screen; `recordId` must be a record of it. Publishes `documentId`, `name`, `url`, `format` and `emptyFields`.',
+  'render-document': 'Fills a document template (`document.template`, or the organization\'s own on the same key) with a record and attaches the PDF or Word file to its Documents tab. The template names the screen; `recordId` must be a record of it. `portalShared: true` attaches it already shared with the portal (see "Sharing documents with the portal" in section 10). Publishes `documentId`, `name`, `url`, `format` and `emptyFields`.',
+  'share-documents': 'Shares the documents a record already has with the portal guests who can see that record (`shared: true`, the default), or stops sharing them (`false`). `collection` and `recordId` name the record; `documentId` narrows it to one document — one not attached to that record fails the step — and `documentType` to one type. Idempotent. Publishes `matched`, `changed` and `shared`.',
 };
 
 const excludedStepList = (steps: readonly WorkflowStepMetadata[], eventName: string): string => steps
@@ -2205,6 +2207,47 @@ in the portal — the customer of an order, the supplier of an invoice — inste
 
 \`examples/portal-example\` tells the client when a visit is scheduled.
 
+### Sharing documents with the portal
+
+A document reaches the portal only when it is **shared** — the same mark a member sets on the
+Documents tab, and the one a guest's own upload is born with. An automation sets it two ways
+(kernel \`^${PORTAL_DOCUMENT_SHARING_SINCE_KERNEL}\`):
+
+- \`render-document\` with \`portalShared: true\` attaches the generated file already shared. Only with
+  \`destination: 'record'\` — Downloads is not in the portal — and only on a screen whose \`portal\`
+  declares \`documents: true\`; either one missing fails the step before anything is generated.
+- \`share-documents\` shares (\`shared: true\`, the default) or stops sharing (\`false\`) what a record
+  already has — the release "at the right moment": when the order is confirmed, when the guest opens it.
+  Without \`documentId\` it covers every document of the record, narrowed by \`documentType\`; a
+  \`documentId\` that is not attached to that record fails the step. Documents already in the asked
+  state are not written again, so running it twice changes nothing.
+
+\`\`\`ts
+{
+  id: 'releaseDocuments',
+  stepDefinitionId: 'share-documents',
+  type: 'Action',
+  order: 0,
+  enabled: true,
+  configuration: {
+    collection: { kind: 'Literal', value: 'orders' },
+    recordId: { kind: 'Event', path: 'id' },
+    shared: { kind: 'Literal', value: true },
+  },
+}
+\`\`\`
+
+- **Who sees it** never changes: the portal takes a shared document only to the guests who already
+  see its record — the subject, \`visibleWhen\`, the chain of parents. Sharing a document of a record
+  that is not in the portal exposes nothing; it shows up when the record does.
+- **The proof.** Each change is an Audit trail entry naming who made it — the member who triggered
+  the flow, or the automation itself — and when.
+- **Listening to it.** Saving a note or a document of a record publishes
+  \`<prefix>_note.saved\` / \`<prefix>_document.saved\` (and \`.deleted\`), where \`<prefix>\` is the event
+  prefix of the record's screen, for every screen that shows the tab (kernel
+  \`^${CHILD_RECORD_EVENTS_SINCE_KERNEL}\`). The payload is the note or the document, plus \`parentId\`,
+  \`parentType\` and \`parent\` (the id and the title field of the record).
+
 ### Waiting inside a workflow — the \`delay\` step
 
 \`\`\`ts
@@ -2753,6 +2796,9 @@ Where the file goes is the template's default, and whoever generates it may ask 
   expires) overrides the organization's retention setting; past it, the file is deleted.
 
 Both fields require kernel \`^${DOCUMENT_DESTINATION_SINCE_KERNEL}\`; an older kernel ignores them and attaches.
+
+The \`render-document\` step can also attach the file **already shared with the portal**
+(\`portalShared: true\`) — see "Sharing documents with the portal" in section 10.
 
 ### Templates of data — \`source: 'payload'\`
 

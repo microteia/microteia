@@ -160,6 +160,10 @@ import { FirestoreDocumentTemplateSource } from '../../data/services/FirestoreDo
 import { TemplateDocumentRenderer } from '../../data/services/document/TemplateDocumentRenderer';
 import { WorkflowDocumentRecordReader } from '../document/WorkflowDocumentRecordReader';
 import { makeRenderDocumentUseCase } from '../../domain/usecases/RenderDocumentUseCase';
+import { makeShareRecordDocumentsUseCase } from '../../domain/usecases/ShareRecordDocumentsUseCase';
+import type { ShareRecordDocumentsUseCase } from '../../domain/usecases/ShareRecordDocumentsUseCase';
+import type { IRecordDocumentSharing } from '../../domain/repositories/IRecordDocumentSharing';
+import { FirebaseRecordDocumentSharing } from '../../data/services/FirebaseRecordDocumentSharing';
 import type { RenderDocumentUseCase } from '../../domain/usecases/RenderDocumentUseCase';
 import { configuredLocale, preferredLocale, settingsValuesOf } from '../../domain/services/tenantSettings';
 import { notifyRecordKeyConflicts } from '../recordKeys/recordKeyConflictNotifier';
@@ -213,6 +217,7 @@ class DIContainer {
   private downloadWriter?: IDownloadWriter;
   private attachDownloadUC?: AttachDownloadToRecordUseCase;
   private renderDocumentUC?: RenderDocumentUseCase;
+  private recordDocumentSharing?: IRecordDocumentSharing;
   private workflowStepsRegistered = false;
   private extensionStatsRepo?: IExtensionStatsRepository;
   private recountExtensionInstallsUC?: RecountExtensionInstallsUseCase;
@@ -783,6 +788,23 @@ class DIContainer {
     return this.attachDownloadUC;
   }
 
+  getRecordDocumentSharing(): IRecordDocumentSharing {
+    if (!this.recordDocumentSharing) {
+      this.recordDocumentSharing = new FirebaseRecordDocumentSharing(
+        getDb(),
+        (tenantId) => this.getPortalRepository().getScreens(tenantId),
+      );
+    }
+    return this.recordDocumentSharing;
+  }
+
+  getShareRecordDocumentsUseCase(): ShareRecordDocumentsUseCase {
+    return makeShareRecordDocumentsUseCase({
+      screens: this.getScreenDefinitionCache(),
+      sharing: this.getRecordDocumentSharing(),
+    });
+  }
+
   getRenderDocumentUseCase(): RenderDocumentUseCase {
     if (!this.renderDocumentUC) {
       this.renderDocumentUC = makeRenderDocumentUseCase({
@@ -806,6 +828,7 @@ class DIContainer {
         localeOf: async (tenantId) => preferredLocale({}, await this.getTenantSettingsRepository().getTenantValues(tenantId)),
         timeZoneOf: (tenantId) => tenantTimeZone(tenantId),
         businessCalendarsOf: (tenantId) => this.getBusinessCalendarLoader().load(tenantId),
+        portalShowsDocuments: (tenantId, collection) => this.getRecordDocumentSharing().portalShowsDocuments(tenantId, collection),
       });
     }
     return this.renderDocumentUC;
@@ -864,6 +887,7 @@ class DIContainer {
       createAuditLogUseCase: this.getCreateAuditLogUseCase(),
       dispatchNotificationUseCase: this.getDispatchNotificationUseCase(),
       renderDocumentUseCase: this.getRenderDocumentUseCase(),
+      shareRecordDocumentsUseCase: this.getShareRecordDocumentsUseCase(),
       workflowQueryRepository: new FirestoreWorkflowQueryRepository(getDb()),
       workflowRecordFetcher: new FirestoreWorkflowRecordFetcher(getDb()),
       workflowMutationRepository: new FirestoreWorkflowMutationRepository(getDb()),

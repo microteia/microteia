@@ -27,6 +27,7 @@ const PORTAL_EXAMPLE_PT_BR: Record<string, string> = {
   'field.quantity': 'Quantidade',
   'field.notes': 'Observações',
   'field.internal': 'Nota interna',
+  'field.confirmed': 'Confirmado',
   'field.site': 'Local',
   'field.date': 'Data',
   'field.summary': 'Resumo',
@@ -48,6 +49,8 @@ const PORTAL_EXAMPLE_PT_BR: Record<string, string> = {
 
   'workflow.visit-scheduled': 'Avisar o cliente de uma visita nova',
   'workflow.visit-scheduled.description': 'Quando uma visita é agendada, avisa os convidados do portal do cliente por e-mail e no sino do portal.',
+  'workflow.order-confirmed': 'Liberar os documentos de um pedido confirmado',
+  'workflow.order-confirmed.description': 'Quando um pedido é confirmado, compartilha todos os documentos dele com os convidados do portal do cliente.',
   'notify.visit.title': 'Uma visita foi agendada',
   'notify.visit.message': 'Abra no portal para ver a data e o resumo.',
 };

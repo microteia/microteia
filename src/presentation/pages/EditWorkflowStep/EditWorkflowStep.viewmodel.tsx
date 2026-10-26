@@ -560,6 +560,14 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
     [targetTemplate, label],
   );
 
+  /** As telas cujo registro tem a aba Documentos — as únicas de onde se compartilha documento. */
+  const documentsCollectionOptions = useMemo(
+    () => [...schemaContext.screens.entries()]
+      .filter(([, screen]) => screen.hasDocuments === true)
+      .map(([collection, screen]) => ({ value: collection, label: label(screen.titlePlural ?? screen.titleSingular), meta: collection })),
+    [schemaContext, label],
+  );
+
   const aiConnectionOptions = useMemo(
     () => [
       { value: '', label: t('step.ai-connection.default') },
@@ -618,6 +626,11 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
             orphanMessage: t('step.target.document-template-reference.missing', { key: stored }),
           };
       }
+      if (kind === 'documents-collection') {
+        return !stored || documentsCollectionOptions.some((option) => option.value === stored)
+          ? { options: documentsCollectionOptions }
+          : { options: documentsCollectionOptions, orphanMessage: t('step.target.documents-collection.missing', { key: stored }) };
+      }
       if (kind === 'permission') {
         return !stored || permissionOptions.some((option) => option.value === stored)
           ? { options: permissionOptions }
@@ -641,6 +654,7 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
       aiConnectionOptions,
       documentTemplateOptions,
       templateReferenceOptions,
+      documentsCollectionOptions,
       t,
       permissionOptions,
       callableScriptOptions,
@@ -665,7 +679,9 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
                 ? 'step.target.document-template'
                 : kind === 'document-template-reference'
                   ? 'step.target.document-template-reference'
-                  : 'step.target.workflow',
+                  : kind === 'documents-collection'
+                    ? 'step.target.documents-collection'
+                    : 'step.target.workflow',
       ),
     [t],
   );

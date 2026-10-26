@@ -15,6 +15,7 @@ import { makeRemoveStepDefinition } from '../../infrastructure/workflow/steps/Re
 import { makeRegisterAuditStepDefinition } from '../../infrastructure/workflow/steps/RegisterAuditStep';
 import { makeSetVariableStepDefinition } from '../../infrastructure/workflow/steps/SetVariableStep';
 import { makeRenderDocumentStepDefinition } from '../../infrastructure/workflow/steps/RenderDocumentStep';
+import { makeShareDocumentsStepDefinition } from '../../infrastructure/workflow/steps/ShareDocumentsStep';
 
 const factories: Record<string, StepFactory> = {
   Notify: (deps) => makeNotifyStepDefinition(deps.dispatchNotificationUseCase, deps.screenDefinitionProvider),
@@ -36,6 +37,7 @@ const factories: Record<string, StepFactory> = {
   Upsert: (deps) => makeUpsertStepDefinition(mutationDepsOf(deps)),
   Remove: (deps) => makeRemoveStepDefinition(mutationDepsOf(deps)),
   RenderDocument: (deps) => makeRenderDocumentStepDefinition(deps.renderDocumentUseCase),
+  ShareDocuments: (deps) => makeShareDocumentsStepDefinition(deps.shareRecordDocumentsUseCase),
 };
 
 export const coreStepsPlugin: PluginRecord = {
@@ -61,6 +63,7 @@ export const coreStepsPlugin: PluginRecord = {
       workflowStep({ stepDefinitionId: 'upsert', name: '@core.automation/step.upsert.name', category: 'Data' }, 'Upsert'),
       workflowStep({ stepDefinitionId: 'remove', name: '@core.automation/step.remove.name', category: 'Data' }, 'Remove'),
       workflowStep({ stepDefinitionId: 'render-document', name: '@core.automation/step.render-document.name', category: 'Data' }, 'RenderDocument'),
+      workflowStep({ stepDefinitionId: 'share-documents', name: '@core.automation/step.share-documents.name', category: 'Data' }, 'ShareDocuments'),
     ],
   },
 };

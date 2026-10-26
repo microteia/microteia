@@ -204,6 +204,9 @@ const DOCUMENT_FIELDS: NativeFieldSpec[] = [
  */
 export const CHILD_RECORD_KINDS = ['note', 'document'] as const;
 
+/** O kernel a partir do qual nota e documento de QUALQUER tela publicam evento. */
+export const CHILD_RECORD_EVENTS_SINCE_KERNEL = '2.69.0';
+
 export type ChildRecordKind = (typeof CHILD_RECORD_KINDS)[number];
 
 /** A subcoleção do registro de onde vem cada filho. */
