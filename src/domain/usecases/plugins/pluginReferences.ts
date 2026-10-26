@@ -20,6 +20,7 @@ import { packageAggregationIssues } from './pluginAggregations';
 import { packageDocumentTemplateIssues } from './pluginDocumentTemplates';
 import { packagePortalIssues } from './pluginPortal';
 import { packageEditWindowIssues } from './pluginEditWindow';
+import { packageLookupSeedIssues } from './pluginLookupSeeds';
 import { packageIconIssues } from './pluginIcons';
 import { packageActionIssues } from './pluginActions';
 import { packageImageIssues } from './pluginImage';
@@ -452,6 +453,7 @@ export const packageIssues = (pkg: MarketplacePlugin): LocalizedIssue[] => [
   ...packageDocumentTemplateIssues(pkg),
   ...packagePortalIssues(pkg),
   ...packageEditWindowIssues(pkg),
+  ...packageLookupSeedIssues(pkg),
   ...packagePrefixIssues(pkg),
 ];
 

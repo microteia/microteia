@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.158.0] — 2026-10-26
+
+- A lista de tipos de documento deixa de vir preenchida pelo sistema com termos de um ramo específico: cada escritório vê só os tipos que cadastrou ou que as extensões instaladas trazem, e pode remover qualquer um deles.
+- Uma extensão pode garantir os tipos e opções de que precisa: os que faltarem são acrescentados uma única vez, e o que o escritório apagar não volta numa atualização.
+
 #### [9.157.0] — 2026-10-26
 
 - As automações agora podem liberar documentos para o portal: um documento gerado pode já nascer visível ao convidado, e um novo passo compartilha (ou recolhe) os documentos de um registro na hora certa, por exemplo quando um pedido é confirmado.

@@ -8,6 +8,7 @@ import {
   Timestamp,
   updateDoc,
 } from 'firebase/firestore';
+import type { SeededLookupOptions } from '../../domain/schema/lookupSeed';
 import { db } from '../../infrastructure/firebase/config';
 import { pruneUndefined } from '../utils/pruneUndefined';
 import type { IInstalledExtensionRepository } from '../../domain/repositories/IInstalledExtensionRepository';
@@ -49,6 +50,14 @@ const mapBackendState = (raw: unknown): ExtensionBackendState | null => {
   return { fingerprint: d.fingerprint, appliedAt: toDate(d.appliedAt) };
 };
 
+const mapSeededLookupOptions = (raw: unknown): SeededLookupOptions | null => {
+  if (!raw || typeof raw !== 'object') return null;
+  const entries = Object.entries(raw as Record<string, unknown>)
+    .filter((entry): entry is [string, unknown[]] => Array.isArray(entry[1]))
+    .map(([collection, keys]) => [collection, keys.filter((key): key is string => typeof key === 'string')] as const);
+  return Object.fromEntries(entries);
+};
+
 const installedRef = (tenantId: string) => collection(db, 'tenants', tenantId, 'installed_extensions');
 
 const mapInstalled = (id: string, tenantId: string, d: Record<string, unknown>): InstalledExtension => ({
@@ -64,6 +73,7 @@ const mapInstalled = (id: string, tenantId: string, d: Record<string, unknown>):
   installedBy: (d.installedBy as string | undefined) ?? '',
   codeTrust: mapCodeTrust(d.codeTrust),
   backendState: mapBackendState(d.backendState),
+  seededLookupOptions: mapSeededLookupOptions(d.seededLookupOptions),
   installedAt: toDate(d.installedAt),
   updatedAt: toDate(d.updatedAt),
 });
@@ -101,6 +111,7 @@ export class FirebaseInstalledExtensionRepository implements IInstalledExtension
           appliedAt: Timestamp.fromDate(extension.backendState.appliedAt),
         }
         : null,
+      seededLookupOptions: extension.seededLookupOptions ?? null,
       installedAt: Timestamp.fromDate(extension.installedAt),
       updatedAt: serverTimestamp(),
     });

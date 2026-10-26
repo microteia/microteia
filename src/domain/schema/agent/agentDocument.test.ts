@@ -7,7 +7,6 @@ import {
   inspectAgentFileContent,
   resolveAgentDocumentType,
 } from './agentDocument';
-import { DECLARED_LOOKUP_OPTIONS } from '../lookupDefaults';
 
 const base64Of = (text: string): string => btoa(text);
 
@@ -74,7 +73,7 @@ describe('o nome e o caminho do anexo', () => {
 
 describe('o tipo do documento', () => {
   const options = [
-    ...DECLARED_LOOKUP_OPTIONS.documentTypes,
+    { key: 'Recibo', label: 'Recibo' },
     { key: 'laudo_medico', label: 'Laudo médico' },
   ];
 

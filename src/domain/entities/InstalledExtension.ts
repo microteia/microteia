@@ -1,4 +1,5 @@
 import type { MarketplacePlugin } from './MarketplacePlugin';
+import type { SeededLookupOptions } from '../schema/lookupSeed';
 
 /**
  * Gesto explícito de um admin do escritório autorizando o CÓDIGO desta cópia a executar. O vínculo é
@@ -69,6 +70,12 @@ export interface InstalledExtension {
    * com o exigido, a extensão entra no boot; ausente ou divergente, ela fica pendente do Console.
    */
   backendState?: ExtensionBackendState | null;
+  /**
+   * As opções que esta extensão já entregou, por lista (`lookups[].seed: 'required'`). É o que impede
+   * a atualização de ressuscitar a opção que o escritório apagou. Desinstalar apaga o registro, e uma
+   * nova instalação entrega de novo o que faltar.
+   */
+  seededLookupOptions?: SeededLookupOptions | null;
   installedAt: Date;
   updatedAt: Date;
 }

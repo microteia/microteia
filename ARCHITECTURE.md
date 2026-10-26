@@ -1094,9 +1094,8 @@ chegava vazio: o formulário não oferecia escolha e a leitura mostrava a chave.
 
 `getPortalContext` lê no servidor, com o acesso do escritório (`IPortalRepository.getLookupOptions`),
 as listas dos campos que alguma tela expõe — em `fields`, `create.fields` ou `edit.fields` — e
-nenhuma outra. A mescla é a do front: as do kernel (`DECLARED_LOOKUP_OPTIONS`) e depois as
-cadastradas, por `mergeLookupDefaults`; no campo, as declaradas nele vêm antes, e a chave repetida
-fica com a primeira. Cada opção leva chave, rótulo (no idioma do convidado) e `color` quando há — a
+nenhuma outra. São as opções gravadas na lista, as mesmas que o front lê; no campo, as declaradas
+nele vêm antes, e a chave repetida fica com a primeira. Cada opção leva chave, rótulo (no idioma do convidado) e `color` quando há — a
 do campo só em lista colorida (`optionsColored`). A casca mostra a cor no registro aberto e no
 formulário; a view de extensão a recebe em `PortalScreen.fields[].options`.
 
@@ -3874,7 +3873,7 @@ A regra que unifica: **`optionsAllowUserAdd: true` exige `lookupCollection`** �
 
 | | Declaração da lista | Regra no Firestore |
 |---|---|---|
-| Kernel (`caseCourts`) | `LOOKUP_REGISTRY` (código) + defaults em `data/repositories/lookupDefaults.ts` | bloco nomeado; nome em `RESERVED_COLLECTIONS` |
+| Kernel (`documentTypes`) | `LOOKUP_REGISTRY` (código), sem opção nenhuma — quem traz opções é a extensão que a semeia | bloco nomeado; nome em `RESERVED_COLLECTIONS` |
 | Tenant (`medico_especialidade`) | documento em `tenants/{tid}/lookupDefinitions/{colecao}` | curinga, via `isDeclaredLookup()` |
 
 O `SchemaContext.lookups` é a **união** das duas — a partir dele nada mais pergunta de onde a lista veio.
@@ -3883,7 +3882,7 @@ O `SchemaContext.lookups` é a **união** das duas — a partir dele nada mais p
 
 > **Por que as 30 listas do kernel NÃO ganham documento.** Seriam 30 docs por tenant repetindo o que o código já diz, e cada lista nova no `LOOKUP_REGISTRY` viraria migração de dados (sem backfill, ela nasceria sem declaração e não aceitaria escrita em tenant nenhum). É o mesmo arranjo das entidades: `persons` tem regra nomeada e `medico` passa pelo curinga, mas as duas resolvem pelo MESMO caminho. Quando `cases` virar extensão, suas listas migram de `LOOKUP_REGISTRY` para `lookupDefinitions` e os documentos não se movem.
 
-- Repositório e store são **um só para todas as listas**: `FirebaseLookupRepository` (`collection` como primeiro argumento, defaults de `lookupDefaults.ts`) e `LookupStore`/`useLookups` (`getOptions(collection)`, `addOption`, `removeOption`, `declareLookup`). Substituíram ~30 `Firebase*Repository` idênticos, 14 interfaces e os 7 stores por entidade (`CaseLookupStore` e irmãos).
+- Repositório e store são **um só para todas as listas**: `FirebaseLookupRepository` (`collection` como primeiro argumento; devolve só o que está gravado) e `LookupStore`/`useLookups` (`getOptions(collection)`, `addOption`, `removeOption`, `declareLookup`). Substituíram ~30 `Firebase*Repository` idênticos, 14 interfaces e os 7 stores por entidade (`CaseLookupStore` e irmãos).
 - `FirebaseLookupDefinitionRepository` cuida das declarações do tenant, com refcount em `ownerPluginIds` — duas extensões podem declarar a mesma lista, e desinstalar uma preserva a declaração.
 
 ### Registros das telas — UM modelo só
@@ -4408,7 +4407,7 @@ declaração de pacote, e é o que permite a entidade mudar de dono sem mudar na
 
 | Capacidade | Declaração | Sem ela |
 |---|---|---|
-| Opções de partida das listas | `lookups[].options` — semeadas **só em lista vazia**, na instalação | um escritório novo instalaria a extensão e não teria nenhuma Área, Fase ou Status |
+| Opções de partida das listas | `lookups[].options` + `seed` — `when-empty` só em lista vazia; `required` acrescenta o que falta, uma vez por extensão | um escritório novo instalaria a extensão e não teria nenhuma Área, Fase ou Status |
 | Nome dos eventos | `ScreenDefinition.eventPrefix` (`case` → `case.saved`) | a coleção passaria a emitir `cases.saved` e toda automação que escuta `case.*` pararia |
 | Quem pode gravar | `ScreenDefinition.writeRoles` (`['admin','lawyer']`), lido pelo curinga das rules | a entidade perderia a restrição que a regra nomeada dava, e qualquer membro com escrita passaria a editar |
 | Quem pode EXCLUIR | `ScreenDefinition.authorCanDelete`, lido pelo mesmo curinga | exclusão seria sempre de admin, e o autor de um comentário precisaria de um admin para apagar o que escreveu |
@@ -4416,10 +4415,28 @@ declaração de pacote, e é o que permite a entidade mudar de dono sem mudar na
 
 Detalhes que valem registrar:
 
-- **Semeadura idempotente por vazio.** `seedLookupOptions` lê a lista antes; qualquer opção presente
-  cancela a semeadura. É o que impede reinstalar/atualizar de ressuscitar uma opção que o escritório
-  removeu. Enquanto a lista ainda for do kernel (`isLookupCollection`), a declaração do pacote fica
-  inerte — o `getAll` do repositório mescla os defaults do código e a lista nunca está "vazia".
+- **Semeadura — `lookups[].seed`.** `seedLookupOptions` lê o que a lista TEM gravado e decide por
+  `planLookupSeed` (`domain/schema/lookupSeed.ts`):
+
+  | `seed` | Lista vazia | Lista com opções |
+  |---|---|---|
+  | `when-empty` (padrão) | todas | nada |
+  | `required` | todas | as que faltam — pela chave ou pelo rótulo — e que esta extensão ainda não entregou |
+
+  O que a extensão já entregou fica no registro de instalação dela
+  (`InstalledExtension.seededLookupOptions`), devolvido por `applyPackageArtifacts` e gravado pelo
+  `InstalledExtensionStore`. É o que impede a atualização de ressuscitar a opção que o escritório
+  apagou: a chave entregue não volta. Desinstalar apaga o registro, e uma nova instalação entrega de
+  novo o que faltar. Uma lista do KERNEL (`isLookupCollection`) não ganha declaração do pacote, mas
+  recebe a semeadura — e por isso a regra de `documentTypes` deixa `extensions.manage` CRIAR opção (só
+  criar). `seed: 'required'` e a semeadura de lista do kernel exigem kernel `^2.71.0`
+  (`packageLookupSeedIssues`).
+
+  **O kernel não traz opção nenhuma.** Até a 9.157.0, `DECLARED_LOOKUP_OPTIONS` punha Procuração,
+  Petição, Sentença, Certidão, RG, CPF… em `documentTypes` de TODO escritório — não por semeadura: era
+  mesclado em memória a cada leitura, marcado `isStatic` (sem botão de excluir), e nunca gravado. Um
+  escritório de qualquer ramo via o vocabulário de advocacia e não podia removê-lo. Esse vocabulário é
+  da extensão de domínio, que o semeia com `seed: 'required'`.
 - **Prefixo declarado sem custo no caminho quente.** `publishWorkflowEventOnEntityChange` resolve
   pelo registro primeiro (`hasRegistryEventPrefix`); só quando ele não responde consulta o
   `ScreenDefinitionCache` (TTL de 5 min, já carregado pelo motor). Falha na consulta volta à
@@ -9366,10 +9383,9 @@ durante a gravação.
 **Bucket primeiro, documento depois.** Se o documento falhar, o objeto é apagado. Na ordem inversa, a
 aba mostraria um link para um arquivo que não existe.
 
-**O tipo é conferido contra a lista que a tela oferece**, e isso exigiu mover as opções fixas de
-`documentTypes` (Contrato, Procuração…) de `src/data/repositories/lookupDefaults.ts` para o schema
-compartilhado (`domain/schema/lookupDefaults.ts`), junto de `mergeLookupDefaults`: o backend não as
-conhecia, e recusaria "Procuração" num escritório que nunca cadastrou tipo nenhum. A descoberta é
+**O tipo é conferido contra a lista que a tela oferece** — a gravada em `documentTypes`, a mesma que o
+front lê (`documentTypeOptions`). O kernel não traz tipo nenhum: as opções vêm de quem as cadastra ou
+de uma extensão que as semeia (`lookups[].seed`). A descoberta é
 `describe_screen`, que ganha a seção `documents` (`maxSizeMb`, `types`) nas telas com a aba.
 
 **O nome é saneado, não o caminho confiado.** `agentDocumentName` fica só com o nome — `../outro/x.pdf`

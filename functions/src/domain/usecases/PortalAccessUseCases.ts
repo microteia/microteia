@@ -4,7 +4,6 @@ import type {
   PortalFieldOption,
   PortalScreen,
 } from '../repositories/IPortalRepository';
-import { DECLARED_LOOKUP_OPTIONS, mergeLookupDefaults } from '../schema/lookupDefaults';
 import { isLookupCollection } from '../schema/lookupRegistry';
 import { RESERVED_COLLECTIONS } from '../schema/screenEntity';
 import { invalidArgument, permissionDenied } from '../errors/DomainError';
@@ -287,9 +286,8 @@ const portalLookupOptions = async (
     }
   }
   const entries = await Promise.all([...collections].map(async (collection) => {
-    const declared = [...(DECLARED_LOOKUP_OPTIONS[collection] ?? [])];
-    const office = await repo.getLookupOptions(tenantId, collection).catch(() => []);
-    return [collection, mergeLookupDefaults<PortalFieldOption>(declared, office)] as const;
+    const office: PortalFieldOption[] = await repo.getLookupOptions(tenantId, collection).catch(() => []);
+    return [collection, office] as const;
   }));
   return new Map(entries);
 };

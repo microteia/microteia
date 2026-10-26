@@ -465,6 +465,8 @@ export const CORE_MARKETPLACE_MESSAGES: Record<string, string> = {
   'issue.edit-window.minutes': 'The edit window (`editWindow`) of the screen "{screen}" needs `minutes` as a whole number greater than zero.',
   'issue.edit-window.delete': 'The edit window (`editWindow`) of the screen "{screen}" has a `delete` that is not true or false.',
   'issue.edit-window.kernel': 'The screen "{screen}" declares an edit window (`editWindow`), which only exists from kernel {minimum} on — declare `kernel: "^{minimum}"` (or later) in the manifest. An older kernel ignores the window and the records would stay editable forever.',
+  'issue.lookup.seed-mode': 'The list "{collection}" declares `seed: "{seed}"`; use one of: {expected}.',
+  'issue.lookup.seed-kernel': 'The list "{collection}" seeds options that are required, or seeds a list of the platform, which only exists from kernel {minimum} on — declare `kernel: "^{minimum}"` (or later) in the manifest. An older kernel would install the extension without those options.',
   'issue.ref.event-undeclared':
     '{origin} "{name}" listens to the event prefix "{prefix}", which a screen of extension "{plugin}" emits — declare it in `dependencies`.',
   'issue.ref.event-unresolved':

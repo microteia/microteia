@@ -330,8 +330,8 @@ campo, opção de lista). Isso é dado do tenant, não texto do produto, e passa
 
 **O núcleo não responde por tradução fora do escopo dele — NÃO-NEGOCIÁVEL.** Texto que pertence a um
 domínio é traduzido por quem o declara, não pelo kernel. "Tipo de documento" é conceito do kernel;
-*Procuração* e *Petição* são vocabulário de um domínio, e não entram no catálogo do núcleo mesmo
-quando o valor padrão nasce em código dele. Quem declara o vocabulário responde por ele: a extensão
+*Procuração* e *Petição* são vocabulário de um domínio: não entram no catálogo do núcleo, e nem como
+opção do kernel — a extensão de domínio as semeia na lista (`lookups[].options`, `seed: 'required'`). Quem declara o vocabulário responde por ele: a extensão
 traduz o que traz, e o que o escritório digitou não se traduz.
 
 A regra vale nos dois sentidos: o núcleo também não deve pedir que o pacote de idioma dele carregue

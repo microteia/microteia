@@ -1,4 +1,5 @@
 import type { LookupModuleTemplate, MarketplacePlugin, ScreenPatchTemplate } from '../../entities/MarketplacePlugin';
+import { planLookupSeed, type SeededLookupOptions } from '../../schema/lookupSeed';
 import type { IWorkflowDefinitionRepository } from '../../repositories/IWorkflowDefinitionRepository';
 import type { IScreenDefinitionRepository, ScreenDefinitionInput } from '../../repositories/IScreenDefinitionRepository';
 import type { IActionRepository } from '../../repositories/IActionRepository';
@@ -43,7 +44,7 @@ export interface ArtifactDeps {
   scriptRepository: IScriptRepository;
   lookupDefinitionRepository: ILookupDefinitionRepository;
   tagDefinitionRepository: ITagDefinitionRepository;
-  /** Opções das listas — só para SEMEAR uma lista vazia na instalação. */
+  /** Opções das listas — só para SEMEÁ-las na instalação (`lookups[].seed`). */
   lookupRepository: ILookupRepository;
   reportRepository: IReportDefinitionRepository;
 }
@@ -577,21 +578,26 @@ const releaseScreenPatches = async (
 };
 
 /**
- * Declara as listas do pacote, acrescentando este plugin aos donos. Uma lista do kernel já é
- * declarada em código e não ganha documento — replicá-la transformaria cada mudança do registro
- * numa migração de dados.
+ * Declara as listas do pacote, acrescentando este plugin aos donos, e semeia as opções delas. Uma
+ * lista do kernel já é declarada em código e não ganha documento — replicá-la transformaria cada
+ * mudança do registro numa migração de dados —, mas recebe as opções que a extensão semeia.
+ *
+ * Devolve as chaves que esta extensão passa a ter entregue em cada lista, para o registro de
+ * instalação dela guardar.
  */
 const declarePluginLookups = async (
   deps: ArtifactDeps,
   plugin: MarketplacePlugin,
   tenantId: string,
   userId: string,
-): Promise<void> => {
-  const templates = (plugin.lookups ?? []).filter((lookup) => !isLookupCollection(lookup.collection));
-  if (templates.length === 0) return;
+  seeded: SeededLookupOptions,
+): Promise<SeededLookupOptions> => {
+  const templates = plugin.lookups ?? [];
+  if (templates.length === 0) return {};
   const pluginId = plugin.manifest.id;
-  const existing = await deps.lookupDefinitionRepository.getAll(tenantId);
-  for (const template of templates) {
+  const declared = templates.filter((lookup) => !isLookupCollection(lookup.collection));
+  const existing = declared.length > 0 ? await deps.lookupDefinitionRepository.getAll(tenantId) : [];
+  for (const template of declared) {
     const current = existing.find((definition) => definition.collection === template.collection);
     const owners = addOwner(ownerSet(current ?? {}), pluginId);
     await deps.lookupDefinitionRepository.upsert(tenantId, {
@@ -601,25 +607,31 @@ const declarePluginLookups = async (
       ownerPluginIds: owners,
       createdBy: current?.createdBy ?? userId,
     });
-    await seedLookupOptions(deps, tenantId, template, userId);
   }
+  const delivered: SeededLookupOptions = {};
+  for (const template of templates) {
+    const keys = await seedLookupOptions(deps, tenantId, template, userId, seeded[template.collection] ?? []);
+    if (keys.length > 0) delivered[template.collection] = keys;
+  }
+  return delivered;
 };
 
 /**
- * Semeia as opções de uma lista VAZIA. Lista com qualquer opção não é tocada: dali em diante ela é
- * dado do escritório, e reinstalar ou atualizar a extensão não pode ressuscitar o que alguém
- * removeu nem sobrescrever o que renomeou.
+ * Semeia as opções de uma lista pela regra de `planLookupSeed`: tudo numa lista vazia; numa lista com
+ * opções, nada (`when-empty`) ou o que falta e ainda não foi entregue por esta extensão (`required`).
+ * O que o escritório renomeou ou apagou continua como ele deixou.
  */
 const seedLookupOptions = async (
   deps: ArtifactDeps,
   tenantId: string,
   template: LookupModuleTemplate,
   userId: string,
-): Promise<void> => {
-  if (!template.options?.length) return;
+  alreadyDelivered: readonly string[],
+): Promise<string[]> => {
+  if (!template.options?.length) return [...alreadyDelivered];
   const current = await deps.lookupRepository.getAll(tenantId, template.collection);
-  if (current.length > 0) return;
-  for (const option of template.options) {
+  const plan = planLookupSeed(template.options, template.seed ?? 'when-empty', current, alreadyDelivered);
+  for (const option of plan.create) {
     await deps.lookupRepository.create(
       tenantId,
       template.collection,
@@ -627,6 +639,7 @@ const seedLookupOptions = async (
       userId,
     );
   }
+  return plan.delivered;
 };
 
 /**
@@ -827,12 +840,13 @@ export const applyPackageArtifacts = async (
   deps: ArtifactDeps,
   plugin: MarketplacePlugin,
   actor: LifecycleActor,
-): Promise<void> => {
+  seeded: SeededLookupOptions = {},
+): Promise<{ seededLookupOptions: SeededLookupOptions }> => {
   const { tenantId, userId } = actor;
   const pluginId = plugin.manifest.id;
   const existingScreens = await deps.screenRepository.getAll(tenantId);
   const { actionMap, screenKeyMap } = await materializeArtifacts(deps, plugin, tenantId, userId, existingScreens);
-  await declarePluginLookups(deps, plugin, tenantId, userId);
+  const seededLookupOptions = await declarePluginLookups(deps, plugin, tenantId, userId, seeded);
   await declarePluginTagLists(deps, plugin, tenantId, userId);
   const nextKeys = await upsertPluginScreens(deps, plugin, tenantId, userId, screenKeyMap, actionMap, existingScreens);
   for (const screen of existingScreens.filter((s) => ownerSet(s).includes(pluginId))) {
@@ -845,6 +859,7 @@ export const applyPackageArtifacts = async (
     (await deps.screenRepository.getAll(tenantId)).filter((screen) => !patched.has(screen.id)),
   );
   await releaseVanishedGeneratedArtifacts(deps, plugin, tenantId, pluginId, actor);
+  return { seededLookupOptions };
 };
 
 export interface UninstallCounts {

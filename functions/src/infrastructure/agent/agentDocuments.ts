@@ -3,8 +3,6 @@ import type { MessageCatalog } from '../../domain/schema/i18n/messages';
 import { resolveLabel } from '../../domain/schema/i18n/messageRef';
 import type { SchemaContext } from '../../domain/schema/screenEntity';
 import { resolveQueryTable } from '../../domain/schema/querySpec';
-import type { DeclaredLookupOption } from '../../domain/schema/lookupDefaults';
-import { DECLARED_LOOKUP_OPTIONS, mergeLookupDefaults } from '../../domain/schema/lookupDefaults';
 import {
   AGENT_DOCUMENT_MAX_MB,
   DOCUMENT_TYPES_COLLECTION,
@@ -12,6 +10,7 @@ import {
   agentDocumentName,
   inspectAgentFileContent,
   resolveAgentDocumentType,
+  type DocumentTypeOption,
 } from '../../domain/schema/agent/agentDocument';
 import { getDb } from '../firebase/initFirebase';
 import { getDI } from '../di/container';
@@ -54,20 +53,19 @@ const resolveDocumentOwner = async (
 };
 
 /**
- * Os tipos que a aba oferece: os que o kernel já traz mais os que o escritório cadastrou, pela MESMA
- * mescla do front (`mergeLookupDefaults`). Sem as fixas, "Procuração" seria recusada num escritório
- * que nunca cadastrou tipo nenhum, e a tela a mostraria.
+ * Os tipos que a aba oferece: os da lista do escritório, a mesma que a tela lê. O kernel não traz
+ * tipo nenhum — quem traz vocabulário é a extensão, semeando a lista (`lookups[].options`).
  */
 export const documentTypeOptions = async (
   tenantId: string,
   catalog: MessageCatalog,
-): Promise<DeclaredLookupOption[]> => {
+): Promise<DocumentTypeOption[]> => {
   const snapshot = await getDb().collection(`tenants/${tenantId}/${DOCUMENT_TYPES_COLLECTION}`).get();
   const office = snapshot.docs
     .map((doc) => doc.data())
     .filter((data) => typeof data.key === 'string' && typeof data.label === 'string')
     .map((data) => ({ key: data.key as string, label: data.label as string }));
-  return mergeLookupDefaults([...(DECLARED_LOOKUP_OPTIONS[DOCUMENT_TYPES_COLLECTION] ?? [])], office)
+  return office
     .map((option) => ({ key: option.key, label: resolveLabel(catalog, option.label) }));
 };
 

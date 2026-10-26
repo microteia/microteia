@@ -421,6 +421,33 @@ describe('Uninstall — listas de opções sobrevivem', () => {
   });
 
   /**
+   * A semeadura OBRIGATÓRIA numa lista do kernel: entram as que faltam, uma vez por extensão, e a lista
+   * do kernel não ganha declaração. Na atualização seguinte, a que o escritório apagou não volta.
+   */
+  it('semeadura obrigatória acrescenta o que falta numa lista do kernel, uma vez por extensão', async () => {
+    const d = deps();
+    lookupOptions.options.documentTypes = [{ key: 'Recibo', label: 'Recibo' }];
+    const required: MarketplacePlugin = {
+      ...lookupPlugin('com.acme.legal'),
+      lookups: [{
+        collection: 'documentTypes',
+        label: 'Tipos',
+        seed: 'required',
+        options: [{ key: 'Recibo', label: 'Recibo' }, { key: 'Laudo', label: 'Laudo' }],
+      }],
+    };
+
+    const first = await applyPackageArtifacts(d, required, actor);
+    expect(lookupOptions.options.documentTypes).toEqual([{ key: 'Recibo', label: 'Recibo' }, { key: 'Laudo', label: 'Laudo' }]);
+    expect(first.seededLookupOptions).toEqual({ documentTypes: ['Recibo', 'Laudo'] });
+    expect(lookupDefinitions.items.map((definition) => definition.collection)).not.toContain('documentTypes');
+
+    lookupOptions.options.documentTypes = [{ key: 'Recibo', label: 'Recibo' }];
+    await applyPackageArtifacts(d, required, actor, first.seededLookupOptions);
+    expect(lookupOptions.options.documentTypes).toEqual([{ key: 'Recibo', label: 'Recibo' }]);
+  });
+
+  /**
    * O bug que originou a mudança: as opções cadastradas pelo escritório sumiam junto com a tela.
    * Agora a desinstalação mexe só na DECLARAÇÃO — a coleção de dados nunca é tocada, e recriar a
    * lista com o mesmo nome reaproveita tudo.

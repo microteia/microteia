@@ -258,6 +258,7 @@ export const InstalledExtensionStoreProvider: React.FC<{ children: React.ReactNo
       // aplicação não pode apagar o que já existe no projeto. Se a versão nova exigir outra coisa, é o
       // FINGERPRINT que deixa de bater — e a extensão volta a ficar pendente sozinha.
       backendState: existing?.backendState ?? null,
+      seededLookupOptions: existing?.seededLookupOptions ?? null,
       installedAt: existing?.installedAt ?? new Date(),
       updatedAt: new Date(),
     };
@@ -278,7 +279,13 @@ export const InstalledExtensionStoreProvider: React.FC<{ children: React.ReactNo
       // Materializa os artefatos de DADOS (telas/actions/workflows/scripts) da cópia no tenant, antes de
       // gravar o registro — se falhar, nada fica "instalado". Idempotente: reinstalar/atualizar reusa por
       // sourceId. Código-only (ex.: Kanban) = no-op barato. As telas/menus surgem via os stores de dados.
-      await applyPackageArtifacts(artifactDeps, input.package, { tenantId: currentTenant.id, userId: user.id, now: new Date() });
+      const applied = await applyPackageArtifacts(
+        artifactDeps,
+        input.package,
+        { tenantId: currentTenant.id, userId: user.id, now: new Date() },
+        existing?.seededLookupOptions ?? {},
+      );
+      const record: InstalledExtension = { ...extension, seededLookupOptions: applied.seededLookupOptions };
       /**
        * A versão APLICADA entra no histórico antes de o registro ser gravado, pela mesma razão dos
        * artefatos acima: se o histórico não puder ser escrito, nada fica instalado.
@@ -310,10 +317,10 @@ export const InstalledExtensionStoreProvider: React.FC<{ children: React.ReactNo
           authorPhotoURL: input.authorPhotoURL,
         },
       );
-      await installedExtensionRepository.upsert(currentTenant.id, extension);
+      await installedExtensionRepository.upsert(currentTenant.id, record);
       notifyArtifactStores();
       setInstalled((prev) =>
-        existing ? prev.map((e) => (e.id === id ? extension : e)) : [...prev, extension],
+        existing ? prev.map((e) => (e.id === id ? record : e)) : [...prev, record],
       );
     };
 

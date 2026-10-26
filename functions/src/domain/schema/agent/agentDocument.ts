@@ -5,7 +5,6 @@
 // ═══════════════════════════════════════════════════════════════════════════
 
 import { DEFAULT_FILE_MAX_SIZE_MB } from '../fieldRules';
-import type { DeclaredLookupOption } from '../lookupDefaults';
 
 /**
  * O anexo que um agente envia para a aba Documentos de um registro.
@@ -128,8 +127,14 @@ export const agentDocumentContentType = (name: string, declared?: string): strin
  * grava; pelo rótulo, sem diferenciar maiúsculas, porque é o que uma pessoa diz ao agente. `null`
  * quando não casa nenhum — e quem chama recusa, listando os aceitos.
  */
+/** Uma opção da lista de tipos, como a aba a oferece. */
+export interface DocumentTypeOption {
+  key: string;
+  label: string;
+}
+
 export const resolveAgentDocumentType = (
-  options: readonly DeclaredLookupOption[],
+  options: readonly DocumentTypeOption[],
   requested: string,
 ): string | null => {
   const wanted = requested.trim();

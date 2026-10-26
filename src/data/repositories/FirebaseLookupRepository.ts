@@ -13,8 +13,6 @@ import {
 import { db } from '../../infrastructure/firebase/config';
 import type { ILookupRepository } from '../../domain/repositories/ILookupRepository';
 import type { LookupOption } from '../../domain/entities';
-import { lookupDefaultsFor } from './lookupDefaults';
-import { mergeLookupDefaults } from '../../domain/schema/lookupDefaults';
 import { subscribeLookupCollection } from './subscribeLookupCollection';
 
 const optionsRef = (tenantId: string, collection: string) =>
@@ -41,18 +39,16 @@ export class FirebaseLookupRepository implements ILookupRepository {
     return subscribeLookupCollection<LookupOption>(
       tenantId,
       collection,
-      lookupDefaultsFor(collection),
       onChange,
     );
   }
 
   async getAll(tenantId: string, collection: string): Promise<LookupOption[]> {
-    const defaults = lookupDefaultsFor(collection);
     try {
       const snap = await getDocs(query(optionsRef(tenantId, collection), orderBy('label', 'asc')));
-      return mergeLookupDefaults(defaults, snap.docs.map((d) => mapOption(d.data())));
+      return snap.docs.map((d) => mapOption(d.data()));
     } catch {
-      return defaults;
+      return [];
     }
   }
 

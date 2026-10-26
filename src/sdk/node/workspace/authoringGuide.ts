@@ -16,6 +16,7 @@ import { AGGREGATION_OP_SINCE_KERNEL } from '../../../domain/schema/aggregationS
 import { AGGREGATE_BACKFILL_SINCE_KERNEL, AGGREGATION_MAX_CHILDREN } from '../../../domain/schema/aggregateBackfill';
 import { RECORD_KEY_ADOPTION_SINCE_KERNEL } from '../../../domain/schema/recordKeyAdoption';
 import { EDIT_WINDOW_SINCE_KERNEL } from '../../../domain/schema/editWindow';
+import { LOOKUP_SEED_SINCE_KERNEL } from '../../../domain/schema/lookupSeed';
 import { AGGREGATION_OP_LABELS, NUMERIC_AGGREGATION_OPS } from '../../../domain/schema/fieldRules';
 import type { WidgetNodeType } from '../../../domain/schema/ui/widgetSpec';
 import { STEP_TYPES } from '../../../domain/entities/Workflow';
@@ -1713,9 +1714,27 @@ lookups: [{ collection: 'invoiceStatuses', label: label('lookup.statuses'), opti
 ] }]
 \`\`\`
 
-Seeds are written **only when the collection is empty**. After that the options are the
-organization's: neither an update nor uninstalling touches them. Keep the option \`key\` stable in
-English — it is what every record already stores. \`tagLists\` works the same way for tag collections.
+How seeds are written is \`seed\`:
+
+| \`seed\` | Empty list | List that already has options |
+|---|---|---|
+| \`'when-empty'\` (default) | all of them | nothing |
+| \`'required'\` | all of them | the ones missing — by key or by label — that THIS extension has not delivered before |
+
+After that the options are the organization's: it renames and removes them, and \`'required'\` never
+brings back a key it already delivered. Use it when your screens or templates depend on the options.
+A list of the platform (\`documentTypes\`) has no options of its own — the platform ships none — and
+an extension adds its vocabulary there the same way, without declaring the list:
+
+\`\`\`ts
+lookups: [{ collection: 'documentTypes', label: label('lookup.document-types'), seed: 'required', options: [
+  { key: 'Invoice', label: 'Invoice' },
+] }]
+\`\`\`
+
+\`seed: 'required'\` and seeding a platform list require kernel \`^${LOOKUP_SEED_SINCE_KERNEL}\`. Keep the
+option \`key\` stable — it is what every record already stores. \`tagLists\` declares tag collections the same
+way, without seeds.
 
 ### Adding to somebody else's screen
 

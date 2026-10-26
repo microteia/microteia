@@ -274,10 +274,13 @@ service cloud.firestore {
         }
       }
 
-      // Tipos de documento — a lista compartilhada por toda tela que anexa arquivo
+      // Tipos de documento — a lista compartilhada por toda tela que anexa arquivo. Quem instala uma
+      // extensão também CRIA opções aqui: é a semeadura dela (`lookups[].options`), porque o kernel não
+      // traz tipo nenhum. Alterar e apagar continua sendo de quem gere a lista.
       match /documentTypes/{id} {
         allow read: if isMember(tenantId);
-        allow create, update, delete: if can(tenantId, 'document-types.manage');
+        allow create: if can(tenantId, 'document-types.manage') || can(tenantId, 'extensions.manage');
+        allow update, delete: if can(tenantId, 'document-types.manage');
       }
 
       // ─── Workflow Engine (Automações) ────────────────────────────────────────

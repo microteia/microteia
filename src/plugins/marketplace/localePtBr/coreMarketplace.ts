@@ -464,6 +464,8 @@ export const CORE_MARKETPLACE: Record<string, string> = {
   'issue.edit-window.minutes': 'A janela de edição (`editWindow`) da tela "{screen}" precisa de `minutes` como número inteiro maior que zero.',
   'issue.edit-window.delete': 'A janela de edição (`editWindow`) da tela "{screen}" tem um `delete` que não é verdadeiro nem falso.',
   'issue.edit-window.kernel': 'A tela "{screen}" declara uma janela de edição (`editWindow`), que só existe a partir do kernel {minimum} — declare `kernel: "^{minimum}"` (ou posterior) no manifest. Um kernel mais antigo ignora a janela, e os registros continuariam editáveis para sempre.',
+  'issue.lookup.seed-mode': 'A lista "{collection}" declara `seed: "{seed}"`; use um destes: {expected}.',
+  'issue.lookup.seed-kernel': 'A lista "{collection}" semeia opções obrigatórias, ou semeia uma lista da plataforma, o que só existe a partir do kernel {minimum} — declare `kernel: "^{minimum}"` (ou posterior) no manifest. Um kernel mais antigo instalaria a extensão sem essas opções.',
   'issue.ref.event-undeclared':
     '{origin} "{name}" escuta o prefixo de evento "{prefix}", que uma tela da extensão "{plugin}" emite — declare-a em `dependencies`.',
   'issue.ref.event-unresolved':

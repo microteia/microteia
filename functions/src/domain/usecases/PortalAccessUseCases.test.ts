@@ -277,15 +277,17 @@ describe('contexto do portal', () => {
       expect(invoices.fields.find((field) => field.key === 'flag')?.options).toEqual([{ key: 'urgent', label: 'URGENT', color: 'danger' }]);
     });
 
-    it('a lista do kernel chega com as opções fixas, mesmo sem nada cadastrado', async () => {
+    it('a lista do kernel leva só o que está gravado — o kernel não traz opção nenhuma', async () => {
       const fake = makeFakePortalRepository(screensWith(
         [select('docType', { lookupCollection: 'documentTypes' })],
         { subject: { field: 'companyId' }, fields: ['number', 'docType'] },
       ));
 
-      const invoices = await contextOf(fake);
+      expect((await contextOf(fake)).fields.find((field) => field.key === 'docType')?.options).toBeUndefined();
 
-      expect(invoices.fields.find((field) => field.key === 'docType')?.options?.[0]).toEqual({ key: 'Contrato', label: 'CONTRATO' });
+      fake.lookups.set('documentTypes', [{ key: 'Invoice', label: 'Invoice' }]);
+      expect((await contextOf(fake)).fields.find((field) => field.key === 'docType')?.options)
+        .toEqual([{ key: 'Invoice', label: 'INVOICE' }]);
     });
 
     it('a lista que falha ao ser lida não derruba o portal', async () => {

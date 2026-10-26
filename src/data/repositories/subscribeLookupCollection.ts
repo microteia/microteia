@@ -1,6 +1,5 @@
 import { collection, onSnapshot, orderBy, query } from 'firebase/firestore';
 import { db } from '../../infrastructure/firebase/config';
-import { mergeLookupDefaults } from '../../domain/schema/lookupDefaults';
 
 interface LookupLike {
   key: string;
@@ -10,7 +9,6 @@ interface LookupLike {
 export const subscribeLookupCollection = <T extends LookupLike>(
   tenantId: string,
   collectionName: string,
-  statics: T[],
   onChange: (items: T[]) => void,
 ): (() => void) => {
   const col = collection(db, 'tenants', tenantId, collectionName);
@@ -24,8 +22,8 @@ export const subscribeLookupCollection = <T extends LookupLike>(
         color:    d.data().color as string | undefined,
         isStatic: false,
       })) as unknown as T[];
-      onChange(mergeLookupDefaults(statics, dynamic));
+      onChange(dynamic);
     },
-    () => onChange(statics),
+    () => onChange([]),
   );
 };

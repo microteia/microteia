@@ -1,4 +1,5 @@
 import type { AuditAction } from './AuditLog';
+import type { LookupSeedMode } from '../schema/lookupSeed';
 import type { PluginManifest } from '../schema/plugin/pluginManifest';
 import type { PluginMigration } from '../schema/plugin/migration';
 import type { ReportModuleTemplate as ReportModuleTemplateType } from './Report';
@@ -202,13 +203,17 @@ export interface LookupModuleTemplate {
   collection: string;
   label: string;
   /**
-   * Opções SEMENTE: o ponto de partida da lista num escritório que ainda não a tem. São gravadas na
-   * instalação **apenas quando a coleção está vazia** — a partir daí as opções são dado do
-   * escritório, e nem a atualização nem a reinstalação da extensão as toca. É o que permite a uma
-   * extensão entregar uma entidade pronta para uso (as Áreas, Fases e Status de um Processo) sem
-   * que o kernel precise conhecer nenhuma delas.
+   * Opções SEMENTE: o ponto de partida da lista. Como entram é `seed` quem diz. É o que permite a uma
+   * extensão entregar uma entidade pronta para uso sem que o kernel precise conhecer nenhuma delas —
+   * inclusive numa lista do kernel, como `documentTypes`, que não ganha declaração nova por isso.
    */
   options?: CustomFieldOption[];
+  /**
+   * `when-empty` (padrão): as opções só entram numa lista vazia. `required`: numa lista que já tem
+   * opções, entram as que faltam, cada uma UMA vez por extensão — a que o escritório apagou não volta.
+   * Ver `schema/lookupSeed.ts`.
+   */
+  seed?: LookupSeedMode;
 }
 
 export interface MarketplacePlugin {
