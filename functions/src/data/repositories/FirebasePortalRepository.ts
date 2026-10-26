@@ -3,6 +3,7 @@ import type { DocumentData, Firestore, Query } from 'firebase-admin/firestore';
 import type { Auth } from 'firebase-admin/auth';
 import type {
   IPortalAccountService,
+  IPortalInviteQuota,
   IPortalRepository,
   PortalDocumentProjection,
   PortalFieldOption,
@@ -17,6 +18,7 @@ import type {
 } from '../../domain/repositories/IPortalRepository';
 import {
   PORTAL_DOCUMENTS_SUBCOLLECTION,
+  PORTAL_INVITE_RATES_COLLECTION,
   PORTAL_INVITES_COLLECTION,
   PORTAL_RECORDS_COLLECTION,
   PORTAL_REPROJECTIONS_COLLECTION,
@@ -352,9 +354,9 @@ export class FirebasePortalRepository implements IPortalRepository {
     }));
   }
 
-  async grantSubject(tenantId: string, grant: PortalUserGrant, subjectKey: string): Promise<void> {
+  async grantSubject(tenantId: string, grant: PortalUserGrant, subjectKey: string): Promise<boolean> {
     const reference = this.portalUsers(tenantId).doc(grant.userId);
-    await this.db.runTransaction(async (transaction) => {
+    return this.db.runTransaction(async (transaction) => {
       const snapshot = await transaction.get(reference);
       if (snapshot.exists) {
         transaction.update(reference, {
@@ -363,7 +365,7 @@ export class FirebasePortalRepository implements IPortalRepository {
           ...(grant.locale ? { locale: grant.locale } : {}),
           updatedAt: FieldValue.serverTimestamp(),
         });
-        return;
+        return !asStrings(snapshot.get('subjectKeys')).includes(subjectKey);
       }
       transaction.set(reference, {
         userId: grant.userId,
@@ -377,22 +379,24 @@ export class FirebasePortalRepository implements IPortalRepository {
         addedAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),
       });
+      return true;
     });
   }
 
-  async revokeSubject(tenantId: string, userId: string, subjectKey: string | null): Promise<void> {
+  async revokeSubject(tenantId: string, userId: string, subjectKey: string | null): Promise<boolean> {
     const reference = this.portalUsers(tenantId).doc(userId);
-    await this.db.runTransaction(async (transaction) => {
+    return this.db.runTransaction(async (transaction) => {
       const snapshot = await transaction.get(reference);
-      if (!snapshot.exists) return;
-      const remaining = subjectKey === null
-        ? []
-        : asStrings(snapshot.get('subjectKeys')).filter((key) => key !== subjectKey);
+      if (!snapshot.exists) return false;
+      const current = asStrings(snapshot.get('subjectKeys'));
+      const remaining = subjectKey === null ? [] : current.filter((key) => key !== subjectKey);
+      if (subjectKey !== null && remaining.length === current.length) return false;
       if (remaining.length === 0) {
         transaction.delete(reference);
-        return;
+        return true;
       }
       transaction.update(reference, { subjectKeys: remaining, updatedAt: FieldValue.serverTimestamp() });
+      return true;
     });
   }
 
@@ -433,7 +437,37 @@ export class FirebasePortalAccountService implements IPortalAccountService {
     }
   }
 
+  /**
+   * Duas execuções que convidam o mesmo e-mail novo ao mesmo tempo: as duas não acham a conta, e a
+   * segunda a criar recebe `email-already-exists`. A conta que a primeira criou serve à segunda — a
+   * marca do convite já foi gravada pelas duas.
+   */
   async createAccount(email: string): Promise<string> {
-    return (await this.auth.createUser({ email, emailVerified: false })).uid;
+    try {
+      return (await this.auth.createUser({ email, emailVerified: false })).uid;
+    } catch (error) {
+      if ((error as { code?: string }).code !== 'auth/email-already-exists') throw error;
+      return (await this.auth.getUserByEmail(email)).uid;
+    }
+  }
+}
+
+/**
+ * A contagem da hora corrente, num documento por escritório na raiz. A janela é a hora UTC: virou a
+ * hora, a contagem recomeça na primeira reserva.
+ */
+export class FirebasePortalInviteQuota implements IPortalInviteQuota {
+  constructor(private readonly db: Firestore) {}
+
+  async consume(tenantId: string, limit: number, now: Date): Promise<boolean> {
+    const reference = this.db.collection(PORTAL_INVITE_RATES_COLLECTION).doc(tenantId);
+    const window = now.toISOString().slice(0, 13);
+    return this.db.runTransaction(async (transaction) => {
+      const snapshot = await transaction.get(reference);
+      const count = snapshot.get('window') === window ? Number(snapshot.get('count') ?? 0) : 0;
+      if (count >= limit) return false;
+      transaction.set(reference, { window, count: count + 1, updatedAt: FieldValue.serverTimestamp() });
+      return true;
+    });
   }
 }

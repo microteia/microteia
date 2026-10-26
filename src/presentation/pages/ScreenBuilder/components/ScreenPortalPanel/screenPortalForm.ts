@@ -24,6 +24,8 @@ export interface PortalFormState {
   editOnlyOwn: boolean;
   /** Avisar o escritório da atividade do convidado — ligado por padrão. */
   notifyOffice: boolean;
+  /** Automações podem convidar para os registros desta tela — só na tela-sujeito. */
+  automationInvites: boolean;
 }
 
 export const EMPTY_PORTAL_FORM: PortalFormState = {
@@ -42,6 +44,7 @@ export const EMPTY_PORTAL_FORM: PortalFormState = {
   editWhen: '',
   editOnlyOwn: false,
   notifyOffice: true,
+  automationInvites: false,
 };
 
 export const toPortalForm = (portal: PortalDeclaration | null | undefined): PortalFormState => {
@@ -63,6 +66,7 @@ export const toPortalForm = (portal: PortalDeclaration | null | undefined): Port
     editWhen: portal.edit?.when ?? '',
     editOnlyOwn: portal.edit?.onlyOwn === true,
     notifyOffice: portal.notifyOffice !== false,
+    automationInvites: portal.invites?.automation === true,
   };
 };
 
@@ -88,5 +92,7 @@ export const fromPortalForm = (form: PortalFormState): PortalDeclaration | null 
       }
       : {}),
     ...(form.notifyOffice ? {} : { notifyOffice: false }),
+    // Convidar é da tela-sujeito: em outra tela, o servidor nunca aceitaria o convite.
+    ...(form.automationInvites && form.subjectKind === 'self' ? { invites: { automation: true } } : {}),
   };
 };

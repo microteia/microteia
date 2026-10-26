@@ -14,6 +14,8 @@ import { useInstalledExtensions } from '../../../stores/useInstalledExtensions';
 import { useWorkspace } from '../../../stores/useWorkspace';
 import { useNotification } from '../../../stores/useNotification';
 import { useSchemaContext } from '../../shared/useSchemaContext';
+import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
+import { screenDataCollection } from '../../../domain/schema/tenantCollections';
 import { useStepCatalog } from '../../../stores/useStepCatalog';
 import { getWorkflowEventFields, eventNameToRoot, WORKFLOW_CALLED_EVENT, workflowParametersToRoot, workflowParametersToFieldOptions } from '../../../domain/services/workflowEventCatalog';
 import { workflowParameterToNativeField } from '../../../domain/schema/eventCatalog';
@@ -568,6 +570,30 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
     [schemaContext, label],
   );
 
+  /**
+   * As telas-SUJEITO do portal — as que recebem convidados —, pela coleção, que é o que o passo grava.
+   * Para convidar, só as que abriram a porta à automação (`portal.invites.automation`): escolher outra
+   * reprovaria em toda execução.
+   */
+  const { definitions: screenDefinitions } = useScreenDefinitions();
+  const portalSubjectScreens = useMemo(
+    () => screenDefinitions.filter((screen) => screen.portal?.subject === 'self'),
+    [screenDefinitions],
+  );
+  const portalSubjectOptions = useMemo(
+    () => portalSubjectScreens.map((screen) => ({
+      value: screenDataCollection(screen),
+      label: label(screen.titlePlural || screen.titleSingular),
+      meta: screenDataCollection(screen),
+    })),
+    [portalSubjectScreens, label],
+  );
+  const portalInviteSubjectOptions = useMemo(
+    () => portalSubjectOptions.filter((option) =>
+      portalSubjectScreens.some((screen) => screenDataCollection(screen) === option.value && screen.portal?.invites?.automation === true)),
+    [portalSubjectOptions, portalSubjectScreens],
+  );
+
   const aiConnectionOptions = useMemo(
     () => [
       { value: '', label: t('step.ai-connection.default') },
@@ -631,6 +657,16 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
           ? { options: documentsCollectionOptions }
           : { options: documentsCollectionOptions, orphanMessage: t('step.target.documents-collection.missing', { key: stored }) };
       }
+      if (kind === 'portal-subject') {
+        return !stored || portalSubjectOptions.some((option) => option.value === stored)
+          ? { options: portalSubjectOptions }
+          : { options: portalSubjectOptions, orphanMessage: t('step.target.portal-subject.missing', { key: stored }) };
+      }
+      if (kind === 'portal-invite-subject') {
+        return !stored || portalInviteSubjectOptions.some((option) => option.value === stored)
+          ? { options: portalInviteSubjectOptions }
+          : { options: portalInviteSubjectOptions, orphanMessage: t('step.target.portal-invite-subject.missing', { key: stored }) };
+      }
       if (kind === 'permission') {
         return !stored || permissionOptions.some((option) => option.value === stored)
           ? { options: permissionOptions }
@@ -655,6 +691,8 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
       documentTemplateOptions,
       templateReferenceOptions,
       documentsCollectionOptions,
+      portalSubjectOptions,
+      portalInviteSubjectOptions,
       t,
       permissionOptions,
       callableScriptOptions,
@@ -681,7 +719,11 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
                   ? 'step.target.document-template-reference'
                   : kind === 'documents-collection'
                     ? 'step.target.documents-collection'
-                    : 'step.target.workflow',
+                    : kind === 'portal-subject'
+                      ? 'step.target.portal-subject'
+                      : kind === 'portal-invite-subject'
+                        ? 'step.target.portal-invite-subject'
+                        : 'step.target.workflow',
       ),
     [t],
   );

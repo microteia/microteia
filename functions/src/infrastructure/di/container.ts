@@ -1,6 +1,7 @@
 import { getDb } from '../firebase/initFirebase';
 import { getAuth } from 'firebase-admin/auth';
-import { FirebasePortalAccountService, FirebasePortalRepository } from '../../data/repositories/FirebasePortalRepository';
+import { FirebasePortalAccountService, FirebasePortalInviteQuota, FirebasePortalRepository } from '../../data/repositories/FirebasePortalRepository';
+import { makePortalAccessAudit } from '../portal/portalAccessAudit';
 import type { IPortalRepository } from '../../domain/repositories/IPortalRepository';
 import {
   makeProjectPortalDocumentUseCase,
@@ -44,6 +45,7 @@ import type {
   UpdatePortalRecordUseCase,
   AttachPortalDocumentUseCase,
   AttachPortalDocumentDeps,
+  PortalAccessDeps,
 } from '../../domain/usecases/PortalAccessUseCases';
 import { FirebaseAuditLogRepository } from '../../data/repositories/FirebaseAuditLogRepository';
 import { FirebaseExtensionStatsRepository } from '../../data/repositories/FirebaseExtensionStatsRepository';
@@ -163,6 +165,7 @@ import { TemplateDocumentRenderer } from '../../data/services/document/TemplateD
 import { WorkflowDocumentRecordReader } from '../document/WorkflowDocumentRecordReader';
 import { makeRenderDocumentUseCase } from '../../domain/usecases/RenderDocumentUseCase';
 import { makeShareRecordDocumentsUseCase } from '../../domain/usecases/ShareRecordDocumentsUseCase';
+import type { PortalAccessStepServices } from '../workflow/steps/PortalAccessSteps';
 import type { ShareRecordDocumentsUseCase } from '../../domain/usecases/ShareRecordDocumentsUseCase';
 import type { IRecordDocumentSharing } from '../../domain/repositories/IRecordDocumentSharing';
 import { FirebaseRecordDocumentSharing } from '../../data/services/FirebaseRecordDocumentSharing';
@@ -325,12 +328,35 @@ class DIContainer {
     return makeEnsurePortalProjectionRevisionUseCase(this.getPortalRepository());
   }
 
+  /** A mesma porta para o convite da tela e o da automação — é o que torna os dois indistinguíveis. */
+  private getPortalAccessDeps(): PortalAccessDeps {
+    return {
+      repo: this.getPortalRepository(),
+      accounts: new FirebasePortalAccountService(getAuth()),
+      audit: makePortalAccessAudit(this.getCreateAuditLogUseCase()),
+      quota: new FirebasePortalInviteQuota(getDb()),
+      now: () => new Date(),
+    };
+  }
+
   getInvitePortalUserUseCase(): InvitePortalUserUseCase {
-    return makeInvitePortalUserUseCase(this.getPortalRepository(), new FirebasePortalAccountService(getAuth()));
+    return makeInvitePortalUserUseCase(this.getPortalAccessDeps());
   }
 
   getRevokePortalUserUseCase(): RevokePortalUserUseCase {
-    return makeRevokePortalUserUseCase(this.getPortalRepository());
+    return makeRevokePortalUserUseCase(this.getPortalAccessDeps());
+  }
+
+  /** O que os passos `portal-invite` e `portal-revoke` usam — os dois casos de uso acima, e o aviso. */
+  getPortalAccessStepServices(): PortalAccessStepServices {
+    return {
+      invite: this.getInvitePortalUserUseCase(),
+      revoke: this.getRevokePortalUserUseCase(),
+      dispatchNotification: this.getDispatchNotificationUseCase(),
+      tenantName: async (tenantId) => (await this.getTenantRepository().getById(tenantId))?.name ?? '',
+      officeLocale: async (tenantId) =>
+        configuredLocale({}, await this.getTenantSettingsRepository().getTenantValues(tenantId)) ?? undefined,
+    };
   }
 
   getPortalDocumentUrlUseCase(): GetPortalDocumentUrlUseCase {
@@ -896,6 +922,7 @@ class DIContainer {
       dispatchNotificationUseCase: this.getDispatchNotificationUseCase(),
       renderDocumentUseCase: this.getRenderDocumentUseCase(),
       shareRecordDocumentsUseCase: this.getShareRecordDocumentsUseCase(),
+      portalAccess: this.getPortalAccessStepServices(),
       workflowQueryRepository: new FirestoreWorkflowQueryRepository(getDb()),
       workflowRecordFetcher: new FirestoreWorkflowRecordFetcher(getDb()),
       workflowMutationRepository: new FirestoreWorkflowMutationRepository(getDb()),

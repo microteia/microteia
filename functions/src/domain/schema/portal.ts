@@ -22,6 +22,7 @@ import { RECORD_CREATED_VIA_FIELD, SYSTEM_MANAGED_KEYS } from './mutationSpec';
 
 export {
   PORTAL_DOCUMENTS_SUBCOLLECTION,
+  PORTAL_INVITE_RATES_COLLECTION,
   PORTAL_INVITES_COLLECTION,
   PORTAL_RECORDS_COLLECTION,
   PORTAL_REPROJECTIONS_COLLECTION,
@@ -47,6 +48,20 @@ export const PORTAL_LINK_BY_COLLECTION_SINCE_KERNEL = '2.62.0';
  * ninguém de dentro também — falha FECHADO, por isso não há recusa no empacotamento.
  */
 export const PORTAL_GUEST_NOTIFY_SINCE_KERNEL = '2.63.0';
+
+/**
+ * O kernel a partir do qual existem os passos `portal-invite` e `portal-revoke` e a chave
+ * `portal.invites`. Um kernel anterior reprova o passo por ser desconhecido e descarta a chave — o
+ * convite por automação simplesmente não acontece, e por isso o pacote que os usa tem de exigi-lo.
+ */
+export const PORTAL_AUTOMATION_INVITES_SINCE_KERNEL = '2.73.0';
+
+/**
+ * Quantos convites NOVOS as automações de um escritório fazem por hora, somadas. O convite que já
+ * existia não conta. É freio de abuso e de laço — uma automação que regrava o próprio registro —, não
+ * de uso: o credenciamento em massa passa, em levas.
+ */
+export const PORTAL_AUTOMATION_INVITES_PER_HOUR = 500;
 
 /** Quantos saltos de referência separam um registro da tela-sujeito, no máximo. */
 export const PORTAL_SUBJECT_MAX_DEPTH = 3;
@@ -112,6 +127,15 @@ export interface PortalDeclaration {
    * `false` desliga. Recebe quem pode alterar a coleção E tem `portal.activity`.
    */
   notifyOffice?: boolean;
+  /**
+   * Quem pode CONVIDAR para os registros desta tela, além de quem tem `portal.manage` em
+   * Configurações › Portal. `automation: true` abre a porta para os passos `portal-invite` — o
+   * credenciamento que segue um registro validado. Só vale na tela-sujeito.
+   *
+   * Mora na declaração, e não numa permissão de quem dispara, porque é decisão de EXPOSIÇÃO: a chave
+   * `portal` só é gravada por quem tem `portal.manage` (ou instala o pacote), e a regra já cobra isso.
+   */
+  invites?: { automation: boolean } | null;
 }
 
 export interface PortalEditDeclaration {
@@ -204,6 +228,11 @@ export const asPortalDeclaration = (value: unknown): PortalDeclaration | null =>
     ? { types: Array.isArray(rawUploads.types) ? [...new Set(rawUploads.types.filter(isNonEmptyString))] : [] }
     : null;
 
+  const rawInvites = raw.invites as Record<string, unknown> | null | undefined;
+  const invites = rawInvites && typeof rawInvites === 'object' && rawInvites.automation === true
+    ? { automation: true }
+    : null;
+
   const rawEdit = raw.edit as Record<string, unknown> | null | undefined;
   const edit: PortalEditDeclaration | null = rawEdit && typeof rawEdit === 'object' && Array.isArray(rawEdit.fields)
     ? {
@@ -222,6 +251,7 @@ export const asPortalDeclaration = (value: unknown): PortalDeclaration | null =>
     ...(uploads ? { uploads } : {}),
     ...(edit ? { edit } : {}),
     ...(raw.notifyOffice === false ? { notifyOffice: false } : {}),
+    ...(invites ? { invites } : {}),
   };
 };
 
@@ -379,6 +409,10 @@ export const buildPortalEdit = (
 
 export const isPortalSubjectScreen = (screen: PortalScreenLike): boolean => screen.portal?.subject === 'self';
 
+/** A tela-sujeito que aceita convite feito por automação (`portal.invites.automation`). */
+export const acceptsAutomationInvites = (screen: PortalScreenLike): boolean =>
+  isPortalSubjectScreen(screen) && screen.portal?.invites?.automation === true;
+
 /** Os campos expostos que a tela de fato declara — a declaração que ficou para trás não vaza nada. */
 export const portalFieldKeys = (screen: PortalScreenLike): string[] => {
   const declared = new Set(screen.fields.map((field) => field.key));
@@ -532,6 +566,10 @@ export const portalDeclarationIssues = (
 
   if (portal.uploads && portal.documents !== true) {
     issues.push({ message: '@core.records/portal.issue.uploads.documents' });
+  }
+
+  if (portal.invites?.automation && portal.subject !== 'self') {
+    issues.push({ message: '@core.records/portal.issue.invites.not-subject' });
   }
 
   if (portal.edit) {

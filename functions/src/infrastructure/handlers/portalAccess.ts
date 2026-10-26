@@ -63,19 +63,21 @@ export const invitePortalUser = onCall({ region: REGION, cors: true }, async (re
   const subject = parsePortalSubjectKey(subjectKey);
   if (!subject) throw new HttpsError('invalid-argument', '@core.tenant/portal.subject.invalid');
 
-  await requirePermission(tenantId, userId, PERMISSION_PORTAL_MANAGE);
+  const granted = await requirePermission(tenantId, userId, PERMISSION_PORTAL_MANAGE);
   await requirePermission(tenantId, userId, collectionPermissionId(subject.collection, 'read'));
 
   try {
     const di = getDI();
     const tenant = await di.getTenantRepository().getById(tenantId);
     if (!tenant) throw new HttpsError('not-found', '@core.workspace/tenant.none-found');
+    const actor = await identifyActor(userId, 'ui', granted);
     return await di.getInvitePortalUserUseCase().execute({
       tenantId,
       tenantName: tenant.name,
       email,
       subjectKey,
-      invitedBy: userId,
+      actor: { userId, userName: actor.name },
+      origin: 'settings',
       ...(typeof data.locale === 'string' && data.locale ? { locale: data.locale } : {}),
     });
   } catch (error) {
@@ -91,9 +93,16 @@ export const revokePortalUser = onCall({ region: REGION, cors: true }, async (re
   const portalUserId = requireString(data.userId, '@core.tenant/portal.user.required');
   const subjectKey = typeof data.subjectKey === 'string' && data.subjectKey !== '' ? data.subjectKey : null;
 
-  await requirePermission(tenantId, userId, PERMISSION_PORTAL_MANAGE);
+  const granted = await requirePermission(tenantId, userId, PERMISSION_PORTAL_MANAGE);
   try {
-    await getDI().getRevokePortalUserUseCase().execute(tenantId, portalUserId, subjectKey);
+    const actor = await identifyActor(userId, 'ui', granted);
+    await getDI().getRevokePortalUserUseCase().execute({
+      tenantId,
+      guest: { userId: portalUserId },
+      subjectKey,
+      actor: { userId, userName: actor.name },
+      origin: 'settings',
+    });
     return { revoked: true };
   } catch (error) {
     throw asHttpsError(error, 'revokePortalUser');

@@ -138,16 +138,19 @@ export const makeFakePortalRepository = (screens: PortalScreen[]) => {
       users.set(grant.userId, {
         userId: grant.userId,
         email: grant.email,
-        displayName: grant.displayName,
+        displayName: current?.displayName ?? grant.displayName,
         subjectKeys: [...new Set([...(current?.subjectKeys ?? []), subjectKey])],
       });
+      return !current?.subjectKeys.includes(subjectKey);
     },
     revokeSubject: async (_t, userId, subjectKey) => {
       const current = users.get(userId);
-      if (!current) return;
+      if (!current) return false;
       const remaining = subjectKey === null ? [] : current.subjectKeys.filter((key) => key !== subjectKey);
+      if (remaining.length === current.subjectKeys.length) return false;
       if (remaining.length === 0) users.delete(userId);
       else users.set(userId, { ...current, subjectKeys: remaining });
+      return true;
     },
     readStagedUpload: async (_t, userId, uploadId) => staged.get(`${userId}/${uploadId}`) ?? null,
     deleteStagedUpload: async (_t, userId, uploadId) => { staged.delete(`${userId}/${uploadId}`); },

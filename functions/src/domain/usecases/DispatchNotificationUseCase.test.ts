@@ -304,7 +304,7 @@ describe('DispatchNotificationUseCase', () => {
 
     it('avisa só quem vê o registro, com o link dele NO PORTAL e o texto já no idioma do convite', async () => {
       const { uc, delivered, sent } = setup([recipient('u1')], {}, seen);
-      const result = await uc.execute(portalRequest({ recipientIds: ['u1'], recipientPermissions: ['x.update'] }));
+      const result = await uc.execute(portalRequest({ recipientPermissions: ['x.update'] }));
       expect(result.recipients).toBe(1);
       expect(delivered).toHaveLength(1);
       expect(delivered[0]).toMatchObject({
@@ -318,6 +318,22 @@ describe('DispatchNotificationUseCase', () => {
       expect(sent.map((message) => message.to)).toEqual(['cliente@example.com']);
       expect(sent[0].html).toContain('https://app.test/portal/t1/conversations?record=c1');
       expect(sent[0].html).not.toContain('/microteia/');
+    });
+
+    it('recipientIds ESTREITA quem vê o registro, e nunca alarga — o membro nomeado continua de fora', async () => {
+      const two: PortalGuestsOfRecord = {
+        inPortal: true,
+        guests: [...seen.guests, { userId: 'g2', email: 'outro@example.com' }],
+      };
+      const { uc, sent } = setup([recipient('u1')], {}, two);
+
+      const onlyNew = await uc.execute(portalRequest({ recipientIds: ['g2'] }));
+      expect(onlyNew.recipients).toBe(1);
+      expect(sent.map((message) => message.to)).toEqual(['outro@example.com']);
+
+      const member = await uc.execute(portalRequest({ recipientIds: ['u1'] }));
+      expect(member.recipients).toBe(0);
+      expect(sent).toHaveLength(1);
     });
 
     it('o registro fora do portal não leva aviso a ninguém', async () => {

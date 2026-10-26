@@ -99,6 +99,10 @@ const STEP_GAP_NOTES: Record<string, string> = {
     + '"produce a document" — "when the order is approved, generate the receipt" cannot be said',
   'share-documents': 'shares the documents a record already has with the portal. The model has no notion of the portal, '
     + 'so "the guest sees the attachments once the order is confirmed" cannot be said',
+  'portal-invite': 'gives someone from outside access to a record in the portal. The model has no notion of the portal, '
+    + 'so "when the representative is approved, invite them" cannot be said',
+  'portal-revoke': 'removes a guest\'s access to a record in the portal. The model has no notion of the portal, '
+    + 'so "when the representative leaves, remove their access" cannot be said',
 };
 
 const stepItems = (): CoverageItem[] => {

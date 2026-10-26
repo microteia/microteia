@@ -416,6 +416,8 @@ export const CORE_MARKETPLACE: Record<string, string> = {
     'o passo "{step}" é do tipo "{definition}", que só existe a partir do kernel {minimum} — declare `kernel: "^{minimum}"` (ou posterior) no manifest, para que um kernel mais antigo recuse o pacote em vez de falhar no passo.',
   'issue.step.input-kernel':
     'o passo "{step}" preenche "{input}", que só existe a partir do kernel {minimum} — declare `kernel: "^{minimum}"` (ou posterior) no manifest, para que um kernel mais antigo recuse o pacote em vez de ignorar a entrada.',
+  'issue.step.portal-invite.closed':
+    'o passo "{step}" convida para a tela "{screen}", que não aceita convite por automação — toda execução falharia. Declare nela `portal: { subject: \'self\', ..., invites: { automation: true } }`.',
   'issue.step.unknown-input':
     'o passo "{step}" ({definition}) preenche a entrada "{input}", que esse passo não tem. Ele recebe: {expected}.',
   'issue.step.document.record-only':

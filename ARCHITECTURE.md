@@ -106,6 +106,7 @@ npm run verify          # typecheck + lint + verify-schemas
 | `PortalRecord` (projeção do que uma tela expõe no portal; escrita só pelo servidor) | `tenants/{tenantId}/portalRecords/{coleção}__{id}` (+ `documents/{id}`) | Sim |
 | Reprojeção do portal (a passada que refaz as projeções de uma coleção; escrita só pelo servidor) | `tenants/{tenantId}/portal_reprojections/{coleção}` | Sim |
 | Marca de convite do portal (o bootstrap a lê para não abrir escritório) | `portalInvites/{e-mail}` | Não (só servidor) |
+| Contagem da hora dos convites do portal feitos por automação | `portalInviteRates/{tenantId}` | Não (só servidor; nenhuma regra a libera) |
 | `Notícia` (extensão `com.microteia.news`) | `tenants/{tenantId}/news/{id}` | Sim |
 | `Comentário` (extensão `com.microteia.news`) | `tenants/{tenantId}/newsComments/{id}` | Sim |
 | `SavedFilter` | `savedFilters/{uid}_{screenKey}` | Não |
@@ -1075,6 +1076,63 @@ O link de acesso é o do próprio Firebase Auth (`sendSignInLinkToEmail`), e vol
 `/portal/signin`. **Exige o provedor "Link por e-mail" ligado no Firebase Auth do projeto** — sem ele,
 convidar funciona e o e-mail não sai.
 
+### Convite por automação — `portal-invite` e `portal-revoke`
+
+O credenciamento em escala — a prefeitura com milhares de contribuintes, a clínica com os pacientes
+confirmados — não cabe no convite digitado em Configurações › Portal: alguém teria de redigitar o e-mail
+que já está num registro, e o limite que o registro valida ("até cinco representantes por empresa") não
+alcançaria o convite. Os dois passos fazem o convite seguir o registro.
+
+**Uma porta só.** O passo chama o MESMO `makeInvitePortalUserUseCase` da callable — a mesma marca antes
+da conta, o mesmo vínculo, o mesmo `portalUsers/{uid}` —, e a revogação o mesmo
+`makeRevokePortalUserUseCase`. A única diferença é a `origin` (`settings` | `automation`), e ela só
+acrescenta conferências; não muda o que é gravado. `PortalAccessUseCases.test.ts` compara os dois
+convites lado a lado.
+
+**Quem abre a porta é a TELA, não quem dispara.** A primeira proposta cobrava `portal.manage` do ator,
+e, sem ator, aceitava só automações da extensão dona da tela-sujeito. As duas metades falhavam:
+
+| Proposta | Por que não |
+|---|---|
+| exigir `portal.manage` do ator | as permissões não atravessam o barramento (`actor.permissions` é `[]` fora do processo, ver "Quem disparou") — e cobraria de quem apertou o botão uma decisão de quem escreveu o fluxo |
+| sem ator, só a extensão dona | `ownerPluginIds` é gravado pelo cliente com `automation.manage`, e as rules não o protegem: não é fronteira. E proibiria o escritório de montar o próprio credenciamento |
+
+A decisão é de EXPOSIÇÃO, e o lugar dela já existe e já é cobrado: a chave `portal` da tela, que
+`screenDefinitions` só aceita de quem tem `portal.manage` (ou `extensions.manage`). Por isso
+`portal.invites: { automation: true }` — só na tela-sujeito (`acceptsAutomationInvites`), interruptor na
+aba Portal do Form Design. Sem ela, `portal-invite` reprova com `portal.invite.automation-closed` ANTES de
+qualquer escrita. Revogar não pede a declaração: recolher nunca expõe nada (o mesmo critério de
+`share-documents`). A permissão de quem disparou não é cobrada, como em toda escrita do motor; o ator (ou
+o motor, sem ator — e o convidado do portal nunca responde) é quem a Auditoria nomeia.
+
+| Garantia | Como |
+|---|---|
+| idempotente por (e-mail normalizado, sujeito) | o convite que já existe volta `granted: false` sem escrever nada — nem conta, nem vaga, nem auditoria, nem e-mail. Seguro em `.saved` |
+| limite por escritório | `PORTAL_AUTOMATION_INVITES_PER_HOUR` convites NOVOS por hora UTC, somadas as automações; `IPortalInviteQuota.consume` reserva e confere numa transação (`portalInviteRates/{tenantId}`). Esgotado, `portal.invite.rate-limited`, antes de criar a conta |
+| e-mail inválido | `portal.email.invalid`, o mesmo erro nomeado da tela |
+| auditado | todo vínculo NOVO e toda revogação efetiva gravam linha (`portal.audit.granted`/`revoked`, com a origem e o sujeito) — nos DOIS caminhos: o convite manual não era auditado |
+| revogação imediata | é a mesma `revokeSubject`, e as callables do convidado já conferem o convite vivo (`guestSees`) |
+| `allSubjects` | o convite inteiro, mas só de quem tem aquele sujeito: a automação de um registro não alcança convidado de outro |
+| corrida de contas | duas execuções que convidam o mesmo e-mail novo: a segunda a criar a conta recebe `email-already-exists` e usa a da primeira (`FirebasePortalAccountService.createAccount`) |
+
+**O e-mail é outro, e é de propósito.** O convite da tela manda o link de acesso pelo navegador
+(`sendSignInLinkToEmail`, o e-mail do Firebase); o servidor não tem essa porta. O passo usa a porta única
+de avisos (`DispatchNotificationUseCase`, `audience: 'portal'`, só e-mail), que já leva o registro NO
+portal, no idioma do convite e com a cara do escritório — e o convidado entra pela página de acesso com
+aquele e-mail. Para isso `recipientIds` passou a ESTREITAR o público do portal (antes era ignorado): o
+aviso vai só para o convidado novo, e um uid que não vê o registro continua sem receber. Sem o e-mail do
+escritório configurado, o convite é feito, `emailed` sai `false` e o log da execução diz por quê. O idioma
+gravado no convite é o ESCOLHIDO pelo escritório; sem escolha, nenhum — vale o navegador do convidado.
+
+**Ligar `invites` não reprojeta nada.** `portalShape` (o que dispara a passada de reprojeção) ignora a
+chave: ela decide quem entra, não o que cada um vê — e uma passada desnecessária em toda coleção que chega
+ao sujeito é o custo de plataforma que a fila existe para conter.
+
+**O empacotamento** cobra `kernel ^PORTAL_AUTOMATION_INVITES_SINCE_KERNEL` (2.73.0) de quem usa os passos
+(`portalAccessIssues`) e recusa o convite para uma tela DO PRÓPRIO pacote que não declara `invites`
+(`issue.step.portal-invite.closed`). A instalação reescreve `subjectCollection` pela chave instalada, como
+a `collection` de `share-documents`. `examples/portal-example` credencia o Contato de um Cliente.
+
 ### A casca — `/portal`
 
 Fora da pilha de stores do espaço de trabalho, de propósito: o convidado não lê telas, perfis nem
@@ -1366,7 +1424,7 @@ registro de que o aviso fala (`target`), pela MESMA corrente da projeção:
 |---|---|
 | `makeResolvePortalGuestsUseCase` (`functions/src/domain/usecases/`) | `resolvePortalSubjectKeys` sobre o registro como está gravado, e então `audienceFor` + o convite de cada um. Não lê a projeção: o aviso de um registro recém-criado não espera ela existir, e o `audience` dela é refeito segundos depois de uma revogação — o convite, não |
 | `INotificationDirectory.guests` | o convidado como destinatário: sem preferências próprias (valem os padrões de canal do escritório), idioma do convite, e push nunca — o portal não tem onde ativá-lo |
-| `DispatchNotificationRequest.audience: 'portal'` | a porta única continua uma só: `recipientIds` e `recipientPermissions` não valem; o link do e-mail é `portalRecordPath` (`/portal/<escritório>/<coleção>?record=<id>`); o sino recebe `audience: 'portal'` e o texto JÁ resolvido no idioma do convidado — o portal não tem o catálogo de toda extensão instalada |
+| `DispatchNotificationRequest.audience: 'portal'` | a porta única continua uma só: `recipientPermissions` não vale, e `recipientIds` só ESTREITA quem vê o registro (o convite por automação avisa só o convidado novo); o link do e-mail é `portalRecordPath` (`/portal/<escritório>/<coleção>?record=<id>`); o sino recebe `audience: 'portal'` e o texto JÁ resolvido no idioma do convidado — o portal não tem o catálogo de toda extensão instalada |
 | a Auditoria | toda entrega a convidados grava `notifications.portal.audit` (quantos, qual registro, o título), independente de `toAudit`: aquele é o aviso AO escritório; este, o rastro do que saiu dele |
 
 **O passo.** `portalGuests` (Literal, `false` por padrão) e `portalRecord` (só `Event`). O registro é o
@@ -1417,6 +1475,7 @@ não há recusa no empacotamento. `examples/portal-example` avisa o cliente de u
 `presentation/pages/TenantSettings/PortalTab/` ·
 `functions/src/domain/usecases/{PortalProjectionUseCases,PortalReprojectionUseCases,PortalAccessUseCases}.ts` ·
 `functions/src/infrastructure/handlers/{portalProjection,portalAccess}.ts` ·
+`functions/src/infrastructure/workflow/steps/PortalAccessSteps.ts` · `functions/src/infrastructure/portal/portalAccessAudit.ts` ·
 `rules-tests/{portal,portalReprojections}.test.ts`
 
 ---

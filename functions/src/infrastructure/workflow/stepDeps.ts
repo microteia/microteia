@@ -9,6 +9,7 @@ import type { CreateAuditLogUseCase } from '../../domain/usecases/CreateAuditLog
 import type { DispatchNotificationUseCase } from '../../domain/usecases/DispatchNotificationUseCase';
 import type { RenderDocumentUseCase } from '../../domain/usecases/RenderDocumentUseCase';
 import type { ShareRecordDocumentsUseCase } from '../../domain/usecases/ShareRecordDocumentsUseCase';
+import type { PortalAccessStepServices } from './steps/PortalAccessSteps';
 import type { CallAIUseCase } from '../../domain/usecases/CallAIUseCase';
 import type { RunCalledWorkflowUseCase } from '../../domain/usecases/RunCalledWorkflowUseCase';
 
@@ -22,6 +23,7 @@ export interface RegisterStepsDeps {
   dispatchNotificationUseCase: DispatchNotificationUseCase;
   renderDocumentUseCase: RenderDocumentUseCase;
   shareRecordDocumentsUseCase: ShareRecordDocumentsUseCase;
+  portalAccess: PortalAccessStepServices;
   workflowQueryRepository: IWorkflowQueryRepository;
   workflowRecordFetcher: IWorkflowRecordFetcher;
   workflowMutationRepository: IWorkflowMutationRepository;

@@ -31,7 +31,9 @@ export type InputPickerKind =
   | 'permission'
   | 'document-template'
   | 'document-template-reference'
-  | 'documents-collection';
+  | 'documents-collection'
+  | 'portal-subject'
+  | 'portal-invite-subject';
 
 export interface InputDefinition {
   id: string;

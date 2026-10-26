@@ -1,12 +1,13 @@
 import type {
   IPortalAccountService,
+  IPortalInviteQuota,
   IPortalRepository,
   PortalFieldOption,
   PortalScreen,
 } from '../repositories/IPortalRepository';
 import { isLookupCollection } from '../schema/lookupRegistry';
 import { RESERVED_COLLECTIONS } from '../schema/screenEntity';
-import { invalidArgument, permissionDenied } from '../errors/DomainError';
+import { failedPrecondition, invalidArgument, permissionDenied } from '../errors/DomainError';
 import type { QualifiedContribution } from '../schema/plugin/contribution';
 import {
   applyPortalPreference,
@@ -19,8 +20,10 @@ import {
   type PortalViewDescriptor,
 } from '../schema/portalExtensionPoints';
 import {
+  acceptsAutomationInvites,
   buildPortalSubmission,
   normalizePortalEmail,
+  PORTAL_AUTOMATION_INVITES_PER_HOUR,
   buildPortalEdit,
   canPortalUserEdit,
   evaluatePortalCondition,
@@ -55,46 +58,117 @@ const guestSees = (
   && projection.audience.includes(guest.userId)
   && projection.subjectKeys.some((key) => guest.subjectKeys.includes(key));
 
+/**
+ * De onde veio o convite ou a revogação: a tela de Configurações › Portal, ou um passo de automação.
+ * É a ÚNICA diferença entre os dois caminhos — o convite gravado é o mesmo —, e é por isso que a
+ * automação tem as conferências a mais: a declaração da tela e o limite por hora.
+ */
+export type PortalAccessOrigin = 'settings' | 'automation';
+
+/** Quem responde pelo gesto na Auditoria: a pessoa, ou o motor (`userName` é então uma referência). */
+export interface PortalAccessActor {
+  userId: string;
+  userName: string;
+}
+
+/** Uma linha de Auditoria do acesso de alguém de fora — o rastro do que saiu do escritório, e de quando parou de sair. */
+export interface PortalAccessAuditEntry {
+  tenantId: string;
+  change: 'granted' | 'revoked';
+  email: string;
+  /** O sujeito; `null` quando o convite inteiro foi revogado. */
+  subjectKey: string | null;
+  actor: PortalAccessActor;
+  origin: PortalAccessOrigin;
+  workflowId?: string;
+}
+
+export type PortalAccessAudit = (entry: PortalAccessAuditEntry) => Promise<void>;
+
+export interface PortalAccessDeps {
+  repo: IPortalRepository;
+  accounts: IPortalAccountService;
+  audit: PortalAccessAudit;
+  quota: IPortalInviteQuota;
+  now: () => Date;
+}
+
 export interface InvitePortalUserInput {
   tenantId: string;
   tenantName: string;
   email: string;
   subjectKey: string;
-  invitedBy: string;
+  actor: PortalAccessActor;
+  /** Ausente, `settings`. */
+  origin?: PortalAccessOrigin;
+  workflowId?: string;
   /** O idioma em que quem convidou usa o produto. */
   locale?: string;
+  /** O nome que o escritório lista enquanto o convidado não informa o dele; sem ele, o da conta, ou o e-mail. */
+  displayName?: string;
+}
+
+export interface InvitePortalUserResult {
+  userId: string;
+  /** A conta de login nasceu agora. */
+  created: boolean;
+  /** O vínculo com o sujeito é NOVO — `false` é o convite que já existia. */
+  granted: boolean;
 }
 
 export type InvitePortalUserUseCase = {
-  execute: (input: InvitePortalUserInput) => Promise<{ userId: string; created: boolean }>;
+  execute: (input: InvitePortalUserInput) => Promise<InvitePortalUserResult>;
+};
+
+/** A auditoria é rastro, não condição: o acesso já foi dado (ou tirado), e isso não se desfaz. */
+const auditQuietly = async (audit: PortalAccessAudit, entry: PortalAccessAuditEntry): Promise<void> => {
+  try {
+    await audit(entry);
+  } catch {
+    // Ver acima.
+  }
 };
 
 /**
- * Vincula alguém de fora a um registro-sujeito.
+ * Vincula alguém de fora a um registro-sujeito — pela tela e pela automação, a MESMA porta.
  *
  * A ordem é o desenho inteiro. A conta, quando não existe, é criada AQUI — e criar a conta dispara o
  * bootstrap, que dá um escritório a todo usuário novo. Por isso a marca do convite é gravada ANTES:
  * é o que o bootstrap lê para saber que esta pessoa chegou pelo portal, e não para abrir um
  * escritório. Gravada depois, a marca perderia a corrida para o gatilho.
+ *
+ * A automação passa por duas portas a mais, ambas ANTES de qualquer escrita: a tela-sujeito tem de
+ * declarar `portal.invites.automation` (decisão de exposição, de quem tem `portal.manage`), e o
+ * convite novo consome uma vaga da hora (`PORTAL_AUTOMATION_INVITES_PER_HOUR`). O convite que já
+ * existe volta sem escrever nada — nem conta, nem vaga, nem auditoria: rodar duas vezes é rodar uma.
  */
-export const makeInvitePortalUserUseCase = (
-  repo: IPortalRepository,
-  accounts: IPortalAccountService,
-): InvitePortalUserUseCase => ({
-  execute: async ({ tenantId, tenantName, email, subjectKey, invitedBy, locale }) => {
+export const makeInvitePortalUserUseCase = (deps: PortalAccessDeps): InvitePortalUserUseCase => ({
+  execute: async ({ tenantId, tenantName, email, subjectKey, actor, origin = 'settings', workflowId, locale, displayName }) => {
+    const { repo, accounts } = deps;
     const normalized = normalizePortalEmail(email);
     if (!EMAIL_PATTERN.test(normalized)) throw invalidArgument('@core.tenant/portal.email.invalid');
 
     const screens = await repo.getScreens(tenantId);
     const subject = parsePortalSubjectKey(subjectKey);
-    if (!subject || !isValidPortalSubject(screens, subjectKey)) {
-      throw invalidArgument('@core.tenant/portal.subject.invalid');
+    const screen = subject ? isValidPortalSubject(screens, subjectKey) : undefined;
+    if (!subject || !screen) throw invalidArgument('@core.tenant/portal.subject.invalid');
+    if (origin === 'automation' && !acceptsAutomationInvites(screen)) {
+      throw permissionDenied('@core.tenant/portal.invite.automation-closed');
     }
     if (!(await repo.getRecord(tenantId, subject.collection, subject.recordId))) {
       throw invalidArgument('@core.tenant/portal.subject.invalid');
     }
 
+    const key = portalSubjectKey(subject.collection, subject.recordId);
     let account = await accounts.findUserIdByEmail(normalized);
+    if (origin === 'automation') {
+      const holder = account ? await repo.getPortalUser(tenantId, account.userId) : null;
+      if (account && holder?.subjectKeys.includes(key)) return { userId: account.userId, created: false, granted: false };
+      if (!(await deps.quota.consume(tenantId, PORTAL_AUTOMATION_INVITES_PER_HOUR, deps.now()))) {
+        throw failedPrecondition('@core.tenant/portal.invite.rate-limited');
+      }
+    }
+
     let created = false;
     if (!account) {
       await repo.markInvite(normalized, tenantId);
@@ -102,26 +176,76 @@ export const makeInvitePortalUserUseCase = (
       created = true;
     }
 
-    await repo.grantSubject(tenantId, {
+    const granted = await repo.grantSubject(tenantId, {
       userId: account.userId,
       email: normalized,
-      displayName: account.displayName ?? normalized,
+      displayName: displayName?.trim() || account.displayName || normalized,
       tenantName,
-      invitedBy,
+      invitedBy: actor.userId,
       ...(locale ? { locale } : {}),
-    }, portalSubjectKey(subject.collection, subject.recordId));
+    }, key);
 
-    return { userId: account.userId, created };
+    if (granted) {
+      await auditQuietly(deps.audit, {
+        tenantId, change: 'granted', email: normalized, subjectKey: key, actor, origin, ...(workflowId ? { workflowId } : {}),
+      });
+    }
+    return { userId: account.userId, created, granted };
   },
 });
 
+export interface RevokePortalUserInput {
+  tenantId: string;
+  /** O convidado, pelo uid (a tela, que o lista) ou pelo e-mail (a automação, que lê um registro). */
+  guest: { userId: string } | { email: string };
+  /**
+   * O sujeito revogado. `null`, o convite inteiro. Com `allSubjects`, o convite inteiro TAMBÉM — mas
+   * só se o convidado tiver este sujeito: a automação de um registro só alcança quem é dele.
+   */
+  subjectKey: string | null;
+  allSubjects?: boolean;
+  actor: PortalAccessActor;
+  origin?: PortalAccessOrigin;
+  workflowId?: string;
+}
+
 export type RevokePortalUserUseCase = {
-  execute: (tenantId: string, userId: string, subjectKey: string | null) => Promise<void>;
+  execute: (input: RevokePortalUserInput) => Promise<{ userId: string | null; revoked: boolean }>;
 };
 
-/** Sem `subjectKey`, revoga o convite inteiro; com ele, só aquele vínculo. */
-export const makeRevokePortalUserUseCase = (repo: IPortalRepository): RevokePortalUserUseCase => ({
-  execute: (tenantId, userId, subjectKey) => repo.revokeSubject(tenantId, userId, subjectKey),
+/**
+ * Tira o acesso. Não pede a declaração `portal.invites`: recolher nunca expõe nada. Quem não é
+ * convidado, ou não tinha aquele sujeito, volta `revoked: false` sem escrever — e sem dizer mais:
+ * a automação não é um jeito de descobrir quem tem acesso a quê.
+ */
+export const makeRevokePortalUserUseCase = (deps: Pick<PortalAccessDeps, 'repo' | 'accounts' | 'audit'>): RevokePortalUserUseCase => ({
+  execute: async ({ tenantId, guest, subjectKey, allSubjects = false, actor, origin = 'settings', workflowId }) => {
+    const { repo } = deps;
+    let userId: string;
+    if ('userId' in guest) {
+      userId = guest.userId;
+    } else {
+      const normalized = normalizePortalEmail(guest.email);
+      if (!EMAIL_PATTERN.test(normalized)) throw invalidArgument('@core.tenant/portal.email.invalid');
+      const account = await deps.accounts.findUserIdByEmail(normalized);
+      if (!account) return { userId: null, revoked: false };
+      userId = account.userId;
+    }
+    if (subjectKey !== null && !parsePortalSubjectKey(subjectKey)) throw invalidArgument('@core.tenant/portal.subject.invalid');
+
+    const current = await repo.getPortalUser(tenantId, userId);
+    if (!current) return { userId, revoked: false };
+    if (allSubjects && subjectKey !== null && !current.subjectKeys.includes(subjectKey)) return { userId, revoked: false };
+
+    const target = allSubjects ? null : subjectKey;
+    const revoked = await repo.revokeSubject(tenantId, userId, target);
+    if (revoked) {
+      await auditQuietly(deps.audit, {
+        tenantId, change: 'revoked', email: current.email, subjectKey: target, actor, origin, ...(workflowId ? { workflowId } : {}),
+      });
+    }
+    return { userId, revoked };
+  },
 });
 
 export type GetPortalDocumentUrlUseCase = {

@@ -66,6 +66,9 @@ export const PORTAL_DOCUMENT_SHARING_SINCE_KERNEL = '2.70.0';
 
 export const SHARE_DOCUMENTS_STEP_ID = 'share-documents';
 
+export const PORTAL_INVITE_STEP_ID = 'portal-invite';
+export const PORTAL_REVOKE_STEP_ID = 'portal-revoke';
+
 export type InputPickerKind =
   | 'workflow'
   | 'script'
@@ -73,7 +76,9 @@ export type InputPickerKind =
   | 'permission'
   | 'document-template'
   | 'document-template-reference'
-  | 'documents-collection';
+  | 'documents-collection'
+  | 'portal-subject'
+  | 'portal-invite-subject';
 
 export interface InputDefinition {
   id: string;
@@ -1035,6 +1040,117 @@ export const CORE_STEP_CATALOG: readonly WorkflowStepMetadata[] = [
       { id: 'matched', label: '@core.automation/step.share-documents.output.matched', type: 'Number' },
       { id: 'changed', label: '@core.automation/step.share-documents.output.changed', type: 'Number' },
       { id: 'shared', label: '@core.automation/step.share-documents.output.shared', type: 'Boolean' },
+    ],
+  },
+  {
+    /**
+     * Convidar alguém de fora para um registro-sujeito do portal — o mesmo convite de Configurações ›
+     * Portal (a mesma conta, a mesma marca, o mesmo vínculo), feito pelo fluxo que valida o registro
+     * do representante. Só nas telas que declaram `portal.invites.automation`. Idempotente por
+     * (e-mail, sujeito): o convite que já existe não é refeito, não conta no limite por hora e não
+     * manda outro e-mail.
+     */
+    id: PORTAL_INVITE_STEP_ID,
+    version: 1,
+    name: '@core.automation/step.portal-invite.name',
+    description: '@core.automation/step.portal-invite.description',
+    icon: 'RiUserAddLine',
+    category: 'Data',
+    type: 'Action',
+    configurable: true,
+    inputs: [
+      {
+        id: 'subjectCollection',
+        label: '@core.automation/step.portal-access.label.subject-collection',
+        description: '@core.automation/step.portal-invite.help.subject-collection',
+        required: true,
+        type: 'String',
+        allowedMappingKinds: ['Literal'],
+        picker: 'portal-invite-subject',
+      },
+      {
+        id: 'subjectRecordId',
+        label: '@core.automation/step.portal-access.label.subject-record',
+        required: true,
+        type: 'String',
+      },
+      {
+        id: 'email',
+        label: '@core.automation/step.portal-access.label.email',
+        required: true,
+        type: 'String',
+      },
+      {
+        id: 'displayName',
+        label: '@core.automation/step.portal-invite.label.display-name',
+        description: '@core.automation/step.portal-invite.help.display-name',
+        required: false,
+        type: 'String',
+      },
+      {
+        id: 'sendEmail',
+        label: '@core.automation/step.portal-invite.label.send-email',
+        description: '@core.automation/step.portal-invite.help.send-email',
+        required: false,
+        type: 'Boolean',
+        defaultValue: true,
+      },
+    ],
+    outputDefinitions: [
+      { id: 'guestId', label: '@core.automation/step.portal-access.output.guest-id', type: 'String' },
+      { id: 'created', label: '@core.automation/step.portal-invite.output.created', type: 'Boolean' },
+      { id: 'granted', label: '@core.automation/step.portal-invite.output.granted', type: 'Boolean' },
+      { id: 'emailed', label: '@core.automation/step.portal-invite.output.emailed', type: 'Boolean' },
+    ],
+  },
+  {
+    /**
+     * Tirar de um convidado o acesso a um registro-sujeito — ou, com `allSubjects`, o convite inteiro,
+     * desde que ele tenha aquele sujeito. Vale no instante, como em Configurações › Portal. Recolher
+     * não pede a declaração `portal.invites`: tirar acesso nunca expõe nada.
+     */
+    id: PORTAL_REVOKE_STEP_ID,
+    version: 1,
+    name: '@core.automation/step.portal-revoke.name',
+    description: '@core.automation/step.portal-revoke.description',
+    icon: 'RiUserUnfollowLine',
+    category: 'Data',
+    type: 'Action',
+    configurable: true,
+    inputs: [
+      {
+        id: 'subjectCollection',
+        label: '@core.automation/step.portal-access.label.subject-collection',
+        description: '@core.automation/step.portal-revoke.help.subject-collection',
+        required: true,
+        type: 'String',
+        allowedMappingKinds: ['Literal'],
+        picker: 'portal-subject',
+      },
+      {
+        id: 'subjectRecordId',
+        label: '@core.automation/step.portal-access.label.subject-record',
+        required: true,
+        type: 'String',
+      },
+      {
+        id: 'email',
+        label: '@core.automation/step.portal-access.label.email',
+        required: true,
+        type: 'String',
+      },
+      {
+        id: 'allSubjects',
+        label: '@core.automation/step.portal-revoke.label.all-subjects',
+        description: '@core.automation/step.portal-revoke.help.all-subjects',
+        required: false,
+        type: 'Boolean',
+        defaultValue: false,
+      },
+    ],
+    outputDefinitions: [
+      { id: 'guestId', label: '@core.automation/step.portal-access.output.guest-id', type: 'String' },
+      { id: 'revoked', label: '@core.automation/step.portal-revoke.output.revoked', type: 'Boolean' },
     ],
   },
 ];

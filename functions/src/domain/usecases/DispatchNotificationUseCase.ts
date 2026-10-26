@@ -61,8 +61,9 @@ export interface DispatchNotificationRequest {
   dedupKey?: string;
   channels: Record<NotificationChannel, boolean>;
   /**
-   * `portal`: recebem os convidados do portal que veem `target` — e só eles; `recipientIds` e
-   * `recipientPermissions` não valem. Ausente, os membros.
+   * `portal`: recebem os convidados do portal que veem `target` — e só eles; `recipientPermissions`
+   * não vale, e `recipientIds`, quando vem, ESTREITA esse conjunto (o convite novo avisa só quem foi
+   * convidado), nunca o alarga: um uid que não vê o registro continua sem receber. Ausente, os membros.
    */
   audience?: NotificationAudience;
   recipientIds: readonly string[];
@@ -175,13 +176,15 @@ export const makeDispatchNotificationUseCase = (deps: DispatchNotificationDeps):
       issues.push({ message: '@core.automation/step.notify.portal.not-in-portal' });
       return [];
     }
-    if (seen.guests.length > NOTIFICATION_MAX_RECIPIENTS) {
+    const only = new Set(request.recipientIds);
+    const guests = only.size > 0 ? seen.guests.filter((guest) => only.has(guest.userId)) : seen.guests;
+    if (guests.length > NOTIFICATION_MAX_RECIPIENTS) {
       issues.push({
         message: '@core.automation/step.notify.recipients.truncated',
         params: { max: String(NOTIFICATION_MAX_RECIPIENTS) },
       });
     }
-    return deps.directory.guests(request.tenantId, seen.guests.slice(0, NOTIFICATION_MAX_RECIPIENTS));
+    return deps.directory.guests(request.tenantId, guests.slice(0, NOTIFICATION_MAX_RECIPIENTS));
   };
 
   const recipientsOf = async (request: DispatchNotificationRequest, issues: DispatchIssue[]): Promise<NotificationRecipient[]> => {

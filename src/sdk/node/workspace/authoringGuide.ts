@@ -30,6 +30,8 @@ import { BUSINESS_CALENDAR_FIELDS } from '../../../domain/schema/time/businessDa
 import { BUSINESS_CALENDAR_POINT } from '../../../domain/schema/time/extensionPoints';
 import { ARTIFACT_PREFIX_SINCE_KERNEL } from '../../../domain/schema/plugin/artifactPrefix';
 import {
+  PORTAL_AUTOMATION_INVITES_PER_HOUR,
+  PORTAL_AUTOMATION_INVITES_SINCE_KERNEL,
   PORTAL_GUEST_NOTIFY_SINCE_KERNEL,
   PORTAL_LINK_BY_COLLECTION_SINCE_KERNEL,
   PORTAL_VISIBLE_WHEN_SINCE_KERNEL,
@@ -313,6 +315,8 @@ const STEP_CATALOG_NOTES: Record<string, string> = {
   remove: 'Deletes one record.',
   'render-document': 'Fills a document template (`document.template`, or the organization\'s own on the same key) with a record and attaches the PDF or Word file to its Documents tab. The template names the screen; `recordId` must be a record of it. `portalShared: true` attaches it already shared with the portal (see "Sharing documents with the portal" in section 10). Publishes `documentId`, `name`, `url`, `format` and `emptyFields`.',
   'share-documents': 'Shares the documents a record already has with the portal guests who can see that record (`shared: true`, the default), or stops sharing them (`false`). `collection` and `recordId` name the record; `documentId` narrows it to one document — one not attached to that record fails the step — and `documentType` to one type. Idempotent. Publishes `matched`, `changed` and `shared`.',
+  'portal-invite': 'Invites `email` to the portal, to the record `subjectRecordId` of `subjectCollection` — the same invitation as Settings › Portal. Only on a screen declaring `portal: { subject: \'self\', invites: { automation: true } }`. Idempotent per e-mail and record; `sendEmail` (on by default) sends the welcome e-mail only to whoever was just invited. Publishes `guestId`, `created`, `granted` and `emailed` (see "Inviting to the portal" in section 10).',
+  'portal-revoke': 'Removes the access of `email` to the record `subjectRecordId` of `subjectCollection` in the portal, at once — with `allSubjects`, the whole invitation, if they have that record. Someone without access changes nothing. Publishes `guestId` and `revoked`.',
 };
 
 const excludedStepList = (steps: readonly WorkflowStepMetadata[], eventName: string): string => steps
@@ -762,8 +766,24 @@ are found by the collection too.
 Requires \`kernel: "^${PORTAL_LINK_BY_COLLECTION_SINCE_KERNEL}"\`. An older kernel stops at the bare screen,
 and the records behind that link reach nobody.
 
-\`examples/portal-example\` has the declarations on four screens — one of them over a \`dataCollection\` —,
-a \`detail\` page and a home card.
+#### Who lets a guest in — \`invites\`
+
+A guest is invited to a record of the \`'self'\` screen by someone with \`portal.manage\`, in Settings >
+Portal. When the invitation should follow a record of yours instead — the representative whose
+registration was approved, the patient who confirmed the first appointment —, the screen opens that door
+to automations:
+
+\`\`\`ts
+portal: { subject: 'self', fields: ['name'], invites: { automation: true } }
+\`\`\`
+
+Then the \`portal-invite\` and \`portal-revoke\` steps (section 10) may give and remove access to its records.
+Only the \`'self'\` screen takes it. It is a decision about what leaves the organization, so it lives in the
+declaration — which only someone with \`portal.manage\`, or whoever installs your package, writes — and not
+in who happens to trigger the flow. Requires \`kernel: "^${PORTAL_AUTOMATION_INVITES_SINCE_KERNEL}"\`.
+
+\`examples/portal-example\` has the declarations on five screens — one of them over a \`dataCollection\` —,
+a \`detail\` page, a home card, and the contacts of a client invited by a workflow.
 
 ### Settings whose options are the organization's data
 
@@ -1719,7 +1739,7 @@ stay editable forever, so \`check\` refuses the package instead.
 | \`memberWritableFields\` | fields ANY member may write on a record someone else created — the door for per-person state (read, liked, saved) that the default permission would close |
 | \`authorCanDelete\` | whoever created the record deletes it, without an administrator |
 | \`editWindow\` | how long after creation the record may still be changed — and, with \`delete: true\`, deleted. Its documents freeze with it. Enforced by the security rules, not only the form; see "Edit window" above |
-| \`portal\` | what an outside guest sees: \`subject\` (\`'self'\` for the screen whose records receive guests, \`{ field }\` for a reference that leads to it, \`'parent'\` to inherit from the parent), the \`fields\` that leave the organization — nothing else does — and \`documents\` to expose the documents someone marked as shared. \`visibleWhen\` is a field expression on the WHOLE record that decides which records leave (\`type == "revenue"\`) — false or invalid, the record is not in the portal, and neither is anything that reaches the guest through it; requires \`kernel: "^${PORTAL_VISIBLE_WHEN_SINCE_KERNEL}"\`. \`create: { fields }\` lets the guest create records, filling only those fields — the link to the subject is set by the server from what the guest already sees, never from what they send; it is refused on the \`'self'\` screen. \`uploads: { types }\` lets the guest ATTACH documents — choosing one of those types (none listed = any the organization has), never creating one, and never deleting; it requires \`documents\`. \`edit: { fields, when?, onlyOwn? }\` lets the guest CHANGE records: only those fields, and only fields that are also in \`fields\` (a guest never overwrites what they cannot see); never the link to the subject; \`when\` is a field expression on the WHOLE record (\`status == "draft"\`) checked by the server on every change — invalid means closed —, and \`onlyOwn\` limits it to records the guest created in the portal |
+| \`portal\` | what an outside guest sees: \`subject\` (\`'self'\` for the screen whose records receive guests, \`{ field }\` for a reference that leads to it, \`'parent'\` to inherit from the parent), the \`fields\` that leave the organization — nothing else does — and \`documents\` to expose the documents someone marked as shared. \`visibleWhen\` is a field expression on the WHOLE record that decides which records leave (\`type == "revenue"\`) — false or invalid, the record is not in the portal, and neither is anything that reaches the guest through it; requires \`kernel: "^${PORTAL_VISIBLE_WHEN_SINCE_KERNEL}"\`. \`create: { fields }\` lets the guest create records, filling only those fields — the link to the subject is set by the server from what the guest already sees, never from what they send; it is refused on the \`'self'\` screen. \`uploads: { types }\` lets the guest ATTACH documents — choosing one of those types (none listed = any the organization has), never creating one, and never deleting; it requires \`documents\`. \`edit: { fields, when?, onlyOwn? }\` lets the guest CHANGE records: only those fields, and only fields that are also in \`fields\` (a guest never overwrites what they cannot see); never the link to the subject; \`when\` is a field expression on the WHOLE record (\`status == "draft"\`) checked by the server on every change — invalid means closed —, and \`onlyOwn\` limits it to records the guest created in the portal. \`invites: { automation: true }\`, on the \`'self'\` screen only, lets workflows invite guests to its records with \`portal-invite\` (section 10) |
 | \`auditActions\` | which actions are audited. Absent = all. Declare it when a machine writes the collection, or the audit log drowns in one entry per ingested document |
 
 ### Option lists
@@ -2285,6 +2305,52 @@ Documents tab, and the one a guest's own upload is born with. An automation sets
   prefix of the record's screen, for every screen that shows the tab (kernel
   \`^${CHILD_RECORD_EVENTS_SINCE_KERNEL}\`). The payload is the note or the document, plus \`parentId\`,
   \`parentType\` and \`parent\` (the id and the title field of the record).
+
+### Inviting to the portal
+
+\`portal-invite\` gives someone from outside access to a record of a \`'self'\` screen — the SAME invitation
+Settings > Portal makes: the same account, the same link to the record, the same list in Settings. It is how
+the invitation follows a record you validate, instead of someone typing it in later. \`portal-revoke\`
+takes it back. Both require \`kernel: "^${PORTAL_AUTOMATION_INVITES_SINCE_KERNEL}"\`.
+
+\`\`\`ts
+{
+  id: 'inviteContact',
+  stepDefinitionId: 'portal-invite',
+  type: 'Action',
+  order: 0,
+  enabled: true,
+  configuration: {
+    subjectCollection: { kind: 'Literal', value: 'clients' },
+    subjectRecordId: { kind: 'Event', path: 'client' },
+    email: { kind: 'Event', path: 'email' },
+    displayName: { kind: 'Event', path: 'name' },
+  },
+}
+\`\`\`
+
+- **The screen opens the door.** \`subjectCollection\` must be a screen with
+  \`portal: { subject: 'self', ..., invites: { automation: true } }\` (section 4). Any other fails the step,
+  and the package gate refuses an invitation to a screen of your own package that does not declare it.
+  Removing access needs no declaration — taking access away never exposes anything.
+- **Who triggered the flow does not matter.** No permission of the person who pressed the button is
+  asked: the organization decided, in the declaration, that this screen accepts invitations. The person
+  — or the automation, when nobody triggered it — is who the Audit trail names.
+- **Run it as often as you like.** The same e-mail and record twice is one invitation: nothing is written,
+  no second e-mail goes out, and \`granted\` is \`false\`. So it is safe on \`.saved\`.
+- **The welcome e-mail** (\`sendEmail\`, on by default) goes only to whoever was JUST invited, by the
+  organization's e-mail, in the organization's language, with the link to the record in the portal; the
+  guest signs in there with that address. Without the organization's e-mail set up, the invitation is
+  made anyway, \`emailed\` is \`false\` and the run's log says why.
+- **Limits.** At most ${PORTAL_AUTOMATION_INVITES_PER_HOUR} NEW invitations per organization per hour, all
+  automations together; past it, the step fails with a named error and the run can be repeated later. An
+  invalid e-mail fails the step too. A limit of your own — five representatives per company — belongs to
+  the record you validate (a key, a rule), so the invitation only follows records that passed it.
+- **\`portal-revoke\`** removes that record from the guest's access at once; with \`allSubjects: true\`, the
+  whole invitation — but only of someone who has that record. Someone without access is \`revoked: false\`,
+  not an error. Revoke on \`.deleted\` too: a deleted record does not take its guests with it.
+- **The proof.** Every new invitation and every removal is an Audit trail entry: who, which record, and
+  that it came from an automation.
 
 ### Waiting inside a workflow — the \`delay\` step
 

@@ -42,6 +42,7 @@ export interface ScreenPortalPanelProps {
   onEditWhen: (expression: string) => void;
   onToggleEditOnlyOwn: (onlyOwn: boolean) => void;
   onToggleNotifyOffice: (notify: boolean) => void;
+  onToggleAutomationInvites: (allowed: boolean) => void;
 }
 
 /** A aba "Portal" da tela: o que sai do escritório, e para quem. Só desenha o que recebe. */
@@ -233,6 +234,18 @@ export const ScreenPortalPanel: React.FC<ScreenPortalPanelProps> = (props) => {
               disabled={readOnly}
             />
             <S.Hint>{t('portal.notify.hint')}</S.Hint>
+          </S.Section>
+
+          <S.Section>
+            <Checkbox
+              checked={form.automationInvites && form.subjectKind === 'self'}
+              onChange={props.onToggleAutomationInvites}
+              label={t('portal.invites.automation')}
+              disabled={readOnly || form.subjectKind !== 'self'}
+            />
+            <S.Hint>
+              {form.subjectKind === 'self' ? t('portal.invites.automation.hint') : t('portal.invites.automation.self-only')}
+            </S.Hint>
           </S.Section>
 
           {props.issues.length > 0 && (

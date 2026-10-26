@@ -11,8 +11,11 @@ import {
   isPausingStepDefinition,
   isStepExcludedFromTrigger,
   PORTAL_DOCUMENT_SHARING_SINCE_KERNEL,
+  PORTAL_INVITE_STEP_ID,
+  PORTAL_REVOKE_STEP_ID,
   SHARE_DOCUMENTS_STEP_ID,
 } from '../../schema/workflowStepCatalog';
+import { PORTAL_AUTOMATION_INVITES_SINCE_KERNEL, acceptsAutomationInvites, asPortalDeclaration } from '../../schema/portal';
 import { CHILD_RECORD_EVENTS_SINCE_KERNEL, splitChildRecordEventName } from '../../schema/eventCatalog';
 import { WORKFLOW_AUDIT_EVENT, WORKFLOW_AUDIT_SINCE_KERNEL } from '../../schema/workflowAuditTrigger';
 import type { PackageRef, PackageValidationIssue } from './pluginReferences';
@@ -282,6 +285,7 @@ const workflowIssues = (
     ...auditTriggerIssues(workflow, ref, pkg),
     ...childEventKernelIssues(workflow, ref, pkg),
     ...portalSharingKernelIssues(steps, ref, pkg),
+    ...portalAccessIssues(steps, ref, pkg),
     ...excludedStepIssues(workflow, steps, ref),
     ...delayIssues(workflow, steps, ref, pkg),
     ...steps.flatMap((step) => stepIssues(step, ref, hasDependencies)),
@@ -324,6 +328,44 @@ const portalSharingKernelIssues = (
       return [{ ref, message: '@core.marketplace/issue.step.input-kernel', messageParams: { step: step.id, input: 'portalShared', minimum } }];
     }
     return [];
+  });
+};
+
+/**
+ * Os passos de acesso ao portal. Num pacote que admite kernel anterior, o passo reprovaria por ser
+ * desconhecido. E o convite para uma tela DO PRÓPRIO pacote que não declara `portal.invites` reprovaria
+ * em toda execução: é o defeito que só o empacotamento enxerga a tempo — a tela de uma dependência, ou
+ * do escritório, não está aqui para ser lida.
+ */
+const portalAccessIssues = (
+  steps: WorkflowStep[],
+  ref: PackageRef,
+  pkg: MarketplacePlugin,
+): PackageValidationIssue[] => {
+  const kernelCovered = rangeExcludesBelow(pkg.manifest?.kernel ?? '', PORTAL_AUTOMATION_INVITES_SINCE_KERNEL);
+  return steps.flatMap((step): PackageValidationIssue[] => {
+    const definition = step.stepDefinitionId;
+    if (definition !== PORTAL_INVITE_STEP_ID && definition !== PORTAL_REVOKE_STEP_ID) return [];
+    const issues: PackageValidationIssue[] = kernelCovered ? [] : [{
+      ref,
+      message: '@core.marketplace/issue.step.definition-kernel',
+      messageParams: { step: step.id, definition, minimum: PORTAL_AUTOMATION_INVITES_SINCE_KERNEL },
+    }];
+    const collection = step.configuration?.subjectCollection;
+    if (definition !== PORTAL_INVITE_STEP_ID || collection?.kind !== 'Literal' || typeof collection.value !== 'string') return issues;
+    const screen = (pkg.screens ?? []).find((candidate) => (candidate.dataCollection ?? candidate.key) === collection.value);
+    if (!screen) return issues;
+    const subject = {
+      id: screen.key,
+      collection: collection.value,
+      fields: screen.fields,
+      portal: asPortalDeclaration(screen.portal),
+    };
+    return acceptsAutomationInvites(subject) ? issues : [...issues, {
+      ref,
+      message: '@core.marketplace/issue.step.portal-invite.closed',
+      messageParams: { step: step.id, screen: screen.key },
+    }];
   });
 };
 

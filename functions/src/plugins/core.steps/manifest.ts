@@ -16,6 +16,7 @@ import { makeRegisterAuditStepDefinition } from '../../infrastructure/workflow/s
 import { makeSetVariableStepDefinition } from '../../infrastructure/workflow/steps/SetVariableStep';
 import { makeRenderDocumentStepDefinition } from '../../infrastructure/workflow/steps/RenderDocumentStep';
 import { makeShareDocumentsStepDefinition } from '../../infrastructure/workflow/steps/ShareDocumentsStep';
+import { makePortalInviteStepDefinition, makePortalRevokeStepDefinition } from '../../infrastructure/workflow/steps/PortalAccessSteps';
 
 const factories: Record<string, StepFactory> = {
   Notify: (deps) => makeNotifyStepDefinition(deps.dispatchNotificationUseCase, deps.screenDefinitionProvider),
@@ -38,6 +39,8 @@ const factories: Record<string, StepFactory> = {
   Remove: (deps) => makeRemoveStepDefinition(mutationDepsOf(deps)),
   RenderDocument: (deps) => makeRenderDocumentStepDefinition(deps.renderDocumentUseCase),
   ShareDocuments: (deps) => makeShareDocumentsStepDefinition(deps.shareRecordDocumentsUseCase),
+  PortalInvite: (deps) => makePortalInviteStepDefinition(deps.portalAccess),
+  PortalRevoke: (deps) => makePortalRevokeStepDefinition(deps.portalAccess),
 };
 
 export const coreStepsPlugin: PluginRecord = {
@@ -64,6 +67,8 @@ export const coreStepsPlugin: PluginRecord = {
       workflowStep({ stepDefinitionId: 'remove', name: '@core.automation/step.remove.name', category: 'Data' }, 'Remove'),
       workflowStep({ stepDefinitionId: 'render-document', name: '@core.automation/step.render-document.name', category: 'Data' }, 'RenderDocument'),
       workflowStep({ stepDefinitionId: 'share-documents', name: '@core.automation/step.share-documents.name', category: 'Data' }, 'ShareDocuments'),
+      workflowStep({ stepDefinitionId: 'portal-invite', name: '@core.automation/step.portal-invite.name', category: 'Data' }, 'PortalInvite'),
+      workflowStep({ stepDefinitionId: 'portal-revoke', name: '@core.automation/step.portal-revoke.name', category: 'Data' }, 'PortalRevoke'),
     ],
   },
 };
