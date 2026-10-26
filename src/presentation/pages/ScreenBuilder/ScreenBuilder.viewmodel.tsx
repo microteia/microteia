@@ -76,6 +76,17 @@ import type { EntityKey } from '../../../domain/schema/entityRegistry';
 import { ENTITY_REGISTRY, ENTITY_REGISTRY_LIST, getEntityByCollection } from '../../../domain/schema/entityRegistry';
 import type { WorkflowVariable } from '../../components/ui/ExpressionEditor/autocompleteHelpers';
 import type { SearchSelectOption } from '../../components/ui/SearchSelect';
+import type { RecordSequenceIssueCode } from '../../../domain/schema/recordSequence';
+import { isSequenceField } from '../../../domain/schema/recordSequence';
+import type { FieldSequenceFormState } from './components/FieldSequencePanel/fieldSequenceForm';
+import {
+  EMPTY_FIELD_SEQUENCE_FORM,
+  fieldSequenceFormIssue,
+  fieldSequencePreview,
+  fieldTypeSupportsSequence,
+  fromFieldSequenceForm,
+  toFieldSequenceForm,
+} from './components/FieldSequencePanel/fieldSequenceForm';
 import type { ColorSwatchOption } from '../../components/ui/ColorSwatchPicker';
 
 import { useLabel, useT, type TranslateFn } from '../../shared/i18n/useT';
@@ -275,6 +286,35 @@ export interface FieldFormState {
   fileExtensions: string;
   /** Tamanho máximo em MB, como texto: vazio é "usa o limite", e `0` não é vazio. */
   fileMaxSizeMb: string;
+  /** A numeração do campo (`autoValue.sequence`). */
+  sequence: FieldSequenceFormState;
+}
+
+/**
+ * Só o que o formulário consegue produzir tem frase própria; o resto (forma, tipo, campo aninhado) só
+ * chega por pacote ou documento editado à mão, e cai na recusa genérica.
+ */
+const SEQUENCE_ISSUE_KEYS: Record<RecordSequenceIssueCode, string> = {
+  shape: 'field.sequence.error.invalid',
+  scope: 'field.sequence.error.invalid',
+  reset: 'field.sequence.error.invalid',
+  nested: 'field.sequence.error.invalid',
+  'field-type': 'field.sequence.error.invalid',
+  'pattern-slot': 'field.sequence.error.pattern-slot',
+  'pattern-numeric': 'field.sequence.error.invalid',
+  'pattern-year': 'field.sequence.error.pattern-year',
+  'scope-needs-parent': 'field.sequence.error.scope-needs-parent',
+};
+
+/** O que a seção "Numeração" do campo precisa para se desenhar. */
+export interface FieldSequencePanelState {
+  /** O campo já numera: a configuração gravada não muda mais. */
+  locked: boolean;
+  numeric: boolean;
+  hasParent: boolean;
+  preview: string;
+  scopeOptions: SearchSelectOption[];
+  resetOptions: SearchSelectOption[];
 }
 
 const MEMBER_VISIBILITY_ISSUE_KEYS: Record<MemberVisibilityFormIssue, string> = {
@@ -406,6 +446,10 @@ export interface ScreenBuilderViewModel {
   fieldSupportsFilter: boolean;
   /** O campo pode ser chave? Ver `fieldSupportsUnique` — derivado e arquivo não podem. */
   fieldSupportsUnique: boolean;
+  /** O campo pode ser numerado pelo sistema? Só `text` e `number` gravados pela pessoa. */
+  fieldSupportsSequence: boolean;
+  sequencePanel: FieldSequencePanelState;
+  updateFieldSequence: (patch: Partial<FieldSequenceFormState>) => void;
   /** Campos de arquivo oferecidos como imagem do registro. Só o vazio = a tela não tem nenhum. */
   imageFieldOptions: SearchSelectOption[];
   /** O teto de tamanho de arquivo, para o placeholder e a dica. */
@@ -549,6 +593,7 @@ const EMPTY_FIELD_FORM: FieldFormState = {
   aggregationOrderBy: [],
   fileExtensions: '',
   fileMaxSizeMb: '',
+  sequence: EMPTY_FIELD_SEQUENCE_FORM,
 };
 
 export const RULES_SUPPORTED_FIELD_TYPES: CustomFieldType[] = [
@@ -1842,6 +1887,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       ...fieldLogicToForm(field.logic),
       ...fieldAggregationToForm(field.aggregation),
       ...fieldFileToForm(field.file),
+      sequence: toFieldSequenceForm(field.autoValue),
     });
     setFieldModal({ screenKey, fieldKey });
   }, [defaultTagColor, resolvedField]);
@@ -1894,6 +1940,52 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
   const fieldSupportsUnique = fieldForm.type !== 'file'
     && !fieldForm.logicDerive.trim()
     && !(fieldForm.aggregationFrom.trim() && fieldForm.aggregationVia.trim());
+
+  /**
+   * O número é do sistema, e um campo cujo valor vem de outro lugar — calculado, derivado, agregado —
+   * não pode ser numerado ao mesmo tempo: as duas origens disputariam o mesmo valor.
+   */
+  const fieldSupportsSequence = fieldTypeSupportsSequence(fieldForm.type)
+    && !fieldForm.logicCompute.trim()
+    && !fieldForm.logicDerive.trim()
+    && !(fieldForm.aggregationFrom.trim() && fieldForm.aggregationVia.trim());
+
+  /**
+   * A numeração GRAVADA não muda pelo Form Design. Mudar o formato, o recomeço ou o escopo depois de
+   * números emitidos poderia emitir de novo um valor que já existe (`2026/000001` contado por ano e
+   * depois contado para sempre recomeça do 1). Numerar de outro jeito é outro campo.
+   */
+  const sequenceLocked = useMemo(() => {
+    if (!fieldModal?.fieldKey) return false;
+    const saved = resolvedField(fieldModal.screenKey, fieldModal.fieldKey);
+    return saved !== undefined && isSequenceField(saved);
+  }, [fieldModal, resolvedField]);
+
+  const sequenceHasParent = useMemo(
+    () => !!(fieldModal && getDefinitionByKey(fieldModal.screenKey)?.parentFieldKey),
+    [fieldModal, getDefinitionByKey],
+  );
+
+  const [sequenceExampleYear] = useState(() => new Date().getFullYear());
+
+  const sequencePanel = useMemo<FieldSequencePanelState>(() => ({
+    locked: sequenceLocked,
+    numeric: fieldForm.type === 'number',
+    hasParent: sequenceHasParent,
+    preview: fieldSequencePreview(fieldForm.sequence, fieldForm.type, sequenceExampleYear),
+    scopeOptions: [
+      { value: 'tenant', label: t('field.sequence.scope.tenant') },
+      { value: 'parent', label: t('field.sequence.scope.parent') },
+    ],
+    resetOptions: [
+      { value: 'year', label: t('field.sequence.reset.year') },
+      { value: 'never', label: t('field.sequence.reset.never') },
+    ],
+  }), [sequenceLocked, sequenceHasParent, fieldForm.sequence, fieldForm.type, sequenceExampleYear, t]);
+
+  const updateFieldSequence = useCallback((patch: Partial<FieldSequenceFormState>) => {
+    setFieldForm((prev) => ({ ...prev, sequence: { ...prev.sequence, ...patch } }));
+  }, []);
 
   /**
    * As telas que um campo de referência pode apontar. O valor é a COLEÇÃO, nunca a chave da tela: é
@@ -2315,6 +2407,17 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     // é avaliado na leitura e nunca gravado —, e a reserva ficaria órfã na leitura seguinte. O valor
     // é zerado no dado, e não só escondido: o campo pode ter virado derivado depois de marcado.
     const unique = fieldSupportsUnique ? fieldForm.unique : false;
+    // A numeração só é escrita quando a pessoa a liga agora. A já gravada viaja como está (o campo é
+    // espalhado), e o `autoValue` de sorteio que uma extensão declarou não é tocado.
+    let sequenceChange: { autoValue?: ReturnType<typeof fromFieldSequenceForm> } = {};
+    if (!sequenceLocked && fieldSupportsSequence && fieldForm.sequence.enabled) {
+      const issue = fieldSequenceFormIssue(fieldForm.sequence, fieldForm.type, sequenceHasParent);
+      if (issue) {
+        reject('general', t(SEQUENCE_ISSUE_KEYS[issue]));
+        return;
+      }
+      sequenceChange = { autoValue: fromFieldSequenceForm(fieldForm.sequence, fieldForm.type) };
+    }
     setSavingField(true);
     try {
       const existing = getDefinitionByKey(fieldModal.screenKey);
@@ -2355,6 +2458,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
             logic,
             aggregation,
             file,
+            ...sequenceChange,
           };
         });
       } else {
@@ -2393,6 +2497,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
           aggregation,
           logic,
           file,
+          ...sequenceChange,
         }];
       }
       // A declaração vem ANTES do campo: é ela que as Security Rules consultam para autorizar a
@@ -2408,7 +2513,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     } finally {
       setSavingField(false);
     }
-  }, [artifactPrefix, fieldModal, fieldForm, fieldModalIsTitleField, fieldSupportsUnique, getDefinitionByKey, saveDefinition, notify, schemaContext, resolvedField, resolvedFieldsByScreen, declareLookup, t, label, aggregationParentCollection, aggregationChildScreen]);
+  }, [artifactPrefix, fieldModal, fieldForm, fieldModalIsTitleField, fieldSupportsUnique, fieldSupportsSequence, sequenceLocked, sequenceHasParent, getDefinitionByKey, saveDefinition, notify, schemaContext, resolvedField, resolvedFieldsByScreen, declareLookup, t, label, aggregationParentCollection, aggregationChildScreen]);
 
   /**
    * Grava a ordem da lista como posições absolutas em `fields[]`. Um campo já gravado viaja como
@@ -2631,6 +2736,9 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     fieldSupportsRules,
     fieldSupportsFilter,
     fieldSupportsUnique,
+    fieldSupportsSequence,
+    sequencePanel,
+    updateFieldSequence,
     fileMaxSizeDefault: String(DEFAULT_FILE_MAX_SIZE_MB),
     refEntityOptions,
     lookupOptions,

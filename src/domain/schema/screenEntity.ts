@@ -16,6 +16,8 @@ import { RECORD_KEYS_COLLECTION } from './recordKeys';
 import { AGENT_GRANTS_COLLECTION } from './agent/agentGrant';
 import { AGGREGATE_BACKFILL_COLLECTION } from './aggregateBackfill';
 import { RECORD_KEY_ADOPTION_COLLECTION } from './recordKeyAdoption';
+import type { AutoValueSpec, RecordSequenceField } from './recordSequence';
+import { RECORD_SEQUENCES_COLLECTION, recordSequenceFields } from './recordSequence';
 import { WORKFLOW_CLOCK_COLLECTION, WORKFLOW_TRIGGER_MARKS_COLLECTION } from './workflowClock';
 import { NOTIFICATION_DISPATCHES_COLLECTION, NOTIFICATION_INBOX_COLLECTION } from './notifications';
 import {
@@ -58,6 +60,12 @@ export interface SchemaScreen {
   auditActions?: AuditAction[] | null;
   /** As chaves declaradas para a COLEÇÃO. Ver `ScreenDefinition.keys`. */
   keys?: RecordKeySpec[] | null;
+  /**
+   * O campo que guarda o registro-pai. Está no schema porque a sequência por pai
+   * (`autoValue.sequence.scope: 'parent'`) conta dentro dele, e a gravação do backend precisa da mesma
+   * resposta que a do formulário.
+   */
+  parentFieldKey?: string | null;
   /**
    * A janela de edição dos registros da coleção, já lida como a regra a lê (`readEditWindow`). Ver
    * `ScreenDefinition.editWindow`.
@@ -318,7 +326,7 @@ export const fieldDefinitionToNativeSpec = (field: FieldDefinition): NativeField
   if (field.optionsAllowUserAdd) spec.optionsAllowUserAdd = true;
   if (field.optionsColored) spec.optionsColored = true;
   if (field.defaultValue !== undefined) spec.defaultValue = field.defaultValue;
-  if (undefinedIfNull(field.autoValue)) spec.autoValue = field.autoValue as { pattern: string };
+  if (undefinedIfNull(field.autoValue)) spec.autoValue = field.autoValue as AutoValueSpec;
   if (undefinedIfNull(field.rules)) spec.rules = field.rules as NonNullable<FieldDefinition['rules']>;
   if (undefinedIfNull(field.logic)) spec.logic = field.logic as NonNullable<FieldDefinition['logic']>;
   if (undefinedIfNull(field.aggregation)) {
@@ -484,6 +492,14 @@ export const resolveEntityKeys = (
   return [...byName.values()];
 };
 
+/**
+ * Os campos numerados pelo sistema da coleção (`autoValue.sequence`), com o campo do pai já
+ * resolvido. Mora aqui pelo mesmo motivo de `resolveEntityKeys`: é sobre os campos RESOLVIDOS que o
+ * formulário e o backend gravam, e uma lista montada a partir da tela crua divergiria deles.
+ */
+export const resolveRecordSequences = (ctx: SchemaContext, collection: string): RecordSequenceField[] =>
+  recordSequenceFields(resolveEntityFields(ctx, collection), ctx.screens.get(collection)?.parentFieldKey ?? null);
+
 const screenEntityMetadata = (
   screen: SchemaScreen,
   fields: NativeFieldSpec[],
@@ -581,6 +597,7 @@ export const RESERVED_COLLECTIONS: ReadonlySet<string> = new Set<string>([
   'extension_history',
   AGGREGATE_BACKFILL_COLLECTION,
   RECORD_KEY_ADOPTION_COLLECTION,
+  RECORD_SEQUENCES_COLLECTION,
   'notes',
   'documents',
   'tags',

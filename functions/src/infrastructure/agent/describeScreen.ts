@@ -1,4 +1,5 @@
 import { resolveEditWindow } from '../../domain/schema/editWindow';
+import { isSequenceField } from '../../domain/schema/recordSequence';
 import { readerSeesAll, resolveMemberVisibility } from '../../domain/schema/memberVisibility';
 import type { MessageCatalog } from '../../domain/schema/i18n/messages';
 import { resolveLabel } from '../../domain/schema/i18n/messageRef';
@@ -42,7 +43,7 @@ interface AgentField {
   maxLength?: number;
   /** Um valor na forma aceita — o de partida, quando há, ou um da forma do tipo. */
   example?: unknown;
-  /** Gravar não é possível: o valor é calculado ou derivado. */
+  /** Gravar não é possível: o valor é calculado, derivado ou numerado pelo sistema ao criar. */
   readOnly?: true;
   /** O valor de partida de um registro novo. */
   default?: unknown;
@@ -124,7 +125,7 @@ export const allowedOperations = (
 };
 
 const isWritable = (field: NativeFieldSpec): boolean =>
-  !field.logic?.compute && !field.logic?.derive && field.aggregation === undefined;
+  !field.logic?.compute && !field.logic?.derive && field.aggregation === undefined && !isSequenceField(field);
 
 const flatten = (fields: readonly NativeFieldSpec[], prefix = ''): NativeFieldSpec[] =>
   fields.flatMap((field) => {

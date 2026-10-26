@@ -30,6 +30,7 @@ import { getScreenIcon } from '../../shared/screenIcons';
 import { ScreenPortalPanel } from './components/ScreenPortalPanel';
 import { ScreenEditWindowPanel } from './components/ScreenEditWindowPanel';
 import { ScreenMemberVisibilityPanel } from './components/ScreenMemberVisibilityPanel';
+import { FieldSequencePanel } from './components/FieldSequencePanel';
 import type { FieldDefinition } from '../../../domain/entities';
 
 import { useT, useLabel } from '../../shared/i18n/useT';
@@ -863,6 +864,21 @@ export const ScreenBuilderView: React.FC = () => {
                 />
               </InputGroup>
             ) : <div />}
+            {vm.fieldSupportsSequence && (
+              <>
+                <S.RulesDivider>{t('field.sequence.title')}</S.RulesDivider>
+                <FieldSequencePanel
+                  form={vm.fieldForm.sequence}
+                  locked={vm.sequencePanel.locked}
+                  numeric={vm.sequencePanel.numeric}
+                  hasParent={vm.sequencePanel.hasParent}
+                  preview={vm.sequencePanel.preview}
+                  scopeOptions={vm.sequencePanel.scopeOptions}
+                  resetOptions={vm.sequencePanel.resetOptions}
+                  onChange={vm.updateFieldSequence}
+                />
+              </>
+            )}
               </>
             )}
 

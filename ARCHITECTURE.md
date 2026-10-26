@@ -4864,6 +4864,8 @@ sorteava. Diferente de `defaultValue`, que semeia um valor FIXO, aqui o valor mu
 e continua editável, porque é sugestão, não carimbo. Sortear é IMPURO: o gerador (`services/
 autoValue.ts`) só é chamado do EFEITO que semeia o formulário de um registro novo, nunca no corpo do
 componente nem dentro de um `useMemo` — a mesma disciplina que a tela fixa seguia.
+Com `sequence`, o `autoValue` deixa de ser sorteio: é o número atribuído na criação, por contador
+transacional, e imutável — ver "Sequência numérica — o número que não se repete".
 
 **`parentRelation` — posse e visão eram a mesma coisa, e não são.** `parentEntity` significava duas
 coisas ao mesmo tempo: "os registros aparecem numa aba do pai" e "esta tela não existe sozinha". Para
@@ -12535,6 +12537,119 @@ A frase "não há restrição de unicidade nesta plataforma" era **derivada** e 
 prompt de modelagem e o `AUTHORING.md`. Todas viraram a declaração da chave, cada uma no seu tom. Uma
 afirmação sobre o kernel num documento gerado é derivada, nunca escrita à mão — e este foi o teste dessa
 regra em escala.
+
+---
+
+## Sequência numérica — o número que não se repete
+
+O protocolo, o número da comunicação, o número do pedido: um identificador que precisa ser
+**sequencial** e que não pode, em hipótese nenhuma, sair repetido. O `autoValue` que existia não servia
+— ele SORTEIA, e só evita repetir dentro da janela carregada (`RECORDS_PAGE_LIMIT = 500`). Uma chave
+única (`keys`) garantiria a unicidade mas não diria QUAL é o próximo número; achá-lo seria consultar, e
+consultar tem corrida. A tela agora **declara**, no próprio campo:
+
+```ts
+{ key: 'protocolo', type: 'text', autoValue: { pattern: 'YYYY/000000', sequence: { resetBy: 'year' } } }
+```
+
+| propriedade | o que decide |
+|---|---|
+| `sequence.scope` | `tenant` (padrão): um contador para o escritório. `parent`: um por registro-pai — exige `parentFieldKey` |
+| `sequence.resetBy` | `never` (padrão) ou `year`: recomeça em 1 a cada ano, no fuso do escritório. Exige `YYYY` no padrão |
+| `pattern` | `YYYY` é o ano; a ÚNICA sequência de `0` é o número, com os zeros como largura MÍNIMA (nunca corta: cortar repetiria). Vazio = o número puro |
+
+Campo `text` guarda o número formatado; campo `number` guarda o inteiro (sem padrão e sem recomeço anual,
+que repetiria o número). Só campo de primeiro nível. Sem `sequence`, o `autoValue` é o sorteio de sempre —
+os dois modos não se misturam, e **quem não declara não muda nada**: a coleção sem campo numerado grava
+exatamente como antes, sem transação nem contador.
+
+### Onde mora a garantia
+
+`tenants/{tenantId}/recordSequences/{coleção|campo|pai|período}` — um contador por sequência, com
+`{ collection, field, parent, period, value }`. A **criação** do registro lê o contador, soma um e grava o
+contador e o registro (com o valor formatado) **na mesma transação**. Duas criações concorrentes não leem o
+mesmo valor: a leitura é precondição do commit, e quem perdeu recomeça.
+
+| Caminho | Onde o número é atribuído |
+|---|---|
+| Formulário | `runRecordSequenceTransaction` (`data/utils/recordSequenceTransaction.ts`), chamado por `FirebaseRecordRepository.create` |
+| `UpsertStep`, `upsert()` de Script, agente (MCP), portal | `runWorkflowUpsert` planeja (`planRecordSequences`), `FirestoreWorkflowMutationRepository.create` atribui na transação do Admin SDK |
+
+A regra do Firestore é a **segunda trava**, e é ela que vale contra quem grava direto no banco: o contador
+só nasce em **1**, só avança **exatamente um**, não recua e não se apaga; o id é recomposto a partir do
+corpo, e por isso ninguém cria, sob o id do contador de uma coleção, um documento que diga ser de outra
+(onde a permissão conferida seria a da outra); e o período é o ano corrente com a folga de um fuso para
+cada lado. Ler o contador é de quem cria na coleção — ele conta quantos registros ela já teve.
+
+**A corrida perdida chega como `permission-denied`, e não por acaso.** O Firestore avalia a regra ANTES da
+precondição: quem leu o contador velho tenta gravá-lo com `+1` sobre um valor que já andou, e a regra
+("exatamente um") recusa. O SDK web só repete a transação em conflito de precondição, então
+`runRecordSequenceTransaction` reconhece a outra forma: recusa + contador que andou desde a leitura =
+corrida, e recomeça (até 30 rodadas, com espera sorteada e crescente); recusa + contador parado = recusa de
+verdade (permissão, chave ocupada, janela de edição), e segue para `describeDenial` como sempre. Foi a
+corrida real contra o emulador que mostrou isso — a simulação com repetição silenciosa não mostrava.
+
+**Imutável em todas as portas.** O formulário mostra o campo desabilitado, com o aviso "numerado ao
+salvar" no registro novo; a gravação do front tira o campo do payload na criação e em toda alteração
+(`omitSequenceFields`); `validateWritablePath` recusa o campo como não gravável
+(`@core.automation/mutation.path.sequence-assigned`) — o passo "Gravar Registro", que descarta o não
+gravável, numera mesmo assim; o agente o vê `readOnly`; o portal o tira dos campos que o convidado
+preenche ou altera. A obrigatoriedade (`required`) não o cobra: o número é atribuído depois do portão.
+
+### No Form Design
+
+A seção **Numeração** do campo (aba Geral, em `text` e `number` que não sejam calculados, derivados
+nem agregados) liga a sequência: formato, recomeço por ano e — só na tela que tem pai — contagem
+dentro do pai, com o primeiro número de exemplo. `FieldSequencePanel` só desenha; `fieldSequenceForm.ts`
+desmonta e remonta o `autoValue` e recusa com o MESMO portão do `check` do pacote
+(`recordSequenceIssues`), na aba do campo e antes de gravar.
+
+**A numeração gravada fica travada.** Mudar o formato, o recomeço ou a contagem depois de números
+emitidos pode emitir de novo um número que já existe — `YYYY/000000` contado por ano e depois "nunca"
+abre um contador novo que recomeça em `2026/000001`. Por isso a seção relê a declaração gravada como
+somente leitura, a gravação do campo leva o `autoValue` como estava, e o caminho para numerar de outro
+jeito é outro campo. Desligar também não é oferecido: religar com outra configuração cairia no mesmo
+defeito. A extensão que muda a declaração entre versões está sujeita ao mesmo risco, e é responsável
+por ele.
+
+O `autoValue` de SORTEIO que uma extensão declarou atravessa a edição do campo intacto: a seção só
+escreve quando alguém liga a numeração ali.
+
+### Quando há lacuna — e quando não há
+
+| Situação | Lacuna? |
+|---|---|
+| A gravação do registro falha (permissão, chave ocupada, janela, rede) | **não**: contador e registro estão na mesma transação |
+| Duas criações concorrentes | **não**: uma recomeça com o valor novo |
+| O registro é excluído depois | **sim**: o número dele nunca é reutilizado — reutilizar seria repetir |
+| Um cliente com permissão de criar avança o contador sem gravar registro, por fora do repositório | **sim**: a regra garante que o número não se repete, não que ele foi usado |
+| Registros criados ANTES da declaração | ficam sem número; a numeração começa no primeiro registro novo |
+| Gravação pelo Admin SDK fora de `runWorkflowUpsert` (uma function própria de extensão) | o registro nasce sem número — o kernel só numera pelas portas dele |
+
+### O limite, dito com todas as letras
+
+É o mesmo patamar das reservas de chave: a regra é estática e o nome do campo é dado de runtime, então ela
+garante o CONTADOR (único, contíguo, monotônico, não sequestrável) e não confere que o campo do registro
+carrega o valor dele. Essa polegada final é dos dois pontos de gravação.
+
+O ano do `YYYY` e do período é o do fuso de quem grava — o `i18n.timezone` empurrado pelo
+`TenantLocaleProvider` no front e `services.timeZone` no backend. Nas horas da virada do ano, um fuso de
+pessoa diferente do fuso do escritório poderia pôr o registro na série do ano vizinho; nunca repete número.
+
+**Kernel `2.76.0`** (`RECORD_SEQUENCE_SINCE_KERNEL`). Num kernel anterior, `YYYY/000000` seria lido como
+padrão de SORTEIO — por isso o `check` recusa o pacote que declara `sequence` sem `kernel: '^2.76.0'`, e
+recusa a forma que repetiria o número (ano sem `YYYY`, dois lugares para o número, campo de tipo que não
+guarda número, escopo de pai sem `parentFieldKey`).
+
+| Arquivo | Papel |
+|---|---|
+| `domain/schema/recordSequence.ts` | declaração, plano, formatação, validação (compartilhado) |
+| `domain/schema/screenEntity.ts` | `resolveRecordSequences`, `SchemaScreen.parentFieldKey`, coleção reservada |
+| `data/utils/recordSequenceTransaction.ts` | a transação do front, com a corrida perdida reconhecida |
+| `functions/.../FirestoreWorkflowMutationRepository.ts` | a transação do backend |
+| `domain/usecases/plugins/pluginRecordSequence.ts` | o `check` do pacote |
+| `presentation/pages/ScreenBuilder/components/FieldSequencePanel/` | a seção "Numeração" do Form Design |
+| `rules-tests/recordSequences.test.ts` | a regra e a corrida, contra o emulador |
 
 ---
 

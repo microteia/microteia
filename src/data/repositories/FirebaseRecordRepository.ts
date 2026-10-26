@@ -36,6 +36,8 @@ import {
   planRecordKeysFor,
   RecordKeyConflictError,
   RecordKeyMissingError,
+  RecordSequenceParentMissingError,
+  recordSequencesFor,
   tableHasRecordKeys,
 } from '../utils/recordRulesGate';
 import type { RecordKeyEntry } from '../../domain/schema/recordKeys';
@@ -49,6 +51,9 @@ import {
   RECORD_KEYS_COLLECTION,
   storedRecordKeyRefs,
 } from '../../domain/schema/recordKeys';
+import { omitSequenceFields, planRecordSequences } from '../../domain/schema/recordSequence';
+import { runRecordSequenceTransaction } from '../utils/recordSequenceTransaction';
+import { ambientTimeZone } from '../../domain/schema/clockGate';
 
 const RECORDS_PAGE_LIMIT = 500;
 
@@ -106,6 +111,14 @@ const isPermissionDenied = (error: unknown): boolean =>
  * a "consultar antes de gravar", que além de ter corrida obrigaria um índice por chave declarada.
  */
 const keyDoc = (tenantId: string, keyId: string) => doc(keysRef(tenantId), keyId);
+
+const reservationData = (collection: string, recordId: string, entry: RecordKeyEntry) => ({
+  collection,
+  keyName: entry.name,
+  recordId,
+  values: entry.values,
+  createdAt: serverTimestamp(),
+});
 
 /**
  * A recusa do lote chega como `permission-denied`, e ela tem DUAS causas possíveis: a reserva já
@@ -240,7 +253,8 @@ export class FirebaseRecordRepository implements IRecordRepository {
     data: EntityRecordValues,
     recordId?: string,
   ): Promise<EntityRecord> {
-    const ruled = applyRecordRules(collection, stripIdentity(data));
+    const sequences = recordSequencesFor(collection);
+    const ruled = applyRecordRules(collection, omitSequenceFields(stripIdentity(data), sequences));
     const plan = planRecordKeysFor(collection, ruled);
     if (plan.gaps.length > 0) throw new RecordKeyMissingError(plan.gaps);
 
@@ -251,6 +265,22 @@ export class FirebaseRecordRepository implements IRecordRepository {
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     };
+
+    if (sequences.length > 0) {
+      const numbering = planRecordSequences(sequences, ruled, collection, new Date(), ambientTimeZone());
+      if (numbering.gaps.length > 0) throw new RecordSequenceParentMissingError(numbering.gaps);
+      const id = recordId ?? this.newId(tenantId, collection);
+      let assigned: Record<string, unknown> = {};
+      try {
+        assigned = await runRecordSequenceTransaction(db, tenantId, numbering.entries, (tx, values) => {
+          tx.set(doc(recordsRef(tenantId, collection), id), { ...payload, ...values });
+          for (const entry of plan.entries) tx.set(keyDoc(tenantId, entry.keyId), reservationData(collection, id, entry));
+        });
+      } catch (error) {
+        await describeDenial(tenantId, id, plan.entries, error);
+      }
+      return this.readBack(tenantId, collection, id, { ...ruled, ...assigned });
+    }
 
     // Com id em mãos o documento nasce onde os arquivos dele já foram gravados; sem, o Firestore
     // sorteia como sempre. Uma coleção COM chave sempre tem id antes do lote: a reserva precisa
@@ -269,15 +299,7 @@ export class FirebaseRecordRepository implements IRecordRepository {
     const id = recordId ?? this.newId(tenantId, collection);
     const batch = writeBatch(db);
     batch.set(doc(recordsRef(tenantId, collection), id), payload);
-    for (const entry of plan.entries) {
-      batch.set(keyDoc(tenantId, entry.keyId), {
-        collection,
-        keyName: entry.name,
-        recordId: id,
-        values: entry.values,
-        createdAt: serverTimestamp(),
-      });
-    }
+    for (const entry of plan.entries) batch.set(keyDoc(tenantId, entry.keyId), reservationData(collection, id, entry));
     try {
       await batch.commit();
     } catch (error) {
@@ -324,7 +346,13 @@ export class FirebaseRecordRepository implements IRecordRepository {
     const baseline = hasKeys || editWindow
       ? await this.readRaw(tenantId, collection, recordId)
       : await loadRecordBaseline(collection, doc(recordsRef(tenantId, collection), recordId));
-    const ruled = applyRecordRules(collection, stripIdentity(data), baseline);
+    // O número atribuído na criação não muda depois: o formulário reenvia o registro inteiro, e o
+    // valor que vem nele — igual ou não — nunca chega ao banco.
+    const ruled = applyRecordRules(
+      collection,
+      omitSequenceFields(stripIdentity(data), recordSequencesFor(collection)),
+      baseline,
+    );
 
     if (editWindow && baseline) {
       const allowed = editWindowAllowsUpdate(editWindow.spec, baseline.createdAt, new Date(), {
@@ -358,15 +386,7 @@ export class FirebaseRecordRepository implements IRecordRepository {
     // sessão. A reserva cujo valor NÃO mudou não é solta nem recriada: sair e voltar abriria uma
     // janela em que o valor está livre para outro registro.
     for (const keyId of diff.release) batch.delete(keyDoc(tenantId, keyId));
-    for (const entry of diff.create) {
-      batch.set(keyDoc(tenantId, entry.keyId), {
-        collection,
-        keyName: entry.name,
-        recordId,
-        values: entry.values,
-        createdAt: serverTimestamp(),
-      });
-    }
+    for (const entry of diff.create) batch.set(keyDoc(tenantId, entry.keyId), reservationData(collection, recordId, entry));
     try {
       await batch.commit();
     } catch (error) {

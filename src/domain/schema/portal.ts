@@ -13,6 +13,7 @@
 
 import { evaluateFieldBoolean, extractFieldExpressionPaths, fieldExpressionSyntaxError } from './fieldExpression';
 import { RECORD_CREATED_VIA_FIELD, SYSTEM_MANAGED_KEYS } from './mutationSpec';
+import { isSequenceField } from './recordSequence';
 
 export {
   PORTAL_DOCUMENTS_SUBCOLLECTION,
@@ -151,6 +152,7 @@ export interface PortalScreenLike {
     multi?: boolean;
     required?: boolean;
     defaultValue?: unknown;
+    autoValue?: unknown;
   }>;
   parentEntity?: string | null;
   parentFieldKey?: string | null;
@@ -299,9 +301,12 @@ export const portalTargetScreen = <T extends PortalScreenLike>(screens: readonly
   portalScreenOf(screens, entityKey)
   ?? portalScreenOf(screens, screens.find((screen) => screen.id === entityKey)?.collection ?? entityKey);
 
-/** Os campos que o convidado preenche ao criar — os declarados que existem, sem o vínculo. */
+/**
+ * Os campos que o convidado preenche ao criar — os declarados que existem, sem o vínculo e sem o
+ * número que o sistema atribui (`autoValue.sequence`): esse não é de quem preenche, nem do escritório.
+ */
 export const portalCreateFieldKeys = (screen: PortalScreenLike): string[] => {
-  const declared = new Set(screen.fields.map((field) => field.key));
+  const declared = new Set(screen.fields.filter((field) => !isSequenceField(field)).map((field) => field.key));
   const link = portalLinkOf(screen)?.fieldKey;
   return (screen.portal?.create?.fields ?? []).filter((key) => declared.has(key) && key !== link);
 };
@@ -332,8 +337,10 @@ export const buildPortalSubmission = (
  */
 export const portalEditFieldKeys = (screen: PortalScreenLike): string[] => {
   const exposed = new Set(portalFieldKeys(screen));
+  const numbered = new Set(screen.fields.filter(isSequenceField).map((field) => field.key));
   const link = portalLinkOf(screen)?.fieldKey;
-  return (screen.portal?.edit?.fields ?? []).filter((key) => exposed.has(key) && key !== link);
+  return (screen.portal?.edit?.fields ?? [])
+    .filter((key) => exposed.has(key) && key !== link && !numbered.has(key));
 };
 
 /**
@@ -589,7 +596,8 @@ export const portalDeclarationIssues = (
     } else {
       const fillable = new Set([...portalCreateFieldKeys(screen), portalLinkOf(screen)?.fieldKey]);
       for (const field of screen.fields) {
-        const hasDefault = field.defaultValue !== undefined && field.defaultValue !== null && field.defaultValue !== '';
+        const hasDefault = (field.defaultValue !== undefined && field.defaultValue !== null && field.defaultValue !== '')
+          || isSequenceField(field);
         if (field.required && !hasDefault && !fillable.has(field.key)) {
           issues.push({ message: '@core.records/portal.issue.create.required-missing', messageParams: { field: field.key } });
         }

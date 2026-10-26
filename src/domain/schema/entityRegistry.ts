@@ -10,6 +10,7 @@ import type {
   FieldRules,
 } from './fieldRules';
 import type { RecordKeySpec } from './recordKeys';
+import type { AutoValueSpec } from './recordSequence';
 
 export const SCHEMA_VERSION = 1;
 
@@ -68,7 +69,7 @@ export interface NativeFieldSpec {
    */
   defaultValue?: string | string[] | number | boolean | null;
   /** Código gerado de um registro novo. Ver `FieldDefinition.autoValue`. */
-  autoValue?: { pattern: string };
+  autoValue?: AutoValueSpec;
   rules?: FieldRules;
   logic?: FieldLogic;
   aggregation?: FieldAggregation;

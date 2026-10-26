@@ -95,6 +95,9 @@ export class ScreenDefinitionCache implements IScreenDefinitionProvider {
         // Sem `keys`, a automação, o agente, o portal e a adoção viam só o açúcar `unique` de campo: a
         // chave declarada na TELA — a forma das chaves compostas — valia no formulário e em mais nada.
         keys: recordKeysOf(data.keys),
+        // A sequência por pai conta dentro do registro que este campo aponta — a automação precisa
+        // do mesmo campo que o formulário usa, senão os dois contariam em contadores diferentes.
+        parentFieldKey: typeof data.parentFieldKey === 'string' && data.parentFieldKey ? data.parentFieldKey : null,
         editWindow: readEditWindow(data.editWindow),
         // Sem ela, o relatório, o agente e o documento entregariam a uma pessoa o registro que a regra
         // esconde dela.

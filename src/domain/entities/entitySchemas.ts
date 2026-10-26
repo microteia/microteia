@@ -16,6 +16,7 @@ import type {
   FieldRules,
 } from '../schema/fieldRules';
 import type { RecordKeySpec } from '../schema/recordKeys';
+import type { AutoValueSpec } from '../schema/recordSequence';
 import type { PortalDeclaration } from '../schema/portal';
 import type { EditWindowSpec } from '../schema/editWindow';
 import type { MemberVisibilitySpec } from '../schema/memberVisibility';
@@ -96,8 +97,12 @@ export interface FieldDefinition {
    * Existe porque um cadastro costuma ter um identificador curto que ninguém quer digitar (o número
    * do contrato, um protocolo, um código de peça) e a entidade fixa o sorteava em código — sem isto,
    * uma tela declarada não teria como reproduzi-lo.
+   *
+   * Com `sequence`, deixa de ser sorteio: é o NÚMERO que o registro recebe ao ser criado, de um
+   * contador transacional, nunca repetido e nunca editável (`2026/000123`). Ver
+   * `domain/schema/recordSequence.ts`.
    */
-  autoValue?: { pattern: string } | null;
+  autoValue?: AutoValueSpec | null;
   rules?: FieldRules | null;
   logic?: FieldLogic | null;
   aggregation?: FieldAggregation | null;

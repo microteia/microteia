@@ -608,7 +608,7 @@ service cloud.firestore {
         // `installed_extensions`. Continua RESERVADA porque os documentos de então continuam nos
         // escritórios, e liberar o nome deixaria uma tela nova nascer por cima deles.
         'tagDefinitions', 'plugin_installations',
-        'recordKeys', 'record_key_adoptions',
+        'recordKeys', 'record_key_adoptions', 'recordSequences',
         'screenDefinitions', 'scripts', 'secrets', 'settings', 'tags', 'tenant', 'workflow_clock',
         'workflow_definitions', 'workflow_events', 'workflow_executions', 'workflow_trigger_marks'
         ];
@@ -863,6 +863,58 @@ service cloud.firestore {
         // Sem `update`, de propósito: é a ausência dele que faz o `create` ser a trava.
         allow delete: if canOnCollection(resource.data.get('collection', ''), 'update')
           || canOnCollection(resource.data.get('collection', ''), 'delete');
+      }
+
+      // ─── Contadores de sequência (`autoValue.sequence`) ─────────────────────
+      //
+      // O número que um registro recebe ao nascer vem de um contador, avançado na MESMA transação que
+      // grava o registro. A transação é o que impede dois registros de lerem o mesmo valor; ESTE bloco
+      // é o que impede qualquer cliente — inclusive um que não passe pelo repositório — de fazer o
+      // contador repetir um número já dado:
+      //
+      // - nasce em 1, e só avança EXATAMENTE um por gravação. Não recua, não salta, não se apaga;
+      // - o id é recomposto a partir do corpo (`coleção|campo|pai|período`), e por isso ninguém cria,
+      //   sob o id do contador de uma coleção, um documento que diga ser de outra — onde a permissão
+      //   conferida seria a da outra;
+      // - o período, quando há, é o ano corrente com a folga de um fuso para cada lado.
+      //
+      // O que este arquivo NÃO consegue conferir é que o campo do registro carrega o valor do
+      // contador: a regra é estática e o nome do campo é dado de runtime. Essa metade é dos dois pontos
+      // de gravação — o mesmo patamar das reservas de chave logo acima.
+      match /recordSequences/{sequenceId} {
+        function wellFormedSequence(data) {
+          return data.keys().hasOnly(['collection', 'field', 'parent', 'period', 'value', 'updatedAt'])
+            && data.collection is string && data.collection.matches('[^|]+')
+            && data.field is string && data.field.matches('[^|]+')
+            && data.parent is string
+            && data.period is string && data.period.matches('([0-9]{4})?')
+            && data.value is int
+            && sequenceId == data.collection + '|' + data.field + '|' + data.parent + '|' + data.period;
+        }
+        function currentPeriod(period) {
+          return period == ''
+            || period == string((request.time - duration.value(14, 'h')).year())
+            || period == string((request.time + duration.value(14, 'h')).year());
+        }
+        // Ler o contador é o que a transação faz antes de avançá-lo. Ele diz quantos registros a
+        // coleção já teve, e por isso só quem cria nela o lê. O inexistente é lido por qualquer membro:
+        // é assim que a primeira gravação descobre que vai começar do 1.
+        allow read: if isMember(tenantId)
+          && (resource == null || canOnCollection(resource.data.get('collection', ''), 'create'));
+        allow create: if wellFormedSequence(request.resource.data)
+          && isWritableScreen(request.resource.data.collection)
+          && canOnCollection(request.resource.data.collection, 'create')
+          && currentPeriod(request.resource.data.period)
+          && request.resource.data.value == 1;
+        allow update: if wellFormedSequence(request.resource.data)
+          && canOnCollection(resource.data.collection, 'create')
+          && request.resource.data.collection == resource.data.collection
+          && request.resource.data.field == resource.data.field
+          && request.resource.data.parent == resource.data.parent
+          && request.resource.data.period == resource.data.period
+          && currentPeriod(request.resource.data.period)
+          && request.resource.data.value == resource.data.value + 1;
+        // Sem `delete`, de propósito: apagar o contador o faria recomeçar do 1.
       }
 
       match /{screenCollection}/{recordId} {

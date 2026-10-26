@@ -8,7 +8,8 @@ import { describeRuleIssues } from '../../domain/schema/fieldRules';
 import type { SchemaContext, SchemaScreen } from '../../domain/schema/pathResolver';
 import { createSchemaContext } from '../../domain/schema/pathResolver';
 import type { SchemaLookup, SchemaTagList } from '../../domain/schema/screenEntity';
-import { resolveEntityKeys } from '../../domain/schema/screenEntity';
+import { resolveEntityKeys, resolveRecordSequences } from '../../domain/schema/screenEntity';
+import type { RecordSequenceField, RecordSequenceGap } from '../../domain/schema/recordSequence';
 import type { RecordKeyPlan, RecordKeySpec } from '../../domain/schema/recordKeys';
 import { planRecordKeys } from '../../domain/schema/recordKeys';
 import { declaredRecordKeySignatures } from '../../domain/schema/recordKeyAdoption';
@@ -67,6 +68,22 @@ export class RecordKeyMissingError extends RecordRulesError {
       errorParams: { key: gap.name },
     }))));
     this.name = 'RecordKeyMissingError';
+  }
+}
+
+/**
+ * O número contado por pai (`autoValue.sequence.scope: 'parent'`) num registro sem pai. Recusa antes
+ * da rede: sem o pai não há contador, e um número de outro contador seria um número repetido.
+ */
+export class RecordSequenceParentMissingError extends RecordRulesError {
+  constructor(gaps: RecordSequenceGap[]) {
+    super(gaps.map((gap) => ({
+      path: gap.parentField || gap.field,
+      label: gap.parentField || gap.field,
+      error: '@core.records/sequence.parent-required',
+      errorParams: { field: gap.field },
+    })));
+    this.name = 'RecordSequenceParentMissingError';
   }
 }
 
@@ -146,6 +163,7 @@ export const toSchemaScreens = (
     titleFieldKey: string;
     fields: FieldDefinition[];
     keys?: RecordKeySpec[] | null;
+    parentFieldKey?: string | null;
     tagCollection?: string | null;
     dataCollection?: string | null;
     eventPrefix?: string | null;
@@ -165,6 +183,7 @@ export const toSchemaScreens = (
     titleFieldKey: definition.titleFieldKey,
     fields: definition.fields,
     keys: definition.keys,
+    parentFieldKey: definition.parentFieldKey ?? null,
     tagCollection: definition.tagCollection,
     eventPrefix: definition.eventPrefix,
     hasDocuments: definition.hasDocuments,
@@ -242,6 +261,12 @@ export const recordKeySignaturesFor = (table: string): Record<string, string> =>
 
 /** As chaves declaradas da coleção, como a gravação as vê. */
 export const recordKeysFor = (table: string): RecordKeySpec[] => resolveEntityKeys(schemaContext, table);
+
+/**
+ * Os campos que o sistema numera ao criar (`autoValue.sequence`). Vazio = a gravação segue sem
+ * transação, como sempre foi — o recurso só custa a quem o declara.
+ */
+export const recordSequencesFor = (table: string): RecordSequenceField[] => resolveRecordSequences(schemaContext, table);
 
 /** A coleção declara alguma chave? É o que decide se a gravação precisa virar lote. */
 export const tableHasRecordKeys = (table: string): boolean =>

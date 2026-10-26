@@ -12,6 +12,13 @@ import type {
 } from '../../domain/repositories/IWorkflowMutationRepository';
 import { RecordKeyTakenError } from '../../domain/repositories/IWorkflowMutationRepository';
 import { RECORD_KEYS_COLLECTION } from '../../domain/schema/recordKeys';
+import type { RecordSequenceEntry } from '../../domain/schema/recordSequence';
+import {
+  formatRecordSequenceValue,
+  nextRecordSequenceValue,
+  RECORD_SEQUENCES_COLLECTION,
+  recordSequenceCounterData,
+} from '../../domain/schema/recordSequence';
 import { normalizeFirestoreValue } from '../../domain/services/normalizeFirestoreValue';
 import { getBucket } from '../../infrastructure/firebase/initFirebase';
 
@@ -68,6 +75,33 @@ export class FirestoreWorkflowMutationRepository implements IWorkflowMutationRep
     }
   }
 
+  private sequenceDoc(tenantId: string, counterId: string): DocumentReference<DocumentData> {
+    return this.db.collection(`tenants/${tenantId}/${RECORD_SEQUENCES_COLLECTION}`).doc(counterId);
+  }
+
+  /**
+   * Lê e avança os contadores DENTRO da transação que grava o registro. No Admin SDK a transação
+   * trava o que leu: duas criações concorrentes não leem o mesmo valor, e uma criação que falha não
+   * avança contador nenhum — o número só existe se o registro existe.
+   *
+   * Lê tudo antes de escrever qualquer coisa, que é a ordem que a transação do Firestore exige.
+   */
+  private async advanceSequences(
+    tx: Transaction,
+    tenantId: string,
+    entries: readonly RecordSequenceEntry[],
+  ): Promise<Record<string, unknown>> {
+    const refs = entries.map((entry) => this.sequenceDoc(tenantId, entry.counterId));
+    const snapshots = refs.length > 0 ? await tx.getAll(...refs) : [];
+    const assigned: Record<string, unknown> = {};
+    entries.forEach((entry, index) => {
+      const value = nextRecordSequenceValue(snapshots[index].get('value'));
+      assigned[entry.field] = formatRecordSequenceValue(entry, value);
+      tx.set(refs[index], { ...recordSequenceCounterData(entry, value), updatedAt: Timestamp.now() });
+    });
+    return assigned;
+  }
+
   /**
    * A transação recusada por ALREADY_EXISTS é sempre uma reserva — é a única escrita aqui que usa
    * `create`. Traduzi-la nomeando a chave é o que faz o passo dizer QUAL valor repetiu, em vez de
@@ -101,10 +135,12 @@ export class FirestoreWorkflowMutationRepository implements IWorkflowMutationRep
     data: Record<string, unknown>,
     id?: string,
     keys?: RecordKeyMutation,
+    sequences: RecordSequenceEntry[] = [],
   ): Promise<string> {
     const now = Timestamp.now();
     const payload = { ...data, createdAt: now, updatedAt: now };
-    if (!keys || (keys.create.length === 0 && keys.release.length === 0)) {
+    const hasKeys = !!keys && (keys.create.length > 0 || keys.release.length > 0);
+    if (!hasKeys && sequences.length === 0) {
       if (id) {
         await this.collection(tenantId, collection).doc(id).set(payload);
         return id;
@@ -116,7 +152,8 @@ export class FirestoreWorkflowMutationRepository implements IWorkflowMutationRep
     const recordId = id ?? this.newId(tenantId, collection);
     try {
       await this.db.runTransaction(async (tx) => {
-        tx.set(this.collection(tenantId, collection).doc(recordId), payload);
+        const assigned = await this.advanceSequences(tx, tenantId, sequences);
+        tx.set(this.collection(tenantId, collection).doc(recordId), { ...payload, ...assigned });
         this.applyKeys(tx, tenantId, collection, recordId, keys);
       });
     } catch (error) {

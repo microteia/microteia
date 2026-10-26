@@ -1,4 +1,5 @@
 import type { FieldDefinition } from '../entities';
+import { isSequenceField } from '../schema/recordSequence';
 
 /**
  * O código GERADO de um campo (`autoValue`). O padrão descreve a forma caractere a caractere e o
@@ -54,8 +55,13 @@ export const generateAutoValue = (pattern: string, taken: ReadonlySet<string> = 
   return candidate;
 };
 
-/** Os campos que pedem um código gerado, na ordem em que a tela os declara. */
+/**
+ * Os campos que pedem um código SORTEADO, na ordem em que a tela os declara. O campo sequencial não
+ * entra: o número dele é do caminho de gravação, e um sorteio no formulário o mostraria como se já
+ * existisse — `YYYY/000000` tem zeros, e viraria `YYYY/482913`.
+ */
 export const autoValueFields = (fields: FieldDefinition[]): { key: string; pattern: string }[] =>
   fields
+    .filter((field) => !isSequenceField(field))
     .map((field) => ({ key: field.key, pattern: field.autoValue?.pattern?.trim() ?? '' }))
     .filter((field) => hasGeneratedSymbol(field.pattern));

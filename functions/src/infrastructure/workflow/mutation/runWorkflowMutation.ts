@@ -27,7 +27,10 @@ import {
   RECORD_KEY_REFS_FIELD,
   storedRecordKeyRefs,
 } from '../../../domain/schema/recordKeys';
-import { resolveEntityKeys } from '../../../domain/schema/screenEntity';
+import { resolveEntityKeys, resolveRecordSequences } from '../../../domain/schema/screenEntity';
+import type { RecordSequenceEntry } from '../../../domain/schema/recordSequence';
+import { omitSequenceFields, planRecordSequences } from '../../../domain/schema/recordSequence';
+import { DEFAULT_TIME_ZONE } from '../../../domain/schema/i18n/timeZone';
 import {
   changedRecordKeys,
   editWindowAllowsDelete,
@@ -243,7 +246,10 @@ export async function runWorkflowUpsert(
   }
   const ruledSpec: UpsertSpec = { ...effectiveSpec, data: ruled.data };
 
-  const payload = buildFieldPayload(ruledSpec, target, ctx);
+  // O número sequencial nunca vem de quem grava: `validateUpsertSpec` já recusou o campo, e um
+  // `compute` que o produzisse também não passa daqui. Ele é atribuído abaixo, só na criação.
+  const numbered = resolveRecordSequences(ctx, collection);
+  const payload = omitSequenceFields(buildFieldPayload(ruledSpec, target, ctx), numbered);
 
   // A janela de edição é conferida AQUI, e não em cada porta: o passo "Gravar Registro", o `upsert`
   // do Script, o agente e o portal passam todos por este ponto. O Admin SDK ignora o
@@ -298,6 +304,27 @@ export async function runWorkflowUpsert(
   }
   const withKeys = keyRefs === undefined ? payload : { ...payload, [RECORD_KEY_REFS_FIELD]: keyRefs };
 
+  // A sequência é planejada aqui e ATRIBUÍDA na transação do repositório, junto com o registro: só
+  // ali o contador é lido e avançado sem que outra criação passe no meio.
+  let sequences: RecordSequenceEntry[] = [];
+  if (!(id && existing) && numbered.length > 0) {
+    const numbering = planRecordSequences(
+      numbered,
+      payload,
+      collection,
+      context.services.now(),
+      context.services.timeZone ?? DEFAULT_TIME_ZONE,
+    );
+    if (numbering.gaps.length > 0) {
+      return {
+        ok: false,
+        error: '@core.automation/mutation.upsert.sequence-parent-required',
+        errorParams: { field: numbering.gaps[0].field, parent: numbering.gaps[0].parentField },
+      };
+    }
+    sequences = numbering.entries;
+  }
+
   let created: boolean;
   let finalId: string;
   try {
@@ -318,6 +345,7 @@ export async function runWorkflowUpsert(
         { ...withKeys, ...createStamp(author) },
         id,
         keyMutation,
+        sequences,
       );
       created = true;
     }

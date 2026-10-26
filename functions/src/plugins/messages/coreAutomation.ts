@@ -611,6 +611,7 @@ export const CORE_AUTOMATION_MESSAGES: Record<string, string> = {
   'mutation.path.missing': 'The field path was not provided',
   'mutation.path.required': 'Enter the field to write',
   'mutation.path.system-managed': 'Field "{field}" is managed by the system and cannot be written',
+  'mutation.path.sequence-assigned': 'Field "{field}" is numbered by the system when the record is created and cannot be written',
   'mutation.path.through-reference': 'It is not possible to write through a reference: "{path}"',
   'mutation.path.unknown-field': 'Field "{path}" does not exist in this table',
   'mutation.remove.id.missing': 'The id of the record to delete was not provided',
@@ -1129,6 +1130,7 @@ export const CORE_AUTOMATION_MESSAGES: Record<string, string> = {
   'mutation.upsert.key-conflict':
     'Another record already holds the key "{key}" with the value {value}.',
   'mutation.upsert.key-required': 'The key "{key}" needs a value: {fields}.',
+  'mutation.upsert.sequence-parent-required': 'The number in "{field}" is counted per parent record, and "{parent}" is empty.',
   'mutation.upsert.unwritable-ignored':
     'Write to "{table}": {count} field(s) that cannot be written were ignored — {detail}',
   'query.invalid': 'Invalid query: {detail}',

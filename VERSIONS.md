@@ -11,6 +11,12 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.163.0] — 2026-10-26
+
+- Os registros de uma tela podem agora ser numerados em sequência — como o protocolo de uma comunicação, no formato "2026/000123". Liga-se no Form Design, na nova seção "Numeração" do campo, escolhendo o formato, se a contagem recomeça a cada ano e, nas telas que pertencem a outro registro, se ela é feita dentro de cada um. O número é dado no momento em que o registro é salvo, nunca se repete, mesmo quando várias pessoas salvam ao mesmo tempo, e pode recomeçar a cada ano ou ser contado dentro de cada processo.
+- Depois de atribuído, o número não muda: o campo aparece bloqueado no formulário, com o aviso "Numerado automaticamente quando o registro for salvo" enquanto o registro ainda é novo, e nem automações, nem o assistente de IA, nem o portal conseguem alterá-lo.
+- Depois de salva, a numeração de um campo não pode mais ser alterada, para que nenhum número já emitido volte a aparecer. Para numerar de outro jeito, basta criar outro campo.
+
 #### [9.162.0] — 2026-10-26
 
 - Uma tela pode passar a mostrar a cada pessoa só os registros que a nomeiam — por exemplo, a resposta que só o servidor que a emitiu deve ler, ou o atendimento atribuído a alguém. Liga-se no Form Design, na nova aba "Visibilidade dos registros", escolhendo os campos de membro que dizem quem vê cada registro.

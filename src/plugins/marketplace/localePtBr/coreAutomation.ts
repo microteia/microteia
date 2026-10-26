@@ -606,6 +606,7 @@ export const CORE_AUTOMATION: Record<string, string> = {
   'mutation.path.missing': 'Caminho do campo não informado',
   'mutation.path.required': 'Informe o campo a gravar',
   'mutation.path.system-managed': 'O campo "{field}" é gerenciado pelo sistema e não pode ser gravado',
+  'mutation.path.sequence-assigned': 'O campo "{field}" é numerado pelo sistema na criação do registro e não pode ser gravado',
   'mutation.path.through-reference': 'Não é possível gravar através de uma referência: "{path}"',
   'mutation.path.unknown-field': 'O campo "{path}" não existe nessa tabela',
   'mutation.remove.id.missing': 'Id do registro a excluir não informado',
@@ -1127,6 +1128,7 @@ export const CORE_AUTOMATION: Record<string, string> = {
   'mutation.upsert.key-conflict':
     'Outro registro já ocupa a chave "{key}" com o valor {value}.',
   'mutation.upsert.key-required': 'A chave "{key}" precisa de valor: {fields}.',
+  'mutation.upsert.sequence-parent-required': 'O número de "{field}" é contado por registro-pai, e "{parent}" está vazio.',
   'mutation.upsert.unwritable-ignored':
     'Gravação em "{table}": {count} campo(s) não gravável(is) foram ignorados — {detail}',
   'query.invalid': 'Consulta inválida: {detail}',
