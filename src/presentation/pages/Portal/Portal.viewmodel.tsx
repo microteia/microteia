@@ -32,6 +32,8 @@ export interface PortalDocumentView {
   id: string;
   name: string;
   meta: string;
+  /** `SHA-256 <hash>`, já resolvido. Vazio enquanto o servidor não o calculou. */
+  hash: string;
 }
 
 /** A casca de uma extensão: recebe a página como `children`. */
@@ -269,6 +271,7 @@ export const usePortalViewModel = (): PortalViewModel => {
         meta: [document.type, document.createdAt ? formatDate(document.createdAt) : '']
           .filter((part) => !!part)
           .join(' · '),
+        hash: document.sha256 ? t('portal.document.sha256', { hash: document.sha256 }) : '',
       })),
       documentsLoading,
       children,

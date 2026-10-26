@@ -288,6 +288,16 @@ export const S = {
     color: ${({ theme }) => theme.colors.textMuted};
   `,
 
+  DocHash: styled.span`
+    font-family: ${({ theme }) => theme.fonts.mono};
+    font-size: ${({ theme }) => theme.fontSizes.xs};
+    color: ${({ theme }) => theme.colors.textMuted};
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+  `,
+
   DocTypeBadge: styled.span`
     font-size: ${({ theme }) => theme.fontSizes.xs};
     color: ${({ theme }) => theme.colors.textSecondary};

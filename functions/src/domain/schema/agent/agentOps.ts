@@ -513,7 +513,8 @@ export const AGENT_TOOLS: readonly AgentToolDefinition[] = [
     name: 'list_documents',
     description:
       'The files attached to a record in its Documents tab, newest first: name, document type, '
-      + 'description, who attached it and when, and the download link. Only screens whose '
+      + 'description, who attached it and when, the download link, and the SHA-256 of the file '
+      + '("sha256", computed by the server once the file is stored). Only screens whose '
       + 'describe_screen answer has a "documents" section have this tab.',
     inputSchema: object({ collection: COLLECTION, recordId: RECORD_ID }, ['collection', 'recordId']),
     // A MESMA cobrança da regra do Firestore: o documento é parte do registro, e lê-lo é ler a coleção.
@@ -528,7 +529,9 @@ export const AGENT_TOOLS: readonly AgentToolDefinition[] = [
       + 'download link. Send the file as base64 in "content" (a "data:<type>;base64," prefix is also '
       + `accepted). Files must be smaller than ${AGENT_DOCUMENT_MAX_MB} MB. The document types `
       + 'accepted are listed by describe_screen under "documents"; an unknown type is refused with '
-      + 'the accepted ones. Only screens with a "documents" section accept attachments.',
+      + 'the accepted ones. Only screens with a "documents" section accept attachments. Attaching '
+      + 'is still allowed after the record\'s edit window has closed; no document of that record '
+      + 'can be deleted or replaced from then on.',
     inputSchema: object(
       {
         collection: COLLECTION,

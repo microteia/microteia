@@ -19,6 +19,9 @@
  * 3. o `firestore.rules` recusa `update` (e `delete`) quando `request.time` passou de
  *    `createdAt + minutos`. É esta que faz valer contra quem grava direto no banco.
  *
+ * Os DOCUMENTOS do registro seguem a janela dele (`EDIT_WINDOW_DOCUMENTS_SINCE_KERNEL`): fechada, nenhum
+ * anexo é excluído nem trocado — no `firestore.rules` e no `storage.rules` —, e anexar continua livre.
+ *
  * As funções daqui são a mesma conta nas duas primeiras pontas, e espelham a terceira linha a linha —
  * inclusive no que ela faz com a declaração malformada e com o registro sem `createdAt`: FECHA.
  */
@@ -31,6 +34,13 @@ import type { SchemaContext } from './screenEntity';
  * o pacote que a declara tem de exigir este kernel.
  */
 export const EDIT_WINDOW_SINCE_KERNEL = '2.68.0';
+
+/**
+ * O kernel a partir do qual a janela também congela os DOCUMENTOS do registro e os arquivos deles. Não
+ * é exigido do pacote: num kernel anterior a janela do registro vale do mesmo jeito, e o que falta é
+ * do kernel — não algo que a extensão possa declarar.
+ */
+export const EDIT_WINDOW_DOCUMENTS_SINCE_KERNEL = '2.72.0';
 
 export interface EditWindowSpec {
   /** Minutos contados de `createdAt`. Inteiro positivo. */

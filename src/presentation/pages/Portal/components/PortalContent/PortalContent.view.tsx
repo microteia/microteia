@@ -143,6 +143,7 @@ export const PortalContent: React.FC<{ vm: PortalViewModel }> = ({ vm }) => {
               <S.DocumentInfo>
                 <S.DocumentName title={document.name}>{document.name}</S.DocumentName>
                 {document.meta && <S.Muted>{document.meta}</S.Muted>}
+                {document.hash && <S.DocumentHash title={t('portal.document.sha256.hint')}>{document.hash}</S.DocumentHash>}
               </S.DocumentInfo>
               <Button
                 variant="secondary"

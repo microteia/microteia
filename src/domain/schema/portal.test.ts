@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  acceptsAutomationInvites,
   asPortalDeclaration,
   buildPortalEdit,
   buildPortalSubmission,
@@ -70,6 +71,18 @@ describe('declaração do portal', () => {
     expect(asPortalDeclaration({ subject: 'everyone', fields: ['a'] })).toBeNull();
     expect(asPortalDeclaration({ subject: { field: '' } })).toBeNull();
     expect(asPortalDeclaration(null)).toBeNull();
+  });
+
+  it('o convite por automação só existe quando declarado — e só como `automation: true`', () => {
+    expect(asPortalDeclaration({ subject: 'self', fields: ['a'], invites: { automation: true } })?.invites)
+      .toEqual({ automation: true });
+    expect(asPortalDeclaration({ subject: 'self', fields: ['a'], invites: { automation: 'yes' } })).not.toHaveProperty('invites');
+    expect(asPortalDeclaration({ subject: 'self', fields: ['a'], invites: true })).not.toHaveProperty('invites');
+
+    const open = { ...company, portal: { ...company.portal!, invites: { automation: true } } };
+    expect(acceptsAutomationInvites(open)).toBe(true);
+    expect(acceptsAutomationInvites(company)).toBe(false);
+    expect(acceptsAutomationInvites({ ...invoice, portal: { ...invoice.portal!, invites: { automation: true } } })).toBe(false);
   });
 
   it('a chave de sujeito ida e volta', () => {
@@ -174,6 +187,12 @@ describe('problemas da declaração', () => {
   it('o campo do sujeito precisa ser referência', () => {
     expect(keys({ ...invoice, portal: { subject: { field: 'number' }, fields: ['number'] } }))
       .toContain('@core.records/portal.issue.subject.not-reference');
+  });
+
+  it('convite por automação fora da tela-sujeito é avisado — o servidor nunca o aceitaria', () => {
+    expect(keys({ ...company, portal: { ...company.portal!, invites: { automation: true } } })).toEqual([]);
+    expect(keys({ ...invoice, portal: { ...invoice.portal!, invites: { automation: true } } }))
+      .toContain('@core.records/portal.issue.invites.not-subject');
   });
 
   it('herdar do pai exige ter pai', () => {

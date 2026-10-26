@@ -68,6 +68,11 @@ export interface RecordDocument {
   createdAt: Date;
   /** Marcado por alguém do escritório para aparecer no PORTAL de quem o registro pertence. */
   portalShared?: boolean;
+  /**
+   * O SHA-256 do arquivo, em hexadecimal — campo de SISTEMA: calculado no servidor depois do envio,
+   * nunca escrito pelo cliente, nunca reescrito. Ausente enquanto não foi calculado.
+   */
+  sha256?: string;
 }
 
 /** Etiqueta de uma tela, guardada em `screenDefinitions/{collection}/tags`. */

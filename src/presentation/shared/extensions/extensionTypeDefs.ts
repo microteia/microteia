@@ -816,6 +816,12 @@ const UI_MODULE_DEFS = `declare module '@microteia/ui' {
     controller: any;
     /** May delete an attached document - the delete permission of the record's collection. */
     canDelete: boolean;
+    /**
+     * The edit window of the record has closed (the screen's \`editWindow\`): attaching still works,
+     * deleting is hidden and a notice says why. The security rules refuse the deletion either way -
+     * pass it so the gesture is not offered only to fail. Defaults to \`false\`.
+     */
+    isLocked?: boolean;
     /** May remove a document TYPE from the organization's shared list. */
     canManageTypes: boolean;
   }
@@ -1483,6 +1489,8 @@ const PORTAL_MODULE_DEFS = `declare module '@microteia/portal' {
     type: string | null;
     description: string | null;
     createdAt: Date | null;
+    /** The SHA-256 of the file, in hex, computed by the server. \`null\` until it has been computed. */
+    sha256: string | null;
   }
 
   /** The exposed screen of a collection: titles, exposed fields and what a guest fills in to create. */

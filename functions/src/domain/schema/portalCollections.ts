@@ -19,3 +19,8 @@ export const PORTAL_DOCUMENTS_SUBCOLLECTION = 'documents';
 export const PORTAL_REPROJECTIONS_COLLECTION = 'portal_reprojections';
 /** Coleção de RAIZ, só do servidor: a marca do convite que precisa existir antes da conta. */
 export const PORTAL_INVITES_COLLECTION = 'portalInvites';
+/**
+ * Coleção de RAIZ, só do servidor: um documento por escritório com a contagem da hora corrente dos
+ * convites feitos por automação. Na raiz, e não sob o escritório, para não disputar nome com uma tela.
+ */
+export const PORTAL_INVITE_RATES_COLLECTION = 'portalInviteRates';

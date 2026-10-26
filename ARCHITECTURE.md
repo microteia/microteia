@@ -106,6 +106,7 @@ npm run verify          # typecheck + lint + verify-schemas
 | `PortalRecord` (projeção do que uma tela expõe no portal; escrita só pelo servidor) | `tenants/{tenantId}/portalRecords/{coleção}__{id}` (+ `documents/{id}`) | Sim |
 | Reprojeção do portal (a passada que refaz as projeções de uma coleção; escrita só pelo servidor) | `tenants/{tenantId}/portal_reprojections/{coleção}` | Sim |
 | Marca de convite do portal (o bootstrap a lê para não abrir escritório) | `portalInvites/{e-mail}` | Não (só servidor) |
+| Contagem da hora dos convites do portal feitos por automação | `portalInviteRates/{tenantId}` | Não (só servidor; nenhuma regra a libera) |
 | `Notícia` (extensão `com.microteia.news`) | `tenants/{tenantId}/news/{id}` | Sim |
 | `Comentário` (extensão `com.microteia.news`) | `tenants/{tenantId}/newsComments/{id}` | Sim |
 | `SavedFilter` | `savedFilters/{uid}_{screenKey}` | Não |
@@ -1075,6 +1076,63 @@ O link de acesso é o do próprio Firebase Auth (`sendSignInLinkToEmail`), e vol
 `/portal/signin`. **Exige o provedor "Link por e-mail" ligado no Firebase Auth do projeto** — sem ele,
 convidar funciona e o e-mail não sai.
 
+### Convite por automação — `portal-invite` e `portal-revoke`
+
+O credenciamento em escala — a prefeitura com milhares de contribuintes, a clínica com os pacientes
+confirmados — não cabe no convite digitado em Configurações › Portal: alguém teria de redigitar o e-mail
+que já está num registro, e o limite que o registro valida ("até cinco representantes por empresa") não
+alcançaria o convite. Os dois passos fazem o convite seguir o registro.
+
+**Uma porta só.** O passo chama o MESMO `makeInvitePortalUserUseCase` da callable — a mesma marca antes
+da conta, o mesmo vínculo, o mesmo `portalUsers/{uid}` —, e a revogação o mesmo
+`makeRevokePortalUserUseCase`. A única diferença é a `origin` (`settings` | `automation`), e ela só
+acrescenta conferências; não muda o que é gravado. `PortalAccessUseCases.test.ts` compara os dois
+convites lado a lado.
+
+**Quem abre a porta é a TELA, não quem dispara.** A primeira proposta cobrava `portal.manage` do ator,
+e, sem ator, aceitava só automações da extensão dona da tela-sujeito. As duas metades falhavam:
+
+| Proposta | Por que não |
+|---|---|
+| exigir `portal.manage` do ator | as permissões não atravessam o barramento (`actor.permissions` é `[]` fora do processo, ver "Quem disparou") — e cobraria de quem apertou o botão uma decisão de quem escreveu o fluxo |
+| sem ator, só a extensão dona | `ownerPluginIds` é gravado pelo cliente com `automation.manage`, e as rules não o protegem: não é fronteira. E proibiria o escritório de montar o próprio credenciamento |
+
+A decisão é de EXPOSIÇÃO, e o lugar dela já existe e já é cobrado: a chave `portal` da tela, que
+`screenDefinitions` só aceita de quem tem `portal.manage` (ou `extensions.manage`). Por isso
+`portal.invites: { automation: true }` — só na tela-sujeito (`acceptsAutomationInvites`), interruptor na
+aba Portal do Form Design. Sem ela, `portal-invite` reprova com `portal.invite.automation-closed` ANTES de
+qualquer escrita. Revogar não pede a declaração: recolher nunca expõe nada (o mesmo critério de
+`share-documents`). A permissão de quem disparou não é cobrada, como em toda escrita do motor; o ator (ou
+o motor, sem ator — e o convidado do portal nunca responde) é quem a Auditoria nomeia.
+
+| Garantia | Como |
+|---|---|
+| idempotente por (e-mail normalizado, sujeito) | o convite que já existe volta `granted: false` sem escrever nada — nem conta, nem vaga, nem auditoria, nem e-mail. Seguro em `.saved` |
+| limite por escritório | `PORTAL_AUTOMATION_INVITES_PER_HOUR` convites NOVOS por hora UTC, somadas as automações; `IPortalInviteQuota.consume` reserva e confere numa transação (`portalInviteRates/{tenantId}`). Esgotado, `portal.invite.rate-limited`, antes de criar a conta |
+| e-mail inválido | `portal.email.invalid`, o mesmo erro nomeado da tela |
+| auditado | todo vínculo NOVO e toda revogação efetiva gravam linha (`portal.audit.granted`/`revoked`, com a origem e o sujeito) — nos DOIS caminhos: o convite manual não era auditado |
+| revogação imediata | é a mesma `revokeSubject`, e as callables do convidado já conferem o convite vivo (`guestSees`) |
+| `allSubjects` | o convite inteiro, mas só de quem tem aquele sujeito: a automação de um registro não alcança convidado de outro |
+| corrida de contas | duas execuções que convidam o mesmo e-mail novo: a segunda a criar a conta recebe `email-already-exists` e usa a da primeira (`FirebasePortalAccountService.createAccount`) |
+
+**O e-mail é outro, e é de propósito.** O convite da tela manda o link de acesso pelo navegador
+(`sendSignInLinkToEmail`, o e-mail do Firebase); o servidor não tem essa porta. O passo usa a porta única
+de avisos (`DispatchNotificationUseCase`, `audience: 'portal'`, só e-mail), que já leva o registro NO
+portal, no idioma do convite e com a cara do escritório — e o convidado entra pela página de acesso com
+aquele e-mail. Para isso `recipientIds` passou a ESTREITAR o público do portal (antes era ignorado): o
+aviso vai só para o convidado novo, e um uid que não vê o registro continua sem receber. Sem o e-mail do
+escritório configurado, o convite é feito, `emailed` sai `false` e o log da execução diz por quê. O idioma
+gravado no convite é o ESCOLHIDO pelo escritório; sem escolha, nenhum — vale o navegador do convidado.
+
+**Ligar `invites` não reprojeta nada.** `portalShape` (o que dispara a passada de reprojeção) ignora a
+chave: ela decide quem entra, não o que cada um vê — e uma passada desnecessária em toda coleção que chega
+ao sujeito é o custo de plataforma que a fila existe para conter.
+
+**O empacotamento** cobra `kernel ^PORTAL_AUTOMATION_INVITES_SINCE_KERNEL` (2.73.0) de quem usa os passos
+(`portalAccessIssues`) e recusa o convite para uma tela DO PRÓPRIO pacote que não declara `invites`
+(`issue.step.portal-invite.closed`). A instalação reescreve `subjectCollection` pela chave instalada, como
+a `collection` de `share-documents`. `examples/portal-example` credencia o Contato de um Cliente.
+
 ### A casca — `/portal`
 
 Fora da pilha de stores do espaço de trabalho, de propósito: o convidado não lê telas, perfis nem
@@ -1366,7 +1424,7 @@ registro de que o aviso fala (`target`), pela MESMA corrente da projeção:
 |---|---|
 | `makeResolvePortalGuestsUseCase` (`functions/src/domain/usecases/`) | `resolvePortalSubjectKeys` sobre o registro como está gravado, e então `audienceFor` + o convite de cada um. Não lê a projeção: o aviso de um registro recém-criado não espera ela existir, e o `audience` dela é refeito segundos depois de uma revogação — o convite, não |
 | `INotificationDirectory.guests` | o convidado como destinatário: sem preferências próprias (valem os padrões de canal do escritório), idioma do convite, e push nunca — o portal não tem onde ativá-lo |
-| `DispatchNotificationRequest.audience: 'portal'` | a porta única continua uma só: `recipientIds` e `recipientPermissions` não valem; o link do e-mail é `portalRecordPath` (`/portal/<escritório>/<coleção>?record=<id>`); o sino recebe `audience: 'portal'` e o texto JÁ resolvido no idioma do convidado — o portal não tem o catálogo de toda extensão instalada |
+| `DispatchNotificationRequest.audience: 'portal'` | a porta única continua uma só: `recipientPermissions` não vale, e `recipientIds` só ESTREITA quem vê o registro (o convite por automação avisa só o convidado novo); o link do e-mail é `portalRecordPath` (`/portal/<escritório>/<coleção>?record=<id>`); o sino recebe `audience: 'portal'` e o texto JÁ resolvido no idioma do convidado — o portal não tem o catálogo de toda extensão instalada |
 | a Auditoria | toda entrega a convidados grava `notifications.portal.audit` (quantos, qual registro, o título), independente de `toAudit`: aquele é o aviso AO escritório; este, o rastro do que saiu dele |
 
 **O passo.** `portalGuests` (Literal, `false` por padrão) e `portalRecord` (só `Event`). O registro é o
@@ -1417,6 +1475,7 @@ não há recusa no empacotamento. `examples/portal-example` avisa o cliente de u
 `presentation/pages/TenantSettings/PortalTab/` ·
 `functions/src/domain/usecases/{PortalProjectionUseCases,PortalReprojectionUseCases,PortalAccessUseCases}.ts` ·
 `functions/src/infrastructure/handlers/{portalProjection,portalAccess}.ts` ·
+`functions/src/infrastructure/workflow/steps/PortalAccessSteps.ts` · `functions/src/infrastructure/portal/portalAccessAudit.ts` ·
 `rules-tests/{portal,portalReprojections}.test.ts`
 
 ---
@@ -3919,7 +3978,7 @@ A listagem consulta `orderBy('createdAt','desc') + limit(500)` — sem filtro im
 - Habilitados por tela via `hasNotes`/`hasDocuments` na definição; aparecem como abas em `ViewDynamicRecord` (padrão idêntico ao `ViewContract`).
 - Subcoleções `tenants/{tid}/{collection}/{recordId}/notes|documents` — a coleção é o caminho, então nada precisa ser denormalizado no doc. Arquivos no Storage em `tenants/{tid}/{collection}/{recordId}/{ts}_{arquivo}` (máx. 20 MB).
 - Repositórios genéricos + `useRecordNotesPort`/`useRecordDocumentsPort` (`entityScreen/useRecordPorts.ts`), que prendem a coleção e entregam o mesmo `NotesPort`/`DocumentsPort` das fixas.
-- `DeleteRecordUseCase` cascateia: exclui notas, documentos (incluindo arquivos do Storage) e então o registro.
+- `DeleteRecordUseCase` cascateia: exclui o registro e então as notas e os documentos dele (incluindo os arquivos do Storage). A ordem é essa por causa da janela de edição — ver "Os documentos do registro" em "Janela de edição".
 - O agente de IA lê e anexa pela mesma subcoleção e no mesmo caminho do bucket (`list_documents`/`attach_document`; ver "Anexos pela aba Documentos").
 - Auditoria: `getNestedEntityConfig` cai numa configuração genérica de "Nota/Documento de Registro" para qualquer coleção que não seja reservada.
 - **Anexar é um LOTE, e o tipo é de cada arquivo.** `useEntityDocuments` guarda uma fila
@@ -12448,16 +12507,81 @@ passam pelo mesmo portão do `check` (`editWindowIssue`).
   versão que retira a própria janela deixa a que valia: retirar uma trava de prova é gesto de pessoa, com a
   permissão, nunca efeito colateral de atualizar.
 
+### Os documentos do registro — a mesma janela
+
+Uma comunicação vale com os anexos dela. Até o kernel `2.71.0` a regra de `documents` e a do Storage só
+perguntavam a permissão da coleção: quem a tinha — e o dono, que tem `*` — apagava o anexo de uma mensagem
+expedida, e anexava outro no lugar, sem que o registro mudasse de data. Agora a janela do REGISTRO vale para
+os documentos dele (`EDIT_WINDOW_DOCUMENTS_SINCE_KERNEL`, `2.72.0`).
+
+| O quê | Fechada a janela | Por quê |
+|---|---|---|
+| Anexar documento novo | passa | a janela protege o que já existe; acrescentar não reescreve nada |
+| Excluir (e o carimbo `deletedBy*` que vem antes) | recusa — **com ou sem `delete: true`** | tirar um anexo e pôr outro troca a prova sem que o registro mude de data. `delete` responde pela exclusão do REGISTRO, que some por inteiro e deixa as duas pontas na auditoria |
+| Renomear, retipar, apontar para outro arquivo | recusa — **sempre**, dentro ou fora da janela | já era assim: o `update` de `documents` só aceita a marca do portal e o carimbo de exclusão |
+| Compartilhar no portal | passa | é visibilidade, não conteúdo: o arquivo, o nome e a autoria não mudam |
+| Apagar o arquivo no Storage | recusa | a mesma conta, lida dos mesmos dois documentos (`screenDefinitions/<coleção>` e o registro) |
+| Gravar POR CIMA do arquivo | recusa — **sempre** | ver abaixo: era a troca que nem precisava apagar |
+
+**A âncora é o `createdAt` do registro, não o do documento.** O anexo é parte do registro, e a prova congela
+inteira — um documento anexado depois do prazo nasce já fechado, como o lançamento que corrige outro. Contar
+de cada arquivo daria a cada anexo tardio quinze minutos para sair, e a regra do Storage teria de confiar no
+`timeCreated` do objeto sem conseguir testá-lo no emulador. Registro sem `createdAt` legível fecha, como no
+próprio registro.
+
+**A única saída é a do registro.** Quando a tela deixa excluir o registro (sem `delete: true`, ou dentro da
+janela), os anexos saem com ele: a regra libera o documento e o arquivo de um registro que **não existe
+mais** (`!exists(...)`). Por isso a ordem da cascata virou — ver abaixo. E ninguém passa por cima, pela
+mesma decisão da janela do registro.
+
+**Sobrescrever era `create`.** O Storage chama de `update` só a troca de METADADO; enviar para um caminho que
+já existe é `create`, e a regra supunha o contrário ("nada sobrescreve objeto existente"). O teste do
+emulador mostrou: quem podia enviar trocava o conteúdo de um anexo — e o logo do escritório, e a espera do
+portal — sem tocar o documento, o link nem a auditoria. Todo `create` do `storage.rules` exige agora
+`resource == null`. Nenhum caminho legítimo grava por cima: os nomes carregam `Date.now()` ou um UUID.
+
+Os caminhos do servidor não precisam de trava própria: nenhum exclui, troca ou renomeia um documento isolado.
+O agente e o portal só anexam (`attach_document`, `attachPortalDocument`), o passo `share-documents` só mexe
+na marca do portal, e a única exclusão é a cascata de `runWorkflowRemove`, que já confere a janela do registro.
+
+### O hash do arquivo — `sha256`
+
+Cada documento de registro ganha `sha256` (hexadecimal), campo de SISTEMA: o `firestore.rules` recusa o
+cliente que o escreve ao anexar (`omitsServerHash`), e o `update` nunca o admitiu. O servidor só o grava
+quando falta, numa transação — nunca o reescreve.
+
+| Origem do anexo | Quem calcula |
+|---|---|
+| Servidor — agente, portal, "Gerar documento", gesto do registro | `FirebaseRecordDocumentWriter`, sobre os bytes que já tem, na mesma gravação |
+| Navegador — a aba Documentos | `onDocumentChange`, ao ver o documento sem hash: lê o arquivo do bucket em blocos e carimba (`FirebaseRecordDocumentHasher`) |
+
+O carimbo vem **antes** do evento e vai nele: `<prefixo>_document.saved` já leva `sha256`, e a gravação do
+carimbo — que dispara o gatilho de novo — não publica outro (`childRecordEvent` ignora o que só mudou em
+`RECORD_DOCUMENT_SERVER_STAMPS`); a auditoria também o ignora (`IGNORED_KEYS`). O `storagePath` é dado do
+cliente: `recordDocumentFileToHash` só lê o que mora na pasta do próprio registro, senão um documento forjado
+faria o servidor ler o arquivo de outro escritório.
+
+O hash aparece na aba Documentos, no portal (a projeção o leva — `PortalDocumentProjection.sha256` — e
+`usePortalDocuments` o devolve), em `list_documents` e no catálogo de eventos (`event-field.sha256`). Um
+documento anterior a isto ganha o hash na próxima gravação dele; não há recálculo em lote.
+
+Quanto custa: um download do arquivo por anexo do navegador (até 20 MB), dentro do gatilho que já existia.
+
 ### A exclusão e a cascata
 
-`DeleteRecordUseCase` apaga anotações e documentos ANTES do registro, e `FirestoreWorkflowMutationRepository.delete`
-também. Recusar só no fim deixaria a prova sem os anexos. Por isso `IRecordRepository.ensureDeletable` é a
-primeira chamada do caso de uso, e `runWorkflowRemove` confere antes de chamar o repositório.
+`DeleteRecordUseCase` confere a janela (`IRecordRepository.ensureDeletable`), apaga o REGISTRO e só então
+as anotações e os documentos dele. Na ordem antiga — filhos primeiro — a exclusão permitida de um registro
+fechado esbarraria nos próprios anexos (a regra só os libera quando o registro não existe), e as anotações
+já teriam saído. O que falha depois do registro excluído não desfaz a exclusão (`Promise.allSettled`): são
+filhos que nenhuma tela alcança mais. `FirestoreWorkflowMutationRepository.delete` grava pelo Admin SDK e
+mantém a ordem dele; `runWorkflowRemove` confere a janela antes de chamar o repositório.
 
 ### O limite, dito com todas as letras
 
-- **Anotações e documentos do registro têm regra própria** e não estão sob a janela: ela protege o documento do
-  registro. O que a cascata faria com eles está coberto acima; a exclusão direta de uma anotação, não.
+- **Anotações do registro têm regra própria** e não estão sob a janela. Os documentos estão (ver "Os
+  documentos do registro"); a exclusão direta de uma anotação, não.
+- **O hash de um anexo do navegador chega depois dele** — segundos, o tempo de o gatilho ler o arquivo. Até
+  lá o campo está ausente, e um gatilho que falhe deixa o documento sem hash até a próxima gravação dele.
 - **Sem `delete: true`, apagar e recriar continua possível** — com `createdAt` novo, e a auditoria registra as
   duas pontas.
 - **O relógio do navegador decide o que a tela mostra; o do servidor, o que grava.** Com o relógio local
@@ -12482,6 +12606,9 @@ editável para sempre, sem aviso. É recusa de GARANTIA, como a de `portal.visib
 | `pages/ScreenBuilder/components/ScreenEditWindowPanel/` | a aba do Form Design |
 | `functions/src/infrastructure/agent/describeScreen.ts` | o agente vê a janela antes de tentar |
 | `rules-tests/editWindow.test.ts` | a regra, contra o emulador |
+| `rules-tests/editWindowDocuments.test.ts` | documentos e arquivos sob a janela, e o `sha256` que o cliente não escreve |
+| `functions/src/domain/services/recordDocumentHash.ts` | o campo, o que o servidor carimba, e qual arquivo pode ser lido |
+| `functions/src/data/services/FirebaseRecordDocumentHasher.ts` | o carimbo do hash para o anexo do navegador |
 | `examples/record-tab-example` | a tela "Atualização", que congela 15 minutos depois de criada |
 
 ---
@@ -12731,7 +12858,9 @@ deixa as regras em versões diferentes daquilo que o código espera.
 Não documente as regras neste arquivo — a fonte de verdade é `storage.rules`. O princípio, só: pelo
 SDK, o arquivo de um registro segue a PERMISSÃO da coleção (`<coleção>.read` lê; `.create`/`.update`
 envia; `.update`/`.delete` apaga), pela mesma pergunta do `can()` do Firestore (dono, ou `permissions`
-materializado com a pedida ou `*`). O link de download com `token=` não passa por regra nenhuma — é ele
+materializado com a pedida ou `*`). Nenhum `create` grava por cima de objeto existente (`resource == null`:
+para o Storage, sobrescrever é `create`), e o arquivo de um registro de tela com `editWindow` não é apagado
+depois da janela do registro, salvo quando o registro já não existe. O link de download com `token=` não passa por regra nenhuma — é ele
 que o portal, os e-mails e quem recebe um link usam, e por isso apertar a regra não os quebra. Os testes
 (`rules-tests/storage.test.ts`) rodam no emulador do Storage, junto com o do Firestore (`npm run test:rules`).
 

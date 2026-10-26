@@ -687,11 +687,14 @@ service cloud.firestore {
       function editWindowOf(name) {
         return isDeclaredScreen(name) ? screenData(name).get('editWindow', null) : null;
       }
-      function insideEditWindow(spec) {
+      function editWindowOpenSince(spec, createdAt) {
         return spec.get('minutes', null) is int
           && spec.minutes > 0
-          && resource.data.get('createdAt', null) is timestamp
-          && request.time < resource.data.createdAt + duration.value(spec.minutes, 'm');
+          && createdAt is timestamp
+          && request.time < createdAt + duration.value(spec.minutes, 'm');
+      }
+      function insideEditWindow(spec) {
+        return editWindowOpenSince(spec, resource.data.get('createdAt', null));
       }
       function editWindowExemptChange(name, spec) {
         let changed = request.resource.data.diff(resource.data).affectedKeys();
@@ -711,6 +714,22 @@ service cloud.firestore {
       function respectsEditWindowOnDelete(name) {
         let spec = editWindowOf(name);
         return spec == null || spec.get('delete', false) != true || insideEditWindow(spec);
+      }
+      // Os DOCUMENTOS do registro são parte da prova: fechada a janela do REGISTRO, nenhum sai — com ou
+      // sem `delete: true`, porque tirar um anexo e pôr outro é trocar a prova sem que o registro mude
+      // de data. Anexar continua livre. A única saída é a do próprio registro, quando a exclusão dele é
+      // permitida: a cascata apaga o registro PRIMEIRO, e o documento de um registro que não existe
+      // mais não é prova de nada.
+      function recordDocumentsUnlocked(name, recordId) {
+        let spec = editWindowOf(name);
+        let record = /databases/$(database)/documents/tenants/$(tenantId)/$(name)/$(recordId);
+        return spec == null
+          || !exists(record)
+          || editWindowOpenSince(spec, get(record).data.get('createdAt', null));
+      }
+      // O hash do arquivo é calculado pelo servidor; o cliente nunca o escreve, nem ao criar.
+      function omitsServerHash() {
+        return !request.resource.data.keys().hasAny(['sha256']);
       }
 
       // Uma LISTA DE OPÇÕES e um CONJUNTO DE ETIQUETAS são vocabulário, não dado: toda tela que os
@@ -789,21 +808,26 @@ service cloud.firestore {
         }
 
         // Documentos do registro — mesmo modelo das anotações. Compartilhar no portal é EDITAR o
-        // registro, e só mexe na marca: o arquivo, o nome e a autoria continuam de quem anexou.
+        // registro, e só mexe na marca: o arquivo, o nome e a autoria continuam de quem anexou — e por
+        // isso passa depois da janela de edição, que só barra o carimbo de exclusão e a exclusão.
+        // Nenhuma outra chave muda nunca: nome, tipo, arquivo e `sha256` são fixos desde o anexo.
         match /documents/{documentId} {
           allow read: if !isReservedCollection(screenCollection)
             && isMember(tenantId)
             && canOnCollection(screenCollection, 'read');
           allow create: if isWritableScreen(screenCollection) && canOnCollection(screenCollection, 'update')
-            && request.resource.data.get('portalShared', false) == false;
+            && request.resource.data.get('portalShared', false) == false
+            && omitsServerHash();
           allow update: if isWritableScreen(screenCollection) && canOnCollection(screenCollection, 'update')
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['portalShared', 'portalSharedBy', 'portalSharedAt'])
             && request.resource.data.portalShared is bool
             && request.resource.data.portalSharedBy == request.auth.uid;
           allow update: if isWritableScreen(screenCollection) && canOnCollection(screenCollection, 'delete')
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deletedBy', 'deletedByName', 'deletedByPhotoURL'])
-            && request.resource.data.deletedBy == request.auth.uid;
-          allow delete: if isWritableScreen(screenCollection) && canOnCollection(screenCollection, 'delete');
+            && request.resource.data.deletedBy == request.auth.uid
+            && recordDocumentsUnlocked(screenCollection, recordId);
+          allow delete: if isWritableScreen(screenCollection) && canOnCollection(screenCollection, 'delete')
+            && recordDocumentsUnlocked(screenCollection, recordId);
         }
       }
     }

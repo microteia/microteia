@@ -1,8 +1,8 @@
 {
   "manifest": {
     "id": "com.microteia.portal-example",
-    "version": "1.8.0",
-    "kernel": "^2.70.0",
+    "version": "1.9.0",
+    "kernel": "^2.73.0",
     "name": "@com.microteia.portal-example/package.name",
     "description": "@com.microteia.portal-example/package.description",
     "category": "@com.microteia.portal-example/package.category",
@@ -34,6 +34,8 @@
             "screen.site.plural": "Sites",
             "screen.visit": "Visit",
             "screen.visit.plural": "Visits",
+            "screen.contact": "Contact",
+            "screen.contact.plural": "Contacts",
             "field.name": "Name",
             "field.city": "City",
             "field.client": "Client",
@@ -42,6 +44,8 @@
             "field.notes": "Notes",
             "field.internal": "Internal note",
             "field.confirmed": "Confirmed",
+            "field.email": "E-mail",
+            "field.portalAccess": "Portal access",
             "field.site": "Site",
             "field.date": "Date",
             "field.summary": "Summary",
@@ -62,6 +66,12 @@
             "workflow.visit-scheduled.description": "When a visit is scheduled, notifies the client's portal guests by e-mail and on the portal bell.",
             "workflow.order-confirmed": "Release the documents of a confirmed order",
             "workflow.order-confirmed.description": "When an order is confirmed, shares all its documents with the client's portal guests.",
+            "workflow.contact-access": "Invite the contact to the portal",
+            "workflow.contact-access.description": "When a contact gets portal access, invites them to their client in the portal.",
+            "workflow.contact-access-removed": "Remove the contact's portal access",
+            "workflow.contact-access-removed.description": "When a contact loses portal access, removes their access to the client in the portal.",
+            "workflow.contact-deleted": "Remove the deleted contact's portal access",
+            "workflow.contact-deleted.description": "When a contact is deleted, removes their access to the client in the portal.",
             "notify.visit.title": "A visit was scheduled",
             "notify.visit.message": "Open it in the portal to see the date and the summary."
           }
@@ -87,6 +97,8 @@
             "screen.site.plural": "Locais",
             "screen.visit": "Visita",
             "screen.visit.plural": "Visitas",
+            "screen.contact": "Contato",
+            "screen.contact.plural": "Contatos",
             "field.name": "Nome",
             "field.city": "Cidade",
             "field.client": "Cliente",
@@ -95,6 +107,8 @@
             "field.notes": "Observações",
             "field.internal": "Nota interna",
             "field.confirmed": "Confirmado",
+            "field.email": "E-mail",
+            "field.portalAccess": "Acesso ao portal",
             "field.site": "Local",
             "field.date": "Data",
             "field.summary": "Resumo",
@@ -115,6 +129,12 @@
             "workflow.visit-scheduled.description": "Quando uma visita é agendada, avisa os convidados do portal do cliente por e-mail e no sino do portal.",
             "workflow.order-confirmed": "Liberar os documentos de um pedido confirmado",
             "workflow.order-confirmed.description": "Quando um pedido é confirmado, compartilha todos os documentos dele com os convidados do portal do cliente.",
+            "workflow.contact-access": "Convidar o contato para o portal",
+            "workflow.contact-access.description": "Quando um contato ganha acesso ao portal, convida-o para o cliente dele no portal.",
+            "workflow.contact-access-removed": "Retirar o acesso do contato ao portal",
+            "workflow.contact-access-removed.description": "Quando um contato perde o acesso ao portal, retira o acesso dele ao cliente no portal.",
+            "workflow.contact-deleted": "Retirar o acesso do contato excluído",
+            "workflow.contact-deleted.description": "Quando um contato é excluído, retira o acesso dele ao cliente no portal.",
             "notify.visit.title": "Uma visita foi agendada",
             "notify.visit.message": "Abra no portal para ver a data e o resumo."
           }
@@ -237,6 +257,117 @@
           }
         }
       ]
+    },
+    {
+      "templateId": "wf-contact-access",
+      "name": "@com.microteia.portal-example/workflow.contact-access",
+      "description": "@com.microteia.portal-example/workflow.contact-access.description",
+      "eventName": "portalExampleContact.saved",
+      "version": 1,
+      "condition": {
+        "kind": "FieldComparison",
+        "fieldPath": "event.payload.portalAccess",
+        "operator": "==",
+        "value": true,
+        "valueType": "literal"
+      },
+      "steps": [
+        {
+          "id": "inviteContact",
+          "stepDefinitionId": "portal-invite",
+          "type": "Action",
+          "order": 0,
+          "enabled": true,
+          "configuration": {
+            "subjectCollection": {
+              "kind": "Literal",
+              "value": "portalExampleClient"
+            },
+            "subjectRecordId": {
+              "kind": "Event",
+              "path": "client"
+            },
+            "email": {
+              "kind": "Event",
+              "path": "email"
+            },
+            "displayName": {
+              "kind": "Event",
+              "path": "name"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "templateId": "wf-contact-access-removed",
+      "name": "@com.microteia.portal-example/workflow.contact-access-removed",
+      "description": "@com.microteia.portal-example/workflow.contact-access-removed.description",
+      "eventName": "portalExampleContact.saved",
+      "version": 1,
+      "condition": {
+        "kind": "FieldComparison",
+        "fieldPath": "event.payload.portalAccess",
+        "operator": "!=",
+        "value": true,
+        "valueType": "literal"
+      },
+      "steps": [
+        {
+          "id": "revokeContact",
+          "stepDefinitionId": "portal-revoke",
+          "type": "Action",
+          "order": 0,
+          "enabled": true,
+          "configuration": {
+            "subjectCollection": {
+              "kind": "Literal",
+              "value": "portalExampleClient"
+            },
+            "subjectRecordId": {
+              "kind": "Event",
+              "path": "client"
+            },
+            "email": {
+              "kind": "Event",
+              "path": "email"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "templateId": "wf-contact-deleted",
+      "name": "@com.microteia.portal-example/workflow.contact-deleted",
+      "description": "@com.microteia.portal-example/workflow.contact-deleted.description",
+      "eventName": "portalExampleContact.deleted",
+      "version": 1,
+      "condition": {
+        "kind": "AlwaysTrue"
+      },
+      "steps": [
+        {
+          "id": "revokeDeletedContact",
+          "stepDefinitionId": "portal-revoke",
+          "type": "Action",
+          "order": 0,
+          "enabled": true,
+          "configuration": {
+            "subjectCollection": {
+              "kind": "Literal",
+              "value": "portalExampleClient"
+            },
+            "subjectRecordId": {
+              "kind": "Event",
+              "path": "client"
+            },
+            "email": {
+              "kind": "Event",
+              "path": "email"
+            }
+          }
+        }
+      ]
     }
   ],
   "screens": [
@@ -270,7 +401,10 @@
         "fields": [
           "name",
           "city"
-        ]
+        ],
+        "invites": {
+          "automation": true
+        }
       }
     },
     {
@@ -453,6 +587,50 @@
           "summary"
         ]
       }
+    },
+    {
+      "key": "portalExampleContact",
+      "sourceId": "microteia:portal-example:contact",
+      "sourceRev": 1,
+      "titleSingular": "@com.microteia.portal-example/screen.contact",
+      "titlePlural": "@com.microteia.portal-example/screen.contact.plural",
+      "icon": "contacts",
+      "fields": [
+        {
+          "key": "name",
+          "label": "@com.microteia.portal-example/field.name",
+          "type": "text",
+          "required": true,
+          "order": 0
+        },
+        {
+          "key": "email",
+          "label": "@com.microteia.portal-example/field.email",
+          "type": "text",
+          "required": true,
+          "order": 1
+        },
+        {
+          "key": "client",
+          "label": "@com.microteia.portal-example/field.client",
+          "type": "reference",
+          "required": true,
+          "order": 2,
+          "refEntity": "portalExampleClient"
+        },
+        {
+          "key": "portalAccess",
+          "label": "@com.microteia.portal-example/field.portalAccess",
+          "type": "checkbox",
+          "required": false,
+          "order": 3
+        }
+      ],
+      "titleFieldKey": "name",
+      "parentEntity": "portalExampleClient",
+      "parentFieldKey": "client",
+      "parentRelation": "owned",
+      "eventPrefix": "portalExampleContact"
     }
   ],
   "lookups": [

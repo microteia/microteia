@@ -1,6 +1,7 @@
 import type { EntityMetadata } from '../schema/entityRegistry';
 import type { ChildRecordKind } from '../schema/eventCatalog';
 import { childRecordEventName } from '../schema/eventCatalog';
+import { RECORD_DOCUMENT_SERVER_STAMPS } from './recordDocumentHash';
 
 export interface ChildRecordWrite {
   kind: ChildRecordKind;
@@ -21,6 +22,9 @@ export interface ChildRecordEvent {
   payload: Record<string, unknown>;
 }
 
+const withoutServerStamps = (data: Record<string, unknown>): Record<string, unknown> =>
+  Object.fromEntries(Object.entries(data).filter(([key]) => !RECORD_DOCUMENT_SERVER_STAMPS.includes(key)));
+
 /**
  * O evento de uma nota ou de um documento de registro — `<prefixo>_note.saved`, por exemplo.
  *
@@ -28,12 +32,15 @@ export interface ChildRecordEvent {
  * carrega são os que dão nome ao registro (`referenceDenormFields`), os mesmos que o catálogo de
  * eventos oferece em `parent.*`. Nada aqui conhece coleção pelo nome.
  *
- * `null` quando não há o que publicar: escrita que não mudou nada.
+ * `null` quando não há o que publicar: escrita que não mudou nada — ou que só acrescentou o que o
+ * servidor carimba depois (o hash do anexo), que já foi no evento da criação.
  */
 export const childRecordEvent = (write: ChildRecordWrite): ChildRecordEvent | null => {
   const { before, after } = write;
   if (!before && !after) return null;
-  if (before && after && JSON.stringify(before) === JSON.stringify(after)) return null;
+  if (before && after && JSON.stringify(withoutServerStamps(before)) === JSON.stringify(withoutServerStamps(after))) {
+    return null;
+  }
 
   const isDelete = !!before && !after;
   const payload: Record<string, unknown> = {

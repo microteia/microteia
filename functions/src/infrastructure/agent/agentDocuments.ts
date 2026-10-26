@@ -123,6 +123,7 @@ export const listAgentDocuments = async (
           url: data.url,
           ...(typeof data.contentType === 'string' ? { contentType: data.contentType } : {}),
           ...(typeof data.size === 'number' ? { size: data.size } : {}),
+          ...(typeof data.sha256 === 'string' ? { sha256: data.sha256 } : {}),
           createdBy: data.createdBy,
           createdByName: data.createdByName,
           ...(typeof data.createdVia === 'string' ? { createdVia: data.createdVia } : {}),

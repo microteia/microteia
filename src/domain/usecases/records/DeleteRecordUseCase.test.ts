@@ -21,7 +21,20 @@ describe('DeleteRecordUseCase', () => {
     expect(repo.delete).not.toHaveBeenCalled();
   });
 
-  it('sem recusa, apaga anotações, documentos e então o registro', async () => {
+  it('o registro sai antes dos filhos, e a falha de um filho não desfaz a exclusão', async () => {
+    const repo = { ensureDeletable: vi.fn(async () => undefined), delete: vi.fn(async () => undefined) } as unknown as IRecordRepository;
+    const notes = { getNotes: vi.fn(async () => [{ id: 'n1' }]), deleteNote: vi.fn(async () => undefined) } as unknown as IRecordNoteRepository;
+    const documents = {
+      getDocuments: vi.fn(async () => [{ id: 'd1', storagePath: 'p' }]),
+      deleteDocument: vi.fn(async () => { throw new Error('permission-denied'); }),
+    } as unknown as IRecordDocumentRepository;
+
+    await expect(makeDeleteRecordUseCase(repo, notes, documents).execute('t1', 'mensagens', 'r1', actor)).resolves.toBeUndefined();
+    expect(repo.delete).toHaveBeenCalledOnce();
+    expect(notes.deleteNote).toHaveBeenCalledOnce();
+  });
+
+  it('sem recusa, apaga o registro e então anotações e documentos', async () => {
     const order: string[] = [];
     const repo = {
       ensureDeletable: vi.fn(async () => { order.push('ensure'); }),
@@ -37,6 +50,6 @@ describe('DeleteRecordUseCase', () => {
     } as unknown as IRecordDocumentRepository;
 
     await makeDeleteRecordUseCase(repo, notes, documents).execute('t1', 'mensagens', 'r1', actor);
-    expect(order).toEqual(['ensure', 'note', 'document', 'record']);
+    expect(order).toEqual(['ensure', 'record', 'note', 'document']);
   });
 });

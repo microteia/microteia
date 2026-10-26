@@ -3,10 +3,12 @@ import {
   makeGetPortalContextUseCase,
   makeGetPortalDocumentUrlUseCase,
   makeInvitePortalUserUseCase,
+  makeRevokePortalUserUseCase,
   makeSubmitPortalRecordUseCase,
   makeAttachPortalDocumentUseCase,
   makeUpdatePortalRecordUseCase,
 } from './PortalAccessUseCases';
+import type { PortalAccessAuditEntry, PortalAccessDeps } from './PortalAccessUseCases';
 import { makeProjectPortalRecordUseCase } from './PortalProjectionUseCases';
 import { CITY_SCREENS, EXTENSION_CITY_SCREENS, makeFakePortalRepository } from '../repositories/fakePortalRepository';
 import type { IPortalAccountService, PortalScreen } from '../repositories/IPortalRepository';
@@ -26,6 +28,34 @@ const accountsWith = (existing: Record<string, string> = {}) => {
   return { accounts, order };
 };
 
+const FISCAL = { userId: 'fiscal', userName: 'Fiscal' };
+
+const accessDeps = (
+  fake: ReturnType<typeof makeFakePortalRepository>,
+  accounts: IPortalAccountService,
+  options: { quota?: number } = {},
+) => {
+  const audited: PortalAccessAuditEntry[] = [];
+  let used = 0;
+  const deps: PortalAccessDeps = {
+    repo: fake.repo,
+    accounts,
+    audit: async (entry) => { audited.push(entry); },
+    quota: {
+      consume: async (_tenantId, limit) => {
+        if (used >= Math.min(limit, options.quota ?? limit)) return false;
+        used += 1;
+        return true;
+      },
+    },
+    now: () => new Date('2026-10-26T14:00:00Z'),
+  };
+  return { deps, audited, quotaUsed: () => used };
+};
+
+const withInvites = (screens: PortalScreen[]): PortalScreen[] => screens.map((screen) =>
+  (screen.id === 'companies' && screen.portal ? { ...screen, portal: { ...screen.portal, invites: { automation: true } } } : screen));
+
 describe('convite do portal', () => {
   it('grava a marca ANTES de criar a conta — é o que impede o bootstrap de abrir um escritório', async () => {
     const fake = makeFakePortalRepository(CITY_SCREENS);
@@ -37,12 +67,12 @@ describe('convite do portal', () => {
       await markInvite(email, tenantId);
     };
 
-    const result = await makeInvitePortalUserUseCase(fake.repo, accounts).execute({
-      tenantId: TENANT, tenantName: 'Salvador', email: ' Ana@Acme.com ', subjectKey: 'companies/acme', invitedBy: 'fiscal',
+    const result = await makeInvitePortalUserUseCase(accessDeps(fake, accounts).deps).execute({
+      tenantId: TENANT, tenantName: 'Salvador', email: ' Ana@Acme.com ', subjectKey: 'companies/acme', actor: FISCAL,
     });
 
     expect(order).toEqual(['mark:ana@acme.com', 'create:ana@acme.com']);
-    expect(result).toEqual({ userId: 'uid-ana@acme.com', created: true });
+    expect(result).toEqual({ userId: 'uid-ana@acme.com', created: true, granted: true });
     expect(fake.users.get('uid-ana@acme.com')?.subjectKeys).toEqual(['companies/acme']);
   });
 
@@ -52,11 +82,11 @@ describe('convite do portal', () => {
     const grant = vi.spyOn(fake.repo, 'grantSubject');
     const { accounts } = accountsWith({ 'ana@acme.com': 'ana' });
 
-    await makeInvitePortalUserUseCase(fake.repo, accounts).execute({
-      tenantId: TENANT, tenantName: 'Salvador', email: 'ana@acme.com', subjectKey: 'companies/acme', invitedBy: 'fiscal', locale: 'pt-BR',
+    await makeInvitePortalUserUseCase(accessDeps(fake, accounts).deps).execute({
+      tenantId: TENANT, tenantName: 'Salvador', email: 'ana@acme.com', subjectKey: 'companies/acme', actor: FISCAL, locale: 'pt-BR',
     });
 
-    expect(grant).toHaveBeenCalledWith(TENANT, expect.objectContaining({ locale: 'pt-BR' }), 'companies/acme');
+    expect(grant).toHaveBeenCalledWith(TENANT, expect.objectContaining({ locale: 'pt-BR', invitedBy: 'fiscal' }), 'companies/acme');
   });
 
   it('quem já tem conta é só vinculado', async () => {
@@ -64,8 +94,8 @@ describe('convite do portal', () => {
     fake.records.set('companies/acme', { name: 'Acme' });
     const { accounts } = accountsWith({ 'ana@acme.com': 'ana' });
 
-    const result = await makeInvitePortalUserUseCase(fake.repo, accounts).execute({
-      tenantId: TENANT, tenantName: 'Salvador', email: 'ana@acme.com', subjectKey: 'companies/acme', invitedBy: 'fiscal',
+    const result = await makeInvitePortalUserUseCase(accessDeps(fake, accounts).deps).execute({
+      tenantId: TENANT, tenantName: 'Salvador', email: 'ana@acme.com', subjectKey: 'companies/acme', actor: FISCAL,
     });
 
     expect(result.created).toBe(false);
@@ -77,12 +107,197 @@ describe('convite do portal', () => {
     const fake = makeFakePortalRepository(CITY_SCREENS);
     fake.records.set('invoices/nf1', { number: 'NF-1' });
     const { accounts } = accountsWith();
-    const invite = makeInvitePortalUserUseCase(fake.repo, accounts);
-    const base = { tenantId: TENANT, tenantName: 'Salvador', email: 'ana@acme.com', invitedBy: 'fiscal' };
+    const invite = makeInvitePortalUserUseCase(accessDeps(fake, accounts).deps);
+    const base = { tenantId: TENANT, tenantName: 'Salvador', email: 'ana@acme.com', actor: FISCAL };
 
     await expect(invite.execute({ ...base, subjectKey: 'invoices/nf1' })).rejects.toThrow('@core.tenant/portal.subject.invalid');
     await expect(invite.execute({ ...base, subjectKey: 'companies/missing' })).rejects.toThrow('@core.tenant/portal.subject.invalid');
     await expect(invite.execute({ ...base, email: 'sem-arroba', subjectKey: 'companies/acme' })).rejects.toThrow('@core.tenant/portal.email.invalid');
+  });
+
+  it('o vínculo novo deixa linha na Auditoria, com quem convidou e de onde', async () => {
+    const fake = makeFakePortalRepository(CITY_SCREENS);
+    fake.records.set('companies/acme', { name: 'Acme' });
+    const { accounts } = accountsWith();
+    const { deps, audited } = accessDeps(fake, accounts);
+
+    await makeInvitePortalUserUseCase(deps).execute({
+      tenantId: TENANT, tenantName: 'Salvador', email: 'ana@acme.com', subjectKey: 'companies/acme', actor: FISCAL,
+    });
+
+    expect(audited).toEqual([{
+      tenantId: TENANT, change: 'granted', email: 'ana@acme.com', subjectKey: 'companies/acme', actor: FISCAL, origin: 'settings',
+    }]);
+  });
+});
+
+describe('convite por automação', () => {
+  const MOTOR = { userId: 'workflow-engine', userName: '@core.automation/run.actor' };
+  const automation = { tenantId: TENANT, tenantName: 'Salvador', actor: MOTOR, origin: 'automation' as const, workflowId: 'wf-cred' };
+
+  it('dá o mesmo convite da tela: a mesma conta, a mesma marca, o mesmo vínculo', async () => {
+    const manual = makeFakePortalRepository(withInvites(CITY_SCREENS));
+    const automated = makeFakePortalRepository(withInvites(CITY_SCREENS));
+    for (const fake of [manual, automated]) fake.records.set('companies/acme', { name: 'Acme' });
+
+    const viaSettings = await makeInvitePortalUserUseCase(accessDeps(manual, accountsWith().accounts).deps).execute({
+      tenantId: TENANT, tenantName: 'Salvador', email: 'ana@acme.com', subjectKey: 'companies/acme', actor: FISCAL,
+    });
+    const viaFlow = await makeInvitePortalUserUseCase(accessDeps(automated, accountsWith().accounts).deps).execute({
+      ...automation, email: 'ana@acme.com', subjectKey: 'companies/acme',
+    });
+
+    expect(viaFlow).toEqual(viaSettings);
+    expect(automated.users.get(viaFlow.userId)).toEqual(manual.users.get(viaSettings.userId));
+    expect(automated.invites).toEqual(manual.invites);
+  });
+
+  it('só convida para a tela que declara portal.invites.automation — a tela, e não quem dispara, abre a porta', async () => {
+    const fake = makeFakePortalRepository(CITY_SCREENS);
+    fake.records.set('companies/acme', { name: 'Acme' });
+    const { accounts } = accountsWith();
+    const { deps, quotaUsed } = accessDeps(fake, accounts);
+
+    await expect(makeInvitePortalUserUseCase(deps).execute({ ...automation, email: 'ana@acme.com', subjectKey: 'companies/acme' }))
+      .rejects.toThrow('@core.tenant/portal.invite.automation-closed');
+    expect(accounts.createAccount).not.toHaveBeenCalled();
+    expect(fake.invites).toEqual([]);
+    expect(quotaUsed()).toBe(0);
+  });
+
+  it('é idempotente por (e-mail, sujeito): rodar de novo não escreve, não conta no limite e não audita', async () => {
+    const fake = makeFakePortalRepository(withInvites(CITY_SCREENS));
+    fake.records.set('companies/acme', { name: 'Acme' });
+    const { accounts } = accountsWith();
+    const { deps, audited, quotaUsed } = accessDeps(fake, accounts);
+    const invite = makeInvitePortalUserUseCase(deps);
+    const input = { ...automation, email: 'ana@acme.com', subjectKey: 'companies/acme' };
+
+    const first = await invite.execute(input);
+    (accounts.findUserIdByEmail as ReturnType<typeof vi.fn>).mockResolvedValue({ userId: first.userId, displayName: null });
+    const grant = vi.spyOn(fake.repo, 'grantSubject');
+    const second = await invite.execute({ ...input, email: ' ANA@acme.com' });
+
+    expect(first).toEqual({ userId: 'uid-ana@acme.com', created: true, granted: true });
+    expect(second).toEqual({ userId: 'uid-ana@acme.com', created: false, granted: false });
+    expect(grant).not.toHaveBeenCalled();
+    expect(quotaUsed()).toBe(1);
+    expect(audited).toHaveLength(1);
+    expect(audited[0]).toMatchObject({ origin: 'automation', workflowId: 'wf-cred', actor: MOTOR });
+  });
+
+  it('o convite NOVO de quem já é convidado de outro sujeito vincula e conta', async () => {
+    const fake = makeFakePortalRepository(withInvites(CITY_SCREENS));
+    fake.records.set('companies/acme', { name: 'Acme' });
+    fake.records.set('companies/beta', { name: 'Beta' });
+    fake.users.set('ana', { userId: 'ana', email: 'ana@acme.com', displayName: 'Ana', subjectKeys: ['companies/beta'] });
+    const { accounts } = accountsWith({ 'ana@acme.com': 'ana' });
+    const { deps, quotaUsed } = accessDeps(fake, accounts);
+
+    const result = await makeInvitePortalUserUseCase(deps).execute({ ...automation, email: 'ana@acme.com', subjectKey: 'companies/acme' });
+
+    expect(result).toEqual({ userId: 'ana', created: false, granted: true });
+    expect(fake.users.get('ana')?.subjectKeys).toEqual(['companies/beta', 'companies/acme']);
+    expect(quotaUsed()).toBe(1);
+  });
+
+  it('esgotado o limite da hora, recusa ANTES de criar a conta', async () => {
+    const fake = makeFakePortalRepository(withInvites(CITY_SCREENS));
+    fake.records.set('companies/acme', { name: 'Acme' });
+    const { accounts } = accountsWith();
+    const { deps } = accessDeps(fake, accounts, { quota: 0 });
+
+    await expect(makeInvitePortalUserUseCase(deps).execute({ ...automation, email: 'ana@acme.com', subjectKey: 'companies/acme' }))
+      .rejects.toThrow('@core.tenant/portal.invite.rate-limited');
+    expect(accounts.createAccount).not.toHaveBeenCalled();
+    expect(fake.invites).toEqual([]);
+  });
+
+  it('o nome informado pela automação é o que o escritório lista enquanto o convidado não informa o dele', async () => {
+    const fake = makeFakePortalRepository(withInvites(CITY_SCREENS));
+    fake.records.set('companies/acme', { name: 'Acme' });
+    const { deps } = accessDeps(fake, accountsWith().accounts);
+
+    const result = await makeInvitePortalUserUseCase(deps).execute({
+      ...automation, email: 'ana@acme.com', subjectKey: 'companies/acme', displayName: '  Ana Souza ',
+    });
+
+    expect(fake.users.get(result.userId)?.displayName).toBe('Ana Souza');
+  });
+
+  it('a falha da Auditoria não desfaz o convite', async () => {
+    const fake = makeFakePortalRepository(withInvites(CITY_SCREENS));
+    fake.records.set('companies/acme', { name: 'Acme' });
+    const { deps } = accessDeps(fake, accountsWith().accounts);
+    deps.audit = async () => { throw new Error('auditoria fora do ar'); };
+
+    const result = await makeInvitePortalUserUseCase(deps).execute({ ...automation, email: 'ana@acme.com', subjectKey: 'companies/acme' });
+
+    expect(result.granted).toBe(true);
+  });
+});
+
+describe('revogação do portal', () => {
+  const MOTOR = { userId: 'workflow-engine', userName: '@core.automation/run.actor' };
+  const setup = () => {
+    const fake = makeFakePortalRepository(CITY_SCREENS);
+    fake.users.set('ana', { userId: 'ana', email: 'ana@acme.com', displayName: 'Ana', subjectKeys: ['companies/acme', 'companies/beta'] });
+    const { accounts } = accountsWith({ 'ana@acme.com': 'ana' });
+    const access = accessDeps(fake, accounts);
+    return { fake, accounts, ...access, revoke: makeRevokePortalUserUseCase(access.deps) };
+  };
+  const base = { tenantId: TENANT, actor: MOTOR, origin: 'automation' as const, workflowId: 'wf-cred' };
+
+  it('pelo e-mail, tira só aquele sujeito, e audita', async () => {
+    const { fake, revoke, audited } = setup();
+
+    const result = await revoke.execute({ ...base, guest: { email: 'Ana@Acme.com' }, subjectKey: 'companies/acme' });
+
+    expect(result).toEqual({ userId: 'ana', revoked: true });
+    expect(fake.users.get('ana')?.subjectKeys).toEqual(['companies/beta']);
+    expect(audited).toEqual([expect.objectContaining({ change: 'revoked', email: 'ana@acme.com', subjectKey: 'companies/acme' })]);
+  });
+
+  it('com allSubjects, o convite inteiro — mas só de quem tem aquele sujeito', async () => {
+    const { fake, revoke } = setup();
+
+    expect(await revoke.execute({ ...base, guest: { email: 'ana@acme.com' }, subjectKey: 'companies/other', allSubjects: true }))
+      .toEqual({ userId: 'ana', revoked: false });
+    expect(fake.users.has('ana')).toBe(true);
+
+    expect(await revoke.execute({ ...base, guest: { email: 'ana@acme.com' }, subjectKey: 'companies/beta', allSubjects: true }))
+      .toEqual({ userId: 'ana', revoked: true });
+    expect(fake.users.has('ana')).toBe(false);
+  });
+
+  it('é idempotente: quem não tem o sujeito, ou nem conta tem, volta sem escrever nem auditar', async () => {
+    const { revoke, audited } = setup();
+
+    expect(await revoke.execute({ ...base, guest: { email: 'ana@acme.com' }, subjectKey: 'companies/zeta' }))
+      .toEqual({ userId: 'ana', revoked: false });
+    expect(await revoke.execute({ ...base, guest: { email: 'ninguem@acme.com' }, subjectKey: 'companies/acme' }))
+      .toEqual({ userId: null, revoked: false });
+    expect(audited).toEqual([]);
+  });
+
+  it('não pede portal.invites: recolher nunca expõe nada', async () => {
+    const { revoke } = setup();
+    expect((await revoke.execute({ ...base, guest: { email: 'ana@acme.com' }, subjectKey: 'companies/acme' })).revoked).toBe(true);
+  });
+
+  it('recusa e-mail inválido com erro nomeado', async () => {
+    const { revoke } = setup();
+    await expect(revoke.execute({ ...base, guest: { email: 'sem-arroba' }, subjectKey: 'companies/acme' }))
+      .rejects.toThrow('@core.tenant/portal.email.invalid');
+  });
+
+  it('pela tela, sem sujeito, o convite inteiro', async () => {
+    const { fake, revoke, audited } = setup();
+
+    await revoke.execute({ tenantId: TENANT, guest: { userId: 'ana' }, subjectKey: null, actor: FISCAL });
+
+    expect(fake.users.has('ana')).toBe(false);
+    expect(audited).toEqual([expect.objectContaining({ change: 'revoked', subjectKey: null, origin: 'settings' })]);
   });
 });
 

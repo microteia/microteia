@@ -182,4 +182,24 @@ describe('buildScreenCollectionMap', () => {
     );
     expect(input.steps[0].configuration.collection).toEqual({ kind: 'Literal', value: 'venda_2' });
   });
+
+  it('a tela-sujeito de portal-invite e portal-revoke acompanha a chave instalada', () => {
+    const map = new Map([['cliente', 'cliente_2']]);
+    const accessStep = (id: string, stepDefinitionId: string) => ({
+      id, stepDefinitionId, type: 'Action' as const, order: 0, enabled: true,
+      configuration: { subjectCollection: { kind: 'Literal' as const, value: 'cliente' } },
+    });
+    const input = workflowInputFromTemplate(
+      {
+        templateId: 't', name: 'W', eventName: 'contato.saved', version: 1, condition: { kind: 'AlwaysTrue' },
+        steps: [accessStep('i', 'portal-invite'), accessStep('r', 'portal-revoke')],
+      },
+      'com.acme.x',
+      new Map(),
+      new Map(),
+      map,
+    );
+    expect(input.steps.map((step) => step.configuration.subjectCollection))
+      .toEqual([{ kind: 'Literal', value: 'cliente_2' }, { kind: 'Literal', value: 'cliente_2' }]);
+  });
 });

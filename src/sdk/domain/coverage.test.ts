@@ -26,6 +26,8 @@ const LACUNAS_CONFERIDAS = [
   'workflow-step\tai-detect-workflow',
   'workflow-step\tai-extract-parameters',
   'workflow-step\tshare-documents',
+  'workflow-step\tportal-invite',
+  'workflow-step\tportal-revoke',
 
   // Os inputs OBRIGATÓRIOS dos passos que o modelo pede e não consegue preencher. `upsert.upsert` é o
   // que mais dói: o efeito diz entidade, campo e valor, e nunca QUAL registro.

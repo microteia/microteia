@@ -426,3 +426,63 @@ describe('compartilhar documento com o portal e eventos de nota e documento', ()
     expect(workflowStepIssues(comKernel([passo({})], '^2.69.0', 'records_document.saved'))).toEqual([]);
   });
 });
+
+describe('convite e revogação do portal por automação', () => {
+  const cliente = (portal: Record<string, unknown> | null) => ({
+    key: 'cliente',
+    titleSingular: 'Cliente',
+    titlePlural: 'Clientes',
+    icon: 'team',
+    titleFieldKey: 'nome',
+    fields: [{ key: 'nome', label: 'Nome', type: 'text', required: true, order: 0 }],
+    ...(portal ? { portal } : {}),
+  });
+  const comTela = (steps: WorkflowStep[], kernel: string, portal: Record<string, unknown> | null): MarketplacePlugin => {
+    const base = pacote(steps);
+    return { ...base, manifest: { ...base.manifest, kernel }, screens: [cliente(portal)] } as unknown as MarketplacePlugin;
+  };
+  const acesso = (stepDefinitionId: string, subjectCollection = 'cliente') => passo({
+    id: stepDefinitionId,
+    stepDefinitionId,
+    configuration: {
+      subjectCollection: { kind: 'Literal', value: subjectCollection },
+      subjectRecordId: { kind: 'Event', path: 'cliente' },
+      email: { kind: 'Event', path: 'email' },
+    },
+  });
+  const aberta = { subject: 'self', fields: ['nome'], invites: { automation: true } };
+
+  it('os dois passos exigem o kernel em que existem', () => {
+    const issues = workflowStepIssues(comTela([acesso('portal-invite'), acesso('portal-revoke')], '^2.72.0', aberta));
+    expect(issues.map((issue) => [issue.message, issue.messageParams?.definition, issue.messageParams?.minimum])).toEqual([
+      ['@core.marketplace/issue.step.definition-kernel', 'portal-invite', '2.73.0'],
+      ['@core.marketplace/issue.step.definition-kernel', 'portal-revoke', '2.73.0'],
+    ]);
+    expect(workflowStepIssues(comTela([acesso('portal-invite'), acesso('portal-revoke')], '^2.73.0', aberta))).toEqual([]);
+  });
+
+  it('convidar para uma tela do pacote que não aceita convite por automação reprova no empacotamento', () => {
+    const fechada = { subject: 'self', fields: ['nome'] };
+    const issues = workflowStepIssues(comTela([acesso('portal-invite')], '^2.73.0', fechada));
+    expect(issues.map((issue) => [issue.message, issue.messageParams?.screen])).toEqual([
+      ['@core.marketplace/issue.step.portal-invite.closed', 'cliente'],
+    ]);
+    expect(workflowStepIssues(comTela([acesso('portal-invite')], '^2.73.0', null))
+      .map((issue) => issue.message)).toEqual(['@core.marketplace/issue.step.portal-invite.closed']);
+  });
+
+  it('revogar não pede a declaração, e a tela de fora do pacote não é conferida aqui', () => {
+    expect(workflowStepIssues(comTela([acesso('portal-revoke')], '^2.73.0', null))).toEqual([]);
+    expect(workflowStepIssues(comTela([acesso('portal-invite', 'empresas')], '^2.73.0', null))).toEqual([]);
+  });
+
+  it('o passo cobra as entradas obrigatórias', () => {
+    const semEmail = passo({
+      id: 'convite',
+      stepDefinitionId: 'portal-invite',
+      configuration: { subjectCollection: { kind: 'Literal', value: 'cliente' }, subjectRecordId: { kind: 'Event', path: 'id' } },
+    });
+    expect(workflowStepIssues(comTela([semEmail], '^2.73.0', aberta)).map((issue) => issue.message))
+      .toEqual(['@core.marketplace/issue.step.missing-input']);
+  });
+});

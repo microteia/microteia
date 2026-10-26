@@ -80,6 +80,9 @@ export const CORE_UI_MESSAGES: Record<string, string> = {
   'documents.delete': 'Delete document',
   'documents.delete.title': 'Delete document',
   'documents.delete.message': 'Are you sure you want to delete "{name}"? This action cannot be undone.',
+  'documents.locked': 'The edit period of this record is over: new documents can still be attached, but the ones already here can no longer be deleted or replaced.',
+  'documents.sha256': 'SHA-256 {hash}',
+  'documents.sha256.hint': 'Fingerprint of the file, computed by the server when it was stored. Any change to the file changes it.',
 
   'color.gray': 'Gray',
   'color.red': 'Red',

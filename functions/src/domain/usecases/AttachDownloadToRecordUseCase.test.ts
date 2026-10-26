@@ -31,7 +31,7 @@ const setup = (item: StoredDownload | null = ITEM) => {
   const writer: IRecordDocumentWriter = {
     attach: vi.fn(async (file: RecordDocumentFile) => {
       attached.push(file);
-      return { id: 'doc1', name: file.name, url: 'https://x', storagePath: 'p', contentType: file.contentType, size: 4 };
+      return { id: 'doc1', name: file.name, url: 'https://x', storagePath: 'p', contentType: file.contentType, size: 4, sha256: 'h' };
     }),
   };
   const useCase = makeAttachDownloadToRecordUseCase({

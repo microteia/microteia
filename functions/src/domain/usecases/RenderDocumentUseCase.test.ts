@@ -90,7 +90,7 @@ const setup = (
   const writer: IRecordDocumentWriter = {
     attach: vi.fn(async (file: RecordDocumentFile) => {
       attached.push(file);
-      return { id: 'doc1', name: file.name, url: 'https://x', storagePath: 'p', contentType: file.contentType, size: file.data.length };
+      return { id: 'doc1', name: file.name, url: 'https://x', storagePath: 'p', contentType: file.contentType, size: file.data.length, sha256: 'h' };
     }),
   };
   const deps: RenderDocumentDeps = {

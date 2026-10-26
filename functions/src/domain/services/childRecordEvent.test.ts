@@ -43,6 +43,15 @@ describe('childRecordEvent', () => {
     expect(childRecordEvent({ ...base, before: null, after: null })).toBeNull();
   });
 
+  it('o carimbo do hash depois do anexo não publica de novo — o evento da criação já o levou', () => {
+    const hash = 'a'.repeat(64);
+    expect(childRecordEvent({ ...base, before: { name: 'a' }, after: { name: 'a', sha256: hash } })).toBeNull();
+    expect(childRecordEvent({ ...base, before: null, after: { name: 'a', sha256: hash } })?.payload)
+      .toMatchObject({ sha256: hash });
+    expect(childRecordEvent({ ...base, before: { name: 'a' }, after: { name: 'b', sha256: hash } })?.payload)
+      .toMatchObject({ changeType: 'updated', name: 'b' });
+  });
+
   it('pai apagado ou sem tela leva só o id', () => {
     expect(childRecordEvent({ ...base, parentData: null, before: null, after: { name: 'a' } })?.payload.parent)
       .toEqual({ id: 'p1' });

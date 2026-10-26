@@ -11,6 +11,19 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.160.0] — 2026-10-26
+
+- As automações agora podem convidar pessoas para o portal e retirar esse acesso. Assim, o convite pode acompanhar um cadastro aprovado — o representante de uma empresa, o contato de um cliente — sem que alguém precise digitar o e-mail de novo em Configurações.
+- O convite feito por uma automação é exatamente o mesmo feito em Configurações › Portal, e só acontece nas telas em que o escritório permitiu isso, pela aba Portal do Form Design.
+- Rodar a mesma automação mais de uma vez não repete o convite nem o e-mail de boas-vindas. Há também um limite de convites novos por hora, para proteger o escritório de um fluxo que saia do controle.
+- Todo acesso concedido ou retirado — por uma pessoa ou por uma automação — passa a ficar registrado na Auditoria.
+
+#### [9.159.0] — 2026-10-26
+
+- Nas telas com prazo para alteração, os documentos anexados a um registro passam a seguir o mesmo prazo: depois dele, ninguém os exclui nem os substitui — nem quem administra o escritório. Anexar documentos novos continua permitido.
+- Cada documento anexado ganha uma impressão digital (SHA-256) calculada pelo servidor, visível na aba Documentos e no portal, para comprovar que o arquivo é exatamente o que foi enviado.
+- Corrigida uma falha que permitia substituir o conteúdo de um arquivo já anexado sem que nada indicasse a troca.
+
 #### [9.158.0] — 2026-10-26
 
 - A lista de tipos de documento deixa de vir preenchida pelo sistema com termos de um ramo específico: cada escritório vê só os tipos que cadastrou ou que as extensões instaladas trazem, e pode remover qualquer um deles.

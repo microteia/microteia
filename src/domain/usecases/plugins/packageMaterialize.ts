@@ -102,7 +102,8 @@ export const buildScreenCollectionMap = (screens: ScreenModuleTemplate[], screen
 
 /**
  * Passada 1 do workflow: remove `templateId`, marca o dono, nasce habilitado, reescreve `scriptId`
- * pelos ids reais dos scripts, a coleção de `share-documents` pela tela instalada e acerta o gatilho
+ * pelos ids reais dos scripts, a coleção de `share-documents` e a de `portal-invite`/`portal-revoke` pela
+ * tela instalada e acerta o gatilho
  * pela tela instalada. `targetWorkflowId` continua em template (só é remapeado na passada 2, quando
  * todos os workflows já têm id).
  */
@@ -115,8 +116,12 @@ export const workflowInputFromTemplate = (
 ): WorkflowInput => {
   const rest = withoutTemplateId(template);
   const steps = rewriteStepLiteral(
-    rewriteStepLiteral(rest.steps ?? [], 'scriptId', scriptMap),
-    'collection',
+    rewriteStepLiteral(
+      rewriteStepLiteral(rest.steps ?? [], 'scriptId', scriptMap),
+      'collection',
+      screenCollectionMap,
+    ),
+    'subjectCollection',
     screenCollectionMap,
   );
   const event = splitEntityEventName(rest.eventName);

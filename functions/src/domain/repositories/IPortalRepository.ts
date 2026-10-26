@@ -84,6 +84,8 @@ export interface PortalDocumentProjection {
   type: string | null;
   description: string | null;
   createdAt: unknown;
+  /** O SHA-256 do arquivo, para o convidado conferir o que recebeu. `null` enquanto não foi calculado. */
+  sha256: string | null;
 }
 
 export interface SharedRecordDocument extends PortalDocumentProjection {
@@ -181,9 +183,13 @@ export interface IPortalRepository {
 
   getPortalUser(tenantId: string, userId: string): Promise<PortalUserRecord | null>;
   listPortalUsers(tenantId: string): Promise<PortalUserRecord[]>;
-  grantSubject(tenantId: string, grant: PortalUserGrant, subjectKey: string): Promise<void>;
-  /** Tira o sujeito do convite; sem sujeito nenhum, o convite deixa de existir. */
-  revokeSubject(tenantId: string, userId: string, subjectKey: string | null): Promise<void>;
+  /** Vincula o sujeito ao convite (criando-o se preciso). `true` quando o vínculo é NOVO. */
+  grantSubject(tenantId: string, grant: PortalUserGrant, subjectKey: string): Promise<boolean>;
+  /**
+   * Tira o sujeito do convite; sem sujeito nenhum, o convite deixa de existir. `true` quando algo
+   * saiu — o convite que não tinha aquele sujeito, ou que não existe, não muda.
+   */
+  revokeSubject(tenantId: string, userId: string, subjectKey: string | null): Promise<boolean>;
 
   /** O arquivo que o convidado deixou na área de espera — `null` quando não está lá. */
   readStagedUpload(tenantId: string, userId: string, uploadId: string): Promise<{ data: Buffer; contentType: string } | null>;
@@ -192,6 +198,15 @@ export interface IPortalRepository {
   /** A marca gravada ANTES de a conta existir — é ela que diz ao bootstrap que não há escritório a criar. */
   markInvite(email: string, tenantId: string): Promise<void>;
   hasInvite(email: string): Promise<boolean>;
+}
+
+/**
+ * O limite de convites NOVOS por automação, por escritório e por hora. `consume` reserva uma vaga e
+ * responde `false` quando a hora já esgotou — a reserva e a conferência são uma operação só, para
+ * que duas execuções simultâneas não passem as duas pela última vaga.
+ */
+export interface IPortalInviteQuota {
+  consume(tenantId: string, limit: number, now: Date): Promise<boolean>;
 }
 
 /** A conta de login de quem é convidado. Separada porque é outro serviço do Firebase. */

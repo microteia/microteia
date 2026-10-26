@@ -23,14 +23,20 @@ const dataOf = (snapshot: DocumentSnapshot | undefined): Record<string, unknown>
  * opções não publica, e o prefixo é o que a tela declara (`eventPrefix`), ou a coleção. É o que faz
  * `<prefixo>_document.saved` existir para toda tela sem que o kernel escreva nome de coleção algum.
  */
-export const publishChildRecordEvent = async (kind: ChildRecordKind, event: ChildWriteEvent): Promise<void> => {
+export const publishChildRecordEvent = async (
+  kind: ChildRecordKind,
+  event: ChildWriteEvent,
+  /** O que o servidor acabou de carimbar no filho e o `after` do evento ainda não tem — o hash do anexo. */
+  stamped?: Record<string, unknown>,
+): Promise<void> => {
   const { tenantId, parent, parentId, childId } = event.params;
   const convention = getWorkflowEventPrefix(parent);
   if (!convention || convention === 'lookup') return;
 
   try {
     const before = dataOf(event.data?.before);
-    const after = dataOf(event.data?.after);
+    const written = dataOf(event.data?.after);
+    const after = written && stamped ? { ...written, ...stamped } : written;
     if (!before && !after) return;
 
     const [parentPrefix, parentSnapshot, schema] = await Promise.all([

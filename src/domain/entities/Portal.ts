@@ -137,6 +137,8 @@ export interface PortalDocument {
   type: string | null;
   description: string | null;
   createdAt: Date | null;
+  /** O SHA-256 do arquivo, para o convidado conferir o que recebeu. `null` enquanto não foi calculado. */
+  sha256: string | null;
 }
 
 /** Um convidado, como o escritório o administra. */

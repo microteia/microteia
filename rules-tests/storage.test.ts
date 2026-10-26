@@ -52,6 +52,24 @@ describe('arquivos de registro', () => {
     await assertFails(deleteObject(ref(storageOf('leitor'), FILE)));
     await assertSucceeds(deleteObject(ref(storageOf('editor'), FILE)));
   });
+
+  it('ninguém grava POR CIMA de um arquivo anexado — para o Storage, sobrescrever é `create`', async () => {
+    await assertFails(uploadString(ref(storageOf('editor'), FILE), 'outro conteúdo'));
+    await assertFails(uploadString(ref(storageOf('dono'), FILE), 'outro conteúdo'));
+  });
+});
+
+describe('área de espera do portal', () => {
+  const staging = `tenants/${TENANT}/portalUploads/convidado/u1`;
+
+  beforeEach(async () => {
+    await seed(env, { users: { convidado: {} }, records: { [TENANT]: { 'portalUsers/convidado': { userId: 'convidado' } } } });
+  });
+
+  it('o convidado envia uma vez, e não troca o que enviou', async () => {
+    await assertSucceeds(uploadString(ref(storageOf('convidado'), staging), 'pdf'));
+    await assertFails(uploadString(ref(storageOf('convidado'), staging), 'outro'));
+  });
 });
 
 describe('logo do escritório', () => {
@@ -62,6 +80,7 @@ describe('logo do escritório', () => {
     await assertFails(uploadString(ref(storageOf('gerente'), logo('b.pdf')), 'pdf', 'raw', { contentType: 'application/pdf' }));
     await assertFails(uploadString(ref(storageOf('editor'), logo('c.png')), 'png', 'raw', { contentType: 'image/png' }));
     await assertFails(deleteObject(ref(storageOf('gerente'), logo('a.png'))));
+    await assertFails(uploadString(ref(storageOf('gerente'), logo('a.png')), 'png', 'raw', { contentType: 'image/png' }));
   });
 
   it('a pasta do logo não cai no curinga dos registros', async () => {

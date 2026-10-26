@@ -185,6 +185,7 @@ const DOCUMENT_FIELDS: NativeFieldSpec[] = [
   { key: 'description', label: '@core.automation/event-field.description', type: 'string' },
   { key: 'contentType', label: '@core.automation/event-field.content-type', type: 'string' },
   { key: 'size', label: '@core.automation/event-field.file-size', type: 'number' },
+  { key: 'sha256', label: '@core.automation/event-field.sha256', type: 'string' },
   { key: 'createdBy', label: '@core.automation/event-field.created-by', type: 'string' },
   { key: 'createdByName', label: '@core.automation/event-field.created-by-name', type: 'string' },
   { key: 'createdAt', label: '@core.automation/event-field.created-at', type: 'date' },

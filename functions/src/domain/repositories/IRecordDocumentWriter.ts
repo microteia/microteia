@@ -35,6 +35,8 @@ export interface AttachedRecordDocument {
   storagePath: string;
   contentType: string;
   size: number;
+  /** O SHA-256 do conteúdo gravado, em hexadecimal — o mesmo campo que o documento guarda. */
+  sha256: string;
   type?: string;
   description?: string;
 }

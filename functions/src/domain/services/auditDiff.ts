@@ -1,5 +1,6 @@
 import type { AuditAction, AuditSeverity } from '../entities/AuditLog';
 import { isTimestampLike } from './normalizeFirestoreValue';
+import { RECORD_DOCUMENT_SERVER_STAMPS } from './recordDocumentHash';
 
 import type { LocalizedMessage } from '../schema/i18n/localizedMessage';
 export type EntityData = Record<string, unknown>;
@@ -13,6 +14,7 @@ const IGNORED_KEYS = new Set([
   'updatedAt', 'updatedBy', 'updatedByName', 'updatedByPhotoURL', 'updatedVia', 'createdVia',
   'deletedBy', 'deletedByName', 'deletedByPhotoURL',
   'id', 'tenantId',
+  ...RECORD_DOCUMENT_SERVER_STAMPS,
 ]);
 
 const formatDateBR = (date: Date): string => {

@@ -73,6 +73,9 @@ export const CORE_UI: Record<string, string> = {
   'documents.delete': 'Excluir documento',
   'documents.delete.title': 'Excluir Documento',
   'documents.delete.message': 'Tem certeza que deseja excluir "{name}"? Esta ação não pode ser desfeita.',
+  'documents.locked': 'O prazo para alterar este registro terminou: ainda é possível anexar documentos novos, mas os que já estão aqui não podem mais ser excluídos nem substituídos.',
+  'documents.sha256': 'SHA-256 {hash}',
+  'documents.sha256.hint': 'Impressão digital do arquivo, calculada pelo servidor quando ele foi gravado. Qualquer alteração no arquivo a muda.',
 
   'color.gray': 'Cinza',
   'color.red': 'Vermelho',

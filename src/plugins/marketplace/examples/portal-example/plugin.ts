@@ -32,9 +32,11 @@ import { portalExamplePtBrContribution } from './portalMessagesPtBr';
  * | a screen over a collection named apart from its key | `dataCollection` — links point at the COLLECTION |
  * | telling the guests something happened | a `notify` step with `portalGuests` — never members in the same step |
  * | the documents the guest sees | `portal.documents` — and only the SHARED ones, shared by hand or by `share-documents` |
+ * | the invitation follows a record | `portal.invites: { automation: true }` + the `portal-invite` / `portal-revoke` steps |
  *
- * Guests are invited by the organization, in Settings > Portal, to a Client. Each one then sees that
- * client and its orders — nothing else in the organization, not even that other clients exist.
+ * Guests are invited to a Client — by the organization, in Settings > Portal, or by a workflow when a
+ * Contact of that client gets portal access. Each one then sees that client and its orders — nothing
+ * else in the organization, not even that other clients exist.
  *
  * Orders point at the client, so in the portal they show INSIDE the client: that is how the standard
  * portal draws a link, and the page below draws it its own way.
@@ -57,7 +59,12 @@ const CLIENT_SCREEN: ScreenModuleTemplate = {
   fields: CLIENT_FIELDS,
   titleFieldKey: 'name',
   eventPrefix: 'portalExampleClient',
-  portal: { subject: 'self', fields: ['name', 'city'] },
+  portal: {
+    subject: 'self',
+    fields: ['name', 'city'],
+    // Automations may invite guests to a client — see `wf-contact-access`. Only the 'self' screen takes it.
+    invites: { automation: true },
+  },
 };
 
 /**
@@ -184,6 +191,33 @@ const VISIT_SCREEN: ScreenModuleTemplate = {
 };
 
 /**
+ * The people of a client. A Contact is an office record — it is not in the portal — and checking
+ * `portalAccess` is what lets that person in: the invitation follows the record the organization keeps,
+ * instead of somebody typing the e-mail again in Settings > Portal.
+ */
+const CONTACT_FIELDS: TemplateField[] = [
+  { key: 'name', label: message('field.name'), type: 'text', required: true, order: 0 },
+  { key: 'email', label: message('field.email'), type: 'text', required: true, order: 1 },
+  { key: 'client', label: message('field.client'), type: 'reference', required: true, order: 2, refEntity: 'portalExampleClient' },
+  { key: 'portalAccess', label: message('field.portalAccess'), type: 'checkbox', required: false, order: 3 },
+];
+
+const CONTACT_SCREEN: ScreenModuleTemplate = {
+  key: 'portalExampleContact',
+  sourceId: 'microteia:portal-example:contact',
+  sourceRev: 1,
+  titleSingular: message('screen.contact'),
+  titlePlural: message('screen.contact.plural'),
+  icon: 'contacts',
+  fields: CONTACT_FIELDS,
+  titleFieldKey: 'name',
+  parentEntity: 'portalExampleClient',
+  parentFieldKey: 'client',
+  parentRelation: 'owned',
+  eventPrefix: 'portalExampleContact',
+};
+
+/**
  * Telling the client. A `notify` step with `portalGuests` reaches the people OUTSIDE the organization
  * who can see the record — here, the new Visit, which reaches them through its Site and Client. Nobody
  * is named: the guests are whoever is invited to that client WHEN the step runs, so a revoked invite
@@ -262,7 +296,74 @@ const ORDER_CONFIRMED: WorkflowModuleTemplate = {
   }],
 };
 
-const WORKFLOWS: WorkflowModuleTemplate[] = [VISIT_SCHEDULED, ORDER_CONFIRMED];
+const contactAccess = (id: string, stepDefinitionId: 'portal-invite' | 'portal-revoke') => ({
+  id,
+  stepDefinitionId,
+  type: 'Action' as const,
+  order: 0,
+  enabled: true,
+  configuration: {
+    subjectCollection: { kind: 'Literal' as const, value: 'portalExampleClient' },
+    subjectRecordId: { kind: 'Event' as const, path: 'client' },
+    email: { kind: 'Event' as const, path: 'email' },
+    ...(stepDefinitionId === 'portal-invite' ? { displayName: { kind: 'Event' as const, path: 'name' } } : {}),
+  },
+});
+
+/**
+ * The invitation follows the Contact. `portal-invite` makes the same invitation as Settings > Portal,
+ * and only because the Client screen declares `invites: { automation: true }`. Running it on every save
+ * is safe: the same e-mail and client twice is one invitation, and the welcome e-mail goes out once.
+ *
+ * Unchecking `portalAccess` — or deleting the Contact — takes the access back at once. A real
+ * registration would also check the e-mail and cap the contacts per client in the record itself, so
+ * that only a validated record ever reaches the step.
+ */
+const CONTACT_ACCESS_GRANTED: WorkflowModuleTemplate = {
+  templateId: 'wf-contact-access',
+  name: message('workflow.contact-access'),
+  description: message('workflow.contact-access.description'),
+  eventName: 'portalExampleContact.saved',
+  version: 1,
+  condition: {
+    kind: 'FieldComparison',
+    fieldPath: 'event.payload.portalAccess',
+    operator: '==',
+    value: true,
+    valueType: 'literal',
+  },
+  steps: [contactAccess('inviteContact', 'portal-invite')],
+};
+
+const CONTACT_ACCESS_REMOVED: WorkflowModuleTemplate = {
+  templateId: 'wf-contact-access-removed',
+  name: message('workflow.contact-access-removed'),
+  description: message('workflow.contact-access-removed.description'),
+  eventName: 'portalExampleContact.saved',
+  version: 1,
+  condition: {
+    kind: 'FieldComparison',
+    fieldPath: 'event.payload.portalAccess',
+    operator: '!=',
+    value: true,
+    valueType: 'literal',
+  },
+  steps: [contactAccess('revokeContact', 'portal-revoke')],
+};
+
+const CONTACT_DELETED: WorkflowModuleTemplate = {
+  templateId: 'wf-contact-deleted',
+  name: message('workflow.contact-deleted'),
+  description: message('workflow.contact-deleted.description'),
+  eventName: 'portalExampleContact.deleted',
+  version: 1,
+  condition: { kind: 'AlwaysTrue' },
+  steps: [contactAccess('revokeDeletedContact', 'portal-revoke')],
+};
+
+const WORKFLOWS: WorkflowModuleTemplate[] = [
+  VISIT_SCHEDULED, ORDER_CONFIRMED, CONTACT_ACCESS_GRANTED, CONTACT_ACCESS_REMOVED, CONTACT_DELETED,
+];
 
 const CLIENT_PORTAL_SOURCE = mergeViewSources({
   'ClientPortal.view.tsx': CLIENT_PORTAL_VIEW,
@@ -273,8 +374,8 @@ const CLIENT_PORTAL_SOURCE = mergeViewSources({
 export const portalExamplePlugin: MarketplacePlugin = {
   manifest: {
     id: 'com.microteia.portal-example',
-    version: '1.8.0',
-    kernel: '^2.70.0',
+    version: '1.9.0',
+    kernel: '^2.73.0',
     name: message('package.name'),
     description: message('package.description'),
     category: message('package.category'),
@@ -301,7 +402,7 @@ export const portalExamplePlugin: MarketplacePlugin = {
   },
   summary: message('package.summary'),
   workflows: WORKFLOWS,
-  screens: [CLIENT_SCREEN, ORDER_SCREEN, SITE_SCREEN, VISIT_SCREEN],
+  screens: [CLIENT_SCREEN, ORDER_SCREEN, SITE_SCREEN, VISIT_SCREEN, CONTACT_SCREEN],
   lookups: [URGENCIES],
   views: [
     { key: 'clientPortal', title: message('screen.client'), icon: 'team', source: CLIENT_PORTAL_SOURCE },

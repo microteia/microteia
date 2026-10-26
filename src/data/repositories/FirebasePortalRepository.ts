@@ -124,6 +124,7 @@ export class FirebasePortalRepository implements IPortalRepository {
           type: textOf(data.type) || null,
           description: textOf(data.description) || null,
           createdAt: dateOf(data.createdAt),
+          sha256: textOf(data.sha256) || null,
         };
       })
       .sort((a, b) => (b.createdAt?.getTime() ?? 0) - (a.createdAt?.getTime() ?? 0));
