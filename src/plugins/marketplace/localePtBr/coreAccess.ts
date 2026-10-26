@@ -172,6 +172,9 @@ export const CORE_ACCESS: Record<string, string> = {
     'Cadastrar, editar e remover as conexões de inteligência artificial do escritório.',
   'permission.audit.read': 'Ler a auditoria',
   'permission.audit.read.description': 'Ver tudo o que foi criado, alterado e excluído no escritório.',
+  'permission.audit.manage': 'Gerenciar a retenção da auditoria',
+  'permission.audit.manage.description':
+    'Decidir por quanto tempo a auditoria fica disponível e ligar ou desligar o arquivo diário com cadeia de hash. Inclui ler a auditoria.',
   'permission.automation.manage': 'Gerenciar automações',
   'permission.automation.manage.description':
     'Criar, editar e excluir automações, scripts e as ações exibidas nas telas.',

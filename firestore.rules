@@ -1015,6 +1015,17 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // ─── Retenção da Auditoria e andamento do arquivo ─────────────────────────
+    // Doc id = tenantId. A política (`retentionDays`, `archive`) e o estado da exportação (`state`).
+    // Só o servidor grava: mudar a política passa pela callable `manageAuditArchive`, que cobra
+    // `audit.manage`, valida a faixa e deixa a mudança na Auditoria — gravar direto pularia as três.
+    // E o `state.headHash` é o que a verificação compara com o fim do arquivo: um cliente que o
+    // reescrevesse esconderia o corte do fim.
+    match /auditRetention/{tenantId} {
+      allow read: if request.auth != null && can(tenantId, 'audit.read');
+      allow write: if false;
+    }
+
     // ─── Cursor de leitura da Auditoria ───────────────────────────────────────
     // Doc id: `${userId}_${tenantId}`. Guarda só `lastReadAt` — usado para
     // calcular o badge de falhas CRITICAL não lidas (ver "Badge de falhas

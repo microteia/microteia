@@ -8,6 +8,7 @@ import type { ISettingsRepository } from '../../domain/repositories/ISettingsRep
 import type { ITenantRepository } from '../../domain/repositories/ITenantRepository';
 import type { ITextAnnotationRepository } from '../../domain/repositories/ITextAnnotationRepository';
 import type { IAuditLogRepository } from '../../domain/repositories/IAuditLogRepository';
+import type { IAuditArchiveRepository } from '../../domain/repositories/IAuditArchiveRepository';
 import type { IAuditLogService } from '../../domain/repositories/IAuditLogService';
 import type {
   IDevicePushService,
@@ -64,6 +65,7 @@ export interface DIContainer {
   tenantRepository: ITenantRepository;
   textAnnotationRepository: ITextAnnotationRepository;
   auditLogRepository: IAuditLogRepository;
+  auditArchiveRepository: IAuditArchiveRepository;
   auditLogService: IAuditLogService;
   notificationInboxRepository: INotificationInboxRepository;
   devicePushService: IDevicePushService;

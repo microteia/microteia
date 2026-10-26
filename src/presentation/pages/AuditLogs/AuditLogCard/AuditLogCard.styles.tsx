@@ -16,6 +16,14 @@ export const actionColor = (theme: DefaultTheme, action: AuditAction): string =>
 };
 
 export const S = {
+  Hash: styled.code`
+    display: block;
+    font-family: ${({ theme }) => theme.fonts.mono};
+    font-size: ${({ theme }) => theme.fontSizes.xs};
+    color: ${({ theme }) => theme.colors.textMuted};
+    word-break: break-all;
+  `,
+
   Row: styled.div`
     border-bottom: 1px solid ${({ theme }) => theme.colors.border};
   `,

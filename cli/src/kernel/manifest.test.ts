@@ -75,7 +75,7 @@ describe('pré-requisitos manuais', () => {
   it('o que sobrou é do kernel de verdade — o que toda instalação precisa', () => {
     expect(MANUAL_PREREQUISITES.map((prerequisite) => prerequisite.id)).toEqual([
       'billing', 'app-engine', 'firestore-location', 'storage-bucket', 'auth-provider',
-      'functions-invoker', 'portal-identity-signing',
+      'functions-invoker', 'portal-identity-signing', 'audit-archive-bucket',
     ]);
   });
 
@@ -184,24 +184,25 @@ describe('parâmetros do backend', () => {
   });
 
   /**
-   * O kernel não declara parâmetro nenhum, e isso é o estado CERTO — não uma lacuna. Os quatro que
+   * O kernel não declara parâmetro OBRIGATÓRIO, e isso é o estado CERTO — não uma lacuna. Os quatro que
    * existiam eram do Gmail, portanto da extensão de Pushes do Tribunal, e saíram junto com ela.
    *
-   * O caso fica aqui em vez de ser apagado porque ele é a fronteira: um parâmetro que reaparecer neste
-   * repositório é uma credencial que TODA instalação passa a ter de preencher, inclusive quem não usa a
-   * feature. Se for mesmo do kernel, atualize esta lista e o `.env.example` na mesma alteração.
+   * O caso fica aqui em vez de ser apagado porque ele é a fronteira: um parâmetro obrigatório que
+   * reaparecer neste repositório é uma credencial que TODA instalação passa a ter de preencher,
+   * inclusive quem não usa a feature. O opcional é outra coisa — vazio, a feature fica desligada e nada
+   * mais muda —, e mesmo assim cada um é listado aqui, para que entrar no kernel seja uma decisão vista.
+   *
+   * `AUDIT_ARCHIVE_BUCKET`: o bucket com retenção bloqueada do arquivo da Auditoria. Só quem precisa
+   * guardar a trilha como prova o cria.
    */
-  it('o kernel não declara parâmetro de backend — os que existiam eram de extensão', () => {
-    expect(declared()).toEqual([]);
+  it('o kernel não declara parâmetro de backend obrigatório — e os opcionais são estes', () => {
+    expect(declared()).toEqual([{ name: 'AUDIT_ARCHIVE_BUCKET', required: false }]);
   });
 
-  it('o .env.example do repositório cobre todo parâmetro obrigatório', () => {
+  it('o .env.example do repositório documenta também os opcionais', () => {
     const template = readFileSync(join(repoRoot, 'functions/.env.example'), 'utf8');
-    const documented = new Set(
-      [...template.matchAll(/^([A-Z0-9_]+)=/gm)].map((match) => match[1]),
-    );
     const missing = declared()
-      .filter((parameter) => parameter.required && !documented.has(parameter.name))
+      .filter((parameter) => !new RegExp(`^#?\\s*${parameter.name}=`, 'm').test(template))
       .map((parameter) => parameter.name);
 
     expect(missing, `ausentes em functions/.env.example: ${missing.join(', ')}`).toEqual([]);

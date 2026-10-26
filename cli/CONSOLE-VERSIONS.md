@@ -22,6 +22,10 @@
 - fix(command): what was broken, and what it did to whoever hit it.
 -->
 
+#### [2.30.2] — 2026-10-26
+
+- docs(kernel/manifest): new optional manual prerequisite `audit-archive-bucket`. An organization that keeps its audit trail as evidence turns on the daily archive with hash chain, which needs a bucket of its own with locked retention (`--enable-per-object-retention --retention-period=…`, then `--lock-retention-period`), `roles/storage.admin` on that bucket for the functions' runtime account, and `AUDIT_ARCHIVE_BUCKET` in `.env.<projectId>` followed by `microteia provision`. The step states the threat model: what a locked bucket prevents, what the chain only detects, and what a project owner can still do.
+
 #### [2.30.1] — 2026-10-26
 
 - docs(kernel/manifest): new optional manual prerequisite `portal-identity-signing`. An organization that signs portal guests in through an OpenID Connect provider needs the functions' runtime service account to sign sessions (`createCustomToken` → `iam.serviceAccounts.signBlob`): the IAM Service Account Credentials API enabled and the Service Account Token Creator role granted to that account on itself. Without it the provider confirms the guest and `completePortalSignIn` still fails; the step names the two `gcloud` commands. E-mail-link sign-in does not need it.

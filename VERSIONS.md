@@ -11,6 +11,15 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.164.0] — 2026-10-26
+
+- A Auditoria pode agora ficar disponível por mais tempo: em Auditoria › Retenção e arquivo, o escritório escolhe por quantos dias os registros ficam à mão para consulta — de 30 dias, como sempre foi, até 10 anos.
+- Para quem precisa guardar a trilha como prova, há o novo arquivo diário com cadeia de hash: todo dia, os registros do dia anterior são copiados para um armazenamento bloqueado, onde nem os administradores do projeto conseguem apagá-los ou alterá-los, e cada dia fica travado pelo número de anos escolhido.
+- Um botão confere a cadeia inteira e aponta o primeiro dia em que algo foi removido ou alterado. Também é possível abrir qualquer dia arquivado e ver os registros dele como foram gravados, com a impressão digital de cada um.
+- Se o arquivamento de um dia falhar, ele é refeito automaticamente a cada hora, e quem cuida da retenção recebe um aviso — por notificação, e-mail e na própria Auditoria.
+- Nova permissão "Gerenciar a retenção da auditoria": quem a tem decide o prazo e liga ou desliga o arquivo, e cada mudança fica registrada na Auditoria.
+- Nada muda para quem não ligar: a Auditoria continua com os 30 dias de sempre. O arquivo precisa ser habilitado uma vez por quem mantém a instalação.
+
 #### [9.163.0] — 2026-10-26
 
 - Os registros de uma tela podem agora ser numerados em sequência — como o protocolo de uma comunicação, no formato "2026/000123". Liga-se no Form Design, na nova seção "Numeração" do campo, escolhendo o formato, se a contagem recomeça a cada ano e, nas telas que pertencem a outro registro, se ela é feita dentro de cada um. O número é dado no momento em que o registro é salvo, nunca se repete, mesmo quando várias pessoas salvam ao mesmo tempo, e pode recomeçar a cada ano ou ser contado dentro de cada processo.

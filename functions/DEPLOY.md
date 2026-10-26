@@ -68,13 +68,15 @@ npm run deploy:portal
 ---
 
 ### 📋 AUDIT — Sistema de Auditoria
-Registro do histórico de alterações e o backup frio do que expira.
+Registro do histórico de alterações, o backup frio do que expira e o arquivo com cadeia de hash.
 
 **Functions:**
 - `auditFlatEntityChange`
 - `auditNestedEntityChange`
 - `auditTenantDeleted`
 - `backupDeletedAuditLog`
+- `exportAuditArchive` — agendada, de hora em hora: exporta para o bucket `AUDIT_ARCHIVE_BUCKET` os dias fechados da Auditoria de cada escritório com o arquivo ligado
+- `manageAuditArchive` — callable: estado, política de retenção (`audit.manage`), leitura de um dia arquivado e verificação da cadeia (`audit.read`)
 
 **Deploy:**
 ```bash

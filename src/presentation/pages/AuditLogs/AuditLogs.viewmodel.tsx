@@ -13,7 +13,10 @@ import { useOpenRecord } from '../../shared/useOpenRecord';
 import { makeGetAllTenantsUseCase } from '../../../domain/usecases/tenants/GetAllTenantsUseCase';
 import type { AuditLog, AuditAction, AuditSeverity, Tenant } from '../../../domain/entities';
 import type { FilterDef, FilterToken } from '../../components/ui/CompositeFilter';
-import { entityLabel, entityFilterOptions, ACTION_KEYS, SEVERITY_KEYS } from './auditLogLabels';
+import { entityFilterOptions, presentAuditLog, ACTION_KEYS, SEVERITY_KEYS } from './auditLogLabels';
+import { DEFAULT_AUDIT_RETENTION_DAYS } from '../../../domain/schema/auditRetention';
+import type { AuditRetentionStatus } from '../../../domain/schema/auditRetention';
+import { makeGetAuditRetentionStatusUseCase } from '../../../domain/usecases/auditlogs/AuditArchiveUseCases';
 import { severityColor, actionColor } from './AuditLogCard/AuditLogCard.styles';
 
 import { useT, useLabel } from '../../shared/i18n/useT';
@@ -25,6 +28,8 @@ export interface AuditLogRow {
   expanded: boolean;
   tenantName: string | null;
   entityLabel: string;
+  /** O SHA-256 da linha, quando ela vem do arquivo. */
+  hash?: string;
 }
 
 export interface AuditLogsViewModel {
@@ -41,6 +46,13 @@ export interface AuditLogsViewModel {
   toggleExpand: (id: string) => void;
   loadMore: () => void;
   openEntity: (log: AuditLog) => void;
+  /** `null` enquanto a política do escritório não chegou — para não anunciar um prazo e trocá-lo. */
+  retentionMessage: string | null;
+  showRetention: boolean;
+  toggleRetention: () => void;
+  retentionStatus: AuditRetentionStatus | null;
+  retentionStatusError: string | null;
+  setRetentionStatus: (status: AuditRetentionStatus) => void;
 }
 
 export const useAuditLogsViewModel = (): AuditLogsViewModel => {
@@ -52,7 +64,7 @@ export const useAuditLogsViewModel = (): AuditLogsViewModel => {
   const { openTab } = useWorkspace();
   const { dynamicScreens } = useScreenDefinitions();
   const openRecord = useOpenRecord();
-  const { tenantRepository } = useDI();
+  const { tenantRepository, auditArchiveRepository } = useDI();
   const { logs, loading, hasMore, error, search, loadMore } = useAuditLogStore();
   const { markAllAsRead } = useAuditLogAlert();
   const theme = useTheme();
@@ -64,6 +76,8 @@ export const useAuditLogsViewModel = (): AuditLogsViewModel => {
   const [allTenants, setAllTenants] = useState<Tenant[]>([]);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [filterTokens, setFilterTokens] = useState<FilterToken[]>([]);
+  const [showRetention, setShowRetention] = useState(false);
+  const [retention, setRetention] = useState<{ tenantId: string; status: AuditRetentionStatus | null; error: string | null } | null>(null);
 
   useEffect(() => {
     if (!isSystem) return;
@@ -172,14 +186,9 @@ export const useAuditLogsViewModel = (): AuditLogsViewModel => {
     // nome ficaria congelado no dia da gravação e dependeria de o backend ter a tela em cache; foi
     // assim que "contracts" apareceu no lugar de "Contrato".
     return logs
-      .map((log) => {
-        const entity = entityLabel(t, label, log.entity, dynamicScreens);
-        return {
-          ...log,
-          entityName: entity,
-          title: label(log.title, { ...log.titleParams, entity }),
-          text: label(log.text, { ...log.textParams, entity }),
-        };
+      .map((raw) => {
+        const presented = presentAuditLog(t, label, raw, dynamicScreens);
+        return { ...presented.log, entityName: presented.entityLabel };
       })
       .filter((log) => {
         if (entityFilter && log.entity !== entityFilter) return false;
@@ -195,6 +204,40 @@ export const useAuditLogsViewModel = (): AuditLogsViewModel => {
         entityLabel: log.entityName,
       }));
   }, [logs, tokenMap, expandedIds, isSystem, tenantsById, dynamicScreens, label, t]);
+
+  const currentTenantId = currentTenant?.id ?? null;
+
+  // A política vem do servidor (a callable cobra `audit.read`). Se ela falhar — a função ainda não
+  // publicada num ambiente, por exemplo —, a trilha continua funcionando e o aviso cai no prazo padrão.
+  useEffect(() => {
+    if (isUnauthorized || !currentTenantId) return;
+    let active = true;
+    makeGetAuditRetentionStatusUseCase(auditArchiveRepository).execute(currentTenantId)
+      .then((status) => { if (active) setRetention({ tenantId: currentTenantId, status, error: null }); })
+      .catch((caught: unknown) => {
+        if (!active) return;
+        const message = caught instanceof Error && caught.message.startsWith('@') ? caught.message : '@core.admin/audit.archive.failed';
+        setRetention({ tenantId: currentTenantId, status: null, error: message });
+      });
+    return () => { active = false; };
+  }, [isUnauthorized, currentTenantId, auditArchiveRepository]);
+
+  const currentRetention = retention?.tenantId === currentTenantId ? retention : null;
+  const retentionStatus = currentRetention?.status ?? null;
+
+  const retentionMessage = useMemo(() => {
+    if (!currentRetention) return null;
+    const days = String(retentionStatus?.policy.retentionDays ?? DEFAULT_AUDIT_RETENTION_DAYS);
+    return retentionStatus?.policy.archive.enabled
+      ? t('audit.retention.archived', { days })
+      : t('audit.retention', { days });
+  }, [currentRetention, retentionStatus, t]);
+
+  const setRetentionStatus = useCallback((status: AuditRetentionStatus) => {
+    if (currentTenantId) setRetention({ tenantId: currentTenantId, status, error: null });
+  }, [currentTenantId]);
+
+  const toggleRetention = useCallback(() => setShowRetention((previous) => !previous), []);
 
   const toggleExpand = useCallback((id: string) => {
     setExpandedIds((prev) => {
@@ -231,5 +274,11 @@ export const useAuditLogsViewModel = (): AuditLogsViewModel => {
     toggleExpand,
     loadMore,
     openEntity,
+    retentionMessage,
+    showRetention,
+    toggleRetention,
+    retentionStatus,
+    retentionStatusError: currentRetention?.error ? label(currentRetention.error) : null,
+    setRetentionStatus,
   };
 };

@@ -62,6 +62,8 @@ export const AuditLogCardView: React.FC<AuditLogCardProps> = ({ row, onToggleExp
             <MarkdownContent>{log.text}</MarkdownContent>
           </S.Body>
 
+          {row.hash && <S.Hash>{t('audit.archive.line-hash', { hash: row.hash })}</S.Hash>}
+
           {canOpenRecord && !(log.action === 'DELETE') && (
             <S.LinkButton onClick={() => onOpenEntity(log)}>
               {t('audit.open-record')}

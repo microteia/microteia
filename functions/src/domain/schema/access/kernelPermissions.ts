@@ -42,6 +42,12 @@ export const PERMISSION_EXTENSIONS_MANAGE = 'extensions.manage';
 export const PERMISSION_SETTINGS_MANAGE = 'settings.manage';
 export const PERMISSION_TENANT_PREFIX_MANAGE = 'tenant.change-prefix';
 export const PERMISSION_AUDIT_READ = 'audit.read';
+/**
+ * Por quanto tempo a Auditoria fica à mão e se ela é arquivada com cadeia de hash. Separada de
+ * `audit.read` e de `settings.manage` porque é guarda de PROVA: quem só lê a trilha, ou só ajusta
+ * preferências do escritório, não pode encurtar o que ela guarda nem desligar o arquivo.
+ */
+export const PERMISSION_AUDIT_MANAGE = 'audit.manage';
 export const PERMISSION_AI_MANAGE = 'ai.manage';
 export const PERMISSION_AGENT_MANAGE = 'agent.manage';
 export const PERMISSION_TRANSLATIONS_MANAGE = 'translations.manage';
@@ -134,6 +140,13 @@ export const KERNEL_PERMISSIONS: AccessPermission[] = [
     id: PERMISSION_AUDIT_READ,
     name: '@core.access/permission.audit.read',
     description: '@core.access/permission.audit.read.description',
+  },
+  {
+    // Quem decide o que a trilha guarda precisa vê-la.
+    id: PERMISSION_AUDIT_MANAGE,
+    name: '@core.access/permission.audit.manage',
+    description: '@core.access/permission.audit.manage.description',
+    requires: [PERMISSION_AUDIT_READ],
   },
   {
     id: PERMISSION_AI_MANAGE,

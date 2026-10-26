@@ -66,6 +66,8 @@ const ALL_FUNCTIONS = [
   'auditNestedEntityChange',
   'auditTenantDeleted',
   'backupDeletedAuditLog',
+  'exportAuditArchive',
+  'manageAuditArchive',
   'logClientError',
   'manageNotificationEmail',
   'getWebPushPublicKey',

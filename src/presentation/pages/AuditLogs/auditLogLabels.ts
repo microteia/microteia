@@ -1,5 +1,6 @@
-import type { AuditAction, AuditSeverity, ScreenDefinition } from '../../../domain/entities';
-import type { TranslateFn } from '../../shared/i18n/useT';
+import type { AuditAction, AuditLog, AuditSeverity, ScreenDefinition } from '../../../domain/entities';
+import type { TranslateFn, useLabel } from '../../shared/i18n/useT';
+import { AUDIT_RETENTION_COLLECTION } from '../../../domain/schema/auditRetention';
 
 /**
  * As entidades que o backend audita por nome próprio HOJE — nada além disso.
@@ -17,6 +18,7 @@ export const ENTITY_KEYS: Record<string, string> = {
   ScreenDefinition: 'audit.entity.screen-definition',
   Tenant: 'audit.entity.tenant',
   Workflow: 'audit.entity.workflow',
+  [AUDIT_RETENTION_COLLECTION]: 'audit.entity.audit-retention',
   FRONTEND: 'audit.entity.frontend',
   SYSTEM: 'audit.entity.system',
 };
@@ -93,3 +95,41 @@ export const entityFilterOptions = (
   }
   return options;
 };
+
+type LabelFn = ReturnType<typeof useLabel>;
+
+export interface PresentedAuditLog {
+  log: AuditLog;
+  entityLabel: string;
+}
+
+/**
+ * O log como a tela o mostra: título e texto resolvidos no idioma de quem lê, com o nome da entidade
+ * vindo da tela instalada HOJE. É a mesma conta para a trilha ao vivo e para a linha lida do arquivo
+ * — a prova não pode aparecer escrita de outro jeito que o original.
+ */
+export const presentAuditLog = (
+  t: TranslateFn,
+  label: LabelFn,
+  log: AuditLog,
+  screens: ScreenDefinition[] = [],
+): PresentedAuditLog => {
+  const entity = entityLabel(t, label, log.entity, screens);
+  return {
+    log: {
+      ...log,
+      title: label(log.title, { ...log.titleParams, entity }),
+      text: label(log.text, { ...log.textParams, entity }),
+    },
+    entityLabel: entity,
+  };
+};
+
+const dateOf = (value: unknown): Date => new Date(typeof value === 'string' ? value : 0);
+
+/** A linha do arquivo como log: os instantes, gravados em ISO, voltam a ser datas. */
+export const archivedAuditLog = (log: Record<string, unknown>): AuditLog => ({
+  ...(log as unknown as AuditLog),
+  createdAt: dateOf(log.createdAt),
+  expiresAt: dateOf(log.expiresAt),
+});

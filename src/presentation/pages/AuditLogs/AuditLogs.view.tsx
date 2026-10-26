@@ -7,6 +7,7 @@ import { Button } from '../../components/ui/Button';
 import { Spinner } from '../../components/ui/Spinner';
 import { CompositeFilter } from '../../components/ui/CompositeFilter';
 import { InfoBanner } from '../../components/ui/InfoBanner';
+import { AuditRetentionPanelView } from './AuditRetentionPanel/AuditRetentionPanel.view';
 
 import { useT } from '../../shared/i18n/useT';
 export const AuditLogsView: React.FC = () => {
@@ -31,14 +32,33 @@ export const AuditLogsView: React.FC = () => {
           <RiHistoryLine size={22} />
           <S.Title>{t('page.audit-logs')}</S.Title>
         </S.TitleRow>
+        <Button variant={vm.showRetention ? 'primary' : 'secondary'} size="sm" onClick={vm.toggleRetention}>
+          {vm.showRetention ? t('audit.tab.trail') : t('audit.tab.retention')}
+        </Button>
       </S.Header>
 
-      <S.RetentionBar>
-        <InfoBanner
-          message={t('audit.retention')}
-          variant="info"
-        />
-      </S.RetentionBar>
+      {vm.showRetention ? (
+        vm.retentionStatus ? (
+          <AuditRetentionPanelView
+            status={vm.retentionStatus}
+            onStatusChange={vm.setRetentionStatus}
+            onOpenEntity={vm.openEntity}
+          />
+        ) : vm.retentionStatusError ? (
+          <S.Restricted><InfoBanner message={vm.retentionStatusError} variant="warning" /></S.Restricted>
+        ) : (
+          <S.LoadingWrapper><Spinner size={32} /></S.LoadingWrapper>
+        )
+      ) : (
+      <>
+      {vm.retentionMessage && (
+        <S.RetentionBar>
+          <InfoBanner
+            message={vm.retentionMessage}
+            variant="info"
+          />
+        </S.RetentionBar>
+      )}
 
       <S.FilterBar>
         <CompositeFilter
@@ -86,6 +106,8 @@ export const AuditLogsView: React.FC = () => {
             )}
           </S.List>
         </>
+      )}
+      </>
       )}
     </S.Page>
   );
