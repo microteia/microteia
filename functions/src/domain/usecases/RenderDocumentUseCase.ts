@@ -23,6 +23,7 @@ import { DocumentRenderError } from '../repositories/IDocumentRenderer';
 import type { IRecordDocumentWriter, RecordDocumentAuthor } from '../repositories/IRecordDocumentWriter';
 import type { IDocumentRecordReader, IDocumentTemplateSource } from '../repositories/IDocumentGenerationPorts';
 import type { IDownloadWriter } from '../repositories/IDownloadWriter';
+import type { RecordReader } from '../schema/memberVisibility';
 
 export interface RenderDocumentRequest {
   tenantId: string;
@@ -51,6 +52,12 @@ export interface RenderDocumentRequest {
   author: RecordDocumentAuthor;
   /** As permissões de quem gera — o que `hasPermission` responde dentro do modelo. */
   permissions?: readonly string[];
+  /**
+   * A pessoa a quem o documento é entregue: a visibilidade por registro (`memberVisibility`) vale para
+   * ela — o registro que ela não vê responde como ausente, e o filho que ela não vê fica fora da lista.
+   * Ausente na automação, que gera como o escritório.
+   */
+  reader?: RecordReader;
   /** Ausente = o destino que o modelo declara, e `record` quando nem ele diz. */
   destination?: DocumentDestination;
   /** Dias em Downloads (`0` = não expira). Ausente = o do modelo, depois o do escritório. */
@@ -304,6 +311,7 @@ const prepareRecord = async (
       recordPaths,
       timeZone,
       businessCalendars,
+      request.reader,
     );
     if (!read.ok) return failure(read.error, read.errorParams);
     if (!read.value) return failure('@core.records/record.not-found');
@@ -318,6 +326,7 @@ const prepareRecord = async (
         loopPaths,
         timeZone,
         businessCalendars,
+        request.reader,
       );
       if (!children.ok) {
         return failure('@core.documents/render.dataset-invalid', {
@@ -468,6 +477,7 @@ const preparePayload = async (
           recordPaths,
           timeZone,
           businessCalendars,
+          request.reader,
         );
         if (!outcome.ok) return failure(outcome.error, outcome.errorParams);
         if (!outcome.value) {

@@ -11,6 +11,7 @@ import {
   setValueByPath,
   toDateFieldInput,
   requiredFieldError,
+  collectRequiredErrors,
   validateRequiredFields,
 } from './customFieldValues';
 import { qualifyKey, translate } from '../schema/i18n/messages';
@@ -210,6 +211,19 @@ describe('campo de arquivo na conversão de valor', () => {
     const t = ((key: string) => key) as unknown as Parameters<typeof validateRequiredFields>[0];
     expect(validateRequiredFields(t, [required], { photo: '' })).not.toBeNull();
     expect(validateRequiredFields(t, [required], { photo: DOWNLOAD_URL })).toBeNull();
+  });
+});
+
+describe('obrigatoriedade do campo numerado pelo sistema', () => {
+  it('o número ainda vazio não reprova o registro novo: ele é atribuído depois deste portão', () => {
+    const numbered: FieldDefinition = {
+      key: 'protocolo', label: 'Protocolo', type: 'text', required: true, order: 0, origin: 'plugin',
+      autoValue: { pattern: 'YYYY/000000', sequence: { resetBy: 'year' } },
+    };
+    const t = ((key: string) => key) as unknown as Parameters<typeof validateRequiredFields>[0];
+    expect(validateRequiredFields(t, [numbered], {})).toBeNull();
+    expect(collectRequiredErrors(t, [numbered], {})).toEqual({});
+    expect(validateRequiredFields(t, [{ ...numbered, autoValue: { pattern: 'AA0000' } }], {})).not.toBeNull();
   });
 });
 

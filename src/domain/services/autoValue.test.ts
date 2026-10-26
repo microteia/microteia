@@ -47,4 +47,9 @@ describe('autoValueFields', () => {
     const fields = [field('number', 'AA0000'), field('title'), field('code', '   '), field('fixed', 'CT')];
     expect(autoValueFields(fields)).toEqual([{ key: 'number', pattern: 'AA0000' }]);
   });
+
+  it('o campo numerado pelo sistema não é sorteado no formulário — `YYYY/000000` viraria código aleatório', () => {
+    const numbered: FieldDefinition = { ...field('protocolo'), autoValue: { pattern: 'YYYY/000000', sequence: {} } };
+    expect(autoValueFields([numbered, field('number', 'AA0000')])).toEqual([{ key: 'number', pattern: 'AA0000' }]);
+  });
 });

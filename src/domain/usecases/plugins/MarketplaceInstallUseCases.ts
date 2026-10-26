@@ -397,6 +397,10 @@ const upsertPluginScreens = async (
           // o escritório pôs no Form Design. Retirar uma trava de prova é gesto de pessoa, com
           // `screens.edit-window`, nunca efeito colateral de atualizar uma extensão.
           editWindow: input.editWindow ?? existing.editWindow ?? null,
+          // A restrição de leitura segue a mesma regra, e pelo mesmo motivo: uma versão que a retira
+          // entregaria a todo membro com a coleção os registros que ela guardava — e isso é decisão de
+          // quem tem `screens.member-visibility`, não de uma atualização.
+          memberVisibility: input.memberVisibility ?? existing.memberVisibility ?? null,
         }
       : input;
     await deps.screenRepository.upsert(tenantId, screenKey, merged);
@@ -436,6 +440,7 @@ const ensureTargetCollectionScreen = async (
     memberWritableFields: input.memberWritableFields ?? null,
     authorCanDelete: input.authorCanDelete ?? null,
     editWindow: input.editWindow ?? null,
+    memberVisibility: input.memberVisibility ?? null,
     titleFieldKey: input.titleFieldKey,
     subtitleFieldKey: input.subtitleFieldKey ?? null,
     imageFieldKey: input.imageFieldKey ?? null,
@@ -447,6 +452,7 @@ const ensureTargetCollectionScreen = async (
       memberWritableFields: declared.memberWritableFields,
       authorCanDelete: declared.authorCanDelete,
       editWindow: declared.editWindow ?? existing.editWindow ?? null,
+      memberVisibility: declared.memberVisibility ?? existing.memberVisibility ?? null,
       titleFieldKey: existing.titleFieldKey || declared.titleFieldKey,
       subtitleFieldKey: existing.subtitleFieldKey ?? declared.subtitleFieldKey,
       imageFieldKey: existing.imageFieldKey ?? declared.imageFieldKey,

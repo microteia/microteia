@@ -3,8 +3,10 @@ import type { EntityKey, NativeFieldType } from './entityRegistry';
 import type { PathRoot, SchemaContext } from './pathResolver';
 import { parsePath, resolvePath } from './pathResolver';
 import { resolveQueryTable } from './querySpec';
-import { isLookupTable } from './screenEntity';
+import { isLookupTable, resolveRecordSequences } from './screenEntity';
+import { recordSequenceFields } from './recordSequence';
 import { DEFAULT_TIME_ZONE, dayInTimeZone } from './i18n/timeZone';
+import { RECORD_PORTAL_VERIFIED_FIELD } from './portalIdentity';
 
 export interface UpsertSpec {
   table: string;
@@ -94,6 +96,7 @@ export const SYSTEM_MANAGED_KEYS: ReadonlySet<string> = new Set([
   'updatedByName',
   'updatedByPhotoURL',
   RECORD_UPDATED_VIA_FIELD,
+  RECORD_PORTAL_VERIFIED_FIELD,
   'deletedBy',
   'deletedByName',
   'deletedByPhotoURL',
@@ -158,6 +161,19 @@ const checkWritablePath = (
   if (SYSTEM_MANAGED_KEYS.has(top)) {
     return {
       error: '@core.automation/mutation.path.system-managed',
+      errorParams: { field: top },
+    };
+  }
+
+  // O número que o sistema atribui ao criar não se escreve por porta nenhuma — nem ao criar (quem
+  // numera é a transação da gravação), nem depois (o número é imutável). Recusar aqui, e não
+  // descartar em silêncio, é o que diz ao autor da automação que o valor dele nunca seria gravado.
+  const numbered = root.kind === 'entity'
+    ? resolveRecordSequences(ctx, root.entityKey)
+    : recordSequenceFields(root.fields, null);
+  if (numbered.some((field) => field.key === top)) {
+    return {
+      error: '@core.automation/mutation.path.sequence-assigned',
       errorParams: { field: top },
     };
   }

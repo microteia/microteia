@@ -10,6 +10,9 @@ import { makeCreateRecordUseCase } from '../domain/usecases/records/CreateRecord
 import { makeUpdateRecordUseCase } from '../domain/usecases/records/UpdateRecordUseCase';
 import { makeDeleteRecordUseCase } from '../domain/usecases/records/DeleteRecordUseCase';
 import { screenDataCollection } from '../domain/services/screenDataCollection';
+import { memberVisibilityFilter, readMemberVisibility } from '../domain/schema/memberVisibility';
+import type { MemberVisibilityFilter, RecordReader } from '../domain/schema/memberVisibility';
+import { UNRESTRICTED_PERMISSION } from '../domain/schema/access';
 import type { DeletionActor, EntityRecord, EntityRecordValues } from '../domain/entities';
 
 /**
@@ -17,9 +20,9 @@ import type { DeletionActor, EntityRecord, EntityRecordValues } from '../domain/
  * seguem nos seus stores tipados; o contrato de leitura e gravação, porém, já é o mesmo.
  */
 export const RecordStoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { currentTenant } = useTenant();
-  const { user, effectiveName } = useAuth();
-  const { dynamicScreens } = useScreenDefinitions();
+  const { currentTenant, members } = useTenant();
+  const { user, userRole, effectiveName } = useAuth();
+  const { definitions, dynamicScreens } = useScreenDefinitions();
   const { recordRepository, recordNoteRepository, recordDocumentRepository } = useDI();
 
   const [recordsByCollection, setRecordsByCollection] = useState<Record<string, EntityRecord[]>>({});
@@ -47,6 +50,38 @@ export const RecordStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const collections = useMemo(
     () => [...new Set(dynamicScreens.map((def) => screenDataCollection(def)))],
     [dynamicScreens],
+  );
+
+  /**
+   * Quem lê, pelo conjunto MATERIALIZADO — o mesmo que o `firestore.rules` consulta —, e não pelo que o
+   * `AuthorizationStore` recalcula. A consulta é montada para a REGRA aceitar: decidir pela conta da
+   * tela mandaria, no intervalo em que as duas divergem, uma consulta sem filtro que seria recusada
+   * inteira. O dono e o `SYSTEM` entram com o curinga, como em `can()`.
+   */
+  const reader = useMemo<RecordReader | null>(() => {
+    if (!user) return null;
+    const unrestricted = userRole === 'SYSTEM' || currentTenant?.ownerId === user.id;
+    const member = members.find((candidate) => candidate.userId === user.id);
+    return { uid: user.id, permissions: unrestricted ? [UNRESTRICTED_PERMISSION] : (member?.permissions ?? []) };
+  }, [user, userRole, currentTenant, members]);
+
+  /**
+   * A restrição de cada coleção para quem lê (`memberVisibility`), lida do documento da COLEÇÃO — o que
+   * a regra lê. Vira texto para que a lista de membros relida, com o mesmo conteúdo, não reassine as
+   * coleções todas.
+   */
+  const visibilityKey = useMemo(() => JSON.stringify(collections.map((collection) => [
+    collection,
+    memberVisibilityFilter(
+      readMemberVisibility(definitions.find((definition) => definition.id === collection)?.memberVisibility),
+      collection,
+      reader,
+    ),
+  ])), [collections, definitions, reader]);
+
+  const visibleTo = useMemo(
+    () => new Map(JSON.parse(visibilityKey) as [string, MemberVisibilityFilter | null][]),
+    [visibilityKey],
   );
 
   useEffect(() => {
@@ -77,10 +112,11 @@ export const RecordStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
           setRecordsByCollection((prev) => ({ ...prev, [deniedCollection]: [] }));
           settle();
         },
+        visibleTo.get(collection) ?? null,
       ),
     );
     return () => unsubscribers.forEach((unsub) => unsub());
-  }, [currentTenant, collections, uc.subscribe, derivationRevision]);
+  }, [currentTenant, collections, uc.subscribe, derivationRevision, visibleTo]);
 
   const allRecords = useMemo(
     () => Object.values(recordsByCollection).flat(),

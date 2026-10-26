@@ -31,7 +31,8 @@ import { FirestoreWorkflowMutationRepository } from '../../data/services/Firesto
 import { getDI } from '../di/container';
 import { getDb } from '../firebase/initFirebase';
 import type { AgentSession } from './authenticateAgent';
-import { agentRun } from './agentContext';
+import { agentReader, agentRun } from './agentContext';
+import { readerSeesRecord, resolveMemberVisibility } from '../../domain/schema/memberVisibility';
 import { identifyActor } from '../workflow/identifyActor';
 import { toPublishedActor } from '../../domain/engine/workflowActor';
 import { agentText } from './agentMessages';
@@ -288,7 +289,15 @@ export const runAgentOperation = async (
 
       const id = asText(input.id);
       const record = await mutationRepository().getById(session.tenantId, resolved.physicalCollection, id);
-      if (record === null) return refuse(catalog, '@core.records/record.not-found');
+      // O registro que a pessoa não vê (`memberVisibility`) responde como o que não existe: dizer
+      // "existe, mas não é seu" já contaria o sigilo.
+      const visible = record !== null && readerSeesRecord(
+        resolveMemberVisibility(schema, resolved.physicalCollection),
+        resolved.physicalCollection,
+        agentReader(session),
+        record,
+      );
+      if (record === null || !visible) return refuse(catalog, '@core.records/record.not-found');
 
       // O MESMO derive que a busca aplica. Sem ele, o mesmo registro voltaria com campos diferentes
       // por `get_record` e por `search_records` — e o agente concluiria que um deles está errado.
@@ -440,6 +449,7 @@ const previewAgentDocument = async (
     ...documentDataOf(input),
     chargePermissions: true,
     permissions: session.permissions,
+    reader: agentReader(session),
   });
   if (!result.ok) return refuse(catalog, result.error, result.errorParams);
   return {
@@ -487,6 +497,7 @@ const renderAgentDocument = async (
     chargePermissions: true,
     author: await agentDocumentAuthor(session),
     permissions: session.permissions,
+    reader: agentReader(session),
   });
   if (!result.ok) return refuse(catalog, result.error, result.errorParams);
   return {

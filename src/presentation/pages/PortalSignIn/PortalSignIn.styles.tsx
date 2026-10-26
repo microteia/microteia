@@ -39,6 +39,27 @@ export const S = {
     color: ${({ theme }) => theme.colors.success};
   `,
 
+  Providers: styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: ${({ theme }) => theme.spacing.sm};
+  `,
+
+  Divider: styled.p`
+    display: flex;
+    align-items: center;
+    gap: ${({ theme }) => theme.spacing.sm};
+    font-size: ${({ theme }) => theme.fontSizes.xs};
+    color: ${({ theme }) => theme.colors.textMuted};
+
+    &::before,
+    &::after {
+      content: '';
+      flex: 1;
+      border-top: 1px solid ${({ theme }) => theme.colors.border};
+    }
+  `,
+
   Error: styled.p`
     font-size: ${({ theme }) => theme.fontSizes.sm};
     color: ${({ theme }) => theme.colors.danger};

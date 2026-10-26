@@ -1,5 +1,6 @@
 import type { DeletionActor } from '../entities';
 import type { EntityRecord, EntityRecordValues, RecordDocument, RecordNote } from '../entities/EntityRecord';
+import type { MemberVisibilityFilter } from '../schema/memberVisibility';
 
 /**
  * Acesso genérico a registros por COLEÇÃO. A mesma implementação serve `persons`, `medico` ou
@@ -12,11 +13,17 @@ export interface IRecordRepository {
    * Firestore some num `console.error` e quem espera continua esperando. Foi o que deixou a tela de
    * uma coleção sem permissão de leitura girando para sempre.
    */
+  /**
+   * `visibleTo` é a restrição de quem lê, quando a tela declara `memberVisibility` e ele não
+   * supervisiona: a consulta passa a trazer só o que o nomeia. Não é opcional para essa pessoa — a
+   * regra do Firestore recusaria a consulta inteira sem o filtro.
+   */
   subscribe(
     tenantId: string,
     collection: string,
     onUpdate: (records: EntityRecord[]) => void,
     onError?: (collection: string, error: Error) => void,
+    visibleTo?: MemberVisibilityFilter | null,
   ): () => void;
   getById(tenantId: string, collection: string, recordId: string): Promise<EntityRecord | null>;
   /**

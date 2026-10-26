@@ -1,6 +1,7 @@
 import type { ScreenDefinition } from '../entities/entitySchemas';
 import type { PermissionResource } from './access/resolvePermissions';
 import type { SchemaLookup, SchemaTagList } from './screenEntity';
+import { derivesReadAllPermission } from './memberVisibility';
 import {
   BUILTIN_LOOKUPS,
   BUILTIN_TAG_LISTS,
@@ -154,7 +155,19 @@ export const collectionPermissionResources = (
 
 export type CatalogScreenSource = ScreenPresentationSource
   & ScreenCollectionDeclaration
-  & Pick<ScreenDefinition, 'ownerPluginId'>;
+  & Pick<ScreenDefinition, 'ownerPluginId' | 'memberVisibility'>;
+
+/**
+ * As coleções cuja leitura é por registro sem supervisão nomeada — as que ganham `<coleção>.read-all`.
+ * A declaração é a do documento `screenDefinitions/<coleção>`, o que a regra lê: numa tela com
+ * `dataCollection`, é a cópia na âncora, nunca a tela que a apresenta.
+ */
+const readAllCollections = (screens: readonly CatalogScreenSource[]): Set<string> =>
+  new Set(
+    screens
+      .filter((screen) => !isBoundScreen(screen) && derivesReadAllPermission(screen.memberVisibility))
+      .map((screen) => screen.id),
+  );
 
 /**
  * Os recursos do catálogo de permissões que as COLEÇÕES do escritório rendem: listas de opções,
@@ -169,12 +182,16 @@ export const tenantCollectionPermissionResources = (
   screens: readonly CatalogScreenSource[],
   lookups: readonly SchemaLookup[],
   tagLists: readonly SchemaTagList[],
-): PermissionResource[] => [
-  ...collectionPermissionResources(lookups, tagLists),
-  ...presentedScreens(screens).map((screen) => ({
-    id: screenDataCollection(screen),
-    name: screen.titlePlural || screen.titleSingular || screen.id,
-    deriveCrud: true,
-    ...(screen.ownerPluginId ? { source: screen.ownerPluginId } : {}),
-  })),
-];
+): PermissionResource[] => {
+  const readAll = readAllCollections(screens);
+  return [
+    ...collectionPermissionResources(lookups, tagLists),
+    ...presentedScreens(screens).map((screen) => ({
+      id: screenDataCollection(screen),
+      name: screen.titlePlural || screen.titleSingular || screen.id,
+      deriveCrud: true,
+      ...(readAll.has(screenDataCollection(screen)) ? { deriveReadAll: true } : {}),
+      ...(screen.ownerPluginId ? { source: screen.ownerPluginId } : {}),
+    })),
+  ];
+};

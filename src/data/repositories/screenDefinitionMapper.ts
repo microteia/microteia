@@ -73,6 +73,10 @@ export const mapScreenDefinition = (
   editWindow: typeof d.editWindow === 'object' && d.editWindow !== null
     ? (d.editWindow as ScreenDefinition['editWindow'])
     : null,
+  // Como está gravado, pela mesma razão: `readMemberVisibility` interpreta, e a regra compara o valor.
+  memberVisibility: d.memberVisibility === undefined || d.memberVisibility === null
+    ? null
+    : (d.memberVisibility as ScreenDefinition['memberVisibility']),
   // Validado, mas devolvido COMO ESTÁ gravado: a regra cobra `portal.manage` de quem altera a chave, e
   // uma forma normalizada voltaria ao salvar como "alterada" — barrando quem só mexeu no título.
   portal: asPortalDeclaration(d.portal) ? (d.portal as PortalDeclaration) : undefined,

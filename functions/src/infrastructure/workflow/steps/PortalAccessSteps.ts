@@ -58,6 +58,18 @@ const subjectInputsOf = (inputs: Record<string, unknown>): SubjectInputs | Workf
   return { subjectKey: portalSubjectKey(collection, recordId), collection, recordId, email };
 };
 
+/**
+ * A claim exigida, quando o passo pede uma. O NOME ligado e o valor vazio NÃO viram convite pelo
+ * e-mail: o caso de uso recusa o valor vazio, e o passo falha — cair no convite comum abriria a conta
+ * do e-mail para quem o escritório quis que provasse quem é.
+ */
+const requiredClaimOf = (inputs: Record<string, unknown>): Record<string, unknown> | undefined => {
+  const name = textOf(inputs.requiredClaimName);
+  if (!name) return undefined;
+  const normalize = textOf(inputs.requiredClaimNormalize);
+  return { name, value: textOf(inputs.requiredClaimValue), ...(normalize ? { normalize } : {}) };
+};
+
 /** A recusa prevista volta como resultado do passo, com a frase nomeada; a imprevista sobe ao motor. */
 const refusalOf = (error: unknown): WorkflowResult => {
   if (error instanceof DomainError) return { success: false, message: error.message };
@@ -79,6 +91,7 @@ export const makePortalInviteStepDefinition = (services: PortalAccessStepService
       const { tenantId, workflowDefinitionId } = context.execution;
       const [tenantName, locale] = await Promise.all([services.tenantName(tenantId), services.officeLocale(tenantId)]);
       const displayName = textOf(inputs.displayName);
+      const requiredClaim = requiredClaimOf(inputs);
 
       let result;
       try {
@@ -92,13 +105,19 @@ export const makePortalInviteStepDefinition = (services: PortalAccessStepService
           workflowId: workflowDefinitionId,
           ...(locale ? { locale } : {}),
           ...(displayName ? { displayName } : {}),
+          ...(requiredClaim ? { requiredClaim } : {}),
         });
       } catch (error) {
         return refusalOf(error);
       }
 
       let emailed = false;
-      if (result.granted && booleanOf(inputs.sendEmail, true)) {
+      const wantsEmail = result.granted && booleanOf(inputs.sendEmail, true);
+      // O aviso do portal vai para uma CONTA que vê o registro; o convite por identidade só tem conta
+      // depois do primeiro acesso. O log diz por que o e-mail não saiu, em vez de calar.
+      if (wantsEmail && result.inviteId && !result.userId) {
+        context.logger.info('@core.automation/step.portal-invite.identity-no-email', { email: subject.email });
+      } else if (wantsEmail) {
         const delivery = await services.dispatchNotification.execute({
           tenantId,
           source: 'workflow',
@@ -122,7 +141,13 @@ export const makePortalInviteStepDefinition = (services: PortalAccessStepService
         success: true,
         message: result.granted ? '@core.automation/step.portal-invite.done' : '@core.automation/step.portal-invite.unchanged',
         messageParams: { email: subject.email },
-        outputs: { guestId: result.userId, created: result.created, granted: result.granted, emailed },
+        outputs: {
+          guestId: result.userId,
+          created: result.created,
+          granted: result.granted,
+          emailed,
+          inviteId: result.inviteId ?? '',
+        },
       };
     },
   }),

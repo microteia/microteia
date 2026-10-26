@@ -29,6 +29,12 @@ export interface IAuthRepository {
   sendSignInLink(email: string, continueUrl: string, locale?: string): Promise<void>;
   isSignInLink(url: string): boolean;
   signInWithLink(email: string, url: string): Promise<User>;
+  /**
+   * A sessão aberta pelo token que o SERVIDOR emitiu — a entrada do portal por um provedor de
+   * identidade do escritório, conferida lá antes de o token existir.
+   */
+  signInWithToken(token: string): Promise<User>;
+  /** O e-mail confirmado — ou a conta que não tem e-mail porque foi o servidor quem verificou quem é. */
   isEmailVerified(): boolean;
   refreshEmailVerification(): Promise<boolean>;
   signOut(): Promise<void>;

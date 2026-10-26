@@ -81,3 +81,38 @@ describe('as coleções do escritório no catálogo de permissões', () => {
     expect(etiqueta.label).toBe('@core.records/tag-list.of');
   });
 });
+
+describe('a supervisão derivada da visibilidade por registro', () => {
+  it('a tela restrita sem supervisão nomeada rende `<coleção>.read-all`, que exige ver', () => {
+    const catalog = catalogoDe([tela({ memberVisibility: { userFields: ['medico'] } })]);
+    expect(catalog.byId.get('consultas.read-all')).toMatchObject({
+      requires: ['consultas.read'],
+      resource: 'consultas',
+      action: 'read-all',
+      name: '@core.access/action.read-all',
+      derived: true,
+    });
+  });
+
+  it('a tela sem restrição — o caso de todo escritório até aqui — não ganha permissão nova', () => {
+    const catalog = catalogoDe([tela()]);
+    expect([...catalog.byId.keys()].filter((id) => id.startsWith('consultas.'))).toEqual([
+      'consultas.read', 'consultas.create', 'consultas.update', 'consultas.delete',
+    ]);
+  });
+
+  it('com `bypassPermission`, a supervisão é a nomeada, e a derivada não existe', () => {
+    const catalog = catalogoDe([tela({ memberVisibility: { userFields: ['medico'], bypassPermission: 'consultas.supervise' } })]);
+    expect(catalog.byId.has('consultas.read-all')).toBe(false);
+  });
+
+  it('numa tela vinculada, vale a declaração do documento da COLEÇÃO — o que a regra lê', () => {
+    const ancora = tela({ id: 'atendimentos', origin: 'builtin', memberVisibility: { userFields: ['medico'] } });
+    const caixa = tela({ id: 'caixa', dataCollection: 'atendimentos', memberVisibility: null });
+    expect(catalogoDe([ancora, caixa]).byId.has('atendimentos.read-all')).toBe(true);
+
+    const soNaVinculada = tela({ id: 'caixa', dataCollection: 'atendimentos', memberVisibility: { userFields: ['medico'] } });
+    expect(catalogoDe([tela({ id: 'atendimentos', origin: 'builtin' }), soNaVinculada]).byId.has('atendimentos.read-all'))
+      .toBe(false);
+  });
+});

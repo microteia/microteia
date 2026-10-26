@@ -9,6 +9,7 @@ import { evaluateFieldBoolean, evaluateFieldValidation } from '../../../../domai
 import { computeFieldValues, deriveFieldValues } from '../../../../domain/schema/recordRules';
 import { buildHydratedFieldScope } from '../../../../domain/schema/referenceScope';
 import { buildFieldUiScope } from '../../../../domain/schema/fieldUiScope';
+import { isSequenceField } from '../../../../domain/schema/recordSequence';
 import { useRecordResolver } from '../../../shared/useRecordResolver';
 import { useReferenceOpener } from '../../../shared/useReferenceOpener';
 import { useLabel } from '../../../shared/i18n/useT';
@@ -107,6 +108,8 @@ export interface CustomFieldsSectionViewModel {
   isFieldHidden: (field: FieldDefinition) => boolean;
   isFieldDisabled: (field: FieldDefinition) => boolean;
   fieldError: (field: FieldDefinition) => string | null;
+  /** O aviso neutro sob o campo — hoje, o do número que o sistema atribui ao salvar. */
+  fieldHint: (field: FieldDefinition) => string | null;
   /** Campo aguardando uma busca externa (ex.: endereço pelo CEP). */
   isFieldLoading: (fieldKey: string) => boolean;
   fileUpload: FieldFileUpload | null;
@@ -327,6 +330,7 @@ export const useCustomFieldsSectionViewModel = (props: CustomFieldsSectionProps)
   const isFieldDisabled = useCallback(
     (field: FieldDefinition): boolean =>
       disabled ||
+      isSequenceField(field) ||
       Boolean(field.logic?.compute) ||
       Boolean(field.logic?.derive) ||
       Boolean(field.aggregation) ||
@@ -348,6 +352,16 @@ export const useCustomFieldsSectionViewModel = (props: CustomFieldsSectionProps)
     [errors, values, label],
   );
 
+  const fieldHint = useCallback(
+    (field: FieldDefinition): string | null => {
+      if (!isSequenceField(field)) return null;
+      const value = readByPath(values, field.key);
+      if (value !== undefined && value !== null && value !== '') return null;
+      return label(isNew ? '@core.records/sequence.assigned-on-save' : '@core.records/sequence.not-assigned');
+    },
+    [values, isNew, label],
+  );
+
   return {
     groups,
     disabled,
@@ -367,6 +381,7 @@ export const useCustomFieldsSectionViewModel = (props: CustomFieldsSectionProps)
     isFieldHidden,
     isFieldDisabled,
     fieldError,
+    fieldHint,
     isFieldLoading,
     fileUpload: props.fileUpload ?? null,
   };

@@ -39,6 +39,7 @@ const screenOf = (id: string, data: Record<string, unknown>): CatalogScreenSourc
   tagCollection: text(data.tagCollection) ?? null,
   ownerPluginId: text(data.ownerPluginId) ?? null,
   fields: Array.isArray(data.fields) ? (data.fields as FieldDefinition[]) : [],
+  memberVisibility: data.memberVisibility as CatalogScreenSource['memberVisibility'],
 });
 
 const declarationOf = (id: string, data: Record<string, unknown>) => ({

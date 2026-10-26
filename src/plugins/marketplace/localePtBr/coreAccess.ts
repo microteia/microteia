@@ -2,6 +2,9 @@ export const CORE_ACCESS: Record<string, string> = {
   'action.create': 'Criar',
   'action.delete': 'Excluir',
   'action.read': 'Visualizar',
+  'action.read-all': 'Ver todos os registros',
+  'action.read-all.description':
+    'Ver todos os registros desta tela, inclusive os que não nomeiam você. Sem ela, você vê só os registros que nomeiam você num dos campos que a tela escolheu.',
   'action.update': 'Editar',
   'diagnostic.permission.cycle':
     'As permissões dependem umas das outras em círculo ({path}), então nenhuma delas pode ser concedida.',
@@ -197,6 +200,9 @@ export const CORE_ACCESS: Record<string, string> = {
   'permission.members.manage': 'Gerenciar membros',
   'permission.members.manage.description':
     'Incluir e remover pessoas do escritório, e escolher os perfis de acesso de cada uma.',
+  'permission.screens.member-visibility': 'Restringir quem vê cada registro',
+  'permission.screens.member-visibility.description':
+    'Ligar, mudar ou retirar, no Form Design, a regra que faz cada pessoa ver só os registros que a nomeiam — e escolher quem vê todos.',
   'permission.screens.edit-window': 'Definir o prazo para alterar registros',
   'permission.screens.edit-window.description':
     'Definir, mudar ou retirar no Form Design o prazo de uma tela — por quanto tempo depois de criado um registro ainda pode ser alterado ou excluído.',

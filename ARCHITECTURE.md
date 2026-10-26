@@ -107,6 +107,9 @@ npm run verify          # typecheck + lint + verify-schemas
 | Reprojeção do portal (a passada que refaz as projeções de uma coleção; escrita só pelo servidor) | `tenants/{tenantId}/portal_reprojections/{coleção}` | Sim |
 | Marca de convite do portal (o bootstrap a lê para não abrir escritório) | `portalInvites/{e-mail}` | Não (só servidor) |
 | Contagem da hora dos convites do portal feitos por automação | `portalInviteRates/{tenantId}` | Não (só servidor; nenhuma regra a libera) |
+| Convite do portal por IDENTIDADE (a claim exigida e os sujeitos) | `tenants/{tenantId}/portalIdentityInvites/{id}` | Sim (lê quem tem `portal.manage`; escrita só do servidor) |
+| Configuração de entrada do portal e segredos dos clientes OIDC | `tenants/{tenantId}/secrets/portal-identity` | Sim (só servidor; `managePortalSignIn` é a porta) |
+| Pedido de entrada no portal por OIDC (verificador PKCE, `nonce`) | `portalSignInRequests/{sha256(state)}` | Não (só servidor; TTL em `expiresAt`) |
 | `Notícia` (extensão `com.microteia.news`) | `tenants/{tenantId}/news/{id}` | Sim |
 | `Comentário` (extensão `com.microteia.news`) | `tenants/{tenantId}/newsComments/{id}` | Sim |
 | `SavedFilter` | `savedFilters/{uid}_{screenKey}` | Não |
@@ -791,6 +794,7 @@ regra que tem uma decisão a defender:
 | `backendState.test.ts` | o cliente lê e nunca escreve: escrita liberada deixaria forjar a lista de órfãs do provisionamento |
 | `portalReprojections.test.ts` | o job da reprojeção: lê só quem tem `portal.manage`; ninguém grava do cliente |
 | `portal.test.ts` | o convidado não é membro: não lê registro original, membros, perfis, telas nem configurações; a projeção só se lista filtrada pelo próprio uid; revogar fecha na hora; ninguém grava projeção nem convite do cliente |
+| `memberVisibility.test.ts` | a visibilidade por registro: só o registro que nomeia o membro, pelo campo simples ou pelo `multi` (e o mapa forjado não passa); a consulta sem filtro recusada e a do repositório aceita, inclusive com o filtro do pai; supervisão derivada, nomeada, dono e `SYSTEM`; declaração malformada fecha; alterar e excluir pedem ver, criar não; anotações, documentos e arquivos seguem o registro; quem só desenha telas não muda nem exclui a declaração |
 
 Ela fica **fora do `npm test`**, com configuração própria (`vitest.rules.config.ts`), porque exige um
 JDK — e um teste que não roda na máquina de quem o herda vira ruído até alguém apagá-lo. A semeadura
@@ -1133,6 +1137,104 @@ ao sujeito é o custo de plataforma que a fila existe para conter.
 (`issue.step.portal-invite.closed`). A instalação reescreve `subjectCollection` pela chave instalada, como
 a `collection` de `share-documents`. `examples/portal-example` credencia o Contato de um Cliente.
 
+### Entrar com identidade verificada — o OIDC do escritório
+
+O link de e-mail prova só que a pessoa lê aquela caixa de correio. Quando o ato do convidado produz
+efeito — a ciência de uma intimação, o aceite de um termo —, contestar QUEM o praticou é o primeiro
+ataque, e o e-mail não responde. O escritório passa a configurar provedores de identidade (OpenID
+Connect) para o portal dele, e o convite pode exigir que a pessoa PROVE um atributo atestado por um
+deles (`requiredClaim`).
+
+**Por que não `auth.provider`.** A proposta original estendia o ponto de entrada da instalação. Ele não
+serve, por três motivos que não se contornam: `auth.provider` é configurado UMA vez no Firebase
+Authentication do projeto, e o portal é de cada escritório (a prefeitura A usa um provedor, a clínica
+B outro, no mesmo projeto); o Firebase guarda do provedor só o `sub`, e a claim que o convite exige não
+chegaria ao servidor; e o fluxo de código do Firebase não faz PKCE com qualquer provedor. Por isso o
+**servidor é o cliente OIDC**, e o Firebase só recebe, no fim, a sessão que o servidor emite.
+
+| Peça | O que faz |
+|---|---|
+| `PortalSignInSettings` (`domain/schema/portalIdentity.ts`, sincronizado) | `emailLink` e até `PORTAL_IDENTITY_PROVIDERS_MAX` provedores: `id`, `label`, `issuer`, `clientId`, `scopes`, as `claims` que ele ATESTA, `levelClaim?`, `userInfo?`. Nenhum provedor tem nome no kernel |
+| `tenants/{t}/secrets/portal-identity` | a configuração e os segredos dos clientes; `secrets` é reservada e nenhuma regra a libera. `managePortalSignIn` (`portal.manage`) é a porta — `get` diz SE há segredo, nunca qual |
+| `startPortalSignIn` (sem login) | gera `state`, `nonce` e o verificador do PKCE; grava `portalSignInRequests/{sha256(state)}` (raiz, fechada, TTL de 10 min) e devolve o endereço de autorização com `code_challenge_method=S256` — sempre |
+| `/portal/signin/callback` | confere o `state` guardado no `sessionStorage` (sem isso, alguém plantaria a volta da entrada DELE no navegador da pessoa) e chama `completePortalSignIn` |
+| `completePortalSignIn` (sem login) | GASTA o pedido numa transação, troca o código com o verificador, confere o ID token e decide (abaixo) |
+| `getPortalSignInOptions` (sem login) | só `{ emailLink, providers: [{ id, label }] }` — o que a página de entrada desenha antes de haver sessão |
+
+**O ID token é conferido aqui, sem biblioteca.** `FetchOidcClient` + `verifyIdToken.ts`, sobre o
+`node:crypto`: só RS/PS/ES 256–512 (`none` e HMAC recusados — o segundo usaria o segredo do cliente
+como chave), `kid` obrigatória quando o JWKS tem mais de uma chave possível (escolher por tentativa
+aceitaria qualquer uma), `use: 'enc'` ignorada, uma releitura do JWKS para `kid` desconhecida (o
+provedor girou a chave), e então `iss` igual ao emissor da descoberta, `aud`/`azp`, `exp`/`iat`/`nbf`
+com 120 s de folga, `nonce` e `sub`. O `userinfo` (opcional) só completa as claims se o `sub` dele for o
+mesmo. Uma dependência de OIDC entraria no pacote de toda instalação para usar uma fração dela.
+
+**A conta é do ESCRITÓRIO, e é a decisão de segurança que organiza o resto.** Quem entra por um provedor
+recebe a conta `portal-id-<sha256(escritório, provedor, sub)>` (`portalIdentityAccountId`), aberta por
+`createCustomToken` — nunca a conta do e-mail convidado, e nunca a mesma conta em dois escritórios. O
+emissor é escolhido por quem tem `portal.manage`; se o login abrisse a conta do e-mail, um escritório
+com um emissor próprio que dissesse "este é o fulano" entraria na conta do fulano — convidado, ou até
+membro, de OUTRO escritório. Com a conta escopada, o que o provedor de um escritório atesta não vale
+nada fora dele. O prefixo é prova porque só o servidor escolhe uid: o bootstrap não abre escritório
+para essa conta, e o navegador não lhe pede o e-mail confirmado que ela não tem.
+
+**O convite por identidade.** Com `requiredClaim: { name, value, normalize? }` (`digits` | `lowercase`;
+o valor é gravado normalizado), `makeInvitePortalUserUseCase` — a mesma porta da tela e do passo — não
+cria conta pelo e-mail nem grava a marca do bootstrap: grava `portalIdentityInvites` (`claimKey`,
+`subjectKeys`, `boundUserIds`). O e-mail vira CONTATO (avisos, lista), não prova. A claim tem de ser
+atestada por algum provedor configurado (`portal.claim.unattested`) — senão ninguém aceitaria o convite.
+
+| Na volta do provedor | O que acontece |
+|---|---|
+| as chaves do login | `portalLoginClaimKeys`: cada claim que o PROVEDOR ATESTA, em cada forma de comparar. Claim que vem no token mas não foi declarada como atestada não prova nada; `email`/`phone_number` só valem com o `*_verified` |
+| os convites | achados por `claimKey in [...]` e conferidos de novo pela normalização de cada um |
+| o acesso | `portalUsers/{uid}.subjectKeys` é SUBSTITUÍDO pela soma dos convites satisfeitos AGORA (`bind`): o convite revogado não volta no login seguinte, e o que deixou de valer é desfeito |
+| a identidade | `portalUsers/{uid}.identity = { provider, claim, level, subject, verifiedAt }` — `level` é a claim que o escritório apontou (`levelClaim`), como o provedor a escreveu |
+| veio do link de um convite (`?invite=`) e a claim não coincide | recusa `mismatch`, auditada contra aquele convite (contato e NOME da claim) |
+| nenhum convite satisfeito | recusa `not-invited`, auditada |
+
+O sujeito convidado DEPOIS do aceite chega à conta na hora (`syncAccount`). Revogar mexe no CONVITE —
+pelo `userId` da conta, pelo `inviteId` ou pelo e-mail de contato (a automação) —, porque mexer só na
+conta seria desfeito no próximo login.
+
+**O link de e-mail é escolha do escritório, e desligá-lo vale no instante.** Desligado, o convite sem
+claim é recusado (`portal.invite.identity-required`) nas duas portas, e todo `portalUsers` sem
+`identity` ganha `suspended: true` (religar tira). A suspensão mora no convite, e não numa configuração
+lida pela regra, para `isPortalUser` continuar custando UMA leitura: a regra exige
+`suspended != true`, e a projeção e os documentos fecham na hora. As callables tratam o suspenso como
+não convidado, os avisos o pulam, e `getPortalContext` o recusa com `portal.signin.identity-required`
+— a casca explica e oferece entrar de novo, já com os provedores daquele escritório.
+
+**O que o convidado provou viaja com o que ele faz.** `WorkflowActor.verified` (`identifyPortalActor`,
+lido do convite) — nas expressões, `actor.verified`, `null` em todo outro caso. A gravação pelo portal
+carimba o campo de sistema `portalVerified` no REGISTRO (a identidade, ou `null` para quem entrou por
+e-mail; as outras portas não o tocam): é por ele que uma automação de `.saved`, um relatório ou um
+modelo de documento dizem quem praticou o ato e com que garantia — `.saved` não tem ator. Está em
+`SYSTEM_MANAGED_KEYS`, fora do diff da Auditoria, e `firestore.rules` o recusa do cliente; a linha de
+Auditoria da gravação leva um bloco `✓` com ele.
+
+**A Auditoria de cada entrada.** Aceita: provedor, claim provada (com o valor — é a resposta à
+contestação) e nível. Recusada (severidade alta): o motivo (`discovery`, `exchange`, `token`,
+`userinfo`, `mismatch`, `not-invited`) e, no `mismatch`, o contato e o NOME da claim — nunca o valor
+tentado: quem sonda o portal não deixa no escritório uma lista de documentos alheios.
+
+| Garantia | Teste |
+|---|---|
+| assinatura, algoritmos, `kid`, chave girada, `iss`/`aud`/`azp`/`exp`/`nonce`, troca com PKCE e `client_secret_basic`/`post` | `functions/src/infrastructure/portal/oidc/FetchOidcClient.test.ts` |
+| a entrada de ponta a ponta com chaves RSA reais (o verificador corresponde ao desafio; `nonce` trocado e chave intrusa recusados) | `functions/src/infrastructure/portal/portalSignIn.integration.test.ts` |
+| volta única, vencida, conta escopada, `mismatch`, `not-invited`, claim não atestada, `email_verified`, revogação, propagação, `userinfo`, nível, configuração e suspensão | `functions/src/domain/usecases/PortalIdentityUseCases.test.ts` |
+| suspensão nas regras, convite por identidade e pedido de entrada fechados, `portalVerified` não forjável | `rules-tests/portal.test.ts` |
+
+**Requisitos da instalação.** `createCustomToken` assina com a conta de serviço das functions: sem
+`iam.serviceAccounts.signBlob` sobre ela (papel *Service Account Token Creator* e a API IAM Service
+Account Credentials), o provedor confirma a pessoa e a entrada falha mesmo assim — o passo manual
+opcional `portal-identity-signing` do Console diz os dois comandos. Cada provedor precisa ter
+registrado o endereço de volta `https://<host>/portal/signin/callback`, que a aba mostra para copiar.
+
+**O empacotamento** cobra `kernel ^PORTAL_IDENTITY_CLAIM_SINCE_KERNEL` (2.74.0) do pacote que usa
+`requiredClaim*` em `portal-invite`: um kernel anterior IGNORA a entrada e convida pelo e-mail — falha
+ABERTO, e por isso é recusa, e não só aviso.
+
 ### A casca — `/portal`
 
 Fora da pilha de stores do espaço de trabalho, de propósito: o convidado não lê telas, perfis nem
@@ -1464,6 +1566,13 @@ não há recusa no empacotamento. `examples/portal-example` avisa o cliente de u
 - **Escala.** A lista do portal traz as 200 projeções mais recentes por coleção, sem paginação por
   cursor; e os gatilhos de projeção leem as telas por um cache de 30 s por instância — uma gravação logo depois de mudar a
   declaração pode projetar pela declaração anterior, até a próxima gravação daquele registro.
+- **E-mail de boas-vindas do convite por identidade.** A porta de avisos alcança CONTAS que veem o
+  registro, e a conta de quem é convidado por identidade só existe depois do primeiro acesso. O passo
+  diz no log por que não mandou; o escritório divulga o endereço de entrada do portal.
+- **Documento anexado pelo convidado verificado** não carrega `portalVerified`: a prova vai no
+  registro (gravação pelo portal) e na Auditoria da entrada; o documento leva o autor e `via: 'portal'`.
+- **Nível de confiabilidade fora do token.** Vale a claim que o escritório aponta em `levelClaim`; um
+  provedor que só informa o nível numa API própria não é consultado.
 - **`refEntity` do campo-sujeito** muda pelo Form Design sem `portal.manage` (incluir `fields` na
   regra travaria qualquer edição de campo das telas do portal). Exige que a tela apontada também
   esteja no portal, o que já cobra `portal.manage`.
@@ -1476,6 +1585,10 @@ não há recusa no empacotamento. `examples/portal-example` avisa o cliente de u
 `functions/src/domain/usecases/{PortalProjectionUseCases,PortalReprojectionUseCases,PortalAccessUseCases}.ts` ·
 `functions/src/infrastructure/handlers/{portalProjection,portalAccess}.ts` ·
 `functions/src/infrastructure/workflow/steps/PortalAccessSteps.ts` · `functions/src/infrastructure/portal/portalAccessAudit.ts` ·
+`domain/schema/portalIdentity.ts` · `functions/src/domain/usecases/PortalIdentityUseCases.ts` ·
+`functions/src/domain/repositories/IPortalIdentity.ts` · `functions/src/data/repositories/FirebasePortalIdentity.ts` ·
+`functions/src/infrastructure/portal/oidc/{FetchOidcClient,verifyIdToken}.ts` · `functions/src/infrastructure/handlers/portalSignIn.ts` ·
+`presentation/pages/{PortalSignIn,PortalSignInCallback}/` · `presentation/pages/TenantSettings/PortalTab/components/PortalSignInSettings/` ·
 `rules-tests/{portal,portalReprojections}.test.ts`
 
 ---
@@ -4751,6 +4864,8 @@ sorteava. Diferente de `defaultValue`, que semeia um valor FIXO, aqui o valor mu
 e continua editável, porque é sugestão, não carimbo. Sortear é IMPURO: o gerador (`services/
 autoValue.ts`) só é chamado do EFEITO que semeia o formulário de um registro novo, nunca no corpo do
 componente nem dentro de um `useMemo` — a mesma disciplina que a tela fixa seguia.
+Com `sequence`, o `autoValue` deixa de ser sorteio: é o número atribuído na criação, por contador
+transacional, e imutável — ver "Sequência numérica — o número que não se repete".
 
 **`parentRelation` — posse e visão eram a mesma coisa, e não são.** `parentEntity` significava duas
 coisas ao mesmo tempo: "os registros aparecem numa aba do pai" e "esta tela não existe sozinha". Para
@@ -6412,8 +6527,10 @@ a separação:
   porque vai para dentro de um registro e uma referência "usuário desconhecido" seria texto do produto
   gravado como dado. `identifyActor` (`infrastructure/workflow/`) monta o ator nas portas de entrada.
 
-**Nas expressões, `actor` é `{ id, name, via } | null`** (`toExpressionActor`) — sem foto nem
-permissões: é identidade, e o acesso continua perguntado por `hasPermission`. Entra no escopo DEPOIS das
+**Nas expressões, `actor` é `{ id, name, via, verified } | null`** (`toExpressionActor`) — sem foto nem
+permissões: é identidade, e o acesso continua perguntado por `hasPermission`. `verified` é a identidade
+que um convidado do portal provou por um provedor do escritório, `null` em todo outro caso (ver "Entrar
+com identidade verificada"). Entra no escopo DEPOIS das
 variáveis, para um `set-variable` chamado `actor` não passar a dizer quem disparou. Sem ator, `actor.id`
 lê `null` em vez de estourar — pela regra geral de membro nulo (ver "Avaliação segura das expressões"),
 que nasceu aqui como exceção só desta raiz e deixou de ser exceção. O Script recebe a mesma forma no
@@ -12423,6 +12540,119 @@ regra em escala.
 
 ---
 
+## Sequência numérica — o número que não se repete
+
+O protocolo, o número da comunicação, o número do pedido: um identificador que precisa ser
+**sequencial** e que não pode, em hipótese nenhuma, sair repetido. O `autoValue` que existia não servia
+— ele SORTEIA, e só evita repetir dentro da janela carregada (`RECORDS_PAGE_LIMIT = 500`). Uma chave
+única (`keys`) garantiria a unicidade mas não diria QUAL é o próximo número; achá-lo seria consultar, e
+consultar tem corrida. A tela agora **declara**, no próprio campo:
+
+```ts
+{ key: 'protocolo', type: 'text', autoValue: { pattern: 'YYYY/000000', sequence: { resetBy: 'year' } } }
+```
+
+| propriedade | o que decide |
+|---|---|
+| `sequence.scope` | `tenant` (padrão): um contador para o escritório. `parent`: um por registro-pai — exige `parentFieldKey` |
+| `sequence.resetBy` | `never` (padrão) ou `year`: recomeça em 1 a cada ano, no fuso do escritório. Exige `YYYY` no padrão |
+| `pattern` | `YYYY` é o ano; a ÚNICA sequência de `0` é o número, com os zeros como largura MÍNIMA (nunca corta: cortar repetiria). Vazio = o número puro |
+
+Campo `text` guarda o número formatado; campo `number` guarda o inteiro (sem padrão e sem recomeço anual,
+que repetiria o número). Só campo de primeiro nível. Sem `sequence`, o `autoValue` é o sorteio de sempre —
+os dois modos não se misturam, e **quem não declara não muda nada**: a coleção sem campo numerado grava
+exatamente como antes, sem transação nem contador.
+
+### Onde mora a garantia
+
+`tenants/{tenantId}/recordSequences/{coleção|campo|pai|período}` — um contador por sequência, com
+`{ collection, field, parent, period, value }`. A **criação** do registro lê o contador, soma um e grava o
+contador e o registro (com o valor formatado) **na mesma transação**. Duas criações concorrentes não leem o
+mesmo valor: a leitura é precondição do commit, e quem perdeu recomeça.
+
+| Caminho | Onde o número é atribuído |
+|---|---|
+| Formulário | `runRecordSequenceTransaction` (`data/utils/recordSequenceTransaction.ts`), chamado por `FirebaseRecordRepository.create` |
+| `UpsertStep`, `upsert()` de Script, agente (MCP), portal | `runWorkflowUpsert` planeja (`planRecordSequences`), `FirestoreWorkflowMutationRepository.create` atribui na transação do Admin SDK |
+
+A regra do Firestore é a **segunda trava**, e é ela que vale contra quem grava direto no banco: o contador
+só nasce em **1**, só avança **exatamente um**, não recua e não se apaga; o id é recomposto a partir do
+corpo, e por isso ninguém cria, sob o id do contador de uma coleção, um documento que diga ser de outra
+(onde a permissão conferida seria a da outra); e o período é o ano corrente com a folga de um fuso para
+cada lado. Ler o contador é de quem cria na coleção — ele conta quantos registros ela já teve.
+
+**A corrida perdida chega como `permission-denied`, e não por acaso.** O Firestore avalia a regra ANTES da
+precondição: quem leu o contador velho tenta gravá-lo com `+1` sobre um valor que já andou, e a regra
+("exatamente um") recusa. O SDK web só repete a transação em conflito de precondição, então
+`runRecordSequenceTransaction` reconhece a outra forma: recusa + contador que andou desde a leitura =
+corrida, e recomeça (até 30 rodadas, com espera sorteada e crescente); recusa + contador parado = recusa de
+verdade (permissão, chave ocupada, janela de edição), e segue para `describeDenial` como sempre. Foi a
+corrida real contra o emulador que mostrou isso — a simulação com repetição silenciosa não mostrava.
+
+**Imutável em todas as portas.** O formulário mostra o campo desabilitado, com o aviso "numerado ao
+salvar" no registro novo; a gravação do front tira o campo do payload na criação e em toda alteração
+(`omitSequenceFields`); `validateWritablePath` recusa o campo como não gravável
+(`@core.automation/mutation.path.sequence-assigned`) — o passo "Gravar Registro", que descarta o não
+gravável, numera mesmo assim; o agente o vê `readOnly`; o portal o tira dos campos que o convidado
+preenche ou altera. A obrigatoriedade (`required`) não o cobra: o número é atribuído depois do portão.
+
+### No Form Design
+
+A seção **Numeração** do campo (aba Geral, em `text` e `number` que não sejam calculados, derivados
+nem agregados) liga a sequência: formato, recomeço por ano e — só na tela que tem pai — contagem
+dentro do pai, com o primeiro número de exemplo. `FieldSequencePanel` só desenha; `fieldSequenceForm.ts`
+desmonta e remonta o `autoValue` e recusa com o MESMO portão do `check` do pacote
+(`recordSequenceIssues`), na aba do campo e antes de gravar.
+
+**A numeração gravada fica travada.** Mudar o formato, o recomeço ou a contagem depois de números
+emitidos pode emitir de novo um número que já existe — `YYYY/000000` contado por ano e depois "nunca"
+abre um contador novo que recomeça em `2026/000001`. Por isso a seção relê a declaração gravada como
+somente leitura, a gravação do campo leva o `autoValue` como estava, e o caminho para numerar de outro
+jeito é outro campo. Desligar também não é oferecido: religar com outra configuração cairia no mesmo
+defeito. A extensão que muda a declaração entre versões está sujeita ao mesmo risco, e é responsável
+por ele.
+
+O `autoValue` de SORTEIO que uma extensão declarou atravessa a edição do campo intacto: a seção só
+escreve quando alguém liga a numeração ali.
+
+### Quando há lacuna — e quando não há
+
+| Situação | Lacuna? |
+|---|---|
+| A gravação do registro falha (permissão, chave ocupada, janela, rede) | **não**: contador e registro estão na mesma transação |
+| Duas criações concorrentes | **não**: uma recomeça com o valor novo |
+| O registro é excluído depois | **sim**: o número dele nunca é reutilizado — reutilizar seria repetir |
+| Um cliente com permissão de criar avança o contador sem gravar registro, por fora do repositório | **sim**: a regra garante que o número não se repete, não que ele foi usado |
+| Registros criados ANTES da declaração | ficam sem número; a numeração começa no primeiro registro novo |
+| Gravação pelo Admin SDK fora de `runWorkflowUpsert` (uma function própria de extensão) | o registro nasce sem número — o kernel só numera pelas portas dele |
+
+### O limite, dito com todas as letras
+
+É o mesmo patamar das reservas de chave: a regra é estática e o nome do campo é dado de runtime, então ela
+garante o CONTADOR (único, contíguo, monotônico, não sequestrável) e não confere que o campo do registro
+carrega o valor dele. Essa polegada final é dos dois pontos de gravação.
+
+O ano do `YYYY` e do período é o do fuso de quem grava — o `i18n.timezone` empurrado pelo
+`TenantLocaleProvider` no front e `services.timeZone` no backend. Nas horas da virada do ano, um fuso de
+pessoa diferente do fuso do escritório poderia pôr o registro na série do ano vizinho; nunca repete número.
+
+**Kernel `2.76.0`** (`RECORD_SEQUENCE_SINCE_KERNEL`). Num kernel anterior, `YYYY/000000` seria lido como
+padrão de SORTEIO — por isso o `check` recusa o pacote que declara `sequence` sem `kernel: '^2.76.0'`, e
+recusa a forma que repetiria o número (ano sem `YYYY`, dois lugares para o número, campo de tipo que não
+guarda número, escopo de pai sem `parentFieldKey`).
+
+| Arquivo | Papel |
+|---|---|
+| `domain/schema/recordSequence.ts` | declaração, plano, formatação, validação (compartilhado) |
+| `domain/schema/screenEntity.ts` | `resolveRecordSequences`, `SchemaScreen.parentFieldKey`, coleção reservada |
+| `data/utils/recordSequenceTransaction.ts` | a transação do front, com a corrida perdida reconhecida |
+| `functions/.../FirestoreWorkflowMutationRepository.ts` | a transação do backend |
+| `domain/usecases/plugins/pluginRecordSequence.ts` | o `check` do pacote |
+| `presentation/pages/ScreenBuilder/components/FieldSequencePanel/` | a seção "Numeração" do Form Design |
+| `rules-tests/recordSequences.test.ts` | a regra e a corrida, contra o emulador |
+
+---
+
 ## Janela de edição — o registro que vale como prova
 
 Uma mensagem ao cliente, um apontamento de horas, um lançamento: depois de lido, mudar o texto muda a
@@ -12610,6 +12840,194 @@ editável para sempre, sem aviso. É recusa de GARANTIA, como a de `portal.visib
 | `functions/src/domain/services/recordDocumentHash.ts` | o campo, o que o servidor carimba, e qual arquivo pode ser lido |
 | `functions/src/data/services/FirebaseRecordDocumentHasher.ts` | o carimbo do hash para o anexo do navegador |
 | `examples/record-tab-example` | a tela "Atualização", que congela 15 minutos depois de criada |
+
+---
+
+## Visibilidade por registro — o membro que só lê o que o nomeia
+
+O RBAC do produto responde por COLEÇÃO: quem tem `<coleção>.read` lê todos os registros dela. Há caso em
+que isso é demais — a resposta sigilosa que só o servidor emissor lê (DTE, RN-04, CTN 198), o atendimento
+"atribuído a", o prontuário do paciente de um médico. Antes, a única saída era o filtro de INTERFACE (menu,
+`hasPermission`), que esconde a tela e entrega o dado a quem o pedir direto ao banco, ao agente ou ao
+relatório. As alternativas avaliadas não serviam: uma coleção por pessoa não é modelável; uma função
+própria servindo os dados perde lista, filtro, formulário e relatório da plataforma. A tela agora
+**declara**:
+
+```ts
+memberVisibility: { userFields: ['emissor', 'equipe'], bypassPermission?: 'oficios.supervise' }
+```
+
+O membro lê um registro só quando o próprio uid está num de `userFields` — o valor de uma referência a
+membro simples, ou um item do `multi` —, ou quando supervisiona. **Ausente, nada muda**: toda tela que
+existia continua exatamente como era, e a regra só lê a declaração para descobrir que ela não existe.
+
+### Uma conta, três pontas
+
+A conta é uma só, compartilhada (`domain/schema/memberVisibility.ts`, sincronizada), e espelha a regra
+linha a linha — inclusive no que ela faz com a declaração malformada: FECHA para quem não supervisiona.
+
+| Ponta | Onde | O que faz |
+|---|---|---|
+| Regras | `firestore.rules` (`seesRecord`) e `storage.rules` (`recordFilesVisible`) | recusam ler, alterar e excluir o registro que não nomeia quem pede, e as anotações, os documentos e os arquivos dele. É a garantia, e a única que alcança quem lê direto do banco |
+| Front | `RecordStore` + `FirebaseRecordRepository.subscribe` | a assinatura da coleção leva o filtro que a regra prova — a regra não é filtro, e sem ele a consulta inteira seria recusada |
+| Servidor | `WorkflowContext.reader` → `runRecordQuery`, `runWorkflowUpsert/Remove`, documento | as portas que entregam registro a uma PESSOA filtram, porque o Admin SDK passa por cima das regras |
+
+### A regra — e o que o emulador ensinou
+
+`seesRecord(nome, data)` lê `screenDefinitions/<coleção>` (o mesmo documento da janela de edição) e aceita
+quando a declaração não existe, quando um dos campos nomeia `request.auth.uid`, ou quando
+`can(tenantId, supervisão)`. Três decisões, cada uma com caso em `rules-tests/memberVisibility.test.ts`:
+
+- **Os campos são lidos por POSIÇÃO, até quatro** (`MEMBER_VISIBILITY_MAX_FIELDS`). A linguagem das regras
+  não tem laço; um quinto campo nunca seria consultado, e por isso o `check` e o Form Design o recusam.
+- **O `multi` é perguntado com `hasAny`, nunca com `in`.** O emulador mostrou: sobre um MAPA, `in` pergunta
+  pelas chaves, e `{ <uid>: true }` gravado no campo passaria. `hasAny` só existe em lista. E a guarda
+  `is list` — a forma óbvia de evitar isso — quebra a prova da consulta: a regra com `is list` não prova
+  `array-contains`. No `storage.rules`, que não prova consulta nenhuma, a guarda entra.
+- **A consulta é provada por disjunção.** O filtro do cliente é `or(campo == uid, campo array-contains
+  uid, …)`, e cada disjunção casa com um termo da regra — testado com o `or()` sozinho e combinado com o
+  filtro do pai (a aba de filhos). Uma consulta sem o filtro, de quem não supervisiona, é recusada inteira.
+
+Alterar e excluir pedem também VER: quem não lê não grava às cegas, e a recusa não conta que o registro
+existe. **Criar não pede** — o registro pode nascer nomeando outra pessoa, e é o encaminhamento que a
+restrição existe para permitir. Mudar o campo para nomear outra pessoa também passa; depois disso, quem
+encaminhou não lê mais.
+
+As anotações e os documentos são PARTE do registro: `seesParentRecord` lê o registro pai — só na tela que
+restringe, porque o primeiro termo é a declaração — e recusa ler, acrescentar ou apagar o que mora
+embaixo do registro que a pessoa não vê. A exclusão aceita o filho de um registro que já não existe
+(`seesParentRecordOrGone`), porque a cascata apaga o registro primeiro (ver "Janela de edição").
+
+**Custo:** uma leitura de `screenDefinitions/<coleção>` por consulta e por documento lido no curinga — o
+documento que a gravação já lia. A leitura do pai em anotações e documentos só acontece na tela restrita.
+
+### A supervisão — derivada, ou nomeada
+
+| Declaração | Quem lê todos |
+|---|---|
+| sem `bypassPermission` | quem tem `<coleção>.read-all`, DERIVADA pelo catálogo (`PermissionResource.deriveReadAll`, exige `<coleção>.read`), com o nome "Ver todos os registros" — aparece em Perfis sozinha, como o CRUD |
+| com `bypassPermission` | quem tem a permissão nomeada — tipicamente uma da própria extensão (`accessPermissionContribution`). A derivada deixa de existir: duas permissões dizendo a mesma coisa seriam duas a explicar |
+| sempre | o DONO e o `SYSTEM`, pelas razões de `can()` |
+
+A derivada é o que dá o recurso à tela do Form Design sem extensão nenhuma por trás: o escritório não
+precisa de uma permissão pronta para escolher. Ela entra nas DUAS contas do catálogo pela mesma função
+(`tenantCollectionPermissionResources`, que lê a declaração do documento da COLEÇÃO), e não move
+`KERNEL_CATALOG_FINGERPRINT` — o recurso-sonda não declara visibilidade. A permissão nova do núcleo
+(`screens.member-visibility`) move, uma vez, como moveu `screens.edit-window`.
+
+**O agente lê com o teto do token.** A supervisão é julgada pelo conjunto da interseção, como toda outra
+permissão: o token cujo teto não inclui `<coleção>.read-all` não vê o que o dono dele vê na tela — mesmo
+sendo o dono do escritório.
+
+### O front — o filtro que a regra exige
+
+O `RecordStore` decide, por coleção, se quem lê é restrito (`memberVisibilityFilter`), e decide pelo
+conjunto **materializado** do membro (`members/{uid}.permissions`), mais dono e `SYSTEM` — não pelo que o
+`AuthorizationStore` recalcula. A consulta é montada para a REGRA aceitar: no intervalo em que as duas
+contas divergem, decidir pela da tela mandaria uma consulta sem filtro que seria recusada inteira. O
+`RecordStore`, além disso, está acima do `AuthorizationStore` na árvore. A restrição vira texto
+(`visibilityKey`) para que a lista de membros relida, igual, não reassine todas as coleções.
+
+`listQuery` (repositório) monta o `or()` com um `==` e um `array-contains` por campo — as duas formas, e
+não a que o campo declara hoje: um campo que passou de simples a `multi` guarda texto nos registros antigos
+e lista nos novos. A consulta restrita **perde o `orderBy`**: ordenar pelo servidor pediria um índice
+composto por disjunção e por campo, e a tela do Form Design não tem como declarar índice. A ordem volta em
+memória (`newestFirst`), e o teto de 500 vale para o que NOMEIA a pessoa, não para a coleção. Declaração
+sem campo não consulta: não há filtro que a regra aceite.
+
+O resto do front não muda, e é por isso que o desenho funciona: lista, seletor de referência, aba de
+filhos, ⌘K e `useEntityList` das extensões leem todos do `RecordStore`. O que precisou de cuidado:
+
+- **Detalhe por link.** `getById` é recusado; `useEntityDetail` já trata a recusa como "registro não
+  encontrado" — que é a resposta certa: não revela que existe.
+- **Criar para outra pessoa.** A releitura pós-gravação é recusada; `readBack` devolve o que foi enviado.
+- **Excluir a tela.** `hasRecords` recusado responde SIM — sem como saber se a coleção está vazia, a
+  exclusão que existe para impedir apagar a tela de uma coleção com registros não passa.
+- **O aviso.** A lista de quem é restrito diz que mostra só o que o nomeia (`useMemberVisibilityNotice`) —
+  sem isso, a pessoa veria menos registros que o colega e concluiria que faltam dados.
+
+### O servidor — quem lê é uma decisão de cada porta
+
+`RecordReader` (`{ uid, permissions }`) é a PESSOA a quem a leitura é entregue, e mora em
+`WorkflowContext.reader` — separado de `actor`, porque o ator responde por autoria e `hasPermission` e
+existe em toda execução que alguém disparou; o leitor é escolha da porta:
+
+| Porta | Leitor |
+|---|---|
+| Agente (MCP) — `agentRun`, `get_record`, `list_documents`, `attach_document`, documentos | o dono do token, com as permissões da interseção (`agentReader`) |
+| `runReport` (callable) | quem roda, com o conjunto que `requireReportAccess` devolveu |
+| `renderDocument`, `previewDocument`, `attachDownloadToRecord` (callables) | quem pede |
+| Automação — passo "Buscar Registros", `query()` do Script, `runAction`, `call-workflow`, gatilhos | **nenhum: lê como o escritório** |
+
+**A automação lê como o escritório, e é decisão.** Numerar um protocolo, contar o que está em aberto, achar
+o registro a encaminhar precisam da coleção inteira. Restringir conforme quem apertou o botão faria a mesma
+automação gravar dados diferentes por pessoa — protocolos repetidos, contagens erradas —, e o defeito
+seria silencioso. Quem escreve a automação tem `automation.manage`, que já grava qualquer registro por
+`upsert`; restringir a leitura dela não protegeria nada. O que ela faz com o que leu é decisão de quem a
+escreveu, como já era para a permissão por coleção.
+
+`runRecordQuery` — o mesmo caminho do relatório, do agente e do documento — aplica o leitor em dois pontos
+(`infrastructure/workflow/query/readerScope.ts`):
+
+- **A varredura de quem é restrito pergunta ao banco só pelo que o nomeia** (`scanVisibleRows`), e não
+  filtra a coleção depois: numa coleção maior que o teto, filtrar depois esconderia da pessoa os próprios
+  registros. Por campo, duas consultas índice-free: `campo == uid` junto dos filtros de igualdade
+  (igualdades se juntam sem índice composto) e `campo array-contains uid` SOZINHO
+  (`WorkflowEqualityFilter.op`). Os filtros que a segunda não levou voltam em memória, como na leitura por
+  id. `complete` só é verdadeiro quando nenhuma consulta bateu no teto.
+- **O fetcher filtrado** (`readerFetcher`) devolve como AUSENTE o registro que o leitor não vê — na leitura
+  por id e na hidratação. É o que impede o relatório de projetar `resposta.texto` de uma resposta alheia.
+
+O relatório, portanto, **conta só o visível**. `runWorkflowUpsert`/`runWorkflowRemove` recusam alterar
+(`@core.records/record.not-found`) e não excluem (`removed: false`) o registro que o leitor não vê — as
+mesmas respostas de um id que não está lá. `describe_screen` mostra a declaração e se ESTE acesso vê
+tudo (`memberVisibility.seesAll`), para o agente não responder "não há registro" quando há, só não para
+ele.
+
+### Quem muda a declaração
+
+| Caminho | Regra |
+|---|---|
+| `firestore.rules` em `screenDefinitions` | criar, alterar o VALOR de `memberVisibility` ou EXCLUIR a tela que a tem exige `screens.member-visibility` (permissão nova, que arrasta `screens.manage`) ou `extensions.manage`. A exclusão está na lista porque é o atalho: sem a tela, a regra não acha declaração nenhuma |
+| Form Design | aba "Visibilidade dos registros" (`ScreenMemberVisibilityPanel`), para quem tem a permissão, só em tela existente — oferece só os campos de referência a membro e a supervisão (a derivada primeiro, depois o catálogo). Grava só quando tocada; numa tela com `dataCollection`, grava também no documento da coleção |
+| Extensão | `upsertPluginScreens` e `ensureTargetCollectionScreen`: o que o pacote declara vence; **a ausência não retira** — retirar a restrição é gesto de pessoa, pela mesma razão da janela de edição |
+
+`packageMemberVisibilityIssues` (no `check`, no import e na instalação) recusa a forma errada, lista vazia,
+mais de quatro campos, campo repetido, campo que a tela não tem, campo que não é referência a `members`,
+`bypassPermission` fora de `recurso.acao`, e um `kernel` que admita versão anterior a `2.75.0`
+(`MEMBER_VISIBILITY_SINCE_KERNEL`) — um kernel antigo descarta a chave e todo membro leria tudo.
+
+Desinstalar a extensão apaga a tela; os registros ficam, e a leitura da coleção sai do catálogo junto com
+ela — só o dono e o `SYSTEM`, que já supervisionam, os alcançam depois que a materialização roda.
+
+### O que NÃO esconde — dito com todas as letras
+
+- **Agregado gravado no pai** (`aggregation`): é calculado sobre todos os filhos e é um valor do PAI. A
+  contagem de filhos restritos aparece num pai que todos leem. Não agregue sigilo.
+- **Nome denormalizado** que uma referência copia para outro registro (`referenceDenormFields`).
+- **Histórico de execução** (`workflow_executions`): todo membro o lê, e ele guarda o que cada passo
+  devolveu. A regra é anterior a esta e vale igual para a permissão por coleção.
+- **Auditoria**: quem tem `audit.read` lê o histórico de toda coleção.
+- **Chave única** (`recordKeys`): a reserva é lida por todo membro e diz que um VALOR está tomado — é o que
+  a unicidade é.
+- **Notificação** que uma automação envia: é o que a automação decidiu entregar.
+- **Portal**: o convidado não é membro e tem projeção própria (`portal.visibleWhen`); esta declaração não o
+  alcança.
+
+### Arquivos-chave
+
+| Arquivo | Papel |
+|---|---|
+| `domain/schema/memberVisibility.ts` | declaração, leitura como a regra lê, quem lê o quê, termos do filtro, validação (compartilhado) |
+| `firestore.rules` (`seesRecord`, `seesParentRecord*`) e `storage.rules` (`recordFilesVisible*`) | a garantia |
+| `rules-tests/memberVisibility.test.ts` | registro, consulta (`or()` e com o pai), escrita, anotações, documentos, arquivos e quem muda a declaração — contra o emulador |
+| `stores/RecordStore.tsx`, `data/repositories/FirebaseRecordRepository.ts` | o filtro da assinatura, a ordem em memória, `readBack` e `hasRecords` |
+| `functions/src/infrastructure/workflow/query/readerScope.ts` | a varredura de quem é restrito e o fetcher filtrado |
+| `functions/src/domain/entities/WorkflowContext.ts` (`reader`) | quem lê, por porta |
+| `domain/schema/tenantCollections.ts`, `access/resolvePermissions.ts` | `<coleção>.read-all` |
+| `domain/usecases/plugins/pluginMemberVisibility.ts` | o `check` do pacote |
+| `pages/ScreenBuilder/components/ScreenMemberVisibilityPanel/` | a aba do Form Design |
+| `shared/entityScreen/useMemberVisibilityNotice.ts` | o aviso da lista |
 
 ---
 
@@ -12923,7 +13341,7 @@ runtime na primeira execução. Foi a separação por dono que os encontrou — 
 `orderBy` em campos diferentes tem de declarar o índice no `manifest.backend.indexes` dela; sem isso ela
 instala, aparece no menu e falha na primeira execução.
 
-Além dos compostos, o arquivo declara sete `fieldOverrides`:
+Além dos compostos, o arquivo declara oito `fieldOverrides`:
 
 | Coleção | Campo | Motivo |
 |---|---|---|
@@ -12935,6 +13353,7 @@ Além dos compostos, o arquivo declara sete `fieldOverrides`:
 | `notification_inbox` | `expiresAt` | TTL — o sino guarda o recente (30 dias), não o histórico; o histórico é a Auditoria |
 | `notification_dispatches` | `expiresAt` | TTL — a marca de "este aviso já saiu" (`dedupKey`) vale o mesmo que o aviso |
 | `downloads` | `expiresAt` | TTL — o arquivo gerado para Downloads vence sozinho; o gatilho `onDownloadDeleted` leva o arquivo do bucket. Sem índice: a lista filtra o vencido no cliente |
+| `portalSignInRequests` | `expiresAt` | TTL — o pedido de entrada no portal por um provedor de identidade que nunca voltou (a pessoa desistiu no provedor). O que volta é apagado ao ser gasto; sem índice, porque só é lido pelo id |
 
 ---
 

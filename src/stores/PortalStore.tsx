@@ -17,6 +17,9 @@ import {
 import type { PortalContext, PortalMembership, PortalRecord } from '../domain/entities/Portal';
 import { asPortalProfile, type PortalProfile } from '../domain/schema/portal';
 
+/** A recusa do convite suspenso — o servidor a nomeia, e a casca diz o que fazer em vez de "revogado". */
+const IDENTITY_REQUIRED = '@core.tenant/portal.signin.identity-required';
+
 const codeOf = (err: unknown): string =>
   typeof (err as { code?: unknown } | null)?.code === 'string' ? (err as { code: string }).code : 'unknown';
 
@@ -79,7 +82,7 @@ export const PortalStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const [tenantId, setTenantId] = useState<string | null>(null);
   const [context, setContext] = useState<PortalContext | null>(null);
   const [contextLoading, setContextLoading] = useState(false);
-  const [error, setError] = useState<'not-invited' | 'failed' | null>(null);
+  const [error, setError] = useState<'not-invited' | 'identity-required' | 'failed' | null>(null);
   const [errorCode, setErrorCode] = useState<string | null>(null);
   const [contextRevision, setContextRevision] = useState(0);
   const [recordsByCollection, setRecordsByCollection] = useState<Record<string, PortalRecord[]>>({});
@@ -142,7 +145,7 @@ export const PortalStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
           if (code === 'functions/permission-denied') {
             writeCachedContext(userId, tenantId, null);
             setContext(null);
-            setError('not-invited');
+            setError(err instanceof Error && err.message === IDENTITY_REQUIRED ? 'identity-required' : 'not-invited');
             setErrorCode(code);
           } else if (!cached) {
             setError('failed');

@@ -1,7 +1,25 @@
 import { getDb } from '../firebase/initFirebase';
 import { getAuth } from 'firebase-admin/auth';
 import { FirebasePortalAccountService, FirebasePortalInviteQuota, FirebasePortalRepository } from '../../data/repositories/FirebasePortalRepository';
-import { makePortalAccessAudit } from '../portal/portalAccessAudit';
+import { makePortalAccessAudit, makePortalSignInAudit } from '../portal/portalAccessAudit';
+import {
+  FirebasePortalIdentityAccountService,
+  FirebasePortalIdentityConfigRepository,
+  FirebasePortalIdentityRepository,
+  FirebasePortalSignInRequestRepository,
+} from '../../data/repositories/FirebasePortalIdentity';
+import { FetchOidcClient } from '../portal/oidc/FetchOidcClient';
+import type { IOidcClient, IPortalIdentityConfigRepository, IPortalIdentityRepository } from '../../domain/repositories/IPortalIdentity';
+import {
+  makeCompletePortalSignInUseCase,
+  makeGetPortalSignInOptionsUseCase,
+  makeManagePortalSignInUseCase,
+  makeStartPortalSignInUseCase,
+  type CompletePortalSignInUseCase,
+  type GetPortalSignInOptionsUseCase,
+  type ManagePortalSignInUseCase,
+  type StartPortalSignInUseCase,
+} from '../../domain/usecases/PortalIdentityUseCases';
 import type { IPortalRepository } from '../../domain/repositories/IPortalRepository';
 import {
   makeProjectPortalDocumentUseCase,
@@ -178,6 +196,10 @@ class DIContainer {
 
   private aiProviders: IAIProviderService[];
   private portalRepo?: IPortalRepository;
+  private portalIdentityRepo?: IPortalIdentityRepository;
+  private portalIdentityConfigRepo?: IPortalIdentityConfigRepository;
+  /** Um por instância: guarda a descoberta e as chaves dos provedores entre as entradas. */
+  private oidcClient?: IOidcClient;
   private projectPortalRecordUC?: ProjectPortalRecordUseCase;
   private aiConnectionRepo?: IAIConnectionRepository;
   private permissionCatalogCache?: PermissionCatalogCache;
@@ -336,7 +358,59 @@ class DIContainer {
       audit: makePortalAccessAudit(this.getCreateAuditLogUseCase()),
       quota: new FirebasePortalInviteQuota(getDb()),
       now: () => new Date(),
+      identity: this.getPortalIdentityRepository(),
+      signIn: this.getPortalIdentityConfigRepository(),
     };
+  }
+
+  getPortalIdentityRepository(): IPortalIdentityRepository {
+    if (!this.portalIdentityRepo) this.portalIdentityRepo = new FirebasePortalIdentityRepository(getDb());
+    return this.portalIdentityRepo;
+  }
+
+  getPortalIdentityConfigRepository(): IPortalIdentityConfigRepository {
+    if (!this.portalIdentityConfigRepo) this.portalIdentityConfigRepo = new FirebasePortalIdentityConfigRepository(getDb());
+    return this.portalIdentityConfigRepo;
+  }
+
+  private getOidcClient(): IOidcClient {
+    if (!this.oidcClient) this.oidcClient = new FetchOidcClient();
+    return this.oidcClient;
+  }
+
+  getPortalSignInOptionsUseCase(): GetPortalSignInOptionsUseCase {
+    return makeGetPortalSignInOptionsUseCase(this.getPortalIdentityConfigRepository());
+  }
+
+  getStartPortalSignInUseCase(): StartPortalSignInUseCase {
+    return makeStartPortalSignInUseCase({
+      config: this.getPortalIdentityConfigRepository(),
+      requests: new FirebasePortalSignInRequestRepository(getDb()),
+      oidc: this.getOidcClient(),
+      now: () => new Date(),
+    });
+  }
+
+  getCompletePortalSignInUseCase(log: (message: string, detail: Record<string, unknown>) => void): CompletePortalSignInUseCase {
+    return makeCompletePortalSignInUseCase({
+      config: this.getPortalIdentityConfigRepository(),
+      requests: new FirebasePortalSignInRequestRepository(getDb()),
+      oidc: this.getOidcClient(),
+      identity: this.getPortalIdentityRepository(),
+      accounts: new FirebasePortalIdentityAccountService(getAuth()),
+      audit: makePortalSignInAudit(this.getCreateAuditLogUseCase()),
+      tenantName: async (tenantId) => (await this.getTenantRepository().getById(tenantId))?.name ?? '',
+      now: () => new Date(),
+      log,
+    });
+  }
+
+  getManagePortalSignInUseCase(): ManagePortalSignInUseCase {
+    return makeManagePortalSignInUseCase({
+      config: this.getPortalIdentityConfigRepository(),
+      identity: this.getPortalIdentityRepository(),
+      oidc: this.getOidcClient(),
+    });
   }
 
   getInvitePortalUserUseCase(): InvitePortalUserUseCase {

@@ -16,6 +16,8 @@ import { withAmbientTimeZone } from '../../domain/schema/clockGate';
 import { withAmbientBusinessCalendars } from '../../domain/schema/time/businessDaysGate';
 import type { BusinessCalendarSet } from '../../domain/schema/time/businessDays';
 import { DEFAULT_WORKFLOW_QUERY_LIMITS, hydrateRecords, runRecordQuery } from '../workflow/query/runWorkflowQuery';
+import { readerFetcher } from '../workflow/query/readerScope';
+import type { RecordReader } from '../../domain/schema/memberVisibility';
 
 /**
  * O teto de filhos de um documento: o mesmo de "Buscar Registros". Uma lista de parcelas que passe
@@ -50,13 +52,15 @@ export class WorkflowDocumentRecordReader implements IDocumentRecordReader {
     paths: readonly string[],
     timeZone: string,
     businessCalendars?: BusinessCalendarSet | null,
+    reader?: RecordReader | null,
   ): Promise<RecordReadOutcome<Record<string, unknown> | null>> {
     const ctx = await this.screens.getSchemaContext(tenantId);
     const table = resolveQueryTable(collection, ctx);
     if (!table) return { ok: false, error: '@core.automation/mutation.table.unknown', errorParams: { table: collection } };
     if (!recordId) return { ok: true, value: null };
 
-    const fetched = await this.fetcher.fetchByIds(tenantId, table.physicalCollection, [recordId]);
+    const fetcher = readerFetcher(this.fetcher, ctx, reader);
+    const fetched = await fetcher.fetchByIds(tenantId, table.physicalCollection, [recordId]);
     const data = fetched.get(recordId);
     if (!data) return { ok: true, value: null };
 
@@ -66,7 +70,7 @@ export class WorkflowDocumentRecordReader implements IDocumentRecordReader {
       ctx,
       reachable(ctx, table.root, paths),
       tenantId,
-      this.fetcher,
+      fetcher,
     );
     if (collectDerivedFieldKeys(ctx, collection).size === 0) return { ok: true, value: hydrated };
 
@@ -86,6 +90,7 @@ export class WorkflowDocumentRecordReader implements IDocumentRecordReader {
     paths: readonly string[],
     timeZone: string,
     businessCalendars?: BusinessCalendarSet | null,
+    reader?: RecordReader | null,
   ): Promise<RecordReadOutcome<Record<string, unknown>[]>> {
     const ctx = await this.screens.getSchemaContext(tenantId);
     const table = resolveQueryTable(dataset.from, ctx);
@@ -102,7 +107,7 @@ export class WorkflowDocumentRecordReader implements IDocumentRecordReader {
     const outcome = await runRecordQuery(
       spec,
       [parentId],
-      { tenantId, timeZone, ...(businessCalendars !== undefined ? { businessCalendars } : {}) },
+      { tenantId, timeZone, reader, ...(businessCalendars !== undefined ? { businessCalendars } : {}) },
       { queryRepository: this.queryRepository, fetcher: this.fetcher, screenProvider: this.screens },
       DEFAULT_WORKFLOW_QUERY_LIMITS,
       { deterministicOrder: true },

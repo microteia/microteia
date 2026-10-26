@@ -115,6 +115,9 @@ export const runReport = onCall(
       logger,
       execution: { id: crypto.randomUUID(), workflowDefinitionId: '', tenantId },
       actor: await identifyActor(userId, 'ui', permissions),
+      // O relatório conta só o que quem o roda vê: um total que incluísse o registro que a regra lhe
+      // esconde contaria o sigilo dele.
+      reader: { uid: userId, permissions },
       input: prompts ?? {},
     };
 

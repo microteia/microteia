@@ -2,7 +2,7 @@ import type { WorkflowContext, WorkflowLogger } from '../../domain/entities/Work
 import type { PortalRecordWriter } from '../../domain/usecases/PortalAccessUseCases';
 import { runWorkflowUpsert } from '../workflow/mutation/runWorkflowMutation';
 import { FirestoreWorkflowMutationRepository } from '../../data/services/FirestoreWorkflowMutationRepository';
-import { identifyActor } from '../workflow/identifyActor';
+import { identifyPortalActor } from './identifyPortalActor';
 import { tenantTimeZone } from '../settings/tenantTimeZone';
 import { tenantBusinessCalendars } from '../settings/tenantBusinessCalendars';
 import { getDb } from '../firebase/initFirebase';
@@ -14,7 +14,8 @@ const silent: WorkflowLogger = { info: () => undefined, warn: () => undefined, e
  * A gravação do convidado pelo MESMO motor das automações e do agente: campo obrigatório, máscara,
  * regra, chave única e campo calculado valem igual. O que muda é o ator — o convidado, com
  * `via: 'portal'` e permissão NENHUMA: uma expressão `hasPermission(...)` disparada por essa gravação
- * responde "não", como deve responder para quem é de fora.
+ * responde "não", como deve responder para quem é de fora. Com a identidade que ele provou, quando
+ * provou: é ela que o registro guarda em `portalVerified`.
  */
 export const portalRecordWriter: PortalRecordWriter = async ({ tenantId, collection, data, userId, recordId }) => {
   const context: WorkflowContext = {
@@ -29,7 +30,7 @@ export const portalRecordWriter: PortalRecordWriter = async ({ tenantId, collect
     },
     logger: silent,
     execution: { id: crypto.randomUUID(), workflowDefinitionId: '', tenantId },
-    actor: await identifyActor(userId, 'portal', []),
+    actor: await identifyPortalActor(tenantId, userId),
     input: {},
   };
   const outcome = await runWorkflowUpsert(

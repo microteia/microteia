@@ -2,6 +2,7 @@ import type { CustomFieldValue, FieldDefinition } from '../entities/entitySchema
 
 import type { LocalizedMessage } from '../schema/i18n/localizedMessage';
 import type { TranslateFn } from '../schema/i18n/messages';
+import { isSequenceField } from '../schema/recordSequence';
 // Palavras reservadas do JavaScript que não podem ser usadas como nomes de campos
 const JS_RESERVED_WORDS = new Set([
   'await', 'break', 'case', 'catch', 'class', 'const', 'continue', 'debugger',
@@ -239,13 +240,19 @@ const hasFormValue = (field: FieldDefinition, value: CustomFieldValue | undefine
 export const requiredFieldError = (t: TranslateFn, field: FieldDefinition): string =>
   t('core.automation/parameter.required', { label: field.label });
 
+/**
+ * O campo cuja falta reprova a gravação. O sequencial nunca falta: o número é atribuído pelo caminho
+ * de gravação, depois deste portão — cobrá-lo aqui impediria justamente o registro que o recebe.
+ */
+const demandsValue = (field: FieldDefinition): boolean => field.required && !isSequenceField(field);
+
 export const validateRequiredFields = (
   t: TranslateFn,
   fields: FieldDefinition[],
   form: Record<string, CustomFieldValue>,
 ): string | null => {
   const missing = sortFieldsByOrder(fields).find(
-    (field) => field.required && !hasFormValue(field, readValueByPath(form, field.key) as CustomFieldValue | undefined),
+    (field) => demandsValue(field) && !hasFormValue(field, readValueByPath(form, field.key) as CustomFieldValue | undefined),
   );
   return missing ? requiredFieldError(t, missing) : null;
 };
@@ -257,7 +264,7 @@ export const collectRequiredErrors = (
 ): Record<string, string> => {
   const errors: Record<string, string> = {};
   sortFieldsByOrder(fields).forEach((field) => {
-    if (field.required && !hasFormValue(field, readValueByPath(form, field.key) as CustomFieldValue | undefined)) {
+    if (demandsValue(field) && !hasFormValue(field, readValueByPath(form, field.key) as CustomFieldValue | undefined)) {
       errors[field.key] = requiredFieldError(t, field);
     }
   });

@@ -16,7 +16,13 @@ import { AGGREGATION_OP_SINCE_KERNEL } from '../../../domain/schema/aggregationS
 import { AGGREGATE_BACKFILL_SINCE_KERNEL, AGGREGATION_MAX_CHILDREN } from '../../../domain/schema/aggregateBackfill';
 import { RECORD_KEY_ADOPTION_SINCE_KERNEL } from '../../../domain/schema/recordKeyAdoption';
 import { EDIT_WINDOW_DOCUMENTS_SINCE_KERNEL, EDIT_WINDOW_SINCE_KERNEL } from '../../../domain/schema/editWindow';
+import {
+  MEMBER_VISIBILITY_MAX_FIELDS,
+  MEMBER_VISIBILITY_SINCE_KERNEL,
+  READ_ALL_ACTION,
+} from '../../../domain/schema/memberVisibility';
 import { LOOKUP_SEED_SINCE_KERNEL } from '../../../domain/schema/lookupSeed';
+import { RECORD_SEQUENCE_SINCE_KERNEL } from '../../../domain/schema/recordSequence';
 import { AGGREGATION_OP_LABELS, NUMERIC_AGGREGATION_OPS } from '../../../domain/schema/fieldRules';
 import type { WidgetNodeType } from '../../../domain/schema/ui/widgetSpec';
 import { STEP_TYPES } from '../../../domain/entities/Workflow';
@@ -29,6 +35,7 @@ import { FIELD_EXPRESSION_FUNCTION_NAMES } from '../../../domain/schema/fieldExp
 import { BUSINESS_CALENDAR_FIELDS } from '../../../domain/schema/time/businessDays';
 import { BUSINESS_CALENDAR_POINT } from '../../../domain/schema/time/extensionPoints';
 import { ARTIFACT_PREFIX_SINCE_KERNEL } from '../../../domain/schema/plugin/artifactPrefix';
+import { PORTAL_CLAIM_NORMALIZERS, PORTAL_IDENTITY_CLAIM_SINCE_KERNEL } from '../../../domain/schema/portalIdentity';
 import {
   PORTAL_AUTOMATION_INVITES_PER_HOUR,
   PORTAL_AUTOMATION_INVITES_SINCE_KERNEL,
@@ -867,6 +874,32 @@ restriction to work around; it is what lets an installation put your SSO live wi
 your code. And stamping is not installing: to also work inside the organization, the package has to be
 installed there too.
 
+#### The portal signs in differently — and it is not yours to declare
+
+\`auth.provider\` is the sign-in of the INSTALLATION: providers configured once in the project's Firebase
+Authentication, for the people who work there. A portal guest belongs to ONE organization, and that
+organization chooses how its guests prove who they are, in Settings > Portal > Sign-in:
+
+- the **e-mail link** (on by default) — it only proves the guest reads that mailbox;
+- up to a few **OpenID Connect providers** of its own — issuer, client, scopes, and the claims each one
+  verifies. The server is the OIDC client: authorization code with PKCE (S256) always, the client
+  secret never reaches a browser, and the ID token is checked against the provider's published keys
+  (signature, issuer, audience, expiry, nonce) before anything else happens.
+
+A guest who signs in through a provider gets an account that exists only in that organization — never
+the account of the invited e-mail, and never the same account in two organizations. That is what makes
+it safe for an organization to configure an issuer: what its provider attests is worth nothing outside it.
+
+An invitation may require an attribute the guest has to PROVE (\`requiredClaim: { name, value, normalize? }\`,
+\`normalize\` one of ${PORTAL_CLAIM_NORMALIZERS.map((mode) => `\`${mode}\``).join(', ')}). It is accepted only by a sign-in
+whose provider verifies that claim with the same value; anything else is refused and recorded in the
+Audit trail. \`email\` and \`phone_number\` only count when the provider marks them verified. Turning the
+e-mail link off suspends, at once, every guest who signs in by e-mail.
+
+There is nothing to declare for any of this, and nothing a package may name: no provider is known to the
+kernel by name. What reaches your code is the result — see \`actor.verified\` (section 9) and the
+\`portalVerified\` field of records the guest saves (section 10).
+
 ### How you contribute to one
 
 A contribution is one entry of \`manifest.contributes\`. Use the constructor for the point instead of
@@ -1572,7 +1605,8 @@ Beyond \`key\`, \`label\`, \`type\`, \`order\` and \`required\`, the properties 
 | \`lookupCollection\` | the \`select\` reads a list the organization owns. Declare the list in \`lookups\` |
 | \`refEntity\`, \`refDenormKey\` | a \`reference\`'s target, and the name expressions navigate it by |
 | \`defaultValue\` | what a new record is born with. Seeds only — the person can still change it |
-| \`autoValue: { pattern }\` | a generated code: \`A\` letter, \`0\` digit, \`*\` either, anything else literal (\`AA-0000\`). Not repeated among the records already loaded, and still editable. For a code that must truly not repeat, declare a key |
+| \`autoValue: { pattern }\` | a generated code: \`A\` letter, \`0\` digit, \`*\` either, anything else literal (\`AA-0000\`). Not repeated among the records already loaded, and still editable. For a code that must truly not repeat, declare a key — or a sequence |
+| \`autoValue: { pattern, sequence: { scope?, resetBy? } }\` | a NUMBER the record receives when it is created, from a counter advanced in the same transaction that writes it: two records never get the same one, and the field is read-only from then on — the form shows it disabled, and an automation, a script, the agent or the portal that writes it is refused. In \`pattern\`, \`YYYY\` is the year (in the organization's time zone) and the one run of \`0\` is the number with leading zeros, as a minimum width (\`'YYYY/000000'\` → \`2026/000123\`); empty, the plain number. \`scope\`: \`'tenant'\` (default) or \`'parent'\` — one counter per parent record, which needs \`parentFieldKey\`. \`resetBy\`: \`'never'\` (default) or \`'year'\`, which demands \`YYYY\` in the pattern. Only a top-level \`text\` (the formatted number) or \`number\` (the integer, no pattern, no yearly reset) field. A number is never reused: deleting a record leaves its gap. Records created before the declaration keep no number. A package declaring it declares \`kernel: '^${RECORD_SEQUENCE_SINCE_KERNEL}'\` or later |
 | \`logic\` | the expressions: \`compute\`, \`validate\`, \`hiddenWhen\`, \`disabledWhen\`, \`onChange\` (§9) |
 | \`aggregation: { from, via, op, field?, filter?, orderBy? }\` | the value comes from CHILD records — \`op\` is one of ${inlineList(AGGREGATION_OP_NAMES)}. Declared, not inferred, so the engine knows exactly when to recompute. \`latest\` copies \`field\` of the first child that passes \`filter\` after sorting by \`orderBy\` (required with it, and only with it): an empty key sorts last in both directions, ties fall to \`createdAt\` in the direction of the last key and then to the document id, and no matching child makes the field empty (\`null\`). The parent field must have the child field's type, option list, target and cardinality — the value is copied as it is. "The first" is \`latest\` with \`dir: 'asc'\`. A package using \`latest\` declares \`kernel: '^${AGGREGATION_OP_SINCE_KERNEL.latest}'\` or later |
 | \`rules\` | \`validate\` (\`check\`, \`pattern\`, \`minLength\`, \`maxLength\`, \`message\`) and \`format\` (\`preset\`, or \`pattern\` + \`replacement\`). A requirement that depends on other fields is an expression in \`logic.validate\` |
@@ -1723,6 +1757,72 @@ A record without a readable \`createdAt\` is closed, not open forever. Requires
 \`kernel: "^${EDIT_WINDOW_SINCE_KERNEL}"\`: an older kernel ignores the declaration and the records would
 stay editable forever, so \`check\` refuses the package instead.
 
+### Record visibility — who reads EACH record
+
+A collection's permission answers per COLLECTION: whoever has \`<collection>.read\` reads every record
+in it. Some records belong to whoever they are assigned to — a confidential reply only its issuer reads,
+a support ticket, a patient's chart. Declare which member-reference fields name the people who read a
+record:
+
+\`\`\`ts
+{
+  key: 'replies',
+  fields: [
+    { key: 'issuer', type: 'reference', refEntity: 'members', /* ... */ },
+    { key: 'team', type: 'reference', refEntity: 'members', multi: true, /* ... */ },
+  ],
+  memberVisibility: { userFields: ['issuer', 'team'] },
+}
+\`\`\`
+
+A member then reads a record only when their id is in one of those fields — the value of a single
+reference, or an item of a \`multi\` one — or when they SUPERVISE:
+
+| | |
+|---|---|
+| \`userFields\` | 1 to ${MEMBER_VISIBILITY_MAX_FIELDS} fields of THIS screen, each a reference to \`members\`. The security rules have no loops and read ${MEMBER_VISIBILITY_MAX_FIELDS} positions, so \`check\` refuses more — and refuses a field that is not a member reference: a person's name in a text field never matches an id |
+| \`bypassPermission\` | who reads them all. Absent, the platform derives \`<collection>.${READ_ALL_ACTION}\` ("View all records"), which requires \`<collection>.read\` and shows up in the organization's access profiles by itself. Name one of your own permissions instead (declared with \`accessPermissionContribution\`, §13) when supervising means something in your domain |
+
+The owner of the organization and the system administrators read every record, as they pass every
+permission.
+
+**Every path honors it**, not only the list:
+
+- the security rules refuse to read, change or delete a record that does not name the member, and its
+  notes, documents and files with it. Creating is never barred — a record may be born naming somebody
+  else, which is how one is forwarded. Changing a record so it names somebody else is allowed too, and
+  from then on the one who forwarded it no longer reads it;
+- the platform adds the filter to every list, picker, tab and search of the collection by itself —
+  \`useEntityList\` in your views included —, and a link to a record the member cannot read opens as a
+  record that does not exist;
+- the AI agent (\`search_records\`, \`get_record\`, \`run_report\`, \`list_documents\`, documents, and
+  \`update_record\`/\`delete_record\`, which treat a hidden record as missing) reads as the person who owns
+  the token, within the token's ceiling — and \`describe_screen\` says the screen is restricted and whether
+  this token sees all;
+- a report counts only what the person running it can read, and a field reached through a reference to a
+  hidden record comes back empty;
+- a document generated by a person lists only the child records that person reads.
+
+**Workflows read as the organization.** A step "Search records", a script's \`query()\` and an action's
+workflow see the whole collection, whoever pressed the button: numbering a protocol, counting what is
+open or finding the record to forward needs every record, and the same workflow must not write different
+data depending on who triggered it. What a workflow does with what it read — writing it somewhere
+visible, notifying someone — is your decision as its author, the same way it already is for collection
+permissions.
+
+What it does NOT hide: an **aggregate** stored on a parent (\`aggregation\`) is computed over every
+child, so a count of restricted children shows on a parent everyone reads — do not aggregate a secret.
+The same goes for a **denormalized name** a reference copies into another record. And the
+workflow execution history keeps what each step returned.
+
+On an update of your extension, what your package declares wins; what it does NOT declare removes
+nothing — dropping the restriction is a person's decision, with \`screens.member-visibility\` in the
+Form Design, never a side effect of updating. The organization can also turn it on for its own screens
+and yours there ("Record visibility" tab).
+
+Requires \`kernel: "^${MEMBER_VISIBILITY_SINCE_KERNEL}"\`: an older kernel ignores the declaration, and
+every member who reads the collection would read every record, so \`check\` refuses the package instead.
+
 ### Relationships, and where a screen shows up
 
 | | |
@@ -1739,6 +1839,7 @@ stay editable forever, so \`check\` refuses the package instead.
 | \`memberWritableFields\` | fields ANY member may write on a record someone else created — the door for per-person state (read, liked, saved) that the default permission would close |
 | \`authorCanDelete\` | whoever created the record deletes it, without an administrator |
 | \`editWindow\` | how long after creation the record may still be changed — and, with \`delete: true\`, deleted. Its documents freeze with it. Enforced by the security rules, not only the form; see "Edit window" above |
+| \`memberVisibility\` | which members read EACH record: the ones it names in a member reference (\`userFields\`), plus whoever has \`bypassPermission\` — or the derived \`<collection>.${READ_ALL_ACTION}\`. Enforced by the security rules and every server path that hands a record to a person; see "Record visibility" above |
 | \`portal\` | what an outside guest sees: \`subject\` (\`'self'\` for the screen whose records receive guests, \`{ field }\` for a reference that leads to it, \`'parent'\` to inherit from the parent), the \`fields\` that leave the organization — nothing else does — and \`documents\` to expose the documents someone marked as shared. \`visibleWhen\` is a field expression on the WHOLE record that decides which records leave (\`type == "revenue"\`) — false or invalid, the record is not in the portal, and neither is anything that reaches the guest through it; requires \`kernel: "^${PORTAL_VISIBLE_WHEN_SINCE_KERNEL}"\`. \`create: { fields }\` lets the guest create records, filling only those fields — the link to the subject is set by the server from what the guest already sees, never from what they send; it is refused on the \`'self'\` screen. \`uploads: { types }\` lets the guest ATTACH documents — choosing one of those types (none listed = any the organization has), never creating one, and never deleting; it requires \`documents\`. \`edit: { fields, when?, onlyOwn? }\` lets the guest CHANGE records: only those fields, and only fields that are also in \`fields\` (a guest never overwrites what they cannot see); never the link to the subject; \`when\` is a field expression on the WHOLE record (\`status == "draft"\`) checked by the server on every change — invalid means closed —, and \`onlyOwn\` limits it to records the guest created in the portal. \`invites: { automation: true }\`, on the \`'self'\` screen only, lets workflows invite guests to its records with \`portal-invite\` (section 10) |
 | \`auditActions\` | which actions are audited. Absent = all. Declare it when a machine writes the collection, or the audit log drowns in one entry per ingested document |
 
@@ -1853,6 +1954,12 @@ person caused the run: a \`<collection>.saved\` / \`.deleted\` trigger, and ever
 with \`isEmpty(actor)\`; \`actor.name\` there reads \`null\` instead of failing. A workflow variable named
 \`actor\` does not shadow it. It is identity, not access: what the person may do is still
 \`hasPermission(...)\`.
+
+\`actor.verified\` is what a portal guest PROVED when signing in through one of the organization's identity
+providers: \`{ provider, claim: { name, value } | null, level }\` — the provider's id, the claim the
+invitation required, and the assurance level the provider reported, as it wrote it. It is \`null\` for every
+member, for a guest who signed in by e-mail link, and when there is no actor; \`actor.verified.level\`
+reads \`null\` there instead of failing.
 
 | How the run started | \`actor\` | \`hasPermission\` answers for |
 |---|---|---|
@@ -2208,7 +2315,7 @@ automation, and it used to be invisible: the package validated and the flow sile
 from the same rule, and \`createdVia\` / \`updatedVia\` says how the write came in — \`"ui"\`, \`"agent"\` or,
 with no person behind the run, \`"automation"\` (the author is then \`workflow-engine\`). Every one of those
 fields is managed by the system: a mapping or a \`data\` object that names them is refused, or dropped by the
-step. So "who registered this" and "typed or by the AI" need no field of yours — read them off the record.
+step. So is \`portalVerified\`, the identity a portal guest proved when the write came through the portal. So "who registered this" and "typed or by the AI" need no field of yours — read them off the record.
 
 **\`QuerySpec.where\` uses the operator NAMES**, not the symbols: \`eq\`, \`neq\`, \`lt\`, \`lte\`, \`gt\`,
 \`gte\`, \`in\`, \`contains\`, \`exists\`. An operator outside that set matches no rows at all — the query
@@ -2351,6 +2458,34 @@ takes it back. Both require \`kernel: "^${PORTAL_AUTOMATION_INVITES_SINCE_KERNEL
   not an error. Revoke on \`.deleted\` too: a deleted record does not take its guests with it.
 - **The proof.** Every new invitation and every removal is an Audit trail entry: who, which record, and
   that it came from an automation.
+- **Verified identity.** \`requiredClaimName\`, \`requiredClaimValue\` and \`requiredClaimNormalize\`
+  (${PORTAL_CLAIM_NORMALIZERS.map((mode) => `\`${mode}\``).join(' or ')}) make it an invitation by IDENTITY: no account is opened for
+  the e-mail, and only someone who signs in through one of the organization's identity providers
+  proving that claim gets in (section 4). Set the name and the value comes out empty, the step FAILS — it
+  never falls back to an e-mail invitation. The claim must be one a provider of the organization
+  verifies, or the step fails too. No welcome e-mail goes out (\`emailed\` is \`false\`, the log says
+  why): the guest's account only exists after the first sign-in. \`inviteId\` is the invitation, and
+  \`portal-revoke\` by the same e-mail removes it. Requires
+  \`kernel: "^${PORTAL_IDENTITY_CLAIM_SINCE_KERNEL}"\` — an older kernel would ignore the claim and invite by
+  e-mail, so the package gate refuses it.
+
+\`\`\`ts
+configuration: {
+  subjectCollection: { kind: 'Literal', value: 'clients' },
+  subjectRecordId: { kind: 'Event', path: 'client' },
+  email: { kind: 'Event', path: 'email' },
+  requiredClaimName: { kind: 'Literal', value: 'nationalId' },
+  requiredClaimValue: { kind: 'Event', path: 'documentNumber' },
+  requiredClaimNormalize: { kind: 'Literal', value: 'digits' },
+}
+\`\`\`
+
+**What the guest proved travels with what the guest does.** A record saved through the portal carries
+\`portalVerified\` — \`{ provider, claim: { name, value } | null, level }\`, or \`null\` when the guest
+signed in by e-mail — so a \`.saved\` workflow, a report or a document template can say who acted and
+with what assurance. It is a system field: no workflow, script or screen writes it, and the Audit trail
+entry of that write shows it too. In expressions, \`actor.verified\` has the same shape whenever the
+actor is a portal guest who proved an identity, and is \`null\` otherwise.
 
 ### Waiting inside a workflow — the \`delay\` step
 
@@ -3083,7 +3218,10 @@ invent, and your code keeps working when they invent another one.
 
 Every screen collection you install gets four permissions for free:
 \`<collection>.read\`, \`.create\`, \`.update\`, \`.delete\` — and the three writing ones already depend on
-\`read\`. Declare a permission only for a capability that is not one of those, or to add a dependency:
+\`read\`. A screen with \`memberVisibility\` and no \`bypassPermission\` gets a fifth,
+\`<collection>.${READ_ALL_ACTION}\`, which lets a member read the records that do not name them (§8,
+"Record visibility"). Declare a permission only for a capability that is not one of those, or to add a
+dependency:
 
 \`\`\`ts
 import { accessPermissionContribution } from '@microteia/sdk';

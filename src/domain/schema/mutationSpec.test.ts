@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { coerceWriteValue, parseDateOnly } from './mutationSpec';
+import { coerceWriteValue, parseDateOnly, validateWritablePath } from './mutationSpec';
+import { createSchemaContext } from './screenEntity';
 
 /**
  * O dia digitado tem de voltar como o MESMO dia — venha ele da tela (onde "local" é o escritório) ou
@@ -35,5 +36,33 @@ describe('coerceWriteValue — data', () => {
 
   it('vazio é ausência de data, não uma data inválida', () => {
     expect(coerceWriteValue('date', '   ')).toBeNull();
+  });
+});
+
+describe('validateWritablePath — o número que o sistema atribui', () => {
+  const ctx = createSchemaContext([{
+    id: 'comunicacoes',
+    titleSingular: 'Comunicação',
+    titleFieldKey: 'assunto',
+    fields: [
+      { key: 'assunto', label: 'assunto', type: 'text', required: false, order: 0, origin: 'plugin' },
+      {
+        key: 'protocolo', label: 'protocolo', type: 'text', required: false, order: 1, origin: 'plugin',
+        autoValue: { pattern: 'YYYY/000000', sequence: { resetBy: 'year' } },
+      },
+      {
+        key: 'codigo', label: 'codigo', type: 'text', required: false, order: 2, origin: 'plugin',
+        autoValue: { pattern: 'AA0000' },
+      },
+    ],
+  }]);
+
+  it('não se escreve por porta nenhuma; o código sorteado continua gravável', () => {
+    expect(validateWritablePath(ctx, 'comunicacoes', 'protocolo')).toEqual({
+      error: '@core.automation/mutation.path.sequence-assigned',
+      errorParams: { field: 'protocolo' },
+    });
+    expect(validateWritablePath(ctx, 'comunicacoes', 'codigo')).toBeUndefined();
+    expect(validateWritablePath(ctx, 'comunicacoes', 'assunto')).toBeUndefined();
   });
 });

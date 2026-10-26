@@ -1,5 +1,11 @@
 import type { QualifiedContribution } from '../schema/plugin/contribution';
 import { PORTAL_PROFILE_KEYS, portalGuestName, type PortalProfile } from '../schema/portal';
+import type {
+  PortalIdentityProvider,
+  PortalRequiredClaim,
+  PortalSignInSettings,
+  PortalVerifiedIdentity,
+} from '../schema/portalIdentity';
 
 /** Um escritório em que a pessoa é convidada do portal. */
 export interface PortalMembership {
@@ -147,6 +153,26 @@ export interface PortalGuest {
   email: string;
   displayName: string;
   subjectKeys: string[];
+  /** O que ele provou ao entrar por um provedor do escritório. Ausente: entra pelo link de e-mail. */
+  identity?: PortalVerifiedIdentity;
+  /** O escritório desligou o método por que ele entra — o convite está aqui, e não abre nada. */
+  suspended?: boolean;
+}
+
+/** O convite que exige provar um atributo — listado até ser revogado, aceito ou não. */
+export interface PortalIdentityInvite {
+  id: string;
+  email: string;
+  displayName: string;
+  claim: PortalRequiredClaim;
+  subjectKeys: string[];
+  /** Alguém já entrou por ele. */
+  accepted: boolean;
+}
+
+/** A configuração de entrada como a aba a vê — o segredo do cliente nunca volta, só SE existe. */
+export interface PortalSignInSettingsView extends PortalSignInSettings {
+  providers: Array<PortalIdentityProvider & { hasSecret: boolean }>;
 }
 
 /**

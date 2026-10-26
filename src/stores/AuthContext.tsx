@@ -7,7 +7,11 @@ import { makeSignUpWithEmailUseCase } from '../domain/usecases/auth/SignUpWithEm
 import { makeSendEmailVerificationUseCase } from '../domain/usecases/auth/SendEmailVerificationUseCase';
 import { makeSendPasswordResetEmailUseCase } from '../domain/usecases/auth/SendPasswordResetEmailUseCase';
 import { makeSignOutUseCase } from '../domain/usecases/auth/SignOutUseCase';
-import { makeSendSignInLinkUseCase, makeSignInWithLinkUseCase } from '../domain/usecases/auth/SignInWithLinkUseCase';
+import {
+  makeSendSignInLinkUseCase,
+  makeSignInWithLinkUseCase,
+  makeSignInWithTokenUseCase,
+} from '../domain/usecases/auth/SignInWithLinkUseCase';
 import type { User, UserRole } from '../domain/entities';
 import { authErrorKey, type AuthProviderSpec } from '../domain/schema/auth';
 import { AuthContext } from './useAuth';
@@ -32,6 +36,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signOutUseCase = useMemo(() => makeSignOutUseCase(authRepository), [authRepository]);
   const sendSignInLinkUseCase = useMemo(() => makeSendSignInLinkUseCase(authRepository), [authRepository]);
   const signInWithLinkUseCase = useMemo(() => makeSignInWithLinkUseCase(authRepository), [authRepository]);
+  const signInWithTokenUseCase = useMemo(() => makeSignInWithTokenUseCase(authRepository), [authRepository]);
 
   const loadUserProfile = useCallback(async (userId: string) => {
     try {
@@ -180,6 +185,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsEmailVerified(authRepository.isEmailVerified());
   };
 
+  const signInWithToken = async (token: string) => {
+    const u = await signInWithTokenUseCase.execute(token);
+    if (u.id === user?.id) return;
+    setLoading(true);
+    setUser(u);
+    setIsEmailVerified(authRepository.isEmailVerified());
+  };
+
   const sendEmailVerification = async () => {
     await sendEmailVerificationUseCase.execute();
   };
@@ -203,7 +216,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       redirectErrorKey, clearRedirectError,
       effectivePhotoURL, effectiveName, reloadUserProfile,
       signInWithProvider, signInWithEmail, signUpWithEmail,
-      sendSignInLink, isSignInLink, signInWithLink,
+      sendSignInLink, isSignInLink, signInWithLink, signInWithToken,
       sendEmailVerification, sendPasswordResetEmail, checkEmailVerification,
       signOut,
     }}>

@@ -2,6 +2,7 @@ import type { IUserRepository } from '../repositories/IUserRepository';
 import type { ITenantRepository } from '../repositories/ITenantRepository';
 import { generateArtifactPrefix } from '../schema/plugin/artifactPrefix';
 import { normalizePortalEmail } from '../schema/portal';
+import { isPortalIdentityAccount } from '../schema/portalIdentity';
 
 export interface BootstrapUserInput {
   userId: string;
@@ -27,8 +28,10 @@ export const makeBootstrapUserUseCase = (
   execute: async ({ userId, email, displayName, photoURL }) => {
     // Quem chegou por um convite do PORTAL é de fora: entra no escritório que o convidou, como
     // convidado, e não ganha um escritório próprio. A marca é gravada antes de a conta existir, por
-    // isso está aqui quando o gatilho roda.
-    const fromPortal = email !== '' && await portalInvites.hasInvite(normalizePortalEmail(email));
+    // isso está aqui quando o gatilho roda. A conta aberta por um provedor de identidade do portal não
+    // tem e-mail para marcar — o uid dela é a prova, porque só o servidor escolhe uid.
+    const fromPortal = isPortalIdentityAccount(userId)
+      || (email !== '' && await portalInvites.hasInvite(normalizePortalEmail(email)));
     const created = await userRepo.createUserIfMissing(userId, {
       email,
       displayName,

@@ -14,6 +14,7 @@ import {
 } from '../../../domain/schema/mutationSpec';
 import type { RecordWriteVia, RemoveSpec, ResolvedWritableTable, UpsertSpec } from '../../../domain/schema/mutationSpec';
 import { RECORD_CREATED_VIA_FIELD, RECORD_UPDATED_VIA_FIELD } from '../../../domain/schema/mutationSpec';
+import { RECORD_PORTAL_VERIFIED_FIELD, type PortalVerifiedIdentity } from '../../../domain/schema/portalIdentity';
 import { ruleIssueParams } from '../../../domain/schema/fieldRules';
 import type { DescribableIssue } from '../../../domain/schema/fieldRules';
 import { formatAndValidateRecord, tableMentionsBusinessDays } from '../../../domain/schema/recordRules';
@@ -26,13 +27,17 @@ import {
   RECORD_KEY_REFS_FIELD,
   storedRecordKeyRefs,
 } from '../../../domain/schema/recordKeys';
-import { resolveEntityKeys } from '../../../domain/schema/screenEntity';
+import { resolveEntityKeys, resolveRecordSequences } from '../../../domain/schema/screenEntity';
+import type { RecordSequenceEntry } from '../../../domain/schema/recordSequence';
+import { omitSequenceFields, planRecordSequences } from '../../../domain/schema/recordSequence';
+import { DEFAULT_TIME_ZONE } from '../../../domain/schema/i18n/timeZone';
 import {
   changedRecordKeys,
   editWindowAllowsDelete,
   editWindowAllowsUpdate,
   resolveEditWindow,
 } from '../../../domain/schema/editWindow';
+import { readerSeesRecord, resolveMemberVisibility } from '../../../domain/schema/memberVisibility';
 import { RecordKeyTakenError } from '../../../domain/repositories/IWorkflowMutationRepository';
 import type { RecordKeyMutation } from '../../../domain/repositories/IWorkflowMutationRepository';
 
@@ -43,6 +48,7 @@ interface WriteAuthor {
   name: string | null;
   photoURL: string | null;
   via: RecordWriteVia;
+  verified?: PortalVerifiedIdentity | null;
 }
 
 /**
@@ -59,14 +65,26 @@ interface WriteAuthor {
  */
 const authorOf = (context: WorkflowContext): WriteAuthor =>
   context.actor
-    ? { by: context.actor.userId, name: context.actor.name, photoURL: context.actor.photoURL, via: context.actor.via }
+    ? {
+      by: context.actor.userId,
+      name: context.actor.name,
+      photoURL: context.actor.photoURL,
+      via: context.actor.via,
+      ...(context.actor.via === 'portal' ? { verified: context.actor.verified ?? null } : {}),
+    }
     : { by: WORKFLOW_ACTOR, name: null, photoURL: null, via: 'automation' };
 
+/**
+ * A gravação PELO PORTAL diz também o que o convidado provou — `null` para quem entrou pelo link de
+ * e-mail, e é por isso que o `null` é gravado: a prova da gravação anterior não pode ficar atribuída a
+ * esta. As outras portas não tocam o campo: ele fala da última gravação feita pelo portal.
+ */
 const updateStamp = (author: WriteAuthor): Record<string, unknown> => ({
   updatedBy: author.by,
   updatedByName: author.name,
   updatedByPhotoURL: author.photoURL,
   [RECORD_UPDATED_VIA_FIELD]: author.via,
+  ...(author.verified !== undefined ? { [RECORD_PORTAL_VERIFIED_FIELD]: author.verified } : {}),
 });
 
 /** Um registro NOVO não tem nome anterior a apagar: os `null` do motor simplesmente não entram. */
@@ -200,6 +218,12 @@ export async function runWorkflowUpsert(
   if (options.updateOnly && !existing) {
     return { ok: false, error: '@core.automation/mutation.upsert.not-found' };
   }
+  // A pessoa por quem se grava (o agente) não altera o registro que não vê (`memberVisibility`) — como
+  // na regra do Firestore. A recusa é a de quem não existe; criar continua livre, e pode nomear outra
+  // pessoa. A automação não tem leitor e grava como sempre.
+  if (existing && !readerSeesRecord(resolveMemberVisibility(ctx, collection), collection, context.reader, existing)) {
+    return { ok: false, error: '@core.records/record.not-found' };
+  }
 
   const calendars = await businessCalendarsFor(
     context.services,
@@ -222,7 +246,10 @@ export async function runWorkflowUpsert(
   }
   const ruledSpec: UpsertSpec = { ...effectiveSpec, data: ruled.data };
 
-  const payload = buildFieldPayload(ruledSpec, target, ctx);
+  // O número sequencial nunca vem de quem grava: `validateUpsertSpec` já recusou o campo, e um
+  // `compute` que o produzisse também não passa daqui. Ele é atribuído abaixo, só na criação.
+  const numbered = resolveRecordSequences(ctx, collection);
+  const payload = omitSequenceFields(buildFieldPayload(ruledSpec, target, ctx), numbered);
 
   // A janela de edição é conferida AQUI, e não em cada porta: o passo "Gravar Registro", o `upsert`
   // do Script, o agente e o portal passam todos por este ponto. O Admin SDK ignora o
@@ -277,6 +304,27 @@ export async function runWorkflowUpsert(
   }
   const withKeys = keyRefs === undefined ? payload : { ...payload, [RECORD_KEY_REFS_FIELD]: keyRefs };
 
+  // A sequência é planejada aqui e ATRIBUÍDA na transação do repositório, junto com o registro: só
+  // ali o contador é lido e avançado sem que outra criação passe no meio.
+  let sequences: RecordSequenceEntry[] = [];
+  if (!(id && existing) && numbered.length > 0) {
+    const numbering = planRecordSequences(
+      numbered,
+      payload,
+      collection,
+      context.services.now(),
+      context.services.timeZone ?? DEFAULT_TIME_ZONE,
+    );
+    if (numbering.gaps.length > 0) {
+      return {
+        ok: false,
+        error: '@core.automation/mutation.upsert.sequence-parent-required',
+        errorParams: { field: numbering.gaps[0].field, parent: numbering.gaps[0].parentField },
+      };
+    }
+    sequences = numbering.entries;
+  }
+
   let created: boolean;
   let finalId: string;
   try {
@@ -297,6 +345,7 @@ export async function runWorkflowUpsert(
         { ...withKeys, ...createStamp(author) },
         id,
         keyMutation,
+        sequences,
       );
       created = true;
     }
@@ -343,7 +392,9 @@ export async function runWorkflowRemove(
   const id = spec.id.trim();
 
   const existing = await deps.mutationRepository.getById(tenantId, collection, id);
-  if (!existing) {
+  // O registro que o leitor não vê é, para ele, o que não existe: nada é removido, e a resposta é a
+  // mesma de um id que não está lá.
+  if (!existing || !readerSeesRecord(resolveMemberVisibility(ctx, collection), collection, context.reader, existing)) {
     return { ok: true, value: { id, removed: false } };
   }
   // Antes da cascata: a exclusão do backend apaga anotações e documentos ANTES do registro, e

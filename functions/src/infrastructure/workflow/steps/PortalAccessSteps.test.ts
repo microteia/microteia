@@ -11,6 +11,7 @@ import { CITY_SCREENS, makeFakePortalRepository } from '../../../domain/reposito
 import type { IPortalAccountService, PortalScreen } from '../../../domain/repositories/IPortalRepository';
 import type { WorkflowActor, WorkflowContext } from '../../../domain/entities/WorkflowContext';
 import type { WorkflowEvent } from '../../../domain/entities/Workflow';
+import { makeFakePortalIdentity } from '../../../domain/repositories/fakePortalIdentity';
 
 const logger = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
 
@@ -29,6 +30,7 @@ const contextWith = (actor?: WorkflowActor): WorkflowContext => ({
 
 const setup = (options: { screens?: PortalScreen[]; emailDelivered?: number; quota?: number } = {}) => {
   const fake = makeFakePortalRepository(options.screens ?? SCREENS);
+  const identity = makeFakePortalIdentity(fake.users);
   fake.records.set('companies/acme', { name: 'Acme' });
   const accountIds = new Map<string, string>();
   const accounts: IPortalAccountService = {
@@ -42,6 +44,8 @@ const setup = (options: { screens?: PortalScreen[]; emailDelivered?: number; quo
   let left = options.quota ?? Number.POSITIVE_INFINITY;
   const deps = {
     repo: fake.repo,
+    identity: identity.identity,
+    signIn: identity.config,
     accounts,
     audit: async (entry: PortalAccessAuditEntry) => { audited.push(entry); },
     quota: { consume: async () => (left-- > 0) },
@@ -70,7 +74,7 @@ const setup = (options: { screens?: PortalScreen[]; emailDelivered?: number; quo
     makePortalInviteStepDefinition(services).createExecutor().execute(inputs, context);
   const revoke = (inputs: Record<string, unknown>, context = contextWith()) =>
     makePortalRevokeStepDefinition(services).createExecutor().execute(inputs, context);
-  return { fake, audited, requests, invite, revoke };
+  return { fake, audited, requests, invite, revoke, identity };
 };
 
 const ANA = { subjectCollection: 'companies', subjectRecordId: 'acme', email: 'ana@acme.com' };
@@ -187,5 +191,40 @@ describe('passo portal-revoke', () => {
 
     expect((await revoke({ ...ANA, allSubjects: true })).outputs).toMatchObject({ revoked: true });
     expect(fake.users.has('uid-ana@acme.com')).toBe(false);
+  });
+});
+
+describe('passo portal-invite com identidade exigida', () => {
+  const withProvider = (setupResult: ReturnType<typeof setup>) => {
+    setupResult.identity.configs.set('t1', {
+      settings: {
+        emailLink: true,
+        providers: [{ id: 'citizen', label: 'Citizen ID', issuer: 'https://id.example.test', clientId: 'c', scopes: [], claims: ['nationalId'] }],
+      },
+      secrets: {},
+    });
+    return setupResult;
+  };
+
+  it('convida pela claim, não abre conta pelo e-mail, e o log diz por que o e-mail não saiu', async () => {
+    const { fake, requests, invite, identity } = withProvider(setup());
+    logger.info.mockClear();
+
+    const result = await invite({
+      ...ANA, requiredClaimName: 'nationalId', requiredClaimValue: '123.456.789-00', requiredClaimNormalize: 'digits',
+    });
+
+    expect(result).toMatchObject({ success: true, outputs: { granted: true, emailed: false, inviteId: 'inv-1', guestId: '' } });
+    expect(fake.users.size).toBe(0);
+    expect(requests).toEqual([]);
+    expect(identity.invites.get('inv-1')?.claim).toEqual({ name: 'nationalId', value: '12345678900', normalize: 'digits' });
+    expect(logger.info).toHaveBeenCalledWith('@core.automation/step.portal-invite.identity-no-email', { email: 'ana@acme.com' });
+  });
+
+  it('o nome da claim ligado com o valor vazio FALHA — nunca vira convite pelo e-mail', async () => {
+    const { fake, invite } = withProvider(setup());
+    const result = await invite({ ...ANA, requiredClaimName: 'nationalId', requiredClaimValue: '' });
+    expect(result).toEqual({ success: false, message: '@core.tenant/portal.claim.value-missing' });
+    expect(fake.users.size).toBe(0);
   });
 });

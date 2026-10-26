@@ -30,6 +30,7 @@ import {
   portalUploadStagingPath,
 } from '../../domain/schema/portal';
 import { readPortalReprojectionState } from '../../domain/schema/portalReprojection';
+import { asPortalVerifiedIdentity } from '../../domain/schema/portalIdentity';
 import { getBucket } from '../../infrastructure/firebase/initFirebase';
 import { PORTAL_SETTINGS_DOC, asPortalHomeSettings, type PortalHomeSettings } from '../../domain/schema/portalExtensionPoints';
 
@@ -335,12 +336,15 @@ export class FirebasePortalRepository implements IPortalRepository {
     const snapshot = await this.portalUsers(tenantId).doc(userId).get();
     if (!snapshot.exists) return null;
     const data = snapshot.data() ?? {};
+    const identity = asPortalVerifiedIdentity(data.identity);
     return {
       userId: snapshot.id,
       email: asString(data.email),
       displayName: portalGuestName(asPortalProfile(data[PORTAL_PROFILE_FIELD]), asString(data.displayName)),
       subjectKeys: asStrings(data.subjectKeys),
       ...(asString(data.locale) ? { locale: asString(data.locale) } : {}),
+      ...(identity ? { identity } : {}),
+      ...(data.suspended === true ? { suspended: true } : {}),
     };
   }
 

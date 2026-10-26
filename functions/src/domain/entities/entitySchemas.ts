@@ -22,8 +22,10 @@ import type {
   FieldRules,
 } from '../schema/fieldRules';
 import type { RecordKeySpec } from '../schema/recordKeys';
+import type { AutoValueSpec } from '../schema/recordSequence';
 import type { PortalDeclaration } from '../schema/portal';
 import type { EditWindowSpec } from '../schema/editWindow';
+import type { MemberVisibilitySpec } from '../schema/memberVisibility';
 
 // ─── Tipos de Campos Customizados ─────────────────────────────────────────────
 
@@ -101,8 +103,12 @@ export interface FieldDefinition {
    * Existe porque um cadastro costuma ter um identificador curto que ninguém quer digitar (o número
    * do contrato, um protocolo, um código de peça) e a entidade fixa o sorteava em código — sem isto,
    * uma tela declarada não teria como reproduzi-lo.
+   *
+   * Com `sequence`, deixa de ser sorteio: é o NÚMERO que o registro recebe ao ser criado, de um
+   * contador transacional, nunca repetido e nunca editável (`2026/000123`). Ver
+   * `domain/schema/recordSequence.ts`.
    */
-  autoValue?: { pattern: string } | null;
+  autoValue?: AutoValueSpec | null;
   rules?: FieldRules | null;
   logic?: FieldLogic | null;
   aggregation?: FieldAggregation | null;
@@ -290,6 +296,20 @@ export interface ScreenDefinition {
    * interpreta passa por `readEditWindow`. Ver `domain/schema/editWindow.ts`.
    */
   editWindow?: EditWindowSpec | null;
+  /**
+   * Quem, entre os membros que leem a coleção, lê CADA registro. Ausente (o normal) = todos os que
+   * têm `<coleção>.read`. Presente, o membro lê só o registro que o nomeia num dos `userFields`
+   * (referência a membro, simples ou `multi`), salvo quem tem a supervisão — `bypassPermission`, ou a
+   * derivada `<coleção>.read-all`.
+   *
+   * Vale no `firestore.rules` e no `storage.rules` (a garantia), na assinatura da coleção no front (o
+   * filtro que a regra exige) e nas portas do servidor que entregam registro a uma pessoa. Mudá-la
+   * exige `screens.member-visibility` ou `extensions.manage`.
+   *
+   * Guardado COMO ESTÁ gravado, pelo motivo de `editWindow`; quem a interpreta passa por
+   * `readMemberVisibility`. Ver `domain/schema/memberVisibility.ts`.
+   */
+  memberVisibility?: MemberVisibilitySpec | null;
   /**
    * O que esta tela expõe no PORTAL — a quem é de fora do escritório, só o que é dele. Ausente (o
    * normal) = nada desta tela sai do escritório. Ver `domain/schema/portal.ts`.

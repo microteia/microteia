@@ -12,6 +12,8 @@ import type { UpsertSpec, RemoveSpec } from '../../../domain/schema/mutationSpec
 import type { WorkflowContext } from '../../../domain/entities/WorkflowContext';
 import type { WorkflowEvent } from '../../../domain/entities/Workflow';
 import { fakeScreenProvider } from '../../../domain/repositories/fakeScreenProvider';
+import type { RecordSequenceEntry } from '../../../domain/schema/recordSequence';
+import { formatRecordSequenceValue, nextRecordSequenceValue } from '../../../domain/schema/recordSequence';
 
 /**
  * Pessoa vem de extensão: a tela declara a coleção inteira (`name`), e o escritório acrescenta o
@@ -62,12 +64,15 @@ interface WriteCall {
   collection: string;
   id?: string;
   data?: Record<string, unknown>;
+  sequences?: RecordSequenceEntry[];
 }
 
 class FakeMutationRepository implements IWorkflowMutationRepository {
   store = new Map<string, Record<string, unknown>>();
   /** As reservas, pelo id — o mesmo papel de `tenants/{id}/recordKeys` no Firestore. */
   keys = new Map<string, { keyName: string; recordId: string; values: string[] }>();
+  /** Os contadores, pelo id — o papel de `tenants/{id}/recordSequences`. */
+  counters = new Map<string, number>();
   createCalls: WriteCall[] = [];
   updateCalls: WriteCall[] = [];
   deleteCalls: WriteCall[] = [];
@@ -118,11 +123,18 @@ class FakeMutationRepository implements IWorkflowMutationRepository {
     data: Record<string, unknown>,
     id?: string,
     keys?: RecordKeyMutation,
+    sequences: RecordSequenceEntry[] = [],
   ) {
     const finalId = id ?? this.newId();
     this.applyKeys(finalId, keys);
-    this.createCalls.push({ tenantId, collection, id, data });
-    this.store.set(this.key(collection, finalId), { ...data });
+    const assigned: Record<string, unknown> = {};
+    for (const entry of sequences) {
+      const value = nextRecordSequenceValue(this.counters.get(entry.counterId));
+      this.counters.set(entry.counterId, value);
+      assigned[entry.field] = formatRecordSequenceValue(entry, value);
+    }
+    this.createCalls.push({ tenantId, collection, id, data, sequences });
+    this.store.set(this.key(collection, finalId), { ...data, ...assigned });
     return finalId;
   }
 
@@ -313,6 +325,49 @@ describe('runWorkflowUpsert', () => {
         { ignoreUnwritableFields: true },
       );
       expect(repo.createCalls[0].data).toMatchObject({ createdBy: 'u-ana', createdByName: 'Ana Souza', createdVia: 'ui' });
+    });
+
+    describe('a identidade que o convidado do portal provou — `portalVerified`', () => {
+      const verified = { provider: 'citizen', claim: { name: 'nationalId', value: '12345678900' }, level: 'gold' };
+      const guest = (identity?: typeof verified): WorkflowContext => ({
+        ...context(),
+        actor: {
+          userId: 'portal-id-x', name: 'Bia', photoURL: '', via: 'portal', permissions: [],
+          ...(identity ? { verified: identity } : {}),
+        },
+      });
+
+      it('a gravação pelo portal carimba o provedor, a claim e o nível', async () => {
+        const repo = new FakeMutationRepository();
+        await runWorkflowUpsert({ table: 'persons', data: { name: 'Bia' } }, guest(verified), deps(repo));
+        expect(repo.createCalls[0].data).toMatchObject({ createdVia: 'portal', portalVerified: verified });
+      });
+
+      it('o convidado do link de e-mail APAGA a prova da gravação anterior — ela não é dele', async () => {
+        const repo = new FakeMutationRepository();
+        repo.seed('persons', 'p1', { name: 'Antigo', portalVerified: verified });
+        await runWorkflowUpsert({ table: 'persons', id: 'p1', data: { name: 'Novo' } }, guest(), deps(repo));
+        expect(repo.store.get('persons/p1')).toMatchObject({ updatedVia: 'portal', portalVerified: null });
+      });
+
+      it('as outras portas não tocam o campo: ele fala da última gravação feita pelo portal', async () => {
+        const repo = new FakeMutationRepository();
+        repo.seed('persons', 'p1', { name: 'Antigo', portalVerified: verified });
+        await runWorkflowUpsert({ table: 'persons', id: 'p1', data: { name: 'Novo' } }, withActor('ui'), deps(repo));
+        expect(repo.updateCalls[0].data).not.toHaveProperty('portalVerified');
+        await upsert(repo, { table: 'persons', id: 'p1', data: { name: 'Outro' } });
+        expect(repo.store.get('persons/p1')).toMatchObject({ portalVerified: verified });
+      });
+
+      it('nenhum fluxo forja a prova', async () => {
+        const repo = new FakeMutationRepository();
+        const outcome = await runWorkflowUpsert(
+          { table: 'persons', data: { name: 'Bia', portalVerified: verified } },
+          withActor('ui'),
+          deps(repo),
+        );
+        expect(outcome.ok).toBe(false);
+      });
     });
   });
 
@@ -733,5 +788,177 @@ describe('janela de edição na gravação por automação, agente e portal', ()
     const outcome = await runWorkflowRemove({ table: 'notas', id: 'n1' } as RemoveSpec, context(), windowDeps(repo));
     expect(outcome.ok).toBe(true);
     expect(repo.deleteCalls).toHaveLength(1);
+  });
+});
+
+describe('visibilidade por registro na gravação', () => {
+  /**
+   * O agente grava POR uma pessoa, e com o `reader` dela no contexto: o registro que a regra lhe
+   * esconde não é alterado nem excluído — e a resposta é a de quem não existe. A automação não tem
+   * leitor, e grava como sempre: numerar, encaminhar e contar precisam da coleção inteira.
+   */
+  const respostasScreen: SchemaScreen = {
+    id: 'respostas',
+    titleSingular: 'Resposta',
+    titleFieldKey: 'texto',
+    fields: [
+      { key: 'texto', label: 'Texto', type: 'text', required: false, order: 0, origin: 'plugin' },
+      { key: 'emissor', label: 'Emissor', type: 'reference', refEntity: 'members', required: false, order: 1, origin: 'plugin' },
+    ],
+    memberVisibility: { userFields: ['emissor'] },
+  };
+  const visibilityDeps = (repo: FakeMutationRepository): WorkflowMutationDeps => ({
+    mutationRepository: repo,
+    screenProvider: fakeScreenProvider([respostasScreen]),
+  });
+  const asAna = (): WorkflowContext => ({ ...context(), reader: { uid: 'ana', permissions: ['respostas.update'] } });
+
+  it('não altera o registro que não a nomeia, e responde como se ele não existisse', async () => {
+    const repo = new FakeMutationRepository();
+    repo.seed('respostas', 'r1', { texto: 'da bia', emissor: 'bia' });
+    const outcome = await runWorkflowUpsert(
+      { table: 'respostas', id: 'r1', data: { texto: 'mexi' } } as UpsertSpec, asAna(), visibilityDeps(repo));
+    expect(outcome).toEqual({ ok: false, error: '@core.records/record.not-found' });
+    expect(repo.updateCalls).toHaveLength(0);
+  });
+
+  it('altera o que a nomeia, e cria nomeando outra pessoa', async () => {
+    const repo = new FakeMutationRepository();
+    repo.seed('respostas', 'r1', { texto: 'da ana', emissor: 'ana' });
+    expect((await runWorkflowUpsert(
+      { table: 'respostas', id: 'r1', data: { texto: 'mexi' } } as UpsertSpec, asAna(), visibilityDeps(repo))).ok).toBe(true);
+    expect((await runWorkflowUpsert(
+      { table: 'respostas', data: { texto: 'para a bia', emissor: 'bia' } } as UpsertSpec, asAna(), visibilityDeps(repo))).ok).toBe(true);
+  });
+
+  it('não exclui o que não a nomeia — a resposta é a de um id que não está lá', async () => {
+    const repo = new FakeMutationRepository();
+    repo.seed('respostas', 'r1', { texto: 'da bia', emissor: 'bia' });
+    const outcome = await runWorkflowRemove({ table: 'respostas', id: 'r1' } as RemoveSpec, asAna(), visibilityDeps(repo));
+    expect(outcome).toEqual({ ok: true, value: { id: 'r1', removed: false } });
+    expect(repo.deleteCalls).toHaveLength(0);
+  });
+
+  it('a automação, sem leitor, grava e exclui como sempre', async () => {
+    const repo = new FakeMutationRepository();
+    repo.seed('respostas', 'r1', { texto: 'da bia', emissor: 'bia' });
+    expect((await runWorkflowUpsert(
+      { table: 'respostas', id: 'r1', data: { texto: 'numerada' } } as UpsertSpec, context(), visibilityDeps(repo))).ok).toBe(true);
+    expect((await runWorkflowRemove({ table: 'respostas', id: 'r1' } as RemoveSpec, context(), visibilityDeps(repo))).ok).toBe(true);
+    expect(repo.deleteCalls).toHaveLength(1);
+  });
+});
+
+describe('número sequencial na gravação por automação, agente e portal', () => {
+  const comunicacoes: SchemaScreen = {
+    id: 'comunicacoes',
+    titleSingular: 'Comunicação',
+    titleFieldKey: 'assunto',
+    fields: [
+      { key: 'assunto', label: 'Assunto', type: 'text', required: true, order: 0, origin: 'plugin' },
+      {
+        key: 'protocolo', label: 'Protocolo', type: 'text', required: true, order: 1, origin: 'plugin',
+        autoValue: { pattern: 'YYYY/000000', sequence: { resetBy: 'year' } },
+      },
+    ],
+  };
+  const andamentos: SchemaScreen = {
+    id: 'andamentos',
+    titleSingular: 'Andamento',
+    titleFieldKey: 'texto',
+    parentFieldKey: 'processoId',
+    fields: [
+      { key: 'texto', label: 'Texto', type: 'text', required: false, order: 0, origin: 'plugin' },
+      { key: 'processoId', label: 'Processo', type: 'text', required: false, order: 1, origin: 'plugin' },
+      {
+        key: 'ordem', label: 'Ordem', type: 'number', required: false, order: 2, origin: 'plugin',
+        autoValue: { pattern: '', sequence: { scope: 'parent' } },
+      },
+    ],
+  };
+  const numberedDeps = (repo: FakeMutationRepository): WorkflowMutationDeps => ({
+    mutationRepository: repo,
+    screenProvider: fakeScreenProvider([comunicacoes, andamentos]),
+  });
+  const at = (iso: string, timeZone?: string): WorkflowContext => ({
+    ...context(),
+    services: { logger, now: () => new Date(iso), ...(timeZone ? { timeZone } : {}) },
+  });
+
+  it('a criação leva ao repositório o contador do ano no fuso do escritório, e o registro volta numerado', async () => {
+    const repo = new FakeMutationRepository();
+    const outcome = await runWorkflowUpsert(
+      { table: 'comunicacoes', data: { assunto: 'Intimação' } },
+      at('2027-01-01T02:00:00Z', 'America/Sao_Paulo'),
+      numberedDeps(repo),
+    );
+    expect(outcome.ok).toBe(true);
+    if (!outcome.ok) return;
+    expect(repo.createCalls[0].sequences).toMatchObject([{ field: 'protocolo', counterId: 'comunicacoes|protocolo||2026' }]);
+    expect(repo.createCalls[0].data).not.toHaveProperty('protocolo');
+    expect(outcome.value.record.protocolo).toBe('2026/000001');
+  });
+
+  it('quem grava não escreve o número: a automação estrita é recusada com o motivo, e nada é gravado', async () => {
+    const repo = new FakeMutationRepository();
+    const outcome = await runWorkflowUpsert(
+      { table: 'comunicacoes', data: { assunto: 'x', protocolo: '2026/000777' } },
+      at('2026-05-01T12:00:00Z'),
+      numberedDeps(repo),
+    );
+    expect(outcome.ok).toBe(false);
+    if (outcome.ok) return;
+    expect(outcome.error).toBe('@core.automation/mutation.upsert.invalid');
+    expect(JSON.stringify(outcome.errorParams)).toContain('mutation.path.sequence-assigned');
+    expect(repo.createCalls).toHaveLength(0);
+  });
+
+  it('o passo "Gravar Registro", que descarta o que não se grava, numera mesmo assim', async () => {
+    const repo = new FakeMutationRepository();
+    const outcome = await runWorkflowUpsert(
+      { table: 'comunicacoes', data: { assunto: 'x', protocolo: '2026/000777' } },
+      at('2026-05-01T12:00:00Z'),
+      numberedDeps(repo),
+      { ignoreUnwritableFields: true },
+    );
+    expect(outcome.ok).toBe(true);
+    if (!outcome.ok) return;
+    expect(outcome.value.record.protocolo).toBe('2026/000001');
+  });
+
+  it('a alteração não renumera: o número dado na criação fica', async () => {
+    const repo = new FakeMutationRepository();
+    repo.seed('comunicacoes', 'c1', { assunto: 'a', protocolo: '2026/000001' });
+    const outcome = await runWorkflowUpsert(
+      { table: 'comunicacoes', id: 'c1', data: { assunto: 'b' } },
+      at('2026-05-01T12:00:00Z'),
+      numberedDeps(repo),
+    );
+    expect(outcome.ok).toBe(true);
+    expect(repo.updateCalls[0].data).not.toHaveProperty('protocolo');
+    expect(repo.store.get('comunicacoes/c1')).toMatchObject({ assunto: 'b', protocolo: '2026/000001' });
+    expect(repo.counters.size).toBe(0);
+  });
+
+  it('o escopo do pai conta por pai; sem pai, recusa nomeando o campo e o pai', async () => {
+    const repo = new FakeMutationRepository();
+    const ctx = at('2026-05-01T12:00:00Z');
+    const first = await runWorkflowUpsert({ table: 'andamentos', data: { texto: 'a', processoId: 'p1' } }, ctx, numberedDeps(repo));
+    const second = await runWorkflowUpsert({ table: 'andamentos', data: { texto: 'b', processoId: 'p1' } }, ctx, numberedDeps(repo));
+    const other = await runWorkflowUpsert({ table: 'andamentos', data: { texto: 'c', processoId: 'p2' } }, ctx, numberedDeps(repo));
+    expect([first, second, other].map((outcome) => (outcome.ok ? outcome.value.record.ordem : null))).toEqual([1, 2, 1]);
+
+    const orphan = await runWorkflowUpsert({ table: 'andamentos', data: { texto: 'd' } }, ctx, numberedDeps(repo));
+    expect(orphan).toEqual({
+      ok: false,
+      error: '@core.automation/mutation.upsert.sequence-parent-required',
+      errorParams: { field: 'ordem', parent: 'processoId' },
+    });
+  });
+
+  it('a coleção sem campo numerado não leva contador nenhum ao repositório', async () => {
+    const repo = new FakeMutationRepository();
+    await upsert(repo, { table: 'processos', data: { title: 'Caso X' } });
+    expect(repo.createCalls[0].sequences).toEqual([]);
   });
 });

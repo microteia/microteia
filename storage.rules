@@ -78,7 +78,8 @@ service firebase.storage {
     match /tenants/{tenantId}/{collection}/{recordId}/{allPaths=**} {
       allow read: if request.auth != null
         && !isReservedStoragePath(collection)
-        && canOnCollection(tenantId, collection, 'read');
+        && canOnCollection(tenantId, collection, 'read')
+        && recordFilesVisible(tenantId, collection, recordId);
       allow create: if request.auth != null
         && !isReservedStoragePath(collection)
         && (canOnCollection(tenantId, collection, 'create') || canOnCollection(tenantId, collection, 'update'))
@@ -87,7 +88,55 @@ service firebase.storage {
       allow delete: if request.auth != null
         && !isReservedStoragePath(collection)
         && (canOnCollection(tenantId, collection, 'update') || canOnCollection(tenantId, collection, 'delete'))
-        && recordFilesUnlocked(tenantId, collection, recordId);
+        && recordFilesUnlocked(tenantId, collection, recordId)
+        && recordFilesVisibleOrGone(tenantId, collection, recordId);
+    }
+
+    // A visibilidade por registro (`memberVisibility`) vale para os ARQUIVOS do registro como vale para
+    // ele: quem não lê o registro não baixa nem apaga o anexo dele pelo SDK. A mesma conta do
+    // `firestore.rules` (`seesRecord`), lida dos mesmos dois documentos — o que não é mapa não nomeia
+    // ninguém, os campos contam por posição, até quatro, e a supervisão é a declarada ou
+    // `<coleção>.read-all`. Aqui o `multi` ganha a guarda `is list`, que lá não cabe: lá a regra tem de
+    // PROVAR uma consulta, e aqui só responde por um arquivo. Enviar continua livre, como criar o registro: o arquivo de um registro novo
+    // sobe ANTES de ele existir.
+    //
+    // O link de download com `token=` continua fora de regra, como sempre: ele mora no documento e no
+    // campo do registro, e é a regra DELES que o esconde de quem não lê.
+    function recordFilesVisible(tenantId, collection, recordId) {
+      let screenPath = /databases/(default)/documents/tenants/$(tenantId)/screenDefinitions/$(collection);
+      let recordPath = /databases/(default)/documents/tenants/$(tenantId)/$(collection)/$(recordId);
+      return !firestore.exists(screenPath)
+        || firestore.get(screenPath).data.get('memberVisibility', null) == null
+        || (firestore.exists(recordPath)
+            && fileRecordNamesMember(firestore.get(screenPath).data.memberVisibility, firestore.get(recordPath).data))
+        || canOnCollectionVisibility(tenantId, collection, firestore.get(screenPath).data.memberVisibility);
+    }
+    // A cascata apaga o registro antes dos anexos: o arquivo de um registro que não existe mais sai.
+    function recordFilesVisibleOrGone(tenantId, collection, recordId) {
+      return !firestore.exists(/databases/(default)/documents/tenants/$(tenantId)/$(collection)/$(recordId))
+        || recordFilesVisible(tenantId, collection, recordId);
+    }
+    function fileVisibilityFields(spec) {
+      return spec is map && spec.get('userFields', []) is list ? spec.get('userFields', []) : [];
+    }
+    function fileNamesMember(data, fields, index) {
+      return fields.size() > index
+        && fields[index] is string
+        && (data.get(fields[index], null) == request.auth.uid
+            || (data.get(fields[index], null) is list && data.get(fields[index], []).hasAny([request.auth.uid])));
+    }
+    function fileRecordNamesMember(spec, data) {
+      let fields = fileVisibilityFields(spec);
+      return fileNamesMember(data, fields, 0)
+        || fileNamesMember(data, fields, 1)
+        || fileNamesMember(data, fields, 2)
+        || fileNamesMember(data, fields, 3);
+    }
+    function canOnCollectionVisibility(tenantId, collection, spec) {
+      return isSystemOrSupportUser()
+        || canInTenant(tenantId, spec is map && spec.get('bypassPermission', null) is string
+          ? spec.get('bypassPermission', null)
+          : collection + '.read-all');
     }
 
     // A janela de edição da tela (`editWindow`) vale para os ARQUIVOS do registro como vale para os

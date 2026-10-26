@@ -135,6 +135,7 @@ const screenToTemplate = (screen: ScreenDefinition): ScreenModuleTemplate =>
     memberWritableFields: screen.memberWritableFields ?? undefined,
     authorCanDelete: screen.authorCanDelete ?? undefined,
     editWindow: screen.editWindow ?? undefined,
+    memberVisibility: screen.memberVisibility ?? undefined,
     portal: screen.portal ?? undefined,
     listActions: screen.listActions,
     sidebarOrder: screen.sidebarOrder,

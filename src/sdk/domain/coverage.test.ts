@@ -105,6 +105,7 @@ const LACUNAS_CONFERIDAS = [
   'screen-property\tmemberWritableFields',
   'screen-property\tauthorCanDelete',
   'screen-property\teditWindow',
+  'screen-property\tmemberVisibility',
   'screen-property\tportal',
   'screen-property\tlistActions',
   'screen-property\tsidebarOrder',

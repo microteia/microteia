@@ -1,7 +1,26 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { useTheme } from 'styled-components';
 import { useAuthorization } from '../../../stores/useAuthorization';
-import { PERMISSION_PORTAL_MANAGE, PERMISSION_SCREENS_EDIT_WINDOW } from '../../../domain/schema/access/kernelPermissions';
+import {
+  PERMISSION_PORTAL_MANAGE,
+  PERMISSION_SCREENS_EDIT_WINDOW,
+  PERMISSION_SCREENS_MEMBER_VISIBILITY,
+} from '../../../domain/schema/access/kernelPermissions';
+import {
+  isMemberReferenceField,
+  MEMBER_VISIBILITY_MAX_FIELDS,
+  readAllPermissionId,
+} from '../../../domain/schema/memberVisibility';
+import {
+  EMPTY_MEMBER_VISIBILITY_FORM,
+  fromMemberVisibilityForm,
+  memberVisibilityFormIssue,
+  toMemberVisibilityForm,
+} from './components/ScreenMemberVisibilityPanel/screenMemberVisibilityForm';
+import type {
+  MemberVisibilityFormIssue,
+  MemberVisibilityFormState,
+} from './components/ScreenMemberVisibilityPanel/screenMemberVisibilityForm';
 import {
   EMPTY_EDIT_WINDOW_FORM,
   editWindowFormIsValid,
@@ -57,6 +76,17 @@ import type { EntityKey } from '../../../domain/schema/entityRegistry';
 import { ENTITY_REGISTRY, ENTITY_REGISTRY_LIST, getEntityByCollection } from '../../../domain/schema/entityRegistry';
 import type { WorkflowVariable } from '../../components/ui/ExpressionEditor/autocompleteHelpers';
 import type { SearchSelectOption } from '../../components/ui/SearchSelect';
+import type { RecordSequenceIssueCode } from '../../../domain/schema/recordSequence';
+import { isSequenceField } from '../../../domain/schema/recordSequence';
+import type { FieldSequenceFormState } from './components/FieldSequencePanel/fieldSequenceForm';
+import {
+  EMPTY_FIELD_SEQUENCE_FORM,
+  fieldSequenceFormIssue,
+  fieldSequencePreview,
+  fieldTypeSupportsSequence,
+  fromFieldSequenceForm,
+  toFieldSequenceForm,
+} from './components/FieldSequencePanel/fieldSequenceForm';
 import type { ColorSwatchOption } from '../../components/ui/ColorSwatchPicker';
 
 import { useLabel, useT, type TranslateFn } from '../../shared/i18n/useT';
@@ -126,6 +156,9 @@ export interface ScreenFormState {
   /** A janela de edição. Como o portal, só é gravada quando a aba foi tocada. */
   editWindow: EditWindowFormState;
   editWindowTouched: boolean;
+  /** Quem lê cada registro. Como a janela, só é gravada quando a aba foi tocada. */
+  memberVisibility: MemberVisibilityFormState;
+  memberVisibilityTouched: boolean;
 }
 
 /**
@@ -253,9 +286,43 @@ export interface FieldFormState {
   fileExtensions: string;
   /** Tamanho máximo em MB, como texto: vazio é "usa o limite", e `0` não é vazio. */
   fileMaxSizeMb: string;
+  /** A numeração do campo (`autoValue.sequence`). */
+  sequence: FieldSequenceFormState;
 }
 
-export type ScreenModalTab = 'general' | 'actions' | 'children' | 'portal' | 'editWindow';
+/**
+ * Só o que o formulário consegue produzir tem frase própria; o resto (forma, tipo, campo aninhado) só
+ * chega por pacote ou documento editado à mão, e cai na recusa genérica.
+ */
+const SEQUENCE_ISSUE_KEYS: Record<RecordSequenceIssueCode, string> = {
+  shape: 'field.sequence.error.invalid',
+  scope: 'field.sequence.error.invalid',
+  reset: 'field.sequence.error.invalid',
+  nested: 'field.sequence.error.invalid',
+  'field-type': 'field.sequence.error.invalid',
+  'pattern-slot': 'field.sequence.error.pattern-slot',
+  'pattern-numeric': 'field.sequence.error.invalid',
+  'pattern-year': 'field.sequence.error.pattern-year',
+  'scope-needs-parent': 'field.sequence.error.scope-needs-parent',
+};
+
+/** O que a seção "Numeração" do campo precisa para se desenhar. */
+export interface FieldSequencePanelState {
+  /** O campo já numera: a configuração gravada não muda mais. */
+  locked: boolean;
+  numeric: boolean;
+  hasParent: boolean;
+  preview: string;
+  scopeOptions: SearchSelectOption[];
+  resetOptions: SearchSelectOption[];
+}
+
+const MEMBER_VISIBILITY_ISSUE_KEYS: Record<MemberVisibilityFormIssue, string> = {
+  'fields-required': 'member-visibility.panel.fields-required',
+  'fields-too-many': 'member-visibility.panel.fields-too-many',
+};
+
+export type ScreenModalTab = 'general' | 'actions' | 'children' | 'portal' | 'editWindow' | 'memberVisibility';
 export type FieldModalTab = 'general' | 'advanced';
 
 export interface ScreenBuilderViewModel {
@@ -297,6 +364,14 @@ export interface ScreenBuilderViewModel {
   updateEditWindowForm: (patch: Partial<EditWindowFormState>) => void;
   /** A tela aberta veio de uma extensão — o prazo que ela declarar vence na atualização. */
   editWindowFromExtension: boolean;
+  /** A aba "Visibilidade dos registros": opções já rotuladas e o defeito que impede gravar. */
+  memberVisibilityPanel: {
+    fieldOptions: Array<{ value: string; label: string }>;
+    bypassOptions: Array<{ value: string; label: string; meta?: string }>;
+    issue: string | null;
+    maxFields: number;
+  };
+  updateMemberVisibilityForm: (patch: Partial<MemberVisibilityFormState>) => void;
   toggleListAction: (action: ScreenListAction) => void;
   moveListAction: (action: ScreenListAction, delta: -1 | 1) => void;
   titleFieldOptions: SearchSelectOption[];
@@ -371,6 +446,10 @@ export interface ScreenBuilderViewModel {
   fieldSupportsFilter: boolean;
   /** O campo pode ser chave? Ver `fieldSupportsUnique` — derivado e arquivo não podem. */
   fieldSupportsUnique: boolean;
+  /** O campo pode ser numerado pelo sistema? Só `text` e `number` gravados pela pessoa. */
+  fieldSupportsSequence: boolean;
+  sequencePanel: FieldSequencePanelState;
+  updateFieldSequence: (patch: Partial<FieldSequenceFormState>) => void;
   /** Campos de arquivo oferecidos como imagem do registro. Só o vazio = a tela não tem nenhum. */
   imageFieldOptions: SearchSelectOption[];
   /** O teto de tamanho de arquivo, para o placeholder e a dica. */
@@ -466,6 +545,8 @@ const EMPTY_SCREEN_FORM: ScreenFormState = {
   portalTouched: false,
   editWindow: EMPTY_EDIT_WINDOW_FORM,
   editWindowTouched: false,
+  memberVisibility: EMPTY_MEMBER_VISIBILITY_FORM,
+  memberVisibilityTouched: false,
 };
 
 const EMPTY_FIELD_FORM: FieldFormState = {
@@ -512,6 +593,7 @@ const EMPTY_FIELD_FORM: FieldFormState = {
   aggregationOrderBy: [],
   fileExtensions: '',
   fileMaxSizeMb: '',
+  sequence: EMPTY_FIELD_SEQUENCE_FORM,
 };
 
 export const RULES_SUPPORTED_FIELD_TYPES: CustomFieldType[] = [
@@ -789,7 +871,7 @@ const newScreenKeyOf = (
 };
 
 export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
-  const { can } = useAuthorization();
+  const { can, catalog } = useAuthorization();
   const { definitions, dynamicScreens, isLoading, saveDefinition, deleteDefinition } = useScreenDefinitions();
   const recordActions = useRecordActions();
   const label = useLabel();
@@ -816,6 +898,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
   const isAdmin = can(PERMISSION_SCREENS_MANAGE);
   const canManagePortal = can(PERMISSION_PORTAL_MANAGE);
   const canManageEditWindow = can(PERMISSION_SCREENS_EDIT_WINDOW);
+  const canManageMemberVisibility = can(PERMISSION_SCREENS_MEMBER_VISIBILITY);
   const tagColors = theme.tagColors;
   const defaultTagColor = useMemo(() => getDefaultTagColor(theme), [theme]);
 
@@ -1050,6 +1133,14 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     setScreenForm((prev) => ({ ...prev, editWindow: { ...prev.editWindow, ...patch }, editWindowTouched: true }));
   }, []);
 
+  const updateMemberVisibilityForm = useCallback((patch: Partial<MemberVisibilityFormState>) => {
+    setScreenForm((prev) => ({
+      ...prev,
+      memberVisibility: { ...prev.memberVisibility, ...patch },
+      memberVisibilityTouched: true,
+    }));
+  }, []);
+
   const updateScreenForm = useCallback((patch: Partial<ScreenFormState>) => {
     setScreenForm((prev) => {
       const next = { ...prev, ...patch };
@@ -1159,6 +1250,8 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       portalTouched: false,
       editWindow: toEditWindowForm(def.editWindow),
       editWindowTouched: false,
+      memberVisibility: toMemberVisibilityForm(def.memberVisibility),
+      memberVisibilityTouched: false,
     });
     setScreenModal({ screenKey });
   }, [getDefinitionByKey, dynamicDefinitions, tagDependentSlots]);
@@ -1320,7 +1413,45 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     ...(!screenModalIsBuiltin && canManageEditWindow
       ? [{ key: 'editWindow' as const, label: t('screen.tab.edit-window') }]
       : []),
-  ], [screenModalIsBuiltin, screenModal, childCandidates, canManagePortal, canManageEditWindow, t]);
+    // Restringir quem lê é decisão de SIGILO, e a regra a cobra de quem tem
+    // `screens.member-visibility`; a aba segue a regra. Só em tela que já existe: é preciso um campo de
+    // referência a membro para escolher.
+    ...(!screenModalIsBuiltin && !!screenModal?.screenKey && canManageMemberVisibility
+      ? [{ key: 'memberVisibility' as const, label: t('screen.tab.member-visibility') }]
+      : []),
+  ], [screenModalIsBuiltin, screenModal, childCandidates, canManagePortal, canManageEditWindow, canManageMemberVisibility, t]);
+
+  /**
+   * As opções da aba "Visibilidade dos registros". Os campos são só os de referência a membro — é o uid
+   * que a regra compara. A supervisão começa pela DERIVADA da coleção (`<coleção>.read-all`, que o
+   * catálogo passa a oferecer em Perfis assim que a restrição é gravada) e segue pelas permissões do
+   * catálogo, para quem prefere uma que já concede.
+   */
+  const memberVisibilityPanel = useMemo(() => {
+    const def = screenModal?.screenKey ? getDefinitionByKey(screenModal.screenKey) : undefined;
+    const collection = def ? (def.dataCollection || def.id) : '';
+    const fieldOptions = (def?.fields ?? [])
+      .filter(isMemberReferenceField)
+      .map((field) => ({ value: field.key, label: label(field.label) || field.key }));
+    const derived = readAllPermissionId(collection);
+    const bypassOptions = [
+      { value: '', label: t('member-visibility.panel.bypass.derived'), meta: derived },
+      ...catalog.list
+        .filter((permission) => permission.id !== derived)
+        .map((permission) => ({
+          value: permission.id,
+          label: label(permission.name),
+          meta: permission.id,
+        })),
+    ];
+    const issue = memberVisibilityFormIssue(screenForm.memberVisibility);
+    return {
+      fieldOptions,
+      bypassOptions,
+      issue: issue ? t(MEMBER_VISIBILITY_ISSUE_KEYS[issue], { max: String(MEMBER_VISIBILITY_MAX_FIELDS) }) : null,
+      maxFields: MEMBER_VISIBILITY_MAX_FIELDS,
+    };
+  }, [screenModal, getDefinitionByKey, catalog, screenForm.memberVisibility, label, t]);
 
   const portalPanel = useMemo(() => {
     const def = screenModal?.screenKey ? getDefinitionByKey(screenModal.screenKey) : undefined;
@@ -1491,6 +1622,15 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       return;
     }
     const editWindowValue = editWindowChanged ? fromEditWindowForm(screenForm.editWindow) : undefined;
+    const memberVisibilityChanged = canManageMemberVisibility && screenForm.memberVisibilityTouched;
+    if (memberVisibilityChanged && memberVisibilityPanel.issue) {
+      setScreenModalTab('memberVisibility');
+      notify(memberVisibilityPanel.issue, 'error');
+      return;
+    }
+    const memberVisibilityValue = memberVisibilityChanged
+      ? fromMemberVisibilityForm(screenForm.memberVisibility)
+      : undefined;
     const portalChanged = canManagePortal && screenForm.portalTouched && !portalPanel.readOnly;
     if (portalChanged && screenForm.portal.enabled && portalPanel.issues.length > 0) {
       setScreenModalTab('portal');
@@ -1571,15 +1711,20 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
           // cobraria `portal.manage` de quem só mexeu no título.
           ...(portalChanged ? { portal: fromPortalForm(screenForm.portal) } : {}),
           ...(editWindowValue !== undefined ? { editWindow: editWindowValue } : {}),
+          ...(memberVisibilityValue !== undefined ? { memberVisibility: memberVisibilityValue } : {}),
         });
 
-        // A regra lê a janela do documento da COLEÇÃO. Numa tela que descreve outra (`dataCollection`),
-        // gravar só nela deixaria o prazo no formulário e fora da regra.
-        const ruleDocument = editWindowValue !== undefined && def.dataCollection && def.dataCollection !== def.id
+        // A regra lê a janela e a visibilidade do documento da COLEÇÃO. Numa tela que descreve outra
+        // (`dataCollection`), gravar só nela deixaria a declaração no formulário e fora da regra.
+        const ruleDeclarations = {
+          ...(editWindowValue !== undefined ? { editWindow: editWindowValue } : {}),
+          ...(memberVisibilityValue !== undefined ? { memberVisibility: memberVisibilityValue } : {}),
+        };
+        const ruleDocument = Object.keys(ruleDeclarations).length > 0 && def.dataCollection && def.dataCollection !== def.id
           ? getDefinitionByKey(def.dataCollection)
           : undefined;
         if (ruleDocument) {
-          await saveDefinition(ruleDocument.id, { ...toSaveInput(ruleDocument), editWindow: editWindowValue });
+          await saveDefinition(ruleDocument.id, { ...toSaveInput(ruleDocument), ...ruleDeclarations });
         }
 
         await persistChildLinks(def.id);
@@ -1649,7 +1794,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     } finally {
       setSavingScreen(false);
     }
-  }, [artifactPrefix, screenForm, screenModal, getDefinitionByKey, saveDefinition, definitions, dynamicDefinitions, childCandidates, persistChildLinks, notify, schemaContext, declareTagList, t, label, canManagePortal, portalPanel, canManageEditWindow]);
+  }, [artifactPrefix, screenForm, screenModal, getDefinitionByKey, saveDefinition, definitions, dynamicDefinitions, childCandidates, persistChildLinks, notify, schemaContext, declareTagList, t, label, canManagePortal, portalPanel, canManageEditWindow, canManageMemberVisibility, memberVisibilityPanel]);
 
   const toggleScreenEnabled = useCallback(async (screenKey: string) => {
     const def = getDefinitionByKey(screenKey);
@@ -1742,6 +1887,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       ...fieldLogicToForm(field.logic),
       ...fieldAggregationToForm(field.aggregation),
       ...fieldFileToForm(field.file),
+      sequence: toFieldSequenceForm(field.autoValue),
     });
     setFieldModal({ screenKey, fieldKey });
   }, [defaultTagColor, resolvedField]);
@@ -1794,6 +1940,52 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
   const fieldSupportsUnique = fieldForm.type !== 'file'
     && !fieldForm.logicDerive.trim()
     && !(fieldForm.aggregationFrom.trim() && fieldForm.aggregationVia.trim());
+
+  /**
+   * O número é do sistema, e um campo cujo valor vem de outro lugar — calculado, derivado, agregado —
+   * não pode ser numerado ao mesmo tempo: as duas origens disputariam o mesmo valor.
+   */
+  const fieldSupportsSequence = fieldTypeSupportsSequence(fieldForm.type)
+    && !fieldForm.logicCompute.trim()
+    && !fieldForm.logicDerive.trim()
+    && !(fieldForm.aggregationFrom.trim() && fieldForm.aggregationVia.trim());
+
+  /**
+   * A numeração GRAVADA não muda pelo Form Design. Mudar o formato, o recomeço ou o escopo depois de
+   * números emitidos poderia emitir de novo um valor que já existe (`2026/000001` contado por ano e
+   * depois contado para sempre recomeça do 1). Numerar de outro jeito é outro campo.
+   */
+  const sequenceLocked = useMemo(() => {
+    if (!fieldModal?.fieldKey) return false;
+    const saved = resolvedField(fieldModal.screenKey, fieldModal.fieldKey);
+    return saved !== undefined && isSequenceField(saved);
+  }, [fieldModal, resolvedField]);
+
+  const sequenceHasParent = useMemo(
+    () => !!(fieldModal && getDefinitionByKey(fieldModal.screenKey)?.parentFieldKey),
+    [fieldModal, getDefinitionByKey],
+  );
+
+  const [sequenceExampleYear] = useState(() => new Date().getFullYear());
+
+  const sequencePanel = useMemo<FieldSequencePanelState>(() => ({
+    locked: sequenceLocked,
+    numeric: fieldForm.type === 'number',
+    hasParent: sequenceHasParent,
+    preview: fieldSequencePreview(fieldForm.sequence, fieldForm.type, sequenceExampleYear),
+    scopeOptions: [
+      { value: 'tenant', label: t('field.sequence.scope.tenant') },
+      { value: 'parent', label: t('field.sequence.scope.parent') },
+    ],
+    resetOptions: [
+      { value: 'year', label: t('field.sequence.reset.year') },
+      { value: 'never', label: t('field.sequence.reset.never') },
+    ],
+  }), [sequenceLocked, sequenceHasParent, fieldForm.sequence, fieldForm.type, sequenceExampleYear, t]);
+
+  const updateFieldSequence = useCallback((patch: Partial<FieldSequenceFormState>) => {
+    setFieldForm((prev) => ({ ...prev, sequence: { ...prev.sequence, ...patch } }));
+  }, []);
 
   /**
    * As telas que um campo de referência pode apontar. O valor é a COLEÇÃO, nunca a chave da tela: é
@@ -2215,6 +2407,17 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     // é avaliado na leitura e nunca gravado —, e a reserva ficaria órfã na leitura seguinte. O valor
     // é zerado no dado, e não só escondido: o campo pode ter virado derivado depois de marcado.
     const unique = fieldSupportsUnique ? fieldForm.unique : false;
+    // A numeração só é escrita quando a pessoa a liga agora. A já gravada viaja como está (o campo é
+    // espalhado), e o `autoValue` de sorteio que uma extensão declarou não é tocado.
+    let sequenceChange: { autoValue?: ReturnType<typeof fromFieldSequenceForm> } = {};
+    if (!sequenceLocked && fieldSupportsSequence && fieldForm.sequence.enabled) {
+      const issue = fieldSequenceFormIssue(fieldForm.sequence, fieldForm.type, sequenceHasParent);
+      if (issue) {
+        reject('general', t(SEQUENCE_ISSUE_KEYS[issue]));
+        return;
+      }
+      sequenceChange = { autoValue: fromFieldSequenceForm(fieldForm.sequence, fieldForm.type) };
+    }
     setSavingField(true);
     try {
       const existing = getDefinitionByKey(fieldModal.screenKey);
@@ -2255,6 +2458,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
             logic,
             aggregation,
             file,
+            ...sequenceChange,
           };
         });
       } else {
@@ -2293,6 +2497,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
           aggregation,
           logic,
           file,
+          ...sequenceChange,
         }];
       }
       // A declaração vem ANTES do campo: é ela que as Security Rules consultam para autorizar a
@@ -2308,7 +2513,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     } finally {
       setSavingField(false);
     }
-  }, [artifactPrefix, fieldModal, fieldForm, fieldModalIsTitleField, fieldSupportsUnique, getDefinitionByKey, saveDefinition, notify, schemaContext, resolvedField, resolvedFieldsByScreen, declareLookup, t, label, aggregationParentCollection, aggregationChildScreen]);
+  }, [artifactPrefix, fieldModal, fieldForm, fieldModalIsTitleField, fieldSupportsUnique, fieldSupportsSequence, sequenceLocked, sequenceHasParent, getDefinitionByKey, saveDefinition, notify, schemaContext, resolvedField, resolvedFieldsByScreen, declareLookup, t, label, aggregationParentCollection, aggregationChildScreen]);
 
   /**
    * Grava a ordem da lista como posições absolutas em `fields[]`. Um campo já gravado viaja como
@@ -2465,6 +2670,8 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     screenModalTabs,
     updateEditWindowForm,
     editWindowFromExtension: !!screenModal?.screenKey && getDefinitionByKey(screenModal.screenKey)?.managed === true,
+    memberVisibilityPanel,
+    updateMemberVisibilityForm,
     screenModalTab: activeScreenModalTab,
     setScreenModalTab,
     screenModalTitle: screenModalIsBuiltin
@@ -2529,6 +2736,9 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     fieldSupportsRules,
     fieldSupportsFilter,
     fieldSupportsUnique,
+    fieldSupportsSequence,
+    sequencePanel,
+    updateFieldSequence,
     fileMaxSizeDefault: String(DEFAULT_FILE_MAX_SIZE_MB),
     refEntityOptions,
     lookupOptions,

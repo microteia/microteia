@@ -1,3 +1,5 @@
+import type { RecordSequenceEntry } from '../schema/recordSequence';
+
 /**
  * As reservas de chave que acompanham uma gravação — a metade do lote que não é o registro.
  *
@@ -38,12 +40,18 @@ export interface IWorkflowMutationRepository {
   ) => Promise<Record<string, unknown> | null>;
   /** Um id vago da coleção, para que a reserva possa apontar para o registro antes de ele existir. */
   newId: (tenantId: string, collection: string) => string;
+  /**
+   * `sequences` são os números que o registro recebe ao nascer (`autoValue.sequence`): cada contador
+   * avança na MESMA transação que grava o registro, e o valor formatado entra no documento. O que foi
+   * atribuído fica no documento, e quem grava o relê como sempre.
+   */
   create: (
     tenantId: string,
     collection: string,
     data: Record<string, unknown>,
     id?: string,
     keys?: RecordKeyMutation,
+    sequences?: RecordSequenceEntry[],
   ) => Promise<string>;
   update: (
     tenantId: string,

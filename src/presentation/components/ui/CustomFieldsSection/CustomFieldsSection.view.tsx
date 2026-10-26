@@ -19,10 +19,12 @@ export const CustomFieldsSection: React.FC<CustomFieldsSectionProps> = (props) =
             <S.Grid>
               {visibleFields.map((field) => {
                 const error = vm.fieldError(field);
+                const hint = vm.fieldHint(field);
                 return (
                   <S.FormGroup key={field.key} $fullWidth={field.type === 'textarea' || field.type === 'markdown'}>
                     <Label>{field.label}{field.required ? ' *' : ''}</Label>
                     <FieldControl field={field} vm={vm} />
+                    {hint && <S.FieldHint>{hint}</S.FieldHint>}
                     {error && <S.FieldError>{error}</S.FieldError>}
                   </S.FormGroup>
                 );

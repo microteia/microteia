@@ -11,6 +11,7 @@ import type {
   IRecordDocumentWriter,
   RecordDocumentAuthor,
 } from '../repositories/IRecordDocumentWriter';
+import type { RecordReader } from '../schema/memberVisibility';
 
 export interface AttachDownloadRequest {
   tenantId: string;
@@ -22,6 +23,8 @@ export interface AttachDownloadRequest {
   author: RecordDocumentAuthor;
   /** As permissões de quem anexa — o que decide se ele vê o item e se edita o registro. */
   permissions: readonly string[];
+  /** Quem anexa. O registro que ele não vê (`memberVisibility`) responde como ausente. */
+  reader?: RecordReader;
 }
 
 export type AttachDownloadResult =
@@ -79,7 +82,15 @@ export const makeAttachDownloadToRecordUseCase = (deps: AttachDownloadDeps): Att
     }
 
     const timeZone = await deps.timeZoneOf(request.tenantId);
-    const record = await deps.records.record(request.tenantId, request.collection, request.recordId, [], timeZone);
+    const record = await deps.records.record(
+      request.tenantId,
+      request.collection,
+      request.recordId,
+      [],
+      timeZone,
+      undefined,
+      request.reader,
+    );
     if (!record.ok) return failure(record.error, record.errorParams);
     if (!record.value) return failure('@core.records/record.not-found');
 

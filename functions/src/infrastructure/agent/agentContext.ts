@@ -3,6 +3,7 @@ import type { AgentSession } from './authenticateAgent';
 import { identifyActor } from '../workflow/identifyActor';
 import { tenantTimeZone } from '../settings/tenantTimeZone';
 import { tenantBusinessCalendars } from '../settings/tenantBusinessCalendars';
+import type { RecordReader } from '../../domain/schema/memberVisibility';
 
 export interface AgentRun {
   context: WorkflowContext;
@@ -25,6 +26,16 @@ export interface AgentRun {
  * não distinguir, porque perde também o nome da pessoa. Distinguir que foi o agente é o papel de
  * `createdVia`/`updatedVia`, um campo À PARTE, e não de um autor composto.
  */
+/**
+ * O agente LÊ para a pessoa, e com o teto dela: a visibilidade por registro (`memberVisibility`) vale
+ * pela interseção, como toda outra permissão. O token sem a supervisão não vê o que o dono dele veria
+ * na tela — o teto estreita, e estreitar é o que ele existe para fazer.
+ */
+export const agentReader = (session: AgentSession): RecordReader => ({
+  uid: session.userId,
+  permissions: session.permissions,
+});
+
 export const agentRun = async (session: AgentSession, operation: string): Promise<AgentRun> => {
   const logs: AgentRun['logs'] = [];
   const logger: WorkflowLogger = {
@@ -54,6 +65,7 @@ export const agentRun = async (session: AgentSession, operation: string): Promis
       logger,
       execution: { id: crypto.randomUUID(), workflowDefinitionId: '', tenantId: session.tenantId },
       actor: await identifyActor(session.userId, 'agent', session.permissions),
+      reader: agentReader(session),
       input: {},
     },
   };

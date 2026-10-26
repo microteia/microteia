@@ -57,6 +57,7 @@ export const attachDownloadToRecord = onCall(
       ...(documentType ? { documentType } : {}),
       author: { uid: actor.userId, name: actor.name, photoUrl: actor.photoURL, via: 'ui' },
       permissions,
+      reader: { uid: request.auth.uid, permissions },
     });
 
     if (!result.ok) {

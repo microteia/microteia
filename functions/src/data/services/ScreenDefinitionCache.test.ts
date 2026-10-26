@@ -3,6 +3,7 @@ import type { Firestore } from 'firebase-admin/firestore';
 import { ScreenDefinitionCache } from './ScreenDefinitionCache';
 import { resolveEntityKeys } from '../../domain/schema/screenEntity';
 import { resolveEditWindow } from '../../domain/schema/editWindow';
+import { resolveMemberVisibility } from '../../domain/schema/memberVisibility';
 
 /**
  * O cache lê o DOCUMENTO da tela como está gravado no Firestore. É este mapeamento — e não a conta da
@@ -79,5 +80,22 @@ describe('ScreenDefinitionCache — o documento da tela como o backend o enxerga
       spec: { minutes: 15, delete: true },
       memberWritableFields: ['lida'],
     });
+  });
+
+  it('a visibilidade por registro chega como a regra a lê — e a malformada, fechada', async () => {
+    const ctx = await contextOf({
+      respostas: {
+        titleSingular: 'Resposta',
+        titleFieldKey: 'texto',
+        fields: [field('texto')],
+        memberVisibility: { userFields: ['emissor', 3, 'equipe'], bypassPermission: 'respostas.supervise' },
+      },
+      quebrada: { titleSingular: 'Quebrada', titleFieldKey: 'texto', fields: [field('texto')], memberVisibility: 'emissor' },
+      aberta: { titleSingular: 'Aberta', titleFieldKey: 'texto', fields: [field('texto')] },
+    });
+    expect(resolveMemberVisibility(ctx, 'respostas'))
+      .toEqual({ userFields: ['emissor', 'equipe'], bypassPermission: 'respostas.supervise' });
+    expect(resolveMemberVisibility(ctx, 'quebrada')).toEqual({ userFields: [] });
+    expect(resolveMemberVisibility(ctx, 'aberta')).toBeNull();
   });
 });

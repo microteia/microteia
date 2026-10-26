@@ -9,6 +9,9 @@ export const CORE_ACCESS_MESSAGES: Record<string, string> = {
   'action.create': 'Create',
   'action.delete': 'Delete',
   'action.read': 'View',
+  'action.read-all': 'View all records',
+  'action.read-all.description':
+    'See every record of this screen, including the ones that do not name you. Without it, you only see the records that name you in one of the fields the screen chose.',
   'action.update': 'Edit',
   'diagnostic.permission.cycle':
     'The permissions depend on each other in a loop ({path}), so none of them can be granted.',
@@ -211,6 +214,9 @@ export const CORE_ACCESS_MESSAGES: Record<string, string> = {
   'permission.screens.edit-window': 'Set how long records can be changed',
   'permission.screens.edit-window.description':
     'Set, change or remove the edit window of a screen in the Form Design — how long after creation a record can still be changed or deleted.',
+  'permission.screens.member-visibility': 'Restrict who sees each record',
+  'permission.screens.member-visibility.description':
+    'Turn on, change or remove, in the Form Design, the rule that lets each person see only the records that name them — and choose who sees them all.',
   'permission.portal.manage': 'Manage the portal',
   'permission.portal.manage.description':
     'Invite people from outside the organization to the portal and revoke their access. Each guest only sees the records linked to them, and only the fields each screen chose to expose. Linking a guest to a record still requires being able to read that record.',

@@ -49,7 +49,8 @@ import { PortalStoreProvider } from './stores/PortalStore';
 import { PortalNavigationProvider } from './stores/PortalNavigationContext';
 import { PortalView } from './presentation/pages/Portal';
 import { PortalSignInView } from './presentation/pages/PortalSignIn';
-import { PORTAL_PATH, PORTAL_SIGN_IN_PATH } from './presentation/pages/Portal/portalPaths';
+import { PortalSignInCallbackView } from './presentation/pages/PortalSignInCallback';
+import { PORTAL_PATH, PORTAL_SIGN_IN_CALLBACK_PATH, PORTAL_SIGN_IN_PATH } from './presentation/pages/Portal/portalPaths';
 
 const App: React.FC = () => {
   return (
@@ -70,6 +71,7 @@ const App: React.FC = () => {
                 cada uma daquelas assinaturas seria uma leitura recusada.
               */}
               <Route path={PORTAL_SIGN_IN_PATH} element={<UrlLocaleProvider><PortalSignInView /></UrlLocaleProvider>} />
+              <Route path={PORTAL_SIGN_IN_CALLBACK_PATH} element={<UrlLocaleProvider><PortalSignInCallbackView /></UrlLocaleProvider>} />
               {/*
                 Uma rota-mãe para o portal inteiro: o store fica montado entre a escolha do escritório
                 e o escritório. Duas rotas irmãs remontavam o store a cada passo — e cada remontagem

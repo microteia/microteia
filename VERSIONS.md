@@ -11,6 +11,28 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.163.0] — 2026-10-26
+
+- Os registros de uma tela podem agora ser numerados em sequência — como o protocolo de uma comunicação, no formato "2026/000123". Liga-se no Form Design, na nova seção "Numeração" do campo, escolhendo o formato, se a contagem recomeça a cada ano e, nas telas que pertencem a outro registro, se ela é feita dentro de cada um. O número é dado no momento em que o registro é salvo, nunca se repete, mesmo quando várias pessoas salvam ao mesmo tempo, e pode recomeçar a cada ano ou ser contado dentro de cada processo.
+- Depois de atribuído, o número não muda: o campo aparece bloqueado no formulário, com o aviso "Numerado automaticamente quando o registro for salvo" enquanto o registro ainda é novo, e nem automações, nem o assistente de IA, nem o portal conseguem alterá-lo.
+- Depois de salva, a numeração de um campo não pode mais ser alterada, para que nenhum número já emitido volte a aparecer. Para numerar de outro jeito, basta criar outro campo.
+
+#### [9.162.0] — 2026-10-26
+
+- Uma tela pode passar a mostrar a cada pessoa só os registros que a nomeiam — por exemplo, a resposta que só o servidor que a emitiu deve ler, ou o atendimento atribuído a alguém. Liga-se no Form Design, na nova aba "Visibilidade dos registros", escolhendo os campos de membro que dizem quem vê cada registro.
+- A restrição vale em todo lugar: listas, busca, abas, relatórios, documentos gerados, anexos, o assistente de IA e o próprio banco de dados. Um link para um registro que a pessoa não pode ver abre como registro inexistente, e os relatórios somam só o que ela vê.
+- Quem precisa ver tudo recebe a nova permissão "Ver todos os registros" da tela, nos perfis de acesso. O dono do escritório continua vendo tudo.
+- Criar um registro em nome de outra pessoa continua permitido — é assim que um registro é encaminhado.
+- As listas avisam quando mostram só os registros que nomeiam você, para ninguém achar que faltam dados.
+
+#### [9.161.0] — 2026-10-26
+
+- O portal agora aceita entrada com identidade verificada: o escritório cadastra, em Configurações › Portal › Entrada, os provedores de identidade com que os convidados podem entrar (por exemplo, o login do governo), e cada botão aparece na página de entrada do portal.
+- Um convite pode exigir que a pessoa prove um dado — como o número do documento — pelo provedor de identidade. Só entra quem prova exatamente aquele dado; as tentativas recusadas ficam registradas na Auditoria.
+- O escritório decide se o link por e-mail continua valendo. Ao desligá-lo, quem entrava por e-mail perde o acesso na hora, e todo convite novo passa a exigir identidade verificada.
+- O que o convidado faz pelo portal passa a registrar com que provedor e com que nível de confiabilidade ele provou quem é — na Auditoria e no próprio registro, para automações, relatórios e documentos.
+- As automações de convite também podem exigir identidade verificada, com o dado tirado do próprio registro.
+
 #### [9.160.0] — 2026-10-26
 
 - As automações agora podem convidar pessoas para o portal e retirar esse acesso. Assim, o convite pode acompanhar um cadastro aprovado — o representante de uma empresa, o contato de um cliente — sem que alguém precise digitar o e-mail de novo em Configurações.

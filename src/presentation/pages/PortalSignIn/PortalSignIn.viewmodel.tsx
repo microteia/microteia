@@ -2,12 +2,27 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../../stores/useAuth';
-import { isPortalReturnPath, PORTAL_NEXT_PARAM, PORTAL_PATH, portalSignInUrl, portalTenantPath } from '../Portal/portalPaths';
+import { useDI } from '../../../infrastructure/di/useDI';
+import {
+  isPortalReturnPath,
+  PORTAL_INVITE_PARAM,
+  PORTAL_NEXT_PARAM,
+  PORTAL_PATH,
+  PORTAL_SIGN_IN_CALLBACK_PATH,
+  PORTAL_SIGN_IN_STATE_KEY,
+  portalSignInUrl,
+  portalTenantOf,
+  portalTenantPath,
+} from '../Portal/portalPaths';
+import {
+  makeGetPortalSignInOptionsUseCase,
+  makeStartPortalSignInUseCase,
+} from '../../../domain/usecases/portal/PortalSignInUseCases';
 
 const EMAIL_STORAGE_KEY = 'microteia:portalSignInEmail';
 
 export type PortalSignInMode = 'request' | 'confirm';
-export type PortalSignInStatus = 'idle' | 'sending' | 'sent' | 'signing-in' | 'signed-in' | 'failed';
+export type PortalSignInStatus = 'idle' | 'sending' | 'sent' | 'signing-in' | 'signed-in' | 'failed' | 'redirecting' | 'provider-failed';
 
 export interface PortalSignInViewModel {
   mode: PortalSignInMode;
@@ -20,6 +35,11 @@ export interface PortalSignInViewModel {
    * mostra o progresso, e não o formulário: era ele aparecendo e sumindo que parecia "pedir login".
    */
   processing: boolean;
+  /** Os provedores de identidade do escritório — vazio quando não há escritório no endereço ou nenhum configurado. */
+  providers: Array<{ id: string; label: string }>;
+  /** O link de e-mail vale neste escritório. */
+  emailLinkEnabled: boolean;
+  signInWithProvider: (providerId: string) => Promise<void>;
 }
 
 const readStoredEmail = (): string => {
@@ -27,6 +47,14 @@ const readStoredEmail = (): string => {
     return localStorage.getItem(EMAIL_STORAGE_KEY) ?? '';
   } catch {
     return '';
+  }
+};
+
+const rememberState = (state: string): void => {
+  try {
+    sessionStorage.setItem(PORTAL_SIGN_IN_STATE_KEY, state);
+  } catch {
+    // Sem armazenamento, a volta não tem com o que conferir o `state`, e recusa — falha fechada.
   }
 };
 
@@ -41,23 +69,48 @@ const storeEmail = (email: string | null): void => {
 
 export const usePortalSignInViewModel = (): PortalSignInViewModel => {
   const { user, isEmailVerified, loading, isSignInLink, signInWithLink, sendSignInLink } = useAuth();
+  const { portalRepository } = useDI();
   const navigate = useNavigate();
   const location = useLocation();
   const [params] = useSearchParams();
-  const tenantId = params.get('tenant');
+  // Para onde a pessoa ia: o registro do aviso que ela abriu. Vem no endereço quando ela volta pelo
+  // link de acesso, e no `state` quando a porta do portal a mandou entrar.
+  const fromState = (location.state as { from?: unknown } | null)?.from;
+  const returnPath = [params.get(PORTAL_NEXT_PARAM), typeof fromState === 'string' ? fromState : null]
+    .find(isPortalReturnPath) ?? null;
+  // O escritório vem no endereço do convite; sem ele, do destino — quem saiu de um portal que passou a
+  // exigir identidade volta aqui com o endereço daquele portal, e precisa ver os provedores DELE.
+  const tenantId = params.get('tenant') ?? portalTenantOf(returnPath);
   const invitedEmail = params.get('email');
   const locale = params.get('locale');
+  const inviteId = params.get(PORTAL_INVITE_PARAM);
+  const uc = useMemo(() => ({
+    options: makeGetPortalSignInOptionsUseCase(portalRepository),
+    start: makeStartPortalSignInUseCase(portalRepository),
+  }), [portalRepository]);
+  const [providers, setProviders] = useState<Array<{ id: string; label: string }>>([]);
+  const [emailLinkEnabled, setEmailLinkEnabled] = useState(true);
+
+  // Os métodos são do ESCRITÓRIO: sem ele no endereço, vale o link de e-mail, como sempre. A falha ao
+  // ler também — o link de e-mail é o que o portal sempre teve.
+  useEffect(() => {
+    if (!tenantId) return;
+    let active = true;
+    uc.options.execute(tenantId)
+      .then((options) => {
+        if (!active) return;
+        setProviders(options.providers);
+        setEmailLinkEnabled(options.emailLink);
+      })
+      .catch(() => undefined);
+    return () => { active = false; };
+  }, [tenantId, uc.options]);
 
   const [mode] = useState<PortalSignInMode>(() => (isSignInLink(window.location.href) ? 'confirm' : 'request'));
   const [status, setStatus] = useState<PortalSignInStatus>('idle');
   const [email, setEmail] = useState(() => invitedEmail ?? readStoredEmail());
   const autoStartedRef = useRef(false);
 
-  // Para onde a pessoa ia: o registro do aviso que ela abriu. Vem no endereço quando ela volta pelo
-  // link de acesso, e no `state` quando a porta do portal a mandou entrar.
-  const fromState = (location.state as { from?: unknown } | null)?.from;
-  const returnPath = [params.get(PORTAL_NEXT_PARAM), typeof fromState === 'string' ? fromState : null]
-    .find(isPortalReturnPath) ?? null;
   const target = useMemo(
     () => returnPath ?? (tenantId ? portalTenantPath(tenantId) : PORTAL_PATH),
     [returnPath, tenantId],
@@ -129,7 +182,25 @@ export const usePortalSignInViewModel = (): PortalSignInViewModel => {
     }
   }, [email, mode, completeLink, sendSignInLink, tenantId, locale, returnPath]);
 
+  const signInWithProvider = useCallback(async (providerId: string) => {
+    if (!tenantId) return;
+    setStatus('redirecting');
+    try {
+      const { url, state } = await uc.start.execute({
+        tenantId,
+        providerId,
+        redirectUri: `${window.location.origin}${PORTAL_SIGN_IN_CALLBACK_PATH}`,
+        next: returnPath ?? portalTenantPath(tenantId),
+        inviteId,
+      });
+      rememberState(state);
+      window.location.assign(url);
+    } catch {
+      setStatus('provider-failed');
+    }
+  }, [tenantId, uc.start, returnPath, inviteId]);
+
   const processing = mode === 'confirm' && !!invitedEmail && status !== 'failed';
 
-  return { mode, status, email, setEmail, submit, processing };
+  return { mode, status, email, setEmail, submit, processing, providers, emailLinkEnabled, signInWithProvider };
 };

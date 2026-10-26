@@ -4,6 +4,7 @@ import type { SchemaContext, SchemaScreen } from '../../domain/schema/pathResolv
 import { createSchemaContext } from '../../domain/schema/pathResolver';
 import type { SchemaLookup } from '../../domain/schema/screenEntity';
 import { readEditWindow } from '../../domain/schema/editWindow';
+import { readMemberVisibility } from '../../domain/schema/memberVisibility';
 import type { RecordKeySpec } from '../../domain/schema/recordKeys';
 import type { FieldDefinition, FieldOrigin } from '../../domain/entities/entitySchemas';
 import type { Contribution } from '../../domain/schema/plugin/contribution';
@@ -94,7 +95,13 @@ export class ScreenDefinitionCache implements IScreenDefinitionProvider {
         // Sem `keys`, a automação, o agente, o portal e a adoção viam só o açúcar `unique` de campo: a
         // chave declarada na TELA — a forma das chaves compostas — valia no formulário e em mais nada.
         keys: recordKeysOf(data.keys),
+        // A sequência por pai conta dentro do registro que este campo aponta — a automação precisa
+        // do mesmo campo que o formulário usa, senão os dois contariam em contadores diferentes.
+        parentFieldKey: typeof data.parentFieldKey === 'string' && data.parentFieldKey ? data.parentFieldKey : null,
         editWindow: readEditWindow(data.editWindow),
+        // Sem ela, o relatório, o agente e o documento entregariam a uma pessoa o registro que a regra
+        // esconde dela.
+        memberVisibility: readMemberVisibility(data.memberVisibility),
         memberWritableFields: Array.isArray(data.memberWritableFields)
           ? (data.memberWritableFields as unknown[]).filter((field): field is string => typeof field === 'string')
           : null,

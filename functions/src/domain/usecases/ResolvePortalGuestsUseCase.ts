@@ -41,7 +41,8 @@ export const makeResolvePortalGuestsUseCase = (repo: IPortalRepository): Resolve
     const userIds = await repo.audienceFor(tenantId, subjectKeys);
     const invites = await Promise.all(userIds.map((userId) => repo.getPortalUser(tenantId, userId)));
     const guests = invites.flatMap((invite): PortalGuestContact[] =>
-      invite && invite.email && invite.subjectKeys.some((key) => subjectKeys.includes(key))
+      // O suspenso não abre o portal: avisá-lo seria mandar um link para o que ele não consegue ver.
+      invite && invite.email && !invite.suspended && invite.subjectKeys.some((key) => subjectKeys.includes(key))
         ? [{ userId: invite.userId, email: invite.email, ...(invite.locale ? { locale: invite.locale } : {}) }]
         : []);
     return { inPortal: true, guests };

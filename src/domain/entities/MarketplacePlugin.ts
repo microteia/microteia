@@ -8,6 +8,7 @@ import type { Script } from './Script';
 import type { ActionDefinition } from './Action';
 import type { PortalDeclaration } from '../schema/portal';
 import type { EditWindowSpec } from '../schema/editWindow';
+import type { MemberVisibilitySpec } from '../schema/memberVisibility';
 import type { CustomFieldOption, FieldDefinition, RecordKeySpec, ScreenListAction } from './entitySchemas';
 
 /**
@@ -81,6 +82,8 @@ export interface ScreenModuleTemplate {
   authorCanDelete?: boolean | null;
   /** Prazo para alterar (e excluir) o registro depois de criado. Ver `ScreenDefinition.editWindow`. */
   editWindow?: EditWindowSpec | null;
+  /** Quem lê cada registro. Ver `ScreenDefinition.memberVisibility`. */
+  memberVisibility?: MemberVisibilitySpec | null;
   /** O que a tela expõe no portal. Ver `ScreenDefinition.portal`. */
   portal?: PortalDeclaration | null;
   listActions?: ScreenListAction[];

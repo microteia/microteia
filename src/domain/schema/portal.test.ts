@@ -8,6 +8,7 @@ import {
   evaluatePortalCondition,
   isPortalEditOpen,
   isPortalRecordVisible,
+  portalCreateFieldKeys,
   portalEditFieldKeys,
   portalOwnerOf,
   parsePortalSubjectKey,
@@ -286,6 +287,24 @@ describe('edição pelo portal', () => {
     expect(asPortalDeclaration({ subject: 'self', fields: ['a'], edit: { fields: ['a', 'a', ''], when: ' x ', onlyOwn: 'yes' } })?.edit)
       .toEqual({ fields: ['a'], when: 'x' });
     expect(asPortalDeclaration({ subject: 'self', fields: ['a'], edit: { when: 'x' } })?.edit).toBeUndefined();
+  });
+
+  it('o número que o sistema atribui não é do convidado: nem ao criar, nem ao alterar', () => {
+    const numbered: PortalScreenLike = {
+      ...invoice,
+      fields: invoice.fields.map((field) => (field.key === 'number'
+        ? { ...field, autoValue: { pattern: 'YYYY/0000', sequence: { resetBy: 'year' } } }
+        : field)),
+      portal: {
+        ...invoice.portal!,
+        fields: ['number', 'amount'],
+        create: { fields: ['number', 'amount'] },
+        edit: { fields: ['number', 'amount'] },
+      },
+    };
+    expect(portalCreateFieldKeys(numbered)).toEqual(['amount']);
+    expect(portalEditFieldKeys(numbered)).toEqual(['amount']);
+    expect(buildPortalSubmission(numbered, { number: '2026/9999', amount: 3 }, 'globex')).not.toHaveProperty('number');
   });
 
   it('só é editável o que o convidado vê — e nunca o vínculo', () => {

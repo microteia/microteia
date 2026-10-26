@@ -1,6 +1,7 @@
 import type { PortalScreenLike } from '../schema/portal';
 import type { PortalHomeSettings } from '../schema/portalExtensionPoints';
 import type { PortalReprojectionState } from '../schema/portalReprojection';
+import type { PortalVerifiedIdentity } from '../schema/portalIdentity';
 
 export type { PortalReprojectionState };
 
@@ -38,6 +39,10 @@ export interface PortalUserRecord {
   subjectKeys: string[];
   /** O idioma de quem convidou — o do portal, quando ninguém escolheu outro. */
   locale?: string;
+  /** O que o convidado provou ao entrar por um provedor do escritório. Ausente: entrou pelo link de e-mail. */
+  identity?: PortalVerifiedIdentity;
+  /** O escritório desligou o método por que ele entra — o convite existe, e não abre nada. */
+  suspended?: boolean;
 }
 
 export interface PortalUserGrant {

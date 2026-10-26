@@ -17,13 +17,21 @@ import type { FieldRulePreset, FieldRulePresetCatalog } from './fieldRulePresets
 import { buildFieldRulePresetCatalog } from './fieldRulePresets';
 import type { RecordKeySpec } from './recordKeys';
 import type { EditWindowSpec } from './editWindow';
+import type { MemberVisibilitySpec } from './memberVisibility';
 import { RECORD_KEYS_COLLECTION } from './recordKeys';
 import { AGENT_GRANTS_COLLECTION } from './agent/agentGrant';
 import { AGGREGATE_BACKFILL_COLLECTION } from './aggregateBackfill';
 import { RECORD_KEY_ADOPTION_COLLECTION } from './recordKeyAdoption';
+import type { AutoValueSpec, RecordSequenceField } from './recordSequence';
+import { RECORD_SEQUENCES_COLLECTION, recordSequenceFields } from './recordSequence';
 import { WORKFLOW_CLOCK_COLLECTION, WORKFLOW_TRIGGER_MARKS_COLLECTION } from './workflowClock';
 import { NOTIFICATION_DISPATCHES_COLLECTION, NOTIFICATION_INBOX_COLLECTION } from './notifications';
-import { PORTAL_RECORDS_COLLECTION, PORTAL_REPROJECTIONS_COLLECTION, PORTAL_USERS_COLLECTION } from './portalCollections';
+import {
+  PORTAL_IDENTITY_INVITES_COLLECTION,
+  PORTAL_RECORDS_COLLECTION,
+  PORTAL_REPROJECTIONS_COLLECTION,
+  PORTAL_USERS_COLLECTION,
+} from './portalCollections';
 
 import type { AuditAction } from '../entities/AuditLog';
 import type { LocalizedMessage } from './i18n/localizedMessage';
@@ -59,10 +67,21 @@ export interface SchemaScreen {
   /** As chaves declaradas para a COLEÇÃO. Ver `ScreenDefinition.keys`. */
   keys?: RecordKeySpec[] | null;
   /**
+   * O campo que guarda o registro-pai. Está no schema porque a sequência por pai
+   * (`autoValue.sequence.scope: 'parent'`) conta dentro dele, e a gravação do backend precisa da mesma
+   * resposta que a do formulário.
+   */
+  parentFieldKey?: string | null;
+  /**
    * A janela de edição dos registros da coleção, já lida como a regra a lê (`readEditWindow`). Ver
    * `ScreenDefinition.editWindow`.
    */
   editWindow?: EditWindowSpec | null;
+  /**
+   * A visibilidade por registro, já lida como a regra a lê (`readMemberVisibility`). Ver
+   * `ScreenDefinition.memberVisibility`.
+   */
+  memberVisibility?: MemberVisibilitySpec | null;
   /**
    * Os campos que qualquer membro grava. Estão aqui porque a janela de edição os deixa passar depois
    * do prazo, e a gravação do backend precisa da mesma lista que a regra lê.
@@ -197,11 +216,11 @@ const mergeSchemaScreens = (base: SchemaScreen, next: SchemaScreen, collection: 
 };
 
 /**
- * A janela de edição e os campos de membro de uma coleção são os do documento
- * `screenDefinitions/<coleção>` — o único que o `firestore.rules` lê. Quando outra tela descreve a
- * coleção (`dataCollection`), a instalação copia as duas declarações para esse documento
+ * A janela de edição, os campos de membro e a visibilidade por registro de uma coleção são os do
+ * documento `screenDefinitions/<coleção>` — o único que o `firestore.rules` lê. Quando outra tela
+ * descreve a coleção (`dataCollection`), a instalação copia as declarações para esse documento
  * (`ensureTargetCollectionScreen`); ler daqui, e não da dona do merge, é o que impede o backend de
- * aceitar uma gravação que a regra recusaria, ou o contrário.
+ * aceitar uma gravação — ou entregar uma leitura — que a regra recusaria, ou o contrário.
  */
 const withRuleDeclarations = (merged: SchemaScreen, ruleDocument: SchemaScreen | undefined): SchemaScreen =>
   ruleDocument
@@ -209,6 +228,7 @@ const withRuleDeclarations = (merged: SchemaScreen, ruleDocument: SchemaScreen |
       ...merged,
       editWindow: ruleDocument.editWindow ?? null,
       memberWritableFields: ruleDocument.memberWritableFields ?? null,
+      memberVisibility: ruleDocument.memberVisibility ?? null,
     }
     : merged;
 
@@ -312,7 +332,7 @@ export const fieldDefinitionToNativeSpec = (field: FieldDefinition): NativeField
   if (field.optionsAllowUserAdd) spec.optionsAllowUserAdd = true;
   if (field.optionsColored) spec.optionsColored = true;
   if (field.defaultValue !== undefined) spec.defaultValue = field.defaultValue;
-  if (undefinedIfNull(field.autoValue)) spec.autoValue = field.autoValue as { pattern: string };
+  if (undefinedIfNull(field.autoValue)) spec.autoValue = field.autoValue as AutoValueSpec;
   if (undefinedIfNull(field.rules)) spec.rules = field.rules as NonNullable<FieldDefinition['rules']>;
   if (undefinedIfNull(field.logic)) spec.logic = field.logic as NonNullable<FieldDefinition['logic']>;
   if (undefinedIfNull(field.aggregation)) {
@@ -478,6 +498,14 @@ export const resolveEntityKeys = (
   return [...byName.values()];
 };
 
+/**
+ * Os campos numerados pelo sistema da coleção (`autoValue.sequence`), com o campo do pai já
+ * resolvido. Mora aqui pelo mesmo motivo de `resolveEntityKeys`: é sobre os campos RESOLVIDOS que o
+ * formulário e o backend gravam, e uma lista montada a partir da tela crua divergiria deles.
+ */
+export const resolveRecordSequences = (ctx: SchemaContext, collection: string): RecordSequenceField[] =>
+  recordSequenceFields(resolveEntityFields(ctx, collection), ctx.screens.get(collection)?.parentFieldKey ?? null);
+
 const screenEntityMetadata = (
   screen: SchemaScreen,
   fields: NativeFieldSpec[],
@@ -575,6 +603,7 @@ export const RESERVED_COLLECTIONS: ReadonlySet<string> = new Set<string>([
   'extension_history',
   AGGREGATE_BACKFILL_COLLECTION,
   RECORD_KEY_ADOPTION_COLLECTION,
+  RECORD_SEQUENCES_COLLECTION,
   'notes',
   'documents',
   'tags',
@@ -592,6 +621,7 @@ export const RESERVED_COLLECTIONS: ReadonlySet<string> = new Set<string>([
   PORTAL_USERS_COLLECTION,
   PORTAL_RECORDS_COLLECTION,
   PORTAL_REPROJECTIONS_COLLECTION,
+  PORTAL_IDENTITY_INVITES_COLLECTION,
   ...LOOKUP_REGISTRY_LIST.map((lookup) => lookup.collection),
 ]);
 

@@ -6,6 +6,7 @@ import { parseDynamicTabKey } from '../../../shared/constants/dynamicScreenKeys'
 import { useLabel } from '../../shared/i18n/useT';
 import { useAggregateBackfillNotice } from '../../shared/entityScreen/useAggregateBackfillNotice';
 import { useRecordKeyAdoptionNotice } from '../../shared/entityScreen/useRecordKeyAdoptionNotice';
+import { useMemberVisibilityNotice } from '../../shared/entityScreen/useMemberVisibilityNotice';
 
 export interface DynamicRecordListNotice {
   message: string;
@@ -27,9 +28,14 @@ export const useDynamicRecordListViewModel = (tabKey: string): DynamicRecordList
   const definition = vm.definition;
   const backfillNotice = useAggregateBackfillNotice(definition);
   const keyNotices = useRecordKeyAdoptionNotice(definition);
+  const visibilityNotice = useMemberVisibilityNotice(definition);
   const notices = useMemo(
-    () => [...(backfillNotice ? [backfillNotice] : []), ...keyNotices],
-    [backfillNotice, keyNotices],
+    () => [
+      ...(visibilityNotice ? [visibilityNotice] : []),
+      ...(backfillNotice ? [backfillNotice] : []),
+      ...keyNotices,
+    ],
+    [visibilityNotice, backfillNotice, keyNotices],
   );
 
   useEffect(() => {

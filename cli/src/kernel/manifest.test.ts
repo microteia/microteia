@@ -75,7 +75,7 @@ describe('pré-requisitos manuais', () => {
   it('o que sobrou é do kernel de verdade — o que toda instalação precisa', () => {
     expect(MANUAL_PREREQUISITES.map((prerequisite) => prerequisite.id)).toEqual([
       'billing', 'app-engine', 'firestore-location', 'storage-bucket', 'auth-provider',
-      'functions-invoker',
+      'functions-invoker', 'portal-identity-signing',
     ]);
   });
 

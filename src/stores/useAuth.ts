@@ -23,6 +23,8 @@ export interface AuthContextValue {
   sendSignInLink: (email: string, continueUrl: string, locale?: string) => Promise<void>;
   isSignInLink: (url: string) => boolean;
   signInWithLink: (email: string, url: string) => Promise<void>;
+  /** A sessão aberta pelo token que o servidor emitiu ao conferir a identidade do convidado. */
+  signInWithToken: (token: string) => Promise<void>;
   sendEmailVerification: () => Promise<void>;
   sendPasswordResetEmail: (email: string) => Promise<void>;
   checkEmailVerification: () => Promise<boolean>;

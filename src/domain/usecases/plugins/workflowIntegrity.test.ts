@@ -485,4 +485,21 @@ describe('convite e revogação do portal por automação', () => {
     expect(workflowStepIssues(comTela([semEmail], '^2.73.0', aberta)).map((issue) => issue.message))
       .toEqual(['@core.marketplace/issue.step.missing-input']);
   });
+
+  it('a identidade exigida pede o kernel que a entende — o anterior convidaria pelo e-mail, sem prova', () => {
+    const base = acesso('portal-invite');
+    const comClaim = passo({
+      ...base,
+      configuration: {
+        ...base.configuration,
+        requiredClaimName: { kind: 'Literal', value: 'nationalId' },
+        requiredClaimValue: { kind: 'Event', path: 'documento' },
+      },
+    });
+    const issues = workflowStepIssues(comTela([comClaim], '^2.73.0', aberta));
+    expect(issues.map((issue) => [issue.message, issue.messageParams?.minimum])).toEqual([
+      ['@core.marketplace/issue.step.input-kernel', '2.74.0'],
+    ]);
+    expect(workflowStepIssues(comTela([comClaim], '^2.74.0', aberta))).toEqual([]);
+  });
 });

@@ -1,5 +1,7 @@
 import type { BusinessCalendarSet } from '../schema/time/businessDays';
 import type { InputMapping, WorkflowEvent } from './Workflow';
+import type { PortalVerifiedIdentity } from '../schema/portalIdentity';
+import type { RecordReader } from '../schema/memberVisibility';
 
 /**
  * O `message` do logger do MOTOR é uma REFERÊNCIA (`@core.automation/…`), e `params` traz o que a
@@ -61,6 +63,12 @@ export interface WorkflowActor {
   photoURL: string;
   via: ActorVia;
   permissions: string[];
+  /**
+   * O convidado do portal que entrou por um provedor de identidade do escritório: o provedor, a claim
+   * que o convite exigia e o nível de confiabilidade que o provedor informou. Ausente para quem entrou
+   * pelo link de e-mail — e para todo ator de dentro do escritório.
+   */
+  verified?: PortalVerifiedIdentity;
 }
 
 export interface WorkflowContext {
@@ -85,6 +93,20 @@ export interface WorkflowContext {
    * modelo inteiro existe para não ter.
    */
   actor?: WorkflowActor;
+  /**
+   * A PESSOA a quem o que esta execução lê é ENTREGUE — e que a visibilidade por registro
+   * (`memberVisibility`) restringe.
+   *
+   * Presente só nas portas que servem uma pessoa diretamente: o agente (MCP) e o relatório. Ausente na
+   * automação, inclusive na disparada por um botão: ali quem lê é o ESCRITÓRIO, e a regra do escritório
+   * — numerar um protocolo, contar o que está em aberto, achar o registro a encaminhar — precisa da
+   * coleção inteira. Restringi-la conforme quem apertou faria a mesma automação gravar dados diferentes
+   * por pessoa, e o defeito seria silencioso.
+   *
+   * Não é derivado de `actor` de propósito: o ator responde por AUTORIA e por `hasPermission`, e existe
+   * em toda execução que alguém disparou; o leitor é uma decisão de cada porta.
+   */
+  reader?: RecordReader;
   input?: Record<string, unknown>;
   // Configuração bruta do step em execução. Permite que um step com inputs dinâmicos (ex:
   // 'Chamar Workflow') resolva chaves de configuração que resolveInputsSafe não conhece.

@@ -11,7 +11,7 @@ export interface FieldDiff {
 }
 
 const IGNORED_KEYS = new Set([
-  'updatedAt', 'updatedBy', 'updatedByName', 'updatedByPhotoURL', 'updatedVia', 'createdVia',
+  'updatedAt', 'updatedBy', 'updatedByName', 'updatedByPhotoURL', 'updatedVia', 'createdVia', 'portalVerified',
   'deletedBy', 'deletedByName', 'deletedByPhotoURL',
   'id', 'tenantId',
   ...RECORD_DOCUMENT_SERVER_STAMPS,
@@ -95,6 +95,8 @@ export const ACTION_TITLE: Record<AuditAction, string> = {
  */
 const BEFORE_MARK = '−';
 const AFTER_MARK = '+';
+/** O bloco da identidade que o convidado do portal provou ao gravar — símbolo e JSON, como os outros. */
+const VERIFIED_MARK = '✓';
 
 const jsonBlock = (mark: string, data: EntityData): string =>
   `\n\n${mark}\n\`\`\`json\n${JSON.stringify(data, null, 2)}\n\`\`\``;
@@ -104,6 +106,7 @@ const jsonBlock = (mark: string, data: EntityData): string =>
  * - CREATE: só a frase, sem bloco (nada "mudou" ainda).
  * - UPDATE: bloco `−` com os valores antigos + bloco `+` com os novos, dos campos que mudaram.
  * - DELETE: só bloco `−` com todos os campos do registro excluído (não há "depois").
+ * - Gravado pelo portal por quem provou a identidade: um bloco `✓` com o provedor, a claim e o nível.
  *
  * Os blocos podem ser parâmetro porque não têm mais texto dentro: são símbolo e JSON, iguais em
  * qualquer idioma.
@@ -118,10 +121,12 @@ export const buildAuditText = (
   displayName: string,
   userName: string,
   diff?: { before?: EntityData; after?: EntityData },
+  verified?: EntityData | null,
 ): LocalizedMessage => {
   let blocks = '';
   if (diff?.before && Object.keys(diff.before).length > 0) blocks += jsonBlock(BEFORE_MARK, diff.before);
   if (diff?.after && Object.keys(diff.after).length > 0) blocks += jsonBlock(AFTER_MARK, diff.after);
+  if (verified) blocks += jsonBlock(VERIFIED_MARK, verified);
 
   return {
     message: ACTION_TEXT_KEYS[action],

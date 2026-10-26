@@ -24,3 +24,14 @@ export const PORTAL_INVITES_COLLECTION = 'portalInvites';
  * convites feitos por automação. Na raiz, e não sob o escritório, para não disputar nome com uma tela.
  */
 export const PORTAL_INVITE_RATES_COLLECTION = 'portalInviteRates';
+/**
+ * O convite por IDENTIDADE: o que a pessoa precisa provar (a claim exigida) e a que sujeitos ela dá
+ * acesso. Fica sob o escritório e só o servidor grava — a conta de quem o aceita ainda não existe
+ * quando ele nasce, e por isso o convite não pode morar em `portalUsers/{uid}`.
+ */
+export const PORTAL_IDENTITY_INVITES_COLLECTION = 'portalIdentityInvites';
+/**
+ * Coleção de RAIZ, só do servidor: o pedido de entrada por OIDC entre a ida ao provedor e a volta —
+ * o verificador do PKCE, o `nonce` e o escritório. Na raiz porque a volta traz só o `state`.
+ */
+export const PORTAL_SIGN_IN_REQUESTS_COLLECTION = 'portalSignInRequests';

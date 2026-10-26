@@ -22,6 +22,10 @@
 - fix(command): what was broken, and what it did to whoever hit it.
 -->
 
+#### [2.30.1] — 2026-10-26
+
+- docs(kernel/manifest): new optional manual prerequisite `portal-identity-signing`. An organization that signs portal guests in through an OpenID Connect provider needs the functions' runtime service account to sign sessions (`createCustomToken` → `iam.serviceAccounts.signBlob`): the IAM Service Account Credentials API enabled and the Service Account Token Creator role granted to that account on itself. Without it the provider confirms the guest and `completePortalSignIn` still fails; the step names the two `gcloud` commands. E-mail-link sign-in does not need it.
+
 #### [2.30.0] — 2026-10-23
 
 - feat(export-catalog): each installed extension now carries `documentTemplates` — every `document.template` it declares as a contract (`key`, `source`, and each parameter's `key`, `type`, `required`, `list`, `entityType`), never the template text, labels or sample. The authoring tools check a `render-document` step of another extension against it, so a misspelled `param.<key>` or a `belongsTo` that is not a single-record parameter is refused by `check` instead of reaching the office as a blank field. Always written, even empty; a snapshot taken by an older Console is read as "templates unknown".

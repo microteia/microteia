@@ -9,14 +9,17 @@ import {
   getDocs,
   limit,
   onSnapshot,
+  or,
   orderBy,
   query,
   serverTimestamp,
   setDoc,
   Timestamp,
   updateDoc,
+  where,
   writeBatch,
 } from 'firebase/firestore';
+import type { Query } from 'firebase/firestore';
 import { db } from '../../infrastructure/firebase/config';
 import type { IRecordRepository } from '../../domain/repositories/IRecordRepository';
 import type { EntityRecord, EntityRecordValues } from '../../domain/entities/EntityRecord';
@@ -33,10 +36,14 @@ import {
   planRecordKeysFor,
   RecordKeyConflictError,
   RecordKeyMissingError,
+  RecordSequenceParentMissingError,
+  recordSequencesFor,
   tableHasRecordKeys,
 } from '../utils/recordRulesGate';
 import type { RecordKeyEntry } from '../../domain/schema/recordKeys';
 import { changedRecordKeys, editWindowAllowsDelete, editWindowAllowsUpdate } from '../../domain/schema/editWindow';
+import { memberVisibilityClauses } from '../../domain/schema/memberVisibility';
+import type { MemberVisibilityFilter } from '../../domain/schema/memberVisibility';
 import {
   diffRecordKeys,
   recordKeyRefs,
@@ -44,6 +51,9 @@ import {
   RECORD_KEYS_COLLECTION,
   storedRecordKeyRefs,
 } from '../../domain/schema/recordKeys';
+import { omitSequenceFields, planRecordSequences } from '../../domain/schema/recordSequence';
+import { runRecordSequenceTransaction } from '../utils/recordSequenceTransaction';
+import { ambientTimeZone } from '../../domain/schema/clockGate';
 
 const RECORDS_PAGE_LIMIT = 500;
 
@@ -53,6 +63,40 @@ const recordsRef = (tenantId: string, collection: string) =>
   firestoreCollection(db, 'tenants', tenantId, collection);
 
 const keysRef = (tenantId: string) => firestoreCollection(db, 'tenants', tenantId, RECORD_KEYS_COLLECTION);
+
+/**
+ * A consulta da listagem. Para quem a visibilidade por registro restringe, ela leva o filtro que a
+ * regra prova — um `==` e um `array-contains` por campo, num `or()` — e perde o `orderBy`: ordenar pelo
+ * servidor pediria um índice composto por disjunção, por campo declarado, e a tela do Form Design não
+ * tem como declarar índice. A ordem volta em memória (`newestFirst`), sobre o que a pessoa vê — e o
+ * teto de 500 vale para o que a NOMEIA, não para a coleção.
+ *
+ * `null` quando a declaração não nomeia campo nenhum (malformada): não há consulta que a regra aceite,
+ * e a pessoa não vê nada.
+ */
+const listQuery = (
+  tenantId: string,
+  collection: string,
+  visibleTo: MemberVisibilityFilter | null | undefined,
+): Query | null => {
+  if (!visibleTo) return query(recordsRef(tenantId, collection), orderBy('createdAt', 'desc'), limit(RECORDS_PAGE_LIMIT));
+  const clauses = memberVisibilityClauses(visibleTo.spec);
+  if (clauses.length === 0) return null;
+  return query(
+    recordsRef(tenantId, collection),
+    or(...clauses.map((clause) => where(clause.field, clause.op, visibleTo.uid))),
+    limit(RECORDS_PAGE_LIMIT),
+  );
+};
+
+const createdMillis = (record: EntityRecord): number =>
+  record.createdAt instanceof Date && !Number.isNaN(record.createdAt.getTime()) ? record.createdAt.getTime() : 0;
+
+const newestFirst = (records: EntityRecord[]): EntityRecord[] =>
+  [...records].sort((left, right) => createdMillis(right) - createdMillis(left));
+
+const isPermissionDenied = (error: unknown): boolean =>
+  (error as { code?: string } | null)?.code === 'permission-denied';
 
 /**
  * A GARANTIA está aqui, e ela não é um `read-then-write`.
@@ -67,6 +111,14 @@ const keysRef = (tenantId: string) => firestoreCollection(db, 'tenants', tenantI
  * a "consultar antes de gravar", que além de ter corrida obrigaria um índice por chave declarada.
  */
 const keyDoc = (tenantId: string, keyId: string) => doc(keysRef(tenantId), keyId);
+
+const reservationData = (collection: string, recordId: string, entry: RecordKeyEntry) => ({
+  collection,
+  keyName: entry.name,
+  recordId,
+  values: entry.values,
+  createdAt: serverTimestamp(),
+});
 
 /**
  * A recusa do lote chega como `permission-denied`, e ela tem DUAS causas possíveis: a reserva já
@@ -162,15 +214,21 @@ export class FirebaseRecordRepository implements IRecordRepository {
     collection: string,
     onUpdate: (records: EntityRecord[]) => void,
     onError?: (collection: string, error: Error) => void,
+    visibleTo?: MemberVisibilityFilter | null,
   ): () => void {
-    const q = query(recordsRef(tenantId, collection), orderBy('createdAt', 'desc'), limit(RECORDS_PAGE_LIMIT));
+    const q = listQuery(tenantId, collection, visibleTo);
+    if (q === null) {
+      onUpdate([]);
+      return () => undefined;
+    }
     return onSnapshot(
       q,
       (snap) => {
         // O instante nasce a cada snapshot: a lista se refaz quando o dado muda e quando o Store
         // relê ao voltar o foco, e é aí que o valor derivado volta a falar do momento presente.
         const derive = makeRecordDeriver(collection);
-        onUpdate(snap.docs.map((d) => mapRecord(d.id, d.data(), tenantId, collection, derive)));
+        const records = snap.docs.map((d) => mapRecord(d.id, d.data(), tenantId, collection, derive));
+        onUpdate(visibleTo ? newestFirst(records) : records);
       },
       (error) => {
         console.error(`[RecordRepository] subscribe ${collection}:`, error.message);
@@ -195,7 +253,8 @@ export class FirebaseRecordRepository implements IRecordRepository {
     data: EntityRecordValues,
     recordId?: string,
   ): Promise<EntityRecord> {
-    const ruled = applyRecordRules(collection, stripIdentity(data));
+    const sequences = recordSequencesFor(collection);
+    const ruled = applyRecordRules(collection, omitSequenceFields(stripIdentity(data), sequences));
     const plan = planRecordKeysFor(collection, ruled);
     if (plan.gaps.length > 0) throw new RecordKeyMissingError(plan.gaps);
 
@@ -206,6 +265,22 @@ export class FirebaseRecordRepository implements IRecordRepository {
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     };
+
+    if (sequences.length > 0) {
+      const numbering = planRecordSequences(sequences, ruled, collection, new Date(), ambientTimeZone());
+      if (numbering.gaps.length > 0) throw new RecordSequenceParentMissingError(numbering.gaps);
+      const id = recordId ?? this.newId(tenantId, collection);
+      let assigned: Record<string, unknown> = {};
+      try {
+        assigned = await runRecordSequenceTransaction(db, tenantId, numbering.entries, (tx, values) => {
+          tx.set(doc(recordsRef(tenantId, collection), id), { ...payload, ...values });
+          for (const entry of plan.entries) tx.set(keyDoc(tenantId, entry.keyId), reservationData(collection, id, entry));
+        });
+      } catch (error) {
+        await describeDenial(tenantId, id, plan.entries, error);
+      }
+      return this.readBack(tenantId, collection, id, { ...ruled, ...assigned });
+    }
 
     // Com id em mãos o documento nasce onde os arquivos dele já foram gravados; sem, o Firestore
     // sorteia como sempre. Uma coleção COM chave sempre tem id antes do lote: a reserva precisa
@@ -218,39 +293,42 @@ export class FirebaseRecordRepository implements IRecordRepository {
       } else {
         ref = await addDoc(recordsRef(tenantId, collection), payload);
       }
-      return this.readBack(tenantId, collection, ref.id);
+      return this.readBack(tenantId, collection, ref.id, ruled);
     }
 
     const id = recordId ?? this.newId(tenantId, collection);
     const batch = writeBatch(db);
     batch.set(doc(recordsRef(tenantId, collection), id), payload);
-    for (const entry of plan.entries) {
-      batch.set(keyDoc(tenantId, entry.keyId), {
-        collection,
-        keyName: entry.name,
-        recordId: id,
-        values: entry.values,
-        createdAt: serverTimestamp(),
-      });
-    }
+    for (const entry of plan.entries) batch.set(keyDoc(tenantId, entry.keyId), reservationData(collection, id, entry));
     try {
       await batch.commit();
     } catch (error) {
       await describeDenial(tenantId, id, plan.entries, error);
     }
-    return this.readBack(tenantId, collection, id);
+    return this.readBack(tenantId, collection, id, ruled);
   }
 
-  private async readBack(tenantId: string, collection: string, id: string): Promise<EntityRecord> {
+  /**
+   * O registro como ficou gravado. Numa tela com visibilidade por registro, quem cria pode nomear
+   * OUTRA pessoa — é o encaminhamento —, e a releitura é recusada: o registro existe, só não é dele.
+   * Ali a resposta é o que foi enviado, com o relógio local no lugar do do servidor.
+   */
+  private async readBack(
+    tenantId: string,
+    collection: string,
+    id: string,
+    sent: Record<string, unknown>,
+  ): Promise<EntityRecord> {
     const ref = doc(recordsRef(tenantId, collection), id);
-    const snap = await getDoc(ref);
-    return mapRecord(
-      id,
-      snap.data() as Record<string, unknown>,
-      tenantId,
-      collection,
-      makeRecordDeriver(collection),
-    );
+    const derive = makeRecordDeriver(collection);
+    try {
+      const snap = await getDoc(ref);
+      return mapRecord(id, snap.data() as Record<string, unknown>, tenantId, collection, derive);
+    } catch (error) {
+      if (!isPermissionDenied(error)) throw error;
+      const now = new Date();
+      return mapRecord(id, { ...sent, createdAt: now, updatedAt: now }, tenantId, collection, derive);
+    }
   }
 
   async update(
@@ -268,7 +346,13 @@ export class FirebaseRecordRepository implements IRecordRepository {
     const baseline = hasKeys || editWindow
       ? await this.readRaw(tenantId, collection, recordId)
       : await loadRecordBaseline(collection, doc(recordsRef(tenantId, collection), recordId));
-    const ruled = applyRecordRules(collection, stripIdentity(data), baseline);
+    // O número atribuído na criação não muda depois: o formulário reenvia o registro inteiro, e o
+    // valor que vem nele — igual ou não — nunca chega ao banco.
+    const ruled = applyRecordRules(
+      collection,
+      omitSequenceFields(stripIdentity(data), recordSequencesFor(collection)),
+      baseline,
+    );
 
     if (editWindow && baseline) {
       const allowed = editWindowAllowsUpdate(editWindow.spec, baseline.createdAt, new Date(), {
@@ -302,15 +386,7 @@ export class FirebaseRecordRepository implements IRecordRepository {
     // sessão. A reserva cujo valor NÃO mudou não é solta nem recriada: sair e voltar abriria uma
     // janela em que o valor está livre para outro registro.
     for (const keyId of diff.release) batch.delete(keyDoc(tenantId, keyId));
-    for (const entry of diff.create) {
-      batch.set(keyDoc(tenantId, entry.keyId), {
-        collection,
-        keyName: entry.name,
-        recordId,
-        values: entry.values,
-        createdAt: serverTimestamp(),
-      });
-    }
+    for (const entry of diff.create) batch.set(keyDoc(tenantId, entry.keyId), reservationData(collection, recordId, entry));
     try {
       await batch.commit();
     } catch (error) {
@@ -364,8 +440,18 @@ export class FirebaseRecordRepository implements IRecordRepository {
     await batch.commit();
   }
 
+  /**
+   * Numa tela com visibilidade por registro, quem não supervisiona não tem como saber se a coleção está
+   * vazia — a consulta sem filtro é recusada. A resposta, então, é SIM: quem pergunta isto é a exclusão
+   * da tela, e excluir a tela de uma coleção que talvez tenha registros é o que ela existe para impedir.
+   */
   async hasRecords(tenantId: string, collection: string): Promise<boolean> {
-    const snap = await getDocs(query(recordsRef(tenantId, collection), limit(1)));
-    return !snap.empty;
+    try {
+      const snap = await getDocs(query(recordsRef(tenantId, collection), limit(1)));
+      return !snap.empty;
+    } catch (error) {
+      if (isPermissionDenied(error)) return true;
+      throw error;
+    }
   }
 }

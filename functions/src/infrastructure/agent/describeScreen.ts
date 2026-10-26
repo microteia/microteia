@@ -1,4 +1,6 @@
 import { resolveEditWindow } from '../../domain/schema/editWindow';
+import { isSequenceField } from '../../domain/schema/recordSequence';
+import { readerSeesAll, resolveMemberVisibility } from '../../domain/schema/memberVisibility';
 import type { MessageCatalog } from '../../domain/schema/i18n/messages';
 import { resolveLabel } from '../../domain/schema/i18n/messageRef';
 import type { NativeFieldSpec } from '../../domain/schema/entityRegistry';
@@ -41,7 +43,7 @@ interface AgentField {
   maxLength?: number;
   /** Um valor na forma aceita — o de partida, quando há, ou um da forma do tipo. */
   example?: unknown;
-  /** Gravar não é possível: o valor é calculado ou derivado. */
+  /** Gravar não é possível: o valor é calculado, derivado ou numerado pelo sistema ao criar. */
   readOnly?: true;
   /** O valor de partida de um registro novo. */
   default?: unknown;
@@ -62,6 +64,13 @@ export interface AgentScreenDescription {
    * corrigir um registro congelado cria outro que o corrige, como se faz com um lançamento.
    */
   editWindow?: { minutes: number; delete: boolean };
+  /**
+   * A tela restringe cada registro a quem ele nomeia (`memberVisibility`). `seesAll` diz se ESTE acesso
+   * lê todos; sem ele, `search_records`, `get_record` e `run_report` só alcançam os registros em que o
+   * dono do acesso está num de `userFields` — e o que falta não é ausência no escritório. Contar isso ao
+   * agente é o que o impede de responder "não há registro" quando há, só não para ele.
+   */
+  memberVisibility?: { userFields: string[]; seesAll: boolean };
   allowedOperations: string[];
 }
 
@@ -116,7 +125,7 @@ export const allowedOperations = (
 };
 
 const isWritable = (field: NativeFieldSpec): boolean =>
-  !field.logic?.compute && !field.logic?.derive && field.aggregation === undefined;
+  !field.logic?.compute && !field.logic?.derive && field.aggregation === undefined && !isSequenceField(field);
 
 const flatten = (fields: readonly NativeFieldSpec[], prefix = ''): NativeFieldSpec[] =>
   fields.flatMap((field) => {
@@ -189,6 +198,7 @@ export const describeScreen = (
 
   const screen = ctx.screens.get(collection);
   const editWindow = resolveEditWindow(ctx, collection);
+  const visibility = resolveMemberVisibility(ctx, collection);
   return {
     collection,
     labelSingular: resolveLabel(catalog, entity.labelSingular),
@@ -201,6 +211,14 @@ export const describeScreen = (
       primary: key.kind === 'primary',
     })),
     ...(editWindow ? { editWindow: { minutes: editWindow.spec.minutes, delete: editWindow.spec.delete === true } } : {}),
+    ...(visibility
+      ? {
+        memberVisibility: {
+          userFields: [...visibility.userFields],
+          seesAll: readerSeesAll(visibility, collection, session.permissions),
+        },
+      }
+      : {}),
     allowedOperations: allowedOperations(ctx, session, collection),
   };
 };
