@@ -16,8 +16,8 @@ const FLAT_ENTITY_PREFIXES: Record<string, WorkflowEventPrefix> = Object.fromEnt
  * Mapeia uma coleção flat de tenant (`tenants/{tenantId}/{collection}/{docId}`) para o prefixo
  * de evento do Workflow Engine (`<prefixo>.saved` / `<prefixo>.deleted`).
  *
- * As entidades fixas mantêm o prefixo declarado no registro (`persons` → `person`), o que preserva
- * os workflows já existentes. Qualquer outra coleção que não seja reservada pelo sistema é uma tela
+ * As entidades fixas mantêm o prefixo declarado no registro, o que preserva os workflows já
+ * existentes. Qualquer outra coleção que não seja reservada pelo sistema é uma tela
  * do tenant e emite pelo PRÓPRIO nome (`medico` → `medico.saved`). `undefined` = coleção fora do
  * escopo de eventos (etiquetas, membros, conexões) — o gatilho ignora rapidamente.
  *
@@ -35,7 +35,7 @@ export const getWorkflowEventPrefix = (collection: string): WorkflowEventPrefix 
 /**
  * O prefixo que a TELA declara para a coleção, quando declara. É o que permite uma entidade sair do
  * kernel e passar a ser descrita por uma extensão sem renomear os eventos que as automações já
- * escutam (`cases` continua emitindo `case.saved`).
+ * escutam (`orders` continua emitindo `order.saved`).
  *
  * Só é consultado quando o registro não responde pela coleção — as entidades ainda fixas seguem no
  * caminho rápido, sem leitura nenhuma.

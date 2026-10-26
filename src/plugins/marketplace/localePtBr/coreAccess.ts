@@ -155,7 +155,7 @@ export const CORE_ACCESS: Record<string, string> = {
   'agent.audit.date-invalid': '"{path}" não é uma data: envie "AAAA-MM-DD" ou um instante ISO-8601.',
   'agent.document.not-enabled':
     'A tela "{collection}" não tem a aba Documentos, então os registros dela não recebem anexos.',
-  'agent.document.name-invalid': 'Dê ao arquivo um nome com a extensão, por exemplo "contrato.pdf".',
+  'agent.document.name-invalid': 'Dê ao arquivo um nome com a extensão, por exemplo "relatorio.pdf".',
   'agent.document.content-invalid': '"content" não é um base64 válido.',
   'agent.document.empty': 'O arquivo está vazio.',
   'agent.document.too-large': 'O arquivo tem {size} MB, e o limite é menos de {limit} MB.',

@@ -26,8 +26,8 @@ export const templateHelp = (dateFormat: string): TemplateHelpGroup[] => [
     title: 'help.group.fields',
     entries: [
       { code: '{{name}}', text: 'help.field' },
-      { code: '{{clientId.name}}', text: 'help.path' },
-      { code: '{{clientId}}', text: 'help.reference-alone' },
+      { code: '{{ownerId.name}}', text: 'help.path' },
+      { code: '{{ownerId}}', text: 'help.reference-alone' },
     ],
   },
   {

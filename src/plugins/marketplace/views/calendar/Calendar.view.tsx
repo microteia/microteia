@@ -130,9 +130,8 @@ export default function CalendarView() {
 
                       {/*
                         The card lines come from the SCREEN configuration — the fields marked to
-                        appear in the list. This is how a field added by another extension (the case
-                        of a deadline, the person of a hearing) reaches the card without the agenda
-                        knowing it by name.
+                        appear in the list. This is how a field added by another extension reaches
+                        the card without the agenda knowing it by name.
                       */}
                       {vm.cardItems(record).map((item) => (
                         <S.MetaRow key={item.key}>

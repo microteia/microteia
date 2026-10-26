@@ -57,7 +57,6 @@ describe('entityLabel', () => {
 
   it('entidade que o backend audita por nome próprio usa a chave do catálogo', () => {
     expect(entityLabel(t, resolve, 'TenantMember', [])).toBe('audit.entity.tenant-member');
-    expect(entityLabel(t, resolve, 'Push', [])).toBe('audit.entity.push');
   });
 
   it('coleção que ninguém descreve aparece como está', () => {

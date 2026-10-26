@@ -295,7 +295,7 @@ const stepCatalogTable = (steps: readonly WorkflowStepMetadata[]): string => [
  * tabela de voltar a ficar incompleta em silêncio.
  */
 const STEP_CATALOG_NOTES: Record<string, string> = {
-  notify: 'Notifies people in the app (the bell), by e-mail or by push, and/or writes it to the audit trail. With no channel set it only writes to the audit trail, as version 1 did. Recipients come from `recipientMembers`, `recipientsFrom` (a member id, or a record linked to one by `memberId` — a reference read on its own is an id, so a person linked to a member is `event.personId.memberId`) and `recipientPermission`; each person keeps or refuses a channel in Settings, and `title`/`message` resolve in each recipient\'s language. Clicking it opens the record that triggered the flow (`openRecord`, on by default) — in the app, in the browser notification and in the e-mail. Set `category` to one of your declared notification types (`<package id>/<key>`, see `notificationCategory`) so each person can choose, on the Notifications page, which channels bring them that type. With `portalGuests` it notifies the portal guests who can see the record instead of members (see "Telling the portal\'s guests" in section 10). Publishes `recipients`, `delivered.<channel>` and `failed.<channel>`.',
+  notify: 'Notifies people in the app (the bell), by e-mail or by push, and/or writes it to the audit trail. With no channel set it only writes to the audit trail, as version 1 did. Recipients come from `recipientMembers`, `recipientsFrom` (a member id, or a record linked to one by `memberId` — a reference read on its own is an id, so a person linked to a member is `event.contactId.memberId`) and `recipientPermission`; each person keeps or refuses a channel in Settings, and `title`/`message` resolve in each recipient\'s language. Clicking it opens the record that triggered the flow (`openRecord`, on by default) — in the app, in the browser notification and in the e-mail. Set `category` to one of your declared notification types (`<package id>/<key>`, see `notificationCategory`) so each person can choose, on the Notifications page, which channels bring them that type. With `portalGuests` it notifies the portal guests who can see the record instead of members (see "Telling the portal\'s guests" in section 10). Publishes `recipients`, `delivered.<channel>` and `failed.<channel>`.',
   'register-audit': 'Writes an entry in the audit trail. `severity` defaults to `LOW`.',
   'set-variable': 'Names a value for the rest of the flow. Read it back with `{ kind: \'Variable\' }`.',
   map: 'Assembles an object from other values — what a write step then writes.',
@@ -609,7 +609,7 @@ field — a link that cannot be emptied is never offered as Unlink, so the card 
 
 The other side of a many-to-many link gets the same lock. Pass \`parent: { fieldKeys: [...], recordId }\`
 and a record enters when ANY of those fields points at \`recordId\` — equality on a single \`reference\`,
-"contains" on one with \`multi: true\`: the projects a person works on, the cases where a person is a
+"contains" on one with \`multi: true\`: the projects a person works on, the deals where a company is a
 party on either side. \`openNewRecord()\` fills the FIRST field (a one-id list when it is \`multi\`).
 Unlink takes \`recordId\` out of every field that points at it — out of the list on a \`multi\` field,
 leaving the other ids — and \`relation\` is decided per record: a \`required\` \`multi\` field that
@@ -770,11 +770,11 @@ so a choice keeps up with what the office renames, recolours and adds:
 
 \`\`\`ts
 {
-  key: 'cases.recent.statuses',
+  key: 'orders.recent.statuses',
   label: label('settings.recent.statuses'),
   type: 'select',
   multi: true,
-  optionsFrom: { kind: 'lookup', collection: 'caseStatuses' },
+  optionsFrom: { kind: 'lookup', collection: 'orderStatuses' },
   default: ['open'],
   scopes: ['tenant', 'user'],
 }
@@ -1295,7 +1295,7 @@ in days, with the two functions \`@microteia/format\` keeps for it:
 \`\`\`ts
 import { dayOf, today } from '@microteia/format';
 
-const upcoming = records.filter((r) => dayOf(r.hearingDate) >= today());
+const upcoming = records.filter((r) => dayOf(r.deliveryDate) >= today());
 \`\`\`
 
 \`today()\` is the organization's day — the same answer as \`today()\` in an expression, on the same time
@@ -1720,7 +1720,7 @@ English — it is what every record already stores. \`tagLists\` works the same 
 \`screenPatches\` add fields to a screen that already exists — another extension's, or the platform's:
 
 \`\`\`ts
-screenPatches: [{ target: 'persons', targetKind: 'collection', fields: EXTRA_FIELDS }]
+screenPatches: [{ target: 'customers', targetKind: 'collection', fields: EXTRA_FIELDS }]
 \`\`\`
 
 \`targetKind: 'collection'\` names a collection directly, which works because that name is universal.
@@ -1777,7 +1777,7 @@ no statements, no assignment, no side effects.
 |---|---|
 | \`compute\`, \`validate\`, \`derive\` | the record's fields at the root, plus \`value\` (= \`self\`) — the field's own value. These three run on the client AND on the server, so they must not depend on anything else. A \`derive\` also sees the \`compute\` results; the reverse cannot happen, because \`compute\` runs on save and no derived value exists there |
 | \`hiddenWhen\`, \`disabledWhen\`, \`onChange\` of a field | the above, plus \`isNew\` and \`isDirty\`. Client only |
-| an action's expressions | the form's current values at the root, plus \`record\` (as stored, \`{}\` when new), \`isNew\`, \`isDirty\`, \`permissions\`, \`surface\` (\`detail\` / \`list\` / \`parentTab\`), \`relation\` (\`none\` / \`owned\` / \`related\`), \`user\`. A single \`reference\` field is navigable (\`caseId.responsibleLawyerId\`, \`caseId.contractId.clientId\`) — see below. Client only |
+| an action's expressions | the form's current values at the root, plus \`record\` (as stored, \`{}\` when new), \`isNew\`, \`isDirty\`, \`permissions\`, \`surface\` (\`detail\` / \`list\` / \`parentTab\`), \`relation\` (\`none\` / \`owned\` / \`related\`), \`user\`. A single \`reference\` field is navigable (\`orderId.sellerId\`, \`orderId.customerId.regionId\`) — see below. Client only |
 | \`badge.when\` | each record's fields at the root, plus \`user\` |
 | a report's \`dataset.includeWhen\` | each row's fields at the root, a reference navigated by the name of the record it points at (\`client.city\`), and \`id\`. Every path the expression names exists, and is \`null\` when the record has no value for it — so a field nobody filled in is empty, never an error. Server only, running as the reader: \`hasPermission\` answers for the person who opened the report |
 | a workflow | \`event.*\` (the payload), the outputs of earlier steps, the workflow's variables, and \`actor\` — who triggered the run |
@@ -1803,11 +1803,11 @@ with \`isEmpty(actor)\`; \`actor.name\` there reads \`null\` instead of failing.
 | \`<collection>.saved\` / \`.deleted\` | \`null\` | nobody |
 
 **Navigating a reference from an action.** In an action's expressions, a path that goes THROUGH a
-single \`reference\` field reads the record it points at: \`caseId.title\`, and further,
-\`caseId.contractId.clientId\`. Only what the expression navigates is swapped — a reference read on its
-own is still the id, so \`parameterDefaults: { clientId: 'clientId' }\`, \`isEmpty(caseId)\` and
-\`caseId == "abc"\` mean what they always meant — even inside an expression that also navigates it:
-in \`concat(caseId, " ", caseId.title)\` the first \`caseId\` is the id. \`caseId.id\` is the id too. A
+single \`reference\` field reads the record it points at: \`orderId.title\`, and further,
+\`orderId.customerId.regionId\`. Only what the expression navigates is swapped — a reference read on its
+own is still the id, so \`parameterDefaults: { customerId: 'customerId' }\`, \`isEmpty(orderId)\` and
+\`orderId == "abc"\` mean what they always meant — even inside an expression that also navigates it:
+in \`concat(orderId, " ", orderId.title)\` the first \`orderId\` is the id. \`orderId.id\` is the id too. A
 \`multi\` reference is not navigable here. Workflows follow the same rule (§10).
 
 A path with nothing at the end of it is \`null\`, never an error: an empty reference, a deleted record,
@@ -2077,12 +2077,12 @@ below the one its trigger needs.
 **Listening to another extension.** A workflow may listen to \`<prefix>.saved\` / \`<prefix>.deleted\` of
 a collection a **declared dependency** brings. The name is the prefix that screen EMITS — its
 \`eventPrefix\`, or its collection when it declares none —, which is not always the collection: a screen
-over \`cases\` declaring \`eventPrefix: 'case'\` emits \`case.saved\`. Declare the extension in
-\`manifest.dependencies\` (listing \`collections\` is not needed for this, and \`case\` is no collection):
+over \`orders\` declaring \`eventPrefix: 'order'\` emits \`order.saved\`. Declare the extension in
+\`manifest.dependencies\` (listing \`collections\` is not needed for this, and \`order\` is no collection):
 
 \`\`\`ts
-dependencies: { 'com.acme.cases': { version: '^2.0.0', collections: ['cases'] } },
-workflows: [{ templateId: 'link-on-case', name: 'Link on new case', eventName: 'case.saved', /* … */ }],
+dependencies: { 'com.acme.orders': { version: '^2.0.0', collections: ['orders'] } },
+workflows: [{ templateId: 'link-on-order', name: 'Link on new order', eventName: 'order.saved', /* … */ }],
 \`\`\`
 
 The prefix is resolved against the screens of your dependencies. **On install**, every package is in
@@ -2107,16 +2107,16 @@ nowhere to look, and the trigger is refused.
 
 **Navigating a reference in a workflow.** The rule is the one actions follow (§9): the record a
 \`reference\` points at is read only when the path names a field AFTER the reference. In a workflow,
-\`event.<reference>\` on its own is the stored id — \`event.caseId\` is \`"k1"\`, never the case —
-and \`event.<reference>.<field>\` reads the record it points at: \`event.caseId.court\`. The same holds
-for \`{ kind: 'Event', path: 'caseId' }\` and for a \`FieldComparison\`. A \`multi\` reference read on
+\`event.<reference>\` on its own is the stored id — \`event.orderId\` is \`"k1"\`, never the order —
+and \`event.<reference>.<field>\` reads the record it points at: \`event.orderId.region\`. The same holds
+for \`{ kind: 'Event', path: 'orderId' }\` and for a \`FieldComparison\`. A \`multi\` reference read on
 its own is the list of ids as stored; \`event.calendars.name\` is one name per record it points at.
 An empty reference is \`null\` both ways, never an error.
 
-It holds for the whole run, not just for one expression: a step that navigates \`event.caseId.court\`
-does not change what another step copying \`event.caseId\` receives. So a \`map\` that mirrors a record
-into another (\`caseId: event.caseId\`) writes the id, and a recipient that is a person LINKED to a
-member is \`event.responsibleLawyerId.memberId\`, not \`event.responsibleLawyerId\`.
+It holds for the whole run, not just for one expression: a step that navigates \`event.orderId.region\`
+does not change what another step copying \`event.orderId\` receives. So a \`map\` that mirrors a record
+into another (\`orderId: event.orderId\`) writes the id, and a recipient that is a person LINKED to a
+member is \`event.sellerId.memberId\`, not \`event.sellerId\`.
 
 ${describedTable('Step type', STEP_TYPES, STEP_KINDS)}
 
@@ -2161,7 +2161,7 @@ trigger names. All three are derived from this installation.
 ### Telling the portal's guests
 
 A \`notify\` step with \`portalGuests\` notifies the people OUTSIDE the organization who can see a record
-in the portal — the client of a case, the supplier of an invoice — instead of members:
+in the portal — the customer of an order, the supplier of an invoice — instead of members:
 
 \`\`\`ts
 {
@@ -2177,7 +2177,7 @@ in the portal — the client of a case, the supplier of an invoice — instead o
     toEmail: { kind: 'Literal', value: true },
     toInApp: { kind: 'Literal', value: true },        // the bell of the PORTAL
     toAudit: { kind: 'Literal', value: false },
-    portalRecord: { kind: 'Event', path: 'caseId' },  // optional — see below
+    portalRecord: { kind: 'Event', path: 'orderId' },  // optional — see below
   },
 }
 \`\`\`
@@ -2187,7 +2187,7 @@ in the portal — the client of a case, the supplier of an invoice — instead o
   link. A record that is not in the portal notifies nobody — not even that it exists. A revoked invite
   stops receiving at once. You never name a guest, and an e-mail typed in a field is never used.
 - **Which record.** By default, the record of the event. \`portalRecord\` names another one as an \`Event\`
-  path (\`caseId\`, \`conversationId.personId\`): the path has a type, and that is how the step knows the
+  path (\`orderId\`, \`conversationId.customerId\`): the path has a type, and that is how the step knows the
   collection. A path that does not lead to a record fails the step; the right path that came empty in
   this run only notifies nobody, and the log says so.
 - **Never members in the same step.** \`portalGuests\` with \`recipientMembers\`, \`recipientsFrom\` or
@@ -2301,12 +2301,12 @@ flow — or when the value lives on a record this one points at:
 
 \`\`\`ts
 {
-  templateId: 'act-generate-deadline',
-  workflowId: 'wf-generate-deadline',
+  templateId: 'act-generate-invoice',
+  workflowId: 'wf-generate-invoice',
   promptParameters: true,
   parameterDefaults: {
-    responsibleLawyerId: 'caseId.responsibleLawyerId',   // the lawyer of the CASE, not a copy
-    caseNumber: 'processNumber',
+    sellerId: 'orderId.sellerId',   // the seller of the ORDER, not a copy
+    orderNumber: 'code',
   },
   // ...
 }
@@ -2578,7 +2578,7 @@ report and the same report per customer, per period, per city.
 \`\`\`ts
 prompts: [
   { key: 'from', label: label('report.ask.from'), path: 'dueDate', op: 'gte' },
-  { key: 'client', label: label('report.ask.client'), path: 'clientId', op: 'in' },
+  { key: 'customer', label: label('report.ask.customer'), path: 'customerId', op: 'in' },
 ]
 \`\`\`
 
@@ -2889,7 +2889,7 @@ here come from \`datasets\`, in the vocabulary of an aggregated field: \`from\` 
 form of an aggregation's \`orderBy\` — the first decides, the next break ties:
 
 \`\`\`ts
-datasets: [{ name: 'movements', from: 'movement', fromSourceId: MOVEMENT_SOURCE, via: 'case',
+datasets: [{ name: 'shipments', from: 'shipment', fromSourceId: SHIPMENT_SOURCE, via: 'order',
   orderBy: [{ path: 'date', dir: 'desc' }, { path: 'time', dir: 'desc' }], limit: 30 }]
 \`\`\`
 
@@ -2965,8 +2965,8 @@ permission, and several packages may add to the same id — the closure is the u
 import { accessRequirementContribution } from '@microteia/sdk';
 
 contributes: [
-  // whoever can read the calendar can now read the case the patched field points at
-  accessRequirementContribution({ id: 'calendar.read', requires: ['cases.read'] }),
+  // whoever can read the calendar can now read the order the patched field points at
+  accessRequirementContribution({ id: 'calendar.read', requires: ['orders.read'] }),
 ]
 \`\`\`
 

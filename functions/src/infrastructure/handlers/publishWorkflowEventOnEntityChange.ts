@@ -1,12 +1,9 @@
 import { onDocumentWritten } from 'firebase-functions/v2/firestore';
 import { getDb } from '../firebase/initFirebase';
 import { getDI } from '../di/container';
-import {
-  declaredEventPrefix,
-  getWorkflowEventPrefix,
-  hasRegistryEventPrefix,
-} from '../../domain/services/workflowEventEntities';
+import { getWorkflowEventPrefix } from '../../domain/services/workflowEventEntities';
 import { publishEvent } from '../workflow/publishEvent';
+import { resolveEventPrefix } from '../workflow/resolveEventPrefix';
 import { isAggregateBackfillWriteFresh } from '../../domain/services/aggregateBackfill';
 import { isRecordKeyBookkeepingWrite } from '../../domain/services/recordKeyAdoption';
 
@@ -23,22 +20,6 @@ import { isRecordKeyBookkeepingWrite } from '../../domain/services/recordKeyAdop
  * Suporta as entidades fixas, os lookups e QUALQUER tela do tenant (que emite pelo nome da
  * própria coleção — ver `getWorkflowEventPrefix`).
  */
-/** O prefixo declarado pela tela, quando houver; senão, o da convenção. Falha volta à convenção. */
-const resolveEventPrefix = async (
-  tenantId: string,
-  collection: string,
-  convention: string,
-): Promise<string> => {
-  if (hasRegistryEventPrefix(collection) || convention === 'lookup') return convention;
-  try {
-    const screens = await getDI().getScreenDefinitionCache().getScreens(tenantId);
-    return declaredEventPrefix(screens, collection) ?? convention;
-  } catch (error) {
-    console.error(`[workflow] Falha ao resolver o prefixo de ${tenantId}/${collection}:`, error);
-    return convention;
-  }
-};
-
 export const publishWorkflowEventOnEntityChange = onDocumentWritten(
   { document: 'tenants/{tenantId}/{collection}/{docId}', region: 'southamerica-east1' },
   async (event) => {

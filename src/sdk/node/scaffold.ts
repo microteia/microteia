@@ -213,7 +213,6 @@ export default ${name}Plugin;
  */
 const viewFiles = (spec: PluginSpec): Record<string, string> => {
   const collection = collectionOf(spec);
-  const reads = spec.screen ? collection : 'persons';
 
   return {
     'views/Summary.rules.ts': `/**
@@ -317,12 +316,12 @@ export interface SummaryViewModel {
 }
 
 export const useSummaryViewModel = (): SummaryViewModel => {
-  const records = useCollection('${reads}') as SummaryItem[];
+  const records = useCollection('${collection}') as SummaryItem[];
   const openRecord = useOpenRecord();
   const label = useT('${spec.id}');
 
   const items = useMemo(() => upcoming(records, 10), [records]);
-  const open = useCallback((recordId: string) => openRecord('${reads}', recordId), [openRecord]);
+  const open = useCallback((recordId: string) => openRecord('${collection}', recordId), [openRecord]);
 
   return { total: records.length, items, label, open };
 };

@@ -1,8 +1,6 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useCommandPalette } from '../../../../stores/useCommandPalette';
 import { useWorkspace } from '../../../../stores/useWorkspace';
-import { usePersonRecords } from '../../../shared/useCollectionRecords';
-import { useCaseRecords, useContractRecords } from '../../../shared/useCollectionRecords';
 import { useRecords } from '../../../../stores/useRecords';
 import { useScreenDefinitions } from '../../../../stores/useScreenDefinitions';
 import { useWorkflowStore } from '../../../../stores/useWorkflowStore';
@@ -36,9 +34,6 @@ export interface CommandPaletteViewModel {
 export const useCommandPaletteViewModel = (): CommandPaletteViewModel => {
   const { close } = useCommandPalette();
   const { openTab } = useWorkspace();
-  const persons = usePersonRecords();
-  const cases = useCaseRecords();
-  const contracts = useContractRecords();
   const { allRecords } = useRecords();
   const { definitions: screenDefinitions } = useScreenDefinitions();
   const { workflows } = useWorkflowStore();
@@ -95,9 +90,6 @@ export const useCommandPaletteViewModel = (): CommandPaletteViewModel => {
     () => ({
       openTab,
       close,
-      persons,
-      cases,
-      contracts,
       records: allRecords,
       screenDefinitions,
       workflows,
@@ -112,7 +104,7 @@ export const useCommandPaletteViewModel = (): CommandPaletteViewModel => {
       t,
       label,
     }),
-    [openTab, close, persons, cases, contracts, allRecords, screenDefinitions, workflows, paletteReports, themeId, themes, setTheme, signOut, userRole, can, navigablePages, t, label],
+    [openTab, close, allRecords, screenDefinitions, workflows, paletteReports, themeId, themes, setTheme, signOut, userRole, can, navigablePages, t, label],
   );
 
   const groups = useMemo<CommandPaletteGroup[]>(() => {

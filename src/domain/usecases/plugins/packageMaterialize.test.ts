@@ -90,6 +90,15 @@ describe('workflowInputFromTemplate', () => {
     expect(input.eventName).toBe('com-acme-x__venda.saved');
     expect((input.steps[0].configuration.scriptId as { value: string }).value).toBe('scr-real');
   });
+
+  it('o evento de nota ou documento acompanha a tela do pai quando a chave dela muda', () => {
+    const template = { templateId: 't', name: 'W', version: 1, condition: { kind: 'AlwaysTrue' as const }, steps: [] };
+    const screens = new Map([['venda', 'com-acme-x__venda']]);
+    expect(workflowInputFromTemplate({ ...template, eventName: 'venda_document.saved' }, 'com.acme.x', new Map(), screens).eventName)
+      .toBe('com-acme-x__venda_document.saved');
+    expect(workflowInputFromTemplate({ ...template, eventName: 'outra_note.deleted' }, 'com.acme.x', new Map(), screens).eventName)
+      .toBe('outra_note.deleted');
+  });
 });
 
 /**

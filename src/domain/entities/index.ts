@@ -165,25 +165,6 @@ export interface TenantMember {
   deletedByPhotoURL?: string;
 }
 
-// ─── Calendar events ──────────────────────────────────────────────────────────
-
-export type CalendarEventType = 'deadline' | 'hearing' | 'meeting' | 'other';
-
-export interface CalendarEvent {
-  id: string;
-  title: string;
-  start: Date;
-  end: Date;
-  resource: {
-    type: CalendarEventType;
-    priority?: string;
-    caseNumber?: string;
-    personName?: string;
-    status?: string;
-    deadlineId?: string;
-  };
-}
-
 // ─── Saved Filters ────────────────────────────────────────────────────────────
 
 export interface SavedFilterToken {
@@ -202,7 +183,7 @@ export interface SavedFilter {
 
 // ─── Text Annotations ────────────────────────────────────────────────────────
 
-export type AnnotationContentType = 'news' | 'case';
+export type AnnotationContentType = string;
 export type AnnotationFormatType = 'bold' | 'italic' | 'underline' | 'strikethrough';
 export type AnnotationHighlightColor = 'yellow' | 'green' | 'pink' | 'blue' | 'orange';
 

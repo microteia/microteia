@@ -1,7 +1,7 @@
 {
   "manifest": {
     "id": "com.microteia.brasil",
-    "version": "1.2.0",
+    "version": "1.2.1",
     "kernel": "^2.44.0",
     "name": "Brasil",
     "description": "Documentos, telefone, CEP e busca de endereço do Brasil — as regras de país que o sistema não embute.",
@@ -240,7 +240,7 @@
           },
           {
             "label": "Usada por",
-            "value": "Pessoas — e por qualquer tela que você criar"
+            "value": "Qualquer tela que você criar"
           }
         ]
       },

@@ -106,7 +106,7 @@ const VIACEP: LookupProviderSpec = {
 export const brasilPlugin: MarketplacePlugin = {
   manifest: {
     id: 'com.microteia.brasil',
-    version: '1.2.0',
+    version: '1.2.1',
     kernel: '^2.44.0',
     name: 'Brasil',
     description: 'Documentos, telefone, CEP e busca de endereço do Brasil — as regras de país que o sistema não embute.',
@@ -134,7 +134,7 @@ export const brasilPlugin: MarketplacePlugin = {
         items: [
           { label: 'Formatos', value: 'CPF, CNPJ, CPF ou CNPJ, telefone, CEP, processo CNJ' },
           { label: 'Busca externa', value: 'Endereço pelo CEP (ViaCEP)' },
-          { label: 'Usada por', value: 'Pessoas — e por qualquer tela que você criar' },
+          { label: 'Usada por', value: 'Qualquer tela que você criar' },
         ],
       },
       {

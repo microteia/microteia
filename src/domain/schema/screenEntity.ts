@@ -69,6 +69,11 @@ export interface SchemaScreen {
    */
   hasDocuments?: boolean;
   /**
+   * O registro tem a aba Notas. Pelo mesmo motivo de `hasDocuments`: o catálogo de eventos só oferece
+   * `<prefixo>_note.*` para a tela cujas notas alguém escreve.
+   */
+  hasNotes?: boolean;
+  /**
    * De onde a tela veio. Só `builtin` importa aqui: é o que distingue a ÂNCORA de uma coleção (ver
    * `isCollectionAnchor`) de uma tela que alguém de fato declarou.
    */
@@ -181,6 +186,7 @@ const mergeSchemaScreens = (base: SchemaScreen, next: SchemaScreen, collection: 
     // A aba é do REGISTRO: se alguma tela da coleção a mostra, o registro tem anexos que alguém vê,
     // e anexar por automação ou pelo agente é anexar onde a pessoa vai procurar.
     hasDocuments: base.hasDocuments === true || next.hasDocuments === true,
+    hasNotes: base.hasNotes === true || next.hasNotes === true,
   };
 };
 

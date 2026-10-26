@@ -149,6 +149,7 @@ export const toSchemaScreens = (
     dataCollection?: string | null;
     eventPrefix?: string | null;
     hasDocuments?: boolean;
+    hasNotes?: boolean;
     origin?: FieldOrigin;
     editWindow?: unknown;
     memberWritableFields?: string[] | null;
@@ -165,6 +166,7 @@ export const toSchemaScreens = (
     tagCollection: definition.tagCollection,
     eventPrefix: definition.eventPrefix,
     hasDocuments: definition.hasDocuments,
+    hasNotes: definition.hasNotes,
     origin: definition.origin,
     editWindow: readEditWindow(definition.editWindow),
     memberWritableFields: definition.memberWritableFields ?? null,

@@ -89,7 +89,7 @@ export interface AlwaysTrueCondition {
 // Comparação de campo único
 export interface FieldComparisonCondition {
   kind: 'FieldComparison';
-  fieldPath: string;         // Caminho do campo (ex: "status", "event.payload.caseId")
+  fieldPath: string;         // Caminho do campo (ex: "status", "event.payload.parentId")
   operator: '==' | '!=' | '>' | '>=' | '<' | '<=' | 'contains' | 'startsWith' | 'endsWith' | 'isEmpty' | 'isNotEmpty';
   value: unknown;            // Valor a comparar
   valueType: 'literal' | 'expression' | 'eventField';  // Como interpretar o valor

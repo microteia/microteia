@@ -4,19 +4,16 @@ import type { TranslateFn } from '../../shared/i18n/useT';
 /**
  * As entidades que o backend audita por nome próprio HOJE — nada além disso.
  *
- * Quem tem tela (Pessoa, Processo, Contrato…) não entra aqui: o log guarda a COLEÇÃO, e o nome vem
+ * Quem tem tela não entra aqui: o log guarda a COLEÇÃO, e o nome vem
  * da tela que a descreve, resolvido em `entityLabel`. Assim o rótulo acompanha o título quando a
  * tela é renomeada, em vez de congelar o nome do dia da gravação.
  */
 export const ENTITY_KEYS: Record<string, string> = {
   Role: 'audit.entity.role',
   TenantMember: 'audit.entity.tenant-member',
-  PersonTag: 'audit.entity.person-tag',
-  CaseTag: 'audit.entity.case-tag',
   CustomRecordTag: 'audit.entity.custom-record-tag',
   CustomRecordDocument: 'audit.entity.custom-record-document',
   RecordNote: 'audit.entity.record-note',
-  Push: 'audit.entity.push',
   ScreenDefinition: 'audit.entity.screen-definition',
   Tenant: 'audit.entity.tenant',
   Workflow: 'audit.entity.workflow',

@@ -11,6 +11,13 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.156.0] — 2026-10-25
+
+- As automações agora podem reagir a notas e documentos de qualquer tela: ao anexar um arquivo ou escrever uma nota num registro, o fluxo correspondente é disparado. Antes isso só funcionava para algumas telas fixas.
+- O editor de automações passou a mostrar os campos corretos de notas e documentos, como nome do arquivo, tipo e se ele está compartilhado com o portal.
+- A busca rápida (⌘K) ficou mais leve: deixou de carregar em segundo plano cadastros que não usava.
+- Textos de exemplo e de ajuda do sistema ficaram neutros, sem supor um ramo de atividade.
+
 #### [9.155.0] — 2026-10-24
 
 - Telas podem passar a ter um **prazo para alteração**: depois de alguns minutos da criação, o registro fica como está e não pode mais ser editado — e, quando a tela pede, nem excluído. É o que torna mensagens, apontamentos e lançamentos confiáveis como registro do que foi dito ou feito. O formulário avisa até quando o registro pode ser alterado e, depois do prazo, mostra por que os campos estão travados.

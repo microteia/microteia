@@ -247,7 +247,7 @@ export const CORE_DOCUMENTS: Record<string, string> = {
   'field.retention.hint': 'Vazio = a configuração do escritório. 0 = não expira.',
   'field.format': 'Formato',
   'field.file-name': 'Nome do arquivo',
-  'field.file-name.placeholder': 'Procuração - {{name}}',
+  'field.file-name.placeholder': 'Recibo - {{name}}',
   'field.document-type': 'Tipo de documento',
   'field.body.placeholder': '# Título\n\nTexto com campos: {{name}}',
   'field.docx.loaded': 'Há um modelo Word carregado. Envie outro arquivo para substituí-lo.',

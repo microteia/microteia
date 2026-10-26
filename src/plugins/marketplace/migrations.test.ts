@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { validateMigrations } from '../../domain/schema/plugin/migration';
-import { MARKETPLACE_CATALOG, boasVindasPlugin, guiaPlugin } from './catalog';
+import { MARKETPLACE_CATALOG } from './catalog';
 import { TRAVELLING_EXAMPLES } from './travellingExamples';
 import type { MarketplacePlugin } from '../../domain/entities/MarketplacePlugin';
 
@@ -11,8 +11,6 @@ import type { MarketplacePlugin } from '../../domain/entities/MarketplacePlugin'
  */
 const ALL: MarketplacePlugin[] = [
   ...MARKETPLACE_CATALOG,
-  boasVindasPlugin,
-  guiaPlugin,
   ...TRAVELLING_EXAMPLES,
 ];
 

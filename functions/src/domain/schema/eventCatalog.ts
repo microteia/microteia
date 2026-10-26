@@ -5,7 +5,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 
 import type { EntityKey, EntityMetadata, NativeFieldSpec, NativeFieldType } from './entityRegistry';
-import { ENTITY_REGISTRY, getEntityByCollection, getEntityByEventPrefix } from './entityRegistry';
+import { ENTITY_REGISTRY, getEntityByCollection } from './entityRegistry';
 import type { PathRoot, SchemaContext } from './pathResolver';
 import type { WorkflowParameter } from '../entities/Workflow';
 import { isEntityCollection, resolveEntity } from './screenEntity';
@@ -176,20 +176,59 @@ const declaredLookupEntry = (
 const NOTE_FIELDS: NativeFieldSpec[] = [
   { key: 'parentId', label: '@core.automation/event-field.parent-id', type: 'string' },
   { key: 'parentType', label: '@core.automation/event-field.parent-type', type: 'string' },
-  { key: 'content', label: '@core.automation/event-field.content', type: 'string' },
+  { key: 'title', label: '@core.automation/event-field.title', type: 'string' },
+  { key: 'text', label: '@core.automation/event-field.text', type: 'string' },
   { key: 'createdBy', label: '@core.automation/event-field.created-by', type: 'string' },
+  { key: 'createdByName', label: '@core.automation/event-field.created-by-name', type: 'string' },
   { key: 'createdAt', label: '@core.automation/event-field.created-at', type: 'date' },
 ];
 
 const DOCUMENT_FIELDS: NativeFieldSpec[] = [
   { key: 'parentId', label: '@core.automation/event-field.parent-id', type: 'string' },
   { key: 'parentType', label: '@core.automation/event-field.parent-type', type: 'string' },
-  { key: 'fileName', label: '@core.automation/event-field.file-name', type: 'string' },
-  { key: 'fileSize', label: '@core.automation/event-field.file-size', type: 'number' },
-  { key: 'uploadedBy', label: '@core.automation/event-field.uploaded-by', type: 'string' },
-  { key: 'uploadedAt', label: '@core.automation/event-field.uploaded-at', type: 'date' },
+  { key: 'name', label: '@core.automation/event-field.file-name', type: 'string' },
+  { key: 'type', label: '@core.automation/event-field.document-type', type: 'string' },
+  { key: 'description', label: '@core.automation/event-field.description', type: 'string' },
+  { key: 'contentType', label: '@core.automation/event-field.content-type', type: 'string' },
+  { key: 'size', label: '@core.automation/event-field.file-size', type: 'number' },
+  { key: 'createdBy', label: '@core.automation/event-field.created-by', type: 'string' },
+  { key: 'createdByName', label: '@core.automation/event-field.created-by-name', type: 'string' },
+  { key: 'createdAt', label: '@core.automation/event-field.created-at', type: 'date' },
+  { key: 'portalShared', label: '@core.automation/event-field.portal-shared', type: 'boolean' },
 ];
 
+/**
+ * Os filhos de um registro que publicam evento próprio — a nota e o documento da aba do registro. O
+ * nome do evento é `<prefixo do pai>_<filho>.<ação>`: o prefixo é o da TELA (`eventPrefix`, ou a
+ * coleção), e é por ele, e não por nome escrito aqui, que o evento existe para qualquer tela.
+ */
+export const CHILD_RECORD_KINDS = ['note', 'document'] as const;
+
+export type ChildRecordKind = (typeof CHILD_RECORD_KINDS)[number];
+
+/** A subcoleção do registro de onde vem cada filho. */
+export const CHILD_RECORD_SUBCOLLECTIONS: Record<ChildRecordKind, string> = {
+  note: 'notes',
+  document: 'documents',
+};
+
+export const childRecordEventName = (
+  parentPrefix: string,
+  kind: ChildRecordKind,
+  action: EntityEventAction,
+): string => `${parentPrefix}_${kind}.${action}`;
+
+const CHILD_RECORD_FIELDS: Record<ChildRecordKind, NativeFieldSpec[]> = {
+  note: NOTE_FIELDS,
+  document: DOCUMENT_FIELDS,
+};
+
+const CHILD_RECORD_LABELS: Record<ChildRecordKind, string> = {
+  note: '@core.automation/event.note',
+  document: '@core.automation/event.document',
+};
+
+/** O registro de que o filho pende, como o evento o leva: o id e os campos que dão nome a ele. */
 const parentObjectField = (entity: EntityMetadata): NativeFieldSpec => ({
   key: 'parent',
   label: entity.labelSingular,
@@ -203,39 +242,33 @@ const parentObjectField = (entity: EntityMetadata): NativeFieldSpec => ({
   ],
 });
 
-const NOTE_PARENTS: EntityKey[] = [];
-const DOCUMENT_PARENTS: EntityKey[] = [];
-
 /**
- * O evento de uma nota ou de um documento — "Ao salvar: Nota de Membro". O nome é composto em DOIS
+ * O evento de uma nota ou de um documento — "Ao salvar: Nota de Contrato". O nome é composto em DOIS
  * níveis, e é o motor de mensagens que os compõe: `name` é ele mesmo uma referência, e os parâmetros
  * IRMÃOS (`item`, `parent`) descem para ela. Este módulo é compartilhado com o backend e não pode
  * conhecer catálogo de idioma, então aqui só se declara a forma.
- *
- * A montagem por concatenação — `${prefix} de ${parent.labelSingular}` — é o que não pode voltar: ela
- * prendia dois textos de interface no código, e a preposição do meio prendia o idioma junto.
  */
-const nestedEntries = (
-  parents: EntityKey[],
-  suffix: 'note' | 'document',
-  itemLabel: string,
-  baseFields: NativeFieldSpec[],
-): WorkflowEventCatalogEntry[] =>
-  parents.flatMap((parentKey) => {
-    const parent = ENTITY_REGISTRY[parentKey];
-    const fields: NativeFieldSpec[] = [...baseFields, parentObjectField(parent)];
-    const root: PathRootBase = { kind: 'fields', fields };
-    const prefix = `${parent.eventPrefix}_${suffix}`;
-    const labelParams = {
-      name: '@core.automation/event.nested-item',
-      item: itemLabel,
-      parent: parent.labelSingular,
-    };
-    return [
-      buildEntry(`${prefix}.saved`, '@core.automation/event.on-save', true, flattenNativeFields(fields), root, labelParams),
-      buildEntry(`${prefix}.deleted`, '@core.automation/event.on-delete', false, flattenNativeFields(fields), root, labelParams),
-    ];
-  });
+const childRecordEntry = (
+  parent: EntityMetadata,
+  kind: ChildRecordKind,
+  action: EntityEventAction,
+): WorkflowEventCatalogEntry => {
+  const fields: NativeFieldSpec[] = [...CHILD_RECORD_FIELDS[kind], parentObjectField(parent)];
+  return buildEntry(
+    childRecordEventName(parent.eventPrefix ?? parent.collection, kind, action),
+    action === 'saved' ? '@core.automation/event.on-save' : '@core.automation/event.on-delete',
+    action === 'saved',
+    flattenNativeFields(fields),
+    { kind: 'fields', fields },
+    { name: '@core.automation/event.nested-item', item: CHILD_RECORD_LABELS[kind], parent: parent.labelSingular },
+  );
+};
+
+/** Os filhos que a tela da coleção mostra — e só esses têm evento no catálogo. */
+const childKindsOf = (ctx: SchemaContext, collection: string): ChildRecordKind[] => {
+  const screen = ctx.screens.get(collection);
+  return CHILD_RECORD_KINDS.filter((kind) => (kind === 'note' ? screen?.hasNotes : screen?.hasDocuments) === true);
+};
 
 const orderedEntities = ENTITY_EVENT_ORDER.map((key) => ENTITY_REGISTRY[key]).filter((entity) => entity.eventPrefix);
 
@@ -277,8 +310,6 @@ export const WORKFLOW_EVENT_CATALOG: WorkflowEventCatalogEntry[] = [
   lookupEntry('saved'),
   ...orderedEntities.map((entity) => entityEntry(entity, 'deleted')),
   lookupEntry('deleted'),
-  ...nestedEntries(NOTE_PARENTS, 'note', '@core.automation/event.note', NOTE_FIELDS),
-  ...nestedEntries(DOCUMENT_PARENTS, 'document', '@core.automation/event.document', DOCUMENT_FIELDS),
   workflowCalledEntry,
   scheduleEntry,
   auditEntry,
@@ -399,21 +430,34 @@ export const entityDateFieldKeys = (entity: EntityMetadata): string[] =>
   entity.fields.filter((field) => field.type === 'date' && !field.list).map((field) => field.key);
 
 /**
- * `person_note.saved` é o evento de um FILHO (nota, documento) da entidade fixa, não o de uma
- * coleção. A checagem é por composição — prefixo de entidade do registro + sufixo do filho — e não
- * por "tem underscore": chave com underscore é o normal de uma tela trazida por dependência
- * (`vendas__produto`), e barrá-la fazia o gatilho dela passar despercebido no empacotamento.
+ * `<prefixo>_note.saved` é o evento de um FILHO (nota, documento) de um registro, não o de uma
+ * coleção. A checagem é pelo sufixo do filho, e não por "tem underscore": chave com underscore é o
+ * normal de uma tela trazida por dependência (`vendas__produto`), e barrá-la fazia o gatilho dela
+ * passar despercebido no empacotamento. Uma tela cujo prefixo TERMINA num desses sufixos emitiria o
+ * mesmo nome que o filho de outra — e por isso o empacotamento o recusa como prefixo reservado.
  */
-export const NESTED_EVENT_SUFFIXES = ['_note', '_document'] as const;
+export const NESTED_EVENT_SUFFIXES = CHILD_RECORD_KINDS.map((kind) => `_${kind}` as const);
 
 const isNestedEntityEvent = (prefix: string): boolean =>
-  NESTED_EVENT_SUFFIXES.some(
-    (suffix) => prefix.endsWith(suffix) && !!getEntityByEventPrefix(prefix.slice(0, -suffix.length)),
-  );
+  NESTED_EVENT_SUFFIXES.some((suffix) => prefix.length > suffix.length && prefix.endsWith(suffix));
+
+/** Separa `<prefixo>_<filho>.<ação>`; `null` quando o evento não é de um filho de registro. */
+export const splitChildRecordEventName = (
+  eventName: string,
+): { parentPrefix: string; kind: ChildRecordKind; action: EntityEventAction } | null => {
+  const separator = eventName.lastIndexOf('.');
+  if (separator <= 0) return null;
+  const action = eventName.slice(separator + 1);
+  if (!(ENTITY_EVENT_ACTIONS as readonly string[]).includes(action)) return null;
+  const prefix = eventName.slice(0, separator);
+  const kind = CHILD_RECORD_KINDS.find((candidate) => prefix.length > candidate.length + 1 && prefix.endsWith(`_${candidate}`));
+  if (!kind) return null;
+  return { parentPrefix: prefix.slice(0, -(kind.length + 1)), kind, action: action as EntityEventAction };
+};
 
 /**
  * Separa `<coleção>.saved` / `<coleção>.deleted`. Devolve `null` para os eventos que não são de
- * entidade (`lookup.*`, `case_note.*`, `workflow.called`) — o empacotamento usa isto para saber
+ * entidade (`lookup.*`, `<prefixo>_note.*`, `workflow.called`) — o empacotamento usa isto para saber
  * qual tela um gatilho referencia.
  *
  * O que sai é o PREFIXO, não a coleção: ele coincide com o nome da coleção na maioria das telas, mas
@@ -459,22 +503,44 @@ const screenEventEntry = (
   }
 
   // O prefixo pode não ser o nome da coleção: uma tela declara `eventPrefix` para preservar os
-  // eventos que as automações já escutam quando a entidade muda de dono (`cases` → `case.saved`).
+  // eventos que as automações já escutam quando a entidade muda de dono (`orders` → `order.saved`).
   const declared = [...ctx.screens.values()].find((screen) => screen.eventPrefix === collection);
   if (!declared) return undefined;
   const entity = resolveEntity(ctx, declared.collection ?? declared.id);
   return entity ? entityEntry(entity, action) : undefined;
 };
 
+/** A coleção cuja tela EMITE o prefixo — o declarado em `eventPrefix`, ou o próprio nome dela. */
+const collectionEmitting = (ctx: SchemaContext, prefix: string): string | undefined => {
+  for (const [collection, screen] of ctx.screens) {
+    if ((screen.eventPrefix?.trim() || collection) === prefix) return collection;
+  }
+  return undefined;
+};
+
+const childRecordEventEntry = (
+  eventName: string,
+  ctx: SchemaContext | undefined,
+): WorkflowEventCatalogEntry | undefined => {
+  if (!ctx) return undefined;
+  const child = splitChildRecordEventName(eventName);
+  if (!child) return undefined;
+  const collection = collectionEmitting(ctx, child.parentPrefix);
+  const parent = collection ? resolveEntity(ctx, collection) : undefined;
+  return parent ? childRecordEntry(parent, child.kind, child.action) : undefined;
+};
+
 export const findEventCatalogEntry = (
   eventName: string,
   ctx?: SchemaContext,
 ): WorkflowEventCatalogEntry | undefined =>
-  WORKFLOW_EVENT_CATALOG.find((entry) => entry.name === eventName) ?? screenEventEntry(eventName, ctx);
+  WORKFLOW_EVENT_CATALOG.find((entry) => entry.name === eventName)
+  ?? screenEventEntry(eventName, ctx)
+  ?? childRecordEventEntry(eventName, ctx);
 
 /**
  * Catálogo completo para o tenant: os eventos fixos mais um par `.saved`/`.deleted` por tela do
- * Form Design ou de extensão.
+ * Form Design ou de extensão — e o par de cada filho (nota, documento) que a tela mostra.
  */
 export const buildWorkflowEventCatalog = (ctx: SchemaContext): WorkflowEventCatalogEntry[] => {
   const screenEntries: WorkflowEventCatalogEntry[] = [];
@@ -484,6 +550,9 @@ export const buildWorkflowEventCatalog = (ctx: SchemaContext): WorkflowEventCata
     if (!entity) continue;
     screenEntries.push(entityEntry(entity, 'saved'), entityEntry(entity, 'deleted'));
     if (entityDateFieldKeys(entity).length > 0) screenEntries.push(entityEntry(entity, DATE_REACHED_ACTION));
+    for (const kind of childKindsOf(ctx, collection)) {
+      screenEntries.push(childRecordEntry(entity, kind, 'saved'), childRecordEntry(entity, kind, 'deleted'));
+    }
   }
   // As 30 listas do kernel já estão no catálogo estático sob `lookup.*`; só as declaradas pelo
   // tenant precisam de par próprio, porque emitem pelo nome da coleção.

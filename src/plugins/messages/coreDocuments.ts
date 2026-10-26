@@ -248,7 +248,7 @@ export const CORE_DOCUMENTS_MESSAGES: Record<string, string> = {
   'field.retention.hint': 'Empty = the organization setting. 0 = never expires.',
   'field.format': 'Format',
   'field.file-name': 'File name',
-  'field.file-name.placeholder': 'Power of attorney - {{name}}',
+  'field.file-name.placeholder': 'Receipt - {{name}}',
   'field.document-type': 'Document type',
   'field.body.placeholder': '# Title\n\nText with fields: {{name}}',
   'field.docx.loaded': 'A Word template is loaded. Upload another file to replace it.',

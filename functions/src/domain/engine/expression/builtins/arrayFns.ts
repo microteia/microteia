@@ -70,7 +70,7 @@ export const mapFn: ExpressionFunction = {
   },
   description: '@core.automation/expr.map.description',
   signature: 'map(array, path, compact?)',
-  example: 'map(event.parties, "person.name", true)',
+  example: 'map(event.items, "product.name", true)',
   category: '@core.automation/expr.category.operator',
   minArgs: 2,
   maxArgs: 3,

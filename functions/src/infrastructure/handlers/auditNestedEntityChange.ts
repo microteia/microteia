@@ -6,9 +6,9 @@ import { logAuditError } from './shared/logAuditError';
 import type { AuditAction } from '../../domain/entities/AuditLog';
 
 /**
- * Escuta escritas em `tenants/{tenantId}/{parent}/{parentId}/{sub}/{docId}` — cobre
- * notas e documentos anexados a Pessoas/Processos/Contratos (+ documentos de Financeiro).
- * Mesma allowlist interna de `auditFlatEntityChange`, para pares (parent, sub).
+ * Escuta escritas em `tenants/{tenantId}/{parent}/{parentId}/{sub}/{docId}` — cobre as notas e os
+ * documentos de qualquer registro de tela declarada. A identidade vem da tela do pai
+ * (`resolveNestedEntityConfig`), como em `auditFlatEntityChange`.
  */
 export const auditNestedEntityChange = onDocumentWritten(
   { document: 'tenants/{tenantId}/{parent}/{parentId}/{sub}/{docId}', region: 'southamerica-east1' },

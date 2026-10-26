@@ -24,7 +24,7 @@ export const CALENDAR_MESSAGES: Record<string, string> = {
   'package.category': 'Productivity',
   'package.description': 'The office agenda, agnostic: any extension puts an item on it and stays its owner.',
   'package.summary':
-    'The office agenda in day columns, with the whole month on a single scroll that opens on today. It knows nothing about deadlines, hearings or instalments: any extension registers an item, stays its owner and decides what happens when someone drags it to another day.',
+    'The office agenda in day columns, with the whole month on a single scroll that opens on today. It knows no business by name: any extension registers an item, stays its owner and decides what happens when someone drags it to another day.',
 
   'nav.calendar': 'Calendar',
   'nav.group.schedule': 'Schedule',
@@ -88,7 +88,7 @@ export const CALENDAR_MESSAGES: Record<string, string> = {
   'overview.drag.value': 'Runs the action the origin declared',
   'overview.origin': 'Origin',
   'overview.origin.value': 'Each card says where it comes from, and you choose which origins appear',
-  'overview.banner': 'On its own the agenda opens empty: it is filled by the extensions that register items on it, such as Deadlines.',
+  'overview.banner': 'On its own the agenda opens empty: it is filled by the extensions that register items on it.',
 
   'view.screen-missing': 'The "Calendar" screen was not found. Install the extension to enable it.',
   'view.stat.month': 'This month',

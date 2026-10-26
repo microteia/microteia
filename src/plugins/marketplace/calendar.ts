@@ -203,7 +203,7 @@ const EXTENSION_POINTS: ExtensionPointDefinition[] = [
 export const calendarPlugin: MarketplacePlugin = {
   manifest: {
     id: 'com.microteia.calendar',
-    version: '1.8.0',
+    version: '1.8.1',
     kernel: '^2.46.0',
     name: message('package.name'),
     description: message('package.description'),

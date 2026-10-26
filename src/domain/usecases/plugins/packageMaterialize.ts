@@ -9,7 +9,7 @@ import type { Script } from '../../entities/Script';
 import type { ActionDefinitionInput } from '../../repositories/IActionRepository';
 import { mapSteps } from '../../services/stepTree';
 import { isArtifactRef } from '../../schema/plugin/artifactRef';
-import { splitEntityEventName } from '../../schema/eventCatalog';
+import { childRecordEventName, splitChildRecordEventName, splitEntityEventName } from '../../schema/eventCatalog';
 import { installedScreenKey, screenEventPrefix } from './screenModule';
 
 export type IdMap = Map<string, string>;
@@ -100,9 +100,13 @@ export const workflowInputFromTemplate = (
   const rest = withoutTemplateId(template);
   const steps = rewriteStepLiteral(rest.steps ?? [], 'scriptId', scriptMap);
   const event = splitEntityEventName(rest.eventName);
+  const child = splitChildRecordEventName(rest.eventName);
+  const childParent = child ? screenEventMap.get(child.parentPrefix) : undefined;
   const eventName = event && screenEventMap.has(event.prefix)
     ? `${screenEventMap.get(event.prefix)}.${event.action}`
-    : rest.eventName;
+    : child && childParent !== undefined
+      ? childRecordEventName(childParent, child.kind, child.action)
+      : rest.eventName;
   return stripUndefined({
     ...rest, steps, eventName, ownerPluginId: pluginId, ownerPluginIds: [pluginId], sourceId: template.templateId, sourceRev: template.sourceRev ?? null, enabled: true,
   });

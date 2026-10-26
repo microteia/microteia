@@ -301,14 +301,14 @@ Em vez de uma Cloud Function por coleção monitorada (o que exigiria ~17 deploy
 
 | Handler | Trigger | Cobre |
 |---|---|---|
-| `auditFlatEntityChange` | `onDocumentWritten('tenants/{tenantId}/{collection}/{docId}')` | `members`, `*Tags`, `pushes`, `screenDefinitions` — **e toda coleção de tela declarada** (`persons`, `cases`, `contracts`, `deadlines`, `financials`, as do Form Design…) |
-| `auditNestedEntityChange` | `onDocumentWritten('tenants/{tenantId}/{parent}/{parentId}/{sub}/{docId}')` | `notes`/`documents` de qualquer registro de tela declarada (+ `documents` de `financials`, `tags` de `screenDefinitions`) |
+| `auditFlatEntityChange` | `onDocumentWritten('tenants/{tenantId}/{collection}/{docId}')` | `members`, `roles`, `screenDefinitions` — **e toda coleção de tela declarada** (de extensão ou do Form Design) |
+| `auditNestedEntityChange` | `onDocumentWritten('tenants/{tenantId}/{parent}/{parentId}/{sub}/{docId}')` | `notes`/`documents` de qualquer registro de tela declarada (+ `tags` de `screenDefinitions`) |
 | `auditTenantDeleted` | `onDocumentDeleted('tenants/{tenantId}')` | Exclusão do escritório inteiro — sempre `severity: 'CRITICAL'` |
 | `backupDeletedAuditLog` | `onDocumentDeleted('auditLogs/{logId}')` | Backup frio no Storage (ver abaixo) |
 
 **Quem dá nome à entidade auditada:** a tabela do código só descreve o que é do kernel. Para toda coleção que não é reservada nem fixa, `resolveFlatEntityConfig`/`resolveNestedEntityConfig` (`auditableEntities.ts`) resolvem a identidade pela declaração do TENANT — `resolveEntity(ctx, collection)`, a mesma resolução que a tela e a automação usam —, tirando dela o título no singular e no plural e os campos que dão nome ao registro (`displayNameFields`). É por isso que o log diz "Contrato" no dia em que Contrato deixa de ser do kernel e vira extensão; enquanto a identidade vinha de uma lista fixa, o mesmo log dizia "Registro". Sem tela que descreva a coleção (extensão desinstalada, coleção órfã), sobra o rótulo genérico. As telas vêm do `ScreenDefinitionCache` (TTL de 5 min), e só são lidas quando a coleção não é fixa.
 
-O que o log GRAVA em `entity` é a **coleção** (`contracts`, `contracts#notes` para a subcoleção), nunca o título: a coleção é o que o filtro casa e não muda quando a tela é renomeada. O rótulo é resolvido a cada exibição por `entityLabel(entity, dynamicScreens)` (`presentation/pages/AuditLogs/auditLogLabels.ts`), que também alimenta as opções do filtro por entidade (`entityFilterOptions`); `ENTITY_LABELS` continua no arquivo para os logs anteriores à migração, que guardam `Person`/`Case`/`Contract`.
+O que o log GRAVA em `entity` é a **coleção** (`contracts`, `contracts#notes` para a subcoleção), nunca o título: a coleção é o que o filtro casa e não muda quando a tela é renomeada. O rótulo é resolvido a cada exibição por `entityLabel(entity, dynamicScreens)` (`presentation/pages/AuditLogs/auditLogLabels.ts`), que também alimenta as opções do filtro por entidade (`entityFilterOptions`); `ENTITY_KEYS` traz só as entidades que o backend ainda audita por nome próprio; as chaves `Person`/`Case`/`Push` dos logs anteriores à migração saíram, porque o TTL de 30 dias já os apagou (e um nome sem chave aparece cru, sem quebrar a tela).
 
 Uma coleção pode restringir quais ações geram log, e quem diz isso é a **TELA** que a declara:
 `auditActions?: AuditAction[]` em `ScreenModuleTemplate`/`ScreenDefinition`, que chega ao backend pela
@@ -335,14 +335,14 @@ Membro de tenant (`TenantMember`) é removido via Cloud Function callable (`remo
 
 **Filtro de ruído:** updates onde só mudaram campos de bookkeeping (`updatedAt`, `updatedBy*`) não geram log — evita entradas vazias quando um formulário é salvo sem alteração real.
 
-**Resolução de nomes de FK.** Sem tratamento, um campo que guarda o id de outra entidade (ex: `clientId` de Contrato, `activePoleIds` de Processo, ou um campo personalizado do tipo "Referência" criado no Screen Builder) apareceria no bloco JSON só como id cru — ilegível para o usuário do escritório. `auditFlatEntityChange` resolve isso **no momento da escrita**, antes de `buildAuditText`, chamando `IFkNameEnricherService.enrichDiff(tenantId, collection, screenKey, diff)` (`data/services/FkNameEnricherService.ts`), que:
+**Resolução de nomes de FK.** Sem tratamento, um campo que guarda o id de outra entidade (um campo do tipo "Referência", declarado pela tela de uma extensão ou criado no Screen Builder) apareceria no bloco JSON só como id cru — ilegível para o usuário do escritório. `auditFlatEntityChange` resolve isso **no momento da escrita**, antes de `buildAuditText`, chamando `IFkNameEnricherService.enrichDiff(tenantId, collection, screenKey, diff)` (`data/services/FkNameEnricherService.ts`), que:
 
-1. Consulta `STATIC_FK_SCHEMA` (`domain/services/auditFkSchema.ts`) — tabela declarativa dos campos FK "de código" das entidades fixas (ex: `financials.caseId → cases`, `contracts.contractorIds → persons`, `*.tagIds → *Tags`). Só entram aqui campos **sem** um irmão já desnormalizado no próprio diff (`caseId`+`caseNumber` juntos, por exemplo, não precisam de resolução extra).
-2. Busca o `ScreenDefinition` de id igual à própria coleção e monta o mesmo tipo de schema para todo `FieldDefinition` com `type === 'reference'`, indexado pela chave do campo (que mora na raiz do documento). `refEntity` é sempre o nome da coleção alvo — fixa ou de tela, sem tradução.
+1. Monta o esquema de referências da coleção (`fkSchemaOf`): o `ENTITY_FK_SCHEMA` das entidades fixas do kernel mais todo campo com `refEntity` da entidade resolvida pela tela (`resolveEntity`), pela mesma resolução que a tela e a automação usam. A tela é achada pela coleção que ela descreve, não pela própria chave. `refEntity` é sempre o nome da coleção alvo.
+2. Indexa o esquema pela chave do campo, que mora na raiz do documento.
 3. Coleta todos os ids referenciados em `before`/`after`, deduplica por `(coleção, id)` e busca todos de uma vez com `Firestore.getAll(...refs)` — uma única chamada em lote, não uma query por campo.
 4. Substitui cada id (ou cada item de um array de ids) pelo nome de exibição (`AuditableEntityConfig.getDisplayName`, a mesma função já usada para nomear a entidade principal do log) — mantendo o id como fallback se o documento referenciado não existir mais (ex: já excluído).
 
-O nome fica **congelado no `text` do log como era no momento do evento** — se a entidade referenciada for renomeada depois, o histórico não muda retroativamente (comportamento correto para uma trilha de auditoria). Coleções sem nenhum campo FK conhecido (`members`, `*Tags`, `pushes`, `screenDefinitions`) não disparam nenhuma leitura extra — `enrichDiff` retorna o diff inalterado assim que a tabela de schema resolvida está vazia.
+O nome fica **congelado no `text` do log como era no momento do evento** — se a entidade referenciada for renomeada depois, o histórico não muda retroativamente (comportamento correto para uma trilha de auditoria). Coleções sem nenhum campo FK conhecido (`members`, `screenDefinitions`) não disparam nenhuma leitura extra — `enrichDiff` retorna o diff inalterado assim que a tabela de schema resolvida está vazia.
 
 **Automações sobre a Auditoria.** Cada log que uma pessoa causa pode disparar uma automação
 (`audit.recorded`) — ver "Gatilho de Auditoria" no Workflow Engine, inclusive as travas contra laço.
@@ -1509,6 +1509,7 @@ functions/
 │           ├── auditFlatEntityChange.ts
 │           ├── onWorkflowEventCreated.ts
 │           └── workflow/
+│               ├── publishChildRecordEvent.ts  # nota/documento de QUALQUER tela
 │               ├── onNoteChange.ts
 │               └── onDocumentChange.ts
 ├── package.json                        # Scripts de build
@@ -5819,12 +5820,40 @@ reservadas do sistema (tags, `members`, `aiConnections`, `workflow_*`, subcoleç
 são ignoradas por denylist (`RESERVED_COLLECTIONS`), sem consultar o cache de telas: o gatilho roda em
 toda escrita do tenant e uma leitura extra por escrita sairia cara.
 
+#### Nota e documento — `<prefixo>_note.*` e `<prefixo>_document.*`
+
+A nota e o documento da aba do registro publicam evento próprio, para **qualquer** tela, por dois
+gatilhos finos (`onNoteChange`, `onDocumentChange`) que chamam o mesmo `publishChildRecordEvent`.
+A coleção do pai decide pela mesma regra do evento do registro (`getWorkflowEventPrefix` +
+`resolveEventPrefix`): reservada ou lista de opções não publica, e o prefixo é o `eventPrefix` da tela,
+ou a coleção. O nome sai de `childRecordEventName` (`eventCatalog.ts`), o payload de `childRecordEvent`
+(`functions/src/domain/services/`):
+
+| Campo | O que é |
+|---|---|
+| `id`, `parentId`, `parentType` | o filho, o registro pai e o prefixo dele |
+| `changeType`, `old` | como no evento do registro (só em `saved`) |
+| o resto | o documento gravado: `title`/`text` na nota; `name`, `type`, `description`, `contentType`, `size`, `portalShared` no documento; `createdBy*`/`createdAt` nos dois |
+| `parent` | `{ id, ...campos que dão nome ao registro }` — os `referenceDenormFields` da entidade, os mesmos que o catálogo oferece em `parent.*` |
+
+O catálogo do editor só oferece o par de um filho que a tela MOSTRA (`hasNotes`/`hasDocuments`, que
+estão no `SchemaScreen` por isso). `splitEntityEventName` devolve `null` para eles: o sufixo
+`_note`/`_document` identifica o evento de filho, e por isso o empacotamento recusa como reservado o
+prefixo de tela que termine nele — emitiria o mesmo nome que o filho de outra.
+
+**Esses gatilhos tinham a lista `['cases', 'persons', 'contracts', 'financials']` escrita no código**,
+e o nome do evento saía de `parent.slice(0, -1)` — o plural inglês de quatro coleções de escritório de
+advocacia. Para toda tela declarada, o evento simplesmente não existia, e o catálogo os escondia
+(`DOCUMENT_PARENTS = []`). Os nomes que as extensões do escritório já emitiam (`case_document.*`) são
+os mesmos de agora, porque elas declaram `eventPrefix`.
+
 **Catálogo de eventos:** derivado do `ENTITY_REGISTRY` no arquivo compartilhado
 `domain/schema/eventCatalog.ts` (fonte em `src/`, cópia gerada em `functions/`) — eventos de
-entidade (campos nativos, FKs e caminhos denormalizados derivados de `FkSpec`) ∪ eventos de
-sistema declarados (`SYSTEM_EVENTS`: notas/documentos com pai denormalizado do registry, lookup).
+entidade (campos nativos, FKs e caminhos denormalizados derivados de `FkSpec`) ∪ o par de nota e
+de documento de cada tela que os mostra ∪ os eventos de sistema (lookup, `workflow.called`, agenda,
+auditoria).
 `src/domain/services/workflowEventCatalog.ts` é um adapter fino que re-exporta o catálogo — usado
-para (1) o seletor de evento na aba Geral, com rótulos em PT-BR (`"Ao salvar: Processo"`) e (2) a
+para (1) o seletor de evento na aba Geral, com rótulos resolvidos pelo catálogo de mensagens (`"Ao salvar: Pedido"`) e (2) a
 lista de campos do mapping "Do evento". O mesmo catálogo fornece `eventNameToRoot`, a raiz de
 navegação usada pelo autocomplete do `ExpressionEditor` e pela hidratação lazy.
 
@@ -7701,10 +7730,10 @@ irmã parecia não declarado por ninguém. `catalogSchemaContext`, `packagesSche
 perguntas saem pela porta principal do SDK: o teste do Painel importava
 `lib/sdk/domain/catalog.js` pelo caminho e andava os caminhos com um andador próprio.
 
-`splitEntityEventName` reconhece o evento de FILHO (`person_note.saved`) por composição — prefixo de
-entidade do registro mais `_note`/`_document` —, e não por "tem underscore": chave com underscore é
-o normal de uma tela trazida por dependência (`com-acme-vendas__produto`), e barrá-la fazia o
-gatilho dela passar despercebido no empacotamento.
+`splitEntityEventName` reconhece o evento de FILHO (`<prefixo>_note.saved`) pelo sufixo
+`_note`/`_document`, e não por "tem underscore": chave com underscore é o normal de uma tela trazida
+por dependência (`com-acme-vendas__produto`), e barrá-la fazia o gatilho dela passar despercebido no
+empacotamento. Ver "Nota e documento" na publicação de eventos.
 
 **Escopo desta fase:** materialização/instalação. A autoria ("Criar Plugin": marcar artefatos +
 manifest → validar como dry-run de import → gerar `.json`/publicar) e o upgrade são as fases seguintes.

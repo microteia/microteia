@@ -1108,9 +1108,11 @@ const PURE_READS: ToolDefinition[] = [
           eventPayload: 'the record, as on a save, without "changeType" and "old"',
         },
         ...NESTED_EVENT_SUFFIXES.map((suffix) => ({
-          eventName: `<parent>${suffix}.${ENTITY_EVENT_ACTIONS.join(` | <parent>${suffix}.`)}`,
-          fires: `a ${suffix.slice(1)} of a record of that parent collection changes`,
-          eventPayload: `the ${suffix.slice(1)}, and the id of the record it hangs from`,
+          eventName: `<prefix>${suffix}.${ENTITY_EVENT_ACTIONS.join(` | <prefix>${suffix}.`)}`,
+          fires: `a ${suffix.slice(1)} of a record changes. <prefix> is the event prefix of the record's screen `
+            + `(its \`eventPrefix\`, or its collection), and the screen must show the ${suffix.slice(1)}s tab`,
+          eventPayload: `the ${suffix.slice(1)}, plus "parentId", "parentType" (the prefix) and "parent" (the `
+            + 'id and the title field of the record it hangs from); "old" on a save',
         })),
         {
           eventName: `lookup.${ENTITY_EVENT_ACTIONS.join(' | lookup.')}`,
@@ -1133,7 +1135,7 @@ const PURE_READS: ToolDefinition[] = [
         'The collection half is not enumerable from here on purpose: it is the collection of the '
         + 'screen that declares it, and the kernel knows none by name. Use your own screen\'s '
         + 'collection, or the `eventPrefix` it declares — or the prefix a screen of a DEPENDENCY '
-        + 'emits (`case.saved` for a screen over `cases` declaring `eventPrefix: "case"`). That '
+        + 'emits (`order.saved` for a screen over `orders` declaring `eventPrefix: "order"`). That '
         + 'extension must be in `manifest.dependencies`; the prefix is resolved against its screens, '
         + 'and validate_plugin says which one emits it.',
         `"${WORKFLOW_CALLED_EVENT}" is the trigger an action fires. That workflow declares `

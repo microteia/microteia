@@ -148,7 +148,7 @@ export const dateDiffFn: ExpressionFunction = {
   },
   description: '@core.automation/expr.dateDiff.description',
   signature: 'dateDiff(date1, date2, unit)',
-  example: 'dateDiff(today(), event.deadline, "days")',
+  example: 'dateDiff(today(), event.dueDate, "days")',
   category: '@core.automation/expr.category.date',
   minArgs: 2,
   maxArgs: 3,

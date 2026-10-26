@@ -96,7 +96,7 @@ const STEP_GAP_NOTES: Record<string, string> = {
     + 'candidate filter made the missing transition description matter in the first place',
   'ai-extract-parameters': 'pulls parameters out of a text. The model has no notion of an incoming message to read',
   'render-document': 'fills a document template with a record and attaches the file. The model has no effect for '
-    + '"produce a document" — "when the contract is signed, generate the power of attorney" cannot be said',
+    + '"produce a document" — "when the order is approved, generate the receipt" cannot be said',
 };
 
 const stepItems = (): CoverageItem[] => {

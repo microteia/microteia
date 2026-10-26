@@ -1,10 +1,8 @@
 import type React from 'react';
 import type { EntityRecord, ScreenDefinition, UserRole } from '../../../../../domain/entities';
-import type { PersonRecord } from '../../../../shared/useCollectionRecords';
 import type { WorkflowDefinition } from '../../../../../domain/entities/Workflow';
 import type { ThemeOption } from '../../../../../stores/useTheme';
 import type { UiPageMetadata } from '../../../../../domain/schema/ui/uiExtensionPoints';
-import type { CaseRecord, ContractRecord } from '../../../../shared/useCollectionRecords';
 import type { TranslateFn } from '../../../../shared/i18n/useT';
 
 export interface CommandPaletteItem {
@@ -42,9 +40,6 @@ export interface CommandPaletteReport {
 export interface CommandPaletteAppContext {
   openTab: (key: string) => void;
   close: () => void;
-  persons: PersonRecord[];
-  cases: CaseRecord[];
-  contracts: ContractRecord[];
   records: EntityRecord[];
   screenDefinitions: ScreenDefinition[];
   workflows: WorkflowDefinition[];

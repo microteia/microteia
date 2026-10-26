@@ -9,7 +9,7 @@ import type { ReportModuleTemplate } from '../../entities/Report';
 import type { InputMapping, WorkflowStep } from '../../entities/Workflow';
 import { flattenSteps } from '../../services/stepTree';
 import { getEntityByCollection, getEntityByEventPrefix } from '../../schema/entityRegistry';
-import { splitEntityEventName } from '../../schema/eventCatalog';
+import { splitChildRecordEventName, splitEntityEventName } from '../../schema/eventCatalog';
 import { isLookupCollection } from '../../schema/lookupRegistry';
 import { hasRefSeparator, parseArtifactRef } from '../../schema/plugin/artifactRef';
 import { dependencyCollections } from '../../schema/plugin/pluginManifest';
@@ -185,7 +185,9 @@ export const workflowOutRefs = (
     const targetWorkflowId = stepLiteral(step, TARGET_WORKFLOW_ID_INPUT);
     if (targetWorkflowId) refs.push({ kind: 'workflow', id: targetWorkflowId, from: stepFrom });
   }
-  const event = splitEntityEventName(workflow.eventName);
+  // O evento de uma nota ou de um documento depende da tela do PAI, como o do próprio registro.
+  const child = splitChildRecordEventName(workflow.eventName);
+  const event = splitEntityEventName(workflow.eventName) ?? (child ? { prefix: child.parentPrefix } : null);
   if (event) {
     const emitter = screens.find((screen) => screenEventPrefix(screen) === event.prefix);
     if (emitter) refs.push({ kind: 'screen', id: emitter.key, from });

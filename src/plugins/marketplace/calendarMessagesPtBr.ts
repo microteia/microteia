@@ -19,7 +19,7 @@ const CALENDAR_PT_BR: Record<string, string> = {
   'package.category': 'Produtividade',
   'package.description': 'A agenda do escritório, agnóstica: qualquer extensão põe um item nela e continua dona dele.',
   'package.summary':
-    'A agenda do escritório em colunas de dia, com o mês inteiro numa rolagem que abre no dia de hoje. Ela não conhece prazo, audiência nem parcela: qualquer extensão registra um item, continua dona dele e diz o que acontece quando o usuário o arrasta para outro dia.',
+    'A agenda do escritório em colunas de dia, com o mês inteiro numa rolagem que abre no dia de hoje. Ela não conhece negócio nenhum pelo nome: qualquer extensão registra um item, continua dona dele e diz o que acontece quando o usuário o arrasta para outro dia.',
 
   'nav.calendar': 'Calendário',
   'nav.group.schedule': 'Agenda',
@@ -83,7 +83,7 @@ const CALENDAR_PT_BR: Record<string, string> = {
   'overview.drag.value': 'Executa a ação que a origem declarou',
   'overview.origin': 'Origem',
   'overview.origin.value': 'Cada cartão diz de onde vem, e você escolhe quais origens aparecem',
-  'overview.banner': 'Sozinha, a agenda abre vazia: quem a preenche são as extensões que registram itens nela, como a de Prazos.',
+  'overview.banner': 'Sozinha, a agenda abre vazia: quem a preenche são as extensões que registram itens nela.',
 
   'view.screen-missing': 'Tela "Calendário" não encontrada. Instale a extensão para ativá-la.',
   'view.stat.month': 'No mês',

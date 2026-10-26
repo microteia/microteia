@@ -7,6 +7,7 @@ import {
   eventEntity,
   resolveEventCatalogLabel,
   splitEntityEventName,
+  splitChildRecordEventName,
   eventNameToEntityKey,
   eventNameToRoot,
   getWorkflowEventFields,
@@ -199,20 +200,67 @@ describe('splitEntityEventName', () => {
   });
 
   /**
-   * Chave com underscore é o normal de uma tela trazida por dependência. O que a distingue de um
-   * evento de filho é a composição (prefixo de entidade fixa + `_note`/`_document`), não o caractere.
+   * Chave com underscore é o normal de uma tela trazida por dependência. O que distingue um evento
+   * de filho é o SUFIXO (`_note`/`_document`), não o caractere.
    */
   it('a chave namespaced de uma dependência é um evento de coleção', () => {
     expect(splitEntityEventName('com-microteia-vendas__produto.saved')).toEqual({
       prefix: 'com-microteia-vendas__produto',
       action: 'saved',
     });
-    expect(splitEntityEventName('medico_note.saved')).toMatchObject({ prefix: 'medico_note' });
-    // Nenhum prefixo é mais do registro, então `person_note`, `deadline_note` e `push_note` voltam
-    // a ser nomes de coleção como qualquer outro.
-    expect(splitEntityEventName('person_note.saved')).toMatchObject({ prefix: 'person_note' });
-    expect(splitEntityEventName('deadline_note.saved')).toMatchObject({ prefix: 'deadline_note' });
-    expect(splitEntityEventName('push_note.saved')).toMatchObject({ prefix: 'push_note' });
+    expect(splitEntityEventName('medico_note.saved')).toBeNull();
+    expect(splitEntityEventName('medico_document.deleted')).toBeNull();
+  });
+});
+
+describe('eventos de nota e documento de qualquer tela', () => {
+  const ctx = createSchemaContext([
+    {
+      id: 'pedidos',
+      collection: 'orders',
+      eventPrefix: 'order',
+      titleSingular: 'Pedido',
+      titleFieldKey: 'code',
+      hasNotes: true,
+      hasDocuments: true,
+      fields: [{ key: 'code', label: 'Código', type: 'text', required: true, order: 0, origin: 'plugin' }],
+    },
+    {
+      id: 'medico',
+      titleSingular: 'Médico',
+      titleFieldKey: 'name',
+      hasDocuments: true,
+      fields: [{ key: 'name', label: 'Nome', type: 'text', required: true, order: 0, origin: 'design' }],
+    },
+  ]);
+
+  it('separa o prefixo do pai, o filho e a ação', () => {
+    expect(splitChildRecordEventName('order_document.saved')).toEqual({ parentPrefix: 'order', kind: 'document', action: 'saved' });
+    expect(splitChildRecordEventName('vendas__item_note.deleted')).toEqual({ parentPrefix: 'vendas__item', kind: 'note', action: 'deleted' });
+    expect(splitChildRecordEventName('order.saved')).toBeNull();
+    expect(splitChildRecordEventName('_note.saved')).toBeNull();
+    expect(splitChildRecordEventName('order_note.dateReached')).toBeNull();
+  });
+
+  it('o catálogo oferece só os filhos que a tela mostra, pelo prefixo dela', () => {
+    const names = buildWorkflowEventCatalog(ctx).map((e) => e.name);
+    expect(names).toEqual(expect.arrayContaining([
+      'order_note.saved', 'order_note.deleted', 'order_document.saved', 'order_document.deleted',
+      'medico_document.saved', 'medico_document.deleted',
+    ]));
+    expect(names).not.toContain('medico_note.saved');
+    expect(names).not.toContain('orders_note.saved');
+  });
+
+  it('os campos são os gravados de verdade, mais o pai com o campo que dá nome a ele', () => {
+    const paths = getWorkflowEventFields('order_document.saved', ctx).map((field) => field.path);
+    expect(paths).toEqual(expect.arrayContaining([
+      'id', 'changeType', 'old', 'parentId', 'parentType', 'name', 'type', 'size', 'createdBy', 'portalShared',
+      'parent.id', 'parent.code',
+    ]));
+    expect(getWorkflowEventFields('order_note.deleted', ctx).map((field) => field.path))
+      .toEqual(expect.arrayContaining(['title', 'text', 'parent.code']));
+    expect(getWorkflowEventFields('unknown_note.saved', ctx)).toEqual([]);
   });
 });
 

@@ -32,7 +32,7 @@ export const DATA_FUNCTIONS: DataFunctionDef[] = [
       { name: 'projections', description: '@core.automation/data-fn.query.projections' },
     ],
     returns: '@core.automation/data-fn.query.returns',
-    example: `const r = await query({\n  table: 'cases',\n  where: [{ path: 'status', op: 'eq', value: 'Ativo' }],\n  projections: ['title', 'client.name'],\n  limit: 20,\n});\nlog(r.count, r.first?.title);`,
+    example: `const r = await query({\n  table: 'news',\n  where: [{ path: 'category', op: 'eq', value: input.category }],\n  projections: ['title', 'summary'],\n  limit: 20,\n});\nlog(r.count, r.first?.title);`,
   },
   {
     name: 'upsert',
@@ -50,7 +50,7 @@ export const DATA_FUNCTIONS: DataFunctionDef[] = [
       },
     ],
     returns: '@core.automation/data-fn.upsert.returns',
-    example: `const r = await upsert({\n  table: 'persons',\n  data: { name: 'Ana Souza' },\n});\nlog(r.created, r.id);`,
+    example: `const r = await upsert({\n  table: 'news',\n  data: { title: input.title, summary: input.summary },\n});\nlog(r.created, r.id);`,
   },
   {
     name: 'remove',
@@ -63,7 +63,7 @@ export const DATA_FUNCTIONS: DataFunctionDef[] = [
       { name: 'id', description: '@core.automation/data-fn.remove.id' },
     ],
     returns: '@core.automation/data-fn.remove.returns',
-    example: `const found = await query({ table: 'persons', where: [{ path: 'taxId', op: 'eq', value: input.taxId }], limit: 1 });\nif (found.first) {\n  await remove({ table: 'persons', id: found.first.id });\n}`,
+    example: `const found = await query({ table: 'news', where: [{ path: 'sourceURL', op: 'eq', value: input.sourceURL }], limit: 1 });\nif (found.first) {\n  await remove({ table: 'news', id: found.first.id });\n}`,
   },
 ];
 

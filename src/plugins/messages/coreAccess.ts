@@ -155,7 +155,7 @@ export const CORE_ACCESS_MESSAGES: Record<string, string> = {
   'agent.audit.date-invalid': '"{path}" is not a date: send "YYYY-MM-DD" or an ISO-8601 timestamp.',
   'agent.document.not-enabled':
     'The screen "{collection}" has no Documents tab, so its records do not take attachments.',
-  'agent.document.name-invalid': 'Give the file a name with its extension, for example "contract.pdf".',
+  'agent.document.name-invalid': 'Give the file a name with its extension, for example "report.pdf".',
   'agent.document.content-invalid': '"content" is not valid base64.',
   'agent.document.empty': 'The file is empty.',
   'agent.document.too-large': 'The file has {size} MB, and files must be smaller than {limit} MB.',
