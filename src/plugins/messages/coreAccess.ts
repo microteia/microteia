@@ -172,6 +172,9 @@ export const CORE_ACCESS_MESSAGES: Record<string, string> = {
     'Register, edit and remove the artificial intelligence connections of the organization.',
   'permission.audit.read': 'Read the audit trail',
   'permission.audit.read.description': 'See everything that was created, changed and deleted in the organization.',
+  'permission.audit.manage': 'Manage audit retention',
+  'permission.audit.manage.description':
+    'Decide for how long the audit trail stays available, and turn on or off its daily archive with hash chain. Includes reading the audit trail.',
   'permission.automation.manage': 'Manage automations',
   'permission.automation.manage.description':
     'Create, edit and delete automations, scripts and the actions shown on the screens.',

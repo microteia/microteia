@@ -190,6 +190,19 @@ import { FirebaseRecordDocumentSharing } from '../../data/services/FirebaseRecor
 import type { RenderDocumentUseCase } from '../../domain/usecases/RenderDocumentUseCase';
 import { configuredLocale, preferredLocale, settingsValuesOf } from '../../domain/services/tenantSettings';
 import { notifyRecordKeyConflicts } from '../recordKeys/recordKeyConflictNotifier';
+import { createHash } from 'node:crypto';
+import { getStorage } from 'firebase-admin/storage';
+import type { IAuditRetentionRepository } from '../../domain/repositories/IAuditRetentionRepository';
+import { FirestoreAuditRetentionRepository } from '../../data/repositories/FirestoreAuditRetentionRepository';
+import { FirestoreAuditLogDaySource } from '../../data/repositories/FirestoreAuditLogDaySource';
+import { GcsAuditArchiveStore } from '../../data/services/GcsAuditArchiveStore';
+import type { IAuditArchiveStore } from '../../domain/repositories/IAuditArchiveStore';
+import { makeExportAuditArchiveUseCase } from '../../domain/usecases/ExportAuditArchiveUseCase';
+import type { ExportAuditArchiveUseCase } from '../../domain/usecases/ExportAuditArchiveUseCase';
+import { makeManageAuditArchiveUseCase } from '../../domain/usecases/ManageAuditArchiveUseCase';
+import type { ManageAuditArchiveUseCase } from '../../domain/usecases/ManageAuditArchiveUseCase';
+import { makeAuditRetentionDaysOf } from '../settings/auditRetentionDays';
+import { AUDIT_ARCHIVE_BUCKET } from '../settings/auditArchiveBucket';
 
 class DIContainer {
   private static instance: DIContainer;
@@ -207,6 +220,8 @@ class DIContainer {
   private tenantRepo?: ITenantRepository;
   private tenantSettingsRepo?: ITenantSettingsRepository;
   private auditLogRepo?: IAuditLogRepository;
+  private auditRetentionRepo?: IAuditRetentionRepository;
+  private auditArchiveStore?: IAuditArchiveStore;
   private userProfileLookupService?: IUserProfileLookupService;
   private fkNameEnricherService?: IFkNameEnricherService;
   private createAuditLogUC?: CreateAuditLogUseCase;
@@ -590,9 +605,44 @@ class DIContainer {
 
   getAuditLogRepository(): IAuditLogRepository {
     if (!this.auditLogRepo) {
-      this.auditLogRepo = new FirebaseAuditLogRepository(getDb());
+      this.auditLogRepo = new FirebaseAuditLogRepository(
+        getDb(),
+        makeAuditRetentionDaysOf(() => this.getAuditRetentionRepository(), (message, detail) => console.warn(message, detail)),
+      );
     }
     return this.auditLogRepo;
+  }
+
+  getAuditRetentionRepository(): IAuditRetentionRepository {
+    if (!this.auditRetentionRepo) this.auditRetentionRepo = new FirestoreAuditRetentionRepository(getDb());
+    return this.auditRetentionRepo;
+  }
+
+  getAuditArchiveStore(): IAuditArchiveStore {
+    if (!this.auditArchiveStore) {
+      this.auditArchiveStore = new GcsAuditArchiveStore(AUDIT_ARCHIVE_BUCKET.value(), (name) => getStorage().bucket(name));
+    }
+    return this.auditArchiveStore;
+  }
+
+  private auditArchiveDeps() {
+    return {
+      retention: this.getAuditRetentionRepository(),
+      store: this.getAuditArchiveStore(),
+      sha256: (text: string) => createHash('sha256').update(text, 'utf8').digest('hex'),
+      now: () => new Date(),
+      audit: this.getCreateAuditLogUseCase(),
+      dispatch: this.getDispatchNotificationUseCase(),
+      warn: (message: string, detail?: unknown) => console.warn(message, detail),
+    };
+  }
+
+  getExportAuditArchiveUseCase(): ExportAuditArchiveUseCase {
+    return makeExportAuditArchiveUseCase({ ...this.auditArchiveDeps(), logs: new FirestoreAuditLogDaySource(getDb()) });
+  }
+
+  getManageAuditArchiveUseCase(): ManageAuditArchiveUseCase {
+    return makeManageAuditArchiveUseCase(this.auditArchiveDeps());
   }
 
   getUserProfileLookupService(): IUserProfileLookupService {

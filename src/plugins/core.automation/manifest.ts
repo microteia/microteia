@@ -87,6 +87,15 @@ export const coreAutomationPlugin: PluginRecord = {
         icon: 'key',
         variables: ['screen', 'keys', 'count'],
       }),
+      // A exportação do arquivo da Auditoria roda sozinha, de hora em hora: sem este aviso, a falha
+      // ficaria no badge de quem abre a Auditoria — justamente quem não está olhando.
+      notificationCategoryContribution({
+        key: 'audit-archive',
+        title: '@core.admin/audit.archive.category',
+        description: '@core.admin/audit.archive.category.description',
+        icon: 'history',
+        variables: ['day', 'attempts', 'error'],
+      }),
       page({ key: NOTIFICATIONS_PAGE_KEY, title: '@core.automation/page.notifications', icon: 'notification' }, 'NotificationsView'),
       settingsSection({
         key: 'notifications',

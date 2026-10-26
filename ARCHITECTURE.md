@@ -309,6 +309,8 @@ Em vez de uma Cloud Function por coleção monitorada (o que exigiria ~17 deploy
 | `auditNestedEntityChange` | `onDocumentWritten('tenants/{tenantId}/{parent}/{parentId}/{sub}/{docId}')` | `notes`/`documents` de qualquer registro de tela declarada (+ `tags` de `screenDefinitions`) |
 | `auditTenantDeleted` | `onDocumentDeleted('tenants/{tenantId}')` | Exclusão do escritório inteiro — sempre `severity: 'CRITICAL'` |
 | `backupDeletedAuditLog` | `onDocumentDeleted('auditLogs/{logId}')` | Backup frio no Storage (ver abaixo) |
+| `exportAuditArchive` | `onSchedule('every 60 minutes')` | Arquivo diário com cadeia de hash, para quem o ligou (ver "Retenção configurável e arquivo") |
+| `manageAuditArchive` | `onCall` | Política, estado, leitura de um dia arquivado e verificação da cadeia |
 
 **Quem dá nome à entidade auditada:** a tabela do código só descreve o que é do kernel. Para toda coleção que não é reservada nem fixa, `resolveFlatEntityConfig`/`resolveNestedEntityConfig` (`auditableEntities.ts`) resolvem a identidade pela declaração do TENANT — `resolveEntity(ctx, collection)`, a mesma resolução que a tela e a automação usam —, tirando dela o título no singular e no plural e os campos que dão nome ao registro (`displayNameFields`). É por isso que o log diz "Contrato" no dia em que Contrato deixa de ser do kernel e vira extensão; enquanto a identidade vinha de uma lista fixa, o mesmo log dizia "Registro". Sem tela que descreva a coleção (extensão desinstalada, coleção órfã), sobra o rótulo genérico. As telas vêm do `ScreenDefinitionCache` (TTL de 5 min), e só são lidas quando a coleção não é fixa.
 
@@ -353,7 +355,8 @@ O nome fica **congelado no `text` do log como era no momento do evento** — se 
 
 ### Retenção (TTL) e backup frio
 
-`expiresAt` é calculado como `createdAt + 30 dias`. A política de TTL é **declarada**: `"ttl": true` no
+`expiresAt` é calculado como `createdAt + retentionDays` — 30 dias por padrão, ou o que o escritório
+configurou (ver a seção seguinte). A política de TTL é **declarada**: `"ttl": true` no
 `fieldOverride` de `auditLogs.expiresAt` em `firestore.indexes.json`, e o deploy de índices
 (`npm run deploy:indexes`, ou `firebase deploy --only firestore:indexes` dentro do `microteia deploy`) a grava
 no projeto — o Firebase CLI traduz o `ttl` para `ttlConfig` no campo. Não há passo manual. A ativação da
@@ -366,13 +369,103 @@ Toda exclusão de um `AuditLog` (manual ou via TTL) dispara `backupDeletedAuditL
 
 O upload seta `metadata.metadata.firebaseStorageDownloadTokens` (`crypto.randomUUID()`) manualmente — diferente do SDK client-side (`uploadBytes`, usado em todo o resto do app para anexos), o Admin SDK **não** gera esse token sozinho, e sem ele o botão "Download" do Firebase Console (e `getDownloadURL()`) não consegue montar a URL do arquivo.
 
+### Retenção configurável e arquivo com cadeia de hash (EV-06)
+
+A trilha de 30 dias serve à consulta; não serve à PROVA. Quem tem obrigação de guarda (a Lei 14.129, art.
+43, numa prefeitura; qualquer contrato com prazo de prova) precisa de duas coisas que o TTL não dá: a
+linha disponível pelo prazo que a lei pede, e um meio de mostrar que ela não mudou. São **duas peças**, e
+nenhuma muda nada para quem não as liga — sem documento em `auditRetention/{tenantId}`, vale
+`DEFAULT_AUDIT_RETENTION_POLICY`, que é exatamente o que valia antes.
+
+| Peça | Onde | O que faz |
+|---|---|---|
+| Retenção da consulta | `auditRetention/{tenantId}.retentionDays` (30–3650) | o `expiresAt` de cada linha NOVA. `FirebaseAuditLogRepository` a lê por `makeAuditRetentionDaysOf` (cache de 5 min, falha fechada no padrão: uma política ilegível nunca impede a auditoria) |
+| Arquivo | `archive: { enabled, retentionYears }` + bucket `AUDIT_ARCHIVE_BUCKET` | `exportAuditArchive` (agendada, de hora em hora) copia cada dia UTC fechado para `tenants/{t}/{AAAA}/{AAAA-MM-DD}.jsonl` |
+| Consulta e verificação | callable `manageAuditArchive` | `status`, `day` e `verify` com `audit.read`; `save` com `audit.manage` |
+
+**Fonte única:** `domain/schema/auditRetention.ts` (compartilhado) — a política, a faixa, os dias UTC, o
+caminho e as formas do arquivo. A cadeia é `functions/src/domain/services/auditArchiveChain.ts`, pura, com
+o SHA-256 injetado.
+
+**O piso é o padrão.** A retenção não desce abaixo de 30 dias. É o que permite ao exportador saber, sem ler
+nada, se um dia atrasado ainda está inteiro no Firestore (`isAuditDayStillComplete`): exportado depois
+disso, ele sai com `complete: false` — a ausência de uma linha não pode parecer prova de que ela não
+existiu.
+
+**O formato.** JSON Lines; a primeira linha é o cabeçalho (`format`, `version`, `tenantId`, `day`,
+`previousDay`, `previousDayHash`, `count`, `complete`, `dayHash`), cada linha seguinte é
+`{ hash, previousDayHash, log }`, com o log como o Firestore o guarda (todo `Timestamp` em ISO). O
+`hash` é o SHA-256 do **JSON canônico** do log (`canonicalJson`: chaves em ordem, sem espaço) — o que
+permite a qualquer ferramenta, anos depois, refazer a conta. O `dayHash` amarra o cabeçalho inteiro e as
+linhas em ordem; o primeiro dia parte de `AUDIT_ARCHIVE_GENESIS_HASH` (64 zeros).
+
+**Decisões, e o porquê de cada uma:**
+
+- **Dia UTC, e não o do fuso do escritório.** Trocar o fuso deslocaria a fronteira, e dois arquivos
+  seguidos passariam a se sobrepor ou a deixar um buraco — numa cadeia que existe para provar que não há
+  buraco. O dia fecha uma hora depois da meia-noite (`AUDIT_ARCHIVE_EXPORT_LAG_MS`): a linha é carimbada
+  pela function e gravada um instante depois.
+- **`previousDay` é DECLARADO.** O período com o arquivo desligado vira lacuna que a própria cadeia
+  anuncia (`gaps` na verificação), dentro do hash — ninguém a cria nem a esconde depois. O dia sem linha
+  também é gravado (`count: 0`): "nada aconteceu" passa a ser afirmação, e não ausência.
+- **Gravar nunca sobrescreve** (`ifGenerationMatch: 0`). O 412 é comparado byte a byte: igual é a
+  reexecução (a anterior gravou e caiu antes de salvar `state`); diferente só é aceito quando as linhas e
+  o elo são os mesmos e muda só `complete` (a nossa execução de antes dos 30 dias). Qualquer outra coisa
+  PARA a exportação daquele escritório com alerta (`audit.archive.conflict`): alguém mais grava ali.
+- **A falha é refeita sem fila.** O que falta é derivado de `state.lastDay`; a execução seguinte, uma hora
+  depois, recomeça do primeiro dia que faltou. A falha vira linha `CRITICAL`/`ERROR` na Auditoria (o
+  badge) e aviso `core.automation/audit-archive` a quem tem `audit.manage` — uma vez por dia de falha e de
+  novo a cada 24 h (`AUDIT_ARCHIVE_REALERT_MS`), não a cada tentativa.
+- **Retenção por objeto, quando o bucket aceita.** Com `objectRetention` habilitado, cada dia é gravado
+  com `retention: { mode: 'Locked', retainUntilTime }` = fim do dia + `retentionYears` — é o que torna o
+  prazo de guarda configurável POR ESCRITÓRIO num bucket só. A política de bucket bloqueada vale para
+  todos e é o piso.
+- **O bucket é declarado, nunca derivado.** `AUDIT_ARCHIVE_BUCKET` é o primeiro parâmetro de backend do
+  kernel, e é opcional (`default: ''`): vazio, o arquivo não pode ser ligado, e nada mais muda. Um nome
+  previsível (`<projeto>-audit-archive`) poderia ser criado por outra pessoa num projeto dela e receber a
+  auditoria. O passo a passo vai no pré-requisito manual `audit-archive-bucket` (`MICROTEIA.md`, §7).
+- **A política só muda pelo servidor.** `auditRetention` é `write: false` nas regras: a callable valida a
+  faixa (`auditRetentionPolicyIssue`), recusa ligar o arquivo sem bucket, e deixa cada decisão na
+  Auditoria (`auditRetentionChangeLogs`) — desligar o arquivo é `CRITICAL`, encurtar um prazo é `HIGH`.
+  Por isso a permissão é própria (`audit.manage`, que exige `audit.read`) e não `settings.manage`, que
+  não é auditada e está em mais mãos.
+- **Quem viu a divergência não é o único a saber.** A verificação que acha divergência grava linha
+  `CRITICAL` atribuída a quem a pediu e avisa quem gerencia a retenção.
+
+**A verificação** (`verifyAuditChain`) percorre os dias do bucket em ordem e aponta o PRIMEIRO em que a
+cadeia não fecha: `unreadable`, `misplaced` (arquivo de outro dia/escritório), `genesis` (começo cortado),
+`missing-day`, `chain-broken` (dia reescrito por inteiro, ou inserido — aponta o inserido),
+`line-altered` (com a linha e o id do log), `count-mismatch`, `day-hash`, e dois que dependem do registro
+do escritório (`state.lastDay`/`headHash`): `missing-tail` (fim cortado) e `head-mismatch`. Lê oito
+arquivos adiante; sem tempo, volta `partial` com `resume`, e `makeVerifyAuditArchiveUseCase` continua
+sozinho.
+
+**Modelo de ameaça — o que cada um ainda pode fazer:**
+
+| Quem | Pode | Não pode |
+|---|---|---|
+| Membro com `audit.manage` | encurtar a retenção da consulta (até 30 dias), desligar o arquivo — as duas coisas ficam na Auditoria (`HIGH`/`CRITICAL`) e o desligamento vira lacuna na cadeia | apagar ou alterar o que já foi arquivado; gravar a política sem passar pela validação |
+| Dono do projeto Firebase/GCP, bucket **bloqueado** | alterar ou apagar uma linha no Firestore ANTES de o dia dela ser exportado (até ~1 h depois da meia-noite UTC); desligar o arquivo; apagar o projeto inteiro | apagar, sobrescrever ou encurtar a retenção de um dia arquivado — nem o dono do projeto |
+| Dono do projeto, bucket **sem bloqueio** | tudo acima, e reescrever o arquivo inteiro de forma coerente (inclusive `auditRetention.state`) | fazer isso sem que um hash do último dia guardado FORA do projeto o denuncie |
+
+A cadeia DETECTA; só o bloqueio IMPEDE. Por isso a tela mostra a proteção que o bucket declara
+(`AuditArchiveProtection`) e o hash do último dia com botão de copiar — guardá-lo fora do projeto (um
+e-mail registrado, um documento publicado) é o que dá valor de prova à cadeia contra quem controla o
+projeto. A auditoria interna da plataforma (`tenantId: 'SYSTEM'`) fica de fora: o arquivo é por
+escritório.
+
+**Custo para quem não usa:** uma execução por hora de `exportAuditArchive`, que faz uma consulta
+(`auditRetention` com `archive.enabled == true`, índice automático) e termina; e uma leitura de
+`auditRetention/{t}` a cada 5 minutos por instância que grava auditoria. A leitura dos dias usa o índice
+que a tela de Auditoria já tem (`tenantId` + `createdAt` desc) — nenhum índice novo.
+
 ### Tela de Auditoria (frontend)
 
 `presentation/pages/AuditLogs/` (MVVM + `AuditLogCard/`). Somente leitura — `AuditLogStore` **não usa `onSnapshot`** (desvio deliberado do padrão dos outros stores): como `auditLogs` cresce indefinidamente, a store faz busca paginada por cursor (`limit` + `startAfter`) sob demanda via `IAuditLogRepository.getPage`. Acesso restrito a admin do tenant (e SYSTEM, que vê todos os escritórios via filtro "Todos os Escritórios" — usa `ITenantRepository.getAllTenants()`, exclusivo para SYSTEM). Item de navegação em `WorkspaceSidebar` só aparece para esses papéis (`NavItem.requiresTenantAdmin`). O card usa `MarkdownContent` para renderizar `text`, com "Ver mais/Ver menos" (estado `expandedIds` no ViewModel da página, não no card) e um botão de deeplink quando `entityLink` existe.
 
 **Filtros — só o escopo de escritório vai para o Firestore.** `IAuditLogRepository.getPage` só aceita `tenantId` (+ paginação) — é a **única** query real (`where('tenantId','==',X) + orderBy('createdAt','desc')`), exigindo um **único** índice composto (`auditLogs`: `tenantId` ASC, `createdAt` DESC — ver seção de índices). Os filtros de Entidade/Ação/Severidade/Busca do `CompositeFilter` são aplicados **client-side**, em `AuditLogs.viewmodel.tsx`, sobre a página já carregada — decisão deliberada para não exigir um índice composto por combinação de filtro (`tenantId`+`entity`, `tenantId`+`action`, etc.), o que tornaria o setup inicial muito mais frágil. Trade-off aceito: um filtro pode não encontrar resultados que existem em páginas ainda não carregadas — nesse caso, use "Carregar mais" antes de filtrar.
 
-Abaixo do `CompositeFilter`, um `<InfoBanner variant="info">` fixo avisa sobre a retenção de 30 dias (mesmo padrão de tarja informativa usado em outras telas — nunca `<p>`/`<div>` ad-hoc).
+Abaixo do `CompositeFilter`, um `<InfoBanner variant="info">` avisa sobre a retenção — com o prazo que o escritório configurou, lido pela callable `manageAuditArchive` (`status`); se ela falhar, a trilha segue e o aviso cai nos 30 dias padrão (mesmo padrão de tarja informativa usado em outras telas — nunca `<p>`/`<div>` ad-hoc). O botão "Retenção e arquivo" no cabeçalho troca a lista pelo painel `AuditRetentionPanel/` (política, estado do arquivo, verificação e leitura de um dia arquivado, renderizado pelo mesmo `AuditLogCard`, com o SHA-256 da linha).
 
 ### Registro de falhas do frontend (`IAuditLogService`)
 

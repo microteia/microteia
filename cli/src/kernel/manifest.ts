@@ -211,6 +211,31 @@ export const MANUAL_PREREQUISITES: KernelPrerequisite[] = [
       + 'does not need it.',
     optional: true,
   },
+  {
+    id: 'audit-archive-bucket',
+    title: 'Create a bucket with locked retention, if an organization must keep its audit trail as evidence',
+    detail:
+      'The audit trail stays available for 30 days unless an organization raises it, and an organization '
+      + 'can also turn on a daily archive with a hash chain (Audit trail > Retention and archive). The archive '
+      + 'needs a bucket of its own, never the default one: gcloud storage buckets create '
+      + 'gs://<bucket> --project=<projectId> --location=<region> --uniform-bucket-level-access '
+      + '--enable-per-object-retention --retention-period=5y, then gcloud storage buckets update gs://<bucket> '
+      + '--lock-retention-period (irreversible: from then on nobody, project owners included, can delete or '
+      + 'overwrite an archived day before it is five years old, or shorten the period). Use the longest '
+      + 'period any organization here is legally bound to; each organization can lock its own days for '
+      + 'longer. Grant the functions\' runtime service account roles/storage.admin on THAT bucket only (it '
+      + 'reads the bucket\'s retention settings and sets each day\'s retention, which the object roles '
+      + 'do not cover), write AUDIT_ARCHIVE_BUCKET=<bucket> in .env.<projectId> '
+      + 'and run microteia provision. What it protects against, and what it does not: a locked bucket stops '
+      + 'deletion and rewriting of what was already archived; the chain makes any change visible on '
+      + 'verification. A project owner can still alter or delete an audit line in Firestore BEFORE its day '
+      + 'is exported (the export runs hourly, about an hour after midnight UTC), turn the archive off (that '
+      + 'itself is a CRITICAL audit entry, and the gap shows in the chain), or delete the whole project. '
+      + 'Against a rewrite of an unlocked bucket, only the last day\'s hash kept OUTSIDE the project proves '
+      + 'anything — the organization can copy it from the archive screen. Without this setting nothing '
+      + 'changes for anyone.',
+    optional: true,
+  },
 ];
 
 /**

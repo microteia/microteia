@@ -2,20 +2,26 @@ import { Timestamp } from 'firebase-admin/firestore';
 import type { Firestore } from 'firebase-admin/firestore';
 import type { IAuditLogRepository } from '../../domain/repositories/IAuditLogRepository';
 import type { AuditLog } from '../../domain/entities/AuditLog';
-
-const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+import { auditLogExpiresAt } from '../../domain/schema/auditRetention';
 
 export class FirebaseAuditLogRepository implements IAuditLogRepository {
-  constructor(private readonly db: Firestore) {}
+  /**
+   * `retentionDaysOf` é a política do escritório (`auditRetention/{tenantId}`), lida com cache — nunca
+   * falha: sem documento, ou sem conseguir lê-lo, valem os 30 dias de sempre.
+   */
+  constructor(
+    private readonly db: Firestore,
+    private readonly retentionDaysOf: (tenantId: string) => Promise<number>,
+  ) {}
 
   async create(log: Omit<AuditLog, 'id' | 'createdAt' | 'expiresAt'>): Promise<void> {
     const now = Timestamp.now();
-    const expiresAt = Timestamp.fromMillis(now.toMillis() + THIRTY_DAYS_MS);
+    const retentionDays = await this.retentionDaysOf(log.tenantId);
 
     await this.db.collection('auditLogs').add({
       ...log,
       createdAt: now,
-      expiresAt,
+      expiresAt: Timestamp.fromDate(auditLogExpiresAt(now.toDate(), retentionDays)),
     });
   }
 }

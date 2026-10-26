@@ -30,6 +30,12 @@ import type { WorkflowStepMetadata } from '../../../domain/schema/workflowStepCa
 import { PORTAL_DOCUMENT_SHARING_SINCE_KERNEL, isStepExcludedFromTrigger } from '../../../domain/schema/workflowStepCatalog';
 import { CHILD_RECORD_EVENTS_SINCE_KERNEL } from '../../../domain/schema/eventCatalog';
 import { WORKFLOW_AUDIT_EVENT, WORKFLOW_AUDIT_SINCE_KERNEL } from '../../../domain/schema/workflowAuditTrigger';
+import {
+  AUDIT_ARCHIVE_MAX_YEARS,
+  AUDIT_RETENTION_MAX_DAYS,
+  DEFAULT_AUDIT_ARCHIVE_YEARS,
+  DEFAULT_AUDIT_RETENTION_DAYS,
+} from '../../../domain/schema/auditRetention';
 import type { StepType } from '../../../domain/entities/Workflow';
 import { FIELD_EXPRESSION_FUNCTION_NAMES } from '../../../domain/schema/fieldExpression';
 import { BUSINESS_CALENDAR_FIELDS } from '../../../domain/schema/time/businessDays';
@@ -1912,6 +1918,35 @@ Never hard-code a collection name — read it from \`input.collections\`, becaus
 organization. Write it to be safely re-runnable: it may resume. \`phase: 'before'\` exists for the one
 case that cannot work otherwise — copying an old field to a new one has to happen while both still
 exist, because after the package converges the old one is no longer writable.
+
+### The audit trail is not your evidence store — unless the organization makes it one
+
+Every write to a screen's collection lands in the organization's audit trail (\`auditActions\` above says
+which). It is there for LOOKUP: by default each entry expires after ${DEFAULT_AUDIT_RETENTION_DAYS} days.
+You do not declare retention, and you cannot: it is the organization's decision, under Audit trail >
+Retention and archive, for whoever has \`audit.manage\`.
+
+- **Lookup retention** — from ${DEFAULT_AUDIT_RETENTION_DAYS} to ${AUDIT_RETENTION_MAX_DAYS} days; applies to entries written from then on.
+- **Archive with hash chain** — once a day (UTC), the previous day is copied to a bucket the installation
+  declares, ideally with locked retention. Each line carries its SHA-256 and the previous day's hash; each
+  day is locked for ${DEFAULT_AUDIT_ARCHIVE_YEARS} years by default (up to ${AUDIT_ARCHIVE_MAX_YEARS}) when the bucket supports
+  per-object retention. A verification points at the first day where the chain stops closing.
+
+What that means for what you model:
+
+- **An event that is legal evidence is a RECORD of your screen, not an audit line.** "Notice delivered",
+  "reading confirmed", "deadline started" belong in a child collection with \`editWindow\` (see "Edit
+  window") — they last as long as the organization keeps them, whether or not the archive is on, and
+  workflows and reports can read them. The audit trail then proves who wrote them and that they were not
+  changed.
+- **Do not rely on the archive being on.** It is opt-in per organization and needs the installation's
+  bucket; a package cannot turn it on or require it.
+- **What the archive does NOT stop** — say it plainly to whoever adopts your extension: the owner of the
+  Firebase project can still alter or delete an audit entry in Firestore before its day is exported
+  (about an hour after midnight UTC), turn the archive off (itself a CRITICAL audit entry and a declared gap
+  in the chain) or delete the project. With a locked bucket nobody — project owners included — can delete
+  or rewrite an archived day. With an unlocked one, only the last day's hash kept OUTSIDE the project
+  proves the archive was not rewritten as a whole; the archive screen lets the organization copy it.
 
 ## 9. Expressions — the small language that shows up everywhere
 
