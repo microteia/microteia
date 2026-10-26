@@ -42,6 +42,8 @@ import {
   portalTargetScreen,
 } from '../schema/portal';
 import { isValidPortalSubject } from './PortalProjectionUseCases';
+import type { IPortalIdentityConfigRepository, IPortalIdentityRepository, PortalIdentityInvite } from '../repositories/IPortalIdentity';
+import { asPortalRequiredClaim, portalAttestedClaims, portalClaimKey } from '../schema/portalIdentity';
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -50,6 +52,12 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
  * sujeitos dela. O `audience` é refeito por um gatilho, segundos depois de uma revogação — e para
  * sempre atrasado se o gatilho falhar —; o convite é lido aqui, e vale no instante.
  */
+/**
+ * O convite que abre o portal AGORA: existe e não está suspenso. A suspensão é o escritório que
+ * desligou o método por que a pessoa entra — o convite continua listado, e não abre nada.
+ */
+const activeGuest = <T extends { suspended?: boolean }>(guest: T | null): T | null => (guest && !guest.suspended ? guest : null);
+
 const guestSees = (
   guest: { userId: string; subjectKeys: string[] },
   projection: { audience: string[]; subjectKeys: string[] } | null | undefined,
@@ -81,6 +89,8 @@ export interface PortalAccessAuditEntry {
   actor: PortalAccessActor;
   origin: PortalAccessOrigin;
   workflowId?: string;
+  /** O convite por identidade: o NOME da claim exigida — o valor é dado pessoal, e fica no convite. */
+  claimName?: string;
 }
 
 export type PortalAccessAudit = (entry: PortalAccessAuditEntry) => Promise<void>;
@@ -91,6 +101,8 @@ export interface PortalAccessDeps {
   audit: PortalAccessAudit;
   quota: IPortalInviteQuota;
   now: () => Date;
+  identity: IPortalIdentityRepository;
+  signIn: IPortalIdentityConfigRepository;
 }
 
 export interface InvitePortalUserInput {
@@ -106,14 +118,23 @@ export interface InvitePortalUserInput {
   locale?: string;
   /** O nome que o escritório lista enquanto o convidado não informa o dele; sem ele, o da conta, ou o e-mail. */
   displayName?: string;
+  /**
+   * O atributo que a pessoa terá de PROVAR por um provedor de identidade do escritório
+   * (`{ name, value, normalize? }`). Com ele, o convite não abre conta pelo e-mail: só quem entrar por
+   * um provedor que ateste a mesma claim o aceita. Conferido aqui, venha de onde vier.
+   */
+  requiredClaim?: unknown;
 }
 
 export interface InvitePortalUserResult {
+  /** A conta convidada — no convite por identidade, a que já o aceitou; `''` enquanto ninguém aceitou. */
   userId: string;
   /** A conta de login nasceu agora. */
   created: boolean;
   /** O vínculo com o sujeito é NOVO — `false` é o convite que já existia. */
   granted: boolean;
+  /** O convite por identidade — é por ele que a revogação o alcança antes de alguém aceitá-lo. */
+  inviteId?: string;
 }
 
 export type InvitePortalUserUseCase = {
@@ -143,10 +164,12 @@ const auditQuietly = async (audit: PortalAccessAudit, entry: PortalAccessAuditEn
  * existe volta sem escrever nada — nem conta, nem vaga, nem auditoria: rodar duas vezes é rodar uma.
  */
 export const makeInvitePortalUserUseCase = (deps: PortalAccessDeps): InvitePortalUserUseCase => ({
-  execute: async ({ tenantId, tenantName, email, subjectKey, actor, origin = 'settings', workflowId, locale, displayName }) => {
+  execute: async ({ tenantId, tenantName, email, subjectKey, actor, origin = 'settings', workflowId, locale, displayName, requiredClaim }) => {
     const { repo, accounts } = deps;
     const normalized = normalizePortalEmail(email);
     if (!EMAIL_PATTERN.test(normalized)) throw invalidArgument('@core.tenant/portal.email.invalid');
+    const claimed = requiredClaim === undefined || requiredClaim === null ? null : asPortalRequiredClaim(requiredClaim);
+    if (claimed && 'issue' in claimed) throw invalidArgument(claimed.issue);
 
     const screens = await repo.getScreens(tenantId);
     const subject = parsePortalSubjectKey(subjectKey);
@@ -160,6 +183,41 @@ export const makeInvitePortalUserUseCase = (deps: PortalAccessDeps): InvitePorta
     }
 
     const key = portalSubjectKey(subject.collection, subject.recordId);
+    const { settings } = await deps.signIn.get(tenantId);
+    if (claimed) {
+      const claim = claimed.claim;
+      // Exigir o que nenhum provedor do escritório atesta é um convite que ninguém conseguiria aceitar.
+      if (!portalAttestedClaims(settings).includes(claim.name)) {
+        throw failedPrecondition('@core.tenant/portal.claim.unattested');
+      }
+      if (origin === 'automation') {
+        const [existing] = await deps.identity.findInvitesByClaimKeys(tenantId, [portalClaimKey(claim.name, claim.value)]);
+        if (existing?.subjectKeys.includes(key)) {
+          return { userId: existing.boundUserIds[0] ?? '', created: false, granted: false, inviteId: existing.id };
+        }
+        if (!(await deps.quota.consume(tenantId, PORTAL_AUTOMATION_INVITES_PER_HOUR, deps.now()))) {
+          throw failedPrecondition('@core.tenant/portal.invite.rate-limited');
+        }
+      }
+      const { invite, granted } = await deps.identity.grantInvite(tenantId, {
+        email: normalized,
+        displayName: displayName?.trim() || normalized,
+        claim,
+        invitedBy: actor.userId,
+        ...(locale ? { locale } : {}),
+      }, key);
+      // Quem já aceitou o convite recebe o sujeito novo agora, e não só no próximo login.
+      await Promise.all(invite.boundUserIds.map((userId) => deps.identity.syncAccount(tenantId, userId)));
+      if (granted) {
+        await auditQuietly(deps.audit, {
+          tenantId, change: 'granted', email: normalized, subjectKey: key, actor, origin, claimName: claim.name,
+          ...(workflowId ? { workflowId } : {}),
+        });
+      }
+      return { userId: invite.boundUserIds[0] ?? '', created: false, granted, inviteId: invite.id };
+    }
+    if (!settings.emailLink) throw failedPrecondition('@core.tenant/portal.invite.identity-required');
+
     let account = await accounts.findUserIdByEmail(normalized);
     if (origin === 'automation') {
       const holder = account ? await repo.getPortalUser(tenantId, account.userId) : null;
@@ -196,8 +254,11 @@ export const makeInvitePortalUserUseCase = (deps: PortalAccessDeps): InvitePorta
 
 export interface RevokePortalUserInput {
   tenantId: string;
-  /** O convidado, pelo uid (a tela, que o lista) ou pelo e-mail (a automação, que lê um registro). */
-  guest: { userId: string } | { email: string };
+  /**
+   * O convidado, pelo uid (a tela, que o lista), pelo e-mail (a automação, que lê um registro) ou pelo
+   * convite por identidade que ninguém aceitou ainda (a tela, que o lista também).
+   */
+  guest: { userId: string } | { email: string } | { inviteId: string };
   /**
    * O sujeito revogado. `null`, o convite inteiro. Com `allSubjects`, o convite inteiro TAMBÉM — mas
    * só se o convidado tiver este sujeito: a automação de um registro só alcança quem é dele.
@@ -218,24 +279,45 @@ export type RevokePortalUserUseCase = {
  * convidado, ou não tinha aquele sujeito, volta `revoked: false` sem escrever — e sem dizer mais:
  * a automação não é um jeito de descobrir quem tem acesso a quê.
  */
-export const makeRevokePortalUserUseCase = (deps: Pick<PortalAccessDeps, 'repo' | 'accounts' | 'audit'>): RevokePortalUserUseCase => ({
+export const makeRevokePortalUserUseCase = (
+  deps: Pick<PortalAccessDeps, 'repo' | 'accounts' | 'audit' | 'identity'>,
+): RevokePortalUserUseCase => ({
   execute: async ({ tenantId, guest, subjectKey, allSubjects = false, actor, origin = 'settings', workflowId }) => {
     const { repo } = deps;
+    if (subjectKey !== null && !parsePortalSubjectKey(subjectKey)) throw invalidArgument('@core.tenant/portal.subject.invalid');
+    const revokeInvites = (invites: PortalIdentityInvite[]) => revokeIdentityInvites(deps, {
+      tenantId, invites, subjectKey, allSubjects, actor, origin, workflowId,
+    });
+
+    if ('inviteId' in guest) {
+      const invite = await deps.identity.getInvite(tenantId, guest.inviteId);
+      return { userId: invite?.boundUserIds[0] ?? null, revoked: invite ? await revokeInvites([invite]) : false };
+    }
+
     let userId: string;
+    let byEmail = false;
     if ('userId' in guest) {
       userId = guest.userId;
     } else {
       const normalized = normalizePortalEmail(guest.email);
       if (!EMAIL_PATTERN.test(normalized)) throw invalidArgument('@core.tenant/portal.email.invalid');
+      // O contato do convite por identidade é o e-mail que a automação conhece — revogar por ele
+      // alcança os convites desse contato, aceitos ou não.
+      const invitedByIdentity = await revokeInvites(await deps.identity.invitesByEmail(tenantId, normalized));
       const account = await deps.accounts.findUserIdByEmail(normalized);
-      if (!account) return { userId: null, revoked: false };
+      if (!account) return { userId: null, revoked: invitedByIdentity };
       userId = account.userId;
+      byEmail = invitedByIdentity;
     }
-    if (subjectKey !== null && !parsePortalSubjectKey(subjectKey)) throw invalidArgument('@core.tenant/portal.subject.invalid');
+
+    // A conta aberta por um provedor recebe os sujeitos dos convites por identidade: é neles que a
+    // revogação mexe — mexer só na conta seria desfeito no próximo login.
+    const bound = await deps.identity.invitesBoundTo(tenantId, userId);
+    if (bound.length > 0) return { userId, revoked: (await revokeInvites(bound)) || byEmail };
 
     const current = await repo.getPortalUser(tenantId, userId);
-    if (!current) return { userId, revoked: false };
-    if (allSubjects && subjectKey !== null && !current.subjectKeys.includes(subjectKey)) return { userId, revoked: false };
+    if (!current) return { userId, revoked: byEmail };
+    if (allSubjects && subjectKey !== null && !current.subjectKeys.includes(subjectKey)) return { userId, revoked: byEmail };
 
     const target = allSubjects ? null : subjectKey;
     const revoked = await repo.revokeSubject(tenantId, userId, target);
@@ -244,9 +326,44 @@ export const makeRevokePortalUserUseCase = (deps: Pick<PortalAccessDeps, 'repo' 
         tenantId, change: 'revoked', email: current.email, subjectKey: target, actor, origin, ...(workflowId ? { workflowId } : {}),
       });
     }
-    return { userId, revoked };
+    return { userId, revoked: revoked || byEmail };
   },
 });
+
+/**
+ * Tira o sujeito (ou tudo) dos convites por identidade, e refaz o acesso de quem já os aceitou. Com
+ * `allSubjects`, só o convite que tem aquele sujeito — a automação de um registro não alcança o
+ * convite de outro.
+ */
+const revokeIdentityInvites = async (
+  deps: Pick<PortalAccessDeps, 'audit' | 'identity'>,
+  input: {
+    tenantId: string;
+    invites: PortalIdentityInvite[];
+    subjectKey: string | null;
+    allSubjects: boolean;
+    actor: PortalAccessActor;
+    origin: PortalAccessOrigin;
+    workflowId?: string;
+  },
+): Promise<boolean> => {
+  const { tenantId, subjectKey, allSubjects, actor, origin, workflowId } = input;
+  let revoked = false;
+  const accounts = new Set<string>();
+  for (const invite of input.invites) {
+    if (subjectKey !== null && !invite.subjectKeys.includes(subjectKey)) continue;
+    const target = allSubjects ? null : subjectKey;
+    if (!(await deps.identity.revokeInvite(tenantId, invite.id, target))) continue;
+    revoked = true;
+    invite.boundUserIds.forEach((userId) => accounts.add(userId));
+    await auditQuietly(deps.audit, {
+      tenantId, change: 'revoked', email: invite.email, subjectKey: target, actor, origin, claimName: invite.claim.name,
+      ...(workflowId ? { workflowId } : {}),
+    });
+  }
+  await Promise.all([...accounts].map((userId) => deps.identity.syncAccount(tenantId, userId)));
+  return revoked;
+};
 
 export type GetPortalDocumentUrlUseCase = {
   execute: (input: { tenantId: string; userId: string; projectionId: string; documentId: string }) => Promise<string>;
@@ -263,7 +380,7 @@ export type GetPortalDocumentUrlUseCase = {
 export const makeGetPortalDocumentUrlUseCase = (repo: IPortalRepository): GetPortalDocumentUrlUseCase => ({
   execute: async ({ tenantId, userId, projectionId, documentId }) => {
     const denied = permissionDenied('@core.tenant/portal.document.unavailable');
-    const guest = await repo.getPortalUser(tenantId, userId);
+    const guest = activeGuest(await repo.getPortalUser(tenantId, userId));
     if (!guest) throw denied;
 
     const projection = await repo.getProjection(tenantId, projectionId);
@@ -430,9 +547,9 @@ const withoutOrder = <T extends { order?: number }>(value: T): Omit<T, 'order'> 
 
 export const makeGetPortalContextUseCase = (repo: IPortalRepository): GetPortalContextUseCase => ({
   execute: async ({ tenantId, userId, tenant, locale, timeZone, resolve, extensionViews, themes = [], documentTypes = [] }) => {
-    if (!(await repo.getPortalUser(tenantId, userId))) {
-      throw permissionDenied('@core.tenant/portal.not-invited');
-    }
+    const guest = await repo.getPortalUser(tenantId, userId);
+    if (!guest) throw permissionDenied('@core.tenant/portal.not-invited');
+    if (guest.suspended) throw permissionDenied('@core.tenant/portal.signin.identity-required');
     const [allScreens, settings] = await Promise.all([repo.getScreens(tenantId), repo.getHomeSettings(tenantId)]);
     const screens = allScreens.filter((screen) => !!screen.portal);
     const lookups = await portalLookupOptions(repo, tenantId, allScreens, screens);
@@ -639,7 +756,7 @@ export const makeSubmitPortalRecordUseCase = (
 ): SubmitPortalRecordUseCase => ({
   execute: async ({ tenantId, userId, collection, linkRecordId, data }) => {
     const denied = permissionDenied('@core.tenant/portal.create.denied');
-    const guest = await repo.getPortalUser(tenantId, userId);
+    const guest = activeGuest(await repo.getPortalUser(tenantId, userId));
     if (!guest) throw denied;
 
     const screens = await repo.getScreens(tenantId);
@@ -698,7 +815,7 @@ export const makeUpdatePortalRecordUseCase = (
 ): UpdatePortalRecordUseCase => ({
   execute: async ({ tenantId, userId, collection, recordId, data, timeZone }) => {
     const denied = permissionDenied('@core.tenant/portal.edit.denied');
-    const guest = await repo.getPortalUser(tenantId, userId);
+    const guest = activeGuest(await repo.getPortalUser(tenantId, userId));
     if (!guest) throw denied;
 
     const projection = await repo.getProjection(tenantId, portalRecordDocId(collection, recordId));
@@ -777,7 +894,7 @@ export const makeAttachPortalDocumentUseCase = (
     // A espera é limpa em TODO desfecho, inclusive nas recusas: um arquivo recusado que ficasse lá
     // seria espaço do escritório ocupado para sempre, por quem quisesse repetir a recusa.
     try {
-      const guest = await repo.getPortalUser(tenantId, userId);
+      const guest = activeGuest(await repo.getPortalUser(tenantId, userId));
       if (!guest) throw denied;
 
       const projection = await repo.getProjection(tenantId, portalRecordDocId(collection, recordId));

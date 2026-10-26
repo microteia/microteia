@@ -14,6 +14,7 @@ import {
 } from '../../../domain/schema/mutationSpec';
 import type { RecordWriteVia, RemoveSpec, ResolvedWritableTable, UpsertSpec } from '../../../domain/schema/mutationSpec';
 import { RECORD_CREATED_VIA_FIELD, RECORD_UPDATED_VIA_FIELD } from '../../../domain/schema/mutationSpec';
+import { RECORD_PORTAL_VERIFIED_FIELD, type PortalVerifiedIdentity } from '../../../domain/schema/portalIdentity';
 import { ruleIssueParams } from '../../../domain/schema/fieldRules';
 import type { DescribableIssue } from '../../../domain/schema/fieldRules';
 import { formatAndValidateRecord, tableMentionsBusinessDays } from '../../../domain/schema/recordRules';
@@ -43,6 +44,7 @@ interface WriteAuthor {
   name: string | null;
   photoURL: string | null;
   via: RecordWriteVia;
+  verified?: PortalVerifiedIdentity | null;
 }
 
 /**
@@ -59,14 +61,26 @@ interface WriteAuthor {
  */
 const authorOf = (context: WorkflowContext): WriteAuthor =>
   context.actor
-    ? { by: context.actor.userId, name: context.actor.name, photoURL: context.actor.photoURL, via: context.actor.via }
+    ? {
+      by: context.actor.userId,
+      name: context.actor.name,
+      photoURL: context.actor.photoURL,
+      via: context.actor.via,
+      ...(context.actor.via === 'portal' ? { verified: context.actor.verified ?? null } : {}),
+    }
     : { by: WORKFLOW_ACTOR, name: null, photoURL: null, via: 'automation' };
 
+/**
+ * A gravação PELO PORTAL diz também o que o convidado provou — `null` para quem entrou pelo link de
+ * e-mail, e é por isso que o `null` é gravado: a prova da gravação anterior não pode ficar atribuída a
+ * esta. As outras portas não tocam o campo: ele fala da última gravação feita pelo portal.
+ */
 const updateStamp = (author: WriteAuthor): Record<string, unknown> => ({
   updatedBy: author.by,
   updatedByName: author.name,
   updatedByPhotoURL: author.photoURL,
   [RECORD_UPDATED_VIA_FIELD]: author.via,
+  ...(author.verified !== undefined ? { [RECORD_PORTAL_VERIFIED_FIELD]: author.verified } : {}),
 });
 
 /** Um registro NOVO não tem nome anterior a apagar: os `null` do motor simplesmente não entram. */

@@ -107,6 +107,9 @@ npm run verify          # typecheck + lint + verify-schemas
 | Reprojeção do portal (a passada que refaz as projeções de uma coleção; escrita só pelo servidor) | `tenants/{tenantId}/portal_reprojections/{coleção}` | Sim |
 | Marca de convite do portal (o bootstrap a lê para não abrir escritório) | `portalInvites/{e-mail}` | Não (só servidor) |
 | Contagem da hora dos convites do portal feitos por automação | `portalInviteRates/{tenantId}` | Não (só servidor; nenhuma regra a libera) |
+| Convite do portal por IDENTIDADE (a claim exigida e os sujeitos) | `tenants/{tenantId}/portalIdentityInvites/{id}` | Sim (lê quem tem `portal.manage`; escrita só do servidor) |
+| Configuração de entrada do portal e segredos dos clientes OIDC | `tenants/{tenantId}/secrets/portal-identity` | Sim (só servidor; `managePortalSignIn` é a porta) |
+| Pedido de entrada no portal por OIDC (verificador PKCE, `nonce`) | `portalSignInRequests/{sha256(state)}` | Não (só servidor; TTL em `expiresAt`) |
 | `Notícia` (extensão `com.microteia.news`) | `tenants/{tenantId}/news/{id}` | Sim |
 | `Comentário` (extensão `com.microteia.news`) | `tenants/{tenantId}/newsComments/{id}` | Sim |
 | `SavedFilter` | `savedFilters/{uid}_{screenKey}` | Não |
@@ -1133,6 +1136,104 @@ ao sujeito é o custo de plataforma que a fila existe para conter.
 (`issue.step.portal-invite.closed`). A instalação reescreve `subjectCollection` pela chave instalada, como
 a `collection` de `share-documents`. `examples/portal-example` credencia o Contato de um Cliente.
 
+### Entrar com identidade verificada — o OIDC do escritório
+
+O link de e-mail prova só que a pessoa lê aquela caixa de correio. Quando o ato do convidado produz
+efeito — a ciência de uma intimação, o aceite de um termo —, contestar QUEM o praticou é o primeiro
+ataque, e o e-mail não responde. O escritório passa a configurar provedores de identidade (OpenID
+Connect) para o portal dele, e o convite pode exigir que a pessoa PROVE um atributo atestado por um
+deles (`requiredClaim`).
+
+**Por que não `auth.provider`.** A proposta original estendia o ponto de entrada da instalação. Ele não
+serve, por três motivos que não se contornam: `auth.provider` é configurado UMA vez no Firebase
+Authentication do projeto, e o portal é de cada escritório (a prefeitura A usa um provedor, a clínica
+B outro, no mesmo projeto); o Firebase guarda do provedor só o `sub`, e a claim que o convite exige não
+chegaria ao servidor; e o fluxo de código do Firebase não faz PKCE com qualquer provedor. Por isso o
+**servidor é o cliente OIDC**, e o Firebase só recebe, no fim, a sessão que o servidor emite.
+
+| Peça | O que faz |
+|---|---|
+| `PortalSignInSettings` (`domain/schema/portalIdentity.ts`, sincronizado) | `emailLink` e até `PORTAL_IDENTITY_PROVIDERS_MAX` provedores: `id`, `label`, `issuer`, `clientId`, `scopes`, as `claims` que ele ATESTA, `levelClaim?`, `userInfo?`. Nenhum provedor tem nome no kernel |
+| `tenants/{t}/secrets/portal-identity` | a configuração e os segredos dos clientes; `secrets` é reservada e nenhuma regra a libera. `managePortalSignIn` (`portal.manage`) é a porta — `get` diz SE há segredo, nunca qual |
+| `startPortalSignIn` (sem login) | gera `state`, `nonce` e o verificador do PKCE; grava `portalSignInRequests/{sha256(state)}` (raiz, fechada, TTL de 10 min) e devolve o endereço de autorização com `code_challenge_method=S256` — sempre |
+| `/portal/signin/callback` | confere o `state` guardado no `sessionStorage` (sem isso, alguém plantaria a volta da entrada DELE no navegador da pessoa) e chama `completePortalSignIn` |
+| `completePortalSignIn` (sem login) | GASTA o pedido numa transação, troca o código com o verificador, confere o ID token e decide (abaixo) |
+| `getPortalSignInOptions` (sem login) | só `{ emailLink, providers: [{ id, label }] }` — o que a página de entrada desenha antes de haver sessão |
+
+**O ID token é conferido aqui, sem biblioteca.** `FetchOidcClient` + `verifyIdToken.ts`, sobre o
+`node:crypto`: só RS/PS/ES 256–512 (`none` e HMAC recusados — o segundo usaria o segredo do cliente
+como chave), `kid` obrigatória quando o JWKS tem mais de uma chave possível (escolher por tentativa
+aceitaria qualquer uma), `use: 'enc'` ignorada, uma releitura do JWKS para `kid` desconhecida (o
+provedor girou a chave), e então `iss` igual ao emissor da descoberta, `aud`/`azp`, `exp`/`iat`/`nbf`
+com 120 s de folga, `nonce` e `sub`. O `userinfo` (opcional) só completa as claims se o `sub` dele for o
+mesmo. Uma dependência de OIDC entraria no pacote de toda instalação para usar uma fração dela.
+
+**A conta é do ESCRITÓRIO, e é a decisão de segurança que organiza o resto.** Quem entra por um provedor
+recebe a conta `portal-id-<sha256(escritório, provedor, sub)>` (`portalIdentityAccountId`), aberta por
+`createCustomToken` — nunca a conta do e-mail convidado, e nunca a mesma conta em dois escritórios. O
+emissor é escolhido por quem tem `portal.manage`; se o login abrisse a conta do e-mail, um escritório
+com um emissor próprio que dissesse "este é o fulano" entraria na conta do fulano — convidado, ou até
+membro, de OUTRO escritório. Com a conta escopada, o que o provedor de um escritório atesta não vale
+nada fora dele. O prefixo é prova porque só o servidor escolhe uid: o bootstrap não abre escritório
+para essa conta, e o navegador não lhe pede o e-mail confirmado que ela não tem.
+
+**O convite por identidade.** Com `requiredClaim: { name, value, normalize? }` (`digits` | `lowercase`;
+o valor é gravado normalizado), `makeInvitePortalUserUseCase` — a mesma porta da tela e do passo — não
+cria conta pelo e-mail nem grava a marca do bootstrap: grava `portalIdentityInvites` (`claimKey`,
+`subjectKeys`, `boundUserIds`). O e-mail vira CONTATO (avisos, lista), não prova. A claim tem de ser
+atestada por algum provedor configurado (`portal.claim.unattested`) — senão ninguém aceitaria o convite.
+
+| Na volta do provedor | O que acontece |
+|---|---|
+| as chaves do login | `portalLoginClaimKeys`: cada claim que o PROVEDOR ATESTA, em cada forma de comparar. Claim que vem no token mas não foi declarada como atestada não prova nada; `email`/`phone_number` só valem com o `*_verified` |
+| os convites | achados por `claimKey in [...]` e conferidos de novo pela normalização de cada um |
+| o acesso | `portalUsers/{uid}.subjectKeys` é SUBSTITUÍDO pela soma dos convites satisfeitos AGORA (`bind`): o convite revogado não volta no login seguinte, e o que deixou de valer é desfeito |
+| a identidade | `portalUsers/{uid}.identity = { provider, claim, level, subject, verifiedAt }` — `level` é a claim que o escritório apontou (`levelClaim`), como o provedor a escreveu |
+| veio do link de um convite (`?invite=`) e a claim não coincide | recusa `mismatch`, auditada contra aquele convite (contato e NOME da claim) |
+| nenhum convite satisfeito | recusa `not-invited`, auditada |
+
+O sujeito convidado DEPOIS do aceite chega à conta na hora (`syncAccount`). Revogar mexe no CONVITE —
+pelo `userId` da conta, pelo `inviteId` ou pelo e-mail de contato (a automação) —, porque mexer só na
+conta seria desfeito no próximo login.
+
+**O link de e-mail é escolha do escritório, e desligá-lo vale no instante.** Desligado, o convite sem
+claim é recusado (`portal.invite.identity-required`) nas duas portas, e todo `portalUsers` sem
+`identity` ganha `suspended: true` (religar tira). A suspensão mora no convite, e não numa configuração
+lida pela regra, para `isPortalUser` continuar custando UMA leitura: a regra exige
+`suspended != true`, e a projeção e os documentos fecham na hora. As callables tratam o suspenso como
+não convidado, os avisos o pulam, e `getPortalContext` o recusa com `portal.signin.identity-required`
+— a casca explica e oferece entrar de novo, já com os provedores daquele escritório.
+
+**O que o convidado provou viaja com o que ele faz.** `WorkflowActor.verified` (`identifyPortalActor`,
+lido do convite) — nas expressões, `actor.verified`, `null` em todo outro caso. A gravação pelo portal
+carimba o campo de sistema `portalVerified` no REGISTRO (a identidade, ou `null` para quem entrou por
+e-mail; as outras portas não o tocam): é por ele que uma automação de `.saved`, um relatório ou um
+modelo de documento dizem quem praticou o ato e com que garantia — `.saved` não tem ator. Está em
+`SYSTEM_MANAGED_KEYS`, fora do diff da Auditoria, e `firestore.rules` o recusa do cliente; a linha de
+Auditoria da gravação leva um bloco `✓` com ele.
+
+**A Auditoria de cada entrada.** Aceita: provedor, claim provada (com o valor — é a resposta à
+contestação) e nível. Recusada (severidade alta): o motivo (`discovery`, `exchange`, `token`,
+`userinfo`, `mismatch`, `not-invited`) e, no `mismatch`, o contato e o NOME da claim — nunca o valor
+tentado: quem sonda o portal não deixa no escritório uma lista de documentos alheios.
+
+| Garantia | Teste |
+|---|---|
+| assinatura, algoritmos, `kid`, chave girada, `iss`/`aud`/`azp`/`exp`/`nonce`, troca com PKCE e `client_secret_basic`/`post` | `functions/src/infrastructure/portal/oidc/FetchOidcClient.test.ts` |
+| a entrada de ponta a ponta com chaves RSA reais (o verificador corresponde ao desafio; `nonce` trocado e chave intrusa recusados) | `functions/src/infrastructure/portal/portalSignIn.integration.test.ts` |
+| volta única, vencida, conta escopada, `mismatch`, `not-invited`, claim não atestada, `email_verified`, revogação, propagação, `userinfo`, nível, configuração e suspensão | `functions/src/domain/usecases/PortalIdentityUseCases.test.ts` |
+| suspensão nas regras, convite por identidade e pedido de entrada fechados, `portalVerified` não forjável | `rules-tests/portal.test.ts` |
+
+**Requisitos da instalação.** `createCustomToken` assina com a conta de serviço das functions: sem
+`iam.serviceAccounts.signBlob` sobre ela (papel *Service Account Token Creator* e a API IAM Service
+Account Credentials), o provedor confirma a pessoa e a entrada falha mesmo assim — o passo manual
+opcional `portal-identity-signing` do Console diz os dois comandos. Cada provedor precisa ter
+registrado o endereço de volta `https://<host>/portal/signin/callback`, que a aba mostra para copiar.
+
+**O empacotamento** cobra `kernel ^PORTAL_IDENTITY_CLAIM_SINCE_KERNEL` (2.74.0) do pacote que usa
+`requiredClaim*` em `portal-invite`: um kernel anterior IGNORA a entrada e convida pelo e-mail — falha
+ABERTO, e por isso é recusa, e não só aviso.
+
 ### A casca — `/portal`
 
 Fora da pilha de stores do espaço de trabalho, de propósito: o convidado não lê telas, perfis nem
@@ -1464,6 +1565,13 @@ não há recusa no empacotamento. `examples/portal-example` avisa o cliente de u
 - **Escala.** A lista do portal traz as 200 projeções mais recentes por coleção, sem paginação por
   cursor; e os gatilhos de projeção leem as telas por um cache de 30 s por instância — uma gravação logo depois de mudar a
   declaração pode projetar pela declaração anterior, até a próxima gravação daquele registro.
+- **E-mail de boas-vindas do convite por identidade.** A porta de avisos alcança CONTAS que veem o
+  registro, e a conta de quem é convidado por identidade só existe depois do primeiro acesso. O passo
+  diz no log por que não mandou; o escritório divulga o endereço de entrada do portal.
+- **Documento anexado pelo convidado verificado** não carrega `portalVerified`: a prova vai no
+  registro (gravação pelo portal) e na Auditoria da entrada; o documento leva o autor e `via: 'portal'`.
+- **Nível de confiabilidade fora do token.** Vale a claim que o escritório aponta em `levelClaim`; um
+  provedor que só informa o nível numa API própria não é consultado.
 - **`refEntity` do campo-sujeito** muda pelo Form Design sem `portal.manage` (incluir `fields` na
   regra travaria qualquer edição de campo das telas do portal). Exige que a tela apontada também
   esteja no portal, o que já cobra `portal.manage`.
@@ -1476,6 +1584,10 @@ não há recusa no empacotamento. `examples/portal-example` avisa o cliente de u
 `functions/src/domain/usecases/{PortalProjectionUseCases,PortalReprojectionUseCases,PortalAccessUseCases}.ts` ·
 `functions/src/infrastructure/handlers/{portalProjection,portalAccess}.ts` ·
 `functions/src/infrastructure/workflow/steps/PortalAccessSteps.ts` · `functions/src/infrastructure/portal/portalAccessAudit.ts` ·
+`domain/schema/portalIdentity.ts` · `functions/src/domain/usecases/PortalIdentityUseCases.ts` ·
+`functions/src/domain/repositories/IPortalIdentity.ts` · `functions/src/data/repositories/FirebasePortalIdentity.ts` ·
+`functions/src/infrastructure/portal/oidc/{FetchOidcClient,verifyIdToken}.ts` · `functions/src/infrastructure/handlers/portalSignIn.ts` ·
+`presentation/pages/{PortalSignIn,PortalSignInCallback}/` · `presentation/pages/TenantSettings/PortalTab/components/PortalSignInSettings/` ·
 `rules-tests/{portal,portalReprojections}.test.ts`
 
 ---
@@ -6412,8 +6524,10 @@ a separação:
   porque vai para dentro de um registro e uma referência "usuário desconhecido" seria texto do produto
   gravado como dado. `identifyActor` (`infrastructure/workflow/`) monta o ator nas portas de entrada.
 
-**Nas expressões, `actor` é `{ id, name, via } | null`** (`toExpressionActor`) — sem foto nem
-permissões: é identidade, e o acesso continua perguntado por `hasPermission`. Entra no escopo DEPOIS das
+**Nas expressões, `actor` é `{ id, name, via, verified } | null`** (`toExpressionActor`) — sem foto nem
+permissões: é identidade, e o acesso continua perguntado por `hasPermission`. `verified` é a identidade
+que um convidado do portal provou por um provedor do escritório, `null` em todo outro caso (ver "Entrar
+com identidade verificada"). Entra no escopo DEPOIS das
 variáveis, para um `set-variable` chamado `actor` não passar a dizer quem disparou. Sem ator, `actor.id`
 lê `null` em vez de estourar — pela regra geral de membro nulo (ver "Avaliação segura das expressões"),
 que nasceu aqui como exceção só desta raiz e deixou de ser exceção. O Script recebe a mesma forma no
@@ -12923,7 +13037,7 @@ runtime na primeira execução. Foi a separação por dono que os encontrou — 
 `orderBy` em campos diferentes tem de declarar o índice no `manifest.backend.indexes` dela; sem isso ela
 instala, aparece no menu e falha na primeira execução.
 
-Além dos compostos, o arquivo declara sete `fieldOverrides`:
+Além dos compostos, o arquivo declara oito `fieldOverrides`:
 
 | Coleção | Campo | Motivo |
 |---|---|---|
@@ -12935,6 +13049,7 @@ Além dos compostos, o arquivo declara sete `fieldOverrides`:
 | `notification_inbox` | `expiresAt` | TTL — o sino guarda o recente (30 dias), não o histórico; o histórico é a Auditoria |
 | `notification_dispatches` | `expiresAt` | TTL — a marca de "este aviso já saiu" (`dedupKey`) vale o mesmo que o aviso |
 | `downloads` | `expiresAt` | TTL — o arquivo gerado para Downloads vence sozinho; o gatilho `onDownloadDeleted` leva o arquivo do bucket. Sem índice: a lista filtra o vencido no cliente |
+| `portalSignInRequests` | `expiresAt` | TTL — o pedido de entrada no portal por um provedor de identidade que nunca voltou (a pessoa desistiu no provedor). O que volta é apagado ao ser gasto; sem índice, porque só é lido pelo id |
 
 ---
 

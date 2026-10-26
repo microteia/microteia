@@ -1,6 +1,7 @@
 import type { IPortalRepository } from '../../repositories/IPortalRepository';
 import type { PortalHomeSettings } from '../../schema/portalExtensionPoints';
 import type { PortalProfile } from '../../schema/portal';
+import type { PortalRequiredClaim } from '../../schema/portalIdentity';
 import type { PortalContext, PortalDocument, PortalLinkOption, PortalMembership } from '../../entities/Portal';
 
 export type ListPortalMembershipsUseCase = {
@@ -36,19 +37,25 @@ export const makeGetPortalDocumentUrlUseCase = (repo: IPortalRepository): GetPor
 });
 
 export type InvitePortalGuestUseCase = {
-  execute: (tenantId: string, email: string, subjectKey: string, locale: string) => Promise<{ userId: string; created: boolean }>;
+  execute: (
+    tenantId: string,
+    email: string,
+    subjectKey: string,
+    locale: string,
+    requiredClaim?: PortalRequiredClaim,
+  ) => Promise<{ userId: string; created: boolean; inviteId?: string }>;
 };
 
 export const makeInvitePortalGuestUseCase = (repo: IPortalRepository): InvitePortalGuestUseCase => ({
-  execute: (tenantId, email, subjectKey, locale) => repo.invite(tenantId, email, subjectKey, locale),
+  execute: (tenantId, email, subjectKey, locale, requiredClaim) => repo.invite(tenantId, email, subjectKey, locale, requiredClaim),
 });
 
 export type RevokePortalGuestUseCase = {
-  execute: (tenantId: string, userId: string, subjectKey: string | null) => Promise<void>;
+  execute: (tenantId: string, guest: { userId: string } | { inviteId: string }, subjectKey: string | null) => Promise<void>;
 };
 
 export const makeRevokePortalGuestUseCase = (repo: IPortalRepository): RevokePortalGuestUseCase => ({
-  execute: (tenantId, userId, subjectKey) => repo.revoke(tenantId, userId, subjectKey),
+  execute: (tenantId, guest, subjectKey) => repo.revoke(tenantId, guest, subjectKey),
 });
 
 export type ListPortalLinkOptionsUseCase = {

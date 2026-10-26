@@ -33,6 +33,7 @@ import { portalExamplePtBrContribution } from './portalMessagesPtBr';
  * | telling the guests something happened | a `notify` step with `portalGuests` — never members in the same step |
  * | the documents the guest sees | `portal.documents` — and only the SHARED ones, shared by hand or by `share-documents` |
  * | the invitation follows a record | `portal.invites: { automation: true }` + the `portal-invite` / `portal-revoke` steps |
+ * | the guest must PROVE who they are | `requiredClaim*` on `portal-invite` — see the note on `contactAccess` below |
  *
  * Guests are invited to a Client — by the organization, in Settings > Portal, or by a workflow when a
  * Contact of that client gets portal access. Each one then sees that client and its orders — nothing
@@ -318,6 +319,20 @@ const contactAccess = (id: string, stepDefinitionId: 'portal-invite' | 'portal-r
  * Unchecking `portalAccess` — or deleting the Contact — takes the access back at once. A real
  * registration would also check the e-mail and cap the contacts per client in the record itself, so
  * that only a validated record ever reaches the step.
+ *
+ * Signing in by e-mail link only proves the guest reads that mailbox. When what the guest does has to
+ * be attributable to a PERSON — an acknowledgement, an acceptance —, the organization adds an identity
+ * provider in Settings > Portal > Sign-in and the invitation requires an attribute that provider
+ * verifies. Here that would be three more inputs, fed by a field of the Contact:
+ *
+ *   requiredClaimName: { kind: 'Literal', value: 'nationalId' },
+ *   requiredClaimValue: { kind: 'Event', path: 'documentNumber' },
+ *   requiredClaimNormalize: { kind: 'Literal', value: 'digits' },
+ *
+ * The example does not do it because it would stop working out of the box: every invitation would
+ * fail until the organization configured a provider that verifies `nationalId`. With them, no account
+ * is opened for the e-mail; only a sign-in proving the same value gets in, and every record the guest
+ * saves carries `portalVerified` (provider, claim, assurance level). It requires `kernel: "^2.74.0"`.
  */
 const CONTACT_ACCESS_GRANTED: WorkflowModuleTemplate = {
   templateId: 'wf-contact-access',

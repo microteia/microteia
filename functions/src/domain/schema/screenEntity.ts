@@ -23,7 +23,12 @@ import { AGGREGATE_BACKFILL_COLLECTION } from './aggregateBackfill';
 import { RECORD_KEY_ADOPTION_COLLECTION } from './recordKeyAdoption';
 import { WORKFLOW_CLOCK_COLLECTION, WORKFLOW_TRIGGER_MARKS_COLLECTION } from './workflowClock';
 import { NOTIFICATION_DISPATCHES_COLLECTION, NOTIFICATION_INBOX_COLLECTION } from './notifications';
-import { PORTAL_RECORDS_COLLECTION, PORTAL_REPROJECTIONS_COLLECTION, PORTAL_USERS_COLLECTION } from './portalCollections';
+import {
+  PORTAL_IDENTITY_INVITES_COLLECTION,
+  PORTAL_RECORDS_COLLECTION,
+  PORTAL_REPROJECTIONS_COLLECTION,
+  PORTAL_USERS_COLLECTION,
+} from './portalCollections';
 
 import type { AuditAction } from '../entities/AuditLog';
 import type { LocalizedMessage } from './i18n/localizedMessage';
@@ -592,6 +597,7 @@ export const RESERVED_COLLECTIONS: ReadonlySet<string> = new Set<string>([
   PORTAL_USERS_COLLECTION,
   PORTAL_RECORDS_COLLECTION,
   PORTAL_REPROJECTIONS_COLLECTION,
+  PORTAL_IDENTITY_INVITES_COLLECTION,
   ...LOOKUP_REGISTRY_LIST.map((lookup) => lookup.collection),
 ]);
 

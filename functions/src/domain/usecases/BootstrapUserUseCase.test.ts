@@ -51,6 +51,18 @@ describe('BootstrapUserUseCase', () => {
     expect(users.createUserProfileIfMissing).toHaveBeenCalled();
   });
 
+  it('a conta aberta por um provedor do portal, sem e-mail, também não ganha escritório', async () => {
+    const { users, tenants, created } = setup();
+    const invites = { hasInvite: vi.fn(async () => false) };
+
+    await makeBootstrapUserUseCase(users, tenants, Math.random, invites)
+      .execute({ userId: 'portal-id-abc', email: '', displayName: 'Bia', photoURL: null });
+
+    expect(created).toHaveLength(0);
+    expect(users.createUserIfMissing).toHaveBeenCalledWith('portal-id-abc', expect.objectContaining({ origin: 'portal' }));
+    expect(invites.hasInvite).not.toHaveBeenCalled();
+  });
+
   it('usuário já provisionado não cria outro escritório', async () => {
     const { users, tenants, created } = setup(true);
 

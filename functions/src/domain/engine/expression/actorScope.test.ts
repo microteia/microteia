@@ -32,7 +32,24 @@ describe('`actor` no escopo das expressões do fluxo', () => {
   });
 
   it('não expõe as permissões nem a foto: `actor` é identidade, e o acesso se pergunta por hasPermission', () => {
-    expect(expressionEngine.evaluate('actor', contextWith(ana))).toEqual({ id: 'u-ana', name: 'Ana Souza', via: 'ui' });
+    expect(expressionEngine.evaluate('actor', contextWith(ana))).toEqual({ id: 'u-ana', name: 'Ana Souza', via: 'ui', verified: null });
+  });
+
+  it('o convidado que provou a identidade traz `actor.verified`: provedor, claim e nível', () => {
+    const guest: WorkflowActor = {
+      userId: 'portal-id-x', name: 'Bia', photoURL: '', via: 'portal', permissions: [],
+      verified: { provider: 'citizen', claim: { name: 'nationalId', value: '12345678900' }, level: 'gold' },
+    };
+    const context = contextWith(guest);
+    expect(expressionEngine.evaluate('actor.verified.level', context)).toBe('gold');
+    expect(expressionEngine.evaluate('actor.verified.claim.value', context)).toBe('12345678900');
+    expect(expressionEngine.evaluate('actor.verified.provider == "citizen"', context)).toBe(true);
+  });
+
+  it('quem não provou identidade lê `actor.verified` como null, sem estourar', () => {
+    const context = contextWith({ ...ana, via: 'portal', permissions: [] });
+    expect(expressionEngine.evaluate('isEmpty(actor.verified)', context)).toBe(true);
+    expect(expressionEngine.evaluate('actor.verified.level', context)).toBeNull();
   });
 
   it('sem pessoa, `actor` é null, isEmpty(actor) é verdadeiro, e `actor.id` lê null em vez de estourar', () => {

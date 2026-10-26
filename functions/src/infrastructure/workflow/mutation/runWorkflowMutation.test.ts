@@ -314,6 +314,49 @@ describe('runWorkflowUpsert', () => {
       );
       expect(repo.createCalls[0].data).toMatchObject({ createdBy: 'u-ana', createdByName: 'Ana Souza', createdVia: 'ui' });
     });
+
+    describe('a identidade que o convidado do portal provou — `portalVerified`', () => {
+      const verified = { provider: 'citizen', claim: { name: 'nationalId', value: '12345678900' }, level: 'gold' };
+      const guest = (identity?: typeof verified): WorkflowContext => ({
+        ...context(),
+        actor: {
+          userId: 'portal-id-x', name: 'Bia', photoURL: '', via: 'portal', permissions: [],
+          ...(identity ? { verified: identity } : {}),
+        },
+      });
+
+      it('a gravação pelo portal carimba o provedor, a claim e o nível', async () => {
+        const repo = new FakeMutationRepository();
+        await runWorkflowUpsert({ table: 'persons', data: { name: 'Bia' } }, guest(verified), deps(repo));
+        expect(repo.createCalls[0].data).toMatchObject({ createdVia: 'portal', portalVerified: verified });
+      });
+
+      it('o convidado do link de e-mail APAGA a prova da gravação anterior — ela não é dele', async () => {
+        const repo = new FakeMutationRepository();
+        repo.seed('persons', 'p1', { name: 'Antigo', portalVerified: verified });
+        await runWorkflowUpsert({ table: 'persons', id: 'p1', data: { name: 'Novo' } }, guest(), deps(repo));
+        expect(repo.store.get('persons/p1')).toMatchObject({ updatedVia: 'portal', portalVerified: null });
+      });
+
+      it('as outras portas não tocam o campo: ele fala da última gravação feita pelo portal', async () => {
+        const repo = new FakeMutationRepository();
+        repo.seed('persons', 'p1', { name: 'Antigo', portalVerified: verified });
+        await runWorkflowUpsert({ table: 'persons', id: 'p1', data: { name: 'Novo' } }, withActor('ui'), deps(repo));
+        expect(repo.updateCalls[0].data).not.toHaveProperty('portalVerified');
+        await upsert(repo, { table: 'persons', id: 'p1', data: { name: 'Outro' } });
+        expect(repo.store.get('persons/p1')).toMatchObject({ portalVerified: verified });
+      });
+
+      it('nenhum fluxo forja a prova', async () => {
+        const repo = new FakeMutationRepository();
+        const outcome = await runWorkflowUpsert(
+          { table: 'persons', data: { name: 'Bia', portalVerified: verified } },
+          withActor('ui'),
+          deps(repo),
+        );
+        expect(outcome.ok).toBe(false);
+      });
+    });
   });
 
   it('com ignoreUnwritableFields, descarta campos reservados/desconhecidos em vez de falhar', async () => {

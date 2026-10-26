@@ -18,6 +18,47 @@ export const S = {
     }
   `,
 
+  ClaimRow: styled.div`
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: ${({ theme }) => theme.spacing.md};
+
+    @media (max-width: 900px) {
+      grid-template-columns: 1fr;
+    }
+  `,
+
+  ListTitle: styled.h3`
+    font-size: ${({ theme }) => theme.fontSizes.md};
+    font-weight: 600;
+    color: ${({ theme }) => theme.colors.text};
+  `,
+
+  Verified: styled.span`
+    display: inline-flex;
+    align-items: center;
+    gap: ${({ theme }) => theme.spacing.xs};
+    margin-left: ${({ theme }) => theme.spacing.sm};
+    padding: 1px ${({ theme }) => theme.spacing.sm};
+    border-radius: ${({ theme }) => theme.borderRadius.full};
+    border: 1px solid ${({ theme }) => theme.colors.success};
+    color: ${({ theme }) => theme.colors.success};
+    font-size: ${({ theme }) => theme.fontSizes.xs};
+    font-weight: 500;
+  `,
+
+  Suspended: styled.span`
+    display: inline-flex;
+    margin-left: ${({ theme }) => theme.spacing.sm};
+    padding: 1px ${({ theme }) => theme.spacing.sm};
+    border-radius: ${({ theme }) => theme.borderRadius.full};
+    background: ${({ theme }) => theme.colors.warningLight};
+    color: ${({ theme }) => theme.colors.warning};
+    font-size: ${({ theme }) => theme.fontSizes.xs};
+    font-weight: 500;
+  `,
+
   Column: styled.div`
     display: flex;
     flex-direction: column;

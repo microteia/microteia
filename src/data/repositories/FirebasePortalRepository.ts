@@ -20,10 +20,21 @@ import type {
   PortalContext,
   PortalDocument,
   PortalGuest,
+  PortalIdentityInvite,
   PortalLinkOption,
   PortalMembership,
   PortalRecord,
+  PortalSignInSettingsView,
 } from '../../domain/entities/Portal';
+import { PORTAL_IDENTITY_INVITES_COLLECTION } from '../../domain/schema/portalCollections';
+import {
+  PORTAL_CLAIM_NORMALIZERS,
+  asPortalVerifiedIdentity,
+  type PortalClaimNormalize,
+  type PortalRequiredClaim,
+  type PortalSignInOptions,
+  type PortalSignInSettings,
+} from '../../domain/schema/portalIdentity';
 import {
   PORTAL_DOCUMENTS_SUBCOLLECTION,
   PORTAL_RECORDS_COLLECTION,
@@ -218,12 +229,17 @@ export class FirebasePortalRepository implements IPortalRepository {
       collection(db, 'tenants', tenantId, PORTAL_USERS_COLLECTION),
       (snapshot) => onUpdate(
         snapshot.docs
-          .map((one) => ({
-            userId: one.id,
-            email: textOf(one.get('email')),
-            displayName: portalGuestName(asPortalProfile(one.get(PORTAL_PROFILE_FIELD)), textOf(one.get('displayName'))),
-            subjectKeys: stringsOf(one.get('subjectKeys')),
-          }))
+          .map((one): PortalGuest => {
+            const identity = asPortalVerifiedIdentity(one.get('identity'));
+            return {
+              userId: one.id,
+              email: textOf(one.get('email')),
+              displayName: portalGuestName(asPortalProfile(one.get(PORTAL_PROFILE_FIELD)), textOf(one.get('displayName'))),
+              subjectKeys: stringsOf(one.get('subjectKeys')),
+              ...(identity ? { identity } : {}),
+              ...(one.get('suspended') === true ? { suspended: true } : {}),
+            };
+          })
           .sort((a, b) => a.email.localeCompare(b.email)),
       ),
       (error) => onError?.(error),
@@ -242,19 +258,87 @@ export class FirebasePortalRepository implements IPortalRepository {
     );
   }
 
-  async invite(tenantId: string, email: string, subjectKey: string, locale: string): Promise<{ userId: string; created: boolean }> {
+  async invite(
+    tenantId: string,
+    email: string,
+    subjectKey: string,
+    locale: string,
+    requiredClaim?: PortalRequiredClaim,
+  ): Promise<{ userId: string; created: boolean; inviteId?: string }> {
     const call = httpsCallable<
-      { tenantId: string; email: string; subjectKey: string; locale: string },
-      { userId: string; created: boolean }
+      { tenantId: string; email: string; subjectKey: string; locale: string; requiredClaim?: PortalRequiredClaim },
+      { userId: string; created: boolean; inviteId?: string }
     >(functions, 'invitePortalUser');
-    return (await call({ tenantId, email, subjectKey, locale })).data;
+    return (await call({ tenantId, email, subjectKey, locale, ...(requiredClaim ? { requiredClaim } : {}) })).data;
   }
 
-  async revoke(tenantId: string, userId: string, subjectKey: string | null): Promise<void> {
-    const call = httpsCallable<{ tenantId: string; userId: string; subjectKey: string | null }, { revoked: boolean }>(
-      functions,
-      'revokePortalUser',
+  async revoke(tenantId: string, guest: { userId: string } | { inviteId: string }, subjectKey: string | null): Promise<void> {
+    const call = httpsCallable<
+      { tenantId: string; userId?: string; inviteId?: string; subjectKey: string | null },
+      { revoked: boolean }
+    >(functions, 'revokePortalUser');
+    await call({ tenantId, ...guest, subjectKey });
+  }
+
+  subscribeIdentityInvites(
+    tenantId: string,
+    onUpdate: (invites: PortalIdentityInvite[]) => void,
+    onError?: (error: Error) => void,
+  ): () => void {
+    return onSnapshot(
+      collection(db, 'tenants', tenantId, PORTAL_IDENTITY_INVITES_COLLECTION),
+      (snapshot) => onUpdate(
+        snapshot.docs
+          .map((one): PortalIdentityInvite => {
+            const claim = (one.get('claim') ?? {}) as Record<string, unknown>;
+            const normalize = PORTAL_CLAIM_NORMALIZERS.find((mode) => mode === claim.normalize) as PortalClaimNormalize | undefined;
+            return {
+              id: one.id,
+              email: textOf(one.get('email')),
+              displayName: textOf(one.get('displayName')),
+              claim: { name: textOf(claim.name), value: textOf(claim.value), ...(normalize ? { normalize } : {}) },
+              subjectKeys: stringsOf(one.get('subjectKeys')),
+              accepted: stringsOf(one.get('boundUserIds')).length > 0,
+            };
+          })
+          .sort((a, b) => a.email.localeCompare(b.email)),
+      ),
+      (error) => onError?.(error),
     );
-    await call({ tenantId, userId, subjectKey });
+  }
+
+  async getSignInSettings(tenantId: string): Promise<PortalSignInSettingsView> {
+    const call = httpsCallable<{ tenantId: string; op: 'get' }, PortalSignInSettingsView>(functions, 'managePortalSignIn');
+    return (await call({ tenantId, op: 'get' })).data;
+  }
+
+  async saveSignInSettings(
+    tenantId: string,
+    settings: PortalSignInSettings,
+    secrets: Record<string, string | null>,
+  ): Promise<PortalSignInSettingsView> {
+    const call = httpsCallable<
+      { tenantId: string; op: 'save'; settings: PortalSignInSettings; secrets: Record<string, string | null> },
+      PortalSignInSettingsView
+    >(functions, 'managePortalSignIn');
+    return (await call({ tenantId, op: 'save', settings, secrets })).data;
+  }
+
+  async getSignInOptions(tenantId: string): Promise<PortalSignInOptions> {
+    const call = httpsCallable<{ tenantId: string }, PortalSignInOptions>(functions, 'getPortalSignInOptions');
+    return (await call({ tenantId })).data;
+  }
+
+  async startSignIn(input: Parameters<IPortalRepository['startSignIn']>[0]): Promise<{ url: string; state: string }> {
+    const call = httpsCallable<typeof input, { url: string; state: string }>(functions, 'startPortalSignIn');
+    return (await call(input)).data;
+  }
+
+  async completeSignIn(state: string, code: string): Promise<{ token: string; tenantId: string; next: string | null }> {
+    const call = httpsCallable<{ state: string; code: string }, { token: string; tenantId: string; next: string | null }>(
+      functions,
+      'completePortalSignIn',
+    );
+    return (await call({ state, code })).data;
   }
 }

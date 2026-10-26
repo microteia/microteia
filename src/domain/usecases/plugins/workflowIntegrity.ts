@@ -16,6 +16,10 @@ import {
   SHARE_DOCUMENTS_STEP_ID,
 } from '../../schema/workflowStepCatalog';
 import { PORTAL_AUTOMATION_INVITES_SINCE_KERNEL, acceptsAutomationInvites, asPortalDeclaration } from '../../schema/portal';
+import { PORTAL_IDENTITY_CLAIM_SINCE_KERNEL } from '../../schema/portalIdentity';
+
+/** As entradas que fazem do convite um convite por identidade — qualquer uma delas exige o kernel novo. */
+const PORTAL_IDENTITY_CLAIM_INPUTS = ['requiredClaimName', 'requiredClaimValue', 'requiredClaimNormalize'] as const;
 import { CHILD_RECORD_EVENTS_SINCE_KERNEL, splitChildRecordEventName } from '../../schema/eventCatalog';
 import { WORKFLOW_AUDIT_EVENT, WORKFLOW_AUDIT_SINCE_KERNEL } from '../../schema/workflowAuditTrigger';
 import type { PackageRef, PackageValidationIssue } from './pluginReferences';
@@ -351,6 +355,15 @@ const portalAccessIssues = (
       message: '@core.marketplace/issue.step.definition-kernel',
       messageParams: { step: step.id, definition, minimum: PORTAL_AUTOMATION_INVITES_SINCE_KERNEL },
     }];
+    const claimed = definition === PORTAL_INVITE_STEP_ID
+      && PORTAL_IDENTITY_CLAIM_INPUTS.some((input) => step.configuration?.[input] !== undefined);
+    if (claimed && !rangeExcludesBelow(pkg.manifest?.kernel ?? '', PORTAL_IDENTITY_CLAIM_SINCE_KERNEL)) {
+      issues.push({
+        ref,
+        message: '@core.marketplace/issue.step.input-kernel',
+        messageParams: { step: step.id, input: 'requiredClaimName', minimum: PORTAL_IDENTITY_CLAIM_SINCE_KERNEL },
+      });
+    }
     const collection = step.configuration?.subjectCollection;
     if (definition !== PORTAL_INVITE_STEP_ID || collection?.kind !== 'Literal' || typeof collection.value !== 'string') return issues;
     const screen = (pkg.screens ?? []).find((candidate) => (candidate.dataCollection ?? candidate.key) === collection.value);

@@ -1,5 +1,6 @@
 import type { BusinessCalendarSet } from '../schema/time/businessDays';
 import type { InputMapping, WorkflowEvent } from './Workflow';
+import type { PortalVerifiedIdentity } from '../schema/portalIdentity';
 
 /**
  * O `message` do logger do MOTOR é uma REFERÊNCIA (`@core.automation/…`), e `params` traz o que a
@@ -61,6 +62,12 @@ export interface WorkflowActor {
   photoURL: string;
   via: ActorVia;
   permissions: string[];
+  /**
+   * O convidado do portal que entrou por um provedor de identidade do escritório: o provedor, a claim
+   * que o convite exigia e o nível de confiabilidade que o provedor informou. Ausente para quem entrou
+   * pelo link de e-mail — e para todo ator de dentro do escritório.
+   */
+  verified?: PortalVerifiedIdentity;
 }
 
 export interface WorkflowContext {

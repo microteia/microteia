@@ -11,6 +11,14 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.161.0] — 2026-10-26
+
+- O portal agora aceita entrada com identidade verificada: o escritório cadastra, em Configurações › Portal › Entrada, os provedores de identidade com que os convidados podem entrar (por exemplo, o login do governo), e cada botão aparece na página de entrada do portal.
+- Um convite pode exigir que a pessoa prove um dado — como o número do documento — pelo provedor de identidade. Só entra quem prova exatamente aquele dado; as tentativas recusadas ficam registradas na Auditoria.
+- O escritório decide se o link por e-mail continua valendo. Ao desligá-lo, quem entrava por e-mail perde o acesso na hora, e todo convite novo passa a exigir identidade verificada.
+- O que o convidado faz pelo portal passa a registrar com que provedor e com que nível de confiabilidade ele provou quem é — na Auditoria e no próprio registro, para automações, relatórios e documentos.
+- As automações de convite também podem exigir identidade verificada, com o dado tirado do próprio registro.
+
 #### [9.160.0] — 2026-10-26
 
 - As automações agora podem convidar pessoas para o portal e retirar esse acesso. Assim, o convite pode acompanhar um cadastro aprovado — o representante de uma empresa, o contato de um cliente — sem que alguém precise digitar o e-mail de novo em Configurações.

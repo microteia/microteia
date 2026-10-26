@@ -1,4 +1,5 @@
 import type { ActorVia, WorkflowActor } from '../entities/WorkflowContext';
+import type { PortalVerifiedIdentity } from '../schema/portalIdentity';
 
 /**
  * A metade do ator que atravessa o barramento de eventos: a IDENTIDADE, sem as permissões.
@@ -20,6 +21,8 @@ export interface ExpressionActor {
   id: string;
   name: string;
   via: ActorVia;
+  /** A identidade que o convidado do portal provou; `null` em todo outro caso — e lê-la não estoura. */
+  verified: PortalVerifiedIdentity | null;
 }
 
 const ACTOR_VIAS: readonly ActorVia[] = ['ui', 'agent'];
@@ -51,4 +54,4 @@ export const actorFromPublished = (raw: unknown): WorkflowActor | undefined => {
 };
 
 export const toExpressionActor = (actor: WorkflowActor | undefined): ExpressionActor | null =>
-  actor ? { id: actor.userId, name: actor.name, via: actor.via } : null;
+  actor ? { id: actor.userId, name: actor.name, via: actor.via, verified: actor.verified ?? null } : null;

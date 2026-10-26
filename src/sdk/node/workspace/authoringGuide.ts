@@ -29,6 +29,7 @@ import { FIELD_EXPRESSION_FUNCTION_NAMES } from '../../../domain/schema/fieldExp
 import { BUSINESS_CALENDAR_FIELDS } from '../../../domain/schema/time/businessDays';
 import { BUSINESS_CALENDAR_POINT } from '../../../domain/schema/time/extensionPoints';
 import { ARTIFACT_PREFIX_SINCE_KERNEL } from '../../../domain/schema/plugin/artifactPrefix';
+import { PORTAL_CLAIM_NORMALIZERS, PORTAL_IDENTITY_CLAIM_SINCE_KERNEL } from '../../../domain/schema/portalIdentity';
 import {
   PORTAL_AUTOMATION_INVITES_PER_HOUR,
   PORTAL_AUTOMATION_INVITES_SINCE_KERNEL,
@@ -866,6 +867,32 @@ Stamped packages load UNTRUSTED — only declarations apply, and \`views\` do no
 restriction to work around; it is what lets an installation put your SSO live without anyone reviewing
 your code. And stamping is not installing: to also work inside the organization, the package has to be
 installed there too.
+
+#### The portal signs in differently — and it is not yours to declare
+
+\`auth.provider\` is the sign-in of the INSTALLATION: providers configured once in the project's Firebase
+Authentication, for the people who work there. A portal guest belongs to ONE organization, and that
+organization chooses how its guests prove who they are, in Settings > Portal > Sign-in:
+
+- the **e-mail link** (on by default) — it only proves the guest reads that mailbox;
+- up to a few **OpenID Connect providers** of its own — issuer, client, scopes, and the claims each one
+  verifies. The server is the OIDC client: authorization code with PKCE (S256) always, the client
+  secret never reaches a browser, and the ID token is checked against the provider's published keys
+  (signature, issuer, audience, expiry, nonce) before anything else happens.
+
+A guest who signs in through a provider gets an account that exists only in that organization — never
+the account of the invited e-mail, and never the same account in two organizations. That is what makes
+it safe for an organization to configure an issuer: what its provider attests is worth nothing outside it.
+
+An invitation may require an attribute the guest has to PROVE (\`requiredClaim: { name, value, normalize? }\`,
+\`normalize\` one of ${PORTAL_CLAIM_NORMALIZERS.map((mode) => `\`${mode}\``).join(', ')}). It is accepted only by a sign-in
+whose provider verifies that claim with the same value; anything else is refused and recorded in the
+Audit trail. \`email\` and \`phone_number\` only count when the provider marks them verified. Turning the
+e-mail link off suspends, at once, every guest who signs in by e-mail.
+
+There is nothing to declare for any of this, and nothing a package may name: no provider is known to the
+kernel by name. What reaches your code is the result — see \`actor.verified\` (section 9) and the
+\`portalVerified\` field of records the guest saves (section 10).
 
 ### How you contribute to one
 
@@ -1854,6 +1881,12 @@ with \`isEmpty(actor)\`; \`actor.name\` there reads \`null\` instead of failing.
 \`actor\` does not shadow it. It is identity, not access: what the person may do is still
 \`hasPermission(...)\`.
 
+\`actor.verified\` is what a portal guest PROVED when signing in through one of the organization's identity
+providers: \`{ provider, claim: { name, value } | null, level }\` — the provider's id, the claim the
+invitation required, and the assurance level the provider reported, as it wrote it. It is \`null\` for every
+member, for a guest who signed in by e-mail link, and when there is no actor; \`actor.verified.level\`
+reads \`null\` there instead of failing.
+
 | How the run started | \`actor\` | \`hasPermission\` answers for |
 |---|---|---|
 | an action (button), or \`run_action\` over MCP | the person, \`via\` \`ui\` / \`agent\` | that person (over MCP: the token's ceiling) |
@@ -2208,7 +2241,7 @@ automation, and it used to be invisible: the package validated and the flow sile
 from the same rule, and \`createdVia\` / \`updatedVia\` says how the write came in — \`"ui"\`, \`"agent"\` or,
 with no person behind the run, \`"automation"\` (the author is then \`workflow-engine\`). Every one of those
 fields is managed by the system: a mapping or a \`data\` object that names them is refused, or dropped by the
-step. So "who registered this" and "typed or by the AI" need no field of yours — read them off the record.
+step. So is \`portalVerified\`, the identity a portal guest proved when the write came through the portal. So "who registered this" and "typed or by the AI" need no field of yours — read them off the record.
 
 **\`QuerySpec.where\` uses the operator NAMES**, not the symbols: \`eq\`, \`neq\`, \`lt\`, \`lte\`, \`gt\`,
 \`gte\`, \`in\`, \`contains\`, \`exists\`. An operator outside that set matches no rows at all — the query
@@ -2351,6 +2384,34 @@ takes it back. Both require \`kernel: "^${PORTAL_AUTOMATION_INVITES_SINCE_KERNEL
   not an error. Revoke on \`.deleted\` too: a deleted record does not take its guests with it.
 - **The proof.** Every new invitation and every removal is an Audit trail entry: who, which record, and
   that it came from an automation.
+- **Verified identity.** \`requiredClaimName\`, \`requiredClaimValue\` and \`requiredClaimNormalize\`
+  (${PORTAL_CLAIM_NORMALIZERS.map((mode) => `\`${mode}\``).join(' or ')}) make it an invitation by IDENTITY: no account is opened for
+  the e-mail, and only someone who signs in through one of the organization's identity providers
+  proving that claim gets in (section 4). Set the name and the value comes out empty, the step FAILS — it
+  never falls back to an e-mail invitation. The claim must be one a provider of the organization
+  verifies, or the step fails too. No welcome e-mail goes out (\`emailed\` is \`false\`, the log says
+  why): the guest's account only exists after the first sign-in. \`inviteId\` is the invitation, and
+  \`portal-revoke\` by the same e-mail removes it. Requires
+  \`kernel: "^${PORTAL_IDENTITY_CLAIM_SINCE_KERNEL}"\` — an older kernel would ignore the claim and invite by
+  e-mail, so the package gate refuses it.
+
+\`\`\`ts
+configuration: {
+  subjectCollection: { kind: 'Literal', value: 'clients' },
+  subjectRecordId: { kind: 'Event', path: 'client' },
+  email: { kind: 'Event', path: 'email' },
+  requiredClaimName: { kind: 'Literal', value: 'nationalId' },
+  requiredClaimValue: { kind: 'Event', path: 'documentNumber' },
+  requiredClaimNormalize: { kind: 'Literal', value: 'digits' },
+}
+\`\`\`
+
+**What the guest proved travels with what the guest does.** A record saved through the portal carries
+\`portalVerified\` — \`{ provider, claim: { name, value } | null, level }\`, or \`null\` when the guest
+signed in by e-mail — so a \`.saved\` workflow, a report or a document template can say who acted and
+with what assurance. It is a system field: no workflow, script or screen writes it, and the Audit trail
+entry of that write shows it too. In expressions, \`actor.verified\` has the same shape whenever the
+actor is a portal guest who proved an identity, and is \`null\` otherwise.
 
 ### Waiting inside a workflow — the \`delay\` step
 

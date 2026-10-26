@@ -49,6 +49,7 @@ const SHARED_FILES = [
   'domain/schema/portalCollections.ts',
   'domain/schema/portalExtensionPoints.ts',
   'domain/schema/portalReprojection.ts',
+  'domain/schema/portalIdentity.ts',
   'domain/schema/plugin/codeTrust.ts',
   'domain/schema/aggregationSpec.ts',
   'domain/schema/aggregateBackfill.ts',

@@ -72,7 +72,7 @@ export const PORTAL_DOCUMENTS_TAB = '#documents';
 
 export interface PortalViewModel {
   loading: boolean;
-  error: 'no-access' | 'load-failed' | 'not-invited' | 'context-failed' | null;
+  error: 'no-access' | 'load-failed' | 'not-invited' | 'identity-required' | 'context-failed' | null;
   /** O código técnico de uma falha — o que a pessoa repassa a quem a atende. */
   errorCode: string | null;
   /** Há o que tentar de novo: a falha não foi uma recusa. */
@@ -383,7 +383,9 @@ export const usePortalViewModel = (): PortalViewModel => {
       ? 'load-failed'
       : noAccess
         ? 'no-access'
-        : portal.error === 'not-invited' ? 'not-invited' : portal.error === 'failed' ? 'context-failed' : null,
+        : portal.error === 'not-invited' || portal.error === 'identity-required'
+          ? portal.error
+          : portal.error === 'failed' ? 'context-failed' : null,
     errorCode: portal.errorCode,
     canRetry: loadFailed || portal.error === 'failed',
     retry: loadFailed ? portal.retryMemberships : portal.retryContext,

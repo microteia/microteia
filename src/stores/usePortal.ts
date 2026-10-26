@@ -13,9 +13,10 @@ export interface PortalStoreValue {
   /**
    * Por que o contexto não veio. `not-invited` só quando o SERVIDOR disse que a pessoa não é
    * convidada; qualquer outra falha — função iniciando, rede, erro interno — é `failed`, com nova
-   * tentativa. Juntar as duas mostrava "você não tem acesso" a quem tinha.
+   * tentativa. Juntar as duas mostrava "você não tem acesso" a quem tinha. `identity-required` é o
+   * convite suspenso: o escritório desligou o link de e-mail, e a pessoa tem de entrar por um provedor.
    */
-  error: 'not-invited' | 'failed' | null;
+  error: 'not-invited' | 'identity-required' | 'failed' | null;
   /** O código do erro, para quem precisa reportá-lo. */
   errorCode: string | null;
   retryContext: () => void;

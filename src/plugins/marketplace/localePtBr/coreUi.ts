@@ -158,7 +158,7 @@ export const CORE_UI: Record<string, string> = {
   'expression.context.event': 'Dados do evento que disparou o workflow',
   'expression.context.input': 'Dados de entrada configurados para este step',
   'expression.context.output': 'Saídas de steps anteriores do workflow',
-  'expression.context.actor': 'Quem disparou o workflow: actor.id, actor.name e actor.via ("ui" ou "agent"). Vazio quando nenhuma pessoa o disparou',
+  'expression.context.actor': 'Quem disparou o workflow: actor.id, actor.name, actor.via ("ui", "agent" ou "portal") e actor.verified — a identidade que um convidado do portal provou (provedor, claim, nível). Vazio quando nenhuma pessoa o disparou',
   'expression.variable.defined-by': 'Variável definida por: {by}',
   'expression.variable.short': 'Variável: {by}',
   'expression.snippet.if.label': 'if - condicional',

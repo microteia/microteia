@@ -7,6 +7,12 @@ export const makeSendSignInLinkUseCase = (repo: IAuthRepository): SendSignInLink
   execute: (email, continueUrl, locale) => repo.sendSignInLink(email, continueUrl, locale),
 });
 
+export type SignInWithTokenUseCase = { execute: (token: string) => Promise<User> };
+
+export const makeSignInWithTokenUseCase = (repo: IAuthRepository): SignInWithTokenUseCase => ({
+  execute: (token) => repo.signInWithToken(token),
+});
+
 export type SignInWithLinkUseCase = {
   isSignInLink: (url: string) => boolean;
   execute: (email: string, url: string) => Promise<User>;

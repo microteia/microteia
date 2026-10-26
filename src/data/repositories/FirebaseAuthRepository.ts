@@ -15,6 +15,7 @@ import {
   sendSignInLinkToEmail,
   isSignInWithEmailLink,
   signInWithEmailLink,
+  signInWithCustomToken,
   signOut as firebaseSignOut,
   onAuthStateChanged as firebaseOnAuthStateChanged,
 } from 'firebase/auth';
@@ -22,6 +23,7 @@ import type { AuthProvider, User as FirebaseUser } from 'firebase/auth';
 import { auth } from '../../infrastructure/firebase/config';
 import type { IAuthRepository } from '../../domain/repositories/IAuthRepository';
 import type { AuthProviderSpec } from '../../domain/schema/auth';
+import { isPortalIdentityAccount } from '../../domain/schema/portalIdentity';
 import type { User } from '../../domain/entities';
 
 const mapUser = (fbUser: FirebaseUser): User => ({
@@ -125,14 +127,20 @@ export class FirebaseAuthRepository implements IAuthRepository {
     return mapUser(result.user);
   }
 
+  async signInWithToken(token: string): Promise<User> {
+    const result = await signInWithCustomToken(auth, token);
+    return mapUser(result.user);
+  }
+
   isEmailVerified(): boolean {
-    return auth.currentUser?.emailVerified ?? false;
+    const current = auth.currentUser;
+    return !!current && (current.emailVerified || isPortalIdentityAccount(current.uid));
   }
 
   async refreshEmailVerification(): Promise<boolean> {
     if (!auth.currentUser) return false;
     await auth.currentUser.reload();
-    return auth.currentUser.emailVerified;
+    return this.isEmailVerified();
   }
 
   async signOut(): Promise<void> {

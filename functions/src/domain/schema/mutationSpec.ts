@@ -11,6 +11,7 @@ import { parsePath, resolvePath } from './pathResolver';
 import { resolveQueryTable } from './querySpec';
 import { isLookupTable } from './screenEntity';
 import { DEFAULT_TIME_ZONE, dayInTimeZone } from './i18n/timeZone';
+import { RECORD_PORTAL_VERIFIED_FIELD } from './portalIdentity';
 
 export interface UpsertSpec {
   table: string;
@@ -100,6 +101,7 @@ export const SYSTEM_MANAGED_KEYS: ReadonlySet<string> = new Set([
   'updatedByName',
   'updatedByPhotoURL',
   RECORD_UPDATED_VIA_FIELD,
+  RECORD_PORTAL_VERIFIED_FIELD,
   'deletedBy',
   'deletedByName',
   'deletedByPhotoURL',

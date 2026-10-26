@@ -233,3 +233,63 @@ describe('a home do portal (settings/portal)', () => {
     await assertFails(getDoc(home('ana')));
   });
 });
+
+describe('a entrada com identidade verificada', () => {
+  it('o convite SUSPENSO (o escritório desligou o link de e-mail) não abre nada — nem a projeção, nem o documento', async () => {
+    await env.withSecurityRulesDisabled(async (context) => {
+      const db = context.firestore() as unknown as Firestore;
+      await updateDoc(doc(db, `tenants/${TENANT}/portalUsers/ana`), { suspended: true });
+    });
+    const ana = asUser(env, 'ana');
+    await assertFails(getDoc(doc(ana, `tenants/${TENANT}/portalRecords/invoices__nf1`)));
+    await assertFails(getDocs(query(collection(ana, `tenants/${TENANT}/portalRecords`), where('audience', 'array-contains', 'ana'))));
+    await assertFails(getDocs(collection(ana, `tenants/${TENANT}/portalRecords/invoices__nf1/documents`)));
+    // O convite continua dela: a casca precisa dizer POR QUE não abre.
+    await assertSucceeds(getDoc(doc(ana, `tenants/${TENANT}/portalUsers/ana`)));
+  });
+
+  it('o convidado não tira a própria suspensão, nem escreve a identidade', async () => {
+    await env.withSecurityRulesDisabled(async (context) => {
+      const db = context.firestore() as unknown as Firestore;
+      await updateDoc(doc(db, `tenants/${TENANT}/portalUsers/ana`), { suspended: true });
+    });
+    const ana = asUser(env, 'ana');
+    await assertFails(updateDoc(doc(ana, `tenants/${TENANT}/portalUsers/ana`), { suspended: false }));
+    await assertFails(updateDoc(doc(ana, `tenants/${TENANT}/portalUsers/ana`), { identity: { provider: 'x', level: 'gold' } }));
+  });
+
+  it('o convite por identidade: quem gerencia o portal lê; ninguém grava do cliente; o convidado não alcança', async () => {
+    await env.withSecurityRulesDisabled(async (context) => {
+      const db = context.firestore() as unknown as Firestore;
+      await setDoc(doc(db, `tenants/${TENANT}/portalIdentityInvites/i1`), {
+        email: 'bia@acme.com', claim: { name: 'nationalId', value: '12345678900' }, claimKey: 'nationalId=12345678900', subjectKeys: ['companies/acme'],
+      });
+    });
+    await assertSucceeds(getDocs(collection(asUser(env, 'gestor'), `tenants/${TENANT}/portalIdentityInvites`)));
+    await assertFails(getDocs(collection(asUser(env, 'fiscal'), `tenants/${TENANT}/portalIdentityInvites`)));
+    await assertFails(getDoc(doc(asUser(env, 'ana'), `tenants/${TENANT}/portalIdentityInvites/i1`)));
+    await assertFails(setDoc(doc(asUser(env, 'gestor'), `tenants/${TENANT}/portalIdentityInvites/i2`), { subjectKeys: ['companies/acme'] }));
+    await assertFails(setDoc(doc(asUser(env, 'dono'), `tenants/${TENANT}/portalIdentityInvites/i1`), { boundUserIds: ['dono'] }));
+  });
+
+  it('o pedido de entrada e a configuração de provedores são só do servidor — nem o dono lê', async () => {
+    await env.withSecurityRulesDisabled(async (context) => {
+      const db = context.firestore() as unknown as Firestore;
+      await setDoc(doc(db, 'portalSignInRequests/h1'), { tenantId: TENANT, codeVerifier: 'v', nonce: 'n' });
+      await setDoc(doc(db, `tenants/${TENANT}/secrets/portal-identity`), { providers: [], secrets: { citizen: 's' } });
+    });
+    for (const uid of ['dono', 'gestor', 'ana']) {
+      await assertFails(getDoc(doc(asUser(env, uid), 'portalSignInRequests/h1')));
+      await assertFails(setDoc(doc(asUser(env, uid), 'portalSignInRequests/h2'), { tenantId: TENANT }));
+      await assertFails(getDoc(doc(asUser(env, uid), `tenants/${TENANT}/secrets/portal-identity`)));
+      await assertFails(setDoc(doc(asUser(env, uid), `tenants/${TENANT}/secrets/portal-identity`), { providers: [] }));
+    }
+  });
+
+  it('nenhum cliente forja `portalVerified` — a prova de quem gravou pelo portal é do servidor', async () => {
+    const fiscal = asUser(env, 'fiscal');
+    const forged = { provider: 'citizen', claim: { name: 'nationalId', value: '1' }, level: 'gold' };
+    await assertFails(updateDoc(doc(fiscal, `tenants/${TENANT}/invoices/nf1`), { portalVerified: forged, updatedVia: 'ui' }));
+    await assertSucceeds(updateDoc(doc(fiscal, `tenants/${TENANT}/invoices/nf1`), { number: 'NF-1b', updatedVia: 'ui' }));
+  });
+});

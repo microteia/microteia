@@ -15,6 +15,7 @@ import { configuredLocale } from '../../domain/services/tenantSettings';
 import { DEFAULT_LOCALE } from '../../domain/schema/i18n/localeNegotiation';
 import { resolveTimeZone } from '../../domain/schema/i18n/timeZone';
 import { ensurePortalProjectionRevision } from '../portal/portalProjectionRevision';
+import { identifyPortalActor } from '../portal/identifyPortalActor';
 
 const REGION = 'southamerica-east1';
 
@@ -79,18 +80,23 @@ export const invitePortalUser = onCall({ region: REGION, cors: true }, async (re
       actor: { userId, userName: actor.name },
       origin: 'settings',
       ...(typeof data.locale === 'string' && data.locale ? { locale: data.locale } : {}),
+      ...(data.requiredClaim !== undefined && data.requiredClaim !== null ? { requiredClaim: data.requiredClaim } : {}),
     });
   } catch (error) {
     throw asHttpsError(error, 'invitePortalUser');
   }
 });
 
-/** Revoga um vínculo, ou o convite inteiro quando `subjectKey` não vem. */
+/**
+ * Revoga um vínculo, ou o convite inteiro quando `subjectKey` não vem — do convidado (`userId`) ou do
+ * convite por identidade que ninguém aceitou ainda (`inviteId`).
+ */
 export const revokePortalUser = onCall({ region: REGION, cors: true }, async (request) => {
   const userId = authenticated(request.auth);
   const data = (request.data ?? {}) as Record<string, unknown>;
   const tenantId = requireString(data.tenantId, '@core.automation/handler.tenant.missing');
-  const portalUserId = requireString(data.userId, '@core.tenant/portal.user.required');
+  const inviteId = typeof data.inviteId === 'string' && data.inviteId.trim() !== '' ? data.inviteId.trim() : null;
+  const guest = inviteId ? { inviteId } : { userId: requireString(data.userId, '@core.tenant/portal.user.required') };
   const subjectKey = typeof data.subjectKey === 'string' && data.subjectKey !== '' ? data.subjectKey : null;
 
   const granted = await requirePermission(tenantId, userId, PERMISSION_PORTAL_MANAGE);
@@ -98,7 +104,7 @@ export const revokePortalUser = onCall({ region: REGION, cors: true }, async (re
     const actor = await identifyActor(userId, 'ui', granted);
     await getDI().getRevokePortalUserUseCase().execute({
       tenantId,
-      guest: { userId: portalUserId },
+      guest,
       subjectKey,
       actor: { userId, userName: actor.name },
       origin: 'settings',
@@ -226,7 +232,7 @@ export const attachPortalDocument = onCall({ region: REGION, cors: true, memory:
   try {
     const di = getDI();
     const catalog = agentCatalog(await di.getInstalledExtensionCache().messageBundles(tenantId), DEFAULT_LOCALE);
-    const actor = await identifyActor(userId, 'portal', []);
+    const actor = await identifyPortalActor(tenantId, userId);
     return await di.getAttachPortalDocumentUseCase((id) => documentTypeOptions(id, catalog)).execute({
       tenantId, userId, userName: actor.name, collection, recordId, uploadId, name, type,
     });

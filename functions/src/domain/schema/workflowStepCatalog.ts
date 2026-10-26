@@ -1101,12 +1101,44 @@ export const CORE_STEP_CATALOG: readonly WorkflowStepMetadata[] = [
         type: 'Boolean',
         defaultValue: true,
       },
+      {
+        // Com o nome, o convite é por IDENTIDADE: só quem provar a claim por um provedor do
+        // escritório o aceita, e o valor vazio reprova o passo — nunca vira convite pelo e-mail.
+        id: 'requiredClaimName',
+        label: '@core.automation/step.portal-invite.label.required-claim-name',
+        description: '@core.automation/step.portal-invite.help.required-claim-name',
+        required: false,
+        type: 'String',
+        allowedMappingKinds: ['Literal'],
+      },
+      {
+        id: 'requiredClaimValue',
+        label: '@core.automation/step.portal-invite.label.required-claim-value',
+        description: '@core.automation/step.portal-invite.help.required-claim-value',
+        required: false,
+        type: 'String',
+      },
+      {
+        id: 'requiredClaimNormalize',
+        label: '@core.automation/step.portal-invite.label.required-claim-normalize',
+        required: false,
+        type: 'String',
+        allowedMappingKinds: ['Literal'],
+        options: {
+          kind: 'Static',
+          options: [
+            { value: 'digits', label: '@core.tenant/portal.claim.normalize.digits' },
+            { value: 'lowercase', label: '@core.tenant/portal.claim.normalize.lowercase' },
+          ],
+        },
+      },
     ],
     outputDefinitions: [
       { id: 'guestId', label: '@core.automation/step.portal-access.output.guest-id', type: 'String' },
       { id: 'created', label: '@core.automation/step.portal-invite.output.created', type: 'Boolean' },
       { id: 'granted', label: '@core.automation/step.portal-invite.output.granted', type: 'Boolean' },
       { id: 'emailed', label: '@core.automation/step.portal-invite.output.emailed', type: 'Boolean' },
+      { id: 'inviteId', label: '@core.automation/step.portal-invite.output.invite-id', type: 'String' },
     ],
   },
   {

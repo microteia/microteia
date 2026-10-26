@@ -70,9 +70,14 @@ service cloud.firestore {
     //
     // Ler o documento dele em cada consulta é o que torna a revogação IMEDIATA: o `audience` é refeito
     // por um gatilho, alguns segundos depois; a exclusão do convite vale no instante.
+    //
+    // O convite SUSPENSO não abre nada: é o de quem entra pelo link de e-mail num escritório que
+    // desligou esse método (Configurações › Portal › Entrada). A suspensão mora no convite, e não numa
+    // configuração lida aqui, para que a pergunta continue custando UMA leitura.
     function isPortalUser(tenantId) {
       return request.auth != null &&
-        exists(/databases/$(database)/documents/tenants/$(tenantId)/portalUsers/$(request.auth.uid));
+        exists(/databases/$(database)/documents/tenants/$(tenantId)/portalUsers/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/tenants/$(tenantId)/portalUsers/$(request.auth.uid)).data.get('suspended', false) != true;
     }
     function isInPortalAudience(tenantId) {
       return request.auth != null
@@ -253,6 +258,14 @@ service cloud.firestore {
               || (request.resource.data.profile.name is string
                   && request.resource.data.profile.name.size() <= 120));
         allow create, delete: if false;
+      }
+
+      // O convite por IDENTIDADE — o atributo que a pessoa terá de provar e os sujeitos a que ele dá
+      // acesso. Só o servidor grava (as callables de convite e revogação, e a entrada por provedor);
+      // quem administra o portal lê, para listá-lo. O convidado não: o convite dele é `portalUsers`.
+      match /portalIdentityInvites/{inviteId} {
+        allow read: if can(tenantId, 'portal.manage');
+        allow write: if false;
       }
 
       // A PROJEÇÃO do que cada tela expõe: só os campos declarados, carimbada com quem pode ver. A
@@ -580,7 +593,7 @@ service cloud.firestore {
         'actions', 'agentGrants', 'aggregate_backfills', 'aiConnections',
         'documentTemplates', 'documentTypes', 'documents', 'downloads', 'extension_history', 'extension_migrations', 'extensions',
         'installed_extensions', 'lookupDefinitions', 'members', 'notes', 'notification_inbox', 'notification_dispatches',
-        'portalRecords', 'portalUsers', 'portal_reprojections', 'reports', 'roles',
+        'portalIdentityInvites', 'portalRecords', 'portalUsers', 'portal_reprojections', 'reports', 'roles',
         // `plugin_installations` não tem mais código que a leia — foi a instalação de antes de
         // `installed_extensions`. Continua RESERVADA porque os documentos de então continuam nos
         // escritórios, e liberar o nome deixaria uma tela nova nascer por cima deles.
@@ -649,9 +662,14 @@ service cloud.firestore {
       // POR ONDE a gravação entrou (`createdVia`/`updatedVia`). O cliente só pode dizer `ui`: `agent` e
       // `automation` são escritos pelo Admin SDK, e é esta regra que impede uma tela — ou uma extensão
       // rodando nela — de fazer um registro digitado passar por gravado pela IA, ou o contrário.
+      //
+      // `portalVerified` — a identidade que o convidado provou ao gravar pelo portal — vai junto: só o
+      // motor do servidor o escreve, e um cliente que o forjasse atribuiria a alguém de fora um ato que
+      // ele não praticou.
       function declaresOnlyUiOnCreate() {
         return request.resource.data.get('createdVia', 'ui') == 'ui'
-          && request.resource.data.get('updatedVia', 'ui') == 'ui';
+          && request.resource.data.get('updatedVia', 'ui') == 'ui'
+          && !('portalVerified' in request.resource.data);
       }
       // A marca do RECÁLCULO de agregados (`updatedVia: 'aggregate-backfill'`) é o que faz uma
       // gravação passar sem evento `.saved` e sem auditoria. Ela fica no documento depois do
@@ -661,7 +679,7 @@ service cloud.firestore {
       // passaria pela marca, porque não mexe em campo derivado.
       function keepsWriteViaOnUpdate() {
         let changed = request.resource.data.diff(resource.data).affectedKeys();
-        return !changed.hasAny(['createdVia'])
+        return !changed.hasAny(['createdVia', 'portalVerified'])
           && (!changed.hasAny(['updatedVia']) || request.resource.data.updatedVia == 'ui')
           && (request.resource.data.get('updatedVia', 'ui') != 'aggregate-backfill'
               || changed.hasOnly(['deletedBy', 'deletedByName', 'deletedByPhotoURL']));
@@ -985,6 +1003,15 @@ service cloud.firestore {
     // quem lê o hash não tem o código, mas quem ESCREVE escolhe qual código vale. O navegador chega
     // ao que precisa por callable, filtrado, e nunca ao `codeHash`.
     match /agentAuthRequests/{requestId} {
+      allow read, write: if false;
+    }
+
+    // O pedido de entrada no portal por um provedor de identidade: o verificador do PKCE, o `nonce` e
+    // o escritório, entre a ida ao provedor e a volta. De RAIZ porque a volta traz só o `state`; FECHADA
+    // porque quem lesse o verificador trocaria o código no lugar de quem entrou, e quem escrevesse
+    // escolheria o `nonce` que o token tem de trazer. Só as callables `startPortalSignIn` e
+    // `completePortalSignIn` o tocam.
+    match /portalSignInRequests/{requestId} {
       allow read, write: if false;
     }
 

@@ -12,6 +12,7 @@ import type { PortalAccessAuditEntry, PortalAccessDeps } from './PortalAccessUse
 import { makeProjectPortalRecordUseCase } from './PortalProjectionUseCases';
 import { CITY_SCREENS, EXTENSION_CITY_SCREENS, makeFakePortalRepository } from '../repositories/fakePortalRepository';
 import type { IPortalAccountService, PortalScreen } from '../repositories/IPortalRepository';
+import { makeFakePortalIdentity } from '../repositories/fakePortalIdentity';
 
 const TENANT = 'salvador';
 
@@ -37,8 +38,11 @@ const accessDeps = (
 ) => {
   const audited: PortalAccessAuditEntry[] = [];
   let used = 0;
+  const identity = makeFakePortalIdentity(fake.users);
   const deps: PortalAccessDeps = {
     repo: fake.repo,
+    identity: identity.identity,
+    signIn: identity.config,
     accounts,
     audit: async (entry) => { audited.push(entry); },
     quota: {
@@ -50,7 +54,7 @@ const accessDeps = (
     },
     now: () => new Date('2026-10-26T14:00:00Z'),
   };
-  return { deps, audited, quotaUsed: () => used };
+  return { deps, audited, quotaUsed: () => used, identity };
 };
 
 const withInvites = (screens: PortalScreen[]): PortalScreen[] => screens.map((screen) =>
@@ -780,3 +784,116 @@ describe('o convite vale no instante, não quando o audience for refeito', () =>
   });
 });
 
+
+describe('o convite por identidade — `requiredClaim`', () => {
+  const PROVIDER = {
+    id: 'citizen', label: 'Citizen ID', issuer: 'https://id.example.test', clientId: 'c', scopes: [], claims: ['nationalId'],
+  };
+  const setup = (options: { emailLink?: boolean } = {}) => {
+    const fake = makeFakePortalRepository(withInvites(CITY_SCREENS));
+    fake.records.set('companies/acme', { name: 'Acme' });
+    const { accounts } = accountsWith();
+    const access = accessDeps(fake, accounts);
+    access.identity.configs.set(TENANT, { settings: { emailLink: options.emailLink ?? true, providers: [PROVIDER] }, secrets: {} });
+    return { fake, accounts, ...access, invite: makeInvitePortalUserUseCase(access.deps), revoke: makeRevokePortalUserUseCase(access.deps) };
+  };
+  const base = { tenantId: TENANT, tenantName: 'Salvador', email: 'Bia@Acme.com', subjectKey: 'companies/acme', actor: FISCAL };
+  const claim = { name: 'nationalId', value: '123.456.789-00', normalize: 'digits' };
+
+  it('não abre conta pelo e-mail nem grava a marca: só quem provar a claim o aceita', async () => {
+    const { invite, fake, accounts, identity, audited } = setup();
+
+    const result = await invite.execute({ ...base, requiredClaim: claim });
+
+    expect(result).toEqual({ userId: '', created: false, granted: true, inviteId: 'inv-1' });
+    expect(accounts.createAccount).not.toHaveBeenCalled();
+    expect(accounts.findUserIdByEmail).not.toHaveBeenCalled();
+    expect(fake.invites).toEqual([]);
+    expect(fake.users.size).toBe(0);
+    expect(identity.invites.get('inv-1')).toMatchObject({
+      email: 'bia@acme.com', claim: { name: 'nationalId', value: '12345678900', normalize: 'digits' }, subjectKeys: ['companies/acme'],
+    });
+    expect(audited).toEqual([expect.objectContaining({ change: 'granted', claimName: 'nationalId' })]);
+    expect(JSON.stringify(audited)).not.toContain('12345678900');
+  });
+
+  it('recusa a claim mal formada e a que nenhum provedor do escritório atesta', async () => {
+    const { invite } = setup();
+    await expect(invite.execute({ ...base, requiredClaim: { name: 'nationalId', value: '---', normalize: 'digits' } }))
+      .rejects.toThrow('@core.tenant/portal.claim.value-missing');
+    await expect(invite.execute({ ...base, requiredClaim: { name: 'nationalId', value: '1', normalize: 'rot13' } }))
+      .rejects.toThrow('@core.tenant/portal.claim.normalize-invalid');
+    await expect(invite.execute({ ...base, requiredClaim: { name: 'taxId', value: '1' } }))
+      .rejects.toThrow('@core.tenant/portal.claim.unattested');
+  });
+
+  it('o escritório que desligou o link de e-mail recusa o convite sem claim — pela tela e pela automação', async () => {
+    const { invite, accounts } = setup({ emailLink: false });
+    await expect(invite.execute(base)).rejects.toThrow('@core.tenant/portal.invite.identity-required');
+    await expect(invite.execute({ ...base, origin: 'automation' })).rejects.toThrow('@core.tenant/portal.invite.identity-required');
+    expect(accounts.createAccount).not.toHaveBeenCalled();
+    expect((await invite.execute({ ...base, requiredClaim: claim })).granted).toBe(true);
+  });
+
+  it('pela automação, é idempotente pela claim: rodar de novo não grava nem conta no limite', async () => {
+    const { invite, quotaUsed, audited } = setup();
+    await invite.execute({ ...base, origin: 'automation', requiredClaim: claim });
+    const again = await invite.execute({ ...base, origin: 'automation', requiredClaim: { ...claim, value: '12345678900' } });
+    expect(again).toEqual({ userId: '', created: false, granted: false, inviteId: 'inv-1' });
+    expect(quotaUsed()).toBe(1);
+    expect(audited).toHaveLength(1);
+  });
+
+  it('revogar a conta que aceitou mexe no CONVITE — senão o próximo login devolveria o acesso', async () => {
+    const { invite, revoke, identity, fake } = setup();
+    await invite.execute({ ...base, requiredClaim: claim });
+    await identity.identity.bind(TENANT, {
+      userId: 'portal-id-x', tenantName: 'Salvador', email: 'bia@acme.com', displayName: 'Bia', invitedBy: 'fiscal',
+      subject: 'person-1', verified: { provider: 'citizen', claim: { name: 'nationalId', value: '12345678900' }, level: null },
+    }, [identity.invites.get('inv-1')!]);
+    expect(fake.users.get('portal-id-x')?.subjectKeys).toEqual(['companies/acme']);
+
+    const result = await revoke.execute({ tenantId: TENANT, guest: { userId: 'portal-id-x' }, subjectKey: 'companies/acme', actor: FISCAL });
+
+    expect(result.revoked).toBe(true);
+    expect(identity.invites.has('inv-1')).toBe(false);
+    expect(fake.users.has('portal-id-x')).toBe(false);
+  });
+
+  it('a automação revoga pelo e-mail de contato o convite que ninguém aceitou ainda', async () => {
+    const { invite, revoke, identity } = setup();
+    await invite.execute({ ...base, requiredClaim: claim });
+    const result = await revoke.execute({
+      tenantId: TENANT, guest: { email: 'bia@acme.com' }, subjectKey: 'companies/acme', actor: FISCAL, origin: 'automation',
+    });
+    expect(result).toEqual({ userId: null, revoked: true });
+    expect(identity.invites.size).toBe(0);
+  });
+});
+
+describe('o convidado suspenso — o escritório desligou o método por que ele entra', () => {
+  it('o convite continua, e nada abre: contexto, criação e documento recusados', async () => {
+    const screens = CITY_SCREENS.map((screen) => (screen.id === 'invoices'
+      ? { ...screen, portal: { ...screen.portal!, documents: true, create: { fields: ['number'] } } }
+      : screen));
+    const fake = makeFakePortalRepository(screens);
+    fake.users.set('ana', { userId: 'ana', email: 'ana@acme.com', displayName: 'Ana', subjectKeys: ['companies/acme'], suspended: true });
+    fake.projections.set('invoices__nf1', {
+      collection: 'invoices', recordId: 'nf1', screenId: 'invoices', subjectKeys: ['companies/acme'],
+      audience: ['ana'], title: '', data: {}, labels: {}, parentKeys: ['companies/acme'], parentKey: 'companies/acme', editable: true, portalOwner: null,
+    });
+    fake.documents.set('invoices/nf1/d1', { name: 'x.pdf', portalShared: true, url: 'https://x' });
+    const write = vi.fn(async () => ({ ok: true as const, id: 'new' }));
+
+    await expect(makeGetPortalContextUseCase(fake.repo).execute({
+      tenantId: TENANT, userId: 'ana', tenant: { name: 'Salvador', logoURL: null }, locale: 'pt-BR', resolve: (value) => value,
+    })).rejects.toThrow('@core.tenant/portal.signin.identity-required');
+    await expect(makeSubmitPortalRecordUseCase(fake.repo, write).execute({
+      tenantId: TENANT, userId: 'ana', collection: 'invoices', linkRecordId: 'acme', data: { number: '2' },
+    })).rejects.toThrow('@core.tenant/portal.create.denied');
+    await expect(makeGetPortalDocumentUrlUseCase(fake.repo).execute({
+      tenantId: TENANT, userId: 'ana', projectionId: 'invoices__nf1', documentId: 'd1',
+    })).rejects.toThrow('@core.tenant/portal.document.unavailable');
+    expect(write).not.toHaveBeenCalled();
+  });
+});

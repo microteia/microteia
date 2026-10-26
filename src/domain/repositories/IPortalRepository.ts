@@ -2,10 +2,13 @@ import type {
   PortalContext,
   PortalDocument,
   PortalGuest,
+  PortalIdentityInvite,
   PortalLinkOption,
   PortalMembership,
   PortalRecord,
+  PortalSignInSettingsView,
 } from '../entities/Portal';
+import type { PortalRequiredClaim, PortalSignInOptions, PortalSignInSettings } from '../schema/portalIdentity';
 import type { PortalHomeSettings } from '../schema/portalExtensionPoints';
 import type { PortalProfile } from '../schema/portal';
 import type { PortalReprojectionState } from '../schema/portalReprojection';
@@ -88,7 +91,43 @@ export interface IPortalRepository {
     tenantId: string,
     onUpdate: (states: Map<string, PortalReprojectionState>) => void,
   ): () => void;
-  /** `locale` é o de quem convida: vira o idioma do portal do convidado enquanto ninguém escolher outro. */
-  invite(tenantId: string, email: string, subjectKey: string, locale: string): Promise<{ userId: string; created: boolean }>;
-  revoke(tenantId: string, userId: string, subjectKey: string | null): Promise<void>;
+  /**
+   * `locale` é o de quem convida: vira o idioma do portal do convidado enquanto ninguém escolher outro.
+   * Com `requiredClaim`, o convite é por IDENTIDADE: não abre conta pelo e-mail, e `inviteId` volta.
+   */
+  invite(
+    tenantId: string,
+    email: string,
+    subjectKey: string,
+    locale: string,
+    requiredClaim?: PortalRequiredClaim,
+  ): Promise<{ userId: string; created: boolean; inviteId?: string }>;
+  /** Do convidado (`userId`) ou do convite por identidade (`inviteId`); sem sujeito, tudo. */
+  revoke(tenantId: string, guest: { userId: string } | { inviteId: string }, subjectKey: string | null): Promise<void>;
+  /** Do lado do ESCRITÓRIO: os convites por identidade, aceitos ou não. */
+  subscribeIdentityInvites(
+    tenantId: string,
+    onUpdate: (invites: PortalIdentityInvite[]) => void,
+    onError?: (error: Error) => void,
+  ): () => void;
+  getSignInSettings(tenantId: string): Promise<PortalSignInSettingsView>;
+  /** `secrets`: por provedor, o segredo novo, `null` para apagar; ausente, mantém. */
+  saveSignInSettings(
+    tenantId: string,
+    settings: PortalSignInSettings,
+    secrets: Record<string, string | null>,
+  ): Promise<PortalSignInSettingsView>;
+
+  /** Antes de haver sessão: os métodos de entrada do portal de um escritório. */
+  getSignInOptions(tenantId: string): Promise<PortalSignInOptions>;
+  /** A ida ao provedor: o endereço para onde mandar a pessoa, e o `state` que a volta tem de trazer. */
+  startSignIn(input: {
+    tenantId: string;
+    providerId: string;
+    redirectUri: string;
+    next?: string | null;
+    inviteId?: string | null;
+  }): Promise<{ url: string; state: string }>;
+  /** A volta: o token que abre a sessão do convidado, e para onde seguir. */
+  completeSignIn(state: string, code: string): Promise<{ token: string; tenantId: string; next: string | null }>;
 }

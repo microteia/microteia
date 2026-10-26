@@ -7,6 +7,9 @@ import type { AuditAction } from '../../domain/entities/AuditLog';
 import { isAggregateBackfillWriteFresh } from '../../domain/services/aggregateBackfill';
 import { isRecordKeyBookkeepingWrite } from '../../domain/services/recordKeyAdoption';
 
+const isPlainObject = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+
 /**
  * Escuta qualquer escrita em `tenants/{tenantId}/{collection}/{docId}` e gera um AuditLog para as duas
  * coleções fixas que restam (`members` e `screenDefinitions`) e para toda coleção de TELA declarada —
@@ -88,7 +91,13 @@ export const auditFlatEntityChange = onDocumentWritten(
         ? { name: denormalizedName, photoURL: denormalizedPhoto ?? '' }
         : await getDI().getUserProfileLookupService().resolveActor(actorUid);
 
-      const auditText = buildAuditText(action, displayName, actor.name, diff);
+      // A gravação PELO PORTAL de quem provou a identidade leva a prova para a linha — é ela que
+      // responde, anos depois, a quem pergunta quem praticou o ato. `updatedVia` é campo protegido:
+      // só o motor do servidor escreve `portal`.
+      const verified = action !== 'DELETE' && afterData.updatedVia === 'portal' && isPlainObject(afterData.portalVerified)
+        ? afterData.portalVerified
+        : null;
+      const auditText = buildAuditText(action, displayName, actor.name, diff, verified);
       const entityLink = config.getEntityLink?.(tenantId, docId, undefined, referenceData);
 
       await getDI().getCreateAuditLogUseCase().execute({

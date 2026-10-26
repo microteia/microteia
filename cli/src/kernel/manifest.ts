@@ -194,6 +194,23 @@ export const MANUAL_PREREQUISITES: KernelPrerequisite[] = [
       + 'with the credential it was given and refuses everything else.',
     optional: true,
   },
+  {
+    id: 'portal-identity-signing',
+    title: 'Let the functions sign sessions, if an organization signs portal guests in with an identity provider',
+    detail:
+      'A portal guest who signs in through an OpenID Connect provider configured in Settings > Portal > '
+      + 'Sign-in gets a session the server mints with createCustomToken, which signs with the service '
+      + 'account the functions run as. Without the permission the provider confirms the guest and the '
+      + 'sign-in still fails, with "iam.serviceAccounts.signBlob" denied in the log of '
+      + 'completePortalSignIn. Enable the IAM Service Account Credentials API '
+      + '(gcloud services enable iamcredentials.googleapis.com --project=<projectId>) and grant the '
+      + 'runtime service account the Service Account Token Creator role on itself: gcloud iam '
+      + 'service-accounts add-iam-policy-binding <projectNumber>-compute@developer.gserviceaccount.com '
+      + '--member=serviceAccount:<projectNumber>-compute@developer.gserviceaccount.com '
+      + '--role=roles/iam.serviceAccountTokenCreator --project=<projectId>. Signing in by e-mail link '
+      + 'does not need it.',
+    optional: true,
+  },
 ];
 
 /**

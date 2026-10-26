@@ -32,6 +32,12 @@ export {
   attachPortalDocument,
 } from './infrastructure/handlers/portalAccess';
 export {
+  getPortalSignInOptions,
+  startPortalSignIn,
+  completePortalSignIn,
+  managePortalSignIn,
+} from './infrastructure/handlers/portalSignIn';
+export {
   projectPortalRecord,
   projectPortalDocument,
   refreshPortalAudience,
