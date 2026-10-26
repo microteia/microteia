@@ -778,3 +778,61 @@ describe('janela de edição na gravação por automação, agente e portal', ()
     expect(repo.deleteCalls).toHaveLength(1);
   });
 });
+
+describe('visibilidade por registro na gravação', () => {
+  /**
+   * O agente grava POR uma pessoa, e com o `reader` dela no contexto: o registro que a regra lhe
+   * esconde não é alterado nem excluído — e a resposta é a de quem não existe. A automação não tem
+   * leitor, e grava como sempre: numerar, encaminhar e contar precisam da coleção inteira.
+   */
+  const respostasScreen: SchemaScreen = {
+    id: 'respostas',
+    titleSingular: 'Resposta',
+    titleFieldKey: 'texto',
+    fields: [
+      { key: 'texto', label: 'Texto', type: 'text', required: false, order: 0, origin: 'plugin' },
+      { key: 'emissor', label: 'Emissor', type: 'reference', refEntity: 'members', required: false, order: 1, origin: 'plugin' },
+    ],
+    memberVisibility: { userFields: ['emissor'] },
+  };
+  const visibilityDeps = (repo: FakeMutationRepository): WorkflowMutationDeps => ({
+    mutationRepository: repo,
+    screenProvider: fakeScreenProvider([respostasScreen]),
+  });
+  const asAna = (): WorkflowContext => ({ ...context(), reader: { uid: 'ana', permissions: ['respostas.update'] } });
+
+  it('não altera o registro que não a nomeia, e responde como se ele não existisse', async () => {
+    const repo = new FakeMutationRepository();
+    repo.seed('respostas', 'r1', { texto: 'da bia', emissor: 'bia' });
+    const outcome = await runWorkflowUpsert(
+      { table: 'respostas', id: 'r1', data: { texto: 'mexi' } } as UpsertSpec, asAna(), visibilityDeps(repo));
+    expect(outcome).toEqual({ ok: false, error: '@core.records/record.not-found' });
+    expect(repo.updateCalls).toHaveLength(0);
+  });
+
+  it('altera o que a nomeia, e cria nomeando outra pessoa', async () => {
+    const repo = new FakeMutationRepository();
+    repo.seed('respostas', 'r1', { texto: 'da ana', emissor: 'ana' });
+    expect((await runWorkflowUpsert(
+      { table: 'respostas', id: 'r1', data: { texto: 'mexi' } } as UpsertSpec, asAna(), visibilityDeps(repo))).ok).toBe(true);
+    expect((await runWorkflowUpsert(
+      { table: 'respostas', data: { texto: 'para a bia', emissor: 'bia' } } as UpsertSpec, asAna(), visibilityDeps(repo))).ok).toBe(true);
+  });
+
+  it('não exclui o que não a nomeia — a resposta é a de um id que não está lá', async () => {
+    const repo = new FakeMutationRepository();
+    repo.seed('respostas', 'r1', { texto: 'da bia', emissor: 'bia' });
+    const outcome = await runWorkflowRemove({ table: 'respostas', id: 'r1' } as RemoveSpec, asAna(), visibilityDeps(repo));
+    expect(outcome).toEqual({ ok: true, value: { id: 'r1', removed: false } });
+    expect(repo.deleteCalls).toHaveLength(0);
+  });
+
+  it('a automação, sem leitor, grava e exclui como sempre', async () => {
+    const repo = new FakeMutationRepository();
+    repo.seed('respostas', 'r1', { texto: 'da bia', emissor: 'bia' });
+    expect((await runWorkflowUpsert(
+      { table: 'respostas', id: 'r1', data: { texto: 'numerada' } } as UpsertSpec, context(), visibilityDeps(repo))).ok).toBe(true);
+    expect((await runWorkflowRemove({ table: 'respostas', id: 'r1' } as RemoveSpec, context(), visibilityDeps(repo))).ok).toBe(true);
+    expect(repo.deleteCalls).toHaveLength(1);
+  });
+});

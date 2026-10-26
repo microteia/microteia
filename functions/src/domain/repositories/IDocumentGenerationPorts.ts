@@ -1,4 +1,5 @@
 import type { BusinessCalendarSet } from '../schema/time/businessDays';
+import type { RecordReader } from '../schema/memberVisibility';
 import type {
   DocumentTemplateDataset,
   DocumentTemplateSpec,
@@ -24,8 +25,13 @@ export type RecordReadOutcome<T> =
  * pedem — e só até ali. É a mesma hidratação das automações; esta porta existe para que a geração não
  * precise fingir ser uma execução para usá-la.
  */
+/**
+ * `reader` é a pessoa a quem o documento é entregue. Presente, a visibilidade por registro
+ * (`memberVisibility`) vale: o registro que ela não vê responde como ausente, e o filho que ela não vê
+ * não entra na lista. Ausente — a automação —, quem lê é o escritório.
+ */
 export interface IDocumentRecordReader {
-  /** `null` quando o registro não existe. */
+  /** `null` quando o registro não existe — ou quando `reader` não o vê. */
   record(
     tenantId: string,
     collection: string,
@@ -33,6 +39,7 @@ export interface IDocumentRecordReader {
     paths: readonly string[],
     timeZone: string,
     businessCalendars?: BusinessCalendarSet | null,
+    reader?: RecordReader | null,
   ): Promise<RecordReadOutcome<Record<string, unknown> | null>>;
   children(
     tenantId: string,
@@ -41,5 +48,6 @@ export interface IDocumentRecordReader {
     paths: readonly string[],
     timeZone: string,
     businessCalendars?: BusinessCalendarSet | null,
+    reader?: RecordReader | null,
   ): Promise<RecordReadOutcome<Record<string, unknown>[]>>;
 }

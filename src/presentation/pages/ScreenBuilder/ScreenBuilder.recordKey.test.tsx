@@ -28,7 +28,12 @@ vi.mock('styled-components', () => ({
   useTheme: () => ({ tagColors: [{ label: 'Azul', value: '#1e88e5' }] }),
 }));
 vi.mock('../../../stores/useAuthorization', () => ({
-  useAuthorization: () => ({ can: () => true, canAny: () => true, canAll: () => true }),
+  useAuthorization: () => ({
+    can: () => true,
+    canAny: () => true,
+    canAll: () => true,
+    catalog: { byId: new Map(), list: [], resourceLabels: new Map(), diagnostics: [] },
+  }),
 }));
 vi.mock('../../../stores/useNotification', () => ({ useNotification: () => ({ notify }) }));
 vi.mock('../../../stores/useActions', () => ({ useActions: () => ({ actions: [] }) }));

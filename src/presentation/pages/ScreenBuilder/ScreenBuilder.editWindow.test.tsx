@@ -26,6 +26,7 @@ vi.mock('../../../stores/useAuthorization', () => ({
     can: (permission: string) => state.permissions.has(permission),
     canAny: () => true,
     canAll: () => true,
+    catalog: { byId: new Map(), list: [], resourceLabels: new Map(), diagnostics: [] },
   }),
 }));
 vi.mock('../../../stores/useNotification', () => ({ useNotification: () => ({ notify }) }));

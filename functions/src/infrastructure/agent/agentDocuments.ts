@@ -16,6 +16,9 @@ import { getDb } from '../firebase/initFirebase';
 import { getDI } from '../di/container';
 import { identifyActor } from '../workflow/identifyActor';
 import type { AgentSession } from './authenticateAgent';
+import { agentReader } from './agentContext';
+import type { RecordReader } from '../../domain/schema/memberVisibility';
+import { readerSeesRecord, resolveMemberVisibility } from '../../domain/schema/memberVisibility';
 
 /** Quantos documentos `list_documents` devolve. A aba da tela não pagina; o agente também não. */
 const DOCUMENTS_PAGE = 200;
@@ -29,15 +32,17 @@ export type AgentDocumentOutcome =
 /**
  * O registro e a coleção física dele, ou a recusa.
  *
- * As mesmas três perguntas da regra do Firestore para a aba, na mesma ordem: a coleção existe, a tela
- * dela TEM a aba Documentos, e o registro existe. A segunda é a que a regra não faz e a tela faz — sem
- * ela o agente anexaria a um registro cuja aba ninguém vê.
+ * As mesmas perguntas da regra do Firestore para a aba, na mesma ordem: a coleção existe, a tela dela
+ * TEM a aba Documentos, e o registro existe — para quem pergunta. A segunda é a que a regra não faz e a
+ * tela faz — sem ela o agente anexaria a um registro cuja aba ninguém vê. A última é a visibilidade por
+ * registro: o documento é parte do registro, e o registro que a pessoa não vê responde como ausente.
  */
 const resolveDocumentOwner = async (
   schema: SchemaContext,
   tenantId: string,
   collection: string,
   recordId: string,
+  reader: RecordReader,
 ): Promise<{ ok: true; physical: string } | { ok: false; error: string; params?: Record<string, string> }> => {
   const resolved = resolveQueryTable(collection, schema);
   if (resolved === null || !schema.screens.has(collection)) {
@@ -49,7 +54,11 @@ const resolveDocumentOwner = async (
   if (recordId === '') return { ok: false, error: '@core.records/record.not-found' };
   const record = await getDb().doc(`tenants/${tenantId}/${resolved.physicalCollection}/${recordId}`).get();
   if (!record.exists) return { ok: false, error: '@core.records/record.not-found' };
-  return { ok: true, physical: resolved.physicalCollection };
+  const physical = resolved.physicalCollection;
+  if (!readerSeesRecord(resolveMemberVisibility(schema, physical), physical, reader, record.data() ?? {})) {
+    return { ok: false, error: '@core.records/record.not-found' };
+  }
+  return { ok: true, physical };
 };
 
 /**
@@ -96,7 +105,7 @@ export const listAgentDocuments = async (
   recordId: string,
   catalog: MessageCatalog,
 ): Promise<AgentDocumentOutcome> => {
-  const owner = await resolveDocumentOwner(schema, session.tenantId, collection, recordId);
+  const owner = await resolveDocumentOwner(schema, session.tenantId, collection, recordId, agentReader(session));
   if (!owner.ok) return owner;
 
   const [snapshot, types] = await Promise.all([
@@ -175,7 +184,7 @@ export const attachAgentDocument = async (
     };
   }
 
-  const owner = await resolveDocumentOwner(schema, session.tenantId, collection, recordId);
+  const owner = await resolveDocumentOwner(schema, session.tenantId, collection, recordId, agentReader(session));
   if (!owner.ok) return owner;
 
   const requestedType = asText(input.type);

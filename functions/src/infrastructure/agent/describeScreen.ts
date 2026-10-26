@@ -1,4 +1,5 @@
 import { resolveEditWindow } from '../../domain/schema/editWindow';
+import { readerSeesAll, resolveMemberVisibility } from '../../domain/schema/memberVisibility';
 import type { MessageCatalog } from '../../domain/schema/i18n/messages';
 import { resolveLabel } from '../../domain/schema/i18n/messageRef';
 import type { NativeFieldSpec } from '../../domain/schema/entityRegistry';
@@ -62,6 +63,13 @@ export interface AgentScreenDescription {
    * corrigir um registro congelado cria outro que o corrige, como se faz com um lançamento.
    */
   editWindow?: { minutes: number; delete: boolean };
+  /**
+   * A tela restringe cada registro a quem ele nomeia (`memberVisibility`). `seesAll` diz se ESTE acesso
+   * lê todos; sem ele, `search_records`, `get_record` e `run_report` só alcançam os registros em que o
+   * dono do acesso está num de `userFields` — e o que falta não é ausência no escritório. Contar isso ao
+   * agente é o que o impede de responder "não há registro" quando há, só não para ele.
+   */
+  memberVisibility?: { userFields: string[]; seesAll: boolean };
   allowedOperations: string[];
 }
 
@@ -189,6 +197,7 @@ export const describeScreen = (
 
   const screen = ctx.screens.get(collection);
   const editWindow = resolveEditWindow(ctx, collection);
+  const visibility = resolveMemberVisibility(ctx, collection);
   return {
     collection,
     labelSingular: resolveLabel(catalog, entity.labelSingular),
@@ -201,6 +210,14 @@ export const describeScreen = (
       primary: key.kind === 'primary',
     })),
     ...(editWindow ? { editWindow: { minutes: editWindow.spec.minutes, delete: editWindow.spec.delete === true } } : {}),
+    ...(visibility
+      ? {
+        memberVisibility: {
+          userFields: [...visibility.userFields],
+          seesAll: readerSeesAll(visibility, collection, session.permissions),
+        },
+      }
+      : {}),
     allowedOperations: allowedOperations(ctx, session, collection),
   };
 };

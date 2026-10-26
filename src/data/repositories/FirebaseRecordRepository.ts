@@ -9,14 +9,17 @@ import {
   getDocs,
   limit,
   onSnapshot,
+  or,
   orderBy,
   query,
   serverTimestamp,
   setDoc,
   Timestamp,
   updateDoc,
+  where,
   writeBatch,
 } from 'firebase/firestore';
+import type { Query } from 'firebase/firestore';
 import { db } from '../../infrastructure/firebase/config';
 import type { IRecordRepository } from '../../domain/repositories/IRecordRepository';
 import type { EntityRecord, EntityRecordValues } from '../../domain/entities/EntityRecord';
@@ -37,6 +40,8 @@ import {
 } from '../utils/recordRulesGate';
 import type { RecordKeyEntry } from '../../domain/schema/recordKeys';
 import { changedRecordKeys, editWindowAllowsDelete, editWindowAllowsUpdate } from '../../domain/schema/editWindow';
+import { memberVisibilityClauses } from '../../domain/schema/memberVisibility';
+import type { MemberVisibilityFilter } from '../../domain/schema/memberVisibility';
 import {
   diffRecordKeys,
   recordKeyRefs,
@@ -53,6 +58,40 @@ const recordsRef = (tenantId: string, collection: string) =>
   firestoreCollection(db, 'tenants', tenantId, collection);
 
 const keysRef = (tenantId: string) => firestoreCollection(db, 'tenants', tenantId, RECORD_KEYS_COLLECTION);
+
+/**
+ * A consulta da listagem. Para quem a visibilidade por registro restringe, ela leva o filtro que a
+ * regra prova — um `==` e um `array-contains` por campo, num `or()` — e perde o `orderBy`: ordenar pelo
+ * servidor pediria um índice composto por disjunção, por campo declarado, e a tela do Form Design não
+ * tem como declarar índice. A ordem volta em memória (`newestFirst`), sobre o que a pessoa vê — e o
+ * teto de 500 vale para o que a NOMEIA, não para a coleção.
+ *
+ * `null` quando a declaração não nomeia campo nenhum (malformada): não há consulta que a regra aceite,
+ * e a pessoa não vê nada.
+ */
+const listQuery = (
+  tenantId: string,
+  collection: string,
+  visibleTo: MemberVisibilityFilter | null | undefined,
+): Query | null => {
+  if (!visibleTo) return query(recordsRef(tenantId, collection), orderBy('createdAt', 'desc'), limit(RECORDS_PAGE_LIMIT));
+  const clauses = memberVisibilityClauses(visibleTo.spec);
+  if (clauses.length === 0) return null;
+  return query(
+    recordsRef(tenantId, collection),
+    or(...clauses.map((clause) => where(clause.field, clause.op, visibleTo.uid))),
+    limit(RECORDS_PAGE_LIMIT),
+  );
+};
+
+const createdMillis = (record: EntityRecord): number =>
+  record.createdAt instanceof Date && !Number.isNaN(record.createdAt.getTime()) ? record.createdAt.getTime() : 0;
+
+const newestFirst = (records: EntityRecord[]): EntityRecord[] =>
+  [...records].sort((left, right) => createdMillis(right) - createdMillis(left));
+
+const isPermissionDenied = (error: unknown): boolean =>
+  (error as { code?: string } | null)?.code === 'permission-denied';
 
 /**
  * A GARANTIA está aqui, e ela não é um `read-then-write`.
@@ -162,15 +201,21 @@ export class FirebaseRecordRepository implements IRecordRepository {
     collection: string,
     onUpdate: (records: EntityRecord[]) => void,
     onError?: (collection: string, error: Error) => void,
+    visibleTo?: MemberVisibilityFilter | null,
   ): () => void {
-    const q = query(recordsRef(tenantId, collection), orderBy('createdAt', 'desc'), limit(RECORDS_PAGE_LIMIT));
+    const q = listQuery(tenantId, collection, visibleTo);
+    if (q === null) {
+      onUpdate([]);
+      return () => undefined;
+    }
     return onSnapshot(
       q,
       (snap) => {
         // O instante nasce a cada snapshot: a lista se refaz quando o dado muda e quando o Store
         // relê ao voltar o foco, e é aí que o valor derivado volta a falar do momento presente.
         const derive = makeRecordDeriver(collection);
-        onUpdate(snap.docs.map((d) => mapRecord(d.id, d.data(), tenantId, collection, derive)));
+        const records = snap.docs.map((d) => mapRecord(d.id, d.data(), tenantId, collection, derive));
+        onUpdate(visibleTo ? newestFirst(records) : records);
       },
       (error) => {
         console.error(`[RecordRepository] subscribe ${collection}:`, error.message);
@@ -218,7 +263,7 @@ export class FirebaseRecordRepository implements IRecordRepository {
       } else {
         ref = await addDoc(recordsRef(tenantId, collection), payload);
       }
-      return this.readBack(tenantId, collection, ref.id);
+      return this.readBack(tenantId, collection, ref.id, ruled);
     }
 
     const id = recordId ?? this.newId(tenantId, collection);
@@ -238,19 +283,30 @@ export class FirebaseRecordRepository implements IRecordRepository {
     } catch (error) {
       await describeDenial(tenantId, id, plan.entries, error);
     }
-    return this.readBack(tenantId, collection, id);
+    return this.readBack(tenantId, collection, id, ruled);
   }
 
-  private async readBack(tenantId: string, collection: string, id: string): Promise<EntityRecord> {
+  /**
+   * O registro como ficou gravado. Numa tela com visibilidade por registro, quem cria pode nomear
+   * OUTRA pessoa — é o encaminhamento —, e a releitura é recusada: o registro existe, só não é dele.
+   * Ali a resposta é o que foi enviado, com o relógio local no lugar do do servidor.
+   */
+  private async readBack(
+    tenantId: string,
+    collection: string,
+    id: string,
+    sent: Record<string, unknown>,
+  ): Promise<EntityRecord> {
     const ref = doc(recordsRef(tenantId, collection), id);
-    const snap = await getDoc(ref);
-    return mapRecord(
-      id,
-      snap.data() as Record<string, unknown>,
-      tenantId,
-      collection,
-      makeRecordDeriver(collection),
-    );
+    const derive = makeRecordDeriver(collection);
+    try {
+      const snap = await getDoc(ref);
+      return mapRecord(id, snap.data() as Record<string, unknown>, tenantId, collection, derive);
+    } catch (error) {
+      if (!isPermissionDenied(error)) throw error;
+      const now = new Date();
+      return mapRecord(id, { ...sent, createdAt: now, updatedAt: now }, tenantId, collection, derive);
+    }
   }
 
   async update(
@@ -364,8 +420,18 @@ export class FirebaseRecordRepository implements IRecordRepository {
     await batch.commit();
   }
 
+  /**
+   * Numa tela com visibilidade por registro, quem não supervisiona não tem como saber se a coleção está
+   * vazia — a consulta sem filtro é recusada. A resposta, então, é SIM: quem pergunta isto é a exclusão
+   * da tela, e excluir a tela de uma coleção que talvez tenha registros é o que ela existe para impedir.
+   */
   async hasRecords(tenantId: string, collection: string): Promise<boolean> {
-    const snap = await getDocs(query(recordsRef(tenantId, collection), limit(1)));
-    return !snap.empty;
+    try {
+      const snap = await getDocs(query(recordsRef(tenantId, collection), limit(1)));
+      return !snap.empty;
+    } catch (error) {
+      if (isPermissionDenied(error)) return true;
+      throw error;
+    }
   }
 }

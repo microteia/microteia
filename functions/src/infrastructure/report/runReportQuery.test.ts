@@ -92,7 +92,9 @@ class FakeQueryRepository implements IWorkflowQueryRepository {
         (current, key) => (current as Record<string, unknown> | undefined)?.[key],
         row.data,
       );
-      return value === filter.value;
+      return filter.op === 'array-contains'
+        ? Array.isArray(value) && value.includes(filter.value)
+        : value === filter.value;
     }));
   }
 }
@@ -674,5 +676,66 @@ describe('runReportQuery', () => {
     if (!outcome.ok) return;
     expect(outcome.value.rows.map((row) => [row.keys[0].key, row.values.total]))
       .toEqual([['Olinda', 200], ['Recife', 150]]);
+  });
+});
+
+describe('runReportQuery — a visibilidade por registro', () => {
+  /**
+   * O relatório conta só o que QUEM O RODA vê: um total que somasse a linha que a regra lhe esconde
+   * contaria o sigilo dela — "R$ 350 em aberto" diz que existe o que ela não pode abrir.
+   */
+  const atendimentos: SchemaScreen = {
+    id: 'atendimentos',
+    titleSingular: 'Atendimento',
+    titleFieldKey: 'titulo',
+    fields: [
+      { key: 'titulo', label: 'Título', type: 'text', required: false, order: 0, origin: 'design' },
+      { key: 'situacao', label: 'Situação', type: 'text', required: false, order: 1, origin: 'design' },
+      { key: 'valor', label: 'Valor', type: 'currency', required: false, order: 2, origin: 'design' },
+      { key: 'responsavel', label: 'Responsável', type: 'reference', refEntity: 'members', required: false, order: 3, origin: 'design' },
+      { key: 'equipe', label: 'Equipe', type: 'reference', refEntity: 'members', multi: true, required: false, order: 4, origin: 'design' },
+    ],
+    memberVisibility: { userFields: ['responsavel', 'equipe'] },
+  };
+  const total: ReportSpec = {
+    v: 1,
+    dataset: {
+      table: 'atendimentos',
+      dimensions: [{ key: 'situacao', path: 'situacao' }],
+      measures: [{ key: 'total', op: 'sum', path: 'valor' }],
+    },
+    shape: { kind: 'summary', groupBy: [{ dimension: 'situacao' }], values: ['total'] },
+  };
+  const linhas: WorkflowQueryRow[] = [
+    { id: 'a1', data: { situacao: 'aberto', valor: 100, responsavel: 'ana', equipe: [] } },
+    { id: 'a2', data: { situacao: 'aberto', valor: 200, responsavel: 'bia', equipe: ['ana'] } },
+    { id: 'b1', data: { situacao: 'aberto', valor: 50, responsavel: 'bia', equipe: [] } },
+  ];
+  const restrito = (rows: WorkflowQueryRow[]) => ({
+    queryRepository: new FakeQueryRepository(rows),
+    fetcher: new FakeFetcher(),
+    screenProvider: fakeScreenProvider([atendimentos]),
+  });
+  const totalOf = (outcome: Awaited<ReturnType<typeof runReportQuery>>): unknown =>
+    outcome.ok ? outcome.value.rows[0]?.values.total : outcome.error;
+
+  it('quem não supervisiona soma só o que o nomeia', async () => {
+    const outcome = await runReportQuery({
+      spec: total,
+      context: { ...context(), reader: { uid: 'ana', permissions: ['atendimentos.read'] } },
+      deps: restrito(linhas),
+    });
+    expect(totalOf(outcome)).toBe(300);
+  });
+
+  it('quem supervisiona, e a automação (sem leitor), somam tudo', async () => {
+    const chefe = await runReportQuery({
+      spec: total,
+      context: { ...context(), reader: { uid: 'chefe', permissions: ['atendimentos.read', 'atendimentos.read-all'] } },
+      deps: restrito(linhas),
+    });
+    const automacao = await runReportQuery({ spec: total, context: context(), deps: restrito(linhas) });
+    expect(totalOf(chefe)).toBe(350);
+    expect(totalOf(automacao)).toBe(350);
   });
 });

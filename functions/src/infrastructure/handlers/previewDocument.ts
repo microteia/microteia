@@ -71,6 +71,7 @@ export const previewDocument = onCall(
       ...(output ? { output: output as DocumentOutputFormat } : {}),
       chargePermissions: true,
       permissions,
+      reader: { uid: request.auth.uid, permissions },
     });
 
     if (!result.ok) {

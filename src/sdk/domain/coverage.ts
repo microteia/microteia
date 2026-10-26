@@ -338,6 +338,7 @@ const SCREEN_REACH: Record<keyof ScreenModuleTemplate, string | null> = {
   memberWritableFields: null,
   authorCanDelete: null,
   editWindow: null,
+  memberVisibility: null,
   portal: null,
   listActions: null,
   sidebarOrder: null,
@@ -367,6 +368,9 @@ const SCREEN_NOTES: Record<string, string> = {
   editWindow: 'how long after creation a record may still be changed — and, with `delete`, deleted. A guarantee '
     + 'about evidence, enforced by the security rules, and the model has no vocabulary for a record that freezes '
     + 'after a while',
+  memberVisibility: 'which members read EACH record — the ones it names in a member reference, plus whoever '
+    + 'supervises. Authorization per record, enforced by the security rules, and a confidentiality decision the model '
+    + 'cannot make on behalf of the organization',
   portal: 'what an outside guest sees of this collection, and through which link to the subject record. Authorization '
     + 'again, and an exposure decision the model cannot make on behalf of the organization',
   listActions: 'the built-in gestures of the card, in the order it shows them — copy link, manage tags, delete',

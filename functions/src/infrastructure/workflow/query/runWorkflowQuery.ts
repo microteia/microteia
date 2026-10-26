@@ -18,6 +18,9 @@ import { businessCalendarsFor } from '../../../domain/services/businessCalendarS
 import { compareValues, evaluateResolvedPredicate } from '../../../domain/schema/predicateMatch';
 import { deterministicRecordOrder } from '../../../domain/schema/recordOrder';
 import type { ResolvedPredicate as SharedResolvedPredicate } from '../../../domain/schema/predicateMatch';
+import type { RecordReader } from '../../../domain/schema/memberVisibility';
+import { readerRestriction, resolveMemberVisibility } from '../../../domain/schema/memberVisibility';
+import { readerFetcher, scanVisibleRows } from './readerScope';
 
 const MAX_SCAN = 300;
 const MAX_QUERY_LIMIT = 100;
@@ -238,6 +241,12 @@ export interface RecordQueryScope {
   businessCalendars?: BusinessCalendarSet | null;
   /** Carrega os calendários quando um campo derivado da tabela conta dias úteis e ninguém os trouxe. */
   businessCalendarsOf?(tenantId: string): Promise<BusinessCalendarSet | null>;
+  /**
+   * A pessoa a quem o resultado é entregue (`WorkflowContext.reader`). Presente, a visibilidade por
+   * registro vale: a consulta traz só o que ela vê, e a hidratação não entrega o registro apontado que
+   * ela não vê. Ausente, quem lê é o escritório.
+   */
+  reader?: RecordReader | null;
 }
 
 export async function runWorkflowQuery(
@@ -255,6 +264,7 @@ export async function runWorkflowQuery(
       timeZone: context.services.timeZone,
       businessCalendars: context.services.businessCalendars,
       businessCalendarsOf: context.services.businessCalendarsOf,
+      reader: context.reader,
     },
     deps,
     limits,
@@ -339,16 +349,38 @@ export async function runRecordQuery(
     else memoryPredicates.push(predicate);
   }
 
+  // Quem lê pode ver só parte da coleção (`memberVisibility`). O fetcher filtrado vale para a leitura
+  // por id e para a hidratação; a varredura de quem é restrito pergunta ao banco só pelo que o nomeia.
+  const fetcher = readerFetcher(deps.fetcher, ctx, scope.reader);
+  const restriction = readerRestriction(
+    resolveMemberVisibility(ctx, resolved.physicalCollection),
+    resolved.physicalCollection,
+    scope.reader,
+  );
+
   // Com ids em mãos, a leitura é direta e a varredura não acontece: os demais filtros de igualdade
-  // são conferidos em memória, sobre os poucos registros pedidos.
+  // são conferidos em memória, sobre os poucos registros pedidos. A varredura de quem é restrito
+  // também os confere: metade das consultas dela não os leva.
   const byId = documentIds !== null;
-  if (byId) {
+  const restrictedScan = !byId && restriction !== null && scope.reader
+    ? await scanVisibleRows(
+      deps.queryRepository,
+      tenantId,
+      resolved.physicalCollection,
+      equalityFilters,
+      restriction,
+      scope.reader.uid,
+      limits.maxScan,
+    )
+    : null;
+  if (byId || restrictedScan) {
     memoryPredicates.push(...predicates.filter((predicate) => !memoryPredicates.includes(predicate)));
   }
   const requestedIds = documentIds?.slice(0, limits.maxScan) ?? [];
   const rows = byId
-    ? await rowsByDocumentId(requestedIds, tenantId, resolved.physicalCollection, deps.fetcher)
-    : await deps.queryRepository.queryByEquality(tenantId, resolved.physicalCollection, equalityFilters, limits.maxScan);
+    ? await rowsByDocumentId(requestedIds, tenantId, resolved.physicalCollection, fetcher)
+    : restrictedScan?.rows
+      ?? await deps.queryRepository.queryByEquality(tenantId, resolved.physicalCollection, equalityFilters, limits.maxScan);
 
   const pathsToHydrate = [
     ...new Set([
@@ -358,7 +390,7 @@ export async function runRecordQuery(
     ]),
   ];
 
-  const hydrated = await hydrateRecords(rows, resolved.root, ctx, pathsToHydrate, tenantId, deps.fetcher);
+  const hydrated = await hydrateRecords(rows, resolved.root, ctx, pathsToHydrate, tenantId, fetcher);
 
   // O instante é um só para a consulta inteira: dois registros da mesma resposta não podem discordar
   // sobre que dia é hoje.
@@ -393,7 +425,9 @@ export async function runRecordQuery(
       count: limited.length,
       first: limited[0] ?? null,
       scanned: rows.length,
-      complete: byId ? (documentIds?.length ?? 0) <= limits.maxScan : rows.length < limits.maxScan,
+      complete: byId
+        ? (documentIds?.length ?? 0) <= limits.maxScan
+        : restrictedScan?.complete ?? rows.length < limits.maxScan,
     },
   };
 }

@@ -17,6 +17,7 @@ import type { FieldRulePreset, FieldRulePresetCatalog } from './fieldRulePresets
 import { buildFieldRulePresetCatalog } from './fieldRulePresets';
 import type { RecordKeySpec } from './recordKeys';
 import type { EditWindowSpec } from './editWindow';
+import type { MemberVisibilitySpec } from './memberVisibility';
 import { RECORD_KEYS_COLLECTION } from './recordKeys';
 import { AGENT_GRANTS_COLLECTION } from './agent/agentGrant';
 import { AGGREGATE_BACKFILL_COLLECTION } from './aggregateBackfill';
@@ -68,6 +69,11 @@ export interface SchemaScreen {
    * `ScreenDefinition.editWindow`.
    */
   editWindow?: EditWindowSpec | null;
+  /**
+   * A visibilidade por registro, já lida como a regra a lê (`readMemberVisibility`). Ver
+   * `ScreenDefinition.memberVisibility`.
+   */
+  memberVisibility?: MemberVisibilitySpec | null;
   /**
    * Os campos que qualquer membro grava. Estão aqui porque a janela de edição os deixa passar depois
    * do prazo, e a gravação do backend precisa da mesma lista que a regra lê.
@@ -202,11 +208,11 @@ const mergeSchemaScreens = (base: SchemaScreen, next: SchemaScreen, collection: 
 };
 
 /**
- * A janela de edição e os campos de membro de uma coleção são os do documento
- * `screenDefinitions/<coleção>` — o único que o `firestore.rules` lê. Quando outra tela descreve a
- * coleção (`dataCollection`), a instalação copia as duas declarações para esse documento
+ * A janela de edição, os campos de membro e a visibilidade por registro de uma coleção são os do
+ * documento `screenDefinitions/<coleção>` — o único que o `firestore.rules` lê. Quando outra tela
+ * descreve a coleção (`dataCollection`), a instalação copia as declarações para esse documento
  * (`ensureTargetCollectionScreen`); ler daqui, e não da dona do merge, é o que impede o backend de
- * aceitar uma gravação que a regra recusaria, ou o contrário.
+ * aceitar uma gravação — ou entregar uma leitura — que a regra recusaria, ou o contrário.
  */
 const withRuleDeclarations = (merged: SchemaScreen, ruleDocument: SchemaScreen | undefined): SchemaScreen =>
   ruleDocument
@@ -214,6 +220,7 @@ const withRuleDeclarations = (merged: SchemaScreen, ruleDocument: SchemaScreen |
       ...merged,
       editWindow: ruleDocument.editWindow ?? null,
       memberWritableFields: ruleDocument.memberWritableFields ?? null,
+      memberVisibility: ruleDocument.memberVisibility ?? null,
     }
     : merged;
 

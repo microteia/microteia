@@ -29,6 +29,7 @@ import { ColorDot } from '../../components/ui/Badge';
 import { getScreenIcon } from '../../shared/screenIcons';
 import { ScreenPortalPanel } from './components/ScreenPortalPanel';
 import { ScreenEditWindowPanel } from './components/ScreenEditWindowPanel';
+import { ScreenMemberVisibilityPanel } from './components/ScreenMemberVisibilityPanel';
 import type { FieldDefinition } from '../../../domain/entities';
 
 import { useT, useLabel } from '../../shared/i18n/useT';
@@ -518,6 +519,17 @@ export const ScreenBuilderView: React.FC = () => {
                 form={vm.screenForm.editWindow}
                 fromExtension={vm.editWindowFromExtension}
                 onChange={vm.updateEditWindowForm}
+              />
+            )}
+            {vm.screenModalTab === 'memberVisibility' && (
+              <ScreenMemberVisibilityPanel
+                form={vm.screenForm.memberVisibility}
+                fieldOptions={vm.memberVisibilityPanel.fieldOptions}
+                bypassOptions={vm.memberVisibilityPanel.bypassOptions}
+                issue={vm.memberVisibilityPanel.issue}
+                maxFields={vm.memberVisibilityPanel.maxFields}
+                fromExtension={vm.editWindowFromExtension}
+                onChange={vm.updateMemberVisibilityForm}
               />
             )}
             {vm.screenModalTab === 'actions' && (

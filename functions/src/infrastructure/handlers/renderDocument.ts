@@ -98,6 +98,7 @@ export const renderDocument = onCall(
       chargePermissions: true,
       author: { uid: actor.userId, name: actor.name, photoUrl: actor.photoURL, via: 'ui' },
       permissions,
+      reader: { uid: request.auth.uid, permissions },
     });
 
     if (!result.ok) {

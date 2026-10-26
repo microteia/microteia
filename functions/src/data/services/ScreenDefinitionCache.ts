@@ -4,6 +4,7 @@ import type { SchemaContext, SchemaScreen } from '../../domain/schema/pathResolv
 import { createSchemaContext } from '../../domain/schema/pathResolver';
 import type { SchemaLookup } from '../../domain/schema/screenEntity';
 import { readEditWindow } from '../../domain/schema/editWindow';
+import { readMemberVisibility } from '../../domain/schema/memberVisibility';
 import type { RecordKeySpec } from '../../domain/schema/recordKeys';
 import type { FieldDefinition, FieldOrigin } from '../../domain/entities/entitySchemas';
 import type { Contribution } from '../../domain/schema/plugin/contribution';
@@ -95,6 +96,9 @@ export class ScreenDefinitionCache implements IScreenDefinitionProvider {
         // chave declarada na TELA — a forma das chaves compostas — valia no formulário e em mais nada.
         keys: recordKeysOf(data.keys),
         editWindow: readEditWindow(data.editWindow),
+        // Sem ela, o relatório, o agente e o documento entregariam a uma pessoa o registro que a regra
+        // esconde dela.
+        memberVisibility: readMemberVisibility(data.memberVisibility),
         memberWritableFields: Array.isArray(data.memberWritableFields)
           ? (data.memberWritableFields as unknown[]).filter((field): field is string => typeof field === 'string')
           : null,

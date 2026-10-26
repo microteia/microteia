@@ -556,12 +556,16 @@ service cloud.firestore {
           && (request.resource.data.get('editWindow', null) == null
               || can(tenantId, 'screens.edit-window') || can(tenantId, 'extensions.manage'))
           && (request.resource.data.get('portal', null) == null
-              || can(tenantId, 'portal.manage') || can(tenantId, 'extensions.manage'));
+              || can(tenantId, 'portal.manage') || can(tenantId, 'extensions.manage'))
+          && (request.resource.data.get('memberVisibility', null) == null
+              || can(tenantId, 'screens.member-visibility') || can(tenantId, 'extensions.manage'));
         // Numa tela que JÁ está no portal, a coleção, o pai e o título também decidem o que sai: trocar
         // o `dataCollection` projetaria outra coleção para os mesmos convidados, sem tocar no `portal`.
         // A janela de edição é a garantia de que um registro-prova não muda depois do prazo. Quem só
         // desenha telas não a abre: ela é de `screens.edit-window` (no Form Design) ou de quem instala
         // extensões. Compara-se o VALOR (ausente == null): o Form Design reenvia a tela inteira.
+        // A visibilidade por registro (`memberVisibility`) segue o mesmo molde, com a permissão
+        // `screens.member-visibility`: afrouxá-la entrega registros sigilosos a quem tem a coleção.
         allow update: if (can(tenantId, 'screens.manage') || can(tenantId, 'extensions.manage'))
           && (request.resource.data.get('editWindow', null) == resource.data.get('editWindow', null)
               || can(tenantId, 'screens.edit-window') || can(tenantId, 'extensions.manage'))
@@ -570,9 +574,14 @@ service cloud.firestore {
           && (resource.data.get('portal', null) == null
               || !request.resource.data.diff(resource.data).affectedKeys()
                 .hasAny(['dataCollection', 'parentEntity', 'parentFieldKey', 'titleFieldKey'])
-              || can(tenantId, 'portal.manage') || can(tenantId, 'extensions.manage'));
-        allow delete: if can(tenantId, 'screens.manage')
-          || can(tenantId, 'extensions.manage');
+              || can(tenantId, 'portal.manage') || can(tenantId, 'extensions.manage'))
+          && (request.resource.data.get('memberVisibility', null) == resource.data.get('memberVisibility', null)
+              || can(tenantId, 'screens.member-visibility') || can(tenantId, 'extensions.manage'));
+        // A visibilidade por registro mora NESTE documento: excluí-lo devolveria cada registro a todo
+        // membro com a leitura da coleção. Quem só desenha telas não a retira por esse atalho.
+        allow delete: if (can(tenantId, 'screens.manage') || can(tenantId, 'extensions.manage'))
+          && (resource.data.get('memberVisibility', null) == null
+              || can(tenantId, 'screens.member-visibility') || can(tenantId, 'extensions.manage'));
       }
 
       // ─── Registros de qualquer tela ─────────────────────────────────────────
@@ -586,8 +595,9 @@ service cloud.firestore {
       // e o teste screenEntity.test.ts compara as duas pontas.
       //
       // A ESCRITA exige ainda que exista a tela declarada, para que nenhuma coleção inventada
-      // receba dados. A LEITURA dispensa a checagem: coleção sem tela está vazia, e cobrar uma
-      // leitura de documento por consulta não pagaria o que protege.
+      // receba dados. A LEITURA não exige: coleção sem tela está vazia. Ela lê o documento da tela por
+      // outro motivo — a visibilidade por registro (`seesRecord`) mora nele, e é ele que diz se a
+      // coleção restringe quem lê cada registro.
       function isReservedCollection(name) {
         return name in [
         'actions', 'agentGrants', 'aggregate_backfills', 'aiConnections',
@@ -745,6 +755,69 @@ service cloud.firestore {
           || !exists(record)
           || editWindowOpenSince(spec, get(record).data.get('createdAt', null));
       }
+      // ─── Visibilidade por registro (`memberVisibility`) ────────────────────
+      //
+      // A tela que a declara deixa cada membro ler só o registro que o NOMEIA num dos campos de
+      // referência a membro — o uid gravado no campo simples, ou contido no `multi`. Quem tem a
+      // permissão de supervisão lê todos: a declarada em `bypassPermission` ou, sem ela, a DERIVADA
+      // `<coleção>.read-all`, que o catálogo oferece sozinho. O dono e o `SYSTEM` passam pelo `can()`.
+      //
+      // Os campos são lidos por POSIÇÃO, até quatro: a linguagem das regras não tem laço, e o teto é
+      // o mesmo que o `check` do pacote e o Form Design cobram (`MEMBER_VISIBILITY_MAX_FIELDS`).
+      // Declaração malformada fecha para quem não supervisiona: o que não é mapa, ou um `userFields`
+      // que não é lista, não nomeia ninguém. `domain/schema/memberVisibility.ts` é o espelho.
+      //
+      // O `multi` é perguntado com `hasAny`, e não com `in`: sobre um MAPA, `in` pergunta pelas chaves,
+      // e `{ <uid>: true }` gravado no campo passaria. `hasAny` só existe em lista. E os dois termos são
+      // os que a consulta prova: a do cliente acrescenta o filtro sozinha (`memberVisibilityClauses`)
+      // porque sem ele a consulta seria recusada INTEIRA — a regra não é filtro —, e cada disjunção do
+      // `or()` dela casa com um destes termos.
+      //
+      // Custa a leitura de `screenDefinitions/<coleção>` em cada consulta e em cada documento lido — é o
+      // documento que já respondia pela janela de edição e pelos campos de membro na gravação.
+      function memberVisibilityOf(name) {
+        return isDeclaredScreen(name) ? screenData(name).get('memberVisibility', null) : null;
+      }
+      function memberVisibilityFields(spec) {
+        return spec is map && spec.get('userFields', []) is list ? spec.get('userFields', []) : [];
+      }
+      function memberVisibilityBypass(name, spec) {
+        return spec is map && spec.get('bypassPermission', null) is string
+          ? spec.get('bypassPermission', null)
+          : name + '.read-all';
+      }
+      function namesMember(data, fields, index) {
+        return fields.size() > index
+          && fields[index] is string
+          && (data.get(fields[index], null) == request.auth.uid
+              || data.get(fields[index], []).hasAny([request.auth.uid]));
+      }
+      function seesRecord(name, data) {
+        let spec = memberVisibilityOf(name);
+        let fields = memberVisibilityFields(spec);
+        return spec == null
+          || namesMember(data, fields, 0)
+          || namesMember(data, fields, 1)
+          || namesMember(data, fields, 2)
+          || namesMember(data, fields, 3)
+          || can(tenantId, memberVisibilityBypass(name, spec));
+      }
+      // As anotações e os documentos são PARTE do registro: quem não o lê não lê, não acrescenta nem
+      // apaga o que mora embaixo dele. A leitura do registro só acontece na tela que restringe.
+      function seesParentRecord(name, recordId) {
+        let record = /databases/$(database)/documents/tenants/$(tenantId)/$(name)/$(recordId);
+        return memberVisibilityOf(name) == null
+          || (exists(record) && seesRecord(name, get(record).data));
+      }
+      // A cascata apaga o registro ANTES dos filhos (ver "Janela de edição"). O filho de um registro que
+      // não existe mais não é sigilo de ninguém, e precisa poder sair.
+      function seesParentRecordOrGone(name, recordId) {
+        let record = /databases/$(database)/documents/tenants/$(tenantId)/$(name)/$(recordId);
+        return memberVisibilityOf(name) == null
+          || !exists(record)
+          || seesRecord(name, get(record).data);
+      }
+
       // O hash do arquivo é calculado pelo servidor; o cliente nunca o escreve, nem ao criar.
       function omitsServerHash() {
         return !request.resource.data.keys().hasAny(['sha256']);
@@ -795,34 +868,44 @@ service cloud.firestore {
       match /{screenCollection}/{recordId} {
         allow read: if !isReservedCollection(screenCollection)
           && isMember(tenantId)
-          && (canOnCollection(screenCollection, 'read') || isDeclaredVocabulary(screenCollection));
+          && (canOnCollection(screenCollection, 'read') || isDeclaredVocabulary(screenCollection))
+          && seesRecord(screenCollection, resource.data);
         allow create: if isWritableScreen(screenCollection)
           && canOnCollection(screenCollection, 'create')
           && declaresOnlyUiOnCreate()
           && respectsEditWindowOnCreate(screenCollection);
+        // Alterar e excluir pedem também VER o registro: quem não o lê não grava nele às cegas, e a
+        // recusa não lhe conta que ele existe. Criar não pede — o registro pode nascer nomeando outra
+        // pessoa, e é o encaminhamento que a restrição existe para permitir.
         allow update: if isWritableScreen(screenCollection)
           && keepsWriteViaOnUpdate()
           && respectsEditWindowOnUpdate(screenCollection)
           && (canOnCollection(screenCollection, 'update')
-              || (isMember(tenantId) && touchesOnlyMemberWritableFields(screenCollection)));
+              || (isMember(tenantId) && touchesOnlyMemberWritableFields(screenCollection)))
+          && seesRecord(screenCollection, resource.data);
         allow delete: if isWritableScreen(screenCollection)
           && respectsEditWindowOnDelete(screenCollection)
           && (canOnCollection(screenCollection, 'delete')
               || (canOnCollection(screenCollection, 'update')
                   && screenAuthorCanDelete(screenCollection)
-                  && isRecordAuthor()));
+                  && isRecordAuthor()))
+          && seesRecord(screenCollection, resource.data);
 
         // Anotações do registro: seguem a permissão da COLEÇÃO DO PAI — a nota é parte do registro,
         // não uma entidade com acesso próprio. `update` só carimba a autoria de exclusão.
         match /notes/{noteId} {
           allow read: if !isReservedCollection(screenCollection)
             && isMember(tenantId)
-            && canOnCollection(screenCollection, 'read');
-          allow create: if isWritableScreen(screenCollection) && canOnCollection(screenCollection, 'update');
+            && canOnCollection(screenCollection, 'read')
+            && seesParentRecord(screenCollection, recordId);
+          allow create: if isWritableScreen(screenCollection) && canOnCollection(screenCollection, 'update')
+            && seesParentRecord(screenCollection, recordId);
           allow update: if isWritableScreen(screenCollection) && canOnCollection(screenCollection, 'delete')
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deletedBy', 'deletedByName', 'deletedByPhotoURL'])
-            && request.resource.data.deletedBy == request.auth.uid;
-          allow delete: if isWritableScreen(screenCollection) && canOnCollection(screenCollection, 'delete');
+            && request.resource.data.deletedBy == request.auth.uid
+            && seesParentRecordOrGone(screenCollection, recordId);
+          allow delete: if isWritableScreen(screenCollection) && canOnCollection(screenCollection, 'delete')
+            && seesParentRecordOrGone(screenCollection, recordId);
         }
 
         // Documentos do registro — mesmo modelo das anotações. Compartilhar no portal é EDITAR o
@@ -832,20 +915,25 @@ service cloud.firestore {
         match /documents/{documentId} {
           allow read: if !isReservedCollection(screenCollection)
             && isMember(tenantId)
-            && canOnCollection(screenCollection, 'read');
+            && canOnCollection(screenCollection, 'read')
+            && seesParentRecord(screenCollection, recordId);
           allow create: if isWritableScreen(screenCollection) && canOnCollection(screenCollection, 'update')
             && request.resource.data.get('portalShared', false) == false
-            && omitsServerHash();
+            && omitsServerHash()
+            && seesParentRecord(screenCollection, recordId);
           allow update: if isWritableScreen(screenCollection) && canOnCollection(screenCollection, 'update')
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['portalShared', 'portalSharedBy', 'portalSharedAt'])
             && request.resource.data.portalShared is bool
-            && request.resource.data.portalSharedBy == request.auth.uid;
+            && request.resource.data.portalSharedBy == request.auth.uid
+            && seesParentRecord(screenCollection, recordId);
           allow update: if isWritableScreen(screenCollection) && canOnCollection(screenCollection, 'delete')
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deletedBy', 'deletedByName', 'deletedByPhotoURL'])
             && request.resource.data.deletedBy == request.auth.uid
-            && recordDocumentsUnlocked(screenCollection, recordId);
+            && recordDocumentsUnlocked(screenCollection, recordId)
+            && seesParentRecordOrGone(screenCollection, recordId);
           allow delete: if isWritableScreen(screenCollection) && canOnCollection(screenCollection, 'delete')
-            && recordDocumentsUnlocked(screenCollection, recordId);
+            && recordDocumentsUnlocked(screenCollection, recordId)
+            && seesParentRecordOrGone(screenCollection, recordId);
         }
       }
     }

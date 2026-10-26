@@ -794,6 +794,7 @@ regra que tem uma decisão a defender:
 | `backendState.test.ts` | o cliente lê e nunca escreve: escrita liberada deixaria forjar a lista de órfãs do provisionamento |
 | `portalReprojections.test.ts` | o job da reprojeção: lê só quem tem `portal.manage`; ninguém grava do cliente |
 | `portal.test.ts` | o convidado não é membro: não lê registro original, membros, perfis, telas nem configurações; a projeção só se lista filtrada pelo próprio uid; revogar fecha na hora; ninguém grava projeção nem convite do cliente |
+| `memberVisibility.test.ts` | a visibilidade por registro: só o registro que nomeia o membro, pelo campo simples ou pelo `multi` (e o mapa forjado não passa); a consulta sem filtro recusada e a do repositório aceita, inclusive com o filtro do pai; supervisão derivada, nomeada, dono e `SYSTEM`; declaração malformada fecha; alterar e excluir pedem ver, criar não; anotações, documentos e arquivos seguem o registro; quem só desenha telas não muda nem exclui a declaração |
 
 Ela fica **fora do `npm test`**, com configuração própria (`vitest.rules.config.ts`), porque exige um
 JDK — e um teste que não roda na máquina de quem o herda vira ruído até alguém apagá-lo. A semeadura
@@ -12724,6 +12725,194 @@ editável para sempre, sem aviso. É recusa de GARANTIA, como a de `portal.visib
 | `functions/src/domain/services/recordDocumentHash.ts` | o campo, o que o servidor carimba, e qual arquivo pode ser lido |
 | `functions/src/data/services/FirebaseRecordDocumentHasher.ts` | o carimbo do hash para o anexo do navegador |
 | `examples/record-tab-example` | a tela "Atualização", que congela 15 minutos depois de criada |
+
+---
+
+## Visibilidade por registro — o membro que só lê o que o nomeia
+
+O RBAC do produto responde por COLEÇÃO: quem tem `<coleção>.read` lê todos os registros dela. Há caso em
+que isso é demais — a resposta sigilosa que só o servidor emissor lê (DTE, RN-04, CTN 198), o atendimento
+"atribuído a", o prontuário do paciente de um médico. Antes, a única saída era o filtro de INTERFACE (menu,
+`hasPermission`), que esconde a tela e entrega o dado a quem o pedir direto ao banco, ao agente ou ao
+relatório. As alternativas avaliadas não serviam: uma coleção por pessoa não é modelável; uma função
+própria servindo os dados perde lista, filtro, formulário e relatório da plataforma. A tela agora
+**declara**:
+
+```ts
+memberVisibility: { userFields: ['emissor', 'equipe'], bypassPermission?: 'oficios.supervise' }
+```
+
+O membro lê um registro só quando o próprio uid está num de `userFields` — o valor de uma referência a
+membro simples, ou um item do `multi` —, ou quando supervisiona. **Ausente, nada muda**: toda tela que
+existia continua exatamente como era, e a regra só lê a declaração para descobrir que ela não existe.
+
+### Uma conta, três pontas
+
+A conta é uma só, compartilhada (`domain/schema/memberVisibility.ts`, sincronizada), e espelha a regra
+linha a linha — inclusive no que ela faz com a declaração malformada: FECHA para quem não supervisiona.
+
+| Ponta | Onde | O que faz |
+|---|---|---|
+| Regras | `firestore.rules` (`seesRecord`) e `storage.rules` (`recordFilesVisible`) | recusam ler, alterar e excluir o registro que não nomeia quem pede, e as anotações, os documentos e os arquivos dele. É a garantia, e a única que alcança quem lê direto do banco |
+| Front | `RecordStore` + `FirebaseRecordRepository.subscribe` | a assinatura da coleção leva o filtro que a regra prova — a regra não é filtro, e sem ele a consulta inteira seria recusada |
+| Servidor | `WorkflowContext.reader` → `runRecordQuery`, `runWorkflowUpsert/Remove`, documento | as portas que entregam registro a uma PESSOA filtram, porque o Admin SDK passa por cima das regras |
+
+### A regra — e o que o emulador ensinou
+
+`seesRecord(nome, data)` lê `screenDefinitions/<coleção>` (o mesmo documento da janela de edição) e aceita
+quando a declaração não existe, quando um dos campos nomeia `request.auth.uid`, ou quando
+`can(tenantId, supervisão)`. Três decisões, cada uma com caso em `rules-tests/memberVisibility.test.ts`:
+
+- **Os campos são lidos por POSIÇÃO, até quatro** (`MEMBER_VISIBILITY_MAX_FIELDS`). A linguagem das regras
+  não tem laço; um quinto campo nunca seria consultado, e por isso o `check` e o Form Design o recusam.
+- **O `multi` é perguntado com `hasAny`, nunca com `in`.** O emulador mostrou: sobre um MAPA, `in` pergunta
+  pelas chaves, e `{ <uid>: true }` gravado no campo passaria. `hasAny` só existe em lista. E a guarda
+  `is list` — a forma óbvia de evitar isso — quebra a prova da consulta: a regra com `is list` não prova
+  `array-contains`. No `storage.rules`, que não prova consulta nenhuma, a guarda entra.
+- **A consulta é provada por disjunção.** O filtro do cliente é `or(campo == uid, campo array-contains
+  uid, …)`, e cada disjunção casa com um termo da regra — testado com o `or()` sozinho e combinado com o
+  filtro do pai (a aba de filhos). Uma consulta sem o filtro, de quem não supervisiona, é recusada inteira.
+
+Alterar e excluir pedem também VER: quem não lê não grava às cegas, e a recusa não conta que o registro
+existe. **Criar não pede** — o registro pode nascer nomeando outra pessoa, e é o encaminhamento que a
+restrição existe para permitir. Mudar o campo para nomear outra pessoa também passa; depois disso, quem
+encaminhou não lê mais.
+
+As anotações e os documentos são PARTE do registro: `seesParentRecord` lê o registro pai — só na tela que
+restringe, porque o primeiro termo é a declaração — e recusa ler, acrescentar ou apagar o que mora
+embaixo do registro que a pessoa não vê. A exclusão aceita o filho de um registro que já não existe
+(`seesParentRecordOrGone`), porque a cascata apaga o registro primeiro (ver "Janela de edição").
+
+**Custo:** uma leitura de `screenDefinitions/<coleção>` por consulta e por documento lido no curinga — o
+documento que a gravação já lia. A leitura do pai em anotações e documentos só acontece na tela restrita.
+
+### A supervisão — derivada, ou nomeada
+
+| Declaração | Quem lê todos |
+|---|---|
+| sem `bypassPermission` | quem tem `<coleção>.read-all`, DERIVADA pelo catálogo (`PermissionResource.deriveReadAll`, exige `<coleção>.read`), com o nome "Ver todos os registros" — aparece em Perfis sozinha, como o CRUD |
+| com `bypassPermission` | quem tem a permissão nomeada — tipicamente uma da própria extensão (`accessPermissionContribution`). A derivada deixa de existir: duas permissões dizendo a mesma coisa seriam duas a explicar |
+| sempre | o DONO e o `SYSTEM`, pelas razões de `can()` |
+
+A derivada é o que dá o recurso à tela do Form Design sem extensão nenhuma por trás: o escritório não
+precisa de uma permissão pronta para escolher. Ela entra nas DUAS contas do catálogo pela mesma função
+(`tenantCollectionPermissionResources`, que lê a declaração do documento da COLEÇÃO), e não move
+`KERNEL_CATALOG_FINGERPRINT` — o recurso-sonda não declara visibilidade. A permissão nova do núcleo
+(`screens.member-visibility`) move, uma vez, como moveu `screens.edit-window`.
+
+**O agente lê com o teto do token.** A supervisão é julgada pelo conjunto da interseção, como toda outra
+permissão: o token cujo teto não inclui `<coleção>.read-all` não vê o que o dono dele vê na tela — mesmo
+sendo o dono do escritório.
+
+### O front — o filtro que a regra exige
+
+O `RecordStore` decide, por coleção, se quem lê é restrito (`memberVisibilityFilter`), e decide pelo
+conjunto **materializado** do membro (`members/{uid}.permissions`), mais dono e `SYSTEM` — não pelo que o
+`AuthorizationStore` recalcula. A consulta é montada para a REGRA aceitar: no intervalo em que as duas
+contas divergem, decidir pela da tela mandaria uma consulta sem filtro que seria recusada inteira. O
+`RecordStore`, além disso, está acima do `AuthorizationStore` na árvore. A restrição vira texto
+(`visibilityKey`) para que a lista de membros relida, igual, não reassine todas as coleções.
+
+`listQuery` (repositório) monta o `or()` com um `==` e um `array-contains` por campo — as duas formas, e
+não a que o campo declara hoje: um campo que passou de simples a `multi` guarda texto nos registros antigos
+e lista nos novos. A consulta restrita **perde o `orderBy`**: ordenar pelo servidor pediria um índice
+composto por disjunção e por campo, e a tela do Form Design não tem como declarar índice. A ordem volta em
+memória (`newestFirst`), e o teto de 500 vale para o que NOMEIA a pessoa, não para a coleção. Declaração
+sem campo não consulta: não há filtro que a regra aceite.
+
+O resto do front não muda, e é por isso que o desenho funciona: lista, seletor de referência, aba de
+filhos, ⌘K e `useEntityList` das extensões leem todos do `RecordStore`. O que precisou de cuidado:
+
+- **Detalhe por link.** `getById` é recusado; `useEntityDetail` já trata a recusa como "registro não
+  encontrado" — que é a resposta certa: não revela que existe.
+- **Criar para outra pessoa.** A releitura pós-gravação é recusada; `readBack` devolve o que foi enviado.
+- **Excluir a tela.** `hasRecords` recusado responde SIM — sem como saber se a coleção está vazia, a
+  exclusão que existe para impedir apagar a tela de uma coleção com registros não passa.
+- **O aviso.** A lista de quem é restrito diz que mostra só o que o nomeia (`useMemberVisibilityNotice`) —
+  sem isso, a pessoa veria menos registros que o colega e concluiria que faltam dados.
+
+### O servidor — quem lê é uma decisão de cada porta
+
+`RecordReader` (`{ uid, permissions }`) é a PESSOA a quem a leitura é entregue, e mora em
+`WorkflowContext.reader` — separado de `actor`, porque o ator responde por autoria e `hasPermission` e
+existe em toda execução que alguém disparou; o leitor é escolha da porta:
+
+| Porta | Leitor |
+|---|---|
+| Agente (MCP) — `agentRun`, `get_record`, `list_documents`, `attach_document`, documentos | o dono do token, com as permissões da interseção (`agentReader`) |
+| `runReport` (callable) | quem roda, com o conjunto que `requireReportAccess` devolveu |
+| `renderDocument`, `previewDocument`, `attachDownloadToRecord` (callables) | quem pede |
+| Automação — passo "Buscar Registros", `query()` do Script, `runAction`, `call-workflow`, gatilhos | **nenhum: lê como o escritório** |
+
+**A automação lê como o escritório, e é decisão.** Numerar um protocolo, contar o que está em aberto, achar
+o registro a encaminhar precisam da coleção inteira. Restringir conforme quem apertou o botão faria a mesma
+automação gravar dados diferentes por pessoa — protocolos repetidos, contagens erradas —, e o defeito
+seria silencioso. Quem escreve a automação tem `automation.manage`, que já grava qualquer registro por
+`upsert`; restringir a leitura dela não protegeria nada. O que ela faz com o que leu é decisão de quem a
+escreveu, como já era para a permissão por coleção.
+
+`runRecordQuery` — o mesmo caminho do relatório, do agente e do documento — aplica o leitor em dois pontos
+(`infrastructure/workflow/query/readerScope.ts`):
+
+- **A varredura de quem é restrito pergunta ao banco só pelo que o nomeia** (`scanVisibleRows`), e não
+  filtra a coleção depois: numa coleção maior que o teto, filtrar depois esconderia da pessoa os próprios
+  registros. Por campo, duas consultas índice-free: `campo == uid` junto dos filtros de igualdade
+  (igualdades se juntam sem índice composto) e `campo array-contains uid` SOZINHO
+  (`WorkflowEqualityFilter.op`). Os filtros que a segunda não levou voltam em memória, como na leitura por
+  id. `complete` só é verdadeiro quando nenhuma consulta bateu no teto.
+- **O fetcher filtrado** (`readerFetcher`) devolve como AUSENTE o registro que o leitor não vê — na leitura
+  por id e na hidratação. É o que impede o relatório de projetar `resposta.texto` de uma resposta alheia.
+
+O relatório, portanto, **conta só o visível**. `runWorkflowUpsert`/`runWorkflowRemove` recusam alterar
+(`@core.records/record.not-found`) e não excluem (`removed: false`) o registro que o leitor não vê — as
+mesmas respostas de um id que não está lá. `describe_screen` mostra a declaração e se ESTE acesso vê
+tudo (`memberVisibility.seesAll`), para o agente não responder "não há registro" quando há, só não para
+ele.
+
+### Quem muda a declaração
+
+| Caminho | Regra |
+|---|---|
+| `firestore.rules` em `screenDefinitions` | criar, alterar o VALOR de `memberVisibility` ou EXCLUIR a tela que a tem exige `screens.member-visibility` (permissão nova, que arrasta `screens.manage`) ou `extensions.manage`. A exclusão está na lista porque é o atalho: sem a tela, a regra não acha declaração nenhuma |
+| Form Design | aba "Visibilidade dos registros" (`ScreenMemberVisibilityPanel`), para quem tem a permissão, só em tela existente — oferece só os campos de referência a membro e a supervisão (a derivada primeiro, depois o catálogo). Grava só quando tocada; numa tela com `dataCollection`, grava também no documento da coleção |
+| Extensão | `upsertPluginScreens` e `ensureTargetCollectionScreen`: o que o pacote declara vence; **a ausência não retira** — retirar a restrição é gesto de pessoa, pela mesma razão da janela de edição |
+
+`packageMemberVisibilityIssues` (no `check`, no import e na instalação) recusa a forma errada, lista vazia,
+mais de quatro campos, campo repetido, campo que a tela não tem, campo que não é referência a `members`,
+`bypassPermission` fora de `recurso.acao`, e um `kernel` que admita versão anterior a `2.75.0`
+(`MEMBER_VISIBILITY_SINCE_KERNEL`) — um kernel antigo descarta a chave e todo membro leria tudo.
+
+Desinstalar a extensão apaga a tela; os registros ficam, e a leitura da coleção sai do catálogo junto com
+ela — só o dono e o `SYSTEM`, que já supervisionam, os alcançam depois que a materialização roda.
+
+### O que NÃO esconde — dito com todas as letras
+
+- **Agregado gravado no pai** (`aggregation`): é calculado sobre todos os filhos e é um valor do PAI. A
+  contagem de filhos restritos aparece num pai que todos leem. Não agregue sigilo.
+- **Nome denormalizado** que uma referência copia para outro registro (`referenceDenormFields`).
+- **Histórico de execução** (`workflow_executions`): todo membro o lê, e ele guarda o que cada passo
+  devolveu. A regra é anterior a esta e vale igual para a permissão por coleção.
+- **Auditoria**: quem tem `audit.read` lê o histórico de toda coleção.
+- **Chave única** (`recordKeys`): a reserva é lida por todo membro e diz que um VALOR está tomado — é o que
+  a unicidade é.
+- **Notificação** que uma automação envia: é o que a automação decidiu entregar.
+- **Portal**: o convidado não é membro e tem projeção própria (`portal.visibleWhen`); esta declaração não o
+  alcança.
+
+### Arquivos-chave
+
+| Arquivo | Papel |
+|---|---|
+| `domain/schema/memberVisibility.ts` | declaração, leitura como a regra lê, quem lê o quê, termos do filtro, validação (compartilhado) |
+| `firestore.rules` (`seesRecord`, `seesParentRecord*`) e `storage.rules` (`recordFilesVisible*`) | a garantia |
+| `rules-tests/memberVisibility.test.ts` | registro, consulta (`or()` e com o pai), escrita, anotações, documentos, arquivos e quem muda a declaração — contra o emulador |
+| `stores/RecordStore.tsx`, `data/repositories/FirebaseRecordRepository.ts` | o filtro da assinatura, a ordem em memória, `readBack` e `hasRecords` |
+| `functions/src/infrastructure/workflow/query/readerScope.ts` | a varredura de quem é restrito e o fetcher filtrado |
+| `functions/src/domain/entities/WorkflowContext.ts` (`reader`) | quem lê, por porta |
+| `domain/schema/tenantCollections.ts`, `access/resolvePermissions.ts` | `<coleção>.read-all` |
+| `domain/usecases/plugins/pluginMemberVisibility.ts` | o `check` do pacote |
+| `pages/ScreenBuilder/components/ScreenMemberVisibilityPanel/` | a aba do Form Design |
+| `shared/entityScreen/useMemberVisibilityNotice.ts` | o aviso da lista |
 
 ---
 

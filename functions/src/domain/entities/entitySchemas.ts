@@ -24,6 +24,7 @@ import type {
 import type { RecordKeySpec } from '../schema/recordKeys';
 import type { PortalDeclaration } from '../schema/portal';
 import type { EditWindowSpec } from '../schema/editWindow';
+import type { MemberVisibilitySpec } from '../schema/memberVisibility';
 
 // ─── Tipos de Campos Customizados ─────────────────────────────────────────────
 
@@ -290,6 +291,20 @@ export interface ScreenDefinition {
    * interpreta passa por `readEditWindow`. Ver `domain/schema/editWindow.ts`.
    */
   editWindow?: EditWindowSpec | null;
+  /**
+   * Quem, entre os membros que leem a coleção, lê CADA registro. Ausente (o normal) = todos os que
+   * têm `<coleção>.read`. Presente, o membro lê só o registro que o nomeia num dos `userFields`
+   * (referência a membro, simples ou `multi`), salvo quem tem a supervisão — `bypassPermission`, ou a
+   * derivada `<coleção>.read-all`.
+   *
+   * Vale no `firestore.rules` e no `storage.rules` (a garantia), na assinatura da coleção no front (o
+   * filtro que a regra exige) e nas portas do servidor que entregam registro a uma pessoa. Mudá-la
+   * exige `screens.member-visibility` ou `extensions.manage`.
+   *
+   * Guardado COMO ESTÁ gravado, pelo motivo de `editWindow`; quem a interpreta passa por
+   * `readMemberVisibility`. Ver `domain/schema/memberVisibility.ts`.
+   */
+  memberVisibility?: MemberVisibilitySpec | null;
   /**
    * O que esta tela expõe no PORTAL — a quem é de fora do escritório, só o que é dele. Ausente (o
    * normal) = nada desta tela sai do escritório. Ver `domain/schema/portal.ts`.

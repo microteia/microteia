@@ -24,7 +24,7 @@ export class FirestoreWorkflowQueryRepository implements IWorkflowQueryRepositor
     let query: Query<DocumentData> = this.db.collection(`tenants/${tenantId}/${collection}`);
 
     for (const filter of equalityFilters) {
-      query = query.where(toFieldPath(filter.path), '==', filter.value);
+      query = query.where(toFieldPath(filter.path), filter.op ?? '==', filter.value);
     }
 
     const snapshot = await query.limit(limit).get();

@@ -45,6 +45,7 @@ const SHARED_FILES = [
   'domain/schema/recordRules.ts',
   'domain/schema/recordKeys.ts',
   'domain/schema/editWindow.ts',
+  'domain/schema/memberVisibility.ts',
   'domain/schema/portal.ts',
   'domain/schema/portalCollections.ts',
   'domain/schema/portalExtensionPoints.ts',

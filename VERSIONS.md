@@ -11,6 +11,14 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.162.0] — 2026-10-26
+
+- Uma tela pode passar a mostrar a cada pessoa só os registros que a nomeiam — por exemplo, a resposta que só o servidor que a emitiu deve ler, ou o atendimento atribuído a alguém. Liga-se no Form Design, na nova aba "Visibilidade dos registros", escolhendo os campos de membro que dizem quem vê cada registro.
+- A restrição vale em todo lugar: listas, busca, abas, relatórios, documentos gerados, anexos, o assistente de IA e o próprio banco de dados. Um link para um registro que a pessoa não pode ver abre como registro inexistente, e os relatórios somam só o que ela vê.
+- Quem precisa ver tudo recebe a nova permissão "Ver todos os registros" da tela, nos perfis de acesso. O dono do escritório continua vendo tudo.
+- Criar um registro em nome de outra pessoa continua permitido — é assim que um registro é encaminhado.
+- As listas avisam quando mostram só os registros que nomeiam você, para ninguém achar que faltam dados.
+
 #### [9.161.0] — 2026-10-26
 
 - O portal agora aceita entrada com identidade verificada: o escritório cadastra, em Configurações › Portal › Entrada, os provedores de identidade com que os convidados podem entrar (por exemplo, o login do governo), e cada botão aparece na página de entrada do portal.

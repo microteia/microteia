@@ -173,6 +173,8 @@ export const materializeScreen = (
     // Na INSTALAÇÃO, é a do pacote. Na atualização, a ausência não apaga a janela que já valia
     // (`upsertPluginScreens`): retirá-la é gesto de pessoa no Form Design.
     editWindow: template.editWindow ?? null,
+    // Pela mesma regra: retirar a restrição de leitura é gesto de pessoa, nunca efeito de atualizar.
+    memberVisibility: template.memberVisibility ?? null,
     portal: asPortalDeclaration(template.portal),
     listActions: template.listActions ?? [],
     viewActionIds: mapActionIds(template.viewActionIds),

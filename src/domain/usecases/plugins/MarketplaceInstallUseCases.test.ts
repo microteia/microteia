@@ -603,6 +603,22 @@ describe('Upgrade — atualização de versão', () => {
     expect(screens.store.get(KEY_A)!.editWindow).toEqual({ minutes: 15 });
   });
 
+  it('a visibilidade por registro segue a regra da janela: o pacote declara e vence; a ausência não retira', async () => {
+    const restricted = { ...screenT('a'), memberVisibility: { userFields: ['dono'] } };
+    await applyPackageArtifacts(deps(), version('1.0.0', [restricted]), actor);
+    expect(screens.store.get(KEY_A)!.memberVisibility).toEqual({ userFields: ['dono'] });
+
+    await applyPackageArtifacts(deps(), version('1.1.0', [screenT('a')]), actor);
+    expect(screens.store.get(KEY_A)!.memberVisibility).toEqual({ userFields: ['dono'] });
+
+    await applyPackageArtifacts(
+      deps(),
+      version('1.2.0', [{ ...screenT('a'), memberVisibility: { userFields: ['dono'], bypassPermission: 'a.supervise' } }]),
+      actor,
+    );
+    expect(screens.store.get(KEY_A)!.memberVisibility).toEqual({ userFields: ['dono'], bypassPermission: 'a.supervise' });
+  });
+
   it('atualiza in-place PRESERVANDO os ids (sem regenerar) quando a revisão não muda', async () => {
     await applyPackageArtifacts(deps(), version('1.0.0', [screenT('a')]), actor);
     const actionIdBefore = (await actions.getAll('t1'))[0].id;
@@ -1263,6 +1279,16 @@ describe('Tela sobre uma coleção existente', () => {
 
     const target = screens.store.get('cases');
     expect(target, 'as rules procuram o documento da COLEÇÃO').toBeTruthy();
+  });
+
+  it('a visibilidade por registro vai ao documento da COLEÇÃO — é ele que a regra lê', async () => {
+    const restricted: MarketplacePlugin = {
+      ...boundPlugin,
+      screens: boundPlugin.screens!.map((screen) => ({ ...screen, memberVisibility: { userFields: ['responsavel'] } })),
+    };
+    await applyPackageArtifacts(deps(), restricted, actor);
+
+    expect(screens.store.get('cases')?.memberVisibility).toEqual({ userFields: ['responsavel'] });
   });
 
   it('a coleção alvo que já tem documento é preservada', async () => {

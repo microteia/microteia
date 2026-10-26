@@ -13,6 +13,7 @@ import type { RecordKeyPlan, RecordKeySpec } from '../../domain/schema/recordKey
 import { planRecordKeys } from '../../domain/schema/recordKeys';
 import { declaredRecordKeySignatures } from '../../domain/schema/recordKeyAdoption';
 import { readEditWindow, resolveEditWindow } from '../../domain/schema/editWindow';
+import { readMemberVisibility } from '../../domain/schema/memberVisibility';
 import type { ResolvedEditWindow } from '../../domain/schema/editWindow';
 import type { FieldRulePreset } from '../../domain/schema/fieldRulePresets';
 import { applyDerivedFields, collectFieldLogicTargets, formatAndValidateRecord } from '../../domain/schema/recordRules';
@@ -153,6 +154,7 @@ export const toSchemaScreens = (
     origin?: FieldOrigin;
     editWindow?: unknown;
     memberWritableFields?: string[] | null;
+    memberVisibility?: unknown;
   }[],
 ): SchemaScreen[] =>
   definitions.map((definition) => ({
@@ -170,6 +172,7 @@ export const toSchemaScreens = (
     origin: definition.origin,
     editWindow: readEditWindow(definition.editWindow),
     memberWritableFields: definition.memberWritableFields ?? null,
+    memberVisibility: readMemberVisibility(definition.memberVisibility),
   }));
 
 const tableHasComputedFields = (table: string): boolean =>

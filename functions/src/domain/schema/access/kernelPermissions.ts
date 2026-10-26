@@ -29,6 +29,13 @@ export const PERMISSION_SCREENS_MANAGE = 'screens.manage';
  * registro que outra pessoa já leu. O `firestore.rules` a cobra na gravação de `screenDefinitions`.
  */
 export const PERMISSION_SCREENS_EDIT_WINDOW = 'screens.edit-window';
+/**
+ * Definir, mudar ou retirar a VISIBILIDADE POR REGISTRO de uma tela (`memberVisibility`). Separada de
+ * `screens.manage` pelo motivo da janela: quem só desenha telas não pode, por um ajuste de tela,
+ * entregar a todos os registros que a restrição guardava. O `firestore.rules` a cobra na gravação — e
+ * na exclusão — de `screenDefinitions`.
+ */
+export const PERMISSION_SCREENS_MEMBER_VISIBILITY = 'screens.member-visibility';
 export const PERMISSION_AUTOMATION_MANAGE = 'automation.manage';
 export const PERMISSION_AUTOMATION_RUN = 'automation.run';
 export const PERMISSION_EXTENSIONS_MANAGE = 'extensions.manage';
@@ -86,6 +93,13 @@ export const KERNEL_PERMISSIONS: AccessPermission[] = [
     id: PERMISSION_SCREENS_EDIT_WINDOW,
     name: '@core.access/permission.screens.edit-window',
     description: '@core.access/permission.screens.edit-window.description',
+    requires: [PERMISSION_SCREENS_MANAGE],
+  },
+  {
+    // Pelo mesmo motivo: a restrição se escolhe no Form Design.
+    id: PERMISSION_SCREENS_MEMBER_VISIBILITY,
+    name: '@core.access/permission.screens.member-visibility',
+    description: '@core.access/permission.screens.member-visibility.description',
     requires: [PERMISSION_SCREENS_MANAGE],
   },
   {

@@ -1,6 +1,7 @@
 import type { PluginDiagnostic } from '../plugin/diagnostics';
 import { error } from '../plugin/diagnostics';
 import type { AccessPermission, AccessRequirement, CrudAction } from './permission';
+import { READ_ALL_ACTION, readAllPermissionId } from '../memberVisibility';
 import {
   CRUD_ACTIONS,
   collectionPermissionId,
@@ -72,6 +73,12 @@ export interface PermissionResource {
   /** Os parâmetros que `name` interpola, quando ele é uma referência composta. */
   nameParams?: Record<string, string>;
   deriveCrud?: boolean;
+  /**
+   * A coleção restringe a leitura por registro (`memberVisibility`) sem nomear quem supervisiona: o
+   * catálogo deriva `<coleção>.read-all`, que exige ver. É o que deixa a tela do Form Design ganhar uma
+   * supervisão que o escritório concede em Perfis, sem extensão nenhuma declarar permissão.
+   */
+  deriveReadAll?: boolean;
   source?: string;
 }
 
@@ -92,6 +99,9 @@ const DERIVED_ACTION_NAMES: Record<CrudAction, string> = {
   update: '@core.access/action.update',
   delete: '@core.access/action.delete',
 };
+
+const READ_ALL_NAME = '@core.access/action.read-all';
+const READ_ALL_DESCRIPTION = '@core.access/action.read-all.description';
 
 /**
  * O catálogo unificado: o que as telas dão de graça mais o que os plugins declaram.
@@ -132,6 +142,19 @@ export const buildPermissionCatalog = (
         requires: action === 'read' ? [] : [readId],
         resource: resource.id,
         action,
+        source: resource.source ?? '',
+        derived: true,
+      });
+    }
+    if (resource.deriveReadAll === true) {
+      const id = readAllPermissionId(resource.id);
+      byId.set(id, {
+        id,
+        name: READ_ALL_NAME,
+        description: READ_ALL_DESCRIPTION,
+        requires: [readId],
+        resource: resource.id,
+        action: READ_ALL_ACTION,
         source: resource.source ?? '',
         derived: true,
       });

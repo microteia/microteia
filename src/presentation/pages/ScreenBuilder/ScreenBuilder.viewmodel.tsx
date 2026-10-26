@@ -1,7 +1,26 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { useTheme } from 'styled-components';
 import { useAuthorization } from '../../../stores/useAuthorization';
-import { PERMISSION_PORTAL_MANAGE, PERMISSION_SCREENS_EDIT_WINDOW } from '../../../domain/schema/access/kernelPermissions';
+import {
+  PERMISSION_PORTAL_MANAGE,
+  PERMISSION_SCREENS_EDIT_WINDOW,
+  PERMISSION_SCREENS_MEMBER_VISIBILITY,
+} from '../../../domain/schema/access/kernelPermissions';
+import {
+  isMemberReferenceField,
+  MEMBER_VISIBILITY_MAX_FIELDS,
+  readAllPermissionId,
+} from '../../../domain/schema/memberVisibility';
+import {
+  EMPTY_MEMBER_VISIBILITY_FORM,
+  fromMemberVisibilityForm,
+  memberVisibilityFormIssue,
+  toMemberVisibilityForm,
+} from './components/ScreenMemberVisibilityPanel/screenMemberVisibilityForm';
+import type {
+  MemberVisibilityFormIssue,
+  MemberVisibilityFormState,
+} from './components/ScreenMemberVisibilityPanel/screenMemberVisibilityForm';
 import {
   EMPTY_EDIT_WINDOW_FORM,
   editWindowFormIsValid,
@@ -126,6 +145,9 @@ export interface ScreenFormState {
   /** A janela de edição. Como o portal, só é gravada quando a aba foi tocada. */
   editWindow: EditWindowFormState;
   editWindowTouched: boolean;
+  /** Quem lê cada registro. Como a janela, só é gravada quando a aba foi tocada. */
+  memberVisibility: MemberVisibilityFormState;
+  memberVisibilityTouched: boolean;
 }
 
 /**
@@ -255,7 +277,12 @@ export interface FieldFormState {
   fileMaxSizeMb: string;
 }
 
-export type ScreenModalTab = 'general' | 'actions' | 'children' | 'portal' | 'editWindow';
+const MEMBER_VISIBILITY_ISSUE_KEYS: Record<MemberVisibilityFormIssue, string> = {
+  'fields-required': 'member-visibility.panel.fields-required',
+  'fields-too-many': 'member-visibility.panel.fields-too-many',
+};
+
+export type ScreenModalTab = 'general' | 'actions' | 'children' | 'portal' | 'editWindow' | 'memberVisibility';
 export type FieldModalTab = 'general' | 'advanced';
 
 export interface ScreenBuilderViewModel {
@@ -297,6 +324,14 @@ export interface ScreenBuilderViewModel {
   updateEditWindowForm: (patch: Partial<EditWindowFormState>) => void;
   /** A tela aberta veio de uma extensão — o prazo que ela declarar vence na atualização. */
   editWindowFromExtension: boolean;
+  /** A aba "Visibilidade dos registros": opções já rotuladas e o defeito que impede gravar. */
+  memberVisibilityPanel: {
+    fieldOptions: Array<{ value: string; label: string }>;
+    bypassOptions: Array<{ value: string; label: string; meta?: string }>;
+    issue: string | null;
+    maxFields: number;
+  };
+  updateMemberVisibilityForm: (patch: Partial<MemberVisibilityFormState>) => void;
   toggleListAction: (action: ScreenListAction) => void;
   moveListAction: (action: ScreenListAction, delta: -1 | 1) => void;
   titleFieldOptions: SearchSelectOption[];
@@ -466,6 +501,8 @@ const EMPTY_SCREEN_FORM: ScreenFormState = {
   portalTouched: false,
   editWindow: EMPTY_EDIT_WINDOW_FORM,
   editWindowTouched: false,
+  memberVisibility: EMPTY_MEMBER_VISIBILITY_FORM,
+  memberVisibilityTouched: false,
 };
 
 const EMPTY_FIELD_FORM: FieldFormState = {
@@ -789,7 +826,7 @@ const newScreenKeyOf = (
 };
 
 export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
-  const { can } = useAuthorization();
+  const { can, catalog } = useAuthorization();
   const { definitions, dynamicScreens, isLoading, saveDefinition, deleteDefinition } = useScreenDefinitions();
   const recordActions = useRecordActions();
   const label = useLabel();
@@ -816,6 +853,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
   const isAdmin = can(PERMISSION_SCREENS_MANAGE);
   const canManagePortal = can(PERMISSION_PORTAL_MANAGE);
   const canManageEditWindow = can(PERMISSION_SCREENS_EDIT_WINDOW);
+  const canManageMemberVisibility = can(PERMISSION_SCREENS_MEMBER_VISIBILITY);
   const tagColors = theme.tagColors;
   const defaultTagColor = useMemo(() => getDefaultTagColor(theme), [theme]);
 
@@ -1050,6 +1088,14 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     setScreenForm((prev) => ({ ...prev, editWindow: { ...prev.editWindow, ...patch }, editWindowTouched: true }));
   }, []);
 
+  const updateMemberVisibilityForm = useCallback((patch: Partial<MemberVisibilityFormState>) => {
+    setScreenForm((prev) => ({
+      ...prev,
+      memberVisibility: { ...prev.memberVisibility, ...patch },
+      memberVisibilityTouched: true,
+    }));
+  }, []);
+
   const updateScreenForm = useCallback((patch: Partial<ScreenFormState>) => {
     setScreenForm((prev) => {
       const next = { ...prev, ...patch };
@@ -1159,6 +1205,8 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       portalTouched: false,
       editWindow: toEditWindowForm(def.editWindow),
       editWindowTouched: false,
+      memberVisibility: toMemberVisibilityForm(def.memberVisibility),
+      memberVisibilityTouched: false,
     });
     setScreenModal({ screenKey });
   }, [getDefinitionByKey, dynamicDefinitions, tagDependentSlots]);
@@ -1320,7 +1368,45 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     ...(!screenModalIsBuiltin && canManageEditWindow
       ? [{ key: 'editWindow' as const, label: t('screen.tab.edit-window') }]
       : []),
-  ], [screenModalIsBuiltin, screenModal, childCandidates, canManagePortal, canManageEditWindow, t]);
+    // Restringir quem lê é decisão de SIGILO, e a regra a cobra de quem tem
+    // `screens.member-visibility`; a aba segue a regra. Só em tela que já existe: é preciso um campo de
+    // referência a membro para escolher.
+    ...(!screenModalIsBuiltin && !!screenModal?.screenKey && canManageMemberVisibility
+      ? [{ key: 'memberVisibility' as const, label: t('screen.tab.member-visibility') }]
+      : []),
+  ], [screenModalIsBuiltin, screenModal, childCandidates, canManagePortal, canManageEditWindow, canManageMemberVisibility, t]);
+
+  /**
+   * As opções da aba "Visibilidade dos registros". Os campos são só os de referência a membro — é o uid
+   * que a regra compara. A supervisão começa pela DERIVADA da coleção (`<coleção>.read-all`, que o
+   * catálogo passa a oferecer em Perfis assim que a restrição é gravada) e segue pelas permissões do
+   * catálogo, para quem prefere uma que já concede.
+   */
+  const memberVisibilityPanel = useMemo(() => {
+    const def = screenModal?.screenKey ? getDefinitionByKey(screenModal.screenKey) : undefined;
+    const collection = def ? (def.dataCollection || def.id) : '';
+    const fieldOptions = (def?.fields ?? [])
+      .filter(isMemberReferenceField)
+      .map((field) => ({ value: field.key, label: label(field.label) || field.key }));
+    const derived = readAllPermissionId(collection);
+    const bypassOptions = [
+      { value: '', label: t('member-visibility.panel.bypass.derived'), meta: derived },
+      ...catalog.list
+        .filter((permission) => permission.id !== derived)
+        .map((permission) => ({
+          value: permission.id,
+          label: label(permission.name),
+          meta: permission.id,
+        })),
+    ];
+    const issue = memberVisibilityFormIssue(screenForm.memberVisibility);
+    return {
+      fieldOptions,
+      bypassOptions,
+      issue: issue ? t(MEMBER_VISIBILITY_ISSUE_KEYS[issue], { max: String(MEMBER_VISIBILITY_MAX_FIELDS) }) : null,
+      maxFields: MEMBER_VISIBILITY_MAX_FIELDS,
+    };
+  }, [screenModal, getDefinitionByKey, catalog, screenForm.memberVisibility, label, t]);
 
   const portalPanel = useMemo(() => {
     const def = screenModal?.screenKey ? getDefinitionByKey(screenModal.screenKey) : undefined;
@@ -1491,6 +1577,15 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       return;
     }
     const editWindowValue = editWindowChanged ? fromEditWindowForm(screenForm.editWindow) : undefined;
+    const memberVisibilityChanged = canManageMemberVisibility && screenForm.memberVisibilityTouched;
+    if (memberVisibilityChanged && memberVisibilityPanel.issue) {
+      setScreenModalTab('memberVisibility');
+      notify(memberVisibilityPanel.issue, 'error');
+      return;
+    }
+    const memberVisibilityValue = memberVisibilityChanged
+      ? fromMemberVisibilityForm(screenForm.memberVisibility)
+      : undefined;
     const portalChanged = canManagePortal && screenForm.portalTouched && !portalPanel.readOnly;
     if (portalChanged && screenForm.portal.enabled && portalPanel.issues.length > 0) {
       setScreenModalTab('portal');
@@ -1571,15 +1666,20 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
           // cobraria `portal.manage` de quem só mexeu no título.
           ...(portalChanged ? { portal: fromPortalForm(screenForm.portal) } : {}),
           ...(editWindowValue !== undefined ? { editWindow: editWindowValue } : {}),
+          ...(memberVisibilityValue !== undefined ? { memberVisibility: memberVisibilityValue } : {}),
         });
 
-        // A regra lê a janela do documento da COLEÇÃO. Numa tela que descreve outra (`dataCollection`),
-        // gravar só nela deixaria o prazo no formulário e fora da regra.
-        const ruleDocument = editWindowValue !== undefined && def.dataCollection && def.dataCollection !== def.id
+        // A regra lê a janela e a visibilidade do documento da COLEÇÃO. Numa tela que descreve outra
+        // (`dataCollection`), gravar só nela deixaria a declaração no formulário e fora da regra.
+        const ruleDeclarations = {
+          ...(editWindowValue !== undefined ? { editWindow: editWindowValue } : {}),
+          ...(memberVisibilityValue !== undefined ? { memberVisibility: memberVisibilityValue } : {}),
+        };
+        const ruleDocument = Object.keys(ruleDeclarations).length > 0 && def.dataCollection && def.dataCollection !== def.id
           ? getDefinitionByKey(def.dataCollection)
           : undefined;
         if (ruleDocument) {
-          await saveDefinition(ruleDocument.id, { ...toSaveInput(ruleDocument), editWindow: editWindowValue });
+          await saveDefinition(ruleDocument.id, { ...toSaveInput(ruleDocument), ...ruleDeclarations });
         }
 
         await persistChildLinks(def.id);
@@ -1649,7 +1749,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     } finally {
       setSavingScreen(false);
     }
-  }, [artifactPrefix, screenForm, screenModal, getDefinitionByKey, saveDefinition, definitions, dynamicDefinitions, childCandidates, persistChildLinks, notify, schemaContext, declareTagList, t, label, canManagePortal, portalPanel, canManageEditWindow]);
+  }, [artifactPrefix, screenForm, screenModal, getDefinitionByKey, saveDefinition, definitions, dynamicDefinitions, childCandidates, persistChildLinks, notify, schemaContext, declareTagList, t, label, canManagePortal, portalPanel, canManageEditWindow, canManageMemberVisibility, memberVisibilityPanel]);
 
   const toggleScreenEnabled = useCallback(async (screenKey: string) => {
     const def = getDefinitionByKey(screenKey);
@@ -2465,6 +2565,8 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     screenModalTabs,
     updateEditWindowForm,
     editWindowFromExtension: !!screenModal?.screenKey && getDefinitionByKey(screenModal.screenKey)?.managed === true,
+    memberVisibilityPanel,
+    updateMemberVisibilityForm,
     screenModalTab: activeScreenModalTab,
     setScreenModalTab,
     screenModalTitle: screenModalIsBuiltin

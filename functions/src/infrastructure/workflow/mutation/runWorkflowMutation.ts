@@ -34,6 +34,7 @@ import {
   editWindowAllowsUpdate,
   resolveEditWindow,
 } from '../../../domain/schema/editWindow';
+import { readerSeesRecord, resolveMemberVisibility } from '../../../domain/schema/memberVisibility';
 import { RecordKeyTakenError } from '../../../domain/repositories/IWorkflowMutationRepository';
 import type { RecordKeyMutation } from '../../../domain/repositories/IWorkflowMutationRepository';
 
@@ -214,6 +215,12 @@ export async function runWorkflowUpsert(
   if (options.updateOnly && !existing) {
     return { ok: false, error: '@core.automation/mutation.upsert.not-found' };
   }
+  // A pessoa por quem se grava (o agente) não altera o registro que não vê (`memberVisibility`) — como
+  // na regra do Firestore. A recusa é a de quem não existe; criar continua livre, e pode nomear outra
+  // pessoa. A automação não tem leitor e grava como sempre.
+  if (existing && !readerSeesRecord(resolveMemberVisibility(ctx, collection), collection, context.reader, existing)) {
+    return { ok: false, error: '@core.records/record.not-found' };
+  }
 
   const calendars = await businessCalendarsFor(
     context.services,
@@ -357,7 +364,9 @@ export async function runWorkflowRemove(
   const id = spec.id.trim();
 
   const existing = await deps.mutationRepository.getById(tenantId, collection, id);
-  if (!existing) {
+  // O registro que o leitor não vê é, para ele, o que não existe: nada é removido, e a resposta é a
+  // mesma de um id que não está lá.
+  if (!existing || !readerSeesRecord(resolveMemberVisibility(ctx, collection), collection, context.reader, existing)) {
     return { ok: true, value: { id, removed: false } };
   }
   // Antes da cascata: a exclusão do backend apaga anotações e documentos ANTES do registro, e
