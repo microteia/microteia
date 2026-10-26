@@ -41,6 +41,7 @@ const mapDoc = (
   createdByPhotoUrl: (d.createdByPhotoUrl as string | undefined) ?? undefined,
   createdAt: d.createdAt instanceof Timestamp ? d.createdAt.toDate() : (d.createdAt as Date),
   portalShared: d.portalShared === true,
+  sha256: typeof d.sha256 === 'string' ? d.sha256 : undefined,
 });
 
 export class FirebaseRecordDocumentRepository implements IRecordDocumentRepository {

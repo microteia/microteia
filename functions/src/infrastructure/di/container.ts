@@ -150,6 +150,8 @@ import type { DispatchNotificationUseCase } from '../../domain/usecases/Dispatch
 import { makeNotificationTextCatalog } from '../notifications/notificationTextCatalog';
 import type { IRecordDocumentWriter } from '../../domain/repositories/IRecordDocumentWriter';
 import { FirebaseRecordDocumentWriter } from '../../data/services/FirebaseRecordDocumentWriter';
+import type { IRecordDocumentHasher } from '../../domain/repositories/IRecordDocumentHasher';
+import { FirebaseRecordDocumentHasher } from '../../data/services/FirebaseRecordDocumentHasher';
 import type { IDownloadWriter } from '../../domain/repositories/IDownloadWriter';
 import { FirebaseDownloadWriter } from '../../data/services/FirebaseDownloadWriter';
 import { downloadPolicyOf } from '../../domain/schema/document/documentDownloads';
@@ -214,6 +216,7 @@ class DIContainer {
   private vapidKeyStore?: VapidKeyStore;
   private dispatchNotificationUC?: DispatchNotificationUseCase;
   private recordDocumentWriter?: IRecordDocumentWriter;
+  private recordDocumentHasher?: IRecordDocumentHasher;
   private downloadWriter?: IDownloadWriter;
   private attachDownloadUC?: AttachDownloadToRecordUseCase;
   private renderDocumentUC?: RenderDocumentUseCase;
@@ -764,6 +767,11 @@ class DIContainer {
   getRecordDocumentWriter(): IRecordDocumentWriter {
     if (!this.recordDocumentWriter) this.recordDocumentWriter = new FirebaseRecordDocumentWriter();
     return this.recordDocumentWriter;
+  }
+
+  getRecordDocumentHasher(): IRecordDocumentHasher {
+    if (!this.recordDocumentHasher) this.recordDocumentHasher = new FirebaseRecordDocumentHasher();
+    return this.recordDocumentHasher;
   }
 
   getDownloadWriter(): IDownloadWriter {

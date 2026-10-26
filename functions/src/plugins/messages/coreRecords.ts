@@ -320,7 +320,7 @@ export const CORE_RECORDS_MESSAGES: Record<string, string> = {
   'field.modal.native': 'Adjust system field',
   'record.deleted': 'Record deleted successfully.',
   'record.delete-failed': 'Could not delete the record.',
-  'edit-window.panel.description': 'After the window, nobody changes a record of this screen — not even whoever manages the organization. It applies to the form, automations, the AI assistant, the portal and the database itself. A record that needs correcting afterwards gets a new record that corrects it.',
+  'edit-window.panel.description': 'After the window, nobody changes a record of this screen — not even whoever manages the organization — nor deletes or replaces the documents attached to it; attaching new ones is still allowed. It applies to the form, automations, the AI assistant, the portal and the database itself. A record that needs correcting afterwards gets a new record that corrects it.',
   'edit-window.panel.from-extension': 'This screen came from an extension. If the extension declares its own window, its next update applies that one instead of this.',
   'edit-window.panel.enabled': 'Limit how long a record can be changed after it is created',
   'edit-window.panel.minutes': 'Minutes after creation',

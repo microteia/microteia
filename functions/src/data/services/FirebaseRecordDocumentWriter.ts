@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { FieldValue } from 'firebase-admin/firestore';
 import { getDownloadURL } from 'firebase-admin/storage';
 import { agentDocumentStoragePath } from '../../domain/schema/agent/agentDocument';
@@ -40,6 +41,7 @@ export class FirebaseRecordDocumentWriter implements IRecordDocumentWriter {
 
     const type = input.type?.trim() || undefined;
     const description = input.description?.trim() || undefined;
+    const sha256 = createHash('sha256').update(input.data).digest('hex');
     try {
       const created = await getDb()
         .collection(`tenants/${input.tenantId}/${input.physicalCollection}/${input.recordId}/documents`)
@@ -51,6 +53,7 @@ export class FirebaseRecordDocumentWriter implements IRecordDocumentWriter {
           storagePath,
           contentType: input.contentType,
           size: input.data.length,
+          sha256,
           createdBy: input.author.uid,
           ...(input.author.name ? { createdByName: input.author.name } : {}),
           ...(input.author.photoUrl ? { createdByPhotoUrl: input.author.photoUrl } : {}),
@@ -67,6 +70,7 @@ export class FirebaseRecordDocumentWriter implements IRecordDocumentWriter {
         storagePath,
         contentType: input.contentType,
         size: input.data.length,
+        sha256,
         ...(type ? { type } : {}),
         ...(description ? { description } : {}),
       };

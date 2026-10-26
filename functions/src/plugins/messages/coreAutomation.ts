@@ -649,6 +649,7 @@ export const CORE_AUTOMATION_MESSAGES: Record<string, string> = {
   'event-field.created-by': 'Created by',
   'event-field.file-name': 'File name',
   'event-field.file-size': 'File size',
+  'event-field.sha256': 'File SHA-256',
   'event-field.id': 'Id',
   'event-field.parent-id': 'Parent id',
   'event-field.parent-type': 'Parent type',

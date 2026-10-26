@@ -84,6 +84,8 @@ export interface PortalDocumentProjection {
   type: string | null;
   description: string | null;
   createdAt: unknown;
+  /** O SHA-256 do arquivo, para o convidado conferir o que recebeu. `null` enquanto não foi calculado. */
+  sha256: string | null;
 }
 
 export interface SharedRecordDocument extends PortalDocumentProjection {

@@ -235,6 +235,8 @@ export const CORE_TENANT_MESSAGES: Record<string, string> = {
   'portal.documents': 'Documents',
   'portal.documents.empty': 'No documents shared.',
   'portal.document.open': 'Open',
+  'portal.document.sha256': 'SHA-256 {hash}',
+  'portal.document.sha256.hint': 'Fingerprint of the file. Any change to the file changes it.',
   'portal.document.unavailable': 'This document is not available.',
   'portal.value.yes': 'Yes',
   'portal.value.no': 'No',

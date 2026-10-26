@@ -205,6 +205,15 @@ export const S = {
     min-width: 0;
   `,
 
+  DocumentHash: styled.span`
+    font-family: ${({ theme }) => theme.fonts.mono};
+    font-size: ${({ theme }) => theme.fontSizes.xs};
+    color: ${({ theme }) => theme.colors.textMuted};
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  `,
+
   DocumentName: styled.span`
     font-size: ${({ theme }) => theme.fontSizes.sm};
     font-weight: 500;

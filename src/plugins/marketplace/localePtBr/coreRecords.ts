@@ -313,7 +313,7 @@ export const CORE_RECORDS: Record<string, string> = {
   'field.modal.native': 'Ajustar Campo do Sistema',
   'record.deleted': 'Registro excluído com sucesso.',
   'record.delete-failed': 'Erro ao excluir o registro.',
-  'edit-window.panel.description': 'Depois do prazo, ninguém altera um registro desta tela — nem quem administra o escritório. Vale para o formulário, as automações, o assistente de IA, o portal e o próprio banco de dados. Um registro que precise de correção depois ganha um registro novo que o corrige.',
+  'edit-window.panel.description': 'Depois do prazo, ninguém altera um registro desta tela — nem quem administra o escritório —, nem exclui ou substitui os documentos anexados a ele; anexar documentos novos continua permitido. Vale para o formulário, as automações, o assistente de IA, o portal e o próprio banco de dados. Um registro que precise de correção depois ganha um registro novo que o corrige.',
   'edit-window.panel.from-extension': 'Esta tela veio de uma extensão. Se a extensão declarar um prazo próprio, a próxima atualização dela aplica o dela no lugar deste.',
   'edit-window.panel.enabled': 'Limitar por quanto tempo um registro pode ser alterado depois de criado',
   'edit-window.panel.minutes': 'Minutos depois da criação',

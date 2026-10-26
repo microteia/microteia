@@ -646,6 +646,7 @@ export const CORE_AUTOMATION: Record<string, string> = {
   'event-field.created-by': 'Criado por',
   'event-field.file-name': 'Nome do arquivo',
   'event-field.file-size': 'Tamanho do arquivo',
+  'event-field.sha256': 'SHA-256 do arquivo',
   'event-field.id': 'Id',
   'event-field.parent-id': 'Id do registro pai',
   'event-field.parent-type': 'Tipo do registro pai',

@@ -154,6 +154,7 @@ export const RecordDetailSurface: React.FC<RecordDetailSurfaceProps> = ({ vm, re
       isNew={vm.isNew}
       screenActions={vm.screenActions}
       canDeleteRecordParts={vm.canDeleteRecordParts}
+      documentsLocked={vm.isEditLocked}
       canManageDocumentTypes={vm.canManageDocumentTypes}
       avatar={vm.recordImageUrl
         ? <UserAvatar src={vm.recordImageUrl} name={vm.recordTitle} size={48} fallback={getScreenIcon(definition.icon, 22)} />

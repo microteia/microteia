@@ -12,6 +12,7 @@ import { Button } from '../../ui/Button';
 import { Spinner } from '../../ui/Spinner';
 import { ConfirmModal } from '../../ui/ConfirmModal';
 import { DynamicSelect } from '../../ui/DynamicSelect';
+import { InfoBanner } from '../../ui/InfoBanner';
 import type { EntityDocumentsController } from '../../../shared/entityScreen/types';
 import { useT, useLocaleFormat } from '../../../shared/i18n/useT';
 
@@ -19,11 +20,15 @@ interface DocumentsPanelProps {
   controller: EntityDocumentsController;
   /** Pode excluir um documento anexado — a permissão de exclusão da coleção do registro. */
   canDelete: boolean;
+  /**
+   * A janela de edição do registro fechou: anexar continua, excluir não — para ninguém, como na regra.
+   */
+  isLocked?: boolean;
   /** Pode tirar um TIPO de documento da lista compartilhada do escritório. */
   canManageTypes: boolean;
 }
 
-export const DocumentsPanel: React.FC<DocumentsPanelProps> = ({ controller: vm, canDelete, canManageTypes }) => {
+export const DocumentsPanel: React.FC<DocumentsPanelProps> = ({ controller: vm, canDelete, isLocked = false, canManageTypes }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const t = useT('core.ui');
   const { formatLongDate } = useLocaleFormat();
@@ -37,6 +42,8 @@ export const DocumentsPanel: React.FC<DocumentsPanelProps> = ({ controller: vm, 
         style={{ display: 'none' }}
         onChange={vm.handleSelectFiles}
       />
+
+      {isLocked && <InfoBanner variant="info" message={t('documents.locked')} />}
 
       <S.TabSectionHeader>
         <Button
@@ -121,6 +128,11 @@ export const DocumentsPanel: React.FC<DocumentsPanelProps> = ({ controller: vm, 
                   {docItem.name}
                 </S.DocName>
                 {docItem.description && <S.DocMeta>{docItem.description}</S.DocMeta>}
+                {docItem.sha256 && (
+                  <S.DocHash title={t('documents.sha256.hint')}>
+                    {t('documents.sha256', { hash: docItem.sha256 })}
+                  </S.DocHash>
+                )}
                 <S.DocUploaderRow>
                   <S.DocUploaderAvatar>
                     {docItem.createdByPhotoUrl
@@ -148,7 +160,7 @@ export const DocumentsPanel: React.FC<DocumentsPanelProps> = ({ controller: vm, 
                 <Button variant="ghost" size="sm" onClick={() => window.open(docItem.url, '_blank', 'noopener,noreferrer')} title={t('documents.open')}>
                   <RiExternalLinkLine size={14} />
                 </Button>
-                {canDelete && (
+                {canDelete && !isLocked && (
                   <Button variant="ghost" size="sm" onClick={() => vm.requestDeleteDoc(docItem)} title={t('documents.delete')}>
                     <RiDeleteBinLine size={13} />
                   </Button>

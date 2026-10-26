@@ -75,7 +75,7 @@ describe('FirestoreDocumentTemplateSource', () => {
     const writer: IRecordDocumentWriter = {
       attach: vi.fn(async (file: RecordDocumentFile) => {
         attached.push(file);
-        return { id: 'd1', name: file.name, url: 'https://x', storagePath: 'p', contentType: file.contentType, size: 1 };
+        return { id: 'd1', name: file.name, url: 'https://x', storagePath: 'p', contentType: file.contentType, size: 1, sha256: 'h' };
       }),
     };
     const useCase = makeRenderDocumentUseCase({

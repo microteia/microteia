@@ -101,6 +101,7 @@ const toSharedDocument = (id: string, data: DocumentData): SharedRecordDocument 
   type: asString(data.type) || null,
   description: asString(data.description) || null,
   createdAt: data.createdAt ?? null,
+  sha256: asString(data.sha256) || null,
   url: asString(data.url),
 });
 
@@ -308,6 +309,7 @@ export class FirebasePortalRepository implements IPortalRepository {
       type: asString(doc.get('type')) || null,
       description: asString(doc.get('description')) || null,
       createdAt: doc.get('createdAt') ?? null,
+      sha256: asString(doc.get('sha256')) || null,
     }]));
   }
 

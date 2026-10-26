@@ -23,6 +23,8 @@ export interface EntityDocument {
   createdByPhotoUrl?: string;
   createdAt: Date;
   portalShared?: boolean;
+  /** O SHA-256 do arquivo, calculado pelo servidor. Ausente enquanto não foi calculado. */
+  sha256?: string;
 }
 
 // ─── Ports: o adapter embrulha os use cases da entidade (tenant/usuário/screenKey ficam presos no closure) ──

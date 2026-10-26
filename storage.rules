@@ -40,8 +40,13 @@ service firebase.storage {
 
     // As coleções de entidade que saíram do kernel (`cases`, `persons`, `contracts`, `financials`) NÃO
     // têm bloco próprio: o modelo de acesso delas é idêntico ao do curinga abaixo, que já as cobre. Um
-    // bloco por coleção obrigaria a editar este arquivo a cada extensão nova — e o caminho de um
-    // documento sempre carrega o `Date.now()`, então `create` basta: nada sobrescreve objeto existente.
+    // bloco por coleção obrigaria a editar este arquivo a cada extensão nova.
+    //
+    // SOBRESCREVER é `create`, não `update`, para o Storage: o `update` só cobre metadado. Por isso todo
+    // `create` daqui exige `resource == null` — o objeto ainda não existe. Antes, o comentário supunha o
+    // contrário, e qualquer um que pudesse enviar trocava o conteúdo de um arquivo já anexado sem que o
+    // documento, o link ou a auditoria mudassem. Os caminhos de envio sempre carregam um nome novo
+    // (`Date.now()`, um UUID), e nenhum deles precisa gravar por cima.
 
     // ─── Documentos de registros de qualquer tela ────────────────────────────
     // Path: tenants/{tenantId}/{collection}/{recordId}/{filename} — a coleção é o id da tela e só
@@ -77,10 +82,32 @@ service firebase.storage {
       allow create: if request.auth != null
         && !isReservedStoragePath(collection)
         && (canOnCollection(tenantId, collection, 'create') || canOnCollection(tenantId, collection, 'update'))
+        && resource == null
         && request.resource.size < 20 * 1024 * 1024;     // máximo 20 MB
       allow delete: if request.auth != null
         && !isReservedStoragePath(collection)
-        && (canOnCollection(tenantId, collection, 'update') || canOnCollection(tenantId, collection, 'delete'));
+        && (canOnCollection(tenantId, collection, 'update') || canOnCollection(tenantId, collection, 'delete'))
+        && recordFilesUnlocked(tenantId, collection, recordId);
+    }
+
+    // A janela de edição da tela (`editWindow`) vale para os ARQUIVOS do registro como vale para os
+    // documentos dele no Firestore — a mesma conta, lida dos mesmos dois documentos. Fechada a janela
+    // do registro, nenhum arquivo dele é apagado, nem pelo dono — e, como gravar por cima também é
+    // recusado (`resource == null` no `create`), apagar e reenviar no mesmo caminho era a única forma
+    // de trocar o conteúdo. A exceção é o registro que já não existe — a cascata o apaga antes dos anexos.
+    function recordFilesUnlocked(tenantId, collection, recordId) {
+      let screenPath = /databases/(default)/documents/tenants/$(tenantId)/screenDefinitions/$(collection);
+      let recordPath = /databases/(default)/documents/tenants/$(tenantId)/$(collection)/$(recordId);
+      return !firestore.exists(screenPath)
+        || firestore.get(screenPath).data.get('editWindow', null) == null
+        || !firestore.exists(recordPath)
+        || editWindowOpenSince(firestore.get(screenPath).data.editWindow, firestore.get(recordPath).data.get('createdAt', null));
+    }
+    function editWindowOpenSince(spec, createdAt) {
+      return spec.get('minutes', null) is int
+        && spec.minutes > 0
+        && createdAt is timestamp
+        && request.time < createdAt + duration.value(spec.minutes, 'm');
     }
 
     // ─── Logo do escritório ──────────────────────────────────────────────────
@@ -98,6 +125,7 @@ service firebase.storage {
       allow read: if request.auth != null && isTenantMemberOrElevated(tenantId);
       allow create: if request.auth != null
         && canChangeTenant(tenantId)
+        && resource == null
         && request.resource.size < 2 * 1024 * 1024
         && request.resource.contentType.matches('image/.*');
       allow update, delete: if false;
@@ -113,6 +141,7 @@ service firebase.storage {
       allow create: if request.auth != null
         && request.auth.uid == userId
         && firestore.exists(/databases/(default)/documents/tenants/$(tenantId)/portalUsers/$(userId))
+        && resource == null
         && request.resource.size < 20 * 1024 * 1024;
       allow read, update, delete: if false;
     }

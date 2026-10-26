@@ -15,7 +15,7 @@ import {
 import { AGGREGATION_OP_SINCE_KERNEL } from '../../../domain/schema/aggregationSpec';
 import { AGGREGATE_BACKFILL_SINCE_KERNEL, AGGREGATION_MAX_CHILDREN } from '../../../domain/schema/aggregateBackfill';
 import { RECORD_KEY_ADOPTION_SINCE_KERNEL } from '../../../domain/schema/recordKeyAdoption';
-import { EDIT_WINDOW_SINCE_KERNEL } from '../../../domain/schema/editWindow';
+import { EDIT_WINDOW_DOCUMENTS_SINCE_KERNEL, EDIT_WINDOW_SINCE_KERNEL } from '../../../domain/schema/editWindow';
 import { LOOKUP_SEED_SINCE_KERNEL } from '../../../domain/schema/lookupSeed';
 import { AGGREGATION_OP_LABELS, NUMERIC_AGGREGATION_OPS } from '../../../domain/schema/fieldRules';
 import type { WidgetNodeType } from '../../../domain/schema/ui/widgetSpec';
@@ -1665,6 +1665,25 @@ Counted from \`createdAt\`, which the platform stamps with the server's clock. A
 | \`minutes\` | a whole number greater than zero. Anything else is refused by \`check\` — and, if it ever reaches the database, the security rules treat it as a window that is already closed |
 | \`delete\` | \`true\` freezes deleting too. Absent, deleting follows the collection's permission only — which also means a record can be deleted and created again, which the audit log shows as exactly that |
 
+**The record's documents are part of the evidence.** On a screen with \`hasDocuments\`, once the
+record's window has closed nothing deletes, replaces or renames a document of that record — not a
+member, not the owner, not an automation, a script, the AI agent or a portal guest — and that holds
+whether or not \`delete\` is \`true\`: removing one attachment and adding another would change the
+evidence while the record kept its date. Attaching a NEW document is still allowed. The window is the
+record's (counted from the record's \`createdAt\`), not each file's. The security rules of both the
+database and the file storage enforce it; a document's name, type and file never change at all, inside
+the window or after it — what fits inside the window is deleting it. The one way out is deleting the
+record itself, when the screen allows that: the record goes first, and its documents follow. From
+kernel \`${EDIT_WINDOW_DOCUMENTS_SINCE_KERNEL}\`; an older kernel freezes the record but not its
+documents.
+
+**Every attached file carries a SHA-256.** The server computes it from the stored bytes and writes it as
+\`sha256\` (hex) on the document — a system field nobody writes from outside and the server never
+rewrites. It shows in the Documents tab, in the portal (\`usePortalDocuments\` returns it), in
+\`list_documents\` for the AI agent, and in the \`<prefix>_document.saved\` event, so a workflow and
+its expressions can read \`sha256\` the moment the file is attached. A file uploaded from the browser
+gets it a moment after the upload; until then the field is absent.
+
 What still passes after the window: creating (never barred), the fields any member may write
 (\`memberWritableFields\` — mark as read, like), and the platform's own bookkeeping, which is not a
 business write (recounting an aggregate, adopting a key). A workflow that stamps the record right after
@@ -1699,7 +1718,7 @@ stay editable forever, so \`check\` refuses the package instead.
 | \`listActions\`, \`viewActionIds\`, \`cardActionIds\` | the platform's own record gestures by key; your \`actions\` by \`templateId\` |
 | \`memberWritableFields\` | fields ANY member may write on a record someone else created — the door for per-person state (read, liked, saved) that the default permission would close |
 | \`authorCanDelete\` | whoever created the record deletes it, without an administrator |
-| \`editWindow\` | how long after creation the record may still be changed — and, with \`delete: true\`, deleted. Enforced by the security rules, not only the form; see "Edit window" above |
+| \`editWindow\` | how long after creation the record may still be changed — and, with \`delete: true\`, deleted. Its documents freeze with it. Enforced by the security rules, not only the form; see "Edit window" above |
 | \`portal\` | what an outside guest sees: \`subject\` (\`'self'\` for the screen whose records receive guests, \`{ field }\` for a reference that leads to it, \`'parent'\` to inherit from the parent), the \`fields\` that leave the organization — nothing else does — and \`documents\` to expose the documents someone marked as shared. \`visibleWhen\` is a field expression on the WHOLE record that decides which records leave (\`type == "revenue"\`) — false or invalid, the record is not in the portal, and neither is anything that reaches the guest through it; requires \`kernel: "^${PORTAL_VISIBLE_WHEN_SINCE_KERNEL}"\`. \`create: { fields }\` lets the guest create records, filling only those fields — the link to the subject is set by the server from what the guest already sees, never from what they send; it is refused on the \`'self'\` screen. \`uploads: { types }\` lets the guest ATTACH documents — choosing one of those types (none listed = any the organization has), never creating one, and never deleting; it requires \`documents\`. \`edit: { fields, when?, onlyOwn? }\` lets the guest CHANGE records: only those fields, and only fields that are also in \`fields\` (a guest never overwrites what they cannot see); never the link to the subject; \`when\` is a field expression on the WHOLE record (\`status == "draft"\`) checked by the server on every change — invalid means closed —, and \`onlyOwn\` limits it to records the guest created in the portal |
 | \`auditActions\` | which actions are audited. Absent = all. Declare it when a machine writes the collection, or the audit log drowns in one entry per ingested document |
 

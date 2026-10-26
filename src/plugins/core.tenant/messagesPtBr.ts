@@ -240,6 +240,8 @@ const CORE_TENANT_PT_BR: Record<string, string> = {
   'portal.documents': 'Documentos',
   'portal.documents.empty': 'Nenhum documento compartilhado.',
   'portal.document.open': 'Abrir',
+  'portal.document.sha256': 'SHA-256 {hash}',
+  'portal.document.sha256.hint': 'Impressão digital do arquivo. Qualquer alteração no arquivo a muda.',
   'portal.document.unavailable': 'Este documento não está disponível.',
   'portal.value.yes': 'Sim',
   'portal.value.no': 'Não',

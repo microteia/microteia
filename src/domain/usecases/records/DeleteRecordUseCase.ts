@@ -10,8 +10,12 @@ export type DeleteRecordUseCase = {
 };
 
 /**
- * Cascata: anotações e documentos do registro saem antes dele — e por isso a recusa da janela de
- * edição vem antes de tudo.
+ * Cascata: o REGISTRO sai primeiro, e as anotações e os documentos dele depois. Fechada a janela de
+ * edição, a regra só deixa apagar o anexo de um registro que já não existe — na ordem inversa, a
+ * exclusão permitida do registro esbarraria nos próprios anexos, e as anotações já teriam saído.
+ *
+ * A recusa da janela vem antes de tudo, e o que falha depois do registro excluído não desfaz a
+ * exclusão: é a limpeza de filhos que ninguém mais alcança.
  */
 export const makeDeleteRecordUseCase = (
   repo: IRecordRepository,
@@ -24,14 +28,12 @@ export const makeDeleteRecordUseCase = (
       noteRepo.getNotes(tenantId, collection, recordId),
       documentRepo.getDocuments(tenantId, collection, recordId),
     ]);
-    await Promise.all(
-      notes.map((note) => noteRepo.deleteNote(tenantId, collection, recordId, note.id, actor)),
-    );
-    await Promise.all(
-      documents.map((document) =>
+    await repo.delete(tenantId, collection, recordId, actor);
+    await Promise.allSettled([
+      ...notes.map((note) => noteRepo.deleteNote(tenantId, collection, recordId, note.id, actor)),
+      ...documents.map((document) =>
         documentRepo.deleteDocument(tenantId, collection, recordId, document.id, document.storagePath, actor),
       ),
-    );
-    await repo.delete(tenantId, collection, recordId, actor);
+    ]);
   },
 });

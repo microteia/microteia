@@ -100,6 +100,7 @@ export const makeFakePortalRepository = (screens: PortalScreen[]) => {
           type: null,
           description: null,
           createdAt: null,
+          sha256: null,
           url: String(data.url ?? ''),
         }) satisfies SharedRecordDocument),
     getRecordDocument: async (_t, collection, recordId, documentId) => {
@@ -111,6 +112,7 @@ export const makeFakePortalRepository = (screens: PortalScreen[]) => {
         type: null,
         description: null,
         createdAt: null,
+        sha256: null,
         url: String(data.url ?? ''),
         portalShared: data.portalShared === true,
       };

@@ -174,6 +174,7 @@ export const makeProjectPortalRecordUseCase = (repo: IPortalRepository): Project
             type: document.type,
             description: document.description,
             createdAt: document.createdAt,
+            sha256: document.sha256,
           };
           if (samePortalValue(projected.get(document.id), documentProjection)) continue;
           await repo.writeDocumentProjection(tenantId, projectionId, document.id, documentProjection);
@@ -277,6 +278,7 @@ export const makeProjectPortalDocumentUseCase = (repo: IPortalRepository): Proje
       type: typeof data.type === 'string' ? data.type : null,
       description: typeof data.description === 'string' ? data.description : null,
       createdAt: data.createdAt ?? null,
+      sha256: typeof data.sha256 === 'string' ? data.sha256 : null,
     });
   },
 });

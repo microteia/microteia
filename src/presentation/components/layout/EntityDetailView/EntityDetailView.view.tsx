@@ -37,6 +37,8 @@ export interface EntityDetailViewProps {
   isNew: boolean;
   /** Pode excluir anotação e documento do registro — a permissão de exclusão da coleção. */
   canDeleteRecordParts: boolean;
+  /** A janela de edição do registro fechou: os documentos dele não saem mais, só entram. */
+  documentsLocked: boolean;
   /** Pode gerir a lista compartilhada de tipos de documento do escritório. */
   canManageDocumentTypes: boolean;
 
@@ -82,6 +84,7 @@ export interface EntityDetailViewProps {
 export const EntityDetailView: React.FC<EntityDetailViewProps> = ({
   isNew,
   canDeleteRecordParts,
+  documentsLocked,
   canManageDocumentTypes,
   avatar,
   title,
@@ -212,6 +215,7 @@ export const EntityDetailView: React.FC<EntityDetailViewProps> = ({
         <DocumentsPanel
           controller={docsController}
           canDelete={canDeleteRecordParts}
+          isLocked={documentsLocked}
           canManageTypes={canManageDocumentTypes}
         />
       )}
