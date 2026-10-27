@@ -15,6 +15,15 @@ import { agentLocale } from '../agent/agentLocale';
 import { makeNotificationTextCatalog } from '../notifications/notificationTextCatalog';
 import { getDI } from '../di/container';
 import { requirePermission } from './shared/requirePermission';
+import { logger } from 'firebase-functions/v2';
+import { domainErrorCode } from '../../domain/errors/DomainError';
+import type { NotificationSmsSettings, NotificationSmsSettingsView } from '../../domain/schema/notificationContacts';
+import {
+  EMPTY_NOTIFICATION_SMS_SETTINGS,
+  notificationSmsSettingsIssue,
+  SMS_PROVIDERS,
+} from '../../domain/schema/notificationContacts';
+import type { NotificationOptOutOperation, NotificationOptOutState } from '../../domain/usecases/NotificationOptOutUseCase';
 
 const REGION = 'southamerica-east1';
 
@@ -134,5 +143,107 @@ export const getWebPushPublicKey = onCall(
   async (request): Promise<{ publicKey: string }> => {
     if (!request.auth) throw new HttpsError('unauthenticated', '@core.automation/handler.unauthenticated');
     return { publicKey: (await getDI().getVapidKeyStore().keys()).publicKey };
+  },
+);
+
+type SmsOperation = 'get' | 'save' | 'clear' | 'test';
+
+interface ManageNotificationSmsRequest {
+  tenantId: string;
+  op: SmsOperation;
+  settings?: Partial<NotificationSmsSettings>;
+  /** Ausente ou vazio MANTÉM o segredo gravado: o formulário nunca o recebe de volta. */
+  secret?: string;
+}
+
+const smsSettingsFrom = (input: Partial<NotificationSmsSettings> | undefined): NotificationSmsSettings => ({
+  provider: SMS_PROVIDERS.find((provider) => provider === input?.provider) ?? EMPTY_NOTIFICATION_SMS_SETTINGS.provider,
+  accountSid: textField(input?.accountSid, 64),
+  fromNumber: textField(input?.fromNumber, 64),
+  webhookUrl: textField(input?.webhookUrl, 500),
+  defaultCountryCode: textField(input?.defaultCountryCode, 3).replace(/^\+/, ''),
+  appUrl: textField(input?.appUrl, 500).replace(/\/+$/, ''),
+});
+
+const smsViewOf = async (tenantId: string): Promise<NotificationSmsSettingsView> => {
+  const credential = await getDI().getNotificationSmsConfigRepository().get(tenantId);
+  return credential
+    ? { ...credential.settings, configured: true, hasSecret: credential.secret !== '' }
+    : { ...EMPTY_NOTIFICATION_SMS_SETTINGS, configured: false, hasSecret: false };
+};
+
+/**
+ * O provedor de SMS do escritório — a única porta pela qual a credencial é lida ou gravada, com
+ * `settings.manage`, como a de e-mail. O segredo entra e nunca sai.
+ *
+ * `test` confere a credencial no provedor SEM mandar mensagem: um teste que aceitasse um número
+ * escolhido seria um relé de SMS pago pelo escritório, aberto a qualquer um com a permissão.
+ */
+export const manageNotificationSms = onCall(
+  { region: REGION, cors: true },
+  async (request): Promise<NotificationSmsSettingsView | { verified: true }> => {
+    if (!request.auth) throw new HttpsError('unauthenticated', '@core.automation/handler.unauthenticated');
+
+    const { tenantId, op, settings, secret } = (request.data ?? {}) as ManageNotificationSmsRequest;
+    if (!tenantId) throw new HttpsError('invalid-argument', '@core.automation/handler.tenant.missing');
+
+    await requirePermission(tenantId, request.auth, PERMISSION_SETTINGS_MANAGE);
+    const repository = getDI().getNotificationSmsConfigRepository();
+
+    switch (op) {
+      case 'get':
+        return smsViewOf(tenantId);
+      case 'save': {
+        const next = smsSettingsFrom(settings);
+        const issue = notificationSmsSettingsIssue(next);
+        if (issue) throw new HttpsError('invalid-argument', issue);
+        const typed = typeof secret === 'string' && secret !== '' ? secret.slice(0, 1024) : null;
+        await repository.save(tenantId, next, typed, request.auth.uid);
+        return smsViewOf(tenantId);
+      }
+      case 'clear':
+        await repository.clear(tenantId);
+        return smsViewOf(tenantId);
+      case 'test': {
+        const credential = await repository.get(tenantId);
+        if (!credential) throw new HttpsError('failed-precondition', '@core.automation/step.notify.sms.not-configured');
+        try {
+          await getDI().getSmsTransport().verify(credential);
+        } catch (error) {
+          throw new HttpsError('failed-precondition', '@core.automation/notifications.sms.test.failed', {
+            detail: error instanceof Error ? error.message : String(error),
+          });
+        }
+        return { verified: true };
+      }
+      default:
+        throw new HttpsError('invalid-argument', '@core.automation/notifications.email.op.invalid');
+    }
+  },
+);
+
+/**
+ * O descadastro de quem recebeu um aviso num endereço. SEM login, por natureza: quem o pede não tem
+ * conta. O que protege é o bilhete — um HMAC de 192 bits que só existe se o escritório escreveu
+ * àquele endereço —, e o que a resposta devolve é o endereço mascarado.
+ */
+export const notificationOptOut = onCall(
+  { region: REGION, cors: true },
+  async (request): Promise<NotificationOptOutState> => {
+    const data = (request.data ?? {}) as Record<string, unknown>;
+    try {
+      return await getDI().getNotificationOptOutUseCase().execute({
+        tenantId: typeof data.tenantId === 'string' ? data.tenantId : '',
+        ticket: typeof data.ticket === 'string' ? data.ticket : '',
+        op: (typeof data.op === 'string' ? data.op : 'get') as NotificationOptOutOperation,
+      });
+    } catch (error) {
+      const code = domainErrorCode(error);
+      if (!code) {
+        logger.error(`[notifications] notificationOptOut falhou: ${error instanceof Error ? error.message : String(error)}`);
+        throw new HttpsError('internal', '@core.automation/notifications.opt-out.failed');
+      }
+      throw new HttpsError(code, error instanceof Error ? error.message : '@core.automation/notifications.opt-out.failed');
+    }
   },
 );

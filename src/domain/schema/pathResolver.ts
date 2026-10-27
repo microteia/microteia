@@ -2,6 +2,7 @@ import type { EntityKey, EntityMetadata, NativeFieldSpec, NativeFieldType } from
 import { lookupLabelRef } from './lookupRegistry';
 import type { SchemaContext } from './screenEntity';
 import { resolveEntity } from './screenEntity';
+import type { ContactKind } from './notificationContacts';
 
 export type { SchemaContext, SchemaScreen } from './screenEntity';
 export { createSchemaContext } from './screenEntity';
@@ -32,7 +33,7 @@ export interface FkHop {
  * que ele vem em vários (um balde de data, uma soma) pergunta por `list`.
  */
 export type PathNode =
-  | { kind: 'scalar'; type: NativeFieldType; lookupCollection?: string; list?: true }
+  | { kind: 'scalar'; type: NativeFieldType; lookupCollection?: string; list?: true; contact?: ContactKind }
   | { kind: 'entity'; collection: string }
   | { kind: 'entityList'; collection: string }
   | { kind: 'object'; list?: true }
@@ -146,7 +147,7 @@ type Cursor =
   | { kind: 'entityList'; entity?: EntityMetadata; collection: string }
   | { kind: 'externalRecord'; collection: string }
   | { kind: 'object'; fields: NativeFieldSpec[] }
-  | { kind: 'scalar'; type: NativeFieldType; lookupCollection?: string }
+  | { kind: 'scalar'; type: NativeFieldType; lookupCollection?: string; contact?: ContactKind }
   | { kind: 'unknown' };
 
 interface WalkState {
@@ -230,7 +231,12 @@ const stepNativeField = (
   }
   return {
     ...state,
-    cursor: { kind: 'scalar', type: field.type, lookupCollection: field.lookupCollection },
+    cursor: {
+      kind: 'scalar',
+      type: field.type,
+      lookupCollection: field.lookupCollection,
+      ...(field.contact ? { contact: field.contact } : {}),
+    },
     path,
   };
 };
@@ -442,10 +448,14 @@ const cursorToNode = (cursor: Cursor, listed: boolean): PathNode => {
         : { kind: 'entity', collection: cursor.collection };
     case 'object':
       return listed ? { kind: 'object', list: true } : { kind: 'object' };
-    case 'scalar':
+    case 'scalar': {
+      // O contato atravessa até o nó: é por ele que o passo `notify` sabe que o caminho leva a um
+      // campo que a TELA declarou como meio de falar com alguém.
+      const contact = cursor.contact ? { contact: cursor.contact } : {};
       return listed
-        ? { kind: 'scalar', type: cursor.type, lookupCollection: cursor.lookupCollection, list: true }
-        : { kind: 'scalar', type: cursor.type, lookupCollection: cursor.lookupCollection };
+        ? { kind: 'scalar', type: cursor.type, lookupCollection: cursor.lookupCollection, list: true, ...contact }
+        : { kind: 'scalar', type: cursor.type, lookupCollection: cursor.lookupCollection, ...contact };
+    }
     case 'unknown':
       return { kind: 'unknown' };
   }

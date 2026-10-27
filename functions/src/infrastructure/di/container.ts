@@ -156,14 +156,25 @@ import type { RecordKeyAdoptionDeps } from '../../domain/services/recordKeyAdopt
 import { FirebaseRecordKeyAdoptionRepository } from '../../data/repositories/FirebaseRecordKeyAdoptionRepository';
 import { tenantTimeZone } from '../settings/tenantTimeZone';
 import {
+  ContactTicketKeyStore,
   FirestoreNotificationAppearance,
+  FirestoreNotificationContactLog,
   FirestoreNotificationDirectory,
   FirestoreNotificationDispatchLog,
   FirestoreNotificationEmailConfigRepository,
   FirestoreNotificationInboxRepository,
+  FirestoreNotificationSmsConfigRepository,
 } from '../../data/repositories/FirestoreNotificationRepositories';
+import { HttpSmsTransport } from '../../data/services/HttpSmsTransport';
 import { SmtpEmailTransport, StandardWebPushSender, VapidKeyStore } from '../../data/services/NotificationTransports';
-import type { INotificationEmailConfigRepository } from '../../domain/repositories/INotificationDelivery';
+import type {
+  INotificationContactLog,
+  INotificationEmailConfigRepository,
+  INotificationSmsConfigRepository,
+  ISmsTransport,
+} from '../../domain/repositories/INotificationDelivery';
+import { makeNotificationOptOutUseCase } from '../../domain/usecases/NotificationOptOutUseCase';
+import type { NotificationOptOutUseCase } from '../../domain/usecases/NotificationOptOutUseCase';
 import { makeDispatchNotificationUseCase } from '../../domain/usecases/DispatchNotificationUseCase';
 import { makeResolvePortalGuestsUseCase } from '../../domain/usecases/ResolvePortalGuestsUseCase';
 import type { DispatchNotificationUseCase } from '../../domain/usecases/DispatchNotificationUseCase';
@@ -270,6 +281,9 @@ class DIContainer {
   private workflowClockDeps?: WorkflowClockDeps;
   private workflowContextHydrator?: WorkflowContextHydrator;
   private notificationEmailConfigRepo?: INotificationEmailConfigRepository;
+  private notificationSmsConfigRepo?: INotificationSmsConfigRepository;
+  private notificationContactLog?: INotificationContactLog;
+  private smsTransport?: ISmsTransport;
   private vapidKeyStore?: VapidKeyStore;
   private dispatchNotificationUC?: DispatchNotificationUseCase;
   private recordDocumentWriter?: IRecordDocumentWriter;
@@ -962,6 +976,32 @@ class DIContainer {
     return this.notificationEmailConfigRepo;
   }
 
+  getNotificationSmsConfigRepository(): INotificationSmsConfigRepository {
+    if (!this.notificationSmsConfigRepo) this.notificationSmsConfigRepo = new FirestoreNotificationSmsConfigRepository(getDb());
+    return this.notificationSmsConfigRepo;
+  }
+
+  getSmsTransport(): ISmsTransport {
+    if (!this.smsTransport) this.smsTransport = new HttpSmsTransport();
+    return this.smsTransport;
+  }
+
+  getNotificationContactLog(): INotificationContactLog {
+    if (!this.notificationContactLog) {
+      this.notificationContactLog = new FirestoreNotificationContactLog(getDb(), new ContactTicketKeyStore(getDb()));
+    }
+    return this.notificationContactLog;
+  }
+
+  getNotificationOptOutUseCase(): NotificationOptOutUseCase {
+    return makeNotificationOptOutUseCase({
+      contacts: this.getNotificationContactLog(),
+      audit: this.getCreateAuditLogUseCase(),
+      tenantName: async (tenantId) => (await this.getTenantRepository().getById(tenantId))?.name ?? '',
+      now: () => new Date(),
+    });
+  }
+
   getVapidKeyStore(): VapidKeyStore {
     if (!this.vapidKeyStore) this.vapidKeyStore = new VapidKeyStore(getDb());
     return this.vapidKeyStore;
@@ -980,6 +1020,9 @@ class DIContainer {
         dispatches: new FirestoreNotificationDispatchLog(getDb()),
         appearance: new FirestoreNotificationAppearance(getDb()),
         portalGuests: makeResolvePortalGuestsUseCase(this.getPortalRepository()),
+        contacts: this.getNotificationContactLog(),
+        smsConfig: this.getNotificationSmsConfigRepository(),
+        smsTransport: this.getSmsTransport(),
         tenantName: async (tenantId) => (await this.getTenantRepository().getById(tenantId))?.name ?? '',
         now: () => new Date(),
       });

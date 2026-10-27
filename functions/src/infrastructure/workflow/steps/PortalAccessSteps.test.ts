@@ -61,8 +61,9 @@ const setup = (options: { screens?: PortalScreen[]; emailDelivered?: number; quo
         const email = options.emailDelivered ?? 1;
         return {
           recipients: email,
-          delivered: { audit: 0, inApp: 0, email, push: 0 },
-          failed: { audit: 0, inApp: 0, email: 1 - email, push: 0 },
+          delivered: { audit: 0, inApp: 0, email, push: 0, sms: 0 },
+          failed: { audit: 0, inApp: 0, email: 1 - email, push: 0, sms: 0 },
+          optedOut: 0,
           issues: email ? [] : [{ message: '@core.automation/step.notify.email.not-configured' }],
         };
       },

@@ -52,6 +52,8 @@ import { PortalView } from './presentation/pages/Portal';
 import { PortalSignInView } from './presentation/pages/PortalSignIn';
 import { PortalSignInCallbackView } from './presentation/pages/PortalSignInCallback';
 import { PORTAL_PATH, PORTAL_SIGN_IN_CALLBACK_PATH, PORTAL_SIGN_IN_PATH } from './presentation/pages/Portal/portalPaths';
+import { NotificationOptOutView } from './presentation/pages/NotificationOptOut';
+import { NOTIFICATION_OPT_OUT_PATH } from './domain/schema/notificationContacts';
 
 const App: React.FC = () => {
   return (
@@ -73,6 +75,14 @@ const App: React.FC = () => {
               */}
               <Route path={PORTAL_SIGN_IN_PATH} element={<UrlLocaleProvider><PortalSignInView /></UrlLocaleProvider>} />
               <Route path={PORTAL_SIGN_IN_CALLBACK_PATH} element={<UrlLocaleProvider><PortalSignInCallbackView /></UrlLocaleProvider>} />
+              {/*
+                O descadastro de quem recebe avisos num endereço: não tem conta, e por isso a página fica
+                fora de toda sessão. O idioma vem do link, que o servidor monta com o do escritório.
+              */}
+              <Route
+                path={`${NOTIFICATION_OPT_OUT_PATH}/:tenantId/:ticket`}
+                element={<UrlLocaleProvider><NotificationOptOutView /></UrlLocaleProvider>}
+              />
               {/*
                 Uma rota-mãe para o portal inteiro: o store fica montado entre a escolha do escritório
                 e o escritório. Duas rotas irmãs remontavam o store a cada passo — e cada remontagem

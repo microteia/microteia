@@ -70,6 +70,7 @@ const SHARED_FILES = [
   'domain/schema/dataExtensionPoints.ts',
   'domain/schema/settings.ts',
   'domain/schema/notifications.ts',
+  'domain/schema/notificationContacts.ts',
   'domain/schema/recordLink.ts',
   'domain/schema/notificationTemplate.ts',
   'domain/schema/i18n/localeNegotiation.ts',

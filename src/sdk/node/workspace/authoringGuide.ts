@@ -41,6 +41,8 @@ import { FIELD_EXPRESSION_FUNCTION_NAMES } from '../../../domain/schema/fieldExp
 import { BUSINESS_CALENDAR_FIELDS } from '../../../domain/schema/time/businessDays';
 import { BUSINESS_CALENDAR_POINT } from '../../../domain/schema/time/extensionPoints';
 import { ARTIFACT_PREFIX_SINCE_KERNEL } from '../../../domain/schema/plugin/artifactPrefix';
+import { CONTACT_NOTIFY_SINCE_KERNEL, NOTIFICATION_OPT_OUT_PATH, SMS_PROVIDERS } from '../../../domain/schema/notificationContacts';
+import { NOTIFICATION_MAX_RECIPIENTS } from '../../../domain/schema/notifications';
 import { PORTAL_CLAIM_NORMALIZERS, PORTAL_IDENTITY_CLAIM_SINCE_KERNEL } from '../../../domain/schema/portalIdentity';
 import {
   PORTAL_AUTOMATION_INVITES_PER_HOUR,
@@ -315,7 +317,7 @@ const stepCatalogTable = (steps: readonly WorkflowStepMetadata[]): string => [
  * tabela de voltar a ficar incompleta em silêncio.
  */
 const STEP_CATALOG_NOTES: Record<string, string> = {
-  notify: 'Notifies people in the app (the bell), by e-mail or by push, and/or writes it to the audit trail. With no channel set it only writes to the audit trail, as version 1 did. Recipients come from `recipientMembers`, `recipientsFrom` (a member id, or a record linked to one by `memberId` — a reference read on its own is an id, so a person linked to a member is `event.contactId.memberId`) and `recipientPermission`; each person keeps or refuses a channel in Settings, and `title`/`message` resolve in each recipient\'s language. Clicking it opens the record that triggered the flow (`openRecord`, on by default) — in the app, in the browser notification and in the e-mail. Set `category` to one of your declared notification types (`<package id>/<key>`, see `notificationCategory`) so each person can choose, on the Notifications page, which channels bring them that type. With `portalGuests` it notifies the portal guests who can see the record instead of members (see "Telling the portal\'s guests" in section 10). Publishes `recipients`, `delivered.<channel>` and `failed.<channel>`.',
+  notify: 'Notifies people in the app (the bell), by e-mail or by push, and/or writes it to the audit trail. With no channel set it only writes to the audit trail, as version 1 did. Recipients come from `recipientMembers`, `recipientsFrom` (a member id, or a record linked to one by `memberId` — a reference read on its own is an id, so a person linked to a member is `event.contactId.memberId`) and `recipientPermission`; each person keeps or refuses a channel in Settings, and `title`/`message` resolve in each recipient\'s language. Clicking it opens the record that triggered the flow (`openRecord`, on by default) — in the app, in the browser notification and in the e-mail. Set `category` to one of your declared notification types (`<package id>/<key>`, see `notificationCategory`) so each person can choose, on the Notifications page, which channels bring them that type. With `portalGuests` it notifies the portal guests who can see the record instead of members (see "Telling the portal\'s guests" in section 10). With `recipientAddresses` / `recipientPhones` it writes to addresses read from fields the screen declares `contact` — people with no account at all —, by e-mail and SMS (`toSms`), with an unsubscribe link and one audit entry per send (see "Reaching an address from the record" in section 10). Publishes `recipients`, `delivered.<channel>`, `failed.<channel>` and `optedOut`.',
   'register-audit': 'Writes an entry in the audit trail. `severity` defaults to `LOW`.',
   'set-variable': 'Names a value for the rest of the flow. Read it back with `{ kind: \'Variable\' }`.',
   map: 'Assembles an object from other values — what a write step then writes.',
@@ -1649,6 +1651,7 @@ Beyond \`key\`, \`label\`, \`type\`, \`order\` and \`required\`, the properties 
 | \`showInList\`, \`listLabel\`, \`listIcon\`, \`listOrder\` | whether and how the field appears on the list card |
 | \`filterable\` | the field becomes a filter on the list |
 | \`hiddenInForm\` | keeps a field out of the form without deleting it |
+| \`contact: 'email' \\| 'phone'\` | the field holds a way to reach someone. It is what lets \`notify\` write to its value (\`recipientAddresses\`, \`recipientPhones\`, §10) — nothing else does. Only on a one-value \`text\` or \`masked\` field. Kernel \`^${CONTACT_NOTIFY_SINCE_KERNEL}\` |
 | \`file: { extensions, maxSizeMb }\` | what a \`file\` field accepts — the size is in megabytes |
 
 **Fields the organization adds** to your screen are theirs. An update of your extension preserves
@@ -2436,6 +2439,57 @@ in the portal — the customer of an order, the supplier of an invoice — inste
   the step fails for lack of recipients.
 
 \`examples/portal-example\` tells the client when a visit is scheduled.
+
+### Reaching an address from the record
+
+Members have an account, guests have an invite. Sometimes the person you must tell has neither — the
+taxpayer who has not activated the portal yet, the supplier who only left an e-mail on the order. For
+that case, and only for it, a \`notify\` step writes to an ADDRESS read from the record:
+
+\`\`\`ts
+// the screen says which fields are contacts
+fields: [
+  { key: 'email', label: label('field.email'), type: 'text', order: 3, required: false, contact: 'email' },
+  { key: 'mobile', label: label('field.mobile'), type: 'masked', mask: '(00) 00000-0000', order: 4, required: false, contact: 'phone' },
+],
+
+// the step says which of them to reach
+configuration: {
+  title: { kind: 'Literal', value: label('notify.pending.title') },
+  message: { kind: 'Literal', value: label('notify.pending.message') },
+  recipientAddresses: { kind: 'Event', path: 'companyId.email' },
+  recipientPhones: { kind: 'Event', path: 'companyId.mobile' },
+  toEmail: { kind: 'Literal', value: true },
+  toSms: { kind: 'Literal', value: true },
+  toAudit: { kind: 'Literal', value: false },
+},
+\`\`\`
+
+- **Two declarations, on purpose.** The field must declare \`contact\` on its screen, and the input must be
+  an \`Event\` path that ends on it — through references too (\`companyId.email\`). An expression, a
+  literal, or a path to a field without \`contact\` (or with the other kind) fails the step: what is an
+  e-mail is decided by whoever designed the screen, never by a value that looks like one.
+- **Its own audience.** With \`recipientMembers\`, \`recipientsFrom\`, \`recipientPermission\` or
+  \`portalGuests\` in the same step, it fails. Write the text for someone outside the organization.
+- **Channels.** \`recipientAddresses\` goes by e-mail (\`toEmail\`), \`recipientPhones\` by SMS (\`toSms\`); a
+  configured input with no channel that reaches it fails the step. The bell and push never reach an
+  address. SMS uses the provider the organization set up (${inlineList(SMS_PROVIDERS)}); a \`webhook\`
+  receives \`{ to, body }\` and is the bridge to any other provider. A number saved without a country
+  code gets the organization's default.
+- **Values.** A field may hold several addresses (\`a@x.com; b@y.com\`), and a path through a list
+  gives one per item. Invalid values are skipped and counted in the log; at most
+  ${NOTIFICATION_MAX_RECIPIENTS} addresses per run.
+- **Opting out is always there.** Every e-mail carries an unsubscribe link in the footer and in the
+  \`List-Unsubscribe\` header, and every SMS ends with one. The link opens a public page
+  (\`${NOTIFICATION_OPT_OUT_PATH}/…\`) that only acts on a click — mail scanners that open links do not
+  unsubscribe anyone —, and the same page undoes it. An address that opted out is skipped from then on;
+  it is not a failure, and the step publishes how many in \`optedOut\`. If the opt-out cannot be
+  recorded before sending, nothing is sent.
+- **Every send leaves a trace.** One Audit trail entry per address and channel — sent, failed, or
+  skipped because it opted out —, with the address and the record, whatever \`toAudit\` says. Opting
+  out and back in are audited too.
+- Requires \`kernel: "^${CONTACT_NOTIFY_SINCE_KERNEL}"\`. An older kernel ignores the inputs and the field
+  declaration, and the step fails for lack of recipients.
 
 ### Sharing documents with the portal
 

@@ -6,16 +6,23 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 
 <!-- Nova entrada vai aqui, acima das anteriores, no formato:
 
+#### [0.0.9] — AAAA-MM-DD
+
+- Descrição elegante da mudança, em linguagem simples.
+-->
+
+#### [9.167.0] — 2026-10-26
+
+- Novo: as automações podem avisar, por e-mail ou SMS, quem ainda não tem acesso ao sistema — como o cliente que ainda não ativou o portal —, usando o e-mail ou o telefone do cadastro. Para isso, o campo precisa ser marcado como "Contato" no Form Design; nenhum outro campo é usado.
+- Toda mensagem enviada assim leva um link para a pessoa deixar de recebê-la, e a escolha pode ser desfeita pelo mesmo link. Quem se descadastrou não recebe mais avisos por aquele endereço.
+- Cada envio a esses endereços fica registrado na Auditoria — enviado, com falha ou não enviado por descadastro —, com o endereço e o registro a que o aviso se refere.
+- Novo, em Escritório › Notificações: a aba SMS, para configurar o provedor de mensagens do escritório (Twilio ou qualquer outro, por webhook) e conferir as credenciais sem enviar mensagem a ninguém.
+
 #### [9.166.0] — 2026-10-26
 
 - Novo, na aba Portal de cada tela: o escritório pode entregar os documentos ao cliente por links que valem só alguns minutos. A cada abertura, o acesso é conferido de novo; quem tem o convite revogado deixa de abrir os documentos assim que o último link recebido vence, mesmo que o tenha guardado.
 - Ao ligar esse recurso, os links permanentes que já tinham sido entregues ao cliente deixam de funcionar; os da equipe do escritório continuam abrindo normalmente.
 - Quem não ligar o recurso não percebe mudança nenhuma.
-
-#### [0.0.9] — AAAA-MM-DD
-
-- Descrição elegante da mudança, em linguagem simples.
--->
 
 #### [9.165.1] — 2026-10-26
 

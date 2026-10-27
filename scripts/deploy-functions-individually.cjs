@@ -73,6 +73,8 @@ const ALL_FUNCTIONS = [
   'manageAuditArchive',
   'logClientError',
   'manageNotificationEmail',
+  'manageNotificationSms',
+  'notificationOptOut',
   'getWebPushPublicKey',
   'onWorkflowEventCreated',
   'syncWorkflowClock',

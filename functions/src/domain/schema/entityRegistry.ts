@@ -17,6 +17,7 @@ import type {
 } from './fieldRules';
 import type { RecordKeySpec } from './recordKeys';
 import type { AutoValueSpec } from './recordSequence';
+import type { ContactKind } from './notificationContacts';
 
 export const SCHEMA_VERSION = 1;
 
@@ -89,6 +90,8 @@ export interface NativeFieldSpec {
    * pelo escritório desaparecia na releitura seguinte sem nada acusar.
    */
   unique?: boolean;
+  /** O campo guarda um contato. Ver `FieldDefinition.contact`. */
+  contact?: ContactKind;
   /** Ausente nos campos deste registro, onde é sempre `builtin` por definição. */
   origin?: FieldOrigin;
   ui?: FieldUiSpec;

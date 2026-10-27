@@ -380,6 +380,15 @@ export const CORE_STEP_CATALOG: readonly WorkflowStepMetadata[] = [
         allowedMappingKinds: ['Literal'],
       },
       {
+        id: 'toSms',
+        label: '@core.automation/step.notify.label.to-sms',
+        description: '@core.automation/step.notify.help.to-sms',
+        required: false,
+        type: 'Boolean',
+        defaultValue: false,
+        allowedMappingKinds: ['Literal'],
+      },
+      {
         id: 'recipientMembers',
         label: '@core.automation/step.notify.label.recipient-members',
         required: false,
@@ -421,6 +430,24 @@ export const CORE_STEP_CATALOG: readonly WorkflowStepMetadata[] = [
         type: 'Expression',
         allowedMappingKinds: ['Event'],
       },
+      // Só caminho do EVENTO: é o tipo do caminho que diz se ele termina num campo que a tela
+      // declarou `contact` — uma expressão montaria qualquer endereço.
+      {
+        id: 'recipientAddresses',
+        label: '@core.automation/step.notify.label.recipient-addresses',
+        description: '@core.automation/step.notify.help.recipient-addresses',
+        required: false,
+        type: 'Expression',
+        allowedMappingKinds: ['Event'],
+      },
+      {
+        id: 'recipientPhones',
+        label: '@core.automation/step.notify.label.recipient-phones',
+        description: '@core.automation/step.notify.help.recipient-phones',
+        required: false,
+        type: 'Expression',
+        allowedMappingKinds: ['Event'],
+      },
     ],
     outputDefinitions: [
       { id: 'recipients', label: '@core.automation/step.notify.output.recipients', type: 'Number' },
@@ -428,10 +455,13 @@ export const CORE_STEP_CATALOG: readonly WorkflowStepMetadata[] = [
       { id: 'delivered.inApp', label: '@core.automation/step.notify.output.delivered.in-app', type: 'Number' },
       { id: 'delivered.email', label: '@core.automation/step.notify.output.delivered.email', type: 'Number' },
       { id: 'delivered.push', label: '@core.automation/step.notify.output.delivered.push', type: 'Number' },
+      { id: 'delivered.sms', label: '@core.automation/step.notify.output.delivered.sms', type: 'Number' },
       { id: 'failed.audit', label: '@core.automation/step.notify.output.failed.audit', type: 'Number' },
       { id: 'failed.inApp', label: '@core.automation/step.notify.output.failed.in-app', type: 'Number' },
       { id: 'failed.email', label: '@core.automation/step.notify.output.failed.email', type: 'Number' },
       { id: 'failed.push', label: '@core.automation/step.notify.output.failed.push', type: 'Number' },
+      { id: 'failed.sms', label: '@core.automation/step.notify.output.failed.sms', type: 'Number' },
+      { id: 'optedOut', label: '@core.automation/step.notify.output.opted-out', type: 'Number' },
     ],
   },
   {

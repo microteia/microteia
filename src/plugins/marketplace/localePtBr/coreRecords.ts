@@ -484,4 +484,9 @@ export const CORE_RECORDS: Record<string, string> = {
   'screen.key.locked': 'O identificador não muda: é onde os registros desta tela vivem.',
   'screen.key.placeholder': 'pets, faturas...',
   'screen.error.key-taken': 'O identificador "{key}" já está em uso por outra tela.',
+  'field.contact': 'Contato',
+  'field.contact.none': 'Não é contato',
+  'field.contact.email': 'Endereço de e-mail',
+  'field.contact.phone': 'Número de telefone',
+  'field.contact.hint': 'Permite que automações enviem avisos para o valor deste campo — por e-mail ou SMS — a pessoas sem conta. Use só para endereços que a pessoa informou para ser contatada.',
 };

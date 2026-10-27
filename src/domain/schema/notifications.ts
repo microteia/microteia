@@ -10,17 +10,19 @@ import type { RecordLinkTarget } from './recordLink';
 
 /**
  * Os destinos do passo `notify`. `audit` é o do escritório — uma entrada na Auditoria, sem
- * destinatário —; os outros três são PESSOAIS: chegam a cada destinatário, e cada pessoa decide em
- * Configurações quais deles a alcançam.
+ * destinatário —; `inApp`, `email` e `push` são PESSOAIS: chegam a cada destinatário, e cada pessoa
+ * decide em Configurações quais deles a alcançam. `sms` só alcança um ENDEREÇO lido de um campo de
+ * contato (`notificationContacts.ts`): membro não tem telefone no escritório, e por isso ele não é
+ * preferência de ninguém.
  *
  * As chaves são camelCase porque também são o caminho das saídas do passo
  * (`output.<passo>.delivered.inApp`): um hífen ali seria lido como subtração pela expressão.
  */
-export const NOTIFICATION_CHANNELS = ['audit', 'inApp', 'email', 'push'] as const;
+export const NOTIFICATION_CHANNELS = ['audit', 'inApp', 'email', 'push', 'sms'] as const;
 
 export type NotificationChannel = (typeof NOTIFICATION_CHANNELS)[number];
 
-export type PersonalNotificationChannel = Exclude<NotificationChannel, 'audit'>;
+export type PersonalNotificationChannel = 'inApp' | 'email' | 'push';
 
 export const PERSONAL_NOTIFICATION_CHANNELS: readonly PersonalNotificationChannel[] = ['inApp', 'email', 'push'];
 
@@ -284,11 +286,11 @@ export const notificationRecipientCandidates = (value: unknown): string[] => {
 const PRIVATE_HOST = /^(localhost|metadata(\.google\.internal)?|.*\.(internal|local|localhost)|\d{1,3}(\.\d{1,3}){3}|\[.*\])$/i;
 
 /**
- * Se o servidor pode fazer o POST de push para este endereço. A regra do Firestore já exige
- * `https`; aqui a conferência vai além, porque é o SERVIDOR que chama: um endereço interno ou um IP
- * cru transformaria a inscrição numa forma de pôr a function para falar com a rede de dentro.
+ * Se o SERVIDOR pode fazer um POST para este endereço: `https`, sem porta explícita, sem IP cru e
+ * sem host interno. Um endereço que o escritório ou a pessoa informa e a function chama transformaria
+ * a configuração numa forma de pô-la para falar com a rede de dentro.
  */
-export const isPushEndpointAllowed = (endpoint: string): boolean => {
+export const isPublicHttpsEndpoint = (endpoint: string): boolean => {
   try {
     const url = new URL(endpoint);
     return url.protocol === 'https:' && !url.port && !PRIVATE_HOST.test(url.hostname);
@@ -296,6 +298,12 @@ export const isPushEndpointAllowed = (endpoint: string): boolean => {
     return false;
   }
 };
+
+/**
+ * Se o servidor pode fazer o POST de push para este endereço. A regra do Firestore já exige
+ * `https`; aqui a conferência vai além, porque é o SERVIDOR que chama.
+ */
+export const isPushEndpointAllowed = (endpoint: string): boolean => isPublicHttpsEndpoint(endpoint);
 
 /** `true` só para o booleano ou o texto que diz sim — o `RunModal` transporta tudo como texto. */
 export const isChannelEnabled = (value: unknown): boolean => value === true || value === 'true';

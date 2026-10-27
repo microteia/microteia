@@ -1,5 +1,6 @@
 import type { DevicePushStatus, InboxNotification, InboxNotificationFilter } from '../entities/InboxNotification';
 import type { NotificationEmailSettings, NotificationEmailSettingsView } from '../schema/notifications';
+import type { ContactChannel, NotificationSmsSettings, NotificationSmsSettingsView } from '../schema/notificationContacts';
 
 export interface INotificationInboxRepository {
   subscribeRecent(
@@ -46,4 +47,26 @@ export interface INotificationEmailService {
   save(tenantId: string, settings: NotificationEmailSettings, password: string): Promise<NotificationEmailSettingsView>;
   clear(tenantId: string): Promise<NotificationEmailSettingsView>;
   sendTest(tenantId: string): Promise<string>;
+}
+
+export interface INotificationSmsService {
+  get(tenantId: string): Promise<NotificationSmsSettingsView>;
+  /** `secret` vazio mantém o gravado — ele nunca volta do servidor para ser reenviado. */
+  save(tenantId: string, settings: NotificationSmsSettings, secret: string): Promise<NotificationSmsSettingsView>;
+  clear(tenantId: string): Promise<NotificationSmsSettingsView>;
+  /** Confere a credencial no provedor, sem mandar mensagem. */
+  verify(tenantId: string): Promise<void>;
+}
+
+/** O que a página de descadastro mostra: o endereço vem MASCARADO do servidor. */
+export interface NotificationOptOutState {
+  tenant: string;
+  channel: ContactChannel;
+  address: string;
+  optedOut: boolean;
+}
+
+/** O descadastro de quem recebe avisos num endereço — sem sessão, só com o bilhete do link. */
+export interface INotificationOptOutService {
+  run(tenantId: string, ticket: string, op: 'get' | 'opt-out' | 'opt-in'): Promise<NotificationOptOutState>;
 }

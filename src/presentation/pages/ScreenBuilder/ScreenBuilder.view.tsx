@@ -849,6 +849,18 @@ export const ScreenBuilderView: React.FC = () => {
                 />
               </S.CheckboxCell>
             )}
+            {vm.fieldSupportsContact && (
+              <InputGroup>
+                <Label>{t('field.contact')}</Label>
+                <SearchSelect
+                  options={vm.contactOptions}
+                  value={vm.fieldForm.contact}
+                  onChange={vm.setFieldContact}
+                  placeholder={t('field.contact.none')}
+                />
+                <S.FieldHint>{t('field.contact.hint')}</S.FieldHint>
+              </InputGroup>
+            )}
             <S.CheckboxCell>
               <Checkbox
                 label={t('field.show-in-list')}

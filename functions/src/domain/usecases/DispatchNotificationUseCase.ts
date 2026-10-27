@@ -1,7 +1,14 @@
 import type { CreateAuditLogUseCase } from './CreateAuditLogUseCase';
 import type {
+  ContactAddress,
+  ContactState,
   EmailMessage,
   IEmailTransport,
+  INotificationContactLog,
+  INotificationSmsConfigRepository,
+  ISmsTransport,
+  NotificationEmailCredential,
+  NotificationSmsCredential,
   INotificationDirectory,
   INotificationAppearance,
   INotificationDispatchLog,
@@ -15,6 +22,14 @@ import type {
 import type { InboxNotificationDocument, NotificationAudience, NotificationChannel, WebPushPayload } from '../schema/notifications';
 import type { ResolvePortalGuestsUseCase } from './ResolvePortalGuestsUseCase';
 import { portalRecordPath } from '../schema/portal';
+import type { ContactChannel } from '../schema/notificationContacts';
+import {
+  contactValues,
+  normalizeContactEmail,
+  normalizePhoneNumber,
+  notificationOptOutPath,
+  SMS_BODY_MAX_LENGTH,
+} from '../schema/notificationContacts';
 import {
   isNotificationMuted,
   notificationDedupDocId,
@@ -30,15 +45,26 @@ import {
   DEFAULT_NOTIFICATION_EMAIL_LAYOUT,
   escapeMarkdown,
   fillNotificationTemplate,
+  notificationMarkdownToText,
   notificationTemplateFor,
   type NotificationEmailLayout,
   type NotificationTemplates,
 } from '../schema/notificationTemplate';
 
 /**
+ * A quem o aviso se dirige: aos membros, aos convidados do portal que veem o registro, ou aos
+ * ENDEREÇOS lidos de campos de contato (`contacts`) — quem não tem conta nenhuma no escritório.
+ */
+export type DispatchAudience = NotificationAudience | 'contacts';
+
+/** Os destinos pedidos. `sms` é opcional porque só os endereços o têm, e nenhuma outra origem o pede. */
+export type NotificationChannelSwitches = Record<Exclude<NotificationChannel, 'sms'>, boolean> & { sms?: boolean };
+
+/**
  * Um pedido de aviso — de QUALQUER origem. O passo "Notificar" é uma delas; o portal é outra; uma
  * extensão de backend pode ser a próxima. Todas passam pela mesma porta, e por isso as mesmas
- * garantias valem para todas: só membro recebe, a preferência da pessoa vence, cada canal falha
+ * garantias valem para todas: recebe só quem o público admite (membro conferido, convidado que vê o
+ * registro, endereço que não se descadastrou), a preferência da pessoa vence, cada canal falha
  * sozinho, e o mesmo `dedupKey` não avisa duas vezes.
  */
 export interface DispatchNotificationRequest {
@@ -59,13 +85,19 @@ export interface DispatchNotificationRequest {
   category?: string;
   /** Mesma chave, um aviso só — a reexecução não repete o e-mail. */
   dedupKey?: string;
-  channels: Record<NotificationChannel, boolean>;
+  channels: NotificationChannelSwitches;
   /**
    * `portal`: recebem os convidados do portal que veem `target` — e só eles; `recipientPermissions`
    * não vale, e `recipientIds`, quando vem, ESTREITA esse conjunto (o convite novo avisa só quem foi
    * convidado), nunca o alarga: um uid que não vê o registro continua sem receber. Ausente, os membros.
+   *
+   * `contacts`: recebem os endereços de `contacts` — e só eles, por e-mail e SMS. Quem pede já conferiu
+   * que cada um veio de um campo que a tela declarou de contato; aqui o endereço é normalizado, quem
+   * se descadastrou fica de fora, e cada envio deixa uma entrada na Auditoria.
    */
-  audience?: NotificationAudience;
+  audience?: DispatchAudience;
+  /** Os valores lidos dos campos de contato, ainda como foram digitados. Só com `audience: 'contacts'`. */
+  contacts?: { email: readonly string[]; sms: readonly string[] };
   recipientIds: readonly string[];
   /** Recebem os membros que têm TODAS estas permissões — "pode alterar" E "é responsável". */
   recipientPermissions: readonly string[];
@@ -83,6 +115,8 @@ export interface DispatchNotificationResult {
   recipients: number;
   delivered: ChannelCounts;
   failed: ChannelCounts;
+  /** Endereços que pediram para não receber mais — recusa da pessoa, não falha. */
+  optedOut: number;
   issues: DispatchIssue[];
 }
 
@@ -99,6 +133,10 @@ export interface DispatchNotificationDeps {
   appearance: INotificationAppearance;
   /** Quem do portal vê um registro agora — a porta pela qual um convidado vira destinatário. */
   portalGuests: ResolvePortalGuestsUseCase;
+  /** Os endereços já escritos e os descadastrados. */
+  contacts: INotificationContactLog;
+  smsConfig: INotificationSmsConfigRepository;
+  smsTransport: ISmsTransport;
   tenantName: (tenantId: string) => Promise<string>;
   now: () => Date;
 }
@@ -108,9 +146,36 @@ export type DispatchNotificationUseCase = {
 };
 
 const EMAIL_CONCURRENCY = 5;
+const SMS_CONCURRENCY = 5;
+const AUDIT_CONCURRENCY = 5;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 const toPortal = (request: DispatchNotificationRequest): boolean => request.audience === 'portal';
+const toContacts = (request: DispatchNotificationRequest): boolean => request.audience === 'contacts';
+
+type ContactOutcome = 'sent' | 'failed' | 'opted-out';
+
+const CONTACT_AUDIT_TITLES: Record<ContactChannel, Record<ContactOutcome, string>> = {
+  email: {
+    sent: '@core.automation/notifications.contacts.audit.email.sent',
+    failed: '@core.automation/notifications.contacts.audit.email.failed',
+    'opted-out': '@core.automation/notifications.contacts.audit.email.opted-out',
+  },
+  sms: {
+    sent: '@core.automation/notifications.contacts.audit.sms.sent',
+    failed: '@core.automation/notifications.contacts.audit.sms.failed',
+    'opted-out': '@core.automation/notifications.contacts.audit.sms.opted-out',
+  },
+};
+
+interface SendOutcome {
+  delivered: number;
+  failed: number;
+  /** Os `userId` que receberam — a Auditoria por envio precisa saber QUEM, não só quantos. */
+  sentTo: Set<string>;
+}
+
+const noSends = (failed = 0): SendOutcome => ({ delivered: 0, failed, sentTo: new Set() });
 
 /**
  * O caminho que abre o aviso FORA do app — no push e no e-mail —, com o escritório junto. O do
@@ -317,20 +382,25 @@ export const makeDispatchNotificationUseCase = (deps: DispatchNotificationDeps):
 
   const toEmail = async (
     request: DispatchNotificationRequest,
+    credential: NotificationEmailCredential | null,
     recipients: NotificationRecipient[],
     resolverFor: (locale: string) => Promise<NotificationTextResolver>,
     issues: DispatchIssue[],
     look: Appearance,
     variablesFor: (recipient: NotificationRecipient) => Promise<Record<string, string>>,
-  ): Promise<{ delivered: number; failed: number }> => {
-    const credential = await deps.emailConfig.get(request.tenantId);
+  ): Promise<SendOutcome> => {
     if (!credential) {
       issues.push({ message: '@core.automation/step.notify.email.not-configured' });
-      return { delivered: 0, failed: recipients.length };
+      return noSends(recipients.length);
     }
     const tenant = await deps.tenantName(request.tenantId);
-    const linkUrl = notificationLinkUrl(credential.settings.appUrl, deepLinkOf(request));
+    // Quem recebe num endereço não tem conta onde abrir o registro: o e-mail não leva botão, e o
+    // rodapé padrão não fala de Configurações que ele não tem.
+    const external = toContacts(request);
+    const linkUrl = external ? '' : notificationLinkUrl(credential.settings.appUrl, deepLinkOf(request));
+    const footerKey = external ? '@core.automation/notifications.contacts.footer' : '@core.automation/notifications.email.footer';
     const session = deps.emailTransport.open(credential);
+    const sentTo = new Set<string>();
     let delivered = 0;
     let failed = 0;
     let firstError = '';
@@ -352,14 +422,18 @@ export const makeDispatchNotificationUseCase = (deps: DispatchNotificationDeps):
           linkLabel: resolve('@core.automation/notifications.email.open', {}),
           footer: look.layout.footer
             ? fillNotificationTemplate(look.layout.footer, variables)
-            : resolve('@core.automation/notifications.email.footer', { tenant }),
+            : resolve(footerKey, { tenant }),
           tenantName: tenant,
           logoURL: look.logoURL,
           layout: look.layout,
+          unsubscribe: recipient.optOutUrl
+            ? { url: recipient.optOutUrl, label: resolve('@core.automation/notifications.contacts.opt-out', {}) }
+            : null,
         });
         try {
           await session.send(message);
           delivered += 1;
+          sentTo.add(recipient.userId);
         } catch (error) {
           failed += 1;
           firstError ||= error instanceof Error ? error.message : String(error);
@@ -371,7 +445,7 @@ export const makeDispatchNotificationUseCase = (deps: DispatchNotificationDeps):
     if (failed > 0) {
       issues.push({ message: '@core.automation/step.notify.email.failed', params: { count: String(failed), detail: firstError } });
     }
-    return { delivered, failed };
+    return { delivered, failed, sentTo };
   };
 
   const toPush = async (
@@ -396,6 +470,239 @@ export const makeDispatchNotificationUseCase = (deps: DispatchNotificationDeps):
     return { delivered: result.delivered.size, failed: result.failed.size };
   };
 
+  /** O preparo comum a todo público: a aparência do escritório e as variáveis de cada idioma. */
+  const presentationFor = async (request: DispatchNotificationRequest) => {
+    const resolverFor = resolverCache(request.tenantId);
+    // A aparência é enfeite: se não puder ser lida, o aviso sai com o texto e o layout padrão.
+    const [appearance, tenant] = await Promise.all([
+      deps.appearance.get(request.tenantId)
+        .catch((): Appearance => ({ layout: DEFAULT_NOTIFICATION_EMAIL_LAYOUT, templates: {}, logoURL: null })),
+      deps.tenantName(request.tenantId),
+    ]);
+    // As variáveis de um modelo, no idioma de cada destinatário: título e mensagem já resolvidos,
+    // os parâmetros do aviso, e o nome do escritório.
+    const variablesFor = async (recipient: NotificationRecipient): Promise<Record<string, string>> => {
+      const resolve = await resolverFor(recipient.locale);
+      return {
+        ...request.params,
+        title: resolve(request.title, request.params),
+        message: resolve(request.message, request.params),
+        tenant,
+      };
+    };
+    return { resolverFor, appearance, variablesFor };
+  };
+
+  /**
+   * Os endereços como serão escritos: normalizados, sem repetição, no máximo o teto. O telefone precisa
+   * do país, que é da configuração de SMS — sem ela não há como lê-lo, e cada um conta como falha.
+   */
+  const contactAddressesOf = (
+    request: DispatchNotificationRequest,
+    sms: NotificationSmsCredential | null,
+    issues: DispatchIssue[],
+  ): { addresses: ContactAddress[]; unsendableSms: number } => {
+    const raw = request.contacts ?? { email: [], sms: [] };
+    const seen = new Set<string>();
+    const addresses: ContactAddress[] = [];
+    let invalid = 0;
+    const add = (channel: ContactChannel, address: string | null) => {
+      if (!address) {
+        invalid += 1;
+        return;
+      }
+      if (seen.has(`${channel}:${address}`)) return;
+      seen.add(`${channel}:${address}`);
+      addresses.push({ channel, address });
+    };
+    if (request.channels.email) for (const value of contactValues(raw.email)) add('email', normalizeContactEmail(value));
+    const phones = contactValues(raw.sms);
+    let unsendableSms = 0;
+    if (request.channels.sms && phones.length > 0) {
+      if (sms) {
+        for (const value of phones) add('sms', normalizePhoneNumber(value, sms.settings.defaultCountryCode));
+      } else {
+        unsendableSms = new Set(phones).size;
+        issues.push({ message: '@core.automation/step.notify.sms.not-configured' });
+      }
+    }
+    if (invalid > 0) {
+      issues.push({ message: '@core.automation/step.notify.contacts.invalid', params: { count: String(invalid) } });
+    }
+    if (addresses.length > NOTIFICATION_MAX_RECIPIENTS) {
+      issues.push({
+        message: '@core.automation/step.notify.recipients.truncated',
+        params: { max: String(NOTIFICATION_MAX_RECIPIENTS) },
+      });
+    }
+    return { addresses: addresses.slice(0, NOTIFICATION_MAX_RECIPIENTS), unsendableSms };
+  };
+
+  /** Quem recebe num endereço, na forma que os canais entendem: o bilhete é a identidade dele. */
+  const contactRecipient = (tenantId: string, state: ContactState, locale: string, appUrl: string): NotificationRecipient => ({
+    userId: state.ticket,
+    email: state.channel === 'email' ? state.address : '',
+    locale,
+    channels: { inApp: false, email: state.channel === 'email', push: false },
+    mutes: {},
+    optOutUrl: notificationLinkUrl(appUrl, notificationOptOutPath(tenantId, state.ticket, locale)),
+  });
+
+  /**
+   * O SMS: o escritório, o título e a mensagem em texto puro, e a linha de descadastro — que nunca é
+   * cortada: é ela que a pessoa precisa para dizer não.
+   */
+  const toSms = async (
+    credential: NotificationSmsCredential,
+    targets: readonly { state: ContactState; recipient: NotificationRecipient }[],
+    resolverFor: (locale: string) => Promise<NotificationTextResolver>,
+    issues: DispatchIssue[],
+    variablesFor: (recipient: NotificationRecipient) => Promise<Record<string, string>>,
+  ): Promise<SendOutcome> => {
+    const session = deps.smsTransport.open(credential);
+    const sentTo = new Set<string>();
+    let failed = 0;
+    let firstError = '';
+    await runLimited(targets, SMS_CONCURRENCY, async ({ state, recipient }) => {
+      const resolve = await resolverFor(recipient.locale);
+      const variables = await variablesFor(recipient);
+      const text = clip(`${variables.tenant}: ${variables.title}\n${notificationMarkdownToText(variables.message)}`, SMS_BODY_MAX_LENGTH);
+      const optOut = resolve('@core.automation/notifications.sms.opt-out', { url: recipient.optOutUrl ?? '' });
+      try {
+        await session.send(state.address, `${text}\n${optOut}`);
+        sentTo.add(state.ticket);
+      } catch (error) {
+        failed += 1;
+        firstError ||= error instanceof Error ? error.message : String(error);
+      }
+    });
+    if (failed > 0) {
+      issues.push({ message: '@core.automation/step.notify.sms.failed', params: { count: String(failed), detail: firstError } });
+    }
+    return { delivered: sentTo.size, failed, sentTo };
+  };
+
+  /**
+   * Uma entrada na Auditoria POR ENVIO a um endereço — e também por endereço que NÃO recebeu porque
+   * se descadastrou. Quem tem de provar que avisou (ou por que não avisou) precisa do endereço e do
+   * instante de cada um, e não de uma contagem. Não depende de `toAudit`, como o rastro do portal.
+   */
+  const auditContactSends = async (
+    request: DispatchNotificationRequest,
+    outcomes: readonly { state: ContactState; outcome: ContactOutcome }[],
+  ): Promise<void> => {
+    await runLimited(outcomes, AUDIT_CONCURRENCY, async ({ state, outcome }) => {
+      try {
+        await deps.createAuditLog.execute({
+          tenantId: request.tenantId,
+          title: CONTACT_AUDIT_TITLES[state.channel][outcome],
+          titleParams: { address: state.address },
+          userId: 'system',
+          userName: '@core.automation/run.actor',
+          photoURL: '',
+          action: 'SYSTEM',
+          type: 'AUDIT',
+          ...(outcome === 'failed' ? { severity: 'HIGH' as const } : {}),
+          entity: request.workflowId ? 'workflow' : request.source,
+          entityId: request.workflowId || request.target?.recordId || '',
+          ...(request.target ? { linkCollection: request.target.collection, linkRecordId: request.target.recordId } : {}),
+          text: request.title,
+          ...(Object.keys(request.params).length > 0 ? { textParams: request.params } : {}),
+        });
+      } catch {
+        // O envio já aconteceu (ou não), e isso não se desfaz por a Auditoria não ter gravado.
+      }
+    });
+  };
+
+  const dispatchToContacts = async (
+    request: DispatchNotificationRequest,
+    delivered: ChannelCounts,
+    failed: ChannelCounts,
+    issues: DispatchIssue[],
+  ): Promise<DispatchNotificationResult> => {
+    if (request.channels.inApp || request.channels.push) {
+      issues.push({ message: '@core.automation/step.notify.contacts.channel-unsupported' });
+    }
+    const [emailCredential, smsCredential] = await Promise.all([
+      request.channels.email ? deps.emailConfig.get(request.tenantId) : Promise.resolve(null),
+      request.channels.sms ? deps.smsConfig.get(request.tenantId) : Promise.resolve(null),
+    ]);
+    const { addresses, unsendableSms } = contactAddressesOf(request, smsCredential, issues);
+    failed.sms += unsendableSms;
+    if (addresses.length === 0) {
+      if (unsendableSms === 0) issues.push({ message: '@core.automation/step.notify.recipients.none' });
+      return { recipients: 0, delivered, failed, optedOut: 0, issues };
+    }
+
+    const states = await deps.contacts.status(request.tenantId, addresses);
+    const optedOut = states.filter((state) => state.optedOut);
+    const reachable = states.filter((state) => !state.optedOut);
+    if (optedOut.length > 0) {
+      issues.push({ message: '@core.automation/step.notify.contacts.opted-out', params: { count: String(optedOut.length) } });
+    }
+
+    // O descadastro tem de funcionar ANTES de a mensagem chegar: sem a marca gravada, o link levaria a
+    // "não encontrado". Sem ela, nada sai — mandar sem como dizer não é o que este recurso não faz.
+    let recorded = true;
+    if (reachable.length > 0) {
+      try {
+        await deps.contacts.touch(request.tenantId, reachable, deps.now());
+      } catch {
+        recorded = false;
+        issues.push({ message: '@core.automation/step.notify.contacts.record-failed' });
+      }
+    }
+
+    const [presentation, locale] = await Promise.all([
+      presentationFor(request),
+      deps.directory.officeLocale(request.tenantId),
+    ]);
+    const emailStates = reachable.filter((state) => state.channel === 'email');
+    const smsStates = reachable.filter((state) => state.channel === 'sms');
+
+    const sendEmail = async (): Promise<SendOutcome> => {
+      if (emailStates.length === 0) return noSends();
+      if (!recorded) return noSends(emailStates.length);
+      const appUrl = emailCredential?.settings.appUrl ?? '';
+      if (emailCredential && !appUrl) {
+        issues.push({ message: '@core.automation/step.notify.contacts.no-app-url' });
+        return noSends(emailStates.length);
+      }
+      const recipients = emailStates.map((state) => contactRecipient(request.tenantId, state, locale, appUrl));
+      return toEmail(request, emailCredential, recipients, presentation.resolverFor, issues, presentation.appearance, presentation.variablesFor)
+        .catch(() => noSends(recipients.length));
+    };
+    const sendSms = async (): Promise<SendOutcome> => {
+      if (smsStates.length === 0 || !smsCredential) return noSends();
+      if (!recorded) return noSends(smsStates.length);
+      const targets = smsStates.map((state) => ({
+        state,
+        recipient: contactRecipient(request.tenantId, state, locale, smsCredential.settings.appUrl),
+      }));
+      return toSms(smsCredential, targets, presentation.resolverFor, issues, presentation.variablesFor)
+        .catch(() => noSends(targets.length));
+    };
+
+    const [emailResult, smsResult] = await Promise.all([sendEmail(), sendSms()]);
+    delivered.email = emailResult.delivered;
+    failed.email = emailResult.failed;
+    delivered.sms = smsResult.delivered;
+    failed.sms += smsResult.failed;
+
+    const outcomeOf = (sent: Set<string>) => (state: ContactState) => ({
+      state,
+      outcome: (sent.has(state.ticket) ? 'sent' : 'failed') as ContactOutcome,
+    });
+    await auditContactSends(request, [
+      ...optedOut.map((state) => ({ state, outcome: 'opted-out' as const })),
+      ...emailStates.map(outcomeOf(emailResult.sentTo)),
+      ...smsStates.map(outcomeOf(smsResult.sentTo)),
+    ]);
+
+    return { recipients: reachable.length, delivered, failed, optedOut: optedOut.length, issues };
+  };
+
   return {
     execute: async (request) => {
       const delivered = zeroCounts();
@@ -407,7 +714,7 @@ export const makeDispatchNotificationUseCase = (deps: DispatchNotificationDeps):
         const first = await deps.dispatches.claim(request.tenantId, notificationDedupDocId(request.dedupKey), expiresAt);
         if (!first) {
           issues.push({ message: '@core.automation/step.notify.duplicate' });
-          return { recipients: 0, delivered, failed, issues };
+          return { recipients: 0, delivered, failed, optedOut: 0, issues };
         }
       }
 
@@ -416,33 +723,19 @@ export const makeDispatchNotificationUseCase = (deps: DispatchNotificationDeps):
         else failed.audit = 1;
       }
 
+      if (toContacts(request)) return dispatchToContacts(request, delivered, failed, issues);
+      if (request.channels.sms) issues.push({ message: '@core.automation/step.notify.sms.contacts-only' });
+
       const personal = request.channels.inApp || request.channels.email || request.channels.push;
-      if (!personal) return { recipients: 0, delivered, failed, issues };
+      if (!personal) return { recipients: 0, delivered, failed, optedOut: 0, issues };
 
       const recipients = await recipientsOf(request, issues);
       if (recipients.length === 0) {
         issues.push({ message: '@core.automation/step.notify.recipients.none' });
-        return { recipients: 0, delivered, failed, issues };
+        return { recipients: 0, delivered, failed, optedOut: 0, issues };
       }
 
-      const resolverFor = resolverCache(request.tenantId);
-      // A aparência é enfeite: se não puder ser lida, o aviso sai com o texto e o layout padrão.
-      const [appearance, tenant] = await Promise.all([
-        deps.appearance.get(request.tenantId)
-          .catch((): Appearance => ({ layout: DEFAULT_NOTIFICATION_EMAIL_LAYOUT, templates: {}, logoURL: null })),
-        deps.tenantName(request.tenantId),
-      ]);
-      // As variáveis de um modelo, no idioma de cada destinatário: título e mensagem já resolvidos,
-      // os parâmetros do aviso, e o nome do escritório.
-      const variablesFor = async (recipient: NotificationRecipient): Promise<Record<string, string>> => {
-        const resolve = await resolverFor(recipient.locale);
-        return {
-          ...request.params,
-          title: resolve(request.title, request.params),
-          message: resolve(request.message, request.params),
-          tenant,
-        };
-      };
+      const { resolverFor, appearance, variablesFor } = await presentationFor(request);
       const category = request.category ?? '';
       const wants = (channel: 'inApp' | 'email' | 'push') =>
         request.channels[channel]
@@ -459,8 +752,10 @@ export const makeDispatchNotificationUseCase = (deps: DispatchNotificationDeps):
       const [inboxDelivered, emailResult, pushResult] = await Promise.all([
         inApp.length > 0 ? toInbox(request, inApp, appearance, variablesFor) : Promise.resolve(true),
         email.length > 0
-          ? toEmail(request, email, resolverFor, issues, appearance, variablesFor).catch(() => ({ delivered: 0, failed: email.length }))
-          : Promise.resolve({ delivered: 0, failed: 0 }),
+          ? deps.emailConfig.get(request.tenantId)
+            .then((credential) => toEmail(request, credential, email, resolverFor, issues, appearance, variablesFor))
+            .catch(() => noSends(email.length))
+          : Promise.resolve(noSends()),
         push.length > 0
           ? toPush(request, push, appearance, variablesFor).catch(() => ({ delivered: 0, failed: push.length }))
           : Promise.resolve({ delivered: 0, failed: 0 }),
@@ -476,7 +771,7 @@ export const makeDispatchNotificationUseCase = (deps: DispatchNotificationDeps):
       const reachedGuests = Math.max(delivered.inApp, delivered.email);
       if (toPortal(request) && reachedGuests > 0) await auditPortalDelivery(request, reachedGuests);
 
-      return { recipients: recipients.length, delivered, failed, issues };
+      return { recipients: recipients.length, delivered, failed, optedOut: 0, issues };
     },
   };
 };
