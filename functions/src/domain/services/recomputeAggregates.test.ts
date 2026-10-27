@@ -74,6 +74,7 @@ const harness = (
       mutationRepository: {
         getById: async (_tenantId, _collection, id) => parents[id] ?? null,
         newId: () => 'novo',
+        findKeyHolders: async () => new Map<string, string>(),
         create: async () => 'novo',
         update: async (_tenantId, _collection, id, data) => {
           updates.push({ id, data });
@@ -310,6 +311,7 @@ describe('recomputeAggregatesForChildChange — latest', () => {
       mutationRepository: {
         getById: async (_tenantId, _collection, id) => parents[id] ?? null,
         newId: () => 'novo',
+        findKeyHolders: async () => new Map<string, string>(),
         create: async () => 'novo',
         update: async (_tenantId, _collection, id, data) => {
           updates.push({ id, data });

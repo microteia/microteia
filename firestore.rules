@@ -467,6 +467,14 @@ service cloud.firestore {
         allow write: if false;
       }
 
+      // O job de cada importação em massa (um documento por importação executada): totais, as primeiras
+      // linhas recusadas e quem importou. Ninguém lê nem grava do cliente — a tela recebe tudo pela
+      // callable `importRecords`, e um cliente que gravasse os totais faria a linha de Auditoria da
+      // importação contar o que não aconteceu.
+      match /record_imports/{importId} {
+        allow read, write: if false;
+      }
+
       // Histórico de VERSÕES APLICADAS das extensões: o que este escritório já pôs no ar de cada uma,
       // e o que ele pode reaplicar. Todo membro lê, como em `installed_extensions` — o pacote guardado
       // aqui é o mesmo que já está exposto lá, então não há exposição nova; só admin grava, porque
@@ -650,7 +658,7 @@ service cloud.firestore {
         // `installed_extensions`. Continua RESERVADA porque os documentos de então continuam nos
         // escritórios, e liberar o nome deixaria uma tela nova nascer por cima deles.
         'tagDefinitions', 'plugin_installations',
-        'recordKeys', 'record_key_adoptions', 'recordSequences',
+        'recordKeys', 'record_key_adoptions', 'recordSequences', 'record_imports',
         'screenDefinitions', 'scripts', 'secrets', 'settings', 'tags', 'tenant', 'workflow_clock',
         'workflow_definitions', 'workflow_events', 'workflow_executions', 'workflow_trigger_marks'
         ];

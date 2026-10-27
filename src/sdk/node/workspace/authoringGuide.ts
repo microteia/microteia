@@ -23,6 +23,8 @@ import {
 } from '../../../domain/schema/memberVisibility';
 import { LOOKUP_SEED_SINCE_KERNEL } from '../../../domain/schema/lookupSeed';
 import { RECORD_SEQUENCE_SINCE_KERNEL } from '../../../domain/schema/recordSequence';
+import { RECORD_IMPORT_BATCH_SIZE, RECORD_IMPORT_MAX_ROWS } from '../../../domain/schema/recordImport';
+import { PERMISSION_RECORD_IMPORT_RUN } from '../../../domain/schema/access/kernelPermissions';
 import { AGGREGATION_OP_LABELS, NUMERIC_AGGREGATION_OPS } from '../../../domain/schema/fieldRules';
 import type { WidgetNodeType } from '../../../domain/schema/ui/widgetSpec';
 import { STEP_TYPES } from '../../../domain/entities/Workflow';
@@ -1978,6 +1980,38 @@ organization. Write it to be safely re-runnable: it may resume. \`phase: 'before
 case that cannot work otherwise — copying an old field to a new one has to happen while both still
 exist, because after the package converges the old one is no longer writable.
 
+### Bulk import — what a file does to your screen
+
+Anyone with \`${PERMISSION_RECORD_IMPORT_RUN}\` sees **Import** on the list of a screen where they can create
+or change records. They pick a CSV or JSON file (up to ${RECORD_IMPORT_MAX_ROWS} rows), map each column to a
+field, simulate, and import. You declare nothing to get this, and you cannot turn it off for a screen: the
+gate is the permission, given by the organization, plus \`<collection>.create\` / \`.update\` charged on
+EVERY row.
+
+Each row is written on the server, in batches of ${RECORD_IMPORT_BATCH_SIZE}, through the same path as the
+"Upsert record" step and \`create_record\` over MCP. So everything you declared holds, with no code of yours:
+
+- **Field rules, keys, sequence, edit window, record visibility** — refused rows are reported by their line
+  in the file, with the same message the form would show. A \`unique\` value already taken is a refused row,
+  never a duplicate.
+- **\`required\` IS enforced** — on the record as it ends up (what was stored plus what the row brings). The
+  "Upsert record" step does not enforce it; the import does, because a file of half-filled records is the
+  mistake the form exists to prevent.
+- **A \`primary\` key is the address.** A row whose primary key value already exists UPDATES that record
+  (only the mapped, non-empty cells); otherwise it creates one. Importing the same file twice changes nothing
+  the second time. A screen with no primary key can only CREATE, and importing twice creates twice — if
+  your screen has a natural identifier, declare it as \`primary\` (see "Keys").
+- **Files, nested objects, aggregated, derived and numbered fields are not offered** for mapping: a file
+  cannot carry them, or the kernel computes them.
+- **Every written record carries \`createdVia\` / \`updatedVia: "import"\`** and the importing person as author,
+  and fires \`<collection>.saved\` like any other write. A workflow that must not run for each imported row
+  (a welcome e-mail, say) tests it: \`updatedVia != "import"\`.
+- **The audit trail** gets one line per record, as always, plus ONE line for the import itself — who, which
+  screen, which file, and how many rows were created, updated and refused.
+
+What an import is not: a migration of YOUR data between versions (that is \`migrations\`, above), or a way
+to write fields a person could not write in the form.
+
 ### The audit trail is not your evidence store — unless the organization makes it one
 
 Every write to a screen's collection lands in the organization's audit trail (\`auditActions\` above says
@@ -2407,8 +2441,9 @@ automation, and it used to be invisible: the package validated and the flow sile
 **Who wrote it is stamped for you, and cannot be written by you.** An \`upsert\` — the step, a script's
 \`upsert()\`, or \`create_record\` / \`update_record\` over MCP — records the author exactly as the form does:
 \`createdBy\` / \`updatedBy\` is the \`actor\`'s uid, \`createdByName\` / \`updatedByName\` and the photo come
-from the same rule, and \`createdVia\` / \`updatedVia\` says how the write came in — \`"ui"\`, \`"agent"\` or,
-with no person behind the run, \`"automation"\` (the author is then \`workflow-engine\`). Every one of those
+from the same rule, and \`createdVia\` / \`updatedVia\` says how the write came in — \`"ui"\`, \`"agent"\`, \`"portal"\`,
+\`"import"\` (a bulk import, see §8) or, with no person behind the run, \`"automation"\` (the author is then
+\`workflow-engine\`). Every one of those
 fields is managed by the system: a mapping or a \`data\` object that names them is refused, or dropped by the
 step. So is \`portalVerified\`, the identity a portal guest proved when the write came through the portal. So "who registered this" and "typed or by the AI" need no field of yours — read them off the record.
 

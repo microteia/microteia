@@ -47,6 +47,7 @@ import type { IPublicExtensionRepository } from '../../domain/repositories/IPubl
 import type { IExtensionReputationRepository } from '../../domain/repositories/IExtensionReputationRepository';
 import type { IAggregateBackfillRepository } from '../../domain/repositories/IAggregateBackfillRepository';
 import type { IRecordKeyAdoptionRepository } from '../../domain/repositories/IRecordKeyAdoptionRepository';
+import type { IRecordImportRepository } from '../../domain/repositories/IRecordImportRepository';
 import type { IBackendResidueRepository } from '../../domain/repositories/IBackendResidueRepository';
 import type { IAgentAuthRequestRepository } from '../../domain/repositories/IAgentAuthRequestRepository';
 import type { IAgentGrantRepository } from '../../domain/repositories/IAgentGrantRepository';
@@ -106,6 +107,7 @@ export interface DIContainer {
   backendResidueRepository: IBackendResidueRepository;
   aggregateBackfillRepository: IAggregateBackfillRepository;
   recordKeyAdoptionRepository: IRecordKeyAdoptionRepository;
+  recordImportRepository: IRecordImportRepository;
   portalRepository: IPortalRepository;
 }
 

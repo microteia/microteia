@@ -4,6 +4,9 @@ import { useDynamicRecordListViewModel } from './DynamicRecordList.viewmodel';
 import { Spinner } from '../../components/ui/Spinner';
 import { InfoBanner } from '../../components/ui/InfoBanner';
 import { RecordListSurface } from '../../components/layout/RecordListSurface';
+import { RecordImportDialog } from '../../components/ui/RecordImportDialog';
+import { Button } from '../../components/ui/Button';
+import { RiUploadLine } from 'react-icons/ri';
 
 import { useT } from '../../shared/i18n/useT';
 
@@ -47,19 +50,32 @@ export const DynamicRecordListView: React.FC<{ tabKey: string }> = ({ tabKey }) 
   }
 
   return (
-    <RecordListSurface
-      vm={vm}
-      definition={definition}
-      variant="page"
-      summary={vm.notices.length > 0
-        ? (
-          <S.Notices>
-            {vm.notices.map((notice) => (
-              <InfoBanner key={notice.message} variant={notice.variant} message={notice.message} />
-            ))}
-          </S.Notices>
-        )
-        : undefined}
-    />
+    <>
+      <RecordListSurface
+        vm={vm}
+        definition={definition}
+        variant="page"
+        headerActions={vm.canImport
+          ? (
+            <Button variant="secondary" size="sm" onClick={vm.openImport} title={t('import.open')}>
+              <RiUploadLine size={14} />
+              {t('import.open')}
+            </Button>
+          )
+          : undefined}
+        summary={vm.notices.length > 0
+          ? (
+            <S.Notices>
+              {vm.notices.map((notice) => (
+                <InfoBanner key={notice.message} variant={notice.variant} message={notice.message} />
+              ))}
+            </S.Notices>
+          )
+          : undefined}
+      />
+      {vm.importOpen && (
+        <RecordImportDialog collection={vm.collection} screenTitle={vm.screenTitle} onClose={vm.closeImport} />
+      )}
+    </>
   );
 };

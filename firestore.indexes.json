@@ -302,6 +302,12 @@
       "indexes": []
     },
     {
+      "collectionGroup": "record_imports",
+      "fieldPath": "expiresAt",
+      "ttl": true,
+      "indexes": []
+    },
+    {
       "collectionGroup": "portalUsers",
       "fieldPath": "userId",
       "indexes": [

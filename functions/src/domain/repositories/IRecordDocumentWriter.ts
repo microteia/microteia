@@ -1,5 +1,5 @@
 /** Por onde o anexo chegou à aba Documentos — o mesmo carimbo `createdVia` de um registro. */
-export type RecordDocumentVia = 'agent' | 'automation' | 'ui' | 'portal';
+export type RecordDocumentVia = 'agent' | 'automation' | 'ui' | 'portal' | 'import';
 
 /**
  * Quem responde pelo anexo. Sem pessoa por trás, o autor é o motor (`workflow-engine`) e o nome fica

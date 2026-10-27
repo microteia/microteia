@@ -1131,6 +1131,7 @@ export const CORE_AUTOMATION_MESSAGES: Record<string, string> = {
   'mutation.upsert.key-conflict':
     'Another record already holds the key "{key}" with the value {value}.',
   'mutation.upsert.key-required': 'The key "{key}" needs a value: {fields}.',
+  'mutation.upsert.required': 'The field "{field}" is required.',
   'mutation.upsert.sequence-parent-required': 'The number in "{field}" is counted per parent record, and "{parent}" is empty.',
   'mutation.upsert.unwritable-ignored':
     'Write to "{table}": {count} field(s) that cannot be written were ignored — {detail}',

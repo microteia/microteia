@@ -1135,6 +1135,7 @@ export const CORE_AUTOMATION: Record<string, string> = {
   'mutation.upsert.key-conflict':
     'Outro registro já ocupa a chave "{key}" com o valor {value}.',
   'mutation.upsert.key-required': 'A chave "{key}" precisa de valor: {fields}.',
+  'mutation.upsert.required': 'O campo "{field}" é obrigatório.',
   'mutation.upsert.sequence-parent-required': 'O número de "{field}" é contado por registro-pai, e "{parent}" está vazio.',
   'mutation.upsert.unwritable-ignored':
     'Gravação em "{table}": {count} campo(s) não gravável(is) foram ignorados — {detail}',

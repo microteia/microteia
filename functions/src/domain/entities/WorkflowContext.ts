@@ -42,10 +42,10 @@ export interface WorkflowServices {
 }
 
 /**
- * De onde partiu o gesto de uma PESSOA: o app, um agente de IA pelo MCP em nome dela, ou o portal —
- * e aí a pessoa é de fora do escritório, sem permissão nenhuma.
+ * De onde partiu o gesto de uma PESSOA: o app, um agente de IA pelo MCP em nome dela, o portal — e aí a
+ * pessoa é de fora do escritório, sem permissão nenhuma — ou a importação em massa que ela pediu no app.
  */
-export type ActorVia = 'ui' | 'agent' | 'portal';
+export type ActorVia = 'ui' | 'agent' | 'portal' | 'import';
 
 /**
  * A pessoa que causou a execução: a IDENTIDADE (uid, nome efetivo, foto, por onde veio) e o ACESSO

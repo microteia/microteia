@@ -226,6 +226,9 @@ export const CORE_ACCESS_MESSAGES: Record<string, string> = {
   'permission.portal.activity': 'Receive portal activity',
   'permission.portal.activity.description':
     'Be notified when a guest creates, changes or attaches something in the portal — on the screens where you can also change records.',
+  'permission.record-import.run': 'Import records from a file',
+  'permission.record-import.run.description':
+    'Create or update many records of a screen at once from a CSV or JSON file. Each row still requires permission to create or to change records of that screen, and goes through the same checks as the form.',
   'permission.reports.manage': 'Manage reports',
   'permission.reports.manage.description':
     'Create, edit and remove the reports of the organization. Reading each collection a report covers is still required to run it.',
@@ -263,6 +266,7 @@ export const CORE_ACCESS_MESSAGES: Record<string, string> = {
   'resource.extensions': 'Extensions',
   'resource.members': 'Members',
   'resource.portal': 'Portal',
+  'resource.record-import': 'Record import',
   'resource.reports': 'Reports',
   'resource.document-templates': 'Document templates',
   'resource.downloads': 'Downloads',

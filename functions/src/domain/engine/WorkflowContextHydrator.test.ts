@@ -479,6 +479,8 @@ describe('referência lida sozinha numa automação é o id (regressão da 9.108
 
     newId = () => 'novo';
 
+    findKeyHolders = () => Promise.resolve(new Map<string, string>());
+
     create = (_tenantId: string, collection: string, data: Record<string, unknown>) => {
       this.written.push({ collection, data });
       return Promise.resolve('novo');
