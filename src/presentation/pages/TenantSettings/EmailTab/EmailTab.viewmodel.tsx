@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useT } from '../../../shared/i18n/useT';
 import type { SideTabItem } from '../../../components/ui/SideTabs';
 
-export type EmailTabSection = 'server' | 'appearance' | 'templates';
+export type EmailTabSection = 'server' | 'sms' | 'appearance' | 'templates';
 
 export interface EmailTabViewModel {
   sections: SideTabItem[];
@@ -16,6 +16,10 @@ const SECTIONS: Array<{ key: EmailTabSection; icon: string; label: string; title
   {
     key: 'server', icon: 'mailSend', label: 'notifications.settings-tab.server',
     title: 'notifications.email.title', description: 'notifications.email.description',
+  },
+  {
+    key: 'sms', icon: 'smartphone', label: 'notifications.settings-tab.sms',
+    title: 'notifications.sms.title', description: 'notifications.sms.description',
   },
   {
     key: 'appearance', icon: 'palette', label: 'notifications.settings-tab.appearance',

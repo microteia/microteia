@@ -17,6 +17,8 @@ export interface NotificationEmailContent {
   tenantName?: string;
   logoURL?: string | null;
   layout?: NotificationEmailLayout;
+  /** O descadastro de quem recebe num endereço: vai no rodapé e no cabeçalho `List-Unsubscribe`. */
+  unsubscribe?: { url: string; label: string } | null;
 }
 
 /** Uma linha de cabeçalho não pode carregar quebra: seria a porta de injeção de cabeçalho no SMTP. */
@@ -37,12 +39,14 @@ export const renderNotificationEmail = (content: NotificationEmailContent): Emai
     tenantName: content.tenantName ?? '',
     logoURL: content.logoURL ?? null,
     layout: content.layout ?? DEFAULT_NOTIFICATION_EMAIL_LAYOUT,
+    unsubscribe: content.unsubscribe ?? null,
   };
   return {
     to: singleLine(content.to),
     subject: parts.title,
     text: buildNotificationEmailText(parts),
     html: buildNotificationEmailHtml(parts),
+    ...(content.unsubscribe ? { unsubscribeUrl: singleLine(content.unsubscribe.url) } : {}),
   };
 };
 

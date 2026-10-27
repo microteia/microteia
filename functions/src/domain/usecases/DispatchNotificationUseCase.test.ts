@@ -1,10 +1,17 @@
 import { describe, expect, it, vi } from 'vitest';
 import { makeDispatchNotificationUseCase } from './DispatchNotificationUseCase';
 import type { DispatchNotificationDeps, DispatchNotificationRequest } from './DispatchNotificationUseCase';
-import type { EmailMessage, NotificationRecipient } from '../repositories/INotificationDelivery';
+import type {
+  ContactState,
+  EmailMessage,
+  INotificationContactLog,
+  NotificationRecipient,
+  NotificationSmsCredential,
+} from '../repositories/INotificationDelivery';
 import type { InboxNotificationDocument } from '../schema/notifications';
 import { NOTIFICATION_MAX_RECIPIENTS } from '../schema/notifications';
 import type { PortalGuestsOfRecord } from './ResolvePortalGuestsUseCase';
+import type { CreateAuditLogInput } from './CreateAuditLogUseCase';
 
 const recipient = (userId: string, overrides: Partial<NotificationRecipient> = {}): NotificationRecipient => ({
   userId,
@@ -40,6 +47,26 @@ const setup = (
   const sent: EmailMessage[] = [];
   const pushed = new Map<string, unknown>();
   const claimed = new Set<string>();
+  const texted: { to: string; body: string }[] = [];
+  const smsFailing = new Set<string>();
+  const optedOut = new Set<string>();
+  const touched: ContactState[] = [];
+  const contactLog: INotificationContactLog = {
+    status: async (_tenantId, addresses) => addresses.map((contact) => ({
+      ...contact,
+      ticket: `tk-${contact.channel}-${contact.address}`.replace(/[^A-Za-z0-9_-]/g, '_'),
+      optedOut: optedOut.has(contact.address),
+    })),
+    touch: async (_tenantId, contacts) => { touched.push(...contacts); },
+    find: async () => null,
+    setOptedOut: async () => undefined,
+  };
+  let smsCredential: NotificationSmsCredential | null = {
+    settings: {
+      provider: 'twilio', accountSid: 'AC', fromNumber: '+15550001111', webhookUrl: '', defaultCountryCode: '55', appUrl: 'https://app.test',
+    },
+    secret: 'token',
+  };
   const look: Awaited<ReturnType<DispatchNotificationDeps['appearance']['get']>> = {
     layout: { showLogo: true, accentColor: '', signature: '', footer: '' },
     templates: {},
@@ -55,6 +82,7 @@ const setup = (
         locale: contact.locale ?? 'en',
         channels: { inApp: true, email: true, push: false },
       })),
+      officeLocale: async () => 'pt-BR',
     },
     portalGuests: { execute: async () => portal },
     inbox: { deliver: async (_tenantId, docs) => { delivered.push(...docs); } },
@@ -75,11 +103,38 @@ const setup = (
     catalog: { resolverFor: async (_tenantId, locale) => (value, params) => `${locale}:${value}:${params.name ?? ''}` },
     appearance: { get: async () => look },
     dispatches: { claim: async (_tenantId, id) => { if (claimed.has(id)) return false; claimed.add(id); return true; } },
+    contacts: contactLog,
+    smsConfig: {
+      get: async () => smsCredential,
+      save: async () => undefined,
+      clear: async () => undefined,
+    },
+    smsTransport: {
+      open: () => ({
+        send: async (to, body) => {
+          if (smsFailing.has(to)) throw new Error('rejected');
+          texted.push({ to, body });
+        },
+      }),
+      verify: async () => undefined,
+    },
     tenantName: async () => 'Acme',
     now: () => new Date('2026-10-13T12:00:00Z'),
     ...extra,
   };
-  return { uc: makeDispatchNotificationUseCase(deps), audit, delivered, sent, pushed, look };
+  return {
+    uc: makeDispatchNotificationUseCase(deps),
+    audit,
+    delivered,
+    sent,
+    pushed,
+    look,
+    texted,
+    smsFailing,
+    optedOut,
+    touched,
+    withoutSms: () => { smsCredential = null; },
+  };
 };
 
 describe('DispatchNotificationUseCase', () => {
@@ -229,6 +284,7 @@ describe('DispatchNotificationUseCase', () => {
         recipients: async (_tenantId, ids) => members.filter((member) => ids.includes(member.userId)),
         memberIdsGranting: async (_tenantId, permission) => holders[permission] ?? [],
         guests: async () => [],
+        officeLocale: async () => 'en',
       },
     });
     await uc.execute(request({
@@ -376,6 +432,167 @@ describe('DispatchNotificationUseCase', () => {
       const { uc, delivered } = setup([recipient('u1')], {}, seen);
       await uc.execute(request({ channels: { audit: false, inApp: true, email: false, push: false }, recipientIds: ['u1'] }));
       expect(delivered[0]).toMatchObject({ audience: 'members', recipientId: 'u1', title: '@ext/title' });
+    });
+  });
+
+  describe('endereços de campos de contato', () => {
+    const contactRequest = (overrides: Partial<DispatchNotificationRequest> = {}): DispatchNotificationRequest => request({
+      audience: 'contacts',
+      target: { collection: 'companies', recordId: 'co1' },
+      channels: { audit: false, inApp: false, email: true, push: false, sms: true },
+      contacts: { email: ['Fiscal@Empresa.com.br; outro@empresa.com.br'], sms: ['(71) 99999-8888'] },
+      ...overrides,
+    });
+
+    it('normaliza e escreve para o e-mail e o telefone, nunca para membros', async () => {
+      const { uc, sent, texted, delivered } = setup([recipient('u1')]);
+      const result = await uc.execute(contactRequest({ recipientIds: ['u1'] }));
+      expect(sent.map((message) => message.to).sort()).toEqual(['fiscal@empresa.com.br', 'outro@empresa.com.br']);
+      expect(texted.map((message) => message.to)).toEqual(['+5571999998888']);
+      expect(delivered).toEqual([]);
+      expect(result).toMatchObject({
+        recipients: 3,
+        optedOut: 0,
+        delivered: { email: 2, sms: 1, inApp: 0, push: 0 },
+        failed: { email: 0, sms: 0 },
+      });
+    });
+
+    it('todo e-mail leva o descadastro no rodapé e no cabeçalho, sem o botão do app', async () => {
+      const { uc, sent } = setup([]);
+      await uc.execute(contactRequest({ channels: { audit: false, inApp: false, email: true, push: false } }));
+      const [message] = sent;
+      expect(message.unsubscribeUrl).toMatch(/^https:\/\/app\.test\/notifications\/opt-out\/t1\/tk-email-[\w-]+\?locale=pt-BR$/);
+      expect(message.html).toContain(message.unsubscribeUrl);
+      expect(message.text).toContain(message.unsubscribeUrl);
+      expect(message.html).not.toContain('/microteia/');
+      expect(message.text).toContain('pt-BR:@core.automation/notifications.contacts.footer');
+    });
+
+    it('o SMS leva o escritório, o texto e o link de descadastro', async () => {
+      const { uc, texted } = setup([]);
+      await uc.execute(contactRequest({ channels: { audit: false, inApp: false, email: false, push: false, sms: true } }));
+      expect(texted[0].body).toContain('Acme: pt-BR:@ext/title:Ana');
+      expect(texted[0].body).toContain('pt-BR:@core.automation/notifications.sms.opt-out');
+    });
+
+    it('a marca de envio é gravada ANTES de enviar, para o link funcionar', async () => {
+      const { uc, touched } = setup([]);
+      await uc.execute(contactRequest());
+      expect(touched.map((contact) => contact.address).sort()).toEqual([
+        '+5571999998888', 'fiscal@empresa.com.br', 'outro@empresa.com.br',
+      ]);
+    });
+
+    it('sem gravar a marca nada sai: mandar sem como dizer não é o que o recurso não faz', async () => {
+      const failingLog: INotificationContactLog = {
+        status: async (_tenantId, addresses) => addresses.map((contact) => ({ ...contact, ticket: 'tk_aaaaaaaaaaaaaaaaaaaaaa', optedOut: false })),
+        touch: async () => { throw new Error('down'); },
+        find: async () => null,
+        setOptedOut: async () => undefined,
+      };
+      const { uc, sent, texted } = setup([], { contacts: failingLog });
+      const result = await uc.execute(contactRequest());
+      expect(sent).toEqual([]);
+      expect(texted).toEqual([]);
+      expect(result.failed).toMatchObject({ email: 2, sms: 1 });
+      expect(result.issues.map((issue) => issue.message)).toContain('@core.automation/step.notify.contacts.record-failed');
+    });
+
+    it('quem se descadastrou não recebe, não conta como falha, e fica na Auditoria', async () => {
+      const { uc, sent, audit, optedOut } = setup([]);
+      optedOut.add('outro@empresa.com.br');
+      const result = await uc.execute(contactRequest({ channels: { audit: false, inApp: false, email: true, push: false } }));
+      expect(sent.map((message) => message.to)).toEqual(['fiscal@empresa.com.br']);
+      expect(result).toMatchObject({ optedOut: 1, delivered: { email: 1 }, failed: { email: 0 } });
+      expect(audit).toHaveBeenCalledWith(expect.objectContaining({
+        title: '@core.automation/notifications.contacts.audit.email.opted-out',
+        titleParams: { address: 'outro@empresa.com.br' },
+      }));
+    });
+
+    it('uma entrada na Auditoria POR ENVIO, com o endereço e o registro, mesmo sem toAudit', async () => {
+      const { uc, audit, smsFailing } = setup([]);
+      smsFailing.add('+5571999998888');
+      await uc.execute(contactRequest());
+      const entries = audit.mock.calls as unknown as [CreateAuditLogInput][];
+      const titles = entries.map(([entry]) => `${entry.title}|${entry.titleParams?.address}`).sort();
+      expect(titles).toEqual([
+        '@core.automation/notifications.contacts.audit.email.sent|fiscal@empresa.com.br',
+        '@core.automation/notifications.contacts.audit.email.sent|outro@empresa.com.br',
+        '@core.automation/notifications.contacts.audit.sms.failed|+5571999998888',
+      ]);
+      expect(audit).toHaveBeenCalledWith(expect.objectContaining({
+        severity: 'HIGH',
+        linkCollection: 'companies',
+        linkRecordId: 'co1',
+        text: '@ext/title',
+      }));
+    });
+
+    it('endereço inválido fica de fora e o log conta quantos', async () => {
+      const { uc, sent } = setup([]);
+      const result = await uc.execute(contactRequest({
+        channels: { audit: false, inApp: false, email: true, push: false },
+        contacts: { email: ['nao-e-email', 'ok@empresa.com'], sms: [] },
+      }));
+      expect(sent.map((message) => message.to)).toEqual(['ok@empresa.com']);
+      expect(result.issues).toContainEqual({ message: '@core.automation/step.notify.contacts.invalid', params: { count: '1' } });
+    });
+
+    it('SMS sem provedor configurado conta como falha e diz por quê', async () => {
+      const { uc, texted, withoutSms } = setup([]);
+      withoutSms();
+      const result = await uc.execute(contactRequest());
+      expect(texted).toEqual([]);
+      expect(result.failed.sms).toBe(1);
+      expect(result.delivered.email).toBe(2);
+      expect(result.issues.map((issue) => issue.message)).toContain('@core.automation/step.notify.sms.not-configured');
+    });
+
+    it('e-mail sem o endereço da aplicação não sai: não haveria link de descadastro', async () => {
+      const { uc, sent } = setup([], {
+        emailConfig: {
+          get: async () => ({ settings: {
+            host: 'smtp', port: 587, secure: false, username: '', fromAddress: 'a@b.co', fromName: '', appUrl: '',
+          }, password: '' }),
+          save: async () => undefined,
+          clear: async () => undefined,
+        },
+      });
+      const result = await uc.execute(contactRequest({ channels: { audit: false, inApp: false, email: true, push: false } }));
+      expect(sent).toEqual([]);
+      expect(result.failed.email).toBe(2);
+      expect(result.issues.map((issue) => issue.message)).toContain('@core.automation/step.notify.contacts.no-app-url');
+    });
+
+    it('sino e push não alcançam um endereço, e o log diz por quê', async () => {
+      const { uc, delivered, pushed } = setup([]);
+      const result = await uc.execute(contactRequest({ channels: { audit: false, inApp: true, email: true, push: true } }));
+      expect(delivered).toEqual([]);
+      expect(pushed.size).toBe(0);
+      expect(result.issues.map((issue) => issue.message)).toContain('@core.automation/step.notify.contacts.channel-unsupported');
+    });
+
+    it('respeita o teto de destinatários', async () => {
+      const { uc, sent } = setup([]);
+      const many = Array.from({ length: NOTIFICATION_MAX_RECIPIENTS + 3 }, (_, index) => `p${index}@empresa.com`);
+      const result = await uc.execute(contactRequest({
+        channels: { audit: false, inApp: false, email: true, push: false },
+        contacts: { email: many, sms: [] },
+      }));
+      expect(sent).toHaveLength(NOTIFICATION_MAX_RECIPIENTS);
+      expect(result.issues.map((issue) => issue.message)).toContain('@core.automation/step.notify.recipients.truncated');
+    });
+
+    it('SMS pedido para membros não sai, e o log diz que é só para endereços', async () => {
+      const { uc, texted } = setup([recipient('u1')]);
+      const result = await uc.execute(request({
+        channels: { audit: false, inApp: true, email: false, push: false, sms: true },
+        recipientIds: ['u1'],
+      }));
+      expect(texted).toEqual([]);
+      expect(result.issues.map((issue) => issue.message)).toContain('@core.automation/step.notify.sms.contacts-only');
     });
   });
 });

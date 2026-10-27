@@ -205,6 +205,8 @@ export interface NotificationEmailParts {
   tenantName: string;
   logoURL: string | null;
   layout: NotificationEmailLayout;
+  /** O descadastro de quem recebe num ENDEREÇO, sem conta onde recusar o canal. Vai no rodapé. */
+  unsubscribe?: { url: string; label: string } | null;
 }
 
 /** O HTML do e-mail: cartão branco com a cor do escritório, logo, corpo, botão, assinatura e rodapé. */
@@ -222,6 +224,9 @@ export const buildNotificationEmailHtml = (parts: NotificationEmailParts): strin
   const signature = parts.layout.signature
     ? `<div style="margin-top:20px;color:${EMAIL_PALETTE.muted}">${renderNotificationMarkdown(parts.layout.signature)}</div>`
     : '';
+  const unsubscribe = parts.unsubscribe
+    ? `<br><a href="${escapeHtml(parts.unsubscribe.url)}" style="color:${EMAIL_PALETTE.muted}">${escapeHtml(parts.unsubscribe.label)}</a>`
+    : '';
   return [
     `<div style="background:${EMAIL_PALETTE.page};padding:28px 12px;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif">`,
     `<div style="max-width:560px;margin:0 auto;background:${EMAIL_PALETTE.card};border-radius:12px;overflow:hidden;border-top:4px solid ${accent}">`,
@@ -232,7 +237,7 @@ export const buildNotificationEmailHtml = (parts: NotificationEmailParts): strin
     button,
     signature,
     '</div>',
-    `<div style="padding:14px 28px;border-top:1px solid ${EMAIL_PALETTE.rule};color:${EMAIL_PALETTE.muted};font-size:12px">${escapeHtml(parts.footer)}</div>`,
+    `<div style="padding:14px 28px;border-top:1px solid ${EMAIL_PALETTE.rule};color:${EMAIL_PALETTE.muted};font-size:12px">${escapeHtml(parts.footer)}${unsubscribe}</div>`,
     '</div></div>',
   ].join('');
 };
@@ -245,4 +250,5 @@ export const buildNotificationEmailText = (parts: NotificationEmailParts): strin
     parts.linkUrl,
     parts.layout.signature ? notificationMarkdownToText(parts.layout.signature) : '',
     parts.footer,
+    parts.unsubscribe ? `${parts.unsubscribe.label}: ${parts.unsubscribe.url}` : '',
   ].filter(Boolean).join('\n\n');

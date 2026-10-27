@@ -9,8 +9,23 @@ import type { WorkflowEvent } from '../../../domain/entities/Workflow';
 import type { RecordLinkTarget } from '../../../domain/schema/recordLink';
 import { parsePath, resolvePath } from '../../../domain/schema/pathResolver';
 import { eventNameToRoot } from '../../../domain/schema/eventCatalog';
+import type { ContactKind } from '../../../domain/schema/notificationContacts';
+import { contactValues } from '../../../domain/schema/notificationContacts';
 
 const RECIPIENT_INPUTS = ['recipientMembers', 'recipientsFrom', 'recipientPermission'] as const;
+
+/** As entradas que leem um ENDEREÇO de um campo de contato, e o tipo de contato que cada uma exige. */
+const CONTACT_INPUTS: Record<'recipientAddresses' | 'recipientPhones', ContactKind> = {
+  recipientAddresses: 'email',
+  recipientPhones: 'phone',
+};
+
+const CONTACT_INPUT_IDS = Object.keys(CONTACT_INPUTS) as (keyof typeof CONTACT_INPUTS)[];
+
+const NOT_CONTACT_FIELD: Record<ContactKind, string> = {
+  email: '@core.automation/step.notify.contacts.not-contact-field.email',
+  phone: '@core.automation/step.notify.contacts.not-contact-field.phone',
+};
 
 const textOf = (value: unknown): string => (value === undefined || value === null ? '' : String(value).trim());
 
@@ -84,6 +99,26 @@ const portalRecordOf = async (
 };
 
 /**
+ * Se o caminho do evento termina num campo que a TELA declarou de contato, do tipo pedido. É a mesma
+ * pergunta que o editor faz ao tipo de um caminho: o kernel não decide o que é e-mail lendo o valor —
+ * um texto que parece e-mail num campo de observações continua sendo observação.
+ */
+const isContactPath = async (
+  screens: IScreenDefinitionProvider,
+  tenantId: string,
+  event: WorkflowEvent,
+  mapping: InputMapping | undefined,
+  kind: ContactKind,
+): Promise<boolean> => {
+  if (!mapping || mapping.kind !== 'Event' || !mapping.path.trim()) return false;
+  const ctx = await screens.getSchemaContext(tenantId);
+  const root = eventNameToRoot(event.name, ctx);
+  if (!root) return false;
+  const resolution = resolvePath(ctx, root, parsePath(mapping.path));
+  return resolution.valid && resolution.node.kind === 'scalar' && resolution.node.contact === kind;
+};
+
+/**
  * O passo `notify`: os inputs viram um pedido de entrega, e o resultado vira as saídas
  * `recipients`, `delivered.<canal>` e `failed.<canal>`.
  *
@@ -93,6 +128,11 @@ const portalRecordOf = async (
  *
  * Com `portalGuests`, recebem os convidados do portal que veem o registro — e SÓ eles: o passo que
  * avisa para fora não avisa o escritório, para que o texto escrito para um lado nunca chegue ao outro.
+ *
+ * Com `recipientAddresses`/`recipientPhones`, recebem os ENDEREÇOS lidos de campos de contato — quem
+ * não tem conta nenhuma, como o contribuinte que ainda não ativou o acesso. É a exceção, e por isso
+ * pede duas declarações: a da tela (o campo é `contact`) e a do passo (o caminho até ele). Também é
+ * exclusiva: nem membros nem convidados no mesmo passo.
  */
 export const makeNotifyStepDefinition = (
   dispatch: DispatchNotificationUseCase,
@@ -106,12 +146,32 @@ export const makeNotifyStepDefinition = (
         inApp: isChannelEnabled(inputs.toInApp),
         email: isChannelEnabled(inputs.toEmail),
         push: isChannelEnabled(inputs.toPush),
+        sms: isChannelEnabled(inputs.toSms),
       };
 
       const personal = channels.inApp || channels.email || channels.push;
       const configuration = context.stepConfiguration ?? {};
       const toPortal = isChannelEnabled(inputs.portalGuests);
-      if (toPortal) {
+      const contactInputs = CONTACT_INPUT_IDS.filter((id) => isConfigured(configuration[id]));
+      const toAddresses = contactInputs.length > 0;
+      if (toAddresses) {
+        if (toPortal || RECIPIENT_INPUTS.some((id) => isConfigured(configuration[id]))) {
+          return { success: false, message: '@core.automation/step.notify.contacts.mixed' };
+        }
+        for (const id of contactInputs) {
+          const mapping = configuration[id];
+          if (!(await isContactPath(screens, context.execution.tenantId, context.event, mapping, CONTACT_INPUTS[id]))) {
+            return {
+              success: false,
+              message: NOT_CONTACT_FIELD[CONTACT_INPUTS[id]],
+              messageParams: { path: mapping?.kind === 'Event' ? mapping.path : id },
+            };
+          }
+        }
+        const reaches = (channels.email && contactInputs.includes('recipientAddresses'))
+          || (channels.sms && contactInputs.includes('recipientPhones'));
+        if (!reaches) return { success: false, message: '@core.automation/step.notify.contacts.no-channel' };
+      } else if (toPortal) {
         if (RECIPIENT_INPUTS.some((id) => isConfigured(configuration[id]))) {
           return { success: false, message: '@core.automation/step.notify.portal.mixed' };
         }
@@ -150,11 +210,20 @@ export const makeNotifyStepDefinition = (
         category: textOf(inputs.category),
         channels,
         ...(toPortal ? { audience: 'portal' as const } : {}),
-        recipientIds: toPortal ? [] : [
+        ...(toAddresses
+          ? {
+              audience: 'contacts' as const,
+              contacts: {
+                email: contactInputs.includes('recipientAddresses') ? contactValues(inputs.recipientAddresses) : [],
+                sms: contactInputs.includes('recipientPhones') ? contactValues(inputs.recipientPhones) : [],
+              },
+            }
+          : {}),
+        recipientIds: toPortal || toAddresses ? [] : [
           ...notificationRecipientCandidates(inputs.recipientMembers),
           ...notificationRecipientCandidates(inputs.recipientsFrom),
         ],
-        recipientPermissions: !toPortal && permission ? [permission] : [],
+        recipientPermissions: !toPortal && !toAddresses && permission ? [permission] : [],
       });
 
       for (const issue of result.issues) context.logger.warn(issue.message, issue.params);
@@ -166,6 +235,7 @@ export const makeNotifyStepDefinition = (
           recipients: result.recipients,
           delivered: result.delivered,
           failed: result.failed,
+          optedOut: result.optedOut,
         },
       };
     },

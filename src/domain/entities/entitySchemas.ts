@@ -20,6 +20,7 @@ import type { AutoValueSpec } from '../schema/recordSequence';
 import type { PortalDeclaration } from '../schema/portal';
 import type { EditWindowSpec } from '../schema/editWindow';
 import type { MemberVisibilitySpec } from '../schema/memberVisibility';
+import type { ContactKind } from '../schema/notificationContacts';
 
 // ─── Tipos de Campos Customizados ─────────────────────────────────────────────
 
@@ -141,6 +142,13 @@ export interface FieldDefinition {
    * dizer "este e-mail não se repete" faria a declaração mais rara do que o problema.
    */
   unique?: boolean | null;
+  /**
+   * O campo guarda um meio de falar com alguém — `email` ou `phone`. É o que autoriza o passo
+   * `notify` a escrever para o valor dele (`recipientAddresses`, `recipientPhones`): o endereço que a
+   * automação alcança é o que a TELA disse ser de contato, nunca um texto qualquer do registro. Só
+   * num campo `text` ou `masked` de um valor. Ver `domain/schema/notificationContacts.ts`.
+   */
+  contact?: ContactKind | null;
 }
 
 // ─── Definição de Tela ────────────────────────────────────────────────────────

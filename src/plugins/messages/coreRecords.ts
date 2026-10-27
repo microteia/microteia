@@ -487,4 +487,9 @@ export const CORE_RECORDS_MESSAGES: Record<string, string> = {
   'screen.key.locked': 'The identifier cannot change: it is where the records of this screen live.',
   'screen.key.placeholder': 'pets, invoices...',
   'screen.error.key-taken': 'The identifier "{key}" is already taken by another screen.',
+  'field.contact': 'Contact',
+  'field.contact.none': 'Not a contact',
+  'field.contact.email': 'E-mail address',
+  'field.contact.phone': 'Phone number',
+  'field.contact.hint': 'Lets automations send notifications to the value of this field — by e-mail or SMS — for people with no account. Use only for addresses the person gave to be contacted.',
 };

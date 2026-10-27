@@ -155,3 +155,26 @@ describe('notification_dispatches', () => {
   });
 });
 
+
+describe('notification_contacts', () => {
+  it('os endereços alcançados e os descadastros são só do servidor — nem o dono lê ou grava', async () => {
+    const marca = doc(asUser(env, 'dono'), `tenants/${TENANT}/notification_contacts/tk_abcdefghijklmnopqrstuv`);
+    await assertFails(getDoc(marca));
+    await assertFails(setDoc(marca, { channel: 'email', address: 'a@x.com', optedOut: true }));
+  });
+
+  it('uma tela com o mesmo nome não abre a coleção — o nome é reservado', async () => {
+    await env.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore() as never, `tenants/${TENANT}/screenDefinitions/notification_contacts`), {
+        titleSingular: 'x', titlePlural: 'x', fields: [],
+      });
+    });
+    const marca = doc(asUser(env, 'dono'), `tenants/${TENANT}/notification_contacts/tk_abcdefghijklmnopqrstuv`);
+    await assertFails(getDoc(marca));
+    await assertFails(setDoc(marca, { optedOut: false }));
+  });
+
+  it('a credencial de SMS não é legível por ninguém no navegador', async () => {
+    await assertFails(getDoc(doc(asUser(env, 'dono'), `tenants/${TENANT}/secrets/notification-sms`)));
+  });
+});

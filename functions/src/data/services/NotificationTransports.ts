@@ -30,8 +30,8 @@ export class SmtpEmailTransport implements IEmailTransport {
       ? { name: settings.fromName.replace(/[\r\n"]+/g, ' ').trim(), address: settings.fromAddress }
       : settings.fromAddress;
     return {
-      send: async (message) => {
-        await transporter.sendMail({ from, ...message });
+      send: async ({ unsubscribeUrl, ...message }) => {
+        await transporter.sendMail({ from, ...message, ...(unsubscribeUrl ? { list: { unsubscribe: unsubscribeUrl } } : {}) });
       },
       close: () => transporter.close(),
     };

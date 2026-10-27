@@ -10,7 +10,10 @@ const casesScreen: SchemaScreen = {
   id: 'cases',
   titleSingular: 'Case',
   titleFieldKey: 'title',
-  fields: [{ key: 'title', label: 'Title', type: 'text', required: false, order: 0, origin: 'plugin' }],
+  fields: [
+    { key: 'title', label: 'Title', type: 'text', required: false, order: 0, origin: 'plugin' },
+    { key: 'email', label: 'E-mail', type: 'text', required: false, order: 1, origin: 'plugin', contact: 'email' },
+  ],
 };
 
 const hearingsScreen: SchemaScreen = {
@@ -21,6 +24,9 @@ const hearingsScreen: SchemaScreen = {
   fields: [
     { key: 'title', label: 'Title', type: 'text', required: false, order: 0, origin: 'plugin' },
     { key: 'caseId', label: 'Case', type: 'reference', refEntity: 'cases', required: false, order: 1, origin: 'plugin' },
+    { key: 'contactEmail', label: 'E-mail', type: 'text', required: false, order: 2, origin: 'plugin', contact: 'email' },
+    { key: 'contactPhone', label: 'Phone', type: 'masked', required: false, order: 3, origin: 'plugin', contact: 'phone' },
+    { key: 'notes', label: 'Notes', type: 'text', required: false, order: 4, origin: 'plugin' },
   ],
 };
 
@@ -33,8 +39,9 @@ const run = async (inputs: Record<string, unknown>, configuration: Record<string
       requests.push(request);
       return {
         recipients: 1,
-        delivered: { audit: 0, inApp: 1, email: 0, push: 0 },
-        failed: { audit: 0, inApp: 0, email: 0, push: 0 },
+        delivered: { audit: 0, inApp: 1, email: 0, push: 0, sms: 0 },
+        failed: { audit: 0, inApp: 0, email: 0, push: 0, sms: 0 },
+        optedOut: 0,
         issues: [],
       };
     },
@@ -122,5 +129,93 @@ describe('NotifyStep — convidados do portal', () => {
     expect(result.success).toBe(true);
     expect(requests[0].audience).toBeUndefined();
     expect(requests[0].recipientIds).toEqual(['u1']);
+  });
+});
+
+describe('NotifyStep — endereços de campos de contato', () => {
+  const event = (path: string): InputMapping => ({ kind: 'Event', path });
+
+  it('lê o e-mail e o telefone dos campos declarados `contact` e pede o público de endereços', async () => {
+    const { result, requests } = await run(
+      { toEmail: true, toSms: true, recipientAddresses: 'a@x.com; b@y.com', recipientPhones: '(71) 99999-8888' },
+      { recipientAddresses: event('contactEmail'), recipientPhones: event('contactPhone') },
+    );
+    expect(result.success).toBe(true);
+    expect(requests[0]).toMatchObject({
+      audience: 'contacts',
+      contacts: { email: ['a@x.com', 'b@y.com'], sms: ['(71) 99999-8888'] },
+      channels: { email: true, sms: true },
+      target: { collection: 'hearings', recordId: 'h1' },
+      recipientIds: [],
+      recipientPermissions: [],
+    });
+    expect(result.outputs).toMatchObject({ optedOut: 0, delivered: { sms: 0 } });
+  });
+
+  it('atravessa uma referência até o contato do registro apontado', async () => {
+    const { result, requests } = await run(
+      { toEmail: true, recipientAddresses: 'case@x.com' },
+      { recipientAddresses: event('caseId.email') },
+    );
+    expect(result.success).toBe(true);
+    expect(requests[0].contacts?.email).toEqual(['case@x.com']);
+  });
+
+  it('recusa um campo que a tela não declarou de contato — o valor não decide o que é e-mail', async () => {
+    const { result, requests } = await run(
+      { toEmail: true, recipientAddresses: 'parece@email.com' },
+      { recipientAddresses: event('notes') },
+    );
+    expect(result).toMatchObject({
+      success: false,
+      message: '@core.automation/step.notify.contacts.not-contact-field.email',
+      messageParams: { path: 'notes' },
+    });
+    expect(requests).toEqual([]);
+  });
+
+  it('recusa o telefone no lugar do e-mail', async () => {
+    const { result } = await run(
+      { toEmail: true, recipientAddresses: '7199998888' },
+      { recipientAddresses: event('contactPhone') },
+    );
+    expect(result).toMatchObject({ success: false, message: '@core.automation/step.notify.contacts.not-contact-field.email' });
+  });
+
+  it('recusa um valor que não veio de um caminho do evento', async () => {
+    const { result } = await run(
+      { toEmail: true, recipientAddresses: 'a@x.com' },
+      { recipientAddresses: literal('a@x.com') },
+    );
+    expect(result).toMatchObject({ success: false, message: '@core.automation/step.notify.contacts.not-contact-field.email' });
+  });
+
+  it('nunca junto com membros nem com o portal', async () => {
+    const withMembers = await run(
+      { toEmail: true, recipientAddresses: 'a@x.com', recipientMembers: ['u1'] },
+      { recipientAddresses: event('contactEmail'), recipientMembers: literal(['u1']) },
+    );
+    expect(withMembers.result).toMatchObject({ success: false, message: '@core.automation/step.notify.contacts.mixed' });
+    const withPortal = await run(
+      { toEmail: true, portalGuests: true, recipientAddresses: 'a@x.com' },
+      { recipientAddresses: event('contactEmail') },
+    );
+    expect(withPortal.result).toMatchObject({ success: false, message: '@core.automation/step.notify.contacts.mixed' });
+  });
+
+  it('o canal tem de alcançar o endereço configurado: e-mail sem `toEmail` não tem por onde ir', async () => {
+    const { result } = await run(
+      { toSms: true, recipientAddresses: 'a@x.com' },
+      { recipientAddresses: event('contactEmail') },
+    );
+    expect(result).toMatchObject({ success: false, message: '@core.automation/step.notify.contacts.no-channel' });
+  });
+
+  it('sem as entradas novas, o passo segue exatamente como antes', async () => {
+    const { result, requests } = await run({ toEmail: true, recipientMembers: ['u1'] }, { recipientMembers: literal(['u1']) });
+    expect(result.success).toBe(true);
+    expect(requests[0].audience).toBeUndefined();
+    expect(requests[0].contacts).toBeUndefined();
+    expect(requests[0].channels.sms).toBe(false);
   });
 });

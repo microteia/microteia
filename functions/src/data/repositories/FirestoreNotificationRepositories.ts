@@ -1,7 +1,13 @@
+import { createHmac, randomBytes } from 'node:crypto';
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 import type { Firestore } from 'firebase-admin/firestore';
 import type {
+  ContactAddress,
+  ContactState,
   INotificationAppearance,
+  INotificationContactLog,
+  INotificationSmsConfigRepository,
+  NotificationSmsCredential,
   INotificationDirectory,
   INotificationDispatchLog,
   INotificationEmailConfigRepository,
@@ -22,6 +28,13 @@ import {
   notificationChannelProperty,
 } from '../../domain/schema/notifications';
 import { resolveSetting } from '../../domain/schema/settings';
+import type { ContactChannel, NotificationSmsSettings } from '../../domain/schema/notificationContacts';
+import {
+  EMPTY_NOTIFICATION_SMS_SETTINGS,
+  NOTIFICATION_CONTACTS_COLLECTION,
+  NOTIFICATION_SMS_SECRET_ID,
+  SMS_PROVIDERS,
+} from '../../domain/schema/notificationContacts';
 import {
   asNotificationEmailLayout,
   asNotificationTemplates,
@@ -87,6 +100,11 @@ export class FirestoreNotificationDirectory implements INotificationDirectory {
       },
       mutes: {},
     }));
+  }
+
+  async officeLocale(tenantId: string): Promise<string> {
+    const officeSettings = await this.db.collection('tenants').doc(tenantId).collection('settings').doc('tenant').get();
+    return preferredLocale({}, settingsValuesOf(officeSettings.data()));
   }
 
   async memberIdsGranting(tenantId: string, permission: string, limit: number): Promise<string[]> {
@@ -209,5 +227,142 @@ export class FirestoreNotificationEmailConfigRepository implements INotification
 
   async clear(tenantId: string): Promise<void> {
     await this.ref(tenantId).delete();
+  }
+}
+
+const smsSettingsOf = (data: Record<string, unknown>): NotificationSmsSettings => {
+  const text = (value: unknown): string => (typeof value === 'string' ? value : '');
+  const provider = SMS_PROVIDERS.find((one) => one === data.provider) ?? EMPTY_NOTIFICATION_SMS_SETTINGS.provider;
+  return {
+    provider,
+    accountSid: text(data.accountSid),
+    fromNumber: text(data.fromNumber),
+    webhookUrl: text(data.webhookUrl),
+    defaultCountryCode: text(data.defaultCountryCode),
+    appUrl: text(data.appUrl),
+  };
+};
+
+/** A credencial de SMS mora ao lado da de e-mail, em `secrets` — coleção que nenhuma regra libera. */
+export class FirestoreNotificationSmsConfigRepository implements INotificationSmsConfigRepository {
+  constructor(private readonly db: Firestore) {}
+
+  private ref(tenantId: string) {
+    return this.db.collection('tenants').doc(tenantId).collection('secrets').doc(NOTIFICATION_SMS_SECRET_ID);
+  }
+
+  async get(tenantId: string): Promise<NotificationSmsCredential | null> {
+    const data = (await this.ref(tenantId).get()).data();
+    if (!data) return null;
+    return { settings: smsSettingsOf(data), secret: typeof data.secret === 'string' ? data.secret : '' };
+  }
+
+  async save(tenantId: string, settings: NotificationSmsSettings, secret: string | null, userId: string): Promise<void> {
+    await this.ref(tenantId).set(
+      {
+        ...settings,
+        ...(secret !== null ? { secret } : {}),
+        updatedAt: FieldValue.serverTimestamp(),
+        updatedBy: userId,
+      },
+      { merge: true },
+    );
+  }
+
+  async clear(tenantId: string): Promise<void> {
+    await this.ref(tenantId).delete();
+  }
+}
+
+/**
+ * A chave com que os bilhetes de descadastro são derivados. É da INSTALAÇÃO, sorteada na primeira vez
+ * que alguém precisa dela, e mora numa coleção de raiz que nenhuma regra libera — como as chaves VAPID.
+ * Ninguém a configura: um passo manual a mais numa instalação que não deve ter nenhum.
+ */
+export class ContactTicketKeyStore {
+  private cached: Promise<Buffer> | null = null;
+
+  constructor(private readonly db: Firestore) {}
+
+  key(): Promise<Buffer> {
+    if (!this.cached) {
+      this.cached = this.loadOrCreate().catch((error) => {
+        this.cached = null;
+        throw error;
+      });
+    }
+    return this.cached;
+  }
+
+  private async loadOrCreate(): Promise<Buffer> {
+    const ref = this.db.collection('kernel_secrets').doc('notification-contacts');
+    return this.db.runTransaction(async (transaction) => {
+      const data = (await transaction.get(ref)).data();
+      if (typeof data?.key === 'string' && data.key) return Buffer.from(data.key, 'base64');
+      const generated = randomBytes(32);
+      transaction.set(ref, { key: generated.toString('base64'), createdAt: new Date() });
+      return generated;
+    });
+  }
+}
+
+/** O bilhete: 192 bits do HMAC de escritório, canal e endereço — o id do documento e o fim do link. */
+export const contactTicketOf = (key: Buffer, tenantId: string, contact: ContactAddress): string =>
+  createHmac('sha256', key).update(`${tenantId}\n${contact.channel}\n${contact.address}`, 'utf8').digest('base64url').slice(0, 32);
+
+const contactChannelOf = (value: unknown): ContactChannel | null =>
+  value === 'email' || value === 'sms' ? value : null;
+
+/**
+ * `tenants/{tid}/notification_contacts/{bilhete}`: os endereços que o escritório já alcançou, e o que
+ * cada um decidiu. Guardar o endereço é o que deixa o descadastro aparecer na Auditoria com quem o
+ * pediu — e é o mesmo endereço que já está no registro do escritório.
+ */
+export class FirestoreNotificationContactLog implements INotificationContactLog {
+  constructor(private readonly db: Firestore, private readonly keys: ContactTicketKeyStore) {}
+
+  private collection(tenantId: string) {
+    return this.db.collection('tenants').doc(tenantId).collection(NOTIFICATION_CONTACTS_COLLECTION);
+  }
+
+  async status(tenantId: string, addresses: readonly ContactAddress[]): Promise<ContactState[]> {
+    if (addresses.length === 0) return [];
+    const key = await this.keys.key();
+    const collection = this.collection(tenantId);
+    const tickets = addresses.map((contact) => contactTicketOf(key, tenantId, contact));
+    const snaps = await this.db.getAll(...tickets.map((ticket) => collection.doc(ticket)));
+    return addresses.map((contact, index) => ({
+      ...contact,
+      ticket: tickets[index],
+      optedOut: snaps[index].data()?.optedOut === true,
+    }));
+  }
+
+  async touch(tenantId: string, contacts: readonly ContactState[], at: Date): Promise<void> {
+    if (contacts.length === 0) return;
+    const collection = this.collection(tenantId);
+    const batch = this.db.batch();
+    for (const contact of contacts) {
+      batch.set(
+        collection.doc(contact.ticket),
+        { channel: contact.channel, address: contact.address, lastSentAt: Timestamp.fromDate(at) },
+        { merge: true },
+      );
+    }
+    await batch.commit();
+  }
+
+  async find(tenantId: string, ticket: string): Promise<ContactState | null> {
+    const data = (await this.collection(tenantId).doc(ticket).get()).data();
+    const channel = contactChannelOf(data?.channel);
+    if (!data || !channel || typeof data.address !== 'string') return null;
+    return { channel, address: data.address, ticket, optedOut: data.optedOut === true };
+  }
+
+  async setOptedOut(tenantId: string, ticket: string, optedOut: boolean, at: Date): Promise<void> {
+    await this.collection(tenantId).doc(ticket).update({
+      optedOut,
+      optedOutAt: optedOut ? Timestamp.fromDate(at) : null,
+    });
   }
 }

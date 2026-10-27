@@ -26,6 +26,7 @@ import type { AutoValueSpec, RecordSequenceField } from './recordSequence';
 import { RECORD_SEQUENCES_COLLECTION, recordSequenceFields } from './recordSequence';
 import { WORKFLOW_CLOCK_COLLECTION, WORKFLOW_TRIGGER_MARKS_COLLECTION } from './workflowClock';
 import { NOTIFICATION_DISPATCHES_COLLECTION, NOTIFICATION_INBOX_COLLECTION } from './notifications';
+import { asContactKind, NOTIFICATION_CONTACTS_COLLECTION } from './notificationContacts';
 import {
   PORTAL_IDENTITY_INVITES_COLLECTION,
   PORTAL_RECORDS_COLLECTION,
@@ -340,6 +341,8 @@ export const fieldDefinitionToNativeSpec = (field: FieldDefinition): NativeField
   }
   if (undefinedIfNull(field.file)) spec.file = field.file as NonNullable<FieldDefinition['file']>;
   if (field.unique === true) spec.unique = true;
+  const contact = asContactKind(field.contact);
+  if (contact) spec.contact = contact;
   return spec;
 };
 
@@ -392,6 +395,7 @@ export const nativeSpecToFieldDefinition = (
   listOrder: spec.ui?.list?.order ?? null,
   filterable: spec.ui?.filter === true,
   unique: spec.unique === true,
+  ...(spec.contact ? { contact: spec.contact } : {}),
   hiddenInForm: spec.ui?.form === false,
 });
 
@@ -618,6 +622,7 @@ export const RESERVED_COLLECTIONS: ReadonlySet<string> = new Set<string>([
   RECORD_KEYS_COLLECTION,
   NOTIFICATION_INBOX_COLLECTION,
   NOTIFICATION_DISPATCHES_COLLECTION,
+  NOTIFICATION_CONTACTS_COLLECTION,
   PORTAL_USERS_COLLECTION,
   PORTAL_RECORDS_COLLECTION,
   PORTAL_REPROJECTIONS_COLLECTION,

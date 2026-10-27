@@ -124,6 +124,9 @@ npm run verify          # typecheck + lint + verify-schemas
 | `BackendResidue` (o que o provisionamento deixou no projeto) | `backend_state/current` | Não |
 | Reserva de chave (unicidade de registro) | `tenants/{tenantId}/recordKeys/{keyId}` — o `keyId` deriva do valor, e criá-lo É a trava | Sim |
 | Adoção de chave (registros antigos) | `tenants/{tenantId}/record_key_adoptions/{coleção}` — só o servidor grava | Sim |
+| Endereço de contato já alcançado pelo `notify` e o descadastro dele (EV-11) | `tenants/{tenantId}/notification_contacts/{bilhete}` — o id é o HMAC do endereço | Sim (só servidor; nenhuma regra a libera) |
+| Credencial do provedor de SMS | `tenants/{tenantId}/secrets/notification-sms` | Sim (só servidor; `manageNotificationSms` é a porta) |
+| Chave dos bilhetes de descadastro (da instalação) | `kernel_secrets/notification-contacts` | Não (raiz; só servidor) |
 
 **A tabela é curta de propósito, e ficou curta por conquista.** Ela já listava `persons`, `cases`,
 `contracts`, `financials`, `deadlines`, `pushes`, as etiquetas e as dezenas de listas de opções de cada
@@ -1880,7 +1883,9 @@ O escritório responde, registra um andamento, marca uma visita — e o convidad
 abria o portal por conta própria. O passo `notify` só alcançava membros: `INotificationDirectory.recipients`
 descarta quem não tem documento em `members`, e a regra do sino exigia `isMember`. Mandar e-mail a um
 endereço digitado num registro não servia de contorno: alcançaria quem nunca foi convidado, ou teve o
-acesso revogado.
+acesso revogado. (Para quem nunca foi convidado, a EV-11 abriu essa porta como exceção
+declarada — campo `contact`, descadastro e auditoria por envio: ver "Avisar um ENDEREÇO do registro". O
+convidado continua sendo avisado por aqui, e é a esta porta que ele pertence.)
 
 **Quem recebe é quem VÊ o registro, e não quem é convidado de uma raiz.** A primeira forma pensada era
 uma expressão que desse o registro-sujeito e alcançasse todo convidado dele. Ela tinha dois defeitos: o
@@ -6648,6 +6653,11 @@ uma permissão dada ao escritório inteiro alcançaria todo mundo.
 do passo: recebem os convidados do portal que veem o registro, e nenhum membro. Ver "Avisar o
 convidado" na seção do Portal.
 
+**Os endereços de campos de contato — um terceiro público, também exclusivo.** `recipientAddresses` e
+`recipientPhones` escrevem, por e-mail e por SMS (`toSms`, o quinto destino), a quem não tem conta
+nenhuma, lendo o endereço de um campo que a tela declarou `contact`. Ver "Avisar um ENDEREÇO do
+registro".
+
 Canal pessoal marcado sem NENHUMA origem configurada (`context.stepConfiguration`) reprova o passo — é
 erro de configuração. Origem configurada que não rende ninguém NESTA execução não reprova: o log diz por
 quê.
@@ -6757,6 +6767,109 @@ puder ser lida, o aviso sai com o layout e o texto padrão. Não há regra nova 
 agrupada por dia, filtros por lidas e por tipo (consulta no servidor, com índice), "carregar mais"
 que aumenta o limite da assinatura ao vivo, marcar como lida/não lida; e a aba Preferências, com os
 canais de cada tipo e o push deste navegador. A retenção caiu de 90 para 30 dias (TTL).
+
+### Avisar um ENDEREÇO do registro — `recipientAddresses`, `recipientPhones` e SMS (EV-11)
+
+O `notify` alcançava membros e convidados do portal. Quem não tem nenhum dos dois — o contribuinte que
+ainda não ativou o acesso, o fornecedor que só deixou um e-mail no pedido — ficava sem aviso, e a seção
+do portal registrava por quê: mandar a um endereço digitado num registro "alcançaria quem nunca foi
+convidado". Continua sendo verdade, e é por isso que este é um recurso de EXCEÇÃO, com as travas que a
+exceção pede. Nada muda para quem não o declara.
+
+**A decisão central: quem diz o que é contato é a TELA, e não o passo.** O roteiro sugeria uma expressão
+que resolvesse e-mails. Uma expressão monta qualquer texto — `'x@' + event.nome` —, e nenhuma
+conferência posterior distingue o endereço que a pessoa deu para ser contatada de um texto que só parece
+um. Por isso a entrada aceita só um caminho do EVENTO (`allowedMappingKinds: ['Event']`), e o passo
+pergunta ao TIPO do caminho, pelo mesmo `resolvePath` com que já descobre a coleção de `portalRecord`, se
+ele termina num campo declarado `contact`. Duas declarações, de dois papéis: quem desenha o cadastro
+marca o campo; quem escreve a automação aponta o caminho. Valor que "parece e-mail" num campo de
+observações continua sendo observação.
+
+| Peça | Onde | O que faz |
+|---|---|---|
+| `FieldDefinition.contact: 'email' \| 'phone'` | `entitySchemas.ts`, `NativeFieldSpec`, `screenEntity.ts` | a declaração; atravessa a forma canônica nos dois sentidos e só aparece quando existe |
+| `PathNode.scalar.contact` | `pathResolver.ts` | o nó do caminho carrega o contato do campo — também através de uma referência (`empresaId.email`) |
+| Esquema compartilhado | `domain/schema/notificationContacts.ts` (sincronizado) | tipos, `fieldAcceptsContact` (só `text`/`masked` de um valor), normalização (e-mail em minúsculas, telefone em E.164 com o país padrão do SMS), máscara, caminho da página pública, configuração de SMS e a conferência dela |
+| Entradas do passo | `workflowStepCatalog.ts` | `recipientAddresses` e `recipientPhones` (só `Event`), `toSms`; saídas `delivered.sms`, `failed.sms`, `optedOut` |
+| Validação | `NotifyStep.ts` | caminho que não termina num `contact` do tipo certo reprova (`not-contact-field.email\|phone`, com o caminho); junto com membros ou `portalGuests` reprova (`contacts.mixed`); entrada sem canal que a alcance reprova (`contacts.no-channel`) |
+| Público `contacts` | `DispatchNotificationUseCase.ts` | a mesma porta única, num terceiro público: normaliza, desduplica, aplica o teto de `NOTIFICATION_MAX_RECIPIENTS`, tira os descadastrados, grava a marca, envia e audita cada envio |
+| Registro de contatos | `FirestoreNotificationContactLog` | `tenants/{t}/notification_contacts/{bilhete}`: canal, endereço, último envio, descadastro |
+| Bilhete | `contactTicketOf` + `ContactTicketKeyStore` | HMAC-SHA256 de escritório, canal e endereço, 192 bits em base64url; a chave é da instalação, sorteada no primeiro uso em `kernel_secrets` (como as VAPID) |
+| SMS | `HttpSmsTransport` | Twilio pela API REST; `webhook` faz POST `{ to, body }` com `Authorization: Bearer` — a ponte para qualquer outro provedor, sem que o kernel conheça o nome de nenhum |
+| Credencial de SMS | `secrets/notification-sms`, callable `manageNotificationSms` | `get\|save\|clear\|test` com `settings.manage`; o segredo entra e nunca sai |
+| Descadastro | callable `notificationOptOut`, página `/notifications/opt-out/:tenant/:bilhete` | sem login; `get\|opt-out\|opt-in` |
+| Configuração | aba "SMS" de Escritório › Notificações (`EmailTab/components/SmsServer`) | provedor, credencial, país padrão, endereço da aplicação |
+| Form Design | modal do campo, "Contato" | nenhum / e-mail / telefone — só nos tipos que aceitam, e zerado no dado quando o tipo deixa de aceitar |
+
+**O público é exclusivo, como o do portal.** `audience: 'contacts'` não alcança membro nem convidado,
+e o passo recusa misturar. O texto escrito para quem está fora não pode sair para dentro, e vice-versa.
+Sino e push não alcançam um endereço (o log diz); `sms` não alcança membro nem convidado (o log diz) —
+membro não tem telefone no escritório, e por isso `sms` está nas CONTAGENS (`NOTIFICATION_CHANNELS`) mas
+não é preferência pessoal (`PersonalNotificationChannel` ficou `inApp | email | push`). Quem pede à porta
+pode omitir `sms`: as outras origens (portal, conflito de chave, arquivo da auditoria) não mudaram uma linha.
+
+**Descadastrar é sempre possível, e funciona antes de a mensagem chegar.** Todo e-mail leva o link no
+rodapé e no cabeçalho `List-Unsubscribe`; todo SMS termina nele, e a linha nunca é cortada (o corpo é que
+é aparado em `SMS_BODY_MAX_LENGTH`). A marca do endereço é gravada ANTES do envio — sem ela o link daria
+"não encontrado" —, e se a gravação falha nada sai (`contacts.record-failed`). Pela mesma razão, e-mail
+sem `appUrl` na credencial não sai a endereço (`contacts.no-app-url`), e a configuração de SMS exige o
+seu (carimbado do navegador de quem salvou, como o do e-mail). O endereço descadastrado é pulado nos
+envios seguintes, não conta como falha, e aparece em `optedOut`.
+
+**O link é a credencial, e só vale o que diz.** O bilhete é calculado com um segredo que só o servidor
+tem: o link não carrega o endereço, e ninguém descadastra outra pessoa calculando o bilhete dela (um
+hash do e-mail permitiria). Um bilhete que nunca foi enviado não existe no Firestore, e a callable o
+recusa sem gravar nada — não há o que adivinhar em 192 bits, e um bilhete inventado não cria lixo. A
+resposta devolve o endereço MASCARADO (`f***@empresa.com.br`): o link pode ser repassado.
+
+**Abrir a página não descadastra.** Os filtros de e-mail das empresas abrem todo link de uma mensagem para
+conferi-lo; um GET que descadastrasse tiraria da lista quem nunca pediu. A página consulta; o botão
+decide; o mesmo botão desfaz. Por isso não há `List-Unsubscribe-Post` (o "um clique" do RFC 8058 exige
+um POST que descadastra sem confirmação). A página é pública, fora da pilha de stores do espaço de
+trabalho como as do portal, e o idioma vem do link (`?locale=`, o do escritório).
+
+**Cada envio deixa rastro — inclusive o que não aconteceu.** Uma entrada na Auditoria POR ENDEREÇO E
+CANAL: enviado, falhou (severidade `HIGH`) ou não enviado por descadastro, com o endereço inteiro, o
+título do aviso e o registro de que ele fala. Independe de `toAudit`, como o rastro do portal: aquele é o
+aviso AO escritório; este é a prova do que saiu dele — e de por que não saiu. Descadastrar e voltar a
+receber também são auditados, com quem decidiu identificado como "dono do endereço". Quem tem de provar
+que avisou precisa do endereço e do instante de cada um, não de uma contagem.
+
+**O teste da credencial não envia.** `manageNotificationSms` com `op: 'test'` confere a credencial no
+provedor (Twilio: lê a conta; webhook: POST `{ test: true }`). Um teste que aceitasse um número escolhido
+seria um relé de SMS pago pelo escritório — o mesmo motivo pelo qual o teste de e-mail só vai para quem pede.
+
+**O webhook é um POST que a function faz para um endereço que o escritório digitou.** Passa pela guarda
+do push, generalizada em `isPublicHttpsEndpoint` (`https`, sem porta, sem IP cru, sem host interno), na
+gravação E a cada envio, e não segue redirecionamento — um 302 para dentro da rede contornaria a guarda.
+
+**Compatibilidade.** Todas as entradas novas nascem desligadas e os fluxos salvos não mudam; as saídas
+ganham `delivered.sms`, `failed.sms` e `optedOut` (zero para quem não as usa). `KERNEL_VERSION` foi a
+`2.78.0` (aditivo); o pacote que usa a declaração ou as entradas declara `kernel` a partir de
+`CONTACT_NOTIFY_SINCE_KERNEL`. Um kernel anterior ignora as duas e reprova o passo por falta de
+destinatário — falha FECHADO, e por isso não há recusa no empacotamento.
+
+| Coleção / segredo | Regra |
+|---|---|
+| `notification_contacts` | reservada nas duas pontas (`RESERVED_COLLECTIONS` e `isReservedCollection`); nenhuma regra a libera |
+| `secrets/notification-sms` | `secrets` já é reservada e fechada |
+| `kernel_secrets/notification-contacts` | raiz, sem regra |
+
+Deploy: `npm run deploy:notifications` (as duas callables novas), `deploy:workflow` (o passo e a porta),
+`deploy:rules` (a coleção reservada) e o hosting (a página pública).
+
+#### O que ainda não faz
+
+- **A lista de descadastrados não tem tela.** O escritório a vê pela Auditoria; reverter é com a própria
+  pessoa, pelo link. Uma tela pediria uma callable com permissão própria — o endereço é dado pessoal.
+- **Modelo por canal para SMS.** O SMS usa título e mensagem do aviso; os modelos do escritório (e-mail,
+  sino, push) não têm coluna de SMS.
+- **SAIR por resposta.** O descadastro de SMS é o link; a resposta "SAIR" depende do provedor e do número,
+  e não chega ao kernel.
+- **Retenção.** A marca do endereço não vence: um descadastro tem de valer enquanto o endereço existir.
+- **Preferências do convidado** continuam não feitas (ver "O que ainda não faz" do Portal); um convidado
+  cujo e-mail também esteja num campo de contato é alcançado pelos dois caminhos se o escritório usar
+  os dois passos.
 
 ### Step "Script" — código do usuário em sandbox QuickJS
 

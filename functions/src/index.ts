@@ -59,7 +59,12 @@ export { exportAuditArchive, manageAuditArchive } from './infrastructure/handler
 export { secondFactor, manageMemberMfa } from './infrastructure/handlers/memberMfa';
 export { createOrganization } from './infrastructure/handlers/createOrganization';
 export { logClientError } from './infrastructure/handlers/logClientError';
-export { manageNotificationEmail, getWebPushPublicKey } from './infrastructure/handlers/notifications';
+export {
+  manageNotificationEmail,
+  manageNotificationSms,
+  notificationOptOut,
+  getWebPushPublicKey,
+} from './infrastructure/handlers/notifications';
 export { onWorkflowEventCreated } from './infrastructure/handlers/onWorkflowEventCreated';
 export { syncWorkflowClock, runWorkflowClock } from './infrastructure/handlers/workflowClock';
 export { getWorkflowStepCatalog } from './infrastructure/handlers/getWorkflowStepCatalog';

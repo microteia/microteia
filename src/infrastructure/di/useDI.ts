@@ -15,6 +15,8 @@ import type {
   IDevicePushService,
   INotificationEmailService,
   INotificationInboxRepository,
+  INotificationOptOutService,
+  INotificationSmsService,
 } from '../../domain/repositories/INotificationRepositories';
 import type { IScreenDefinitionRepository } from '../../domain/repositories/IScreenDefinitionRepository';
 import type {
@@ -72,6 +74,8 @@ export interface DIContainer {
   notificationInboxRepository: INotificationInboxRepository;
   devicePushService: IDevicePushService;
   notificationEmailService: INotificationEmailService;
+  notificationSmsService: INotificationSmsService;
+  notificationOptOutService: INotificationOptOutService;
   screenDefinitionRepository: IScreenDefinitionRepository;
   recordRepository: IRecordRepository;
   lookupRepository: ILookupRepository;

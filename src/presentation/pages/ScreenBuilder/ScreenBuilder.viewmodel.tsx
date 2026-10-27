@@ -78,6 +78,8 @@ import type { WorkflowVariable } from '../../components/ui/ExpressionEditor/auto
 import type { SearchSelectOption } from '../../components/ui/SearchSelect';
 import type { RecordSequenceIssueCode } from '../../../domain/schema/recordSequence';
 import { isSequenceField } from '../../../domain/schema/recordSequence';
+import type { ContactKind } from '../../../domain/schema/notificationContacts';
+import { CONTACT_KINDS, asContactKind, fieldAcceptsContact } from '../../../domain/schema/notificationContacts';
 import type { FieldSequenceFormState } from './components/FieldSequencePanel/fieldSequenceForm';
 import {
   EMPTY_FIELD_SEQUENCE_FORM,
@@ -260,6 +262,7 @@ export interface FieldFormState {
   listLabel: string;
   filterable: boolean;
   unique: boolean;
+  contact: ContactKind | '';
   ruleFormatPreset: FormatPreset | '';
   ruleFormatPattern: string;
   ruleFormatReplacement: string;
@@ -294,6 +297,11 @@ export interface FieldFormState {
  * Só o que o formulário consegue produzir tem frase própria; o resto (forma, tipo, campo aninhado) só
  * chega por pacote ou documento editado à mão, e cai na recusa genérica.
  */
+const CONTACT_KIND_LABELS: Record<ContactKind, string> = {
+  email: 'field.contact.email',
+  phone: 'field.contact.phone',
+};
+
 const SEQUENCE_ISSUE_KEYS: Record<RecordSequenceIssueCode, string> = {
   shape: 'field.sequence.error.invalid',
   scope: 'field.sequence.error.invalid',
@@ -448,6 +456,10 @@ export interface ScreenBuilderViewModel {
   fieldSupportsFilter: boolean;
   /** O campo pode ser chave? Ver `fieldSupportsUnique` — derivado e arquivo não podem. */
   fieldSupportsUnique: boolean;
+  /** O campo pode guardar um contato (e-mail, telefone)? Só texto de uma linha, de um valor. */
+  fieldSupportsContact: boolean;
+  contactOptions: SearchSelectOption[];
+  setFieldContact: (value: string) => void;
   /** O campo pode ser numerado pelo sistema? Só `text` e `number` gravados pela pessoa. */
   fieldSupportsSequence: boolean;
   sequencePanel: FieldSequencePanelState;
@@ -571,6 +583,7 @@ const EMPTY_FIELD_FORM: FieldFormState = {
   listLabel: '',
   filterable: false,
   unique: false,
+  contact: '',
   ruleFormatPreset: '',
   ruleFormatPattern: '',
   ruleFormatReplacement: '',
@@ -1890,6 +1903,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       listLabel: field.listLabel ?? '',
       filterable: field.filterable ?? false,
       unique: field.unique === true,
+      contact: field.contact ?? '',
       ...fieldRulesToForm(field.rules),
       ...fieldLogicToForm(field.logic),
       ...fieldAggregationToForm(field.aggregation),
@@ -1947,6 +1961,16 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
   const fieldSupportsUnique = fieldForm.type !== 'file'
     && !fieldForm.logicDerive.trim()
     && !(fieldForm.aggregationFrom.trim() && fieldForm.aggregationVia.trim());
+
+  const fieldSupportsContact = fieldAcceptsContact(fieldForm.type, fieldForm.multi);
+  const contactOptions = useMemo<SearchSelectOption[]>(() => [
+    { value: '', label: t('field.contact.none') },
+    ...CONTACT_KINDS.map((kind) => ({ value: kind, label: t(CONTACT_KIND_LABELS[kind]) })),
+  ], [t]);
+  const setFieldContact = useCallback(
+    (value: string) => updateFieldForm({ contact: asContactKind(value) ?? '' }),
+    [updateFieldForm],
+  );
 
   /**
    * O número é do sistema, e um campo cujo valor vem de outro lugar — calculado, derivado, agregado —
@@ -2414,6 +2438,8 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     // é avaliado na leitura e nunca gravado —, e a reserva ficaria órfã na leitura seguinte. O valor
     // é zerado no dado, e não só escondido: o campo pode ter virado derivado depois de marcado.
     const unique = fieldSupportsUnique ? fieldForm.unique : false;
+    // Zerado no dado, e não só escondido: o campo pode ter virado lista ou texto longo depois de marcado.
+    const contact = fieldSupportsContact && fieldForm.contact ? fieldForm.contact : null;
     // A numeração só é escrita quando a pessoa a liga agora. A já gravada viaja como está (o campo é
     // espalhado), e o `autoValue` de sorteio que uma extensão declarou não é tocado.
     let sequenceChange: { autoValue?: ReturnType<typeof fromFieldSequenceForm> } = {};
@@ -2461,6 +2487,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
             listLabel: fieldForm.showInList ? (fieldForm.listLabel.trim() || null) : null,
             filterable,
             unique,
+            contact,
             rules,
             logic,
             aggregation,
@@ -2500,6 +2527,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
           listLabel: fieldForm.showInList ? (fieldForm.listLabel.trim() || null) : null,
           filterable,
           unique,
+          contact,
           rules,
           aggregation,
           logic,
@@ -2520,7 +2548,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     } finally {
       setSavingField(false);
     }
-  }, [artifactPrefix, fieldModal, fieldForm, fieldModalIsTitleField, fieldSupportsUnique, fieldSupportsSequence, sequenceLocked, sequenceHasParent, getDefinitionByKey, saveDefinition, notify, schemaContext, resolvedField, resolvedFieldsByScreen, declareLookup, t, label, aggregationParentCollection, aggregationChildScreen]);
+  }, [artifactPrefix, fieldModal, fieldForm, fieldModalIsTitleField, fieldSupportsUnique, fieldSupportsContact, fieldSupportsSequence, sequenceLocked, sequenceHasParent, getDefinitionByKey, saveDefinition, notify, schemaContext, resolvedField, resolvedFieldsByScreen, declareLookup, t, label, aggregationParentCollection, aggregationChildScreen]);
 
   /**
    * Grava a ordem da lista como posições absolutas em `fields[]`. Um campo já gravado viaja como
@@ -2745,6 +2773,9 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     fieldSupportsRules,
     fieldSupportsFilter,
     fieldSupportsUnique,
+    fieldSupportsContact,
+    contactOptions,
+    setFieldContact,
     fieldSupportsSequence,
     sequencePanel,
     updateFieldSequence,
