@@ -22,6 +22,12 @@
 - fix(command): what was broken, and what it did to whoever hit it.
 -->
 
+#### [2.31.0] — 2026-10-26
+
+- feat(grant-signing): new command. Portal sign-in through an identity provider and member two-step verification open sessions with `createCustomToken`, which needs the functions' runtime account to sign (`iam.serviceAccounts.signBlob`). `microteia grant-signing` reads the account the functions actually run as (`gcloud functions describe secondFactor`; the default compute account only when that function is not deployed), checks whether `iamcredentials.googleapis.com` is enabled and whether the account holds `roles/iam.serviceAccountTokenCreator` on itself without a condition, prints the missing `gcloud` steps, asks before running them, and reads the state again afterwards. `--check` only reads; `--yes` skips the question; without a terminal and without `--yes` it refuses. A permission error names the roles needed and hands over the commands.
+- feat(deploy): after the functions, a read-only check of session signing; when it is missing, a warning that points to `microteia grant-signing`. It never fails the deploy, and is skipped with a note when `gcloud` cannot answer.
+- docs(installation): the command table of `MICROTEIA.md` lists `grant-signing`.
+
 #### [2.30.3] — 2026-10-26
 
 - docs(kernel/manifest): the optional prerequisite `portal-identity-signing` now covers member two-step verification too — both open sessions minted with `createCustomToken`, and both fail at sign-in with `iam.serviceAccounts.signBlob` denied when the runtime account cannot sign. New optional prerequisite `self-service-tenants`: `SELF_SERVICE_TENANTS=false` in `.env.<projectId>` plus `microteia provision` stops sign-up from opening an organization in a shared installation; only SYSTEM opens organizations afterwards, and SYSTEM accounts should be protected by a sign-in provider with its own second factor. The kernel's declared optional backend parameters are now `AUDIT_ARCHIVE_BUCKET` and `SELF_SERVICE_TENANTS`.

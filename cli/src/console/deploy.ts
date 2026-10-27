@@ -12,6 +12,7 @@ import { clearRegionOrphans, listDeployedFunctions } from './regionOrphans.js';
 import { gateProblemsFor } from './functionGate.js';
 import { deployFunctionsThatChanged } from './functionsUpToDate.js';
 import { checkCallables, invokerGrantCommand } from './callableAccess.js';
+import { checkSessionSigning, gcloudCapture } from './sessionSigning.js';
 import { checkHostingServed, htmlIsRevalidated } from './hostingCheck.js';
 import { provisionBackend } from './provision.js';
 import { installPath, readInstalledManifest } from './unpack.js';
@@ -284,6 +285,22 @@ export const deploy = async (args: ParsedArgs): Promise<void> => {
         } else {
           success(`all ${checks.length} callables answer calls from ${origin}`);
         }
+      }
+
+      // Só CONFERE: conceder é mudar permissão no projeto do escritório, e isso é um comando à parte, que
+      // diz o que vai mudar e pergunta. A falta não reprova o deploy — só quem usa entrada por provedor
+      // no portal ou verificação em duas etapas precisa dela —, mas é dita aqui, e não na primeira pessoa
+      // que tentar entrar.
+      try {
+        const signing = await checkSessionSigning(projectId, region, gcloudCapture);
+        if (signing.apiEnabled === false || signing.granted === false) {
+          warn(`the functions' account (${signing.account}) cannot sign sessions yet. Portal sign-in through`);
+          warn('  an identity provider and two-step verification need it. Run: microteia grant-signing');
+        } else if (signing.apiEnabled === true && signing.granted === true) {
+          success('the functions can sign sessions');
+        }
+      } catch {
+        info('  could not check whether the functions can sign sessions — run "microteia grant-signing --check"');
       }
 
       continue;

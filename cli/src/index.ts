@@ -12,6 +12,7 @@ import { unpack } from './console/unpack.js';
 import { deploy } from './console/deploy.js';
 import { provision } from './console/provision.js';
 import { exportCatalog } from './console/exportCatalog.js';
+import { grantSigning } from './console/sessionSigning.js';
 import { pluginInit } from './console/pluginWorkspace.js';
 import { versionReport } from './console/versions.js';
 import { newerThan } from './console/channel.js';
@@ -59,6 +60,13 @@ const COMMANDS: Command[] = [
     summary: 'Give the installed extensions the Cloud Functions and indexes they ask for.',
     audience: 'office',
     execute: provision,
+  },
+  {
+    name: 'grant-signing',
+    usage: 'microteia grant-signing [--check] [--yes]',
+    summary: 'Let the functions sign sessions (portal identity providers, two-step verification).',
+    audience: 'office',
+    execute: grantSigning,
   },
   {
     name: 'export-catalog',

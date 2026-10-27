@@ -98,6 +98,7 @@ const commandRows = (): string => [
   '| `microteia deploy [--only …] [--prune] [--all]` | Publishes what is in place: `rules`, `indexes`, `functions`, `hosting`. A Cloud Function the project already runs with this exact code is not deployed again; `--all` deploys every one of them anyway. `--prune` also deletes functions left behind in a region this version no longer uses |',
   '| `microteia provision [--prune] [--all]` | Gives installed extensions the functions and indexes they ask for |',
   '| `microteia connect --project <id>` | Binds this installation to a Firebase project you own |',
+  '| `microteia grant-signing [--check] [--yes]` | Lets the functions sign sessions — needed by portal sign-in through an identity provider and by two-step verification. Reads the account the functions run as, shows what it would change, and asks before enabling the IAM Service Account Credentials API and granting the account Service Account Token Creator on itself. `--check` only reads |',
   '| `microteia plugin-init` | Prepares `extensions/` for authoring in TypeScript |',
   '| `microteia export-catalog --tenant <id>` | Writes what an office has — screens, lists, installed extensions — into `extensions/`, so the authoring tools can see it. Reads only; with no `--tenant` it lists the offices. The file is a snapshot and is git-ignored: it carries names the office typed |',
 ].join('\n');

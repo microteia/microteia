@@ -18,6 +18,10 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.165.1] — 2026-10-26
+
+- docs(kernel/manifest): the manual prerequisite `portal-identity-signing` points to `microteia grant-signing` (Console 2.31.0 or newer) before the manual `gcloud` commands, and says `microteia deploy` reports when the permission is missing. No runtime change.
+
 #### [9.165.0] — 2026-10-26
 
 - feat(access): member two-step verification (TOTP) — EV-07. The PERSON owns the factor (`mfaFactors/{uid}`: base32 secret, 10-minute pending secret, SHA-256 of each recovery code salted with the uid, `lastStep`, failures, lock), the ORGANIZATION owns the requirement (`memberMfaPolicies/{tenantId}`: `enabled`, `everyone`, `roleIds`, `permissions`, `reverifyMinutes` 5–10080). Shared schema `domain/schema/memberMfa.ts`; RFC 4226/6238 core in `functions/src/domain/services/totp.ts` (injected HMAC-SHA1, tested against both RFCs' vectors). No policy document = no member gets `mfa`, and every rule answers as before.
