@@ -1,0 +1,27 @@
+{
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.extscripts.tsbuildinfo",
+    "target": "es2022",
+    // As mesmas `lib` do `tsconfig.json` semeado no escritório: o que importa é o ambiente em que o autor
+    // lê o exemplo, e é lá que ele precisa passar.
+    "lib": ["ES2022", "DOM"],
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "types": [],
+    "noEmit": true,
+
+    // Um script não importa nada, e sem isto cada arquivo seria um SCRIPT GLOBAL: dois `main` em dois
+    // exemplos colidiriam — foi o que o workspace do escritório acusou.
+    "moduleDetection": "force",
+
+    "skipLibCheck": false,
+
+    // Mais ESTRITO que o workspace, pela razão do `tsconfig.extbackend.json`: o molde é lido e copiado.
+    "strict": true,
+    "noFallthroughCasesInSwitch": true
+  },
+  // Os globais do sandbox vêm do arquivo GERADO, que é o mesmo que viaja no SDK — checar contra outra
+  // coisa seria checar contra um contrato que ninguém recebe.
+  "files": ["sdk/types/microteia-sandbox.d.ts"],
+  "include": ["src/plugins/marketplace/examples/*/scripts"]
+}

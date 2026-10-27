@@ -1,7 +1,7 @@
 {
   "name": "microteia",
   "private": true,
-  "version": "9.169.0",
+  "version": "9.169.1",
   "type": "module",
   "bin": {
     "microteia": "cli/lib/index.js"
@@ -16,7 +16,7 @@
     "prebuild": "npm run sync-schemas",
     "build": "tsc -b && vite build --mode ${TARGET:-dev}",
     "lint": "eslint .",
-    "typecheck": "tsc -b --force && tsc -p tsconfig.extsrc.json && tsc -p tsconfig.extbackend.json",
+    "typecheck": "tsc -b --force && tsc -p tsconfig.extsrc.json && tsc -p tsconfig.extbackend.json && tsc -p tsconfig.extscripts.json",
     "sync-schemas": "node scripts/sync-schemas.cjs",
     "build:extensions": "node scripts/export-extensions.mjs",
     "build:sdk": "node scripts/build-sdk.mjs",

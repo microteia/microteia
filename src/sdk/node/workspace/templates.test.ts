@@ -173,6 +173,17 @@ describe('o que é gerado em extensions/', () => {
       expect(config.files?.[0]).toContain('microteia-raw.d.ts');
     });
 
+    /** Um `.script.ts` não importa nada: o que ele usa são os globais do sandbox, declarados aqui. */
+    it('traz os globais do sandbox por `files`, senão todo script acusa `query` e `input`', () => {
+      const config = JSON.parse(workspaceTsconfig()) as { files?: string[] };
+      expect(config.files).toContainEqual(expect.stringContaining('microteia-sandbox.d.ts'));
+    });
+
+    /** Sem arquivo de import, cada script seria global, e dois `main` colidiriam. */
+    it('faz de cada arquivo um módulo', () => {
+      expect(options().moduleDetection).toBe('force');
+    });
+
     /**
      * Excluir `examples/` e os diretórios de function deixava aqueles arquivos FORA de todo projeto — e
      * um arquivo sem projeto não resolve nada no editor, nem `@microteia/data`. Tudo sublinhado é pior

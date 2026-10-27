@@ -10,6 +10,7 @@ import {
 import { hostModuleNames, readHostTypes } from '../hostTypes';
 import { EXAMPLES_DIR } from '../workspacePlugins';
 import { authoringGuide } from './authoringGuide';
+import { declaresFunctions, functionDependencies } from './functionDependencies';
 import {
   reconcileGitignore,
   reconcileMcpJson,
@@ -158,7 +159,11 @@ const copyExamples = (install: string | null, target: string): number => {
  * Uma `devDependency` que já existe também não é rebaixada — pode ter sido subida de propósito — e essa
  * não gera aviso: um range diferente do nosso normalmente o SATISFAZ, e avisar seria ruído.
  */
-const reconcilePackageJson = (path: string, kernelVersion: string): Reconciliation => {
+const reconcilePackageJson = (
+  path: string,
+  kernelVersion: string,
+  functionTypes: Record<string, string>,
+): Reconciliation => {
   const before = readFileSync(path, 'utf8');
   let pkg: Record<string, unknown>;
   try {
@@ -190,7 +195,8 @@ const reconcilePackageJson = (path: string, kernelVersion: string): Reconciliati
 
   const devDependencies = (pkg.devDependencies ?? {}) as Record<string, string>;
   pkg.devDependencies = Object.fromEntries(
-    Object.entries({ ...workspaceDevDependencies(), ...devDependencies }).sort(([a], [b]) => a.localeCompare(b)),
+    Object.entries({ ...workspaceDevDependencies(), ...functionTypes, ...devDependencies })
+      .sort(([a], [b]) => a.localeCompare(b)),
   );
 
   // Um carimbo nosso, informativo, que não tem como colidir com decisão de ninguém.
@@ -285,10 +291,21 @@ export const syncWorkspace = (options: SyncOptions = {}): SyncReport => {
   rewrite('AGENTS.md', workspaceAgentsMd(documentInput));
   rewrite('AUTHORING.md', authoringGuide(documentInput));
 
+  /**
+   * Os exemplos chegam ANTES de conciliar o `package.json`, porque é o que eles carregam que decide se
+   * as dependências de function entram: uma `functions/` em `examples/` é compilada pelo mesmo `tsc`.
+   */
+  const examples = copyExamples(install, join(root, EXAMPLES_DIR));
+  const functionTypes = declaresFunctions(root, EXAMPLES_DIR)
+    ? functionDependencies(install === null ? [] : [install])
+    : {};
+
   reconcile('tsconfig.json', reconcileTsconfig);
   reconcile('.mcp.json', reconcileMcpJson);
   reconcile('.gitignore', reconcileGitignore);
-  if (pkg !== null) reconcile('package.json', () => reconcilePackageJson(packagePath, KERNEL_VERSION));
+  if (pkg !== null) {
+    reconcile('package.json', () => reconcilePackageJson(packagePath, KERNEL_VERSION, functionTypes));
+  }
 
   if (pkg !== null) warnings.push(...namespaceWarning(root));
 
@@ -299,8 +316,6 @@ export const syncWorkspace = (options: SyncOptions = {}): SyncReport => {
     kernelVersion: KERNEL_VERSION,
     examples: exampleIds(install),
   }));
-
-  const examples = copyExamples(install, join(root, EXAMPLES_DIR));
 
   return {
     kernelVersion: KERNEL_VERSION,

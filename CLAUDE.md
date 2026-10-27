@@ -69,11 +69,13 @@ Use o atalho do `package.json` quando existir: `npm run verify` (= `typecheck` +
 > como gerar os `extension-templates/*.json`. Numa árvore recém-clonada, `sdk/` não existe — ele é
 > gerado e está no `.gitignore`.
 
-> **`npm run typecheck` são TRÊS projetos:** `tsc -b --force` (app, node, cli),
+> **`npm run typecheck` são QUATRO projetos:** `tsc -b --force` (app, node, cli),
 > `tsc -p tsconfig.extsrc.json` (as fontes de VIEW das extensões, checadas contra
-> `sdk/types/microteia-host.d.ts`) e `tsc -p tsconfig.extbackend.json` (as fontes de BACKEND delas —
+> `sdk/types/microteia-host.d.ts`), `tsc -p tsconfig.extbackend.json` (as fontes de BACKEND delas —
 > `examples/*/functions` —, checadas contra `sdk/types/microteia-office.d.ts` e o `firebase-functions`
-> de verdade). Os dois últimos dependem de `npm run build:host-types` ter rodado.
+> de verdade) e `tsc -p tsconfig.extscripts.json` (os SCRIPTS de sandbox — `examples/*/scripts` —,
+> checados contra `sdk/types/microteia-sandbox.d.ts`). Os três últimos dependem de
+> `npm run build:host-types` ter rodado.
 >
 > São dois projetos separados porque são dois ambientes: a view roda no navegador contra a API curada,
 > a function roda em Node. O de backend é mais ESTRITO que o `tsconfig.json` semeado no escritório, de
