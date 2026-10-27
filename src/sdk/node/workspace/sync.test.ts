@@ -258,6 +258,65 @@ describe('sincronizar o diretório de autoria', () => {
   });
 
   /**
+   * `firebase-functions` e `firebase-admin` são pesadas, e quem só declara telas não precisa delas. Mas
+   * uma `functions/` em `examples/` é compilada pelo mesmo `tsc` do autor, e o `sync` a copiava sem
+   * declarar o que ela importa: sete erros num arquivo que não era dele, em todo workspace.
+   */
+  describe('as dependências de uma Cloud Function', () => {
+    type Pkg = { devDependencies: Record<string, string> };
+
+    const withFunctionExample = (root: string): void => {
+      const dir = join(root, 'install/sdk/examples/backend-example/functions');
+      mkdirSync(dir, { recursive: true });
+      writeFileSync(join(dir, 'index.ts'), 'export {};\n');
+      mkdirSync(join(root, 'install/functions'), { recursive: true });
+      writeFileSync(join(root, 'install/functions/package.json'), JSON.stringify({
+        dependencies: { 'firebase-admin': '^12.7.0', 'firebase-functions': '^6.3.0' },
+      }));
+    };
+
+    it('entram quando um exemplo traz function, nas versões da INSTALAÇÃO', () => {
+      const root = seed({ examples: ['calendar'] });
+      withFunctionExample(root);
+      syncWorkspace({ root, install: join(root, 'install') });
+
+      const pkg = JSON.parse(read(root, 'package.json')) as Pkg;
+      expect(pkg.devDependencies['firebase-functions']).toBe('^6.3.0');
+      expect(pkg.devDependencies['firebase-admin']).toBe('^12.7.0');
+    });
+
+    it('entram quando uma extensão do escritório tem function', () => {
+      const root = seed();
+      mkdirSync(join(root, 'acme/functions'), { recursive: true });
+      writeFileSync(join(root, 'acme/functions/index.ts'), 'export {};\n');
+      syncWorkspace({ root, install: null });
+
+      const pkg = JSON.parse(read(root, 'package.json')) as Pkg;
+      expect(pkg.devDependencies['firebase-functions']).toBeDefined();
+      expect(pkg.devDependencies['firebase-admin']).toBeDefined();
+    });
+
+    it('ficam de fora quando não há function nenhuma', () => {
+      const root = seed({ examples: ['calendar'] });
+      syncWorkspace({ root, install: join(root, 'install') });
+
+      const pkg = JSON.parse(read(root, 'package.json')) as Pkg;
+      expect(pkg.devDependencies['firebase-functions']).toBeUndefined();
+      expect(pkg.devDependencies['firebase-admin']).toBeUndefined();
+    });
+
+    it('não rebaixam uma versão que o escritório já declarou', () => {
+      const root = seed({ examples: ['calendar'], devDependencies: { 'firebase-functions': '^6.9.0' } });
+      withFunctionExample(root);
+      syncWorkspace({ root, install: join(root, 'install') });
+
+      const pkg = JSON.parse(read(root, 'package.json')) as Pkg;
+      expect(pkg.devDependencies['firebase-functions']).toBe('^6.9.0');
+      expect(pkg.devDependencies['firebase-admin']).toBe('^12.7.0');
+    });
+  });
+
+  /**
    * Vista de fora: o autor mexeu na configuração, e a atualização de plataforma não desfaz nada. É a
    * propriedade que separa este `sync` de uma sobreposição — e a razão de ele poder rodar sozinho.
    */

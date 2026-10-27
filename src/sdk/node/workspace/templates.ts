@@ -612,10 +612,9 @@ A credential or setting is a \`defineString('NAME')\` plus \`'NAME'\` in \`manif
 Every one found is written into \`.env.<projectId>\`, empty, for whoever installs to fill in: a
 \`defineString\` with no value refuses the deploy of *every* function in the project, not only yours.
 
-They compile against \`firebase-functions\`, which is not installed here by default. For types while
-you write them:
-
-    npm i -D firebase-functions firebase-admin
+They compile against \`firebase-functions\` and \`firebase-admin\`. Both are added to \`package.json\`
+— at the versions this installation runs — as soon as any \`functions/\` directory exists here,
+\`examples/\` included, and \`npm install\` brings them.
 
 ## examples/
 

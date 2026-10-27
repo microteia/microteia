@@ -5,87 +5,7 @@ import { BUILTIN_REF_ENTITIES } from '../../../domain/entities/entitySchemas';
 import type { NativeFieldSpec } from '../../../domain/schema/entityRegistry';
 import { getEntityByCollection } from '../../../domain/schema/entityRegistry';
 import type { SchemaScreen } from '../../../domain/schema/pathResolver';
-
-/**
- * A união de tabelas é montada a partir das telas INSTALADAS, e não de uma lista escrita aqui.
- *
- * Antes esta documentação citava `cases`, `contracts`, `deadlines` e `financials` — coleções de
- * entidades que saíram do kernel e hoje são extensões. O kernel não conhece nenhuma delas: citá-las
- * o amarrava a um domínio, e a lista envelhecia sozinha (um escritório sem a extensão de Processo
- * via `cases` sugerido pelo editor, e um com uma tela própria não via a dele).
- */
-const tableUnion = (collections: string[]): string =>
-  [...collections.map((collection) => `'${collection}'`), '(string & {})'].join(' | ');
-
-const staticDefs = (collections: string[]): string => `type QueryOperator = 'eq' | 'neq' | 'lt' | 'lte' | 'gt' | 'gte' | 'in' | 'contains' | 'exists';
-
-interface QueryPredicate {
-  path: string;
-  op: QueryOperator;
-  value?: unknown;
-}
-
-interface QueryOrderBy {
-  path: string;
-  dir: 'asc' | 'desc';
-}
-
-interface QuerySpec {
-  table: ${tableUnion(collections)};
-  where?: QueryPredicate[];
-  orderBy?: QueryOrderBy[];
-  limit?: number;
-  projections?: string[];
-}
-
-interface QueryResult {
-  count: number;
-  results: Record<string, unknown>[];
-  first: Record<string, unknown> | null;
-}
-
-/** Consulta os cadastros do escritório. Sempre use await. */
-declare function query(spec: QuerySpec): Promise<QueryResult>;
-
-interface UpsertSpec {
-  table: ${tableUnion(collections)};
-  /** Informe para atualizar um registro existente; omita para incluir um novo. */
-  id?: string;
-  /** Campos a gravar, sempre na raiz do objeto — igual para cadastros fixos e telas do Form Design. */
-  data: Record<string, unknown>;
-}
-
-interface UpsertResult {
-  id: string;
-  created: boolean;
-  record: Record<string, unknown>;
-}
-
-interface RemoveSpec {
-  table: ${tableUnion(collections)};
-  id: string;
-}
-
-interface RemoveResult {
-  id: string;
-  removed: boolean;
-}
-
-/** Inclui ou atualiza um registro de um cadastro do escritório. Sempre use await. */
-declare function upsert(spec: UpsertSpec): Promise<UpsertResult>;
-
-/** Exclui um registro de um cadastro do escritório pelo id (sem cascata). Sempre use await. */
-declare function remove(spec: RemoveSpec): Promise<RemoveResult>;
-
-/** Registra uma mensagem no log de execução do Step. */
-declare function log(...args: unknown[]): void;
-
-/**
- * Quem disparou a execução: \`via\` é 'ui' (um botão no app) ou 'agent' (um agente de IA, em nome da
- * pessoa). \`null\` quando nenhuma pessoa a disparou — uma automação de gatilho de gravação. O que o
- * \`upsert\` grava já sai com esta pessoa como autora.
- */
-declare const actor: { id: string; name: string; via: 'ui' | 'agent' } | null;`;
+import { buildScriptSandboxTypeDefs } from './scriptSandboxTypeDefs';
 
 const INDENT_UNIT = '  ';
 
@@ -275,5 +195,5 @@ export const buildScriptTypeDefs = (
   screens: SchemaScreen[] = [],
 ): string => {
   const collections = screens.map((screen) => screen.collection ?? screen.id).sort();
-  return `${staticDefs(collections)}\n\n${buildInputDef(inputParams, screens)}\n\n${buildFnDef(functions)}\n`;
+  return `${buildScriptSandboxTypeDefs(collections)}\n\n${buildInputDef(inputParams, screens)}\n\n${buildFnDef(functions)}\n`;
 };

@@ -108,13 +108,65 @@ describe('as fontes de extensão continuam sendo checadas', () => {
  * passam a rodar no `tsc -b --force`, que é o portão que o CLAUDE.md manda executar.
  */
 describe('o editor e o `tsc -b` enxergam os projetos de fonte de extensão', () => {
-  it.each(['tsconfig.extsrc.json', 'tsconfig.extbackend.json'])(
+  it.each(['tsconfig.extsrc.json', 'tsconfig.extbackend.json', 'tsconfig.extscripts.json'])(
     'o tsconfig.json raiz referencia %s',
     (project) => {
       const references = /"references"\s*:\s*\[([\s\S]*?)\]/.exec(config('tsconfig.json'))?.[1] ?? '';
       expect(references).toContain(`"./${project}"`);
     },
   );
+});
+
+/**
+ * O SCRIPT de um exemplo — o `.script.ts` de `scripts` e o `.migration.ts` de `package.migrations` — não
+ * era checado por projeto nenhum: o do app o exclui, e nenhum outro o incluía. Do lado do escritório o
+ * `tsconfig.json` semeado o incluía, sem os globais do sandbox declarados, e acusava cada `query` e
+ * `input`. Foi também assim que a migração de exemplo leu `query().rows` sem ninguém ver.
+ */
+describe('o script dos exemplos é checado contra os globais do sandbox', () => {
+  const SCRIPTS_DIR = 'src/plugins/marketplace/examples/*/scripts';
+
+  const SCRIPT_SOURCES = import.meta.glob('/src/plugins/marketplace/examples/*/scripts/*.ts', {
+    query: '?raw',
+    import: 'default',
+    eager: true,
+  }) as Record<string, string>;
+
+  const PACKAGE_JSON = (import.meta.glob('/package.json', {
+    query: '?raw',
+    import: 'default',
+    eager: true,
+  }) as Record<string, string>)['/package.json'];
+
+  it('o projeto do app EXCLUI o diretório — o sandbox não é o navegador', () => {
+    const exclude = /"exclude"\s*:\s*\[([^\]]*)\]/.exec(config('tsconfig.app.json'))?.[1] ?? '';
+    expect(exclude).toContain(SCRIPTS_DIR);
+  });
+
+  it('e o projeto de script das extensões o INCLUI', () => {
+    const include = /"include"\s*:\s*\[([^\]]*)\]/.exec(config('tsconfig.extscripts.json'))?.[1] ?? '';
+    expect(include).toContain(SCRIPTS_DIR);
+  });
+
+  /** Contra outro arquivo, o script seria checado contra um contrato que ninguém recebe. */
+  it('e traz os globais da declaração GERADA, a mesma que viaja no SDK', () => {
+    const files = /"files"\s*:\s*\[([^\]]*)\]/.exec(config('tsconfig.extscripts.json'))?.[1] ?? '';
+    expect(files).toContain('sdk/types/microteia-sandbox.d.ts');
+  });
+
+  /** Sem isto, dois exemplos com a sua `async function main()` colidem no escopo global. */
+  it('e faz de cada arquivo um módulo', () => {
+    expect(config('tsconfig.extscripts.json')).toContain('"moduleDetection": "force"');
+  });
+
+  it('e roda no `npm run typecheck`, senão o projeto existe e ninguém o executa', () => {
+    const scripts = (JSON.parse(PACKAGE_JSON) as { scripts: Record<string, string> }).scripts;
+    expect(scripts.typecheck).toContain('tsconfig.extscripts.json');
+  });
+
+  it('há script para checar', () => {
+    expect(Object.keys(SCRIPT_SOURCES).length).toBeGreaterThanOrEqual(2);
+  });
 });
 
 /**

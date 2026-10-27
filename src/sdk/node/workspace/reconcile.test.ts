@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   MCP_SERVER,
   MCP_SERVER_NAME,
-  REQUIRED_FILE,
+  REQUIRED_FILES,
+  REQUIRED_MODULE_DETECTION,
   REQUIRED_PATHS,
   reconcileGitignore,
   reconcileMcpJson,
@@ -63,8 +64,9 @@ describe('conciliar o tsconfig.json', () => {
           '@acme/shared': ['./shared/index.ts'],
         },
         jsx: 'react-jsx',
+        moduleDetection: 'force',
       },
-      files: [REQUIRED_FILE],
+      files: REQUIRED_FILES,
       include: ['**/*.ts'],
       exclude: ['node_modules'],
     }, null, 2) + '\n';
@@ -77,7 +79,7 @@ describe('conciliar o tsconfig.json', () => {
   it('acrescenta o path que falta e mantém o do autor', () => {
     const mine = JSON.stringify({
       compilerOptions: { paths: { '@acme/shared': ['./shared/index.ts'] }, jsx: 'react-jsx' },
-      files: [REQUIRED_FILE],
+      files: REQUIRED_FILES,
     });
 
     const result = reconcileTsconfig(mine);
@@ -113,8 +115,9 @@ describe('conciliar o tsconfig.json', () => {
           ['@microteia/ui', ['./meu/proprio/ui.d.ts']],
         ]),
         jsx: 'react-jsx',
+        moduleDetection: 'force',
       },
-      files: [REQUIRED_FILE],
+      files: REQUIRED_FILES,
     });
     // `@microteia/ui` não é requisito nosso — o requisito é o curinga. Este é o caso de verdade:
     const diverged = mine.replace(
@@ -145,8 +148,9 @@ describe('conciliar o tsconfig.json', () => {
           'styled-components': ['./node_modules/@microteia/sdk/types/microteia-host.d.ts'],
         },
         jsx: 'react-jsx',
+        moduleDetection: 'force',
       },
-      files: [REQUIRED_FILE],
+      files: REQUIRED_FILES,
     });
 
     const result = reconcileTsconfig(mine);
@@ -163,7 +167,61 @@ describe('conciliar o tsconfig.json', () => {
     });
 
     const files = parse(reconcileTsconfig(mine).contents as string).files as string[];
-    expect(files).toEqual(['./meus-tipos.d.ts', REQUIRED_FILE]);
+    expect(files).toEqual(['./meus-tipos.d.ts', ...REQUIRED_FILES]);
+  });
+
+  /**
+   * O workspace de antes desta declaração existir: ele já tinha a do `?raw`, e só a que falta entra.
+   * Sem ela, todo `.script.ts` acusava cada `query`, `upsert` e `input` que usa.
+   */
+  it('acrescenta só a declaração do sandbox a quem já tinha a do ?raw', () => {
+    const [raw, sandbox] = REQUIRED_FILES;
+    const before = JSON.stringify({
+      compilerOptions: {
+        paths: Object.fromEntries(REQUIRED_PATHS.map(([k, t]) => [k, [t]])),
+        jsx: 'react-jsx',
+        moduleDetection: 'force',
+      },
+      files: [raw],
+    });
+
+    const result = reconcileTsconfig(before);
+    expect(result.action).toBe('updated');
+    expect(parse(result.contents as string).files).toEqual([raw, sandbox]);
+  });
+
+  /**
+   * Um script não importa nada, e para o TypeScript isso o faz SCRIPT GLOBAL: dois `main` em dois
+   * arquivos colidiam. O workspace semeado antes deste requisito não o tem, e o `sync` o acrescenta.
+   */
+  it('acrescenta o moduleDetection a quem não o declara', () => {
+    const before = JSON.stringify({
+      compilerOptions: { paths: Object.fromEntries(REQUIRED_PATHS.map(([k, t]) => [k, [t]])), jsx: 'react-jsx' },
+      files: REQUIRED_FILES,
+    });
+
+    const result = reconcileTsconfig(before);
+    expect(result.action).toBe('updated');
+    const options = parse(result.contents as string).compilerOptions as Record<string, unknown>;
+    expect(options.moduleDetection).toBe(REQUIRED_MODULE_DETECTION);
+  });
+
+  it('não altera um moduleDetection que o autor escolheu — avisa', () => {
+    const mine = JSON.stringify({
+      compilerOptions: {
+        paths: Object.fromEntries(REQUIRED_PATHS.map(([k, t]) => [k, [t]])),
+        jsx: 'react-jsx',
+        moduleDetection: 'auto',
+      },
+      files: REQUIRED_FILES,
+    });
+
+    const result = reconcileTsconfig(mine);
+    expect(result.action).toBe('unchanged');
+    expect(result.warnings).toHaveLength(1);
+    expect(result.warnings[0]).toContain('compilerOptions.moduleDetection');
+    expect(result.warnings[0]).toContain('"auto"');
+    expect(result.warnings[0]).toMatch(/adjust it by hand/);
   });
 
   /**
@@ -173,8 +231,12 @@ describe('conciliar o tsconfig.json', () => {
    */
   it('avisa sobre exclude alargado, que é o que apaga o editor por dentro', () => {
     const mine = JSON.stringify({
-      compilerOptions: { paths: Object.fromEntries(REQUIRED_PATHS.map(([k, t]) => [k, [t]])), jsx: 'react-jsx' },
-      files: [REQUIRED_FILE],
+      compilerOptions: {
+        paths: Object.fromEntries(REQUIRED_PATHS.map(([k, t]) => [k, [t]])),
+        jsx: 'react-jsx',
+        moduleDetection: 'force',
+      },
+      files: REQUIRED_FILES,
       exclude: ['node_modules', 'examples', '**/functions/**'],
     });
 

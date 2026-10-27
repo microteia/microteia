@@ -3448,6 +3448,21 @@ não exportasse reprovaria ali, e não no escritório de quem instalou. De passa
 suficiente para escrever as NOSSAS extensões — que é a afirmação inteira do dogfooding, e não havia outro
 jeito de verificar.
 
+**Compilar no artefato não é passar no `tsc` do escritório.** Aqui os exemplos são checados por três
+projetos (`extsrc`, `extbackend`, `extscripts`), cada um com o ambiente certo; lá, por UM — o
+`tsconfig.json` semeado em `extensions/` —, com só o que o `sync` declarou em `node_modules`. Cada projeto
+daqui passava e o de lá acusava 21 erros: o `firebase-functions` das functions de exemplo não estava
+declarado no workspace, e os scripts de sandbox não tinham os globais nem `moduleDetection: "force"`.
+`exampleWorkspace.test.ts` monta o workspace como ele chega — exemplos como viajam, `tsconfig.json` da
+semente, e em `node_modules` apenas `workspaceDevDependencies()` mais o que `functionDependencies` acrescenta
+quando há function — e exige zero diagnóstico. Uma dependência nova num exemplo sem a declaração
+correspondente reprova ali.
+
+`firebase-functions` e `firebase-admin` continuam fora do workspace por padrão (são pesadas, e quem só
+declara telas não as usa); entram no instante em que existe uma `functions/` com fonte — do escritório ou
+de `examples/`. A regra mora em `src/sdk/node/workspace/functionDependencies.ts`, e o `create:function` e o
+`sync` a aplicam igual, com as versões lidas do `functions/package.json` da instalação.
+
 #### `create` — o molde é guiado, não fixo
 
 `microteia-plugin create` pergunta o que a extensão vai ser (entidade? página em código? Cloud Functions?)
@@ -3927,8 +3942,9 @@ o caminho que sempre existiu, e nenhum pacote muda de resultado por causa desta 
 |---|---|
 | `tsconfig.extsrc.json` | INCLUI `src/plugins/marketplace/views`; mapeia `@microteia/*`, `react` e `styled-components` para `sdk/types/microteia-host.d.ts` |
 | `tsconfig.extbackend.json` | INCLUI `src/plugins/marketplace/examples/*/functions`; mapeia `microteia-functions/office` para `sdk/types/microteia-office.d.ts`. É a fonte de BACKEND de um exemplo, que roda em Node contra `firebase-functions` — outro ambiente, outro projeto. `skipLibCheck: true`, e pelo INVERSO da razão do `extsrc`: ali a biblioteca é o nosso contrato, aqui é a árvore de terceiro que o `firebase-functions` arrasta |
+| `tsconfig.extscripts.json` | INCLUI `src/plugins/marketplace/examples/*/scripts`; traz `sdk/types/microteia-sandbox.d.ts` por `files` e roda com `moduleDetection: "force"`. É o SCRIPT de um exemplo (`.script.ts`, `.migration.ts`), que roda no sandbox e não importa nada: sem os globais declarados cada `query` era erro, e sem o `force` dois `main` colidiam no escopo global. Antes dele nenhum projeto checava esses arquivos — foi assim que a migração de exemplo leu `query().rows` |
 | `tsconfig.app.json` | EXCLUI o mesmo diretório — senão o build do app tenta resolver `@microteia/ui` de verdade e quebra |
-| `tsconfig.json` (raiz) | REFERENCIA `tsconfig.extsrc.json` e `tsconfig.extbackend.json`. O editor só acha um projeto chamado `tsconfig.json` ou referenciado por ele: sem isso o VSCode abria as fontes de extensão num projeto inferido e acusava erro em todo import de `@microteia/*` que o gate aprovava. Referenciados, rodam também no `tsc -b --force` |
+| `tsconfig.json` (raiz) | REFERENCIA `tsconfig.extsrc.json`, `tsconfig.extbackend.json` e `tsconfig.extscripts.json`. O editor só acha um projeto chamado `tsconfig.json` ou referenciado por ele: sem isso o VSCode abria as fontes de extensão num projeto inferido e acusava erro em todo import de `@microteia/*` que o gate aprovava. Referenciados, rodam também no `tsc -b --force` |
 | `eslint.config.js` | as regras de Hooks e do React Compiler valem; a checagem de literal de i18n não, porque o vocabulário é do domínio da extensão |
 | `viewSources.test.ts` | tranca as três coisas acima, e prova que nenhum plugin voltou ao template literal |
 | `extensionTypeDefs.test.ts` | compila a API curada com `skipLibCheck: false` e cobra o efeito num arquivo `.styles.tsx` |

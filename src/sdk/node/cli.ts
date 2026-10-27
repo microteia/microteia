@@ -17,6 +17,7 @@ import { navTargetReport } from './navTargetReport';
 import { undeclaredPathReport } from './undeclaredPaths';
 import { navGroupReport } from './navGroups';
 import { syncWorkspace } from './workspace/sync';
+import { functionDependencies } from './workspace/functionDependencies';
 import {
   belongsToNamespace,
   invalidNamespaceMessage,
@@ -603,39 +604,9 @@ const createFunction = async (args: Args): Promise<number> => {
 };
 
 /**
- * As versões de `firebase-functions` e `firebase-admin` que a INSTALAÇÃO usa.
- *
- * Lidas do `package.json` das functions do pacote, e não escritas aqui: a function do escritório é
- * compilada junto com as do kernel, contra as dependências dele. Escrever à mão foi o primeiro caminho, e
- * durou um teste — `firebase-admin@^14` não satisfaz o peer de `firebase-functions@6`, e o `npm install`
- * parava com ERESOLVE. Derivar do pacote não tem como divergir.
- */
-const functionDependencies = (workspace: string): Record<string, string> => {
-  const fallback = { 'firebase-admin': '^12.0.0', 'firebase-functions': '^6.0.0' };
-  for (const candidate of [
-    join(workspace, '../.microteia/install/functions/package.json'),
-    join(workspace, '.microteia/install/functions/package.json'),
-  ]) {
-    try {
-      const pkg = JSON.parse(readFileSync(candidate, 'utf8')) as {
-        dependencies?: Record<string, string>;
-      };
-      const admin = pkg.dependencies?.['firebase-admin'];
-      const functions = pkg.dependencies?.['firebase-functions'];
-      if (admin !== undefined && functions !== undefined) {
-        return { 'firebase-admin': admin, 'firebase-functions': functions };
-      }
-    } catch {
-      continue;
-    }
-  }
-  return fallback;
-};
-
-/**
  * Declara `firebase-functions` e `firebase-admin` no `package.json` do workspace, se ainda não estiverem.
- * Ficam fora por padrão porque são pesadas e quem só declara telas não precisa delas — mas no instante em
- * que existe uma function escrita, não declará-las é deixar o molde sublinhado sem motivo aparente.
+ * A regra é a de `functionDependencies.ts`, que o `sync` também aplica: no instante em que existe uma
+ * function escrita, não declará-las é deixar o molde sublinhado sem motivo aparente.
  */
 const ensureFunctionTypes = (workspace: string): boolean => {
   const path = join(workspace, 'package.json');
@@ -644,7 +615,10 @@ const ensureFunctionTypes = (workspace: string): boolean => {
       devDependencies?: Record<string, string>;
     };
     const devDependencies = pkg.devDependencies ?? {};
-    const wanted = functionDependencies(workspace);
+    const wanted = functionDependencies([
+      join(workspace, '../.microteia/install'),
+      join(workspace, '.microteia/install'),
+    ]);
     const missing = Object.keys(wanted).filter((name) => devDependencies[name] === undefined);
     if (missing.length === 0) return false;
 

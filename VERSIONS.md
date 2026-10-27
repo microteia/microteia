@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.169.1] — 2026-10-27
+
+- Corrigido: o diretório de extensões de uma instalação acusava erros nos exemplos que vêm com a Microteia — nas Cloud Functions de exemplo e nos scripts de exemplo. Depois de atualizar, os exemplos passam sem nenhum erro, e os scripts escritos pelo escritório também passam a ser conferidos no editor.
+
 #### [9.169.0] — 2026-10-27
 
 - Novo: importar registros de uma planilha. Na lista de uma tela, o botão Importar recebe um arquivo CSV ou JSON com até 50 mil linhas, liga cada coluna a um campo e mostra, antes de gravar, uma simulação com o que seria criado, alterado ou recusado.

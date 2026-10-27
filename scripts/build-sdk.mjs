@@ -110,6 +110,7 @@ if (ok) {
     'types/microteia-host.d.ts',
     'types/microteia-raw.d.ts',
     'types/microteia-office.d.ts',
+    'types/microteia-sandbox.d.ts',
   ]) {
     if (!existsSync(join(sdkDir, declaration))) {
       fail(`sdk/${declaration} is missing — run "npm run build:host-types".`);

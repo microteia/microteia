@@ -62,11 +62,26 @@ export const REQUIRED_PATHS: [string, string][] = [
 ];
 
 /**
- * A declaração ambiente do `?raw`, e ela entra por `files` e não por `include`: mora em
- * `node_modules`, que o `exclude` descarta, e `files` não passa pelo `exclude`. Sem ela,
- * `import X from './views/Y.tsx?raw'` — o import mais importante de um `plugin.ts` — é um erro.
+ * As declarações ambientes, e elas entram por `files` e não por `include`: moram em `node_modules`,
+ * que o `exclude` descarta, e `files` não passa pelo `exclude`.
+ *
+ * - **`?raw`**: sem ela, `import X from './views/Y.tsx?raw'` — o import mais importante de um
+ *   `plugin.ts` — é um erro.
+ * - **sandbox**: os globais de um `.script.ts` ou `.migration.ts` (`query`, `upsert`, `input`, `fn`…).
+ *   Sem ela, todo script — o do escritório e os de `examples/` — acusava cada nome que usa.
  */
-export const REQUIRED_FILE = 'node_modules/@microteia/sdk/types/microteia-raw.d.ts';
+export const REQUIRED_FILES = [
+  'node_modules/@microteia/sdk/types/microteia-raw.d.ts',
+  'node_modules/@microteia/sdk/types/microteia-sandbox.d.ts',
+];
+
+/**
+ * Um script não importa nada, e um arquivo sem import é, para o TypeScript, um SCRIPT GLOBAL: todos
+ * dividem o mesmo escopo. Dois scripts com a sua `async function main()` viravam "Duplicate function
+ * implementation" — que é a forma que a plataforma ensina a escrevê-los. `force` faz de cada arquivo um
+ * módulo; as declarações `.d.ts` continuam globais, que é o que os globais do sandbox precisam.
+ */
+export const REQUIRED_MODULE_DETECTION = 'force';
 
 export const MCP_SERVER_NAME = 'microteia';
 
@@ -141,9 +156,10 @@ export const workspaceTsconfig = (): string => json({
     noFallthroughCasesInSwitch: true,
     noEmit: true,
     skipLibCheck: true,
+    moduleDetection: REQUIRED_MODULE_DETECTION,
     paths: Object.fromEntries(REQUIRED_PATHS.map(([key, target]) => [key, [target]])),
   },
-  files: [REQUIRED_FILE],
+  files: REQUIRED_FILES,
   include: ['**/*.ts', '**/*.tsx'],
   exclude: ['node_modules'],
 });
@@ -178,8 +194,9 @@ const describe = (name: string, key: string, want: string, found: string): strin
   `${name}: "${key}" is ${found}, and the platform needs ${want}. Left as it is — adjust it by hand if that was not deliberate.`;
 
 /**
- * `tsconfig.json`. Os requisitos são os seis `paths`, a entrada de `files` e ter algum `jsx` — é o
- * conjunto mínimo que faz uma view `.tsx` ser checada de verdade. Todo o resto é do autor.
+ * `tsconfig.json`. Os requisitos são os `paths`, as entradas de `files`, ter algum `jsx` e o
+ * `moduleDetection` — é o conjunto mínimo que faz uma view `.tsx` e um script serem checados de
+ * verdade. Todo o resto é do autor.
  */
 export const reconcileTsconfig = (existing: string | null): Reconciliation => {
   if (existing === null) return created(workspaceTsconfig());
@@ -241,9 +258,23 @@ export const reconcileTsconfig = (existing: string | null): Reconciliation => {
     changed = true;
   }
 
+  if (options.moduleDetection === undefined) {
+    options.moduleDetection = REQUIRED_MODULE_DETECTION;
+    config.compilerOptions = options;
+    changed = true;
+  } else if (options.moduleDetection !== REQUIRED_MODULE_DETECTION) {
+    warnings.push(describe(
+      'tsconfig.json',
+      'compilerOptions.moduleDetection',
+      `"${REQUIRED_MODULE_DETECTION}" (or two scripts that both declare "main" collide)`,
+      JSON.stringify(options.moduleDetection),
+    ));
+  }
+
   const files = Array.isArray(config.files) ? config.files as unknown[] : [];
-  if (!files.includes(REQUIRED_FILE)) {
-    config.files = [...files, REQUIRED_FILE];
+  const missingFiles = REQUIRED_FILES.filter((file) => !files.includes(file));
+  if (missingFiles.length > 0) {
+    config.files = [...files, ...missingFiles];
     changed = true;
   }
 
