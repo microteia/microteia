@@ -12,6 +12,7 @@ import {
   TEMPLATE_BLOCKS,
 } from '../../../domain/schema/document';
 import { ARTIFACT_PREFIX_SINCE_KERNEL } from '../../../domain/schema/plugin/artifactPrefix';
+import { LOOKUP_TARGET_MAP_SINCE_KERNEL } from '../../../domain/schema/fieldChangeSpec';
 import { PACKAGE_ADVISORY_BYTES, PACKAGE_MAX_BYTES } from '../../../domain/usecases/plugins/pluginReferences';
 import { UI_EXTENSION_POINTS } from '../../../domain/schema/ui/uiExtensionPoints';
 import { ACCESS_EXTENSION_POINTS } from '../../../domain/schema/access';
@@ -963,6 +964,14 @@ describe('a seção de documentos', () => {
     for (const type of DOCUMENT_PARAMETER_TYPES) expect(guide).toContain(`\`${type}\``);
     expect(guide).toContain(`\`belongsTo\` requires kernel \`^${DOCUMENT_BELONGS_TO_SINCE_KERNEL}\``);
     expect(guide).toContain(`The list of keys requires kernel \`^${DOCUMENT_DATASET_ORDER_LIST_SINCE_KERNEL}\``);
+  });
+
+  it('ensina a levar a busca externa a campos achatados, com a versão do kernel derivada', () => {
+    const guide = authoringGuide(AGENTS);
+
+    expect(guide).toContain('`logic.onChangeLookup: { provider, map }`');
+    expect(guide).toContain('the dotted form §8.0 forbids');
+    expect(guide).toContain(`A package using \`map\` declares \`kernel: '^${LOOKUP_TARGET_MAP_SINCE_KERNEL}'\` or later`);
   });
 
   it('ensina o prefixo, com a versão do kernel derivada', () => {

@@ -220,6 +220,7 @@ export const CORE_RECORDS: Record<string, string> = {
   'field.provider.banner':
     'Ao preencher este campo, o valor digitado é enviado para {host}. Chaves devolvidas: {keys}.',
   'field.provider.fallback': 'o provedor',
+  'field.provider.map': 'Preencher "{key}" em (opcional)',
   'field.provider.target': 'Preencher dentro de (opcional)',
   'field.error.options-required': 'Adicione ao menos uma opção ou permita que usuários criem opções.',
   'field.error.label-required': 'Informe o nome do campo.',

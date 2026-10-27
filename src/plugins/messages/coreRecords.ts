@@ -221,6 +221,7 @@ export const CORE_RECORDS_MESSAGES: Record<string, string> = {
   'field.provider.banner':
     'When this field is filled in, the typed value is sent to {host}. Keys returned: {keys}.',
   'field.provider.fallback': 'the provider',
+  'field.provider.map': 'Fill "{key}" into (optional)',
   'field.provider.target': 'Fill inside of (optional)',
   'field.error.options-required': 'Add at least one option or let users create options.',
   'field.error.label-required': 'Enter the field name.',

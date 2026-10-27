@@ -51,6 +51,7 @@ import { resolveListActions, supportedListActions } from '../../shared/listActio
 import type { CustomFieldMask, CustomFieldType, FieldDefinition, ScreenDefinition, ScreenListAction } from '../../../domain/entities';
 import type { AggregationOp, FieldAggregation, FieldFileConfig, FieldLookupBinding, FieldLogic, FieldRules, FormatPreset, FormatRule, ValidateCheck, ValidateRule } from '../../../domain/schema/fieldRules';
 import { AGGREGATION_OP_LABELS, DEFAULT_FILE_MAX_SIZE_MB } from '../../../domain/schema/fieldRules';
+import { lookupTargetMap } from '../../../domain/schema/fieldChangeSpec';
 import {
   formatPresetOptions as buildFormatPresetOptions,
   maskPresetOptions as buildMaskPresetOptions,
@@ -242,6 +243,11 @@ export interface FieldOptionFormItem {
   color?: string;
 }
 
+export interface LookupTargetRow {
+  output: string;
+  target: string;
+}
+
 export interface FieldFormState {
   label: string;
   fieldKey: string;
@@ -279,6 +285,8 @@ export interface FieldFormState {
   logicOnChange: string;
   lookupProvider: string;
   lookupTargetPrefix: string;
+  /** Chave do provedor → campo que a recebe. Vazio, vale o prefixo. */
+  lookupMap: Record<string, string>;
   aggregationFrom: string;
   aggregationVia: string;
   aggregationOp: AggregationOp | '';
@@ -490,6 +498,13 @@ export interface ScreenBuilderViewModel {
   removeAggregationOrder: (index: number) => void;
   lookupProviderOptions: SearchSelectOption[];
   selectedLookupProvider: ExternalLookupProviderOption | null;
+  selectLookupProvider: (provider: string) => void;
+  /** Uma linha por chave que o provedor devolve, com o campo que a recebe (vazio = nenhum). */
+  lookupTargetRows: LookupTargetRow[];
+  lookupTargetOptions: SearchSelectOption[];
+  setLookupTarget: (output: string, target: string) => void;
+  /** Algum destino escolhido por chave: o prefixo deixa de valer e sai da tela. */
+  lookupMapped: boolean;
   tagColors: ColorSwatchOption[];
   addStaticOption: () => void;
   removeStaticOption: (label: string) => void;
@@ -601,6 +616,7 @@ const EMPTY_FIELD_FORM: FieldFormState = {
   logicOnChange: '',
   lookupProvider: '',
   lookupTargetPrefix: '',
+  lookupMap: {},
   aggregationFrom: '',
   aggregationVia: '',
   aggregationOp: '',
@@ -706,6 +722,8 @@ const buildFieldLogic = (form: FieldFormState): FieldLogic | null => {
 const buildFieldLookup = (form: FieldFormState): FieldLookupBinding | null => {
   const provider = form.lookupProvider.trim();
   if (!provider) return null;
+  const map = lookupTargetMap({ provider, map: form.lookupMap });
+  if (map) return { provider, map };
   const targetPrefix = form.lookupTargetPrefix.trim();
   return { provider, ...(targetPrefix ? { targetPrefix } : {}) };
 };
@@ -820,7 +838,7 @@ const derivedKeyIn = (fields: FieldDefinition[], dependencies: string[]): string
 
 const fieldLogicToForm = (logic: FieldLogic | null | undefined): Pick<
   FieldFormState,
-  'logicValidate' | 'logicDisabledWhen' | 'logicHiddenWhen' | 'logicCompute' | 'logicDerive' | 'logicOnChange' | 'lookupProvider' | 'lookupTargetPrefix'
+  'logicValidate' | 'logicDisabledWhen' | 'logicHiddenWhen' | 'logicCompute' | 'logicDerive' | 'logicOnChange' | 'lookupProvider' | 'lookupTargetPrefix' | 'lookupMap'
 > => ({
   logicValidate: logic?.validate ?? '',
   logicDisabledWhen: logic?.disabledWhen ?? '',
@@ -830,6 +848,7 @@ const fieldLogicToForm = (logic: FieldLogic | null | undefined): Pick<
   logicOnChange: logic?.onChange ?? '',
   lookupProvider: logic?.onChangeLookup?.provider ?? '',
   lookupTargetPrefix: logic?.onChangeLookup?.targetPrefix ?? '',
+  lookupMap: lookupTargetMap(logic?.onChangeLookup) ?? {},
 });
 
 /**
@@ -2211,6 +2230,43 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     [externalLookupProviders, fieldForm.lookupProvider],
   );
 
+  // As chaves de outro provedor não significam nada para o novo: trocar de provedor recomeça o mapa.
+  const selectLookupProvider = useCallback((provider: string) => {
+    setFieldForm((prev) => (prev.lookupProvider === provider ? prev : { ...prev, lookupProvider: provider, lookupMap: {} }));
+  }, []);
+
+  const setLookupTarget = useCallback((output: string, target: string) => {
+    setFieldForm((prev) => {
+      const rest = Object.fromEntries(Object.entries(prev.lookupMap).filter(([key]) => key !== output));
+      return { ...prev, lookupMap: target ? { ...rest, [output]: target } : rest };
+    });
+  }, []);
+
+  const lookupTargetRows = useMemo<LookupTargetRow[]>(
+    () => (selectedLookupProvider?.outputKeys ?? []).map((output) => ({ output, target: fieldForm.lookupMap[output] ?? '' })),
+    [selectedLookupProvider, fieldForm.lookupMap],
+  );
+
+  /**
+   * Os campos que podem receber a resposta: os da própria tela, menos o que dispara a busca (ele não é
+   * reescrito) e os que a plataforma escreve sozinha (calculado, derivado, agregado), que refariam o
+   * valor por cima. O destino JÁ GRAVADO entra mesmo assim, pela mesma razão do subtítulo.
+   */
+  const lookupTargetOptions = useMemo<SearchSelectOption[]>(() => {
+    const fields = fieldModal ? resolvedFieldsByScreen[fieldModal.screenKey] ?? [] : [];
+    const chosen = new Set(Object.values(fieldForm.lookupMap));
+    const selfKey = fieldModal?.fieldKey ?? fieldForm.fieldKey.trim();
+    return [
+      { value: '', label: t('core.automation/parameter.preset.none') },
+      ...fields
+        .filter((f) => chosen.has(f.key)
+          || (f.key !== selfKey && !f.logic?.compute && !f.logic?.derive && !f.aggregation))
+        .map((f) => ({ value: f.key, label: label(f.label) })),
+    ];
+  }, [fieldModal, resolvedFieldsByScreen, fieldForm.lookupMap, fieldForm.fieldKey, t, label]);
+
+  const lookupMapped = lookupTargetMap({ provider: fieldForm.lookupProvider, map: fieldForm.lookupMap }) !== null;
+
   const aggregationOpOptions = useMemo<SearchSelectOption[]>(
     () => Object.entries(AGGREGATION_OP_LABELS).map(([value, text]) => ({ value, label: label(text) })),
     [label],
@@ -2800,6 +2856,11 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     aggregationFilterVariables,
     lookupProviderOptions,
     selectedLookupProvider,
+    selectLookupProvider,
+    lookupTargetRows,
+    lookupTargetOptions,
+    setLookupTarget,
+    lookupMapped,
     tagColors,
     addStaticOption,
     removeStaticOption,

@@ -18,6 +18,14 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.170.0] — 2026-10-27
+
+- feat(fieldLogic/onChangeLookup): `FieldLookupBinding.map` (`{ <provider key>: <field key> }`) sends each value an external lookup returns to the field it names. `targetPrefix` can only build `<prefix>.<key>`, so a value object stored flat — the strategy the authoring guide prescribes, with no dotted field key — could not be filled at all: `viacep` answered and `endereco.street` did not exist. With `map`, unmapped provider keys are discarded and `targetPrefix` is not applied; the patch only writes fields the screen has and never the field that triggered the lookup (`resolveLookupPatch`). Without `map`, the merge is byte-for-byte the previous one (`prefixLookupValues`), so `address.street` declarations keep working with no migration. KERNEL_VERSION 2.80.0 (`LOOKUP_TARGET_MAP_SINCE_KERNEL`): an older kernel ignores `map` and would merge the raw provider keys.
+- feat(sdk/validate): `packageFieldLookupIssues` (in `packageIssues`, hence `check`, `build`, the MCP `validate_plugin` and every import) refuses a malformed `map`, `map` together with `targetPrefix`, a target that is not a field of the screen, the triggering field itself, a target the platform writes (`compute`, `derive`, `aggregation`), a key the provider does not return when the provider is declared in the same package, and a `kernel` range below 2.80.0. Only `map` is checked: packages on `targetPrefix` install as before. In a `screenPatches` entry, a target outside the patch's fields is not judged — it may belong to the target screen.
+- feat(screenBuilder): with a provider selected, Form Design shows one target picker per returned key; choosing any hides the prefix input and saves `map` instead. Switching provider resets the map. Opening and saving a field declared with `map` no longer drops it.
+- docs(sdk/workspace): AUTHORING.md §8.1 documents `logic.onChangeLookup: { provider, map }`, with the kernel floor derived from the constant.
+- chore(locale-pt-br): 1.138.0 with the new messages.
+
 #### [9.169.4] — 2026-10-27
 
 - fix(entityScreen/save): a `RecordRulesError` thrown by the repository on save (a key already held by another record, a required key left empty) now reaches the form as field errors plus a `label: reason` notice. It used to fall through to the screen's generic save-error message, so the declared key message (`keys[].message`) never showed and the user could not tell which field to fix.

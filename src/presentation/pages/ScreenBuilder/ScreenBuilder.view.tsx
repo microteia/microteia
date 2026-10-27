@@ -1127,7 +1127,7 @@ export const ScreenBuilderView: React.FC = () => {
                   <SearchSelect
                     options={vm.lookupProviderOptions}
                     value={vm.fieldForm.lookupProvider}
-                    onChange={(value) => vm.updateFieldForm({ lookupProvider: value })}
+                    onChange={vm.selectLookupProvider}
                     placeholder={t('core.automation/parameter.preset.none')}
                   />
                 </InputGroup>
@@ -1139,14 +1139,27 @@ export const ScreenBuilderView: React.FC = () => {
                         message={t('field.provider.banner', { host: vm.selectedLookupProvider.host ?? t('field.provider.fallback'), keys: vm.selectedLookupProvider.outputKeys.join(', ') })}
                       />
                     </S.FullRow>
-                    <InputGroup>
-                      <Label>{t('field.provider.target')}</Label>
-                      <Input
-                        value={vm.fieldForm.lookupTargetPrefix}
-                        onChange={(e) => vm.updateFieldForm({ lookupTargetPrefix: e.target.value })}
-                        placeholder={t('field.provider.target.placeholder')}
-                      />
-                    </InputGroup>
+                    {vm.lookupTargetRows.map((row) => (
+                      <InputGroup key={row.output}>
+                        <Label>{t('field.provider.map', { key: row.output })}</Label>
+                        <SearchSelect
+                          options={vm.lookupTargetOptions}
+                          value={row.target}
+                          onChange={(value) => vm.setLookupTarget(row.output, value)}
+                          placeholder={t('core.automation/parameter.preset.none')}
+                        />
+                      </InputGroup>
+                    ))}
+                    {!vm.lookupMapped && (
+                      <InputGroup>
+                        <Label>{t('field.provider.target')}</Label>
+                        <Input
+                          value={vm.fieldForm.lookupTargetPrefix}
+                          onChange={(e) => vm.updateFieldForm({ lookupTargetPrefix: e.target.value })}
+                          placeholder={t('field.provider.target.placeholder')}
+                        />
+                      </InputGroup>
+                    )}
                   </>
                 )}
                 <InputGroup>

@@ -337,6 +337,20 @@ export const CORE_MARKETPLACE: Record<string, string> = {
   'issue.migration.version-invalid': 'A migração de dados "{id}" declara a versão "{version}", que não é um semver válido.',
   'issue.package.action.no-target':
     'A ação "{key}" ({where}) não executa nada: declare workflowId (o templateId de uma automação) ou command (um gesto da plataforma sobre o registro).',
+  'issue.package.field.lookup.map-kernel':
+    'O campo "{field}" de "{screen}" envia a busca externa para campos com onChangeLookup.map, que exige kernel: "^{minimum}". Um kernel anterior ignora o map e grava no registro as chaves cruas do provedor.',
+  'issue.package.field.lookup.map-output':
+    'O campo "{field}" de "{screen}" mapeia "{output}", que o provedor "{provider}" não devolve. Ele devolve: {outputs}.',
+  'issue.package.field.lookup.map-prefix':
+    'O campo "{field}" de "{screen}" declara map e targetPrefix no mesmo onChangeLookup. Com map, cada valor vai para o campo que ele nomeia e o targetPrefix nunca é aplicado: retire um dos dois.',
+  'issue.package.field.lookup.map-readonly':
+    'O campo "{field}" de "{screen}" envia "{output}" para "{target}", cujo valor a plataforma escreve sozinha (compute, derive ou aggregation). A busca seria sobrescrita: mapeie para um campo que a pessoa edita.',
+  'issue.package.field.lookup.map-self':
+    'O campo "{field}" de "{screen}" envia "{output}" de volta para ele mesmo. O campo que dispara a busca nunca é reescrito, para que a resposta não brigue com a digitação: mapeie para outro campo.',
+  'issue.package.field.lookup.map-shape':
+    'O campo "{field}" de "{screen}" declara um onChangeLookup.map que não é um objeto não vazio de { "<chave do provedor>": "<chave do campo>" }, ambos em texto.',
+  'issue.package.field.lookup.map-target':
+    'O campo "{field}" de "{screen}" envia "{output}" para "{target}", que não é campo dessa tela. O map recebe a chave de um campo declarado na mesma tela — achatada, como "enderecoLogradouro", nunca "endereco.logradouro".',
   'issue.package.icon.unknown':
     'O ícone "{icon}" ({where}) não está no catálogo da plataforma. A instalação desenharia o marcador genérico no lugar dele. Peça `list_icons` ao servidor MCP microteia-plugin para ver todas as chaves.',
   'issue.package.message.key':

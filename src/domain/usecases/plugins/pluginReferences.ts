@@ -23,6 +23,7 @@ import { packageEditWindowIssues } from './pluginEditWindow';
 import { packageMemberVisibilityIssues } from './pluginMemberVisibility';
 import { packageRecordSequenceIssues } from './pluginRecordSequence';
 import { packageLookupSeedIssues } from './pluginLookupSeeds';
+import { packageFieldLookupIssues } from './pluginFieldLookups';
 import { packageIconIssues } from './pluginIcons';
 import { packageActionIssues } from './pluginActions';
 import { packageImageIssues } from './pluginImage';
@@ -458,6 +459,7 @@ export const packageIssues = (pkg: MarketplacePlugin): LocalizedIssue[] => [
   ...packageMemberVisibilityIssues(pkg),
   ...packageRecordSequenceIssues(pkg),
   ...packageLookupSeedIssues(pkg),
+  ...packageFieldLookupIssues(pkg),
   ...packagePrefixIssues(pkg),
 ];
 

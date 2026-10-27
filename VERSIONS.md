@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.170.0] — 2026-10-27
+
+- A busca de endereço pelo CEP agora pode preencher qualquer campo do cadastro: no desenho da tela, escolha para cada informação devolvida (logradouro, bairro, cidade, UF) o campo que a recebe.
+- A conferência de extensões passou a avisar quando a busca de endereço aponta para um campo que não existe na tela, ou para um campo que o sistema preenche sozinho.
+
 #### [9.169.4] — 2026-10-27
 
 - Corrigido: ao salvar um registro com um valor que já pertence a outro (por exemplo, um CPF/CNPJ já cadastrado), aparecia só "Erro ao salvar o registro". Agora o aviso diz qual campo se repetiu e por quê, e o campo fica destacado no formulário.

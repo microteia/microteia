@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { FieldDefinition } from '../entities/entitySchemas';
-import { prefixLookupValues, resolveOnChangePatch } from './fieldChangeSpec';
+import { lookupTargetMap, prefixLookupValues, resolveLookupPatch, resolveOnChangePatch } from './fieldChangeSpec';
 import type { RecordResolver } from './referenceScope';
 import { EMPTY_FIELD_UI_STATE } from './fieldUiScope';
 
@@ -96,5 +96,86 @@ describe('prefixLookupValues', () => {
     const values = { street: 'Av. Paulista' };
     expect(prefixLookupValues(values, '')).toBe(values);
     expect(prefixLookupValues(values, null)).toBe(values);
+  });
+});
+
+describe('resolveLookupPatch', () => {
+  const VIACEP_VALUES = { street: 'Av. Paulista', neighborhood: 'Bela Vista', city: 'São Paulo', state: 'SP' };
+  const FLAT_FIELDS = new Set(['enderecoCep', 'enderecoLogradouro', 'enderecoBairro', 'enderecoMunicipio', 'enderecoUf']);
+
+  it('com map, leva cada valor ao campo achatado declarado', () => {
+    const patch = resolveLookupPatch(
+      {
+        provider: 'viacep',
+        map: { street: 'enderecoLogradouro', neighborhood: 'enderecoBairro', city: 'enderecoMunicipio', state: 'enderecoUf' },
+      },
+      VIACEP_VALUES,
+      'enderecoCep',
+      FLAT_FIELDS,
+    );
+    expect(patch).toEqual({
+      enderecoLogradouro: 'Av. Paulista',
+      enderecoBairro: 'Bela Vista',
+      enderecoMunicipio: 'São Paulo',
+      enderecoUf: 'SP',
+    });
+  });
+
+  it('com map, descarta a chave do provedor que ele não menciona e ignora o prefixo', () => {
+    const patch = resolveLookupPatch(
+      { provider: 'viacep', targetPrefix: 'address', map: { city: 'enderecoMunicipio' } },
+      VIACEP_VALUES,
+      'enderecoCep',
+      FLAT_FIELDS,
+    );
+    expect(patch).toEqual({ enderecoMunicipio: 'São Paulo' });
+  });
+
+  it('não escreve destino que a tela não tem mais, nem o campo que disparou a busca', () => {
+    const patch = resolveLookupPatch(
+      { provider: 'viacep', map: { street: 'apagadoDepois', city: 'enderecoCep', state: 'enderecoUf' } },
+      VIACEP_VALUES,
+      'enderecoCep',
+      FLAT_FIELDS,
+    );
+    expect(patch).toEqual({ enderecoUf: 'SP' });
+  });
+
+  it('chave mapeada que o provedor não devolveu não vira campo vazio', () => {
+    const patch = resolveLookupPatch(
+      { provider: 'viacep', map: { complement: 'enderecoLogradouro', state: 'enderecoUf' } },
+      VIACEP_VALUES,
+      'enderecoCep',
+      FLAT_FIELDS,
+    );
+    expect(patch).toEqual({ enderecoUf: 'SP' });
+  });
+
+  it('sem map, mantém o prefixo com ponto de quem já usa — inclusive sem conferir os campos', () => {
+    expect(resolveLookupPatch({ provider: 'viacep', targetPrefix: 'address' }, { street: 'Av. Paulista' }, 'address.zipCode', new Set()))
+      .toEqual({ 'address.street': 'Av. Paulista' });
+    expect(resolveLookupPatch({ provider: 'viacep' }, { street: 'Av. Paulista' }, 'cep', new Set()))
+      .toEqual({ street: 'Av. Paulista' });
+  });
+
+  it('map vazio ou só com entradas em branco volta ao prefixo, em vez de não preencher nada', () => {
+    expect(resolveLookupPatch({ provider: 'viacep', targetPrefix: 'address', map: {} }, { street: 'X' }, 'cep', new Set()))
+      .toEqual({ 'address.street': 'X' });
+    expect(resolveLookupPatch({ provider: 'viacep', map: { street: '  ' } }, { street: 'X' }, 'cep', new Set()))
+      .toEqual({ street: 'X' });
+  });
+});
+
+describe('lookupTargetMap', () => {
+  it('apara chave e destino e descarta o que não é texto', () => {
+    expect(lookupTargetMap({ provider: 'p', map: { ' street ': ' rua ', city: 3 as unknown as string } }))
+      .toEqual({ street: 'rua' });
+  });
+
+  it('devolve null sem map, com map nulo ou que não é objeto', () => {
+    expect(lookupTargetMap({ provider: 'p' })).toBeNull();
+    expect(lookupTargetMap({ provider: 'p', map: null })).toBeNull();
+    expect(lookupTargetMap({ provider: 'p', map: ['a'] as unknown as Record<string, string> })).toBeNull();
+    expect(lookupTargetMap(undefined)).toBeNull();
   });
 });

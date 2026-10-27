@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useExternalLookupProviders } from '../../../shared/useExternalLookupProviders';
 import { useNotification } from '../../../../stores/useNotification';
-import { prefixLookupValues, resolveOnChangePatch } from '../../../../domain/schema/fieldChangeSpec';
+import { resolveLookupPatch, resolveOnChangePatch } from '../../../../domain/schema/fieldChangeSpec';
 import type { RecordResolver } from '../../../../domain/schema/referenceScope';
 import type { FieldDefinition } from '../../../../domain/entities';
 
@@ -77,13 +77,14 @@ export const useFieldChangeEffects = (input: FieldChangeEffectsInput): FieldChan
           if (outcome.error) notify(outcome.error, 'warning');
           return;
         }
-        const patch = prefixLookupValues(outcome.values, binding.targetPrefix);
+        const fieldKeys = new Set(fields.map((candidate) => candidate.key));
+        const patch = resolveLookupPatch(binding, outcome.values, field.key, fieldKeys);
         if (Object.keys(patch).length > 0) onMergeValues(patch);
       } finally {
         if (requestSeqRef.current.get(field.key) === seq) setLoading(field.key, false);
       }
     },
-    [externalLookupServices, notify, onMergeValues, setLoading],
+    [externalLookupServices, fields, notify, onMergeValues, setLoading],
   );
 
   const runFieldChangeEffects = useCallback(

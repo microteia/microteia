@@ -72,6 +72,15 @@ export interface FieldLookupBinding {
   provider: string;
   // Prefixo aplicado às chaves devolvidas: 'address' → address.street, address.city…
   targetPrefix?: string | null;
+  /**
+   * Chave devolvida pelo provedor → campo da tela que a recebe: `{ street: 'enderecoLogradouro' }`.
+   *
+   * Existe porque o prefixo só sabe montar `<prefixo>.<chave>`, e um objeto de valor ACHATADO
+   * (`enderecoLogradouro`, `enderecoBairro`) não tem ponto nenhum — nem o nome da chave do provedor.
+   * Declarado, ele manda sozinho: a chave que não aparece aqui é descartada, e `targetPrefix` não se
+   * aplica. Ausente, vale o prefixo, como sempre valeu.
+   */
+  map?: Record<string, string> | null;
 }
 
 export interface FieldLogic {

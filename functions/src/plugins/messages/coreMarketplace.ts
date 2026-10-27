@@ -344,6 +344,20 @@ export const CORE_MARKETPLACE_MESSAGES: Record<string, string> = {
   'issue.migration.version-invalid': 'Data migration "{id}" declares version "{version}", which is not a valid semver.',
   'issue.package.action.no-target':
     'The action "{key}" ({where}) runs nothing: declare workflowId (a workflow templateId) or command (a platform record gesture).',
+  'issue.package.field.lookup.map-kernel':
+    'Field "{field}" of "{screen}" sends the external lookup to fields with onChangeLookup.map, which requires kernel: "^{minimum}". An older kernel ignores map and writes the raw provider keys into the record.',
+  'issue.package.field.lookup.map-output':
+    'Field "{field}" of "{screen}" maps "{output}", which the provider "{provider}" does not return. It returns: {outputs}.',
+  'issue.package.field.lookup.map-prefix':
+    'Field "{field}" of "{screen}" declares both map and targetPrefix in onChangeLookup. With map, each value goes to the field it names and targetPrefix is never applied: remove one of them.',
+  'issue.package.field.lookup.map-readonly':
+    'Field "{field}" of "{screen}" sends "{output}" to "{target}", whose value the platform writes itself (compute, derive or aggregation). The lookup would be overwritten: map it to a field the person edits.',
+  'issue.package.field.lookup.map-self':
+    'Field "{field}" of "{screen}" sends "{output}" back to itself. The field that triggers the lookup is never rewritten, so that the reply does not fight with typing: map it to another field.',
+  'issue.package.field.lookup.map-shape':
+    'Field "{field}" of "{screen}" declares an onChangeLookup.map that is not a non-empty object of { "<provider key>": "<field key>" }, both as text.',
+  'issue.package.field.lookup.map-target':
+    'Field "{field}" of "{screen}" sends "{output}" to "{target}", which is not a field of that screen. map takes the key of a field declared in the same screen — flat, such as "addressStreet", never "address.street".',
   'issue.package.icon.unknown':
     'Icon "{icon}" ({where}) is not in the platform catalogue. The installation would draw the generic marker instead. Ask the microteia-plugin MCP server for list_icons to see every key.',
   'issue.package.message.key':
