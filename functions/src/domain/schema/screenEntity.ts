@@ -24,6 +24,7 @@ import { AGGREGATE_BACKFILL_COLLECTION } from './aggregateBackfill';
 import { RECORD_KEY_ADOPTION_COLLECTION } from './recordKeyAdoption';
 import type { AutoValueSpec, RecordSequenceField } from './recordSequence';
 import { RECORD_SEQUENCES_COLLECTION, recordSequenceFields } from './recordSequence';
+import { RECORD_IMPORTS_COLLECTION } from './recordImport';
 import { WORKFLOW_CLOCK_COLLECTION, WORKFLOW_TRIGGER_MARKS_COLLECTION } from './workflowClock';
 import { NOTIFICATION_DISPATCHES_COLLECTION, NOTIFICATION_INBOX_COLLECTION } from './notifications';
 import { asContactKind, NOTIFICATION_CONTACTS_COLLECTION } from './notificationContacts';
@@ -615,6 +616,7 @@ export const RESERVED_COLLECTIONS: ReadonlySet<string> = new Set<string>([
   AGGREGATE_BACKFILL_COLLECTION,
   RECORD_KEY_ADOPTION_COLLECTION,
   RECORD_SEQUENCES_COLLECTION,
+  RECORD_IMPORTS_COLLECTION,
   'notes',
   'documents',
   'tags',

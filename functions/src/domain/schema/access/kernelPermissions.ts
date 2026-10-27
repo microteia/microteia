@@ -70,6 +70,13 @@ export const PERMISSION_PORTAL_MANAGE = 'portal.manage';
  * os dados de uma empresa; poucos são os responsáveis técnicos que precisam ser avisados.
  */
 export const PERMISSION_PORTAL_ACTIVITY = 'portal.activity';
+/**
+ * Importar registros EM MASSA numa tela, por arquivo. É uma permissão à parte da coleção porque o gesto
+ * é outro: quem cadastra um registro de cada vez não ganha, por isso, o poder de criar ou alterar
+ * milhares de uma vez. Ela não basta sozinha — cada linha cobra `<coleção>.create` ou `.update`. O
+ * recurso tem hífen porque nome de coleção não tem: uma tela chamada `records` não colide com ele.
+ */
+export const PERMISSION_RECORD_IMPORT_RUN = 'record-import.run';
 
 /**
  * O nome e a descrição vão por extenso, e não montados a partir do `id`. Uma referência composta em
@@ -227,6 +234,11 @@ export const KERNEL_PERMISSIONS: AccessPermission[] = [
     name: '@core.access/permission.portal.activity',
     description: '@core.access/permission.portal.activity.description',
   },
+  {
+    id: PERMISSION_RECORD_IMPORT_RUN,
+    name: '@core.access/permission.record-import.run',
+    description: '@core.access/permission.record-import.run.description',
+  },
 ];
 
 export const KERNEL_PERMISSION_RESOURCES: PermissionResource[] = [
@@ -249,4 +261,5 @@ export const KERNEL_PERMISSION_RESOURCES: PermissionResource[] = [
   { id: 'downloads', name: '@core.access/resource.downloads' },
   { id: 'documents', name: '@core.access/resource.documents' },
   { id: 'portal', name: '@core.access/resource.portal' },
+  { id: 'record-import', name: '@core.access/resource.record-import' },
 ];

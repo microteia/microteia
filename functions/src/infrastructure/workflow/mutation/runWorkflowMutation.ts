@@ -17,7 +17,8 @@ import { RECORD_CREATED_VIA_FIELD, RECORD_UPDATED_VIA_FIELD } from '../../../dom
 import { RECORD_PORTAL_VERIFIED_FIELD, type PortalVerifiedIdentity } from '../../../domain/schema/portalIdentity';
 import { ruleIssueParams } from '../../../domain/schema/fieldRules';
 import type { DescribableIssue } from '../../../domain/schema/fieldRules';
-import { formatAndValidateRecord, tableMentionsBusinessDays } from '../../../domain/schema/recordRules';
+import { collectDerivedFieldKeys, formatAndValidateRecord, tableMentionsBusinessDays } from '../../../domain/schema/recordRules';
+import { isEmptyRuleValue } from '../../../domain/schema/fieldRulePresets';
 import { withAmbientTimeZone } from '../../../domain/schema/clockGate';
 import { withAmbientBusinessCalendars } from '../../../domain/schema/time/businessDaysGate';
 import { businessCalendarsFor } from '../../../domain/services/businessCalendarScope';
@@ -27,7 +28,7 @@ import {
   RECORD_KEY_REFS_FIELD,
   storedRecordKeyRefs,
 } from '../../../domain/schema/recordKeys';
-import { resolveEntityKeys, resolveRecordSequences } from '../../../domain/schema/screenEntity';
+import { resolveEntity, resolveEntityKeys, resolveRecordSequences } from '../../../domain/schema/screenEntity';
 import type { RecordSequenceEntry } from '../../../domain/schema/recordSequence';
 import { omitSequenceFields, planRecordSequences } from '../../../domain/schema/recordSequence';
 import { DEFAULT_TIME_ZONE } from '../../../domain/schema/i18n/timeZone';
@@ -40,6 +41,9 @@ import {
 import { readerSeesRecord, resolveMemberVisibility } from '../../../domain/schema/memberVisibility';
 import { RecordKeyTakenError } from '../../../domain/repositories/IWorkflowMutationRepository';
 import type { RecordKeyMutation } from '../../../domain/repositories/IWorkflowMutationRepository';
+import { collectionPermissionId } from '../../../domain/schema/access/permission';
+import { grants } from '../../../domain/schema/access/memberPermissions';
+import type { SchemaContext } from '../../../domain/schema/pathResolver';
 
 const WORKFLOW_ACTOR = 'workflow-engine';
 
@@ -115,6 +119,32 @@ export interface UpsertOptions {
    * registro apagado no meio do caminho, fazer nascer outro só com os campos que mandou.
    */
   updateOnly?: boolean;
+  /**
+   * Sem `id`, procura o registro pela chave `primary` da coleção: achado, ALTERA; não achado, cria. É o
+   * que torna a mesma gravação repetível — a importação reprocessada não duplica. A chave é calculada
+   * sobre o valor já FORMATADO pelas regras do campo, o mesmo que a reserva guardou. Coleção sem chave
+   * `primary`, ou linha sem o valor dela, segue o caminho de sempre.
+   */
+  matchPrimaryKey?: boolean;
+  /**
+   * Confere TUDO o que a gravação conferiria — campos, regras, chaves (inclusive a ocupada por outro
+   * registro), janela de edição, permissão — e não grava nada. A sequência não é atribuída: o número
+   * só existe quando o registro existe.
+   */
+  dryRun?: boolean;
+  /**
+   * Cobra do ator `<coleção>.create` ou `<coleção>.update`, conforme o que a gravação VAI fazer — o que
+   * só se sabe depois de achar (ou não) o registro. Sem ator, recusa: a porta que pede isto responde
+   * por uma pessoa.
+   */
+  requireCollectionPermission?: boolean;
+  /**
+   * Cobra o `required` dos campos sobre o registro INTEIRO (o gravado mais o que chega) — a mesma conta
+   * do formulário. Fora disto o `upsert` não o cobra, de propósito: a automação grava o que o fluxo
+   * decidiu, às vezes em etapas. Não vale para o número sequencial (atribuído depois), nem para o campo
+   * agregado ou derivado, que ninguém escreve.
+   */
+  enforceRequired?: boolean;
 }
 
 interface WritableLeavesOutcome {
@@ -170,6 +200,41 @@ const buildFieldPayload = (
   return payload;
 };
 
+/**
+ * O registro que a chave `primary` endereça, pelo valor que a linha traz. A primeira passada das regras
+ * serve só para FORMATAR a chave (a reserva guarda o valor formatado); o que ela recusa não importa aqui —
+ * a passada de verdade, sobre o registro achado, é a que responde.
+ */
+const findByPrimaryKey = async (
+  ctx: SchemaContext,
+  table: string,
+  collection: string,
+  data: Record<string, unknown>,
+  tenantId: string,
+  deps: WorkflowMutationDeps,
+  ambient: <T>(run: () => T) => T,
+): Promise<string | null> => {
+  const primary = resolveEntityKeys(ctx, collection).find((key) => key.kind === 'primary');
+  if (!primary) return null;
+  const formatted = ambient(() => formatAndValidateRecord(ctx, table, data)).data;
+  const [entry] = planRecordKeys([primary], formatted, collection, ctx.fieldRulePresets).entries;
+  if (!entry) return null;
+  return (await deps.mutationRepository.findKeyHolders(tenantId, [entry.keyId])).get(entry.keyId) ?? null;
+};
+
+const missingRequiredField = (
+  ctx: SchemaContext,
+  table: string,
+  collection: string,
+  record: Record<string, unknown>,
+  numbered: readonly { key: string }[],
+): string | null => {
+  const skipped = new Set([...collectDerivedFieldKeys(ctx, table), ...numbered.map((entry) => entry.key)]);
+  const field = (resolveEntity(ctx, collection)?.fields ?? []).find((spec) =>
+    spec.required && !spec.aggregation && !skipped.has(spec.key) && isEmptyRuleValue(record[spec.key]));
+  return field ? (field.label || field.key) : null;
+};
+
 export async function runWorkflowUpsert(
   spec: UpsertSpec,
   context: WorkflowContext,
@@ -211,10 +276,25 @@ export async function runWorkflowUpsert(
   const target = resolved.value;
   const collection = target.physicalCollection;
 
+  const calendars = await businessCalendarsFor(
+    context.services,
+    tenantId,
+    tableMentionsBusinessDays(ctx, effectiveSpec.table),
+  );
+  const ambient = <T>(run: () => T): T =>
+    withAmbientBusinessCalendars(calendars, () => withAmbientTimeZone(context.services.timeZone, run));
+
   // O registro existente é lido ANTES das regras: ele é a base do escopo dos campos computados,
   // sem a qual um update parcial recalcularia com as dependências ausentes do payload.
-  const id = effectiveSpec.id?.trim();
-  const existing = id ? await deps.mutationRepository.getById(tenantId, collection, id) : null;
+  let id = effectiveSpec.id?.trim();
+  let existing = id ? await deps.mutationRepository.getById(tenantId, collection, id) : null;
+  if (!id && options.matchPrimaryKey) {
+    // A reserva sem registro vivo atrás (resto de uma gravação interrompida) não endereça nada: a
+    // linha cria, e a reserva ocupada a recusa como a qualquer outra gravação.
+    const holder = await findByPrimaryKey(ctx, effectiveSpec.table, collection, effectiveSpec.data, tenantId, deps, ambient);
+    existing = holder ? await deps.mutationRepository.getById(tenantId, collection, holder) : null;
+    if (existing) id = holder ?? undefined;
+  }
   if (options.updateOnly && !existing) {
     return { ok: false, error: '@core.automation/mutation.upsert.not-found' };
   }
@@ -224,18 +304,17 @@ export async function runWorkflowUpsert(
   if (existing && !readerSeesRecord(resolveMemberVisibility(ctx, collection), collection, context.reader, existing)) {
     return { ok: false, error: '@core.records/record.not-found' };
   }
+  if (options.requireCollectionPermission) {
+    const permission = collectionPermissionId(collection, existing ? 'update' : 'create');
+    if (!grants(context.actor?.permissions ?? [], permission)) {
+      return { ok: false, error: '@core.access/permission.denied', errorParams: { permission } };
+    }
+  }
 
-  const calendars = await businessCalendarsFor(
-    context.services,
-    tenantId,
-    tableMentionsBusinessDays(ctx, effectiveSpec.table),
-  );
-  const ruled = withAmbientBusinessCalendars(calendars, () =>
-    withAmbientTimeZone(context.services.timeZone, () =>
-      formatAndValidateRecord(ctx, effectiveSpec.table, effectiveSpec.data, {
-        baseline: existing ?? undefined,
-      }),
-    ),
+  const ruled = ambient(() =>
+    formatAndValidateRecord(ctx, effectiveSpec.table, effectiveSpec.data, {
+      baseline: existing ?? undefined,
+    }),
   );
   if (ruled.issues.length > 0) {
     return {
@@ -323,6 +402,36 @@ export async function runWorkflowUpsert(
       };
     }
     sequences = numbering.entries;
+  }
+
+  if (options.enforceRequired) {
+    const missing = missingRequiredField(ctx, effectiveSpec.table, collection, { ...(existing ?? {}), ...payload }, numbered);
+    if (missing) {
+      // O RÓTULO, e não a chave: referência ou texto do escritório, o catálogo resolve o parâmetro.
+      return { ok: false, error: '@core.automation/mutation.upsert.required', errorParams: { field: missing } };
+    }
+  }
+
+  if (options.dryRun) {
+    // A reserva que a gravação tentaria criar, já de OUTRO registro, é a recusa que o `tx.create` daria.
+    const wanted = keyMutation?.create ?? [];
+    const holders = await deps.mutationRepository.findKeyHolders(tenantId, wanted.map((entry) => entry.keyId));
+    const taken = wanted.find((entry) => {
+      const holder = holders.get(entry.keyId);
+      return holder !== undefined && holder !== id;
+    });
+    if (taken) {
+      return {
+        ok: false,
+        error: '@core.automation/mutation.upsert.key-conflict',
+        errorParams: { key: taken.keyName, value: taken.values.join(' + ') },
+      };
+    }
+    const updating = Boolean(id && existing);
+    return {
+      ok: true,
+      value: { id: updating ? (id as string) : '', created: !updating, record: { ...(existing ?? {}), ...withKeys } },
+    };
   }
 
   let created: boolean;

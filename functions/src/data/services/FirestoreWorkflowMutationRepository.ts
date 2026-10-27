@@ -129,6 +129,17 @@ export class FirestoreWorkflowMutationRepository implements IWorkflowMutationRep
     return this.collection(tenantId, collection).doc().id;
   }
 
+  async findKeyHolders(tenantId: string, keyIds: readonly string[]): Promise<Map<string, string>> {
+    const holders = new Map<string, string>();
+    if (keyIds.length === 0) return holders;
+    const snapshots = await this.db.getAll(...keyIds.map((keyId) => this.keyDoc(tenantId, keyId)));
+    for (const snapshot of snapshots) {
+      const recordId = snapshot.exists ? snapshot.get('recordId') : undefined;
+      if (typeof recordId === 'string' && recordId !== '') holders.set(snapshot.id, recordId);
+    }
+    return holders;
+  }
+
   async create(
     tenantId: string,
     collection: string,

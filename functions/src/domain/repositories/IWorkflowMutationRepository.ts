@@ -41,6 +41,13 @@ export interface IWorkflowMutationRepository {
   /** Um id vago da coleção, para que a reserva possa apontar para o registro antes de ele existir. */
   newId: (tenantId: string, collection: string) => string;
   /**
+   * De quem é cada reserva (id da reserva → id do registro que a detém). A reserva livre não aparece.
+   *
+   * É a leitura que faz da chave `primary` um ENDEREÇO — o `upsert` que casa pela chave natural — e a
+   * que a simulação usa para dizer, sem gravar, que o valor já é de outro registro.
+   */
+  findKeyHolders: (tenantId: string, keyIds: readonly string[]) => Promise<Map<string, string>>;
+  /**
    * `sequences` são os números que o registro recebe ao nascer (`autoValue.sequence`): cada contador
    * avança na MESMA transação que grava o registro, e o valor formatado entra no documento. O que foi
    * atribuído fica no documento, e quem grava o relê como sempre.

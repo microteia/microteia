@@ -115,6 +115,7 @@ const world = (
       mutationRepository: {
         getById: async () => null,
         newId: () => 'novo',
+        findKeyHolders: async () => new Map<string, string>(),
         create: async () => 'novo',
         update: async () => undefined,
         delete: async () => undefined,

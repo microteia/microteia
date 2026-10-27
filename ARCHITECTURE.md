@@ -113,6 +113,7 @@ npm run verify          # typecheck + lint + verify-schemas
 | Configuração de entrada do portal e segredos dos clientes OIDC | `tenants/{tenantId}/secrets/portal-identity` | Sim (só servidor; `managePortalSignIn` é a porta) |
 | Pedido de entrada no portal por OIDC (verificador PKCE, `nonce`) | `portalSignInRequests/{sha256(state)}` | Não (só servidor; TTL em `expiresAt`) |
 | Marca da última abertura registrada pelo portal (`trackViews`) | `portalViewMarks/{tenantId}__{uid}__{projeção}__{documento}` | Não (só servidor; TTL em `expiresAt`) |
+| Job de importação em massa (totais, primeiras linhas recusadas, quem importou) | `tenants/{tenantId}/record_imports/{id}` — TTL em `expiresAt` | Sim (só servidor; `importRecords` é a porta) |
 | `Notícia` (extensão `com.microteia.news`) | `tenants/{tenantId}/news/{id}` | Sim |
 | `Comentário` (extensão `com.microteia.news`) | `tenants/{tenantId}/newsComments/{id}` | Sim |
 | `SavedFilter` | `savedFilters/{uid}_{screenKey}` | Não |
@@ -2167,6 +2168,7 @@ As Cloud Functions são organizadas em **5 grupos** para facilitar deploys selet
 | **auth** | Autenticação e usuários | Raras alterações |
 | **tenant** | Gestão de membros | Raras alterações |
 | **portal** | Convidados externos: convite, projeção e acesso a documentos | Quando o portal muda |
+| **import** | Importação em massa de registros (`importRecords`) | Quando a importação muda |
 | **util** | Utilitários gerais | Proxy AI, logs de erro, cascata |
 
 Havia um sexto — **gmail**, com as cinco functions da ingestão de intimações. Ele saiu junto com a
@@ -13592,6 +13594,107 @@ ela — só o dono e o `SYSTEM`, que já supervisionam, os alcançam depois que 
 | `domain/usecases/plugins/pluginMemberVisibility.ts` | o `check` do pacote |
 | `pages/ScreenBuilder/components/ScreenMemberVisibilityPanel/` | a aba do Form Design |
 | `shared/entityScreen/useMemberVisibilityNotice.ts` | o aviso da lista |
+
+---
+
+## Importação em massa de registros (EV-09)
+
+Carregar o cadastro de um sistema anterior, ou corrigir mil registros de uma vez a partir de uma planilha.
+Até aqui não havia caminho: a migração de extensão tem teto por execução (é para o dado DA extensão, entre
+versões dela), e o formulário e o agente gravam um registro por vez. A importação é um recurso de EXCEÇÃO
+— e por isso não é declarado pela tela nem ligado por padrão para ninguém além do dono: ele exige a
+permissão própria `record-import.run`.
+
+### A decisão que organiza o resto: nenhum caminho de gravação novo
+
+O navegador lê o arquivo e liga colunas a campos; o servidor recebe as linhas JÁ como `data` de um `upsert`
+e as grava por `runWorkflowUpsert` — o mesmo ponto por onde passam o passo "Gravar Registro", o `upsert()` de
+Script, o agente (MCP) e o portal. Campos graváveis, regras de campo, chaves com reserva, sequência, janela
+de edição e visibilidade por registro valem sem uma linha de código da importação, e continuam valendo
+quando qualquer um deles mudar. O que a importação acrescentou ao núcleo são **opções** do `runWorkflowUpsert`,
+todas aditivas — quem não as passa grava exatamente como antes:
+
+| Opção | O que faz | Por que é do núcleo e não da importação |
+|---|---|---|
+| `matchPrimaryKey` | sem `id`, acha o registro pela chave `primary` (lê a reserva em `recordKeys`, que já guarda `recordId`) e ALTERA; não achando, cria | é o que "a chave `primary` é um endereço" sempre prometeu (ver "Chave primária e chave única"). A chave é calculada sobre o valor JÁ formatado pelas regras do campo — o mesmo que a reserva guardou |
+| `dryRun` | confere tudo e não grava; a reserva ocupada por OUTRO registro vira a mesma recusa que o `tx.create` daria | simular por outro código seria simular outra coisa |
+| `requireCollectionPermission` | cobra do ator `<coleção>.create` ou `.update` conforme o que a linha VAI fazer | só se sabe se a linha cria ou altera depois de achar o registro pela chave — portanto, dentro do caminho |
+| `enforceRequired` | cobra `required` sobre o registro INTEIRO (gravado + linha), como o formulário | o `upsert` de sempre não cobra, de propósito (a automação grava em etapas); a importação cobra, porque um arquivo de cadastros pela metade é o erro que o formulário existe para impedir |
+
+`IWorkflowMutationRepository.findKeyHolders` é a única leitura nova: de quem é cada reserva. Serve às duas
+primeiras opções.
+
+### O fluxo
+
+| Passo | Onde | O quê |
+|---|---|---|
+| Ler | navegador (`domain/services/recordImportFile.ts`) | CSV pela RFC 4180 (delimitador `,` `;` ou tab detectado no cabeçalho, BOM, aspas com quebra de linha) ou JSON (lista de objetos). Cada linha guarda o número dela NO ARQUIVO — é o que o relatório cita |
+| Mapear | navegador | `importableFields` oferece só o que `validateWritablePath` aceita e um arquivo pode trazer (sem arquivo, objeto, agregado, derivado, sequência). `suggestImportMapping` casa cabeçalho com chave ou rótulo |
+| Converter | navegador | `coerceImportCell` por TIPO do campo. Separador decimal e formato de data são DECLARADOS na tela de importação, nunca adivinhados: `1.234` e `03/04/2026` têm duas leituras, e adivinhar erraria em silêncio. Célula vazia não manda nada — na alteração, o campo fica como estava. Célula que não converte recusa a linha ali mesmo |
+| Simular | servidor (`importRecords`, `op: 'rows'`, `dryRun`) | lote a lote, sem job e sem auditoria |
+| Importar | servidor | `start` abre o job; `rows` grava em lotes de `RECORD_IMPORT_BATCH_SIZE` (100); `finish` fecha e grava a linha de Auditoria |
+| Relatório | navegador | totais, as linhas recusadas com o motivo, e o CSV delas para baixar |
+
+**As raias.** Dentro de um lote, as linhas gravam em paralelo (8), menos as que disputam a MESMA reserva de
+chave: essas caem na mesma raia e gravam em ordem (`importLanes`, união das chaves de cada linha). Duas linhas
+com a mesma chave `primary` em paralelo nasceriam as duas como "criar", e a segunda perderia com conflito
+quando o que ela pedia era alterar o que a primeira criou. Em ordem, quem perde é sempre a linha de baixo — o
+relatório não muda de uma execução para outra.
+
+### Idempotência
+
+Com chave `primary` declarada, reprocessar o mesmo arquivo altera o que a primeira passada criou e não cria
+nada — inclusive depois de uma importação interrompida, que é o jeito de retomá-la. Sem chave `primary`, cada
+linha cria, e a tela de importação diz isso antes de começar. A chave pendente de adoção (registros antigos
+sem reserva) não endereça o registro antigo: a linha cria, e a adoção aponta a duplicata — o mesmo limite
+de toda gravação, ver "Adoção sobre dados que já existem".
+
+### Auditoria e eventos
+
+Cada registro gravado tem a linha de Auditoria de sempre e publica `<coleção>.saved`, com
+`createdVia`/`updatedVia: 'import'` e a pessoa como autora (`ActorVia` e `RecordWriteVia` ganharam
+`'import'`). A automação que não deve rodar por linha importada testa `updatedVia`. Além disso, `finish`
+grava UMA linha da importação (`SYSTEM`, `HIGH`, entidade = coleção, id = job): quem, tela, arquivo,
+processadas, criadas, alteradas, recusadas. O fecho é transacional — dois `finish` gravam uma linha só.
+
+**Não suprimimos a linha por registro**, e foi decisão: a trilha (e o arquivo com cadeia de hash, EV-06) é
+por registro; uma alteração sem linha própria seria um buraco na prova justamente na operação de maior
+volume. A linha agregada diz que as mil vieram juntas; as mil dizem o que mudou em cada uma.
+
+### O job — `tenants/{id}/record_imports/{id}`
+
+Totais por incremento, dono, tabela, arquivo, total declarado e `status` (`running` → `finished` |
+`cancelled`). Fechado para o cliente (`allow read, write: if false`): a tela recebe tudo pela callable, e
+um cliente que gravasse totais faria a linha de Auditoria contar o que não aconteceu. TTL de 30 dias em
+`expiresAt`. A coleção é reservada (`RESERVED_COLLECTIONS` e `isReservedCollection`).
+
+O job trava o que o pedido não pode mudar: a TABELA de um lote é a do job (não a do pedido), o lote de outra
+pessoa responde como inexistente, e a soma das linhas não passa do total declarado no `start`.
+
+### O limite, dito com todas as letras
+
+- **Abandonar a aba no meio** deixa o job `running` e sem a linha agregada — as linhas por registro já
+  gravadas estão lá. Parar pelo botão, ou uma falha de rede no meio, fecha o job como `cancelled` e grava a
+  linha.
+- **A linha agregada conta o que chegou ao servidor.** A linha recusada no navegador (célula que não converte)
+  aparece no relatório da tela, não no total do job.
+- **Referência é `docId`.** Uma coluna para um campo de referência precisa trazer o id do registro apontado;
+  achar pelo nome não é feito.
+- **Campo de vários valores** separa os valores por `|` dentro da célula (`RECORD_IMPORT_LIST_SEPARATOR`).
+- **50 mil linhas por arquivo** (`RECORD_IMPORT_MAX_ROWS`) e 20 MB. Cada linha é uma gravação completa,
+  com os gatilhos de sempre; uma carga grande custa o que custam as mesmas gravações uma a uma.
+
+| Arquivo | Papel |
+|---|---|
+| `domain/schema/recordImport.ts` | contrato, limites, conferência do lote (compartilhado) |
+| `domain/services/recordImportFile.ts` | ler CSV/JSON, campos importáveis, sugestão, conversão, linhas |
+| `domain/usecases/records/RunRecordImportUseCase.ts` | o laço de lotes da simulação e da execução, com progresso e parada |
+| `presentation/components/ui/RecordImportDialog/` | o diálogo; o botão mora em `DynamicRecordList` |
+| `functions/.../workflow/mutation/runWorkflowMutation.ts` | as quatro opções |
+| `functions/src/domain/usecases/RecordImportUseCases.ts` | `start`, `rows`, `finish` |
+| `functions/src/domain/services/recordImport.ts` | raias e a linha de Auditoria |
+| `functions/src/infrastructure/handlers/importRecords.ts` | a callable (`deploy:import`) |
+| `rules-tests/recordImports.test.ts` | a coleção fechada, contra o emulador |
 
 ---
 

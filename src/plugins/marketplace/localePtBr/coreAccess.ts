@@ -215,6 +215,9 @@ export const CORE_ACCESS: Record<string, string> = {
     'Ser avisado quando um convidado cria, altera ou anexa algo no portal — nas telas em que também pode alterar registros.',
   'permission.portal.manage.description':
     'Convidar pessoas de fora do escritório para o portal e revogar o acesso delas. Cada convidado vê só os registros vinculados a ele, e só os campos que cada tela escolheu expor. Vincular um convidado a um registro continua exigindo poder ver esse registro.',
+  'permission.record-import.run': 'Importar registros de um arquivo',
+  'permission.record-import.run.description':
+    'Criar ou alterar muitos registros de uma tela de uma vez, a partir de um arquivo CSV ou JSON. Cada linha continua exigindo a permissão de criar ou de alterar registros daquela tela, e passa pelas mesmas conferências do formulário.',
   'permission.reports.manage': 'Gerenciar relatórios',
   'permission.reports.manage.description':
     'Criar, editar e remover os relatórios do escritório. Para EXECUTAR um relatório continua sendo preciso poder ler cada cadastro que ele cobre.',
@@ -252,6 +255,7 @@ export const CORE_ACCESS: Record<string, string> = {
   'resource.extensions': 'Extensões',
   'resource.members': 'Membros',
   'resource.portal': 'Portal',
+  'resource.record-import': 'Importação de registros',
   'resource.reports': 'Relatórios',
   'resource.document-templates': 'Modelos de documento',
   'resource.downloads': 'Downloads',

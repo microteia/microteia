@@ -11,6 +11,14 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.169.0] — 2026-10-27
+
+- Novo: importar registros de uma planilha. Na lista de uma tela, o botão Importar recebe um arquivo CSV ou JSON com até 50 mil linhas, liga cada coluna a um campo e mostra, antes de gravar, uma simulação com o que seria criado, alterado ou recusado.
+- Cada linha passa pelas mesmas conferências do formulário — campos obrigatórios, formatos, valores que não podem se repetir e prazo para alteração. As linhas recusadas aparecem pelo número que têm no arquivo, com o motivo, e podem ser baixadas numa planilha para corrigir.
+- Quando a tela tem uma chave primária, a linha cujo valor já existe atualiza aquele registro em vez de criar outro: importar o mesmo arquivo de novo não duplica nada, e é assim que se retoma uma importação interrompida.
+- A importação fica registrada na Auditoria numa linha própria, com quem importou, o arquivo e os totais, além do registro de cada alteração feita.
+- O recurso exige a nova permissão "Importar registros de um arquivo", além da permissão de criar ou alterar os registros da tela. Quem não a receber não percebe mudança nenhuma.
+
 #### [9.168.0] — 2026-10-27
 
 - Novo, na aba Portal de cada tela: o escritório pode registrar quando o cliente abre um registro ou um documento no portal. Cada abertura vira uma linha na Auditoria, com quem abriu, o quê e quando, pelo relógio do servidor.

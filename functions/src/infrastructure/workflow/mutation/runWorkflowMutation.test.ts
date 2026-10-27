@@ -1,19 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import { runWorkflowRemove, runWorkflowUpsert } from './runWorkflowMutation';
 import type { WorkflowMutationDeps } from './runWorkflowMutation';
-import type {
-  IWorkflowMutationRepository,
-  RecordKeyMutation,
-} from '../../../domain/repositories/IWorkflowMutationRepository';
-import { RecordKeyTakenError } from '../../../domain/repositories/IWorkflowMutationRepository';
+import { FakeMutationRepository } from '../../../domain/repositories/fakeWorkflowMutationRepository';
 import type { IScreenDefinitionProvider } from '../../../domain/repositories/IScreenDefinitionProvider';
 import type { SchemaScreen } from '../../../domain/schema/pathResolver';
 import type { UpsertSpec, RemoveSpec } from '../../../domain/schema/mutationSpec';
 import type { WorkflowContext } from '../../../domain/entities/WorkflowContext';
 import type { WorkflowEvent } from '../../../domain/entities/Workflow';
 import { fakeScreenProvider } from '../../../domain/repositories/fakeScreenProvider';
-import type { RecordSequenceEntry } from '../../../domain/schema/recordSequence';
-import { formatRecordSequenceValue, nextRecordSequenceValue } from '../../../domain/schema/recordSequence';
 
 /**
  * Pessoa vem de extensão: a tela declara a coleção inteira (`name`), e o escritório acrescenta o
@@ -58,105 +52,6 @@ const screenProvider: IScreenDefinitionProvider = fakeScreenProvider(
   [personsScreen, processosScreen, contratosScreen],
   [{ collection: 'contractTypes', label: 'Contrato: Tipo' }],
 );
-
-interface WriteCall {
-  tenantId: string;
-  collection: string;
-  id?: string;
-  data?: Record<string, unknown>;
-  sequences?: RecordSequenceEntry[];
-}
-
-class FakeMutationRepository implements IWorkflowMutationRepository {
-  store = new Map<string, Record<string, unknown>>();
-  /** As reservas, pelo id — o mesmo papel de `tenants/{id}/recordKeys` no Firestore. */
-  keys = new Map<string, { keyName: string; recordId: string; values: string[] }>();
-  /** Os contadores, pelo id — o papel de `tenants/{id}/recordSequences`. */
-  counters = new Map<string, number>();
-  createCalls: WriteCall[] = [];
-  updateCalls: WriteCall[] = [];
-  deleteCalls: WriteCall[] = [];
-  private seq = 0;
-
-  private key(collection: string, id: string): string {
-    return `${collection}/${id}`;
-  }
-
-  seed(collection: string, id: string, data: Record<string, unknown>): void {
-    this.store.set(this.key(collection, id), data);
-  }
-
-  /** Semeia uma reserva já ocupada — é assim que a duplicata é montada no teste. */
-  seedKey(keyId: string, recordId: string, keyName = 'k', values: string[] = []): void {
-    this.keys.set(keyId, { keyName, recordId, values });
-  }
-
-  async getById(_tenantId: string, collection: string, id: string) {
-    return this.store.get(this.key(collection, id)) ?? null;
-  }
-
-  newId(): string {
-    return `gen-${(this.seq += 1)}`;
-  }
-
-  /**
-   * A trava do backend é `create`, que FALHA se o documento já existe. O fake reproduz isso e mais
-   * nada: é a única propriedade do Firestore de que a corretude depende aqui.
-   */
-  private applyKeys(recordId: string, keys?: RecordKeyMutation): void {
-    for (const keyId of keys?.release ?? []) this.keys.delete(keyId);
-    for (const reservation of keys?.create ?? []) {
-      if (this.keys.has(reservation.keyId)) {
-        throw new RecordKeyTakenError(reservation.keyName, reservation.values);
-      }
-      this.keys.set(reservation.keyId, {
-        keyName: reservation.keyName,
-        recordId,
-        values: reservation.values,
-      });
-    }
-  }
-
-  async create(
-    tenantId: string,
-    collection: string,
-    data: Record<string, unknown>,
-    id?: string,
-    keys?: RecordKeyMutation,
-    sequences: RecordSequenceEntry[] = [],
-  ) {
-    const finalId = id ?? this.newId();
-    this.applyKeys(finalId, keys);
-    const assigned: Record<string, unknown> = {};
-    for (const entry of sequences) {
-      const value = nextRecordSequenceValue(this.counters.get(entry.counterId));
-      this.counters.set(entry.counterId, value);
-      assigned[entry.field] = formatRecordSequenceValue(entry, value);
-    }
-    this.createCalls.push({ tenantId, collection, id, data, sequences });
-    this.store.set(this.key(collection, finalId), { ...data, ...assigned });
-    return finalId;
-  }
-
-  async update(
-    tenantId: string,
-    collection: string,
-    id: string,
-    data: Record<string, unknown>,
-    keys?: RecordKeyMutation,
-  ) {
-    this.applyKeys(id, keys);
-    this.updateCalls.push({ tenantId, collection, id, data });
-    const current = this.store.get(this.key(collection, id)) ?? {};
-    this.store.set(this.key(collection, id), { ...current, ...data });
-  }
-
-  async delete(tenantId: string, collection: string, id: string, releaseKeyIds?: string[]) {
-    this.deleteCalls.push({ tenantId, collection, id });
-    this.store.delete(this.key(collection, id));
-    for (const keyId of releaseKeyIds ?? []) this.keys.delete(keyId);
-  }
-}
 
 const logger = { info: () => {}, warn: () => {}, error: () => {} };
 
@@ -960,5 +855,153 @@ describe('número sequencial na gravação por automação, agente e portal', ()
     const repo = new FakeMutationRepository();
     await upsert(repo, { table: 'processos', data: { title: 'Caso X' } });
     expect(repo.createCalls[0].sequences).toEqual([]);
+  });
+});
+
+describe('opções da importação — chave primary como endereço, simulação e permissão da coleção', () => {
+  const catalogScreen: SchemaScreen = {
+    id: 'itens',
+    titleSingular: 'Item',
+    titleFieldKey: 'nome',
+    fields: [
+      { key: 'codigo', label: 'Código', type: 'text', required: true, order: 0, origin: 'design', rules: { format: { preset: 'upper' } } },
+      { key: 'nome', label: 'Nome', type: 'text', required: true, order: 1, origin: 'design' },
+      { key: 'email', label: 'E-mail', type: 'text', required: false, order: 2, origin: 'design' },
+    ],
+    keys: [
+      { name: 'codigo', kind: 'primary', fields: ['codigo'] },
+      { name: 'email', kind: 'unique', fields: ['email'] },
+    ],
+  };
+  const importDeps = (repo: FakeMutationRepository): WorkflowMutationDeps => ({
+    mutationRepository: repo,
+    screenProvider: fakeScreenProvider([catalogScreen, processosScreen]),
+  });
+  const importer = (permissions: string[] = ['*']): WorkflowContext => ({
+    ...context(),
+    actor: { userId: 'u-ana', name: 'Ana', photoURL: '', via: 'import', permissions },
+    reader: { uid: 'u-ana', permissions },
+  });
+  const importOptions = { matchPrimaryKey: true, requireCollectionPermission: true, enforceRequired: true };
+
+  it('sem id, a linha com a chave primary de um registro existente o ALTERA — e repetir não duplica', async () => {
+    const repo = new FakeMutationRepository();
+    const first = await runWorkflowUpsert({ table: 'itens', data: { codigo: 'A-1', nome: 'Mesa' } }, importer(), importDeps(repo), importOptions);
+    const again = await runWorkflowUpsert({ table: 'itens', data: { codigo: 'A-1', nome: 'Mesa grande' } }, importer(), importDeps(repo), importOptions);
+    expect(first).toMatchObject({ ok: true, value: { created: true } });
+    expect(again).toMatchObject({ ok: true, value: { created: false, id: first.ok ? first.value.id : '' } });
+    expect(repo.createCalls).toHaveLength(1);
+    expect(repo.store.get(`itens/${first.ok ? first.value.id : ''}`)).toMatchObject({ nome: 'Mesa grande', updatedVia: 'import' });
+  });
+
+  it('casa pela chave DEPOIS das regras do campo: "a-1" acha o registro gravado como "A-1"', async () => {
+    const repo = new FakeMutationRepository();
+    await runWorkflowUpsert({ table: 'itens', data: { codigo: 'A-1', nome: 'Mesa' } }, importer(), importDeps(repo), importOptions);
+    const lower = await runWorkflowUpsert({ table: 'itens', data: { codigo: 'a-1', nome: 'Mesa' } }, importer(), importDeps(repo), importOptions);
+    expect(lower).toMatchObject({ ok: true, value: { created: false } });
+  });
+
+  it('a alteração pela chave é parcial: o que a linha não traz continua como estava', async () => {
+    const repo = new FakeMutationRepository();
+    await runWorkflowUpsert({ table: 'itens', data: { codigo: 'A-1', nome: 'Mesa', email: 'a@x.com' } }, importer(), importDeps(repo), importOptions);
+    const partial = await runWorkflowUpsert({ table: 'itens', data: { codigo: 'A-1', nome: 'Mesa nova' } }, importer(), importDeps(repo), importOptions);
+    expect(partial.ok).toBe(true);
+    expect(repo.store.get('itens/gen-1')).toMatchObject({ nome: 'Mesa nova', email: 'a@x.com' });
+  });
+
+  it('sem matchPrimaryKey, a mesma linha continua sendo recusada como duplicata — quem não pede não muda', async () => {
+    const repo = new FakeMutationRepository();
+    await runWorkflowUpsert({ table: 'itens', data: { codigo: 'A-1', nome: 'Mesa' } }, importer(), importDeps(repo));
+    const again = await runWorkflowUpsert({ table: 'itens', data: { codigo: 'A-1', nome: 'Mesa' } }, importer(), importDeps(repo));
+    expect(again).toMatchObject({ ok: false, error: '@core.automation/mutation.upsert.key-conflict' });
+  });
+
+  it('a reserva sem registro vivo atrás não endereça nada: a linha tenta criar e a reserva a recusa', async () => {
+    const repo = new FakeMutationRepository();
+    repo.seedKey('itens|codigo|A-1', 'sumiu', 'codigo', ['A-1']);
+    const outcome = await runWorkflowUpsert({ table: 'itens', data: { codigo: 'A-1', nome: 'Mesa' } }, importer(), importDeps(repo), importOptions);
+    expect(outcome).toMatchObject({ ok: false, error: '@core.automation/mutation.upsert.key-conflict' });
+    expect(repo.store.has('itens/sumiu')).toBe(false);
+  });
+
+  it('cobra create para a linha que cria e update para a que altera', async () => {
+    const repo = new FakeMutationRepository();
+    const denied = await runWorkflowUpsert(
+      { table: 'itens', data: { codigo: 'A-1', nome: 'Mesa' } }, importer(['itens.update']), importDeps(repo), importOptions,
+    );
+    expect(denied).toMatchObject({ ok: false, error: '@core.access/permission.denied', errorParams: { permission: 'itens.create' } });
+
+    await runWorkflowUpsert({ table: 'itens', data: { codigo: 'A-1', nome: 'Mesa' } }, importer(), importDeps(repo), importOptions);
+    const noUpdate = await runWorkflowUpsert(
+      { table: 'itens', data: { codigo: 'A-1', nome: 'Outra' } }, importer(['itens.create']), importDeps(repo), importOptions,
+    );
+    expect(noUpdate).toMatchObject({ ok: false, errorParams: { permission: 'itens.update' } });
+    expect(repo.store.get('itens/gen-1')).toMatchObject({ nome: 'Mesa' });
+  });
+
+  it('com enforceRequired, o obrigatório vale sobre o registro INTEIRO: a alteração parcial não o cobra de novo', async () => {
+    const repo = new FakeMutationRepository();
+    await runWorkflowUpsert({ table: 'itens', data: { codigo: 'A-1', nome: 'Mesa' } }, importer(), importDeps(repo), importOptions);
+    const partial = await runWorkflowUpsert({ table: 'itens', data: { codigo: 'A-1', email: 'b@x.com' } }, importer(), importDeps(repo), importOptions);
+    const cleared = await runWorkflowUpsert({ table: 'itens', data: { codigo: 'A-1', nome: '' } }, importer(), importDeps(repo), importOptions);
+    expect(partial.ok).toBe(true);
+    expect(cleared).toMatchObject({ ok: false, error: '@core.automation/mutation.upsert.required', errorParams: { field: 'Nome' } });
+  });
+
+  it('sem enforceRequired, o upsert de sempre continua sem cobrar o obrigatório — quem não pede não muda', async () => {
+    const repo = new FakeMutationRepository();
+    const outcome = await runWorkflowUpsert({ table: 'itens', data: { codigo: 'A-1' } }, importer(), importDeps(repo));
+    expect(outcome.ok).toBe(true);
+  });
+
+  it('cobrar permissão sem ator recusa: a porta que pede isso responde por uma pessoa', async () => {
+    const repo = new FakeMutationRepository();
+    const outcome = await runWorkflowUpsert({ table: 'processos', data: { title: 'X' } }, context(), importDeps(repo), importOptions);
+    expect(outcome).toMatchObject({ ok: false, error: '@core.access/permission.denied' });
+    expect(repo.createCalls).toHaveLength(0);
+  });
+
+  describe('dryRun', () => {
+    it('confere e não grava nada — nem registro, nem reserva', async () => {
+      const repo = new FakeMutationRepository();
+      const outcome = await runWorkflowUpsert(
+        { table: 'itens', data: { codigo: 'A-1', nome: 'Mesa' } }, importer(), importDeps(repo), { ...importOptions, dryRun: true },
+      );
+      expect(outcome).toMatchObject({ ok: true, value: { created: true, id: '' } });
+      expect(repo.createCalls).toHaveLength(0);
+      expect(repo.keys.size).toBe(0);
+    });
+
+    it('diz que a linha ALTERARIA o registro que a chave primary endereça', async () => {
+      const repo = new FakeMutationRepository();
+      await runWorkflowUpsert({ table: 'itens', data: { codigo: 'A-1', nome: 'Mesa' } }, importer(), importDeps(repo), importOptions);
+      const outcome = await runWorkflowUpsert(
+        { table: 'itens', data: { codigo: 'A-1', nome: 'Nova' } }, importer(), importDeps(repo), { ...importOptions, dryRun: true },
+      );
+      expect(outcome).toMatchObject({ ok: true, value: { created: false, id: 'gen-1' } });
+      expect(repo.updateCalls).toHaveLength(0);
+      expect(repo.store.get('itens/gen-1')).toMatchObject({ nome: 'Mesa' });
+    });
+
+    it('acusa a chave unique já de outro registro, como a gravação acusaria', async () => {
+      const repo = new FakeMutationRepository();
+      await runWorkflowUpsert({ table: 'itens', data: { codigo: 'A-1', nome: 'Mesa', email: 'a@x.com' } }, importer(), importDeps(repo), importOptions);
+      const outcome = await runWorkflowUpsert(
+        { table: 'itens', data: { codigo: 'B-2', nome: 'Cadeira', email: 'a@x.com' } }, importer(), importDeps(repo), { ...importOptions, dryRun: true },
+      );
+      expect(outcome).toMatchObject({ ok: false, error: '@core.automation/mutation.upsert.key-conflict', errorParams: { key: 'email' } });
+    });
+
+    it('acusa campo obrigatório ausente e campo desconhecido, como a gravação', async () => {
+      const repo = new FakeMutationRepository();
+      const missing = await runWorkflowUpsert(
+        { table: 'itens', data: { codigo: 'A-1' } }, importer(), importDeps(repo), { ...importOptions, dryRun: true },
+      );
+      const unknown = await runWorkflowUpsert(
+        { table: 'itens', data: { codigo: 'A-1', nome: 'X', inventado: 1 } }, importer(), importDeps(repo), { ...importOptions, dryRun: true },
+      );
+      expect(missing).toMatchObject({ ok: false, error: '@core.automation/mutation.upsert.required', errorParams: { field: 'Nome' } });
+      expect(unknown).toMatchObject({ ok: false, error: '@core.automation/mutation.upsert.invalid' });
+    });
   });
 });

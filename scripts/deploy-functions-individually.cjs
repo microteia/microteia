@@ -97,6 +97,7 @@ const ALL_FUNCTIONS = [
   'runScript',
   'runAction',
   'runReport',
+  'importRecords',
   'renderDocument',
   'onDownloadDeleted',
   'attachDownloadToRecord',

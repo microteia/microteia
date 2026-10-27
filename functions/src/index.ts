@@ -13,6 +13,7 @@ export { runWorkflow } from './infrastructure/handlers/runWorkflow';
 export { runScript } from './infrastructure/handlers/runScript';
 export { runAction } from './infrastructure/handlers/runAction';
 export { runReport } from './infrastructure/handlers/runReport';
+export { importRecords } from './infrastructure/handlers/importRecords';
 export { renderDocument } from './infrastructure/handlers/renderDocument';
 export { onDownloadDeleted } from './infrastructure/handlers/onDownloadDeleted';
 export { attachDownloadToRecord } from './infrastructure/handlers/attachDownloadToRecord';

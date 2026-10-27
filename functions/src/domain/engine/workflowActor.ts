@@ -31,7 +31,7 @@ export interface ExpressionActor {
   verified: PortalVerifiedIdentity | null;
 }
 
-const ACTOR_VIAS: readonly ActorVia[] = ['ui', 'agent', 'portal'];
+const ACTOR_VIAS: readonly ActorVia[] = ['ui', 'agent', 'portal', 'import'];
 
 export const toPublishedActor = (actor: WorkflowActor): PublishedActor => ({
   userId: actor.userId,
