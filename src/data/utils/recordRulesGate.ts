@@ -18,7 +18,7 @@ import { readMemberVisibility } from '../../domain/schema/memberVisibility';
 import { asPortalDeclaration } from '../../domain/schema/portal';
 import type { ResolvedEditWindow } from '../../domain/schema/editWindow';
 import type { FieldRulePreset } from '../../domain/schema/fieldRulePresets';
-import { applyDerivedFields, collectFieldLogicTargets, formatAndValidateRecord } from '../../domain/schema/recordRules';
+import { applyDerivedFields, collectFieldLogicTargets, formatAndValidateRecord, resolveFieldSpec } from '../../domain/schema/recordRules';
 
 export class RecordRulesError extends Error {
   readonly issues: RuleIssue[];
@@ -43,14 +43,17 @@ export interface RecordKeyConflict {
  * O conflito de chave chega ao formulário pelo canal que já existe — `RuleIssue`, um por CAMPO da
  * chave —, e não por uma via nova de erro. Foi a razão de `RecordKeyEntry` carregar `fields`: sem
  * eles a mensagem apareceria solta no topo, longe do campo que a pessoa precisa corrigir.
+ *
+ * O `label` é o rótulo DECLARADO do campo, como nas demais recusas de regra: com a chave técnica
+ * ali, o aviso dizia `cpfCnpj` a quem só conhece "CPF/CNPJ".
  */
 export class RecordKeyConflictError extends RecordRulesError {
   readonly conflicts: RecordKeyConflict[];
 
-  constructor(conflicts: RecordKeyConflict[]) {
+  constructor(table: string, conflicts: RecordKeyConflict[]) {
     super(conflicts.flatMap((conflict) => conflict.fields.map((field) => ({
       path: field,
-      label: field,
+      label: recordFieldLabel(table, field),
       error: conflict.message ?? '@core.records/key.duplicate',
       errorParams: { key: conflict.name, value: conflict.values.join(' + ') },
     }))));
@@ -61,10 +64,10 @@ export class RecordKeyConflictError extends RecordRulesError {
 
 /** A chave obrigatória cujo valor não veio — recusa antes da rede, como qualquer regra de campo. */
 export class RecordKeyMissingError extends RecordRulesError {
-  constructor(gaps: { name: string; fields: string[] }[]) {
+  constructor(table: string, gaps: { name: string; fields: string[] }[]) {
     super(gaps.flatMap((gap) => gap.fields.map((field) => ({
       path: field,
-      label: field,
+      label: recordFieldLabel(table, field),
       error: '@core.records/key.required',
       errorParams: { key: gap.name },
     }))));
@@ -196,6 +199,10 @@ export const toSchemaScreens = (
     memberWritableFields: definition.memberWritableFields ?? null,
     memberVisibility: readMemberVisibility(definition.memberVisibility),
   }));
+
+/** O rótulo declarado do campo na coleção; sem declaração, o próprio caminho. */
+const recordFieldLabel = (table: string, path: string): string =>
+  resolveFieldSpec(schemaContext, table, path)?.label ?? path;
 
 const tableHasComputedFields = (table: string): boolean =>
   collectFieldLogicTargets(schemaContext, table, 'compute').length > 0;

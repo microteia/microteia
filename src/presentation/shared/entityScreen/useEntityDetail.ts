@@ -19,6 +19,7 @@ import { useEntityNotes } from './useEntityNotes';
 import { useEntityDocuments } from './useEntityDocuments';
 import { useLabel, useT } from '../i18n/useT';
 import { LocalizedError } from '../../../domain/errors/LocalizedError';
+import { RecordRulesError } from '../../../data/utils/recordRulesGate';
 
 import type {
   DocumentsPort,
@@ -298,6 +299,17 @@ export function useEntityDetail<TRecord extends { id: string }>(
       }
     } catch (err) {
       console.error('[useEntityDetail save]', err);
+      if (err instanceof RecordRulesError) {
+        // A recusa da gravação (valor que já pertence a outro registro, chave sem valor) volta ao
+        // campo que a pessoa precisa corrigir, como a validação do formulário faz.
+        const rejected: Record<string, string> = {};
+        err.issues.forEach((issue) => {
+          rejected[issue.path] ??= label(issue.error, issue.errorParams);
+        });
+        setFieldErrors(rejected);
+        notify(err.issues.map((issue) => `${label(issue.label)}: ${label(issue.error, issue.errorParams)}`).join('; '), 'error');
+        return;
+      }
       // A recusa com motivo (a janela de edição que fechou) diz o motivo; o resto, a frase da tela.
       notify(err instanceof LocalizedError ? label(err.message, err.messageParams) : messages.error, 'error');
     } finally {

@@ -142,6 +142,20 @@ describe('gravar um registro com chave', () => {
     });
   });
 
+  it('a recusa diz o campo pelo rótulo declarado, não pela chave técnica', async () => {
+    setRecordRulesScreens([{
+      id: 'produtos',
+      titleSingular: 'Produto',
+      titleFieldKey: 'nome',
+      fields: [field('nome'), field('sku', { label: 'Código' })],
+      keys: [{ name: 'sku', kind: 'unique', fields: ['sku'] }],
+    }]);
+    await repo.create(TENANT, 'produtos', { sku: 'AB-1' } as never, 'r1');
+
+    const error = await repo.create(TENANT, 'produtos', { sku: 'AB-1' } as never, 'r2').catch((e) => e);
+    expect((error as InstanceType<typeof RecordKeyConflictError>).issues[0]).toMatchObject({ path: 'sku', label: 'Código' });
+  });
+
   it('o registro NÃO fica gravado quando a reserva é recusada', async () => {
     await repo.create(TENANT, 'produtos', { sku: 'AB-1' } as never, 'r1');
     await repo.create(TENANT, 'produtos', { sku: 'AB-1' } as never, 'r2').catch(() => {});

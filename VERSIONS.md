@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.169.4] — 2026-10-27
+
+- Corrigido: ao salvar um registro com um valor que já pertence a outro (por exemplo, um CPF/CNPJ já cadastrado), aparecia só "Erro ao salvar o registro". Agora o aviso diz qual campo se repetiu e por quê, e o campo fica destacado no formulário.
+
 #### [9.169.3] — 2026-10-27
 
 - Corrigido: uma extensão que escrevia o identificador de um texto traduzível com sublinhado (por exemplo, numa opção de lista) era aceita na conferência e na instalação, e a tela mostrava o código em vez do texto. Agora a conferência e a instalação recusam esse caso e dizem exatamente onde corrigir.

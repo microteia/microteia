@@ -18,6 +18,11 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.169.4] — 2026-10-27
+
+- fix(entityScreen/save): a `RecordRulesError` thrown by the repository on save (a key already held by another record, a required key left empty) now reaches the form as field errors plus a `label: reason` notice. It used to fall through to the screen's generic save-error message, so the declared key message (`keys[].message`) never showed and the user could not tell which field to fix.
+- fix(data/recordRulesGate): `RecordKeyConflictError` and `RecordKeyMissingError` now take the collection and carry the field's declared label, like every other rule rejection, instead of the raw field key.
+
 #### [9.169.3] — 2026-10-27
 
 - fix(sdk/validate): a message reference or key outside the accepted shape (letters, digits, dot and hyphen) passed `check` and installation, and rendered raw on screen. `@com.acme/option.nao_habilitado` is not a reference to `isMessageRef`, so `resolveLabel` returned it verbatim; and `asMessageBundle` silently dropped the `option.nao_habilitado` entry from `i18n.messages`. Both are the right tolerance at render time and hid the defect at the gate. The new `messageRefIssues` (in `validatePluginPackage`, hence `check`, `build`, the MCP `validate_plugin`, the authoring screen and every import) refuses both sides: `issue.package.message.key` for a declared key the catalog would drop, and `issue.package.message.reference` for any package string shaped like a reference (`^@[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$`) that `isMessageRef` rejects — reported once per reference, with the path where it was found. Sentences, e-mail addresses inside text and view sources never match. The rendering rule itself is unchanged.

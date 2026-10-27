@@ -128,6 +128,7 @@ const reservationData = (collection: string, recordId: string, entry: RecordKeyE
  */
 const describeDenial = async (
   tenantId: string,
+  collection: string,
   recordId: string | null,
   entries: RecordKeyEntry[],
   error: unknown,
@@ -148,7 +149,7 @@ const describeDenial = async (
     });
   }
   if (taken.length === 0) throw error as Error;
-  throw new RecordKeyConflictError(taken);
+  throw new RecordKeyConflictError(collection, taken);
 };
 
 /**
@@ -256,7 +257,7 @@ export class FirebaseRecordRepository implements IRecordRepository {
     const sequences = recordSequencesFor(collection);
     const ruled = applyRecordRules(collection, omitSequenceFields(stripIdentity(data), sequences));
     const plan = planRecordKeysFor(collection, ruled);
-    if (plan.gaps.length > 0) throw new RecordKeyMissingError(plan.gaps);
+    if (plan.gaps.length > 0) throw new RecordKeyMissingError(collection, plan.gaps);
 
     const payload = {
       ...ruled,
@@ -277,7 +278,7 @@ export class FirebaseRecordRepository implements IRecordRepository {
           for (const entry of plan.entries) tx.set(keyDoc(tenantId, entry.keyId), reservationData(collection, id, entry));
         });
       } catch (error) {
-        await describeDenial(tenantId, id, plan.entries, error);
+        await describeDenial(tenantId, collection, id, plan.entries, error);
       }
       return this.readBack(tenantId, collection, id, { ...ruled, ...assigned });
     }
@@ -303,7 +304,7 @@ export class FirebaseRecordRepository implements IRecordRepository {
     try {
       await batch.commit();
     } catch (error) {
-      await describeDenial(tenantId, id, plan.entries, error);
+      await describeDenial(tenantId, collection, id, plan.entries, error);
     }
     return this.readBack(tenantId, collection, id, ruled);
   }
@@ -372,7 +373,7 @@ export class FirebaseRecordRepository implements IRecordRepository {
     }
 
     const plan = planRecordKeysFor(collection, ruled, baseline);
-    if (plan.gaps.length > 0) throw new RecordKeyMissingError(plan.gaps);
+    if (plan.gaps.length > 0) throw new RecordKeyMissingError(collection, plan.gaps);
     const diff = diffRecordKeys(plan, storedRecordKeyRefs(baseline));
 
     const batch = writeBatch(db);
@@ -390,7 +391,7 @@ export class FirebaseRecordRepository implements IRecordRepository {
     try {
       await batch.commit();
     } catch (error) {
-      await describeDenial(tenantId, recordId, diff.create, error);
+      await describeDenial(tenantId, collection, recordId, diff.create, error);
     }
   }
 
