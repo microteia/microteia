@@ -75,7 +75,7 @@ describe('pré-requisitos manuais', () => {
   it('o que sobrou é do kernel de verdade — o que toda instalação precisa', () => {
     expect(MANUAL_PREREQUISITES.map((prerequisite) => prerequisite.id)).toEqual([
       'billing', 'app-engine', 'firestore-location', 'storage-bucket', 'auth-provider',
-      'functions-invoker', 'portal-identity-signing', 'audit-archive-bucket',
+      'functions-invoker', 'portal-identity-signing', 'audit-archive-bucket', 'self-service-tenants',
     ]);
   });
 
@@ -194,9 +194,15 @@ describe('parâmetros do backend', () => {
    *
    * `AUDIT_ARCHIVE_BUCKET`: o bucket com retenção bloqueada do arquivo da Auditoria. Só quem precisa
    * guardar a trilha como prova o cria.
+   *
+   * `SELF_SERVICE_TENANTS`: `false` impede o cadastro de abrir escritório. Vazio é o comportamento de
+   * sempre — é por isso que ele pode existir em toda instalação sem que ninguém o preencha.
    */
   it('o kernel não declara parâmetro de backend obrigatório — e os opcionais são estes', () => {
-    expect(declared()).toEqual([{ name: 'AUDIT_ARCHIVE_BUCKET', required: false }]);
+    expect(declared()).toEqual([
+      { name: 'AUDIT_ARCHIVE_BUCKET', required: false },
+      { name: 'SELF_SERVICE_TENANTS', required: false },
+    ]);
   });
 
   it('o .env.example do repositório documenta também os opcionais', () => {

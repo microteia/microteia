@@ -20,18 +20,37 @@ service firebase.storage {
     function isSystemOrSupportUser() {
       return firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role in ['SYSTEM', 'SUPPORT'];
     }
+    // O segundo fator que o escritório exige do membro — a MESMA conta de `sessionSatisfiesMfa` no
+    // `firestore.rules`. O Storage não tem `request.method`, então quem chama diz se está agindo: ler
+    // exige ter provado; agir exige ter provado há menos de `maxAgeSeconds`.
+    function sessionSatisfiesMfa(member, acting) {
+      let requirement = member.get('mfa', null);
+      let verifiedAt = request.auth.token.get('mfaAt', 0);
+      return requirement == null
+        || (verifiedAt is number && verifiedAt > 0
+            && (!acting || request.time.toMillis() < (verifiedAt + requirement.maxAgeSeconds) * 1000));
+    }
+    function memberSessionOk(tenantId, acting) {
+      let memberPath = /databases/(default)/documents/tenants/$(tenantId)/members/$(request.auth.uid);
+      return !firestore.exists(memberPath) || sessionSatisfiesMfa(firestore.get(memberPath).data, acting);
+    }
     function isTenantMemberOrElevated(tenantId) {
+      let memberPath = /databases/(default)/documents/tenants/$(tenantId)/members/$(request.auth.uid);
       return isSystemOrSupportUser()
-        || firestore.exists(/databases/(default)/documents/tenants/$(tenantId)/members/$(request.auth.uid));
+        || (firestore.exists(memberPath) && sessionSatisfiesMfa(firestore.get(memberPath).data, false));
     }
     // A MESMA pergunta do `can()` do Firestore: o dono do escritório, ou o membro cuja lista EFETIVA de
     // permissões (`permissions`, materializada pelo servidor) tem a pedida ou o curinga `*`. Antes, a
     // exclusão perguntava `role == 'admin'` — um campo que não existe mais, e que só deixava o SYSTEM.
+    //
+    // Toda permissão que não termina em `.read` é tratada como AGIR, e pede a prova recente: errar para
+    // esse lado só pede o código mais cedo; errar para o outro deixaria a sessão vencida gravar.
     function canInTenant(tenantId, permission) {
       let memberPath = /databases/(default)/documents/tenants/$(tenantId)/members/$(request.auth.uid);
-      return firestore.get(/databases/(default)/documents/tenants/$(tenantId)).data.ownerId == request.auth.uid
-        || (firestore.exists(memberPath)
-            && firestore.get(memberPath).data.get('permissions', []).hasAny([permission, '*']));
+      return (firestore.get(/databases/(default)/documents/tenants/$(tenantId)).data.ownerId == request.auth.uid
+          || (firestore.exists(memberPath)
+              && firestore.get(memberPath).data.get('permissions', []).hasAny([permission, '*'])))
+        && memberSessionOk(tenantId, !permission.matches('.*[.]read$'));
     }
 
     function canOnCollection(tenantId, collection, action) {

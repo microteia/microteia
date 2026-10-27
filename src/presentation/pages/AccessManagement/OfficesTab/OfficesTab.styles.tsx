@@ -147,4 +147,24 @@ export const S = {
   EmptyText: styled.p`
     font-size: ${({ theme }) => theme.fontSizes.sm};
   `,
+
+  CreateForm: styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: ${({ theme }) => theme.spacing.md};
+    padding: ${({ theme }) => theme.spacing.xl};
+  `,
+
+  CreateHint: styled.p`
+    margin: 0;
+    font-size: ${({ theme }) => theme.fontSizes.sm};
+    line-height: 1.5;
+    color: ${({ theme }) => theme.colors.textSecondary};
+  `,
+
+  CreateActions: styled.div`
+    display: flex;
+    justify-content: flex-end;
+    gap: ${({ theme }) => theme.spacing.sm};
+  `,
 };

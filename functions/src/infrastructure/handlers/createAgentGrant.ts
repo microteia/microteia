@@ -35,6 +35,7 @@ export const createAgentGrant = onCall(
     return issueAgentGrant({
       tenantId,
       userId: request.auth.uid,
+      session: request.auth.token,
       name,
       permissions,
       expiresInDays,

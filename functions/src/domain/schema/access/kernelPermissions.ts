@@ -48,6 +48,12 @@ export const PERMISSION_AUDIT_READ = 'audit.read';
  * preferências do escritório, não pode encurtar o que ela guarda nem desligar o arquivo.
  */
 export const PERMISSION_AUDIT_MANAGE = 'audit.manage';
+/**
+ * A política de SEGUNDO FATOR do escritório e o fator de quem perdeu o celular. Separada de
+ * `members.manage` porque afrouxá-la é desligar uma barreira de entrada de todo mundo: quem só administra
+ * membros não pode, por isso, deixar a senha bastar de novo.
+ */
+export const PERMISSION_MFA_MANAGE = 'mfa.manage';
 export const PERMISSION_AI_MANAGE = 'ai.manage';
 export const PERMISSION_AGENT_MANAGE = 'agent.manage';
 export const PERMISSION_TRANSLATIONS_MANAGE = 'translations.manage';
@@ -149,6 +155,13 @@ export const KERNEL_PERMISSIONS: AccessPermission[] = [
     requires: [PERMISSION_AUDIT_READ],
   },
   {
+    // Quem decide quem precisa do fator precisa ver a quem a política alcança.
+    id: PERMISSION_MFA_MANAGE,
+    name: '@core.access/permission.mfa.manage',
+    description: '@core.access/permission.mfa.manage.description',
+    requires: [PERMISSION_MEMBERS_MANAGE],
+  },
+  {
     id: PERMISSION_AI_MANAGE,
     name: '@core.access/permission.ai.manage',
     description: '@core.access/permission.ai.manage.description',
@@ -225,6 +238,7 @@ export const KERNEL_PERMISSION_RESOURCES: PermissionResource[] = [
   { id: 'extensions', name: '@core.access/resource.extensions' },
   { id: 'settings', name: '@core.access/resource.settings' },
   { id: 'audit', name: '@core.access/resource.audit' },
+  { id: 'mfa', name: '@core.access/resource.mfa' },
   { id: 'agent', name: '@core.access/resource.agent' },
   { id: 'ai', name: '@core.access/resource.ai' },
   { id: 'translations', name: '@core.access/resource.translations' },

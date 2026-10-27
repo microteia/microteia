@@ -83,7 +83,7 @@ export const renderDocument = onCall(
 
     const permissions = await requirePermission(
       tenantId,
-      request.auth.uid,
+      request.auth,
       payload ? PERMISSION_DOCUMENTS_GENERATE : collectionPermissionId(collection, 'read'),
     );
     const actor = await identifyActor(request.auth.uid, 'ui', permissions);

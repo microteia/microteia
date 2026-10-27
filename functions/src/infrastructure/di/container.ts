@@ -203,6 +203,19 @@ import { makeManageAuditArchiveUseCase } from '../../domain/usecases/ManageAudit
 import type { ManageAuditArchiveUseCase } from '../../domain/usecases/ManageAuditArchiveUseCase';
 import { makeAuditRetentionDaysOf } from '../settings/auditRetentionDays';
 import { AUDIT_ARCHIVE_BUCKET } from '../settings/auditArchiveBucket';
+import { createHmac, randomBytes } from 'node:crypto';
+import type { IMfaFactorRepository } from '../../domain/repositories/IMfaFactorRepository';
+import type { IMemberMfaPolicyRepository } from '../../domain/repositories/IMemberMfaPolicyRepository';
+import {
+  FirebaseMfaSessionMinter,
+  FirestoreMemberMfaPolicyRepository,
+  FirestoreMfaFactorRepository,
+} from '../../data/repositories/FirestoreMemberMfaRepositories';
+import { makeManageMemberMfaUseCase, makeSecondFactorUseCase } from '../../domain/usecases/MemberMfaUseCases';
+import type { ManageMemberMfaUseCase, SecondFactorUseCase } from '../../domain/usecases/MemberMfaUseCases';
+import { selfServiceTenantsEnabled } from '../settings/selfServiceTenants';
+import { makeCreateOrganizationUseCase } from '../../domain/usecases/CreateOrganizationUseCase';
+import type { CreateOrganizationUseCase } from '../../domain/usecases/CreateOrganizationUseCase';
 
 class DIContainer {
   private static instance: DIContainer;
@@ -217,6 +230,8 @@ class DIContainer {
   private aiConnectionRepo?: IAIConnectionRepository;
   private permissionCatalogCache?: PermissionCatalogCache;
   private materializeMemberPermissionsUC?: MaterializeMemberPermissionsUseCase;
+  private memberMfaPolicyRepo?: IMemberMfaPolicyRepository;
+  private mfaFactorRepo?: IMfaFactorRepository;
   private tenantRepo?: ITenantRepository;
   private tenantSettingsRepo?: ITenantSettingsRepository;
   private auditLogRepo?: IAuditLogRepository;
@@ -322,6 +337,7 @@ class DIContainer {
         this.getTenantRepository(),
         Math.random,
         this.getPortalRepository(),
+        selfServiceTenantsEnabled,
       );
     }
     return this.bootstrapUserUC;
@@ -716,9 +732,58 @@ class DIContainer {
       this.materializeMemberPermissionsUC = makeMaterializeMemberPermissionsUseCase(
         getDb(),
         this.getPermissionCatalogCache(),
+        this.getMemberMfaPolicyRepository(),
       );
     }
     return this.materializeMemberPermissionsUC;
+  }
+
+  getMemberMfaPolicyRepository(): IMemberMfaPolicyRepository {
+    if (!this.memberMfaPolicyRepo) this.memberMfaPolicyRepo = new FirestoreMemberMfaPolicyRepository(getDb());
+    return this.memberMfaPolicyRepo;
+  }
+
+  getMfaFactorRepository(): IMfaFactorRepository {
+    if (!this.mfaFactorRepo) this.mfaFactorRepo = new FirestoreMfaFactorRepository(getDb());
+    return this.mfaFactorRepo;
+  }
+
+  getSecondFactorUseCase(): SecondFactorUseCase {
+    return makeSecondFactorUseCase({
+      factors: this.getMfaFactorRepository(),
+      members: this.getTenantMemberRepository(),
+      sessions: new FirebaseMfaSessionMinter(getAuth()),
+      hmac: (key, message) => new Uint8Array(createHmac('sha1', key).update(message).digest()),
+      random: (size) => new Uint8Array(randomBytes(size)),
+      sha256: (text) => createHash('sha256').update(text, 'utf8').digest('hex'),
+      now: () => new Date(),
+      audit: this.getCreateAuditLogUseCase(),
+    });
+  }
+
+  getCreateOrganizationUseCase(): CreateOrganizationUseCase {
+    return makeCreateOrganizationUseCase({
+      users: this.getUserRepository(),
+      tenants: this.getTenantRepository(),
+      audit: this.getCreateAuditLogUseCase(),
+      random: Math.random,
+    });
+  }
+
+  getManageMemberMfaUseCase(): ManageMemberMfaUseCase {
+    return makeManageMemberMfaUseCase({
+      policies: this.getMemberMfaPolicyRepository(),
+      factors: this.getMfaFactorRepository(),
+      members: this.getTenantMemberRepository(),
+      tenantIdsOf: (userId) => this.getUserRepository().getTenantIds(userId),
+      roleNames: async (tenantId, roleIds) => {
+        const snaps = await getDb().getAll(...roleIds.map((roleId) => getDb().doc(`tenants/${tenantId}/roles/${roleId}`)));
+        return snaps.map((snap) => (typeof snap.get('name') === 'string' ? (snap.get('name') as string) : snap.id));
+      },
+      materialize: (tenantId) => this.getMaterializeMemberPermissionsUseCase().execute({ tenantId }),
+      now: () => new Date(),
+      audit: this.getCreateAuditLogUseCase(),
+    });
   }
 
   getScreenDefinitionCache(): ScreenDefinitionCache {

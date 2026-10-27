@@ -25,6 +25,7 @@ import type { IAuthRepository } from '../../domain/repositories/IAuthRepository'
 import type { AuthProviderSpec } from '../../domain/schema/auth';
 import { isPortalIdentityAccount } from '../../domain/schema/portalIdentity';
 import type { User } from '../../domain/entities';
+import { mfaVerifiedAtOf } from '../../domain/schema/memberMfa';
 
 const mapUser = (fbUser: FirebaseUser): User => ({
   id: fbUser.uid,
@@ -130,6 +131,11 @@ export class FirebaseAuthRepository implements IAuthRepository {
   async signInWithToken(token: string): Promise<User> {
     const result = await signInWithCustomToken(auth, token);
     return mapUser(result.user);
+  }
+
+  async getSecondFactorVerifiedAt(): Promise<number | null> {
+    const current = auth.currentUser;
+    return current ? mfaVerifiedAtOf((await current.getIdTokenResult()).claims) : null;
   }
 
   isEmailVerified(): boolean {

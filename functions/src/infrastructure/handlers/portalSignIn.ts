@@ -90,7 +90,7 @@ export const managePortalSignIn = onCall({ region: REGION, cors: true }, async (
   const data = (request.data ?? {}) as Record<string, unknown>;
   const tenantId = requireString(data.tenantId, '@core.automation/handler.tenant.missing');
   const userId = request.auth.uid;
-  await requirePermission(tenantId, userId, PERMISSION_PORTAL_MANAGE);
+  await requirePermission(tenantId, request.auth, PERMISSION_PORTAL_MANAGE);
   const manage = getDI().getManagePortalSignInUseCase();
   try {
     if (data.op === 'get') return await manage.get(tenantId);

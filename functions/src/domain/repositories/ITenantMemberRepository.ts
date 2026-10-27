@@ -1,6 +1,21 @@
+import type { MemberMfaRequirement } from '../schema/memberMfa';
+
 export interface TenantMemberInfo {
   role: string | null;
   displayName: string;
+}
+
+/**
+ * O que decide o acesso de um membro, numa leitura só do documento dele: o conjunto materializado e a
+ * exigência de segundo fator — os dois campos que as Security Rules também leem.
+ */
+export interface MemberAccess {
+  userId: string;
+  displayName: string;
+  email: string;
+  roleIds: string[];
+  permissions: string[];
+  mfa: MemberMfaRequirement | null;
 }
 
 export interface ITenantMemberRepository {
@@ -19,4 +34,7 @@ export interface ITenantMemberRepository {
    * Ver `KERNEL_CATALOG_FINGERPRINT`.
    */
   getMemberCatalogStamp(tenantId: string, userId: string): Promise<string | null>;
+  /** `null` quando não é membro. */
+  getMemberAccess(tenantId: string, userId: string): Promise<MemberAccess | null>;
+  listMemberAccess(tenantId: string): Promise<MemberAccess[]>;
 }

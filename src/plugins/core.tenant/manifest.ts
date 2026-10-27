@@ -9,6 +9,7 @@ import { PORTAL_EXTENSION_POINTS } from '../../domain/schema/portalExtensionPoin
 import {
   PERMISSION_AI_MANAGE,
   PERMISSION_MEMBERS_MANAGE,
+  PERMISSION_MFA_MANAGE,
   PERMISSION_PORTAL_MANAGE,
   PERMISSION_ROLES_MANAGE,
   PERMISSION_TENANT_PREFIX_MANAGE,
@@ -44,6 +45,7 @@ export const coreTenantPlugin: PluginRecord = {
     AITabView: lazyView(() => import('../../presentation/pages/TenantSettings/AITab/AITab.view'), 'AITabView'),
     AgentTabView: lazyView(() => import('../../presentation/pages/TenantSettings/AgentTab/AgentTab.view'), 'AgentTabView'),
     PortalTabView: lazyView(() => import('../../presentation/pages/TenantSettings/PortalTab/PortalTab.view'), 'PortalTabView'),
+    SecurityTabView: lazyView(() => import('../../presentation/pages/TenantSettings/SecurityTab/SecurityTab.view'), 'SecurityTabView'),
   },
   manifest: {
     id: 'core.tenant',
@@ -77,6 +79,17 @@ export const coreTenantPlugin: PluginRecord = {
         order: 20,
         requiredPermissions: [PERMISSION_MEMBERS_MANAGE],
       }, 'MembersTabView'),
+      // O segundo fator: quem precisa dele para entrar, e o de quem perdeu o celular. Ao lado de Membros
+      // porque é a mesma pergunta — quem entra aqui —, e com permissão própria porque afrouxá-la é tirar
+      // uma barreira de todo mundo.
+      surfaceTab({
+        surface: TENANT_SETTINGS_SURFACE,
+        key: 'security',
+        title: '@core.access/mfa.tab.label',
+        icon: 'shieldUser',
+        order: 21,
+        requiredPermissions: [PERMISSION_MFA_MANAGE],
+      }, 'SecurityTabView'),
       // Quem é de FORA do escritório. Ao lado de Membros porque é a mesma pergunta — quem entra aqui —
       // com a resposta oposta: o convidado não é membro, e só vê o que é dele.
       surfaceTab({

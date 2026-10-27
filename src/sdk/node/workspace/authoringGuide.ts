@@ -3307,6 +3307,26 @@ const can = useCan();
 
 In anything declarative, \`hasPermission(...)\` — the patterns are in §9.
 
+### Two-step verification is the organization's rule, not yours
+
+An organization can require a code from an authenticator app, besides the password or the sign-in
+provider, from every member or from whoever holds certain profiles or **permissions** (Organization >
+Security, for whoever has \`mfa.manage\`). A package cannot turn it on, require it, or read whether a
+person proved it — and does not need to: the platform refuses every read and write of a member who must
+use it and whose session has not proved it, and refuses writes once the proof is older than the interval
+the organization chose. Your screens and functions see the same refusals they see for a missing
+permission.
+
+What it means for what you declare:
+
+- **Give a capability with legal effect a permission of its own.** "Issue a notice", "sign", "approve a
+  payment" — if it is only \`<collection>.create\`, the organization can require the second step only from
+  everyone who creates records there. Declared as \`notices.issue\`, it is the permission the organization
+  points the rule at, and nobody else is bothered.
+- **Pass the callable's whole \`request\` along.** \`requireInstalledExtension(pluginId, tenantId, request)\`
+  reads the session's claims from \`request.auth.token\`. A hand-built \`{ auth: { uid } }\` has none, and
+  is refused for every member the rule reaches.
+
 ## 14. When your extension needs the server
 
 \`manifest.backend\` declares what the organization's Firebase project must provide — Cloud Functions,

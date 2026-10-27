@@ -1,4 +1,5 @@
 import { requirePermission } from '../handlers/shared/requirePermission';
+import type { CallerAuth } from '../handlers/shared/requirePermission';
 import { resolveMapping } from '../../domain/engine/InputMapping';
 import { businessCalendarsFor } from '../../domain/services/businessCalendarScope';
 import { mentionsBusinessDays } from '../../domain/schema/time/businessDays';
@@ -50,11 +51,11 @@ export const requireReportAccess = async (
   spec: ReportSpec,
   ctx: SchemaContext,
   tenantId: string,
-  userId: string,
+  caller: CallerAuth,
 ): Promise<string[]> => {
   let granted: string[] = [];
   for (const permission of reportRequiredPermissions(spec, ctx)) {
-    granted = await requirePermission(tenantId, userId, permission);
+    granted = await requirePermission(tenantId, caller, permission);
   }
   return granted;
 };

@@ -1,5 +1,8 @@
 import React from 'react';
-import { RiBuilding2Line } from 'react-icons/ri';
+import { RiAddLine, RiBuilding2Line } from 'react-icons/ri';
+import { Button } from '../../../components/ui/Button';
+import { Modal } from '../../../components/ui/Modal';
+import { Input, InputGroup, Label, ErrorMessage } from '../../../components/ui/Input';
 import { Spinner } from '../../../components/ui/Spinner';
 import { useOfficesTabViewModel } from './OfficesTab.viewmodel';
 import { CompositeFilter } from '../../../components/ui/CompositeFilter';
@@ -27,7 +30,36 @@ export const OfficesTabView: React.FC = () => {
         <S.Count>
           {t('access.offices.count', { shown: vm.filteredTenants.length, count: vm.totalCount })}
         </S.Count>
+        <Button type="button" size="sm" onClick={vm.openCreate}>
+          <RiAddLine /> {t('access.offices.create')}
+        </Button>
       </S.Toolbar>
+
+      {vm.createOpen && (
+        <Modal title={t('access.offices.create.title')} onClose={vm.closeCreate}>
+          <S.CreateForm>
+            <S.CreateHint>{t('access.offices.create.hint')}</S.CreateHint>
+            <InputGroup>
+              <Label htmlFor="new-office-name">{t('access.offices.create.name')}</Label>
+              <Input id="new-office-name" value={vm.createName} onChange={(event) => vm.setCreateName(event.target.value)} />
+            </InputGroup>
+            <InputGroup>
+              <Label htmlFor="new-office-owner">{t('access.offices.create.owner')}</Label>
+              <Input
+                id="new-office-owner"
+                type="email"
+                value={vm.createOwnerEmail}
+                onChange={(event) => vm.setCreateOwnerEmail(event.target.value)}
+              />
+            </InputGroup>
+            {vm.createError && <ErrorMessage role="alert">{vm.createError}</ErrorMessage>}
+            <S.CreateActions>
+              <Button type="button" variant="ghost" onClick={vm.closeCreate}>{t('access.offices.create.cancel')}</Button>
+              <Button type="button" onClick={vm.submitCreate} disabled={!vm.canCreate}>{t('access.offices.create.confirm')}</Button>
+            </S.CreateActions>
+          </S.CreateForm>
+        </Modal>
+      )}
 
       {vm.loading ? (
         <S.EmptyState>

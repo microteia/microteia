@@ -4,11 +4,12 @@ import type { IUserRepository } from '../repositories/IUserRepository';
 import type { CreateTenantInput, ITenantRepository } from '../repositories/ITenantRepository';
 import { isArtifactPrefix } from '../schema/plugin/artifactPrefix';
 
-const setup = (alreadyProvisioned = false) => {
+const setup = (alreadyProvisioned = false, firstUser = false) => {
   const created: CreateTenantInput[] = [];
   const users = {
-    createUserIfMissing: vi.fn(async () => !alreadyProvisioned),
+    createUserIfMissing: vi.fn(async () => (alreadyProvisioned ? null : { firstUser })),
     createUserProfileIfMissing: vi.fn(async () => undefined),
+    setOrigin: vi.fn(async () => undefined),
   } as unknown as IUserRepository;
   const tenants = {
     createTenant: vi.fn(async (input: CreateTenantInput) => {
@@ -69,5 +70,36 @@ describe('BootstrapUserUseCase', () => {
     await makeBootstrapUserUseCase(users, tenants).execute(input);
 
     expect(created).toHaveLength(0);
+  });
+
+  describe('autocadastro de escritório desligado (SELF_SERVICE_TENANTS=false)', () => {
+    it('a conta nova não ganha escritório, e o carimbo diz que o provisionamento terminou', async () => {
+      const { users, tenants, created } = setup();
+
+      await makeBootstrapUserUseCase(users, tenants, Math.random, undefined, () => false).execute(input);
+
+      expect(created).toHaveLength(0);
+      expect(tenants.addMemberIfWithinLimit).not.toHaveBeenCalled();
+      expect(users.setOrigin).toHaveBeenCalledWith('u1', 'invitation');
+      expect(users.createUserProfileIfMissing).toHaveBeenCalledWith('u1');
+    });
+
+    it('a PRIMEIRA conta da instalação ganha escritório mesmo assim — sem ela não haveria nenhum', async () => {
+      const { users, tenants, created } = setup(false, true);
+
+      await makeBootstrapUserUseCase(users, tenants, Math.random, undefined, () => false).execute(input);
+
+      expect(created).toHaveLength(1);
+      expect(users.setOrigin).not.toHaveBeenCalled();
+    });
+
+    it('ligado (o padrão), nada muda', async () => {
+      const { users, tenants, created } = setup();
+
+      await makeBootstrapUserUseCase(users, tenants).execute(input);
+
+      expect(created).toHaveLength(1);
+      expect(users.setOrigin).not.toHaveBeenCalled();
+    });
   });
 });

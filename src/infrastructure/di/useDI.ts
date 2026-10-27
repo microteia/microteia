@@ -9,6 +9,7 @@ import type { ITenantRepository } from '../../domain/repositories/ITenantReposit
 import type { ITextAnnotationRepository } from '../../domain/repositories/ITextAnnotationRepository';
 import type { IAuditLogRepository } from '../../domain/repositories/IAuditLogRepository';
 import type { IAuditArchiveRepository } from '../../domain/repositories/IAuditArchiveRepository';
+import type { IMemberMfaRepository } from '../../domain/repositories/IMemberMfaRepository';
 import type { IAuditLogService } from '../../domain/repositories/IAuditLogService';
 import type {
   IDevicePushService,
@@ -66,6 +67,7 @@ export interface DIContainer {
   textAnnotationRepository: ITextAnnotationRepository;
   auditLogRepository: IAuditLogRepository;
   auditArchiveRepository: IAuditArchiveRepository;
+  memberMfaRepository: IMemberMfaRepository;
   auditLogService: IAuditLogService;
   notificationInboxRepository: INotificationInboxRepository;
   devicePushService: IDevicePushService;

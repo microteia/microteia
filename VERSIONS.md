@@ -11,6 +11,16 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.165.0] — 2026-10-26
+
+- Verificação em duas etapas: o escritório pode exigir, além da senha ou do provedor de entrada, um código do aplicativo autenticador do celular — de todos os membros, de quem tem certos perfis ou de quem tem certas permissões, como a de emitir um documento. A regra fica em Escritório › Segurança.
+- Quem precisa da segunda etapa cadastra o aplicativo na própria tela de entrada, lendo uma imagem com o celular, e recebe dez códigos de recuperação para o caso de perder o aparelho. Sem o código, não se consulta nem se altera nada naquele escritório.
+- O escritório escolhe de quanto em quanto tempo o código é pedido de novo. Passado esse tempo, consultar continua funcionando; para salvar, o sistema pede o código por cima da tela, sem perder o que estava aberto.
+- Em Segurança aparecem quem precisa da segunda etapa e quem ainda não a cadastrou, e quem perdeu o celular pode ter a sua zerada. No Perfil, cada pessoa troca de celular ou gera códigos de recuperação novos.
+- Ligar, alterar e desligar a regra, cada cadastro, cada confirmação, o uso de um código de recuperação e as pausas por tentativas erradas ficam registrados na Auditoria.
+- Nova permissão "Gerenciar a verificação em duas etapas".
+- Instalações compartilhadas por vários escritórios podem impedir que um cadastro novo crie um escritório: a conta passa a esperar ser adicionada, e só o administrador da instalação cria escritórios, em Gestão de Acessos › Escritórios › Novo escritório.
+
 #### [9.164.0] — 2026-10-26
 
 - A Auditoria pode agora ficar disponível por mais tempo: em Auditoria › Retenção e arquivo, o escritório escolhe por quantos dias os registros ficam à mão para consulta — de 30 dias, como sempre foi, até 10 anos.

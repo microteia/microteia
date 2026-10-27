@@ -39,7 +39,7 @@ export const syncTenantPermissions = onCall(
     const stamp = await getDI().getTenantMemberRepository().getMemberCatalogStamp(tenantId, uid);
     if (stamp === KERNEL_CATALOG_FINGERPRINT) return { updated: 0 };
 
-    if (!(await isOfficeMember(tenantId, uid))) {
+    if (!(await isOfficeMember(tenantId, request.auth))) {
       throw new HttpsError('permission-denied', '@core.access/permission.denied', {
         permission: 'members',
       });

@@ -21,10 +21,12 @@ export interface TenantScopedEvent {
 }
 
 /**
- * The least a callable request has to carry: who is calling. Every `onCall` request satisfies it.
+ * The least a callable request has to carry: who is calling, and the claims of the session they call
+ * from. Every `onCall` request satisfies it. The claims are how an organization that requires a second
+ * factor refuses a session that has not proved it.
  */
 export interface CallerRequest {
-  auth?: { uid: string };
+  auth?: { uid: string; token?: Record<string, unknown> };
 }
 
 const gate = createInstallationGate({

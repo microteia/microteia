@@ -4,6 +4,7 @@ import {
   doc,
   getDoc,
   getDocs,
+  onSnapshot,
   updateDoc,
   query,
   where,
@@ -17,6 +18,8 @@ import { tenantLogoStoragePath } from '../../domain/schema/tenantBranding';
 import type { ITenantRepository, TenantMemberRoleActor } from '../../domain/repositories/ITenantRepository';
 import type { Tenant, TenantMember, TenantUpdate } from '../../domain/entities';
 import { TenantMemberLimitReachedError } from '../../domain/errors';
+import { memberMfaRequirementFrom } from '../../domain/schema/memberMfa';
+import type { MemberMfaRequirement } from '../../domain/schema/memberMfa';
 
 const toDate = (v: unknown): Date =>
   v instanceof Timestamp ? v.toDate() : (v as Date);
@@ -141,5 +144,28 @@ export class FirebaseTenantRepository implements ITenantRepository {
   async getAllTenants(): Promise<Tenant[]> {
     const snap = await getDocs(collection(db, 'tenants'));
     return snap.docs.map((d) => mapTenant(d.id, d.data()));
+  }
+
+  async getSecondFactorRequirement(tenantId: string, userId: string): Promise<MemberMfaRequirement | null> {
+    const snap = await getDoc(doc(db, 'tenants', tenantId, 'members', userId));
+    return snap.exists() ? memberMfaRequirementFrom(snap.data().mfa) : null;
+  }
+
+  subscribeSecondFactorRequirement(
+    tenantId: string,
+    userId: string,
+    onChange: (requirement: MemberMfaRequirement | null) => void,
+    onError: (error: Error) => void,
+  ): () => void {
+    return onSnapshot(
+      doc(db, 'tenants', tenantId, 'members', userId),
+      (snap) => onChange(snap.exists() ? memberMfaRequirementFrom(snap.data().mfa) : null),
+      onError,
+    );
+  }
+
+  async createOrganization(name: string, ownerEmail: string): Promise<string> {
+    const call = httpsCallable<{ name: string; ownerEmail: string }, { tenantId: string }>(functions, 'createOrganization');
+    return (await call({ name, ownerEmail })).data.tenantId;
   }
 }

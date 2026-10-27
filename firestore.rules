@@ -19,11 +19,43 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/tenants/$(tenantId)/members/$(request.auth.uid)).data;
     }
 
-    // Tem documento em members/{uid} deste tenant. Separado de isMember() de propósito: é a condição
-    // que precisa ser verdadeira ANTES de ler o documento, e o SYSTEM pode não ter um.
-    function isTenantMember(tenantId) {
+    // Tem documento em members/{uid} deste tenant — e NADA MAIS. É o pertencimento cru: serve só ao que
+    // precisa ser lido ANTES de a sessão provar o segundo fator (o próprio escritório, no seletor, e o
+    // próprio documento de membro, que diz se o fator é exigido). Todo o resto pergunta isTenantMember.
+    function belongsToTenant(tenantId) {
       return request.auth != null &&
         exists(/databases/$(database)/documents/tenants/$(tenantId)/members/$(request.auth.uid));
+    }
+
+    // ─── Segundo fator (EV-07) ────────────────────────────────────────────────
+    //
+    // `mfa` é a exigência MATERIALIZADA no documento de membro pela mesma rotina das permissões
+    // (`materializeMemberPermissions`), a partir da política do escritório. Ausente ou nula: não
+    // exigido — é o que mantém intacto o escritório que nunca ligou a política.
+    //
+    // `mfaAt` é a claim que o servidor põe na SESSÃO (createCustomToken) quando o código confere: o
+    // instante da verificação, em segundos. Claim de sessão, e não de usuário: a sessão aberta só com a
+    // senha não a tem, mesmo que a pessoa tenha provado o fator em outro aparelho.
+    //
+    // LER exige ter provado; GRAVAR exige ter provado há menos de `maxAgeSeconds`. É o que permite pedir
+    // o código de novo sem derrubar as assinaturas de leitura da tela aberta. A mesma conta mora em
+    // `mfaSessionIssue` (domain/schema/memberMfa.ts), que as callables usam.
+    function sessionSatisfiesMfa(member) {
+      let requirement = member.get('mfa', null);
+      let verifiedAt = request.auth.token.get('mfaAt', 0);
+      return requirement == null
+        || (verifiedAt is number && verifiedAt > 0
+            && (request.method in ['get', 'list']
+                || request.time.toMillis() < (verifiedAt + requirement.maxAgeSeconds) * 1000));
+    }
+
+    // Membro deste tenant COM a sessão que o escritório exige dele. Separado de isMember() de propósito:
+    // é a condição que precisa ser verdadeira ANTES de ler o documento, e o SYSTEM pode não ter um.
+    // A leitura do documento é a mesma do exists() — e a mesma que memberPermissions() faz —, então o
+    // segundo fator não custa leitura nenhuma a mais.
+    function isTenantMember(tenantId) {
+      return belongsToTenant(tenantId)
+        && sessionSatisfiesMfa(memberData(tenantId));
     }
 
     // Verifica se o usuário é membro do tenant (ou SYSTEM, que conta como membro de todos)
@@ -49,9 +81,13 @@ service cloud.firestore {
     // leitura não acontece. E é lido de `Tenant.ownerId` — e não do curinga materializado — porque o
     // dono não pode depender de a Cloud Function de materialização já ter rodado: era exatamente
     // isso que deixava um escritório sem ninguém capaz de criar o primeiro perfil.
+    //
+    // O curinga do dono não pula o segundo fator: a política por permissão o alcança (ele detém todas), e
+    // a exigência dele mora no MESMO documento de membro que o bootstrap cria para ele.
     function isTenantOwner(tenantId) {
       return request.auth != null
-        && get(/databases/$(database)/documents/tenants/$(tenantId)).data.ownerId == request.auth.uid;
+        && get(/databases/$(database)/documents/tenants/$(tenantId)).data.ownerId == request.auth.uid
+        && (!belongsToTenant(tenantId) || sessionSatisfiesMfa(memberData(tenantId)));
     }
     // O prefixo gravado em `settings/tenant` — '' quando o documento ou a chave não existem.
     function tenantPrefixOf(doc) {
@@ -155,8 +191,9 @@ service cloud.firestore {
     // ─── Tenants (escritórios) ────────────────────────────────────────────────  
 
     match /tenants/{tenantId} {
-      // Qualquer membro pode ler o tenant
-      allow get: if isMember(tenantId);
+      // Qualquer membro pode ler o tenant — mesmo antes de provar o segundo fator: é o nome do escritório
+      // no seletor e na tela que pede o código. Nada do que o escritório guarda está neste documento.
+      allow get: if isSystemAdmin() || belongsToTenant(tenantId);
       // list: só o SYSTEM lista a coleção inteira — a aba "Escritórios" de Gestão de Acessos e o
       // seletor de escritório do TopBar, que para ele exibe todos em vez de só os que é membro.
       // Sem esta regra, getDocs(collection('tenants')) é negado — "get" não cobre consultas de coleção.
@@ -222,8 +259,10 @@ service cloud.firestore {
 
       // Membros do tenant
       match /members/{memberId} {
-        // Membros leem a lista de membros do próprio tenant
+        // Membros leem a lista de membros do próprio tenant. O PRÓPRIO documento se lê sempre: é por ele
+        // que o navegador sabe que o escritório exige o segundo fator — antes de a sessão tê-lo provado.
         allow read: if isMember(tenantId);
+        allow get: if request.auth != null && request.auth.uid == memberId;
         // Criação e exclusão passam pelas Cloud Functions addTenantMember/removeTenantMember
         // (Admin SDK, ignoram estas regras) — garante que o limite de membros do tenant
         // (memberLimit/memberCount) nunca seja ultrapassado, mesmo por escritas diretas do client
@@ -236,9 +275,12 @@ service cloud.firestore {
         // `permissionsCatalog` é a digital do catálogo com que aquele conjunto foi composto, e é
         // negada pelo MESMO motivo por tabela: quem pudesse carimbá-la à mão diria que o conjunto
         // está em dia, e a recomposição que o corrigiria nunca mais seria pedida.
+        //
+        // `mfa` é a exigência de segundo fator, materializada pelo mesmo servidor e pelo mesmo motivo:
+        // quem pudesse apagá-la do próprio documento entraria só com a senha.
         allow update: if can(tenantId, 'members.manage')
           && !request.resource.data.diff(resource.data).affectedKeys()
-               .hasAny(['permissions', 'permissionsCatalog']);
+               .hasAny(['permissions', 'permissionsCatalog', 'mfa']);
       }
 
       // ─── Portal ──────────────────────────────────────────────────────────────
@@ -1024,6 +1066,19 @@ service cloud.firestore {
     match /auditRetention/{tenantId} {
       allow read: if request.auth != null && can(tenantId, 'audit.read');
       allow write: if false;
+    }
+
+    // ─── Segundo fator (EV-07) ────────────────────────────────────────────────
+    // A POLÍTICA do escritório muda só pela callable `manageMemberMfa` (`mfa.manage`), que valida, impede
+    // quem grava de se trancar para fora, recompõe os membros e deixa a decisão na Auditoria — gravar
+    // direto pularia as quatro. A leitura também passa por ela, e por isso aqui não se lê nada.
+    match /memberMfaPolicies/{tenantId} {
+      allow read, write: if false;
+    }
+    // O FATOR da pessoa: o segredo do aplicativo e o hash dos códigos de recuperação. Só o servidor o
+    // lê — quem lesse o segredo geraria os códigos; quem o escrevesse escolheria o celular de outro.
+    match /mfaFactors/{userId} {
+      allow read, write: if false;
     }
 
     // ─── Cursor de leitura da Auditoria ───────────────────────────────────────

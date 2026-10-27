@@ -34,6 +34,11 @@ export interface IAuthRepository {
    * identidade do escritório, conferida lá antes de o token existir.
    */
   signInWithToken(token: string): Promise<User>;
+  /**
+   * Quando ESTA sessão provou o segundo fator (segundos), ou `null`. Vem da claim que o servidor pôs no
+   * token ao abrir a sessão — a mesma que as regras leem.
+   */
+  getSecondFactorVerifiedAt(): Promise<number | null>;
   /** O e-mail confirmado — ou a conta que não tem e-mail porque foi o servidor quem verificou quem é. */
   isEmailVerified(): boolean;
   refreshEmailVerification(): Promise<boolean>;

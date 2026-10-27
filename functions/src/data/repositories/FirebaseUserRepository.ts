@@ -1,6 +1,6 @@
 import { FieldValue } from 'firebase-admin/firestore';
 import type { Firestore } from 'firebase-admin/firestore';
-import type { IUserRepository, CreateUserInput } from '../../domain/repositories/IUserRepository';
+import type { IUserRepository, CreateUserInput, CreatedUser, StoredUser } from '../../domain/repositories/IUserRepository';
 import type { UserInfo } from '../../domain/entities/UserInfo';
 
 export class FirebaseUserRepository implements IUserRepository {
@@ -43,13 +43,13 @@ export class FirebaseUserRepository implements IUserRepository {
    * escritórios. Por isso, sem marca, ainda se confere na mesma transação que não há usuário nem
    * escritório algum. Havendo, a instalação é antiga: a marca é gravada sem dono e a porta se fecha.
    */
-  async createUserIfMissing(userId: string, data: CreateUserInput): Promise<boolean> {
+  async createUserIfMissing(userId: string, data: CreateUserInput): Promise<CreatedUser | null> {
     const userRef = this.db.collection('users').doc(userId);
     const bootstrapRef = this.db.doc('system/bootstrap');
 
     return this.db.runTransaction(async (tx) => {
       const userSnap = await tx.get(userRef);
-      if (userSnap.exists) return false;
+      if (userSnap.exists) return null;
 
       const bootstrapSnap = await tx.get(bootstrapRef);
       let isFirstUser = false;
@@ -73,8 +73,34 @@ export class FirebaseUserRepository implements IUserRepository {
         ...(data.origin ? { origin: data.origin } : {}),
         createdAt: FieldValue.serverTimestamp(),
       });
-      return true;
+      return { firstUser: isFirstUser };
     });
+  }
+
+  async setOrigin(userId: string, origin: 'invitation'): Promise<void> {
+    await this.db.collection('users').doc(userId).update({ origin });
+  }
+
+  async findByEmail(email: string): Promise<StoredUser | null> {
+    for (const candidate of [...new Set([email, email.toLowerCase()])]) {
+      const snap = await this.db.collection('users').where('email', '==', candidate).limit(1).get();
+      if (snap.empty) continue;
+      const doc = snap.docs[0];
+      const origin = doc.get('origin');
+      return {
+        userId: doc.id,
+        email: String(doc.get('email') ?? candidate),
+        displayName: String(doc.get('displayName') ?? ''),
+        photoURL: typeof doc.get('photoURL') === 'string' ? (doc.get('photoURL') as string) : null,
+        origin: origin === 'portal' || origin === 'invitation' ? origin : null,
+      };
+    }
+    return null;
+  }
+
+  async getTenantIds(userId: string): Promise<string[]> {
+    const ids = (await this.db.collection('users').doc(userId).get()).get('tenantIds');
+    return Array.isArray(ids) ? ids.filter((id): id is string => typeof id === 'string') : [];
   }
 
   async createUserProfileIfMissing(userId: string): Promise<void> {

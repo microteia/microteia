@@ -16,6 +16,7 @@ import { useProfileViewModel, PROFILE_PHOTO_INPUT_ID } from './Profile.viewmodel
 import { S } from './Profile.styles';
 
 import { useT } from '../../shared/i18n/useT';
+import { SecondFactorPanel } from '../../components/ui/SecondFactorPanel';
 const GENDER_KEYS = [
   { value: 'M', labelKey: 'profile.gender.male' },
   { value: 'F', labelKey: 'profile.gender.female' },
@@ -198,6 +199,8 @@ export const ProfileView: React.FC = () => {
         </S.Section>
 
         <NicknameSection vm={vm} />
+
+        <SecondFactorPanel />
 
         {vm.profileLoading ? <Spinner /> : (
           <S.Section>

@@ -36,6 +36,7 @@ import { TextAnnotationStoreProvider } from './stores/TextAnnotationStore';
 import { ExpressionFunctionStoreProvider } from './stores/ExpressionFunctionStore';
 import { StepCatalogProvider } from './stores/StepCatalogStore';
 import { ProtectedRoute } from './routes/ProtectedRoute';
+import { TenantEntryGate } from './presentation/components/layout/TenantEntryGate';
 import { LoginView } from './presentation/pages/Login/Login.view';
 import { LicenseView } from './presentation/pages/License/License.view';
 import { WorkspaceShell } from './presentation/components/layout/WorkspaceShell';
@@ -101,6 +102,7 @@ const App: React.FC = () => {
                 element={
                   <ProtectedRoute>
                     <TenantStoreProvider>
+                      <TenantEntryGate>
                         <ScreenDefinitionStoreProvider>
                         <RoleStoreProvider>
                         <TagStoreProvider>
@@ -176,6 +178,7 @@ const App: React.FC = () => {
                         </TagStoreProvider>
                         </RoleStoreProvider>
                         </ScreenDefinitionStoreProvider>
+                      </TenantEntryGate>
                     </TenantStoreProvider>
                   </ProtectedRoute>
                 }

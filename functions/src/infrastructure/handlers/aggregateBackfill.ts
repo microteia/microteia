@@ -81,7 +81,7 @@ export const reconcileAggregates = onCall(
       throw new HttpsError('invalid-argument', '@core.automation/handler.tenant.missing');
     }
 
-    if (!(await isOfficeMember(tenantId, request.auth.uid))) {
+    if (!(await isOfficeMember(tenantId, request.auth))) {
       throw new HttpsError('permission-denied', '@core.access/permission.denied', {
         permission: 'members',
       });

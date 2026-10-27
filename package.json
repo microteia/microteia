@@ -1,7 +1,7 @@
 {
   "name": "microteia",
   "private": true,
-  "version": "9.164.0",
+  "version": "9.165.0",
   "type": "module",
   "bin": {
     "microteia": "cli/lib/index.js"
@@ -42,7 +42,7 @@
     "deploy:reports": "npm run build:functions && firebase deploy --only functions:runReport --project ${TARGET:-dev}",
     "deploy:documents": "npm run build:functions && firebase deploy --only functions:renderDocument,functions:onDownloadDeleted,functions:attachDownloadToRecord,functions:previewDocument --project ${TARGET:-dev}",
     "deploy:audit": "npm run build:functions && firebase deploy --only functions:auditFlatEntityChange,functions:auditNestedEntityChange,functions:auditTenantDeleted,functions:backupDeletedAuditLog,functions:exportAuditArchive,functions:manageAuditArchive --project ${TARGET:-dev}",
-    "deploy:auth": "npm run build:functions && firebase deploy --only functions:getUserInfo,functions:checkNicknameAvailability,functions:claimNickname,functions:onUserCreated --project ${TARGET:-dev}",
+    "deploy:auth": "npm run build:functions && firebase deploy --only functions:getUserInfo,functions:checkNicknameAvailability,functions:claimNickname,functions:onUserCreated,functions:secondFactor,functions:manageMemberMfa,functions:createOrganization --project ${TARGET:-dev}",
     "deploy:access": "npm run build:functions && firebase deploy --only functions:materializePermissionsOnMemberChange,functions:materializePermissionsOnRoleChange,functions:materializePermissionsOnScreenChange,functions:materializePermissionsOnExtensionChange,functions:syncTenantPermissions --project ${TARGET:-dev}",
     "deploy:tenant": "npm run build:functions && firebase deploy --only functions:addTenantMember,functions:removeTenantMember --project ${TARGET:-dev}",
     "deploy:portal": "npm run build:functions && firebase deploy --only functions:invitePortalUser,functions:revokePortalUser,functions:getPortalSignInOptions,functions:startPortalSignIn,functions:completePortalSignIn,functions:managePortalSignIn,functions:getPortalContext,functions:getPortalDocumentUrl,functions:submitPortalRecord,functions:attachPortalDocument,functions:projectPortalRecord,functions:projectPortalDocument,functions:refreshPortalAudience,functions:reprojectPortalOnScreenChange,functions:runPortalReprojection --project ${TARGET:-dev}",
@@ -62,6 +62,7 @@
     "firebase": "^12.14.0",
     "monaco-editor": "^0.55.1",
     "pdfjs-dist": "^6.0.227",
+    "qrcode-generator": "2.0.4",
     "react": "^19.2.6",
     "react-big-calendar": "^1.20.0",
     "react-dom": "^19.2.6",

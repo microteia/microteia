@@ -60,7 +60,7 @@ export const manageAuditArchive = onCall({ region: REGION, cors: true, timeoutSe
   }
   const tenantId = data.tenantId.trim();
   const userId = request.auth.uid;
-  await requirePermission(tenantId, userId, data.op === 'save' ? PERMISSION_AUDIT_MANAGE : PERMISSION_AUDIT_READ);
+  await requirePermission(tenantId, request.auth, data.op === 'save' ? PERMISSION_AUDIT_MANAGE : PERMISSION_AUDIT_READ);
 
   const di = getDI();
   const manage = di.getManageAuditArchiveUseCase();

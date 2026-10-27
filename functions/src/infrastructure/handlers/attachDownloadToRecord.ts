@@ -46,7 +46,7 @@ export const attachDownloadToRecord = onCall(
       throw new HttpsError('invalid-argument', '@core.documents/downloads.attach.request-invalid');
     }
 
-    const permissions = await requirePermission(tenantId, request.auth.uid, collectionPermissionId(collection, 'update'));
+    const permissions = await requirePermission(tenantId, request.auth, collectionPermissionId(collection, 'update'));
     const actor = await identifyActor(request.auth.uid, 'ui', permissions);
 
     const result = await getDI().getAttachDownloadToRecordUseCase().execute({

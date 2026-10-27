@@ -10,6 +10,7 @@ import { FirebaseTenantRepository } from '../../data/repositories/FirebaseTenant
 import { FirebaseTextAnnotationRepository } from '../../data/repositories/FirebaseTextAnnotationRepository';
 import { FirebaseAuditLogRepository } from '../../data/repositories/FirebaseAuditLogRepository';
 import { FirebaseAuditArchiveRepository } from '../../data/repositories/FirebaseAuditArchiveRepository';
+import { FirebaseMemberMfaRepository } from '../../data/repositories/FirebaseMemberMfaRepository';
 import { FirebaseAuditLogService } from '../../data/services/FirebaseAuditLogService';
 import { FirebaseNotificationInboxRepository } from '../../data/repositories/FirebaseNotificationInboxRepository';
 import { BrowserDevicePushService } from '../../data/services/BrowserDevicePushService';
@@ -66,6 +67,7 @@ export const DIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
     textAnnotationRepository: new FirebaseTextAnnotationRepository(),
     auditLogRepository:       new FirebaseAuditLogRepository(),
     auditArchiveRepository:   new FirebaseAuditArchiveRepository(),
+    memberMfaRepository:      new FirebaseMemberMfaRepository(),
     auditLogService:          new FirebaseAuditLogService(),
     notificationInboxRepository: new FirebaseNotificationInboxRepository(),
     devicePushService:        new BrowserDevicePushService(),

@@ -196,13 +196,17 @@ export const MANUAL_PREREQUISITES: KernelPrerequisite[] = [
   },
   {
     id: 'portal-identity-signing',
-    title: 'Let the functions sign sessions, if an organization signs portal guests in with an identity provider',
+    title: 'Let the functions sign sessions, if an organization signs portal guests in with an identity provider or requires two-step verification',
     detail:
-      'A portal guest who signs in through an OpenID Connect provider configured in Settings > Portal > '
-      + 'Sign-in gets a session the server mints with createCustomToken, which signs with the service '
-      + 'account the functions run as. Without the permission the provider confirms the guest and the '
-      + 'sign-in still fails, with "iam.serviceAccounts.signBlob" denied in the log of '
-      + 'completePortalSignIn. Enable the IAM Service Account Credentials API '
+      'Two features open a session the server mints with createCustomToken, which signs with the service '
+      + 'account the functions run as: a portal guest who signs in through an OpenID Connect provider '
+      + 'configured in Settings > Portal > Sign-in, and a member who confirms the code of two-step '
+      + 'verification (Organization > Security) — the session that carries the proof. Without the '
+      + 'permission the provider confirms the guest, or the code is right, and entering still fails, with '
+      + '"iam.serviceAccounts.signBlob" denied in the log of completePortalSignIn or secondFactor. An '
+      + 'organization cannot lock itself out by turning two-step verification on before this is done: '
+      + 'saving a rule that reaches the person saving it requires that person to have proved the code in '
+      + 'that session, which already needs the signature. Enable the IAM Service Account Credentials API '
       + '(gcloud services enable iamcredentials.googleapis.com --project=<projectId>) and grant the '
       + 'runtime service account the Service Account Token Creator role on itself: gcloud iam '
       + 'service-accounts add-iam-policy-binding <projectNumber>-compute@developer.gserviceaccount.com '
@@ -234,6 +238,21 @@ export const MANUAL_PREREQUISITES: KernelPrerequisite[] = [
       + 'Against a rewrite of an unlocked bucket, only the last day\'s hash kept OUTSIDE the project proves '
       + 'anything — the organization can copy it from the archive screen. Without this setting nothing '
       + 'changes for anyone.',
+    optional: true,
+  },
+  {
+    id: 'self-service-tenants',
+    title: 'Stop sign-up from opening an organization, if this installation is shared',
+    detail:
+      'By default every new account gets an organization of its own, with that person as the owner. In an '
+      + 'installation shared by several organizations — each one created on purpose — that lets anyone who '
+      + 'can create an account open one. Write SELF_SERVICE_TENANTS=false in .env.<projectId> and run '
+      + 'microteia provision: from then on a new account waits to be added to an organization, and only the '
+      + 'installation administrator (SYSTEM) opens organizations, in Access management > Organizations, '
+      + 'naming an owner who already has an account. The first account of the installation gets one '
+      + 'anyway. Any value other than empty, true or false is read as false. Two-step verification is '
+      + 'required per organization and does not reach the installation administrator: protect SYSTEM '
+      + 'accounts with a sign-in provider that enforces its own second factor.',
     optional: true,
   },
 ];

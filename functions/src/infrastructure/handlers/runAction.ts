@@ -44,7 +44,7 @@ export const runAction = onCall(
     if (!actionId) throw new HttpsError('invalid-argument', '@core.automation/handler.action.missing');
 
     const di = getDI();
-    const actorPermissions = await requirePermission(tenantId, request.auth.uid, PERMISSION_AUTOMATION_RUN);
+    const actorPermissions = await requirePermission(tenantId, request.auth, PERMISSION_AUTOMATION_RUN);
 
     const snap = await getDb().doc(`tenants/${tenantId}/actions/${actionId}`).get();
     if (!snap.exists) return failure('@core.automation/handler.action.not-found');

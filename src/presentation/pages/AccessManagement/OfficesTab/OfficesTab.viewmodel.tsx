@@ -4,6 +4,8 @@ import { useNotification } from '../../../../stores/useNotification';
 import { makeGetAllTenantsUseCase } from '../../../../domain/usecases/tenants/GetAllTenantsUseCase';
 import { makeUpdateTenantMemberLimitUseCase } from '../../../../domain/usecases/tenants/UpdateTenantMemberLimitUseCase';
 import { makeUpdateTenantUseCase } from '../../../../domain/usecases/tenants/UpdateTenantUseCase';
+import { makeCreateOrganizationUseCase } from '../../../../domain/usecases/tenants/CreateOrganizationUseCase';
+import { errorParamsOf } from '../../../../domain/errors/LocalizedError';
 import { TENANT_PLANS, TENANT_PLAN_LABELS, TENANT_PLAN_MEMBER_LIMITS } from '../../../../domain/entities';
 import type { Tenant, TenantPlan } from '../../../../domain/entities';
 import type { FilterDef, FilterToken } from '../../../components/ui/CompositeFilter';
@@ -27,6 +29,17 @@ export interface OfficesTabViewModel {
   handlePlanChange: (tenantId: string, plan: TenantPlan) => Promise<void>;
   handleMemberLimitDraftChange: (tenantId: string, value: string) => void;
   handleMemberLimitCommit: (tenantId: string) => Promise<void>;
+  createOpen: boolean;
+  createName: string;
+  createOwnerEmail: string;
+  creating: boolean;
+  createError: string | null;
+  canCreate: boolean;
+  openCreate: () => void;
+  closeCreate: () => void;
+  setCreateName: (value: string) => void;
+  setCreateOwnerEmail: (value: string) => void;
+  submitCreate: () => void;
 }
 
 export const useOfficesTabViewModel = (): OfficesTabViewModel => {
@@ -46,24 +59,34 @@ export const useOfficesTabViewModel = (): OfficesTabViewModel => {
   const getAllTenantsUseCase = useMemo(() => makeGetAllTenantsUseCase(tenantRepository), [tenantRepository]);
   const updateMemberLimitUseCase = useMemo(() => makeUpdateTenantMemberLimitUseCase(tenantRepository), [tenantRepository]);
   const updateTenantUseCase = useMemo(() => makeUpdateTenantUseCase(tenantRepository), [tenantRepository]);
+  const createOrganizationUseCase = useMemo(() => makeCreateOrganizationUseCase(tenantRepository), [tenantRepository]);
+
+  // O escritório aberto em nome de alguém — o único caminho quando a instalação desligou o autocadastro.
+  const [createOpen, setCreateOpen] = useState(false);
+  const [createName, setCreateName] = useState('');
+  const [createOwnerEmail, setCreateOwnerEmail] = useState('');
+  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
 
   const planOptions = useMemo<SearchSelectOption[]>(
     () => TENANT_PLANS.map((plan) => ({ value: plan, label: label(TENANT_PLAN_LABELS[plan]) })),
     [ label],
   );
 
+  const applyList = useCallback((list: Tenant[]) => {
+    setTenants(list);
+    setPlanDrafts(Object.fromEntries(list.map((t) => [t.id, t.plan])));
+    setMemberLimitDrafts(
+      Object.fromEntries(list.map((t) => [t.id, t.memberLimit === null ? '' : String(t.memberLimit)])),
+    );
+  }, []);
+
   useEffect(() => {
     getAllTenantsUseCase.execute()
-      .then((list) => {
-        setTenants(list);
-        setPlanDrafts(Object.fromEntries(list.map((t) => [t.id, t.plan])));
-        setMemberLimitDrafts(
-          Object.fromEntries(list.map((t) => [t.id, t.memberLimit === null ? '' : String(t.memberLimit)])),
-        );
-      })
+      .then(applyList)
       .catch(() => setError(t('access.offices.load-failed')))
       .finally(() => setLoading(false));
-  }, [getAllTenantsUseCase, t]);
+  }, [getAllTenantsUseCase, applyList, t]);
 
   const filterDefs = useMemo<FilterDef[]>(() => [
     {
@@ -143,6 +166,26 @@ export const useOfficesTabViewModel = (): OfficesTabViewModel => {
     }
   }, [tenants, memberLimitDrafts, updateMemberLimitUseCase, notify, t]);
 
+  const submitCreate = useCallback(() => {
+    if (createName.trim() === '' || createOwnerEmail.trim() === '' || creating) return;
+    setCreating(true);
+    setCreateError(null);
+    createOrganizationUseCase.execute(createName, createOwnerEmail)
+      .then(() => getAllTenantsUseCase.execute())
+      .then((list) => {
+        applyList(list);
+        setCreateOpen(false);
+        setCreateName('');
+        setCreateOwnerEmail('');
+        notify(t('access.offices.create.done'), 'success');
+      })
+      .catch((cause: unknown) => setCreateError(label(
+        cause instanceof Error && cause.message.startsWith('@') ? cause.message : '@core.admin/access.offices.create.failed',
+        errorParamsOf(cause),
+      )))
+      .finally(() => setCreating(false));
+  }, [createName, createOwnerEmail, creating, createOrganizationUseCase, getAllTenantsUseCase, applyList, notify, t, label]);
+
   const searchTerm = tokenMap['search']?.[0] ?? '';
 
   return {
@@ -162,5 +205,19 @@ export const useOfficesTabViewModel = (): OfficesTabViewModel => {
     handlePlanChange,
     handleMemberLimitDraftChange,
     handleMemberLimitCommit,
+    createOpen,
+    createName,
+    createOwnerEmail,
+    creating,
+    createError,
+    canCreate: createName.trim() !== '' && createOwnerEmail.trim() !== '' && !creating,
+    openCreate: () => {
+      setCreateError(null);
+      setCreateOpen(true);
+    },
+    closeCreate: () => setCreateOpen(false),
+    setCreateName,
+    setCreateOwnerEmail,
+    submitCreate,
   };
 };

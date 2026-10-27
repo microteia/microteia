@@ -66,7 +66,7 @@ export const runReport = onCall(
 
     let spec: ReportSpec;
     if (rawSpec !== undefined) {
-      await requirePermission(tenantId, userId, PERMISSION_REPORTS_MANAGE);
+      await requirePermission(tenantId, request.auth, PERMISSION_REPORTS_MANAGE);
       spec = rawSpec;
     } else {
       const snapshot = await db.doc(`tenants/${tenantId}/reports/${reportId}`).get();
@@ -93,7 +93,7 @@ export const runReport = onCall(
     // O conjunto CONCEDIDO volta da mesma leitura que autorizou: é ele que o `hasPermission` de um
     // filtro por expressão consulta. Com o ator vazio, a pergunta respondia NÃO a tudo — e num filtro
     // de linha isso não é um botão que some, é uma linha que sai da conta.
-    const permissions = await requireReportAccess(spec, schema, tenantId, userId);
+    const permissions = await requireReportAccess(spec, schema, tenantId, request.auth);
 
     const logs: string[] = [];
     const logger: WorkflowLogger = {

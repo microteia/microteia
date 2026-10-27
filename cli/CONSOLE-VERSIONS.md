@@ -22,6 +22,10 @@
 - fix(command): what was broken, and what it did to whoever hit it.
 -->
 
+#### [2.30.3] — 2026-10-26
+
+- docs(kernel/manifest): the optional prerequisite `portal-identity-signing` now covers member two-step verification too — both open sessions minted with `createCustomToken`, and both fail at sign-in with `iam.serviceAccounts.signBlob` denied when the runtime account cannot sign. New optional prerequisite `self-service-tenants`: `SELF_SERVICE_TENANTS=false` in `.env.<projectId>` plus `microteia provision` stops sign-up from opening an organization in a shared installation; only SYSTEM opens organizations afterwards, and SYSTEM accounts should be protected by a sign-in provider with its own second factor. The kernel's declared optional backend parameters are now `AUDIT_ARCHIVE_BUCKET` and `SELF_SERVICE_TENANTS`.
+
 #### [2.30.2] — 2026-10-26
 
 - docs(kernel/manifest): new optional manual prerequisite `audit-archive-bucket`. An organization that keeps its audit trail as evidence turns on the daily archive with hash chain, which needs a bucket of its own with locked retention (`--enable-per-object-retention --retention-period=…`, then `--lock-retention-period`), `roles/storage.admin` on that bucket for the functions' runtime account, and `AUDIT_ARCHIVE_BUCKET` in `.env.<projectId>` followed by `microteia provision`. The step states the threat model: what a locked bucket prevents, what the chain only detects, and what a project owner can still do.
